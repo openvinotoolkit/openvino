@@ -72,7 +72,7 @@ protected:
 };
 
 void myriadLayerTestNonZero_smoke::testNonZero(vpu::LayoutPreference preference, Precision precision) {
-    _config[VPU_CONFIG_KEY(DETECT_NETWORK_BATCH)] = CONFIG_VALUE(NO);
+    _config[InferenceEngine::MYRIAD_DETECT_NETWORK_BATCH] = CONFIG_VALUE(NO);
 
     const auto& inputDims = GetParam();
     const size_t numDims = inputDims.size();

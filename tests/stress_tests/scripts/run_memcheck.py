@@ -14,11 +14,13 @@ import logging
 import os
 import subprocess
 import sys
+from pathlib import Path
 
 from memcheck_upload import create_memcheck_records, \
     upload_memcheck_records, \
     create_memcheck_report, \
-    metadata_from_manifest
+    metadata_from_manifest, \
+    info_from_test_config
 from compare_memcheck_2_runs import compare_memcheck_2_runs, \
     get_memcheck_records, get_db_memcheck_records
 
@@ -96,6 +98,7 @@ def main():
     parser.add_argument('binary', help='test binary to execute')
     parser.add_argument('--gtest_parallel', help='path to gtest-parallel to use',
                         default='gtest_parallel')
+    parser.add_argument('--timeout', help='timeout for tests run within gtest-parallel')
     parser.add_argument('-d', '--output_dir',
                         required=args.timeline_report or args.upload or args.compare,
                         help='output directory for test logs')
@@ -146,6 +149,7 @@ def main():
     returncode, _ = run([sys.executable, args.gtest_parallel] +
                         (['--output_dir', f'{args.output_dir}'] if args.output_dir else []) +
                         (['--workers', f'{args.workers}'] if args.workers else []) +
+                        (['--timeout', f'{args.timeout}'] if args.timeout else []) +
                         [args.binary] +
                         ['--'] + binary_args)
 
@@ -164,6 +168,15 @@ def main():
         logging.info('Prepared %d records', len(records))
         if len(records) != len(logs):
             logging.warning('Skipped %d logs of %d', len(logs) - len(records), len(logs))
+
+        # extend memcheck records with info from test config
+        test_conf_parser = argparse.ArgumentParser()
+        test_conf_parser.add_argument('--test_conf')
+        test_conf = test_conf_parser.parse_known_args(binary_args)[0].test_conf
+        if test_conf:
+            info = info_from_test_config(test_conf)
+            for record in records:
+                record.update(info.get(Path(record["model"]), {}))
 
         # upload
         if args.upload:

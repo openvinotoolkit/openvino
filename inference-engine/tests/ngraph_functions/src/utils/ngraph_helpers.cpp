@@ -6,9 +6,10 @@
 #include <memory>
 #include <queue>
 
+#include <ngraph/op/util/op_types.hpp>
 #include <ngraph/opsets/opset1.hpp>
 #include <ngraph/opsets/opset3.hpp>
-#include <ngraph/op/util/op_types.hpp>
+#include <ngraph/pass/constant_folding.hpp>
 #include <ngraph/specialize_function.hpp>
 
 #include <ngraph_functions/utils/ngraph_helpers.hpp>
@@ -41,6 +42,24 @@ std::ostream &operator<<(std::ostream &os, const ReductionType &m) {
             break;
         case LogicalXor:
             os << "LogicalXor";
+            break;
+    }
+    return os;
+}
+
+std::ostream &operator<<(std::ostream &os, const PadMode &m) {
+    switch (m) {
+        case PadMode::CONSTANT:
+            os << "CONSTANT";
+            break;
+        case PadMode::EDGE:
+            os << "EDGE";
+            break;
+        case PadMode::REFLECT:
+            os << "REFLECT";
+            break;
+        case PadMode::SYMMETRIC:
+            os << "SYMMETRIC";
             break;
     }
     return os;
@@ -125,7 +144,8 @@ std::shared_ptr<Function> foldFunction(const std::shared_ptr<Function> &function
                        return const_cast<std::uint8_t *>(input.data());
                    });
 
-    const auto &foldedFunc = specialize_function(function, paramElementTypes, paramShapes, inBuffers, true, true);
+    const auto &foldedFunc = specialize_function(function, paramElementTypes, paramShapes, inBuffers);
+    ngraph::pass::ConstantFolding().run_on_function(foldedFunc);
     for (const auto &op : foldedFunc->get_ops()) {
         NGRAPH_CHECK(op::is_constant(op) || op::is_output(op) || op::is_parameter(op),
                      "Function was not fully folded to constant state!\n",
@@ -191,9 +211,8 @@ void CompareFunctions(const Function& actual, const Function& expected) {
     std::queue<ComparingNodesPair> nodes;
     nodes.emplace(actualResult, expectedResult);
     while (!nodes.empty()) {
-        const auto& checkingNodes = nodes.front();
-        const auto& actualNode    = checkingNodes.first;
-        const auto& expectedNode  = checkingNodes.second;
+        const auto actualNode   = nodes.front().first;
+        const auto expectedNode = nodes.front().second;
         nodes.pop();
 
         CompareNodes(*actualNode, *expectedNode);
@@ -607,21 +626,18 @@ std::ostream& operator<<(std::ostream & os, ngraph::helpers::LogicalTypes type) 
     return os;
 }
 
-std::ostream& operator<<(std::ostream & os, ngraph::op::v3::Interpolate::InterpolateMode type) {
+std::ostream& operator<<(std::ostream & os, ngraph::op::v4::Interpolate::InterpolateMode type) {
     switch (type) {
-        case ngraph::op::v3::Interpolate::InterpolateMode::area:
-            os << "area";
-            break;
-        case ngraph::op::v3::Interpolate::InterpolateMode::cubic:
+        case ngraph::op::v4::Interpolate::InterpolateMode::cubic:
             os << "cubic";
             break;
-        case ngraph::op::v3::Interpolate::InterpolateMode::linear:
+        case ngraph::op::v4::Interpolate::InterpolateMode::linear:
             os << "linear";
             break;
-        case ngraph::op::v3::Interpolate::InterpolateMode::linear_onnx:
+        case ngraph::op::v4::Interpolate::InterpolateMode::linear_onnx:
             os << "linear_onnx";
             break;
-        case ngraph::op::v3::Interpolate::InterpolateMode::nearest:
+        case ngraph::op::v4::Interpolate::InterpolateMode::nearest:
             os << "nearest";
             break;
         default:
@@ -630,21 +646,21 @@ std::ostream& operator<<(std::ostream & os, ngraph::op::v3::Interpolate::Interpo
     return os;
 }
 
-std::ostream& operator<<(std::ostream & os, ngraph::op::v3::Interpolate::CoordinateTransformMode type) {
+std::ostream& operator<<(std::ostream & os, ngraph::op::v4::Interpolate::CoordinateTransformMode type) {
     switch (type) {
-        case ngraph::op::v3::Interpolate::CoordinateTransformMode::align_corners:
+        case ngraph::op::v4::Interpolate::CoordinateTransformMode::align_corners:
             os << "align_corners";
             break;
-        case ngraph::op::v3::Interpolate::CoordinateTransformMode::asymmetric:
+        case ngraph::op::v4::Interpolate::CoordinateTransformMode::asymmetric:
             os << "asymmetric";
             break;
-        case ngraph::op::v3::Interpolate::CoordinateTransformMode::half_pixel:
+        case ngraph::op::v4::Interpolate::CoordinateTransformMode::half_pixel:
             os << "half_pixel";
             break;
-        case ngraph::op::v3::Interpolate::CoordinateTransformMode::pytorch_half_pixel:
+        case ngraph::op::v4::Interpolate::CoordinateTransformMode::pytorch_half_pixel:
             os << "pytorch_half_pixel";
             break;
-        case ngraph::op::v3::Interpolate::CoordinateTransformMode::tf_half_pixel_for_nn:
+        case ngraph::op::v4::Interpolate::CoordinateTransformMode::tf_half_pixel_for_nn:
             os << "tf_half_pixel_for_nn";
             break;
         default:
@@ -653,21 +669,21 @@ std::ostream& operator<<(std::ostream & os, ngraph::op::v3::Interpolate::Coordin
     return os;
 }
 
-std::ostream& operator<<(std::ostream & os, ngraph::op::v3::Interpolate::NearestMode type) {
+std::ostream& operator<<(std::ostream & os, ngraph::op::v4::Interpolate::NearestMode type) {
     switch (type) {
-        case ngraph::op::v3::Interpolate::NearestMode::ceil:
+        case ngraph::op::v4::Interpolate::NearestMode::ceil:
             os << "ceil";
             break;
-        case ngraph::op::v3::Interpolate::NearestMode::round_prefer_ceil:
+        case ngraph::op::v4::Interpolate::NearestMode::round_prefer_ceil:
             os << "round_prefer_ceil";
             break;
-        case ngraph::op::v3::Interpolate::NearestMode::floor:
+        case ngraph::op::v4::Interpolate::NearestMode::floor:
             os << "floor";
             break;
-        case ngraph::op::v3::Interpolate::NearestMode::round_prefer_floor:
+        case ngraph::op::v4::Interpolate::NearestMode::round_prefer_floor:
             os << "round_prefer_floor";
             break;
-        case ngraph::op::v3::Interpolate::NearestMode::simple:
+        case ngraph::op::v4::Interpolate::NearestMode::simple:
             os << "simple";
             break;
         default:

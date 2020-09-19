@@ -7,14 +7,14 @@
 #include <ie_common.h>
 
 #include <algorithm>
-#include <details/caseless.hpp>
+#include <caseless.hpp>
 #include <memory>
 #include <string>
 #include <unordered_set>
 #include <utility>
 #include <vector>
 
-#include "ie_util_internal.hpp"
+#include <legacy/ie_util_internal.hpp>
 #include "low_precision_transformations/common/ie_lpt_exception.hpp"
 #include "low_precision_transformations/network_helper.hpp"
 

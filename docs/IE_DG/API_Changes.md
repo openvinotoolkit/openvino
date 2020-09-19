@@ -21,6 +21,13 @@ Therefore, ONNX RT Execution Provider for nGraph will be deprecated starting Jun
 
 ## 2021.1
 
+### Deprecated API
+
+ **Utility functions to convert Unicode paths**
+
+ * InferenceEngine::stringToFileName - use OS-specific native conversion functions
+ * InferenceEngine::fileNameToString - use OS-specific native conversion functions
+
 ### Removed API
 
  **Plugin API:**

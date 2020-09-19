@@ -4,7 +4,7 @@
 
 #include "gna_memory_state.hpp"
 #include "frontend/quantized_layer_params.hpp"
-#include "layer_transform.hpp"
+#include <legacy/layer_transform.hpp>
 #include "preprocessing.hpp"
 #include "ie_layouts.h"
 

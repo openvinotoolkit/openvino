@@ -123,7 +123,10 @@ void GNADeviceHelper::checkGna2Status(Gna2Status status, const Gna2Model& gnaMod
         }
 
         Gna2ModelError error;
-        Gna2ModelGetLastError(&error);
+        auto getLastErrorStatus = Gna2ModelGetLastError(&error);
+        if (!Gna2StatusIsSuccessful(getLastErrorStatus)) {
+            THROW_GNA_EXCEPTION << "\nUnsuccessful Gna2Status: (" << status << ") " << gna2StatusBuffer.data();
+        }
 
         std::stringstream ss;
         ss << "\n GNA Library Error:\n";
@@ -266,19 +269,23 @@ const std::map <const std::pair<Gna2OperationType, int32_t>, const std::string> 
 };
 #endif
 
-void GNADeviceHelper::wait(uint32_t reqId) {
+bool GNADeviceHelper::wait(uint32_t reqId, int64_t millisTimeout) {
 #if GNA_LIB_VER == 2
-    const auto status = Gna2RequestWait(reqId, GNA_TIMEOUT);
+    const auto status = Gna2RequestWait(reqId, millisTimeout);
+    if (status == Gna2StatusDriverQoSTimeoutExceeded) {
+        return false;
+    }
     checkGna2Status(status);
 #else
     if (isPerformanceMeasuring) {
-        nGNAStatus = GNAWaitPerfRes(nGNAHandle, GNA_TIMEOUT, reqId, &nGNAPerfResults);
+        nGNAStatus = GNAWaitPerfRes(nGNAHandle, millisTimeout, reqId, &nGNAPerfResults);
     } else {
-        nGNAStatus = GNAWait(nGNAHandle, GNA_TIMEOUT, reqId);
+        nGNAStatus = GNAWait(nGNAHandle, millisTimeout, reqId);
     }
     checkStatus();
 #endif
     updateGnaPerfCounters();
+    return true;
 }
 
 #if GNA_LIB_VER == 1

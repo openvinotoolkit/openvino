@@ -32,19 +32,16 @@
 // clang-format on
 
 #include "gtest/gtest.h"
-#include "runtime/backend.hpp"
-#include "ngraph/runtime/tensor.hpp"
 #include "ngraph/ngraph.hpp"
-#include "util/all_close.hpp"
-#include "util/all_close_f.hpp"
-#include "util/ndarray.hpp"
+#include "util/engine/test_engines.hpp"
+#include "util/test_case.hpp"
 #include "util/test_control.hpp"
-#include "util/test_tools.hpp"
 
 using namespace std;
 using namespace ngraph;
 
 static string s_manifest = "${MANIFEST}";
+using TestEngine = test::ENGINE_CLASS_NAME(${BACKEND_NAME});
 
 NGRAPH_TEST(${BACKEND_NAME}, log)
 {
@@ -52,22 +49,18 @@ NGRAPH_TEST(${BACKEND_NAME}, log)
     auto A = make_shared<op::Parameter>(element::f32, shape);
     auto f = make_shared<Function>(make_shared<op::Log>(A), ParameterVector{A});
 
-    auto backend = runtime::Backend::create("${BACKEND_NAME}");
+    std::vector<float> a{0.125f, 0.25f, 0.5f, 1.f, 2.f, 4.f, 8.f, 16.f};
+    std::vector<float> loga{-2.07944154f,
+                            -1.38629436f,
+                            -0.69314718f,
+                            0.00000000f,
+                            0.69314718f,
+                            1.38629436f,
+                            2.07944154f,
+                            2.77258872f};
 
-    // Create some tensors for input/output
-    auto a = backend->create_tensor(element::f32, shape);
-    copy_data(a, vector<float>{0.125f, 0.25f, 0.5f, 1.f, 2.f, 4.f, 8.f, 16.f});
-    vector<float> loga{-2.07944154f,
-                       -1.38629436f,
-                       -0.69314718f,
-                       0.00000000f,
-                       0.69314718f,
-                       1.38629436f,
-                       2.07944154f,
-                       2.77258872f};
-    auto result = backend->create_tensor(element::f32, shape);
-
-    auto handle = backend->compile(f);
-    handle->call_with_validate({result}, {a});
-    EXPECT_TRUE(test::all_close_f(loga, read_vector<float>(result)));
+    auto test_case = test::TestCase<TestEngine>(f);
+    test_case.add_input<float>(shape, a);
+    test_case.add_expected_output<float>(shape, loga);
+    test_case.run();
 }

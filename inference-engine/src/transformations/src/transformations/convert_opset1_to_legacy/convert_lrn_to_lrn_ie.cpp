@@ -13,6 +13,8 @@
 
 #include <ngraph_ops/lrn_ie.hpp>
 
+NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertLRNToLegacyMatcher, "ConvertLRNToLegacyMatcher", 0);
+
 ngraph::pass::ConvertLRNToLegacyMatcher::ConvertLRNToLegacyMatcher() {
     auto input_0 = std::make_shared<pattern::op::Label>(element::f32, Shape{1, 1, 1, 1});
     auto input_1 = std::make_shared<pattern::op::Label>(element::i64, Shape{1});
@@ -29,7 +31,7 @@ ngraph::pass::ConvertLRNToLegacyMatcher::ConvertLRNToLegacyMatcher() {
             return false;
         }
 
-        auto axis_value = axis_const->get_vector<int64_t>();
+        auto axis_value = axis_const->cast_vector<int64_t>();
         std::string region;
         if (axis_value.size() == 1 && axis_value[0] == 1) {
             region = "across";

@@ -15,7 +15,7 @@
 
 #include <memory>
 #include <string>
-#include <ie_layers.h>
+#include <legacy/ie_layers.h>
 #include <ie_blob.h>
 #include <ie_input_info.hpp>
 #include <ie_icnn_network.hpp>

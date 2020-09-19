@@ -6,7 +6,7 @@
 #include "low_precision_transformations/network_helper.hpp"
 
 #include <algorithm>
-#include <details/caseless.hpp>
+#include <caseless.hpp>
 #include <memory>
 #include <string>
 #include <vector>
@@ -105,6 +105,7 @@ void ConvolutionTransformation::transform(TransformationContext& context, CNNLay
     const CNNLayerPtr parentOnData = CNNNetworkHelper::getParent(layer, 0ul);
 
     const DataPrecision dataPrecisionOnWeights = fillDequantizationsForWeightsPath(
+        context,
         layer,
         supportAsymmetricQuantization,
         originalWeightsDequantizationScales,

@@ -53,6 +53,9 @@ namespace InferenceEngine {
  * @defgroup ie_dev_api_system_conf System configuration utilities
  * @brief API to get information about the system, core processor capabilities
  * 
+ * @defgroup ie_dev_exec_graph Execution graph utilities
+ * @brief Contains `ExecutionNode` and its properties
+ * 
  * @defgroup ie_dev_api_error_debug Error handling and debug helpers
  * @brief Utility methods to works with errors or exceptional situations
  * 

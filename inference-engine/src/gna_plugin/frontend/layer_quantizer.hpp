@@ -8,17 +8,16 @@
 #include <utility>
 #include <cmath>
 
-#include <gna-api-types-xnn.h>
+#include "backend/gna_types.h"
 #include "gna_plugin_log.hpp"
 #include "quantized_layer_params.hpp"
 #include "quantization.h"
-#include "details/caseless.hpp"
 #include "gna_graph_tools.hpp"
 #include "blob_factory.hpp"
 #include "precision_ex.hpp"
 #include "layers/gna_layer_info.hpp"
 #include "weights_converter.hpp"
-#include "layer_transform.hpp"
+#include <legacy/layer_transform.hpp>
 
 namespace GNAPluginNS {
 namespace frontend {
@@ -78,7 +77,7 @@ struct QuantI16 : public QuantDescTmpl<PRECISION_TYPE(I16, I32, I16, I32, MIXED)
         _Np = InferenceEngine::Precision::MIXED;
     }
 };
-struct QuantI8  : public QuantDescTmpl<P_TYPE(I16), P_TYPE(I32), P_TYPE(I8), intel_compound_bias_t, P_TYPE(MIXED)> {
+struct QuantI8  : public QuantDescTmpl<P_TYPE(I16), P_TYPE(I32), P_TYPE(I8), gna_compound_bias_t, P_TYPE(MIXED)> {
     QuantI8() {
         _Np = InferenceEngine::Precision::MIXED;
     }
@@ -103,7 +102,7 @@ inline bool shouldAlwaysAllocate() {
 }
 
 template <>
-inline bool shouldAlwaysAllocate<intel_compound_bias_t>() {
+inline bool shouldAlwaysAllocate<gna_compound_bias_t>() {
     return true;
 }
 
@@ -179,6 +178,17 @@ inline InferenceEngine::Blob::Ptr fp32_to_precision_blob(InferenceEngine::Blob::
         THROW_GNA_EXCEPTION << "FP32 to " << precision << " not supported";
     }
     return result_ptr;
+}
+
+template <class T, class... Args>
+InferenceEngine::Blob::Ptr make_custom_blob(Args&&... args) {
+    return InferenceEngine::make_shared_blob<T>(InferenceEngine::Precision::fromType<T>(), std::forward<Args>(args)...);
+}
+
+template <class T>
+InferenceEngine::Blob::Ptr make_custom_blob(InferenceEngine::Layout layout, InferenceEngine::SizeVector size) {
+    return InferenceEngine::make_shared_blob<T>(
+        InferenceEngine::TensorDesc(InferenceEngine::Precision::fromType<T>(), size, layout));
 }
 
 template<class QuantDesc, class QuantFunc>

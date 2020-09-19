@@ -5,11 +5,14 @@
 #include "transformations/convert_opset1_to_legacy/fc_bias_fusion.hpp"
 
 #include <memory>
+#include <numeric>
 #include <vector>
 
 #include <ngraph/opsets/opset1.hpp>
 #include <ngraph/rt_info.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
+
+NGRAPH_RTTI_DEFINITION(ngraph::pass::FullyConnectedBiasFusion, "FullyConnectedBiasFusion", 0);
 
 ngraph::pass::FullyConnectedBiasFusion::FullyConnectedBiasFusion() {
     auto fc = ngraph::pattern::wrap_type<op::FullyConnected>();
@@ -25,6 +28,8 @@ ngraph::pass::FullyConnectedBiasFusion::FullyConnectedBiasFusion() {
 
         if (m_fc == nullptr) {
             m_fc = std::dynamic_pointer_cast<op::FullyConnected>(add_input_1);
+            if (m_fc == nullptr)
+                return false;
             m_bias = add_input_0;
         }
 

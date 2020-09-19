@@ -15,10 +15,12 @@
 
 #include <ngraph_ops/interp.hpp>
 
+NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertInterpolateToInterpOrResampleMatcher, "ConvertInterpolateToInterpOrResampleMatcher", 0);
+
 ngraph::pass::ConvertInterpolateToInterpOrResampleMatcher::ConvertInterpolateToInterpOrResampleMatcher() {
     auto data = std::make_shared<pattern::op::Label>(element::f32, Shape{1, 1, 1, 1});
     auto shp = std::make_shared<pattern::op::Label>(element::i64, Shape{2});
-    auto interpolate = std::make_shared<ngraph::opset1::Interpolate>(data, shp, ngraph::op::InterpolateAttrs());
+    auto interpolate = std::make_shared<ngraph::opset1::Interpolate>(data, shp, ngraph::op::v0::InterpolateAttrs());
 
     ngraph::matcher_pass_callback callback = [](pattern::Matcher& m) {
         auto interpolate = std::dynamic_pointer_cast<ngraph::opset1::Interpolate> (m.get_match_root());
@@ -34,7 +36,7 @@ ngraph::pass::ConvertInterpolateToInterpOrResampleMatcher::ConvertInterpolateToI
             return false;
         }
 
-        auto out_spatial_shape = out_shape_node->get_vector<int64_t> ();
+        auto out_spatial_shape = out_shape_node->cast_vector<int64_t> ();
 
         std::size_t num_of_spatial_vars = input_shape.size() - 2;
         auto interpolate_axes = interpolate_attrs.axes;

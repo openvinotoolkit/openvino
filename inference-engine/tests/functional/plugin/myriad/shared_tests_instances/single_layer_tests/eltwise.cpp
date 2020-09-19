@@ -10,7 +10,6 @@
 #include <vector>
 
 using namespace LayerTestsDefinitions;
-using namespace LayerTestsDefinitions::EltwiseParams;
 
 namespace {
 
@@ -36,9 +35,9 @@ std::vector<ngraph::helpers::InputLayerType> secondaryInputTypes = {
         ngraph::helpers::InputLayerType::PARAMETER,
 };
 
-std::vector<OpType> opTypes = {
-        OpType::SCALAR,
-        OpType::VECTOR,
+std::vector<CommonTestUtils::OpType> opTypes = {
+        CommonTestUtils::OpType::SCALAR,
+        CommonTestUtils::OpType::VECTOR,
 };
 
 std::vector<ngraph::helpers::EltwiseTypes> eltwiseOpTypes = {
@@ -49,9 +48,9 @@ std::vector<ngraph::helpers::EltwiseTypes> eltwiseOpTypes = {
 
 Config getConfig() {
     Config config;
-    config[VPU_CONFIG_KEY(DETECT_NETWORK_BATCH)] = CONFIG_VALUE(NO);
+    config[InferenceEngine::MYRIAD_DETECT_NETWORK_BATCH] = CONFIG_VALUE(NO);
     if (CommonTestUtils::vpu::CheckMyriad2()) {
-        config[VPU_CONFIG_KEY(DISABLE_REORDER)] = CONFIG_VALUE(YES);
+        config[InferenceEngine::MYRIAD_DISABLE_REORDER] = CONFIG_VALUE(YES);
     }
     return config;
 }

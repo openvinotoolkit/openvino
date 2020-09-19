@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <ie_layers.h>
+#include <legacy/ie_layers.h>
 
 using namespace InferenceEngine;
 

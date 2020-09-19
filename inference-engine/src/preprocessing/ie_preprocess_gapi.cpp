@@ -5,6 +5,7 @@
 #include <utility>
 #include <vector>
 #include <algorithm>
+#include <cstdlib>
 #include <tuple>
 #include <string>
 #include <unordered_map>
@@ -20,6 +21,7 @@
 #include "ie_input_info.hpp"
 #include "ie_preprocess_gapi.hpp"
 #include "ie_preprocess_gapi_kernels.hpp"
+#include "ie_preprocess_itt.hpp"
 #include "debug.h"
 
 #include "ie_parallel.hpp"
@@ -731,7 +733,7 @@ bool PreprocEngine::useGAPI() {
     static const bool NO_GAPI = [](const char *str) -> bool {
         std::string var(str ? str : "");
         return var == "N" || var == "NO" || var == "OFF" || var == "0";
-    } (std::getenv("USE_GAPI"));
+    } (getenv("USE_GAPI"));
 
     return !NO_GAPI;
 }
@@ -813,12 +815,12 @@ void PreprocEngine::executeGraph(Opt<cv::GComputation>& lastComputation,
     // possible that all slices are processed by the same thread.
     //
     parallel_nt_static(thread_num, [&, this](int slice_n, const int total_slices) {
-        IE_PROFILING_AUTO_SCOPE_TASK(_perf_exec_tile);
+        OV_ITT_SCOPED_TASK(itt::domains::IEPreproc, _perf_exec_tile);
 
         auto& compiled = _lastComp[slice_n];
         if (Update::REBUILD == update || Update::RESHAPE == update) {
             //  need to compile (or reshape) own object for a particular ROI
-            IE_PROFILING_AUTO_SCOPE_TASK(_perf_graph_compiling);
+            OV_ITT_SCOPED_TASK(itt::domains::IEPreproc, _perf_graph_compiling);
 
             using cv::gapi::own::Rect;
 
@@ -867,7 +869,7 @@ void PreprocEngine::executeGraph(Opt<cv::GComputation>& lastComputation,
             for (const auto & m : input_plane_mats) { call_ins.emplace_back(m);}
             for (auto & m : output_plane_mats) { call_outs.emplace_back(&m);}
 
-            IE_PROFILING_AUTO_SCOPE_TASK(_perf_exec_graph);
+            OV_ITT_SCOPED_TASK(itt::domains::IEPreproc, _perf_exec_graph);
             compiled(std::move(call_ins), std::move(call_outs));
         }
     });
@@ -927,7 +929,7 @@ bool PreprocEngine::preprocessBlob(const BlobTypePtr &inBlob, MemoryBlob::Ptr &o
 
         if (Update::REBUILD == update) {
             //  rebuild the graph
-            IE_PROFILING_AUTO_SCOPE_TASK(_perf_graph_building);
+            OV_ITT_SCOPED_TASK(itt::domains::IEPreproc, _perf_graph_building);
             // FIXME: what is a correct G::Desc to be passed for NV12/I420 case?
             auto custom_desc = getGDesc(in_desc, inBlob);
             _lastComputation = cv::util::make_optional(

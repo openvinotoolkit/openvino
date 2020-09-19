@@ -16,13 +16,13 @@
 
 #include "gtest/gtest.h"
 #include "ngraph/file_util.hpp"
-#include "ngraph/frontend/onnx_import/default_opset.hpp"
-#include "ngraph/frontend/onnx_import/onnx.hpp"
 #include "ngraph/pass/manager.hpp"
 #include "ngraph/provenance.hpp"
+#include "onnx_import/default_opset.hpp"
+#include "onnx_import/onnx.hpp"
 #include "opset0.hpp"
-#include "opset0_downgrade.hpp"
-#include "opset1_downgrade.hpp"
+#include "pass/opset0_downgrade.hpp"
+#include "pass/opset1_downgrade.hpp"
 #include "util/provenance_enabler.hpp"
 #include "util/test_control.hpp"
 #include "util/type_prop.hpp"
@@ -115,6 +115,8 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_provenance_tagging_parameters)
         file_util::path_join(SERIALIZED_ZOO, "onnx/provenance_input_tags.prototxt"));
     test_provenance_tags<default_opset::Parameter>(function, "<ONNX Input (input_B) Shape:{}>");
 }
+
+NGRAPH_SUPPRESS_DEPRECATED_START
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_provenance_tag_downgrade_pass)
 {

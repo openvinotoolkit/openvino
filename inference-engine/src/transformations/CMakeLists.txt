@@ -23,9 +23,11 @@ source_group("include" FILES ${PUBLIC_HEADERS})
 
 add_library(${TARGET_NAME} SHARED ${LIBRARY_SRC} ${PUBLIC_HEADERS})
 
-target_link_libraries(${TARGET_NAME} PUBLIC ${NGRAPH_LIBRARIES})
+target_link_libraries(${TARGET_NAME} PUBLIC ${NGRAPH_LIBRARIES}
+                                     PRIVATE openvino::itt ngraph::builder)
 
-target_include_directories(${TARGET_NAME} PUBLIC ${PUBLIC_HEADERS_DIR})
+target_include_directories(${TARGET_NAME} PUBLIC ${PUBLIC_HEADERS_DIR}
+                                          PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src")
 
 add_cpplint_target(${TARGET_NAME}_cpplint FOR_TARGETS ${TARGET_NAME})
 

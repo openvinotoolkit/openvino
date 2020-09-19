@@ -5,7 +5,7 @@
 #pragma once
 
 #include <ie_iextension.h>
-#include <ie_layers.h>
+#include <legacy/ie_layers.h>
 
 #include <string>
 #include <map>

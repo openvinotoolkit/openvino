@@ -37,7 +37,7 @@ public:
         in_tensor.push_back({in_dims.n, in_dims.c, in_dims.h, in_dims.w});
         out_tensor.push_back({out_dims.n, out_dims.c, out_dims.h, out_dims.w});
 
-        _config[VPU_CONFIG_KEY(DETECT_NETWORK_BATCH)] = CONFIG_VALUE(NO);
+        _config[InferenceEngine::MYRIAD_DETECT_NETWORK_BATCH] = CONFIG_VALUE(NO);
     }
 
     void AddPoolingLayer(const std::string& poolMethod) {

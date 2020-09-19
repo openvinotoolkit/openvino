@@ -40,6 +40,46 @@ Standard MXNet\* symbols:
 
 | Symbol Name in MXNet\*| Limitations|
 | :----------| :----------|
+| _Plus | No |
+| _contrib_MultiBoxDetection | "force_suppress" = 1 is not supported, non-default variances are not supported |
+| _contrib_MultiBoxPrior | No |
+| _contrib_Proposal | No |
+| _copy | Not needed for inference |
+| _minus_scalar | No |
+| _mul_scalar | No |
+| _arange | No |
+| _contrib_AdaptiveAvgPooling2D | Converted to the Average Pooling with fixed paddings |
+| _maximum | No |
+| _minimum | No |
+| add_n | No |
+| arccosh | No |
+| arcsinh | No |
+| arctanh | No |
+| broadcast_add | No |
+| broadcast_mul | No |
+| cumsum | No |
+| div_scalar | No |
+| elementwise_sub | No |
+| elemwise_add | No |
+| elemwise_mul | No |
+| exp | No |
+| expand_dims | No |
+| greater_scalar | No |
+| minus_scalar | No |
+| null | Not needed for inference |
+| repeat | No |
+| rnn | No |
+| rnn_param_concat | No |
+| sigmoid | No |
+| slice | No |
+| slice_axis | No |
+| slice_channel | No |
+| slice_like | No |
+| stack | No |
+| swapaxis | No |
+| tile | No |
+| transpose | No |
+| zeros | No |
 | Activation | supported "act_type" = "relu", "sigmoid", "softrelu" or "tanh" |
 | BatchNorm | No |
 | Concat | No |
@@ -70,43 +110,6 @@ Standard MXNet\* symbols:
 | Tile | No |
 | UpSampling | No |
 | Where | No |
-| _Plus | No |
-| _contrib_MultiBoxDetection | "force_suppress" = 1 is not supported, non-default variances are not supported |
-| _contrib_MultiBoxPrior | No |
-| _contrib_Proposal | No |
-| _copy | Not needed for inference |
-| _minus_scalar | No |
-| _mul_scalar | No |
-| _arange | No |
-| _contrib_AdaptiveAvgPooling2D | Converted to the Average Pooling with fixed paddings |
-| _maximum | No |
-| _minimum | No |
-| add_n | No |
-| broadcast_add | No |
-| broadcast_mul | No |
-| cumsum | No |
-| div_scalar | No |
-| elementwise_sub | No |
-| elemwise_add | No |
-| elemwise_mul | No |
-| exp | No |
-| expand_dims | No |
-| greater_scalar | No |
-| minus_scalar | No |
-| null | Not needed for inference |
-| repeat | No |
-| rnn | No |
-| rnn_param_concat | No |
-| sigmoid | No |
-| slice | No |
-| slice_axis | No |
-| slice_channel | No |
-| slice_like | No |
-| stack | No |
-| swapaxis | No |
-| tile | No |
-| transpose | No |
-| zeros | No |
 
 
 ## TensorFlow\* Supported Operations
@@ -117,9 +120,12 @@ Standard TensorFlow\* operations:
 
 | Operation Name in TensorFlow\* | Limitations|
 | :----------| :----------|
+| Acosh | No |
 | Add | No |
 | AddN | No |
 | ArgMax | No |
+| Asinh | No |
+| Atanh | No |
 | AvgPool | No |
 | BatchToSpaceND | No |
 | BiasAdd | No |
@@ -144,8 +150,12 @@ Standard TensorFlow\* operations:
 | ExpandDims | No |
 | ExperimentalSparseWeightedSum | CPU only |
 | ExtractImagePatches | No |
+| EuclideanNorm | No |
+| FakeQuantWithMinMaxVars | No |
+| FakeQuantWithMinMaxVarsPerChannel | No |
 | Fill | No |
 | Floor | No |
+| FloorDiv | No |
 | FusedBatchNorm | No |
 | Gather | No |
 | GatherNd | Supported if it can be replaced with Gather |
@@ -285,11 +295,14 @@ Standard ONNX\* operators:
 | :----------| :----------|
 | Abs | No |
 | Acos | No |
+| Acosh | No |
 | Add | No |
 | Affine | No |
 | ArgMax | No |
 | Asin | No |
+| Asinh | No |
 | Atan | No |
+| Atanh | No |
 | AveragePool | No |
 | BatchMatMul | No |
 | BatchNormalization | No |
@@ -351,11 +364,13 @@ Standard ONNX\* operators:
 | Pad | No |
 | Pow | No |
 | PriorBox (Intel experimental) | No |
-| QuantizeLinear | Only in combination with DequantizeLinear. When the ops following each other in the graph and the scale and zero-point values for these operations are the same (or explicitly shared), the combination is fused into a 'FakeQuantization'|
+| QuantizeLinear | No |
 | RNN | No |
 | ROIAlign | No |
 | Range | No |
 | Reciprocal | No |
+| ReduceL1 | No |
+| ReduceL2 | No |
 | ReduceMax | No |
 | ReduceMean | No |
 | ReduceMin | No |
@@ -366,6 +381,7 @@ Standard ONNX\* operators:
 | Resize | Opset-10 version is supported |
 | ReverseSequence | No |
 | Scatter | Supported if fuse-able to ScatterUpdate. MYRIAD only |
+| ScatterND | No |
 | ScatterElements | Supported if fuse-able to ScatterUpdate. MYRIAD only |
 | Select | No |
 | Shape | No |

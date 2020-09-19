@@ -40,7 +40,7 @@ KERNEL(pooling_gpu_int8_ref)(
 #endif
 )
 {
-#if OUTPUT_LAYOUT_BFYX  || OUTPUT_LAYOUT_BYXF || OUTPUT_LAYOUT_BYXF_AF32 || OUTPUT_LAYOUT_B_FS_YX_FSV4 || OUTPUT_LAYOUT_BFZYX
+#if OUTPUT_LAYOUT_BFYX  || OUTPUT_LAYOUT_BYXF || OUTPUT_LAYOUT_B_FS_YX_FSV4 || OUTPUT_LAYOUT_BFZYX
     const uint x    = (uint)get_global_id(0);
     const uint yz   = (uint)get_global_id(1);
 #if OUTPUT_DIMS == 5

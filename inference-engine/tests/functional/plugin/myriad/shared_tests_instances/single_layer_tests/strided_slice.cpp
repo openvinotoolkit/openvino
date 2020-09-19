@@ -43,7 +43,7 @@ std::vector<InferenceEngine::Precision> precisions = {
 Config getConfig() {
     Config config;
     if (CommonTestUtils::vpu::CheckMyriad2()) {
-        config[VPU_CONFIG_KEY(DISABLE_REORDER)] = CONFIG_VALUE(YES);
+        config[InferenceEngine::MYRIAD_DISABLE_REORDER] = CONFIG_VALUE(YES);
     }
     return config;
 }

@@ -82,7 +82,7 @@ protected:
                 gather_setup.data_shape.size() + gather_setup.index_shape.size() - 1));
 
         const auto transformations = vpu::Transformations{{node->type_info, vpu::dynamicToStaticShapeGather}};
-        vpu::DynamicToStaticShape(transformations).transform(function);
+        vpu::DynamicToStaticShape(transformations).run_on_function(function);
         return function;
     }
 
@@ -171,7 +171,7 @@ protected:
                 gather_setup.data_shape.size() + gather_setup.index_shape.size() - 1));
 
         const auto transformations = vpu::Transformations{{node->type_info, vpu::dynamicToStaticShapeGather}};
-        vpu::DynamicToStaticShape(transformations).transform(function);
+        vpu::DynamicToStaticShape(transformations).run_on_function(function);
         return function;
     }
 
@@ -263,7 +263,7 @@ protected:
                 gather_setup.data_shape.size() + gather_setup.index_shape.size() - 1));
 
         const auto transformations = vpu::Transformations{{node->type_info, vpu::dynamicToStaticShapeGather}};
-        vpu::DynamicToStaticShape(transformations).transform(function);
+        vpu::DynamicToStaticShape(transformations).run_on_function(function);
         return function;
     }
 

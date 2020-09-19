@@ -46,16 +46,17 @@ class ReduceAxisNormalizer(FrontReplacementSubgraph):
         node = match['reduce']
         connected_in_ports = [port for port in node.in_ports().values() if not port.disconnected()]
         if len(connected_in_ports) == 1:
+            node_name = node.soft_get('name', node.id)
+
             # if the 'axis' is None then we still add a second input to the layer with a 1D array with 1 element equal
             # to None. The infer function handles this case because the input shape is known at this stage only
             if node.has('axis'):
-                const = Const(graph, {'value': node.axis}).create_node()
+                const = Const(graph, {'name': node_name + '/axis', 'value': node.axis}).create_node()
                 node.add_input_port(1, skip_if_exist=True)
                 const.out_port(0).connect(node.in_port(1))
                 del graph.node[node.id]['axis']
             else:
                 # The default (if there is no 'axis') is to reduce over all the dimensions of the input tensor.
-                node_name = node.name
 
                 begin_of_range = Const(graph, dict(name=node_name + '/range_begin_', value=0)).create_node()
                 step = Const(graph, dict(name=node_name + '/range_step_', value=1)).create_node()

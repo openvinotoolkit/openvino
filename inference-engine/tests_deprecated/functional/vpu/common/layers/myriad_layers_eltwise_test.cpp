@@ -255,7 +255,7 @@ TEST_F(myriadLayersTestsEltwiseBase, EltwiseWithSameInputs) {
     InferenceEngine::Blob::Ptr inputBlob;
 
     InferenceEngine::IExecutableNetwork::Ptr exeNetwork;
-    std::map<std::string, std::string> networkConfig = {{VPU_CONFIG_KEY(PERF_REPORT_MODE), VPU_CONFIG_VALUE(PER_STAGE)}};
+    std::map<std::string, std::string> networkConfig = {{InferenceEngine::MYRIAD_PERF_REPORT_MODE, InferenceEngine::MYRIAD_PER_STAGE}};
     ASSERT_NO_THROW(st = _vpuPluginPtr->LoadNetwork(exeNetwork, network, networkConfig, &_resp));
     ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
     ASSERT_NE(exeNetwork, nullptr) << _resp.msg;
@@ -491,9 +491,10 @@ TEST_F(myriadLayersTests_nightly, MergeEltwiseWithReLU) {
     outputInfo->setPrecision(Precision::FP16);
 
     StatusCode st;
-    ASSERT_NO_THROW(st = _vpuPluginPtr->LoadNetwork(_exeNetwork, network, { {VPU_CONFIG_KEY(PERF_REPORT_MODE), VPU_CONFIG_VALUE(PER_STAGE)},
-                                                                              {CONFIG_KEY(PERF_COUNT), CONFIG_VALUE(YES)},
-                                                                              {VPU_CONFIG_KEY(HW_STAGES_OPTIMIZATION), CONFIG_VALUE(NO)} },
+    ASSERT_NO_THROW(st = _vpuPluginPtr->LoadNetwork(_exeNetwork, network,
+            { {InferenceEngine::MYRIAD_PERF_REPORT_MODE, InferenceEngine::MYRIAD_PER_STAGE},
+              {CONFIG_KEY(PERF_COUNT), CONFIG_VALUE(YES)},
+              {InferenceEngine::MYRIAD_ENABLE_HW_ACCELERATION, CONFIG_VALUE(NO)} },
                                                       &_resp));
     ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
     ASSERT_NE(_exeNetwork, nullptr) << _resp.msg;
@@ -722,10 +723,11 @@ TEST_F(myriadLayersTests_nightly, MergeEltwiseWithLeakyReLU) {
     outputInfo->setPrecision(Precision::FP16);
 
     StatusCode st;
-    ASSERT_NO_THROW(st = _vpuPluginPtr->LoadNetwork(_exeNetwork, network, { {VPU_CONFIG_KEY(PERF_REPORT_MODE), VPU_CONFIG_VALUE(PER_STAGE)},
-                                                                              {CONFIG_KEY(PERF_COUNT), CONFIG_VALUE(YES)},
-                                                                              {VPU_CONFIG_KEY(HW_STAGES_OPTIMIZATION), CONFIG_VALUE(NO)} },
-                                                      &_resp));
+    ASSERT_NO_THROW(st = _vpuPluginPtr->LoadNetwork(_exeNetwork, network,
+            { {InferenceEngine::MYRIAD_PERF_REPORT_MODE, InferenceEngine::MYRIAD_PER_STAGE},
+              {CONFIG_KEY(PERF_COUNT), CONFIG_VALUE(YES)},
+              {InferenceEngine::MYRIAD_ENABLE_HW_ACCELERATION, CONFIG_VALUE(NO)} },
+              &_resp));
     ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
     ASSERT_NE(_exeNetwork, nullptr) << _resp.msg;
 
@@ -953,10 +955,12 @@ TEST_F(myriadLayersTests_nightly, MergeEltwiseWithClamp) {
     outputInfo->setPrecision(Precision::FP16);
 
     StatusCode st;
-    ASSERT_NO_THROW(st = _vpuPluginPtr->LoadNetwork(_exeNetwork, network,{ {VPU_CONFIG_KEY(PERF_REPORT_MODE), VPU_CONFIG_VALUE(PER_STAGE)},
-                                                                             {CONFIG_KEY(PERF_COUNT), CONFIG_VALUE(YES)},
-                                                                             {VPU_CONFIG_KEY(HW_STAGES_OPTIMIZATION), CONFIG_VALUE(NO)} },
-                                                      &_resp));
+    ASSERT_NO_THROW(st = _vpuPluginPtr->LoadNetwork(
+            _exeNetwork, network,
+            { {InferenceEngine::MYRIAD_PERF_REPORT_MODE, InferenceEngine::MYRIAD_PER_STAGE},
+              {CONFIG_KEY(PERF_COUNT), CONFIG_VALUE(YES)},
+              {InferenceEngine::MYRIAD_ENABLE_HW_ACCELERATION, CONFIG_VALUE(NO)} },
+            &_resp));
     ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
     ASSERT_NE(_exeNetwork, nullptr) << _resp.msg;
 

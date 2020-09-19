@@ -5,9 +5,6 @@ This section provides a high-level description of the process of integrating the
 Refer to the [Hello Classification Sample](../../inference-engine/samples/hello_classification/README.md) sources
 for example of using the Inference Engine in applications.
 
-> **NOTE**: For 2019 R2 Release, the new Inference Engine Core API is introduced. This guide is updated to reflect the new API approach.
-> The Inference Engine Plugin API is still supported, but is going to be deprecated in future releases. Please, refer to [Migration from Inference Engine Plugin API to Core API](Migration_CoreAPI.md) guide to update your application.
-
 ## Use the Inference Engine API in Your Code
 
 The core `libinference_engine.so` library implements loading and parsing a model Intermediate Representation (IR), and triggers inference using a specified device. The core library has the following API:
@@ -39,7 +36,7 @@ InferenceEngine::Core core;
 ```cpp
 auto network = core.ReadNetwork("Model.xml");
 ```
-**Or read the model from ONNX format** (.onnx and .prototxt are supported formats)
+**Or read the model from ONNX format** (.onnx and .prototxt are supported formats). You can find more information about the ONNX format support in the document [ONNX format support in the OpenVINO™](./ONNX_Support.md).
 ```cpp
 auto network = core.ReadNetwork("model.onnx");
 ```
@@ -295,7 +292,7 @@ It's allowed to specify additional build options (e.g. to build CMake project on
 
 > **NOTE**: Before running, make sure you completed **Set the Environment Variables** section in [OpenVINO Installation](../../inference-engine/samples/hello_nv12_input_classification/README.md) document so that the application can find the libraries.
 
-To run compiled applications on Microsoft* Windows* OS, make sure that Microsoft* Visual C++ 2015
+To run compiled applications on Microsoft* Windows* OS, make sure that Microsoft* Visual C++ 2017
 Redistributable and Intel® C++ Compiler 2017 Redistributable packages are installed and
 `<INSTALL_DIR>/bin/intel64/Release/*.dll` files are placed to the
 application folder or accessible via `%PATH%` environment variable.

@@ -4,6 +4,10 @@
 
 #pragma once
 
+#include <list>
+
+#include <gtest/gtest.h>
+
 #include <vpu/compile_env.hpp>
 #include <vpu/model/stage.hpp>
 #include <vpu/model/model.hpp>
@@ -12,9 +16,7 @@
 #include <vpu/backend/backend.hpp>
 #include <vpu/utils/ie_helpers.hpp>
 
-#include <gtest/gtest.h>
-
-#include <list>
+#include <unit_test_utils/mocks/cpp_interfaces/interface/mock_icore.hpp>
 
 namespace vpu {
 
@@ -55,7 +57,7 @@ struct InputInfo final {
 
     static InputInfo fromNetwork(int ind = 0);
 
-    static InputInfo fromPrevStage(int ind);
+    static InputInfo fromPrevStage(int ind, int outputInd = 0);
 
     InputInfo& output(int ind);
 };
@@ -69,10 +71,12 @@ struct OutputInfo final {
     OutputType type = OutputType::Original;
     int originalOutputInd = -1;
     DataDesc desc = DataDesc();
+    MemoryType memReq = MemoryType::DDR;
 
     static OutputInfo fromNetwork(int ind = 0);
 
     static OutputInfo intermediate(const DataDesc& desc = DataDesc());
+    static OutputInfo intermediate(MemoryType memReq = MemoryType::DDR);
 };
 
 class TestModel final {
@@ -85,12 +89,10 @@ public:
     const DataVector& getOutputs() const;
     const StageVector& getStages() const;
 
-    void createInputs(std::vector<DataDesc> inputDescs);
-    void createOutputs(std::vector<DataDesc> outputDescs);
+    void createInputs(std::vector<DataDesc> inputDescs = {});
+    void createOutputs(std::vector<DataDesc> outputDescs = {});
 
-    Stage addStage(
-            std::initializer_list<InputInfo> curInputInfos,
-            std::initializer_list<OutputInfo> curOutputInfos);
+    Stage addStage(const std::vector<InputInfo>& curInputInfos, const std::vector<OutputInfo>& curOutputInfos);
 
     void setStageDataOrderInfo(
             int stageInd,
@@ -144,6 +146,7 @@ public:
     TestModel CreateTestModel();
 
 private:
+    MockICore  _mockCore;
     Logger::Ptr _log;
     std::list<ModelPtr> _models;
 };

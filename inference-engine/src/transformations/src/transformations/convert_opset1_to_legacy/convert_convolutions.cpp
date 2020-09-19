@@ -15,6 +15,8 @@
 
 #include <ngraph/pattern/op/wrap_type.hpp>
 
+NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertConvolution, "ConvertConvolution", 0);
+
 ngraph::pass::ConvertConvolution::ConvertConvolution() {
     auto conv = ngraph::pattern::wrap_type<opset1::Convolution>();
 
@@ -42,6 +44,8 @@ ngraph::pass::ConvertConvolution::ConvertConvolution() {
     this->register_matcher(m, callback);
 }
 
+NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertGroupConvolution, "ConvertGroupConvolution", 0);
+
 ngraph::pass::ConvertGroupConvolution::ConvertGroupConvolution() {
     auto gconv = ngraph::pattern::wrap_type<opset1::GroupConvolution>();
 
@@ -54,7 +58,7 @@ ngraph::pass::ConvertGroupConvolution::ConvertGroupConvolution() {
 
         // Merge weights layout GOIYX to (G*O)IYX
         auto shape = gconv->input_value(1).get_shape();
-        std::vector<int64_t> reshape_shape{-1};
+        std::vector<int64_t> reshape_shape{static_cast<int64_t>(shape[0] * shape[1])};
         for (size_t i = 2; i < shape.size(); ++i) {
             reshape_shape.push_back(shape[i]);
         }
@@ -83,6 +87,8 @@ ngraph::pass::ConvertGroupConvolution::ConvertGroupConvolution() {
     auto m = std::make_shared<ngraph::pattern::Matcher>(gconv, "ConvertGroupConvolution");
     this->register_matcher(m, callback);
 }
+
+NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertDeconvolution, "ConvertDeconvolution", 0);
 
 ngraph::pass::ConvertDeconvolution::ConvertDeconvolution() {
     auto conv = ngraph::pattern::wrap_type<opset1::ConvolutionBackpropData>();
@@ -114,6 +120,8 @@ ngraph::pass::ConvertDeconvolution::ConvertDeconvolution() {
     this->register_matcher(m, callback);
 }
 
+NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertGroupDeconvolution, "ConvertGroupDeconvolution", 0);
+
 ngraph::pass::ConvertGroupDeconvolution::ConvertGroupDeconvolution() {
     auto gconv = ngraph::pattern::wrap_type<opset1::GroupConvolutionBackpropData>();
 
@@ -127,7 +135,8 @@ ngraph::pass::ConvertGroupDeconvolution::ConvertGroupDeconvolution() {
         // Merge weights layout GIOYX to I(G*O)YX
         auto input_shape = gconv->input_value(0).get_shape();
         auto weights_shape = gconv->input_value(1).get_shape();
-        std::vector<size_t> reshape_shape{weights_shape[1], weights_shape[2] * group};
+        std::vector<int64_t> reshape_shape{static_cast<int64_t>(weights_shape[1]),
+                                           static_cast<int64_t>(weights_shape[2] * group)};
         for (size_t i = 3; i < weights_shape.size(); ++i) {
             reshape_shape.push_back(weights_shape[i]);
         }

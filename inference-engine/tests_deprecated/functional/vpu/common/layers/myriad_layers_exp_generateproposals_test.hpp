@@ -147,7 +147,7 @@ TEST_P(myriadLayersTestsExpGenerateProposals_smoke, ExpGenerateProposals) {
 
     const auto numProposals = scoresDims.c * scoresDims.h * scoresDims.w;
 
-    _config[VPU_CONFIG_KEY(DETECT_NETWORK_BATCH)] = CONFIG_VALUE(NO);
+    _config[InferenceEngine::MYRIAD_DETECT_NETWORK_BATCH] = CONFIG_VALUE(NO);
 
     IN_OUT_desc inputTensors, outputTensors;
     inputTensors.push_back({3}); // im info

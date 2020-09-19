@@ -15,12 +15,17 @@
 
 #include "include/include_all.cl"
 
-KERNEL(batch_to_space_ref)(const __global INPUT0_TYPE* input, __global OUTPUT_TYPE* output)
+KERNEL(batch_to_space_ref)(const __global INPUT0_TYPE* input,
+                                 __global OUTPUT_TYPE* output
+#if HAS_FUSED_OPS_DECLS
+                           , FUSED_OPS_DECLS
+#endif
+)
 {
     const uint batch = get_global_id(0);
     const uint feature = get_global_id(1);
 
-#ifdef OUTPUT_LAYOUT_BFYX
+#if OUTPUT_LAYOUT_BFYX || OUTPUT_LAYOUT_B_FS_YX_FSV16
     const uint w = 0;
     const uint z = 0;
     const uint y = (uint)get_global_id(2) / OUTPUT_SIZE_X;
@@ -68,21 +73,22 @@ KERNEL(batch_to_space_ref)(const __global INPUT0_TYPE* input, __global OUTPUT_TY
                                offset_x) * OUTPUT_BATCH_NUM;
     const uint input_batch = batch + offset_batch;
 
-    const uint input_index = INPUT0_OFFSET +
-                             input_batch * INPUT0_BATCH_PITCH +
-                             input_feature * INPUT0_FEATURE_PITCH +
-                             input_w * INPUT0_W_PITCH +
-                             input_z * INPUT0_Z_PITCH +
-                             input_y * INPUT0_Y_PITCH +
-                             input_x;
+#if OUTPUT_DIMS == 4
+    const uint input_index = INPUT0_GET_INDEX(input_batch, input_feature, input_y, input_x);
+    const uint output_index = OUTPUT_GET_INDEX(batch, feature, y, x);
+#elif OUTPUT_DIMS == 5
+    const uint input_index = INPUT0_GET_INDEX(input_batch, input_feature, input_z, input_y, input_x);
+    const uint output_index = OUTPUT_GET_INDEX(batch, feature, z, y, x);
+#elif OUTPUT_DIMS == 6
+    const uint input_index = INPUT0_GET_INDEX(input_batch, input_feature, input_w, input_z, input_y, input_x);
+    const uint output_index = OUTPUT_GET_INDEX(batch, feature, w, z, y, x);
+#endif
 
-    const uint output_index = OUTPUT_OFFSET +
-                              batch * OUTPUT_BATCH_PITCH +
-                              feature * OUTPUT_FEATURE_PITCH +
-                              w * OUTPUT_W_PITCH +
-                              z * OUTPUT_Z_PITCH +
-                              y * OUTPUT_Y_PITCH +
-                              x;
-
-    output[output_index] = ACTIVATION(input[input_index], ACTIVATION_PARAMS);
+    INPUT0_TYPE result = input[input_index];
+#if HAS_FUSED_OPS
+    FUSED_OPS;
+    output[output_index] = FUSED_OPS_RESULT;
+#else
+    output[output_index] = ACTIVATION(result, ACTIVATION_PARAMS);
+#endif
 }

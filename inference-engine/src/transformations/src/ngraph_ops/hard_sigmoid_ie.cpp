@@ -7,7 +7,7 @@
 
 #include "ngraph_ops/hard_sigmoid_ie.hpp"
 
-#include "ngraph/op/fused/hard_sigmoid.hpp"
+#include "ngraph/op/hard_sigmoid.hpp"
 #include "ngraph/op/constant.hpp"
 #include "ngraph/op/multiply.hpp"
 

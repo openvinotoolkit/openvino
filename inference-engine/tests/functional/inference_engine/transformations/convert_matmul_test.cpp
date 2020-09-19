@@ -38,7 +38,8 @@ TEST(TransformationTests, ConvertMatMulTest1) {
 
         ngraph::pass::Manager m;
         m.register_pass<ngraph::pass::InitNodeInfo>();
-        m.register_pass<ngraph::pass::ConvertMatMulToFCorGemm>();
+        m.register_pass<ngraph::pass::ConvertMatMulToFC>();
+        m.register_pass<ngraph::pass::ConvertMatMulToGemm>();
         m.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
     }
@@ -69,7 +70,8 @@ TEST(TransformationTests, ConvertMatMulTest2) {
 
         ngraph::pass::Manager m;
         m.register_pass<ngraph::pass::InitNodeInfo>();
-        m.register_pass<ngraph::pass::ConvertMatMulToFCorGemm>();
+        m.register_pass<ngraph::pass::ConvertMatMulToFC>();
+        m.register_pass<ngraph::pass::ConvertMatMulToGemm>();
         m.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
     }
@@ -99,7 +101,8 @@ TEST(TransformationTests, ConvertMatMulTest3) {
         f = std::make_shared<ngraph::Function>(ngraph::NodeVector{matmul}, ngraph::ParameterVector{input1, input2});
         ngraph::pass::Manager m;
         m.register_pass<ngraph::pass::InitNodeInfo>();
-        m.register_pass<ngraph::pass::ConvertMatMulToFCorGemm>();
+        m.register_pass<ngraph::pass::ConvertMatMulToFC>();
+        m.register_pass<ngraph::pass::ConvertMatMulToGemm>();
         m.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
     }
@@ -129,7 +132,8 @@ TEST(TransformationTests, ConvertMatMulTest4) {
         f = std::make_shared<ngraph::Function>(ngraph::NodeVector{matmul}, ngraph::ParameterVector{input1, input2});
         ngraph::pass::Manager m;
         m.register_pass<ngraph::pass::InitNodeInfo>();
-        m.register_pass<ngraph::pass::ConvertMatMulToFCorGemm>();
+        m.register_pass<ngraph::pass::ConvertMatMulToFC>();
+        m.register_pass<ngraph::pass::ConvertMatMulToGemm>();
         m.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
     }
@@ -156,7 +160,8 @@ TEST(TransformationTests, ConvertMatMulTest5) {
         f = std::make_shared<ngraph::Function>(ngraph::NodeVector{matmul}, ngraph::ParameterVector{input1});
         ngraph::pass::Manager m;
         m.register_pass<ngraph::pass::InitNodeInfo>();
-        m.register_pass<ngraph::pass::ConvertMatMulToFCorGemm>();
+        m.register_pass<ngraph::pass::ConvertMatMulToFC>();
+        m.register_pass<ngraph::pass::ConvertMatMulToGemm>();
         m.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
     }
@@ -184,7 +189,8 @@ TEST(TransformationTests, ConvertMatMulTest6) {
         f = std::make_shared<ngraph::Function>(ngraph::NodeVector{matmul}, ngraph::ParameterVector{input1});
         ngraph::pass::Manager m;
         m.register_pass<ngraph::pass::InitNodeInfo>();
-        m.register_pass<ngraph::pass::ConvertMatMulToFCorGemm>();
+        m.register_pass<ngraph::pass::ConvertMatMulToFC>();
+        m.register_pass<ngraph::pass::ConvertMatMulToGemm>();
         m.register_pass<ngraph::pass::ReshapeFullyConnected>();
         m.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
@@ -216,7 +222,8 @@ TEST(TransformationTests, ConvertMatMulTest7) {
 
         ngraph::pass::Manager m;
         m.register_pass<ngraph::pass::InitNodeInfo>();
-        m.register_pass<ngraph::pass::ConvertMatMulToFCorGemm>();
+        m.register_pass<ngraph::pass::ConvertMatMulToFC>();
+        m.register_pass<ngraph::pass::ConvertMatMulToGemm>();
         m.register_pass<ngraph::pass::ReshapeFullyConnected>();
 
         auto callback = [](const std::shared_ptr<const ngraph::Node> & node) -> bool {

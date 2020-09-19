@@ -150,8 +150,6 @@ attach_concatenation_gpu::attach_concatenation_gpu() {
         {std::make_tuple(engine_types::ocl, data_types::u8, format::b_fs_yx_fsv16), concatenation_gpu::create},
         {std::make_tuple(engine_types::ocl, data_types::i8, format::b_fs_yx_fsv16), concatenation_gpu::create},
         // MMAD
-        {std::make_tuple(engine_types::ocl, data_types::i8, format::byxf_af32), concatenation_gpu::create},
-        {std::make_tuple(engine_types::ocl, data_types::u8, format::byxf_af32), concatenation_gpu::create},
         {std::make_tuple(engine_types::ocl, data_types::i8, format::b_fs_yx_fsv4), concatenation_gpu::create},
         {std::make_tuple(engine_types::ocl, data_types::u8, format::b_fs_yx_fsv4), concatenation_gpu::create},
         {std::make_tuple(engine_types::ocl, data_types::i8, format::b_fs_yx_fsv32), concatenation_gpu::create},

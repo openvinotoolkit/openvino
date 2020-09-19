@@ -9,6 +9,7 @@
 #include <limits>
 #include <cstdint>
 #include <algorithm>
+#include "backend/gna_types.h"
 
 #ifdef _NO_MKL_
 #include <cmath>
@@ -497,7 +498,7 @@ std::vector<pwl_t> pwl_search(const DnnActivation& activation_type,
 
 
 void PwlDesignOpt16(const DnnActivation activation_type,
-                    std::vector<intel_pwl_segment_t> &ptr_segment,
+                    std::vector<gna_pwl_segment_t> &ptr_segment,
                     const float scale_in,
                     const float scale_out) {
     std::vector<pwl_t> pwl;
@@ -588,7 +589,7 @@ void PwlDesignOpt16(const DnnActivation activation_type,
 }
 
 void PwlDesign16(const DnnActivation activation_type,
-                 intel_pwl_segment_t *ptr_segment,
+                 gna_pwl_segment_t *ptr_segment,
                  const uint32_t num_segments,
                  const float scale_in,
                  const float scale_out) {
@@ -869,7 +870,7 @@ void PwlApply16(intel_dnn_component_t *component,
     uint32_t num_saturate = 0;
     uint32_t num_segments = component->op.pwl.num_segments;
     if (num_segments > 0) {
-        intel_pwl_segment_t *ptr_segment = component->op.pwl.ptr_segments;
+        gna_pwl_segment_t *ptr_segment = component->op.pwl.ptr_segments;
         for (int i = num_row_start; i <= num_row_end; i++) {
             int32_t *ptr_input = reinterpret_cast<int32_t *>(component->ptr_inputs) + i * component->num_columns_in;
             int16_t *ptr_output = reinterpret_cast<int16_t *>(component->ptr_outputs) + i * component->num_columns_in;

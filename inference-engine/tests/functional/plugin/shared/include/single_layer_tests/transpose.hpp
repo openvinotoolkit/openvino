@@ -22,7 +22,7 @@ typedef std::tuple<
 > transposeParams;
 
 class TransposeLayerTest : public testing::WithParamInterface<transposeParams>,
-                           public LayerTestsUtils::LayerTestsCommon {
+                           virtual public LayerTestsUtils::LayerTestsCommon {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<transposeParams> obj);
 

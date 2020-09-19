@@ -45,7 +45,7 @@ class PriorboxMutation(BackReplacementPattern):
         node = match['pb']
         name = node.soft_get('name', node.id)
 
-        graph.graph['cmd_params'].keep_shape_ops = True
+        graph.graph['cmd_params'].static_shape = False
 
         assert len(node.in_ports()) == 2
 

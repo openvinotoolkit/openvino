@@ -44,6 +44,7 @@
 #include "depth_to_space_inst.h"
 #include "space_to_depth_inst.h"
 #include "gather_inst.h"
+#include "scatter_update_inst.h"
 #include "reverse_sequence_inst.h"
 #include "shuffle_channels_inst.h"
 #include "space_to_batch_inst.h"
@@ -51,6 +52,7 @@
 #include "cum_sum_inst.h"
 #include "embedding_bag_inst.h"
 #include "extract_image_patches_inst.h"
+#include "reduce_inst.h"
 #include <vector>
 #include <list>
 #include <memory>
@@ -200,7 +202,7 @@ void prepare_primitive_fusing::fuse_activations(program_impl &p) {
                  !input.is_type<reshape>() && !input.is_type<roi_pooling>() && !input.is_type<scale>() &&
                  !input.is_type<softmax>() && !input.is_type<resample>() && !input.is_type<mvn>() &&
                  !input.is_type<depth_to_space>() && !input.is_type<batch_to_space>() &&
-                 !input.is_type<space_to_batch>() && !input.is_type<gather>() && !input.is_type<shuffle_channels>() &&
+                 !input.is_type<space_to_batch>() && !input.is_type<gather>() && !input.is_type<scatter_update>() && !input.is_type<shuffle_channels>() &&
                  !input.is_type<strided_slice>() && !input.is_type<cum_sum>() && !input.is_type<reverse_sequence>() &&
                  !input.is_type<embedding_bag>() && !input.is_type<extract_image_patches>() &&
                  !input.is_type<fused_conv_eltwise>() && !input.is_type<activation>()))
@@ -348,6 +350,34 @@ void prepare_primitive_fusing::fuse_simple_primitives(program_impl &p) {
             return false;
         };
 
+        auto dts_supports_fusings = [](depth_to_space_node& node) -> bool {
+            // Exclude `Conv -> DepthToSpace -> Eltwise (Sum)` case and handle it later by fusing into fused_conv_eltwise primitive
+            bool input_conv = node.get_dependency(0).is_type<convolution>();
+            bool out_eltw = node.get_users().front()->is_type<eltwise>();
+            if (input_conv && out_eltw) {
+                auto& eltw = static_cast<const eltwise&>(*node.get_users().front()->get_primitive());
+                auto& conv = node.get_dependency(0).as<convolution>();
+                auto eltw_mode = eltw.mode == eltwise_mode::sum;
+                auto conv_size = conv.get_dependency(0).get_output_layout().size.spatial[0] % 128 == 0 &&
+                                 conv.get_dependency(0).get_output_layout().size.spatial[1] % 2 == 0;
+                auto format = conv.get_output_layout().format == format::bfyx;
+                auto dt = conv.get_output_layout().data_type == data_types::f16;
+                if (eltw_mode && conv_size && format && dt)
+                    return false;
+            }
+
+            return true;
+        };
+
+        auto reduce_supports_fusings = [](reduce_node& node) -> bool {
+            auto keep_dims = node.as<reduce>().get_primitive()->keep_dims;
+
+            if (keep_dims)
+                return true;
+
+            return false;
+        };
+
         auto fuse_activation_f = [&](activation_node& activation_node) {
             auto& input_data = activation_node.get_dependency(0);
             if (input_data.get_users().size() != 1 || activation_node.get_dependencies().size() >= 3)
@@ -381,9 +411,17 @@ void prepare_primitive_fusing::fuse_simple_primitives(program_impl &p) {
 
             should_fuse |= input_data.is_type<gather>();
 
+            should_fuse |= input_data.is_type<scatter_update>();
+
             should_fuse |= input_data.is_type<depth_to_space>();
 
             should_fuse |= input_data.is_type<space_to_depth>();
+
+            should_fuse |= input_data.is_type<batch_to_space>();
+
+            should_fuse |= input_data.is_type<space_to_batch>();
+
+            should_fuse |= input_data.is_type<reduce>() && reduce_supports_fusings(input_data.as<reduce>());
 
             if (!should_fuse)
                 return;
@@ -428,9 +466,17 @@ void prepare_primitive_fusing::fuse_simple_primitives(program_impl &p) {
 
             should_fuse |= input_data.is_type<gather>();
 
+            should_fuse |= input_data.is_type<scatter_update>();
+
             should_fuse |= input_data.is_type<depth_to_space>();
 
             should_fuse |= input_data.is_type<space_to_depth>();
+
+            should_fuse |= input_data.is_type<batch_to_space>();
+
+            should_fuse |= input_data.is_type<space_to_batch>();
+
+            should_fuse |= input_data.is_type<reduce>() && reduce_supports_fusings(input_data.as<reduce>());
 
             if (!should_fuse)
                 return;
@@ -504,11 +550,23 @@ void prepare_primitive_fusing::fuse_simple_primitives(program_impl &p) {
 
             should_fuse |= input_data.is_type<gather>() && quantize_node.get_scale_shift_opt();
 
+            should_fuse |= input_data.is_type<scatter_update>() && quantize_node.get_scale_shift_opt();
+
             should_fuse |= input_data.is_type<permute>() && quantize_node.get_scale_shift_opt();
 
             should_fuse |= input_data.is_type<depth_to_space>() && quantize_node.get_scale_shift_opt();
 
             should_fuse |= input_data.is_type<space_to_depth>() && quantize_node.get_scale_shift_opt();
+
+            should_fuse |= input_data.is_type<batch_to_space>() && quantize_node.get_scale_shift_opt();
+
+            should_fuse |= input_data.is_type<space_to_batch>() && quantize_node.get_scale_shift_opt();
+
+            should_fuse |= input_data.is_type<eltwise>() && quantize_node.get_scale_shift_opt();
+
+            should_fuse |= input_data.is_type<reduce>() &&
+                           reduce_supports_fusings(input_data.as<reduce>())
+                           && quantize_node.get_scale_shift_opt();
 
             if (!should_fuse)
                 return;
@@ -518,8 +576,14 @@ void prepare_primitive_fusing::fuse_simple_primitives(program_impl &p) {
 
         auto fuse_eltwise_f = [&](eltwise_node& node) {
             std::shared_ptr<const cldnn::eltwise> prim = node.get_primitive();
+            const std::vector<eltwise_mode> supported_modes = {
+                eltwise_mode::sum,
+                eltwise_mode::prod
+            };
+
             if (node.is_output() || node.inputs_count() != 2 ||
-                prim->mode != eltwise_mode::sum || !prim->stride.empty())
+                std::find(supported_modes.begin(), supported_modes.end(), prim->mode) == supported_modes.end() ||
+                !prim->stride.empty())
                 return;
 
             std::vector<cldnn::program_node*> parents = node.get_dependencies();
@@ -531,19 +595,27 @@ void prepare_primitive_fusing::fuse_simple_primitives(program_impl &p) {
             bool can_fuse_parent1 = (parent1->is_type<convolution>() && conv_supports_fusings(parent1->as<convolution>())) ||
                                     (parent1->is_type<mvn>() && mvn_supports_fusings(parent1->as<mvn>())) ||
                                     (parent1->is_type<deconvolution>()) || (parent1->is_type<permute>()) ||
-                                    (parent1->is_type<depth_to_space>()) || (parent1->is_type<space_to_depth>()) ||
-                                    (parent1->is_type<gemm>() && gemm_supports_fusings(parent1->as<gemm>()));
+                                    (parent1->is_type<space_to_depth>()) ||
+                                    (parent1->is_type<gemm>() && gemm_supports_fusings(parent1->as<gemm>())) ||
+                                    (parent1->is_type<batch_to_space>()) || (parent1->is_type<space_to_batch>()) ||
+                                    (parent1->is_type<depth_to_space>() && dts_supports_fusings(parent1->as<depth_to_space>())) ||
+                                    (parent1->is_type<batch_to_space>()) || (parent1->is_type<space_to_batch>()) ||
+                                    (parent1->is_type<reduce>() && reduce_supports_fusings(parent1->as<reduce>()));
 
             bool can_fuse_parent2 = (parent2->is_type<convolution>() && conv_supports_fusings(parent2->as<convolution>())) ||
                                     (parent2->is_type<mvn>() && mvn_supports_fusings(parent2->as<mvn>())) ||
                                     (parent2->is_type<deconvolution>()) || (parent2->is_type<permute>()) ||
-                                    (parent2->is_type<depth_to_space>()) || (parent2->is_type<space_to_depth>()) ||
-                                    (parent2->is_type<gemm>() && gemm_supports_fusings(parent2->as<gemm>()));
+                                    (parent2->is_type<space_to_depth>()) ||
+                                    (parent2->is_type<gemm>() && gemm_supports_fusings(parent2->as<gemm>())) ||
+                                    (parent2->is_type<batch_to_space>()) || (parent2->is_type<space_to_batch>()) ||
+                                    (parent2->is_type<depth_to_space>() && dts_supports_fusings(parent2->as<depth_to_space>())) ||
+                                    (parent2->is_type<batch_to_space>()) || (parent2->is_type<space_to_batch>()) ||
+                                    (parent2->is_type<reduce>() && reduce_supports_fusings(parent2->as<reduce>()));
 
             std::vector<bool> can_fuse_parents = { can_fuse_parent1, can_fuse_parent2 };
 
-            auto p1_raw_size = parent1->get_output_layout().size.raw;
-            auto p2_raw_size = parent2->get_output_layout().size.raw;
+            auto p1_raw_size = parent1->get_output_layout().size.sizes();
+            auto p2_raw_size = parent2->get_output_layout().size.sizes();
             for (unsigned k = 0; k < p1_raw_size.size(); k++) {
                 if (p1_raw_size[k] < p2_raw_size[k]) {
                     if (p1_raw_size[k] != 1)
@@ -655,7 +727,7 @@ void prepare_primitive_fusing::optimize_fused_ops(program_impl& p) {
                                 !quantize_node.get_need_pre_shift();
 
                 if (can_skip) {
-                    fused_prims.erase(curr_itr);
+                    fp_itr = fused_prims.erase(curr_itr);
                 }
             }
         }
@@ -675,6 +747,11 @@ void prepare_conv_eltw_fusing::fuse_conv_depth_to_space(program_impl& p, program
 
     depth_to_space_node* d_t_s_node = static_cast<depth_to_space_node*>(node->users.front());
     if (d_t_s_node->get_users().empty())
+        return;
+    if (!d_t_s_node->get_fused_primitives().empty())
+        return;
+    if (conv_node->get_dependency(0).get_output_layout().size.spatial[0] % 128 != 0 ||
+        conv_node->get_dependency(0).get_output_layout().size.spatial[1] % 2 != 0)
         return;
     if (!d_t_s_node->get_users().front()->is_type<eltwise>())
         return;
@@ -712,11 +789,8 @@ void prepare_conv_eltw_fusing::fuse_conv_eltwise(program_impl& p, program_node* 
     for (auto& dep : eltw_node->get_dependencies()) {
         format fmt = dep->get_output_layout().format;
         data_types dep_dt = dep->get_output_layout().data_type;
-        if ((fmt != format::fs_bs_yx_bsv4_fsv32 || dep_dt != data_types::i8) &&
-            (fmt != format::b_fs_yx_fsv4 || dep_dt != data_types::i8) &&
+        if ((fmt != format::b_fs_yx_fsv4 || dep_dt != data_types::i8) &&
             (fmt != format::b_fs_yx_fsv4 || dep_dt != data_types::u8) &&
-            (fmt != format::byxf_af32 || dep_dt != data_types::i8) &&
-            (fmt != format::byxf_af32 || dep_dt != data_types::u8) &&
             (fmt != format::bfyx || dep_dt != data_types::f32) && (fmt != format::bfyx || dep_dt != data_types::u8) &&
             (fmt != format::bfyx || dep_dt != data_types::i8) && (fmt != format::yxfb || dep_dt != data_types::f16) &&
             (fmt != format::bfyx || dep_dt != data_types::f16 || !if_already_depth_to_space_fused))

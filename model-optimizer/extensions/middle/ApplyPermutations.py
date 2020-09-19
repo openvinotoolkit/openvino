@@ -20,9 +20,12 @@ import numpy as np
 from extensions.middle.ApplyNHWCtoNCHWpermutation import ApplyNHWCtoNCHWpermutation
 from extensions.middle.InsertLayoutPropagationTransposes import is_input_data_in_correct_layout, \
     is_output_data_in_correct_layout
+from extensions.middle.LayoutChangeForConstantShapePaths import LayoutChangeForConstantShapePaths
 from extensions.middle.pass_separator import PostMiddleStart
 from mo.front.common.partial_infer.utils import int64_array
 from mo.graph.graph import Graph, Node
+from mo.graph.perm_inputs import get_node_with_permutation
+from mo.graph.port import Port
 from mo.middle.replacement import MiddleReplacementPattern
 from mo.utils.error import Error
 
@@ -43,7 +46,9 @@ class ApplyPermutation(MiddleReplacementPattern):
         self.merge_nodes_permutations(graph)
         self.permute_data_nodes_attrs(graph)
         self.permute_op_nodes_attrs(graph)
+        self.shape_of_sub_graph_reinference(graph)
         self.permute_input_data(graph)
+        graph.graph['layout'] = 'NCHW'
 
     @staticmethod
     def merge_nodes_permutations(graph: Graph):
@@ -91,7 +96,8 @@ class ApplyPermutation(MiddleReplacementPattern):
     def permute_data_nodes_attrs(graph: Graph):
         # Iterate over all data nodes and apply permutation if exists
         for node in graph.get_data_nodes():
-            if not node.has_valid('permutation'):
+            if not node.has_valid('permutation') or \
+                    all([attrs.get('input_permutation', False) for u, v, attrs in graph.out_edges(node.id, data=True)]):
                 continue
 
             if len(
@@ -123,8 +129,6 @@ class ApplyPermutation(MiddleReplacementPattern):
 
     @staticmethod
     def permute_input_data(graph: Graph):
-        if graph.graph['layout'] != 'NHWC':
-            return
         for node in graph.get_op_nodes():
             input_permutations = [(in_port, edge_attrs['input_permutation']) for in_port, edge_attrs in
                                   node.in_edges().items() if edge_attrs.get('input_permutation') is not None]
@@ -133,6 +137,28 @@ class ApplyPermutation(MiddleReplacementPattern):
                 direction, port = port_info.split(':')
                 port = int(port)
                 port_to_check = node.in_port(port) if direction == 'input' else node.out_port(port)
-                if not is_input_data_in_correct_layout(node, in_port) and len(port_to_check.data.get_shape()) >= 4:
+                permutation_data_node = get_node_with_permutation(node, port_info)
+
+                if permutation_data_node.has_and_set('permutation') and \
+                        not is_input_data_in_correct_layout(node, in_port) and \
+                        len(port_to_check.data.get_shape()) >= 4:
                     permutation(node, port_info, in_port)
-        graph.graph['layout'] = 'NCHW'
+
+    @staticmethod
+    def shape_of_sub_graph_reinference(graph: Graph):
+        """
+        After layout permutation (shape change in data nodes) shape sub-graphs contain values in the old layout
+        To change that we execute full partial inference on the shape-of sub-graphs
+        """
+        shape_ops = graph.get_op_nodes(op='ShapeOf')
+        for shape in shape_ops:
+            shape.infer(shape)
+
+        def reinfer_once(in_port: Port):
+            node = in_port.node
+            if not node.soft_get('reinferred', False):
+                node.infer(node)
+                node['reinferred'] = True
+
+        LayoutChangeForConstantShapePaths().find_shape_subgraph_endpoints(
+            out_ports=[shape.out_port(0) for shape in shape_ops], action=reinfer_once)

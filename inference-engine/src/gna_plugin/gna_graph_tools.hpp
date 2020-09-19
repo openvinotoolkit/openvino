@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "graph_tools.hpp"
+#include <legacy/graph_tools.hpp>
 #include "gna_plugin_log.hpp"
 
 #include <utility>
@@ -256,6 +256,22 @@ inline int CNNLayerFindOutDataIdx(CNNLayerPtr layer, int insDataIdx) {
     return std::distance(prevLayer->outData.begin(), outDataIt);
 }
 
+/// @brief utility to locate output data from given insData index and given layer
+/// also it returns iterator that represent link to this layer in inputToMap
+inline std::pair<DataPtr, std::map<std::string, CNNLayerPtr>::iterator> CNNLayerFindOutData(CNNLayerPtr layer, int insDataIdx) {
+    auto oDataIdx  = CNNLayerFindOutDataIdx(layer, insDataIdx);
+    auto prevLayer = CNNNetPrevLayer(layer, insDataIdx);
+    auto oData = prevLayer->outData[oDataIdx];
+    for (auto inputTo  = getInputTo(oData).begin();
+    inputTo != getInputTo(oData).end();
+    inputTo++) {
+        if (inputTo->second == layer) {
+            return {oData, inputTo};
+        }
+    }
+    THROW_GNA_LAYER_EXCEPTION(layer) << "cannot locate input data for: " << insDataIdx;
+}
+
 /**
  * @brief swap two layer in graph - with modifying input/output references
  * also if layers have different dimensions they are preserved, so layers should be dimensions agnostic
@@ -443,6 +459,7 @@ inline void CNNNetworkInsertLayer(CNNLayerPtr after,
     bool bLocated = false;
     bool hasOutputIndex = outDataIndex != invalid_data_idx;
     if (after != nullptr) {
+        int nUnconnectedOData = 0;
         for (auto && data : after->outData) {
             if (hasOutputIndex && outDataIndex) {
                 --outDataIndex;
@@ -469,8 +486,8 @@ inline void CNNNetworkInsertLayer(CNNLayerPtr after,
                     break;
                 }
             }
-            if (getInputTo(data).empty()) {
-                bLocated = true;
+            if (inputTo.empty()) {
+                nUnconnectedOData++;
             }
             if (bLocated) {
                 // erasing all connection
@@ -483,6 +500,23 @@ inline void CNNNetworkInsertLayer(CNNLayerPtr after,
                 break;
             }
             if (hasOutputIndex) {
+                break;
+            }
+        }
+
+        // separately checking case of possible single unconnected output of given layer
+        if (!bLocated && !before && !hasOutputIndex) {
+            if (nUnconnectedOData != 1) {
+                THROW_GNA_EXCEPTION << "Cannot insert layer: " << LAYER_NAME(layerToInsert) <<" after: " << LAYER_NAME(after);
+            }
+
+            for (auto && data : after->outData) {
+                if (!getInputTo(data).empty()) continue;
+
+                bLocated = true;
+                getInputTo(data)[layerToInsert->outData.front()->getName()]  = layerToInsert;
+                layerToInsert->insData.push_back(data);
+
                 break;
             }
         }
@@ -557,7 +591,7 @@ std::vector<std::pair<CNNLayerPtr, int> > CNNNetGetPrevLayersSkip(CNNLayerPtr or
 /**
  * @brief remove given layer from topology, currently only layers with one input data and one output data supported
  */
-inline void CNNNetworkRemoveLayer(CNNLayerPtr layer) {
+inline void CNNNetworkRemoveLayer(CNNLayerPtr layer, bool checkDims = true) {
     if (!layer) {
         THROW_IE_EXCEPTION << "Cannot remove layer pointed to NULL";
     }
@@ -574,7 +608,7 @@ inline void CNNNetworkRemoveLayer(CNNLayerPtr layer) {
     }
     // if dimensions of input layer not equal target dimensions - shape infer  or reshape layer required, so skipping those cases
     auto osp = layer->outData.front();
-    if (isp->getDims() != osp->getDims()) {
+    if (checkDims && isp->getDims() != osp->getDims()) {
         THROW_IE_EXCEPTION << "Cannot remove layer : "<< layer->name <<" its input layer("
                            << isp->getName() << ") and output(" << osp->getName() << ") have incompatible dimensions";
     }

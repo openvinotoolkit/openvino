@@ -15,6 +15,7 @@
 #include <gflags/gflags.h>
 
 #include "inference_engine.hpp"
+#include <vpu/vpu_plugin_config.hpp>
 #include <vpu/private_plugin_config.hpp>
 #include <vpu/utils/string.hpp>
 #include "samples/common.hpp"
@@ -28,11 +29,6 @@ static constexpr char targetDeviceMessage[] = "Required. Specify a target device
 
 static constexpr char output_message[] = "Optional. Path to the output file. Default value: \"<model_xml_file>.blob\".";
 static constexpr char config_message[] = "Optional. Path to the configuration file. Default value: \"config\".";
-static constexpr char platform_message[] = "Optional. Specifies Movidius platform."
-                                           " Supported values: VPU_MYRIAD_2450, VPU_MYRIAD_2480."
-                                           " Overwrites value from config.\n"
-"                                             This option must be used in order to compile blob"
-                                           " without a connected Myriad device.";
 static constexpr char number_of_shaves_message[] = "Optional. Specifies number of shaves."
                                                    " Should be set with \"VPU_NUMBER_OF_CMX_SLICES\"."
                                                    " Overwrites value from config.";
@@ -70,7 +66,6 @@ DEFINE_string(op, "", outputs_precision_message);
 DEFINE_string(iop, "", iop_message);
 DEFINE_string(il, "", inputs_layout_message);
 DEFINE_string(ol, "", outputs_layout_message);
-DEFINE_string(VPU_MYRIAD_PLATFORM, "", platform_message);
 DEFINE_string(VPU_NUMBER_OF_SHAVES, "", number_of_shaves_message);
 DEFINE_string(VPU_NUMBER_OF_CMX_SLICES, "", number_of_cmx_slices_message);
 DEFINE_string(VPU_TILING_CMX_LIMIT_KB, "", tiling_cmx_limit_message);
@@ -92,7 +87,6 @@ static void showUsage() {
     std::cout << "    -ol                          <value>     "   << outputs_layout_message       << std::endl;
     std::cout << "                                             "                                   << std::endl;
     std::cout << "    VPU options:                             "                                   << std::endl;
-    std::cout << "      -VPU_MYRIAD_PLATFORM       <value>     "   << platform_message             << std::endl;
     std::cout << "      -VPU_NUMBER_OF_SHAVES      <value>     "   << number_of_shaves_message     << std::endl;
     std::cout << "      -VPU_NUMBER_OF_CMX_SLICES  <value>     "   << number_of_cmx_slices_message << std::endl;
     std::cout << "      -VPU_TILING_CMX_LIMIT_KB   <value>     "   << tiling_cmx_limit_message     << std::endl;
@@ -115,13 +109,6 @@ static bool parseCommandLine(int *argc, char ***argv, InferenceEngine::Core& ie)
 
     if (FLAGS_d.empty()) {
         throw std::invalid_argument("Target device name is required");
-    }
-
-    if (std::string::npos != FLAGS_d.find("MYRIAD") && FLAGS_VPU_MYRIAD_PLATFORM.empty()) {
-        std::vector<std::string> myriadDeviceIds = ie.GetMetric("MYRIAD", METRIC_KEY(AVAILABLE_DEVICES));
-        if (myriadDeviceIds.empty()) {
-            throw std::runtime_error{"No available MYRIAD devices. Please specify -VPU_MYRIAD_PLATFORM option explicitly"};
-        }
     }
 
     if (1 < *argc) {
@@ -157,24 +144,28 @@ static std::map<std::string, std::string> parseConfig(const std::string& configN
 static std::map<std::string, std::string> configure(const std::string &configFile, const std::string &xmlFileName) {
     auto config = parseConfig(configFile);
 
-    if (!FLAGS_VPU_MYRIAD_PLATFORM.empty()) {
-        config[VPU_MYRIAD_CONFIG_KEY(PLATFORM)] = FLAGS_VPU_MYRIAD_PLATFORM;
+    if (std::string::npos != FLAGS_d.find("MYRIAD")) {
+IE_SUPPRESS_DEPRECATED_START
+        config[VPU_MYRIAD_CONFIG_KEY(PLATFORM)] = "VPU_MYRIAD_2480";
+IE_SUPPRESS_DEPRECATED_END
+
+        if (!FLAGS_VPU_NUMBER_OF_SHAVES.empty()) {
+            config[InferenceEngine::MYRIAD_NUMBER_OF_SHAVES] = FLAGS_VPU_NUMBER_OF_SHAVES;
+        }
+
+        if (!FLAGS_VPU_NUMBER_OF_CMX_SLICES.empty()) {
+            config[InferenceEngine::MYRIAD_NUMBER_OF_CMX_SLICES] = FLAGS_VPU_NUMBER_OF_CMX_SLICES;
+        }
+
+        if (!FLAGS_VPU_TILING_CMX_LIMIT_KB.empty()) {
+            config[InferenceEngine::MYRIAD_TILING_CMX_LIMIT_KB] = FLAGS_VPU_TILING_CMX_LIMIT_KB;
+        }
     }
 
-    if (!FLAGS_VPU_NUMBER_OF_SHAVES.empty()) {
-        config[VPU_CONFIG_KEY(NUMBER_OF_SHAVES)] = FLAGS_VPU_NUMBER_OF_SHAVES;
-    }
-
-    if (!FLAGS_VPU_NUMBER_OF_CMX_SLICES.empty()) {
-        config[VPU_CONFIG_KEY(NUMBER_OF_CMX_SLICES)] = FLAGS_VPU_NUMBER_OF_CMX_SLICES;
-    }
-
-    if (!FLAGS_VPU_TILING_CMX_LIMIT_KB.empty()) {
-        config[VPU_CONFIG_KEY(TILING_CMX_LIMIT_KB)] = FLAGS_VPU_TILING_CMX_LIMIT_KB;
-    }
-
-    if (!FLAGS_DLA_ARCH_NAME.empty()) {
-        config["DLIA_ARCH_NAME"] = FLAGS_DLA_ARCH_NAME;
+    if (std::string::npos != FLAGS_d.find("FPGA")) {
+        if (!FLAGS_DLA_ARCH_NAME.empty()) {
+            config["DLIA_ARCH_NAME"] = FLAGS_DLA_ARCH_NAME;
+        }
     }
 
     return config;
@@ -237,7 +228,7 @@ static InferenceEngine::Precision getInputPrecision(const std::string &value) {
          { "FP16", InferenceEngine::Precision::FP16 },
          { "U8", InferenceEngine::Precision::U8 }
     };
-    return getPrecision(value, supported_precisions, "for input layer");
+    return getPrecision(value, supported_precisions, " for input layer");
 }
 
 static InferenceEngine::Precision getOutputPrecision(const std::string &value) {
@@ -245,7 +236,7 @@ static InferenceEngine::Precision getOutputPrecision(const std::string &value) {
          { "FP32", InferenceEngine::Precision::FP32 },
          { "FP16", InferenceEngine::Precision::FP16 }
     };
-    return getPrecision(value, supported_precisions, "for output layer");
+    return getPrecision(value, supported_precisions, " for output layer");
 }
 
 static InferenceEngine::Layout getLayout(const std::string &value) {
@@ -306,7 +297,7 @@ static void setPrecisions(const InferenceEngine::CNNNetwork &network, const std:
         if (input != inputs.end()) {
             const auto input_precision = input->second->getPrecision();
             if ((isFloat(input_precision) && isFloat(getInputPrecision(user_precision))) ||
-                (isFP16(input_precision) && isU8(getInputPrecision(user_precision)))) {
+                (isFloat(input_precision) && isU8(getInputPrecision(user_precision)))) {
                 input->second->setPrecision(getInputPrecision(user_precision));
             }
         } else if (output != outputs.end()) {
@@ -320,10 +311,8 @@ static void setPrecisions(const InferenceEngine::CNNNetwork &network, const std:
     }
 }
 
-static void setDefaultIOPrecisions(InferenceEngine::CNNNetwork &network, const std::string & device) {
-    bool isMyriad = FLAGS_d.find("MYRIAD") != std::string::npos;
-
-    if (isMyriad) {
+static void setDefaultIOPrecisions(InferenceEngine::CNNNetwork &network) {
+    if (std::string::npos != FLAGS_d.find("MYRIAD")) {
         const InferenceEngine::Precision fp16 = InferenceEngine::Precision::FP16;
 
         for (auto &&layer : network.getInputsInfo()) {
@@ -419,7 +408,7 @@ int main(int argc, char *argv[]) {
 
         auto network = ie.ReadNetwork(FLAGS_m);
 
-        setDefaultIOPrecisions(network, FLAGS_d);
+        setDefaultIOPrecisions(network);
         processPrecisions(network, FLAGS_ip, FLAGS_op, FLAGS_iop);
         processLayout(network, FLAGS_il, FLAGS_ol);
 

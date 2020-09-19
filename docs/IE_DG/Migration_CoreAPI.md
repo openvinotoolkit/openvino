@@ -1,4 +1,4 @@
-Migration from Inference Engine Plugin API to Core API {#openvino_docs_IE_DG_Migration_CoreAPI}
+[DEPRECATED] Migration from Inference Engine Plugin API to Core API {#openvino_docs_IE_DG_Migration_CoreAPI}
 ===============================
 
 For 2019 R2 Release, the new Inference Engine Core API is introduced. This guide is updated to reflect the new API approach. The Inference Engine Plugin API is still supported, but is going to be deprecated in future releases.
@@ -45,7 +45,7 @@ read networks using the Core class:
 ```cpp
 CNNNetwork network = core.ReadNetwork(input_model);
 ```
-The Core class also allows reading models from ONNX format:
+The Core class also allows reading models from the ONNX format (more information is [here](./ONNX_Support.md)):
 ```cpp
 CNNNetwork network = core.ReadNetwork("model.onnx");
 ```

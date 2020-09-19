@@ -21,7 +21,7 @@ namespace LayerTestsDefinitions {
 
 class PowerLayerTest:
         public testing::WithParamInterface<PowerParamsTuple>,
-        public LayerTestsUtils::LayerTestsCommon{
+        virtual public LayerTestsUtils::LayerTestsCommon{
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<PowerParamsTuple> &obj);
 protected:

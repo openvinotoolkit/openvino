@@ -242,10 +242,10 @@ TEST_P(myriadLayersTestsStridedSlice_smoke, TestsStridedSlice) {
     StatusCode st = GENERAL_ERROR;
 
     std::map<std::string, std::string> config = {
-        { VPU_CONFIG_KEY(DETECT_NETWORK_BATCH), CONFIG_VALUE(NO) }
+        { InferenceEngine::MYRIAD_DETECT_NETWORK_BATCH, CONFIG_VALUE(NO) }
     };
     if (!CheckMyriadX()) {
-        config.insert({ VPU_CONFIG_KEY(DISABLE_REORDER), CONFIG_VALUE(YES) });
+        config.insert({ InferenceEngine::MYRIAD_DISABLE_REORDER, CONFIG_VALUE(YES) });
     }
 
     ASSERT_NO_THROW(st = _vpuPluginPtr->LoadNetwork(

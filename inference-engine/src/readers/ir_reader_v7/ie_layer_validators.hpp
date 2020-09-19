@@ -9,8 +9,8 @@
 #include <string>
 #include <vector>
 
-#include "details/caseless.hpp"
-#include "ie_layers.h"
+#include "caseless.hpp"
+#include <legacy/ie_layers.h>
 
 namespace InferenceEngine {
 namespace details {

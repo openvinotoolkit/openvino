@@ -38,11 +38,6 @@ bool parseAndCheckCommandLine(int argc, char **argv) {
         log_err("Exception while reading test config \"" << FLAGS_test_conf << "\": " << result.description());
         return false;
     }
-    result = config.load_file(FLAGS_env_conf.c_str());
-    if (!result) {
-        log_err("Exception while reading env config \"" << FLAGS_env_conf << "\": " << result.description());
-        return false;
-    }
     result = config.load_file(FLAGS_refs_conf.c_str());
     if (!result) {
         log_err("Exception while reading references config \"" << FLAGS_refs_conf << "\": " << result.description());
@@ -61,8 +56,6 @@ int main(int argc, char **argv) {
     pugi::xml_document config;
     config.load_file(FLAGS_test_conf.c_str());
     Environment::Instance().setTestConfig(config);
-    config.load_file(FLAGS_env_conf.c_str());
-    Environment::Instance().setEnvConfig(config);
     config.load_file(FLAGS_refs_conf.c_str());
     MemCheckEnvironment::Instance().setRefsConfig(config);
     ::testing::InitGoogleTest(&argc, argv);

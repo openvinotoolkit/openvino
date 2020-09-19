@@ -12,6 +12,8 @@
 
 #include "ngraph_ops/normalize_ie.hpp"
 
+NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertNormalizeL2WithMulToNormalizeIE, "ConvertNormalizeL2WithMulToNormalizeIE", 0);
+
 ngraph::pass::ConvertNormalizeL2WithMulToNormalizeIE::ConvertNormalizeL2WithMulToNormalizeIE() {
     auto input_0 = std::make_shared<pattern::op::Label>(element::f32, Shape{1, 1, 1, 1});
     auto input_1 = std::make_shared<pattern::op::Label>(element::f32, Shape{1, 1, 1, 1});
@@ -52,7 +54,7 @@ ngraph::pass::ConvertNormalizeL2WithMulToNormalizeIE::ConvertNormalizeL2WithMulT
 
         //  Replace NormalizeL2 with NormalizeIE operation
 
-        auto axis = const_axis->get_vector<size_t>();
+        auto axis = const_axis->cast_vector<size_t>();
         bool across_spatial = !(axis.size() == 1 && axis[0] == 1);
         bool channel_shared = (constant->get_shape().size() == 1);
 
@@ -72,6 +74,8 @@ ngraph::pass::ConvertNormalizeL2WithMulToNormalizeIE::ConvertNormalizeL2WithMulT
     this->register_matcher(m, callback);
 }
 
+NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertNormalizeL2ToLegacyMatcher, "ConvertNormalizeL2ToLegacyMatcher", 0);
+
 ngraph::pass::ConvertNormalizeL2ToLegacyMatcher::ConvertNormalizeL2ToLegacyMatcher() {
     auto input_0 = std::make_shared<pattern::op::Label>(element::f32, Shape{1, 1, 1, 1});
     auto axis = std::make_shared<ngraph::opset1::Constant>(element::i64, Shape{1}, std::vector<int64_t>{0});
@@ -85,7 +89,7 @@ ngraph::pass::ConvertNormalizeL2ToLegacyMatcher::ConvertNormalizeL2ToLegacyMatch
         if (!const_axis) return false;
 
         //  Replace NormalizeL2 with NormalizeIE operation
-        auto axis = const_axis->get_vector<size_t>();
+        auto axis = const_axis->cast_vector<size_t>();
         bool across_channels = !(axis.size() == 1 && axis[0] == 1);
         bool channel_shared = true;
 

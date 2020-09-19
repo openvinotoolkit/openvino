@@ -17,6 +17,9 @@ namespace op {
 
 class TRANSFORMATIONS_API GRUCellIE : public Op {
 public:
+    static constexpr NodeTypeInfo type_info{"GRUCellIE", 1};
+    const NodeTypeInfo& get_type_info() const override { return type_info; }
+
     GRUCellIE(const Output<Node> &X,
               const Output<Node> &H_t,
               const Output<Node> &WR,
@@ -27,9 +30,6 @@ public:
               const std::vector<float>& activations_beta,
               float clip,
               bool linear_before_reset);
-
-    static constexpr NodeTypeInfo type_info{"GRUCellIE", 1};
-    const NodeTypeInfo& get_type_info() const override { return type_info; }
 
     GRUCellIE() = delete;
 

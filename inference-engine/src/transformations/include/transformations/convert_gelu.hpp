@@ -11,7 +11,7 @@
 
 #include <ngraph/pass/graph_rewrite.hpp>
 
-#include "ngraph/op/fused/gelu.hpp"
+#include "ngraph/op/gelu.hpp"
 
 namespace ngraph {
 namespace pass {
@@ -23,6 +23,7 @@ class TRANSFORMATIONS_API ConvertGELU;
 
 class ngraph::pass::ConvertGELU: public ngraph::pass::GraphRewrite {
 public:
+    NGRAPH_RTTI_DECLARATION;
     ConvertGELU() : GraphRewrite() {
         convert_gelu();
     }

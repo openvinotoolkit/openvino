@@ -18,7 +18,12 @@
 #define CL_HPP_TARGET_OPENCL_VERSION 120
 
 #if defined __GNUC__
+# pragma GCC diagnostic push
 # pragma GCC system_header
 #endif
 
 #include <CL/cl2.hpp>
+
+#if defined __GNUC__
+# pragma GCC diagnostic pop
+#endif

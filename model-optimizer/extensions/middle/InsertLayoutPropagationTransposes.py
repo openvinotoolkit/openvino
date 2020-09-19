@@ -46,12 +46,15 @@ class InsertLayoutPropagationTranspose(MiddleReplacementPattern):
          1. The node is marked as 'reinterp_shape' attribute
          2. The node is *not* marked as getting input in correct layout (implicitly imply that the input is on port 0)
          3. The input shape rank is not less than 4
+         4. Node is not a part of shape sub-graph (layout permutation is handled separately for such a sub-graph)
+
         :param node: node to check
         :return: result of the check
         """
         return node.has_and_set('reinterp_shape') and \
                not is_input_data_in_correct_layout(node, 0) and \
-               len(node.in_port(0).data.get_shape()) >= 4
+               len(node.in_port(0).data.get_shape()) >= 4 and \
+               all([port.data.get_value() is None for port in node.out_ports().values() if not port.disconnected()])
 
     @staticmethod
     def is_nhwc_to_nchw_transpose_needed(node: Node):
@@ -61,12 +64,14 @@ class InsertLayoutPropagationTranspose(MiddleReplacementPattern):
          1. The node is marked as 'reinterp_shape' attribute
          2. The node is *not* marked as generating output in correct layout (implicitly imply that the output port is 0)
          3. The output shape rank is not less than 4
+         4. Node is not a part of shape sub-graph (layout permutation is handled separately for such a sub-graph)
         :param node: node to check
         :return: result of the check
         """
         return node.has_and_set('reinterp_shape') and \
                not is_output_data_in_correct_layout(node, 0) and \
-               len(node.out_port(0).data.get_shape()) >= 4
+               len(node.out_port(0).data.get_shape()) >= 4 and \
+               all([port.data.get_value() is None for port in node.out_ports().values() if not port.disconnected()])
 
     def find_and_replace_pattern(self, graph: Graph):
 

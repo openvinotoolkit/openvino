@@ -14,7 +14,7 @@
 #include <ngraph/function.hpp>
 #include <ngraph/op/constant.hpp>
 #include <ngraph/op/transpose.hpp>
-#include <ngraph/op/fused/fake_quantize.hpp>
+#include <ngraph/op/fake_quantize.hpp>
 #include <transformations/pull_transpose_through_fq.hpp>
 #include <ngraph/pass/constant_folding.hpp>
 #include <transformations/init_node_info.hpp>

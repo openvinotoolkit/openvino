@@ -57,11 +57,11 @@ bool PinThreadToVacantCore(int thrIdx, int hyperthreads, int ncores, const CpuSe
     }
 
     // Find index of 'cpu_idx'-th bit that equals to 1
-    int mapped_idx = 0;
+    int mapped_idx = -1;
     while (cpu_idx >= 0) {
+        mapped_idx++;
         if (CPU_ISSET_S(mapped_idx, size, procMask.get()))
             --cpu_idx;
-        mapped_idx++;
     }
 
     CpuSet targetMask{CPU_ALLOC(ncores)};

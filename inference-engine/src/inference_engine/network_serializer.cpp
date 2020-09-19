@@ -11,8 +11,9 @@
 
 #include "exec_graph_info.hpp"
 #include "xml_parse_utils.h"
-#include "ie_ngraph_utils.hpp"
+#include <legacy/ie_ngraph_utils.hpp>
 #include <ngraph/variant.hpp>
+#include <ngraph/function.hpp>
 
 namespace InferenceEngine {
 namespace Serialization {
@@ -134,8 +135,8 @@ void FillXmlDocWithExecutionNGraph(const InferenceEngine::ICNNNetwork& network,
 
 }  // namespace
 
-void Serialize(const std::string& xmlPath, const std::string& binPath,
-               const InferenceEngine::ICNNNetwork& network) {
+void SerializeV10(const std::string& xmlPath, const std::string& binPath,
+                  const InferenceEngine::ICNNNetwork& network) {
     if (auto function = network.getFunction()) {
         // A flag for serializing executable graph information (not complete IR)
         bool execGraphInfoSerialization = true;

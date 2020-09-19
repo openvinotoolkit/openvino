@@ -927,6 +927,17 @@ static void calcRowLinear(const cv::gapi::fluid::View  & in,
                 return;
             }
         }
+
+        if (std::is_same<T, float>::value) {
+            avx512::calcRowLinear_32F(reinterpret_cast<float**>(dst),
+                                      reinterpret_cast<const float**>(src0),
+                                      reinterpret_cast<const float**>(src1),
+                                      reinterpret_cast<const float*>(alpha),
+                                      reinterpret_cast<const int*>(mapsx),
+                                      reinterpret_cast<const float*>(beta),
+                                      inSz, outSz, lpi);
+            return;
+        }
     }
     #endif
 
@@ -946,6 +957,17 @@ static void calcRowLinear(const cv::gapi::fluid::View  & in,
 
                 return;
             }
+        }
+
+        if (std::is_same<T, float>::value) {
+            avx::calcRowLinear_32F(reinterpret_cast<float**>(dst),
+                                   reinterpret_cast<const float**>(src0),
+                                   reinterpret_cast<const float**>(src1),
+                                   reinterpret_cast<const float*>(alpha),
+                                   reinterpret_cast<const int*>(mapsx),
+                                   reinterpret_cast<const float*>(beta),
+                                   inSz, outSz, lpi);
+            return;
         }
     }
     #endif
@@ -2208,6 +2230,58 @@ GAPI_FLUID_KERNEL(FI420toRGB, I420toRGB, false) {
         calculate_i420_to_rgb_fallback(y_rows, u_row, v_row, out_rows, buf_width);
     }
 };
+
+namespace {
+    template <typename src_t, typename dst_t>
+    void convert_precision(const uint8_t* src, uint8_t* dst, const int width) {
+        const auto *in  = reinterpret_cast<const src_t *>(src);
+              auto *out = reinterpret_cast<dst_t *>(dst);
+
+        for (int i = 0; i < width; i++) {
+            out[i] = saturate_cast<dst_t>(in[i]);
+        }
+    }
+}
+
+GAPI_FLUID_KERNEL(FConvertDepth, ConvertDepth, false) {
+    static const int Window = 1;
+
+    static void run(const cv::gapi::fluid::View& src, int depth, cv::gapi::fluid::Buffer& dst) {
+        GAPI_Assert(src.meta().depth == CV_8U || src.meta().depth == CV_32F || src.meta().depth == CV_16U);
+        GAPI_Assert(dst.meta().depth == CV_8U || dst.meta().depth == CV_32F || dst.meta().depth == CV_16U);
+        GAPI_Assert(src.meta().chan == 1);
+        GAPI_Assert(dst.meta().chan == 1);
+        GAPI_Assert(src.length() == dst.length());
+
+        constexpr unsigned supported_types_n = 3;
+        using p_f = void (*)( const uint8_t* src,  uint8_t* dst, const int width);
+        using table_string_t = std::array<p_f, supported_types_n>;
+
+        constexpr std::array<table_string_t, supported_types_n> func_table = {
+                table_string_t{convert_precision<uint16_t, uint16_t>, convert_precision<uint16_t, float>, convert_precision<uint16_t, uint8_t>},
+                table_string_t{convert_precision<float,    uint16_t>, convert_precision<float,    float>, convert_precision<float,    uint8_t>},
+                table_string_t{convert_precision<uint8_t,  uint16_t>, convert_precision<uint8_t,  float>, convert_precision<uint8_t,  uint8_t>}
+        };
+
+        auto depth_to_index = [](int depth){
+            switch (depth) {
+                case  CV_16U: return 0;
+                case  CV_32F: return 1;
+                case  CV_8U:  return 2;
+                default: GAPI_Assert(!"not supported depth"); return -1;
+            }
+        };
+        const auto *in  = src.InLineB(0);
+              auto *out = dst.OutLineB();
+
+        auto const width = dst.length();
+        auto const src_index = depth_to_index(src.meta().depth);
+        auto const dst_index = depth_to_index(dst.meta().depth);
+
+        (func_table[src_index][dst_index])(in, out, width);
+    }
+};
+
 }  // namespace kernels
 
 //----------------------------------------------------------------------
@@ -2234,6 +2308,7 @@ cv::gapi::GKernelPackage preprocKernels() {
         , FSplit4
         , FNV12toRGB
         , FI420toRGB
+        , FConvertDepth
         >();
 }
 

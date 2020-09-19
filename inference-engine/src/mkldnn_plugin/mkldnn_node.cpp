@@ -5,7 +5,7 @@
 #include "mkldnn_node.h"
 #include "mkldnn_extension_mngr.h"
 
-#include "details/caseless.hpp"
+#include "caseless.hpp"
 #include <vector>
 #include <string>
 #include <limits>
@@ -42,16 +42,19 @@
 #include <nodes/mkldnn_mvn_node.h>
 #include <nodes/mkldnn_resample_node.h>
 #include <nodes/mkldnn_normalize_node.h>
+#include <nodes/mkldnn_reduce_node.h>
 #include <nodes/mkldnn_tensoriterator_node.h>
 #include <nodes/mkldnn_scatter_update_node.h>
+#include <nodes/mkldnn_interpolate_node.h>
 #include <mkldnn_types.h>
 #include "mkldnn_extension_utils.h"
 
-#include "ie_memcpy.h"
+#include "nodes/common/cpu_memcpy.h"
 #include "mkldnn_debug.h"
 
 using namespace mkldnn;
 using namespace MKLDNNPlugin;
+using namespace openvino;
 
 using namespace InferenceEngine::details;
 namespace MKLDNNPlugin {
@@ -74,6 +77,8 @@ static const InferenceEngine::details::caseless_unordered_map<std::string, Type>
         { "Activation", Activation },
         { "Clamp", Activation },
         { "Swish", Activation },
+        { "HSwish", Activation },
+        { "Mish", Activation },
         { "ScaleShift", Depthwise },
         { "PReLU", Depthwise },
         { "Norm", Lrn },
@@ -119,6 +124,19 @@ static const InferenceEngine::details::caseless_unordered_map<std::string, Type>
         { "ScatterUpdate", ScatterUpdate},
         { "ScatterElementsUpdate", ScatterElementsUpdate},
         { "ScatterNDUpdate", ScatterNDUpdate},
+        { "Interpolate", Interpolate},
+        { "ReduceAnd", ReduceAnd},
+        { "ReduceL1", ReduceL1},
+        { "ReduceL2", ReduceL2},
+        { "ReduceLogSum", ReduceLogSum},
+        { "ReduceLogSumExp", ReduceLogSumExp},
+        { "ReduceMax", ReduceMax},
+        { "ReduceMean", ReduceMean},
+        { "ReduceMin", ReduceMin},
+        { "ReduceOr", ReduceOr},
+        { "ReduceProd", ReduceProd},
+        { "ReduceSum", ReduceSum},
+        { "ReduceSumSquare", ReduceSumSquare},
 };
 
 Type TypeFromName(const std::string type) {
@@ -145,7 +163,7 @@ MKLDNNNode::MKLDNNNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::
         MKLDNNWeightsSharing::Ptr &w_cache)
         : selectedPrimitiveDescriptorIndex(-1), permanent(false), temporary(false), constant(ConstantType::Unknown),
           weightCache(w_cache), cnnLayer(layer), engine(eng), name(layer->name), typeStr(layer->type),
-          type(TypeFromName(layer->type)), profilingTask(name) {
+          type(TypeFromName(layer->type)), profilingTask(itt::handle(name)) {
     if (!layer->outData.empty()) {
         for (const auto& outData : layer->outData) {
             outDims.emplace_back(outData->getDims());
@@ -439,6 +457,12 @@ std::string MKLDNNNode::getPrimitiveDescriptorType() {
             } else {
                 str_type += "_I8";
             }
+        } else {
+            if (selectedPrimitiveDesc->getConfig().outConfs[0].desc.getPrecision() != InferenceEngine::Precision::U8) {
+                str_type += "_" + std::string(selectedPrimitiveDesc->getConfig().outConfs[0].desc.getPrecision().name());
+            } else {
+                str_type += "_I8";
+            }
         }
     }
 
@@ -689,7 +713,7 @@ InferenceEngine::Blob::Ptr MKLDNNNode::createInternalBlob(InferenceEngine::SizeV
     auto fillInternalBlob = [&](char *data, size_t intBuffSize) {
         size_t offset = blb->byteSize();
         checkSize(intBuffSize, offset);
-        ie_memcpy(data, intBuffSize, blb->buffer(), blb->byteSize());
+        cpu_memcpy_s(data, intBuffSize, blb->buffer(), blb->byteSize());
         data += blb->byteSize();
         for (const auto &merged : getMergeWith()) {
             wLayer = dynamic_cast<InferenceEngine::WeightableLayer*>(merged->getCnnLayer().get());
@@ -702,7 +726,7 @@ InferenceEngine::Blob::Ptr MKLDNNNode::createInternalBlob(InferenceEngine::SizeV
                 THROW_IE_EXCEPTION << "Cannot get internal blob layer for node " << getName() << ".";
             offset += blb->byteSize();
             checkSize(intBuffSize, offset);
-            ie_memcpy(data, intBuffSize, blb->buffer(), blb->byteSize());
+            cpu_memcpy_s(data, intBuffSize, blb->buffer(), blb->byteSize());
             data += blb->byteSize();
         }
     };

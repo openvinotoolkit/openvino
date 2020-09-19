@@ -54,10 +54,9 @@ TEST(TransformationTests, ConvertNMS4ToNMSIEStatic) {
                                                               std::make_shared<opset4::Unsqueeze>(score_threshold,
                                                                                                   opset4::Constant::create(element::i64, Shape{1}, {0})),
                                                               0, true);
-        auto convert = std::make_shared<ngraph::opset4::Convert>(nms, element::i64);
-        convert->set_friendly_name("nms");
+        nms->set_friendly_name("nms");
 
-        f_ref = std::make_shared<Function>(NodeVector{convert}, ParameterVector{boxes, scores});
+        f_ref = std::make_shared<Function>(NodeVector{nms}, ParameterVector{boxes, scores});
         ASSERT_TRUE(f_ref->get_output_partial_shape(0).is_static()) << "Shape " << f_ref->get_output_partial_shape(0) << " should be static";
     }
 

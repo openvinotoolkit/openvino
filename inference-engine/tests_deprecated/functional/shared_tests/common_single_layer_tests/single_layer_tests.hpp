@@ -7,8 +7,8 @@
 #include <gtest/gtest.h>
 
 #include <tests_common.hpp>
-#include <ie_layers_internal.hpp>
-#include <details/ie_cnn_network_iterator.hpp>
+#include <legacy/ie_layers_internal.hpp>
+#include <legacy/details/ie_cnn_network_iterator.hpp>
 #include <functional_test_utils/plugin_cache.hpp>
 
 #include "conv_ref.hpp"

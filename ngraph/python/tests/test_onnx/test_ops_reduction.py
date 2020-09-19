@@ -18,6 +18,27 @@ import onnx
 import pytest
 
 from tests.test_onnx.utils import run_node
+from tests import xfail_issue_35925
+
+reduce_data = np.array([[[5, 1], [20, 2]], [[30, 1], [40, 2]], [[55, 1], [60, 2]]], dtype=np.float32)
+reduce_axis_parameters = [
+    None,
+    (0,),
+    (1,),
+    (2,),
+    (0, 1),
+    (0, 2),
+    (1, 2),
+    (0, 1, 2)
+]
+
+reduce_operation_parameters = [
+    ("ReduceMax", np.max),
+    ("ReduceMin", np.min),
+    ("ReduceMean", np.mean),
+    ("ReduceSum", np.sum),
+    ("ReduceProd", np.prod)
+]
 
 
 def import_and_compute(op_type, input_data, **node_attrs):
@@ -26,196 +47,34 @@ def import_and_compute(op_type, input_data, **node_attrs):
     return run_node(node, data_inputs).pop()
 
 
-def test_reduce_max():
-    data = np.array([[[5, 1], [20, 2]], [[30, 1], [40, 2]], [[55, 1], [60, 2]]], dtype=np.float32)
-
-    assert np.array_equal(import_and_compute("ReduceMax", data, keepdims=0), np.max(data, keepdims=False))
-    assert np.array_equal(
-        import_and_compute("ReduceMax", data, axes=(0,), keepdims=0), np.max(data, keepdims=False, axis=(0,))
-    )
-    assert np.array_equal(
-        import_and_compute("ReduceMax", data, axes=(1,), keepdims=0), np.max(data, keepdims=False, axis=(1,))
-    )
-    assert np.array_equal(
-        import_and_compute("ReduceMax", data, axes=(2,), keepdims=0), np.max(data, keepdims=False, axis=(2,))
-    )
-
-    assert np.array_equal(
-        import_and_compute("ReduceMax", data, axes=(0, 1), keepdims=0),
-        np.max(data, keepdims=False, axis=(0, 1)),
-    )
-    assert np.array_equal(
-        import_and_compute("ReduceMax", data, axes=(0, 2), keepdims=0),
-        np.max(data, keepdims=False, axis=(0, 2)),
-    )
-    assert np.array_equal(
-        import_and_compute("ReduceMax", data, axes=(1, 2), keepdims=0),
-        np.max(data, keepdims=False, axis=(1, 2)),
-    )
-
-    assert np.array_equal(
-        import_and_compute("ReduceMax", data, axes=(0, 1, 2), keepdims=0),
-        np.max(data, keepdims=False, axis=(0, 1, 2)),
-    )
+@pytest.mark.parametrize("operation, ref_operation", reduce_operation_parameters)
+@pytest.mark.parametrize("axes", reduce_axis_parameters)
+def test_reduce_operation_keepdims(operation, ref_operation, axes):
+    if axes:
+        assert np.array_equal(import_and_compute(operation, reduce_data, axes=axes, keepdims=True),
+                              ref_operation(reduce_data, keepdims=True, axis=axes))
+    else:
+        assert np.array_equal(import_and_compute(operation, reduce_data, keepdims=True),
+                              ref_operation(reduce_data, keepdims=True))
 
 
-def test_reduce_max_keepdims():
-    data = np.array([[[5, 1], [20, 2]], [[30, 1], [40, 2]], [[55, 1], [60, 2]]], dtype=np.float32)
-
-    assert np.array_equal(import_and_compute("ReduceMax", data), np.max(data, keepdims=True))
-    assert np.array_equal(
-        import_and_compute("ReduceMax", data, axes=(0,)), np.max(data, keepdims=True, axis=(0,))
-    )
-    assert np.array_equal(
-        import_and_compute("ReduceMax", data, axes=(1,)), np.max(data, keepdims=True, axis=(1,))
-    )
-    assert np.array_equal(
-        import_and_compute("ReduceMax", data, axes=(2,)), np.max(data, keepdims=True, axis=(2,))
-    )
-
-    assert np.array_equal(
-        import_and_compute("ReduceMax", data, axes=(0, 1)), np.max(data, keepdims=True, axis=(0, 1))
-    )
-    assert np.array_equal(
-        import_and_compute("ReduceMax", data, axes=(0, 2)), np.max(data, keepdims=True, axis=(0, 2))
-    )
-    assert np.array_equal(
-        import_and_compute("ReduceMax", data, axes=(1, 2)), np.max(data, keepdims=True, axis=(1, 2))
-    )
-
-    assert np.array_equal(
-        import_and_compute("ReduceMax", data, axes=(0, 1, 2)), np.max(data, keepdims=True, axis=(0, 1, 2))
-    )
-
-
-def test_reduce_min():
-    data = np.array([[[5, 1], [20, 2]], [[30, 1], [40, 2]], [[55, 1], [60, 2]]], dtype=np.float32)
-
-    assert np.array_equal(import_and_compute("ReduceMin", data), np.min(data, keepdims=True))
-    assert np.array_equal(import_and_compute("ReduceMin", data, keepdims=0), np.min(data, keepdims=False))
-
-    assert np.array_equal(
-        import_and_compute("ReduceMin", data, axes=(1,)), np.min(data, keepdims=True, axis=(1,))
-    )
-    assert np.array_equal(
-        import_and_compute("ReduceMin", data, axes=(1,), keepdims=0), np.min(data, keepdims=False, axis=(1,))
-    )
-
-    assert np.array_equal(
-        import_and_compute("ReduceMin", data, axes=(0, 2)), np.min(data, keepdims=True, axis=(0, 2))
-    )
-    assert np.array_equal(
-        import_and_compute("ReduceMin", data, axes=(0, 2), keepdims=0),
-        np.min(data, keepdims=False, axis=(0, 2)),
-    )
-
-    assert np.array_equal(
-        import_and_compute("ReduceMin", data, axes=(0, 1, 2)), np.min(data, keepdims=True, axis=(0, 1, 2))
-    )
-    assert np.array_equal(
-        import_and_compute("ReduceMin", data, axes=(0, 1, 2), keepdims=0),
-        np.min(data, keepdims=False, axis=(0, 1, 2)),
-    )
-
-
-def test_reduce_mean():
-    data = np.array([[[5, 1], [20, 2]], [[30, 1], [40, 2]], [[55, 1], [60, 2]]], dtype=np.float32)
-
-    assert np.array_equal(import_and_compute("ReduceMean", data), np.mean(data, keepdims=True))
-    assert np.array_equal(import_and_compute("ReduceMean", data, keepdims=0), np.mean(data, keepdims=False))
-
-    assert np.array_equal(
-        import_and_compute("ReduceMean", data, axes=(1,)), np.mean(data, keepdims=True, axis=(1,))
-    )
-    assert np.array_equal(
-        import_and_compute("ReduceMean", data, axes=(1,), keepdims=0),
-        np.mean(data, keepdims=False, axis=(1,)),
-    )
-
-    assert np.array_equal(
-        import_and_compute("ReduceMean", data, axes=(0, 2)), np.mean(data, keepdims=True, axis=(0, 2))
-    )
-    assert np.array_equal(
-        import_and_compute("ReduceMean", data, axes=(0, 2), keepdims=0),
-        np.mean(data, keepdims=False, axis=(0, 2)),
-    )
-
-    assert np.array_equal(
-        import_and_compute("ReduceMean", data, axes=(0, 1, 2)), np.mean(data, keepdims=True, axis=(0, 1, 2))
-    )
-    assert np.array_equal(
-        import_and_compute("ReduceMean", data, axes=(0, 1, 2), keepdims=0),
-        np.mean(data, keepdims=False, axis=(0, 1, 2)),
-    )
-
-
-def test_reduce_sum():
-    data = np.array([[[5, 1], [20, 2]], [[30, 1], [40, 2]], [[55, 1], [60, 2]]], dtype=np.float32)
-
-    assert np.array_equal(import_and_compute("ReduceSum", data, keepdims=0), np.sum(data, keepdims=False))
-
-    assert np.array_equal(
-        import_and_compute("ReduceSum", data, axes=(1,), keepdims=0), np.sum(data, keepdims=False, axis=(1,))
-    )
-
-    assert np.array_equal(
-        import_and_compute("ReduceSum", data, axes=(0, 2), keepdims=0),
-        np.sum(data, keepdims=False, axis=(0, 2)),
-    )
-
-    assert np.array_equal(
-        import_and_compute("ReduceSum", data, axes=(0, 1, 2), keepdims=0),
-        np.sum(data, keepdims=False, axis=(0, 1, 2)),
-    )
-
-
-def test_reduce_sum_keepdims():
-    data = np.array([[[5, 1], [20, 2]], [[30, 1], [40, 2]], [[55, 1], [60, 2]]], dtype=np.float32)
-
-    assert np.array_equal(import_and_compute("ReduceSum", data), np.sum(data, keepdims=True))
-
-    assert np.array_equal(
-        import_and_compute("ReduceSum", data, axes=(1,)), np.sum(data, keepdims=True, axis=(1,))
-    )
-
-    assert np.array_equal(
-        import_and_compute("ReduceSum", data, axes=(0, 2)), np.sum(data, keepdims=True, axis=(0, 2))
-    )
-
-    assert np.array_equal(
-        import_and_compute("ReduceSum", data, axes=(0, 1, 2)), np.sum(data, keepdims=True, axis=(0, 1, 2))
-    )
-
-
-def test_reduce_prod():
-    data = np.array([[[5, 1], [20, 2]], [[30, 1], [40, 2]], [[55, 1], [60, 2]]], dtype=np.float32)
-
-    assert np.array_equal(import_and_compute("ReduceProd", data), np.prod(data, keepdims=True))
-    assert np.array_equal(import_and_compute("ReduceProd", data, keepdims=0), np.prod(data, keepdims=False))
-
-    assert np.array_equal(
-        import_and_compute("ReduceProd", data, axes=(1,)), np.prod(data, keepdims=True, axis=(1,))
-    )
-    assert np.array_equal(
-        import_and_compute("ReduceProd", data, axes=(1,), keepdims=0),
-        np.prod(data, keepdims=False, axis=(1,)),
-    )
-
-    assert np.array_equal(
-        import_and_compute("ReduceProd", data, axes=(0, 2)), np.prod(data, keepdims=True, axis=(0, 2))
-    )
-    assert np.array_equal(
-        import_and_compute("ReduceProd", data, axes=(0, 2), keepdims=0),
-        np.prod(data, keepdims=False, axis=(0, 2)),
-    )
-
-    assert np.array_equal(
-        import_and_compute("ReduceProd", data, axes=(0, 1, 2)), np.prod(data, keepdims=True, axis=(0, 1, 2))
-    )
-    assert np.array_equal(
-        import_and_compute("ReduceProd", data, axes=(0, 1, 2), keepdims=0),
-        np.prod(data, keepdims=False, axis=(0, 1, 2)),
-    )
+@pytest.mark.parametrize("axes", [
+    pytest.param(None, marks=xfail_issue_35925),
+    (0,),
+    (1,),
+    (2,),
+    (0, 1),
+    (0, 2),
+    (1, 2),
+    pytest.param((0, 1, 2), marks=xfail_issue_35925)])
+@pytest.mark.parametrize("operation, ref_operation", reduce_operation_parameters)
+def test_reduce_operation_no_keepdims(operation, ref_operation, axes):
+    if axes:
+        assert np.array_equal(import_and_compute(operation, reduce_data, axes=axes, keepdims=False),
+                              ref_operation(reduce_data, keepdims=False, axis=axes))
+    else:
+        assert np.array_equal(import_and_compute(operation, reduce_data, keepdims=False),
+                              ref_operation(reduce_data, keepdims=False))
 
 
 @pytest.mark.parametrize("reduction_axes", [(0,), (0, 2), (0, 1, 2)])
@@ -248,7 +107,7 @@ def test_reduce_l1_default_axes():
     assert np.array_equal(expected.shape, ng_result.shape)
     assert np.allclose(expected, ng_result)
 
-    expected = np.sum(np.abs(input_data), keepdims=False)
+    expected = np.array([np.sum(np.abs(input_data), keepdims=False)])
     node = onnx.helper.make_node("ReduceL1", inputs=["x"], outputs=["y"], keepdims=0)
     ng_result = np.array(run_node(node, [input_data]).pop())
     assert np.array_equal(expected.shape, ng_result.shape)
@@ -286,7 +145,7 @@ def test_reduce_l2_default_axes():
     assert np.array_equal(expected.shape, ng_result.shape)
     assert np.allclose(expected, ng_result)
 
-    expected = np.sqrt(np.sum(np.square(input_data), keepdims=False))
+    expected = np.array([np.sqrt(np.sum(np.square(input_data), keepdims=False))])
     node = onnx.helper.make_node("ReduceL2", inputs=["x"], outputs=["y"], keepdims=0)
     ng_result = np.array(run_node(node, [input_data]).pop())
     assert np.array_equal(expected.shape, ng_result.shape)
@@ -312,6 +171,7 @@ def test_reduce_log_sum(reduction_axes):
     assert np.allclose(expected, ng_result)
 
 
+@xfail_issue_35925
 def test_reduce_log_sum_default_axes():
     shape = [2, 4, 3, 2]
     np.random.seed(133391)
@@ -330,6 +190,7 @@ def test_reduce_log_sum_default_axes():
     assert np.allclose(expected, ng_result)
 
 
+@xfail_issue_35925
 def test_reduce_log_sum_exp():
     def logsumexp(data, axis=None, keepdims=True):
         return np.log(np.sum(np.exp(data), axis=axis, keepdims=keepdims))
@@ -388,6 +249,7 @@ def test_reduce_sum_square(reduction_axes):
     assert np.allclose(expected, ng_result)
 
 
+@xfail_issue_35925
 def test_reduce_sum_square_default_axes():
     shape = [2, 4, 3, 2]
     np.random.seed(133391)

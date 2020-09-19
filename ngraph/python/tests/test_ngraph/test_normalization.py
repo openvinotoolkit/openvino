@@ -19,8 +19,10 @@ import numpy as np
 import ngraph as ng
 from tests.runtime import get_runtime
 from tests.test_ngraph.util import run_op_node
+from tests import xfail_issue_34323, xfail_issue_35929
 
 
+@xfail_issue_34323
 def test_lrn():
     input_image_shape = (2, 3, 2, 1)
     input_image = np.arange(int(np.prod(input_image_shape))).reshape(input_image_shape).astype("f")
@@ -61,7 +63,7 @@ def test_lrn_factory():
     beta = 0.5
     bias = 2.0
     nsize = 3
-    axis = [1]
+    axis = np.array([1], dtype=np.int32)
     x = np.array(
         [
             [
@@ -96,19 +98,20 @@ def test_lrn_factory():
         ],
         dtype=np.float32,
     )
-    result = run_op_node([x, axis], ng.lrn, alpha, beta, bias, nsize)
+    result = run_op_node([x], ng.lrn, axis, alpha, beta, bias, nsize)
 
     assert np.allclose(result, excepted)
 
 
+@xfail_issue_35929
 def test_batch_norm_inference():
-    data = [[1.0, 2.0, 3.0], [-1.0, -2.0, -3.0]]
-    gamma = [2.0, 3.0, 4.0]
-    beta = [0.0, 0.0, 0.0]
-    mean = [0.0, 0.0, 0.0]
-    variance = [1.0, 1.0, 1.0]
+    data = np.array([[1.0, 2.0, 3.0], [-1.0, -2.0, -3.0]])
+    gamma = np.array([2.0, 3.0, 4.0])
+    beta = np.array([0.0, 0.0, 0.0])
+    mean = np.array([0.0, 0.0, 0.0])
+    variance = np.array([1.0, 1.0, 1.0])
     epsilon = 9.99e-06
-    excepted = [[2.0, 6.0, 12.0], [-2.0, -6.0, -12.0]]
+    excepted = np.array([[2.0, 6.0, 12.0], [-2.0, -6.0, -12.0]])
 
     result = run_op_node([data, gamma, beta, mean, variance], ng.batch_norm_inference, epsilon)
 

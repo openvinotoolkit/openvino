@@ -624,6 +624,38 @@ TEST_P(I420toRGBTestGAPI, AccuracyTest)
         EXPECT_EQ(sz, out_mat_gapi.size());
     }
 }
+
+TEST_P(ConvertDepthTestGAPI, AccuracyTest)
+{
+    const auto params = GetParam();
+    int in_depth      = std::get<0>(params);
+    int out_depth     = std::get<1>(params);
+    cv::Size sz       = std::get<2>(params);
+    double tolerance  = std::get<3>(params);
+
+    const int out_type = CV_MAKETYPE(out_depth,1);
+
+    initMatrixRandU(CV_MAKETYPE(in_depth,1), sz, out_type);
+
+    // G-API code //////////////////////////////////////////////////////////////
+    ConvertDepthComputation cc(to_test(in_mat1), to_test(out_mat_gapi), out_mat_gapi.depth());
+    cc.warmUp();
+
+#if PERF_TEST
+    // iterate testing, and print performance
+    test_ms([&](){ cc.apply(); },
+        400, "ConvDepth GAPI %s to %s %dx%d", depthToString(in_mat1.depth()).c_str(), depthToString(out_mat_gapi.depth()).c_str(), sz.width, sz.height);
+#endif
+
+    // OpenCV code /////////////////////////////////////////////////////////////
+    {
+        in_mat1.convertTo(out_mat_ocv, out_type);
+    }
+    // Comparison //////////////////////////////////////////////////////////////
+    {
+        EXPECT_LE(cv::norm(out_mat_ocv, out_mat_gapi, cv::NORM_INF), tolerance);
+    }
+}
 //----------------------------------------------------------------------
 
 TEST_P(ResizeTestIE, AccuracyTest)

@@ -7,12 +7,11 @@
 #include <map>
 #include <functional>
 #include <utility>
-#include <api/detection_output.hpp>  // todo: find a way to remove this
 #include <description_buffer.hpp>
 #include "cldnn_infer_request.h"
 #include "cldnn_remote_context.h"
-#include "inference_engine.hpp"
 #include "cldnn_executable_network.h"
+#include "cldnn_itt.h"
 
 using namespace InferenceEngine;
 
@@ -52,6 +51,11 @@ Blob::Ptr CLDNNInferRequest::createInputBlob(const TensorDesc& desc, uint8_t* me
             return make_shared_blob<int64_t>(desc, reinterpret_cast<int64_t*>(mem_ptr));
         else
             return make_shared_blob<int64_t>(desc);
+    case Precision::I8:
+        if (mem_ptr != nullptr)
+            return make_shared_blob<int8_t>(desc, reinterpret_cast<int8_t*>(mem_ptr));
+        else
+            return make_shared_blob<int8_t>(desc);
     case Precision::U8:
         if (mem_ptr != nullptr)
             return make_shared_blob<uint8_t>(desc, reinterpret_cast<uint8_t*>(mem_ptr));
@@ -287,6 +291,11 @@ void CLDNNInferRequest::copyInputData(std::shared_ptr<cldnn::network> network,
         network->set_input_data(internalName, cldnn::memory::attach(inputLayout, blob_ptr, n));
         break;
     }
+    case Precision::I8: {
+        int8_t* blob_ptr = const_cast<int8_t*>(locked.as<const int8_t*>()) + offset;
+        network->set_input_data(internalName, cldnn::memory::attach(inputLayout, blob_ptr, n));
+        break;
+    }
     case Precision::U8: {
         uint8_t* blob_ptr = const_cast<uint8_t*>(locked.as<const uint8_t*>()) + offset;
         network->set_input_data(internalName, cldnn::memory::attach(inputLayout, blob_ptr, n));
@@ -401,7 +410,7 @@ void CLDNNInferRequest::checkBlobs() {
 }
 
 void CLDNNInferRequest::GetBlob(const char *name, Blob::Ptr &data) {
-    IE_PROFILING_AUTO_SCOPE(GetBlob)
+    OV_ITT_SCOPED_TASK(itt::domains::CLDNNPlugin, "GetBlob");
     InputInfo::Ptr foundInput;
     DataPtr foundOutput;
     bool is_input = findInputAndOutputBlobByName(name, foundInput, foundOutput);
@@ -422,7 +431,7 @@ void CLDNNInferRequest::GetBlob(const char *name, Blob::Ptr &data) {
 }
 
 void CLDNNInferRequest::SetBlob(const char *name, const Blob::Ptr &data) {
-    IE_PROFILING_AUTO_SCOPE(SetBlob)
+    OV_ITT_SCOPED_TASK(itt::domains::CLDNNPlugin, "SetBlob");
 
     // perform all common checks first
     if (name == nullptr) {
@@ -808,7 +817,7 @@ void CLDNNInferRequest::execAndParseDyn() {
 }
 
 void CLDNNInferRequest::InferImpl() {
-    IE_PROFILING_AUTO_SCOPE(CLDNN_INFER)
+    OV_ITT_SCOPED_TASK(itt::domains::CLDNNPlugin, "CLDNN_INFER");
     int streamID = 0;
     if (nullptr != streamExecutor) {
         streamID = streamExecutor->GetStreamId();
@@ -912,6 +921,7 @@ void CLDNNInferRequest::PrepareInput(const cldnn::primitive_id &inputName, const
         switch (prec) {
             case Precision::FP32:
             case Precision::FP16:
+            case Precision::I8:
             case Precision::U8:
             case Precision::BOOL:
             case Precision::I32:

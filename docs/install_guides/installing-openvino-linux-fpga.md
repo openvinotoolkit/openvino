@@ -11,6 +11,24 @@ support, see [Installation Guide for Linux*](installing-openvino-linux.md).
 are not covered in this guide.
 - An internet connection is required to follow the steps in this guide.
 
+## Product Change Notice
+Intel® Distribution of OpenVINO™ toolkit for Intel® Vision Accelerator Design with an Intel® Arria® 10 FPGA and the Intel® Programmable Acceleration Card with Intel® Arria® 10 GX FPGA
+
+<table>
+  <tr>
+    <td><strong>Change Notice Begins</strong></td>
+    <td>July 2020</td>
+  </tr>
+  <tr>
+    <td><strong>Change Date</strong></td>
+    <td>October 2020</td>
+  </tr>
+</table> 
+
+Intel will be transitioning to the next-generation programmable deep-learning solution based on FPGAs in order to increase the level of customization possible in FPGA deep-learning. As part of this transition, future standard releases (i.e., non-LTS releases) of Intel® Distribution of OpenVINO™ toolkit will no longer include the Intel® Vision Accelerator Design with an Intel® Arria® 10 FPGA and the Intel® Programmable Acceleration Card with Intel® Arria® 10 GX FPGA.
+
+Intel® Distribution of OpenVINO™ toolkit 2020.3.X LTS release will continue to support Intel® Vision Accelerator Design with an Intel® Arria® 10 FPGA and the Intel® Programmable Acceleration Card with Intel® Arria® 10 GX FPGA. For questions about next-generation programmable deep-learning solutions based on FPGAs, please talk to your sales representative or contact us to get the latest FPGA updates.
+
 ## Introduction
 
 The Intel® Distribution of OpenVINO™ toolkit quickly deploys applications and solutions that emulate human vision. Based on Convolutional Neural Networks (CNN), the toolkit extends computer vision (CV) workloads across Intel® hardware, maximizing performance. The Intel® Distribution of OpenVINO™ toolkit includes the Intel® Deep Learning Deployment Toolkit (Intel® DLDT).
@@ -197,7 +215,7 @@ You can choose to either configure all supported frameworks at once **OR** confi
 cd /opt/intel/openvino/deployment_tools/model_optimizer/install_prerequisites 
 ```
 2.  Run the script to configure the Model Optimizer for Caffe,
-    TensorFlow, MXNet, Kaldi\*, and ONNX:
+    TensorFlow 1.x, MXNet, Kaldi\*, and ONNX:
 ```sh
 sudo ./install_prerequisites.sh
 ```
@@ -215,9 +233,13 @@ cd /opt/intel/openvino/deployment_tools/model_optimizer/install_prerequisites
 ```sh
 sudo ./install_prerequisites_caffe.sh
 ```
--   For **TensorFlow**:
+-   For **TensorFlow 1.x**:
 ```sh
 sudo ./install_prerequisites_tf.sh
+```
+-   For **TensorFlow 2.x**:
+```sh
+sudo ./install_prerequisites_tf2.sh
 ```
 -   For **MXNet**:
 ```sh

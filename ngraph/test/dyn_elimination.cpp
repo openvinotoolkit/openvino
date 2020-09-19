@@ -20,7 +20,7 @@
 #include "ngraph/pass/constant_folding.hpp"
 #include "ngraph/pass/dyn_elimination.hpp"
 #include "ngraph/pass/manager.hpp"
-#include "opset0_downgrade.hpp"
+#include "pass/opset0_downgrade.hpp"
 #include "util/all_close_f.hpp"
 #include "util/test_tools.hpp"
 

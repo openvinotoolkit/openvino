@@ -13,7 +13,7 @@
 
 #include <ngraph/function.hpp>
 #include <ngraph/op/constant.hpp>
-#include <ngraph/op/fused/mod.hpp>
+#include <ngraph/op/mod.hpp>
 #include <transformations/convert_mod.hpp>
 #include <ngraph/pass/constant_folding.hpp>
 #include <transformations/init_node_info.hpp>

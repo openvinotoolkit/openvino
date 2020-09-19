@@ -23,8 +23,6 @@
 
 #include <ngraph/pass/graph_rewrite.hpp>
 
-#include "transformations/mul_add_squence_fusion.hpp"
-
 namespace ngraph {
 namespace pass {
 
@@ -47,15 +45,18 @@ public:
 
 class ngraph::pass::ConvAddFusion: public ngraph::pass::MatcherPass {
 public:
+    NGRAPH_RTTI_DECLARATION;
     ConvAddFusion();
 };
 
 class ngraph::pass::ConvMultiplyFusion: public ngraph::pass::MatcherPass {
 public:
+    NGRAPH_RTTI_DECLARATION;
     ConvMultiplyFusion();
 };
 
 class ngraph::pass::DeconvAddFusion: public ngraph::pass::MatcherPass {
 public:
+    NGRAPH_RTTI_DECLARATION;
     DeconvAddFusion();
 };

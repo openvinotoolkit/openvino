@@ -4,10 +4,7 @@
 
 #pragma once
 
-#include <vector>
-#include <memory>
-
-#include <ngraph/ngraph.hpp>
+#include <ngraph/pass/graph_rewrite.hpp>
 
 namespace ngraph {
 namespace pass {

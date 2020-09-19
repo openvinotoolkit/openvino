@@ -44,8 +44,10 @@
 #include "ngraph/runtime/reference/convolution.hpp"
 #include "ngraph/runtime/reference/cos.hpp"
 #include "ngraph/runtime/reference/cosh.hpp"
+#include "ngraph/runtime/reference/ctc_loss.hpp"
 #include "ngraph/runtime/reference/cum_sum.hpp"
 #include "ngraph/runtime/reference/dequantize.hpp"
+#include "ngraph/runtime/reference/detection_output.hpp"
 #include "ngraph/runtime/reference/dot.hpp"
 #include "ngraph/runtime/reference/elu.hpp"
 #include "ngraph/runtime/reference/embedding_bag_offsets_sum.hpp"
@@ -57,8 +59,12 @@
 #include "ngraph/runtime/reference/floor.hpp"
 #include "ngraph/runtime/reference/gather.hpp"
 #include "ngraph/runtime/reference/gather_nd.hpp"
+#include "ngraph/runtime/reference/gather_tree.hpp"
+#include "ngraph/runtime/reference/gather_tree.hpp"
+#include "ngraph/runtime/reference/gru_cell.hpp"
 #include "ngraph/runtime/reference/log.hpp"
 #include "ngraph/runtime/reference/lrn.hpp"
+#include "ngraph/runtime/reference/lstm_cell.hpp"
 #include "ngraph/runtime/reference/matmul.hpp"
 #include "ngraph/runtime/reference/max.hpp"
 #include "ngraph/runtime/reference/max_pool.hpp"
@@ -67,23 +73,24 @@
 #include "ngraph/runtime/reference/not.hpp"
 #include "ngraph/runtime/reference/one_hot.hpp"
 #include "ngraph/runtime/reference/pad.hpp"
+#include "ngraph/runtime/reference/prior_box.hpp"
 #include "ngraph/runtime/reference/product.hpp"
 #include "ngraph/runtime/reference/quantize.hpp"
-#include "ngraph/runtime/reference/recv.hpp"
 #include "ngraph/runtime/reference/relu.hpp"
 #include "ngraph/runtime/reference/replace_slice.hpp"
 #include "ngraph/runtime/reference/reshape.hpp"
 #include "ngraph/runtime/reference/result.hpp"
 #include "ngraph/runtime/reference/reverse.hpp"
 #include "ngraph/runtime/reference/reverse_sequence.hpp"
+#include "ngraph/runtime/reference/rnn_cell.hpp"
 #include "ngraph/runtime/reference/round.hpp"
+#include "ngraph/runtime/reference/scatter_nd_update.hpp"
 #include "ngraph/runtime/reference/select.hpp"
-#include "ngraph/runtime/reference/send.hpp"
+#include "ngraph/runtime/reference/sequences.hpp"
 #include "ngraph/runtime/reference/sigmoid.hpp"
 #include "ngraph/runtime/reference/sign.hpp"
 #include "ngraph/runtime/reference/sin.hpp"
 #include "ngraph/runtime/reference/sinh.hpp"
-#include "ngraph/runtime/reference/slice.hpp"
 #include "ngraph/runtime/reference/softmax.hpp"
 #include "ngraph/runtime/reference/sqrt.hpp"
 #include "ngraph/runtime/reference/sum.hpp"
@@ -91,9 +98,11 @@
 #include "ngraph/runtime/reference/tanh.hpp"
 #include "ngraph/runtime/reference/topk.hpp"
 #include "ngraph/runtime/tensor.hpp"
-#include "ngraph/state/bernoulli_rng_state.hpp"
-#include "ngraph/state/uniform_rng_state.hpp"
 #include "op/avg_pool.hpp"
+#include "op/convolution.hpp"
+#include "op/group_conv.hpp"
+
+NGRAPH_SUPPRESS_DEPRECATED_START
 
 namespace ngraph
 {
@@ -131,8 +140,6 @@ public:
     bool call(const std::vector<std::shared_ptr<Tensor>>& outputs,
               const std::vector<std::shared_ptr<Tensor>>& inputs) override;
 
-    virtual void save(std::ostream& output_stream) override;
-
     void set_nan_check(bool enable);
 
     std::vector<PerformanceCounter> get_performance_data() const override;
@@ -148,8 +155,6 @@ public:
         create_output_tensor(size_t output_index, size_t pipeline_depth) override;
 
 protected:
-    INTExecutable(const std::string& model_string);
-
     std::shared_ptr<ngraph::op::Parameter> get_parameter(size_t index) const;
     std::shared_ptr<ngraph::op::Result> get_result(size_t index) const;
     int get_alignment() const { return 64; }
@@ -159,7 +164,6 @@ protected:
     std::shared_ptr<Function> m_function;
     std::unordered_map<std::shared_ptr<const Node>, stopwatch> m_timer_map;
     std::vector<std::shared_ptr<Node>> m_nodes;
-    std::unordered_map<const Node*, std::shared_ptr<State>> m_states;
     std::set<std::string> m_unsupported_op_name_list;
 
     static OP_TYPEID get_typeid(const Node& node);
@@ -207,8 +211,8 @@ protected:
             reference::any(args[0]->get_data_ptr<const char>(),
                            out[0]->get_data_ptr<char>(),
                            node.get_input_shape(0),
-                           node.get_output_shape(0),
-                           any->get_reduction_axes());
+                           any->get_reduction_axes(),
+                           false);
             break;
         }
         case OP_TYPEID::Asin:
@@ -249,13 +253,6 @@ protected:
                                    avg_pool->get_padding_below(),
                                    avg_pool->get_padding_above(),
                                    avg_pool->get_include_padding_in_avg_computation());
-            break;
-        }
-        case OP_TYPEID::GetOutputElement:
-        {
-            size_t element_count = shape_size(node.get_output_shape(0));
-            size_t num_bytes = element_count * node.get_output_element_type(0).size();
-            std::memcpy(out[0]->get_data_ptr<T>(), args[0]->get_data_ptr<T>(), num_bytes);
             break;
         }
         case OP_TYPEID::BatchNormInference:
@@ -353,7 +350,7 @@ protected:
         }
         case OP_TYPEID::Convolution:
         {
-            const op::Convolution* c = static_cast<const op::Convolution*>(&node);
+            const op::v0::Convolution* c = static_cast<const op::v0::Convolution*>(&node);
             reference::convolution<T>(args[0]->get_data_ptr<const T>(),
                                       args[1]->get_data_ptr<const T>(),
                                       out[0]->get_data_ptr<T>(),
@@ -371,8 +368,8 @@ protected:
         case OP_TYPEID::ConvolutionBackpropData:
         {
             // Note that args[1] and args[0] are switched here from the usual order.
-            const op::ConvolutionBackpropData* c =
-                static_cast<const op::ConvolutionBackpropData*>(&node);
+            const op::v0::ConvolutionBackpropData* c =
+                static_cast<const op::v0::ConvolutionBackpropData*>(&node);
             reference::convolution_backprop_in<T>(args[1]->get_data_ptr<const T>(),
                                                   args[0]->get_data_ptr<const T>(),
                                                   out[0]->get_data_ptr<T>(),
@@ -398,6 +395,40 @@ protected:
             size_t element_count = shape_size(node.get_output_shape(0));
             reference::cosh<T>(
                 args[0]->get_data_ptr<const T>(), out[0]->get_data_ptr<T>(), element_count);
+            break;
+        }
+        case OP_TYPEID::CTCLoss_v4:
+        {
+            const op::v4::CTCLoss* ctc_loss = static_cast<const op::v4::CTCLoss*>(&node);
+            auto t_int = node.get_input_element_type(1);
+            if (t_int == element::i32)
+            {
+                reference::CTCLoss<T, int32_t>(
+                    args[0]->get_data_ptr<const T>(),
+                    ctc_loss->get_input_shape(0),
+                    args[1]->get_data_ptr<const int32_t>(),
+                    args[2]->get_data_ptr<const int32_t>(),
+                    args[3]->get_data_ptr<const int32_t>(),
+                    args.size() > 4 ? args[4]->get_data_ptr<const int32_t>() : nullptr,
+                    ctc_loss->get_preprocess_collapse_repeated(),
+                    ctc_loss->get_ctc_merge_repeated(),
+                    ctc_loss->get_unique(),
+                    out[0]->get_data_ptr<T>());
+            }
+            else if (t_int == element::i64)
+            {
+                reference::CTCLoss<T, int64_t>(
+                    args[0]->get_data_ptr<const T>(),
+                    ctc_loss->get_input_shape(0),
+                    args[1]->get_data_ptr<const int64_t>(),
+                    args[2]->get_data_ptr<const int64_t>(),
+                    args[3]->get_data_ptr<const int64_t>(),
+                    args.size() > 4 ? args[4]->get_data_ptr<const int64_t>() : nullptr,
+                    ctc_loss->get_preprocess_collapse_repeated(),
+                    ctc_loss->get_ctc_merge_repeated(),
+                    ctc_loss->get_unique(),
+                    out[0]->get_data_ptr<T>());
+            }
             break;
         }
         case OP_TYPEID::CumSum:
@@ -668,6 +699,143 @@ protected:
             }
             break;
         }
+        case OP_TYPEID::GRUCell_v3:
+        {
+            const op::v3::GRUCell* gru_cell = static_cast<const op::v3::GRUCell*>(&node);
+            runtime::reference::gru_cell(args[0]->get_data_ptr<T>(),
+                                         args[0]->get_shape(),
+                                         args[1]->get_data_ptr<T>(),
+                                         args[1]->get_shape(),
+                                         args[2]->get_data_ptr<T>(),
+                                         args[2]->get_shape(),
+                                         args[3]->get_data_ptr<T>(),
+                                         args[3]->get_shape(),
+                                         args[4]->get_data_ptr<T>(),
+                                         args[4]->get_shape(),
+                                         out[0]->get_data_ptr<T>(),
+                                         gru_cell->get_activations()[0],
+                                         gru_cell->get_activations()[1],
+                                         gru_cell->get_clip(),
+                                         gru_cell->get_linear_before_reset());
+            break;
+        }
+        case OP_TYPEID::LSTMCell_v4:
+        {
+            const op::v4::LSTMCell* lstm_cell = static_cast<const op::v4::LSTMCell*>(&node);
+            runtime::reference::lstm_cell(args[0]->get_data_ptr<T>(),
+                                          args[0]->get_shape(),
+                                          args[1]->get_data_ptr<T>(),
+                                          args[1]->get_shape(),
+                                          args[2]->get_data_ptr<T>(),
+                                          args[2]->get_shape(),
+                                          args[3]->get_data_ptr<T>(),
+                                          args[3]->get_shape(),
+                                          args[4]->get_data_ptr<T>(),
+                                          args[4]->get_shape(),
+                                          args[5]->get_data_ptr<T>(),
+                                          args[5]->get_shape(),
+                                          out[0]->get_data_ptr<T>(),
+                                          out[1]->get_data_ptr<T>(),
+                                          lstm_cell->get_activations()[0],
+                                          lstm_cell->get_activations()[1],
+                                          lstm_cell->get_activations()[2],
+                                          lstm_cell->get_clip());
+            break;
+        }
+        case OP_TYPEID::RNNCell_v0:
+        {
+            const op::v0::RNNCell* rnn_cell = static_cast<const op::v0::RNNCell*>(&node);
+            runtime::reference::rnn_cell(args[0]->get_data_ptr<T>(),
+                                         args[0]->get_shape(),
+                                         args[1]->get_data_ptr<T>(),
+                                         args[1]->get_shape(),
+                                         args[2]->get_data_ptr<T>(),
+                                         args[2]->get_shape(),
+                                         args[3]->get_data_ptr<T>(),
+                                         args[3]->get_shape(),
+                                         args[4]->get_data_ptr<T>(),
+                                         args[4]->get_shape(),
+                                         out[0]->get_data_ptr<T>(),
+                                         rnn_cell->get_activations()[0],
+                                         rnn_cell->get_clip());
+            break;
+        }
+        case OP_TYPEID::LSTMSequence:
+        case OP_TYPEID::LSTMSequence_v5:
+        {
+            auto lstm_seq = static_cast<const op::v5::LSTMSequence*>(&node);
+            runtime::reference::lstm_sequence<T>(args[0]->get_data_ptr<char>(),
+                                                 args[0]->get_shape(),
+                                                 args[1]->get_data_ptr<char>(),
+                                                 args[1]->get_shape(),
+                                                 args[2]->get_data_ptr<char>(),
+                                                 args[2]->get_shape(),
+                                                 args[3]->get_data_ptr<char>(),
+                                                 args[3]->get_shape(),
+                                                 args[4]->get_data_ptr<char>(),
+                                                 args[4]->get_shape(),
+                                                 args[5]->get_data_ptr<char>(),
+                                                 args[5]->get_shape(),
+                                                 args[6]->get_data_ptr<char>(),
+                                                 args[6]->get_shape(),
+                                                 out[0]->get_data_ptr<char>(),
+                                                 out[1]->get_data_ptr<char>(),
+                                                 out[2]->get_data_ptr<char>(),
+                                                 lstm_seq->get_activations()[0],
+                                                 lstm_seq->get_activations()[1],
+                                                 lstm_seq->get_activations()[2],
+                                                 lstm_seq->get_clip(),
+                                                 lstm_seq->get_direction());
+            break;
+        }
+        case OP_TYPEID::GRUSequence_v5:
+        {
+            auto gru_seq = static_cast<const op::v5::GRUSequence*>(&node);
+            runtime::reference::gru_sequence<T>(args[0]->get_data_ptr<char>(),
+                                                args[0]->get_shape(),
+                                                args[1]->get_data_ptr<char>(),
+                                                args[1]->get_shape(),
+                                                args[2]->get_data_ptr<char>(),
+                                                args[2]->get_shape(),
+                                                args[3]->get_data_ptr<char>(),
+                                                args[3]->get_shape(),
+                                                args[4]->get_data_ptr<char>(),
+                                                args[4]->get_shape(),
+                                                args[5]->get_data_ptr<char>(),
+                                                args[5]->get_shape(),
+                                                out[0]->get_data_ptr<char>(),
+                                                out[1]->get_data_ptr<char>(),
+                                                gru_seq->get_activations()[0],
+                                                gru_seq->get_activations()[1],
+                                                gru_seq->get_clip(),
+                                                gru_seq->get_direction(),
+                                                gru_seq->get_linear_before_reset()
+
+                                                    );
+            break;
+        }
+        case OP_TYPEID::RNNSequence_v5:
+        {
+            auto rnn_seq = static_cast<const op::v5::RNNSequence*>(&node);
+            runtime::reference::rnn_sequence<T>(args[0]->get_data_ptr<char>(),
+                                                args[0]->get_shape(),
+                                                args[1]->get_data_ptr<char>(),
+                                                args[1]->get_shape(),
+                                                args[2]->get_data_ptr<char>(),
+                                                args[2]->get_shape(),
+                                                args[3]->get_data_ptr<char>(),
+                                                args[3]->get_shape(),
+                                                args[4]->get_data_ptr<char>(),
+                                                args[4]->get_shape(),
+                                                args[5]->get_data_ptr<char>(),
+                                                args[5]->get_shape(),
+                                                out[0]->get_data_ptr<char>(),
+                                                out[1]->get_data_ptr<char>(),
+                                                rnn_seq->get_activations()[0],
+                                                rnn_seq->get_clip(),
+                                                rnn_seq->get_direction());
+            break;
+        }
         case OP_TYPEID::Log:
         {
             size_t element_count = shape_size(node.get_output_shape(0));
@@ -714,18 +882,14 @@ protected:
             break;
         }
         case OP_TYPEID::Parameter: break;
-        case OP_TYPEID::Pad:
+        case OP_TYPEID::PriorBox:
         {
-            const op::Pad* pad = static_cast<const op::Pad*>(&node);
-
-            reference::pad(args[0]->get_data_ptr<const T>(),
-                           args[1]->get_data_ptr<const T>(),
-                           out[0]->get_data_ptr<T>(),
-                           node.get_input_shape(0),
-                           node.get_output_shape(0),
-                           pad->get_padding_below(),
-                           pad->get_padding_above(),
-                           pad->get_pad_mode());
+            const op::PriorBox* pbox = static_cast<const op::PriorBox*>(&node);
+            runtime::reference::prior_box<T>(args[0]->get_data_ptr<T>(),
+                                             args[1]->get_data_ptr<T>(),
+                                             out[0]->get_data_ptr<float>(),
+                                             out[0]->get_shape(),
+                                             pbox->get_attrs());
             break;
         }
         case OP_TYPEID::Quantize:
@@ -972,19 +1136,6 @@ protected:
 
             break;
         }
-        case OP_TYPEID::Recv:
-        {
-            size_t element_count = shape_size(node.get_output_shape(0));
-            size_t memSize = element_count * sizeof(T);
-            const auto* op = static_cast<const ngraph::op::Recv*>(&node);
-            int src_id = op->get_src_id();
-
-            reference::recv<T>(
-                args[0]->get_data_ptr<T>(), node.get_input_element_type(0), element_count, src_id);
-
-            memcpy(out[0]->get_data_ptr<T>(), args[0]->get_data_ptr<T>(), memSize);
-            break;
-        }
         case OP_TYPEID::Relu:
         {
             size_t element_count = shape_size(node.get_output_shape(0));
@@ -1008,11 +1159,12 @@ protected:
         case OP_TYPEID::Reverse:
         {
             const op::Reverse* reverse = static_cast<const op::Reverse*>(&node);
-            reference::reverse(args[0]->get_data_ptr<const T>(),
-                               out[0]->get_data_ptr<T>(),
+            reference::reverse(args[0]->get_data_ptr<const char>(),
+                               out[0]->get_data_ptr<char>(),
                                node.get_input_shape(0),
                                node.get_output_shape(0),
-                               reverse->get_reversed_axes());
+                               reverse->get_reversed_axes(),
+                               args[0]->get_element_type().size());
             break;
         }
         case OP_TYPEID::ReverseSequence:
@@ -1051,21 +1203,6 @@ protected:
                                  element_count);
             break;
         }
-        case OP_TYPEID::Send:
-        {
-            size_t element_count = shape_size(node.get_output_shape(0));
-            size_t memSize = element_count * sizeof(T);
-            const auto* op = static_cast<const ngraph::op::Send*>(&node);
-            int dest_id = op->get_dest_id();
-
-            reference::send<T>(args[0]->get_data_ptr<const T>(),
-                               node.get_input_element_type(0),
-                               element_count,
-                               dest_id);
-
-            memcpy(out[0]->get_data_ptr<T>(), args[0]->get_data_ptr<T>(), memSize);
-            break;
-        }
         case OP_TYPEID::Sigmoid:
         {
             size_t element_count = shape_size(node.get_output_shape(0));
@@ -1092,18 +1229,6 @@ protected:
             size_t element_count = shape_size(node.get_output_shape(0));
             reference::sinh<T>(
                 args[0]->get_data_ptr<const T>(), out[0]->get_data_ptr<T>(), element_count);
-            break;
-        }
-        case OP_TYPEID::Slice:
-        {
-            const op::Slice* slice = static_cast<const op::Slice*>(&node);
-            reference::slice<T>(args[0]->get_data_ptr<const T>(),
-                                out[0]->get_data_ptr<T>(),
-                                node.get_input_shape(0),
-                                slice->get_lower_bounds(),
-                                slice->get_upper_bounds(),
-                                slice->get_strides(),
-                                node.get_output_shape(0));
             break;
         }
         case OP_TYPEID::Sqrt:
@@ -1160,6 +1285,83 @@ protected:
             }
             break;
         }
+        case OP_TYPEID::DetectionOutput_v0:
+        {
+            const op::DetectionOutput* detOut = static_cast<const op::DetectionOutput*>(&node);
+            reference::referenceDetectionOutput<T> refDetOut(
+                detOut->get_attrs(), node.get_input_shape(0), node.get_input_shape(2));
+            if (node.get_input_size() == 3)
+            {
+                refDetOut.run(args[0]->get_data_ptr<const T>(),
+                              args[1]->get_data_ptr<const T>(),
+                              args[2]->get_data_ptr<const T>(),
+                              nullptr,
+                              nullptr,
+                              out[0]->get_data_ptr<T>());
+            }
+            else if (node.get_input_size() == 5)
+            {
+                refDetOut.run(args[0]->get_data_ptr<const T>(),
+                              args[1]->get_data_ptr<const T>(),
+                              args[2]->get_data_ptr<const T>(),
+                              args[3]->get_data_ptr<const T>(),
+                              args[4]->get_data_ptr<const T>(),
+                              out[0]->get_data_ptr<T>());
+            }
+            else
+            {
+                throw ngraph_error("DetectionOutput layer supports only 3 or 5 inputs");
+            }
+
+            break;
+        }
+        case OP_TYPEID::ScatterNDUpdate_v3:
+        {
+            const op::ScatterNDUpdate* scatterNDUpd =
+                static_cast<const op::v3::ScatterNDUpdate*>(&node);
+            auto idxType = scatterNDUpd->get_input_element_type(1);
+            if (idxType == element::i32)
+            {
+                reference::scatterNdUpdate<T, int32_t>(args[0]->get_data_ptr<const T>(),
+                                                       args[1]->get_data_ptr<const int32_t>(),
+                                                       args[2]->get_data_ptr<const T>(),
+                                                       out[0]->get_data_ptr<T>(),
+                                                       node.get_input_shape(0),
+                                                       node.get_input_shape(1),
+                                                       node.get_input_shape(2));
+            }
+            else if (idxType == element::i64)
+            {
+                reference::scatterNdUpdate<T, int64_t>(args[0]->get_data_ptr<const T>(),
+                                                       args[1]->get_data_ptr<const int64_t>(),
+                                                       args[2]->get_data_ptr<const T>(),
+                                                       out[0]->get_data_ptr<T>(),
+                                                       node.get_input_shape(0),
+                                                       node.get_input_shape(1),
+                                                       node.get_input_shape(2));
+            }
+            else
+            {
+                throw ngraph_error(
+                    "ScatterNDUpdate layer support only i32 and i64 'indices' input precision!");
+            }
+
+            break;
+        }
+        case OP_TYPEID::GatherTree_v1:
+        {
+            reference::gather_tree(args[0]->get_data_ptr<const char>(),
+                                   args[1]->get_data_ptr<const char>(),
+                                   args[2]->get_data_ptr<const char>(),
+                                   args[3]->get_data_ptr<const char>(),
+                                   out[0]->get_data_ptr<char>(),
+                                   node.get_input_shape(0),
+                                   node.get_input_shape(1),
+                                   node.get_input_shape(2),
+                                   node.get_input_shape(3),
+                                   args[1]->get_element_type());
+            break;
+        }
 
         // Fused Ops are not supported in interpreter. They need to be decomposed before execution
         case OP_TYPEID::DepthToSpace:
@@ -1169,16 +1371,12 @@ protected:
         case OP_TYPEID::GRN:
         case OP_TYPEID::GroupConvolution:
         case OP_TYPEID::GroupConvolutionBackpropData:
-        case OP_TYPEID::GRUCell:
         case OP_TYPEID::HardSigmoid:
         case OP_TYPEID::Interpolate:
-        case OP_TYPEID::LSTMCell:
-        case OP_TYPEID::LSTMSequence:
         case OP_TYPEID::MVN:
         case OP_TYPEID::NormalizeL2:
-        case OP_TYPEID::Passthrough:
         case OP_TYPEID::PRelu:
-        case OP_TYPEID::RNNCell:
+        case OP_TYPEID::ScatterUpdate_v3:
         case OP_TYPEID::Selu:
         case OP_TYPEID::ShuffleChannels:
         case OP_TYPEID::SpaceToDepth:
@@ -1226,6 +1424,7 @@ protected:
         case OP_TYPEID::Subtract:
         case OP_TYPEID::Unsqueeze:
         case OP_TYPEID::Xor:
+        case OP_TYPEID::Slice:
             // These ops are handled by op evaluators so nothing to do
             break;
 #if defined(__GNUC__) && !(__GNUC__ == 4 && __GNUC_MINOR__ == 8)
@@ -1234,3 +1433,5 @@ protected:
         }
     }
 };
+
+NGRAPH_SUPPRESS_DEPRECATED_END

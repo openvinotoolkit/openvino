@@ -125,8 +125,10 @@ def build_graph_with_attrs(nodes_with_attrs: list, edges_with_attrs: list, new_n
 
     for node_id in graph.nodes():
         node = Node(graph, node_id)
-        check_and_update_ports(node, [graph.get_edge_data(edge[0], node_id)[0] for edge in graph.in_edges(node_id)], True)
-        check_and_update_ports(node, [graph.get_edge_data(node_id, edge[1])[0] for edge in graph.out_edges(node_id)], False)
+        check_and_update_ports(node, [graph.get_edge_data(edge[0], node_id)[0] for edge in graph.in_edges(node_id)],
+                               True)
+        check_and_update_ports(node, [graph.get_edge_data(node_id, edge[1])[0] for edge in graph.out_edges(node_id)],
+                               False)
 
     for node in graph.get_op_nodes():
         # Add in_ports attribute
@@ -141,7 +143,8 @@ def build_graph_with_attrs(nodes_with_attrs: list, edges_with_attrs: list, new_n
     return graph
 
 
-def build_graph(nodes_attrs: dict, edges: list, update_attributes: dict = None, nodes_with_edges_only: bool = False):
+def build_graph(nodes_attrs: dict, edges: list, update_attributes: dict = None, nodes_with_edges_only: bool = False,
+                cli: Namespace = Namespace(static_shape=False, data_type='FP32')):
     """
     Build the Graph with specific nodes and edges.
     :param nodes_attrs: dictionary where key is the node name and the value is the dictionary with node attributes.
@@ -149,6 +152,7 @@ def build_graph(nodes_attrs: dict, edges: list, update_attributes: dict = None, 
     :param update_attributes: optional dictionary which specifies nodes names and their attributes to be updated. The
     key is a node name to update attribute and the value is a dictionary with attribute name and its value.
     :param nodes_with_edges_only: add nodes which has at least one incoming or outcoming edge.
+    :param cli: Namespace with cli keys to associate with the graph
     :return: generated graph.
     """
     graph = Graph()
@@ -205,17 +209,19 @@ def build_graph(nodes_attrs: dict, edges: list, update_attributes: dict = None, 
         for attr in out_edges.values():
             node.add_output_port(idx=attr['out'])
 
-    graph.graph['cmd_params'] = Namespace(keep_shape_ops=False)
+    graph.graph['cmd_params'] = cli
     return graph
 
 
-def build_graph_with_edge_attrs(nodes_attrs: dict, edges: list, update_attributes: dict = None):
+def build_graph_with_edge_attrs(nodes_attrs: dict, edges: list, update_attributes: dict = None,
+                                cli: Namespace = Namespace(static_shape=False, data_type='FP32')):
     """
     Build the Graph with specific nodes and edges.
     :param nodes_attrs: dictionary where key is the node name and the value is the dictionary with node attributes.
     :param edges: list of pairs with start and end node names of the edge.
     :param update_attributes: optional dictionary which specifies nodes names and their attributes to be updated. The
     key is a node name to update attribute and the value is a dictionary with attribute name and its value.
+    :param cli: Namespace with cli keys to associate with the graph
     :return: generated graph.
     """
     graph = Graph()
@@ -230,6 +236,19 @@ def build_graph_with_edge_attrs(nodes_attrs: dict, edges: list, update_attribute
             assert (node_name in graph.nodes())
             for attr, value in new_attrs.items():
                 graph.node[node_name][attr] = value
+
+    for node in graph.get_op_nodes():
+        # Add in_ports attribute
+        in_edges = node.in_edges()
+        for attr in in_edges.values():
+            node.add_input_port(idx=attr['in'])
+
+        # Add out_ports attribute
+        out_edges = node.out_edges()
+        for attr in out_edges.values():
+            node.add_output_port(idx=attr['out'])
+
+    graph.graph['cmd_params'] = cli
     return graph
 
 
@@ -330,16 +349,20 @@ def get_name_and_port(tensor_name):
         return node_name, 0
 
 
-def connect(first_tensor_name, second_tensor_name, skip_data=False):
+def connect(first_tensor_name, second_tensor_name, skip_data=False, front_phase=False):
     # ports could be skipped -- then zero in/out ports would be used
     # first_tensor_name = first_op_name:out_port
     # second_tensor_name = in_port:second_op_name
+    # if skip_data is True connect directly from data node with postfix '_d' to second
+    # if front_phase is True connect nodes directly without postfixes and data nodes
 
     first_op_name, out_port = get_name_and_port(first_tensor_name)
     second_op_name, in_port = get_name_and_port(second_tensor_name)
 
     if skip_data:
         return [(first_op_name + '_d', second_op_name, {'in': in_port})]
+    if front_phase:
+        return [(first_op_name, second_op_name, {'out': out_port, 'in': in_port})]
     return [
         (first_op_name, first_op_name + '_d', {'out': out_port}),
         (first_op_name + '_d', second_op_name, {'in': in_port}),
@@ -348,3 +371,7 @@ def connect(first_tensor_name, second_tensor_name, skip_data=False):
 
 def connect_data(first_tensor_name, second_tensor_name):
     return connect(first_tensor_name, second_tensor_name, skip_data=True)
+
+
+def connect_front(first_tensor_name, second_tensor_name):
+    return connect(first_tensor_name, second_tensor_name, skip_data=False, front_phase=True)

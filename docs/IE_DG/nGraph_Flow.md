@@ -35,7 +35,7 @@ The rest of the document describes the coexistence of legacy and new flows showe
 ## Read the Intermediate Representation to `CNNNetwork`
 
 As the new operation set is introduced, the Model Optimizer generates the IR version 10 using the new operations by default.
-Each layer generated in the IR has a semantics matching to the corresponding operation from the nGraph namespace `opset3`.
+Each layer generated in the IR has a semantics matching to the corresponding operation from the nGraph namespaces `opset1`, `opset2` etc.
 The IR version 10 automatically triggers the nGraph flow inside the Inference Engine.
 When such IR is read in an application, the Inference Engine IR reader produces `CNNNetwork` that encapsulates the `ngraph::Function` instance underneath.
 Thus the OpenVINO IR becomes a new serialization format for the nGraph IR, and it can be deserialized reading the `CNNNetwork`.
@@ -51,14 +51,7 @@ Both shapes and types are reinferred while loading to the Inference Engine using
 
 ### Legacy IR Versions
 
-You can read old versions of the IR in the Inference Engine.
-Each version below or equal to 7 is treated as an old one.
-When the Inference Engine reader reads an old version of the IR, it does not use the nGraph representation.
-There is no way to activate nGraph flow with an old IR version.
-The rest of this document is not applied in this case.
-
-Model Optimizer generates the IR version 10 by default, and there is the command line key `--generate_deprecated_IR_V7` which switches generation to the legacy IR version 7.
-It is useful when the new nGraph flow does not work for some reason.
+Starting from the OpenVINO&trade; release 2021.1 you cannot read IR version 7 and lower in the Inference Engine.
 
 ## Build a Model in the Application
 

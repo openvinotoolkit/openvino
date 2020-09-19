@@ -143,8 +143,6 @@ else()
                 else()
                     ext_message(WARNING "Inference Engine DEBUG binaries are missed")
                 endif()
-
-                target_link_libraries(IE::inference_engine${ie_library_suffix} INTERFACE ${CMAKE_DL_LIBS})
             else()
                 # Only Release binaries are distributed for Linux systems
                 set_target_properties(IE::inference_engine${ie_library_suffix} PROPERTIES
@@ -157,7 +155,6 @@ else()
                     set_target_properties(IE::inference_engine${ie_library_suffix} PROPERTIES
                             INTERFACE_COMPILE_OPTIONS "-Wno-error=deprecated-declarations")
                 endif()
-                target_link_libraries(IE::inference_engine${ie_library_suffix} INTERFACE ${CMAKE_DL_LIBS})
             endif()
         endforeach()
 

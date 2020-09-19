@@ -190,4 +190,4 @@ If you want to use your model for inference, the model must be converted to the 
    * [Installation Guide for Windows*](installing-openvino-windows.md)
    * [Installation Guide for Linux*](installing-openvino-linux.md)
 
-   For more information about how to use the Model Optimizer, see the [Model Optimizer Developer Guide](https://software.intel.com/articles/OpenVINO-ModelOptimizer)
+   For more information about how to use the Model Optimizer, see the [Model Optimizer Developer Guide](../MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md).

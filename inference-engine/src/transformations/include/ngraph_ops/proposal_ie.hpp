@@ -22,11 +22,11 @@ public:
     //  \brief Constructs a Proposal operation
     //
     //  \param class_probs     Class probability scores
-    //  \param class_logits    Class prediction logits
+    //  \param class_bbox_deltas    Class prediction bbox_deltas
     //  \param image_shape     Shape of image
     //  \param attrs           Proposal op attributes
     ProposalIE(const Output<Node>& class_probs,
-               const Output<Node>& class_logits,
+               const Output<Node>& class_bbox_deltas,
                const Output<Node>& image_shape,
                const ProposalAttrs& attrs);
 

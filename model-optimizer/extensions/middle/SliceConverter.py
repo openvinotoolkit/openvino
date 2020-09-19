@@ -17,10 +17,9 @@
 import numpy as np
 
 from mo.front.common.partial_infer.utils import int64_array
-from mo.graph.graph import Graph, Node, rename_nodes
+from mo.graph.graph import Graph, rename_nodes
 from mo.middle.replacement import MiddleReplacementPattern
 from mo.ops.const import Const
-from mo.ops.crop import Crop
 from mo.ops.strided_slice import StridedSlice
 from mo.utils.error import Error
 
@@ -33,7 +32,7 @@ def convert_negative_indices(indices: np.array, shape: np.array):
 
 class ConvertSlice(MiddleReplacementPattern):
     """
-    This class convert Slice operation to Crop, Split or StridedSlice depends on parameters
+    This class converts Slice operation to StridedSlice
     """
 
     enabled = True
@@ -52,14 +51,8 @@ class ConvertSlice(MiddleReplacementPattern):
             edges=[]
         )
 
-    @staticmethod
-    def convert_onnx_slice_opset10(node: Node):
-        """
-        Converts the Slice node from ONNX opset10 to StridedSlice.
-        :param node: Slice node
-        :return: None
-        """
-        graph = node.graph
+    def replace_pattern(self, graph: Graph, match: dict):
+        node = match['slice']
 
         input_shape = node.in_port(0).data.get_shape()
         output_shape = node.out_port(0).data.get_shape()
@@ -68,7 +61,7 @@ class ConvertSlice(MiddleReplacementPattern):
         if starts is None or ends is None:
             raise Error('The input with starts or end is not constant for node {}'.format(node.id))
 
-        # in ONNX the value for 'ends' is usually -1 which is translated to maximum possible value of int64. This
+        # the value for 'ends' is usually maximum possible value of int64. This
         # value must be converted to maximum of int32 because such big values do not fit into the int32 which is
         # supported by the StridedSlice layer
         ends = np.clip(ends, np.iinfo(np.int32).min, np.iinfo(np.int32).max)
@@ -90,7 +83,7 @@ class ConvertSlice(MiddleReplacementPattern):
         ss_end_mask = np.zeros(len(input_shape), dtype=np.int32)
         ss_begin = np.zeros(len(input_shape), dtype=np.int32)
         ss_end = np.zeros(len(input_shape), dtype=np.int32)
-        ss_steps = np.ones(len(input_shape), dtype=np.int32)
+        ss_step = np.ones(len(input_shape), dtype=np.int32)
 
         # prepare inputs and attributes for the StridedSlice layer
         for i, axis in enumerate(axes):
@@ -101,13 +94,13 @@ class ConvertSlice(MiddleReplacementPattern):
             ss_end_mask[axis] = 1
             ss_end[axis] = ends[i]
 
-            ss_steps[axis] = steps[i]
+            ss_step[axis] = steps[i]
 
         slice_node_name = node.soft_get('name', node.id)
 
         begin_node = Const(graph, {'value': ss_begin, 'name': slice_node_name + '/begin'}).create_node()
         end_node = Const(graph, {'value': ss_end, 'name': slice_node_name + '/end'}).create_node()
-        strides_node = Const(graph, {'value': ss_steps, 'name': slice_node_name + '/stride'}).create_node()
+        strides_node = Const(graph, {'value': ss_step, 'name': slice_node_name + '/stride'}).create_node()
 
         ss = StridedSlice(graph, dict(new_axis_mask=np.zeros(len(output_shape), dtype=np.int32),
                                       shrink_axis_mask=np.zeros(len(output_shape), dtype=np.int32),
@@ -120,74 +113,3 @@ class ConvertSlice(MiddleReplacementPattern):
         end_node.out_port(0).connect(ss.in_port(2))
         strides_node.out_port(0).connect(ss.in_port(3))
         node.out_port(0).get_connection().set_source(ss.out_port(0))
-
-    def replace_pattern(self, graph: Graph, match: dict):
-        node = match['slice']
-
-        input = node.in_node(0)
-        output_data = node.out_node()
-
-        # ONNX 10 opset case
-        if len(node.in_nodes()) >= 3 and node.has_valid('format') and node['format'] == 'onnx':
-            self.convert_onnx_slice_opset10(node)
-            return
-
-        # Caffe case
-        if not node.has_valid('start') or not node.has_valid('end'):
-            return
-
-        begin = node.start
-        end = node.end
-        axis = node.axis if node.has_valid('axis') else np.arange(begin.size)
-
-        # Check whether operation use only one axis or not
-        axes_begin = np.zeros(len(input.shape), dtype=np.int32)
-        axes_end = np.zeros(len(input.shape), dtype=np.int32)
-        ss_begin = np.zeros(len(input.shape), dtype=np.int32)
-        ss_end = np.zeros(len(input.shape), dtype=np.int32)
-        dims = 0
-        axes = np.zeros(begin.size)
-        for i in range(len(axis)):
-            if begin[i] != 0 or end[i] < input.shape[axis[i]]:
-                dims += 1
-                axes[i] = 1
-                if begin[i] != 0:
-                    axes_begin[axis[i]] = 1
-                    ss_begin[axis[i]] = begin[i]
-                if end[i] < input.shape[axis[i]]:
-                    axes_end[axis[i]] = 1
-                    ss_end[axis[i]] = end[i]
-        axes = np.array(axes, dtype=bool)
-
-        slice_node_name = node.soft_get('name', node.id)
-
-        if dims == 1 or dims == 0:
-            # If Slice use only one axis or no axis, than
-            # convert Slice to StridedSlice
-            ss = StridedSlice(graph, dict(new_axis_mask=np.zeros(len(output_data.shape), dtype=np.int32),
-                                          shrink_axis_mask=np.zeros(len(output_data.shape), dtype=np.int32),
-                                          ellipsis_mask=np.zeros(len(output_data.shape), dtype=np.int32),
-                                          begin_mask=axes_begin,
-                                          end_mask=axes_end)).create_node()
-
-            convert_negative_indices(ss_begin, input.shape)
-            convert_negative_indices(ss_end, input.shape)
-
-            begin_node = Const(graph, {'value': ss_begin, 'name': slice_node_name + '/begin'}).create_node()
-            end_node = Const(graph, {'value': ss_end, 'name': slice_node_name + '/end'}).create_node()
-
-            rename_nodes([(node, slice_node_name + '_delete'), (ss, slice_node_name)])
-
-            node.in_port(0).get_connection().set_destination(ss.in_port(0))
-            begin_node.out_port(0).connect(ss.in_port(1))
-            end_node.out_port(0).connect(ss.in_port(2))
-            node.out_port(0).get_connection().set_source(ss.out_port(0))
-        else:
-            # If Slice use more than one axis use Crop layer
-            crop = Crop(graph, dict(axis=axis[axes],
-                                    offset=begin[axes],
-                                    dim=end[axes] - begin[axes])).create_node()
-            rename_nodes([(node, slice_node_name + '_delete'), (crop, slice_node_name)])
-
-            node.in_port(0).get_connection().set_destination(crop.in_port(0))
-            node.out_port(0).get_connection().set_source(crop.out_port(0))

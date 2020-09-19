@@ -4,8 +4,6 @@
 
 #include "template_function_transformation.hpp"
 
-#include <ngraph/ngraph.hpp>
-
 using namespace ngraph;
 
 // ! [function_pass:template_transformation_cpp]

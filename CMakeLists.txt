@@ -8,17 +8,7 @@ cmake_policy(SET CMP0054 NEW)
 # it allows to install targets created outside of current projects
 # See https://blog.kitware.com/cmake-3-13-0-available-for-download/
 
-if (APPLE)
-    if(CMAKE_GENERATOR STREQUAL "Xcode")
-        # due to https://gitlab.kitware.com/cmake/cmake/issues/14254
-        cmake_minimum_required(VERSION 3.12.0 FATAL_ERROR)
-    else()
-        # due to https://cmake.org/cmake/help/v3.12/policy/CMP0068.html
-        cmake_minimum_required(VERSION 3.9 FATAL_ERROR)
-    endif()
-else()
-    cmake_minimum_required(VERSION 3.7.2 FATAL_ERROR)
-endif()
+cmake_minimum_required(VERSION 3.13 FATAL_ERROR)
 
 project(OpenVINO)
 
@@ -69,13 +59,11 @@ function(build_ngraph)
 
     if(ENABLE_TESTS AND NOT ANDROID)
         ngraph_set(NGRAPH_UNIT_TEST_ENABLE TRUE)
-        ngraph_set(NGRAPH_IE_ENABLE TRUE)
     else()
         ngraph_set(NGRAPH_UNIT_TEST_ENABLE FALSE)
-        ngraph_set(NGRAPH_IE_ENABLE FALSE)
     endif()
 
-    if(NOT ANDROID)
+    if(NOT (ANDROID OR WINDOWS_STORE))
         ngraph_set(NGRAPH_ONNX_IMPORT_ENABLE TRUE)
     else()
         ngraph_set(NGRAPH_ONNX_IMPORT_ENABLE FALSE)
@@ -116,6 +104,34 @@ function(build_ngraph)
     add_subdirectory(ngraph)
     set(NGRAPH_LIBRARIES ngraph PARENT_SCOPE)
 endfunction()
+
+file(REMOVE "${CMAKE_BINARY_DIR}/openvino_targets_developer.cmake")
+
+unset(OpenVINODeveloperPackageTargets CACHE)
+
+function(openvino_developer_export_targets)
+    set(OpenVINODeveloperPackageTargets "${OpenVINODeveloperPackageTargets};${ARGV}")
+
+    # to allow exporting of aliased targets with the original names
+    foreach(target_name ${OpenVINODeveloperPackageTargets})
+        if(TARGET "${target_name}")
+            get_target_property(original_name ${target_name} ALIASED_TARGET)
+            if(TARGET "${original_name}")
+                message(STATUS "The name ${target_name} is an ALIAS for ${original_name}. "
+                        "It will be exported to the InferenceEngineDeveloperPackage with the original name.")
+                list(REMOVE_ITEM OpenVINODeveloperPackageTargets ${target_name})
+                list(APPEND OpenVINODeveloperPackageTargets ${original_name})
+            endif()
+        endif()
+    endforeach()
+
+    list(REMOVE_DUPLICATES OpenVINODeveloperPackageTargets)
+    set(OpenVINODeveloperPackageTargets "${OpenVINODeveloperPackageTargets}" CACHE INTERNAL
+        "Paths to extra Inference Engine plugins" FORCE)
+endfunction()
+
+
+add_subdirectory(openvino)
 
 build_ngraph()
 
