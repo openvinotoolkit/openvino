@@ -25,7 +25,7 @@ std::shared_ptr<Node> op::Eltwise::clone_with_new_inputs(const OutputVector& new
         throw ngraph_error("Incorrect number of new arguments");
     }
 
-    return make_shared<Eltwise>(new_args.at(0), new_args.at(1), eltwise_type);
+    return make_shared<Eltwise>(new_args.at(0), new_args.at(1), eltwise_type, m_output_type);
 }
 
 void op::Eltwise::validate_and_infer_types() {
