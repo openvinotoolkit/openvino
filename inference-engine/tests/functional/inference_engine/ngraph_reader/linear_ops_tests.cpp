@@ -4,8 +4,7 @@
 
 #include <string>
 #include "ngraph_reader_tests.hpp"
-// LPT_SUPPORT: temporary disabled
-TEST_F(NGraphReaderTests, DISABLED_ConvertMulAddToScaleShift) {
+TEST_F(NGraphReaderTests, ConvertMulAddToScaleShift) {
     std::string model = R"V0G0N(
 <net name="Network" version="10">
     <layers>
@@ -2005,7 +2004,7 @@ TEST_F(NGraphReaderTests, RemoveAdd3) {
     });
 }
 
-TEST_F(NGraphReaderTests, DISABLED_ConvertAddToEltwise2) {
+TEST_F(NGraphReaderTests, ConvertAddToEltwise2) {
     std::string model = R"V0G0N(
 <net name="Network" version="10">
     <layers>

@@ -173,8 +173,7 @@ TEST(TransformationTests, RNNSequenceConversionTest) {
             ->input_value(0).get_node_shared_ptr();
 }
 
-// LPT_SUPPORT: temporary disabled
-TEST(TransformationTests, DISABLED_LSTMSequenceConversionTest) {
+TEST(TransformationTests, LSTMSequenceConversionTest) {
     const size_t batch_size = 2;
     const size_t input_size = 3;
     const size_t hidden_size = 3;
@@ -201,7 +200,7 @@ TEST(TransformationTests, DISABLED_LSTMSequenceConversionTest) {
         const auto B = std::make_shared<ngraph::opset4::Constant>(ngraph::element::f32,
                                                                   ngraph::Shape{num_directions,
                                                                                 gates_count * hidden_size});
-        const auto seq_len = std::make_shared<ngraph::opset4::Constant>(ngraph::element::i32, ngraph::Shape{batch_size});
+        const auto seq_len = std::make_shared<ngraph::opset4::Constant>(ngraph::element::f32, ngraph::Shape{batch_size});
         sequence = std::make_shared<ngraph::op::v5::LSTMSequence>(X, H_t, C_t, seq_len, W, R, B, hidden_size,
                                                                   ngraph::op::RecurrentSequenceDirection::FORWARD);
         sequence->set_friendly_name("test_sequence");

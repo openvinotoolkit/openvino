@@ -274,12 +274,21 @@ void make_matcher_type_relaxed(ngraph::pass::GraphRewrite* transformation) {
     ngraph::graph_rewrite_callback callback = [](ngraph::pattern::Matcher &m) {
         auto l_node = std::dynamic_pointer_cast<BaseOp>(m.get_match_root());
         if (!l_node) {
-            std::cerr << "Error my matcher 1!!!\n";
-            return false;
+            THROW_IE_LPT_EXCEPTION(*l_node) << "unexpected operation type";
         }
-        // std::cerr << "My matcher pass was triggered: " << l_node->get_friendly_name() << " with " << l_node->get_inputs().size() << " inputs\n";
-        // TODO: replaces only operation with one output port
-        auto replacement = std::make_shared<ngraph::op::TypeRelaxed<BaseOp>>(*l_node, l_node->get_output_element_type(0));
+
+        std::vector<element::Type> inputPrecisions;
+        for (auto& inputs : l_node->inputs()) {
+            inputPrecisions.push_back(inputs.get_element_type());
+        }
+
+        std::vector<element::Type> outputPrecisions;
+        for (auto& output : l_node->outputs()) {
+            outputPrecisions.push_back(output.get_element_type());
+        }
+
+        auto replacement = std::make_shared<ngraph::op::TypeRelaxed<BaseOp>>(*l_node, inputPrecisions, outputPrecisions);
+
         copy_runtime_info(l_node, replacement);
         replace_node(l_node, replacement);
         return true;

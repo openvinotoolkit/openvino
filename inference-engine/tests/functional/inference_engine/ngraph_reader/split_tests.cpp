@@ -131,8 +131,7 @@ TEST_F(NGraphReaderTests, ReadSplitNetwork) {
     });
 }
 
-// TODO: LPT_SUPPORT
-TEST_F(NGraphReaderTests, DISABLED_ReadSplitNetwork2) {
+TEST_F(NGraphReaderTests, ReadSplitNetwork2) {
     std::string model = R"V0G0N(
 <net name="Network" version="10">
     <layers>
