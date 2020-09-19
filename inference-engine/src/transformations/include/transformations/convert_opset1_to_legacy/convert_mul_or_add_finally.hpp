@@ -59,7 +59,7 @@ bool convert_to_eltwise(std::shared_ptr<T> & node,
         return false;
     }
 
-    auto eltwise = std::make_shared<ngraph::op::Eltwise>(data1, data2, et);
+    auto eltwise = std::make_shared<ngraph::op::Eltwise>(data1, data2, et, node->output(0).get_element_type());
     eltwise->set_friendly_name(node->get_friendly_name());
     ngraph::copy_runtime_info(node, eltwise);
     ngraph::replace_node(node, eltwise);
