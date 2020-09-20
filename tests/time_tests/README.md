@@ -21,6 +21,10 @@ cmake .. -DInferenceEngineDeveloperPackage_DIR=$(realpath ../../../build) && mak
 
 2. Run test:
 ``` bash
-./scripts/run_timetest.py ../../../bin/intel64/Release/timetest_infer -m model.xml -d CPU
+./scripts/run_timetest.py ../../bin/intel64/Release/timetest_infer -m model.xml -d CPU
 ```
 
+2. Run several configurations using `pytest`:
+``` bash
+pytest ./test_runner/test_timetest.py --exe ../../bin/intel64/Release/timetest_infer
+```
