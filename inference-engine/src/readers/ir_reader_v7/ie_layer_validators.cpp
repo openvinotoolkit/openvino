@@ -269,7 +269,7 @@ void CropValidator::checkShapes(const CNNLayer* layer, const vector<SizeVector>&
             }
         } else if (!casted->dim.empty()) {
             int dim = casted->dim[i];
-            if (firstShape[axis] < static_cast<size_t>(offset + dim)) {
+            if (firstShape[axis] < (static_cast<size_t>(offset) + dim)) {
                 THROW_IE_EXCEPTION << "Incorrect crop data! Offset(" << offset << ") + result size of output(" << dim
                                    << ") should be less then input size(" << firstShape[axis] << ") for axis(" << axis
                                    << ")";

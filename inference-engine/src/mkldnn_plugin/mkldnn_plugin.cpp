@@ -24,12 +24,10 @@
 #include <legacy/convert_function_to_cnn_network.hpp>
 #include <transformations/common_optimizations/common_optimizations.hpp>
 #include <transformations/convert_opset1_to_legacy/convert_opset1_to_legacy.hpp>
-#include <transformations/low_precision/transformer.hpp>
-#include <transformations/low_precision/convolution.hpp>
-#include <transformations/low_precision/group_convolution.hpp>
-#include <transformations/low_precision/multiply_to_group_convolution.hpp>
+#include <transformations/convert_opset1_to_legacy/convert_prior_to_ie_prior.hpp>
 #include <transformations/convert_opset2_to_opset1/convert_opset2_to_opset1.hpp>
 #include <transformations/convert_opset3_to_opset2/convert_opset3_to_opset2.hpp>
+#include <transformations/init_node_info.hpp>
 #include <transformations/convert_precision.hpp>
 #include <transformations/rt_info/fused_names_attribute.hpp>
 #include <transformations/tensor_iterator_transformations/apply_transformations_to_ti_body.hpp>
@@ -39,6 +37,11 @@
 #include <ngraph/op/util/op_types.hpp>
 #include <ngraph/pass/manager.hpp>
 #include "ngraph_ops/fully_connected.hpp"
+
+#include <transformations/low_precision/transformer.hpp>
+#include <transformations/low_precision/convolution.hpp>
+#include <transformations/low_precision/group_convolution.hpp>
+#include <transformations/low_precision/multiply_to_group_convolution.hpp>
 
 #if !defined(__arm__) && !defined(_M_ARM) && !defined(__aarch64__) && !defined(_M_ARM64)
 #if defined(_WIN32) || defined(WIN32)
@@ -101,7 +104,7 @@ static void Transformation(ICNNNetwork::Ptr& clonedNetwork, const Config& conf) 
     // Disable shape inference (WA for generic operations)
     ngraph::op::GenericIE::DisableReshape noReshape(nGraphFunc);
 
-    const std::vector<std::pair<ngraph::element::Type, ngraph::element::Type>> convert_precision_list{
+    std::vector<std::pair<ngraph::element::Type, ngraph::element::Type>> convert_precision_list {
             {ngraph::element::i64, ngraph::element::i32},
             {ngraph::element::u64, ngraph::element::i32},
             {ngraph::element::u16, ngraph::element::i32},
@@ -112,6 +115,9 @@ static void Transformation(ICNNNetwork::Ptr& clonedNetwork, const Config& conf) 
 
     {
         ngraph::pass::Manager manager;
+        manager.register_pass<ngraph::pass::InitNodeInfo>();
+        // WA: ConvertPriorBox must be executed before the 1st ConstantFolding pass
+        manager.register_pass<ngraph::pass::ConvertPriorBox>();
         manager.register_pass<ngraph::pass::CommonOptimizations>();
         manager.register_pass<ngraph::pass::ConvertOpSet3ToOpSet2>();
         manager.register_pass<ngraph::pass::ConvertOpSet2ToOpSet1>();

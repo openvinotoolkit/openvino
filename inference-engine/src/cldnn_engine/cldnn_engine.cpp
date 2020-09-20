@@ -30,12 +30,10 @@
 #include <transformations/tensor_iterator_transformations/unroll_tensor_iterator.hpp>
 #include <transformations/common_optimizations/common_optimizations.hpp>
 #include <transformations/convert_opset1_to_legacy/convert_opset1_to_legacy.hpp>
+#include <transformations/convert_opset1_to_legacy/convert_prior_to_ie_prior.hpp>
 #include <transformations/convert_opset2_to_opset1/convert_opset2_to_opset1.hpp>
 #include <transformations/convert_opset3_to_opset2/convert_opset3_to_opset2.hpp>
-#include <transformations/convert_precision.hpp>
-
-#include <transformations/low_precision/transformer.hpp>
-#include <transformations/low_precision/mat_mul.hpp>
+#include <transformations/init_node_info.hpp>
 #include <transformations/rt_info/fused_names_attribute.hpp>
 
 #include <legacy/convert_function_to_cnn_network.hpp>
@@ -45,6 +43,9 @@
 #include "cldnn_engine.h"
 #include "cldnn_executable_network.h"
 #include "cldnn_custom_layer.h"
+
+#include <transformations/low_precision/transformer.hpp>
+#include <transformations/low_precision/mat_mul.hpp>
 
 #ifdef __linux__
 #include <dlfcn.h>
@@ -139,6 +140,9 @@ InferenceEngine::ICNNNetwork::Ptr clDNNEngine::CloneAndTransformNetwork(const In
         {
             // Note: instead of running all Conversion Transformations you can make up your own transformation pipeline
             ngraph::pass::Manager manager;
+            manager.register_pass<ngraph::pass::InitNodeInfo>();
+            // WA: ConvertPriorBox must be executed before the 1st ConstantFolding pass
+            manager.register_pass<ngraph::pass::ConvertPriorBox>();
             manager.register_pass<ngraph::pass::CommonOptimizations>();
             manager.register_pass<ngraph::pass::ConvertOpSet3ToOpSet2>();
             manager.register_pass<ngraph::pass::ConvertOpSet2ToOpSet1>();
