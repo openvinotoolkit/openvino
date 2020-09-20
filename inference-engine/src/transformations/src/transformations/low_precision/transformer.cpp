@@ -259,6 +259,27 @@ LowPrecisionTransformations LowPrecisionTransformer::getAllTransformations(const
     return transformer;
 }
 
+bool LowPrecisionTransformer::isFunctionQuantized(const std::shared_ptr<Function>& function) {
+    std::deque<std::shared_ptr<Node>> nodes;
+    for (auto result : function->get_results()) {
+        nodes.push_front(result);
+    }
+
+    while (!nodes.empty()) {
+        auto node = nodes.front();
+        nodes.pop_front();
+
+        for (size_t i = 0; i < node->inputs().size(); ++i) {
+            auto parent = node->get_input_node_shared_ptr(i);
+            if (is_type<ngraph::opset1::FakeQuantize>(parent)) {
+                return true;
+            }
+            nodes.push_front(parent);
+        }
+    }
+    return false;
+}
+
 LowPrecisionTransformer::LowPrecisionTransformer(): transformations(LowPrecisionTransformer::getAllTransformations()) {}
 
 template <typename BaseOp>
@@ -319,6 +340,10 @@ LowPrecisionTransformer::LowPrecisionTransformer(const LowPrecisionTransformatio
     : transformations(transformations) {}
 
 void LowPrecisionTransformer::transform(std::shared_ptr<Function> network) {
+    if (!isFunctionQuantized(network)) {
+        return;
+    }
+
     transformations.setParamsManager(this);
     transformations.setLayerTransformationsManager(this);
 
