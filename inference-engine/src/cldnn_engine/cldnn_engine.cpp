@@ -34,6 +34,7 @@
 #include <transformations/convert_opset2_to_opset1/convert_opset2_to_opset1.hpp>
 #include <transformations/convert_opset3_to_opset2/convert_opset3_to_opset2.hpp>
 #include <transformations/init_node_info.hpp>
+#include <transformations/convert_precision.hpp>
 #include <transformations/rt_info/fused_names_attribute.hpp>
 
 #include <legacy/convert_function_to_cnn_network.hpp>
@@ -137,6 +138,9 @@ InferenceEngine::ICNNNetwork::Ptr clDNNEngine::CloneAndTransformNetwork(const In
         // Disable shape inference (WA for generic operations)
         ::ngraph::op::GenericIE::DisableReshape noReshape(nGraphFunc);
 
+        CLDNNPlugin::Config config = _impl->m_config;
+        const bool enableInt8 = config.enableInt8 && (config.lptVersion == Config::LptVersion::nGraph);
+
         {
             // Note: instead of running all Conversion Transformations you can make up your own transformation pipeline
             ngraph::pass::Manager manager;
@@ -147,8 +151,10 @@ InferenceEngine::ICNNNetwork::Ptr clDNNEngine::CloneAndTransformNetwork(const In
             manager.register_pass<ngraph::pass::ConvertOpSet3ToOpSet2>();
             manager.register_pass<ngraph::pass::ConvertOpSet2ToOpSet1>();
 
-            // [WA part1] Convert quantized FP16 model to FP32 to avoid possible overflow and mixed precision errors
-            manager.register_pass<ngraph::pass::ConvertPrecision>(ngraph::element::f16, ngraph::element::f32);
+            if (enableInt8) {
+                // [WA part1] Convert quantized FP16 model to FP32 to avoid possible overflow and mixed precision errors
+                manager.register_pass<ngraph::pass::ConvertPrecision>(ngraph::element::f16, ngraph::element::f32);
+            }
 
             manager.set_callback(transformations_callback);
             manager.run_passes(nGraphFunc);
@@ -161,10 +167,8 @@ InferenceEngine::ICNNNetwork::Ptr clDNNEngine::CloneAndTransformNetwork(const In
             ti_manager.run_passes(nGraphFunc);
         }
 
-        CLDNNPlugin::Config config = _impl->m_config;
-
         using namespace ngraph::pass::low_precision;
-        if (config.enableInt8 && (config.lptVersion == Config::LptVersion::nGraph)) {
+        if (enableInt8) {
             auto params = LayerTransformation::Params(
                 true,  // updatePrecisions
                 LayerTransformation::QuantizedTensorAlignment::UpdateLevel,  // quantizedTensorAlignmentOnActivations
