@@ -14,8 +14,25 @@ using namespace ngraph;
 
 constexpr NodeTypeInfo op::ScaleShiftIE::type_info;
 
+element::Type getMaxBitwidth(const std::vector<element::Type>& types) {
+    if (types.empty()) {
+        return element::undefined;
+    }
+
+    element::Type maxType = types[0];
+    for (size_t i = 1; i < types.size(); ++i) {
+        if (types[i].bitwidth() > maxType.bitwidth()) {
+            maxType = types[i];
+        }
+    }
+    return maxType;
+}
+
 op::ScaleShiftIE::ScaleShiftIE(const Output<Node>& data_batch, const Output<Node>& weights, const Output<Node>& bias, const element::Type output_type)
     : Op({data_batch, weights, bias}), output_type(output_type) {
+    if (this->output_type == element::undefined) {
+        this->output_type = getMaxBitwidth({ data_batch.get_element_type(), weights.get_element_type(), bias.get_element_type() });
+    }
     constructor_validate_and_infer_types();
 }
 
