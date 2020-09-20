@@ -49,7 +49,7 @@ bool FakeQuantizeDequantization::isLowPrecision() const {
 }
 
 bool FakeQuantizeDequantization::checkElementwise(const std::shared_ptr<ngraph::Node>& dequantizationElementwise) {
-    const ngraph::PartialShape partialShape = dequantizationElementwise->get_input_partial_shape(1);
+    const ngraph::PartialShape partialShape = dequantizationElementwise->get_input_partial_shape(0);
     if (partialShape.is_dynamic()) {
         return false;
     }
@@ -65,10 +65,31 @@ bool FakeQuantizeDequantization::checkElementwise(const std::shared_ptr<ngraph::
         return false;
     }
 
-    for (size_t i = 1ul; i < constShape.size(); ++i) {
-        if (constShape[i] != 1ul) {
+    if ((constShape.size() <= 1ul) || (std::all_of(constShape.begin(), constShape.end(), [](const size_t value) { return value == 1ul; }))) {
+        return true;
+    }
+
+    const ngraph::Shape shape = partialShape.to_shape();
+    if (constShape.size() == shape.size()) {
+        if ((constShape[0] != 1ul) || (constShape[1] != shape[1])) {
             return false;
         }
+        for (size_t i = 2ul; i < constShape.size(); ++i) {
+            if (constShape[i] != 1ul) {
+                return false;
+            }
+        }
+    } else if (constShape.size() == (shape.size() - 1)) {
+        if (constShape[0] != shape[1]) {
+            return false;
+        }
+        for (size_t i = 1ul; i < constShape.size(); ++i) {
+            if (constShape[i] != 1ul) {
+                return false;
+            }
+        }
+    } else {
+        return false;
     }
 
     return true;
