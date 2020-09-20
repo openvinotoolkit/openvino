@@ -22,6 +22,7 @@
 #include <ngraph/opsets/opset1.hpp>
 #include <ngraph/opsets/opset2.hpp>
 #include <ngraph/opsets/opset3.hpp>
+#include <ngraph/opsets/opset4.hpp>
 #include "ngraph_ops/fully_connected.hpp"
 #include <ngraph/op/gelu.hpp>
 #include <ngraph/pass/manager.hpp>
@@ -165,10 +166,21 @@ std::shared_ptr<ngraph::Function> LayerTransformation::transformNGraph(
             return fc_op->input_value(0).get_shape().size() == 3ul;
         }
 
-        return std::dynamic_pointer_cast<const ::ngraph::opset2::Gelu>(node) ||
-            std::dynamic_pointer_cast<const ::ngraph::opset2::BatchToSpace>(node) ||
-            std::dynamic_pointer_cast<const ::ngraph::opset2::SpaceToBatch>(node) ||
-            std::dynamic_pointer_cast<const ::ngraph::opset3::ShuffleChannels>(node);
+        if (auto add_op = std::dynamic_pointer_cast<const ngraph::opset1::Add>(node)) {
+            return ngraph::is_type<ngraph::opset1::Convolution>(add_op->get_input_node_shared_ptr(0)) ||
+                ngraph::is_type<ngraph::opset1::GroupConvolution>(add_op->get_input_node_shared_ptr(0)) ||
+                ngraph::is_type<ngraph::opset1::MatMul>(add_op->get_input_node_shared_ptr(0));
+        }
+
+        return std::dynamic_pointer_cast<const ngraph::opset2::Gelu>(node) ||
+            std::dynamic_pointer_cast<const ngraph::opset2::BatchToSpace>(node) ||
+            std::dynamic_pointer_cast<const ngraph::opset2::SpaceToBatch>(node) ||
+            std::dynamic_pointer_cast<const ngraph::opset3::ExtractImagePatches>(node) ||
+            std::dynamic_pointer_cast<const ngraph::opset4::HSwish>(node) ||
+            std::dynamic_pointer_cast<const ngraph::opset4::ReduceL1>(node) ||
+            std::dynamic_pointer_cast<const ngraph::opset4::ReduceL2>(node) ||
+            std::dynamic_pointer_cast<const ngraph::opset4::SoftPlus>(node) ||
+            std::dynamic_pointer_cast<const ngraph::opset4::Pad>(node);
     };
 
     ngraph::pass::Manager manager;
