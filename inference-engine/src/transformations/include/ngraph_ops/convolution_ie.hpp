@@ -62,7 +62,7 @@ public:
                   const size_t& group = 1,
                   const PadType& auto_pad = PadType::EXPLICIT);
 
-#ifdef LPT_SUPPORT
+    // KMB compilation support
     ConvolutionIE(const Output<Node>& data_batch,
                   const Output<Node>& filters,
                   const Strides& strides,
@@ -72,6 +72,7 @@ public:
                   const size_t& group = 1,
                   const PadType& auto_pad = PadType::EXPLICIT);
 
+    // KMB compilation support
     ConvolutionIE(const Output<Node>& data_batch,
                   const Output<Node>& filters,
                   const Output<Node>& bias,
@@ -81,7 +82,7 @@ public:
                   const CoordinateDiff& pads_end,
                   const size_t& group = 1,
                   const PadType& auto_pad = PadType::EXPLICIT);
-#endif
+
 
     void validate_and_infer_types() override;
 

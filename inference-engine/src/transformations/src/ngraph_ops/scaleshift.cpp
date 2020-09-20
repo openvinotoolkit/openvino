@@ -14,25 +14,8 @@ using namespace ngraph;
 
 constexpr NodeTypeInfo op::ScaleShiftIE::type_info;
 
-element::Type getMaxBitwidth(const std::vector<element::Type>& types) {
-    if (types.empty()) {
-        return element::undefined;
-    }
-
-    element::Type maxType = types[0];
-    for (size_t i = 1; i < types.size(); ++i) {
-        if (types[i].bitwidth() > maxType.bitwidth()) {
-            maxType = types[i];
-        }
-    }
-    return maxType;
-}
-
 op::ScaleShiftIE::ScaleShiftIE(const Output<Node>& data_batch, const Output<Node>& weights, const Output<Node>& bias, const element::Type output_type)
     : Op({data_batch, weights, bias}), output_type(output_type) {
-    if (this->output_type == element::undefined) {
-        this->output_type = getMaxBitwidth({ data_batch.get_element_type(), weights.get_element_type(), bias.get_element_type() });
-    }
     constructor_validate_and_infer_types();
 }
 
@@ -46,7 +29,7 @@ std::shared_ptr<Node> op::ScaleShiftIE::clone_with_new_inputs(const OutputVector
 
 void op::ScaleShiftIE::validate_and_infer_types() {
     //  Check that weights and biases has the same type
-    element::Type data_et = get_input_element_type(0);
+    element::Type data_et = output_type == element::undefined ? get_input_element_type(0) : output_type;
     element::Type weights_et = get_input_element_type(1);
     element::Type biases_et = get_input_element_type(2);
 
@@ -56,10 +39,4 @@ void op::ScaleShiftIE::validate_and_infer_types() {
                           ", weights element type: ", weights_et, ").");
 
     set_output_type(0, data_et, get_input_partial_shape(0));
-}
-
-void op::ScaleShiftIE::set_output_type(size_t i,
-    const element::Type& element_type,
-    const PartialShape& pshape) {
-    Op::set_output_type(i, output_type == element::undefined ? element_type : output_type, pshape);
 }
