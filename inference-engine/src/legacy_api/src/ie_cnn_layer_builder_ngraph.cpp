@@ -1956,11 +1956,7 @@ CNNLayer::Ptr NodeConverter<ngraph::op::ReorgYolo>::createLayer(const std::share
     auto castedLayer = ngraph::as_type_ptr<ngraph::op::ReorgYolo>(layer);
     if (castedLayer == nullptr) THROW_IE_EXCEPTION << "Cannot get " << params.type << " layer " << params.name;
 
-    std::string value;
-    for (const auto& val : castedLayer->get_strides()) {
-        if (!value.empty()) value += ",";
-        value += asString(val);
-    }
+    std::string value = asString(castedLayer->get_stride());
 
     res->params["stride"] = value;
     return res;

@@ -1577,7 +1577,7 @@ std::shared_ptr<ngraph::Node> V10Parser::LayerCreator<ngraph::op::ReorgYolo>::cr
         THROW_IE_EXCEPTION << "Cannot read parameter for " << getType() << " layer with name: " << layerParsePrms.name;
 
     auto stride = GetUIntAttr(dn, "stride");
-    return std::make_shared<ngraph::op::ReorgYolo>(inputs[0], ngraph::Strides {stride});
+    return std::make_shared<ngraph::op::ReorgYolo>(inputs[0], stride);
 }
 
 // Transpose layer

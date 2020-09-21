@@ -32,9 +32,9 @@ namespace ngraph
                 ReorgYolo() = default;
                 /// \brief Constructs a ReorgYolo operation
                 ///
-                /// \param input          Input
-                /// \param strides        Stride to reorganize input by
-                ReorgYolo(const Output<Node>& input, const Strides& strides);
+                /// \param input         Input
+                /// \param stride        Stride to reorganize input by
+                ReorgYolo(const Output<Node>& input, int64_t stride);
 
                 void validate_and_infer_types() override;
 
@@ -43,9 +43,9 @@ namespace ngraph
                 virtual std::shared_ptr<Node>
                     clone_with_new_inputs(const OutputVector& new_args) const override;
 
-                Strides get_strides() const { return m_strides; }
+                int64_t get_stride() const { return m_stride; }
             private:
-                Strides m_strides;
+                int64_t m_stride;
             };
         }
         using v0::ReorgYolo;

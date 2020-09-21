@@ -76,7 +76,7 @@ ngraph::pass::ConvertExtractImagePatchesToReorgYolo::ConvertExtractImagePatchesT
         }
 
         auto reorg_yolo = std::make_shared<ngraph::opset3::ReorgYolo>(extract_image_patches->input(0).get_source_output(),
-            ngraph::Strides{extract_image_patches->get_strides()});
+            extract_image_patches->get_strides().at(0));
 
         reorg_yolo->set_friendly_name(extract_image_patches->get_friendly_name());
         ngraph::copy_runtime_info(extract_image_patches, reorg_yolo);

@@ -1327,11 +1327,11 @@ TEST(attributes, reorg_yolo_op)
     FactoryRegistry<Node>::get().register_factory<opset3::ReorgYolo>();
     const auto data = make_shared<op::Parameter>(element::i32, Shape{2, 3, 4, 5});
 
-    const auto op = make_shared<opset3::ReorgYolo>(data, Strides{2});
+    const auto op = make_shared<opset3::ReorgYolo>(data, 2);
     NodeBuilder builder(op);
     const auto g_op = as_type_ptr<opset3::ReorgYolo>(builder.create());
 
-    EXPECT_EQ(g_op->get_strides(), op->get_strides());
+    EXPECT_EQ(g_op->get_stride(), op->get_stride());
 }
 
 TEST(attributes, roi_pooling_op)
