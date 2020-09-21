@@ -67,25 +67,19 @@ void ClampTransformation::validateNGraph() {
     std::shared_ptr<ngraph::Node> parent = output->get_input_node_shared_ptr(0);
     ASSERT_FALSE(parent == nullptr);
     const std::string typeName = parent->get_type_name();
-    if (params.updatePrecisions) {
-        if (!param.dequantizationAfter.empty()) {
-            EXPECT_EQ("ScaleShiftIE", typeName);
-            EXPECT_EQ(3, parent->get_input_size());
+    if (!param.dequantizationAfter.empty()) {
+        EXPECT_EQ("ScaleShiftIE", typeName);
+        EXPECT_EQ(3, parent->get_input_size());
 
-            const auto expectedScale = param.dequantizationAfter.multiply.values;
-            const auto actualScale =
-                ngraph::as_type_ptr<ngraph::opset1::Constant>(parent->get_input_node_shared_ptr(1))->cast_vector<float>();
-            EXPECT_EQ(expectedScale.size(), actualScale.size());
+        const auto expectedScale = param.dequantizationAfter.multiply.values;
+        const auto actualScale =
+            ngraph::as_type_ptr<ngraph::opset1::Constant>(parent->get_input_node_shared_ptr(1))->cast_vector<float>();
+        EXPECT_EQ(expectedScale.size(), actualScale.size());
 
-            const auto expectedShift = param.dequantizationAfter.subtract.values;
-            const auto actualShift =
-                ngraph::as_type_ptr<ngraph::opset1::Constant>(parent->get_input_node_shared_ptr(2))->cast_vector<float>();
-            EXPECT_EQ(expectedShift.size(), actualShift.size());
-        }
-    } else {
-        if (!param.dequantizationAfter.empty()) {
-            EXPECT_EQ("ConvolutionIE", typeName);
-        }
+        const auto expectedShift = param.dequantizationAfter.subtract.values;
+        const auto actualShift =
+            ngraph::as_type_ptr<ngraph::opset1::Constant>(parent->get_input_node_shared_ptr(2))->cast_vector<float>();
+        EXPECT_EQ(expectedShift.size(), actualShift.size());
     }
 }
 
