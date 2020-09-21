@@ -552,6 +552,9 @@ abc_int64
 # Unsupported primitive of type: SigmoidBackprop
 sigmoid_bprop_n1c1h4
 
+# Unsupported primitive of type: ROIAlign
+IE_CPU.onnx_roi_align_f32
+
 # [NOT_IMPLEMENTED] Input image format BOOL is not supported yet...
 select
 not
@@ -1201,7 +1204,7 @@ IE_GPU.onnx_dyn_shapes_avg_pool_dyn_shape
 IE_GPU.onnx_dyn_shapes_max_pool_dyn_shape
 IE_GPU.onnx_dyn_shapes_global_avg_pool_dyn_shape
 IE_GPU.onnx_dyn_shapes_global_max_pool_dyn_shape
-
+IE_GPU.onnx_roi_align_f32
 IE_GPU.tanh
 IE_GPU.tan
 IE_GPU.sum_to_scalar
