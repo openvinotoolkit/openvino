@@ -158,13 +158,13 @@ _uninstall_user_mode_centos()
         echo "rpm -qa | grep $package"
         found_package=$(rpm -qa | grep $package)
         if [[ $? -eq 0 ]]; then
-            echo Found installed user-mode driver, performing uninstall...
+            echo "Found installed user-mode driver, performing uninstall..."
             cmd="rpm -e --nodeps ${found_package}"
             echo $cmd
             eval $cmd
             if [[ $? -ne 0 ]]; then
-                echo ERROR: failed to uninstall existing user-mode driver. >&2
-                echo Please try again manually and run the script again. >&2
+                echo "ERROR: failed to uninstall existing user-mode driver." >&2
+                echo "Please try again manually and run the script again." >&2
                 exit $EXIT_FAILURE
             fi
         fi
@@ -182,11 +182,17 @@ _uninstall_user_mode_ubuntu()
            "intel-igc-opencl")
 
     for package in "${PACKAGES[@]}"; do
-        apt remove -y $package
-        if [[ $? -ne 0 ]]; then
-            echo ERROR: failed to uninstall existing user-mode driver. >&2
-            echo Please try again manually and run the script again. >&2
-            exit $EXIT_FAILURE
+        found_package=$(dpkg-query -W -f='${binary:Package}\n' ${package})
+        if [[ $? -eq 0 ]]; then
+            echo "Found installed user-mode driver, performing uninstall..."
+            cmd="apt-get autoremove -y $package"
+            echo $cmd
+            eval $cmd
+            if [[ $? -ne 0 ]]; then
+                echo "ERROR: failed to uninstall existing user-mode driver." >&2
+                echo "Please try again manually and run the script again." >&2
+                exit $EXIT_FAILURE
+            fi
         fi
     done
 }
@@ -391,7 +397,8 @@ check_current_driver()
 }
 
 install()
-{       
+{   
+        
     uninstall_user_mode
     install_prerequisites
     download_packages
