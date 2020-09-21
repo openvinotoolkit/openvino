@@ -98,7 +98,7 @@ class ResizeToInterpolate2D(FrontReplacementSubgraph):
 
         interpolated_shape = Mul(graph, {'name': resize_node_name + '/OutputShape'}).create_node()
         match['slice'].out_port(0).connect(interpolated_shape.in_port(0))
-        scale_const.out_port(0).connect(interpolated_shape.in_port(2))
+        scale_const.out_port(0).connect(interpolated_shape.in_port(1))
 
         resize_node.in_port(0).get_connection().set_destination(interpolate_node.in_port(0))
         interpolated_shape.out_port(0).connect(interpolate_node.in_port(1))
@@ -200,7 +200,7 @@ class ResizeToInterpolate3D(FrontReplacementSubgraph):
 
         interpolated_shape = Mul(graph, {'name': resize_node_name + '/OutputShape'}).create_node()
         match['slice'].out_port(0).connect(interpolated_shape.in_port(0))
-        scale_const.out_port(0).connect(interpolated_shape.in_port(2))
+        scale_const.out_port(0).connect(interpolated_shape.in_port(1))
 
         resize_node.in_port(0).get_connection().set_destination(interpolate_node.in_port(0))
         interpolated_shape.out_port(0).connect(interpolate_node.in_port(1))
