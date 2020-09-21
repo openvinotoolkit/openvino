@@ -34,7 +34,7 @@ constexpr NodeTypeInfo op::v0::Power::type_info;
 op::v0::Power::Power(const Output<Node>& arg0,
                      const Output<Node>& arg1,
                      const AutoBroadcastSpec& auto_broadcast)
-    : BinaryElementwiseArithmetic(arg0, arg1, auto_broadcast)
+    : BinaryElementwiseArithmetic(arg0, arg1, auto_broadcast, false /* validate types */)
 {
     constructor_validate_and_infer_types();
 }
@@ -102,7 +102,7 @@ constexpr NodeTypeInfo op::v1::Power::type_info;
 op::v1::Power::Power(const Output<Node>& arg0,
                      const Output<Node>& arg1,
                      const AutoBroadcastSpec& auto_broadcast)
-    : BinaryElementwiseArithmetic(arg0, arg1, auto_broadcast)
+    : BinaryElementwiseArithmetic(arg0, arg1, auto_broadcast, false /* validate types */)
 {
     constructor_validate_and_infer_types();
 }

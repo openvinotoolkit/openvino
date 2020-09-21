@@ -25,7 +25,9 @@ namespace ngraph
         namespace util
         {
             std::tuple<element::Type, PartialShape> validate_and_infer_elementwise_args(
-                Node* node, const op::AutoBroadcastSpec& autob = op::AutoBroadcastSpec());
+                Node* node,
+                const op::AutoBroadcastSpec& autob = op::AutoBroadcastSpec(),
+                bool validate_types = true);
         }
     }
 }

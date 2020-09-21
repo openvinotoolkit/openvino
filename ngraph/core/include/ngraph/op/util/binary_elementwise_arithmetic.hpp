@@ -64,7 +64,8 @@ namespace ngraph
                 /// \param arg1 Output that produces the second input tensor.
                 BinaryElementwiseArithmetic(const Output<Node>& arg0,
                                             const Output<Node>& arg1,
-                                            const AutoBroadcastSpec& autob);
+                                            const AutoBroadcastSpec& autob,
+                                            bool validate_types = false);
 
             public:
                 void validate_and_infer_types() override;
@@ -75,6 +76,7 @@ namespace ngraph
 
             private:
                 AutoBroadcastSpec m_autob;
+                bool m_validate_types;
                 void validate_and_infer_elementwise_arithmetic(const op::AutoBroadcastSpec& autob);
             };
         }
