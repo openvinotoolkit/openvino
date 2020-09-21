@@ -4,8 +4,10 @@
 
 #pragma once
 
+#include <exception>
 #include <string>
 #include <ngraph/node.hpp>
+#include <transformations_visibility.hpp>
 
 /**
 * @def THROW_TRANSFORMATION_EXCEPTION_LPT

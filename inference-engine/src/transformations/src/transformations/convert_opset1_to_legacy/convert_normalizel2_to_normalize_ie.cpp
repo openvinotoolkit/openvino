@@ -94,11 +94,7 @@ ngraph::pass::ConvertNormalizeL2ToLegacyMatcher::ConvertNormalizeL2ToLegacyMatch
         bool across_channels = !(axis.size() == 1 && axis[0] == 1);
         bool channel_shared = true;
 
-#ifdef LPT_SUPPORT
         auto scale = std::make_shared<ngraph::opset1::Constant>(normalize->output(0).get_element_type(), Shape{1}, std::vector<float>{1.0});
-#else
-        auto scale = std::make_shared<ngraph::opset1::Constant>(normalize->get_input_element_type(0), Shape{ 1 }, std::vector<float>{1.0});
-#endif
 
         auto normalize_ie = std::make_shared<ngraph::op::NormalizeIE> (normalize->input(0).get_source_output(),
                                                                        scale->output(0),

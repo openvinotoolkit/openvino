@@ -39,13 +39,12 @@ bool MultiplyToGroupConvolutionTransformation::transform(TransformationContext& 
     const size_t group = outputChannelsCount / groupSize;
     const size_t weightsSize = outputChannelsCount * inputChannelsCount / group;
     std::vector<float> weightsBuffer(weightsSize);
-    std::vector<float> weightsOriginalShiftsBlobBuffer = as_type_ptr<opset1::Constant>(constant)->cast_vector<float>();
     const size_t kernelsCount = inputChannelsCount / group;
 
     if (group == 1ul) {
         for (size_t outputChannel = 0ul; outputChannel < outputChannelsCount; ++outputChannel) {
             for (size_t kernel = 0ul; kernel < kernelsCount; ++kernel) {
-                const float value = (outputChannel == kernel) ? (updatePrecisions ? 1.f : weightsOriginalShiftsBlobBuffer[outputChannel]) : 0.f;
+                const float value = (outputChannel == kernel) ? 1.f : 0.f;
                 weightsBuffer[kernelsCount * outputChannel + kernel] = value;
             }
         }
@@ -55,8 +54,7 @@ bool MultiplyToGroupConvolutionTransformation::transform(TransformationContext& 
             const size_t groupIndex = outputChannel / channelsInGroup;
             for (size_t kernel = 0ul; kernel < kernelsCount; ++kernel) {
                 const size_t outputChannelIndexInGroup = outputChannel - groupIndex * channelsInGroup;
-                const float value = (outputChannelIndexInGroup == kernel) ?
-                    (updatePrecisions ? 1.f : weightsOriginalShiftsBlobBuffer[outputChannel]) : 0.f;
+                const float value = (outputChannelIndexInGroup == kernel) ? 1.f : 0.f;
                 weightsBuffer[kernelsCount * outputChannel + kernel] = value;
             }
         }
@@ -94,9 +92,7 @@ bool MultiplyToGroupConvolutionTransformation::transform(TransformationContext& 
         lastNode->set_friendly_name(dequantization.subtract->get_friendly_name());
     }
 
-    if (updatePrecisions) {
-        lastNode = multiply->copy_with_new_inputs({ lastNode, constant });
-    }
+    lastNode = multiply->copy_with_new_inputs({ lastNode, constant });
 
     replace_node(multiply, lastNode);
     NetworkHelper::copyInfo(multiply, lastNode);

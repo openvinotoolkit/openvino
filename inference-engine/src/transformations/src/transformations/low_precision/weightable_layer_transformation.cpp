@@ -22,31 +22,23 @@ bool WeightableLayerTransformation::canBeTransformed(const TransformationContext
     }
 
     if (isGroup(layer)) {
-        FakeQuantizeDequantization dequantization = NetworkHelper::getDequantization(layer);
+        const FakeQuantizeDequantization dequantization = NetworkHelper::getDequantization(layer);
         if (dequantization.empty()) {
             return false;
         }
 
-        std::shared_ptr<opset1::Constant> multiplyConst = as_type_ptr<opset1::Constant>(dequantization.multiply->get_input_node_shared_ptr(1));
-        const ngraph::Shape constShape = multiplyConst->get_output_shape(0);
-        if ((constShape.size() != 0) && (constShape.size() != 1ul) && (constShape.size() != 3ul) && (constShape.size() != 4ul)) {
+        if ((dequantization.multiply != nullptr) && !FakeQuantizeDequantization::checkElementwise(dequantization.multiply)) {
             return false;
         }
 
-        const ngraph::Shape inputShape = layer->get_input_shape(0);
-
-        const std::vector<float> scales = multiplyConst->cast_vector<float>();
-        if (scales.size() != 1ul) {
-            if ((scales.size() != 1) && (scales.size() != inputShape[1])) {
-                return false;
-            }
-
-            if ((inputShape.size() != 4ul) && (inputShape.size() != 5ul)) {
-                return false;
-            }
-
+        const std::shared_ptr<opset1::Constant> multiplyConst = as_type_ptr<opset1::Constant>(dequantization.multiply->get_input_node_shared_ptr(1));
+        const Shape multiplyConstShape = multiplyConst->get_output_shape(0);
+        if (!multiplyConstShape.empty() && (multiplyConstShape.size() != 1ul)) {
             const size_t groupsCount = NetworkHelper::getGroupsCount(layer);
+            const ngraph::Shape inputShape = layer->get_input_shape(0);
             const size_t inputChannelsInGroup = inputShape[1] / groupsCount;
+
+            const std::vector<float> scales = multiplyConst->cast_vector<float>();
             for (size_t group = 0; group < groupsCount; ++group) {
                 for (size_t i = 0; i < inputChannelsInGroup; ++i) {
                     size_t index = group * inputChannelsInGroup + i;

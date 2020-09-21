@@ -59,7 +59,7 @@ bool convert_to_eltwise(std::shared_ptr<T> & node,
         return false;
     }
 
-    auto eltwise = std::make_shared<ngraph::op::Eltwise>(data1, data2, et);
+    auto eltwise = std::make_shared<ngraph::op::Eltwise>(data1, data2, et, node->output(0).get_element_type());
     eltwise->set_friendly_name(node->get_friendly_name());
     ngraph::copy_runtime_info(node, eltwise);
     ngraph::replace_node(node, eltwise);
@@ -200,6 +200,8 @@ ngraph::graph_rewrite_callback get_callback() {
                 power = std::make_shared<ngraph::op::PowerIE>(data_node, 1., 1., value, lin_op->get_output_element_type(0));
             } else if (std::is_same<T, ngraph::opset1::Multiply>()) {
                 power = std::make_shared<ngraph::op::PowerIE>(data_node, 1., value, 0., lin_op->get_output_element_type(0));
+            } else if (std::is_same<T, ngraph::opset1::Subtract>()) {
+                power = std::make_shared<ngraph::op::PowerIE>(data_node, 1., 1., -value, lin_op->get_output_element_type(0));
             } else {
                 return false;
             }

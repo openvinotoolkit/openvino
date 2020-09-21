@@ -12,11 +12,7 @@
 #include <transformations_visibility.hpp>
 
 #include "ngraph/op/op.hpp"
-
-#ifdef LPT_SUPPORT
-#include "ngraph/opsets/opset1.hpp"
 #include "transformations/low_precision/common/dequantization_op.hpp"
-#endif
 
 namespace ngraph {
 namespace op {
@@ -188,30 +184,12 @@ void TypeRelaxed<BaseOp>::validate_and_infer_types() {
         }
     }
 
-#ifdef LPT_SUPPORT
-    if (is_type<ngraph::opset1::Interpolate>(this)) {
-        // Restore original input data types
-        for (size_t i = 0; i < BaseOp::get_input_size(); ++i) {
-            BaseOp::get_input_tensor(i).set_tensor_type(old_input_types[i], BaseOp::get_input_partial_shape(i));
-        }
-
-        BaseOp::validate_and_infer_types();
-    } else {
-        BaseOp::validate_and_infer_types();
-
-        // Restore original input data types
-        for (size_t i = 0; i < BaseOp::get_input_size(); ++i) {
-            BaseOp::get_input_tensor(i).set_tensor_type(old_input_types[i], BaseOp::get_input_partial_shape(i));
-        }
-    }
-#else
     BaseOp::validate_and_infer_types();
 
     // Restore original input data types
     for (size_t i = 0; i < BaseOp::get_input_size(); ++i) {
         BaseOp::get_input_tensor(i).set_tensor_type(old_input_types[i], BaseOp::get_input_partial_shape(i));
     }
-#endif
 
 
     // Override (some) output types

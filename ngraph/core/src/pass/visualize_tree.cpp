@@ -415,24 +415,29 @@ string pass::VisualizeTree::get_attributes(shared_ptr<Node> node)
         stringstream label;
         label << "label=\"" << get_node_name(node);
 
-        static const bool nvtos = true;
-        static const bool nvtot = true;
+        static const bool nvtos = getenv_bool("NGRAPH_VISUALIZE_TREE_OUTPUT_SHAPES");
+        static const bool nvtot = getenv_bool("NGRAPH_VISUALIZE_TREE_OUTPUT_TYPES");
+        static const bool nvtio = getenv_bool("NGRAPH_VISUALIZE_TREE_IO");
 
-        if (nvtos || nvtot)
+        if (nvtos || nvtot || nvtio)
         {
-            for (const auto& input : node->inputs())
+            if (nvtio)
             {
-                label << "\\nin" << to_string(input.get_index()) << ": ";
-                if (nvtot)
-                    label << "{" << input.get_element_type().get_type_name() << "}";
-                if (nvtos)
-                    label << pretty_partial_shape(input.get_partial_shape());
-                label << ": " << node->get_input_node_ptr(input.get_index())->get_name() << ": out"
-                      << input.get_source_output().get_index();
+                for (const auto& input : node->inputs())
+                {
+                    label << "\\nin" << to_string(input.get_index()) << ": ";
+                    if (nvtot)
+                        label << "{" << input.get_element_type().get_type_name() << "}";
+                    if (nvtos)
+                        label << pretty_partial_shape(input.get_partial_shape());
+                    label << ": " << node->get_input_node_ptr(input.get_index())->get_name() << ": out"
+                        << input.get_source_output().get_index();
+                }
             }
             for (const auto& output : node->outputs())
             {
-                label << "\\nout" << to_string(output.get_index()) << ": ";
+                if (nvtio)
+                    label << "\\nout" << to_string(output.get_index()) << ": ";
                 if (nvtot)
                     label << "{" << output.get_element_type().get_type_name() << "}";
                 if (nvtos)
@@ -468,13 +473,18 @@ string pass::VisualizeTree::get_node_name(shared_ptr<Node> node)
         rc += "\\n" + node->get_name();
     }
     rc += "\\n" + std::string(node->get_type_name());
-    const auto rt = node->get_rt_info();
-    if (!rt.empty())
+
+    static const bool nvtrti = getenv_bool("NGRAPH_VISUALIZE_TREE_RUNTIME_INFO");
+    if (nvtrti)
     {
-        rc += "\\nrt info: ";
-        for (const auto& item : rt)
+        const auto rt = node->get_rt_info();
+        if (!rt.empty())
         {
-            rc += item.first + " ";
+            rc += "\\nrt info: ";
+            for (const auto& item : rt)
+            {
+                rc += item.first + " ";
+            }
         }
     }
     return rc;

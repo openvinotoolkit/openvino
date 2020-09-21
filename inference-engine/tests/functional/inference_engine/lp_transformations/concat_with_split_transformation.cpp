@@ -225,7 +225,7 @@ const std::vector<ConcatTransformationTestValues> testValues = {
     },
 };
 
-// LPT_SUPPORT: temporary disabled
+// TODO: Split/VariadicSplit operations are not supported in ConcatTransformation
 INSTANTIATE_TEST_CASE_P(
     DISABLED_LPT,
     ConcatWithSplitTransformation,

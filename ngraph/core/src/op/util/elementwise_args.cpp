@@ -15,9 +15,7 @@
 //*****************************************************************************
 
 #include "elementwise_args.hpp"
-#ifdef LPT_SUPPORT
 #include "binary_elementwise_arithmetic.hpp"
-#endif
 
 using namespace ngraph;
 

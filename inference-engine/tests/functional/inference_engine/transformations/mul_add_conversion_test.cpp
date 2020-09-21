@@ -159,8 +159,7 @@ TEST_P(MulOrAddConversionTests, CompareFunctions) {
 #define ELTWISE_SUM MulAddConversionTests::get_eltwise_add_reference
 #define ELTWISE_PROD MulAddConversionTests::get_eltwise_mul_reference
 
-// LPT_SUPPORT: temporary disabled
-INSTANTIATE_TEST_CASE_P(DISABLED_MulAddToScaleShift, MulAddConversionTests, testing::Combine(
+INSTANTIATE_TEST_CASE_P(MulAddToScaleShift, MulAddConversionTests, testing::Combine(
         testing::Values(std::make_tuple(InputShape{DYN, 3, 64, 64},
                                         CONST(ngraph::Shape({1, 3, 1, 1}), 0.5),
                                         CONST(ngraph::Shape({1, 3, 1, 1}), 0.5)),
@@ -233,12 +232,8 @@ INSTANTIATE_TEST_CASE_P(AddToPower, MulOrAddConversionTests, testing::Combine(
         testing::Values(POWER)));
 
 
-// LPT_SUPPORT: temporary disabling
-INSTANTIATE_TEST_CASE_P(DISABLED_MulAddNegative, MulAddConversionTests, testing::Combine(
-        testing::Values(std::make_tuple(InputShape{DYN, 3, 64},
-                                        CONST(ngraph::Shape({1, 3, 1}), 0.5),
-                                        CONST(ngraph::Shape({1, 3, 1}), 0.5)/*ScaleShift must always be 4D*/),
-                        std::make_tuple(InputShape{DYN, 3, DYN},
+INSTANTIATE_TEST_CASE_P(MulAddNegative, MulAddConversionTests, testing::Combine(
+        testing::Values(std::make_tuple(InputShape{DYN, 3, DYN},
                                         CONST(ngraph::Shape({1, 1, 3, 1}), 0.5),
                                         CONST(ngraph::Shape({3, 1}), 0.5)/*detect broadcast case*/),
                         std::make_tuple(InputShape{DYN, 3, DYN},

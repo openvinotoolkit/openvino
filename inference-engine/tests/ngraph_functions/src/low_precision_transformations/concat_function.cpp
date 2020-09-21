@@ -616,9 +616,10 @@ std::shared_ptr<ngraph::Function> ConcatFunction::getReferenceWithIntermediate(
             if (intermediateOpTr != nullptr) {
                 ngraph::pass::low_precision::NetworkHelper::setOutDataPrecisionForTypeRelaxed(intermediateOp, fqOnDataPrecision);
             } else {
-#ifdef LPT_SUPPORT
-                intermediateOp->set_output_type(0, fqOnDataPrecision, intermediateOp->get_output_partial_shape(0));
-#endif
+                // set precision to explicitly to have updated precision during transformation
+                for (size_t i = 0; i < intermediateOp->get_output_size(); ++i) {
+                    intermediateOp->set_output_type(i, fqOnDataPrecision, intermediateOp->get_output_partial_shape(i));
+                }
             }
         }
     }

@@ -25,11 +25,9 @@ public:
 
     void validate_and_infer_types() override;
 
-    void set_output_type(size_t i,
-        const element::Type& element_type,
-        const PartialShape& pshape) override;
-
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
+
+private:
     element::Type output_type;
 };
 

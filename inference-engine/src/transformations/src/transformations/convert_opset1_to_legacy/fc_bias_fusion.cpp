@@ -28,6 +28,8 @@ ngraph::pass::FullyConnectedBiasFusion::FullyConnectedBiasFusion() {
 
         if (m_fc == nullptr) {
             m_fc = std::dynamic_pointer_cast<op::FullyConnected>(add_input_1);
+            if (m_fc == nullptr)
+                return false;
             m_bias = add_input_0;
         }
 

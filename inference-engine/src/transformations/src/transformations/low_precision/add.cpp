@@ -129,11 +129,19 @@ bool AddTransformation::transform(TransformationContext& context, ngraph::patter
         const int emptyPathIndex = fullPathIndex == 0 ? 1 : 0;
 
         FakeQuantizeDequantization dequantizationEmptyPath = NetworkHelper::getDequantization(add, emptyPathIndex);
+        if (updatePrecisions && !dequantizationEmptyPath.empty() && !dequantizationEmptyPath.isLowPrecision()) {
+            return false;
+        }
+
         std::shared_ptr<Node> subtractEmptyPathValues;
         std::shared_ptr<Node> multiplyEmptyPathValues;
         std::tie(subtractEmptyPathValues, multiplyEmptyPathValues) = NetworkHelper::createEmptyValues(dequantizationEmptyPath);
 
         FakeQuantizeDequantization dequantizationFullPath = NetworkHelper::getDequantization(add, fullPathIndex);
+        if (updatePrecisions && !dequantizationFullPath.empty() && !dequantizationFullPath.isLowPrecision()) {
+            return false;
+        }
+
         std::shared_ptr<Node> subtractFullPathValues;
         std::shared_ptr<Node> multiplyFullPathValues;
         std::tie(subtractFullPathValues, multiplyFullPathValues) = NetworkHelper::createEmptyValues(dequantizationFullPath);

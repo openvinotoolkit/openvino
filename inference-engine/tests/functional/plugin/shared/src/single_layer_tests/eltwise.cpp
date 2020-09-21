@@ -79,8 +79,8 @@ void EltwiseLayerTest::SetUp() {
     function = std::make_shared<ngraph::Function>(eltwise, input, "Eltwise");
 }
 
-// LPT_SUPPORT: temporary disabled
-TEST_P(EltwiseLayerTest, DISABLED_EltwiseTests) {
+
+TEST_P(EltwiseLayerTest, EltwiseTests) {
     Run();
 }
 } // namespace LayerTestsDefinitions
