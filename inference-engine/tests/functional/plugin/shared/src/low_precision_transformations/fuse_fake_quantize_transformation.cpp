@@ -41,7 +41,7 @@ void FuseFakeQuantizeTransformation::SetUp() {
 
     ConfigurePlugin(version);
 
-    function = ngraph::builder::subgraph::FuseFakeQuantizeFunction::get(
+    function = ngraph::builder::subgraph::FuseFakeQuantizeFunction::getOriginal(
         testValues.inputShape,
         testValues.actual.precisionBeforeAdd,
         testValues.actual.add,
