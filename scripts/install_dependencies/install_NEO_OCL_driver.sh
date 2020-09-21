@@ -182,15 +182,11 @@ _uninstall_user_mode_ubuntu()
            "intel-igc-opencl")
 
     for package in "${PACKAGES[@]}"; do
-        found_package=$(dpkg-query -W -f='${binary:Package}\n' ${package})
-        if [[ $? -eq 0 ]]; then
-            echo Found $found_package installed, uninstalling...
-            dpkg --purge $found_package
-            if [[ $? -ne 0 ]]; then
-                echo "ERROR: unable to remove $found_package" >&2
-                echo "       please resolve it manually and try to launch the script again." >&2
-                exit $EXIT_FAILURE
-            fi
+        apt remove -y $package
+        if [[ $? -ne 0 ]]; then
+            echo ERROR: failed to uninstall existing user-mode driver. >&2
+            echo Please try again manually and run the script again. >&2
+            exit $EXIT_FAILURE
         fi
     done
 }
@@ -340,7 +336,8 @@ _check_distro_version()
         if [[ $UBUNTU_VERSION != '18.04' && $UBUNTU_VERSION != '20.04' ]]; then
             echo "Warning: This runtime can be installed only on Ubuntu 18.04 or Ubuntu 20.04."
             echo "More info https://github.com/intel/compute-runtime/releases" >&2
-            exit "Installation of Intel Compute Runtime interrupted"
+            echo "Installation of Intel Compute Runtime interrupted"
+            exit $EXIT_FAILURE
         fi
     fi
 }
@@ -363,7 +360,7 @@ check_agreement()
     fi
 
     echo "This script will download and install Intel(R) Graphics Compute Runtime $INSTALL_DRIVER_VERSION, "
-    echo "that was used to validate this OpenVINO package.\n"
+    echo "that was used to validate this OpenVINO package."
     echo "In case if you already have the driver - script will try to remove it."
     while true; do
         read -p "Want to proceed? (y/n): " yn
@@ -382,11 +379,12 @@ check_current_driver()
     elif [[ $DISTRO == ubuntu ]]; then
         gfx_version=$(apt show intel-opencl | grep Version)
     fi
-    gfx_version=${gfx_version##*:}
+    gfx_version="$(echo -e "${gfx_version}" | sed -e 's/^Version\:[[:space:]]*//')"
     # install NEO OCL driver if current driver version < 19.41.14441
     if [[ ! -z $gfx_version && "$(printf '%s\n' "$INSTALL_DRIVER_VERSION" "$gfx_version" | sort -V | head -n 1)" = "$INSTALL_DRIVER_VERSION" ]]; then
-        echo "Intel(R) Graphics Compute Runtime installation skipped because current version greater or equal to $INSTALL_DRIVER_VERSION"
-        exit "Installation of Intel Compute Runtime interrupted"
+        echo "Intel(R) Graphics Compute Runtime installation skipped because current version greater or equal to $INSTALL_DRIVER_VERSION" >&2
+        echo "Installation of Intel Compute Runtime interrupted" >&2
+        exit $EXIT_FAILURE
     else
         echo "Starting installation"
     fi
