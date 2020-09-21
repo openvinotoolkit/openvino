@@ -1293,11 +1293,12 @@ void FuseMultipleIdentitiesPass::run() {
         auto isNonFunctional = [](CNNLayerPtr ptr) {
             return LayerInfo(ptr).isNonFunctional();
         };
-        auto eltwise = dynamic_cast<InferenceEngine::EltwiseLayer *>(l.get());
-        auto concat = dynamic_cast<InferenceEngine::ConcatLayer *>(l.get());
-
-        if (LayerInfo(l).isNonFunctional() || LayerInfo(l).has32BInput())
+        if (LayerInfo(l).hasMultipleInputs()) {
             continue;
+        }
+        if (LayerInfo(l).isNonFunctional() || LayerInfo(l).has32BInput()) {
+            continue;
+        }
         gnalog() << "CNNNetPrevLayer skip non functional from :: " << l->name;
         auto isFunctional = [](CNNLayerPtr ptr) {
             return !LayerInfo(ptr).isNonFunctional();
@@ -1310,7 +1311,7 @@ void FuseMultipleIdentitiesPass::run() {
             return LayerInfo(candidate.first).isLink();
         }), prevLayersReached.end());
 
-        if (prevLayersReached.size() != 1 && eltwise == nullptr && concat == nullptr) {
+        if (prevLayersReached.size() != 1) {
             std::stringstream layers;
             for (auto && prevLayer : prevLayersReached) {
                 layers << prevLayer.first->name;
@@ -1361,7 +1362,6 @@ void FuseMultipleIdentitiesPass::run() {
 }
 
 int PassManager::run(int index) {
-// #define PLOT
 #ifdef PLOT
     auto dumpNetworkAfterPass = [&index, this] (std::shared_ptr<Pass> pass) {
         std::string name = std::string("gna_passes_") + (index < 10 ? "0" : "") + std::to_string(index) + "_" + pass->getName();
