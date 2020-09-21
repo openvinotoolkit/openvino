@@ -65,7 +65,7 @@ namespace ngraph
                 BinaryElementwiseArithmetic(const Output<Node>& arg0,
                                             const Output<Node>& arg1,
                                             const AutoBroadcastSpec& autob,
-                                            bool validate_types = false);
+                                            bool validate_types = true);
 
             public:
                 void validate_and_infer_types() override;
