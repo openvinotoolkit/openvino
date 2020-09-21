@@ -49,6 +49,10 @@ class LayerInfo {
     explicit LayerInfo(InferenceEngine::CNNLayer * layer)
         : layer(layer) {
     }
+    bool hasMultipleInputs() const noexcept {
+        IS_VALID();
+        return layer->insData.size() > 1;
+    }
     bool has16BOutput() const noexcept {
         IS_VALID();
         static InferenceEngine::details::caseless_set<std::string> layersWith16BOutputs = {"memory", "input", "split", "slice", "concat", "copy", "const"};
@@ -199,6 +203,9 @@ class LayerInfo {
     }
     bool isConcat() const noexcept {
         return isOfType("concat");
+    }
+    bool isFakeQnatize() const noexcept {
+        return isOfType("FakeQnatize");
     }
     bool isNonFunctional() const noexcept {
         return isOfType("reshape") || isOfType("squeeze") || isOfType("unsqueeze");
