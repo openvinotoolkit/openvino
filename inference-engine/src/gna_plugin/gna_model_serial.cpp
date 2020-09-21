@@ -696,6 +696,7 @@ void GNAModelSerial::ImportInputs(std::istream &is,
         is.read(reinterpret_cast<char *>(&input), sizeof(input));
         inputsDesc->getPtrInputsGlobal(name).push_back(reinterpret_cast<float*>(reinterpret_cast<uint8_t *> (basePtr) + input.descriptor_offset));
         inputsDesc->orientation_in[name] = input.orientation;
+        inputsDesc->bytes_allocated_for_input[name] = input.element_size * input.elements_count;
 
         auto inputDims = InferenceEngine::SizeVector({modelHeader.nGroup, input.elements_count / modelHeader.nGroup});
 

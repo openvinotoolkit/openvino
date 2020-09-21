@@ -455,11 +455,12 @@ InferenceEngine::Blob::Ptr inline createAndFillBlobWithFloatArray(const Inferenc
 InferenceEngine::Blob::Ptr inline createAndFillBlob(const InferenceEngine::TensorDesc &td,
         const uint32_t range = 10,
         const int32_t start_from = 0,
-        const int32_t resolution = 1) {
+        const int32_t resolution = 1,
+        const int seed = 1) {
     InferenceEngine::Blob::Ptr blob = make_blob_with_precision(td);
     blob->allocate();
     switch (td.getPrecision()) {
-#define CASE(X) case X: CommonTestUtils::fill_data_random<X>(blob, range, start_from, resolution); break;
+#define CASE(X) case X: CommonTestUtils::fill_data_random<X>(blob, range, start_from, resolution, seed); break;
         CASE(InferenceEngine::Precision::FP32)
         CASE(InferenceEngine::Precision::FP16)
         CASE(InferenceEngine::Precision::U8)

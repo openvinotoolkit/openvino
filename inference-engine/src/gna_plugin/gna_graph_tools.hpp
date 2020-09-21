@@ -185,9 +185,6 @@ inline std::pair<InferenceEngine::CNNLayerPtr, int>  CNNNetCheckNextLayerSkipCer
  */
     template <class Layer>
     inline std::vector<CNNLayerPtr> CNNNetGetAllNextLayersSkipCertain(Layer layer, int oDataIdx, const std::function<bool(CNNLayerPtr)> &shouldSkip)  {
-        // TODO: need to have generic function that creates slice of the graph : starting from given layer
-        //  and skipped all non functional - ending up into functional one
-
         std::list<CNNLayerPtr> currentSet;
         std::vector<CNNLayerPtr> resultSet;
 

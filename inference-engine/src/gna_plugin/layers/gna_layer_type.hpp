@@ -48,6 +48,7 @@ enum LayerType {
     LSTMCell,
     TensorIterator,
     SoftSign,
+    FakeQuantize,
     NO_TYPE
 };
 
@@ -84,7 +85,8 @@ static const InferenceEngine::details::caseless_map<std::string, GNAPluginNS::La
         { "LSTMCell", LSTMCell },
         { "TensorIterator", TensorIterator },
         { "Abs", Abs },
-        { "SoftSign", SoftSign }
+        { "SoftSign", SoftSign },
+        { "FakeQuantize", FakeQuantize },
 };
 
 GNAPluginNS::LayerType LayerTypeFromStr(const std::string &str);

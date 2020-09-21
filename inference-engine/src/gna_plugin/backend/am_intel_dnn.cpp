@@ -380,65 +380,6 @@ void GNAPluginNS::backend::AMIntelDNN::InitDeinterleaveComponentPrivate(intel_dn
     }
 }
 
-void GNAPluginNS::backend::AMIntelDNN::Propagate() {
-    for (uint32_t i = 0; i < component.size(); i++) {
-        intel_dnn_component_t *comp = &component[i];
-        uint32_t *ptr_active_outputs = nullptr;
-        uint32_t num_active_outputs = (comp->orientation_out == kDnnInterleavedOrientation)
-                                      ? comp->num_rows_out : comp->num_columns_out;
-
-        if (i == component.size() - 1) {  // active list applies to last component
-            ptr_active_outputs = ptr_active_outputs_;
-            num_active_outputs = num_active_outputs_;
-        } else if (i == component.size() - 2) {  // also applies to last two components when last is PWL
-            if ((component[i].operation == kDnnAffineOp) && (component[i + 1].operation == kDnnPiecewiselinearOp)) {
-                ptr_active_outputs = ptr_active_outputs_;
-                num_active_outputs = num_active_outputs_;
-            }
-        }
-
-        switch (comp->operation) {
-            case kDnnAffineOp :ApplyAffineTransform(comp, ptr_active_outputs, num_active_outputs);
-                break;
-            case kDnnDiagonalOp:ApplyDiagonalTransform(comp);
-                break;
-            case kDnnRecurrentOp:
-                if ((i < component.size() - 1) && (component[i + 1].operation == kDnnPiecewiselinearOp)) {
-                    intel_dnn_component_t *comp_pwl = &component[i + 1];
-                    for (uint32_t j = 0; j < comp->num_rows_in; j++) {
-                        void *ptr_feedbacks =
-                                reinterpret_cast<void *>(reinterpret_cast<int32_t *>(comp->op.recurrent.ptr_feedbacks) + j * comp_pwl->num_columns_out);
-                        ApplyRecurrentTransform(comp, j, ptr_feedbacks);
-                        //  PrintOutputs(i);
-                        ApplyPiecewiseLinearTransform(comp_pwl, compute_precision_, num_active_outputs, j);
-                    }
-                    i++;  // skip next component
-                } else {
-                    fprintf(stderr, "Missing PiecewiseLinear component after Recurrent component in Propagate!\n");
-                    throw -1;
-                }
-                break;
-            case kDnnConvolutional1dOp:ApplyConvolutional1DTransform(comp);
-                break;
-            case kDnnPiecewiselinearOp:ApplyPiecewiseLinearTransform(comp, compute_precision_, num_active_outputs);
-                break;
-            case kDnnMaxPoolOp:ApplyMaxPoolTransform(comp, compute_precision_);
-                break;
-            case kDnnInterleaveOp:ApplyTranspose(comp);
-                break;
-            case kDnnDeinterleaveOp:ApplyTranspose(comp);
-                break;
-            case kDnnCopyOp:ApplyCopy(comp);
-                break;
-            default:fprintf(stderr, "Bad operation in Propagate!\n");
-                throw -1;
-                break;
-        }
-        //  PrintOutputs(i); fflush(stdout);
-    }
-}
-
-
 float GNAPluginNS::backend::AMIntelDNN::OutputScaleFactor(intel_dnn_component_t &comp) {
     return comp.output_scale_factor;
 }
@@ -529,11 +470,9 @@ void GNAPluginNS::backend::AMIntelDNN::WriteGraphWizModel(const char *filename) 
         graph << ", label=<<TABLE BORDER=\"0\" CELLBORDER=\"1\" CELLSPACING=\"0\">\n"
                  "  <TR><TD  colspan=\"2\">" <<  l << "</TD></TR>\n";
 
-#ifdef PLOT
         if (components[k].original_layer_name != nullptr) {
             graph << "  <TR><TD> IR </TD><TD>" << components[k].original_layer_name << "</TD></TR>\n";
         }
-#endif
         graph << "  <TR><TD> dims</TD><TD>" <<  components[k].num_rows_in << "x" <<  components[k].num_rows_out<< "</TD></TR>\n";
         if (IS_AFFINE(k)) {
             graph << "  <TR><TD> wscale</TD><TD>" <<  components[k].op.affine.weight_scale_factor<< "</TD></TR>\n";
@@ -1191,6 +1130,35 @@ void GNAPluginNS::backend::AMIntelDNN::WriteDnnText(const char *filename, intel_
                     out_file << "<num_bytes_per_slope> " << std::dec << sizeof(int16_t) << "\n";
                     out_file << "<num_bytes_per_intercept> " << std::dec << sizeof(int16_t) << "\n";
                     out_file << "<num_bytes_per_offset> " << std::dec << sizeof(int32_t) << "\n";
+                    switch (func_id) {
+                        case kActRelu:
+                        case kActLeakyRelu:
+                            out_file << "<lrelu.negative_slope> " <<
+                                std::setprecision(12) << std::scientific << component[i].op.pwl.func_id.args.lrelu.negative_slope << "\n";
+                            break;
+                        case kActPow :
+                            out_file << "<pow.exponent> " <<
+                                std::setprecision(12) << std::scientific << component[i].op.pwl.func_id.args.pow.exponent << "\n";
+                            out_file << "<pow.scale> " <<
+                                std::setprecision(12) << std::scientific << component[i].op.pwl.func_id.args.pow.scale << "\n";
+                            out_file << "<pow.offset> " <<
+                                std::setprecision(12) << std::scientific << component[i].op.pwl.func_id.args.pow.offset << "\n";
+                            break;
+                        case kActFakeQuantize :
+                            out_file << "<fakeQuantize.levels> " <<
+                                std::dec << component[i].op.pwl.func_id.args.fakeQuantize.levels << "\n";
+                            out_file << "<fakeQuantize.input_low> " <<
+                                std::setprecision(12) << std::scientific << component[i].op.pwl.func_id.args.fakeQuantize.input_low << "\n";
+                            out_file << "<fakeQuantize.input_high> " <<
+                                std::setprecision(12) << std::scientific << component[i].op.pwl.func_id.args.fakeQuantize.input_high << "\n";
+                            out_file << "<fakeQuantize.output_low> " <<
+                                std::setprecision(12) << std::scientific << component[i].op.pwl.func_id.args.fakeQuantize.output_low << "\n";
+                            out_file << "<fakeQuantize.output_high> " <<
+                                std::setprecision(12) << std::scientific << component[i].op.pwl.func_id.args.fakeQuantize.output_high << "\n";
+                            break;
+                        default:
+                            break;
+                    }
                     if (logging_precision == kDnnFloat) {
                         out_file << std::setprecision(12) << std::scientific << "<output_scale_factor> " << 1.0 << "\n";
                         out_file << "<num_segments> " << std::dec << 0 << "\n";
