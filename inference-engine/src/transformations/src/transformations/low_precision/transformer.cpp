@@ -260,6 +260,7 @@ LowPrecisionTransformations LowPrecisionTransformer::getAllTransformations(const
 }
 
 bool LowPrecisionTransformer::isFunctionQuantized(const std::shared_ptr<Function>& function) {
+    std::set<std::shared_ptr<Node>> handledNodes;
     std::deque<std::shared_ptr<Node>> nodes;
     for (auto result : function->get_results()) {
         nodes.push_front(result);
@@ -271,10 +272,16 @@ bool LowPrecisionTransformer::isFunctionQuantized(const std::shared_ptr<Function
 
         for (size_t i = 0; i < node->inputs().size(); ++i) {
             auto parent = node->get_input_node_shared_ptr(i);
+            if (handledNodes.find(parent) != handledNodes.end()) {
+                continue;
+            }
+
             if (is_type<ngraph::opset1::FakeQuantize>(parent)) {
                 return true;
             }
+
             nodes.push_front(parent);
+            handledNodes.insert(parent);
         }
     }
     return false;
