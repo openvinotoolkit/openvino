@@ -23,9 +23,11 @@ namespace LayerTestsDefinitions {
 std::string ConvolutionLayerTest::getTestCaseName(testing::TestParamInfo<convLayerTestParamsSet> obj) {
     convSpecificParams convParams;
     InferenceEngine::Precision netPrecision;
+    InferenceEngine::Precision inPrecision, outPrecision;
     InferenceEngine::SizeVector inputShapes;
+    InferenceEngine::Layout inLayout, outLayout;
     std::string targetDevice;
-    std::tie(convParams, netPrecision, inputShapes, targetDevice) = obj.param;
+    std::tie(convParams, netPrecision, inPrecision, outPrecision, inputShapes, inLayout, outLayout, targetDevice) = obj.param;
     ngraph::op::PadType padType;
     InferenceEngine::SizeVector kernel, stride, dilation;
     std::vector<ptrdiff_t> padBegin, padEnd;
@@ -42,6 +44,10 @@ std::string ConvolutionLayerTest::getTestCaseName(testing::TestParamInfo<convLay
     result << "O=" << convOutChannels << "_";
     result << "AP=" << padType << "_";
     result << "netPRC=" << netPrecision.name() << "_";
+    result << "inPRC=" << inPrecision.name() << "_";
+    result << "outPRC=" << outPrecision.name() << "_";
+    result << "inL=" << inLayout << "_";
+    result << "outL=" << outLayout << "_";
     result << "targetDevice=" << targetDevice;
     return result.str();
 }
@@ -50,7 +56,7 @@ void ConvolutionLayerTest::SetUp() {
     convSpecificParams convParams;
     std::vector<size_t> inputShape;
     auto netPrecision   = InferenceEngine::Precision::UNSPECIFIED;
-    std::tie(convParams, netPrecision, inputShape, targetDevice) = this->GetParam();
+    std::tie(convParams, netPrecision, inPrc, outPrc, inputShape, inLayout, outLayout, targetDevice) = this->GetParam();
     ngraph::op::PadType padType;
     InferenceEngine::SizeVector kernel, stride, dilation;
     std::vector<ptrdiff_t> padBegin, padEnd;
