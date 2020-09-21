@@ -630,6 +630,7 @@ extensions/ops/identity.py
 extensions/ops/instance_normalization.py
 extensions/ops/interp.py
 extensions/ops/interpolate.py
+extensions/ops/LookupTableInsert.py
 extensions/ops/LSTM.py
 extensions/ops/lstm_cell.py
 extensions/ops/lstm_sequence.py
