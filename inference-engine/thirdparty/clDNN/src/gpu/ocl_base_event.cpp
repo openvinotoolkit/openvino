@@ -137,7 +137,8 @@ bool base_events::get_profiling_info_impl(std::list<instrumentation::profiling_i
             cl_ulong ev_end;
             be->_event.getProfilingInfo(period.start, &ev_start);
             be->_event.getProfilingInfo(period.stop, &ev_end);
-            auto ev_duration = std::make_pair(ev_start, ev_end);
+            auto ev_duration = std::make_pair(static_cast<unsigned long long>(ev_start),
+                                              static_cast<unsigned long long>(ev_end));
 
             auto& durations = all_durations[period.name];
             bool ev_duration_merged = false;
@@ -182,7 +183,7 @@ bool base_events::get_profiling_info_impl(std::list<instrumentation::profiling_i
     }
 
     for (auto& period : profiling_periods) {
-        cl_ulong sum = 0;
+        unsigned long long sum = 0;
         for (auto& duration : all_durations[period.name]) {
             sum += (duration.second - duration.first);
         }
