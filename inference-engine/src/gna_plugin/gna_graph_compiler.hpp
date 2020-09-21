@@ -120,6 +120,7 @@ public:
     void SplitPrimitive(InferenceEngine::CNNLayerPtr);
     void SlicePrimitive(InferenceEngine::CNNLayerPtr);
     void PWLPrimitive(InferenceEngine::CNNLayerPtr);
+    void FakeQuantizePrimitive(InferenceEngine::CNNLayerPtr);
     void CopyPrimitive(InferenceEngine::CNNLayerPtr);
 
     void Reset();

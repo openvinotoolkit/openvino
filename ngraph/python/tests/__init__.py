@@ -20,11 +20,14 @@ import pytest
 # See `pytest_configure` hook in `conftest.py` for more details.
 BACKEND_NAME = None
 
-# test.ADDITIONAL_MODELS_DIR is a configuration variable providing the path
-# with additional ONNX models to load and test import. It's set during pytest
-# configuration time. See `pytest_configure` hook in `conftest.py` for more
+# test.MODEL_ZOO_DIR is a configuration variable providing the path
+# to the ZOO of ONNX models to test. It's set during pytest configuration time.
+# See `pytest_configure` hook in `conftest.py` for more
 # details.
-ADDITIONAL_MODELS_DIR = None
+MODEL_ZOO_DIR = None
+
+# test.MODEL_ZOO_XFAIL is a configuration variable which enable xfails for model zoo.
+MODEL_ZOO_XFAIL = False
 
 
 def xfail_test(reason="Mark the test as expected to fail", strict=True):
