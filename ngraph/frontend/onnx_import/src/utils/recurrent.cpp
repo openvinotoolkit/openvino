@@ -130,5 +130,5 @@ namespace ngraph
             }
 
         } // recurrent
-    } // onnx_import
+    }     // onnx_import
 } // ngraph
