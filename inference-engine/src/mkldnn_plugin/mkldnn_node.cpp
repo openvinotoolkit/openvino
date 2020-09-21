@@ -75,6 +75,7 @@ static const InferenceEngine::details::caseless_unordered_map<std::string, Type>
         { "HSwish", Eltwise },
         { "Mish", Eltwise },
         { "HSigmoid", Eltwise },
+        { "Round", Eltwise },
         { "ScaleShift", Eltwise },
         { "PReLU", Eltwise },
         { "Norm", Lrn },
