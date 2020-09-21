@@ -39,6 +39,7 @@
 #include <transformations/lin_op_sequence_fusoin.hpp>
 #include <transformations/convert_opset1_to_legacy/conv_bias_fusion.hpp>
 #include <transformations/common_optimizations/conv_mul_fusion.hpp>
+#include <transformations/common_optimizations/fq_mul_fusion.hpp>
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::CommonOptimizations, "CommonOptimizations", 0);
 
@@ -99,6 +100,9 @@ bool ngraph::pass::CommonOptimizations::run_on_function(std::shared_ptr<ngraph::
     manager.register_pass<ngraph::pass::ConvolutionBackpropDataMultiplyFusion>();
     manager.register_pass<ngraph::pass::GroupConvolutionBackpropDataMultiplyFusion>();
     manager.register_pass<ngraph::pass::ConstantFolding>();
+
+    // Multiply the thrird and fourth input instead of the output of FQ with all const inputs
+    manager.register_pass<ngraph::pass::FakeQuantizeMulFusion>();
 
     manager.set_callback(m_transformation_callback);
     manager.run_passes(f);

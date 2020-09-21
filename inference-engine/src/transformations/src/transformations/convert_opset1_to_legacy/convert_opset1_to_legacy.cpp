@@ -51,6 +51,7 @@
 #include <transformations/hswish_decomposition.hpp>
 #include <transformations/reduce_l1_decomposition.hpp>
 #include <transformations/reduce_l2_decomposition.hpp>
+#include <transformations/common_optimizations/fq_mul_fusion.hpp>
 
 #include <ngraph/pass/constant_folding.hpp>
 #include <ngraph/pass/manager.hpp>
