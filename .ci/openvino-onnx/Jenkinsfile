@@ -120,6 +120,7 @@ pipeline {
                 deleteDir()
                 sh """
                     docker image prune -f
+                    docker rm -f ${DOCKER_CONTAINER_NAME} || true
                 """
             }
         }
