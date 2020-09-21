@@ -83,29 +83,28 @@ pipeline {
     }
     options {
         skipDefaultCheckout true
+        timeout(activity: true, time: 1, unit: 'MINUTES')
     }
     stages {
-        timeout(activity: true, time: 1, unit: 'MINUTES') {
-            stage("Clone repository") {
-                steps{
-                    dir("${WORKDIR}") {
-                        checkout scm
-                        sleep 100
-                    }
-                    gitSubmoduleUpdate(PROJECT_NAME)
+        stage("Clone repository") {
+            steps{
+                dir("${WORKDIR}") {
+                    sleep 100
+                    checkout scm
+                }
+                gitSubmoduleUpdate(PROJECT_NAME)
+            }
+        }
+        stage("Prepare Docker environment") {
+            steps{
+                dir("${WORKDIR}") {
+                    buildDockerImage()
                 }
             }
-            stage("Prepare Docker environment") {
-                steps{
-                    dir("${WORKDIR}") {
-                        buildDockerImage()
-                    }
-                }
-            }
-            stage("Run tests") {
-                steps{
-                    runTests()
-                }
+        }
+        stage("Run tests") {
+            steps{
+                runTests()
             }
         }
     }
