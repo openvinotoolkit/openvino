@@ -138,7 +138,7 @@ private:
     jit_eltwise_params jep = {};
 
     int optimalTensorRank = 6;
-
+    bool canUseOptimizedImpl = false;
     bool isDynBatchEnabled = false;
     size_t batchDimIdx = 0;
     size_t tensorRank = 0;
@@ -150,14 +150,18 @@ private:
     std::vector<size_t> offsets_out = {};
     std::vector<ptrdiff_t> start_offset_in = {};
     ptrdiff_t start_offset_out = 0;
-
     std::vector<size_t> offsets_oc = {};
 
     float alpha = 0;
     float beta = 0;
+    float gamma = 0;
 
     std::vector<float> scales = {};
     std::vector<float> shifts = {};
+
+    inline void executeOptimized6D(const std::vector<const uint8_t *>& src_ptrs, uint8_t *dst_ptr);
+    inline void executeOptimizedGeneric(const std::vector<const uint8_t *>& src_ptrs, uint8_t *dst_ptr);
+    inline void executeReference(const std::vector<const uint8_t *>& src_ptrs, uint8_t *dst_ptr);
 
     void offset_out_calc(std::vector<size_t>& offset, std::vector<size_t>& dims);
     void offset_in_calc(std::vector<size_t>& offset, std::vector<size_t>& dims_in, std::vector<size_t>& dims_out);
