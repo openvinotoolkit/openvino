@@ -251,7 +251,7 @@ const std::vector<SubtractMultiplyToMultiplyAddTransformationTestValues> testVal
             {},
             ngraph::element::f32,
             {{0.1f, 0.2f, 0.3f, 0.4f, 0.5f}, {ngraph::element::f32}, {5, 1, 1}},
-            {{0.f}, {ngraph::element::f32}}
+            {}
         },
     },
     // FP32 Multiply {5x1x2}
