@@ -72,10 +72,3 @@ class TFNonMaxSuppressionNormalize(FrontReplacementSubgraph):
                                                                 {'name': crop_box_indices.soft_get('name') + '/Squeeze'}
                                                                 )
         crop_box_indices.out_port(0).get_connection().insert_node(squeeze_output_boxes)
-
-        if 5 in nms.in_ports() and not nms.in_port(5).disconnected():
-            soft_nms_sigma = nms.in_port(5).get_source().data.get_value()
-            if soft_nms_sigma is not None and soft_nms_sigma != 0.0:
-                log.error('The input to layer "{}" with value for the soft_nms_sigma is equal to "{}" but only value 0'
-                          'is supported. The inference results will be incorrect.'.format(nms.soft_get('name'),
-                                                                                          soft_nms_sigma))
