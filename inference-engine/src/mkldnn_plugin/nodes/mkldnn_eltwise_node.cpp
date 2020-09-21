@@ -19,6 +19,7 @@
 #include "common/emitter.h"
 #include "jit_eltwise_emitters.hpp"
 #include "jit_mkldnn_emitters.hpp"
+#include "ref_eltwise.hpp"
 
 using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
@@ -785,6 +786,14 @@ void MKLDNNEltwiseNode::init() {
         eltwiseOp = Mod;
     } else if (comparator(layerType, "power")) {
         eltwiseOp = PowerStatic;
+
+        auto *powerLayer = dynamic_cast<InferenceEngine::PowerLayer *>(getCnnLayer().get());
+        if (powerLayer == nullptr)
+            THROW_IE_EXCEPTION << "Cannot convert power layer.";
+
+        alpha = powerLayer->power;
+        beta = powerLayer->scale;
+        gamma = powerLayer->offset;
     } else if (comparator(layerType, "scaleshift")) {
         if (getCnnLayer().get()->blobs.size() == 2) {
             eltwiseOp = MulAdd;
@@ -855,8 +864,20 @@ void MKLDNNEltwiseNode::getSupportedDescriptors() {
 }
 
 void MKLDNNEltwiseNode::initSupportedPrimitiveDescriptors() {
+    std::vector<Precision> supportedPrecisions = {
+            Precision::FP32,
+            Precision::U8,
+            Precision::I8,
+            Precision::U16,
+            Precision::I16,
+            Precision::BF16,
+            Precision::I32
+    };
+
     if (!supportedPrimitiveDescriptors.empty())
         return;
+
+    canUseOptimizedImpl = mayiuse(cpu::sse42);
 
     size_t expectedInputsNum = getOpInputsNum();
     for (auto& postOp : fusedWith) {
@@ -906,6 +927,25 @@ void MKLDNNEltwiseNode::initSupportedPrimitiveDescriptors() {
         if (outputPrecision == Precision::BF16 || hasBF16)
             THROW_IE_EXCEPTION << "Eltwise node with name `" << getName() << "` doesn't support BF16 precision on this target.";
     }
+
+    auto filterPrecision = [&](Precision& prc) {
+        if (!canUseOptimizedImpl) {
+            return Precision(Precision::FP32);
+        } else if (std::find(supportedPrecisions.begin(), supportedPrecisions.end(), prc) == supportedPrecisions.end()) {
+            if (prc == Precision::U32 || prc == Precision::I64 || prc == Precision::U64) {
+                return Precision(Precision::I32);
+            } else {
+                THROW_IE_EXCEPTION << "Eltwise node with name `" << getName() << "` doesn't support " << prc << " precision.";
+            }
+        } else {
+            return prc;
+        }
+    };
+
+    for (int i = 0; i < inputPrecisions.size(); i++) {
+        inputPrecisions[i] = filterPrecision(inputPrecisions[i]);
+    }
+    outputPrecision = filterPrecision(outputPrecision);
 
     enum LayoutType {
         Planar,
@@ -1137,55 +1177,57 @@ void MKLDNNEltwiseNode::createPrimitive() {
     size_t minimalJitWorkAmount = 256;
     size_t currentJitWorkAmount = dims_out[dims_out.size() - 1];
     int collapsedDims = 0;
-    bool hasDifferentDims = false;
-    while (currentJitWorkAmount < minimalJitWorkAmount) {
-        if (dims_out.size() - collapsedDims - 2 < 0)
-            break;
+    if (canUseOptimizedImpl) {
+        bool hasDifferentDims = false;
+        while (currentJitWorkAmount < minimalJitWorkAmount) {
+            if (dims_out.size() - collapsedDims - 2 < 0)
+                break;
 
-        for (int j = 1; j < dims_in.size(); j++) {
-            if (dims_in[j][dims_in[j].size() - 1] != dims_in[0][dims_in[0].size() - 1]) {
+            for (int j = 1; j < dims_in.size(); j++) {
+                if (dims_in[j][dims_in[j].size() - 1] != dims_in[0][dims_in[0].size() - 1]) {
+                    hasDifferentDims = true;
+                }
+            }
+
+            if (oc_size > 1 && oc_size != dims_in[0][dims_in[0].size() - 1]) {
                 hasDifferentDims = true;
             }
-        }
 
-        if (oc_size > 1 && oc_size != dims_in[0][dims_in[0].size() - 1]) {
-            hasDifferentDims = true;
-        }
-
-        bool canCollapse = true;
-        for (int i = 0; i < dims_in.size(); i++) {
-            if (dims_in[i][dims_in[i].size() - 2] != 1) {
-                if (dims_in[i][dims_in[i].size() - 1] == 1) {
-                    canCollapse = false;
-                    break;
-                }
-
-                if (hasDifferentDims) {
-                    canCollapse = false;
-                    break;
-                }
-            }
-        }
-
-        if (!canCollapse) {
-            break;
-        }
-
-        size_t nextJitWorkAmount = currentJitWorkAmount * dims_out[dims_out.size() - 2];
-        if (fullWorkAmount / nextJitWorkAmount >= minimalConcurrency) {
-            currentJitWorkAmount = nextJitWorkAmount;
-            collapsedDims++;
-
+            bool canCollapse = true;
             for (int i = 0; i < dims_in.size(); i++) {
-                collapseLastDims(dims_in[i], 1);
-            }
-            collapseLastDims(dims_out, 1);
+                if (dims_in[i][dims_in[i].size() - 2] != 1) {
+                    if (dims_in[i][dims_in[i].size() - 1] == 1) {
+                        canCollapse = false;
+                        break;
+                    }
 
-            if (isFusedWith(Quantize)) {
-                collapseLastOffsets(offsets_oc, 1);
+                    if (hasDifferentDims) {
+                        canCollapse = false;
+                        break;
+                    }
+                }
             }
-        } else {
-            break;
+
+            if (!canCollapse) {
+                break;
+            }
+
+            size_t nextJitWorkAmount = currentJitWorkAmount * dims_out[dims_out.size() - 2];
+            if (fullWorkAmount / nextJitWorkAmount >= minimalConcurrency) {
+                currentJitWorkAmount = nextJitWorkAmount;
+                collapsedDims++;
+
+                for (int i = 0; i < dims_in.size(); i++) {
+                    collapseLastDims(dims_in[i], 1);
+                }
+                collapseLastDims(dims_out, 1);
+
+                if (isFusedWith(Quantize)) {
+                    collapseLastOffsets(offsets_oc, 1);
+                }
+            } else {
+                break;
+            }
         }
     }
 
@@ -1288,22 +1330,11 @@ void MKLDNNEltwiseNode::offset_in_calc(std::vector<size_t>& offset, std::vector<
     }
 }
 
-void MKLDNNEltwiseNode::execute(mkldnn::stream strm) {
-    size_t inputNum = getParentEdges().size();
+void MKLDNNEltwiseNode::executeOptimized6D(const std::vector<const uint8_t *>& src_ptrs, uint8_t *dst_ptr) {
+    size_t inputNum = src_ptrs.size();
 
-    std::vector<const uint8_t *> src_ptrs(inputNum);
-    for (int i = 0; i < inputNum; i++) {
-        src_ptrs[i] = reinterpret_cast<const uint8_t*>(getParentEdgeAt(i)->getMemory().GetData()) + start_offset_in[i];
-    }
-    uint8_t *dst_ptr = reinterpret_cast<uint8_t*>(getChildEdgeAt(0)->getMemory().GetData()) + start_offset_out;
-
-    // In general case we need to recompute offsets as well but currently all supported layout assumes batch to be outermost dimension
-    if (isDynBatchEnabled)
-        dims_out[batchDimIdx] = static_cast<size_t>(batchToProcess());
-
-    if (tensorRank == optimalTensorRank) {
-        parallel_for5d(dims_out[0], dims_out[1], dims_out[2], dims_out[3], dims_out[4],
-                   [&](size_t i0, size_t i1, size_t i2, size_t i3, size_t i4) {
+    parallel_for5d(dims_out[0], dims_out[1], dims_out[2], dims_out[3], dims_out[4],
+        [&](size_t i0, size_t i1, size_t i2, size_t i3, size_t i4) {
             // TODO: reimplement initializer via jit approach
             size_t index_in[MAX_ELTWISE_INPUTS] = {0};
             for (int i = 0; i < inputNum; i++) {
@@ -1324,48 +1355,148 @@ void MKLDNNEltwiseNode::execute(mkldnn::stream strm) {
 
             (*eltwise_kernel)(&arg);
         });
-    } else {
-        parallel_nt(0, [&](const int ithr, const int nthr) {
-            size_t start = 0, end = 0;
-            splitter(schedulerWorkAmount, nthr, ithr, start, end);
+}
 
-            std::vector<size_t> counters(dims_out.size() - 1, 0);
+void MKLDNNEltwiseNode::executeOptimizedGeneric(const std::vector<const uint8_t *>& src_ptrs, uint8_t *dst_ptr) {
+    size_t inputNum = src_ptrs.size();
 
-            for (size_t iwork = start; iwork < end; ++iwork) {
-                size_t tmp = iwork;
-                for (ptrdiff_t j = dims_out.size() - 2; j >= 0; j--) {
-                    counters[j] = tmp % dims_out[j];
-                    tmp /= dims_out[j];
-                }
+    parallel_nt(0, [&](const int ithr, const int nthr) {
+        size_t start = 0, end = 0;
+        splitter(schedulerWorkAmount, nthr, ithr, start, end);
 
-                size_t index_in[MAX_ELTWISE_INPUTS] = {0};
-                for (int i = 0; i < inputNum; i++) {
-                    index_in[i] = 0;
-                    for (int j = 0; j < counters.size(); j++) {
-                        index_in[i] += counters[j] * offsets_in[i][j];
-                    }
-                }
+        std::vector<size_t> counters(dims_out.size() - 1, 0);
 
-                size_t index_out = 0;
-                for (int j = 0; j < counters.size(); j++) {
-                    index_out += counters[j] * offsets_out[j];
-                }
-
-                auto arg = jit_eltwise_call_args();
-                for (int i = 0; i < inputNum; i++) {
-                    arg.src_ptr[i] = src_ptrs[i] + index_in[i];
-                }
-                arg.dst = dst_ptr + index_out;
-                arg.work_amount = static_cast<size_t>(dims_out[dims_out.size() - 1]);
-
-                arg.oc_off = 0;
-                for (int j = 0; j < counters.size(); j++) {
-                    arg.oc_off += counters[j] * offsets_oc[j] * sizeof(float);
-                }
-
-                (*eltwise_kernel)(&arg);
+        for (size_t iwork = start; iwork < end; ++iwork) {
+            size_t tmp = iwork;
+            for (ptrdiff_t j = dims_out.size() - 2; j >= 0; j--) {
+                counters[j] = tmp % dims_out[j];
+                tmp /= dims_out[j];
             }
-        });
+
+            size_t index_in[MAX_ELTWISE_INPUTS] = {0};
+            for (int i = 0; i < inputNum; i++) {
+                index_in[i] = 0;
+                for (int j = 0; j < counters.size(); j++) {
+                    index_in[i] += counters[j] * offsets_in[i][j];
+                }
+            }
+
+            size_t index_out = 0;
+            for (int j = 0; j < counters.size(); j++) {
+                index_out += counters[j] * offsets_out[j];
+            }
+
+            auto arg = jit_eltwise_call_args();
+            for (int i = 0; i < inputNum; i++) {
+                arg.src_ptr[i] = src_ptrs[i] + index_in[i];
+            }
+            arg.dst = dst_ptr + index_out;
+            arg.work_amount = static_cast<size_t>(dims_out[dims_out.size() - 1]);
+
+            arg.oc_off = 0;
+            for (int j = 0; j < counters.size(); j++) {
+                arg.oc_off += counters[j] * offsets_oc[j] * sizeof(float);
+            }
+
+            (*eltwise_kernel)(&arg);
+        }
+    });
+}
+
+void MKLDNNEltwiseNode::executeReference(const std::vector<const uint8_t *>& src_ptrs, uint8_t *dst_ptr) {
+    size_t inputNum = src_ptrs.size();
+
+    std::shared_ptr<ref_eltwise_scalar_fwd_t> ref_eltwise_injector = nullptr;
+    if (eltwiseAlgorithm != mkldnn::algorithm_undef) {
+        ref_eltwise_injector = std::make_shared<ref_eltwise_scalar_fwd_t>(static_cast<mkldnn_alg_kind_t>(eltwiseAlgorithm), alpha, beta);
+    }
+
+    parallel_nt(0, [&](const int ithr, const int nthr) {
+        size_t start = 0, end = 0;
+        splitter(fullWorkAmount, nthr, ithr, start, end);
+
+        std::vector<size_t> counters(dims_out.size(), 0);
+
+        for (size_t iwork = start; iwork < end; ++iwork) {
+            size_t tmp = iwork;
+            for (ptrdiff_t j = dims_out.size() - 1; j >= 0; j--) {
+                counters[j] = tmp % dims_out[j];
+                tmp /= dims_out[j];
+            }
+
+            size_t index_in[MAX_ELTWISE_INPUTS] = {0};
+            for (int i = 0; i < inputNum; i++) {
+                index_in[i] = 0;
+                for (int j = 0; j < counters.size(); j++) {
+                    index_in[i] += counters[j] * offsets_in[i][j];
+                }
+            }
+
+            size_t index_out = 0;
+            for (int j = 0; j < counters.size(); j++) {
+                index_out += counters[j] * offsets_out[j];
+            }
+
+            std::vector<float> src_f(inputNum);
+            for (int i = 0; i < inputNum; i++) {
+                src_f[i] = reinterpret_cast<const float *>(src_ptrs[i] + index_in[i])[0];
+            }
+            float* dst_ptr_f = reinterpret_cast<float *>(dst_ptr + index_out);
+
+            switch (getOpType()) {
+                case Relu: case Gelu: case Elu: case Tanh: case Logistic: case Square: case Abs: case Sqrt:
+                case Linear: case BoundedRelu: case SoftRelu: case Relu6: case Exp: case Clamp: case Swish: case Hswish: case Mish:
+                    *dst_ptr_f = ref_eltwise_injector->compute_scalar(src_f[0]); break;
+                case Add:               *dst_ptr_f = src_f[0] + src_f[1]; break;
+                case MulAdd:            *dst_ptr_f = src_f[0] * src_f[1] + src_f[2]; break;
+                case Subtract:          *dst_ptr_f = src_f[0] - src_f[1]; break;
+                case Multiply:          *dst_ptr_f = src_f[0] * src_f[1]; break;
+                case Divide:            *dst_ptr_f = src_f[0] / src_f[1]; break;
+                case FloorMod:          *dst_ptr_f = src_f[0] - floorf(src_f[0] / src_f[1]) * src_f[1]; break;
+                case Mod:               *dst_ptr_f = src_f[0] - truncf(src_f[0] / src_f[1]) * src_f[1]; break;
+                case Maximum:           *dst_ptr_f = std::max(src_f[0], src_f[1]); break;
+                case Minimum:           *dst_ptr_f = std::min(src_f[0], src_f[1]); break;
+                case SquaredDifference: *dst_ptr_f = powf((src_f[0] - src_f[1]), 2.f); break;
+                case PowerDynamic:      *dst_ptr_f = powf(src_f[0], src_f[1]); break;
+                case Equal:             *dst_ptr_f = src_f[0] == src_f[1]; break;
+                case NotEqual:          *dst_ptr_f = src_f[0] != src_f[1]; break;
+                case Greater:           *dst_ptr_f = src_f[0] > src_f[1]; break;
+                case GreaterEqual:      *dst_ptr_f = src_f[0] >= src_f[1]; break;
+                case Less:              *dst_ptr_f = src_f[0] < src_f[1]; break;
+                case LessEqual:         *dst_ptr_f = src_f[0] <= src_f[1]; break;
+                case LogicalAnd:        *dst_ptr_f = src_f[0] && src_f[1]; break;
+                case LogicalOr:         *dst_ptr_f = src_f[0] || src_f[1]; break;
+                case LogicalXor:        *dst_ptr_f = (src_f[0] || src_f[1]) - (src_f[0] && src_f[1]); break;
+                case LogicalNot:        *dst_ptr_f = !src_f[0]; break;
+                case PowerStatic:       *dst_ptr_f = powf(beta * src_f[0] + gamma, alpha); break;
+                case Prelu:             *dst_ptr_f = src_f[0] > 0 ? src_f[0] : src_f[0] * src_f[1]; break;
+                default: THROW_IE_EXCEPTION << "Unsupported operation type for Eltwise node with name `" << getName() << "`";
+            }
+        }
+    });
+}
+
+void MKLDNNEltwiseNode::execute(mkldnn::stream strm) {
+    size_t inputNum = getParentEdges().size();
+
+    std::vector<const uint8_t *> src_ptrs(inputNum);
+    for (int i = 0; i < inputNum; i++) {
+        src_ptrs[i] = reinterpret_cast<const uint8_t*>(getParentEdgeAt(i)->getMemory().GetData()) + start_offset_in[i];
+    }
+    uint8_t *dst_ptr = reinterpret_cast<uint8_t*>(getChildEdgeAt(0)->getMemory().GetData()) + start_offset_out;
+
+    // In general case we need to recompute offsets as well but currently all supported layout assumes batch to be outermost dimension
+    if (isDynBatchEnabled)
+        dims_out[batchDimIdx] = static_cast<size_t>(batchToProcess());
+
+    if (eltwise_kernel) {
+        if (tensorRank == optimalTensorRank) {
+            executeOptimized6D(src_ptrs, dst_ptr);
+        } else {
+            executeOptimizedGeneric(src_ptrs, dst_ptr);
+        }
+    } else {
+        executeReference(src_ptrs, dst_ptr);
     }
 }
 

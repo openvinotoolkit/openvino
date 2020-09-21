@@ -49,13 +49,15 @@ protected:
 
         std::string isaType;
         if (with_cpu_x86_avx512f()) {
-            isaType = "avx512";
+            isaType = "jit_avx512";
         } else if (with_cpu_x86_avx2()) {
-            isaType = "avx2";
+            isaType = "jit_avx2";
+        } else if (with_cpu_x86_sse42()) {
+            isaType = "jit_sse42";
         } else {
-            isaType = "sse42";
+            isaType = "ref";
         }
-        selectedType = "jit_" + isaType + "_" + "FP32";
+        selectedType = isaType + "_" + "FP32";
 
         std::vector<size_t> inputShape1, inputShape2;
         if (inputShapes.size() == 1) {
