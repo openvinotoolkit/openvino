@@ -378,6 +378,7 @@ Standard ONNX\* operators:
 | Reshape | No |
 | Resize | Opset-10 version is supported |
 | ReverseSequence | No |
+| Round | No |
 | Scatter | Supported if fuse-able to ScatterUpdate. MYRIAD only |
 | ScatterND | No |
 | ScatterElements | Supported if fuse-able to ScatterUpdate. MYRIAD only |
