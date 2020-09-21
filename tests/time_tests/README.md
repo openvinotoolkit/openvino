@@ -26,5 +26,6 @@ cmake .. -DInferenceEngineDeveloperPackage_DIR=$(realpath ../../../build) && mak
 
 2. Run several configurations using `pytest`:
 ``` bash
+export PYTHONPATH=./:$PYTHONPATH
 pytest ./test_runner/test_timetest.py --exe ../../bin/intel64/Release/timetest_infer
 ```
