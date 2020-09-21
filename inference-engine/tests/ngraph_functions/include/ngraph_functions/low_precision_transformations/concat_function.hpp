@@ -56,7 +56,7 @@ public:
         const FakeQuantizeOnData& fqOnData1,
         const FakeQuantizeOnData& fqOnData2);
 
-    static std::shared_ptr<ngraph::Function> ConcatFunction::getOriginalWithIntermediateWithConstant(
+    static std::shared_ptr<ngraph::Function> getOriginalWithIntermediateWithConstant(
         const ngraph::element::Type precision,
         const ngraph::Shape& inputShape,
         const bool transparentIntermediate,
