@@ -42,14 +42,14 @@ namespace ngraph
                     {
                         const auto& pshape = data.get_partial_shape();
                         size_t rank_size = pshape.rank().get_length();
-                        NGRAPH_CHECK(rank_size >= 4, "4-D and above tensors supported only");
+                        NGRAPH_CHECK(rank_size >= 3, "3-D and above tensors supported only");
 
                         if (pshape.is_static())
                         {
                             const auto& shape = pshape.to_shape();
                             std::vector<size_t> new_shape{
-                                shape[0], num_groups, shape[1] / num_groups, shape[2], shape[3]};
-                            for (size_t i = 4; i < rank_size; i++)
+                                shape[0], num_groups, shape[1] / num_groups};
+                            for (size_t i = 2; i < rank_size; i++)
                             {
                                 new_shape.push_back(shape[i]);
                             }
@@ -64,10 +64,8 @@ namespace ngraph
                         NodeVector new_shape{
                             splits[0].get_node_shared_ptr(),
                             num_groups_const,
-                            std::make_shared<default_opset::Divide>(splits[1], num_groups_const),
-                            splits[2].get_node_shared_ptr(),
-                            splits[3].get_node_shared_ptr()};
-                        for (size_t i = 4; i < rank_size; i++)
+                            std::make_shared<default_opset::Divide>(splits[1], num_groups_const)};
+                        for (size_t i = 2; i < rank_size; i++)
                         {
                             new_shape.push_back(splits[i].get_node_shared_ptr());
                         }
