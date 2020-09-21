@@ -125,7 +125,7 @@ bool base_events::get_profiling_info_impl(std::list<instrumentation::profiling_i
     // For every profiling period (i.e. submission / starting / executing),
     // the goal is to sum up all disjoint durations of its projection on the time axis
 
-    std::map<std::string, std::vector<std::pair<cl_ulong, cl_ulong>>> all_durations;
+    std::map<std::string, std::vector<std::pair<unsigned long long, unsigned long long>>> all_durations;
 
     for (size_t i = 0; i < _events.size(); i++) {
         auto be = dynamic_cast<base_event*>(_events[i].get());
