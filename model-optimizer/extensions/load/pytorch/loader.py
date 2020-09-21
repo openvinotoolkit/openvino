@@ -30,7 +30,6 @@ from mo.front.pytorch.extractor import pytorch_op_extractor, pytorch_op_extracto
 from mo.graph.graph import Graph
 
 tensors_map = {}
-layer_id = 0
 
 class PyTorchLoader(Loader):
     enabled = True
@@ -47,15 +46,13 @@ class PyTorchLoader(Loader):
 
         model = argv.input_model
 
-        def myhook(self, inputs, output):
-            global layer_id
+        def forward_hook(self, inputs, output):
             layer_type = self.__class__.__name__
 
             # Create a unique name
-            name = '{}_{}'.format(layer_type, layer_id)
-            layer_id += 1
+            name = graph.unique_id(prefix=layer_type + '_')
 
-            graph.add_node(name, kind='op', op=layer_type, name=name, shape=list(output.shape), module=self)
+            graph.add_node(name, kind='op', op=layer_type, name=name, module=self)
 
             # Find all inputs
             for inp in inputs:
@@ -96,22 +93,25 @@ class PyTorchLoader(Loader):
         for module in model.modules():
             if len([m for m in module.modules()]) != 1:
                 continue
-            module.register_forward_hook(myhook)
+            module.register_forward_hook(forward_hook)
 
         tensors_map = {hash(inp): 'input'}
         graph.add_node('input', kind='op', op='Parameter', name='input', shape=list(inp.shape))
-        out = model(inp)
+        outs = model(inp)
 
-        graph.add_node('output', kind='op', op='Result', shape=list(out.shape))
-        edge_attrs = {
-            'out': 0,
-            'in': 0,
-            'name': 'Linear_20',
-            'fw_tensor_debug_info': [('Linear_20', 'Linear_20')],
-            'in_attrs': ['in', 'name'],
-            'out_attrs': ['out', 'name'],
-            'data_attrs': ['fw_tensor_debug_info']
-        }
-        graph.add_edge('Linear_20', 'output', **edge_attrs)
+        # Add output nodes
+        for out in outs if isinstance(outs, tuple) else (outs):
+            name = tensors_map[hash(out)]
+            graph.add_node('output', kind='op', op='Result')
+            edge_attrs = {
+                'out': 0,
+                'in': 0,
+                'name': name,
+                'fw_tensor_debug_info': [(name, name)],
+                'in_attrs': ['in', 'name'],
+                'out_attrs': ['out', 'name'],
+                'data_attrs': ['fw_tensor_debug_info']
+            }
+            graph.add_edge(name, 'output', **edge_attrs)
 
         extract_node_attrs(graph, lambda node: pytorch_op_extractor(node, check_for_duplicates(pytorch_op_extractors)))

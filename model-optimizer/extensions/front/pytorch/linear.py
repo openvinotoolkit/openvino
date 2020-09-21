@@ -19,6 +19,7 @@ from mo.front.common.replacement import FrontReplacementOp
 from mo.graph.graph import Graph, Node
 from mo.ops.const import Const
 from extensions.ops.MatMul import MatMul
+from extensions.ops.elementwise import Add
 from mo.ops.reshape import Reshape
 
 
@@ -30,8 +31,10 @@ class ComplexAbs(FrontReplacementOp):
         shape = Const(graph, {'value': [0, -1]}).create_node()
         flatten = Reshape(graph, dict(name=node.in_node(0).name + '/flatten')).create_node([node.in_node(0), shape])
 
-        inputs = [flatten, node.in_node(1)]
+        matmul = MatMul(graph, dict(name=node.name, transpose_b=True)).create_node([flatten, node.in_node(1)])
+
+        # Bias
         if len(node.in_nodes()) > 2:
-            inputs.append(node.in_node(2))  # bias
-        matmul = MatMul(graph, dict(name=node.name, transpose_b=True)).create_node(inputs)
+            matmul = Add(graph, dict(name=node.name + '/bias')).create_node([matmul, node.in_node(2)])
+
         return [matmul.id]

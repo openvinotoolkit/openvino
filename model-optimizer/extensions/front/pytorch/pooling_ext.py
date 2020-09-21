@@ -64,5 +64,6 @@ class AdaptiveAvgPool2dFrontExtractor(FrontExtractorOp):
 
     @classmethod
     def extract(cls, node):
+        # TODO: replace to correct mapping
         Identity.update_node_stat(node)
         return cls.enabled

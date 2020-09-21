@@ -13,6 +13,7 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 """
+import numpy as np
 from extensions.ops.parameter import Parameter
 from mo.front.extractor import FrontExtractorOp
 
@@ -23,10 +24,9 @@ class PlaceholderFrontExtractor(FrontExtractorOp):
 
     @classmethod
     def extract(cls, node):
-        # t_type = node.pb.type.tensor_type
-        # attrs = {
-        #     'shape': np.array([d.dim_value for d in t_type.shape.dim], dtype=np.int64),
-        #     'data_type': TENSOR_TYPE_TO_NP_TYPE[t_type.elem_type]
-        # }
+        attrs = {
+            'shape': node.shape,
+            'data_type': np.float32,  # TODO: other types?
+        }
         Parameter.update_node_stat(node, {})
         return cls.enabled

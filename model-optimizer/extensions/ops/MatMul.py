@@ -162,6 +162,10 @@ class MatMul(Op):
         Raises on any shape inconsistency
         """
         name = node.soft_get('name', str(node.id))
+        connected_in_ports = {idx: port for idx, port in node.in_ports().items() if not port.disconnected()}
+        assert len(connected_in_ports) == 2 and 0 in connected_in_ports and 1 in connected_in_ports, \
+            "MatMul should have 2 connected input ports, but it doesn't for node: `{}`. Ports: {}" \
+            "".format(name, connected_in_ports)
 
         log.debug('MatMul `{}` input shapes: {}'.format(name, [node.in_port(i).data.get_shape() for i in range(2)]))
         A_shape, B_shape = MatMul.shape_alignment(node)
