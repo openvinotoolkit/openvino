@@ -118,7 +118,11 @@ void ConvolutionTransformation::validateNGraph() {
     ASSERT_FALSE(parent == nullptr);
     const std::string typeName = parent->get_type_name();
 
-    ASSERT_TRUE(typeName == "PowerIE" || typeName == "ConvolutionIE");
+    if (param.fakeQuantizeOnData.empty() || param.fakeQuantizeOnWeights.empty()) {
+        ASSERT_EQ("ConvolutionIE", typeName);
+    } else {
+        ASSERT_EQ("ScaleShiftIE", typeName);
+    }
 }
 
 TEST_P(ConvolutionTransformation, CompareWithRefImpl) {

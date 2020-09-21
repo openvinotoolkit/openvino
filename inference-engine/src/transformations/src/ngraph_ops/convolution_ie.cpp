@@ -57,7 +57,7 @@ op::ConvolutionIE::ConvolutionIE(const Output<Node>& data_batch,
     constructor_validate_and_infer_types();
 }
 
-#ifdef LPT_SUPPORT
+// KMB compilation support
 op::ConvolutionIE::ConvolutionIE(const Output<Node>& data_batch,
                                  const Output<Node>& filters,
                                  const Strides& strides,
@@ -77,6 +77,7 @@ op::ConvolutionIE::ConvolutionIE(const Output<Node>& data_batch,
     constructor_validate_and_infer_types();
 }
 
+// KMB compilation support
 op::ConvolutionIE::ConvolutionIE(const Output<Node>& data_batch,
                                  const Output<Node>& filters,
                                  const Output<Node>& bias,
@@ -96,7 +97,6 @@ op::ConvolutionIE::ConvolutionIE(const Output<Node>& data_batch,
         , m_output_type(element::undefined) {
     constructor_validate_and_infer_types();
 }
-#endif
 
 void op::ConvolutionIE::validate_and_infer_types() {
     PartialShape data_batch_shape = get_input_partial_shape(0);

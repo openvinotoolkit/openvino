@@ -52,6 +52,10 @@ ngraph::pass::AddMultiplyFusion::AddMultiplyFusion() {
         Output<Node> mul_const = label_to_output[m_mul_constant];
         Output<Node> add_const = label_to_output[m_add_constant];
 
+        if ((input.get_element_type() != mul_const.get_element_type()) || (add_const.get_element_type() != mul_const.get_element_type())) {
+            return false;
+        }
+
         // Replace Add->Multiply with Multiply->Add
         // As new Multiply can be fused with operation above it we add this Multiply
         // to the list of operations that will be used in additional matching.

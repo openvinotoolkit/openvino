@@ -46,11 +46,12 @@
 #include <transformations/convert_opset1_to_legacy/reshape_fully_connected.hpp>
 #include <transformations/pull_transpose_through_fq.hpp>
 #include <transformations/convert_opset1_to_legacy/convert_hard_sigmoid_to_hard_sigmoid_ie.hpp>
-#include <transformations/lin_op_sequence_fusoin.hpp>
+#include <transformations/lin_op_sequence_fusoin.hpp> // <=?
 #include <transformations/common_optimizations/conv_mul_fusion.hpp>
 #include <transformations/hswish_decomposition.hpp>
 #include <transformations/reduce_l1_decomposition.hpp>
 #include <transformations/reduce_l2_decomposition.hpp>
+#include <transformations/common_optimizations/fq_mul_fusion.hpp>
 
 #include <ngraph/pass/constant_folding.hpp>
 #include <ngraph/pass/manager.hpp>
@@ -90,25 +91,12 @@ bool ngraph::pass::ConvertOpSet1ToLegacy::run_on_function(std::shared_ptr<ngraph
     decomp->add_matcher<ngraph::pass::ConvertMinimum>();
     decomp->add_matcher<ngraph::pass::ConvertSubtract>();
     decomp->add_matcher<ngraph::pass::ConvertDivide>();
-    decomp->add_matcher<ngraph::pass::ConvertNegative>();
-    decomp->add_matcher<ngraph::pass::ConvertDepthToSpace>();
-    decomp->add_matcher<ngraph::pass::ConvertSpaceToDepth>();
-    decomp->add_matcher<ngraph::pass::BatchNormDecomposition>();
     decomp->add_matcher<ngraph::pass::ConvertMatMulToFC>();
     decomp->add_matcher<ngraph::pass::ConvertMatMulToGemm>();
     decomp->add_matcher<ngraph::pass::PullTransposeThroughFQUp>();
     decomp->set_name("ngraph::pass::Decompositions");
 
     // CF is required after all decompositions
-    manager.register_pass<ngraph::pass::ConstantFolding>();
-
-    // LinOpSequenceFusion must be executed after all decompositions
-    manager.register_pass<ngraph::pass::LinOpSequenceFusion>();
-
-    manager.register_pass<ngraph::pass::ConvolutionMultiplyFusion>();
-    manager.register_pass<ngraph::pass::GroupConvolutionMultiplyFusion>();
-    manager.register_pass<ngraph::pass::ConvolutionBackpropDataMultiplyFusion>();
-    manager.register_pass<ngraph::pass::GroupConvolutionBackpropDataMultiplyFusion>();
     manager.register_pass<ngraph::pass::ConstantFolding>();
 
     // Convolution/Deconvolution/FullyConnected fusions

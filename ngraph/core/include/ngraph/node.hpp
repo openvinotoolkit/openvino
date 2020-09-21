@@ -45,9 +45,6 @@
 #include "ngraph/strides.hpp"
 #include "ngraph/type.hpp"
 
-// turn it off if you are a real Man
-#define LPT_SUPPORT
-
 namespace ngraph
 {
     template <typename NodeType>
@@ -158,9 +155,11 @@ namespace ngraph
 
     protected:
         /// \brief Construct an unitialized Node
-        Node() {}
+        Node() = default;
         /// \brief Copying a node
         Node(const Node&);
+        /// \brief Assignment operator
+        Node& operator=(const Node&);
 
         /// \brief Construct an unitialized Node
         /// \param output_size Number of outputs for this node
@@ -226,9 +225,9 @@ namespace ngraph
         /// Sets/replaces the arguments with new arguments.
         void set_argument(size_t position, const Output<Node>& argument);
 
-        virtual void set_output_type(size_t i,
-                                     const element::Type& element_type,
-                                     const PartialShape& pshape);
+        void set_output_type(size_t i,
+                             const element::Type& element_type,
+                             const PartialShape& pshape);
 
         /// Sets the number of outputs
         void set_output_size(size_t output_size);

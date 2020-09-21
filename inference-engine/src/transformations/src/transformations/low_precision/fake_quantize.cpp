@@ -46,6 +46,27 @@ bool FakeQuantizeTransformation::transform(TransformationContext& context, ngrap
         return false;
     }
 
+    if (as_type<opset1::Constant>(layer->get_input_node_ptr(0))) {
+        bool nextOpearionsWillBeNotHandled = true;
+        for (auto output : layer->outputs()) {
+            for (auto input : output.get_target_inputs()) {
+                auto activations = paramsManager->getPrecisionsOnActivations(*input.get_node());
+                if (paramsManager->getPrecisionsOnActivations(*input.get_node()).size() != 0ul) {
+                    nextOpearionsWillBeNotHandled = false;
+                    break;
+                }
+            }
+        }
+
+        if (nextOpearionsWillBeNotHandled) {
+            const std::shared_ptr<ngraph::Node> resultConstant = NetworkHelper::fold_fake_quantize(layer);
+            if (as_type_ptr<opset1::Constant>(resultConstant)) {
+                replace_node(layer, resultConstant);
+                return true;
+            }
+        }
+    }
+
     if (!QuantizationDetails::outputLayoutIsSupported(layer)) {
         return false;
     }

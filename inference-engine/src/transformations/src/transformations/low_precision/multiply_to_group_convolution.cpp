@@ -96,9 +96,7 @@ bool MultiplyToGroupConvolutionTransformation::transform(TransformationContext& 
         lastNode->set_friendly_name(dequantization.subtract->get_friendly_name());
     }
 
-    if (updatePrecisions) {
-        lastNode = multiply->copy_with_new_inputs({ lastNode, constant });
-    }
+    lastNode = multiply->copy_with_new_inputs({ lastNode, constant });
 
     replace_node(multiply, lastNode);
     NetworkHelper::copyInfo(multiply, lastNode);

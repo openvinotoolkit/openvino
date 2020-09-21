@@ -113,10 +113,19 @@ bool MatMulTransformation::canBeTransformed(const TransformationContext& context
     }
 
     const auto dequantization1 = ngraph::pass::low_precision::NetworkHelper::getDequantization(layer);
-
-    if (!NetworkHelper::isScalarLike(
-            as_type_ptr<opset1::Constant>(dequantization1.multiply->get_input_node_shared_ptr(1)))) {
+    if (!NetworkHelper::isScalarLike(as_type_ptr<opset1::Constant>(dequantization1.multiply->get_input_node_shared_ptr(1)))) {
         return false;
+    }
+
+    if (updatePrecisions && !dequantization1.empty() && !dequantization1.isLowPrecision()) {
+        return false;
+    }
+
+    if (updatePrecisions) {
+        const auto dequantization2 = ngraph::pass::low_precision::NetworkHelper::getDequantization(layer, 1);
+        if (!dequantization2.empty() && !dequantization2.isLowPrecision()) {
+            return false;
+        }
     }
 
     const auto fakeQuantize = as_type_ptr<opset1::FakeQuantize>(layer->get_input_node_shared_ptr(1));

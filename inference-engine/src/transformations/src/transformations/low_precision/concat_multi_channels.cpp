@@ -146,11 +146,10 @@ bool ConcatMultiChannelsTransformation::transform(TransformationContext& context
             if (std::dynamic_pointer_cast<ngraph::op::TypeRelaxedBase>(node)) {
                 ngraph::pass::low_precision::NetworkHelper::setOutDataPrecisionForTypeRelaxed(node->shared_from_this(), dataPrecision.precision);
             } else {
-#ifdef LPT_SUPPORT
+                // set precision to explicitly to have updated precision during transformation
                 for (size_t i = 0; i < node->get_output_size(); ++i) {
                     node->set_output_type(i, dataPrecision.precision, node->get_output_partial_shape(i));
                 }
-#endif
             }
         }
     }

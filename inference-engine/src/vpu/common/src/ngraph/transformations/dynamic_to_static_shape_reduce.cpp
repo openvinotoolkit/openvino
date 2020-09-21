@@ -51,8 +51,8 @@ void dynamicToStaticShapeReduce(std::shared_ptr<ngraph::Node> target) {
     if (keep_dims) {
         output_shape = std::make_shared<ngraph::opset3::ScatterElementsUpdate>(
                 data_shape,
-                ngraph::opset3::Constant::create(ngraph::element::i64, {axes.size()}, axes),
-                ngraph::opset3::Constant::create(ngraph::element::i64, {axes.size()}, std::vector<int64_t>(axes.size(), 1)),
+                ngraph::opset3::Constant::create(data_shape.get_element_type(), {axes.size()}, axes),
+                ngraph::opset3::Constant::create(data_shape.get_element_type(), {axes.size()}, std::vector<int64_t>(axes.size(), 1)),
                 ngraph::opset3::Constant::create(ngraph::element::i64, {1}, {0}));
     } else {
         std::vector<int64_t> range(data_rank_value);
@@ -63,7 +63,7 @@ void dynamicToStaticShapeReduce(std::shared_ptr<ngraph::Node> target) {
 
         output_shape = std::make_shared<ngraph::opset3::Gather>(
                 data_shape,
-                ngraph::opset3::Constant::create(ngraph::element::i64, {indices.size()}, indices),
+                ngraph::opset3::Constant::create(data_shape.get_element_type(), {indices.size()}, indices),
                 ngraph::opset3::Constant::create(ngraph::element::i64, {1}, {0}));
     }
     const auto copied = target->clone_with_new_inputs(target->input_values());

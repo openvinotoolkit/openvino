@@ -27,12 +27,6 @@ std::shared_ptr<Node> op::PowerIE::clone_with_new_inputs(const OutputVector& new
     return make_shared<PowerIE>(new_args.at(0), this->power, this->scale, this->shift, this->m_output_type);
 }
 
-void op::PowerIE::set_output_type(size_t i,
-    const element::Type& element_type,
-    const PartialShape& pshape) {
-    Op::set_output_type(i, m_output_type == element::undefined ? element_type : m_output_type, pshape);
-}
-
 void op::PowerIE::validate_and_infer_types() {
     set_output_type(0, m_output_type == element::undefined ? get_input_element_type(0) : m_output_type, get_input_partial_shape(0));
 }
