@@ -200,6 +200,25 @@ const std::vector<ConcatTransformationTestValues> testValues = {
             ngraph::element::f32
         }
     },
+    // U8: not update precisions
+    {
+        LayerTransformation::createParamsU8I8().setUpdatePrecisions(false),
+        false,
+        true,
+        {
+            { 256ul, ngraph::Shape({}), {0.f}, {2.55f}, {0.f}, {2.55f} },
+            { 256ul, ngraph::Shape({}), {1.275f}, {2.55f}, {1.275f}, {2.55f} }
+        },
+        {
+            { 256ul, ngraph::Shape({}), {0.f}, {2.55f}, {0.f}, {255.f} },
+            { 256ul, ngraph::Shape({}), {1.275f}, {2.55f}, {128.f}, {255.f} },
+            { {}, {}, {} },
+            ngraph::element::f32,
+            ngraph::element::f32,
+            { ngraph::element::f32, {}, { 0.01f } },
+            ngraph::element::f32
+        }
+    },
     // U8: concat multi channels
     {
         LayerTransformation::createParamsU8I8(),
@@ -253,6 +272,29 @@ const std::vector<ConcatTransformationTestValues> testValues = {
             { {}, {}, {} },
             ngraph::element::u8,
             ngraph::element::u8,
+            {
+                ngraph::element::f32,
+                {{ -255.f, -255.f, -255.f, 0.f, 0.f, 0.f }},
+                {{ 0.005f, 0.005f, 0.005f, 0.01f, 0.01f, 0.01f }}
+            },
+            ngraph::element::f32
+        }
+    },
+    // U8: concat multi channels, not update precisions
+    {
+        LayerTransformation::createParamsU8I8().setUpdatePrecisions(false),
+        true,
+        true,
+        {
+            { 256ul, ngraph::Shape({}), {0.f}, {2.55f}, {0.f}, {2.55f} },
+            { 256ul, ngraph::Shape({}), {1.275f}, {2.55f}, {1.275f}, {2.55f} }
+        },
+        {
+            { 256ul, ngraph::Shape({}), {0.f}, {2.55f}, {0.f}, {255.f} },
+            { 256ul, ngraph::Shape({}), {1.275f}, {2.55f}, {0.f}, {255.f} },
+            { {}, {}, {} },
+            ngraph::element::f32,
+            ngraph::element::f32,
             {
                 ngraph::element::f32,
                 {{ -255.f, -255.f, -255.f, 0.f, 0.f, 0.f }},

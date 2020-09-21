@@ -419,17 +419,17 @@ std::shared_ptr<ngraph::Function> ConcatFunction::getOriginalWithIntermediateWit
             roundingType,
             padType);
 
-        const auto attrributes = ngraph::op::v0::InterpolateAttrs{
-            ngraph::AxisSet{ 2, 3 },
-            "nearest",
-            false,
-            false,
-            { 0 },
-            { 0 } };
+        ngraph::op::v0::InterpolateAttrs attributes;
+        attributes.axes = ngraph::AxisSet{ 2, 3 };
+        attributes.mode = "nearest";
+        attributes.align_corners = false;
+        attributes.antialias = false;
+        attributes.pads_begin = { 0 };
+        attributes.pads_end = { 0 };
         const auto outputShape = op::Constant::create(
             ngraph::element::i64, ngraph::Shape{ 2 },
             ngraph::Shape{ inputShape[2], inputShape[3] });
-        intermediateOp = std::make_shared<ngraph::opset1::Interpolate>(pooling->output(0), outputShape, attrributes);
+        intermediateOp = std::make_shared<ngraph::opset1::Interpolate>(pooling->output(0), outputShape, attributes);
         intermediateOp->set_friendly_name("intermediate");
     } else {
         intermediateOp = fakeQuantize1;
@@ -1029,17 +1029,18 @@ std::shared_ptr<ngraph::Function> ConcatFunction::getReferenceWithIntermediateWi
             roundingType,
             padType);
 
-        const auto attrributes = ngraph::op::v0::InterpolateAttrs{
-            ngraph::AxisSet{ 2, 3 },
-            "nearest",
-            false,
-            false,
-            { 0 },
-            { 0 } };
+        ngraph::op::v0::InterpolateAttrs attributes;
+        attributes.axes = ngraph::AxisSet{ 2, 3 };
+        attributes.mode = "nearest";
+        attributes.align_corners = false;
+        attributes.antialias = false;
+        attributes.pads_begin = { 0 };
+        attributes.pads_end = { 0 };
+
         const auto outputShape = op::Constant::create(
             ngraph::element::i64, ngraph::Shape{ 2 },
             ngraph::Shape{ inputShape[2], inputShape[3] });
-        intermediateOp = std::make_shared<ngraph::opset1::Interpolate>(pooling->output(0), outputShape, attrributes);
+        intermediateOp = std::make_shared<ngraph::opset1::Interpolate>(pooling->output(0), outputShape, attributes);
         intermediateOp->set_friendly_name("intermediate");
     } else {
         intermediateOp = fakeQuantize1;
