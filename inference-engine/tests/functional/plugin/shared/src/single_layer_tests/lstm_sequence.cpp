@@ -82,11 +82,6 @@ namespace LayerTestsDefinitions {
                                      std::make_shared<ngraph::opset1::Result>(lstm_sequence->output(1)),
                                      std::make_shared<ngraph::opset1::Result>(lstm_sequence->output(2))};
         function = std::make_shared<ngraph::Function>(results, params, "lstm_sequence");
-        if (direction == ngraph::op::RecurrentSequenceDirection::BIDIRECTIONAL) {
-            ngraph::pass::Manager m;
-            m.register_pass<ngraph::pass::BidirectionalLSTMSequenceDecomposition>();
-            m.run_passes(function);
-        }
     }
 
 

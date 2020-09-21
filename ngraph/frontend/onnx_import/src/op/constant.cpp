@@ -15,6 +15,7 @@
 //*****************************************************************************
 
 #include "constant.hpp"
+#include "ngraph/log.hpp"
 #include "ngraph/op/constant.hpp"
 #include "onnx_import/core/tensor.hpp"
 #include "onnx_import/default_opset.hpp"
@@ -33,8 +34,21 @@ namespace ngraph
                     inline std::shared_ptr<default_opset::Constant>
                         __make_ng_constant(const element::Type& type, const Tensor& tensor)
                     {
-                        return std::make_shared<default_opset::Constant>(
-                            type, tensor.get_shape(), tensor.get_data<T>());
+                        std::shared_ptr<default_opset::Constant> constant{nullptr};
+                        try
+                        {
+                            constant = std::make_shared<default_opset::Constant>(
+                                type, tensor.get_shape(), tensor.get_data<T>());
+                        }
+                        catch (const ngraph::ngraph_error& exc)
+                        {
+                            NGRAPH_WARN << "Could not create an nGraph Constant for an ONNX "
+                                           "Constant node. Detailed error:\n"
+                                        << exc.what();
+                            constant = std::make_shared<default_opset::Constant>(type, Shape{}, 0);
+                        }
+
+                        return constant;
                     }
 
                     template <Tensor::Type>
