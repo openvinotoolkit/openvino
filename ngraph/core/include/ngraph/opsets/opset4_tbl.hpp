@@ -162,6 +162,3 @@ NGRAPH_OP(ReduceL1, ngraph::op::v4)
 NGRAPH_OP(ReduceL2, ngraph::op::v4)
 NGRAPH_OP(SoftPlus, ngraph::op::v4)
 NGRAPH_OP(Swish, ngraph::op::v4)
-
-NGRAPH_OP(GRUSequence, ngraph::op::v5)
-NGRAPH_OP(RNNSequence, ngraph::op::v5)
