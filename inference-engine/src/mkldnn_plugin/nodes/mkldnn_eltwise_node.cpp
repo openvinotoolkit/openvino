@@ -1277,7 +1277,7 @@ void MKLDNNEltwiseNode::selectOptimalPrimitiveDescriptor() {
                     auto parentEdge = getParentEdgeAt(j);
                     auto parentPtr = parentEdge->getParent();
                     // We don't take into account constant edges since reorders on them will be executed on load network stage
-                    if (parentPtr->isConstant()) {
+                    if (j > 0 && parentPtr->isConstant()) {
                         equalsLocalFormatCount++;
                         continue;
                     }
