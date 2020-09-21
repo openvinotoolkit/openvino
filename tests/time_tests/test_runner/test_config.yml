@@ -1,0 +1,8 @@
+- device:
+    name: CPU
+  model:
+    path: ${SHARE}/stress_tests/master_04d6f112132f92cab563ae7655747e0359687dc9/caffe/FP32/alexnet/alexnet.xml # TODO: add link to `test_data` repo model
+- device:
+    name: GPU
+  model:
+    path: ${SHARE}/stress_tests/master_04d6f112132f92cab563ae7655747e0359687dc9/caffe/FP32/alexnet/alexnet.xml
