@@ -24,8 +24,10 @@
 #include <legacy/convert_function_to_cnn_network.hpp>
 #include <transformations/common_optimizations/common_optimizations.hpp>
 #include <transformations/convert_opset1_to_legacy/convert_opset1_to_legacy.hpp>
+#include <transformations/convert_opset1_to_legacy/convert_prior_to_ie_prior.hpp>
 #include <transformations/convert_opset2_to_opset1/convert_opset2_to_opset1.hpp>
 #include <transformations/convert_opset3_to_opset2/convert_opset3_to_opset2.hpp>
+#include <transformations/init_node_info.hpp>
 #include <transformations/convert_precision.hpp>
 #include <transformations/rt_info/fused_names_attribute.hpp>
 #include <transformations/tensor_iterator_transformations/apply_transformations_to_ti_body.hpp>
@@ -92,6 +94,9 @@ static void Transformation(ICNNNetwork::Ptr& clonedNetwork) {
     ngraph::op::GenericIE::DisableReshape noReshape(nGraphFunc);
 
     ngraph::pass::Manager manager;
+    manager.register_pass<ngraph::pass::InitNodeInfo>();
+    // WA: ConvertPriorBox must be executed before the 1st ConstantFolding pass
+    manager.register_pass<ngraph::pass::ConvertPriorBox>();
     manager.register_pass<ngraph::pass::CommonOptimizations>();
     manager.register_pass<ngraph::pass::ConvertOpSet3ToOpSet2>();
     manager.register_pass<ngraph::pass::ConvertOpSet2ToOpSet1>();
@@ -311,13 +316,11 @@ void Engine::QueryNetwork(const ICNNNetwork& network, const std::map<std::string
                 }
             }
         }
-        for (auto&& unsupportedNode : unsupported) {
-            supported.erase(unsupportedNode);
-        }
+
         for (auto&& node : function->get_ops()) {
-            if (contains(supported, node->get_friendly_name())) {
+            if (!contains(unsupported, node->get_friendly_name())) {
                 for (auto&& inputNodeOutput : node->input_values()) {
-                    if (ngraph::op::is_constant(inputNodeOutput.get_node()) || ngraph::op::is_parameter(inputNodeOutput.get_node())) {
+                    if (ngraph::op::is_constant(inputNodeOutput.get_node())) {
                         supported.emplace(inputNodeOutput.get_node()->get_friendly_name());
                     }
                 }
@@ -330,19 +333,11 @@ void Engine::QueryNetwork(const ICNNNetwork& network, const std::map<std::string
                 }
             }
         }
-        for (auto&& node : function->get_ops()) {
-            if (ngraph::op::is_constant(node) || ngraph::op::is_parameter(node)) {
-                if (!contains(supported, node->output(0).get_target_inputs().begin()->get_node()->get_friendly_name())) {
-                    supported.erase(node->get_friendly_name());
-                }
-            } else if (ngraph::op::is_output(node)) {
-                if (!contains(supported, node->input_values().begin()->get_node()->get_friendly_name())) {
-                    supported.erase(node->get_friendly_name());
-                }
-            }
-        }
+
         for (auto&& layerName : supported) {
-            res.supportedLayersMap.emplace(layerName, GetName());
+            if (!contains(unsupported, layerName)) {
+                res.supportedLayersMap.emplace(layerName, GetName());
+            }
         }
     } else {
         details::CNNNetworkIterator i(&network);

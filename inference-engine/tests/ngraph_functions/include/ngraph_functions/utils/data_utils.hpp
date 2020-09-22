@@ -17,11 +17,14 @@ namespace Utils {
 
 template<ngraph::element::Type_t dType>
 std::vector<typename ngraph::helpers::nGraphTypesTrait<dType>::value_type> inline
-generateVector(size_t vec_len, uint32_t upTo = 10, uint32_t startFrom = 1) {
+generateVector(size_t vec_len, uint32_t upTo = 10, uint32_t startFrom = 1, int32_t seed = 1) {
     std::vector<typename ngraph::helpers::nGraphTypesTrait<dType>::value_type> res;
 
-    std::mt19937 gen(
-            static_cast<unsigned long>(std::chrono::high_resolution_clock::now().time_since_epoch().count()));
+    if (seed == 1) {
+        seed = static_cast<unsigned long>(std::chrono::high_resolution_clock::now().time_since_epoch().count());
+    }
+
+    std::mt19937 gen(seed);
     // chose values between this range to avoid type overrun (e.g. in case of I8 precision)
     std::uniform_int_distribution<unsigned long> dist(startFrom, upTo);
 
@@ -32,11 +35,14 @@ generateVector(size_t vec_len, uint32_t upTo = 10, uint32_t startFrom = 1) {
     return res;
 }
 
-std::vector<ngraph::float16> inline generateF16Vector(size_t vec_len, uint32_t upTo = 10, uint32_t startFrom = 1) {
+std::vector<ngraph::float16> inline generateF16Vector(size_t vec_len, uint32_t upTo = 10, uint32_t startFrom = 1, int32_t seed = 1) {
     std::vector<ngraph::float16> res;
 
-    std::mt19937 gen(
-            static_cast<unsigned long>(std::chrono::high_resolution_clock::now().time_since_epoch().count()));
+    if (seed == 1) {
+        seed = static_cast<unsigned long>(std::chrono::high_resolution_clock::now().time_since_epoch().count());
+    }
+
+    std::mt19937 gen(seed);
     // chose values between this range to avoid type overrun (e.g. in case of I8 precision)
     std::uniform_int_distribution<unsigned long> dist(startFrom, upTo);
 
@@ -46,11 +52,13 @@ std::vector<ngraph::float16> inline generateF16Vector(size_t vec_len, uint32_t u
     return res;
 }
 
-std::vector<ngraph::bfloat16> inline generateBF16Vector(size_t vec_len, uint32_t upTo = 10, uint32_t startFrom = 1) {
+std::vector<ngraph::bfloat16> inline generateBF16Vector(size_t vec_len, uint32_t upTo = 10, uint32_t startFrom = 1, int32_t seed = 1) {
     std::vector<ngraph::bfloat16> res;
 
-    std::mt19937 gen(
-            static_cast<unsigned long>(std::chrono::high_resolution_clock::now().time_since_epoch().count()));
+    if (seed == 1) {
+        seed = static_cast<unsigned long>(std::chrono::high_resolution_clock::now().time_since_epoch().count());
+    }
+    std::mt19937 gen(seed);
     // chose values between this range to avoid type overrun (e.g. in case of I8 precision)
     std::uniform_int_distribution<unsigned long> dist(startFrom, upTo);
 

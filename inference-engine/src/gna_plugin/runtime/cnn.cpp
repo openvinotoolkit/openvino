@@ -22,9 +22,7 @@ void CNNFilter32(intel_dnn_component_t *component) {
     uint32_t num_filter_coefficients = component->op.conv1D.num_filter_coefficients;
 
     std::string layer_name;
-#ifdef PLOT
     layer_name = " In layer '" + std::string(component->original_layer_name) + "'";
-#endif
     if (component->num_rows_in != 1 || component->num_rows_out != 1) {
         THROW_GNA_EXCEPTION << "Bad number of rows in CNNFilter32!" << layer_name;
     }
