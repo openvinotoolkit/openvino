@@ -132,7 +132,7 @@ INSTANTIATE_TEST_CASE_P(ResizeTestFluid_F32, ResizeTestGAPI,
 
 INSTANTIATE_TEST_CASE_P(SplitTestFluid, SplitTestGAPI,
                         Combine(Values(2, 3, 4),
-                                Values(CV_8U, CV_32F),
+                                Values(CV_8U, CV_8S, CV_16U, CV_16S, CV_32F, CV_32S),
                                 Values(TEST_SIZES),
                                 Values(0)));
 
@@ -144,7 +144,7 @@ INSTANTIATE_TEST_CASE_P(ChanToPlaneTestFluid, ChanToPlaneTestGAPI,
 
 INSTANTIATE_TEST_CASE_P(MergeTestFluid, MergeTestGAPI,
                         Combine(Values(2, 3, 4),
-                                Values(CV_8U, CV_32F),
+                                Values(CV_8U, CV_8S, CV_16U, CV_16S, CV_32F, CV_32S),
                                 Values(TEST_SIZES),
                                 Values(0)));
 
