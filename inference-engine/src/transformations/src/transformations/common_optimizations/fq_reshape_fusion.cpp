@@ -45,8 +45,8 @@ ngraph::pass::FakeQuantizeReshapeFusion::FakeQuantizeReshapeFusion() {
             if (max_element == limit_size) { // per-tensor / per-channel limit
                 auto new_limit_shape = reshape_node->get_output_shape(0);
                 std::transform(new_limit_shape.begin(), new_limit_shape.end(), new_limit_shape.begin(),
-                               [max_element](uint64_t &dim) { return dim == max_element ? max_element : 1; });
-                const auto &new_limit_size = std::accumulate(new_limit_shape.begin(), new_limit_shape.end(), 1, std::multiplies<int64_t>());
+                               [max_element](size_t &dim) { return dim == max_element ? max_element : 1; });
+                const auto &new_limit_size = std::accumulate(new_limit_shape.begin(), new_limit_shape.end(), 1, std::multiplies<size_t>());
                 if (new_limit_size == limit_size) { // we tracked future channel placement
                     if (new_limit_shape == limit_input.get_shape())
                         renewed_inputs.push_back(limit_input);
