@@ -29,7 +29,7 @@ std::shared_ptr<ngraph::Node> makeLSTM(const std::vector<ngraph::Output<Node>>& 
     } else {
         std::vector<float> lenghts(in[0].get_shape()[0], in[0].get_shape()[1]);
         auto seq_lenghts = ngraph::builder::makeConstant(in[0].get_element_type(), constants[3], lenghts, false);
-        return std::make_shared<ngraph::op::v5::LSTMSequence>(in[0], in[1], in[2], seq_lenghts, W, R, B, hidden_size, direction,
+        return std::make_shared<ngraph::opset5::LSTMSequence>(in[0], in[1], in[2], seq_lenghts, W, R, B, hidden_size, direction,
                                                           activations_alpha, activations_beta, activations, clip);
     }
 }

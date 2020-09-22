@@ -8,17 +8,7 @@ cmake_policy(SET CMP0054 NEW)
 # it allows to install targets created outside of current projects
 # See https://blog.kitware.com/cmake-3-13-0-available-for-download/
 
-if (APPLE)
-    if(CMAKE_GENERATOR STREQUAL "Xcode")
-        # due to https://gitlab.kitware.com/cmake/cmake/issues/14254
-        cmake_minimum_required(VERSION 3.12.0 FATAL_ERROR)
-    else()
-        # due to https://cmake.org/cmake/help/v3.12/policy/CMP0068.html
-        cmake_minimum_required(VERSION 3.9 FATAL_ERROR)
-    endif()
-else()
-    cmake_minimum_required(VERSION 3.7.2 FATAL_ERROR)
-endif()
+cmake_minimum_required(VERSION 3.13 FATAL_ERROR)
 
 project(OpenVINO)
 
@@ -73,7 +63,7 @@ function(build_ngraph)
         ngraph_set(NGRAPH_UNIT_TEST_ENABLE FALSE)
     endif()
 
-    if(NOT ANDROID)
+    if(NOT (ANDROID OR WINDOWS_STORE))
         ngraph_set(NGRAPH_ONNX_IMPORT_ENABLE TRUE)
     else()
         ngraph_set(NGRAPH_ONNX_IMPORT_ENABLE FALSE)
