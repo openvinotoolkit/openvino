@@ -88,6 +88,7 @@ def explicit_shape_broadcasting(input_shape: np.array, target_shape: np.array, a
     :return: broadcasted shape
     """
     assert np.all(np.diff(axes_mapping) >= 0), "axes_mapping is not sorted"
+    assert axes_mapping == input_shape, "size of axes_mapping does not match to rank of input"
 
     res = target_shape.copy()
     for i, axis in enumerate(axes_mapping):
@@ -130,7 +131,7 @@ def explicit_broadcasting(input_value: np.array, target_shape: np.array, axes_ma
     :param axes_mapping: a list of axis indices, each index maps an axis from the input_value to axis in the output
     :return: broadcasted value
     """
-    res_shape = explicit_shape_broadcasting(input_value, target_shape, axes_mapping)
+    res_shape = explicit_shape_broadcasting(input_value.shape, target_shape, axes_mapping)
     expand_dim_axis = set(np.arange(len(target_shape))) - set(axes_mapping)
 
     input_expanded = np.expand_dims(input_value.copy(), axis=list(expand_dim_axis))

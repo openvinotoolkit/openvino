@@ -31,8 +31,24 @@ class BroadcastTest(unittest.TestCase):
     @generate(*[
         ([1], [3, 3], [[1, 1, 1], [1, 1, 1], [1, 1, 1]], None, 'numpy', True),
         ([1], [3, 3], [3, 3], None, 'numpy', False),
-        ([1], [2, 2], [[1, 1]], [0], 'explicit', True),
+
+        # shape broadcasting
         ([1], [2, 2], [1, 2], [0], 'explicit', False),
+        ([1, 7], [5, 2, 7, 3], [5, 1, 7, 3], [1, 2], 'explicit', False),
+        ([2, 1, 3], [5, 2, 7, 3], [2, 1, 3, 3], [0, 1, 2], 'explicit', False),
+        ([2, 1, 3], [5, 2, 7, 3], [5, 2, 1, 3], [1, 2, 3], 'explicit', False),
+
+        # value broadcasting
+        ([1], [2, 2], [[1, 1]], [0], 'explicit', True),
+        ([[3, 1]], [2, 7, 3], [[[3, 1]], [[3, 1]]], [1, 2], 'explicit', True),  # ref_shape (2, 1, 2)
+
+        ([[[9, 5, 7]], [[9, 5, 7]]], [2, 2, 7, 3],
+         [[[[9, 5, 7]], [[9, 5, 7]]], [[[9, 5, 7]], [[9, 5, 7]]]],  # ref_out_value
+         [1, 2, 3], 'explicit', True),  # in_shape (2, 1, 3), ref_out_shape (2, 2, 1, 3)
+
+        ([[[9, 5, 7]], [[3, 4, 8]]], [2, 2, 7, 3],
+        [[[[9, 9, 9], [5, 5, 5], [7, 7, 7]]], [[[3, 3, 3], [4, 4, 4], [8, 8, 8]]]],  # ref_out_value
+         [0, 1, 2], 'explicit', True),  # in_shape (2, 1, 3), ref_out_shape (2, 1, 3, 3)
     ])
     def test_broadcast(self, data, target_shape, ref_out, axes_mapping=None, mode='numpy', val_broadcast=True):
         input = valued_const_with_data('data', int64_array(data)) if val_broadcast else shaped_data('data', int64_array(data))

@@ -71,7 +71,7 @@ class Broadcast(Op):
                 node.out_port(0).data.set_value(bi_directional_broadcasting(input_value, target_shape))
             elif node.mode == 'explicit' and node.in_port(2).data.get_value() is not None:
                 axes_mapping = node.in_port(2).data.get_value()
-                node.out_port(0).data.set_value(explicit_broadcasting(input_shape, target_shape, axes_mapping))
+                node.out_port(0).data.set_value(explicit_broadcasting(input_value, target_shape, axes_mapping))
             else:
                 raise Error('The node "{}" has unsupported mode "{}"'.format(node_name, node.mode))
         else:
