@@ -31,7 +31,7 @@ CNNNetworkIterator {
     std::unordered_set<CNNLayer*> visited;
     std::list<CNNLayerPtr> nextLayersTovisit;
     InferenceEngine::CNNLayerPtr currentLayer;
-    ICNNNetwork* network = nullptr;
+    const ICNNNetwork* network = nullptr;
 
 public:
     /**
@@ -54,14 +54,17 @@ public:
      */
     explicit CNNNetworkIterator(const ICNNNetwork* network) {
         if (network == nullptr) THROW_IE_EXCEPTION << "ICNNNetwork object is nullptr";
+        this->network = network;
         InputsDataMap inputs;
         network->getInputsInfo(inputs);
-        if (!inputs.empty()) {
-            auto& nextLayers = inputs.begin()->second->getInputData()->getInputTo();
+        // scan for at least one input which does have a NEXT
+        for(auto& ip : inputs) {
+            auto& nextLayers = ip.second->getInputData()->getInputTo();
             if (!nextLayers.empty()) {
                 currentLayer = nextLayers.begin()->second;
                 nextLayersTovisit.push_back(currentLayer);
                 visited.insert(currentLayer.get());
+                break;
             }
         }
     }
@@ -117,7 +120,13 @@ public:
      * @return true if the given iterator is equal to this one, false - otherwise
      */
     bool operator==(const CNNNetworkIterator& that) const {
-        return network == that.network && currentLayer == that.currentLayer;
+        bool retVal;
+        if(currentLayer == nullptr && that.currentLayer == nullptr) {
+            retVal = true;
+        } else {
+            retVal = network == that.network && currentLayer == that.currentLayer;
+        }
+        return retVal;
     }
 
 private:
@@ -148,6 +157,26 @@ private:
             if (parentLayer && visited.find(parentLayer.get()) == visited.end()) {
                 nextLayersTovisit.push_back(parentLayer);
                 visited.insert(parentLayer.get());
+            }
+        }
+        
+        // check possibly for other disjoint univisited input subtree
+        if(nextLayersTovisit.empty()) {
+            InputsDataMap inputs;
+            network->getInputsInfo(inputs);
+            if (!inputs.empty()) {
+                for(auto itr=inputs.begin(); itr!=inputs.end(); ++itr) {
+                    auto& nextLayers = itr->second->getInputData()->getInputTo();
+                    if (nextLayers.empty()) {
+                        continue;
+                    }
+                    currentLayer = nextLayers.begin()->second;
+                    if (visited.find(currentLayer.get()) == visited.end()) {
+                        nextLayersTovisit.push_back(currentLayer);
+                        visited.insert(currentLayer.get());
+                        break;
+                    }
+                }
             }
         }
 
