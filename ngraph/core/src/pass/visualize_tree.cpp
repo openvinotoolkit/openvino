@@ -430,8 +430,8 @@ string pass::VisualizeTree::get_attributes(shared_ptr<Node> node)
                         label << "{" << input.get_element_type().get_type_name() << "}";
                     if (nvtos)
                         label << pretty_partial_shape(input.get_partial_shape());
-                    label << ": " << node->get_input_node_ptr(input.get_index())->get_name() << ": out"
-                        << input.get_source_output().get_index();
+                    label << ": " << node->get_input_node_ptr(input.get_index())->get_name()
+                          << ": out" << input.get_source_output().get_index();
                 }
             }
             for (const auto& output : node->outputs())

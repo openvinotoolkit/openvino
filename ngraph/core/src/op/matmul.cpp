@@ -54,7 +54,8 @@ bool ngraph::op::v0::MatMul::visit_attributes(AttributeVisitor& visitor)
 void op::MatMul::pre_validate_and_infer_types()
 {
     element::Type result_et;
-    if (m_output_type == element::undefined) {
+    if (m_output_type == element::undefined)
+    {
         NODE_VALIDATION_CHECK(
             this,
             element::Type::merge(result_et, get_input_element_type(0), get_input_element_type(1)),
@@ -63,7 +64,9 @@ void op::MatMul::pre_validate_and_infer_types()
             ", arg1 element type: ",
             get_input_element_type(1),
             ").");
-    } else {
+    }
+    else
+    {
         result_et = m_output_type;
     }
 
@@ -114,7 +117,8 @@ OutputVector op::MatMul::decompose_op() const
 shared_ptr<Node> op::MatMul::clone_with_new_inputs(const OutputVector& new_args) const
 {
     check_new_args_count(this, new_args);
-    return make_shared<MatMul>(new_args.at(0), new_args.at(1), m_transpose_a, m_transpose_b, m_output_type);
+    return make_shared<MatMul>(
+        new_args.at(0), new_args.at(1), m_transpose_a, m_transpose_b, m_output_type);
 }
 
 namespace
