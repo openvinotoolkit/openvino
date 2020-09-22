@@ -279,6 +279,7 @@ bool GNADeviceHelper::wait(uint32_t reqId, int64_t millisTimeout) {
         return false;
     }
     checkGna2Status(status);
+    unwaitedRequestIds.erase(std::remove(unwaitedRequestIds.begin(), unwaitedRequestIds.end(), reqId));
 #else
     if (isPerformanceMeasuring) {
         nGNAStatus = GNAWaitPerfRes(nGNAHandle, millisTimeout, reqId, &nGNAPerfResults);
@@ -288,7 +289,6 @@ bool GNADeviceHelper::wait(uint32_t reqId, int64_t millisTimeout) {
     checkStatus();
 #endif
     updateGnaPerfCounters();
-    unwaitedRequestIds.erase(std::remove(unwaitedRequestIds.begin(), unwaitedRequestIds.end(), reqId));
     return true;
 }
 
