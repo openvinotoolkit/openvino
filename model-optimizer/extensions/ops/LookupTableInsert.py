@@ -31,7 +31,6 @@ class LookupTableInsertV2(Op):
     def __init__(self, graph: Graph, attrs: dict):
         mandatory_props = {
             'kind': 'op',
-            'type': __class__.op,
             'op': __class__.op,
             'infer': self.infer,
             'in_ports_count': 3,
