@@ -4,35 +4,31 @@
   <navindex>
     <tab type="mainpage" title="OpenVINO Home" url="../index.html"/>
     <tab type="user" title="GETTING STARTED" url="../index.html"/>
-    <tab type="user" title="HOW TOs" url="../openvino_docs_how_tos_how_to_links.html"/>
-    <tab type="user" title="GUIDES" url="../openvino_docs_IE_DG_Introduction.html"/>
-    <tab type="user" title="RESOURCES" url="../openvino_docs_resources_introduction.html"/>
-    <tab type="user" title="PERFORMANCE BENCHMARKS" url="../openvino_docs_performance_benchmarks.html"/>
+    <tab type="user" title="HOW TOs" url="../dldt_docs_how_tos_how_to_links.html"/>
+    <tab type="user" title="GUIDES" url="../dldt_docs_IE_DG_Introduction.html"/>
+    <tab type="user" title="RESOURCES" url="../dldt_docs_resources_introduction.html"/>
+    <tab type="user" title="PERFORMANCE BENCHMARKS" url="../_docs_performance_benchmarks.html"/>
     <tab type="usergroup" title="API REFERENCES" url="../usergroup14.html">
       <!-- OpenVX -->
       <tab type="user" title="OpenVX Developer Guide" url="https://khronos.org/openvx"/>
       <!-- OpenCV -->
       <tab type="user" title="OpenCV Developer Guide" url="https://docs.opencv.org/master/"/>
       <!-- IE C -->
-      <tab type="usergroup" title="Inference Engine C API Reference" url="modules.html">
-        <tab type="modules" visible="yes" title="Groups">
-          <tab type="user" title="Core" url="group__Core.html"/>
-          <tab type="user" title="ExecutableNetwork" url="group__ExecutableNetwork.html"/>
-          <tab type="user" title="InferRequest" url="group__InferRequest.html"/>
-          <tab type="user" title="Network" url="group__Network.html"/>
-          <tab type="user" title="Blob" url="group__Blob.html"/>
-        </tab>
-        <tab type="classlist" visible="yes" title=""/>
-        <tab type="pages" visible="yes"/>
-        <tab type="filelist" visible="yes"/>
-        <tab type="globals" visible="yes"/>
-      </tab>
+      <tab type="usergroup" title="Inference Engine C API Reference" url="../ie_c_api/groups.html"/>
       <tab type="user" title="Inference Engine С++ API Reference" url="../annotated.html"/>
       <tab type="user" title="Inference Engine Python API Reference" url="../ie_python_api/annotated.html"/>
       <!-- DL Streamer -->
       <tab type="user" title="DL Streamer API Reference" url="https://opencv.github.io/gst-video-analytics/"/>
-      <!-- nGraph C++ API -->
-      <tab type="user" title="nGraph C++ API Reference" url="../ngraph_cpp_api/annotated.html"/>
+      <!-- nGraph C++ API Reference -->
+      <tab type="classes" visible="yes" title="nGraph С++ API Reference">
+        <tab type="classlist" visible="yes" title=""/>
+        <tab type="hierarchy" visible="yes" title=""/>
+        <tab type="namespacemembers" visible="yes" title="" intro=""/>
+        <tab type="pages" visible="no"/>
+        <tab type="files" visible="no"/>
+        <tab type="filelist" visible="no"/>
+        <tab type="globals" visible="no"/>
+      </tab>
       <!-- nGraph Python API -->
       <tab type="user" title="nGraph Python API Reference" url="../ngraph_python_api/annotated.html"/>
     </tab>
