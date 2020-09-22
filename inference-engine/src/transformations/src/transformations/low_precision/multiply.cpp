@@ -24,6 +24,61 @@ void MultiplyTransformation::registerMatcherIn(GraphRewrite &pass, Transformatio
     addSingleNodePattern<opset1::Multiply>(pass, context);
 }
 
+// multi-precision constant folding
+// handles only specific case: Constant -> [dequantization operations] -> [node]
+void fold(TransformationContext& context, std::shared_ptr<Node>& node, const size_t index) {
+    FakeQuantizeDequantization dequantization = NetworkHelper::getDequantization(node, index);
+    if (dequantization.empty() || (dequantization.multiply == nullptr)) {
+        return;
+    }
+
+    std::shared_ptr<opset1::Constant> constant = as_type_ptr<opset1::Constant>(dequantization.data.get_node_shared_ptr());
+    if ((constant == nullptr) || (constant->output(0).get_target_inputs().size() != 1ul)) {
+        return;
+    }
+
+    if (dequantization.convert != nullptr) {
+        std::shared_ptr<Node> result = fold<opset1::Convert>(dequantization.data, dequantization.convert->get_element_type());
+        replace_node(dequantization.convert, result);
+        dequantization = NetworkHelper::getDequantization(node, index);
+    }
+
+    if (dequantization.subtract != nullptr) {
+        std::shared_ptr<Node> result = fold<opset1::Subtract>(dequantization.data, dequantization.subtract->get_input_node_shared_ptr(1));
+        replace_node(dequantization.subtract, result);
+        dequantization = NetworkHelper::getDequantization(node, index);
+    }
+
+    if (dequantization.multiply != nullptr) {
+        std::shared_ptr<Node> result = fold<opset1::Multiply>(dequantization.data, dequantization.multiply->get_input_node_shared_ptr(1));
+        replace_node(dequantization.multiply, result);
+        dequantization = NetworkHelper::getDequantization(node, index);
+    }
+
+    //{
+    //    const ngraph::element::Type precision = dequantization.multiply->output(0).get_element_type();
+    //    if (constant->output(0).get_element_type() != precision) {
+    //        std::shared_ptr<Node> convertResult = fold<opset1::Convert>(constant, precision);
+    //        replace_node(constant, convertResult);
+    //        constant = as_type_ptr<opset1::Constant>(convertResult);
+    //        if (constant == nullptr) {
+    //            return;
+    //        }
+    //        dequantization = NetworkHelper::getDequantization(node, index);
+    //    }
+    //}
+
+    //if (node->get_friendly_name() == "mul_1") {
+    //    ngraph::pass::VisualizeTree("c:\\Projects\\temp\\cpu.tmp.multiply").run_on_function(context.function);
+    //}
+
+    //OutputVector folded(dequantization.multiply->get_output_size());
+    //if (dequantization.multiply->constant_fold(folded, dequantization.multiply->input_values())) {
+    //    std::shared_ptr<Node> result = folded[0].get_node_shared_ptr();
+    //    replace_node(dequantization.multiply, result);
+    //}
+}
+
 bool MultiplyTransformation::transform(TransformationContext& context, ngraph::pattern::Matcher &m) const {
     auto multiply = m.get_match_root();
     if (!LayerTransformation::canBeTransformed(context, multiply)) {
@@ -51,8 +106,11 @@ bool MultiplyTransformation::transform(TransformationContext& context, ngraph::p
     if (fullPathIndex == -1) {
         const auto multiplyBranch = getMultiplyConstBranch(multiply);
 
-        if (multiplyBranch.first == -1 || multiplyBranch.second == -1)
+        if (multiplyBranch.first == -1 || multiplyBranch.second == -1) {
+            fold(context, multiply, 0);
+            fold(context, multiply, 1);
             return false;
+        }
 
         auto multiplyParent = multiply->get_input_node_shared_ptr(multiplyBranch.first);
         auto constParent = multiply->get_input_node_shared_ptr(multiplyBranch.first == 0 ? 1 : 0);
