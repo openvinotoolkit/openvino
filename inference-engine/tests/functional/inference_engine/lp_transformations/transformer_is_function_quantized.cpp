@@ -50,11 +50,8 @@ public:
     }
 
     static std::string getTestCaseName(testing::TestParamInfo<TestValues> obj) {
-        TestValues testValues;
-        std::tie(testValues) = obj.param;
-
         std::ostringstream result;
-        result << testValues;
+        result << obj.param;
         return result.str();
     }
 };
