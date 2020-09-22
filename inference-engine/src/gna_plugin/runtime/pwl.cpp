@@ -1046,9 +1046,33 @@ void PwlApply32(intel_dnn_component_t *component,
                 }
             }
             break;
+        case kActFakeQuantize: {
+            auto input_low   = transform->func_id.args.fakeQuantize.input_low;
+            auto input_high  = transform->func_id.args.fakeQuantize.input_high;
+            auto output_low  = transform->func_id.args.fakeQuantize.output_low;
+            auto output_high = transform->func_id.args.fakeQuantize.output_high;
+            auto levels  = transform->func_id.args.fakeQuantize.levels;
+            // TODO: this special modification for spedup-compute give different result with straight FQ forulae
+            // but this used in referencen graph FakeQuantize implementations so we need to honor it for a while
+            float scaleInput = (input_high - input_low) / (levels-1);
+            float scaleOutputs = (output_high - output_low) / (levels-1);
+
+            for (uint32_t i = num_row_start; i <= num_row_end; i++) {
+                for (uint32_t j = num_col_start; j <= num_col_end; j++) {
+                    auto x = ptr_in[i * num_columns + j];
+                    if (x < std::min(input_low, input_high)) {
+                        ptr_out[i * num_columns + j] = output_low;
+                    } else if (x > std::max(input_low, input_high)) {
+                        ptr_out[i * num_columns + j] = output_high;
+                    } else {
+                        ptr_out[i * num_columns + j] = nearbyint((x - input_low) / scaleInput) * scaleOutputs + output_low;
+                    }
+                }
+            }
+            break;
+        }
         case kActCustom:
-            // break;
-        default:fprintf(stderr, "Unknown piecewise linear function type!\n");
-            throw -1;
+        default:
+            THROW_GNA_EXCEPTION << component->original_layer_name << ", Unknown piecewise linear function type: " << transform->func_id.type;
     }
 }

@@ -14,8 +14,6 @@
 # limitations under the License.
 # ******************************************************************************
 
-cmake_minimum_required (VERSION 3.11)
-
 # set directory where the custom finders live
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake/Modules/")
 
