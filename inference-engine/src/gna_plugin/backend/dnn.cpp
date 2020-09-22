@@ -27,22 +27,6 @@
 #include "runtime/cnn.h"
 
 
-bool GNAPluginNS::backend::isCompatibleDnn(GNAPluginNS::backend::AMIntelDNN dnn1, GNAPluginNS::backend::AMIntelDNN dnn2) {
-    bool isCompatible = true;
-
-    // compare basic structures to see if they are compatible
-    if (dnn1.num_components() != dnn2.num_components()) isCompatible = false;
-    for (int i = 0; i < dnn1.num_components(); i++) {
-        if (dnn1.component[i].num_rows_in != dnn2.component[i].num_rows_in) isCompatible = false;
-        if (dnn1.component[i].num_columns_in != dnn2.component[i].num_columns_in) isCompatible = false;
-        if (dnn1.component[i].num_rows_out != dnn2.component[i].num_rows_out) isCompatible = false;
-        if (dnn1.component[i].num_columns_out != dnn2.component[i].num_columns_out) isCompatible = false;
-        if (dnn1.component[i].operation != dnn2.component[i].operation) isCompatible = false;
-    }
-
-    return (isCompatible);
-}
-
 void GNAPluginNS::backend::ClearScoreError(intel_score_error_t *error) {
     error->num_scores = 0;
     error->num_errors = 0;

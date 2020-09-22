@@ -13,6 +13,7 @@
 #include "backend/gna_types.h"
 #include "gna_permute.hpp"
 #include "gna_lib_ver_selector.hpp"
+#include "gna_copy_layer.hpp"
 
 
 namespace GNAPluginNS {
@@ -208,13 +209,13 @@ class LayerInfo {
         return isOfType("FakeQnatize");
     }
     bool isNonFunctional() const noexcept {
-        return isOfType("reshape") || isOfType("squeeze") || isOfType("unsqueeze");
+        return isOfType("reshape") || isOfType("squeeze") || isOfType("unsqueeze") || isTrivialPermute();
     }
     bool isPermute() const noexcept {
         return isOfType("permute");
     }
     // @brief this not only mathematically trivial, has some WA for kaldi case
-    bool isTrivialPermute() {
+    bool isTrivialPermute() const {
         if (!isPermute()) return false;
 
         auto layerOrder = layer->GetParamAsInts("order");
@@ -276,8 +277,13 @@ class LayerInfo {
         return false;
     }
     bool isCopy() const noexcept {
-        return isOfType("copy");
+        return isOfType(CopyLayerName) || isOfType(DelayedCopyLayerName);
     }
+
+    bool isCopyDelayed() const noexcept {
+        return isOfType(DelayedCopyLayerName);
+    }
+
     size_t paddingSize() const {
         static InferenceEngine::details::caseless_set<std::string> layersWithPossiblePadding = {"FullyConnected",
                                                                         "InnerProduct",
