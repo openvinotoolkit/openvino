@@ -34,10 +34,10 @@ namespace ngraph
                 size_t in_H = in_shape[2];
                 size_t in_W = in_shape[3];
 
-                size_t out_N = in_shape[0];
-                size_t out_C = in_shape[1] * (stride * stride);
-                size_t out_H = in_shape[2] / stride;
-                size_t out_W = in_shape[3] / stride;
+                // Inferce output shape logic:
+                // in_shape [N,C,H,W] -> out_shape [N, C*(stride*stride), H/stride, W/stride]
+                // ReorgYolo imlementation calculates indexes like for backward:
+                // in_shape [N,C,H,W] -> out_shape [N, C/(stride*stride), H*stride, W*stride]
 
                 size_t fake_out_C = in_C / (stride * stride);
                 if (fake_out_C == 0)
