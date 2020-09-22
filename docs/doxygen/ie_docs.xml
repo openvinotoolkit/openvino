@@ -815,7 +815,7 @@
             <!-- IE Python -->
             <tab type="user" title="Inference Engine Python API Reference" url="ie_python_api/annotated.html"/>
             <!-- DL Streamer -->
-            <tab type="user" title="DL Streamer API Reference" url="https://opencv.github.io/gst-video-analytics/"/>
+            <tab type="user" title="DL Streamer API Reference" url="https://openvinotoolkit.github.io/dlstreamer_gst/"/>
 
         </tab>
         <!-- Chinese docs -->
