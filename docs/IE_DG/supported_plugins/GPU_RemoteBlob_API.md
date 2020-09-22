@@ -102,124 +102,15 @@ Refer to the sections below to see pseudo-code of usage examples.
 
 This example uses the OpenCL context obtained from an executable network object.
 
-```cpp
-#define CL_HPP_MINIMUM_OPENCL_VERSION 120
-#define CL_HPP_TARGET_OPENCL_VERSION 120
-
-#include <CL/cl2.hpp>
-#include <gpu/gpu_context_api_ocl.hpp>
-
-...
-
-// initialize the plugin and load the network 
-InferenceEngine::Core ie;
-auto exec_net = ie.LoadNetwork(net, "GPU", config);
-
-// obtain the RemoteContext pointer from the executable network object
-auto cldnn_context = exec_net.GetContext();
-// obtain the OpenCL context handle from the RemoteContext,
-// get device info and create a queue
-cl::Context ctx = std::dynamic_pointer_cast<ClContext>(cldnn_context);
-_device = cl::Device(_context.getInfo<CL_CONTEXT_DEVICES>()[0].get(), true);
-cl::CommandQueue _queue;
-cl_command_queue_properties props = CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE;
-_queue = cl::CommandQueue(_context, _device, props);
-
-// create the OpenCL buffer within the obtained context
-cl::Buffer shared_buffer(ctx, CL_MEM_READ_WRITE, image_size * num_channels, NULL, &err);
-// wrap the buffer into RemoteBlob
-auto shared_blob = gpu::make_shared_blob(input_info->getTensorDesc(), cldnn_context, shared_buffer);
-
-...
-// execute user kernel
-cl::Kernel kernel(program, kernelName.c_str());
-kernel.setArg(0, shared_buffer);
-queue.enqueueNDRangeKernel(kernel,
-							 cl::NDRange(0),
-							 cl::NDRange(image_size),
-							 cl::NDRange(1),
-							 0, // wait events *
-							 &profileEvent);
-queue.finish();
-...
-
-// pass results to the inference
-inf_req_shared.SetBlob(input_name, shared_blob);
-inf_req_shared.Infer();
-
-```
+@snippet openvino/docs/snippets/GPU_RemoteBlob_API0.cpp part0
 
 ### Running GPU Plugin Inference within User-Supplied Shared Context
 
-```cpp
-#define CL_HPP_MINIMUM_OPENCL_VERSION 120
-#define CL_HPP_TARGET_OPENCL_VERSION 120
+@snippet openvino/docs/snippets/GPU_RemoteBlob_API1.cpp part1
 
-#include <CL/cl2.hpp>
-#include <gpu/gpu_context_api_ocl.hpp>
-
-...
-
-cl::Context ctx = get_my_OpenCL_context();
-
-// share the context with GPU plugin and compile ExecutableNetwork
-auto remote_context = gpu::make_shared_context(ie, "GPU", ocl_instance->_context.get());
-auto exec_net_shared = ie.LoadNetwork(net, remote_context);
-auto inf_req_shared = exec_net_shared.CreateInferRequest();
-
-...
-// do OpenCL processing stuff
-...
-
-// run the inference
-inf_req_shared.Infer();
-
-```
 ### Direct Consuming of the NV12 VAAPI Video Decoder Surface on Linux
 
-```cpp
-#include <gpu/gpu_context_api_va.hpp>
-#include <cldnn/cldnn_config.hpp>
-
-...
-
-// initialize the objects
-CNNNetwork network = ie.ReadNetwork(xmlFileName, binFileName);
-
-...
-
-auto inputInfoItem = *inputInfo.begin();
-inputInfoItem.second->setPrecision(Precision::U8);
-inputInfoItem.second->setLayout(Layout::NCHW);
-inputInfoItem.second->getPreProcess().setColorFormat(ColorFormat::NV12);
-
-VADisplay disp = get_VA_Device();
-// create the shared context object
-auto shared_va_context = gpu::make_shared_context(ie, "GPU", disp);
-// compile network within a shared context
-ExecutableNetwork executable_network = ie.LoadNetwork(network,
-													  shared_va_context,
-													  { { CLDNNConfigParams::KEY_CLDNN_NV12_TWO_INPUTS,
-													      PluginConfigParams::YES } });
-
-// decode/inference loop
-for (int i = 0; i < nframes; i++) {
-	...
-	// execute decoding and obtain decoded surface handle
-	decoder.DecodeFrame();
-	VASurfaceID va_surface = decoder.get_VA_output_surface();
-	...
-	//wrap decoder output into RemoteBlobs and set it as inference input
-	auto nv12_blob = gpu::make_shared_blob_nv12(ieInHeight,
-												ieInWidth,
-												shared_va_context,
-												va_surface
-												);
-	inferRequests[currentFrame].SetBlob(input_name, nv12_blob);
-	inferRequests[currentFrame].StartAsync();
-	inferRequests[prevFrame].Wait(InferenceEngine::IInferRequest::WaitMode::RESULT_READY);
-}
-```
+@snippet openvino/docs/snippets/GPU_RemoteBlob_API2.cpp part2
 
 ## See Also
 

@@ -78,6 +78,7 @@ set(SRC
     op_eval/reduce_l1.cpp
     op_eval/reduce_l2.cpp
     op_eval/reorg_yolo.cpp
+    op_eval/roi_align.cpp
     op_eval/softplus.cpp
     op_eval/split.cpp
     op_eval/swish.cpp

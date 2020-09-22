@@ -36,6 +36,7 @@
 #include "memory/gna_allocator.hpp"
 #include "memory/gna_memory_state.hpp"
 #include "gna_model_serial.hpp"
+#include "runtime/gna_float_runtime.hpp"
 
 #if GNA_LIB_VER == 2
 #include <gna2-model-api.h>
@@ -362,7 +363,9 @@ void GNAPlugin::LoadNetwork(ICNNNetwork & _network) {
         passes->registerPass<RemoveConstPass>();
         passes->registerPass<UnrollTIPass>();
         passes->registerPass<RemoveConstPass>();
+        passes->registerPass<InsertIdentityToLSTMCellPass>();
         passes->registerPass<UnrollLSTMCellPass>();
+        passes->registerPass<RemoveSingleInputConcatPass>();
 
         passes->registerPass<SubstitutePReluPass>();
         passes->registerPass<SubstituteSoftSignPass>();
@@ -556,15 +559,15 @@ void GNAPlugin::LoadNetwork(ICNNNetwork & _network) {
             auto irLayerAvatar = std::find_if(
                 graphCompiler.dnnComponents.components.begin(),
                 graphCompiler.dnnComponents.components.end(),
-                [&layer](std::pair<std::string, intel_dnn_component_t> & value) {
-                    return value.first == layer->name;
+                [&layer](const backend::DnnComponents::storage_type::value_type & value) {
+                    return value.name == layer->name;
             });
 
             gnalog() << "[UFS] from : "<< outPort.first <<" reached: " << layer->name << "\n";
 
             // probing gna_primitives
             if (irLayerAvatar != graphCompiler.dnnComponents.components.end()) {
-                initOutput(portId, irLayerAvatar->second, layer);
+                initOutput(portId, irLayerAvatar->dnnComponent, layer);
                 stopSearching = true;
             }
 
@@ -620,9 +623,8 @@ void GNAPlugin::LoadNetwork(ICNNNetwork & _network) {
              1);
 
     // TODO: this copy is unneeded; in fact, we can directly create gna structs from list
-    for (auto &element : graphCompiler.dnnComponents.components) {
-        dnn->component.push_back(element.second);
-    }
+    auto execOrder = graphCompiler.dnnComponents.getExecutionOrder();
+    dnn->component.insert(dnn->component.begin(), execOrder.begin(), execOrder.end());
 
     // in fp32 mode last PWL cannot be computed without that
     dnn->InitActiveList(NULL);
@@ -903,15 +905,28 @@ uint32_t GNAPlugin::QueueInference(const InferenceEngine::BlobMap &inputs, Infer
 
         auto dims = input.second->getTensorDesc().getDims();
 
+        auto  importedElements = is2D ? dims[dims.size() - 1] : dims[dims.size() - 1] * dims[dims.size() - 2] * dims[dims.size() - 3];
+        auto  importedFrames = dims[0];
+        auto  targetGroups = is2D ? dims[dims.size() - 2] : dims[0]; // TODO: no proper support for groups yet
+
+        auto  importedElementSizeBytes = gnaFlags->sw_fp32 ? 4 : 2;
+        auto  importedBytes = importedElements * importedFrames * importedElementSizeBytes;
+
+        if (inputsDesc->bytes_allocated_for_input[input.first] < importedBytes) {
+            THROW_GNA_EXCEPTION << "Cannot import input frames for :" << input.first
+                                  << ", allocated size: " << inputsDesc->bytes_allocated_for_input[input.first]
+                                  << ", but input blob size: " << importedBytes;
+        }
+
         ImportFrames(inputsDesc->getPtrInputsGlobal(input.first)[idx],
                      input.second->cbuffer().as<float *>(),
                      input.second->getTensorDesc().getPrecision(),
                      gnaFlags->sw_fp32 ? 1.0f : inputsDesc->getScaleFactor(inputNum),
                      inputsDesc->getOrientation(input.first),
-                     dims[0],
-                     is2D ? dims[dims.size() - 2] : dims[0],
-                     is2D ? dims[dims.size() - 1] : dims[dims.size() - 1] * dims[dims.size() - 2] * dims[dims.size() - 3],
-                     is2D ? dims[dims.size() - 1] : dims[dims.size() - 1] * dims[dims.size() - 2] * dims[dims.size() - 3]);
+                     importedFrames,
+                     targetGroups,
+                     importedElements,
+                     importedElements);
 
         bool isOneChannel = input.second->getTensorDesc().getDims()[1] == 1;
         if (do_rotate_input && ((inputLayout == Layout::NC || inputLayout == Layout::NCHW)
@@ -929,7 +944,8 @@ uint32_t GNAPlugin::QueueInference(const InferenceEngine::BlobMap &inputs, Infer
     }
 
     if (!gnadevice) {
-        dnn->Propagate();
+        auto runtime = runtime::FP(dnn);
+        runtime.infer();
         if (freeNnet != nnets.end()) {
             std::get<1>(*freeNnet) = 1;
         }
