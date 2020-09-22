@@ -80,6 +80,8 @@ cldnn::device_info clDNNEngine::GetDeviceInfo(const std::map<std::string, std::s
 
 InferenceEngine::ICNNNetwork::Ptr clDNNEngine::CloneAndTransformNetwork(const InferenceEngine::ICNNNetwork& network) const {
     std::shared_ptr<ICNNNetwork> clonedNetwork = cloneNetwork(network);
+    bool baselineIsFP16 = false;
+
     if (clonedNetwork->getFunction()) {
         const auto transformations_callback = [](const std::shared_ptr<const ::ngraph::Node> &node) -> bool {
             // Reshape->Permute->Reshape pattern in theory can change output rank, so this check is added to be sure
@@ -151,13 +153,28 @@ InferenceEngine::ICNNNetwork::Ptr clDNNEngine::CloneAndTransformNetwork(const In
             manager.register_pass<ngraph::pass::ConvertOpSet3ToOpSet2>();
             manager.register_pass<ngraph::pass::ConvertOpSet2ToOpSet1>();
 
-            if (enableInt8) {
-                // [WA part1] Convert quantized FP16 model to FP32 to avoid possible overflow and mixed precision errors
-                manager.register_pass<ngraph::pass::ConvertPrecision>(ngraph::element::f16, ngraph::element::f32);
-            }
 
             manager.set_callback(transformations_callback);
             manager.run_passes(nGraphFunc);
+
+            const auto fp16_callback = [&baselineIsFP16](const std::shared_ptr<const ::ngraph::Node> &node) -> bool {
+                if (!baselineIsFP16 && node->get_output_element_type(0) == ngraph::element::f16) {
+                    baselineIsFP16 = true;
+                }
+
+                return true;
+            };
+
+            ngraph::pass::Manager conversion_manager;
+
+
+            if (enableInt8) {
+                // [WA part1] Convert quantized FP16 model to FP32 to avoid possible overflow and mixed precision errors
+                conversion_manager.register_pass<ngraph::pass::ConvertPrecision>(ngraph::element::f16, ngraph::element::f32);
+            }
+
+            conversion_manager.set_callback(fp16_callback);
+            conversion_manager.run_passes(nGraphFunc);
 
             ngraph::pass::Manager ti_manager;
             // Apply all transformations to TensorIterator body
@@ -203,6 +220,14 @@ InferenceEngine::ICNNNetwork::Ptr clDNNEngine::CloneAndTransformNetwork(const In
         // valid for CNNNetworkImpl only, while there's no API in ICNNNetwork to change network
         ConstTransformer transformator(implNetwork.get());
         transformator.fullTrim();
+    }
+
+    if (baselineIsFP16) {
+        InputsDataMap inputsMap;
+        clonedNetwork->getInputsInfo(inputsMap);
+
+        auto input0 = getInputTo(inputsMap.begin()->second->getInputData());
+        input0.begin()->second->params["FP16"];
     }
 
     return clonedNetwork;
