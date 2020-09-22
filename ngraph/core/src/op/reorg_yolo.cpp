@@ -15,6 +15,8 @@
 //*****************************************************************************
 
 #include "ngraph/op/reorg_yolo.hpp"
+#include "ngraph/runtime/host_tensor.hpp"
+#include "ngraph/runtime/reference/reorg_yolo.hpp"
 
 using namespace std;
 using namespace ngraph;
@@ -59,4 +61,45 @@ bool op::ReorgYolo::visit_attributes(AttributeVisitor& visitor)
 {
     visitor.on_attribute("stride", m_stride);
     return true;
+}
+
+namespace
+{
+    template <element::Type_t ET>
+    inline bool evaluate(const HostTensorPtr& arg,
+                         const HostTensorPtr& out,
+                         const Shape& in_shape,
+                         int64_t stride)
+    {
+        using T = typename element_type_traits<ET>::value_type;
+
+        runtime::reference::reorg_yolo<T>(
+            arg->get_data_ptr<ET>(), out->get_data_ptr<ET>(), in_shape, stride);
+        return true;
+    }
+
+    bool evaluate_reorg_yolo(const HostTensorPtr& arg,
+                             const HostTensorPtr& out,
+                             const Shape& in_shape,
+                             int64_t stride)
+    {
+        bool rc = true;
+        switch (arg->get_element_type())
+        {
+            TYPE_CASE(bf16)(arg, out, in_shape, stride);
+            break;
+            TYPE_CASE(f16)(arg, out, in_shape, stride);
+            break;
+            TYPE_CASE(f32)(arg, out, in_shape, stride);
+            break;
+        default: rc = false; break;
+        }
+        return rc;
+    }
+}
+
+bool op::v0::ReorgYolo::evaluate(const HostTensorVector& outputs,
+                                 const HostTensorVector& inputs) const
+{
+    return evaluate_reorg_yolo(inputs[0], outputs[0], inputs[0]->get_shape(), get_stride());
 }
