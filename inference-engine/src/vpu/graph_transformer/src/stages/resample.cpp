@@ -18,13 +18,6 @@ VPU_DECLARE_ENUM(ResampleType,
     Cubic = 2
 )
 
-VPU_DECLARE_ENUM(ResampleShapeCalcMode,
-    // nearest neighbor 
-    sizes = 0,
-    // cubic interpolation
-    scales = 1
-)
-
 VPU_DECLARE_ENUM(ResampleCoordTransMode,
     // the coordinate in the original tensor axis `x` is calculated as `((x_resized + 0.5) / scale[x]) - 0.5`
     half_pixel = 0,
@@ -49,6 +42,13 @@ VPU_DECLARE_ENUM(ResampleNearestMode,
     ceil = 3,
     // this mode behaves as `ceil` mode when `Interpolate` is downsample, and as dropping the fractional part otherwise
     simple = 4
+)
+
+VPU_DECLARE_ENUM(ResampleShapeCalcMode,
+    // nearest neighbor 
+    sizes = 0,
+    // cubic interpolation
+    scales = 1
 )
 
 VPU_DECLARE_ENUM(ResampleAxis,
@@ -93,8 +93,9 @@ private:
     }
 
     void serializeParamsImpl(BlobSerializer& serializer) const override {
-        auto antialias = attrs().get<bool>("antialias");
         auto factor = attrs().get<float>("factor");
+        auto antialias = attrs().get<bool>("antialias");
+        auto axis = attrs().get<ResampleAxis>("resampleAxis");
         auto sampleType = attrs().get<ResampleType>("type");
         auto sampleNearestMode = attrs().get<ResampleNearestMode>("nearestMode");
         auto sampleShapeCalcMode = attrs().get<ResampleShapeCalcMode>("shapeCalcMode");
@@ -118,7 +119,7 @@ private:
     int32_t pad_begin;
     int32_t antialias;
     int32_t align_corners;
-    
+
     float cube_coeff;
 
     ResampleType operation_type;
@@ -164,6 +165,23 @@ void FrontEnd::parseResample(const Model& model, const ie::CNNLayerPtr& layer, c
         stage->attrs().set<ResampleNearestMode>("nearestMode", ResampleNearestMode::simple);
     } else {
         VPU_THROW_EXCEPTION << "Layer with name " << layer->name << " doesn't support this resample nearest mode variant";
+    }
+
+    auto resampleAxis = layer->GetParamAsString("resampleAxis", "caffe.ResampleParameter.along_b");
+    if (cmp(nnMode, "caffe.ResampleParameter.along_b")) {
+        stage->attrs().set<ResampleNearestMode>("resampleAxis", ResampleAxis::along_b);
+    } else if (cmp(nnMode, "caffe.ResampleParameter.along_f")) {
+        stage->attrs().set<ResampleNearestMode>("resampleAxis", ResampleAxis::along_f);
+    } else if (cmp(nnMode, "caffe.ResampleParameter.along_x")) {
+        stage->attrs().set<ResampleNearestMode>("resampleAxis", ResampleAxis::along_x);
+    } else if (cmp(nnMode, "caffe.ResampleParameter.along_y")) {
+        stage->attrs().set<ResampleNearestMode>("resampleAxis", ResampleAxis::along_y);
+    } else if (cmp(nnMode, "caffe.ResampleParameter.along_z")) {
+        stage->attrs().set<ResampleNearestMode>("resampleAxis", ResampleAxis::along_z);
+    } else if (cmp(nnMode, "caffe.ResampleParameter.along_w")) {
+        stage->attrs().set<ResampleNearestMode>("resampleAxis", ResampleAxis::along_w);
+    } else {
+        VPU_THROW_EXCEPTION << "Layer with name " << layer->name << " doesn't support this axis";
     }
 
     auto shapeCalcMode = layer->GetParamAsString("shapeCalcMode", "caffe.ResampleParameter.sizes");
