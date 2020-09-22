@@ -42,7 +42,9 @@ namespace ngraph
                 size_t fake_out_C = in_C / (stride * stride);
                 if (fake_out_C == 0)
                 {
-                    throw ngraph_error("ReorgYolo. For [N, C, H, W] input shape, C >= (stride*stride) is required.");
+                    throw ngraph_error(
+                        "ReorgYolo. For [N, C, H, W] input shape, C >= (stride*stride) is "
+                        "required.");
                 }
                 size_t fake_out_H = in_H * stride;
                 size_t fake_out_W = in_W * stride;
@@ -56,14 +58,15 @@ namespace ngraph
                             for (size_t w = 0; w < in_W; ++w)
                             {
                                 size_t dest_index = w + in_W * (h + in_H * (c + in_C * n));
-                                
+
                                 size_t new_c = c % fake_out_C;
                                 size_t offset = c / fake_out_C;
 
                                 size_t new_w = w * stride + offset % stride;
                                 size_t new_h = h * stride + offset / stride;
                                 size_t arg_index =
-                                    new_w + fake_out_W * (new_h + fake_out_H * (new_c + fake_out_C * n));
+                                    new_w +
+                                    fake_out_W * (new_h + fake_out_H * (new_c + fake_out_C * n));
 
                                 out[dest_index] = arg[arg_index];
                             }

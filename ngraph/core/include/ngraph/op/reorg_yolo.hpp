@@ -44,9 +44,8 @@ namespace ngraph
                     clone_with_new_inputs(const OutputVector& new_args) const override;
 
                 int64_t get_stride() const { return m_stride; }
-
                 bool evaluate(const HostTensorVector& outputs,
-                                 const HostTensorVector& inputs) const;
+                              const HostTensorVector& inputs) const;
 
             private:
                 int64_t m_stride;
