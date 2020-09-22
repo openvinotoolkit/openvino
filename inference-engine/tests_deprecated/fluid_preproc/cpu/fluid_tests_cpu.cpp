@@ -323,8 +323,12 @@ static const auto PATCH_SIZES =
                           cv::Size(80, 160))); // 80 - person-attributes-recognition-crossroad-0031
                                                // 64 - person-reidentification-retail-0079
 
+static const auto U8toU8 = std::make_pair(IE::Precision::U8,IE::Precision::U8);
+
+static const auto PRECISIONS = Values(U8toU8, std::make_pair(IE::Precision::FP32,IE::Precision::FP32));
+
 INSTANTIATE_TEST_CASE_P(ReorderResize_Frame, PreprocTest,
-                        Combine(Values(IE::Precision::U8, IE::Precision::FP32),
+                        Combine(PRECISIONS,
                                 Values(IE::ResizeAlgorithm::RESIZE_BILINEAR), // AREA is not there yet
                                 Values(IE::ColorFormat::RAW),
                                 Values(IE::Layout::NHWC),
@@ -333,7 +337,7 @@ INSTANTIATE_TEST_CASE_P(ReorderResize_Frame, PreprocTest,
                                 FRAME_SIZES));
 
 INSTANTIATE_TEST_CASE_P(Scale3ch_Frame, PreprocTest,
-                        Combine(Values(IE::Precision::U8, IE::Precision::FP32),
+                        Combine(PRECISIONS,
                                 Values(IE::ResizeAlgorithm::RESIZE_BILINEAR), // AREA is not there yet
                                 Values(IE::ColorFormat::RAW),
                                 Values(IE::Layout::NHWC),
@@ -342,7 +346,7 @@ INSTANTIATE_TEST_CASE_P(Scale3ch_Frame, PreprocTest,
                                 FRAME_SIZES));
 
 INSTANTIATE_TEST_CASE_P(ReorderResize_Patch, PreprocTest,
-                        Combine(Values(IE::Precision::U8, IE::Precision::FP32),
+                        Combine(PRECISIONS,
                                 Values(IE::ResizeAlgorithm::RESIZE_BILINEAR), // AREA is not there yet
                                 Values(IE::ColorFormat::RAW),
                                 Values(IE::Layout::NHWC),
@@ -351,7 +355,7 @@ INSTANTIATE_TEST_CASE_P(ReorderResize_Patch, PreprocTest,
                                 PATCH_SIZES));
 
 INSTANTIATE_TEST_CASE_P(Everything_Resize, PreprocTest,
-                        Combine(Values(IE::Precision::U8, IE::Precision::FP32),
+                        Combine(PRECISIONS,
                                 Values(IE::ResizeAlgorithm::RESIZE_BILINEAR, IE::ResizeAlgorithm::RESIZE_AREA),
                                 Values(IE::ColorFormat::RAW),
                                 Values(IE::Layout::NHWC, IE::Layout::NCHW),
@@ -363,7 +367,7 @@ INSTANTIATE_TEST_CASE_P(Everything_Resize, PreprocTest,
                                 Values(TEST_SIZES_PREPROC)));
 
 INSTANTIATE_TEST_CASE_P(ColorFormats_3ch, PreprocTest,
-                        Combine(Values(IE::Precision::U8, IE::Precision::FP32),
+                        Combine(PRECISIONS,
                                 Values(IE::ResizeAlgorithm::RESIZE_BILINEAR, IE::ResizeAlgorithm::RESIZE_AREA),
                                 Values(IE::ColorFormat::RGB),
                                 Values(IE::Layout::NHWC, IE::Layout::NCHW),
@@ -372,7 +376,7 @@ INSTANTIATE_TEST_CASE_P(ColorFormats_3ch, PreprocTest,
                                 Values(TEST_SIZES_PREPROC)));
 
 INSTANTIATE_TEST_CASE_P(ColorFormats_4ch, PreprocTest,
-                        Combine(Values(IE::Precision::U8, IE::Precision::FP32),
+                        Combine(PRECISIONS,
                                 Values(IE::ResizeAlgorithm::RESIZE_BILINEAR, IE::ResizeAlgorithm::RESIZE_AREA),
                                 Values(IE::ColorFormat::BGRX, IE::ColorFormat::RGBX),
                                 Values(IE::Layout::NHWC),
@@ -381,10 +385,35 @@ INSTANTIATE_TEST_CASE_P(ColorFormats_4ch, PreprocTest,
                                 Values(TEST_SIZES_PREPROC)));
 
 INSTANTIATE_TEST_CASE_P(ColorFormat_NV12, PreprocTest,
-                        Combine(Values(IE::Precision::U8),
+                        Combine(Values(U8toU8),
                                 Values(IE::ResizeAlgorithm::RESIZE_BILINEAR, IE::ResizeAlgorithm::RESIZE_AREA),
                                 Values(IE::ColorFormat::NV12),
                                 Values(IE::Layout::NCHW),
                                 Values(IE::Layout::NHWC, IE::Layout::NCHW),
                                 Values(std::make_pair(1, 3)),
+                                Values(TEST_SIZES_PREPROC)));
+
+
+INSTANTIATE_TEST_CASE_P(DISABLED_PlainPrecisionConversions, PreprocTest,
+                        Combine(Values(std::make_pair(IE::Precision::U16,IE::Precision::FP32),
+                                       std::make_pair(IE::Precision::FP32,IE::Precision::U16)
+                                ),
+                                Values(IE::ResizeAlgorithm::NO_RESIZE),
+                                Values(IE::ColorFormat::RAW),
+                                Values(IE::Layout::NHWC),
+                                Values(IE::Layout::NHWC),
+                                Values(std::make_pair(1, 1)),
+                                Values(std::make_pair(cv::Size(640,480), cv::Size(640,480)))));
+
+
+INSTANTIATE_TEST_CASE_P(PrecisionConversionsPipelines, PreprocTest,
+                        Combine(Values(std::make_pair(IE::Precision::U16, IE::Precision::FP32),
+                                       std::make_pair(IE::Precision::FP32,IE::Precision::U8),
+                                       std::make_pair(IE::Precision::U8,  IE::Precision::FP32)
+                                ),
+                                Values(IE::ResizeAlgorithm::RESIZE_BILINEAR),
+                                Values(IE::ColorFormat::RAW),
+                                Values(IE::Layout::NHWC, IE::Layout::NCHW),
+                                Values(IE::Layout::NHWC, IE::Layout::NCHW),
+                                Values(std::make_pair(1, 1)/*, std::make_pair(3, 3)*/), //U16 Split and Merge are not there
                                 Values(TEST_SIZES_PREPROC)));

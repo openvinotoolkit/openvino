@@ -48,9 +48,16 @@ struct ColorConvertYUV420TestIE:
                                              double>>                       // tolerance
 {};
 
+struct PrecisionConvertTestIE: public TestParams<std::tuple<cv::Size,
+                                                            int,     // input  matrix depth
+                                                            int,     // output matrix depth
+                                                            double>> // tolerance
+{};
+
 //------------------------------------------------------------------------------
 
-using PreprocParams = std::tuple< InferenceEngine::Precision     // input-output data type
+using PreprocParams = std::tuple< std::pair<InferenceEngine::Precision     // input data type
+                                           , InferenceEngine::Precision>   // output data type
                                 , InferenceEngine::ResizeAlgorithm // resize algorithm, if needed
                                 , InferenceEngine::ColorFormat // input color format, if needed
                                 , InferenceEngine::Layout        // input tensor layout

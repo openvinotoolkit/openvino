@@ -30,10 +30,12 @@
 
 namespace InferenceEngine {
 namespace {
+int get_cv_depth(const TensorDesc &ie_desc);
+
 namespace G {
     struct Strides {int N; int C; int H; int W;};
     struct Dims    {int N; int C; int H; int W;};
-    struct Desc    {Dims d; Strides s;};
+    struct Desc    {Dims d; Strides s; int prec;};
 
     void fix_strides_nhwc(const Dims &d, Strides &s) {
         if (s.W > d.C) {
@@ -66,7 +68,7 @@ namespace G {
 
         if (nhwc_layout) fix_strides_nhwc(d, s);
 
-        return Desc{d, s};
+        return Desc{d, s, get_cv_depth(ie_desc)};
     }
 
     Desc decompose(const Blob::Ptr& blob) {
@@ -78,6 +80,8 @@ inline int get_cv_depth(const TensorDesc &ie_desc) {
     switch (ie_desc.getPrecision()) {
     case Precision::U8:   return CV_8U;
     case Precision::FP32: return CV_32F;
+    case Precision::U16:  return CV_16U;
+
     default: THROW_IE_EXCEPTION << "Unsupported data type";
     }
 }
@@ -371,6 +375,7 @@ G::Desc getGDesc(G::Desc in_desc_y, const NV12Blob::Ptr &) {
     auto nv12_desc = G::Desc{};
     nv12_desc.d = in_desc_y.d;
     nv12_desc.d.C = 2;
+    nv12_desc.prec = in_desc_y.prec;
 
     return nv12_desc;
 }
@@ -379,6 +384,7 @@ G::Desc getGDesc(G::Desc in_desc_y, const I420Blob::Ptr &) {
     auto i420_desc = G::Desc{};
     i420_desc.d = in_desc_y.d;
     i420_desc.d.C = 3;
+    i420_desc.prec = in_desc_y.prec;
 
     return i420_desc;
 }
@@ -543,8 +549,7 @@ cv::GComputation buildGraph(const G::Desc &in_desc,
                             Layout out_layout,
                             ResizeAlgorithm algorithm,
                             ColorFormat input_color_format,
-                            ColorFormat output_color_format,
-                            int precision) {
+                            ColorFormat output_color_format) {
     // perform basic validation to ensure our assumptions about input and output are correct
     validateColorFormats(in_desc, out_desc, in_layout, out_layout, input_color_format,
         output_color_format);
@@ -569,7 +574,7 @@ cv::GComputation buildGraph(const G::Desc &in_desc,
                               (io_color_formats == std::make_tuple(ColorFormat::BGRX, ColorFormat::BGR));
     const bool specific_case_of_preproc = ((in_layout == NHWC || specific_yuv420_input_handling)
                                         && (in_desc.d.C == 3 || specific_yuv420_input_handling || drop_channel)
-                                        && (precision == CV_8U)
+                                        && ((in_desc.prec == CV_8U) && (in_desc.prec == out_desc.prec))
                                         && (algorithm == RESIZE_BILINEAR)
                                         && (input_color_format == ColorFormat::RAW
                                             || input_color_format == output_color_format
@@ -591,9 +596,9 @@ cv::GComputation buildGraph(const G::Desc &in_desc,
 
         auto planes = drop_channel ?
                 to_vec(gapi::ScalePlanes4:: on(
-                        color_converted_input[0], precision, input_sz, scale_sz, cv::INTER_LINEAR))
+                        color_converted_input[0], in_desc.prec, input_sz, scale_sz, cv::INTER_LINEAR))
               : to_vec(gapi::ScalePlanes  ::on(
-                        color_converted_input[0], precision, input_sz, scale_sz, cv::INTER_LINEAR));
+                        color_converted_input[0], in_desc.prec, input_sz, scale_sz, cv::INTER_LINEAR));
 
         if (drop_channel) {
             planes.pop_back();
@@ -623,8 +628,13 @@ cv::GComputation buildGraph(const G::Desc &in_desc,
                            << number_of_planes << " != " << out_desc.d.C;
     }
 
+    const int tmp_prec = CV_32F;
+
     std::vector<cv::GMat> outputs;
-    if (algorithm != NO_RESIZE) {
+    const bool resize_needed = (algorithm != NO_RESIZE);
+    const bool need_tmp_prec_conv = resize_needed && (in_desc.prec != CV_8U) && (in_desc.prec != CV_32F);
+
+    if (resize_needed) {
         // resize every plane
         std::vector<cv::GMat> out_planes;
         out_planes.reserve(planes.size());
@@ -635,18 +645,36 @@ cv::GComputation buildGraph(const G::Desc &in_desc,
             default: THROW_IE_EXCEPTION << "Unsupported resize operation";
             }
         } (algorithm);
-        const auto input_sz  = cv::gapi::own::Size(in_desc.d.W, in_desc.d.H);
-        const auto scale_sz  = cv::gapi::own::Size(out_desc.d.W, out_desc.d.H);
-        const auto scale_fcn = std::bind(&gapi::ScalePlane::on,
-                                        std::placeholders::_1,
-                                        precision,
-                                        input_sz, scale_sz, interp_type);
-        std::transform(planes.begin(), planes.end(), std::back_inserter(out_planes), scale_fcn);
+
+        std::transform(planes.begin(), planes.end(), std::back_inserter(out_planes), [&](const cv::GMat& m) {
+            const auto input_sz  = cv::gapi::own::Size(in_desc.d.W, in_desc.d.H);
+            const auto scale_sz  = cv::gapi::own::Size(out_desc.d.W, out_desc.d.H);
+
+            cv::GMat converted = m;
+            int prec = in_desc.prec;
+
+            if (need_tmp_prec_conv) {
+                std::tie(converted, prec) = std::make_tuple(gapi::ConvertDepth::on(m, tmp_prec), tmp_prec);
+            }
+
+            return gapi::ScalePlane::on(converted, prec, input_sz, scale_sz, interp_type);
+        });
         outputs = out_planes;
     } else {
         outputs = planes;
     }
 
+    if ((in_desc.prec != out_desc.prec) || need_tmp_prec_conv) {
+        auto convert_prec = [](const std::vector<cv::GMat> & src_gmats, int dst_precision) {
+            std::vector<cv::GMat> dst_gmats;
+            std::transform(src_gmats.begin(), src_gmats.end(), std::back_inserter(dst_gmats), [&](cv::GMat const& m){
+                return gapi::ConvertDepth::on(m, dst_precision);
+            });
+            return dst_gmats;
+        };
+
+        outputs = convert_prec(outputs, out_desc.prec);
+    }
     // convert to interleaved if NHWC is required as output
     if (out_layout == NHWC) {
         outputs = merge(outputs, out_desc.d.C);
@@ -939,8 +967,7 @@ bool PreprocEngine::preprocessBlob(const BlobTypePtr &inBlob, MemoryBlob::Ptr &o
                            out_layout,
                            algorithm,
                            in_fmt,
-                           out_fmt,
-                           get_cv_depth(in_desc_ie)));
+                           out_fmt));
         }
     }
 
@@ -953,7 +980,7 @@ bool PreprocEngine::preprocessBlob(const BlobTypePtr &inBlob, MemoryBlob::Ptr &o
     return true;
 }
 
-bool PreprocEngine::preprocessWithGAPI(Blob::Ptr &inBlob, Blob::Ptr &outBlob,
+bool PreprocEngine::preprocessWithGAPI(const Blob::Ptr &inBlob, Blob::Ptr &outBlob,
         const ResizeAlgorithm& algorithm, ColorFormat in_fmt, bool omp_serial, int batch_size) {
     if (!useGAPI()) {
         return false;
