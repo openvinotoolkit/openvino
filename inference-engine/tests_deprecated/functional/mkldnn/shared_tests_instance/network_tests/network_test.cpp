@@ -71,10 +71,11 @@ std::map<std::string, ModelParams> modelParams = {
                 "mobilenet_v2_tf_depthwise",
                 "mobilenet_v2_1.4_224/mobilenet_v2_1.4_224_i8.xml",
                 "validation_set/224x224/dog.bmp",
+                // original (FP32, no LPT) output tensor
                 {{ 157, 8.63748 },
                  { 219, 6.29954 },
-                 { 216, 4.7303 },
-                 { 218, 4.69319 },
+                 { 216, 4.7303 },   // Windows, Linux: {218, 4.75413}
+                 { 218, 4.69319 },  // Windows, Linux: {216, 4.75355}
                  { 220, 3.67249 }},
                 {},
                 [](const TransformationsParams& transformationsParam, CNNNetworkImplPtr usedNetwork) {
@@ -159,14 +160,14 @@ INSTANTIATE_TEST_CASE_P(
         smoke_MobileNet,
         ModelTransformationsTest,
         ::testing::Values(
-                TransformationsParams("CPU", getModelParams("mobilenet_v2_tf_depthwise"), 1ul, false),
+                TransformationsParams("CPU", getModelParams("mobilenet_v2_tf_depthwise"), 1ul, false, false, createParamU8I8(), {}, 2),
 // TODO: eshoguli: fix this issue
 //                TransformationsParams("CPU", getModelParams("mobilenet_v2_tf_depthwise"), 1ul, false, true, createParamI8I8()),
 //                TransformationsParams("CPU", getModelParams("mobilenet_v2_tf_depthwise"), 1ul, false, true, createParamU8I8()),
 //                TransformationsParams("CPU", getModelParams("mobilenet_v2_tf_depthwise"), 1ul, false, true, createParamU8U8(), {}, 2),
 //                TransformationsParams("CPU", getModelParams("mobilenet_v2_tf_depthwise"), 1ul, false, true, createParamCpu(), { "464/Pool", "465/Pool" }),
-                TransformationsParams("CPU", getModelParams("mobilenet_v2_tf_depthwise"), 1ul, true),
-                TransformationsParams("CPU", getModelParams("mobilenet_v2_tf_depthwise"), 2ul, true)
+                TransformationsParams("CPU", getModelParams("mobilenet_v2_tf_depthwise"), 1ul, true, false, createParamU8I8(), {}, 2),
+                TransformationsParams("CPU", getModelParams("mobilenet_v2_tf_depthwise"), 2ul, true, false, createParamU8I8(), {}, 2)
         ),
         TransformationsParams::getLowPrecisionTransformerSingleLayerTestName);
 
