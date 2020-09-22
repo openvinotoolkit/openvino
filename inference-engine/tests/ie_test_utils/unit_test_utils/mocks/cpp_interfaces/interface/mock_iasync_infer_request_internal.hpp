@@ -26,4 +26,5 @@ public:
     MOCK_CONST_METHOD2(GetPreProcess, void(const char* name, const InferenceEngine::PreProcessInfo**));
     MOCK_METHOD1(SetCompletionCallback, void(InferenceEngine::IInferRequest::CompletionCallback));
     MOCK_METHOD1(SetBatch, void(int));
+    MOCK_METHOD2(SetShape, void(const char *name, const InferenceEngine::SizeVector&));
 };

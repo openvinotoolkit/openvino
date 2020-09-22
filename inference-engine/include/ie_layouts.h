@@ -196,8 +196,8 @@ public:
      */
     void reshape(const SizeVector& dims, Layout layout = Layout::ANY);
 
-    void reshape(const std::initializer_list<size_t>& dims, Layout layout = Layout::ANY) {
-        return reshape(SizeVector(dims), layout);
+    void reshape(const std::initializer_list<size_t>& _dims, Layout _layout = Layout::ANY) {
+        return reshape(SizeVector(_dims), _layout);
     }
 
     void reshape(const ngraph::PartialShape& shape, Layout layout = Layout::ANY);

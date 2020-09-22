@@ -75,12 +75,12 @@ runtime::interpreter::INTExecutable::INTExecutable(const shared_ptr<Function>& f
         return retval;
     };
     pass::Manager pass_manager;
-    // pass_manager.register_pass<pass::LikeReplacement>();
-    // pass_manager.register_pass<pass::FusedOpDecomposition>(is_supported);
-    // pass_manager.register_pass<pass::Opset1Downgrade>();
-    // pass_manager.register_pass<pass::Opset0Downgrade>();
+    pass_manager.register_pass<pass::LikeReplacement>();
+    pass_manager.register_pass<pass::FusedOpDecomposition>(is_supported);
+    pass_manager.register_pass<pass::Opset1Downgrade>();
+    pass_manager.register_pass<pass::Opset0Downgrade>();
     // Need to decompose any v0 fused ops, which were produced by the downgrade pass
-    // pass_manager.register_pass<pass::FusedOpDecomposition>(is_supported);
+    pass_manager.register_pass<pass::FusedOpDecomposition>(is_supported);
     pass_manager.run_passes(m_function);
     for (auto node : m_function->get_ordered_ops())
     {
@@ -111,7 +111,6 @@ bool runtime::interpreter::INTExecutable::call(const vector<shared_ptr<runtime::
     for (auto tensor : outputs)
     {
         auto host_tensor = static_pointer_cast<runtime::HostTensor>(tensor);
-        NGRAPH_CHECK(host_tensor, "Host tensor is unexpectedly nullptr");
         func_outputs.push_back(host_tensor);
     }
 
