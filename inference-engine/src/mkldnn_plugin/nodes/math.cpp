@@ -51,9 +51,6 @@ public:
             if (layer->insData.size() != 1)
                 THROW_IE_EXCEPTION << layer->name << " Incorrect number of input edges!";
 
-            if (layer->insData[0].lock()->getTensorDesc().getPrecision() != Precision::FP32)
-                THROW_IE_EXCEPTION << layer->name << " Incorrect input precision. Only FP32 is supported!";
-
             if (layer->insData[0].lock()->getTensorDesc().getDims() != layer->outData[0]->getTensorDesc().getDims())
                 THROW_IE_EXCEPTION << layer->name << " Incorrect number of input/output dimensions!";
 
@@ -88,7 +85,7 @@ public:
             else
                 THROW_IE_EXCEPTION << layer->name << " Incorrect Math layer type!";
 
-            addConfig(layer, { { ConfLayout::PLN, false, 0 } }, { { ConfLayout::PLN, false, 0 } });
+            addConfig(layer, {DataConfigurator(ConfLayout::PLN, Precision::FP32)}, {DataConfigurator(ConfLayout::PLN, Precision::FP32)});
         } catch (InferenceEngine::details::InferenceEngineException &ex) {
             errorMsg = ex.what();
         }
