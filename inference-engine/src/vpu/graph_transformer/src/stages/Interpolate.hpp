@@ -65,12 +65,6 @@ private:
     void cubic(const uint8_t *in_ptr_, uint8_t *out_ptr_, int batch, int channel, int IH, int IW,
                     float fx, float fy, int OH, int OW, float a);
 
-    // build indices table
-    void buildIndexTableNN(SizeVector& srcDimPad, SizeVector& dstDim, std::vector<float>& scales);
-    void buildIndexTableLinearOnnx(SizeVector& srcDimPad, SizeVector& dstDim, std::vector<float>& scales);
-    void buidIndexTableLinear(SizeVector& srcDimPad, SizeVector& dstDim, std::vector<float>& scales, int kernel_width, bool antialias);
-    void buidIndexTableCubic(SizeVector& srcDimPad, SizeVector& dstDim, std::vector<float>& scales, float cubicCoef);
-
     inline float coordTransToInput(int outCoord, float scale, int inShape, int outShape);
     inline int nearestRound(float origin, bool isDown);
     float getValue(size_t offset, InferenceEngine::Precision precision);
@@ -90,7 +84,6 @@ private:
 
     std::vector<int> padBegin;
     std::vector<int> padEnd;
-    std::vector<int> indexTable;
     std::vector<int> axes = {0, 1, 2, 3};
     std::vector<float> scales = {1.f, 1.f, 2.f, 2.f};
 
