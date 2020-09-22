@@ -65,9 +65,9 @@ namespace ngraph
 
                                 size_t impl_w = w * stride + offset % stride;
                                 size_t impl_h = h * stride + offset / stride;
-                                size_t arg_index = n * impl_w * impl_out_C * impl_out_H * impl_out_W +
-                                                   impl_c * impl_out_H * impl_out_W +
-                                                   impl_h * impl_out_W + impl_w;
+                                size_t arg_index =
+                                    n * impl_w * impl_out_C * impl_out_H * impl_out_W +
+                                    impl_c * impl_out_H * impl_out_W + impl_h * impl_out_W + impl_w;
 
                                 out[dest_index] = arg[arg_index];
                             }
