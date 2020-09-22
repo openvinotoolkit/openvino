@@ -22,7 +22,7 @@ bool relax_hc_reshape_followed_by_matmul(const ngraph::pattern::PatternValueMap 
                                          bool reshape_is_A_input) {
     auto reshape_pattern = std::dynamic_pointer_cast<ngraph::opset4::Constant>(pattern_to_output.at(reshape_pattern_label).get_node_shared_ptr());
     const auto & matmul = std::dynamic_pointer_cast<ngraph::opset4::MatMul>(pattern_to_output.at(matmul_label).get_node_shared_ptr());
-    if (!reshape_pattern || !matmul || reshape_pattern->get_shape() != ngraph::Shape{2})
+    if (!reshape_pattern || !matmul)
         return false;
     const auto &shape_source = pattern_to_output.at(other_input_label);
     if (ngraph::is_type<ngraph::opset4::Transpose>(shape_source.get_node_shared_ptr()) ||
@@ -35,9 +35,17 @@ bool relax_hc_reshape_followed_by_matmul(const ngraph::pattern::PatternValueMap 
     const auto & idx = ngraph::normalize_axes(matmul->description(), {raw_idx}, reshape->get_output_partial_shape(0).rank());
     const auto & C = ngraph::op::util::node_to_get_shape_value_of_indices_from_shape_source(shape_source, idx);
     const auto & N = ngraph::opset4::Constant::create(ngraph::element::i64, {1}, {-1});
-    const auto & pattern_vector = reshape_is_A_input ?
+    auto pattern_vector = reshape_is_A_input ?
             (matmul->get_transpose_a() ? ngraph::OutputVector({C, N}) : ngraph::OutputVector({N, C})) :
             (matmul->get_transpose_b() ? ngraph::OutputVector({N, C}) : ngraph::OutputVector({C, N}));
+
+    if (reshape_pattern->get_shape() != ngraph::Shape{2}) {
+        auto old_shape = reshape->get_output_shape(0);
+        old_shape.pop_back();
+        old_shape.pop_back();
+        const auto & D = ngraph::opset4::Constant::create(ngraph::element::i64, {old_shape.size()}, old_shape);
+        pattern_vector.insert(pattern_vector.begin(), D);
+    }
     const auto & new_reshape_pattern = std::make_shared<ngraph::opset4::Concat>(pattern_vector, 0);
 
     new_reshape_pattern->set_friendly_name(reshape_pattern->get_friendly_name());
