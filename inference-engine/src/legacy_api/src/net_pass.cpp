@@ -583,6 +583,12 @@ bool unrollTI(CNNLayerPtr cur, ICNNNetwork& net) {
         auto& rule = first_class[i];
         auto out_data = ti->outData[rule.from];
 
+        if (num == 1) {
+            getInputTo(body_list[0].outputs[rule.to]) = getInputTo(out_data);
+            getInputTo(body_list[0].outputs[rule.to]).begin()->second->insData[0] = body_list[0].outputs[rule.to];
+            continue;
+        }
+
         std::string name = ti->name + ":out_concat_" + std::to_string(i);
         auto concat = std::make_shared<ConcatLayer>(LayerParams {name, "Concat", cur->precision});
         concat->_axis = rule.axis;
