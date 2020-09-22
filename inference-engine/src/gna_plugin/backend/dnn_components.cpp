@@ -18,9 +18,9 @@ intel_dnn_component_t & backend::DnnComponents::addComponent(const std::string l
     components.emplace_back(layerName, intel_dnn_component_t());
     auto &currentComponent = components.back().second;
 #ifdef PLOT
-    currentComponent.original_layer_name = components.back().first.c_str();
     std::cout << "IR layer : " << std::left << std::setw(20) << layerName << " " << layerMetaType << "_" << components.size() - 1 << std::endl;
 #endif
+    currentComponent.original_layer_name = components.back().first.c_str();
     return currentComponent;
 }
 

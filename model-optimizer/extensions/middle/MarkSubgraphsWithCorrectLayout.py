@@ -16,10 +16,14 @@
 import logging as log
 from collections import deque
 
+from typing import Set
+
 from extensions.middle.InsertLayoutPropagationTransposes import InsertLayoutPropagationTranspose, \
     mark_as_correct_data_layout
+from extensions.middle.LayoutChangeForConstantShapePaths import LayoutChangeForConstantShapePaths
 from extensions.middle.pass_separator import PostMiddleStart
 from mo.graph.graph import Graph, Node
+from mo.graph.port import Port
 from mo.middle.replacement import MiddleReplacementPattern
 
 
@@ -121,3 +125,88 @@ class MarkSubGraphsWithCorrectLayout(MiddleReplacementPattern):
             for visited_node in marked_nodes:
                 mark_as_correct_data_layout(visited_node)
                 visited_node['nchw_layout'] = True
+
+        for node in self.get_ports_and_nodes_on_weights(graph)[1]:
+            mark_as_correct_data_layout(node)
+            node['nchw_layout'] = True
+            if node.soft_get('type') == 'Const':  # WA for Const op deletion during clean_up
+                node.out_node()['nchw_layout'] = True
+
+        for node in self.get_ports_and_nodes_on_shape_subgraphs(graph)[1]:
+            mark_as_correct_data_layout(node)
+            node['nchw_layout'] = True
+            if node.soft_get('type') == 'Const':  # WA for Const op deletion during clean_up
+                node.out_node()['nchw_layout'] = True
+
+    @staticmethod
+    def walk_up_from_in_ports_to_out_ports(in_ports: Set[Port], out_ports: Set[Port],
+                                           visited_ports: Set[Port] = None, visited_nodes: Set[Node] = None):
+        """"
+        Returns all intermediate ports and nodes of such a sub-graph:
+
+            out_ports
+            |        |
+           \/       \/
+            .   .   .
+            |        |
+           \/       \/
+            in_ports
+        """
+        if visited_ports is None:
+            visited_ports = set()
+        if visited_nodes is None:
+            visited_nodes = set()
+
+        deque_of_in_ports = deque(in_ports)
+        while len(deque_of_in_ports):
+            in_port = deque_of_in_ports.popleft()
+            source_node = in_port.get_source().node
+            if in_port in visited_ports:  # do not check visited_nodes as search is based on ports
+                continue
+            visited_ports.update({in_port, in_port.get_source()})
+            if in_port.get_source() in out_ports:  # reached source marked to stop the search
+                if not len(in_port.get_source().node.in_ports()):  # for Constants and Parameters to be visited
+                    visited_nodes.add(in_port.get_source().node)
+                continue
+            deque_of_in_ports.extend([port for port in source_node.in_ports().values() if not port.disconnected()])
+            visited_nodes.add(source_node)
+        return visited_ports, visited_nodes
+
+    @staticmethod
+    def get_ports_and_nodes_on_weights(graph):
+        get_weights_port_index = lambda node: node.weights_index if node.has_valid('weights_index') else 1
+        weighted_layer_type_to_in_weights_port = {
+            'Convolution': get_weights_port_index,
+            'DeformableConvolution': get_weights_port_index,
+            'Deconvolution': get_weights_port_index,
+            'BinaryConvolution': get_weights_port_index,
+        }
+        nodes = graph.get_op_nodes()
+        weighted_types = list(weighted_layer_type_to_in_weights_port.keys())
+
+        # collect all input ports with weights
+        weight_ports = set()
+        start_ports = set()
+        for node in nodes:
+            node_type = node.soft_get('type', 'unknown')
+            if node_type not in weighted_types:
+                if node_type in ['Const', 'Parameter', 'ShapeOf']:
+                    start_ports.add(node.out_port(0))
+                continue
+            weight_port_idx = weighted_layer_type_to_in_weights_port[node_type](node)
+            assert node.is_in_port_connected(weight_port_idx), \
+                'Unexpected port configuration of {} node with name=`{}`'.format(node_type,
+                                                                                 node.soft_get('name', node.id))
+            weight_ports.add(node.in_port(weight_port_idx))
+
+        # collect all sub-graphs that start with Constant/Parameter/ShapeOf and end at in_port as weights
+        ports, nodes = MarkSubGraphsWithCorrectLayout.walk_up_from_in_ports_to_out_ports(weight_ports, start_ports)
+        return ports, nodes
+
+    @staticmethod
+    def get_ports_and_nodes_on_shape_subgraphs(graph):
+        shape_sources = {shape_of.out_port(0) for shape_of in graph.get_op_nodes(type='ShapeOf')}
+        end_points = LayoutChangeForConstantShapePaths().find_shape_subgraph_endpoints(
+            [shape.out_port(0) for shape in graph.get_op_nodes(type='ShapeOf')])
+        ports, nodes = MarkSubGraphsWithCorrectLayout.walk_up_from_in_ports_to_out_ports(end_points, shape_sources)
+        return ports, nodes
