@@ -3,7 +3,10 @@
 #
 
 set(CMAKE_SYSTEM_NAME WindowsStore)
-set(CMAKE_SYSTEM_VERSION 10.0)
+
+if (NOT DEFINED CMAKE_SYSTEM_VERSION)
+    set(CMAKE_SYSTEM_VERSION 10.0)
+endif()
 
 if (NOT DEFINED CMAKE_SYSTEM_PROCESSOR)
     set(CMAKE_SYSTEM_PROCESSOR ${CMAKE_HOST_SYSTEM_PROCESSOR})
@@ -20,3 +23,4 @@ set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} /FI\"${CMAKE_CURRENT_BINARY_DIR}/src/uwp.hpp
 
 # UWP setting for package isolation
 # set(CMAKE_VS_GLOBALS "AppContainerApplication=true")
+set(CMAKE_VS_GLOBALS "WindowsTargetPlatformMinVersion=${CMAKE_SYSTEM_VERSION}")
