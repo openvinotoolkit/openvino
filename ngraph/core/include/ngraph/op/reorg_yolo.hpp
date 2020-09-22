@@ -45,7 +45,7 @@ namespace ngraph
 
                 int64_t get_stride() const { return m_stride; }
                 bool evaluate(const HostTensorVector& outputs,
-                              const HostTensorVector& inputs) const;
+                              const HostTensorVector& inputs) const override;
 
             private:
                 int64_t m_stride;
