@@ -25,14 +25,13 @@ std::vector<std::vector<std::vector<size_t>>> inShapes = {
         {{52, 1, 52, 3, 2}, {2}}
 };
 
-std::vector<InferenceEngine::Precision> netPrecisions = {
+std::vector<InferenceEngine::Precision> fpTypes = {
         InferenceEngine::Precision::FP32,
         InferenceEngine::Precision::FP16,
 };
 
-std::vector<ngraph::helpers::InputLayerType> secondaryInputTypes = {
-        ngraph::helpers::InputLayerType::CONSTANT,
-        ngraph::helpers::InputLayerType::PARAMETER,
+std::vector<InferenceEngine::Precision> intTypes = {
+        InferenceEngine::Precision::I32,
 };
 
 std::vector<CommonTestUtils::OpType> opTypes = {
@@ -40,10 +39,20 @@ std::vector<CommonTestUtils::OpType> opTypes = {
         CommonTestUtils::OpType::VECTOR,
 };
 
-std::vector<ngraph::helpers::EltwiseTypes> eltwiseOpTypes = {
+std::vector<ngraph::helpers::EltwiseTypes> eltwiseMathTypesFP = {
         ngraph::helpers::EltwiseTypes::MULTIPLY,
         ngraph::helpers::EltwiseTypes::SUBTRACT,
-        ngraph::helpers::EltwiseTypes::ADD
+        ngraph::helpers::EltwiseTypes::ADD,
+        ngraph::helpers::EltwiseTypes::DIVIDE,
+        ngraph::helpers::EltwiseTypes::SQUARED_DIFF,
+        ngraph::helpers::EltwiseTypes::POWER,
+        ngraph::helpers::EltwiseTypes::FLOOR_MOD,
+};
+
+std::vector<ngraph::helpers::EltwiseTypes> eltwiseMathTypesINT = {
+        ngraph::helpers::EltwiseTypes::MULTIPLY,
+        ngraph::helpers::EltwiseTypes::ADD,
+        ngraph::helpers::EltwiseTypes::DIVIDE,
 };
 
 Config getConfig() {
@@ -55,15 +64,28 @@ Config getConfig() {
     return config;
 }
 
-const auto multiply_params = ::testing::Combine(
-        ::testing::ValuesIn(inShapes),
-        ::testing::ValuesIn(eltwiseOpTypes),
-        ::testing::ValuesIn(secondaryInputTypes),
-        ::testing::ValuesIn(opTypes),
-        ::testing::ValuesIn(netPrecisions),
-        ::testing::Values(CommonTestUtils::DEVICE_MYRIAD),
-        ::testing::Values(getConfig()));
+INSTANTIATE_TEST_CASE_P(EltwiseMathFP,
+                        EltwiseLayerTest,
+                        ::testing::Combine(
+                            ::testing::ValuesIn(inShapes),
+                            ::testing::ValuesIn(eltwiseMathTypesFP),
+                            ::testing::Values(ngraph::helpers::InputLayerType::PARAMETER),
+                            ::testing::ValuesIn(opTypes),
+                            ::testing::ValuesIn(fpTypes),
+                            ::testing::Values(CommonTestUtils::DEVICE_MYRIAD),
+                            ::testing::Values(getConfig())),
+                        EltwiseLayerTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(CompareWithRefs, EltwiseLayerTest, multiply_params, EltwiseLayerTest::getTestCaseName);
+INSTANTIATE_TEST_CASE_P(EltwiseMathInt,
+                        EltwiseLayerTest,
+                        ::testing::Combine(
+                                ::testing::ValuesIn(inShapes),
+                                ::testing::ValuesIn(eltwiseMathTypesINT),
+                                ::testing::Values(ngraph::helpers::InputLayerType::PARAMETER),
+                                ::testing::ValuesIn(opTypes),
+                                ::testing::ValuesIn(intTypes),
+                                ::testing::Values(CommonTestUtils::DEVICE_MYRIAD),
+                                ::testing::Values(getConfig())),
+                        EltwiseLayerTest::getTestCaseName);
 
 }  // namespace
