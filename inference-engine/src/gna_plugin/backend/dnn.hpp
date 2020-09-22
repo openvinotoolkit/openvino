@@ -49,21 +49,6 @@
 namespace GNAPluginNS {
 namespace backend {
 
-void ApplyAffineTransform(intel_dnn_component_t *component, uint32_t *list, uint32_t listsize);
-void ApplyDiagonalTransform(intel_dnn_component_t *component);
-void ApplyRecurrentTransform(intel_dnn_component_t *component, uint32_t row, void *ptr_feedbacks);
-void ApplyConvolutional1DTransform(intel_dnn_component_t *component);
-void ApplyPiecewiseLinearTransform(intel_dnn_component_t *component,
-                                            intel_dnn_number_type_t number_type,
-                                            uint32_t listsize);
-void ApplyPiecewiseLinearTransform(intel_dnn_component_t *component,
-                                            intel_dnn_number_type_t number_type,
-                                            uint32_t listsize,
-                                            uint32_t num_row);
-void ApplyMaxPoolTransform(intel_dnn_component_t *component, intel_dnn_number_type_t number_type);
-void ApplyTranspose(intel_dnn_component_t *component);
-void ApplyCopy(intel_dnn_component_t *component);
-
 void PlotFloatIntDnn(GNAPluginNS::backend::AMIntelDNN *dnn, GNAPluginNS::backend::AMIntelDNN *dnn_int);
 bool isCompatibleDnn(GNAPluginNS::backend::AMIntelDNN dnn1, GNAPluginNS::backend::AMIntelDNN dnn2);
 void ClearScoreError(intel_score_error_t *error);

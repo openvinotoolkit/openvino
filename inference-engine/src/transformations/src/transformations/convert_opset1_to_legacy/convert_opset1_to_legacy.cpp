@@ -51,6 +51,7 @@
 #include <transformations/hswish_decomposition.hpp>
 #include <transformations/reduce_l1_decomposition.hpp>
 #include <transformations/reduce_l2_decomposition.hpp>
+#include <transformations/common_optimizations/fq_mul_fusion.hpp>
 
 #include <ngraph/pass/constant_folding.hpp>
 #include <ngraph/pass/manager.hpp>
@@ -110,6 +111,9 @@ bool ngraph::pass::ConvertOpSet1ToLegacy::run_on_function(std::shared_ptr<ngraph
     manager.register_pass<ngraph::pass::ConvolutionBackpropDataMultiplyFusion>();
     manager.register_pass<ngraph::pass::GroupConvolutionBackpropDataMultiplyFusion>();
     manager.register_pass<ngraph::pass::ConstantFolding>();
+
+    // Multiply the thrird and fourth input instead of the output of FQ with all const inputs
+    manager.register_pass<ngraph::pass::FakeQuantizeMulFusion>();
 
     // Convolution/Deconvolution/FullyConnected fusions
     auto convert_convolutions = manager.register_pass<ngraph::pass::GraphRewrite>();
