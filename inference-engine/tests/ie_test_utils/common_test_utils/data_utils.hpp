@@ -110,7 +110,7 @@ static void fill_data_bbox(float *data, size_t size, int height, int width, floa
  * - With k = 4 numbers resolution will 1/4 so outputs only .0 .25 .50 0.75 and etc.
  */
 template<InferenceEngine::Precision::ePrecision PRC>
-void inline  fill_data_random(InferenceEngine::Blob::Ptr &blob, const uint32_t range = 10, int32_t start_from = 0, const int32_t k = 1) {
+void inline  fill_data_random(InferenceEngine::Blob::Ptr &blob, const uint32_t range = 10, int32_t start_from = 0, const int32_t k = 1, const int seed = 1) {
     using dataType = typename InferenceEngine::PrecisionTrait<PRC>::value_type;
     testing::internal::Random random(1);
     random.Generate(range);
@@ -144,8 +144,7 @@ void inline fill_data_consistently(InferenceEngine::Blob::Ptr &blob, const uint3
 }
 
 template<InferenceEngine::Precision::ePrecision PRC>
-void inline fill_data_random_float(InferenceEngine::Blob::Ptr &blob, const uint32_t range, int32_t start_from, const int32_t k,
-                                   const int seed = 1) {
+void inline fill_data_random_float(InferenceEngine::Blob::Ptr &blob, const uint32_t range, int32_t start_from, const int32_t k, const int seed = 1) {
     using dataType = typename InferenceEngine::PrecisionTrait<PRC>::value_type;
     std::default_random_engine random(seed);
     // 1/k is the resolution of the floating point numbers
@@ -199,13 +198,20 @@ void inline fill_data_float_array(InferenceEngine::Blob::Ptr &blob, const float 
 }
 
 template<>
-void inline fill_data_random<InferenceEngine::Precision::FP32>(InferenceEngine::Blob::Ptr &blob, const uint32_t range, int32_t start_from, const int32_t k) {
-    fill_data_random_float<InferenceEngine::Precision::FP32>(blob, range, start_from, k);
+void inline fill_data_random<InferenceEngine::Precision::FP32>(InferenceEngine::Blob::Ptr &blob,
+                                                               const uint32_t range,
+                                                               int32_t start_from,
+                                                               const int32_t k,
+                                                               const int seed) {
+    fill_data_random_float<InferenceEngine::Precision::FP32>(blob, range, start_from, k, seed);
 }
 
 template<>
-void inline fill_data_random<InferenceEngine::Precision::FP16>(InferenceEngine::Blob::Ptr &blob, const uint32_t range, int32_t start_from, const int32_t k) {
-    fill_data_random_float<InferenceEngine::Precision::FP16>(blob, range, start_from, k);
+void inline fill_data_random<InferenceEngine::Precision::FP16>(InferenceEngine::Blob::Ptr &blob,
+                                                               const uint32_t range,
+                                                               int32_t start_from,
+                                                               const int32_t k, const int seed) {
+    fill_data_random_float<InferenceEngine::Precision::FP16>(blob, range, start_from, k, seed);
 }
 
 }  // namespace CommonTestUtils
