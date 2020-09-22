@@ -80,6 +80,9 @@ uint32_t GNADeviceHelper::propagate(const uint32_t requestConfigId, Gna2Accelera
     checkGna2Status(status1);
     const auto status2 = Gna2RequestEnqueue(requestConfigId, &reqId);
     checkGna2Status(status2);
+
+    unwaitedRequestIds.push_back(reqId);
+
     return reqId;
 }
 
@@ -276,6 +279,7 @@ bool GNADeviceHelper::wait(uint32_t reqId, int64_t millisTimeout) {
         return false;
     }
     checkGna2Status(status);
+    unwaitedRequestIds.erase(std::remove(unwaitedRequestIds.begin(), unwaitedRequestIds.end(), reqId));
 #else
     if (isPerformanceMeasuring) {
         nGNAStatus = GNAWaitPerfRes(nGNAHandle, millisTimeout, reqId, &nGNAPerfResults);
@@ -376,6 +380,14 @@ void GNADeviceHelper::close() {
     GNADeviceClose(nGNAHandle);
     nGNAHandle = 0;
 #else
+    auto requestsToClose = unwaitedRequestIds;
+    for (auto requestId : requestsToClose) {
+        try {
+            wait(requestId);
+        } catch (...) {
+            gnawarn() << "Request with Id " << requestId << " was not awaited successfully";
+        }
+    }
     const auto status = Gna2DeviceClose(nGnaDeviceIndex);
     checkGna2Status(status);
 #endif
