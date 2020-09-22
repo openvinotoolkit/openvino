@@ -142,7 +142,6 @@ bool runtime::interpreter::INTExecutable::call(const vector<shared_ptr<runtime::
     // for each ordered op in the graph
     for (auto op : m_nodes)
     {
-        std::cerr << "Interpret " << op->description() << '\n';
         event::Duration d2(op->description(), "Interpreter");
         if (op::is_parameter(op))
         {

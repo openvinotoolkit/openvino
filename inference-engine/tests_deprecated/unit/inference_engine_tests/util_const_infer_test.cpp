@@ -883,7 +883,7 @@ TEST_F(AdvancedShapeInferTests, canReshapeCHWConst) {
     IE::CNNNetwork cnnNetwork(net);
     initConstLayers({"const"});
 
-    cnnNetwork.reshape(std::map<std::string, ngraph::PartialShape>{})/**/;
+    cnnNetwork.reshape({});
 
     IE::SizeVector expectedDims = {1, 1, 1};
     ASSERT_EQ(getData("data2")->getTensorDesc().getDims(), expectedDims);
