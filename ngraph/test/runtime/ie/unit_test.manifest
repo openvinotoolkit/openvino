@@ -951,6 +951,9 @@ batch_norm_inference_0eps_f64
 batch_norm_inference_f64
 batch_norm_training_0eps_f64
 
+# Floating point exception (core dumped)
+reorg_yolo_catch_small_shape_stride
+
 # Function inputs number differ from number of given inputs
 batch_norm_inference_parameters_duplication
 

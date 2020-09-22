@@ -77,6 +77,7 @@ set(SRC
     op_eval/non_zero.cpp
     op_eval/reduce_l1.cpp
     op_eval/reduce_l2.cpp
+    op_eval/reorg_yolo.cpp
     op_eval/softplus.cpp
     op_eval/split.cpp
     op_eval/swish.cpp
@@ -319,6 +320,7 @@ set(MULTI_TEST_SRC
     backend/reduce_prod.in.cpp
     backend/reduce_sum.in.cpp
     backend/relu.in.cpp
+    backend/reorg_yolo.in.cpp
     backend/replace_slice.in.cpp
     backend/reshape.in.cpp
     backend/reverse_sequence.in.cpp
