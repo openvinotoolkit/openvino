@@ -81,19 +81,20 @@ def bi_directional_shape_broadcasting(input_shape_1: np.array, input_shape_2: np
 
 def explicit_shape_broadcasting(input_shape: np.array, target_shape: np.array, axes_mapping: np.array) -> np.array:
     """
-    Explicit shape broadcasting of input tensor. Resulting shape is equal to target_shape except for axes specified in axes_mapping
+    Explicit shape broadcasting of input tensor. Function only asserts that values are correct.
+    Resulting shape is equal to target_shape.
     :param input_value: input value to broadcast
     :param target_shape: target shape
     :param axes_mapping: a list of axis indices, each index maps an axis from the input_value to axis in the output
     :return: broadcasted shape
     """
     assert np.all(np.diff(axes_mapping) >= 0), "axes_mapping is not sorted"
-    assert axes_mapping == input_shape, "size of axes_mapping does not match to rank of input"
+    assert len(axes_mapping) == len(input_shape), "size of axes_mapping does not match to rank of input"
 
     res = target_shape.copy()
     for i, axis in enumerate(axes_mapping):
         assert axis < len(res), "axis value from axes_mapping exceeds rank of target_shape"
-        res[axis] = input_shape[i]
+        assert res[axis] == input_shape[i], "specified mapping axis in target_shape differs from axis in input_shape"
     return res
 
 

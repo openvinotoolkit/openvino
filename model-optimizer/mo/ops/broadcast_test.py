@@ -29,29 +29,36 @@ from mo.utils.unittest.graph import build_graph, valued_const_with_data, regular
 @generator
 class BroadcastTest(unittest.TestCase):
     @generate(*[
-        ([1], [3, 3], [[1, 1, 1], [1, 1, 1], [1, 1, 1]], None, 'numpy', True),
-        ([1], [3, 3], [3, 3], None, 'numpy', False),
+        ([1], [3, 3], None, 'numpy', [[1, 1, 1], [1, 1, 1], [1, 1, 1]]),
+        ([1], [3, 3], None, 'numpy'),
 
         # shape broadcasting
-        ([1], [2, 2], [1, 2], [0], 'explicit', False),
-        ([1, 7], [5, 2, 7, 3], [5, 1, 7, 3], [1, 2], 'explicit', False),
-        ([2, 1, 3], [5, 2, 7, 3], [2, 1, 3, 3], [0, 1, 2], 'explicit', False),
-        ([2, 1, 3], [5, 2, 7, 3], [5, 2, 1, 3], [1, 2, 3], 'explicit', False),
+        ([1], [1, 2], [0], 'explicit'),
+        ([1, 7], [5, 1, 7, 3], [1, 2], 'explicit'),
+        ([2, 1, 3], [2, 1, 3, 3], [0, 1, 2], 'explicit'),
+        ([2, 1, 3], [5, 2, 1, 3], [1, 2, 3], 'explicit'),
 
         # value broadcasting
-        ([1], [2, 2], [[1, 1]], [0], 'explicit', True),
-        ([[3, 1]], [2, 7, 3], [[[3, 1]], [[3, 1]]], [1, 2], 'explicit', True),  # ref_shape (2, 1, 2)
+        ([1], [1, 2], [0], 'explicit', [[1, 1]]),
 
-        ([[[9, 5, 7]], [[9, 5, 7]]], [2, 2, 7, 3],
-         [[[[9, 5, 7]], [[9, 5, 7]]], [[[9, 5, 7]], [[9, 5, 7]]]],  # ref_out_value
-         [1, 2, 3], 'explicit', True),  # in_shape (2, 1, 3), ref_out_shape (2, 2, 1, 3)
+        ([[3, 1]], [2, 1, 2], [1, 2], 'explicit', [[[3, 1]], [[3, 1]]]),  # ref_shape (2, 1, 2)
 
-        ([[[9, 5, 7]], [[3, 4, 8]]], [2, 2, 7, 3],
-        [[[[9, 9, 9], [5, 5, 5], [7, 7, 7]]], [[[3, 3, 3], [4, 4, 4], [8, 8, 8]]]],  # ref_out_value
-         [0, 1, 2], 'explicit', True),  # in_shape (2, 1, 3), ref_out_shape (2, 1, 3, 3)
+        ([[[9, 5, 7]], [[9, 5, 7]]], [2, 2, 1, 3], [1, 2, 3], 'explicit',  # in_shape (2, 1, 3)
+         [[[[9, 5, 7]], [[9, 5, 7]]], [[[9, 5, 7]], [[9, 5, 7]]]]),        # ref_out_shape (2, 2, 1, 3)
+
+        ([[[9, 5, 7]], [[3, 4, 8]]], [2, 1, 3, 3], [0, 1, 2], 'explicit',             # in_shape (2, 1, 3)
+         [[[[9, 9, 9], [5, 5, 5], [7, 7, 7]]], [[[3, 3, 3], [4, 4, 4], [8, 8, 8]]]]), # ref_out_shape (2, 1, 3, 3)
+
+        # negative tests
+        ([1], [2, 2], [0], 'explicit', None, True),
+        ([1, 7], [5, 2, 7, 3], [1, 2], 'explicit', None, True),
     ])
-    def test_broadcast(self, data, target_shape, ref_out, axes_mapping=None, mode='numpy', val_broadcast=True):
-        input = valued_const_with_data('data', int64_array(data)) if val_broadcast else shaped_data('data', int64_array(data))
+    def test_broadcast(self, data, target_shape, axes_mapping=None, mode='numpy', ref_out=None, test_raising=False):
+        if ref_out is not None:
+            input = valued_const_with_data('data', int64_array(data))
+        else:
+            input = shaped_data('data', int64_array(data))
+
         nodes = {
             **input,
             **valued_const_with_data('target_shape', int64_array(target_shape)),
@@ -68,8 +75,12 @@ class BroadcastTest(unittest.TestCase):
         graph = build_graph(nodes, edges)
 
         broadcast_node = Node(graph, 'broadcast')
+        if test_raising:
+            self.assertRaises(AssertionError, Broadcast.infer, broadcast_node)
+            return
+
         Broadcast.infer(broadcast_node)
-        if val_broadcast:
+        if ref_out is not None:
             self.assertTrue(np.array_equal(broadcast_node.out_node().value, np.array(ref_out)))
         else:
-            self.assertTrue(np.array_equal(broadcast_node.out_node().shape, np.array(ref_out)))
+            self.assertTrue(np.array_equal(broadcast_node.out_node().shape, np.array(target_shape)))
