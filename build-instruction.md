@@ -57,7 +57,7 @@ The software was validated on:
 - CentOS\* 7.4 (64-bit) with default GCC\* 4.8.5
 
 ### Software Requirements
-- [CMake]\* 3.11 or higher
+- [CMake]\* 3.13 or higher
 - GCC\* 4.8 or higher to build the Inference Engine
 - Python 3.5 or higher for Inference Engine Python API wrapper
 - (Optional) [Install Intel® Graphics Compute Runtime for OpenCL™ Driver package 19.41.14441].
@@ -335,7 +335,7 @@ The software was validated on:
   Compiler 2018 Update 3
 
 ### Software Requirements
-- [CMake]\*3.11 or higher
+- [CMake]\*3.13 or higher
 - Microsoft\* Visual Studio 2017, 2019 or [Intel® C++ Compiler] 18.0
 - (Optional) Intel® Graphics Driver for Windows* (26.20) [driver package].
 - Python 3.5 or higher for Inference Engine Python API wrapper
@@ -452,7 +452,7 @@ The software was validated on:
 
 ### Software Requirements
 
-- [CMake]\* 3.11 or higher
+- [CMake]\* 3.13 or higher
 - Clang\* compiler from Xcode\* 10.1 or higher
 - Python\* 3.5 or higher for the Inference Engine Python API wrapper
 
@@ -527,7 +527,7 @@ This section describes how to build Inference Engine for Android x86 (64-bit) op
 
 ### Software Requirements
 
-- [CMake]\* 3.11 or higher
+- [CMake]\* 3.13 or higher
 - Android NDK (this guide has been validated with r20 release)
 
 ### Build Steps
