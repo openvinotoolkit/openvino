@@ -62,3 +62,7 @@ NGRAPH_OP(ShapeOf, op::v3)
 
 NGRAPH_OP(CTCLoss, op::v4)
 NGRAPH_OP(LSTMCell, op::v4)
+
+NGRAPH_OP(GRUSequence, op::v5)
+NGRAPH_OP(LSTMSequence, op::v5)
+NGRAPH_OP(RNNSequence, op::v5)
