@@ -477,7 +477,7 @@ private:
                 sub(reg_work_amount, step);    // work_amount is c
             } else {
                 int dst_stride = blk * jcp_.OW * jcp_.OH * jcp_.dst_data_size;
-                int src_stride = blk * jcp_.IW * jcp_.IH * jcp_.src_data_size;;
+                int src_stride = blk * jcp_.IW * jcp_.IH * jcp_.src_data_size;
                 add(reg_dst, dst_stride);
                 add(reg_src, src_stride);
                 add(reg_src_aux, src_stride);
@@ -1129,8 +1129,8 @@ void MKLDNNInterpolateNode::createPrimitive() {
     size_t dimSize = dstDim.size();
     jcp.OW = dstDim[dimSize - 1];
     jcp.OH = dstDim[dimSize - 2];
-    jcp.IW = srcDim[dimSize - 1];
-    jcp.IH = srcDim[dimSize - 2];
+    jcp.IW = srcDimPad[dimSize - 1];
+    jcp.IH = srcDimPad[dimSize - 2];
 
     if (MKLDNNMemory::GetPlainLayout(getChildEdgeAt(0)->getDims()) == selected_layout) {
         jcp.layout = InterpolateLayoutType::planar;
@@ -1531,6 +1531,16 @@ void MKLDNNInterpolateNode::execute(mkldnn::stream strm) {
     auto srcDimPad5d = to5Dim(srcDimPad);
     auto dstDim5d = to5Dim(dstDim);
 
+    InterpolateLayoutType layout;
+    Layout selected_layout = getParentEdgeAt(DATA_ID)->getDesc().getLayout();
+    if (MKLDNNMemory::GetPlainLayout(getChildEdgeAt(0)->getDims()) == selected_layout) {
+        layout = InterpolateLayoutType::planar;
+    } else if ((selected_layout == NHWC) || (selected_layout == NDHWC)) {
+        layout = InterpolateLayoutType::by_channel;
+    } else {
+        layout = InterpolateLayoutType::block;
+    }
+
     uint8_t *src_data = nullptr;
     std::vector<uint8_t> srcPadded;
     if (hasPad) {
@@ -1542,16 +1552,53 @@ void MKLDNNInterpolateNode::execute(mkldnn::stream strm) {
 
         SizeVector inShapeBlock = getBlockND(srcDim5d);
         SizeVector inShapePadBlock = getBlockND(srcDimPad5d);
-        srcPadded.resize(inShapePadBlock[0] * srcDataSize, 0);
-        uint8_t *src_data_pad = static_cast<uint8_t *>(&srcPadded[0]);
 
-        parallel_for4d(srcDim5d[0], srcDim5d[1], srcDim5d[2], srcDim5d[3], [&](int n, int c, int d, int h) {
-            uint8_t *src = src_data_origin + (inShapeBlock[1] * n + inShapeBlock[2] * c + inShapeBlock[3] * d + inShapeBlock[4] * h) * srcDataSize;
-            uint8_t *srcPad = src_data_pad + (inShapePadBlock[1] * (n + padB0) + inShapePadBlock[2] * (c + padB1) +
-                           inShapePadBlock[3] * (d + padB2) + inShapePadBlock[4] * (h + padB3) + padB4) * srcDataSize;
-            cpu_memcpy(srcPad, src, srcDim5d[4] * srcDataSize);
-        });
-        src_data = src_data_pad;
+        if (layout == InterpolateLayoutType::planar) {
+            srcPadded.resize(inShapePadBlock[0] * srcDataSize, 0);
+            uint8_t *src_data_pad = static_cast<uint8_t *>(&srcPadded[0]);
+            parallel_for4d(srcDim5d[0], srcDim5d[1], srcDim5d[2], srcDim5d[3], [&](int n, int c, int d, int h) {
+                uint8_t *src = src_data_origin + (inShapeBlock[1] * n + inShapeBlock[2] * c + inShapeBlock[3] * d + inShapeBlock[4] * h) * srcDataSize;
+                uint8_t *srcPad = src_data_pad + (inShapePadBlock[1] * (n + padB0) + inShapePadBlock[2] * (c + padB1) +
+                               inShapePadBlock[3] * (d + padB2) + inShapePadBlock[4] * (h + padB3) + padB4) * srcDataSize;
+                cpu_memcpy(srcPad, src, srcDim5d[4] * srcDataSize);
+            });
+            src_data = src_data_pad;
+        } else if (layout == InterpolateLayoutType::by_channel) {
+            srcPadded.resize(inShapePadBlock[0] * srcDataSize, 0);
+            uint8_t *src_data_pad = static_cast<uint8_t *>(&srcPadded[0]);
+            parallel_for4d(srcDim5d[0], srcDim5d[2], srcDim5d[3], srcDim5d[4], [&](int n, int d, int h, int w) {
+                uint8_t *src = src_data_origin + (inShapeBlock[1] * n +
+                                (inShapeBlock[3] * d + inShapeBlock[4] * h + inShapeBlock[5] * w) * srcDim5d[1]) * srcDataSize;
+                uint8_t *srcPad = src_data_pad + (inShapePadBlock[1] * (n + padB0) + (inShapePadBlock[3] * (d + padB2) +
+                                inShapePadBlock[4] * (h + padB3) + inShapePadBlock[5] * (w + padB4)) * srcDimPad5d[1] + padB1) * srcDataSize;
+                cpu_memcpy(srcPad, src, srcDim5d[1] * srcDataSize);
+            });
+            src_data = src_data_pad;
+        } else if (layout == InterpolateLayoutType::block) {
+            size_t blkSize = mayiuse(cpu::avx512_common) ? 16 : 8;
+            size_t CB = div_up(srcDimPad5d[1], blkSize);
+            size_t eltsTotal = srcDimPad5d[0] * CB * srcDimPad5d[2] * srcDimPad5d[3] * srcDimPad5d[4] * blkSize;
+            srcPadded.resize(eltsTotal * srcDataSize, 0x0);
+            uint8_t *src_data_pad = static_cast<uint8_t *>(&srcPadded[0]);
+            if ((srcDim5d[0] != srcDimPad5d[0]) || (srcDim5d[1] != srcDimPad5d[1])) {
+                THROW_IE_EXCEPTION << "Interpolate layer with name '" << getName() <<
+                "' does not support padding on batch and channel dimensions";
+            }
+            parallel_for5d(srcDim5d[0], CB, srcDim5d[2], srcDim5d[3], srcDim5d[4], [&](int n, int cb, int d, int h, int w) {
+                uint8_t *src = src_data_origin + (n * CB * srcDim5d[2] * srcDim5d[3] * srcDim5d[4] * blkSize) * srcDataSize
+                                               + (cb * srcDim5d[2] * srcDim5d[3] * srcDim5d[4] * blkSize) * srcDataSize
+                                               + (d * srcDim5d[3] * srcDim5d[4] * blkSize) * srcDataSize
+                                               + (h * srcDim5d[4] * blkSize) * srcDataSize
+                                               + (w * blkSize) * srcDataSize;
+                uint8_t *srcPad = src_data_pad + (n * CB * srcDimPad5d[2] * srcDimPad5d[3] * srcDimPad5d[4] * blkSize) * srcDataSize
+                                               + (cb * srcDimPad5d[2] * srcDimPad5d[3] * srcDimPad5d[4] * blkSize) * srcDataSize
+                                               + ((d + padB2) * srcDimPad5d[3] * srcDimPad5d[4] * blkSize) * srcDataSize
+                                               + ((h + padB3) * srcDimPad5d[4] * blkSize) * srcDataSize
+                                               + ((w + padB4) * blkSize) * srcDataSize;
+                cpu_memcpy(srcPad, src, blkSize * srcDataSize);
+            });
+            src_data = src_data_pad;
+        }
     } else {
         src_data = src_data_origin;
     }
@@ -1562,13 +1609,11 @@ void MKLDNNInterpolateNode::execute(mkldnn::stream strm) {
     if (dimSize > 2 && (dataScales[0] != 1.f || dataScales[1] != 1.f)) {
         THROW_IE_EXCEPTION << "Interpolate layer only supports resize on spatial dimensions(depth, height and width)";
     }
-    Layout layout = getParentEdgeAt(DATA_ID)->getDesc().getLayout();
-    bool isPlanar = (layout == NC || layout == NCHW || layout == NCDHW) ? true : false;
 
     switch (mode) {
         case InterpolateMode::nearest: {
             if (interpolateKernel) {
-                if (isPlanar) {
+                if (layout == InterpolateLayoutType::planar) {
                     NNPlanar(src_data, dst_data, N, C, ID, IH, IW, OD, OH, OW);
                 } else {
                     NNCGathered(src_data, dst_data, N, C, ID, IH, IW, OD, OH, OW);
@@ -1590,7 +1635,7 @@ void MKLDNNInterpolateNode::execute(mkldnn::stream strm) {
         }
         case InterpolateMode::linear_onnx: {
             if (interpolateKernel) {
-                if (isPlanar) {
+                if (layout == InterpolateLayoutType::planar) {
                     linearOnnxPlanar(src_data, dst_data, N, C, IH, IW, OH, OW);
                 } else {
                     linearOnnxCGathered(src_data, dst_data, N, C, IH, IW, OH, OW);
@@ -2027,9 +2072,12 @@ void MKLDNNInterpolateNode::setValue(uint8_t *base, size_t offset, float value, 
 }
 
 // scale is float(outShape) / float(inShape)
-// strictly consistent with onnx calc manner(div scale, not multiply inverse),
+// strictly consistent with onnx calc manner(div scale, not multiply inverse), given this is done offline
 // the slight precison diff can produce obvious wrong value due to "nearest round" behavior for NN mode
 inline float MKLDNNInterpolateNode::coordTransToInput(int outCoord, float scale, int inShape, int outShape) {
+    if (scale == 1.0f || (inShape == outShape)) {
+        return outCoord;
+    }
     switch (coordTransMode) {
         case InterpolateCoordTransMode::half_pixel: {
             return (outCoord + 0.5f) / scale - 0.5f;
