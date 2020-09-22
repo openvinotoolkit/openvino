@@ -59,7 +59,7 @@ The software was validated on:
 ### Software Requirements
 - [CMake]\* 3.13 or higher
 - GCC\* 4.8 or higher to build the Inference Engine
-- Python 3.5 or higher for Inference Engine Python API wrapper
+- Python 3.6 or higher for Inference Engine Python API wrapper
 - (Optional) [Install Intel® Graphics Compute Runtime for OpenCL™ Driver package 19.41.14441].
 
 ### Build Steps
@@ -338,7 +338,7 @@ The software was validated on:
 - [CMake]\*3.13 or higher
 - Microsoft\* Visual Studio 2017, 2019 or [Intel® C++ Compiler] 18.0
 - (Optional) Intel® Graphics Driver for Windows* (26.20) [driver package].
-- Python 3.5 or higher for Inference Engine Python API wrapper
+- Python 3.6 or higher for Inference Engine Python API wrapper
 
 ### Build Steps
 
@@ -454,7 +454,7 @@ The software was validated on:
 
 - [CMake]\* 3.13 or higher
 - Clang\* compiler from Xcode\* 10.1 or higher
-- Python\* 3.5 or higher for the Inference Engine Python API wrapper
+- Python\* 3.6 or higher for the Inference Engine Python API wrapper
 
 ### Build Steps
 
