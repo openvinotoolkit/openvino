@@ -74,6 +74,7 @@ public:
         SimpleLowPrecisionTransformer transformer;
         transformer.add<ngraph::pass::low_precision::MultiplyToGroupConvolutionTransformation, ngraph::opset1::Multiply>(testValues.params);
         transformer.transform(actualFunction);
+        ngraph::pass::VisualizeTree("C://models//test.actual").run_on_function(actualFunction);
 
         if (testValues.transformed) {
             referenceFunction = ngraph::builder::subgraph::MultiplyToGroupConvolutionFunction::getReference(
@@ -88,6 +89,7 @@ public:
                 testValues.actual.precisionBeforeDequantization,
                 testValues.actual.dequantization);
         }
+        ngraph::pass::VisualizeTree("C://models//test.reference").run_on_function(referenceFunction);
     }
 
     static std::string getTestCaseName(testing::TestParamInfo<MultiplyToGroupConvolutionTransformationTestValues> obj) {
@@ -118,9 +120,9 @@ const std::vector<MultiplyToGroupConvolutionTransformationTestValues> testValues
         },
         {
             ngraph::element::f32,
-            std::make_shared<ngraph::opset1::Constant>(ngraph::element::f32, ngraph::Shape{4, 1, 1, 1, 1}, std::vector<float>{5.4f, 5.4f, 5.4f, 5.4f}),
+            std::make_shared<ngraph::opset1::Constant>(ngraph::element::f32, ngraph::Shape{4, 1, 1, 1, 1}, std::vector<float>{1.f, 1.f, 1.f, 1.f}),
             nullptr,
-            {}
+            {{}, {}, {5.4f}}
         }
     },
     // only multiply
