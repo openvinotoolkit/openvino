@@ -246,6 +246,7 @@ void TensorDesc::reshape(const SizeVector& dims, Layout layout) {
         blockingDesc = BlockingDesc(dims, this->layout);
     }
     this->dims = dims;
+    this->partialShape = ngraph::PartialShape(dims);
 }
 
 void TensorDesc::reshape(const ngraph::PartialShape& shape, Layout layout) {
