@@ -97,8 +97,8 @@ void CNNNetworkNGraphImpl::createDataForResult(const ::ngraph::Output<::ngraph::
             THROW_IE_EXCEPTION << outName << " has zero dimension which is not allowed";
     }
 
-    // TODO: works for static rank only, fix it
-    auto rank = partial_shape.rank().get_length();
+    // TODO: works correctly for static rank only, fix it
+    auto rank = partial_shape.rank().is_static() ? partial_shape.rank().get_length() : 0;
     if (ptr) {
         const auto origLayout = ptr->getTensorDesc().getLayout();
         const auto layout = isCompatible(
