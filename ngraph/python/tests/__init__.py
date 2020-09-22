@@ -122,7 +122,6 @@ xfail_issue_38088 = xfail_test(reason="RuntimeError: Check '((axis >= axis_range
                                       "(axis <= axis_range_max))' failed at "
                                       "/openvino/ngraph/core/src/validation_util.cpp:913: "
                                       "Split Parameter axis <value> out of the tensor rank range <value>.")
-xfail_issue_38089 = xfail_test(reason="RuntimeError: Node 2 contains empty child edge for index 0")
 xfail_issue_38090 = xfail_test(reason="AssertionError: Items types are not equal")
 xfail_issue_38091 = xfail_test(reason="AssertionError: Mismatched elements")
 xfail_issue_38699 = xfail_test(reason="RuntimeError: nGraph does not support the following ONNX operations:"
