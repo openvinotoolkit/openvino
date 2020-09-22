@@ -211,8 +211,6 @@ tests_expected_to_fail = [
         "OnnxBackendNodeModelTest.test_quantizelinear_cpu"),
     (xfail_issue_38087,
         "OnnxBackendNodeModelTest.test_convtranspose_1d_cpu"),
-    (xfail_issue_38091,
-        "OnnxBackendNodeModelTest.test_convtranspose_3d_cpu"),
     (xfail_issue_35923,
         "OnnxBackendNodeModelTest.test_prelu_broadcast_cpu",
         "OnnxBackendNodeModelTest.test_prelu_example_cpu"),
