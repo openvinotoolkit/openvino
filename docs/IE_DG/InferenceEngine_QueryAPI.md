@@ -23,10 +23,7 @@ The `InferenceEngine::ExecutableNetwork` class is also extended to support the Q
 
 ### GetAvailableDevices
 
-```cpp
-InferenceEngine::Core core;
-std::vector<std::string> availableDevices = ie.GetAvailableDevices();
-```
+@snippet openvino/docs/snippets/InferenceEngine_QueryAPI0.cpp part0
 
 The function returns list of available devices, for example:
 ```
@@ -49,10 +46,7 @@ Each device name can then be passed to:
 
 The code below demonstrates how to understand whether `HETERO` device dumps `.dot` files with split graphs during the split stage:
 
-```cpp
-InferenceEngine::Core core;
-bool dumpDotFile = core.GetConfig("HETERO", HETERO_CONFIG_KEY(DUMP_GRAPH_DOT)).as<bool>();
-```
+@snippet openvino/docs/snippets/InferenceEngine_QueryAPI1.cpp part1
 
 For documentation about common configuration keys, refer to `ie_plugin_config.hpp`. Device specific configuration keys can be found in corresponding plugin folders.
 
@@ -60,10 +54,7 @@ For documentation about common configuration keys, refer to `ie_plugin_config.hp
 
 * To extract device properties such as available device, device name, supported configuration keys, and others, use the `InferenceEngine::Core::GetMetric` method:
 
-```cpp
-InferenceEngine::Core core;
-std::string cpuDeviceName = core.GetMetric("GPU", METRIC_KEY(FULL_DEVICE_NAME)).as<std::string>();
-```
+@snippet openvino/docs/snippets/InferenceEngine_QueryAPI2.cpp part2
 
 A returned value looks as follows: `Intel(R) Core(TM) i7-8700 CPU @ 3.20GHz`.
 
@@ -74,28 +65,18 @@ A returned value looks as follows: `Intel(R) Core(TM) i7-8700 CPU @ 3.20GHz`.
 ### GetMetric()
 
 The method is used to get executable network specific metric such as `METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS)`:
-```cpp
-InferenceEngine::Core core;
-auto exeNetwork = core.LoadNetwork(network, "CPU");
-auto nireq = exeNetwork.GetMetric(METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS)).as<unsigned int>();
-```
+
+@snippet openvino/docs/snippets/InferenceEngine_QueryAPI3.cpp part3
 
 Or the current temperature of `MYRIAD` device:
-```cpp
-InferenceEngine::Core core;
-auto exeNetwork = core.LoadNetwork(network, "MYRIAD");
-float temperature = exeNetwork.GetMetric(METRIC_KEY(DEVICE_THERMAL)).as<float>();
-```
+
+@snippet openvino/docs/snippets/InferenceEngine_QueryAPI4.cpp part4
 
 ### GetConfig()
 
 The method is used to get information about configuration values the executable network has been created with:
 
-```cpp
-InferenceEngine::Core core;
-auto exeNetwork = core.LoadNetwork(network, "CPU");
-auto ncores = exeNetwork.GetConfig(PluginConfigParams::KEY_CPU_THREADS_NUM).as<std::string>();
-```
+@snippet openvino/docs/snippets/InferenceEngine_QueryAPI5.cpp part5
 
 ### SetConfig()
 

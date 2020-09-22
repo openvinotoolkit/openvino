@@ -17,16 +17,9 @@ Two categories of API functions:
 
 To list all supported ONNX ops in a specific version and domain, use the `get_supported_operators` 
 as shown in the example below:
-```cpp
-const std::int64_t version = 12;
-const std::string domain = "ai.onnx";
-const std::set<std::string> supported_ops = ngraph::onnx_import::get_supported_operators(version, domain);
 
-for(const auto& op : supported_ops)
-{
-    std::cout << op << std::endl;
-}
-```
+@snippet openvino/docs/snippets/OnnxImporterTutorial0.cpp part0
+
 The above code produces a list of all the supported operators for the `version` and `domain` you specified and outputs a list similar to this:
 ```cpp
 Abs
@@ -36,14 +29,8 @@ Xor
 ```
 
 To determine whether a specific ONNX operator in a particular version and domain is supported by the importer, use the `is_operator_supported` function as shown in the example below:
-```cpp
-const std::string op_name = "Abs";
-const std::int64_t version = 12;
-const std::string domain = "ai.onnx";
-const bool is_abs_op_supported = ngraph::onnx_import::is_operator_supported(op_name, version, domain);
 
-std::cout << "Abs in version 12, domain `ai.onnx`is supported: " << (is_abs_op_supported ? "true" : "false") << std::endl;
-```
+@snippet openvino/docs/snippets/OnnxImporterTutorial1.cpp part1
 
 ## Import ONNX Model
 
@@ -68,33 +55,13 @@ As it was shown in [Build a Model with nGraph Library](nGraphTutorial.md), `std:
 
 The code below shows how to convert the ONNX ResNet50 model to the nGraph function using `import_onnx_model` with the stream as an input:
 
-```cpp
- const std::string resnet50_path = "resnet50/model.onnx";
- std::ifstream resnet50_stream(resnet50_path);
- if(resnet50_stream.is_open())
- {
-     try
-     {
-         const std::shared_ptr<ngraph::Function> ng_function = ngraph::onnx_import::import_onnx_model(resnet50_stream);
-
-         // Check shape of the first output, for example
-         std::cout << ng_function->get_output_shape(0) << std::endl;
-         // The output is Shape{1, 1000}
-     }
-     catch (const ngraph::ngraph_error& error)
-     {
-         std::cout << "Error when importing ONNX model: " << error.what() << std::endl;
-     }
- }
- resnet50_stream.close();
-```
+@snippet openvino/docs/snippets/OnnxImporterTutorial2.cpp part2
 
 ### <a name="path">Filepath as Input</a>
 
 The code below shows how to convert the ONNX ResNet50 model to the nGraph function using `import_onnx_model` with the filepath as an input:
-```cpp
-const std::shared_ptr<ngraph::Function> ng_function = ngraph::onnx_import::import_onnx_model(resnet50_path);
-```
+
+@snippet openvino/docs/snippets/OnnxImporterTutorial3.cpp part3
 
 [onnx_header]: https://github.com/NervanaSystems/ngraph/blob/master/src/ngraph/frontend/onnx_import/onnx.hpp
 [onnx_model_zoo]: https://github.com/onnx/models

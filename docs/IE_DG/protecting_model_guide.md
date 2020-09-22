@@ -33,14 +33,7 @@ a temporary memory block for model decryption, and use
 For more information, see the `InferenceEngine::Core` Class
 Reference Documentation.
 
-```cpp
-std::vector<uint8_t> model;
-std::vector<uint8_t> weights;
-
-// Read model files and decrypt them into temporary memory block
-decrypt_file(model_file, password, model);
-decrypt_file(weights_file, password, weights);
-```
+@snippet openvino/docs/snippets/protecting_model_guide.cpp part0
 
 Hardware-based protection, such as Intel&reg; Software Guard Extensions
 (Intel&reg; SGX), can be utilized to protect decryption operation secrets and
@@ -50,12 +43,7 @@ Extensions](https://software.intel.com/en-us/sgx).
 Use `InferenceEngine::Core::ReadNetwork()` to set model representations and
 weights respectively.
 
-```cpp
-Core core;
-// Load model from temporary memory block
-std::string strModel(model.begin(), model.end());
-CNNNetwork network = core.ReadNetwork(strModel, make_shared_blob<uint8_t>({Precision::U8, {weights.size()}, C}, weights.data()));
-```
+@snippet openvino/docs/snippets/protecting_model_guide.cpp part1
 
 [deploy_encrypted_model]: img/deploy_encrypted_model.png
 
