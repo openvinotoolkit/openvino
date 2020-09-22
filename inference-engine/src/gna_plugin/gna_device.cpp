@@ -376,6 +376,10 @@ void GNADeviceHelper::open(uint8_t n_threads) {
 }
 
 void GNADeviceHelper::close() {
+#if GNA_LIB_VER == 1
+    GNADeviceClose(nGNAHandle);
+    nGNAHandle = 0;
+#else
     auto requestsToClose = unwaitedRequestIds;
     for (auto requestId : requestsToClose) {
         try {
@@ -384,10 +388,6 @@ void GNADeviceHelper::close() {
             gnawarn() << "Request with Id " << requestId << " was not awaited successfully";
         }
     }
-#if GNA_LIB_VER == 1
-    GNADeviceClose(nGNAHandle);
-    nGNAHandle = 0;
-#else
     const auto status = Gna2DeviceClose(nGnaDeviceIndex);
     checkGna2Status(status);
 #endif
