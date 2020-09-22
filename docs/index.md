@@ -25,16 +25,15 @@ OpenVINO™ toolkit includes the following components:
         - Intel® Integrated Graphics
         - Intel® Neural Compute Stick 2 
         - Intel® Vision Accelerator Design with Intel® Movidius™ vision processing unit (VPU)
-    - [Samples](IE_DG/Samples_Overview.md) - A set of simple console applications demonstrating how to use the Inference Engine in your applications
-    - [Tools](IE_DG/Tools_Overview.md) - A set of simple console tools to work with your models
+    - [Inference Engine Code Samples](IE_DG/Samples_Overview.md) - A set of simple console applications demonstrating how to use the Inference Engine in your applications
+    - [Tools](IE_DG/Tools_Overview.md) - A set of tools to work with your models
 - [Open Model Zoo](@ref omz_models_intel_index)     
     - [Demos](@ref omz_demos_README) - Console applications that demonstrate how you can use the Inference Engine in your applications to solve specific use cases
-    - [Tools](IE_DG/Tools_Overview.md) - Additional tools to download models and check accuracy
     - [Documentation for Pretrained Models](@ref omz_models_intel_index) - Documentation for pretrained models is available in the [Open Model Zoo repository](https://github.com/opencv/open_model_zoo)
 - [Post-Training Optimization tool](@ref pot_README) - A tool to calibrate a model and then execute it in the INT8 precision
 - [Deep Learning Workbench](@ref workbench_docs_Workbench_DG_Introduction) -  A web-based graphical environment that allows you to easily use various sophisticated OpenVINO™ toolkit components
 - Deep Learning Streamer (DL Streamer) – Streaming analytics framework, based on GStreamer, for constructing graphs of media analytics components. DL Streamer can be installed by the Intel® Distribution of OpenVINO™ toolkit installer. Its open source version is available on [GitHub](https://github.com/opencv/gst-video-analytics). For the DL Streamer documentation, see:
-    - [DL Streamer Samples](IE_DG/Tools_Overview.md)
+    - [DL Streamer Samples](@ref gst_samples_README)
     - [API Reference](https://opencv.github.io/gst-video-analytics/)
     - [Elements](https://github.com/opencv/gst-video-analytics/wiki/Elements)
     - [Tutorial](https://github.com/opencv/gst-video-analytics/wiki/DL%20Streamer%20Tutorial)

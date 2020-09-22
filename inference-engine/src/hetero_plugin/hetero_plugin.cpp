@@ -15,6 +15,7 @@
 #include "hetero/hetero_plugin_config.hpp"
 #include <cpp_interfaces/base/ie_plugin_base.hpp>
 #include "hetero_executable_network.hpp"
+#include <ie_util_internal.hpp>
 
 using namespace InferenceEngine;
 using namespace InferenceEngine::PluginConfigParams;

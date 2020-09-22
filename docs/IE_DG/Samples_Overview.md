@@ -51,7 +51,7 @@ The officially supported Linux* build environment is the following:
 
 * Ubuntu* 16.04 LTS 64-bit or CentOS* 7.4 64-bit
 * GCC* 5.4.0 (for Ubuntu* 16.04) or GCC* 4.8.5 (for CentOS* 7.4)
-* CMake* version 2.8 or higher
+* CMake* version 2.8.12 or higher
 
 To build the C or C++ sample applications for Linux, go to the `<INSTALL_DIR>/inference_engine/samples/c` or `<INSTALL_DIR>/inference_engine/samples/cpp` directory, respectively, and run the `build_samples.sh` script:
 ```sh
@@ -98,8 +98,8 @@ for the debug configuration — in `<path_to_build_directory>/intel64/Debug/`.
 
 The recommended Windows* build environment is the following:
 * Microsoft Windows* 10
-* Microsoft Visual Studio* 2015, 2017, or 2019
-* CMake* version 2.8 or higher
+* Microsoft Visual Studio* 2017, or 2019
+* CMake* version 2.8.12 or higher
 
 > **NOTE**: If you want to use Microsoft Visual Studio 2019, you are required to install CMake 3.14.
 
@@ -110,7 +110,7 @@ build_samples_msvc.bat
 
 By default, the script automatically detects the highest Microsoft Visual Studio version installed on the machine and uses it to create and build
 a solution for a sample code. Optionally, you can also specify the preferred Microsoft Visual Studio version to be used by the script. Supported
-versions are `VS2015`, `VS2017`, and `VS2019`. For example, to build the C++ samples using the Microsoft Visual Studio 2017, use the following command:
+versions are `VS2017` and `VS2019`. For example, to build the C++ samples using the Microsoft Visual Studio 2017, use the following command:
 ```sh
 <INSTALL_DIR>\inference_engine\samples\cpp\build_samples_msvc.bat VS2017
 ```

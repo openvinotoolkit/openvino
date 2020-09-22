@@ -1,10 +1,10 @@
-# Overview of OpenVINO Resources {#openvino_docs_resources_introduction}
+# Overview of OpenVINO™ Resources {#openvino_docs_resources_introduction}
 
 
 ## Samples
 
 - [Inference Engine Samples](../IE_DG/Samples_Overview.md)
-- [DL Streamer Samples](../IE_DG/Tools_Overview.md)
+- [DL Streamer Samples](@ref gst_samples_README)
 
 ## Demos
 
