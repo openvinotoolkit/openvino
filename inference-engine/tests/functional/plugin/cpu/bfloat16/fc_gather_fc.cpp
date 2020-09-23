@@ -25,29 +25,27 @@ using namespace InferenceEngine;
 
 namespace LayerTestsDefinitions {
 
-class Gather_x2_add_mul_relu_concat_matmul : public BasicBF16Test  {
+class Fc_gather_fc : public BasicBF16Test  {
 protected:
     std::shared_ptr<ngraph::Function> createGraph(InferenceEngine::Precision netPrecision) override {
-//                       Add (FP32)
-//                        |
-//                     FullyConnected (BF16)
-//                   /             |       \
+//                   Add (FP32)
+//                    |
+//                  FC (BF16)
+//                   /
 // -------------------------------------------
-//             Gather(FP32)  Gather(FP32)    Add (FP32)
-//                 \           /              /
-//                   Mul(FP32)     ReLU(FP32)
-//                     \        /
-//                       Concat(FP32)    Const
-//                           \     /
-//                           Matmul(BF16)
+//                Gather(BF16)  Const
+//                 \           /
+//                   FC(BF16)
 
         // STAGE1: construction of the GRAPH
         ngraph::element::Type ntype = (netPrecision == Precision::FP32) ? ngraph::element::f32 : ngraph::element::bf16;
-        // add
-        auto input1 = std::make_shared<opset1::Parameter>(ntype, ngraph::Shape{inputShapes});
         auto inputSize = inputShapes[1];
 
+        // add
+        auto input1 = std::make_shared<opset1::Parameter>(ntype, ngraph::Shape{inputShapes});
+
         input1->set_friendly_name("Input_1");
+        size_t gatherDecrementSize = 1;
         std::shared_ptr<ngraph::opset1::Constant> addConst = nullptr;
         if (netPrecision == Precision::FP32) {
             addConst = opset1::Constant::create(ntype, Shape{1}, { 2.0f });
@@ -63,50 +61,32 @@ protected:
             matmulConst0 = opset1::Constant::create(ntype, Shape{inputSize, inputSize}, { 2.0f });
         } else {
             matmulConst0 = opset1::Constant::create(ntype, Shape{inputSize, inputSize},
-                    { bfloat16::from_bits(FuncTestUtils::Bf16TestUtils::reducePrecisionBitwiseS(2.0f)) });
+                                                    { bfloat16::from_bits(FuncTestUtils::Bf16TestUtils::reducePrecisionBitwiseS(2.0f)) });
         }
         auto matmulNode = std::make_shared<opset1::MatMul>(addNode0, matmulConst0);
         matmulNode->set_friendly_name("Matmul_0");
 
         // gather
+        auto axesConst = opset1::Constant::create(ngraph::element::i64, Shape{1}, { 1 });
         std::vector<size_t> gatherArray;
-        for (size_t i = 0; i < inputSize; i++) {
+        for (size_t i = 0; i < inputSize - gatherDecrementSize; i++) {
             gatherArray.push_back(i);
         }
-        auto axesConst = opset1::Constant::create(ngraph::element::i64, Shape{1}, { 1 });
-        auto indexesConst = opset1::Constant::create(ngraph::element::i64, Shape{inputSize}, gatherArray);
-        auto gatherNode1 = std::make_shared<opset1::Gather>(matmulNode, indexesConst, axesConst);
-        gatherNode1->set_friendly_name("Gather_1");
-
-        auto gatherNode2 = std::make_shared<opset1::Gather>(matmulNode, indexesConst, axesConst);
-        gatherNode2->set_friendly_name("Gather_2");
-
-        // multiply
-        auto mulNode = std::make_shared<opset1::Multiply>(gatherNode1, gatherNode2);
-        mulNode->set_friendly_name("Mul_1");
-
-        // add
-        auto addNode1 = std::make_shared<opset1::Multiply>(matmulNode, addConst);
-        addNode0->set_friendly_name("Add_1");
-
-        // ReLU
-        auto reluNode =  std::make_shared<opset1::Relu>(addNode1);
-        reluNode->set_friendly_name("Relu_1");
-
-        // Concat
-        ngraph::NodeVector concInputNodes = {mulNode, reluNode};
-        auto concNode = std::make_shared<opset1::Concat>(concInputNodes, 1);
-        concNode->set_friendly_name("Conc_1");
+        auto indexesConst = opset1::Constant::create(ngraph::element::i64, Shape{inputSize - gatherDecrementSize}, gatherArray);
+        auto gatherNode = std::make_shared<opset1::Gather>(matmulNode, indexesConst, axesConst);
+        gatherNode->set_friendly_name("Gather_1");
 
         // matmul
         std::shared_ptr<ngraph::opset1::Constant> matmulConst1 = nullptr;
         if (netPrecision == Precision::FP32) {
-            matmulConst1 = opset1::Constant::create(ntype, Shape{inputSize * 2, inputSize * 2}, { 2.0f });
+            matmulConst1 = opset1::Constant::create(ntype, Shape{inputSize - gatherDecrementSize,
+                                                                 inputSize - gatherDecrementSize}, { 2.0f });
         } else {
-            matmulConst1 = opset1::Constant::create(ntype, Shape{inputSize * 2, inputSize * 2},
-                    { bfloat16::from_bits(FuncTestUtils::Bf16TestUtils::reducePrecisionBitwiseS(2.0f)) });
+            matmulConst1 = opset1::Constant::create(ntype, Shape{inputSize - gatherDecrementSize,
+                                                                 inputSize - gatherDecrementSize},
+                                                    { bfloat16::from_bits(FuncTestUtils::Bf16TestUtils::reducePrecisionBitwiseS(2.0f)) });
         }
-        auto matmulNode1 = std::make_shared<opset1::MatMul>(concNode, matmulConst1);
+        auto matmulNode1 = std::make_shared<opset1::MatMul>(gatherNode, matmulConst1);
         matmulNode1->set_friendly_name("Matmul_1");
 
         return std::make_shared<ngraph::Function>(matmulNode1, ngraph::ParameterVector{input1});
@@ -116,39 +96,37 @@ protected:
         fnPtr = createGraph(netPrecision);
 
         // STAGE2: set up safe threshold <= 5% from maximum value of output tensor
-        threshold = 180.02f;  // Max in fp32 network by output:  3887.11
+        threshold = 0.1f;  // Max in fp32 network by output:  21.7285
 
         // STAGE3:
         // filling of expected precision of layer execution defined by precisoin of input tensor to the primitive and reflected in
         // performance counters
-        expectedPrecisions["Matmul_0"] = "BF16";
-        expectedPrecisions["Mul_1"] = "FP32";
-        expectedPrecisions["Add_1"] = "FP32";
-        expectedPrecisions["Matmul_1"] = "BF16";
+
+        expectedPrecisions["Gather_1"] = "BF16";
     }
 };
 
-TEST_P(Gather_x2_add_mul_relu_concat_matmul, CompareWithRefImpl) {
+TEST_P(Fc_gather_fc, CompareWithRefImpl) {
     test();
 };
 
 
-INSTANTIATE_TEST_CASE_P(FP32_bfloat16_NoReshape, Gather_x2_add_mul_relu_concat_matmul,
+INSTANTIATE_TEST_CASE_P(FP32_bfloat16_NoReshape, Fc_gather_fc,
                         ::testing::Combine(
                                 ::testing::Values(Precision::FP32),
                                 ::testing::Values(Precision::FP32),
-                                ::testing::Values(SizeVector({ 2048, 64 })),
+                                ::testing::Values(SizeVector({1, 4})),
                                 ::testing::Values(SizeVector()),
                                 ::testing::Values(CommonTestUtils::DEVICE_CPU)),
-                        Gather_x2_add_mul_relu_concat_matmul::getTestCaseName);
+                        Fc_gather_fc::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(BF16_bfloat16_NoReshape, Gather_x2_add_mul_relu_concat_matmul,
+INSTANTIATE_TEST_CASE_P(BF16_bfloat16_NoReshape, Fc_gather_fc,
                         ::testing::Combine(
                                 ::testing::Values(Precision::FP32),
                                 ::testing::Values(Precision::BF16),
-                                ::testing::Values(SizeVector({ 2048, 64 })),
+                                ::testing::Values(SizeVector({1, 4})),
                                 ::testing::Values(SizeVector()),
                                 ::testing::Values(CommonTestUtils::DEVICE_CPU)),
-                        Gather_x2_add_mul_relu_concat_matmul::getTestCaseName);
+                        Fc_gather_fc::getTestCaseName);
 
 }  // namespace LayerTestsDefinitions

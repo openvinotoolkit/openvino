@@ -163,6 +163,9 @@ void BF16Transformer::optimizeToFloat(InferenceEngine::CNNNetwork &network) {
         // if this layer is not from _initbf16 - analyze inputs
         if (_initbf16.find(layer->type) == _initbf16.end()) {
             // for all inputs investigate and modify tensor precision if required
+            if (_complementbf16.find(layer->type) != _complementbf16.end()) {
+                continue;
+            }
             for (size_t i = 0; i < layer->insData.size(); i++) {
                 auto creator = getCreatorLayer(layer->insData[i].lock());
                 if (_skipmarking.find(creator.lock()->type) != _skipmarking.end()) {
