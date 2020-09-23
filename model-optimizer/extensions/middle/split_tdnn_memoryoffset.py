@@ -20,7 +20,7 @@ from mo.ops.memoryoffset import MemoryOffset
 from mo.ops.result import Result
 
 
-class SplitMemoryOffsets(MiddleReplacementPattern):
+class SplitTdnnMemoryOffset(MiddleReplacementPattern):
     '''
     Splits MemoryOffsets in TDNN blocks into 2 parts. These parts then will be converted to ReadValue and Assign.
     '''
