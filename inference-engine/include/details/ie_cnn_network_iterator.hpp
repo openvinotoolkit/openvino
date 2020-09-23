@@ -58,7 +58,7 @@ public:
         InputsDataMap inputs;
         network->getInputsInfo(inputs);
         // scan for at least one input which does have a NEXT
-        for(auto& ip : inputs) {
+        for (auto& ip : inputs) {
             auto& nextLayers = ip.second->getInputData()->getInputTo();
             if (!nextLayers.empty()) {
                 currentLayer = nextLayers.begin()->second;
@@ -121,7 +121,7 @@ public:
      */
     bool operator==(const CNNNetworkIterator& that) const {
         bool retVal;
-        if(currentLayer == nullptr && that.currentLayer == nullptr) {
+        if (currentLayer == nullptr && that.currentLayer == nullptr) {
             retVal = true;
         } else {
             retVal = network == that.network && currentLayer == that.currentLayer;
@@ -159,13 +159,13 @@ private:
                 visited.insert(parentLayer.get());
             }
         }
-        
+
         // check possibly for other disjoint univisited input subtree
-        if(nextLayersTovisit.empty()) {
+        if (nextLayersTovisit.empty()) {
             InputsDataMap inputs;
             network->getInputsInfo(inputs);
             if (!inputs.empty()) {
-                for(auto itr=inputs.begin(); itr!=inputs.end(); ++itr) {
+                for (auto itr=inputs.begin(); itr != inputs.end(); ++itr) {
                     auto& nextLayers = itr->second->getInputData()->getInputTo();
                     if (nextLayers.empty()) {
                         continue;
