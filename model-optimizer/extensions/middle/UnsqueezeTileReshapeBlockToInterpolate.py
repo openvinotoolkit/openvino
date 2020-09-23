@@ -122,7 +122,8 @@ class UnsqueezeTileReshapeBlockToInterpolate(MiddleReplacementPattern):
                                        pads_end=int64_array([0]), coordinate_transformation_mode='half_pixel',
                                        nearest_mode='round_prefer_floor', cube_coeff=-0.75,
                                        version='opset4', shape_calculation_mode='scales',
-                                       in_ports_count=4)).create_node()
+                                       in_ports_count=4,
+                                       maybe_part_of_sequence=True)).create_node()
         mul_node.out_port(0).connect(interp_node.in_port(1))
         scales_node.out_port(0).connect(interp_node.in_port(2))
         axis_node.out_port(0).connect(interp_node.in_port(3))

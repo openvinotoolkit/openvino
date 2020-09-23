@@ -39,12 +39,18 @@ def is_next(first: Node, second: Node) -> bool:
     :param second: another Interpolate layer
     :return: True, if 'first' is an predecessor of 'second', and False otherwise.
     """
-    if not node_has_one_consumer(first):
-        return False
     dests = first.out_port(0).get_destinations()
-    if len(dests) != 1:
-        return False
-    return second.id == dests[0].node.id
+    if node_has_one_consumer(first):
+        return second.id == dests[0].node.id
+    elif first.soft_get('maybe_part_of_sequence', False):
+        return len(dests) == 2 and second.id in [d.node.id for d in dests]
+    return False
+    # if not node_has_one_consumer(first):
+    #     return False
+    # dests = first.out_port(0).get_destinations()
+    # if len(dests) != 1:
+    #     return False
+    # return second.id == dests[0].node.id
 
 
 class CanBeFused:
