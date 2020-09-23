@@ -128,9 +128,9 @@ namespace ngraph
                     result =
                         std::make_shared<default_opset::Reshape>(result, data_shape_node, true);
                     result = std::make_shared<default_opset::Multiply>(
-                        reshape::reshape_scale_or_bias(scale, data_rank_size), result);
+                        reshape::reshape_channel_shaped_node_to_nchw(scale, data_rank_size), result);
                     result = std::make_shared<default_opset::Add>(
-                        result, reshape::reshape_scale_or_bias(bias, data_rank_size));
+                        result, reshape::reshape_channel_shaped_node_to_nchw(bias, data_rank_size));
 
                     return {result};
                 }

@@ -114,21 +114,21 @@ namespace ngraph
                 return builder::opset1::reshape(node, Shape{});
             }
 
-            Output<ngraph::Node> reshape_scale_or_bias(const Output<ngraph::Node>& scale_or_bias,
-                                                       size_t expected_rank)
+            Output<ngraph::Node> reshape_channel_shaped_node_to_nchw(const Output<ngraph::Node>& node,
+                                                                     size_t expected_rank)
             {
-                size_t node_rank = scale_or_bias.get_partial_shape().rank().get_length();
+                size_t node_rank = node.get_partial_shape().rank().get_length();
                 if (node_rank == 1)
                 {
-                    // reshape the scale or bias node with shape {C} to {1, C, 1, 1, ..., 1}
+                    // reshape the node with shape {C} to {1, C, 1, 1, ..., 1}
                     std::vector<size_t> reshape_pattern_values(expected_rank, 1U);
-                    reshape_pattern_values[1] = scale_or_bias.get_shape().front();
+                    reshape_pattern_values[1] = node.get_shape().front();
                     const auto reshape_pattern = default_opset::Constant::create(
                         element::u64, Shape{reshape_pattern_values.size()}, reshape_pattern_values);
                     return std::make_shared<default_opset::Reshape>(
-                        scale_or_bias, reshape_pattern, false);
+                        node, reshape_pattern, false);
                 }
-                return scale_or_bias;
+                return node;
             }
 
         } // namespace  reshape
