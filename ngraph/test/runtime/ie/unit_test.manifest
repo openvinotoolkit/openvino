@@ -208,6 +208,34 @@ onnx_model_range_positive_step
 onnx_model_range_negative_step
 onnx_dyn_shapes_slice_1_3d_input_21_axes_ends_max
 
+# GRUCell/GRUSequence operation has a form that is not supported
+# (Constant W, B, R inputs are required)
+IE_CPU.onnx_model_gru_defaults_fwd
+IE_CPU.onnx_model_gru_fwd_activations
+IE_CPU.onnx_model_gru_fwd_mixed_seq_len
+IE_CPU.onnx_model_gru_rev_clip
+IE_CPU.onnx_model_gru_reverse
+IE_CPU.onnx_model_gru_fwd_bias_initial_h
+IE_CPU.onnx_model_gru_bidirectional
+IE_CPU.onnx_model_gru_fwd_linear_before_reset
+
+# RNNCell/RNNSequence operation has a form that is not supported
+# (Constant W, B, R inputs are required)
+IE_CPU.onnx_model_rnn_defaults_fwd
+IE_CPU.onnx_model_rnn_fwd_activations
+IE_CPU.onnx_model_rnn_fwd_mixed_seq_len
+IE_CPU.onnx_model_rnn_rev_clip
+IE_CPU.onnx_model_rnn_reverse
+IE_CPU.onnx_model_rnn_fwd_bias_initial_h
+IE_CPU.onnx_model_rnn_bidirectional
+
+## RNN/GRU Sequence - seq_lengths are not supported
+IE_CPU.onnx_model_rnn_fwd_mixed_seq_len
+IE_CPU.onnx_model_rnn_fwd_mixed_seq_len_const
+IE_CPU.onnx_model_gru_fwd_mixed_seq_len
+IE_CPU.onnx_model_gru_fwd_mixed_seq_len_const
+
+
 #-------------------------------------------------------------------------------
 #
 #       nGraph backend unit tests
@@ -1087,16 +1115,6 @@ IE_CPU.builder_opset1_collapse_dyn_shape
 # 2.666666507720947266 is not close to 3 at index 1
 # IE_CPU.interpolate_down_scales_const_linear
 
-# GRUCell operation has a form that is not supported
-onnx_model_gru_defaults_fwd
-onnx_model_gru_fwd_activations
-onnx_model_gru_fwd_mixed_seq_len
-onnx_model_gru_rev_clip
-onnx_model_gru_reverse
-onnx_model_gru_fwd_bias_initial_h
-onnx_model_gru_bidirectional
-onnx_model_gru_fwd_linear_before_reset
-
 # Not implemented Interpolate-4:
 IE_CPU.onnx_model_round
 IE_CPU.onnx_upsample9_scales_const_linear_infer
@@ -1108,16 +1126,6 @@ IE_CPU.onnx_upsample8_import_only
 IE_CPU.onnx_upsample9_scales_const_import_only
 IE_CPU.onnx_empty_initializers_handling
 IE_CPU.onnx_resize11_scales_nearest_asymmetric_floor_dynamic_sizes
-
-# RNNCell operation has a form that is not supported
-IE_CPU.onnx_model_rnn_defaults_fwd
-IE_CPU.onnx_model_rnn_fwd_activations
-IE_CPU.onnx_model_rnn_fwd_mixed_seq_len
-IE_CPU.onnx_model_rnn_rev_clip
-IE_CPU.onnx_model_rnn_reverse
-IE_CPU.onnx_model_rnn_fwd_bias_initial_h
-IE_CPU.onnx_model_rnn_bidirectional
-IE_CPU.onnx_model_rnn_bidirectional_const
 
 #-------------------------------------------------------------------------------
 #
@@ -1462,3 +1470,4 @@ onnx_controlflow_loop_add_value_access_to_body_scope_exception
 onnx_controlflow_loop_add_value_the_same_node_from_parent_and_subgraph
 onnx_controlflow_loop_2d_add_exception_if_no_identity_cond
 onnx_controlflow_loop_2d_add_const_cond
+

@@ -115,6 +115,12 @@ INTERPRETER.onnx_model_gatherND_float
 
 # Round op doesn't support some specific cases of rounding
 onnx_model_round_half_nearest_even
+ 
+# GRU/RNN Sequence: Output values mismatch - seq_lengths not supported
+onnx_model_gru_fwd_mixed_seq_len
+onnx_model_gru_fwd_mixed_seq_len_const
+onnx_model_rnn_fwd_mixed_seq_len
+onnx_model_rnn_fwd_mixed_seq_len_const
 
 # Unsupported op 'LSTMSequence': not FusedOp anymore, no reference implementation yet
 onnx_model_lstm_fwd_with_clip
