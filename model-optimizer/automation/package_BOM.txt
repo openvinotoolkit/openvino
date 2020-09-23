@@ -568,7 +568,7 @@ extensions/middle/SharedWeightsDuplication.py
 extensions/middle/SliceConverter.py
 extensions/middle/SliceLikeToStridedSlice.py
 extensions/middle/sparse_reshape.py
-extensions/middle/split_memoryoffsets.py
+extensions/middle/split_tdnn_memoryoffset.py
 extensions/middle/SplitConcatPairToInterpolate.py
 extensions/middle/SwapAxesMiddleReplacer.py
 extensions/middle/TensorIterator_utils.py
