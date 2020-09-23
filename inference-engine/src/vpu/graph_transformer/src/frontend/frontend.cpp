@@ -21,9 +21,9 @@
 
 #include <legacy/convert_function_to_cnn_network.hpp>
 #include <generic_ie.hpp>
+#include <ngraph/pass/manager.hpp>
 #include <ngraph/opsets/opset3.hpp>
 #include <ngraph/opsets/opset4.hpp>
-#include <transformations/tensor_iterator_transformations/apply_transformations_to_ti_body.hpp>
 #include <transformations/convert_opset3_to_opset2/convert_opset3_to_opset2.hpp>
 #include <transformations/convert_opset2_to_opset1/convert_opset2_to_opset1.hpp>
 #include <transformations/convert_opset1_to_legacy/convert_opset1_to_legacy.hpp>
@@ -182,10 +182,6 @@ ie::ICNNNetwork::Ptr FrontEnd::convertNetwork(ie::ICNNNetwork& network) {
     manager.register_pass<ngraph::pass::ConvertOpSet1ToLegacy>();
     manager.set_callback(transformationsPredicate);
     manager.run_passes(nGraphFunc);
-
-    ngraph::pass::Manager ti_manager;
-    ti_manager.register_pass<ngraph::pass::ApplyTransformationsToTIBody>(manager);
-    ti_manager.run_passes(nGraphFunc);
 
     vpu::MergeSubsequentDSROperations().run_on_function(nGraphFunc);
 

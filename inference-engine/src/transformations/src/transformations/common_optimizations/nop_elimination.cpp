@@ -352,12 +352,16 @@ bool pass::NopElimination::run_on_function(std::shared_ptr<Function> function) {
 
     bool clobbered = false;
 
-    for (const auto& n : function->get_ops()) {
-        // Work around a warning [-Wpotentially-evaluated-expression]
-        const Node& node = *n;
-        auto handler = dispatcher.find(node.get_type_info());
+    for (const auto& node : function->get_ops()) {
+        // Recursively apply transformation for sub-graph based operations
+        if (auto sub_graph_node = std::dynamic_pointer_cast<op::util::SubGraphOp>(node)) {
+            if (auto sub_graph = sub_graph_node->get_function()) {
+                clobbered |= run_on_function(sub_graph);
+            }
+        }
+        auto handler = dispatcher.find(node->get_type_info());
         if (handler != dispatcher.end()) {
-            clobbered = handler->second(n) || clobbered;
+            clobbered |= handler->second(node);
         }
     }
 

@@ -26,7 +26,6 @@
 #include <ngraph/opsets/opset4.hpp>
 #include <ngraph/pass/manager.hpp>
 #include <generic_ie.hpp>
-#include <transformations/tensor_iterator_transformations/apply_transformations_to_ti_body.hpp>
 #include <transformations/tensor_iterator_transformations/unroll_tensor_iterator.hpp>
 #include <transformations/common_optimizations/common_optimizations.hpp>
 #include <transformations/convert_opset1_to_legacy/convert_opset1_to_legacy.hpp>
@@ -141,8 +140,6 @@ InferenceEngine::ICNNNetwork::Ptr clDNNEngine::CloneAndTransformNetwork(const In
         manager.run_passes(nGraphFunc);
 
         ngraph::pass::Manager ti_manager;
-        // Apply all transformations to TensorIterator body
-        ti_manager.register_pass<ngraph::pass::ApplyTransformationsToTIBody>(manager);
         // Unroll will be called after all conversions
         // temporarily switch back to plugin unroller from NGraph unroller until TI output names are corrected
         // ti_manager.register_pass<ngraph::pass::UnrollTensorIterator>();

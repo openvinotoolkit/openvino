@@ -21,9 +21,7 @@
 #include "ngraph/factory_adapter.hpp"
 #include "ngraph/function.hpp"
 #include "ngraph/op/parameter.hpp"
-#include "ngraph/op/util/fused_op.hpp"
-
-NGRAPH_SUPPRESS_DEPRECATED_START
+#include "ngraph/op/util/sub_graph_base.hpp"
 
 namespace ngraph
 {
@@ -32,7 +30,7 @@ namespace ngraph
         namespace v0
         {
             /// \brief  Iterate a body over tensors, accumulating into tensors.
-            class NGRAPH_API TensorIterator : public util::FusedOp
+            class NGRAPH_API TensorIterator : public op::util::SubGraphOp
             {
             public:
                 static constexpr NodeTypeInfo type_info{"TensorIterator", 0};
@@ -308,7 +306,6 @@ namespace ngraph
 
                 std::shared_ptr<Node>
                     clone_with_new_inputs(const OutputVector& new_args) const override;
-                OutputVector decompose_op() const override;
                 /// \return the body of the iteration
                 std::shared_ptr<Function> get_body() const { return m_body; }
                 /// \param body set the body of the iteration
@@ -340,6 +337,8 @@ namespace ngraph
                 }
                 virtual void validate_and_infer_types() override;
                 void revalidate_and_infer_types_for_body_ops();
+                /// \return the body of the iteration
+                std::shared_ptr<Function> get_function() override;
 
                 int64_t get_num_iterations() const { return m_num_iterations; }
                 void set_num_iterations(int64_t num_iterations)
@@ -426,5 +425,3 @@ namespace ngraph
         std::vector<std::shared_ptr<op::TensorIterator::OutputDescription>>& m_ref;
     };
 }
-
-NGRAPH_SUPPRESS_DEPRECATED_END

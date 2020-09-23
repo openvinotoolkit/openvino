@@ -17,6 +17,12 @@ NGRAPH_RTTI_DEFINITION(ngraph::pass::UselessStridedSliceEraser, "UselessStridedS
 bool ngraph::pass::UselessStridedSliceEraser::run_on_function(std::shared_ptr<ngraph::Function> f) {
     bool rewritten = false;
     for (auto & node : f->get_ordered_ops()) {
+        // Recursively apply transformation for sub-graph based operations
+        if (auto sub_graph_node = std::dynamic_pointer_cast<op::util::SubGraphOp>(node)) {
+            if (auto sub_graph = sub_graph_node->get_function()) {
+                rewritten |= run_on_function(sub_graph);
+            }
+        }
         auto ss = std::dynamic_pointer_cast<ngraph::opset1::StridedSlice>(node);
         if (!ss || ss->get_output_partial_shape(0).is_dynamic() || ss->get_input_partial_shape(0).is_dynamic())
             continue;
@@ -87,6 +93,12 @@ bool ngraph::pass::SharedStridedSliceEraser::run_on_function(std::shared_ptr<ngr
 
     std::map<ngraph::Output<Node>, std::vector<std::shared_ptr<ngraph::opset1::StridedSlice>>> source_to_ss;
     for (const auto & node : f->get_ordered_ops()) {
+        // Recursively apply transformation for sub-graph based operations
+        if (auto sub_graph_node = std::dynamic_pointer_cast<op::util::SubGraphOp>(node)) {
+            if (auto sub_graph = sub_graph_node->get_function()) {
+                graph_rewritten |= run_on_function(sub_graph);
+            }
+        }
         if (auto ss = std::dynamic_pointer_cast<ngraph::opset1::StridedSlice>(node)) {
             source_to_ss[ss->input_value(0)].push_back(ss);
         }
@@ -113,6 +125,12 @@ bool ngraph::pass::GroupedStridedSliceOptimizer::run_on_function(std::shared_ptr
 
     std::map<ngraph::Output<Node>, std::vector<planned_slice>> source_to_ss_with_plan;
     for (const auto & node : f->get_ordered_ops()) {
+        // Recursively apply transformation for sub-graph based operations
+        if (auto sub_graph_node = std::dynamic_pointer_cast<op::util::SubGraphOp>(node)) {
+            if (auto sub_graph = sub_graph_node->get_function()) {
+                graph_rewritten |= run_on_function(sub_graph);
+            }
+        }
         if (auto ss = std::dynamic_pointer_cast<ngraph::opset1::StridedSlice>(node)) {
             auto slice_plan = get_slice_plan(ss);
             if (slice_plan == ngraph::SlicePlan())

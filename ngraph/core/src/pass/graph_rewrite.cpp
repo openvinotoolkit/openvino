@@ -26,6 +26,7 @@
 #include "itt.hpp"
 #include "ngraph/env_util.hpp"
 #include "ngraph/log.hpp"
+#include "ngraph/op/util/sub_graph_base.hpp"
 
 using namespace std;
 using namespace ngraph;
@@ -170,6 +171,14 @@ bool pass::GraphRewrite::run_on_function(shared_ptr<Function> f)
     {
         auto node = nodes_to_run.front();
         nodes_to_run.pop_front();
+        // Recursive apply Matchers for sub-graph based nodes
+        if (auto sub_graph_node = std::dynamic_pointer_cast<op::util::SubGraphOp>(node))
+        {
+            if (auto sub_graph = sub_graph_node->get_function())
+            {
+                run_on_function(sub_graph);
+            }
+        }
         // Temporary keep this GraphRewrite property for backward compatibility
         if (m_enable_shape_inference)
         {
