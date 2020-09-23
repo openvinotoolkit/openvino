@@ -40,8 +40,12 @@ std::string ComparisonLayerTest::getTestCaseName(testing::TestParamInfo<Comparis
     results << "inputsPRC=" << ngInputsPrecision.name() << "_";
     results << "comparisonOpType=" << comparisonOpType << "_";
     results << "secondInputType=" << secondInputType << "_";
-    results << "IEInPRC=" << ieInPrecision.name() << "_";
-    results << "IEOutPRC=" << ieOutPrecision.name() << "_";
+    if (ieInPrecision != InferenceEngine::Precision::UNSPECIFIED) {
+        results << "IEInPRC=" << ieInPrecision.name() << "_";
+    }
+    if (ieOutPrecision != InferenceEngine::Precision::UNSPECIFIED) {
+        results << "IEOutPRC=" << ieOutPrecision.name() << "_";
+    }
     results << "targetDevice=" << targetName;
     return results.str();
 }
