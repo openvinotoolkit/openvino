@@ -97,6 +97,7 @@ if [ -f /etc/lsb-release ]; then
                     libopenexr24
                     python3.8
                     libpython3.8
+                    libglib2.0-0
                 )
         elif [ "$system_ver" = "18.04" ]; then
             PKGS+=( libfluidsynth1
@@ -105,6 +106,7 @@ if [ -f /etc/lsb-release ]; then
                     gstreamer1.0-plugins-ugly
                     gstreamer1.0-alsa
                     gstreamer1.0-gtk3
+                    libglib2.0
                 )
         fi
         PKGS+=( flex
@@ -114,18 +116,10 @@ if [ -f /etc/lsb-release ]; then
                 libgl-dev
                 libtag-extras1
                 libusb-1.0-0-dev
-                libdirectfb-1.7-7
                 libfaac0
                 libfdk-aac1
-                liblrdf0
-                libmjpegtools-dev
-                libopenni2-0
-                libmpeg2-4
-                libopencore-amrnb0
-                libopencore-amrwb0
-                liba52-0.7.4
-                python3-gi
-                libglib2.0-0
+                python3-gi                
+
         )
     fi
     apt update
@@ -251,8 +245,6 @@ else
             zbar
             libnice
             libxkbcommon
-            libmpeg2
-            libcdio
             opencore-amr
             libva
             python36-gobject
