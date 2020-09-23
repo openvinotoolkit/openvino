@@ -5,14 +5,15 @@
 #pragma once
 
 #include <ie_common.h>
-#include <string>
-#include <memory>
+#include <vpu/frontend/frontend.hpp>
 #include <vector>
-
-using namespace InferenceEngine;
+#include <unordered_set>
+#include <memory>
+#include <set>
+#include <string>
 
 namespace MyriadPlugin {
-enum InterpolateMode {
+enum class InterpolateMode {
     nearest,
     linear,
     linear_onnx,
@@ -24,7 +25,7 @@ enum class ShapeCalcMode {
     scales
 };
 
-enum InterpolateCoordTransMode {
+enum class InterpolateCoordTransMode {
     half_pixel,
     pytorch_half_pixel,
     asymmetric,
@@ -64,9 +65,8 @@ private:
     std::vector<float> getCubicCoef(float a);
     void cubic(const uint8_t *in_ptr_, uint8_t *out_ptr_, int batch, int channel, int IH, int IW,
                     float fx, float fy, int OH, int OW, float a);
-
-    inline float coordTransToInput(int outCoord, float scale, int inShape, int outShape);
-    inline int nearestRound(float origin, bool isDown);
+    void cubicReference(const uint8_t *in_ptr_, uint8_t *out_ptr_, int batch, int channel, int IH, int IW,
+                    float fx, float fy, int OH, int OW, float a);
     float getValue(size_t offset, InferenceEngine::Precision precision);
     void setValue(size_t offset, float value, InferenceEngine::Precision precision);
 

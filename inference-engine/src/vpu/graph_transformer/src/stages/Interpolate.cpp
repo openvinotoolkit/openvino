@@ -3,13 +3,6 @@
 //
 
 #include "Interpolate.hpp"
-#include <vpu/frontend/frontend.hpp>
-
-#include <vector>
-#include <unordered_set>
-#include <memory>
-#include <set>
-#include <string>
 
 MyriadInterpolate::Interpolate() = default;
 
@@ -69,11 +62,8 @@ void MyriadInterpolate::cubic(const uint8_t *in_ptr_, uint8_t *out_ptr_, int bat
     
 }
 
-inline float MyriadInterpolate::coordTransToInput(int outCoord, float scale, int inShape, int outShape) {
-    
-}
-
-inline int MyriadInterpolate::nearestRound(float origin, bool isDown) {
+void MyriadInterpolate::cubicRefrence(const uint8_t *in_ptr_, uint8_t *out_ptr_, int batch, int channel, int IH, int IW,
+                              float fx, float fy, int OH, int OW, float a) {
     
 }
 
@@ -86,9 +76,9 @@ void MyriadInterpolate::setValue(size_t offset, float value, InferenceEngine::Pr
 }
 
 std::vector<float> MyriadInterpolate::getScales() {
-    
+    return scales;
 }
 
 std::vector<int> MyriadInterpolate::getAxes() {
-    
+    return axes;
 }
