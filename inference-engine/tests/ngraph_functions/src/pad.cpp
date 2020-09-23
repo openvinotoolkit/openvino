@@ -10,8 +10,8 @@
 namespace ngraph {
 namespace builder {
 std::shared_ptr<ngraph::Node> makePad(const ngraph::Output<Node>& data,
-                                      const std::vector<size_t>& padsBegin,
-                                      const std::vector<size_t>& padsEnd,
+                                      const std::vector<int64_t>& padsBegin,
+                                      const std::vector<int64_t>& padsEnd,
                                       float argPadValue,
                                       ngraph::helpers::PadMode padMode) {
     ngraph::op::PadMode pad_mode;
