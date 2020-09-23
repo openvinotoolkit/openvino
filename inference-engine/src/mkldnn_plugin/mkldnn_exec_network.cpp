@@ -132,8 +132,17 @@ MKLDNNExecNetwork::MKLDNNExecNetwork(const InferenceEngine::ICNNNetwork &network
                 createConstInputTo(layer, scalesBlob, "weights");
 
             Blob::Ptr shiftBlob = layer->blobs["biases"];
-            if (shiftBlob != nullptr)
+            if (shiftBlob != nullptr) {
                 createConstInputTo(layer, shiftBlob, "biases");
+            } else if (scalesBlob != nullptr) {
+                Blob::Ptr biases = make_shared_blob<float>(scalesBlob->getTensorDesc());
+                biases->allocate();
+                auto biasesPtr = biases->buffer().as<float*>();
+                for (size_t i = 0; i < biases->size(); i++)
+                    biasesPtr[i] = 0;
+
+                createConstInputTo(layer, biases, "biases");
+            }
         } else if (layer->type == "PReLU" && layer->insData.size() == 1) {
             Blob::Ptr scalesBlob = layer->blobs["weights"];
             if (scalesBlob != nullptr)
