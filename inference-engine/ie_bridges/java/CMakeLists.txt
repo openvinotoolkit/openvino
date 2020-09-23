@@ -7,7 +7,7 @@ set(JAVA_AWT_INCLUDE_PATH NotNeeded)
 
 project(inference_engine_java_api)
 
-set(InferenceEngine_LIBRARIES inference_engine)
+set(InferenceEngine_LIBRARIES inference_engine ngraph)
 
 find_package(JNI REQUIRED)
 
