@@ -15,7 +15,8 @@ namespace LayerTestsDefinitions {
 
 std::string PadLayerTest::getTestCaseName(testing::TestParamInfo<padLayerTestParamsSet> obj) {
     InferenceEngine::Precision netPrecision;
-    InferenceEngine::SizeVector inputShapes, padsBegin, padsEnd;
+    InferenceEngine::SizeVector inputShapes;
+    std::vector<int64_t> padsBegin, padsEnd;
     ngraph::helpers::PadMode padMode;
     float argPadValue;
     std::string targetDevice;
@@ -35,7 +36,8 @@ std::string PadLayerTest::getTestCaseName(testing::TestParamInfo<padLayerTestPar
 }
 
 void PadLayerTest::SetUp() {
-    InferenceEngine::SizeVector inputShape, padsBegin, padsEnd;
+    InferenceEngine::SizeVector inputShape;
+    std::vector<int64_t> padsBegin, padsEnd;
     float argPadValue;
     ngraph::helpers::PadMode padMode;
     InferenceEngine::Precision netPrecision;
