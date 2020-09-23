@@ -55,7 +55,7 @@ void op::util::FusedOp::validate_and_infer_types()
         {
             set_output_size(i + 1);
         }
-        set_output_type(i, output.get_element_type(), output.get_shape());
+        set_output_type(i, output.get_element_type(), output.get_partial_shape());
         i++;
     }
 
