@@ -91,7 +91,7 @@ void Data::reshape(const SizeVector& a_dims, Layout a_layout) {
 }
 
 void Data::reshape(const ngraph::PartialShape& shape, Layout a_layout) {
-    tensorDesc.reshape(shape);
+    tensorDesc.reshape(shape, a_layout);
 }
 
 Data::Data(const Data& data) :
