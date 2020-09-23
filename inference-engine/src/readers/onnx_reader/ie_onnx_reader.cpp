@@ -22,7 +22,7 @@ bool ONNXReader::supportModel(std::istream& model) const {
 }
 
 CNNNetwork ONNXReader::read(std::istream& model, const std::vector<IExtensionPtr>& exts) const {
-    return CNNNetwork(ngraph::onnx_import::import_onnx_model(model));
+    return CNNNetwork(ngraph::onnx_import::import_onnx_model(model, static_cast<char*>(model.pword(0))));
 }
 
 INFERENCE_PLUGIN_API(StatusCode) InferenceEngine::CreateReader(IReader*& reader, ResponseDesc *resp) noexcept {
