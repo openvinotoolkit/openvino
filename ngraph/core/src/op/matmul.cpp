@@ -81,7 +81,7 @@ void op::MatMul::pre_validate_and_infer_types()
         size_t A_rank_static = A_rank.get_length();
         size_t B_rank_static = B_rank.get_length();
         size_t max_rank = std::max(A_rank_static, B_rank_static);
-        max_rank = std::max(2ul, max_rank);
+        max_rank = std::max(size_t(2), max_rank);
         std::vector<Dimension> dims(max_rank);
         auto A_dims = extend_rank(A_shape, max_rank);
         auto B_dims = extend_rank(B_shape, max_rank);
