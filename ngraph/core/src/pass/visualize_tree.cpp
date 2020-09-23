@@ -234,64 +234,63 @@ pass::VisualizeTree::VisualizeTree(const string& file_name, node_modifiers_t nm,
 {
 }
 
-
 namespace
 {
-std::string pretty_partial_shape(const PartialShape& shape)
-{
-    std::stringstream ss;
-
-    /*
-    if (shape.rank().is_dynamic())
+    std::string pretty_partial_shape(const PartialShape& shape)
     {
-        ss << "?";
+        std::stringstream ss;
+
+        /*
+        if (shape.rank().is_dynamic())
+        {
+            ss << "?";
+        }
+        else
+        {
+            bool first = true;
+
+            ss << "[";
+            for (size_t i = 0; i < shape.rank().get_length(); i++)
+            {
+                if (!first)
+                {
+                    ss << ",";
+                }
+                if (shape[i].is_dynamic())
+                {
+                    ss << "?";
+                }
+                else
+                {
+                    ss << shape[i].get_length();
+                }
+                first = false;
+            }
+            ss << "]";
+        }
+         */
+        ss << shape;
+
+        return ss.str();
     }
-    else
+
+    string get_output_attributes(shared_ptr<Node> node)
     {
-        bool first = true;
+        ostringstream label;
+        static const bool nvtos = getenv_bool("NGRAPH_VISUALIZE_TREE_OUTPUT_SHAPES");
+        static const bool nvtot = getenv_bool("NGRAPH_VISUALIZE_TREE_OUTPUT_TYPES");
 
-        ss << "[";
-        for (size_t i = 0; i < shape.rank().get_length(); i++)
-        {
-            if (!first)
+        if (nvtos || nvtot)
+            for (const auto& output : node->outputs())
             {
-                ss << ",";
+                label << "\\n" << to_string(output.get_index()) << ": ";
+                if (nvtot)
+                    label << "{" << output.get_element_type().get_type_name() << "}";
+                if (nvtos)
+                    label << pretty_partial_shape(output.get_partial_shape());
             }
-            if (shape[i].is_dynamic())
-            {
-                ss << "?";
-            }
-            else
-            {
-                ss << shape[i].get_length();
-            }
-            first = false;
-        }
-        ss << "]";
+        return label.str();
     }
-     */
-    ss << shape;
-
-    return ss.str();
-}
-
-string get_output_attributes (shared_ptr<Node> node)
-{
-    ostringstream label;
-    static const bool nvtos = getenv_bool("NGRAPH_VISUALIZE_TREE_OUTPUT_SHAPES");
-    static const bool nvtot = getenv_bool("NGRAPH_VISUALIZE_TREE_OUTPUT_TYPES");
-
-    if (nvtos || nvtot)
-        for (const auto& output : node->outputs())
-        {
-            label << "\\n" << to_string(output.get_index()) << ": ";
-            if (nvtot)
-                label << "{" << output.get_element_type().get_type_name() << "}";
-            if (nvtos)
-                label << pretty_partial_shape(output.get_partial_shape());
-        }
-    return label.str();
-}
 }
 
 void pass::VisualizeTree::add_node_arguments(shared_ptr<Node> node,
@@ -309,9 +308,10 @@ void pass::VisualizeTree::add_node_arguments(shared_ptr<Node> node,
             auto color = (arg->description() == "Parameter" ? "blue" : "black");
             m_ss << "    " << clone_name << "[shape=\"box\" style=\"dashed,filled\" color=\""
                  << color << "\" fillcolor=\"white\" label=\"" << get_node_name(arg) << "\n"
-                 << (is_type<ngraph::op::Constant>(arg) ?
-                         get_constant_value(arg) :
-                         pretty_partial_shape(arg->get_output_partial_shape(0))) << "\"]\n";
+                 << (is_type<ngraph::op::Constant>(arg)
+                         ? get_constant_value(arg)
+                         : pretty_partial_shape(arg->get_output_partial_shape(0)))
+                 << "\"]\n";
             m_ss << "    " << clone_name << " -> " << node->get_name()
                  << label_edge(arg, node, arg_index, jump_distance) << "\n";
             fake_node_ctr++;
@@ -355,7 +355,6 @@ string pass::VisualizeTree::add_attributes(shared_ptr<Node> node)
     }
     return rc;
 }
-
 
 template <typename T>
 static std::string pretty_value(const vector<T>& value)
