@@ -49,8 +49,8 @@ NGRAPH_TEST(${BACKEND_NAME}, reorg_yolo_stride_2)
     // in_shape [N,C,H,W]
     const auto in_shape = Shape{1, 8, 4, 4};
     auto p = make_shared<op::Parameter>(element::f32, in_shape);
-    int stride = 2;
-    auto reorg_yolo = make_shared<op::v0::ReorgYolo>(p, stride);
+    size_t stride = 2;
+    auto reorg_yolo = make_shared<op::v0::ReorgYolo>(p, Strides{stride});
     auto fun = make_shared<Function>(OutputVector{reorg_yolo}, ParameterVector{p});
 
     std::vector<float> inputs(128);
@@ -79,8 +79,8 @@ NGRAPH_TEST(${BACKEND_NAME}, reorg_yolo_stride_3)
     // in_shape [N,C,H,W]
     const auto in_shape = Shape{1, 9, 3, 3};
     auto p = make_shared<op::Parameter>(element::f32, in_shape);
-    int stride = 3;
-    auto reorg_yolo = make_shared<op::v0::ReorgYolo>(p, stride);
+    size_t stride = 3;
+    auto reorg_yolo = make_shared<op::v0::ReorgYolo>(p, Strides{stride});
     auto fun = make_shared<Function>(OutputVector{reorg_yolo}, ParameterVector{p});
 
     std::vector<float> inputs(81);
@@ -106,8 +106,8 @@ NGRAPH_TEST(${BACKEND_NAME}, reorg_yolo_catch_small_shape_stride)
     // in_shape [N,C,H,W]
     const auto in_shape = Shape{1, 1, 4, 4};
     auto p = make_shared<op::Parameter>(element::f32, in_shape);
-    int stride = 2;
-    auto reorg_yolo = make_shared<op::v0::ReorgYolo>(p, stride);
+    size_t stride = 2;
+    auto reorg_yolo = make_shared<op::v0::ReorgYolo>(p, Strides{stride});
     auto fun = make_shared<Function>(OutputVector{reorg_yolo}, ParameterVector{p});
 
     std::vector<float> inputs{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15};

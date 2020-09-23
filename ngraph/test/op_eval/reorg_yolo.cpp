@@ -33,8 +33,8 @@ TEST(op_eval, reorg_yolo)
     // in_shape [N,C,H,W]
     const auto in_shape = Shape{1, 8, 4, 4};
     auto p = make_shared<op::Parameter>(element::f32, in_shape);
-    int stride = 2;
-    auto reorg_yolo = make_shared<op::v0::ReorgYolo>(p, stride);
+    size_t stride = 2;
+    auto reorg_yolo = make_shared<op::v0::ReorgYolo>(p, Strides{stride});
     auto fun = make_shared<Function>(OutputVector{reorg_yolo}, ParameterVector{p});
 
     std::vector<float> inputs(128);

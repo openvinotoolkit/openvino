@@ -42,8 +42,8 @@ TEST(TransformationTests, ConvertExtractImagePatchesToReorgYoloTests1) {
 
     {
         auto input = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{1, 3, 10, 10});
-        auto stride = 5;
-        auto reorg_yolo = std::make_shared<ngraph::opset3::ReorgYolo>(input, stride);
+        auto strides = ngraph::Strides{5, 5};
+        auto reorg_yolo = std::make_shared<ngraph::opset3::ReorgYolo>(input, strides);
 
         f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{reorg_yolo}, ngraph::ParameterVector{input});
     }

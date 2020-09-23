@@ -23,9 +23,9 @@ using namespace ngraph;
 
 constexpr NodeTypeInfo op::ReorgYolo::type_info;
 
-op::ReorgYolo::ReorgYolo(const Output<Node>& input, const int64_t stride)
+op::ReorgYolo::ReorgYolo(const Output<Node>& input, const Strides& strides)
     : Op({input})
-    , m_stride(stride)
+    , m_strides(strides)
 {
     constructor_validate_and_infer_types();
 }
@@ -40,8 +40,8 @@ void op::ReorgYolo::validate_and_infer_types()
 
         for (size_t i = 2; i < input_shape.size(); i++)
         {
-            output_shape.push_back(input_shape[i] / m_stride);
-            output_shape[1] *= m_stride;
+            output_shape.push_back(input_shape[i] / m_strides[0]);
+            output_shape[1] *= m_strides[0];
         }
         set_output_type(0, input_et, output_shape);
     }
@@ -54,12 +54,12 @@ void op::ReorgYolo::validate_and_infer_types()
 shared_ptr<Node> op::ReorgYolo::clone_with_new_inputs(const OutputVector& new_args) const
 {
     check_new_args_count(this, new_args);
-    return make_shared<ReorgYolo>(new_args.at(0), m_stride);
+    return make_shared<ReorgYolo>(new_args.at(0), m_strides);
 }
 
 bool op::ReorgYolo::visit_attributes(AttributeVisitor& visitor)
 {
-    visitor.on_attribute("stride", m_stride);
+    visitor.on_attribute("stride", m_strides);
     return true;
 }
 
@@ -101,5 +101,5 @@ namespace
 bool op::v0::ReorgYolo::evaluate(const HostTensorVector& outputs,
                                  const HostTensorVector& inputs) const
 {
-    return evaluate_reorg_yolo(inputs[0], outputs[0], inputs[0]->get_shape(), get_stride());
+    return evaluate_reorg_yolo(inputs[0], outputs[0], inputs[0]->get_shape(), get_strides().at(0));
 }

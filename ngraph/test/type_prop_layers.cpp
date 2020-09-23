@@ -152,7 +152,7 @@ TEST(type_prop_layers, region_yolo3)
 TEST(type_prop_layers, reorg_yolo)
 {
     auto inputs = make_shared<op::Parameter>(element::f32, Shape{2, 24, 34, 62});
-    auto op = make_shared<op::ReorgYolo>(inputs, 2);
+    auto op = make_shared<op::ReorgYolo>(inputs, Strides{2});
     ASSERT_EQ(op->get_shape(), (Shape{2, 96, 17, 31}));
 }
 
