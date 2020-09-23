@@ -35,7 +35,9 @@ namespace ngraph
         {
             auto to_lower = [](const std::string& s) {
                 std::string rc = s;
-                std::transform(rc.begin(), rc.end(), rc.begin(), ::tolower);
+                std::transform(rc.begin(), rc.end(), rc.begin(), [](char ch) {
+                    return static_cast<char>(::tolower(ch));
+                });
                 return rc;
             };
             for (auto p : get().m_string_enums)
