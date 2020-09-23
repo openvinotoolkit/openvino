@@ -16,8 +16,8 @@ using namespace ngraph;
 // template_pattern_transformation.cpp
 ngraph::pass::DecomposeDivideMatcher::DecomposeDivideMatcher() {
     // Pattern example
-    auto input0 = std::make_shared<pattern::op::Label>(element::f32, Shape{});
-    auto input1 = std::make_shared<pattern::op::Label>(element::f32, Shape{});
+    auto input0 = pattern::any_input();
+    auto input1 = pattern::any_input();
     auto div = std::make_shared<ngraph::opset3::Divide>(input0, input1);
 
     ngraph::matcher_pass_callback callback = [](pattern::Matcher& m) {
@@ -49,7 +49,7 @@ ngraph::pass::DecomposeDivideMatcher::DecomposeDivideMatcher() {
     // Register pattern with Divide operation as a pattern root node
     auto m = std::make_shared<ngraph::pattern::Matcher>(div, "ConvertDivide");
     // Register Matcher
-    this->register_matcher(m, callback);
+    register_matcher(m, callback);
 }
 // ! [graph_rewrite:template_transformation_cpp]
 
@@ -82,7 +82,7 @@ ngraph::pass::ReluReluFusionMatcher::ReluReluFusionMatcher() {
     // Register pattern with Relu operation as a pattern root node
     auto m = std::make_shared<ngraph::pattern::Matcher>(m_relu2, "ReluReluFusion");
     // Register Matcher
-    this->register_matcher(m, callback);
+    register_matcher(m, callback);
 }
 // ! [matcher_pass:relu_fusion]
 
@@ -137,3 +137,16 @@ pass.add_matcher<ngraph::pass::ReluReluFusionMatcher>();
 pass.run_on_function(f);
 // ! [matcher_pass:graph_rewrite]
 }
+
+// ! [manual_constant_folding]
+template <class T>
+Output<Node> eltwise_fold(const Output<Node> & input0, const Output<Node> & input1) {
+    auto eltwise = std::make_shared<T>(input0, input1);
+    OutputVector output(eltwise->get_output_size());
+    // If constant folding wasn't successful return eltwise output
+    if (!eltwise->constant_fold(output, {input0, input1})) {
+        return eltwise->output(0);
+    }
+    return output[0];
+}
+// ! [manual_constant_folding]
