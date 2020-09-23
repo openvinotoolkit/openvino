@@ -31,8 +31,7 @@ std::ostream& ngraph::operator<<(std::ostream& str, const Dimension& dimension)
     }
     else if (dimension.get_interval().has_upper_bound())
     {
-        return str << "[" << dimension.get_min_length() << ", " << dimension.get_max_length()
-                   << "]";
+        return str << dimension.get_min_length() << ".." << dimension.get_max_length();
     }
     else
     {

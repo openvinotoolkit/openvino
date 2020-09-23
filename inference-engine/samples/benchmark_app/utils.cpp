@@ -137,11 +137,21 @@ InferenceEngine::ICNNNetwork::InputPartialShapes parseShapes(const std::string& 
         auto input_shape = search_string.substr(start_pos + 1, end_pos - start_pos - 1);
         std::vector<ngraph::Dimension> parsed_shape;
         for (auto& dim : split(input_shape, ',')) {
-            if (dim == "?" || dim == "-1")
+            if (dim == "?" || dim == "-1") {
                 parsed_shape.push_back(ngraph::Dimension());
-                // TODO: parse intervals as [min-max]; requires to change syntax for shape enclosure from [] to {} (or something else)
-            else
-                parsed_shape.push_back(std::stoi(dim));
+            } else {
+                const std::string range_divider = "..";
+                size_t range_index = dim.find(range_divider);
+                if (range_index != std::string::npos) {
+                    std::string min = dim.substr(0, range_index);
+                    std::string max = dim.substr(range_index + range_divider.length());
+                    parsed_shape.push_back(ngraph::Dimension(
+                            min.empty() ? 0 : std::stoi(min),
+                            max.empty() ? ngraph::Interval::s_max : std::stoi(max)));
+                } else {
+                    parsed_shape.push_back(std::stoi(dim));
+                }
+            }
         }
         result_shapes[input_name] = parsed_shape;
         search_string = search_string.substr(end_pos + 1);
