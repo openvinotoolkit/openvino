@@ -801,7 +801,7 @@
             <!-- OpenCV -->
             <tab type="user" title="OpenCV Developer Guide" url="https://docs.opencv.org/master/"/>
             <!-- IE C -->
-            <tab type="user" title="Inference Engine C API Reference" url="ie_c_api/groups.html"/>
+            <tab type="user" title="Inference Engine C API Reference" url="ie_c_api/modules.html"/>
             <!-- IE C++-->
             <tab type="classes" visible="yes" title="Inference Engine С++ API Reference">
                 <tab type="classlist" visible="yes" title=""/>
@@ -815,7 +815,7 @@
             <!-- IE Python -->
             <tab type="user" title="Inference Engine Python API Reference" url="ie_python_api/annotated.html"/>
             <!-- DL Streamer -->
-            <tab type="user" title="DL Streamer API Reference" url="https://opencv.github.io/gst-video-analytics/"/>
+            <tab type="user" title="DL Streamer API Reference" url="https://openvinotoolkit.github.io/dlstreamer_gst/"/>
 
         </tab>
         <!-- Chinese docs -->
