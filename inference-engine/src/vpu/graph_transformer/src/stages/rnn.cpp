@@ -83,6 +83,20 @@ private:
         bool useTempBuffer = (nCells > 1);
         IE_ASSERT((numTempBuffers() == 1 && useTempBuffer) || !useTempBuffer);
 
+        VPU_THROW_UNLESS(inputEdges().size() == 5,
+                         "LSTMCell: input edges: {}, but expected: 5",
+                         inputEdges().size());
+
+        // check number of outputs, without temp buffer
+        const int outputsNumber = outputEdges().size();
+        const int useCellState = outputsNumber >= 2;
+        const int outputEdgesExpected = 1
+                                      + (useCellState ? 1 : 0)
+                                      + (outputsNumber == 3 ? 1 : 0);
+        VPU_THROW_UNLESS(outputEdges().size() == outputEdgesExpected,
+                         "LSTMCell: number of output edges: {}, but expected: {}",
+                         outputEdges().size(), outputEdgesExpected);
+
         for (const auto& inEdge : inputEdges()) {
             inEdge->input()->serializeBuffer(serializer);
         }

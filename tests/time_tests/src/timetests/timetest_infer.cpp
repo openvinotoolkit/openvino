@@ -6,6 +6,7 @@
 #include <iostream>
 
 #include "timetests_helper/timer.h"
+#include "timetests_helper/utils.h"
 using namespace InferenceEngine;
 
 /**
@@ -15,20 +16,41 @@ using namespace InferenceEngine;
  */
 int runPipeline(const std::string &model, const std::string &device) {
   auto pipeline = [](const std::string &model, const std::string &device) {
-    SCOPED_TIMER(first_time_to_inference);
-
     Core ie;
-    CNNNetwork cnnNetwork;
     ExecutableNetwork exeNetwork;
+    InferRequest inferRequest;
 
     {
-      SCOPED_TIMER(read_network);
-      cnnNetwork = ie.ReadNetwork(model);
+      SCOPED_TIMER(first_inference_latency);
+      {
+        SCOPED_TIMER(load_plugin);
+        ie.GetVersions(device);
+      }
+      {
+        SCOPED_TIMER(create_exenetwork);
+        if (TimeTest::fileExt(model) == "blob") {
+          SCOPED_TIMER(import_network);
+          exeNetwork = ie.ImportNetwork(model, device);
+        }
+        else {
+          CNNNetwork cnnNetwork;
+          {
+            SCOPED_TIMER(read_network);
+            cnnNetwork = ie.ReadNetwork(model);
+          }
+
+          {
+            SCOPED_TIMER(load_network);
+            exeNetwork = ie.LoadNetwork(cnnNetwork, device);
+          }
+        }
+      }
     }
 
     {
-      SCOPED_TIMER(load_network);
-      ExecutableNetwork exeNetwork = ie.LoadNetwork(cnnNetwork, device);
+      SCOPED_TIMER(first_inference);
+      inferRequest = exeNetwork.CreateInferRequest();
+      inferRequest.Infer();
     }
   };
 
