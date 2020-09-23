@@ -29,6 +29,8 @@
       </tab>
       <tab type="user" title="Inference Engine С++ API Reference" url="../annotated.html"/>
       <tab type="user" title="Inference Engine Python API Reference" url="../ie_python_api/annotated.html"/>
+      <!-- DL Streamer -->
+      <tab type="user" title="DL Streamer API Reference" url="https://openvinotoolkit.github.io/dlstreamer_gst/"/>
     </tab>
     <!-- Chinese docs -->
     <tab type="user" title="中文文件" url="https://docs.openvinotoolkit.org/cn/index.html"/>

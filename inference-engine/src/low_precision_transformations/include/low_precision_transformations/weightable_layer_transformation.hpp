@@ -47,6 +47,7 @@ protected:
         std::vector<float>& biasesShifts) const;
 
     void updateWeights(
+        TransformationContext& context,
         const CNNLayerPtr fakeQuantize,
         std::vector<float>& outputLowValues,
         std::vector<float>& outputHighValues) const;
@@ -68,6 +69,7 @@ protected:
         const bool onWeights) const;
 
     DataPrecision fillDequantizationsForWeightsPath(
+        TransformationContext& context,
         const CNNLayer& weightableLayer,
         const bool supportAsymmetricQuantization,
         std::vector<float>& dequantizationScales,

@@ -491,6 +491,10 @@ std::vector<std::uint8_t> convertOutputPrecision(std::vector<std::uint8_t> &outp
             case element::Type_t::f32: {
                 return convertPrecision<float, float>(output, elementsCount, element::Type(toPrecision).size());
             }
+            case element::Type_t::f16: {
+                // ngraph float16 has single ctor from float
+              return convertPrecision<float, ngraph::float16>(output, elementsCount, element::Type(toPrecision).size());
+            }
             case element::Type_t::u64: {
                 return convertPrecision<float, uint64_t>(output, elementsCount, element::Type(toPrecision).size());
             }

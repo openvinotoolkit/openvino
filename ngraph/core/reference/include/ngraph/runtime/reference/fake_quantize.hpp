@@ -93,7 +93,7 @@ namespace ngraph {
                     for (size_t i = incremented_dim_number; i < shape.size(); ++i) {
                         current_dims[i] = 0;
                     }
-                    incremented_dim_number(current_dims, incremented_dim_number - 1, shape);
+                    increment_current_dim(current_dims, shape, incremented_dim_number - 1);
                 }
 
             }

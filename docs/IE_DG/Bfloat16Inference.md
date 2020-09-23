@@ -20,10 +20,7 @@ There are two ways to check if CPU device can support bfloat16 computations for 
 1. Query the instruction set via system `lscpu | grep avx512_bf16` or `cat /proc/cpuinfo | grep avx512_bf16`.
 2. Use [Query API](InferenceEngine_QueryAPI.md) with `METRIC_KEY(OPTIMIZATION_CAPABILITIES)`, which should return `BF16` in the list of CPU optimization options:
 
-```cpp
-InferenceEngine::Core core;
-auto cpuOptimizationCapabilities = core.GetMetric("CPU", METRIC_KEY(OPTIMIZATION_CAPABILITIES)).as<std::vector<std::string>>();
-```
+@snippet openvino/docs/snippets/Bfloat16Inference0.cpp part0
 
 Current Inference Engine solution for bfloat16 inference uses Intel® Math Kernel Library for Deep Neural Networks (Intel® MKL-DNN) and supports inference of the following layers in BF16 computation mode:
 * Convolution
@@ -49,18 +46,11 @@ Bfloat16 data usage provides the following benefits that increase performance:
 For default optimization on CPU, source model converts from FP32 or FP16 to BF16 and executes internally on platforms with native BF16 support. In that case, `KEY_ENFORCE_BF16` is set to `YES`.
 The code below demonstrates how to check if the key is set:
 
-```cpp
-InferenceEngine::Core core;
-auto exeNetwork = core.LoadNetwork(network, "CPU");
-auto enforceBF16 = exeNetwork.GetConfig(PluginConfigParams::KEY_ENFORCE_BF16).as<std::string>();
-```
+@snippet openvino/docs/snippets/Bfloat16Inference1.cpp part1
 
 To disable BF16 internal transformations, set the `KEY_ENFORCE_BF16` to `NO`. In this case, the model infers AS IS without modifications with precisions that were set on each layer edge.
 
-```cpp
-InferenceEngine::Core core;
-core.SetConfig({ { CONFIG_KEY(ENFORCE_BF16), CONFIG_VALUE(NO) } }, "CPU");
-```
+@snippet openvino/docs/snippets/Bfloat16Inference2.cpp part2
 
 An exception with message `Platform doesn't support BF16 format` is formed in case of setting `KEY_ENFORCE_BF16` to `YES` on CPU without native BF16 support.
 

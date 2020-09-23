@@ -147,6 +147,7 @@ TEST_P(DSR_ROIAlign, CompareWithReference) {
     Run();
 }
 
+// #-30909
 INSTANTIATE_TEST_CASE_P(DISABLED_DynamicROIAlign, DSR_ROIAlign,
     ::testing::Combine(
         ::testing::Values(

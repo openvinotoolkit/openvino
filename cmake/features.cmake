@@ -17,7 +17,7 @@ ie_option (ENABLE_TESTS "unit, behavior and functional tests" OFF)
 
 ie_option (ENABLE_MKL_DNN "MKL-DNN plugin for inference engine" ${ENABLE_MKL_DNN_DEFAULT})
 
-ie_dependent_option (ENABLE_CLDNN "clDnn based plugin for inference engine" ON "WIN32 OR X86_64;NOT APPLE;NOT MINGW" OFF)
+ie_dependent_option (ENABLE_CLDNN "clDnn based plugin for inference engine" ON "WIN32 OR X86_64;NOT APPLE;NOT MINGW;NOT WINDOWS_STORE; NOT WINDOWS_PHONE" OFF)
 
 # FIXME: there are compiler failures with LTO and Cross-Compile toolchains. Disabling for now, but
 #        this must be addressed in a proper way
@@ -45,3 +45,6 @@ ie_dependent_option (ENABLE_AVX2 "Enable AVX2 optimizations" ON "X86_64 OR X86" 
 ie_dependent_option (ENABLE_AVX512F "Enable AVX512 optimizations" ON "X86_64 OR X86" OFF)
 
 ie_dependent_option (ENABLE_PROFILING_ITT "ITT tracing of IE and plugins internals" ON "NOT CMAKE_CROSSCOMPILING" OFF)
+
+# Documentation build
+ie_option (ENABLE_DOCS "build docs using Doxygen" OFF)

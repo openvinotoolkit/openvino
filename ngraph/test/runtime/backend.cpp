@@ -16,6 +16,9 @@
 
 #ifdef _WIN32
 #include <windows.h>
+#if defined(WINAPI_FAMILY) && !WINAPI_PARTITION_DESKTOP
+#error "Only WINAPI_PARTITION_DESKTOP is supported, because of LoadLibrary[A|W]"
+#endif
 #elif defined(__linux) || defined(__APPLE__)
 #include <dlfcn.h>
 #endif
@@ -52,9 +55,11 @@ static string find_my_pathname()
     Dl_info dl_info;
     dladdr(reinterpret_cast<void*>(ngraph::to_lower), &dl_info);
     return dl_info.dli_fname;
+#else
+#error "Unsupported OS"
 #endif
 #else
-    return "";
+    return {};
 #endif
 }
 
