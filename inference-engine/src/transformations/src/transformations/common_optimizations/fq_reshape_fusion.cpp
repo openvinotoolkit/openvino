@@ -10,7 +10,6 @@
 #include <ngraph/opsets/opset4.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
-#include <numeric>
 
 ngraph::pass::FakeQuantizeReshapeFusion::FakeQuantizeReshapeFusion() {
     const auto fq_node_p = ngraph::pattern::wrap_type<opset4::FakeQuantize>(
@@ -21,7 +20,7 @@ ngraph::pass::FakeQuantizeReshapeFusion::FakeQuantizeReshapeFusion() {
              ngraph::pattern::any_input()},
             pattern::consumers_count(1));
     const auto reshape_node_p = ngraph::pattern::wrap_type<opset4::Reshape>(
-            {fq_node_p, ngraph::pattern::any_input()}, pattern::consumers_count(1));
+            {fq_node_p, ngraph::pattern::any_input()});
 
     ngraph::matcher_pass_callback callback = [=](pattern::Matcher &m) {
         const auto &pattern_map = m.get_pattern_value_map();
@@ -29,9 +28,8 @@ ngraph::pass::FakeQuantizeReshapeFusion::FakeQuantizeReshapeFusion() {
         if (fq_node->is_dynamic())
             return false;
         const auto &reshape_node = pattern_map.at(reshape_node_p).get_node_shared_ptr();
-        const auto &reshape_pattern_node = reshape_node->get_input_node_shared_ptr(1);
         const auto &original_data_rank = fq_node->get_input_shape(0).size();
-        OutputVector renewed_inputs = {reshape_node->clone_with_new_inputs({fq_node->input_value(0), reshape_pattern_node})};
+        OutputVector renewed_inputs = {reshape_node->clone_with_new_inputs({fq_node->input_value(0), reshape_node->input_value(1)})};
         for (auto i = 1; i < 5; ++i) {
             Output<Node> limit_input = fq_node->input_value(i);
             auto limit_shape = limit_input.get_shape();
@@ -39,14 +37,13 @@ ngraph::pass::FakeQuantizeReshapeFusion::FakeQuantizeReshapeFusion() {
             if (limit_shape.size() < original_data_rank) // aligning limit rank with data rank
                 limit_shape.insert(limit_shape.begin(), original_data_rank - limit_shape.size(), uint64_t(1));
             NGRAPH_CHECK(limit_shape.size() == original_data_rank, "FakeQuantize limit input has unexpected rank");
-            const auto &limit_size = std::accumulate(limit_shape.begin(), limit_shape.end(), 1, std::multiplies<int64_t>());
-            const auto &max_element_idx = std::distance(limit_shape.begin(), std::max_element(limit_shape.begin(), limit_shape.end()));
-            const auto &max_element = limit_shape[max_element_idx];
+            const auto &limit_size = shape_size(limit_shape);
+            const auto &max_element = *std::max_element(limit_shape.begin(), limit_shape.end());
             if (max_element == limit_size) { // per-tensor / per-channel limit
                 auto new_limit_shape = reshape_node->get_output_shape(0);
                 std::transform(new_limit_shape.begin(), new_limit_shape.end(), new_limit_shape.begin(),
                                [max_element](size_t &dim) { return dim == max_element ? max_element : 1; });
-                const auto &new_limit_size = std::accumulate(new_limit_shape.begin(), new_limit_shape.end(), 1, std::multiplies<size_t>());
+                const auto &new_limit_size = shape_size(new_limit_shape);
                 if (new_limit_size == limit_size) { // we tracked future channel placement
                     if (new_limit_shape == limit_input.get_shape())
                         renewed_inputs.push_back(limit_input);
