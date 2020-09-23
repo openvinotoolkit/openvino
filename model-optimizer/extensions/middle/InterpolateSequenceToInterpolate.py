@@ -136,7 +136,8 @@ class CanBeFused:
         :param second: the second of fused nodes
         :return: True, if nodes can be fused, and False otherwise
         """
-        if not self._compare_attributes(first, second):
+        if not (is_next(first, second) and self._compare_attributes(first, second)):
+            self.accumulated_axes = set()
             return False
 
         fst_axes = set([a for a in Interpolate.get_axes(first)])
@@ -171,7 +172,7 @@ def collect_sequences(xs: List[Node]) -> List[List[Node]]:
     sequence = [prev]
     result = []
     for x in xs[1:]:
-        if is_next(prev, x) and fuser(prev, x):
+        if fuser(prev, x):
             sequence.append(x)
             prev = x
         else:
