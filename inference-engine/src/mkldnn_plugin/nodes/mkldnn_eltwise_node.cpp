@@ -515,7 +515,7 @@ private:
 
         switch (src_prc) {
             case Precision::FP32:
-                if (dst_prc != Precision::FP32)
+                if (dst_prc != Precision::FP32 && dst_prc != Precision::BF16)
                     uni_vcvtps2dq(vmm_dst, vmm_dst);
                 break;
             case Precision::I32:
@@ -585,7 +585,7 @@ private:
     inline void store_scalar(const Xbyak::Address &op, Xmm xmm_dst, Precision src_prc, Precision dst_prc) {
         switch (src_prc) {
             case Precision::FP32:
-                if (dst_prc != Precision::FP32)
+                if (dst_prc != Precision::FP32 && dst_prc != Precision::BF16)
                     uni_vcvtps2dq(xmm_dst, xmm_dst);
                 break;
             case Precision::I32:
