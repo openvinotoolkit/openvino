@@ -56,6 +56,10 @@ bool FakeQuantizeTransformation::transform(TransformationContext& context, ngrap
                     break;
                 }
             }
+
+            if (!nextOpearionsWillBeNotHandled) {
+                break;
+            }
         }
 
         if (nextOpearionsWillBeNotHandled) {
@@ -111,6 +115,7 @@ bool FakeQuantizeTransformation::transform(TransformationContext& context, ngrap
 
     std::shared_ptr<ngraph::Node> dequantize = std::get<1>(QDQ);
     updateOutput(context, dequantize, layer);
+
     return true;
 }
 

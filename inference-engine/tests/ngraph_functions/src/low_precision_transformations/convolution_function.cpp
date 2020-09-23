@@ -269,6 +269,64 @@ std::shared_ptr<ngraph::Function> ConvolutionFunction::getReference(
     return std::make_shared<ngraph::Function>(results, ngraph::ParameterVector{ input }, "ConvolutionTransformation");
 }
 
+std::shared_ptr<ngraph::Function> ConvolutionFunction::get(
+    const ngraph::Shape& inputShape,
+    const ngraph::element::Type precision,
+    const ngraph::builder::subgraph::FakeQuantizeOnData& fakeQuantizeOnData,
+    const std::vector<float>& weightsValues,
+    const ngraph::builder::subgraph::FakeQuantizeOnWeights& fakeQuantizeOnWeights) {
+    const auto input = std::make_shared<ngraph::opset1::Parameter>(precision, ngraph::Shape(inputShape));
+    input->set_friendly_name("input");
+
+    const std::shared_ptr<ngraph::opset1::FakeQuantize> fqOnData = as_type_ptr<ngraph::opset1::FakeQuantize>(ngraph::builder::makeFakeQuantize(
+        input,
+        precision,
+        fakeQuantizeOnData.quantizationLevel,
+        fakeQuantizeOnData.constantShape,
+        fakeQuantizeOnData.inputLowValues,
+        fakeQuantizeOnData.inputHighValues,
+        fakeQuantizeOnData.outputLowValues,
+        fakeQuantizeOnData.outputHighValues));
+
+    const size_t inputChannelsCount = inputShape[1];
+    const size_t outputChannelsCount = 2 * inputShape[1];
+    if ((weightsValues.size() != 1ul) && (weightsValues.size() != (inputChannelsCount * outputChannelsCount))) {
+        THROW_IE_EXCEPTION << "unexpected actual weights values size";
+    }
+
+    const std::shared_ptr<ngraph::Node> parentOnData = fakeQuantizeOnData.empty() ? std::dynamic_pointer_cast<ngraph::Node>(input) : fqOnData;
+
+    const std::shared_ptr<ngraph::Node> weights = ngraph::opset1::Constant::create(
+        precision,
+        ngraph::Shape{ outputChannelsCount, inputChannelsCount, 1, 1 },
+        weightsValues.size() == 1ul ?
+        std::vector<float>(outputChannelsCount * inputChannelsCount, weightsValues[0]) :
+        weightsValues);
+
+    const std::shared_ptr<ngraph::Node> parentOnWeights = fakeQuantizeOnWeights.empty() ?
+        weights :
+        ngraph::builder::makeFakeQuantize(
+            weights, precision, fakeQuantizeOnWeights.quantizationLevel, fakeQuantizeOnWeights.constantShape,
+            fakeQuantizeOnWeights.inputLowValues, fakeQuantizeOnWeights.inputHighValues,
+            fakeQuantizeOnWeights.outputLowValues, fakeQuantizeOnWeights.outputHighValues);
+
+    auto convolutionOriginal = ngraph::opset1::Convolution(
+        ngraph::op::TemporaryReplaceOutputType(parentOnData, element::f32).get(),
+        ngraph::op::TemporaryReplaceOutputType(parentOnWeights, element::f32).get(),
+        ngraph::Strides{ 1, 1 },
+        ngraph::CoordinateDiff{ 0, 0 },
+        ngraph::CoordinateDiff{ 0, 0 },
+        ngraph::Strides{ 1, 1 });
+
+    const std::shared_ptr<ngraph::opset1::Convolution> convolution = std::make_shared<ngraph::op::TypeRelaxed<ngraph::opset1::Convolution>>(
+        convolutionOriginal,
+        std::vector<element::Type>{ element::f32, element::f32 },
+        std::vector<element::Type>{});
+
+    ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(convolution) };
+    return std::make_shared<ngraph::Function>(results, ngraph::ParameterVector{ input }, "ConvolutionFunction");
+}
+
 }  // namespace subgraph
 }  // namespace builder
 }  // namespace ngraph

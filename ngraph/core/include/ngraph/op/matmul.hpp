@@ -59,9 +59,7 @@ namespace ngraph
 
                 bool get_transpose_a() const { return m_transpose_a; }
                 bool get_transpose_b() const { return m_transpose_b; }
-
                 element::Type get_output_type() const { return m_output_type; }
-
             private:
                 bool m_transpose_a;
                 bool m_transpose_b;

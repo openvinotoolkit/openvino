@@ -337,6 +337,48 @@ std::shared_ptr<Node> NetworkHelper::fold_fake_quantize(const std::shared_ptr<op
     return foldFakeQuantize(fq, roundValues, true);
 }
 
+void NetworkHelper::foldDequantization(std::shared_ptr<Node>& node, const size_t branchIndex) {
+    FakeQuantizeDequantization dequantization = NetworkHelper::getDequantization(node, branchIndex);
+    if (dequantization.empty() || (dequantization.multiply == nullptr)) {
+        return;
+    }
+
+    std::shared_ptr<opset1::Constant> constant = as_type_ptr<opset1::Constant>(dequantization.data.get_node_shared_ptr());
+    if ((constant == nullptr) || (constant->output(0).get_target_inputs().size() != 1ul)) {
+        return;
+    }
+
+    if (dequantization.convert != nullptr) {
+        const std::shared_ptr<Node> result = fold<opset1::Convert>(dequantization.data, dequantization.convert->get_element_type());
+        if (!is_type<opset1::Constant>(result)) {
+            return;
+        }
+        replace_node(dequantization.convert, result);
+        dequantization = NetworkHelper::getDequantization(node, branchIndex);
+    }
+
+    if (dequantization.subtract != nullptr) {
+        if (dequantization.data.get_element_type() != dequantization.subtract->input(1).get_element_type()) {
+            return;
+        }
+        const std::shared_ptr<Node> result = fold<opset1::Subtract>(dequantization.data, dequantization.subtract->get_input_node_shared_ptr(1));
+        if (!is_type<opset1::Constant>(result)) {
+            return;
+        }
+        replace_node(dequantization.subtract, result);
+        dequantization = NetworkHelper::getDequantization(node, branchIndex);
+    }
+
+    if (dequantization.multiply != nullptr) {
+        const std::shared_ptr<Node> result = fold<opset1::Multiply>(dequantization.data, dequantization.multiply->get_input_node_shared_ptr(1));
+        if (!is_type<opset1::Constant>(result)) {
+            return;
+        }
+        replace_node(dequantization.multiply, result);
+        dequantization = NetworkHelper::getDequantization(node, branchIndex);
+    }
+}
+
 std::shared_ptr<Node> NetworkHelper::foldFakeQuantize(
     const std::shared_ptr<opset1::FakeQuantize>& fq,
     const bool roundValuesArg,

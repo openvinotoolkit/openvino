@@ -51,8 +51,11 @@ bool MultiplyTransformation::transform(TransformationContext& context, ngraph::p
     if (fullPathIndex == -1) {
         const auto multiplyBranch = getMultiplyConstBranch(multiply);
 
-        if (multiplyBranch.first == -1 || multiplyBranch.second == -1)
+        if (multiplyBranch.first == -1 || multiplyBranch.second == -1) {
+            NetworkHelper::foldDequantization(multiply, 0);
+            NetworkHelper::foldDequantization(multiply, 1);
             return false;
+        }
 
         auto multiplyParent = multiply->get_input_node_shared_ptr(multiplyBranch.first);
         auto constParent = multiply->get_input_node_shared_ptr(multiplyBranch.first == 0 ? 1 : 0);

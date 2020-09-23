@@ -61,7 +61,6 @@ const std::vector<FakeQuantizePrecisionSelectionTransformationTestValues> testVa
     },
 };
 
-// TODO: add something to avoid cleanup and enable
 INSTANTIATE_TEST_CASE_P(LPT, FakeQuantizePrecisionSelectionTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(netPrecisions),

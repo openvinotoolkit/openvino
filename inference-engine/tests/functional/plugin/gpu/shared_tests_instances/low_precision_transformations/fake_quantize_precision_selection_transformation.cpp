@@ -61,8 +61,8 @@ const std::vector<FakeQuantizePrecisionSelectionTransformationTestValues> testVa
     },
 };
 
-// TODO: add something to avoid cleanup and enable
-INSTANTIATE_TEST_CASE_P(LPT, FakeQuantizePrecisionSelectionTransformation,
+// GPU issue
+INSTANTIATE_TEST_CASE_P(DISABLED_LPT, FakeQuantizePrecisionSelectionTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(netPrecisions),
         ::testing::Values(InferenceEngine::SizeVector({ 1, 32, 72, 48 })),
