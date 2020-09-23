@@ -114,8 +114,9 @@ namespace ngraph
                 return builder::opset1::reshape(node, Shape{});
             }
 
-            Output<ngraph::Node> reshape_channel_shaped_node_to_nchw(const Output<ngraph::Node>& node,
-                                                                     size_t expected_rank)
+            Output<ngraph::Node>
+                reshape_channel_shaped_node_to_nchw(const Output<ngraph::Node>& node,
+                                                    size_t expected_rank)
             {
                 size_t node_rank = node.get_partial_shape().rank().get_length();
                 if (node_rank == 1)
@@ -125,8 +126,7 @@ namespace ngraph
                     reshape_pattern_values[1] = node.get_shape().front();
                     const auto reshape_pattern = default_opset::Constant::create(
                         element::u64, Shape{reshape_pattern_values.size()}, reshape_pattern_values);
-                    return std::make_shared<default_opset::Reshape>(
-                        node, reshape_pattern, false);
+                    return std::make_shared<default_opset::Reshape>(node, reshape_pattern, false);
                 }
                 return node;
             }

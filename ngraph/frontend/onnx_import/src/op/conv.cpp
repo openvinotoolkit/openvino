@@ -84,7 +84,8 @@ namespace ngraph
                         const auto rank_of_conv = ng_conv.get_partial_shape().rank().get_length();
 
                         return {std::make_shared<default_opset::Add>(
-                            ng_conv, reshape::reshape_channel_shaped_node_to_nchw(bias, rank_of_conv))};
+                            ng_conv,
+                            reshape::reshape_channel_shaped_node_to_nchw(bias, rank_of_conv))};
                     }
                 } // namespace
 
