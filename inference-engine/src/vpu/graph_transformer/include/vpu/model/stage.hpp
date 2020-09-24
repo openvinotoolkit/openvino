@@ -172,6 +172,7 @@ VPU_DECLARE_ENUM(StageType,
     SoftPlus = 134,
     Swish = 135,
     GatherND = 136,
+    Interpolate = 136,
     HSwish = 137,
 )
 
