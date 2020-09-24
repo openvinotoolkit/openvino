@@ -69,15 +69,6 @@ std::vector<ngraph::helpers::LogicalTypes> eltwiseLogicalTypesInt = {
         ngraph::helpers::LogicalTypes::LOGICAL_AND,
 };
 
-Config getConfig() {
-    Config config;
-    config[InferenceEngine::MYRIAD_DETECT_NETWORK_BATCH] = CONFIG_VALUE(NO);
-    if (CommonTestUtils::vpu::CheckMyriad2()) {
-        config[InferenceEngine::MYRIAD_DISABLE_REORDER] = CONFIG_VALUE(YES);
-    }
-    return config;
-}
-
 INSTANTIATE_TEST_CASE_P(EltwiseLogicalInt,
                         LogicalLayerTestVPU,
                         ::testing::Combine(
@@ -87,7 +78,7 @@ INSTANTIATE_TEST_CASE_P(EltwiseLogicalInt,
                                 ::testing::Values(ngraph::helpers::InputLayerType::PARAMETER),
                                 ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                                 ::testing::Values(CommonTestUtils::DEVICE_MYRIAD),
-                                ::testing::Values(getConfig())),
+                                ::testing::Values(Config{{InferenceEngine::MYRIAD_DETECT_NETWORK_BATCH, CONFIG_VALUE(NO)}})),
                         LogicalLayerTest::getTestCaseName);
 
 INSTANTIATE_TEST_CASE_P(EltwiseLogicalNotInt,
@@ -99,7 +90,7 @@ INSTANTIATE_TEST_CASE_P(EltwiseLogicalNotInt,
                                 ::testing::Values(ngraph::helpers::InputLayerType::PARAMETER),
                                 ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                                 ::testing::Values(CommonTestUtils::DEVICE_MYRIAD),
-                                ::testing::Values(getConfig())),
+                                ::testing::Values(Config{{InferenceEngine::MYRIAD_DETECT_NETWORK_BATCH, CONFIG_VALUE(NO)}})),
                         LogicalLayerTest::getTestCaseName);
 
 } // namespace

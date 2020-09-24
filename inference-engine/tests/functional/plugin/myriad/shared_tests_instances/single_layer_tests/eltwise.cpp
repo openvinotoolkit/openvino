@@ -55,15 +55,6 @@ std::vector<ngraph::helpers::EltwiseTypes> eltwiseMathTypesINT = {
         ngraph::helpers::EltwiseTypes::DIVIDE,
 };
 
-Config getConfig() {
-    Config config;
-    config[InferenceEngine::MYRIAD_DETECT_NETWORK_BATCH] = CONFIG_VALUE(NO);
-    if (CommonTestUtils::vpu::CheckMyriad2()) {
-        config[InferenceEngine::MYRIAD_DISABLE_REORDER] = CONFIG_VALUE(YES);
-    }
-    return config;
-}
-
 INSTANTIATE_TEST_CASE_P(EltwiseMathFP,
                         EltwiseLayerTest,
                         ::testing::Combine(
@@ -73,7 +64,7 @@ INSTANTIATE_TEST_CASE_P(EltwiseMathFP,
                             ::testing::ValuesIn(opTypes),
                             ::testing::ValuesIn(fpTypes),
                             ::testing::Values(CommonTestUtils::DEVICE_MYRIAD),
-                            ::testing::Values(getConfig())),
+                            ::testing::Values(Config{{InferenceEngine::MYRIAD_DETECT_NETWORK_BATCH, CONFIG_VALUE(NO)}})),
                         EltwiseLayerTest::getTestCaseName);
 
 INSTANTIATE_TEST_CASE_P(EltwiseMathInt,
@@ -85,7 +76,7 @@ INSTANTIATE_TEST_CASE_P(EltwiseMathInt,
                                 ::testing::ValuesIn(opTypes),
                                 ::testing::ValuesIn(intTypes),
                                 ::testing::Values(CommonTestUtils::DEVICE_MYRIAD),
-                                ::testing::Values(getConfig())),
+                                ::testing::Values(Config{{InferenceEngine::MYRIAD_DETECT_NETWORK_BATCH, CONFIG_VALUE(NO)}})),
                         EltwiseLayerTest::getTestCaseName);
 
 }  // namespace

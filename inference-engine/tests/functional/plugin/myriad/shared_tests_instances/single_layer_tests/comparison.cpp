@@ -50,15 +50,6 @@ std::vector<ngraph::helpers::ComparisonTypes> comparisonOpTypesFpToInt = {
         ngraph::helpers::ComparisonTypes::LESS,
 };
 
-Config getConfig() {
-    Config config;
-    config[InferenceEngine::MYRIAD_DETECT_NETWORK_BATCH] = CONFIG_VALUE(NO);
-    if (CommonTestUtils::vpu::CheckMyriad2()) {
-        config[InferenceEngine::MYRIAD_DISABLE_REORDER] = CONFIG_VALUE(YES);
-    }
-    return config;
-}
-
 INSTANTIATE_TEST_CASE_P(ComparisonFp,
                         ComparisonLayerTest,
                         ::testing::Combine(
@@ -69,7 +60,7 @@ INSTANTIATE_TEST_CASE_P(ComparisonFp,
                             ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                             ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                             ::testing::Values(CommonTestUtils::DEVICE_MYRIAD),
-                            ::testing::Values(getConfig())),
+                            ::testing::Values(Config{{InferenceEngine::MYRIAD_DETECT_NETWORK_BATCH, CONFIG_VALUE(NO)}})),
                         ComparisonLayerTest::getTestCaseName);
 
 INSTANTIATE_TEST_CASE_P(ComparisonInt,
@@ -82,7 +73,7 @@ INSTANTIATE_TEST_CASE_P(ComparisonInt,
                                 ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                                 ::testing::Values(InferenceEngine::Precision::I32),
                                 ::testing::Values(CommonTestUtils::DEVICE_MYRIAD),
-                                ::testing::Values(getConfig())),
+                                ::testing::Values(Config{{InferenceEngine::MYRIAD_DETECT_NETWORK_BATCH, CONFIG_VALUE(NO)}})),
                         ComparisonLayerTest::getTestCaseName);
 
 }  // namespace
