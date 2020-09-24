@@ -549,20 +549,6 @@ std::tuple<std::shared_ptr<Node>, std::shared_ptr<Node>> NetworkHelper::decompos
     const auto outputLow = fq->input_value(3);
     const auto outputHigh = fq->input_value(4);
 
-//    const auto newMin = make_shared<opset1::Constant>(outputLow.get_element_type(), Shape{}, min);
-//    const auto newMax = make_shared<opset1::Constant>(outputLow.get_element_type(), Shape{}, max);
-
-//    // TODO: threshold values have to used here to avoid shifts
-//    const std::shared_ptr<Node> scale = fold<opset1::Divide>(
-//        fold<opset1::Subtract>(outputHigh, outputLow),
-//        fold<opset1::Subtract>(newMax, newMin));
-
-//    std::shared_ptr<Node> shift = hasZeroPoint ?
-//        fold<opset1::Divide>(
-//            fold<opset1::Subtract>(fold<opset1::Multiply>(newMin, outputHigh), fold<opset1::Multiply>(newMax, outputLow)),
-//            fold<opset1::Subtract>(outputHigh, outputLow)) :
-//        nullptr;
-
     std::vector<float> outputLowValues = as_type_ptr<opset1::Constant>(outputLow.get_node_shared_ptr())->cast_vector<float>();
     std::vector<float> outputHighValues = as_type_ptr<opset1::Constant>(outputHigh.get_node_shared_ptr())->cast_vector<float>();
     size_t outputSize = outputLowValues.size();
@@ -590,8 +576,15 @@ std::tuple<std::shared_ptr<Node>, std::shared_ptr<Node>> NetworkHelper::decompos
         nullptr;
     std::shared_ptr<Node> scale = std::make_shared<opset1::Constant>(outputLow.get_element_type(), outputLow.get_shape(), scales);
 
-    const auto newMin = make_shared<opset1::Constant>(outputLow.get_element_type(), outputLow.get_shape(), minValues);
-    const auto newMax = make_shared<opset1::Constant>(outputLow.get_element_type(), outputLow.get_shape(), maxValues);
+    auto newMin = make_shared<opset1::Constant>(outputLow.get_element_type(), outputLow.get_shape(), minValues);
+    auto newMax = make_shared<opset1::Constant>(outputLow.get_element_type(), outputLow.get_shape(), maxValues);
+
+    if (isScalarLike(newMin)) {
+        newMin = toScalar(newMin);
+    }
+    if (isScalarLike(newMax)) {
+        newMax = toScalar(newMax);
+    }
 
     {
         static const float minQuantizationScale = 1e-32f;
