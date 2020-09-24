@@ -76,6 +76,7 @@
 #include "ngraph/runtime/reference/prior_box.hpp"
 #include "ngraph/runtime/reference/product.hpp"
 #include "ngraph/runtime/reference/quantize.hpp"
+#include "ngraph/runtime/reference/region_yolo.hpp"
 #include "ngraph/runtime/reference/relu.hpp"
 #include "ngraph/runtime/reference/replace_slice.hpp"
 #include "ngraph/runtime/reference/reshape.hpp"
@@ -1134,6 +1135,63 @@ protected:
                 throw std::runtime_error(ss.str());
             }
 
+            break;
+        }
+        case OP_TYPEID::RegionYolo_v0:
+        {
+            const op::RegionYolo* region_yolo = static_cast<const op::RegionYolo*>(&node);
+            auto type = node.get_element_type();
+            if (type == element::bf16)
+            {
+                reference::region_yolo<bfloat16>(args[0]->get_data_ptr<const bfloat16>(),
+                                                 args[0]->get_shape(),
+                                                 region_yolo->get_num_coords(),
+                                                 region_yolo->get_num_classes(),
+                                                 region_yolo->get_num_regions(),
+                                                 region_yolo->get_do_softmax(),
+                                                 region_yolo->get_mask(),
+                                                 region_yolo->get_axis(),
+                                                 region_yolo->get_end_axis(),
+                                                 region_yolo->get_anchors(),
+                                                 out[0]->get_data_ptr<bfloat16>(),
+                                                 out[0]->get_shape());
+            }
+            else if (type == element::f16)
+            {
+                reference::region_yolo<float16>(args[0]->get_data_ptr<const float16>(),
+                                                args[0]->get_shape(),
+                                                region_yolo->get_num_coords(),
+                                                region_yolo->get_num_classes(),
+                                                region_yolo->get_num_regions(),
+                                                region_yolo->get_do_softmax(),
+                                                region_yolo->get_mask(),
+                                                region_yolo->get_axis(),
+                                                region_yolo->get_end_axis(),
+                                                region_yolo->get_anchors(),
+                                                out[0]->get_data_ptr<float16>(),
+                                                out[0]->get_shape());
+            }
+            else if (type == element::f32)
+            {
+                reference::region_yolo<float>(args[0]->get_data_ptr<const float>(),
+                                              args[0]->get_shape(),
+                                              region_yolo->get_num_coords(),
+                                              region_yolo->get_num_classes(),
+                                              region_yolo->get_num_regions(),
+                                              region_yolo->get_do_softmax(),
+                                              region_yolo->get_mask(),
+                                              region_yolo->get_axis(),
+                                              region_yolo->get_end_axis(),
+                                              region_yolo->get_anchors(),
+                                              out[0]->get_data_ptr<float>(),
+                                              out[0]->get_shape());
+            }
+            else
+            {
+                std::stringstream ss;
+                ss << "unsupported element type";
+                throw std::runtime_error(ss.str());
+            }
             break;
         }
         case OP_TYPEID::Relu:

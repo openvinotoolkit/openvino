@@ -42,7 +42,7 @@ namespace ngraph
                        entry * width * height * loc;
             }
 
-            static inline float logistic_activate(float x) { return 1.f / (1.f + exp(-x)); }
+            static inline float logistic_activate(float x) { return 1.f / (1.f + std::exp(-x)); }
             template <typename T>
             static inline void
                 softmax_generic(const T* src_data, T* dst_data, int B, int C, int H, int W)
@@ -66,7 +66,7 @@ namespace ngraph
                         for (unsigned int c = 0; c < C; c++)
                         {
                             dst_data[b * C * H * W + c * H * W + i] =
-                                exp(src_data[b * C * H * W + c * H * W + i] - max);
+                                std::exp(src_data[b * C * H * W + c * H * W + i] - max);
                             sum += dst_data[b * C * H * W + c * H * W + i];
                         }
 
@@ -79,18 +79,18 @@ namespace ngraph
             }
 
             template <typename T>
-            void evaluate_region_yolo(const T* input,
-                                      const Shape& input_shape,
-                                      const int coords,
-                                      const int classes,
-                                      const int regions,
-                                      const bool do_softmax,
-                                      const std::vector<int64_t>& mask,
-                                      const int axis,
-                                      const int end_axis,
-                                      const std::vector<float>& anchors,
-                                      T* output,
-                                      const Shape& output_shape)
+            void region_yolo(const T* input,
+                             const Shape& input_shape,
+                             const int coords,
+                             const int classes,
+                             const int regions,
+                             const bool do_softmax,
+                             const std::vector<int64_t>& mask,
+                             const int axis,
+                             const int end_axis,
+                             const std::vector<float>& anchors,
+                             T* output,
+                             const Shape& output_shape)
             {
                 NGRAPH_CHECK(input_shape.size() == 4);
 
