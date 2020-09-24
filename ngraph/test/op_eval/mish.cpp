@@ -46,6 +46,6 @@ TEST(op_eval, mish_0D)
         EXPECT_EQ(result->get_element_type(), element::f32);
         EXPECT_EQ(result->get_shape(), (Shape{}));
         auto result_data = read_vector<float>(result);
-        EXPECT_NEAR(result_data[0], expected_result[i][0], 0.3);
+        EXPECT_NEAR(result_data[0], expected_result[i][0], 0.000001);
     }
 }

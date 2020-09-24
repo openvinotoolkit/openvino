@@ -13,7 +13,9 @@
 #include <ngraph_ops/crop_ie.hpp>
 #include <ngraph/rt_info.hpp>
 
-void ngraph::pass::ConvertStridedSliceToCrop::convert_strided_slice_to_crop() {
+NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertStridedSliceToCropMatcher, "ConvertStridedSliceToCropMatcher", 0);
+
+ngraph::pass::ConvertStridedSliceToCropMatcher::ConvertStridedSliceToCropMatcher() {
     auto data = std::make_shared<pattern::op::Label>(element::f32, Shape{1, 1, 1, 1});
     auto m_begin = std::make_shared<pattern::op::Label>(element::i64, Shape{2});
     auto m_end = std::make_shared<pattern::op::Label>(element::i64, Shape{2});
@@ -22,9 +24,9 @@ void ngraph::pass::ConvertStridedSliceToCrop::convert_strided_slice_to_crop() {
     std::vector<int64_t> end_mask = {0, 0, 0, 0};
     auto m_slice = std::make_shared<ngraph::opset1::StridedSlice>(data, m_begin, m_end, m_stride, begin_mask, end_mask);
 
-    ngraph::graph_rewrite_callback callback = [](pattern::Matcher& m) {
+    ngraph::matcher_pass_callback callback = [this](pattern::Matcher& m) {
         auto slice = std::dynamic_pointer_cast<ngraph::opset1::StridedSlice> (m.get_match_root());
-        if (!slice) {
+        if (!slice || m_transformation_callback(slice)) {
             return false;
         }
 
@@ -227,5 +229,5 @@ void ngraph::pass::ConvertStridedSliceToCrop::convert_strided_slice_to_crop() {
     };
 
     auto m = std::make_shared<ngraph::pattern::Matcher>(m_slice, "ConvertStridedSliceToCrop");
-    this->add_matcher(m, callback, PassProperty::CHANGE_DYNAMIC_STATE);
+    this->register_matcher(m, callback);
 }

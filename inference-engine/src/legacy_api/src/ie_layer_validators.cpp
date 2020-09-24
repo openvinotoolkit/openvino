@@ -2,12 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ie_layer_validators.hpp"
-
-#include <ie_iextension.h>
-
 #include <cmath>
-#include <details/ie_exception.hpp>
 #include <limits>
 #include <map>
 #include <memory>
@@ -15,9 +10,12 @@
 #include <utility>
 #include <vector>
 
+#include <ie_iextension.h>
 #include "debug.h"
-#include "ie_layers.h"
 #include "xml_parse_utils.h"
+
+#include <legacy/ie_layers.h>
+#include "ie_layer_validators.hpp"
 
 #ifdef __clang__
 #pragma clang diagnostic ignored "-Wunused-variable"

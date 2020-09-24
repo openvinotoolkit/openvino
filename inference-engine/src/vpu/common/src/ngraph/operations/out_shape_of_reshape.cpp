@@ -253,7 +253,7 @@ bool evaluateOutShapeOfReshape(
 }  // namespace
 
 bool OutShapeOfReshape::evaluate(const HostTensorVector& outputs,
-                                 const HostTensorVector& inputs) {
+                                 const HostTensorVector& inputs) const {
     return evaluateOutShapeOfReshape(inputs[0], inputs[1], m_specialZero, outputs[0]);
 }
 

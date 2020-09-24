@@ -185,7 +185,7 @@ typedef std::tuple<
         InputData,
         std::string> dsrParams;
 
-class DynamicShapeResolverPluginTests : public testing::WithParamInterface<dsrParams>, public LayerTestsUtils::LayerTestsCommon {
+class DynamicShapeResolverPluginTests : public testing::WithParamInterface<dsrParams>, virtual public LayerTestsUtils::LayerTestsCommon {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<dsrParams> &obj) {
         InputData inputData;

@@ -23,7 +23,7 @@ typedef std::tuple<
 > squeezeParams;
 
 class SqueezeUnsqueezeLayerTest : public testing::WithParamInterface<squeezeParams>,
-                       public LayerTestsUtils::LayerTestsCommon {
+                       virtual public LayerTestsUtils::LayerTestsCommon {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<squeezeParams> obj);
 protected:

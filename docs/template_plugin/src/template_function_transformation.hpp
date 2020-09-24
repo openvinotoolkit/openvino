@@ -4,17 +4,20 @@
 
 #pragma once
 
-#include <vector>
-#include <memory>
+#include <ngraph/pass/pass.hpp>
 
-#include <ngraph/ngraph.hpp>
+namespace ngraph {
+namespace pass {
+
+class MyFunctionTransformation;
+
+}  // namespace pass
+}  // namespace ngraph
 
 // ! [function_pass:template_transformation_hpp]
 // template_function_transformation.hpp
-class MyFunctionTransformation: public ngraph::pass::FunctionPass {
+class ngraph::pass::MyFunctionTransformation: public ngraph::pass::FunctionPass {
 public:
-    MyFunctionTransformation() : FunctionPass() {}
-
     bool run_on_function(std::shared_ptr<ngraph::Function> f) override;
 };
 // ! [function_pass:template_transformation_hpp]

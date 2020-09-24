@@ -5,7 +5,7 @@
 #include <string>
 #include <unordered_set>
 #include <ie_icnn_network.hpp>
-#include <graph_tools.hpp>
+#include <legacy/graph_tools.hpp>
 #include "gna_layer_type.hpp"
 #include "gna_layer_info.hpp"
 

@@ -19,12 +19,8 @@ class TRANSFORMATIONS_API ConvertNegative;
 }  // namespace pass
 }  // namespace ngraph
 
-class ngraph::pass::ConvertNegative: public ngraph::pass::GraphRewrite {
+class ngraph::pass::ConvertNegative: public ngraph::pass::MatcherPass {
 public:
-    ConvertNegative() : GraphRewrite() {
-        convert_negative();
-    }
-
-private:
-    void convert_negative();
+    NGRAPH_RTTI_DECLARATION;
+    ConvertNegative();
 };

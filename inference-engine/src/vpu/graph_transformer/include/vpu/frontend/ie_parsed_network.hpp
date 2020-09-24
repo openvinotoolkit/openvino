@@ -7,7 +7,7 @@
 #include <vector>
 #include <unordered_map>
 
-#include <ie_layers.h>
+#include <legacy/ie_layers.h>
 #include <ie_icnn_network.hpp>
 
 namespace vpu {
@@ -17,7 +17,7 @@ namespace ie = InferenceEngine;
 struct IeParsedNetwork final {
     ie::InputsDataMap networkInputs;
     ie::OutputsDataMap networkOutputs;
-    std::unordered_map<ie::DataPtr, ie::Blob::Ptr> constDatas;
+    std::vector<std::pair<ie::DataPtr, ie::Blob::Ptr>> constDatas;
     std::vector<ie::CNNLayerPtr> orderedLayers;
 };
 

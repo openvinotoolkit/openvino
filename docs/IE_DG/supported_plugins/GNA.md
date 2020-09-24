@@ -116,7 +116,7 @@ When specifying key values as raw strings (that is, when using Python API), omit
 
 ## How to Interpret Performance Counters
 
-As a result of collecting performance counters using `InferenceEngine::IInferencePlugin::GetPerformanceCounts`, you can find various performance data about execution on GNA.
+As a result of collecting performance counters using `InferenceEngine::InferRequest::GetPerformanceCounts`, you can find various performance data about execution on GNA.
 Returned map stores a counter description as a key, counter value is stored in the `realTime_uSec` field of the `InferenceEngineProfileInfo` structure. Current GNA implementation calculates counters for the whole utterance scoring and does not provide per-layer information. API allows to retrieve counter units in cycles, but they can be converted to seconds as follows:
 
 ```

@@ -12,7 +12,7 @@
 #include "network_utils.hpp"
 #include "cpp/ie_cnn_network.h"
 #include "blob_utils.hpp"
-#include "net_pass.h"
+#include <legacy/net_pass.h>
 
 namespace FuncTestUtils {
 
@@ -91,7 +91,9 @@ namespace FuncTestUtils {
 
         if (layer->blobs.size() != refLayer->blobs.size()) {
             err_log.push_back(
-                    "Layer " + layer->name + " and ref layer " + refLayer->name + " have different number of blobs: " +
+                    "Layer " + layer->type + " with name " + layer->name +
+                    " and ref layer " + layer->type + " with name " + refLayer->name +
+                    " have different number of blobs: " +
                     std::to_string(layer->blobs.size()) + " and " + std::to_string(refLayer->blobs.size()));
         }
 

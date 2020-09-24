@@ -11,6 +11,7 @@
 #include <cpp_interfaces/impl/ie_executable_network_internal.hpp>
 #include "gna_executable_network.hpp"
 #include "gna_plugin_config.hpp"
+#include <legacy/ie_util_internal.hpp>
 
 namespace GNAPluginNS {
 
@@ -42,14 +43,24 @@ public:
         defaultConfig.UpdateFromMap(config);
     }
 
-    InferenceEngine::IExecutableNetwork::Ptr  ImportNetwork(
+    InferenceEngine::IExecutableNetwork::Ptr ImportNetwork(
                                                 const std::string &modelFileName,
                                                 const std::map<std::string, std::string> &config) override {
         Config updated_config(defaultConfig);
         updated_config.UpdateFromMap(config);
         auto plg = std::make_shared<GNAPlugin>(updated_config.key_config_map);
         plgPtr = plg;
+
         return make_executable_network(std::make_shared<GNAExecutableNetwork>(modelFileName, plg));
+    }
+
+    ExecutableNetwork ImportNetwork(std::istream& networkModel,
+                                    const std::map<std::string, std::string>& config) override {
+        Config updated_config(defaultConfig);
+        updated_config.UpdateFromMap(config);
+        auto plg = std::make_shared<GNAPlugin>(updated_config.key_config_map);
+        plgPtr = plg;
+        return make_executable_network(std::make_shared<GNAExecutableNetwork>(networkModel, plg));
     }
 
     using InferenceEngine::InferencePluginInternal::ImportNetwork;

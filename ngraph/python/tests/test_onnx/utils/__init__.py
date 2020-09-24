@@ -19,17 +19,12 @@ from typing import Any, Dict, Iterable, List, Optional, Text
 
 import numpy as np
 import onnx
-import pytest
 from onnx.helper import make_graph, make_model, make_node, make_tensor_value_info
 
 import tests
 from tests.runtime import get_runtime
 from tests.test_onnx.utils.onnx_backend import OpenVinoOnnxBackend
 from tests.test_onnx.utils.onnx_helpers import import_onnx_model
-
-
-def xfail_test(*backends, reason="Mark the test as expected to fail"):
-    return pytest.mark.xfail(condition=tests.BACKEND_NAME in backends, reason=reason, strict=True)
 
 
 def run_node(onnx_node, data_inputs, **kwargs):

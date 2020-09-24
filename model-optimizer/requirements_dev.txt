@@ -1,9 +1,5 @@
 coverage==4.4.2
-m2r==0.1.12
+pylint==2.5.0
 pyenchant==1.6.11
-isort==4.3.21
-astroid==2.1.0
-pylint==2.1.1
-Sphinx==1.6.5
 test-generator==0.1.1
 defusedxml>=0.5.0

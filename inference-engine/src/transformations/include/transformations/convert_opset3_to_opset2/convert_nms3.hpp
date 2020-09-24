@@ -10,22 +10,22 @@
 #include <transformations_visibility.hpp>
 
 #include <ngraph/pass/graph_rewrite.hpp>
-#include "transformations/utils/pass_param.hpp"
 
 namespace ngraph {
 namespace pass {
 
-class TRANSFORMATIONS_API ConvertNMS3;
+class TRANSFORMATIONS_API ConvertNMS1ToNMS3;
 
 }  // namespace pass
 }  // namespace ngraph
 
-class ngraph::pass::ConvertNMS3: public ngraph::pass::GraphRewrite, public ngraph::pass::PassParam {
+class ngraph::pass::ConvertNMS1ToNMS3: public ngraph::pass::GraphRewrite {
 public:
-    ConvertNMS3() : GraphRewrite() {
-        convert_nms3();
+    NGRAPH_RTTI_DECLARATION;
+    ConvertNMS1ToNMS3() : GraphRewrite() {
+        convert_nms1_to_nms3();
     }
 
 private:
-    void convert_nms3();
+    void convert_nms1_to_nms3();
 };

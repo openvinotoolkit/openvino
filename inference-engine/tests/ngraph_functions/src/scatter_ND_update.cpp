@@ -13,10 +13,8 @@ std::shared_ptr<ngraph::Node> makeScatterNDUpdate(const ngraph::Output<Node> &in
                                                   const std::vector<size_t>& indices,
                                                   const ngraph::Output<Node> &update) {
     auto indicesNode = std::make_shared<ngraph::opset1::Constant>(indicesType, indicesShape, indices);
-    // blocked by ngraph merge
-    // auto dtsNode = std::make_shared<ngraph::opset3::ScatterNDUpdate>(in, indicesNode, update);
-    // return dtsNode;
-    return nullptr;
+    auto dtsNode = std::make_shared<ngraph::opset4::ScatterNDUpdate>(in, indicesNode, update);
+    return dtsNode;
 }
 
 }  // namespace builder

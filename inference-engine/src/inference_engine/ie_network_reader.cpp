@@ -3,11 +3,11 @@
 //
 
 #include "ie_network_reader.hpp"
+#include "ie_itt.hpp"
 
 #include <details/ie_so_pointer.hpp>
 #include <file_utils.h>
 #include <ie_blob_stream.hpp>
-#include <ie_profiling.hpp>
 #include <ie_reader.hpp>
 #include <ie_ir_version.hpp>
 
@@ -71,6 +71,7 @@ public:
     using Ptr = std::shared_ptr<Reader>;
     Reader(const std::string& name, const std::string location): name(name), location(location) {}
     bool supportModel(std::istream& model) const override {
+        OV_ITT_SCOPED_TASK(itt::domains::IE, "Reader::supportModel");
         auto reader = getReaderPtr();
         return reader->supportModel(model);
     }
@@ -97,7 +98,7 @@ namespace {
 std::multimap<std::string, Reader::Ptr> readers;
 
 void registerReaders() {
-    IE_PROFILING_AUTO_SCOPE(details::registerReaders)
+    OV_ITT_SCOPED_TASK(itt::domains::IE, "registerReaders");
     static bool initialized = false;
     static std::mutex readerMutex;
     std::lock_guard<std::mutex> lock(readerMutex);
@@ -147,19 +148,21 @@ void assertIfIRv7LikeModel(std::istream & modelStream) {
         }
     }
 
-    THROW_IE_EXCEPTION << "IR v" << irVersion << " is deprecated. Please, migrate to IR v10 version";
+    THROW_IE_EXCEPTION << "The support of IR v" << irVersion <<  " has been removed from the product. "
+        "Please, convert the original model using the Model Optimizer which comes with this "
+        "version of the OpenVINO to generate supported IR version.";
 }
 
 }  // namespace
 
 CNNNetwork details::ReadNetwork(const std::string& modelPath, const std::string& binPath, const std::vector<IExtensionPtr>& exts) {
-    IE_PROFILING_AUTO_SCOPE(details::ReadNetwork)
+    OV_ITT_SCOPED_TASK(itt::domains::IE, "details::ReadNetwork");
     // Register readers if it is needed
     registerReaders();
 
     // Fix unicode name
 #if defined(ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
-    std::wstring model_path = InferenceEngine::details::multiByteCharToWString(modelPath.c_str());
+    std::wstring model_path = FileUtils::multiByteCharToWString(modelPath.c_str());
 #else
     std::string model_path = modelPath;
 #endif
@@ -194,7 +197,7 @@ CNNNetwork details::ReadNetwork(const std::string& modelPath, const std::string&
             if (!bPath.empty()) {
                 // Open weights file
 #if defined(ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
-                std::wstring weights_path = InferenceEngine::details::multiByteCharToWString(bPath.c_str());
+                std::wstring weights_path = FileUtils::multiByteCharToWString(bPath.c_str());
 #else
                 std::string weights_path = bPath;
 #endif
@@ -217,7 +220,7 @@ CNNNetwork details::ReadNetwork(const std::string& modelPath, const std::string&
 }
 
 CNNNetwork details::ReadNetwork(const std::string& model, const Blob::CPtr& weights, const std::vector<IExtensionPtr>& exts) {
-    IE_PROFILING_AUTO_SCOPE(details::ReadNetwork)
+    OV_ITT_SCOPED_TASK(itt::domains::IE, "details::ReadNetwork");
     // Register readers if it is needed
     registerReaders();
     std::istringstream modelStream(model);

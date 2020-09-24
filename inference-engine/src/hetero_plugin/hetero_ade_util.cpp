@@ -8,8 +8,8 @@
 #include <utility>
 
 #include <ie_icnn_network.hpp>
-#include <ie_util_internal.hpp>
-#include <ie_layers.h>
+#include <legacy/ie_util_internal.hpp>
+#include <legacy/ie_layers.h>
 
 #include <ade/util/algorithm.hpp>
 #include <ade/graph.hpp>

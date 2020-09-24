@@ -21,7 +21,27 @@ batchToSpaceParamsTuple bts_only_test_cases[] = {
         batchToSpaceParamsTuple({1, 1, 2, 2}, {0, 0, 0, 0}, {0, 0, 0, 0}, {8, 1, 1, 2},
                                 InferenceEngine::Precision::FP32, CommonTestUtils::DEVICE_GPU),
         batchToSpaceParamsTuple({1, 1, 3, 2, 2}, {0, 0, 1, 0, 3}, {0, 0, 2, 0, 0}, {24, 1, 2, 1, 2},
-                                InferenceEngine::Precision::FP32, CommonTestUtils::DEVICE_GPU)
+                                InferenceEngine::Precision::FP32, CommonTestUtils::DEVICE_GPU),
+        batchToSpaceParamsTuple({1, 1, 2, 2}, {0, 0, 0, 0}, {0, 0, 0, 0}, {4, 1, 1, 1},
+                                InferenceEngine::Precision::I8, CommonTestUtils::DEVICE_GPU),
+        batchToSpaceParamsTuple({1, 1, 2, 2}, {0, 0, 0, 0}, {0, 0, 0, 0}, {4, 3, 1, 1},
+                                InferenceEngine::Precision::I8, CommonTestUtils::DEVICE_GPU),
+        batchToSpaceParamsTuple({1, 1, 2, 2}, {0, 0, 0, 0}, {0, 0, 0, 0}, {4, 1, 2, 2},
+                                InferenceEngine::Precision::I8, CommonTestUtils::DEVICE_GPU),
+        batchToSpaceParamsTuple({1, 1, 2, 2}, {0, 0, 0, 0}, {0, 0, 0, 0}, {8, 1, 1, 2},
+                                InferenceEngine::Precision::I8, CommonTestUtils::DEVICE_GPU),
+        batchToSpaceParamsTuple({1, 1, 3, 2, 2}, {0, 0, 1, 0, 3}, {0, 0, 2, 0, 0}, {24, 1, 2, 1, 2},
+                               InferenceEngine::Precision::I8, CommonTestUtils::DEVICE_GPU),
+        batchToSpaceParamsTuple({1, 1, 2, 2}, {0, 0, 0, 0}, {0, 0, 0, 0}, {4, 1, 1, 1},
+                                InferenceEngine::Precision::U8, CommonTestUtils::DEVICE_GPU),
+        batchToSpaceParamsTuple({1, 1, 2, 2}, {0, 0, 0, 0}, {0, 0, 0, 0}, {4, 3, 1, 1},
+                                InferenceEngine::Precision::U8, CommonTestUtils::DEVICE_GPU),
+        batchToSpaceParamsTuple({1, 1, 2, 2}, {0, 0, 0, 0}, {0, 0, 0, 0}, {4, 1, 2, 2},
+                                InferenceEngine::Precision::U8, CommonTestUtils::DEVICE_GPU),
+        batchToSpaceParamsTuple({1, 1, 2, 2}, {0, 0, 0, 0}, {0, 0, 0, 0}, {8, 1, 1, 2},
+                                InferenceEngine::Precision::U8, CommonTestUtils::DEVICE_GPU),
+        batchToSpaceParamsTuple({1, 1, 3, 2, 2}, {0, 0, 1, 0, 3}, {0, 0, 2, 0, 0}, {24, 1, 2, 1, 2},
+                                InferenceEngine::Precision::U8, CommonTestUtils::DEVICE_GPU)
 };
 
 INSTANTIATE_TEST_CASE_P(smoke_CLDNN, BatchToSpaceLayerTest, ::testing::ValuesIn(bts_only_test_cases),

@@ -23,6 +23,7 @@
 #include <ngraph/op/reshape.hpp>
 #include <transformations/utils/utils.hpp>
 #include <transformations/init_node_info.hpp>
+#include <ngraph/pass/manager.hpp>
 
 #include "common_test_utils/ngraph_test_utils.hpp"
 
@@ -48,8 +49,10 @@ TEST(TransformationTests, ConvertStridedSliceToCropTests1) {
         sslice->set_friendly_name("strided_slice");
 
         f = std::make_shared<ngraph::Function>(ngraph::NodeVector{sslice}, ngraph::ParameterVector{input});
-        ngraph::pass::InitNodeInfo().run_on_function(f);
-        ngraph::pass::ConvertStridedSliceToCrop().run_on_function(f);
+        ngraph::pass::Manager manager;
+        manager.register_pass<ngraph::pass::InitNodeInfo>();
+        manager.register_pass<ngraph::pass::ConvertStridedSliceToCropMatcher>();
+        manager.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
     }
 
@@ -100,8 +103,10 @@ TEST(TransformationTests, ConvertStridedSliceToCropTests2) {
         sslice->set_friendly_name("strided_slice");
 
         f = std::make_shared<ngraph::Function>(ngraph::NodeVector{sslice}, ngraph::ParameterVector{input});
-        ngraph::pass::InitNodeInfo().run_on_function(f);
-        ngraph::pass::ConvertStridedSliceToCrop().run_on_function(f);
+        ngraph::pass::Manager manager;
+        manager.register_pass<ngraph::pass::InitNodeInfo>();
+        manager.register_pass<ngraph::pass::ConvertStridedSliceToCropMatcher>();
+        manager.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
     }
 
@@ -152,8 +157,10 @@ TEST(TransformationTests, ConvertStridedSliceToCropNegative) {
         sslice->set_friendly_name("strided_slice");
 
         f = std::make_shared<ngraph::Function>(ngraph::NodeVector{sslice}, ngraph::ParameterVector{input});
-        ngraph::pass::InitNodeInfo().run_on_function(f);
-        ngraph::pass::ConvertStridedSliceToCrop().run_on_function(f);
+        ngraph::pass::Manager manager;
+        manager.register_pass<ngraph::pass::InitNodeInfo>();
+        manager.register_pass<ngraph::pass::ConvertStridedSliceToCropMatcher>();
+        manager.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
     }
 
@@ -202,8 +209,10 @@ TEST(TransformationTests, ConvertStridedSliceToCropNegative2) {
         sslice->set_friendly_name("strided_slice");
 
         f = std::make_shared<ngraph::Function>(ngraph::NodeVector{sslice}, ngraph::ParameterVector{input});
-        ngraph::pass::InitNodeInfo().run_on_function(f);
-        ngraph::pass::ConvertStridedSliceToCrop().run_on_function(f);
+        ngraph::pass::Manager manager;
+        manager.register_pass<ngraph::pass::InitNodeInfo>();
+        manager.register_pass<ngraph::pass::ConvertStridedSliceToCropMatcher>();
+        manager.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
     }
 

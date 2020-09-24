@@ -51,8 +51,8 @@ class ConvNDTest: public myriadLayerTestBaseWithParam<ConvNDTestParams>
 protected:
 
     void testConvND() {
-        _config[VPU_CONFIG_KEY(DETECT_NETWORK_BATCH)] = CONFIG_VALUE(NO);
-        _config[VPU_CONFIG_KEY(HW_INJECT_STAGES)]     = CONFIG_VALUE(NO);
+        _config[InferenceEngine::MYRIAD_DETECT_NETWORK_BATCH] = CONFIG_VALUE(NO);
+        _config[InferenceEngine::MYRIAD_HW_INJECT_STAGES]     = CONFIG_VALUE(NO);
 
         //
         // Get test parameters

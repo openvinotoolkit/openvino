@@ -131,6 +131,75 @@ The sections below contain detailed list of changes made to the Inference Engine
  * METRIC_KEY(OPTIMIZATION_CAPABILITIES)
 	 * METRIC_VALUE(BF16)
 
+### Deprecated API
+
+ **Myriad Plugin API:**
+
+ * VPU_CONFIG_KEY(IGNORE_IR_STATISTIC)
+
+### Removed API
+
+ **Inference Engine NN Builder API:**
+
+ * InferenceEngine::Builder::EltwiseLayer
+ * InferenceEngine::Builder::MemoryLayer
+ * InferenceEngine::Builder::ROIPoolingLayer
+ * InferenceEngine::Builder::DeconvolutionLayer
+ * InferenceEngine::Builder::ReLULayer
+ * InferenceEngine::Builder::TanHLayer
+ * InferenceEngine::Builder::InputLayer
+ * InferenceEngine::Builder::PoolingLayer
+ * InferenceEngine::Builder::CropLayer
+ * InferenceEngine::Builder::GRUSequenceLayer
+ * InferenceEngine::Builder::NormLayer
+ * InferenceEngine::Builder::LSTMSequenceLayer
+ * InferenceEngine::Builder::ClampLayer
+ * InferenceEngine::Builder::PSROIPoolingLayer
+ * InferenceEngine::Builder::Layer
+ * InferenceEngine::Builder::RNNSequenceLayer
+ * InferenceEngine::Builder::ReorgYoloLayer
+ * InferenceEngine::Builder::NormalizeLayer
+ * InferenceEngine::Builder::PriorBoxClusteredLayer
+ * InferenceEngine::Builder::MVNLayer
+ * InferenceEngine::Builder::PermuteLayer
+ * InferenceEngine::Builder::SimplerNMSLayer
+ * InferenceEngine::Builder::ConstLayer
+ * InferenceEngine::Builder::DeformableConvolutionLayer
+ * InferenceEngine::Builder::FullyConnectedLayer
+ * InferenceEngine::Builder::PriorBoxLayer
+ * InferenceEngine::Builder::SoftMaxLayer
+ * InferenceEngine::Builder::OutputLayer
+ * InferenceEngine::Builder::TileLayer
+ * InferenceEngine::Builder::SplitLayer
+ * InferenceEngine::Builder::PReLULayer
+ * InferenceEngine::Builder::RegionYoloLayer
+ * InferenceEngine::Builder::ReshapeLayer
+ * InferenceEngine::Builder::ConvolutionLayer
+ * InferenceEngine::Builder::DetectionOutputLayer
+ * InferenceEngine::Builder::ConcatLayer
+ * InferenceEngine::Builder::ELULayer
+ * InferenceEngine::Builder::GRNLayer
+ * InferenceEngine::Builder::LRNLayer
+ * InferenceEngine::Builder::ArgMaxLayer
+ * InferenceEngine::Builder::ReLU6Layer
+ * InferenceEngine::Builder::ScaleShiftLayer
+ * InferenceEngine::Builder::ProposalLayer
+ * InferenceEngine::Builder::SigmoidLayer
+ * InferenceEngine::Builder::ResampleLayer
+ * InferenceEngine::Builder::CTCGreedyDecoderLayer
+ * InferenceEngine::Builder::BatchNormalizationLayer
+ * InferenceEngine::Builder::LayerDecorator
+ * InferenceEngine::Builder::PowerLayer
+ * InferenceEngine::Builder::Network
+ * InferenceEngine::Builder::PortInfo
+ * InferenceEngine::Builder::Connection
+ * InferenceEngine::Builder::PortData
+ * InferenceEngine::Builder::Port
+ * InferenceEngine::Builder::ILayer
+ * InferenceEngine::Builder::INetworkIterator
+ * InferenceEngine::Builder::INetwork
+ * InferenceEngine::Builder::ILayer
+
 ## 2020.2
 
 ### New API
@@ -370,7 +439,6 @@ The sections below contain detailed list of changes made to the Inference Engine
  * InferenceEngine::Builder::INetworkIterator
  * InferenceEngine::Builder::INetwork
  * InferenceEngine::Builder::ILayer
-
 
  **Plugin API:**
 

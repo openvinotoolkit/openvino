@@ -13,11 +13,14 @@
 #include <ngraph_ops/convolution_ie.hpp>
 #include <ngraph_ops/deconvolution_ie.hpp>
 
-void ngraph::pass::ConvertConvolutions::convert_convolution() {
-    auto conv = std::make_shared<pattern::op::Label>(element::f32, Shape{},
-            pattern::has_class<opset1::Convolution>());
+#include <ngraph/pattern/op/wrap_type.hpp>
 
-    ngraph::graph_rewrite_callback callback = [](pattern::Matcher& m) {
+NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertConvolution, "ConvertConvolution", 0);
+
+ngraph::pass::ConvertConvolution::ConvertConvolution() {
+    auto conv = ngraph::pattern::wrap_type<opset1::Convolution>();
+
+    ngraph::matcher_pass_callback callback = [](pattern::Matcher& m) {
         auto conv = std::dynamic_pointer_cast<ngraph::opset1::Convolution> (m.get_match_root());
         if (!conv) {
             return false;
@@ -38,14 +41,15 @@ void ngraph::pass::ConvertConvolutions::convert_convolution() {
     };
 
     auto m = std::make_shared<ngraph::pattern::Matcher>(conv, "ConvertConvolution");
-    this->add_matcher(m, callback, PassProperty::CHANGE_DYNAMIC_STATE);
+    this->register_matcher(m, callback);
 }
 
-void ngraph::pass::ConvertConvolutions::convert_group_convolution() {
-    auto gconv = std::make_shared<pattern::op::Label>(element::f32, Shape{},
-            pattern::has_class<opset1::GroupConvolution>());
+NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertGroupConvolution, "ConvertGroupConvolution", 0);
 
-    ngraph::graph_rewrite_callback callback = [](pattern::Matcher& m) {
+ngraph::pass::ConvertGroupConvolution::ConvertGroupConvolution() {
+    auto gconv = ngraph::pattern::wrap_type<opset1::GroupConvolution>();
+
+    ngraph::matcher_pass_callback callback = [](pattern::Matcher& m) {
         auto gconv = std::dynamic_pointer_cast<ngraph::opset1::GroupConvolution> (m.get_match_root());
         if (!gconv) {
             return false;
@@ -54,7 +58,7 @@ void ngraph::pass::ConvertConvolutions::convert_group_convolution() {
 
         // Merge weights layout GOIYX to (G*O)IYX
         auto shape = gconv->input_value(1).get_shape();
-        std::vector<int64_t> reshape_shape{-1};
+        std::vector<int64_t> reshape_shape{static_cast<int64_t>(shape[0] * shape[1])};
         for (size_t i = 2; i < shape.size(); ++i) {
             reshape_shape.push_back(shape[i]);
         }
@@ -81,14 +85,15 @@ void ngraph::pass::ConvertConvolutions::convert_group_convolution() {
     };
 
     auto m = std::make_shared<ngraph::pattern::Matcher>(gconv, "ConvertGroupConvolution");
-    this->add_matcher(m, callback, PassProperty::CHANGE_DYNAMIC_STATE);
+    this->register_matcher(m, callback);
 }
 
-void ngraph::pass::ConvertConvolutions::convert_convolution_backprop_data() {
-    auto conv = std::make_shared<pattern::op::Label>(element::f32, Shape{},
-            pattern::has_class<opset1::ConvolutionBackpropData>());
+NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertDeconvolution, "ConvertDeconvolution", 0);
 
-    ngraph::graph_rewrite_callback callback = [](pattern::Matcher& m) {
+ngraph::pass::ConvertDeconvolution::ConvertDeconvolution() {
+    auto conv = ngraph::pattern::wrap_type<opset1::ConvolutionBackpropData>();
+
+    ngraph::matcher_pass_callback callback = [](pattern::Matcher& m) {
         auto deconv = std::dynamic_pointer_cast<ngraph::opset1::ConvolutionBackpropData> (m.get_match_root());
         if (!deconv) {
             return false;
@@ -112,14 +117,15 @@ void ngraph::pass::ConvertConvolutions::convert_convolution_backprop_data() {
     };
 
     auto m = std::make_shared<ngraph::pattern::Matcher>(conv, "ConvertConvolutionBackpropData");
-    this->add_matcher(m, callback, PassProperty::CHANGE_DYNAMIC_STATE);
+    this->register_matcher(m, callback);
 }
 
-void ngraph::pass::ConvertConvolutions::convert_group_convolution_backprop_data() {
-    auto gconv = std::make_shared<pattern::op::Label>(element::f32, Shape{},
-            pattern::has_class<opset1::GroupConvolutionBackpropData>());
+NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertGroupDeconvolution, "ConvertGroupDeconvolution", 0);
 
-    ngraph::graph_rewrite_callback callback = [](pattern::Matcher& m) {
+ngraph::pass::ConvertGroupDeconvolution::ConvertGroupDeconvolution() {
+    auto gconv = ngraph::pattern::wrap_type<opset1::GroupConvolutionBackpropData>();
+
+    ngraph::matcher_pass_callback callback = [](pattern::Matcher& m) {
         auto gconv = std::dynamic_pointer_cast<ngraph::opset1::GroupConvolutionBackpropData> (m.get_match_root());
         if (!gconv) {
             return false;
@@ -129,7 +135,8 @@ void ngraph::pass::ConvertConvolutions::convert_group_convolution_backprop_data(
         // Merge weights layout GIOYX to I(G*O)YX
         auto input_shape = gconv->input_value(0).get_shape();
         auto weights_shape = gconv->input_value(1).get_shape();
-        std::vector<size_t> reshape_shape{weights_shape[1], weights_shape[2] * group};
+        std::vector<int64_t> reshape_shape{static_cast<int64_t>(weights_shape[1]),
+                                           static_cast<int64_t>(weights_shape[2] * group)};
         for (size_t i = 3; i < weights_shape.size(); ++i) {
             reshape_shape.push_back(weights_shape[i]);
         }
@@ -154,5 +161,5 @@ void ngraph::pass::ConvertConvolutions::convert_group_convolution_backprop_data(
     };
 
     auto m = std::make_shared<ngraph::pattern::Matcher>(gconv, "ConvertGroupConvolutionBackpropData");
-    this->add_matcher(m, callback, PassProperty::CHANGE_DYNAMIC_STATE);
+    this->register_matcher(m, callback);
 }

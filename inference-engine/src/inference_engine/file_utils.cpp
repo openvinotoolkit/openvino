@@ -2,62 +2,38 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <file_utils.h>
-
 #include <cstring>
 #include <fstream>
 #include <string>
-
-#include "details/ie_exception.hpp"
 
 #ifdef __MACH__
 #include <mach/clock.h>
 #include <mach/mach.h>
 #endif
 
-// for PATH_MAX
+#include <file_utils.h>
+#include <details/ie_exception.hpp>
+
 #ifndef _WIN32
 # include <limits.h>
 # include <unistd.h>
-#endif
-
-#include "details/ie_so_pointer.hpp"
-#include "details/os/os_filesystem.hpp"
-
-#if defined(WIN32) || defined(WIN64)
-// Copied from linux libc sys/stat.h:
-#define S_ISREG(m) (((m)&S_IFMT) == S_IFREG)
-#define S_ISDIR(m) (((m)&S_IFMT) == S_IFDIR)
+# include <dlfcn.h>
+#else
+# if defined(WINAPI_FAMILY) && !WINAPI_PARTITION_DESKTOP
+#  error "Only WINAPI_PARTITION_DESKTOP is supported, because of GetModuleHandleEx[A|W]"
+# endif
+# include <Windows.h>
 #endif
 
 long long FileUtils::fileSize(const char* charfilepath) {
 #if defined(ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
-    std::wstring widefilename = InferenceEngine::details::multiByteCharToWString(charfilepath);
+    std::wstring widefilename = FileUtils::multiByteCharToWString(charfilepath);
     const wchar_t* fileName = widefilename.c_str();
 #else
     const char* fileName = charfilepath;
 #endif
     std::ifstream in(fileName, std::ios_base::binary | std::ios_base::ate);
     return in.tellg();
-}
-
-void FileUtils::readAllFile(const std::string& string_file_name, void* buffer, size_t maxSize) {
-    std::ifstream inputFile;
-
-#if defined(ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
-    std::wstring file_name = InferenceEngine::details::multiByteCharToWString(string_file_name.c_str());
-#else
-    std::string file_name = string_file_name;
-#endif
-
-    inputFile.open(file_name, std::ios::binary | std::ios::in);
-    if (!inputFile.is_open()) THROW_IE_EXCEPTION << "cannot open file " << string_file_name;
-    if (!inputFile.read(reinterpret_cast<char*>(buffer), maxSize)) {
-        inputFile.close();
-        THROW_IE_EXCEPTION << "cannot read " << maxSize << " bytes from file " << string_file_name;
-    }
-
-    inputFile.close();
 }
 
 namespace InferenceEngine {
@@ -78,48 +54,52 @@ std::basic_string<C> getPathName(const std::basic_string<C>& s) {
 
 static std::string getIELibraryPathA() {
 #ifdef _WIN32
-    char ie_library_path[4096];
+    CHAR ie_library_path[MAX_PATH];
     HMODULE hm = NULL;
-    if (!GetModuleHandleEx(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
-        (LPCSTR)getIELibraryPath, &hm)) {
+    if (!GetModuleHandleExA(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
+        reinterpret_cast<LPSTR>(getIELibraryPath), &hm)) {
         THROW_IE_EXCEPTION << "GetModuleHandle returned " << GetLastError();
     }
-    GetModuleFileName(hm, (LPSTR)ie_library_path, sizeof(ie_library_path));
+    GetModuleFileNameA(hm, (LPSTR)ie_library_path, sizeof(ie_library_path));
     return getPathName(std::string(ie_library_path));
-#else
-#ifdef USE_STATIC_IE
-#ifdef __APPLE__
+#elif defined(__APPLE__) || defined(__linux__)
+# ifdef USE_STATIC_IE
+#  ifdef __APPLE__
     Dl_info info;
     dladdr(reinterpret_cast<void*>(getIELibraryPath), &info);
     std::string path = getPathName(std::string(info.dli_fname)).c_str();
-#else
+#  else
     char result[PATH_MAX];
     ssize_t count = readlink("/proc/self/exe", result, PATH_MAX);
     std::string path = getPathName(std::string(result, (count > 0) ? count : 0));
-#endif  // __APPLE__
+#  endif  // __APPLE__
     return FileUtils::makePath(path, std::string( "lib"));
-#else
+# else
     Dl_info info;
     dladdr(reinterpret_cast<void*>(getIELibraryPath), &info);
     return getPathName(std::string(info.dli_fname)).c_str();
-#endif  // USE_STATIC_IE
+# endif  // USE_STATIC_IE
+#else
+# error "Unsupported OS"
 #endif  // _WIN32
 }
 
 #ifdef ENABLE_UNICODE_PATH_SUPPORT
 
 std::wstring getIELibraryPathW() {
-#if defined(_WIN32) || defined(_WIN64)
-    wchar_t ie_library_path[4096];
+#ifdef _WIN32
+    WCHAR ie_library_path[MAX_PATH];
     HMODULE hm = NULL;
     if (!GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
-                            (LPCWSTR)getIELibraryPath, &hm)) {
+        reinterpret_cast<LPCWSTR>(getIELibraryPath), &hm)) {
         THROW_IE_EXCEPTION << "GetModuleHandle returned " << GetLastError();
     }
-    GetModuleFileNameW(hm, (LPWSTR)ie_library_path, sizeof(ie_library_path));
+    GetModuleFileNameW(hm, (LPWSTR)ie_library_path, sizeof(ie_library_path) / sizeof(ie_library_path[0]));
     return getPathName(std::wstring(ie_library_path));
+#elif defined(__linux__) || defined(__APPLE__)
+    return ::FileUtils::multiByteCharToWString(getIELibraryPathA().c_str());
 #else
-    return details::multiByteCharToWString(getIELibraryPathA().c_str());
+# error "Unsupported OS"
 #endif
 }
 
@@ -127,7 +107,7 @@ std::wstring getIELibraryPathW() {
 
 std::string getIELibraryPath() {
 #ifdef ENABLE_UNICODE_PATH_SUPPORT
-    return details::wStringtoMBCSstringChar(getIELibraryPathW());
+    return FileUtils::wStringtoMBCSstringChar(getIELibraryPathW());
 #else
     return getIELibraryPathA();
 #endif

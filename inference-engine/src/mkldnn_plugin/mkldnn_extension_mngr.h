@@ -8,8 +8,7 @@
 #include <vector>
 #include <memory>
 #include <ie_iextension.h>
-#include <ie_layers.h>
-#include "ie_ishape_infer_extension.hpp"
+#include <legacy/ie_layers.h>
 #include "nodes/list.hpp"
 
 namespace MKLDNNPlugin {

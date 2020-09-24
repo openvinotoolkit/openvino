@@ -126,7 +126,7 @@ namespace util
         const py::dict& m_attributes;
         ngraph::OutputVector m_body_outputs;
         ngraph::ParameterVector m_body_parameters;
-        std::shared_ptr<ngraph::op::TensorIterator::BodyLambda> m_body;
+        std::shared_ptr<ngraph::Function> m_body;
         py::list m_slice_input_desc;
         py::list m_merged_input_desc;
         py::list m_invariant_input_desc;

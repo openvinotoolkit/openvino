@@ -14,7 +14,7 @@
 namespace ngraph {
 namespace pass {
 
-    class TRANSFORMATIONS_API ConvertNMS4ToLegacy;
+    class TRANSFORMATIONS_API ConvertNMS4ToLegacyMatcher;
 
 }  // namespace pass
 }  // namespace ngraph
@@ -25,12 +25,9 @@ namespace pass {
  */
 
 
-class ngraph::pass::ConvertNMS4ToLegacy: public ngraph::pass::GraphRewrite {
+class ngraph::pass::ConvertNMS4ToLegacyMatcher: public ngraph::pass::MatcherPass {
 public:
-    ConvertNMS4ToLegacy() : GraphRewrite() {
-        convert_nms4_to_legacy();
-    }
-private:
-    void convert_nms4_to_legacy();
+    NGRAPH_RTTI_DECLARATION;
+    ConvertNMS4ToLegacyMatcher();
 };
 

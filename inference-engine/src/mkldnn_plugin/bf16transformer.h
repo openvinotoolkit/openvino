@@ -4,23 +4,24 @@
 
 #pragma once
 
-#include <details/caseless.hpp>
+#include <cpp/ie_cnn_network.h>
+#include <caseless.hpp>
 #include <string>
 #include <set>
-#include "inference_engine.hpp"
 
 namespace MKLDNNPlugin {
 
 class BF16Transformer {
     const InferenceEngine::details::caseless_set<std::string> _initbf16 =
-        { "convolution", "fullyconnected", "innerproduct" };
+        { "convolution", "fullyconnected", "innerproduct", "gemm" };
     const InferenceEngine::details::caseless_set<std::string> _complementbf16 =
         { "relu", "tanh", "elu", "square", "abs", "sqrt", "linear", "bounded_relu", "soft_relu", "logistic",
-          "exp", "gelu", "clamp", "swish", "prelu", "pooling", "norm", "gather" };
+          "exp", "gelu", "clamp", "swish", "prelu", "pooling", "norm", "gather", "memory" };
     const InferenceEngine::details::caseless_set<std::string> _multiinput =
         { "concat", "eltwise" };
+    //  prevent fallback to fp32 without considering both input and output nodes
     const InferenceEngine::details::caseless_set<std::string> _skipmarking =
-        { "const" };
+        { "memory" };
 
     /**
     * Tries to mark tensor as FP32 by analyzing of local consumers of the tensor. Do not mark if

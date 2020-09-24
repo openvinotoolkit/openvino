@@ -90,7 +90,7 @@ namespace
         auto dump_info = cv::gimpl::getCompileArg<cv::graph_dump_path>(args);
         if (!dump_info.has_value())
         {
-            const char* path = std::getenv("GRAPH_DUMP_PATH");
+            const char* path = getenv("GRAPH_DUMP_PATH");
             return path
                 ? cv::util::make_optional(std::string(path))
                 : cv::util::optional<std::string>();
@@ -331,6 +331,9 @@ void cv::gimpl::GCompiler::validateInputMeta()
 
         case GProtoArg::index_of<cv::detail::GArrayU>():
             return util::holds_alternative<cv::GArrayDesc>(meta);
+
+        case GProtoArg::index_of<cv::detail::GOpaqueU>():
+            return util::holds_alternative<cv::GOpaqueDesc>(meta);
 
         default:
             GAPI_Assert(false);

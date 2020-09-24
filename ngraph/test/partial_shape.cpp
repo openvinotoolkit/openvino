@@ -783,7 +783,7 @@ TEST(partial_shape, partial_shape_project_rank_static_dynamic)
 TEST(partial_shape, partial_shape_reduce_rank_dynamic)
 {
     PartialShape s1{PartialShape::dynamic()};
-    PartialShape s2 = reduce(s1, AxisSet{284, 0, 103});
+    PartialShape s2 = reduce(s1, AxisSet{284, 0, 103}, false);
 
     ASSERT_TRUE(s2.rank().is_dynamic());
 }
@@ -791,7 +791,7 @@ TEST(partial_shape, partial_shape_reduce_rank_dynamic)
 TEST(partial_shape, partial_shape_reduce_rank_static_dynamic)
 {
     PartialShape s1{Dimension::dynamic(), 2, Dimension::dynamic(), 3};
-    PartialShape s2 = reduce(s1, AxisSet{0, 3});
+    PartialShape s2 = reduce(s1, AxisSet{0, 3}, false);
 
     ASSERT_TRUE(s2.same_scheme(PartialShape{2, Dimension::dynamic()}));
 }
@@ -856,6 +856,23 @@ TEST(partial_shape, merge_rank_static_static_fail)
 
     ASSERT_FALSE(s.merge_rank(5));
     ASSERT_TRUE(s.same_scheme(PartialShape{2, 3, Dimension::dynamic(), 5}));
+}
+
+TEST(partial_shape, changed_dimension_by_reference)
+{
+    PartialShape s{1, 2, 3};
+
+    Dimension& d = s[1];
+
+    ASSERT_TRUE(s.is_static());
+
+    d = Dimension::dynamic();
+
+    ASSERT_TRUE(s.is_dynamic());
+
+    d = 2;
+
+    ASSERT_TRUE(s.is_static());
 }
 
 TEST(partial_shape, infer_windowed_reduction_rank_dynamic_rank_dynamic_ok)

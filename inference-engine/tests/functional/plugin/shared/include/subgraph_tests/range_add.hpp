@@ -17,7 +17,7 @@
 namespace LayerTestsDefinitions {
 
 class RangeAddSubgraphTest : public testing::WithParamInterface<RangeParams>,
-                             public LayerTestsUtils::LayerTestsCommon {
+                             virtual public LayerTestsUtils::LayerTestsCommon {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<RangeParams> obj);
 protected:

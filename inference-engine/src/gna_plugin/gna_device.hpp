@@ -8,6 +8,7 @@
 #include <memory>
 #include <string>
 #include <map>
+#include <vector>
 #include <thread>
 
 #include <ie_common.h>
@@ -49,10 +50,9 @@ class GNADeviceHelper {
     uint64_t instrumentationResults[TotalGna2InstrumentationPoints] = {};
     uint64_t instrumentationTotal[TotalGna2InstrumentationPoints] = {};
     uint32_t instrumentationConfigId = 0;
-
+    std::vector<uint32_t> unwaitedRequestIds;
 #define MAX_TIMEOUT 500000
 #endif
-    const uint32_t GNA_TIMEOUT = MAX_TIMEOUT;
     bool isPerformanceMeasuring = false;
     bool deviceOpened = false;
 public:
@@ -115,7 +115,7 @@ public:
     static void checkGna2Status(Gna2Status status);
     static void checkGna2Status(Gna2Status status, const Gna2Model& gnaModel);
 #endif
-    void wait(uint32_t id);
+    bool wait(uint32_t id, int64_t millisTimeout = MAX_TIMEOUT);
 
     struct DumpResult {
 #if GNA_LIB_VER == 2

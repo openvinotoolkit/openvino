@@ -25,7 +25,7 @@ typedef std::tuple<
 
 namespace LayerTestsDefinitions {
 
-class QuantMatMulTest : public testing::WithParamInterface<QuantMatMulLayerTestParamsSet>, public LayerTestsUtils::LayerTestsCommon {
+class QuantMatMulTest : public testing::WithParamInterface<QuantMatMulLayerTestParamsSet>, virtual public LayerTestsUtils::LayerTestsCommon {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<QuantMatMulLayerTestParamsSet> &obj);
 

@@ -8,9 +8,10 @@
 #include <sstream>
 #include <iterator>
 #include <vector>
+#include <set>
 
 #include <cpp/ie_cnn_network.h>
-#include <details/ie_cnn_network_iterator.hpp>
+#include <legacy/details/ie_cnn_network_iterator.hpp>
 
 namespace CommonTestUtils {
 template<typename vecElementType>
@@ -32,6 +33,18 @@ inline std::string vec2str(const std::vector<std::vector<vecElementType>> &vec) 
         result << vec2str<vecElementType>(v);
     }
     return result.str();
+}
+
+template<typename vecElementType>
+inline std::string set2str(const std::set<vecElementType> &set) {
+    if (!set.empty()) {
+        std::ostringstream result;
+        result << "(";
+        std::copy(set.begin(), std::prev(set.end()), std::ostream_iterator<vecElementType>(result, "."));
+        result << *set.rbegin() << ")";
+        return result.str();
+    }
+    return std::string("()");
 }
 
 inline InferenceEngine::CNNLayerPtr getLayerByName(const InferenceEngine::ICNNNetwork * icnnnetwork,
@@ -57,16 +70,51 @@ inline InferenceEngine::CNNLayerPtr getLayerByName(const InferenceEngine::CNNNet
     return getLayerByName(&icnnnetwork, layerName);
 }
 
-template <typename elementTypeVector>
-std::vector<std::pair<std::vector<size_t>, std::vector<elementTypeVector>>>
-        combineShapes(const std::map<std::vector<size_t>, std::vector<std::vector<elementTypeVector>>>& inputShapes) {
-    std::vector<std::pair<std::vector<size_t>, std::vector<elementTypeVector>>> resVec;
-    for (auto& inputShape : inputShapes) {
-        for (auto& item : inputShape.second) {
-            resVec.push_back({inputShape.first, item});
+template <typename master, typename slave>
+std::vector<std::pair<master, slave>> combineParams(
+    const std::map<master, std::vector<slave>>& keyValueSets) {
+    std::vector<std::pair<master, slave>> resVec;
+    for (auto& keyValues : keyValueSets) {
+        for (auto& item : keyValues.second) {
+            resVec.push_back({keyValues.first, item});
         }
     }
     return resVec;
+}
+
+inline bool endsWith(const std::string& source, const std::string& expectedSuffix) {
+    return expectedSuffix.size() <= source.size() && source.compare(source.size() - expectedSuffix.size(), expectedSuffix.size(), expectedSuffix) == 0;
+}
+
+template<std::size_t... I>
+struct Indices {
+    using next = Indices<I..., sizeof...(I)>;
+};
+
+template<std::size_t Size>
+struct MakeIndices {
+    using value = typename MakeIndices<Size - 1>::value::next;
+};
+
+template<>
+struct MakeIndices<0> {
+    using value = Indices<>;
+};
+
+template<class Tuple>
+constexpr typename MakeIndices<std::tuple_size<typename std::decay<Tuple>::type>::value>::value makeIndices() {
+    return {};
+}
+
+template<class Tuple, std::size_t... I>
+std::vector<typename std::tuple_element<0, typename std::decay<Tuple>::type>::type> tuple2Vector(Tuple&& tuple, Indices<I...>) {
+    using std::get;
+    return {{ get<I>(std::forward<Tuple>(tuple))... }};
+}
+
+template<class Tuple>
+inline auto tuple2Vector(Tuple&& tuple) -> decltype(tuple2Vector(std::declval<Tuple>(), makeIndices<Tuple>())) {
+    return tuple2Vector(std::forward<Tuple>(tuple), makeIndices<Tuple>());
 }
 
 }  // namespace CommonTestUtils

@@ -74,7 +74,7 @@ std::string get_undef_jit(kernels_cache::source_code org_source_code) {
         undefs += "#endif\n";
     }
 
-    return std::move(undefs);
+    return undefs;
 }
 
 std::string reorder_options(const std::string& org_options) {
@@ -159,7 +159,7 @@ kernels_cache::sorted_code kernels_cache::get_program_source(const kernels_code&
         current_bucket.kernels_counter++;
     }
 
-    return std::move(scode);
+    return scode;
 }
 
 kernels_cache::kernels_cache(gpu_toolkit& context, uint32_t prog_id) : _context(context), _prog_id(prog_id) {}

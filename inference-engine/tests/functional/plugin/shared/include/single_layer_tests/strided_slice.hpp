@@ -33,7 +33,7 @@ using StridedSliceParams = std::tuple<
 >;
 
 class StridedSliceLayerTest : public testing::WithParamInterface<StridedSliceParams>,
-                              public LayerTestsUtils::LayerTestsCommon {
+                              virtual public LayerTestsUtils::LayerTestsCommon {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<StridedSliceParams> &obj);
 

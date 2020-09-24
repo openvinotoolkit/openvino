@@ -73,6 +73,7 @@ ParamsKey ConvolutionKernel_imad::GetSupportedKey() const {
     k.EnableOutputDataType(Datatype::INT8);
     k.EnableOutputDataType(Datatype::UINT8);
     k.EnableOutputDataType(Datatype::F32);
+    k.EnableOutputDataType(Datatype::F16);
 
     k.EnableInputWeightsType(WeightsType::INT8);
     k.EnableInputWeightsType(WeightsType::UINT8);
@@ -81,7 +82,6 @@ ParamsKey ConvolutionKernel_imad::GetSupportedKey() const {
     k.EnableInputLayout(DataLayout::b_fs_yx_fsv4);
 
     k.EnableOutputLayout(DataLayout::b_fs_yx_fsv4);
-    k.EnableOutputLayout(DataLayout::byxf_af32);
     k.EnableOutputLayout(DataLayout::b_fs_yx_fsv16);
     k.EnableOutputLayout(DataLayout::bs_fs_yx_bsv16_fsv16);
 
@@ -115,8 +115,6 @@ JitConstants ConvolutionKernel_imad::GetJitConstants(const convolution_params& p
         in_fsv = 4;
     else if (params.inputs[0].GetLayout() == DataLayout::b_fs_yx_fsv16)
         in_fsv = 16;
-    else if (params.inputs[0].GetLayout() == DataLayout::byxf_af32)
-        in_fsv = 32;
 
     mem_consts.AddConstants({
         MakeJitConstant("_ID", RoundUp(input.Feature().v, in_fsv)),
@@ -126,6 +124,7 @@ JitConstants ConvolutionKernel_imad::GetJitConstants(const convolution_params& p
         MakeJitConstant("OWPAD", output.X().pad.Total()),
         MakeJitConstant("OHPAD", output.Y().pad.Total()),
         MakeJitConstant("SIMD_SIZE", SIMD_SIZE),
+        MakeJitConstant("FSV", in_fsv),
     });
 
     if (params.filterSize.x != 3 || params.filterSize.y != 3) {
@@ -195,7 +194,8 @@ bool ConvolutionKernel_imad::Validate(const Params& params, const optional_param
     }
 
     auto& newParams = static_cast<const convolution_params&>(params);
-    if (newParams.groups > 1 && newParams.weights.IFM().v % 4 != 0)
+    if (newParams.groups > 1 && newParams.weights.IFM().v % 4 != 0 &&
+        newParams.inputs[0].GetLayout() != DataLayout::b_fs_yx_fsv16)
         return false;
 
     size_t min_block_size_x = (newParams.weights.X().v - 1) * newParams.dilation.x + 1;

@@ -3,7 +3,7 @@
 //
 
 #include "mkldnn_gemm_node.h"
-#include <ie_layers.h>
+#include <legacy/ie_layers.h>
 #include <string>
 #include <vector>
 #include <memory>
@@ -12,6 +12,7 @@
 #include <mkldnn_types.h>
 #include <mkldnn_extension_utils.h>
 #include "ie_parallel.hpp"
+#include "common/cpu_memcpy.h"
 
 using namespace mkldnn;
 using namespace MKLDNNPlugin;
@@ -122,8 +123,13 @@ void MKLDNNGemmNode::initSupportedPrimitiveDescriptors() {
     auto inPrec0 = getCnnLayer()->insData[0].lock()->getPrecision();
     auto inPrec1 = getCnnLayer()->insData[1].lock()->getPrecision();
     if ((inPrec0 != Precision::U8 && inPrec0 != Precision::I8) || inPrec1 != Precision::I8 || isThreeInputs) {
-        inPrec0 = Precision::FP32;
-        inPrec1 = Precision::FP32;
+        if (inPrec0 == Precision::BF16 || inPrec1 == Precision::BF16) {
+            inPrec0 = Precision::BF16;
+            inPrec1 = Precision::BF16;
+        } else {
+            inPrec0 = Precision::FP32;
+            inPrec1 = Precision::FP32;
+        }
     }
 
     auto inputDataType0 = MKLDNNExtensionUtils::IEPrecisionToDataType(inPrec0);
@@ -190,6 +196,11 @@ void MKLDNNGemmNode::createPrimitive() {
 inline void process_gemm(char transa, char transb, int M, int N, int K, float alpha, const float *A, int lda,
                          const float *B, int ldb, float beta, float *C, int ldc) {
     mkldnn_sgemm(transa, transb, M, N, K, alpha, A, lda, B, ldb, beta, C, ldc);
+}
+
+inline void process_gemm(char transa, char transb, int M, int N, int K, float alpha, const uint16_t *A, int lda,
+                         const uint16_t *B, int ldb, float beta, float *C, int ldc) {
+    mkldnn_gemm_bf16bf16f32(transa, transb, M, N, K, alpha, A, lda, B, ldb, beta, C, ldc);
 }
 
 inline void process_gemm(char transa, char transb, int M, int N, int K, float alpha, const uint8_t *A, int lda,
@@ -262,7 +273,7 @@ void MKLDNNGemmNode::process_data() {
 
         for (int b2 = 0; b2 < MB2; b2++) {
             if (isThreeInputs) {
-                memcpy(d_ptr, c_ptr, M * N * sizeof(float));
+                cpu_memcpy(d_ptr, c_ptr, M * N * sizeof(float));
                 c_ptr += cOffsets[0];
             }
 
@@ -287,6 +298,9 @@ void MKLDNNGemmNode::execute(mkldnn::stream strm) {
     switch (getParentEdgeAt(0)->getDesc().getPrecision()) {
         case Precision::FP32:
             process_data<float, float>();
+            break;
+        case Precision::BF16:
+            process_data<uint16_t, uint16_t>();
             break;
         case Precision::I8:
             process_data<int8_t, int8_t>();

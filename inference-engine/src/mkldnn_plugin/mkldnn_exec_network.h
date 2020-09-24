@@ -14,7 +14,7 @@
 #include <memory>
 #include <map>
 #include <string>
-#include <cnn_network_impl.hpp>
+#include <legacy/cnn_network_impl.hpp>
 #include <unordered_map>
 
 namespace MKLDNNPlugin {

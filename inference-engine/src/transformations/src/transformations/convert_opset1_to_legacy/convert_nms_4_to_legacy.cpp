@@ -14,7 +14,9 @@
 
 #include "transformations/convert_opset1_to_legacy/convert_nms_4_to_legacy.hpp"
 
-void ngraph::pass::ConvertNMS4ToLegacy::convert_nms4_to_legacy() {
+NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertNMS4ToLegacyMatcher, "ConvertNMS4ToLegacyMatcher", 0);
+
+ngraph::pass::ConvertNMS4ToLegacyMatcher::ConvertNMS4ToLegacyMatcher() {
     auto boxes = std::make_shared<pattern::op::Label>(element::f32, Shape{1, 1000, 4});
     auto scores = std::make_shared<pattern::op::Label>(element::f32, Shape{1, 1, 1000});
     auto max_output_boxes_per_class = ngraph::opset4::Constant::create(element::i64, Shape{}, {10});
@@ -23,7 +25,7 @@ void ngraph::pass::ConvertNMS4ToLegacy::convert_nms4_to_legacy() {
     auto nms = std::make_shared<ngraph::opset4::NonMaxSuppression>(boxes, scores, max_output_boxes_per_class,
                                                                    iou_threshold, score_threshold);
 
-    ngraph::graph_rewrite_callback callback = [](pattern::Matcher &m) {
+    ngraph::matcher_pass_callback callback = [](pattern::Matcher &m) {
         auto nms_4 = std::dynamic_pointer_cast<ngraph::opset4::NonMaxSuppression>(m.get_match_root());
         if (!nms_4) {
             return false;
@@ -96,24 +98,16 @@ void ngraph::pass::ConvertNMS4ToLegacy::convert_nms4_to_legacy() {
                 new_iou_threshold,
                 new_score_threshold,
                 center_point_box,
-                nms_4->get_sort_result_descending());
+                nms_4->get_sort_result_descending(),
+                nms_4->get_output_type());
         new_ops.push_back(nms_legacy);
 
-        Output<Node> last;
-        // if the output is the i32 then it matches behavior of the v1::NonMaxSuppression otherwise need to insert Convert
-        if (nms_4->get_output_type() == element::i32) {
-            last = nms_legacy;
-        } else {
-            last = std::make_shared<ngraph::opset4::Convert>(nms_legacy, nms_4->get_output_type());
-            new_ops.push_back(last.get_node_shared_ptr());
-        }
-
-        last.get_node_shared_ptr()->set_friendly_name(nms_4->get_friendly_name());
+        nms_legacy->set_friendly_name(nms_4->get_friendly_name());
         ngraph::copy_runtime_info(nms_4, new_ops);
-        ngraph::replace_node(nms_4, last.get_node_shared_ptr());
+        ngraph::replace_node(nms_4, nms_legacy);
         return true;
     };
 
     auto m = std::make_shared<ngraph::pattern::Matcher>(nms, "ConvertNMS4ToNMSLegacy");
-    this->add_matcher(m, callback, PassProperty::CHANGE_DYNAMIC_STATE);
+    this->register_matcher(m, callback);
 }

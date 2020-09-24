@@ -2,33 +2,35 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "cnn_network_impl.hpp"
-
-#include <ie_common.h>
-#include <math.h>
-
+#include <cmath>
 #include <cassert>
 #include <map>
 #include <memory>
 #include <set>
-#include <shape_infer/ie_reshaper.hpp>
 #include <string>
 #include <vector>
 #include <unordered_set>
 
 #include "debug.h"
-#include "graph_tools.hpp"
-#include "ie_profiling.hpp"
-#include "network_serializer.h"
-#include "details/ie_cnn_network_tools.h"
+#include "exec_graph_info.hpp"
+#include <ngraph/graph_util.hpp>
+#include <ngraph/pass/manager.hpp>
+#include <ie_common.h>
 
 #include "generic_ie.hpp"
 #include "cnn_network_ngraph_impl.hpp"
+#include <transformations/init_node_info.hpp>
 #include <transformations/common_optimizations/common_optimizations.hpp>
 #include <transformations/convert_opset1_to_legacy/convert_opset1_to_legacy.hpp>
+#include <transformations/convert_opset1_to_legacy/convert_prior_to_ie_prior.hpp>
 #include <transformations/convert_opset2_to_opset1/convert_opset2_to_opset1.hpp>
 #include <transformations/convert_opset3_to_opset2/convert_opset3_to_opset2.hpp>
-#include "convert_function_to_cnn_network.hpp"
+
+#include "legacy/convert_function_to_cnn_network.hpp"
+#include "legacy/graph_tools.hpp"
+#include "legacy/details/ie_cnn_network_tools.h"
+#include <legacy/cnn_network_impl.hpp>
+#include "network_serializer_v7.hpp"
 
 using namespace std;
 using namespace InferenceEngine;
@@ -90,14 +92,20 @@ CNNNetworkImpl::CNNNetworkImpl(const ICNNNetwork & ngraphImpl) {
     auto ngraphImplPtr = dynamic_cast<const details::CNNNetworkNGraphImpl*>(&ngraphImpl);
     IE_ASSERT(ngraphImplPtr != nullptr);
     IE_ASSERT(ngraphImplPtr->getFunction() != nullptr);
-    auto graph = ngraphImplPtr->cloneFunction();
+    auto graph = ngraph::clone_function(*ngraphImpl.getFunction());
     // Disable shape inference (WA for generic operations)
     ::ngraph::op::GenericIE::DisableReshape noReshape(graph);
 
-    ::ngraph::pass::CommonOptimizations().run_on_function(graph);
-    ::ngraph::pass::ConvertOpSet3ToOpSet2().run_on_function(graph);
-    ::ngraph::pass::ConvertOpSet2ToOpSet1().run_on_function(graph);
-    ::ngraph::pass::ConvertOpSet1ToLegacy().run_on_function(graph);
+    ::ngraph::pass::Manager manager;
+    manager.register_pass<::ngraph::pass::InitNodeInfo>();
+    // WA: ConvertPriorBox must be executed before the 1st ConstantFolding pass
+    manager.register_pass<::ngraph::pass::ConvertPriorBox>();
+    manager.register_pass<::ngraph::pass::CommonOptimizations>();
+    manager.register_pass<::ngraph::pass::ConvertOpSet3ToOpSet2>();
+    manager.register_pass<::ngraph::pass::ConvertOpSet2ToOpSet1>();
+    manager.register_pass<::ngraph::pass::ConvertOpSet1ToLegacy>();
+    manager.run_passes(graph);
+
     InferenceEngine::details::convertFunctionToICNNNetwork(graph, ngraphImpl, this, false);
 }
 
@@ -356,38 +364,34 @@ size_t CNNNetworkImpl::getBatchSize() const noexcept {
 
 StatusCode CNNNetworkImpl::reshape(const std::map<std::string, std::vector<size_t>>& inputShapes,
                                    ResponseDesc* responseDesc) noexcept {
-    try {
-        if (!_reshaper) _reshaper = std::make_shared<ShapeInfer::Reshaper>(*this);
-        _reshaper->run(inputShapes);
-    } catch (const InferenceEngineException& e) {
-        return DescriptionBuffer(GENERAL_ERROR, responseDesc) << e.what();
-    } catch (const std::exception& e) {
-        return DescriptionBuffer(UNEXPECTED, responseDesc) << e.what();
-    } catch (...) {
-        return DescriptionBuffer(UNEXPECTED, responseDesc);
+    for (const auto& pair : _inputData) {
+        auto info = pair.second;
+        if (info) {
+            auto data = info->getInputData();
+            auto it = inputShapes.find(pair.first);
+            if (data && it != inputShapes.end()) {
+                auto newDims = it->second;
+                auto currentDims = data->getTensorDesc().getDims();
+                if (newDims != currentDims) {
+                    return DescriptionBuffer(NOT_IMPLEMENTED, responseDesc) <<
+                        "You have called setBatchSize + reshape for CNNNetwork object. Please, either: \n"
+                        "- [SUGGESTED] Regenerate IR with current version of Model Optimizer\n"
+                        "- [WORKAROUND] Call only reshape method where proper batch is already set\n";
+                }
+            }
+        }
     }
-    return OK;
-}
 
-StatusCode CNNNetworkImpl::AddExtension(const InferenceEngine::IShapeInferExtensionPtr& extension,
-                                        InferenceEngine::ResponseDesc* resp) noexcept {
-    try {
-        if (!_reshaper) _reshaper = std::make_shared<ShapeInfer::Reshaper>(*this);
-        _reshaper->AddExtension(extension);
-    } catch (const InferenceEngineException& e) {
-        return DescriptionBuffer(GENERAL_ERROR, resp) << e.what();
-    } catch (const std::exception& e) {
-        return DescriptionBuffer(UNEXPECTED, resp) << e.what();
-    } catch (...) {
-        return DescriptionBuffer(UNEXPECTED, resp);
-    }
     return OK;
 }
 
 StatusCode CNNNetworkImpl::serialize(const std::string& xmlPath, const std::string& binPath, ResponseDesc* resp) const
     noexcept {
     try {
+#ifdef ENABLE_V7_SERIALIZE
         Serialization::Serialize(xmlPath, binPath, (InferenceEngine::ICNNNetwork&)*this);
+        return OK;
+#endif
     } catch (const InferenceEngineException& e) {
         return DescriptionBuffer(GENERAL_ERROR, resp) << e.what();
     } catch (const std::exception& e) {
@@ -395,7 +399,8 @@ StatusCode CNNNetworkImpl::serialize(const std::string& xmlPath, const std::stri
     } catch (...) {
         return DescriptionBuffer(UNEXPECTED, resp);
     }
-    return OK;
+
+    return DescriptionBuffer(NOT_IMPLEMENTED, resp) << "The CNNNetworkImpl::serialize is not implemented";
 }
 
 StatusCode CNNNetworkImpl::setBatchSize(size_t size, ResponseDesc* responseDesc) noexcept {
@@ -407,9 +412,9 @@ StatusCode CNNNetworkImpl::setBatchSize(size_t size, ResponseDesc* responseDesc)
 
         SizeVector dims = _inputData.cbegin()->second->getTensorDesc().getDims();
 
-        // 3D input layout doesn't have batch notation
-        if (dims.size() == 3 || dims.size() == 1) {
-            return DescriptionBuffer(PARAMETER_MISMATCH, responseDesc) << "Cannot set batch for 1D/3D input";
+        // 3D/1D/0D input layouts don't have batch notation
+        if (dims.size() == 3 || dims.size() == 1 || dims.empty()) {
+            return DescriptionBuffer(PARAMETER_MISMATCH, responseDesc) << "Cannot set batch for 0D/1D/3D input";
         }
 
         const std::map<CNNLayer*, bool> layersMap = getConstLayersMap(*this);

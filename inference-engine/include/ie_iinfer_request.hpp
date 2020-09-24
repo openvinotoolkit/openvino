@@ -10,15 +10,14 @@
 
 #pragma once
 
-#include <ie_blob.h>
-
-#include <details/ie_irelease.hpp>
 #include <map>
 #include <memory>
 #include <string>
 
+#include "ie_blob.h"
 #include "ie_common.h"
 #include "ie_preprocess.hpp"
+#include "details/ie_irelease.hpp"
 
 namespace InferenceEngine {
 

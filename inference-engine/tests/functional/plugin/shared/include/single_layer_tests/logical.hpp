@@ -28,7 +28,7 @@ typedef std::tuple<
 > LogicalTestParams;
 
 class LogicalLayerTest : public testing::WithParamInterface<LogicalTestParams>,
-    public LayerTestsUtils::LayerTestsCommon {
+    virtual public LayerTestsUtils::LayerTestsCommon {
 protected:
     void SetUp() override;
 

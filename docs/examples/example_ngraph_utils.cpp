@@ -4,6 +4,8 @@
 
 #include <memory>
 
+#include <ngraph/pattern/op/wrap_type.hpp>
+
 // ! [ngraph:include]
 #include <ngraph/ngraph.hpp>
 #include <ngraph/opsets/opset3.hpp>
@@ -60,7 +62,7 @@ std::shared_ptr<ngraph::Function> create_advanced_function() {
 }
 // ! [ngraph_utils:advanced_function]
 
-void pattern_matcher_examples() {
+void pattern_matcher_examples(std::shared_ptr<Node> node) {
 {
 // ! [pattern:simple_example]
 // Pattern example
@@ -89,7 +91,7 @@ ngraph::graph_rewrite_callback callback = [](pattern::Matcher& m) {
 // ! [pattern:label_example]
 // Detect Multiply with arbitrary first input and second as Constant
 // ngraph::pattern::op::Label - represent arbitrary input
-auto input = std::make_shared<ngraph::pattern::op::Label>(ngraph::element::f32, ngraph::Shape{1});
+auto input = ngraph::pattern::any_input();
 auto value = ngraph::opset3::Constant::create(ngraph::element::f32, ngraph::Shape{1}, {0.5});
 auto mul = std::make_shared<ngraph::opset3::Multiply>(input, value);
 auto m = std::make_shared<ngraph::pattern::Matcher>(mul, "MultiplyMatcher");
@@ -99,20 +101,21 @@ auto m = std::make_shared<ngraph::pattern::Matcher>(mul, "MultiplyMatcher");
 {
 // ! [pattern:concat_example]
 // Detect Concat operation with arbitrary number of inputs
-auto concat = std::make_shared<ngraph::pattern::op::Label>(ngraph::element::f32, ngraph::Shape{}, ngraph::pattern::has_class<ngraph::opset3::Concat>());
+auto concat = ngraph::pattern::wrap_type<ngraph::opset3::Concat>();
 auto m = std::make_shared<ngraph::pattern::Matcher>(concat, "ConcatMatcher");
 // ! [pattern:concat_example]
 }
 
 {
 // ! [pattern:predicate_example]
-// Detect Multiply or Add operation
-auto lin_op = std::make_shared<ngraph::pattern::op::Label>(ngraph::element::f32, ngraph::Shape{},
-              [](const std::shared_ptr<ngraph::Node> & node) -> bool {
-                    return std::dynamic_pointer_cast<ngraph::opset3::Multiply>(node) ||
-                    std::dynamic_pointer_cast<ngraph::opset3::Add>(node);
-              });
-auto m = std::make_shared<ngraph::pattern::Matcher>(lin_op, "MultiplyOrAddMatcher");
+// Detect Multiply->Add sequence where mul has exactly one consumer
+auto mul = ngraph::pattern::wrap_type<ngraph::opset3::Multiply>(ngraph::pattern::consumers_count(1)/*сheck consumers count*/);
+auto add = ngraph::pattern::wrap_type<ngraph::opset3::Add>({mul, ngraph::pattern::any_input()});
+auto m = std::make_shared<ngraph::pattern::Matcher>(add, "MultiplyAddMatcher");
+// Matcher can be used to match pattern manually on given node
+if (m->match(node->output(0))) {
+    // Successfully matched
+}
 // ! [pattern:predicate_example]
 }
 
@@ -232,15 +235,17 @@ bool success = replace_output_update_name(node->output(0), node->input_value(0))
 
 // ! [ngraph:visualize]
 void visualization_example(std::shared_ptr<ngraph::Function> f) {
-    std::vector<std::shared_ptr<ngraph::Function> > g{f};
+    ngraph::pass::Manager manager;
 
     // Serialize ngraph::Function to before.svg file before transformation
-    ngraph::pass::VisualizeTree("/path/to/file/before.svg").run_on_module(g);
+    manager.register_pass<ngraph::pass::VisualizeTree>("/path/to/file/before.svg");
 
     // Run your transformation
-    // ngraph::pass::MyTransformation().run_on_function();
+    // manager.register_pass<ngraph::pass::MyTransformation>();
 
     // Serialize ngraph::Function to after.svg file after transformation
-    ngraph::pass::VisualizeTree("/path/to/file/after.svg").run_on_module(g);
+    manager.register_pass<ngraph::pass::VisualizeTree>("/path/to/file/after.svg");
+
+    manager.run_passes(f);
 }
 // ! [ngraph:visualize]

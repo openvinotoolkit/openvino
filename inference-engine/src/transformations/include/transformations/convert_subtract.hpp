@@ -19,12 +19,8 @@ class TRANSFORMATIONS_API ConvertSubtract;
 }  // namespace pass
 }  // namespace ngraph
 
-class ngraph::pass::ConvertSubtract: public ngraph::pass::GraphRewrite {
+class ngraph::pass::ConvertSubtract: public ngraph::pass::MatcherPass {
 public:
-    ConvertSubtract() : GraphRewrite() {
-        convert_subtract();
-    }
-
-private:
-    void convert_subtract();
+    NGRAPH_RTTI_DECLARATION;
+    ConvertSubtract();
 };

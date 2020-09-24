@@ -10,7 +10,6 @@
 #include <transformations_visibility.hpp>
 
 #include <ngraph/pass/graph_rewrite.hpp>
-#include "transformations/utils/pass_param.hpp"
 
 namespace ngraph {
 namespace pass {
@@ -41,9 +40,11 @@ namespace pass {
  *     p.run_on_function(f);
  *
  */
-class ngraph::pass::DepthToSpaceFusion: public ngraph::pass::GraphRewrite, public ngraph::pass::PassParam {
+
+class ngraph::pass::DepthToSpaceFusion: public ngraph::pass::GraphRewrite {
 public:
-    DepthToSpaceFusion() : GraphRewrite(), PassParam() {
+    NGRAPH_RTTI_DECLARATION;
+    DepthToSpaceFusion() : GraphRewrite() {
         depth_to_space_fusion();
     }
 

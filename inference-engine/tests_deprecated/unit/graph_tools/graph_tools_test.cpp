@@ -3,7 +3,7 @@
 //
 
 #include <gtest/gtest.h>
-#include <graph_tools.hpp>
+#include <legacy/graph_tools.hpp>
 #include <gna_graph_tools.hpp>
 #include "graph_test_base.hpp"
 #include <unordered_set>
@@ -12,7 +12,7 @@
 #include <gmock/gmock-more-actions.h>
 #include "ie_common.h"
 #include <memory>
-#include "details/ie_cnn_network_iterator.hpp"
+#include <legacy/details/ie_cnn_network_iterator.hpp>
 #include <common_test_utils/common_utils.hpp>
 
 using namespace testing;

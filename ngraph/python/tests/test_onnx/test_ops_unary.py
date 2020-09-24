@@ -22,14 +22,18 @@ from onnx.helper import make_graph, make_model, make_node, make_tensor_value_inf
 from ngraph.exceptions import NgraphTypeError
 from tests.runtime import get_runtime
 from tests.test_onnx.utils import get_node_model, import_onnx_model, run_model, run_node
+from tests import (xfail_issue_35929,
+                   xfail_issue_34323,
+                   xfail_issue_35930,
+                   xfail_issue_35932)
 
 
 @pytest.mark.parametrize(
     "input_data",
     [
-        np.array([-4, 0, 5, -10]),
-        np.array([[-4, 0, 5, -10], [-4, 0, 5, -10]]),
-        np.array([[[1, 2], [-3, 4]], [[1, -2], [3, 4]]]),
+        np.array([-4, 0, 5, -10], dtype=np.float32),
+        np.array([[-4, 0, 5, -10], [-4, 0, 5, -10]], dtype=np.float32),
+        np.array([[[1, 2], [-3, 4]], [[1, -2], [3, 4]]], dtype=np.float32),
     ],
 )
 def test_abs(input_data):
@@ -90,9 +94,9 @@ def test_log(input_data):
 @pytest.mark.parametrize(
     "input_data",
     [
-        np.array([-4, 0, 5, -10]),
-        np.array([[-4, 0, 5, -10], [-4, 0, 5, -10]]),
-        np.array([[[1, 2], [-3, 4]], [[1, -2], [3, 4]]]),
+        np.array([-4, 0, 5, -10], dtype=np.float32),
+        np.array([[-4, 0, 5, -10], [-4, 0, 5, -10]], dtype=np.float32),
+        np.array([[[1, 2], [-3, 4]], [[1, -2], [3, 4]]], dtype=np.float32),
     ],
 )
 def test_neg(input_data):
@@ -102,6 +106,7 @@ def test_neg(input_data):
     assert np.array_equal(ng_results, [expected_output])
 
 
+@xfail_issue_35929
 @pytest.mark.parametrize(
     "input_data",
     [
@@ -117,6 +122,7 @@ def test_floor(input_data):
     assert np.array_equal(ng_results, [expected_output])
 
 
+@xfail_issue_35929
 @pytest.mark.parametrize(
     "input_data",
     [
@@ -160,6 +166,7 @@ def test_clip_default():
     assert np.allclose(result, [expected])
 
 
+@xfail_issue_35929
 @pytest.mark.parametrize(
     "input_data",
     [
@@ -278,6 +285,7 @@ def test_softmax():
         ng_results = run_node(node, [data])
 
 
+@xfail_issue_35932
 def test_logsoftmax():
     def logsoftmax_2d(x):
         max_x = np.max(x, axis=1).reshape((-1, 1))
@@ -382,8 +390,8 @@ def test_cast_to_bool(val_type, input_data):
 @pytest.mark.parametrize(
     "val_type, range_start, range_end, in_dtype",
     [
-        pytest.param(np.dtype(np.float32), -8, 8, np.dtype(np.int32)),
-        pytest.param(np.dtype(np.float64), -16383, 16383, np.dtype(np.int64)),
+        (np.dtype(np.float32), -8, 8, np.dtype(np.int32)),
+        pytest.param(np.dtype(np.float64), -16383, 16383, np.dtype(np.int64), marks=xfail_issue_35929),
     ],
 )
 def test_cast_to_float(val_type, range_start, range_end, in_dtype):
@@ -397,7 +405,10 @@ def test_cast_to_float(val_type, range_start, range_end, in_dtype):
 
 
 @pytest.mark.parametrize(
-    "val_type", [np.dtype(np.int8), np.dtype(np.int16), np.dtype(np.int32), np.dtype(np.int64)]
+    "val_type", [np.dtype(np.int8),
+                 np.dtype(np.int16),
+                 np.dtype(np.int32),
+                 np.dtype(np.int64)]
 )
 def test_cast_to_int(val_type):
     np.random.seed(133391)
@@ -422,6 +433,7 @@ def test_cast_to_uint(val_type):
     assert np.allclose(result, expected)
 
 
+@xfail_issue_35930
 def test_cast_errors():
     np.random.seed(133391)
     input_data = np.ceil(np.random.rand(2, 3, 4) * 16)
@@ -491,7 +503,9 @@ def test_cast_errors():
         import_onnx_model(model)
 
 
-@pytest.mark.parametrize("value_type", [np.float32, np.float64])
+@pytest.mark.parametrize("value_type",
+                         [pytest.param(np.float32, marks=xfail_issue_34323),
+                          pytest.param(np.float64, marks=xfail_issue_35929)])
 def test_constant(value_type):
     values = np.random.randn(5, 5).astype(value_type)
     node = onnx.helper.make_node(

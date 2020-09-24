@@ -17,7 +17,6 @@
 #include <opencv2/gapi/gcommon.hpp>
 #include <opencv2/gapi/gkernel.hpp>
 #include <opencv2/gapi/garg.hpp>
-#include <opencv2/gapi/own/types.hpp>
 
 #include <opencv2/gapi/fluid/gfluidbuffer.hpp>
 
@@ -109,7 +108,7 @@ public:
  */
 struct GFluidOutputRois
 {
-    std::vector<cv::gapi::own::Rect> rois;
+    std::vector<cv::Rect> rois;
 };
 
 /**
@@ -179,17 +178,10 @@ template<> struct fluid_get_in<cv::GMat>
 template<> struct fluid_get_in<cv::GScalar>
 {
     // FIXME: change to return by reference when moved to own::Scalar
-#if !defined(GAPI_STANDALONE)
     static const cv::Scalar get(const cv::GArgs &in_args, int idx)
     {
-        return cv::gapi::own::to_ocv(in_args[idx].unsafe_get<cv::gapi::own::Scalar>());
+        return in_args[idx].unsafe_get<cv::Scalar>();
     }
-#else
-    static const cv::gapi::own::Scalar get(const cv::GArgs &in_args, int idx)
-    {
-        return in_args[idx].get<cv::gapi::own::Scalar>();
-    }
-#endif // !defined(GAPI_STANDALONE)
 };
 
 template<typename U> struct fluid_get_in<cv::GArray<U>>
@@ -197,6 +189,14 @@ template<typename U> struct fluid_get_in<cv::GArray<U>>
     static const std::vector<U>& get(const cv::GArgs &in_args, int idx)
     {
         return in_args.at(idx).unsafe_get<cv::detail::VectorRef>().rref<U>();
+    }
+};
+
+template<typename U> struct fluid_get_in<cv::GOpaque<U>>
+{
+    static const U& get(const cv::GArgs &in_args, int idx)
+    {
+        return in_args.at(idx).unsafe_get<cv::detail::OpaqueRef>().rref<U>();
     }
 };
 

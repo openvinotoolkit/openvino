@@ -146,7 +146,6 @@ You can use the following additional build options:
 
 - nGraph-specific compilation options:
   `-DNGRAPH_ONNX_IMPORT_ENABLE=ON` enables the building of the nGraph ONNX importer.
-  `-DNGRAPH_JSON_ENABLE=ON` enables nGraph JSON-based serialization.
   `-DNGRAPH_DEBUG_ENABLE=ON` enables additional debug prints.
 
 ## Build for Raspbian Stretch* OS
@@ -243,7 +242,9 @@ with the following content:
       libgstreamer1.0-dev:armhf \
       libgstreamer-plugins-base1.0-dev:armhf \
       libpython3-dev:armhf \
-      python3-pip
+      python3-pip \
+      python-minimal \
+      python-argparse
 
   RUN wget https://www.cmake.org/files/v3.14/cmake-3.14.3.tar.gz && \
       tar xf cmake-3.14.3.tar.gz && \
@@ -325,7 +326,6 @@ You can use the following additional build options:
 
 - nGraph-specific compilation options:
   `-DNGRAPH_ONNX_IMPORT_ENABLE=ON` enables the building of the nGraph ONNX importer.
-  `-DNGRAPH_JSON_ENABLE=ON` enables nGraph JSON-based serialization.
   `-DNGRAPH_DEBUG_ENABLE=ON` enables additional debug prints.
 
 ## Build on Windows* Systems
@@ -382,7 +382,7 @@ cmake -G "Visual Studio 15 2017 Win64" -T "Intel C++ Compiler 18.0" ^
 6. Before running the samples, add paths to the TBB and OpenCV binaries used for
    the build to the `%PATH%` environment variable. By default, TBB binaries are
    downloaded by the CMake-based script to the `<openvino_repo>/inference-engine/temp/tbb/bin`
-   folder, OpenCV binaries to the `<openvino_repo>/inference-engine/temp/opencv_4.3.0/opencv/bin`
+   folder, OpenCV binaries to the `<openvino_repo>/inference-engine/temp/opencv_4.5.0/opencv/bin`
    folder.
 
 ### Additional Build Options
@@ -428,7 +428,6 @@ cmake -G "Visual Studio 15 2017 Win64" -T "Intel C++ Compiler 18.0" ^
 
 - nGraph-specific compilation options:
   `-DNGRAPH_ONNX_IMPORT_ENABLE=ON` enables the building of the nGraph ONNX importer.
-  `-DNGRAPH_JSON_ENABLE=ON` enables nGraph JSON-based serialization.
   `-DNGRAPH_DEBUG_ENABLE=ON` enables additional debug prints.
 
 ### Building Inference Engine with Ninja* Build System
@@ -520,7 +519,6 @@ You can use the following additional build options:
 
 - nGraph-specific compilation options:
   `-DNGRAPH_ONNX_IMPORT_ENABLE=ON` enables the building of the nGraph ONNX importer.
-  `-DNGRAPH_JSON_ENABLE=ON` enables nGraph JSON-based serialization.
   `-DNGRAPH_DEBUG_ENABLE=ON` enables additional debug prints.
 
 ## Build on Android* Systems

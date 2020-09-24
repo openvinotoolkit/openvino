@@ -4,15 +4,17 @@
 
 #include <ie_metric_helpers.hpp>
 #include <precision_utils.h>
-#include <net_pass.h>
+#include <legacy/net_pass.h>
 #include "mkldnn_exec_network.h"
 
 #include "mkldnn_async_infer_request.h"
 #include "mkldnn_infer_request.h"
 #include "mkldnn_memory_state.h"
+#include "mkldnn_itt.h"
+#include "nodes/mkldnn_memory_node.hpp"
 #include "bf16transformer.h"
-#include <ie_util_internal.hpp>
-#include <graph_tools.hpp>
+#include <legacy/ie_util_internal.hpp>
+#include <legacy/graph_tools.hpp>
 #include <threading/ie_executor_manager.hpp>
 #include "low_precision_transformations/convolution.hpp"
 #include "low_precision_transformations/eltwise.hpp"
@@ -44,18 +46,10 @@ MKLDNNExecNetwork::MKLDNNExecNetwork(const InferenceEngine::ICNNNetwork &network
     extensionManager(extMgr),
     _cfg{cfg},
     _name{network.getName()} {
+    OV_ITT_SCOPED_TASK(itt::domains::MKLDNNPlugin, "MKLDNNExecNetwork::MKLDNNExecNetwork");
+
     // we are cloning network if we have statistics and we can transform network.
     _clonedNetwork = cloneNet(network);
-
-    // CPU Plugin doesn't natively support some precision like int64/fp16/bool
-    // so will convert all layer/tensors fp16->fp32 , bool->u8.
-    // Default int64->int32 conversion is already applied in IE common module.
-    NetPass::ConvertPrecision(*_clonedNetwork, Precision::I64, Precision::I32);
-    NetPass::ConvertPrecision(*_clonedNetwork, Precision::U64, Precision::I32);
-    NetPass::ConvertPrecision(*_clonedNetwork, Precision::U32, Precision::I32);
-    NetPass::ConvertPrecision(*_clonedNetwork, Precision::FP16, Precision::FP32);
-    NetPass::ConvertPrecision(*_clonedNetwork, Precision::BOOL, Precision::U8);
-    NetPass::ConvertPrecision(*_clonedNetwork, Precision::U16, Precision::I32);
 
     if (_cfg.lpTransformsMode == Config::LPTransformsMode::On) {
         auto params = LayerTransformation::Params(true,  // updatePrecisions
@@ -103,7 +97,7 @@ MKLDNNExecNetwork::MKLDNNExecNetwork(const InferenceEngine::ICNNNetwork &network
 
     MKLDNNGraph::ApplyUnrollPasses(static_cast<ICNNNetwork&>(*_clonedNetwork));
 
-    if (_cfg.enableDynamicBatch) {
+    if (_cfg.batchLimit > 1) {
         // check topology for applicability
         if (!CanProcessDynBatch(*_clonedNetwork)) {
             THROW_IE_EXCEPTION << "MKLDNNGraph::CreateGraph: such topology cannot be compiled for dynamic batch!";
@@ -114,18 +108,9 @@ MKLDNNExecNetwork::MKLDNNExecNetwork(const InferenceEngine::ICNNNetwork &network
         // special case when all InferRequests are muxed into a single queue
         _taskExecutor = ExecutorManager::getInstance()->getExecutor("CPU");
     } else {
-        const int env_threads = parallel_get_env_threads();
-        const auto& numa_nodes = getAvailableNUMANodes();
-        const auto numa_nodes_num = numa_nodes.size();
-        auto streamExecutorConfig = cfg.streamExecutorConfig;
-        // use logical cores only for single-socket targets in throughput mode
-        const int hw_cores = streamExecutorConfig._streams > 1 && numa_nodes_num == 1 ? parallel_get_max_threads() : getNumberOfCPUCores();
-        const int threads = streamExecutorConfig._threads ? streamExecutorConfig._threads : (env_threads ? env_threads : hw_cores);
-        streamExecutorConfig._threadsPerStream = streamExecutorConfig._streams
-                                                ? std::max(1, threads/streamExecutorConfig._streams)
-                                                : threads;
-        streamExecutorConfig._name = "CPUStreamsExecutor";
-        _taskExecutor = ExecutorManager::getInstance()->getIdleCPUStreamsExecutor(streamExecutorConfig);
+        auto streamsExecutorConfig = InferenceEngine::IStreamsExecutor::Config::MakeDefaultMultiThreaded(_cfg.streamExecutorConfig);
+        streamsExecutorConfig._name = "CPUStreamsExecutor";
+        _taskExecutor = ExecutorManager::getInstance()->getIdleCPUStreamsExecutor(streamsExecutorConfig);
     }
     if (0 != cfg.streamExecutorConfig._streams) {
         _callbackExecutor = ExecutorManager::getInstance()->getIdleCPUStreamsExecutor(
@@ -160,7 +145,8 @@ MKLDNNExecNetwork::MKLDNNExecNetwork(const InferenceEngine::ICNNNetwork &network
     if (_graphs.size() == 1) {
         for (auto &node : _graphs.begin()->get()->GetNodes()) {
             if (node->getType() == MemoryInput) {
-                auto state_store = node->getChildEdgeAt(0)->getMemoryPtr();
+                auto memoryNode = dynamic_cast<MKLDNNMemoryInputNode*>(node.get());
+                auto state_store = memoryNode->getStore();
                 auto state_name = node->getName();
 
                 // Remove suffix with pair ID. Internal information.
@@ -293,8 +279,7 @@ bool MKLDNNExecNetwork::CanProcessDynBatch(const InferenceEngine::ICNNNetwork &n
             type != Eltwise &&
             type != Crop &&
             type != BatchNormalization &&
-            type != Copy &&
-            type != MVN) {
+            type != Copy) {
             check_result = false;
         }
     }, false);

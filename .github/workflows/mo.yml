@@ -32,8 +32,6 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip setuptools
-          # For Pylint
-          pip install tensorflow==1.14.0 tensorboard==1.14.0 tensorflow-estimator==1.14.0
           # For UT
           pip install unittest-xml-reporting==3.0.2
           # MO requirements

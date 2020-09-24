@@ -8,7 +8,7 @@
 #include <string>
 #include <vector>
 
-#include <details/caseless.hpp>
+#include <caseless.hpp>
 #include "low_precision_transformations/common/ie_lpt_exception.hpp"
 #include "low_precision_transformations/network_helper.hpp"
 

@@ -25,7 +25,7 @@
 #include <transformations/utils/utils.hpp>
 #include <transformations/init_node_info.hpp>
 #include <transformations/depth_to_space_fusion.hpp>
-#include <ngraph/op/fused/depth_to_space.hpp>
+#include <ngraph/op/depth_to_space.hpp>
 
 namespace LayerTestsDefinitions {
 

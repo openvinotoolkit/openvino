@@ -19,9 +19,6 @@ void graphTransformerFunctionalTests::SetUp() {
     vpuLayersTests::SetUp();
 
     _stageBuilder = std::make_shared<StageBuilder>();
-    _frontEnd = std::make_shared<FrontEnd>(_stageBuilder);
-    _backEnd = std::make_shared<BackEnd>();
-    _passManager = std::make_shared<PassManager>(_stageBuilder, _backEnd);
     _platform = CheckMyriadX() ? Platform::MYRIAD_X : Platform::MYRIAD_2;
 }
 

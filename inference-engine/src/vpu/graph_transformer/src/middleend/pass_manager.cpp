@@ -88,6 +88,12 @@ PassSet::Ptr PassManager::buildMiddleEnd() {
     ADD_DUMP_PASS("initial");
 
     //
+    // Decompose swish layer to Sigmoid + Multiply
+    //
+    ADD_PASS(decomposeSwish);
+    ADD_DUMP_PASS("decomposeSwish");
+
+    //
     // Convert shape notation
     //
     ADD_PASS(convertShapeNotation);
@@ -340,6 +346,14 @@ PassSet::Ptr PassManager::buildMiddleEnd() {
 
     ADD_PASS(countStagesInLoops);
     ADD_DUMP_PASS("countStagesInLoops");
+
+    ADD_PASS(markFastStages);
+    ADD_DUMP_PASS("markFastStages");
+
+    if (env.config.enableMemoryTypesAnnotation) {
+        ADD_PASS(annotateMemoryTypes);
+        ADD_DUMP_PASS("annotateMemoryTypes");
+    }
 
     //
     // Final check

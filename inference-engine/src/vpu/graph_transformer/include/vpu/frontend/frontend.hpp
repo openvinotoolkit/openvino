@@ -12,8 +12,8 @@
 #include <tuple>
 #include <set>
 
+#include <ie_icore.hpp>
 #include <cpp/ie_cnn_network.h>
-#include <details/caseless.hpp>
 
 #include <vpu/stage_builder.hpp>
 #include <vpu/frontend/ie_parsed_network.hpp>
@@ -30,7 +30,7 @@ class FrontEnd final {
 public:
     using Ptr = std::shared_ptr<FrontEnd>;
 
-    explicit FrontEnd(StageBuilder::Ptr stageBuilder);
+    explicit FrontEnd(StageBuilder::Ptr stageBuilder, const ie::ICore* core);
 
     ModelPtr buildInitialModel(ie::ICNNNetwork& network);
 
@@ -64,9 +64,6 @@ private:
             const Model& model);
 
     void removeConstLayers(
-            ie::ICNNNetwork& network);
-
-    void moveConstInputsToBlobs(
             ie::ICNNNetwork& network);
 
     //
@@ -154,7 +151,10 @@ public:
     void parseOutShapeOfReshape(const Model& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs) const;
     void parseBroadcast(const Model& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs) const;
     void parseStaticShapeNMS(const Model& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs) const;
+    void parseMish(const Model& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs) const;
     void parseGelu(const Model& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs) const;
+    void parseSoftPlus(const Model& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs) const;
+    void parseSwish(const Model& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs) const;
 
     //
     // Special layers
@@ -181,6 +181,8 @@ public:
     //
 
     static CustomLayer::Ptr getSuitableCustomLayer(const std::vector<CustomLayer::Ptr>& customLayers, const ie::CNNLayerPtr&cnnLayer);
+    static ie::ICNNNetwork::Ptr convertNetwork(ie::ICNNNetwork& network);
+    bool isLayerSupported(const std::string& type);
 
 private:
     Data getVpuData(const ie::DataPtr& ieData) const;
@@ -203,6 +205,7 @@ private:
 
 private:
     StageBuilder::Ptr _stageBuilder;
+    const ie::ICore* _core = nullptr;
 
     IeParsedNetwork _ieParsedNetwork;
     std::unordered_set<ie::DataPtr> _unbatchedOutputs;

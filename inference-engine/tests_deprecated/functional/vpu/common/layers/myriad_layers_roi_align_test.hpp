@@ -162,7 +162,7 @@ static std::string getModel(const int batches, const int channels, const int hei
 }
 
 TEST_P(myriadLayersTestsROIAlign_smoke, ROIAlign) {
-    _config[VPU_CONFIG_KEY(DETECT_NETWORK_BATCH)] = CONFIG_VALUE(NO);
+    _config[InferenceEngine::MYRIAD_DETECT_NETWORK_BATCH] = CONFIG_VALUE(NO);
 
     const tensor_test_params dims_layer_in = std::get<0>(GetParam());
     const roi_align_param test_params      = std::get<1>(GetParam());
@@ -243,16 +243,26 @@ TEST_P(myriadLayersTestsROIAlign_smoke, ROIAlign) {
 static std::vector<Dims> s_ROIAlignLayerInput = {
     {{5, 256, 160, 157}},
 };
-
 static std::vector<roi_align_param> s_ROIAlignLayerParam = {
     {{640, 640, 7, 9, 2, 1.4f}},
 };
-
 static std::vector<number_rois> s_ROIAlignNumROIs = {
     53
 };
-
 static std::vector<roi_align_mode> s_ROIAlignMode = {
-        std::string("avg"),
-        std::string("max")
+    std::string("avg"),
+    std::string("max")
+};
+
+static std::vector<Dims> s_ROIAlignLayerInput_Faster = {
+    {{1, 256, 200, 257}},
+};
+static std::vector<roi_align_param> s_ROIAlignLayerParam_Faster = {
+    {{640, 640, 7, 7, 2, 0.25f}},
+};
+static std::vector<number_rois> s_ROIAlignNumROIs_Faster = {
+    750
+};
+static std::vector<roi_align_mode> s_ROIAlignMode_Faster = {
+    std::string("avg")
 };

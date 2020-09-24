@@ -50,7 +50,7 @@ protected:
         node->set_output_type(0, dsr->get_input_element_type(0), ngraph::PartialShape::dynamic(outputShape.rank()));
 
         const auto transformations = vpu::Transformations{{type_info, vpu::dynamicToStaticUnaryElementwise}};
-        vpu::DynamicToStaticShape(transformations).transform(function);
+        vpu::DynamicToStaticShape(transformations).run_on_function(function);
         return function;
     }
 
@@ -94,6 +94,7 @@ INSTANTIATE_TEST_CASE_P(NGraph, DynamicToStaticShapeUnaryElementwise, testing::C
         ngraph::opset3::Relu::type_info,
         ngraph::opset3::Sigmoid::type_info,
         ngraph::opset3::Softmax::type_info,
-        ngraph::opset3::Sqrt::type_info)));
+        ngraph::opset3::Sqrt::type_info,
+        ngraph::opset3::LogicalNot::type_info)));
 
 }  // namespace

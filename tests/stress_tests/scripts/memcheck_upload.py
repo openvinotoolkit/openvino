@@ -21,6 +21,7 @@ from inspect import getsourcefile
 from glob import glob
 import xml.etree.ElementTree as ET
 import hashlib
+from pathlib import Path
 import yaml
 from pymongo import MongoClient
 
@@ -30,8 +31,7 @@ DB_COLLECTIONS = ["commit", "nightly", "weekly"]
 
 PRODUCT_NAME = 'dldt'   # product name from build manifest
 RE_GTEST_MODEL_XML = re.compile(r'<model[^>]*>')
-RE_GTEST_CUR_MEASURE = re.compile(
-    r'Current values of virtual memory consumption')
+RE_GTEST_CUR_MEASURE = re.compile(r'\[\s*MEASURE\s*\]')
 RE_GTEST_REF_MEASURE = re.compile(
     r'Reference values of virtual memory consumption')
 RE_GTEST_PASSED = re.compile(r'\[\s*PASSED\s*\]')
@@ -69,7 +69,23 @@ def metadata_from_manifest(manifest):
         'repo_url': repo_trigger['url'],
         'target_branch': repo_trigger['target_branch'],
         'event_type': manifest['components'][PRODUCT_NAME]['build_event'].lower(),
+        f'{PRODUCT_NAME}_version': manifest['components'][PRODUCT_NAME]['version'],
     }
+
+
+def info_from_test_config(test_conf):
+    """ Extract models information for memcheck record from test config
+    """
+    test_conf_obj = ET.parse(test_conf)
+    test_conf_root = test_conf_obj.getroot()
+    records = {}
+    for model_rec in test_conf_root.find("models"):
+        model = model_rec.attrib["path"]
+        records[Path(model)] = {
+            "framework": model_rec.attrib.get("framework"),
+            "source": model_rec.attrib.get("source"),
+        }
+    return records
 
 
 def parse_memcheck_log(log_path):
@@ -99,13 +115,14 @@ def parse_memcheck_log(log_path):
             ref_metrics = dict(zip(heading, values))
     for index in reversed(range(len(log_lines))):
         if RE_GTEST_CUR_MEASURE.search(log_lines[index]):
+            test_name = log_lines[index].split()[-1]
             heading = [name.lower() for name in log_lines[index+1]
                        [len(GTEST_INFO):].split()]
             values = [int(val) for val in log_lines[index+2]
                       [len(GTEST_INFO):].split()]
             entry = SimpleNamespace(
                 metrics=dict(zip(heading, values)),
-                test_name=model['test'],
+                test_name=test_name,
                 model_name=os.path.splitext(
                     os.path.basename(model['path']))[0],
                 precision=next(pr for pr in PRECISSIONS if pr.upper()
@@ -175,6 +192,18 @@ TIMELINE_SIMILARITY = ('test_name', 'model', 'device', 'target_branch')
 def query_timeline(records, db_url, db_collection, max_items=20, similarity=TIMELINE_SIMILARITY):
     """ Query database for similar memcheck items committed previously
     """
+    def timeline_key(item):
+        """ Defines order for timeline report entries
+        """
+        if len(item['metrics']['vmhwm']) <= 1:
+            return 1
+        order = item['metrics']['vmhwm'][-1] - item['metrics']['vmhwm'][-2] + \
+            item['metrics']['vmrss'][-1] - item['metrics']['vmrss'][-2]
+        if not item['status']:
+            # ensure failed cases are always on top
+            order += sys.maxsize/2
+        return order
+
     client = MongoClient(db_url)
     collection = client[DATABASE][db_collection]
     result = []
@@ -196,7 +225,11 @@ def query_timeline(records, db_url, db_collection, max_items=20, similarity=TIME
             pass  # keep only the record if timeline failed to generate
         items += [record]
         timeline = _transpose_dicts(items, template=record)
+        timeline['status'] = bool(timeline['metrics']['vmrss'][-1] < timeline['ref_metrics']['vmrss'][-1] and
+                                  timeline['metrics']['vmhwm'][-1] < timeline['ref_metrics']['vmhwm'][-1])
         result += [timeline]
+
+    result.sort(key=timeline_key, reverse=True)
     return result
 
 

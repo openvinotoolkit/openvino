@@ -48,10 +48,10 @@ public:
         try {
             auto extension = InferenceEngine::make_so_pointer<InferenceEngine::IExtension>(
                 FileUtils::makeSharedLibraryName<char>({},
-                    std::string("extension_tests") + IE_BUILD_POSTFIX));
+                    std::string("template_extension") + IE_BUILD_POSTFIX));
             ie.AddExtension(extension);
         } catch (const InferenceEngine::details::InferenceEngineException & ex) {
-            ASSERT_STR_CONTAINS(ex.what(), "name: experimental. Opset");
+            ASSERT_STR_CONTAINS(ex.what(), "name: custom_opset. Opset");
         }
     }
 };

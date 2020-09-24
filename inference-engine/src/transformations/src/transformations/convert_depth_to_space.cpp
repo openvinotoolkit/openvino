@@ -9,14 +9,16 @@
 
 #include <ngraph/opsets/opset1.hpp>
 #include <ngraph/rt_info.hpp>
+#include <ngraph/pattern/op/wrap_type.hpp>
 
-void ngraph::pass::ConvertDepthToSpace::convert_depth_to_space() {
-    auto input0 = std::make_shared<pattern::op::Label>(element::f32, Shape{1, 1, 1, 1});
-    auto dts_node = std::make_shared<ngraph::opset1::DepthToSpace>(input0, ngraph::op::DepthToSpace::DepthToSpaceMode::DEPTH_FIRST);
+NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertDepthToSpace, "ConvertDepthToSpace", 0);
+
+ngraph::pass::ConvertDepthToSpace::ConvertDepthToSpace() {
+    auto dts_node = ngraph::pattern::wrap_type<ngraph::opset1::DepthToSpace>();
 
     ngraph::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
         auto dts_node = std::dynamic_pointer_cast<ngraph::opset1::DepthToSpace> (m.get_match_root());
-        if (!dts_node || transformation_callback(dts_node)) {
+        if (!dts_node || m_transformation_callback(dts_node)) {
             return false;
         }
 
@@ -99,5 +101,5 @@ void ngraph::pass::ConvertDepthToSpace::convert_depth_to_space() {
     };
 
     auto m = std::make_shared<ngraph::pattern::Matcher>(dts_node, "ConvertDepthToSpace");
-    this->add_matcher(m, callback, PassProperty::CHANGE_DYNAMIC_STATE);
+    this->register_matcher(m, callback);
 }

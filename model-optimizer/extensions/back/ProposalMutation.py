@@ -75,8 +75,3 @@ class ProposalMutation(BackReplacementPattern):
             reshape = create_op_node_with_second_input(graph, Reshape, [im_info_shape[1]], {'name': 'im_info/Reshape'})
             node.in_port(2).get_connection().set_destination(reshape.in_port(0))
             reshape.out_port(0).connect(node.in_port(2))
-
-        if node.has_port('out', 1) and not node.out_port(1).disconnected():
-            # This is the case when Proposal layer is used from extension, not from opset.
-            # Setting version attribute is not recommended, this will be fixed after Proposal will be updated in IE.
-            graph.node[node.id]['version'] = 'extension'

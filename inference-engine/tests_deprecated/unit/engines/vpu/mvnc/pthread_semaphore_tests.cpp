@@ -248,7 +248,7 @@ TEST_P(PThreadBinSemaphoreTest, WillBlockWhenAcquiringSemaTwice2) {
     th.join();
 }
 
-TEST_P(PThreadBinSemaphoreTest, DestroyAcquireadSemaResultedInError) {
+TEST_P(PThreadBinSemaphoreTest, DestroyAcquiredSemaResultedInError) {
     ASSERT_EQ(0, invoke_wait());
 
     // semaphore deleted - since not blocked, even if counter is 0

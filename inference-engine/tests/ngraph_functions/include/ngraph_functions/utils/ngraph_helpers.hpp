@@ -108,7 +108,10 @@ enum ActivationTypes {
     Selu,
     Ceiling,
     PReLu,
-    Mish
+    Mish,
+    HSwish,
+    SoftPlus,
+    Swish
 };
 
 enum EltwiseTypes {
@@ -138,6 +141,11 @@ enum SqueezeOpType {
     UNSQUEEZE
 };
 
+enum MinMaxOpType {
+    MINIMUM,
+    MAXIMUM
+};
+
 enum QuantizationGranularity {
     Pertensor,
     Perchannel
@@ -159,7 +167,15 @@ enum class InputLayerType {
     PARAMETER,
 };
 
+enum class PadMode {
+    CONSTANT,
+    EDGE,
+    REFLECT,
+    SYMMETRIC,
+};
+
 std::ostream &operator<<(std::ostream &os, const ReductionType &m);
+std::ostream &operator<<(std::ostream &os, const PadMode &m);
 
 inline std::string quantizationGranularityToString(const QuantizationGranularity &granularity) {
     static std::map<QuantizationGranularity, std::string> names = {
@@ -225,6 +241,12 @@ std::ostream& operator<<(std::ostream& os, ngraph::helpers::InputLayerType type)
 std::ostream& operator<<(std::ostream & os, ngraph::helpers::ComparisonTypes type);
 
 std::ostream& operator<<(std::ostream & os, ngraph::helpers::LogicalTypes type);
+
+std::ostream& operator<<(std::ostream & os, ngraph::op::v4::Interpolate::InterpolateMode type);
+
+std::ostream& operator<<(std::ostream & os, ngraph::op::v4::Interpolate::CoordinateTransformMode type);
+
+std::ostream& operator<<(std::ostream & os, ngraph::op::v4::Interpolate::NearestMode type);
 
 }  // namespace helpers
 }  // namespace ngraph

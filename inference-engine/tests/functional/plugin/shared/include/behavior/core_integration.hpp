@@ -11,7 +11,7 @@
 #include <fstream>
 #include <ngraph/variant.hpp>
 #include <hetero/hetero_plugin_config.hpp>
-#include <graph_tools.hpp>
+#include <legacy/graph_tools.hpp>
 #include <functional_test_utils/plugin_cache.hpp>
 #include <multi-device/multi_device_config.hpp>
 #include <ngraph/op/util/op_types.hpp>
@@ -86,7 +86,7 @@ public:
 
 class IEClassNetworkTest : public ::testing::Test {
 public:
-    CNNNetwork actualNetwork, simpleNetwork, multinputNetwork;
+    CNNNetwork actualNetwork, simpleNetwork, multinputNetwork, ksoNetwork;
 
     void SetUp() override {
         // Generic network
@@ -103,6 +103,11 @@ public:
         {
             auto fnPtr = ngraph::builder::subgraph::make2InputSubtract();
             multinputNetwork = InferenceEngine::CNNNetwork(fnPtr);
+        }
+        // Network with KSO
+        {
+            auto fnPtr = ngraph::builder::subgraph::makeKSOFunction();
+            ksoNetwork = InferenceEngine::CNNNetwork(fnPtr);
         }
     }
     void setHeteroNetworkAffinity(const std::string& targetDevice) {
@@ -263,12 +268,6 @@ TEST(IEClassBasicTest, smoke_createMockEngineConfigThrows) {
 
 TEST_P(IEClassBasicTestP, smoke_registerPluginsXMLUnicodePath) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
-// TODO: Issue: 31197 Remove this code
-#if defined(_WIN32) || defined(_WIN64)
-    if (deviceName == CommonTestUtils::DEVICE_MYRIAD) {
-        GTEST_SKIP();
-    }
-#endif
     std::string pluginXML{"mock_engine_valid.xml"};
     std::string content{"<ie><plugins><plugin name=\"mock\" location=\"libmock_engine.so\"></plugin></plugins></ie>"};
     CommonTestUtils::createFile(pluginXML, content);
@@ -282,14 +281,14 @@ TEST_P(IEClassBasicTestP, smoke_registerPluginsXMLUnicodePath) {
             bool is_copy_successfully;
             is_copy_successfully = CommonTestUtils::copyFile(pluginXML, pluginsXmlW);
             if (!is_copy_successfully) {
-                FAIL() << "Unable to copy from '" << pluginXML << "' to '" << wStringtoMBCSstringChar(pluginsXmlW) << "'";
+                FAIL() << "Unable to copy from '" << pluginXML << "' to '" << ::FileUtils::wStringtoMBCSstringChar(pluginsXmlW) << "'";
             }
 
             GTEST_COUT << "Test " << testIndex << std::endl;
 
             Core ie;
             GTEST_COUT << "Core created " << testIndex << std::endl;
-            ASSERT_NO_THROW(ie.RegisterPlugins(wStringtoMBCSstringChar(pluginsXmlW)));
+            ASSERT_NO_THROW(ie.RegisterPlugins(::FileUtils::wStringtoMBCSstringChar(pluginsXmlW)));
             CommonTestUtils::removeFile(pluginsXmlW);
 #if defined __linux__  && !defined(__APPLE__)
             ASSERT_NO_THROW(ie.GetVersions("mock")); // from pluginXML
@@ -549,6 +548,49 @@ TEST_P(IEClassNetworkTestP, QueryNetworkActualNoThrow) {
 
     try {
         ie.QueryNetwork(actualNetwork, deviceName);
+    } catch (const InferenceEngine::details::InferenceEngineException & ex) {
+        std::string message = ex.what();
+        ASSERT_STR_CONTAINS(message, "[NOT_IMPLEMENTED]  ngraph::Function is not supported natively");
+    }
+}
+
+TEST_P(IEClassNetworkTestP, QueryNetworkWithKSO) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    Core ie;
+
+    try {
+        auto rres = ie.QueryNetwork(ksoNetwork, deviceName);
+        auto rl_map = rres.supportedLayersMap;
+        auto func = ksoNetwork.getFunction();
+        for (const auto & op : func->get_ops()) {
+            if (!rl_map.count(op->get_friendly_name())) {
+                FAIL() << "Op " << op->get_friendly_name() << " is not supported by " << deviceName;
+            }
+        }
+    } catch (const InferenceEngine::details::InferenceEngineException & ex) {
+        std::string message = ex.what();
+        ASSERT_STR_CONTAINS(message, "[NOT_IMPLEMENTED]  ngraph::Function is not supported natively");
+    }
+}
+
+TEST_P(IEClassNetworkTestP, SetAffinityWithKSO) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    Core ie;
+
+    try {
+        auto rres = ie.QueryNetwork(ksoNetwork, deviceName);
+        auto rl_map = rres.supportedLayersMap;
+        auto func = ksoNetwork.getFunction();
+        for (const auto & op : func->get_ops()) {
+            if (!rl_map.count(op->get_friendly_name())) {
+                FAIL() << "Op " << op->get_friendly_name() << " is not supported by " << deviceName;
+            }
+        }
+        for (const auto & op : ksoNetwork.getFunction()->get_ops()) {
+            std::string affinity = rl_map[op->get_friendly_name()];
+            op->get_rt_info()["affinity"] = std::make_shared<ngraph::VariantWrapper<std::string>>(affinity);
+        }
+        ExecutableNetwork exeNetwork = ie.LoadNetwork(ksoNetwork, deviceName);
     } catch (const InferenceEngine::details::InferenceEngineException & ex) {
         std::string message = ex.what();
         ASSERT_STR_CONTAINS(message, "[NOT_IMPLEMENTED]  ngraph::Function is not supported natively");
@@ -1322,13 +1364,13 @@ TEST_P(IEClassLoadNetworkTest, QueryNetworkHETEROwithMULTINoThrow_v7) {
             }
         }
 
+        auto convertedActualNetwork = std::make_shared<details::CNNNetworkImpl>(actualNetwork);
         QueryNetworkResult result;
         std::string targetFallback(std::string(CommonTestUtils::DEVICE_MULTI) + "," + CommonTestUtils::DEVICE_CPU);
-        ASSERT_NO_THROW(result = ie.QueryNetwork(actualNetwork, CommonTestUtils::DEVICE_HETERO, {
+        ASSERT_NO_THROW(result = ie.QueryNetwork(InferenceEngine::CNNNetwork{convertedActualNetwork}, CommonTestUtils::DEVICE_HETERO, {
                 {MULTI_CONFIG_KEY(DEVICE_PRIORITIES), devices},
                 {"TARGET_FALLBACK",                   targetFallback}}));
 
-        auto convertedActualNetwork = std::make_shared<details::CNNNetworkImpl>(actualNetwork);
         for (auto &&layer : result.supportedLayersMap) {
             EXPECT_NO_THROW(CommonTestUtils::getLayerByName(convertedActualNetwork.get(), layer.first));
         }
@@ -1352,11 +1394,11 @@ TEST_P(IEClassLoadNetworkTest, QueryNetworkMULTIwithHETERONoThrowv7) {
         }
 
         QueryNetworkResult result;
-        ASSERT_NO_THROW(result = ie.QueryNetwork(actualNetwork, CommonTestUtils::DEVICE_MULTI, {
+        auto convertedActualNetwork = std::make_shared<details::CNNNetworkImpl>(actualNetwork);
+        ASSERT_NO_THROW(result = ie.QueryNetwork(InferenceEngine::CNNNetwork{convertedActualNetwork}, CommonTestUtils::DEVICE_MULTI, {
                 {MULTI_CONFIG_KEY(DEVICE_PRIORITIES), devices},
                 {"TARGET_FALLBACK",                   deviceName + "," + CommonTestUtils::DEVICE_CPU}}));
 
-        auto convertedActualNetwork = std::make_shared<details::CNNNetworkImpl>(actualNetwork);
         for (auto &&layer : result.supportedLayersMap) {
             EXPECT_NO_THROW(CommonTestUtils::getLayerByName(convertedActualNetwork.get(), layer.first));
         }

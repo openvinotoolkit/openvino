@@ -11,7 +11,7 @@
 
 #include <ie_data.h>
 #include <ie_blob.h>
-#include <ie_layers.h>
+#include <legacy/ie_layers.h>
 
 namespace vpu {
 

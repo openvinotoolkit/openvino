@@ -9,12 +9,13 @@ Purposes to execute networks in heterogeneous mode
 * To utilize all available hardware more efficiently during one inference
 
 The execution through heterogeneous plugin can be divided to two independent steps:
-* Setting of affinity to layers (binding them to devices in <code>InferenceEngine::ICNNNetwork</code>)
+* Setting of affinity to layers
 * Loading a network to the Heterogeneous plugin, splitting the network to parts, and executing them through the plugin
 
 These steps are decoupled. The setting of affinity can be done automatically using fallback policy or in manual mode.
 
 The fallback automatic policy means greedy behavior and assigns all layers which can be executed on certain device on that device follow priorities.
+Automatic policy does not take into account such plugin peculiarities as inability to infer some layers without other special layers placed before of after that layers. It is plugin responsibility to solve such cases. If device plugin does not support subgraph topology constructed by Hetero plugin affinity should be set manually.
 
 Some of the topologies are not friendly to heterogeneous execution on some devices or cannot be executed in such mode at all.
 Example of such networks might be networks having activation layers which are not supported on primary device.
@@ -25,38 +26,19 @@ In this case you can define heaviest part manually and set affinity thus way to 
 ## Annotation of Layers per Device and Default Fallback Policy
 Default fallback policy decides which layer goes to which device automatically according to the support in dedicated plugins (FPGA, GPU, CPU, MYRIAD).
 
-Another way to annotate a network is setting affinity manually using <code>CNNLayer::affinity</code> field. This field accepts string values of devices like "CPU" or "FPGA".
+Another way to annotate a network is to set affinity manually using <code>ngraph::Node::get_rt_info</code> with key `"affinity"`:
+
+@snippet openvino/docs/snippets/HETERO0.cpp part0
 
 The fallback policy does not work if even one layer has an initialized affinity. The sequence should be calling of automating affinity settings and then fix manually.
-```cpp
-InferenceEngine::Core core
-auto network = core.ReadNetwork("Model.xml");
 
-// This example demonstrates how to perform default affinity initialization and then
-// correct affinity manually for some layers
-const std::string device = "HETERO:FPGA,CPU";
-
-// QueryNetworkResult object contains map layer -> device
-InferenceEngine::QueryNetworkResult res = core.QueryNetwork(network, device, { });
-
-// update default affinities
-res.supportedLayersMap["layerName"] = "CPU";
-
-// set affinities to network
-for (auto && layer : res.supportedLayersMap) {
-	network.getLayerByName(layer->first)->affinity = layer->second;
-}
-
-// load network with affinities set before
-auto executable_network = core.LoadNetwork(network, device);
-```
+@snippet openvino/docs/snippets/HETERO1.cpp part1
 
 If you rely on the default affinity distribution, you can avoid calling <code>InferenceEngine::Core::QueryNetwork</code> and just call <code>InferenceEngine::Core::LoadNetwork</code> instead:
-```cpp
-InferenceEngine::Core core
-auto network = core.ReadNetwork("Model.xml");
-auto executable_network = core.LoadNetwork(network, "HETERO:FPGA,CPU");
-```
+
+@snippet openvino/docs/snippets/HETERO2.cpp part2
+
+> **NOTE**: `InferenceEngine::Core::QueryNetwork` does not depend on affinities set by a user, but queries for layer support based on device capabilities.
 
 
 ## Details of Splitting Network and Execution
@@ -70,9 +52,7 @@ Precision for inference in heterogeneous plugin is defined by
 
 Examples:
 * If you want to execute GPU with CPU fallback with FP16 on GPU, you need to use only FP16 IR.
-Weight are converted from FP16 to FP32 automatically for execution on CPU by heterogeneous plugin automatically.
-* If you want to execute on FPGA with CPU fallback, you can use any precision for IR. The execution on FPGA is defined by bitstream,
-the execution on CPU happens in FP32.
+* If you want to execute on FPGA with CPU fallback, you can use any precision for IR. The execution on FPGA is defined by bitstream, the execution on CPU happens in FP32.
 
 Samples can be used with the following command:
 
@@ -92,16 +72,7 @@ Heterogeneous plugin can generate two files:
 * `hetero_affinity_<network name>.dot` - annotation of affinities per layer. This file is written to the disk only if default fallback policy was executed
 * `hetero_subgraphs_<network name>.dot` - annotation of affinities per graph. This file is written to the disk during execution of <code>ICNNNetwork::LoadNetwork()</code> for heterogeneous plugin
 
-```cpp
-#include "ie_plugin_config.hpp"
-#include "hetero/hetero_plugin_config.hpp"
-using namespace InferenceEngine::PluginConfigParams;
-using namespace InferenceEngine::HeteroConfigParams;
-
-...
-InferenceEngine::Core core;
-core.SetConfig({ { KEY_HETERO_DUMP_GRAPH_DOT, YES } }, "HETERO");
-```
+@snippet openvino/docs/snippets/HETERO3.cpp part3
 
 You can use GraphViz* utility or converters to `.png` formats. On Ubuntu* operating system, you can use the following utilities:
 * `sudo apt-get install xdot`

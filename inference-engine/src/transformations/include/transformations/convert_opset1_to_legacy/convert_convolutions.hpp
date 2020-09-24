@@ -16,24 +16,44 @@ namespace pass {
 
 class TRANSFORMATIONS_API ConvertConvolutions;
 
+class TRANSFORMATIONS_API ConvertConvolution;
+class TRANSFORMATIONS_API ConvertGroupConvolution;
+class TRANSFORMATIONS_API ConvertDeconvolution;
+class TRANSFORMATIONS_API ConvertGroupDeconvolution;
+
 }  // namespace pass
 }  // namespace ngraph
 
 class ngraph::pass::ConvertConvolutions: public ngraph::pass::GraphRewrite {
 public:
-    ConvertConvolutions() : GraphRewrite() {
-        convert_convolution();
-        convert_group_convolution();
-        convert_convolution_backprop_data();
-        convert_group_convolution_backprop_data();
+    ConvertConvolutions() {
+        add_matcher<ngraph::pass::ConvertConvolution>();
+        add_matcher<ngraph::pass::ConvertGroupConvolution>();
+        add_matcher<ngraph::pass::ConvertDeconvolution>();
+        add_matcher<ngraph::pass::ConvertGroupDeconvolution>();
     }
+};
 
-private:
-    void convert_convolution();
+class ngraph::pass::ConvertConvolution: public ngraph::pass::MatcherPass {
+public:
+    NGRAPH_RTTI_DECLARATION;
+    ConvertConvolution();
+};
 
-    void convert_group_convolution();
+class ngraph::pass::ConvertGroupConvolution: public ngraph::pass::MatcherPass {
+public:
+    NGRAPH_RTTI_DECLARATION;
+    ConvertGroupConvolution();
+};
 
-    void convert_convolution_backprop_data();
+class ngraph::pass::ConvertDeconvolution: public ngraph::pass::MatcherPass {
+public:
+    NGRAPH_RTTI_DECLARATION;
+    ConvertDeconvolution();
+};
 
-    void convert_group_convolution_backprop_data();
+class ngraph::pass::ConvertGroupDeconvolution: public ngraph::pass::MatcherPass {
+public:
+    NGRAPH_RTTI_DECLARATION;
+    ConvertGroupDeconvolution();
 };

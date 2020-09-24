@@ -22,3 +22,9 @@ addIeTargetTest(
         LABELS
             GPU
 )
+
+if(LIBVA_FOUND)
+    target_compile_definitions(${TARGET_NAME} PRIVATE ENABLE_LIBVA)
+    target_include_directories(${TARGET_NAME} PRIVATE ${LIBVA_INCLUDE_DIRS})
+    target_link_libraries(${TARGET_NAME} PRIVATE ${LIBVA_LINK_LIBRARIES})
+endif()

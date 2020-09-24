@@ -5,7 +5,7 @@
 #pragma once
 
 #include <algorithm>
-#include "ie_layers.h"
+#include <legacy/ie_layers.h>
 #include "low_precision_transformations/transformation_context.hpp"
 #include "low_precision_transformations/layer_transformation.hpp"
 #include "low_precision_transformations/transparent_base_transformation.hpp"

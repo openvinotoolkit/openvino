@@ -23,7 +23,7 @@ using extractImagePatchesTuple = typename std::tuple<
         LayerTestsUtils::TargetDevice>;                      // Device name
 
 class ExtractImagePatchesTest : public testing::WithParamInterface<extractImagePatchesTuple>,
-                              public LayerTestsUtils::LayerTestsCommon {
+                              virtual public LayerTestsUtils::LayerTestsCommon {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<extractImagePatchesTuple> &obj);
 

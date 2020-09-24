@@ -202,10 +202,9 @@ static ncStatus_t patchSetWdSwitchCommand(char **firmware, size_t *length, const
     }
 
     if(!executeCommandFound) {
-        mvLog(MVLOG_ERROR, "Fail to find execute command");
+        mvLog(MVLOG_WARN, "Fail to find execute command");
         return NC_ERROR;
     }
-
     return patchFirmware(firmware, length, executeCommandIdx,
                          g_setWdSwitchCommandMX, sizeof(g_setWdSwitchCommandMX), wdEnable);
 }
@@ -213,7 +212,7 @@ static ncStatus_t patchSetWdSwitchCommand(char **firmware, size_t *length, const
 // 0x98 the write command for 8bit
 // {0x00, 0x0c, 0x20, 0x70} == 0x70200c00 the address of memory type for ddrInit application
 const char g_setMemTypeCommandMX[] = {0x98, 0x00, 0x0c, 0x20, 0x70};
-const char g_callCommand[] = {0xba, 0xf4, 0xe6, 0x21, 0x70};
+const char g_callCommand[] = {0xba, 0x24, 0xe7, 0x21, 0x70};
 
 static ncStatus_t patchSetMemTypeCommand(char **firmware, size_t *length, const char memType) {
     CHECK_HANDLE_CORRECT(firmware);
@@ -241,10 +240,9 @@ static ncStatus_t patchSetMemTypeCommand(char **firmware, size_t *length, const 
     }
 
     if(!callCommandFound) {
-        mvLog(MVLOG_ERROR, "Fail to find call command");
+        mvLog(MVLOG_WARN, "Fail to find call command");
         return NC_ERROR;
     }
-
     return patchFirmware(firmware, length, callCommandIdx,
                          g_setMemTypeCommandMX, sizeof(g_setMemTypeCommandMX), memType);
 }
@@ -266,18 +264,14 @@ ncStatus_t bootDevice(deviceDesc_t* deviceDescToBoot,
         if(deviceDescToBoot->protocol != X_LINK_PCIE) {
             sc = patchSetWdSwitchCommand(&firmware, &length, bootOptions.wdEnable);
             if(sc) {
-                mvLog(MVLOG_ERROR, "Fail to patch \"Set wd switch value\" command for firmware sc = %d", sc);
-                free(firmware);
-                return sc;
+                mvLog(MVLOG_WARN, "Fail to patch \"Set wd switch value\" command for firmware sc = %d", sc);
             }
-        }
-
-        sc = patchSetMemTypeCommand(&firmware, &length, bootOptions.memType);
-        if(sc) {
-            mvLog(MVLOG_ERROR, "Fail to patch \"Set memory type\" command for firmware sc = %d", sc);
-            free(firmware);
-            return sc;
-        }
+            
+            sc = patchSetMemTypeCommand(&firmware, &length, bootOptions.memType);
+            if(sc) {
+                mvLog(MVLOG_WARN, "Fail to patch \"Set memory type\" command for firmware sc = %d", sc);
+            }
+        }       
     }
 
     XLinkError_t rc = XLinkBootFirmware(deviceDescToBoot, firmware, length);
