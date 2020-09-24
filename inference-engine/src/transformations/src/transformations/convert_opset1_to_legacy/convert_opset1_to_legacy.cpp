@@ -52,6 +52,7 @@
 #include <transformations/reduce_l1_decomposition.hpp>
 #include <transformations/reduce_l2_decomposition.hpp>
 #include <transformations/common_optimizations/fq_mul_fusion.hpp>
+#include <transformations/common_optimizations/fq_reshape_fusion.hpp>
 
 #include <ngraph/pass/constant_folding.hpp>
 #include <ngraph/pass/manager.hpp>
@@ -97,7 +98,6 @@ bool ngraph::pass::ConvertOpSet1ToLegacy::run_on_function(std::shared_ptr<ngraph
     decomp->add_matcher<ngraph::pass::BatchNormDecomposition>();
     decomp->add_matcher<ngraph::pass::ConvertMatMulToFC>();
     decomp->add_matcher<ngraph::pass::ConvertMatMulToGemm>();
-    decomp->add_matcher<ngraph::pass::PullTransposeThroughFQUp>();
     decomp->set_name("ngraph::pass::Decompositions");
 
     // CF is required after all decompositions
@@ -112,9 +112,6 @@ bool ngraph::pass::ConvertOpSet1ToLegacy::run_on_function(std::shared_ptr<ngraph
     manager.register_pass<ngraph::pass::GroupConvolutionBackpropDataMultiplyFusion>();
     manager.register_pass<ngraph::pass::ConstantFolding>();
 
-    // Multiply the thrird and fourth input instead of the output of FQ with all const inputs
-    manager.register_pass<ngraph::pass::FakeQuantizeMulFusion>();
-
     // Convolution/Deconvolution/FullyConnected fusions
     auto convert_convolutions = manager.register_pass<ngraph::pass::GraphRewrite>();
     convert_convolutions->add_matcher<ngraph::pass::ConvertConvolution>();
@@ -122,6 +119,12 @@ bool ngraph::pass::ConvertOpSet1ToLegacy::run_on_function(std::shared_ptr<ngraph
     convert_convolutions->add_matcher<ngraph::pass::ConvertDeconvolution>();
     convert_convolutions->add_matcher<ngraph::pass::ConvertGroupDeconvolution>();
     convert_convolutions->set_name("ngraph::pass::ConvertConvolutions");
+
+    auto fq_fusions = manager.register_pass<ngraph::pass::GraphRewrite>();
+    fq_fusions->add_matcher<FakeQuantizeMulFusion>();
+    fq_fusions->add_matcher<FakeQuantizeReshapeFusion>();
+    fq_fusions->add_matcher<PullTransposeThroughFQUp>();
+    fq_fusions->set_name("ngraph::pass::FakeQuantizeFusions");
 
     // Convolution/Deconvolution/FullyConnected fusions
     auto fusion = manager.register_pass<ngraph::pass::GraphRewrite>();
