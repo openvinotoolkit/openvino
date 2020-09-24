@@ -159,8 +159,8 @@ private:
                     float fx, float fy, int OH, int OW, float a);
     void cubicReference(const uint8_t *in_ptr_, uint8_t *out_ptr_, int batch, int channel, int IH, int IW,
                     float fx, float fy, int OH, int OW, float a);
-    float getValue(size_t offset, InferenceEngine::Precision precision);
-    void setValue(size_t offset, float value, InferenceEngine::Precision precision);
+
+    int nearestMode(bool isDown, float originalValue);
 
     std::vector<float> getScales();
     std::vector<int> getAxes();
@@ -281,12 +281,39 @@ void InterpolateStage::cubicReference(const uint8_t *in_ptr_, uint8_t *out_ptr_,
     
 }
 
-float InterpolateStage::getValue(size_t offset, InferenceEngine::Precision prec) {
-    return float(0);
-}
-
-void InterpolateStage::setValue(size_t offset, float value, InferenceEngine::Precision prec) {
-    
+int InterpolateStage::nearestMode(bool isDown, float originalValue) {
+    switch (nearestMode) {
+        case InterpolateNearestMode::round_prefer_floor: {
+            if (originalValue == (static_cast<int>(originalValue) + 0.5f)) {
+                return static_cast<int>(std::floor(originalValue));
+            } else {
+                return static_cast<int>(std::round(originalValue));
+            }
+            break;
+        }
+        case InterpolateNearestMode::round_prefer_ceil: {
+            return static_cast<int>(std::round(originalValue));
+            break;
+        }
+        case InterpolateNearestMode::floor: {
+            return static_cast<int>(std::floor(originalValue));
+            break;
+        }
+        case InterpolateNearestMode::ceil: {
+            return static_cast<int>(std::ceil(originalValue));
+            break;
+        }
+        case InterpolateNearestMode::simple: {
+            if (isDown) {
+                return static_cast<int>(std::ceil(originalValue));
+            } else {
+                return static_cast<int>(originalValue);
+            }
+        }
+        default: {
+            THROW_IE_EXCEPTION << "Interpolate layer with name '" << getName() << "' does not support this nearest round mode";
+        }
+    }
 }
 
 std::vector<float> InterpolateStage::getScales() {
@@ -312,6 +339,7 @@ Stage StageBuilder::addInterpolateStage(
         {input},
         {output});
     interpolateStage->attrs().set<std::string>("origin", origin);
+
     return interpolateStage;
 }
 
