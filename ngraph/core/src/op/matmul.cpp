@@ -49,16 +49,6 @@ bool ngraph::op::v0::MatMul::visit_attributes(AttributeVisitor& visitor)
     return true;
 }
 
-static std::vector<Dimension> extend_rank(const PartialShape& shape, size_t max_rank)
-{
-    std::vector<Dimension> result(max_rank - shape.rank().get_length(), Dimension(1));
-    for (size_t i = 0; i < shape.rank().get_length(); ++i)
-    {
-        result.push_back(shape[i]);
-    }
-    return result;
-}
-
 void op::MatMul::pre_validate_and_infer_types()
 {
     element::Type result_et;
@@ -71,38 +61,13 @@ void op::MatMul::pre_validate_and_infer_types()
         get_input_element_type(1),
         ").");
 
-    const PartialShape& A_shape = get_input_partial_shape(0);
-    const PartialShape& B_shape = get_input_partial_shape(1);
-    const Rank& A_rank = A_shape.rank();
-    const Rank& B_rank = B_shape.rank();
+    const Rank& A_rank = get_input_partial_shape(0).rank();
+    const Rank& B_rank = get_input_partial_shape(1).rank();
 
     if (A_rank.is_static() && B_rank.is_static())
     {
-        size_t A_rank_static = A_rank.get_length();
-        size_t B_rank_static = B_rank.get_length();
-        size_t max_rank = std::max(A_rank_static, B_rank_static);
-        max_rank = std::max(size_t(2), max_rank);
-        std::vector<Dimension> dims(max_rank);
-        auto A_dims = extend_rank(A_shape, max_rank);
-        auto B_dims = extend_rank(B_shape, max_rank);
-        if (m_transpose_a)
-        {
-            std::swap(A_dims[max_rank - 1], A_dims[max_rank - 2]);
-        }
-        if (m_transpose_b)
-        {
-            std::swap(B_dims[max_rank - 1], B_dims[max_rank - 2]);
-        }
-        // Traversing dimensions from the right to the left
-        dims[max_rank - 1] = B_dims[max_rank - 1];
-        NODE_VALIDATION_CHECK(
-            this, A_dims[max_rank - 1].compatible(B_dims[max_rank - 2])); // TODO: add message
-        dims[max_rank - 2] = A_dims[max_rank - 2];
-        for (size_t i = 0; i < max_rank - 2; ++i)
-        {
-            Dimension::merge(dims[i], A_dims[i], B_dims[i]);
-        }
-        set_output_type(0, result_et, PartialShape(dims));
+        Rank max_rank = A_rank.get_length() > B_rank.get_length() ? A_rank : B_rank;
+        set_output_type(0, result_et, PartialShape::dynamic(max_rank));
     }
     else
     {
