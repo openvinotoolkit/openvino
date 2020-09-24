@@ -2,23 +2,121 @@
 
 The sections below contain detailed list of changes made to the Inference Engine API in recent releases.
 
-## Deprecation Notice
+## 2021.1
 
-<table>
-  <tr>
-    <td><strong>Deprecation Begins</strong></td>
-    <td>June 1, 2020</td>
-  </tr>
-  <tr>
-    <td><strong>Removal Date</strong></td>
-    <td>December 1, 2020</td>
-  </tr>
-</table> 
+### Deprecated API
 
-Starting with the OpenVINO™ toolkit 2020.2 release, all of the features previously available through nGraph have been merged into the OpenVINO™ toolkit. As a result, all the features previously available through ONNX RT Execution Provider for nGraph have been merged with ONNX RT Execution Provider for OpenVINO™ toolkit.
+ **Utility functions to convert Unicode paths**
 
-Therefore, ONNX RT Execution Provider for nGraph will be deprecated starting June 1, 2020 and will be completely removed on December 1, 2020. Users are recommended to migrate to the ONNX RT Execution Provider for OpenVINO™ toolkit as the unified solution for all AI inferencing on Intel® hardware.
+ * InferenceEngine::stringToFileName - use OS-specific native conversion functions
+ * InferenceEngine::fileNameToString - use OS-specific native conversion functions
 
+### Removed API
+
+ **Plugin API:**
+
+ * InferenceEngine::InferencePlugin C++ plugin wrapper class
+ * InferenceEngine::IInferencePlugin plugin interface
+ * InferenceEngine::PluginDispatcher class
+ * InferenceEngine::InferenceEnginePluginPtr typedef
+ * InferenceEngine::ICNNNetReader reader interface
+ * InferenceEngine::CNNNetReader class
+
+ **Extensibility API:**
+
+ * InferenceEngine::ILayerImplFactory class
+ * InferenceEngine::IShapeInferImpl class
+ * InferenceEngine::IShapeInferExtension class
+ * InferenceEngine::IExtension::getFactoryFor(ILayerImplFactory\*& factory, const CNNLayer\* cnnLayer, ResponseDesc\* resp) noexcept method
+ * InferenceEngine::IExtension::getPrimitiveTypes(char\*\*& types, unsigned int& size, ResponseDesc\* resp) noexcept method
+ * InferenceEngine::ShapeInferImpl class
+ * InferenceEngine::Extension::getFactoryFor(ILayerImplFactory\*& factory, const CNNLayer\* cnnLayer, ResponseDesc\* resp) noexcept method
+ * InferenceEngine::Extension::getPrimitiveTypes(char\*\*& types, unsigned int& size, ResponseDesc\* resp) noexcept method
+
+ **Network API:**
+
+ * InferenceEngine::details::CNNNetworkIterator class
+ * InferenceEngine::CNNNetwork::getPrecision() const method
+ * InferenceEngine::CNNNetwork::getLayerByName(const char\* layerName) const method
+ * InferenceEngine::CNNNetwork::size() const method
+ * InferenceEngine::CNNNetwork::begin() const method
+ * InferenceEngine::CNNNetwork::end() const method
+ * InferenceEngine::CNNNetwork::AddExtension(const IShapeInferExtensionPtr& extension) method
+ * InferenceEngine::ICNNNetwork::getPrecision() const noexcept method
+ * InferenceEngine::ICNNNetwork::getName(char\* pName, size_t len) const noexcept method
+ * InferenceEngine::ICNNNetwork::getData(const char\* dname) noexcept method
+ * InferenceEngine::ICNNNetwork::addLayer(const CNNLayerPtr& layer) noexcept method
+ * InferenceEngine::ICNNNetwork::getLayerByName(const char\* layerName, CNNLayerPtr& out, ResponseDesc\* resp) const noexcept method
+ * InferenceEngine::ICNNNetwork::AddExtension(const IShapeInferExtensionPtr& extension, ResponseDesc\* resp) noexcept method
+ * InferenceEngine::ICNNNetwork::getStats(ICNNNetworkStats\*\* stats, ResponseDesc\* resp) const noexcept method
+ * InferenceEngine::ICNNNetworkStats class
+ * InferenceEngine::NetworkNodeStats class
+ * InferenceEngine::Data::getCreatorLayer() method
+ * InferenceEngine::Data::getInputTo() method
+ * InferenceEngine::LayerParams class
+
+ **Layer API:**
+
+ * InferenceEngine::CNNLayer class
+ * InferenceEngine::WeightableLayer class
+ * InferenceEngine::BatchNormalizationLayer class
+ * InferenceEngine::BatchToSpaceLayer class
+ * InferenceEngine::BinaryConvolutionLayer class
+ * InferenceEngine::BroadcastLayer class
+ * InferenceEngine::BucketizeLayer class
+ * InferenceEngine::ClampLayer class
+ * InferenceEngine::ConcatLayer class
+ * InferenceEngine::ConvolutionLayer class
+ * InferenceEngine::CropLayer class
+ * InferenceEngine::DeconvolutionLayer class
+ * InferenceEngine::DeformableConvolutionLayer class
+ * InferenceEngine::DepthToSpaceLayer class
+ * InferenceEngine::EltwiseLayer class
+ * InferenceEngine::ExperimentalDetectronPriorGridGenerator class
+ * InferenceEngine::ExperimentalDetectronPriorGridGeneratorLayer class
+ * InferenceEngine::ExperimentalSparseWeightedReduceLayer class
+ * InferenceEngine::FillLayer class
+ * InferenceEngine::FullyConnectedLayer class
+ * InferenceEngine::GRNLayer class
+ * InferenceEngine::GRUCell class
+ * InferenceEngine::GatherLayer class
+ * InferenceEngine::GemmLayer class
+ * InferenceEngine::LSTMCell class
+ * InferenceEngine::MVNLayer class
+ * InferenceEngine::MathLayer class
+ * InferenceEngine::NonMaxSuppression class
+ * InferenceEngine::NormLayer class
+ * InferenceEngine::OneHotLayer class
+ * InferenceEngine::PReLULayer class
+ * InferenceEngine::PadLayer class
+ * InferenceEngine::PoolingLayer class
+ * InferenceEngine::PowerLayer class
+ * InferenceEngine::QuantizeLayer class
+ * InferenceEngine::RNNCell class
+ * InferenceEngine::RNNCellBase class
+ * InferenceEngine::RNNSequenceLayer class
+ * InferenceEngine::RangeLayer class
+ * InferenceEngine::ReLU6Layer class
+ * InferenceEngine::ReLULayer class
+ * InferenceEngine::ReduceLayer class
+ * InferenceEngine::ReshapeLayer class
+ * InferenceEngine::ReverseSequenceLayer class
+ * InferenceEngine::ScaleShiftLayer class
+ * InferenceEngine::ScatterLayer class
+ * InferenceEngine::SelectLayer class
+ * InferenceEngine::ShuffleChannelsLayer class
+ * InferenceEngine::SoftMaxLayer class
+ * InferenceEngine::SpaceToBatchLayer class
+ * InferenceEngine::SpaceToDepthLayer class
+ * InferenceEngine::SparseFillEmptyRowsLayer class
+ * InferenceEngine::SparseSegmentReduceLayer class
+ * InferenceEngine::SparseToDenseLayer class
+ * InferenceEngine::SplitLayer class
+ * InferenceEngine::StridedSliceLayer class
+ * InferenceEngine::TensorIterator class
+ * InferenceEngine::TileLayer class
+ * InferenceEngine::TopKLayer class
+ * InferenceEngine::UniqueLayer class
 
 ## 2020.4
 
