@@ -13,14 +13,29 @@ if(NOT TARGET ade)
   return()
 endif()
 
+if(INF_ENGINE_TARGET)
+  ocv_option(OPENCV_GAPI_INF_ENGINE "Build GraphAPI module with Inference Engine support" ON)
+endif()
+
 set(the_description "OpenCV G-API Core Module")
 
-ocv_add_module(gapi opencv_imgproc)
+ocv_add_module(gapi
+    REQUIRED
+      opencv_imgproc
+    OPTIONAL
+      opencv_video
+    WRAP
+      python
+)
 
 if(MSVC)
   # Disable obsollete warning C4503 popping up on MSVC <<2017
   # https://docs.microsoft.com/en-us/cpp/error-messages/compiler-warnings/compiler-warning-level-1-c4503?view=vs-2019
   ocv_warnings_disable(CMAKE_CXX_FLAGS /wd4503)
+  if (OPENCV_GAPI_INF_ENGINE AND NOT INF_ENGINE_RELEASE VERSION_GREATER "2021000000")
+    # Disable IE deprecated code warning C4996 for releases < 2021.1
+    ocv_warnings_disable(CMAKE_CXX_FLAGS /wd4996)
+  endif()
 endif()
 
 file(GLOB gapi_ext_hdrs
@@ -46,6 +61,7 @@ set(gapi_srcs
     src/api/garray.cpp
     src/api/gopaque.cpp
     src/api/gscalar.cpp
+    src/api/gframe.cpp
     src/api/gkernel.cpp
     src/api/gbackend.cpp
     src/api/gproto.cpp
@@ -55,6 +71,8 @@ set(gapi_srcs
     src/api/operators.cpp
     src/api/kernels_core.cpp
     src/api/kernels_imgproc.cpp
+    src/api/kernels_video.cpp
+    src/api/kernels_nnparsers.cpp
     src/api/render.cpp
     src/api/render_ocv.cpp
     src/api/ginfer.cpp
@@ -87,7 +105,9 @@ set(gapi_srcs
     src/backends/cpu/gcpubackend.cpp
     src/backends/cpu/gcpukernel.cpp
     src/backends/cpu/gcpuimgproc.cpp
+    src/backends/cpu/gcpuvideo.cpp
     src/backends/cpu/gcpucore.cpp
+    src/backends/cpu/gnnparsers.cpp
 
     # Fluid Backend (also built-in, FIXME:move away)
     src/backends/fluid/gfluidbuffer.cpp
@@ -105,6 +125,7 @@ set(gapi_srcs
     # IE Backend. FIXME: should be included by CMake
     # if and only if IE support is enabled
     src/backends/ie/giebackend.cpp
+    src/backends/ie/giebackend/giewrapper.cpp
 
     # Render Backend.
     src/backends/render/grenderocvbackend.cpp
@@ -117,6 +138,10 @@ set(gapi_srcs
     # Compound
     src/backends/common/gcompoundbackend.cpp
     src/backends/common/gcompoundkernel.cpp
+
+    # Serialization API and routines
+    src/api/s11n.cpp
+    src/backends/common/serialization.cpp
     )
 
 ocv_add_dispatched_file(backends/fluid/gfluidimgproc_func SSE4_1 AVX2)
@@ -132,12 +157,20 @@ ocv_module_include_directories("${CMAKE_CURRENT_LIST_DIR}/src")
 
 ocv_create_module()
 
-ocv_target_link_libraries(${the_module} PRIVATE ade ${INF_ENGINE_TARGET})
+ocv_target_link_libraries(${the_module} PRIVATE ade)
+if(OPENCV_GAPI_INF_ENGINE)
+  ocv_target_link_libraries(${the_module} PRIVATE ${INF_ENGINE_TARGET})
+endif()
 if(HAVE_TBB)
   ocv_target_link_libraries(${the_module} PRIVATE tbb)
 endif()
 
-ocv_add_accuracy_tests(${INF_ENGINE_TARGET})
+set(__test_extra_deps "")
+if(OPENCV_GAPI_INF_ENGINE)
+  list(APPEND __test_extra_deps ${INF_ENGINE_TARGET})
+endif()
+ocv_add_accuracy_tests(${__test_extra_deps})
+
 # FIXME: test binary is linked with ADE directly since ADE symbols
 # are not exported from libopencv_gapi.so in any form - thus
 # there're two copies of ADE code in memory when tests run (!)
@@ -163,6 +196,11 @@ if(HAVE_PLAIDML)
   endif()
   ocv_target_link_libraries(${the_module} PRIVATE ${PLAIDML_LIBRARIES})
   ocv_target_include_directories(${the_module} SYSTEM PRIVATE ${PLAIDML_INCLUDE_DIRS})
+endif()
+
+if(WIN32)
+  # Required for htonl/ntohl on Windows
+  ocv_target_link_libraries(${the_module} PRIVATE wsock32 ws2_32)
 endif()
 
 ocv_add_perf_tests()
