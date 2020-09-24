@@ -29,7 +29,6 @@ class TdnnComponent(Op):
         super().__init__(graph, {
             'type': None,
             'op': self.op,
-            'has_default': False,
             'infer': None,
             'in_ports_count': 1,
             'out_ports_count': 1,

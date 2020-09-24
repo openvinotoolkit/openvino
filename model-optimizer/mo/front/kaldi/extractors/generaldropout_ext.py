@@ -20,7 +20,7 @@ from mo.front.kaldi.loader.utils import read_binary_integer32_token, collect_unt
 from extensions.ops.identity import Identity
 
 
-class BatchNormComponentFrontExtractor(FrontExtractorOp):
+class GeneralDropoutComponentFrontExtractor(FrontExtractorOp):
     op = 'generaldropoutcomponent'
     enabled = True
 
