@@ -46,7 +46,8 @@ private:
 enum class InputType {
     Original,
     PrevStageOutput,
-    Intermediate
+    Intermediate,
+    Constant
 };
 
 struct InputInfo final {
@@ -54,10 +55,12 @@ struct InputInfo final {
     int originalInputInd = -1;
     int prevStageInd = -1;
     int prevStageOutputInd = -1;
+    DataDesc desc = DataDesc();
 
     static InputInfo fromNetwork(int ind = 0);
 
     static InputInfo fromPrevStage(int ind, int outputInd = 0);
+    static InputInfo constant(const DataDesc& desc);
 
     InputInfo& output(int ind);
 };
