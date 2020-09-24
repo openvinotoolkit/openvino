@@ -16,7 +16,7 @@
 import numpy as np
 import onnx
 from onnx.mapping import NP_TYPE_TO_TENSOR_TYPE
-from openvino.inference_engine import IECore
+from openvino.inference_engine import IECore, IENetwork
 
 import ngraph as ng
 from ngraph.impl import Function
@@ -40,3 +40,9 @@ def import_onnx_model(model: onnx.ModelProto) -> Function:
 
     ng_function = ng.function_from_cnn(ie_network)
     return ng_function
+
+
+def convert_i64_to_i32(cnn_network: IENetwork) -> None:
+    for cnn_input in cnn_network.input_info:
+        if cnn_network.input_info[cnn_input].precision == "I64":
+            cnn_network.input_info[cnn_input].precision = "I32"

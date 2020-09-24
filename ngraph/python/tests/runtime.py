@@ -23,6 +23,7 @@ from openvino.inference_engine import IECore, IENetwork
 from ngraph.exceptions import UserInputError
 from ngraph.impl import Function, Node, PartialShape
 from ngraph.utils.types import NumericData, get_shape
+from tests.test_onnx.utils.onnx_helpers import convert_i64_to_i32
 import tests
 
 log = logging.getLogger(__name__)
@@ -101,6 +102,9 @@ class Computation(object):
             self.network_cache[str(input_shapes)] = cnn_network
         else:
             cnn_network = self.network_cache[str(input_shapes)]
+
+        # Convert inputs of the network from I64 to I32
+        convert_i64_to_i32(cnn_network)
 
         executable_network = self.runtime.backend.load_network(cnn_network, self.runtime.backend_name)
 
