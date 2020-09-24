@@ -63,7 +63,6 @@ public:
 protected:
     LayerTestsCommon();
 
-    ~LayerTestsCommon() override = default;
 
     template<class T>
     void Compare(const T *expected, const T *actual, std::size_t size, T threshold) {

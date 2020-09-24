@@ -4,13 +4,11 @@
 
 #include "myriad_layers_convolution_test.hpp"
 
-INSTANTIATE_TEST_CASE_P(accuracy_chw_dilation, myriadLayerConvolution,
+INSTANTIATE_TEST_CASE_P(accuracy_chw_dilation, myriadLayerConvolution_smoke,
         ::testing::Combine(
             ::testing::Values<DimsInput>(MAKE_STRUCT(tensor_test_params, 1, 37, 43, 43)
                                        , MAKE_STRUCT(tensor_test_params, 1, 37, 19, 19))
-          , ::testing::Values<kernel>(
-                                      MAKE_STRUCT(param_size, 3, 3)
-                                     )
+          , ::testing::Values<kernel>(MAKE_STRUCT(param_size, 3, 3))
           , ::testing::Values<stride>(MAKE_STRUCT(param_size, 1, 1)
                                     , MAKE_STRUCT(param_size, 2, 2)
                                     , MAKE_STRUCT(param_size, 3, 3)
@@ -451,8 +449,23 @@ INSTANTIATE_TEST_CASE_P(accuracy_any_group, myriadLayerConvolution_smoke,
           , ::testing::Values<out_channels>(32)
           , ::testing::Values<group>(2, 4, 16)
           , ::testing::Values<dilation_factor>(MAKE_STRUCT(param_size, 1, 2), MAKE_STRUCT(param_size, 2, 3), MAKE_STRUCT(param_size, 3, 4)),
-            ::testing::Values<layoutPreference>(vpu::LayoutPreference::ChannelMinor,
-                                                vpu::LayoutPreference::ChannelMajor)
+            ::testing::Values<layoutPreference>(vpu::LayoutPreference::ChannelMajor)
+        )
+);
+
+INSTANTIATE_TEST_CASE_P(accuracy_any_group, myriadLayerConvolution,
+        ::testing::Combine(
+            ::testing::Values<DimsInput>(MAKE_STRUCT(tensor_test_params, 1, 32, 64,  77))
+          , ::testing::Values<kernel>(MAKE_STRUCT(param_size, 3, 3))
+          , ::testing::Values<stride>(MAKE_STRUCT(param_size, 1, 1)
+                                    , MAKE_STRUCT(param_size, 2, 2))
+          , ::testing::Values<pad>(MAKE_STRUCT(param_size, 1, 1)
+                                 , MAKE_STRUCT(param_size, 0, 0)
+                                 , MAKE_STRUCT(param_size, 2, 2))
+          , ::testing::Values<out_channels>(32)
+          , ::testing::Values<group>(2, 4, 16)
+          , ::testing::Values<dilation_factor>(MAKE_STRUCT(param_size, 1, 2), MAKE_STRUCT(param_size, 2, 3), MAKE_STRUCT(param_size, 3, 4)),
+            ::testing::Values<layoutPreference>(vpu::LayoutPreference::ChannelMinor)
         )
 );
 
@@ -544,8 +557,24 @@ INSTANTIATE_TEST_CASE_P(accuracy_5x5, myriadLayerConvolution_smoke,
           , ::testing::Values<out_channels>(16, 32)
           , ::testing::Values<group>(1)
           , ::testing::Values<dilation_factor>(MAKE_STRUCT(param_size, 1, 2)),
-            ::testing::Values<layoutPreference>(vpu::LayoutPreference::ChannelMinor,
-                                                vpu::LayoutPreference::ChannelMajor)
+            ::testing::Values<layoutPreference>(vpu::LayoutPreference::ChannelMajor)
+        )
+);
+
+INSTANTIATE_TEST_CASE_P(accuracy_5x5, myriadLayerConvolution,
+        ::testing::Combine(
+            ::testing::Values<DimsInput>(MAKE_STRUCT(tensor_test_params, 1, 16, 32, 32)
+                                     /*, MAKE_STRUCT(tensor_test_params, 1, 8, 511, 399) failed*/)
+          , ::testing::Values<kernel>(MAKE_STRUCT(param_size, 5, 5))
+          , ::testing::Values<stride>(MAKE_STRUCT(param_size, 1, 1)
+                                    , MAKE_STRUCT(param_size, 2, 2))
+          , ::testing::Values<pad>(MAKE_STRUCT(param_size, 0, 0)
+                               /*, MAKE_STRUCT(param_size, 1, 1) failed*/
+                                 , MAKE_STRUCT(param_size, 2, 2))
+          , ::testing::Values<out_channels>(16, 32)
+          , ::testing::Values<group>(1)
+          , ::testing::Values<dilation_factor>(MAKE_STRUCT(param_size, 1, 2)),
+            ::testing::Values<layoutPreference>(vpu::LayoutPreference::ChannelMinor)
         )
 );
 
