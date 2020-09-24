@@ -186,7 +186,35 @@ std::shared_ptr<Node> NetworkHelper::swapMultiplyAndAdd(std::shared_ptr<opset1::
     const auto x = multiply->get_input_node_shared_ptr(multiplyInputBranch);
     const auto a = multiply->get_input_node_shared_ptr(multiplyInputBranch == 0 ? 1 : 0);
     const auto b = addAfterMultiply->get_input_node_shared_ptr(multiplyBranch == 0 ? 1 : 0);
-    const auto bDivA = fold<opset1::Divide>(b, a);
+    std::shared_ptr<Node> bDivA;
+
+    if (shape_size(b->get_output_shape(0)) == 1 ||
+        shape_size(a->get_output_shape(0)) == 1 ||
+        shape_size(b->get_output_shape(0)) == shape_size(a->get_output_shape(0))) {
+        // safely division to avoid NaN
+        const std::vector<float> bValues = as_type_ptr<opset1::Constant>(b)->cast_vector<float>();
+        const std::vector<float> aValues = as_type_ptr<opset1::Constant>(a)->cast_vector<float>();
+        const bool aBroadcasted = bValues.size() > aValues.size();
+        const bool bBroadcasted = bValues.size() < aValues.size();
+        std::vector<float> bDivAValues(aBroadcasted ? bValues.size() : aValues.size());
+
+        for (int i = 0; i < bDivAValues.size(); ++i) {
+            const auto bi = bValues[bBroadcasted ? 0 : i];
+            const auto ai = aValues[aBroadcasted ? 0 : i];
+            if (bi != 0.f || ai != 0.f) {
+                bDivAValues[i] = bi / ai;
+            } else {
+                bDivAValues[i] = 0.f;
+            }
+        }
+
+        bDivA = std::make_shared<opset1::Constant>(
+                b->get_output_element_type(0),
+                aBroadcasted ? b->get_output_shape(0) : a->get_output_shape(0),
+                bDivAValues);
+    } else {
+        bDivA = fold<opset1::Divide>(b, a);
+    }
 
     std::vector<std::shared_ptr<Node>> inputs{ {}, {} };
 
@@ -521,18 +549,55 @@ std::tuple<std::shared_ptr<Node>, std::shared_ptr<Node>> NetworkHelper::decompos
     const auto outputLow = fq->input_value(3);
     const auto outputHigh = fq->input_value(4);
 
-    const auto newMin = make_shared<opset1::Constant>(outputLow.get_element_type(), Shape{}, min);
-    const auto newMax = make_shared<opset1::Constant>(outputLow.get_element_type(), Shape{}, max);
+//    const auto newMin = make_shared<opset1::Constant>(outputLow.get_element_type(), Shape{}, min);
+//    const auto newMax = make_shared<opset1::Constant>(outputLow.get_element_type(), Shape{}, max);
 
-    std::shared_ptr<Node> scale = fold<opset1::Divide>(
-        fold<opset1::Subtract>(outputHigh, outputLow),
-        fold<opset1::Subtract>(newMax, newMin));
+//    // TODO: threshold values have to used here to avoid shifts
+//    const std::shared_ptr<Node> scale = fold<opset1::Divide>(
+//        fold<opset1::Subtract>(outputHigh, outputLow),
+//        fold<opset1::Subtract>(newMax, newMin));
+
+//    std::shared_ptr<Node> shift = hasZeroPoint ?
+//        fold<opset1::Divide>(
+//            fold<opset1::Subtract>(fold<opset1::Multiply>(newMin, outputHigh), fold<opset1::Multiply>(newMax, outputLow)),
+//            fold<opset1::Subtract>(outputHigh, outputLow)) :
+//        nullptr;
+
+    std::vector<float> outputLowValues = as_type_ptr<opset1::Constant>(outputLow.get_node_shared_ptr())->cast_vector<float>();
+    std::vector<float> outputHighValues = as_type_ptr<opset1::Constant>(outputHigh.get_node_shared_ptr())->cast_vector<float>();
+    size_t outputSize = outputLowValues.size();
+    std::vector<float> minValues(outputSize, min);
+    std::vector<float> maxValues(outputSize, max);
+    std::vector<float> shifts(outputSize, 0.f);
+    std::vector<float> scales(outputSize);
+
+    for (int i = 0; i < outputSize; ++i) {
+        if (outputHighValues[i] != outputLowValues[i]) {
+            shifts[i] = (min*outputHighValues[i] - max*outputLowValues[i]) / (outputHighValues[i] - outputLowValues[i]);
+            scales[i] = (outputHighValues[i] - outputLowValues[i]) / (max - min);
+            if (shifts[i] == -0.f) {
+                shifts[i] = 0.f;
+            }
+        } else {
+            scales[i] = outputHighValues[i];
+            minValues[i] = 1.f;
+            maxValues[i] = 1.f;
+        }
+    }
+
+    std::shared_ptr<Node> shift = hasZeroPoint ?
+        std::make_shared<opset1::Constant>(outputLow.get_element_type(), outputLow.get_shape(), shifts) :
+        nullptr;
+    std::shared_ptr<Node> scale = std::make_shared<opset1::Constant>(outputLow.get_element_type(), outputLow.get_shape(), scales);
+
+    const auto newMin = make_shared<opset1::Constant>(outputLow.get_element_type(), outputLow.get_shape(), minValues);
+    const auto newMax = make_shared<opset1::Constant>(outputLow.get_element_type(), outputLow.get_shape(), maxValues);
 
     {
         static const float minQuantizationScale = 1e-32f;
         static const float maxQuantizationScale = 1e32f;
 
-        auto scaleValues = as_type_ptr<opset1::Constant>(scale)->cast_vector<float>();
+        auto scaleValues = scales;
         bool wasChanged = false;
         for (size_t i = 0; i < scaleValues.size(); ++i) {
             const float scale = scaleValues[i];
@@ -549,12 +614,6 @@ std::tuple<std::shared_ptr<Node>, std::shared_ptr<Node>> NetworkHelper::decompos
             scale = std::make_shared<opset1::Constant>(scale->output(0).get_element_type(), scale->output(0).get_shape(), scaleValues);
         }
     }
-
-    std::shared_ptr<Node> shift = hasZeroPoint ?
-        fold<opset1::Divide>(
-            fold<opset1::Subtract>(fold<opset1::Multiply>(newMin, outputHigh), fold<opset1::Multiply>(newMax, outputLow)),
-            fold<opset1::Subtract>(outputHigh, outputLow)) :
-        nullptr;
 
     if ((shift != nullptr) && isZero(as_type_ptr<opset1::Constant>(shift))) {
         shift = nullptr;
