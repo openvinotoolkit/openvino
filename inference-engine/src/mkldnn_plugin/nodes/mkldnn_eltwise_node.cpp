@@ -54,6 +54,13 @@ struct jit_uni_eltwise_generic : public jit_uni_eltwise_kernel, public jit_gener
             }
         }
 
+        for (int i = 0; i < jep_.inputs_number; i++) {
+            if (jep_.src_prc[i] != exec_prc) {
+                exec_prc = Precision::FP32;
+                break;
+            }
+        }
+
         if (exec_prc == Precision::UNSPECIFIED) {
             THROW_IE_EXCEPTION << "Eltwise jitter failed to specify execution precision for Eltwise node with name `" << eltwiseNode.getName() << "`";
         }
