@@ -30,7 +30,6 @@
 #include <transformations/init_node_info.hpp>
 #include <transformations/convert_precision.hpp>
 #include <transformations/rt_info/fused_names_attribute.hpp>
-#include <transformations/tensor_iterator_transformations/apply_transformations_to_ti_body.hpp>
 #include <ngraph/opsets/opset2.hpp>
 #include <ngraph/opsets/opset3.hpp>
 #include <ngraph/opsets/opset4.hpp>
@@ -119,11 +118,6 @@ static void Transformation(ICNNNetwork::Ptr& clonedNetwork) {
 
     manager.set_callback(transformations_callback);
     manager.run_passes(nGraphFunc);
-
-    // Apply all transformations to TensorIterator body
-    ngraph::pass::Manager ti_manager;
-    ti_manager.register_pass<ngraph::pass::ApplyTransformationsToTIBody>(manager);
-    ti_manager.run_passes(nGraphFunc);
 
     clonedNetwork = InferenceEngine::details::convertFunctionToICNNNetwork(nGraphFunc, *clonedNetwork);
 
