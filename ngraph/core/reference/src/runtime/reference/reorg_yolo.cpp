@@ -42,7 +42,7 @@ namespace ngraph
 
                 // Inferce output shape logic:
                 // in_shape [N,C,H,W] -> out_shape [N, C*(stride*stride), H/stride, W/stride]
-                // ReorgYolo imlementation calculates indexes like for backprop:
+                // ReorgYolo implementation calculates indexes like for backprop:
                 // in_shape [N,C,H,W] -> out_shape [N, C/(stride*stride), H*stride, W*stride]
 
                 size_t impl_out_C = in_C / (stride * stride);
@@ -63,20 +63,18 @@ namespace ngraph
                         {
                             for (size_t w = 0; w < in_W; ++w)
                             {
-                                size_t dest_index =
-                                    (n * in_C * in_H * in_W + c * in_H * in_W + h * in_W + w) *
-                                    elem_size;
-
-                                size_t impl_c = c % impl_out_C;
                                 size_t offset = c / impl_out_C;
-
-                                size_t impl_w = w * stride + offset % stride;
+                                size_t impl_c = c % impl_out_C;
                                 size_t impl_h = h * stride + offset / stride;
+                                size_t impl_w = w * stride + offset % stride;
+
                                 size_t arg_index =
-                                    (n * impl_w * impl_out_C * impl_out_H * impl_out_W +
-                                     impl_c * impl_out_H * impl_out_W + impl_h * impl_out_W +
-                                     impl_w) *
-                                    elem_size;
+                                    ((n * impl_out_C + impl_c) * impl_out_H + impl_h) * impl_out_W +
+                                    impl_w;
+                                size_t dest_index = ((n * in_C + c) * in_H + h) * in_W + w;
+
+                                arg_index *= elem_size;
+                                dest_index *= elem_size;
 
                                 std::copy(arg + arg_index,
                                           arg + (arg_index + elem_size),
