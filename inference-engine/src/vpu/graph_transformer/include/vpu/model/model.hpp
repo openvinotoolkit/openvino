@@ -146,6 +146,10 @@ public:
             const Stage& stage,
             const DataDesc& desc);
 
+    StageTempBuffer addTempBuffer(
+            const Stage& stage,
+            size_t bufferSize);
+
     void replaceStageInput(
             const StageInput& edge,
             const Data& newInput);

@@ -183,9 +183,7 @@ void FrontEnd::parseProposal(const Model& model, const ie::CNNLayerPtr& layer, c
     const auto& env = CompileEnv::get();
     const int required_cmx_buffer_size = env.resources.numSHAVEs * required_cmx_size_per_shave;
 
-    model->addTempBuffer(
-        stage,
-        DataDesc({buffer_size + required_cmx_buffer_size}));
+    model->addTempBuffer(stage, buffer_size + required_cmx_buffer_size);
 }
 
 }  // namespace vpu

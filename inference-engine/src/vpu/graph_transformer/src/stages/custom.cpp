@@ -478,9 +478,7 @@ void FrontEnd::parseCustom(const Model& model, const ie::CNNLayerPtr& layer, con
         stage->attrs().set("outputOrders", std::move(outputOrders));
 
         int buffer_size = kernel.kernelBinary().length() + 1024;
-        model->addTempBuffer(
-            stage,
-            DataDesc({buffer_size}));
+        model->addTempBuffer(stage, buffer_size);
     }
 }
 

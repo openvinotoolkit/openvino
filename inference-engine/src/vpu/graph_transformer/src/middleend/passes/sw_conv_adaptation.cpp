@@ -134,8 +134,8 @@ private:
                         std::make_shared<ConvIm2ColWeightsContent>(weights->content(), newWeightsDesc));
 
                     double im2ColBufSizeF = static_cast<double>(kernelSizeX) * kernelSizeY *
-                        output->desc().dim(Dim::W) * output->desc().dim(Dim::H) * input->desc().dim(Dim::C)
-                        + 32;
+                        output->desc().dim(Dim::W) * output->desc().dim(Dim::H) * input->desc().dim(Dim::C) * sizeof(int16_t)
+                        + 64;
 
                     if (im2ColBufSizeF >= std::numeric_limits<int>::max()) {
                         VPU_THROW_EXCEPTION << "stage: " << name() << ", im2col bufferSize cannot fit 32s: "
@@ -144,7 +144,7 @@ private:
                             << output->desc().dim(Dim::W) << "x" << output->desc().dim(Dim::H) << "x" << output->desc().dim(Dim::C) << ")";
                     }
 
-                    model()->addTempBuffer(this, DataDesc({static_cast<int>(im2ColBufSizeF)}));
+                    model()->addTempBuffer(this, static_cast<int>(im2ColBufSizeF));
                 }
 
                 weights->attrs().set<Data>("swWeights", swWeights);

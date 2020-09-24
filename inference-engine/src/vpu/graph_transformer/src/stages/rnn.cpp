@@ -211,7 +211,7 @@ void FrontEnd::parseRNN(const Model& model, const ie::CNNLayerPtr& _layer, const
         outputData);
 
     if (nCells > 1)
-        model->addTempBuffer(stage, DataDesc({stateSize}));
+        model->addTempBuffer(stage, sizeof(uint16_t) * stateSize);
 
     bool RNNForward = layer->direction == ie::RNNSequenceLayer::FWD;
     stage->attrs().set<bool>("RNNForward", RNNForward);
