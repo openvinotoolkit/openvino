@@ -90,7 +90,7 @@ def explicit_shape_broadcasting(input_shape: np.array, target_shape: np.array, a
     """
     assert np.all(np.diff(axes_mapping) >= 0), "axes_mapping is not sorted"
     assert len(axes_mapping) == len(input_shape), "size of axes_mapping does not match to rank of input"
-    axes_mapping = np.array([*map(lambda axis: axis + len(target_shape) if axis < 0 else axis, axes_mapping)])
+    axes_mapping = np.array(list(map(lambda axis: axis + len(target_shape) if axis < 0 else axis, axes_mapping)))
 
     res = target_shape.copy()
     for i, axis in enumerate(axes_mapping):
