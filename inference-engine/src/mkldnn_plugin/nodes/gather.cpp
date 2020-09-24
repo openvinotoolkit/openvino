@@ -21,25 +21,6 @@ namespace Cpu {
 class GatherImpl: public ExtLayerBase {
 public:
     explicit GatherImpl(const CNNLayer* layer) {
-        auto tryToAddConfig = [&] (Precision _dataPrecision, Precision _inIdxPrecision, const SizeVector& _dictionary_dims) {
-            LayerConfig config;
-            DataConfig dataConfigIdx, dataConfigDct;
-            dataConfigDct.desc = TensorDesc(_dataPrecision, _dictionary_dims,
-                                            layer->insData[GATHER_DICTIONARY].lock()->getTensorDesc().getLayoutByDims(_dictionary_dims));
-            config.inConfs.push_back(dataConfigDct);
-            const SizeVector& indexes_dims = layer->insData[GATHER_INDEXES].lock()->getTensorDesc().getDims();
-            dataConfigIdx.desc = TensorDesc(_inIdxPrecision, indexes_dims,
-                                            layer->insData[GATHER_INDEXES].lock()->getTensorDesc().getLayout());
-            config.inConfs.push_back(dataConfigIdx);
-
-            DataConfig dataConfigOut;
-            const SizeVector& out_dims = layer->outData[0]->getTensorDesc().getDims();
-            dataConfigOut.desc = TensorDesc(_dataPrecision, out_dims,
-                                            layer->outData[0]->getTensorDesc().getLayoutByDims(out_dims));
-            config.outConfs.push_back(dataConfigOut);
-            config.dynBatchSupport = false;
-            confs.push_back(config);
-        };
         try {
             if (layer->insData.size() != 2 || layer->outData.empty())
                 THROW_IE_EXCEPTION << layer->name << " Incorrect number of input/output edges!";
@@ -69,16 +50,24 @@ public:
             if (dataLength == 0)
                 THROW_IE_EXCEPTION << layer->name << " Incorrect input parameters dimension!";
 
-            auto outputDataPrecision = layer->outData[0]->getTensorDesc().getPrecision();
-            auto inputDataPrecision = layer->insData[0].lock()->getTensorDesc().getPrecision();
+            LayerConfig config;
+            DataConfig dataConfigIdx, dataConfigDct;
+            Precision inputDataPrecision = layer->insData[0].lock()->getTensorDesc().getPrecision();
+            dataConfigDct.desc = TensorDesc(inputDataPrecision, dictionary_dims,
+                                            layer->insData[GATHER_DICTIONARY].lock()->getTensorDesc().getLayoutByDims(dictionary_dims));
+            config.inConfs.push_back(dataConfigDct);
+            const SizeVector& indexes_dims = layer->insData[GATHER_INDEXES].lock()->getTensorDesc().getDims();
+            dataConfigIdx.desc = TensorDesc(inIdxPrecision, indexes_dims,
+                                            layer->insData[GATHER_INDEXES].lock()->getTensorDesc().getLayout());
+            config.inConfs.push_back(dataConfigIdx);
 
-            if (inputDataPrecision == Precision::BF16 || outputDataPrecision == Precision::BF16) {
-                tryToAddConfig(Precision::BF16,
-                               inIdxPrecision, dictionary_dims);
-            } else {
-                tryToAddConfig(outputDataPrecision,
-                               inIdxPrecision, dictionary_dims);
-            }
+            DataConfig dataConfigOut;
+            const SizeVector& out_dims = layer->outData[0]->getTensorDesc().getDims();
+            dataConfigOut.desc = TensorDesc(inputDataPrecision, out_dims,
+                                            layer->outData[0]->getTensorDesc().getLayoutByDims(out_dims));
+            config.outConfs.push_back(dataConfigOut);
+            config.dynBatchSupport = false;
+            confs.push_back(config);
         } catch (InferenceEngine::details::InferenceEngineException &ex) {
             errorMsg = ex.what();
         }
