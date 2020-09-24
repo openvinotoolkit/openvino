@@ -69,7 +69,6 @@ namespace
 
         for (size_t i = 0; i < arg0_rank; i++)
             arg0_shape_update[i] = arg0_shape[i];
-
         for (size_t i = 0; i < arg1_rank; i++)
             arg1_shape_update[i] = arg1_shape[i];
 
@@ -84,6 +83,7 @@ namespace
 
             swap(arg0_shape_update[arg0_rank - 2], arg0_shape_update[arg0_rank - 1]);
         }
+
         if (transpose_b)
         {
             // 1D vector of shape {S} is reshaped to {1, S}
@@ -101,16 +101,17 @@ namespace
             NGRAPH_CHECK(
                 Dimension::merge(merged_dimension, arg0_shape_update[0], arg1_shape_update[0]),
                 "Incompatible matrix dimensions");
-            output_shape.erase(output_shape.begin(), output_shape.end());
+            output_shape[0] = 1;
+            output_shape.push_back(1);
         }
         else if (arg0_rank == 1)
         {
             // i.e., arg0 shape {3}, arg1 shape{2, 3, 2}, output shape {2, 2}
             NGRAPH_CHECK(Dimension::merge(merged_dimension,
                                           arg0_shape_update[0],
-                                          arg1_shape_update[arg1_rank - 2]),
+                                          arg1_shape_update[arg1_shape_update.size() - 2]),
                          "Incompatible matrix dimensions");
-            arg1_shape_update.erase(arg1_shape_update.begin() + arg1_rank - 2);
+            arg1_shape_update.at(arg1_rank - 2) = 1;
             output_shape = arg1_shape_update;
         }
         else if (arg1_rank == 1)
@@ -120,15 +121,15 @@ namespace
                                           arg1_shape_update[0],
                                           arg0_shape_update[arg0_rank - 1]),
                          "Incompatible matrix dimensions.");
-            arg0_shape_update.erase(arg0_shape_update.begin() + arg0_rank - 1);
+            arg0_shape_update.at(arg0_shape_update.size() - 1) = 1;
             output_shape = arg0_shape_update;
         }
         else
         {
             NGRAPH_CHECK(Dimension::merge(merged_dimension,
-                                          arg0_shape_update[arg0_rank - 1],
-                                          arg1_shape_update[arg1_rank - 2]),
-                         "Incompatible matrix dimensions.");
+                                            arg0_shape_update[arg0_rank - 1],
+                                            arg1_shape_update[arg1_rank - 2]),
+                            "Incompatible matrix dimensions.");
 
             // handle batch size
             if (max_rank > 2)
@@ -173,7 +174,7 @@ namespace
                     else
                     {
                         output_shape[i] = std::max(low_size_matrix[i].get_length(),
-                                                   big_size_matrix[i].get_length());
+                                                    big_size_matrix[i].get_length());
                     }
                 }
             }
@@ -183,7 +184,6 @@ namespace
             output_shape.at(output_shape.size() - 2) = arg0_shape_update.at(arg0_rank - 2);
             output_shape.at(output_shape.size() - 1) = arg1_shape_update.at(arg1_rank - 1);
         }
-
         return PartialShape(output_shape);
     }
 

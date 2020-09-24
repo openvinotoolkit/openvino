@@ -143,5 +143,5 @@ TEST(type_prop, matmul_dynamic_1D_3D)
     auto matmul = make_shared<op::MatMul>(A, B);
 
     ASSERT_EQ(matmul->get_element_type(), element::f32);
-    ASSERT_EQ(matmul->get_output_partial_shape(0), (PartialShape{2, dynamic}));
+    ASSERT_EQ(matmul->get_output_partial_shape(0), (PartialShape{2, 1, dynamic}));
 }
