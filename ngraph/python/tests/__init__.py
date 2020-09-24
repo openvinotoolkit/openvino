@@ -45,7 +45,6 @@ xfail_issue_34314 = xfail_test(reason="RuntimeError: RNNCell operation has a for
 xfail_issue_34323 = xfail_test(reason="RuntimeError: data [value] doesn't exist")
 xfail_issue_34327 = xfail_test(reason="RuntimeError: '<value>' layer has different "
                                       "IN and OUT channels number")
-xfail_issue_35893 = xfail_test(reason="ValueError: could not broadcast input array")
 xfail_issue_35911 = xfail_test(reason="Assertion error: Pad model mismatch error")
 xfail_issue_35912 = xfail_test(reason="RuntimeError: Error of validate layer: B with type: "
                                       "Pad. Cannot parse parameter pads_end  from IR for layer B. "
