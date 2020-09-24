@@ -72,8 +72,6 @@ runtime::interpreter::INTExecutable::INTExecutable(const shared_ptr<Function>& f
             }
             auto concat = std::make_shared<op::Concat>(convs, 1);
             replace_node(node, concat);
-        } else if (is_type<op::v0::FakeQuantize>(node)) {
-            replace_node(node, node->decompose_op());
         }
     }
     auto p2 = pass::VisualizeTree("after.dot");

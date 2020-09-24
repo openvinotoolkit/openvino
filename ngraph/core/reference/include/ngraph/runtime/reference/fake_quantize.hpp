@@ -31,40 +31,18 @@ namespace ngraph {
         namespace reference {
             std::vector<size_t> calc_broadcast_index_offset(const std::vector<size_t> &memory_offsets,
                                                             const std::vector<size_t> &broadcast_shape) {
-                std::vector<size_t> left_broadcastable_dims;
-                std::vector<size_t> right_broadcastable_dims;
-                for (size_t i = 0; i < broadcast_shape.size(); ++i) {
-                    if (broadcast_shape[i] == 1) {
-                        left_broadcastable_dims.push_back(i);
-                    } else {
-                        break;
-                    }
-                }
-                for (size_t i = broadcast_shape.size(); i >= 0; ++i) {
-                    if (broadcast_shape[i] == 1) {
-                        right_broadcastable_dims.push_back(i);
-                    } else {
-                        break;
-                    }
-                }
-                std::vector<size_t> broadcast_offsets;
-                for (size_t &i : left_broadcastable_dims) {
-                    broadcast_offsets[i] = memory_offsets[i];
-                }
-                // TODO: handle right_bradcastable_dims properly
-//                for (size_t &i : right_broadcastable_dims) {
-//                    broadcast_offsets[i] = memory_offsets[i];
-//                }
-                size_t right_bound = right_broadcastable_dims.empty() ? broadcast_shape.size() :
-                                     right_broadcastable_dims.back();
-                for (size_t i = left_broadcastable_dims.back() + 1; i < right_bound; ++i) {
+                std::vector<size_t> broadcast_offsets(broadcast_shape.size(), 0);
+                for (int i = broadcast_shape.size() - 2; i >= 0; --i) {
                     if (broadcast_shape[i] == 1) {
                         broadcast_offsets[i] = memory_offsets[i];
                     } else {
                         broadcast_offsets[i] = std::accumulate(broadcast_offsets.begin() + i,
-                                                               broadcast_offsets.begin() + right_bound, 0,
+                                                               broadcast_offsets.end(), 0,
                                                                std::plus<size_t>());
                     }
+                }
+                if (broadcast_shape.size() > 1 && broadcast_shape.back() == 1) {
+                    broadcast_offsets[broadcast_offsets.size() - 1] = 1;
                 }
                 return broadcast_offsets;
             }
@@ -100,21 +78,25 @@ namespace ngraph {
 
             template<typename T>
             void fake_quantize(const T *arg,
+                               const T *in_low,
+                               const T *in_high,
+                               const T *out_low,
+                               const T *out_high,
                                T *out,
-                               T *in_low,
-                               T *in_high,
-                               T *out_low,
-                               T *out_high,
-                               Shape &arg_shape,
-                               Shape &in_low_shape,
-                               Shape &in_high_shape,
-                               Shape &out_low_shape,
-                               Shape &out_high_shape,
+                               const Shape &arg_shape,
+                               const Shape &_in_low_shape,
+                               const Shape &_in_high_shape,
+                               const Shape &_out_low_shape,
+                               const Shape &_out_high_shape,
                                size_t levels
             ) {
+                Shape in_low_shape(_in_low_shape);
+                Shape in_high_shape(_in_high_shape);
+                Shape out_low_shape(_out_low_shape);
+                Shape out_high_shape(_out_high_shape);
                 std::vector<size_t> arg_memory_offsets(arg_shape.size(), 0);
-                for (size_t i = arg_shape.size() - 1; i >= 0; --i) {
-                    arg_memory_offsets[i] = std::accumulate(arg_shape.begin() + i, arg_shape.end(), 1,
+                for (int i = arg_shape.size() - 2; i >= 0; i--) {
+                    arg_memory_offsets[i] = std::accumulate(arg_shape.begin() + i + 1, arg_shape.end(), 1,
                                                             std::multiplies<size_t>());
                 }
                 align_shape_sizes(in_low_shape, arg_shape.size());
@@ -122,11 +104,15 @@ namespace ngraph {
                 align_shape_sizes(out_low_shape, arg_shape.size());
                 align_shape_sizes(out_high_shape, arg_shape.size());
 
-                std::vector<size_t> in_low_offsets, in_high_offsets, out_low_offsets;
-                std::vector<size_t> out_high_offsets = calc_broadcast_index_offset(arg_memory_offsets, out_high_shape);
-                bool in_low_trivial_broadcast, in_high_trivial_broadcast,
-                        out_low_trivial_broadcast, out_high_trivial_broadcast = false;
-                bool in_low_aligned, in_high_aligned, out_low_aligned, out_high_aligned = false;
+                std::vector<size_t> in_low_offsets, in_high_offsets, out_low_offsets, out_high_offsets;
+                bool in_low_trivial_broadcast =false;
+                bool in_high_trivial_broadcast = false;
+                bool out_low_trivial_broadcast = false;
+                bool out_high_trivial_broadcast = false;
+                bool in_low_aligned = false;
+                bool in_high_aligned = false;
+                bool out_low_aligned = false;
+                bool out_high_aligned = false;
 
                 auto check_trivial_broadcast = [&arg_shape, &arg_memory_offsets](Shape &shape_to_check,
                                                                                  std::vector<size_t> &target_offsets,
@@ -148,7 +134,7 @@ namespace ngraph {
                 std::vector<size_t> current_dim(arg_shape.size(), 0);
 
 
-                auto get_value = [&current_dim](bool is_trivial_broadcast, bool is_aligned, T *data, size_t idx,
+                auto get_value = [&current_dim](bool is_trivial_broadcast, bool is_aligned, const T *data, size_t idx,
                                                 const std::vector<size_t> &offsets) {
                     T val;
                     if (is_aligned) {
@@ -163,20 +149,20 @@ namespace ngraph {
                     return val;
                 };
                 for (size_t i = 0; i < shape_size(arg_shape); ++i) {
-                    T in_low_val = get_value(in_low_trivial_broadcast, in_low_aligned, in_low, in_low_offsets);
-                    T in_high_val = get_value(in_high_trivial_broadcast, in_high_aligned, in_high, in_high_offsets);
-                    T out_low_val = get_value(out_low_trivial_broadcast, out_low_aligned, out_low, out_low_offsets);
-                    T out_high_val = get_value(out_high_trivial_broadcast, out_high_aligned, out_high, out_high_offsets);
-
+                    T in_low_val = get_value(in_low_trivial_broadcast, in_low_aligned, in_low, i, in_low_offsets);
+                    T in_high_val = get_value(in_high_trivial_broadcast, in_high_aligned, in_high, i, in_high_offsets);
+                    T out_low_val = get_value(out_low_trivial_broadcast, out_low_aligned, out_low, i, out_low_offsets);
+                    T out_high_val = get_value(out_high_trivial_broadcast, out_high_aligned, out_high, i, out_high_offsets);
                     if (arg[i] <= in_low_val) {
-                        out[i] = std::roundf(out_low_val);
-                    } else if (arg[i] > in_high[i]) {
-                        out[i] = std::roundf(out_high_val);
+                        out[i] = out_low_val;
+                    } else if (arg[i] > in_high_val) {
+                        out[i] = out_high_val;
                     } else {
-                        const T value = std::roundf((arg[i] - in_low_val) / (in_high_val - in_low_val) * levels) /
-                                            levels * (out_high_val - out_low_val) + out_low_val;
-                        out[i] = std::roundf(value);
+                        out[i] = std::roundf((arg[i] - in_low_val) / (in_high_val - in_low_val) * (levels - 1)) /
+                                (levels - 1) * (out_high_val - out_low_val) + out_low_val;
+//                        out[i] = std::roundf(value);
                     }
+                    increment_current_dim(current_dim, arg_shape, arg_shape.size() - 1);
                 }
             }
         }

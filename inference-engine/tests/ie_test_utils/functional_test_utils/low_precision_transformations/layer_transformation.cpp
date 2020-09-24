@@ -173,6 +173,7 @@ std::string LayerTransformation::toString(const InferenceEngine::details::LayerT
         params.precisionsOnWeights << "_" <<
         params.quantizedTensorAlignmentOnActivations;
 
+    std::cout << result.str() << std::endl;
     return result.str();
 }
 

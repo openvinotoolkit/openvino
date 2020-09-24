@@ -36,7 +36,6 @@ std::string SpaceToBatchLayerTest::getTestCaseName(const testing::TestParamInfo<
 }
 
 void SpaceToBatchLayerTest::SetUp() {
-    SetRefMode(LayerTestsUtils::RefMode::INTERPRETER_TRANSFORMATIONS);
     std::vector<size_t> inputShape, blockShape, padsBegin, padsEnd;
     InferenceEngine::Precision inputPrecision, netPrecision;
     std::tie(blockShape, padsBegin, padsEnd, inputShape, netPrecision, targetDevice) = this->GetParam();
