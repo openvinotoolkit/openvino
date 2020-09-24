@@ -190,15 +190,6 @@ xfail_issue_38736 = xfail_test(reason="RuntimeError: nGraph does not support the
                                       "NegativeLogLikelihoodLoss")
 
 # Model ONNX Zoo issues:
-xfail_issue_36534 = xfail_test(reason="RuntimeError: node input index is out of range")
-xfail_issue_36535 = xfail_test(reason="RuntimeError: get_shape was called on a descriptor::Tensor "
-                                      "with dynamic shape")
-xfail_issue_36537 = xfail_test(reason="ngraph.exceptions.UserInputError: (Provided tensor's shape: "
-                                      "<value> does not match the expected: <value>")
-xfail_issue_36538 = xfail_test(reason="RuntimeError: Check 'PartialShape::broadcast_merge_into( pshape, "
-                                      "node->get_input_partial_shape(i), autob)' failed at "
-                                      "/openvino/ngraph/src/ngraph/op/util/elementwise_args.cpp:48:")
-
 xfail_issue_36533 = xfail_test(reason="AssertionError: zoo models results mismatch")
 xfail_issue_1 = xfail_test(reason="model with IR version >= 3 must specify opset_import for ONNX")
 xfail_issue_2 = xfail_test(reason="RuntimeError: nGraph does not support the following ONNX operations: Loop")
@@ -216,3 +207,5 @@ xfail_issue_7 = xfail_test(reason="RuntimeError: nGraph does not support the fol
                                   "com.microsoft.CropAndResize, com.microsoft.GatherND,"
                                   "com.microsoft.Pad, com.microsoft.Range")
 xfail_issue_8 = xfail_test(reason="AssertionError: This model has no test data")
+xfail_issue_36535 = xfail_test(reason="RuntimeError: get_shape was called on a descriptor::Tensor "
+                                      "with dynamic shape")
