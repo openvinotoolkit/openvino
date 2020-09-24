@@ -42,7 +42,7 @@ def test_dimension():
     assert dim.is_dynamic
     assert dim.get_min_length() == 5
     assert dim.get_max_length() == 15
-    assert repr(dim) == "<Dimension: [5, 15]>"
+    assert repr(dim) == "<Dimension: 5..15>"
 
 
 def test_dimension_comparisons():
