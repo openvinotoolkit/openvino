@@ -66,6 +66,14 @@ public:
             const Data& output,
             const std::string& origin);
 
+    Stage addInterpolateStage(
+            const Model& model,
+            const std::string& name,
+            const ie::CNNLayerPtr& layer,
+            const Data& input,
+            const Data& output,
+            const std::string& origin);
+
     Stage addPadStage(
             const Model& model,
             const std::string& name,

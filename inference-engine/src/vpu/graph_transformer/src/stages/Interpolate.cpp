@@ -44,64 +44,11 @@ enum class InterpolateNearestMode {
 
 namespace {
 class InterpolateStage final : public StageNode {
-private:
-    void execute();
-    // nearest neighbor
-    void NearestNeighbor(const uint8_t *in_ptr_, uint8_t *out_ptr_, int batch, int channel, int ID, int IH, int IW,
-                         float fx, float fy, float fz, int OD, int OH, int OW);
-    void NearestNeighborReference(const uint8_t *in_ptr_, uint8_t *out_ptr_, int batch, int channel, int ID, int IH, int IW,
-                         float fx, float fy, float fz, int OD, int OH, int OW);
-
-    // onnx linear
-    void linearOnnx(const uint8_t *in_ptr_, uint8_t *out_ptr_, int batch, int channel, int IH, int IW,
-                    float fx, float fy, int OH, int OW);
-    void linearOnnxReference(const uint8_t *in_ptr_, uint8_t *out_ptr_, int batch, int channel, int IH, int IW,
-                    float fx, float fy, int OH, int OW);
-
-    // linear
-    void linearInterpolation(const uint8_t *in_ptr_, uint8_t *out_ptr_, int batch, int channel, int ID, int IH, int IW,
-                    float fx, float fy, float fz, int OD, int OH, int OW, int kernel_width, bool antialias);
-    void linearReference(const uint8_t *in_ptr_, uint8_t *out_ptr_, int batch, int channelC, int ID, int IH, int IW,
-                    float fx, float fy, float fz, int OD, int OH, int OW, int kernel_width, bool antialias);
-
-    // cubic
-    std::vector<float> getCubicCoef(float a);
-    void cubic(const uint8_t *in_ptr_, uint8_t *out_ptr_, int batch, int channel, int IH, int IW,
-                    float fx, float fy, int OH, int OW, float a);
-    void cubicReference(const uint8_t *in_ptr_, uint8_t *out_ptr_, int batch, int channel, int IH, int IW,
-                    float fx, float fy, int OH, int OW, float a);
-    float getValue(size_t offset, InferenceEngine::Precision precision);
-    void setValue(size_t offset, float value, InferenceEngine::Precision precision);
-
-    std::vector<float> getScales();
-    std::vector<int> getAxes();
-
-    InterpolateMode mode = InterpolateMode::nearest;
-    InterpolateCoordTransMode coordTransMode = InterpolateCoordTransMode::half_pixel;
-    InterpolateNearestMode nearestMode       = InterpolateNearestMode::round_prefer_floor;
-
-    bool antialias  = false;
-    bool hasPad     = false;
-    bool hasSpecifiedAxis = false;
-    float cubeCoeff = -0.75;
-
-    std::vector<int> padBegin;
-    std::vector<int> padEnd;
-    std::vector<int> axes = {0, 1, 2, 3};
-    std::vector<float> scales = {1.f, 1.f, 2.f, 2.f};
-
-    SizeVector dstDim;
-    SizeVector srcDim;
-    SizeVector srcPad;
-
-    InferenceEngine::Precision inputPrecision, outputPrecision;
-    size_t srcDataSize, dstDataSize;
-
 public:
+    using StageNode::StageNode;
+
     InterpolateStage(const InferenceEngine::CNNLayerPtr& layer);
     ~InterpolateStage() = default;
-
-    using StageNode::StageNode;
 
     struct InterpolateAttrs
     {
@@ -186,6 +133,58 @@ public:
                 const InterpolateAttrs& attrs);
 
     const InterpolateAttrs& get_attrs() const { return m_attrs; }
+private:
+    void execute();
+    // nearest neighbor
+    void nearestNeighbor(const uint8_t *in_ptr_, uint8_t *out_ptr_, int batch, int channel, int ID, int IH, int IW,
+                         float fx, float fy, float fz, int OD, int OH, int OW);
+    void nearestNeighborReference(const uint8_t *in_ptr_, uint8_t *out_ptr_, int batch, int channel, int ID, int IH, int IW,
+                         float fx, float fy, float fz, int OD, int OH, int OW);
+
+    // onnx linear
+    void linearOnnx(const uint8_t *in_ptr_, uint8_t *out_ptr_, int batch, int channel, int IH, int IW,
+                    float fx, float fy, int OH, int OW);
+    void linearOnnxReference(const uint8_t *in_ptr_, uint8_t *out_ptr_, int batch, int channel, int IH, int IW,
+                    float fx, float fy, int OH, int OW);
+
+    // linear
+    void linearInterpolation(const uint8_t *in_ptr_, uint8_t *out_ptr_, int batch, int channel, int ID, int IH, int IW,
+                    float fx, float fy, float fz, int OD, int OH, int OW, int kernel_width, bool antialias);
+    void linearReference(const uint8_t *in_ptr_, uint8_t *out_ptr_, int batch, int channelC, int ID, int IH, int IW,
+                    float fx, float fy, float fz, int OD, int OH, int OW, int kernel_width, bool antialias);
+
+    // cubic
+    std::vector<float> getCubicCoef(float a);
+    void cubicInterpolation(const uint8_t *in_ptr_, uint8_t *out_ptr_, int batch, int channel, int IH, int IW,
+                    float fx, float fy, int OH, int OW, float a);
+    void cubicReference(const uint8_t *in_ptr_, uint8_t *out_ptr_, int batch, int channel, int IH, int IW,
+                    float fx, float fy, int OH, int OW, float a);
+    float getValue(size_t offset, InferenceEngine::Precision precision);
+    void setValue(size_t offset, float value, InferenceEngine::Precision precision);
+
+    std::vector<float> getScales();
+    std::vector<int> getAxes();
+
+    InterpolateMode mode = InterpolateMode::nearest;
+    InterpolateCoordTransMode coordTransMode = InterpolateCoordTransMode::half_pixel;
+    InterpolateNearestMode nearestMode       = InterpolateNearestMode::round_prefer_floor;
+
+    bool antialias  = false;
+    bool hasPad     = false;
+    bool hasSpecifiedAxis = false;
+    float cubeCoeff = -0.75;
+
+    std::vector<int> padBegin;
+    std::vector<int> padEnd;
+    std::vector<int> axes = {0, 1, 2, 3};
+    std::vector<float> scales = {1.f, 1.f, 2.f, 2.f};
+
+    SizeVector dstDim;
+    SizeVector srcDim;
+    SizeVector srcPad;
+
+    InferenceEngine::Precision inputPrecision, outputPrecision;
+    size_t srcDataSize, dstDataSize;
 };
 // }}
 
@@ -208,19 +207,40 @@ void InterpolateStage::Interpolate(const DataVector& image,
 }
 
 void InterpolateStage::execute() {
-    
+
+    switch (mode) {
+        case InterpolateMode::nearest: {
+            nearestNeighbor();
+            break;
+        }
+        case InterpolateMode::linear: {
+            linearInterpolation();
+            break;
+        }
+        case InterpolateMode::linear_onnx: {
+            linearOnnx();
+            break;
+        }
+        case InterpolateMode::cubic: {
+            cubicInterpolation();
+            break;
+        }
+        default: {
+            THROW_IE_EXCEPTION << "Interpolate layer has unsupported interpolate mode: " << mode;
+        }
+    }
 }
 
 // Idea1: Look ate different methods below and decide wich operation (resample\interp) to choose
-// according to the parameters. 
+// according to the parameters. But isn't it the concept of convert?
 // Still have to find a way of getting rid of conversion (?) 
 
 // nearest neighbor
-void InterpolateStage::NearestNeighbor(const uint8_t *in_ptr_, uint8_t *out_ptr_, int batch, int channel, int ID, int IH, int IW,
+void InterpolateStage::nearestNeighbor(const uint8_t *in_ptr_, uint8_t *out_ptr_, int batch, int channel, int ID, int IH, int IW,
                                         float fx, float fy, float fz, int OD, int OH, int OW) {
     
 }
-void InterpolateStage::NearestNeighborReference(const uint8_t *in_ptr_, uint8_t *out_ptr_, int batch, int channel, int ID, int IH, int IW,
+void InterpolateStage::nearestNeighborReference(const uint8_t *in_ptr_, uint8_t *out_ptr_, int batch, int channel, int ID, int IH, int IW,
                                         float fx, float fy, float fz, int OD, int OH, int OW) {
     
 }
@@ -251,7 +271,7 @@ std::vector<float> InterpolateStage::getCubicCoef(float a) {
     return std::vector<float>(0);
 }
 
-void InterpolateStage::cubic(const uint8_t *in_ptr_, uint8_t *out_ptr_, int batch, int channel, int IH, int IW,
+void InterpolateStage::cubicInterpolation(const uint8_t *in_ptr_, uint8_t *out_ptr_, int batch, int channel, int IH, int IW,
                               float fx, float fy, int OH, int OW, float a) {
     
 }
@@ -291,7 +311,7 @@ Stage StageBuilder::addInterpolateStage(
         layer,
         {input},
         {output});
-    // interpolateStage->attrs().set<std::string>("origin", origin);
+    interpolateStage->attrs().set<std::string>("origin", origin);
     return interpolateStage;
 }
 
@@ -299,77 +319,62 @@ void FrontEnd::parseInterpolate(const Model& model, const ie::CNNLayerPtr& layer
     IE_ASSERT(inputs.size() == 1);
     IE_ASSERT(outputs.size() == 1);
 
-    ie::details::CaselessEq<std::string> cmp;
+    // ie::details::CaselessEq<std::string> cmp;
 
-    auto stage = model->addNewStage<InterpolateStage>(layer->name, StageType::Interpolate, layer, inputs, outputs);
+    _stageBuilder->addInterpolateStage(model, layer->name, layer, inputs[0], outputs[0], "parseInterpolate");
 
-    stage->attrs().set<bool>("antialias", layer->GetParamAsInt("antialias", 0));
-    stage->attrs().set<float>("factor", layer->GetParamAsInt("factor", -1.0f));
+    // auto stage = model->addNewStage<InterpolateStage>(layer->name, StageType::Interpolate, layer, inputs, outputs);
 
-    auto method = layer->GetParamAsString("type", "caffe.InterpolateParameter.NEAREST");
-    if (cmp(method, "caffe.InterpolateParameter.NEAREST")) {
-        stage->attrs().set<InterpolateMode>("type", InterpolateMode::nearest);
-    } else if (cmp(method, "caffe.InterpolateParameter.LINEAR")) {
-        stage->attrs().set<InterpolateMode>("type", InterpolateMode::linear);
-    } else if (cmp(method, "caffe.InterpolateParameter.CUBIC")) {
-        stage->attrs().set<InterpolateMode>("type", InterpolateMode::cubic);
-    } else {
-        VPU_THROW_EXCEPTION << "Layer with name " << layer->name << " doesn't support this Interpolate type";
-    }
+    // stage->attrs().set<bool>("antialias", layer->GetParamAsInt("antialias", 0));
+    // stage->attrs().set<float>("factor", layer->GetParamAsInt("factor", -1.0f));
 
-    auto nnMode = layer->GetParamAsString("nearestMode", "caffe.InterpolateParameter.round_prefer_floor");
-    if (cmp(nnMode, "caffe.InterpolateParameter.round_prefer_floor")) {
-        stage->attrs().set<InterpolateNearestMode>("nearestMode", InterpolateNearestMode::round_prefer_floor);
-    } else if (cmp(nnMode, "caffe.InterpolateParameter.round_prefer_ceil")) {
-        stage->attrs().set<InterpolateNearestMode>("nearestMode", InterpolateNearestMode::round_prefer_ceil);
-    } else if (cmp(nnMode, "caffe.InterpolateParameter.floor")) {
-        stage->attrs().set<InterpolateNearestMode>("nearestMode", InterpolateNearestMode::floor);
-    } else if (cmp(nnMode, "caffe.InterpolateParameter.ceil")) {
-        stage->attrs().set<InterpolateNearestMode>("nearestMode", InterpolateNearestMode::ceil);
-    } else if (cmp(nnMode, "caffe.InterpolateParameter.simple")) {
-        stage->attrs().set<InterpolateNearestMode>("nearestMode", InterpolateNearestMode::simple);
-    } else {
-        VPU_THROW_EXCEPTION << "Layer with name " << layer->name << " doesn't support this Interpolate nearest mode variant";
-    }
-
-    // auto InterpolateAxis = layer->GetParamAsString("InterpolateAxis", "caffe.InterpolateParameter.along_b");
-    // if (cmp(nnMode, "caffe.InterpolateParameter.along_b")) {
-    //     stage->attrs().set<InterpolateNearestMode>("InterpolateAxis", InterpolateAxis::along_b);
-    // } else if (cmp(nnMode, "caffe.InterpolateParameter.along_f")) {
-    //     stage->attrs().set<InterpolateNearestMode>("InterpolateAxis", InterpolateAxis::along_f);
-    // } else if (cmp(nnMode, "caffe.InterpolateParameter.along_x")) {
-    //     stage->attrs().set<InterpolateNearestMode>("InterpolateAxis", InterpolateAxis::along_x);
-    // } else if (cmp(nnMode, "caffe.InterpolateParameter.along_y")) {
-    //     stage->attrs().set<InterpolateNearestMode>("InterpolateAxis", InterpolateAxis::along_y);
-    // } else if (cmp(nnMode, "caffe.InterpolateParameter.along_z")) {
-    //     stage->attrs().set<InterpolateNearestMode>("InterpolateAxis", InterpolateAxis::along_z);
-    // } else if (cmp(nnMode, "caffe.InterpolateParameter.along_w")) {
-    //     stage->attrs().set<InterpolateNearestMode>("InterpolateAxis", InterpolateAxis::along_w);
+    // auto method = layer->GetParamAsString("type", "caffe.InterpolateParameter.NEAREST");
+    // if (cmp(method, "caffe.InterpolateParameter.NEAREST")) {
+    //     stage->attrs().set<InterpolateMode>("type", InterpolateMode::nearest);
+    // } else if (cmp(method, "caffe.InterpolateParameter.LINEAR")) {
+    //     stage->attrs().set<InterpolateMode>("type", InterpolateMode::linear);
+    // } else if (cmp(method, "caffe.InterpolateParameter.CUBIC")) {
+    //     stage->attrs().set<InterpolateMode>("type", InterpolateMode::cubic);
     // } else {
-    //     VPU_THROW_EXCEPTION << "Layer with name " << layer->name << " doesn't support this axis";
+    //     VPU_THROW_EXCEPTION << "Layer with name " << layer->name << " doesn't support this Interpolate type";
     // }
 
-    auto shapeCalcMode = layer->GetParamAsString("shapeCalcMode", "caffe.InterpolateParameter.sizes");
-    if (cmp(shapeCalcMode, "caffe.InterpolateParameter.sizes")) {
-        stage->attrs().set<InterpolateShapeCalcMode>("shapeCalcMode", InterpolateShapeCalcMode::sizes);
-    } else if (cmp(shapeCalcMode, "caffe.InterpolateParameter.scales")) {
-        stage->attrs().set<InterpolateShapeCalcMode>("shapeCalcMode", InterpolateShapeCalcMode::scales);
-    } else {
-        VPU_THROW_EXCEPTION << "Layer with name " << layer->name << " doesn't support this Interpolate shape calculation mode";
-    }
+    // auto nnMode = layer->GetParamAsString("nearestMode", "caffe.InterpolateParameter.round_prefer_floor");
+    // if (cmp(nnMode, "caffe.InterpolateParameter.round_prefer_floor")) {
+    //     stage->attrs().set<InterpolateNearestMode>("nearestMode", InterpolateNearestMode::round_prefer_floor);
+    // } else if (cmp(nnMode, "caffe.InterpolateParameter.round_prefer_ceil")) {
+    //     stage->attrs().set<InterpolateNearestMode>("nearestMode", InterpolateNearestMode::round_prefer_ceil);
+    // } else if (cmp(nnMode, "caffe.InterpolateParameter.floor")) {
+    //     stage->attrs().set<InterpolateNearestMode>("nearestMode", InterpolateNearestMode::floor);
+    // } else if (cmp(nnMode, "caffe.InterpolateParameter.ceil")) {
+    //     stage->attrs().set<InterpolateNearestMode>("nearestMode", InterpolateNearestMode::ceil);
+    // } else if (cmp(nnMode, "caffe.InterpolateParameter.simple")) {
+    //     stage->attrs().set<InterpolateNearestMode>("nearestMode", InterpolateNearestMode::simple);
+    // } else {
+    //     VPU_THROW_EXCEPTION << "Layer with name " << layer->name << " doesn't support this Interpolate nearest mode variant";
+    // }
 
-    auto coordTransMode = layer->GetParamAsString("coordTransMode", "caffe.InterpolateParameter.half_pixel");
-    if (cmp(coordTransMode, "caffe.InterpolateParameter.half_pixel")) {
-        stage->attrs().set<InterpolateCoordTransMode>("coordTransMode", InterpolateCoordTransMode::half_pixel);
-    } else if (cmp(coordTransMode, "caffe.InterpolateParameter.pytorch_half_pixel")) {
-        stage->attrs().set<InterpolateCoordTransMode>("coordTransMode", InterpolateCoordTransMode::pytorch_half_pixel);
-    } else if (cmp(coordTransMode, "caffe.InterpolateParameter.pytorch_half_pixel")) {
-        stage->attrs().set<InterpolateCoordTransMode>("coordTransMode", InterpolateCoordTransMode::pytorch_half_pixel);
-    } else if (cmp(coordTransMode, "caffe.InterpolateParameter.tf_half_pixel_for_nn")) {
-        stage->attrs().set<InterpolateCoordTransMode>("coordTransMode", InterpolateCoordTransMode::tf_half_pixel_for_nn);
-    } else if (cmp(coordTransMode, "caffe.InterpolateParameter.align_corners")) {
-        stage->attrs().set<InterpolateCoordTransMode>("coordTransMode", InterpolateCoordTransMode::align_corners);
-    } else {
-        VPU_THROW_EXCEPTION << "Layer with name " << layer->name << " doesn't support this Interpolate coordinate transform mode";
-    }
+    // auto shapeCalcMode = layer->GetParamAsString("shapeCalcMode", "caffe.InterpolateParameter.sizes");
+    // if (cmp(shapeCalcMode, "caffe.InterpolateParameter.sizes")) {
+    //     stage->attrs().set<InterpolateShapeCalcMode>("shapeCalcMode", InterpolateShapeCalcMode::sizes);
+    // } else if (cmp(shapeCalcMode, "caffe.InterpolateParameter.scales")) {
+    //     stage->attrs().set<InterpolateShapeCalcMode>("shapeCalcMode", InterpolateShapeCalcMode::scales);
+    // } else {
+    //     VPU_THROW_EXCEPTION << "Layer with name " << layer->name << " doesn't support this Interpolate shape calculation mode";
+    // }
+
+    // auto coordTransMode = layer->GetParamAsString("coordTransMode", "caffe.InterpolateParameter.half_pixel");
+    // if (cmp(coordTransMode, "caffe.InterpolateParameter.half_pixel")) {
+    //     stage->attrs().set<InterpolateCoordTransMode>("coordTransMode", InterpolateCoordTransMode::half_pixel);
+    // } else if (cmp(coordTransMode, "caffe.InterpolateParameter.pytorch_half_pixel")) {
+    //     stage->attrs().set<InterpolateCoordTransMode>("coordTransMode", InterpolateCoordTransMode::pytorch_half_pixel);
+    // } else if (cmp(coordTransMode, "caffe.InterpolateParameter.pytorch_half_pixel")) {
+    //     stage->attrs().set<InterpolateCoordTransMode>("coordTransMode", InterpolateCoordTransMode::pytorch_half_pixel);
+    // } else if (cmp(coordTransMode, "caffe.InterpolateParameter.tf_half_pixel_for_nn")) {
+    //     stage->attrs().set<InterpolateCoordTransMode>("coordTransMode", InterpolateCoordTransMode::tf_half_pixel_for_nn);
+    // } else if (cmp(coordTransMode, "caffe.InterpolateParameter.align_corners")) {
+    //     stage->attrs().set<InterpolateCoordTransMode>("coordTransMode", InterpolateCoordTransMode::align_corners);
+    // } else {
+    //     VPU_THROW_EXCEPTION << "Layer with name " << layer->name << " doesn't support this Interpolate coordinate transform mode";
+    // }
 }
