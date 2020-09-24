@@ -34,7 +34,7 @@ TEST(op_eval, matmul_dynamic_1D_arg)
     auto fun = make_shared<Function>(OutputVector{matmul}, ParameterVector{arg0, arg1});
 
     // inner vector contains shapes for arg0, arg1, matmul expected result
-    std::vector<std::vector<Shape>> shapes{{Shape{2}, Shape{2}, Shape{1,1}},
+    std::vector<std::vector<Shape>> shapes{{Shape{2}, Shape{2}, Shape{1, 1}},
                                            {Shape{3}, Shape{2, 3, 2}, Shape{2, 1, 2}},
                                            {Shape{2, 2, 3}, Shape{3}, Shape{2, 2, 1}}};
 

@@ -122,8 +122,10 @@ namespace ngraph
                 }
                 else if (arg0_rank == 1)
                 {
-                    if (transpose_arg0) wip_arg0_shape.insert(wip_arg0_shape.end(), 1);
-                    else wip_arg0_shape.insert(wip_arg0_shape.begin(), 1);
+                    if (transpose_arg0)
+                        wip_arg0_shape.insert(wip_arg0_shape.end(), 1);
+                    else
+                        wip_arg0_shape.insert(wip_arg0_shape.begin(), 1);
                     arg0_rank = wip_arg0_shape.size();
                 }
                 else if (arg1_rank == 1)
@@ -135,8 +137,8 @@ namespace ngraph
                 // Perform transpose if requested
                 if (transpose_arg0 && arg0_shape.size() > 1)
                 {
-                    arg0_transpose_vec.reserve(shape_size(wip_arg0_shape));
-                    auto axis_vector = get_transpose_order(wip_arg0_shape);
+                    arg0_transpose_vec.reserve(shape_size(arg0_shape));
+                    auto axis_vector = get_transpose_order(arg0_shape);
                     swap(wip_arg0_shape[arg0_rank - 1], wip_arg0_shape[arg0_rank - 2]);
                     opt_kernel::reshape(reinterpret_cast<const char*>(arg0),
                                         reinterpret_cast<char*>(arg0_transpose_vec.data()),
@@ -150,8 +152,8 @@ namespace ngraph
 
                 if (transpose_arg1 && arg1_shape.size() > 1)
                 {
-                    arg1_transpose_vec.reserve(shape_size(wip_arg1_shape));
-                    auto axis_vector = get_transpose_order(wip_arg1_shape);
+                    arg1_transpose_vec.reserve(shape_size(arg1_shape));
+                    auto axis_vector = get_transpose_order(arg1_shape);
                     swap(wip_arg1_shape[arg1_rank - 1], wip_arg1_shape[arg1_rank - 2]);
                     opt_kernel::reshape(reinterpret_cast<const char*>(arg1),
                                         reinterpret_cast<char*>(arg1_transpose_vec.data()),
@@ -292,8 +294,8 @@ namespace ngraph
                         1);
                 }
             }
-        }
-    }
-}
+        } // namespace reference
+    }     // namespace runtime
+} // namespace ngraph
 
 NGRAPH_SUPPRESS_DEPRECATED_END

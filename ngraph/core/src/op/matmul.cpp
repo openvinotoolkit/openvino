@@ -106,17 +106,17 @@ namespace
         }
         else if (arg0_rank == 1)
         {
-            // i.e., arg0 shape {3}, arg1 shape{2, 3, 2}, output shape {2, 2}
+            // i.e., arg0 shape {3}, arg1 shape{2, 3, 2}, output shape {2, 1, 2}
             NGRAPH_CHECK(Dimension::merge(merged_dimension,
                                           arg0_shape_update[0],
                                           arg1_shape_update[arg1_shape_update.size() - 2]),
                          "Incompatible matrix dimensions");
-            arg1_shape_update.at(arg1_rank - 2) = 1;
+            arg1_shape_update.at(arg1_shape_update.size() - 2) = 1;
             output_shape = arg1_shape_update;
         }
         else if (arg1_rank == 1)
         {
-            // i.e., arg0 shape {2, 2, 3}, arg1 shape{3}, output shape {2, 2}
+            // i.e., arg0 shape {2, 2, 3}, arg1 shape{3}, output shape {2, 2, 1}
             NGRAPH_CHECK(Dimension::merge(merged_dimension,
                                           arg1_shape_update[0],
                                           arg0_shape_update[arg0_rank - 1]),
@@ -127,9 +127,9 @@ namespace
         else
         {
             NGRAPH_CHECK(Dimension::merge(merged_dimension,
-                                            arg0_shape_update[arg0_rank - 1],
-                                            arg1_shape_update[arg1_rank - 2]),
-                            "Incompatible matrix dimensions.");
+                                          arg0_shape_update[arg0_rank - 1],
+                                          arg1_shape_update[arg1_rank - 2]),
+                         "Incompatible matrix dimensions.");
 
             // handle batch size
             if (max_rank > 2)
@@ -174,7 +174,7 @@ namespace
                     else
                     {
                         output_shape[i] = std::max(low_size_matrix[i].get_length(),
-                                                    big_size_matrix[i].get_length());
+                                                   big_size_matrix[i].get_length());
                     }
                 }
             }

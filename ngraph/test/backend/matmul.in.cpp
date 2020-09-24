@@ -266,8 +266,7 @@ NGRAPH_TEST(${BACKEND_NAME}, matmul_2x1x3_3)
     auto handle = backend->compile(f);
     handle->call_with_validate({result}, {a, b});
 
-    EXPECT_TRUE(
-        test::all_close_f(read_vector<float>(result), vector<float>{24.f, 54.f}));
+    EXPECT_TRUE(test::all_close_f(read_vector<float>(result), vector<float>{24.f, 54.f}));
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, matmul_2x3x2_2_transpose)
@@ -379,8 +378,8 @@ NGRAPH_TEST(${BACKEND_NAME}, matmul_2_2)
 NGRAPH_TEST(${BACKEND_NAME}, matmul_2_transpose_1x2)
 {
     Shape shape_in1{2};
-    Shape shape_in2{1,2};
-    Shape shape_out{2,2};
+    Shape shape_in2{1, 2};
+    Shape shape_out{2, 2};
     auto A = make_shared<op::Parameter>(element::f32, shape_in1);
     auto B = make_shared<op::Parameter>(element::f32, shape_in2);
     auto matmul = make_shared<op::MatMul>(A, B, true, false);
@@ -398,7 +397,8 @@ NGRAPH_TEST(${BACKEND_NAME}, matmul_2_transpose_1x2)
     auto handle = backend->compile(f);
     handle->call_with_validate({result}, {a, b});
 
-    EXPECT_TRUE(test::all_close_f(read_vector<float>(result), vector<float>{8.f, 10.f, 12.f, 15.f}));
+    EXPECT_TRUE(
+        test::all_close_f(read_vector<float>(result), vector<float>{8.f, 10.f, 12.f, 15.f}));
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, matmul_2x2x3_2x1x3_transpose)

@@ -54,7 +54,7 @@ TEST(TransformationTests, ConvertMatMulTest1) {
 
         f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{matmul}, ngraph::ParameterVector{input1, input2});
     }
-matmul
+
     auto res = compare_functions(f, f_ref);
     ASSERT_TRUE(res.first) << res.second;
 }
@@ -82,9 +82,8 @@ TEST(TransformationTests, ConvertMatMulTest2) {
 
         auto reshape = ngraph::op::util::reshapeTo(input2, {1, 2, 1});
         auto matmul = std::make_shared<ngraph::opset1::MatMul>(input1, reshape, false, false);
-        auto reshape_output = ngraph::op::util::reshapeTo(matmul, {3, 1, 1});
 
-        f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{reshape_output}, ngraph::ParameterVector{input1, input2});
+        f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{matmul}, ngraph::ParameterVector{input1, input2});
     }
 
     auto res = compare_functions(f, f_ref);
@@ -113,9 +112,8 @@ TEST(TransformationTests, ConvertMatMulTest3) {
 
         auto reshape = ngraph::op::util::reshapeTo(input1, {1, 1, 2});
         auto matmul = std::make_shared<ngraph::opset1::MatMul>(reshape, input2, false, false);
-        auto reshape_output = ngraph::op::util::reshapeTo(matmul, {3, 1, 1});
 
-        f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{reshape_output}, ngraph::ParameterVector{input1, input2});
+        f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{matmul}, ngraph::ParameterVector{input1, input2});
     }
 
     auto res = compare_functions(f, f_ref);
