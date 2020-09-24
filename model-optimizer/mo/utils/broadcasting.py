@@ -133,6 +133,7 @@ def explicit_broadcasting(input_value: np.array, target_shape: np.array, axes_ma
     :return: broadcasted value
     """
     res_shape = explicit_shape_broadcasting(input_value.shape, target_shape, axes_mapping)
+    axes_mapping = map(lambda axis: axis + len(target_shape) if axis < 0 else axis, axes_mapping)
     expand_dim_axis = set(np.arange(len(target_shape))) - set(axes_mapping)
 
     input_expanded = np.expand_dims(input_value.copy(), axis=list(expand_dim_axis))

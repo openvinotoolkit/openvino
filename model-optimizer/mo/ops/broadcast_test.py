@@ -34,6 +34,7 @@ class BroadcastTest(unittest.TestCase):
 
         # shape broadcasting
         ([1], [1, 2], [0], 'explicit'),
+        ([1], [1, 2], [-2], 'explicit'),
         ([1, 7], [5, 1, 7, 3], [1, 2], 'explicit'),
         ([2, 1, 3], [2, 1, 3, 3], [0, 1, 2], 'explicit'),
         ([2, 1, 3], [5, 2, 1, 3], [1, 2, 3], 'explicit'),
@@ -42,6 +43,8 @@ class BroadcastTest(unittest.TestCase):
         ([1], [1, 2], [0], 'explicit', [[1, 1]]),
 
         ([[3, 1]], [2, 1, 2], [1, 2], 'explicit', [[[3, 1]], [[3, 1]]]),  # ref_shape (2, 1, 2)
+
+        ([[3, 1]], [2, 1, 2], [-2, -1], 'explicit', [[[3, 1]], [[3, 1]]]),  # ref_shape (2, 1, 2)
 
         ([[[9, 5, 7]], [[9, 5, 7]]], [2, 2, 1, 3], [1, 2, 3], 'explicit',  # in_shape (2, 1, 3)
          [[[[9, 5, 7]], [[9, 5, 7]]], [[[9, 5, 7]], [[9, 5, 7]]]]),        # ref_out_shape (2, 2, 1, 3)
@@ -52,6 +55,8 @@ class BroadcastTest(unittest.TestCase):
         # negative tests
         ([1], [2, 2], [0], 'explicit', None, True),
         ([1, 7], [5, 2, 7, 3], [1, 2], 'explicit', None, True),
+        ([1, 7], [5, 2, 7, 3], [2, 1], 'explicit', None, True),
+        ([1, 7], [5, 2, 7, 3], [-3, -2], 'explicit', None, True),
     ])
     def test_broadcast(self, data, target_shape, axes_mapping=None, mode='numpy', ref_out=None, test_raising=False):
         if ref_out is not None:

@@ -69,7 +69,9 @@ class Broadcast(Op):
                 node.out_port(0).data.set_value(uni_directional_broadcasting(input_value, target_shape))
             elif node.mode == 'bidirectional':
                 node.out_port(0).data.set_value(bi_directional_broadcasting(input_value, target_shape))
-            elif node.mode == 'explicit' and node.in_port(2).data.get_value() is not None:
+            elif node.mode == 'explicit':
+                assert node.in_port(2).data.get_value() is not None, 'Non-constant values for axes_mapping are not supported'
+                PermuteInputs().set_input_permutation(node.in_node(2), node, 'output:0', 'axis')
                 axes_mapping = node.in_port(2).data.get_value()
                 node.out_port(0).data.set_value(explicit_broadcasting(input_value, target_shape, axes_mapping))
             else:
