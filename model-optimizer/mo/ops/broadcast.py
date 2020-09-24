@@ -70,7 +70,9 @@ class Broadcast(Op):
             elif node.mode == 'bidirectional':
                 node.out_port(0).data.set_value(bi_directional_broadcasting(input_value, target_shape))
             elif node.mode == 'explicit':
-                assert node.in_port(2).data.get_value() is not None, 'Non-constant values for axes_mapping are not supported'
+                axes_mapping = node.in_port(2).data.get_value()
+                assert axes_mapping  is not None, 'Broadcast(mode="explicit") with dynamic axes_mapping input ' \
+                                                  'is not supported. Node: `{}`'.format(node_name)
                 PermuteInputs().set_input_permutation(node.in_node(2), node, 'output:0', 'axis')
                 axes_mapping = node.in_port(2).data.get_value()
                 node.out_port(0).data.set_value(explicit_broadcasting(input_value, target_shape, axes_mapping))
@@ -81,8 +83,12 @@ class Broadcast(Op):
                 node.out_port(0).data.set_shape(uni_directional_shape_broadcasting(input_shape, target_shape))
             elif node.mode == 'bidirectional':
                 node.out_port(0).data.set_shape(bi_directional_shape_broadcasting(input_shape, target_shape))
-            elif node.mode == 'explicit' and node.in_port(2).data.get_value() is not None:
+            elif node.mode == 'explicit':
                 axes_mapping = node.in_port(2).data.get_value()
-                node.out_port(0).data.set_shape(explicit_shape_broadcasting(input_shape, target_shape, axes_mapping))
+                assert axes_mapping is not None, 'Broadcast(mode="explicit") with dynamic axes_mapping input ' \
+                                                 'is not supported. Node: `{}`'.format(node_name)
+                axes_mapping = node.in_port(2).data.get_value()
+                new_shape,_ = explicit_shape_broadcasting(input_shape, target_shape, axes_mapping)
+                node.out_port(0).data.set_shape(new_shape)
             else:
                 raise Error('The node "{}" has unsupported mode "{}"'.format(node_name, node.mode))
