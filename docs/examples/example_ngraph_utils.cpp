@@ -4,6 +4,8 @@
 
 #include <memory>
 
+#include <ngraph/pattern/op/wrap_type.hpp>
+
 // ! [ngraph:include]
 #include <ngraph/ngraph.hpp>
 #include <ngraph/opsets/opset3.hpp>
@@ -89,7 +91,7 @@ ngraph::graph_rewrite_callback callback = [](pattern::Matcher& m) {
 // ! [pattern:label_example]
 // Detect Multiply with arbitrary first input and second as Constant
 // ngraph::pattern::op::Label - represent arbitrary input
-auto input = std::make_shared<ngraph::pattern::op::Label>(ngraph::element::f32, ngraph::Shape{1});
+auto input = ngraph::pattern::any_input();
 auto value = ngraph::opset3::Constant::create(ngraph::element::f32, ngraph::Shape{1}, {0.5});
 auto mul = std::make_shared<ngraph::opset3::Multiply>(input, value);
 auto m = std::make_shared<ngraph::pattern::Matcher>(mul, "MultiplyMatcher");
@@ -99,20 +101,17 @@ auto m = std::make_shared<ngraph::pattern::Matcher>(mul, "MultiplyMatcher");
 {
 // ! [pattern:concat_example]
 // Detect Concat operation with arbitrary number of inputs
-auto concat = std::make_shared<ngraph::pattern::op::Label>(ngraph::element::f32, ngraph::Shape{}, ngraph::pattern::has_class<ngraph::opset3::Concat>());
+auto concat = ngraph::pattern::wrap_type<ngraph::opset3::Concat>();
 auto m = std::make_shared<ngraph::pattern::Matcher>(concat, "ConcatMatcher");
 // ! [pattern:concat_example]
 }
 
 {
 // ! [pattern:predicate_example]
-// Detect Multiply or Add operation
-auto lin_op = std::make_shared<ngraph::pattern::op::Label>(ngraph::element::f32, ngraph::Shape{},
-              [](const std::shared_ptr<ngraph::Node> & node) -> bool {
-                    return std::dynamic_pointer_cast<ngraph::opset3::Multiply>(node) ||
-                           std::dynamic_pointer_cast<ngraph::opset3::Add>(node);
-              });
-auto m = std::make_shared<ngraph::pattern::Matcher>(lin_op, "MultiplyOrAddMatcher");
+// Detect Multiply->Add sequence where mul has exactly one consumer
+auto mul = ngraph::pattern::wrap_type<ngraph::opset3::Multiply>(ngraph::pattern::consumers_count(1)/*сheck consumers count*/);
+auto add = ngraph::pattern::wrap_type<ngraph::opset3::Add>({mul, ngraph::pattern::any_input()});
+auto m = std::make_shared<ngraph::pattern::Matcher>(add, "MultiplyAddMatcher");
 // Matcher can be used to match pattern manually on given node
 if (m->match(node->output(0))) {
     // Successfully matched
