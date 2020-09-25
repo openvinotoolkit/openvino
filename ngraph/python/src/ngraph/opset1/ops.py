@@ -2784,7 +2784,7 @@ def tensor_iterator(
     concat_output_desc: List[TensorIteratorConcatOutputDesc],
     name: Optional[str] = None,
 ) -> Node:
-    """
+    """!
     Perform recurrent execution of the network described in the body, iterating through the data.
 
     @param      inputs:                The provided to TensorIterator operator.

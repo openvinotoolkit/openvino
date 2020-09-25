@@ -18,17 +18,12 @@
       <tab type="user" title="Inference Engine С++ API Reference" url="../annotated.html"/>
       <tab type="user" title="Inference Engine Python API Reference" url="../ie_python_api/annotated.html"/>
       <!-- DL Streamer -->
-      <tab type="user" title="DL Streamer API Reference" url="https://opencv.github.io/gst-video-analytics/"/>
+      <tab type="user" title="DL Streamer API Reference" url="https://openvinotoolkit.github.io/dlstreamer_gst/"/>
       <tab type="user" title="nGraph С++ API Reference" url="../ngraph_cpp_api/annotated.html"/>
       <!-- nGraph Python API Reference -->
-      <tab type="classes" visible="yes" title="nGraph Python API Reference">
-        <tab type="classlist" visible="yes" title=""/>
-        <tab type="hierarchy" visible="yes" title=""/>
-        <tab type="namespacemembers" visible="yes" title="" intro=""/>
-        <tab type="pages" visible="no"/>
-        <tab type="files" visible="no"/>
-        <tab type="filelist" visible="no"/>
-        <tab type="globals" visible="no"/>
+      <tab type="files" visible="yes" title="nGraph Python API Reference">
+        <tab type="filelist" visible="yes" title="nGraph Python API Reference" intro=""/>
+        <tab type="globals" visible="yes" title="" intro=""/>
       </tab>
     </tab>
     <!-- Chinese docs -->

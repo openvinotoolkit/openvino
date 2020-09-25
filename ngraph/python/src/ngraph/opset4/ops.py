@@ -296,7 +296,7 @@ def proposal(
                     Default value: "" (empty string)
                     Required: no
     Example of attribute dictionary:
-    .. code-block:: python
+    ~~~~~~~~~~~~~~~~~~~~~~~~{.py}
         # just required ones
         attrs = {
             'base_size': 85,
@@ -308,6 +308,7 @@ def proposal(
             'ratio': [0.1, 1.5, 2.0, 2.5],
             'scale': [2, 3, 3, 4],
         }
+    ~~~~~~~~~~~~~~~~~~~~~~~~
     Optional attributes which are absent from dictionary will be set with corresponding default.
     @return Node representing Proposal operation.
     """
