@@ -33,4 +33,5 @@ if(NOT TARGET ngraph)
 endif()
 
 set(NGRAPH_LIBRARIES ngraph::ngraph)
+set(ONNX_IMPORTER_LIBRARIES ngraph::onnx_importer)
 check_required_components(ngraph)
