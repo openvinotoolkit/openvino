@@ -14,13 +14,13 @@ x < 0  => f(x) = x * beta
 where alpha, beta are float constants.
 
 Let's start with including headers:
-@snippet docs/onnx_custom_op/main.cpp onnx_custom_op:headers
+@snippet onnx_custom_op/main.cpp onnx_custom_op:headers
 
 Next we define a node with op_type 'CustomRelu', domain 'custom_domain', one input, one output and two float attributes 'alpha' and 'beta'.
-@snippet docs/onnx_custom_op/main.cpp onnx_custom_op:model
+@snippet onnx_custom_op/main.cpp onnx_custom_op:model
 
 Before the model can be read by Inference Engine, we need to register 'CustomRelu' operator in ONNX importer:
-@snippet docs/onnx_custom_op/main.cpp onnx_custom_op:register_operator
+@snippet onnx_custom_op/main.cpp onnx_custom_op:register_operator
 `register_operator` function takes four arguments: op_type, opset version, domain, and a function object.
 The function object is a user defined function that takes `ngraph::onnx_import::Node` as an input and based on that, returns a graph with nGraph operations.
 Class `ngraph::onnx_import::Node` represents a node in ONNX model. It provides, functions to fetch input node(s) (`get_ng_inputs`), fetch attribute value (`get_attribute_value`) and many more (please refer to `onnx_import/core/node.hpp` for full class declaration).
@@ -48,4 +48,4 @@ Both `ngraph` and `onnx_importer` libraries are under single package namespace, 
 Those variables need to be passed to `target_link_libraries` command in CMakeLists.txt file.
 
 See below CMakeLists.txt for reference:
-@snippet docs/onnx_custom_op/CMakeLists.txt cmake:onnx_custom_op
+@snippet onnx_custom_op/CMakeLists.txt cmake:onnx_custom_op
