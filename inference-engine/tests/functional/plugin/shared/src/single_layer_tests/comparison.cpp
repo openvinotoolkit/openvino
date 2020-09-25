@@ -18,37 +18,61 @@ using namespace LayerTestsDefinitions::ComparisonParams;
 namespace LayerTestsDefinitions {
 std::string ComparisonLayerTest::getTestCaseName(testing::TestParamInfo<ComparisonTestParams> obj) {
     InputShapesTuple inputShapes;
-    InferenceEngine::Precision inputsPrecision;
+    InferenceEngine::Precision ngInputsPrecision;
     ngraph::helpers::ComparisonTypes comparisonOpType;
     ngraph::helpers::InputLayerType secondInputType;
-    InferenceEngine::Precision netPrecision;
+    InferenceEngine::Precision ieInPrecision;
+    InferenceEngine::Precision ieOutPrecision;
     std::string targetName;
     std::map<std::string, std::string> additional_config;
-    std::tie(inputShapes, inputsPrecision, comparisonOpType, secondInputType, netPrecision, targetName, additional_config) = obj.param;
+    std::tie(inputShapes,
+             ngInputsPrecision,
+             comparisonOpType,
+             secondInputType,
+             ieInPrecision,
+             ieOutPrecision,
+             targetName,
+             additional_config) = obj.param;
     std::ostringstream results;
 
     results << "IS0=" << CommonTestUtils::vec2str(inputShapes.first) << "_";
     results << "IS1=" << CommonTestUtils::vec2str(inputShapes.second) << "_";
-    results << "inputsPRC=" << inputsPrecision.name() << "_";
+    results << "inputsPRC=" << ngInputsPrecision.name() << "_";
     results << "comparisonOpType=" << comparisonOpType << "_";
     results << "secondInputType=" << secondInputType << "_";
-    results << "netPRC=" << netPrecision.name() << "_";
+    if (ieInPrecision != InferenceEngine::Precision::UNSPECIFIED) {
+        results << "IEInPRC=" << ieInPrecision.name() << "_";
+    }
+    if (ieOutPrecision != InferenceEngine::Precision::UNSPECIFIED) {
+        results << "IEOutPRC=" << ieOutPrecision.name() << "_";
+    }
     results << "targetDevice=" << targetName;
     return results.str();
 }
 
 void ComparisonLayerTest::SetUp() {
     InputShapesTuple inputShapes;
-    InferenceEngine::Precision inputsPrecision;
+    InferenceEngine::Precision ngInputsPrecision;
     ngraph::helpers::ComparisonTypes comparisonOpType;
     ngraph::helpers::InputLayerType secondInputType;
-    InferenceEngine::Precision netPrecision;
+    InferenceEngine::Precision ieInPrecision;
+    InferenceEngine::Precision ieOutPrecision;
     std::string targetName;
     std::map<std::string, std::string> additional_config;
-    std::tie(inputShapes, inputsPrecision, comparisonOpType, secondInputType, netPrecision, targetDevice, additional_config) = this->GetParam();
+    std::tie(inputShapes,
+             ngInputsPrecision,
+             comparisonOpType,
+             secondInputType,
+             ieInPrecision,
+             ieOutPrecision,
+             targetDevice,
+             additional_config) = this->GetParam();
 
-    auto ngInputsPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(inputsPrecision);
+    auto ngInputsPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(ngInputsPrecision);
     configuration.insert(additional_config.begin(), additional_config.end());
+
+    inPrc = ieInPrecision;
+    outPrc = ieOutPrecision;
 
     auto inputs = ngraph::builder::makeParams(ngInputsPrc, {inputShapes.first});
 

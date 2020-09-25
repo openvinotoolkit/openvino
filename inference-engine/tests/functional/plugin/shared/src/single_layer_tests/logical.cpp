@@ -51,6 +51,9 @@ std::vector<InputShapesTuple> LogicalLayerTest::combineShapes(const std::map<std
     return resVec;
 }
 
+InferenceEngine::Blob::Ptr LogicalLayerTest::GenerateInput(const InferenceEngine::InputInfo &info) const {
+    return FuncTestUtils::createAndFillBlob(info.getTensorDesc(), 2, 0);
+}
 
 void LogicalLayerTest::SetUp() {
     InputShapesTuple inputShapes;

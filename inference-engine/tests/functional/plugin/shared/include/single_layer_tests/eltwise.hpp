@@ -30,6 +30,7 @@ typedef std::tuple<
 class EltwiseLayerTest : public testing::WithParamInterface<EltwiseTestParams>,
     virtual public LayerTestsUtils::LayerTestsCommon {
 protected:
+    InferenceEngine::Blob::Ptr GenerateInput(const InferenceEngine::InputInfo &info) const override;
     void SetUp() override;
 
 public:

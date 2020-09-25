@@ -35,6 +35,21 @@ std::string EltwiseLayerTest::getTestCaseName(testing::TestParamInfo<EltwiseTest
     return results.str();
 }
 
+InferenceEngine::Blob::Ptr EltwiseLayerTest::GenerateInput(const InferenceEngine::InputInfo &info) const {
+    const auto opType = std::get<1>(GetParam());
+    switch (opType) {
+        case ngraph::helpers::EltwiseTypes::POWER:
+        case ngraph::helpers::EltwiseTypes::FLOOR_MOD:
+            return info.getPrecision().is_float() ? FuncTestUtils::createAndFillBlob(info.getTensorDesc(), 2, 2, 128):
+                                                    FuncTestUtils::createAndFillBlob(info.getTensorDesc(), 4, 2);
+        case ngraph::helpers::EltwiseTypes::DIVIDE:
+            return info.getPrecision().is_float() ? FuncTestUtils::createAndFillBlob(info.getTensorDesc(), 2, 2, 128):
+                                                    FuncTestUtils::createAndFillBlob(info.getTensorDesc(), 100, 101);
+        default:
+            return FuncTestUtils::createAndFillBlob(info.getTensorDesc());
+    }
+}
+
 void EltwiseLayerTest::SetUp() {
     std::vector<std::vector<size_t>> inputShapes;
     InferenceEngine::Precision netPrecision;
