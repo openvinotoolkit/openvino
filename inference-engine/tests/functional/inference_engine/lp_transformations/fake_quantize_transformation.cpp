@@ -185,6 +185,17 @@ const std::vector<FakeQuantizeTransformationTestValues> fakeQuantizeTransformati
         }
     },
 
+    // dot interval
+    {
+        LayerTransformation::createParamsI8I8(),
+        { 256ul, {}, { 0.f }, { 2.55f }, { 2.55f }, { 2.55f } },
+        { 256ul, {}, { 0.f }, { 2.55f }, { 1.f }, { 1.f } },
+        ngraph::element::Type_t::i8,
+        {
+            { ngraph::element::f32, {{}, { 2.55f }} }
+        }
+    },
+
     // efficientnet-b0: efficientnet-b0/model/blocks_2/depthwise_conv2d/depthwise/fq_input_0, interval: -0.504395 - +0.5
     // I8 symmetric: max ratio = 0.000907078
     {
