@@ -161,6 +161,8 @@ else()
         set(InferenceEngine_INCLUDE_DIRS ${IE_INCLUDE_DIR})
         set(InferenceEngine_LIBRARIES IE::inference_engine_legacy IE::inference_engine
                                       IE::inference_engine_c_api)
+        find_package(ngraph REQUIRED)
+        set_target_properties(IE::inference_engine PROPERTIES INTERFACE_LINK_LIBRARIES IE::inference_engine_legacy ngraph::ngraph)
 
         set(IE_EXTERNAL_DIR "${IE_ROOT_DIR}/external")
         include("${IE_ROOT_DIR}/share/ie_parallel.cmake")
