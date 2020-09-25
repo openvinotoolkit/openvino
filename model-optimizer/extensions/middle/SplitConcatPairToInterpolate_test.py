@@ -39,7 +39,11 @@ graph_node_attrs_for_2d_spatial_case = {
         'op': 'Const',
         'type': 'Const'
     },
-    'split_axis_const_data': {'value': None, 'shape': np.array(3, dtype=np.int64).shape, 'kind': 'data'},
+    'split_axis_const_data': {
+        'value': np.array(3, dtype=np.int64),
+        'shape': np.array(3, dtype=np.int64).shape,
+        'kind': 'data'
+    },
     'concat': {'type': 'Concat', 'kind': 'op', 'axis': 3},
     'split_data_0': {'value': None, 'shape': int64_array([1, 100, 120, 50]), 'kind': 'data'},
     'split_data_1': {'value': None, 'shape': int64_array([1, 100, 120, 50]), 'kind': 'data'},
@@ -66,7 +70,11 @@ graph_node_attrs_for_3d_spatial_case = {
             'op': 'Const',
             'type': 'Const'
         },
-        'split_axis_const_data': {'value': None, 'shape': np.array(4, dtype=np.int64).shape, 'kind': 'data'},
+        'split_axis_const_data': {
+            'value': np.array(4, dtype=np.int64),
+            'shape': np.array(4, dtype=np.int64).shape,
+            'kind': 'data'
+        },
         'concat': {'type': 'Concat', 'kind': 'op', 'axis': 4},
         'split_data_0': {'value': None, 'shape': int64_array([1, 3, 100, 120, 50]), 'kind': 'data'},
         'split_data_1': {'value': None, 'shape': int64_array([1, 3, 100, 120, 50]), 'kind': 'data'},
@@ -491,7 +499,11 @@ class SplitConcatPairToInterpolateTest(unittest.TestCase):
                     'op': 'Const',
                     'type': 'Const'
                 },
-                'split_axis_const_data': {'value': None, 'shape': np.array(2, dtype=np.int64).shape, 'kind': 'data'},
+                'split_axis_const_data': {
+                    'value': np.array(2, dtype=np.int64),
+                    'shape': np.array(2, dtype=np.int64).shape,
+                    'kind': 'data'
+                },
                 'concat': {'type': 'Concat', 'kind': 'op', 'axis': 2},
                 'split_data_0': {'value': None, 'shape': int64_array([1, 100, 40, 150]), 'kind': 'data'},
                 'split_data_1': {'value': None, 'shape': int64_array([1, 100, 40, 150]), 'kind': 'data'},
@@ -539,7 +551,11 @@ class SplitConcatPairToInterpolateTest(unittest.TestCase):
                     'op': 'Const',
                     'type': 'Const'
                 },
-                'split_axis_const_data': {'value': None, 'shape': np.array(3, dtype=np.int64).shape, 'kind': 'data'},
+                'split_axis_const_data': {
+                    'value': np.array(3, dtype=np.int64),
+                    'shape': np.array(3, dtype=np.int64).shape,
+                    'kind': 'data'
+                },
                 'concat': {'type': 'Concat', 'kind': 'op', 'axis': 3},
                 'split_data_0': {'value': None, 'shape': int64_array([1, 3, 100, 40, 150]), 'kind': 'data'},
                 'split_data_1': {'value': None, 'shape': int64_array([1, 3, 100, 40, 150]), 'kind': 'data'},
