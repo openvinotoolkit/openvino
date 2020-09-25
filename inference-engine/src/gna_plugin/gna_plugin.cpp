@@ -975,8 +975,8 @@ uint32_t GNAPlugin::QueueInference(const InferenceEngine::BlobMap &inputs, Infer
     return idx;
 }
 
-bool GNAPlugin::Wait(uint32_t idx) {
-    return GNA_REQUEST_COMPLETED == WaitFor(idx, MAX_TIMEOUT);
+bool GNAPlugin::Wait(uint32_t request_idx) {
+    return GNA_REQUEST_COMPLETED == WaitFor(request_idx, MAX_TIMEOUT);
 }
 
 GnaWaitStatus GNAPlugin::WaitFor(uint32_t request_idx, int64_t millisTimeout) {
