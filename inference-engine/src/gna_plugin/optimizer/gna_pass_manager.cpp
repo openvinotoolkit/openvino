@@ -632,6 +632,55 @@ void ReversePermutationsPass::run() {
     }
 }
 
+void ConvolutionNCHWPass::run() {
+    int numOfadditionalPermuteLayers = 0;
+    auto quantized = InferenceEngine::getInjectedData<QuantizedLayerParams>(pLayers->front());
+
+    for (auto& l : *pLayers) {
+        IE_ASSERT(l != nullptr);
+        if (!LayerInfo(l).isConvolution()) {
+            continue;
+        }
+        auto inputs = l->insData.begin()->lock();
+        auto layerBeforeConv = CNNNetPrevLayer(l);
+        auto layerAfterConv = !getInputTo(l->outData.front()).empty() ? getInputTo(l->outData.front()).begin()->second : nullptr;
+
+        if (LayerInfo(layerAfterConv).isPermute()) {
+            continue;
+        }
+
+        // TODO: add check for convolution with H != 1 and W != 1
+        // TODO: add check for convolution with H != 1 and W == 1
+
+        if (l->outData[0]->getLayout() == Layout::NCHW) {
+            // GNA convolution output is transposed to NHWC
+            auto permuteNextName = std::string("permute_next_layer_") + std::to_string(numOfadditionalPermuteLayers);
+            auto layerAfterConvName = layerAfterConv == nullptr ? "nullptr" : layerAfterConv->name;
+            gnalog() << "Inserted " << permuteNextName << " between: " << l->name << " and "
+                << layerAfterConvName << "\n" << std::flush;
+            CNNLayerPtr permuteNextLayer = std::make_shared<GenericLayer>(LayerParams({ permuteNextName, "permute", inputs->getTensorDesc().getPrecision() }));
+            auto permuteNextLayerWithQuant = quantized ?
+                InferenceEngine::injectData<QuantizedLayerParams>(permuteNextLayer) :
+                permuteNextLayer;
+            permuteNextLayerWithQuant->params["order"] = std::string("0, 3, 1, 2");
+
+            auto convolutionDims = l->outData[0]->getDims();
+            auto outDataNext = std::make_shared<Data>(permuteNextName,
+                                                      TensorDesc(inputs->getTensorDesc().getPrecision(),
+                                                                 convolutionDims,
+                                                                 Layout::NCHW));
+            getCreatorLayer(outDataNext) = permuteNextLayerWithQuant;
+            permuteNextLayerWithQuant->outData.push_back(outDataNext);
+            CNNNetworkInsertLayer(l, layerAfterConv, permuteNextLayerWithQuant);
+
+            l->outData[0]->setDims({ convolutionDims[0], convolutionDims[2], convolutionDims[3], convolutionDims[1] });
+            l->outData[0]->setLayout(Layout::NHWC);
+        } else {
+            continue;
+        }
+    }
+}
+
 void RemovePermutationsNHWCToNCHWPass::run() {
     std::list<CNNLayerPtr> permutationsToRemove;
 

@@ -240,9 +240,13 @@ void GNAGraphCompiler::ConvolutionPrimitive(InferenceEngine::CNNLayerPtr layer) 
         inputs->getLayout() != Layout::NC) {
         THROW_GNA_LAYER_EXCEPTION(layer) << "with layout " << inputs->getLayout() << " isn't currently supported on GNA";
     }
-    if (inputs->getLayout() != outputs->getLayout()) {
+
+    /*if (outputs->getLayout() != InferenceEngine::Layout::NHWC) {
+        THROW_GNA_LAYER_EXCEPTION(layer) << "GNA output is transposed to NHWC but output layout is " << outputs->getLayout();
+    }*/
+    /*if (inputs->getLayout() != outputs->getLayout()) {
         THROW_GNA_LAYER_EXCEPTION(layer) << "I/O layout mismatch: " << inputs->getLayout() << " vs " << outputs->getLayout();
-    }
+    }*/
 
     auto in_order = getFromIRDimsOrderNCHW(inputs->getLayout());
     auto in_batch = FROM_IR_DIM(inputs, in_order[0]);
@@ -1540,12 +1544,11 @@ void GNAGraphCompiler::PWLPrimitive(InferenceEngine::CNNLayerPtr layer) {
     } else {
         num_columns = FROM_IR_DIM(inputs, 2);
         num_rows = FROM_IR_DIM(inputs, 1);
-    }
 
-    if (dnn->new_num_conv_columns) {
-        num_rows = dnn->new_num_conv_columns;
-        if (inputs->getDims().size() == 4) num_rows /= FROM_IR_DIM(inputs, 3);
-        dnn->new_num_conv_columns = 0;
+        if (dnn->new_num_conv_columns) {
+            num_rows = dnn->new_num_conv_columns;
+            dnn->new_num_conv_columns = 0;
+        }
     }
 
     // TODO: solve this by layer level transformations

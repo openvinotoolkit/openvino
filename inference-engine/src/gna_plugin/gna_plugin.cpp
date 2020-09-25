@@ -507,6 +507,7 @@ void GNAPlugin::LoadNetwork(ICNNNetwork & _network) {
         if (policy.NHWCToNCHWPolicy != Policy::NHWCToNCHW::DISABLED) {
             passes->registerPass<RemovePermutationsNHWCToNCHWPass>();
         }
+        passes->registerPass<ConvolutionNCHWPass>();
         passes->registerPass<InsertIdentityLayerPass>();
         passes->registerPass<BreakFusingOfOutputLayersPass>();
         passes->registerPass<InsertCopyLayerPass>();
