@@ -63,7 +63,6 @@ public:
 protected:
     LayerTestsCommon();
 
-    ~LayerTestsCommon() override;
 
     template<class T>
     void Compare(const T *expected, const T *actual, std::size_t size, T threshold) {
@@ -92,8 +91,6 @@ protected:
         return core;
     }
 
-    void ConfigurePlugin();
-
     void ConfigureNetwork() const;
 
     void LoadNetwork();
@@ -113,6 +110,7 @@ protected:
     float threshold;
     InferenceEngine::CNNNetwork cnnNetwork;
     std::shared_ptr<InferenceEngine::Core> core;
+
     virtual void Validate();
 
     virtual std::vector<std::vector<std::uint8_t>> CalculateRefs();
