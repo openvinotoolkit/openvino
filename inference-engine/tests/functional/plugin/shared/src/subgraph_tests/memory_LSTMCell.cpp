@@ -197,7 +197,6 @@ namespace SubgraphTestsDefinitions {
     void MemoryLSTMCellTest::Run() {
         SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
-        ConfigurePlugin();
         LoadNetwork();
         auto states = executableNetwork.QueryState();
         for (auto& state : states) {
