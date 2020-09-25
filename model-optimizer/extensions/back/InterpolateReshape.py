@@ -88,7 +88,7 @@ class InterpolateConcat(BackReplacementPattern):
         interpolate.in_port(1).get_connection().set_source(gather.out_port(0))
 
     def find_and_replace_pattern(self, graph: Graph):
-        for interpolate in graph.get_op_nodes(type='Interpolate', version='opset1'):
+        for interpolate in graph.get_op_nodes(type='Interpolate'):
             if interpolate.in_port(1).get_source().node.soft_get('type') != 'Const':
                 continue
             dsts = interpolate.out_port(0).get_destinations()
@@ -148,6 +148,6 @@ class InterpolateReshapeWA(BackReplacementPattern):
         interpolate.in_port(1).get_connection().set_source(mul.out_port(0))
 
     def find_and_replace_pattern(self, graph: Graph):
-        for interpolate in graph.get_op_nodes(type='Interpolate', version='opset1'):
+        for interpolate in graph.get_op_nodes(type='Interpolate'):
             if interpolate.in_port(1).get_source().node.soft_get('type') == 'Const':
                 self.make_interpolate_reshapeable(interpolate)
