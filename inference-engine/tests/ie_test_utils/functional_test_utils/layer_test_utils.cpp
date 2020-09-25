@@ -16,16 +16,9 @@ LayerTestsCommon::LayerTestsCommon() : threshold(1e-2f) {
 void LayerTestsCommon::Run() {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
-    ConfigurePlugin();
     LoadNetwork();
     Infer();
     Validate();
-}
-
-LayerTestsCommon::~LayerTestsCommon() {
-    if (!configuration.empty()) {
-        PluginCache::get().reset();
-    }
 }
 
 InferenceEngine::Blob::Ptr LayerTestsCommon::GenerateInput(const InferenceEngine::InputInfo &info) const {
@@ -83,12 +76,6 @@ void LayerTestsCommon::Compare(const InferenceEngine::Blob::Ptr &expected, const
     }
 }
 
-void LayerTestsCommon::ConfigurePlugin() {
-    if (!configuration.empty()) {
-        core->SetConfig(configuration, targetDevice);
-    }
-}
-
 void LayerTestsCommon::ConfigureNetwork() const {
     for (const auto &in : cnnNetwork.getInputsInfo()) {
         if (inLayout != InferenceEngine::Layout::ANY) {
@@ -112,7 +99,7 @@ void LayerTestsCommon::ConfigureNetwork() const {
 void LayerTestsCommon::LoadNetwork() {
     cnnNetwork = InferenceEngine::CNNNetwork{function};
     ConfigureNetwork();
-    executableNetwork = core->LoadNetwork(cnnNetwork, targetDevice);
+    executableNetwork = core->LoadNetwork(cnnNetwork, targetDevice, configuration);
 }
 
 void LayerTestsCommon::Infer() {

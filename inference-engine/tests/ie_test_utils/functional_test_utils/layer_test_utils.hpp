@@ -63,7 +63,6 @@ public:
 protected:
     LayerTestsCommon();
 
-    ~LayerTestsCommon() override;
 
     template<class T>
     void Compare(const T *expected, const T *actual, std::size_t size, T threshold) {
@@ -91,8 +90,6 @@ protected:
     std::shared_ptr<InferenceEngine::Core> getCore() {
         return core;
     }
-
-    void ConfigurePlugin();
 
     void ConfigureNetwork() const;
 

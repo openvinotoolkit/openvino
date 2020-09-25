@@ -49,7 +49,6 @@ class ImportNetworkTest : public testing::WithParamInterface<exportImportNetwork
         void Run() override {
             SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
-            ConfigurePlugin();
             LoadNetwork();
             Infer();
             executableNetwork.Export("exported_model.blob");
