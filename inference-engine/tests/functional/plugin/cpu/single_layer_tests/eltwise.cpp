@@ -134,7 +134,7 @@ std::vector<ngraph::helpers::EltwiseTypes> eltwiseOpTypes = {
         ngraph::helpers::EltwiseTypes::SUBTRACT,
         ngraph::helpers::EltwiseTypes::DIVIDE,
         ngraph::helpers::EltwiseTypes::FLOOR_MOD,
-        ngraph::helpers::EltwiseTypes::SQUARED_DIFFERENCE,
+        ngraph::helpers::EltwiseTypes::SQUARED_DIFF,
 };
 
 std::map<std::string, std::string> additional_config = {};

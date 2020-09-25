@@ -98,7 +98,7 @@ MKLDNNExecNetwork::MKLDNNExecNetwork(const InferenceEngine::ICNNNetwork &network
     MKLDNNGraph::ApplyUnrollPasses(static_cast<ICNNNetwork&>(*_clonedNetwork));
 
     auto createConstInputTo = [&](CNNLayerPtr layer, Blob::Ptr blob, std::string name) {
-        LayerParams attrs = {layer.get()->name + "_const_" + name, "Const", Precision::FP32};
+        LayerParams attrs = {layer.get()->name + "_const_" + name, "Const", blob->getTensorDesc().getPrecision()};
         auto constLayer = std::make_shared<InferenceEngine::CNNLayer>(attrs);
         constLayer->blobs["custom"] = blob;
 
@@ -107,7 +107,7 @@ MKLDNNExecNetwork::MKLDNNExecNetwork(const InferenceEngine::ICNNNetwork &network
             constDims[1] = blob.get()->size();
         else
             constDims[0] = blob.get()->size();
-        const TensorDesc& td = {Precision::FP32, constDims, TensorDesc::getLayoutByDims(constDims)};
+        const TensorDesc& td = {blob->getTensorDesc().getPrecision(), constDims, TensorDesc::getLayoutByDims(constDims)};
 
         DataPtr newEdgeAfterLayer(new Data(constLayer->name, td));
         newEdgeAfterLayer->setName(constLayer->name);

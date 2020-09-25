@@ -114,7 +114,6 @@ void MKLDNNBinaryConvolutionNode::getSupportedDescriptors() {
         paddingR[i] = (dst - calc_dst) * stride[i];
     }
 
-    withSum = isFusedWith(Eltwise);
     withDWConv = isFusedWith(Convolution);
     withBinarization = isFusedWith(Quantize);
     for (auto &node : fusedWith) {
@@ -136,11 +135,18 @@ void MKLDNNBinaryConvolutionNode::getSupportedDescriptors() {
 #endif
     }
 
-    int expectedInputEdgesNum = baseInputsNumber + isFusedWith(Eltwise);
+    withSum = false;
+    int expectedInputEdgesNum = baseInputsNumber;
     for (int i = 0; i < fusedWith.size(); i++) {
         auto *convolutionNode = dynamic_cast<MKLDNNConvolutionNode *>(fusedWith[i].get());
         if (convolutionNode) {
             expectedInputEdgesNum += convolutionNode->getBaseIntputsNumber() - 1;
+        }
+
+        auto *eltwiseNode = dynamic_cast<MKLDNNEltwiseNode *>(fusedWith[i].get());
+        if (eltwiseNode && eltwiseNode->isSum()) {
+            withSum = true;
+            expectedInputEdgesNum++;
         }
     }
 

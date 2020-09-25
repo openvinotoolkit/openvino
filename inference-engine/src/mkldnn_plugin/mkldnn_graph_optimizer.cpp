@@ -1651,8 +1651,13 @@ void MKLDNNGraphOptimizer::FuseEltwiseAndSimple(MKLDNNGraph &graph) {
     };
 
     auto isSutableChildNode = [&](MKLDNNNodePtr parentNode, MKLDNNNodePtr childNode) {
-        // Avoid cycle dependencies
         for (auto &childParentEdge : childNode->getParentEdges()) {
+            // WA to prevent unsupported reorder exception issue in some cases
+            if (childParentEdge.lock()->getParent()->getType() == Split) {
+                return false;
+            }
+
+            // Avoid cycle dependencies
             for (auto &parentParentEdge : parentNode->getParentEdges()) {
                 if (childParentEdge.lock()->getParent() == parentParentEdge.lock()->getParent())
                     return false;

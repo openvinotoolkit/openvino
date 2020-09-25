@@ -1516,6 +1516,15 @@ bool MKLDNNEltwiseNode::canBeInPlace() const {
         auto parent = parentEdge.lock()->getParent();
         if (parent->getChildEdges().size() != 1)
             return false;
+
+        // WA to prevent memory corruption caused by inplace feature
+        if (parent->getType() == Concatenation) {
+            for (auto& parentParentEdge : parent->getParentEdges()) {
+                auto parentParent = parentParentEdge.lock()->getParent();
+                if (parentParent->getChildEdges().size() != 1)
+                    return false;
+            }
+        }
     }
 
     return getParentEdgesAtPort(0)[0].get()->getDims() == getChildEdgesAtPort(0)[0].get()->getDims();

@@ -44,9 +44,9 @@ std::vector<ngraph::helpers::EltwiseTypes> eltwiseOpTypes = {
         ngraph::helpers::EltwiseTypes::SUBTRACT,
         ngraph::helpers::EltwiseTypes::DIVIDE,
         ngraph::helpers::EltwiseTypes::FLOOR_MOD,
-        ngraph::helpers::EltwiseTypes::MOD,
-        ngraph::helpers::EltwiseTypes::SQUARED_DIFFERENCE,
-        ngraph::helpers::EltwiseTypes::POWER
+        ngraph::helpers::EltwiseTypes::SQUARED_DIFF,
+        ngraph::helpers::EltwiseTypes::POWER,
+        ngraph::helpers::EltwiseTypes::MOD
 };
 
 std::map<std::string, std::string> additional_config = {};
