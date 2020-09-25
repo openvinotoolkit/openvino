@@ -135,12 +135,12 @@ bool LayerTransformation::canSubtractBeHandled(const std::shared_ptr<Node>& op, 
         dequantization.convert->input(0).get_element_type();
 
     if ((operationType != element::i8) && (operationType != element::u8)) {
-        return false;
+        return ngraph::as_type_ptr<ngraph::op::Parameter>(dequantization.subtract->get_input_node_shared_ptr(0)) ? true : false;
+    } else {
+        std::shared_ptr<Node> zeroPoint = dequantization.subtract->input_value(1).get_node_shared_ptr();
+        auto convertedZeroPoint = NetworkHelper::roundWithTolerance(zeroPoint, operationType);
+        return convertedZeroPoint->output(0).get_element_type() == operationType;
     }
-
-    std::shared_ptr<Node> zeroPoint = dequantization.subtract->input_value(1).get_node_shared_ptr();
-    auto convertedZeroPoint = NetworkHelper::roundWithTolerance(zeroPoint, operationType);
-    return convertedZeroPoint->output(0).get_element_type() == operationType;
 }
 
 #ifdef LPT_PRINT_DEQUANTIZATION_INFO

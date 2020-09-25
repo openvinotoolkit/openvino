@@ -47,7 +47,10 @@ bool ConvolutionTransformation::transform(TransformationContext &context, ngraph
         return false;
     }
 
-    if (updatePrecisions && !dequantization.empty() && !dequantization.isLowPrecision()) {
+    bool firstConvolution = dequantization.subtract ?
+        as_type_ptr<ngraph::op::v0::Parameter>(dequantization.subtract->get_input_node_shared_ptr(0)) != nullptr :
+        false;
+    if (updatePrecisions && !dequantization.empty() && !dequantization.isLowPrecision() && !firstConvolution) {
         return false;
     }
 
@@ -57,10 +60,24 @@ bool ConvolutionTransformation::transform(TransformationContext &context, ngraph
     {
         std::shared_ptr<opset1::Subtract> subtract;
         if (dequantization.subtract != nullptr) {
-            std::shared_ptr<ngraph::Node> layer = dequantization.subtract;
-            ngraph::pass::low_precision::NetworkHelper::cleanRunTimeInfo(layer);
+            ngraph::pass::low_precision::NetworkHelper::cleanRunTimeInfo(dequantization.subtract);
 
-            auto optimizedSubtract = NetworkHelper::optimizeSubtract(dequantization.subtract);
+            std::shared_ptr<ngraph::Node> optimizedSubtract;
+            if (firstConvolution) {
+                auto shift = dequantization.subtract->input_value(1).get_node_shared_ptr();
+                auto roundedShift = NetworkHelper::roundWithTolerance(shift, element::u8, 0.5f);
+                optimizedSubtract = std::make_shared<op::TypeRelaxed<opset1::Subtract>>(
+                    std::vector<element::Type>{ element::f32, element::f32 },
+                    std::vector<element::Type>{ element::f32 },
+                    ngraph::op::TemporaryReplaceOutputType(dequantization.data, element::f32).get(),
+                    ngraph::op::TemporaryReplaceOutputType(roundedShift, element::f32).get());
+
+                NetworkHelper::setOutDataPrecisionForTypeRelaxed(optimizedSubtract, ngraph::element::f32);
+                replace_node(dequantization.subtract, optimizedSubtract);
+            } else {
+                optimizedSubtract = NetworkHelper::optimizeSubtract(dequantization.subtract);
+            }
+
             if (optimizedSubtract == nullptr) {
                 optimizedSubtract = dequantization.subtract;
             }
