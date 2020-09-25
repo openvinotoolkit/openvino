@@ -15,10 +15,10 @@ namespace Serialization {
  * @brief Serializes a network into IE IR v10 XML file and binary weights file
  * @param xmlPath   Path to XML file
  * @param binPath   Path to BIN file
- * @param network   network to be serialized
+ * @param function  Ngraph function to be serialized
  */
-void SerializeV10(const std::string& xmlPath, const std::string& binPath,
-                  const InferenceEngine::ICNNNetwork& network);
+void SerializeV10(const std::string &xmlPath, const std::string &binPath,
+                  const ngraph::Function &function);
 
 }  // namespace Serialization
 }  // namespace InferenceEngine
