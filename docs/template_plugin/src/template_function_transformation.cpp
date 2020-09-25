@@ -10,7 +10,7 @@ using namespace ngraph;
 // template_function_transformation.cpp
 bool pass::MyFunctionTransformation::run_on_function(std::shared_ptr<ngraph::Function> f) {
     // Example transformation code
-    std::vector<std::shared_ptr<Node> > nodes;
+    NodeVector nodes;
 
     // Traverse nGraph Function in topological order
     for (auto & node : f->get_ordered_ops()) {

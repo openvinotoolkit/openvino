@@ -42,7 +42,7 @@ The primary tools for deploying your models and applications are installed to th
 | &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;`samples\`      | Inference Engine samples. Contains source code for C++ and Python* samples and build scripts. See the [Inference Engine Samples Overview](../IE_DG/Samples_Overview.md). |
 | &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;`share\`        | CMake configuration files for linking with Inference Engine.|
 | &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;`src\`          | Source files for CPU extensions.|
-| `~intel_models\` | Symbolic link to the `intel_models` subfolder of the `open_model-zoo` folder |
+| `~intel_models\` | Symbolic link to the `intel_models` subfolder of the `open_model_zoo` folder. |
 | `model_optimizer\`                      | Model Optimizer directory. Contains configuration scripts, scripts to run the Model Optimizer and other files. See the [Model Optimizer Developer Guide](../MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md). |
 | `ngraph\`                               | nGraph directory. Includes the nGraph header and library files. |   
 | `open_model_zoo\`                       | Open Model Zoo directory. Includes the Model Downloader tool to download [pre-trained OpenVINO](@ref omz_models_intel_index) and public models, OpenVINO models documentation, demo applications and the Accuracy Checker tool to evaluate model accuracy.|
@@ -78,8 +78,7 @@ The demo scripts can run inference on any [supported target device](https://soft
 
 Before running the demo applications on Intel® Processor Graphics, you must complete the  [Steps for Intel® Processor Graphics (GPU)](../install_guides/installing-openvino-windows.md#Install-GPU).
 
-Before running the demo applications on Intel® Vision Accelerator Design with Intel® Movidius™ VPUs, you must complete the [Steps for [Steps for Intel® Vision Accelerator Design with Intel® Movidius™ VPUs](../install_guides/installing-openvino-windows.md#hddl-myriad).
-
+Before running the demo applications on Intel® Vision Accelerator Design with Intel® Movidius™ VPUs, you must complete the [Steps for Intel® Vision Accelerator Design with Intel® Movidius™ VPUs](../install_guides/installing-openvino-windows.md#hddl-myriad).
 The following paragraphs describe each demo script.
 
 ### Image Classification Demo Script
@@ -184,8 +183,8 @@ You will perform the following steps:
 1. <a href="#download-models">Use the Model Downloader to download suitable models.</a>
 2. <a href="#convert-models-to-intermediate-representation">Convert the models with the Model Optimizer.</a> 
 3. <a href="#download-media">Download media files to run inference on.</a>
-4. <a href="#run-image-classification">Run inference on the Image Classification Code Sample and see the results</a>.
-5. <a href="#run-security-barrier">Run inference on the Security Barrier Camera Demo application and see the results</a>.
+4. <a href="#run-image-classification">Run inference on the Image Classification Code Sample and see the results.</a>
+5. <a href="#run-security-barrier">Run inference on the Security Barrier Camera Demo application and see the results.</a>
 
 Each demo and code sample is a separate application, but they use the same behavior and components.
  
