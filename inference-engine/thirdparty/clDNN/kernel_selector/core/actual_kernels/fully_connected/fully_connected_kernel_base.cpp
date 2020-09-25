@@ -65,6 +65,9 @@ KernelsData FullyConnectedKernelBase::GetCommonKernelsData(const Params &params,
     const auto& orgParams = static_cast<const fully_connected_params&>(params);
     const auto& orgOptParams = static_cast<const fully_connected_optional_params&>(options);
 
+    if (orgParams.inputs[0].GetLayout() == DataLayout::bfzyx && orgParams.inputs[0].GetLayout() != dl)
+        return KernelsData();
+
     bool bProperInput = orgParams.inputs[0].GetLayout() == dl;
     if (!bProperInput && !orgParams.inputs[0].PitchesDifferFromLogicalDims()) {
         bProperInput = (dl == DataLayout::fb && orgParams.inputs[0].GetLayout() == DataLayout::fyxb) ||

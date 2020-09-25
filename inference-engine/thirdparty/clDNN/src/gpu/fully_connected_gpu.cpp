@@ -99,6 +99,11 @@ attach_fully_connected_gpu::attach_fully_connected_gpu() {
         {std::make_tuple(engine_types::ocl, data_types::f16, format::byxf), val_fw},
         {std::make_tuple(engine_types::ocl, data_types::i8, format::bfyx), val_fw},
         {std::make_tuple(engine_types::ocl, data_types::u8, format::bfyx), val_fw},
+        // 5D
+        {std::make_tuple(engine_types::ocl, data_types::f32, format::bfzyx), val_fw},
+        {std::make_tuple(engine_types::ocl, data_types::f16, format::bfzyx), val_fw},
+        {std::make_tuple(engine_types::ocl, data_types::i8, format::bfzyx), val_fw},
+        {std::make_tuple(engine_types::ocl, data_types::u8, format::bfzyx), val_fw},
         // MMAD
         {std::make_tuple(engine_types::ocl, data_types::i8, format::b_fs_yx_fsv32), val_fw},
         {std::make_tuple(engine_types::ocl, data_types::u8, format::b_fs_yx_fsv32), val_fw},

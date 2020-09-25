@@ -34,17 +34,19 @@ KERNEL(fc)(
 
     for (uint ifm = 0; ifm < INPUT0_FEATURE_NUM; ++ifm)
     {
-       for (uint y = 0; y < INPUT0_SIZE_Y; ++y)
+       for (uint z = 0; z < INPUT0_SIZE_Z; ++z)
        {
-           for(uint x = 0; x < INPUT0_SIZE_X; ++x )
+           for (uint y = 0; y < INPUT0_SIZE_Y; ++y)
            {
-               const uint input0_idx = GET_DATA_INDEX(INPUT0, b, ifm, y, x);
-               const uint filter_idx = GET_FILTER_INDEX(FILTER, 0, ofm, ifm, y, x);
-               dotProd += (ACCUMULATOR_TYPE)(input[input0_idx] * weights[filter_idx]);
-          }
+               for(uint x = 0; x < INPUT0_SIZE_X; ++x )
+               {
+                   const uint input0_idx = GET_DATA_INDEX_5D(INPUT0, b, ifm, z, y, x);
+                   const uint filter_idx = GET_FILTER_INDEX_5D(FILTER, 0, ofm, ifm, z, y, x);
+                   dotProd += (ACCUMULATOR_TYPE)(input[input0_idx] * weights[filter_idx]);
+              }
+           }
        }
     }
-
     const uint dst_index = GET_DATA_INDEX(OUTPUT, b, ofm, 0, 0);
 
 #if BIAS_TERM

@@ -1150,6 +1150,63 @@ INSTANTIATE_TEST_CASE_P(smoke_bfyx_batched,
                             ::testing::Values(format::bfyx),
                             ::testing::Values("")), );
 
+
+using fully_connected_test_params_5d = std::tuple<
+    size_t,        // batch_num
+    size_t,        // input_f
+    size_t,        // input_x
+    size_t,        // input_y
+    size_t,        // input_z
+    size_t,        // output_f
+    format::type,  // input format
+    format::type,  // output format
+    std::string    // kernel
+>;
+
+template <typename InputT, typename WeightsT, typename BiasT, typename OutputT>
+struct fully_connected_random_test_5d : ::testing::TestWithParam<fully_connected_test_params_5d> {
+    void run_test() {
+        size_t batch, input_f, input_x, input_y, input_z, output_f;
+        format::type input_format, output_format;
+        std::string kernel;
+
+        std::tie(batch, input_f, input_x, input_y, input_z, output_f, input_format, output_format, kernel) = GetParam();
+
+        auto input_data = generate_smart_random_5d<InputT>(batch, input_f, input_z, input_y, input_x);
+        auto weights_data = generate_smart_random_5d<WeightsT>(output_f, input_f, input_z, input_y, input_x);
+        auto bias_data = generate_smart_random_2d<BiasT>(1, output_f);
+
+        auto eng = get_test_engine();
+        auto net = network_test(eng);
+        auto input = net.add_input_layout<InputT, 5>("input", input_format, std::move(input_data));
+        auto weights = net.add_data<WeightsT, 5>("weights", format::oizyx, std::move(weights_data));
+        auto bias = net.add_data<BiasT, 2>("bias", format::bfyx, std::move(bias_data));
+        auto fc = net.add_fully_connected<OutputT>("fc", input, weights, bias, implementation_desc{ output_format, kernel });
+
+        net.run(build_options(build_option::optimize_data(true)));
+    }
+};
+
+using fully_connected_random_test_f32_5d = fully_connected_random_test_5d<float, float, float, float>;
+using fully_connected_random_test_f16_5d = fully_connected_random_test_5d<FLOAT16, FLOAT16, FLOAT16, FLOAT16>;
+
+TEST_P(fully_connected_random_test_f32_5d, basic) {
+    run_test();
+}
+
+INSTANTIATE_TEST_CASE_P(smoke,
+                        fully_connected_random_test_f32_5d,
+                        ::testing::Combine(
+                            ::testing::Values(1, 2, 16),
+                            ::testing::Values(1, 3, 32),
+                            ::testing::Values(1, 3),
+                            ::testing::Values(1, 3),
+                            ::testing::Values(1, 3),
+                            ::testing::Values(1, 3, 32),
+                            ::testing::Values(format::bfzyx),
+                            ::testing::Values(format::any),
+                            ::testing::Values("")), );
+
 struct quantization_t {
     VF<float> input_low;
     VF<float> input_high;

@@ -88,6 +88,10 @@ InferenceEngine::ICNNNetwork::Ptr clDNNEngine::CloneAndTransformNetwork(const In
                 return stdOp->input_value(0).get_shape().size() <= 5lu && stdOp->input_value(0).get_shape().size() == stdOp->get_output_shape(0).size();
             }
 
+            if (auto fc_op = std::dynamic_pointer_cast<const ::ngraph::op::MatMul>(node)) {
+                return fc_op->input_value(0).get_shape().size() == 3ul;
+            }
+
             // Reduce node implementation with reduce along features performs better with Reshape->Pooling->Reshape pattern
             // Reshape->Pooling->Reshape scenario is also more optimal in case when batch > 1 and network precission is FP16
             if (auto redOp = std::dynamic_pointer_cast<const ::ngraph::opset1::ReduceMean>(node)) {

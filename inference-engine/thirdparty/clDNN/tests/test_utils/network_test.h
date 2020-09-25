@@ -186,6 +186,58 @@ struct reference_tensor_typed<T, 4> : reference_tensor {
     vector_type reference;
 };
 
+template <typename T>
+struct reference_tensor_typed<T, 5> : reference_tensor {
+    using vector_type = VVVVVF<T>;
+    reference_tensor_typed(vector_type data) : reference(std::move(data)) {}
+
+    void compare(cldnn::memory actual) override {
+        auto ptr = actual.pointer<T>();
+        for (size_t bi = 0; bi < reference.size(); ++bi) {
+            for (size_t fi = 0; fi < reference[0].size(); ++fi) {
+                for (size_t zi = 0; zi < reference[0][0].size(); ++zi) {
+                    for (size_t yi = 0; yi < reference[0][0][0].size(); ++yi) {
+                        for (size_t xi = 0; xi < reference[0][0][0][0].size(); ++xi) {
+                            auto coords =
+                                cldnn::tensor(cldnn::batch(bi), cldnn::feature(fi), cldnn::spatial(xi, yi, zi, 0));
+                            size_t offset = actual.get_layout().get_linear_offset(coords);
+                            auto& ref = reference[bi][fi][zi][yi][xi];
+                            auto& val = ptr[offset];
+                            TYPED_EXPECT_EQ(ref, val) << "at bi=" << bi << " fi=" << fi << " zi=" << zi << " yi=" << yi << " xi=" << xi;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    void fill_memory(cldnn::memory mem) {
+        auto ptr = mem.pointer<T>();
+        for (size_t bi = 0; bi < reference.size(); ++bi) {
+            for (size_t fi = 0; fi < reference[0].size(); ++fi) {
+                for (size_t zi = 0; zi < reference[0][0].size(); ++zi) {
+                    for (size_t yi = 0; yi < reference[0][0][0].size(); ++yi) {
+                        for (size_t xi = 0; xi < reference[0][0][0][0].size(); ++xi) {
+                            auto coords =
+                                cldnn::tensor(cldnn::batch(bi), cldnn::feature(fi), cldnn::spatial(xi, yi, zi, 0));
+                            size_t offset = mem.get_layout().get_linear_offset(coords);
+                            ptr[offset] = reference[bi][fi][zi][yi][xi];
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    cldnn::tensor get_shape() {
+        return cldnn::tensor(cldnn::batch(reference.size()),
+                             cldnn::feature(reference[0].size()),
+                             cldnn::spatial(reference[0][0][0][0].size(), reference[0][0][0].size(), reference[0][0].size()));
+    }
+
+    vector_type reference;
+};
+
 // =====================================================================================================================
 // Reference calculations
 template <typename InputT>
@@ -222,6 +274,38 @@ VVF<OutputT> fully_connected_reference_typed(VVVVF<InputT>& input, VVVVF<Weights
                 for (size_t yi = 0; yi < input_y; ++yi) {
                     for (size_t xi = 0; xi < input_x; ++xi) {
                         acc += static_cast<AccT>(input[bi][ifi][yi][xi]) * static_cast<AccT>(weights[ofi][ifi][yi][xi]);
+                    }
+                }
+            }
+            output[bi][ofi] = static_cast<OutputT>(acc) + static_cast<OutputT>(bias[ofi]);
+        }
+    }
+    return output;
+}
+
+template <typename OutputT,
+          typename InputT,
+          typename WeightsT,
+          typename BiasT,
+          typename AccT = typename fully_connected_accumulator<InputT>::type>
+VVF<OutputT> fully_connected_reference_typed(VVVVVF<InputT>& input, VVVVVF<WeightsT>& weights, VF<BiasT>& bias) {
+    size_t input_f = input[0].size();
+    size_t input_z = input[0][0].size();
+    size_t input_y = input[0][0][0].size();
+    size_t input_x = input[0][0][0][0].size();
+    size_t output_b = input.size();
+    size_t output_f = weights.size();
+    auto output = VVF<OutputT>(output_b, VF<OutputT>(output_f));
+    for (size_t bi = 0; bi < output_b; ++bi) {
+        for (size_t ofi = 0; ofi < output_f; ++ofi) {
+            AccT acc = static_cast<AccT>(0);
+            for (size_t ifi = 0; ifi < input_f; ++ifi) {
+                for (size_t zi = 0; zi < input_z; ++zi) {
+                    for (size_t yi = 0; yi < input_y; ++yi) {
+                        for (size_t xi = 0; xi < input_x; ++xi) {
+                            acc += static_cast<AccT>(input[bi][ifi][zi][yi][xi]) *
+                                   static_cast<AccT>(weights[ofi][ifi][zi][yi][xi]);
+                        }
                     }
                 }
             }
@@ -392,6 +476,11 @@ VVF<T> generate_smart_random_2d(size_t a, size_t b) {
 template <typename T>
 VVVVF<T> generate_smart_random_4d(size_t a, size_t b, size_t c, size_t d) {
     return generate_random_4d<T>(a, b, c, d, type_test_ranges<T>::min, type_test_ranges<T>::max, type_test_ranges<T>::k);
+}
+
+template <typename T>
+VVVVVF<T> generate_smart_random_5d(size_t a, size_t b, size_t c, size_t d, size_t e) {
+    return generate_random_5d<T>(a, b, c, d, e, type_test_ranges<T>::min, type_test_ranges<T>::max, type_test_ranges<T>::k);
 }
 
 }  // namespace tests

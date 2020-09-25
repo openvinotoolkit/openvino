@@ -54,6 +54,9 @@ bool is_batch_after_spatial(const std::string order) {
 format::type get_preferred_format(const fully_connected_node& node) {
     auto input_layout = node.input().get_output_layout();
 
+    if (input_layout.format == format::bfzyx)
+        return format::bfzyx;
+
     if (data_type_traits::is_floating_point(input_layout.data_type) &&
         (is_batch_after_spatial(input_layout.format.order()) ||
          input_layout.format == format::bs_x_bsv16 ||
