@@ -75,7 +75,7 @@ def get_split_scale(split: Node) -> int:
 def replace_interpolate_pattern(graph: Graph, match: dict):
     split = match['split']
     scale = int64_array([get_split_scale(split)])
-    axis = int(split.in_port(1).get_connection().get_source().node.value)
+    axis = int(split.in_port(1).data.get_value())
     split_node_name = split.name
     axis_node = Const(graph, {'name': split_node_name + '/axis_', 'value': int64_array([axis])}).create_node()
 
