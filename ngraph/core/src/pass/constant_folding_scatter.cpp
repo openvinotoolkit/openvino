@@ -108,6 +108,8 @@ static shared_ptr<op::Constant>
                      axis_type);
         break;
     }
+
+    return shared_ptr<op::Constant>();
 }
 
 template <typename T>
@@ -159,6 +161,8 @@ static shared_ptr<op::Constant> dispatch_const_fold_data(const shared_ptr<op::Co
                      indices_type);
         break;
     }
+
+    return shared_ptr<op::Constant>();
 }
 
 void pass::ConstantFolding::construct_constant_scatter_elements_update()
