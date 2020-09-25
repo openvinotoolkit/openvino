@@ -103,6 +103,10 @@ namespace ngraph
             void update_external_data_paths(ONNX_NAMESPACE::ModelProto& model_proto,
                                             const std::string& model_path)
             {
+                if (model_path.empty())
+                {
+                    return;
+                }
                 const auto model_dir_path = file_util::get_directory(model_path);
                 auto graph_proto = model_proto.mutable_graph();
                 for (auto& initializer_tensor : *graph_proto->mutable_initializer())

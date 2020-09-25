@@ -82,7 +82,7 @@ namespace ngraph
             {
                 std::stringstream s;
                 s << "ExternalDataInfo(";
-                s << "location: " << m_data_location;
+                s << "data_full_path: " << m_data_location;
                 s << ", offset: " << m_offset;
                 s << ", data_lenght: " << m_data_lenght;
                 s << ", sha1_digest: " << m_sha1_digest << ")";
