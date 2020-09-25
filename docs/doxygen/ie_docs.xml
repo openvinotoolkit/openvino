@@ -798,7 +798,7 @@
             <!-- OpenCV -->
             <tab type="user" title="OpenCV Developer Guide" url="https://docs.opencv.org/master/"/>
             <!-- IE C -->
-            <tab type="user" title="Inference Engine C API Reference" url="ie_c_api/groups.html"/>
+            <tab type="user" title="Inference Engine C API Reference" url="ie_c_api/modules.html"/>
             <!-- IE C++-->
             <tab type="classes" visible="yes" title="Inference Engine С++ API Reference">
                 <tab type="classlist" visible="yes" title=""/>

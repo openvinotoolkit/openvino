@@ -2,16 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-if(ENABLE_DOCKER)
-    cmake_minimum_required(VERSION 3.3 FATAL_ERROR)
-else()
-    if (APPLE)
-        # due to https://cmake.org/cmake/help/v3.12/policy/CMP0068.html
-        cmake_minimum_required(VERSION 3.9 FATAL_ERROR)
-    else()
-        cmake_minimum_required(VERSION 3.7.2 FATAL_ERROR)
-    endif()
-endif()
+cmake_minimum_required(VERSION 3.13 FATAL_ERROR)
 
 if (CMAKE_BUILD_TYPE STREQUAL "")
     message(STATUS "CMAKE_BUILD_TYPE not defined, 'Release' will be used")
