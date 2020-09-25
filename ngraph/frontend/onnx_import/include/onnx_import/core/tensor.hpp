@@ -169,6 +169,20 @@ namespace ngraph
 
                             return detail::__get_raw_data<T>(raw_data, tensor.data_type());
                         }
+
+                        bool has_tensor_external_data(const ONNX_NAMESPACE::TensorProto& tensor)
+                        {
+                            if (tensor.has_data_location() &&
+                                tensor.data_location() == ONNX_NAMESPACE::TensorProto_DataLocation::
+                                                              TensorProto_DataLocation_EXTERNAL)
+                            {
+                                return true;
+                            }
+                            else
+                            {
+                                return false;
+                            }
+                        }
                     }
                 }
 
@@ -182,9 +196,7 @@ namespace ngraph
                 template <>
                 inline std::vector<double> get_data(const ONNX_NAMESPACE::TensorProto& tensor)
                 {
-                    if (tensor.has_data_location() &&
-                        tensor.data_location() == ONNX_NAMESPACE::TensorProto_DataLocation::
-                                                      TensorProto_DataLocation_EXTERNAL)
+                    if (detail::has_tensor_external_data(tensor))
                     {
                         return detail::get_external_data<double>(tensor);
                     }
@@ -219,9 +231,7 @@ namespace ngraph
                 template <>
                 inline std::vector<float> get_data(const ONNX_NAMESPACE::TensorProto& tensor)
                 {
-                    if (tensor.has_data_location() &&
-                        tensor.data_location() == ONNX_NAMESPACE::TensorProto_DataLocation::
-                                                      TensorProto_DataLocation_EXTERNAL)
+                    if (detail::has_tensor_external_data(tensor))
                     {
                         return detail::get_external_data<float>(tensor);
                     }
@@ -252,9 +262,7 @@ namespace ngraph
                 inline std::vector<ngraph::float16>
                     get_data(const ONNX_NAMESPACE::TensorProto& tensor)
                 {
-                    if (tensor.has_data_location() &&
-                        tensor.data_location() == ONNX_NAMESPACE::TensorProto_DataLocation::
-                                                      TensorProto_DataLocation_EXTERNAL)
+                    if (detail::has_tensor_external_data(tensor))
                     {
                         return detail::get_external_data<float16>(tensor);
                     }
@@ -273,9 +281,7 @@ namespace ngraph
                 template <>
                 inline std::vector<int8_t> get_data(const ONNX_NAMESPACE::TensorProto& tensor)
                 {
-                    if (tensor.has_data_location() &&
-                        tensor.data_location() == ONNX_NAMESPACE::TensorProto_DataLocation::
-                                                      TensorProto_DataLocation_EXTERNAL)
+                    if (detail::has_tensor_external_data(tensor))
                     {
                         return detail::get_external_data<int8_t>(tensor);
                     }
@@ -294,9 +300,7 @@ namespace ngraph
                 template <>
                 inline std::vector<int16_t> get_data(const ONNX_NAMESPACE::TensorProto& tensor)
                 {
-                    if (tensor.has_data_location() &&
-                        tensor.data_location() == ONNX_NAMESPACE::TensorProto_DataLocation::
-                                                      TensorProto_DataLocation_EXTERNAL)
+                    if (detail::has_tensor_external_data(tensor))
                     {
                         return detail::get_external_data<int16_t>(tensor);
                     }
@@ -315,9 +319,7 @@ namespace ngraph
                 template <>
                 inline std::vector<int32_t> get_data(const ONNX_NAMESPACE::TensorProto& tensor)
                 {
-                    if (tensor.has_data_location() &&
-                        tensor.data_location() == ONNX_NAMESPACE::TensorProto_DataLocation::
-                                                      TensorProto_DataLocation_EXTERNAL)
+                    if (detail::has_tensor_external_data(tensor))
                     {
                         return detail::get_external_data<int32_t>(tensor);
                     }
@@ -336,9 +338,7 @@ namespace ngraph
                 template <>
                 inline std::vector<int64_t> get_data(const ONNX_NAMESPACE::TensorProto& tensor)
                 {
-                    if (tensor.has_data_location() &&
-                        tensor.data_location() == ONNX_NAMESPACE::TensorProto_DataLocation::
-                                                      TensorProto_DataLocation_EXTERNAL)
+                    if (detail::has_tensor_external_data(tensor))
                     {
                         return detail::get_external_data<int64_t>(tensor);
                     }
@@ -357,9 +357,7 @@ namespace ngraph
                 template <>
                 inline std::vector<uint8_t> get_data(const ONNX_NAMESPACE::TensorProto& tensor)
                 {
-                    if (tensor.has_data_location() &&
-                        tensor.data_location() == ONNX_NAMESPACE::TensorProto_DataLocation::
-                                                      TensorProto_DataLocation_EXTERNAL)
+                    if (detail::has_tensor_external_data(tensor))
                     {
                         return detail::get_external_data<uint8_t>(tensor);
                     }
@@ -378,9 +376,7 @@ namespace ngraph
                 template <>
                 inline std::vector<uint16_t> get_data(const ONNX_NAMESPACE::TensorProto& tensor)
                 {
-                    if (tensor.has_data_location() &&
-                        tensor.data_location() == ONNX_NAMESPACE::TensorProto_DataLocation::
-                                                      TensorProto_DataLocation_EXTERNAL)
+                    if (detail::has_tensor_external_data(tensor))
                     {
                         return detail::get_external_data<uint16_t>(tensor);
                     }
@@ -399,9 +395,7 @@ namespace ngraph
                 template <>
                 inline std::vector<uint32_t> get_data(const ONNX_NAMESPACE::TensorProto& tensor)
                 {
-                    if (tensor.has_data_location() &&
-                        tensor.data_location() == ONNX_NAMESPACE::TensorProto_DataLocation::
-                                                      TensorProto_DataLocation_EXTERNAL)
+                    if (detail::has_tensor_external_data(tensor))
                     {
                         return detail::get_external_data<uint32_t>(tensor);
                     }
@@ -420,9 +414,7 @@ namespace ngraph
                 template <>
                 inline std::vector<uint64_t> get_data(const ONNX_NAMESPACE::TensorProto& tensor)
                 {
-                    if (tensor.has_data_location() &&
-                        tensor.data_location() == ONNX_NAMESPACE::TensorProto_DataLocation::
-                                                      TensorProto_DataLocation_EXTERNAL)
+                    if (detail::has_tensor_external_data(tensor))
                     {
                         return detail::get_external_data<uint64_t>(tensor);
                     }
@@ -443,9 +435,7 @@ namespace ngraph
                 {
                     // Boolean values are stored as char because std::vector<bool>
                     // can behave differently from other vector containers.
-                    if (tensor.has_data_location() &&
-                        tensor.data_location() == ONNX_NAMESPACE::TensorProto_DataLocation::
-                                                      TensorProto_DataLocation_EXTERNAL)
+                    if (detail::has_tensor_external_data(tensor))
                     {
                         return detail::get_external_data<char>(tensor);
                     }
