@@ -78,10 +78,10 @@ class InterpolateTranspose(FrontReplacementSubgraph):
         opset = interpolate.get_opset()
         assert opset in ['opset1', 'opset4'], \
             'Interpolate node with name {} has unsupported opset'.format(interpolate.soft_get('name', interpolate.id))
-        if opset in ['opset1', 'extension']:
+        if opset == 'opset1':
             interpolate.axes = int64_array([2, 3])
         else:
-            interpolate.in_port(2).data.set_value(int64_array([2, 3]))
+            interpolate.in_port(3).data.set_value(int64_array([2, 3]))
 
         transpose_1.in_port(0).get_connection().set_destination(interpolate.in_port(0))
         transpose_2.out_port(0).get_connection().set_source(interpolate.out_port(0))
