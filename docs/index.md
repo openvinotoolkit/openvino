@@ -35,7 +35,7 @@ OpenVINO™ toolkit includes the following components:
 - [Deep Learning Workbench](@ref workbench_docs_Workbench_DG_Introduction) -  A web-based graphical environment that allows you to easily use various sophisticated OpenVINO™ toolkit components
 - Deep Learning Streamer (DL Streamer) – Streaming analytics framework, based on GStreamer, for constructing graphs of media analytics components. DL Streamer can be installed by the Intel® Distribution of OpenVINO™ toolkit installer. Its open source version is available on [GitHub](https://github.com/opencv/gst-video-analytics). For the DL Streamer documentation, see:
     - [DL Streamer Samples](IE_DG/Tools_Overview.md)
-    - [API Reference](https://opencv.github.io/gst-video-analytics/)
+    - [API Reference](https://openvinotoolkit.github.io/dlstreamer_gst/)
     - [Elements](https://github.com/opencv/gst-video-analytics/wiki/Elements)
     - [Tutorial](https://github.com/opencv/gst-video-analytics/wiki/DL%20Streamer%20Tutorial)
 - [OpenCV](https://docs.opencv.org/master/) - OpenCV* community version compiled for Intel® hardware

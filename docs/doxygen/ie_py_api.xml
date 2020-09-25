@@ -14,7 +14,7 @@
       <!-- OpenCV -->
       <tab type="user" title="OpenCV Developer Guide" url="https://docs.opencv.org/master/"/>
       <!-- IE C -->
-      <tab type="usergroup" title="Inference Engine C API Reference" url="../ie_c_api/groups.html"/>
+      <tab type="usergroup" title="Inference Engine C API Reference" url="../ie_c_api/modules.html"/>
       <!-- IE C++-->
       <tab type="user" title="Inference Engine С++ API Reference" url="../annotated.html"/>
       <!-- IE Python -->
@@ -27,6 +27,8 @@
         <tab type="filelist" visible="no"/>
         <tab type="globals" visible="no"/>
       </tab>
+      <!-- DL Streamer -->
+      <tab type="user" title="DL Streamer API Reference" url="https://openvinotoolkit.github.io/dlstreamer_gst/"/>
     </tab>
     <!-- Chinese docs -->
     <tab type="user" title="中文文件" url="https://docs.openvinotoolkit.org/cn/index.html"/>

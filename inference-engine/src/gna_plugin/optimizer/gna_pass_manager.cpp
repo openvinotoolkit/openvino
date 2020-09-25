@@ -23,6 +23,7 @@
 #include <legacy/ie_util_internal.hpp>
 #include <legacy/graph_tools.hpp>
 #include <legacy/net_pass.h>
+#include <layers/gna_copy_layer.hpp>
 
 #include "gna_plugin_log.hpp"
 #include "frontend/quantized_layer_params.hpp"
@@ -47,6 +48,7 @@ std::shared_ptr<IPassManager> BasePass::getPassManager() {
 }
 
 // indexes stored in pass manager
+static const char identityLayersCounterName[] = "identityLayerCounter";
 static const char diagonalLayersCounterName[] = "diagonalLayerCounter";
 static const char copyLayersCounter[] = "numCopyLayers";
 static const char softSignLayersCounter[] = "numSoftSignLayers";
@@ -94,12 +96,13 @@ static void insertDiagonalLayerBetween(InferenceEngine::CNNLayerPtr prevLayer,
  * @brief copy layer inserted by several passes
  * @returns pointer to newly created COPYLayer
  */
-static CNNLayerPtr InsertCopyLayer(CNNLayerPtr prevLayer, CNNLayerPtr nextLayer, int beforeIdx, std::shared_ptr<IPassManager> passmanager) {
+static CNNLayerPtr InsertCopyLayer(CNNLayerPtr prevLayer, CNNLayerPtr nextLayer, int beforeIdx,
+                                   std::shared_ptr<IPassManager> passmanager,  std::string copyLayerType) {
     auto quantized = InferenceEngine::getInjectedData<QuantizedLayerParams>(prevLayer);
-    std::string copyName = std::string("copy_") + std::to_string(passmanager->getIntVar(copyLayersCounter)++);
+    std::string copyName = copyLayerType + std::string("_") + std::to_string(passmanager->getIntVar(copyLayersCounter)++);
     gnalog() << "Inserted " << copyName << " between: " << prevLayer->name << " and " << nextLayer->name << std::endl;
 
-    CNNLayerPtr copyLayer = std::make_shared<GenericLayer>(LayerParams({copyName, "Copy", Precision::FP32}));
+    CNNLayerPtr copyLayer = std::make_shared<GenericLayer>(LayerParams({copyName, copyLayerType, Precision::FP32}));
 
     auto inputData = nextLayer->insData[beforeIdx].lock();
     auto dataPtr = std::make_shared<Data>(copyName, inputData->getTensorDesc());
@@ -624,12 +627,12 @@ void RemovePermutationsNHWCToNCHWPass::run() {
 }
 
 void InsertIdentityLayerPass::run() {
-    int numOfIdentityLayers = 0;
     auto quantized = InferenceEngine::getInjectedData<QuantizedLayerParams>(pLayers->front());
     for (auto & l : *pLayers) {
         for (auto && prev : getCandidatesForIdentityInsertion(l)) {
+            int numOfIdentityLayers = this->getPassManager()->getIntVar(identityLayersCounterName)++;
             // actual insertion
-            auto activationName = std::string("identity_") + std::to_string(++numOfIdentityLayers);
+            auto activationName = std::string("identity_") + std::to_string(numOfIdentityLayers);
 
             gnalog() << "Inserted "<< activationName << " between: " << prev->name << " and " << l->name << "\n" << std::flush;
 
@@ -692,27 +695,34 @@ void InsertCopyLayerPass::run() {
         for (int i=0; i != prevLayers.size(); i++) {
             auto & prevIndirectLayer = prevLayers[i].first;
             bool bInsert = false;
+            /// Delayed copy layers need to be moved to the very end of processing
+            bool bInsertDelayed = false;
+
+            auto isInserted = [&bInsertDelayed, &bInsert]() {
+                return bInsert || bInsertDelayed;
+            };
+
             if (LayerInfo(l).isMemory()) {
-                if (LayerInfo(prevIndirectLayer).isConcat()) { bInsert = true;}
+                if (LayerInfo(prevIndirectLayer).isConcat() || LayerInfo(prevIndirectLayer).isCrop()) { bInsertDelayed = true;}
                 // memory usualy preceded by either activation or split, or other layers in order to have 2b precision
                 for (auto && inputto : getInputTo(prevLayers[i].first->outData[prevLayers[i].second])) {
                     // if preceding layer is common for memory and concat
                     if (LayerInfo(inputto.second).isConcat()) {
-                        bInsert = true;
+                        bInsertDelayed = true;
                         break;
                     }
                 }
             }
-            if (LayerInfo(l).isConcat() && LayerInfo(prevIndirectLayer).isCrop()) { bInsert = true; }
+            if (!isInserted() && LayerInfo(l).isConcat() && LayerInfo(prevIndirectLayer).isCrop()) { bInsert = true; }
 
-            if (bInsert) {
+            if (isInserted()) {
                 if (LayerInfo(prevIndirectLayer).isCropAffined()) {
                     // The crop will be replaced by affine.
                     // Copy layer insertion is not required
                     continue;
                 }
                 auto prevLayer = CNNNetPrevLayer(l, i);
-                InsertCopyLayer(prevLayer, l, i, getPassManager());
+                InsertCopyLayer(prevLayer, l, i, getPassManager(), bInsertDelayed ? DelayedCopyLayerName : CopyLayerName);
             }
         }
     }
@@ -1253,6 +1263,48 @@ void BroadcastConstPass::run() {
     }
 }
 
+void InsertIdentityToLSTMCellPass::run() {
+    for (auto layer : *pLayers) {
+        if (layer->type == "LSTMCell") {
+            // This fixed the cases when both functional and non-functional outputs are mixed (or not outputs are used)
+            // which results in scratch buffer being used so outputs cannot be used in form of blob or by non-functional layers
+            // downside is scaling down from i32 to i16 which may
+            for (int output_idx = 0; output_idx < layer->outData.size(); output_idx++) {
+                int numOfIdentityLayers = ((this->getPassManager())->getIntVar(identityLayersCounterName))++;
+                auto activationName = std::string("lstm_identity_") + std::to_string(numOfIdentityLayers);
+                auto& output = layer->outData[output_idx];
+                auto& input_to = getInputTo(output);
+
+                CNNLayerPtr activationLayer =
+                    std::make_shared<GenericLayer>(LayerParams({activationName, "identity", InferenceEngine::Precision::FP32}));
+
+                auto dataPtr = std::make_shared<Data>("lstm_identity_data_" + std::to_string(numOfIdentityLayers), output->getTensorDesc());
+
+                auto quantized = InferenceEngine::getInjectedData<QuantizedLayerParams>(layer);
+                auto activationLayerWithQuant = quantized ? InferenceEngine::injectData<QuantizedLayerParams>(activationLayer) : activationLayer;
+                getCreatorLayer(dataPtr) = activationLayerWithQuant;
+                activationLayerWithQuant->outData.push_back(dataPtr);
+                activationLayerWithQuant->insData.push_back(output);
+                auto& activationInputTo = getInputTo(dataPtr);
+
+                for (auto& input : input_to) {
+                    auto& next_layer = input.second;
+                    activationInputTo[input.first] = next_layer;
+                    for (int i = next_layer->insData.size() -1; i>= 0; i--) {
+                        auto ins = next_layer->insData[i].lock();
+                        if (ins == output) {
+                            next_layer->insData.erase(next_layer->insData.begin() + i);
+                        }
+                    }
+                    next_layer->insData.push_back(dataPtr);
+                }
+                input_to.clear();
+                input_to[activationName] = activationLayerWithQuant;
+            }
+        }
+    }
+}
+
 void UnrollLSTMCellPass::run() {
     InferenceEngine::NetPass::UnrollRNN_if(*getPassManager()->getNetwork(), [] (const RNNCellBase& rnn) -> bool {
         if (rnn.clip != 0.0f)
@@ -1284,6 +1336,33 @@ void RemoveConstPass::run() {
     }
     ConstTransformer transformer(implNetwork);
     transformer.fullTrim();
+}
+
+void RemoveSingleInputConcatPass::run() {
+    for (auto &l : *pLayers) {
+        if (l->type == "Concat") {
+            auto concat = dynamic_cast<ConcatLayer*>(l.get());
+            if (concat->insData.size() == 1 && concat->outData.size() > 0) {
+                auto in = concat->insData[0];
+                auto in_layer = getCreatorLayer(in.lock());
+
+                auto out = concat->outData[0];
+
+                for (auto out_layer : getInputTo(out)) {
+                    for (int i = 0; i < out_layer.second->insData.size(); i++) {
+                        if (out_layer.second->insData[i].lock() == out) {
+                            out_layer.second->insData[i] = in;
+                            getInputTo(in.lock())[out_layer.second->name] = out_layer.second;
+                        }
+                    }
+                }
+                getInputTo(in.lock()).erase(concat->name);
+                getInputTo(out).clear();
+                concat->insData.clear();
+                concat->outData.clear();
+            }
+        }
+    }
 }
 
 void FuseMultipleIdentitiesPass::run() {
