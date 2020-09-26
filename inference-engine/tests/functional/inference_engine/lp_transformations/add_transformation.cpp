@@ -98,13 +98,11 @@ public:
             testValues.constInput,
             testValues.actual.constValues,
             testValues.additionalLayer);
-        VisualizeTree("/home/vzinoviev/work/model_dumps/model.actual.dot").run_on_function(actualFunction);
 
         SimpleLowPrecisionTransformer transform;
         transform.add<ngraph::pass::low_precision::AddTransformation, ngraph::opset1::Add>(
             low_precision::LayerTransformation::Params(testValues.params));
         transform.transform(actualFunction);
-        VisualizeTree("/home/vzinoviev/work/model_dumps/model.transformed.dot").run_on_function(actualFunction);
 
         referenceFunction = AddFunction::getReference(
             testValues.precision,
@@ -121,7 +119,6 @@ public:
             testValues.expected.constValues,
             testValues.additionalLayer,
             testValues.expected.operationType);
-        VisualizeTree("/home/vzinoviev/work/model_dumps/model.reference.dot").run_on_function(referenceFunction);
     }
 
     static std::string getTestCaseName(testing::TestParamInfo<AddTransformationTestValues> obj) {

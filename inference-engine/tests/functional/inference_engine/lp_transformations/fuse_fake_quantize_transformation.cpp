@@ -72,11 +72,10 @@ public:
             testValues.actual.precisionAfterDequantization,
             testValues.actual.precisionAfterDequantization,
             testValues.actual.fakeQuantizeOnData);
-        VisualizeTree("/home/vzinoviev/work/model_dumps/model.actual.dot").run_on_function(actualFunction);
+
         SimpleLowPrecisionTransformer transformer;
         transformer.add<ngraph::pass::low_precision::FakeQuantizeTransformation, ngraph::opset1::FakeQuantize>(testValues.params);
         transformer.transform(actualFunction);
-        VisualizeTree("/home/vzinoviev/work/model_dumps/model.transformed.dot").run_on_function(actualFunction);
 
         referenceFunction = ngraph::builder::subgraph::FuseFakeQuantizeFunction::getReference(
             testValues.inputShape,
@@ -87,7 +86,6 @@ public:
             testValues.expected.precisionAfterDequantization,
             testValues.expected.precisionFakeQuantizeOnData,
             testValues.expected.fakeQuantizeOnData);
-        VisualizeTree("/home/vzinoviev/work/model_dumps/model.reference.dot").run_on_function(referenceFunction);
     }
 
     static std::string getTestCaseName(testing::TestParamInfo<FuseFakeQuantizeTransformationTestValues> obj) {
