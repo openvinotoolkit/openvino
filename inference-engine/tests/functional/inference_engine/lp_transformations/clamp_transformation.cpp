@@ -359,6 +359,29 @@ const std::vector<ClampTransformationTestValues> testValues = {
             {{}, {}, {}}
         }
     },
+    // per channel quantization with small values
+    {
+        ngraph::Shape({ 1, 3, 224, 224 }),
+        LayerTransformation::createParamsU8I8(),
+        {
+            ngraph::element::u8,
+            {
+                    {ngraph::element::f32},
+                    {{1e-14, 1e-12, 1e-15}},
+                    {{1e-14, 1e-12, 1e-15}}
+            }
+        },
+        {
+            ngraph::element::u8,
+            {
+                    {ngraph::element::f32},
+                    {{1e-14, 1e-12, 1e-15}},
+                    {{1e-14, 1e-12, 1e-15}}
+            },
+            ngraph::element::f32,
+            {{}, {}, {}}
+        }
+    },
 };
 INSTANTIATE_TEST_CASE_P(
     LPT,
