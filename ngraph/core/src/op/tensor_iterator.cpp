@@ -34,7 +34,7 @@ constexpr DiscreteTypeInfo op::v0::TensorIterator::BodyOutputDescription::type_i
 constexpr DiscreteTypeInfo op::v0::TensorIterator::ConcatOutputDescription::type_info;
 
 op::v0::TensorIterator::TensorIterator(const OutputVector& values)
-    : op::util::FusedOp(values)
+    : op::util::SubGraphOp(values)
 {
 }
 
@@ -376,12 +376,6 @@ Output<Node> op::v0::TensorIterator::get_concatenated_slices(const Output<Node>&
     return Output<Node>(shared_from_this(), output_index);
 }
 
-OutputVector op::v0::TensorIterator::decompose_op() const
-{
-    // Stub
-    return OutputVector{};
-}
-
 void op::v0::TensorIterator::revalidate_and_infer_types_for_body_ops()
 {
     std::stack<std::shared_ptr<Node>, std::vector<std::shared_ptr<Node>>> nodes_to_do;
@@ -612,6 +606,11 @@ void op::v0::TensorIterator::validate_and_infer_types()
             set_output_type(index, body_value.get_element_type(), body_value.get_partial_shape());
         }
     }
+}
+
+std::shared_ptr<Function> op::v0::TensorIterator::get_function()
+{
+    return get_body();
 }
 
 std::shared_ptr<Node>

@@ -30,7 +30,6 @@
 #include <transformations/init_node_info.hpp>
 #include <transformations/convert_precision.hpp>
 #include <transformations/rt_info/fused_names_attribute.hpp>
-#include <transformations/tensor_iterator_transformations/apply_transformations_to_ti_body.hpp>
 #include <ngraph/opsets/opset2.hpp>
 #include <ngraph/opsets/opset3.hpp>
 #include <ngraph/opsets/opset4.hpp>
@@ -122,21 +121,12 @@ static void Transformation(ICNNNetwork::Ptr& clonedNetwork, const Config& conf) 
         manager.register_pass<ngraph::pass::ConvertOpSet3ToOpSet2>();
         manager.register_pass<ngraph::pass::ConvertOpSet2ToOpSet1>();
 
-        manager.set_callback(transformations_callback);
-        manager.run_passes(nGraphFunc);
-
-        ngraph::pass::Manager conversion_manager;
-
         for (auto & precision : convert_precision_list) {
-            conversion_manager.register_pass<ngraph::pass::ConvertPrecision>(precision.first, precision.second);
+            manager.register_pass<ngraph::pass::ConvertPrecision>(precision.first, precision.second);
         }
 
-        conversion_manager.run_passes(nGraphFunc);
-
-        // Apply all transformations to TensorIterator body
-        ngraph::pass::Manager ti_manager;
-        ti_manager.register_pass<ngraph::pass::ApplyTransformationsToTIBody>(manager);
-        ti_manager.run_passes(nGraphFunc);
+        manager.set_callback(transformations_callback);
+        manager.run_passes(nGraphFunc);
     }
 
     using namespace ngraph::pass::low_precision;
@@ -162,15 +152,9 @@ static void Transformation(ICNNNetwork::Ptr& clonedNetwork, const Config& conf) 
 
         manager.register_pass<ngraph::pass::ConvertOpSet1ToLegacy>();
         manager.register_pass<ngraph::pass::ConvertPrecision>(ngraph::element::i64, ngraph::element::i32);
-
         manager.set_callback(transformations_callback);
         manager.run_passes(nGraphFunc);
-
-        // Apply all transformations to TensorIterator body
-        ngraph::pass::Manager ti_manager;
-        ti_manager.register_pass<ngraph::pass::ApplyTransformationsToTIBody>(manager);
-        ti_manager.run_passes(nGraphFunc);
-    }
+   }
 
     clonedNetwork = InferenceEngine::details::convertFunctionToICNNNetwork(nGraphFunc, *clonedNetwork);
 
