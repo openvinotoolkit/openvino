@@ -126,11 +126,11 @@ bool ConcatTransformation::transform(TransformationContext& context, ngraph::pat
 
         // FQ -> SUB_quantization -> MUL_quantization -[INT8]-> SUB_dequantization -> MUL_dequantization ->
         const float quantizationMul = (dataPrecision.max - dataPrecision.min) / maxOutputInterval;
-        const float dequantizationMul = 1.f / quantizationMul;
+        const float dequantizationMul = maxOutputInterval / (dataPrecision.max - dataPrecision.min);
 
         // FQ outputLowValue = dataPrecision.min * dequantizationMul - quantizationSub
         const float quantizationSub = outputLowValue - dataPrecision.min * dequantizationMul;
-        const float dequantizationSub = static_cast<int>(-quantizationSub * quantizationMul);
+        const float dequantizationSub = std::round(-quantizationSub * quantizationMul);
 
         // 1. get data for dequantization. Dequantization data will be used several times later.
         dequantization = ngraph::pass::low_precision::NetworkHelper::makeDequantization(
