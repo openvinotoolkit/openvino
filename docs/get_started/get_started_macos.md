@@ -77,7 +77,7 @@ The demo scripts can run inference on any [supported target device](https://soft
 ./<script_name> -d [CPU, MYRIAD]
 ```
 
-Before running the demo applications on Intel® Neural Compute Stick 2 device, you must complete the  [Steps for Intel® Neural Compute Stick 2](../install_guides/installing-openvino-macos.md#additional-NCS2-steps).
+Before running the demo applications on Intel® Neural Compute Stick 2 device, you must complete additional configuration steps. For details, see the Steps for Intel® Neural Compute Stick 2 section in the [installation instructions](../install_guides/installing-openvino-macos.md).
 
 The following paragraphs describe each demo script.
 
@@ -208,7 +208,7 @@ You must have a model that is specific for you inference task. Example model typ
 - Custom (Often based on SSD)
 
 Options to find a model suitable for the OpenVINO™ toolkit are:
-- Download public and Intel's pre-trained models from the [Open Model Zoo](https://github.com/opencv/open_model_zoo) using [Model Downloader tool](@ref omz_tools_downloader_README#model_downloader_usage).
+- Download public and Intel's pre-trained models from the [Open Model Zoo](https://github.com/opencv/open_model_zoo) using [Model Downloader tool](@ref omz_tools_downloader_README). 
 - Download from GitHub*, Caffe* Zoo, TensorFlow* Zoo, and other resources.
 - Train your own model.
         
