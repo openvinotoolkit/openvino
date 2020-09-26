@@ -16,10 +16,10 @@ The toolkit consists of three primary components:
 
 In addition, demo scripts, code samples and demo applications are provided to help you get up and running with the toolkit:
 * **Demo Scripts** - Batch scripts that automatically perform the workflow steps to demonstrate running inference pipelines for different scenarios.  
-* [**Code Samples**](../IE_DG/Samples_Overview.md) - Small console applications that show you how to:
+* **[Code Samples](../IE_DG/Samples_Overview.md)** - Small console applications that show you how to:
     * Utilize specific OpenVINO capabilities in an application.
     * Perform specific tasks, such as loading a model, running inference, querying specific device capabilities, and more.
-* [**Demo Applications**](@ref omz_demos_README) - Console applications that provide robust application templates to help you implement specific deep learning scenarios. These applications involve increasingly complex processing pipelines that gather analysis data from several models that run inference simultaneously, such as detecting a person in a video stream along with detecting the person's physical attributes, such as age, gender, and emotional state.
+* **[Demo Applications](@ref omz_demos_README)** - Console applications that provide robust application templates to help you implement specific deep learning scenarios. These applications involve increasingly complex processing pipelines that gather analysis data from several models that run inference simultaneously, such as detecting a person in a video stream along with detecting the person's physical attributes, such as age, gender, and emotional state.
 
 ## <a name="openvino-installation"></a>Intel® Distribution of OpenVINO™ toolkit Installation and Deployment Tools Directory Structure
 This guide assumes you completed all Intel® Distribution of OpenVINO™ toolkit installation and configuration steps. If you have not yet installed and configured the toolkit, see [Install Intel® Distribution of OpenVINO™ toolkit for Windows*](../install_guides/installing-openvino-windows.md).
