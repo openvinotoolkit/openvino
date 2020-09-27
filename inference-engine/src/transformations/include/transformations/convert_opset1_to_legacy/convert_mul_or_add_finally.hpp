@@ -153,13 +153,13 @@ ngraph::graph_rewrite_callback get_callback() {
 
         auto res = check_constant(const_node, data_node.get_partial_shape());
 
-        if (res == CONVERSION_RESULT::NONE || (res == CONVERSION_RESULT::SCALE_SHIFT && output_shape_rank < 4)) {
+        bool is_dequantization = lin_op->get_rt_info().count("DEQUANTIZATION") != 0;
+
+        if (!is_dequantization && (res == CONVERSION_RESULT::NONE || (res == CONVERSION_RESULT::SCALE_SHIFT && output_shape_rank < 4))) {
             return convert_to_eltwise<T>(lin_op,
                                          lin_op->input(0).get_source_output(),
                                          lin_op->input(1).get_source_output());
         }
-
-        bool is_dequantization = lin_op->get_rt_info().count("DEQUANTIZATION") != 0;
 
         // TODO: if all values in Constant are equal the best way is to convert this Eltwise to Power
         if (res == CONVERSION_RESULT::SCALE_SHIFT || is_dequantization) {
