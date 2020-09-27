@@ -19,6 +19,8 @@ import logging
 
 from scripts.run_timetest import run_timetest
 
+REFS_FACTOR = 1.2      # 120%
+
 
 def test_timetest(instance, executable, niter):
     """Parameterized test.
@@ -48,7 +50,7 @@ def test_timetest(instance, executable, niter):
     comparison_status = 0
     for step_name, references in instance["references"].items():
         for metric, reference_val in references.items():
-            if aggr_stats[step_name][metric] > reference_val:
+            if aggr_stats[step_name][metric] > reference_val * REFS_FACTOR:
                 logging.error("Comparison failed for '{}' step for '{}' metric. Reference: {}. Current values: {}"
                               .format(step_name, metric, reference_val, aggr_stats[step_name][metric]))
                 comparison_status = 1
