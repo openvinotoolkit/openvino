@@ -121,12 +121,14 @@ static void Transformation(ICNNNetwork::Ptr& clonedNetwork, const Config& conf) 
         manager.register_pass<ngraph::pass::ConvertOpSet3ToOpSet2>();
         manager.register_pass<ngraph::pass::ConvertOpSet2ToOpSet1>();
 
-        for (auto & precision : convert_precision_list) {
-            manager.register_pass<ngraph::pass::ConvertPrecision>(precision.first, precision.second);
-        }
-
         manager.set_callback(transformations_callback);
         manager.run_passes(nGraphFunc);
+
+        ngraph::pass::Manager conversion_manager;
+        for (auto & precision : convert_precision_list) {
+            conversion_manager.register_pass<ngraph::pass::ConvertPrecision>(precision.first, precision.second);
+        }
+        conversion_manager.run_passes(nGraphFunc);
     }
 
     using namespace ngraph::pass::low_precision;
