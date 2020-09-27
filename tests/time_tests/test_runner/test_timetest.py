@@ -41,4 +41,5 @@ def test_timetest(instance, executable, niter):
     retcode, aggr_stats = run_timetest(exe_args, log=logging)
     assert retcode == 0, "Run of executable failed"
 
-    instance["results"] = aggr_stats    # append values to report to DB
+    # Add timetest results to submit to database and save in new test conf as references
+    instance["results"] = aggr_stats
