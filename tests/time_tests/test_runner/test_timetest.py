@@ -43,3 +43,18 @@ def test_timetest(instance, executable, niter):
 
     # Add timetest results to submit to database and save in new test conf as references
     instance["results"] = aggr_stats
+
+    # Compare with references
+    comparison_status = 0
+    for step_name, references in instance["references"].items():
+        for metric, reference_val in references.items():
+            if aggr_stats[step_name][metric] > reference_val:
+                logging.error("Comparison failed for '{}' step for '{}' metric. Reference: {}. Current values: {}"
+                              .format(step_name, metric, reference_val, aggr_stats[step_name][metric]))
+                comparison_status = 1
+            else:
+                logging.info("Comparison passed for '{}' step for '{}' metric. Reference: {}. Current values: {}"
+                             .format(step_name, metric, reference_val, aggr_stats[step_name][metric]))
+
+    assert comparison_status == 0, "Comparison with references failed"
+
