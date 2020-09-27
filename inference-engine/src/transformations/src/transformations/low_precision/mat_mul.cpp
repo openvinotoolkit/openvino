@@ -44,10 +44,22 @@ bool MatMulTransformation::transform(TransformationContext &context, ngraph::pat
     }
 
     const FakeQuantizeDequantization dequantization1 = ngraph::pass::low_precision::NetworkHelper::getDequantization(matMul, 0);
+    std::shared_ptr<opset1::Subtract> subtract;
+    if (dequantization1.subtract != nullptr) {
+        std::shared_ptr<ngraph::Node> layer = dequantization1.subtract;
+        ngraph::pass::low_precision::NetworkHelper::cleanRunTimeInfo(layer);
+
+        auto optimizedSubtract = NetworkHelper::optimizeSubtract(dequantization1.subtract);
+        if (optimizedSubtract == nullptr) {
+            optimizedSubtract = dequantization1.subtract;
+        }
+        subtract = as_type_ptr<opset1::Subtract>(optimizedSubtract);
+    }
+
     const std::shared_ptr<opset1::MatMul> newMatMul = std::make_shared<ngraph::op::TypeRelaxed<opset1::MatMul>>(
         std::vector<element::Type>({ element::f32, element::f32 }), std::vector<element::Type>({}),
-        ngraph::op::TemporaryReplaceOutputType(dequantization1.data, element::f32).get(),
-        ngraph::op::TemporaryReplaceOutputType(dequantization2.data, element::f32).get(),
+        ngraph::op::TemporaryReplaceOutputType(dequantization1.subtract != nullptr ? subtract : dequantization1.data, element::f32).get(),
+        ngraph::op::TemporaryReplaceOutputType(dequantization2.subtract != nullptr ? dequantization2.subtract : dequantization2.data, element::f32).get(),
         matMul->get_transpose_a(),
         matMul->get_transpose_b());
     NetworkHelper::setOutDataPrecisionForTypeRelaxed(newMatMul, matMul->get_output_element_type(0));
@@ -84,6 +96,7 @@ bool MatMulTransformation::transform(TransformationContext &context, ngraph::pat
     replace_node(matMul, newMultiply);
 
     updateOutput(context, newMultiply, matMul);
+
     return true;
 }
 
