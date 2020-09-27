@@ -186,7 +186,35 @@ std::shared_ptr<Node> NetworkHelper::swapMultiplyAndAdd(std::shared_ptr<opset1::
     const auto x = multiply->get_input_node_shared_ptr(multiplyInputBranch);
     const auto a = multiply->get_input_node_shared_ptr(multiplyInputBranch == 0 ? 1 : 0);
     const auto b = addAfterMultiply->get_input_node_shared_ptr(multiplyBranch == 0 ? 1 : 0);
-    const auto bDivA = fold<opset1::Divide>(b, a);
+    std::shared_ptr<Node> bDivA;
+
+    if (shape_size(b->get_output_shape(0)) == 1 ||
+        shape_size(a->get_output_shape(0)) == 1 ||
+        shape_size(b->get_output_shape(0)) == shape_size(a->get_output_shape(0))) {
+        // safely division to avoid NaN
+        const std::vector<float> bValues = as_type_ptr<opset1::Constant>(b)->cast_vector<float>();
+        const std::vector<float> aValues = as_type_ptr<opset1::Constant>(a)->cast_vector<float>();
+        const bool aBroadcasted = bValues.size() > aValues.size();
+        const bool bBroadcasted = bValues.size() < aValues.size();
+        std::vector<float> bDivAValues(aBroadcasted ? bValues.size() : aValues.size());
+
+        for (int i = 0; i < bDivAValues.size(); ++i) {
+            const auto bi = bValues[bBroadcasted ? 0 : i];
+            const auto ai = aValues[aBroadcasted ? 0 : i];
+            if (bi != 0.f || ai != 0.f) {
+                bDivAValues[i] = bi / ai;
+            } else {
+                bDivAValues[i] = 0.f;
+            }
+        }
+
+        bDivA = std::make_shared<opset1::Constant>(
+                b->get_output_element_type(0),
+                aBroadcasted ? b->get_output_shape(0) : a->get_output_shape(0),
+                bDivAValues);
+    } else {
+        bDivA = fold<opset1::Divide>(b, a);
+    }
 
     std::vector<std::shared_ptr<Node>> inputs{ {}, {} };
 
@@ -232,6 +260,19 @@ void NetworkHelper::cleanRunTimeInfo(const std::shared_ptr<Node>& layer) {
 
 bool NetworkHelper::isScalarLike(std::shared_ptr<opset1::Constant> constant) {
     return constant->get_all_data_elements_bitwise_identical();
+}
+
+bool NetworkHelper::isZero(std::shared_ptr<opset1::Constant> constant) {
+    static const float minQuantizationShift = 1e-32f;
+
+    auto values = constant->cast_vector<float>();
+    for (size_t i = 0; i < values.size(); ++i) {
+        if (fabs(values[i]) > minQuantizationShift) {
+            return false;
+        }
+    }
+
+    return true;
 }
 
 std::shared_ptr<opset1::Constant> NetworkHelper::toScalar(std::shared_ptr<opset1::Constant> constant) {
@@ -508,19 +549,68 @@ std::tuple<std::shared_ptr<Node>, std::shared_ptr<Node>> NetworkHelper::decompos
     const auto outputLow = fq->input_value(3);
     const auto outputHigh = fq->input_value(4);
 
-    const auto newMin = make_shared<opset1::Constant>(outputLow.get_element_type(), Shape{}, min);
-    const auto newMax = make_shared<opset1::Constant>(outputLow.get_element_type(), Shape{}, max);
+    std::vector<float> outputLowValues = as_type_ptr<opset1::Constant>(outputLow.get_node_shared_ptr())->cast_vector<float>();
+    std::vector<float> outputHighValues = as_type_ptr<opset1::Constant>(outputHigh.get_node_shared_ptr())->cast_vector<float>();
+    size_t outputSize = outputLowValues.size();
+    std::vector<float> minValues(outputSize, min);
+    std::vector<float> maxValues(outputSize, max);
+    std::vector<float> shifts(outputSize, 0.f);
+    std::vector<float> scales(outputSize);
 
-    // TODO: threshold values have to used here to avoid shifts
-    const std::shared_ptr<Node> scale = fold<opset1::Divide>(
-        fold<opset1::Subtract>(outputHigh, outputLow),
-        fold<opset1::Subtract>(newMax, newMin));
+    for (int i = 0; i < outputSize; ++i) {
+        if (outputHighValues[i] != outputLowValues[i]) {
+            shifts[i] = (min*outputHighValues[i] - max*outputLowValues[i]) / (outputHighValues[i] - outputLowValues[i]);
+            scales[i] = (outputHighValues[i] - outputLowValues[i]) / (max - min);
+            if (shifts[i] == -0.f) {
+                shifts[i] = 0.f;
+            }
+        } else {
+            scales[i] = outputHighValues[i];
+            minValues[i] = 1.f;
+            maxValues[i] = 1.f;
+        }
+    }
 
     std::shared_ptr<Node> shift = hasZeroPoint ?
-        fold<opset1::Divide>(
-            fold<opset1::Subtract>(fold<opset1::Multiply>(newMin, outputHigh), fold<opset1::Multiply>(newMax, outputLow)),
-            fold<opset1::Subtract>(outputHigh, outputLow)) :
+        std::make_shared<opset1::Constant>(outputLow.get_element_type(), outputLow.get_shape(), shifts) :
         nullptr;
+    std::shared_ptr<Node> scale = std::make_shared<opset1::Constant>(outputLow.get_element_type(), outputLow.get_shape(), scales);
+
+    auto newMin = make_shared<opset1::Constant>(outputLow.get_element_type(), outputLow.get_shape(), minValues);
+    auto newMax = make_shared<opset1::Constant>(outputLow.get_element_type(), outputLow.get_shape(), maxValues);
+
+    if (isScalarLike(newMin)) {
+        newMin = toScalar(newMin);
+    }
+    if (isScalarLike(newMax)) {
+        newMax = toScalar(newMax);
+    }
+
+    {
+        static const float minQuantizationScale = 1e-32f;
+        static const float maxQuantizationScale = 1e32f;
+
+        auto scaleValues = scales;
+        bool wasChanged = false;
+        for (size_t i = 0; i < scaleValues.size(); ++i) {
+            const float scale = scaleValues[i];
+            if (fabs(scale) < minQuantizationScale) {
+                scaleValues[i] = minQuantizationScale;
+                wasChanged = true;
+            } else if (fabs(scale) > maxQuantizationScale) {
+                scaleValues[i] = scale > 0.f ? maxQuantizationScale : -maxQuantizationScale;
+                wasChanged = true;
+            }
+        }
+
+        if (wasChanged) {
+            scale = std::make_shared<opset1::Constant>(scale->output(0).get_element_type(), scale->output(0).get_shape(), scaleValues);
+        }
+    }
+
+    if ((shift != nullptr) && isZero(as_type_ptr<opset1::Constant>(shift))) {
+        shift = nullptr;
+    }
 
     // Build a substitution sub-graph:
 
@@ -536,16 +626,6 @@ std::tuple<std::shared_ptr<Node>, std::shared_ptr<Node>> NetworkHelper::decompos
         true);
     // TODO: for debuging only - remove later
     newFQ->set_friendly_name(fq->get_friendly_name() + "_original");
-
-    if (shift != nullptr) {
-        std::shared_ptr<opset1::Constant> shiftConst = as_type_ptr<opset1::Constant>(shift);
-        if (isScalarLike(shiftConst)) {
-            auto scalar = toScalar(shiftConst);
-            if (op::util::constantIsEqualTo(scalar, 0)) {
-                shift = nullptr;
-            }
-        }
-    }
 
     std::shared_ptr<ngraph::Node> convert2;
     if (updatePrecision) {

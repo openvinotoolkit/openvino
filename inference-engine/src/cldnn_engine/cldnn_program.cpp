@@ -397,9 +397,18 @@ Program::Program(InferenceEngine::ICNNNetwork& network, std::shared_ptr<const cl
     , p_currentOutputs({}) {
     InitFormat(network);
 
+    InputsDataMap inputsMap;
+    network.getInputsInfo(inputsMap);
+
+    auto input0 = getInputTo(inputsMap.begin()->second->getInputData());
+
+    bool baselineIsFP16 = false;
+    if (input0.begin()->second->params.count("FP16") != 0) {
+        baselineIsFP16 = true;
+    }
+
     bool fqFound = false;
     bool allFQareSupported = true;
-    bool baselineIsFP16 = false;
     if (config.enableInt8) {
         auto it = details::CNNNetworkIterator(&network);
         auto end = details::CNNNetworkIterator();

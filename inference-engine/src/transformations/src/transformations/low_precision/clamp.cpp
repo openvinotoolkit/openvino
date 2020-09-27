@@ -31,14 +31,7 @@ bool ClampTransformation::transform(TransformationContext& context, ngraph::patt
             return false;
         }
 
-        const auto subValues = constant->cast_vector<float>();
-        for (size_t i = 1; i < subValues.size(); ++i) {
-            if (std::abs(subValues[0] - subValues[i]) > 1e-6) {
-                return false;
-            }
-        }
-
-        return true;
+        return NetworkHelper::isScalarLike(constant);
     };
 
     if (!canBeTransformed(context, m.get_match_root())) {
@@ -92,14 +85,7 @@ bool ClampTransformation::canBeTransformed(const TransformationContext& context,
         return false;
     }
 
-    const auto mulConstValues = mulConst->cast_vector<float>();
-
-    for (size_t i = 1; i < mulConstValues.size(); ++i) {
-        if (std::abs(mulConstValues[0] - mulConstValues[i]) > 1e-6) {
-            return false;
-        }
-    }
-    return true;
+    return NetworkHelper::isScalarLike(mulConst);
 }
 
 bool ClampTransformation::isPrecisionPreserved(std::shared_ptr<Node> layer) const noexcept {

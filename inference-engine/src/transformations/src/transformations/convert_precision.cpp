@@ -161,6 +161,8 @@ bool ngraph::pass::ConvertPrecision::run_on_function(std::shared_ptr<ngraph::Fun
         // If output type mismatch given type we try to fuse type into this operation
         // otherwise we insert Convert operation.
         for (auto &node : f->get_ordered_ops()) {
+            m_transformation_callback(node);
+
             // Recursively run for TensorIterator body function
             if (auto ti = std::dynamic_pointer_cast<opset4::TensorIterator>(node)) {
                 convert_function_precision(ti->get_body());

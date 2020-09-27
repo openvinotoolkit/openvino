@@ -81,8 +81,10 @@ std::shared_ptr<ngraph::Function> FakeQuantizePrecisionSelectionFunction::getOri
     {
         // just another branch
         branch2Last = std::make_shared<op::TypeRelaxed<ngraph::opset1::PRelu>>(
-            fakeQuantize,
-            std::make_shared<opset1::Constant>(element::f32, Shape{}, std::vector<float>{ 0.01 }));
+            opset1::PRelu(
+                fakeQuantize,
+                std::make_shared<opset1::Constant>(element::f32, Shape{}, std::vector<float>{ 0.01 })),
+            element::f32);
     }
 
     const std::shared_ptr<ngraph::opset1::Concat> concat = std::make_shared<ngraph::opset1::Concat>(

@@ -25,7 +25,7 @@ public:
         ngraph::element::Type precisionAfterDequantization;
     };
 
-    static std::shared_ptr<ngraph::Function> get(
+    static std::shared_ptr<ngraph::Function> getOriginal(
         const ngraph::Shape& inputShape,
         const ngraph::element::Type precisionBeforeAdd,
         const Add& add,
@@ -34,6 +34,16 @@ public:
         const ngraph::element::Type precisionAfterDequantization,
         const ngraph::element::Type precisionFqOnData,
         const FakeQuantizeOnData& fqOnData);
+
+    static std::shared_ptr<ngraph::Function> getReference(
+            const ngraph::Shape& inputShape,
+            const ngraph::element::Type precisionBeforeAdd,
+            const Add& add,
+            const ngraph::element::Type precisionBeforeDequantization,
+            const DequantizationOperations& dequantization,
+            const ngraph::element::Type precisionAfterDequantization,
+            const ngraph::element::Type precisionFqOnData,
+            const FakeQuantizeOnData& fqOnData);
 
     static std::shared_ptr<ngraph::Function> get(
         const ngraph::Shape& inputShape,

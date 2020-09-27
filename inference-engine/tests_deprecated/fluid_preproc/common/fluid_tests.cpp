@@ -23,6 +23,8 @@
 
 #include <map>
 
+#include <stdexcept>
+
 #include <fluid_test_computations.hpp>
 
 // Can be set externally (via CMake) if built with -DGAPI_TEST_PERF=ON
@@ -82,6 +84,7 @@ cv::String depthToString(int depth)
     {
     case CV_8U  : return "CV_8U";
     case CV_32F : return "CV_32F";
+    case CV_16U : return "CV_16U";
     }
     CV_Assert(!"ERROR: unsupported depth!");
     return nullptr;
@@ -1078,14 +1081,17 @@ TEST_P(MergeTestIE, AccuracyTest)
 TEST_P(PreprocTest, Performance)
 {
     using namespace InferenceEngine;
-    Precision prec;
+    std::pair<Precision, Precision> precisions;
     ResizeAlgorithm interp;
     Layout in_layout, out_layout;
     std::pair<int, int> ocv_channels{-1, -1};
     std::pair<cv::Size, cv::Size> sizes;
     ColorFormat in_fmt = ColorFormat::RAW;
     ColorFormat out_fmt = ColorFormat::BGR;
-    std::tie(prec, interp, in_fmt, in_layout, out_layout, ocv_channels, sizes) = GetParam();
+    std::tie(precisions, interp, in_fmt, in_layout, out_layout, ocv_channels, sizes) = GetParam();
+
+    Precision in_prec, out_prec;
+    std::tie(in_prec, out_prec) = precisions;
     cv::Size in_size, out_size;
     std::tie(in_size, out_size) = sizes;
     int in_ocv_chan = -1, out_ocv_chan = -1;
@@ -1096,11 +1102,21 @@ TEST_P(PreprocTest, Performance)
     double tolerance = Precision::U8 ? 1 : 0.015;
 #endif
 
-    const int ocv_depth = prec == Precision::U8 ? CV_8U :
-        prec == Precision::FP32 ? CV_32F : -1;
-    const int in_ocv_type = CV_MAKETYPE(ocv_depth, in_ocv_chan);
-    const int out_ocv_type = CV_MAKETYPE(ocv_depth, out_ocv_chan);
-    initMatrixRandU(in_ocv_type, in_size, in_ocv_type, false);
+    auto precision_to_depth = [](Precision::ePrecision prec) -> int{
+        switch (prec)
+        {
+            case Precision::U8:   return CV_8U;
+            case Precision::U16:  return CV_16U;
+            case Precision::FP32: return CV_32F;
+            default:
+                throw std::logic_error("Unsupported configuration");
+        }
+        return -1;
+    };
+
+    const int in_ocv_type  = CV_MAKETYPE(precision_to_depth(in_prec), in_ocv_chan);
+    const int out_ocv_type = CV_MAKETYPE(precision_to_depth(out_prec), out_ocv_chan);
+    initMatrixRandU(in_ocv_type, in_size, out_ocv_type, false);
 
     cv::Mat out_mat(out_size, out_ocv_type);
 
@@ -1115,28 +1131,37 @@ TEST_P(PreprocTest, Performance)
         cv::randu(in_mat2, cv::Scalar::all(0), cv::Scalar::all(255));
     }
 
-    Blob::Ptr in_blob, out_blob;
-    switch (prec)
-    {
-    case Precision::U8:
-        if (in_fmt == ColorFormat::NV12) {
-            auto y_blob = img2Blob<Precision::U8>(in_mat1, Layout::NHWC);
-            auto uv_blob = img2Blob<Precision::U8>(in_mat2, Layout::NHWC);
-            in_blob = make_shared_blob<NV12Blob>(y_blob, uv_blob);
-        } else {
-            in_blob = img2Blob<Precision::U8>(in_mat1, in_layout);
+
+    auto create_blob = [](Precision::ePrecision prec, ColorFormat fmt, Layout layout, cv::Mat& m1, cv::util::optional<cv::Mat> m2 = {}){
+        Blob::Ptr blob;
+        switch (prec)
+        {
+        case Precision::U8:
+            if (fmt == ColorFormat::NV12) {
+                auto y_blob = img2Blob<Precision::U8>(m1, Layout::NHWC);
+                auto uv_blob = img2Blob<Precision::U8>(m2.value(), Layout::NHWC);
+                blob = make_shared_blob<NV12Blob>(y_blob, uv_blob);
+            } else {
+                blob = img2Blob<Precision::U8>(m1, layout);
+            }
+            break;
+
+        case Precision::U16:
+            blob = img2Blob<Precision::U16>(m1, layout);
+            break;
+
+        case Precision::FP32:
+            blob = img2Blob<Precision::FP32>(m1, layout);
+            break;
+
+        default:
+            throw std::logic_error("Unsupported configuration");
         }
-        out_blob = img2Blob<Precision::U8>(out_mat, out_layout);
-        break;
+        return blob;
+    };
 
-    case Precision::FP32:
-        in_blob = img2Blob<Precision::FP32>(in_mat1, in_layout);
-        out_blob = img2Blob<Precision::FP32>(out_mat, out_layout);
-        break;
-
-    default:
-        FAIL() << "Unsupported configuration";
-    }
+    auto in_blob  = create_blob(in_prec, in_fmt, in_layout, in_mat1, cv::util::make_optional(in_mat2));
+    auto out_blob = create_blob(out_prec, out_fmt, out_layout, out_mat);
 
     PreProcessDataPtr preprocess = CreatePreprocDataHelper();
     preprocess->setRoiBlob(in_blob);
@@ -1148,10 +1173,11 @@ TEST_P(PreprocTest, Performance)
     // test once to warm-up cache
     preprocess->execute(out_blob, info, false);
 
-    switch (prec)
+    switch (out_prec)
     {
     case Precision::U8:   Blob2Img<Precision::U8>  (out_blob, out_mat, out_layout); break;
     case Precision::FP32: Blob2Img<Precision::FP32>(out_blob, out_mat, out_layout); break;
+    case Precision::U16:  Blob2Img<Precision::FP32>(out_blob, out_mat, out_layout); break;
     default: FAIL() << "Unsupported configuration";
     }
 
@@ -1166,11 +1192,18 @@ TEST_P(PreprocTest, Performance)
     auto cv_interp = interp == RESIZE_AREA ? cv::INTER_AREA : cv::INTER_LINEAR;
     cv::resize(ocv_out_mat, ocv_out_mat, out_size, 0, 0, cv_interp);
 
+    if (in_prec != out_prec) {
+        cv::Mat ocv_converted;
+        ocv_out_mat.convertTo(ocv_converted, out_ocv_type);
+        ocv_out_mat = ocv_converted;
+    }
+
     EXPECT_LE(cv::norm(ocv_out_mat, out_mat, cv::NORM_INF), tolerance);
 
 #if PERF_TEST
     // iterate testing, and print performance
-    const auto type_str = depthToString(ocv_depth);
+    const auto in_type_str  = depthToString(precision_to_depth(in_prec));
+    const auto out_type_str = depthToString(precision_to_depth(out_prec));
     const auto interp_str = interp == RESIZE_AREA ? "AREA"
         : interp == RESIZE_BILINEAR ? "BILINEAR" : "?";
     const auto in_layout_str = layoutToString(in_layout);
@@ -1178,8 +1211,9 @@ TEST_P(PreprocTest, Performance)
 
     test_ms([&]() { preprocess->execute(out_blob, info, false); },
             300,
-            "Preproc %s %s %d %s %dx%d %d %s %dx%d %s->%s",
-            type_str.c_str(),
+            "Preproc %s %s %s %d %s %dx%d %d %s %dx%d %s->%s",
+            in_type_str.c_str(),
+            out_type_str.c_str(),
             interp_str,
             in_ocv_chan,
             in_layout_str.c_str(), in_size.width, in_size.height,

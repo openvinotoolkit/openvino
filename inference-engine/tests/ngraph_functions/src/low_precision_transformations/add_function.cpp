@@ -82,7 +82,10 @@ std::shared_ptr<ngraph::Function> AddFunction::getOriginal(
         parent = std::make_shared<ngraph::opset1::Add>(
             parent,
             std::make_shared<ngraph::opset1::Constant>(element::f32, Shape{ 1, 1, 1, 1 }, std::vector<float>{1.f}));
-        parent = ngraph::builder::makeFakeQuantize(parent, ngraph::element::f32, 256, Shape{}, { 0 }, { 255 }, { 0 }, { 255 });
+        parent = ngraph::builder::subgraph::makeFakeQuantizeTypeRelaxed(
+                parent,
+                ngraph::element::f32,
+                {256, Shape{}, { 0 }, { 255 }, { 0 }, { 255 }, element::u8});
     }
     const auto dequantizationOp2 = is_type<ngraph::opset1::Constant>(parent) ? parent : makeDequantization(parent, dequantization2);
 
@@ -173,7 +176,10 @@ std::shared_ptr<ngraph::Function> AddFunction::getReference(
         parent = std::make_shared<ngraph::opset1::Add>(
             parent,
             std::make_shared<ngraph::opset1::Constant>(element::f32, Shape{ 1, 1, 1, 1 }, std::vector<float>{1.f}));
-        parent = ngraph::builder::makeFakeQuantize(parent, ngraph::element::f32, 256, Shape{}, { 0 }, { 255 }, { 0 }, { 255 });
+        parent = ngraph::builder::subgraph::makeFakeQuantizeTypeRelaxed(
+                parent,
+                ngraph::element::f32,
+                {256, Shape{}, { 0 }, { 255 }, { 0 }, { 255 }, element::u8});
     }
     const auto dequantizationOp2 = is_type<ngraph::opset1::Constant>(parent) ? parent : makeDequantization(parent, dequantization2);
 
