@@ -71,7 +71,7 @@ class must not exceed `max_output_boxes_per_class`.
 *   **1**: `selected_indices` - tensor of type *T_IND* and shape `[min(num_boxes, max_output_boxes_per_class) * num_batches * num_classes, 3]` containing information about selected boxes as triplets `[batch_index, class_index, box_index]`.
 The output tensor is filled with 0s for output tensor elements if the total number of selected boxes is less than the output tensor size.
 
-*   **2**: `selected_scores` -  tensor of type *T_THRESHOLDS* and shape `[min(num_boxes, max_output_boxes_per_class) * num_batches * num_classes, 3]` containing information about scores for each selected box as triplets `[batch_index, class_index, box_index]`.
+*   **2**: `selected_scores` -  tensor of type *T_THRESHOLDS* and shape `[min(num_boxes, max_output_boxes_per_class) * num_batches * num_classes, 3]` containing information about scores for each selected box as triplets `[batch_index, class_index, box_score]`.
 The output tensor is filled with 0s for output tensor elements if the total number of selected boxes is less than the output tensor size. box_score]`.
 
 *   **3**: `valid_outputs` -  scalar of type *T_IND* representing the total number of selected boxes.
