@@ -37,6 +37,7 @@ class NonMaxSuppression(Op):
             'center_point_box': 0,
             'box_encoding': 'corner',
             'sort_result_descending': 1,
+            'out_ports_count': 3,
             'force_precision_in_ports': {
                 2: 'int64'},
             'type_infer': self.type_infer,
@@ -79,13 +80,13 @@ class NonMaxSuppression(Op):
         num_input_boxes = boxes_shape[1]
         assert scores_shape[2] == num_input_boxes, 'Number of boxes mismatch'
 
-        if node.get_opset() == 'opset4':
+        if node.get_opset() in ['opset4', 'opset5']:
             max_number_of_boxes = min(num_input_boxes, max_output_boxes_per_class) * boxes_shape[0] * num_classes
         else:
             max_number_of_boxes = min(num_input_boxes, boxes_shape[0] * max_output_boxes_per_class * num_classes)
         node.out_port(0).data.set_shape(int64_array([max_number_of_boxes, 3]))
 
-        num_of_outputs = len(node.out_ports())
+        num_of_outputs = len([port for port in node.out_ports().values() if not port.disconnected()])
         if num_of_outputs >= 2:
             node.out_port(1).data.set_shape(int64_array([max_number_of_boxes, 3]))
         if num_of_outputs >= 3:

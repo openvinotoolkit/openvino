@@ -64,11 +64,27 @@ class TFNonMaxSuppressionNormalize(FrontReplacementSubgraph):
                                                                 {'name': nms.soft_get('name') + '/Unsqueeze_1'})
         nms.in_port(1).get_connection().insert_node(unsqueeze_box_scores)
 
-        # prepare output
-        crop_box_indices = Crop(graph, {'name': nms.soft_get('name') + '/Crop', 'axis': int64_array([1]),
+        nms_name = nms.soft_get('name', nms.id)
+
+        # prepare output #0
+        crop_box_indices_name = nms_name + '/Crop_boxes_'
+        crop_box_indices = Crop(graph, {'name': crop_box_indices_name, 'axis': int64_array([1]),
                                         'offset': int64_array([2]), 'dim': int64_array([1])}).create_node()
         nms.out_port(0).get_connection().insert_node(crop_box_indices)
         squeeze_output_boxes = create_op_node_with_second_input(graph, Squeeze, int64_array([1]),
-                                                                {'name': crop_box_indices.soft_get('name') + '/Squeeze'}
-                                                                )
+                                                                {'name': crop_box_indices_name + '/Squeeze'})
         crop_box_indices.out_port(0).get_connection().insert_node(squeeze_output_boxes)
+
+        num_of_outputs = len([port for port in nms.out_ports().values() if not port.disconnected()])
+
+        if num_of_outputs == 1:
+            return
+
+        # prepare output #1
+        crop_score_indices_name = nms_name + '/Crop_scores_'
+        crop_score_indices = Crop(graph, {'name': crop_score_indices_name, 'axis': int64_array([1]),
+                                          'offset': int64_array([2]), 'dim': int64_array([1])}).create_node()
+        nms.out_port(1).get_connection().insert_node(crop_score_indices)
+        squeeze_output_scores = create_op_node_with_second_input(graph, Squeeze, int64_array([1]),
+                                                                 {'name': crop_score_indices_name + '/Squeeze'})
+        crop_score_indices.out_port(0).get_connection().insert_node(squeeze_output_scores)
