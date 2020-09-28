@@ -179,6 +179,7 @@ namespace ngraph
                                                  const std::string& domain,
                                                  Operator fn)
         {
+            std::lock_guard<std::mutex> guard(lock);
             auto it = m_map[domain][name].find(version);
             if (it == std::end(m_map[domain][name]))
             {
@@ -196,6 +197,8 @@ namespace ngraph
         OperatorSet OperatorsBridge::_get_operator_set(const std::string& domain,
                                                        std::int64_t version)
         {
+            std::lock_guard<std::mutex> guard(lock);
+
             OperatorSet result;
 
             auto dm = m_map.find(domain);
@@ -226,6 +229,7 @@ namespace ngraph
                                                       std::int64_t version,
                                                       const std::string& domain)
         {
+            std::lock_guard<std::mutex> guard(lock);
             // search for domain
             auto dm_map = m_map.find(domain);
             if (dm_map == std::end(m_map))

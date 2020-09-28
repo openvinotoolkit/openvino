@@ -20,6 +20,7 @@
 #include <map>
 #include <string>
 #include <unordered_map>
+#include <mutex>
 
 #include "ngraph/except.hpp"
 #include "onnx_import/core/operator_set.hpp"
@@ -127,6 +128,8 @@ namespace ngraph
             bool _is_operator_registered(const std::string& name,
                                          std::int64_t version,
                                          const std::string& domain);
+
+            std::mutex lock;
         };
 
         const std::string OPENVINO_ONNX_DOMAIN = "org.openvinotoolkit";
