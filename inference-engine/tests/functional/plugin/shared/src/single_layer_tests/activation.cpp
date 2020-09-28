@@ -129,6 +129,8 @@ void ActivationLayerTest::setActivationExpectedPrc(std::string name, InferenceEn
         case ngraph::helpers::ActivationTypes::PReLu: {
             expectedPrecisions[std::move(name)] = "BF16";
         }
+        default:
+            return;
     }
 }
 
