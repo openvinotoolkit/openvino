@@ -73,8 +73,7 @@ std::string pass::PassBase::get_name() const
 
 void pass::PassBase::set_callback(const param_callback& callback)
 {
-    m_transformation_callback = callback;
-    m_has_default_callback = false;
+    m_pass_config->set_transformation_callback(callback);
 }
 
 // The symbols are requiered to be in cpp file to workaround RTTI issue on Android LLVM

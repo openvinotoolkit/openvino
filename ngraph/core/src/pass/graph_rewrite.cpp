@@ -139,10 +139,7 @@ bool pass::GraphRewrite::run_on_function(shared_ptr<Function> f)
             return false;
         }
 
-        if (!m_has_default_callback)
-        {
-            m_pass->set_callback(m_transformation_callback);
-        }
+        m_pass->set_pass_config(m_pass_config);
 
         // Apply MatcherPass. In case if it returns true no other MatcherPasses will apply
         // to this node

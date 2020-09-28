@@ -22,7 +22,6 @@
 #include <vector>
 
 #include "ngraph/pass/pass.hpp"
-#include "ngraph/pass/pass_config.hpp"
 #include "ngraph/pass/validate.hpp"
 
 namespace ngraph
@@ -39,13 +38,16 @@ public:
     Manager();
     ~Manager();
 
-    template <typename T, class... Args>
+    template <typename T, bool Enable = true, class... Args>
     std::shared_ptr<T> register_pass(Args&&... args)
     {
         auto rc = push_pass<T>(std::forward<Args>(args)...);
         if (m_per_pass_validation)
         {
             push_pass<Validate>();
+        }
+        if (!Enable) {
+            m_pass_config->disable(T::type_info);
         }
         return rc;
     }
@@ -74,10 +76,31 @@ public:
     /// }
     /// \param callback lamda function that returns true in case if node is supported by plugin and
     /// transformation is not needed
-    void set_callback(param_callback callback)
+    void set_callback(const param_callback & callback)
     {
-        m_transformation_callback = callback;
-        m_has_default_callback = false;
+        m_pass_config->set_transformation_callback(callback);
+    }
+
+    void set_callback_map(const param_callback_map & callback_map)
+    {
+        m_pass_config->set_transformation_callback_map(callback_map);
+    }
+
+    void set_pass_config(std::shared_ptr<PassConfig> pass_config)
+    {
+        m_pass_config = std::move(pass_config);
+    }
+
+    template <typename T>
+    void disable()
+    {
+        m_pass_config->disable(T::type_info);
+    }
+
+    template <typename T>
+    void enable()
+    {
+        m_pass_config->enable(T::type_info);
     }
 
 protected:
@@ -91,10 +114,7 @@ protected:
         return pass;
     }
 
-    param_callback m_transformation_callback = [](const std::shared_ptr<const Node>&) -> bool {
-        return false;
-    };
-    bool m_has_default_callback = true;
+    std::shared_ptr<PassConfig> m_pass_config;
 
     std::vector<std::shared_ptr<PassBase>> m_pass_list;
     bool m_visualize = false;

@@ -40,6 +40,53 @@ namespace ngraph
         typedef EnumMask<PassProperty> PassPropertyMask;
         const PassPropertyMask all_pass_property_off;
         using param_callback = std::function<bool(const std::shared_ptr<const ::ngraph::Node>)>;
+        using param_callback_map = std::map<ngraph::DiscreteTypeInfo, param_callback>;
+
+        class NGRAPH_API PassConfig
+        {
+        public:
+            void disable(const DiscreteTypeInfo & type_info)
+            {
+                m_disabled.insert(type_info);
+            }
+
+            void enable(const DiscreteTypeInfo & type_info)
+            {
+                m_disabled.erase(type_info);
+            }
+
+            void set_transformation_callback(const param_callback & callback)
+            {
+                m_transformation_callback = callback;
+            }
+
+            void set_transformation_callback_map(const param_callback_map & callback_map)
+            {
+                m_transformation_callback_map = callback_map;
+            }
+
+            param_callback get_transformation_callback(const DiscreteTypeInfo & type_info) const
+            {
+                if (m_transformation_callback_map.count(type_info))
+                {
+                    return m_transformation_callback_map.at(type_info);
+                }
+                else
+                {
+                    return m_transformation_callback;
+                }
+            }
+
+            bool is_disabled(const DiscreteTypeInfo & type_info) const
+            {
+                return m_disabled.count(type_info);
+            }
+
+        private:
+            param_callback m_transformation_callback;
+            param_callback_map m_transformation_callback_map;
+            std::unordered_set<DiscreteTypeInfo> m_disabled;
+        };
 
         class NGRAPH_API PassBase
         {
@@ -56,6 +103,16 @@ namespace ngraph
 
             void set_callback(const param_callback& callback);
 
+            void set_pass_config(std::shared_ptr<PassConfig> pass_config)
+            {
+                m_pass_config = std::move(pass_config);
+            }
+
+            bool m_transformation_callback(const std::shared_ptr<const Node> & node)
+            {
+                return m_pass_config->get_transformation_callback(get_type_info())(node);
+            }
+
             using type_info_t = DiscreteTypeInfo;
 
             virtual const type_info_t& get_type_info() const = 0;
@@ -63,10 +120,7 @@ namespace ngraph
         protected:
             void set_property(const PassPropertyMask& prop, bool value);
 
-            param_callback m_transformation_callback =
-                [](const std::shared_ptr<const Node>&) -> bool { return false; };
-            bool m_has_default_callback = true;
-
+            std::shared_ptr<PassConfig> m_pass_config;
         private:
             PassPropertyMask m_property;
             std::string m_name;

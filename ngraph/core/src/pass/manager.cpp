@@ -35,7 +35,8 @@ using namespace std;
 using namespace ngraph;
 
 pass::Manager::Manager()
-    : m_visualize(getenv_bool("NGRAPH_ENABLE_VISUALIZE_TRACING"))
+    : m_visualize(getenv_bool("NGRAPH_ENABLE_VISUALIZE_TRACING")),
+      m_pass_config(std::make_shared<PassConfig>())
 {
 }
 
@@ -56,11 +57,14 @@ void pass::Manager::run_passes(shared_ptr<Function> func)
     bool function_changed = false;
     for (auto& pass : m_pass_list)
     {
-        pass_timer.start();
-        if (!m_has_default_callback)
+        if (m_pass_config->is_disabled(pass->get_type_info()))
         {
-            pass->set_callback(m_transformation_callback);
+            NGRAPH_DEBUG << "Pass " << pass->get_name() << " disabled";
+            continue;
         }
+
+        pass_timer.start();
+        pass->set_pass_config(m_pass_config);
 
         NGRAPH_SUPPRESS_DEPRECATED_START
         if (auto matcher_pass = dynamic_pointer_cast<MatcherPass>(pass))

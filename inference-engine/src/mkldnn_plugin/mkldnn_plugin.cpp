@@ -27,6 +27,8 @@
 #include <transformations/convert_opset1_to_legacy/convert_prior_to_ie_prior.hpp>
 #include <transformations/convert_opset2_to_opset1/convert_opset2_to_opset1.hpp>
 #include <transformations/convert_opset3_to_opset2/convert_opset3_to_opset2.hpp>
+#include <transformations/convert_depth_to_space.hpp>
+#include <transformations/convert_space_to_depth.hpp>
 #include <transformations/init_node_info.hpp>
 #include <transformations/convert_precision.hpp>
 #include <transformations/rt_info/fused_names_attribute.hpp>
@@ -43,6 +45,9 @@
 #include <windows.h>
 #else
 #include <cpuid.h>
+#include <transformations/convert_opset1_to_legacy/reshape_fully_connected.hpp>
+#include <transformations/convert_gelu.hpp>
+#include <transformations/depth_to_space_fusion.hpp>
 
 #endif
 #endif
@@ -63,22 +68,32 @@ Engine::~Engine() {
 static void Transformation(ICNNNetwork::Ptr& clonedNetwork) {
     OV_ITT_SCOPED_TASK(MKLDNNPlugin::itt::domains::MKLDNNPlugin, "Transformation");
 
-    const auto transformations_callback = [](const std::shared_ptr<const ::ngraph::Node> &node) -> bool {
-        // DepthToSpace node implementation supports only equal input/output tensors with rank <= 5
-        if (auto dtsOp = std::dynamic_pointer_cast<const ::ngraph::opset3::DepthToSpace>(node)) {
-            return dtsOp->input_value(0).get_shape().size() <= 5lu && dtsOp->input_value(0).get_shape().size() == dtsOp->get_output_shape(0).size();
-        }
+    using const_node_ptr = const std::shared_ptr<const ngraph::Node>;
 
-        // SpaceToDepth node implementation supports only equal input/output tensors with rank <= 5
-        if (auto stdOp = std::dynamic_pointer_cast<const ::ngraph::opset3::SpaceToDepth>(node)) {
-            return stdOp->input_value(0).get_shape().size() <= 5lu && stdOp->input_value(0).get_shape().size() == stdOp->get_output_shape(0).size();
-        }
+    static const std::map<ngraph::DiscreteTypeInfo, ngraph::pass::param_callback> callback_map {
+            // DepthToSpace node implementation supports only equal input/output tensors with rank <= 5
+            {ngraph::pass::ConvertDepthToSpace::type_info,
+             [](const_node_ptr &node) -> bool {
+                return node->input_value(0).get_shape().size() <= 5lu &&
+                       node->input_value(0).get_shape().size() == node->get_output_shape(0).size();
+            }},
 
-        if (auto fc_op = std::dynamic_pointer_cast<const ngraph::op::FullyConnected>(node)) {
-            return fc_op->input_value(0).get_shape().size() == 3ul;
-        }
+            // SpaceToDepth node implementation supports only equal input/output tensors with rank <= 5
+            {ngraph::pass::ConvertSpaceToDepth::type_info,
+             [](const_node_ptr &node) -> bool {
+                return node->input_value(0).get_shape().size() <= 5lu &&
+                       node->input_value(0).get_shape().size() == node->get_output_shape(0).size();
+            }},
 
-        return std::dynamic_pointer_cast<const ngraph::opset2::Gelu>(node) ||
+            // Disable FC reshaping for 3D case
+            {ngraph::pass::ReshapeFullyConnected::type_info,
+             [](const_node_ptr &node) -> bool {
+                return node->input_value(0).get_shape().size() == 3ul;
+            }},
+    };
+
+    const auto transformations_callback = [](const_node_ptr &node) -> bool {
+        return //std::dynamic_pointer_cast<const ngraph::opset2::Gelu>(node) ||
                std::dynamic_pointer_cast<const ngraph::opset2::BatchToSpace>(node) ||
                std::dynamic_pointer_cast<const ngraph::opset2::SpaceToBatch>(node) ||
                std::dynamic_pointer_cast<const ngraph::opset3::ExtractImagePatches>(node) ||
@@ -88,6 +103,7 @@ static void Transformation(ICNNNetwork::Ptr& clonedNetwork) {
                std::dynamic_pointer_cast<const ngraph::opset4::SoftPlus>(node) ||
                std::dynamic_pointer_cast<const ngraph::opset4::Pad>(node);
     };
+
     auto nGraphFunc = clonedNetwork->getFunction();
     // Disable shape inference (WA for generic operations)
     ngraph::op::GenericIE::DisableReshape noReshape(nGraphFunc);
@@ -116,7 +132,9 @@ static void Transformation(ICNNNetwork::Ptr& clonedNetwork) {
     manager.register_pass<ngraph::pass::ConvertOpSet1ToLegacy>();
     manager.register_pass<ngraph::pass::ConvertPrecision>(ngraph::element::i64, ngraph::element::i32);
 
-    manager.set_callback(transformations_callback);
+    manager.set_callback_map(callback_map);
+    manager.disable<ngraph::pass::ConvertGELU>();
+    manager.enable<ngraph::pass::DepthToSpaceFusion>();
     manager.run_passes(nGraphFunc);
 
     clonedNetwork = InferenceEngine::details::convertFunctionToICNNNetwork(nGraphFunc, *clonedNetwork);

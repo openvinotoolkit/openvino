@@ -62,7 +62,7 @@ bool ngraph::pass::CommonOptimizations::run_on_function(std::shared_ptr<ngraph::
     manager.register_pass<ngraph::pass::AlgebraicSimplification>(); // may introduce fake dynamism
     manager.register_pass<ngraph::pass::ConstantFolding>();
     manager.register_pass<ngraph::pass::ConvertScatterElementsToScatter>(); // partially depends on CF
-    manager.register_pass<ngraph::pass::DepthToSpaceFusion>();
+    manager.register_pass<ngraph::pass::DepthToSpaceFusion, false>();
     manager.register_pass<ngraph::pass::MishFusion>();
     manager.register_pass<ngraph::pass::SoftPlusFusion>();
     manager.register_pass<ngraph::pass::SoftPlusToMishFusion>();
@@ -111,7 +111,7 @@ bool ngraph::pass::CommonOptimizations::run_on_function(std::shared_ptr<ngraph::
     fq_fusions->add_matcher<ngraph::pass::PullTransposeThroughFQUp>();
     fq_fusions->set_name("ngraph::pass::FakeQuantizeFusions");
 
-    manager.set_callback(m_transformation_callback);
+    manager.set_pass_config(m_pass_config);
     manager.run_passes(f);
     return true;
 }
