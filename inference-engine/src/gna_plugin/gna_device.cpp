@@ -272,11 +272,14 @@ const std::map <const std::pair<Gna2OperationType, int32_t>, const std::string> 
 };
 #endif
 
-bool GNADeviceHelper::wait(uint32_t reqId, int64_t millisTimeout) {
+GnaWaitStatus GNADeviceHelper::wait(uint32_t reqId, int64_t millisTimeout) {
 #if GNA_LIB_VER == 2
     const auto status = Gna2RequestWait(reqId, millisTimeout);
     if (status == Gna2StatusDriverQoSTimeoutExceeded) {
-        return false;
+        return GNA_REQUEST_ABORTED;
+    }
+    if (status == Gna2StatusWarningDeviceBusy) {
+        return GNA_REQUEST_PENDING;
     }
     checkGna2Status(status);
     unwaitedRequestIds.erase(std::remove(unwaitedRequestIds.begin(), unwaitedRequestIds.end(), reqId));
@@ -289,7 +292,7 @@ bool GNADeviceHelper::wait(uint32_t reqId, int64_t millisTimeout) {
     checkStatus();
 #endif
     updateGnaPerfCounters();
-    return true;
+    return GNA_REQUEST_COMPLETED;
 }
 
 #if GNA_LIB_VER == 1
