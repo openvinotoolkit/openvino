@@ -143,7 +143,8 @@ namespace ngraph {
                         val = data[0];
                     } else {
                         size_t index_offset = calc_full_broadcast_offset(current_dim, offsets);
-                        NGRAPH_CHECK(index_offset >= 0, "Incorrect index offset value!");
+                        idx -= index_offset;
+                        NGRAPH_CHECK(idx >= 0 && index_offset < shape_size(offsets), "Incorrect index offset value!");
                         val = data[idx - index_offset];
                     }
                     return val;
