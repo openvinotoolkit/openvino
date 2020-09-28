@@ -150,7 +150,7 @@ void op::v1::Split::validate_and_infer_types()
         this, axis_et.is_integral(), "The 'axis' input only accepts integral types");
 
     PartialShape each_output_shape{data_ps};
-    if(op::is_constant(input_value(1).get_node()))
+    if (op::is_constant(input_value(1).get_node()) && data_ps.rank().is_static())
     {
         const auto axis_input = as_type_ptr<op::Constant>(input_value(1).get_node_shared_ptr());
         auto axis = axis_input->cast_vector<int64_t>()[0];
@@ -163,11 +163,11 @@ void op::v1::Split::validate_and_infer_types()
             const auto dimension_at_axis = data_ps[axis].get_length();
 
             NODE_VALIDATION_CHECK(this,
-                                dimension_at_axis % m_num_splits == 0,
-                                "The input tensor's dimension pointed by the 'axis' parameter: ",
-                                dimension_at_axis,
-                                " has to be a multiple of the 'num_splits' attribute value: ",
-                                m_num_splits);
+                                  dimension_at_axis % m_num_splits == 0,
+                                  "The input tensor's dimension pointed by the 'axis' parameter: ",
+                                  dimension_at_axis,
+                                  " has to be a multiple of the 'num_splits' attribute value: ",
+                                  m_num_splits);
 
             each_output_shape[axis] = dimension_at_axis / m_num_splits;
         }
