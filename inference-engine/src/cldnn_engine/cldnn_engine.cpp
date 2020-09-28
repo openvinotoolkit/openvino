@@ -284,7 +284,7 @@ ExecutableNetworkInternal::Ptr clDNNEngine::LoadExeNetworkImpl(const InferenceEn
 
     CLDNNPlugin::Config conf = _impl->m_config;
     auto device_info = GetDeviceInfo(config);
-    conf.enableInt8 = true; // device_info.supports_imad || device_info.supports_immad;
+    conf.enableInt8 = device_info.supports_imad || device_info.supports_immad;
     conf.UpdateFromMap(config);
 
     if (conf.enableDynamicBatch) {
@@ -338,7 +338,7 @@ ExecutableNetworkInternal::Ptr clDNNEngine::LoadExeNetworkImpl(const InferenceEn
 
     CLDNNPlugin::Config conf = getContextImpl(casted)->GetConfig();
     auto device_info = GetDeviceInfo(config);
-    conf.enableInt8 = true; // device_info.supports_imad || device_info.supports_immad;
+    conf.enableInt8 = device_info.supports_imad || device_info.supports_immad;
     conf.UpdateFromMap(config);
 
     if (conf.enableDynamicBatch) {
@@ -383,16 +383,13 @@ void clDNNEngine::QueryNetwork(const ICNNNetwork& network,
                                std::string>& config,
                                QueryNetworkResult& res) const {
     GetDeviceInfo(config);      // Verify device id
-    CLDNNPlugin::Config conf = _impl->m_config;
-    conf.enableInt8 = true; // device_info.supports_imad || device_info.supports_immad;
-    conf.UpdateFromMap(config);
     auto function = network.getFunction();
     if (function != nullptr) {
         std::unordered_set<std::string> originalOps;
         for (auto&& node : function->get_ops()) {
             originalOps.emplace(node->get_friendly_name());
         }
-        auto clonedNetwork = CloneAndTransformNetwork(network, conf);
+        auto clonedNetwork = CloneAndTransformNetwork(network, _impl->m_config);
         std::unordered_set<std::string> supported;
         std::unordered_set<std::string> unsupported;
 
