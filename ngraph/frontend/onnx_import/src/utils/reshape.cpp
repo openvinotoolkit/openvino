@@ -118,7 +118,9 @@ namespace ngraph
                 reshape_channel_shaped_node_to_nchw(const Output<ngraph::Node>& node,
                                                     size_t expected_rank)
             {
-                size_t node_rank = node.get_partial_shape().rank().get_length();
+                const auto& rank = node.get_partial_shape().rank();
+                NGRAPH_CHECK(rank.is_static());
+                size_t node_rank = rank.get_length();
                 if (node_rank == 1)
                 {
                     // reshape the node with shape {C} to {1, C, 1, 1, ..., 1}

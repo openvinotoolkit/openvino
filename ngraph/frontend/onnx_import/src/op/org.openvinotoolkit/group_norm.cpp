@@ -41,6 +41,7 @@ namespace ngraph
                         create_group_norm_shape(const Output<ngraph::Node>& data, size_t num_groups)
                     {
                         const auto& pshape = data.get_partial_shape();
+                        NGRAPH_CHECK(pshape.rank().is_static());
                         size_t rank_size = pshape.rank().get_length();
                         NGRAPH_CHECK(rank_size >= 3, "3-D and above tensors supported only");
 
@@ -121,7 +122,9 @@ namespace ngraph
                     const auto sqrt = std::make_shared<default_opset::Sqrt>(
                         std::make_shared<default_opset::Add>(variance, eps_node));
 
-                    auto data_rank_size = data.get_partial_shape().rank().get_length();
+                    const auto& rank = data.get_partial_shape().rank();
+                    NGRAPH_CHECK(rank.is_static());
+                    auto data_rank_size = rank.get_length();
 
                     std::shared_ptr<ngraph::Node> result =
                         std::make_shared<default_opset::Divide>(diff, sqrt);
