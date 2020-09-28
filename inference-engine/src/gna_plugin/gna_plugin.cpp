@@ -976,21 +976,26 @@ uint32_t GNAPlugin::QueueInference(const InferenceEngine::BlobMap &inputs, Infer
 }
 
 bool GNAPlugin::Wait(uint32_t request_idx) {
-    return WaitFor(request_idx, MAX_TIMEOUT);
+    return GNA_REQUEST_COMPLETED == WaitFor(request_idx, MAX_TIMEOUT);
 }
 
-bool GNAPlugin::WaitFor(uint32_t request_idx, int64_t millisTimeout) {
+GnaWaitStatus GNAPlugin::WaitFor(uint32_t request_idx, int64_t millisTimeout) {
 #if GNA_LIB_VER == 2
     auto& nnets = gnaRequestConfigToRequestIdMap;
 #endif
-    if (nnets.size() <= request_idx) return true;    // TODO: GNA2: check whether necessary
+    // TODO: GNA2: check whether necessary
+    if (nnets.size() <= request_idx) return GNA_REQUEST_COMPLETED;
     // already synced TODO: might be copy required ???
-    if (std::get<1>(nnets[request_idx]) == -1) return true;
+    if (std::get<1>(nnets[request_idx]) == -1) return GNA_REQUEST_COMPLETED;
 
     if (gnadevice) {
-        if (!gnadevice->wait(std::get<1>(nnets[request_idx]), millisTimeout)) {
+        const auto waitStatus = gnadevice->wait(std::get<1>(nnets[request_idx]), millisTimeout);
+        if (waitStatus == GNA_REQUEST_ABORTED) {
             std::get<1>(nnets[request_idx]) = -1;
-            return false;
+            return GNA_REQUEST_ABORTED;
+        }
+        if (waitStatus == GNA_REQUEST_PENDING) {
+            return GNA_REQUEST_PENDING;
         }
     }
 
@@ -1090,7 +1095,7 @@ bool GNAPlugin::WaitFor(uint32_t request_idx, int64_t millisTimeout) {
 
         output_idx++;
     }
-    return true;
+    return GNA_REQUEST_COMPLETED;
 }
 
 void GNAPlugin::Reset() {

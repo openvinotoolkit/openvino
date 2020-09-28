@@ -95,20 +95,21 @@ class GNAInferRequest : public InferenceEngine::AsyncInferRequestInternal {
             THROW_IE_EXCEPTION << PARAMETER_MISMATCH_str;
         }
 
-        bool qosOK;
         if (millis_timeout == InferenceEngine::IInferRequest::WaitMode::RESULT_READY) {
-            qosOK = plg->Wait(inferRequestIdx);
-        } else {
-            qosOK = plg->WaitFor(inferRequestIdx, millis_timeout);
+            millis_timeout = MAX_TIMEOUT;
         }
+        const auto waitStatus = plg->WaitFor(inferRequestIdx, millis_timeout);
 
-        if (qosOK) {
-            return InferenceEngine::OK;
-        } else {
+        if (waitStatus == GNA_REQUEST_PENDING) {
+            // request is still pending so Wait() is needed once again
+            return InferenceEngine::RESULT_NOT_READY;
+        }
+        if (waitStatus == GNA_REQUEST_ABORTED) {
             // need to preserve invalid state here to avoid next Wait() from clearing it
             inferRequestIdx = -1;
             return InferenceEngine::INFER_NOT_STARTED;
         }
+        return InferenceEngine::OK;
     }
 };
 }  // namespace GNAPluginNS
