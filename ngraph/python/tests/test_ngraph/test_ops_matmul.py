@@ -47,7 +47,7 @@ def test_matmul(shape_a, shape_b, transpose_a, transpose_b):
         matmul_vector_shape = shape_a
         matmul_vector_shape = np.asarray(shape_a)
         matmul_vector_shape[-1] = 1
-        result = np.reshape(result, np.roll(matmul_vector_shape,1))
+        result = np.reshape(result, np.roll(matmul_vector_shape, 1))
 
     if transpose_a:
         left_input = np.transpose(left_input)
