@@ -44,10 +44,6 @@ public:
                 newIntermediateData,
                 outputData,
                 "addCopyForOutputsInsideNetwork");
-
-            if (const auto& parentShapeEdge = outputData->parentDataToShapeEdge()) {
-                model->connectDataWithShape(parentShapeEdge->parent(), newIntermediateData);
-            }
         }
     }
 
