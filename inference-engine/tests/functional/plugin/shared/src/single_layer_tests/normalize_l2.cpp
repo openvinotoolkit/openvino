@@ -35,12 +35,7 @@ void NormalizeL2LayerTest::SetUp() {
     std::tie(axes, eps, epsMode, inputShape, netPrecision, targetDevice) = this->GetParam();
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
     auto params = ngraph::builder::makeParams(ngPrc, {inputShape});
-    auto paramOuts = ngraph::helpers::convert2OutputVector(
-            ngraph::helpers::castOps2Nodes<ngraph::opset4::Parameter>(params));
-
-    auto normAxes = std::make_shared<ngraph::opset4::Constant>(ngraph::element::Type_t::i64, ngraph::Shape{axes.size()}, axes);
-
-    auto norm = std::make_shared<ngraph::opset4::NormalizeL2>(paramOuts[0], normAxes, eps, epsMode);
+    auto norm = ngraph::builder::makeNormalizeL2(params[0], axes, eps, epsMode);
     ngraph::ResultVector results{std::make_shared<ngraph::opset4::Result>(norm)};
     function = std::make_shared<ngraph::Function>(results, params, "NormalizeL2");
 }
