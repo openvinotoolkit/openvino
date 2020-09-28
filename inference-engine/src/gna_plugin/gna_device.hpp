@@ -6,6 +6,7 @@
 
 #include <cstdint>
 #include <memory>
+#include <mutex>
 #include <string>
 #include <map>
 #include <vector>
@@ -43,6 +44,7 @@ class GNADeviceHelper {
     intel_gna_perf_t nGNAPerfResults;
     intel_gna_perf_t nGNAPerfResultsTotal;
 #else
+    static std::mutex acrossPluginsSync;
     uint32_t nGnaDeviceIndex = 0;
     Gna2DeviceVersion gna2HwConsistency = Gna2DeviceVersionSoftwareEmulation;
     Gna2DeviceVersion detectedGnaDevVersion = Gna2DeviceVersionSoftwareEmulation;
@@ -172,6 +174,7 @@ public:
         nGNAPerfResults = {{0, 0, 0, 0, 0, 0, 0}, {0, 0}, {0, 0, 0}, {0, 0}};
         nGNAPerfResultsTotal = {{0, 0, 0, 0, 0, 0, 0}, {0, 0}, {0, 0, 0}, {0, 0}};
 #else
+        std::unique_lock<std::mutex> lockGnaCalls{ acrossPluginsSync };
         const auto status = Gna2InstrumentationConfigCreate(TotalGna2InstrumentationPoints,
             gna2InstrumentationPoints,
             instrumentationResults,
