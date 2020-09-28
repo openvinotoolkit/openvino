@@ -176,7 +176,7 @@ void ngraph::pass::ConvertMulAddToScaleShiftOrPower::convert_mul_add_to_scaleshi
                 new_ops.push_back(biases_in);
             }
 
-            auto scaleshift = std::make_shared<ngraph::op::ScaleShiftIE>(data_node, weights_in, biases_in);
+            auto scaleshift = std::make_shared<ngraph::op::ScaleShiftIE>(data_node, weights_in, biases_in, weights_in->get_element_type());
             new_ops.push_back(scaleshift);
 
             scaleshift->set_friendly_name(add_node->get_friendly_name());
