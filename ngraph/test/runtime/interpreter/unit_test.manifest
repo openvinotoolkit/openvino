@@ -138,3 +138,12 @@ onnx_model_gru_fwd_activations
 # Peepholes, input_forget are not supported
 lstm_cell_bias_peepholes
 lstm_cell_bias_peepholes_clip_input_forget
+
+# Number of data channels not a multiple of group size.
+dyn_group_convolution_backprop_data
+
+# Could not eliminate all Dyn nodes
+dyn_convolution_backprop_data
+
+# Need to update expected results
+quant_dequant_pattern_axis
