@@ -64,7 +64,7 @@ class must not exceed `max_output_boxes_per_class`.
 
 *   **5**: `score_threshold` - scalar tensor of type *T_THRESHOLDS* specifying minimum score to consider box for the processing. Optional with default value 0.
 
-*   **6**:  `soft_nms_sigma` - scalar tensor of type *T_THRESHOLDS* specifying the sigma parameter for Soft NMS; see [Bodla et al](https://arxiv.org/abs/1704.04503). Optional with default value 0.
+*   **6**:  `soft_nms_sigma` - scalar tensor of type *T_THRESHOLDS* specifying the sigma parameter for Soft-NMS; see [Bodla et al](https://arxiv.org/abs/1704.04503.pdf). Optional with default value 0.
 
 **Outputs**:
 
@@ -72,9 +72,9 @@ class must not exceed `max_output_boxes_per_class`.
 The output tensor is filled with 0s for output tensor elements if the total number of selected boxes is less than the output tensor size.
 
 *   **2**: `selected_scores` -  tensor of type *T_THRESHOLDS* and shape `[min(num_boxes, max_output_boxes_per_class) * num_batches * num_classes, 3]` containing information about scores for each selected box as triplets `[batch_index, class_index, box_score]`.
-The output tensor is filled with 0s for output tensor elements if the total number of selected boxes is less than the output tensor size. box_score]`.
+The output tensor is filled with 0s for output tensor elements if the total number of selected boxes is less than the output tensor size. box_score]`. Optional.
 
-*   **3**: `valid_outputs` -  scalar of type *T_IND* representing the total number of selected boxes.
+*   **3**: `valid_outputs` -  scalar of type *T_IND* representing the total number of selected boxes. Optional.
 
 **Types**
 
@@ -111,6 +111,11 @@ The output tensor is filled with 0s for output tensor elements if the total numb
             <dim>150</dim> <!-- min(100, 10) * 3 * 5 -->
             <dim>3</dim>
         </port>
+        <port id="6" precision="FP32">
+            <dim>150</dim> <!-- min(100, 10) * 3 * 5 -->
+            <dim>3</dim>
+        </port>
+        <port id="7" precision="I64"/>
     </output>
 </layer>
 ```
