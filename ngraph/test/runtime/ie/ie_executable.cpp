@@ -96,6 +96,7 @@ runtime::ie::IE_Executable::IE_Executable(shared_ptr<Function> func, string devi
     pass::Manager passes;
     passes.register_pass<pass::Opset1Upgrade>();
     passes.run_passes(func);
+
     for (const auto& node : func->get_ops())
     {
         if (ie_ops.find(node->get_type_info()) == ie_ops.end())

@@ -187,6 +187,7 @@ void ActivationParamLayerTest::SetUp() {
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
     auto params = ngraph::builder::makeParams(ngPrc, {shapes.first});
     auto activationParams = createActivationParams(ngPrc, shapes.second);
+
     params[0]->set_friendly_name("Input");
     params.insert(params.end(), activationParams.begin(), activationParams.end());
 

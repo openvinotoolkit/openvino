@@ -306,8 +306,6 @@ set(MULTI_TEST_SRC
     backend/parameter_as_output.in.cpp
     backend/power.in.cpp
     backend/product.in.cpp
-    backend/quantized_convolution.in.cpp
-    backend/quantized_dot.in.cpp
     backend/range.in.cpp
     backend/reduce_max.in.cpp
     backend/reduce_mean.in.cpp

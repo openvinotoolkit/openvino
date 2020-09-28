@@ -23,7 +23,6 @@
 #include "ngraph/op/divide.hpp"
 #include "ngraph/op/sqrt.hpp"
 #include "ngraph/op/subtract.hpp"
-#include "ngraph/runtime/reference/mvn.hpp"
 
 using namespace std;
 using namespace ngraph;

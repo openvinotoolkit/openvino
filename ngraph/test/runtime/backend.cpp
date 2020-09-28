@@ -79,6 +79,7 @@ std::shared_ptr<runtime::Backend> runtime::Backend::create(const string& t,
     }
 
     auto inner_backend = BackendManager::create_backend(type);
+
     if (!must_support_dynamic || inner_backend->supports_dynamic_tensors())
     {
         return inner_backend;

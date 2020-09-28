@@ -21,7 +21,6 @@
 #include "ngraph/except.hpp"
 #include "ngraph/ops.hpp"
 #include "ngraph/util.hpp"
-#include "ngraph/pass/visualize_tree.hpp"
 
 using namespace std;
 using namespace ngraph;
@@ -34,8 +33,6 @@ runtime::interpreter::INTExecutable::INTExecutable(const shared_ptr<Function>& f
     , m_performance_counters_enabled{enable_performance_collection}
 {
     m_function = clone_function(*function);
-    auto p = pass::VisualizeTree("before.dot");
-    p.run_on_function(m_function);
     for (const auto& node : m_function->get_ordered_ops())
     {
         // TODO: WA because of references mismatch for the operation
@@ -74,8 +71,6 @@ runtime::interpreter::INTExecutable::INTExecutable(const shared_ptr<Function>& f
             replace_node(node, concat);
         }
     }
-    auto p2 = pass::VisualizeTree("after.dot");
-    p2.run_on_function(m_function);
     for (auto node : m_function->get_ordered_ops())
     {
         m_nodes.push_back(node);
@@ -197,7 +192,6 @@ bool runtime::interpreter::INTExecutable::call(const vector<shared_ptr<runtime::
         {
             m_timer_map[op].start();
         }
-        std::cout << op->get_type_name() << std::endl;
         if (!op->evaluate(op_outputs, op_inputs))
         {
             evaluate_node(op, op_outputs, op_inputs);

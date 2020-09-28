@@ -16,7 +16,6 @@
 
 #include "ngraph/op/embeddingbag_offsets_sum.hpp"
 #include "ngraph/op/constant.hpp"
-#include "ngraph/runtime/reference/embedding_bag_offsets_sum.hpp"
 
 using namespace std;
 using namespace ngraph;

@@ -18,6 +18,7 @@
 
 #include "ngraph/opsets/opset.hpp"
 #include "ngraph/pass/manager.hpp"
+#include "pass/opset1_upgrade.hpp"
 
 using namespace ngraph;
 
@@ -178,6 +179,10 @@ testing::AssertionResult
 std::shared_ptr<Function>
     test::IE_Engine::upgrade_and_validate_function(const std::shared_ptr<Function> function) const
 {
+    pass::Manager passes;
+    passes.register_pass<pass::Opset1Upgrade>();
+    passes.run_passes(function);
+
     static std::set<NodeTypeInfo> ie_ops = get_ie_ops();
     for (const auto& node : function->get_ops())
     {

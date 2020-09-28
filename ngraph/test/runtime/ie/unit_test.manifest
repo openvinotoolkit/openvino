@@ -1127,12 +1127,6 @@ IE_CPU.onnx_upsample9_scales_const_import_only
 IE_CPU.onnx_empty_initializers_handling
 IE_CPU.onnx_resize11_scales_nearest_asymmetric_floor_dynamic_sizes
 
-# RNN/LSTM Cells should be converted to IE representation
-IE_CPU.lstm_cell__zero_bias_peepholes
-IE_CPU.rnn_cell__no_bias
-IE_CPU.rnn_cell__bias_clip
-IE_CPU.rnn_cell__activation_function
-
 #-------------------------------------------------------------------------------
 #
 #       Inference Engine GPU plugin excludes

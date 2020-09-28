@@ -16,7 +16,6 @@
 
 #include "ngraph/op/embeddingbag_packedsum.hpp"
 #include "ngraph/op/constant.hpp"
-#include "ngraph/runtime/reference/embedding_bag_packed_sum.hpp"
 
 using namespace std;
 using namespace ngraph;
