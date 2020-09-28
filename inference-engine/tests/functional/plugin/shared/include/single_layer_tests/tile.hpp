@@ -12,6 +12,8 @@
 #include "functional_test_utils/layer_test_utils.hpp"
 #include "ngraph_functions/builders.hpp"
 
+namespace LayerTestsDefinitions {
+
 typedef std::vector<size_t> TileSpecificParams;
 typedef std::tuple<
         TileSpecificParams,
@@ -20,10 +22,8 @@ typedef std::tuple<
         LayerTestsUtils::TargetDevice  // Device name
 > TileLayerTestParamsSet;
 
-namespace LayerTestsDefinitions {
-
 class TileLayerTest : public testing::WithParamInterface<TileLayerTestParamsSet>,
-                      public LayerTestsUtils::LayerTestsCommon {
+                      virtual public LayerTestsUtils::LayerTestsCommon {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<TileLayerTestParamsSet> obj);
 
