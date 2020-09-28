@@ -148,6 +148,9 @@ private:
                     StageType::Prod,
                     StageType::Max,
                     StageType::Div,
+                    StageType::Min,
+                    StageType::Logical_NOT,
+                    StageType::Logical_AND
             };
             auto supportedDataTypesInput0 = EnumSet<DataType>{DataType::FP16};
             if (stageTypesWhichSupportS32.count(operation)) {
@@ -167,7 +170,8 @@ private:
                              static_cast<Handle<StageNode>>(this), dataTypeInput1, supportedDataTypesInput1);
 
             assertInputsOutputsTypes(this, {{dataTypeInput0}, {dataTypeInput1}, {dataTypeInput1}}, {{dataTypeInput1}});
-        } else if (operation == StageType::Greater && dataTypeInput0 != dataTypeOutput) {
+        } else if ((operation == StageType::Greater || operation == StageType::Less || operation == StageType::Equal)
+                        && dataTypeInput0 != dataTypeOutput) {
             assertInputsOutputsTypes(this, {{DataType::FP16}, {DataType::FP16}, {DataType::FP16}}, {{DataType::S32}});
         } else {
             assertInputsOutputsTypes(this, {{dataTypeInput0}, {dataTypeInput0}, {dataTypeInput0}}, {{dataTypeInput0}});

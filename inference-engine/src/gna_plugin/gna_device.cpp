@@ -80,6 +80,9 @@ uint32_t GNADeviceHelper::propagate(const uint32_t requestConfigId, Gna2Accelera
     checkGna2Status(status1);
     const auto status2 = Gna2RequestEnqueue(requestConfigId, &reqId);
     checkGna2Status(status2);
+
+    unwaitedRequestIds.push_back(reqId);
+
     return reqId;
 }
 
@@ -269,13 +272,17 @@ const std::map <const std::pair<Gna2OperationType, int32_t>, const std::string> 
 };
 #endif
 
-bool GNADeviceHelper::wait(uint32_t reqId, int64_t millisTimeout) {
+GnaWaitStatus GNADeviceHelper::wait(uint32_t reqId, int64_t millisTimeout) {
 #if GNA_LIB_VER == 2
     const auto status = Gna2RequestWait(reqId, millisTimeout);
     if (status == Gna2StatusDriverQoSTimeoutExceeded) {
-        return false;
+        return GNA_REQUEST_ABORTED;
+    }
+    if (status == Gna2StatusWarningDeviceBusy) {
+        return GNA_REQUEST_PENDING;
     }
     checkGna2Status(status);
+    unwaitedRequestIds.erase(std::remove(unwaitedRequestIds.begin(), unwaitedRequestIds.end(), reqId));
 #else
     if (isPerformanceMeasuring) {
         nGNAStatus = GNAWaitPerfRes(nGNAHandle, millisTimeout, reqId, &nGNAPerfResults);
@@ -285,7 +292,7 @@ bool GNADeviceHelper::wait(uint32_t reqId, int64_t millisTimeout) {
     checkStatus();
 #endif
     updateGnaPerfCounters();
-    return true;
+    return GNA_REQUEST_COMPLETED;
 }
 
 #if GNA_LIB_VER == 1
@@ -376,6 +383,14 @@ void GNADeviceHelper::close() {
     GNADeviceClose(nGNAHandle);
     nGNAHandle = 0;
 #else
+    auto requestsToClose = unwaitedRequestIds;
+    for (auto requestId : requestsToClose) {
+        try {
+            wait(requestId);
+        } catch (...) {
+            gnawarn() << "Request with Id " << requestId << " was not awaited successfully";
+        }
+    }
     const auto status = Gna2DeviceClose(nGnaDeviceIndex);
     checkGna2Status(status);
 #endif
