@@ -53,7 +53,7 @@ shared_ptr<Node> op::MatMul::clone_with_new_inputs(const OutputVector& new_args)
 
 namespace
 {
-    PartialShape evaluate_matmul_output_shape(const PartialShape& arg0_shape,
+    PartialShape validate_matmul_output_shape(const PartialShape& arg0_shape,
                                               const PartialShape& arg1_shape,
                                               bool transpose_a,
                                               bool transpose_b)
@@ -199,7 +199,7 @@ namespace
         Shape arg0_shape = Shape{arg0->get_shape()};
         Shape arg1_shape = Shape{arg1->get_shape()};
 
-        PartialShape output_partial_shape = evaluate_matmul_output_shape(
+        PartialShape output_partial_shape = validate_matmul_output_shape(
             PartialShape(arg0_shape), PartialShape(arg1_shape), transpose_a, transpose_b);
         Shape output_shape = output_partial_shape.to_shape();
         output->set_element_type(arg0->get_element_type());
@@ -273,7 +273,7 @@ void ngraph::op::v0::MatMul::validate_and_infer_types()
         const bool transpose_a = get_transpose_a();
         const bool transpose_b = get_transpose_b();
 
-        output_shape = evaluate_matmul_output_shape(A_matrix, B_matrix, transpose_a, transpose_b);
+        output_shape = validate_matmul_output_shape(A_matrix, B_matrix, transpose_a, transpose_b);
 
         set_output_type(0, result_et, output_shape);
     }
