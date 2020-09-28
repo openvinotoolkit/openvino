@@ -1,4 +1,3 @@
-//
 // Copyright (c) 2019-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -27,9 +26,11 @@ static const size_t batch_block_size = 16;
 ParamsKey PoolingKernel_bsv16_fsv16::GetSupportedKey() const {
     ParamsKey k;
     k.EnableInputDataType(Datatype::F32);
-    k.EnableOutputDataType(Datatype::F32);
     k.EnableInputDataType(Datatype::F16);
+    k.EnableOutputDataType(Datatype::F32);
     k.EnableOutputDataType(Datatype::F16);
+    k.EnableOutputDataType(Datatype::UINT8);
+    k.EnableOutputDataType(Datatype::INT8);
     k.EnableInputLayout(DataLayout::bs_fs_yx_bsv16_fsv16);
     k.EnableOutputLayout(DataLayout::bs_fs_yx_bsv16_fsv16);
     k.EnableInputLayout(DataLayout::bs_fs_zyx_bsv16_fsv16);
@@ -44,6 +45,7 @@ ParamsKey PoolingKernel_bsv16_fsv16::GetSupportedKey() const {
     k.EnablePoolKernelDividerMode(KernelDividerMode::FIXED);
     k.EnablePoolKernelDividerMode(KernelDividerMode::DYNAMIC);
     k.EnablePoolKernelDividerMode(KernelDividerMode::DYNAMIC_WITH_PADDING);
+    k.EnableDifferentTypes();
     return k;
 }
 
@@ -105,6 +107,30 @@ JitConstants PoolingKernel_bsv16_fsv16::GetJitConstants(const pooling_params& pa
     jit.AddConstant(MakeJitConstant("MB_BLOCK", batch_block_size));
     jit.AddConstant(MakeJitConstant("IC_BLOCK", feature_block_size));
     jit.AddConstant(MakeJitConstant("SUB_GROUP_SIZE", sub_group_size));
+    jit.Merge(MakeTypeJitConstants(GetActivationType(params), "ACTIVATION"));
+    jit.Merge(MakeTypeJitConstants(GetAccumulatorType(params), "ACCUMULATOR"));
+
+    if (!params.fused_ops.empty()) {
+        auto input_dt = GetActivationType(params);
+
+        std::vector<std::string> idx_order;
+        if (DataTensor::ChannelsCount(params.output.GetLayout()) == 4) {
+            idx_order = {"(b + BLOCK_NUM * 8)", "oc", "y", "x"};
+        } else if (DataTensor::ChannelsCount(params.output.GetLayout()) == 5) {
+            idx_order = {"(b + BLOCK_NUM * 8)", "oc", "z", "y", "x"};
+        }
+
+        FusedOpsConfiguration conf = {"",
+                                     idx_order,
+                                     "pool_result",
+                                     input_dt,
+                                     8,
+                                     LoadType::LT_ALIGNED_READ,
+                                     BoundaryCheck::ENABLED,
+                                     IndexType::TENSOR_COORD,
+                                     Tensor::DataChannelName::BATCH};
+        jit.Merge(MakeFusedOpsJitConstants(params, {conf}));
+    }
 
     return jit;
 }

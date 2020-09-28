@@ -6,6 +6,7 @@
 
 #include "vpu/ngraph/operations/static_shape_broadcast.hpp"
 #include "vpu/ngraph/operations/dynamic_shape_resolver.hpp"
+#include "vpu/ngraph/utilities.hpp"
 #include "vpu/utils/error.hpp"
 
 #include "ngraph/graph_util.hpp"
@@ -20,7 +21,7 @@ void dynamicToStaticShapeBroadcast(std::shared_ptr<ngraph::Node> target) {
     VPU_THROW_UNLESS(broadcast,
                      "dynamicToStaticShapeBroadcast transformation is not applicable for {}, "
                      "it should be {} instead",
-                     target, ngraph::opset3::Broadcast::type_info.name);
+                     target, ngraph::opset3::Broadcast::type_info);
 
     std::shared_ptr<ngraph::vpu::op::StaticShapeBroadcast> staticShapeBroadcast;
     if (broadcast->get_broadcast_spec() == ngraph::op::BroadcastType::EXPLICIT) {
@@ -39,6 +40,7 @@ void dynamicToStaticShapeBroadcast(std::shared_ptr<ngraph::Node> target) {
 
     auto dsr = std::make_shared<ngraph::vpu::op::DynamicShapeResolver>(
             staticShapeBroadcast->output(0), broadcast->input_value(1));
+    dsr->set_friendly_name(broadcast->get_friendly_name());
 
     ngraph::replace_node(std::move(target), std::move(dsr));
 }

@@ -41,6 +41,18 @@ inline bool fileExists(const std::string &fileName) {
     return fileExists(fileName.c_str());
 }
 
+inline void createFile(const std::string& filename, const std::string& content) {
+    std::ofstream outfile(filename);
+    outfile << content;
+    outfile.close();
+}
+
+inline void removeFile(const std::string& path) {
+    if (!path.empty()) {
+        remove(path.c_str());
+    }
+}
+
 inline void removeIRFiles(const std::string &xmlFilePath, const std::string &binFileName) {
     if (fileExists(xmlFilePath)) {
         std::remove(xmlFilePath.c_str());

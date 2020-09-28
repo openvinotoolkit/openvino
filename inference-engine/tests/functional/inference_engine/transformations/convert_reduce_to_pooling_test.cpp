@@ -19,7 +19,7 @@
 #include <transformations/utils/utils.hpp>
 #include <transformations/convert_reduce_to_pooling.hpp>
 
-#include "ngraph_test_utils.hpp"
+#include "common_test_utils/ngraph_test_utils.hpp"
 
 using namespace testing;
 

@@ -29,8 +29,6 @@ JitConstants FullyConnectedKernelBase::GetJitConstants(const fully_connected_par
 
     jit.AddConstant(MakeJitConstant("INPUT0_ELEMENTS_COUNT", x_size));
 
-    jit.AddConstant(MakeJitConstant("QUANTIZATION_TERM", params.quantization != QuantizationType::NONE));
-
     return jit;
 }
 

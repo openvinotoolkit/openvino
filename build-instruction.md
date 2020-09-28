@@ -28,7 +28,6 @@
 - [Add Inference Engine to Your Project](#add-inference-engine-to-your-project)
 - [(Optional) Additional Installation Steps for the Intel® Movidius™ Neural Compute Stick and Neural Compute Stick 2](#optional-additional-installation-steps-for-the-intel-movidius-neural-compute-stick-and-neural-compute-stick-2)
   - [For Linux, Raspbian Stretch* OS](#for-linux-raspbian-stretch-os)
-  - [For Windows](#for-windows-1)
 - [Next Steps](#next-steps)
 - [Additional Resources](#additional-resources)
 
@@ -53,19 +52,20 @@ as a part of [Intel® Distribution of OpenVINO™].
 ## Build on Linux\* Systems
 
 The software was validated on:
+- Ubuntu\* 18.04 (64-bit) with default GCC\* 7.5.0
 - Ubuntu\* 16.04 (64-bit) with default GCC\* 5.4.0
 - CentOS\* 7.4 (64-bit) with default GCC\* 4.8.5
 
 ### Software Requirements
 - [CMake]\* 3.11 or higher
 - GCC\* 4.8 or higher to build the Inference Engine
-- Python 2.7 or higher for Inference Engine Python API wrapper
+- Python 3.5 or higher for Inference Engine Python API wrapper
 - (Optional) [Install Intel® Graphics Compute Runtime for OpenCL™ Driver package 19.41.14441].
 
 ### Build Steps
 1. Clone submodules:
     ```sh
-    cd dldt
+    cd openvino
     git submodule update --init --recursive
     ```
 2. Install build dependencies using the `install_dependencies.sh` script in the
@@ -146,7 +146,6 @@ You can use the following additional build options:
 
 - nGraph-specific compilation options:
   `-DNGRAPH_ONNX_IMPORT_ENABLE=ON` enables the building of the nGraph ONNX importer.
-  `-DNGRAPH_JSON_ENABLE=ON` enables nGraph JSON-based serialization.
   `-DNGRAPH_DEBUG_ENABLE=ON` enables additional debug prints.
 
 ## Build for Raspbian Stretch* OS
@@ -172,10 +171,10 @@ Native compilation of the Inference Engine is the most straightforward solution.
   sudo apt-get install -y git cmake libusb-1.0-0-dev
   ```
 
-2. Go to the cloned `dldt` repository:
+2. Go to the cloned `openvino` repository:
 
   ```bash
-  cd dldt
+  cd openvino
   ```
 
 3. Initialize submodules:
@@ -203,7 +202,7 @@ Native compilation of the Inference Engine is the most straightforward solution.
 
   This compilation was tested on the following configuration:
 
-  * Host: Ubuntu\* 16.04 (64-bit, Intel® Core™ i7-6700K CPU @ 4.00GHz × 8)
+  * Host: Ubuntu\* 18.04 (64-bit, Intel® Core™ i7-6700K CPU @ 4.00GHz × 8)
   * Target: Raspbian\* Stretch (32-bit, ARMv7, Raspberry Pi\* 3)
 
 1. Install Docker\*:
@@ -243,7 +242,9 @@ with the following content:
       libgstreamer1.0-dev:armhf \
       libgstreamer-plugins-base1.0-dev:armhf \
       libpython3-dev:armhf \
-      python3-pip
+      python3-pip \
+      python-minimal \
+      python-argparse
 
   RUN wget https://www.cmake.org/files/v3.14/cmake-3.14.3.tar.gz && \
       tar xf cmake-3.14.3.tar.gz && \
@@ -262,15 +263,15 @@ with the following content:
 5. Run Docker\* container with mounted source code folder from host:
 
   ```bash
-  docker run -it -v /absolute/path/to/dldt:/dldt ie_cross_armhf /bin/bash
+  docker run -it -v /absolute/path/to/openvino:/openvino ie_cross_armhf /bin/bash
   ```
 
 6. While in the container:
 
-    1. Go to the cloned `dldt` repository:
+    1. Go to the cloned `openvino` repository:
 
       ```bash
-      cd dldt
+      cd openvino
       ```
 
     2. Create a build folder:
@@ -291,8 +292,8 @@ with the following content:
       ```
 
 7. Press **Ctrl+D** to exit from Docker. You can find the resulting binaries
-   in the `dldt/bin/armv7l/` directory and the OpenCV*
-   installation in the `dldt/inference-engine/temp`.
+   in the `openvino/bin/armv7l/` directory and the OpenCV*
+   installation in the `openvino/inference-engine/temp`.
 
 >**NOTE**: Native applications that link to cross-compiled Inference Engine
 library require an extra compilation flag `-march=armv7-a`.
@@ -325,7 +326,6 @@ You can use the following additional build options:
 
 - nGraph-specific compilation options:
   `-DNGRAPH_ONNX_IMPORT_ENABLE=ON` enables the building of the nGraph ONNX importer.
-  `-DNGRAPH_JSON_ENABLE=ON` enables nGraph JSON-based serialization.
   `-DNGRAPH_DEBUG_ENABLE=ON` enables additional debug prints.
 
 ## Build on Windows* Systems
@@ -338,7 +338,7 @@ The software was validated on:
 - [CMake]\*3.11 or higher
 - Microsoft\* Visual Studio 2017, 2019 or [Intel® C++ Compiler] 18.0
 - (Optional) Intel® Graphics Driver for Windows* (26.20) [driver package].
-- Python 3.4 or higher for Inference Engine Python API wrapper
+- Python 3.5 or higher for Inference Engine Python API wrapper
 
 ### Build Steps
 
@@ -381,8 +381,8 @@ cmake -G "Visual Studio 15 2017 Win64" -T "Intel C++ Compiler 18.0" ^
 
 6. Before running the samples, add paths to the TBB and OpenCV binaries used for
    the build to the `%PATH%` environment variable. By default, TBB binaries are
-   downloaded by the CMake-based script to the `<dldt_repo>/inference-engine/temp/tbb/bin`
-   folder, OpenCV binaries to the `<dldt_repo>/inference-engine/temp/opencv_4.3.0/opencv/bin`
+   downloaded by the CMake-based script to the `<openvino_repo>/inference-engine/temp/tbb/bin`
+   folder, OpenCV binaries to the `<openvino_repo>/inference-engine/temp/opencv_4.5.0/opencv/bin`
    folder.
 
 ### Additional Build Options
@@ -428,7 +428,6 @@ cmake -G "Visual Studio 15 2017 Win64" -T "Intel C++ Compiler 18.0" ^
 
 - nGraph-specific compilation options:
   `-DNGRAPH_ONNX_IMPORT_ENABLE=ON` enables the building of the nGraph ONNX importer.
-  `-DNGRAPH_JSON_ENABLE=ON` enables nGraph JSON-based serialization.
   `-DNGRAPH_DEBUG_ENABLE=ON` enables additional debug prints.
 
 ### Building Inference Engine with Ninja* Build System
@@ -437,7 +436,7 @@ cmake -G "Visual Studio 15 2017 Win64" -T "Intel C++ Compiler 18.0" ^
 call "C:\Program Files (x86)\IntelSWTools\compilers_and_libraries_2018\windows\bin\ipsxe-comp-vars.bat" intel64 vs2017
 set CXX=icl
 set CC=icl
-:: clean TBBROOT value set by ipsxe-comp-vars.bat, required TBB package will be downloaded by dldt cmake script
+:: clean TBBROOT value set by ipsxe-comp-vars.bat, required TBB package will be downloaded by openvino cmake script
 set TBBROOT=
 cmake -G Ninja -Wno-dev -DCMAKE_BUILD_TYPE=Release ..
 cmake --build . --config Release
@@ -455,13 +454,13 @@ The software was validated on:
 
 - [CMake]\* 3.11 or higher
 - Clang\* compiler from Xcode\* 10.1 or higher
-- Python\* 3.4 or higher for the Inference Engine Python API wrapper
+- Python\* 3.5 or higher for the Inference Engine Python API wrapper
 
 ### Build Steps
 
 1. Clone submodules:
     ```sh
-    cd dldt
+    cd openvino
     git submodule update --init --recursive
     ```
 2. Install build dependencies using the `install_dependencies.sh` script in the
@@ -520,7 +519,6 @@ You can use the following additional build options:
 
 - nGraph-specific compilation options:
   `-DNGRAPH_ONNX_IMPORT_ENABLE=ON` enables the building of the nGraph ONNX importer.
-  `-DNGRAPH_JSON_ENABLE=ON` enables nGraph JSON-based serialization.
   `-DNGRAPH_DEBUG_ENABLE=ON` enables additional debug prints.
 
 ## Build on Android* Systems
@@ -545,7 +543,7 @@ This section describes how to build Inference Engine for Android x86 (64-bit) op
 
 2. Clone submodules
   ```sh
-  cd dldt
+  cd openvino
   git submodule update --init --recursive
   ```
 
@@ -575,8 +573,7 @@ This section describes how to build Inference Engine for Android x86 (64-bit) op
 
 ## Use Custom OpenCV Builds for Inference Engine
 
-> **NOTE**: The recommended and tested version of OpenCV is 4.3. The minimum
-supported version is 3.4.0.
+> **NOTE**: The recommended and tested version of OpenCV is 4.4.0.
 
 Required versions of OpenCV packages are downloaded automatically during the
 building Inference Engine library. If the build script can not find and download
@@ -610,7 +607,7 @@ before running the Inference Engine build:
 For CMake projects, set the `InferenceEngine_DIR` environment variable:
 
 ```sh
-export InferenceEngine_DIR=/path/to/dldt/build/
+export InferenceEngine_DIR=/path/to/openvino/build/
 ```
 
 Then you can find Inference Engine by `find_package`:
@@ -659,20 +656,6 @@ sudo ldconfig
 ```sh
 rm 97-myriad-usbboot.rules
 ```
-
-### For Windows
-
-For Intel® Movidius™ Neural Compute Stick and Intel® Neural Compute Stick 2,
-install the Movidius™ VSC driver:
-
-1. Go to the `<DLDT_ROOT_DIR>/inference-engine/thirdparty/movidius/MovidiusDriver`
-   directory, where the `DLDT_ROOT_DIR` is the directory to which the DLDT
-   repository was cloned.
-2. Right click on the `Movidius_VSC_Device.inf` file and choose **Install** from
-   the pop-up menu.
-
-You have installed the driver for your Intel® Movidius™ Neural Compute Stick
-or Intel® Neural Compute Stick 2.
 
 ## Next Steps
 

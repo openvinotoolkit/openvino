@@ -110,9 +110,12 @@ WatchdogImpl::WatchdogImpl() {
     if (rc != 0) {
         throw std::runtime_error("failed to set condition variable clock. rc: " + std::to_string(rc));
     }
+
+    rc = pthread_cond_init(&wakeUpPingThread, &attr);
+#else
+    rc = pthread_cond_init(&wakeUpPingThread, NULL);
 #endif // !(defined(__APPLE__) || defined(_WIN32))
 
-    rc = pthread_cond_init(&wakeUpPingThread, NULL);
     if (rc != 0) {
         throw std::runtime_error("failed to initialize \"wakeUpPingThread\" condition variable. rc: " + std::to_string(rc));
     }
@@ -297,13 +300,15 @@ void WatchdogImpl::watchdogRoutine() noexcept {
             if (sleepInterval.count() <= 0) {
                 continue;
             }
-
+#if 0 // To avoid spam in Debug mode
             mvLog(MVLOG_DEBUG, "sleep interval = %ld ms\n", sleepInterval.count());
+#endif
 
             waitFor(sleepInterval);
-
+#if 0 // To avoid spam in Debug mode
             mvLog(MVLOG_DEBUG, "waiting completed in  %ld ms\n",
                   duration_cast<std::chrono::milliseconds>(steady_clock::now() - currentTime).count());
+#endif
 
         } while (threadRunning);
     } catch (const std::exception &ex) {

@@ -9,7 +9,6 @@
 #include <vector>
 
 #include "ie_blob.h"
-#include "ie_plugin.hpp"
 #include "cpp/ie_cnn_network.h"
 #include "debug_options.h"
 
@@ -28,6 +27,7 @@ struct Config {
                enableDynamicBatch(false),
                enableInt8(true),
                nv12_two_inputs(false),
+               enable_fp16_for_quantized_models(true),
                queuePriority(cldnn::priority_mode_types::disabled),
                queueThrottle(cldnn::throttle_mode_types::disabled),
                max_dynamic_batch(1),
@@ -50,6 +50,7 @@ struct Config {
     bool enableDynamicBatch;
     bool enableInt8;
     bool nv12_two_inputs;
+    bool enable_fp16_for_quantized_models;
     cldnn::priority_mode_types queuePriority;
     cldnn::throttle_mode_types queueThrottle;
     int max_dynamic_batch;

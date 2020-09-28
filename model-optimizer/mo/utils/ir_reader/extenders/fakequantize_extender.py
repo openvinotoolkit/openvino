@@ -23,5 +23,4 @@ class FakeQuantize_extender(Extender):
 
     @staticmethod
     def extend(op: Node):
-        op['keep_in_IR'] = True
         op['stop_value_propagation'] = True

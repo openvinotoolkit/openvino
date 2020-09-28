@@ -41,7 +41,8 @@ class ExperimentalDetectronROIFeatureExtractor(Op):
             'image_id',
             'output_size',
             'sampling_ratio',
-            'preserve_rois_order']
+            'preserve_rois_order',
+            'aligned']
 
     @staticmethod
     def infer(node):

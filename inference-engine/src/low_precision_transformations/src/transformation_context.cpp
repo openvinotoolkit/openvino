@@ -3,6 +3,8 @@
 //
 
 #include "low_precision_transformations/transformation_context.hpp"
+#include <legacy/details/ie_cnn_network_iterator.hpp>
+#include <legacy/details/ie_cnn_network_tools.h>
 
 using namespace InferenceEngine;
 using namespace InferenceEngine::details;

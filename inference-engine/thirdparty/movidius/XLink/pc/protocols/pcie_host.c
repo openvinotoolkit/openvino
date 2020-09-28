@@ -533,9 +533,9 @@ pcieHostError_t pcie_reset_device(HANDLE fd)
 #endif
 
 #if !defined(_WIN32)
-pcieHostError_t pcie_boot_device(int fd, void *buffer, size_t length)
+pcieHostError_t pcie_boot_device(int fd, const char *buffer, size_t length)
 #else
-pcieHostError_t pcie_boot_device(HANDLE fd, void *buffer, size_t length)
+pcieHostError_t pcie_boot_device(HANDLE fd, const char  *buffer, size_t length)
 #endif
 {
     ASSERT_XLINK_PLATFORM_R(fd, PCIE_INVALID_PARAMETERS);
@@ -583,7 +583,7 @@ pcieHostError_t pcie_boot_device(HANDLE fd, void *buffer, size_t length)
 
     bResult = DeviceIoControl(fd,                    // device to be queried
                               MXLK_BOOT_DEV,                 // operation to perform
-                              buffer, length,
+                              (void*)buffer, length,
                               &output_buffer, sizeof(output_buffer), // output buffer
                               &junk,                         // # bytes returned
                               (LPOVERLAPPED) NULL);          // synchronous I/O

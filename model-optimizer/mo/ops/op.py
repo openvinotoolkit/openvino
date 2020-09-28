@@ -21,8 +21,7 @@ from collections import namedtuple
 import networkx as nx
 import numpy as np
 
-from mo.front.extractor import add_attrs_props
-from mo.front.extractor import update_ie_fields
+from mo.front.extractor import add_attrs_props, update_ie_fields
 from mo.graph.graph import Node, Graph
 from mo.utils import class_registration
 from mo.utils.error import Error
@@ -74,12 +73,6 @@ class Op(object):
         backend_attrs_mapping = {
             None: self.backend_attrs,
             10: self.backend_attrs,
-            7: self.backend_attrs,
-            6: self.backend_attrs,
-            5: self.backend_attrs,
-            4: self.backend_attrs,
-            3: self.backend_attrs,
-            2: self.backend_attrs_v2
         }
 
         if self.ir_version not in backend_attrs_mapping.keys():
@@ -103,7 +96,7 @@ class Op(object):
         else:
             node = node_port
             port = 0
-        # 'data' nodes do not have 'out' edge attibute but always has one output
+        # 'data' nodes do not have 'out' edge attribute but always has one output
         out_ids = [attr['out'] for _, __, attr in node.graph.out_edges(node.id, data=True) if 'out' in attr]
         if len(set(out_ids)) > 1 and not isinstance(node_port, tuple):
             raise Error('Node {} has more than one outputs. Provide output port explicitly. '.format(node.name))
@@ -213,10 +206,9 @@ class Op(object):
                 [np.array_equal(old_data_value[id], data_node.value) for id, data_node in enumerate(data_nodes)])
             assert all(old_shape is None for old_shape in old_data_shape) or all(
                 [np.array_equal(old_data_shape[id], data_node.shape) for id, data_node in enumerate(data_nodes)]), \
-                "After re-inference of {} node, old and new shapes do not match. Old shapes: {}, new shapes: {}.".format(
-                    new_op_node.soft_get('name'),
-                    [old_data_shape[id] for id in range(len(data_nodes))],
-                    [data_node.shape for data_node in data_nodes])
+                "After re-inference of {} node, old and new shapes do not match. Old shapes: {}, new shapes: {}." \
+                "".format(new_op_node.soft_get('name'), [old_data_shape[id] for id in range(len(data_nodes))],
+                          [data_node.shape for data_node in data_nodes])
             for data_node in data_nodes:
                 if log.getLogger().isEnabledFor(log.DEBUG):
                     log.debug(
@@ -325,9 +317,6 @@ class Op(object):
         """
         return self.supported_attrs()
 
-    def backend_attrs_v2(self):
-        return self.backend_attrs()
-
     @staticmethod
     def get_op_class_by_name(name: str):
         return __class__.registered_ops[name]
@@ -431,13 +420,11 @@ class PermuteAttrs:
         # This function creates permutation on edge between node1->node2
         edge_attrs = node1.graph.get_edge_data(node1.id, node2.id)[0]
         if 'permutation' not in edge_attrs or override:
-            nx.set_edge_attributes(G=node1.graph,
-                                   values={(node1.id, node2.id, 0): permutation},
-                                   name='permutation')
+            nx.set_edge_attributes(G=node1.graph, values={(node1.id, node2.id, 0): permutation}, name='permutation')
         else:
             # If permutation exists we check that given and already set permutations are equal
             if (edge_attrs['permutation'] is None and permutation is not None) or \
-                not np.array_equal(edge_attrs['permutation'], permutation):
+                    not np.array_equal(edge_attrs['permutation'], permutation):
                 raise Error('Permutation already exists in edge between {} and {}'.format(node1.id, node2.id))
 
     @staticmethod
@@ -452,8 +439,8 @@ class PermuteAttrs:
     def get_nhwc_to_nchw_permutation(dims_number: int):
         # This function returns permutation from NHWC to NCHW for given dims number
         if dims_number != 3:
-            perm = [0, dims_number - 1, *[x for x in range(1, dims_number - 1)]] if dims_number > 1 else [x for x in range(
-                dims_number)]
+            perm = [0, dims_number - 1, *[x for x in range(1, dims_number - 1)]] if dims_number > 1 else \
+                [x for x in range(dims_number)]
         else:
             # Exclude 3D shapes from permutation process: identity permutation
             perm = list(range(0, dims_number))
@@ -464,8 +451,7 @@ class PermuteAttrs:
     def get_nchw_to_nhwc_permutation(dims_number: int):
         # This function returns permutation from NCHW to NHWC for given dims number
         if dims_number != 3:
-            perm = [0, *[x for x in range(2, dims_number)], 1] if dims_number > 1 else [x for x in range(
-                dims_number)]
+            perm = [0, *[x for x in range(2, dims_number)], 1] if dims_number > 1 else [x for x in range(dims_number)]
         else:
             # Exclude 3D shapes from permutation process: identity permutation
             perm = list(range(0, dims_number))

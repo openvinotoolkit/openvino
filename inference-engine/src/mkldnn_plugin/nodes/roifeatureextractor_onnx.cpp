@@ -14,6 +14,7 @@
 #include <string>
 #include <algorithm>
 #include "ie_parallel.hpp"
+#include "common/cpu_memcpy.h"
 
 namespace InferenceEngine {
 namespace Extensions {
@@ -140,6 +141,7 @@ void ROIAlignForward_cpu_kernel(
     const int pooled_width,
     const int sampling_ratio,
     const T* bottom_rois,
+    const bool aligned,
     T* top_data) {
   int roi_cols = 4;
 
@@ -156,11 +158,12 @@ void ROIAlignForward_cpu_kernel(
       offset_bottom_rois++;
     }
 
+    T offset = aligned ? (T)0.5 : (T)0.0;
     // Do not using rounding; this implementation detail is critical
-    T roi_start_w = offset_bottom_rois[0] * spatial_scale;
-    T roi_start_h = offset_bottom_rois[1] * spatial_scale;
-    T roi_end_w = offset_bottom_rois[2] * spatial_scale;
-    T roi_end_h = offset_bottom_rois[3] * spatial_scale;
+    T roi_start_w = offset_bottom_rois[0] * spatial_scale - offset;
+    T roi_start_h = offset_bottom_rois[1] * spatial_scale - offset;
+    T roi_end_w = offset_bottom_rois[2] * spatial_scale - offset;
+    T roi_end_h = offset_bottom_rois[3] * spatial_scale - offset;
 
     // Force malformed ROIs to be 1x1
     T roi_width = (std::max)(roi_end_w - roi_start_w, (T)1.);
@@ -261,7 +264,7 @@ void reorder(const float* src_data, const int* ranks, const int n, const int ste
     for (int i = 0; i < n; ++i) {
         const int j = dst_mapping[i];
         assert(0 <= j && j < n);
-        std::memcpy(dst_data + i * step, src_data + j * step, sizeof(float) * step);
+        cpu_memcpy(dst_data + i * step, src_data + j * step, sizeof(float) * step);
     }
 }
 
@@ -321,6 +324,7 @@ public:
             output_dim_ = layer->GetParamAsInt("output_size");
             pyramid_scales_ = layer->GetParamAsInts("pyramid_scales");
             sampling_ratio_ = layer->GetParamAsInt("sampling_ratio");
+            aligned_ = layer->GetParamAsBool("aligned", false);
             pooled_height_ = output_dim_;
             pooled_width_ = output_dim_;
 
@@ -374,6 +378,7 @@ public:
                     pooled_width_,
                     sampling_ratio_,
                     &reordered_rois[4 * level_rois_offset],
+                    aligned_,
                     &output_rois_features_temp[feaxels_per_roi * level_rois_offset]);
             }
         }
@@ -382,7 +387,7 @@ public:
         reorder(&output_rois_features_temp[0], &original_rois_mapping[0], num_rois, feaxels_per_roi,
                 output_rois_features, &dummy_mapping[0]);
         if (output_rois != nullptr) {
-            std::memcpy(output_rois, input_rois, 4 * num_rois * sizeof(float));
+            cpu_memcpy(output_rois, input_rois, 4 * num_rois * sizeof(float));
         }
 
         return OK;
@@ -394,6 +399,7 @@ private:
     int pooled_width_ = 0;
     std::vector<int> pyramid_scales_;
     int sampling_ratio_ = 0;
+    bool aligned_ = false;
 };
 
 REG_FACTORY_FOR(ExperimentalDetectronROIFeatureExtractorImpl, ExperimentalDetectronROIFeatureExtractor);

@@ -4,12 +4,18 @@
 
 #include <vector>
 #include <gtest/gtest.h>
-#include <layer_transform.hpp>
-#include <gna-api-types-xnn.h>
+#include <legacy/layer_transform.hpp>
+#include "backend/gna_types.h"
 #include "frontend/model_quantizer.hpp"
 #include "frontend/layer_quantizer.hpp"
 #include "gna_matcher.hpp"
 #include <ie_core.hpp>
+
+#if defined GNA_LIB_VER && GNA_LIB_VER == 2
+# define DISABLE_TEST_ON_GNA2 GTEST_SKIP();
+#else
+# define DISABLE_TEST_ON_GNA2
+#endif
 
 using namespace InferenceEngine;
 using namespace GNAPluginNS;
@@ -95,7 +101,7 @@ TEST_F(I16QuantisationTest, outputAffinePrecisionIs32Bits){
     auto newNet = q.quantize(network, 1000);
     InputsDataMap inputs;
     newNet->getInputsInfo(inputs);
-    auto affineDataPtr = inputs.begin()->second->getInputData()->getInputTo().begin()->second->outData.front();
+    auto affineDataPtr = getInputTo(inputs.begin()->second->getInputData()).begin()->second->outData.front();
 
     ASSERT_EQ(affineDataPtr->getTensorDesc().getPrecision(), Precision::I32);
 }
@@ -126,7 +132,7 @@ TEST_F(I16QuantisationTest, DISABLED_outputScaleFactorForAffineIsCorrect){
     auto newNet = q.quantize(network, 1000);
     InputsDataMap inputs;
     newNet->getInputsInfo(inputs);
-    auto affineLayerPtr = inputs.begin()->second->getInputData()->getInputTo().begin()->second;
+    auto affineLayerPtr = getInputTo(inputs.begin()->second->getInputData()).begin()->second;
 
     auto quantParams = getInjectedData<QuantizedLayerParams>(affineLayerPtr);
 

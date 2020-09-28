@@ -14,6 +14,8 @@
 #include <ngraph_ops/prior_box_clustered_ie.hpp>
 #include <ngraph/rt_info.hpp>
 
+NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertPriorBox, "ConvertPriorBox", 0);
+
 void ngraph::pass::ConvertPriorBox::convert_prior_box() {
     auto data = std::make_shared<pattern::op::Label>(element::i64, Shape{1, 1, 1, 1});
     auto axes = ngraph::opset1::Constant::create(element::i64, Shape{1}, {0});
@@ -33,14 +35,14 @@ void ngraph::pass::ConvertPriorBox::convert_prior_box() {
     auto prior_box = std::make_shared<ngraph::opset1::PriorBox>(data, image, attr);
     auto unsqueeze = std::make_shared<ngraph::opset1::Unsqueeze> (prior_box, axes);
 
-    ngraph::graph_rewrite_callback callback = [](pattern::Matcher& m) {
+    ngraph::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
         auto unsqueeze = std::dynamic_pointer_cast<ngraph::opset1::Unsqueeze> (m.get_match_root());
         if (!unsqueeze) {
             return false;
         }
         auto prior_box_node = std::dynamic_pointer_cast<ngraph::opset1::PriorBox> (unsqueeze->input_value(0).get_node_shared_ptr());
 
-        if (!prior_box_node) {
+        if (!prior_box_node || m_transformation_callback(prior_box_node)) {
             return false;
         }
 
@@ -172,14 +174,14 @@ void ngraph::pass::ConvertPriorBox::convert_prior_box_clustered() {
     auto prior_box = std::make_shared<ngraph::opset1::PriorBoxClustered>(data, image, attr);
     auto unsqueeze = std::make_shared<ngraph::opset1::Unsqueeze> (prior_box, axes);
 
-    ngraph::graph_rewrite_callback callback = [](pattern::Matcher& m) {
+    ngraph::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
         auto unsqueeze = std::dynamic_pointer_cast<ngraph::opset1::Unsqueeze> (m.get_match_root());
         if (!unsqueeze) {
             return false;
         }
-        auto prior_box_node = std::dynamic_pointer_cast<ngraph::opset1::PriorBoxClustered> (unsqueeze->get_argument(0));
+        auto prior_box_node = std::dynamic_pointer_cast<ngraph::opset1::PriorBoxClustered>(unsqueeze->input_value(0).get_node_shared_ptr());
 
-        if (!prior_box_node) {
+        if (!prior_box_node || m_transformation_callback(prior_box_node)) {
             return false;
         }
 
@@ -210,9 +212,9 @@ void ngraph::pass::ConvertPriorBox::convert_prior_box_clustered() {
         ops_to_replace.push_back(strided_slice2);
 
         //  Check that StridedSlice1 cuts H,W dims for PriorBox
-        auto begin = std::dynamic_pointer_cast<ngraph::opset1::Constant> (strided_slice1->get_argument(1));
-        auto end = std::dynamic_pointer_cast<ngraph::opset1::Constant> (strided_slice1->get_argument(2));
-        auto stride = std::dynamic_pointer_cast<ngraph::opset1::Constant> (strided_slice1->get_argument(3));
+        auto begin = std::dynamic_pointer_cast<ngraph::opset1::Constant> (strided_slice1->input_value(1).get_node_shared_ptr());
+        auto end = std::dynamic_pointer_cast<ngraph::opset1::Constant> (strided_slice1->input_value(2).get_node_shared_ptr());
+        auto stride = std::dynamic_pointer_cast<ngraph::opset1::Constant> (strided_slice1->input_value(3).get_node_shared_ptr());
 
         if (!begin || !end || !stride) {
             return false;
@@ -277,8 +279,8 @@ void ngraph::pass::ConvertPriorBox::convert_prior_box_clustered() {
         ops_to_replace.push_back(shape_of1);
         ops_to_replace.push_back(shape_of2);
 
-        auto prior_box_ie = std::make_shared<ngraph::op::PriorBoxClusteredIE> (shape_of1->get_argument(0),
-                                                                               shape_of2->get_argument(0),
+        auto prior_box_ie = std::make_shared<ngraph::op::PriorBoxClusteredIE> (shape_of1->input_value(0),
+                                                                               shape_of2->input_value(0),
                                                                                prior_box_node->get_attrs());
         prior_box_ie->set_friendly_name(unsqueeze->get_friendly_name());
 

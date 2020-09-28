@@ -16,18 +16,16 @@
 
 #include <description_buffer.hpp>
 #include <cldnn/cldnn_config.hpp>
-#include <graph_tools.hpp>
-#include <ie_layers_internal.hpp>
-#include <net_pass.h>
+#include <legacy/graph_tools.hpp>
+#include <legacy/ie_layers_internal.hpp>
+#include <legacy/net_pass.h>
 #include "cldnn_infer_request.h"
 #include <threading/ie_executor_manager.hpp>
-#include "details/caseless.hpp"
 #include "cldnn_async_infer_request.h"
 #include <fstream>
 #include <utility>
 #include <sys/types.h>
 
-#include <exec_graph_info.hpp>
 #include "cldnn_executable_network.h"
 #include "threading/ie_cpu_streams_executor.hpp"
 
@@ -58,9 +56,6 @@ CLDNNExecNetwork::CLDNNExecNetwork(InferenceEngine::ICNNNetwork &network, Remote
     }
 
     m_context = casted_context;
-
-    NetPass::ConvertPrecision(network, Precision::I64, Precision::I32);
-    NetPass::ConvertPrecision(network, Precision::U64, Precision::I32);
 
     auto graph_base = std::make_shared<CLDNNGraph>(network, m_context, m_config, 0);
     for (uint16_t n = 0; n < m_config.throughput_streams; n++) {

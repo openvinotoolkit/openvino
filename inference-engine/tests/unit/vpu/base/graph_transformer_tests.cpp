@@ -51,11 +51,11 @@ InputInfo InputInfo::fromNetwork(int ind) {
     return info;
 }
 
-InputInfo InputInfo::fromPrevStage(int ind) {
+InputInfo InputInfo::fromPrevStage(int ind, int outputInd) {
     InputInfo info;
     info.type = InputType::PrevStageOutput;
     info.prevStageInd = ind;
-    info.prevStageOutputInd = 0;
+    info.prevStageOutputInd = outputInd;
     return info;
 }
 
@@ -72,10 +72,25 @@ OutputInfo OutputInfo::fromNetwork(int ind) {
     return info;
 }
 
+InputInfo InputInfo::constant(const DataDesc& desc) {
+    InputInfo info;
+    info.type = InputType::Constant;
+    info.desc = desc;
+    return info;
+}
+
 OutputInfo OutputInfo::intermediate(const DataDesc& desc) {
     OutputInfo info;
     info.type = OutputType::Intermediate;
     info.desc = desc;
+    return info;
+}
+
+OutputInfo OutputInfo::intermediate(MemoryType memReq) {
+    OutputInfo info;
+    info.type = OutputType::Intermediate;
+    info.desc = DataDesc{};
+    info.memReq = memReq;
     return info;
 }
 
@@ -124,7 +139,8 @@ const StageVector& TestModel::getStages() const {
     return _stages;
 }
 
-void TestModel::createInputs(std::vector<DataDesc> inputDescs) {
+void TestModel::createInputs(std::vector<DataDesc> descriptors) {
+    const auto& inputDescs = descriptors.empty() ? std::vector<DataDesc>{DataDesc{}} : descriptors;
     const auto numInputs = inputDescs.size();
 
     _model->attrs().set<int>("numInputs", numInputs);
@@ -135,7 +151,8 @@ void TestModel::createInputs(std::vector<DataDesc> inputDescs) {
     }
 }
 
-void TestModel::createOutputs(std::vector<DataDesc> outputDescs) {
+void TestModel::createOutputs(std::vector<DataDesc> descriptors) {
+    const auto& outputDescs = descriptors.empty() ? std::vector<DataDesc>{DataDesc{}} : descriptors;
     const auto numOutputs = outputDescs.size();
 
     _model->attrs().set<int>("numOutputs", numOutputs);
@@ -146,13 +163,13 @@ void TestModel::createOutputs(std::vector<DataDesc> outputDescs) {
     }
 }
 
-Stage TestModel::addStage(
-        std::initializer_list<InputInfo> curInputInfos,
-        std::initializer_list<OutputInfo> curOutputInfos) {
+Stage TestModel::addStage(const std::vector<InputInfo>& curInputInfos, const std::vector<OutputInfo>& curOutputInfos) {
     DataVector curInputs;
     for (const auto& info : curInputInfos) {
         if (info.type == InputType::Original) {
             curInputs.push_back(_inputs.at(info.originalInputInd));
+        } else if (info.type == InputType::Constant) {
+            curInputs.push_back(_model->addConstData(formatString("Const {} / {}", _stages.size(), curInputs.size()), info.desc));
         } else {
             curInputs.push_back(_stages.at(info.prevStageInd)->output(info.prevStageOutputInd));
         }
@@ -163,7 +180,9 @@ Stage TestModel::addStage(
         if (info.type == OutputType::Original) {
             curOutputs.push_back(_outputs.at(info.originalOutputInd));
         } else {
-            curOutputs.push_back(_model->addNewData(formatString("Data %d / %d", _stages.size(), curOutputs.size()), info.desc));
+            auto data = _model->addNewData(formatString("Data %d / %d", _stages.size(), curOutputs.size()), info.desc);
+            data->setMemReqs(info.memReq);
+            curOutputs.push_back(std::move(data));
         }
     }
 
@@ -262,7 +281,7 @@ void GraphTransformerTest::SetUp() {
             consoleOutput());
 
     stageBuilder = std::make_shared<StageBuilder>();
-    frontEnd = std::make_shared<FrontEnd>(stageBuilder);
+    frontEnd = std::make_shared<FrontEnd>(stageBuilder, &_mockCore);
     backEnd = std::make_shared<BackEnd>();
     passManager = std::make_shared<PassManager>(stageBuilder, backEnd);
 }

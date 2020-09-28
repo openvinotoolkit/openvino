@@ -7,44 +7,33 @@
 #include <gtest/gtest.h>
 
 #include <map>
+#include <functional_test_utils/layer_test_utils.hpp>
 
-#include "common_test_utils/common_layers_params.hpp"
 #include "common_test_utils/common_utils.hpp"
 #include "common_test_utils/test_common.hpp"
 #include "common_test_utils/test_constants.hpp"
+#include "common_test_utils/common_layers_params.hpp"
 #include "ie_core.hpp"
 
-namespace EltwiseTestNamespace {
-
-    using ParameterInputIdx = int;
-    enum class InputLayerType {
-        CONSTANT,
-        PARAMETER
-    };
-    enum class EltwiseOpType {
-        ADD,
-        SUBSTRACT,
-        MULTIPLY
-    };
-    const char* InputLayerType_to_string(InputLayerType lt);
-    const char* EltwiseOpType_to_string(EltwiseOpType eOp);
-}// namespace EltwiseTestNamespace
+namespace LayerTestsDefinitions {
 
 typedef std::tuple<
-    EltwiseTestNamespace::EltwiseOpType,       // eltwise op type
-    EltwiseTestNamespace::ParameterInputIdx,   // primary input idx
-    EltwiseTestNamespace::InputLayerType,      // secondary input type
-    InferenceEngine::Precision,                // Net precision
-    InferenceEngine::SizeVector,               // Input shapes
-    std::string,                               // Device name
-    std::map<std::string, std::string>         // Additional network configuration
-> eltwiseLayerTestParamsSet;
+    std::vector<std::vector<size_t>>,             // input shapes
+    ngraph::helpers::EltwiseTypes,                // eltwise op type
+    ngraph::helpers::InputLayerType,              // secondary input type
+    CommonTestUtils::OpType,                      // op type
+    InferenceEngine::Precision,                   // Net precision
+    std::string,                                  // Device name
+    std::map<std::string, std::string>            // Additional network configuration
+> EltwiseTestParams;
 
-class EltwiseLayerTest : public testing::WithParamInterface<eltwiseLayerTestParamsSet>,
-    public LayerTestsUtils::LayerTestsCommon {
+class EltwiseLayerTest : public testing::WithParamInterface<EltwiseTestParams>,
+    virtual public LayerTestsUtils::LayerTestsCommon {
 protected:
+    InferenceEngine::Blob::Ptr GenerateInput(const InferenceEngine::InputInfo &info) const override;
     void SetUp() override;
 
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<eltwiseLayerTestParamsSet> obj);
+    static std::string getTestCaseName(testing::TestParamInfo<EltwiseTestParams> obj);
 };
+} // namespace LayerTestsDefinitions

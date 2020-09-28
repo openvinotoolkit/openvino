@@ -22,7 +22,6 @@ class MaxPool(BackReplacementPattern):
     Rename Pooling/max to MaxPool
     """
     enabled = True
-    graph_condition = [lambda graph: graph.graph['cmd_params'].generate_experimental_IR_V10]
 
     def pattern(self):
         return dict(

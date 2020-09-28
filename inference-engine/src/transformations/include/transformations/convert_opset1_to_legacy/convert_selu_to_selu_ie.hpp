@@ -8,24 +8,20 @@
 #include <memory>
 #include <string>
 
-#include <ie_api.h>
+#include <transformations_visibility.hpp>
 
 #include <ngraph/pass/graph_rewrite.hpp>
 
 namespace ngraph {
 namespace pass {
 
-class INFERENCE_ENGINE_API_CLASS(ConvertSeluToSeluIE);
+class TRANSFORMATIONS_API ConvertSeluToSeluIEMatcher;
 
 }  // namespace pass
 }  // namespace ngraph
 
-class ngraph::pass::ConvertSeluToSeluIE: public ngraph::pass::GraphRewrite {
+class ngraph::pass::ConvertSeluToSeluIEMatcher: public ngraph::pass::MatcherPass {
 public:
-    ConvertSeluToSeluIE() : GraphRewrite() {
-        convert_selu();
-    }
-
-private:
-    void convert_selu();
+    NGRAPH_RTTI_DECLARATION;
+    ConvertSeluToSeluIEMatcher();
 };

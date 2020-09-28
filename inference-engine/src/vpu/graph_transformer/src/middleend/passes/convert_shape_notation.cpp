@@ -35,6 +35,11 @@ void PassImpl::run(const Model& model) {
         // Revert shape from IE to MDK notation
         auto convertedShape = model->duplicateData(shape, "@converted-notation");
 
+        // Settings IE-notation attribute to shape must be done after duplicateData
+        // Since duplicateData does deep attributes copy
+        shape->attrs().set<bool>("IE-notation", true);
+        convertedShape->attrs().set<bool>("converted-notation", true);
+
         const auto generator = [&convertedShape](const ie::Blob::Ptr& blob) {
             std::vector<int32_t> gatherIndices(static_cast<size_t>(convertedShape->desc().totalDimSize()));
             std::iota(gatherIndices.rbegin(), gatherIndices.rend(), 0);
@@ -61,11 +66,18 @@ void PassImpl::run(const Model& model) {
         }
 
         // In case if data and shape had the same producer
-        // Topological order (nextStages/previousStages) needs to be updated
+        // Topological order (nextStages/previousStages) needs to be updated.
+        // Also it is needed if data is the network Input data.
         for (const auto& dataToShapeEdge : convertedShape->childDataToShapeEdges()) {
             const auto& child = dataToShapeEdge->child();
 
-            if (!child->producer() || child->producer() != shape->producer()) {
+            const auto& childProducer = child->producer();
+            if (!childProducer) {
+                VPU_THROW_UNLESS(child->usage() == DataUsage::Input,
+                        "ConvertShapeNotation pass for shape of name {} failed: if child data of name {} "
+                        "has no producer than it must have Input data usage, actual: {}",
+                        shape->name(), child->name(), child->usage());
+            } else if (child->producer() != shape->producer()) {
                 continue;
             }
 

@@ -88,21 +88,16 @@ PassSet::Ptr PassManager::buildMiddleEnd() {
     ADD_DUMP_PASS("initial");
 
     //
+    // Decompose swish layer to Sigmoid + Multiply
+    //
+    ADD_PASS(decomposeSwish);
+    ADD_DUMP_PASS("decomposeSwish");
+
+    //
     // Convert shape notation
     //
-
     ADD_PASS(convertShapeNotation);
     ADD_DUMP_PASS("convertShapeNotation");
-
-    //
-    // Replace Global AvgPooling with ReduceMean
-    //
-
-    if (env.config.enableReplaceWithReduceMean) {
-        ADD_PASS(replaceWithReduceMean);
-        ADD_DUMP_PASS("replaceWithReduceMean");
-    }
-
 
     if (!env.config.disableReorder && !env.config.hwOptimization) {
         ADD_PASS(reorderInputsToChannelMinor);
@@ -214,13 +209,6 @@ PassSet::Ptr PassManager::buildMiddleEnd() {
     }
 
     //
-    // Replace StridedSlice to other stages
-    //
-
-    ADD_PASS(stridedSlice);
-    ADD_DUMP_PASS("stridedSlice");
-
-    //
     // HW stages tiling
     //
 
@@ -242,7 +230,18 @@ PassSet::Ptr PassManager::buildMiddleEnd() {
 
     ADD_PASS(swConvAdaptation);
     ADD_PASS(swDeconvAdaptation);
+
+    //
+    // Replace Global AvgPooling with ReduceMean
+    //
+    // this stage should be executed after "hwPoolTiling"
+    // and before "swPoolAdaptation"
+    if (env.config.enableReplaceWithReduceMean) {
+        ADD_PASS(replaceWithReduceMean);
+        ADD_DUMP_PASS("replaceWithReduceMean");
+    }
     ADD_PASS(swPoolAdaptation);
+
     ADD_PASS(swFullyConnectedAdaptation);
     ADD_DUMP_PASS("swAdaptation");
 
@@ -289,6 +288,23 @@ PassSet::Ptr PassManager::buildMiddleEnd() {
     ADD_DUMP_PASS("processSpecialStages");
 
     //
+    // Propagation dynamism from input to output and from output to input
+    // for inserted stages at frontend and middleend.
+    //
+
+    // propagateDynamism must be applied after convertShapeNotation
+    // and addCopyForOutputsInsideNetwork to mark shape in IE notation, not MDK notation as output
+    // and it is processed after all passes include specialStageProcessor to
+    // propagate dynamism for copy stages which are added in passes above.
+    // Also it is needed allocateResources after propagation to connect datas with shapes
+
+    // In cases of dynamic network output MyriadInferRequest::GetResult expects output shape data
+    // object to be in IE notation in case of dynamic data object.
+
+    ADD_PASS(propagateDynamism);
+    ADD_DUMP_PASS("propagateDynamism");
+
+    //
     // Data location adjustment
     //
 
@@ -330,6 +346,14 @@ PassSet::Ptr PassManager::buildMiddleEnd() {
 
     ADD_PASS(countStagesInLoops);
     ADD_DUMP_PASS("countStagesInLoops");
+
+    ADD_PASS(markFastStages);
+    ADD_DUMP_PASS("markFastStages");
+
+    if (env.config.enableMemoryTypesAnnotation) {
+        ADD_PASS(annotateMemoryTypes);
+        ADD_DUMP_PASS("annotateMemoryTypes");
+    }
 
     //
     // Final check

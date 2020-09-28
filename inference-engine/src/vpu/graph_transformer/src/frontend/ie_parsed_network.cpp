@@ -6,8 +6,8 @@
 
 #include <string>
 
-#include <details/ie_cnn_network_tools.h>
-#include <details/caseless.hpp>
+#include <legacy/details/ie_cnn_network_tools.h>
+#include <caseless.hpp>
 
 #include <vpu/compile_env.hpp>
 
@@ -66,7 +66,7 @@ IeParsedNetwork parseNetwork(const ie::ICNNNetwork& network) {
             const auto constBlob = layer->blobs.begin()->second;
             IE_ASSERT(constBlob != nullptr);
 
-            out.constDatas[constData] = constBlob;
+            out.constDatas.emplace_back(constData, constBlob);
 
             continue;
         }

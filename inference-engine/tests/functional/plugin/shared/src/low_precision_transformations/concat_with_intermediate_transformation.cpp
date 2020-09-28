@@ -46,6 +46,19 @@ std::string ConcatWithIntermediateTransformation::getTestCaseName(testing::TestP
     return result.str();
 }
 
+InferenceEngine::Blob::Ptr ConcatWithIntermediateTransformation::GenerateInput(const InferenceEngine::InputInfo &info) const {
+    InferenceEngine::SizeVector inputShape;
+    std::string targetDevice;
+    InferenceEngine::Precision netPrecision;
+    InferenceEngine::details::LayerTransformation::Params trasformationParams;
+    bool transparentIntermediate;
+    bool multichannel;
+    std::tie(netPrecision, inputShape, targetDevice, trasformationParams, transparentIntermediate, multichannel) = this->GetParam();
+
+    const float k = (info.name() == "input1") ? 1.f : (info.name() == "input2" ? 2.f : 3.f);
+    return LayerTransformation::GenerateInput(trasformationParams.precisionsOnActivations[0], info.getTensorDesc(), k);
+}
+
 /*
 * FQ       FQ
 *  \       /
@@ -70,16 +83,16 @@ void ConcatWithIntermediateTransformation::SetUp() {
         inputShape[3] - (transparentIntermediate ? 2 : 0)
     };
 
-    const auto paramNode1 = std::make_shared<ngraph::opset1::Parameter>(ngPrecision, ngraph::Shape(inputShape1));
-    paramNode1->set_friendly_name("input1");
-    const auto fakeQuantize1 = ngraph::builder::makeFakeQuantize(paramNode1, ngPrecision, 256ul, { 1ul }, { 0.f }, { 3.f }, { 0.f }, { 3.f });
+    const auto input1 = std::make_shared<ngraph::opset1::Parameter>(ngPrecision, ngraph::Shape(inputShape1));
+    input1->set_friendly_name("input1");
+    const auto fakeQuantize1 = ngraph::builder::makeFakeQuantize(input1, ngPrecision, 256ul, { 1ul }, { 0.f }, { 3.f }, { 0.f }, { 3.f });
     fakeQuantize1->set_friendly_name("fakeQuantize1");
 
     const std::vector<size_t> inputShape2 = { inputShape[0], inputShape[1], inputShape[2], inputShape[3] };
-    const auto paramNode2 = std::make_shared<ngraph::opset1::Parameter>(ngPrecision, ngraph::Shape(inputShape2));
-    paramNode2->set_friendly_name("input2");
+    const auto input2 = std::make_shared<ngraph::opset1::Parameter>(ngPrecision, ngraph::Shape(inputShape2));
+    input2->set_friendly_name("input2");
 
-    const auto fakeQuantize2 = ngraph::builder::makeFakeQuantize(paramNode2, ngPrecision, 256ul, { 1ul }, { 0.f }, { 9.f }, { 0.f }, { 9.f });
+    const auto fakeQuantize2 = ngraph::builder::makeFakeQuantize(input2, ngPrecision, 256ul, { 1ul }, { 0.f }, { 9.f }, { 0.f }, { 9.f });
     fakeQuantize2->set_friendly_name("fakeQuantize2");
 
     const std::vector<size_t> kernel = { 3, 3 };
@@ -135,7 +148,7 @@ void ConcatWithIntermediateTransformation::SetUp() {
         std::make_shared<ngraph::opset1::Result>(concat),
         std::make_shared<ngraph::opset1::Result>(convolution)
     };
-    function = std::make_shared<ngraph::Function>(results, ngraph::ParameterVector { paramNode1, paramNode2 }, "ConcatWithIntermediateTransformation");
+    function = std::make_shared<ngraph::Function>(results, ngraph::ParameterVector { input1, input2 }, "ConcatWithIntermediateTransformation");
 
     // TODO: move to some another place
     validate();
@@ -173,7 +186,14 @@ void ConcatWithIntermediateTransformation::validate() {
         EXPECT_EQ(1ul, children.size());
         EXPECT_EQ("ScaleShift", children[0]->type);
 
-        checkParentPrecision(children[0], params.updatePrecisions);
+        const InferenceEngine::CNNLayerPtr layer = InferenceEngine::details::CNNNetworkHelper::getParent(*children[0]);
+        if (params.updatePrecisions) {
+            const auto interval = getQuantizationInterval(params.precisionsOnActivations[0]);
+            const InferenceEngine::Precision expectedPrecision = interval.first >= 0.f ? InferenceEngine::Precision::U8 : InferenceEngine::Precision::I8;
+            checkPrecisions(*layer, { { expectedPrecision }, { expectedPrecision } }, { { expectedPrecision } });
+        } else {
+            checkPrecisions(*layer, netPrecision);
+        }
     } else {
         std::vector<CNNLayerPtr> children = CNNNetworkHelper::getChildren(*intermediate);
         EXPECT_EQ(2ul, children.size());

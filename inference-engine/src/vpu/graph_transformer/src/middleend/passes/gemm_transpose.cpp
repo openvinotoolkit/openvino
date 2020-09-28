@@ -49,6 +49,11 @@ void PassImpl::run(const Model& model) {
         auto inputB = stage->input(1);
         auto output = stage->output(0);
 
+        VPU_THROW_UNLESS(inputA->parentDataToShapeEdge() == nullptr,
+            "Processing layer {} with type {} failed: first input ({} with usage {}) which is dynamic "
+            "doesn't support transpose parameter",
+            stage->name(), stage->type(), inputA->name(), inputA->usage());
+
         const auto inputDimsA = inputA->desc().dims();
 
         const auto K = inputDimsA[Dim::H];

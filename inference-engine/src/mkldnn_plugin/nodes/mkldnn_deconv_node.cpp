@@ -4,13 +4,13 @@
 
 #include "mkldnn_deconv_node.h"
 #include "desc_iterator.hpp"
-#include <ie_layers.h>
+#include <legacy/ie_layers.h>
 #include <mkldnn.hpp>
 #include <string>
 #include <vector>
 #include <mkldnn_types.h>
 #include <mkldnn_extension_utils.h>
-#include <ie_layers_internal.hpp>
+#include <legacy/ie_layers_internal.hpp>
 #include "ie_parallel.hpp"
 
 using namespace mkldnn;
@@ -131,6 +131,7 @@ void MKLDNNDeconvolutionNode::setBiasAsPostOp(const InferenceEngine::Blob::Ptr& 
 
     PostOpsIntBlobMemory.push_back(MKLDNNMemoryPtr(new MKLDNNMemory(getEngine())));
     PostOpsIntBlobMemory[0]->Create(depthwiseDims, memory::data_type::f32, memory::format::x);
+    PostOpsIntBlobMemory[0]->FillZero();
     std::vector<float> weights(biases->size());
     for (int i = 0; i < biases->size(); i++) {
         weights[i] = 1;
@@ -140,6 +141,7 @@ void MKLDNNDeconvolutionNode::setBiasAsPostOp(const InferenceEngine::Blob::Ptr& 
 
     PostOpsIntBlobMemory.push_back(MKLDNNMemoryPtr(new MKLDNNMemory(getEngine())));
     PostOpsIntBlobMemory[1]->Create(depthwiseDims, memory::data_type::f32, memory::format::x);
+    PostOpsIntBlobMemory[1]->FillZero();
     PostOpsIntBlobMemory[1]->SetData(memory::data_type::f32, memory::x, biases->buffer(),
             biases->size() * MKLDNNExtensionUtils::sizeOfDataType(memory::data_type::f32));
 
@@ -148,6 +150,38 @@ void MKLDNNDeconvolutionNode::setBiasAsPostOp(const InferenceEngine::Blob::Ptr& 
                          (const float *) PostOpsIntBlobMemory[1]->GetData());
 
     attr.set_post_ops(ops);
+}
+
+void MKLDNNDeconvolutionNode::filterSupportedPrimitiveDescriptors() {
+    MKLDNNNode::filterSupportedPrimitiveDescriptors();
+    filterSupportedDescriptors();
+}
+
+void MKLDNNDeconvolutionNode::filterSupportedDescriptors() {
+    if (!inputMemoryFormatsFilter.empty() || !outputMemoryFormatsFilter.empty()) {
+        if (inputMemoryFormatsFilter.size() > 1 || outputMemoryFormatsFilter.size() > 1) {
+            THROW_IE_EXCEPTION << "Incorrect number of input or output memory formats for Deconvolution node";
+        }
+        auto itd = descs.begin();
+        while (itd != descs.end()) {
+            bool isSuitableDesc = true;
+            if (!inputMemoryFormatsFilter.empty()) {
+                auto src_fmt = std::shared_ptr<mkldnn::convolution_backward_data::desc>(*itd)->data.src_desc.format;
+                if (src_fmt != inputMemoryFormatsFilter[0])
+                    isSuitableDesc = false;
+            }
+            if (!outputMemoryFormatsFilter.empty()) {
+                auto dst_fmt = std::shared_ptr<mkldnn::convolution_backward_data::desc>(*itd)->data.dst_desc.format;
+                if (dst_fmt != outputMemoryFormatsFilter[0])
+                    isSuitableDesc = false;
+            }
+            if (!isSuitableDesc) {
+                itd = descs.erase(itd);
+            } else {
+                itd++;
+            }
+        }
+    }
 }
 
 void MKLDNNDeconvolutionNode::execute(mkldnn::stream strm) {

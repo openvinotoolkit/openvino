@@ -9,8 +9,8 @@
 #include <utility>
 #include <set>
 #include <chrono>
-#include "details/ie_cnn_network_tools.h"
-#include "ie_util_internal.hpp"
+#include <legacy/details/ie_cnn_network_tools.h>
+#include <legacy/ie_util_internal.hpp>
 #include "ngraph/type/bfloat16.hpp"
 
 using namespace MKLDNNPlugin;
@@ -55,8 +55,11 @@ void BF16Transformer::convertToBFloat16(InferenceEngine::CNNNetwork &network) {
     InputsDataMap inputs = network.getInputsInfo();
     OutputsDataMap outputs = network.getOutputsInfo();
     for (auto iter : sortedLayers) {
-        if (_skipmarking.find(iter->type) != _skipmarking.end()) {
-            continue;
+        //  check, if memory output node needs to be transformed
+        if (iter->type == "Memory" && iter->outData.size() == 0 &&
+            iter->insData[0].lock()->getPrecision() == Precision::FP32) {
+            auto curPrec = iter->insData[0].lock()->getPrecision();
+            iter->insData[0].lock()->setPrecision(Precision::BF16);
         }
         for (size_t o = 0; o < iter->outData.size(); o++) {
             if (inputs.find(iter->outData[o]->getName()) == inputs.end()
@@ -66,7 +69,6 @@ void BF16Transformer::convertToBFloat16(InferenceEngine::CNNNetwork &network) {
             }
         }
     }
-
     // convert all edges back to FP32 on demand
     optimizeToFloat(network);
 }
@@ -108,13 +110,9 @@ void BF16Transformer::optimizeToFloat(InferenceEngine::CNNNetwork &network) {
             toAnalyzeTensors.insert(output.second);
         }
     }
-
     // 2b. go over all unknown layers for this algo and mark them as fp32 and add to the toAnalyzeTensors
     // 2c. go over all inputs to _initbf16 and if they are fp32 - add them to the toAnalyzeTensors
     for (auto iter : sortedLayers) {
-        if (_skipmarking.find(iter->type) != _skipmarking.end()) {
-            continue;
-        }
         if (_initbf16.find(iter->type) == _initbf16.end()
             && _complementbf16.find(iter->type) == _complementbf16.end()
             && _multiinput.find(iter->type) == _multiinput.end()) {
@@ -156,17 +154,20 @@ void BF16Transformer::optimizeToFloat(InferenceEngine::CNNNetwork &network) {
             }
         }
     }
-
     // 3 - while toAnalyzeTensors is not empty look at the layers dealing with tensors mentioned in toAnalyzeTensors
     while (!toAnalyzeTensors.empty()) {
         DataPtr tensor = *toAnalyzeTensors.begin();
         toAnalyzeTensors.erase(tensor);
         // look into producer of the tensor
-        auto layer = tensor->getCreatorLayer().lock();
+        auto layer = getCreatorLayer(tensor).lock();
         // if this layer is not from _initbf16 - analyze inputs
         if (_initbf16.find(layer->type) == _initbf16.end()) {
             // for all inputs investigate and modify tensor precision if required
             for (size_t i = 0; i < layer->insData.size(); i++) {
+                auto creator = getCreatorLayer(layer->insData[i].lock());
+                if (_skipmarking.find(creator.lock()->type) != _skipmarking.end()) {
+                    continue;
+                }
                 bool marked = tryToMarkFP32(layer->insData[i].lock(), immutable);
                 if (marked) {
                     toAnalyzeTensors.insert(layer->insData[i].lock());
@@ -180,9 +181,21 @@ void BF16Transformer::optimizeToFloat(InferenceEngine::CNNNetwork &network) {
         // Instead of "if they do not go _only_ to the toAnalyzeTensors" we have to apply "if they do not go at least to one of _initbf16"
         // TODO: add test input1->pooling1->conv1 and the same pooling1->relu. for example. now convolution should be returned to fp32
         // after greedy mode, it should be fp32.
-        for (auto inputTo : tensor->getInputTo()) {
+        for (auto inputTo : getInputTo(tensor)) {
             for (size_t o = 0; o < inputTo.second->outData.size(); o++) {
                 if (inputTo.second->outData[o]->getTensorDesc().getPrecision() == Precision::BF16) {
+                    // if some layer (e.g. memory) consumes tensor, but must be fitted with another layer (e.g. memory output)
+                    // in the net, whe must prevent this tensor to be fp32 - marked
+                    bool notToMarkFP32 = false;
+                    for (auto consumer : getInputTo(inputTo.second->outData[o])) {
+                        if (_skipmarking.find(consumer.second->type) !=
+                            _skipmarking.end()) {
+                            notToMarkFP32 = true;
+                        }
+                    }
+                    if (notToMarkFP32) {
+                        continue;
+                    }
                     bool marked = tryToMarkFP32(inputTo.second->outData[o], immutable);
                     if (marked) {
                         toAnalyzeTensors.insert(layer->outData[o]);
@@ -207,13 +220,13 @@ bool BF16Transformer::tryToMarkFP32(InferenceEngine::DataPtr data, const std::se
         // if there is one consumer, we can mark its input as float if it does not belong to the list of initial layers
         // in other cases we need to mark tensor which is passed to several l ayers as FP32 only if there is at least one conusmer
         // produces data in FP32. I.e. there should be a way fo getting FP32 from output data to this point
-        if (data->getInputTo().size() == 1) {
-            if (_initbf16.find(data->getInputTo().begin()->second->type) == _initbf16.end()) {
+        if (getInputTo(data).size() == 1) {
+            if (_initbf16.find(getInputTo(data).begin()->second->type) == _initbf16.end()) {
                 marked = true;
             }
         } else {
             // get all consumers
-            for (auto o : data->getInputTo()) {
+            for (auto o : getInputTo(data)) {
                 // if tensor goes to several layers, we will mark it by FP32 only if one of the layer is unknown
                 if (_initbf16.find(o.second->type) == _initbf16.end() &&
                     _complementbf16.find(o.second->type) == _complementbf16.end() &&

@@ -7,14 +7,13 @@
 #include "description_buffer.hpp"
 #include "ie_icore.hpp"
 #include "cpp_interfaces/impl/ie_plugin_internal.hpp"
-#include "cpp/ie_plugin_cpp.hpp"
 #include <memory>
 #include <string>
 #include <map>
 #include <unordered_map>
 #include <vector>
 #include <utility>
-
+#include <legacy/ie_util_internal.hpp>
 
 namespace HeteroPlugin {
 

@@ -1782,9 +1782,10 @@ TEST(reorder_gpu_f32, b_fs_yx_fsv16_to_bfyx_opt_allowed)
 {
     const auto& engine = get_test_engine();
 
-    auto input = memory::allocate(engine, { data_types::f32, format::b_fs_yx_fsv16, { 1, 8, 1, 1 } });
+    auto input = memory::allocate(engine, { data_types::f32, format::b_fs_yx_fsv16, { 2, 12, 1, 1 } });
 
-    set_values(input, { 0.f, 1.f, 2.f, 3.f, 4.f, 5.f, 6.f, 7.f });
+    set_values(input, { 0.f, 1.f, 2.f, 3.f, 4.f, 5.f, 6.f, 7.f, 8.f, 9.f, 10.f, 11.f, 12.f, 13.f, 14.f, 15.f,
+                        16.f, 17.f, 18.f, 19.f, 20.f, 21.f, 22.f, 23.f, 24.f, 25.f, 26.f, 27.f, 28.f, 29.f, 30.f, 31.f });
 
     const std::string reorder_name = "reorder_prim";
     topology topology(
@@ -1808,14 +1809,16 @@ TEST(reorder_gpu_f32, b_fs_yx_fsv16_to_bfyx_opt_allowed)
 
     auto output = outputs.begin()->second.get_memory();
 
-    float answers[16] = {
-            0.f, 1.f, 2.f, 3.f, 4.f, 5.f, 6.f, 7.f,
+    float answers[24] = {
+            0.f, 1.f, 2.f, 3.f, 4.f, 5.f, 6.f, 7.f, 8.f, 9.f, 10.f, 11.f,
+            16.f, 17.f, 18.f, 19.f, 20.f, 21.f, 22.f, 23.f, 24.f, 25.f, 26.f, 27.f,
     };
 
     auto output_ptr = output.pointer<float>();
+    ASSERT_EQ(output_ptr.size(), 24);
     for (size_t i = 0; i < output_ptr.size(); i++)
     {
-        EXPECT_FLOAT_EQ(answers[i], output_ptr[i]);
+        EXPECT_FLOAT_EQ(answers[i], output_ptr[i]) << "i=" << i;
     }
 }
 
@@ -1858,7 +1861,66 @@ TEST(reorder_gpu_f32, b_fs_yx_fsv16_to_bfyx_opt_not_allowed)
     auto output_ptr = output.pointer<float>();
     for (int i = 0; i < 1; i++)
     {
-        EXPECT_FLOAT_EQ(answers[i], output_ptr[i]);
+        EXPECT_FLOAT_EQ(answers[i], output_ptr[i]) << "i=" << i;
+    }
+}
+
+TEST(reorder_gpu_f32, b_fs_yx_fsv16_to_bfyx_opt_padded)
+{
+    const auto& engine = get_test_engine();
+
+    auto input = memory::allocate(engine, { data_types::f32,
+                                            format::b_fs_yx_fsv16,
+                                            { 2, 4, 1, 1 },
+                                            padding({1, 16, 0, 0}, {1, 0, 0, 0}) });
+
+    std::vector<float> in_data = {
+        // b -1 (lower pad)
+        -1.f, -1.f, -1.f, -1.f, -1.f, -1.f, -1.f, -1.f, -1.f, -1.f, -1.f, -1.f, -1.f, -1.f, -1.f, -1.f,
+        -1.f, -1.f, -1.f, -1.f, -1.f, -1.f, -1.f, -1.f, -1.f, -1.f, -1.f, -1.f, -1.f, -1.f, -1.f, -1.f,
+        // b 0
+        -1.f, -1.f, -1.f, -1.f, -1.f, -1.f, -1.f, -1.f, -1.f, -1.f, -1.f, -1.f, -1.f, -1.f, -1.f, -1.f,
+        0.f, 1.f, 2.f, 3.f, 4.f, 5.f, 6.f, 7.f, 8.f, 9.f, 10.f, 11.f, 12.f, 13.f, 14.f, 15.f,
+        // b 1
+        -1.f, -1.f, -1.f, -1.f, -1.f, -1.f, -1.f, -1.f, -1.f, -1.f, -1.f, -1.f, -1.f, -1.f, -1.f, -1.f,
+        16.f, 17.f, 18.f, 19.f, 20.f, 21.f, 22.f, 23.f, 24.f, 25.f, 26.f, 27.f, 28.f, 29.f, 30.f, 31.f,
+        // b +1 (upper pad)
+        -1.f, -1.f, -1.f, -1.f, -1.f, -1.f, -1.f, -1.f, -1.f, -1.f, -1.f, -1.f, -1.f, -1.f, -1.f, -1.f,
+        -1.f, -1.f, -1.f, -1.f, -1.f, -1.f, -1.f, -1.f, -1.f, -1.f, -1.f, -1.f, -1.f, -1.f, -1.f, -1.f,
+    };
+
+    set_values(input, in_data);
+
+    const std::string reorder_name = "reorder_prim";
+    topology topology(
+        input_layout("input", input.get_layout()),
+        reorder(reorder_name, "input", format::bfyx, data_types::f32),
+        activation("activation", reorder_name, activation_func::abs));
+
+    build_options bo;
+    bo.set_option(build_option::optimize_data(true));
+    network network(engine, topology, bo);
+    network.set_input_data("input", input);
+
+    auto outputs = network.execute();
+
+    auto executed_prims = network.get_executed_primitives();
+
+    EXPECT_TRUE(executed_prims.find(reorder_name) == executed_prims.end());
+    EXPECT_EQ(outputs.size(), size_t(1));
+    EXPECT_EQ(outputs.begin()->first, "activation");
+
+    auto output = outputs.begin()->second.get_memory();
+
+    float answers[8] = {
+            0.f, 1.f, 2.f, 3.f,
+            16.f, 17.f, 18.f, 19.f,
+    };
+
+    auto output_ptr = output.pointer<float>();
+    ASSERT_EQ(output_ptr.size(), 8);
+    for (size_t i = 0; i < output_ptr.size(); i++) {
+        EXPECT_FLOAT_EQ(answers[i], output_ptr[i]) << "i=" << i;
     }
 }
 

@@ -6,7 +6,7 @@
 
 #include <memory>
 
-#include <ie_api.h>
+#include <transformations_visibility.hpp>
 
 #include "ngraph/node.hpp"
 #include "ngraph/op/op.hpp"
@@ -16,7 +16,7 @@ namespace ngraph {
 namespace op {
 
 /// \brief Operator performing Matrix Multiplication.
-class INFERENCE_ENGINE_API_CLASS(FullyConnected) : public Op {
+class TRANSFORMATIONS_API FullyConnected : public Op {
 public:
     static constexpr NodeTypeInfo type_info{"FullyConnected", 0};
     const NodeTypeInfo& get_type_info() const override { return type_info; }
@@ -33,7 +33,7 @@ public:
 
     void validate_and_infer_types() override;
 
-    std::shared_ptr<Node> copy_with_new_args(const NodeVector& new_args) const override;
+    std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
 
     size_t get_out_size() { return m_output_size; }
 

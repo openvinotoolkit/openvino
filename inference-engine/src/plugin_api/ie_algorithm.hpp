@@ -80,5 +80,44 @@ inline void clipping(int* idx, const int min, const int max) {
     (*idx) = ((*idx) < max) ? (*idx) : (max - 1);
 }
 
+/**
+ * @brief Set containers intersection
+ * @tparam Set
+ * @param lhs First set container
+ * @param rhs Second set container
+ * @return Set intersection
+ */
+template<typename Set>
+static Set Intersection(const Set& lhs, const Set& rhs) {
+    Set result;
+    const auto& minSizeSet = (lhs.size() <  rhs.size()) ? lhs : rhs;
+    const auto& maxSizeSet = (lhs.size() >= rhs.size()) ? lhs : rhs;
+    for (auto&& val : minSizeSet) {
+        if (contains(maxSizeSet, val)) {
+            result.insert(val);
+        }
+    }
+    return result;
+}
+
+/**
+ * @brief Check whether two sets intersect
+ * @tparam Set
+ * @param lhs First set container
+ * @param rhs Second set container
+ * @return true if two sets interesect false otherwise
+ */
+template<typename Set>
+static bool Intersects(const Set& lhs, const Set& rhs) {
+    const auto& minSizeSet = (lhs.size() <  rhs.size()) ? lhs : rhs;
+    const auto& maxSizeSet = (lhs.size() >= rhs.size()) ? lhs : rhs;
+    for (auto&& val : minSizeSet) {
+        if (contains(maxSizeSet, val)) {
+            return true;
+        }
+    }
+    return false;
+}
+
 }  // namespace details
 }  // namespace InferenceEngine

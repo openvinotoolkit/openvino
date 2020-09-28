@@ -19,7 +19,7 @@ from extensions.back.ScalarConstNormalize import ScalarNormalize
 from mo.back.replacement import BackReplacementPattern
 from mo.front.common.partial_infer.utils import int64_array
 from mo.front.tf.graph_utils import create_op_node_with_second_input
-from mo.graph.graph import Graph
+from mo.graph.graph import Graph, Node
 from mo.ops.reshape import Reshape
 from mo.ops.result import Result
 
@@ -52,16 +52,21 @@ class TopKNormalizer(BackReplacementPattern):
     @staticmethod
     def replace_pattern(graph: Graph, match: dict):
         node = match['result']
-        is_scalar = graph.graph['cmd_params'].generate_experimental_IR_V10
 
-        reshape = create_op_node_with_second_input(graph, Reshape, int64_array([]) if is_scalar else int64_array([1]),
-                                                   {'override_output_shape': True})
+        reshape = create_op_node_with_second_input(graph, Reshape, int64_array([]), {'override_output_shape': True})
         node.in_port(1).get_connection().insert_node(reshape)
 
+        TopKNormalizer.normalize_outputs(node)
+
+    @staticmethod
+    def normalize_outputs(node: Node):
+        """
+        This function adds missed outputs for TopK node.
+        """
         if node.out_port(0).disconnected():
-            output = Result(graph, {'name': node.name + '/Result_port_0/',
+            output = Result(node.graph, {'name': node.name + '/Result_port_0/',
                                     'remove_from_xml': node.has_and_set('remove_values_output')}).create_node()
             node.out_port(0).get_connection().set_destination(output.in_port(0))
         if node.out_port(1).disconnected():
-            output = Result(graph, {'name': node.name + '/Result_port_1/'}).create_node()
+            output = Result(node.graph, {'name': node.name + '/Result_port_1/'}).create_node()
             node.out_port(1).get_connection().set_destination(output.in_port(0))

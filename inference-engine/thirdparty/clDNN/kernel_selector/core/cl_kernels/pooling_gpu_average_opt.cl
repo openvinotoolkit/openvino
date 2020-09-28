@@ -17,7 +17,10 @@
 
 __attribute__((intel_reqd_sub_group_size(SUB_GROUP_SIZE)))
 __attribute__((reqd_work_group_size(SUB_GROUP_SIZE, 1, 1)))
-KERNEL(pooling_gpu_average_opt)(const __global float* input, __global float* output)
+KERNEL(pooling_gpu_average_opt)(
+    const __global INPUT0_TYPE* input,
+     __global OUTPUT_TYPE* output
+)
 {
     int local_id = get_local_id(0);
     int tile_x = get_global_id(0);
@@ -39,7 +42,7 @@ KERNEL(pooling_gpu_average_opt)(const __global float* input, __global float* out
     // 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15
     // In the diagram above X represents the current work item.
 
-    const __global float* base_addr = input + offset + (start_y * INPUT0_SIZE_X + start_x) - 1;
+    const __global INPUT0_TYPE* base_addr = input + offset + (start_y * INPUT0_SIZE_X + start_x) - 1;
 
     float input_buffer[3];
     input_buffer[0] = as_float(intel_sub_group_block_read((const __global uint*)(base_addr - INPUT0_SIZE_X)));
@@ -92,10 +95,12 @@ KERNEL(pooling_gpu_average_opt)(const __global float* input, __global float* out
             res = (sum + sum_1 + sum_2) * ONE_OVER_POOL_SIZE;
         }
 #endif
+        OUTPUT_TYPE final_result;
 
         if ((local_id < TILE_WIDTH) && (offset_x < INPUT0_SIZE_X))
         {
-            output[offset + y * INPUT0_SIZE_X + offset_x] = ACTIVATION(res, ACTIVATION_PARAMS);
+            final_result = TO_OUTPUT_TYPE(ACTIVATION(res, ACTIVATION_PARAMS));
+            output[offset + y * INPUT0_SIZE_X + offset_x] = final_result;
         }
 
         first = (first + 1) % 3;

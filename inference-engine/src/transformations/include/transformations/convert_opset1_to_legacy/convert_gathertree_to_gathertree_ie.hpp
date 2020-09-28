@@ -7,7 +7,7 @@
 #include <vector>
 #include <memory>
 
-#include <ie_api.h>
+#include <transformations_visibility.hpp>
 
 #include <ngraph/pass/graph_rewrite.hpp>
 
@@ -17,17 +17,13 @@
 namespace ngraph {
 namespace pass {
 
-class INFERENCE_ENGINE_API_CLASS(ConvertGatherTreeToGatherTreeIE);
+class TRANSFORMATIONS_API ConvertGatherTreeToGatherTreeIEMatcher;
 
 }  // namespace pass
 }  // namespace ngraph
 
-class ngraph::pass::ConvertGatherTreeToGatherTreeIE: public ngraph::pass::GraphRewrite {
+class ngraph::pass::ConvertGatherTreeToGatherTreeIEMatcher: public ngraph::pass::MatcherPass {
 public:
-    ConvertGatherTreeToGatherTreeIE() : GraphRewrite() {
-        convert();
-    }
-
-private:
-    void convert();
+    NGRAPH_RTTI_DECLARATION;
+    ConvertGatherTreeToGatherTreeIEMatcher();
 };

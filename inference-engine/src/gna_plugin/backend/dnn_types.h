@@ -6,7 +6,7 @@
 
 #include <cstdint>
 #include <type_traits>
-#include <gna-api-types-xnn.h>
+#include "gna_types.h"
 
 #include "gna_plugin_log.hpp"
 
@@ -26,20 +26,41 @@ enum DnnActivationType : uint8_t {
     kActNegLog,
     kActNegHalfLog,
     kActSoftSign,
+    kActPow,
+    kActFakeQuantize,
     kActNumType
 };
 
 struct DnnActivation {
     // for prelu
     DnnActivationType type;
-    float negative_slope;
+    union {
+        struct {
+            float negative_slope;
+        } lrelu;
+        struct {
+            float exponent;
+            float scale;
+            float offset;
+        } pow;
+        struct {
+            int32_t levels;
+            float input_low;
+            float input_high;
+            float output_low;
+            float output_high;
+        } fakeQuantize;
+        struct {
+            float reserved[5];
+        };
+    } args;
     operator DnnActivationType () const noexcept {
         return type;
     }
     static DnnActivation fromType(DnnActivationType type) {
         DnnActivation activation;
         activation.type = type;
-        activation.negative_slope = 0.0f;
+        activation.args = {};
         return activation;
     }
 };
@@ -61,7 +82,9 @@ static const char *intel_dnn_activation_name[kActNumType] = {
         "kActNegLog",
         "kActNegHalfLog",
         "kActCustom",
-        "kActSoftSign"
+        "kActSoftSign",
+        "kActPow",
+        "kActFakeQuantize"
 };
 
 typedef enum DnnSoftmaxType {
@@ -80,7 +103,7 @@ static const char *intel_dnn_softmax_name[kSoftmaxNumType] = {
 };
 
 typedef enum {
-    kDnnUnknownOrientation,
+    kDnnUnknownOrientation = 100,
     kDnnInterleavedOrientation,
     kDnnNonInterleavedOrientation,
     kDnnNumOrientation
@@ -169,7 +192,7 @@ typedef struct {
 typedef struct {
     DnnActivation func_id;       // identifies function being approximated
     uint32_t num_segments;
-    intel_pwl_segment_t *ptr_segments;
+    gna_pwl_segment_t *ptr_segments;
 } intel_piecewiselinear_t;
 
 typedef struct {
@@ -218,9 +241,7 @@ typedef struct {
     void *ptr_outputs;
     float output_scale_factor;
     float input_scale_factor;
-#ifdef PLOT
     const char * original_layer_name = nullptr;
-#endif
 } intel_dnn_component_t;
 
 typedef struct {

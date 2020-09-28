@@ -12,8 +12,7 @@
 #include <vpu/utils/numeric.hpp>
 
 #include <precision_utils.h>
-#include <details/caseless.hpp>
-#include <graph_tools.hpp>
+#include <legacy/graph_tools.hpp>
 #include <description_buffer.hpp>
 #include <xml_parse_utils.h>
 
@@ -149,14 +148,14 @@ void BackEnd::serializeConstShapes(const Model& model, const mv_blob_header& blo
 
         if (shapeLocation.dimsLocation == Location::Blob) {
             serializeToBlob(data->desc().dims(), shapeLocation.dimsOffset);
-        } else if (data->usage() == DataUsage::Output) {
+        } else if (data->usage() == DataUsage::Output || data->usage() == DataUsage::Input) {
             auto ioDimsUpperBoundOffset = data->attrs().get<int>("ioDimsUpperBoundOffset");
             serializeToBlob(data->desc().dims(), ioDimsUpperBoundOffset);
         }
 
         if (shapeLocation.stridesLocation == Location::Blob) {
             serializeToBlob(data->strides(), shapeLocation.stridesOffset);
-        } else if (data->usage() == DataUsage::Output) {
+        } else if (data->usage() == DataUsage::Output || data->usage() == DataUsage::Input) {
             auto ioStridesUpperBoundOffset = data->attrs().get<int>("ioStridesUpperBoundOffset");
             serializeToBlob(data->strides(), ioStridesUpperBoundOffset);
         }

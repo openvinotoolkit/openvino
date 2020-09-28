@@ -4,22 +4,25 @@
 
 #pragma once
 
+#ifdef IR_READER_V10
+# include <ngraph/node.hpp>
+# include <legacy/ie_ngraph_utils.hpp>
+# include <cpp/ie_cnn_network.h>
+#endif  // IR_READER_V10
+
 #include <ie_blob.h>
+#include <ie_icnn_network.hpp>
 #include <ie_iextension.h>
 #include <xml_parse_utils.h>
 
+#include <cctype>
 #include <algorithm>
-#include <details/caseless.hpp>
 #include <map>
 #include <memory>
-#include <ngraph/ngraph.hpp>
 #include <set>
 #include <sstream>
 #include <string>
 #include <vector>
-
-#include "cnn_network_impl.hpp"
-#include "ie_ngraph_utils.hpp"
 
 namespace InferenceEngine {
 
@@ -46,6 +49,8 @@ public:
     CNNParser() = default;
     std::shared_ptr<ICNNNetwork> parse(const pugi::xml_node& root, std::istream& binStream) override;
 };
+
+#ifdef IR_READER_V10
 
 class V10Parser : public IParser {
 public:
@@ -135,7 +140,7 @@ private:
         void checkParameters(const ngraph::OutputVector& inputs, const GenericLayerParams& params, int numInputs) {
             if (numInputs >= 0 && inputs.size() != numInputs) {
                 THROW_IE_EXCEPTION << params.type << " layer " << params.name << " with id: " << params.layerId
-                                   << " has incorrect number of inputs!";
+                                   << " has incorrect number of inputs! Expected: " << numInputs << ", actual: " << inputs.size();
             }
         }
 
@@ -165,6 +170,7 @@ private:
                                              std::istream& binStream, const GenericLayerParams& params);
 
     GenericLayerParams parseGenericParams(const pugi::xml_node& node);
+    void parsePreProcess(CNNNetwork& network, const pugi::xml_node& root, std::istream& binStream);
 
     std::map<std::string, DataPtr> portsToData;
     std::map<std::string, GenericLayerParams> layersParseInfo;
@@ -211,12 +217,30 @@ private:
                 std::vector<size_t> shape;
                 if (!getParameters<size_t>(node.child("data"), name, shape)) return;
                 static_cast<ngraph::Strides&>(*a) = ngraph::Strides(shape);
+#ifdef __APPLE__
+            } else if (auto a = ngraph::as_type<ngraph::AttributeAdapter<std::vector<size_t>>>(&adapter)) {
+                std::vector<size_t> result;
+                if (!getParameters<size_t>(node.child("data"), name, result)) return;
+                static_cast<std::vector<size_t>&>(*a) = result;
+#else
+            } else if (auto a = ngraph::as_type<ngraph::AttributeAdapter<std::vector<size_t>>>(&adapter)) {
+                std::vector<size_t> result;
+                if (!getParameters<size_t>(node.child("data"), name, result)) return;
+                a->set(result);
+#endif
+            } else if (auto a = ngraph::as_type<ngraph::AttributeAdapter<ngraph::AxisSet>>(&adapter)) {
+                std::vector<size_t> axes;
+                if (!getParameters<size_t>(node.child("data"), name, axes)) return;
+                static_cast<ngraph::AxisSet&>(*a) = ngraph::AxisSet(axes);
             } else if (auto a = ngraph::as_type<ngraph::AttributeAdapter<ngraph::op::TopKSortType>>(&adapter)) {
                 if (!getStrAttribute(node.child("data"), name, val)) return;
                 static_cast<ngraph::op::TopKSortType&>(*a) = ngraph::as_enum<ngraph::op::TopKSortType>(val);
             } else if (auto a = ngraph::as_type<ngraph::AttributeAdapter<ngraph::op::TopKMode>>(&adapter)) {
                 if (!getStrAttribute(node.child("data"), name, val)) return;
                 static_cast<ngraph::op::TopKMode&>(*a) = ngraph::as_enum<ngraph::op::TopKMode>(val);
+            }  else {
+                THROW_IE_EXCEPTION << "Error IR reading. Attribute adapter can not be found for " << name
+                                   << " parameter";
             }
         }
         void on_adapter(const std::string& name, ngraph::ValueAccessor<double>& adapter) override {
@@ -286,5 +310,7 @@ private:
         }
     };
 };
+
+#endif  // IR_READER_V10
 
 }  // namespace InferenceEngine

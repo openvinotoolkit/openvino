@@ -8,24 +8,20 @@
 #include <memory>
 #include <string>
 
-#include <ie_api.h>
+#include <transformations_visibility.hpp>
 
 #include <ngraph/pass/graph_rewrite.hpp>
 
 namespace ngraph {
 namespace pass {
 
-class INFERENCE_ENGINE_API_CLASS(ConvertHardSigmoidToHardSigmoidIE);
+class TRANSFORMATIONS_API ConvertHardSigmoidToLegacyMatcher;
 
 }  // namespace pass
 }  // namespace ngraph
 
-class ngraph::pass::ConvertHardSigmoidToHardSigmoidIE : public ngraph::pass::GraphRewrite {
+class ngraph::pass::ConvertHardSigmoidToLegacyMatcher : public ngraph::pass::MatcherPass {
 public:
-    ConvertHardSigmoidToHardSigmoidIE() : GraphRewrite() {
-        convert_hard_sigmoid();
-    }
-
-private:
-    void convert_hard_sigmoid();
+    NGRAPH_RTTI_DECLARATION;
+    ConvertHardSigmoidToLegacyMatcher();
 };

@@ -7,7 +7,7 @@
 #include <algorithm>
 #include <blob_factory.hpp>
 #include <cmath>
-#include <details/caseless.hpp>
+#include <caseless.hpp>
 #include <limits>
 #include <map>
 #include <memory>
@@ -16,9 +16,8 @@
 #include <vector>
 
 #include <ie_common.h>
-#include <details/ie_cnn_network_tools.h>
-#include "cnn_network_impl.hpp"
-#include "ie_util_internal.hpp"
+#include <legacy/cnn_network_impl.hpp>
+#include <legacy/ie_util_internal.hpp>
 
 #include "low_precision_transformations/common/ie_lpt_exception.hpp"
 #include "low_precision_transformations/quantization_details.hpp"
@@ -149,10 +148,10 @@ void ConcatTransformation::transform(TransformationContext& context, CNNLayer& c
             switch (quantizedTensorAlignmentOnActivations) {
             case QuantizedTensorAlignment::None: {
                 const float updatedOutputLowValue = quantizationDetails.outputLowValues[0] * quantizationScale + quantizationShift;
-                CNNNetworkHelper::updateBlobs(fakeQuantizeLayer, 3, updatePrecisions ? roundf(updatedOutputLowValue) : updatedOutputLowValue);
+                CNNNetworkHelper::updateBlobs(context, fakeQuantizeLayer, 3, updatePrecisions ? roundf(updatedOutputLowValue) : updatedOutputLowValue);
 
                 const float updatedOutputHighValue = quantizationDetails.outputHighValues[0] * quantizationScale + quantizationShift;
-                CNNNetworkHelper::updateBlobs(fakeQuantizeLayer, 4, updatePrecisions ? roundf(updatedOutputHighValue) : updatedOutputHighValue);
+                CNNNetworkHelper::updateBlobs(context, fakeQuantizeLayer, 4, updatePrecisions ? roundf(updatedOutputHighValue) : updatedOutputHighValue);
 
                 break;
             }
@@ -166,18 +165,18 @@ void ConcatTransformation::transform(TransformationContext& context, CNNLayer& c
                                                     (outputHighValue / quantizationDetails.outputHighValues[0]))
                                                  : outputHighValue;
 
-                CNNNetworkHelper::updateBlobs(fakeQuantizeLayer, 1, inputLowValue);
-                CNNNetworkHelper::updateBlobs(fakeQuantizeLayer, 2, inputHighValue);
-                CNNNetworkHelper::updateBlobs(fakeQuantizeLayer, 3, dataPrecision.min);
-                CNNNetworkHelper::updateBlobs(fakeQuantizeLayer, 4, dataPrecision.max);
+                CNNNetworkHelper::updateBlobs(context, fakeQuantizeLayer, 1, inputLowValue);
+                CNNNetworkHelper::updateBlobs(context, fakeQuantizeLayer, 2, inputHighValue);
+                CNNNetworkHelper::updateBlobs(context, fakeQuantizeLayer, 3, dataPrecision.min);
+                CNNNetworkHelper::updateBlobs(context, fakeQuantizeLayer, 4, dataPrecision.max);
                 break;
             }
             case QuantizedTensorAlignment::UpdateLevel: {
                 const float updatedOutputLowValue = quantizationDetails.outputLowValues[0] * quantizationScale + quantizationShift;
-                CNNNetworkHelper::updateBlobs(fakeQuantizeLayer, 3, updatePrecisions ? roundf(updatedOutputLowValue) : updatedOutputLowValue);
+                CNNNetworkHelper::updateBlobs(context, fakeQuantizeLayer, 3, updatePrecisions ? roundf(updatedOutputLowValue) : updatedOutputLowValue);
 
                 const float updatedOutputHighValue = quantizationDetails.outputHighValues[0] * quantizationScale + quantizationShift;
-                CNNNetworkHelper::updateBlobs(fakeQuantizeLayer, 4, updatePrecisions ? roundf(updatedOutputHighValue) : updatedOutputHighValue);
+                CNNNetworkHelper::updateBlobs(context, fakeQuantizeLayer, 4, updatePrecisions ? roundf(updatedOutputHighValue) : updatedOutputHighValue);
 
                 const int levels = static_cast<int>(fabs(roundf(updatedOutputHighValue) - roundf(updatedOutputLowValue)) + 1.0);
                 fakeQuantizeLayer.params["levels"] = std::to_string(levels);
@@ -207,6 +206,7 @@ void ConcatTransformation::transform(TransformationContext& context, CNNLayer& c
 
     auto dequantizationValuesCallback = [&](
         const CNNLayer& layer,
+        const std::string& originalLayerName,
         std::vector<float>& layerDequantizationScales,
         std::vector<float>& layerDequantizationShifts
         ) {
@@ -231,48 +231,63 @@ void ConcatTransformation::addDequantizationLayers(
     Subgraph& subgraph,
     std::function<void(
         const CNNLayer& layer,
+        const std::string& originalLayerName,
         std::vector<float>& dequantizationScales,
         std::vector<float>& dequantizationShifts)> getLayerDequantizationCallback) const {
+    OutputsDataMap outputs;
+    context.network.getOutputsInfo(outputs);
+
     std::unordered_map<std::string, CNNLayer*> notHandledSubgraphLayers = subgraph.layers;
     while (notHandledSubgraphLayers.size() != 0ul) {
-        const auto it = notHandledSubgraphLayers.begin();
-        CNNLayer* layer = it->second;
-        notHandledSubgraphLayers.erase(it);
+        const auto layerIt = notHandledSubgraphLayers.begin();
+        CNNLayer* layer = layerIt->second;
+        notHandledSubgraphLayers.erase(layerIt);
+
+        std::vector<float> layerDequantizationScales;
+        std::vector<float> layerDequantizationShifts;
 
         const std::vector<CNNLayerPtr>& children = CNNNetworkHelper::getChildren(*layer);
-        if (children.size() == 0) {
+        for (const CNNLayerPtr& child : children) {
+            if (subgraph.layers.find(child->name) == subgraph.layers.end()) {
+                if (layerDequantizationScales.size() == 0ul) {
+                    getLayerDequantizationCallback(*layer, layer->name, layerDequantizationScales, layerDequantizationShifts);
+                }
+
+                const std::vector<CNNLayerPtr> dequantizationLayers = CNNNetworkHelper::addScaleShiftBetween(
+                    context,
+                    std::make_shared<CNNLayer>(*layer),
+                    child,
+                    DequantizationDetails(layerDequantizationScales, layerDequantizationShifts, layerDequantizationScales.size()));
+
+                for (const CNNLayerPtr& dequantizationLayer : dequantizationLayers) {
+                    context.dequantizationLayersNames.insert(dequantizationLayer->name);
+                }
+            }
+        }
+
+        const auto it = outputs.find(layer->name);
+        if (it != outputs.end()) {
             const std::string originalName = layer->name;
-            const std::string newName = layer->name + LayerTransformation::lastLayerPrefix;
+            const std::string newName = layer->name + LayerTransformation::lastLayerPostfix;
             CNNNetworkHelper::renameLayer(context.network, originalName, newName);
+
             layer->name = newName;
             subgraph.layers[layer->name] = layer;
 
-            std::vector<float> layerDequantizationScales;
-            std::vector<float> layerDequantizationShifts;
-            getLayerDequantizationCallback(*layer, layerDequantizationScales, layerDequantizationShifts);
+            if (layerDequantizationScales.size() == 0ul) {
+                getLayerDequantizationCallback(*layer, originalName, layerDequantizationScales, layerDequantizationShifts);
+            }
 
-            CNNLayerPtr dequantizationLayer = CNNNetworkHelper::addScaleShiftBetween(
+            const std::vector<CNNLayerPtr> dequantizationLayers = CNNNetworkHelper::addScaleShiftBetween(
                 context,
                 std::make_shared<CNNLayer>(*layer),
                 nullptr,
                 DequantizationDetails(layerDequantizationScales, layerDequantizationShifts, layerDequantizationScales.size()),
                 originalName);
-            context.dequantizationLayersNames.insert(dequantizationLayer->name);
-            subgraph.layers[dequantizationLayer->name] = dequantizationLayer.get();
-        } else {
-            for (const CNNLayerPtr& child : children) {
-                if (subgraph.layers.find(child->name) == subgraph.layers.end()) {
-                    std::vector<float> layerDequantizationScales;
-                    std::vector<float> layerDequantizationShifts;
-                    getLayerDequantizationCallback(*layer, layerDequantizationScales, layerDequantizationShifts);
 
-                    CNNLayerPtr dequantizationLayer = CNNNetworkHelper::addScaleShiftBetween(
-                        context,
-                        std::make_shared<CNNLayer>(*layer),
-                        child,
-                        DequantizationDetails(layerDequantizationScales, layerDequantizationShifts, layerDequantizationScales.size()));
-                    context.dequantizationLayersNames.insert(dequantizationLayer->name);
-                }
+            for (const CNNLayerPtr& dequantizationLayer : dequantizationLayers) {
+                context.dequantizationLayersNames.insert(dequantizationLayer->name);
+                subgraph.layers[dequantizationLayer->name] = dequantizationLayer.get();
             }
         }
     }

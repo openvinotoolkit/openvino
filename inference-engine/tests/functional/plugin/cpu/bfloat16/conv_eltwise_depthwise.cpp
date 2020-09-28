@@ -27,7 +27,7 @@ namespace LayerTestsDefinitions {
 typedef std::tuple< Precision, SizeVector, string, size_t, CoordinateDiff, string> convEltwiseDepthwiseTestParamsSet;
 
 class ConvEltwiseDepthwise :
-    public testing::WithParamInterface<convEltwiseDepthwiseTestParamsSet>, public LayerTestsUtils::LayerTestsCommon {
+    public testing::WithParamInterface<convEltwiseDepthwiseTestParamsSet>, virtual public LayerTestsUtils::LayerTestsCommon {
 public:
     std::shared_ptr<Function> fnPtr;
     SizeVector inputShapes;

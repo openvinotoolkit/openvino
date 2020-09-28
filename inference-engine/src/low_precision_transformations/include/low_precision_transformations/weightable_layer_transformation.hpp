@@ -33,11 +33,21 @@ protected:
     void updateLayerBiases(
         TransformationContext& context,
         const CNNLayer& convolution,
+        const bool biasesDimsAsOutput,
+        std::vector<float>& dequantizationScales,
+        std::vector<float>& dequantizationShifts,
+        std::vector<float>& biasesShifts) const;
+
+    void updateLayerBiasesFcSpecific(
+        TransformationContext& context,
+        const CNNLayer& convolution,
+        const bool biasesDimsAsOutput,
         std::vector<float>& dequantizationScales,
         std::vector<float>& dequantizationShifts,
         std::vector<float>& biasesShifts) const;
 
     void updateWeights(
+        TransformationContext& context,
         const CNNLayerPtr fakeQuantize,
         std::vector<float>& outputLowValues,
         std::vector<float>& outputHighValues) const;
@@ -59,6 +69,7 @@ protected:
         const bool onWeights) const;
 
     DataPrecision fillDequantizationsForWeightsPath(
+        TransformationContext& context,
         const CNNLayer& weightableLayer,
         const bool supportAsymmetricQuantization,
         std::vector<float>& dequantizationScales,
@@ -74,6 +85,8 @@ protected:
         const std::vector<float>& originalWeightsDequantizationShifts,
         std::vector<float>& dequantizationScales,
         std::vector<float>& dequantizationShifts) const;
+
+    static bool getDequantizationDimIsSupported(const CNNLayer& weightableLayer);
 };
 
 typedef std::shared_ptr<WeightableLayerTransformation> WeightableLayerTransformationPtr;

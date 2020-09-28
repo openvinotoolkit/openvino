@@ -29,6 +29,11 @@ list(APPEND CLDNN_LIBS
 include(FindPkgConfig)
 pkg_search_module(LIBVA QUIET libva)
 
+# TODO: pkg_search_module finds libva not in sysroot
+if(ANDROID)
+    set(LIBVA_FOUND OFF CACHE BOOL "" FORCE)
+endif()
+
 if(LIBVA_FOUND)
     list(APPEND CLDNN_LIBS ${LIBVA_LINK_LIBRARIES})
 endif()
@@ -52,8 +57,6 @@ add_executable(${TARGET_NAME}
         ${TEST_INCLUDE})
 
 target_compile_definitions(${TARGET_NAME}
-        PRIVATE
-        INSTANTIATE_TESTS=1
         PUBLIC ${ARGV}
         DATA_PATH=\"${DATA_PATH}\"
         MODELS_PATH=\"${MODELS_PATH}\")

@@ -23,5 +23,8 @@ namespace NGraphConversionTestsDefinitions {
 class ConvBiasFusion : public CommonTestUtils::TestsCommon, public testing::WithParamInterface<std::string> {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<std::string> & obj);
+
+protected:
+    std::string getOutputName() const;
 };
 }  // namespace NGraphConversionTestsDefinitions

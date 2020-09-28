@@ -1,5 +1,5 @@
 /*
-// Copyright (c) 2019 Intel Corporation
+// Copyright (c) 2019-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -42,6 +42,7 @@ struct strided_slice : public primitive_base<strided_slice> {
     /// @param end_mask Array of bits, that provide replace end[i] to max possible range in that dimension.
     /// @param new_axis_mask Array of bits, that provide adding a new length 1 dimension at ith position in the output tensor.
     /// @param shrink_axis_mask Array of bits, that provide shrinks the dimensionality by 1, taking on the value at index begin[i].
+    /// @param out_size Size of output tensor
     strided_slice(const primitive_id& id,
                   const primitive_id& input,
                   const primitive_id& begin_id,
@@ -51,21 +52,25 @@ struct strided_slice : public primitive_base<strided_slice> {
                   std::vector<uint8_t> end_mask,
                   std::vector<uint8_t> new_axis_mask,
                   std::vector<uint8_t> shrink_axis_mask,
+                  const tensor out_size,
                   const padding& output_padding = padding())
         : primitive_base(id, {input, begin_id, end_id, strides_id}, output_padding),
           begin_mask(begin_mask),
           end_mask(end_mask),
           new_axis_mask(new_axis_mask),
-          shrink_axis_mask(shrink_axis_mask) {}
+          shrink_axis_mask(shrink_axis_mask),
+          out_size(out_size) {}
 
-    /// @param begin_mask Array of bits, that provide replace begin[i] to max possible range in that dimension.
+    /// @brief Array of bits, that provide replace begin[i] to max possible range in that dimension.
     std::vector<uint8_t> begin_mask;
-    /// @param end_mask Array of bits, that provide replace end[i] to max possible range in that dimension.
+    /// @brief Array of bits, that provide replace end[i] to max possible range in that dimension.
     std::vector<uint8_t> end_mask;
-    /// @param new_axis_mask Array of bits, that provide adding a new length 1 dimension at ith position in the output tensor.
+    /// @brief Array of bits, that provide adding a new length 1 dimension at ith position in the output tensor.
     std::vector<uint8_t> new_axis_mask;
-    /// @param shrink_axis_mask Array of bits, that provide shrinks the dimensionality by 1, taking on the value at index begin[i].
+    /// @brief Array of bits, that provide shrinks the dimensionality by 1, taking on the value at index begin[i].
     std::vector<uint8_t> shrink_axis_mask;
+    /// @brief Size of output tensor
+    tensor out_size;
 };
 /// @}
 /// @}

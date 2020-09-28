@@ -9,15 +9,17 @@
 
 #include <ngraph/opsets/opset1.hpp>
 #include <ngraph/rt_info.hpp>
+#include <ngraph/pattern/op/wrap_type.hpp>
 
-void ngraph::pass::ConvertDivide::convert_divide() {
-    auto input0 = std::make_shared<pattern::op::Label>(element::i64, Shape{1, 1, 1, 1});
-    auto input1 = std::make_shared<pattern::op::Label>(element::i64, Shape{1, 1, 1, 1});
-    auto div = std::make_shared<ngraph::opset1::Divide>(input0, input1);
+NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertDivide, "ConvertDivide", 0);
+
+ngraph::pass::ConvertDivide::ConvertDivide() {
+    auto div = ngraph::pattern::wrap_type<ngraph::opset1::Divide>();
 
     ngraph::graph_rewrite_callback callback = [](pattern::Matcher& m) {
         auto div = std::dynamic_pointer_cast<ngraph::opset1::Divide> (m.get_match_root());
-        if (!div) {
+        // We can not apply this transformation in case with integer input data type
+        if (!div || div->input(0).get_element_type().is_integral()) {
             return false;
         }
 
@@ -33,5 +35,5 @@ void ngraph::pass::ConvertDivide::convert_divide() {
     };
 
     auto m = std::make_shared<ngraph::pattern::Matcher>(div, "ConvertDivide");
-    this->add_matcher(m, callback, PassProperty::CHANGE_DYNAMIC_STATE);
+    this->register_matcher(m, callback);
 }

@@ -275,8 +275,10 @@ void FrontEnd::parseConcat(
 
     auto output = outputs[0];
 
-    auto concat = std::dynamic_pointer_cast<ie::ConcatLayer>(layer);
     VPU_THROW_UNLESS(layer != nullptr,
+                     "parseConcat expects valid CNNLayerPtr, got nullptr");
+    auto concat = std::dynamic_pointer_cast<ie::ConcatLayer>(layer);
+    VPU_THROW_UNLESS(concat != nullptr,
                      "{} layer with name {} must be able to convert to ie::ConcatLayer",
                      layer->type, layer->name);
 
@@ -293,10 +295,10 @@ void FrontEnd::parseConcat(
     // be replace with Data <-> Data edges.
     auto inferRequirement = ConcatInferRequirement::CanBeReplaced;
     if (auto concatOp = std::dynamic_pointer_cast<ngraph::opset3::Concat>(layer->getNode())) {
-        inferRequirement = concatOp->get_output_as_single_output_node(0)->get_type_info() ==
-                      ngraph::vpu::op::DynamicShapeResolver::type_info
-                      ? ConcatInferRequirement::NeedToInfer
-                      : ConcatInferRequirement::CanBeReplaced;
+        inferRequirement = concatOp->get_input_source_output(0).get_node_shared_ptr()->get_type_info() ==
+                           ngraph::vpu::op::DynamicShapeResolver::type_info
+                           ? ConcatInferRequirement::NeedToInfer
+                           : ConcatInferRequirement::CanBeReplaced;
     }
 
     _stageBuilder->addConcatStage(model, concat->name, concat, axis, inputs, output, inferRequirement);

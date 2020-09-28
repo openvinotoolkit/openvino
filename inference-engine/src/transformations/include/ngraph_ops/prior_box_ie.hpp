@@ -6,15 +6,15 @@
 
 #include <memory>
 
-#include <ie_api.h>
+#include <transformations_visibility.hpp>
 
 #include "ngraph/op/op.hpp"
-#include "ngraph/op/experimental/layers/prior_box.hpp"
+#include "ngraph/op/prior_box.hpp"
 
 namespace ngraph {
 namespace op {
 
-class INFERENCE_ENGINE_API_CLASS(PriorBoxIE) : public Op {
+class TRANSFORMATIONS_API PriorBoxIE : public Op {
 public:
     static constexpr NodeTypeInfo type_info{"PriorBoxIE", 1};
     const NodeTypeInfo& get_type_info() const override { return type_info; }
@@ -30,8 +30,7 @@ public:
 
     void validate_and_infer_types() override;
 
-    std::shared_ptr<Node> copy_with_new_args(const NodeVector& new_args) const override;
-
+    std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
     const PriorBoxAttrs& get_attrs() const { return m_attrs; }
 
 private:

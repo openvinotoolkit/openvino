@@ -14,20 +14,22 @@
 #include <map>
 
 #include <ngraph/function.hpp>
-#include <ngraph/op/experimental/layers/interpolate.hpp>
+#include <ngraph/op/interpolate.hpp>
 #include <ngraph/op/constant.hpp>
 #include <ngraph/op/parameter.hpp>
 #include <ngraph/op/op.hpp>
 #include <ngraph/op/relu.hpp>
 #include <ngraph/op/result.hpp>
 #include <ngraph/opsets/opset.hpp>
+#include <ngraph/graph_util.hpp>
 
-#include <ie_util_internal.hpp>
+#include <legacy/ie_util_internal.hpp>
 #include <ie_core.hpp>
 
 #include "common_test_utils/test_common.hpp"
 #include "common_test_utils/data_utils.hpp"
 #include "common_test_utils/file_utils.hpp"
+#include "common_test_utils/common_utils.hpp"
 #include "generic_ie.hpp"
 
 IE_SUPPRESS_DEPRECATED_START
@@ -55,6 +57,30 @@ TEST_F(NGraphReshapeTests, getBatchSize) {
 
     CNNNetwork cnnNetwork(ngraph);
     ASSERT_EQ(1, cnnNetwork.getBatchSize());
+}
+
+TEST_F(NGraphReshapeTests, ReshapedDynamicShapeLayout) {
+    std::shared_ptr<ngraph::Function> ngraph;
+    {
+        ngraph::PartialShape shape({-1, 3, 22, 22});
+        ngraph::element::Type type(ngraph::element::Type_t::f32);
+        auto param = std::make_shared<ngraph::op::Parameter>(type, shape);
+        param->set_friendly_name("A");
+        auto relu = std::make_shared<ngraph::op::Relu>(param);
+
+        ngraph::ParameterVector params = {param};
+
+        ngraph = std::make_shared<ngraph::Function>(relu, params);
+    }
+
+    CNNNetwork cnnNetwork(ngraph);
+    ASSERT_EQ(Layout::SCALAR, cnnNetwork.getInputsInfo()["A"]->getLayout());
+
+    ICNNNetwork::InputShapes new_shape;
+    new_shape["A"] = ngraph::Shape{1, 3, 22, 22};
+    cnnNetwork.reshape(new_shape);
+
+    ASSERT_EQ(Layout::NCHW, cnnNetwork.getInputsInfo()["A"]->getLayout());
 }
 
 TEST_F(NGraphReshapeTests, ReshapeBatchReLU) {
@@ -120,6 +146,39 @@ TEST_F(NGraphReshapeTests, ReshapeSpatialReLU) {
 }
 
 TEST_F(NGraphReshapeTests, CNNReshapeSpatialReLU) {
+    std::shared_ptr<const ngraph::Function> ngraph;
+    {
+        ngraph::PartialShape shape({1, 3, 22, 22});
+        ngraph::element::Type type(ngraph::element::Type_t::f32);
+        auto param = std::make_shared<ngraph::op::Parameter>(type, shape);
+        param->set_friendly_name("data");
+        auto relu = std::make_shared<ngraph::op::Relu>(param);
+        auto result = std::make_shared<ngraph::op::Result>(relu);
+
+        ngraph::ParameterVector params = {param};
+        ngraph::ResultVector results = {result};
+
+        ngraph = std::make_shared<const ngraph::Function>(results, params);
+    }
+
+    ASSERT_EQ(ngraph->get_parameters()[0]->get_shape(), ngraph::Shape({1, 3, 22, 22}));
+    ASSERT_EQ(ngraph->get_results()[0]->get_shape(), ngraph::Shape({1, 3, 22, 22}));
+
+    CNNNetwork cnnNetwork(ngraph::clone_function(*ngraph));
+    std::map<std::string, std::vector<size_t>> shapes;
+    shapes["data"] = {1, 3, 25, 25};
+
+    ASSERT_NO_THROW(cnnNetwork.reshape(shapes));
+
+    auto changedFunction = cnnNetwork.getFunction();
+    ASSERT_NE(nullptr, changedFunction);
+    ASSERT_EQ(changedFunction->get_parameters()[0]->get_shape(), ngraph::Shape({1, 3, 25, 25}));
+    ASSERT_EQ(changedFunction->get_results()[0]->get_shape(), ngraph::Shape({1, 3, 25, 25}));
+    ASSERT_EQ(ngraph->get_parameters()[0]->get_shape(), ngraph::Shape({1, 3, 22, 22}));
+    ASSERT_EQ(ngraph->get_results()[0]->get_shape(), ngraph::Shape({1, 3, 22, 22}));
+}
+
+TEST_F(NGraphReshapeTests, CNNReshapeSpatialReLUWithoutCloneFunction) {
     std::shared_ptr<ngraph::Function> ngraph;
     {
         ngraph::PartialShape shape({1, 3, 22, 22});
@@ -148,29 +207,9 @@ TEST_F(NGraphReshapeTests, CNNReshapeSpatialReLU) {
     ASSERT_NE(nullptr, changedFunction);
     ASSERT_EQ(changedFunction->get_parameters()[0]->get_shape(), ngraph::Shape({1, 3, 25, 25}));
     ASSERT_EQ(changedFunction->get_results()[0]->get_shape(), ngraph::Shape({1, 3, 25, 25}));
-    ASSERT_EQ(ngraph->get_parameters()[0]->get_shape(), ngraph::Shape({1, 3, 22, 22}));
-    ASSERT_EQ(ngraph->get_results()[0]->get_shape(), ngraph::Shape({1, 3, 22, 22}));
+    ASSERT_EQ(ngraph->get_parameters()[0]->get_shape(), ngraph::Shape({1, 3, 25, 25}));
+    ASSERT_EQ(ngraph->get_results()[0]->get_shape(), ngraph::Shape({1, 3, 25, 25}));
 }
-
-class CustomTestLayerImpl : public InferenceEngine::IShapeInferImpl {
-public:
-    InferenceEngine::StatusCode inferShapes(const std::vector<InferenceEngine::Blob::CPtr>& inBlobs,
-                                            const std::map<std::string, std::string>& params,
-                                            const std::map<std::string, InferenceEngine::Blob::Ptr>& blobs,
-                                            std::vector<InferenceEngine::SizeVector>& outShapes,
-                                            InferenceEngine::ResponseDesc* desc) noexcept override {
-        if (blobs.empty())
-            return InferenceEngine::StatusCode::GENERAL_ERROR;
-        for (const auto& blob : inBlobs) {
-            SizeVector shape;
-            for (const auto& dim : blob->getTensorDesc().getDims()) {
-                shape.emplace_back(dim*2);
-            }
-            outShapes.push_back(shape);
-        }
-        return InferenceEngine::StatusCode::OK;
-    }
-};
 
 class CustomTestOp: public ngraph::op::Op {
 public:
@@ -194,7 +233,7 @@ public:
         set_output_type(0, get_input_element_type(0), ngraph::PartialShape(output_shape));
     }
 
-    std::shared_ptr<ngraph::Node> copy_with_new_args(const ngraph::NodeVector& new_args) const override {
+    std::shared_ptr<ngraph::Node> clone_with_new_inputs(const ngraph::OutputVector& new_args) const override {
         if (new_args.size() != 1) {
             throw ngraph::ngraph_error("Incorrect number of new arguments");
         }
@@ -217,56 +256,14 @@ constexpr ngraph::NodeTypeInfo CustomTestOp::type_info;
 
 class TestInPlaceExtension : public InferenceEngine::IExtension {
 public:
-    explicit TestInPlaceExtension(bool old = true): oldExt(old) {
-        _shapeInferImpl = std::make_shared<CustomTestLayerImpl>();
-    }
+    void GetVersion(const InferenceEngine::Version*& versionInfo) const noexcept override {}
 
-    InferenceEngine::StatusCode
-    getPrimitiveTypes(char**& types, unsigned int& size, InferenceEngine::ResponseDesc* resp) noexcept override {
-        if (!oldExt)
-            return GENERAL_ERROR;
-
-        size = 1;
-        types = new char* [size];
-        std::string type = "CustomTestLayer";
-        types[0] = new char[type.size() + 1];
-        std::copy(type.begin(), type.end(), types[0]);
-        types[0][type.size()] = 0;
-        return InferenceEngine::OK;
-    };
-
-    InferenceEngine::StatusCode
-    getShapeInferTypes(char**& types, unsigned int& size, InferenceEngine::ResponseDesc* resp) noexcept override {
-        return getPrimitiveTypes(types, size, resp);
-    };
-
-    InferenceEngine::StatusCode getShapeInferImpl(InferenceEngine::IShapeInferImpl::Ptr& impl, const char* type,
-                                                  InferenceEngine::ResponseDesc* resp) noexcept override {
-        if (!oldExt)
-            return GENERAL_ERROR;
-        std::string typeStr = type;
-        if (typeStr != "CustomTestLayer")
-            return InferenceEngine::StatusCode::NOT_IMPLEMENTED;
-        impl = _shapeInferImpl;
-        return InferenceEngine::StatusCode::OK;
-    }
-
-    void GetVersion(const InferenceEngine::Version*& versionInfo) const noexcept override {};
-
-    void Unload() noexcept override {};
+    void Unload() noexcept override {}
 
     void Release() noexcept override {}
 
-    InferenceEngine::StatusCode
-    getFactoryFor(InferenceEngine::ILayerImplFactory*& factory, const InferenceEngine::CNNLayer* cnnLayer,
-                  InferenceEngine::ResponseDesc* resp) noexcept override {
-        return InferenceEngine::StatusCode::NOT_IMPLEMENTED;
-    };
-
     std::map<std::string, ngraph::OpSet> getOpSets() override {
         static std::map<std::string, ngraph::OpSet> opsets;
-        if (oldExt)
-            return {};
         if (opsets.empty()) {
             ngraph::OpSet opset;
             opset.insert<CustomTestOp>();
@@ -276,154 +273,7 @@ public:
     }
 
 private:
-    InferenceEngine::IShapeInferImpl::Ptr _shapeInferImpl;
-    bool oldExt;
 };
-
-TEST_F(NGraphReshapeTests, ReshapeOldIRWithExtension) {
-    std::string model = R"V0G0N(
-<net name="Activation" version="5" precision="FP32" batch="1">
-    <layers>
-        <layer name="in1" type="Input" precision="FP32" id="0">
-            <output>
-                <port id="0">
-                    <dim>1</dim>
-                    <dim>3</dim>
-                    <dim>22</dim>
-                    <dim>22</dim>
-                </port>
-            </output>
-        </layer>
-        <layer name="activation" id="1" type="CustomTestLayer" precision="FP32">
-            <input>
-                <port id="1">
-                    <dim>1</dim>
-                    <dim>3</dim>
-                    <dim>22</dim>
-                    <dim>22</dim>
-                </port>
-            </input>
-            <output>
-                <port id="2">
-                    <dim>1</dim>
-                    <dim>3</dim>
-                    <dim>22</dim>
-                    <dim>22</dim>
-                </port>
-            </output>
-            <blobs>
-                <weights offset="0" size="88"/>
-            </blobs>
-        </layer>
-    </layers>
-    <edges>
-        <edge from-layer="0" from-port="0" to-layer="1" to-port="1"/>
-    </edges>
-</net>
-)V0G0N";
-    InferenceEngine::Core ie;
-    Blob::Ptr weights;
-    SizeVector refBeforeReshape = {1, 3, 22, 22};
-    SizeVector refAfterReshape = {4, 6, 44, 44};
-
-    weights = make_shared_blob<uint8_t>(TensorDesc(Precision::U8, {88}, Layout::C));
-    weights->allocate();
-    fill_data(weights->buffer(), weights->size() / sizeof(float));
-
-    auto network = ie.ReadNetwork(model, weights);
-    InferenceEngine::ICNNNetwork::InputShapes newShapes;
-    newShapes["in1"] = {2, 3, 22, 22};
-    ASSERT_THROW(network.reshape(newShapes), InferenceEngine::details::InferenceEngineException);
-    auto output = network.getOutputsInfo();
-    SizeVector outDims = output["activation"]->getTensorDesc().getDims();
-    ASSERT_EQ(outDims, refBeforeReshape);
-    network.AddExtension(std::make_shared<TestInPlaceExtension>());
-
-    ASSERT_NO_THROW(network.reshape(newShapes));
-    output = network.getOutputsInfo();
-    outDims = output["activation"]->getTensorDesc().getDims();
-    ASSERT_EQ(outDims, refAfterReshape);
-}
-
-TEST_F(NGraphReshapeTests, ReshapeNewIRWithOldExtension) {
-    std::string model = R"V0G0N(
-<net name="Activation" version="10">
-    <layers>
-        <layer name="in1" type="Parameter" id="0" version="opset1">
-            <data shape="1,3,22,22" element_type="f32"/>
-            <output>
-                <port id="0" precision="FP32">
-                    <dim>1</dim>
-                    <dim>3</dim>
-                    <dim>22</dim>
-                    <dim>22</dim>
-                </port>
-            </output>
-        </layer>
-        <layer name="activation" id="1" type="CustomTestLayer" version="extension">
-            <input>
-                <port id="1" precision="FP32">
-                    <dim>1</dim>
-                    <dim>3</dim>
-                    <dim>22</dim>
-                    <dim>22</dim>
-                </port>
-            </input>
-            <output>
-                <port id="2" precision="FP32">
-                    <dim>1</dim>
-                    <dim>3</dim>
-                    <dim>22</dim>
-                    <dim>22</dim>
-                </port>
-            </output>
-            <blobs>
-                <weights offset="0" size="88"/>
-            </blobs>
-        </layer>
-        <layer name="output" type="Result" id="2" version="opset1">
-            <input>
-                <port id="0" precision="FP32">
-                    <dim>1</dim>
-                    <dim>3</dim>
-                    <dim>22</dim>
-                    <dim>22</dim>
-                </port>
-            </input>
-        </layer>
-    </layers>
-    <edges>
-        <edge from-layer="0" from-port="0" to-layer="1" to-port="1"/>
-        <edge from-layer="1" from-port="2" to-layer="2" to-port="0"/>
-    </edges>
-</net>
-)V0G0N";
-    InferenceEngine::Core ie;
-    Blob::Ptr weights;
-    SizeVector refBeforeReshape = {1, 3, 22, 22};
-    SizeVector refAfterReshape = {4, 6, 44, 44};
-
-    weights = make_shared_blob<uint8_t>(TensorDesc(Precision::U8, {88}, Layout::C));
-    weights->allocate();
-    fill_data(weights->buffer(), weights->size() / sizeof(float));
-
-    auto network = ie.ReadNetwork(model, weights);
-    InferenceEngine::ICNNNetwork::InputShapes newShapes;
-    newShapes["in1"] = {2, 3, 22, 22};
-    ASSERT_THROW(network.reshape(newShapes), InferenceEngine::details::InferenceEngineException);
-    auto output = network.getOutputsInfo();
-    SizeVector outDims = output["activation"]->getTensorDesc().getDims();
-    ASSERT_EQ(outDims, refBeforeReshape);
-    network.AddExtension(std::make_shared<TestInPlaceExtension>());
-
-    ASSERT_NO_THROW(network.reshape(newShapes));
-    output = network.getOutputsInfo();
-    outDims = output["activation"]->getTensorDesc().getDims();
-    ASSERT_EQ(outDims, refAfterReshape);
-    // Convert to CNNNetwork
-    auto layer = network.getLayerByName("activation");
-    ASSERT_EQ("CustomTestLayer", layer->type);
-}
 
 TEST_F(NGraphReshapeTests, ReshapeNewIRWithNewExtension1) {
     std::string model = R"V0G0N(
@@ -477,7 +327,7 @@ TEST_F(NGraphReshapeTests, ReshapeNewIRWithNewExtension1) {
 </net>
 )V0G0N";
     InferenceEngine::Core ie;
-    ie.AddExtension(std::make_shared<TestInPlaceExtension>(false));
+    ie.AddExtension(std::make_shared<TestInPlaceExtension>());
     Blob::Ptr weights;
     SizeVector refBeforeReshape = {1, 3, 22, 22};
     SizeVector refAfterReshape = {4, 6, 44, 44};
@@ -491,7 +341,8 @@ TEST_F(NGraphReshapeTests, ReshapeNewIRWithNewExtension1) {
     SizeVector outDims = output["activation"]->getTensorDesc().getDims();
     ASSERT_EQ(outDims, refAfterReshape);
     // Convert to CNNNetwork
-    auto layer = network.getLayerByName("activation");
+    auto convertedNetwork = std::make_shared<InferenceEngine::details::CNNNetworkImpl>(network);
+    auto layer = CommonTestUtils::getLayerByName(convertedNetwork.get(), "activation");
     ASSERT_EQ("CustomTestLayer", layer->type);
 }
 
@@ -547,7 +398,7 @@ TEST_F(NGraphReshapeTests, ReshapeNewIRWithNewExtension2) {
 </net>
 )V0G0N";
     InferenceEngine::Core ie;
-    ie.AddExtension(std::make_shared<TestInPlaceExtension>(false));
+    ie.AddExtension(std::make_shared<TestInPlaceExtension>());
     Blob::Ptr weights;
     SizeVector refBeforeReshape = {1, 3, 22, 22};
     SizeVector refAfterReshape = {7, 10, 67, 67};
@@ -561,7 +412,8 @@ TEST_F(NGraphReshapeTests, ReshapeNewIRWithNewExtension2) {
     SizeVector outDims = output["activation"]->getTensorDesc().getDims();
     ASSERT_EQ(outDims, refAfterReshape);
     // Convert to CNNNetwork
-    auto layer = network.getLayerByName("activation");
+    auto convertedNetwork = std::make_shared<InferenceEngine::details::CNNNetworkImpl>(network);
+    auto layer = CommonTestUtils::getLayerByName(convertedNetwork.get(), "activation");
     ASSERT_EQ("CustomTestLayer", layer->type);
     ASSERT_EQ("false", layer->params["test1"]);
     ASSERT_EQ("3", layer->params["test2"]);
@@ -571,32 +423,11 @@ class BadExtension : public InferenceEngine::IExtension {
 public:
     BadExtension() {}
 
-    InferenceEngine::StatusCode
-    getPrimitiveTypes(char**& types, unsigned int& size, InferenceEngine::ResponseDesc* resp) noexcept override {
-        return GENERAL_ERROR;
-    };
-
-    InferenceEngine::StatusCode
-    getShapeInferTypes(char**& types, unsigned int& size, InferenceEngine::ResponseDesc* resp) noexcept override {
-        return getPrimitiveTypes(types, size, resp);
-    };
-
-    InferenceEngine::StatusCode getShapeInferImpl(InferenceEngine::IShapeInferImpl::Ptr& impl, const char* type,
-                                                  InferenceEngine::ResponseDesc* resp) noexcept override {
-        return InferenceEngine::StatusCode::NOT_IMPLEMENTED;
-    }
-
     void GetVersion(const InferenceEngine::Version*& versionInfo) const noexcept override {};
 
     void Unload() noexcept override {};
 
     void Release() noexcept override {}
-
-    InferenceEngine::StatusCode
-    getFactoryFor(InferenceEngine::ILayerImplFactory*& factory, const InferenceEngine::CNNLayer* cnnLayer,
-                  InferenceEngine::ResponseDesc* resp) noexcept override {
-        return InferenceEngine::StatusCode::NOT_IMPLEMENTED;
-    };
 
     std::map<std::string, ngraph::OpSet> getOpSets() override {
         static std::map<std::string, ngraph::OpSet> opsets;
@@ -618,7 +449,7 @@ TEST_F(NGraphReshapeTests, TestInterpParameters) {
     auto inp = std::make_shared<ngraph::op::Parameter>(ngraph::element::f32, ngraph::Shape{2, 3, 4, 5});
     inp->set_friendly_name("test");
 
-    ngraph::op::InterpolateAttrs attrs;
+    ngraph::op::v0::InterpolateAttrs attrs;
     attrs.pads_begin.push_back(0);
     attrs.pads_end.push_back(0);
     attrs.axes = ngraph::AxisSet{2, 3};
@@ -627,50 +458,17 @@ TEST_F(NGraphReshapeTests, TestInterpParameters) {
     attrs.antialias = false;
 
     std::vector<int64_t> shape = {8, 10};
-    auto out_shape = std::make_shared<ngraph::op::Constant>(ngraph::element::i64, ngraph::Shape{2}, shape);
-    auto interp = std::make_shared<ngraph::op::Interpolate>(inp, out_shape, attrs);
+    auto out_shape = std::make_shared<ngraph::op::v0::Constant>(ngraph::element::i64, ngraph::Shape{2}, shape);
+    auto interp = std::make_shared<ngraph::op::v0::Interpolate>(inp, out_shape, attrs);
 
     auto output = std::make_shared<ngraph::op::Result>(interp);
     auto ngraph_function = std::make_shared<ngraph::Function>(ngraph::ResultVector{output},
                            ngraph::ParameterVector{inp});
 
     CNNNetwork cnn(ngraph_function);
-    cnn.begin();
     std::map<std::string, InferenceEngine::SizeVector> inShape;
     inShape["test"] = {1, 3, 4, 5};
     cnn.reshape(inShape);
-}
-
-TEST_F(NGraphReshapeTests, genericNodeWithDynShape) {
-    std::shared_ptr<ngraph::Function> ngraph;
-    CNNNetwork cnnNetwork;
-    {
-        ngraph::PartialShape shape = ngraph::PartialShape::dynamic();
-        std::map<std::string, InferenceEngine::Parameter> gen_params;
-        std::string typeStr = "CustomTestLayer";
-        ngraph::op::GenericIE::PortIE port;
-        port.precision = InferenceEngine::Precision::FP32;
-        port.dims = {1, 3, 2, 2};
-        std::vector<ngraph::op::GenericIE::PortIE> ports = {port};
-        ngraph::element::Type type(ngraph::element::Type_t::f32);
-        auto param = std::make_shared<ngraph::op::Parameter>(type, shape);
-
-        ngraph::OutputVector inputs = {param};
-        auto genNode = std::make_shared<ngraph::op::GenericIE>(inputs, gen_params, typeStr, ports);
-        auto result = std::make_shared<ngraph::op::Result>(genNode);
-
-        ngraph::ParameterVector params = {param};
-        ngraph::ResultVector results = {result};
-
-        std::vector<std::shared_ptr<ngraph::Node>> nodes = {genNode};
-        ngraph::op::GenericIE::DisableReshape disable(nodes);
-
-        ngraph = std::make_shared<ngraph::Function>(results, params);
-        cnnNetwork = CNNNetwork(ngraph);
-    }
-
-    cnnNetwork.AddExtension(std::make_shared<TestInPlaceExtension>());
-    ASSERT_NO_THROW(cnnNetwork.reshape({}));
 }
 
 TEST_F(NGraphReshapeTests, ReshapeWithDefaultGenericOps) {
@@ -735,5 +533,454 @@ TEST_F(NGraphReshapeTests, ReshapeWithDefaultGenericOps) {
     InferenceEngine::ICNNNetwork::InputShapes newShapes;
     newShapes["in1"] = {2, 256};
 
+    ASSERT_NO_THROW(network.reshape(newShapes));
+}
+
+TEST_F(NGraphReshapeTests, ReshapeEDDetectionOutput) {
+    std::string model = R"V0G0N(
+<net name="ExperimentalDetectronDetectionOutput" version="10">
+    <layers>
+        <layer name="in0" type="Parameter" id="0" version="opset1">
+            <data shape="1000,4" element_type="f32"/>
+            <output>
+                <port id="0" precision="FP32">
+                    <dim>1000</dim>
+                    <dim>4</dim>
+                </port>
+            </output>
+        </layer>
+        <layer name="in1" type="Parameter" id="1" version="opset1">
+            <data shape="1000,324" element_type="f32"/>
+            <output>
+                <port id="0" precision="FP32">
+                    <dim>1000</dim>
+                    <dim>324</dim>
+                </port>
+            </output>
+        </layer>
+       <layer name="in2" type="Parameter" id="2" version="opset1">
+            <data shape="1000,324" element_type="f32"/>
+            <output>
+                <port id="0" precision="FP32">
+                    <dim>1000</dim>
+                    <dim>81</dim>
+                </port>
+            </output>
+        </layer>
+        <layer name="in3" type="Parameter" id="3" version="opset1">
+            <data shape="1,3" element_type="f32"/>
+            <output>
+                <port id="0" precision="FP32">
+                    <dim>1</dim>
+                    <dim>3</dim>
+                </port>
+            </output>
+        </layer>
+        <layer id="4" name="DO" type="ExperimentalDetectronDetectionOutput" version="experimental">
+			<data class_agnostic_box_regression="0" deltas_weights="10.0,10.0,5.0,5.0" max_delta_log_wh="4.135166645050049" max_detections_per_image="100" nms_threshold="0.5" num_classes="81" post_nms_count="2000" score_threshold="0.05000000074505806"/>
+			<input>
+				<port id="0">
+					<dim>1000</dim>
+					<dim>4</dim>
+				</port>
+				<port id="1">
+					<dim>1000</dim>
+					<dim>324</dim>
+				</port>
+				<port id="2">
+					<dim>1000</dim>
+					<dim>81</dim>
+				</port>
+				<port id="3">
+					<dim>1</dim>
+					<dim>3</dim>
+				</port>
+			</input>
+			<output>
+				<port id="4" precision="FP32">
+					<dim>100</dim>
+					<dim>4</dim>
+				</port>
+				<port id="5" precision="I32">
+					<dim>100</dim>
+				</port>
+				<port id="6" precision="FP32">
+					<dim>100</dim>
+				</port>
+			</output>
+		</layer>
+        <layer name="out_0" type="Result" id="5" version="opset1">
+            <input>
+                <port id="0" precision="FP32">
+                    <dim>100</dim>
+                    <dim>4</dim>
+                </port>
+            </input>
+        </layer>
+        <layer name="out_1" type="Result" id="6" version="opset1">
+            <input>
+                <port id="0" precision="FP32">
+                    <dim>100</dim>
+                </port>
+            </input>
+        </layer>
+        <layer name="out_2" type="Result" id="7" version="opset1">
+            <input>
+                <port id="0" precision="FP32">
+                    <dim>100</dim>
+                </port>
+            </input>
+        </layer>
+    </layers>
+    <edges>
+        <edge from-layer="0" from-port="0" to-layer="4" to-port="0"/>
+        <edge from-layer="1" from-port="0" to-layer="4" to-port="1"/>
+        <edge from-layer="2" from-port="0" to-layer="4" to-port="2"/>
+        <edge from-layer="3" from-port="0" to-layer="4" to-port="3"/>
+        <edge from-layer="4" from-port="4" to-layer="5" to-port="0"/>
+        <edge from-layer="4" from-port="5" to-layer="6" to-port="0"/>
+        <edge from-layer="4" from-port="6" to-layer="7" to-port="0"/>
+    </edges>
+</net>
+)V0G0N";
+    InferenceEngine::Core ie;
+    Blob::Ptr weights;
+    auto network = ie.ReadNetwork(model, weights);
+    InferenceEngine::ICNNNetwork::InputShapes newShapes;
+    newShapes["in0"] = {2000, 4};
+    newShapes["in1"] = {2000, 324};
+    newShapes["in2"] = {2000, 81};
+
+    ASSERT_NO_THROW(network.reshape(newShapes));
+}
+
+TEST_F(NGraphReshapeTests, ReshapeEDPriorGridGenerator) {
+    std::string model = R"V0G0N(
+<net name="PriorGridGenerator" version="10">
+    <layers>
+        <layer name="in0" type="Parameter" id="0" version="opset1">
+            <data shape="3,4" element_type="f32"/>
+            <output>
+                <port id="0" precision="FP32">
+                    <dim>3</dim>
+                    <dim>4</dim>
+                </port>
+            </output>
+        </layer>
+        <layer name="in1" type="Parameter" id="1" version="opset1">
+            <data shape="1,256,200,336" element_type="f32"/>
+            <output>
+                <port id="0" precision="FP32">
+                    <dim>1</dim>
+                    <dim>256</dim>
+                    <dim>200</dim>
+                    <dim>336</dim>
+                </port>
+            </output>
+        </layer>
+       <layer name="in2" type="Parameter" id="2" version="opset1">
+            <data shape="1,3,800,1344" element_type="f32"/>
+            <output>
+                <port id="0" precision="FP32">
+                    <dim>1000</dim>
+                    <dim>81</dim>
+                </port>
+            </output>
+        </layer>
+        <layer id="3" name="1117" type="ExperimentalDetectronPriorGridGenerator" version="experimental">
+			<data flatten="1" h="0" stride_x="4.0" stride_y="4.0" w="0"/>
+			<input>
+				<port id="0">
+					<dim>3</dim>
+					<dim>4</dim>
+				</port>
+				<port id="1">
+					<dim>1</dim>
+					<dim>256</dim>
+					<dim>200</dim>
+					<dim>336</dim>
+				</port>
+				<port id="2">
+					<dim>1</dim>
+					<dim>3</dim>
+					<dim>800</dim>
+					<dim>1344</dim>
+				</port>
+			</input>
+			<output>
+				<port id="3" precision="FP32">
+					<dim>201600</dim>
+					<dim>4</dim>
+				</port>
+			</output>
+		</layer>
+        <layer name="out_0" type="Result" id="4" version="opset1">
+            <input>
+                <port id="0" precision="FP32">
+                    <dim>201600</dim>
+					<dim>4</dim>
+                </port>
+            </input>
+        </layer>
+    </layers>
+    <edges>
+        <edge from-layer="0" from-port="0" to-layer="3" to-port="0"/>
+        <edge from-layer="1" from-port="0" to-layer="3" to-port="1"/>
+        <edge from-layer="2" from-port="0" to-layer="3" to-port="2"/>
+        <edge from-layer="3" from-port="3" to-layer="4" to-port="0"/>
+    </edges>
+</net>
+)V0G0N";
+    InferenceEngine::Core ie;
+    Blob::Ptr weights;
+    auto network = ie.ReadNetwork(model, weights);
+    InferenceEngine::ICNNNetwork::InputShapes newShapes;
+    newShapes["in1"] = {2, 256, 200, 336};
+    newShapes["in2"] = {2, 3, 800, 1344};
+    ASSERT_NO_THROW(network.reshape(newShapes));
+}
+
+TEST_F(NGraphReshapeTests, ReshapeEDGenerateProposalsSingleImage) {
+    std::string model = R"V0G0N(
+<net name="GenerateProposalsSingleImage" version="10">
+    <layers>
+        <layer name="in0" type="Parameter" id="0" version="opset1">
+            <data shape="3" element_type="f32"/>
+            <output>
+                <port id="0" precision="FP32">
+                    <dim>3</dim>
+                </port>
+            </output>
+        </layer>
+        <layer name="in1" type="Parameter" id="1" version="opset1">
+            <data shape="1201600000,4" element_type="f32"/>
+            <output>
+                <port id="0" precision="FP32">
+                    <dim>201600</dim>
+					<dim>4</dim>
+                </port>
+            </output>
+        </layer>
+       <layer name="in2" type="Parameter" id="2" version="opset1">
+            <data shape="12,200,336" element_type="f32"/>
+            <output>
+                <port id="0" precision="FP32">
+                    <dim>12</dim>
+					<dim>200</dim>
+					<dim>336</dim>
+                </port>
+            </output>
+        </layer>
+        <layer name="in3" type="Parameter" id="3" version="opset1">
+            <data shape="1,3" element_type="f32"/>
+            <output>
+                <port id="0" precision="FP32">
+                    <dim>3</dim>
+					<dim>200</dim>
+					<dim>336</dim>
+                </port>
+            </output>
+        </layer>
+        <layer id="4" name="1133" type="ExperimentalDetectronGenerateProposalsSingleImage" version="experimental">
+			<data min_size="0.0" nms_threshold="0.699999988079071" post_nms_count="1000" pre_nms_count="1000"/>
+			<input>
+				<port id="0">
+					<dim>3</dim>
+				</port>
+				<port id="1">
+					<dim>201600</dim>
+					<dim>4</dim>
+				</port>
+				<port id="2">
+					<dim>12</dim>
+					<dim>200</dim>
+					<dim>336</dim>
+				</port>
+				<port id="3">
+					<dim>3</dim>
+					<dim>200</dim>
+					<dim>336</dim>
+				</port>
+			</input>
+			<output>
+				<port id="4" precision="FP32">
+					<dim>1000</dim>
+					<dim>4</dim>
+				</port>
+				<port id="5" precision="FP32">
+					<dim>1000</dim>
+				</port>
+			</output>
+		</layer>
+        <layer name="out_0" type="Result" id="5" version="opset1">
+            <input>
+                <port id="0" precision="FP32">
+                    <dim>1000</dim>
+					<dim>4</dim>
+                </port>
+            </input>
+        </layer>
+        <layer name="out_1" type="Result" id="6" version="opset1">
+            <input>
+                <port id="0" precision="FP32">
+                    <dim>1000</dim>
+                </port>
+            </input>
+        </layer>
+    </layers>
+    <edges>
+        <edge from-layer="0" from-port="0" to-layer="4" to-port="0"/>
+        <edge from-layer="1" from-port="0" to-layer="4" to-port="1"/>
+        <edge from-layer="2" from-port="0" to-layer="4" to-port="2"/>
+        <edge from-layer="3" from-port="0" to-layer="4" to-port="3"/>
+        <edge from-layer="4" from-port="4" to-layer="5" to-port="0"/>
+        <edge from-layer="4" from-port="5" to-layer="6" to-port="0"/>
+    </edges>
+</net>
+)V0G0N";
+    InferenceEngine::Core ie;
+    Blob::Ptr weights;
+    auto network = ie.ReadNetwork(model, weights);
+    InferenceEngine::ICNNNetwork::InputShapes newShapes;
+    newShapes["in2"] = {12, 200, 300};
+    newShapes["in3"] = {2, 200, 300};
+    ASSERT_NO_THROW(network.reshape(newShapes));
+}
+
+TEST_F(NGraphReshapeTests, ReshapeEDROIFeatureExtractor) {
+    std::string model = R"V0G0N(
+<net name="ExperimentalDetectronROIFeatureExtractor" version="10">
+    <layers>
+        <layer name="in0" type="Parameter" id="0" version="opset1">
+            <data shape="1000,4" element_type="f32"/>
+            <output>
+                <port id="0" precision="FP32">
+                    <dim>1000</dim>
+                    <dim>4</dim>
+                </port>
+            </output>
+        </layer>
+        <layer name="in1" type="Parameter" id="1" version="opset1">
+            <data shape="1,256,200,336" element_type="f32"/>
+            <output>
+                <port id="0" precision="FP32">
+                    <dim>1</dim>
+                    <dim>256</dim>
+                    <dim>200</dim>
+                    <dim>336</dim>
+                </port>
+            </output>
+        </layer>
+        <layer id="2" name="1190" type="ExperimentalDetectronROIFeatureExtractor" version="experimental">
+			<data aligned="0" distribute_rois_between_levels="1" output_size="7" preserve_rois_order="1" pyramid_scales="4" sampling_ratio="2"/>
+			<input>
+				<port id="0">
+					<dim>1000</dim>
+					<dim>4</dim>
+				</port>
+				<port id="1">
+					<dim>1</dim>
+					<dim>256</dim>
+					<dim>200</dim>
+					<dim>336</dim>
+				</port>
+			</input>
+			<output>
+				<port id="2" precision="FP32">
+					<dim>1000</dim>
+					<dim>256</dim>
+					<dim>7</dim>
+					<dim>7</dim>
+				</port>
+			</output>
+		</layer>
+        <layer name="out_0" type="Result" id="3" version="opset1">
+            <input>
+                <port id="0" precision="FP32">
+                    <dim>1000</dim>
+					<dim>256</dim>
+					<dim>7</dim>
+					<dim>7</dim>
+                </port>
+            </input>
+        </layer>
+    </layers>
+    <edges>
+        <edge from-layer="0" from-port="0" to-layer="2" to-port="0"/>
+        <edge from-layer="1" from-port="0" to-layer="2" to-port="1"/>
+        <edge from-layer="2" from-port="2" to-layer="3" to-port="0"/>
+    </edges>
+</net>
+)V0G0N";
+    InferenceEngine::Core ie;
+    Blob::Ptr weights;
+    auto network = ie.ReadNetwork(model, weights);
+    InferenceEngine::ICNNNetwork::InputShapes newShapes;
+    newShapes["in0"] = {1, 256, 300, 400};
+    newShapes["in1"] = {1000, 256, 7, 7};
+    ASSERT_NO_THROW(network.reshape(newShapes));
+}
+
+TEST_F(NGraphReshapeTests, ReshapeEDTopKROIs) {
+    std::string model = R"V0G0N(
+<net name="ExperimentalDetectronTopKROIs" version="10">
+    <layers>
+        <layer name="in0" type="Parameter" id="0" version="opset1">
+            <data shape="5000,4" element_type="f32"/>
+            <output>
+                <port id="0" precision="FP32">
+                    <dim>5000</dim>
+                    <dim>4</dim>
+                </port>
+            </output>
+        </layer>
+        <layer name="in1" type="Parameter" id="1" version="opset1">
+            <data shape="5000" element_type="f32"/>
+            <output>
+                <port id="0" precision="FP32">
+                    <dim>5000</dim>
+                </port>
+            </output>
+        </layer>
+        <layer id="2" name="1189" type="ExperimentalDetectronTopKROIs" version="experimental">
+			<data max_rois="1000"/>
+			<input>
+				<port id="0">
+					<dim>5000</dim>
+					<dim>4</dim>
+				</port>
+				<port id="1">
+					<dim>5000</dim>
+				</port>
+			</input>
+			<output>
+				<port id="2" precision="FP32">
+					<dim>1000</dim>
+					<dim>4</dim>
+				</port>
+			</output>
+		</layer>
+        <layer name="out_0" type="Result" id="3" version="opset1">
+            <input>
+                <port id="0" precision="FP32">
+                    <dim>1000</dim>
+					<dim>4</dim>
+                </port>
+            </input>
+        </layer>
+    </layers>
+    <edges>
+        <edge from-layer="0" from-port="0" to-layer="2" to-port="0"/>
+        <edge from-layer="1" from-port="0" to-layer="2" to-port="1"/>
+        <edge from-layer="2" from-port="2" to-layer="3" to-port="0"/>
+    </edges>
+</net>
+)V0G0N";
+    InferenceEngine::Core ie;
+    Blob::Ptr weights;
+    auto network = ie.ReadNetwork(model, weights);
+    InferenceEngine::ICNNNetwork::InputShapes newShapes;
+    newShapes["in0"] = {10000, 4};
+    newShapes["in1"] = {10000};
     ASSERT_NO_THROW(network.reshape(newShapes));
 }

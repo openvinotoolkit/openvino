@@ -13,7 +13,9 @@
 #include "ngraph_ops/fully_connected.hpp"
 #include "transformations/utils/utils.hpp"
 
-void ngraph::pass::ReshapeFullyConnected::reshape_fully_connected() {
+NGRAPH_RTTI_DEFINITION(ngraph::pass::ReshapeFullyConnected, "ReshapeFullyConnected", 0);
+
+ngraph::pass::ReshapeFullyConnected::ReshapeFullyConnected() {
     auto input0 = std::make_shared<pattern::op::Label>(element::i64, Shape{1, 1});
     auto input1 = std::make_shared<pattern::op::Label>(element::i64, Shape{1, 1});
     auto input2 = std::make_shared<pattern::op::Label>(element::i64, Shape{1});
@@ -21,7 +23,7 @@ void ngraph::pass::ReshapeFullyConnected::reshape_fully_connected() {
 
     ngraph::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
         auto fc = std::dynamic_pointer_cast<ngraph::op::FullyConnected> (m.get_match_root());
-        if (!fc || transformation_callback(fc)) {
+        if (!fc || m_transformation_callback(fc)) {
             return false;
         }
 
@@ -70,5 +72,5 @@ void ngraph::pass::ReshapeFullyConnected::reshape_fully_connected() {
     };
 
     auto m = std::make_shared<ngraph::pattern::Matcher>(fc, "ReshapeFullyConnected");
-    this->add_matcher(m, callback, PassProperty::CHANGE_DYNAMIC_STATE);
+    this->register_matcher(m, callback);
 }

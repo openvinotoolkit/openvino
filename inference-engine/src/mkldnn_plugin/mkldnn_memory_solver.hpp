@@ -10,6 +10,8 @@
 
 #include "ie_api.h"
 
+#include <stdint.h>
+
 #include <vector>
 #include <map>
 

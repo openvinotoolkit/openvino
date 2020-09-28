@@ -8,28 +8,34 @@
 #include <memory>
 #include <string>
 
-#include <ie_api.h>
+#include <transformations_visibility.hpp>
 
 #include <ngraph/pass/graph_rewrite.hpp>
 
 namespace ngraph {
 namespace pass {
 
-class INFERENCE_ENGINE_API_CLASS(ConvertCellsToCellsIE);
+class TRANSFORMATIONS_API ConvertLSTMCellMatcher;
+class TRANSFORMATIONS_API ConvertGRUCellMatcher;
+class TRANSFORMATIONS_API ConvertRNNCellMatcher;
 
 }  // namespace pass
 }  // namespace ngraph
 
-class ngraph::pass::ConvertCellsToCellsIE: public ngraph::pass::GraphRewrite {
+class ngraph::pass::ConvertLSTMCellMatcher : public ngraph::pass::MatcherPass {
 public:
-    ConvertCellsToCellsIE() : GraphRewrite() {
-        convert_lstm_cell();
-        convert_gru_cell();
-        convert_rnn_cell();
-    }
+    NGRAPH_RTTI_DECLARATION;
+    ConvertLSTMCellMatcher();
+};
 
-private:
-    void convert_lstm_cell();
-    void convert_gru_cell();
-    void convert_rnn_cell();
+class ngraph::pass::ConvertGRUCellMatcher : public ngraph::pass::MatcherPass {
+public:
+    NGRAPH_RTTI_DECLARATION;
+    ConvertGRUCellMatcher();
+};
+
+class ngraph::pass::ConvertRNNCellMatcher : public ngraph::pass::MatcherPass {
+public:
+    NGRAPH_RTTI_DECLARATION;
+    ConvertRNNCellMatcher();
 };

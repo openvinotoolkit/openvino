@@ -220,8 +220,8 @@ echo.
 echo ###############^|^| Build Inference Engine samples using MS Visual Studio (MSBuild.exe) ^|^|###############
 echo.
 timeout 3
-echo "!MSBUILD_BIN!" Samples.sln /p:Configuration=Release /t:benchmark_app /clp:ErrorsOnly /m
-"!MSBUILD_BIN!" Samples.sln /p:Configuration=Release /t:benchmark_app /clp:ErrorsOnly /m
+echo "!MSBUILD_BIN!" Samples.sln /p:Configuration=Release /t:cpp_samples\benchmark_app /clp:ErrorsOnly /m
+"!MSBUILD_BIN!" Samples.sln /p:Configuration=Release /t:cpp_samples\benchmark_app /clp:ErrorsOnly /m
 
 if ERRORLEVEL 1 GOTO errorHandling
 

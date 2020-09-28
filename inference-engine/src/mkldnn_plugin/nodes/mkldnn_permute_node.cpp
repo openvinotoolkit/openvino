@@ -3,7 +3,7 @@
 //
 
 #include "mkldnn_permute_node.h"
-#include <ie_layers.h>
+#include <legacy/ie_layers.h>
 #include <string>
 #include <mkldnn_types.h>
 #include <mkldnn_extension_utils.h>
@@ -148,6 +148,13 @@ void MKLDNNPermuteNode::getSupportedDescriptors() {
     std::vector<int> layerOrder = layer->GetParamAsInts("order");
     for (auto ord : layerOrder)
         order.push_back(static_cast<size_t>(ord));
+
+    if (order.empty()) {
+        size_t rank = getParentEdgeAt(0)->getDims().ndims();
+        for (size_t i = 1; i <= rank; ++i) {
+            order.emplace_back(rank - i);
+        }
+    }
 }
 
 void MKLDNNPermuteNode::initSupportedPrimitiveDescriptors() {

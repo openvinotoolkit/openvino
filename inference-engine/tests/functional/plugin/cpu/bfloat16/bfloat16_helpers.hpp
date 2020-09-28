@@ -51,7 +51,7 @@ public:
     static float getMaxAbsValue(const float* data, size_t size) {
         float maxVal = 0.f;
         for (size_t i = 0; i < size; i++) {
-            if (fabs(data[i] > maxVal)) {
+            if (fabs(data[i]) > maxVal) {
                 maxVal = fabs(data[i]);
             }
         }
@@ -132,15 +132,16 @@ typedef std::tuple<
  *
  * In 3rd stage do not forget bfloat16 preffix!
  */
-class BasicBF16Test : public LayerTestsUtils::LayerTestsCommonDeprecated<basicParams> {
+class BasicBF16Test : public testing::WithParamInterface<basicParams>,
+                      public CommonTestUtils::TestsCommon {
 protected:
     virtual std::shared_ptr<ngraph::Function> createGraph(InferenceEngine::Precision netPrecision) = 0;
 
 public:
     std::shared_ptr<ngraph::Function> fnPtr;
-    std::vector<float *> refOut;
+    std::string targetDevice;
     InferenceEngine::SizeVector inputShapes, newInputShapes;
-    InferenceEngine::SizeVector refOutShape;
+    InferenceEngine::Precision inputPrecision, netPrecision;
     std::map<std::string, std::string> expectedPrecisions;
     float threshold = 2e-2;  // Is enough for tensor having abs maximum values less than 1
 
@@ -163,11 +164,25 @@ public:
         return result.str();
     }
 
+    static void setNetInOutPrecision(InferenceEngine::CNNNetwork &cnnNet, InferenceEngine::Precision inPrc,
+                                     InferenceEngine::Precision outPrc = InferenceEngine::Precision::UNSPECIFIED) {
+        if (inPrc != InferenceEngine::Precision::UNSPECIFIED) {
+            for (const auto &inputItem : cnnNet.getInputsInfo()) {
+                inputItem.second->setPrecision(inPrc);
+            }
+        }
+        if (outPrc != InferenceEngine::Precision::UNSPECIFIED) {
+            for (const auto &output : cnnNet.getOutputsInfo()) {
+                output.second->setPrecision(outPrc);
+            }
+        }
+    }
+
     void test() {
         if (!InferenceEngine::with_cpu_x86_bfloat16()) {
             // on platforms which do not support bfloat16, we are disabling bf16 tests since there are no bf16 primitives,
             // tests are useless on such platforms
-            return;
+            GTEST_SKIP();
         }
         std::tie(inputPrecision, netPrecision, inputShapes, newInputShapes, targetDevice) = this->GetParam();
         InferenceEngine::CNNNetwork cnnNet(fnPtr);

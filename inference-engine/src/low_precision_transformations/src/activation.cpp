@@ -6,7 +6,7 @@
 #include "low_precision_transformations/network_helper.hpp"
 
 #include <algorithm>
-#include <details/caseless.hpp>
+#include <caseless.hpp>
 #include <memory>
 #include <string>
 #include <vector>
@@ -105,8 +105,14 @@ void ActivationTransformation::transform(TransformationContext& context, CNNLaye
 
     const std::vector<CNNLayerPtr> children = CNNNetworkHelper::getChildren(*activationLayer);
     for (const CNNLayerPtr& child : children) {
-        CNNLayerPtr dequantizationLayer = CNNNetworkHelper::addScaleShiftBetween(context, activationLayer, child,
-                                                                                 DequantizationDetails(scales, shifts));
-        context.dequantizationLayersNames.insert(dequantizationLayer->name);
+        const std::vector<CNNLayerPtr> dequantizationLayers = CNNNetworkHelper::addScaleShiftBetween(
+            context,
+            activationLayer,
+            child,
+            DequantizationDetails(scales, shifts));
+
+        for (const auto& dequantizationLayer : dequantizationLayers) {
+            context.dequantizationLayersNames.insert(dequantizationLayer->name);
+        }
     }
 }

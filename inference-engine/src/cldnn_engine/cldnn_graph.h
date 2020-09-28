@@ -4,6 +4,10 @@
 
 #pragma once
 
+#ifndef NOMINMAX
+# define NOMINMAX
+#endif
+
 #include <vector>
 #include <map>
 #include <set>
@@ -11,7 +15,6 @@
 #include <string>
 #include <utility>
 #include "ie_blob.h"
-#include "ie_plugin.hpp"
 #include "cpp/ie_cnn_network.h"
 #include "debug_options.h"
 #include <api/network.hpp>
@@ -68,6 +71,7 @@ protected:
     std::vector<std::shared_ptr<cldnn::network>> m_networks;
     std::map<std::string, cldnn::primitive_id> primitiveIDs;
     std::map<cldnn::primitive_id, std::vector<std::string>> primitivesToIRLayersMap;
+    std::map<cldnn::primitive_id, std::string> IRToNgraphLayersMap;
     std::map<std::string, std::vector<cldnn::primitive_id>> prevPrimitiveIDs;
 
     std::map<cldnn::primitive_id, std::pair<std::string, PerfCounter>> perfMap;

@@ -54,6 +54,8 @@ std::string QuantGroupConvBackpropDataLayerTest::getTestCaseName(testing::TestPa
 }
 
 void QuantGroupConvBackpropDataLayerTest::SetUp() {
+    threshold = 0.5f;
+
     quantGroupConvBackpropDataSpecificParams groupConvBackpropDataParams;
     std::vector<size_t> inputShape;
     auto netPrecision = InferenceEngine::Precision::UNSPECIFIED;

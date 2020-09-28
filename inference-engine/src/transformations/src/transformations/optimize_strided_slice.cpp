@@ -10,15 +10,31 @@
 #include <ngraph/opsets/opset3.hpp>
 #include <ngraph/rt_info.hpp>
 
+NGRAPH_RTTI_DEFINITION(ngraph::pass::StridedSliceOptimization, "StridedSliceOptimization", 0);
+
+NGRAPH_RTTI_DEFINITION(ngraph::pass::UselessStridedSliceEraser, "UselessStridedSliceEraser", 0);
+
 bool ngraph::pass::UselessStridedSliceEraser::run_on_function(std::shared_ptr<ngraph::Function> f) {
     bool rewritten = false;
     for (auto & node : f->get_ordered_ops()) {
+        // Recursively apply transformation for sub-graph based operations
+        if (auto sub_graph_node = std::dynamic_pointer_cast<op::util::SubGraphOp>(node)) {
+            if (auto sub_graph = sub_graph_node->get_function()) {
+                rewritten |= run_on_function(sub_graph);
+            }
+        }
         auto ss = std::dynamic_pointer_cast<ngraph::opset1::StridedSlice>(node);
         if (!ss || ss->get_output_partial_shape(0).is_dynamic() || ss->get_input_partial_shape(0).is_dynamic())
             continue;
         if (ss->input(0).get_shape() != ss->output(0).get_shape())
             continue;
-        rewritten |= replace_output_update_name(ss->output(0), ss->input_value(0));
+
+        auto stridesNode = std::dynamic_pointer_cast<ngraph::opset3::Constant>(ss->input_value(3).get_node_shared_ptr());
+        if (stridesNode) {
+            auto strides = stridesNode->cast_vector<int64_t>();
+            if (!std::any_of(strides.begin(), strides.end(), [](int64_t strd) { return strd < 0;}))
+                rewritten |= replace_output_update_name(ss->output(0), ss->input_value(0));
+        }
     }
     return rewritten;
 }
@@ -70,11 +86,19 @@ bool strided_slices_perform_the_same(std::shared_ptr<ngraph::opset1::StridedSlic
     return lhs_plan == rhs_plan;
 }
 
+NGRAPH_RTTI_DEFINITION(ngraph::pass::SharedStridedSliceEraser, "SharedStridedSliceEraser", 0);
+
 bool ngraph::pass::SharedStridedSliceEraser::run_on_function(std::shared_ptr<ngraph::Function> f) {
     bool graph_rewritten = false;
 
     std::map<ngraph::Output<Node>, std::vector<std::shared_ptr<ngraph::opset1::StridedSlice>>> source_to_ss;
     for (const auto & node : f->get_ordered_ops()) {
+        // Recursively apply transformation for sub-graph based operations
+        if (auto sub_graph_node = std::dynamic_pointer_cast<op::util::SubGraphOp>(node)) {
+            if (auto sub_graph = sub_graph_node->get_function()) {
+                graph_rewritten |= run_on_function(sub_graph);
+            }
+        }
         if (auto ss = std::dynamic_pointer_cast<ngraph::opset1::StridedSlice>(node)) {
             source_to_ss[ss->input_value(0)].push_back(ss);
         }
@@ -93,12 +117,20 @@ bool ngraph::pass::SharedStridedSliceEraser::run_on_function(std::shared_ptr<ngr
     return graph_rewritten;
 }
 
+NGRAPH_RTTI_DEFINITION(ngraph::pass::GroupedStridedSliceOptimizer, "GroupedStridedSliceOptimizer", 0);
+
 bool ngraph::pass::GroupedStridedSliceOptimizer::run_on_function(std::shared_ptr<ngraph::Function> f) {
     bool graph_rewritten = false;
     using planned_slice = std::pair<std::shared_ptr<ngraph::opset1::StridedSlice>, ngraph::SlicePlan>;
 
     std::map<ngraph::Output<Node>, std::vector<planned_slice>> source_to_ss_with_plan;
     for (const auto & node : f->get_ordered_ops()) {
+        // Recursively apply transformation for sub-graph based operations
+        if (auto sub_graph_node = std::dynamic_pointer_cast<op::util::SubGraphOp>(node)) {
+            if (auto sub_graph = sub_graph_node->get_function()) {
+                graph_rewritten |= run_on_function(sub_graph);
+            }
+        }
         if (auto ss = std::dynamic_pointer_cast<ngraph::opset1::StridedSlice>(node)) {
             auto slice_plan = get_slice_plan(ss);
             if (slice_plan == ngraph::SlicePlan())
@@ -188,10 +220,7 @@ bool ngraph::pass::GroupedStridedSliceOptimizer::run_on_function(std::shared_ptr
         auto i = 0;
         NodeVector ops_to_replace;
         for (auto & record : output_to_size) {
-            if (record.first == fake_output) {
-                auto& results = const_cast<::ngraph::ResultVector&>(f->get_results());
-                results.push_back(std::make_shared<ngraph::opset1::Result>(variadic_split->output(i)));
-            } else {
+            if (record.first != fake_output) {
                 record.first.replace(variadic_split->output(i));
                 ops_to_replace.push_back(record.first.get_node_shared_ptr());
             }

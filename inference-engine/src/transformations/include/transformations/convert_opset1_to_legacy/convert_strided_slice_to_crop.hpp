@@ -8,24 +8,20 @@
 #include <memory>
 #include <algorithm>
 
-#include <ie_api.h>
+#include <transformations_visibility.hpp>
 
 #include <ngraph/pass/graph_rewrite.hpp>
 
 namespace ngraph {
 namespace pass {
 
-class INFERENCE_ENGINE_API_CLASS(ConvertStridedSliceToCrop);
+class TRANSFORMATIONS_API ConvertStridedSliceToCropMatcher;
 
 }  // namespace pass
 }  // namespace ngraph
 
-class ngraph::pass::ConvertStridedSliceToCrop: public ngraph::pass::GraphRewrite {
+class ngraph::pass::ConvertStridedSliceToCropMatcher: public ngraph::pass::MatcherPass {
 public:
-    ConvertStridedSliceToCrop() : GraphRewrite() {
-        convert_strided_slice_to_crop();
-    }
-
-private:
-    void convert_strided_slice_to_crop();
+    NGRAPH_RTTI_DECLARATION;
+    ConvertStridedSliceToCropMatcher();
 };

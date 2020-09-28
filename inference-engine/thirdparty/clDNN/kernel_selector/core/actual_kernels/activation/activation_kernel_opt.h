@@ -35,7 +35,9 @@ protected:
     bool Validate(const Params& p, const optional_params& o) const override;
     JitConstants GetJitConstants(const activation_params& params, DispatchData kd) const override;
     std::vector<FusedOpType> GetSupportedFusedOps() const override {
-        return { FusedOpType::QUANTIZE };
+        return {FusedOpType::QUANTIZE,
+                FusedOpType::SCALE,
+                FusedOpType::ACTIVATION};
     }
 };
 }  // namespace kernel_selector

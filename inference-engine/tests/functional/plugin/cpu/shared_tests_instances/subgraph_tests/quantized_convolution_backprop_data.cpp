@@ -19,7 +19,6 @@ const std::vector<InferenceEngine::Precision> netPrecisions = {
 const std::vector<size_t> numOutChannels = {16, 32};
 
 const std::vector<size_t > levels = {256};
-// FIXME: Perchannel tests fail because of bug in LPT
 const std::vector<QuantizationGranularity > granularity = {Pertensor, Perchannel};
 
 /* ============= 2D GroupConvolutionBackpropData ============= */

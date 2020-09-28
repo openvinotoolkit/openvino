@@ -140,6 +140,8 @@ public:
                                                                   allocation_type type);
     void clear_pool();
     void clear_pool_for_network(uint32_t network_id);
+    void release_memory(memory_impl* memory,
+                        const primitive_id& id);
     void color_graph(const program_impl&);
     void dump_memory_pool(const program_impl&, std::string&, std::string&);
 

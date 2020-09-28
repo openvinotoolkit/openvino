@@ -22,6 +22,10 @@
 
 #endif
 
+#ifdef HAVE_NEON
+  #include "arm_neon/ie_preprocess_gapi_kernels_neon.hpp"
+#endif
+
 #include <opencv2/gapi/opencv_includes.hpp>
 #include <opencv2/gapi/fluid/gfluidkernel.hpp>
 #include <opencv2/gapi/gcompoundkernel.hpp>
@@ -30,6 +34,7 @@
 #include <type_traits>
 #include <utility>
 #include <vector>
+#include <functional>
 
 #if defined(__GNUC__) && (__GNUC__ <= 5)
 #include <cmath>
@@ -173,6 +178,47 @@ void mergeRow(const std::array<const uint8_t*, chs>& ins, uint8_t* out, int leng
         }
     }
 #endif  // HAVE_SSE
+
+#ifdef HAVE_NEON
+    if (std::is_same<T, uint8_t>::value && chs == 2) {
+        neon::mergeRow_8UC2(ins[0], ins[1], out, length);
+        return;
+    }
+
+    if (std::is_same<T, uint8_t>::value && chs == 3) {
+        neon::mergeRow_8UC3(ins[0], ins[1], ins[2], out, length);
+        return;
+    }
+
+    if (std::is_same<T, uint8_t>::value && chs == 4) {
+        neon::mergeRow_8UC4(ins[0], ins[1], ins[2], ins[3], out, length);
+        return;
+    }
+
+    if (std::is_same<T, float>::value && chs == 2) {
+        neon::mergeRow_32FC2(reinterpret_cast<const float*>(ins[0]),
+                             reinterpret_cast<const float*>(ins[1]),
+                             reinterpret_cast<float*>(out), length);
+        return;
+    }
+
+    if (std::is_same<T, float>::value && chs == 3) {
+        neon::mergeRow_32FC3(reinterpret_cast<const float*>(ins[0]),
+                             reinterpret_cast<const float*>(ins[1]),
+                             reinterpret_cast<const float*>(ins[2]),
+                             reinterpret_cast<float*>(out), length);
+        return;
+    }
+
+    if (std::is_same<T, float>::value && chs == 4) {
+        neon::mergeRow_32FC4(reinterpret_cast<const float*>(ins[0]),
+                             reinterpret_cast<const float*>(ins[1]),
+                             reinterpret_cast<const float*>(ins[2]),
+                             reinterpret_cast<const float*>(ins[3]),
+                             reinterpret_cast<float*>(out), length);
+        return;
+    }
+#endif  // HAVE_NEON
 
     const T* insT[chs];
     for (int c = 0; c < chs; c++) {
@@ -328,6 +374,50 @@ void splitRow(const uint8_t* in, std::array<uint8_t*, chs>& outs, int length) {
     }
 #endif  // HAVE_SSE
 
+#ifdef HAVE_NEON
+    if (std::is_same<T, uint8_t>::value && chs == 2) {
+        neon::splitRow_8UC2(in, outs[0], outs[1], length);
+        return;
+    }
+
+    if (std::is_same<T, uint8_t>::value && chs == 3) {
+        neon::splitRow_8UC3(in, outs[0], outs[1], outs[2], length);
+        return;
+    }
+
+    if (std::is_same<T, uint8_t>::value && chs == 4) {
+        neon::splitRow_8UC4(in, outs[0], outs[1], outs[2], outs[3], length);
+        return;
+    }
+
+    if (std::is_same<T, float>::value && chs == 2) {
+        neon::splitRow_32FC2(reinterpret_cast<const float*>(in),
+                             reinterpret_cast<float*>(outs[0]),
+                             reinterpret_cast<float*>(outs[1]),
+                             length);
+        return;
+    }
+
+    if (std::is_same<T, float>::value && chs == 3) {
+        neon::splitRow_32FC3(reinterpret_cast<const float*>(in),
+                             reinterpret_cast<float*>(outs[0]),
+                             reinterpret_cast<float*>(outs[1]),
+                             reinterpret_cast<float*>(outs[2]),
+                             length);
+        return;
+    }
+
+    if (std::is_same<T, float>::value && chs == 4) {
+        neon::splitRow_32FC4(reinterpret_cast<const float*>(in),
+                             reinterpret_cast<float*>(outs[0]),
+                             reinterpret_cast<float*>(outs[1]),
+                             reinterpret_cast<float*>(outs[2]),
+                             reinterpret_cast<float*>(outs[3]),
+                             length);
+        return;
+    }
+#endif  // HAVE_NEON
+
     auto inT = reinterpret_cast<const T*>(in);
 
     T* outsT[chs];
@@ -342,13 +432,93 @@ void splitRow(const uint8_t* in, std::array<uint8_t*, chs>& outs, int length) {
     }
 }
 
+namespace {
+    template<typename type>
+    struct cv_type_to_depth;
+
+    template<> struct cv_type_to_depth<std::uint8_t>    { enum { depth = CV_8U  }; };
+    template<> struct cv_type_to_depth<std::int8_t>     { enum { depth = CV_8S  }; };
+    template<> struct cv_type_to_depth<std::uint16_t>   { enum { depth = CV_16U }; };
+    template<> struct cv_type_to_depth<std::int16_t>    { enum { depth = CV_16S }; };
+    template<> struct cv_type_to_depth<std::int32_t>    { enum { depth = CV_32S }; };
+    template<> struct cv_type_to_depth<float>           { enum { depth = CV_32F }; };
+
+    template<typename ... types>
+    struct typelist {};
+
+    template<typename type_list>
+    struct head;
+
+    template<template<typename ...> class list, typename head_t, typename ... types>
+    struct head<list<head_t, types...>> { using type = head_t;};
+
+    template<typename typelist>
+    using head_t = typename head<typelist>::type;
+
+    template<typename type>
+    struct type_to_type {};
+}
+
+namespace {
+    template <typename typelist>
+    struct type_dispatch_impl;
+
+    template <template<typename ...> class typelist, typename... type>
+    struct type_dispatch_impl<typelist<type...>> {
+
+        template <typename result_t, typename default_t, typename type_id_t, typename type_to_id_t, typename type_to_value_t>
+        static result_t dispatch(type_id_t type_id, type_to_id_t&& type_to_id, type_to_value_t&& type_to_value, default_t default_value) {
+            result_t res = default_value;
+
+            std::initializer_list<int> ({(type_id == type_to_id(type_to_type<type>{}) ? (res = type_to_value(type_to_type<type>{})), 0 : 0)...});
+            return res;
+        }
+    };
+}
+
+template<typename typelist, typename default_t, typename type_id_t, typename type_to_id_t, typename type_to_value_t,
+         typename result_t = decltype(std::declval<type_to_value_t>()(type_to_type<head_t<typelist>> {}))>
+result_t type_dispatch(type_id_t type_id, type_to_id_t&& type_to_id, type_to_value_t&& type_to_value, default_t default_value = {}){
+    return type_dispatch_impl<typelist>::template dispatch<result_t>(std::forward<type_id_t>(type_id),
+                                                                     std::forward<type_to_id_t>(type_to_id),
+                                                                     std::forward<type_to_value_t>(type_to_value),
+                                                                     std::forward<default_t>(default_value));
+}
+
+namespace {
+    struct cv_type_id {
+        template <typename type>
+        const int operator()(type_to_type<type> ){ return cv_type_to_depth<type>::depth;}
+    };
+
+}
+template<typename typelist>
+bool is_cv_type_in_list(const int type_id){
+    return type_dispatch<typelist>(type_id, cv_type_id{}, [](...){ return true;}, false);
+}
+
+namespace {
+    using merge_supported_types = typelist<uint8_t, int8_t, uint16_t, int16_t, int32_t, float>;
+
+    template<int chs>
+    struct typed_merge_row {
+        using p_f = void (*)(const std::array<const uint8_t*, chs>& ins, uint8_t* out, int length);
+
+        template <typename type>
+        p_f operator()(type_to_type<type> ){ return mergeRow<type,chs>;}
+    };
+}
+
 GAPI_FLUID_KERNEL(FMerge2, Merge2, false) {
     static const int LPI = 4;
     static const int Window = 1;
     static void run(const cv::gapi::fluid::View& a,
                     const cv::gapi::fluid::View& b,
                           cv::gapi::fluid::Buffer& out) {
-        const auto rowFunc = (a.meta().depth == CV_8U) ? &mergeRow<uint8_t, 2> : &mergeRow<float, 2>;
+
+        GAPI_DbgAssert(is_cv_type_in_list<merge_supported_types>(out.meta().depth));
+
+        const auto rowFunc = type_dispatch<merge_supported_types>(out.meta().depth, cv_type_id{}, typed_merge_row<2>{}, nullptr);
         for (int l = 0; l < out.lpi(); l++) {
             rowFunc({a.InLineB(l), b.InLineB(l)}, out.OutLineB(l), a.length());
         }
@@ -362,7 +532,10 @@ GAPI_FLUID_KERNEL(FMerge3, Merge3, false) {
                     const cv::gapi::fluid::View& b,
                     const cv::gapi::fluid::View& c,
                           cv::gapi::fluid::Buffer& out) {
-        const auto rowFunc = (a.meta().depth == CV_8U) ? &mergeRow<uint8_t, 3> : &mergeRow<float, 3>;
+
+        GAPI_DbgAssert(is_cv_type_in_list<merge_supported_types>(out.meta().depth));
+
+        const auto rowFunc = type_dispatch<merge_supported_types>(out.meta().depth, cv_type_id{}, typed_merge_row<3>{}, nullptr);
         for (int l = 0; l < out.lpi(); l++) {
             rowFunc({a.InLineB(l), b.InLineB(l), c.InLineB(l)}, out.OutLineB(l), a.length());
         }
@@ -377,13 +550,29 @@ GAPI_FLUID_KERNEL(FMerge4, Merge4, false) {
                     const cv::gapi::fluid::View& c,
                     const cv::gapi::fluid::View& d,
                           cv::gapi::fluid::Buffer& out) {
-        const auto rowFunc = (a.meta().depth == CV_8U) ? &mergeRow<uint8_t, 4> : &mergeRow<float, 4>;
+
+        GAPI_DbgAssert(is_cv_type_in_list<merge_supported_types>(out.meta().depth));
+
+        const auto rowFunc = type_dispatch<merge_supported_types>(out.meta().depth, cv_type_id{}, typed_merge_row<4>{}, nullptr);
         for (int l = 0; l < out.lpi(); l++) {
             rowFunc({a.InLineB(l), b.InLineB(l), c.InLineB(l), d.InLineB(l)}, out.OutLineB(l), a.length());
         }
     }
 };
 
+
+namespace {
+using split_supported_types = typelist<uint8_t, int8_t, uint16_t, int16_t, int32_t, float>;
+
+template<int chs>
+struct typed_split_row {
+    using p_f = void (*)(const uint8_t* in, std::array<uint8_t*, chs>& outs, int length);
+
+    template <typename type>
+    p_f operator()(type_to_type<type> ){ return splitRow<type,chs>;}
+};
+
+}
 GAPI_FLUID_KERNEL(FSplit2, Split2, false) {
     static const int LPI = 4;
     static const int Window = 1;
@@ -395,10 +584,9 @@ GAPI_FLUID_KERNEL(FSplit2, Split2, false) {
         GAPI_DbgAssert(1 == out2.meta().chan);
         GAPI_DbgAssert(in.meta().depth == out1.meta().depth);
         GAPI_DbgAssert(in.meta().depth == out2.meta().depth);
-        GAPI_DbgAssert(CV_8U == in.meta().depth || CV_32F == in.meta().depth);
-        const auto rowFunc = (in.meta().depth == CV_8U) ?
-                             &splitRow<uint8_t, 2> :
-                             &splitRow<float  , 2>;
+        GAPI_DbgAssert(is_cv_type_in_list<split_supported_types>(in.meta().depth));
+
+        const auto rowFunc = type_dispatch<split_supported_types>(in.meta().depth, cv_type_id{}, typed_split_row<2>{}, nullptr);
         for (int i = 0, lpi = out1.lpi(); i < lpi; i++) {
             std::array<uint8_t*, 2> outs = {out1.OutLineB(i), out2.OutLineB(i)};
             rowFunc(in.InLineB(i), outs, in.length());
@@ -420,10 +608,10 @@ GAPI_FLUID_KERNEL(FSplit3, Split3, false) {
         GAPI_DbgAssert(in.meta().depth == out1.meta().depth);
         GAPI_DbgAssert(in.meta().depth == out2.meta().depth);
         GAPI_DbgAssert(in.meta().depth == out3.meta().depth);
-        GAPI_DbgAssert(CV_8U == in.meta().depth || CV_32F == in.meta().depth);
-        const auto rowFunc = (in.meta().depth == CV_8U) ?
-                             &splitRow<uint8_t, 3> :
-                             &splitRow<float  , 3>;
+
+        GAPI_DbgAssert(is_cv_type_in_list<split_supported_types>(in.meta().depth));
+
+        const auto rowFunc = type_dispatch<split_supported_types>(in.meta().depth, cv_type_id{}, typed_split_row<3>{}, nullptr);
         for (int i = 0, lpi = out1.lpi(); i < lpi; i++) {
             std::array<uint8_t*, 3> outs = {out1.OutLineB(i), out2.OutLineB(i),
                                             out3.OutLineB(i)};
@@ -449,10 +637,9 @@ GAPI_FLUID_KERNEL(FSplit4, Split4, false) {
         GAPI_DbgAssert(in.meta().depth == out2.meta().depth);
         GAPI_DbgAssert(in.meta().depth == out3.meta().depth);
         GAPI_DbgAssert(in.meta().depth == out4.meta().depth);
-        GAPI_DbgAssert(CV_8U == in.meta().depth || CV_32F == in.meta().depth);
-        const auto rowFunc = (in.meta().depth == CV_8U) ?
-                             &splitRow<uint8_t, 4> :
-                             &splitRow<float  , 4>;
+        GAPI_DbgAssert(is_cv_type_in_list<split_supported_types>(in.meta().depth));
+
+        const auto rowFunc = type_dispatch<split_supported_types>(in.meta().depth, cv_type_id{}, typed_split_row<4>{}, nullptr);
         for (int i = 0, lpi = out1.lpi(); i < lpi; i++) {
             std::array<uint8_t*, 4> outs = {out1.OutLineB(i), out2.OutLineB(i),
                                             out3.OutLineB(i), out4.OutLineB(i)};
@@ -484,6 +671,7 @@ static void chanToPlaneRow(const uint8_t* in, int chan, int chs, uint8_t* out, i
     }
     #endif  // HAVE_AVX512
 #endif
+
     #ifdef HAVE_AVX2
     if (with_cpu_x86_avx2()) {
         if (std::is_same<T, uint8_t>::value && chs == 1) {
@@ -514,6 +702,20 @@ static void chanToPlaneRow(const uint8_t* in, int chan, int chs, uint8_t* out, i
         }
     }
     #endif  // HAVE_SSE
+
+    #ifdef HAVE_NEON
+    if (std::is_same<T, uint8_t>::value && chs == 1) {
+        neon::copyRow_8U(in, out, length);
+        return;
+    }
+
+    if (std::is_same<T, float>::value && chs == 1) {
+        neon::copyRow_32F(reinterpret_cast<const float*>(in),
+                          reinterpret_cast<float*>(out),
+                          length);
+        return;
+    }
+    #endif  // HAVE_NEON
 
     const auto inT  = reinterpret_cast<const T*>(in);
           auto outT = reinterpret_cast<      T*>(out);
@@ -806,19 +1008,81 @@ static void calcRowLinear(const cv::gapi::fluid::View  & in,
         dst[l] = out.OutLine<T>(l);
     }
 
+    #ifdef HAVE_AVX512
+    if (with_cpu_x86_avx512_core()) {
+        if (std::is_same<T, uint8_t>::value) {
+            if (inSz.width >= 64 && outSz.width >= 32) {
+                avx512::calcRowLinear_8UC1(reinterpret_cast<uint8_t**>(dst),
+                                           reinterpret_cast<const uint8_t**>(src0),
+                                           reinterpret_cast<const uint8_t**>(src1),
+                                           reinterpret_cast<const short*>(alpha),
+                                           reinterpret_cast<const short*>(clone),
+                                           reinterpret_cast<const short*>(mapsx),
+                                           reinterpret_cast<const short*>(beta),
+                                           reinterpret_cast<uint8_t*>(tmp),
+                                           inSz, outSz, lpi);
+
+                return;
+            }
+        }
+
+        if (std::is_same<T, float>::value) {
+            avx512::calcRowLinear_32F(reinterpret_cast<float**>(dst),
+                                      reinterpret_cast<const float**>(src0),
+                                      reinterpret_cast<const float**>(src1),
+                                      reinterpret_cast<const float*>(alpha),
+                                      reinterpret_cast<const int*>(mapsx),
+                                      reinterpret_cast<const float*>(beta),
+                                      inSz, outSz, lpi);
+            return;
+        }
+    }
+    #endif
+
+    #ifdef HAVE_AVX2
+    if (with_cpu_x86_avx2()) {
+        if (std::is_same<T, uint8_t>::value) {
+            if (inSz.width >= 32 && outSz.width >= 16) {
+                avx::calcRowLinear_8UC1(reinterpret_cast<uint8_t**>(dst),
+                                        reinterpret_cast<const uint8_t**>(src0),
+                                        reinterpret_cast<const uint8_t**>(src1),
+                                        reinterpret_cast<const short*>(alpha),
+                                        reinterpret_cast<const short*>(clone),
+                                        reinterpret_cast<const short*>(mapsx),
+                                        reinterpret_cast<const short*>(beta),
+                                        reinterpret_cast<uint8_t*>(tmp),
+                                        inSz, outSz, lpi);
+
+                return;
+            }
+        }
+
+        if (std::is_same<T, float>::value) {
+            avx::calcRowLinear_32F(reinterpret_cast<float**>(dst),
+                                   reinterpret_cast<const float**>(src0),
+                                   reinterpret_cast<const float**>(src1),
+                                   reinterpret_cast<const float*>(alpha),
+                                   reinterpret_cast<const int*>(mapsx),
+                                   reinterpret_cast<const float*>(beta),
+                                   inSz, outSz, lpi);
+            return;
+        }
+    }
+    #endif
+
     #ifdef HAVE_SSE
     if (with_cpu_x86_sse42()) {
         if (std::is_same<T, uint8_t>::value) {
             if (inSz.width >= 16 && outSz.width >= 8) {
-                calcRowLinear_8U(reinterpret_cast<uint8_t**>(dst),
-                                 reinterpret_cast<const uint8_t**>(src0),
-                                 reinterpret_cast<const uint8_t**>(src1),
-                                 reinterpret_cast<const short*>(alpha),
-                                 reinterpret_cast<const short*>(clone),
-                                 reinterpret_cast<const short*>(mapsx),
-                                 reinterpret_cast<const short*>(beta),
-                                 reinterpret_cast<uint8_t*>(tmp),
-                                 inSz, outSz, lpi);
+                calcRowLinear_8UC1(reinterpret_cast<uint8_t**>(dst),
+                                   reinterpret_cast<const uint8_t**>(src0),
+                                   reinterpret_cast<const uint8_t**>(src1),
+                                   reinterpret_cast<const short*>(alpha),
+                                   reinterpret_cast<const short*>(clone),
+                                   reinterpret_cast<const short*>(mapsx),
+                                   reinterpret_cast<const short*>(beta),
+                                   reinterpret_cast<uint8_t*>(tmp),
+                                   inSz, outSz, lpi);
                 return;
             }
         }
@@ -1991,6 +2255,7 @@ GAPI_FLUID_KERNEL(FNV12toRGB, NV12toRGB, false) {
         }
     #endif  // HAVE_AVX512
     #endif
+
     #ifdef HAVE_AVX2
         if (with_cpu_x86_avx2()) {
             avx::calculate_nv12_to_rgb(y_rows, uv_row, out_rows, buf_width);
@@ -2003,6 +2268,11 @@ GAPI_FLUID_KERNEL(FNV12toRGB, NV12toRGB, false) {
             return;
         }
     #endif  // HAVE_SSE
+
+    #ifdef HAVE_NEON
+        neon::calculate_nv12_to_rgb(y_rows, uv_row, out_rows, buf_width);
+        return;
+    #endif  // HAVE_NEON
 
         calculate_nv12_to_rgb_fallback(y_rows, uv_row, out_rows, buf_width);
     }
@@ -2025,33 +2295,91 @@ GAPI_FLUID_KERNEL(FI420toRGB, I420toRGB, false) {
         int buf_width = out.length();
         GAPI_DbgAssert(in_u.length() ==  in_v.length());
 
-// AVX512 implementation of wide universal intrinsics is slower than AVX2.
-// It is turned off until the cause isn't found out.
-    #if 0
-    #ifdef HAVE_AVX512
-        if (with_cpu_x86_avx512_core()) {
-           #define CV_AVX_512DQ 1
-           avx512::calculate_i420_to_rgb(y_rows, u_row, v_row, out_rows, buf_width);
-           return;
-        }
-    #endif  // HAVE_AVX512
-    #endif
-    #ifdef HAVE_AVX2
-        if (with_cpu_x86_avx2()) {
-           avx::calculate_i420_to_rgb(y_rows, u_row, v_row, out_rows, buf_width);
-           return;
-        }
-    #endif  // HAVE_AVX2
-    #ifdef HAVE_SSE
-        if (with_cpu_x86_sse42()) {
-           calculate_i420_to_rgb(y_rows, u_row, v_row, out_rows, buf_width);
-           return;
-        }
-    #endif  // HAVE_SSE
+        // AVX512 implementation of wide universal intrinsics is slower than AVX2.
+        // It is turned off until the cause isn't found out.
+        #if 0
+        #ifdef HAVE_AVX512
+            if (with_cpu_x86_avx512_core()) {
+               #define CV_AVX_512DQ 1
+               avx512::calculate_i420_to_rgb(y_rows, u_row, v_row, out_rows, buf_width);
+               return;
+            }
+        #endif  // HAVE_AVX512
+        #endif
+
+        #ifdef HAVE_AVX2
+            if (with_cpu_x86_avx2()) {
+               avx::calculate_i420_to_rgb(y_rows, u_row, v_row, out_rows, buf_width);
+               return;
+            }
+        #endif  // HAVE_AVX2
+        #ifdef HAVE_SSE
+            if (with_cpu_x86_sse42()) {
+               calculate_i420_to_rgb(y_rows, u_row, v_row, out_rows, buf_width);
+               return;
+            }
+        #endif  // HAVE_SSE
+
+        #ifdef HAVE_NEON
+            neon::calculate_i420_to_rgb(y_rows, u_row, v_row, out_rows, buf_width);
+            return;
+        #endif  // HAVE_NEON
 
         calculate_i420_to_rgb_fallback(y_rows, u_row, v_row, out_rows, buf_width);
     }
 };
+
+namespace {
+    template <typename src_t, typename dst_t>
+    void convert_precision(const uint8_t* src, uint8_t* dst, const int width) {
+        const auto *in  = reinterpret_cast<const src_t *>(src);
+              auto *out = reinterpret_cast<dst_t *>(dst);
+
+        for (int i = 0; i < width; i++) {
+            out[i] = saturate_cast<dst_t>(in[i]);
+        }
+    }
+}
+
+GAPI_FLUID_KERNEL(FConvertDepth, ConvertDepth, false) {
+    static const int Window = 1;
+
+    static void run(const cv::gapi::fluid::View& src, int depth, cv::gapi::fluid::Buffer& dst) {
+        GAPI_Assert(src.meta().depth == CV_8U || src.meta().depth == CV_32F || src.meta().depth == CV_16U);
+        GAPI_Assert(dst.meta().depth == CV_8U || dst.meta().depth == CV_32F || dst.meta().depth == CV_16U);
+        GAPI_Assert(src.meta().chan == 1);
+        GAPI_Assert(dst.meta().chan == 1);
+        GAPI_Assert(src.length() == dst.length());
+
+        constexpr unsigned supported_types_n = 3;
+        using p_f = void (*)( const uint8_t* src,  uint8_t* dst, const int width);
+        using table_string_t = std::array<p_f, supported_types_n>;
+
+        constexpr std::array<table_string_t, supported_types_n> func_table = {
+                table_string_t{convert_precision<uint16_t, uint16_t>, convert_precision<uint16_t, float>, convert_precision<uint16_t, uint8_t>},
+                table_string_t{convert_precision<float,    uint16_t>, convert_precision<float,    float>, convert_precision<float,    uint8_t>},
+                table_string_t{convert_precision<uint8_t,  uint16_t>, convert_precision<uint8_t,  float>, convert_precision<uint8_t,  uint8_t>}
+        };
+
+        auto depth_to_index = [](int depth){
+            switch (depth) {
+                case  CV_16U: return 0;
+                case  CV_32F: return 1;
+                case  CV_8U:  return 2;
+                default: GAPI_Assert(!"not supported depth"); return -1;
+            }
+        };
+        const auto *in  = src.InLineB(0);
+              auto *out = dst.OutLineB();
+
+        auto const width = dst.length();
+        auto const src_index = depth_to_index(src.meta().depth);
+        auto const dst_index = depth_to_index(dst.meta().depth);
+
+        (func_table[src_index][dst_index])(in, out, width);
+    }
+};
+
 }  // namespace kernels
 
 //----------------------------------------------------------------------
@@ -2078,6 +2406,7 @@ cv::gapi::GKernelPackage preprocKernels() {
         , FSplit4
         , FNV12toRGB
         , FI420toRGB
+        , FConvertDepth
         >();
 }
 

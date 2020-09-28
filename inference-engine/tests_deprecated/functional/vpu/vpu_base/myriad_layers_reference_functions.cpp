@@ -1450,7 +1450,7 @@ void ref_strided_slice(const InferenceEngine::Blob::Ptr& src,
         for (size_t i = 0; i < num_dims; i++) {
             auto value = values[i];
             if (value < 0) {
-                value = std::max<int32_t>(src_dims[i] + value + 1, 0);
+                value = std::max<int32_t>(src_dims[i] + value, 0);
             }
             value = std::min<int32_t>(src_dims[i], value);
             convertedDims[i] = value;
@@ -2558,6 +2558,8 @@ void ref_convert(const InferenceEngine::Blob::Ptr &src,
         } else if (srcPrecision == Precision::I32 && dstPrecision == Precision::FP16) {
             dst->buffer().as<ie_fp16 *>()[i] = PrecisionUtils::f32tof16(
                 static_cast<float >(src->cbuffer().as<int32_t *>()[i]));
+        } else if (srcPrecision == Precision::I32 && dstPrecision == Precision::U8) {
+            dst->buffer().as<uint8_t *>()[i] = static_cast<uint8_t>(src->cbuffer().as<int32_t *>()[i]);
         } else {
             THROW_IE_EXCEPTION << "Unsupported input or output precision";
         }
@@ -2972,7 +2974,7 @@ void ref_nonZero(const InferenceEngine::Blob::Ptr& src,
     const auto getCoord = [&src](int offset){
         std::vector<size_t> coord;
         for (const size_t& stride : src->getTensorDesc().getBlockingDesc().getStrides()) {
-            coord.insert(coord.begin(), offset / stride);
+            coord.push_back(offset / stride);
             offset %= stride;
         }
         return coord;

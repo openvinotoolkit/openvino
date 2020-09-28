@@ -11,8 +11,6 @@ ie_dependent_option (ENABLE_GNA "GNA support for inference engine" ON "NOT APPLE
 
 ie_dependent_option (ENABLE_CLDNN_TESTS "Enable clDNN unit tests" OFF "ENABLE_CLDNN" OFF)
 
-ie_dependent_option (ENABLE_PROFILING_ITT "ITT tracing of IE and plugins internals" ON "NOT CMAKE_CROSSCOMPILING" OFF)
-
 # "MKL-DNN library might use MKL-ML or OpenBLAS for gemm tasks: MKL|OPENBLAS|JIT"
 if (ENABLE_MKL_DNN)
     if(AARCH64)
@@ -50,7 +48,7 @@ if (ENABLE_GNA)
     if (UNIX AND NOT APPLE AND CMAKE_COMPILER_IS_GNUCC AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 5.4)
         set (DEFAULT_GNA_LIB GNA1)
     else()
-        set (DEFAULT_GNA_LIB GNA1_1401)
+        set (DEFAULT_GNA_LIB GNA2)
     endif()
     set(GNA_LIBRARY_VERSION "${DEFAULT_GNA_LIB}" CACHE STRING "GNAVersion")
     set_property(CACHE GNA_LIBRARY_VERSION PROPERTY STRINGS "GNA1" "GNA1_1401" "GNA2")
@@ -62,7 +60,7 @@ if (ENABLE_GNA)
     endif()
 endif()
 
-ie_option (ENABLE_VPU "vpu targeted plugins for inference engine" ON)
+ie_dependent_option (ENABLE_VPU "vpu targeted plugins for inference engine" ON "NOT WINDOWS_PHONE;NOT WINDOWS_STORE" OFF)
 
 ie_dependent_option (ENABLE_MYRIAD "myriad targeted plugin for inference engine" ON "ENABLE_VPU" OFF)
 
@@ -98,7 +96,9 @@ ie_option (ENABLE_OPENCV "enables OpenCV" ON)
 
 ie_option (ENABLE_PYTHON "enables ie python bridge build" OFF)
 
-ie_option (ENABLE_C "enables ie c bridge build" ON)
+ie_option (ENABLE_V7_SERIALIZE "enables serialization to IR v7" OFF)
+
+ie_option (ENABLE_JAVA "enables ie java bridge build" OFF)
 
 ie_dependent_option(ENABLE_CPPLINT "Enable cpplint checks during the build" ON "UNIX;NOT ANDROID" OFF)
 

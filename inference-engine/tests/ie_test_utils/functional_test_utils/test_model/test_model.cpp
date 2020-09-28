@@ -49,7 +49,7 @@ void generateTestModel(const std::string &modelPath,
     auto inputOutData = std::make_shared<InferenceEngine::Data>("InputOutData",
                                                                 InferenceEngine::TensorDesc{netPrc, inputDims,
                                                                                             InferenceEngine::Layout::NCHW});
-    inputOutData->getCreatorLayer() = inputLayerPtr;
+    getCreatorLayer(inputOutData) = inputLayerPtr;
     inputLayerPtr->outData[0] = inputOutData;
     if (refLayersVec) refLayersVec->emplace_back(inputLayerPtr);
 
@@ -88,12 +88,12 @@ void generateTestModel(const std::string &modelPath,
 
     conv1LayerPtr->insData.resize(1);
     conv1LayerPtr->outData.resize(1);
-    inputOutData->getInputTo()[conv1LayerPtr->name] = conv1LayerPtr;
+    getInputTo(inputOutData)[conv1LayerPtr->name] = conv1LayerPtr;
     conv1LayerPtr->insData[0] = inputOutData;
     auto conv1OutData = std::make_shared<InferenceEngine::Data>("Conv1OutData",
                                                                 InferenceEngine::TensorDesc{netPrc, conv1OutShape,
                                                                                             InferenceEngine::Layout::NCHW});
-    conv1OutData->getCreatorLayer() = conv1LayerPtr;
+    getCreatorLayer(conv1OutData) = conv1LayerPtr;
     conv1LayerPtr->outData[0] = conv1OutData;
 
     auto conv1ParamConstLayerXML = ir_builder_v10
@@ -128,12 +128,12 @@ void generateTestModel(const std::string &modelPath,
 
     relu1LayerPtr->insData.resize(1);
     relu1LayerPtr->outData.resize(1);
-    conv1OutData->getInputTo()[relu1LayerPtr->name] = relu1LayerPtr;
+    getInputTo(conv1OutData)[relu1LayerPtr->name] = relu1LayerPtr;
     relu1LayerPtr->insData[0] = conv1OutData;
     auto relu1OutData = std::make_shared<InferenceEngine::Data>("Relu1OutData",
                                                                 InferenceEngine::TensorDesc{netPrc, conv1OutShape,
                                                                                             InferenceEngine::Layout::NCHW});
-    relu1OutData->getCreatorLayer() = relu1LayerPtr;
+    getCreatorLayer(relu1OutData) = relu1LayerPtr;
     relu1LayerPtr->outData[0] = relu1OutData;
 
     auto relu1LayerXML = ir_builder_v10
@@ -159,12 +159,12 @@ void generateTestModel(const std::string &modelPath,
 
     lrn1LayerPtr->insData.resize(1);
     lrn1LayerPtr->outData.resize(1);
-    relu1OutData->getInputTo()[lrn1LayerPtr->name] = lrn1LayerPtr;
+    getInputTo(relu1OutData)[lrn1LayerPtr->name] = lrn1LayerPtr;
     lrn1LayerPtr->insData[0] = relu1OutData;
     auto lrn1OutData = std::make_shared<InferenceEngine::Data>("Lrn1OutData",
                                                                InferenceEngine::TensorDesc{netPrc, conv1OutShape,
                                                                                            InferenceEngine::Layout::NCHW});
-    lrn1OutData->getCreatorLayer() = lrn1LayerPtr;
+    getCreatorLayer(lrn1OutData) = lrn1LayerPtr;
     lrn1LayerPtr->outData[0] = lrn1OutData;
 
     auto lrn1ParamConstLayerXML = ir_builder_v10
@@ -208,12 +208,12 @@ void generateTestModel(const std::string &modelPath,
 
     pool1LayerPtr->insData.resize(1);
     pool1LayerPtr->outData.resize(1);
-    lrn1OutData->getInputTo()[pool1LayerPtr->name] = pool1LayerPtr;
+    getInputTo(lrn1OutData)[pool1LayerPtr->name] = pool1LayerPtr;
     pool1LayerPtr->insData[0] = lrn1OutData;
     auto pool1OutData = std::make_shared<InferenceEngine::Data>("Pool1OutData",
                                                                 InferenceEngine::TensorDesc{netPrc, pool1OutShape,
                                                                                             InferenceEngine::Layout::NCHW});
-    pool1OutData->getCreatorLayer() = pool1LayerPtr;
+    getCreatorLayer(pool1OutData) = pool1LayerPtr;
     pool1LayerPtr->outData[0] = pool1OutData;
 
     auto pool1LayerXML = ir_builder_v10
@@ -251,7 +251,7 @@ void generateTestModel(const std::string &modelPath,
 
     split1LayerPtr->insData.resize(1);
     split1LayerPtr->outData.resize(2);
-    pool1OutData->getInputTo()[split1LayerPtr->name] = split1LayerPtr;
+    getInputTo(pool1OutData)[split1LayerPtr->name] = split1LayerPtr;
     split1LayerPtr->insData[0] = pool1OutData;
     auto split1OutData0 = std::make_shared<InferenceEngine::Data>("Split1OutData0",
                                                                   InferenceEngine::TensorDesc{netPrc,
@@ -261,8 +261,8 @@ void generateTestModel(const std::string &modelPath,
                                                                   InferenceEngine::TensorDesc{netPrc,
                                                                                               split1OutShape,
                                                                                               InferenceEngine::Layout::NCHW});
-    split1OutData0->getCreatorLayer() = split1LayerPtr;
-    split1OutData1->getCreatorLayer() = split1LayerPtr;
+    getCreatorLayer(split1OutData0) = split1LayerPtr;
+    getCreatorLayer(split1OutData1) = split1LayerPtr;
     split1LayerPtr->outData[0] = split1OutData0;
     split1LayerPtr->outData[1] = split1OutData1;
 
@@ -307,12 +307,12 @@ void generateTestModel(const std::string &modelPath,
 
     conv2LayerPtr->insData.resize(1);
     conv2LayerPtr->outData.resize(1);
-    split1OutData0->getInputTo()[conv2LayerPtr->name] = conv2LayerPtr;
+    getInputTo(split1OutData0)[conv2LayerPtr->name] = conv2LayerPtr;
     conv2LayerPtr->insData[0] = split1OutData0;
     auto conv2OutData = std::make_shared<InferenceEngine::Data>("Conv2OutData",
                                                                 InferenceEngine::TensorDesc{netPrc, conv2OutShape,
                                                                                             InferenceEngine::Layout::NCHW});
-    conv2OutData->getCreatorLayer() = conv2LayerPtr;
+    getCreatorLayer(conv2OutData) = conv2LayerPtr;
     conv2LayerPtr->outData[0] = conv2OutData;
 
     auto conv2ParamConstLayerXML = ir_builder_v10
@@ -364,12 +364,12 @@ void generateTestModel(const std::string &modelPath,
 
     conv3LayerPtr->insData.resize(1);
     conv3LayerPtr->outData.resize(1);
-    split1OutData1->getInputTo()[conv3LayerPtr->name] = conv3LayerPtr;
+    getInputTo(split1OutData1)[conv3LayerPtr->name] = conv3LayerPtr;
     conv3LayerPtr->insData[0] = split1OutData1;
     auto conv3OutData = std::make_shared<InferenceEngine::Data>("Conv3OutData",
                                                                 InferenceEngine::TensorDesc{netPrc, conv3OutShape,
                                                                                             InferenceEngine::Layout::NCHW});
-    conv3OutData->getCreatorLayer() = conv3LayerPtr;
+    getCreatorLayer(conv3OutData) = conv3LayerPtr;
     conv3LayerPtr->outData[0] = conv3OutData;
 
     auto conv3ParamConstLayerXML = ir_builder_v10
@@ -414,15 +414,15 @@ void generateTestModel(const std::string &modelPath,
 
     concat1LayerPtr->insData.resize(2);
     concat1LayerPtr->outData.resize(1);
-    conv2OutData->getInputTo()[concat1LayerPtr->name] = concat1LayerPtr;
-    conv3OutData->getInputTo()[concat1LayerPtr->name] = concat1LayerPtr;
+    getInputTo(conv2OutData)[concat1LayerPtr->name] = concat1LayerPtr;
+    getInputTo(conv3OutData)[concat1LayerPtr->name] = concat1LayerPtr;
     concat1LayerPtr->insData[0] = conv2OutData;
     concat1LayerPtr->insData[1] = conv3OutData;
     auto concat1OutData = std::make_shared<InferenceEngine::Data>("Concat1OutData",
                                                                   InferenceEngine::TensorDesc{netPrc,
                                                                                               concat1OutShape,
                                                                                               InferenceEngine::Layout::NCHW});
-    concat1OutData->getCreatorLayer() = concat1LayerPtr;
+    getCreatorLayer(concat1OutData) = concat1LayerPtr;
     concat1LayerPtr->outData[0] = concat1OutData;
 
     auto concat1LayerXML = ir_builder_v10
@@ -708,6 +708,64 @@ TestModel getModelWithMemory(InferenceEngine::Precision netPrc) {
     test_model_builder.AddEdge(Input_2_layer.out(0), Eltwise_3_layer.in(1));
     test_model_builder.AddEdge(Eltwise_3_layer.out(0), Activation_4_layer.in(0));
     test_model_builder.AddEdge(Activation_4_layer.out(0), Memory_5_layer.in(0));
+
+    auto serial = test_model_builder.serialize();
+
+    return TestModel(serial, CommonTestUtils::getWeightsBlob(0));
+}
+TestModel getModelWithMultipleMemoryConnections(InferenceEngine::Precision netPrc) {
+    CommonTestUtils::IRBuilder_v6 test_model_builder("model");
+
+    auto Memory_1_layer =
+        test_model_builder.AddLayer("Memory_1", "Memory", netPrc, { {"id",    "r_1-3"},
+                                                                    {"index", "1"},
+                                                                    {"size",  "2"} })
+        .AddOutPort({ 1, 200 })
+        .getLayer();
+    auto Input_1_layer = test_model_builder.AddLayer("Input_1", "input", netPrc).AddOutPort({ 1, 200 }).getLayer();
+    auto Eltwise_1_layer = test_model_builder.AddLayer("Eltwise_1", "Eltwise", netPrc, { {"operation", "mul"} })
+        .AddInPort({ 1, 200 })
+        .AddInPort({ 1, 200 })
+        .AddOutPort({ 1, 200 })
+        .getLayer();
+
+    auto Memory_2_layer =
+        test_model_builder.AddLayer("Memory_2", "Memory", netPrc, { {"id",    "c_1-3"},
+                                                                    {"index", "1"},
+                                                                    {"size",  "2"} })
+        .AddOutPort({ 1, 200 })
+        .getLayer();
+    auto Eltwise_2_layer = test_model_builder.AddLayer("Eltwise_2", "Eltwise", netPrc, { {"operation", "mul"} })
+        .AddInPort({ 1, 200 })
+        .AddInPort({ 1, 200 })
+        .AddOutPort({ 1, 200 })
+        .getLayer();
+    auto Memory_3_layer =
+        test_model_builder.AddLayer("Memory_3", "Memory", netPrc, { {"id",    "c_1-3"},
+                                                                   {"index", "0"},
+                                                                   {"size",  "2"} })
+        .AddInPort({ 1, 200 })
+        .getLayer();
+
+    auto Activation_1_layer =
+        test_model_builder.AddLayer("Activation_1", "Activation", netPrc, { {"type", "sigmoid"} })
+        .AddInPort({ 1, 200 })
+        .AddOutPort({ 1, 200 })
+        .getLayer();
+    auto Memory_4_layer =
+        test_model_builder.AddLayer("Memory_4", "Memory", netPrc, { {"id",    "r_1-3"},
+                                                                   {"index", "0"},
+                                                                   {"size",  "2"} })
+        .AddInPort({ 1, 200 })
+        .getLayer();
+
+    test_model_builder.AddEdge(Memory_1_layer.out(0), Eltwise_1_layer.in(0));
+    test_model_builder.AddEdge(Input_1_layer.out(0), Eltwise_1_layer.in(1));
+    test_model_builder.AddEdge(Eltwise_1_layer.out(0), Eltwise_2_layer.in(1));
+    test_model_builder.AddEdge(Memory_2_layer.out(0), Eltwise_2_layer.in(0));
+    test_model_builder.AddEdge(Eltwise_2_layer.out(0), Memory_3_layer.in(0));
+    test_model_builder.AddEdge(Eltwise_2_layer.out(0), Activation_1_layer.in(0));
+    test_model_builder.AddEdge(Activation_1_layer.out(0), Memory_4_layer.in(0));
 
     auto serial = test_model_builder.serialize();
 

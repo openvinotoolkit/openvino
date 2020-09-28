@@ -15,8 +15,6 @@
 #include <memory>
 #include <string>
 
-#include <cpp/ie_plugin_cpp.hpp>
-#include <ie_plugin_dispatcher.hpp>
 #include <cpp_interfaces/impl/ie_plugin_internal.hpp>
 #include <cpp_interfaces/impl/ie_executable_network_thread_safe_default.hpp>
 #include <cpp_interfaces/impl/ie_infer_async_request_thread_safe_default.hpp>
@@ -25,7 +23,7 @@
 #include <ie_parallel.hpp>
 
 #if (IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO)
-#include <tbb/concurrent_queue.h>
+# include <tbb/concurrent_queue.h>
 #endif
 
 namespace MultiDevicePlugin {
@@ -33,6 +31,7 @@ namespace MultiDevicePlugin {
 using DeviceName = std::string;
 
 struct DeviceInformation {
+    DeviceName deviceName;
     std::map<std::string, std::string> config;
     int numRequestsPerDevices;
 };
@@ -101,7 +100,7 @@ public:
     using NotBusyWorkerRequests = ThreadSafeQueue<WorkerInferRequest*>;
 
     explicit MultiDeviceExecutableNetwork(const DeviceMap<InferenceEngine::ExecutableNetwork>&                  networksPerDevice,
-                                          const DeviceMap<DeviceInformation>&                                        networkDevices,
+                                          const std::vector<DeviceInformation>&                                 networkDevices,
                                           const std::unordered_map<std::string, InferenceEngine::Parameter>&    config,
                                           const bool                                                            needPerfCounters = false);
 
@@ -119,7 +118,7 @@ public:
     static thread_local WorkerInferRequest*                     _thisWorkerInferRequest;
     std::atomic_bool                                            _terminate = {false};
     std::mutex                                                  _mutex;
-    DeviceMap<DeviceInformation>                                _devicePriorities;
+    std::vector<DeviceInformation>                              _devicePriorities;
     DeviceMap<InferenceEngine::ExecutableNetwork>               _networksPerDevice;
     ThreadSafeQueue<Task>                                       _inferPipelineTasks;
     DeviceMap<NotBusyWorkerRequests>                            _idleWorkerRequests;
@@ -165,7 +164,7 @@ public:
     InferenceEngine::Parameter GetMetric(const std::string& name,
                                          const std::map<std::string, InferenceEngine::Parameter>& options) const override;
 
-    DeviceMap<DeviceInformation> ParseMetaDevices(const std::string & devicesRequestsCfg,
+    std::vector<DeviceInformation> ParseMetaDevices(const std::string & devicesRequestsCfg,
                                                   const std::map<std::string, std::string> & config) const;
 
 protected:

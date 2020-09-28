@@ -44,9 +44,9 @@ inline uint FUNC(get_output_index)(uint b, uint f, uint w, uint z, uint y, uint 
 
 KERNEL(cum_sum_ref)( const __global INPUT0_TYPE* input, __global OUTPUT_TYPE* output)
 {
-    const uint batch = get_global_id(0);
-    const uint features = get_global_id(1) / OUTPUT_SIZE_W;
-    const uint w = get_global_id(1) % OUTPUT_SIZE_W;
+    const uint batch = (uint)get_global_id(0);
+    const uint features = (uint)get_global_id(1) / OUTPUT_SIZE_W;
+    const uint w = (uint)get_global_id(1) % OUTPUT_SIZE_W;
     const uint yx = (uint)get_global_id(2) % (OUTPUT_SIZE_X * OUTPUT_SIZE_Y);
     const uint z = (uint)get_global_id(2) / (OUTPUT_SIZE_X * OUTPUT_SIZE_Y);
     const uint y = yx / OUTPUT_SIZE_X;

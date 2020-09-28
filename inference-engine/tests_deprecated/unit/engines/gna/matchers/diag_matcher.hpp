@@ -3,17 +3,18 @@
 //
 
 #pragma once
-#include"gna-api.h"
+
+#include "backend/gna_types.h"
 #include "nnet_base_matcher.hpp"
 #include "frontend/quantization.h"
 
-class DiagLayerMatcher : public ::testing::MatcherInterface<const intel_nnet_type_t*> {
+class DiagLayerMatcher : public ::testing::MatcherInterface<const gna_nnet_type_t*> {
     bool matchInserted;
     int  matchQuantity;
     mutable int  actualQuantity;
 public:
     DiagLayerMatcher(bool matchInserted, int matchQuantity) : matchInserted(matchInserted), matchQuantity(matchQuantity) {}
-    bool MatchAndExplain(const intel_nnet_type_t *foo, ::testing::MatchResultListener *listener) const override {
+    bool MatchAndExplain(const gna_nnet_type_t *foo, ::testing::MatchResultListener *listener) const override {
         if (foo == nullptr)
             return false;
         actualQuantity = 0;
@@ -21,7 +22,7 @@ public:
             if (foo->pLayers[i].nLayerKind != INTEL_AFFINE_DIAGONAL) continue;
             // diagonal layer has to have 1 for weights and 0 for biases
 
-            auto diag = (intel_affine_func_t*)foo->pLayers[i].pLayerStruct;
+            auto diag = (gna_affine_func_t*)foo->pLayers[i].pLayerStruct;
             bool bWeightsOK = true;
 
             int beforePadding = 0;
@@ -69,7 +70,7 @@ public:
     }
 };
 
-inline ::testing::Matcher<const intel_nnet_type_t*> HasDiagonalLayer(bool matchInserted = false, int matchQuantity = -1) {
+inline ::testing::Matcher<const gna_nnet_type_t*> HasDiagonalLayer(bool matchInserted = false, int matchQuantity = -1) {
     std::unique_ptr<NNetComponentMatcher> c (new NNetComponentMatcher());
     c->add(new DiagLayerMatcher(matchInserted, matchQuantity));
     return ::testing::MakeMatcher(c.release());

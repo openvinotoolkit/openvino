@@ -1,4 +1,4 @@
-// Copyright (c) 2016-2019 Intel Corporation
+// Copyright (c) 2016-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -161,9 +161,14 @@ KERNEL(convolution_bfyx_f16)(
     vec_t dst = INPUT0_VAL_ZERO;
 #endif  // BIAS_TERM
 
-#ifndef MULTIPLE_GROUPS_INPUT_PRELOAD
-    for (uint g = group; g < group + groups_per_sub_group; g++) {
+#if MULTIPLE_GROUPS_INPUT_PRELOAD
+    const uint in_split_offset = f_block * input_fs_pitch;
+    const uint g = lid / (FEATURE_SLICE_SIZE / groups_per_sub_group);
+    const uint ofm_in_group = lid % (FEATURE_SLICE_SIZE / groups_per_sub_group);
+    const uint grouped_filter_offset = (group + g) * FILTER_GROUPS_PITCH;
+#else
 #if GROUPED
+    for (uint g = group; g < group + groups_per_sub_group; g++) {
         const uint in_split_offset = g * input_fs_pitch * (FILTER_IFM_NUM / FEATURE_SLICE_SIZE);
         const uint filter_split_offset = g * FILTER_GROUPS_PITCH;
         const uint filter_offset = (f_block % (FILTER_OFM_NUM / FEATURE_SLICE_SIZE)) * filter_os_pitch;
@@ -173,11 +178,6 @@ KERNEL(convolution_bfyx_f16)(
         const uint filter_offset = f_block * filter_os_pitch;
 #endif  // GROUPED
         const uint grouped_filter_offset = filter_offset + filter_split_offset;
-#else
-        const uint in_split_offset = f_block * input_fs_pitch;
-        const uint g = lid / (FEATURE_SLICE_SIZE / groups_per_sub_group);
-        const uint ofm_in_group = lid % (FEATURE_SLICE_SIZE / groups_per_sub_group);
-        const uint grouped_filter_offset = (group + g) * FILTER_GROUPS_PITCH;
 #endif  // MULTIPLE_GROUPS_INPUT_PRELOAD
 
         const uint grouped_input_offset = input_offset + in_split_offset;
@@ -248,7 +248,11 @@ KERNEL(convolution_bfyx_f16)(
                     vec_t src;
                     __attribute__((opencl_unroll_hint(OUTPUT_X_BLOCK_SIZE)))
                     for (int i = 0; i < OUTPUT_X_BLOCK_SIZE; i++) {
+#if FILTER_SIZE_X == 1 && DILATION_SIZE_X == 1 && STRIDE_SIZE_X == 1
+                        src[i] = line_cache[i];
+#else
                         src[i] = line_cache[kw*DILATION_SIZE_X + STRIDE_SIZE_X*i];
+#endif  // FILTER_SIZE_X == 1 && DILATION_SIZE_X == 1 && STRIDE_SIZE_X == 1
                     }
 #if MULTIPLE_GROUPS_INPUT_PRELOAD
                     typedef MAKE_VECTOR_TYPE(FILTER_TYPE, FILTER_IFM_NUM) ifm_vec_t;
@@ -345,9 +349,9 @@ KERNEL(convolution_bfyx_f16)(
                 }
             }
         }
-#ifndef MULTIPLE_GROUPS_INPUT_PRELOAD
+#if GROUPED && !MULTIPLE_GROUPS_INPUT_PRELOAD
     }
-#endif  // MULTIPLE_GROUPS_INPUT_PRELOAD
+#endif  // GROUPED && !MULTIPLE_GROUPS_INPUT_PRELOAD
     dst = ACTIVATION(dst, ACTIVATION_PARAMS);
 
     typedef MAKE_VECTOR_TYPE(OUTPUT_TYPE, OUTPUT_X_BLOCK_SIZE) out_vec_t;
@@ -370,7 +374,7 @@ KERNEL(convolution_bfyx_f16)(
     else
 #endif  // OUTPUT_LEFTOVERS
     {
-        if (x + OUTPUT_X_BLOCK_SIZE <= OUTPUT_SIZE_X) {
+        if (x + OUTPUT_X_BLOCK_SIZE <= OUTPUT_SIZE_X || OUTPUT_SIZE_X % OUTPUT_X_BLOCK_SIZE == 0) {
 #if HAS_FUSED_OPS
             FUSED_OPS_VEC;
             res = FUSED_OPS_RESULT_VEC;
@@ -390,8 +394,7 @@ KERNEL(convolution_bfyx_f16)(
 #   error convolution_gpu_bfyx_f16.cl: Unsupported output x block size.
 #endif
         } else {
-            const int x_tail = OUTPUT_SIZE_X - x;
-            for (int i = 0; i < x_tail; i++) {
+            for (int i = 0; i < OUTPUT_SIZE_X % OUTPUT_X_BLOCK_SIZE; i++) {
 #if HAS_FUSED_OPS
                 FUSED_OPS_SCALAR;
                 res[i] = FUSED_OPS_RESULT_SCALAR;

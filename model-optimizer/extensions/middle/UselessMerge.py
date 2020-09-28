@@ -40,5 +40,5 @@ class UselessMergeEraser(MiddleReplacementPattern):
 
     def replace_pattern(self, graph: Graph, match: dict):
         if len(graph.in_edges(match['merge'].id)) <= 1:
-            remove_op_node_with_data_node(graph, match['merge'])
+            remove_op_node_with_data_node(graph, match['merge'], list(match['merge'].in_nodes().values())[0])
             log.info("Useles Merge op and data nodes was deleted op='{}'".format(match['merge'].id))

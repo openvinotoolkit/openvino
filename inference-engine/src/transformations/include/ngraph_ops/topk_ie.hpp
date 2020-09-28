@@ -7,7 +7,7 @@
 #include <memory>
 #include <string>
 
-#include <ie_api.h>
+#include <transformations_visibility.hpp>
 
 #include "ngraph/op/op.hpp"
 #include "ngraph/op/topk.hpp"
@@ -15,7 +15,7 @@
 namespace ngraph {
 namespace op {
 
-class INFERENCE_ENGINE_API_CLASS(TopKIE) : public Op {
+class TRANSFORMATIONS_API TopKIE : public Op {
 public:
     static constexpr NodeTypeInfo type_info{"TopKIE", 1};
     const NodeTypeInfo& get_type_info() const override { return type_info; }
@@ -24,7 +24,8 @@ public:
            const Output<Node>& k,
            const int64_t axis,
            const ngraph::op::TopKMode mode,
-           const ngraph::op::TopKSortType sort);
+           const ngraph::op::TopKSortType sort,
+           const element::Type& index_element_type = element::i32);
 
     void validate_and_infer_types() override;
 
@@ -40,6 +41,7 @@ private:
     int64_t m_axis;
     ngraph::op::TopKMode m_mode;
     ngraph::op::TopKSortType m_sort_type;
+    ngraph::element::Type m_index_element_type;
 };
 
 }  // namespace op

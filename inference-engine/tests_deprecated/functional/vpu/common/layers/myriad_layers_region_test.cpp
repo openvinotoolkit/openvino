@@ -14,5 +14,22 @@ INSTANTIATE_TEST_CASE_P(
 		::testing::Values<DoSoftmax>(1, 0),
 		::testing::Values(vpu::LayoutPreference::ChannelMajor, vpu::LayoutPreference::ChannelMinor),
 		::testing::Values(IRVersion::v7, IRVersion::v10),
-		::testing::ValuesIn(s_CustomConfig)
+		::testing::Values("")
 ));
+
+#ifdef VPU_HAS_CUSTOM_KERNELS
+
+INSTANTIATE_TEST_CASE_P(
+	accuracy_custom, myriadLayersTestsRegionYolo_smoke,
+	::testing::Combine(
+		::testing::Values<Coords>(4),
+		::testing::Values<Classes>(20),
+		::testing::Values<Num>(5, 10),
+		::testing::Values<MaskSize>(3),
+		::testing::Values<DoSoftmax>(1, 0),
+		::testing::Values(vpu::LayoutPreference::ChannelMajor, vpu::LayoutPreference::ChannelMinor),
+		::testing::Values(IRVersion::v7, IRVersion::v10),
+		::testing::Values(s_CustomConfig[1])
+));
+
+#endif

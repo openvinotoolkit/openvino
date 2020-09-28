@@ -8,25 +8,21 @@
 #include <memory>
 #include <string>
 
-#include <ie_api.h>
+#include <transformations_visibility.hpp>
 
 #include <ngraph/pass/graph_rewrite.hpp>
 
 namespace ngraph {
 namespace pass {
 
-class INFERENCE_ENGINE_API_CLASS(ConvertSqrtToPowerIE);
+class TRANSFORMATIONS_API ConvertSqrtToPowerIEMatcher;
 
 }  // namespace pass
 }  // namespace ngraph
 
-class ngraph::pass::ConvertSqrtToPowerIE: public ngraph::pass::GraphRewrite {
+class ngraph::pass::ConvertSqrtToPowerIEMatcher: public ngraph::pass::MatcherPass {
 public:
-    ConvertSqrtToPowerIE() : GraphRewrite() {
-        convert_sqrt();
-    }
-
-private:
-    void convert_sqrt();
+    NGRAPH_RTTI_DECLARATION;
+    ConvertSqrtToPowerIEMatcher();
 };
 

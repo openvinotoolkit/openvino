@@ -3,10 +3,8 @@
 //
 
 /**
- * @brief a header for advanced hardware related properties for IE plugins
- *
- *        To use in SetConfig() method of plugins
- *        LoadNetwork() method overloads that accept config as parameter
+ * @brief A header for advanced hardware related properties for IE plugins
+ *        To use in SetConfig, LoadNetwork, ImportNetwork methods of plugins
  *
  * @file ie_plugin_config.hpp
  */
@@ -92,6 +90,7 @@ DECLARE_METRIC_KEY(FULL_DEVICE_NAME, std::string);
  *
  * The possible values:
  *  - "FP32" - device can support FP32 models
+ *  - "BF16" - device can support BF16 computations for models
  *  - "FP16" - device can support FP16 models
  *  - "INT8" - device can support models with INT8 layers
  *  - "BIN" - device can support models with BIN layers
@@ -100,6 +99,7 @@ DECLARE_METRIC_KEY(FULL_DEVICE_NAME, std::string);
 DECLARE_METRIC_KEY(OPTIMIZATION_CAPABILITIES, std::vector<std::string>);
 
 DECLARE_METRIC_VALUE(FP32);
+DECLARE_METRIC_VALUE(BF16);
 DECLARE_METRIC_VALUE(FP16);
 DECLARE_METRIC_VALUE(INT8);
 DECLARE_METRIC_VALUE(BIN);
@@ -194,7 +194,7 @@ DECLARE_CONFIG_KEY(CPU_THREADS_NUM);
  *
  * It is passed to Core::SetConfig(), this option should be used with values:
  * PluginConfigParams::YES (pinning threads to cores, best for static benchmarks),
- * PluginConfigParams::NUMA (pinning therads to NUMA nodes, best for real-life, contented cases)
+ * PluginConfigParams::NUMA (pinning threads to NUMA nodes, best for real-life, contented cases)
  * this is TBB-specific knob, and the only pinning option (beyond 'NO', below) on the Windows*
  * PluginConfigParams::NO (no pinning for CPU inference threads)
  * All settings are ignored, if the OpenVINO compiled with OpenMP threading and any affinity-related OpenMP's
@@ -207,7 +207,7 @@ DECLARE_CONFIG_VALUE(NUMA);
  * @brief Optimize CPU execution to maximize throughput.
  *
  * It is passed to Core::SetConfig(), this option should be used with values:
- * - KEY_CPU_THROUGHPUT_NUMA creates as many streams as needed to accomodate NUMA and avoid associated penalties
+ * - KEY_CPU_THROUGHPUT_NUMA creates as many streams as needed to accommodate NUMA and avoid associated penalties
  * - KEY_CPU_THROUGHPUT_AUTO creates bare minimum of streams to improve the performance,
  *   this is the most portable option if you have no insights into how many cores you target machine will have
  *   (and what is the optimal number of streams)

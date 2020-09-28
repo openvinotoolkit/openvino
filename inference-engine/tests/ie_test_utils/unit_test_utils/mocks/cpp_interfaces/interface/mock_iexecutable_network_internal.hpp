@@ -9,7 +9,6 @@
 #include <vector>
 
 #include <gmock/gmock.h>
-#include "ie_plugin.hpp"
 
 #include "ie_input_info.hpp"
 #include "ie_icnn_network.hpp"
@@ -22,7 +21,6 @@
 
 using namespace InferenceEngine;
 
-IE_SUPPRESS_DEPRECATED_START
 class MockIExecutableNetworkInternal : public IExecutableNetworkInternal {
 public:
     MOCK_CONST_METHOD0(GetOutputsInfo, ConstOutputsDataMap());
@@ -30,7 +28,6 @@ public:
     MOCK_METHOD1(CreateInferRequest, void(IInferRequest::Ptr &));
     MOCK_METHOD1(Export, void(const std::string &));
     void Export(std::ostream &) override {};
-    MOCK_METHOD1(GetMappedTopology, void(std::map<std::string, std::vector<PrimitiveInfo::Ptr>> &));
     MOCK_METHOD0(QueryState, std::vector<IMemoryStateInternal::Ptr>());
     MOCK_METHOD1(GetExecGraphInfo, void(ICNNNetwork::Ptr &));
 
@@ -39,4 +36,3 @@ public:
     MOCK_CONST_METHOD3(GetMetric, void(const std::string &name, Parameter &result, ResponseDesc *resp));
     MOCK_CONST_METHOD2(GetContext, void(RemoteContext::Ptr &pContext, ResponseDesc *resp));
 };
-IE_SUPPRESS_DEPRECATED_END

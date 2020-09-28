@@ -19,8 +19,8 @@ import unittest
 import numpy as np
 from generator import generator, generate
 
-from mo.front.extractor import input_user_data_repack, output_user_data_repack, extract_port_from_string, \
-    update_ie_fields, add_input_op
+from mo.front.extractor import input_user_data_repack, output_user_data_repack, update_ie_fields, add_input_op, \
+    get_node_id_with_ports
 from mo.front.extractor import spatial_attr_getter, add_input_ops, attr_getter, CaffePythonFrontExtractorOp, \
     add_output_ops
 from mo.graph.graph import Node
@@ -443,16 +443,17 @@ class TestInputAddition(unittest.TestCase):
         self.assertTrue((new_input, 'conv_data') in graph.edges())
         self.assertTrue(('conv_1', 'conv_data') not in graph.edges())
 
+
 @generator
 class TestOutputCut(unittest.TestCase):
     # {'embeddings': [{'port': None}]}
     @generate({'C': [{'port': None}]}, {'C': [{'out': 0}]}, {'C': [{'out': 1}]})
     def test_output_port_cut(self, output):
-        nodes = {'A': {'type': 'Identity', 'kind': 'op'},
-                 'B': {'type': 'Identity', 'kind': 'op'},
-                 'C': {'type': 'Identity', 'kind': 'op'},
-                 'D': {'type': 'Identity', 'kind': 'op'},
-                 'E': {'type': 'Identity', 'kind': 'op'},
+        nodes = {'A': {'type': 'Identity', 'kind': 'op', 'op': 'Identity'},
+                 'B': {'type': 'Identity', 'kind': 'op', 'op': 'Identity'},
+                 'C': {'type': 'Identity', 'kind': 'op', 'op': 'Identity'},
+                 'D': {'type': 'Identity', 'kind': 'op', 'op': 'Identity'},
+                 'E': {'type': 'Identity', 'kind': 'op', 'op': 'Identity'},
                  }
         edges = [
             ('A', 'C', {'in': 0, 'out': 0}),
@@ -470,9 +471,9 @@ class TestOutputCut(unittest.TestCase):
     def test_output_port_cut(self, output):
         nodes = {'A': {'op': 'Parameter', 'kind': 'op'},
                  'B': {'op': 'Parameter', 'kind': 'op'},
-                 'C': {'type': 'Identity', 'kind': 'op'},
-                 'D': {'type': 'Identity', 'kind': 'op'},
-                 'E': {'type': 'Identity', 'kind': 'op'},
+                 'C': {'type': 'Identity', 'kind': 'op', 'op': 'Identity'},
+                 'D': {'type': 'Identity', 'kind': 'op', 'op': 'Identity'},
+                 'E': {'type': 'Identity', 'kind': 'op', 'op': 'Identity'},
                  }
         edges = [
             ('A', 'C', {'in': 0, 'out': 0}),
@@ -489,9 +490,9 @@ class TestOutputCut(unittest.TestCase):
 class TestUserDataRepack(unittest.TestCase):
     nodes = {'A': {'name': 'Aa', 'op': 'Parameter', 'kind': 'op'},
              'B': {'name': 'Bb', 'op': 'Parameter', 'kind': 'op'},
-             'C': {'name': 'Cc', 'type': 'Identity', 'value': None, 'kind': 'op'},
-             'D': {'name': 'Dd', 'type': 'Identity', 'value': None, 'kind': 'op'},
-             'E': {'name': 'Ee', 'type': 'Identity', 'value': None, 'kind': 'op'},
+             'C': {'name': 'Cc', 'type': 'Identity', 'value': None, 'kind': 'op', 'op': 'Identity'},
+             'D': {'name': 'Dd', 'type': 'Identity', 'value': None, 'kind': 'op', 'op': 'Identity'},
+             'E': {'name': 'Ee', 'type': 'Identity', 'value': None, 'kind': 'op', 'op': 'Identity'},
              }
     edges = [
         ('A', 'C', {'in': 0, 'out': 0}),
@@ -501,25 +502,25 @@ class TestUserDataRepack(unittest.TestCase):
     ]
 
     def test_input_user_data_repack_none(self):
-        graph = build_graph_with_edge_attrs(self.nodes, self.edges)
+        graph = build_graph(self.nodes, self.edges)
         input, freeze_placeholder = input_user_data_repack(graph, None, None)
         self.assertEqual(input, None)
         self.assertEqual(freeze_placeholder, None)
 
     def test_input_user_data_repack_names_to_ids_list(self):
-        graph = build_graph_with_edge_attrs(self.nodes, self.edges)
+        graph = build_graph(self.nodes, self.edges)
         input, freeze_placeholder = input_user_data_repack(graph, ['Aa', 'Bb'], None)
         self.assertDictEqual(input, {'A': [{'shape': None, 'port': None}], 'B': [{'shape': None, 'port': None}]})
         self.assertEqual(freeze_placeholder, None)
 
     def test_input_user_data_repack_names_ports_in_out(self):
-        graph = build_graph_with_edge_attrs(self.nodes, self.edges)
-        input, freeze_placeholder = input_user_data_repack(graph, ['Aa:1', '0:Bb'], None)
-        self.assertDictEqual(input, {'A': [{'shape': None, 'out': 1}], 'B': [{'shape': None, 'in': 0}]})
+        graph = build_graph(self.nodes, self.edges)
+        input, freeze_placeholder = input_user_data_repack(graph, ['Aa:0', '1:Cc'], None)
+        self.assertDictEqual(input, {'A': [{'shape': None, 'out': 0}], 'C': [{'shape': None, 'in': 1}]})
         self.assertEqual(freeze_placeholder, None)
 
     def test_input_user_data_repack_dict_with_shapes(self):
-        graph = build_graph_with_edge_attrs(self.nodes, self.edges)
+        graph = build_graph(self.nodes, self.edges)
         shape_1 = np.array([1, 160, 160, 3])
         shape_2 = np.array([1, 127, 127, 3])
         input, freeze_placeholder = input_user_data_repack(graph, {'Aa': shape_1, 'Bb': shape_2}, None)
@@ -527,34 +528,34 @@ class TestUserDataRepack(unittest.TestCase):
         self.assertEqual(freeze_placeholder, None)
 
     def test_input_user_data_repack_dict_with_shapes_and_ports(self):
-        graph = build_graph_with_edge_attrs(self.nodes, self.edges)
+        graph = build_graph(self.nodes, self.edges)
         shape_1 = np.array([1, 160, 160, 3])
         shape_2 = np.array([1, 127, 127, 3])
-        input, freeze_placeholder = input_user_data_repack(graph, {'Aa:0': shape_1, 'Bb:1': shape_2}, None)
-        self.assertDictEqual(input, {'A': [{'shape': shape_1, 'out': 0}], 'B': [{'shape': shape_2, 'out': 1}]})
+        input, freeze_placeholder = input_user_data_repack(graph, {'Aa:0': shape_1, 'Bb:0': shape_2}, None)
+        self.assertDictEqual(input, {'A': [{'shape': shape_1, 'out': 0}], 'B': [{'shape': shape_2, 'out': 0}]})
         self.assertEqual(freeze_placeholder, None)
 
     def test_freeze_placeholder_and_input(self):
-        graph = build_graph_with_edge_attrs(self.nodes, self.edges)
+        graph = build_graph(self.nodes, self.edges)
         shape_1 = np.array([1, 160, 160, 3])
         input, freeze_placeholder = input_user_data_repack(graph, {'Aa:0': shape_1}, {'Bb': False})
         self.assertDictEqual(input, {'A': [{'shape': shape_1, 'out': 0}], 'B': [{'shape': None, 'port': None}]})
         self.assertEqual(freeze_placeholder, {'B': False})
 
     def test_error(self):
-        graph = build_graph_with_edge_attrs(self.nodes, self.edges)
+        graph = build_graph(self.nodes, self.edges)
         self.assertRaises(Error, input_user_data_repack, graph, np.array([1, 227, 227, 3]), None)
 
     def test_error_2(self):
-        graph = build_graph_with_edge_attrs(self.nodes, self.edges)
+        graph = build_graph(self.nodes, self.edges)
         self.assertRaises(Error, input_user_data_repack, graph, np.array([1, 227, 227, 3]), None)
 
     def test_error_3(self):
-        graph = build_graph_with_edge_attrs(self.nodes, self.edges)
+        graph = build_graph(self.nodes, self.edges)
         self.assertRaises(Error, input_user_data_repack, graph, ['Bcb'], None)
 
     def test_input_and_freeze(self):
-        graph = build_graph_with_edge_attrs(self.nodes, self.edges)
+        graph = build_graph(self.nodes, self.edges)
         shape_1 = np.array([1, 160, 160, 3])
         input, freeze_placeholder = input_user_data_repack(graph, shape_1, {'Bb': True})
         self.assertDictEqual(input, {'A': [{'shape': shape_1, 'port': None}], 'B': [{'shape': None, 'port': None}]})
@@ -562,7 +563,7 @@ class TestUserDataRepack(unittest.TestCase):
 
     def test_freeze_new_placeholder_1(self):
         # create a new placeholder Cc:0 by cutting output port with shape_2 = [5] and freeze a value [1.0 1.0 2.0 3.0 5.0]
-        graph = build_graph_with_edge_attrs(self.nodes, self.edges)
+        graph = build_graph(self.nodes, self.edges)
         shape_1 = np.array([1, 160, 160, 3])
         shape_2 = np.array([5])
         input, freeze_placeholder = input_user_data_repack(graph, {'Aa:0': shape_1, 'Cc:0' : shape_2}, {'Bb': False, 'Cc:0' : [1.0, 1.0, 2.0, 3.0, 5.0]})
@@ -571,7 +572,7 @@ class TestUserDataRepack(unittest.TestCase):
 
     def test_freeze_new_placeholder_2(self):
         # create a new placeholder Ee by cutting input port with shape_2 = [2, 2] and freeze a value [[1.0, 1.0], [2.0, 3.0]]
-        graph = build_graph_with_edge_attrs(self.nodes, self.edges)
+        graph = build_graph(self.nodes, self.edges)
         shape_1 = np.array([1, 160, 160, 3])
         shape_2 = np.array([2, 2])
         input, freeze_placeholder = input_user_data_repack(graph, {'Aa:0': shape_1, 'Ee' : shape_2}, {'Bb': False, 'Ee' : [[1.0, 1.0], [2.0, 3.0]]})
@@ -580,50 +581,89 @@ class TestUserDataRepack(unittest.TestCase):
 
     def test_freeze_new_placeholder_error(self):
         # shape is not specified for new placeholder Cc:0 with frozen value
-        graph = build_graph_with_edge_attrs(self.nodes, self.edges)
+        graph = build_graph(self.nodes, self.edges)
         shape_1 = np.array([1, 160, 160, 3])
         self.assertRaises(Error, input_user_data_repack, graph, {'Aa:0': shape_1}, {'Bb': False, 'Cc:0' : [1.0, 1.0, 2.0, 3.0, 5.0]})
 
     def test_output_user_data_repack(self):
-        graph = build_graph_with_edge_attrs(self.nodes, self.edges)
+        graph = build_graph(self.nodes, self.edges)
         output = output_user_data_repack(graph, ['Cc'])
         self.assertDictEqual(output, {'C': [{'port': None}]})
 
     def test_output_user_data_repack_ports(self):
-        graph = build_graph_with_edge_attrs(self.nodes, self.edges)
+        graph = build_graph(self.nodes, self.edges)
         output = output_user_data_repack(graph, ['Cc:1', '0:Cc'])
         self.assertDictEqual(output, {'C': [{'out': 1}, {'in': 0}]})
 
     def test_output_user_data_repack_none(self):
-        graph = build_graph_with_edge_attrs(self.nodes, self.edges)
+        graph = build_graph(self.nodes, self.edges)
         output = output_user_data_repack(graph, None)
         self.assertEqual(output, None)
 
 
 class TestExtractPort(unittest.TestCase):
+    def setUp(self) -> None:
+        nodes = {
+            'input_id': {'type': 'Parameter', 'kind': 'op', 'op': 'Parameter', 'name': '1input1:0'},
+            'conv_id': {'type': 'Convolution', 'kind': 'op', 'op': 'NotPlaceholder', 'name': '1input1'},
+            'relu_id': {'type': 'ReLU', 'kind': 'op', 'op': 'NotPlaceholder', 'name': 'relu'},
+            'squeeze_id': {'type': 'Squeeze', 'kind': 'op', 'op': 'NotPlaceholder', 'name': 'relu:0'},
+        }
+        edges = [
+            ('input_id', 'conv_id'),
+            ('conv_id', 'relu_id'),
+            ('relu_id', 'squeeze_id'),
+        ]
+        self.graph = build_graph(nodes, edges)
+
     def test_out_port(self):
-        name, in_port, out_port = extract_port_from_string('node_name:1')
-        self.assertEqual(name, 'node_name')
-        self.assertEqual(in_port, None)
-        self.assertEqual(out_port, 1)
+        node_id, direction, port = get_node_id_with_ports(self.graph, '1input1:0:0')
+        self.assertEqual(node_id, 'input_id')
+        self.assertEqual(direction, 'out')
+        self.assertEqual(port, 0)
 
-    def test_in_port(self):
-        name, in_port, out_port = extract_port_from_string('0:node_name')
-        self.assertEqual(name, 'node_name')
-        self.assertEqual(in_port, 0)
-        self.assertEqual(out_port, None)
+    def test_in_port1(self):
+        node_id, direction, port = get_node_id_with_ports(self.graph, '0:1input1')
+        self.assertEqual(node_id, 'conv_id')
+        self.assertEqual(direction, 'in')
+        self.assertEqual(port, 0)
 
-    def test_no_port(self):
-        name, in_port, out_port = extract_port_from_string('node_name')
-        self.assertEqual(name, 'node_name')
-        self.assertEqual(in_port, None)
-        self.assertEqual(out_port, None)
+    def test_in_port2(self):
+        node_id, direction, port = get_node_id_with_ports(self.graph, '0:relu:0')
+        self.assertEqual(node_id, 'squeeze_id')
+        self.assertEqual(direction, 'in')
+        self.assertEqual(port, 0)
+
+    def test_no_port1(self):
+        node_id, direction, port = get_node_id_with_ports(self.graph, '1input1')
+        self.assertEqual(node_id, 'conv_id')
+        self.assertEqual(direction, 'port')
+        self.assertEqual(port, None)
+
+    def test_no_port2(self):
+        self.assertRaises(Error, get_node_id_with_ports, self.graph, '1input1:0')
 
     def test_non_int(self):
-        self.assertRaises(Error, extract_port_from_string, 'port:node_name')
+        self.assertRaises(Error, get_node_id_with_ports, self.graph, 'port:1input1')
 
     def test_two_ports(self):
-        self.assertRaises(Error, extract_port_from_string, '1:node_name:0')
+        self.assertRaises(Error, get_node_id_with_ports, self.graph, '0:1input1:1')
+
+    def test_name_looks_like_port_number(self):
+        nodes = {
+            'input_id': {'type': 'Parameter', 'kind': 'op', 'op': 'Parameter', 'name': '0'},
+            'conv_id': {'type': 'Convolution', 'kind': 'op', 'op': 'NotPlaceholder', 'name': '1'},
+            'relu_id': {'type': 'ReLU', 'kind': 'op', 'op': 'NotPlaceholder', 'name': '2'},
+        }
+        edges = [
+            ('input_id', 'conv_id'),
+            ('conv_id', 'relu_id'),
+        ]
+        graph = build_graph(nodes, edges)
+        node_id, direction, port = get_node_id_with_ports(graph, '0:2')
+        self.assertEqual(node_id, 'relu_id')
+        self.assertEqual(direction, 'in')
+        self.assertEqual(port, 0)
 
 
 class TestCaffePythonFrontExtractorOp(unittest.TestCase):

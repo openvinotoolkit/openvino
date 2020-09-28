@@ -142,4 +142,27 @@ INSTANTIATE_TEST_CASE_P(MAX_and_AVGPool_ValidPad, PoolingLayerTest,
                                 ::testing::Values(CommonTestUtils::DEVICE_MYRIAD)),
                         PoolingLayerTest::getTestCaseName
 );
+
+////* ========== Global Avg Pooling ========== */
+const std::vector<std::vector<size_t>> global_pool_kernels = {{3, 3}, {5, 5}, {7, 7}, {30, 30}, {100, 100}, {300, 300}};
+const auto avgGlobalPoolParams = ::testing::Combine(
+        ::testing::Values(PoolingTypes::AVG),
+        ::testing::ValuesIn(global_pool_kernels),
+        ::testing::Values(std::vector<size_t>({1, 1})),
+        ::testing::Values(std::vector<size_t>({0, 0})),
+        ::testing::Values(std::vector<size_t>({0, 0})),
+        ::testing::Values(ngraph::op::RoundingType::CEIL),
+        ::testing::Values(ngraph::op::PadType::EXPLICIT),
+        ::testing::Values(false)
+);
+
+INSTANTIATE_TEST_CASE_P(GlobalAvgPool, GlobalPoolingLayerTest,
+                        ::testing::Combine(
+                                avgGlobalPoolParams,
+                                ::testing::ValuesIn(netPrecisions),
+                                ::testing::Values(3, 101),
+                                ::testing::Values(CommonTestUtils::DEVICE_MYRIAD)),
+                        GlobalPoolingLayerTest::getTestCaseName
+);
+
 }  // namespace

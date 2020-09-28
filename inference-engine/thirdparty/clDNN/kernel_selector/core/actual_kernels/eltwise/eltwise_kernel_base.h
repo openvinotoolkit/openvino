@@ -84,14 +84,8 @@ struct eltwise_params : public base_params {
 
     bool layoutBased = false;
     bool int8_quantization = false;
-    bool output_calibration = false;
-    float output_quantization_factor = 1.0f;
-    bool inputs_calibration = false;
     bool broadcast = false;
 
-    MultiDataTensor output_calibration_factors;
-    MultiDataTensor inputs_calibration_factors;
-    std::vector<float> input_quantization_factors;
     virtual ParamsKey GetParamsKey() const;
 };
 
@@ -106,7 +100,9 @@ struct eltwise_optional_params : optional_params {
 // fuse_params
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 struct eltwise_fuse_params : fuse_params {
-    eltwise_fuse_params() : fuse_params(KernelType::ELTWISE) {}
+    EltwiseMode mode;
+
+    eltwise_fuse_params(EltwiseMode mode) : fuse_params(KernelType::ELTWISE), mode(mode) {}
 };
 
 struct scale_fuse_params : fuse_params {

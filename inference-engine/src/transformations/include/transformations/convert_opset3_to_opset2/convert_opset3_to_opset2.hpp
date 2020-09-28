@@ -5,22 +5,19 @@
 #pragma once
 
 #include <memory>
-#include <ie_api.h>
+#include <transformations_visibility.hpp>
 #include <ngraph/pass/graph_rewrite.hpp>
-#include "transformations/utils/pass_param.hpp"
 
 namespace ngraph {
 namespace pass {
 
-    class INFERENCE_ENGINE_API_CLASS(ConvertOpSet3ToOpSet2);
+class TRANSFORMATIONS_API ConvertOpSet3ToOpSet2;
 
 }  // namespace pass
 }  // namespace ngraph
 
-class ngraph::pass::ConvertOpSet3ToOpSet2: public ngraph::pass::FunctionPass, public ngraph::pass::PassParam {
+class ngraph::pass::ConvertOpSet3ToOpSet2: public ngraph::pass::FunctionPass {
 public:
-    explicit ConvertOpSet3ToOpSet2(const PassParam::param_callback & callback = PassParam::getDefaultCallback())
-            : FunctionPass(), PassParam(callback) {}
-
+    NGRAPH_RTTI_DECLARATION;
     bool run_on_function(std::shared_ptr<ngraph::Function> f) override;
 };

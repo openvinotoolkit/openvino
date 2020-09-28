@@ -186,8 +186,7 @@ class OptimizeTransposeReshapeSequence(BackReplacementPattern):
         return [ReshapeMutation]
 
     def run_after(self):
-        from extensions.back.TileNormalizer import Tile3DReshaper
-        return [FuseTransposesSequence, Tile3DReshaper]
+        return [FuseTransposesSequence]
 
     def is_node_match_for_optimization(self, node: Node):
         """

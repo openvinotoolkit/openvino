@@ -7,24 +7,20 @@
 #include <vector>
 #include <memory>
 
-#include <ie_api.h>
+#include <transformations_visibility.hpp>
 
 #include <ngraph/pass/graph_rewrite.hpp>
 
 namespace ngraph {
 namespace pass {
 
-class INFERENCE_ENGINE_API_CLASS(ConvertTileToIETile);
+class TRANSFORMATIONS_API ConvertTileToLegacyMatcher;
 
 }  // namespace pass
 }  // namespace ngraph
 
-class ngraph::pass::ConvertTileToIETile: public ngraph::pass::GraphRewrite {
+class ngraph::pass::ConvertTileToLegacyMatcher: public ngraph::pass::MatcherPass {
 public:
-    ConvertTileToIETile() : GraphRewrite() {
-        convert_tile();
-    }
-
-private:
-    void convert_tile();
+    NGRAPH_RTTI_DECLARATION;
+    ConvertTileToLegacyMatcher();
 };

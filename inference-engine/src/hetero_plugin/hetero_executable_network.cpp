@@ -5,9 +5,11 @@
 #include "ie_metric_helpers.hpp"
 #include "hetero_executable_network.hpp"
 #include "hetero_async_infer_request.hpp"
-#include "ie_util_internal.hpp"
+#include <legacy/ie_util_internal.hpp>
 #include "hetero_graph_splitter.hpp"
+#include "hetero_itt.hpp"
 #include "xml_parse_utils.h"
+#include <caseless.hpp>
 
 #include <vector>
 #include <deque>
@@ -21,11 +23,20 @@
 #include <array>
 #include <cstdint>
 
+#include "ie_ngraph_utils.hpp"
 #include "ie_plugin_config.hpp"
 #include "cpp_interfaces/interface/ie_internal_plugin_config.hpp"
 #include "hetero/hetero_plugin_config.hpp"
 #include "hetero_plugin.hpp"
-#include "network_serializer.h"
+
+#include <ngraph/function.hpp>
+#include <ngraph/variant.hpp>
+#include <ngraph/graph_util.hpp>
+#include <ngraph/op/result.hpp>
+#include <ngraph/op/parameter.hpp>
+#include <ngraph/op/util/op_types.hpp>
+#include <ngraph/rt_info.hpp>
+#include <ngraph/pass/visualize_tree.hpp>
 
 using namespace InferenceEngine;
 using namespace details;
@@ -37,7 +48,7 @@ namespace {
 
 void forward(const CNNLayerPtr& layer, std::deque<InferenceEngine::CNNLayerPtr>& layers) {
     for (const auto& out : layer->outData) {
-        for (const auto& out_link : out->getInputTo()) {
+        for (const auto& out_link : getInputTo(out)) {
             const auto& nextLayer = out_link.second;
             if (nullptr != nextLayer) {
                 layers.emplace_back(nextLayer);
@@ -75,7 +86,7 @@ void traverse(InferenceEngine::ICNNNetwork& network,
     network.getInputsInfo(inputs);
     for (const auto& input : inputs) {
         const auto data = input.second->getInputData();
-        for (const auto& to : data->getInputTo()) {
+        for (const auto& to : getInputTo(data)) {
             const auto nextLayer = to.second;
             assert(nullptr != nextLayer);
             layers.emplace_back(nextLayer);
@@ -135,14 +146,7 @@ void dumpGraph(InferenceEngine::ICNNNetwork &network,
 
 }   // namespace
 
-HeteroExecutableNetwork::HeteroExecutableNetwork(const InferenceEngine::ICNNNetwork&  network_,
-                                                 const Engine::Configs&         config,
-                                                 Engine*                        heteroPlugin):
-    InferenceEngine::ExecutableNetworkThreadSafeDefault(
-        nullptr, std::make_shared<InferenceEngine::ImmediateExecutor>()),
-    _heteroPlugin(heteroPlugin),
-    _name{network_.getName()},
-    _config{config} {
+void HeteroExecutableNetwork::InitCNNImpl(const InferenceEngine::ICNNNetwork& network_) {
     auto networkPtr = cloneNet(network_);
     auto& network = *networkPtr;
 
@@ -214,7 +218,7 @@ HeteroExecutableNetwork::HeteroExecutableNetwork(const InferenceEngine::ICNNNetw
         THROW_IE_EXCEPTION << "Network passed to LoadNetwork has affinity assigned, but some layers eg: \n(Name:" <<
             layerEmptyAffinity->name << ", Type: " << layerEmptyAffinity->type <<
             ") were not assigned to any device.\n" <<
-            "It might happen if you assigned layers amnually and missed some layers or\n" <<
+            "It might happen if you assigned layers manually and missed some layers or\n" <<
             "if you used some automatic assigning mode which decided that these layers are not\n" <<
             "supported by any plugin";
     }
@@ -236,17 +240,12 @@ HeteroExecutableNetwork::HeteroExecutableNetwork(const InferenceEngine::ICNNNetw
         dumpGraph(network, subgraphs, file);
     }
 
-    InferenceEngine::ICNNNetworkStats* networkStats = nullptr;
-    if (StatusCode::OK != network.getStats(&networkStats, nullptr)) {
-        networkStats = nullptr;
-    }
-
     std::vector<NetworkDesc> descs;
     std::vector<CNNLayerPtr> tempLayers;
     for (auto &&subgraph : subgraphs) {
         auto affinity = (*subgraph.begin())->affinity;
         tempLayers.assign(subgraph.begin(), subgraph.end());
-        auto tempNetwork = cloneNet(tempLayers, networkStats);
+        auto tempNetwork = cloneNet(tempLayers);
         auto name = network.getName() + "_" + std::to_string(std::distance(subgraphs.data(), &subgraph));
         tempNetwork->setName(name);
         // restoring some outputs from original net if they are not marked as output automatically
@@ -257,8 +256,6 @@ HeteroExecutableNetwork::HeteroExecutableNetwork(const InferenceEngine::ICNNNetw
                 tempNetwork->addOutput(il->name);
             }
         }
-
-        tempNetwork->setPrecision(network.getPrecision());
 
         // update of pre-processing info
         InputsDataMap clonedInputs;
@@ -312,12 +309,401 @@ HeteroExecutableNetwork::HeteroExecutableNetwork(const InferenceEngine::ICNNNetw
         auto deviceName = d._device;
         auto metaDevices = _heteroPlugin->GetDevicePlugins(deviceName, cfg);
         assert(metaDevices.size() == 1);
-
         auto loadConfig = metaDevices[deviceName];
         d._network = _heteroPlugin->GetCore()->LoadNetwork(d._clonedNetwork, deviceName, loadConfig);
     }
 
     networks = std::move(descs);
+}
+
+template<typename T>
+using NodeMap = std::unordered_map<ngraph::Node*, T>;
+
+void HeteroExecutableNetwork::InitNgraph(const InferenceEngine::ICNNNetwork& network_) {
+    auto function = network_.getFunction();
+    auto clonedFunction = ngraph::clone_function(*function);
+    auto itDumpDotFile = _config.find(HETERO_CONFIG_KEY(DUMP_GRAPH_DOT));
+    bool dumpDotFile = itDumpDotFile != _config.end() ? (itDumpDotFile->second == YES) : false;
+#ifndef NDEBUG
+    dumpDotFile  = true;
+#endif
+    QueryNetworkResult queryNetworkResult;
+    auto orderedOps = clonedFunction->get_ordered_ops();
+    bool allEmpty = true;
+    // Get user defined affinity
+    for (auto&& node : orderedOps) {
+        auto& nodeInfo = node->get_rt_info();
+        auto itInfo = nodeInfo.find("affinity");
+        if (itInfo != nodeInfo.end()) {
+            IE_ASSERT((ngraph::is_type<ngraph::VariantWrapper<std::string>>(itInfo->second)));
+            queryNetworkResult.supportedLayersMap.emplace(
+                node->get_friendly_name(),
+                ngraph::as_type_ptr<ngraph::VariantWrapper<std::string>>(itInfo->second)->get());
+            allEmpty = false;
+        }
+    }
+
+    if (queryNetworkResult.supportedLayersMap.empty()) {
+        auto it = _config.find("TARGET_FALLBACK");
+        if (it != _config.end()) {
+            _heteroPlugin->QueryNetwork(network_, _config, queryNetworkResult);
+        } else {
+            THROW_IE_EXCEPTION << "The 'TARGET_FALLBACK' option was not defined for heterogeneous plugin";
+        }
+    }
+
+    using Input = ngraph::Input<ngraph::Node>;
+    using NodeSet = std::unordered_set<ngraph::Node*>;
+    using InputSet = std::set<Input>;
+
+    auto InputNode  = [] (const ngraph::Input<ngraph::Node>& input) {
+        return input.get_source_output().get_node();
+    };
+
+    // Set results, constants and parameters affinity
+    for (auto&& node : clonedFunction->get_ops()) {
+        if (ngraph::op::is_constant(node) || ngraph::op::is_output(node) || ngraph::op::is_parameter(node)) {
+            if (!contains(queryNetworkResult.supportedLayersMap, node->get_friendly_name())) {
+                auto& nodeWithAffinityName = ngraph::op::is_output(node)
+                                           ? node->input_value(0).get_node()->get_friendly_name()
+                                           : node->output(0).get_target_inputs().begin()->get_node()->get_friendly_name();
+                auto itAffinity = queryNetworkResult.supportedLayersMap.find(nodeWithAffinityName);
+                if (itAffinity == queryNetworkResult.supportedLayersMap.end()) {
+                    THROW_IE_EXCEPTION << "Node " << nodeWithAffinityName <<
+                                        " was not assigned on any pointed device.";
+                }
+                queryNetworkResult.supportedLayersMap.emplace(node->get_friendly_name(), itAffinity->second);
+            }
+        }
+    }
+
+    std::unordered_set<std::string> devices;
+    NodeMap<std::string> affinities;
+    // Check that all nodes has user or plugin defined affinities
+    std::shared_ptr<InferenceEngine::details::CNNNetworkImpl> convertedNetwork;
+    for (auto&& node : orderedOps) {
+        auto itAffinity = queryNetworkResult.supportedLayersMap.find(node->get_friendly_name());
+        if (itAffinity != queryNetworkResult.supportedLayersMap.end()) {
+            affinities[node.get()] = itAffinity->second;
+            devices.emplace(itAffinity->second);
+        } else if (allEmpty) {
+            THROW_IE_EXCEPTION << "Hetero plugin used default fallback policy, but some layers eg: \n(Name:" <<
+                node->get_friendly_name() << ", Type: " << node->get_type_name() <<
+                ") were not able to be assigned on any pointed device.\n" <<
+                "It happened because these layers are not supported in plugins by default.\n" <<
+                "You need to implement custom layers to support them.";
+        } else {
+            THROW_IE_EXCEPTION << "Network passed to LoadNetwork has affinity assigned, but some layers eg: \n(Name:" <<
+                node->get_friendly_name() << ", Type: " << node->get_type_name() <<
+                ") were not assigned to any device.\n" <<
+                "It might happen if you assigned layers manually and missed some layers or\n" <<
+                "if you used some automatic assigning mode which decided that these layers are not\n" <<
+                "supported by any plugin";
+        }
+    }
+
+    static const std::array<const char*, 14> colors = {
+        "aliceblue",
+        "antiquewhite4",
+        "aquamarine4",
+        "azure4",
+        "bisque3",
+        "blue1",
+        "brown",
+        "burlywood",
+        "cadetblue",
+        "chartreuse",
+        "chocolate",
+        "coral",
+        "cornflowerblue",
+        "cornsilk4",
+    };
+
+    if (dumpDotFile) {
+        ngraph::pass::VisualizeTree{"hetero_affinity_" + _name + ".dot",
+            [&] (const ngraph::Node& node, std::vector<std::string>& attributes) {
+                auto nodeDevice = queryNetworkResult.supportedLayersMap.at(node.get_friendly_name());
+                int colorIndex = 0;
+                for (auto&& device : devices) {
+                    if (device == nodeDevice) {
+                        attributes.push_back(std::string {"fillcolor="} + colors[colorIndex % colors.size()] + " style=filled");
+                        auto itLabel = std::find_if(std::begin(attributes), std::end(attributes), [] (const std::string& str) {
+                            return str.find("label") != std::string::npos;
+                        });
+                        auto label = "\\ndevice=" + queryNetworkResult.supportedLayersMap.at(node.get_friendly_name()) + '\"';
+                        IE_ASSERT(itLabel != attributes.end());
+                        itLabel->pop_back();
+                        (*itLabel) += label;
+                        break;
+                    }
+                    colorIndex++;
+                }
+            }}.run_on_function(ngraph::clone_function(*function));
+    }
+
+
+    NodeMap<InputSet> nodeInputDependencies;
+    NodeSet graphInputNodes;
+    InputSet subgraphInputs;
+    // Get all subgraph inputs using just node affinities. Also collect transitive closure
+    for (auto&& node : orderedOps) {
+        if (ngraph::op::is_parameter(node) || ngraph::op::is_constant(node)) {
+            graphInputNodes.insert(node.get());
+            subgraphInputs.insert(Input{node.get(), 0});
+            nodeInputDependencies[node.get()].insert(Input{node.get(), 0});
+        } else {
+            auto inputs = node->inputs();
+            auto& nodeInputDependency = nodeInputDependencies[node.get()];
+            for (auto&& input : inputs) {
+                nodeInputDependency.insert(input);
+                auto& inputDependency = nodeInputDependencies[InputNode(input)];
+                nodeInputDependency.insert(inputDependency.begin(), inputDependency.end());
+                if (affinities[node.get()] != affinities[InputNode(input)]) {
+                    subgraphInputs.insert(input);
+                }
+            }
+        }
+    }
+
+    // Assign each node subgraph ID
+    auto CollectSubgraphs = [&] {
+        std::deque<int> subgraphIds;
+        NodeMap<int*> subgraphIdPtrs;
+        for (auto&& node : orderedOps) {
+            auto allNodeInputs = node->inputs();
+            std::vector<Input> inputs;
+            for (auto&& input : allNodeInputs) {
+                if (!contains(subgraphInputs, input)) {
+                    inputs.emplace_back(std::move(input));
+                }
+            }
+            if (inputs.empty()) {
+                subgraphIds.push_back(subgraphIds.size());
+                subgraphIdPtrs.emplace(node.get(), &(subgraphIds.back()));
+            } else {
+                auto firstInputSubgraphIdPtr = subgraphIdPtrs[InputNode(inputs.front())];
+                for (auto&& input : inputs) {
+                    auto inputId = *subgraphIdPtrs[InputNode(input)];
+                    for (auto& subgraphId : subgraphIds) {
+                        if (subgraphId == inputId) {
+                            subgraphId = *firstInputSubgraphIdPtr;
+                        }
+                    }
+                }
+                subgraphIdPtrs.emplace(node.get(), firstInputSubgraphIdPtr);
+            }
+        }
+        NodeMap<int> result;
+        for (auto&& subgraphIdPtr : subgraphIdPtrs) {
+            result.emplace(subgraphIdPtr.first, *(subgraphIdPtr.second));
+        }
+        return result;
+    };
+
+    // Split cyclic dependencies.
+    for (std::size_t prevSubgraphs = 0, cyclicSplitStep = 0; prevSubgraphs != subgraphInputs.size(); ++cyclicSplitStep) {
+        IE_ASSERT(cyclicSplitStep < orderedOps.size());
+        prevSubgraphs = subgraphInputs.size();
+        auto subgraphIds = CollectSubgraphs();
+        // All inputs that belong to the same subgraph as node
+        std::unordered_map<ngraph::Node*, InputSet> nodeSubgraphInputDependencies;
+        // All inputs that depends on the same subgraph as node
+        std::unordered_map<ngraph::Node*, InputSet> nodeSubgraphCyclicInputDependencies;
+        for (auto&& node : orderedOps) {
+            auto& nodeSubgraphInputDependency = nodeSubgraphInputDependencies[node.get()];
+            auto allNodeSubgraphInputs = Intersection(nodeInputDependencies[node.get()], subgraphInputs);
+            for (auto&& subgraphInput : allNodeSubgraphInputs) {
+                if (subgraphIds[node.get()] == subgraphIds[subgraphInput.get_node()]) {
+                    nodeSubgraphInputDependency.emplace(subgraphInput);
+                }
+            }
+            auto& nodeSubgraphCyclicInputDependency = nodeSubgraphCyclicInputDependencies[node.get()];
+            for (auto&& subgraphInput : allNodeSubgraphInputs) {
+                if (!ngraph::op::is_parameter(subgraphInput.get_node()) &&
+                    !ngraph::op::is_constant(subgraphInput.get_node()) &&
+                    subgraphIds[node.get()] == subgraphIds[InputNode(subgraphInput)]) {
+                    nodeSubgraphCyclicInputDependency.emplace(subgraphInput);
+                }
+            }
+        }
+
+        for (auto&& node : orderedOps) {
+            auto& nodeSubgraphCyclicInputDependency = nodeSubgraphCyclicInputDependencies[node.get()];
+            if (!nodeSubgraphCyclicInputDependency.empty()) {
+                auto& nodeSubgraphInputDependency = nodeSubgraphInputDependencies[node.get()];
+                // Collect all subgraph inputs that cyclic subgraph output depends on
+                InputSet cyclicInputsDependencies;
+                for (auto&& cyclicInput : nodeSubgraphCyclicInputDependency) {
+                    for (auto&& input : nodeSubgraphInputDependencies[InputNode(cyclicInput)]) {
+                        cyclicInputsDependencies.emplace(input);
+                    }
+                }
+                for (auto&& input : node->inputs()) {
+                    auto& inputNodeSubgraphCyclicInputDependency = nodeSubgraphCyclicInputDependencies[InputNode(input)];
+                    auto& inputNodeSubgraphInputDependency = nodeSubgraphInputDependencies[InputNode(input)];
+                    if (!Intersects(nodeSubgraphCyclicInputDependency,
+                                    inputNodeSubgraphCyclicInputDependency) &&
+                        Intersects(cyclicInputsDependencies, inputNodeSubgraphInputDependency)) {
+                        subgraphInputs.insert(input);
+                    }
+                }
+            }
+        }
+    }
+
+    auto subgraphIds = CollectSubgraphs();
+    // Break graph using insertion of result parameter split
+    NodeMap<ngraph::Node*> subgraphParameterToPrevResult;
+    std::vector<std::shared_ptr<ngraph::op::Result>> results;
+    for (auto&& input : subgraphInputs) {
+        if (!ngraph::op::is_parameter(input.get_node()) && !ngraph::op::is_constant(input.get_node())) {
+            auto output = input.get_source_output();
+            output.remove_target_input(input);
+            auto result = std::make_shared<ngraph::op::Result>(output);
+            ngraph::copy_runtime_info(output.get_node_shared_ptr(), result);
+            auto parameter = std::make_shared<ngraph::op::Parameter>(output.get_element_type(), output.get_shape());
+            ngraph::copy_runtime_info(input.get_node()->shared_from_this(), parameter);
+            input.replace_source_output(parameter->output(0));
+            results.push_back(result);
+            subgraphIds.emplace(result.get(), subgraphIds[output.get_node()]);
+            subgraphIds.emplace(parameter.get(), subgraphIds[input.get_node()]);
+            subgraphParameterToPrevResult.emplace(parameter.get(), result.get());
+            _blobNameMap.emplace(parameter->get_friendly_name(),
+                                 output.get_node()->get_friendly_name() +
+                                 ((output.get_node()->get_output_size() != 1)
+                                 ? ("." + std::to_string(output.get_index())) : std::string{}));
+        }
+    }
+
+    struct Subgraph {
+        ngraph::ResultVector    _results;
+        ngraph::ParameterVector _parameters;
+        std::string             _affinity;
+    };
+    std::unordered_map<int, Subgraph> subgraphs;
+    // Extracts subgraph parameters, results and affinities
+    for (auto&& subgraphIdPtrValue : subgraphIds) {
+        auto node = subgraphIdPtrValue.first;
+        auto& subgraph = subgraphs[subgraphIdPtrValue.second];
+        if (ngraph::op::is_output(node)) {
+            subgraph._results.emplace_back(
+                std::dynamic_pointer_cast<ngraph::op::v0::Result>(node->shared_from_this()));
+        } else if (ngraph::op::is_parameter(node)) {
+            subgraph._parameters.emplace_back(
+                std::dynamic_pointer_cast<ngraph::op::v0::Parameter>(node->shared_from_this()));
+        }
+        auto itAffinity = affinities.find(node);
+        if (itAffinity != affinities.end()) {
+            subgraph._affinity = itAffinity->second;
+        }
+    }
+
+    // Subgraph topological sort
+    std::vector<Subgraph> allSubgraphs;
+    for (auto&& subgraph : subgraphs) {
+        allSubgraphs.emplace_back(std::move(subgraph.second));
+    }
+
+    std::vector<Subgraph> orderedSubgraphs;
+    NodeSet prevResults;
+    int subgraphTopoSortsStep = 0;
+    do {
+        IE_ASSERT(subgraphTopoSortsStep++ < subgraphs.size());
+        std::vector<Subgraph> nextSubgraphs;
+        auto IsNextSubGraph = [&] (const Subgraph& subgraph) {
+            auto& parameters = subgraph._parameters;
+            return std::all_of(parameters.begin(), parameters.end(),
+                    [&] (const ngraph::ParameterVector::value_type& parameter) {
+                    return contains(graphInputNodes, parameter.get()) ||
+                           contains(prevResults, subgraphParameterToPrevResult[parameter.get()]);});
+        };
+        std::remove_copy_if(std::begin(allSubgraphs), std::end(allSubgraphs),
+                            std::back_inserter(nextSubgraphs),
+                            [&] (const Subgraph& subgraph) { return !IsNextSubGraph(subgraph);});
+        allSubgraphs.erase(
+            std::remove_if(std::begin(allSubgraphs), std::end(allSubgraphs), IsNextSubGraph),
+            std::end(allSubgraphs));
+        for (auto&& subgraph :  nextSubgraphs) {
+            for (auto&& result : subgraph._results) {
+                prevResults.insert(result.get());
+            }
+        }
+        std::move(std::begin(nextSubgraphs), std::end(nextSubgraphs), std::back_inserter(orderedSubgraphs));
+    } while (!allSubgraphs.empty());
+
+    InputsDataMap externalInputsData;
+    network_.getInputsInfo(externalInputsData);
+    OutputsDataMap externalOutputsData;
+    network_.getOutputsInfo(externalOutputsData);
+    networks.resize(orderedSubgraphs.size());
+    std::vector<std::shared_ptr<ngraph::Function>> subFunctions(orderedSubgraphs.size());
+    std::vector<bool> isInputSubnetwork(orderedSubgraphs.size());
+    int id = 0;
+    for (auto&& subgraph : orderedSubgraphs) {
+        networks[id]._device = subgraph._affinity;
+        subFunctions[id] =
+            std::make_shared<ngraph::Function>(subgraph._results, subgraph._parameters,
+                                                     _name + '_' + std::to_string(id));
+        networks[id]._clonedNetwork = CNNNetwork{subFunctions[id]};
+        // update of pre-processing info
+        auto clonedInputs = networks[id]._clonedNetwork.getInputsInfo();
+        for (auto&& externalInput : externalInputsData) {
+            auto itClonedInput = clonedInputs.find(externalInput.first);
+            if (itClonedInput != clonedInputs.end() && nullptr != itClonedInput->second) {
+                itClonedInput->second->getPreProcess() = externalInput.second->getPreProcess();
+                itClonedInput->second->setPrecision(externalInput.second->getPrecision());
+            }
+        }
+        isInputSubnetwork[id] = std::any_of(std::begin(subgraph._parameters),
+                                            std::end(subgraph._parameters),
+                                            [&] (const std::shared_ptr<ngraph::op::v0::Parameter>& p) {
+                                                return contains(graphInputNodes, p.get());
+                                            });
+        ++id;
+    }
+    if (dumpDotFile) {
+        ngraph::pass::VisualizeTree{"hetero_subgraphs_" + _name + ".dot",
+            [&] (const ngraph::Node& node, std::vector<std::string>& attributes) {
+                for (size_t i = 0; i < subFunctions.size(); i++) {
+                    for (auto&& nodeInSubfunction : subFunctions[i]->get_ops()) {
+                        if (nodeInSubfunction->get_friendly_name() == node.get_friendly_name()) {
+                            attributes.push_back(std::string {"fillcolor="} + colors[i % colors.size()] + " style=filled");
+                            auto itLabel = std::find_if(std::begin(attributes), std::end(attributes), [] (const std::string& str) {
+                                return str.find("label") != std::string::npos;
+                            });
+                            auto label = "\\nsubgraph=" + std::to_string(i) + "\\n"
+                                       + "device=" + queryNetworkResult.supportedLayersMap.at(node.get_friendly_name()) + '\"';
+                            IE_ASSERT(itLabel != attributes.end());
+                            itLabel->pop_back();
+                            (*itLabel) += label;
+                        }
+                    }
+                }
+            }}.run_on_function(ngraph::clone_function(*function));
+    }
+    for (auto&& network : networks) {
+        auto cfg = _config;
+        cfg[CONFIG_KEY_INTERNAL(SUBNETWORK_WITH_NETWORK_INPUTS)]
+            = isInputSubnetwork[std::distance(networks.data(), &network)] ? CONFIG_VALUE(YES) : CONFIG_VALUE(NO);
+        auto metaDevices = _heteroPlugin->GetDevicePlugins(network._device, cfg);
+        network._network = _heteroPlugin->GetCore()->LoadNetwork(network._clonedNetwork,
+                                                                 network._device, metaDevices[network._device]);
+    }
+}
+
+HeteroExecutableNetwork::HeteroExecutableNetwork(const InferenceEngine::ICNNNetwork&    network,
+                                                 const Engine::Configs&                 config,
+                                                 Engine*                                plugin):
+    InferenceEngine::ExecutableNetworkThreadSafeDefault(
+        nullptr, std::make_shared<InferenceEngine::ImmediateExecutor>()),
+    _heteroPlugin{plugin},
+    _name{network.getName()},
+    _config{config} {
+    if (network.getFunction() == nullptr) {
+        InitCNNImpl(network);
+    } else {
+        InitNgraph(network);
+    }
 }
 
 HeteroExecutableNetwork::HeteroExecutableNetwork(std::istream&                               heteroModel,
@@ -328,7 +714,7 @@ HeteroExecutableNetwork::HeteroExecutableNetwork(std::istream&                  
     std::getline(heteroModel, heteroXmlStr);
 
     pugi::xml_document heteroXmlDoc;
-    pugi::xml_parse_result res = heteroXmlDoc.load(heteroXmlStr.c_str());
+    pugi::xml_parse_result res = heteroXmlDoc.load_string(heteroXmlStr.c_str());
 
     if (res.status != pugi::status_ok) {
         THROW_IE_EXCEPTION << "Error reading HETERO plugin xml header";
@@ -458,21 +844,28 @@ void HeteroExecutableNetwork::ExportImpl(std::ostream& heteroModel) {
     }
 
     auto subnetworksNode = heteroNode.append_child("subnetworks");
+    std::map<std::shared_ptr<const ngraph::Function>, ::CNNNetwork> convertedNetworks;
     for (auto&& subnetwork : networks) {
+        auto subnet = subnetwork._clonedNetwork;
+        if (subnet.getFunction()) {
+            subnet = convertedNetworks[subnet.getFunction()] =
+                InferenceEngine::CNNNetwork(
+                    std::make_shared<InferenceEngine::details::CNNNetworkImpl>(subnetwork._clonedNetwork));
+        }
         auto subnetworkNode = subnetworksNode.append_child("subnetwork");
         subnetworkNode.append_attribute("device").set_value(subnetwork._device.c_str());
         auto subnetworkInputsNode = subnetworkNode.append_child("inputs");
-        auto inputInfo = subnetwork._clonedNetwork.getInputsInfo();
+        auto inputInfo = subnet.getInputsInfo();
         for (auto&& input : inputInfo) {
             auto inputNode = subnetworkInputsNode.append_child("input");
             inputNode.append_attribute("name").set_value(input.first.c_str());
             inputNode.append_attribute("precision").set_value(input.second->getPrecision().name());
         }
         auto subnetworkOutputsNode = subnetworkNode.append_child("outputs");
-        auto outputInfo = subnetwork._clonedNetwork.getOutputsInfo();
+        auto outputInfo = subnet.getOutputsInfo();
         for (auto&& output : outputInfo) {
             auto outputNode = subnetworkOutputsNode.append_child("output");
-            auto creator = output.second->getCreatorLayer().lock();
+            auto creator = getCreatorLayer(output.second).lock();
             outputNode.append_attribute("creatorName").set_value(creator->name.c_str());
             outputNode.append_attribute("name").set_value(output.first.c_str());
             outputNode.append_attribute("precision").set_value(output.second->getPrecision().name());
@@ -499,14 +892,24 @@ void HeteroExecutableNetwork::ExportImpl(std::ostream& heteroModel) {
     for (auto&& subnetwork : networks) {
         try {
             subnetwork._network.Export(heteroModel);
-        } catch(InferenceEngine::details::InferenceEngineException& ie_ex) {
+        } catch (InferenceEngine::details::InferenceEngineException& ie_ex) {
             if (std::string::npos != std::string{ie_ex.what()}.find(NOT_IMPLEMENTED_str)) {
+                // TODO: enable once serialization to IR v10 is implemented
+#if 1
+                THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str
+                    << "Device " << subnetwork._device << " does not implement Export method";
+#else
                 pugi::xml_document doc;
-                auto dataSize = static_cast<std::uint64_t>(InferenceEngine::Serialization::FillXmlDoc(subnetwork._clonedNetwork, doc));
+                auto subnet = subnetwork._clonedNetwork;
+                if (subnet.getFunction()) {
+                    subnet = convertedNetworks[subnet.getFunction()];
+                }
+                auto dataSize = static_cast<std::uint64_t>(InferenceEngine::Serialization::FillXmlDoc(subnet, doc));
                 doc.save(heteroModel, nullptr, pugi::format_raw);
                 heteroModel << std::endl;
                 heteroModel.write(reinterpret_cast<char*>(&dataSize), sizeof(dataSize));
-                InferenceEngine::Serialization::SerializeBlobs(heteroModel, subnetwork._clonedNetwork);
+                InferenceEngine::Serialization::SerializeBlobs(heteroModel, subnet);
+#endif
             } else {
                 throw;
             }
@@ -522,12 +925,13 @@ InferRequestInternal::Ptr HeteroExecutableNetwork::CreateInferRequestImpl(
     for (auto&& subnetwork : networks) {
         HeteroInferRequest::SubRequestDesc desc;
         desc._network = subnetwork._network;
-        desc._profilingTask = ProfilingTask{"Infer" + std::to_string(index++)};
+        desc._profilingTask = openvino::itt::handle("Infer" + std::to_string(index++));
         inferRequests.push_back(desc);
     }
     return std::make_shared<HeteroInferRequest>(networkInputs,
                                                 networkOutputs,
-                                                inferRequests);
+                                                inferRequests,
+                                                _blobNameMap);
 }
 
 void HeteroExecutableNetwork::CreateInferRequest(IInferRequest::Ptr &asyncRequest) {

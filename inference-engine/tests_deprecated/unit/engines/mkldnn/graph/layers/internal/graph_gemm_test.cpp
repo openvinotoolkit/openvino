@@ -468,8 +468,9 @@ protected:
 
 TEST_P(MKLDNNGraphDynBatchGemmTests, TestsDynBatchGemm) {}
 
+// TODO: rewrite to ngraph to have reshape functionality
 INSTANTIATE_TEST_CASE_P(
-        TestsDynBatchGemm, MKLDNNGraphDynBatchGemmTests,
+        DISABLED_TestsDynBatchGemm, MKLDNNGraphDynBatchGemmTests,
         ::testing::Values(
                 gemm_test_params{{1, 3, 1, 3, 1, 3, 1, 3}, 3, 3, 3, 1, 1, false, false, 1, MKLDNNPlugin::impl_desc_type::gemm_any},
                 gemm_test_params{{1, 3, 1, 1, 1, 3, 1, 3}, 16, 15, 12, 1, 1, false, false, 1, MKLDNNPlugin::impl_desc_type::gemm_any}
@@ -643,8 +644,9 @@ protected:
 
 TEST_P(MKLDNNGraphSingleBatchDimGemmTests, TestsGemm) {}
 
+// TODO: rewrite to ngraph to have reshape functionality
 INSTANTIATE_TEST_CASE_P(
-        TestsGemm, MKLDNNGraphSingleBatchDimGemmTests,
+        DISABLED_TestsGemm, MKLDNNGraphSingleBatchDimGemmTests,
         ::testing::Values(
                 gemm_test_params{{1, 1, 1, 1, 1, 1, 1, 1}, 7, 4, 3, 2, 3, false, false, 1, MKLDNNPlugin::impl_desc_type::gemm_any},
                 gemm_test_params{{1, 3, 1, 3, 1, 1, 1, 3}, 7, 4, 3, 2, 3, false, false, 1, MKLDNNPlugin::impl_desc_type::gemm_any},

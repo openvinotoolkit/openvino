@@ -18,7 +18,7 @@ from datetime import datetime
 from statistics import median
 from openvino.inference_engine import IENetwork, IECore, get_version, StatusCode
 
-from .utils.constants import MULTI_DEVICE_NAME, HETERO_DEVICE_NAME, CPU_DEVICE_NAME, GPU_DEVICE_NAME, BIN_EXTENSION
+from .utils.constants import MULTI_DEVICE_NAME, HETERO_DEVICE_NAME, CPU_DEVICE_NAME, GPU_DEVICE_NAME, XML_EXTENSION, BIN_EXTENSION
 from .utils.logging import logger
 from .utils.utils import get_duration_seconds
 from .utils.statistics_report import StatisticsReport
@@ -60,17 +60,10 @@ class Benchmark:
             self.ie.set_config(config[device], device)
 
     def read_network(self, path_to_model: str):
-        xml_filename = os.path.abspath(path_to_model)
-        head, _ = os.path.splitext(xml_filename)
-        bin_filename = os.path.abspath(head + BIN_EXTENSION)
-
-        ie_network = self.ie.read_network(xml_filename, bin_filename)
-
-        input_info = ie_network.input_info
-
-        if not input_info:
-            raise AttributeError('No inputs info is provided')
-
+        model_filename = os.path.abspath(path_to_model)
+        head, ext = os.path.splitext(model_filename)
+        weights_filename = os.path.abspath(head + BIN_EXTENSION) if ext == XML_EXTENSION else ""
+        ie_network = self.ie.read_network(model_filename, weights_filename)
         return ie_network
 
     def load_network(self, ie_network: IENetwork, config = {}):
@@ -92,18 +85,22 @@ class Benchmark:
         self.nireq = len(exe_network.requests)
         return exe_network
 
-    def infer(self, exe_network, batch_size, progress_bar=None):
-        progress_count = 0
-        infer_requests = exe_network.requests
+    def first_infer(self, exe_network):
+        infer_request = exe_network.requests[0]
 
         # warming up - out of scope
         if self.api_type == 'sync':
-            infer_requests[0].infer()
+            infer_request.infer()
         else:
-            infer_requests[0].async_infer()
+            infer_request.async_infer()
             status = exe_network.wait()
             if status != StatusCode.OK:
                 raise Exception("Wait for all requests is failed with status code {}!".format(status))
+        return infer_request.latency
+
+    def infer(self, exe_network, batch_size, progress_bar=None):
+        progress_count = 0
+        infer_requests = exe_network.requests
 
         start_time = datetime.utcnow()
         exec_time = 0

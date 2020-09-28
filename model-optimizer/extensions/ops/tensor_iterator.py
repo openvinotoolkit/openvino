@@ -15,8 +15,6 @@
 """
 from copy import copy, deepcopy
 
-import numpy as np
-
 from extensions.ops.parameter import Parameter
 from mo.graph.graph import Node, dict_includes, Graph
 from mo.ops.const import Const
@@ -25,21 +23,22 @@ from mo.utils.error import Error
 
 
 class TensorIterator(Op):
-    ''' Loop layer that iterates over tensors and execute embedded sub-graph.
-    '''
+    """
+    Loop layer that iterates over tensors and execute embedded sub-graph.
+    """
 
     op = 'TensorIterator'
 
     def __init__(self, graph: Graph, attrs: dict):
         mandatory_props = {
-            'type': __class__.op,
-            'op': __class__.op,
+            'type': self.op,
+            'op': self.op,
             'version': 'opset1',
             'input_port_map': [],  # a list of dicts with such attrs as external_port_id, etc.
             'output_port_map': [],  # a list of dicts with such attrs as external_port_id, etc.
             'back_edges': [],  # a list of dicts with such attrs as from_layer, from_port, etc.
             'body': None,  # an Graph object with a body sub-graph
-            'sub_graphs': ['body'],  # built-in attribute with all sub-graphg
+            'sub_graphs': ['body'],  # built-in attribute with all sub-graph
             'infer': self.infer,
             'type_infer': self.ti_type_infer,
         }
@@ -93,7 +92,7 @@ class TensorIterator(Op):
 
         if direction == 'in':
             edges = node.in_edges()
-        if direction == 'out':
+        else:
             edges = node.out_edges()
 
         suitable_edges = {}
@@ -224,8 +223,8 @@ class TensorIterator(Op):
                 for dst in internal_node.out_port(out_port).get_destinations():
                     possible_output_node = dst.node
                     if possible_output_node.soft_get('type') == 'Result':
-                        assert internal_output_node is None, 'Several Result operations on the same output port of {}'.format(
-                            internal_node)
+                        assert internal_output_node is None, 'Several Result operations on the same output port of {}' \
+                                                             ''.format(internal_node)
                         internal_output_node = possible_output_node
                 assert internal_output_node is not None
                 TensorIterator.update_back_edge_map(ti=ti, direction='from', old_layer_id=internal_node_id,
@@ -258,12 +257,6 @@ class TensorIterator(Op):
             ('to-port', 'to_port'),
         ]
 
-        gen_port_map = lambda node, port_map: self.generate_port_map_v10(node, port_map) \
-            if self.ir_version == 10 else self.generate_port_map(node, port_map)
-
-        gen_back_map = lambda node: self.generate_back_edges_v10(node) \
-            if self.ir_version == 10 else self.generate_back_edges(node)
-
         new_attrs.update({
             'IE': [(
                 'layer',
@@ -272,13 +265,13 @@ class TensorIterator(Op):
                     ('data', self.backend_attrs() + self.default_backend_attrs, []),
                     '@ports',
                     ('port_map', [], [
-                        ('@list', lambda node: gen_port_map(node, node.input_port_map),
+                        ('@list', lambda node: self.generate_port_map(node, node.input_port_map),
                          ('input', port_map_attrs, [])),
-                        ('@list', lambda node: gen_port_map(node, node.output_port_map),
+                        ('@list', lambda node: self.generate_port_map(node, node.output_port_map),
                          ('output', port_map_attrs, [])),
                     ]),
                     ('back_edges', [], [
-                        ('@list', lambda node: gen_back_map(node), ('edge', back_edges_attrs, [])),
+                        ('@list', lambda node: self.generate_back_edges(node), ('edge', back_edges_attrs, [])),
                     ]),
                     ('body', [], [('@network', 'body')]),
                 ])]
@@ -306,23 +299,6 @@ class TensorIterator(Op):
     @staticmethod
     def generate_port_map(node: Node, src_port_map):
         """ Extract port_map attributes from node and node.body attributes.
-        
-            It iterates over src_port_map and substitude external_port_id, internal_port_id and
-            internal_layer_id by real values queried from node ports and node.body attributes.
-        """
-        result_list = []
-        for map_item in src_port_map:
-            result = dict(map_item)
-            assert result is not map_item
-            result['external_port_id'] = __class__.find_port_id(node, result['external_port_id'], 'external_port_id')
-            result['internal_layer_id'], result['internal_port_id'] = __class__.find_internal_layer_and_port(
-                node.body, result['internal_layer_id'], result['internal_port_id'])
-            result_list.append(result)
-        return result_list
-
-    @staticmethod
-    def generate_port_map_v10(node: Node, src_port_map):
-        """ Extract port_map attributes from node and node.body attributes.
 
             It iterates over src_port_map and substitude external_port_id, internal_port_id and
             internal_layer_id by real values queried from node ports and node.body attributes.
@@ -343,20 +319,6 @@ class TensorIterator(Op):
         for back_edge in node.back_edges:
             result = dict(back_edge)
             assert result is not back_edge
-            result['from_layer'], result['from_port'] = __class__.find_internal_layer_and_port(
-                node.body, result['from_layer'], result['from_port'])
-            result['to_layer'], result['to_port'] = __class__.find_internal_layer_and_port(
-                node.body, result['to_layer'], result['to_port'])
-            result_list.append(result)
-        return result_list
-
-    @staticmethod
-    def generate_back_edges_v10(node: Node):
-        ''' Extract back_edges attributes from node and node.body attributes. '''
-        result_list = []
-        for back_edge in node.back_edges:
-            result = dict(back_edge)
-            assert result is not back_edge
             result['from_layer'] = __class__.find_internal_layer_id(node.body, result['from_layer'])
             result['to_layer'] = __class__.find_internal_layer_id(node.body, result['to_layer'])
             result_list.append(result)
@@ -370,48 +332,6 @@ class TensorIterator(Op):
 
     @staticmethod
     def ti_type_infer(node):
-        if node.graph.graph['cmd_params'].generate_experimental_IR_V10:
-            TensorIterator.ti_type_infer_v10(node)
-        else:
-            TensorIterator._ti_type_infer(node)
-
-    @staticmethod
-    def _ti_type_infer(node):
-        from mo.middle.passes.infer import type_infer
-        ti_graph = node.body
-
-        # create fake const node to make type inference work correctly for all TI input nodes
-        fake_input_const_nodes = []
-        for port_map in __class__.generate_port_map(node, node.input_port_map):
-            internal_input_data = Node(ti_graph, port_map['internal_layer_id']).in_node(port_map['internal_port_id'])
-            if len(internal_input_data.in_nodes()) == 0:
-                input_producer_port = node.in_port(port_map['external_port_id']).get_connection().get_source()
-                input_type = input_producer_port.get_data_type()
-                const_node = Const(ti_graph, {'name': 'fake_const_',
-                                              'value': np.ones([1], dtype=input_type)}).create_node()
-                fake_input_const_nodes.append(const_node)
-                ti_graph.create_edge(const_node, internal_input_data)
-
-        # create const Op node for constant data nodes inside the TI
-        for data_node in ti_graph.get_data_nodes(has_value=True):
-            if len(data_node.in_nodes()) == 0:
-                const_node = Const(ti_graph, {'name': 'const_', 'value': data_node.value}).create_node()
-                fake_input_const_nodes.append(const_node)
-                ti_graph.create_edge(const_node, data_node)
-
-        type_infer(ti_graph)
-
-        # propagate data types to the TI output ports
-        output_port_map = __class__.generate_port_map(node, node.output_port_map)
-        for port_map in output_port_map:
-            internal_output_port = Node(ti_graph, port_map['internal_layer_id']).out_port(port_map['internal_port_id'])
-            ti_output_port = node.out_port(port_map['external_port_id'])
-            ti_output_port.set_data_type(internal_output_port.get_data_type())
-
-        ti_graph.remove_nodes_from([node.id for node in fake_input_const_nodes])
-
-    @staticmethod
-    def ti_type_infer_v10(node):
         from mo.middle.passes.infer import type_infer
         ti_graph = node.body
 
@@ -457,44 +377,27 @@ def _get_internal_idxs_to_names_dict(graph: Graph, ports_type='in'):
     """
     Create mapping from (internal_layer_id, internal_port_id) to layer id in body of TensorIterator.
     """
-    v10 = graph.graph['cmd_params'].generate_experimental_IR_V10
     mapping = {}
     ordered_nodes = graph.pseudo_topological_sort()
     for node in ordered_nodes:
         if node.kind == 'op' and node.has_valid('internal_layer_id'):
-            if v10:
-                mapping[node.internal_layer_id] = node.id
-            else:
-                edges = node.out_edges() if ports_type == 'out' else node.in_edges()
-                for port in edges:
-                    if 'internal_port_id' in edges[port]:
-                        internal_port = edges[port]['internal_port_id']
-                        mapping[(node.internal_layer_id, internal_port)] = node.out_node(port).id if ports_type == 'out' \
-                            else node.in_node(port).id
+            mapping[node.internal_layer_id] = node.id
     return mapping
 
 
 def _get_internal_output_node_id(graph: Graph, ti_node_id: str, external_port: int):
     node = Node(graph, ti_node_id)
     outputs = node['output_port_map']
-    v10 = graph.graph['cmd_params'].generate_experimental_IR_V10
     mapping = _get_internal_idxs_to_names_dict(node['body'], 'out')
     for out in outputs:
         if out['external_port_id'] == external_port:
-            if v10:
-                return mapping[out['internal_layer_id']]
-            else:
-                return mapping[(out['internal_layer_id'], out['internal_port_id'])]
+            return mapping[out['internal_layer_id']]
 
 
 def _get_internal_input_node_id(graph: Graph, ti_node_id: str, external_port: int):
     node = Node(graph, ti_node_id)
     inputs = node['input_port_map']
-    v10 = graph.graph['cmd_params'].generate_experimental_IR_V10
     mapping = _get_internal_idxs_to_names_dict(node['body'], 'in')
     for inp in inputs:
         if inp['external_port_id'] == external_port:
-            if v10:
-                return mapping[inp['internal_layer_id']]
-            else:
-                return mapping[(inp['internal_layer_id'], inp['internal_port_id'])]
+            return mapping[inp['internal_layer_id']]

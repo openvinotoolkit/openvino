@@ -6,9 +6,9 @@
 
 #include <functional>
 #include <memory>
+#include <numeric>
 
 #include <ngraph_ops/fully_connected.hpp>
-#include <ngraph/builder/make_constant.hpp>
 #include <ngraph/graph_util.hpp>
 #include <ngraph/pattern/matcher.hpp>
 #include <ngraph/pattern/op/label.hpp>

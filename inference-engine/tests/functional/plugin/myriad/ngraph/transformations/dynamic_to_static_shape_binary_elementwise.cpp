@@ -62,7 +62,7 @@ protected:
         eltwise->set_output_type(0, eltwise->get_input_element_type(0), ngraph::PartialShape::dynamic(eltwise->get_output_partial_shape(0).rank()));
 
         const auto transformations = vpu::Transformations{{eltwiseType, vpu::dynamicToStaticShapeBinaryEltwise}};
-        vpu::DynamicToStaticShape(transformations).transform(function);
+        vpu::DynamicToStaticShape(transformations).run_on_function(function);
         return function;
     }
 
@@ -200,7 +200,7 @@ protected:
         eltwise->set_output_type(0, eltwise->get_input_element_type(0), ngraph::PartialShape::dynamic(eltwise->get_output_partial_shape(0).rank()));
 
         const auto transformations = vpu::Transformations{{eltwiseType, vpu::dynamicToStaticShapeBinaryEltwise}};
-        vpu::DynamicToStaticShape(transformations).transform(function);
+        vpu::DynamicToStaticShape(transformations).run_on_function(function);
         return function;
     }
 
@@ -310,10 +310,14 @@ INSTANTIATE_TEST_CASE_P(EltwiseBroadcast, DynamicToStaticShapeEltwise, testing::
     testing::Values(
         ngraph::opset3::Add::type_info,
         ngraph::opset3::Divide::type_info,
-//        ngraph::opset3::Equal::type_info, operation broadcast default value needs to be fixed
+        ngraph::opset3::Equal::type_info,
+        ngraph::opset3::Greater::type_info,
         ngraph::opset3::Power::type_info,
         ngraph::opset3::Multiply::type_info,
-        ngraph::opset3::Subtract::type_info),
+        ngraph::opset3::Subtract::type_info,
+        ngraph::opset3::Maximum::type_info,
+        ngraph::opset3::Minimum::type_info,
+        ngraph::opset3::Less::type_info),
     testing::Values(
         EltwiseParams{DataDims{1000}, DataDims{1}, DynamicToStaticShapeEltwise::reference_simple},
         EltwiseParams{DataDims{1000, 1, 1}, DataDims{1000, 1, 1}, DynamicToStaticShapeEltwise::reference_simple},
@@ -333,10 +337,14 @@ INSTANTIATE_TEST_CASE_P(EltwiseBroadcastSingleDSR, DynamicToStaticShapeEltwiseSi
     testing::Values(
         ngraph::opset3::Add::type_info,
         ngraph::opset3::Divide::type_info,
-//        ngraph::opset3::Equal::type_info, operation broadcast default value needs to be fixed
+        ngraph::opset3::Equal::type_info,
+        ngraph::opset3::Greater::type_info,
         ngraph::opset3::Power::type_info,
         ngraph::opset3::Multiply::type_info,
-        ngraph::opset3::Subtract::type_info),
+        ngraph::opset3::Subtract::type_info,
+        ngraph::opset3::Maximum::type_info,
+        ngraph::opset3::Minimum::type_info,
+        ngraph::opset3::Less::type_info),
     testing::Values(
         EltwiseParams{DataDims{1000}, DataDims{1}, DynamicToStaticShapeEltwiseSingleDSR::reference_simple},
         EltwiseParams{DataDims{1000, 1, 1}, DataDims{1000, 1, 1}, DynamicToStaticShapeEltwiseSingleDSR::reference_simple},

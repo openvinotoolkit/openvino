@@ -21,13 +21,17 @@ from inspect import getsourcefile
 from glob import glob
 import xml.etree.ElementTree as ET
 import hashlib
+from pathlib import Path
+import yaml
 from pymongo import MongoClient
 
+# Database arguments
+DATABASE = 'memcheck'   # database name for memcheck results
+DB_COLLECTIONS = ["commit", "nightly", "weekly"]
 
-DATABASE = 'memcheck'
+PRODUCT_NAME = 'dldt'   # product name from build manifest
 RE_GTEST_MODEL_XML = re.compile(r'<model[^>]*>')
-RE_GTEST_CUR_MEASURE = re.compile(
-    r'Current values of virtual memory consumption')
+RE_GTEST_CUR_MEASURE = re.compile(r'\[\s*MEASURE\s*\]')
 RE_GTEST_REF_MEASURE = re.compile(
     r'Reference values of virtual memory consumption')
 RE_GTEST_PASSED = re.compile(r'\[\s*PASSED\s*\]')
@@ -44,11 +48,55 @@ def abs_path(relative_path):
         os.path.join(os.path.dirname(getsourcefile(lambda: 0)), relative_path))
 
 
+def metadata_from_manifest(manifest):
+    """ Extract commit metadata for memcheck record from manifest
+    """
+    with open(manifest, 'r') as manifest_file:
+        manifest = yaml.safe_load(manifest_file)
+    repo_trigger = next(
+        repo for repo in manifest['components'][PRODUCT_NAME]['repository'] if repo['trigger'])
+    # parse OS name/version
+    product_type_str = manifest['components'][PRODUCT_NAME]['product_type']
+    product_type = product_type_str.split('_')
+    if len(product_type) != 5 or product_type[2] != 'ubuntu':
+        logging.error('Product type %s is not supported', product_type_str)
+        return {}
+    return {
+        'os_name': product_type[2],
+        'os_version': [product_type[3], product_type[4]],
+        'commit_sha': repo_trigger['revision'],
+        'commit_date': repo_trigger['commit_time'],
+        'repo_url': repo_trigger['url'],
+        'target_branch': repo_trigger['target_branch'],
+        'event_type': manifest['components'][PRODUCT_NAME]['build_event'].lower(),
+        f'{PRODUCT_NAME}_version': manifest['components'][PRODUCT_NAME]['version'],
+    }
+
+
+def info_from_test_config(test_conf):
+    """ Extract models information for memcheck record from test config
+    """
+    test_conf_obj = ET.parse(test_conf)
+    test_conf_root = test_conf_obj.getroot()
+    records = {}
+    for model_rec in test_conf_root.find("models"):
+        model = model_rec.attrib["path"]
+        records[Path(model)] = {
+            "framework": model_rec.attrib.get("framework"),
+            "source": model_rec.attrib.get("source"),
+        }
+    return records
+
+
 def parse_memcheck_log(log_path):
     """ Parse memcheck log
     """
-    with open(log_path, 'r') as log_file:
-        log = log_file.read()
+    try:
+        with open(log_path, 'r') as log_file:
+            log = log_file.read()
+    except FileNotFoundError:
+        # Skip read of broken files
+        return None
 
     passed_match = RE_GTEST_PASSED.search(log)
     failed_match = RE_GTEST_FAILED.search(log)
@@ -67,13 +115,14 @@ def parse_memcheck_log(log_path):
             ref_metrics = dict(zip(heading, values))
     for index in reversed(range(len(log_lines))):
         if RE_GTEST_CUR_MEASURE.search(log_lines[index]):
+            test_name = log_lines[index].split()[-1]
             heading = [name.lower() for name in log_lines[index+1]
                        [len(GTEST_INFO):].split()]
             values = [int(val) for val in log_lines[index+2]
                       [len(GTEST_INFO):].split()]
             entry = SimpleNamespace(
                 metrics=dict(zip(heading, values)),
-                test_name=model['test'],
+                test_name=test_name,
                 model_name=os.path.splitext(
                     os.path.basename(model['path']))[0],
                 precision=next(pr for pr in PRECISSIONS if pr.upper()
@@ -143,30 +192,50 @@ TIMELINE_SIMILARITY = ('test_name', 'model', 'device', 'target_branch')
 def query_timeline(records, db_url, db_collection, max_items=20, similarity=TIMELINE_SIMILARITY):
     """ Query database for similar memcheck items committed previously
     """
+    def timeline_key(item):
+        """ Defines order for timeline report entries
+        """
+        if len(item['metrics']['vmhwm']) <= 1:
+            return 1
+        order = item['metrics']['vmhwm'][-1] - item['metrics']['vmhwm'][-2] + \
+            item['metrics']['vmrss'][-1] - item['metrics']['vmrss'][-2]
+        if not item['status']:
+            # ensure failed cases are always on top
+            order += sys.maxsize/2
+        return order
+
     client = MongoClient(db_url)
     collection = client[DATABASE][db_collection]
     result = []
     for record in records:
-        query = dict((key, record[key]) for key in similarity)
-        query['commit_date'] = {'$lt': record['commit_date']}
-        pipeline = [
-            {'$match': query},
-            {'$addFields': {'commit_date': {'$dateFromString': {'dateString': '$commit_date'}}}},
-            {'$sort': {'commit_date': -1}},
-            {'$limit': max_items},
-            {'$sort': {'commit_date': 1}},
-        ]
-        items = list(collection.aggregate(pipeline)) + [record]
+        items = []
+        try:
+            query = dict((key, record[key]) for key in similarity)
+            query['commit_date'] = {'$lt': record['commit_date']}
+            pipeline = [
+                {'$match': query},
+                {'$addFields': {
+                    'commit_date': {'$dateFromString': {'dateString': '$commit_date'}}}},
+                {'$sort': {'commit_date': -1}},
+                {'$limit': max_items},
+                {'$sort': {'commit_date': 1}},
+            ]
+            items += list(collection.aggregate(pipeline))
+        except KeyError:
+            pass  # keep only the record if timeline failed to generate
+        items += [record]
         timeline = _transpose_dicts(items, template=record)
+        timeline['status'] = bool(timeline['metrics']['vmrss'][-1] < timeline['ref_metrics']['vmrss'][-1] and
+                                  timeline['metrics']['vmhwm'][-1] < timeline['ref_metrics']['vmhwm'][-1])
         result += [timeline]
+
+    result.sort(key=timeline_key, reverse=True)
     return result
 
 
 def create_memcheck_report(records, db_url, db_collection, output_path):
     """ Create memcheck timeline HTML report for records.
     """
-    if db_collection == 'pre_commit':
-        db_collection = 'commit'  # pre-commit jobs building report from past commits
     records.sort(
         key=lambda item: f"{item['status']}{item['device']}{item['model']}{item['test_name']}")
     timelines = query_timeline(records, db_url, db_collection)
@@ -203,7 +272,8 @@ def main():
     parser.add_argument('--db_url', required=not is_dryrun,
                         help='MongoDB URL in a for "mongodb://server:port".')
     parser.add_argument('--db_collection', required=not is_dryrun,
-                        help=f'Collection name in {DATABASE} database to upload')
+                        help=f'Collection name in {DATABASE} database to upload.',
+                        choices=DB_COLLECTIONS)
     parser.add_argument('--artifact_root', required=True,
                         help=f'A root directory to strip from log path before upload.')
     parser.add_argument('--append', help='JSON to append to each item.')

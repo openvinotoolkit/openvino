@@ -23,6 +23,8 @@
 
 #include "ngraph/ngraph.hpp"
 
+NGRAPH_SUPPRESS_DEPRECATED_START
+
 using namespace ngraph;
 using namespace std;
 

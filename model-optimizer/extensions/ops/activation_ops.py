@@ -28,13 +28,14 @@ class Activation(Op):
     enabled = False
     operation = None
     op = None
+    version = 'opset1'
 
     def __init__(self, graph: Graph, attrs: dict):
         super().__init__(graph, {
             'type': self.op,
             'op': self.op,
             'operation': self.operation,
-            'version': 'opset1',
+            'version': self.version,
             'infer': self.infer,
             'in_ports_count': 1,
             'out_ports_count': 1,
@@ -65,6 +66,12 @@ class Asin(Activation):
     operation = staticmethod(lambda x: np.arcsin(x))
 
 
+class Asinh(Activation):
+    op = 'Asinh'
+    version = 'opset4'
+    operation = staticmethod(lambda x: np.arcsinh(x))
+
+
 class Cos(Activation):
     op = 'Cos'
     operation = staticmethod(lambda x: np.cos(x))
@@ -78,6 +85,12 @@ class Cosh(Activation):
 class Acos(Activation):
     op = 'Acos'
     operation = staticmethod(lambda x: np.arccos(x))
+
+
+class Acosh(Activation):
+    op = 'Acosh'
+    version = 'opset4'
+    operation = staticmethod(lambda x: np.arccosh(x))
 
 
 class Tan(Activation):
@@ -95,9 +108,13 @@ class Atan(Activation):
     operation = staticmethod(lambda x: np.arctan(x))
 
 
-class ReLU6(AttributedClamp):
-    op = 'ReLU6'
+class Atanh(Activation):
+    op = 'Atanh'
+    version = 'opset4'
+    operation = staticmethod(lambda x: np.arctanh(x))
 
+
+class ReLU6(AttributedClamp):
     def __init__(self, graph: Graph, attrs: dict):
         relu6_attrs = {'min': 0, 'max': 6}
         relu6_attrs.update(attrs)
@@ -168,9 +185,9 @@ class LeakyReLU(Op):
 
     def __init__(self, graph: Graph, attrs: dict):
         super().__init__(graph, {
-            'type': __class__.op,
-            'op': __class__.op,
-            'infer': __class__.infer,
+            'type': self.op,
+            'op': self.op,
+            'infer': self.infer,
             'in_ports_count': 1,
             'out_ports_count': 1,
         }, attrs)
@@ -205,10 +222,60 @@ class LogicalNot(Activation):
 
     @staticmethod
     def type_infer(node: Node):
-        output_data_type = np.int32 if node.graph.graph['cmd_params'].generate_deprecated_IR_V7 else np.bool
-        node.out_port(0).set_data_type(output_data_type)
+        node.out_port(0).set_data_type(np.bool)
 
 
 class Log(Activation):
     op = 'Log'
     operation = staticmethod(lambda x: np.log(x))
+
+
+class SoftPlus(Activation):
+    op = 'SoftPlus'
+    version = 'opset4'
+    operation = staticmethod(lambda x: np.log(np.exp(x) + 1.0))
+
+
+class Mish(Activation):
+    op = 'Mish'
+    version = 'opset4'
+    operation = staticmethod(lambda x: x * np.tanh(np.log(np.exp(x) + 1.0)))
+
+
+class HSwish(Activation):
+    op = 'HSwish'
+    version = 'opset4'
+    operation = staticmethod(lambda x: x * np.minimum(np.maximum(x + 3.0, 0.0), 6.0) / 6.0)
+
+
+class Swish(Op):
+    op = 'Swish'
+
+    def __init__(self, graph: Graph, attrs: dict):
+        mandatory_props = {
+            'op': self.op,
+            'type': self.op,
+            'version': 'opset4',
+
+            'infer': self.infer,
+
+            'in_ports_count': 2,
+            'out_ports_count': 1,
+        }
+        super().__init__(graph, mandatory_props, attrs)
+
+    @staticmethod
+    def infer(node: Node):
+        node_name = node.soft_get('name', node.id)
+        node.out_port(0).data.set_shape(node.in_port(0).data.get_shape())
+
+        beta = 1.0
+        if node.is_in_port_connected(1):
+            beta = node.in_port(1).data.get_value()
+            if beta is not None:
+                assert beta.ndim == 0, 'The "beta" value for node {} must be a scalar'.format(node_name)
+                beta = beta.item()
+
+        input_value = node.in_port(1).data.get_value()
+        if input_value is not None and beta is not None:
+            node.out_port(0).data.set_value(input_value / (1.0 + np.exp(-input_value * beta)))

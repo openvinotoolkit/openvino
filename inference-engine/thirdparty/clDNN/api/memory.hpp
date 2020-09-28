@@ -167,6 +167,8 @@ struct memory {
     /// C API memory handle
     memory_impl* get() const { return _impl; }
 
+    void reset();
+
 private:
     friend struct engine;
     memory_impl* _impl;

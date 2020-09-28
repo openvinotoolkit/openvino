@@ -52,6 +52,8 @@ InferenceEngine::Blob::Ptr createBlob(InferenceEngine::Precision precision, Size
             return make_shared_blob<int16_t>(tensorDesc);
         case InferenceEngine::Precision::I32:
             return make_shared_blob<int32_t>(tensorDesc);
+        case InferenceEngine::Precision::U32:
+            return make_shared_blob<uint32_t>(tensorDesc);
         case InferenceEngine::Precision::I64:
             return make_shared_blob<int64_t>(tensorDesc);
         case InferenceEngine::Precision::U64:
@@ -121,6 +123,8 @@ void FillBlob(Blob::Ptr& inputBlob) {
             return FillBlobRandom<int16_t>(inputBlob);
         case InferenceEngine::Precision::I32:
             return FillBlobRandom<int32_t>(inputBlob);
+        case InferenceEngine::Precision::U32:
+            return FillBlobRandom<uint32_t>(inputBlob);
         case InferenceEngine::Precision::I64:
             return FillBlobRandom<int64_t>(inputBlob);
         case InferenceEngine::Precision::U64:
@@ -206,7 +210,9 @@ bool IsCorrectBlobCopy(Blob::Ptr& srcBlob, Blob::Ptr& dstBlob) {
         case InferenceEngine::Precision::Q78:
             return IsCorrectBlobCopy_Impl<int16_t>(srcBlob, dstBlob);
         case InferenceEngine::Precision::I32:
-            IsCorrectBlobCopy_Impl<int32_t>(srcBlob, dstBlob);
+            return IsCorrectBlobCopy_Impl<int32_t>(srcBlob, dstBlob);
+        case InferenceEngine::Precision::U32:
+            return IsCorrectBlobCopy_Impl<uint32_t >(srcBlob, dstBlob);
         case InferenceEngine::Precision::I64:
             return IsCorrectBlobCopy_Impl<int64_t >(srcBlob, dstBlob);
         case InferenceEngine::Precision::U64:
@@ -286,7 +292,7 @@ std::vector<Dims> BlobCopy_Dims = {
 };
 
 //  The 'blob_copy(4/5)_d' function is a template with the parameter-list  <InferenceEngine::Precision::ePrecision PRC>
-//  FP32 is used for cases with the following accuracy:  FP32, I32
+//  FP32 is used for cases with the following accuracy:  FP32, I32, U32
 //  FP16 is used for cases with the following accuracy:  FP16, U16, I16
 //  U8 is used for cases with the following accuracy:  U8, I8
 //  Cases with other precision are not supported
@@ -294,6 +300,11 @@ std::vector<PrecisionType> BlobCopy_PrecisionParams = {
         InferenceEngine::Precision::FP32,
         InferenceEngine::Precision::FP16,
         InferenceEngine::Precision::U8,
+        InferenceEngine::Precision::I8,
+        InferenceEngine::Precision::U16,
+        InferenceEngine::Precision::I16,
+        InferenceEngine::Precision::U32,
+        InferenceEngine::Precision::I32,
 };
 
 }  // namespace
@@ -325,17 +336,21 @@ bool IsEqualBlobCopy(Blob::Ptr& srcBlob, Blob::Ptr& dstBlob) {
     case InferenceEngine::Precision::I16:
     case InferenceEngine::Precision::Q78:
         return IsEqualBlobCopy_Impl<int16_t>(srcBlob, dstBlob);
+    case InferenceEngine::Precision::U32:
+        IsEqualBlobCopy_Impl<uint32_t>(srcBlob, dstBlob);
     case InferenceEngine::Precision::I32:
         IsEqualBlobCopy_Impl<int32_t>(srcBlob, dstBlob);
+    case InferenceEngine::Precision::U64:
+        return IsEqualBlobCopy_Impl<uint64_t>(srcBlob, dstBlob);
     case InferenceEngine::Precision::I64:
         return IsEqualBlobCopy_Impl<int64_t>(srcBlob, dstBlob);
-    case InferenceEngine::Precision::U16:
-        return IsEqualBlobCopy_Impl<uint16_t>(srcBlob, dstBlob);
     case InferenceEngine::Precision::I8:
     case InferenceEngine::Precision::BIN:
         return IsEqualBlobCopy_Impl<int8_t>(srcBlob, dstBlob);
     case InferenceEngine::Precision::U8:
         return IsEqualBlobCopy_Impl<uint8_t>(srcBlob, dstBlob);
+    case InferenceEngine::Precision::U16:
+        return IsEqualBlobCopy_Impl<uint16_t>(srcBlob, dstBlob);
     default:
         return false;
     }
@@ -372,6 +387,10 @@ void copy3DBlobsAllBytesWithReLayoutWrapper(const Blob::Ptr& srcLayoutBlob, Blob
         return copy3DBlobsAllBytesWithReLayout<int16_t>(srcLayoutBlob, trgLayoutBlob);
     case InferenceEngine::Precision::I32:
         return copy3DBlobsAllBytesWithReLayout<int32_t>(srcLayoutBlob, trgLayoutBlob);
+    case InferenceEngine::Precision::U32:
+        return copy3DBlobsAllBytesWithReLayout<uint32_t>(srcLayoutBlob, trgLayoutBlob);
+    case InferenceEngine::Precision::U64:
+        return copy3DBlobsAllBytesWithReLayout<uint64_t>(srcLayoutBlob, trgLayoutBlob);
     case InferenceEngine::Precision::I64:
         return copy3DBlobsAllBytesWithReLayout<int64_t>(srcLayoutBlob, trgLayoutBlob);
     case InferenceEngine::Precision::U16:

@@ -10,7 +10,8 @@
 #include <vector>
 #include <unordered_set>
 
-#include "cnn_network_impl.hpp"
+#include <legacy/ie_layers.h>
+#include <legacy/cnn_network_impl.hpp>
 
 #include "low_precision_transformations/common/dequantization_details.hpp"
 #include "low_precision_transformations/transformation_context.hpp"
@@ -47,18 +48,26 @@ public:
 
     static Blob::Ptr makeNewBlobPtr(const TensorDesc& desc);
 
-    static void invertFakeQuantize(const CNNLayer& fakeQuantize);
-
-    static void updateBlobs(CNNLayer& layer, const std::string& blobName, float value);
-
     static void updateBlobs(const CNNLayer& quantizeLayer, int constLayerIndex, float value);
 
     static void updateBlobs(const CNNLayer& quantizeLayer, int constLayerIndex, const std::vector<float>& values);
 
+    static void updateBlobs(TransformationContext& context, const CNNLayer& quantizeLayer, int constLayerIndex, float value);
+
+    static void updateBlobs(TransformationContext& context, const CNNLayer& quantizeLayer, int constLayerIndex, const std::vector<float>& values);
+
     static void updateBlobs(CNNLayer& layer, const std::string& blobName, const std::vector<float>& values);
+
+    static CNNLayerPtr copyConstant(
+        TransformationContext& context,
+        const CNNLayer& quantizeLayer,
+        const CNNLayerPtr& blobLayer,
+        const size_t constLayerIndex);
 
     // return true if at least one child uses layer on weights
     static bool onWeights(const CNNLayer& layer);
+
+    static bool onConstWeightsPath(const CNNLayer& quantize);
 
     static size_t getIndex(const CNNLayer& layer);
 
@@ -89,7 +98,7 @@ public:
 
     static Blob::Ptr getBlob(CNNLayerPtr layer, const std::string& blobName);
 
-    static Blob::Ptr getBlob(CNNLayer* layer, const std::string& blobName);
+    static Blob::Ptr getBlob(const CNNLayer* layer, const std::string& blobName);
 
     static std::shared_ptr<float> getFloatData(const CNNLayerPtr& layer, const std::string& blobName);
 
@@ -119,6 +128,8 @@ public:
         const std::unordered_set<std::string>& exceptionLayerTypes = {},
         const int portIndex = -1);
 
+    static bool isLayoutSupported(const CNNLayer& layer);
+
     static size_t getInputChannelsCount(const CNNLayer& layer);
 
     static size_t getParamOutput(const CNNLayer& layer);
@@ -135,7 +146,9 @@ public:
 
     static void replaceLayer(TransformationContext& context, const CNNLayerPtr source, const CNNLayerPtr target);
 
-    static CNNLayerPtr addScaleShiftBetween(
+    // Add ScaleShift beween parent and child layers. Affected edges (output and input ports) are not specified.
+    // As result ScaleShift will be added for all edges between parent and children.
+    static std::vector<CNNLayerPtr> addScaleShiftBetween(
         TransformationContext& context,
         const CNNLayerPtr parent,
         const CNNLayerPtr child,
@@ -153,7 +166,8 @@ public:
         DataPtr parentOutData,
         CNNLayer::Ptr layer,
         const std::string& nextLayerName,
-        ICNNNetwork& net);
+        ICNNNetwork& net,
+        const int childInsDataIndex = -1);
 
     IE_SUPPRESS_DEPRECATED_START
     static void fillInScaleShift(ScaleShiftLayer* layer, const size_t channels, const float* scales, const float* shifts);
@@ -191,6 +205,8 @@ public:
         const bool roundValues,
         const Precision precision = Precision::UNSPECIFIED);
 
+    static bool isQuantizedConstWeights(const CNNLayer& quantize);
+
     static int getConstParentBranchID(const CNNLayer& layer);
 
     static Precision getPrecisionParent(const CNNLayer& layer);
@@ -218,7 +234,7 @@ private:
         }
 
         IE_SUPPRESS_DEPRECATED_START
-        const CNNLayerPtr blobLayer = data->getCreatorLayer().lock();
+        const CNNLayerPtr blobLayer = getCreatorLayer(data).lock();
         if (blobLayer == nullptr) {
             THROW_IE_EXCEPTION << "parent layer is absent for " << quantize.type << " layer " << quantize.name;
         }
@@ -226,7 +242,7 @@ private:
 
         checkConstWithBlobs(blobLayer);
 
-        return blobLayer->blobs.begin()->second;;
+        return blobLayer->blobs.begin()->second;
     }
 
     static void quantizeBlob(const CNNLayer& quantize, Blob::Ptr& targetBlob, bool roundValues);

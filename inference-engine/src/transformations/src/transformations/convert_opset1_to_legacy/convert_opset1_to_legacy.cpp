@@ -4,11 +4,11 @@
 
 #include "transformations/convert_opset1_to_legacy/convert_opset1_to_legacy.hpp"
 
-#include <transformations/constant_eltwise_reduction.hpp>
 #include <transformations/convert_broadcast_to_tiles.hpp>
 #include <transformations/convert_opset1_to_legacy/convert_convolutions.hpp>
 #include <transformations/convert_divide.hpp>
 #include <transformations/convert_mod.hpp>
+#include <transformations/itt.hpp>
 #include <transformations/convert_opset1_to_legacy/convert_cells_to_cells_ie.hpp>
 #include <transformations/convert_opset1_to_legacy/convert_gather_to_gather_ie.hpp>
 #include <transformations/convert_opset1_to_legacy/convert_gathertree_to_gathertree_ie.hpp>
@@ -20,6 +20,7 @@
 #include <transformations/convert_opset1_to_legacy/convert_mul_or_add_finally.hpp>
 #include <transformations/convert_negative.hpp>
 #include <transformations/convert_opset1_to_legacy/convert_nms_to_nms_ie.hpp>
+#include <transformations/convert_opset1_to_legacy/convert_nms_4_to_legacy.hpp>
 #include <transformations/convert_opset1_to_legacy/convert_normalizel2_to_normalize_ie.hpp>
 #include <transformations/convert_opset1_to_legacy/convert_one_hot_to_one_hot_ie.hpp>
 #include <transformations/convert_opset1_to_legacy/convert_pad_to_pad_ie.hpp>
@@ -31,6 +32,8 @@
 #include <transformations/convert_opset1_to_legacy/convert_strided_slice_to_crop.hpp>
 #include <transformations/convert_subtract.hpp>
 #include <transformations/convert_opset1_to_legacy/convert_selu_to_selu_ie.hpp>
+#include <transformations/convert_opset1_to_legacy/convert_sequences_to_sequences_ie.hpp>
+#include <transformations/convert_opset1_to_legacy/convert_swish_to_swish_ie.hpp>
 #include <transformations/convert_opset1_to_legacy/convert_tile_to_ie_tile.hpp>
 #include <transformations/convert_opset1_to_legacy/convert_topk_to_topk_ie.hpp>
 #include <transformations/convert_depth_to_space.hpp>
@@ -38,33 +41,147 @@
 #include <transformations/batch_norm_decomposition.hpp>
 #include <transformations/convert_opset1_to_legacy/conv_bias_fusion.hpp>
 #include <transformations/convert_opset1_to_legacy/fc_bias_fusion.hpp>
-#include <transformations/mul_add_squence_fusion.hpp>
-#include <transformations/mul_add_verification.hpp>
 #include <transformations/convert_opset1_to_legacy/reshape_fc_fusion.hpp>
 #include <transformations/convert_opset1_to_legacy/reshape_1d_ops.hpp>
 #include <transformations/convert_opset1_to_legacy/reshape_fully_connected.hpp>
 #include <transformations/pull_transpose_through_fq.hpp>
 #include <transformations/convert_opset1_to_legacy/convert_hard_sigmoid_to_hard_sigmoid_ie.hpp>
+#include <transformations/lin_op_sequence_fusoin.hpp>
+#include <transformations/common_optimizations/conv_mul_fusion.hpp>
+#include <transformations/hswish_decomposition.hpp>
+#include <transformations/reduce_l1_decomposition.hpp>
+#include <transformations/reduce_l2_decomposition.hpp>
+#include <transformations/common_optimizations/fq_mul_fusion.hpp>
+#include <transformations/common_optimizations/fq_reshape_fusion.hpp>
 
 #include <ngraph/pass/constant_folding.hpp>
 #include <ngraph/pass/manager.hpp>
 
+#include <ngraph/pass/graph_rewrite.hpp>
+
 #include <memory>
 #include <vector>
 
+NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertOpSet1ToLegacy, "ConvertOpSet1ToLegacy", 0);
+
 bool ngraph::pass::ConvertOpSet1ToLegacy::run_on_function(std::shared_ptr<ngraph::Function> f) {
-    ngraph::pass::Manager OpSet1ToLegacy;
+    OV_ITT_SCOPED_TASK(itt::domains::IETransform, "ngraph::pass::ConvertOpSet1ToLegacy");
+
+    ngraph::pass::Manager manager;
     std::vector<std::shared_ptr<ngraph::pass::PassBase> > transforms;
 
-#define NGRAPH_PASS(NAME, NAMESPACE) transforms.push_back(OpSet1ToLegacy.register_pass<NAMESPACE::NAME>());
-#include <transformations/convert_opset1_to_legacy/convert_opset1_to_legacy_tbl.hpp>
-#undef NGRAPH_PASS
+    manager.register_pass<ngraph::pass::ConstantFolding>();
 
-    for (auto & t : transforms) {
-        if (auto t_param = std::dynamic_pointer_cast<PassParam>(t)) {
-            t_param->setCallback(transformation_callback);
-        }
-    }
-    OpSet1ToLegacy.run_passes(f);
+    // the following two transformations produce ReduceSum operations so they
+    // must be executed before the ConvertReduceSumToPooling transformation
+    manager.register_pass<ngraph::pass::ReduceL1Decomposition>();
+    manager.register_pass<ngraph::pass::ReduceL2Decomposition>();
+
+    // HSwishDecomposition produce Minimum, Relu and Multiply operations
+    // so it must be executed before
+    manager.register_pass<ngraph::pass::HSwishDecomposition>();
+
+    // List if Decomposition and Conversion transformations that can be
+    // applied simultaneously in a single graph traversal
+    auto decomp = manager.register_pass<ngraph::pass::GraphRewrite>();
+    decomp->add_matcher<ngraph::pass::ConvertBroadcastToTiles>();
+    decomp->add_matcher<ngraph::pass::ConvertReduceMeanToPooling>();
+    decomp->add_matcher<ngraph::pass::ConvertReduceMaxToPooling>();
+    decomp->add_matcher<ngraph::pass::ConvertReduceSumToPooling>();
+    decomp->add_matcher<ngraph::pass::ConvertMod>();
+    decomp->add_matcher<ngraph::pass::ConvertMinimum>();
+    decomp->add_matcher<ngraph::pass::ConvertSubtract>();
+    decomp->add_matcher<ngraph::pass::ConvertDivide>();
+    decomp->add_matcher<ngraph::pass::ConvertNegative>();
+    decomp->add_matcher<ngraph::pass::ConvertDepthToSpace>();
+    decomp->add_matcher<ngraph::pass::ConvertSpaceToDepth>();
+    decomp->add_matcher<ngraph::pass::BatchNormDecomposition>();
+    decomp->add_matcher<ngraph::pass::ConvertMatMulToFC>();
+    decomp->add_matcher<ngraph::pass::ConvertMatMulToGemm>();
+    decomp->set_name("ngraph::pass::Decompositions");
+
+    // CF is required after all decompositions
+    manager.register_pass<ngraph::pass::ConstantFolding>();
+
+    // LinOpSequenceFusion must be executed after all decompositions
+    manager.register_pass<ngraph::pass::LinOpSequenceFusion>();
+
+    manager.register_pass<ngraph::pass::ConvolutionMultiplyFusion>();
+    manager.register_pass<ngraph::pass::GroupConvolutionMultiplyFusion>();
+    manager.register_pass<ngraph::pass::ConvolutionBackpropDataMultiplyFusion>();
+    manager.register_pass<ngraph::pass::GroupConvolutionBackpropDataMultiplyFusion>();
+    manager.register_pass<ngraph::pass::ConstantFolding>();
+
+    // Convolution/Deconvolution/FullyConnected fusions
+    auto convert_convolutions = manager.register_pass<ngraph::pass::GraphRewrite>();
+    convert_convolutions->add_matcher<ngraph::pass::ConvertConvolution>();
+    convert_convolutions->add_matcher<ngraph::pass::ConvertGroupConvolution>();
+    convert_convolutions->add_matcher<ngraph::pass::ConvertDeconvolution>();
+    convert_convolutions->add_matcher<ngraph::pass::ConvertGroupDeconvolution>();
+    convert_convolutions->set_name("ngraph::pass::ConvertConvolutions");
+
+    auto fq_fusions = manager.register_pass<ngraph::pass::GraphRewrite>();
+    fq_fusions->add_matcher<FakeQuantizeMulFusion>();
+    fq_fusions->add_matcher<FakeQuantizeReshapeFusion>();
+    fq_fusions->add_matcher<PullTransposeThroughFQUp>();
+    fq_fusions->set_name("ngraph::pass::FakeQuantizeFusions");
+
+    // Convolution/Deconvolution/FullyConnected fusions
+    auto fusion = manager.register_pass<ngraph::pass::GraphRewrite>();
+    fusion->add_matcher<ngraph::pass::ConvAddFusion>();
+    fusion->add_matcher<ngraph::pass::DeconvAddFusion>();
+    fusion->add_matcher<ngraph::pass::FullyConnectedBiasFusion>();
+    fusion->set_name("ngraph::pass::Fusions");
+
+    // CF is required after fusions
+    manager.register_pass<ngraph::pass::ConstantFolding>();
+
+    // List of passes that convert opset1 operations to legacy
+    // plus transformations that are required by InferenceEngine
+    // All this transformations can be executed simultaneously
+    auto anchor = manager.register_pass<ngraph::pass::GraphRewrite>();
+    anchor->add_matcher<ngraph::pass::ReshapeFullyConnected>();
+    anchor->add_matcher<ngraph::pass::Reshape1DConvolution>();
+    anchor->add_matcher<ngraph::pass::Reshape1DAvgPool>();
+    anchor->add_matcher<ngraph::pass::Reshape1DMaxPool>();
+    anchor->add_matcher<ngraph::pass::ConvertNormalizeL2WithMulToNormalizeIE>();
+    anchor->add_matcher<ngraph::pass::ConvertHardSigmoidToLegacyMatcher>();
+    anchor->add_matcher<ngraph::pass::ConvertProposalToLegacyMatcher>();
+    anchor->add_matcher<ngraph::pass::ConvertProposal4ToLegacyMatcher>();
+    anchor->add_matcher<ngraph::pass::ConvertTileToLegacyMatcher>();
+    anchor->add_matcher<ngraph::pass::ConvertLRNToLegacyMatcher>();
+    anchor->add_matcher<ngraph::pass::ConvertPadToLegacyMatcher>();
+    anchor->add_matcher<ngraph::pass::ConvertLSTMCellMatcher>();
+    anchor->add_matcher<ngraph::pass::ConvertRNNCellMatcher>();
+    anchor->add_matcher<ngraph::pass::ConvertGRUCellMatcher>();
+    anchor->add_matcher<ngraph::pass::ConvertInterpolateToInterpOrResampleMatcher>();
+    anchor->add_matcher<ngraph::pass::ConvertStridedSliceToCropMatcher>();
+    anchor->add_matcher<ngraph::pass::ConvertPowerToPowerIEMatcher>();
+    anchor->add_matcher<ngraph::pass::ConvertSqrtToPowerIEMatcher>();
+    anchor->add_matcher<ngraph::pass::ConvertPReLUToReLUIE>();
+    anchor->add_matcher<ngraph::pass::ConvertGatherToGatherIEMatcher>();
+    anchor->add_matcher<ngraph::pass::ConvertSeluToSeluIEMatcher>();
+    anchor->add_matcher<ngraph::pass::ConvertSwishToSwishIEMatcher>();
+    anchor->add_matcher<ngraph::pass::ConvertOneHotToOneHotIEMatcher>()->detect_output_type(f);
+    anchor->add_matcher<ngraph::pass::ConvertGatherTreeToGatherTreeIEMatcher>();
+    anchor->add_matcher<ngraph::pass::ConvertTopKToTopKIEMatcher>();
+    anchor->add_matcher<ngraph::pass::ConvertNMSToNMSIEMatcher>();
+    anchor->add_matcher<ngraph::pass::ConvertNMS4ToLegacyMatcher>();
+    anchor->add_matcher<ngraph::pass::ConvertGRUSequenceMatcher>();
+    anchor->add_matcher<ngraph::pass::ConvertRNNSequenceMatcher>();
+    anchor->add_matcher<ngraph::pass::ConvertLSTMSequenceMatcher>();
+    anchor->set_name("ngraph::pass::ConvertOpSet1ToLegacy");
+
+    // List of final conversion transformations that must to be executed
+    // after previous group of transformations
+    manager.register_pass<ngraph::pass::ReshapeFullyConnectedFusion>();
+    manager.register_pass<ngraph::pass::ConvertNormalizeL2ToLegacyMatcher>();
+    manager.register_pass<ngraph::pass::ConvertMulAddToScaleShiftOrPower>();
+    manager.register_pass<ngraph::pass::ConvertMulOrAddFinally>();
+
+    manager.register_pass<ngraph::pass::ConstantFolding>();
+
+    manager.set_callback(m_transformation_callback);
+    manager.run_passes(f);
     return true;
 }

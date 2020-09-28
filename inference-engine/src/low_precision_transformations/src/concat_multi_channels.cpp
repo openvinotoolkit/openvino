@@ -4,21 +4,19 @@
 
 #include "low_precision_transformations/concat_multi_channels.hpp"
 
-#include <details/ie_cnn_network_tools.h>
 #include <ie_common.h>
 
 #include <algorithm>
 #include <blob_factory.hpp>
-#include <details/caseless.hpp>
+#include <caseless.hpp>
 #include <memory>
 #include <string>
 #include <unordered_map>
 #include <utility>
 #include <vector>
 
-#include "cnn_network_impl.hpp"
-#include "ie_util_internal.hpp"
-#include "network_serializer.h"
+#include <legacy/cnn_network_impl.hpp>
+#include <legacy/ie_util_internal.hpp>
 
 #include "low_precision_transformations/common/ie_lpt_exception.hpp"
 #include "low_precision_transformations/network_helper.hpp"
@@ -108,8 +106,8 @@ void ConcatMultiChannelsTransformation::transform(TransformationContext& context
         dequantizationScalesLayers[fakeQuantizeLayer->name] = dequantizationScales;
         dequantizationShiftsLayers[fakeQuantizeLayer->name] = dequantizationShifts;
 
-        CNNNetworkHelper::updateBlobs(*fakeQuantizeLayer, 3, dataPrecision.min);
-        CNNNetworkHelper::updateBlobs(*fakeQuantizeLayer, 4, dataPrecision.max);
+        CNNNetworkHelper::updateBlobs(context, *fakeQuantizeLayer, 3, dataPrecision.min);
+        CNNNetworkHelper::updateBlobs(context, *fakeQuantizeLayer, 4, dataPrecision.max);
     }
 
     if (updatePrecisions) {
@@ -120,10 +118,26 @@ void ConcatMultiChannelsTransformation::transform(TransformationContext& context
     }
 
     auto dequantizationValuesCallback = [&](
-            const CNNLayer& layer,
-            std::vector<float>& dequantizationScales,
-            std::vector<float>& dequantizationShifts
+        const CNNLayer& layer,
+        const std::string originalLayerName,
+        std::vector<float>& dequantizationScales,
+        std::vector<float>& dequantizationShifts
         ) {
+        if (layer.name != originalLayerName) {
+            const auto update = [](
+                const std::string& originalLayerName,
+                const std::string& newLayerName,
+                std::unordered_map<std::string, std::vector<float>>& dequantizationLayers) {
+                auto it = dequantizationLayers.find(originalLayerName);
+                if (it != dequantizationLayers.end()) {
+                    dequantizationLayers.emplace(newLayerName, it->second);
+                    dequantizationLayers.erase(it);
+                }
+            };
+            update(originalLayerName, layer.name, dequantizationScalesLayers);
+            update(originalLayerName, layer.name, dequantizationShiftsLayers);
+        }
+
         fillDequantization(
             layer,
             dequantizationScalesLayers, dequantizationShiftsLayers,

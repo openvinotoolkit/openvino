@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2016-2019 Intel Corporation
+﻿// Copyright (c) 2016-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -29,28 +29,34 @@ bool PoolingKernelBase::Validate(const Params& p, const optional_params& o) cons
             return false;
     }
 
+    if (params.inputs[0].Dimentions() > 5)
+        return false;
+
     return true;
 }
 
 Datatype PoolingKernelBase::GetAccumulatorType(const pooling_params& params) const {
-    if (params.quantization != QuantizationType::NONE)
-        return Datatype::INT32;
+    const auto& input_dt = params.inputs[0].GetDType();
+    const auto& pool_type = params.poolType;
 
-    Datatype types[] = { Datatype::F32, Datatype::F16, Datatype::INT64, Datatype::INT32, Datatype::UINT32};
-
-    for (Datatype type : types)
-        for (auto& in : params.inputs)
-            if (in.GetDType() == type)
-                return type;
-
-    return Datatype::F32;
+    if (pool_type == PoolType::MAX) {
+        return input_dt;
+    } else {
+        switch (input_dt) {
+            case Datatype::F32: return Datatype::F32;
+            case Datatype::F16: return Datatype::F32;
+            case Datatype::INT8: return Datatype::INT32;
+            case Datatype::UINT8: return Datatype::INT32;
+            default: return Datatype::F32;
+        }
+    }
 }
 
 Datatype PoolingKernelBase::GetActivationType(const pooling_params& params) const {
-    if (params.quantization != QuantizationType::NONE)
+    if (params.output.GetDType() == Datatype::F16)
+        return Datatype::F16;
+    else
         return Datatype::F32;
-
-    return GetUnitType(params);
 }
 
 
@@ -78,11 +84,16 @@ JitConstants PoolingKernelBase::GetJitConstants(const pooling_params& pp, Poolin
 
 // Checks if we need boundary checking in kernel.
 bool PoolingKernelBase::NeedsBoundaryCheck(const pooling_params& pp) const {
+    const auto& input = pp.inputs[0];
+    const auto& output = pp.output;
+
     if (pp.poolPad.x != 0 || pp.poolPad.y != 0 || pp.poolPad.z != 0) {
         return true;
+    } else if ((((input.X().v - pp.poolSize.x) / pp.poolStride.x) + 1) < output.X().v ||
+               (((input.Y().v - pp.poolSize.y) / pp.poolStride.y) + 1) < output.Y().v ||
+               (((input.Z().v - pp.poolSize.z) / pp.poolStride.z) + 1) < output.Z().v) {
+        return true;
     }
-
-    const auto& input = pp.inputs[0];
 
     if (input.X().v < pp.poolSize.x || input.Y().v < pp.poolSize.y || input.Z().v < pp.poolSize.z) {
         return true;
@@ -99,7 +110,7 @@ bool PoolingKernelBase::NeedsBoundaryCheck(const pooling_params& pp) const {
     return mod_x || mod_y || mod_z;
 }
 
-bool PoolingKernelBase::EnableRound(const kernel_selector::pooling_params &params) const {
+bool PoolingKernelBase::EnableRound(const kernel_selector::pooling_params& params) const {
     bool has_fused_quantize_to_int8 = false;
     for (auto& op : params.fused_ops) {
         if (op.GetType() == FusedOpType::QUANTIZE &&
@@ -108,7 +119,8 @@ bool PoolingKernelBase::EnableRound(const kernel_selector::pooling_params &param
         }
     }
 
-    if (!has_fused_quantize_to_int8 && (params.output.GetDType() == Datatype::INT8 || params.output.GetDType() == Datatype::UINT8) &&
+    if (!has_fused_quantize_to_int8 &&
+        (params.output.GetDType() == Datatype::INT8 || params.output.GetDType() == Datatype::UINT8) &&
         params.poolType == PoolType::AVG) {
         return true;
     }
@@ -124,7 +136,7 @@ PoolingKernelBase::DispatchData PoolingKernelBase::SetDefault(const pooling_para
     kd.fp16UnitUsed = params.inputs[0].GetDType() == Datatype::F16;
 
     if (output.GetLayout() == DataLayout::bfyx || output.GetLayout() == DataLayout::b_fs_yx_fsv4 ||
-        output.GetLayout() == DataLayout::byxf || output.GetLayout() == DataLayout::byxf_af32 ||
+        output.GetLayout() == DataLayout::byxf ||
         output.GetLayout() == DataLayout::bfzyx || output.GetLayout() == DataLayout::b_fs_zyx_fsv16 ||
         output.GetLayout() == DataLayout::bs_fs_zyx_bsv16_fsv16) {
         // Determine global work sizes.
@@ -148,7 +160,7 @@ PoolingKernelBase::DispatchData PoolingKernelBase::SetDefault(const pooling_para
         // Determine global work sizes.
         kd.gws0 = output.Batch().v * output.Feature().v;  // B, F
         kd.gws1 = output.X().v;                           // X
-        kd.gws2 = output.Y().v;                           // Y
+        kd.gws2 = output.Y().v * output.Z().v;            // Y * Z
 
         kd.lws0 = std::min(std::max(kd.gws0, static_cast<size_t>(1)), static_cast<size_t>(32));
         while (kd.gws0 % kd.lws0 != 0) {

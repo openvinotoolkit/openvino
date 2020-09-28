@@ -6,7 +6,6 @@
 #include <tests_common.hpp>
 #include <tests_common_func.hpp>
 #include <memory>
-#include "xml_helper.hpp"
 #include <ie_core.hpp>
 
 #define XBYAK_NO_OP_NAMES

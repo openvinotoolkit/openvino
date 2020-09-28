@@ -23,12 +23,13 @@ import setuptools
 from setuptools import Extension, setup
 from setuptools.command.build_ext import build_ext
 
-__version__ = os.environ.get("NGRAPH_VERSION", "0.0.0-dev")
+__version__ = os.environ.get("NGRAPH_VERSION", "0.0.0.dev0")
 PYNGRAPH_ROOT_DIR = os.path.abspath(os.path.dirname(__file__))
 PYNGRAPH_SRC_DIR = os.path.join(PYNGRAPH_ROOT_DIR, "src")
 NGRAPH_DEFAULT_INSTALL_DIR = os.environ.get("HOME")
-NGRAPH_ONNX_IMPORT_ENABLE = os.environ.get("NGRAPH_ONNX_IMPORT_ENABLE")
 NGRAPH_PYTHON_DEBUG = os.environ.get("NGRAPH_PYTHON_DEBUG")
+# Change current working dircectory to ngraph/python
+os.chdir(PYNGRAPH_ROOT_DIR)
 
 
 def find_ngraph_dist_dir():
@@ -99,6 +100,34 @@ if len([fn for fn in os.listdir(NGRAPH_CPP_LIBRARY_DIR) if re.search("onnx_impor
     ONNX_IMPORTER_CPP_LIBRARY_NAME = "onnx_importerd"
 
 
+def _remove_compiler_flags(obj):
+    """Make pybind11 more verbose in debug builds."""
+    try:
+        # pybind11 is much more verbose without the NDEBUG define
+        if sys.platform == "win32":
+            obj.compiler.remove("/DNDEBUG")
+            obj.compiler.remove("/O2")
+        else:
+            obj.compiler.remove("-DNDEBUG")
+            obj.compiler.remove("-O2")
+    except (AttributeError, ValueError):
+        pass
+
+
+def _remove_compiler_so_flags(obj):
+    """Make pybind11 more verbose in debug builds."""
+    try:
+        # pybind11 is much more verbose without the NDEBUG define
+        if sys.platform == "win32":
+            obj.compiler_so.remove("/DNDEBUG")
+            obj.compiler_so.remove("/O2")
+        else:
+            obj.compiler_so.remove("-DNDEBUG")
+            obj.compiler_so.remove("-O2")
+    except (AttributeError, ValueError):
+        pass
+
+
 def parallelCCompile(
     self,
     sources,
@@ -123,14 +152,9 @@ def parallelCCompile(
     cc_args = self._get_cc_args(pp_opts, debug, extra_preargs)
 
     if NGRAPH_PYTHON_DEBUG in ["TRUE", "ON", True]:
-        try:
-            # pybind11 is much more verbose without -DNDEBUG
-            self.compiler.remove("-DNDEBUG")
-            self.compiler.remove("-O2")
-            self.compiler_so.remove("-DNDEBUG")
-            self.compiler_so.remove("-O2")
-        except (AttributeError, ValueError):
-            pass
+        _remove_compiler_flags(self)
+        _remove_compiler_so_flags(self)
+
     # parallel code
     import multiprocessing.pool
 
@@ -182,15 +206,15 @@ sources = [
     "pyngraph/axis_vector.cpp",
     "pyngraph/coordinate.cpp",
     "pyngraph/coordinate_diff.cpp",
+    "pyngraph/dict_attribute_visitor.cpp",
     "pyngraph/dimension.cpp",
     "pyngraph/function.cpp",
     "pyngraph/node.cpp",
+    "pyngraph/node_input.cpp",
+    "pyngraph/node_output.cpp",
     "pyngraph/node_factory.cpp",
     "pyngraph/ops/constant.cpp",
-    "pyngraph/ops/get_output_element.cpp",
-    "pyngraph/ops/op.cpp",
     "pyngraph/ops/parameter.cpp",
-    "pyngraph/ops/regmodule_pyngraph_op.cpp",
     "pyngraph/ops/result.cpp",
     "pyngraph/ops/util/arithmetic_reduction.cpp",
     "pyngraph/ops/util/binary_elementwise_arithmetic.cpp",
@@ -204,26 +228,27 @@ sources = [
     "pyngraph/passes/regmodule_pyngraph_passes.cpp",
     "pyngraph/partial_shape.cpp",
     "pyngraph/pyngraph.cpp",
-    "pyngraph/runtime/backend.cpp",
-    "pyngraph/runtime/executable.cpp",
-    "pyngraph/runtime/regmodule_pyngraph_runtime.cpp",
-    "pyngraph/runtime/tensor.cpp",
-    "pyngraph/serializer.cpp",
     "pyngraph/shape.cpp",
     "pyngraph/strides.cpp",
+    "pyngraph/tensor_iterator_builder.cpp",
     "pyngraph/types/element_type.cpp",
     "pyngraph/types/regmodule_pyngraph_types.cpp",
     "pyngraph/util.cpp",
+    "pyngraph/variant.cpp",
+    "pyngraph/rt_map.cpp",
 ]
 
 packages = [
     "ngraph",
+    "ngraph.opset1",
+    "ngraph.opset2",
+    "ngraph.opset3",
+    "ngraph.opset4",
     "ngraph.utils",
     "ngraph.impl",
     "ngraph.impl.op",
     "ngraph.impl.op.util",
     "ngraph.impl.passes",
-    "ngraph.impl.runtime",
 ]
 
 sources = [PYNGRAPH_SRC_DIR + "/" + source for source in sources]
@@ -235,9 +260,6 @@ library_dirs = [NGRAPH_CPP_LIBRARY_DIR]
 libraries = [NGRAPH_CPP_LIBRARY_NAME, ONNX_IMPORTER_CPP_LIBRARY_NAME]
 
 extra_compile_args = []
-if NGRAPH_ONNX_IMPORT_ENABLE in ["TRUE", "ON", True]:
-    extra_compile_args.append("-DNGRAPH_ONNX_IMPORT_ENABLE")
-
 extra_link_args = []
 
 data_files = [
@@ -246,6 +268,7 @@ data_files = [
         [
             os.path.join(NGRAPH_CPP_LIBRARY_DIR, library)
             for library in os.listdir(NGRAPH_CPP_LIBRARY_DIR)
+            if os.path.isfile(os.path.join(NGRAPH_CPP_LIBRARY_DIR, library))
         ],
     ),
     (
@@ -257,15 +280,6 @@ data_files = [
     ),
     ("", [os.path.join(NGRAPH_CPP_DIST_DIR, "LICENSE")],),
 ]
-
-if NGRAPH_ONNX_IMPORT_ENABLE in ["TRUE", "ON", True]:
-    onnx_sources = [
-        "pyngraph/onnx_import/onnx_import.cpp",
-    ]
-    onnx_sources = [PYNGRAPH_SRC_DIR + "/" + source for source in onnx_sources]
-    sources = sources + onnx_sources
-
-    packages.append("ngraph.impl.onnx_import")
 
 ext_modules = [
     Extension(
@@ -339,9 +353,8 @@ class BuildExt(build_ext):
             # -Wstrict-prototypes is not a valid option for c++
             self.compiler.compiler_so.remove("-Wstrict-prototypes")
             if NGRAPH_PYTHON_DEBUG in ["TRUE", "ON", True]:
-                # pybind11 is much more verbose without -DNDEBUG
-                self.compiler.compiler_so.remove("-DNDEBUG")
-                self.compiler.compiler_so.remove("-O2")
+                _remove_compiler_so_flags(self)
+
         except (AttributeError, ValueError):
             pass
 
@@ -368,24 +381,19 @@ class BuildExt(build_ext):
 
 with open(os.path.join(PYNGRAPH_ROOT_DIR, "requirements.txt")) as req:
     requirements = req.read().splitlines()
-    setup_requires = [item for item in requirements if item.strip().startswith("numpy")]
 
 setup(
     name="ngraph-core",
     description="nGraph - Intel's graph compiler and runtime for Neural Networks",
     version=__version__,
     author="Intel Corporation",
-    author_email="intelnervana@intel.com",
-    url="https://github.com/NervanaSystems/ngraph/",
+    url="https://github.com/openvinotoolkit/openvino",
     license="License :: OSI Approved :: Apache Software License",
-    long_description=open(os.path.join(PYNGRAPH_ROOT_DIR, "README.md")).read(),
-    long_description_content_type="text/markdown",
     ext_modules=ext_modules,
-    package_dir={'': PYNGRAPH_SRC_DIR},
+    package_dir={"": "src"},
     packages=packages,
     cmdclass={"build_ext": BuildExt},
     data_files=data_files,
-    setup_requires=setup_requires,
     install_requires=requirements,
     zip_safe=False,
     extras_require={},

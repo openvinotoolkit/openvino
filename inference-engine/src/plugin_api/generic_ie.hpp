@@ -9,11 +9,19 @@
 #include <string>
 #include <map>
 
-#include <ie_iextension.h>
 #include <ie_parameter.hpp>
 #include <ie_precision.hpp>
-#include "ngraph/op/op.hpp"
-#include <ngraph/ngraph.hpp>
+
+#include <ngraph/op/op.hpp>
+#include <ngraph/op/tensor_iterator.hpp>
+#include <ngraph/graph_util.hpp>
+
+namespace InferenceEngine {
+
+class IShapeInferExtension;
+using IShapeInferExtensionPtr = std::shared_ptr<IShapeInferExtension>;
+
+}
 
 namespace ngraph {
 namespace op {
@@ -71,7 +79,7 @@ public:
                         genNode->doReshape(false);
                         genericOps.emplace_back(genNode);
                     }
-                }, true, nParams);
+                }, nParams);
             }
         }
     };
@@ -87,11 +95,6 @@ public:
      * @param type string with original layer type
      * @param outputs information about output ports from IR
      */
-    GenericIE(const NodeVector& inputs,
-              const std::map<std::string, InferenceEngine::Parameter>& params,
-              const std::string type,
-              const std::vector<PortIE>& outputs);
-
     GenericIE(const OutputVector& inputs,
               const std::map<std::string, InferenceEngine::Parameter>& params,
               const std::string type,
@@ -99,9 +102,9 @@ public:
 
     void validate_and_infer_types() override;
 
-    std::shared_ptr<Node> copy_with_new_args(const NodeVector& new_args) const override;
+    std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
 
-    static void addExtension(std::shared_ptr<const ngraph::Lambda> func, const InferenceEngine::IShapeInferExtensionPtr& ext);
+    static void addExtension(std::shared_ptr<const ngraph::Function> func, const InferenceEngine::IShapeInferExtensionPtr& ext);
     static std::vector<InferenceEngine::IShapeInferExtensionPtr> getExtensions(std::shared_ptr<const ngraph::Function> func);
 
     const std::string& getType() const {

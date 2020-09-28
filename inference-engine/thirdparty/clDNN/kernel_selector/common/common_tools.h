@@ -67,7 +67,6 @@ inline uint8_t GetActivationAdditionalParamsNumber(ActivationFunction func) {
             break;
         case ActivationFunction::RELU_NEGATIVE_SLOPE:
         case ActivationFunction::ELU:
-        case ActivationFunction::RELU_NEGATIVE_SLOPE_GRAD:
             paramsNum = 1;
             break;
         default:

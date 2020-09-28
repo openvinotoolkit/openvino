@@ -103,7 +103,7 @@ class SsdPatternDetectionOutputReplacer(FrontReplacementSubgraph):
 
     def reshape_priorboxes(self, concat):
         for i, node in concat.in_nodes().items():
-            reshape_node = create_op_node_with_second_input(concat.graph, Reshape, int64_array([0, 2, -1]),
+            reshape_node = create_op_node_with_second_input(concat.graph, Reshape, int64_array([1, -1]),
                                                             dict(name=concat.name + str(i) + '/PriorBoxReshape_'))
             node.out_port(0).disconnect()
             node.out_port(0).connect(reshape_node.in_port(0))

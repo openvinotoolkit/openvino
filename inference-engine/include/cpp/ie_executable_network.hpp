@@ -18,9 +18,9 @@
 #include "cpp/ie_cnn_network.h"
 #include "cpp/ie_infer_request.hpp"
 #include "cpp/ie_memory_state.hpp"
+#include "ie_iexecutable_network.hpp"
 #include "details/ie_exception_conversion.hpp"
 #include "details/ie_so_loader.h"
-#include "ie_iexecutable_network.hpp"
 
 namespace InferenceEngine {
 
@@ -148,20 +148,6 @@ public:
     void Export(std::ostream& networkModel) {
         CALL_STATUS_FNC(Export, networkModel);
     }
-
-    /**
-     * @deprecated Use ExecutableNetwork::GetExecGraphInfo to get information about an internal graph.
-     * @copybrief IExecutableNetwork::GetMappedTopology
-     *
-     * Wraps IExecutableNetwork::GetMappedTopology.
-     * @param deployedTopology Map of PrimitiveInfo objects that represent the deployed topology
-     */
-    IE_SUPPRESS_DEPRECATED_START
-    INFERENCE_ENGINE_DEPRECATED("Use ExecutableNetwork::GetExecGraphInfo to get information about an internal graph")
-    void GetMappedTopology(std::map<std::string, std::vector<PrimitiveInfo::Ptr>>& deployedTopology) {
-        CALL_STATUS_FNC(GetMappedTopology, deployedTopology);
-    }
-    IE_SUPPRESS_DEPRECATED_END
 
     /**
      * @brief cast operator is used when this wrapper initialized by LoadNetwork

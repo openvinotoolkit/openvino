@@ -140,6 +140,7 @@ ncStatus_t MyriadExecutor::bootNextDevice(std::vector<DevicePtr> &devicePool,
     ncDeviceOpenParams_t deviceOpenParams = {};
     deviceOpenParams.watchdogHndl = _mvnc->watchdogHndl();
     deviceOpenParams.watchdogInterval = config.watchdogInterval().count();
+    deviceOpenParams.memoryType = checked_cast<char>(config.memoryType());
     deviceOpenParams.customFirmwareDirectory = dirName.c_str();
 
     // Open new device with specific path to FW folder

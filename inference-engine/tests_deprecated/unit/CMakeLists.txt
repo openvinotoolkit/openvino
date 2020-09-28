@@ -13,17 +13,10 @@ SET (CMAKE_SKIP_RPATH OFF)
 
 file(GLOB
         TEST_SRC
-        graph_tools/*.cpp
-        http_client/*.cpp
-        inference_engine_tests/*.cpp
-        inference_engine_tests/cpp_interfaces/*.cpp
-        inference_engine_tests/normalization/*.cpp
-        inference_engine_tests/transformations/*.cpp
-        inference_engine_tests/transformations/*.hpp
         cnn_network/*.cpp
-        topology_verification_tests/*.cpp
+        graph_tools/*.cpp
+        inference_engine_tests/*.cpp
         stress_tests/*.cpp
-        cpp_api/*.cpp
         )
 
 if (ENABLE_GNA)
@@ -66,7 +59,6 @@ if (ENABLE_MKL_DNN)
     file(GLOB
             MKLDNN_TESTS
             engines/mkldnn/*.cpp
-            engines/mkldnn/normalizer/*.cpp
             engines/mkldnn/graph/layers/extensions/*.cpp
             engines/mkldnn/graph/layers/internal/*.cpp
             engines/mkldnn/graph/structure/*.cpp
@@ -149,8 +141,7 @@ target_link_libraries(${TARGET_NAME} PRIVATE
     # dynamic libraries
     inference_engine_lp_transformations
     inference_engine_transformations
-    inference_engine_ir_reader
-    ${CMAKE_DL_LIBS})
+    inference_engine_ir_v7_reader)
 
 if(TARGET libGNAStubs)
     target_link_libraries(${TARGET_NAME} PRIVATE libGNAStubs)

@@ -7,24 +7,20 @@
 #include <vector>
 #include <memory>
 
-#include <ie_api.h>
+#include <transformations_visibility.hpp>
 
 #include <ngraph/pass/graph_rewrite.hpp>
 
 namespace ngraph {
 namespace pass {
 
-class INFERENCE_ENGINE_API_CLASS(ConvertNegative);
+class TRANSFORMATIONS_API ConvertNegative;
 
 }  // namespace pass
 }  // namespace ngraph
 
-class ngraph::pass::ConvertNegative: public ngraph::pass::GraphRewrite {
+class ngraph::pass::ConvertNegative: public ngraph::pass::MatcherPass {
 public:
-    ConvertNegative() : GraphRewrite() {
-        convert_negative();
-    }
-
-private:
-    void convert_negative();
+    NGRAPH_RTTI_DECLARATION;
+    ConvertNegative();
 };

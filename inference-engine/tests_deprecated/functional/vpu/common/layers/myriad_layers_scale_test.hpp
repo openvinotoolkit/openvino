@@ -103,7 +103,7 @@ class myriadLayersTestsScale_smoke: public myriadLayersTests_nightly,
 
 TEST_P(myriadLayersTestsScale_smoke, TestsScale)
 {
-    _config[VPU_CONFIG_KEY(DETECT_NETWORK_BATCH)] = CONFIG_VALUE(NO);
+    _config[InferenceEngine::MYRIAD_DETECT_NETWORK_BATCH] = CONFIG_VALUE(NO);
 
     SizeVector p = std::get<0>(::testing::WithParamInterface<TestScaleShift>::GetParam());
     bool biasAdd = std::get<1>(::testing::WithParamInterface<TestScaleShift>::GetParam());

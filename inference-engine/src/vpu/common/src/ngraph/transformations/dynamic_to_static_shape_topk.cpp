@@ -6,6 +6,7 @@
 #include "vpu/ngraph/operations/static_shape_topk.hpp"
 #include "vpu/ngraph/operations/dynamic_shape_resolver.hpp"
 
+#include "vpu/ngraph/utilities.hpp"
 #include <vpu/utils/error.hpp>
 #include "ngraph/graph_util.hpp"
 
@@ -77,7 +78,10 @@ void dynamicToStaticShapeTopK(std::shared_ptr<ngraph::Node> target) {
                 topk->get_sort_type(),
                 topk->get_index_element_type());
 
-    for (auto &output : target->outputs())
-        output.replace(std::make_shared<ngraph::vpu::op::DynamicShapeResolver>(new_topk->output(output.get_index()), output_shape));
+    for (auto &output : target->outputs()) {
+        const auto outDSR = std::make_shared<ngraph::vpu::op::DynamicShapeResolver>(new_topk->output(output.get_index()), output_shape);
+        outDSR->set_friendly_name(topk->get_friendly_name() + "." + std::to_string(output.get_index()));
+        output.replace(outDSR);
+    }
 }
 }  // namespace vpu

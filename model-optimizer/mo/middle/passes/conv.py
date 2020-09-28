@@ -22,10 +22,8 @@ from mo.front.common.layout import get_batch_dim, get_features_dim
 from mo.front.extractor import add_attrs_props
 from mo.front.extractor import update_ie_fields
 from mo.graph.graph import Node, Graph
-from mo.middle.passes.fusing.helpers import get_value_id, get_tensor_id, get_tensor_in_port, get_value_in_port
+from mo.middle.passes.fusing.helpers import get_value_id, get_tensor_id
 from mo.middle.pattern_match import apply_pattern
-from mo.ops.const import Const
-from mo.ops.scale_shift import ScaleShiftOp
 
 
 def pad_op_transform(graph: Graph, match: dict):
@@ -164,34 +162,6 @@ def muladd_to_scaleshift_action(graph: Graph, match: dict):
     return
 
 
-def convert_muladd_to_scaleshift(graph: Graph):
-    if hasattr(graph, 'graph') and 'cmd_params' in graph.graph and graph.graph['cmd_params'].generate_experimental_IR_V10:
-        return
-    # TODO nGraph remove BEGIN
-    apply_pattern(
-        graph,
-        nodes=[
-            ('input', dict(kind='data')),
-            ('weights', dict(kind='data')),
-            ('bias', dict(kind='data')),
-            ('mout', dict(kind='data')),
-            ('output', dict(kind='data')),
-            ('mul', dict(kind='op', op='Mul')),
-            ('add', dict(kind='op', op='Add'))
-        ],
-        edges=[
-            ('weights', 'mul'),
-            ('input', 'mul'),
-            ('mul', 'mout'),
-            ('mout', 'add'),
-            ('bias', 'add'),
-            ('add', 'output'),
-        ],
-        action=muladd_to_scaleshift_action
-    )
-    # TODO nGraph remove END
-
-
 def batch_norm_fuse_action(graph: Graph, match: dict):
     """
     Multiply convolution kernel by batch normalization coefficient and remove mul op.
@@ -229,56 +199,3 @@ def batch_norm_fuse(graph: Graph):
         action=batch_norm_fuse_action
     )
     return graph
-
-
-def convert_add_or_mul_to_scaleshift(graph: Graph):
-    if graph.graph['cmd_params'].generate_experimental_IR_V10:
-        return
-    graph.strict_mode = False
-    for node in graph.get_op_nodes():
-        if node.soft_get('op') in ['Add', 'Mul'] and len(node.in_ports()) == 2:
-
-            tensor_port, value_port = get_tensor_in_port(node), get_value_in_port(node)
-
-            if tensor_port is not None and not tensor_port.disconnected() and value_port is not None and \
-                    node.soft_get('can_be_scaleshift') is not False:
-                original_value = value_port.data.get_value()
-                if original_value.size == 1:
-                    continue
-
-                # Remove 1 dims from value array (should be 1D)
-                value_port.data.set_value(np.squeeze(original_value))  # Updated shapes accordingly
-
-                # Create ScaleShift operation
-                scsh_op = ScaleShiftOp(graph, dict(name='ScaleShift/{}'.format(node.name))).create_node()
-
-                if node.op == 'Mul':
-                    # Create fake biases for scale shift node
-                    const_op = Const(graph, dict(name='{}/biases'.format(scsh_op.name),
-                                                 value=np.zeros(value_port.data.get_shape(), dtype=np.float32),
-                                                 shape=np.array(value_port.data.get_shape()),
-                                                 )).create_node()
-                    const_op.out_port(0).connect(scsh_op.in_port(2))
-                    scsh_op.in_port(2).bin = 'biases'
-
-                    # Reconnect input and weights to scale shift node
-                    tensor_port.get_connection().set_destination(scsh_op.in_port(0))
-                    value_port.get_connection().set_destination(scsh_op.in_port(1))
-                else:
-                    # Create fake weights for scale shift node
-                    const_op = Const(graph, dict(name='{}/weights'.format(scsh_op.name),
-                                                 value=np.ones(value_port.data.get_shape(), dtype=np.float32),
-                                                 shape=np.array(value_port.data.get_shape()),
-                                                 )).create_node()
-
-                    # Reconnect input and biases to scale shift node
-                    tensor_port.get_connection().set_destination(scsh_op.in_port(0))
-                    const_op.out_port(0).connect(scsh_op.in_port(1))
-                    value_port.get_connection().set_destination(scsh_op.in_port(2))
-                    scsh_op.in_port(2).bin = 'biases'
-
-                node.out_port(0).get_connection().set_source(scsh_op.out_port(0))
-
-                # Set bin attribute to ScaleShift input ports
-                scsh_op.in_port(1).bin = 'weights'
-    graph.strict_mode = True

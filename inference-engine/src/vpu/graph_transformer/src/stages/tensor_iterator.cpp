@@ -6,11 +6,11 @@
 #include "vpu/stages/iteration_rule.hpp"
 #include "vpu/utils/auto_scope.hpp"
 #include "vpu/compile_env.hpp"
-#include "graph_transformer.h"
+#include <legacy/graph_transformer.h>
 #include "vpu/model/data_contents/ie_blob_content.hpp"
 
-#include "ie_layers_internal.hpp"
-#include "net_pass.h"
+#include <legacy/ie_layers_internal.hpp>
+#include <legacy/net_pass.h>
 
 #include <unordered_map>
 #include <memory>
@@ -63,7 +63,7 @@ bool isConst(const ie::CNNLayerPtr& layer) {
 }
 
 bool isConst(const ie::DataPtr& data) {
-    const auto creator = data->getCreatorLayer().lock();
+    const auto creator = getCreatorLayer(data).lock();
     return creator != nullptr && isConst(creator);
 }
 
@@ -96,7 +96,7 @@ void FrontEnd::parseTensorIterator(const Model& model, const ie::CNNLayerPtr& la
     auto createConstData = [&](const ie::DataPtr& original) {
         VPU_THROW_UNLESS(isConst(original), "VPU const data object can be created only from const IE data object");
 
-        const auto& creator = original->getCreatorLayer().lock();
+        const auto& creator = getCreatorLayer(original).lock();
         const auto& descriptor = createDescriptor(original->getTensorDesc());
         const auto& blob = ieBlobContent(creator->blobs.begin()->second, descriptor.type());
 

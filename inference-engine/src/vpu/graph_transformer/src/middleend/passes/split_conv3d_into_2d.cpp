@@ -115,7 +115,7 @@ void PassImpl::run(const Model& model) {
             continue;
         }
 
-        int IN = inputDesc.dim(Dim::N);
+        int I_N = inputDesc.dim(Dim::N);
         int IC = inputDesc.dim(Dim::C);
         int ID = inputDesc.dim(Dim::D);
         int IH = inputDesc.dim(Dim::H);
@@ -144,7 +144,7 @@ void PassImpl::run(const Model& model) {
                          "but: KO=%d, OC=%d", KO, OC);
 
         // check spacial dims of output
-        int   inputShape[] = {IW, IH, ID, IC, IN};
+        int   inputShape[] = {IW, IH, ID, IC, I_N};
         int  outputShape[] = {OW, OH, OD, OC, ON};
         int weightsShape[] = {KW, KH, KD, KI, KO};
         for (int i = 0; i < 3; i++) {
@@ -311,7 +311,7 @@ void PassImpl::run(const Model& model) {
                 // create subInputs[i], if it was not created previously
                 if (subInputs[i] == nullptr) {
                     auto postfix = formatString("@input_depth=%d/%d", i + 1, ID);
-                    DataDesc subInputsDesc(inputDesc.type(), DimsOrder::NCHW, {IW, IH, IC, IN});
+                    DataDesc subInputsDesc(inputDesc.type(), DimsOrder::NCHW, {IW, IH, IC, I_N});
                     subInputs[i] = model->duplicateData(input, postfix, subInputsDesc);
                 }
 
@@ -378,7 +378,7 @@ void PassImpl::run(const Model& model) {
                 continue;  // this subInputs[d] is not needed
             }
             auto postfix = formatString("@input_depth=%d/%d", d + 1, ID);
-            DataDesc subInputsDesc3D(inputDesc.type(), DimsOrder::NCDHW, {IW, IH, 1, IC, IN});
+            DataDesc subInputsDesc3D(inputDesc.type(), DimsOrder::NCDHW, {IW, IH, 1, IC, I_N});
             subInputs3D[d] = model->duplicateData(input, postfix + "@3D", subInputsDesc3D);
             _stageBuilder->addReshapeStage(model,
                                            stage->name() + "@split",

@@ -7,24 +7,20 @@
 #include <vector>
 #include <memory>
 
-#include <ie_api.h>
+#include <transformations_visibility.hpp>
 
 #include <ngraph/pass/graph_rewrite.hpp>
 
 namespace ngraph {
 namespace pass {
 
-class INFERENCE_ENGINE_API_CLASS(ConvertMod);
+class TRANSFORMATIONS_API ConvertMod;
 
 }  // namespace pass
 }  // namespace ngraph
 
-class ngraph::pass::ConvertMod: public ngraph::pass::GraphRewrite {
+class ngraph::pass::ConvertMod: public ngraph::pass::MatcherPass {
 public:
-    ConvertMod() : GraphRewrite() {
-        convert_mod();
-    }
-
-private:
-    void convert_mod();
+    NGRAPH_RTTI_DECLARATION;
+    ConvertMod();
 };

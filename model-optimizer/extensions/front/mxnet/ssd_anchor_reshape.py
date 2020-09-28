@@ -24,7 +24,6 @@ from mo.front.common.replacement import FrontReplacementSubgraph
 from mo.graph.graph import Graph, Node
 from mo.middle.pattern_match import find_pattern_matches
 from mo.ops.const import Const
-from mo.ops.crop import Crop
 
 
 class SsdPatternAnchorReshape(FrontReplacementSubgraph):

@@ -51,6 +51,8 @@ private:
     mkldnn::memory::data_type dw_conv_in_dt = mkldnn::memory::data_type::data_undef;
     std::vector<MKLDNNMemoryPtr> PostOpsIntBlobMemory;
 
+    int baseInputsNumber;
+
     float pad_value = 0.f;
 };
 

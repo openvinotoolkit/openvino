@@ -6,6 +6,7 @@
 
 #include "vpu/ngraph/operations/static_shape_nonzero.hpp"
 #include "vpu/ngraph/operations/dynamic_shape_resolver.hpp"
+#include "vpu/ngraph/utilities.hpp"
 #include "vpu/utils/error.hpp"
 
 #include "ngraph/graph_util.hpp"
@@ -21,11 +22,10 @@ void dynamicToStaticShapeNonZero(std::shared_ptr<ngraph::Node> node) {
                      node->get_friendly_name(), node->get_type_info(), ngraph::op::v3::NonZero::type_info);
 
     auto staticShapeNonZero = std::make_shared<ngraph::vpu::op::StaticShapeNonZero>(nonZero->input(0).get_source_output(), nonZero->get_output_type());
-    staticShapeNonZero->set_friendly_name(nonZero->get_friendly_name() + "/static_shape");
 
     auto dynamicShapeResolver = std::make_shared<ngraph::vpu::op::DynamicShapeResolver>(
         staticShapeNonZero->output(0), staticShapeNonZero->output(1));
-    dynamicShapeResolver->set_friendly_name(nonZero->get_friendly_name() + "/resolve_shape");
+    dynamicShapeResolver->set_friendly_name(nonZero->get_friendly_name());
 
     ngraph::replace_node(std::move(nonZero), std::move(dynamicShapeResolver));
 }

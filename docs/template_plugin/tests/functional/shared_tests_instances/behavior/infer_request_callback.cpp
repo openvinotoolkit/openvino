@@ -6,24 +6,23 @@
 
 #include "behavior/infer_request_callback.hpp"
 
-using namespace LayerTestsDefinitions;
+using namespace BehaviorTestsDefinitions;
 
 namespace {
+
 const std::vector<InferenceEngine::Precision> netPrecisions = {
-        InferenceEngine::Precision::FP32,
-        InferenceEngine::Precision::FP16
+    InferenceEngine::Precision::FP32,
+    InferenceEngine::Precision::FP16
 };
 
 const std::vector<std::map<std::string, std::string>> configs = {
-        {{{}}}
+    {}
 };
-
-const std::vector<std::string> devices{CommonTestUtils::DEVICE_CPU};
 
 INSTANTIATE_TEST_CASE_P(smoke_BehaviorTests, CallbackTests,
         ::testing::Combine(
             ::testing::ValuesIn(netPrecisions),
-            ::testing::ValuesIn(devices),
+            ::testing::Values("TEMPLATE"),
             ::testing::ValuesIn(configs)),
         CallbackTests::getTestCaseName);
 }  // namespace

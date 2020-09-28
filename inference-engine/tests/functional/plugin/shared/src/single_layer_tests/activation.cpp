@@ -6,8 +6,6 @@
 #include <tuple>
 #include <string>
 #include <vector>
-#include <functional>
-#include <cmath>
 #include <memory>
 #include <functional_test_utils/skip_tests_config.hpp>
 
@@ -15,8 +13,6 @@
 #include "ie_precision.hpp"
 
 #include "common_test_utils/common_utils.hpp"
-#include "functional_test_utils/blob_utils.hpp"
-#include "functional_test_utils/plugin_cache.hpp"
 #include "functional_test_utils/layer_test_utils.hpp"
 
 #include "single_layer_tests/activation.hpp"
@@ -24,55 +20,78 @@
 namespace LayerTestsDefinitions {
 
 std::string ActivationLayerTest::getTestCaseName(const testing::TestParamInfo<activationParams> &obj) {
-    InferenceEngine::Precision inputPrecision, netPrecision;
-    InferenceEngine::SizeVector inputShapes;
+    InferenceEngine::Precision netPrecision;
+    std::pair<std::vector<size_t>, std::vector<size_t>> shapes;
     std::string targetDevice;
-    ngraph::helpers::ActivationTypes activationType;
-    std::tie(activationType,
-             inputPrecision,
-             netPrecision,
-             inputShapes,
-             targetDevice) = obj.param;
+    std::pair<ngraph::helpers::ActivationTypes, std::vector<float>> activationDecl;
+    std::tie(activationDecl, netPrecision, shapes, targetDevice) = obj.param;
 
     std::ostringstream result;
     const char separator = '_';
-    result << activationNames[activationType] << separator;
-    result << "IS=" << CommonTestUtils::vec2str(inputShapes) << separator;
-    result << "inPRC=" << inputPrecision.name() << separator;
+    result << activationNames[activationDecl.first] << separator;
+    result << "IS=" << CommonTestUtils::vec2str(shapes.first) << separator;
+    result << "AS=" << CommonTestUtils::vec2str(shapes.second) << separator;
+    result << "ConstantsValue=" << CommonTestUtils::vec2str(activationDecl.second) << separator;
     result << "netPRC=" << netPrecision.name() << separator;
     result << "targetDevice=" << targetDevice;
     return result.str();
 }
 
 void ActivationLayerTest::SetUp() {
-    std::tie(activationType, inputPrecision, netPrecision, inputShapes, targetDevice) = GetParam();
+    InferenceEngine::Precision netPrecision;
+    std::pair<std::vector<size_t>, std::vector<size_t>> shapes;
+    std::pair<ngraph::helpers::ActivationTypes, std::vector<float>> activationDecl;
+    std::tie(activationDecl, netPrecision, shapes, targetDevice) = GetParam();
+
+    activationType = activationDecl.first;
+    auto constantsValue = activationDecl.second;
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
-    auto params = ngraph::builder::makeParams(ngPrc, {inputShapes});
-    auto activation = ngraph::builder::makeActivation(params[0], ngPrc, activationType);
-    fnPtr = std::make_shared<ngraph::Function>(ngraph::NodeVector{activation}, params);
+    auto params = ngraph::builder::makeParams(ngPrc, {shapes.first});
+    auto activation = ngraph::builder::makeActivation(params[0], ngPrc, activationType, shapes.second, constantsValue);
+
+    function = std::make_shared<ngraph::Function>(ngraph::NodeVector{activation}, params);
 }
 
-TEST_P(ActivationLayerTest, CompareWithRefs) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
-    InferenceEngine::CNNNetwork cnnNet(fnPtr);
-    setNetInOutPrecision(cnnNet, inputPrecision);
-    std::string inputName = cnnNet.getInputsInfo().begin()->first;
-    std::string outputName = cnnNet.getOutputsInfo().begin()->first;
-    auto ie = PluginCache::get().ie();
-    auto execNet = ie->LoadNetwork(cnnNet, targetDevice);
-    auto a = execNet.GetInputsInfo();
-    auto req = execNet.CreateInferRequest();
+InferenceEngine::Blob::Ptr ActivationLayerTest::GenerateInput(const InferenceEngine::InputInfo &info) const {
+    bool inPrcSigned = function->get_parameters()[0]->get_element_type().is_signed();
+    int32_t data_start_from;
+    uint32_t data_range;
 
-    uint32_t data_range = 20;
-    int32_t data_start_from = -10;
-    if (!inputPrecision.isSigned()) {
+    switch (activationType) {
+        case ngraph::helpers::ActivationTypes::Log: {
+            data_start_from = 1;
+            data_range = 20;
+            break;
+        }
+        case ngraph::helpers::ActivationTypes::Sqrt: {
+            data_start_from = 0;
+            data_range = 20;
+            break;
+        }
+        case ngraph::helpers::ActivationTypes::Asin: {
+            data_start_from = -1;
+            data_range = 2;
+            break;
+        }
+        case ngraph::helpers::ActivationTypes::Acos: {
+            data_start_from = -1;
+            data_range = 2;
+            break;
+        }
+        default: {
+            data_start_from = -10;
+            data_range = 20;
+            break;
+        }
+    }
+    if (!inPrcSigned) {
         data_range = 15;
         data_start_from = 0;
     }
     if (activationType == ngraph::helpers::ActivationTypes::Exp && targetDevice == CommonTestUtils::DEVICE_GNA) {
         const double max_result_on_GNA = 15.9;
         const double exp_inverse = std::round(std::log(max_result_on_GNA));
-        if (inputPrecision.isSigned()) {
+        if (inPrcSigned) {
             data_range = exp_inverse * 2.0;
             data_start_from = -exp_inverse;
         } else {
@@ -80,37 +99,108 @@ TEST_P(ActivationLayerTest, CompareWithRefs) {
             data_start_from = 0;
         }
     }
+    return FuncTestUtils::createAndFillBlob(info.getTensorDesc(), data_range,
+                                            data_start_from,
+                                            32768);
+}
 
-    InferenceEngine::Blob::Ptr inBlob = FuncTestUtils::createAndFillBlob({inputPrecision,
-                                                                          inputShapes,
-                                                                          InferenceEngine::TensorDesc::getLayoutByDims(
-                                                                                  inputShapes)},
-                                                                         data_range,
-                                                                         data_start_from,
-                                                                                          32768);
-    req.SetBlob(inputName, inBlob);
-    req.Infer();
-    auto outBlob = req.GetBlob(outputName);
-    std::vector<const float *> inRawData;
-    InferenceEngine::Blob::Ptr castedBlob = inBlob;
-    if (inputPrecision != InferenceEngine::Precision::FP32) {
-        castedBlob = FuncTestUtils::copyBlobWithCast<InferenceEngine::Precision::FP32>(inBlob);
+ngraph::ParameterVector ActivationParamLayerTest::createActivationParams(ngraph::element::Type ngPrc, std::vector<size_t> inShape) {
+    switch (activationType) {
+        case ngraph::helpers::ActivationTypes::PReLu: {
+            auto negativeSlopeParam = ngraph::builder::makeParams(ngPrc, {inShape});
+            negativeSlopeParam[0]->set_friendly_name("negativeSlope");
+            return negativeSlopeParam;
+        }
+        case ngraph::helpers::ActivationTypes::LeakyRelu: {
+            auto leakySlopeParam = ngraph::builder::makeParams(ngPrc, {inShape});
+            leakySlopeParam[0]->set_friendly_name("leakySlope");
+            return leakySlopeParam;
+        }
+        case ngraph::helpers::ActivationTypes::HardSigmoid: {
+            auto hardSigmoidParam = ngraph::builder::makeParams(ngPrc, {inShape, inShape});
+            hardSigmoidParam[0]->set_friendly_name("alpha");
+            hardSigmoidParam[1]->set_friendly_name("beta");
+            return hardSigmoidParam;
+        }
+        case ngraph::helpers::ActivationTypes::Selu: {
+            auto seluParam = ngraph::builder::makeParams(ngPrc, {inShape, inShape});
+            seluParam[0]->set_friendly_name("alpha");
+            seluParam[1]->set_friendly_name("lambda");
+            return seluParam;
+        }
+        default:
+            THROW_IE_EXCEPTION << "Unsupported activation type for Params test type";
     }
-    inRawData.push_back(castedBlob->cbuffer().as<float *>());
+}
 
+void ActivationParamLayerTest::generateActivationBlob(std::vector<float> constantsValue) {
+    switch (activationType) {
+        case ngraph::helpers::ActivationTypes::PReLu: {
+            auto blobNegativeSlope = inferRequest.GetBlob("negativeSlope");
+            float negativeSlope = constantsValue[0];
+            blobNegativeSlope = FuncTestUtils::createAndFillBlobWithFloatArray(blobNegativeSlope->getTensorDesc(), &negativeSlope, 1);
+        }
+        case ngraph::helpers::ActivationTypes::LeakyRelu: {
+            auto blobLeakySlope = inferRequest.GetBlob("leakySlope");
+            float leakySlope = constantsValue[0];
+            blobLeakySlope = FuncTestUtils::createAndFillBlobWithFloatArray(blobLeakySlope->getTensorDesc(), &leakySlope, 1);
+        }
+        case ngraph::helpers::ActivationTypes::HardSigmoid: {
+            auto blobHardSigmoidAlpha = inferRequest.GetBlob("alpha");
+            auto blobHardSigmoidBeta = inferRequest.GetBlob("beta");
+            float alpha = constantsValue[0], beta = constantsValue[1];
+            blobHardSigmoidAlpha = FuncTestUtils::createAndFillBlobWithFloatArray(blobHardSigmoidAlpha->getTensorDesc(), &alpha, 1);
+            blobHardSigmoidBeta = FuncTestUtils::createAndFillBlobWithFloatArray(blobHardSigmoidBeta->getTensorDesc(), &beta, 1);
+        }
+        case ngraph::helpers::ActivationTypes::Selu: {
+            auto blobHardSigmoidAlpha = inferRequest.GetBlob("alpha");
+            auto blobHardSigmoidLambda = inferRequest.GetBlob("lambda");
+            float alpha = constantsValue[0], lambda = constantsValue[1];
+            blobHardSigmoidAlpha = FuncTestUtils::createAndFillBlobWithFloatArray(blobHardSigmoidAlpha->getTensorDesc(), &alpha, 1);
+            blobHardSigmoidLambda = FuncTestUtils::createAndFillBlobWithFloatArray(blobHardSigmoidLambda->getTensorDesc(), &lambda, 1);
+        }
+        default:
+            THROW_IE_EXCEPTION << "Unsupported activation type for Params test type";
+    }
+}
+
+void ActivationParamLayerTest::Infer() {
+    inferRequest = executableNetwork.CreateInferRequest();
+    inputs.clear();
+    auto blobInput = inferRequest.GetBlob("Input");
+    blobInput = FuncTestUtils::createAndFillBlobFloat(blobInput->getTensorDesc());
+
+    generateActivationBlob(constantsValue);
+
+    inferRequest.Infer();
+}
+
+
+void ActivationParamLayerTest::SetUp() {
+    InferenceEngine::Precision netPrecision;
+    std::pair<std::vector<size_t>, std::vector<size_t>> shapes;
+    std::pair<ngraph::helpers::ActivationTypes, std::vector<float>> activationDecl;
+    std::tie(activationDecl, netPrecision, shapes, targetDevice) = GetParam();
+
+    activationType = activationDecl.first;
+    constantsValue = activationDecl.second;
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
-    convertFuncToF32(fnPtr, netPrecision);
-    auto refOutData = ngraph::helpers::inferFnWithInterp<ngraph::element::Type_t::f32>(fnPtr, inRawData);
-    float thr1, thr2;
-    FuncTestUtils::GetComparisonThreshold(netPrecision, thr1, thr2);
+    auto params = ngraph::builder::makeParams(ngPrc, {shapes.first});
+    auto activationParams = createActivationParams(ngPrc);
 
-    size_t outElementsCount = std::accumulate(begin(fnPtr->get_output_shape(0)), end(fnPtr->get_output_shape(0)), 1,
-                                              std::multiplies<size_t>());
-    FuncTestUtils::compareRawBuffers(outBlob->cbuffer().as<float *>(), *refOutData[0],
-                                                     outElementsCount, outElementsCount,
-                                                     FuncTestUtils::CompareType::ABS_AND_REL,
-                                                     thr1, thr2);
-    fnPtr.reset();
+    params[0]->set_friendly_name("Input");
+    params.insert(params.end(), activationParams.begin(), activationParams.end());
+
+    auto activation = ngraph::builder::makeActivation(params, ngPrc, activationType);
+    function = std::make_shared<ngraph::Function>(ngraph::NodeVector{activation}, params);
+}
+
+TEST_P(ActivationLayerTest, CompareWithRefs) {
+    Run();
+}
+
+TEST_P(ActivationParamLayerTest, CompareWithRefs) {
+    Run();
 }
 
 }  // namespace LayerTestsDefinitions

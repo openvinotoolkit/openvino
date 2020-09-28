@@ -7,6 +7,22 @@
 # define MKLDNN_EXTENSION_NODE(__prim, __type)
 #endif
 
+#if GraphGen(Gen_EmbeddingBagOffsetsSum)
+MKLDNN_EXTENSION_NODE(EmbeddingBagOffsetsSumImpl, EmbeddingBagOffsetsSum);
+#endif
+
+#if GraphGen(Gen_EmbeddingBagPackedSum)
+MKLDNN_EXTENSION_NODE(EmbeddingBagPackedSumImpl, EmbeddingBagPackedSum);
+#endif
+
+#if GraphGen(Gen_EmbeddingSegmentsSum)
+MKLDNN_EXTENSION_NODE(EmbeddingSegmentsSumImpl, EmbeddingSegmentsSum);
+#endif
+
+#if GraphGen(Gen_CTCLoss)
+MKLDNN_EXTENSION_NODE(CTCLossImpl, CTCLoss);
+#endif
+
 #if GraphGen(Gen_PriorBox)
 MKLDNN_EXTENSION_NODE(PriorBoxImpl, PriorBox);
 #endif
@@ -91,8 +107,8 @@ MKLDNN_EXTENSION_NODE(MathImpl, Sin);
 MKLDNN_EXTENSION_NODE(MathImpl, Sinh);
 #endif
 
-#if GraphGen(Gen_Softplus)
-MKLDNN_EXTENSION_NODE(MathImpl, Softplus);
+#if GraphGen(Gen_SoftPlus)
+MKLDNN_EXTENSION_NODE(MathImpl, SoftPlus);
 #endif
 
 #if GraphGen(Gen_Softsign)
@@ -169,10 +185,6 @@ MKLDNN_EXTENSION_NODE(PSROIPoolingImpl, PSROIPooling);
 
 #if GraphGen(Gen_DepthToSpace)
 MKLDNN_EXTENSION_NODE(DepthToSpaceImpl, DepthToSpace);
-#endif
-
-#if GraphGen(Gen_ScatterUpdate)
-MKLDNN_EXTENSION_NODE(ScatterImpl, ScatterUpdate);
 #endif
 
 #if GraphGen(Gen_OneHot)
@@ -269,54 +281,6 @@ MKLDNN_EXTENSION_NODE(RangeImpl, Range);
 
 #if GraphGen(Gen_Select)
 MKLDNN_EXTENSION_NODE(SelectImpl, Select);
-#endif
-
-#if GraphGen(Gen_ReduceAnd)
-MKLDNN_EXTENSION_NODE(ReduceImpl, ReduceAnd);
-#endif
-
-#if GraphGen(Gen_ReduceL1)
-MKLDNN_EXTENSION_NODE(ReduceImpl, ReduceL1);
-#endif
-
-#if GraphGen(Gen_ReduceL2)
-MKLDNN_EXTENSION_NODE(ReduceImpl, ReduceL2);
-#endif
-
-#if GraphGen(Gen_ReduceLogSum)
-MKLDNN_EXTENSION_NODE(ReduceImpl, ReduceLogSum);
-#endif
-
-#if GraphGen(Gen_ReduceLogSumExp)
-MKLDNN_EXTENSION_NODE(ReduceImpl, ReduceLogSumExp);
-#endif
-
-#if GraphGen(Gen_ReduceMax)
-MKLDNN_EXTENSION_NODE(ReduceImpl, ReduceMax);
-#endif
-
-#if GraphGen(Gen_ReduceMean)
-MKLDNN_EXTENSION_NODE(ReduceImpl, ReduceMean);
-#endif
-
-#if GraphGen(Gen_ReduceMin)
-MKLDNN_EXTENSION_NODE(ReduceImpl, ReduceMin);
-#endif
-
-#if GraphGen(Gen_ReduceOr)
-MKLDNN_EXTENSION_NODE(ReduceImpl, ReduceOr);
-#endif
-
-#if GraphGen(Gen_ReduceProd)
-MKLDNN_EXTENSION_NODE(ReduceImpl, ReduceProd);
-#endif
-
-#if GraphGen(Gen_ReduceSum)
-MKLDNN_EXTENSION_NODE(ReduceImpl, ReduceSum);
-#endif
-
-#if GraphGen(Gen_ReduceSumSquare)
-MKLDNN_EXTENSION_NODE(ReduceImpl, ReduceSumSquare);
 #endif
 
 #if GraphGen(Gen_GatherTree)

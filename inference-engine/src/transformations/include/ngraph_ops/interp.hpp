@@ -8,7 +8,7 @@
 #include <memory>
 #include <string>
 
-#include <ie_api.h>
+#include <transformations_visibility.hpp>
 
 #include "ngraph/op/op.hpp"
 
@@ -28,7 +28,7 @@ typedef struct {
     int pad_end = 0;
 } InterpolateIEAttrs;
 
-class INFERENCE_ENGINE_API_CLASS(Interp) : public Op {
+class TRANSFORMATIONS_API Interp : public Op {
 public:
     static constexpr NodeTypeInfo type_info{"Interp", 1};
     const NodeTypeInfo& get_type_info() const override { return type_info; }
@@ -37,7 +37,7 @@ public:
 
     void validate_and_infer_types() override;
 
-    std::shared_ptr<Node> copy_with_new_args(const NodeVector& new_args) const override;
+    std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
 
     InterpolateIEAttrs get_attrs() { return m_attrs; }
 
@@ -51,7 +51,7 @@ typedef struct {
     std::string mode = "";
 } ResampleIEAttrs;
 
-class INFERENCE_ENGINE_API_CLASS(ResampleV2) : public Op {
+class TRANSFORMATIONS_API ResampleV2 : public Op {
 public:
     static constexpr NodeTypeInfo type_info{"ResampleV2", 1};
     const NodeTypeInfo& get_type_info() const override { return type_info; }
@@ -65,7 +65,7 @@ public:
 
     void validate_and_infer_types() override;
 
-    std::shared_ptr<Node> copy_with_new_args(const NodeVector& new_args) const override;
+    std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
 
     ResampleIEAttrs get_attrs() { return m_attrs; }
 private:

@@ -38,6 +38,16 @@ class AcosExtractor(FrontExtractorOp):
         return cls.enabled
 
 
+class AcoshExtractor(FrontExtractorOp):
+    op = 'Acosh'
+    enabled = True
+
+    @classmethod
+    def extract(cls, node):
+        Acosh.update_node_stat(node)
+        return cls.enabled
+
+
 class AsinExtractor(FrontExtractorOp):
     op = 'Asin'
     enabled = True
@@ -48,6 +58,16 @@ class AsinExtractor(FrontExtractorOp):
         return cls.enabled
 
 
+class AsinhExtractor(FrontExtractorOp):
+    op = 'Asinh'
+    enabled = True
+
+    @classmethod
+    def extract(cls, node):
+        Asinh.update_node_stat(node)
+        return cls.enabled
+
+
 class AtanExtractor(FrontExtractorOp):
     op = 'Atan'
     enabled = True
@@ -55,6 +75,16 @@ class AtanExtractor(FrontExtractorOp):
     @classmethod
     def extract(cls, node):
         Atan.update_node_stat(node)
+        return cls.enabled
+
+
+class AtanhExtractor(FrontExtractorOp):
+    op = 'Atanh'
+    enabled = True
+
+    @classmethod
+    def extract(cls, node):
+        Atanh.update_node_stat(node)
         return cls.enabled
 
 

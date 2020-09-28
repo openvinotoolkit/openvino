@@ -10,24 +10,20 @@
 #include <memory>
 #include <map>
 
-#include <ie_api.h>
+#include <transformations_visibility.hpp>
 
 #include <ngraph/pass/graph_rewrite.hpp>
 
 namespace ngraph {
 namespace pass {
 
-class INFERENCE_ENGINE_API_CLASS(ConvertInterpolateToInterpOrResample);
+class TRANSFORMATIONS_API ConvertInterpolateToInterpOrResampleMatcher;
 
 }  // namespace pass
 }  // namespace ngraph
 
-class ngraph::pass::ConvertInterpolateToInterpOrResample: public ngraph::pass::GraphRewrite {
+class ngraph::pass::ConvertInterpolateToInterpOrResampleMatcher: public ngraph::pass::MatcherPass {
 public:
-    ConvertInterpolateToInterpOrResample() : GraphRewrite() {
-        convert_interpolate_to_interp_or_resample();
-    }
-
-private:
-    void convert_interpolate_to_interp_or_resample();
+    NGRAPH_RTTI_DECLARATION;
+    ConvertInterpolateToInterpOrResampleMatcher();
 };

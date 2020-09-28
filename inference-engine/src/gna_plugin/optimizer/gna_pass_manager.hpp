@@ -86,6 +86,12 @@ DECL_PASS(SubstituteScaleShiftBroadCast);
 DECL_PASS(ReversePermutations);
 
 /**
+ * @brief Pass support --disable_nhwc_to_nchw option in MO
+ * @param layers
+ */
+DECL_PASS(RemovePermutationsNHWCToNCHW);
+
+/**
  * brief @search for specific patter in the graph (6 layers are replaced by single one)
  */
 DECL_PASS(SubstitutePRelu);
@@ -95,6 +101,10 @@ DECL_PASS(SubstitutePRelu);
  */
 DECL_PASS(SubstituteSoftSign);
 
+/**
+ * brief split ofver channels for Elementwise-layer to avoid GNA-HW limitation of 65 elements per eltwise
+ */
+DECL_PASS(EltwiseSplitOverChannels);
 /**
  * diagonal layer insertion required in cases where activation followed by split layers, or any other
  * topology changing layers
@@ -135,6 +145,12 @@ DECL_PASS(InsertConcatAligningFilter);
 DECL_PASS(ReorderConcatInputs);
 
 /**
+ * @brief insert identity at the output of LSTMCell which fixes cases where data is not propagated correctly through network
+ * and LSTMCell returns all zeroes
+ */
+DECL_PASS_BEFORE_COPY(InsertIdentityToLSTMCell);
+
+/**
 * @brief unrolled LSTM cell layer in supported GNA primitives
 */
 DECL_PASS_BEFORE_COPY(UnrollLSTMCell);
@@ -149,19 +165,38 @@ DECL_PASS_BEFORE_COPY(UnrollTI);
 */
 DECL_PASS_BEFORE_COPY(RemoveConst);
 
+/**
+ * @brief remove concat layers with single input
+*/
+DECL_PASS_BEFORE_COPY(RemoveSingleInputConcat);
+
+/**
+ * @brief removed extra identity layer for multi-output
+ */
+DECL_PASS(FuseMultipleIdentities);
+
+/**
+* @brief Brodcast data in Const layer
+*/
+DECL_PASS(BroadcastConst);
+
+struct PassManagerSettings {
+    Policy policy;
+    /// @brief whether to run passes before copy
+    bool runBeforeCopy;
+};
+
 
 class PassManager : public IPassManager, public std::enable_shared_from_this<PassManager> {
-    Policy policy;
+    PassManagerSettings settings;
     InferenceEngine::CNNNetPtr network;
     std::vector<std::shared_ptr<Pass>> passes;
     std::map<std::string, int> intMap;
-    bool runBeforeCopy;
 
 public:
-    explicit PassManager(Policy policy, InferenceEngine::CNNNetPtr network, bool runBeforeCopy) noexcept
-    : policy(policy)
-    , network(network)
-    , runBeforeCopy(runBeforeCopy) {}
+    explicit PassManager(PassManagerSettings settings, InferenceEngine::CNNNetPtr network) noexcept
+    : settings(settings)
+    , network(network) {}
 
     template <class T>
     void registerPass() {
@@ -171,7 +206,7 @@ public:
         return intMap[name];
     }
     const Policy & getPolicy() const override {
-        return policy;
+        return settings.policy;
     }
     const InferenceEngine::CNNNetPtr & getNetwork() const override {
         return network;

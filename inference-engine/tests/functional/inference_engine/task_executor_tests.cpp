@@ -6,6 +6,7 @@
 
 #include <gtest/gtest.h>
 
+#include <ie_parallel.hpp>
 #include <threading/ie_cpu_streams_executor.hpp>
 #include <threading/ie_immediate_executor.hpp>
 #include <ie_system_conf.h>
@@ -80,7 +81,7 @@ TEST_P(TaskExecutorTests, canRunMultipleTasksWithExceptionInside) {
     }
 }
 
-// TODO: CVS-11695
+// TODO: Issue-11695
 TEST_P(TaskExecutorTests, canRunMultipleTasksFromMultipleThreads) {
     auto taskExecutor = GetParam()();
     std::atomic_int sharedVar = {0};
@@ -140,7 +141,7 @@ TEST_P(TaskExecutorTests, executorNotReleasedUntilTasksAreDone) {
 
 class ASyncTaskExecutorTests : public TaskExecutorTests {};
 
-// TODO: CVS-11695
+// TODO: Issue-11695
 TEST_P(ASyncTaskExecutorTests, startAsyncIsNotBlockedByAnotherTask) {
     std::mutex mutex_block_emulation;
     std::condition_variable cv_block_emulation;

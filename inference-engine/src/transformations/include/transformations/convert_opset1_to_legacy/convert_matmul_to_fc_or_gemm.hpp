@@ -11,24 +11,36 @@
 #include <sstream>
 #include <vector>
 
-#include <ie_api.h>
+#include <transformations_visibility.hpp>
 
 #include <ngraph/pass/graph_rewrite.hpp>
 
 namespace ngraph {
 namespace pass {
 
-class INFERENCE_ENGINE_API_CLASS(ConvertMatMulToFCorGemm);
+class TRANSFORMATIONS_API ConvertMatMulToFCorGemm;
+class TRANSFORMATIONS_API ConvertMatMulToFC;
+class TRANSFORMATIONS_API ConvertMatMulToGemm;
 
 }  // namespace pass
 }  // namespace ngraph
 
 class ngraph::pass::ConvertMatMulToFCorGemm: public ngraph::pass::GraphRewrite {
 public:
-    ConvertMatMulToFCorGemm(): GraphRewrite() {
-        convert_matmul();
+    ConvertMatMulToFCorGemm() {
+        add_matcher<ngraph::pass::ConvertMatMulToFC>();
+        add_matcher<ngraph::pass::ConvertMatMulToGemm>();
     }
+};
 
-private:
-    void convert_matmul();
+class ngraph::pass::ConvertMatMulToFC: public ngraph::pass::MatcherPass {
+public:
+    NGRAPH_RTTI_DECLARATION;
+    ConvertMatMulToFC();
+};
+
+class ngraph::pass::ConvertMatMulToGemm: public ngraph::pass::MatcherPass {
+public:
+    NGRAPH_RTTI_DECLARATION;
+    ConvertMatMulToGemm();
 };

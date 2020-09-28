@@ -7,16 +7,15 @@
 #include <vector>
 #include <memory>
 
-#include <ie_api.h>
+#include <transformations_visibility.hpp>
 
 #include <ngraph/pass/graph_rewrite.hpp>
 
-#include "transformations/utils/pass_param.hpp"
 
 namespace ngraph {
 namespace pass {
 
-class INFERENCE_ENGINE_API_CLASS(ReshapeFullyConnected);
+class TRANSFORMATIONS_API ReshapeFullyConnected;
 
 }  // namespace pass
 }  // namespace ngraph
@@ -42,18 +41,10 @@ class INFERENCE_ENGINE_API_CLASS(ReshapeFullyConnected);
  *         }
  *     };
  *
- *     auto p = ngraph::pass::ReshapeFullyConnected();
- *     p.setCallback(callback);
- *     p.run_on_function(f);
- *
  */
 
-class ngraph::pass::ReshapeFullyConnected: public ngraph::pass::GraphRewrite, public ngraph::pass::PassParam {
+class ngraph::pass::ReshapeFullyConnected: public ngraph::pass::MatcherPass {
 public:
-    ReshapeFullyConnected() : GraphRewrite(), PassParam() {
-        reshape_fully_connected();
-    }
-
-private:
-    void reshape_fully_connected();
+    NGRAPH_RTTI_DECLARATION;
+    ReshapeFullyConnected();
 };
