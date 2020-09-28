@@ -187,6 +187,9 @@ protected:
             tmp_events = new_events;
         }
 
+        if ((all_events.size() == 0) && (tmp_events.size() > 0))
+            return aggregate_events(tmp_events, net_id);
+
         return aggregate_events(all_events, net_id);
     }
 };
