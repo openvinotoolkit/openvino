@@ -11,7 +11,6 @@
 #include <ie_core.hpp>
 
 #include <transformations/init_node_info.hpp>
-#include "ngraph/pass/visualize_tree.hpp"
 
 namespace LayerTestsDefinitions {
 
@@ -41,8 +40,6 @@ void FuseFakeQuantizeAndScaleShiftTransformation::SetUp() {
         fakeQuantizeOnData);
 
     ngraph::pass::InitNodeInfo().run_on_function(function);
-    auto p = ngraph::pass::VisualizeTree("graph.dot");
-    p.run_on_function(function);
     EXPECT_EQ(1ul, function->get_output_size());
     EXPECT_EQ(1ul, function->get_output_op(0)->get_input_size());
     const std::string referenceOutputLayerName = function->get_output_op(0)->get_input_node_ptr(0)->get_friendly_name();
