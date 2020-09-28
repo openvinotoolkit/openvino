@@ -26,6 +26,11 @@ file(GLOB SHARED_TESTS_SRC
 add_library(${TARGET_NAME} STATIC ${SHARED_TESTS_SRC})
 add_dependencies(${TARGET_NAME} inference_engine_preproc MultiDevicePlugin mock_engine)
 
+ie_faster_build(${TARGET_NAME}
+    UNITY
+    PCH PRIVATE "precomp.hpp"
+)
+
 if(ENABLE_MKL_DNN)
     add_dependencies(${TARGET_NAME} MKLDNNPlugin)
     target_compile_definitions(${TARGET_NAME} PUBLIC ENABLE_MKL_DNN)

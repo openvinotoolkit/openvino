@@ -24,6 +24,11 @@ addIeTarget(
             ${EXPORT_DEPENDENCIES}
 )
 
+ie_faster_build(${TARGET_NAME}
+    UNITY
+    PCH PRIVATE "src/precomp.hpp"
+)
+
 target_include_directories(${TARGET_NAME} PUBLIC ${PUBLIC_HEADERS_DIR})
 
 target_link_libraries(${TARGET_NAME} PUBLIC ${EXPORT_DEPENDENCIES})

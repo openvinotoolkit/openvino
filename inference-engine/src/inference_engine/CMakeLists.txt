@@ -122,6 +122,11 @@ add_cpplint_target(${TARGET_NAME}_plugin_api_cpplint FOR_SOURCES ${plugin_api_sr
 add_library(${TARGET_NAME}_common_obj OBJECT
             ${IE_BASE_SOURCE_FILES})
 
+ie_faster_build(${TARGET_NAME}_common_obj
+    UNITY
+    PCH PRIVATE "precomp.hpp"
+)
+
 target_compile_definitions(${TARGET_NAME}_common_obj PRIVATE IMPLEMENT_INFERENCE_ENGINE_API)
 target_include_directories(${TARGET_NAME}_common_obj PRIVATE
     "${CMAKE_CURRENT_SOURCE_DIR}"
@@ -138,6 +143,10 @@ add_library(${TARGET_NAME}_obj OBJECT
             ${LIBRARY_SRC}
             ${LIBRARY_HEADERS}
             ${PUBLIC_HEADERS})
+
+ie_faster_build(${TARGET_NAME}_obj
+    UNITY
+)
 
 target_compile_definitions(${TARGET_NAME}_obj PRIVATE IMPLEMENT_INFERENCE_ENGINE_API)
 

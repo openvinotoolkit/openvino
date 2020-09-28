@@ -25,6 +25,11 @@ add_library(${TARGET_NAME} SHARED
             ${LIBRARY_SRC}
             ${PUBLIC_HEADERS})
 
+ie_faster_build(${TARGET_NAME}
+    UNITY
+    PCH PRIVATE "src/precomp.hpp"
+)
+
 target_compile_definitions(${TARGET_NAME} PRIVATE IMPLEMENT_INFERENCE_ENGINE_API)
 
 target_link_libraries(${TARGET_NAME} PRIVATE inference_engine openvino::itt)

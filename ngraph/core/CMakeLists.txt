@@ -36,6 +36,12 @@ configure_file(include/ngraph/version.in.hpp include/ngraph/version.hpp)
 # Create shared library
 add_library(ngraph SHARED ${LIBRARY_SRC} ${PUBLIC_HEADERS})
 
+if(COMMAND ie_faster_build)
+    ie_faster_build(ngraph
+        PCH PRIVATE "src/precomp.hpp"
+    )
+endif()
+
 set_target_properties(ngraph PROPERTIES
                       CXX_VISIBILITY_PRESET hidden
                       C_VISIBILITY_PRESET hidden

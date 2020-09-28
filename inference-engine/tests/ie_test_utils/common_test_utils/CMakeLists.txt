@@ -54,6 +54,11 @@ function(add_common_utils ADD_TARGET_NAME)
                 ${EXPORT_DEPENDENCIES}
     )
 
+    ie_faster_build(${ADD_TARGET_NAME}
+        UNITY
+        PCH PRIVATE "precomp.hpp"
+    )
+
     # detecting regex support
     if (CMAKE_CXX_COMPILER_VERSION VERSION_LESS 4.9)
         set(USE_BOOST_RE ON)
