@@ -88,6 +88,11 @@ namespace ngraph
                     {
                         ng_constant = tensor.get_ng_constant();
                     }
+                    catch (const error::invalid_external_data&)
+                    {
+                        // invalid external data makes initializers creation impossible
+                        throw;
+                    }
                     catch (const ngraph::ngraph_error& exc)
                     {
                         NGRAPH_WARN << "Could not create an nGraph Constant for initializer '"

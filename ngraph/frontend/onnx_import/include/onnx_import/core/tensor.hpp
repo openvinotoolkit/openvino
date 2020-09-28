@@ -23,6 +23,7 @@
 #include "ngraph/op/constant.hpp"
 #include "ngraph/shape.hpp"
 #include "ngraph/type/element_type.hpp"
+#include "tensor_external_data.hpp"
 
 namespace ngraph
 {
@@ -158,6 +159,30 @@ namespace ngraph
                             return std::vector<T>(
                                 it, it + (raw_data.size() / __get_onnx_data_size(onnx_data_type)));
                         }
+
+                        template <typename T>
+                        inline std::vector<T>
+                            get_external_data(const ONNX_NAMESPACE::TensorProto& tensor)
+                        {
+                            const auto tensor_external_data = TensorExternalData(tensor);
+                            const auto raw_data = tensor_external_data.load_external_data();
+
+                            return detail::__get_raw_data<T>(raw_data, tensor.data_type());
+                        }
+
+                        bool has_tensor_external_data(const ONNX_NAMESPACE::TensorProto& tensor)
+                        {
+                            if (tensor.has_data_location() &&
+                                tensor.data_location() == ONNX_NAMESPACE::TensorProto_DataLocation::
+                                                              TensorProto_DataLocation_EXTERNAL)
+                            {
+                                return true;
+                            }
+                            else
+                            {
+                                return false;
+                            }
+                        }
                     }
                 }
 
@@ -171,6 +196,10 @@ namespace ngraph
                 template <>
                 inline std::vector<double> get_data(const ONNX_NAMESPACE::TensorProto& tensor)
                 {
+                    if (detail::has_tensor_external_data(tensor))
+                    {
+                        return detail::get_external_data<double>(tensor);
+                    }
                     if (tensor.has_raw_data())
                     {
                         return detail::__get_raw_data<double>(tensor.raw_data(),
@@ -202,6 +231,10 @@ namespace ngraph
                 template <>
                 inline std::vector<float> get_data(const ONNX_NAMESPACE::TensorProto& tensor)
                 {
+                    if (detail::has_tensor_external_data(tensor))
+                    {
+                        return detail::get_external_data<float>(tensor);
+                    }
                     if (tensor.has_raw_data())
                     {
                         return detail::__get_raw_data<float>(tensor.raw_data(), tensor.data_type());
@@ -229,6 +262,10 @@ namespace ngraph
                 inline std::vector<ngraph::float16>
                     get_data(const ONNX_NAMESPACE::TensorProto& tensor)
                 {
+                    if (detail::has_tensor_external_data(tensor))
+                    {
+                        return detail::get_external_data<float16>(tensor);
+                    }
                     if (tensor.has_raw_data())
                     {
                         return detail::__get_raw_data<ngraph::float16>(tensor.raw_data(),
@@ -244,6 +281,10 @@ namespace ngraph
                 template <>
                 inline std::vector<int8_t> get_data(const ONNX_NAMESPACE::TensorProto& tensor)
                 {
+                    if (detail::has_tensor_external_data(tensor))
+                    {
+                        return detail::get_external_data<int8_t>(tensor);
+                    }
                     if (tensor.has_raw_data())
                     {
                         return detail::__get_raw_data<int8_t>(tensor.raw_data(),
@@ -259,6 +300,10 @@ namespace ngraph
                 template <>
                 inline std::vector<int16_t> get_data(const ONNX_NAMESPACE::TensorProto& tensor)
                 {
+                    if (detail::has_tensor_external_data(tensor))
+                    {
+                        return detail::get_external_data<int16_t>(tensor);
+                    }
                     if (tensor.has_raw_data())
                     {
                         return detail::__get_raw_data<int16_t>(tensor.raw_data(),
@@ -274,6 +319,10 @@ namespace ngraph
                 template <>
                 inline std::vector<int32_t> get_data(const ONNX_NAMESPACE::TensorProto& tensor)
                 {
+                    if (detail::has_tensor_external_data(tensor))
+                    {
+                        return detail::get_external_data<int32_t>(tensor);
+                    }
                     if (tensor.has_raw_data())
                     {
                         return detail::__get_raw_data<int32_t>(tensor.raw_data(),
@@ -289,6 +338,10 @@ namespace ngraph
                 template <>
                 inline std::vector<int64_t> get_data(const ONNX_NAMESPACE::TensorProto& tensor)
                 {
+                    if (detail::has_tensor_external_data(tensor))
+                    {
+                        return detail::get_external_data<int64_t>(tensor);
+                    }
                     if (tensor.has_raw_data())
                     {
                         return detail::__get_raw_data<int64_t>(tensor.raw_data(),
@@ -304,6 +357,10 @@ namespace ngraph
                 template <>
                 inline std::vector<uint8_t> get_data(const ONNX_NAMESPACE::TensorProto& tensor)
                 {
+                    if (detail::has_tensor_external_data(tensor))
+                    {
+                        return detail::get_external_data<uint8_t>(tensor);
+                    }
                     if (tensor.has_raw_data())
                     {
                         return detail::__get_raw_data<uint8_t>(tensor.raw_data(),
@@ -319,6 +376,10 @@ namespace ngraph
                 template <>
                 inline std::vector<uint16_t> get_data(const ONNX_NAMESPACE::TensorProto& tensor)
                 {
+                    if (detail::has_tensor_external_data(tensor))
+                    {
+                        return detail::get_external_data<uint16_t>(tensor);
+                    }
                     if (tensor.has_raw_data())
                     {
                         return detail::__get_raw_data<uint16_t>(tensor.raw_data(),
@@ -334,6 +395,10 @@ namespace ngraph
                 template <>
                 inline std::vector<uint32_t> get_data(const ONNX_NAMESPACE::TensorProto& tensor)
                 {
+                    if (detail::has_tensor_external_data(tensor))
+                    {
+                        return detail::get_external_data<uint32_t>(tensor);
+                    }
                     if (tensor.has_raw_data())
                     {
                         return detail::__get_raw_data<uint32_t>(tensor.raw_data(),
@@ -349,6 +414,10 @@ namespace ngraph
                 template <>
                 inline std::vector<uint64_t> get_data(const ONNX_NAMESPACE::TensorProto& tensor)
                 {
+                    if (detail::has_tensor_external_data(tensor))
+                    {
+                        return detail::get_external_data<uint64_t>(tensor);
+                    }
                     if (tensor.has_raw_data())
                     {
                         return detail::__get_raw_data<uint64_t>(tensor.raw_data(),
@@ -366,6 +435,10 @@ namespace ngraph
                 {
                     // Boolean values are stored as char because std::vector<bool>
                     // can behave differently from other vector containers.
+                    if (detail::has_tensor_external_data(tensor))
+                    {
+                        return detail::get_external_data<char>(tensor);
+                    }
                     if (tensor.has_raw_data())
                     {
                         return detail::__get_raw_data<char>(tensor.raw_data(), tensor.data_type());

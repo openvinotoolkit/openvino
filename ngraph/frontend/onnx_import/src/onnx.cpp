@@ -20,6 +20,7 @@
 #include <memory>
 
 #include "ngraph/except.hpp"
+#include "ngraph/file_util.hpp"
 #include "onnx_import/core/graph.hpp"
 #include "onnx_import/core/model.hpp"
 #include "onnx_import/onnx.hpp"
@@ -96,6 +97,38 @@ namespace ngraph
                 }
             }
 
+            // The paths to external data files are stored as relative to model path.
+            // The helper function below combines them and replaces the original relative path.
+            // As a result in futher processing data from external files can be read directly.
+            void update_external_data_paths(ONNX_NAMESPACE::ModelProto& model_proto,
+                                            const std::string& model_path)
+            {
+                if (model_path.empty())
+                {
+                    return;
+                }
+                const auto model_dir_path = file_util::get_directory(model_path);
+                auto graph_proto = model_proto.mutable_graph();
+                for (auto& initializer_tensor : *graph_proto->mutable_initializer())
+                {
+                    const auto location_key_value_index = 0;
+                    if (initializer_tensor.has_data_location() &&
+                        initializer_tensor.data_location() ==
+                            ONNX_NAMESPACE::TensorProto_DataLocation::
+                                TensorProto_DataLocation_EXTERNAL)
+                    {
+                        const auto external_data_relative_path =
+                            initializer_tensor.external_data(location_key_value_index).value();
+                        const auto external_data_full_path =
+                            file_util::path_join(model_dir_path, external_data_relative_path);
+
+                        // Set full paths to the external file
+                        initializer_tensor.mutable_external_data(location_key_value_index)
+                            ->set_value(external_data_full_path);
+                    }
+                }
+            }
+
             std::shared_ptr<Function>
                 convert_to_ng_function(const ONNX_NAMESPACE::ModelProto& model_proto)
             {
@@ -112,7 +145,8 @@ namespace ngraph
             }
         } // namespace detail
 
-        std::shared_ptr<Function> import_onnx_model(std::istream& stream)
+        std::shared_ptr<Function> import_onnx_model(std::istream& stream,
+                                                    const std::string& model_path)
         {
             if (!stream.good())
             {
@@ -144,6 +178,7 @@ namespace ngraph
             }
 
             detail::fixup_legacy_operators(model_proto.mutable_graph());
+            detail::update_external_data_paths(model_proto, model_path);
 
             return detail::convert_to_ng_function(model_proto);
         }
@@ -155,7 +190,7 @@ namespace ngraph
             {
                 throw detail::error::file_open{file_path};
             }
-            return import_onnx_model(ifs);
+            return import_onnx_model(ifs, file_path);
         }
 
         std::set<std::string> get_supported_operators(std::int64_t version,
