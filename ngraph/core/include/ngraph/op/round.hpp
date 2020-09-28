@@ -16,23 +16,23 @@
 
 #pragma once
 
-#include "ngraph/op/util/unary_elementwise_arithmetic.hpp"
+#include "ngraph/node.hpp"
+#include "ngraph/op/op.hpp"
 
 namespace ngraph
 {
     namespace op
     {
-        namespace v0
+        namespace v5
         {
             /// \brief Elementwise round operation.
-            class NGRAPH_DEPRECATED(
-                "This operation is deprecated and will be removed soon. Please do not use it.")
-                NGRAPH_API Round : public util::UnaryElementwiseArithmetic
+            class NGRAPH_API Round : public ngraph::op::Op
             {
-                NGRAPH_SUPPRESS_DEPRECATED_START
             public:
-                static constexpr NodeTypeInfo type_info{"Round", 0};
-                const NodeTypeInfo& get_type_info() const override { return type_info; }
+                NGRAPH_RTTI_DECLARATION;
+
+                // static constexpr NodeTypeInfo type_info{"Round", 0};
+                // const NodeTypeInfo& get_type_info() const override { return type_info; }
                 /// \brief Constructs a round operation.
                 Round() = default;
 
@@ -48,11 +48,7 @@ namespace ngraph
 
                 bool evaluate(const HostTensorVector& outputs,
                               const HostTensorVector& inputs) const override;
-                NGRAPH_SUPPRESS_DEPRECATED_END
             };
         }
-        NGRAPH_SUPPRESS_DEPRECATED_START
-        using v0::Round;
-        NGRAPH_SUPPRESS_DEPRECATED_END
     }
 }

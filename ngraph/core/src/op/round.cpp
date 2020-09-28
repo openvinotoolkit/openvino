@@ -14,22 +14,21 @@
 // limitations under the License.
 //*****************************************************************************
 
-#include "ngraph/op/round.hpp"
 #include "itt.hpp"
+#include "ngraph/attribute_visitor.hpp"
+#include "ngraph/op/round.hpp"
 #include "ngraph/op/util/eval_copy.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
 #include "ngraph/runtime/reference/copy.hpp"
 #include "ngraph/runtime/reference/round.hpp"
 
-NGRAPH_SUPPRESS_DEPRECATED_START
-
 using namespace std;
 using namespace ngraph;
 
-constexpr NodeTypeInfo op::Round::type_info;
+NGRAPH_RTTI_DEFINITION(op::v5::<Round>, "<Round>", 5);	// error
 
-op::Round::Round(const Output<Node>& arg)
-    : UnaryElementwiseArithmetic(arg)
+op::v5::Round(const Output<Node>& arg)
+    : Op({arg})
 {
     constructor_validate_and_infer_types();
 }
