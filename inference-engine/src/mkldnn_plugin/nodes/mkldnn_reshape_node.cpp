@@ -27,6 +27,8 @@ void MKLDNNReshapeNode::initSupportedPrimitiveDescriptors() {
         return;
 
     InferenceEngine::Precision precision = getCnnLayer()->insData[0].lock()->getPrecision();
+    if (precision == Precision::BF16)
+        precision = Precision::FP32;
     auto inputDataType = MKLDNNExtensionUtils::IEPrecisionToDataType(precision);
     precision = getCnnLayer()->outData[0]->getPrecision();
     auto outputDataType = MKLDNNExtensionUtils::IEPrecisionToDataType(precision);

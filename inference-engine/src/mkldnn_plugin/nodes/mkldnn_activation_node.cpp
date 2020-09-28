@@ -137,6 +137,8 @@ void MKLDNNActivationNode::getSupportedDescriptors() {
     auto parentOutDims = getParentEdgeAt(0)->getDims();
 
     InferenceEngine::Precision precision = getCnnLayer()->insData[0].lock()->getPrecision();
+    if (precision == Precision::BF16)
+        precision = Precision::FP32;
 
     // FIXME: MKLDNN doesn't support not inputs with number of dimensions less than 4 for activation
     while (parentOutDims.ndims() < 4)
