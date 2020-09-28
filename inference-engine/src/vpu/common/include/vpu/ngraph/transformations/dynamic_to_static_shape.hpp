@@ -24,6 +24,4 @@ private:
     Transformations transformations;
 };
 
-void printTo(std::ostream& stream, const ngraph::NodeTypeInfo& object);
-
 }  // namespace vpu

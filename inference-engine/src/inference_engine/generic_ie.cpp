@@ -14,6 +14,7 @@
 #include <vector>
 
 #include "blob_factory.hpp"
+#include "shape_infer/ie_ishape_infer_extension.hpp"
 #include <legacy/ie_ngraph_utils.hpp>
 #include "ngraph/util.hpp"
 #include "ngraph/graph_util.hpp"

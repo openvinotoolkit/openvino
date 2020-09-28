@@ -135,11 +135,12 @@ private:
             case CustomParamType::InputBuffer:
             case CustomParamType::OutputBuffer:
             case CustomParamType::Data: {
-                VPU_THROW_UNLESS(ports.find(kp) != ports.end(),
+                const auto& kpIt = ports.find(kp);
+                VPU_THROW_UNLESS(kpIt != ports.end(),
                     "XML specification for %s layer has no definition for '%s' parameter. Layer name: %s",
                     origLayer()->type, kp, origLayer()->name);
 
-                int id = ports.find(kp)->second;
+                int id = kpIt->second;
                 serializer.append(static_cast<uint32_t>(0));
                 serializer.append(static_cast<uint32_t>(id));
                 break;
@@ -477,9 +478,7 @@ void FrontEnd::parseCustom(const Model& model, const ie::CNNLayerPtr& layer, con
         stage->attrs().set("outputOrders", std::move(outputOrders));
 
         int buffer_size = kernel.kernelBinary().length() + 1024;
-        model->addTempBuffer(
-            stage,
-            DataDesc({buffer_size}));
+        model->addTempBuffer(stage, buffer_size);
     }
 }
 
