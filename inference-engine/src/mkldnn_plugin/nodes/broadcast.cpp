@@ -31,7 +31,7 @@ public:
 
             LayerConfig config;
             DataConfig dataConfig, shapeConfig;
-            Precision dataPrecision = layer->outData[0]->getTensorDesc().getPrecision();
+            Precision dataPrecision = layer->insData[BROADCAST_INPUT].lock()->getTensorDesc().getPrecision();
             const SizeVector& data_dims = layer->insData[BROADCAST_INPUT].lock()->getTensorDesc().getDims();
             dataConfig.desc = TensorDesc(dataPrecision, data_dims,
                                          layer->insData[BROADCAST_INPUT].lock()->getTensorDesc().getLayout());
