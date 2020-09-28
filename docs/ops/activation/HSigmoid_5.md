@@ -19,11 +19,11 @@ The HSigmoid operation is introduced in the following [article](https://arxiv.or
 
 **Inputs**:
 
-* **1**: An tensor of type T. **Required.**
+* **1**: A tensor of type *T*. **Required.**
 
 **Outputs**:
 
-* **1**: The result of the HSigmoid operation. A tensor of type T.
+* **1**: The resulting tensor of the same shape and type as input tensor.
 
 **Types**
 
