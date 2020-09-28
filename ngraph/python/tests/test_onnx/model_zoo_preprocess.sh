@@ -39,7 +39,7 @@ if [ $MODELS_DIR = false ] ; then
 	echo "Unknown location of the ZOO models"
 	exit 170
 fi
-ONNX_MODELS_DIR=$MODELS_DIR/model_zoo/onnx_models
+ONNX_MODELS_DIR=$MODELS_DIR/model_zoo/onnx_model_zoo
 MSFT_MODELS_DIR=$MODELS_DIR/model_zoo/MSFT
 
 if [ $CLONE = true ] ; then
@@ -75,5 +75,5 @@ mkdir test_data_set_0
 mv *.pb test_data_set_0/
 
 # Prepare MSFT models
-wget -O $MSFT_MODELS_DIR/20191107.zip https://onnxruntimetestdata.blob.core.windows.net/models/20191107.zip
-unzip $MSFT_MODELS_DIR/20191107.zip -d $MSFT_MODELS_DIR/20191107 && rm $MSFT_MODELS_DIR/20191107.zip
+# wget -O $MSFT_MODELS_DIR/20191107.zip https://onnxruntimetestdata.blob.core.windows.net/models/20191107.zip
+# unzip $MSFT_MODELS_DIR/20191107.zip -d $MSFT_MODELS_DIR/20191107 && rm $MSFT_MODELS_DIR/20191107.zip

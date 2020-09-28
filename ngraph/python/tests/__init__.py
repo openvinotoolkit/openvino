@@ -109,7 +109,7 @@ xfail_issue_36485 = xfail_test(reason="RuntimeError: Check 'm_group >= 1' failed
 xfail_issue_36486 = xfail_test(reason="RuntimeError: HardSigmoid operation should be converted "
                                       "to HardSigmoid_IE")
 xfail_issue_36487 = xfail_test(reason="Assertion error - mvn operator computation mismatch")
-xfail_issue_38084 = xfail_test(reason="RuntimeError: AssertionFailed: layer->get_output_partial_shape(i) "
+xfail_issue_38084 = xfail_test(reason="RuntimeError: AssertionFailed: layer->get_output_partial_shape(i)"
                                       "is_static() nGraph <value> operation with name: <value> cannot be"
                                       "converted to <value> layer with name: <value> because output"
                                       "with index 0 contains dynamic shapes: {<value>}. Try to use "
@@ -190,18 +190,19 @@ xfail_issue_36533 = xfail_test(reason="AssertionError: zoo models results mismat
 xfail_issue_36537 = xfail_test(reason="ngraph.exceptions.UserInputError: (Provided tensor's shape:"
                                       "%s does not match the expected: %s."
                                       "<PartialShape: <value>>, <PartialShape: <value>>)")
-xfail_issue_37687 = xfail_test(reason="RuntimeError: nGraph does not support the following ONNX operations: Loop")
+xfail_issue_37687 = xfail_test(reason="RuntimeError: nGraph does not support the following ONNX operations:"
+                                      "Loop")
 xfail_issue_39682 = xfail_test(reason="model with IR version >= 3 must specify opset_import for ONNX")
 xfail_issue_39683 = xfail_test(reason="convolution.W in initializer but not in graph input")
 xfail_issue_39684 = xfail_test(reason="ngraph.exceptions.UserInputError:"
                                       "('Expected %s parameters, received %s.', 1, 3)")
-xfail_issue_39685 = xfail_test(reason="RuntimeError: While validating node 'v1::Transpose 315, Constant_9353 ->"
-                                      "(f32{?,?,?,?})' with friendly_name '315':"
+xfail_issue_39685 = xfail_test(reason="RuntimeError: While validating node 'v1::Transpose 315,"
+                                      "Constant_9353 -> (f32{?,?,?,?})' with friendly_name '315':"
                                       "Input order must have shape [n], where n is the rank of arg.")
 
 # Model MSFT issues:
-xfail_issue_36465 = xfail_test(reason="LSTM_Seq_lens: RuntimeError: get_shape was called on a descriptor::Tensor "
-                                      "with dynamic shape")
+xfail_issue_36465 = xfail_test(reason="LSTM_Seq_lens: RuntimeError: get_shape was called on a "
+                                      "descriptor::Tensor with dynamic shape")
 xfail_issue_37957 = xfail_test(reason="RuntimeError: nGraph does not support the following ONNX operations:"
                                       "com.microsoft.CropAndResize, com.microsoft.GatherND,"
                                       "com.microsoft.Pad, com.microsoft.Range")
