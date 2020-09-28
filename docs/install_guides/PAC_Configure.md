@@ -10,7 +10,7 @@ The following describes the set-up of the Intel® Distribution of OpenVINO™ to
 
 [OpenCL™ on Intel® PAC Quick Start Guide](https://www.intel.com/content/dam/altera-www/global/en_US/pdfs/literature/ug/ug-qs-ias-opencl-a10.pdf)
 
-[Installing the Intel® Distribution of OpenVINO™ toolkit for Linux*](installing_openvino_linux.md)
+[Installing the Intel® Distribution of OpenVINO™ toolkit for Linux*](installing-openvino-linux.md)
 
 (Optional): Install NTFS support for transferring large installers if already downloaded on another machine.
 ```sh

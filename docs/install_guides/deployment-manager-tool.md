@@ -9,11 +9,11 @@ The Deployment Manager is a Python\* command-line tool that is delivered within 
 * Intel® Distribution of OpenVINO™ toolkit for Linux\* (version 2019 R3 or higher) or Intel® Distribution of OpenVINO™ toolkit for Windows\* (version 2019 R4 or higher) installed on your development machine.
 * Python\* 3.6 or higher is required to run the Deployment Manager.
 * To run inference on a target device other than CPU, device drivers must be pre-installed:
-   * For **Linux**, see the following sections in the [installation instructions for Linux](../install_guides/installing_openvino_linux.md): 
+   * For **Linux**, see the following sections in the [installation instructions for Linux](../install_guides/installing-openvino-linux.md): 
      * Steps for Intel® Processor Graphics (GPU) section 
      * Steps for Intel® Neural Compute Stick 2 section
      * Steps for Intel® Vision Accelerator Design with Intel® Movidius™ VPUs
-   * **For Windows**, see the following sections in the [installation instructions for Windows](../install_guides/installing_openvino_windows.md):
+   * **For Windows**, see the following sections in the [installation instructions for Windows](../install_guides/installing-openvino-windows.md):
      * Steps for Intel® Processor Graphics (GPU)
      * Steps for the Intel® Vision Accelerator Design with Intel® Movidius™ VPUs
      
