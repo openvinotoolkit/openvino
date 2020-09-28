@@ -162,10 +162,11 @@ bool ngraph::pass::ConvertPrecision::run_on_function(std::shared_ptr<ngraph::Fun
         // otherwise we insert Convert operation.
         for (auto &node : f->get_ordered_ops()) {
             m_transformation_callback(node);
-
-            // Recursively run for TensorIterator body function
-            if (auto ti = std::dynamic_pointer_cast<opset4::TensorIterator>(node)) {
-                convert_function_precision(ti->get_body());
+            // Recursively apply transformation for sub-graph based operations
+            if (auto sub_graph_node = std::dynamic_pointer_cast<op::util::SubGraphOp>(node)) {
+                if (auto sub_graph = sub_graph_node->get_function()) {
+                    convert_function_precision(sub_graph);
+                }
             }
             convert_node_input_precision(node);
         }
