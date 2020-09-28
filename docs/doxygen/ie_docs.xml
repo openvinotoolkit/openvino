@@ -496,7 +496,7 @@
                   <tab type="user" title="Post-Training Optimization Best Practices" url="@ref pot_docs_BestPractices"/>
                   <tab type="user" title="Use Post-Training Optimization Toolkit API" url="@ref pot_compression_api_README"/>
                   <tab type="usergroup" title="Configuration File Description" url="@ref pot_configs_README">
-                    <tab type="user" title="Run Examples" url="@ref pot_configs_examples_README"/>
+                    <tab type="user" title="How to Run Examples" url="@ref pot_configs_examples_README"/>
                   </tab>
                 </tab>
                 <tab type="user" title="Model Downloader" url="@ref omz_tools_downloader_README"/>
