@@ -209,8 +209,11 @@ struct proposal_gpu : typed_primitive_impl<proposal> {
 
     explicit proposal_gpu(const proposal_node& arg) : outer(arg) {}
 
+#define CLDNN_TRACE_IR_ENGINE (&instance.get_network().get_engine())
+
     template <typename dtype>
     void read_image_info(proposal_inst& instance, im_info_t& im_info) {
+        CLDNN_TRACE_IR_METHOD_INTERNAL ("proposal_gpu::read_image_info");
         auto& image_info = instance.dep_memory(proposal_inst::image_info_index);
         mem_lock<dtype> image_info_ptr{image_info};
         const dtype* image_info_mem = image_info_ptr.data();
@@ -399,6 +402,7 @@ struct proposal_gpu : typed_primitive_impl<proposal> {
     }
 
     event_impl::ptr execute_impl(const std::vector<event_impl::ptr>& events, proposal_inst& instance) override {
+        CLDNN_TRACE_IR_METHOD_INTERNAL ("proposal_gpu::execute_impl");
         for (auto& a : events) {
             a->wait();
         }

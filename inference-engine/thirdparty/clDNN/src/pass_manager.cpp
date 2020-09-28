@@ -56,12 +56,18 @@ pass_manager::pass_manager(program_impl& p) {
     }
 }
 
+#define CLDNN_TRACE_IR_ENGINE (&p.get_engine()) 
+
 void pass_manager::run(program_impl& p, base_pass& pass) {
     using ms = std::chrono::duration<double, std::ratio<1, 1000>>;
     using Time = std::chrono::high_resolution_clock;
 
     auto start = Time::now();
+    // CLDNN_TRACE_IR_MEM_INTERNAL
+    CLDNN_TRACE_IR_SCOPE_INTERNAL_BEGIN("{" + pass.get_name()+ "}")
     pass.run(p);
+    CLDNN_TRACE_IR_SCOPE_INTERNAL_END
+    CLDNN_TRACE_IR_MEM_INTERNAL
     auto stop = Time::now();
     std::chrono::duration<float> fs = stop - start;
     ms opt_pass_time = std::chrono::duration_cast<ms>(fs);

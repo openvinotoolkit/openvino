@@ -271,6 +271,8 @@ void convertLayerPrecision(const CNNLayerPtr& layer, bool isOutput = false) {
 
 namespace CLDNNPlugin {
 
+#define CLDNN_TRACE_IR_ENGINE (std::const_pointer_cast<cldnn::engine>(m_engine))
+
 const cldnn::primitive_id Program::m_preProcessTag("_cldnn_input_preprocess");
 const cldnn::primitive_id Program::m_weightsTag("_cldnn_weights");
 const cldnn::primitive_id Program::m_biasesTag("_cldnn_biases");
@@ -395,6 +397,8 @@ Program::Program(InferenceEngine::ICNNNetwork& network, std::shared_ptr<const cl
     , m_engine(engine)
     , m_curBatch(-1)
     , p_currentOutputs({}) {
+    CLDNN_TRACE_IR_METHOD("Program::Program");
+    CLDNN_TRACE_IR_MEM
     InitFormat(network);
 
     if (config.enableInt8) {
@@ -556,6 +560,7 @@ Program::Program(InferenceEngine::ICNNNetwork& network, std::shared_ptr<const cl
         m_programs.emplace_back(BuildProgram(network));
         m_engine->release_pending_memory(0);
     }
+    CLDNN_TRACE_IR_MEM
 }
 
 int Program::GetMaxBatchSizeForSingleProgram() {
@@ -631,6 +636,8 @@ void Program::InitFormat(InferenceEngine::ICNNNetwork &network) {
 }
 
 std::shared_ptr<cldnn::program> Program::BuildProgram(InferenceEngine::ICNNNetwork &network) {
+    CLDNN_TRACE_IR_METHOD("Program::BuildProgram");
+    CLDNN_TRACE_IR_MEM
     cldnn::build_options options;
     if (!m_config.graph_dumps_dir.empty()) {
         options.set_option(cldnn::build_option::graph_dumps_dir(m_config.graph_dumps_dir));
@@ -723,6 +730,7 @@ std::shared_ptr<cldnn::program> Program::BuildProgram(InferenceEngine::ICNNNetwo
     // 4. ???
     // 5. profit
     p_currentOutputs.clear();
+    CLDNN_TRACE_IR_MEM
 
     return std::make_shared<cldnn::program>(*m_engine, topology, options);
 }
@@ -950,6 +958,8 @@ cldnn::primitive_id Program::CreatePrimitiveFromBlob(cldnn::topology& topology,
 //         (pBlob->size() * (broadcastFeatures ? blobLayout.size.feature[0] : 1)) != blobLayout.count()) {
 //         THROW_CLDNN_EXCEPTION("Unexpected blob size");
 //     }
+    CLDNN_TRACE_IR_METHOD("CreatePrimitiveFromBlob("+ primID +")");
+    CLDNN_TRACE_IR_MEM
     if (pBlob == nullptr) {
         THROW_CLDNN_EXCEPTION("Missing blob data: " << primID);
     }
@@ -1021,6 +1031,7 @@ cldnn::primitive_id Program::CreatePrimitiveFromBlob(cldnn::topology& topology,
     }
     topology.add(cldnn::data(primID, mem));
     blobMemCache[data] = primID;
+    CLDNN_TRACE_IR_MEM
     return primID;
 }
 
@@ -1356,6 +1367,7 @@ void Program::CreateScaleWeightsAndBiasesFromBN(cldnn::topology& topology,
 
 void Program::CreateSingleLayerPrimitive(cldnn::topology& topology, InferenceEngine::CNNLayerPtr &layer) {
     // Initialize a profiling entry
+    CLDNN_TRACE_IR_METHOD("CreateSingleLayerPrimitive("+ layer->name +")");
     InitProfileInfo(layer->name, layer->type);
 
     // First check for custom layer
@@ -3955,6 +3967,7 @@ void Program::CreatePadPrimitive(cldnn::topology& topology, InferenceEngine::CNN
 }
 
 void Program::AddConstantBlobInput(cldnn::topology& topology, InferenceEngine::CNNLayerPtr &layer) {
+    CLDNN_TRACE_IR_METHOD("AddConstantBlobInput");
     if (layer->blobs.empty())
         THROW_IE_EXCEPTION << "No blobs found in const layer " << layer->name;
     auto constBlob = layer->blobs.begin()->second;
@@ -5556,6 +5569,8 @@ bool Program::IsValidSplitConvMerge(const InferenceEngine::SplitLayer *splitLaye
 
 void Program::AddInputPrimitive(cldnn::topology& topology, InputInfo::Ptr inputInfo, Precision layerPrecision, const std::string inputName) {
     // first create and add the input layout
+    CLDNN_TRACE_IR_METHOD("AddInputPrimitive");
+    CLDNN_TRACE_IR_MEM
     const auto inputDesc = inputInfo->getTensorDesc();
     const auto inputDims = inputDesc.getDims();
     Layout l = inputDesc.getLayout();
@@ -5768,6 +5783,7 @@ void Program::AddInputPrimitive(cldnn::topology& topology, InputInfo::Ptr inputI
 
     primitiveIDs[inputName] = preprocessPrimID;
     primitiveIDs[preprocessPrimID] = preprocessPrimID;
+    CLDNN_TRACE_IR_MEM
 }
 
 std::vector<cldnn::primitive_id> Program::GetPrevLayersPrimitives(const InferenceEngine::CNNLayerPtr layer) const {
@@ -5798,6 +5814,8 @@ std::vector<cldnn::primitive_id> Program::GetPrevLayersPrimitives(const Inferenc
 }
 
 void Program::AddOutputPrimitive(cldnn::topology& topology, std::string outputName, const InferenceEngine::DataPtr outputData, Precision outputPrecision) {
+    CLDNN_TRACE_IR_METHOD("AddOutputPrimitive");
+    CLDNN_TRACE_IR_MEM
     const auto outputDesc = outputData->getTensorDesc();
     const auto outputlayout = outputDesc.getLayout();
 
@@ -5855,6 +5873,7 @@ void Program::AddOutputPrimitive(cldnn::topology& topology, std::string outputNa
 
     outputDims[outputName] = outputDesc.getDims();
     prevPrimitiveIDs[outputReorderID] = {outputName};
+    CLDNN_TRACE_IR_MEM
 }
 
 void Program::AddSingleValuePrimitive(cldnn::topology& topology, cldnn::primitive_id valPrimID, cldnn::data_types dataType, float value) {

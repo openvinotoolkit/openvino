@@ -604,7 +604,10 @@ struct detection_output_cpu : typed_primitive_impl<detection_output> {
         extract_confidences_per_image<dtype>(instance, confidences, num_of_priors);
     }
 
+#define CLDNN_TRACE_IR_ENGINE (&instance.get_network().get_engine())
+
     event_impl::ptr execute_impl(const std::vector<event_impl::ptr>& events, detection_output_inst& instance) override {
+        CLDNN_TRACE_IR_METHOD_INTERNAL ("detection_output_cpu::execute_impl");
         for (auto& a : events) {
             a->wait();
         }

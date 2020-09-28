@@ -17,6 +17,7 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 #include "api/memory.hpp"
+#include "api/profiling.hpp"
 #include "event_impl.h"
 #include "refcounted_obj.h"
 #include "implementation_map.h"
@@ -28,6 +29,10 @@
 #include <vector>
 #include <utility>
 #include <string>
+#ifdef ENABLE_CLDNN_PROFILING_PTRACE
+#include <unordered_set>
+#include <atomic>
+#endif
 
 namespace cldnn {
 namespace gpu {
@@ -46,6 +51,42 @@ struct program_node;
 
 template <class>
 struct typed_program_node;
+
+#ifdef ENABLE_CLDNN_PROFILING_PTRACE
+enum class et : int8_t {
+    mark,
+    begin,
+    end,
+    async_start,
+    async_finish
+};
+
+struct stored_event {
+    stored_event(const char* _name, uint64_t _val, et _type) : name(_name), value(_val), type(_type){};
+
+    const char* name;
+    uint64_t value;
+    et type;
+};
+
+struct mem_event {
+    uint64_t vm_peak_rss;
+    uint64_t vm_rss;
+    uint64_t mp_temp_memory_used;
+    uint64_t mp_max_peak_device_memory_used;
+    uint64_t ts;
+};
+
+struct time_logger {
+    time_logger();
+    double ticks_per_usec();
+
+    double start_ns;
+    uint64_t start_ticks;
+    int tid;
+    int pid;
+};
+#endif
 
 struct engine_impl : public refcounted_obj<engine_impl> {
 public:
@@ -135,9 +176,64 @@ public:
     bool supports_allocation(allocation_type type) const;
     allocation_type get_lockable_preffered_memory_allocation_type(bool is_image_layout = false) const;
 
+#ifdef ENABLE_CLDNN_PROFILING_PTRACE
+    void event_mark(const std::string name);
+    void event_begin(const std::string name);
+    void event_end(const std::string name);
+    void async_start(const std::string name);
+    void async_finish(const std::string name);
+    void logger_flush();
+    void mem_tick();
+#endif
 private:
     engine_configuration _configuration;
     std::shared_ptr<gpu_toolkit> _context;
     memory_pool _memory_pool;
+
+#ifdef ENABLE_CLDNN_PROFILING_PTRACE
+    std::unordered_set<std::string> name_set;
+    std::vector<stored_event> ev_store;
+    std::vector<mem_event> mem_ev_store;
+    std::atomic_flag lock;
+    time_logger _timer;
+#endif
+
+    void acquire_lock() {
+        while (lock.test_and_set(std::memory_order_acquire)) {}
+    }
+
+    void release_lock() {
+        lock.clear(std::memory_order_release);
+    }
 };
+
+#ifdef ENABLE_CLDNN_PROFILING_PTRACE
+struct logger_scope_internal {
+    explicit logger_scope_internal(engine_impl* logger, std::string name) :
+        _logger(logger), _name(name) {
+        if (_logger != nullptr)  _logger->event_begin(_name);
+    }
+    ~logger_scope_internal() { if (_logger != nullptr)  _logger->event_end(_name); }
+private:
+    std::string _name;
+    engine_impl* _logger;
+};
+#define CLDNN_TRACE_IR_METHOD_INTERNAL(name) \
+logger_scope_internal fscope ## __LINE__(CLDNN_TRACE_IR_ENGINE, name);
+
+#define CLDNN_TRACE_IR_SCOPE_INTERNAL_BEGIN(name) \
+{ logger_scope_internal lscope ## __LINE__(CLDNN_TRACE_IR_ENGINE, name);
+
+#define CLDNN_TRACE_IR_SCOPE_INTERNAL_END }
+
+#define CLDNN_TRACE_IR_MARK_INTERNAL(name) CLDNN_TRACE_IR_ENGINE->event_mark(name);
+
+#define CLDNN_TRACE_IR_MEM_INTERNAL CLDNN_TRACE_IR_ENGINE->mem_tick();
+#else
+    #define CLDNN_TRACE_IR_METHOD_INTERNAL(name)
+    #define CLDNN_TRACE_IR_SCOPE_INTERNAL_BEGIN(name)
+    #define CLDNN_TRACE_IR_SCOPE_INTERNAL_END
+    #define CLDNN_TRACE_IR_MARK_INTERNAL(name)
+    #define CLDNN_TRACE_IR_MEM_INTERNAL
+#endif
 }  // namespace cldnn

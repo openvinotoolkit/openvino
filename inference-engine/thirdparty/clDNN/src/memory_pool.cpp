@@ -41,7 +41,10 @@ memory_record::memory_record(memory_set users,
                              allocation_type type)
     : _users(users), _memory(memory), _network_id(net_id), _type(type) {}
 
+#define CLDNN_TRACE_IR_ENGINE (_engine)
+
 memory_impl::ptr memory_pool::alloc_memory(const layout& layout, allocation_type type, uint32_t net_id, bool reset) {
+    CLDNN_TRACE_IR_METHOD_INTERNAL ("memory_pool::alloc_memory");
     auto context = _engine->get_context();
     if (layout.bytes_count() > context->get_device_info().max_alloc_mem_size) {
         throw std::runtime_error("exceeded max size of memory object allocation");
@@ -78,6 +81,7 @@ memory_impl::ptr memory_pool::alloc_memory(const layout& layout, allocation_type
 }
 
 memory_impl::ptr memory_pool::get_memory(const layout& layout, const shared_mem_params* params, uint32_t net_id) {
+    CLDNN_TRACE_IR_METHOD_INTERNAL ("memory_pool::get_memory");
     try {
         if (layout.format.is_image_2d() && params->mem_type == shared_mem_type::shared_mem_image) {
             cl::Image2D img(static_cast<cl_mem>(params->mem), true);
@@ -125,6 +129,7 @@ memory_pool::~memory_pool() {}
 bool memory_pool::has_conflict(const memory_set& a,
                                const std::set<primitive_id>& b,
                                uint32_t b_network_id) {
+    //CLDNN_TRACE_IR_METHOD_INTERNAL("memory_pool::has_conflict");
     std::set<primitive_id> a_same_network;
     for (auto const& mem_usr : a) {
         if (mem_usr._network_id == b_network_id) {
@@ -143,6 +148,7 @@ bool memory_pool::has_conflict(const memory_set& a,
 
 void memory_pool::release_memory(memory_impl* mem,
     const primitive_id& id) {
+    CLDNN_TRACE_IR_METHOD_INTERNAL("memory_pool::release_memory");
     // check nonpadded pool first
     auto _layout = mem->get_layout();
     auto type = mem->get_allocation_type();
@@ -215,6 +221,7 @@ memory_impl::ptr memory_pool::get_from_non_padded_pool(const layout& layout,
                                                        uint32_t network_id,
                                                        const std::set<primitive_id>& restrictions,
                                                        allocation_type type) {
+    CLDNN_TRACE_IR_METHOD_INTERNAL("memory_pool::get_from_non_padded_pool");
     auto it = _non_padded_pool.lower_bound(layout.bytes_count());
     while (it != _non_padded_pool.end()) {
         if (it->second._network_id == network_id &&
@@ -245,6 +252,7 @@ memory_impl::ptr memory_pool::get_from_padded_pool(const layout& layout,
                                                    uint32_t network_id,
                                                    const std::set<primitive_id>& restrictions,
                                                    allocation_type type) {
+    CLDNN_TRACE_IR_METHOD_INTERNAL("memory_pool::get_from_padded_pool");
     auto first_level_cache = _padded_pool.find(layout);
 
     if (first_level_cache != _padded_pool.end()) {
@@ -283,6 +291,7 @@ memory_impl::ptr memory_pool::get_from_across_networks_pool(const layout& layout
                                                             const primitive_id& id,
                                                             uint32_t network_id,
                                                             allocation_type type) {
+    CLDNN_TRACE_IR_METHOD_INTERNAL("memory_pool::get_from_across_networks_pool");
     auto it = _no_reusable_pool.lower_bound(layout.bytes_count());
 
     while (it != _no_reusable_pool.end()) {
@@ -314,6 +323,7 @@ memory_impl::ptr memory_pool::get_memory(const layout& layout,
                                          const std::set<primitive_id>& restrictions,
                                          allocation_type type,
                                          bool reusable_across_network) {
+    CLDNN_TRACE_IR_METHOD_INTERNAL("memory_pool::get_memory");
     if (reusable_across_network) {
         // reusable within the same network
         if (!layout.format.is_image() && layout.data_padding == padding{{0, 0, 0, 0}, 0}) {
@@ -331,9 +341,13 @@ memory_impl::ptr memory_pool::get_memory(const layout& layout,
     }
 }
 
-void memory_pool::clear_pool() { _non_padded_pool.clear(); }
+void memory_pool::clear_pool() {
+    CLDNN_TRACE_IR_METHOD_INTERNAL("memory_pool::clear_pool");
+    _non_padded_pool.clear();
+}
 
 void memory_pool::clear_pool_for_network(uint32_t network_id) {
+    CLDNN_TRACE_IR_METHOD_INTERNAL("memory_pool::clear_pool_for_network("+std::to_string(network_id)+")");
     // free up _non_padded_pool for this network
     {
         auto itr = _non_padded_pool.begin();

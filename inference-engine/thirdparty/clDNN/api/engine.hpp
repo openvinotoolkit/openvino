@@ -172,6 +172,15 @@ struct engine {
     /// @brief Returns type of the engine.
     engine_types get_type() const;
 
+#ifdef ENABLE_CLDNN_PROFILING_PTRACE
+    void event_mark(const std::string name);
+    void event_begin(const std::string name);
+    void event_end(const std::string name);
+    void async_start(const std::string name);
+    void async_finish(const std::string name);
+    void mem_tick();
+#endif
+
     /// @brief get C API engine handler.
     engine_impl* get() const { return _impl; }
 
@@ -186,6 +195,53 @@ private:
     void release();
 };
 CLDNN_API_CLASS(engine)
+
+#ifdef ENABLE_CLDNN_PROFILING_PTRACE
+struct logger_mark {
+    explicit logger_mark(std::shared_ptr<engine> logger, std::string name) {
+        logger->event_mark(name);
+    }
+};
+
+struct logger_scope {
+    explicit logger_scope(std::shared_ptr<engine> logger, std::string name) :
+    _logger(logger), _name(name) {
+        if (_logger != nullptr)  _logger->event_begin(_name);
+    }
+    ~logger_scope() { if (_logger != nullptr)  _logger->event_end(_name); }
+private:
+    std::string _name;
+    std::shared_ptr<engine> _logger;
+};
+#endif
+
+#ifdef ENABLE_PROFILING_ITT
+    #define CLDNN_TRACE_IR_METHOD(name) OV_ITT_SCOPED_TASK(itt::domains::CLDNNPlugin, fname)
+    #define CLDNN_TRACE_IR_SCOPE_BEGIN(name)
+    #define CLDNN_TRACE_IR_SCOPE_END
+    #define CLDNN_TRACE_IR_MARK(name)
+    #define CLDNN_TRACE_IR_MEM
+#else
+    #ifdef ENABLE_CLDNN_PROFILING_PTRACE
+        #define CLDNN_TRACE_IR_METHOD(name) \
+        cldnn::logger_scope fscope ## __LINE__(CLDNN_TRACE_IR_ENGINE, name);
+
+        #define CLDNN_TRACE_IR_SCOPE_BEGIN(name) \
+        { cldnn::logger_scope lscope ## __LINE__(CLDNN_TRACE_IR_ENGINE, name);
+
+        #define CLDNN_TRACE_IR_SCOPE_END }
+
+        #define CLDNN_TRACE_IR_MARK(name) CLDNN_TRACE_IR_ENGINE->event_mark(name);
+
+        #define CLDNN_TRACE_IR_MEM CLDNN_TRACE_IR_ENGINE->mem_tick();
+    #else
+        #define CLDNN_TRACE_IR_METHOD(name)
+        #define CLDNN_TRACE_IR_SCOPE_BEGIN(name)
+        #define CLDNN_TRACE_IR_SCOPE_END
+        #define CLDNN_TRACE_IR_MARK(name)
+        #define CLDNN_TRACE_IR_MEM
+    #endif
+#endif
 
 /// @}
 

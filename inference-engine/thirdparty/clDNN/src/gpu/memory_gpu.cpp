@@ -25,6 +25,8 @@
 namespace cldnn {
 namespace gpu {
 
+#define CLDNN_TRACE_IR_ENGINE (const_cast<engine_impl*>(_engine))
+
 gpu_buffer::gpu_buffer(const refcounted_obj_ptr<engine_impl>& engine,
                        const layout& layout,
                        uint32_t net_id,
@@ -42,6 +44,7 @@ gpu_buffer::gpu_buffer(const refcounted_obj_ptr<engine_impl>& engine,
       _buffer(buffer) {}
 
 void* gpu_buffer::lock() {
+    CLDNN_TRACE_IR_METHOD_INTERNAL ("gpu_buffer::lock");
     std::lock_guard<std::mutex> locker(_mutex);
     if (0 == _lock_count) {
         _mapped_ptr = _context->queue(_net_id).enqueueMapBuffer(_buffer, CL_TRUE, CL_MAP_WRITE, 0, size());
@@ -51,6 +54,7 @@ void* gpu_buffer::lock() {
 }
 
 void gpu_buffer::unlock() {
+    CLDNN_TRACE_IR_METHOD_INTERNAL ("gpu_buffer::unlock");
     std::lock_guard<std::mutex> locker(_mutex);
     _lock_count--;
     if (0 == _lock_count) {
@@ -60,11 +64,13 @@ void gpu_buffer::unlock() {
 }
 
 void gpu_buffer::zero_buffer() {
+    CLDNN_TRACE_IR_METHOD_INTERNAL ("gpu_buffer::zero_buffer");
     _context->queue(_net_id).enqueueFillBuffer<unsigned char>(_buffer, 0, 0, size());
     _context->queue(_net_id).flush();
 }
 
 void gpu_buffer::fill(unsigned char pattern, event_impl::ptr ev) {
+    CLDNN_TRACE_IR_METHOD_INTERNAL ("gpu_buffer::fill");
     cl::Event ev_ocl = dynamic_cast<base_event*>(ev.get())->get();
     _context->queue(_net_id).enqueueFillBuffer<unsigned char>(_buffer, pattern, 0, size(), 0, &ev_ocl);
 }
@@ -84,6 +90,7 @@ gpu_image2d::gpu_image2d(const refcounted_obj_ptr<engine_impl>& engine, const la
                          bool reset)
     : lockable_gpu_mem(engine), memory_impl(engine, layout, net_id, allocation_type::cl_mem, false),
     _row_pitch(0), _slice_pitch(0) {
+    CLDNN_TRACE_IR_METHOD_INTERNAL ("gpu_image2d::gpu_image2d()");
     cl_channel_type type = layout.data_type == data_types::f16 ? CL_HALF_FLOAT : CL_FLOAT;
     cl_channel_order order = CL_R;
     switch (layout.format) {
@@ -146,12 +153,14 @@ gpu_image2d::gpu_image2d(const refcounted_obj_ptr<engine_impl>& engine,
 }
 
 void gpu_image2d::zero_image() {
+    CLDNN_TRACE_IR_METHOD_INTERNAL ("gpu_image2d::zero_image");
     cl_uint4 pattern_uint4 = { 0, 0, 0, 0 };
     _context->queue(_net_id).enqueueFillImage(_buffer, pattern_uint4, { 0, 0, 0 }, { _width, _height, 1 });
     _context->queue(_net_id).flush();
 }
 
 void* gpu_image2d::lock() {
+    CLDNN_TRACE_IR_METHOD_INTERNAL ("gpu_image2d::lock");
     std::lock_guard<std::mutex> locker(_mutex);
     if (0 == _lock_count) {
         _mapped_ptr = _context->queue(_net_id)
@@ -168,6 +177,8 @@ void* gpu_image2d::lock() {
 }
 
 void gpu_image2d::unlock() {
+    CLDNN_TRACE_IR_METHOD_INTERNAL ("gpu_image2d::unlock");
+    logger_scope_internal fscope(const_cast<engine_impl*>(_engine), "gpu_image2d::unlock");
     std::lock_guard<std::mutex> locker(_mutex);
     _lock_count--;
     if (0 == _lock_count) {
@@ -177,6 +188,8 @@ void gpu_image2d::unlock() {
 }
 
 void gpu_image2d::fill(unsigned char pattern, event_impl::ptr ev) {
+    CLDNN_TRACE_IR_METHOD_INTERNAL ("gpu_image2d::fill");
+    logger_scope_internal fscope(const_cast<engine_impl*>(_engine), "gpu_image2d::fill");
     cl::Event ev_ocl = dynamic_cast<base_event*>(ev.get())->get();
     cl_uint4 pattern_uint4 = {pattern, pattern, pattern, pattern};
     _context->queue(_net_id).enqueueFillImage(_buffer, pattern_uint4, {0, 0, 0}, {_width, _height, 1}, 0, &ev_ocl);
@@ -240,6 +253,7 @@ gpu_usm::gpu_usm(const refcounted_obj_ptr<engine_impl>& engine, const layout& la
     : lockable_gpu_mem(engine)
     , memory_impl(engine, layout, net_id, type, false)
     , _buffer(_engine->get_context()->context()) {
+    CLDNN_TRACE_IR_METHOD_INTERNAL ("gpu_usm::gpu_usm()");
     auto device = _engine->get_context()->device();
     switch (get_allocation_type()) {
     case allocation_type::usm_host:
@@ -261,6 +275,7 @@ gpu_usm::gpu_usm(const refcounted_obj_ptr<engine_impl>& engine, const layout& la
 
 void* gpu_usm::lock() {
     assert(get_allocation_type() != allocation_type::usm_device && "Can't lock usm device memory!");
+    CLDNN_TRACE_IR_METHOD_INTERNAL ("gpu_usm::lock");
     std::lock_guard<std::mutex> locker(_mutex);
     if (0 == _lock_count) {
         _engine->get_context()->queue(_net_id).finish();  // Synchronization needed for OOOQ.
@@ -271,6 +286,7 @@ void* gpu_usm::lock() {
 }
 
 void gpu_usm::unlock() {
+    CLDNN_TRACE_IR_METHOD_INTERNAL ("gpu_usm::unlock");
     std::lock_guard<std::mutex> locker(_mutex);
     _lock_count--;
     if (0 == _lock_count) {
@@ -279,6 +295,7 @@ void gpu_usm::unlock() {
 }
 
 void gpu_usm::fill(unsigned char pattern, event_impl::ptr ev) {
+    CLDNN_TRACE_IR_METHOD_INTERNAL ("gpu_usm::fill");
     cl::Event ev_ocl = dynamic_cast<base_event*>(ev.get())->get();
     // enqueueFillUsm call will never finish. Driver bug? Uncomment when fixed. Some older drivers doesn't support enqueueFillUsm call at all.
     // _engine->get_context()->queue(_net_id).enqueueFillUsm<unsigned char>(_buffer, pattern, _bytes_count, nullptr, &ev_ocl)
@@ -294,12 +311,14 @@ void gpu_usm::zero_buffer() {
     // ev->wait();
 
     // [WA]
+    CLDNN_TRACE_IR_METHOD_INTERNAL ("gpu_usm::zero_buffer");
     event_impl::ptr ev{ new base_event(_engine->get_context()), false };
     fill(0, ev);
     ev->wait();
 }
 
 void gpu_usm::copy_from_other(const gpu_usm& other) {
+    CLDNN_TRACE_IR_METHOD_INTERNAL ("gpu_usm::copy_from_other");
     _engine->get_context()->queue(_net_id).enqueueCopyUsm(other.get_buffer(), get_buffer(), _bytes_count, true);
 }
 

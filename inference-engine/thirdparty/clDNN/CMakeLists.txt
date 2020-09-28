@@ -437,6 +437,14 @@ mark_as_advanced(CLDNN__COMPILE_LINK_ALLOW_UNSAFE_SIZE_OPT)
 set(CLDNN__CMAKE_DEBUG OFF CACHE BOOL "CMake: Enables debug trace messages in clDNN project.")
 mark_as_advanced(CLDNN__CMAKE_DEBUG)
 
+# Run: Enables performance and clDNN memory usage logging in chrome://tracing JSON format
+set(ENABLE_CLDNN_PROFILING_PTRACE OFF CACHE BOOL "Run: Enables perf/memory logging to JSON.")
+mark_as_advanced(ENABLE_CLDNN_PROFILING_PTRACE)
+if(ENABLE_PROFILING_ITT AND ENABLE_CLDNN_PROFILING_PTRACE)
+  message(WARNING "[clDNN] ENABLE_CLDNN_PROFILING_PTRACE: Cannot be enabled along with ITT tracing. Option will be disabled.")
+  set(ENABLE_CLDNN_PROFILING_PTRACE OFF)
+endif()
+
 # ======================================================================================================
 # ======================================================================================================
 
@@ -1044,7 +1052,6 @@ set_target_properties(clDNN_OpenCL
     PROPERTIES
         IMPORTED_LOCATION ${CLDNN__IOCL_ICD_LIBPATH}
   )
-
 
 # =================================== Link targets and dependencies ====================================
 if(CLDNN__INCLUDE_CORE)
