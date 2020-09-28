@@ -199,7 +199,7 @@ Inputs you need to specify when using a code sample or demo application:
 
 To perform sample inference, run the Image Classification code sample and Security Barrier Camera demo application that are automatically compiled when you run the Image Classification and Inference Pipeline demo scripts. The binary files are in the `C:\Users\<USER_ID>\Intel\OpenVINO\inference_engine_cpp_samples_build\intel64\Release` and `C:\Users\<USER_ID>\Intel\OpenVINO\inference_engine_demos_build\intel64\Release` directories, respectively.
 
-You can also build all available sample code and demo applications from the source files delivered with the OpenVINO™ toolkit. To learn how to do this, see the instruction in the [Inference Engine Code Samples Overview](../IE_DG/Samples_Overview.md) and the [Demo Applications Overview](@ref omz_demos_README) sections.
+You can also build all available sample code and demo applications from the source files delivered with the OpenVINO™ toolkit. To learn how to do this, see the instruction in the [Inference Engine Code Samples Overview](../IE_DG/Samples_Overview.md) and [Demo Applications Overview](@ref omz_demos_README) sections.
 
 ### <a name="download-models"></a> Step 1: Download the Models
 
@@ -425,7 +425,7 @@ classid probability label
 
 ### <a name="run-security-barrier"></a>Step 5: Run the Security Barrier Camera Demo Application
 
-> **NOTE**: The Security Barrier Camera Demo Application is automatically compiled when you run the Inference Pipeline demo scripts. If you want to build it manually, see the [Demo Applications Overview](@ref omz_demos_README#build_the_demo_applications) section.
+> **NOTE**: The Security Barrier Camera Demo Application is automatically compiled when you run the Inference Pipeline demo scripts. If you want to build it manually, see the instructions in the [Demo Applications Overview](@ref omz_demos_README) section.
 
 To run the **Security Barrier Camera Demo Application** using an input image on the prepared IRs:
 
