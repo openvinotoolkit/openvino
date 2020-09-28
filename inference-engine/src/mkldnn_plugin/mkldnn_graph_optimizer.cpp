@@ -46,6 +46,8 @@ using namespace InferenceEngine;
 MKLDNNGraphOptimizer::MKLDNNGraphOptimizer() {}
 
 void MKLDNNGraphOptimizer::ApplyCommonGraphOptimizations(MKLDNNGraph &graph) {
+//    OptimizeBF16ToFloat(graph);
+
     MergeTwoEqualScaleShifts(graph);
     graph.RemoveDroppedNodes();
 
@@ -2440,3 +2442,212 @@ void MKLDNNGraphOptimizer::FuseScaleShiftAndQuantize(MKLDNNGraph &graph) {
         }
     }
 }
+
+#if 1
+const InferenceEngine::details::caseless_set<std::string> _initbf16 =
+    { "convolution", "fullyconnected", "innerproduct", "gemm" };
+const InferenceEngine::details::caseless_set<std::string> _complementbf16 =
+    { "relu", "tanh", "elu", "square", "abs", "sqrt", "linear", "bounded_relu", "soft_relu", "logistic",
+      "exp", "gelu", "clamp", "swish", "prelu", "pooling", "norm", "gather", "memory", "concat", "eltwise", "Reshape", "Permute",
+"Broadcast", "Convert", "BatchToSpace", "DepthToSpace", "ExtractImagePatches", "Gather", "Concat", "Memory", "Permute", "Reorder", "Reshape", "Flatten",
+"ScatterUpdate", "ScatterElementsUpdate", "ScatterNDUpdate", "Select", "ShuffleChannels", "SpaceToBatch", "SpaceToDepth", "Squeeze", "StridedSlice",
+"Unsqueeze", "LRN" };
+//  prevent fallback to fp32 without considering both input and output nodes
+const InferenceEngine::details::caseless_set<std::string> _skipmarking =
+    { "memory" };
+
+bool tryToMarkFP32(InferenceEngine::DataPtr data) {
+    bool marked = false;
+    if (data->getPrecision() == Precision::BF16) {
+        // we treat one consumer and many in different ways
+        // if there is one consumer, we can mark its input as float if it does not belong to the list of initial layers
+        // in other cases we need to mark tensor which is passed to several l ayers as FP32 only if there is at least one conusmer
+        // produces data in FP32. I.e. there should be a way fo getting FP32 from output data to this point
+        if (getInputTo(data).size() == 1) {
+            if (_initbf16.find(getInputTo(data).begin()->second->type) == _initbf16.end())
+                marked = true;
+        } else {
+#if 1
+            // get all consumers
+            for (auto o : getInputTo(data)) {
+                // if tensor goes to several layers, we will mark it by FP32 only if one of the layer is unknown
+                if (_initbf16.find(o.second->type) == _initbf16.end() &&
+                    _complementbf16.find(o.second->type) == _complementbf16.end())
+                    marked = true;
+            }
+#else
+            marked = true;
+            // get all consumers
+            for (auto o : getInputTo(data)) {
+                // if tensor goes to several layers, we will mark it by FP32 only if one of the layer is unknown
+                if (_initbf16.find(o.second->type) != _initbf16.end())
+                    marked = false;
+            }
+#endif
+        }
+        if (marked)
+            data->setPrecision(Precision::FP32);
+    }
+    return marked;
+}
+
+void MKLDNNGraphOptimizer::OptimizeBF16ToFloat(MKLDNNGraph& graph) {
+    std::set<DataPtr> toAnalyzeTensors;
+    bool hasBF16Tensor = false;
+
+    for (MKLDNNNodePtr& node : graph.GetNodes()) {
+        auto iter = node->getCnnLayer();
+        for (size_t i = 0; i < iter->insData.size(); i++) {
+            if (iter->insData[i].lock()->getTensorDesc().getPrecision() == Precision::BF16)
+                hasBF16Tensor = true;
+        }
+        for (size_t o = 0; o < iter->outData.size(); o++) {
+            if (iter->outData[o]->getTensorDesc().getPrecision() == Precision::BF16)
+                hasBF16Tensor = true;
+        }
+    }
+    if (!hasBF16Tensor)
+        return;
+
+    // 2b. go over all unknown layers for this algo and mark them as fp32 and add to the toAnalyzeTensors
+    // 2c. go over all inputs to _initbf16 and if they are fp32 - add them to the toAnalyzeTensors
+    for (MKLDNNNodePtr& node : graph.GetNodes()) {
+        auto iter = node->getCnnLayer();
+        if (_initbf16.find(iter->type) == _initbf16.end()
+            && _complementbf16.find(iter->type) == _complementbf16.end()) {
+            // try to mark inputs of the unknown layer
+            for (size_t i = 0; i < iter->insData.size(); i++) {
+                if (iter->insData[i].lock()->getPrecision() == Precision::BF16
+                    && tryToMarkFP32(iter->insData[i].lock())) {
+                    toAnalyzeTensors.insert(iter->insData[i].lock());
+                }
+            }
+            // try to mark outputs of the unknown layer
+            for (size_t o = 0; o < iter->outData.size(); o++) {
+                if (iter->outData[o]->getPrecision() == Precision::BF16
+                    && tryToMarkFP32(iter->outData[o])) {
+                    toAnalyzeTensors.insert(iter->outData[o]);
+                }
+            }
+        }
+        if (_initbf16.find(iter->type) != _initbf16.end()) {
+            // verify if input activation tensor is not bf16 - add to toAnalyzeTensors as well
+            // we are assuming here that _initbf16 contain only layers having one dynamic input
+            // in other case algorithm should be changed to care about two dynamic input tensors
+            // and take into account case of different precision if they are
+            if (iter->insData[0].lock()->getTensorDesc().getPrecision() != Precision::BF16) {
+                toAnalyzeTensors.insert(iter->insData[0].lock());
+                // output tensor for FP32 convolutoin/FC layers should be FP32 as well
+                for (size_t o = 0; o < iter->outData.size(); o++) {
+                    if (iter->outData[o]->getPrecision() == Precision::BF16
+                        && tryToMarkFP32(iter->outData[o])) {
+                        toAnalyzeTensors.insert(iter->outData[o]);
+                    }
+                }
+            }
+        }
+    }
+    // 3 - while toAnalyzeTensors is not empty look at the layers dealing with tensors mentioned in toAnalyzeTensors
+    while (!toAnalyzeTensors.empty()) {
+        DataPtr tensor = *toAnalyzeTensors.begin();
+        toAnalyzeTensors.erase(tensor);
+        // look into producer of the tensor
+        auto layer = getCreatorLayer(tensor).lock();
+        // if this layer is not from _initbf16 - analyze inputs
+        if (_initbf16.find(layer->type) == _initbf16.end()) {
+            // for all inputs investigate and modify tensor precision if required
+            for (size_t i = 0; i < layer->insData.size(); i++) {
+                auto creator = getCreatorLayer(layer->insData[i].lock());
+                if (_skipmarking.find(creator.lock()->type) != _skipmarking.end())
+                    continue;
+                if (tryToMarkFP32(layer->insData[i].lock()))
+                    toAnalyzeTensors.insert(layer->insData[i].lock());
+            }
+        }
+
+        // mark all produced tensors to FP32 if they are BF16 and if they do not go _only_ to the toAnalyzeTensors
+        // TODO: when we enable greedy mode and start to produce bf16 tensor even if one consumer accepts it,
+        // this place should be changed.
+        // Instead of "if they do not go _only_ to the toAnalyzeTensors" we have to apply "if they do not go at least to one of _initbf16"
+        // TODO: add test input1->pooling1->conv1 and the same pooling1->relu. for example. now convolution should be returned to fp32
+        // after greedy mode, it should be fp32.
+        for (auto inputTo : getInputTo(tensor)) {
+            for (size_t o = 0; o < inputTo.second->outData.size(); o++) {
+                if (inputTo.second->outData[o]->getTensorDesc().getPrecision() == Precision::BF16) {
+                    // if some layer (e.g. memory) consumes tensor, but must be fitted with another layer (e.g. memory output)
+                    // in the net, whe must prevent this tensor to be fp32 - marked
+                    bool notToMarkFP32 = false;
+                    for (auto consumer : getInputTo(inputTo.second->outData[o])) {
+                        if (_skipmarking.find(consumer.second->type) !=  _skipmarking.end())
+                            notToMarkFP32 = true;
+                    }
+                    if (notToMarkFP32)
+                        continue;
+
+                    if (tryToMarkFP32(inputTo.second->outData[o]))
+                        toAnalyzeTensors.insert(layer->outData[o]);
+                }
+            }
+        }
+    }
+}
+#else
+void MKLDNNGraphOptimizer::OptimizeBF16ToFloat(MKLDNNGraph& graph) {
+    bool hasBF16Tensor = false;
+
+    for (MKLDNNNodePtr& node : graph.GetNodes()) {
+        auto iter = node->getCnnLayer();
+        for (size_t i = 0; i < iter->insData.size(); i++) {
+            if (iter->insData[i].lock()->getTensorDesc().getPrecision() == Precision::BF16)
+                hasBF16Tensor = true;
+        }
+        for (size_t o = 0; o < iter->outData.size(); o++) {
+            if (iter->outData[o]->getTensorDesc().getPrecision() == Precision::BF16)
+                hasBF16Tensor = true;
+        }
+    }
+    if (!hasBF16Tensor)
+        return;
+
+    const InferenceEngine::details::caseless_set<std::string> bf16DemandTypes = {
+        "FullyConnected", "Convolution", "InnerProduct", "Gemm"
+    };
+    const InferenceEngine::details::caseless_set<std::string> bf16ComplementTypes = {
+"Broadcast", "Convert", "BatchToSpace", "DepthToSpace", "ExtractImagePatches", "Gather", "Concat", "Memory", "Permute", "Reorder", "Reshape", "Flatten",
+"ScatterUpdate", "ScatterElementsUpdate", "ScatterNDUpdate", "Select", "ShuffleChannels", "SpaceToBatch", "SpaceToDepth", "Squeeze", "StridedSlice",
+"Unsqueeze", "relu", "tanh", "elu", "square", "abs", "sqrt", "linear", "bounded_relu", "soft_relu", "logistic", "exp", "gelu", "clamp", "swish",
+"prelu", "pooling", "norm", "LRN", "Eltwise"
+    };
+
+    for (MKLDNNNodePtr& node : graph.GetNodes()) {
+        auto iter = node->getCnnLayer();
+        if (bf16ComplementTypes.find(iter->type) != bf16ComplementTypes.end()) {
+            size_t fp32OnlyCounter = 0;
+            for (size_t i = 0; i < iter->insData.size(); i++) {
+                auto prevLayer = getCreatorLayer(iter->insData[i].lock()).lock();
+                if (bf16ComplementTypes.find(prevLayer->type) == bf16ComplementTypes.end()
+                    && bf16DemandTypes.find(prevLayer->type) == bf16DemandTypes.end())
+                    fp32OnlyCounter++;
+            }
+
+            for (size_t o = 0; o < iter->outData.size(); o++) {
+                auto nextLayer = getInputTo(iter->outData[o]).begin()->second;
+                if (bf16ComplementTypes.find(nextLayer->type) == bf16ComplementTypes.end()
+                    && bf16DemandTypes.find(nextLayer->type) == bf16DemandTypes.end())
+                    fp32OnlyCounter++;
+            }
+
+            if (fp32OnlyCounter == (iter->insData.size() + iter->outData.size())) {
+                for (size_t i = 0; i < iter->insData.size(); i++) {
+                    if (iter->insData[i].lock()->getPrecision() == Precision::BF16)
+                        iter->insData[i].lock()->setPrecision(Precision::FP32);
+                }
+                for (size_t o = 0; o < iter->outData.size(); o++) {
+                    if (iter->outData[o]->getPrecision() == Precision::BF16)
+                        iter->outData[o]->setPrecision(Precision::FP32);
+                }
+            }
+        }
+    }
+}
+#endif

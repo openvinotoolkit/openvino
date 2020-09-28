@@ -59,6 +59,7 @@ private:
     void FuseClampAndQuantize(MKLDNNGraph &graph);
 
     bool IsOneOf(Type type, std::vector<Type> types);
+    void OptimizeBF16ToFloat(MKLDNNGraph& graph);
 };
 
 }  // namespace MKLDNNPlugin

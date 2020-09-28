@@ -36,11 +36,13 @@ public:
 
             // check a precision of the input tensor
             input_precision = layer->insData[0].lock()->getTensorDesc().getPrecision();
+            if (input_precision == Precision::BF16)
+                input_precision = Precision::FP32;
             if (input_precision != Precision::I32 && input_precision != Precision::FP32) {
                 THROW_IE_EXCEPTION << layer->name << " Incorrect input precision for the input. Only I32 and FP32 are supported!";
             }
 
-            addConfig(layer, { DataConfigurator(ConfLayout::PLN) }, { DataConfigurator(ConfLayout::PLN) });
+            addConfig(layer, { DataConfigurator(ConfLayout::PLN) }, { DataConfigurator(ConfLayout::PLN, Precision::FP32) });
         } catch (InferenceEngine::details::InferenceEngineException &ex) {
             errorMsg = ex.what();
         }

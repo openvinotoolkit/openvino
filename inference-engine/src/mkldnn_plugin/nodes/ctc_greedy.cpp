@@ -20,8 +20,8 @@ public:
                 THROW_IE_EXCEPTION << "Incorrect number of input/output edges!";
 
             std::vector<DataConfigurator> inps;
-            inps.resize(layer->insData.size(), DataConfigurator(ConfLayout::PLN));
-            addConfig(layer, inps, {DataConfigurator(ConfLayout::PLN)});
+            inps.resize(layer->insData.size(), DataConfigurator(ConfLayout::PLN, Precision::FP32));
+            addConfig(layer, inps, {DataConfigurator(ConfLayout::PLN, Precision::FP32)});
         } catch (InferenceEngine::details::InferenceEngineException &ex) {
             errorMsg = ex.what();
         }

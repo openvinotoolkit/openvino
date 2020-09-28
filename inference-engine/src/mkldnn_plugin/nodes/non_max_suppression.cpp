@@ -26,14 +26,10 @@ public:
             if (layer->outData.size() != 1)
                 THROW_IE_EXCEPTION << layer->name << " Incorrect number of output edges!";
 
-            if (layer->insData[NMS_BOXES].lock()->getTensorDesc().getPrecision() != Precision::FP32)
-                THROW_IE_EXCEPTION << layer->name << " Incorrect 'boxes' input precision. Only FP32 is supported!";
             SizeVector boxes_dims = layer->insData[NMS_BOXES].lock()->getTensorDesc().getDims();
             if (boxes_dims.size() != 3 || boxes_dims[2] != 4)
                 THROW_IE_EXCEPTION << layer->name << " 'boxes' should be with shape [num_batches, spatial_dimension, 4]";
 
-            if (layer->insData[NMS_SCORES].lock()->getTensorDesc().getPrecision() != Precision::FP32)
-                THROW_IE_EXCEPTION << layer->name << " Incorrect 'scores' input precision. Only FP32 is supported!";
             SizeVector scores_dims = layer->insData[NMS_SCORES].lock()->getTensorDesc().getDims();
             if (scores_dims.size() != 3)
                 THROW_IE_EXCEPTION << layer->name << " 'scores' should be with shape [num_batches, num_classes, spatial_dimension]";
@@ -44,31 +40,23 @@ public:
                 THROW_IE_EXCEPTION << layer->name << " spatial_dimension is different in 'boxes' and 'scores' tensors";
 
             if (layer->insData.size() > 2) {
-                if (layer->insData[NMS_MAXOUTPUTBOXESPERCLASS].lock()->getTensorDesc().getPrecision() != Precision::I32)
-                    THROW_IE_EXCEPTION << layer->name << " Incorrect 'max_output_boxes_per_class' input precision. Only I32 is supported!";
                 SizeVector max_output_boxes_per_class_dims = layer->insData[NMS_MAXOUTPUTBOXESPERCLASS].lock()->getTensorDesc().getDims();
                 if (max_output_boxes_per_class_dims.size() && max_output_boxes_per_class_dims[0] != 1)
                     THROW_IE_EXCEPTION << layer->name << " 'max_output_boxes_per_class' should be scalar";
             }
 
             if (layer->insData.size() > 3) {
-                if (layer->insData[NMS_IOUTHRESHOLD].lock()->getTensorDesc().getPrecision() != Precision::FP32)
-                    THROW_IE_EXCEPTION << layer->name << " Incorrect 'iou_threshold' input precision. Only FP32 is supported!";
                 SizeVector iou_threshold_dims = layer->insData[NMS_IOUTHRESHOLD].lock()->getTensorDesc().getDims();
                 if (iou_threshold_dims.size() && iou_threshold_dims[0] != 1)
                     THROW_IE_EXCEPTION << layer->name << " 'iou_threshold' should be scalar";
             }
 
             if (layer->insData.size() > 4) {
-                if (layer->insData[NMS_SCORETHRESHOLD].lock()->getTensorDesc().getPrecision() != Precision::FP32)
-                    THROW_IE_EXCEPTION << layer->name << " Incorrect 'score_threshold' input precision. Only FP32 is supported!";
                 SizeVector score_threshold_dims = layer->insData[NMS_SCORETHRESHOLD].lock()->getTensorDesc().getDims();
                 if (score_threshold_dims.size() && score_threshold_dims[0] != 1)
                     THROW_IE_EXCEPTION << layer->name << " 'score_threshold' should be scalar";
             }
 
-            if (layer->outData[0]->getTensorDesc().getPrecision() != Precision::I32)
-                THROW_IE_EXCEPTION << layer->name << " Incorrect 'selected_indices' input precision. Only I32 is supported!";
             SizeVector selected_indices_dims = layer->outData[0]->getTensorDesc().getDims();
             if (selected_indices_dims.size() != 2 || selected_indices_dims[1] != 3)
                 THROW_IE_EXCEPTION << layer->name << " 'selected_indices' should be with shape [num_selected_indices, 3]";
@@ -77,16 +65,19 @@ public:
             sort_result_descending = layer->GetParamAsBool("sort_result_descending", true);
 
             if (layer->insData.size() == 2) {
-                addConfig(layer, { DataConfigurator(ConfLayout::PLN), DataConfigurator(ConfLayout::PLN) }, { DataConfigurator(ConfLayout::PLN) });
+                addConfig(layer, { DataConfigurator(ConfLayout::PLN, Precision::FP32), DataConfigurator(ConfLayout::PLN, Precision::FP32) },
+                    { DataConfigurator(ConfLayout::PLN, Precision::I32) });
             } else if (layer->insData.size() == 3) {
-                addConfig(layer, { DataConfigurator(ConfLayout::PLN), DataConfigurator(ConfLayout::PLN), DataConfigurator(ConfLayout::PLN) },
-                    { DataConfigurator(ConfLayout::PLN) });
+                addConfig(layer, { DataConfigurator(ConfLayout::PLN, Precision::FP32), DataConfigurator(ConfLayout::PLN, Precision::FP32),
+                    DataConfigurator(ConfLayout::PLN, Precision::I32) }, { DataConfigurator(ConfLayout::PLN, Precision::I32) });
             } else if (layer->insData.size() == 4) {
-                addConfig(layer, { DataConfigurator(ConfLayout::PLN), DataConfigurator(ConfLayout::PLN), DataConfigurator(ConfLayout::PLN),
-                    DataConfigurator(ConfLayout::PLN) }, { DataConfigurator(ConfLayout::PLN) });
+                addConfig(layer, { DataConfigurator(ConfLayout::PLN, Precision::FP32), DataConfigurator(ConfLayout::PLN, Precision::FP32),
+                    DataConfigurator(ConfLayout::PLN, Precision::I32), DataConfigurator(ConfLayout::PLN, Precision::FP32) },
+                    { DataConfigurator(ConfLayout::PLN, Precision::I32) });
             } else {
-                addConfig(layer, { DataConfigurator(ConfLayout::PLN), DataConfigurator(ConfLayout::PLN), DataConfigurator(ConfLayout::PLN),
-                    DataConfigurator(ConfLayout::PLN), DataConfigurator(ConfLayout::PLN) }, { DataConfigurator(ConfLayout::PLN) });
+                addConfig(layer, { DataConfigurator(ConfLayout::PLN, Precision::FP32), DataConfigurator(ConfLayout::PLN, Precision::FP32),
+                    DataConfigurator(ConfLayout::PLN, Precision::I32), DataConfigurator(ConfLayout::PLN, Precision::FP32),
+                    DataConfigurator(ConfLayout::PLN, Precision::FP32) }, { DataConfigurator(ConfLayout::PLN, Precision::I32) });
             }
         } catch (InferenceEngine::details::InferenceEngineException &ex) {
             errorMsg = ex.what();
