@@ -28,6 +28,10 @@ addIeTargetTest(
             IE
 )
 
+ie_faster_build(${TARGET_NAME}
+    PCH PRIVATE "precomp.hpp"
+)
+
 if(TARGET inference_engine_onnx_reader)
     add_dependencies(${TARGET_NAME} inference_engine_onnx_reader)
 endif()
