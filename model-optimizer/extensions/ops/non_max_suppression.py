@@ -99,7 +99,7 @@ class NonMaxSuppression(Op):
             node.out_port(0).set_data_type(node.output_type)
             num_of_outputs = len(node.out_ports())
             if num_of_outputs >= 2:
-                node.out_port(1).set_data_type(np.int64)
+                node.out_port(1).set_data_type(np.float32)
             if num_of_outputs >= 3:
                 node.out_port(2).set_data_type(np.int64)
         elif node.get_opset() in ['opset3', 'opset4']:
