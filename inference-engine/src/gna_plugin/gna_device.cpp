@@ -7,6 +7,7 @@
 #include <map>
 #include <string>
 #include <cstring>
+#include <mutex>
 #include <vector>
 
 #if GNA_LIB_VER == 2
@@ -62,6 +63,8 @@ uint32_t GNADeviceHelper::propagate(const intel_nnet_type_t *pNeuralNetwork,
     return reqId;
 }
 #else
+std::mutex GNADeviceHelper::acrossPluginsSync{};
+
 void GNADeviceHelper::setUpActiveList(const uint32_t requestConfigId, uint32_t layerIndex, uint32_t* ptr_active_indices, uint32_t num_active_indices) {
     const auto status = Gna2RequestConfigEnableActiveList(requestConfigId, layerIndex, num_active_indices, ptr_active_indices);
     checkGna2Status(status);
@@ -367,6 +370,7 @@ void GNADeviceHelper::open(uint8_t n_threads) {
     nGNAHandle = GNADeviceOpenSetThreads(&nGNAStatus, n_threads);
     checkStatus();
 #else
+    std::unique_lock<std::mutex> lockGnaCalls{ acrossPluginsSync };
     auto status = Gna2DeviceGetVersion(nGnaDeviceIndex, &detectedGnaDevVersion);
     checkGna2Status(status);
     status = Gna2DeviceOpen(nGnaDeviceIndex);
@@ -383,6 +387,7 @@ void GNADeviceHelper::close() {
     GNADeviceClose(nGNAHandle);
     nGNAHandle = 0;
 #else
+    std::unique_lock<std::mutex> lockGnaCalls{ acrossPluginsSync };
     auto requestsToClose = unwaitedRequestIds;
     for (auto requestId : requestsToClose) {
         try {
@@ -401,6 +406,7 @@ void GNADeviceHelper::setOMPThreads(uint8_t const n_threads) {
 #if GNA_LIB_VER == 1
     gmmSetThreads(n_threads);
 #else
+    std::unique_lock<std::mutex> lockGnaCalls{ acrossPluginsSync };
     const auto status = Gna2DeviceSetNumberOfThreads(nGnaDeviceIndex, n_threads);
     checkGna2Status(status);
 #endif
