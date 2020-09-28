@@ -77,7 +77,7 @@ cldnn::device_info clDNNEngine::GetDeviceInfo(const std::map<std::string, std::s
     return device_info;
 }
 
-InferenceEngine::ICNNNetwork::Ptr clDNNEngine::CloneAndTransformNetwork(const InferenceEngine::ICNNNetwork& network) const {
+InferenceEngine::ICNNNetwork::Ptr clDNNEngine::CloneAndTransformNetwork(const InferenceEngine::ICNNNetwork& network, CLDNNPlugin::Config config) const {
     std::shared_ptr<ICNNNetwork> clonedNetwork = cloneNetwork(network);
     bool baselineIsFP16 = false;
 
@@ -139,7 +139,6 @@ InferenceEngine::ICNNNetwork::Ptr clDNNEngine::CloneAndTransformNetwork(const In
         // Disable shape inference (WA for generic operations)
         ::ngraph::op::GenericIE::DisableReshape noReshape(nGraphFunc);
 
-        CLDNNPlugin::Config config = _impl->m_config;
         const bool enableInt8 = config.enableInt8 && (config.lptVersion == Config::LptVersion::nGraph);
 
         {
@@ -322,7 +321,7 @@ ExecutableNetworkInternal::Ptr clDNNEngine::LoadExeNetworkImpl(const InferenceEn
 
     context = m_defaultContext;
 
-    return std::make_shared<CLDNNExecNetwork>(*CloneAndTransformNetwork(network), context, conf);
+    return std::make_shared<CLDNNExecNetwork>(*CloneAndTransformNetwork(network, conf), context, conf);
 }
 
 ExecutableNetworkInternal::Ptr clDNNEngine::LoadExeNetworkImpl(const InferenceEngine::ICNNNetwork &network,
@@ -346,7 +345,7 @@ ExecutableNetworkInternal::Ptr clDNNEngine::LoadExeNetworkImpl(const InferenceEn
         conf.max_dynamic_batch = static_cast<int>(network.getBatchSize());
     }
 
-    return std::make_shared<CLDNNExecNetwork>(*CloneAndTransformNetwork(network), casted, conf);
+    return std::make_shared<CLDNNExecNetwork>(*CloneAndTransformNetwork(network, conf), casted, conf);
 }
 
 RemoteContext::Ptr clDNNEngine::CreateContext(const ParamMap& params) {
@@ -384,13 +383,16 @@ void clDNNEngine::QueryNetwork(const ICNNNetwork& network,
                                std::string>& config,
                                QueryNetworkResult& res) const {
     GetDeviceInfo(config);      // Verify device id
+    CLDNNPlugin::Config conf = _impl->m_config;
+    conf.enableInt8 = true; // device_info.supports_imad || device_info.supports_immad;
+    conf.UpdateFromMap(config);
     auto function = network.getFunction();
     if (function != nullptr) {
         std::unordered_set<std::string> originalOps;
         for (auto&& node : function->get_ops()) {
             originalOps.emplace(node->get_friendly_name());
         }
-        auto clonedNetwork = CloneAndTransformNetwork(network);
+        auto clonedNetwork = CloneAndTransformNetwork(network, conf);
         std::unordered_set<std::string> supported;
         std::unordered_set<std::string> unsupported;
 
