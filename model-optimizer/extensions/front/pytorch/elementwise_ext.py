@@ -13,14 +13,20 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 """
-from extensions.ops.activation_ops import *
-from mo.front.extractor import FrontExtractorOp
+import numpy as np
 
-class ReLUExtractor(FrontExtractorOp):
-    op = 'ReLU'
+from extensions.ops.elementwise import Add
+from mo.front.extractor import FrontExtractorOp
+from mo.graph.graph import Node
+from mo.ops.eltwise_n import EltwiseNAdd, EltwiseNMax
+from mo.ops.power import AttributedPower
+
+
+class AddFrontExtractor(FrontExtractorOp):
+    op = 'Add'
     enabled = True
 
     @classmethod
-    def extract(cls, node):
-        ReLU.update_node_stat(node)
+    def extract(cls, node: Node):
+        Add.update_node_stat(node)
         return cls.enabled

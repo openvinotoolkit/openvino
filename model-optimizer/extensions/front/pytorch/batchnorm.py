@@ -13,28 +13,33 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 """
-import numpy as np
 
+from mo.front.common.partial_infer.elemental import copy_shape_infer
 from mo.front.common.replacement import FrontReplacementOp
 from mo.graph.graph import Graph, Node
 from mo.ops.const import Const
-from extensions.ops.MatMul import MatMul
-from extensions.ops.elementwise import Add
-from mo.ops.reshape import Reshape
+from mo.ops.op import Op
 
 
-class Linear(FrontReplacementOp):
-    op = 'Linear'
+class BatchNorm(Op):
+    op = 'BatchNorm'
+
+    def __init__(self, graph: Graph, attrs: dict):
+        mandatory_props = {
+            'type': self.op,
+            'op': self.op,
+            'eps': None,
+            'infer': copy_shape_infer,
+            'in_ports_count': 5,
+            'out_ports_count': 1,
+        }
+        super().__init__(graph, mandatory_props, attrs)
+
+class BatchNorm2d(FrontReplacementOp):
+    op = 'BatchNorm2d'
     enabled = True
 
     def replace_op(self, graph: Graph, node: Node):
-        shape = Const(graph, {'value': [0, -1]}).create_node()
-        flatten = Reshape(graph, dict(name=node.in_node(0).name + '/flatten')).create_node([node.in_node(0), shape])
-
-        matmul = MatMul(graph, dict(name=node.name, transpose_b=True)).create_node([flatten, node.in_node(1)])
-
-        # Bias
-        if len(node.in_nodes()) > 2:
-            matmul = Add(graph, dict(name=node.name + '/bias')).create_node([matmul, node.in_node(2)])
-
-        return [matmul.id]
+        inputs = [node.in_node(i) for i in range(5)]
+        bn = BatchNorm(graph, dict(name=node.name, eps=node.module.eps)).create_node(inputs)
+        return [bn.id]

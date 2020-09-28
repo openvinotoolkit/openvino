@@ -19,7 +19,7 @@ import numpy as np
 from mo.front.common.partial_infer.utils import int64_array
 from mo.front.extractor import FrontExtractorOp
 from mo.ops.pooling import Pooling
-from extensions.ops.identity import Identity
+from extensions.ops.adaptive_avg_pooling import AdaptiveAvgPooling
 from mo.utils.error import Error
 
 
@@ -64,6 +64,8 @@ class AdaptiveAvgPool2dFrontExtractor(FrontExtractorOp):
 
     @classmethod
     def extract(cls, node):
-        # TODO: replace to correct mapping
-        Identity.update_node_stat(node)
+        data = {
+            'output_size': node.module.output_size,
+        }
+        AdaptiveAvgPooling.update_node_stat(node, data)
         return cls.enabled
