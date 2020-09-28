@@ -47,6 +47,16 @@ protected:
         std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
 
+        inPrc = outPrc = netPrecision;
+
+        std::string strExpectedPrc;
+        if (Precision::BF16 == netPrecision) {
+            strExpectedPrc = "BF16";
+        } else if (Precision::FP32 == netPrecision) {
+            strExpectedPrc = "FP32";
+        }
+
+
         std::string isaType;
         if (with_cpu_x86_avx512f()) {
             isaType = "jit_avx512";
@@ -57,7 +67,7 @@ protected:
         } else {
             isaType = "ref";
         }
-        selectedType = isaType + "_" + "FP32";
+        selectedType = isaType + "_" + strExpectedPrc;
 
         std::vector<size_t> inputShape1, inputShape2;
         if (inputShapes.size() == 1) {
@@ -90,12 +100,7 @@ protected:
             eltwiseType == ngraph::helpers::EltwiseTypes::FLOOR_MOD ||
             eltwiseType == ngraph::helpers::EltwiseTypes::MOD) {
             std::vector<float> data(ngraph::shape_size(shape_input_secondary));
-            data = NGraphFunctions::Utils::generateVector<ngraph::element::Type_t::f32>(ngraph::shape_size(shape_input_secondary));
-            for (float &i : data) {
-                if (i == 0) {
-                    i = 1;
-                }
-            }
+            data = NGraphFunctions::Utils::generateVector<ngraph::element::Type_t::f32>(ngraph::shape_size(shape_input_secondary), 10, 2);
             secondaryInput = ngraph::builder::makeConstant(ngPrc, shape_input_secondary, data);
         } else {
             secondaryInput = ngraph::builder::makeInputLayer(ngPrc, secondaryInputType, shape_input_secondary);
@@ -159,6 +164,11 @@ std::vector<CPUSpecificParams> filterCPUSpecificParams(std::vector<CPUSpecificPa
     return paramsVector;
 }
 
+std::vector<InferenceEngine::Precision> netPrecisions = {
+        InferenceEngine::Precision::FP32,
+        InferenceEngine::Precision::BF16
+};
+
 std::vector<std::vector<std::vector<size_t>>> inShapes_4D = {
         {{2, 4, 4, 1}},
         {{2, 17, 5, 4}},
@@ -172,18 +182,18 @@ std::vector<CPUSpecificParams> cpuParams_4D = {
         CPUSpecificParams({nchw, nchw}, {nchw}, {}, {})
 };
 
-const auto params_4D_FP32 = ::testing::Combine(
+const auto params_4D = ::testing::Combine(
         ::testing::Combine(
             ::testing::ValuesIn(inShapes_4D),
             ::testing::ValuesIn(eltwiseOpTypes),
             ::testing::ValuesIn(secondaryInputTypes),
             ::testing::ValuesIn(opTypes),
-            ::testing::Values(InferenceEngine::Precision::FP32),
+            ::testing::ValuesIn(netPrecisions),
             ::testing::Values(CommonTestUtils::DEVICE_CPU),
             ::testing::Values(additional_config)),
         ::testing::ValuesIn(filterCPUSpecificParams(cpuParams_4D)));
 
-INSTANTIATE_TEST_CASE_P(CompareWithRefs_4D_FP32, EltwiseLayerCPUTest, params_4D_FP32, EltwiseLayerCPUTest::getTestCaseName);
+INSTANTIATE_TEST_CASE_P(CompareWithRefs_4D, EltwiseLayerCPUTest, params_4D, EltwiseLayerCPUTest::getTestCaseName);
 
 
 std::vector<std::vector<std::vector<size_t>>> inShapes_5D = {
@@ -199,18 +209,18 @@ std::vector<CPUSpecificParams> cpuParams_5D = {
         CPUSpecificParams({ncdhw, ncdhw}, {ncdhw}, {}, {})
 };
 
-const auto params_5D_FP32 = ::testing::Combine(
+const auto params_5D = ::testing::Combine(
         ::testing::Combine(
             ::testing::ValuesIn(inShapes_5D),
             ::testing::ValuesIn(eltwiseOpTypes),
             ::testing::ValuesIn(secondaryInputTypes),
             ::testing::ValuesIn(opTypes),
-            ::testing::Values(InferenceEngine::Precision::FP32),
+            ::testing::ValuesIn(netPrecisions),
             ::testing::Values(CommonTestUtils::DEVICE_CPU),
             ::testing::Values(additional_config)),
         ::testing::ValuesIn(filterCPUSpecificParams(cpuParams_5D)));
 
-INSTANTIATE_TEST_CASE_P(CompareWithRefs_5D_FP32, EltwiseLayerCPUTest, params_5D_FP32, EltwiseLayerCPUTest::getTestCaseName);
+INSTANTIATE_TEST_CASE_P(CompareWithRefs_5D, EltwiseLayerCPUTest, params_5D, EltwiseLayerCPUTest::getTestCaseName);
 
 
 std::vector<std::vector<std::vector<size_t>>> inShapes_4D_Blocked_Planar = {
@@ -222,18 +232,18 @@ std::vector<CPUSpecificParams> cpuParams_4D_Blocked_Planar = {
         CPUSpecificParams({nChw16c, nchw}, {nChw16c}, {}, {}),
 };
 
-const auto params_4D_FP32_Blocked_Planar = ::testing::Combine(
+const auto params_4D_Blocked_Planar = ::testing::Combine(
         ::testing::Combine(
             ::testing::ValuesIn(inShapes_4D_Blocked_Planar),
             ::testing::ValuesIn(eltwiseOpTypes),
             ::testing::Values(ngraph::helpers::InputLayerType::CONSTANT),
             ::testing::ValuesIn(opTypes),
-            ::testing::Values(InferenceEngine::Precision::FP32),
+            ::testing::ValuesIn(netPrecisions),
             ::testing::Values(CommonTestUtils::DEVICE_CPU),
             ::testing::Values(additional_config)),
         ::testing::ValuesIn(filterCPUSpecificParams(cpuParams_4D_Blocked_Planar)));
 
-INSTANTIATE_TEST_CASE_P(CompareWithRefs_4D_FP32_Blocked_Planar, EltwiseLayerCPUTest, params_4D_FP32_Blocked_Planar, EltwiseLayerCPUTest::getTestCaseName);
+INSTANTIATE_TEST_CASE_P(CompareWithRefs_4D_Blocked_Planar, EltwiseLayerCPUTest, params_4D_Blocked_Planar, EltwiseLayerCPUTest::getTestCaseName);
 
 
 std::vector<std::vector<std::vector<size_t>>> inShapes_4D_Planar_Blocked = {
@@ -245,18 +255,18 @@ std::vector<CPUSpecificParams> cpuParams_4D_Planar_Blocked = {
         CPUSpecificParams({nchw, nChw16c}, {nChw16c}, {}, {}),
 };
 
-const auto params_4D_FP32_Planar_Blocked = ::testing::Combine(
+const auto params_4D_Planar_Blocked = ::testing::Combine(
         ::testing::Combine(
             ::testing::ValuesIn(inShapes_4D_Planar_Blocked),
             ::testing::ValuesIn(eltwiseOpTypes),
             ::testing::Values(ngraph::helpers::InputLayerType::CONSTANT),
             ::testing::ValuesIn(opTypes),
-            ::testing::Values(InferenceEngine::Precision::FP32),
+            ::testing::ValuesIn(netPrecisions),
             ::testing::Values(CommonTestUtils::DEVICE_CPU),
             ::testing::Values(additional_config)),
         ::testing::ValuesIn(filterCPUSpecificParams(cpuParams_4D_Planar_Blocked)));
 
-INSTANTIATE_TEST_CASE_P(CompareWithRefs_4D_FP32_Planar_Blocked, EltwiseLayerCPUTest, params_4D_FP32_Planar_Blocked, EltwiseLayerCPUTest::getTestCaseName);
+INSTANTIATE_TEST_CASE_P(CompareWithRefs_4D_Planar_Blocked, EltwiseLayerCPUTest, params_4D_Planar_Blocked, EltwiseLayerCPUTest::getTestCaseName);
 
 
 std::vector<std::vector<std::vector<size_t>>> inShapes_5D_Blocked_Planar = {
@@ -268,18 +278,18 @@ std::vector<CPUSpecificParams> cpuParams_5D_Blocked_Planar = {
         CPUSpecificParams({nCdhw16c, ncdhw}, {nCdhw16c}, {}, {}),
 };
 
-const auto params_5D_FP32_Blocked_Planar = ::testing::Combine(
+const auto params_5D_Blocked_Planar = ::testing::Combine(
         ::testing::Combine(
             ::testing::ValuesIn(inShapes_5D_Blocked_Planar),
             ::testing::ValuesIn(eltwiseOpTypes),
             ::testing::Values(ngraph::helpers::InputLayerType::CONSTANT),
             ::testing::ValuesIn(opTypes),
-            ::testing::Values(InferenceEngine::Precision::FP32),
+            ::testing::ValuesIn(netPrecisions),
             ::testing::Values(CommonTestUtils::DEVICE_CPU),
             ::testing::Values(additional_config)),
         ::testing::ValuesIn(filterCPUSpecificParams(cpuParams_5D_Blocked_Planar)));
 
-INSTANTIATE_TEST_CASE_P(CompareWithRefs_5D_FP32_Blocked_Planar, EltwiseLayerCPUTest, params_5D_FP32_Blocked_Planar, EltwiseLayerCPUTest::getTestCaseName);
+INSTANTIATE_TEST_CASE_P(CompareWithRefs_5D_Blocked_Planar, EltwiseLayerCPUTest, params_5D_Blocked_Planar, EltwiseLayerCPUTest::getTestCaseName);
 
 
 std::vector<std::vector<std::vector<size_t>>> inShapes_5D_Planar_Blocked = {
@@ -291,18 +301,18 @@ std::vector<CPUSpecificParams> cpuParams_5D_Planar_Blocked = {
         CPUSpecificParams({ncdhw, nCdhw16c}, {nCdhw16c}, {}, {}),
 };
 
-const auto params_5D_FP32_Planar_Blocked = ::testing::Combine(
+const auto params_5D_Planar_Blocked = ::testing::Combine(
         ::testing::Combine(
                 ::testing::ValuesIn(inShapes_5D_Planar_Blocked),
                 ::testing::ValuesIn(eltwiseOpTypes),
                 ::testing::Values(ngraph::helpers::InputLayerType::CONSTANT),
                 ::testing::ValuesIn(opTypes),
-                ::testing::Values(InferenceEngine::Precision::FP32),
+                ::testing::ValuesIn(netPrecisions),
                 ::testing::Values(CommonTestUtils::DEVICE_CPU),
                 ::testing::Values(additional_config)),
         ::testing::ValuesIn(filterCPUSpecificParams(cpuParams_5D_Planar_Blocked)));
 
-INSTANTIATE_TEST_CASE_P(CompareWithRefs_5D_FP32_Planar_Blocked, EltwiseLayerCPUTest, params_5D_FP32_Planar_Blocked, EltwiseLayerCPUTest::getTestCaseName);
+INSTANTIATE_TEST_CASE_P(CompareWithRefs_5D_Planar_Blocked, EltwiseLayerCPUTest, params_5D_Planar_Blocked, EltwiseLayerCPUTest::getTestCaseName);
 
 } // namespace
 } // namespace CPULayerTestsDefinitions
