@@ -29,7 +29,7 @@ from mo.front.extractor import extract_node_attrs
 from mo.front.pytorch.extractor import pytorch_op_extractor, pytorch_op_extractors
 from mo.graph.graph import Graph
 
-from .hooks import OpenVINOTensor, forward_hook, tensors_map
+from .hooks import OpenVINOTensor, forward_hook
 
 
 class PyTorchLoader(Loader):
@@ -45,23 +45,21 @@ class PyTorchLoader(Loader):
         # Create a dummy input
         inp = OpenVINOTensor(torch.randn(list(argv.placeholder_shapes)))
         inp.graph = graph
+        inp.node_name = 'input'
 
         model = argv.input_model
 
         for module in model.modules():
             if len([m for m in module.modules()]) != 1:
                 continue
-            # help(module.register_forward_hook)
-            # exit()
             module.register_forward_hook(forward_hook)
 
-        tensors_map[inp.data_ptr()] = 'input'
         graph.add_node('input', kind='op', op='Parameter', name='input', shape=list(inp.shape))
         outs = model(inp)
 
         # Add output nodes
         for out in outs if isinstance(outs, tuple) else (outs):
-            name = tensors_map[out.data_ptr()]
+            name = outs.node_name
             graph.add_node('output', kind='op', op='Result')
             edge_attrs = {
                 'out': 0,

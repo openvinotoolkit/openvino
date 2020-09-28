@@ -1,5 +1,3 @@
-#!/usr/bin/env python3
-
 """
  Copyright (C) 2018-2020 Intel Corporation
 
@@ -16,23 +14,22 @@
  limitations under the License.
 """
 
-import sys
+import numpy as np
 
-from mo.utils.versions_checker import check_python_version
+from mo.front.common.partial_infer.utils import int64_array
+from mo.front.extractor import FrontExtractorOp
+from mo.ops.flatten import Flatten
+from mo.utils.error import Error
 
-ret_code = check_python_version()
-if ret_code:
-    sys.exit(ret_code)
 
-def convert(model, **args):
-    from mo.main import main
-    from mo.utils.cli_parser import get_pytorch_cli_parser
+class FlattenExtractor(FrontExtractorOp):
+    op = 'Flatten'
+    enabled = True
 
-    parser = get_pytorch_cli_parser()
-    parser.set_defaults(input_model=model)
-    for arg, value in args.items():
-        parser.set_defaults(**{arg: str(value)})
-
-    err = main(parser, 'pytorch')
-    if err:
-        raise Exception('model conversion failed')
+    @classmethod
+    def extract(cls, node):
+        attrs = {
+            'axis': node.module.axis,
+        }
+        Flatten.update_node_stat(node, attrs)
+        return cls.enabled

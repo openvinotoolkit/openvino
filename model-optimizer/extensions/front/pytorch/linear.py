@@ -28,10 +28,7 @@ class Linear(FrontReplacementOp):
     enabled = True
 
     def replace_op(self, graph: Graph, node: Node):
-        shape = Const(graph, {'value': [0, -1]}).create_node()
-        flatten = Reshape(graph, dict(name=node.in_node(0).name + '/flatten')).create_node([node.in_node(0), shape])
-
-        matmul = MatMul(graph, dict(name=node.name, transpose_b=True)).create_node([flatten, node.in_node(1)])
+        matmul = MatMul(graph, dict(name=node.name, transpose_b=True)).create_node([node.in_node(0), node.in_node(1)])
 
         # Bias
         if len(node.in_nodes()) > 2:

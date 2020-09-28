@@ -2,7 +2,6 @@ import torch
 import torch.nn as nn
 
 # Callback which is executed after nn.Module forward
-tensors_map = {}
 def forward_hook(self, inputs, output):
     graph = inputs[0].graph
     assert(graph is not None)
@@ -15,8 +14,8 @@ def forward_hook(self, inputs, output):
 
     # Find all inputs
     for idx, inp in enumerate(inputs):
-        h = inp.data_ptr()
-        src_id = tensors_map[h]
+        src_id = inp.node_name
+        assert(src_id is not None)
 
         edge_attrs = {
             'out': 0,
@@ -46,12 +45,12 @@ def forward_hook(self, inputs, output):
         graph.add_edge(param_name, name, **edge_attrs)
 
 
-    out_hash = output.data_ptr()
-    tensors_map[out_hash] = name
     if not isinstance(output, OpenVINOTensor):
         output = OpenVINOTensor(output)
         output.graph = graph
-        return output
+
+    output.node_name = name
+    return output
 
 # PyTorch functional ops and Tensor operations are not tracked by forward_hook.
 # So we need to introduce own tensor type to track them.
@@ -60,6 +59,7 @@ class OpenVINOTensor(torch.Tensor):
     def __init__(self, value):
         self._value = value
         self.graph = None
+        self.node_name = None
 
     def __repr__(self):
         return ""
@@ -99,10 +99,10 @@ def implements(torch_function):
     return decorator
 
 
-def register_functional_hook(type):
-    @implements(type)
-    def func(input, *args, **kwargs):
-        output = OpenVINOTensor(type(input.tensor(), *args, **kwargs))
+def register_functional_hook(func):
+    @implements(func)
+    def function_hook(input, *args, **kwargs):
+        output = OpenVINOTensor(func(input.tensor(), *args, **kwargs))
         output.graph = input.graph
         return output
 
@@ -111,6 +111,20 @@ register_functional_hook(nn.functional.batch_norm)
 register_functional_hook(nn.functional.relu)
 register_functional_hook(nn.functional.max_pool2d)
 register_functional_hook(nn.functional.adaptive_avg_pool2d)
-register_functional_hook(torch.flatten)
 register_functional_hook(nn.functional.linear)
 register_functional_hook(nn.functional.dropout)
+
+
+@implements(torch.flatten)
+def function_hook(input, *args, **kwargs):
+
+    class Flatten(nn.Module):
+        def __init__(self, axis):
+            super().__init__()
+            self.axis = axis
+
+    output = OpenVINOTensor(torch.flatten(input.tensor(), *args, **kwargs))
+    output.graph = input.graph
+
+    forward_hook(Flatten(*args, **kwargs), (input,), output)
+    return output
