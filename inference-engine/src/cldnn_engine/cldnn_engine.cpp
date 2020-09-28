@@ -284,7 +284,7 @@ ExecutableNetworkInternal::Ptr clDNNEngine::LoadExeNetworkImpl(const InferenceEn
 
     CLDNNPlugin::Config conf = _impl->m_config;
     auto device_info = GetDeviceInfo(config);
-    conf.enableInt8 = device_info.supports_imad || device_info.supports_immad;
+    conf.enableInt8 = true;  //  device_info.supports_imad || device_info.supports_immad;
     conf.UpdateFromMap(config);
 
     if (conf.enableDynamicBatch) {
@@ -338,7 +338,7 @@ ExecutableNetworkInternal::Ptr clDNNEngine::LoadExeNetworkImpl(const InferenceEn
 
     CLDNNPlugin::Config conf = getContextImpl(casted)->GetConfig();
     auto device_info = GetDeviceInfo(config);
-    conf.enableInt8 = device_info.supports_imad || device_info.supports_immad;
+    conf.enableInt8 = true;  // device_info.supports_imad || device_info.supports_immad;
     conf.UpdateFromMap(config);
 
     if (conf.enableDynamicBatch) {
