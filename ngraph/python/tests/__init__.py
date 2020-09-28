@@ -189,7 +189,6 @@ xfail_issue_38736 = xfail_test(reason="RuntimeError: nGraph does not support the
                                       "NegativeLogLikelihoodLoss")
 
 # Model Zoo issues:
-xfail_issue_36533 = xfail_test(reason="AssertionError: zoo models results mismatch")
 xfail_issue_36534 = xfail_test(reason="RuntimeError: node input index is out of range")
 xfail_issue_36535 = xfail_test(reason="RuntimeError: get_shape was called on a descriptor::Tensor "
                                       "with dynamic shape")
