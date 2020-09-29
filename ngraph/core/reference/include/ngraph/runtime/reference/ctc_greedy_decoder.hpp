@@ -65,8 +65,8 @@ namespace ngraph
                         }
 
                         auto class_index = data + data_index;
-                        auto class_max_element = 
-                            std::max_element(class_index, class_index + class_count);                        
+                        auto class_max_element =
+                            std::max_element(class_index, class_index + class_count);
                         unsigned int max_class_ind = std::distance(class_index, class_max_element);
                         if (!(previous_class_index == max_class_ind && ctc_merge_repeated))
                         {
