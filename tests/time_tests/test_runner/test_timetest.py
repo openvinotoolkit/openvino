@@ -18,6 +18,7 @@ from pathlib import Path
 import logging
 
 from scripts.run_timetest import run_timetest
+from test_runner.utils import expand_env_vars
 
 REFS_FACTOR = 1.2      # 120%
 
@@ -36,7 +37,7 @@ def test_timetest(instance, executable, niter):
     # Run executable
     exe_args = {
         "executable": Path(executable),
-        "model": Path(model_path),
+        "model": Path(expand_env_vars(model_path)),
         "device": instance["device"]["name"],
         "niter": niter
     }

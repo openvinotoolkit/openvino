@@ -23,7 +23,7 @@ import yaml
 import hashlib
 from copy import deepcopy
 
-from test_runner.utils import expand_env_vars, upload_timetest_data, \
+from test_runner.utils import upload_timetest_data, \
     DATABASE, DB_COLLECTIONS
 
 
@@ -111,9 +111,8 @@ def pytest_generate_tests(metafunc):
     parameters.
     """
     with open(metafunc.config.getoption('test_conf'), "r") as file:
-        orig_cases = yaml.safe_load(file)
-        test_cases = expand_env_vars(deepcopy(orig_cases))
-        TestConfDumper.fill(orig_cases, test_cases)
+        test_cases = yaml.safe_load(file)
+        TestConfDumper.fill(test_cases)
     if test_cases:
         metafunc.parametrize("instance", test_cases)
 
@@ -190,10 +189,10 @@ class TestConfDumper:
     patched_cases = []
 
     @classmethod
-    def fill(cls, orig_data: list, patched_data: list):
+    def fill(cls, test_cases: list):
         """Fill internal fields"""
-        cls.orig_cases = deepcopy(orig_data)
-        cls.patched_cases = patched_data    # don't deepcopy() to allow cases' patching while test run
+        cls.orig_cases = deepcopy(test_cases)
+        cls.patched_cases = test_cases    # don't deepcopy() to allow cases' patching while test run
 
     @classmethod
     def dump(cls, path):
@@ -202,8 +201,7 @@ class TestConfDumper:
             "Number of patched cases ('{}') isn't equal to original number ('{}')"\
                 .format(len(cls.patched_cases), len(cls.orig_cases))
         for orig_rec, patched_rec in zip(cls.orig_cases, cls.patched_cases):
-            rec_to_check = expand_env_vars(deepcopy(orig_rec))
-            assert all([rec_to_check[key] == patched_rec[key] for key in rec_to_check]), \
+            assert all([orig_rec[key] == patched_rec[key] for key in orig_rec]), \
                 "Can't map original record to a patched record." \
                 " Dump of test config with updated references is skipped"
             orig_rec["references"] = patched_rec.get("results", {})
