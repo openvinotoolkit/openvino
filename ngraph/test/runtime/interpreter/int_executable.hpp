@@ -400,37 +400,13 @@ protected:
         case OP_TYPEID::CTCGreedyDecoder_v0:
         {
             const auto ctc_greedy_dec = static_cast<const op::v0::CTCGreedyDecoder*>(&node);
-            auto type = node.get_input_element_type(1);
-            if (type == element::bf16)
-            {
-                reference::ctc_greedy_decoder<bfloat16>(args[0]->get_data_ptr<bfloat16>(),
-                                                        args[1]->get_data_ptr<bfloat16>(),
-                                                        out[0]->get_data_ptr<bfloat16>(),
-                                                        args[0]->get_shape(),
-                                                        args[1]->get_shape(),
-                                                        out[0]->get_shape(),
-                                                        ctc_greedy_dec->get_ctc_merge_repeated());
-            }
-            else if (type == element::f16)
-            {
-                reference::ctc_greedy_decoder<float16>(args[0]->get_data_ptr<float16>(),
-                                                       args[1]->get_data_ptr<float16>(),
-                                                       out[0]->get_data_ptr<float16>(),
-                                                       args[0]->get_shape(),
-                                                       args[1]->get_shape(),
-                                                       out[0]->get_shape(),
-                                                       ctc_greedy_dec->get_ctc_merge_repeated());
-            }
-            else if (type == element::f32)
-            {
-                reference::ctc_greedy_decoder<float>(args[0]->get_data_ptr<float>(),
-                                                     args[1]->get_data_ptr<float>(),
-                                                     out[0]->get_data_ptr<float>(),
-                                                     args[0]->get_shape(),
-                                                     args[1]->get_shape(),
-                                                     out[0]->get_shape(),
-                                                     ctc_greedy_dec->get_ctc_merge_repeated());
-            }
+            reference::ctc_greedy_decoder<T>(args[0]->get_data_ptr<const T>(),
+                                             args[1]->get_data_ptr<const T>(),
+                                             out[0]->get_data_ptr<T>(),
+                                             args[0]->get_shape(),
+                                             args[1]->get_shape(),
+                                             out[0]->get_shape(),
+                                             ctc_greedy_dec->get_ctc_merge_repeated());
             break;
         }
         case OP_TYPEID::CTCLoss_v4:
