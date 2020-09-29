@@ -1127,16 +1127,6 @@ IE_CPU.onnx_upsample9_scales_const_import_only
 IE_CPU.onnx_empty_initializers_handling
 IE_CPU.onnx_resize11_scales_nearest_asymmetric_floor_dynamic_sizes
 
-# RNNCell operation has a form that is not supported
-IE_CPU.onnx_model_rnn_defaults_fwd
-IE_CPU.onnx_model_rnn_fwd_activations
-IE_CPU.onnx_model_rnn_fwd_mixed_seq_len
-IE_CPU.onnx_model_rnn_rev_clip
-IE_CPU.onnx_model_rnn_reverse
-IE_CPU.onnx_model_rnn_fwd_bias_initial_h
-IE_CPU.onnx_model_rnn_bidirectional
-IE_CPU.onnx_model_rnn_bidirectional_const
-
 # Input data precision not supported. Expected float.
 ctc_greedy_decoder_f16
 
