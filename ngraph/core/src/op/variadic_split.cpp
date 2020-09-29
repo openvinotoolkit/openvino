@@ -183,6 +183,7 @@ namespace
                                   "Not supported axis type: ",
                                   axis_tensor->get_element_type(),
                                   " during evaluate Split:v1");
+            break;
         }
 
         int64_t axis = host_tensor_2_vector<int64_t>(axis_tensor)[0];
