@@ -601,8 +601,11 @@ int main(int argc, char *argv[]) {
             genericPluginConfig[PluginConfigParams::KEY_PERF_COUNT] = PluginConfigParams::YES;
         }
 
-        if (FLAGS_rg.empty()) {
-            if (FLAGS_q.compare("user") == 0) {
+        if (FLAGS_q.compare("user") == 0) {
+            if (!FLAGS_rg.empty()) {
+                slog::warn << "Custom scale factor will be ignored - using scale factor from provided imported gna model: "
+                           << FLAGS_rg << slog::endl;
+            } else {
                 auto scaleFactorInput = ParseScaleFactors(FLAGS_sf);
                 if (numInputArkFiles != scaleFactorInput.size()) {
                     std::string errMessage("Incorrect command line for multiple inputs: "
@@ -616,8 +619,12 @@ int main(int argc, char *argv[]) {
                     std::string scaleFactorConfigKey = GNA_CONFIG_KEY(SCALE_FACTOR) + std::string("_") + std::to_string(i);
                     gnaPluginConfig[scaleFactorConfigKey] = scaleFactorInput[i];
                 }
+            }
+        } else {
+            // "static" quantization with calculated scale factor
+            if (!FLAGS_rg.empty()) {
+                slog::info << "Using scale factor from provided imported gna model: " << FLAGS_rg << slog::endl;
             } else {
-                // "static" quantization with calculated scale factor
                 for (size_t i = 0; i < numInputArkFiles; i++) {
                     auto inputArkName = inputArkFiles[i].c_str();
                     std::string name;
@@ -640,8 +647,6 @@ int main(int argc, char *argv[]) {
                     gnaPluginConfig[scaleFactorConfigKey] = std::to_string(floatScaleFactor);
                 }
             }
-        } else {
-            slog::info << "Using scale factor from provided exported gna model: " << FLAGS_rg << slog::endl;
         }
 
         if (FLAGS_qb == 8) {
