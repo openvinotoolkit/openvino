@@ -1626,11 +1626,11 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_matmul_vec_ten3d)
         file_util::path_join(SERIALIZED_ZOO, "onnx/matmul_vec_ten3d.prototxt"));
 
     Inputs inputs;
-    inputs.emplace_back(std::vector<float>{{0.f, 1.f}});
+    inputs.emplace_back(std::vector<float>{0.f, 1.f});
     inputs.emplace_back(
         test::NDArray<float, 3>{{{0.f}, {1.f}}, {{2.f}, {3.f}}, {{4.f}, {5.f}}}.get_vector());
 
-    auto expected_output = test::NDArray<float, 2>{{{1.f}}, {{3.f}}, {{5.f}}}.get_vector();
+    auto expected_output = test::NDArray<float, 2>{{1.f}, {3.f}, {5.f}}.get_vector();
 
     auto test_case = test::TestCase<TestEngine>(function);
     test_case.add_multiple_inputs(inputs);
