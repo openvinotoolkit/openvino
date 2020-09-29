@@ -1512,6 +1512,10 @@ bool MKLDNNEltwiseNode::created() const {
 }
 
 bool MKLDNNEltwiseNode::canBeInPlace() const {
+    if (getParentEdgesAtPort(0)[0]->getParent()->getType() == Input) {
+        return false;
+    }
+
     for (auto& parentEdge : getParentEdges()) {
         auto parent = parentEdge.lock()->getParent();
         if (parent->getChildEdges().size() != 1)
