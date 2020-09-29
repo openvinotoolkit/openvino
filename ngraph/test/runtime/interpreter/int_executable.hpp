@@ -61,7 +61,6 @@
 #include "ngraph/runtime/reference/gather.hpp"
 #include "ngraph/runtime/reference/gather_nd.hpp"
 #include "ngraph/runtime/reference/gather_tree.hpp"
-#include "ngraph/runtime/reference/gather_tree.hpp"
 #include "ngraph/runtime/reference/gru_cell.hpp"
 #include "ngraph/runtime/reference/log.hpp"
 #include "ngraph/runtime/reference/lrn.hpp"
@@ -398,10 +397,9 @@ protected:
                 args[0]->get_data_ptr<const T>(), out[0]->get_data_ptr<T>(), element_count);
             break;
         }
-        case OP_TYPEID::CTCGreedyDecoder:
+        case OP_TYPEID::CTCGreedyDecoder_v0:
         {
-            const op::v0::CTCGreedyDecoder* ctc_greedy_dec =
-                static_cast<const op::v0::CTCGreedyDecoder*>(&node);
+            const auto ctc_greedy_dec = static_cast<const op::v0::CTCGreedyDecoder*>(&node);
             auto type = node.get_input_element_type(1);
             if (type == element::bf16)
             {
@@ -849,7 +847,7 @@ protected:
                                                 gru_seq->get_direction(),
                                                 gru_seq->get_linear_before_reset()
 
-                                                    );
+            );
             break;
         }
         case OP_TYPEID::RNNSequence_v5:
