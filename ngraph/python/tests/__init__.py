@@ -194,8 +194,6 @@ xfail_issue_36534 = xfail_test(reason="RuntimeError: node input index is out of 
 xfail_issue_36535 = xfail_test(reason="RuntimeError: get_shape was called on a descriptor::Tensor "
                                       "with dynamic shape")
 xfail_issue_36536 = xfail_test(reason="RuntimeError: can't protect")
-xfail_issue_36537 = xfail_test(reason="ngraph.exceptions.UserInputError: (Provided tensor's shape: "
-                                      "<value> does not match the expected: <value>")
 xfail_issue_36538 = xfail_test(reason="RuntimeError: Check 'PartialShape::broadcast_merge_into( pshape, "
                                       "node->get_input_partial_shape(i), autob)' failed at "
                                       "/openvino/ngraph/src/ngraph/op/util/elementwise_args.cpp:48:")
