@@ -59,8 +59,8 @@ namespace ngraph
                                     op::AutoBroadcastSpec(op::AutoBroadcastType::NUMPY),
                                     [&eps, &eps_mode](T x, T y) -> T {
                                         T arg = (eps_mode == op::EpsMode::ADD)
-                                                ? y + eps
-                                                : std::max(y, static_cast<T>(eps));
+                                                    ? y + eps
+                                                    : std::max(y, static_cast<T>(eps));
                                         return x / std::sqrt(arg);
                                     });
             }
