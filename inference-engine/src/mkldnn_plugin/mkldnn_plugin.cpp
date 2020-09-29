@@ -37,6 +37,7 @@
 #include <ngraph/op/util/op_types.hpp>
 #include <ngraph/pass/manager.hpp>
 #include "ngraph_ops/fully_connected.hpp"
+#include "../../tests/ie_test_utils/common_test_utils/ngraph_test_utils.hpp"
 
 #if !defined(__arm__) && !defined(_M_ARM) && !defined(__aarch64__) && !defined(_M_ARM64)
 #if defined(_WIN32) || defined(WIN32)
@@ -94,9 +95,18 @@ static void Transformation(ICNNNetwork::Ptr& clonedNetwork) {
     ngraph::op::GenericIE::DisableReshape noReshape(nGraphFunc);
 
     ngraph::pass::Manager manager;
+
+    manager.register_pass<ngraph::pass::InjectionPass>([](std::shared_ptr<ngraph::Function> f) {
+        for(auto& parameter: f->get_parameters())
+            parameter->tmp_extend_shape_to_interval();
+        f->validate_nodes_and_infer_types();
+    });
+
     manager.register_pass<ngraph::pass::InitNodeInfo>();
     // WA: ConvertPriorBox must be executed before the 1st ConstantFolding pass
     manager.register_pass<ngraph::pass::ConvertPriorBox>();
+
+
     manager.register_pass<ngraph::pass::CommonOptimizations>();
     manager.register_pass<ngraph::pass::ConvertOpSet3ToOpSet2>();
     manager.register_pass<ngraph::pass::ConvertOpSet2ToOpSet1>();
@@ -113,6 +123,12 @@ static void Transformation(ICNNNetwork::Ptr& clonedNetwork) {
     for (auto & precision : convert_precision_list) {
         manager.register_pass<ngraph::pass::ConvertPrecision>(precision.first, precision.second);
     }
+
+    manager.register_pass([](std::shared_ptr<ngraph::Function> f) {
+        for(auto& parameter: f->get_parameters())
+            parameter->tmp_restore_orig_shape();
+        f->validate_nodes_and_infer_types();
+    });
 
     manager.register_pass<ngraph::pass::ConvertOpSet1ToLegacy>();
     manager.register_pass<ngraph::pass::ConvertPrecision>(ngraph::element::i64, ngraph::element::i32);
