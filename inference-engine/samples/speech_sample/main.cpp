@@ -602,41 +602,50 @@ int main(int argc, char *argv[]) {
         }
 
         if (FLAGS_q.compare("user") == 0) {
-            auto scaleFactorInput = ParseScaleFactors(FLAGS_sf);
-            if (numInputArkFiles != scaleFactorInput.size()) {
-                std::string errMessage("Incorrect command line for multiple inputs: "
-                    + std::to_string(scaleFactorInput.size()) + " scale factors provided for "
-                    + std::to_string(numInputArkFiles) + " input files.");
-                throw std::logic_error(errMessage);
-            }
+            if (!FLAGS_rg.empty()) {
+                slog::warn << "Custom scale factor will be ignored - using scale factor from provided imported gna model: "
+                           << FLAGS_rg << slog::endl;
+            } else {
+                auto scaleFactorInput = ParseScaleFactors(FLAGS_sf);
+                if (numInputArkFiles != scaleFactorInput.size()) {
+                    std::string errMessage("Incorrect command line for multiple inputs: "
+                        + std::to_string(scaleFactorInput.size()) + " scale factors provided for "
+                        + std::to_string(numInputArkFiles) + " input files.");
+                    throw std::logic_error(errMessage);
+                }
 
-            for (size_t i = 0; i < scaleFactorInput.size(); ++i) {
-                slog::info << "For input " << i << " using scale factor of " << scaleFactorInput[i] << slog::endl;
-                std::string scaleFactorConfigKey = GNA_CONFIG_KEY(SCALE_FACTOR) + std::string("_") + std::to_string(i);
-                gnaPluginConfig[scaleFactorConfigKey] = scaleFactorInput[i];
+                for (size_t i = 0; i < scaleFactorInput.size(); ++i) {
+                    slog::info << "For input " << i << " using scale factor of " << scaleFactorInput[i] << slog::endl;
+                    std::string scaleFactorConfigKey = GNA_CONFIG_KEY(SCALE_FACTOR) + std::string("_") + std::to_string(i);
+                    gnaPluginConfig[scaleFactorConfigKey] = scaleFactorInput[i];
+                }
             }
         } else {
             // "static" quantization with calculated scale factor
-            for (size_t i = 0; i < numInputArkFiles; i++) {
-                auto inputArkName = inputArkFiles[i].c_str();
-                std::string name;
-                std::vector<uint8_t> ptrFeatures;
-                uint32_t numArrays(0), numBytes(0), numFrames(0), numFrameElements(0), numBytesPerElement(0);
-                GetKaldiArkInfo(inputArkName, 0, &numArrays, &numBytes);
-                ptrFeatures.resize(numBytes);
-                LoadKaldiArkArray(inputArkName,
-                                  0,
-                                  name,
-                                  ptrFeatures,
-                                  &numFrames,
-                                  &numFrameElements,
-                                  &numBytesPerElement);
-                auto floatScaleFactor =
+            if (!FLAGS_rg.empty()) {
+                slog::info << "Using scale factor from provided imported gna model: " << FLAGS_rg << slog::endl;
+            } else {
+                for (size_t i = 0; i < numInputArkFiles; i++) {
+                    auto inputArkName = inputArkFiles[i].c_str();
+                    std::string name;
+                    std::vector<uint8_t> ptrFeatures;
+                    uint32_t numArrays(0), numBytes(0), numFrames(0), numFrameElements(0), numBytesPerElement(0);
+                    GetKaldiArkInfo(inputArkName, 0, &numArrays, &numBytes);
+                    ptrFeatures.resize(numBytes);
+                    LoadKaldiArkArray(inputArkName,
+                        0,
+                        name,
+                        ptrFeatures,
+                        &numFrames,
+                        &numFrameElements,
+                        &numBytesPerElement);
+                    auto floatScaleFactor =
                         ScaleFactorForQuantization(ptrFeatures.data(), MAX_VAL_2B_FEAT, numFrames * numFrameElements);
-                slog::info << "Using scale factor of " << floatScaleFactor << " calculated from first utterance."
-                           << slog::endl;
-                std::string scaleFactorConfigKey = GNA_CONFIG_KEY(SCALE_FACTOR) + std::string("_") + std::to_string(i);
-                gnaPluginConfig[scaleFactorConfigKey] = std::to_string(floatScaleFactor);
+                    slog::info << "Using scale factor of " << floatScaleFactor << " calculated from first utterance."
+                        << slog::endl;
+                    std::string scaleFactorConfigKey = GNA_CONFIG_KEY(SCALE_FACTOR) + std::string("_") + std::to_string(i);
+                    gnaPluginConfig[scaleFactorConfigKey] = std::to_string(floatScaleFactor);
+                }
             }
         }
 

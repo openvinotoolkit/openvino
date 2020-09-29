@@ -23,7 +23,8 @@
 typedef std::tuple<
     InferenceEngine::Precision,         // Network Precision
     std::string,                        // Target Device
-    std::map<std::string, std::string>  //Configuration
+    std::map<std::string, std::string>, // Export Configuration
+    std::map<std::string, std::string>  // Import Configuration
 > exportImportNetworkParams;
 
 namespace LayerTestsDefinitions {
@@ -34,14 +35,18 @@ class ImportNetworkTest : public testing::WithParamInterface<exportImportNetwork
         static std::string getTestCaseName(testing::TestParamInfo<exportImportNetworkParams> obj) {
             InferenceEngine::Precision netPrecision;
             std::string targetDevice;
-            std::map<std::string, std::string> configuration;
-            std::tie(netPrecision, targetDevice, configuration) = obj.param;
+            std::map<std::string, std::string> exportConfiguration;
+            std::map<std::string, std::string> importConfiguration;
+            std::tie(netPrecision, targetDevice, exportConfiguration, importConfiguration) = obj.param;
 
             std::ostringstream result;
             result << "netPRC=" << netPrecision.name() << "_";
             result << "targetDevice=" << targetDevice << "_";
-            for (auto const& configItem : configuration) {
-                result << "_configItem=" << configItem.first << "_" << configItem.second;
+            for (auto const& configItem : exportConfiguration) {
+                result << "_exportConfigItem=" << configItem.first << "_" << configItem.second;
+            }
+            for (auto const& configItem : importConfiguration) {
+                result << "_importConfigItem=" << configItem.first << "_" << configItem.second;
             }
             return result.str();
         }
@@ -49,6 +54,7 @@ class ImportNetworkTest : public testing::WithParamInterface<exportImportNetwork
         void Run() override {
             SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
+            configuration.insert(exportConfiguration.begin(), exportConfiguration.end());
             LoadNetwork();
             Infer();
             executableNetwork.Export("exported_model.blob");
@@ -57,6 +63,9 @@ class ImportNetworkTest : public testing::WithParamInterface<exportImportNetwork
             auto referenceOutputs = CalculateRefs();
             Compare(referenceOutputs, actualOutputs);
 
+            for (auto const& configItem : importConfiguration) {
+                configuration[configItem.first] = configItem.second;
+            }
             std::fstream inputStream("exported_model.blob", std::ios_base::in | std::ios_base::binary);
             if (inputStream.fail()) {
                 FAIL() << "Cannot open file to import model: exported_model.blob";
@@ -68,7 +77,7 @@ class ImportNetworkTest : public testing::WithParamInterface<exportImportNetwork
     protected:
         void SetUp() override {
             InferenceEngine::Precision netPrecision;
-            std::tie(netPrecision, targetDevice, configuration) = this->GetParam();
+            std::tie(netPrecision, targetDevice, exportConfiguration, importConfiguration) = this->GetParam();
             auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
 
             auto params = ngraph::builder::makeParams(ngPrc, { {1, 336} });
@@ -95,6 +104,9 @@ class ImportNetworkTest : public testing::WithParamInterface<exportImportNetwork
         }
 
     private:
+        std::map<std::string, std::string> exportConfiguration;
+        std::map<std::string, std::string> importConfiguration;
+
         std::vector<std::vector<std::uint8_t>> CalculateImportedNetwork(std::istream& networkModel) {
             auto importedNetwork = core->ImportNetwork(networkModel, targetDevice, configuration);
 
@@ -149,18 +161,30 @@ class ImportNetworkTest : public testing::WithParamInterface<exportImportNetwork
         InferenceEngine::Precision::FP16
     };
 
-    const std::vector<std::map<std::string, std::string>> configs = {
+    const std::vector<std::map<std::string, std::string>> exportConfigs = {
         {
             {"GNA_DEVICE_MODE", "GNA_SW_EXACT"},
             {"GNA_SCALE_FACTOR_0", "327.67"}
         }
     };
 
+    const std::vector<std::map<std::string, std::string>> importConfigs = {
+        {
+            {"GNA_DEVICE_MODE", "GNA_SW_EXACT"},
+            {"GNA_SCALE_FACTOR_0", "32767"}
+        },
+        {
+            {"GNA_DEVICE_MODE", "GNA_SW_EXACT"},
+            {"GNA_SCALE_FACTOR_0", "327.67"}
+        },
+    };
+
     INSTANTIATE_TEST_CASE_P(ImportNetworkCase, ImportNetworkTest,
         ::testing::Combine(
             ::testing::ValuesIn(netPrecisions),
             ::testing::Values(CommonTestUtils::DEVICE_GNA),
-            ::testing::ValuesIn(configs)),
+            ::testing::ValuesIn(exportConfigs),
+            ::testing::ValuesIn(importConfigs)),
         ImportNetworkTest::getTestCaseName);
 
 } // namespace LayerTestsDefinitions
