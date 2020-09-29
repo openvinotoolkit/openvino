@@ -38,13 +38,13 @@ enum GnaWaitStatus : int {
  * holds gna - style handle in RAII way
  */
 class GNADeviceHelper {
+    static std::mutex acrossPluginsSync;
 #if GNA_LIB_VER == 1
     intel_gna_status_t nGNAStatus = GNA_NOERROR;
     intel_gna_handle_t nGNAHandle = 0;
     intel_gna_perf_t nGNAPerfResults;
     intel_gna_perf_t nGNAPerfResultsTotal;
 #else
-    static std::mutex acrossPluginsSync;
     uint32_t nGnaDeviceIndex = 0;
     Gna2DeviceVersion gna2HwConsistency = Gna2DeviceVersionSoftwareEmulation;
     Gna2DeviceVersion detectedGnaDevVersion = Gna2DeviceVersionSoftwareEmulation;
