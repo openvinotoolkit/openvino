@@ -71,6 +71,17 @@ bool ngraph::pass::ConvertOpSet1ToLegacy::run_on_function(std::shared_ptr<ngraph
 
     manager.register_pass<ngraph::pass::ConstantFolding>();
 
+    // Some passes before ConvertOpSet1ToLegacy can produce some of this
+    // operations. So for convenience we decompose this operations here and
+    // in CommonOptimizations.
+    auto decomp = manager.register_pass<ngraph::pass::GraphRewrite>();
+    decomp->add_matcher<ngraph::pass::ConvertMod>();
+    decomp->add_matcher<ngraph::pass::ConvertMinimum>();
+    decomp->add_matcher<ngraph::pass::ConvertSubtract>();
+    decomp->add_matcher<ngraph::pass::ConvertDivide>();
+    decomp->add_matcher<ngraph::pass::ConvertNegative>();
+    decomp->set_name("ngraph::pass::LegacyDecompositions");
+
     auto convert_matmul = manager.register_pass<ngraph::pass::GraphRewrite>();
     convert_matmul->add_matcher<ngraph::pass::ConvertMatMulToFC>();
     convert_matmul->add_matcher<ngraph::pass::PullTransposeThroughFQUp>();
