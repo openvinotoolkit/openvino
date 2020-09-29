@@ -77,7 +77,7 @@ namespace ngraph
                         return;
                     m_tmp_orig_partial_shape = m_partial_shape;
                     m_tmp_orig_is_set = true;
-                    for (size_t i = 0; i < m_partial_shape.rank().get_length(); ++i)
+                    for (int64_t i = 0; i < m_partial_shape.rank().get_length(); ++i)
                         m_partial_shape[i] = Dimension(0, m_partial_shape[i].get_max_length());
                 }
 
