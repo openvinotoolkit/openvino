@@ -35,9 +35,9 @@ while getopts ":hcefm:" opt; do
 		f )
 			CLEAN_DIR=true
 			;;
-        e )
-		    ENABLE_MSFT=true
-		    ;;
+		e )
+			ENABLE_MSFT=true
+			;;
 	esac
 done
 shift $((OPTIND -1))
