@@ -2578,7 +2578,7 @@ TEST_F(MKLDNNGraphStructureTests, TestLoadTopologyWithEltwiseBeforeConcat) {
             ASSERT_EQ(MKLDNNPlugin::Eltwise, node->getChildEdgeAt(0)->getChild()->getType());
         }
     }
-    ASSERT_EQ(reorders_num, 1);
+    ASSERT_EQ(reorders_num, 0);
 }
 TEST_F(MKLDNNGraphStructureTests, TestNoRedundantReordersRmnet_SSSSD) {
     std::string model = R"V0G0N(
