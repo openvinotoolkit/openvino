@@ -45,7 +45,6 @@ xfail_issue_34314 = xfail_test(reason="RuntimeError: RNNCell operation has a for
 xfail_issue_34323 = xfail_test(reason="RuntimeError: data [value] doesn't exist")
 xfail_issue_34327 = xfail_test(reason="RuntimeError: '<value>' layer has different "
                                       "IN and OUT channels number")
-xfail_issue_35893 = xfail_test(reason="ValueError: could not broadcast input array")
 xfail_issue_35911 = xfail_test(reason="Assertion error: Pad model mismatch error")
 xfail_issue_35912 = xfail_test(reason="RuntimeError: Error of validate layer: B with type: "
                                       "Pad. Cannot parse parameter pads_end  from IR for layer B. "
@@ -190,7 +189,6 @@ xfail_issue_38736 = xfail_test(reason="RuntimeError: nGraph does not support the
                                       "NegativeLogLikelihoodLoss")
 
 # Model Zoo issues:
-xfail_issue_36533 = xfail_test(reason="AssertionError: zoo models results mismatch")
 xfail_issue_36534 = xfail_test(reason="RuntimeError: node input index is out of range")
 xfail_issue_36535 = xfail_test(reason="RuntimeError: get_shape was called on a descriptor::Tensor "
                                       "with dynamic shape")

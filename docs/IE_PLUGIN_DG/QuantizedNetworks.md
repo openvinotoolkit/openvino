@@ -46,8 +46,4 @@ Below we define these rules as follows:
 - Non-unified quantization parameters for Eltwise and Concat operations.  
 - Non-quantized network output, i.e. there are no quantization parameters for it.
 
-## Quantized model inference
-
-!!! Need details from the runtime team.
-
 [qdq_propagation]: ../images/qdq_propagation.png

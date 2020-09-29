@@ -363,7 +363,9 @@ void GNAPlugin::LoadNetwork(ICNNNetwork & _network) {
         passes->registerPass<RemoveConstPass>();
         passes->registerPass<UnrollTIPass>();
         passes->registerPass<RemoveConstPass>();
+        passes->registerPass<InsertIdentityToLSTMCellPass>();
         passes->registerPass<UnrollLSTMCellPass>();
+        passes->registerPass<RemoveSingleInputConcatPass>();
 
         passes->registerPass<SubstitutePReluPass>();
         passes->registerPass<SubstituteSoftSignPass>();
@@ -557,15 +559,15 @@ void GNAPlugin::LoadNetwork(ICNNNetwork & _network) {
             auto irLayerAvatar = std::find_if(
                 graphCompiler.dnnComponents.components.begin(),
                 graphCompiler.dnnComponents.components.end(),
-                [&layer](std::pair<std::string, intel_dnn_component_t> & value) {
-                    return value.first == layer->name;
+                [&layer](const backend::DnnComponents::storage_type::value_type & value) {
+                    return value.name == layer->name;
             });
 
             gnalog() << "[UFS] from : "<< outPort.first <<" reached: " << layer->name << "\n";
 
             // probing gna_primitives
             if (irLayerAvatar != graphCompiler.dnnComponents.components.end()) {
-                initOutput(portId, irLayerAvatar->second, layer);
+                initOutput(portId, irLayerAvatar->dnnComponent, layer);
                 stopSearching = true;
             }
 
@@ -621,9 +623,8 @@ void GNAPlugin::LoadNetwork(ICNNNetwork & _network) {
              1);
 
     // TODO: this copy is unneeded; in fact, we can directly create gna structs from list
-    for (auto &element : graphCompiler.dnnComponents.components) {
-        dnn->component.push_back(element.second);
-    }
+    auto execOrder = graphCompiler.dnnComponents.getExecutionOrder();
+    dnn->component.insert(dnn->component.begin(), execOrder.begin(), execOrder.end());
 
     // in fp32 mode last PWL cannot be computed without that
     dnn->InitActiveList(NULL);
@@ -975,21 +976,26 @@ uint32_t GNAPlugin::QueueInference(const InferenceEngine::BlobMap &inputs, Infer
 }
 
 bool GNAPlugin::Wait(uint32_t request_idx) {
-    return WaitFor(request_idx, MAX_TIMEOUT);
+    return GNA_REQUEST_COMPLETED == WaitFor(request_idx, MAX_TIMEOUT);
 }
 
-bool GNAPlugin::WaitFor(uint32_t request_idx, int64_t millisTimeout) {
+GnaWaitStatus GNAPlugin::WaitFor(uint32_t request_idx, int64_t millisTimeout) {
 #if GNA_LIB_VER == 2
     auto& nnets = gnaRequestConfigToRequestIdMap;
 #endif
-    if (nnets.size() <= request_idx) return true;    // TODO: GNA2: check whether necessary
+    // TODO: GNA2: check whether necessary
+    if (nnets.size() <= request_idx) return GNA_REQUEST_COMPLETED;
     // already synced TODO: might be copy required ???
-    if (std::get<1>(nnets[request_idx]) == -1) return true;
+    if (std::get<1>(nnets[request_idx]) == -1) return GNA_REQUEST_COMPLETED;
 
     if (gnadevice) {
-        if (!gnadevice->wait(std::get<1>(nnets[request_idx]), millisTimeout)) {
+        const auto waitStatus = gnadevice->wait(std::get<1>(nnets[request_idx]), millisTimeout);
+        if (waitStatus == GNA_REQUEST_ABORTED) {
             std::get<1>(nnets[request_idx]) = -1;
-            return false;
+            return GNA_REQUEST_ABORTED;
+        }
+        if (waitStatus == GNA_REQUEST_PENDING) {
+            return GNA_REQUEST_PENDING;
         }
     }
 
@@ -1089,7 +1095,7 @@ bool GNAPlugin::WaitFor(uint32_t request_idx, int64_t millisTimeout) {
 
         output_idx++;
     }
-    return true;
+    return GNA_REQUEST_COMPLETED;
 }
 
 void GNAPlugin::Reset() {
