@@ -57,8 +57,11 @@ if [ -e $INSTALLDIR/deployment_tools/inference_engine ]; then
         export LD_LIBRARY_PATH=$HDDL_INSTALL_DIR/lib:$INSTALLDIR/deployment_tools/inference_engine/external/gna/lib:$INSTALLDIR/deployment_tools/inference_engine/external/mkltiny_lnx/lib:$INSTALLDIR/deployment_tools/inference_engine/external/tbb/lib:${IE_PLUGINS_PATH}${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}
     fi
 
-    export KMB_INSTALL_DIR=$INSTALLDIR/deployment_tools/inference_engine/external/hddl_unite
-    export LD_LIBRARY_PATH=$KMB_INSTALL_DIR/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}
+    HDDL_UNITE_DIR=$INSTALLDIR/deployment_tools/inference_engine/external/hddl_unite
+
+    if [ -e $HDDL_UNITE_DIR ]; then
+        export LD_LIBRARY_PATH=$HDDL_UNITE_DIR/lib:$HDDL_UNITE_DIR/thirdparty/XLink/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}
+    fi
 fi
 
 if [ -e $INSTALLDIR/deployment_tools/ngraph ]; then
@@ -94,23 +97,7 @@ if [ -e $INTEL_OPENVINO_DIR/deployment_tools/tools/post_training_optimization_to
 fi
 
 if [ -z "$python_version" ]; then
-    if command -v python3.7 >/dev/null 2>&1; then
-        python_version=3.7
-        python_bitness=$(python3.7 -c 'import sys; print(64 if sys.maxsize > 2**32 else 32)')
-    elif command -v python3.6 >/dev/null 2>&1; then
-        python_version=3.6
-        python_bitness=$(python3.6 -c 'import sys; print(64 if sys.maxsize > 2**32 else 32)')
-    elif command -v python3.5 >/dev/null 2>&1; then
-        python_version=3.5
-        python_bitness=$(python3.5 -c 'import sys; print(64 if sys.maxsize > 2**32 else 32)')
-    elif command -v python3.4 >/dev/null 2>&1; then
-        python_version=3.4
-        python_bitness=$(python3.4 -c 'import sys; print(64 if sys.maxsize > 2**32 else 32)')
-    elif command -v python2.7 >/dev/null 2>&1; then
-        python_version=2.7
-    elif command -v python >/dev/null 2>&1; then
-        python_version=$(python -c 'import sys; print(".".join(map(str, sys.version_info[:2])))')
-    fi
+    python_version=$(python3 -c 'import sys; print(str(sys.version_info[0])+"."+str(sys.version_info[1]))')
 fi
 
 OS_NAME=""
@@ -118,17 +105,30 @@ if command -v lsb_release >/dev/null 2>&1; then
     OS_NAME=$(lsb_release -i -s)
 fi
 
+python_bitness=$(python3 -c 'import sys; print(64 if sys.maxsize > 2**32 else 32)')   
 if [ "$python_bitness" != "" ] && [ "$python_bitness" != "64" ] && [ "$OS_NAME" != "Raspbian" ]; then
     echo "[setupvars.sh] 64 bitness for Python" $python_version "is requred"
 fi
 
+MINIMUM_REQUIRED_PYTHON_VERSION="3.6"
+MAX_SUPPORTED_PYTHON_VERSION=$([[ "$OSTYPE" == "darwin"* ]] && echo '3.7' || echo '3.8') 
+if [[ ! -z "$python_version" && "$(printf '%s\n' "$python_version" "$MINIMUM_REQUIRED_PYTHON_VERSION" | sort -V | head -n 1)" != "$MINIMUM_REQUIRED_PYTHON_VERSION" ]]; then
+    echo "[setupvars.sh] ERROR: Unsupported Python version. Please install one of Python 3.6-${MAX_SUPPORTED_PYTHON_VERSION} (64-bit) from https://www.python.org/downloads/"
+    return 1
+fi
+
+
 if [ ! -z "$python_version" ]; then
-    if [ "$python_version" != "2.7" ]; then
-        # add path to OpenCV API for Python 3.x
-        export PYTHONPATH="$INTEL_OPENVINO_DIR/python/python3:$PYTHONPATH"
+    # add path to OpenCV API for Python 3.x
+    export PYTHONPATH="$INTEL_OPENVINO_DIR/python/python3:$PYTHONPATH"
+    pydir=$INTEL_OPENVINO_DIR/python/python$python_version
+    if [[ -d $pydir ]]; then
+        # add path to Inference Engine Python API
+        export PYTHONPATH="${pydir}:${PYTHONPATH}"
+    else
+        echo "[setupvars.sh] ERROR: Can not find OpenVINO Python module for python${python_version} by path ${pydir}"
+        return 1
     fi
-    # add path to Inference Engine Python API
-    export PYTHONPATH="$INTEL_OPENVINO_DIR/python/python$python_version:$PYTHONPATH"
 fi
 
 echo "[setupvars.sh] OpenVINO environment initialized"
