@@ -650,7 +650,7 @@ shared_ptr<Node>
 
     const auto& arg2 = new_args.size() > 2
                            ? new_args.at(2)
-                           : ngraph::op::Constant::create(element::i32, Shape{}, {0});
+                           : ngraph::op::Constant::create(element::i64, Shape{}, {0});
     const auto& arg3 = new_args.size() > 3
                            ? new_args.at(3)
                            : ngraph::op::Constant::create(element::f32, Shape{}, {.0f});
@@ -770,6 +770,43 @@ int64_t op::v5::NonMaxSuppression::max_boxes_output_from_input() const
     return max_output_boxes;
 }
 
+static constexpr size_t iou_threshold_port = 3;
+static constexpr size_t score_threshold_port = 4;
+static constexpr size_t soft_nms_sigma_port = 5;
+
+float op::v5::NonMaxSuppression::iou_threshold_from_input() const
+{
+    float iou_threshold = 0.0f;
+
+    const auto iou_threshold_input =
+        as_type_ptr<op::Constant>(input_value(iou_threshold_port).get_node_shared_ptr());
+    iou_threshold = iou_threshold_input->cast_vector<float>().at(0);
+
+    return iou_threshold;
+}
+
+float op::v5::NonMaxSuppression::score_threshold_from_input() const
+{
+    float score_threshold = 0.0f;
+
+    const auto score_threshold_input =
+        as_type_ptr<op::Constant>(input_value(score_threshold_port).get_node_shared_ptr());
+    score_threshold = score_threshold_input->cast_vector<float>().at(0);
+
+    return score_threshold;
+}
+
+float op::v5::NonMaxSuppression::soft_nms_sigma_from_input() const
+{
+    float soft_nms_sigma = 0.0f;
+
+    const auto soft_nms_sigma_input =
+        as_type_ptr<op::Constant>(input_value(soft_nms_sigma_port).get_node_shared_ptr());
+    soft_nms_sigma = soft_nms_sigma_input->cast_vector<float>().at(0);
+
+    return soft_nms_sigma;
+}
+
 bool ngraph::op::v5::NonMaxSuppression::visit_attributes(AttributeVisitor& visitor)
 {
     visitor.on_attribute("box_encoding", m_box_encoding);
@@ -836,6 +873,10 @@ bool op::v5::NonMaxSuppression::evaluate(const HostTensorVector& outputs,
                                          const HostTensorVector& inputs) const
 {
     element::Type input_et = get_input_element_type(0);
+    int64_t max_output_boxes_per_class = max_boxes_output_from_input();
+    float iou_threshold = iou_threshold_from_input();
+    float score_threshold = score_threshold_from_input();
+    float soft_nms_sigma = soft_nms_sigma_from_input();
 
     switch (input_et)
     {
