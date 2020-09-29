@@ -48,7 +48,7 @@ MSFT_MODELS_DIR=$MODELS_DIR/model_zoo/MSFT
 
 if [ $CLONE = true ] ; then
 	if [ $CLEAN_DIR = true ] ; then
-		rm -rf $MODELS_DIR
+		rm -rf $ONNX_MODELS_DIR
 	fi
 	git clone https://github.com/onnx/models.git $ONNX_MODELS_DIR
 fi
@@ -78,8 +78,19 @@ cd $ONNX_MODELS_DIR/text/machine_comprehension/roberta/model/roberta-sequence-cl
 mkdir test_data_set_0
 mv *.pb test_data_set_0/
 
+
+if [ $CLONE = true ] ; then
+	if [ $CLEAN_DIR = true ] ; then
+		rm -rf $ONNX_MODELS_DIR
+	fi
+	git clone https://github.com/onnx/models.git $ONNX_MODELS_DIR
+fi
+
 # Prepare MSFT models
 if [ $ENABLE_MSFT = true ] ; then
+    if [ $CLEAN_DIR = true ] ; then
+        rm -rf $MSFT_MODELS_DIR
+    fi
     mkdir -p $MSFT_MODELS_DIR
     wget -O $MSFT_MODELS_DIR/20191107.zip https://onnxruntimetestdata.blob.core.windows.net/models/20191107.zip
     unzip $MSFT_MODELS_DIR/20191107.zip -d $MSFT_MODELS_DIR/20191107 && rm $MSFT_MODELS_DIR/20191107.zip
