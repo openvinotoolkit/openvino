@@ -30,11 +30,9 @@ op::util::BinaryElementwiseArithmetic::BinaryElementwiseArithmetic(const AutoBro
 
 op::util::BinaryElementwiseArithmetic::BinaryElementwiseArithmetic(const Output<Node>& arg0,
                                                                    const Output<Node>& arg1,
-                                                                   const AutoBroadcastSpec& autob,
-                                                                   bool validate_types)
+                                                                   const AutoBroadcastSpec& autob)
     : Op({arg0, arg1})
     , m_autob(autob)
-    , m_validate_types(validate_types)
 {
 }
 
@@ -42,7 +40,7 @@ void op::util::BinaryElementwiseArithmetic::validate_and_infer_elementwise_arith
     const op::AutoBroadcastSpec& autob)
 {
     auto args_et_pshape =
-        op::util::validate_and_infer_elementwise_args(this, autob, m_validate_types);
+        op::util::validate_and_infer_elementwise_args(this, autob);
     element::Type& args_et = std::get<0>(args_et_pshape);
     PartialShape& args_pshape = std::get<1>(args_et_pshape);
 

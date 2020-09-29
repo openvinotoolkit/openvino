@@ -62,6 +62,7 @@ namespace ngraph
                       const Output<Node>& arg1,
                       const AutoBroadcastSpec& auto_broadcast = AutoBroadcastSpec());
 
+                void validate_and_infer_types() override;
                 virtual std::shared_ptr<Node>
                     clone_with_new_inputs(const OutputVector& new_args) const override;
                 bool evaluate(const HostTensorVector& outputs,
@@ -108,6 +109,7 @@ namespace ngraph
                       const AutoBroadcastSpec& auto_broadcast =
                           AutoBroadcastSpec(AutoBroadcastType::NUMPY));
 
+                void validate_and_infer_types() override;
                 virtual std::shared_ptr<Node>
                     clone_with_new_inputs(const OutputVector& new_args) const override;
                 bool evaluate(const HostTensorVector& outputs,

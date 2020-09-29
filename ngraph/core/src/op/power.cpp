@@ -19,6 +19,7 @@
 #include "ngraph/op/divide.hpp"
 #include "ngraph/op/log.hpp"
 #include "ngraph/op/multiply.hpp"
+#include "ngraph/op/util/elementwise_args.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
 #include "ngraph/runtime/reference/power.hpp"
 
@@ -34,7 +35,7 @@ constexpr NodeTypeInfo op::v0::Power::type_info;
 op::v0::Power::Power(const Output<Node>& arg0,
                      const Output<Node>& arg1,
                      const AutoBroadcastSpec& auto_broadcast)
-    : BinaryElementwiseArithmetic(arg0, arg1, auto_broadcast, false /* validate types */)
+    : BinaryElementwiseArithmetic(arg0, arg1, auto_broadcast)
 {
     constructor_validate_and_infer_types();
 }
@@ -43,6 +44,22 @@ shared_ptr<Node> op::v0::Power::clone_with_new_inputs(const OutputVector& new_ar
 {
     check_new_args_count(this, new_args);
     return make_shared<op::v0::Power>(new_args.at(0), new_args.at(1), this->get_autob());
+}
+
+void op::v0::Power::validate_and_infer_types()
+{
+    auto args_et_pshape =
+        util::validate_and_infer_elementwise_args(this, get_autob(), false /* validate types */);
+    element::Type& args_et = std::get<0>(args_et_pshape);
+    PartialShape& args_pshape = std::get<1>(args_et_pshape);
+
+    NODE_VALIDATION_CHECK(this,
+                          args_et.is_dynamic() || args_et != element::boolean,
+                          "Arguments cannot have boolean element type (argument element type: ",
+                          args_et,
+                          ").");
+
+    set_output_type(0, args_et, args_pshape);
 }
 
 namespace
@@ -102,9 +119,25 @@ constexpr NodeTypeInfo op::v1::Power::type_info;
 op::v1::Power::Power(const Output<Node>& arg0,
                      const Output<Node>& arg1,
                      const AutoBroadcastSpec& auto_broadcast)
-    : BinaryElementwiseArithmetic(arg0, arg1, auto_broadcast, false /* validate types */)
+    : BinaryElementwiseArithmetic(arg0, arg1, auto_broadcast)
 {
     constructor_validate_and_infer_types();
+}
+
+void op::v1::Power::validate_and_infer_types()
+{
+    auto args_et_pshape =
+        util::validate_and_infer_elementwise_args(this, get_autob(), false /* validate types */);
+    element::Type& args_et = std::get<0>(args_et_pshape);
+    PartialShape& args_pshape = std::get<1>(args_et_pshape);
+
+    NODE_VALIDATION_CHECK(this,
+                          args_et.is_dynamic() || args_et != element::boolean,
+                          "Arguments cannot have boolean element type (argument element type: ",
+                          args_et,
+                          ").");
+
+    set_output_type(0, args_et, args_pshape);
 }
 
 shared_ptr<Node> op::v1::Power::clone_with_new_inputs(const OutputVector& new_args) const
