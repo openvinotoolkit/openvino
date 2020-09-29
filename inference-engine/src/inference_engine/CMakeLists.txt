@@ -241,7 +241,7 @@ ie_developer_export_targets(${TARGET_NAME} ${TARGET_NAME}_plugin_api xbyak)
 
 list(APPEND core_components ngraph)
 
-if(THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO")
+if((THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO") AND TBBROOT MATCHES ${TEMP})
     ie_cpack_add_component(tbb REQUIRED)
     list(APPEND core_components tbb)
 
