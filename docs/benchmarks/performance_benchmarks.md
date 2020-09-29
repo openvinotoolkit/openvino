@@ -2,115 +2,20 @@
 
 ## Increase Performance for Deep Learning Inference
 
-The [Intel® Distribution of OpenVINO™ toolkit](https://software.intel.com/en-us/openvino-toolkit) helps accelerate deep learning inference across a variety of Intel® processors and accelerators. Rather than a one-size-fits-all solution, Intel offers a powerful portfolio of scalable hardware and software solutions, powered by the Intel® Distribution of OpenVINO™ toolkit, to meet the various performance, power, and price requirements of any use case. The benchmarks below demonstrate high performance gains on several public neural networks for a streamlined, quick deployment on **Intel® CPU, VPU and FPGA** platforms. Use this data to help you decide which hardware is best for your applications and solutions, or to plan your AI workload on the Intel computing already included in your solutions.
+The [Intel® Distribution of OpenVINO™ toolkit](https://software.intel.com/en-us/openvino-toolkit) helps accelerate deep learning inference across a variety of Intel® processors and accelerators. Rather than a one-size-fits-all solution, Intel offers a powerful portfolio of scalable hardware and software solutions, powered by the Intel® Distribution of OpenVINO™ toolkit, to meet the various performance, power, and price requirements of any use case. The benchmarks below demonstrate high performance gains on several public neural networks for a streamlined, quick deployment on **Intel® CPU and VPU** platforms. Use this data to help you decide which hardware is best for your applications and solutions, or to plan your AI workload on the Intel computing already included in your solutions.
 
 Measuring inference performance involves many variables and is extremely use-case and application dependent. We use the below four parameters for measurements, which are key elements to consider for a successful deep learning inference application:
 
-1. **Throughput** - Measures the number of inferences delivered within a latency threshold. (for example, number of frames per second). When deploying a system with deep learning inference, select the throughput that delivers the best trade-off between latency and power for the price and performance that meets your requirements.
+1. **Throughput** - Measures the number of inferences delivered within a latency threshold. (for example, number of Frames Per Second - FPS). When deploying a system with deep learning inference, select the throughput that delivers the best trade-off between latency and power for the price and performance that meets your requirements.
 2. **Value** - While throughput is important, what is more critical in edge AI deployments is the performance efficiency or performance-per-cost. Application performance in throughput per dollar of system cost is the best measure of value.
 3. **Efficiency** - System power is a key consideration from the edge to the data center. When selecting deep learning solutions, power efficiency (throughput/watt) is a critical factor to consider. Intel designs provide excellent power efficiency for running deep learning workloads.
-4. **Total Benefit** (Most applicable for Intel® VPU Platforms) - Combining the factors of value and efficiency can be a good way to compare which hardware yields the best performance per watt and per dollar for your particular use case. 
+4. **Latency** - This measures the synchronous execution of inference requests and is reported in FPS. Each inference request (for example, preprocess, upload, infer, download, postprocess) is allowed to complete before the next is started. This performance metric is relevant in usage scenarios where a single image or frame is processed. An example would be the healthcare sector where medical personel often only reguest analysis of a single ultra sound scanning image.  
 
----
 
-## Intel® Xeon® E-2124G<a name="xeon-e"></a>
-
-![](img/throughput_xeon_e212g.png)
-![](img/value_xeon_e212g.png)
-![](img/eff_xeon_e212g.png)
-
----
-
-## Intel® Xeon® Silver 4216R <a name="xeon-silver"></a>
-
-![](img/throughput_xeon_silver.png)
-![](img/value_xeon_silver.png)
-![](img/eff_xeon_silver.png)
-
----
-
-## Intel® Xeon® Gold 5218T <a name="xeon-gold"></a>
-
-![](img/throughput_xeon_gold.png)
-![](img/value_xeon_gold.png)
-![](img/eff_xeon_gold.png)
-
----
-
-## Intel® Xeon® Platinum 8270 <a name="xeon-platinum"></a>
-
-![](img/throughput_xeon_platinum.png)
-![](img/value_xeon_platinum.png)
-![](img/eff_xeon_platinum.png)
-
----
-
-## Intel® Atom™ x5-E3940 <a name="atom"></a>
-
-![](img/throughput_atom.png)
-![](img/value_atom.png)
-![](img/eff_atom.png)
-
----
-
-## Intel® Core™ i3-8100 <a name="core-i3"></a>
-
-![](img/throughput_i3.png)
-![](img/value_i3.png)
-![](img/eff_i3.png)
-
----
-
-## Intel® Core™ i5-8500 <a name="core-i5"></a>
-
-![](img/throughput_i5.png)
-![](img/value_i5.png)
-![](img/eff_i5.png)
-
----
-
-## Intel® Core™ i7-8700T <a name="core-i7"></a>
-
-![](img/throughput_i7.png)
-![](img/value_i7.png)
-![](img/eff_i7.png)
-
----
-
-## Intel® Core™ i9-10920X <a name="core-i9"></a>
-
-![](img/throughput_i9.png)
-![](img/value_i9.png)
-![](img/eff_i9.png)
-
----
-
-## Intel® Neural Compute Stick 2 <a name="intel-ncs2"></a>
-
-![](img/throughput_ncs2.png)
-![](img/value_ncs2.png)
-![](img/eff_ncs2.png)
-![](img/benefit_ncs2.png)
-
----
-
-## Intel® Vision Accelerator Design with Intel® Movidius™ VPUs (Uzel* UI-AR8) <a name="ivad-vpu"></a>
-
-![](img/throughput_hddlr.png)
-![](img/value_hddlr.png)
-![](img/eff_hddlr.png)
-
----
-
-## Intel® Vision Accelerator Design with Intel® Arria® 10 FPGA
-
-![](img/throughput_ivad_fpga.png)
-![](img/value_ivad_fpga.png)
-![](img/eff_ivad_fpga.png)
 
 ## Platform Configurations
 
-Intel® Distribution of OpenVINO™ toolkit performance benchmark numbers are based on release 2020.4. 
+Intel® Distribution of OpenVINO™ toolkit performance benchmark numbers are based on release 2021.1. 
 
 Intel technologies’ features and benefits depend on system configuration and may require enabled hardware, software or service activation. Learn more at intel.com, or from the OEM or retailer. Performance results are based on testing as of July 8, 2020 and may not reflect all publicly available security updates. See configuration disclosure for details. No product can be absolutely secure. 
 
