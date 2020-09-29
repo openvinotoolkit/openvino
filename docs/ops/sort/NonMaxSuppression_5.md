@@ -17,7 +17,7 @@
 7.  For each input box `b_i` from `B` and the corresponding score `s_i`, set `s_i = s_i * func(IOU(b_i, b))` and go to step 3.
 8.  Return `D`, a collection of the corresponding scores `S`, and the number of elements in `D`.
 
-Here `func(iou) = iou if iou <= iou_threshold else 0` when `soft_nms_sigma == 0`, else `func(iou) = exp(-0.5 * iou * iou / soft_nms_sigma) if iou <= iou_threshold else 0`.
+Here `func(iou) = 1 if iou <= iou_threshold else 0` when `soft_nms_sigma == 0`, else `func(iou) = exp(-0.5 * iou * iou / soft_nms_sigma) if iou <= iou_threshold else 0`.
 
 This algorithm is applied independently to each class of each batch element. The total number of output boxes for each
 class must not exceed `max_output_boxes_per_class`.
