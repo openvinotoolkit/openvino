@@ -86,7 +86,6 @@ public:
             shape,
             testValues.actual.fakeQuantize1,
             testValues.actual.fakeQuantize2);
-
         SimpleLowPrecisionTransformer transform;
         if (testValues.multiChannels) {
             transform.add<ngraph::pass::low_precision::ConcatMultiChannelsTransformation, ngraph::opset1::Concat>(testValues.params);
@@ -94,7 +93,6 @@ public:
             transform.add<ngraph::pass::low_precision::ConcatTransformation, ngraph::opset1::Concat>(testValues.params);
         }
         transform.transform(actualFunction);
-
 
         referenceFunction = ngraph::builder::subgraph::ConcatFunction::getReference(
             precision,
@@ -236,6 +234,20 @@ const std::vector<ConcatTransformationTestValues> testValues = {
             { 256ul, ngraph::Shape({}), {0.f}, {2.55f}, {85.f}, {255.f}, ngraph::element::u8 },
             { ngraph::element::f32, { 85 }, { 0.015f } }
         }
+    },
+    // real case from ctdet_coco_dlav0_384 model, coverage bad rounding
+    {
+            LayerTransformation::createParamsU8I8(),
+            false,
+            {
+                    { 256ul, ngraph::Shape({}), {-1.28f}, {1.27f}, {0.f}, {2.3007815f} },
+                    { 256ul, ngraph::Shape({}), {0.f}, {2.55f}, {-3.873046875f}, {3.84375} }
+            },
+            {
+                    { 256ul, ngraph::Shape({}), {-1.28f}, {1.27f}, {128.f}, {204.f}, ngraph::element::u8 },
+                    { 256ul, ngraph::Shape({}), {0.f}, {2.55f}, {0.f}, {255.f}, ngraph::element::u8 },
+                    { ngraph::element::f32, { 128 }, { 0.0302619f } }
+            }
     },
 };
 
