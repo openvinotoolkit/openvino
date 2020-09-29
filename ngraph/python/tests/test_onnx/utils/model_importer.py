@@ -125,7 +125,8 @@ class ModelImportRunner(onnx.backend.test.BackendTest):
                 continue
             outputs = list(prepared_model.run(inputs))
             for i in range(ref_outputs_num):
-                ref_outputs[i] = ref_outputs[i].reshape(add_batch_size_to_shape_workaround(ref_outputs[i].shape, outputs[i].shape))
+                ref_outputs[i] = ref_outputs[i].reshape(
+                    add_batch_size_to_shape_workaround(ref_outputs[i].shape, outputs[i].shape))
             cls.assert_similar_outputs(ref_outputs, outputs, result_rtol, result_atol)
             executed_tests = executed_tests + 1
         return executed_tests
