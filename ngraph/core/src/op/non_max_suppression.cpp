@@ -640,7 +640,6 @@ op::v5::NonMaxSuppression::NonMaxSuppression(
     constructor_validate_and_infer_types();
 }
 
-
 shared_ptr<Node>
     op::v5::NonMaxSuppression::clone_with_new_inputs(const OutputVector& new_args) const
 {
@@ -730,8 +729,7 @@ void op::v5::NonMaxSuppression::validate()
     {
         const auto soft_nms_sigma = get_input_partial_shape(5);
         NODE_VALIDATION_CHECK(this,
-                              soft_nms_sigma.is_dynamic() ||
-                                  is_scalar(soft_nms_sigma.to_shape()),
+                              soft_nms_sigma.is_dynamic() || is_scalar(soft_nms_sigma.to_shape()),
                               "Expected a scalar for the 'soft_nms_sigma' input. Got: ",
                               soft_nms_sigma);
     }
