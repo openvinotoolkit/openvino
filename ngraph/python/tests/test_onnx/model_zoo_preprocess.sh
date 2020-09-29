@@ -8,7 +8,8 @@ function print_help {
 	echo "    -h display this help message"
 	echo "    -c clone ONNX models repository"
 	echo "    -m <DIR> set location of the models"
-	echo "    -f clean target directory(during clone)"
+	echo "    -f clean target directory(during clone or after enable MSFT models)"
+	echo "    -e download and prepare MSFT models"
 }
 
 while getopts ":hcefm:" opt; do
