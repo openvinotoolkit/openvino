@@ -821,9 +821,7 @@ protected:
                                                 gru_seq->get_activations()[1],
                                                 gru_seq->get_clip(),
                                                 gru_seq->get_direction(),
-                                                gru_seq->get_linear_before_reset()
-
-            );
+                                                gru_seq->get_linear_before_reset());
             break;
         }
         case OP_TYPEID::RNNSequence_v5:
