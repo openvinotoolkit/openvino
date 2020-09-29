@@ -91,11 +91,12 @@ class Computation(object):
         input_values = [np.array(input_value) for input_value in input_values]
         input_shapes = [get_shape(input_value) for input_value in input_values]
 
+        param_names = [param.friendly_name for param in self.parameters]
+
         if self.network_cache.get(str(input_shapes)) is None:
             capsule = Function.to_capsule(self.function)
             cnn_network = IENetwork(capsule)
             if self.function.is_dynamic():
-                param_names = [param.friendly_name for param in self.parameters]
                 cnn_network.reshape(dict(zip(param_names, input_shapes)))
             self.network_cache[str(input_shapes)] = cnn_network
         else:
@@ -119,6 +120,5 @@ class Computation(object):
                 )
 
         request = executable_network.requests[0]
-
-        request.infer(dict(zip(request._inputs_list, input_values)))
+        request.infer(dict(zip(param_names, input_values)))
         return [blob.buffer for blob in request.output_blobs.values()]
