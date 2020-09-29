@@ -9,11 +9,11 @@ The operation has similar semantic to the ONNX* Loop [operation](https://github.
 
 **Detailed description**
 
-The body of the Loop can be executed 0 or more times depending on the values passed to the Loop operation inputs called "trip count", "termination condition" and inputs of Loop body called "current iteration".
+The body of the Loop can be executed 0 or more times depending on the values passed to the Loop operation inputs called "trip count", "condition" and inputs of Loop body called "current iteration".
 
 These Loop operation inputs have the following meaning:
 1. Trip count is an integer scalar input specifying maximum number of iterations. To simulate infinite loop Constant `-1` can be provided as input.
-2. Loop termination condition input is a boolean scalar input specifying whether to run the first loop iteration or not. Note, that the body of the Loop must yield the termination condition value for the consecutive iterations.
+2. Loop condition input is a boolean scalar input specifying whether to run the first loop iteration or not. Note, that the body of the Loop must yield the condition value for the consecutive iterations.
 
 There are several combinations of these two inputs `(trip_count, condition)` which are described in the following code snippet:
 
@@ -57,9 +57,9 @@ There are several combinations of these two inputs `(trip_count, condition)` whi
 ```
 
 1. The body graph first input called "current iteration" is an integer scalar number specifying current iteration number. The iteration number starts from 0 and incremented by one for each iteration.
-2. The body graph first output called "termination condition" is a boolean scalar value. This value is used to decide whenever to perform the next iteration or not.
+2. The body graph first output called "condition" is a boolean scalar value. This value is used to decide whenever to perform the next iteration or not.
 
-Loop operation description in the IR has regular sections: `input` and `output`. They connect Loop body to the outer graph and specify termination condition(s).
+Loop operation description in the IR has regular sections: `input` and `output`. They connect Loop body to the outer graph and specify condition(s).
 Loop operation description in the IR also has several special sections: `body`, `port_map` and `back_edges` similar to the ones from the TensorIterator operation but having some important features described below.
 
 3. The body operation getting an input from the main graph should have an entry in the `port_map` section of the Loop operation. These edges connect input ports of the Loop with the body `Parameter`s.
