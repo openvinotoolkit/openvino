@@ -789,7 +789,7 @@ void op::v5::NonMaxSuppression::validate_and_infer_types()
     // that have the following format: [batch_index, class_index, box_index]
     PartialShape out_shape = {Dimension::dynamic(), 3};
 
-    validate()
+    validate();
 
     if (boxes_ps.rank().is_static() && scores_ps.rank().is_static())
     {
