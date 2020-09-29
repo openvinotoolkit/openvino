@@ -22,7 +22,8 @@ function (DownloadAndCheck from to fatal result)
           Download(${from} ${to} ${fatal} ${result} output)
           list(GET output 0 status_code)
         else()
-          message(STATUS "${WGET_EXECUTABLE} --no-cache ${from}")
+          message(STATUS "${WGET_EXECUTABLE} --no-cache --no-check-certificate 
+            --retry-connrefused --waitretry=1 --read-timeout=20 --timeout=15 --tries=5 ${from}")
           execute_process(COMMAND ${WGET_EXECUTABLE} "--no-cache" "--no-check-certificate" 
             "--retry-connrefused" "--waitretry=1" "--read-timeout=20" "--timeout=15" "--tries=5" 
             "${from}" "-O" "${to}"
