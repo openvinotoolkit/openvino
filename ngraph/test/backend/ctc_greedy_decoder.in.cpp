@@ -66,6 +66,27 @@ NGRAPH_TEST(${BACKEND_NAME}, ctc_greedy_decoder)
     test_case.run_with_tolerance_as_fp(1.0e-4f);
 }
 
+NGRAPH_TEST(${BACKEND_NAME}, ctc_greedy_decoder_f16)
+{
+    const int T = 3;
+    const int N = 1;
+    const int C = 2;
+    const auto data_shape = Shape{T, N, C};
+    const auto masks_shape = Shape{T, N};
+
+    auto data = make_shared<op::Parameter>(element::f16, data_shape);
+    auto masks = make_shared<op::Parameter>(element::f16, masks_shape);
+    auto decoder = make_shared<op::CTCGreedyDecoder>(data, masks, false);
+    auto function = make_shared<Function>(decoder, ParameterVector{data, masks});
+    auto test_case = test::TestCase<TestEngine>(function);
+
+    test_case.add_input<float16>({0.1f, 0.2f, 0.4f, 0.3f, 0.5f, 0.6f});
+    test_case.add_input<float16>({1.0f, 1.0f, 1.0f});
+    test_case.add_expected_output(Shape{N, T, 1, 1}, vector<float16>{1.0f, 0.0f, 1.0f});
+
+    test_case.run_with_tolerance_as_fp(1.0e-4f);
+}
+
 NGRAPH_TEST(${BACKEND_NAME}, ctc_greedy_decoder_multiple_batches)
 {
     const int T = 3;

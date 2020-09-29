@@ -1119,6 +1119,9 @@ IE_CPU.onnx_model_rnn_fwd_bias_initial_h
 IE_CPU.onnx_model_rnn_bidirectional
 IE_CPU.onnx_model_rnn_bidirectional_const
 
+# Input data precision not supported. Expected float.
+ctc_greedy_decoder_f16
+
 #-------------------------------------------------------------------------------
 #
 #       Inference Engine GPU plugin excludes
