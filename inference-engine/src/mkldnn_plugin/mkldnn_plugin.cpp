@@ -37,7 +37,6 @@
 #include <ngraph/op/util/op_types.hpp>
 #include <ngraph/pass/manager.hpp>
 #include "ngraph_ops/fully_connected.hpp"
-#include "../../tests/ie_test_utils/common_test_utils/ngraph_test_utils.hpp"
 
 #if !defined(__arm__) && !defined(_M_ARM) && !defined(__aarch64__) && !defined(_M_ARM64)
 #if defined(_WIN32) || defined(WIN32)
@@ -48,6 +47,27 @@
 
 #endif
 #endif
+
+namespace ngraph {
+namespace pass {
+
+class InjectionPass : public ngraph::pass::FunctionPass {
+public:
+    using injection_callback = std::function<void(std::shared_ptr<ngraph::Function>)>;
+
+    explicit InjectionPass(injection_callback callback) : FunctionPass(), m_callback(std::move(callback)) {}
+
+    bool run_on_function(std::shared_ptr<ngraph::Function> f) override {
+        m_callback(f);
+        return false;
+    }
+
+private:
+    injection_callback m_callback;
+};
+
+}// namespace pass
+}// namespace ngraph
 
 using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
@@ -124,7 +144,7 @@ static void Transformation(ICNNNetwork::Ptr& clonedNetwork) {
         manager.register_pass<ngraph::pass::ConvertPrecision>(precision.first, precision.second);
     }
 
-    manager.register_pass([](std::shared_ptr<ngraph::Function> f) {
+    manager.register_pass<ngraph::pass::InjectionPass>([](std::shared_ptr<ngraph::Function> f) {
         for (auto& parameter : f->get_parameters())
             parameter->tmp_restore_orig_shape();
         f->validate_nodes_and_infer_types();
