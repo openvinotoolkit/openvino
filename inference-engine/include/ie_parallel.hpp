@@ -185,7 +185,7 @@ void parallel_sort(I begin, I end, const F& comparator) {
 template <typename T0, typename R, typename F>
 R parallel_sum(const T0& D0, const R& input, const F& func) {
 #if (IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO)
-    return tbb::parallel_reduce(
+    return tbb::parallel_deterministic_reduce(
         tbb::blocked_range<T0>(0, D0), input,
         [&](const tbb::blocked_range<T0>& r, R init) -> R {
             R sum = init;
@@ -217,7 +217,7 @@ R parallel_sum(const T0& D0, const R& input, const F& func) {
 template <typename T0, typename T1, typename R, typename F>
 R parallel_sum2d(const T0& D0, const T1& D1, const R& input, const F& func) {
 #if (IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO)
-    return tbb::parallel_reduce(
+    return tbb::parallel_deterministic_reduce(
         tbb::blocked_range2d<T0, T1>(0, D0, 0, D1), input,
         [&](const tbb::blocked_range2d<T0, T1>& r, R init) -> R {
             R sum = init;
@@ -256,7 +256,7 @@ R parallel_sum2d(const T0& D0, const T1& D1, const R& input, const F& func) {
 template <typename T0, typename T1, typename T2, typename R, typename F>
 R parallel_sum3d(const T0& D0, const T1& D1, const T2& D2, const R& input, const F& func) {
 #if (IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO)
-    return tbb::parallel_reduce(
+    return tbb::parallel_deterministic_reduce(
         tbb::blocked_range3d<T0, T1, T2>(0, D0, 0, D1, 0, D2), input,
         [&](const tbb::blocked_range3d<T0, T1, T2>& r, R init) -> R {
             R sum = init;
