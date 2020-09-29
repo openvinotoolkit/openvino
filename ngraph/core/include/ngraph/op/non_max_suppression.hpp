@@ -355,6 +355,31 @@ namespace ngraph
 
                 std::shared_ptr<Node>
                     clone_with_new_inputs(const OutputVector& new_args) const override;
+
+                BoxEncodingType get_box_encoding() const { return m_box_encoding; }
+                void set_box_encoding(const BoxEncodingType box_encoding)
+                {
+                    m_box_encoding = box_encoding;
+                }
+                bool get_sort_result_descending() const { return m_sort_result_descending; }
+                void set_sort_result_descending(const bool sort_result_descending)
+                {
+                    m_sort_result_descending = sort_result_descending;
+                }
+
+                element::Type get_output_type() const { return m_output_type; }
+                void set_output_type(const element::Type& output_type)
+                {
+                    m_output_type = output_type;
+                }
+                using Node::set_output_type;
+
+            protected:
+                BoxEncodingType m_box_encoding = BoxEncodingType::CORNER;
+                bool m_sort_result_descending = true;
+                ngraph::element::Type m_output_type = ngraph::element::i64;
+                // void validate();
+                // int64_t max_boxes_output_from_input() const;
             };
         } // namespace v5
     }     // namespace op

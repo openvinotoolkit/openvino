@@ -530,3 +530,117 @@ void op::v4::NonMaxSuppression::validate_and_infer_types()
     }
     set_output_type(0, m_output_type, out_shape);
 }
+
+// ------------------------------ V5 ------------------------------
+
+constexpr NodeTypeInfo op::v5::NonMaxSuppression::type_info;
+
+op::v5::NonMaxSuppression::NonMaxSuppression(
+    const Output<Node>& boxes,
+    const Output<Node>& scores,
+    const op::v5::NonMaxSuppression::BoxEncodingType box_encoding,
+    const bool sort_result_descending,
+    const element::Type& output_type)
+    : Op({boxes,
+          scores,
+          op::Constant::create(element::i64, Shape{}, {0}),
+          op::Constant::create(element::f32, Shape{}, {.0f}),
+          op::Constant::create(element::f32, Shape{}, {.0f}),
+          op::Constant::create(element::f32, Shape{}, {.0f})})
+    , m_box_encoding{box_encoding}
+    , m_sort_result_descending{sort_result_descending}
+    , m_output_type{output_type}
+{
+    constructor_validate_and_infer_types();
+}
+
+op::v5::NonMaxSuppression::NonMaxSuppression(
+    const Output<Node>& boxes,
+    const Output<Node>& scores,
+    const Output<Node>& max_output_boxes_per_class,
+    const op::v5::NonMaxSuppression::BoxEncodingType box_encoding,
+    const bool sort_result_descending,
+    const element::Type& output_type)
+    : Op({boxes,
+          scores,
+          max_output_boxes_per_class,
+          op::Constant::create(element::f32, Shape{}, {.0f}),
+          op::Constant::create(element::f32, Shape{}, {.0f}),
+          op::Constant::create(element::f32, Shape{}, {.0f})})
+    , m_box_encoding{box_encoding}
+    , m_sort_result_descending{sort_result_descending}
+    , m_output_type{output_type}
+{
+    constructor_validate_and_infer_types();
+}
+
+op::v5::NonMaxSuppression::NonMaxSuppression(
+    const Output<Node>& boxes,
+    const Output<Node>& scores,
+    const Output<Node>& max_output_boxes_per_class,
+    const Output<Node>& iou_threshold,
+    const op::v5::NonMaxSuppression::BoxEncodingType box_encoding,
+    const bool sort_result_descending,
+    const element::Type& output_type)
+    : Op({boxes,
+          scores,
+          max_output_boxes_per_class,
+          iou_threshold,
+          op::Constant::create(element::f32, Shape{}, {.0f}),
+          op::Constant::create(element::f32, Shape{}, {.0f})})
+    , m_box_encoding{box_encoding}
+    , m_sort_result_descending{sort_result_descending}
+    , m_output_type{output_type}
+{
+    constructor_validate_and_infer_types();
+}
+
+op::v5::NonMaxSuppression::NonMaxSuppression(
+    const Output<Node>& boxes,
+    const Output<Node>& scores,
+    const Output<Node>& max_output_boxes_per_class,
+    const Output<Node>& iou_threshold,
+    const Output<Node>& score_threshold,
+    const op::v5::NonMaxSuppression::BoxEncodingType box_encoding,
+    const bool sort_result_descending,
+    const element::Type& output_type)
+    : Op({boxes,
+          scores,
+          max_output_boxes_per_class,
+          iou_threshold,
+          score_threshold,
+          op::Constant::create(element::f32, Shape{}, {.0f})})
+    , m_box_encoding{box_encoding}
+    , m_sort_result_descending{sort_result_descending}
+    , m_output_type{output_type}
+{
+    constructor_validate_and_infer_types();
+}
+
+op::v5::NonMaxSuppression::NonMaxSuppression(
+    const Output<Node>& boxes,
+    const Output<Node>& scores,
+    const Output<Node>& max_output_boxes_per_class,
+    const Output<Node>& iou_threshold,
+    const Output<Node>& score_threshold,
+    const Output<Node>& soft_nms_sigma,
+    const op::v5::NonMaxSuppression::BoxEncodingType box_encoding,
+    const bool sort_result_descending,
+    const element::Type& output_type)
+    : Op({boxes,
+          scores,
+          max_output_boxes_per_class,
+          iou_threshold,
+          score_threshold,
+          soft_nms_sigma})
+    , m_box_encoding{box_encoding}
+    , m_sort_result_descending{sort_result_descending}
+    , m_output_type{output_type}
+{
+    constructor_validate_and_infer_types();
+}
+
+void op::v5::NonMaxSuppression::validate_and_infer_types()
+{
+    set_output_type(0, m_output_type, out_shape);
+}
