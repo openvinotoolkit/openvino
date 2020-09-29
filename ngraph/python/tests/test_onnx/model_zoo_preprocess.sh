@@ -11,7 +11,7 @@ function print_help {
 	echo "    -f clean target directory(during clone)"
 }
 
-while getopts ":hcfm:" opt; do
+while getopts ":hcefm:" opt; do
 	case ${opt} in
 		h )
 			print_help
@@ -31,6 +31,9 @@ while getopts ":hcfm:" opt; do
 		f )
 			CLEAN_DIR=true
 			;;
+        e )
+		    ENABLE_MSFT=true
+		    ;;
 	esac
 done
 shift $((OPTIND -1))
@@ -39,6 +42,7 @@ if [ $MODELS_DIR = false ] ; then
 	echo "Unknown location of the ZOO models"
 	exit 170
 fi
+
 ONNX_MODELS_DIR=$MODELS_DIR/model_zoo/onnx_model_zoo
 MSFT_MODELS_DIR=$MODELS_DIR/model_zoo/MSFT
 
@@ -49,7 +53,7 @@ if [ $CLONE = true ] ; then
 	git clone https://github.com/onnx/models.git $ONNX_MODELS_DIR
 fi
 
-mkdir -p $ONNX_MODELS_DIR $MSFT_MODELS_DIR
+mkdir -p $ONNX_MODELS_DIR
 cd $ONNX_MODELS_DIR
 # remove already downloaded models
 git clean -f -x -d
@@ -75,5 +79,8 @@ mkdir test_data_set_0
 mv *.pb test_data_set_0/
 
 # Prepare MSFT models
-wget -O $MSFT_MODELS_DIR/20191107.zip https://onnxruntimetestdata.blob.core.windows.net/models/20191107.zip
-unzip $MSFT_MODELS_DIR/20191107.zip -d $MSFT_MODELS_DIR/20191107 && rm $MSFT_MODELS_DIR/20191107.zip
+if [ $ENABLE_MSFT = true ] ; then
+    mkdir -p $MSFT_MODELS_DIR
+    wget -O $MSFT_MODELS_DIR/20191107.zip https://onnxruntimetestdata.blob.core.windows.net/models/20191107.zip
+    unzip $MSFT_MODELS_DIR/20191107.zip -d $MSFT_MODELS_DIR/20191107 && rm $MSFT_MODELS_DIR/20191107.zip
+fi
