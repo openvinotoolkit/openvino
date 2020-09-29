@@ -396,4 +396,23 @@ namespace ngraph
             "AttributeAdapter<op::v3::NonMaxSuppression::BoxEncodingType>", 1};
         const DiscreteTypeInfo& get_type_info() const override { return type_info; }
     };
+
+    NGRAPH_API
+    std::ostream& operator<<(std::ostream& s,
+                             const op::v5::NonMaxSuppression::BoxEncodingType& type);
+
+    template <>
+    class NGRAPH_API AttributeAdapter<op::v5::NonMaxSuppression::BoxEncodingType>
+        : public EnumAttributeAdapterBase<op::v5::NonMaxSuppression::BoxEncodingType>
+    {
+    public:
+        AttributeAdapter(op::v5::NonMaxSuppression::BoxEncodingType& value)
+            : EnumAttributeAdapterBase<op::v5::NonMaxSuppression::BoxEncodingType>(value)
+        {
+        }
+
+        static constexpr DiscreteTypeInfo type_info{
+            "AttributeAdapter<op::v5::NonMaxSuppression::BoxEncodingType>", 1};
+        const DiscreteTypeInfo& get_type_info() const override { return type_info; }
+    };
 } // namespace ngraph
