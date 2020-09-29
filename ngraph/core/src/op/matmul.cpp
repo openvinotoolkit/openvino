@@ -44,6 +44,19 @@ op::MatMul::MatMul(const Output<Node>& A,
     constructor_validate_and_infer_types();
 }
 
+op::MatMul::MatMul(const Output<Node>& A,
+                   const Output<Node>& B,
+                   const bool& transpose_a,
+                   const bool& transpose_b)
+        : FusedOp(OutputVector{A, B})
+        , m_transpose_a{transpose_a}
+        , m_transpose_b{transpose_b}
+        , m_output_type(element::undefined)
+{
+    constructor_validate_and_infer_types();
+}
+
+
 bool ngraph::op::v0::MatMul::visit_attributes(AttributeVisitor& visitor)
 {
     visitor.on_attribute("transpose_a", m_transpose_a);

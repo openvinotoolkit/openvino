@@ -42,9 +42,15 @@ namespace ngraph
                 /// \param transpose_b If matrix B should be transposed.
                 MatMul(const Output<Node>& A,
                        const Output<Node>& B,
+                       const bool& transpose_a,
+                       const bool& transpose_b,
+                       const element::Type output_type);
+
+                MatMul(const Output<Node>& A,
+                       const Output<Node>& B,
                        const bool& transpose_a = 0,
-                       const bool& transpose_b = 0,
-                       const element::Type output_type = element::undefined);
+                       const bool& transpose_b = 0);
+
 
                 bool visit_attributes(AttributeVisitor& visitor) override;
                 virtual void pre_validate_and_infer_types() override;
