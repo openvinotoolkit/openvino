@@ -18,7 +18,9 @@
             <tab type="usergroup" title="Install Intel® Distribution of OpenVINO™ toolkit for Windows* with FPGA support" url="@ref openvino_docs_install_guides_installing_openvino_windows_fpga">
                  <tab type="user" title="Configuration Guide for OpenVINO and the Intel® Vision Accelerator Design with an Intel® Arria 10 FPGA SG2 (IEIs Mustang-F100-A10) on Windows*" url="@ref openvino_docs_install_guides_VisionAcceleratorFPGA_Configure_Windows"/>
             </tab>
+            <tab type="user" title="Get Started with OpenVINO™ toolkit on Windows*" url="@ref openvino_docs_get_started_get_started_windows"/>
             <tab type="user" title="Install Intel® Distribution of OpenVINO™ toolkit for macOS*" url="@ref openvino_docs_install_guides_installing_openvino_macos"/>
+            <tab type="user" title="Get Started with OpenVINO™ toolkit on macOS*" url="@ref openvino_docs_get_started_get_started_macos"/>
             <tab type="user" title="Install Intel® Distribution of OpenVINO™ toolkit for Raspbian* OS" url="@ref openvino_docs_install_guides_installing_openvino_raspbian"/>
             <tab type="user" title="Intel® Movidius™ VPUs Setup Guide for Use with Intel® Distribution of OpenVINO™ toolkit" url="@ref openvino_docs_install_guides_movidius_setup_guide"/>
 			      <tab type="user" title="Intel® Movidius™ VPUs Programming Guide for Use with Intel® Distribution of OpenVINO™ toolkit" url="@ref openvino_docs_install_guides_movidius_programming_guide"/>
