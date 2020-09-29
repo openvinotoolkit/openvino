@@ -675,5 +675,12 @@ shared_ptr<Node>
 
 void op::v5::NonMaxSuppression::validate_and_infer_types()
 {
+    const auto boxes_ps = get_input_partial_shape(0);
+    const auto scores_ps = get_input_partial_shape(1);
+
+    // NonMaxSuppression produces triplets
+    // that have the following format: [batch_index, class_index, box_index]
+    PartialShape out_shape = {Dimension::dynamic(), 3};
+
     // set_output_type(0, m_output_type, out_shape);
 }
