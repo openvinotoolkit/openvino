@@ -57,16 +57,16 @@ There are several combinations of these two inputs `(trip_count, condition)` whi
 ```
 
 1. The body graph first input called "current iteration" is an integer scalar number specifying current iteration number. The iteration number starts from 0 and incremented by one for each iteration.
-1. The body graph first output called "termination condition" is a boolean scalar value. This value is used to decide whenever to perform the next iteration or not.
+2. The body graph first output called "termination condition" is a boolean scalar value. This value is used to decide whenever to perform the next iteration or not.
 
 Loop operation description in the IR has regular sections: `input` and `output`. They connect Loop body to the outer graph and specify termination condition(s).
 Loop operation description in the IR also has several special sections: `body`, `port_map` and `back_edges` similar to the ones from the TensorIterator operation but having some important features described below.
 
-1. The body operation getting an input from the main graph should have an entry in the `port_map` section of the Loop operation. These edges connect input ports of the Loop with the body `Parameter`s.
-1. The body operation producing tensor to be used in the subsequent iterations (like in RNN models) should have a back edge described in the `back_edges` section of the operation. The back edge connects the respective body `Parameter` and `Result` operations. For such a case the Loop operation node provides input for the first iteration, while corresponding Loop operation output produces the tensor computed during the last iteration.
-1. Output tensors produced by a particular body operation across all iterations can be concatenated and returned as a Loop operation output (this is a "scan output" according to the ONNX* Loop operation [specification](https://github.com/onnx/onnx/blob/master/docs/Changelog.md#Loop-13)). The corresponding `output` entry in the `port_map` should have `axis` attribute specifying the axis to concatenate. Therefore, outputs from operations corresponding to `output` entries in the `port_map` without `axis` attribute are returned "as is" (without concatenation).
-1. There is one body `Parameter` operation not connected through the `port_map`. This is a "current iteration" input. The Loop operation is responsible for providing the appropriate value for each iteration.
-1. Connection of nodes inside the Loop body with the main graph should be done through `Parameter` and `Result` body operations. No other ways to connect graphs are allowed.
+3. The body operation getting an input from the main graph should have an entry in the `port_map` section of the Loop operation. These edges connect input ports of the Loop with the body `Parameter`s.
+4. The body operation producing tensor to be used in the subsequent iterations (like in RNN models) should have a back edge described in the `back_edges` section of the operation. The back edge connects the respective body `Parameter` and `Result` operations. For such a case the Loop operation node provides input for the first iteration, while corresponding Loop operation output produces the tensor computed during the last iteration.
+5. Output tensors produced by a particular body operation across all iterations can be concatenated and returned as a Loop operation output (this is a "scan output" according to the ONNX* Loop operation [specification](https://github.com/onnx/onnx/blob/master/docs/Changelog.md#Loop-13)). The corresponding `output` entry in the `port_map` should have `axis` attribute specifying the axis to concatenate. Therefore, outputs from operations corresponding to `output` entries in the `port_map` without `axis` attribute are returned "as is" (without concatenation).
+6. There is one body `Parameter` operation not connected through the `port_map`. This is a "current iteration" input. The Loop operation is responsible for providing the appropriate value for each iteration.
+7. Connection of nodes inside the Loop body with the main graph should be done through `Parameter` and `Result` body operations. No other ways to connect graphs are allowed.
 
 **Loop attributes**:
 
@@ -86,14 +86,14 @@ Loop operation description in the IR also has several special sections: `body`, 
 
         * *external_port_id*
             * **Description**: *external_port_id* is a port ID of the `Loop` operation.
-            * **Range of values**: indexes of the *Loop* outputs
+            * **Range of values**: IDs of the *Loop* outputs
             * **Type**: `int`
             * **Default value**: None
             * **Required**: *yes*
 
-        * *internal_operation_id*
+        * *internal_layer_id*
 
-            * **Description**: *internal_operation_id* is a `Parameter` or `Result` operation ID inside the `body` network to map to.
+            * **Description**: *internal_layer_id* is a `Parameter` or `Result` operation ID inside the `body` network to map to.
             * **Range of values**: IDs of the `Parameter` operations inside in the *Loop* operation
             * **Type**: `int`
             * **Default value**: None
@@ -102,7 +102,7 @@ Loop operation description in the IR also has several special sections: `body`, 
         * *axis*
 
             * **Description**: *axis* is an axis to concatenate the body `Result` output across all iterations. Can be specified for `output` entry only.
-            * **Range of values**: an integer
+            * **Range of values**: an integer. Negative value means counting dimension from the end.
             * **Type**: `int`
             * **Default value**: None
             * **Required**: *no*
@@ -113,17 +113,17 @@ Loop operation description in the IR also has several special sections: `body`, 
 
     * **Back edge attributes**:
 
-        * *from-operation*
+        * *from-layer*
 
-            * **Description**: *from-operation* is a `Result` operation ID inside the `body` network.
+            * **Description**: *from-layer* is a `Result` operation ID inside the `body` network.
             * **Range of values**: IDs of the `Result` operations inside the *Loop*
             * **Type**: `int`
             * **Default value**: None
             * **Required**: *yes*
 
-        * *to-operation*
+        * *to-layer*
 
-            * **Description**: *to-operation* is a `Parameter` operation ID inside the `body` network to end mapping.
+            * **Description**: *to-layer* is a `Parameter` operation ID inside the `body` network to end mapping.
             * **Range of values**: IDs of the `Parameter` operations inside the *Loop*
             * **Type**: `int`
             * **Default value**: None
@@ -133,7 +133,7 @@ Loop operation description in the IR also has several special sections: `body`, 
 
 * **Trip count**: A scalar tensor of `int64` type specifying maximum number of iterations. *Required*.
 
-* **Termination condition**: A scalar tensor of `boolean` type specifying whether to execute the first iteration or not. *Required*.
+* **Condition**: A scalar tensor of `boolean` type specifying whether to execute the first iteration or not. `True` means to execute the 1st iteration. *Required*.
 
 * **Multiple other inputs**: tensors of different types and shapes. *Optional*.
 
@@ -151,7 +151,7 @@ Loop operation description in the IR also has several special sections: `body`, 
 
 **Body Outputs**
 
-* **Termination condition**: A scalar tensor of `boolean` type specifying whether to execute the next iteration or not.
+* **Condition**: A scalar tensor of `boolean` type specifying whether to execute the next iteration or not. `True` means to continue execution.
 
 * **Multiple outputs**: Results of execution of the `body`. Tensors of any type and shape.
 
@@ -160,24 +160,24 @@ Loop operation description in the IR also has several special sections: `body`, 
 
 *Example 1: a typical Loop structure*
 ```xml
-<operation type="Loop" ... >
+<layer type="Loop" ... >
     <input> ... </input>
     <output> ... </output>
     <port_map>
-        <input external_port_id="0" internal_operation_id="0"/>
-        <input external_port_id="1" internal_operation_id="1"/>
+        <input external_port_id="0" internal_layer_id="0"/>
+        <input external_port_id="1" internal_layer_id="1"/>
         ...
-        <output external_port_id="3" internal_operation_id="2"/>
-        <output external_port_id="4" internal_operation_id="10" axis="1"/>
+        <output external_port_id="3" internal_layer_id="2"/>
+        <output external_port_id="4" internal_layer_id="10" axis="1"/>
         ...
     </port_map>
     <back_edges>
-        <edge from-operation="1" to-operation="2"/>
+        <edge from-layer="1" to-layer="2"/>
         ...
     </back_edges>
     <body>
-        <operations> ... </operations>
+        <layers> ... </layers>
         <edges> ... </edges>
     </body>
-</operation>
+</layer>
 ```
