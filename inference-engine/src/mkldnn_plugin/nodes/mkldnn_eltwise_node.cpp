@@ -399,7 +399,7 @@ private:
                 for (int j = 1; j < post_op_emitters[eltwise_post_op_idx]->get_inputs_num(); j++)
                     in_idxs.push_back(get_vmm_reg(input_idx++).getIdx());
                 for (int j = 0; j < post_op_emitters[eltwise_post_op_idx]->aux_vecs_count(); j++)
-                    aux_idxs.push_back(get_aux_vmm(i).getIdx());
+                    aux_idxs.push_back(get_aux_vmm(j).getIdx());
 
                 std::vector<size_t> out_idxs;
                 out_idxs.push_back(vmm_dst.getIdx());
