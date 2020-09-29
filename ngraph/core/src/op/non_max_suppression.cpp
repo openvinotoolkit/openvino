@@ -831,3 +831,20 @@ namespace ngraph
         return s << as_string(type);
     }
 } // namespace ngraph
+
+bool op::v5::NonMaxSuppression::evaluate(const HostTensorVector& outputs,
+                                         const HostTensorVector& inputs) const
+{
+    element::Type input_et = get_input_element_type(0);
+
+    switch (input_et)
+    {
+    case element::Type_t::f32:
+        break;
+    case element::Type_t::f16:
+        break;
+    default:;
+    }
+
+    return true;
+}
