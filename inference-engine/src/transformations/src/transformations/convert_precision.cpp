@@ -161,9 +161,11 @@ bool ngraph::pass::ConvertPrecision::run_on_function(std::shared_ptr<ngraph::Fun
         // If output type mismatch given type we try to fuse type into this operation
         // otherwise we insert Convert operation.
         for (auto &node : f->get_ordered_ops()) {
-            // Recursively run for TensorIterator body function
-            if (auto ti = std::dynamic_pointer_cast<opset4::TensorIterator>(node)) {
-                convert_function_precision(ti->get_body());
+            // Recursively apply transformation for sub-graph based operations
+            if (auto sub_graph_node = std::dynamic_pointer_cast<op::util::SubGraphOp>(node)) {
+                if (auto sub_graph = sub_graph_node->get_function()) {
+                    convert_function_precision(sub_graph);
+                }
             }
             convert_node_input_precision(node);
         }
@@ -297,8 +299,36 @@ bool extend_select_type(std::shared_ptr<ngraph::Node> & node, ngraph::element::T
     return false;
 }
 
+template <typename src_type, typename dst_type>
+inline dst_type convert_value(src_type val) {
+    if (val > std::numeric_limits<dst_type>::max()) {
+        return std::numeric_limits<dst_type>::max();
+    } else if (val < std::numeric_limits<dst_type>::lowest()) {
+        return std::numeric_limits<dst_type>::lowest();
+    }
+    return static_cast<dst_type>(val);
+}
+
+// We need to treat U64->I32 and U32->I32 as a separate case, because of C++'s implicit promotion from signed to unsigned,
+// and we don't need to compare and clamp the input to std::numeric_limits<int32_t>::lowest()
+template <>
+inline int32_t convert_value<uint64_t, int32_t>(uint64_t val) {
+    if (val > std::numeric_limits<int32_t>::max()) {
+        return std::numeric_limits<int32_t>::max();
+    }
+    return static_cast<int32_t>(val);
+}
+
+template <>
+inline int32_t convert_value<uint32_t, int32_t>(uint32_t val) {
+    if (val > std::numeric_limits<int32_t>::max()) {
+        return std::numeric_limits<int32_t>::max();
+    }
+    return static_cast<int32_t>(val);
+}
+
 template <element::Type_t PREC_FROM, element::Type_t PREC_TO>
-std::shared_ptr<Node> change_constant_precision(std::shared_ptr<opset4::Constant> & constant) {
+static std::shared_ptr<Node> change_constant_precision(std::shared_ptr<opset4::Constant>& constant) {
     using src_type = typename element_type_traits<PREC_FROM>::value_type;
     using dst_type = typename element_type_traits<PREC_TO>::value_type;
 
@@ -310,12 +340,7 @@ std::shared_ptr<Node> change_constant_precision(std::shared_ptr<opset4::Constant
 
     std::vector<dst_type> final_data;
     for (size_t i = 0; i < size; ++i) {
-        const auto & val = src_data[i];
-        if (val > std::numeric_limits<dst_type>::max()) {
-            dst_data[i] = std::numeric_limits<dst_type>::max();
-        } else {
-            dst_data[i] = static_cast<dst_type>(val);
-        }
+        dst_data[i] = convert_value<src_type, dst_type>(src_data[i]);
     }
     return new_constant;
 }
