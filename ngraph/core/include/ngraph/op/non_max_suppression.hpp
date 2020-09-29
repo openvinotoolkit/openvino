@@ -351,6 +351,7 @@ namespace ngraph
                                   const bool sort_result_descending = true,
                                   const ngraph::element::Type& output_type = ngraph::element::i64);
 
+                bool visit_attributes(AttributeVisitor& visitor) override;
                 void validate_and_infer_types() override;
 
                 std::shared_ptr<Node>
@@ -378,8 +379,8 @@ namespace ngraph
                 BoxEncodingType m_box_encoding = BoxEncodingType::CORNER;
                 bool m_sort_result_descending = true;
                 ngraph::element::Type m_output_type = ngraph::element::i64;
-                // void validate();
-                // int64_t max_boxes_output_from_input() const;
+                void validate();
+                int64_t max_boxes_output_from_input() const;
             };
         } // namespace v5
     }     // namespace op
