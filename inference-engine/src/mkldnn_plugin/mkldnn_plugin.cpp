@@ -97,7 +97,7 @@ static void Transformation(ICNNNetwork::Ptr& clonedNetwork) {
     ngraph::pass::Manager manager;
 
     manager.register_pass<ngraph::pass::InjectionPass>([](std::shared_ptr<ngraph::Function> f) {
-        for(auto& parameter: f->get_parameters())
+        for (auto& parameter : f->get_parameters())
             parameter->tmp_extend_shape_to_interval();
         f->validate_nodes_and_infer_types();
     });
@@ -125,7 +125,7 @@ static void Transformation(ICNNNetwork::Ptr& clonedNetwork) {
     }
 
     manager.register_pass([](std::shared_ptr<ngraph::Function> f) {
-        for(auto& parameter: f->get_parameters())
+        for (auto& parameter : f->get_parameters())
             parameter->tmp_restore_orig_shape();
         f->validate_nodes_and_infer_types();
     });
