@@ -2,6 +2,9 @@
 set -e
 
 MODELS_DIR=false
+CLEAN_DIR=false
+ENABLE_MSFT=false
+CLONE=false
 
 function print_help {
 	echo "Model preprocessing options:"
