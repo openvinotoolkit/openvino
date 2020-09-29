@@ -65,6 +65,7 @@ tolerance_map = {
     "rain-princess-9": {"atol": 0.001, "rtol": 0.001},
     "udnie-8": {"atol": 0.001, "rtol": 0.001},
     "udnie-9": {"atol": 0.001, "rtol": 0.001},
+    "test_shufflenetv2": {"atol": 1e-5, "rtol": 0.001},
 }
 
 zoo_models = []
@@ -114,7 +115,6 @@ if len(zoo_models) > 0:
             "test_onnx_model_zoo_text_machine_comprehension_bert_squad_model_bertsquad_8_bertsquad8_cpu",
             "test_onnx_model_zoo_vision_object_detection_segmentation_duc_model_ResNet101_DUC_7_ResNet101_DUC_HDC_cpu",
             "test_onnx_model_zoo_vision_object_detection_segmentation_retinanet_model_retinanet_9_retinanet_9_cpu",
-            "test_onnx_model_zoo_vision_classification_shufflenet_model_shufflenet_v2_10_test_shufflenetv2_model_cpu",
             "test_onnx_model_zoo_vision_object_detection_segmentation_yolov4_model_yolov4_yolov4_yolov4_cpu",
             "test_onnx_model_zoo_text_machine_comprehension_roberta_model_roberta_base_11_roberta_base_11_cpu",
         ]

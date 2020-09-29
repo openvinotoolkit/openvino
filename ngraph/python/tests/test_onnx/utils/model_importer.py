@@ -26,6 +26,7 @@ from onnx.backend.test.case.test_case import TestCase as OnnxTestCase
 from onnx.backend.test.runner import TestItem
 from pathlib import Path
 from tests.test_onnx.utils.onnx_helpers import import_onnx_model
+from tests.runtime import add_batch_size_to_shape_workaround
 from typing import Any, Dict, List, Optional, Pattern, Set, Text, Type, Union
 
 
@@ -123,6 +124,8 @@ class ModelImportRunner(onnx.backend.test.BackendTest):
             if(len(inputs) == 0):
                 continue
             outputs = list(prepared_model.run(inputs))
+            for i in range(ref_outputs_num):
+                ref_outputs[i] = ref_outputs[i].reshape(add_batch_size_to_shape_workaround(ref_outputs[i].shape, outputs[i].shape))
             cls.assert_similar_outputs(ref_outputs, outputs, result_rtol, result_atol)
             executed_tests = executed_tests + 1
         return executed_tests

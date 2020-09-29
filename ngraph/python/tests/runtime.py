@@ -72,6 +72,29 @@ class Runtime(object):
             )
 
 
+# WA for shapes not having batch size dimension
+# eg. input data for shufflenet has shape (3, 224, 224), but network requires (1, 3, 224, 224)
+def add_batch_size_to_shape_workaround(input_shape, expected_shape):
+    input_shape = list(input_shape)
+    if isinstance(expected_shape, PartialShape):
+        if expected_shape.is_dynamic:
+            return input_shape
+        expected_shape = expected_shape.get_shape()
+    expected_shape = list(expected_shape)
+
+    def shape_size(sh):
+        return np.prod(sh)
+
+    # make sure the shapes have the same size
+    if shape_size(input_shape) != shape_size(expected_shape):
+        return input_shape
+    # make sure shapes differ by only one dimension
+    if input_shape != expected_shape[1:]:
+        return input_shape
+    # finally add batch_size == 1 to the shape
+    return [1] + input_shape
+
+
 class Computation(object):
     """nGraph callable computation object."""
 
@@ -111,6 +134,7 @@ class Computation(object):
             )
         for parameter, input in zip(self.parameters, input_values):
             parameter_shape = parameter.get_output_partial_shape(0)
+            input = input.reshape(add_batch_size_to_shape_workaround(input.shape, parameter_shape))
             input_shape = PartialShape(input.shape)
             if len(input.shape) > 0 and not parameter_shape.compatible(input_shape):
                 raise UserInputError(
