@@ -15,8 +15,6 @@
 //*****************************************************************************
 
 #include "ngraph/op/ctc_greedy_decoder.hpp"
-#include "ngraph/runtime/host_tensor.hpp"
-#include "ngraph/runtime/reference/ctc_greedy_decoder.hpp"
 
 using namespace std;
 using namespace ngraph;
