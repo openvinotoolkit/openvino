@@ -52,6 +52,7 @@
 #include "ngraph/runtime/reference/mvn.hpp"
 #include "ngraph/runtime/reference/reverse_sequence.hpp"
 #include "ngraph/runtime/reference/scatter_nd_update.hpp"
+#include "ngraph/runtime/reference/normalize_l2.hpp"
 #include "reference/elu.hpp"
 #include "reference/gelu.hpp"
 #include "reference/hard_sigmoid.hpp"
@@ -940,6 +941,21 @@ namespace
                                              op->get_input_shape(3),
                                              op->get_input_shape(4),
                                              op->get_levels());
+        return true;
+    }
+
+    template <element::Type_t ET>
+    bool evaluate(const shared_ptr<op::v0::NormalizeL2>& op,
+                  const HostTensorVector& outputs,
+                  const HostTensorVector& inputs)
+    {
+        using T = typename element_type_traits<ET>::value_type;
+        runtime::reference::normalize_l2<T>(inputs[0]->get_data_ptr<const T>(),
+                                            outputs[0]->get_data_ptr<T>(),
+                                            op->get_input_shape(0),
+                                            op->get_reduction_axes(),
+                                            op->get_eps(),
+                                            op->get_eps_mode());
         return true;
     }
 

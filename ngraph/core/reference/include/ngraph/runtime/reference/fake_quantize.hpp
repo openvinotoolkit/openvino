@@ -49,7 +49,8 @@ namespace ngraph
                                                                std::plus<size_t>());
                     }
                 }
-                if (broadcast_shape.size() > 1 && broadcast_shape.back() == 1)
+                if (!std::all_of(broadcast_shape.begin(), broadcast_shape.end(), [](size_t i) { return i == 1; })
+                    && broadcast_shape.back() == 1)
                 {
                     broadcast_offsets[broadcast_offsets.size() - 1] = 1;
                 }
