@@ -640,7 +640,40 @@ op::v5::NonMaxSuppression::NonMaxSuppression(
     constructor_validate_and_infer_types();
 }
 
+
+shared_ptr<Node>
+    op::v5::NonMaxSuppression::clone_with_new_inputs(const OutputVector& new_args) const
+{
+    check_new_args_count(this, new_args);
+    NODE_VALIDATION_CHECK(this,
+                          new_args.size() >= 2 && new_args.size() <= 6,
+                          "Number of inputs must be 2, 3, 4, 5 or 6");
+
+    const auto& arg2 = new_args.size() > 2
+                           ? new_args.at(2)
+                           : ngraph::op::Constant::create(element::i32, Shape{}, {0});
+    const auto& arg3 = new_args.size() > 3
+                           ? new_args.at(3)
+                           : ngraph::op::Constant::create(element::f32, Shape{}, {.0f});
+    const auto& arg4 = new_args.size() > 4
+                           ? new_args.at(4)
+                           : ngraph::op::Constant::create(element::f32, Shape{}, {.0f});
+    const auto& arg5 = new_args.size() > 5
+                           ? new_args.at(5)
+                           : ngraph::op::Constant::create(element::f32, Shape{}, {.0f});
+
+    return std::make_shared<op::v5::NonMaxSuppression>(new_args.at(0),
+                                                       new_args.at(1),
+                                                       arg2,
+                                                       arg3,
+                                                       arg4,
+                                                       arg5,
+                                                       m_box_encoding,
+                                                       m_sort_result_descending,
+                                                       m_output_type);
+}
+
 void op::v5::NonMaxSuppression::validate_and_infer_types()
 {
-    set_output_type(0, m_output_type, out_shape);
+    // set_output_type(0, m_output_type, out_shape);
 }
