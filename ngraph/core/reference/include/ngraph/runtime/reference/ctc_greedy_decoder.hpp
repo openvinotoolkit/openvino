@@ -57,8 +57,6 @@ namespace ngraph
                     {
                         auto data_index = data_transform.index({seq_ind, batch_ind, 0});
                         auto mask_index = seq_masks_transform.index({seq_ind, batch_ind});
-                        auto max = std::numeric_limits<T>::min();
-                        unsigned int max_class_ind = 0;
 
                         // first 0 marks the end of a sequence
                         if (sequence_masks[mask_index] != static_cast<T>(1))
@@ -66,15 +64,9 @@ namespace ngraph
                             continue;
                         }
 
-                        for (unsigned int class_index = 0; class_index < class_count; class_index++)
-                        {
-                            T considered = data[data_index + class_index];
-                            if (considered > max)
-                            {
-                                max = considered;
-                                max_class_ind = class_index;
-                            }
-                        }
+                        auto class_index = data + data_index;
+                        auto class_max_element = std::max_element(class_index, class_index + class_count);                        
+                        unsigned int max_class_ind = std::distance(class_index, class_max_element);
                         if (!(previous_class_index == max_class_ind && ctc_merge_repeated))
                         {
                             tmp_out[out_index++] = max_class_ind;
