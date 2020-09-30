@@ -21,7 +21,7 @@ Extension::Extension() {
     ngraph::onnx_import::register_operator(
         Operation::type_info.name, 1, "custom_domain", [](const ngraph::onnx_import::Node& node) -> ngraph::OutputVector {
             ngraph::OutputVector ng_inputs{node.get_ng_inputs()};
-            int64_t add = node.get_attribute_value<int64_t>("add");
+            std::int64_t add = node.get_attribute_value<std::int64_t>("add");
             return {std::make_shared<Operation>(ng_inputs.at(0), add)};
     });
 }
