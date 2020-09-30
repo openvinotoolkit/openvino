@@ -787,7 +787,7 @@ TEST(attributes, reduce_sum_op)
 TEST(attributes, region_yolo_op)
 {
     FactoryRegistry<Node>::get().register_factory<opset1::RegionYolo>();
-    auto data = make_shared<op::Parameter>(element::i64, Shape{1, 255, 26, 26});
+    auto data = make_shared<op::Parameter>(element::f32, Shape{1, 255, 26, 26});
 
     size_t num_coords = 4;
     size_t num_classes = 1;
