@@ -96,6 +96,19 @@ namespace ngraph
             std::unique_ptr<Impl, void (*)(Impl*)> m_pimpl;
         };
 
+        template <>
+        float Node::get_attribute_value<float>(const std::string& name) const;
+
+        template <>
+        float Node::get_attribute_value<float>(const std::string& name, float default_value) const;
+
+        template <>
+        std::int64_t Node::get_attribute_value<std::int64_t>(const std::string& name) const;
+
+        template <>
+        std::int64_t Node::get_attribute_value<std::int64_t>(const std::string& name, std::int64_t default_value) const;
+
+
         inline std::ostream& operator<<(std::ostream& outs, const Node& node)
         {
             return (outs << "<Node(" << node.op_type() << "): " << node.get_description() << ">");
