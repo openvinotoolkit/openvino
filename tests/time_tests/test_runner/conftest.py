@@ -133,7 +133,9 @@ def pytest_runtest_makereport(item, call):
     Submit tests' data to a database.
     """
 
-    KEY_FIELDS = ('timetest', 'model', 'device', 'niter', 'run_id')
+    FIELDS_FOR_ID = ['timetest', 'model', 'device', 'niter', 'run_id']
+    FIELDS_FOR_SUBMIT = FIELDS_FOR_ID + ['_id', 'test_name',
+                                         'results', 'status', 'error_msg']
 
     run_id = item.config.getoption("db_submit")
     db_url = item.config.getoption("db_url")
@@ -145,17 +147,17 @@ def pytest_runtest_makereport(item, call):
     data = item.funcargs.copy()
     data["timetest"] = data.pop("executable").stem
     data.update({key: val for key, val in data["instance"].items()})
-    data.pop("instance")
-    data.pop("request")
 
     data['run_id'] = run_id
     data['_id'] = hashlib.sha256(
-        ''.join([str(data[key]) for key in KEY_FIELDS]).encode()).hexdigest()
+        ''.join([str(data[key]) for key in FIELDS_FOR_ID]).encode()).hexdigest()
 
     data["test_name"] = item.name
     data["results"] = {}
     data["status"] = "not_finished"
     data["error_msg"] = ""
+
+    data = {field: data[field] for field in FIELDS_FOR_SUBMIT}
 
     report = (yield).get_result()
     if call.when in ["setup", "call"]:
