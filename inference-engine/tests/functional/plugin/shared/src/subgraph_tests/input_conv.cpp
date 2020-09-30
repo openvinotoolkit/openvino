@@ -80,24 +80,22 @@ void InputConvTest::SetUp() {
     configuration.insert(tempConfig.begin(), tempConfig.end());
 
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
-
+    size_t output_channels = 4;
+    size_t kernel_y = 1;
+    size_t kernel_x = 9;
     auto params = ngraph::builder::makeParams(ngPrc, { inputShape });
 
-    auto conv_0 = ngraph::builder::makeConvolution(params[0], ngPrc, { 1, 9 }, { 1, 1 }, { 0, 0 },
-        { 0, 0 }, { 1, 1 }, ngraph::op::PadType::VALID, 4, false, generateWeights(4, 9));
+    auto conv_0 = ngraph::builder::makeConvolution(params[0], ngPrc, { kernel_y, kernel_x }, { 1, 1 }, { 0, 0 },
+        { 0, 0 }, { 1, 1 }, ngraph::op::PadType::VALID, output_channels, false, generateWeights(4, 9));
 
     // without reshape for int16 ConvertToFloat gives incorrect values but intermediate representation is ok
     // fp32 works with and without reshape
-    std::vector<size_t> outFormShapes2 = { 1, 4 * 8 };
-    auto pattern2 = std::make_shared<ngraph::opset1::Constant>(ngraph::element::Type_t::i64, ngraph::Shape{ 2 }, outFormShapes2);
-    auto reshape2 = std::make_shared<ngraph::opset1::Reshape>(conv_0, pattern2, false);
+    size_t num_output_width = (((inputShape[1] * inputShape[2] * inputShape[3] - kernel_x * kernel_y) / inputShape[1]) + 1);
+    std::vector<size_t> outFormShapes_0 = { 1, output_channels * num_output_width };
+    auto pattern_0 = std::make_shared<ngraph::opset1::Constant>(ngraph::element::Type_t::i64, ngraph::Shape{ 2 }, outFormShapes_0);
+    auto reshape_0 = std::make_shared<ngraph::opset1::Reshape>(conv_0, pattern_0, false);
 
-    /* every second output (0, 2, 4 etc) seen with this
-    auto permute_0 = std::make_shared<ngraph::op::Transpose>(conv_0,
-        ngraph::op::Constant::create(ngraph::element::i64, ngraph::Shape{ 4 }, { 0, 3, 1, 2 }));
-    permute_0->set_friendly_name("permute1");*/
-
-    ngraph::ResultVector results {std::make_shared<ngraph::op::Result>(reshape2)};
+    ngraph::ResultVector results {std::make_shared<ngraph::op::Result>(reshape_0)};
     function = std::make_shared<ngraph::Function>(results, params, "InputConvTest");
 }
 

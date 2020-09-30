@@ -645,14 +645,21 @@ void ConvolutionNCHWPass::run() {
         auto layerBeforeConv = CNNNetPrevLayer(l);
         auto layerAfterConv = !getInputTo(l->outData.front()).empty() ? getInputTo(l->outData.front()).begin()->second : nullptr;
 
-        if (LayerInfo(layerAfterConv).isPermute()) {
-            continue;
-        }
-
         // TODO: add check for convolution with H != 1 and W != 1
         // TODO: add check for convolution with H != 1 and W == 1
 
         if (l->outData[0]->getLayout() == Layout::NCHW) {
+            auto convolutionInputDims = layerBeforeConv->outData[0]->getDims();
+            auto convolutionOutputDims = l->outData[0]->getDims();
+            // if channel dim doesn't equal 1,
+            // if height dim and width dim both equal 1, the permute is not needed to return correct results
+            // if height dim doesn't equal 1,
+            if (convolutionInputDims[1] != 1 ||
+                (convolutionInputDims[2] == 1 && convolutionInputDims[3] == 1) ||
+                convolutionInputDims[2] != 1) {
+                continue;
+            }
+
             // GNA convolution output is transposed to NHWC
             auto permuteNextName = std::string("permute_next_layer_") + std::to_string(numOfadditionalPermuteLayers);
             auto layerAfterConvName = layerAfterConv == nullptr ? "nullptr" : layerAfterConv->name;
@@ -664,16 +671,15 @@ void ConvolutionNCHWPass::run() {
                 permuteNextLayer;
             permuteNextLayerWithQuant->params["order"] = std::string("0, 3, 1, 2");
 
-            auto convolutionDims = l->outData[0]->getDims();
             auto outDataNext = std::make_shared<Data>(permuteNextName,
                                                       TensorDesc(inputs->getTensorDesc().getPrecision(),
-                                                                 convolutionDims,
+                                                                 convolutionOutputDims,
                                                                  Layout::NCHW));
             getCreatorLayer(outDataNext) = permuteNextLayerWithQuant;
             permuteNextLayerWithQuant->outData.push_back(outDataNext);
             CNNNetworkInsertLayer(l, layerAfterConv, permuteNextLayerWithQuant);
 
-            l->outData[0]->setDims({ convolutionDims[0], convolutionDims[2], convolutionDims[3], convolutionDims[1] });
+            l->outData[0]->setDims({ convolutionOutputDims[0], convolutionOutputDims[2], convolutionOutputDims[3], convolutionOutputDims[1] });
             l->outData[0]->setLayout(Layout::NHWC);
         } else {
             continue;

@@ -24,7 +24,7 @@ const std::vector<std::map<std::string, std::string>> configs = {
 
 std::vector<std::vector<size_t>> input_shapes = {
     {1, 1, 1, 16},
-    /*{1, 1, 1, 168}*/
+    {1, 1, 1, 168}
 };
 
 INSTANTIATE_TEST_CASE_P(InputConv, InputConvTest,
