@@ -14,6 +14,7 @@
 // limitations under the License.
 //*****************************************************************************
 
+#include <cstring>
 #include "ngraph/op/non_max_suppression.hpp"
 #include "ngraph/attribute_visitor.hpp"
 #include "ngraph/op/constant.hpp"
@@ -771,6 +772,7 @@ int64_t op::v5::NonMaxSuppression::max_boxes_output_from_input() const
     return max_output_boxes;
 }
 
+static constexpr size_t boxes_port = 0;
 static constexpr size_t iou_threshold_port = 3;
 static constexpr size_t score_threshold_port = 4;
 static constexpr size_t soft_nms_sigma_port = 5;
@@ -873,7 +875,7 @@ namespace ngraph
 static PartialShape infer_selected_indices_shape(const HostTensorVector& inputs,
                                                  int64_t max_output_boxes_per_class)
 {
-    const auto boxes_ps = inputs[0]->get_partial_shape();
+    const auto boxes_ps = inputs[boxes_port]->get_partial_shape();
     const auto scores_ps = inputs[1]->get_partial_shape();
 
     // NonMaxSuppression produces triplets
@@ -883,7 +885,6 @@ static PartialShape infer_selected_indices_shape(const HostTensorVector& inputs,
     if (boxes_ps.rank().is_static() && scores_ps.rank().is_static())
     {
         const auto num_boxes_boxes = boxes_ps[1];
-        const auto max_output_boxes_per_class_node = input_value(2).get_node_shared_ptr();
         if (num_boxes_boxes.is_static() && scores_ps[0].is_static() && scores_ps[1].is_static())
         {
             const auto num_boxes = num_boxes_boxes.get_length();
@@ -897,10 +898,108 @@ static PartialShape infer_selected_indices_shape(const HostTensorVector& inputs,
     return result;
 }
 
-static std::vector<float> prepare_boxes_data(const HostTensorPtr& boxes, const Shape& boxes_shape)
+using V5BoxEncoding = op::v5::NonMaxSuppression::BoxEncodingType;
+
+static void normalize_corner(float* boxes, const Shape& boxes_shape)
 {
-    std::vector<float> result;
+    size_t num_batches = boxes_shape[0];
+    size_t num_boxes = boxes_shape[1];
+
+    float* box_ptr = boxes;
+
+    for (size_t batch = 0; batch < num_batches; ++batch)
+    {
+        for (size_t box = 0; box < num_boxes; ++num_boxes)
+        {
+            float y1 = box_ptr[0];
+            float x1 = box_ptr[1];
+            float y2 = box_ptr[2];
+            float x2 = box_ptr[3];
+
+            float ymin = std::min(y1, y2);
+            float ymax = std::max(y1, y2);
+            float xmin = std::min(x1, x2);
+            float xmax = std::max(x1, x2);
+
+            box_ptr[0] = ymin;
+            box_ptr[1] = xmin;
+            box_ptr[2] = ymax;
+            box_ptr[3] = xmax;
+
+            box_ptr += 4;
+        }
+    }
+}
+
+static void normalize_center(float* boxes, const Shape& boxes_shape)
+{
+    size_t num_batches = boxes_shape[0];
+    size_t num_boxes = boxes_shape[1];
+
+    float* box_ptr = boxes;
+
+    for (size_t batch = 0; batch < num_batches; ++batch)
+    {
+        for (size_t box = 0; box < num_boxes; ++num_boxes)
+        {
+            float x_center = box_ptr[0];
+            float y_center = box_ptr[1];
+            float width = box_ptr[2];
+            float height = box_ptr[3];
+
+            float y1 = y_center - height / 2.0;
+            float x1 = x_center - width / 2.0;
+            float y2 = y_center + height / 2.0;
+            float x2 = x_center + width / 2.0;;
+
+            box_ptr[0] = y1;
+            box_ptr[1] = x1;
+            box_ptr[2] = y2;
+            box_ptr[3] = x2;
+
+            box_ptr += 4;
+        }
+    }
+}
+
+static void normalize_box_encoding(float* boxes,
+                                   const Shape& boxes_shape,
+                                   const V5BoxEncoding box_encoding)
+{
+    if (box_encoding == V5BoxEncoding::CORNER)
+    {
+        normalize_corner(boxes, boxes_shape);
+    }
+    else
+    {
+        normalize_center(boxes, boxes_shape);
+    }
+}
+
+static std::vector<float> prepare_boxes_data(const HostTensorPtr& boxes,
+                                             const Shape& boxes_shape,
+                                             const V5BoxEncoding box_encoding)
+{
     element::Type boxes_input_et = boxes->get_element_type();
+
+    size_t boxes_size = shape_size(boxes_shape);
+    std::vector<float> result(boxes_size);
+
+    if (boxes_input_et == element::Type_t::f32)
+    {
+        float* boxes_ptr = boxes->get_data_ptr<float>();
+        memcpy(result.data(), boxes_ptr, boxes_size * sizeof(float));
+    }
+    else
+    {
+        float16* boxes_ptr = boxes->get_data_ptr<float16>();
+        for (size_t i = 0; i < boxes_size; ++i)
+        {
+            result[i] = float(boxes_ptr[i]);
+        }
+    }
+
+    normalize_box_encoding(result.data(), boxes_shape, box_encoding);
 
     return result;
 }
@@ -908,8 +1007,6 @@ static std::vector<float> prepare_boxes_data(const HostTensorPtr& boxes, const S
 bool op::v5::NonMaxSuppression::evaluate(const HostTensorVector& outputs,
                                          const HostTensorVector& inputs) const
 {
-    element::Type input_et = get_input_element_type(0);
-
     int64_t max_output_boxes_per_class = max_boxes_output_from_input();
     float iou_threshold = iou_threshold_from_input();
     float score_threshold = score_threshold_from_input();
@@ -936,6 +1033,8 @@ bool op::v5::NonMaxSuppression::evaluate(const HostTensorVector& outputs,
     }
 
     Shape boxes_shape = outputs[0]->get_shape();
+
+    auto boxes_data = prepare_boxes_data(inputs[boxes_port], boxes_shape, m_box_encoding);
 
     return true;
 }
