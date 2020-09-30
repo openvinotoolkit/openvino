@@ -349,8 +349,8 @@ jobs:
       set MODELS_PATH=$(BUILD_DIR)\testdata
       $(BIN_DIR)\MklDnnFunctionalTests.exe --gtest_filter=CPU_run_smoke/IO_BlobTest*:CPU_run_smoke/LayoutTTTest*
     displayName: 'MklDnnFunctionalTests filtered'
-    continueOnError: false
-    timeoutInMinutes: 2
+    continueOnError: true
+    timeoutInMinutes: 1
   - script: |
       set PATH=$(REPO_DIR)\inference-engine\temp\tbb\bin;$(REPO_DIR)\inference-engine\temp\opencv_4.5.0\opencv\bin;%PATH%
       set DATA_PATH=$(BUILD_DIR)\testdata
