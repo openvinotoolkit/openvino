@@ -1971,20 +1971,29 @@ void GNAGraphCompiler::connectOutput(InferenceEngine::CNNLayerPtr layer, void *p
                     if (included == concat_connection.end()) {
                         gnamem->reserve_ptr(&concatLayerInfoItem.gna_ptr, ALIGN64(concatLayerInfoItem.reserved_size), 64);
 
-                        size_t concatInputIdx = 0;
-                        for (auto &&inputLayer : concatLayerInfoItem.concatInputLayers) {
-                            // skipping non functional and reshape layer, as in that case input might be not connected to anything
-                            auto realConcatInputs = CNNNetGetPrevLayersSkip(concat, [](CNNLayerPtr l) {
-                                return !LayerInfo(l).isNonFunctional() && !LayerInfo(l).isSplit();
-                            }, concatInputIdx++);
+                        std::function<void(GNAConcatLayer, std::shared_ptr<GNAPluginNS::InputDesc>, ConcatConnection)> allocate_input_recursively =
+                            [&allocate_input_recursively](GNAConcatLayer clayer, std::shared_ptr<GNAPluginNS::InputDesc> inputDesc, ConcatConnection concat_connection) {
+                            size_t concatInputIdx = 0;
+                            for (auto &&inputLayer : clayer.concatInputLayers) {
+                                // skipping non functional and reshape layer, as in that case input might be not connected to anything
+                                auto realConcatInputs = CNNNetGetPrevLayersSkip(clayer.getConcat(), [](CNNLayerPtr l) {
+                                    return !LayerInfo(l).isNonFunctional() && !LayerInfo(l).isSplit();
+                                    }, concatInputIdx++);
 
-                            for (auto rInput :  realConcatInputs) {
-                                if (LayerInfo(rInput.first).isInput()) {
-                                    inputDesc->bytes_allocated_for_input[rInput.first->name] += inputLayer.tensorSize;
+                                for (auto rInput :  realConcatInputs) {
+                                    if (LayerInfo(rInput.first).isInput()) {
+                                        inputDesc->bytes_allocated_for_input[rInput.first->name] += inputLayer.tensorSize;
+                                    }
+                                    if (LayerInfo(rInput.first).isConcat()) {
+                                        auto concatLayerInfo = concat_connection.find(rInput.first->name);
+                                        allocate_input_recursively(concatLayerInfo->second, inputDesc, concat_connection);
+                                    }
                                 }
                             }
-                        }
-                        concatLayerInfoItem.input_allocated = true;
+                            clayer.input_allocated = true;
+                        };
+
+                        allocate_input_recursively(concatLayerInfoItem, inputDesc, concat_connection);
                     }
                     concatLayerInfo->second.output_allocation_flag = true;
                 }
@@ -2045,13 +2054,13 @@ GNAPluginNS::ConnectionDetails GNAGraphCompiler::connectInput(CNNLayerPtr layer,
             }
             inputDesc->bytes_allocated_for_input[prevLayer->name] = num_data_bytes_in;
         }
-        if (ALIGN(num_data_bytes_in, 64) > ALIGN(inputDesc->bytes_allocated_for_input[prevLayer->name], 64)) {
-            THROW_GNA_EXCEPTION
-                    << "Layer: " << layer->name
-                    << " Cannot bind pointer to already allocated input(" << prevLayer->name
-                    << "), due to size_allocated=" << inputDesc->bytes_allocated_for_input[prevLayer->name]
-                    << ", and size_requested=" << num_data_bytes_in;
-        }
+        //if (ALIGN(num_data_bytes_in, 64) > ALIGN(inputDesc->bytes_allocated_for_input[prevLayer->name], 64)) {
+        //    THROW_GNA_EXCEPTION
+        //            << "Layer: " << layer->name
+        //            << " Cannot bind pointer to already allocated input(" << prevLayer->name
+        //            << "), due to size_allocated=" << inputDesc->bytes_allocated_for_input[prevLayer->name]
+        //            << ", and size_requested=" << num_data_bytes_in;
+       // }
 
         if (offset >= 0) {
             gnamem->bind_ptr(ptr, &inputDesc->getPtrInputsGlobal(prevLayer->name).front(), offset);
