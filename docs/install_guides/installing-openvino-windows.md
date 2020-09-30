@@ -443,7 +443,7 @@ cd C:\Users\<username>\Documents\Intel\OpenVINO\inference_engine_samples_build\i
    classification_sample_async.exe -i "C:\Program Files (x86)\IntelSWTools\openvino\deployment_tools\demo\car.png" -m "C:\Users\<username>\Documents\Intel\OpenVINO\openvino_models\ir\public\squeezenet1.1\FP16\squeezenet1.1.xml" -d HDDL
    ```
 
-For information on Sample Applications, see the [Inference Engine Samples Overview](https://docs.openvinotoolkit.org/latest/_docs_IE_DG_Samples_Overview.html).
+For information on Sample Applications, see the [Inference Engine Samples Overview](../IE_DG/Samples_Overview.md).
 
 Congratulations, you have finished the installation of the Intel® Distribution of OpenVINO™ toolkit for Windows*. To learn more about how the Intel® Distribution of OpenVINO™ toolkit works, the Hello World tutorial and other resources are provided below.
 
