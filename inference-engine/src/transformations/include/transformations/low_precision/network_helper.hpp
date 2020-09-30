@@ -114,7 +114,7 @@ public:
         const bool hasZeroPoint,
         const bool updatePrecision);
 
-    static FakeQuantizeDequantization getDequantization(const std::shared_ptr<Node> node, const size_t parentIndex = 0ul);
+    static FakeQuantizeDequantization getDequantization(const std::shared_ptr<Node> node, const size_t parentIndex = 0ul, const bool inPlace = false);
 
     static std::shared_ptr<Node> optimizeSubtract(std::shared_ptr<opset1::Subtract> add);
 
@@ -158,7 +158,7 @@ public:
 
     // multi-precision constant folding
     // handles only specific case: Constant -> [dequantization operations] -> [node]
-    static void foldDequantization(std::shared_ptr<Node>& node, const size_t branchIndex);
+    static void foldDequantization(std::shared_ptr<Node>& node, const size_t branchIndex, const bool inPlace = false);
 
 private:
     static std::shared_ptr<Node> foldFakeQuantize(const std::shared_ptr<opset1::FakeQuantize>& fq, const bool roundValues, const bool roundValuesWasSet);
