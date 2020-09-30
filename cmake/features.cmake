@@ -44,7 +44,10 @@ ie_dependent_option (ENABLE_AVX2 "Enable AVX2 optimizations" ON "X86_64 OR X86" 
 
 ie_dependent_option (ENABLE_AVX512F "Enable AVX512 optimizations" ON "X86_64 OR X86" OFF)
 
-ie_dependent_option (ENABLE_PROFILING_ITT "ITT tracing of IE and plugins internals" ON "NOT CMAKE_CROSSCOMPILING" OFF)
+#ie_dependent_option (ENABLE_PROFILING_ITT "ITT tracing of IE and plugins internals" ON "NOT CMAKE_CROSSCOMPILING" OFF)
+# DO NOT COMMIT (asomsiko), force enabling ITT for debugging purposes
+set (ENABLE_PROFILING_ITT ON CACHE BOOL "ITT tracing of IE and plugins internals" FORCE)
+ie_option (ENABLE_PROFILING_ITT "ITT tracing of IE and plugins internals" ON)
 
 # Documentation build
 ie_option (ENABLE_DOCS "build docs using Doxygen" OFF)
