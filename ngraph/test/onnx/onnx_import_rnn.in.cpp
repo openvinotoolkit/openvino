@@ -43,6 +43,22 @@ static std::string s_manifest = "${MANIFEST}";
 using TestEngine = test::ENGINE_CLASS_NAME(${BACKEND_NAME});
 
 // ONNX LSTM tests (implemented by nGraph LSTMCell and LSTMSequence)
+NGRAPH_TEST(${BACKEND_NAME}, onnx_model_lstm_fwd_default_const)
+{
+    auto function = onnx_import::import_onnx_model(
+        file_util::path_join(SERIALIZED_ZOO, "onnx/lstm_fwd_default.prototxt"));
+
+    auto test_case = test::TestCase<TestEngine>(function);
+    test_case.add_input<float>({0.68172926, 1.1405563, -0.03931177, -0.03759607}); // X
+
+    test_case.add_expected_output<float>(
+        Shape{2, 1, 1, 2}, {-0.063373, -0.20347191, -0.07230289, -0.13298286});       // Y_data
+    test_case.add_expected_output<float>(Shape{1, 1, 2}, {-0.07230289, -0.13298286}); // Y_h_data
+    test_case.add_expected_output<float>(Shape{1, 1, 2}, {-0.1557954, -0.24502525});  // Y_c_data
+
+    test_case.run(DEFAULT_FLOAT_TOLERANCE_BITS + 1);
+}
+
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_lstm_fwd_with_clip)
 {
     auto function = onnx_import::import_onnx_model(
@@ -108,7 +124,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_lstm_fwd_with_clip)
 
     // We have to enlarge tolerance bits to 3 - it's only one bit more than default value.
     // The discrepancies may occur at most on 7th decimal position.
-    test_case.run(DEFAULT_FLOAT_TOLERANCE_BITS + 1);
+    test_case.run(DEFAULT_FLOAT_TOLERANCE_BITS + 3);
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_lstm_fwd_mixed_seq)
