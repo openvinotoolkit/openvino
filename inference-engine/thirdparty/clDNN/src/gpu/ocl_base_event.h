@@ -79,10 +79,10 @@ public:
     base_events(std::shared_ptr<gpu_toolkit> ctx, std::vector<event_impl::ptr> const& ev)
         : ocl_base_event(0, true), _ctx(ctx) {
         for (size_t i = 0; i < ev.size(); i++) {
-            auto ev_casted = dynamic_cast<base_events*>(ev[i].get());
-            if (ev_casted) {
-                for (size_t j=0; j<ev_casted->_events.size(); j++) {
-                    _events.push_back(ev_casted->_events[j]);
+            auto multiple_events = dynamic_cast<base_events*>(ev[i].get());
+            if (multiple_events) {
+                for (size_t j = 0; j < multiple_events->_events.size(); j++) {
+                    _events.push_back(multiple_events->_events[j]);
                 }
             } else {
                 _events.push_back(ev[i]);
@@ -97,10 +97,10 @@ public:
         if (_attached)
             throw std::runtime_error("Trying to attach events to valid event object.");
         for (size_t i = 0; i < ev.size(); i++) {
-            auto ev_casted = dynamic_cast<base_events*>(ev[i].get());
-            if (ev_casted) {
-                for (size_t j=0; j<ev_casted->_events.size(); j++) {
-                    _events.push_back(ev_casted->_events[j]);
+            auto multiple_events = dynamic_cast<base_events*>(ev[i].get());
+            if (multiple_events) {
+                for (size_t j = 0; j < multiple_events->_events.size(); j++) {
+                    _events.push_back(multiple_events->_events[j]);
                 }
             } else {
                 _events.push_back(ev[i]);
@@ -111,6 +111,7 @@ public:
     }
 
     std::shared_ptr<gpu_toolkit> get_context() const { return _ctx; }
+    const std::vector<event_impl::ptr>& get_events() { return _events; };
 
 private:
     void set_queue_stamp() {
