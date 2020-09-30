@@ -97,6 +97,8 @@ bool relax_hc_reshape_followed_by_matmul(const ngraph::pattern::PatternValueMap 
         }
         const auto & new_reshape_pattern = std::make_shared<ngraph::opset4::Concat>(pattern_vector, 0);
         auto new_reshape = reshape->copy_with_new_inputs({reshape->input_value(0), new_reshape_pattern});
+        new_reshape->set_friendly_name(reshape->get_friendly_name());
+        copy_runtime_info(reshape, new_reshape);
         reshape->output(0).replace(new_reshape->output(0));
         return true;
     }
