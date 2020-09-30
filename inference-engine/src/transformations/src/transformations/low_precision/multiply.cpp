@@ -70,6 +70,10 @@ bool MultiplyTransformation::transform(TransformationContext& context, ngraph::p
 
         NetworkHelper::copyInfo(multiplyParent, newMultiply);
         NetworkHelper::copyInfo(multiply, newMultiply);
+
+        if (!FakeQuantizeDequantization::checkElementwise(newMultiply)) {
+            NetworkHelper::cleanRunTimeInfo(newMultiply);
+        }
     } else {
         const int emptyPathIndex = fullPathIndex == 0 ? 1 : 0;
 
