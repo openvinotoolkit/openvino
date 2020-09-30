@@ -145,5 +145,5 @@ class ModelImportRunner(onnx.backend.test.BackendTest):
                 model_test.model_dir, prepared_model, model_test.rtol, model_test.atol
             )
 
-            assert executed_tests > 0, "This model have no test data"
+            assert executed_tests > 0, "This model has no test data"
         self._add_test("ModelExecution", model_test.name, run_execution, model_marker)
