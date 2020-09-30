@@ -525,17 +525,17 @@ public:
 #define CASE_FC_FP32_2 {2, 1, 3, 1}, {2, 4, 1, 1}, {4, 1, 3, 1}, tensor{1}, tensor{0}, tensor{1}, 1, data_types::f32, format::yxfb, data_types::f32, format::oiyx, data_types::f32, format::bfyx
 #define CASE_FC_FP32_3 {2, 32, 1, 1}, {2, 16, 1, 1}, {16, 32, 1, 1}, tensor{1}, tensor{0}, tensor{1}, 1, data_types::f32, format::bfyx, data_types::i8, format::oiyx, data_types::f32, format::bfyx
 
-#define CASE_FC_3D_FP32_1 {1, 1, 3, 3, 3}, {1, 4, 1, 1, 1}, {4, 1, 3, 1}, tensor{1}, tensor{0}, tensor{1}, 1, data_types::f32, format::bfzyx, data_types::f32, format::oizyx, data_types::f32, format::bfzyx
-#define CASE_FC_3D_FP32_2 {2, 1, 3, 1, 3}, {2, 4, 1, 1, 1}, {4, 1, 3, 1}, tensor{1}, tensor{0}, tensor{1}, 1, data_types::f32, format::bfzyx, data_types::f32, format::oizyx, data_types::f32, format::bfzyx
-#define CASE_FC_3D_FP32_3 {2, 32, 1, 1, 3}, {2, 16, 1, 1, 1}, {16, 32, 1, 1}, tensor{1}, tensor{0}, tensor{1}, 1, data_types::f32, format::bfzyx, data_types::i8, format::oizyx, data_types::f32, format::bfzyx
+#define CASE_FC_3D_FP32_1 {1, 1, 3, 4, 5}, {1, 4, 1, 1, 1}, {4, 1, 3, 4, 5}, tensor{1}, tensor{0}, tensor{1}, 1, data_types::f32, format::bfzyx, data_types::f32, format::oizyx, data_types::f32, format::bfzyx
+#define CASE_FC_3D_FP32_2 {2, 1, 3, 1, 4}, {2, 4, 1, 1, 1}, {4, 1, 3, 1, 4}, tensor{1}, tensor{0}, tensor{1}, 1, data_types::f32, format::bfzyx, data_types::f32, format::oizyx, data_types::f32, format::bfzyx
+#define CASE_FC_3D_FP32_3 {2, 32, 1, 1, 3}, {2, 16, 1, 1, 1}, {16, 32, 1, 1, 3}, tensor{1}, tensor{0}, tensor{1}, 1, data_types::f32, format::bfzyx, data_types::i8, format::oizyx, data_types::f32, format::bfzyx
 
 #define CASE_FC_U8S8_1 {1, 1, 3, 1}, {1, 4, 1, 1}, {4, 1, 3, 1}, tensor{1}, tensor{0}, tensor{1}, 1, data_types::u8, format::bfyx, data_types::i8, format::oiyx, data_types::f32, format::bfyx
 #define CASE_FC_U8S8_2 {2, 1, 3, 1}, {2, 4, 1, 1}, {4, 1, 3, 1}, tensor{1}, tensor{0}, tensor{1}, 1, data_types::u8, format::b_fs_yx_fsv4, data_types::i8, format::oiyx, data_types::f32, format::bfyx
 #define CASE_FC_U8S8_3 {2, 32, 1, 1}, {2, 16, 1, 1}, {16, 32, 1, 1}, tensor{1}, tensor{0}, tensor{1}, 1, data_types::u8, format::b_fs_yx_fsv4, data_types::i8, format::oiyx, data_types::f32, format::bfyx
 
-#define CASE_FC_3D_U8S8_1 {1, 1, 3, 1, 3}, {1, 4, 1, 1, 1}, {4, 1, 3, 1}, tensor{1}, tensor{0}, tensor{1}, 1, data_types::u8, format::bfzyx, data_types::i8, format::oizyx, data_types::f32, format::bfzyx
-#define CASE_FC_3D_U8S8_2 {2, 1, 1, 1, 1}, {2, 4, 1, 1, 1}, {4, 1, 3, 1}, tensor{1}, tensor{0}, tensor{1}, 1, data_types::u8, format::bfzyx, data_types::i8, format::oizyx, data_types::f32, format::bfzyx
-#define CASE_FC_3D_U8S8_3 {2, 32, 3, 3, 3}, {2, 16, 1, 1, 1}, {16, 32, 1, 1}, tensor{1}, tensor{0}, tensor{1}, 1, data_types::u8, format::bfzyx, data_types::i8, format::oizyx, data_types::f32, format::bfzyx
+#define CASE_FC_3D_U8S8_1 {1, 1, 3, 1, 4}, {1, 4, 1, 1, 1}, {4, 1, 3, 1, 4}, tensor{1}, tensor{0}, tensor{1}, 1, data_types::u8, format::bfzyx, data_types::i8, format::oizyx, data_types::f32, format::bfzyx
+#define CASE_FC_3D_U8S8_2 {2, 1, 1, 1, 1}, {2, 4, 1, 1, 1}, {4, 1, 1, 1, 1}, tensor{1}, tensor{0}, tensor{1}, 1, data_types::u8, format::bfzyx, data_types::i8, format::oizyx, data_types::f32, format::bfzyx
+#define CASE_FC_3D_U8S8_3 {2, 32, 3, 4, 5}, {2, 16, 1, 1, 1}, {16, 32, 3, 4, 5}, tensor{1}, tensor{0}, tensor{1}, 1, data_types::u8, format::bfzyx, data_types::i8, format::oizyx, data_types::f32, format::bfzyx
 
 #define CASE_NORMALIZE_I8_1 {1, 2, 3, 3}, data_types::u8, format::bfyx, data_types::f32, format::bfyx
 
