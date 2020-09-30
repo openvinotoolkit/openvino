@@ -378,8 +378,8 @@ std::shared_ptr<Node> NetworkHelper::fold_fake_quantize(const std::shared_ptr<op
     return foldFakeQuantize(fq, roundValues, true);
 }
 
-void NetworkHelper::foldDequantization(std::shared_ptr<Node>& node, const size_t branchIndex) {
-    FakeQuantizeDequantization dequantization = NetworkHelper::getDequantization(node, branchIndex);
+void NetworkHelper::foldDequantization(std::shared_ptr<Node>& node, const size_t branchIndex, const bool inPlace) {
+    FakeQuantizeDequantization dequantization = NetworkHelper::getDequantization(node, branchIndex, inPlace);
     if (dequantization.empty() || (dequantization.multiply == nullptr)) {
         return;
     }
@@ -787,7 +787,7 @@ FakeQuantizeDequantization NetworkHelper::createDequantizationFromFakeQuantize(
     return FakeQuantizeDequantization(fq, convert, subtract, multiply);
 }
 
-FakeQuantizeDequantization NetworkHelper::getDequantization(const std::shared_ptr<Node> node, const size_t parentIndex) {
+FakeQuantizeDequantization NetworkHelper::getDequantization(const std::shared_ptr<Node> node, const size_t parentIndex, const bool inPlace) {
     auto getDataIndex = [](const std::shared_ptr<ngraph::Node>& node) {
         if (is_type<opset1::Constant>(node->get_input_node_ptr(1))) {
             return 0ul;
@@ -796,7 +796,7 @@ FakeQuantizeDequantization NetworkHelper::getDequantization(const std::shared_pt
         }
     };
 
-    Output<Node> dataNode = node->input_value(parentIndex);
+    Output<Node> dataNode = inPlace ? node : node->input_value(parentIndex);
 
     const std::shared_ptr<ngraph::opset1::Multiply> multiply =
         (dataNode.get_node_shared_ptr()->get_input_size() > 1ul) &&
