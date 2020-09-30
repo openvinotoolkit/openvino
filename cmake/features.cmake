@@ -49,4 +49,4 @@ ie_dependent_option (ENABLE_PROFILING_ITT "ITT tracing of IE and plugins interna
 # Documentation build
 ie_option (ENABLE_DOCS "build docs using Doxygen" OFF)
 
-ie_dependent_option (ENABLE_FASTER_BUILD "Enable build features (PCH, UNITY) to speed up build time" OFF "CMAKE_VERSION VERSION_GREATER_EQUAL 3.16" OFF)
+ie_option (ENABLE_FASTER_BUILD "Enable build features (PCH, UNITY) to speed up build time" ON)
