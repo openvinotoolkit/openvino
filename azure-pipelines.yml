@@ -286,12 +286,12 @@ jobs:
     displayName: 'List files'
   - script: |
       set PATH=$(REPO_DIR)\inference-engine\temp\tbb\bin;%PATH%
-      $(IBTC) $(BIN_DIR)\unit-test.exe --gtest_filter=-backend_api.config_unsupported:*IE_GPU* /testlevel=128
+      "$(IBTC)" $(BIN_DIR)\unit-test.exe --gtest_filter=-backend_api.config_unsupported:*IE_GPU* /testlevel=128
     displayName: 'nGraph UT (Distributed)'
     continueOnError: false
   - script: |
       set PATH=$(REPO_DIR)\inference-engine\temp\tbb\bin;%PATH%
-      $(IBTC) $(BIN_DIR)\InferenceEngineUnitTests.exe /testlevel=128
+      "$(IBTC)" $(BIN_DIR)\InferenceEngineUnitTests.exe /testlevel=128
     displayName: 'IE UT old (Distributed)'
     continueOnError: false
   - script: |
@@ -321,7 +321,7 @@ jobs:
     continueOnError: false
   - script: |
       set PATH=$(REPO_DIR)\inference-engine\temp\tbb\bin;%PATH%
-      $(IBTC) $(BIN_DIR)\cpuFuncTests.exe --gtest_filter=-nightly_RandomMajorNodes/HeteroSyntheticTest.* /testlevel=128
+      "$(IBTC)" $(BIN_DIR)\cpuFuncTests.exe --gtest_filter=-nightly_RandomMajorNodes/HeteroSyntheticTest.* /testlevel=128
     displayName: 'CPU FuncTests no Random tests (Distributed)'
     continueOnError: false
   - script: |
@@ -342,7 +342,7 @@ jobs:
       set PATH=$(REPO_DIR)\inference-engine\temp\tbb\bin;$(REPO_DIR)\inference-engine\temp\opencv_4.5.0\opencv\bin;%PATH%
       set DATA_PATH=$(BUILD_DIR)\testdata
       set MODELS_PATH=$(BUILD_DIR)\testdata
-      $(IBTC) $(BIN_DIR)\MklDnnFunctionalTests --gtest_filter=-CPU_run_smoke/IO_BlobTest*:CPU_run_smoke/LayoutTTTest* /testlevel=128
+      "$(IBTC)" $(BIN_DIR)\MklDnnFunctionalTests --gtest_filter=-CPU_run_smoke/IO_BlobTest*:CPU_run_smoke/LayoutTTTest* /testlevel=128
     displayName: 'MklDnnFunctionalTests filtered (Distributed)'
     continueOnError: false
   - script: |
