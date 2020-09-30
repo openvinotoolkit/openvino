@@ -45,3 +45,8 @@ ie_dependent_option (ENABLE_AVX2 "Enable AVX2 optimizations" ON "X86_64 OR X86" 
 ie_dependent_option (ENABLE_AVX512F "Enable AVX512 optimizations" ON "X86_64 OR X86" OFF)
 
 ie_dependent_option (ENABLE_PROFILING_ITT "ITT tracing of IE and plugins internals" ON "NOT CMAKE_CROSSCOMPILING" OFF)
+
+# Documentation build
+ie_option (ENABLE_DOCS "build docs using Doxygen" OFF)
+
+ie_dependent_option (ENABLE_FASTER_BUILD "Enable build features (PCH, UNITY) to speed up build time" OFF "CMAKE_VERSION VERSION_GREATER_EQUAL 3.16" OFF)

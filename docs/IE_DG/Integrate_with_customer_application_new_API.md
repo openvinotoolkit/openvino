@@ -28,27 +28,22 @@ Integration process includes the following steps:
 ![integration_process]
 
 1) **Create Inference Engine Core** to manage available devices and read network objects:
-```cpp
-InferenceEngine::Core core;
-```
+
+@snippet openvino/docs/snippets/Integrate_with_customer_application_new_API.cpp part0
 
 2) **Read a model IR** created by the Model Optimizer (.xml is supported format):
-```cpp
-auto network = core.ReadNetwork("Model.xml");
-```
+
+@snippet openvino/docs/snippets/Integrate_with_customer_application_new_API.cpp part1
+
 **Or read the model from ONNX format** (.onnx and .prototxt are supported formats). You can find more information about the ONNX format support in the document [ONNX format support in the OpenVINO™](./ONNX_Support.md).
-```cpp
-auto network = core.ReadNetwork("model.onnx");
-```
+
+@snippet openvino/docs/snippets/Integrate_with_customer_application_new_API.cpp part2
 
 3) **Configure input and output**. Request input and output information using `InferenceEngine::CNNNetwork::getInputsInfo()`, and `InferenceEngine::CNNNetwork::getOutputsInfo()`
 methods:
-```cpp
-/** Take information about all topology inputs **/
-InferenceEngine::InputsDataMap input_info = network.getInputsInfo();
-/** Take information about all topology outputs **/
-InferenceEngine::OutputsDataMap output_info = network.getOutputsInfo();
-```
+
+@snippet openvino/docs/snippets/Integrate_with_customer_application_new_API.cpp part3
+
   Optionally, set the number format (precision) and memory layout for inputs and outputs. Refer to the
   [Supported configurations](supported_plugins/Supported_Devices.md) chapter to choose the relevant configuration.
 
@@ -71,22 +66,8 @@ InferenceEngine::OutputsDataMap output_info = network.getOutputsInfo();
 > **NOTE**: Batch pre-processing is not supported if input color format is set to `ColorFormat::NV12`.
 
   You can use the following code snippet to configure input and output:
-```cpp
-/** Iterate over all input info**/
-for (auto &item : input_info) {
-    auto input_data = item.second;
-    input_data->setPrecision(Precision::U8);
-    input_data->setLayout(Layout::NCHW);
-    input_data->getPreProcess().setResizeAlgorithm(RESIZE_BILINEAR);
-    input_data->getPreProcess().setColorFormat(ColorFormat::RGB);
-}
-/** Iterate over all output info**/
-for (auto &item : output_info) {
-    auto output_data = item.second;
-    output_data->setPrecision(Precision::FP32);
-    output_data->setLayout(Layout::NC);
-}
-```
+
+@snippet openvino/docs/snippets/Integrate_with_customer_application_new_API.cpp part4
 
 > **NOTE**: NV12 input color format pre-processing differs from other color conversions. In case of NV12,
 >  Inference Engine expects two separate image planes (Y and UV). You must use a specific
@@ -109,45 +90,33 @@ for (auto &item : output_info) {
 |Layout               | NCDHW | NCHW | CHW | NC | C  |
 
 4) **Load the model** to the device using `InferenceEngine::Core::LoadNetwork()`:
-```cpp
-auto executable_network = core.LoadNetwork(network, "CPU");
-```
+
+@snippet openvino/docs/snippets/Integrate_with_customer_application_new_API.cpp part5
+
     It creates an executable network from a network object. The executable network is associated with single hardware device.
     It is possible to create as many networks as needed and to use them simultaneously (up to the limitation of the hardware resources).
     Third parameter is a configuration for plugin. It is map of pairs: (parameter name, parameter value). Choose device from
      [Supported devices](supported_plugins/Supported_Devices.md) page for more details about supported configuration parameters.
-```cpp
-/** Optional config. E.g. this enables profiling of performance counters. **/
-std::map<std::string, std::string> config = {{ PluginConfigParams::KEY_PERF_COUNT, PluginConfigParams::YES }};
-auto executable_network = core.LoadNetwork(network, "CPU", config);
-```
+
+@snippet openvino/docs/snippets/Integrate_with_customer_application_new_API.cpp part6
 
 5) **Create an infer request**:
-```cpp
-auto infer_request = executable_network.CreateInferRequest();
-```
+
+@snippet openvino/docs/snippets/Integrate_with_customer_application_new_API.cpp part7
 
 6) **Prepare input**. You can use one of the following options to prepare input:
     * **Optimal way for a single network.** Get blobs allocated by an infer request using `InferenceEngine::InferRequest::GetBlob()`
     and feed an image and the input data to the blobs. In this case, input data must be aligned (resized manually) with a
     given blob size and have a correct color format.
-```cpp
-/** Iterate over all input blobs **/
-for (auto & item : inputInfo) {
-    auto input_name = item->first;
-    /** Get input blob **/
-    auto input = infer_request.GetBlob(input_name);
-    /** Fill input tensor with planes. First b channel, then g and r channels **/
-    ...
-}
-```
+
+@snippet openvino/docs/snippets/Integrate_with_customer_application_new_API.cpp part8
+
     * **Optimal way for a cascade of networks (output of one network is input for another).** Get output blob from the first
     request using `InferenceEngine::InferRequest::GetBlob()` and set it as input for the second request using
     `InferenceEngine::InferRequest::SetBlob()`.
-```cpp
-auto output = infer_request1->GetBlob(output_name);
-infer_request2->SetBlob(input_name, output);
-```
+
+@snippet openvino/docs/snippets/Integrate_with_customer_application_new_API.cpp part9
+
     * **Optimal way to handle ROI (a ROI object located inside of input of one network is input for another).** It is
     possible to re-use shared input by several networks. You do not need to allocate separate input blob for a network if
     it processes a ROI object located inside of already allocated input of a previous network. For instance, when first
@@ -156,38 +125,17 @@ infer_request2->SetBlob(input_name, output);
     In this case, it is allowed to re-use pre-allocated input blob (used by first network) by second network and just crop
     ROI without allocation of new memory using `InferenceEngine::make_shared_blob()` with passing of
     `InferenceEngine::Blob::Ptr` and `InferenceEngine::ROI` as parameters.
-```cpp
-/** inputBlob points to input of a previous network and
-    cropROI contains coordinates of output bounding box **/
-InferenceEngine::Blob::Ptr inputBlob;
-InferenceEngine::ROI cropRoi;
-...
 
-/** roiBlob uses shared memory of inputBlob and describes cropROI
-    according to its coordinates **/
-auto roiBlob = InferenceEngine::make_shared_blob(inputBlob, cropRoi);
-infer_request2->SetBlob(input_name, roiBlob);
-```
+@snippet openvino/docs/snippets/Integrate_with_customer_application_new_API.cpp part10
+
       Make sure that shared input is kept valid during execution of each network. Otherwise, ROI blob may be corrupted if the
       original input blob (that ROI is cropped from) has already been rewritten.
 
     * Allocate input blobs of the appropriate types and sizes, feed an image and the input data to the blobs, and call
     `InferenceEngine::InferRequest::SetBlob()` to set these blobs for an infer request:
-```cpp
-/** Iterate over all input blobs **/
-for (auto & item : inputInfo) {
-    auto input_data = item->second;
-    /** Create input blob **/
-    InferenceEngine::TBlob<unsigned char>::Ptr input;
-    // assuming input precision was asked to be U8 in prev step
-    input = InferenceEngine::make_shared_blob<unsigned char, InferenceEngine::SizeVector>(InferenceEngine::Precision:U8, input_data->getDims());
-    input->allocate();
-    infer_request->SetBlob(item.first, input);
 
-    /** Fill input tensor with planes. First b channel, then g and r channels **/
-    ...
-}
-```
+@snippet openvino/docs/snippets/Integrate_with_customer_application_new_API.cpp part11
+
       A blob can be filled before and after `SetBlob()`.
 
 > **NOTE:**
@@ -208,15 +156,13 @@ for (auto & item : inputInfo) {
 
 7) **Do inference** by calling the `InferenceEngine::InferRequest::StartAsync` and `InferenceEngine::InferRequest::Wait`
 methods for asynchronous request:
-```cpp
-infer_request->StartAsync();
-infer_request.Wait(IInferRequest::WaitMode::RESULT_READY);
-```
+
+@snippet openvino/docs/snippets/Integrate_with_customer_application_new_API.cpp part12
 
 or by calling the `InferenceEngine::InferRequest::Infer` method for synchronous request:
-```cpp
-sync_infer_request->Infer();
-```
+
+@snippet openvino/docs/snippets/Integrate_with_customer_application_new_API.cpp part13
+
 `StartAsync` returns immediately and starts inference without blocking main thread, `Infer` blocks
  main thread and returns when inference is completed.
 Call `Wait` for waiting result to become available for asynchronous request.
@@ -238,17 +184,8 @@ exception.
 8) Go over the output blobs and **process the results**.
 Note that casting `Blob` to `TBlob` via `std::dynamic_pointer_cast` is not recommended way,
 better to access data via `buffer()` and `as()` methods as follows:
-```cpp
-    for (auto &item : output_info) {
-        auto output_name = item.first;
-        auto output = infer_request.GetBlob(output_name);
-        {
-            auto const memLocker = output->cbuffer(); // use const memory locker
-            // output_buffer is valid as long as the lifetime of memLocker
-            const float *output_buffer = memLocker.as<const float *>();
-            /** output_buffer[] - accessing output blob data **/
 
-```
+@snippet openvino/docs/snippets/Integrate_with_customer_application_new_API.cpp part14
 
 ## Build Your Application
 
