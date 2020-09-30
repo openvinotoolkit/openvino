@@ -145,6 +145,7 @@
 
 #include "onnx_import/op/org.openvinotoolkit/detection_output.hpp"
 #include "onnx_import/op/org.openvinotoolkit/fake_quantize.hpp"
+#include "onnx_import/op/org.openvinotoolkit/group_norm.hpp"
 #include "onnx_import/op/org.openvinotoolkit/normalize.hpp"
 #include "onnx_import/op/org.openvinotoolkit/prior_box.hpp"
 
@@ -406,11 +407,12 @@ namespace ngraph
             REGISTER_OPERATOR("Xor", 1, logical_xor);
 
             // custom OPs
-            REGISTER_OPERATOR_WITH_DOMAIN(OPENVINO_ONNX_DOMAIN, "FakeQuantize", 1, fake_quantize);
             REGISTER_OPERATOR_WITH_DOMAIN(
                 OPENVINO_ONNX_DOMAIN, "DetectionOutput", 1, detection_output);
-            REGISTER_OPERATOR_WITH_DOMAIN(OPENVINO_ONNX_DOMAIN, "PriorBox", 1, prior_box);
+            REGISTER_OPERATOR_WITH_DOMAIN(OPENVINO_ONNX_DOMAIN, "FakeQuantize", 1, fake_quantize);
+            REGISTER_OPERATOR_WITH_DOMAIN(OPENVINO_ONNX_DOMAIN, "GroupNorm", 1, group_norm);
             REGISTER_OPERATOR_WITH_DOMAIN(OPENVINO_ONNX_DOMAIN, "Normalize", 1, normalize);
+            REGISTER_OPERATOR_WITH_DOMAIN(OPENVINO_ONNX_DOMAIN, "PriorBox", 1, prior_box);
         }
 
 #undef REGISTER_OPERATOR

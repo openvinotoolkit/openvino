@@ -61,6 +61,22 @@ namespace ngraph
             ///
             Output<ngraph::Node> interpret_as_scalar(const Output<ngraph::Node>& node);
 
+            /// \brief      Reshape node from shape {C} to {1, C, 1, 1,...}
+            ///
+            /// \note       This function will reshape the input node
+            ///             with a shape of {C} into a node with Shape{1, C, 1, 1, ..}.
+            ///             The most common input to this function would be scale or bias to
+            ///             BatchNorm or bias to Conv.
+            ///
+            /// \param[in]  node            Node to reshape.
+            /// \param[in]  expected_rank   Expected rank size
+            ///
+            /// \return     Original node or a node representing a reshape of the original.
+            ///
+            Output<ngraph::Node>
+                reshape_channel_shaped_node_to_nchw(const Output<ngraph::Node>& node,
+                                                    size_t expected_rank);
+
         } // namespace  reshape
     }     // namespace onnx_import
 } // namespace ngraph
