@@ -18,9 +18,9 @@
 
 #include <cstdint>
 #include <map>
+#include <mutex>
 #include <string>
 #include <unordered_map>
-#include <mutex>
 
 #include "ngraph/except.hpp"
 #include "onnx_import/core/operator_set.hpp"

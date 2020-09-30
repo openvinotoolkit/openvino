@@ -180,6 +180,7 @@ namespace ngraph
                                                  Operator fn)
         {
             std::lock_guard<std::mutex> guard(lock);
+
             auto it = m_map[domain][name].find(version);
             if (it == std::end(m_map[domain][name]))
             {
