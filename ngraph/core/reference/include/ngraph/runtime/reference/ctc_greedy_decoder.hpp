@@ -59,7 +59,8 @@ namespace ngraph
                         auto mask_index = seq_masks_transform.index({seq_ind, batch_ind});
 
                         // first 0 marks the end of a sequence
-                        if (sequence_masks[mask_index] != static_cast<T>(1))
+                        if (std::abs(sequence_masks[mask_index] - static_cast<T>(1)) >
+                            std::numeric_limits<T>::epsilon())
                         {
                             continue;
                         }
