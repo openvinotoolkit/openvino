@@ -283,7 +283,7 @@ jobs:
     displayName: 'List files'
   - script: |
       set PATH=$(REPO_DIR)\inference-engine\temp\tbb\bin;"C:\Program Files (x86)\IncrediBuild\";%PATH%
-      "$(IBTC)" $(BIN_DIR)\unit-test.exe --gtest_filter=-backend_api.config_unsupported:*IE_GPU* /testlevel=128
+      IBTestConsole.exe $(BIN_DIR)\unit-test.exe --gtest_filter=-backend_api.config_unsupported:*IE_GPU* /testlevel=128
     displayName: 'nGraph UT (Distributed)'
     continueOnError: false
   - script: |
