@@ -394,8 +394,11 @@ void NetworkHelper::foldDequantization(std::shared_ptr<Node>& node, const size_t
         if (!is_type<opset1::Constant>(result)) {
             return;
         }
+        if (inPlace) {
+            copyInfo(dequantization.convert, result);
+        }
         replace_node(dequantization.convert, result);
-        dequantization = NetworkHelper::getDequantization(node, branchIndex);
+        dequantization = NetworkHelper::getDequantization(node, branchIndex, inPlace);
     }
 
     if (dequantization.subtract != nullptr) {
@@ -406,8 +409,11 @@ void NetworkHelper::foldDequantization(std::shared_ptr<Node>& node, const size_t
         if (!is_type<opset1::Constant>(result)) {
             return;
         }
+        if (inPlace) {
+            copyInfo(dequantization.subtract, result);
+        }
         replace_node(dequantization.subtract, result);
-        dequantization = NetworkHelper::getDequantization(node, branchIndex);
+        dequantization = NetworkHelper::getDequantization(node, branchIndex, inPlace);
     }
 
     if (dequantization.multiply != nullptr) {
@@ -418,8 +424,11 @@ void NetworkHelper::foldDequantization(std::shared_ptr<Node>& node, const size_t
         if (!is_type<opset1::Constant>(result)) {
             return;
         }
+        if (inPlace) {
+            copyInfo(dequantization.multiply, result);
+        }
         replace_node(dequantization.multiply, result);
-        dequantization = NetworkHelper::getDequantization(node, branchIndex);
+        dequantization = NetworkHelper::getDequantization(node, branchIndex, inPlace);
     }
 }
 
