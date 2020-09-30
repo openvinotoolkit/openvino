@@ -467,12 +467,13 @@ string pass::VisualizeTree::get_attributes(shared_ptr<Node> node)
 
 string pass::VisualizeTree::get_node_name(shared_ptr<Node> node)
 {
-    string rc = node->get_friendly_name();
+    static const bool nvtmn = getenv_bool("NGRAPH_VISUALIZE_TREE_MEMBERS_NAME");
+    string rc = (nvtmn ? string("friendly_name: ") : "") + node->get_friendly_name();
     if (node->get_friendly_name() != node->get_name())
     {
-        rc += "\\n" + node->get_name();
+        rc += "\\n" + (nvtmn ? string("name: ") : "") + node->get_name();
     }
-    rc += "\\n" + std::string(node->get_type_name());
+    rc += "\\n" + (nvtmn ? string("type_name: ") : "") + std::string(node->get_type_name());
 
     static const bool nvtrti = getenv_bool("NGRAPH_VISUALIZE_TREE_RUNTIME_INFO");
     if (nvtrti)
