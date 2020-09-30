@@ -200,3 +200,4 @@ void MKLDNNInputNode::execute(mkldnn::stream strm) {
 }
 
 REG_MKLDNN_PRIM_FOR(MKLDNNInputNode, Input);
+REG_MKLDNN_PRIM_FOR(MKLDNNInputNode, Output);

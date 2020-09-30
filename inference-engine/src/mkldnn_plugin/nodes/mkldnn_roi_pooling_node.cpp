@@ -112,4 +112,4 @@ void MKLDNNROIPoolingNode::createDescriptor(const std::vector<InferenceEngine::T
                                           spatial_scale)));
     descs.push_back(desc);
 }
-REG_MKLDNN_PRIM_FOR(MKLDNNROIPoolingNode, RoiPooling);
+REG_MKLDNN_PRIM_FOR(MKLDNNROIPoolingNode, ROIPooling);

@@ -655,4 +655,4 @@ void MKLDNNConcatNode::execute(mkldnn::stream strm) {
     }
 }
 
-REG_MKLDNN_PRIM_FOR(MKLDNNConcatNode, Concat);
+REG_MKLDNN_PRIM_FOR(MKLDNNConcatNode, Concatenation);

@@ -523,5 +523,6 @@ void MKLDNNRNN::execute(mkldnn::stream strm) {
         strm.submit({exec_after.begin(), exec_after.end()});
 }
 
-REG_MKLDNN_PRIM_FOR(MKLDNNRNN, RNN);
+REG_MKLDNN_PRIM_FOR(MKLDNNRNN, RNNCell);
+REG_MKLDNN_PRIM_FOR(MKLDNNRNN, RNNSeq);
 }  // namespace MKLDNNPlugin

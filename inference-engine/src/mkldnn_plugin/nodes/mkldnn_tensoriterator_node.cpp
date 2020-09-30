@@ -15,12 +15,13 @@
 
 using namespace mkldnn;
 using namespace MKLDNNPlugin;
-using namespace InferenceEngine;
 using namespace InferenceEngine::details;
 
 namespace MKLDNNPlugin {
 
-static LayerConfig make_plain_config(const CNNLayerPtr &layer) {
+static InferenceEngine::LayerConfig make_plain_config(const InferenceEngine::CNNLayerPtr &layer) {
+    using namespace InferenceEngine;
+
     LayerConfig config;
 
     for (const auto &in_w : layer->insData) {
@@ -50,7 +51,7 @@ static LayerConfig make_plain_config(const CNNLayerPtr &layer) {
 class PortIteratorHelper : public PortMapHelper {
 public:
     PortIteratorHelper(const MKLDNNMemoryPtr &from, const MKLDNNMemoryPtr &to,
-            bool as_input, const TensorIterator::PortMap &port_map, const mkldnn::engine& eng, int n_iter) : as_input(as_input) {
+            bool as_input, const InferenceEngine::TensorIterator::PortMap &port_map, const mkldnn::engine& eng, int n_iter) : as_input(as_input) {
         const auto &full_blob = as_input ? from : to;
         const auto &part_blob = !as_input ? from : to;
 
@@ -147,7 +148,7 @@ MKLDNNTensorIteratorNode::MKLDNNTensorIteratorNode(InferenceEngine::CNNLayerPtr 
         MKLDNNNode(layer, eng, cache) {}
 
 void MKLDNNTensorIteratorNode::getSupportedDescriptors() {
-    auto *ti = dynamic_cast<class TensorIterator*>(getCnnLayer().get());
+    auto *ti = dynamic_cast<class InferenceEngine::TensorIterator*>(getCnnLayer().get());
     if (ti == nullptr)
         THROW_IE_EXCEPTION << "Cannot convert to TensorIterator layer.";
 
@@ -189,7 +190,7 @@ void MKLDNNTensorIteratorNode::initSupportedPrimitiveDescriptors() {
 
 
 void MKLDNNTensorIteratorNode::createPrimitive() {
-    auto ti = dynamic_cast<class TensorIterator*>(getCnnLayer().get());
+    auto ti = dynamic_cast<class InferenceEngine::TensorIterator*>(getCnnLayer().get());
     if (ti == nullptr)
         THROW_IE_EXCEPTION << "Cannot convert to TensorIterator layer.";
 
