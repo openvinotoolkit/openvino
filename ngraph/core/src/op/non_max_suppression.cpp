@@ -1119,9 +1119,9 @@ bool op::v5::NonMaxSuppression::evaluate(const HostTensorVector& outputs,
     std::vector<float> selected_scores(out_shape_size);
     int64_t valid_outputs = 0;
 
-    runtime::reference::non_max_suppression(boxes_data,
+    runtime::reference::non_max_suppression(boxes_data.data(),
                                             boxes_shape,
-                                            scores_data,
+                                            scores_data.data(),
                                             scores_shape,
                                             max_output_boxes_per_class,
                                             iou_threshold,
