@@ -195,7 +195,7 @@ Testing by Intel done on: see test date for each HW platform below.
 | BIOS Release                            | September 21, 2018                    | September 21, 2018                    |
 | Test Date                               | September 25, 2020                    | September 25, 2020                    |        
 
-Please follow this link for more detailed configuration descriptions: [Configuration Details](https://docs.openvinotoolkit.org/resources/benchmark_files/_system_configurations_2021.1.html)
+Please follow this link for more detailed configuration descriptions: [Configuration Details](https://docs.openvinotoolkit.org/resources/benchmark_files/system_configurations_2021.1.html)
 
 \htmlonly
 <style>
