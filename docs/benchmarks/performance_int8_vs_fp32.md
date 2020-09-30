@@ -76,7 +76,7 @@ The table below illustrates the speed-up factor for the performance gain by swit
     <td>ImageNet</td>
     <td>1.8</td>
     <td>3.6</td>
-    <td>2.7</td>
+    <td>3.7</td>
     <td>3.5</td>
     <td>3.6</td>
   </tr>
