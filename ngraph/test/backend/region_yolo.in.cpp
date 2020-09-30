@@ -77,7 +77,7 @@ NGRAPH_TEST(${BACKEND_NAME}, region_yolo_v2_caffe)
 
     test_case.add_input<float>(input_shape, input);
     test_case.add_expected_output<float>(output_shape, output);
-    test_case.run();
+    test_case.run_with_tolerance_as_fp(1.0e-4f);
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, region_yolo_v3_mxnet)
@@ -110,5 +110,5 @@ NGRAPH_TEST(${BACKEND_NAME}, region_yolo_v3_mxnet)
 
     test_case.add_input<float>(shape, input);
     test_case.add_expected_output<float>(shape, output);
-    test_case.run();
+    test_case.run_with_tolerance_as_fp(1.0e-4f);
 }
