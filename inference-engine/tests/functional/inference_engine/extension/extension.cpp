@@ -177,6 +177,7 @@ void test_extension(const std::string& model, const std::vector<float>& input_va
 }
 
 
+/*
 TEST(Extension, OnnxModelWithCustomRelu) {
     std::string model = R"V0G0N(
 ir_version: 3
@@ -329,7 +330,7 @@ TEST(Extension, XmlModelWithExtensionFromDSO) {
     std::vector<float> expected{12, 13, 14, 15, 16, 17, 18, 19};
     test_extension<TemplateExtension::Extension, TemplateExtension::Operation>(model, input_values, expected, false);
 }
-
+*/
 
 TEST(Extension, OnnxModelWithExtensionFromDSO) {
     std::string model = R"V0G0N(
