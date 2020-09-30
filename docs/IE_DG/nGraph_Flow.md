@@ -132,20 +132,3 @@ The model is still represented as the nGraph function at this stage, but the ope
 4. One-to-one conversion of nGraph representation to the corresponding `CNNNetworkImpl` without changing its semantics.
 You can see the result of the conversion by calling the `CNNNetwork::serialize` method, which produces legacy IR semantics, which is not nGraph-based even if it is applied to `CNNNetwork` constructed from the nGraph Function.
 It may help in debugging, see [Graph Debug Capabilities](Graph_debug_capabilities.md) to view all options for dumping new and old IR representations.
-
-## Deprecation Notice
-
-<table>
-  <tr>
-    <td><strong>Deprecation Begins</strong></td>
-    <td>June 1, 2020</td>
-  </tr>
-  <tr>
-    <td><strong>Removal Date</strong></td>
-    <td>December 1, 2020</td>
-  </tr>
-</table> 
-
-*Starting with the OpenVINO™ toolkit 2020.2 release, all of the features previously available through nGraph have been merged into the OpenVINO™ toolkit. As a result, all the features previously available through ONNX RT Execution Provider for nGraph have been merged with ONNX RT Execution Provider for OpenVINO™ toolkit.*
-
-*Therefore, ONNX RT Execution Provider for nGraph will be deprecated starting June 1, 2020 and will be completely removed on December 1, 2020. Users are recommended to migrate to the ONNX RT Execution Provider for OpenVINO™ toolkit as the unified solution for all AI inferencing on Intel® hardware.*
