@@ -114,9 +114,14 @@ bool ConvolutionTransformation::transform(TransformationContext &context, ngraph
                     }
                 }
 
+                auto newMulShape = Shape{ outputScales.size() };
+                for (size_t i = 0; i < convolution->get_output_shape(0).size() - 2; ++i) {
+                    newMulShape.push_back(1ul);
+                }
+
                 newMultiplyAfterConst = std::make_shared<opset1::Constant>(
                     dequantization.multiply->get_output_element_type(0),
-                    Shape{ outputScales.size(), 1, 1 },
+                    newMulShape,
                     outputScales);
             }
         } else {
