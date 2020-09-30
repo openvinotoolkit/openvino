@@ -17,8 +17,9 @@
 
 #include "ngraph/op/non_max_suppression.hpp"
 #include "ngraph/runtime/reference/non_max_suppression.hpp"
-#include "ngraph/shape_util.hpp"
+#include "ngraph/shape.hpp"
 
+using namespace ngraph;
 using namespace ngraph::runtime::reference;
 
 void non_max_suppression(const float* boxes_data,
