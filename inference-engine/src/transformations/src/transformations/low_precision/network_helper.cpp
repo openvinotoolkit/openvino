@@ -798,30 +798,28 @@ FakeQuantizeDequantization NetworkHelper::getDequantization(const std::shared_pt
 
     Output<Node> dataNode = node->input_value(parentIndex);
 
-    const std::shared_ptr<ngraph::opset1::Multiply> multiply =
-        (dataNode.get_node_shared_ptr()->get_input_size() > 1ul) &&
-        (is_type<opset1::Constant>(dataNode.get_node_shared_ptr()->get_input_node_ptr(1)) ||
-            is_type<opset1::Constant>(dataNode.get_node_shared_ptr()->get_input_node_ptr(0))) ?
-        as_type_ptr<ngraph::opset1::Multiply>(dataNode.get_node_shared_ptr()) :
-        nullptr;
-
+    const std::shared_ptr<ngraph::opset1::Multiply> multiply = as_type_ptr<ngraph::opset1::Multiply>(dataNode.get_node_shared_ptr());
     if (multiply != nullptr) {
+        if (!is_type<opset1::Constant>(multiply->get_input_node_ptr(0)) && !is_type<opset1::Constant>(multiply->get_input_node_ptr(1))) {
+            return FakeQuantizeDequantization();
+        }
         dataNode = multiply->get_input_source_output(getDataIndex(multiply));
     }
 
-    const std::shared_ptr<opset1::Subtract> subtract =
-        (dataNode.get_node_shared_ptr()->get_input_size() > 1ul) &&
-        (is_type<opset1::Constant>(dataNode.get_node_shared_ptr()->get_input_node_ptr(1)) ||
-            is_type<opset1::Constant>(dataNode.get_node_shared_ptr()->get_input_node_ptr(0))) ?
-        as_type_ptr<ngraph::opset1::Subtract>(dataNode.get_node_shared_ptr()) :
-        nullptr;
-
+    const std::shared_ptr<opset1::Subtract> subtract = as_type_ptr<ngraph::opset1::Subtract>(dataNode.get_node_shared_ptr());
     if (subtract != nullptr) {
+        if (!is_type<opset1::Constant>(subtract->get_input_node_ptr(0)) && !is_type<opset1::Constant>(subtract->get_input_node_ptr(1))) {
+            return FakeQuantizeDequantization(dataNode, nullptr, nullptr, multiply);
+        }
         dataNode = subtract->get_input_source_output(getDataIndex(subtract));
     }
 
     const std::shared_ptr<opset1::Convert> convert = as_type_ptr<opset1::Convert>(dataNode.get_node_shared_ptr());
     if (convert != nullptr) {
+        if ((convert->input(0).get_element_type() != element::i8) && (convert->input(0).get_element_type() != element::u8) &&
+            (convert->output(0).get_element_type() != element::f32)) {
+            return FakeQuantizeDequantization(dataNode, nullptr, subtract, multiply);
+        }
         dataNode = convert->get_input_source_output(0);
     }
 
