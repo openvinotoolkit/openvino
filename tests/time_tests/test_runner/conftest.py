@@ -207,7 +207,7 @@ class TestConfDumper:
                 " Dump of test config with updated references is skipped"
             orig_rec["references"] = patched_rec.get("results", {})
         with open(path, "w") as tconf:
-            yaml.dump(cls.orig_cases, tconf)
+            yaml.safe_dump(cls.orig_cases, tconf)
 
 
 def pytest_sessionfinish(session):
