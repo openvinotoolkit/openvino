@@ -222,19 +222,8 @@ namespace
                         const int64_t num_splits,
                         const Node* split_node)
     {
-        switch (axis_tensor->get_element_type())
-        {
-        case element::Type_t::i32: break;
-        case element::Type_t::i64: break;
-        case element::Type_t::u64: break;
-        default:
-            NODE_VALIDATION_CHECK(split_node,
-                                  false,
-                                  "Not supported axis type: ",
-                                  axis_tensor->get_element_type(),
-                                  " during evaluate Split:v1");
-            break;
-        }
+        NGRAPH_CHECK(axis_tensor->get_element_type().is_integral_number(),
+                 "axis element type is not integral data type");
 
         int64_t axis = host_tensor_2_vector<int64_t>(axis_tensor)[0];
 
