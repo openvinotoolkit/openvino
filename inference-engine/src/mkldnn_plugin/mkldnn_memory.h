@@ -115,6 +115,7 @@ public:
     static InferenceEngine::Layout GetPlainLayout(mkldnn::memory::dims dims);
     static bool isConsistant(mkldnn::memory::dims dims, mkldnn::memory::format format);
     static mkldnn::memory::format Convert(const InferenceEngine::Layout layout);
+    static InferenceEngine::Precision convertToIePrec(mkldnn::memory::data_type dataType);
 
     static std::string formatToString(mkldnn::memory::format fmt);
 
