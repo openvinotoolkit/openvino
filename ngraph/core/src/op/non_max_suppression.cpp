@@ -18,6 +18,7 @@
 #include "ngraph/attribute_visitor.hpp"
 #include "ngraph/op/constant.hpp"
 #include "ngraph/op/util/op_types.hpp"
+#include "ngraph/type/float16.hpp"
 
 using namespace std;
 using namespace ngraph;
@@ -869,23 +870,72 @@ namespace ngraph
     }
 } // namespace ngraph
 
+static PartialShape infer_selected_indices_shape(const HostTensorVector& inputs,
+                                                 int64_t max_output_boxes_per_class)
+{
+    const auto boxes_ps = inputs[0]->get_partial_shape();
+    const auto scores_ps = inputs[1]->get_partial_shape();
+
+    // NonMaxSuppression produces triplets
+    // that have the following format: [batch_index, class_index, box_index]
+    PartialShape result = {Dimension::dynamic(), 3};
+
+    if (boxes_ps.rank().is_static() && scores_ps.rank().is_static())
+    {
+        const auto num_boxes_boxes = boxes_ps[1];
+        const auto max_output_boxes_per_class_node = input_value(2).get_node_shared_ptr();
+        if (num_boxes_boxes.is_static() && scores_ps[0].is_static() && scores_ps[1].is_static())
+        {
+            const auto num_boxes = num_boxes_boxes.get_length();
+            const auto num_classes = scores_ps[1].get_length();
+
+            result[0] = std::min(num_boxes, max_output_boxes_per_class) * num_classes *
+                        scores_ps[0].get_length();
+        }
+    }
+
+    return result;
+}
+
+static std::vector<float> prepare_boxes_data(const HostTensorPtr& boxes, const Shape& boxes_shape)
+{
+    std::vector<float> result;
+    element::Type boxes_input_et = boxes->get_element_type();
+
+    return result;
+}
+
 bool op::v5::NonMaxSuppression::evaluate(const HostTensorVector& outputs,
                                          const HostTensorVector& inputs) const
 {
     element::Type input_et = get_input_element_type(0);
+
     int64_t max_output_boxes_per_class = max_boxes_output_from_input();
     float iou_threshold = iou_threshold_from_input();
     float score_threshold = score_threshold_from_input();
     float soft_nms_sigma = soft_nms_sigma_from_input();
 
-    switch (input_et)
+    auto selected_indices_shape = infer_selected_indices_shape(inputs, max_output_boxes_per_class);
+    Shape out_shape = selected_indices_shape.to_shape();
+
+    outputs[0]->set_element_type(m_output_type);
+    outputs[0]->set_shape(out_shape);
+
+    size_t num_of_outputs = outputs.size();
+
+    if (num_of_outputs >= 2)
     {
-    case element::Type_t::f32:
-        break;
-    case element::Type_t::f16:
-        break;
-    default:;
+        outputs[1]->set_element_type(element::f32);
+        outputs[1]->set_shape(out_shape);
     }
+
+    if (num_of_outputs >= 3)
+    {
+        outputs[2]->set_element_type(element::f32);
+        outputs[2]->set_shape(Shape{});
+    }
+
+    Shape boxes_shape = outputs[0]->get_shape();
 
     return true;
 }

@@ -24,6 +24,7 @@
 #include <functional>
 #include <map>
 #include "ngraph/coordinate_transform.hpp"
+#include "ngraph/op/util/op_types.hpp"
 #include "ngraph/shape_util.hpp"
 
 namespace ngraph
@@ -32,7 +33,6 @@ namespace ngraph
     {
         namespace reference
         {
-            template <typename T>
             void non_max_suppression(const float* boxes_data,
                                      const Shape& boxes_data_shape,
                                      const float* scores_data,
@@ -41,13 +41,11 @@ namespace ngraph
                                      float iou_threshold,
                                      float score_threshold,
                                      float soft_nms_sigma,
-                                     T* selected_indices,
+                                     int64_t* selected_indices,
                                      const Shape& selected_indices_shape,
                                      float* selected_scores,
                                      const Shape& selected_scores_shape,
-                                     float* valid_outputs)
-            {
-            }
+                                     float* valid_outputs);
         }
     }
 }
