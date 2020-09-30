@@ -128,10 +128,11 @@ def pytest_make_parametrize_id(config, val, argname):
         else:
             yield d
 
-    keys = val.keys()
-    values = list(get_dict_values(val))
+    keys = ["device", "model"]
+    values = {key: val[key] for key in keys}
+    values = list(get_dict_values(values))
 
-    return "-".join(["_".join([key, val]) for key, val in zip(keys, values)])
+    return "-".join(["_".join([key, str(val)]) for key, val in zip(keys, values)])
 
 
 @pytest.mark.hookwrapper
