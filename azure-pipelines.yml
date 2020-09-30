@@ -232,7 +232,7 @@ jobs:
     BIN_DIR: $(REPO_DIR)\bin\intel64
     MSVS_VARS_PATH: C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\VC\Auxiliary\Build\vcvars64.bat
     MSVC_COMPILER_PATH: C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\VC\Tools\MSVC\14.24.28314\bin\Hostx64\x64\cl.exe
-    IBTC: "C:\Program Files (x86)\IncrediBuild\IBTestConsole.exe"
+    IBTC: C:\Program Files (x86)\IncrediBuild\IBTestConsole.exe
   steps:
   - checkout: self
     clean: true
