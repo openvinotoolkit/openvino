@@ -45,7 +45,7 @@ namespace ngraph
                                      const Shape& selected_indices_shape,
                                      float* selected_scores,
                                      const Shape& selected_scores_shape,
-                                     float* valid_outputs);
+                                     int64_t* valid_outputs);
         }
     }
 }

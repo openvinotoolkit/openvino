@@ -19,6 +19,7 @@
 #include "ngraph/attribute_visitor.hpp"
 #include "ngraph/op/constant.hpp"
 #include "ngraph/op/util/op_types.hpp"
+#include "ngraph/runtime/reference/non_max_suppression.hpp"
 #include "ngraph/type/float16.hpp"
 
 using namespace std;
@@ -773,6 +774,7 @@ int64_t op::v5::NonMaxSuppression::max_boxes_output_from_input() const
 }
 
 static constexpr size_t boxes_port = 0;
+static constexpr size_t scores_port = 1;
 static constexpr size_t iou_threshold_port = 3;
 static constexpr size_t score_threshold_port = 4;
 static constexpr size_t soft_nms_sigma_port = 5;
@@ -985,7 +987,7 @@ static std::vector<float> prepare_boxes_data(const HostTensorPtr& boxes,
     size_t boxes_size = shape_size(boxes_shape);
     std::vector<float> result(boxes_size);
 
-    if (boxes_input_et == element::Type_t::f32)
+    if (boxes_input_et == ngraph::element::f32)
     {
         float* boxes_ptr = boxes->get_data_ptr<float>();
         memcpy(result.data(), boxes_ptr, boxes_size * sizeof(float));
@@ -1000,6 +1002,31 @@ static std::vector<float> prepare_boxes_data(const HostTensorPtr& boxes,
     }
 
     normalize_box_encoding(result.data(), boxes_shape, box_encoding);
+
+    return result;
+}
+
+static std::vector<float> prepare_scores_data(const HostTensorPtr& scores,
+                                              const Shape& scores_shape)
+{
+    element::Type scores_input_et = scores->get_element_type();
+
+    size_t scores_size = shape_size(scores_shape);
+    std::vector<float> result(scores_size);
+
+    if (scores_input_et == ngraph::element::f32)
+    {
+        float* scores_ptr = scores->get_data_ptr<float>();
+        memcpy(result.data(), scores_ptr, scores_size * sizeof(float));
+    }
+    else
+    {
+        float16* scores_ptr = scores->get_data_ptr<float16>();
+        for (size_t i = 0; i < scores_size; ++i)
+        {
+            result[i] = float(scores_ptr[i]);
+        }
+    }
 
     return result;
 }
@@ -1032,9 +1059,29 @@ bool op::v5::NonMaxSuppression::evaluate(const HostTensorVector& outputs,
         outputs[2]->set_shape(Shape{});
     }
 
-    Shape boxes_shape = outputs[0]->get_shape();
+    Shape boxes_shape = inputs[boxes_port]->get_shape();
+    Shape scores_shape = inputs[scores_port]->get_shape();
 
     auto boxes_data = prepare_boxes_data(inputs[boxes_port], boxes_shape, m_box_encoding);
+    auto scores_data = prepare_scores_data(inputs[scores_port], scores_shape);
+
+    std::vector<int64_t> selected_indices(out_shape);
+    std::vector<float> selected_scores(out_shape);
+    int64_t valid_outputs = 0;
+
+    runtime::reference::non_max_suppression(boxes_data,
+                                            boxes_shape,
+                                            scores_data,
+                                            scores_shape,
+                                            max_output_boxes_per_class,
+                                            iou_threshold,
+                                            score_threshold,
+                                            soft_nms_sigma,
+                                            selected_indices.data(),
+                                            out_shape,
+                                            selected_scores.data(),
+                                            out_shape,
+                                            &valid_outputs);
 
     return true;
 }
