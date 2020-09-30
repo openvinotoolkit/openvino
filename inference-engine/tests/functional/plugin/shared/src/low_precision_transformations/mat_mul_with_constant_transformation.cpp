@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+﻿// Copyright (C) 2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -143,6 +143,10 @@ void MatMulWithConstantTransformation::validate() {
 
 TEST_P(MatMulWithConstantTransformation, CompareWithRefImpl) {
     Run();
+    if (targetDevice == "CPU") {
+        std::string kernel = std::get<3>(this->GetParam()).kernel;
+        сheckKernel("FullyConnected", kernel);
+    }
 };
 
 }  // namespace LayerTestsDefinitions

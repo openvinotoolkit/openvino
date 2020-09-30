@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+﻿// Copyright (C) 2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -127,6 +127,10 @@ void ConvolutionTransformation::validateNGraph() {
 
 TEST_P(ConvolutionTransformation, CompareWithRefImpl) {
     Run();
+    if (targetDevice == "CPU") {
+        std::string kernel = std::get<5>(this->GetParam()).kernel;
+        сheckKernel("Convolution", kernel);
+    }
 };
 
 }  // namespace LayerTestsDefinitions

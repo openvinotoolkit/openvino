@@ -1,4 +1,4 @@
-// Copyright (C) 2019-2020 Intel Corporation
+﻿// Copyright (C) 2019-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -59,6 +59,10 @@ public:
     virtual void Compare(const InferenceEngine::Blob::Ptr &expected, const InferenceEngine::Blob::Ptr &actual);
 
     virtual void SetRefMode(RefMode mode);
+
+    void сheckKernel(std::string layerType, std::string permissibleKernel);
+
+    std::string getKernel(std::string layerName);
 
 protected:
     LayerTestsCommon();

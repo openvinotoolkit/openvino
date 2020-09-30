@@ -19,6 +19,7 @@ public:
     bool asymmetricQuantizationOnData;
     ngraph::builder::subgraph::FakeQuantizeOnWeights fakeQuantizeOnWeights;
     bool asymmetricQuantizationOnWeights;
+    std::string kernel;
 };
 
 typedef std::tuple<

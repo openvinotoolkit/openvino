@@ -1,6 +1,8 @@
-// Copyright (C) 2019-2020 Intel Corporation
+﻿// Copyright (C) 2019-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+
+#include <regex>
 
 #include <transformations/convert_batch_to_space.hpp>
 #include <transformations/convert_space_to_batch.hpp>
@@ -208,6 +210,34 @@ void LayerTestsCommon::Validate() {
 
     Compare(expectedOutputs, actualOutputs);
 }
+
+void LayerTestsCommon::сheckKernel(std::string layerType, std::string permissibleKernel) {
+    std::vector<std::string> opNames;
+    auto perfomanceCounters = inferRequest.GetPerformanceCounts();
+    for (auto& pc : perfomanceCounters) {
+        if (pc.second.layer_type == layerType) {
+            opNames.push_back(pc.first);
+        }
+    }
+    ASSERT_TRUE(!opNames.empty())
+        << "layer with type " << layerType << " does not exist";
+
+    const std::regex expectedKernel(permissibleKernel);
+    for (auto& targetOperationName : opNames) {
+        auto targetOperationKernel = getKernel(targetOperationName);
+        EXPECT_TRUE(std::regex_search(targetOperationKernel.begin(), targetOperationKernel.end(), expectedKernel))
+            << "Unexpected kernel. Actual: \"" << targetOperationKernel << "\" Expected: \"" << permissibleKernel << "\""
+            << " (Layer type: " << layerType << ", Layer name: " << targetOperationName << ")";
+    }
+}
+
+std::string LayerTestsCommon::getKernel(std::string layerName) {
+    auto perfomanceCounters = inferRequest.GetPerformanceCounts();
+    auto it = perfomanceCounters.find(layerName);
+
+    return  it->second.exec_type;
+}
+
 
 void LayerTestsCommon::SetRefMode(RefMode mode) {
     refMode = mode;

@@ -21,6 +21,7 @@ public:
     ngraph::Shape weightsConstShape;
     std::vector<float> weightsConstValues;
     ngraph::builder::subgraph::FakeQuantizeOnWeights fqOnWeights;
+    std::string kernel;
 };
 
 typedef std::tuple<
