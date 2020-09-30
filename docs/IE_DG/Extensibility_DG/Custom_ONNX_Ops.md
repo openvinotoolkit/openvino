@@ -5,7 +5,7 @@ The function responsible for registering a new operator is called `ngraph::onnx_
 
 ## Registering custom ONNX operator based on predefined nGraph operations
 
-As an example, let's register 'CustomRelu' ONNX operator in a domain called 'custom_domain'.
+As an example, let's register 'CustomRelu' ONNX operator in a domain called 'com.example'.
 CustomRelu is defined as follows:
 ```
 x >= 0 => f(x) = x * alpha
@@ -16,7 +16,7 @@ where alpha, beta are float constants.
 Let's start with including headers:
 @snippet onnx_custom_op/main.cpp onnx_custom_op:headers
 
-Next we define a node with op_type 'CustomRelu', domain 'custom_domain', one input, one output and two float attributes 'alpha' and 'beta'.
+Next we define a node with op_type 'CustomRelu', domain 'com.example', one input, one output and two float attributes 'alpha' and 'beta'.
 @snippet onnx_custom_op/main.cpp onnx_custom_op:model
 
 Before the model can be read by Inference Engine, we need to register 'CustomRelu' operator in ONNX importer:
