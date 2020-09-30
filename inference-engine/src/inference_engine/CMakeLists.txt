@@ -209,7 +209,7 @@ target_compile_definitions(${TARGET_NAME}_s PUBLIC USE_STATIC_IE)
 
 # export targets
 
-export(TARGETS ${TARGET_NAME} NAMESPACE IE:: APPEND FILE "${CMAKE_BINARY_DIR}/targets.cmake")
+export(TARGETS ${NGRAPH_LIBRARIES} ${TARGET_NAME} NAMESPACE IE:: APPEND FILE "${CMAKE_BINARY_DIR}/targets.cmake")
 
 configure_file(
     "${IE_MAIN_SOURCE_DIR}/cmake/config.cmake.in"
