@@ -189,7 +189,7 @@ Attributes are properties of nodes in the computational graph, which will be sto
 
 ```python
 rt_info = node.get_rt_info()
-    rt_info["affinity"] = "test_affinity"
+rt_info["affinity"] = "test_affinity"
 ```
 
 ##### Data of Constant nodes
