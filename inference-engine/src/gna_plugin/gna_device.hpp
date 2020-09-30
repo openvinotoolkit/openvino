@@ -170,11 +170,11 @@ public:
     void setOMPThreads(uint8_t const n_threads);
 
     void initGnaPerfCounters() {
+        std::unique_lock<std::mutex> lockGnaCalls{ acrossPluginsSync };
 #if GNA_LIB_VER == 1
         nGNAPerfResults = {{0, 0, 0, 0, 0, 0, 0}, {0, 0}, {0, 0, 0}, {0, 0}};
         nGNAPerfResultsTotal = {{0, 0, 0, 0, 0, 0, 0}, {0, 0}, {0, 0, 0}, {0, 0}};
 #else
-        std::unique_lock<std::mutex> lockGnaCalls{ acrossPluginsSync };
         const auto status = Gna2InstrumentationConfigCreate(TotalGna2InstrumentationPoints,
             gna2InstrumentationPoints,
             instrumentationResults,
