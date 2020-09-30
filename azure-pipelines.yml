@@ -233,6 +233,7 @@ jobs:
     MSVS_VARS_PATH: C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\VC\Auxiliary\Build\vcvars64.bat
     MSVC_COMPILER_PATH: C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\VC\Tools\MSVC\14.24.28314\bin\Hostx64\x64\cl.exe
     IBTC: C:\Program Files (x86)\IncrediBuild\IBTestConsole.exe
+    IB_PATH: C:\Program Files (x86)\IncrediBuild
   steps:
   - checkout: self
     clean: true
@@ -276,21 +277,19 @@ jobs:
     displayName: 'CMake'
   - script: |
       set PATH=$(WORK_DIR)\ninja-win;%PATH%
-      call "$(MSVS_VARS_PATH)" && "C:\Program Files (x86)\IncrediBuild\BuildConsole.exe" /COMMAND="ninja" 
+      call "$(MSVS_VARS_PATH)" && "C:\Program Files (x86)\IncrediBuild\BuildConsole.exe" /COMMAND="ninja" /Silent
     workingDirectory: $(BUILD_DIR)
     displayName: 'Build Win'
   - script: dir $(REPO_DIR)\bin\ /s /b
     displayName: 'List files'
   - script: |
-      set PATH=C:\Program Files (x86)\IncrediBuild;$(REPO_DIR)\inference-engine\temp\tbb\bin;%PATH%
-      echo "IBConsole version" && IBConsole.exe --version
-      echo "IBConsole full path version" && "C:\Program Files (x86)\IncrediBuild\IBConsole.exe" --version
-      "C:\Program Files (x86)\IncrediBuild\IBTestConsole.exe" $(BIN_DIR)\unit-test.exe --gtest_filter=-backend_api.config_unsupported:*IE_GPU* /testlevel=128
+      set PATH=$(IB_PATH);$(REPO_DIR)\inference-engine\temp\tbb\bin;%PATH%
+      "$(IBTC)" $(BIN_DIR)\unit-test.exe --gtest_filter=-backend_api.config_unsupported:*IE_GPU* /testlevel=128
     displayName: 'nGraph UT (Distributed)'
     continueOnError: false
   - script: |
-      set PATH=$(REPO_DIR)\inference-engine\temp\tbb\bin;%PATH%
-      call "$(IBTC)" $(BIN_DIR)\InferenceEngineUnitTests.exe /testlevel=128
+      set PATH=$(IB_PATH);$(REPO_DIR)\inference-engine\temp\tbb\bin;%PATH%
+      "$(IBTC)" $(BIN_DIR)\InferenceEngineUnitTests.exe /testlevel=128
     displayName: 'IE UT old (Distributed)'
     continueOnError: false
   - script: |
@@ -319,8 +318,8 @@ jobs:
     displayName: 'IE FuncTests'
     continueOnError: false
   - script: |
-      set PATH=$(REPO_DIR)\inference-engine\temp\tbb\bin;%PATH%
-      call "$(IBTC)" $(BIN_DIR)\cpuFuncTests.exe --gtest_filter=-nightly_RandomMajorNodes/HeteroSyntheticTest.* /testlevel=128
+      set PATH=$(IB_PATH);$(REPO_DIR)\inference-engine\temp\tbb\bin;%PATH%
+      "$(IBTC)" $(BIN_DIR)\cpuFuncTests.exe --gtest_filter=-nightly_RandomMajorNodes/HeteroSyntheticTest.* /testlevel=128
     displayName: 'CPU FuncTests no Random tests (Distributed)'
     continueOnError: false
   - script: |
@@ -338,10 +337,10 @@ jobs:
     workingDirectory: $(BUILD_DIR)
     displayName: 'Clone testdata'
   - script: |
-      set PATH=$(REPO_DIR)\inference-engine\temp\tbb\bin;$(REPO_DIR)\inference-engine\temp\opencv_4.5.0\opencv\bin;%PATH%
+      set PATH=$(IB_PATH);$(REPO_DIR)\inference-engine\temp\tbb\bin;$(REPO_DIR)\inference-engine\temp\opencv_4.5.0\opencv\bin;%PATH%
       set DATA_PATH=$(BUILD_DIR)\testdata
       set MODELS_PATH=$(BUILD_DIR)\testdata
-      call "$(IBTC)" $(BIN_DIR)\MklDnnFunctionalTests --gtest_filter=-CPU_run_smoke/IO_BlobTest*:CPU_run_smoke/LayoutTTTest* /testlevel=128
+      "$(IBTC)" $(BIN_DIR)\MklDnnFunctionalTests --gtest_filter=-CPU_run_smoke/IO_BlobTest*:CPU_run_smoke/LayoutTTTest* /testlevel=128
     displayName: 'MklDnnFunctionalTests filtered (Distributed)'
     continueOnError: false
   - script: |
