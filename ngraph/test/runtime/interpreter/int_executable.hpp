@@ -1140,52 +1140,16 @@ protected:
         case OP_TYPEID::RegionYolo_v0:
         {
             const op::RegionYolo* region_yolo = static_cast<const op::RegionYolo*>(&node);
-            auto type = node.get_element_type();
-            if (type == element::bf16)
-            {
-                reference::region_yolo<bfloat16>(args[0]->get_data_ptr<const bfloat16>(),
-                                                 out[0]->get_data_ptr<bfloat16>(),
-                                                 args[0]->get_shape(),
-                                                 region_yolo->get_num_coords(),
-                                                 region_yolo->get_num_classes(),
-                                                 region_yolo->get_num_regions(),
-                                                 region_yolo->get_do_softmax(),
-                                                 region_yolo->get_mask(),
-                                                 region_yolo->get_axis(),
-                                                 region_yolo->get_end_axis());
-            }
-            else if (type == element::f16)
-            {
-                reference::region_yolo<float16>(args[0]->get_data_ptr<const float16>(),
-                                                out[0]->get_data_ptr<float16>(),
-                                                args[0]->get_shape(),
-                                                region_yolo->get_num_coords(),
-                                                region_yolo->get_num_classes(),
-                                                region_yolo->get_num_regions(),
-                                                region_yolo->get_do_softmax(),
-                                                region_yolo->get_mask(),
-                                                region_yolo->get_axis(),
-                                                region_yolo->get_end_axis());
-            }
-            else if (type == element::f32)
-            {
-                reference::region_yolo<float>(args[0]->get_data_ptr<const float>(),
-                                              out[0]->get_data_ptr<float>(),
-                                              args[0]->get_shape(),
-                                              region_yolo->get_num_coords(),
-                                              region_yolo->get_num_classes(),
-                                              region_yolo->get_num_regions(),
-                                              region_yolo->get_do_softmax(),
-                                              region_yolo->get_mask(),
-                                              region_yolo->get_axis(),
-                                              region_yolo->get_end_axis());
-            }
-            else
-            {
-                std::stringstream ss;
-                ss << "unsupported element type";
-                throw std::runtime_error(ss.str());
-            }
+            reference::region_yolo<T>(args[0]->get_data_ptr<const T>(),
+                                      out[0]->get_data_ptr<T>(),
+                                      args[0]->get_shape(),
+                                      region_yolo->get_num_coords(),
+                                      region_yolo->get_num_classes(),
+                                      region_yolo->get_num_regions(),
+                                      region_yolo->get_do_softmax(),
+                                      region_yolo->get_mask(),
+                                      region_yolo->get_axis(),
+                                      region_yolo->get_end_axis());
             break;
         }
         case OP_TYPEID::Relu:
