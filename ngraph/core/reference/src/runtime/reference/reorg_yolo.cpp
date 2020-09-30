@@ -40,9 +40,9 @@ namespace ngraph
                 size_t in_H = in_shape[2];
                 size_t in_W = in_shape[3];
 
-                // Inferce output shape logic:
+                // Inference output shape logic:
                 // in_shape [N,C,H,W] -> out_shape [N, C*(stride*stride), H/stride, W/stride]
-                // ReorgYolo implementation calculates indexes like for backprop:
+                // ReorgYolo implementation calculates new indices like for backprop:
                 // in_shape [N,C,H,W] -> out_shape [N, C/(stride*stride), H*stride, W*stride]
 
                 size_t impl_out_C = in_C / (stride * stride);
