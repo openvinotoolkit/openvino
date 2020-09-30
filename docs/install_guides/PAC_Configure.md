@@ -10,7 +10,7 @@ The following describes the set-up of the Intel® Distribution of OpenVINO™ to
 
 [OpenCL™ on Intel® PAC Quick Start Guide](https://www.intel.com/content/dam/altera-www/global/en_US/pdfs/literature/ug/ug-qs-ias-opencl-a10.pdf)
 
-[Installing the Intel® Distribution of OpenVINO™ toolkit for Linux*](https://docs.openvinotoolkit.org/latest/_docs_install_guides_installing_openvino_linux.html)
+[Installing the Intel® Distribution of OpenVINO™ toolkit for Linux*](installing-openvino-linux.md)
 
 (Optional): Install NTFS support for transferring large installers if already downloaded on another machine.
 ```sh
@@ -211,7 +211,7 @@ cp ~/openvino_models/models/public/squeezenet1.1/squeezenet1.1.* .
 cp ~/openvino_models/ir/public/squeezenet1.1/FP16/squeezenet1.1.labels .
 ```
 
-2. Note that the `squeezenet1.1.labels` file contains the classes used by ImageNet and is included here so that the inference results show text rather than classification numbers.  Convert the model with the [Model Optimizer](https://docs.openvinotoolkit.org/latest/_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide.html).  Note that the command below uses the alias defined in the script above and is not referred to in other documentation.
+2. Note that the `squeezenet1.1.labels` file contains the classes used by ImageNet and is included here so that the inference results show text rather than classification numbers. Convert the model with the [Model Optimizer Developer Guide](../MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md).  Note that the command below uses the alias defined in the script above and is not referred to in other documentation.
 ```sh
 mo --input_model squeezenet1.1.caffemodel
 ```
@@ -234,8 +234,6 @@ Use the  [Intel® Distribution of OpenVINO™ toolkit with FPGA Hello World Face
 
 ## Additional Resources
 
-Intel® Distribution of OpenVINO™ toolkit home page: [https://software.intel.com/en-us/openvino-toolkit](https://software.intel.com/en-us/openvino-toolkit)
-
-Intel® Distribution of OpenVINO™ toolkit documentation: [https://docs.openvinotoolkit.org](https://docs.openvinotoolkit.org)
-
-Inference Engine FPGA plugin documentation: [https://docs.openvinotoolkit.org/latest/_docs_IE_DG_supported_plugins_FPGA.html](https://docs.openvinotoolkit.org/latest/_docs_IE_DG_supported_plugins_FPGA.html)
+* Intel® Distribution of OpenVINO™ toolkit home page: [https://software.intel.com/en-us/openvino-toolkit](https://software.intel.com/en-us/openvino-toolkit).
+* Intel® Distribution of OpenVINO™ toolkit documentation: [https://docs.openvinotoolkit.org](https://docs.openvinotoolkit.org).
+* [Inference Engine FPGA plugin documentation](../IE_DG/supported_plugins/FPGA.md).

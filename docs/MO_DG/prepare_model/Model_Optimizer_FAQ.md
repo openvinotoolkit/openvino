@@ -365,7 +365,7 @@ Keep in mind that there is no space between and inside the brackets for input sh
 
 #### 58. What does the message "Please provide input layer names for input layer shapes" mean? <a name="question-58"></a>
 
-When specifying input shapes for several layers, you must provide names for inputs, whose shapes will be overwritten. For usage examples, see [Converting a Caffe\* Model](https://docs.openvinotoolkit.org/latest/_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_Caffe.html). Additional information for `--input_shape` is in FAQ [#57](#question-57).
+When specifying input shapes for several layers, you must provide names for inputs, whose shapes will be overwritten. For usage examples, see [Converting a Caffe* Model](convert_model/Convert_Model_From_Caffe.md. Additional information for `--input_shape` is in FAQ [#57](#question-57).
 
 #### 59. What does the message "Values cannot be parsed" mean? <a name="question-59"></a>
 

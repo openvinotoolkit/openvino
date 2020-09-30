@@ -15,10 +15,10 @@ The toolkit consists of three primary components:
 
 In addition, demo scripts, code samples and demo applications are provided to help you get up and running with the toolkit:
 * **Demo Scripts** - Batch scripts that automatically perform the workflow steps to demonstrate running inference pipelines for different scenarios.  
-* [**Code Samples**](../IE_DG/Samples_Overview.md) - Small console applications that show you how to:
+* **[Code Samples](../IE_DG/Samples_Overview.md)** - Small console applications that show you how to:
     * Utilize specific OpenVINO capabilities in an application.
     * Perform specific tasks, such as loading a model, running inference, querying specific device capabilities, and more.
-* [**Demo Applications**](@ref omz_demos_README) - Console applications that provide robust application templates to help you implement specific deep learning scenarios. These applications involve increasingly complex processing pipelines that gather analysis data from several models that run inference simultaneously, such as detecting a person in a video stream along with detecting the person's physical attributes, such as age, gender, and emotional state.
+* **[Demo Applications](@ref omz_demos_README)** - Console applications that provide robust application templates to help you implement specific deep learning scenarios. These applications involve increasingly complex processing pipelines that gather analysis data from several models that run inference simultaneously, such as detecting a person in a video stream along with detecting the person's physical attributes, such as age, gender, and emotional state.
 
 ## <a name="openvino-installation"></a>Intel® Distribution of OpenVINO™ toolkit Installation and Deployment Tools Directory Structure
 This guide assumes you completed all Intel® Distribution of OpenVINO™ toolkit installation and configuration steps. If you have not yet installed and configured the toolkit, see [Install Intel® Distribution of OpenVINO™ toolkit for macOS*](../install_guides/installing-openvino-macos.md).
@@ -77,7 +77,7 @@ The demo scripts can run inference on any [supported target device](https://soft
 ./<script_name> -d [CPU, MYRIAD]
 ```
 
-Before running the demo applications on Intel® Neural Compute Stick 2 device, you must complete the  [Steps for Intel® Neural Compute Stick 2](../install_guides/installing-openvino-macos.md#additional-NCS2-steps).
+Before running the demo applications on Intel® Neural Compute Stick 2 device, you must complete additional configuration steps. For details, see the Steps for Intel® Neural Compute Stick 2 section in the [installation instructions](../install_guides/installing-openvino-macos.md).
 
 The following paragraphs describe each demo script.
 
@@ -198,7 +198,7 @@ Inputs you need to specify when using a code sample or demo application:
 
 To perform sample inference, run the Image Classification code sample and Security Barrier Camera demo application that are automatically compiled when you run the Image Classification and Inference Pipeline demo scripts. The binary files are in the `~/inference_engine_samples_build/intel64/Release` and `~/inference_engine_demos_build/intel64/Release` directories, respectively.
 
-You can also build all available sample code and demo applications from the source files delivered with the OpenVINO toolkit. To learn how to do this, see the [Inference Engine Code Samples Overview](../IE_DG/Samples_Overview.md) and the [Demo Applications Overview](@ref omz_demos_README#build_the_demo_applications) documents.
+You can also build all available sample code and demo applications from the source files delivered with the OpenVINO toolkit. To learn how to do this, see the instructions in the [Inference Engine Code Samples Overview](../IE_DG/Samples_Overview.md) and [Demo Applications Overview](@ref omz_demos_README) sections.
 
 ### <a name="download-models"></a> Step 1: Download the Models
 
@@ -208,7 +208,7 @@ You must have a model that is specific for you inference task. Example model typ
 - Custom (Often based on SSD)
 
 Options to find a model suitable for the OpenVINO™ toolkit are:
-- Download public and Intel's pre-trained models from the [Open Model Zoo](https://github.com/opencv/open_model_zoo) using [Model Downloader tool](@ref omz_tools_downloader_README#model_downloader_usage).
+- Download public and Intel's pre-trained models from the [Open Model Zoo](https://github.com/opencv/open_model_zoo) using [Model Downloader tool](@ref omz_tools_downloader_README). 
 - Download from GitHub*, Caffe* Zoo, TensorFlow* Zoo, and other resources.
 - Train your own model.
         
@@ -388,9 +388,8 @@ The following commands run the Image Classification Code Sample using the `car.p
 
    
    **MYRIAD:** 
-
-   > **NOTE**: Running inference on VPU devices (Intel® Neural Compute Stick 2) with the MYRIAD plugin requires 
-    [additional hardware configuration steps](../install_guides/installing-openvino-macos.md#additional-NCS2-steps).
+   
+   > **NOTE**: Running inference on VPU devices (Intel® Neural Compute Stick 2) with the MYRIAD plugin requires additional hardware configuration steps. For details, see the Steps for Intel® Neural Compute Stick 2 section in the [installation instructions](../install_guides/installing-openvino-macos.md).
    ```sh   
    ./classification_sample_async -i /opt/intel/openvino/deployment_tools/demo/car.png -m ~/models/public/squeezenet1.1/ir/squeezenet1.1.xml -d MYRIAD
    ```
@@ -421,7 +420,7 @@ classid probability label
 
 ### <a name="run-security-barrier"></a>Step 5: Run the Security Barrier Camera Demo Application
 
-> **NOTE**: The Security Barrier Camera Demo Application is automatically compiled when you ran the Inference Pipeline demo scripts. If you want to build it manually, see the [Demo Applications Overview](@ref omz_demos_README#build_the_demo_applications) section.
+> **NOTE**: The Security Barrier Camera Demo Application is automatically compiled when you run the Inference Pipeline demo scripts. If you want to build it manually, see the instructions in the [Demo Applications Overview](@ref omz_demos_README) section.
 
 To run the **Security Barrier Camera Demo Application** using an input image on the prepared IRs:
 
@@ -449,8 +448,7 @@ To run the **Security Barrier Camera Demo Application** using an input image on 
 
 **MYRIAD:** 
    
-> **NOTE**: Running inference on VPU devices (Intel® Neural Compute Stick 2) with the MYRIAD plugin requires 
-    [additional hardware configuration steps](../install_guides/installing-openvino-macos.md#additional-NCS2-steps).
+> **NOTE**: Running inference on VPU devices (Intel® Neural Compute Stick 2) with the MYRIAD plugin requires additional hardware configuration steps. For details, see the Steps for Intel® Neural Compute Stick 2 section in the [installation instructions](../install_guides/installing-openvino-macos.md).
 ```sh   
 ./classification_sample_async -i <INSTALL_DIR>/inference-engine/samples/sample_data/car.png -m <ir_dir>/squeezenet1.1.xml -d MYRIAD
 ```

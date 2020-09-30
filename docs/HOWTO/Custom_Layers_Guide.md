@@ -21,11 +21,11 @@ The original format will be a supported framework such as TensorFlow, Caffe, or 
 
 ## Custom Layer Overview
 
-The [Model Optimizer](https://docs.openvinotoolkit.org/2019_R1.1/_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide.html) searches the list of known layers for each layer contained in the input model topology before building the model's internal representation, optimizing the model, and producing the Intermediate Representation files.  
+The [Model Optimizer](../MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md) searches the list of known layers for each layer contained in the input model topology before building the model's internal representation, optimizing the model, and producing the Intermediate Representation files.  
 
-The [Inference Engine](https://docs.openvinotoolkit.org/2019_R1.1/_docs_IE_DG_Deep_Learning_Inference_Engine_DevGuide.html) loads the layers from the input model IR files into the specified device plugin, which will search a list of known layer implementations for the device.  If your topology contains layers that are not in the list of known layers for the device, the Inference Engine considers the layer to be unsupported and reports an error.  To see the layers that are supported by each device plugin for the Inference Engine, refer to the [Supported Devices](https://docs.openvinotoolkit.org/2019_R1.1/_docs_IE_DG_supported_plugins_Supported_Devices.html) documentation.  
+The [Inference Engine](../IE_DG/Deep_Learning_Inference_Engine_DevGuide.md) loads the layers from the input model IR files into the specified device plugin, which will search a list of known layer implementations for the device.  If your topology contains layers that are not in the list of known layers for the device, the Inference Engine considers the layer to be unsupported and reports an error.  To see the layers that are supported by each device plugin for the Inference Engine, refer to the [Supported Devices](../IE_DG/supported_plugins/Supported_Devices.md) documentation.  
 <br>
-**Note:** If a device doesn't support a particular layer, an alternative to creating a new custom layer is to target an additional device using the HETERO plugin. The [Heterogeneous Plugin](https://docs.openvinotoolkit.org/2019_R1.1/_docs_IE_DG_supported_plugins_HETERO.html) may be used to run an inference model on multiple devices allowing the unsupported layers on one device to "fallback" to run on another device (e.g., CPU) that does support those layers.
+> **NOTE:** If a device doesn't support a particular layer, an alternative to creating a new custom layer is to target an additional device using the HETERO plugin. The [Heterogeneous Plugin](../IE_DG/supported_plugins/HETERO.md) may be used to run an inference model on multiple devices allowing the unsupported layers on one device to "fallback" to run on another device (e.g., CPU) that does support those layers.
 
 ## Custom Layer Implementation Workflow
 
@@ -40,7 +40,7 @@ The following figure shows the basic processing steps for the Model Optimizer hi
 
 The Model Optimizer first extracts information from the input model which includes the topology of the model layers along with parameters, input and output format, etc., for each layer.  The model is then optimized from the various known characteristics of the layers, interconnects, and data flow which partly comes from the layer operation providing details including the shape of the output for each layer.  Finally, the optimized model is output to the model IR files needed by the Inference Engine to run the model.  
 
-The Model Optimizer starts with a library of known extractors and operations for each [supported model framework](https://docs.openvinotoolkit.org/2019_R1.1/_docs_MO_DG_prepare_model_Supported_Frameworks_Layers.html) which must be extended to use each unknown custom layer.  The custom layer extensions needed by the Model Optimizer are:
+The Model Optimizer starts with a library of known extractors and operations for each [supported model framework](../MO_DG/prepare_model/Supported_Frameworks_Layers.md) which must be extended to use each unknown custom layer.  The custom layer extensions needed by the Model Optimizer are:
 
 - Custom Layer Extractor
    - Responsible for identifying the custom layer operation and extracting the parameters for each instance of the custom layer.  The layer parameters are stored per instance and used by the layer operation before finally appearing in the output IR.  Typically the input layer parameters are unchanged, which is the case covered by this tutorial. 
@@ -182,10 +182,10 @@ There are two options to convert your MXNet* model that contains custom layers:
 2.  If you have sub-graphs that should not be expressed with the analogous sub-graph in the Intermediate Representation, but another sub-graph should appear in the model, the Model Optimizer provides such an option. In MXNet the function is actively used for ssd models provides an opportunity to  for the necessary subgraph sequences and replace them. To read more, see [Sub-graph Replacement in the Model Optimizer](../MO_DG/prepare_model/customize_model_optimizer/Subgraph_Replacement_Model_Optimizer.md).
 
 ## Kaldi\* Models with Custom Layers <a name="Kaldi-models-with-custom-layers"></a>
-For information on converting your Kaldi* model containing custom layers see [Converting a Kaldi Model in the Model Optimizer Developer Guide](https://docs.openvinotoolkit.org/latest/_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_Kaldi.html). 
+For information on converting your Kaldi* model containing custom layers see [Converting a Kaldi Model in the Model Optimizer Developer Guide](../MO_DG/prepare_model/convert_model/Convert_Model_From_Kaldi.md). 
 
 ## ONNX\* Models with Custom Layers <a name="ONNX-models-with-custom-layers"></a>
-For information on converting your ONNX* model containing custom layers see [Converting an ONNX Model in the Model Optimizer Developer Guide](https://docs.openvinotoolkit.org/latest/_docs_MO_DG_prepare_model_convert_model_Convert_Model_From_ONNX.html). 
+For information on converting your ONNX* model containing custom layers see [Converting an ONNX Model in the Model Optimizer Developer Guide](../MO_DG/prepare_model/convert_model/Convert_Model_From_ONNX.md). 
 
 ## Step-by-Step Custom Layers Tutorial
 For a step-by-step walk-through creating and executing a custom layer, see [Custom Layer Implementation Tutorial for Linux and Windows.](https://github.com/david-drew/OpenVINO-Custom-Layers/tree/master/2019.r2.0) 
@@ -194,10 +194,10 @@ For a step-by-step walk-through creating and executing a custom layer, see [Cust
 
 - Intel® Distribution of OpenVINO™ toolkit home page: [https://software.intel.com/en-us/openvino-toolkit](https://software.intel.com/en-us/openvino-toolkit)
 - OpenVINO™ toolkit online documentation: [https://docs.openvinotoolkit.org](https://docs.openvinotoolkit.org)
-- [Model Optimizer Developer Guide](https://docs.openvinotoolkit.org/latest/_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide.html)
-- [Kernel Extensivility in the Inference Engine Developer Guide](https://docs.openvinotoolkit.org/latest/_docs_IE_DG_Integrate_your_kernels_into_IE.html)
-- [Inference Engine Samples Overview](https://docs.openvinotoolkit.org/latest/_docs_IE_DG_Samples_Overview.html)
-- [Overview of OpenVINO™ Toolkit Pre-Trained Models](https://docs.openvinotoolkit.org/latest/_intel_models_index.html)
+- [Model Optimizer Developer Guide](../MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md)
+- [Kernel Extensivility in the Inference Engine Developer Guide](../IE_DG/Integrate_your_kernels_into_IE.md)
+- [Inference Engine Samples Overview](../IE_DG/Samples_Overview.md)
+- [Overview of OpenVINO™ Toolkit Pre-Trained Models](@ref omz_models_intel_index)
 - [Inference Engine Tutorials](https://github.com/intel-iot-devkit/inference-tutorials-generic)
 - For IoT Libraries and Code Samples see the [Intel® IoT Developer Kit](https://github.com/intel-iot-devkit).
 
