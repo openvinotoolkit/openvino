@@ -17,6 +17,7 @@
 
 #include "ngraph/op/non_max_suppression.hpp"
 #include "ngraph/runtime/reference/non_max_suppression.hpp"
+#include "ngraph/shape_util.hpp"
 
 using namespace ngraph::runtime::reference;
 
