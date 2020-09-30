@@ -40,11 +40,11 @@ static bool referenceData2Vector(string file_path, vector<T>& data, int count)
     }
 
     T* in_buf = new T[count];
-    in.read((char *)in_buf, count * sizeof(T));
+    in.read((char*)in_buf, count * sizeof(T));
     in.close();
     vector<T> in_data(in_buf, in_buf + count);
     data = in_data;
-    delete []in_buf;
+    delete[] in_buf;
     return true;
 }
 
@@ -70,8 +70,10 @@ NGRAPH_TEST(${BACKEND_NAME}, region_yolo_v2_caffe)
     std::vector<float> input;
     std::vector<float> output;
 
-    ASSERT_TRUE(referenceData2Vector<float>("../ngraph/test/files/region_in_yolov2_caffe.data", input, count));
-    ASSERT_TRUE(referenceData2Vector<float>("../ngraph/test/files/region_out_yolov2_caffe.data", output, count));
+    ASSERT_TRUE(referenceData2Vector<float>(
+        "../ngraph/test/files/region_in_yolov2_caffe.data", input, count));
+    ASSERT_TRUE(referenceData2Vector<float>(
+        "../ngraph/test/files/region_out_yolov2_caffe.data", output, count));
 
     auto test_case = test::TestCase<TestEngine>(f);
 
@@ -103,8 +105,10 @@ NGRAPH_TEST(${BACKEND_NAME}, region_yolo_v3_mxnet)
     std::vector<float> input;
     std::vector<float> output;
 
-    ASSERT_TRUE(referenceData2Vector<float>("../ngraph/test/files/region_in_yolov3_mxnet.data", input, count));
-    ASSERT_TRUE(referenceData2Vector<float>("../ngraph/test/files/region_out_yolov3_mxnet.data", output, count));
+    ASSERT_TRUE(referenceData2Vector<float>(
+        "../ngraph/test/files/region_in_yolov3_mxnet.data", input, count));
+    ASSERT_TRUE(referenceData2Vector<float>(
+        "../ngraph/test/files/region_out_yolov3_mxnet.data", output, count));
 
     auto test_case = test::TestCase<TestEngine>(f);
 
