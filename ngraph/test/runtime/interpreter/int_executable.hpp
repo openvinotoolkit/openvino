@@ -1144,6 +1144,7 @@ protected:
             if (type == element::bf16)
             {
                 reference::region_yolo<bfloat16>(args[0]->get_data_ptr<const bfloat16>(),
+                                                 out[0]->get_data_ptr<bfloat16>(),
                                                  args[0]->get_shape(),
                                                  region_yolo->get_num_coords(),
                                                  region_yolo->get_num_classes(),
@@ -1151,14 +1152,12 @@ protected:
                                                  region_yolo->get_do_softmax(),
                                                  region_yolo->get_mask(),
                                                  region_yolo->get_axis(),
-                                                 region_yolo->get_end_axis(),
-                                                 region_yolo->get_anchors(),
-                                                 out[0]->get_data_ptr<bfloat16>(),
-                                                 out[0]->get_shape());
+                                                 region_yolo->get_end_axis());
             }
             else if (type == element::f16)
             {
                 reference::region_yolo<float16>(args[0]->get_data_ptr<const float16>(),
+                                                out[0]->get_data_ptr<float16>(),
                                                 args[0]->get_shape(),
                                                 region_yolo->get_num_coords(),
                                                 region_yolo->get_num_classes(),
@@ -1166,14 +1165,12 @@ protected:
                                                 region_yolo->get_do_softmax(),
                                                 region_yolo->get_mask(),
                                                 region_yolo->get_axis(),
-                                                region_yolo->get_end_axis(),
-                                                region_yolo->get_anchors(),
-                                                out[0]->get_data_ptr<float16>(),
-                                                out[0]->get_shape());
+                                                region_yolo->get_end_axis());
             }
             else if (type == element::f32)
             {
                 reference::region_yolo<float>(args[0]->get_data_ptr<const float>(),
+                                              out[0]->get_data_ptr<float>(),
                                               args[0]->get_shape(),
                                               region_yolo->get_num_coords(),
                                               region_yolo->get_num_classes(),
@@ -1181,10 +1178,7 @@ protected:
                                               region_yolo->get_do_softmax(),
                                               region_yolo->get_mask(),
                                               region_yolo->get_axis(),
-                                              region_yolo->get_end_axis(),
-                                              region_yolo->get_anchors(),
-                                              out[0]->get_data_ptr<float>(),
-                                              out[0]->get_shape());
+                                              region_yolo->get_end_axis());
             }
             else
             {

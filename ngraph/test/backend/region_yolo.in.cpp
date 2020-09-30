@@ -59,13 +59,12 @@ NGRAPH_TEST(${BACKEND_NAME}, region_yolo_v2_caffe)
     const size_t height = 13;
     const size_t count = width * height * channels;
     const std::vector<int64_t> mask{0, 1, 2};
-    const std::vector<float> anchors{10,13,16,30,33,23,30,61,62,45};
 
     Shape input_shape{batch, channels, height, width};
     Shape output_shape{batch, channels * height * width};
 
     auto A = make_shared<op::Parameter>(element::f32, input_shape);
-    auto R = make_shared<op::v0::RegionYolo>(A, coords, classes, num, true, mask, 1, 3, anchors);
+    auto R = make_shared<op::v0::RegionYolo>(A, coords, classes, num, true, mask, 1, 3);
     auto f = make_shared<Function>(R, ParameterVector{A});
 
     std::vector<float> input;
@@ -91,13 +90,12 @@ NGRAPH_TEST(${BACKEND_NAME}, region_yolo_v3_mxnet)
     const size_t width = 32;
     const size_t height = 32;
     const std::vector<int64_t> mask{0, 1, 2};
-    const std::vector<float> anchors{10,13,16,30,33,23,30,61,62,45,59,119,116,90,156,198,373,326};
 
     Shape shape{batch, channels, height, width};
     const auto count = shape_size(shape);
 
     const auto A = make_shared<op::Parameter>(element::f32, shape);
-    const auto R = make_shared<op::v0::RegionYolo>(A, coords, classes, num, false, mask, 1, 3, anchors);
+    const auto R = make_shared<op::v0::RegionYolo>(A, coords, classes, num, false, mask, 1, 3);
     const auto f = make_shared<Function>(R, ParameterVector{A});
 
     EXPECT_EQ(R->get_output_shape(0), shape);

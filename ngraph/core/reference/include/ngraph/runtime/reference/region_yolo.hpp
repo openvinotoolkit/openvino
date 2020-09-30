@@ -17,7 +17,6 @@
 #pragma once
 
 #include <cmath>
-#include <cstddef>
 
 #include "ngraph/shape.hpp"
 
@@ -80,6 +79,7 @@ namespace ngraph
 
             template <typename T>
             void region_yolo(const T* input,
+                             T* output,
                              const Shape& input_shape,
                              const int coords,
                              const int classes,
@@ -87,10 +87,7 @@ namespace ngraph
                              const bool do_softmax,
                              const std::vector<int64_t>& mask,
                              const int axis,
-                             const int end_axis,
-                             const std::vector<float>& anchors,
-                             T* output,
-                             const Shape& output_shape)
+                             const int end_axis)
             {
                 NGRAPH_CHECK(input_shape.size() == 4);
 
