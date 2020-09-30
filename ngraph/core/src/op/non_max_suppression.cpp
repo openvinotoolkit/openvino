@@ -1031,6 +1031,54 @@ static std::vector<float> prepare_scores_data(const HostTensorPtr& scores,
     return result;
 }
 
+static void evaluate_postprocessing(const HostTensorVector& outputs,
+                                    const ngraph::element::Type output_type,
+                                    const std::vector<int64_t>& selected_indices,
+                                    const std::vector<float>& selected_scores,
+                                    int64_t valid_outputs)
+{
+    size_t num_of_outputs = outputs.size();
+
+    if (output_type == ngraph::element::i64)
+    {
+        int64_t* indices_ptr = outputs[0]->get_data_ptr<int64_t>();
+        memcpy(indices_ptr, selected_indices.data(), selected_indices.size() * sizeof(int64_t));
+    }
+    else
+    {
+        int32_t* indices_ptr = outputs[0]->get_data_ptr<int32_t>();
+        for (int64_t idx : selected_indices)
+        {
+            *indices_ptr = static_cast<int32_t>(idx);
+            indices_ptr++;
+        }
+    }
+
+    if (num_of_outputs < 2)
+    {
+        return;
+    }
+
+    float* scores_ptr = outputs[1]->get_data_ptr<float>();
+    memcpy(scores_ptr, selected_scores.data(), selected_scores.size() * sizeof(float));
+
+    if (num_of_outputs < 3)
+    {
+        return;
+    }
+
+    if (output_type == ngraph::element::i64)
+    {
+        int64_t* valid_outputs_ptr = outputs[2]->get_data_ptr<int64_t>();
+        *valid_outputs_ptr = valid_outputs;
+    }
+    else
+    {
+        int32_t* valid_outputs_ptr = outputs[2]->get_data_ptr<int32_t>();
+        *valid_outputs_ptr = static_cast<int32_t>(valid_outputs);
+    }
+}
+
 bool op::v5::NonMaxSuppression::evaluate(const HostTensorVector& outputs,
                                          const HostTensorVector& inputs) const
 {
@@ -1065,8 +1113,10 @@ bool op::v5::NonMaxSuppression::evaluate(const HostTensorVector& outputs,
     auto boxes_data = prepare_boxes_data(inputs[boxes_port], boxes_shape, m_box_encoding);
     auto scores_data = prepare_scores_data(inputs[scores_port], scores_shape);
 
-    std::vector<int64_t> selected_indices(out_shape);
-    std::vector<float> selected_scores(out_shape);
+    size_t out_shape_size = shape_size(out_shape);
+
+    std::vector<int64_t> selected_indices(out_shape_size);
+    std::vector<float> selected_scores(out_shape_size);
     int64_t valid_outputs = 0;
 
     runtime::reference::non_max_suppression(boxes_data,
@@ -1082,6 +1132,12 @@ bool op::v5::NonMaxSuppression::evaluate(const HostTensorVector& outputs,
                                             selected_scores.data(),
                                             out_shape,
                                             &valid_outputs);
+
+    evaluate_postprocessing(outputs,
+                            m_output_type,
+                            selected_indices,
+                            selected_scores,
+                            valid_outputs);
 
     return true;
 }
