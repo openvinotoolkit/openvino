@@ -39,7 +39,7 @@ namespace ngraph
                 int n = location / (width * height);
                 int loc = location % (width * height);
                 return batch * outputs + n * width * height * (coords + classes + 1) +
-                       entry * width * height * loc;
+                       entry * width * height + loc;
             }
 
             static inline float logistic_activate(float x) { return 1.f / (1.f + std::exp(-x)); }
