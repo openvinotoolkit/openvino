@@ -276,14 +276,14 @@ jobs:
     displayName: 'CMake'
   - script: |
       set PATH=$(WORK_DIR)\ninja-win;%PATH%
-      call "$(MSVS_VARS_PATH)" && "C:\Program Files (x86)\IncrediBuild\BuildConsole.exe" /COMMAND="ninja" /MaxCPUS=40
+      call "$(MSVS_VARS_PATH)" && "C:\Program Files (x86)\IncrediBuild\BuildConsole.exe" /COMMAND="ninja" 
     workingDirectory: $(BUILD_DIR)
     displayName: 'Build Win'
   - script: dir $(REPO_DIR)\bin\ /s /b
     displayName: 'List files'
   - script: |
-      set PATH=$(REPO_DIR)\inference-engine\temp\tbb\bin;"C:\Program Files (x86)\IncrediBuild\";%PATH%
-      call "$(IBTC)" $(BIN_DIR)\unit-test.exe --gtest_filter=-backend_api.config_unsupported:*IE_GPU* /testlevel=128
+      set PATH=C:\Program Files (x86)\IncrediBuild;$(REPO_DIR)\inference-engine\temp\tbb\bin;%PATH%
+      "$(IBTC)" $(BIN_DIR)\unit-test.exe --gtest_filter=-backend_api.config_unsupported:*IE_GPU* /testlevel=128
     displayName: 'nGraph UT (Distributed)'
     continueOnError: false
   - script: |
