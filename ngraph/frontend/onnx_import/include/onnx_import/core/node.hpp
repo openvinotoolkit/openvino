@@ -97,15 +97,19 @@ namespace ngraph
         };
 
         template <>
+        ONNX_IMPORTER_API
         float Node::get_attribute_value<float>(const std::string& name) const;
 
         template <>
+        ONNX_IMPORTER_API
         float Node::get_attribute_value<float>(const std::string& name, float default_value) const;
 
         template <>
+        ONNX_IMPORTER_API
         std::int64_t Node::get_attribute_value<std::int64_t>(const std::string& name) const;
 
         template <>
+        ONNX_IMPORTER_API
         std::int64_t Node::get_attribute_value<std::int64_t>(const std::string& name, std::int64_t default_value) const;
 
 
