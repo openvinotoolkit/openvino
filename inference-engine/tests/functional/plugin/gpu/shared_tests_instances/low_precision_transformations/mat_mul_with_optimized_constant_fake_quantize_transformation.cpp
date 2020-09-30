@@ -17,8 +17,8 @@ const std::vector<InferenceEngine::Precision> netPrecisions = {
 const std::vector<LayerTestsDefinitions::MatMulWithOptimizedConstantFakeQuantizeTransformationTestValues> params = {
     {
         { 256ul, ngraph::Shape { 1 }, { 0.f }, { 25.5f }, { 0.f }, { 25.5f } },
-        { 255ul, ngraph::Shape { 1 }, { -12.8f }, { 12.7f }, { -12.8f }, { 12.7f } }
-    }
+        { 255ul, ngraph::Shape { 1 }, { -12.7f }, { 12.7f }, { -12.7f }, { 12.7f } }
+    },
 };
 
 const std::vector<std::pair<InferenceEngine::SizeVector, InferenceEngine::SizeVector>> inputShapes = {
@@ -26,7 +26,7 @@ const std::vector<std::pair<InferenceEngine::SizeVector, InferenceEngine::SizeVe
     std::pair<InferenceEngine::SizeVector, InferenceEngine::SizeVector>({ InferenceEngine::SizeVector({ 1, 16 }), InferenceEngine::SizeVector({ 16, 10 }) })
 };
 
-INSTANTIATE_TEST_CASE_P(DISABLED_LPT, MatMulWithOptimizedConstantFakeQuantizeTransformation,
+INSTANTIATE_TEST_CASE_P(LPT, MatMulWithOptimizedConstantFakeQuantizeTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(netPrecisions),
         ::testing::ValuesIn(inputShapes),

@@ -57,7 +57,7 @@ void MatMulWithOptimizedConstantFakeQuantizeTransformation::SetUp() {
         param.fqOnWeights);
 }
 
-TEST_P(MatMulWithOptimizedConstantFakeQuantizeTransformation, DISABLED_CompareWithRefImpl) {
+TEST_P(MatMulWithOptimizedConstantFakeQuantizeTransformation, CompareWithRefImpl) {
     Run();
 };
 
