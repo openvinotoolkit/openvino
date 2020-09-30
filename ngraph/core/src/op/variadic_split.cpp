@@ -172,14 +172,14 @@ namespace
                                  const Node* split_node)
     {
         NGRAPH_CHECK(axis_tensor->get_element_type().is_integral_number(),
-                 "axis element type is not integral data type");
+                     "axis element type is not integral data type");
 
         int64_t axis = host_tensor_2_vector<int64_t>(axis_tensor)[0];
 
         axis = ngraph::normalize_axis(split_node, axis, data_tensor->get_partial_shape().rank());
 
         NGRAPH_CHECK(split_lengths_tensor->get_element_type().is_integral_number(),
-                 "axis element type is not integral data type");
+                     "axis element type is not integral data type");
 
         std::vector<int64_t> split_lengths = host_tensor_2_vector<int64_t>(split_lengths_tensor);
 
