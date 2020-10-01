@@ -1,7 +1,7 @@
 from .cimport ie_api_impl_defs as C
 from .ie_api_impl_defs cimport CBlob, CTensorDesc, InputInfo, CPreProcessChannel, CPreProcessInfo
 
-from pathlib import Path
+import os
 
 from libcpp.string cimport string
 from libcpp.vector cimport vector
@@ -50,7 +50,7 @@ cdef class ExecutableNetwork:
 
 cdef class IECore:
     cdef C.IECore impl
-    cpdef IENetwork read_network(self, model : [str, bytes, Path], weights : [str, bytes, Path] = ?, bool init_from_buffer = ?)
+    cpdef IENetwork read_network(self, model : [str, bytes, os.PathLike], weights : [str, bytes, os.PathLike] = ?, bool init_from_buffer = ?)
     cpdef ExecutableNetwork load_network(self, IENetwork network, str device_name, config = ?, int num_requests = ?)
     cpdef ExecutableNetwork import_network(self, str model_file, str device_name, config = ?, int num_requests = ?)
 
