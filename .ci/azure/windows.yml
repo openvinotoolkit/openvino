@@ -1,0 +1,133 @@
+jobs:
+- job: Win
+  # About 150% of total time
+  timeoutInMinutes: 120
+  pool:
+    name: WIN_VMSS_VENV_F8S_WU2
+  variables:
+    system.debug: true
+    WORKERS_NUMBER: 8
+    BUILD_TYPE: Release
+    REPO_DIR: $(Build.Repository.LocalPath)
+    WORK_DIR: $(Pipeline.Workspace)\_w
+    BUILD_DIR: D:\build
+    BIN_DIR: $(REPO_DIR)\bin\intel64
+    MSVS_VARS_PATH: C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\VC\Auxiliary\Build\vcvars64.bat
+    MSVC_COMPILER_PATH: C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\VC\Tools\MSVC\14.24.28314\bin\Hostx64\x64\cl.exe
+  steps:
+  - checkout: self
+    clean: true
+    fetchDepth: 1
+    lfs: false
+    submodules: recursive
+    path: openvino
+  - script: |
+      powershell -command "Invoke-RestMethod -Headers @{\"Metadata\"=\"true\"} -Method GET -Uri http://169.254.169.254/metadata/instance/compute?api-version=2019-06-01 | format-custom"
+      where python3
+      where python
+      python --version
+      wmic computersystem get TotalPhysicalMemory
+      wmic cpu list
+      wmic logicaldisk get description,name
+      wmic VOLUME list
+      set
+    displayName: 'System info'
+  - script: |
+      rd /Q /S $(WORK_DIR) & mkdir $(WORK_DIR)
+      rd /Q /S $(BUILD_DIR) & mkdir $(BUILD_DIR)
+    displayName: 'Make dir'
+  - script: |
+      certutil -urlcache -split -f https://github.com/ninja-build/ninja/releases/download/v1.10.0/ninja-win.zip ninja-win.zip
+      powershell -command "Expand-Archive -Force ninja-win.zip"
+    workingDirectory: $(WORK_DIR)
+    displayName: Install Ninja
+  - script: |
+      certutil -urlcache -split -f https://incredibuilddiag1wu2.blob.core.windows.net/incredibuild/IBSetupConsole_9_5_0.exe IBSetupConsole_9_5_0.exe
+      call IBSetupConsole_9_5_0.exe /Install /Components=Agent,oneuse /Coordinator=11.1.0.4 /AGENT:OPENFIREWALL=ON /AGENT:AUTOSELECTPORTS=ON /ADDTOPATH=ON /AGENT:INSTALLADDINS=OFF
+    workingDirectory: $(WORK_DIR)
+    displayName: Install IncrediBuild
+  - script: |
+      echo Stop IncrediBuild_Agent && net stop IncrediBuild_Agent
+      reg add HKEY_LOCAL_MACHINE\SOFTWARE\Wow6432Node\Xoreax\IncrediBuild\Builder /f /v LastEnabled /d 0 && echo Start IncrediBuild_Agent && net start IncrediBuild_Agent
+    displayName: Start IncrediBuild
+  - script: |
+      set PATH=$(WORK_DIR)\ninja-win;%PATH%
+      call "$(MSVS_VARS_PATH)" && cmake -GNinja -DCMAKE_BUILD_TYPE=$(BUILD_TYPE) -DENABLE_TESTS=ON -DCMAKE_C_COMPILER:PATH="$(MSVC_COMPILER_PATH)" -DCMAKE_CXX_COMPILER:PATH="$(MSVC_COMPILER_PATH)" $(REPO_DIR)
+    workingDirectory: $(BUILD_DIR)
+    displayName: 'CMake'
+  - script: |
+      set PATH=$(WORK_DIR)\ninja-win;%PATH%
+      call "$(MSVS_VARS_PATH)" && "C:\Program Files (x86)\IncrediBuild\BuildConsole.exe" /COMMAND="ninja" /MaxCPUS=40
+    workingDirectory: $(BUILD_DIR)
+    displayName: 'Build Win'
+  - script: echo Stop IncrediBuild_Agent && net stop IncrediBuild_Agent
+    displayName: Stop IncrediBuild
+    continueOnError: true
+  - script: dir $(REPO_DIR)\bin\ /s /b
+    displayName: 'List files'
+  - script: |
+      set PATH=$(REPO_DIR)\inference-engine\temp\tbb\bin;%PATH%
+      $(BIN_DIR)\unit-test --gtest_print_time=1 --gtest_filter=-backend_api.config_unsupported:*IE_GPU*
+    displayName: 'nGraph UT'
+    continueOnError: false
+  - script: |
+      set PATH=$(REPO_DIR)\inference-engine\temp\tbb\bin;%PATH%
+      $(BIN_DIR)\InferenceEngineUnitTests --gtest_print_time=1
+    displayName: 'IE UT old'
+    continueOnError: false
+  - script: |
+      set PATH=$(REPO_DIR)\inference-engine\temp\tbb\bin;%PATH%
+      $(BIN_DIR)\ieUnitTests
+    displayName: 'IE UT'
+    continueOnError: false
+  - script: |
+      set PATH=$(REPO_DIR)\inference-engine\temp\tbb\bin;%PATH%
+      $(BIN_DIR)\cpuUnitTests
+    displayName: 'CPU UT'
+    continueOnError: false
+  - script: |
+      set PATH=$(REPO_DIR)\inference-engine\temp\tbb\bin;%PATH%
+      $(BIN_DIR)\gnaUnitTests
+    displayName: 'GNA UT'
+    continueOnError: false
+  - script: |
+      set PATH=$(REPO_DIR)\inference-engine\temp\tbb\bin;%PATH%
+      $(BIN_DIR)\vpuUnitTests
+    displayName: 'VPU UT'
+    continueOnError: false
+  - script: |
+      set PATH=$(REPO_DIR)\inference-engine\temp\tbb\bin;%PATH%
+      $(BIN_DIR)\ieFuncTests
+    displayName: 'IE FuncTests'
+    continueOnError: false
+  - script: |
+      set PATH=$(REPO_DIR)\inference-engine\temp\tbb\bin;%PATH%
+      $(BIN_DIR)\cpuFuncTests --gtest_print_time=1
+    displayName: 'CPU FuncTests'
+    continueOnError: false
+  - script: |
+      set PATH=$(REPO_DIR)\inference-engine\temp\tbb\bin;%PATH%
+      $(BIN_DIR)\MklDnnBehaviorTests
+    displayName: 'MklDnnBehaviorTests'
+    continueOnError: false
+  - script: |
+      git clone https://github.com/openvinotoolkit/testdata.git
+      git clone https://github.com/google/gtest-parallel.git
+    workingDirectory: $(BUILD_DIR)
+    displayName: 'Clone testdata & gtest-parallel'
+    # Add for gtest-parallel, it hangs now (CVS-33386)
+    #python $(BUILD_DIR)\gtest-parallel\gtest-parallel $(BIN_DIR)\MklDnnFunctionalTests --workers=$(WORKERS_NUMBER) --print_test_times --dump_json_test_results=MklDnnFunctionalTests.json -- --gtest_print_time=1
+  - script: |
+      set PATH=$(REPO_DIR)\inference-engine\temp\tbb\bin;$(REPO_DIR)\inference-engine\temp\opencv_4.5.0\opencv\bin;%PATH%
+      set DATA_PATH=$(BUILD_DIR)\testdata
+      set MODELS_PATH=$(BUILD_DIR)\testdata
+      $(BIN_DIR)\MklDnnFunctionalTests --gtest_print_time=1
+    displayName: 'MklDnnFunctionalTests'
+    continueOnError: false
+  - script: |
+      set PATH=$(REPO_DIR)\inference-engine\temp\tbb\bin;$(REPO_DIR)\inference-engine\temp\opencv_4.5.0\opencv\bin;%PATH%
+      set DATA_PATH=$(BUILD_DIR)\testdata
+      set MODELS_PATH=$(BUILD_DIR)\testdata
+      $(BIN_DIR)\InferenceEngineCAPITests
+    displayName: 'IE CAPITests'
+    continueOnError: false

@@ -1,0 +1,102 @@
+jobs:
+- job: Mac
+  # About 200% of total time (perfomace of Mac hosts is unstable)
+  timeoutInMinutes: 180
+  pool:
+    vmImage: 'macOS-10.15'
+  variables:
+    system.debug: true
+    WORKERS_NUMBER: 3
+    BUILD_TYPE: Release
+    REPO_DIR: $(Build.Repository.LocalPath)
+    WORK_DIR: $(Pipeline.Workspace)/_w
+    BUILD_DIR: $(WORK_DIR)/build
+    BIN_DIR: $(REPO_DIR)/bin/intel64/$(BUILD_TYPE)
+  steps:
+  - checkout: self
+    clean: true
+    fetchDepth: 1
+    lfs: false
+    submodules: recursive
+    path: openvino
+  - script: |
+      whoami
+      uname -a
+      which python3
+      python3 --version
+      gcc --version
+      xcrun --sdk macosx --show-sdk-version
+      env
+      sysctl -a
+    displayName: 'System info'
+  - script: |
+      rm -rf $(WORK_DIR) ; mkdir $(WORK_DIR)
+      rm -rf $(BUILD_DIR) ; mkdir $(BUILD_DIR)
+    displayName: 'Make dir'
+  - task: UsePythonVersion@0
+    inputs:
+      versionSpec: '3.7'
+  - script: |
+      brew install cython
+      brew install automake
+    displayName: 'Install dependencies'
+  - script: brew install ninja
+    displayName: 'Install Ninja'
+  - script: |
+      export PATH="/usr/local/opt/cython/bin:$PATH"
+      export CC=gcc
+      export CXX=g++
+      # Disable errors with Ninja
+      export CXXFLAGS="-Wno-error=unused-command-line-argument"
+      export CFLAGS="-Wno-error=unused-command-line-argument"
+      cmake -GNinja -DVERBOSE_BUILD=ON -DCMAKE_BUILD_TYPE=$(BUILD_TYPE) -DENABLE_PYTHON=ON -DENABLE_TESTS=ON $(REPO_DIR)
+    workingDirectory: $(BUILD_DIR)
+    displayName: 'CMake'
+  - script: ninja
+    workingDirectory: $(BUILD_DIR)
+    displayName: 'Build Mac'
+  - script: ls -alR $(REPO_DIR)/bin/
+    displayName: 'List files'
+  - script: $(BIN_DIR)/unit-test --gtest_print_time=1 --gtest_filter=-backend_api.config_unsupported:*IE_GPU*:IE_CPU.onnx_model_sigmoid
+    displayName: 'nGraph UT'
+    continueOnError: false
+  - script: $(BIN_DIR)/InferenceEngineUnitTests --gtest_print_time=1
+    displayName: 'IE UT old'
+    continueOnError: false
+  - script: $(BIN_DIR)/ieUnitTests
+    displayName: 'IE UT'
+    continueOnError: false
+  - script: $(BIN_DIR)/cpuUnitTests
+    displayName: 'CPU UT'
+    continueOnError: false
+  - script: $(BIN_DIR)/vpuUnitTests
+    displayName: 'VPU UT'
+    continueOnError: false
+  - script: $(BIN_DIR)/ieFuncTests
+    displayName: 'IE FuncTests'
+    continueOnError: false
+  - script: $(BIN_DIR)/cpuFuncTests --gtest_print_time=1
+    displayName: 'CPU FuncTests'
+    continueOnError: false
+  - script: $(BIN_DIR)/MklDnnBehaviorTests
+    displayName: 'MklDnnBehaviorTests'
+    continueOnError: false
+  - script: |
+      git clone https://github.com/openvinotoolkit/testdata.git
+      git clone https://github.com/google/gtest-parallel.git
+    workingDirectory: $(WORK_DIR)
+    displayName: 'Clone testdata & gtest-parallel'
+  - script: |
+      export DATA_PATH=$(WORK_DIR)/testdata
+      export MODELS_PATH=$(WORK_DIR)/testdata
+      python3 $(WORK_DIR)/gtest-parallel/gtest-parallel $(BIN_DIR)/MklDnnFunctionalTests --workers=$(WORKERS_NUMBER) --print_test_times --dump_json_test_results=MklDnnFunctionalTests.json --gtest_filter=-smoke_MobileNet/ModelTransformationsTest.LPT/mobilenet_v2_tf_depthwise_batch1_inPluginDisabled_inTestDisabled_asymmetric* -- --gtest_print_time=1
+    workingDirectory: $(WORK_DIR)
+    displayName: 'MklDnnFunctionalTests'
+    continueOnError: false
+  - script: |
+      export DATA_PATH=$(WORK_DIR)/testdata
+      export MODELS_PATH=$(WORK_DIR)/testdata
+      $(BIN_DIR)/InferenceEngineCAPITests
+    displayName: 'IE CAPITests'
+    continueOnError: false
+
