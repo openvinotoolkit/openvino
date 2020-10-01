@@ -38,8 +38,7 @@ using namespace ngraph;
 
 static string s_manifest = "${MANIFEST}";
 
-// TODO: Issue: 37522
-NGRAPH_TEST(${BACKEND_NAME}, DISABLED_one_hot_scalar_2_in_3)
+NGRAPH_TEST(${BACKEND_NAME}, one_hot_scalar_2_in_3)
 {
     Shape shape_a{};
     auto A = make_shared<op::Parameter>(element::i32, shape_a);
@@ -59,7 +58,7 @@ NGRAPH_TEST(${BACKEND_NAME}, DISABLED_one_hot_scalar_2_in_3)
     EXPECT_EQ((vector<int32_t>{0, 0, 1}), read_vector<int32_t>(result));
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, DISABLED_one_hot_scalar_1_in_3)
+NGRAPH_TEST(${BACKEND_NAME}, one_hot_scalar_1_in_3)
 {
     Shape shape_a{};
     auto A = make_shared<op::Parameter>(element::i32, shape_a);
@@ -79,7 +78,7 @@ NGRAPH_TEST(${BACKEND_NAME}, DISABLED_one_hot_scalar_1_in_3)
     EXPECT_EQ((vector<int32_t>{0, 1, 0}), read_vector<int32_t>(result));
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, DISABLED_one_hot_scalar_0_in_3)
+NGRAPH_TEST(${BACKEND_NAME}, one_hot_scalar_0_in_3)
 {
     Shape shape_a{};
     auto A = make_shared<op::Parameter>(element::i32, shape_a);
@@ -99,7 +98,7 @@ NGRAPH_TEST(${BACKEND_NAME}, DISABLED_one_hot_scalar_0_in_3)
     EXPECT_EQ((vector<int32_t>{1, 0, 0}), read_vector<int32_t>(result));
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, DISABLED_one_hot_vector_0)
+NGRAPH_TEST(${BACKEND_NAME}, one_hot_vector_0)
 {
     Shape shape_a{8};
     auto A = make_shared<op::Parameter>(element::i32, shape_a);
@@ -121,7 +120,7 @@ NGRAPH_TEST(${BACKEND_NAME}, DISABLED_one_hot_vector_0)
         read_vector<int32_t>(result));
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, DISABLED_one_hot_vector_1)
+NGRAPH_TEST(${BACKEND_NAME}, one_hot_vector_1)
 {
     Shape shape_a{8};
     auto A = make_shared<op::Parameter>(element::i32, shape_a);
@@ -143,7 +142,7 @@ NGRAPH_TEST(${BACKEND_NAME}, DISABLED_one_hot_vector_1)
         read_vector<int32_t>(result));
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, DISABLED_one_hot_vector_1_barely_oob)
+NGRAPH_TEST(${BACKEND_NAME}, one_hot_vector_1_barely_oob)
 {
     Shape shape_a{8};
     auto A = make_shared<op::Parameter>(element::i32, shape_a);
@@ -196,7 +195,7 @@ NGRAPH_TEST(${BACKEND_NAME}, DISABLED_one_hot_vector_1_barely_oob)
     EXPECT_EQ(rv[23], 0);
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, DISABLED_one_hot_matrix_0)
+NGRAPH_TEST(${BACKEND_NAME}, one_hot_matrix_0)
 {
     Shape shape_a{3, 3};
     auto A = make_shared<op::Parameter>(element::i32, shape_a);
@@ -224,7 +223,7 @@ NGRAPH_TEST(${BACKEND_NAME}, DISABLED_one_hot_matrix_0)
               read_vector<int32_t>(result));
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, DISABLED_one_hot_vector_many_categories)
+NGRAPH_TEST(${BACKEND_NAME}, one_hot_vector_many_categories)
 {
     // Imagenet has roughly 20,000 categories
     uint32_t category_count = 20000;

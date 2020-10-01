@@ -112,8 +112,6 @@ namespace
             break;
             TYPE_CASE(i64)(arg, out);
             break;
-            TYPE_CASE(u16)(arg, out);
-            break;
             TYPE_CASE(u32)(arg, out);
             break;
             TYPE_CASE(u64)(arg, out);

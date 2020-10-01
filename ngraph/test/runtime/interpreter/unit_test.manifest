@@ -54,17 +54,12 @@ INTERPRETER.reduce_max_3d_to_scalar_double
 INTERPRETER.reduce_max_keep_to_scalar_int8
 INTERPRETER.reduce_max_keep_3d_to_scalar_double
 INTERPRETER.product_to_scalar_int8
-INTERPRETER.max_pool_uint8
-INTERPRETER.max_pool_int8
 INTERPRETER.numeric_double_nan
 INTERPRETER.numeric_double_inf
 INTERPRETER.min_to_scalar_int8
 INTERPRETER.max_trivial_int8
 INTERPRETER.max_to_scalar_int8
 INTERPRETER.max_3d_to_scalar_double
-INTERPRETER.gelu_f64
-INTERPRETER.gelu_backprop_factor_f64
-INTERPRETER.backwards_gelu_f64
 INTERPRETER.gather_4d_indices_no_axis_uint8
 INTERPRETER.gather_no_axis_int8
 INTERPRETER.gather_no_axis_int16
@@ -78,6 +73,15 @@ INTERPRETER.fused_clamp_uint16
 INTERPRETER.fused_clamp_bfloat16
 INTERPRETER.auto_bcast_binary_elementwise
 INTERPRETER.auto_bcast_binary_elementwise_pdpd
+
+# Revise reference implementation
+INTERPRETER.onnx_dyn_model_hardmax
+INTERPRETER.onnx_model_one_hot_with_axis
+INTERPRETER.onnx_model_one_hot_with_axis
+INTERPRETER.onnx_model_quantize_linear_const_scale_const_zero_p
+INTERPRETER.onnx_model_quantize_linear
+INTERPRETER.onnx_model_quantize_linear_axis_zero
+INTERPRETER.onnx_model_quantize_linear_axis_negative
 
 # Backward conv
 INTERPRETER.convolution_2d_1item

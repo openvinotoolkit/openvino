@@ -68,7 +68,6 @@ void pass::ConstantFolding::construct_constant_select()
         element::i64, Shape{2, 3, 4}, pattern::has_class<op::Constant>());
     auto f_label = make_shared<pattern::op::Label>(
         element::i64, Shape{2, 3, 4}, pattern::has_class<op::Constant>());
-    auto select_v0_op = make_shared<op::v1::Select>(selection_label, t_label, f_label);
     auto select_v1_op = make_shared<op::v1::Select>(selection_label, t_label, f_label);
 
     auto constant_select_callback = [this, selection_label, t_label, f_label](pattern::Matcher& m) {
@@ -146,14 +145,8 @@ void pass::ConstantFolding::construct_constant_select()
         return true;
     };
 
-    NGRAPH_SUPPRESS_DEPRECATED_START
-    this->add_matcher(
-        make_shared<pattern::Matcher>(select_v0_op, "ConstantFolding.ConstantSelectV0"),
-        constant_select_callback,
-        PassProperty::CHANGE_DYNAMIC_STATE);
     this->add_matcher(
         make_shared<pattern::Matcher>(select_v1_op, "ConstantFolding.ConstantSelectV1"),
         constant_select_callback,
         PassProperty::CHANGE_DYNAMIC_STATE);
-    NGRAPH_SUPPRESS_DEPRECATED_END
 }
