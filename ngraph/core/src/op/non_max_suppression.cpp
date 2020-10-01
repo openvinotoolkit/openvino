@@ -1131,7 +1131,8 @@ bool op::v5::NonMaxSuppression::evaluate(const HostTensorVector& outputs,
                                             out_shape,
                                             selected_scores.data(),
                                             out_shape,
-                                            &valid_outputs);
+                                            &valid_outputs,
+                                            m_sort_result_descending);
 
     evaluate_postprocessing(outputs,
                             m_output_type,

@@ -139,7 +139,8 @@ namespace ngraph
                                      const Shape& selected_indices_shape,
                                      float* selected_scores,
                                      const Shape& selected_scores_shape,
-                                     int64_t* valid_outputs)
+                                     int64_t* valid_outputs,
+                                     const bool sort_result_descending)
             {
                 float scale = 0.0f;
                 if (soft_nms_sigma > 0.0f) {
@@ -166,6 +167,8 @@ namespace ngraph
                 std::array<size_t, 2> scoresStrides = {num_classes * num_boxes, num_boxes};
 
                 size_t boxes_per_class = static_cast<size_t>(max_output_boxes_per_class);
+
+                int64_t num_of_valid_boxes = 0;
 
                 for (size_t batch = 0; batch < num_batches; batch++)
                 {
@@ -229,9 +232,8 @@ namespace ngraph
                                 if (next_candidate.score == original_score)
                                 {
                                     // Suppression has not occurred, so select next_candidate
-                                    selected.push_back(next_candidate.box_index);
-                                    // selected_scores.push_back(next_candidate.score);
-                                    // continue;
+                                    selected.push_back(next_candidate.index);
+                                    continue;
                                 }
                                 if (next_candidate.score > score_threshold)
                                 {
@@ -242,9 +244,27 @@ namespace ngraph
                             }
                         }
 
+                        for (const auto& box_info : selected)
+                        {
+                            SelectedIndex selected_index{batch, class_idx, box_info.index};
+                            SelectedScore selected_score{batch, class_idx, box_info.score};
 
+                            selected_indices_ptr[num_of_valid_boxes] = selected_index;
+                            selected_scores_ptr[num_of_valid_boxes] = selected_score;
+
+                            num_of_valid_boxes++;
+                        }
                     }
                 }
+
+
+                if (sort_result_descending)
+                {
+                }
+                else
+                {
+                }
+
             }
         }
     }
