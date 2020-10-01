@@ -466,19 +466,11 @@ The software was validated on:
     cd openvino
     git submodule update --init --recursive
     ```
-2. Install build dependencies using the `install_dependencies.sh` script in the
-   project root folder:
-   ```sh
-   chmod +x install_dependencies.sh
-   ```
-   ```sh
-   ./install_dependencies.sh
-   ```
-3. Create a build folder:
+2. Create a build folder:
 ```sh
-  mkdir build
+  mkdir build && cd build
 ```
-4. Inference Engine uses a CMake-based build system. In the created `build`
+3. Inference Engine uses a CMake-based build system. In the created `build`
    directory, run `cmake` to fetch project dependencies and create Unix makefiles,
    then run `make` to build the project:
 ```sh
