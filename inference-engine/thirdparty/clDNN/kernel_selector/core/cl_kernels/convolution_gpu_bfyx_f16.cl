@@ -82,7 +82,7 @@
 #define FILTER_IFM_NUM_ALIGNED (((FILTER_IFM_NUM + FEATURE_SLICE_SIZE - 1) / FEATURE_SLICE_SIZE) * FEATURE_SLICE_SIZE)
 
 __attribute__((intel_reqd_sub_group_size(SUB_GROUP_SIZE)))
-__attribute__((reqd_work_group_size(1, SUB_GROUP_SIZE, 1)))
+//__attribute__((reqd_work_group_size(1, SUB_GROUP_SIZE, 1)))
 KERNEL(convolution_bfyx_f16)(
     __global INPUT0_TYPE* input,
     __global OUTPUT_TYPE* output,
@@ -110,7 +110,8 @@ KERNEL(convolution_bfyx_f16)(
     const int lid = get_sub_group_local_id();
     const int b = (uint)get_global_id(2);
 
-    const int xy = get_global_id(0);
+    //const int xy = get_global_id(0);
+    const int xy = get_group_id(0) * 8 + get_sub_group_id();
     const int x = (xy % X_BLOCKS) * OUTPUT_X_BLOCK_SIZE;
     const int y = (xy / X_BLOCKS);
 

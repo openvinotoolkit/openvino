@@ -105,8 +105,11 @@ ConvolutionKernelBase::DispatchData ConvolutionKernel_b_fs_yx_fsv16::SetDefault(
     kd.gws0 = CeilDiv(x, autoTune.blockWidth) * y;
     kd.gws1 = Align(f, sub_group_size);
     kd.gws2 = b;
-
-    kd.lws0 = 1;
+    if (kd.gws0 % 8 == 0) {
+        kd.lws0 = 8; 
+    } else {
+	kd.lws0 = 1;
+    }
     kd.lws1 = sub_group_size;
     kd.lws2 = 1;
 
