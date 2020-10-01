@@ -107,11 +107,11 @@ int EltwiseBaseTransformation::getNotEmpty(const std::shared_ptr<Node>& eltwise)
     }
 
     if (is_type<opset1::Constant>(dequantization1.data.get_node())) {
-        return 1;
+        return 0;
     }
 
     if (is_type<opset1::Constant>(dequantization2.data.get_node())) {
-        return 0;
+        return 1;
     }
 
     const bool allBranchesAreEqual = isBranchWithTargetType(fakeQuantize1) == isBranchWithTargetType(fakeQuantize2);

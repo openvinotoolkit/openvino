@@ -47,8 +47,6 @@ bool MultiplyTransformation::transform(TransformationContext& context, ngraph::p
     fold_fake_quantizes(multiply, 1ul);
 
     const int fullPathIndex = getNotEmpty(multiply);
-
-
     if (fullPathIndex == -1) {
         const auto multiplyBranch = getMultiplyConstBranch(multiply);
 
@@ -121,6 +119,10 @@ bool MultiplyTransformation::transform(TransformationContext& context, ngraph::p
 
     replace_node(multiply, newMultiply);
     updateOutput(context, newMultiply, multiply);
+
+    if (fullPathIndex != -1) {
+        NetworkHelper::foldDequantization(newMultiply, fullPathIndex);
+    }
 
     return true;
 }
