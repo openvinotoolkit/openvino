@@ -252,5 +252,7 @@ std::ostream& operator<<(std::ostream & os, ngraph::op::v4::Interpolate::Coordin
 
 std::ostream& operator<<(std::ostream & os, ngraph::op::v4::Interpolate::NearestMode type);
 
+std::ostream& operator<<(std::ostream & os, ngraph::op::v4::Interpolate::ShapeCalcMode type);
+
 }  // namespace helpers
 }  // namespace ngraph

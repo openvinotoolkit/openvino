@@ -62,8 +62,60 @@ std::string resample_inst::to_string(resample_node const& node) {
         resample_info.add("resample_type:", "bilinear_interp");
     else if (desc->operation_type == resample_type::caffe_bilinear)
         resample_info.add("resample_type:", "caffe_bilinear_interp");
+    else if (desc->operation_type == resample_type::cubic)
+        resample_info.add("resample_type:", "cubic");
     else
         resample_info.add("resample_type:", "not supported sample type");
+
+    if (desc->shape_calc_mode == shape_calculation_mode::sizes)
+        resample_info.add("shape_calculation_mode:", "sizes");
+    else
+        resample_info.add("shape_calculation_mode:", "scales");
+
+    if (desc->shape_calc_mode == shape_calculation_mode::scales) {
+        std::string axesAndScalesDump;
+        std::string delim = "";
+        for (auto& it : desc->axesAndScales) {
+            axesAndScalesDump += delim;
+            delim = ", ";
+            if (it.first == resample::resample_axis::along_b)
+                axesAndScalesDump += "b: ";
+            else if (it.first == resample::resample_axis::along_f)
+                axesAndScalesDump += "f: ";
+            else if (it.first == resample::resample_axis::along_x)
+                axesAndScalesDump += "x: ";
+            else if (it.first == resample::resample_axis::along_y)
+                axesAndScalesDump += "y: ";
+            else if (it.first == resample::resample_axis::along_z)
+                axesAndScalesDump += "z: ";
+            else
+                axesAndScalesDump += "w: ";
+            axesAndScalesDump += std::to_string(it.second);
+        }
+        resample_info.add("scales:", axesAndScalesDump);
+    }
+
+    if (desc->coord_trans_mode == coordinate_transformation_mode::half_pixel)
+        resample_info.add("coordinate_transformation_mode:", "half_pixel");
+    else if (desc->coord_trans_mode == coordinate_transformation_mode::pytorch_half_pixel)
+        resample_info.add("coordinate_transformation_mode:", "pytorch_half_pixel");
+    else if (desc->coord_trans_mode == coordinate_transformation_mode::tf_half_pixel_for_nn)
+        resample_info.add("coordinate_transformation_mode:", "tf_half_pixel_for_nn");
+    else if (desc->coord_trans_mode == coordinate_transformation_mode::align_corners)
+        resample_info.add("coordinate_transformation_mode:", "align_corners");
+    else
+        resample_info.add("coordinate_transformation_mode:", "asymmetric");
+
+    if (desc->round_mode == nearest_mode::round_prefer_floor)
+        resample_info.add("nearest_mode:", "round_prefer_floor");
+    if (desc->round_mode == nearest_mode::round_prefer_ceil)
+        resample_info.add("nearest_mode:", "round_prefer_ceil");
+    if (desc->round_mode == nearest_mode::floor)
+        resample_info.add("nearest_mode:", "floor");
+    if (desc->round_mode == nearest_mode::ceil)
+        resample_info.add("nearest_mode:", "ceil");
+    else
+        resample_info.add("nearest_mode:", "simple");
 
     resample_info.add("output_size", desc->output_size);
     resample_info.add("with activation", desc->with_activation);
@@ -71,8 +123,6 @@ std::string resample_inst::to_string(resample_node const& node) {
     resample_info.add("output padding upper size", desc->output_padding.upper_size());
 
     if (desc->operation_type == resample_type::bilinear) {
-        resample_info.add("pad_begin", desc->pad_begin);
-        resample_info.add("pad_end", desc->pad_end);
         resample_info.add("align_corners", desc->align_corners);
     }
 

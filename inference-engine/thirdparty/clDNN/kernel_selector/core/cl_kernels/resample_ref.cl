@@ -38,6 +38,48 @@ inline uint FUNC(get_output_index)(uint b, uint f, uint z, uint y, uint x)
 #endif
 }
 
+inline int FUNC(get_nearest_val)(float num, bool is_downsample)
+{
+#if defined(NEAREST_ROUND_PREFER_FLOOR)
+    return (num == (int)num + 0.5f) ? (int)floor(num) : (int)round(num);
+#elif defined(NEAREST_ROUND_PREFER_CEIL)
+    return (int)round(num);
+#elif defined(NEAREST_FLOOR)
+    return (int)floor(num);
+#elif defined(NEAREST_CEIL)
+    return (int)ceil(num);
+#elif defined(NEAREST_SIMPLE)
+    return is_downsample ? (int)ceil(num) : (int)num;
+#else
+#error [clDNN resample_ref.cl]: nearest mode - not supported
+#endif
+}
+
+inline float FUNC(get_original_coordinate)(float num, float scale, int length_resized, int length_original)
+{
+#if defined(COORD_TRANS_MODE_HALF_PIXEL)
+    return (num + 0.5f) * scale - 0.5f;
+#elif defined(COORD_TRANS_MODE_PYTORCH_HALF_PIXEL)
+    return (length_resized > 1) ? (num + 0.5f) * scale - 0.5f : 0.f;
+#elif defined(COORD_TRANS_MODE_ASYMMETRIC)
+    return num * scale;
+#elif defined(COORD_TRANS_MODE_TF_HALF_PIXEL_FOR_NN)
+    return (num + 0.5f) * scale;
+#elif defined(COORD_TRANS_MODE_ALIGN_CORNERS)
+    return (length_resized != 1) ? num * (length_original - 1) / (length_resized - 1) : 0.f;
+#else
+#error [clDNN resample_ref.cl]: coordinate transformation mode - not supported
+#endif
+}
+
+inline void FUNC(get_cubic_coeff)(float* cubic_coef, float coord, float coef)
+{
+    float abs_num = fabs(coord);
+    cubic_coef[0] = coef * (abs_num - 1.0) * (abs_num - 1.0) * abs_num;
+    cubic_coef[1] = ((coef + 2.0) * abs_num - (coef + 3.0)) * abs_num * abs_num + 1.0;
+    cubic_coef[2] = (((-coef - 2.0) * abs_num + (2.0 * coef + 3.0)) * abs_num - coef) * abs_num;
+    cubic_coef[3] = -coef * abs_num * abs_num * (abs_num - 1.0);
+}
 
 #define TRIANGLE_COEFF(x) (ACCUMULATOR_MAX_FUNC(ACCUMULATOR_VAL_ZERO, ACCUMULATOR_VAL_ONE - ACCUMULATOR_ABS_FUNC(x)))
 #define unroll_for __attribute__((opencl_unroll_hint)) for
@@ -49,73 +91,223 @@ KERNEL (resample_gpu_ref)(__global INPUT0_TYPE* input,
 #endif
 )
 {
+    const int in_size[5] = { INPUT0_BATCH_NUM, INPUT0_FEATURE_NUM, INPUT0_SIZE_Z, INPUT0_SIZE_Y, INPUT0_SIZE_X };
+    const int out_size[5] = { OUTPUT_BATCH_NUM, OUTPUT_FEATURE_NUM, OUTPUT_SIZE_Z, OUTPUT_SIZE_Y, OUTPUT_SIZE_X };
 #if defined(SAMPLE_TYPE_NEAREST) && FEATURE_PACKED_MODE
     typedef MAKE_VECTOR_TYPE(INPUT0_TYPE, PACK_SIZE) in_pack_t;
     typedef MAKE_VECTOR_TYPE(OUTPUT_TYPE, PACK_SIZE) out_pack_t;
 
-    const int ox = get_global_id(0);
+    int out_coords[5];
+    out_coords[4] = get_global_id(0);
 #if OUTPUT_DIMS <= 4
-    const int oy = get_global_id(1);
-    const int oz = 0;
-#else
-    const int oy = (int)get_global_id(1) % OUTPUT_SIZE_Y;
-    const int oz = (int)get_global_id(1) / OUTPUT_SIZE_Y;
+    out_coords[3] = get_global_id(1);
+    out_coords[2] = 0;
+#else // OUTPUT_DIMS <= 4
+    out_coords[3] = (int)get_global_id(1) % OUTPUT_SIZE_Y;
+    out_coords[2] = (int)get_global_id(1) / OUTPUT_SIZE_Y;
+#endif //  OUTPUT_DIMS <= 4
+    out_coords[1] = ((int)get_global_id(2) * PACK_SIZE) % OUTPUT_FEATURE_NUM;
+    out_coords[0] = ((int)get_global_id(2) * PACK_SIZE) / OUTPUT_FEATURE_NUM;
+    int in_coords[5];
+    bool isOutOfBounds = false;
+    unroll_for (int i = 0; i < 5; ++i) {
+        const float orig_coord = FUNC_CALL(get_original_coordinate)(out_coords[i], SCALES[i], out_size[i], in_size[i] + PADS_BEGIN[i] +  PADS_END[i]);
+        const int nearest_pixel = FUNC_CALL(get_nearest_val)(orig_coord, SCALES[i] > 1) - PADS_BEGIN[i];
+        in_coords[i] = max(-PADS_BEGIN[0], min(nearest_pixel, in_size[i] + PADS_END[i] - 1));
+#if PADDING_USED == 1
+        if (in_coords[i] < 0 || in_coords[i] >= in_size[i])
+            isOutOfBounds = true;
 #endif
-    const int feature = ((int)get_global_id(2) * PACK_SIZE) % OUTPUT_FEATURE_NUM;
-    const int batch = ((int)get_global_id(2) * PACK_SIZE) / OUTPUT_FEATURE_NUM;
-    const int ix = floor(ox * X_RATIO);
-    const int iy = floor(oy * Y_RATIO);
-    const int iz = floor(oz * Z_RATIO);
+    }
 
-    uint input_idx = FUNC_CALL(get_input_index)(batch, feature, iz, iy, ix);
-    uint output_idx = FUNC_CALL(get_output_index)(batch, feature, oz, oy, ox);
+    uint input_idx = FUNC_CALL(get_input_index)(in_coords[0], in_coords[1], in_coords[2], in_coords[3], in_coords[4]);
+    uint output_idx = FUNC_CALL(get_output_index)(out_coords[0], out_coords[1], out_coords[2], out_coords[3], out_coords[4]);
 
     in_pack_t interp_val_pack = ((const __global in_pack_t*)(input + input_idx))[0];
     out_pack_t res;
     unroll_for (uint pi = 0; pi < PACK_SIZE; ++pi) {
         INPUT0_TYPE interp_val = interp_val_pack[pi];
+#if PADDING_USED == 1
+        if (isOutOfBounds)
+            interp_val = INPUT0_VAL_ZERO;
+#endif
     #if HAS_FUSED_OPS
-        #define OF_ID (feature + pi)
+        #define OF_ID (out_coords[1] + pi)
         FUSED_OPS;
         res[pi] = FUSED_OPS_RESULT;
-    #else
+    #else // HAS_FUSED_OPS
         res[pi] = ACTIVATION(interp_val, ACTIVATION_PARAMS);
-    #endif
+    #endif // HAS_FUSED_OPS
     }
     ((__global out_pack_t*)(output + output_idx))[0] = res;
 
-#elif defined(SAMPLE_TYPE_NEAREST)
-    const int ox = get_global_id(0);
+#elif defined(SAMPLE_TYPE_NEAREST) // defined(SAMPLE_TYPE_NEAREST) && FEATURE_PACKED_MODE
+    int out_coords[5];
+    out_coords[4] = get_global_id(0);
 #if OUTPUT_DIMS <= 4
-    const int oy = get_global_id(1);
-    const int oz = 0;
-#else
-    const int oy = (int)get_global_id(1) % OUTPUT_SIZE_Y;
-    const int oz = (int)get_global_id(1) / OUTPUT_SIZE_Y;
+    out_coords[3] = get_global_id(1);
+    out_coords[2] = 0;
+#else // OUTPUT_DIMS <= 4
+    out_coords[3] = (int)get_global_id(1) % OUTPUT_SIZE_Y;
+    out_coords[2] = (int)get_global_id(1) / OUTPUT_SIZE_Y;
+#endif // OUTPUT_DIMS <= 4
+    out_coords[1] = (int)get_global_id(2) % OUTPUT_FEATURE_NUM;
+    out_coords[0] = (int)get_global_id(2) / OUTPUT_FEATURE_NUM;
+    int in_coords[5];
+    bool isOutOfBounds = false;
+    unroll_for (int i = 0; i < 5; ++i) {
+        const float orig_coord = FUNC_CALL(get_original_coordinate)(out_coords[i], SCALES[i], out_size[i], in_size[i] + PADS_BEGIN[i] + PADS_END[i]);
+        int nearest_pixel = FUNC_CALL(get_nearest_val)(orig_coord, SCALES[i] > 1) - PADS_BEGIN[i];
+        in_coords[i] = max(-PADS_BEGIN[i], min(nearest_pixel, in_size[i] + PADS_END[i] - 1));
+#if PADDING_USED == 1
+        if (in_coords[i] < 0 || in_coords[i] >= in_size[i])
+            isOutOfBounds = true;
 #endif
-    const int feature = (int)get_global_id(2) % OUTPUT_FEATURE_NUM;
-    const int batch = (int)get_global_id(2) / OUTPUT_FEATURE_NUM;
-    const int ix = floor(ox * X_RATIO);
-    const int iy = floor(oy * Y_RATIO);
-    const int iz = floor(oz * Z_RATIO);
-
-    INPUT0_TYPE interp_val = input[FUNC_CALL(get_input_index)(batch, feature, iz, iy, ix)];
+    }
+    INPUT0_TYPE interp_val = input[FUNC_CALL(get_input_index)(in_coords[0], in_coords[1], in_coords[2], in_coords[3], in_coords[4])];
+#if PADDING_USED == 1
+    if (isOutOfBounds)
+        interp_val = INPUT0_VAL_ZERO;
+#endif
 #if HAS_FUSED_OPS
-    #define OF_ID (feature)
+    #define OF_ID (out_coords[1])
     FUSED_OPS;
     OUTPUT_TYPE res = FUSED_OPS_RESULT;
-#else
+#else // HAS_FUSED_OPS
     OUTPUT_TYPE res = ACTIVATION(interp_val, ACTIVATION_PARAMS);
-#endif
-    output[FUNC_CALL(get_output_index)(batch, feature, oz, oy, ox)] = res;
+#endif // HAS_FUSED_OPS
+    output[FUNC_CALL(get_output_index)(out_coords[0], out_coords[1], out_coords[2], out_coords[3], out_coords[4])] = res;
+#elif defined(SAMPLE_TYPE_CUBIC) // defined(SAMPLE_TYPE_NEAREST) && FEATURE_PACKED_MODE
+    int out_coords[5];
+    out_coords[4] = get_global_id(0);
+#if OUTPUT_DIMS <= 4
+    out_coords[3] = get_global_id(1);
+    out_coords[2] = 0;
+#else // OUTPUT_DIMS <= 4
+    out_coords[3] = (int)get_global_id(1) % OUTPUT_SIZE_Y;
+    out_coords[2] = (int)get_global_id(1) / OUTPUT_SIZE_Y;
+#endif // OUTPUT_DIMS <= 4
+    out_coords[1] = (int)get_global_id(2) % OUTPUT_FEATURE_NUM;
+    out_coords[0] = (int)get_global_id(2) / OUTPUT_FEATURE_NUM;
+    int in_coords[5];
+    float cubic_coeff[5][4];
+    unroll_for (int i = 0; i < 5; ++i) {
+        float orig_coord = FUNC_CALL(get_original_coordinate)(out_coords[i], SCALES[i], out_size[i], in_size[i] + PADS_BEGIN[i] + PADS_END[i]) - PADS_BEGIN[i];
+        in_coords[i] = floor(orig_coord);
+        orig_coord = (orig_coord - in_coords[i]) * AXES_USED[i];
+        FUNC_CALL(get_cubic_coeff)(cubic_coeff[i], orig_coord, CUBE_COEFF);
+    }
 
-#elif defined(SAMPLE_TYPE_INTERP)
+    INPUT0_TYPE interp_val = INPUT0_VAL_ZERO;
+    int index[5];
+    unroll_for (index[0] = 0; index[0] <= 3; ++index[0]) {
+        unroll_for (index[1] = 0; index[1] <= 3; ++index[1]) {
+            unroll_for (index[2] = 0; index[2] <= 3; ++index[2]) {
+                unroll_for (index[3] = 0; index[3] <= 3; ++index[3]) {
+                    unroll_for (index[4] = 0; index[4] <= 3; ++index[4]) {
+                        int coords_sum[5] = { in_coords[0], in_coords[1], in_coords[2], in_coords[3], in_coords[4] };
+                        float coeff_prod = 1.0f;
+                        bool isOutOfBounds = false;
+                        unroll_for (int i = 0; i < 5; ++i) {
+                            coords_sum[i] = max(-PADS_BEGIN[i], min(in_coords[i] + index[i] - 1, PADS_END[i] + in_size[i] - 1));
+#if PADDING_USED == 1
+                            if (coords_sum[i] < 0 || coords_sum[i] >= in_size[i])
+                                isOutOfBounds = true;
+#endif
+                            coeff_prod *= cubic_coeff[i][index[i]];
+                        }
+#if PADDING_USED == 1
+                        if (!isOutOfBounds)
+#endif
+                            interp_val += coeff_prod * input[FUNC_CALL(get_input_index)(coords_sum[0], coords_sum[1], coords_sum[2], coords_sum[3], coords_sum[4])];
+                    }
+                }
+            }
+        }
+    }
+
+#if HAS_FUSED_OPS
+    #define OF_ID (out_coords[1])
+    FUSED_OPS;
+    OUTPUT_TYPE res = FUSED_OPS_RESULT;
+#else // HAS_FUSED_OPS
+    OUTPUT_TYPE res = ACTIVATION(TO_OUTPUT_TYPE(interp_val), ACTIVATION_PARAMS);
+#endif // HAS_FUSED_OPS
+    output[FUNC_CALL(get_output_index)(out_coords[0], out_coords[1], out_coords[2], out_coords[3], out_coords[4])] = res;
+#elif defined(SAMPLE_TYPE_LINEAR_ONNX) // defined(SAMPLE_TYPE_NEAREST) && FEATURE_PACKED_MODE
     const int ox = get_global_id(0);
     const int oy = get_global_id(1);
     const int feature = 0;
     const int batch = get_global_id(2);
-    const float ix = X_RATIO * ox;
-    const float iy = Y_RATIO * oy;
+    const int PADDED_Y = in_size[3] + PADS_BEGIN[3] + PADS_END[3];
+    const int PADDED_X = in_size[4] + PADS_BEGIN[4] + PADS_END[4];
+    const float ix = FUNC_CALL(get_original_coordinate)(ox, SCALES[4], out_size[4], PADDED_X);
+    const float iy = FUNC_CALL(get_original_coordinate)(oy, SCALES[3], out_size[3], PADDED_Y);
+
+#ifdef LEFTOVERS
+    if (ox >= OUTPUT_SIZE_X)
+        return;
+#endif
+
+    float in_y = fmax(0, fmin(iy, PADDED_Y - 1));
+    float in_x = fmax(0, fmin(ix, PADDED_X - 1));
+    int in_y1 = min((int)in_y, PADDED_Y - 1);
+    int in_y2 = min(in_y1 + 1, PADDED_Y - 1);
+    int in_x1 = min((int)in_x, PADDED_X - 1);
+    int in_x2 = min(in_x1 + 1, PADDED_X - 1);
+
+    const ACCUMULATOR_TYPE dx1 = (in_x1 != in_x2) ? TO_ACCUMULATOR_TYPE(fabs(in_x - in_x1)) : 0.5f;
+    const ACCUMULATOR_TYPE dx2 = (in_x1 != in_x2) ? TO_ACCUMULATOR_TYPE(fabs(in_x - in_x2)) : 0.5f;
+    const ACCUMULATOR_TYPE dy1 = (in_y1 != in_y2) ? TO_ACCUMULATOR_TYPE(fabs(in_y - in_y1)) : 0.5f;
+    const ACCUMULATOR_TYPE dy2 = (in_y1 != in_y2) ? TO_ACCUMULATOR_TYPE(fabs(in_y - in_y2)) : 0.5f;
+#if PADDING_USED == 1
+    in_y1 -= PADS_BEGIN[3];
+    in_y2 -= PADS_BEGIN[3];
+    in_x1 -= PADS_BEGIN[4];
+    in_x2 -= PADS_BEGIN[4];
+
+    bool tlOutOfBounds = in_y1 < 0 || in_y1 >= in_size[3] || in_x1 < 0 || in_x1 >= in_size[4];
+    bool trOutOfBounds = in_y1 < 0 || in_y1 >= in_size[3] || in_x2 < 0 || in_x2 >= in_size[4];
+    bool blOutOfBounds = in_y2 < 0 || in_y2 >= in_size[3] || in_x1 < 0 || in_x1 >= in_size[4];
+    bool brOutOfBounds = in_y2 < 0 || in_y2 >= in_size[3] || in_x2 < 0 || in_x2 >= in_size[4];
+#endif
+    unroll_for(int in_f = 0; in_f < OUTPUT_FEATURE_NUM; in_f++) {
+        INPUT0_TYPE top_left = input[INPUT0_GET_INDEX(batch, in_f, in_y1, in_x1)];
+        INPUT0_TYPE top_right = input[INPUT0_GET_INDEX(batch, in_f, in_y1, in_x2)];
+        INPUT0_TYPE bottom_left = input[INPUT0_GET_INDEX(batch, in_f, in_y2, in_x1)];
+        INPUT0_TYPE bottom_right = input[INPUT0_GET_INDEX(batch, in_f, in_y2, in_x2)];
+#if PADDING_USED == 1
+        if (tlOutOfBounds)
+            top_left = INPUT0_VAL_ZERO;
+        if (trOutOfBounds)
+            top_right = INPUT0_VAL_ZERO;
+        if (blOutOfBounds)
+            bottom_left = INPUT0_VAL_ZERO;
+        if (brOutOfBounds)
+            bottom_right = INPUT0_VAL_ZERO;
+#endif
+
+        ACCUMULATOR_TYPE interp_val = TO_ACCUMULATOR_TYPE(dx2 * dy2 * top_left) +
+                                      TO_ACCUMULATOR_TYPE(dx1 * dy2 * top_right) +
+                                      TO_ACCUMULATOR_TYPE(dx2 * dy1 * bottom_left) +
+                                      TO_ACCUMULATOR_TYPE(dx1 * dy1 * bottom_right);
+
+#if HAS_FUSED_OPS
+        #define OF_ID (in_f)
+        FUSED_OPS;
+        OUTPUT_TYPE res = FUSED_OPS_RESULT;
+#else
+        OUTPUT_TYPE res = ACTIVATION(TO_OUTPUT_TYPE(interp_val), ACTIVATION_PARAMS);
+#endif
+        output[OUTPUT_GET_INDEX(batch, in_f, oy, ox)] = res;
+    }
+#elif defined(SAMPLE_TYPE_INTERP) // defined(SAMPLE_TYPE_NEAREST) && FEATURE_PACKED_MODE
+    const int ox = get_global_id(0);
+    const int oy = get_global_id(1);
+    const int feature = 0;
+    const int batch = get_global_id(2);
+    const float ix = FUNC_CALL(get_original_coordinate)(ox, SCALES[4], OUTPUT_SIZE_X, in_size[4]);
+    const float iy = FUNC_CALL(get_original_coordinate)(oy, SCALES[3], OUTPUT_SIZE_Y, in_size[3]);
 
 #ifdef LEFTOVERS
     if (ox >= OUTPUT_SIZE_X)
@@ -123,9 +315,9 @@ KERNEL (resample_gpu_ref)(__global INPUT0_TYPE* input,
 #endif
 
     const int top_y_index    = (int)(floor(iy));
-    const int bottom_y_index = min((int)ceil(iy), INPUT0_SIZE_Y - 1);
+    const int bottom_y_index = min((int)ceil(iy), in_size[3] - 1);
     const int left_x_index   = (int)(floor(ix));
-    const int right_x_index  = min((int)ceil(ix), INPUT0_SIZE_X - 1);
+    const int right_x_index  = min((int)ceil(ix), in_size[4] - 1);
 
     const ACCUMULATOR_TYPE dx = TO_ACCUMULATOR_TYPE(ix - left_x_index);
     const ACCUMULATOR_TYPE dy = TO_ACCUMULATOR_TYPE(iy - top_y_index);
@@ -146,11 +338,11 @@ KERNEL (resample_gpu_ref)(__global INPUT0_TYPE* input,
         FUSED_OPS;
         OUTPUT_TYPE res = FUSED_OPS_RESULT;
 #else
-        OUTPUT_TYPE res = TO_OUTPUT_TYPE(ACTIVATION(interp_val, ACTIVATION_PARAMS));
+        OUTPUT_TYPE res = ACTIVATION(TO_OUTPUT_TYPE(interp_val), ACTIVATION_PARAMS);
 #endif
         output[OUTPUT_GET_INDEX(batch, in_f, oy, ox)] = res;
     }
-#elif defined(SAMPLE_TYPE_CAFFE_INTERP)
+#elif defined(SAMPLE_TYPE_CAFFE_INTERP) // defined(SAMPLE_TYPE_NEAREST) && FEATURE_PACKED_MODE
     const int ox = (int)get_global_id(0) % OUTPUT_SIZE_X;
     const int oy = (int)get_global_id(0) / OUTPUT_SIZE_X;
     const int feature_block_nun = get_global_id(1);
@@ -162,84 +354,123 @@ KERNEL (resample_gpu_ref)(__global INPUT0_TYPE* input,
     const int batch = (int)get_global_id(2) % OUTPUT_BATCH_NUM;
     const int oz    = (int)get_global_id(2) / OUTPUT_BATCH_NUM;
 #endif
+    const int PADDED_B = in_size[0] + PADS_BEGIN[0] + PADS_END[0];
+    const int PADDED_F = in_size[1] + PADS_BEGIN[1] + PADS_END[1];
+    const int PADDED_Z = in_size[2] + PADS_BEGIN[2] + PADS_END[2];
+    const int PADDED_Y = in_size[3] + PADS_BEGIN[3] + PADS_END[3];
+    const int PADDED_X = in_size[4] + PADS_BEGIN[4] + PADS_END[4];
 
-    const ACCUMULATOR_TYPE ix = ox * X_RATIO + X_RATIO_HALF - 0.5f;
-    const ACCUMULATOR_TYPE iy = oy * Y_RATIO + Y_RATIO_HALF - 0.5f;
-    const ACCUMULATOR_TYPE iz = oz * Z_RATIO + Z_RATIO_HALF - 0.5f;
+    ACCUMULATOR_TYPE i_b = AXES_USED[0] ? FUNC_CALL(get_original_coordinate)(batch, SCALES[0], out_size[0], PADDED_B) : batch;
+    ACCUMULATOR_TYPE i_f = AXES_USED[1] ? FUNC_CALL(get_original_coordinate)(feature, SCALES[1], out_size[1], PADDED_F) : feature;
+    ACCUMULATOR_TYPE i_x = AXES_USED[4] ? FUNC_CALL(get_original_coordinate)(ox, SCALES[4], out_size[4], PADDED_X) : ox;
+    ACCUMULATOR_TYPE i_y = AXES_USED[3] ? FUNC_CALL(get_original_coordinate)(oy, SCALES[3], out_size[3], PADDED_Y) : oy;
+    ACCUMULATOR_TYPE i_z = AXES_USED[2] ? FUNC_CALL(get_original_coordinate)(oz, SCALES[2], out_size[2], PADDED_Z) : oz;
+#if PADDING_USED == 1
+    i_b -= PADS_BEGIN[0];
+    i_f -= PADS_BEGIN[1];
+    i_z -= PADS_BEGIN[2];
+    i_y -= PADS_BEGIN[3];
+    i_x -= PADS_BEGIN[4];
+#endif
 
-    const int ix_r = (int)ix;
-    const int iy_r = (int)iy;
-    const int iz_r = (int)iz;
+    const int ib_r = (int)i_b;
+    const int if_r = (int)i_f;
+    const int ix_r = (int)i_x;
+    const int iy_r = (int)i_y;
+    const int iz_r = (int)i_z;
 
 #if ANTIALIAS == 1
-    const ACCUMULATOR_TYPE ax = 1.0f / X_RATIO;
-    const ACCUMULATOR_TYPE ay = 1.0f / Y_RATIO;
-    const ACCUMULATOR_TYPE az = 1.0f / Z_RATIO;
+    const ACCUMULATOR_TYPE ab = 1.0f / SCALES[0];
+    const ACCUMULATOR_TYPE af = 1.0f / SCALES[1];
+    const ACCUMULATOR_TYPE ax = 1.0f / SCALES[4];
+    const ACCUMULATOR_TYPE ay = 1.0f / SCALES[3];
+    const ACCUMULATOR_TYPE az = 1.0f / SCALES[2];
 #else
+    const ACCUMULATOR_TYPE ab = 1.0f;
+    const ACCUMULATOR_TYPE af = 1.0f;
     const ACCUMULATOR_TYPE ax = 1.0f;
     const ACCUMULATOR_TYPE ay = 1.0f;
     const ACCUMULATOR_TYPE az = 1.0f;
 #endif
-    const int rx = (X_RATIO < 1.0f) ? 2 : (int)ceil(TO_ACCUMULATOR_TYPE(KERNEL_W) / ax);
-    const int ry = (Y_RATIO < 1.0f) ? 2 : (int)ceil(TO_ACCUMULATOR_TYPE(KERNEL_W) / ay);
-    const int rz = (Z_RATIO < 1.0f) ? 2 : (int)ceil(TO_ACCUMULATOR_TYPE(KERNEL_W) / az);
+    const int rb = (SCALES[0] < 1.0f) ? 2 : (int)ceil(TO_ACCUMULATOR_TYPE(KERNEL_W) / ab);
+    const int rf = (SCALES[1] < 1.0f) ? 2 : (int)ceil(TO_ACCUMULATOR_TYPE(KERNEL_W) / af);
+    const int rx = (SCALES[4] < 1.0f) ? 2 : (int)ceil(TO_ACCUMULATOR_TYPE(KERNEL_W) / ax);
+    const int ry = (SCALES[3] < 1.0f) ? 2 : (int)ceil(TO_ACCUMULATOR_TYPE(KERNEL_W) / ay);
+    const int rz = (SCALES[2] < 1.0f) ? 2 : (int)ceil(TO_ACCUMULATOR_TYPE(KERNEL_W) / az);
 
-    ACCUMULATOR_TYPE sum[FEATURE_BLOCK_SIZE];
-    for (int i = 0; i < FEATURE_BLOCK_SIZE; i++)
-        sum[i] = 0;
-
-    ACCUMULATOR_TYPE wsum = 0;
-
-    int const y_init = max(0, iy_r - ry);
-    int const x_init = max(0, ix_r - rx);
-    int const z_init = max(0, iz_r - rz);
-    int const y_max = min(INPUT0_SIZE_Y, iy_r + ry + 1);
-    int const x_max = min(INPUT0_SIZE_X, ix_r + rx + 1);
-    int const z_max = min(INPUT0_SIZE_Z, iz_r + rz + 1);
-
-    unroll_for(int z = z_init; z < z_max; z++) {
-        unroll_for(int y = y_init; y < y_max; y++) {
-            unroll_for(int x = x_init; x < x_max; x++) {
-                ACCUMULATOR_TYPE dx = ix - x;
-                ACCUMULATOR_TYPE dy = iy - y;
-                ACCUMULATOR_TYPE dz = iz - z;
-#if ANTIALIAS == 1
-                ACCUMULATOR_TYPE w = ax * TRIANGLE_COEFF(ax * dx) * ay * TRIANGLE_COEFF(ay * dy) * az * triangleCoeff(az * dz);
-#else
-                ACCUMULATOR_TYPE w = TRIANGLE_COEFF(dx) * TRIANGLE_COEFF(dy) * TRIANGLE_COEFF(dz);
-#endif
-
+    int const b_init = max(-PADS_BEGIN[0], ib_r - rb);
+    int const f_init = max(-PADS_BEGIN[1], if_r - rf);
+    int const y_init = max(-PADS_BEGIN[3], iy_r - ry);
+    int const x_init = max(-PADS_BEGIN[4], ix_r - rx);
+    int const z_init = max(-PADS_BEGIN[2], iz_r - rz);
+    int const b_max = min(PADS_END[0] + INPUT0_BATCH_NUM, ib_r + rb + 1);
+    int const f_max = min(PADS_END[1] + INPUT0_FEATURE_NUM, if_r + rf + 1);
+    int const y_max = min(PADS_END[3] + INPUT0_SIZE_Y, iy_r + ry + 1);
+    int const x_max = min(PADS_END[4] + INPUT0_SIZE_X, ix_r + rx + 1);
+    int const z_max = min(PADS_END[2] + INPUT0_SIZE_Z, iz_r + rz + 1);
 #ifndef LEFTOVERS
-                unroll_for(int f = 0; f < FEATURE_BLOCK_SIZE; f++) {
+    const int fp_max = FEATURE_BLOCK_SIZE;
 #else
-                const int f_max = min(FEATURE_BLOCK_SIZE, FEATURE_LEFTOVER);
-                unroll_for(int f = 0; f < f_max; f++) {
+    const int fp_max = min(FEATURE_BLOCK_SIZE, FEATURE_LEFTOVER);
 #endif
-                if (w != 0)
-                    sum[f] += w * TO_ACCUMULATOR_TYPE(input[FUNC_CALL(get_input_index)(batch, feature + f, z, y, x)]);
+    ACCUMULATOR_TYPE sum[fp_max] = {0};
+    ACCUMULATOR_TYPE wsum[fp_max] = {0};
+
+    unroll_for(int b = b_init; b < b_max; b++) {
+        unroll_for(int f = f_init; f < f_max; f++) {
+            unroll_for(int z = z_init; z < z_max; z++) {
+                unroll_for(int y = y_init; y < y_max; y++) {
+                    unroll_for(int x = x_init; x < x_max; x++) {
+                        unroll_for(int fp = 0; fp < fp_max; fp++) {
+#if PADDING_USED == 1
+                            bool isOutOfBounds = b < 0 || f < 0 || z < 0 || y < 0 || x < 0 ||
+                                                 b >= in_size[0] || f >= in_size[1] || z >= in_size[2] ||
+                                                 y >= in_size[3] || x >= in_size[4];
+#endif
+
+                            ACCUMULATOR_TYPE db = i_b - b;
+                            ACCUMULATOR_TYPE df = i_f - f;
+                            ACCUMULATOR_TYPE dx = i_x - x;
+                            ACCUMULATOR_TYPE dy = i_y - y;
+                            ACCUMULATOR_TYPE dz = i_z - z;
+#if ANTIALIAS == 1
+                            ACCUMULATOR_TYPE w = ab * TRIANGLE_COEFF(ab * db) *
+                                                 af * TRIANGLE_COEFF(af * df) *
+                                                 ax * TRIANGLE_COEFF(ax * dx) *
+                                                 ay * TRIANGLE_COEFF(ay * dy) *
+                                                 az * TRIANGLE_COEFF(az * dz);
+#else
+                            ACCUMULATOR_TYPE w = TRIANGLE_COEFF(db) *
+                                                 TRIANGLE_COEFF(df) *
+                                                 TRIANGLE_COEFF(dx) *
+                                                 TRIANGLE_COEFF(dy) *
+                                                 TRIANGLE_COEFF(dz);
+#endif
+                            if (w != 0 && f + fp < INPUT0_FEATURE_NUM) {
+                                wsum[fp] += w;
+#if PADDING_USED == 1
+                                if (!isOutOfBounds)
+#endif
+                                    sum[fp] += w * TO_ACCUMULATOR_TYPE(input[FUNC_CALL(get_input_index)(b, f + fp, z, y, x)]);
+                            }
+                        }
+                    }
                 }
-                wsum += w;
             }
         }
     }
-#ifndef LEFTOVERS
-    unroll_for (int f = 0; f < FEATURE_BLOCK_SIZE; f++) {
-#else
-    const int f_max = min(FEATURE_BLOCK_SIZE, FEATURE_LEFTOVER);
-    unroll_for (int f = 0; f < f_max; f++) {
-#endif
-
-        ACCUMULATOR_TYPE interp_val = (wsum == 0) ? 0 : (sum[f] / wsum);
+    unroll_for (int f = 0; f < fp_max; f++) {
+        ACCUMULATOR_TYPE interp_val = (wsum[f] == 0) ? ACCUMULATOR_VAL_ZERO : (sum[f] / wsum[f]);
 #if HAS_FUSED_OPS
         #define OF_ID (feature + f)
         FUSED_OPS;
         OUTPUT_TYPE res = FUSED_OPS_RESULT;
 #else
-        OUTPUT_TYPE res = TO_OUTPUT_TYPE(ACTIVATION(interp_val, ACTIVATION_PARAMS));
+        OUTPUT_TYPE res = ACTIVATION(TO_OUTPUT_TYPE(interp_val), ACTIVATION_PARAMS);
 #endif
         output[FUNC_CALL(get_output_index)(batch, feature + f, oz, oy, ox)] = res;
     }
-#endif
+#endif // defined(SAMPLE_TYPE_NEAREST) && FEATURE_PACKED_MODE
 }
 
 #undef unroll_for

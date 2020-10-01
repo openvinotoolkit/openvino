@@ -770,6 +770,7 @@ Program::LayerType Program::LayerTypeFromStr(const std::string &str) {
         { "Copy" , Copy },
         { "Resample" , Resample },
         { "Interp" , Interp },
+        { "Interpolate" , Interpolate },
         { "RegionYolo" , RegionYolo },
         { "ReorgYolo" , ReorgYolo },
         { "Const" , ConstantBlob },
@@ -1468,6 +1469,8 @@ void Program::CreateSingleLayerPrimitive(cldnn::topology& topology, InferenceEng
         case Resample: CreateResamplePrimitive(topology, layer);
             break;
         case Interp: CreateInterpPrimitive(topology, layer);
+            break;
+        case Interpolate: CreateInterpolatePrimitive(topology, layer);
             break;
         case ArgMax:
         case ArgMin:
@@ -3342,8 +3345,14 @@ void Program::CreateInterpPrimitive(cldnn::topology& topology, InferenceEngine::
     auto outDims = layer->outData[0]->getTensorDesc().getDims();
     auto outTensor = CldnnTensorFromIEDims(outDims);
 
+    std::vector<int> pads_begin(outDims.size(), 0);
+    std::vector<int> pads_end(outDims.size(), 0);
     int pad_begin = interpLayer->GetParamAsInt("pad_beg_", 0);
     int pad_end = interpLayer->GetParamAsInt("pad_end_", 0);
+    for (size_t i = 2; i < pads_begin.size(); ++i) {
+        pads_begin[i] = pad_begin;
+        pads_end[i] = pad_end;
+    }
     int align_corners = interpLayer->GetParamAsInt("align_corners", 1);
 
     std::string resampleLayerName = layer_type_name_ID(layer);
@@ -3352,10 +3361,206 @@ void Program::CreateInterpPrimitive(cldnn::topology& topology, InferenceEngine::
         resampleLayerName,
         inputPrimitives[0],
         outTensor,
-        pad_begin,
-        pad_end,
+        pads_begin,
+        pads_end,
         align_corners,
         cldnn::resample_type::bilinear);
+
+    topology.add(resamplePrim);
+    AddPrimitiveToProfiler(resampleLayerName, layer);
+}
+
+static cldnn::coordinate_transformation_mode CoordinateTransformationModeFromString(const std::string &str) {
+    static const caseless_map<std::string, cldnn::coordinate_transformation_mode> CoordTransformationMode = {
+        { "half_pixel" , cldnn::coordinate_transformation_mode::half_pixel },
+        { "pytorch_half_pixel" , cldnn::coordinate_transformation_mode::pytorch_half_pixel },
+        { "asymmetric" , cldnn::coordinate_transformation_mode::asymmetric },
+        { "tf_half_pixel_for_nn" , cldnn::coordinate_transformation_mode::tf_half_pixel_for_nn },
+        { "align_corners" , cldnn::coordinate_transformation_mode::align_corners },
+    };
+    auto it = CoordTransformationMode.find(str);
+    if (it != CoordTransformationMode.end())
+        return it->second;
+    else
+        THROW_CLDNN_EXCEPTION("Unknown coordinate transformation mode: " << str);
+}
+
+static cldnn::nearest_mode NearestModeFromString(const std::string &str) {
+    static const caseless_map<std::string, cldnn::nearest_mode> NearestMode = {
+        { "round_prefer_floor" , cldnn::nearest_mode::round_prefer_floor },
+        { "round_prefer_ceil" , cldnn::nearest_mode::round_prefer_ceil },
+        { "floor" , cldnn::nearest_mode::floor },
+        { "ceil" , cldnn::nearest_mode::ceil },
+        { "simple" , cldnn::nearest_mode::simple },
+    };
+    auto it = NearestMode.find(str);
+    if (it != NearestMode.end())
+        return it->second;
+    else
+        THROW_CLDNN_EXCEPTION("Unknown nearest mode: " << str);
+}
+
+static cldnn::shape_calculation_mode ShapeCalculationModeFromString(const std::string &str) {
+    static const caseless_map<std::string, cldnn::shape_calculation_mode> shapeCalcMode = {
+        { "sizes" , cldnn::shape_calculation_mode::sizes },
+        { "scales" , cldnn::shape_calculation_mode::scales },
+    };
+    auto it = shapeCalcMode.find(str);
+    if (it != shapeCalcMode.end())
+        return it->second;
+    else
+        THROW_CLDNN_EXCEPTION("Unknown shape calculation mode: " << str);
+}
+
+inline cldnn::resample::resample_axis InterpolateAxisFromIEAxis(int axis, unsigned sz) {
+    if (axis < 0)
+        axis += sz;
+    if (axis < 0 || axis >= sz)
+        THROW_CLDNN_EXCEPTION("Interpolate axis is not correspond to number of dimensions");
+
+    // Difference in dimension ordering between IE and clDNN,
+    // reverse spatial dimensions after batch and feature.
+    unsigned cldnn_axis = axis;
+    if (axis >= 2) {
+        auto spatial_axis = axis - 2;
+        // Default and minimum number of dimensions is 4
+        auto spatial_size = std::max(sz, 4u) - 2;
+        cldnn_axis = spatial_size - spatial_axis - 1 + 2;
+    }
+
+    switch (cldnn_axis) {
+        case 0:
+            return cldnn::resample::resample_axis::along_b;
+        case 1:
+            return cldnn::resample::resample_axis::along_f;
+        case 2:
+            return cldnn::resample::resample_axis::along_x;
+        case 3:
+            return cldnn::resample::resample_axis::along_y;
+        case 4:
+            return cldnn::resample::resample_axis::along_z;
+        case 5:
+            return cldnn::resample::resample_axis::along_w;
+        default:
+            break;
+    }
+    THROW_CLDNN_EXCEPTION("Unsupported Interpolate axis: " << axis);
+}
+
+void Program::CreateInterpolatePrimitive(cldnn::topology& topology, InferenceEngine::CNNLayerPtr &layer) {
+    ValidateLayer(layer, {3, 4});
+    auto inputPrimitives = GetPrevLayersPrimitives(layer);
+    auto interpolateLayer = as<InferenceEngine::GenericLayer*> (layer);
+
+    std::shared_ptr<Data> insData0 = layer->insData[0].lock();
+    IE_ASSERT(insData0 != nullptr);
+    auto insData0dims = insData0->getTensorDesc().getDims();
+    auto outDims = layer->outData[0]->getTensorDesc().getDims();
+    auto outTensor = CldnnTensorFromIEDims(outDims);
+
+    auto pads_begin = interpolateLayer->GetParamAsInts("pads_begin", {});
+    auto pads_end = interpolateLayer->GetParamAsInts("pads_end", {});
+    for (size_t i = pads_begin.size(); i < outDims.size() || i < 4; ++i)
+        pads_begin.push_back(0);
+    for (size_t i = pads_end.size(); i < outDims.size() || i < 4; ++i)
+        pads_end.push_back(0);
+    std::string mode = interpolateLayer->GetParamAsString("mode");
+    std::string shape_calc_mode = interpolateLayer->GetParamAsString("shape_calculation_mode");
+    std::string coordinate_trans_mode = interpolateLayer->GetParamAsString("coordinate_transformation_mode", "half_pixel");
+    std::string nearest_mode = interpolateLayer->GetParamAsString("nearest_mode", "round_prefer_floor");
+    int antialias = interpolateLayer->GetParamAsBool("antialias", false);
+    float cube_coeff = interpolateLayer->GetParamAsFloat("cube_coeff", -0.75f);
+
+    std::string resampleLayerName = layer_type_name_ID(layer);
+    auto cldnnSampleType = ResampleTypeFromString(mode);
+    auto shapeCalcMode = ShapeCalculationModeFromString(shape_calc_mode);
+    auto coordTransMode = CoordinateTransformationModeFromString(coordinate_trans_mode);
+    auto nearestMode = NearestModeFromString(nearest_mode);
+
+    std::vector<float> scales;
+    auto scalesInput = layer->insData[2].lock();
+    auto scalesInputCreator = getCreatorLayer(scalesInput).lock();
+    if (scalesInputCreator->blobs.size() == 1) {
+        auto constantBlob = scalesInputCreator->blobs.begin()->second;
+        auto axesPrecision = constantBlob->getTensorDesc().getPrecision();
+        if (axesPrecision == InferenceEngine::Precision::FP32) {
+            auto data = constantBlob->buffer().as<float*>();
+            for (size_t i = 0; i < constantBlob->size(); ++i)
+                scales.push_back(data[i]);
+        } else {
+            THROW_IE_EXCEPTION << layer->name << " Incorrect scales input precision";
+        }
+    }
+
+    std::vector<cldnn::resample::resample_axis> axes;
+    if (inputPrimitives.size() == 4) {
+        auto axesInput = layer->insData[3].lock();
+        auto axesInputCreator = getCreatorLayer(axesInput).lock();
+        if (axesInputCreator->blobs.size() == 1) {
+            auto constantBlob = axesInputCreator->blobs.begin()->second;
+            auto axesPrecision = constantBlob->getTensorDesc().getPrecision();
+            if (axesPrecision == InferenceEngine::Precision::I32) {
+                auto data = constantBlob->buffer().as<int32_t*>();
+                for (size_t i = 0; i < constantBlob->size(); ++i)
+                    axes.push_back(InterpolateAxisFromIEAxis(data[i], insData0dims.size()));
+            } else if (axesPrecision == InferenceEngine::Precision::I64) {
+                auto data = constantBlob->buffer().as<int64_t*>();
+                for (size_t i = 0; i < constantBlob->size(); ++i)
+                    axes.push_back(InterpolateAxisFromIEAxis(static_cast<int32_t>(data[i]), insData0dims.size()));
+            } else {
+                THROW_IE_EXCEPTION << layer->name
+                                   << " Incorrect axes input precision";
+            }
+        }
+    } else {
+        for (int i = 0; i < insData0dims.size(); ++i) {
+            axes.push_back(InterpolateAxisFromIEAxis(i, insData0dims.size()));
+        }
+    }
+
+    if (axes.size() != scales.size())
+        THROW_IE_EXCEPTION << layer->name << " Incorrect axes and scales should be the same size";
+
+    cldnn::resample::AxesAndScales axesAndScales;
+    for (size_t i = 0; i < axes.size(); ++i) {
+        axesAndScales[axes[i]] = scales[i];
+    }
+
+    if (cldnnSampleType == cldnn::resample_type::linear_onnx) {
+        if (insData0dims.size() != 2 && insData0dims.size() != 4)
+            THROW_CLDNN_EXCEPTION("mode 'linear_onnx' supports only 2D or 4D tensors");
+        if (axes.size() != 2 && insData0dims.size() != axes.size())
+            THROW_CLDNN_EXCEPTION("mode 'linear_onnx' supports only axes with size 2 or equal to input rank");
+        bool correctAxes =
+            ((axes[0] == cldnn::resample::resample_axis::along_b) &&
+             (axes[1] == cldnn::resample::resample_axis::along_f)) ||
+            ((axes[0] == cldnn::resample::resample_axis::along_y) &&
+             (axes[1] == cldnn::resample::resample_axis::along_x));
+        if (axes.size() == 4 && insData0dims.size() == 4) {
+            correctAxes = axes[0] == cldnn::resample::resample_axis::along_b &&
+                          axes[1] == cldnn::resample::resample_axis::along_f &&
+                          axes[2] == cldnn::resample::resample_axis::along_y &&
+                          axes[3] == cldnn::resample::resample_axis::along_x;
+        }
+        if (!correctAxes)
+            THROW_CLDNN_EXCEPTION(
+                "mode 'linear_onnx' supports only case when axes = {2, 3} or "
+                "axes = {0, 1} or axes = {0, 1, 2, 3}");
+    }
+
+    auto resamplePrim = cldnn::resample(
+        resampleLayerName,
+        inputPrimitives[0],
+        outTensor,
+        axesAndScales,
+        pads_begin,
+        pads_end,
+        antialias,
+        cube_coeff,
+        cldnnSampleType,
+        shapeCalcMode,
+        coordTransMode,
+        nearestMode);
 
     topology.add(resamplePrim);
     AddPrimitiveToProfiler(resampleLayerName, layer);
@@ -5676,6 +5881,10 @@ cldnn::resample_type Program::ResampleTypeFromString(const std::string &str) {
         { "caffe.ResampleParameter.LINEAR" , cldnn::resample_type::caffe_bilinear },
         { "caffe.ResampleParameter.NEAREST" , cldnn::resample_type::nearest },
         { "Interp" , cldnn::resample_type::bilinear },
+        { "linear" , cldnn::resample_type::caffe_bilinear },
+        { "linear_onnx" , cldnn::resample_type::linear_onnx },
+        { "cubic" , cldnn::resample_type::cubic },
+        { "nearest" , cldnn::resample_type::nearest },
     };
     auto it = UpsamplingTypeNameToType.find(str);
     if (it != UpsamplingTypeNameToType.end())

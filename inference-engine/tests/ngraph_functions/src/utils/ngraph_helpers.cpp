@@ -708,5 +708,19 @@ std::ostream& operator<<(std::ostream & os, ngraph::op::v4::Interpolate::Nearest
     return os;
 }
 
+std::ostream& operator<<(std::ostream & os, ngraph::op::v4::Interpolate::ShapeCalcMode type) {
+    switch (type) {
+        case ngraph::op::v4::Interpolate::ShapeCalcMode::scales:
+            os << "scales";
+            break;
+        case ngraph::op::v4::Interpolate::ShapeCalcMode::sizes:
+            os << "sizes";
+            break;
+        default:
+            throw std::runtime_error("NOT_SUPPORTED_OP_TYPE");
+    }
+    return os;
+}
+
 }  // namespace helpers
 }  // namespace ngraph
