@@ -20,7 +20,14 @@ ngraph::pass::FakeQuantizeReshapeFusion::FakeQuantizeReshapeFusion() {
              ngraph::pattern::any_input()},
             pattern::consumers_count(1));
     const auto reshape_node_p = ngraph::pattern::wrap_type<opset4::Reshape>(
-            {fq_node_p, ngraph::pattern::any_input()});
+            {fq_node_p, ngraph::pattern::any_input()}, [](const Output<Node> & output) {
+                // WA: check that all Reshape node consumers are not GroupConvolution operations
+                const auto & target_inputs = output.get_target_inputs();
+                return std::all_of(target_inputs.begin(), target_inputs.end(),
+                        [](const Input<Node> & input){
+                            return input.get_node()->get_type_info() != opset4::GroupConvolution::type_info;
+                        });
+            });
 
     ngraph::matcher_pass_callback callback = [=](pattern::Matcher &m) {
         const auto &pattern_map = m.get_pattern_value_map();
