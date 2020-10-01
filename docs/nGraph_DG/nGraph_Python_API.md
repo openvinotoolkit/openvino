@@ -60,7 +60,7 @@ In order to run inference on an nGraph function, you'll need to convert it to an
 ```python
 >>> from openvino.inference_engine import IECore, IENetwork
 >>> 
->>> ie_network = IENetwork(Function.to_capsule(ng_function))
+>>> ie_network = IENetwork(ng.impl.Function.to_capsule(function))
 >>> 
 >>> ie = IECore()
 >>> executable_network = ie.load_network(ie_network, 'CPU')
@@ -113,13 +113,13 @@ Each `Node` has a unique `name` property, assigned at creation time. User provid
 
 ```python
 >>> for node in function.get_ordered_ops():
->>>     print('Node name: {:15} Friendly name: {:10} Op: {:10} {}'.format(
->>>         node.name, node.get_friendly_name(), node.get_type_name(), node.shape))
-Node name: Parameter_1     Friendly name: b          Op: Parameter  Shape{2, 2}
-Node name: Parameter_0     Friendly name: x          Op: Parameter  Shape{2, 2}
-Node name: Add_2           Friendly name: Add_2      Op: Add        Shape{2, 2}
-Node name: Relu_3          Friendly name: y          Op: Relu       Shape{2, 2}
-Node name: Result_4        Friendly name: Result_4   Op: Result     Shape{2, 2}
+>>>     print('Node name: {:15} Friendly name: {:10} Op: {:10}'.format(
+>>>         node.name, node.get_friendly_name(), node.get_type_name()))
+Node name: Parameter_1     Friendly name: b          Op: Parameter
+Node name: Parameter_0     Friendly name: x          Op: Parameter
+Node name: Add_2           Friendly name: Add_2      Op: Add
+Node name: Relu_3          Friendly name: y          Op: Relu
+Node name: Result_4        Friendly name: Result_4   Op: Result
 ```
 
 ### Node relationships
