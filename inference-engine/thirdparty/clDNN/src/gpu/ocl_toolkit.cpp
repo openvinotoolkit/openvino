@@ -233,12 +233,12 @@ void gpu_toolkit::wait_for_events(std::vector<event_impl::ptr> const& events) {
         auto multiple_events = dynamic_cast<base_events*>(ev.get());
         if (multiple_events) {
             for (size_t i = 0; i < multiple_events->get_events().size(); i++) {
-                if (auto ocl_ev = dynamic_cast<base_event*>(multiple_events->get_events()[i].get()))
-                    clevents.push_back(ocl_ev->get());
+                if (auto base_ev = dynamic_cast<base_event*>(multiple_events->get_events()[i].get()))
+                    clevents.push_back(base_ev->get());
             }
         } else {
-            if (auto ocl_ev = dynamic_cast<base_event*>(ev.get()))
-                clevents.push_back(ocl_ev->get());
+            if (auto base_ev = dynamic_cast<base_event*>(ev.get()))
+                clevents.push_back(base_ev->get());
         }
     }
 

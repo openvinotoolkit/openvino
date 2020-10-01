@@ -83,12 +83,12 @@ event_impl::ptr gpu_queue::enqueue_kernel(kernels_cache::kernel_type const& kern
             auto multiple_events = dynamic_cast<base_events*>(dep.get());
             if (multiple_events) {
                 for (size_t i = 0; i < multiple_events->get_events().size(); i++) {
-                    if (auto ocl_ev = dynamic_cast<base_event*>(multiple_events->get_events()[i].get()))
-                        dep_events.push_back(ocl_ev->get());
+                    if (auto base_ev = dynamic_cast<base_event*>(multiple_events->get_events()[i].get()))
+                        dep_events.push_back(base_ev->get());
                 }
             } else {
-                if (auto ocl_ev = dynamic_cast<base_event*>(dep.get()))
-                    dep_events.push_back(ocl_ev->get());
+                if (auto base_ev = dynamic_cast<base_event*>(dep.get()))
+                    dep_events.push_back(base_ev->get());
             }
         }
     } else {
@@ -126,12 +126,12 @@ event_impl::ptr gpu_queue::enqueue_marker(std::vector<event_impl::ptr> const& de
                 auto multiple_events = dynamic_cast<base_events*>(dep.get());
                 if (multiple_events) {
                     for (size_t i = 0; i < multiple_events->get_events().size(); i++) {
-                        if (auto ocl_ev = dynamic_cast<base_event*>(multiple_events->get_events()[i].get()))
-                            dep_events.push_back(ocl_ev->get());
+                        if (auto base_ev = dynamic_cast<base_event*>(multiple_events->get_events()[i].get()))
+                            dep_events.push_back(base_ev->get());
                     }
                 } else {
-                    if (auto ocl_ev = dynamic_cast<base_event*>(dep.get()))
-                        dep_events.push_back(ocl_ev->get());
+                    if (auto base_ev = dynamic_cast<base_event*>(dep.get()))
+                        dep_events.push_back(base_ev->get());
                 }
             }
 
