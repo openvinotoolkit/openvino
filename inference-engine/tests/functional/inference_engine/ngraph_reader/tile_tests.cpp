@@ -4,7 +4,7 @@
 
 #include <string>
 #include "ngraph_reader_tests.hpp"
-TEST_F(NGraphReaderTests, ReadTileNetwork) {
+TEST_F(NGraphReaderTests, smoke_ReadTileNetwork) {
     std::string model = R"V0G0N(
 <net name="Network" version="10">
     <layers>
@@ -114,7 +114,7 @@ TEST_F(NGraphReaderTests, ReadTileNetwork) {
             });
 }
 
-TEST_F(NGraphReaderTests, ReadTileNetwork2) {
+TEST_F(NGraphReaderTests, smoke_ReadTileNetwork2) {
     std::string model = R"V0G0N(
 <net name="Network" version="10">
     <layers>

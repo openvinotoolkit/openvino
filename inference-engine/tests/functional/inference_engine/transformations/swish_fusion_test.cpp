@@ -18,7 +18,7 @@
 
 using namespace testing;
 
-TEST(TransformationTests, SwishFusionWithBeta) {
+TEST(TransformationTests, smoke_SwishFusionWithBeta) {
     std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
     {
         auto input = std::make_shared<ngraph::opset4::Parameter>(ngraph::element::f32, ngraph::PartialShape::dynamic(1));
@@ -51,7 +51,7 @@ TEST(TransformationTests, SwishFusionWithBeta) {
     ASSERT_TRUE(res.first) << res.second;
 }
 
-TEST(TransformationTests, SwishFusionWithoutBeta) {
+TEST(TransformationTests, smoke_SwishFusionWithoutBeta) {
     std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
     {
         auto input = std::make_shared<ngraph::opset4::Parameter>(ngraph::element::f16, ngraph::PartialShape::dynamic(1));
@@ -81,7 +81,7 @@ TEST(TransformationTests, SwishFusionWithoutBeta) {
     ASSERT_TRUE(res.first) << res.second;
 }
 
-TEST(TransformationTests, SwishFusionWithoutBetaNonOneAddConstant) {
+TEST(TransformationTests, smoke_SwishFusionWithoutBetaNonOneAddConstant) {
     std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
     {
         auto input = std::make_shared<ngraph::opset4::Parameter>(ngraph::element::f16, ngraph::PartialShape::dynamic(1));
@@ -117,7 +117,7 @@ TEST(TransformationTests, SwishFusionWithoutBetaNonOneAddConstant) {
     ASSERT_TRUE(res.first) << res.second;
 }
 
-TEST(TransformationTests, SwishFusionWithSigmoid) {
+TEST(TransformationTests, smoke_SwishFusionWithSigmoid) {
     std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
     {
         auto input = std::make_shared<ngraph::opset4::Parameter>(ngraph::element::f16, ngraph::PartialShape::dynamic(1));
@@ -144,7 +144,7 @@ TEST(TransformationTests, SwishFusionWithSigmoid) {
     ASSERT_TRUE(res.first) << res.second;
 }
 
-TEST(TransformationTests, SwishFusionWithSigmoidWithBeta) {
+TEST(TransformationTests, smoke_SwishFusionWithSigmoidWithBeta) {
     std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
     {
         auto input = std::make_shared<ngraph::opset4::Parameter>(ngraph::element::f16, ngraph::PartialShape::dynamic(1));
@@ -174,7 +174,7 @@ TEST(TransformationTests, SwishFusionWithSigmoidWithBeta) {
     ASSERT_TRUE(res.first) << res.second;
 }
 
-TEST(TransformationTests, SwishFusionWithSigmoidWithBetaConstant) {
+TEST(TransformationTests, smoke_SwishFusionWithSigmoidWithBetaConstant) {
     // test where the beta constant has multiple but the same value
     std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
     {

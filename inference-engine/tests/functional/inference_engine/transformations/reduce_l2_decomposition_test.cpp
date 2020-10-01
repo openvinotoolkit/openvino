@@ -18,7 +18,7 @@
 
 using namespace testing;
 
-TEST(TransformationTests, ReduceL2DecompositionTest) {
+TEST(TransformationTests, smoke_ReduceL2DecompositionTest) {
     std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
     {
         auto data = std::make_shared<ngraph::opset4::Parameter>(ngraph::element::f32, ngraph::PartialShape::dynamic(1));

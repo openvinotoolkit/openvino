@@ -4,7 +4,7 @@
 
 #include <string>
 #include "ngraph_reader_tests.hpp"
-TEST_F(NGraphReaderTests, ReadSplitNetwork) {
+TEST_F(NGraphReaderTests, smoke_ReadSplitNetwork) {
     std::string model = R"V0G0N(
 <net name="Network" version="10">
     <layers>
@@ -131,7 +131,7 @@ TEST_F(NGraphReaderTests, ReadSplitNetwork) {
     });
 }
 
-TEST_F(NGraphReaderTests, ReadSplitNetwork2) {
+TEST_F(NGraphReaderTests, smoke_ReadSplitNetwork2) {
     std::string model = R"V0G0N(
 <net name="Network" version="10">
     <layers>
@@ -365,7 +365,7 @@ TEST_F(NGraphReaderTests, ReadSplitNetwork2) {
     });
 }
 
-TEST_F(NGraphReaderTests, ReadVariadicSplitNetwork) {
+TEST_F(NGraphReaderTests, smoke_ReadVariadicSplitNetwork) {
     std::string model = R"V0G0N(
 <net name="Network" version="10">
     <layers>

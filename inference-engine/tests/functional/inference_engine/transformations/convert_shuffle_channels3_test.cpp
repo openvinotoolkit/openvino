@@ -31,7 +31,7 @@ std::shared_ptr<ngraph::Function> buildInputGraph(int64_t axis, int64_t group, c
     return f;
 }
 
-TEST(TransformationTests, ConvertShuffleChannelsAxis0) {
+TEST(TransformationTests, smoke_ConvertShuffleChannelsAxis0) {
     int64_t group = 4;
     auto ps = ::PartialShape{12, Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic()};
     std::shared_ptr<ngraph::Function> f = buildInputGraph(0, group, ps), f_ref(nullptr);
@@ -68,7 +68,7 @@ TEST(TransformationTests, ConvertShuffleChannelsAxis0) {
     ASSERT_TRUE(output_node->get_friendly_name() == "shc") << "ConvertShuffleChannels3 should keep output names.\n";
 }
 
-TEST(TransformationTests, ConvertShuffleChannelsAxis1) {
+TEST(TransformationTests, smoke_ConvertShuffleChannelsAxis1) {
     int64_t group = 4;
     auto ps = ::PartialShape{Dimension::dynamic(), 12, Dimension::dynamic(), Dimension::dynamic()};
     std::shared_ptr<ngraph::Function> f = buildInputGraph(1, group, ps), f_ref(nullptr);
@@ -106,7 +106,7 @@ TEST(TransformationTests, ConvertShuffleChannelsAxis1) {
     ASSERT_TRUE(output_node->get_friendly_name() == "shc") << "ConvertShuffleChannels3 should keep output names.\n";
 }
 
-TEST(TransformationTests, ConvertShuffleChannelsAxis2) {
+TEST(TransformationTests, smoke_ConvertShuffleChannelsAxis2) {
     int64_t group = 4;
     auto ps = ::PartialShape{Dimension::dynamic(), Dimension::dynamic(), 12, Dimension::dynamic()};
     std::shared_ptr<ngraph::Function> f = buildInputGraph(2, group, ps), f_ref(nullptr);
@@ -144,7 +144,7 @@ TEST(TransformationTests, ConvertShuffleChannelsAxis2) {
     ASSERT_TRUE(output_node->get_friendly_name() == "shc") << "ConvertShuffleChannels3 should keep output names.\n";
 }
 
-TEST(TransformationTests, ConvertShuffleChannelsLastAxis) {
+TEST(TransformationTests, smoke_ConvertShuffleChannelsLastAxis) {
     int64_t group = 4;
     auto ps = ::PartialShape{Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic(), 12};
     std::shared_ptr<ngraph::Function> f = buildInputGraph(-1, group, ps), f_ref(nullptr);

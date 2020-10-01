@@ -4,7 +4,7 @@
 
 #include <string>
 #include "ngraph_reader_tests.hpp"
-TEST_F(NGraphReaderTests, ConvBiasFusion) {
+TEST_F(NGraphReaderTests, smoke_ConvBiasFusion) {
     std::string model = R"V0G0N(
 <net name="Network" version="10">
     <layers>
@@ -158,7 +158,7 @@ TEST_F(NGraphReaderTests, ConvBiasFusion) {
             });
 }
 
-TEST_F(NGraphReaderTests, ConvBiasFusionFP16) {
+TEST_F(NGraphReaderTests, smoke_ConvBiasFusionFP16) {
     std::string model = R"V0G0N(
 <net name="Network" version="10">
     <layers>
@@ -312,7 +312,7 @@ TEST_F(NGraphReaderTests, ConvBiasFusionFP16) {
             });
 }
 
-TEST_F(NGraphReaderTests, MatMulBiasFusionNoBroadcast) {
+TEST_F(NGraphReaderTests, MatMulBiasFusionNoBroadcast_smoke) {
     std::string model = R"V0G0N(
 <net name="Network" version="10">
     <layers>
@@ -435,7 +435,7 @@ TEST_F(NGraphReaderTests, MatMulBiasFusionNoBroadcast) {
     compareIRs(model, modelV5, 8196024);
 }
 
-TEST_F(NGraphReaderTests, DISABLED_MatMulBiasFusion) {
+TEST_F(NGraphReaderTests, DISABLED_smoke_MatMulBiasFusion) {
     std::string model = R"V0G0N(
 <net name="Network" version="10">
     <layers>

@@ -77,7 +77,7 @@ void positive_test(const Shape& data_shape, float in_low, float in_high, float o
     ASSERT_TRUE(res.first) << res.second;
 }
 
-TEST(TransformationTests, ConvertQuantizeDequantizeINT8) {
+TEST(TransformationTests, smoke_ConvertQuantizeDequantizeINT8) {
     std::shared_ptr<Function> f(nullptr), f_ref(nullptr);
     Shape data_shape{3, 1, 2};
     float in_low = 0;
@@ -94,7 +94,7 @@ TEST(TransformationTests, ConvertQuantizeDequantizeINT8) {
                   zero_point_shape, zero_point_values, scale_shape, scale_values, levels);
 }
 
-TEST(TransformationTests, ConvertQuantizeDequantizeUINT8) {
+TEST(TransformationTests, smoke_ConvertQuantizeDequantizeUINT8) {
     std::shared_ptr<Function> f(nullptr), f_ref(nullptr);
     Shape data_shape{3, 1, 2};
     float in_low = 0;
@@ -135,7 +135,7 @@ void negative_test(const Shape& data_shape, float in_low, float in_high, float o
     ASSERT_TRUE(res.first) << res.second;
 }
 
-TEST(TransformationTests, ConvertQuantizeDequantizeZeroPointNotBroadcastable) {
+TEST(TransformationTests, smoke_ConvertQuantizeDequantizeZeroPointNotBroadcastable) {
     std::shared_ptr<Function> f(nullptr), f_ref(nullptr);
     Shape data_shape{3, 1, 2};
     float in_low = 0;
@@ -152,7 +152,7 @@ TEST(TransformationTests, ConvertQuantizeDequantizeZeroPointNotBroadcastable) {
                   zero_point_shape, zero_point_values, scale_shape, scale_values, levels);
 }
 
-TEST(TransformationTests, ConvertQuantizeDequantizeScaleNotBroadcastable) {
+TEST(TransformationTests, smoke_ConvertQuantizeDequantizeScaleNotBroadcastable) {
     std::shared_ptr<Function> f(nullptr), f_ref(nullptr);
     Shape data_shape{3, 1, 2};
     float in_low = 0;
@@ -169,7 +169,7 @@ TEST(TransformationTests, ConvertQuantizeDequantizeScaleNotBroadcastable) {
                   zero_point_shape, zero_point_values, scale_shape, scale_values, levels);
 }
 
-TEST(TransformationTests, ConvertQuantizeDequantizeInvalidLevels) {
+TEST(TransformationTests, smoke_ConvertQuantizeDequantizeInvalidLevels) {
     std::shared_ptr<Function> f(nullptr), f_ref(nullptr);
     Shape data_shape{3, 1, 2};
     float in_low = 0;
@@ -186,7 +186,7 @@ TEST(TransformationTests, ConvertQuantizeDequantizeInvalidLevels) {
                   zero_point_shape, zero_point_values, scale_shape, scale_values, levels);
 }
 
-TEST(TransformationTests, ConvertQuantizeDequantizeInvalidOutLowOutHigh) {
+TEST(TransformationTests, smoke_ConvertQuantizeDequantizeInvalidOutLowOutHigh) {
     std::shared_ptr<Function> f(nullptr), f_ref(nullptr);
     Shape data_shape{3, 1, 2};
     float in_low = 0;

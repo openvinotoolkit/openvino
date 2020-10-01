@@ -22,27 +22,27 @@ protected:
     const TensorDesc n1c32h144w144 = TensorDesc(Precision::FP32, { 1ul, 32ul, 144ul, 144ul }, Layout::NCHW);
 };
 
-TEST_F(EltwiseTransformationIsBroadcastedTests, c1) {
+TEST_F(EltwiseTransformationIsBroadcastedTests, smoke_c1) {
     ASSERT_TRUE(EltwiseTransformation::isBroadcasted(c1));
 }
 
-TEST_F(EltwiseTransformationIsBroadcastedTests, c1000) {
+TEST_F(EltwiseTransformationIsBroadcastedTests, smoke_c1000) {
     ASSERT_FALSE(EltwiseTransformation::isBroadcasted(c1000));
 }
 
-TEST_F(EltwiseTransformationIsBroadcastedTests, n1c1) {
+TEST_F(EltwiseTransformationIsBroadcastedTests, smoke_n1c1) {
     ASSERT_TRUE(EltwiseTransformation::isBroadcasted(n1c1));
 }
 
-TEST_F(EltwiseTransformationIsBroadcastedTests, n1c256) {
+TEST_F(EltwiseTransformationIsBroadcastedTests, smoke_n1c256) {
     ASSERT_FALSE(EltwiseTransformation::isBroadcasted(n1c256));
 }
 
-TEST_F(EltwiseTransformationIsBroadcastedTests, n1c1000h1w1) {
+TEST_F(EltwiseTransformationIsBroadcastedTests, smoke_n1c1000h1w1) {
     ASSERT_TRUE(EltwiseTransformation::isBroadcasted(n1c1000h1w1));
 }
 
-TEST_F(EltwiseTransformationIsBroadcastedTests, n1c32h144w144) {
+TEST_F(EltwiseTransformationIsBroadcastedTests, smoke_n1c32h144w144) {
     ASSERT_FALSE(EltwiseTransformation::isBroadcasted(n1c32h144w144));
 }
 

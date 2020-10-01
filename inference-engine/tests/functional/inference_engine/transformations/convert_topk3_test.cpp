@@ -21,7 +21,7 @@
 using namespace testing;
 
 // check that the first output from the TopK-3 with I32 output indices is equal to the TopK-1 first output
-TEST(TransformationTests, ConvertTopK3I32Output0) {
+TEST(TransformationTests, smoke_ConvertTopK3I32Output0) {
     std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
     {
         auto input = std::make_shared<ngraph::opset3::Parameter>(ngraph::element::f32, ngraph::Shape{15, 20, 3});
@@ -56,7 +56,7 @@ TEST(TransformationTests, ConvertTopK3I32Output0) {
 }
 
 // check that the second output from the TopK-3 with I32 output indices is equal to the TopK-1 second output
-TEST(TransformationTests, ConvertTopK3I32Output1) {
+TEST(TransformationTests, smoke_ConvertTopK3I32Output1) {
     std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
     {
         auto input = std::make_shared<ngraph::opset3::Parameter>(ngraph::element::f32, ngraph::Shape{15, 20, 3});
@@ -91,7 +91,7 @@ TEST(TransformationTests, ConvertTopK3I32Output1) {
 }
 
 // check that the first output from the TopK-3 with I64 output indices is equal to the TopK-1 first output
-TEST(TransformationTests, ConvertTopK3I64Output0) {
+TEST(TransformationTests, smoke_ConvertTopK3I64Output0) {
     std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
     {
         auto input = std::make_shared<ngraph::opset3::Parameter>(ngraph::element::f32, ngraph::Shape{15, 20, 3});
@@ -126,7 +126,7 @@ TEST(TransformationTests, ConvertTopK3I64Output0) {
 }
 
 // check that the second output from the TopK-3 with I64 output indices is equal to the TopK-1 second output converted to I64
-TEST(TransformationTests, ConvertTopK3I64Output1) {
+TEST(TransformationTests, smoke_ConvertTopK3I64Output1) {
     std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
     {
         auto input = std::make_shared<ngraph::opset3::Parameter>(ngraph::element::f32, ngraph::Shape{15, 20, 3});

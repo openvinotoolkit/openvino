@@ -31,69 +31,69 @@ protected:
     };
 };
 
-TEST_F(DataTests, canSetEmptyDimsForDataDefault) {
+TEST_F(DataTests, smoke_canSetEmptyDimsForDataDefault) {
     Data data(data_name, precision);
     ASSERT_NO_THROW(data.setDims(emptyDims));
     ASSERT_FALSE(data.isInitialized());
 }
 
-TEST_F(DataTests, canSetEmptyDimsForDataBlocked) {
+TEST_F(DataTests, smoke_canSetEmptyDimsForDataBlocked) {
     Data data(data_name, precision, BLOCKED);
     ASSERT_NO_THROW(data.setDims(emptyDims));
 }
 
-TEST_F(DataTests, canSetNotEmptyDimsForDataBlocked) {
+TEST_F(DataTests, smoke_canSetNotEmptyDimsForDataBlocked) {
     Data data(data_name, precision, BLOCKED);
     ASSERT_NO_THROW(data.setDims(notEmptyDims));
 }
 
-TEST_F(DataTests, canSetNotEmptyDimsForDataNCHW) {
+TEST_F(DataTests, smoke_canSetNotEmptyDimsForDataNCHW) {
     Data data(data_name, precision, NCHW);
     ASSERT_NO_THROW(data.setDims(notEmptyDims));
     ASSERT_TRUE(data.isInitialized());
 }
 
-TEST_F(DataTests, canSetEmptyDimsForTensorDescNCHW) {
+TEST_F(DataTests, smoke_canSetEmptyDimsForTensorDescNCHW) {
     TensorDesc desc(precision, emptyDims, NCHW);
     ASSERT_NO_THROW(desc.setDims(emptyDims));
 }
 
-TEST_F(DataTests, canSetEmptyDimsForTensorDescBlocked) {
+TEST_F(DataTests, smoke_canSetEmptyDimsForTensorDescBlocked) {
     TensorDesc desc(precision, emptyDims, BLOCKED);
     ASSERT_NO_THROW(desc.setDims(emptyDims));
 }
 
-TEST_F(DataTests, canSetNotEmptyDimsForTensorDescBlocked) {
+TEST_F(DataTests, smoke_canSetNotEmptyDimsForTensorDescBlocked) {
     TensorDesc desc(precision, notEmptyDims, BLOCKED);
     ASSERT_NO_THROW(desc.setDims(notEmptyDims));
 }
 
-TEST_F(DataTests, canSetEmptyDimsForBlockingDescOrder) {
+TEST_F(DataTests, smoke_canSetEmptyDimsForBlockingDescOrder) {
     ASSERT_NO_THROW(BlockingDesc(emptyDims, emptyDims));
 }
 
-TEST_F(DataTests, throwOnFillDescByEmptyDimsForBlockingDesc) {
+TEST_F(DataTests, smoke_throwOnFillDescByEmptyDimsForBlockingDesc) {
     BlockingDescTest desc(emptyDims, emptyDims);
     ASSERT_THROW(desc.fillDescTest(emptyDims, emptyDims), InferenceEngineException);
 }
 
-TEST_F(DataTests, throwOnSetEmptyDimsForBlockingDescBlocked) {
+TEST_F(DataTests, smoke_throwOnSetEmptyDimsForBlockingDescBlocked) {
     ASSERT_NO_THROW(BlockingDesc(emptyDims, BLOCKED));
 }
 
-TEST_F(DataTests, throwOnSetEmptyDimsForBlockingDescNCHW) {
+TEST_F(DataTests, smoke_throwOnSetEmptyDimsForBlockingDescNCHW) {
     ASSERT_NO_THROW(BlockingDesc(emptyDims, NCHW));
 }
 
-TEST_F(DataTests, canSetNotEmptyDimsForBlockingDescBlocked) {
+TEST_F(DataTests, smoke_canSetNotEmptyDimsForBlockingDescBlocked) {
     ASSERT_NO_THROW(BlockingDesc(notEmptyDims, BLOCKED));
 }
 
-TEST_F(DataTests, canSetNotEmptyDimsForBlockingDescNCHW) {
+TEST_F(DataTests, smoke_canSetNotEmptyDimsForBlockingDescNCHW) {
     ASSERT_NO_THROW(BlockingDesc(notEmptyDims, NCHW));
 }
 
-TEST_F(DataTests, setPrecision) {
+TEST_F(DataTests, smoke_setPrecision) {
     Data data(data_name, { Precision::FP32, emptyDims, Layout::NCHW });
 
     EXPECT_EQ(Precision::FP32, data.getPrecision());

@@ -5,7 +5,7 @@
 #include <string>
 #include "ngraph_reader_tests.hpp"
 
-TEST_F(NGraphReaderTests, ReadSelectFP32Network) {
+TEST_F(NGraphReaderTests, smoke_ReadSelectFP32Network) {
     std::string model = R"V0G0N(
 <net name="Network" version="10">
     <layers>
@@ -166,7 +166,7 @@ TEST_F(NGraphReaderTests, ReadSelectFP32Network) {
     compareIRs(model, modelV5, 0);
 }
 
-TEST_F(NGraphReaderTests, ReadSelectI32Network) {
+TEST_F(NGraphReaderTests, smoke_ReadSelectI32Network) {
     std::string model = R"V0G0N(
 <net name="Network" version="10">
     <layers>

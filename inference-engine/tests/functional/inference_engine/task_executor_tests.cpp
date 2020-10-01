@@ -22,7 +22,7 @@ using Future = std::future<void>;
 
 class TaskExecutorTests : public ::testing::TestWithParam<std::function<ITaskExecutor::Ptr()>> {};
 
-TEST_P(TaskExecutorTests, canCreateTaskExecutor) {
+TEST_P(TaskExecutorTests, smoke_canCreateTaskExecutor) {
     auto makeExecutor = GetParam();
     EXPECT_NO_THROW(makeExecutor());
 }
@@ -35,7 +35,7 @@ static std::future<void> async(E& executor, F&& f) {
     return future;
 }
 
-TEST_P(TaskExecutorTests, canRunCustomFunction) {
+TEST_P(TaskExecutorTests, smoke_canRunCustomFunction) {
     auto taskExecutor = GetParam()();
     int i = 0;
     auto f = async(taskExecutor, [&i] { i++; });
@@ -43,7 +43,7 @@ TEST_P(TaskExecutorTests, canRunCustomFunction) {
     ASSERT_NO_THROW(f.get());
 }
 
-TEST_P(TaskExecutorTests, canRun2FunctionsOneByOne) {
+TEST_P(TaskExecutorTests, smoke_canRun2FunctionsOneByOne) {
     auto taskExecutor = GetParam()();
     std::mutex m;
     int i = 0;
@@ -57,7 +57,7 @@ TEST_P(TaskExecutorTests, canRun2FunctionsOneByOne) {
     ASSERT_EQ(i, 2);
 }
 
-TEST_P(TaskExecutorTests, canRun2FunctionsOneByOneWithoutWait) {
+TEST_P(TaskExecutorTests, smoke_canRun2FunctionsOneByOneWithoutWait) {
     auto taskExecutor = GetParam()();
     async(taskExecutor, [] {
         std::this_thread::sleep_for(std::chrono::milliseconds(500));
@@ -67,7 +67,7 @@ TEST_P(TaskExecutorTests, canRun2FunctionsOneByOneWithoutWait) {
     });
 }
 
-TEST_P(TaskExecutorTests, canRunMultipleTasksWithExceptionInside) {
+TEST_P(TaskExecutorTests, smoke_canRunMultipleTasksWithExceptionInside) {
     auto taskExecutor = GetParam()();
     std::vector<std::future<void>> futures;
 
@@ -82,7 +82,7 @@ TEST_P(TaskExecutorTests, canRunMultipleTasksWithExceptionInside) {
 }
 
 // TODO: Issue-11695
-TEST_P(TaskExecutorTests, canRunMultipleTasksFromMultipleThreads) {
+TEST_P(TaskExecutorTests, smoke_canRunMultipleTasksFromMultipleThreads) {
     auto taskExecutor = GetParam()();
     std::atomic_int sharedVar = {0};
     int THREAD_NUMBER = MAX_NUMBER_OF_TASKS_IN_QUEUE;
@@ -105,7 +105,7 @@ TEST_P(TaskExecutorTests, canRunMultipleTasksFromMultipleThreads) {
     for (auto&& thread : threads) if (thread.joinable()) thread.join();
 }
 
-TEST_P(TaskExecutorTests, executorNotReleasedUntilTasksAreDone) {
+TEST_P(TaskExecutorTests, smoke_executorNotReleasedUntilTasksAreDone) {
     std::mutex mutex_block_emulation;
     std::condition_variable cv_block_emulation;
     std::vector<Future> futures;

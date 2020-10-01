@@ -24,7 +24,7 @@
 using namespace testing;
 using namespace ngraph;
 
-TEST(TransformationTests, BatchToSpaceDecompositionByElements) {
+TEST(TransformationTests, smoke_BatchToSpaceDecompositionByElements) {
     std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
 
     {
@@ -83,7 +83,7 @@ TEST(TransformationTests, BatchToSpaceDecompositionByElements) {
     ASSERT_TRUE(res.first) << res.second;
 }
 
-TEST(TransformationTests, SpaceToBatchDecompositionByElements) {
+TEST(TransformationTests, smoke_SpaceToBatchDecompositionByElements) {
     std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
 
     {
@@ -147,7 +147,7 @@ TEST(TransformationTests, SpaceToBatchDecompositionByElements) {
     ASSERT_TRUE(res.first) << res.second;
 }
 
-TEST(TransformationTests, SpaceToBatchDecomposition) {
+TEST(TransformationTests, smoke_SpaceToBatchDecomposition) {
     std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
 
     {
@@ -189,7 +189,7 @@ TEST(TransformationTests, SpaceToBatchDecomposition) {
     ASSERT_TRUE(res.first) << res.second;
 }
 
-TEST(TransformationTests, BatchToSpaceDecomposition) {
+TEST(TransformationTests, smoke_BatchToSpaceDecomposition) {
     std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
 
     {

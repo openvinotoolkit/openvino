@@ -54,7 +54,7 @@ protected:
     PointedObjHelper *obj1 = nullptr, *obj2 = nullptr;
 };
 
-TEST_F(SoPointerTests, assignObjThenLoader) {
+TEST_F(SoPointerTests, smoke_assignObjThenLoader) {
     auto loaderPtr1 = std::make_shared<SharedObjectLoaderHelper>();
     auto objPtr1 = std::make_shared<PointedObjHelper>();
     auto loaderPtr2 = std::make_shared<SharedObjectLoaderHelper>();
@@ -91,11 +91,11 @@ public:
 
 }  // namespace InferenceEngine
 
-TEST_F(SoPointerTests, UnknownPlugin) {
+TEST_F(SoPointerTests, smoke_UnknownPlugin) {
     ASSERT_THROW(SOPointer<InferenceEngine::details::IRelease>("UnknownPlugin"), InferenceEngineException);
 }
 
-TEST_F(SoPointerTests, UnknownPluginExceptionStr) {
+TEST_F(SoPointerTests, smoke_UnknownPluginExceptionStr) {
     try {
         SOPointer<InferenceEngine::details::IRelease>("UnknownPlugin");
     }

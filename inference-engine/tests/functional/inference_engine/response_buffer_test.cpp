@@ -10,20 +10,20 @@ using namespace InferenceEngine;
 
 using ResponseBufferTests = ::testing::Test;
 
-TEST_F(ResponseBufferTests, canCreateResponseMessage) {
+TEST_F(ResponseBufferTests, smoke_canCreateResponseMessage) {
     ResponseDesc desc;
     DescriptionBuffer(&desc) << "make error: " << 1;
     ASSERT_STREQ("make error: 1", desc.msg);
 }
 
-TEST_F(ResponseBufferTests, canReportError) {
+TEST_F(ResponseBufferTests, smoke_canReportError) {
     ResponseDesc desc;
     DescriptionBuffer d(NETWORK_NOT_LOADED, &desc);
     d << "make error: ";
     ASSERT_EQ(NETWORK_NOT_LOADED, (StatusCode)d);
 }
 
-TEST_F(ResponseBufferTests, savePreviosMessage) {
+TEST_F(ResponseBufferTests, smoke_savePreviosMessage) {
     ResponseDesc desc;
     desc.msg[0] = 'T';
     desc.msg[1] = 'e';
@@ -35,7 +35,7 @@ TEST_F(ResponseBufferTests, savePreviosMessage) {
     ASSERT_EQ(std::string("Test"), desc.msg);
 }
 
-TEST_F(ResponseBufferTests, canHandleBigMessage) {
+TEST_F(ResponseBufferTests, smoke_canHandleBigMessage) {
     ResponseDesc desc;
     int size = sizeof(desc.msg) / sizeof(desc.msg[0]);
     DescriptionBuffer buf(&desc);
@@ -47,7 +47,7 @@ TEST_F(ResponseBufferTests, canHandleBigMessage) {
     ASSERT_EQ(desc.msg[size - 1], 0);
 }
 
-TEST_F(ResponseBufferTests, canHandleNotNullTerminatedInput) {
+TEST_F(ResponseBufferTests, smoke_canHandleNotNullTerminatedInput) {
     ResponseDesc desc;
     int size = sizeof(desc.msg) / sizeof(desc.msg[0]);
 
@@ -62,7 +62,7 @@ TEST_F(ResponseBufferTests, canHandleNotNullTerminatedInput) {
     ASSERT_EQ(desc.msg[size - 1], 0);
 }
 
-TEST_F(ResponseBufferTests, canHandlePredefined) {
+TEST_F(ResponseBufferTests, smoke_canHandlePredefined) {
     ResponseDesc desc;
     int size = sizeof(desc.msg) / sizeof(desc.msg[0]);
 
@@ -79,7 +79,7 @@ TEST_F(ResponseBufferTests, canHandlePredefined) {
     ASSERT_EQ(desc.msg[size - 1], 0);
 }
 
-TEST_F(ResponseBufferTests, canHandleNotNullTerminatedPredefined) {
+TEST_F(ResponseBufferTests, smoke_canHandleNotNullTerminatedPredefined) {
     ResponseDesc desc;
     int size = sizeof(desc.msg) / sizeof(desc.msg[0]);
 

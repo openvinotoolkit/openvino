@@ -12,19 +12,19 @@ using namespace InferenceEngine::details;
 
 using CaselessTests = ::testing::Test;
 
-TEST_F(CaselessTests, emptyAreEqual) {
+TEST_F(CaselessTests, smoke_emptyAreEqual) {
     ASSERT_TRUE(InferenceEngine::details::equal("", ""));
 }
 
-TEST_F(CaselessTests, canIgnoreCase) {
+TEST_F(CaselessTests, smoke_canIgnoreCase) {
     ASSERT_TRUE(InferenceEngine::details::equal("abc", "ABC"));
 }
 
-TEST_F(CaselessTests, emptyIsNotEqualNotEmpty) {
+TEST_F(CaselessTests, smoke_emptyIsNotEqualNotEmpty) {
     ASSERT_FALSE(InferenceEngine::details::equal("", "abc"));
 }
 
-TEST_F(CaselessTests, canFindCaslessInMap) {
+TEST_F(CaselessTests, smoke_canFindCaslessInMap) {
     caseless_map<string, int> storage = {
         {"Abc", 1},
         {"bC", 2},
@@ -38,7 +38,7 @@ TEST_F(CaselessTests, canFindCaslessInMap) {
     ASSERT_EQ(storage.find(""), storage.end());
 }
 
-TEST_F(CaselessTests, canFindCaslessInUnordered) {
+TEST_F(CaselessTests, smoke_canFindCaslessInUnordered) {
     caseless_unordered_map <string, int> storage = {
         {"Abc", 1},
         {"bC", 2},

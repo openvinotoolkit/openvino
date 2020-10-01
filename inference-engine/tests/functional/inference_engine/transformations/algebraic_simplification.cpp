@@ -24,7 +24,7 @@
 using namespace ngraph;
 using namespace std;
 
-TEST(algebraic_simplification, add_negative_tests) {
+TEST(algebraic_simplification, smoke_add_negative_tests) {
     Shape shape{};
     auto type = element::f32;
     pass::Manager pass_manager;
@@ -51,7 +51,7 @@ TEST(algebraic_simplification, add_negative_tests) {
     }
 }
 
-TEST(algebraic_simplification, multiply_negative_tests) {
+TEST(algebraic_simplification, smoke_multiply_negative_tests) {
     Shape shape{};
     auto type = element::f32;
     pass::Manager pass_manager;
@@ -78,7 +78,7 @@ TEST(algebraic_simplification, multiply_negative_tests) {
     }
 }
 
-TEST(algebraic_simplification, multiply_prod_negative) {
+TEST(algebraic_simplification, smoke_multiply_prod_negative) {
     auto fconst1 = ngraph::op::Constant::create(element::f64, Shape{2}, {1.0, 1.0});
     auto broadcast = std::make_shared<op::Broadcast>(fconst1, Shape{2, 5}, AxisSet{1});
     auto prod_fconst1 = std::make_shared<op::Product>(broadcast, AxisSet{0, 1});
@@ -92,7 +92,7 @@ TEST(algebraic_simplification, multiply_prod_negative) {
     ASSERT_EQ(f_prod, prod_fconst1);
 }
 
-TEST(algebraic_simplification, multiply_sum_negative) {
+TEST(algebraic_simplification, smoke_multiply_sum_negative) {
     auto fconst1 = ngraph::op::Constant::create(element::f64, Shape{2}, {1.0, 1.0});
     auto broadcast = std::make_shared<op::Broadcast>(fconst1, Shape{2, 5}, AxisSet{1});
     auto sum_fconst1 = std::make_shared<op::Sum>(broadcast, AxisSet{0, 1});
@@ -106,7 +106,7 @@ TEST(algebraic_simplification, multiply_sum_negative) {
     ASSERT_EQ(f_sum, sum_fconst1);
 }
 
-TEST(algebraic_simplification, concat_parameter_slices_reversed) {
+TEST(algebraic_simplification, smoke_concat_parameter_slices_reversed) {
     auto a = make_shared<op::Parameter>(element::f32, Shape{96, 100});
     auto slice1 = make_shared<op::Slice>(a, Coordinate{0, 0}, Coordinate{32, 100}, Strides{1, 1});
     auto slice2 = make_shared<op::Slice>(a, Coordinate{32, 0}, Coordinate{64, 100}, Strides{1, 1});
@@ -123,7 +123,7 @@ TEST(algebraic_simplification, concat_parameter_slices_reversed) {
     ASSERT_EQ(f->get_results().at(0)->input_value(0).get_node_shared_ptr(), concat);
 }
 
-TEST(algebraic_simplification, concat_parameter_slices_element_count) {
+TEST(algebraic_simplification, smoke_concat_parameter_slices_element_count) {
     auto a = make_shared<op::Parameter>(element::f32, Shape{96, 100});
     // slicing 30 elements out of 96; should trigger a check that some elements are missing
     auto slice1 = make_shared<op::Slice>(a, Coordinate{0, 0}, Coordinate{10, 100}, Strides{1, 1});
@@ -141,7 +141,7 @@ TEST(algebraic_simplification, concat_parameter_slices_element_count) {
     ASSERT_EQ(f->get_results().at(0)->input_value(0).get_node_shared_ptr(), concat);
 }
 
-TEST(algebraic_simplification, concat_parameter_non_uniform_slices) {
+TEST(algebraic_simplification, smoke_concat_parameter_non_uniform_slices) {
     auto a = make_shared<op::Parameter>(element::f32, Shape{96, 100});
     auto slice1 = make_shared<op::Slice>(a, Coordinate{0, 0}, Coordinate{38, 100}, Strides{1, 1});
     auto slice2 = make_shared<op::Slice>(a, Coordinate{38, 0}, Coordinate{64, 100}, Strides{1, 1});
@@ -158,7 +158,7 @@ TEST(algebraic_simplification, concat_parameter_non_uniform_slices) {
     ASSERT_EQ(f->get_results().at(0)->input_value(0).get_node_shared_ptr(), concat);
 }
 
-TEST(algebraic_simplification, concat_different_inputs) {
+TEST(algebraic_simplification, smoke_concat_different_inputs) {
     auto a = make_shared<op::Parameter>(element::f32, Shape{96, 100});
     auto goe1 = -a;
     auto goe2 = -a;
@@ -180,7 +180,7 @@ TEST(algebraic_simplification, concat_different_inputs) {
     ASSERT_EQ(f->get_results().at(0)->input_value(0).get_node_shared_ptr(), concat);
 }
 
-TEST(algebraic_simplification, log_no_exp) {
+TEST(algebraic_simplification, smoke_log_no_exp) {
     auto a = make_shared<op::Parameter>(element::f32, Shape{96, 100});
     auto b = make_shared<op::Parameter>(element::f32, Shape{96, 100});
     auto abs_a = make_shared<op::Abs>(a);
@@ -200,7 +200,7 @@ TEST(algebraic_simplification, log_no_exp) {
     ASSERT_EQ(neg_inner->input_value(0).get_node_shared_ptr(), log_div);
 }
 
-TEST(algebraic_simplification, log_no_divide) {
+TEST(algebraic_simplification, smoke_log_no_divide) {
     auto a = make_shared<op::Parameter>(element::f32, Shape{96, 100});
     auto b = make_shared<op::Parameter>(element::f32, Shape{96, 100});
     auto exp_a = make_shared<op::Exp>(a);
@@ -220,13 +220,13 @@ TEST(algebraic_simplification, log_no_divide) {
     ASSERT_EQ(neg_inner->input_value(0).get_node_shared_ptr(), log_mul);
 }
 
-TEST(algebraic_simplification, pass_property) {
+TEST(algebraic_simplification, smoke_pass_property) {
     auto pass = std::make_shared<ngraph::pass::AlgebraicSimplification>();
 
     ASSERT_FALSE(pass->get_property(pass::PassProperty::CHANGE_DYNAMIC_STATE));
 }
 
-TEST(algebraic_simplification, replace_transpose_with_reshape) {
+TEST(algebraic_simplification, smoke_replace_transpose_with_reshape) {
     auto check_usecase = [](const PartialShape& shape,
                             const std::vector<int64_t>& perm_val,
                             bool i32,
@@ -312,7 +312,7 @@ TEST(algebraic_simplification, replace_transpose_with_reshape) {
 // gather is Nop and will be removed during `simplify_gather`
 // algebraic_simplification pass
 
-TEST(algebraic_simplification, gather_3d_indices_constant_axis_1) {
+TEST(algebraic_simplification, smoke_gather_3d_indices_constant_axis_1) {
     auto check_usecase = [](const PartialShape& pshape,
                             bool i32,
                             bool multiout,
@@ -372,7 +372,7 @@ TEST(algebraic_simplification, gather_3d_indices_constant_axis_1) {
         }
 }
 
-TEST(algebraic_simplification, gather_shapeof) {
+TEST(algebraic_simplification, smoke_gather_shapeof) {
     auto check_usecase = [](const PartialShape& pshape,
                             bool is_scalar_index,
                             bool opset2,

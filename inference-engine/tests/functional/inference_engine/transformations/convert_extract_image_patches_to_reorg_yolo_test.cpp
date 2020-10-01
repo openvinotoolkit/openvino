@@ -19,7 +19,7 @@
 
 using namespace testing;
 
-TEST(TransformationTests, ConvertExtractImagePatchesToReorgYoloTests1) {
+TEST(TransformationTests, smoke_ConvertExtractImagePatchesToReorgYoloTests1) {
     std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
     {
         auto input = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{1, 3, 10, 10});
@@ -52,7 +52,7 @@ TEST(TransformationTests, ConvertExtractImagePatchesToReorgYoloTests1) {
     ASSERT_TRUE(res.first) << res.second;
 }
 
-TEST(TransformationTests, ConvertExtractImagePatchesToReorgYoloTestsNegative1) {
+TEST(TransformationTests, smoke_ConvertExtractImagePatchesToReorgYoloTestsNegative1) {
     std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
     {
         auto input = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32,
@@ -91,7 +91,7 @@ TEST(TransformationTests, ConvertExtractImagePatchesToReorgYoloTestsNegative1) {
     ASSERT_TRUE(res.first) << res.second;
 }
 
-TEST(TransformationTests, ConvertExtractImagePatchesToReorgYoloTestsNegative2) {
+TEST(TransformationTests, smoke_ConvertExtractImagePatchesToReorgYoloTestsNegative2) {
     std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
     {
         auto input = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{1, 3, 10, 10});
@@ -129,7 +129,7 @@ TEST(TransformationTests, ConvertExtractImagePatchesToReorgYoloTestsNegative2) {
     ASSERT_TRUE(res.first) << res.second;
 }
 
-TEST(TransformationTests, ConvertExtractImagePatchesToReorgYoloTestsNegative3) {
+TEST(TransformationTests, smoke_ConvertExtractImagePatchesToReorgYoloTestsNegative3) {
     std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
     {
         auto input = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{1, 3, 10, 10});

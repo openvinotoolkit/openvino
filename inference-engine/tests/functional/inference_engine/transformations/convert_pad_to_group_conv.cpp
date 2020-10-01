@@ -20,7 +20,7 @@
 using namespace testing;
 using namespace ngraph;
 
-TEST(TransformationTests, ConvertPadToConv) {
+TEST(TransformationTests, smoke_ConvertPadToConv) {
     std::shared_ptr<Function> f(nullptr), f_ref(nullptr);
     {
         auto input = std::make_shared<opset4::Parameter>(element::f32, Shape{1, 3, 64, 64});
@@ -58,7 +58,7 @@ TEST(TransformationTests, ConvertPadToConv) {
     ASSERT_TRUE(res.first) << res.second;
 }
 
-TEST(TransformationTests, ConvertPadToConvNeg1) {
+TEST(TransformationTests, smoke_ConvertPadToConvNeg1) {
     auto get_function = []() -> std::shared_ptr<Function> {
         auto input = std::make_shared<opset4::Parameter>(element::f32, Shape{1, 3, 64, 64});
         auto pad_begin = opset4::Constant::create(element::i64, Shape{4}, {1, 0, 1, 0}); // Batch dim padding
@@ -86,7 +86,7 @@ TEST(TransformationTests, ConvertPadToConvNeg1) {
     ASSERT_TRUE(res.first) << res.second;
 }
 
-TEST(TransformationTests, ConvertPadToConvNeg2) {
+TEST(TransformationTests, smoke_ConvertPadToConvNeg2) {
     auto get_function = []() -> std::shared_ptr<Function> {
         auto input = std::make_shared<opset4::Parameter>(element::f32, Shape{1, 3, 64, 64});
         auto pad_begin = opset4::Constant::create(element::i64, Shape{4}, {0, 0, 1, 0});
@@ -114,7 +114,7 @@ TEST(TransformationTests, ConvertPadToConvNeg2) {
     ASSERT_TRUE(res.first) << res.second;
 }
 
-TEST(TransformationTests, ConvertPadToConvNeg3) {
+TEST(TransformationTests, smoke_ConvertPadToConvNeg3) {
     auto get_function = []() -> std::shared_ptr<Function> {
         auto input = std::make_shared<opset4::Parameter>(element::f32, Shape{1, 3, 64, 64});
         auto pad_begin = opset4::Constant::create(element::i64, Shape{4}, {0, 0, 1, 0});
@@ -143,7 +143,7 @@ TEST(TransformationTests, ConvertPadToConvNeg3) {
 }
 
 
-TEST(TransformationTests, ConvertPadToConvNeg4) {
+TEST(TransformationTests, smoke_ConvertPadToConvNeg4) {
     auto get_function = []() -> std::shared_ptr<Function> {
         auto input = std::make_shared<opset4::Parameter>(element::f32, Shape{1, 3, 64, 64});
         auto pad_begin = opset4::Constant::create(element::i64, Shape{4}, {0, 0, 1, 0});

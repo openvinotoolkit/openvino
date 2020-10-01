@@ -57,7 +57,7 @@ public:
 };
 
 // tested function: SetConfig
-TEST_F(CoreThreadingTests, SetConfigPluginDoesNotExist) {
+TEST_F(CoreThreadingTests, smoke_SetConfigPluginDoesNotExist) {
     InferenceEngine::Core ie;
     std::map<std::string, std::string> localConfig = {
         { CONFIG_KEY(PERF_COUNT), InferenceEngine::PluginConfigParams::YES }
@@ -69,7 +69,7 @@ TEST_F(CoreThreadingTests, SetConfigPluginDoesNotExist) {
 }
 
 // tested function: RegisterPlugin
-TEST_F(CoreThreadingTests, RegisterPlugin) {
+TEST_F(CoreThreadingTests, smoke_RegisterPlugin) {
     InferenceEngine::Core ie;
     std::atomic<int> index{0};
     runParallel([&] () {
@@ -81,7 +81,7 @@ TEST_F(CoreThreadingTests, RegisterPlugin) {
 }
 
 // tested function: RegisterPlugins
-TEST_F(CoreThreadingTests, RegisterPlugins) {
+TEST_F(CoreThreadingTests, smoke_RegisterPlugins) {
     InferenceEngine::Core ie;
     std::atomic<unsigned int> index{0};
 
@@ -118,7 +118,7 @@ TEST_F(CoreThreadingTests, RegisterPlugins) {
 
 // tested function: GetAvailableDevices, UnregisterPlugin
 // TODO: some plugins initialization (e.g. GNA) failed during such stress-test scenario
-TEST_F(CoreThreadingTests, DISABLED_GetAvailableDevices) {
+TEST_F(CoreThreadingTests, DISABLED_smoke_GetAvailableDevices) {
     InferenceEngine::Core ie;
     runParallel([&] () {
         std::vector<std::string> devices = ie.GetAvailableDevices();
@@ -137,7 +137,7 @@ TEST_F(CoreThreadingTests, DISABLED_GetAvailableDevices) {
 }
 
 // tested function: ReadNetwork, AddExtension
-TEST_F(CoreThreadingTests, ReadNetwork) {
+TEST_F(CoreThreadingTests, smoke_ReadNetwork) {
     InferenceEngine::Core ie;
     auto model = FuncTestUtils::TestModel::convReluNormPoolFcModelFP32;
     auto network = ie.ReadNetwork(model.model_xml_str, model.weights_blob);

@@ -17,7 +17,7 @@
 
 using namespace testing;
 
-TEST(TransformationTests, ConvertShapeOf3WithI64) {
+TEST(TransformationTests, smoke_ConvertShapeOf3WithI64) {
     std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
     {
         auto input = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{1, 2, 3});
@@ -47,7 +47,7 @@ TEST(TransformationTests, ConvertShapeOf3WithI64) {
     ASSERT_TRUE(output_node->get_friendly_name() == "shapeof") << "Transformation ConvertShapeOf3 should keep output names.\n";
 }
 
-TEST(TransformationTests, ConvertShapeOf3WithI32) {
+TEST(TransformationTests, smoke_ConvertShapeOf3WithI32) {
     std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
     {
         auto input = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{1, 2, 3});

@@ -27,7 +27,7 @@ class PreallocatorTests: public ::testing::Test {
     std::shared_ptr<IAllocator> allocator;
 };
 
-TEST_F(PreallocatorTests, canAccessPreAllocatedMemory) {
+TEST_F(PreallocatorTests, smoke_canAccessPreAllocatedMemory) {
     void * handle = allocator->alloc(3);
     float * ptr = reinterpret_cast<float*>(allocator->lock(handle));
 
@@ -39,13 +39,13 @@ TEST_F(PreallocatorTests, canAccessPreAllocatedMemory) {
     ASSERT_EQ(ptr[2], 3.3f);
 }
 
-TEST_F(PreallocatorTests, canNotAllocateMoreMemory) {
+TEST_F(PreallocatorTests, smoke_canNotAllocateMoreMemory) {
     //large block such as 10k will result in nullptr
     EXPECT_EQ(nullptr, allocator->lock(allocator->alloc(10* sizeof(float) + 1)));
     EXPECT_NE(nullptr, allocator->lock(allocator->alloc(10* sizeof(float))));
 }
 
-TEST_F(PreallocatorTests, canNotLockWrongHandle) {
+TEST_F(PreallocatorTests, smoke_canNotLockWrongHandle) {
     void * handle  = allocator->alloc(3);
     EXPECT_EQ(nullptr, allocator->lock(1 + reinterpret_cast<int*>(handle)));
 }

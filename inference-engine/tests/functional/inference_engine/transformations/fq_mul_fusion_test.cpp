@@ -92,98 +92,98 @@ TEST_P(FQMulFusion, ExpectFusion) {
 };
 
 namespace {
-INSTANTIATE_TEST_CASE_P(ScalarFQParams_C6_4D_channel_0, FQMulFusion,
+INSTANTIATE_TEST_CASE_P(smoke_ScalarFQParams_C6_4D_channel_0, FQMulFusion,
                         ::testing::Combine(::testing::Values(ngraph::Shape{64, 3, 7, 7}),
                                            ::testing::Values(ngraph::Shape{}),
                                            ::testing::Values(ngraph::Shape{}),
                                            ::testing::Values(ngraph::Shape{64, 1, 1, 1}),
                                            ::testing::Values(ngraph::Shape{64, 1, 1, 1})));
 
-INSTANTIATE_TEST_CASE_P(ScalarFQParams_C6_4D_channel_1, FQMulFusion,
+INSTANTIATE_TEST_CASE_P(smoke_ScalarFQParams_C6_4D_channel_1, FQMulFusion,
                         ::testing::Combine(::testing::Values(ngraph::Shape{64, 3, 7, 7}),
                                            ::testing::Values(ngraph::Shape{}),
                                            ::testing::Values(ngraph::Shape{}),
                                            ::testing::Values(ngraph::Shape{1, 3, 1, 1}),
                                            ::testing::Values(ngraph::Shape{1, 3, 1, 1})));
 
-INSTANTIATE_TEST_CASE_P(ScalarFQParams_C6_scalar, FQMulFusion,
+INSTANTIATE_TEST_CASE_P(smoke_ScalarFQParams_C6_scalar, FQMulFusion,
                         ::testing::Combine(::testing::Values(ngraph::Shape{64, 3, 7, 7}),
                                            ::testing::Values(ngraph::Shape{}),
                                            ::testing::Values(ngraph::Shape{}),
                                            ::testing::Values(ngraph::Shape{}),
                                            ::testing::Values(ngraph::Shape{})));
 
-INSTANTIATE_TEST_CASE_P(FQOutputs1D_C6_scalar, FQMulFusion,
+INSTANTIATE_TEST_CASE_P(smoke_FQOutputs1D_C6_scalar, FQMulFusion,
                         ::testing::Combine(::testing::Values(ngraph::Shape{64, 3, 7, 7}),
                                            ::testing::Values(ngraph::Shape{}),
                                            ::testing::Values(ngraph::Shape{1}),
                                            ::testing::Values(ngraph::Shape{}),
                                            ::testing::Values(ngraph::Shape{1})));
 
-INSTANTIATE_TEST_CASE_P(FQOutputs_NHWC_C6_scalar, FQMulFusion,
+INSTANTIATE_TEST_CASE_P(smoke_FQOutputs_NHWC_C6_scalar, FQMulFusion,
                         ::testing::Combine(::testing::Values(ngraph::Shape{1, 7, 7, 3}),
                                            ::testing::Values(ngraph::Shape{}),
                                            ::testing::Values(ngraph::Shape{1, 1, 1, 3}),
                                            ::testing::Values(ngraph::Shape{}),
                                            ::testing::Values(ngraph::Shape{1, 1, 1, 3})));
 
-INSTANTIATE_TEST_CASE_P(FQOutputs_NCHW_C6_scalar, FQMulFusion,
+INSTANTIATE_TEST_CASE_P(smoke_FQOutputs_NCHW_C6_scalar, FQMulFusion,
                         ::testing::Combine(::testing::Values(ngraph::Shape{1, 3, 7, 7}),
                                            ::testing::Values(ngraph::Shape{}),
                                            ::testing::Values(ngraph::Shape{1, 3, 1, 1}),
                                            ::testing::Values(ngraph::Shape{}),
                                            ::testing::Values(ngraph::Shape{1, 3, 1, 1})));
 
-INSTANTIATE_TEST_CASE_P(FQInputs_4D_with_channel_dimension, FQMulFusion,
+INSTANTIATE_TEST_CASE_P(smoke_FQInputs_4D_with_channel_dimension, FQMulFusion,
                         ::testing::Combine(::testing::Values(ngraph::Shape{1, 64, 3, 3}),
                                            ::testing::Values(ngraph::Shape{1, 1, 1, 1}),
                                            ::testing::Values(ngraph::Shape{1, 64, 1, 1}),
                                            ::testing::Values(ngraph::Shape{1, 64, 1, 1}),
                                            ::testing::Values(ngraph::Shape{1, 64, 1, 1})));
 
-INSTANTIATE_TEST_CASE_P(FQInputs_4D_per__multiplier_with_channel, FQMulFusion,
+INSTANTIATE_TEST_CASE_P(smoke_FQInputs_4D_per__multiplier_with_channel, FQMulFusion,
                         ::testing::Combine(::testing::Values(ngraph::Shape{1, 64, 3, 3}),
                                            ::testing::Values(ngraph::Shape{1, 1, 1, 1}),
                                            ::testing::Values(ngraph::Shape{1, 1, 1, 1}),
                                            ::testing::Values(ngraph::Shape{1, 64, 1, 1}),
                                            ::testing::Values(ngraph::Shape{1, 64, 1, 1})));
 
-INSTANTIATE_TEST_CASE_P(FQInputs_4D_with_channel__multiplier_4D_per_tensor, FQMulFusion,
+INSTANTIATE_TEST_CASE_P(smoke_FQInputs_4D_with_channel__multiplier_4D_per_tensor, FQMulFusion,
                         ::testing::Combine(::testing::Values(ngraph::Shape{1, 64, 3, 3}),
                                            ::testing::Values(ngraph::Shape{1, 1, 1, 1}),
                                            ::testing::Values(ngraph::Shape{1, 64, 1, 1}),
                                            ::testing::Values(ngraph::Shape{1, 1, 1, 1}),
                                            ::testing::Values(ngraph::Shape{1, 64, 1, 1})));
 
-INSTANTIATE_TEST_CASE_P(FQInputs_4D__multiplier_channel_3rd_dim, FQMulFusion,
+INSTANTIATE_TEST_CASE_P(smoke_FQInputs_4D__multiplier_channel_3rd_dim, FQMulFusion,
                         ::testing::Combine(::testing::Values(ngraph::Shape{1, 64, 3, 3}),
                                            ::testing::Values(ngraph::Shape{1, 1, 1, 1}),
                                            ::testing::Values(ngraph::Shape{1, 64, 1, 1}),
                                            ::testing::Values(ngraph::Shape{1, 1, 3, 1}),
                                            ::testing::Values(ngraph::Shape{1, 64, 3, 1})));
 
-INSTANTIATE_TEST_CASE_P(FQOutputs_1D__multiplier_3D, FQMulFusion,
+INSTANTIATE_TEST_CASE_P(smoke_FQOutputs_1D__multiplier_3D, FQMulFusion,
                         ::testing::Combine(::testing::Values(ngraph::Shape{1, 64, 3, 3}),
                                            ::testing::Values(ngraph::Shape{1, 64, 1, 1}),
                                            ::testing::Values(ngraph::Shape{1}),
                                            ::testing::Values(ngraph::Shape{1, 3, 1}),
                                            ::testing::Values(ngraph::Shape{1, 3, 1})));
 
-INSTANTIATE_TEST_CASE_P(FQ_all_ones__multiplier_4D_with_channel, FQMulFusion,
+INSTANTIATE_TEST_CASE_P(smoke_FQ_all_ones__multiplier_4D_with_channel, FQMulFusion,
                         ::testing::Combine(::testing::Values(ngraph::Shape{1, 1, 1, 1}),
                                            ::testing::Values(ngraph::Shape{1, 1, 1, 1}),
                                            ::testing::Values(ngraph::Shape{1, 1, 1, 1}),
                                            ::testing::Values(ngraph::Shape{1, 64, 1, 1}),
                                            ::testing::Values(ngraph::Shape{1, 64, 1, 1})));
 
-INSTANTIATE_TEST_CASE_P(FQInOUt_ones__multiplier_4D_with_channel, FQMulFusion,
+INSTANTIATE_TEST_CASE_P(smoke_FQInOUt_ones__multiplier_4D_with_channel, FQMulFusion,
                         ::testing::Combine(::testing::Values(ngraph::Shape{1, 64, 3, 3}),
                                            ::testing::Values(ngraph::Shape{1, 1, 1, 1}),
                                            ::testing::Values(ngraph::Shape{1, 1, 1, 1}),
                                            ::testing::Values(ngraph::Shape{1, 64, 3, 3}),
                                            ::testing::Values(ngraph::Shape{1, 64, 3, 3})));
 
-TEST(FQMulFusion_NonConstInputs, AllInputsNonConst) {
+TEST(FQMulFusion_NonConstInputs, smoke_AllInputsNonConst) {
     const auto data = std::make_shared<ngraph::opset4::Parameter>(
         ngraph::element::Type_t::f32, ngraph::Shape{1, 3, 224, 224});
     const auto in_low =
@@ -225,7 +225,7 @@ TEST(FQMulFusion_NonConstInputs, AllInputsNonConst) {
     ASSERT_TRUE(res.first) << res.second;
 }
 
-TEST(FQMulFusion_NonConstInputs, FQ_out_high_const) {
+TEST(FQMulFusion_NonConstInputs, smoke_FQ_out_high_const) {
     const auto data = std::make_shared<ngraph::opset4::Parameter>(
         ngraph::element::Type_t::f32, ngraph::Shape{1, 3, 224, 224});
     const auto in_low =
@@ -269,7 +269,7 @@ TEST(FQMulFusion_NonConstInputs, FQ_out_high_const) {
     ASSERT_TRUE(res.first) << res.second;
 }
 
-TEST(FQMulFusion_FQ_Mul_inputs, FQ_out_to_mul_input_2) {
+TEST(FQMulFusion_FQ_Mul_inputs, smoke_FQ_out_to_mul_input_2) {
     const auto data = ngraph::opset4::Constant::create(
         ngraph::element::Type_t::f32, ngraph::Shape{1, 3, 224, 224}, {0.0f});
     const auto in_low = ngraph::opset4::Constant::create(
@@ -313,7 +313,7 @@ TEST(FQMulFusion_FQ_Mul_inputs, FQ_out_to_mul_input_2) {
     ASSERT_TRUE(res.first) << res.second;
 }
 
-TEST(FQMulFusion_FQ_Mul_inputs, FQ_out_to_mul_input_2_param) {
+TEST(FQMulFusion_FQ_Mul_inputs, smoke_FQ_out_to_mul_input_2_param) {
     const auto data = ngraph::opset4::Constant::create(
         ngraph::element::Type_t::f32, ngraph::Shape{1, 3, 224, 224}, {0.0f});
     const auto in_low = ngraph::opset4::Constant::create(

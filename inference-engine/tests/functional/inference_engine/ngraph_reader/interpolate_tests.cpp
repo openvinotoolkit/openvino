@@ -4,7 +4,7 @@
 
 #include <string>
 #include "ngraph_reader_tests.hpp"
-TEST_F(NGraphReaderTests, ReadInterpolateNetwork) {
+TEST_F(NGraphReaderTests, smoke_ReadInterpolateNetwork) {
     std::string model = R"V0G0N(
 <net name="Network" version="10">
     <layers>
@@ -111,7 +111,7 @@ TEST_F(NGraphReaderTests, ReadInterpolateNetwork) {
                 data[1] = 60;
             });
 }
-TEST_F(NGraphReaderTests, ReadInterpolate2Network) {
+TEST_F(NGraphReaderTests, smoke_ReadInterpolate2Network) {
     std::string model = R"V0G0N(
 <net name="Network" version="10">
     <layers>
@@ -221,7 +221,7 @@ TEST_F(NGraphReaderTests, ReadInterpolate2Network) {
             });
 }
 
-TEST_F(NGraphReaderTests, ReadInterpolate4Network) {
+TEST_F(NGraphReaderTests, smoke_ReadInterpolate4Network) {
     std::string model = R"V0G0N(
 <net name="Network" version="10">
     <layers>

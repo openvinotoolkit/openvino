@@ -10,62 +10,62 @@ using namespace std;
 using namespace InferenceEngine;
 using namespace InferenceEngine::details;
 
-TEST(ExecutableNetworkTests, throwsOnInitWithNull) {
+TEST(ExecutableNetworkTests, smoke_throwsOnInitWithNull) {
     std::shared_ptr<IExecutableNetwork> nlptr = nullptr;
     ASSERT_THROW(ExecutableNetwork exec(nlptr), InferenceEngine::details::InferenceEngineException);
 }
 
-TEST(ExecutableNetworkTests, throwsOnUninitializedGetOutputsInfo) {
+TEST(ExecutableNetworkTests, smoke_throwsOnUninitializedGetOutputsInfo) {
     ExecutableNetwork exec;
     ASSERT_THROW(exec.GetOutputsInfo(), InferenceEngine::details::InferenceEngineException);
 }
 
-TEST(ExecutableNetworkTests, throwsOnUninitializedGetInputsInfo) {
+TEST(ExecutableNetworkTests, smoke_throwsOnUninitializedGetInputsInfo) {
     ExecutableNetwork exec;
     ASSERT_THROW(exec.GetInputsInfo(), InferenceEngine::details::InferenceEngineException);
 }
 
-TEST(ExecutableNetworkTests, throwsOnUninitializedExport) {
+TEST(ExecutableNetworkTests, smoke_throwsOnUninitializedExport) {
     ExecutableNetwork exec;
     ASSERT_THROW(exec.Export(std::string()), InferenceEngine::details::InferenceEngineException);
 }
 
-TEST(ExecutableNetworkTests, throwsOnUninitializedExportStream) {
+TEST(ExecutableNetworkTests, smoke_throwsOnUninitializedExportStream) {
     ExecutableNetwork exec;
     ASSERT_THROW(exec.Export(std::cout), InferenceEngine::details::InferenceEngineException);
 }
 
-TEST(ExecutableNetworkTests, nothrowsOnUninitializedCast) {
+TEST(ExecutableNetworkTests, smoke_nothrowsOnUninitializedCast) {
     ExecutableNetwork exec;
     ASSERT_NO_THROW(auto &enet = static_cast<IExecutableNetwork::Ptr &>(exec));
 }
 
-TEST(ExecutableNetworkTests, throwsOnUninitializedGetExecGraphInfo) {
+TEST(ExecutableNetworkTests, smoke_throwsOnUninitializedGetExecGraphInfo) {
     ExecutableNetwork exec;
     ASSERT_THROW(exec.GetExecGraphInfo(), InferenceEngine::details::InferenceEngineException);
 }
 
-TEST(ExecutableNetworkTests, throwsOnUninitializedQueryState) {
+TEST(ExecutableNetworkTests, smoke_throwsOnUninitializedQueryState) {
     ExecutableNetwork exec;
     ASSERT_THROW(exec.QueryState(), InferenceEngine::details::InferenceEngineException);
 }
 
-TEST(ExecutableNetworkTests, throwsOnUninitializedSetConfig) {
+TEST(ExecutableNetworkTests, smoke_throwsOnUninitializedSetConfig) {
     ExecutableNetwork exec;
     ASSERT_THROW(exec.SetConfig({{}}), InferenceEngine::details::InferenceEngineException);
 }
 
-TEST(ExecutableNetworkTests, throwsOnUninitializedGetConfig) {
+TEST(ExecutableNetworkTests, smoke_throwsOnUninitializedGetConfig) {
     ExecutableNetwork exec;
     ASSERT_THROW(exec.GetConfig({}), InferenceEngine::details::InferenceEngineException);
 }
 
-TEST(ExecutableNetworkTests, throwsOnUninitializedGetMetric) {
+TEST(ExecutableNetworkTests, smoke_throwsOnUninitializedGetMetric) {
     ExecutableNetwork exec;
     ASSERT_THROW(exec.GetMetric({}), InferenceEngine::details::InferenceEngineException);
 }
 
-TEST(ExecutableNetworkTests, throwsOnUninitializedGetContext) {
+TEST(ExecutableNetworkTests, smoke_throwsOnUninitializedGetContext) {
     ExecutableNetwork exec;
     ASSERT_THROW(exec.GetContext(), InferenceEngine::details::InferenceEngineException);
 }

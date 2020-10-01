@@ -242,34 +242,34 @@ protected:
     }
 };
 
-TEST_F(LocaleTests, WithRULocale) {
+TEST_F(LocaleTests, smoke_WithRULocale) {
     setlocale(LC_ALL, "ru_RU.UTF-8");
     testBody();
 }
 
-TEST_F(LocaleTests, WithUSLocale) {
+TEST_F(LocaleTests, smoke_WithUSLocale) {
     setlocale(LC_ALL, "en_US.UTF-8");
     testBody();
 }
 
-TEST_F(LocaleTests, WithRULocaleOnLSTM) {
+TEST_F(LocaleTests, smoke_WithRULocaleOnLSTM) {
     setlocale(LC_ALL, "ru_RU.UTF-8");
     testBody(true);
 }
 
-TEST_F(LocaleTests, WithUSLocaleOnLSTM) {
+TEST_F(LocaleTests, smoke_WithUSLocaleOnLSTM) {
     setlocale(LC_ALL, "en_US.UTF-8");
     testBody(true);
 }
 
-TEST_F(LocaleTests, DISABLED_WithRULocaleCPP) {
+TEST_F(LocaleTests, DISABLED_smoke_WithRULocaleCPP) {
     auto prev = std::locale();
     std::locale::global(std::locale("ru_RU.UTF-8"));
     testBody();
     std::locale::global(prev);
 }
 
-TEST_F(LocaleTests, DISABLED_WithUSLocaleCPP) {
+TEST_F(LocaleTests, DISABLED_smoke_WithUSLocaleCPP) {
     auto prev = std::locale();
     std::locale::global(std::locale("en_US.UTF-8"));
     testBody();

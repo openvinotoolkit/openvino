@@ -10,7 +10,7 @@
 
 #include "transformations/utils/utils.hpp"
 
-TEST(TransformationTests, HasConstantValueHelper) {
+TEST(TransformationTests, smoke_HasConstantValueHelper) {
     auto float32_scalar = ngraph::opset4::Constant::create(ngraph::element::f32, ngraph::Shape{}, {1.234f});
     ASSERT_TRUE(ngraph::op::util::has_constant_value<float>(float32_scalar, 1.234f));
     ASSERT_TRUE(ngraph::op::util::has_constant_value<float>(float32_scalar, 1.23f, 0.005f));

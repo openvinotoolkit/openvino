@@ -22,7 +22,7 @@
 
 using namespace testing;
 
-TEST(TransformationTests, ModDecompositionTests) {
+TEST(TransformationTests, smoke_ModDecompositionTests) {
     auto data1 = ngraph::op::Constant::create(ngraph::element::f32, ngraph::Shape{1, 1, 3}, {1, 2, 3});
     auto data2 = ngraph::op::Constant::create(ngraph::element::f32, ngraph::Shape{3}, {1, 2, 3});
 

@@ -8,7 +8,7 @@
 // This test should pass after deleting
 // "input_shape.size() != 2 && input_shape.size() != 4 && input_shape.size() != 5" condition in
 // strided_slice_to_crop transformation
-TEST_F(NGraphReaderTests, ConvertStridedSliceToCrop) {
+TEST_F(NGraphReaderTests, smoke_ConvertStridedSliceToCrop) {
     std::string model_version10 = R"V0G0N(
 <net name="Network" version="10">
     <layers>
@@ -162,7 +162,7 @@ TEST_F(NGraphReaderTests, ConvertStridedSliceToCrop) {
 // This test should pass after deleting
 // "input_shape.size() != 2 && input_shape.size() != 4 && input_shape.size() != 5" condition in
 // strided_slice_to_crop transformation
-TEST_F(NGraphReaderTests, DISABLED_ConvertStridedSliceToCropMultipleMasks) {
+TEST_F(NGraphReaderTests, DISABLED_smoke_ConvertStridedSliceToCropMultipleMasks) {
     // c = np.zeros((9, 9, 9, 9, 9, 9, 9))
     // const_use_axis_mask = tf.constant(c)
     // strided_slice_with_mask = tf.strided_slice(const_use_axis_mask,
@@ -428,7 +428,7 @@ TEST_F(NGraphReaderTests, DISABLED_ConvertStridedSliceToCropMultipleMasks) {
 }
 
 // TODO delete this check in ngraph "Check 'static_cast<size_t>(data_rank) == mask_size'
-TEST_F(NGraphReaderTests, DISABLED_ConvertStridedSliceToCropMultipleMasks_2) {
+TEST_F(NGraphReaderTests, DISABLED_smoke_ConvertStridedSliceToCropMultipleMasks_2) {
     std::string model_version10 = R"V0G0N(
 <net name="Network" version="10">
     <layers>

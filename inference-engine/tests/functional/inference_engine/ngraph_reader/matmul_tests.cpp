@@ -4,7 +4,7 @@
 
 #include <string>
 #include "ngraph_reader_tests.hpp"
-TEST_F(NGraphReaderTests, ReadMatMulNetwork1) {
+TEST_F(NGraphReaderTests, smoke_ReadMatMulNetwork1) {
     std::string model = R"V0G0N(
 <net name="Network" version="10">
     <layers>
@@ -98,7 +98,7 @@ TEST_F(NGraphReaderTests, ReadMatMulNetwork1) {
     compareIRs(model, modelV5, 8193000);
 }
 
-TEST_F(NGraphReaderTests, ReadMatMulNetwork2) {
+TEST_F(NGraphReaderTests, smoke_ReadMatMulNetwork2) {
     std::string model = R"V0G0N(
 <net name="Network" version="10">
     <layers>
@@ -193,7 +193,7 @@ TEST_F(NGraphReaderTests, ReadMatMulNetwork2) {
     compareIRs(model, modelV5, 8193000);
 }
 
-TEST_F(NGraphReaderTests, ReadMatMulNetwork3) {
+TEST_F(NGraphReaderTests, smoke_ReadMatMulNetwork3) {
     std::string model = R"V0G0N(
 <net name="Network" version="10">
     <layers>
@@ -304,7 +304,7 @@ TEST_F(NGraphReaderTests, ReadMatMulNetwork3) {
     compareIRs(model, modelV5, 8193000);
 }
 
-TEST_F(NGraphReaderTests, ReadMatMulNetwork4) {
+TEST_F(NGraphReaderTests, smoke_ReadMatMulNetwork4) {
     std::string model = R"V0G0N(
 <net name="Network" version="10">
     <layers>
@@ -409,7 +409,7 @@ TEST_F(NGraphReaderTests, ReadMatMulNetwork4) {
     compareIRs(model, modelV5, 8192000);
 }
 
-TEST_F(NGraphReaderTests, ReadMatMulNetwork5) {
+TEST_F(NGraphReaderTests, smoke_ReadMatMulNetwork5) {
     std::string model = R"V0G0N(
 <net name="Network" version="10">
     <layers>

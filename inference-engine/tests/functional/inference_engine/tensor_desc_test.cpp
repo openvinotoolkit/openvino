@@ -16,11 +16,11 @@ using namespace InferenceEngine;
 
 using TensorDescTests = ::testing::Test;
 
-TEST_F(TensorDescTests, CreateBlobWithIncorrectLayout) {
+TEST_F(TensorDescTests, smoke_CreateBlobWithIncorrectLayout) {
     ASSERT_THROW(make_shared_blob<float>({ Precision::FP32, {1, 3, 32}, Layout::NC }), details::InferenceEngineException);
 }
 
-TEST_F(TensorDescTests, CreateBlockedBlobNCHW) {
+TEST_F(TensorDescTests, smoke_CreateBlockedBlobNCHW) {
     TensorDesc desc(Precision::FP32, {1, 4, 2, 1}, {{1, 2, 2, 1, 2}, {0, 1, 2, 3, 1}});
     float data[8] = {1, 2, 3, 4, 5, 6, 7, 8};
     Blob::Ptr blockedBlob = make_shared_blob<float>(desc, data);
@@ -32,7 +32,7 @@ TEST_F(TensorDescTests, CreateBlockedBlobNCHW) {
     ASSERT_EQ(Layout::BLOCKED, blockedBlob->getTensorDesc().getLayout());
 }
 
-TEST_F(TensorDescTests, CreateBlockedBlobNCDHW) {
+TEST_F(TensorDescTests, smoke_CreateBlockedBlobNCDHW) {
     TensorDesc desc(Precision::FP32, {1, 4, 2, 2, 1}, {{1, 2, 2, 2, 1, 2}, {0, 1, 2, 3, 4, 1}});
     float data[8] = {1, 2, 3, 4, 5, 6, 7, 8};
     Blob::Ptr blockedBlob = make_shared_blob<float>(desc, data);
@@ -44,7 +44,7 @@ TEST_F(TensorDescTests, CreateBlockedBlobNCDHW) {
     ASSERT_EQ(Layout::BLOCKED, blockedBlob->getTensorDesc().getLayout());
 }
 
-TEST_F(TensorDescTests, CompareNHWCandNCHWLayouts) {
+TEST_F(TensorDescTests, smoke_CompareNHWCandNCHWLayouts) {
     TensorDesc descNCHW(Precision::FP32, {1, 3, 4, 2}, Layout::NCHW);
     TensorDesc descNHWC(Precision::FP32, {1, 3, 4, 2}, Layout::NHWC);
     SizeVector nchw = {0, 1, 2, 3};
@@ -57,7 +57,7 @@ TEST_F(TensorDescTests, CompareNHWCandNCHWLayouts) {
     ASSERT_EQ(descNHWC.getBlockingDesc().getOrder(), nhwc);
 }
 
-TEST_F(TensorDescTests, CompareNDHWCandNCDHWLayouts) {
+TEST_F(TensorDescTests, smoke_CompareNDHWCandNCDHWLayouts) {
     TensorDesc descNCDHW(Precision::FP32, {1, 3, 4, 4, 2}, Layout::NCDHW);
     TensorDesc descNDHWC(Precision::FP32, {1, 3, 4, 4, 2}, Layout::NDHWC);
     SizeVector ncdhw = {0, 1, 2, 3, 4};
@@ -70,7 +70,7 @@ TEST_F(TensorDescTests, CompareNDHWCandNCDHWLayouts) {
     ASSERT_EQ(descNDHWC.getBlockingDesc().getOrder(), ndhwc);
 }
 
-TEST_F(TensorDescTests, SetLayout) {
+TEST_F(TensorDescTests, smoke_SetLayout) {
     TensorDesc descNCHW(Precision::FP32, {1, 2, 3, 4}, Layout::NCHW);
 
     TensorDesc decsNHWC = descNCHW;

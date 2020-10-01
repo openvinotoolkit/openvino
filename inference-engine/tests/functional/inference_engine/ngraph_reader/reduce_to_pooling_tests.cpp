@@ -4,7 +4,7 @@
 
 #include <string>
 #include "ngraph_reader_tests.hpp"
-TEST_F(NGraphReaderTests, ReduceMeanToAvgPool) {
+TEST_F(NGraphReaderTests, smoke_ReduceMeanToAvgPool) {
     std::string model = R"V0G0N(
 <net name="Network" version="10">
     <layers>
@@ -113,7 +113,7 @@ TEST_F(NGraphReaderTests, ReduceMeanToAvgPool) {
     });
 }
 
-TEST_F(NGraphReaderTests, ReduceMeanToAvgPoolKeepDimsFalse) {
+TEST_F(NGraphReaderTests, smoke_ReduceMeanToAvgPoolKeepDimsFalse) {
     std::string model = R"V0G0N(
 <net name="Network" version="10">
     <layers>
@@ -252,7 +252,7 @@ TEST_F(NGraphReaderTests, ReduceMeanToAvgPoolKeepDimsFalse) {
     });
 }
 
-TEST_F(NGraphReaderTests, ReduceMeanToAvgPoolNonSpatial) {
+TEST_F(NGraphReaderTests, smoke_ReduceMeanToAvgPoolNonSpatial) {
     std::string model = R"V0G0N(
 <net name="Network" version="10">
     <layers>
@@ -428,7 +428,7 @@ TEST_F(NGraphReaderTests, ReduceMeanToAvgPoolNonSpatial) {
     });
 }
 
-TEST_F(NGraphReaderTests, ReduceMeanToAvgPoolNonSpatialHard) {
+TEST_F(NGraphReaderTests, smoke_ReduceMeanToAvgPoolNonSpatialHard) {
     std::string model = R"V0G0N(
 <net name="Network" version="10">
     <layers>
@@ -572,7 +572,7 @@ TEST_F(NGraphReaderTests, ReduceMeanToAvgPoolNonSpatialHard) {
     });
 }
 
-TEST_F(NGraphReaderTests, ReduceMeanToMaxPool) {
+TEST_F(NGraphReaderTests, smoke_ReduceMeanToMaxPool) {
     std::string model = R"V0G0N(
 <net name="Network" version="10">
     <layers>
@@ -682,7 +682,7 @@ TEST_F(NGraphReaderTests, ReduceMeanToMaxPool) {
     });
 }
 
-TEST_F(NGraphReaderTests, ReduceMeanToMaxPoolKeepDimsFalse) {
+TEST_F(NGraphReaderTests, smoke_ReduceMeanToMaxPoolKeepDimsFalse) {
     std::string model = R"V0G0N(
 <net name="Network" version="10">
     <layers>
@@ -821,7 +821,7 @@ TEST_F(NGraphReaderTests, ReduceMeanToMaxPoolKeepDimsFalse) {
     });
 }
 
-TEST_F(NGraphReaderTests, ReduceMeanToMaxPoolNonSpatial) {
+TEST_F(NGraphReaderTests, smoke_ReduceMeanToMaxPoolNonSpatial) {
     std::string model = R"V0G0N(
 <net name="Network" version="10">
     <layers>
@@ -997,7 +997,7 @@ TEST_F(NGraphReaderTests, ReduceMeanToMaxPoolNonSpatial) {
     });
 }
 
-TEST_F(NGraphReaderTests, ReduceSumToAvgPool) {
+TEST_F(NGraphReaderTests, smoke_ReduceSumToAvgPool) {
     std::string model = R"V0G0N(
 <net name="Network" version="10">
     <layers>

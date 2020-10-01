@@ -4,7 +4,7 @@
 
 #include <string>
 #include "ngraph_reader_tests.hpp"
-TEST_F(NGraphReaderTests, ReadReLUNetworkWithoutTopologicalOrder) {
+TEST_F(NGraphReaderTests, smoke_ReadReLUNetworkWithoutTopologicalOrder) {
     std::string model = R"V0G0N(
 <net name="Network" version="10">
     <layers>
@@ -95,7 +95,7 @@ TEST_F(NGraphReaderTests, ReadReLUNetworkWithoutTopologicalOrder) {
     compareIRs(model, modelV5, 0);
 }
 
-TEST_F(NGraphReaderTests, ReadReLUNetwork) {
+TEST_F(NGraphReaderTests, smoke_ReadReLUNetwork) {
     std::string model = R"V0G0N(
 <net name="Network" version="10">
     <layers>
@@ -186,7 +186,7 @@ TEST_F(NGraphReaderTests, ReadReLUNetwork) {
     compareIRs(model, modelV5, 0);
 }
 
-TEST_F(NGraphReaderTests, ReadReLUScalarNetwork) {
+TEST_F(NGraphReaderTests, smoke_ReadReLUScalarNetwork) {
     std::string model = R"V0G0N(
 <net name="Network" version="10">
     <layers>

@@ -11,7 +11,7 @@ using namespace InferenceEngine::details;
 
 class LowPrecisionTransformationsTests : public Test {};
 
-TEST_F(LowPrecisionTransformationsTests, remove) {
+TEST_F(LowPrecisionTransformationsTests, smoke_remove) {
     LowPrecisionTransformations transformations = LowPrecisionTransformer::getAllTransformations(LayerTransformation::Params());
     LayerTransformationPtr transformation = transformations.find("ScaleShift");
     ASSERT_NE(nullptr, transformation);
@@ -21,7 +21,7 @@ TEST_F(LowPrecisionTransformationsTests, remove) {
     ASSERT_EQ(nullptr, transformation);
 }
 
-TEST_F(LowPrecisionTransformationsTests, removeBranchSpecificTransformations) {
+TEST_F(LowPrecisionTransformationsTests, smoke_removeBranchSpecificTransformations) {
     LowPrecisionTransformations transformations = LowPrecisionTransformer::getAllTransformations(LayerTransformation::Params());
     LayerTransformationPtr transformation = transformations.find("Concat");
     ASSERT_NE(nullptr, transformation);
@@ -31,7 +31,7 @@ TEST_F(LowPrecisionTransformationsTests, removeBranchSpecificTransformations) {
     ASSERT_EQ(nullptr, transformation);
 }
 
-TEST_F(LowPrecisionTransformationsTests, removeTransformations) {
+TEST_F(LowPrecisionTransformationsTests, smoke_removeTransformations) {
     LowPrecisionTransformations transformations = LowPrecisionTransformer::getAllTransformations(LayerTransformation::Params());
     LayerTransformationPtr transformation = transformations.find("FullyConnected");
     ASSERT_NE(nullptr, transformation);
@@ -41,7 +41,7 @@ TEST_F(LowPrecisionTransformationsTests, removeTransformations) {
     ASSERT_EQ(nullptr, transformation);
 }
 
-TEST_F(LowPrecisionTransformationsTests, removeCleanupTransformations) {
+TEST_F(LowPrecisionTransformationsTests, smoke_removeCleanupTransformations) {
     LowPrecisionTransformations transformations = LowPrecisionTransformer::getAllTransformations(LayerTransformation::Params());
     LayerTransformationPtr transformation = transformations.find("ScaleShift");
     ASSERT_NE(nullptr, transformation);

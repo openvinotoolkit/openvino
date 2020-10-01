@@ -5,7 +5,7 @@
 #include <string>
 #include "ngraph_reader_tests.hpp"
 
-TEST_F(NGraphReaderTests, ROIPoolingNetwork) {
+TEST_F(NGraphReaderTests, smoke_ROIPoolingNetwork) {
     std::string model_v10 = R"V0G0N(
     <net name="ROIPoolingNet" version="10">
         <layers>
@@ -126,7 +126,7 @@ TEST_F(NGraphReaderTests, ROIPoolingNetwork) {
     compareIRs(model_v10, model_v6, 48);
 }
 
-TEST_F(NGraphReaderTests, ROIPoolingNetwork_2) {
+TEST_F(NGraphReaderTests, smoke_ROIPoolingNetwork_2) {
     std::string model_v10 = R"V0G0N(
     <net name="ROIPoolingNet" version="10">
         <layers>

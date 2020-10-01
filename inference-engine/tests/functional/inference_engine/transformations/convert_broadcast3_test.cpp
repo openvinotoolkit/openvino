@@ -20,7 +20,7 @@
 using namespace testing;
 
 // Broadcast-3 is converted directly to Broadcast-1 for modes NUMPY, NONE and PDPD
-TEST(TransformationTests, ConvertBroadcast3WithNumpyModeToBroadcast1) {
+TEST(TransformationTests, smoke_ConvertBroadcast3WithNumpyModeToBroadcast1) {
     std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
     {
         auto input1 = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{3, 1, 2});
@@ -53,7 +53,7 @@ TEST(TransformationTests, ConvertBroadcast3WithNumpyModeToBroadcast1) {
     ASSERT_TRUE(broadcast_node->get_friendly_name() == "broadcast") << "Transformation ConvertBroadcast3 should keep output names.\n";
 }
 
-TEST(TransformationTests, ConvertBroadcast3WithPDPDModeToBroadcast1) {
+TEST(TransformationTests, smoke_ConvertBroadcast3WithPDPDModeToBroadcast1) {
     std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
     {
         auto input1 = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{3, 1, 2});
@@ -86,7 +86,7 @@ TEST(TransformationTests, ConvertBroadcast3WithPDPDModeToBroadcast1) {
     ASSERT_TRUE(broadcast_node->get_friendly_name() == "broadcast") << "Transformation ConvertBroadcast3 should keep output names.\n";
 }
 
-TEST(TransformationTests, ConvertBroadcast3WithExplicitModeToBroadcast1) {
+TEST(TransformationTests, smoke_ConvertBroadcast3WithExplicitModeToBroadcast1) {
     std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
     {
         auto input1 = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{3, 5, 2});
@@ -121,7 +121,7 @@ TEST(TransformationTests, ConvertBroadcast3WithExplicitModeToBroadcast1) {
 }
 
 // Broadcast-3 with mode BIDIRECTIONAL is converted to Multiply with constant with 1s of the corresponding type
-TEST(TransformationTests, ConvertBroadcast3WithBidirectionalModeToBroadcast1) {
+TEST(TransformationTests, smoke_ConvertBroadcast3WithBidirectionalModeToBroadcast1) {
     std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
     {
         auto input1 = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{1, 1, 2});

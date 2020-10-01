@@ -4,7 +4,7 @@
 
 #include <string>
 #include "ngraph_reader_tests.hpp"
-TEST_F(NGraphReaderTests, ReadTensorIteratorNetwork_opset1) {
+TEST_F(NGraphReaderTests, smoke_ReadTensorIteratorNetwork_opset1) {
     std::string model_v10 = R"V0G0N(
     <net name="Transpose" version="10">
         <layers>
@@ -457,7 +457,7 @@ TEST_F(NGraphReaderTests, ReadTensorIteratorNetwork_opset1) {
     });
 }
 
-TEST_F(NGraphReaderTests, ReadTensorIteratorNetwork_resnet_opset1) {
+TEST_F(NGraphReaderTests, smoke_ReadTensorIteratorNetwork_resnet_opset1) {
     std::string model_v10 = R"V0G0N(
     <net name="Resnet" version="10">
         <layers>
@@ -948,7 +948,7 @@ TEST_F(NGraphReaderTests, ReadTensorIteratorNetwork_resnet_opset1) {
     });
 }
 
-TEST_F(NGraphReaderTests, ReadTensorIteratorNetwork_negative_stride_opset1) {
+TEST_F(NGraphReaderTests, smoke_ReadTensorIteratorNetwork_negative_stride_opset1) {
     std::string model_v10 = R"V0G0N(
     <net name="Transpose" version="10">
         <layers>
@@ -1401,7 +1401,7 @@ TEST_F(NGraphReaderTests, ReadTensorIteratorNetwork_negative_stride_opset1) {
     });
 }
 
-TEST_F(NGraphReaderTests, ReadTensorIteratorNetwork_opset4) {
+TEST_F(NGraphReaderTests, smoke_ReadTensorIteratorNetwork_opset4) {
     std::string model_v10 = R"V0G0N(
     <net name="Transpose" version="10">
         <layers>

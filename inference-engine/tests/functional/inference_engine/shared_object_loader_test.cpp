@@ -36,29 +36,29 @@ protected:
 typedef void*(*PluginEngineCreateFunc)(void);
 typedef void(*PluginEngineDestoryFunc)(void *);
 
-TEST_F(SharedObjectLoaderTests, canLoadExistedPlugin) {
+TEST_F(SharedObjectLoaderTests, smoke_canLoadExistedPlugin) {
     loadDll(get_mock_engine_name());
     EXPECT_NE(nullptr, sharedObjectLoader.get());
 }
 
-TEST_F(SharedObjectLoaderTests, loaderThrowsIfNoPlugin) {
+TEST_F(SharedObjectLoaderTests, smoke_loaderThrowsIfNoPlugin) {
     EXPECT_THROW(loadDll("wrong_name"), InferenceEngine::details::InferenceEngineException);
 }
 
-TEST_F(SharedObjectLoaderTests, canFindExistedMethod) {
+TEST_F(SharedObjectLoaderTests, smoke_canFindExistedMethod) {
     loadDll(get_mock_engine_name());
 
     auto factory = make_std_function<StatusCode(IInferencePlugin*&, ResponseDesc*)>("CreatePluginEngine");
     EXPECT_NE(nullptr, factory);
 }
 
-TEST_F(SharedObjectLoaderTests, throwIfMethodNofFoundInLibrary) {
+TEST_F(SharedObjectLoaderTests, smoke_throwIfMethodNofFoundInLibrary) {
     loadDll(get_mock_engine_name());
 
     EXPECT_THROW(make_std_function<IInferencePlugin*()>("wrong_function"), InferenceEngine::details::InferenceEngineException);
 }
 
-TEST_F(SharedObjectLoaderTests, canCallExistedMethod) {
+TEST_F(SharedObjectLoaderTests, smoke_canCallExistedMethod) {
     loadDll(get_mock_engine_name());
 
     auto factory = make_std_function<StatusCode(IInferencePlugin*&, ResponseDesc*)>("CreatePluginEngine");

@@ -4,7 +4,7 @@
 
 #include <string>
 #include "ngraph_reader_tests.hpp"
-TEST_F(NGraphReaderTests, ConvertBroadcastToTiles1) {
+TEST_F(NGraphReaderTests, smoke_ConvertBroadcastToTiles1) {
     std::string model = R"V0G0N(
 <net name="Network" version="10">
     <layers>
@@ -160,7 +160,7 @@ TEST_F(NGraphReaderTests, ConvertBroadcastToTiles1) {
             });
 }
 
-TEST_F(NGraphReaderTests, ConvertBroadcastToTiles2) {
+TEST_F(NGraphReaderTests, smoke_ConvertBroadcastToTiles2) {
     std::string model = R"V0G0N(
 <net name="Network" version="10">
     <layers>
@@ -335,7 +335,7 @@ TEST_F(NGraphReaderTests, ConvertBroadcastToTiles2) {
             });
 }
 
-TEST_F(NGraphReaderTests, ConvertBroadcastToTiles3) {
+TEST_F(NGraphReaderTests, smoke_ConvertBroadcastToTiles3) {
     std::string model = R"V0G0N(
 <net name="Network" version="10">
     <layers>
@@ -448,7 +448,7 @@ TEST_F(NGraphReaderTests, ConvertBroadcastToTiles3) {
             });
 }
 
-TEST_F(NGraphReaderTests, ConvertBroadcastToTiles4) {
+TEST_F(NGraphReaderTests, smoke_ConvertBroadcastToTiles4) {
     std::string model = R"V0G0N(
 <net name="Network" version="10">
     <layers>
@@ -599,7 +599,7 @@ TEST_F(NGraphReaderTests, ConvertBroadcastToTiles4) {
     });
 }
 
-TEST_F(NGraphReaderTests, DISABLED_ConvertBroadcastToTiles5) {
+TEST_F(NGraphReaderTests, DISABLED_smoke_ConvertBroadcastToTiles5) {
     std::string model = R"V0G0N(
 <net name="Network" version="10">
     <layers>

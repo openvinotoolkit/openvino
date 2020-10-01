@@ -4,7 +4,7 @@
 
 #include <string>
 #include "ngraph_reader_tests.hpp"
-TEST_F(NGraphReaderTests, ConvertMulAddToScaleShift) {
+TEST_F(NGraphReaderTests, smoke_ConvertMulAddToScaleShift) {
     std::string model = R"V0G0N(
 <net name="Network" version="10">
     <layers>
@@ -148,7 +148,7 @@ TEST_F(NGraphReaderTests, ConvertMulAddToScaleShift) {
     compareIRs(model, modelV5, 6422528);
 }
 
-TEST_F(NGraphReaderTests, ConvertMulAddToPower) {
+TEST_F(NGraphReaderTests, smoke_ConvertMulAddToPower) {
     std::string model = R"V0G0N(
 <net name="Network" version="10">
     <layers>
@@ -302,7 +302,7 @@ TEST_F(NGraphReaderTests, ConvertMulAddToPower) {
             });
 }
 
-TEST_F(NGraphReaderTests, ConvertMulToPower) {
+TEST_F(NGraphReaderTests, smoke_ConvertMulToPower) {
     std::string model = R"V0G0N(
 <net name="Network" version="10">
     <layers>
@@ -416,7 +416,7 @@ TEST_F(NGraphReaderTests, ConvertMulToPower) {
             });
 }
 
-TEST_F(NGraphReaderTests, ConvertMulToPower2) {
+TEST_F(NGraphReaderTests, smoke_ConvertMulToPower2) {
     std::string model = R"V0G0N(
 <net name="Network" version="10">
     <layers>
@@ -527,7 +527,7 @@ TEST_F(NGraphReaderTests, ConvertMulToPower2) {
     });
 }
 
-TEST_F(NGraphReaderTests, ConvertAddToPower) {
+TEST_F(NGraphReaderTests, smoke_ConvertAddToPower) {
     std::string model = R"V0G0N(
 <net name="Network" version="10">
     <layers>
@@ -641,7 +641,7 @@ TEST_F(NGraphReaderTests, ConvertAddToPower) {
             });
 }
 
-TEST_F(NGraphReaderTests, ConvertMulToScaleShift) {
+TEST_F(NGraphReaderTests, smoke_ConvertMulToScaleShift) {
     std::string model = R"V0G0N(
 <net name="Network" version="10">
     <layers>
@@ -749,7 +749,7 @@ TEST_F(NGraphReaderTests, ConvertMulToScaleShift) {
     compareIRs(model, modelV5, 6422528);
 }
 
-TEST_F(NGraphReaderTests, ConvertAddToScaleShift) {
+TEST_F(NGraphReaderTests, smoke_ConvertAddToScaleShift) {
     std::string model = R"V0G0N(
 <net name="Network" version="10">
     <layers>
@@ -857,7 +857,7 @@ TEST_F(NGraphReaderTests, ConvertAddToScaleShift) {
     compareIRs(model, modelV5, 6422528);
 }
 
-TEST_F(NGraphReaderTests, ConvertMulToEltwise) {
+TEST_F(NGraphReaderTests, smoke_ConvertMulToEltwise) {
     std::string model = R"V0G0N(
 <net name="Network" version="10">
     <layers>
@@ -978,7 +978,7 @@ TEST_F(NGraphReaderTests, ConvertMulToEltwise) {
     compareIRs(model, modelV5, 6422528);
 }
 
-TEST_F(NGraphReaderTests, ConvertAddToEltwise) {
+TEST_F(NGraphReaderTests, smoke_ConvertAddToEltwise) {
     std::string model = R"V0G0N(
 <net name="Network" version="10">
     <layers>
@@ -1099,7 +1099,7 @@ TEST_F(NGraphReaderTests, ConvertAddToEltwise) {
     compareIRs(model, modelV5, 6422528);
 }
 
-TEST_F(NGraphReaderTests, ReadAddNoBroadcastNetwork) {
+TEST_F(NGraphReaderTests, smoke_ReadAddNoBroadcastNetwork) {
     std::string model = R"V0G0N(
 <net name="Network" version="10">
     <layers>
@@ -1228,7 +1228,7 @@ TEST_F(NGraphReaderTests, ReadAddNoBroadcastNetwork) {
     compareIRs(model, modelV5, 3211264);
 }
 
-TEST_F(NGraphReaderTests, ReadMultiplyNoBroadcastNetwork) {
+TEST_F(NGraphReaderTests, smoke_ReadMultiplyNoBroadcastNetwork) {
     std::string model = R"V0G0N(
 <net name="Network" version="10">
     <layers>
@@ -1357,7 +1357,7 @@ TEST_F(NGraphReaderTests, ReadMultiplyNoBroadcastNetwork) {
     compareIRs(model, modelV5, 3211264);
 }
 
-TEST_F(NGraphReaderTests, RemoveAdd) {
+TEST_F(NGraphReaderTests, smoke_RemoveAdd) {
     std::string model = R"V0G0N(
 <net name="Network" version="10">
     <layers>
@@ -1486,7 +1486,7 @@ TEST_F(NGraphReaderTests, RemoveAdd) {
     });
 }
 
-TEST_F(NGraphReaderTests, RemoveMulAdd) {
+TEST_F(NGraphReaderTests, smoke_RemoveMulAdd) {
     std::string model = R"V0G0N(
 <net name="Network" version="10">
     <layers>
@@ -1658,7 +1658,7 @@ TEST_F(NGraphReaderTests, RemoveMulAdd) {
     });
 }
 
-TEST_F(NGraphReaderTests, RemoveAdd2) {
+TEST_F(NGraphReaderTests, smoke_RemoveAdd2) {
     std::string model = R"V0G0N(
 <net name="Network" version="10">
     <layers>
@@ -1788,7 +1788,7 @@ TEST_F(NGraphReaderTests, RemoveAdd2) {
     });
 }
 
-TEST_F(NGraphReaderTests, RemoveAdd3) {
+TEST_F(NGraphReaderTests, smoke_RemoveAdd3) {
     std::string model = R"V0G0N(
 <net name="Network" version="10">
     <layers>
@@ -2004,7 +2004,7 @@ TEST_F(NGraphReaderTests, RemoveAdd3) {
     });
 }
 
-TEST_F(NGraphReaderTests, ConvertAddToEltwise2) {
+TEST_F(NGraphReaderTests, smoke_ConvertAddToEltwise2) {
     std::string model = R"V0G0N(
 <net name="Network" version="10">
     <layers>

@@ -9,14 +9,14 @@ using namespace std;
 
 using PreProcessTests = ::testing::Test;
 
-TEST_F(PreProcessTests, throwsOnSettingNullMeanImage) {
+TEST_F(PreProcessTests, smoke_throwsOnSettingNullMeanImage) {
     InferenceEngine::PreProcessInfo info;
     info.init(1);
     ASSERT_THROW(info.setMeanImage(InferenceEngine::Blob::Ptr(nullptr)),
             InferenceEngine::details::InferenceEngineException);
 }
 
-TEST_F(PreProcessTests, throwsOnSetting2DMeanImage) {
+TEST_F(PreProcessTests, smoke_throwsOnSetting2DMeanImage) {
     InferenceEngine::PreProcessInfo info;
     info.init(1);
     InferenceEngine::Blob::Ptr blob(new InferenceEngine::TBlob<float>({ InferenceEngine::Precision::FP32,
@@ -24,7 +24,7 @@ TEST_F(PreProcessTests, throwsOnSetting2DMeanImage) {
     ASSERT_THROW(info.setMeanImage(blob), InferenceEngine::details::InferenceEngineException);
 }
 
-TEST_F(PreProcessTests, throwsOnSettingWrongSizeMeanImage) {
+TEST_F(PreProcessTests, smoke_throwsOnSettingWrongSizeMeanImage) {
     InferenceEngine::PreProcessInfo info;
     info.init(1);
     InferenceEngine::TBlob<float>::Ptr blob(new InferenceEngine::TBlob<float>({ InferenceEngine::Precision::FP32,
@@ -33,7 +33,7 @@ TEST_F(PreProcessTests, throwsOnSettingWrongSizeMeanImage) {
     ASSERT_THROW(info.setMeanImage(blob), InferenceEngine::details::InferenceEngineException);
 }
 
-TEST_F(PreProcessTests, noThrowWithCorrectSizeMeanImage) {
+TEST_F(PreProcessTests, smoke_noThrowWithCorrectSizeMeanImage) {
     InferenceEngine::PreProcessInfo info;
     info.init(2);
     InferenceEngine::TBlob<float>::Ptr blob(new InferenceEngine::TBlob<float>({ InferenceEngine::Precision::FP32,

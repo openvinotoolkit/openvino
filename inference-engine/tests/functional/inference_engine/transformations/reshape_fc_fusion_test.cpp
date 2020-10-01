@@ -22,7 +22,7 @@
 
 using namespace testing;
 
-TEST(TransformationTests, ReshapeFCFusiuonTest1) {
+TEST(TransformationTests, smoke_ReshapeFCFusiuonTest1) {
     std::shared_ptr<ngraph::Function> f(nullptr);
     {
         auto input = ngraph::op::Constant::create(ngraph::element::f32, ngraph::Shape{1, 3, 64, 64}, {1});
@@ -41,7 +41,7 @@ TEST(TransformationTests, ReshapeFCFusiuonTest1) {
     ASSERT_EQ(f->get_ops().size(), 5);
 }
 
-TEST(TransformationTests, ReshapeFCFusiuonTest2) {
+TEST(TransformationTests, smoke_ReshapeFCFusiuonTest2) {
     std::shared_ptr<ngraph::Function> f(nullptr);
     {
         auto input = ngraph::op::Constant::create(ngraph::element::f32, ngraph::Shape{1, 3, 64, 64}, {1});
@@ -60,7 +60,7 @@ TEST(TransformationTests, ReshapeFCFusiuonTest2) {
     ASSERT_EQ(f->get_ops().size(), 5);
 }
 
-TEST(TransformationTests, ReshapeFCFusiuonTest3) {
+TEST(TransformationTests, smoke_ReshapeFCFusiuonTest3) {
     std::shared_ptr<ngraph::Function> f(nullptr);
     {
         auto input = ngraph::op::Constant::create(ngraph::element::f32, ngraph::Shape{2, 3, 64, 64}, {1});

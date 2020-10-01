@@ -24,7 +24,7 @@ public:
 };
 
 // TO_STATUS macros tests
-TEST_F(ExceptionTests, canConvertToStatus) {
+TEST_F(ExceptionTests, smoke_canConvertToStatus) {
     ResponseDesc *resp = nullptr;
     ASSERT_EQ(WrapperClass<StatusCode::GENERAL_ERROR>::toStatusWrapper(resp), StatusCode::GENERAL_ERROR);
     ASSERT_EQ(WrapperClass<StatusCode::NOT_IMPLEMENTED>::toStatusWrapper(resp), StatusCode::NOT_IMPLEMENTED);
@@ -40,12 +40,12 @@ TEST_F(ExceptionTests, canConvertToStatus) {
 }
 
 // CALL_STATUS_FNC macros tests
-TEST_F(ExceptionTests, canConvertStatusToException) {
+TEST_F(ExceptionTests, smoke_canConvertStatusToException) {
     auto actual = std::make_shared<WrapperClass<StatusCode::INFER_NOT_STARTED>>();
     ASSERT_THROW(CALL_STATUS_FNC_NO_ARGS(toStatusWrapper), InferenceEngine::InferNotStarted);
 }
 
-TEST_F(ExceptionTests, canHandleNullPtr) {
+TEST_F(ExceptionTests, smoke_canHandleNullPtr) {
     class Mock {
     public:
         StatusCode func0(ResponseDesc*) {return StatusCode ::OK;}
@@ -58,7 +58,7 @@ TEST_F(ExceptionTests, canHandleNullPtr) {
     ASSERT_THROW(CALL_STATUS_FNC(func1, 0), InferenceEngine::details::InferenceEngineException);
 }
 
-TEST_F(ExceptionTests, throwAfterConvertStatusToClassContainMessage) {
+TEST_F(ExceptionTests, smoke_throwAfterConvertStatusToClassContainMessage) {
     std::string refMessage = "Exception message!";
     auto actual = std::make_shared<WrapperClass<StatusCode::NOT_ALLOCATED>>();
     try {

@@ -27,7 +27,7 @@
 
 using namespace testing;
 
-TEST(TransformationTests, ConvertMatMulTest1) {
+TEST(TransformationTests, smoke_ConvertMatMulTest1) {
     std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
     {
         auto input1 = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{3, 1, 2});
@@ -59,7 +59,7 @@ TEST(TransformationTests, ConvertMatMulTest1) {
     ASSERT_TRUE(res.first) << res.second;
 }
 
-TEST(TransformationTests, ConvertMatMulTest2) {
+TEST(TransformationTests, smoke_ConvertMatMulTest2) {
     std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
     {
         auto input1 = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{3, 1, 2});
@@ -91,7 +91,7 @@ TEST(TransformationTests, ConvertMatMulTest2) {
     ASSERT_TRUE(res.first) << res.second;
 }
 
-TEST(TransformationTests, ConvertMatMulTest3) {
+TEST(TransformationTests, smoke_ConvertMatMulTest3) {
     std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
     {
         auto input1 = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{2});
@@ -122,7 +122,7 @@ TEST(TransformationTests, ConvertMatMulTest3) {
     ASSERT_TRUE(res.first) << res.second;
 }
 
-TEST(TransformationTests, ConvertMatMulTest4) {
+TEST(TransformationTests, smoke_ConvertMatMulTest4) {
     std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
     {
         auto input1 = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{3, 1, 2});
@@ -150,7 +150,7 @@ TEST(TransformationTests, ConvertMatMulTest4) {
     ASSERT_TRUE(res.first) << res.second;
 }
 
-TEST(TransformationTests, ConvertMatMulTest5) {
+TEST(TransformationTests, smoke_ConvertMatMulTest5) {
     std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
     {
         auto input1 = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{3, 2, 2});
@@ -179,7 +179,7 @@ TEST(TransformationTests, ConvertMatMulTest5) {
     ASSERT_TRUE(res.first) << res.second;
 }
 
-TEST(TransformationTests, ConvertMatMulTest6) {
+TEST(TransformationTests, smoke_ConvertMatMulTest6) {
     std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
     {
         auto input1 = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{3, 2, 2});
@@ -211,7 +211,7 @@ TEST(TransformationTests, ConvertMatMulTest6) {
     ASSERT_TRUE(res.first) << res.second;
 }
 
-TEST(TransformationTests, ConvertMatMulTest7) {
+TEST(TransformationTests, smoke_ConvertMatMulTest7) {
     std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
     {
         auto input1 = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{3, 2, 2});

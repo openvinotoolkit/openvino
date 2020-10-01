@@ -6,7 +6,7 @@
 #include "ngraph_reader_tests.hpp"
 #include "common_test_utils/data_utils.hpp"
 
-TEST_F(NGraphReaderTests, DISABLED_ReadIncorrectNetwork) {
+TEST_F(NGraphReaderTests, DISABLED_smoke_ReadIncorrectNetwork) {
     std::string model = R"V0G0N(
 <net name="Network" version="10">
     <layers>

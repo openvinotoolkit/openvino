@@ -6,7 +6,7 @@
 #include "ngraph_reader_tests.hpp"
 #include "common_test_utils/xml_net_builder/ir_net.hpp"
 
-TEST_F(NGraphReaderTests, ReadLrnNetwork) {
+TEST_F(NGraphReaderTests, smoke_ReadLrnNetwork) {
     CommonTestUtils::IRBuilder_v10 ir_builder_v10("LRN");
 
     auto input_layer = ir_builder_v10
@@ -66,7 +66,7 @@ TEST_F(NGraphReaderTests, ReadLrnNetwork) {
             });
 }
 
-TEST_F(NGraphReaderTests, ReadLrnNetwork2) {
+TEST_F(NGraphReaderTests, smoke_ReadLrnNetwork2) {
     CommonTestUtils::IRBuilder_v10 ir_builder_v10("Activation");
 
     auto input_layer = ir_builder_v10

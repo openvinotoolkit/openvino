@@ -40,7 +40,7 @@ using namespace CommonTestUtils;
 
 using NGraphReshapeTests = TestsCommon;
 
-TEST_F(NGraphReshapeTests, getBatchSize) {
+TEST_F(NGraphReshapeTests, smoke_getBatchSize) {
     std::shared_ptr<ngraph::Function> ngraph;
     {
         ngraph::PartialShape shape({1, 3, 22, 22});
@@ -59,7 +59,7 @@ TEST_F(NGraphReshapeTests, getBatchSize) {
     ASSERT_EQ(1, cnnNetwork.getBatchSize());
 }
 
-TEST_F(NGraphReshapeTests, ReshapedDynamicShapeLayout) {
+TEST_F(NGraphReshapeTests, smoke_ReshapedDynamicShapeLayout) {
     std::shared_ptr<ngraph::Function> ngraph;
     {
         ngraph::PartialShape shape({-1, 3, 22, 22});
@@ -83,7 +83,7 @@ TEST_F(NGraphReshapeTests, ReshapedDynamicShapeLayout) {
     ASSERT_EQ(Layout::NCHW, cnnNetwork.getInputsInfo()["A"]->getLayout());
 }
 
-TEST_F(NGraphReshapeTests, ReshapeBatchReLU) {
+TEST_F(NGraphReshapeTests, smoke_ReshapeBatchReLU) {
     std::shared_ptr<ngraph::Function> ngraph;
     {
         ngraph::PartialShape shape({1, 3, 22, 22});
@@ -114,7 +114,7 @@ TEST_F(NGraphReshapeTests, ReshapeBatchReLU) {
     ASSERT_EQ(ngraph->get_results()[0]->get_shape(), ngraph::Shape({2, 3, 22, 22}));
 }
 
-TEST_F(NGraphReshapeTests, ReshapeSpatialReLU) {
+TEST_F(NGraphReshapeTests, smoke_ReshapeSpatialReLU) {
     std::shared_ptr<ngraph::Function> ngraph;
     {
         ngraph::PartialShape shape({1, 3, 22, 22});
@@ -145,7 +145,7 @@ TEST_F(NGraphReshapeTests, ReshapeSpatialReLU) {
     ASSERT_EQ(ngraph->get_results()[0]->get_shape(), ngraph::Shape({1, 3, 25, 25}));
 }
 
-TEST_F(NGraphReshapeTests, CNNReshapeSpatialReLU) {
+TEST_F(NGraphReshapeTests, smoke_CNNReshapeSpatialReLU) {
     std::shared_ptr<const ngraph::Function> ngraph;
     {
         ngraph::PartialShape shape({1, 3, 22, 22});
@@ -178,7 +178,7 @@ TEST_F(NGraphReshapeTests, CNNReshapeSpatialReLU) {
     ASSERT_EQ(ngraph->get_results()[0]->get_shape(), ngraph::Shape({1, 3, 22, 22}));
 }
 
-TEST_F(NGraphReshapeTests, CNNReshapeSpatialReLUWithoutCloneFunction) {
+TEST_F(NGraphReshapeTests, smoke_CNNReshapeSpatialReLUWithoutCloneFunction) {
     std::shared_ptr<ngraph::Function> ngraph;
     {
         ngraph::PartialShape shape({1, 3, 22, 22});
@@ -275,7 +275,7 @@ public:
 private:
 };
 
-TEST_F(NGraphReshapeTests, ReshapeNewIRWithNewExtension1) {
+TEST_F(NGraphReshapeTests, smoke_ReshapeNewIRWithNewExtension1) {
     std::string model = R"V0G0N(
 <net name="Activation" version="10">
     <layers>
@@ -346,7 +346,7 @@ TEST_F(NGraphReshapeTests, ReshapeNewIRWithNewExtension1) {
     ASSERT_EQ("CustomTestLayer", layer->type);
 }
 
-TEST_F(NGraphReshapeTests, ReshapeNewIRWithNewExtension2) {
+TEST_F(NGraphReshapeTests, smoke_ReshapeNewIRWithNewExtension2) {
     std::string model = R"V0G0N(
 <net name="Activation" version="10">
     <layers>
@@ -440,12 +440,12 @@ public:
     }
 };
 
-TEST_F(NGraphReshapeTests, LoadBadNewExtension) {
+TEST_F(NGraphReshapeTests, smoke_LoadBadNewExtension) {
     InferenceEngine::Core ie;
     ASSERT_THROW(ie.AddExtension(std::make_shared<BadExtension>()), InferenceEngine::details::InferenceEngineException);
 }
 
-TEST_F(NGraphReshapeTests, TestInterpParameters) {
+TEST_F(NGraphReshapeTests, smoke_TestInterpParameters) {
     auto inp = std::make_shared<ngraph::op::Parameter>(ngraph::element::f32, ngraph::Shape{2, 3, 4, 5});
     inp->set_friendly_name("test");
 
@@ -471,7 +471,7 @@ TEST_F(NGraphReshapeTests, TestInterpParameters) {
     cnn.reshape(inShape);
 }
 
-TEST_F(NGraphReshapeTests, ReshapeWithDefaultGenericOps) {
+TEST_F(NGraphReshapeTests, smoke_ReshapeWithDefaultGenericOps) {
     std::string model = R"V0G0N(
 <net name="Activation" version="10">
     <layers>
@@ -536,7 +536,7 @@ TEST_F(NGraphReshapeTests, ReshapeWithDefaultGenericOps) {
     ASSERT_NO_THROW(network.reshape(newShapes));
 }
 
-TEST_F(NGraphReshapeTests, ReshapeEDDetectionOutput) {
+TEST_F(NGraphReshapeTests, smoke_ReshapeEDDetectionOutput) {
     std::string model = R"V0G0N(
 <net name="ExperimentalDetectronDetectionOutput" version="10">
     <layers>
@@ -654,7 +654,7 @@ TEST_F(NGraphReshapeTests, ReshapeEDDetectionOutput) {
     ASSERT_NO_THROW(network.reshape(newShapes));
 }
 
-TEST_F(NGraphReshapeTests, ReshapeEDPriorGridGenerator) {
+TEST_F(NGraphReshapeTests, smoke_ReshapeEDPriorGridGenerator) {
     std::string model = R"V0G0N(
 <net name="PriorGridGenerator" version="10">
     <layers>
@@ -740,7 +740,7 @@ TEST_F(NGraphReshapeTests, ReshapeEDPriorGridGenerator) {
     ASSERT_NO_THROW(network.reshape(newShapes));
 }
 
-TEST_F(NGraphReshapeTests, ReshapeEDGenerateProposalsSingleImage) {
+TEST_F(NGraphReshapeTests, smoke_ReshapeEDGenerateProposalsSingleImage) {
     std::string model = R"V0G0N(
 <net name="GenerateProposalsSingleImage" version="10">
     <layers>
@@ -847,7 +847,7 @@ TEST_F(NGraphReshapeTests, ReshapeEDGenerateProposalsSingleImage) {
     ASSERT_NO_THROW(network.reshape(newShapes));
 }
 
-TEST_F(NGraphReshapeTests, ReshapeEDROIFeatureExtractor) {
+TEST_F(NGraphReshapeTests, smoke_ReshapeEDROIFeatureExtractor) {
     std::string model = R"V0G0N(
 <net name="ExperimentalDetectronROIFeatureExtractor" version="10">
     <layers>
@@ -921,7 +921,7 @@ TEST_F(NGraphReshapeTests, ReshapeEDROIFeatureExtractor) {
     ASSERT_NO_THROW(network.reshape(newShapes));
 }
 
-TEST_F(NGraphReshapeTests, ReshapeEDTopKROIs) {
+TEST_F(NGraphReshapeTests, smoke_ReshapeEDTopKROIs) {
     std::string model = R"V0G0N(
 <net name="ExperimentalDetectronTopKROIs" version="10">
     <layers>

@@ -18,7 +18,7 @@
 
 using namespace testing;
 
-TEST(TransformationTests, HSwishFusionWithReluDivF16) {
+TEST(TransformationTests, smoke_HSwishFusionWithReluDivF16) {
     std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
     {
         auto input = std::make_shared<ngraph::opset4::Parameter>(ngraph::element::f16, ngraph::PartialShape::dynamic(1));
@@ -51,7 +51,7 @@ TEST(TransformationTests, HSwishFusionWithReluDivF16) {
     ASSERT_TRUE(res.first) << res.second;
 }
 
-TEST(TransformationTests, HSwishFusionWithReluDivF32) {
+TEST(TransformationTests, smoke_HSwishFusionWithReluDivF32) {
     std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
     {
         auto input = std::make_shared<ngraph::opset4::Parameter>(ngraph::element::f32, ngraph::Shape{});
@@ -84,7 +84,7 @@ TEST(TransformationTests, HSwishFusionWithReluDivF32) {
     ASSERT_TRUE(res.first) << res.second;
 }
 
-TEST(TransformationTests, HSwishFusionWithReluMul) {
+TEST(TransformationTests, smoke_HSwishFusionWithReluMul) {
     std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
     {
         auto input = std::make_shared<ngraph::opset4::Parameter>(ngraph::element::f16, ngraph::PartialShape::dynamic(1));
@@ -117,7 +117,7 @@ TEST(TransformationTests, HSwishFusionWithReluMul) {
     ASSERT_TRUE(res.first) << res.second;
 }
 
-TEST(TransformationTests, HSwishFusionWithoutRelu) {
+TEST(TransformationTests, smoke_HSwishFusionWithoutRelu) {
     std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
     {
         auto input = std::make_shared<ngraph::opset4::Parameter>(ngraph::element::f16, ngraph::PartialShape::dynamic(1));
@@ -151,7 +151,7 @@ TEST(TransformationTests, HSwishFusionWithoutRelu) {
     ASSERT_TRUE(res.first) << res.second;
 }
 
-TEST(TransformationTests, HSwishFusionWithClamp) {
+TEST(TransformationTests, smoke_HSwishFusionWithClamp) {
     std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
     {
         auto input = std::make_shared<ngraph::opset4::Parameter>(ngraph::element::f16, ngraph::PartialShape::dynamic(1));
@@ -182,7 +182,7 @@ TEST(TransformationTests, HSwishFusionWithClamp) {
     ASSERT_TRUE(res.first) << res.second;
 }
 
-TEST(TransformationTests, HSwishFusionWithReluMulWrongConstValue) {
+TEST(TransformationTests, smoke_HSwishFusionWithReluMulWrongConstValue) {
     std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
     {
         auto input = std::make_shared<ngraph::opset4::Parameter>(ngraph::element::f16, ngraph::PartialShape::dynamic(1));
@@ -222,7 +222,7 @@ TEST(TransformationTests, HSwishFusionWithReluMulWrongConstValue) {
     ASSERT_TRUE(res.first) << res.second;
 }
 
-TEST(TransformationTests, HSwishFusionWithReluDivWrongConstValue) {
+TEST(TransformationTests, smoke_HSwishFusionWithReluDivWrongConstValue) {
     std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
     {
         auto input = std::make_shared<ngraph::opset4::Parameter>(ngraph::element::f16, ngraph::Shape{});
@@ -262,7 +262,7 @@ TEST(TransformationTests, HSwishFusionWithReluDivWrongConstValue) {
     ASSERT_TRUE(res.first) << res.second;
 }
 
-TEST(TransformationTests, HSwishFusionWithoutReluWrongConstValue) {
+TEST(TransformationTests, smoke_HSwishFusionWithoutReluWrongConstValue) {
     std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
     {
         auto input = std::make_shared<ngraph::opset4::Parameter>(ngraph::element::f16, ngraph::PartialShape::dynamic(1));
@@ -304,7 +304,7 @@ TEST(TransformationTests, HSwishFusionWithoutReluWrongConstValue) {
     ASSERT_TRUE(res.first) << res.second;
 }
 
-TEST(TransformationTests, HSwishFusionWithClampWrongConstValue) {
+TEST(TransformationTests, smoke_HSwishFusionWithClampWrongConstValue) {
     std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
     {
         auto input = std::make_shared<ngraph::opset4::Parameter>(ngraph::element::f16, ngraph::PartialShape::dynamic(1));

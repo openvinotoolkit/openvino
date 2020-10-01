@@ -4,7 +4,7 @@
 
 #include <string>
 #include "ngraph_reader_tests.hpp"
-TEST_F(NGraphReaderTests, ReadMaxPoolNetwork) {
+TEST_F(NGraphReaderTests, smoke_ReadMaxPoolNetwork) {
     std::string model = R"V0G0N(
 <net name="Network" version="10">
     <layers>
@@ -97,7 +97,7 @@ TEST_F(NGraphReaderTests, ReadMaxPoolNetwork) {
     compareIRs(model, modelV5, 0);
 }
 
-TEST_F(NGraphReaderTests, ReadAvgPoolNetwork) {
+TEST_F(NGraphReaderTests, smoke_ReadAvgPoolNetwork) {
     std::string model = R"V0G0N(
 <net name="Network" version="10">
     <layers>

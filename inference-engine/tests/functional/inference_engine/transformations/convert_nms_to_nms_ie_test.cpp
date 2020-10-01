@@ -23,7 +23,7 @@
 using namespace testing;
 using namespace ngraph;
 
-TEST(TransformationTests, ConvertNMSToNMSIEStatic) {
+TEST(TransformationTests, smoke_ConvertNMSToNMSIEStatic) {
     std::shared_ptr<Function> f(nullptr), f_ref(nullptr);
     {
         auto boxes = std::make_shared<opset1::Parameter>(element::f32, Shape{1, 1000, 4});
@@ -64,7 +64,7 @@ TEST(TransformationTests, ConvertNMSToNMSIEStatic) {
     ASSERT_TRUE(res.first) << res.second;
 }
 
-TEST(TransformationTests, ConvertNMSToNMSIEDynamic1) {
+TEST(TransformationTests, smoke_ConvertNMSToNMSIEDynamic1) {
     std::shared_ptr<Function> f(nullptr), f_ref(nullptr);
     {
         auto boxes = std::make_shared<opset1::Parameter>(element::f32, PartialShape::dynamic());
@@ -103,7 +103,7 @@ TEST(TransformationTests, ConvertNMSToNMSIEDynamic1) {
     ASSERT_TRUE(res.first) << res.second;
 }
 
-TEST(TransformationTests, ConvertNMSToNMSIEDynamic2) {
+TEST(TransformationTests, smoke_ConvertNMSToNMSIEDynamic2) {
     std::shared_ptr<Function> f(nullptr), f_ref(nullptr);
     {
         auto boxes = std::make_shared<opset1::Parameter>(element::f32, PartialShape{DYN, 1000, 4});

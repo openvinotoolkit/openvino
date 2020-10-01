@@ -18,7 +18,7 @@
 
 using namespace testing;
 
-TEST(TransformationTests, SoftPlusDecompositionFP32) {
+TEST(TransformationTests, smoke_SoftPlusDecompositionFP32) {
     std::shared_ptr<ngraph::Function> f, f_ref;
     {
         auto data = std::make_shared<ngraph::opset4::Parameter>(ngraph::element::f32, ngraph::Shape{3, 1, 2});
@@ -47,7 +47,7 @@ TEST(TransformationTests, SoftPlusDecompositionFP32) {
     ASSERT_TRUE(res.first) << res.second;
 }
 
-TEST(TransformationTests, SoftPlusDecompositionFP16) {
+TEST(TransformationTests, smoke_SoftPlusDecompositionFP16) {
     std::shared_ptr<ngraph::Function> f, f_ref;
     {
         auto data = std::make_shared<ngraph::opset4::Parameter>(ngraph::element::f16, ngraph::Shape{3, 1, 2});

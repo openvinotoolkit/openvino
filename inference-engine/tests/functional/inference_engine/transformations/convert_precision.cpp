@@ -40,7 +40,7 @@ bool has_type(std::shared_ptr<ngraph::Function> f) {
     return false;
 }
 
-TEST(TransformationTests, ConvertPrecision_NMS3) {
+TEST(TransformationTests, smoke_ConvertPrecision_NMS3) {
     std::shared_ptr<Function> f(nullptr);
     {
         auto boxes = std::make_shared<opset3::Parameter>(element::f16, Shape{1, 1000, 4});
@@ -63,7 +63,7 @@ TEST(TransformationTests, ConvertPrecision_NMS3) {
     ASSERT_FALSE(has_type<ngraph::element::Type_t::f16>(f));
 }
 
-TEST(TransformationTests, ConvertPrecision_NMS4) {
+TEST(TransformationTests, smoke_ConvertPrecision_NMS4) {
     std::shared_ptr<Function> f(nullptr);
     {
         auto boxes = std::make_shared<opset4::Parameter>(element::f16, Shape{1, 1000, 4});
@@ -86,7 +86,7 @@ TEST(TransformationTests, ConvertPrecision_NMS4) {
     ASSERT_FALSE(has_type<ngraph::element::Type_t::f16>(f));
 }
 
-TEST(TransformationTests, ConvertPrecision_ShapeOf) {
+TEST(TransformationTests, smoke_ConvertPrecision_ShapeOf) {
     std::shared_ptr<Function> f(nullptr);
     {
         auto input = std::make_shared<opset4::Parameter>(element::f16, Shape{1, 1000, 4});
@@ -104,7 +104,7 @@ TEST(TransformationTests, ConvertPrecision_ShapeOf) {
     ASSERT_FALSE(has_type<ngraph::element::Type_t::f16>(f));
 }
 
-TEST(TransformationTests, ConvertPrecision_Convert) {
+TEST(TransformationTests, smoke_ConvertPrecision_Convert) {
     std::shared_ptr<Function> f(nullptr);
     {
         auto input = std::make_shared<opset4::Parameter>(element::f16, Shape{1, 1000, 4});
@@ -122,7 +122,7 @@ TEST(TransformationTests, ConvertPrecision_Convert) {
     ASSERT_FALSE(has_type<ngraph::element::Type_t::i64>(f));
 }
 
-TEST(TransformationTests, ConvertPrecision_ConvertElimination) {
+TEST(TransformationTests, smoke_ConvertPrecision_ConvertElimination) {
     std::shared_ptr<Function> f(nullptr), f_ref(nullptr);
     {
         auto input = std::make_shared<opset4::Parameter>(element::f16, Shape{1, 1000, 4});
@@ -148,7 +148,7 @@ TEST(TransformationTests, ConvertPrecision_ConvertElimination) {
     ASSERT_TRUE(res.first) << res.second;
 }
 
-TEST(TransformationTests, ConvertPrecision_TopK) {
+TEST(TransformationTests, smoke_ConvertPrecision_TopK) {
     std::shared_ptr<Function> f(nullptr);
     {
         auto input = std::make_shared<ngraph::opset3::Parameter>(ngraph::element::f16, ngraph::Shape{15, 20, 3});
@@ -167,7 +167,7 @@ TEST(TransformationTests, ConvertPrecision_TopK) {
     ASSERT_FALSE(has_type<ngraph::element::Type_t::i64>(f));
 }
 
-TEST(TransformationTests, ConvertPrecision_NonZero) {
+TEST(TransformationTests, smoke_ConvertPrecision_NonZero) {
     std::shared_ptr<Function> f(nullptr);
     {
         auto input = std::make_shared<ngraph::opset4::Parameter>(ngraph::element::f16, ngraph::Shape{15, 20, 3});
@@ -185,7 +185,7 @@ TEST(TransformationTests, ConvertPrecision_NonZero) {
     ASSERT_FALSE(has_type<ngraph::element::Type_t::i64>(f));
 }
 
-TEST(TransformationTests, ConvertPrecision_Bucketize) {
+TEST(TransformationTests, smoke_ConvertPrecision_Bucketize) {
     std::shared_ptr<Function> f(nullptr);
     {
         auto input = std::make_shared<ngraph::opset4::Parameter>(ngraph::element::f16, ngraph::Shape{20});
@@ -204,7 +204,7 @@ TEST(TransformationTests, ConvertPrecision_Bucketize) {
     ASSERT_FALSE(has_type<ngraph::element::Type_t::i64>(f));
 }
 
-TEST(TransformationTests, ConvertPrecision_Roundings) {
+TEST(TransformationTests, smoke_ConvertPrecision_Roundings) {
     std::shared_ptr<Function> f(nullptr);
     {
         auto max_int64 = std::numeric_limits<int64_t>::max();
@@ -237,7 +237,7 @@ TEST(TransformationTests, ConvertPrecision_Roundings) {
     ASSERT_FALSE(has_type<ngraph::element::Type_t::i64>(f));
 }
 
-TEST(TransformationTests, ConvertPrecision_TIBody) {
+TEST(TransformationTests, smoke_ConvertPrecision_TIBody) {
     std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
     {
         auto X = std::make_shared<opset4::Parameter>(element::f16, Shape{2, 1, 16});
@@ -290,7 +290,7 @@ TEST(TransformationTests, ConvertPrecision_TIBody) {
     }
 }
 
-TEST(TransformationTests, ConvertPrecision_Equal) {
+TEST(TransformationTests, smoke_ConvertPrecision_Equal) {
     std::shared_ptr<Function> f(nullptr);
     {
         auto input1 = std::make_shared<ngraph::opset4::Parameter>(ngraph::element::f16, ngraph::Shape{15, 20, 3});
@@ -310,7 +310,7 @@ TEST(TransformationTests, ConvertPrecision_Equal) {
     ASSERT_TRUE(has_type<ngraph::element::Type_t::u8>(f));
 }
 
-TEST(TransformationTests, ConvertPrecision_NotEqual) {
+TEST(TransformationTests, smoke_ConvertPrecision_NotEqual) {
     std::shared_ptr<Function> f(nullptr);
     {
         auto input1 = std::make_shared<ngraph::opset4::Parameter>(ngraph::element::f16, ngraph::Shape{15, 20, 3});
@@ -330,7 +330,7 @@ TEST(TransformationTests, ConvertPrecision_NotEqual) {
     ASSERT_TRUE(has_type<ngraph::element::Type_t::u8>(f));
 }
 
-TEST(TransformationTests, ConvertPrecision_Greater) {
+TEST(TransformationTests, smoke_ConvertPrecision_Greater) {
     std::shared_ptr<Function> f(nullptr);
     {
         auto input1 = std::make_shared<ngraph::opset4::Parameter>(ngraph::element::f16, ngraph::Shape{15, 20, 3});
@@ -350,7 +350,7 @@ TEST(TransformationTests, ConvertPrecision_Greater) {
     ASSERT_TRUE(has_type<ngraph::element::Type_t::u8>(f));
 }
 
-TEST(TransformationTests, ConvertPrecision_GreaterEqual) {
+TEST(TransformationTests, smoke_ConvertPrecision_GreaterEqual) {
     std::shared_ptr<Function> f(nullptr);
     {
         auto input1 = std::make_shared<ngraph::opset4::Parameter>(ngraph::element::f16, ngraph::Shape{15, 20, 3});
@@ -370,7 +370,7 @@ TEST(TransformationTests, ConvertPrecision_GreaterEqual) {
     ASSERT_TRUE(has_type<ngraph::element::Type_t::u8>(f));
 }
 
-TEST(TransformationTests, ConvertPrecision_Less) {
+TEST(TransformationTests, smoke_ConvertPrecision_Less) {
     std::shared_ptr<Function> f(nullptr);
     {
         auto input1 = std::make_shared<ngraph::opset4::Parameter>(ngraph::element::f16, ngraph::Shape{15, 20, 3});
@@ -390,7 +390,7 @@ TEST(TransformationTests, ConvertPrecision_Less) {
     ASSERT_TRUE(has_type<ngraph::element::Type_t::u8>(f));
 }
 
-TEST(TransformationTests, ConvertPrecision_LessEqual) {
+TEST(TransformationTests, smoke_ConvertPrecision_LessEqual) {
     std::shared_ptr<Function> f(nullptr);
     {
         auto input1 = std::make_shared<ngraph::opset4::Parameter>(ngraph::element::f16, ngraph::Shape{15, 20, 3});
@@ -410,7 +410,7 @@ TEST(TransformationTests, ConvertPrecision_LessEqual) {
     ASSERT_TRUE(has_type<ngraph::element::Type_t::u8>(f));
 }
 
-TEST(TransformationTests, ConvertPrecision_LogicalAnd) {
+TEST(TransformationTests, smoke_ConvertPrecision_LogicalAnd) {
     std::shared_ptr<Function> f(nullptr);
     {
         auto input1 = std::make_shared<ngraph::opset4::Parameter>(ngraph::element::boolean, ngraph::Shape{15, 20, 3});
@@ -428,7 +428,7 @@ TEST(TransformationTests, ConvertPrecision_LogicalAnd) {
     ASSERT_TRUE(has_type<ngraph::element::Type_t::u8>(f));
 }
 
-TEST(TransformationTests, ConvertPrecision_LogicalOr) {
+TEST(TransformationTests, smoke_ConvertPrecision_LogicalOr) {
     std::shared_ptr<Function> f(nullptr);
     {
         auto input1 = std::make_shared<ngraph::opset4::Parameter>(ngraph::element::boolean, ngraph::Shape{15, 20, 3});
@@ -446,7 +446,7 @@ TEST(TransformationTests, ConvertPrecision_LogicalOr) {
     ASSERT_TRUE(has_type<ngraph::element::Type_t::u8>(f));
 }
 
-TEST(TransformationTests, ConvertPrecision_LogicalXor) {
+TEST(TransformationTests, smoke_ConvertPrecision_LogicalXor) {
     std::shared_ptr<Function> f(nullptr);
     {
         auto input1 = std::make_shared<ngraph::opset4::Parameter>(ngraph::element::boolean, ngraph::Shape{15, 20, 3});
@@ -464,7 +464,7 @@ TEST(TransformationTests, ConvertPrecision_LogicalXor) {
     ASSERT_TRUE(has_type<ngraph::element::Type_t::u8>(f));
 }
 
-TEST(TransformationTests, ConvertPrecision_LogicalNot) {
+TEST(TransformationTests, smoke_ConvertPrecision_LogicalNot) {
     std::shared_ptr<Function> f(nullptr);
     {
         auto input1 = std::make_shared<ngraph::opset4::Parameter>(ngraph::element::boolean, ngraph::Shape{15, 20, 3});
@@ -481,7 +481,7 @@ TEST(TransformationTests, ConvertPrecision_LogicalNot) {
     ASSERT_TRUE(has_type<ngraph::element::Type_t::u8>(f));
 }
 
-TEST(TransformationTests, ConvertPrecision_Select) {
+TEST(TransformationTests, smoke_ConvertPrecision_Select) {
     std::shared_ptr<Function> f(nullptr);
     {
         auto input1 = std::make_shared<ngraph::opset4::Parameter>(ngraph::element::boolean, ngraph::Shape{15, 20, 3});
@@ -499,7 +499,7 @@ TEST(TransformationTests, ConvertPrecision_Select) {
     ASSERT_TRUE(has_type<ngraph::element::Type_t::u8>(f));
 }
 
-TEST(TransformationTests, ConvertPrecision_TypeRelaxedWithSelect) {
+TEST(TransformationTests, smoke_ConvertPrecision_TypeRelaxedWithSelect) {
     std::shared_ptr<Function> f(nullptr);
     {
         auto input1 = std::make_shared<ngraph::opset4::Parameter>(ngraph::element::boolean, ngraph::Shape{15, 20, 3});
@@ -519,7 +519,7 @@ TEST(TransformationTests, ConvertPrecision_TypeRelaxedWithSelect) {
     ASSERT_TRUE(has_type<ngraph::element::Type_t::i64>(f));
 }
 
-TEST(TransformationTests, ConvertPrecision_TypeRelaxed) {
+TEST(TransformationTests, smoke_ConvertPrecision_TypeRelaxed) {
     std::shared_ptr<Function> f(nullptr);
     {
         auto input1 = std::make_shared<ngraph::opset4::Parameter>(ngraph::element::boolean, ngraph::Shape{15, 20, 3});
@@ -539,7 +539,7 @@ TEST(TransformationTests, ConvertPrecision_TypeRelaxed) {
     }
 }
 
-TEST(TransformationTests, ConvertPrecision_Variables) {
+TEST(TransformationTests, smoke_ConvertPrecision_Variables) {
     std::shared_ptr<ngraph::Function> f(nullptr);
     {
         Shape shape {1, 10, 2};
@@ -581,44 +581,44 @@ void constant_convert_test(element::Type_t type_from, element::Type_t type_to, F
     ASSERT_EQ(expected, actual);
 }
 
-TEST(TransformationTests, ConvertPrecision_ConstantConversion_I64MinToI32) {
+TEST(TransformationTests, smoke_ConvertPrecision_ConstantConversion_I64MinToI32) {
     constant_convert_test(element::Type_t::i64, element::Type_t::i32,
                         std::numeric_limits<int64_t>::min(),
                         std::numeric_limits<int32_t>::min());
 }
 
-TEST(TransformationTests, ConvertPrecision_ConstantConversion_I64MaxToI32) {
+TEST(TransformationTests, smoke_ConvertPrecision_ConstantConversion_I64MaxToI32) {
     constant_convert_test(element::Type_t::i64, element::Type_t::i32,
                         std::numeric_limits<int64_t>::max(),
                         std::numeric_limits<int32_t>::max());
 }
 
-TEST(TransformationTests, ConvertPrecision_ConstantConversion_U64MinToI32) {
+TEST(TransformationTests, smoke_ConvertPrecision_ConstantConversion_U64MinToI32) {
     constant_convert_test(element::Type_t::u64, element::Type_t::i32,
                         std::numeric_limits<uint64_t>::min(), 0);
 }
 
-TEST(TransformationTests, ConvertPrecision_ConstantConversion_U64MaxToI32) {
+TEST(TransformationTests, smoke_ConvertPrecision_ConstantConversion_U64MaxToI32) {
     constant_convert_test(element::Type_t::u64, element::Type_t::i32,
                         std::numeric_limits<uint64_t>::max(),
                         std::numeric_limits<int32_t>::max());
 }
 
-TEST(TransformationTests, ConvertPrecision_ConstantConversion_U64ToI32) {
+TEST(TransformationTests, smoke_ConvertPrecision_ConstantConversion_U64ToI32) {
     constant_convert_test(element::Type_t::u64, element::Type_t::i32, 42, 42);
 }
 
-TEST(TransformationTests, ConvertPrecision_ConstantConversion_U32MinToI32) {
+TEST(TransformationTests, smoke_ConvertPrecision_ConstantConversion_U32MinToI32) {
     constant_convert_test(element::Type_t::u32, element::Type_t::i32,
                         std::numeric_limits<uint32_t>::min(), 0);
 }
 
-TEST(TransformationTests, ConvertPrecision_ConstantConversion_U32MaxToI32) {
+TEST(TransformationTests, smoke_ConvertPrecision_ConstantConversion_U32MaxToI32) {
     constant_convert_test(element::Type_t::u32, element::Type_t::i32,
                         std::numeric_limits<uint32_t>::max(),
                         std::numeric_limits<int32_t>::max());
 }
 
-TEST(TransformationTests, ConvertPrecision_ConstantConversion_U32ToI32) {
+TEST(TransformationTests, smoke_ConvertPrecision_ConstantConversion_U32ToI32) {
     constant_convert_test(element::Type_t::u32, element::Type_t::i32, 42, 42);
 }

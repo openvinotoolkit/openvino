@@ -21,7 +21,7 @@
 
 using namespace testing;
 
-TEST(TransformationTests, ConvertTopKToTopKIEStatic) {
+TEST(TransformationTests, smoke_ConvertTopKToTopKIEStatic) {
     std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
     {
         auto input = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{15, 20, 3});
@@ -55,7 +55,7 @@ TEST(TransformationTests, ConvertTopKToTopKIEStatic) {
     ASSERT_TRUE(res.first) << res.second;
 }
 
-TEST(TransformationTests, ConvertTopKToTopKIEDynamic1) {
+TEST(TransformationTests, smoke_ConvertTopKToTopKIEDynamic1) {
     std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
     {
         auto input = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::PartialShape{DYN, 20, 3});
@@ -86,7 +86,7 @@ TEST(TransformationTests, ConvertTopKToTopKIEDynamic1) {
     ASSERT_TRUE(res.first) << res.second;
 }
 
-TEST(TransformationTests, ConvertTopKToTopKIEDynamic2) {
+TEST(TransformationTests, smoke_ConvertTopKToTopKIEDynamic2) {
     std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
     {
         auto input = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::PartialShape{1, DYN, 3});
@@ -117,7 +117,7 @@ TEST(TransformationTests, ConvertTopKToTopKIEDynamic2) {
     ASSERT_TRUE(res.first) << res.second;
 }
 
-TEST(TransformationTests, ConvertTopKToTopKIEDynamic3) {
+TEST(TransformationTests, smoke_ConvertTopKToTopKIEDynamic3) {
     std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
     {
         auto input = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::PartialShape{1, 20, DYN});
@@ -148,7 +148,7 @@ TEST(TransformationTests, ConvertTopKToTopKIEDynamic3) {
     ASSERT_TRUE(res.first) << res.second;
 }
 
-TEST(TransformationTests, ConvertTopKToTopKIENegative) {
+TEST(TransformationTests, smoke_ConvertTopKToTopKIENegative) {
     std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
     {
         auto input = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{15, 20, 3});

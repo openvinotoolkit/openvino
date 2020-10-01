@@ -25,46 +25,46 @@ protected:
     const TensorDesc c2000 = TensorDesc(Precision::FP32, { 2000ul }, Layout::C);
 };
 
-TEST_F(EltwiseTransformationIsSupportedTests, n1c1000h1w1_and_n1c2000h1w1) {
+TEST_F(EltwiseTransformationIsSupportedTests, smoke_n1c1000h1w1_and_n1c2000h1w1) {
     ASSERT_TRUE(EltwiseTransformation::isSupported(n1c1000h1w1, n1c2000h1w1));
 }
 
-TEST_F(EltwiseTransformationIsSupportedTests, n1c1000h1w1_and_n1c1000h1w1) {
+TEST_F(EltwiseTransformationIsSupportedTests, smoke_n1c1000h1w1_and_n1c1000h1w1) {
     ASSERT_TRUE(EltwiseTransformation::isSupported(n1c1000h1w1, n1c1000h1w1));
 }
 
-TEST_F(EltwiseTransformationIsSupportedTests, n1c1000h1w1_and_n1c1000) {
+TEST_F(EltwiseTransformationIsSupportedTests, smoke_n1c1000h1w1_and_n1c1000) {
     ASSERT_TRUE(EltwiseTransformation::isSupported(n1c1000h1w1, n1c1000));
 }
 
-TEST_F(EltwiseTransformationIsSupportedTests, n1c1000h1w1_and_n1c2000) {
+TEST_F(EltwiseTransformationIsSupportedTests, smoke_n1c1000h1w1_and_n1c2000) {
     ASSERT_FALSE(EltwiseTransformation::isSupported(n1c1000h1w1, n1c2000));
 }
 
-TEST_F(EltwiseTransformationIsSupportedTests, n1c1000h1w1_and_c1) {
+TEST_F(EltwiseTransformationIsSupportedTests, smoke_n1c1000h1w1_and_c1) {
     ASSERT_TRUE(EltwiseTransformation::isSupported(n1c1000h1w1, c1));
 }
 
-TEST_F(EltwiseTransformationIsSupportedTests, n1c1000h1w1_and_c1000) {
+TEST_F(EltwiseTransformationIsSupportedTests, smoke_n1c1000h1w1_and_c1000) {
     ASSERT_TRUE(EltwiseTransformation::isSupported(n1c1000h1w1, c1000));
 }
 
-TEST_F(EltwiseTransformationIsSupportedTests, n1c1000h1w1_and_c2000) {
+TEST_F(EltwiseTransformationIsSupportedTests, smoke_n1c1000h1w1_and_c2000) {
     ASSERT_FALSE(EltwiseTransformation::isSupported(n1c1000h1w1, c2000));
 }
 
-TEST_F(EltwiseTransformationIsSupportedTests, n1c1000_and_n1c1000) {
+TEST_F(EltwiseTransformationIsSupportedTests, smoke_n1c1000_and_n1c1000) {
     ASSERT_TRUE(EltwiseTransformation::isSupported(n1c1000, n1c1000));
 }
 
-TEST_F(EltwiseTransformationIsSupportedTests, n1c1000_and_n1c2000) {
+TEST_F(EltwiseTransformationIsSupportedTests, smoke_n1c1000_and_n1c2000) {
     ASSERT_FALSE(EltwiseTransformation::isSupported(n1c1000, n1c2000));
 }
 
-TEST_F(EltwiseTransformationIsSupportedTests, n1c2000h1w1_and_n1c1000) {
+TEST_F(EltwiseTransformationIsSupportedTests, smoke_n1c2000h1w1_and_n1c1000) {
     ASSERT_TRUE(EltwiseTransformation::isSupported(n1c2000h1w1, n1c1000));
 }
 
-TEST_F(EltwiseTransformationIsSupportedTests, n1c1000_and_n1c1) {
+TEST_F(EltwiseTransformationIsSupportedTests, smoke_n1c1000_and_n1c1) {
     ASSERT_TRUE(EltwiseTransformation::isSupported(n1c1000, n1c1));
 }

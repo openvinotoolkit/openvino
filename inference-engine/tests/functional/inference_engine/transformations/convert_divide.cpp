@@ -19,7 +19,7 @@
 
 using namespace testing;
 
-TEST(TransformationTests, ConvertDivide) {
+TEST(TransformationTests, smoke_ConvertDivide) {
     std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
     {
         auto data = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{3, 1, 2});
@@ -49,7 +49,7 @@ TEST(TransformationTests, ConvertDivide) {
     ASSERT_TRUE(res.first) << res.second;
 }
 
-TEST(TransformationTests, ConvertDivideNegative) {
+TEST(TransformationTests, smoke_ConvertDivideNegative) {
     std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
     {
         auto data = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::i32, ngraph::Shape{3, 1, 2});

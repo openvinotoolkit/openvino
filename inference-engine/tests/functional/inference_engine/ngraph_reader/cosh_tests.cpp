@@ -5,7 +5,7 @@
 #include <string>
 
 #include "ngraph_reader_tests.hpp"
-TEST_F(NGraphReaderTests, ReadCoshNetwork) {
+TEST_F(NGraphReaderTests, smoke_ReadCoshNetwork) {
     std::string model = R"V0G0N(
 <net name="Network" version="10">
     <layers>

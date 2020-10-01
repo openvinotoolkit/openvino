@@ -14,7 +14,7 @@ using TypeVector = element::TypeVector;
 
 using TypeRelaxedTests = CommonTestUtils::TestsCommon;
 
-TEST_F(TypeRelaxedTests, noOverrideCopyCtor) {
+TEST_F(TypeRelaxedTests, smoke_noOverrideCopyCtor) {
     std::shared_ptr<ngraph::Function> ngraph;
     {
         ngraph::PartialShape shape({1, 3, 22, 22});
@@ -36,7 +36,7 @@ TEST_F(TypeRelaxedTests, noOverrideCopyCtor) {
     ASSERT_EQ(3, ngraph->get_ops().size());
 }
 
-TEST_F(TypeRelaxedTests, overrideOutputCopyCtor) {
+TEST_F(TypeRelaxedTests, smoke_overrideOutputCopyCtor) {
     auto input_type = element::f32;
     auto overriden_type = element::i32;
     std::shared_ptr<ngraph::Function> ngraph;
@@ -57,7 +57,7 @@ TEST_F(TypeRelaxedTests, overrideOutputCopyCtor) {
     ASSERT_EQ(3, ngraph->get_ops().size());
 }
 
-TEST_F(TypeRelaxedTests, overrideInputCopyCtor) {
+TEST_F(TypeRelaxedTests, smoke_overrideInputCopyCtor) {
     auto input_type = element::f32;
     auto overriden_type = element::i32;
     std::shared_ptr<ngraph::Function> ngraph;
@@ -78,7 +78,7 @@ TEST_F(TypeRelaxedTests, overrideInputCopyCtor) {
     ASSERT_EQ(3, ngraph->get_ops().size());
 }
 
-TEST_F(TypeRelaxedTests, mixedInputsAutoOutput) {
+TEST_F(TypeRelaxedTests, smoke_mixedInputsAutoOutput) {
     auto input_type1 = element::u8;
     auto input_type2 = element::i8;
     auto overriden_type = element::i16;
@@ -104,7 +104,7 @@ TEST_F(TypeRelaxedTests, mixedInputsAutoOutput) {
     ASSERT_EQ(4, ngraph->get_ops().size());
 }
 
-TEST_F(TypeRelaxedTests, mixedInputsAutoOutputForwardCtor) {
+TEST_F(TypeRelaxedTests, smoke_mixedInputsAutoOutputForwardCtor) {
     auto input_type1 = element::u8;
     auto input_type2 = element::i8;
     auto overriden_type = element::i16;
@@ -129,7 +129,7 @@ TEST_F(TypeRelaxedTests, mixedInputsAutoOutputForwardCtor) {
     ASSERT_EQ(4, ngraph->get_ops().size());
 }
 
-TEST_F(TypeRelaxedTests, notSupportedTypeOverride) {
+TEST_F(TypeRelaxedTests, smoke_notSupportedTypeOverride) {
     auto overriden_type = element::u8;
     auto orig_type = element::boolean;
     std::shared_ptr<ngraph::Function> ngraph;
@@ -154,7 +154,7 @@ TEST_F(TypeRelaxedTests, notSupportedTypeOverride) {
     ASSERT_EQ(4, ngraph->get_ops().size());
 }
 
-TEST_F(TypeRelaxedTests, notSupportedTypeOverridePartially) {
+TEST_F(TypeRelaxedTests, smoke_notSupportedTypeOverridePartially) {
     auto some_type = element::u8;
     auto overriden_type = element::f32;
     auto orig_type = element::i64;
@@ -181,7 +181,7 @@ TEST_F(TypeRelaxedTests, notSupportedTypeOverridePartially) {
     ASSERT_EQ(4, ngraph->get_ops().size());
 }
 
-TEST_F(TypeRelaxedTests, setGetTypes) {
+TEST_F(TypeRelaxedTests, smoke_setGetTypes) {
     std::shared_ptr<ngraph::Function> ngraph;
     {
         ngraph::PartialShape shape({1, 3, 22, 22});
@@ -272,7 +272,7 @@ TEST_F(TypeRelaxedTests, setGetTypes) {
     ASSERT_EQ(4, ngraph->get_ops().size());
 }
 
-TEST_F(TypeRelaxedTests, OneOutputMultipleInputPorts) {
+TEST_F(TypeRelaxedTests, smoke_OneOutputMultipleInputPorts) {
     std::shared_ptr<ngraph::Function> f;
     {
         auto param1 = make_shared<ngraph::opset1::Parameter>(element::boolean, ngraph::Shape{1, 3, 22, 22});

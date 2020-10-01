@@ -5,7 +5,7 @@
 #include <string>
 #include <generic_ie.hpp>
 #include "ngraph_reader_tests.hpp"
-TEST_F(NGraphReaderTests, ReadProposalNetwork) {
+TEST_F(NGraphReaderTests, ReadProposalNetwork_smoke) {
     std::string model_v10 = R"V0G0N(
 <net name="Network" version="10">
     <layers>
@@ -156,7 +156,7 @@ TEST_F(NGraphReaderTests, ReadProposalNetwork) {
     compareIRs(model_v10, model_v6, 24);
 }
 
-TEST_F(NGraphReaderTests, ReadProposalNetwork_2) {
+TEST_F(NGraphReaderTests, ReadProposalNetwork_2_smoke) {
     std::string model_v10 = R"V0G0N(
 <net name="Network" version="10">
     <layers>
@@ -166,7 +166,7 @@ TEST_F(NGraphReaderTests, ReadProposalNetwork_2) {
                 <port id="0" precision="FP32">
                     <dim>1</dim>
                     <dim>12</dim>
-                    <dim>34</dim>
+                    <dim>34</dim>smoke_ParameterAsUInt
                     <dim>62</dim>
                 </port>
             </output>
@@ -307,7 +307,7 @@ TEST_F(NGraphReaderTests, ReadProposalNetwork_2) {
     compareIRs(model_v10, model_v6, 32);
 }
 
-TEST_F(NGraphReaderTests, ReadExtensionProposalNetwork) {
+TEST_F(NGraphReaderTests, smoke_ReadExtensionProposalNetwork) {
     std::string model_v10 = R"V0G0N(
 <net name="Network" version="10">
     <layers>

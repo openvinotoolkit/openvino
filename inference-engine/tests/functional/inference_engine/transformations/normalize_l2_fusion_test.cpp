@@ -18,7 +18,7 @@
 
 using namespace testing;
 
-TEST(TransformationTests, NormalizeL2FusionWithMax) {
+TEST(TransformationTests, smoke_NormalizeL2FusionWithMax) {
     std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
     const float eps_value = 0.000099f;
     {
@@ -53,7 +53,7 @@ TEST(TransformationTests, NormalizeL2FusionWithMax) {
     ASSERT_TRUE(res.first) << res.second;
 }
 
-TEST(TransformationTests, NormalizeL2FusionWithMaxIncorrectExp) {
+TEST(TransformationTests, smoke_NormalizeL2FusionWithMaxIncorrectExp) {
     std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
     const float eps_value = 0.0009f;
     {
@@ -93,7 +93,7 @@ TEST(TransformationTests, NormalizeL2FusionWithMaxIncorrectExp) {
     ASSERT_TRUE(res.first) << res.second;
 }
 
-TEST(TransformationTests, NormalizeL2FusionWithMaxIncorrectEpsValueShape) {
+TEST(TransformationTests, smoke_NormalizeL2FusionWithMaxIncorrectEpsValueShape) {
     std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
     {
         auto input = std::make_shared<ngraph::opset4::Parameter>(ngraph::element::f16, ngraph::PartialShape::dynamic(2));
@@ -132,7 +132,7 @@ TEST(TransformationTests, NormalizeL2FusionWithMaxIncorrectEpsValueShape) {
     ASSERT_TRUE(res.first) << res.second;
 }
 
-TEST(TransformationTests, NormalizeL2FusionWithAdd) {
+TEST(TransformationTests, smoke_NormalizeL2FusionWithAdd) {
     std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
     const float eps_value = 0.000099f;
     {
@@ -167,7 +167,7 @@ TEST(TransformationTests, NormalizeL2FusionWithAdd) {
     ASSERT_TRUE(res.first) << res.second;
 }
 
-TEST(TransformationTests, NormalizeL2FusionWithAddIncorrectExp) {
+TEST(TransformationTests, smoke_NormalizeL2FusionWithAddIncorrectExp) {
     std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
     const float eps_value = 0.0009f;
     {
@@ -208,7 +208,7 @@ TEST(TransformationTests, NormalizeL2FusionWithAddIncorrectExp) {
     ASSERT_TRUE(res.first) << res.second;
 }
 
-TEST(TransformationTests, NormalizeL2FusionWithAddIncorrectEpsValueShape) {
+TEST(TransformationTests, smoke_NormalizeL2FusionWithAddIncorrectEpsValueShape) {
     std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
     {
         auto input = std::make_shared<ngraph::opset4::Parameter>(ngraph::element::f16, ngraph::PartialShape::dynamic(4));

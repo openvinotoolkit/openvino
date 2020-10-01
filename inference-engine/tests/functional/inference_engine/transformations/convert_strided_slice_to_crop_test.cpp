@@ -29,7 +29,7 @@
 
 using namespace testing;
 
-TEST(TransformationTests, ConvertStridedSliceToCropTests1) {
+TEST(TransformationTests, smoke_ConvertStridedSliceToCropTests1) {
     std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
     {
         auto input        = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{1, 2, 384, 640});
@@ -83,7 +83,7 @@ TEST(TransformationTests, ConvertStridedSliceToCropTests1) {
     ASSERT_TRUE(names_are_correct) << "Transformation ConvertStridedSliceToCrop should keep output names.\n";
 }
 
-TEST(TransformationTests, ConvertStridedSliceToCropTests2) {
+TEST(TransformationTests, smoke_ConvertStridedSliceToCropTests2) {
     std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
     {
         auto input        = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{1, 2, 384, 640});
@@ -137,7 +137,7 @@ TEST(TransformationTests, ConvertStridedSliceToCropTests2) {
     ASSERT_TRUE(names_are_correct) << "Transformation ConvertStridedSliceToCrop should keep output names.\n";
 }
 
-TEST(TransformationTests, ConvertStridedSliceToCropNegative) {
+TEST(TransformationTests, smoke_ConvertStridedSliceToCropNegative) {
     std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
     {
         auto input        = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::PartialShape::dynamic(4));
@@ -189,7 +189,7 @@ TEST(TransformationTests, ConvertStridedSliceToCropNegative) {
 }
 
 // in this test the Crop will get 3D input which is not supported so the transformation will not be applied
-TEST(TransformationTests, ConvertStridedSliceToCropNegative2) {
+TEST(TransformationTests, smoke_ConvertStridedSliceToCropNegative2) {
     std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
     {
         auto input        = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{128, 1});

@@ -233,7 +233,7 @@ bool IsCorrectBlobCopy(Blob::Ptr& srcBlob, Blob::Ptr& dstBlob) {
 
 using BlobCopyTest = ::testing::TestWithParam <std::tuple<IsInterleaved, IsInterleaved, BatchNum, ChannelNum, Dims, PrecisionType >>;
 
-TEST_P(BlobCopyTest, BlobCopy) {
+TEST_P(BlobCopyTest, smoke_BlobCopy) {
     IsInterleaved srcIsInterleaved = get<0>(GetParam());
     IsInterleaved dstIsInterleaved = get<1>(GetParam());
     BatchNum batchNum = get<2>(GetParam());
@@ -309,7 +309,7 @@ std::vector<PrecisionType> BlobCopy_PrecisionParams = {
 
 }  // namespace
 
-INSTANTIATE_TEST_CASE_P(accuracy, BlobCopyTest,
+INSTANTIATE_TEST_CASE_P(smoke_accuracy, BlobCopyTest,
                         ::testing::Combine(::testing::ValuesIn(BlobCopy_srcLayoutParam),
                            ::testing::ValuesIn(BlobCopy_dstLayoutParam),
                            ::testing::ValuesIn(BlobCopy_BatchNum),
@@ -449,7 +449,7 @@ TEST_P(BlobCopySetLayoutTest, BlobCopyWithNCHW_To_NHWC_After_setLayout) {
     ASSERT_TRUE(IsEqualBlobCopy(ref, dst)) << "'blob_copy' after setLayout function is not correct";
 }
 
-INSTANTIATE_TEST_CASE_P(accuracy, BlobCopySetLayoutTest,
+INSTANTIATE_TEST_CASE_P(smoke_accuracy, BlobCopySetLayoutTest,
     ::testing::Combine(::testing::ValuesIn(BlobCopySetLayout_Dims),
                        ::testing::ValuesIn(BlobCopySetLayout_Precisions)));
 

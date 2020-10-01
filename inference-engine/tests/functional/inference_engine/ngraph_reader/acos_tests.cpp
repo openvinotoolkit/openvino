@@ -6,7 +6,7 @@
 
 #include "ngraph_reader_tests.hpp"
 
-TEST_F(NGraphReaderTests, ReadAcosNetwork) {
+TEST_F(NGraphReaderTests, smoke_ReadAcosNetwork) {
     std::string model = R"V0G0N(
 <net name="Network" version="10">
     <layers>

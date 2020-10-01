@@ -25,7 +25,7 @@
 using namespace testing;
 using namespace ngraph;
 
-TEST(TransformationTests, MulAddMulAddFusion) {
+TEST(TransformationTests, smoke_MulAddMulAddFusion) {
     std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
 
     {
@@ -64,7 +64,7 @@ TEST(TransformationTests, MulAddMulAddFusion) {
     ASSERT_TRUE(res.first) << res.second;
 }
 
-TEST(TransformationTests, MulMulMulFusion) {
+TEST(TransformationTests, smoke_MulMulMulFusion) {
     std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
 
     {
@@ -99,7 +99,7 @@ TEST(TransformationTests, MulMulMulFusion) {
     ASSERT_TRUE(res.first) << res.second;
 }
 
-TEST(TransformationTests, AddAddAddFusion) {
+TEST(TransformationTests, smoke_AddAddAddFusion) {
     std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
 
     {
@@ -134,7 +134,7 @@ TEST(TransformationTests, AddAddAddFusion) {
     ASSERT_TRUE(res.first) << res.second;
 }
 
-TEST(TransformationTests, MulAddAddMulFusion) {
+TEST(TransformationTests, smoke_MulAddAddMulFusion) {
     std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
 
     {

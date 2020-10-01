@@ -24,7 +24,7 @@
 
 using namespace testing;
 
-TEST(TransformationTests, ConvBiasFusion) {
+TEST(TransformationTests, smoke_ConvBiasFusion) {
     std::shared_ptr<ngraph::Function> f(nullptr);
     {
         auto input1 = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{1, 3, 64, 64});

@@ -24,7 +24,7 @@
 using namespace testing;
 using namespace InferenceEngine;
 
-TEST(ConvertFunctionToCNNNetworkTests, ConvertPReLUNetwork) {
+TEST(ConvertFunctionToCNNNetworkTests, smoke_ConvertPReLUNetwork) {
     std::shared_ptr<ngraph::Function> f;
     {
         auto param1 = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{2, 2});
@@ -49,7 +49,7 @@ TEST(ConvertFunctionToCNNNetworkTests, ConvertPReLUNetwork) {
     }
 }
 
-TEST(ConvertFunctionToCNNNetworkTests, ConvertConvolutionNetwork) {
+TEST(ConvertFunctionToCNNNetworkTests, smoke_ConvertConvolutionNetwork) {
     std::shared_ptr<ngraph::Function> f;
     {
         auto param1 = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{1, 3, 64, 64});
@@ -76,7 +76,7 @@ TEST(ConvertFunctionToCNNNetworkTests, ConvertConvolutionNetwork) {
     }
 }
 
-TEST(ConvertFunctionToCNNNetworkTests, OpsShouldBeConvertedToIERepresentation) {
+TEST(ConvertFunctionToCNNNetworkTests, smoke_OpsShouldBeConvertedToIERepresentation) {
     ngraph::NodeVector should_converted_to_ie = {
             std::make_shared<ngraph::opset4::Broadcast>(),
             std::make_shared<ngraph::opset4::Convolution>(),
@@ -151,7 +151,7 @@ TEST(ConvertFunctionToCNNNetworkTests, OpsShouldBeConvertedToIERepresentation) {
     }
 }
 
-TEST(ConvertFunctionToCNNNetworkTests, ConvertTopKWithOneInput) {
+TEST(ConvertFunctionToCNNNetworkTests, smoke_ConvertTopKWithOneInput) {
     std::shared_ptr<ngraph::Function> f;
     {
         auto param = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{1, 3, 22, 22});

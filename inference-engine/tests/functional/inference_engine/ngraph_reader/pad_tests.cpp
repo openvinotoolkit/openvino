@@ -4,7 +4,7 @@
 
 #include <string>
 #include "ngraph_reader_tests.hpp"
-TEST_F(NGraphReaderTests, ReadPadNoPadValue) {
+TEST_F(NGraphReaderTests, smoke_ReadPadNoPadValue) {
     std::string model = R"V0G0N(
 <net name="Network" version="10">
     <layers>
@@ -132,7 +132,7 @@ TEST_F(NGraphReaderTests, ReadPadNoPadValue) {
     });
 }
 
-TEST_F(NGraphReaderTests, ReadPadWithPadValue) {
+TEST_F(NGraphReaderTests, smoke_ReadPadWithPadValue) {
     std::string model = R"V0G0N(
 <net name="Network" version="10">
     <layers>

@@ -4,7 +4,7 @@
 
 #include <string>
 #include "ngraph_reader_tests.hpp"
-TEST_F(NGraphReaderTests, DISABLED_ReadDeconvolution3DNetwork) {
+TEST_F(NGraphReaderTests, DISABLED_smoke_ReadDeconvolution3DNetwork) {
     std::string model = R"V0G0N(
 <net name="Network" version="10">
     <layers>
@@ -124,7 +124,7 @@ TEST_F(NGraphReaderTests, DISABLED_ReadDeconvolution3DNetwork) {
     compareIRs(model, modelV5, 33554432);
 }
 
-TEST_F(NGraphReaderTests, DISABLED_ReadDeconvolution2DNetwork) {
+TEST_F(NGraphReaderTests, DISABLED_smoke_ReadDeconvolution2DNetwork) {
     std::string model = R"V0G0N(
 <net name="Network" version="10">
     <layers>

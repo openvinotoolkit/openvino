@@ -24,7 +24,7 @@
 
 using namespace testing;
 
-TEST(TransformationTests, DepthToSpaceFusionDepthFirst) {
+TEST(TransformationTests, smoke_DepthToSpaceFusionDepthFirst) {
     std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
     {
         auto input0 = std::make_shared<ngraph::opset3::Parameter>(ngraph::element::f32, ngraph::Shape{1, 128, 720, 480});
@@ -58,7 +58,7 @@ TEST(TransformationTests, DepthToSpaceFusionDepthFirst) {
     ASSERT_TRUE(res.first) << res.second;
 }
 
-TEST(TransformationTests, DepthToSpaceFusionBlockFirst) {
+TEST(TransformationTests, smoke_DepthToSpaceFusionBlockFirst) {
     std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
     {
         auto input0 = std::make_shared<ngraph::opset3::Parameter>(ngraph::element::f32, ngraph::Shape{1, 128, 720, 480});
@@ -92,7 +92,7 @@ TEST(TransformationTests, DepthToSpaceFusionBlockFirst) {
     ASSERT_TRUE(res.first) << res.second;
 }
 
-TEST(TransformationTests, DepthToSpaceFusionDynamicShape) {
+TEST(TransformationTests, smoke_DepthToSpaceFusionDynamicShape) {
     std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
     {
         auto input0 = std::make_shared<ngraph::opset3::Parameter>(ngraph::element::f32, ngraph::Shape{1, 128, 720, 480});
@@ -134,7 +134,7 @@ TEST(TransformationTests, DepthToSpaceFusionDynamicShape) {
     ASSERT_TRUE(res.first) << res.second;
 }
 
-TEST(TransformationTests, DepthToSpaceFusionSeveralConsumers) {
+TEST(TransformationTests, smoke_DepthToSpaceFusionSeveralConsumers) {
     std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
     {
         auto input0 = std::make_shared<ngraph::opset3::Parameter>(ngraph::element::f32, ngraph::Shape{1, 128, 720, 480});

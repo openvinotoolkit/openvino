@@ -25,7 +25,7 @@
 
 using namespace testing;
 
-TEST(TransformationTests, OptimizeSS_UselessDeletion_Negative1) {
+TEST(TransformationTests, smoke_OptimizeSS_UselessDeletion_Negative1) {
     std::shared_ptr<ngraph::Function> f(nullptr);
     {
         auto data = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{5, 5, 5, 5});
@@ -47,7 +47,7 @@ TEST(TransformationTests, OptimizeSS_UselessDeletion_Negative1) {
     ASSERT_TRUE(res.first) << res.second;
 }
 
-TEST(TransformationTests, OptimizeSS_UselessDeletion_Negative2) {
+TEST(TransformationTests, smoke_OptimizeSS_UselessDeletion_Negative2) {
     std::shared_ptr<ngraph::Function> f(nullptr);
     {
         auto data = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::PartialShape::dynamic(4));
@@ -70,7 +70,7 @@ TEST(TransformationTests, OptimizeSS_UselessDeletion_Negative2) {
     ASSERT_TRUE(res.first) << res.second;
 }
 
-TEST(TransformationTests, OptimizeSS_UselessDeletion) {
+TEST(TransformationTests, smoke_OptimizeSS_UselessDeletion) {
     std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
     {
         auto data = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{5, 5, 5, 5});
@@ -98,7 +98,7 @@ TEST(TransformationTests, OptimizeSS_UselessDeletion) {
     ASSERT_TRUE(res.first) << res.second;
 }
 
-TEST(TransformationTests, OptimizeSS_SkipUselessDeletionRevertCase) {
+TEST(TransformationTests, smoke_OptimizeSS_SkipUselessDeletionRevertCase) {
     std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
     {
         auto data = std::make_shared<ngraph::opset3::Parameter>(ngraph::element::f32, ngraph::Shape{5, 5, 5, 5});
@@ -135,7 +135,7 @@ TEST(TransformationTests, OptimizeSS_SkipUselessDeletionRevertCase) {
     ASSERT_TRUE(res.first) << res.second;
 }
 
-TEST(TransformationTests, OptimizeSS_Usefull_Test) {
+TEST(TransformationTests, smoke_OptimizeSS_Usefull_Test) {
     std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
     {
         auto data = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{5, 5, 5, 5});
@@ -170,7 +170,7 @@ TEST(TransformationTests, OptimizeSS_Usefull_Test) {
     ASSERT_TRUE(res.first) << res.second;
 }
 
-TEST(TransformationTests, OptimizeSS_Shared_Test) {
+TEST(TransformationTests, smoke_OptimizeSS_Shared_Test) {
     std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
     {
         auto source = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{5, 5, 5, 5});
@@ -213,7 +213,7 @@ TEST(TransformationTests, OptimizeSS_Shared_Test) {
     ASSERT_TRUE(res.first) << res.second;
 }
 
-TEST(TransformationTests, OptimizeSS_NotShared_Test) {
+TEST(TransformationTests, smoke_OptimizeSS_NotShared_Test) {
     std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
     {
         auto source = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{5, 6, 5, 5});
@@ -270,7 +270,7 @@ TEST(TransformationTests, OptimizeSS_NotShared_Test) {
     ASSERT_TRUE(res.first) << res.second;
 }
 
-TEST(TransformationTests, OptimizeSS_Groupped_Test) {
+TEST(TransformationTests, smoke_OptimizeSS_Groupped_Test) {
     std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
     {
         auto source = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{5, 5, 5, 5});

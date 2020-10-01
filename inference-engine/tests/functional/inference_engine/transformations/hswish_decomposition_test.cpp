@@ -18,7 +18,7 @@
 
 using namespace testing;
 
-TEST(TransformationTests, HSwishDecompositionTest) {
+TEST(TransformationTests, smoke_HSwishDecompositionTest) {
     std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
     {
         auto input = std::make_shared<ngraph::opset4::Parameter>(ngraph::element::f32, ngraph::PartialShape::dynamic(1));

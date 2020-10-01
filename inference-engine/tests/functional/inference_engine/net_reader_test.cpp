@@ -29,7 +29,7 @@
 
 using NetReaderNoParamTest = CommonTestUtils::TestsCommon;
 
-TEST_F(NetReaderNoParamTest, IncorrectModel) {
+TEST_F(NetReaderNoParamTest, smoke_IncorrectModel) {
     InferenceEngine::Core ie;
     ASSERT_THROW(ie.ReadNetwork("incorrectFilePath"), InferenceEngine::details::InferenceEngineException);
 }
@@ -147,7 +147,7 @@ TEST_P(NetReaderTest, ReadCorrectModelWithWeightsUnicodePath) {
 
 #endif
 
-TEST(NetReaderTest, IRSupportModelDetection) {
+TEST(NetReaderTest, smoke_IRSupportModelDetection) {
     InferenceEngine::Core ie;
 
     static char const *model = R"V0G0N(<net name="Network" version="10" some_attribute="Test Attribute">
@@ -237,7 +237,7 @@ static const auto params = testing::Combine(
         testing::Values(InferenceEngine::Precision::FP32, InferenceEngine::Precision::FP16));
 
 INSTANTIATE_TEST_CASE_P(
-        NetReaderTest,
+        smoke_NetReaderTest,
         NetReaderTest,
         params,
         getTestCaseName);

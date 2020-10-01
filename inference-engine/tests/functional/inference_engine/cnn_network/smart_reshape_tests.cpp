@@ -68,7 +68,7 @@ public:
 TEST_P(CNNNGraphImplSmartReshapeTests, ReshapeMatMul) {
 }
 
-INSTANTIATE_TEST_CASE_P(NGraph, CNNNGraphImplSmartReshapeTests, testing::Values(
+INSTANTIATE_TEST_CASE_P(smoke_NGraph, CNNNGraphImplSmartReshapeTests, testing::Values(
         ReshapeMatMulTestCase{true, {1, 20, 30}, {30, 40}, {20, -1}, false, false, {{"input_A", {2, 20, 30}}}},
         ReshapeMatMulTestCase{true, {1, 20, 30}, {40, 30}, {20, -1}, false, true, {{"input_A", {2, 20, 30}}}},
         ReshapeMatMulTestCase{true, {1, 30, 20}, {30, 20}, {-1, 20}, true, false, {{"input_A", {2, 30, 20}}}},

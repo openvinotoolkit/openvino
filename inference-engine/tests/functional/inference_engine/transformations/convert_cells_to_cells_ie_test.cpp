@@ -26,7 +26,7 @@
 
 using namespace testing;
 
-TEST(TransformationTests, GRUCellConversionTest) {
+TEST(TransformationTests, smoke_GRUCellConversionTest) {
     std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
     std::shared_ptr<ngraph::opset3::GRUCell> cell;
 
@@ -81,7 +81,7 @@ TEST(TransformationTests, GRUCellConversionTest) {
     ASSERT_TRUE(cell_node->get_friendly_name() == "test_cell") << "Transformation ConvertGRUCellToGRUCellIE should keep output names.\n";
 }
 
-TEST(TransformationTests, RNNCellConversionTest) {
+TEST(TransformationTests, smoke_RNNCellConversionTest) {
     const size_t hidden_size = 3;
     std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
     std::shared_ptr<ngraph::opset3::RNNCell> cell;
@@ -130,7 +130,7 @@ TEST(TransformationTests, RNNCellConversionTest) {
     ASSERT_TRUE(cell_node->get_friendly_name() == "test_cell") << "Transformation ConvertRNNCellToRNNCellIE should keep output names.\n";
 }
 
-TEST(TransformationTests, LSTMCellConversionTest_opset3) {
+TEST(TransformationTests, smoke_LSTMCellConversionTest_opset3) {
     const size_t batch_size = 2;
     const size_t input_size = 3;
     const size_t hidden_size = 3;
@@ -189,7 +189,7 @@ TEST(TransformationTests, LSTMCellConversionTest_opset3) {
     ASSERT_TRUE(cell_node->get_friendly_name() == "test_cell") << "Transformation ConvertLSTMCellToLSTMCellIE should keep output names.\n";
 }
 
-TEST(TransformationTests, LSTMCellConversionTest_opset4) {
+TEST(TransformationTests, smoke_LSTMCellConversionTest_opset4) {
     const size_t batch_size = 2;
     const size_t input_size = 3;
     const size_t hidden_size = 3;

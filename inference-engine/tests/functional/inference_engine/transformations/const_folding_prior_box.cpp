@@ -18,7 +18,7 @@
 
 using namespace testing;
 
-TEST(TransformationTests, ConstFoldingPriorBox) {
+TEST(TransformationTests, smoke_ConstFoldingPriorBox) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
 
@@ -63,7 +63,7 @@ TEST(TransformationTests, ConstFoldingPriorBox) {
     EXPECT_TRUE(fused->get_vector<float>() == ref->get_vector<float>());
 }
 
-TEST(TransformationTests, ConstFoldingPriorBoxClustered) {
+TEST(TransformationTests, smoke_ConstFoldingPriorBoxClustered) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
 
@@ -110,7 +110,7 @@ TEST(TransformationTests, ConstFoldingPriorBoxClustered) {
     EXPECT_TRUE(fused->get_vector<float>() == ref->get_vector<float>());
 }
 
-TEST(TransformationTests, ConstFoldingPriorBoxSubgraph) {
+TEST(TransformationTests, smoke_ConstFoldingPriorBoxSubgraph) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
 
@@ -165,7 +165,7 @@ TEST(TransformationTests, ConstFoldingPriorBoxSubgraph) {
     EXPECT_TRUE(fused->get_vector<float>() == ref->get_vector<float>());
 }
 
-TEST(TransformationTests, ConstFoldingPriorBoxClusteredSubgraph) {
+TEST(TransformationTests, smoke_ConstFoldingPriorBoxClusteredSubgraph) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
     {

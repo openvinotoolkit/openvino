@@ -23,7 +23,7 @@
 using namespace testing;
 using namespace ngraph;
 
-TEST(TransformationTests, ConvReshapeTest1) {
+TEST(TransformationTests, smoke_ConvReshapeTest1) {
     auto input = ngraph::op::Constant::create(ngraph::element::f32, ngraph::Shape{1, 3, 64}, {1});
     auto w = ngraph::op::Constant::create(ngraph::element::f32, ngraph::Shape{6, 3, 3/*OIW*/}, {1});
 
@@ -55,7 +55,7 @@ TEST(TransformationTests, ConvReshapeTest1) {
     }
 }
 
-TEST(TransformationTests, ConvBiasReshapeTest1) {
+TEST(TransformationTests, smoke_ConvBiasReshapeTest1) {
     auto input = ngraph::op::Constant::create(ngraph::element::f32, ngraph::Shape{1, 3, 64}, {1});
     auto w = ngraph::op::Constant::create(ngraph::element::f32, ngraph::Shape{6, 3, 3/*OIW*/}, {1});
     auto b = ngraph::op::Constant::create(ngraph::element::f32, ngraph::Shape{6}, {1});
@@ -88,7 +88,7 @@ TEST(TransformationTests, ConvBiasReshapeTest1) {
     }
 }
 
-TEST(TransformationTests, MaxPoolReshapeTest1) {
+TEST(TransformationTests, smoke_MaxPoolReshapeTest1) {
     std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
     {
         auto input = std::make_shared<opset1::Parameter>(ngraph::element::f32, ngraph::Shape{1, 3, 64});
@@ -121,7 +121,7 @@ TEST(TransformationTests, MaxPoolReshapeTest1) {
     ASSERT_TRUE(res.first) << res.second;
 }
 
-TEST(TransformationTests, AvgPoolReshapeTest1) {
+TEST(TransformationTests, smoke_AvgPoolReshapeTest1) {
     std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
     {
         auto input = std::make_shared<opset1::Parameter>(ngraph::element::f32, ngraph::Shape{1, 3, 64});

@@ -8,7 +8,7 @@
 // Todo (itikhono): delete ReadPriorBoxClusteredNetwork and ReadPriorBoxNetwork and replace them with disabled tests
 //  below after supporting constants as outputs in plugins.
 
-TEST_F(NGraphReaderTests, ReadPriorBoxClusteredNetwork) {
+TEST_F(NGraphReaderTests, smoke_ReadPriorBoxClusteredNetwork) {
     std::string model = R"V0G0N(
 <net name="Network" version="10">
     <layers>
@@ -269,7 +269,7 @@ TEST_F(NGraphReaderTests, ReadPriorBoxClusteredNetwork) {
             });
 }
 
-TEST_F(NGraphReaderTests, ReadPriorBoxNetwork) {
+TEST_F(NGraphReaderTests, smoke_ReadPriorBoxNetwork) {
     std::string model = R"V0G0N(
 <net name="Network" version="10">
     <layers>
@@ -529,7 +529,7 @@ TEST_F(NGraphReaderTests, ReadPriorBoxNetwork) {
             });
 }
 
-TEST_F(NGraphReaderTests, DISABLED_ReadPriorBoxClusteredNetwork) {
+TEST_F(NGraphReaderTests, DISABLED_smoke_ReadPriorBoxClusteredNetwork) {
     std::string model = R"V0G0N(
 <net name="Network" version="10">
     <layers>
@@ -868,7 +868,7 @@ TEST_F(NGraphReaderTests, DISABLED_ReadPriorBoxClusteredNetwork) {
     });
 }
 
-TEST_F(NGraphReaderTests, DISABLED_ReadPriorBoxNetwork) {
+TEST_F(NGraphReaderTests, DISABLED_smoke_ReadPriorBoxNetwork) {
     std::string model = R"V0G0N(
 <net name="Network" version="10">
     <layers>

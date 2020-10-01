@@ -23,7 +23,7 @@
 
 using namespace testing;
 
-TEST(TransformationTests, FQTransposeTest1) {
+TEST(TransformationTests, smoke_FQTransposeTest1) {
     auto data1 = ngraph::op::Constant::create(ngraph::element::f32, ngraph::Shape{1, 1, 3}, {1, 2, 3});
     auto data2 = ngraph::op::Constant::create(ngraph::element::f32, ngraph::Shape{3}, {1, 2, 3});
     auto data3 = ngraph::op::Constant::create(ngraph::element::f32, ngraph::Shape{1, 3}, {1, 2, 3});

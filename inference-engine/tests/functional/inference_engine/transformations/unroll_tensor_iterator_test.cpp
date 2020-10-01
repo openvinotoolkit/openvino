@@ -22,7 +22,7 @@
 using namespace testing;
 using namespace ngraph;
 
-TEST(TransformationTests, UnrollTensorIteratorGRUCell) {
+TEST(TransformationTests, smoke_UnrollTensorIteratorGRUCell) {
     std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
     {
         auto X = std::make_shared<opset4::Parameter>(element::f32, Shape{2, 1, 16});
@@ -104,7 +104,7 @@ TEST(TransformationTests, UnrollTensorIteratorGRUCell) {
     ASSERT_TRUE(res.first) << res.second;
 }
 
-TEST(TransformationTests, UnrollTensorIteratorRNNCell) {
+TEST(TransformationTests, smoke_UnrollTensorIteratorRNNCell) {
     std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
     {
         auto X = std::make_shared<opset4::Parameter>(element::f32, Shape{2, 1, 16});
@@ -186,7 +186,7 @@ TEST(TransformationTests, UnrollTensorIteratorRNNCell) {
     ASSERT_TRUE(res.first) << res.second;
 }
 
-TEST(TransformationTests, UnrollTensorIteratorLSTMCell) {
+TEST(TransformationTests, smoke_UnrollTensorIteratorLSTMCell) {
     std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
     {
         auto X = std::make_shared<opset4::Parameter>(element::f32, Shape{2, 1, 16});
@@ -272,7 +272,7 @@ TEST(TransformationTests, UnrollTensorIteratorLSTMCell) {
     ASSERT_TRUE(res.first) << res.second;
 }
 
-TEST(TransformationTests, UnrollTensorIteratorGRUCellSingleIteration) {
+TEST(TransformationTests, smoke_UnrollTensorIteratorGRUCellSingleIteration) {
     std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
     {
         auto X = std::make_shared<opset4::Parameter>(element::f32, Shape{1, 1, 16});
@@ -348,7 +348,7 @@ TEST(TransformationTests, UnrollTensorIteratorGRUCellSingleIteration) {
     ASSERT_TRUE(res.first) << res.second;
 }
 
-TEST(TransformationTests, UnrollTensorIteratorRNNCellSingleIteration) {
+TEST(TransformationTests, smoke_UnrollTensorIteratorRNNCellSingleIteration) {
     std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
     {
         auto X = std::make_shared<opset4::Parameter>(element::f32, Shape{1, 1, 16});
@@ -423,7 +423,7 @@ TEST(TransformationTests, UnrollTensorIteratorRNNCellSingleIteration) {
     ASSERT_TRUE(res.first) << res.second;
 }
 
-TEST(TransformationTests, UnrollTensorIteratorLSTMCellSingleIterationSingleIteration) {
+TEST(TransformationTests, smoke_UnrollTensorIteratorLSTMCellSingleIterationSingleIteration) {
     std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
     {
         auto X = std::make_shared<opset4::Parameter>(element::f32, Shape{1, 1, 16});

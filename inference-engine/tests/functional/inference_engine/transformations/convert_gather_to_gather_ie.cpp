@@ -21,7 +21,7 @@
 using namespace testing;
 using namespace ngraph;
 
-TEST(TransformationTests, ConvertGatherToGatherIEStatic1) {
+TEST(TransformationTests, smoke_ConvertGatherToGatherIEStatic1) {
     std::shared_ptr<Function> f(nullptr), f_ref(nullptr);
     {
         auto input = std::make_shared<opset1::Parameter>(element::f32, Shape{6, 12, 10, 24});
@@ -51,7 +51,7 @@ TEST(TransformationTests, ConvertGatherToGatherIEStatic1) {
     ASSERT_TRUE(res.first) << res.second;
 }
 
-TEST(TransformationTests, ConvertGatherToGatherIEStatic2) {
+TEST(TransformationTests, smoke_ConvertGatherToGatherIEStatic2) {
     std::shared_ptr<Function> f(nullptr), f_ref(nullptr);
     {
         auto input = std::make_shared<opset1::Parameter>(element::f32, Shape{6, 12, 10, 24});
@@ -83,7 +83,7 @@ TEST(TransformationTests, ConvertGatherToGatherIEStatic2) {
     ASSERT_TRUE(res.first) << res.second;
 }
 
-TEST(TransformationTests, ConvertGatherToGatherIEDynamic1) {
+TEST(TransformationTests, smoke_ConvertGatherToGatherIEDynamic1) {
     std::shared_ptr<Function> f(nullptr), f_ref(nullptr);
     {
         auto input = std::make_shared<opset1::Parameter>(element::f32, PartialShape{DYN, DYN, DYN, DYN});
@@ -112,7 +112,7 @@ TEST(TransformationTests, ConvertGatherToGatherIEDynamic1) {
     ASSERT_TRUE(res.first) << res.second;
 }
 
-TEST(TransformationTests, ConvertGatherToGatherIEDynamic2) {
+TEST(TransformationTests, smoke_ConvertGatherToGatherIEDynamic2) {
     std::shared_ptr<Function> f(nullptr), f_ref(nullptr);
     {
         auto input = std::make_shared<opset1::Parameter>(element::f32, PartialShape{DYN, DYN});

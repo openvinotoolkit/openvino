@@ -83,49 +83,49 @@ void test(std::shared_ptr<ngraph::Function> f) {
     test(f, f);
 }
 
-TEST(TransformationTests, ConvertScatterElementsToScatterTestAxis0) {
+TEST(TransformationTests, smoke_ConvertScatterElementsToScatterTestAxis0) {
     test(get_initial_function({1000, 256, 7, 7}, {1000, 1, 1, 1}, {1000, 256, 7, 7}, {1000, 256, 7, 7}, 0),
          get_reference_function({1000, 256, 7, 7}, {1000, 1, 1, 1}, {1000, 256, 7, 7}, 0, {1000}));
 }
 
-TEST(TransformationTests, ConvertScatterElementsToScatterTestAxis1) {
+TEST(TransformationTests, smoke_ConvertScatterElementsToScatterTestAxis1) {
     test(get_initial_function({1000, 256, 7, 7}, {256, 1, 1}, {1000, 256, 7, 7}, {1000, 256, 7, 7}, 1),
          get_reference_function({1000, 256, 7, 7}, {256, 1, 1}, {1000, 256, 7, 7}, 1, {256}));
 }
 
-TEST(TransformationTests, ConvertScatterElementsToScatterTestNoReshape) {
+TEST(TransformationTests, smoke_ConvertScatterElementsToScatterTestNoReshape) {
     test(get_initial_function({1000, 256, 7, 7}, {1}, {1000, 1, 7, 7}, {1000, 1, 7, 7}, 1),
          get_reference_function({1000, 256, 7, 7}, {1}, {1000, 1, 7, 7}, 1));
 }
 
-TEST(TransformationTests, ConvertScatterElementsToScatterTestNoReshapeNegAxis) {
+TEST(TransformationTests, smoke_ConvertScatterElementsToScatterTestNoReshapeNegAxis) {
     test(get_initial_function({1000, 256, 7, 7}, {1}, {1000, 1, 7, 7}, {1000, 1, 7, 7}, -3),
          get_reference_function({1000, 256, 7, 7}, {1}, {1000, 1, 7, 7}, -3));
 }
 
-TEST(TransformationTests, ConvertScatterElementsToScatterTestNegative) {
+TEST(TransformationTests, smoke_ConvertScatterElementsToScatterTestNegative) {
     test(get_initial_function({1000, 256, 7, 7}, {1000, 256, 1, 1}, {1000, 256, 7, 7}, {1000, 256, 7, 7}, 0));
 }
 
-TEST(TransformationTests, ConvertScatterElementsToScatterTestAxis0Dyn) {
+TEST(TransformationTests, smoke_ConvertScatterElementsToScatterTestAxis0Dyn) {
     test(get_initial_function({DYN, 256, 7, 7}, {DYN, 1, 1, 1}, {DYN, 256, 7, 7}, {DYN, 256, 7, 7}, 0),
          get_reference_function({DYN, 256, 7, 7}, {DYN, 1, 1, 1}, {DYN, 256, 7, 7}, 0, {}, {1, 2, 3}));
 }
 
-TEST(TransformationTests, ConvertScatterElementsToScatterTestAxis1Dyn) {
+TEST(TransformationTests, smoke_ConvertScatterElementsToScatterTestAxis1Dyn) {
     test(get_initial_function({1000, DYN, 7, 7}, {DYN, 1, 1}, {1000, DYN, 7, 7}, {1000, DYN, 7, 7}, 1),
          get_reference_function({1000, DYN, 7, 7}, {DYN, 1, 1}, {1000, DYN, 7, 7}, 1, {}, {1, 2}));
 }
 
-TEST(TransformationTests, ConvertScatterElementsToScatterTestAxis1NoSqueezeDyn) {
+TEST(TransformationTests, smoke_ConvertScatterElementsToScatterTestAxis1NoSqueezeDyn) {
     test(get_initial_function({1000, DYN, 7, 7}, {DYN}, {1000, 256, 7, 7}, {1000, DYN, 7, 7}, 1),
          get_reference_function({1000, DYN, 7, 7}, {DYN}, {1000, 256, 7, 7}, 1));
 }
 
-TEST(TransformationTests, ConvertScatterElementsToScatterTestAxis0Neg1Dyn) {
+TEST(TransformationTests, smoke_ConvertScatterElementsToScatterTestAxis0Neg1Dyn) {
     test(get_initial_function({DYN, 256, 7, 7}, {DYN, DYN, 1, 1}, {DYN, 256, 7, 7}, {DYN, 256, 7, 7}, 0));
 }
 
-TEST(TransformationTests, ConvertScatterElementsToScatterTestAxis0Neg2Dyn) {
+TEST(TransformationTests, smoke_ConvertScatterElementsToScatterTestAxis0Neg2Dyn) {
     test(get_initial_function({DYN, 256, 7, 7}, {DYN, 1, 2, 1}, {DYN, 256, 7, 7}, {DYN, 256, 7, 7}, 0));
 }

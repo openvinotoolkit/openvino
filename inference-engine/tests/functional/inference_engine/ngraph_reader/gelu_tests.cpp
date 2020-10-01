@@ -6,7 +6,7 @@
 #include "ngraph_reader_tests.hpp"
 #include "common_test_utils/xml_net_builder/ir_net.hpp"
 
-TEST_F(NGraphReaderTests, ReadGeluNetwork) {
+TEST_F(NGraphReaderTests, smoke_ReadGeluNetwork) {
     CommonTestUtils::IRBuilder_v10 ir_builder_v10("Network");
 
     auto input_layer = ir_builder_v10

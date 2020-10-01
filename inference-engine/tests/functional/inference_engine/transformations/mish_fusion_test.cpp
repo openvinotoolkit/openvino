@@ -19,7 +19,7 @@
 
 using namespace testing;
 
-TEST(TransformationTests, MishFusing) {
+TEST(TransformationTests, smoke_MishFusing) {
     std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
     {
         auto input0 = std::make_shared<ngraph::opset4::Parameter>(ngraph::element::f64, ngraph::Shape{3, 1, 2});
@@ -51,7 +51,7 @@ TEST(TransformationTests, MishFusing) {
 }
 
 
-TEST(TransformationTests, MishWithSoftPlusFusing) {
+TEST(TransformationTests, smoke_MishWithSoftPlusFusing) {
     std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
     {
         auto input0 = std::make_shared<ngraph::opset4::Parameter>(ngraph::element::f64, ngraph::Shape{3, 1, 2});

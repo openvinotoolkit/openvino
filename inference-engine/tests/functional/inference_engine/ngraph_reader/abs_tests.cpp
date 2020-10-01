@@ -44,7 +44,7 @@ public:
     }
 };
 
-TEST_F(NGraphReaderTests, ReadAbsFromCustomOpsetNetwork) {
+TEST_F(NGraphReaderTests, smoke_ReadAbsFromCustomOpsetNetwork) {
     std::string model = R"V0G0N(
 <net name="Network" version="10">
     <layers>
@@ -110,7 +110,7 @@ TEST_F(NGraphReaderTests, ReadAbsFromCustomOpsetNetwork) {
     ASSERT_TRUE(genericNodeExists);
 }
 
-TEST_F(NGraphReaderTests, ReadAbsNetwork) {
+TEST_F(NGraphReaderTests, smoke_ReadAbsNetwork) {
     std::string model = R"V0G0N(
 <net name="Network" version="10">
     <layers>

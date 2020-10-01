@@ -23,7 +23,7 @@
 
 using namespace testing;
 
-TEST(TransformationTests, GRUSequenceConversionTest) {
+TEST(TransformationTests, smoke_GRUSequenceConversionTest) {
     std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
     std::shared_ptr<ngraph::opset5::GRUSequence> sequence;
 
@@ -107,7 +107,7 @@ TEST(TransformationTests, GRUSequenceConversionTest) {
             ->input_value(0).get_node_shared_ptr();
 }
 
-TEST(TransformationTests, RNNSequenceConversionTest) {
+TEST(TransformationTests, smoke_RNNSequenceConversionTest) {
     const size_t hidden_size = 3;
     const size_t num_directions = 1;
     const size_t batch_size = 2;
@@ -173,7 +173,7 @@ TEST(TransformationTests, RNNSequenceConversionTest) {
             ->input_value(0).get_node_shared_ptr();
 }
 
-TEST(TransformationTests, LSTMSequenceConversionTest) {
+TEST(TransformationTests, smoke_LSTMSequenceConversionTest) {
     const size_t batch_size = 2;
     const size_t input_size = 3;
     const size_t hidden_size = 3;

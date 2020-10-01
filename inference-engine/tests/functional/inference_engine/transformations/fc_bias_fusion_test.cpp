@@ -24,7 +24,7 @@
 
 using namespace testing;
 
-TEST(TransformationTests, FullyConnectedBiasFusionTest3D) {
+TEST(TransformationTests, smoke_FullyConnectedBiasFusionTest3D) {
     std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
     {
         auto input1 = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{1, 128, 3072});
@@ -60,7 +60,7 @@ TEST(TransformationTests, FullyConnectedBiasFusionTest3D) {
     ASSERT_TRUE(res.first) << res.second;
 }
 
-TEST(TransformationTests, FullyConnectedBiasFusionTest2D) {
+TEST(TransformationTests, FullyConnectedBiasFusionTest2D_smoke) {
     std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
     {
         auto input1 = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{1, 128});
@@ -72,6 +72,7 @@ TEST(TransformationTests, FullyConnectedBiasFusionTest2D) {
         auto add = std::make_shared<ngraph::opset1::Add>(fc, const_bias);
 
         f = std::make_shared<ngraph::Function>(ngraph::NodeVector{add}, ngraph::ParameterVector{input1});
+
         ngraph::pass::Manager manager;
         manager.register_pass<ngraph::pass::InitNodeInfo>();
         manager.register_pass<ngraph::pass::FullyConnectedBiasFusion>();

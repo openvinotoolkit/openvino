@@ -22,7 +22,7 @@
 using namespace testing;
 using namespace ngraph;
 
-TEST(TransformationTests, ConvertTensorIteratorToLSTMSequence) {
+TEST(TransformationTests, smoke_ConvertTensorIteratorToLSTMSequence) {
     std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
     {
         auto X = std::make_shared<opset5::Parameter>(element::f32, Shape{1, 2, 16});
@@ -111,7 +111,7 @@ TEST(TransformationTests, ConvertTensorIteratorToLSTMSequence) {
     ASSERT_TRUE(res.first) << res.second;
 }
 
-TEST(TransformationTests, ConvertTensorIteratorToRNNSequence) {
+TEST(TransformationTests, smoke_ConvertTensorIteratorToRNNSequence) {
     std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
     {
         auto X = std::make_shared<opset5::Parameter>(element::f32, Shape{1, 2, 16});
@@ -194,7 +194,7 @@ TEST(TransformationTests, ConvertTensorIteratorToRNNSequence) {
     ASSERT_TRUE(res.first) << res.second;
 }
 
-TEST(TransformationTests, ConvertTensorIteratorToGRUSequence) {
+TEST(TransformationTests, smoke_ConvertTensorIteratorToGRUSequence) {
     std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
     {
         auto X = std::make_shared<opset5::Parameter>(element::f32, Shape{1, 2, 16});

@@ -22,7 +22,7 @@
 
 using namespace testing;
 
-TEST(TransformationTests, TestDepthToSpaceTransformBlockFirst) {
+TEST(TransformationTests, smoke_TestDepthToSpaceTransformBlockFirst) {
     auto input = std::make_shared<ngraph::op::Parameter>(ngraph::element::f32, ngraph::Shape{1, 12, 1080, 1616});
     std::shared_ptr<ngraph::Function> f(nullptr);
 
@@ -62,7 +62,7 @@ TEST(TransformationTests, TestDepthToSpaceTransformBlockFirst) {
     ASSERT_EQ(shape_end_value, shape_end_value_ref);
 }
 
-TEST(TransformationTests, TestDepthToSpaceTransformDepthFirst) {
+TEST(TransformationTests, smoke_TestDepthToSpaceTransformDepthFirst) {
     auto input = std::make_shared<ngraph::op::Parameter>(ngraph::element::f32, ngraph::Shape{1, 12, 1080, 1616});
     std::shared_ptr<ngraph::Function> f(nullptr);
 
@@ -102,7 +102,7 @@ TEST(TransformationTests, TestDepthToSpaceTransformDepthFirst) {
     ASSERT_EQ(shape_end_value, shape_end_value_ref);
 }
 
-TEST(TransformationTests, TestSpaceToDepthTransformBlockFirst) {
+TEST(TransformationTests, smoke_TestSpaceToDepthTransformBlockFirst) {
     auto input = std::make_shared<ngraph::op::Parameter>(ngraph::element::f32, ngraph::Shape{1, 12, 1080, 1616});
     std::shared_ptr<ngraph::Function> f(nullptr);
 
@@ -142,7 +142,7 @@ TEST(TransformationTests, TestSpaceToDepthTransformBlockFirst) {
     ASSERT_EQ(shape_end_value, shape_end_value_ref);
 }
 
-TEST(TransformationTests, TestSpaceToDepthTransformDepthFirst) {
+TEST(TransformationTests, smoke_TestSpaceToDepthTransformDepthFirst) {
     auto input = std::make_shared<ngraph::op::Parameter>(ngraph::element::f32, ngraph::Shape{1, 12, 1080, 1616});
     std::shared_ptr<ngraph::Function> f(nullptr);
 

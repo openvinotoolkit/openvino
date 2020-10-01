@@ -21,7 +21,7 @@
 using namespace testing;
 using namespace ngraph;
 
-TEST(TransformationTests, ConvertNMS3I32Output) {
+TEST(TransformationTests, smoke_ConvertNMS3I32Output) {
     std::shared_ptr<Function> f(nullptr), f_ref(nullptr);
     {
         auto boxes = std::make_shared<opset3::Parameter>(element::f32, Shape{1, 1000, 4});

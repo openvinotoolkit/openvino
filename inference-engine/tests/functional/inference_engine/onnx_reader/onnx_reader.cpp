@@ -11,7 +11,7 @@
 #include <ie_core.hpp>
 #include <ngraph/ngraph.hpp>
 
-TEST(ONNX_Reader_Tests, ImportBasicModelToCore) {
+TEST(ONNX_Reader_Tests, smoke_ImportBasicModelToCore) {
     std::string model = R"V0G0N(
 ir_version: 3
 producer_name: "nGraph ONNX Importer"

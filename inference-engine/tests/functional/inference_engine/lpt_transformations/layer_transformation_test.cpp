@@ -23,7 +23,7 @@ protected:
     const QuantizationDetails u8levels256WithZeroPoint = QuantizationDetails(256ul, { 0.12f }, { 1.23f }, { 0.12f }, { 1.23f }, 1ul, 1ul, 1ul);
 };
 
-TEST_F(LayerTransformationTests, getPrecisionDetailsI8levels255WithoutZeroPoint) {
+TEST_F(LayerTransformationTests, smoke_getPrecisionDetailsI8levels255WithoutZeroPoint) {
     LayerTransformation::Params params = LayerTransformation::Params();
     FakeQuantizeTransformation fakeQuantizeTransformation(params);
     const LayerTransformation::PrecisionDetails precisionDetails = fakeQuantizeTransformation.getPrecisionDetails(i8levels255WithoutZeroPoint);
@@ -32,7 +32,7 @@ TEST_F(LayerTransformationTests, getPrecisionDetailsI8levels255WithoutZeroPoint)
     ASSERT_FALSE(precisionDetails.hasZeroPoint);
 }
 
-TEST_F(LayerTransformationTests, getPrecisionDetailsI8levels255WithZeroPoint) {
+TEST_F(LayerTransformationTests, smoke_getPrecisionDetailsI8levels255WithZeroPoint) {
     LayerTransformation::Params params = LayerTransformation::Params();
     FakeQuantizeTransformation fakeQuantizeTransformation(params);
     const LayerTransformation::PrecisionDetails precisionDetails = fakeQuantizeTransformation.getPrecisionDetails(i8levels255WithZeroPoint);
@@ -41,7 +41,7 @@ TEST_F(LayerTransformationTests, getPrecisionDetailsI8levels255WithZeroPoint) {
     ASSERT_TRUE(precisionDetails.hasZeroPoint);
 }
 
-TEST_F(LayerTransformationTests, getPrecisionDetailsI8levels256WithoutZeroPoint) {
+TEST_F(LayerTransformationTests, smoke_getPrecisionDetailsI8levels256WithoutZeroPoint) {
     LayerTransformation::Params params = LayerTransformation::Params();
     FakeQuantizeTransformation fakeQuantizeTransformation(params);
     const LayerTransformation::PrecisionDetails precisionDetails = fakeQuantizeTransformation.getPrecisionDetails(i8levels256WithoutZeroPoint);
@@ -50,7 +50,7 @@ TEST_F(LayerTransformationTests, getPrecisionDetailsI8levels256WithoutZeroPoint)
     ASSERT_FALSE(precisionDetails.hasZeroPoint);
 }
 
-TEST_F(LayerTransformationTests, getPrecisionDetailsU8levels256WithoutZeroPoint) {
+TEST_F(LayerTransformationTests, smoke_getPrecisionDetailsU8levels256WithoutZeroPoint) {
     LayerTransformation::Params params = LayerTransformation::Params();
     FakeQuantizeTransformation fakeQuantizeTransformation(params);
     const LayerTransformation::PrecisionDetails precisionDetails = fakeQuantizeTransformation.getPrecisionDetails(u8levels256WithoutZeroPoint);
@@ -59,7 +59,7 @@ TEST_F(LayerTransformationTests, getPrecisionDetailsU8levels256WithoutZeroPoint)
     ASSERT_FALSE(precisionDetails.hasZeroPoint);
 }
 
-TEST_F(LayerTransformationTests, getPrecisionDetailsU8levels256WithZeroPoint) {
+TEST_F(LayerTransformationTests, smoke_getPrecisionDetailsU8levels256WithZeroPoint) {
     LayerTransformation::Params params = LayerTransformation::Params();
     FakeQuantizeTransformation fakeQuantizeTransformation(params);
     const LayerTransformation::PrecisionDetails precisionDetails = fakeQuantizeTransformation.getPrecisionDetails(u8levels256WithZeroPoint);

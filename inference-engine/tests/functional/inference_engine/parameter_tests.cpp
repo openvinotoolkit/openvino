@@ -41,14 +41,14 @@ public:
     }
 };
 
-TEST_F(ParameterTests, ParameterAsInt) {
+TEST_F(ParameterTests, smoke_ParameterAsInt) {
     Parameter p = 4;
     ASSERT_TRUE(p.is<int>());
     int test = p;
     ASSERT_EQ(4, test);
 }
 
-TEST_F(ParameterTests, ParameterAsUInt) {
+TEST_F(ParameterTests, ParameterAsUInt_smoke) {
     Parameter p = 4u;
     ASSERT_TRUE(p.is<unsigned int>());
     ASSERT_FALSE(p.is<size_t>());
@@ -56,7 +56,7 @@ TEST_F(ParameterTests, ParameterAsUInt) {
     ASSERT_EQ(4, test);
 }
 
-TEST_F(ParameterTests, ParameterAsSize_t) {
+TEST_F(ParameterTests, smoke_ParameterAsSize_t) {
     size_t ref = 4;
     Parameter p = ref;
     ASSERT_TRUE(p.is<size_t>());
@@ -64,14 +64,14 @@ TEST_F(ParameterTests, ParameterAsSize_t) {
     ASSERT_EQ(ref, test);
 }
 
-TEST_F(ParameterTests, ParameterAsFloat) {
+TEST_F(ParameterTests, smoke_ParameterAsFloat) {
     Parameter p = 4.f;
     ASSERT_TRUE(p.is<float>());
     float test = p;
     ASSERT_EQ(4.f, test);
 }
 
-TEST_F(ParameterTests, ParameterAsString) {
+TEST_F(ParameterTests, smoke_ParameterAsString) {
     std::string ref = "test";
     Parameter p = ref;
     std::string test = p;
@@ -79,14 +79,14 @@ TEST_F(ParameterTests, ParameterAsString) {
     ASSERT_EQ(ref, test);
 }
 
-TEST_F(ParameterTests, ParameterAsStringInLine) {
+TEST_F(ParameterTests, smoke_ParameterAsStringInLine) {
     Parameter p = "test";
     std::string test = p;
     ASSERT_TRUE(p.is<std::string>());
     ASSERT_EQ("test", test);
 }
 
-TEST_F(ParameterTests, IntParameterAsString) {
+TEST_F(ParameterTests, smoke_IntParameterAsString) {
     Parameter p = 4;
     ASSERT_TRUE(p.is<int>());
     ASSERT_FALSE(p.is<std::string>());
@@ -94,7 +94,7 @@ TEST_F(ParameterTests, IntParameterAsString) {
     ASSERT_THROW(std::string test = p.as<std::string>(), std::bad_cast);
 }
 
-TEST_F(ParameterTests, StringParameterAsInt) {
+TEST_F(ParameterTests, smoke_StringParameterAsInt) {
     Parameter p = "4";
     ASSERT_FALSE(p.is<int>());
     ASSERT_TRUE(p.is<std::string>());
@@ -102,7 +102,7 @@ TEST_F(ParameterTests, StringParameterAsInt) {
     ASSERT_THROW(int test = p.as<int>(), std::bad_cast);
 }
 
-TEST_F(ParameterTests, ParameterAsTensorDesc) {
+TEST_F(ParameterTests, smoke_ParameterAsTensorDesc) {
     TensorDesc ref(Precision::FP32, {1, 3, 2, 2}, Layout::NCHW);
     Parameter p = ref;
     ASSERT_TRUE(p.is<TensorDesc>());
@@ -110,7 +110,7 @@ TEST_F(ParameterTests, ParameterAsTensorDesc) {
     ASSERT_EQ(ref, test);
 }
 
-TEST_F(ParameterTests, ParameterAsInts) {
+TEST_F(ParameterTests, smoke_ParameterAsInts) {
     std::vector<int> ref = {1, 2, 3, 4, 5};
     Parameter p = ref;
     ASSERT_TRUE(p.is<std::vector<int>>());
@@ -121,7 +121,7 @@ TEST_F(ParameterTests, ParameterAsInts) {
     }
 }
 
-TEST_F(ParameterTests, ParameterAsUInts) {
+TEST_F(ParameterTests, smoke_ParameterAsUInts) {
     std::vector<unsigned int> ref = {1, 2, 3, 4, 5};
     Parameter p = ref;
     ASSERT_TRUE(p.is<std::vector<unsigned int>>());
@@ -132,7 +132,7 @@ TEST_F(ParameterTests, ParameterAsUInts) {
     }
 }
 
-TEST_F(ParameterTests, ParameterAsSize_ts) {
+TEST_F(ParameterTests, smoke_ParameterAsSize_ts) {
     std::vector<size_t> ref = {1, 2, 3, 4, 5};
     Parameter p = ref;
     ASSERT_TRUE(p.is<std::vector<size_t>>());
@@ -143,7 +143,7 @@ TEST_F(ParameterTests, ParameterAsSize_ts) {
     }
 }
 
-TEST_F(ParameterTests, ParameterAsFloats) {
+TEST_F(ParameterTests, smoke_ParameterAsFloats) {
     std::vector<float> ref = {1, 2, 3, 4, 5};
     Parameter p = ref;
     ASSERT_TRUE(p.is<std::vector<float>>());
@@ -154,7 +154,7 @@ TEST_F(ParameterTests, ParameterAsFloats) {
     }
 }
 
-TEST_F(ParameterTests, ParameterAsStrings) {
+TEST_F(ParameterTests, smoke_ParameterAsStrings) {
     std::vector<std::string> ref = {"test1", "test2", "test3", "test4", "test1"};
     Parameter p = ref;
     ASSERT_TRUE(p.is<std::vector<std::string>>());
@@ -165,7 +165,7 @@ TEST_F(ParameterTests, ParameterAsStrings) {
     }
 }
 
-TEST_F(ParameterTests, ParameterAsMapOfParameters) {
+TEST_F(ParameterTests, smoke_ParameterAsMapOfParameters) {
     std::map<std::string, Parameter> refMap;
     refMap["testParamInt"] = 4;
     refMap["testParamString"] = "test";
@@ -184,45 +184,45 @@ TEST_F(ParameterTests, ParameterAsMapOfParameters) {
     ASSERT_EQ(refMap["testParamString"].as<std::string>(), testString);
 }
 
-TEST_F(ParameterTests, ParameterNotEmpty) {
+TEST_F(ParameterTests, smoke_ParameterNotEmpty) {
     Parameter p = 4;
     ASSERT_FALSE(p.empty());
 }
 
-TEST_F(ParameterTests, ParameterEmpty) {
+TEST_F(ParameterTests, smoke_ParameterEmpty) {
     Parameter p;
     ASSERT_TRUE(p.empty());
 }
 
-TEST_F(ParameterTests, ParameterClear) {
+TEST_F(ParameterTests, smoke_ParameterClear) {
     Parameter p = 4;
     ASSERT_FALSE(p.empty());
     p.clear();
     ASSERT_TRUE(p.empty());
 }
 
-TEST_F(ParameterTests, ParametersNotEqualByType) {
+TEST_F(ParameterTests, smoke_ParametersNotEqualByType) {
     Parameter p1 = 4;
     Parameter p2 = "string";
     ASSERT_TRUE(p1 != p2);
     ASSERT_FALSE(p1 == p2);
 }
 
-TEST_F(ParameterTests, ParametersNotEqualByValue) {
+TEST_F(ParameterTests, smoke_ParametersNotEqualByValue) {
     Parameter p1 = 4;
     Parameter p2 = 5;
     ASSERT_TRUE(p1 != p2);
     ASSERT_FALSE(p1 == p2);
 }
 
-TEST_F(ParameterTests, ParametersEqual) {
+TEST_F(ParameterTests, smoke_ParametersEqual) {
     Parameter p1 = 4;
     Parameter p2 = 4;
     ASSERT_TRUE(p1 == p2);
     ASSERT_FALSE(p1 != p2);
 }
 
-TEST_F(ParameterTests, ParametersStringEqual) {
+TEST_F(ParameterTests, smoke_ParametersStringEqual) {
     std::string s1 = "abc";
     std::string s2 = std::string("a") + "bc";
     Parameter p1 = s1;
@@ -232,7 +232,7 @@ TEST_F(ParameterTests, ParametersStringEqual) {
     ASSERT_FALSE(p1 != p2);
 }
 
-TEST_F(ParameterTests, ParametersCStringEqual) {
+TEST_F(ParameterTests, smoke_ParametersCStringEqual) {
     const char s1[] = "abc";
     const char s2[] = "abc";
     Parameter p1 = s1;
@@ -242,7 +242,7 @@ TEST_F(ParameterTests, ParametersCStringEqual) {
     ASSERT_FALSE(p1 != p2);
 }
 
-TEST_F(ParameterTests, CompareParametersWithoutEqualOperator) {
+TEST_F(ParameterTests, smoke_CompareParametersWithoutEqualOperator) {
     class TestClass {
     public:
         TestClass(int test, int* testPtr): test(test), testPtr(testPtr) {}
@@ -265,7 +265,7 @@ TEST_F(ParameterTests, CompareParametersWithoutEqualOperator) {
     ASSERT_THROW(bool equal = parA != parC, details::InferenceEngineException);
 }
 
-TEST_F(ParameterTests, ParameterRemovedRealObject) {
+TEST_F(ParameterTests, smoke_ParameterRemovedRealObject) {
     ASSERT_EQ(0, DestructorTest::constructorCount);
     ASSERT_EQ(0, DestructorTest::destructorCount);
     {
@@ -276,7 +276,7 @@ TEST_F(ParameterTests, ParameterRemovedRealObject) {
     ASSERT_EQ(2, DestructorTest::destructorCount);
 }
 
-TEST_F(ParameterTests, ParameterRemovedRealObjectWithDuplication) {
+TEST_F(ParameterTests, smoke_ParameterRemovedRealObjectWithDuplication) {
     ASSERT_EQ(0, DestructorTest::constructorCount);
     ASSERT_EQ(0, DestructorTest::destructorCount);
     {
@@ -290,7 +290,7 @@ TEST_F(ParameterTests, ParameterRemovedRealObjectWithDuplication) {
     ASSERT_EQ(4, DestructorTest::destructorCount);
 }
 
-TEST_F(ParameterTests, ParameterRemovedRealObjectPointerWithDuplication) {
+TEST_F(ParameterTests, smoke_ParameterRemovedRealObjectPointerWithDuplication) {
     ASSERT_EQ(0, DestructorTest::constructorCount);
     ASSERT_EQ(0, DestructorTest::destructorCount);
     {

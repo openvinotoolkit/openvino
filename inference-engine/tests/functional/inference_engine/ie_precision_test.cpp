@@ -12,7 +12,7 @@ using Precision = InferenceEngine::Precision;
 
 using PrecisionTests = ::testing::Test;
 
-TEST_F(PrecisionTests, ShowsCorrectPrecisionNames) {
+TEST_F(PrecisionTests, smoke_ShowsCorrectPrecisionNames) {
     ASSERT_STREQ(Precision(Precision::I64).name(), "I64");
     ASSERT_STREQ(Precision(Precision::U64).name(), "U64");
     ASSERT_STREQ(Precision(Precision::FP16).name(), "FP16");
@@ -30,7 +30,7 @@ TEST_F(PrecisionTests, ShowsCorrectPrecisionNames) {
     ASSERT_STREQ(Precision(1, "Custom Name").name(), "Custom Name");
 }
 
-TEST_F(PrecisionTests, sizeIsCorrect) {
+TEST_F(PrecisionTests, smoke_sizeIsCorrect) {
     ASSERT_EQ(Precision(Precision::I64).size(), 8);
     ASSERT_EQ(Precision(Precision::U64).size(), 8);
     ASSERT_EQ(Precision(Precision::FP16).size(), 2);
@@ -47,7 +47,7 @@ TEST_F(PrecisionTests, sizeIsCorrect) {
     ASSERT_ANY_THROW(Precision(Precision::UNSPECIFIED).size());
 }
 
-TEST_F(PrecisionTests, is_float) {
+TEST_F(PrecisionTests, smoke_is_float) {
     ASSERT_TRUE(Precision(Precision::FP16).is_float());
     ASSERT_TRUE(Precision(Precision::FP32).is_float());
     ASSERT_FALSE(Precision(Precision::I64).is_float());
@@ -65,7 +65,7 @@ TEST_F(PrecisionTests, is_float) {
     ASSERT_FALSE(Precision(Precision::UNSPECIFIED).is_float());
 }
 
-TEST_F(PrecisionTests, constructFromSTR) {
+TEST_F(PrecisionTests, smoke_constructFromSTR) {
     ASSERT_EQ(Precision(Precision::I64), Precision::FromStr("I64"));
     ASSERT_EQ(Precision(Precision::U64), Precision::FromStr("U64"));
     ASSERT_EQ(Precision(Precision::FP16), Precision::FromStr("FP16"));
@@ -82,7 +82,7 @@ TEST_F(PrecisionTests, constructFromSTR) {
     ASSERT_EQ(Precision(Precision::UNSPECIFIED), Precision::FromStr("UNSPECIFIED"));
 }
 
-TEST_F(PrecisionTests, canCompareCustomPrecisions) {
+TEST_F(PrecisionTests, smoke_canCompareCustomPrecisions) {
     Precision p(12);
     Precision p1(12, "XXX");
     ASSERT_FALSE(p == p1);
@@ -105,7 +105,7 @@ TEST_F(PrecisionTests, canCompareCustomPrecisions) {
 }
 
 
-TEST_F(PrecisionTests, canUseInIfs) {
+TEST_F(PrecisionTests, smoke_canUseInIfs) {
     Precision p;
     ASSERT_TRUE(!p);
     p = Precision::FP32;
@@ -115,7 +115,7 @@ TEST_F(PrecisionTests, canUseInIfs) {
     ASSERT_TRUE(!p);
 }
 
-TEST_F(PrecisionTests, canCreateFromStruct) {
+TEST_F(PrecisionTests, smoke_canCreateFromStruct) {
     struct X {
         int a;
         int b;
@@ -124,7 +124,7 @@ TEST_F(PrecisionTests, canCreateFromStruct) {
     ASSERT_EQ(precision.size(), sizeof(X));
 }
 
-TEST_F(PrecisionTests, canCreateMoreThan255bitsPrecisions) {
+TEST_F(PrecisionTests, smoke_canCreateMoreThan255bitsPrecisions) {
     struct Y {
         uint8_t a[257];
     };

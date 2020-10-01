@@ -18,7 +18,7 @@
 
 using namespace testing;
 
-TEST(TransformationTests, SoftPlusFusing) {
+TEST(TransformationTests, smoke_SoftPlusFusing) {
     std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
     {
         auto input0 = std::make_shared<ngraph::opset4::Parameter>(ngraph::element::f32, ngraph::Shape{3, 1, 2});
@@ -47,7 +47,7 @@ TEST(TransformationTests, SoftPlusFusing) {
     ASSERT_TRUE(res.first) << res.second;
 }
 
-TEST(TransformationTests, SoftPlusFusingDynamic) {
+TEST(TransformationTests, smoke_SoftPlusFusingDynamic) {
     std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
     {
         auto input0 = std::make_shared<ngraph::opset4::Parameter>(ngraph::element::f32, ngraph::PartialShape::dynamic(1));
@@ -76,7 +76,7 @@ TEST(TransformationTests, SoftPlusFusingDynamic) {
     ASSERT_TRUE(res.first) << res.second;
 }
 
-TEST(TransformationTests, SoftPlusFusingNegative) {
+TEST(TransformationTests, smoke_SoftPlusFusingNegative) {
     std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
     {
         auto input0 = std::make_shared<ngraph::opset4::Parameter>(ngraph::element::f32, ngraph::PartialShape::dynamic(1));
