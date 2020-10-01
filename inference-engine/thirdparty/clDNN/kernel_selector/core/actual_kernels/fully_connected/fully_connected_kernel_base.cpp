@@ -35,7 +35,6 @@ JitConstants FullyConnectedKernelBase::GetJitConstants(const fully_connected_par
 FullyConnectedKernelBase::DispatchData FullyConnectedKernelBase::SetDefault(const fully_connected_params& params,
                                                                             int) const {
     DispatchData dispatchData;
-    dispatchData.fp16UnitUsed = params.inputs[0].GetDType() == Datatype::F16;
 
     // Determine global work sizes.
     dispatchData.gws0 = params.output.LogicalSize();

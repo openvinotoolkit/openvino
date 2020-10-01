@@ -33,8 +33,6 @@ BorderKernelBase::DispatchData BorderKernelBase::SetDefault(const border_params&
 
     DispatchData kd;
 
-    kd.fp16UnitUsed = params.inputs[0].GetDType() == Datatype::F16;
-
     std::vector<size_t> global{output.X().v * output.Z().v, output.Y().v * output.W().v, output.Batch().v * output.Feature().v};
     const auto& local = GetOptimalLocalWorkGroupSizes(global, params.engineInfo);
 

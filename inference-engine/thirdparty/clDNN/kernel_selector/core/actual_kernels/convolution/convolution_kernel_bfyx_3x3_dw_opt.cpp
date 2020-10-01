@@ -116,7 +116,7 @@ JitConstants ConvolutionKernel_bfyx_3x3_dw_opt::GetJitConstants(const convolutio
     auto mem_consts = ConvolutionKernelBase::GetJitConstants(params, kd);
 
     if (tileDims.y != 0 && tileDims.x != 0) {
-        mem_consts.AddConstant(MakeJitConstant("UNIT_BYTE_SIZE", kd.fp16UnitUsed ? sizeof(short) : sizeof(float)));
+        mem_consts.AddConstant(MakeJitConstant("UNIT_BYTE_SIZE", BytesPerElement(params.output.GetDType())));
         mem_consts.AddConstant(MakeJitConstant("SUB_GROUP_SIZE", kd.lws0));
         mem_consts.AddConstant(MakeJitConstant("TILE_HEIGHT", tileDims.y));
         mem_consts.AddConstant(MakeJitConstant("TILE_WIDTH", tileDims.x));

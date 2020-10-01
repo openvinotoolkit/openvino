@@ -30,8 +30,6 @@ BroadcastKernelBase::DispatchData BroadcastKernelBase::SetDefault(const broadcas
 
     DispatchData kd;
 
-    kd.fp16UnitUsed = params.inputs[0].GetDType() == Datatype::F16;
-
     std::vector<size_t> global{output.X().v, output.Y().v * output.Z().v, output.Batch().v * output.Feature().v};
     const auto& local = GetOptimalLocalWorkGroupSizes(global, params.engineInfo);
 

@@ -219,7 +219,6 @@ fused_conv_eltwise_kernel_base::DispatchData fused_conv_eltwise_kernel_base::Set
     DispatchData kd;
 
     const auto& out = params.output;
-    kd.fp16UnitUsed = out.GetDType() == Datatype::F16;
     std::vector<size_t> global;
     if (params.output.GetLayout() == DataLayout::bfyx || params.output.GetLayout() == DataLayout::byxf ||
         params.output.GetLayout() == DataLayout::bfzyx || params.output.GetLayout() == DataLayout::b_fs_zyx_fsv16 ||

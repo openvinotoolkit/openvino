@@ -89,7 +89,6 @@ ResampleKernelBase::DispatchData ResampleKernelBase::SetDefault(const kernel_sel
     runInfo.lws2 = local[2];
 
     runInfo.efficiency = FORCE_PRIORITY_7;
-    runInfo.fp16UnitUsed = out.GetDType() == Datatype::F16;
 
     return runInfo;
 }

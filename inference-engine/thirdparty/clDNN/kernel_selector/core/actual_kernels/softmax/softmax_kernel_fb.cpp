@@ -44,7 +44,7 @@ SoftmaxKernel_fb::Parent::DispatchData SoftmaxKernel_fb::SetDefault(const softma
     kd.normIndex = 1;
 
     // We have two units of data per work item in current implementation.
-    auto local_mem_per_wi = 2 * (kd.fp16UnitUsed ? sizeof(short) : sizeof(float));
+    auto local_mem_per_wi = 2 * BytesPerElement(params.inputs[0].GetDType());
     // Combining device execution and local memory restrictions to compute maximum possible LWS.
     auto max_lws = static_cast<std::size_t>(
         std::min(params.engineInfo.maxWorkGroupSize, params.engineInfo.maxLocalMemSize / local_mem_per_wi));
@@ -74,8 +74,7 @@ bool kernel_selector::SoftmaxKernel_fb::Validate(const Params& params, const opt
 
     const auto& softmax_params = static_cast<const kernel_selector::softmax_params&>(params);
 
-    auto kd = Parent::SetDefault(softmax_params, o);
-    auto local_mem_per_wi = 2 * (kd.fp16UnitUsed ? sizeof(short) : sizeof(float));
+    auto local_mem_per_wi = 2 * BytesPerElement(softmax_params.inputs[0].GetDType());
     auto max_lws = static_cast<std::size_t>(
         std::min(params.engineInfo.maxWorkGroupSize, params.engineInfo.maxLocalMemSize / local_mem_per_wi));
 

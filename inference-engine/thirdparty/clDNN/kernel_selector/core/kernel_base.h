@@ -26,6 +26,15 @@
 namespace kernel_selector {
 using primitive_db = kernel_selector::gpu::cache::primitive_db;
 
+struct CommonDispatchData {
+    // TODO: change it to std::vector<size_t>
+    size_t gws0, gws1, gws2;
+    size_t lws0, lws1, lws2;
+    float efficiency;
+
+    CommonDispatchData() : gws0(0), gws1(0), gws2(0), lws0(0), lws1(0), lws2(0), efficiency(0.0f) {}
+};
+
 class KernelBase {
 public:
     using FusedOpType = KernelType;

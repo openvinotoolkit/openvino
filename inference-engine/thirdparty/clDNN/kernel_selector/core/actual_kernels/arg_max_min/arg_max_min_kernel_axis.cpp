@@ -87,7 +87,6 @@ KernelsData ArgMaxMinKernelAxis::GetKernelsData(const Params& params, const opti
     const arg_max_min_params& orgParams = static_cast<const arg_max_min_params&>(params);
 
     DispatchData runInfo;
-    runInfo.fp16UnitUsed = orgParams.inputs[0].GetDType() == Datatype::F16;
 
     size_t sort_size = orgParams.argMaxMinSortType == ArgMaxMinSortType::VALUE ? getSortSize(orgParams) : 1;
 

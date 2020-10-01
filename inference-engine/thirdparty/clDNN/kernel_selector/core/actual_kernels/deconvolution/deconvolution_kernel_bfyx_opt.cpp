@@ -42,7 +42,6 @@ ParamsKey DeconvolutionKernel_bfyx_opt::GetSupportedKey() const {
 CommonDispatchData DeconvolutionKernel_bfyx_opt::SetDefault(const deconvolution_params& params) const {
     DispatchData kd;
 
-    kd.fp16UnitUsed = params.inputs[0].GetDType() == Datatype::F16;
     auto wg_size = 16;
 
     kd.gws0 = Align(params.output.X().v, wg_size * params.stride.x);

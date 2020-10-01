@@ -20,8 +20,6 @@ namespace kernel_selector {
 static ROIPoolingKernelBase::DispatchData SetDefault(const roi_pooling_params& params) {
     ROIPoolingKernelBase::DispatchData kd;
 
-    kd.fp16UnitUsed = (params.inputs[0].GetDType() == Datatype::F16);
-
     // Determine global work sizes.
     kd.gws0 = params.output.LogicalSize();
     kd.gws1 = 1;

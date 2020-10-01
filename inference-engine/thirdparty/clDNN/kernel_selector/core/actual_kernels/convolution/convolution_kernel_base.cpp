@@ -167,7 +167,6 @@ ConvolutionKernelBase::DispatchData ConvolutionKernelBase::SetDefault(const conv
     DispatchData kd;
 
     const auto& out = params.output;
-    kd.fp16UnitUsed = out.GetDType() == Datatype::F16;
     std::vector<size_t> global;
     if (params.output.GetLayout() == DataLayout::bfyx || params.output.GetLayout() == DataLayout::byxf) {
         global = {out.X().v, out.Y().v, out.Feature().v * out.Batch().v};

@@ -35,8 +35,6 @@ OneHotKernelBase::DispatchData OneHotKernelBase::SetDefault(const one_hot_params
 
     DispatchData kd;
 
-    kd.fp16UnitUsed = input.GetDType() == Datatype::F16;
-
     std::vector<size_t> global{input.Batch().v, input.Feature().v, input.Y().v * input.X().v};
     if (params.output.GetDims().size() == 5) {
         global[0] = input.Batch().v;

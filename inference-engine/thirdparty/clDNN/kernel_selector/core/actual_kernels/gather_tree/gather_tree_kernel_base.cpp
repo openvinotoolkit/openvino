@@ -35,7 +35,6 @@ GatherTreeKernelBase::DispatchData GatherTreeKernelBase::SetDefault(const gather
         y -> beam
     */
     DispatchData data;
-    data.fp16UnitUsed = params.inputs[0].GetDType() == Datatype::F16;
     data.gws0 = global[0];
     data.gws1 = global[1];
     data.gws2 = global[2];
@@ -46,8 +45,8 @@ GatherTreeKernelBase::DispatchData GatherTreeKernelBase::SetDefault(const gather
 }
 
 KernelsData GatherTreeKernelBase::GetCommonKernelsData(const Params& params,
-                                                        const optional_params& options,
-                                                        float estimated_time) const {
+                                                       const optional_params& options,
+                                                       float estimated_time) const {
     assert(params.GetType() == KernelType::GATHER_TREE);
     const auto& gt_params = static_cast<const gather_tree_params&>(params);
 

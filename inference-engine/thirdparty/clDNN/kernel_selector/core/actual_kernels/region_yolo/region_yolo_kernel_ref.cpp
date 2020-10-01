@@ -49,8 +49,6 @@ JitConstants RegionYoloKernelRef::GetJitConstants(const region_yolo_params& ry) 
 RegionYoloKernelRef::DispatchData SetDefault(const region_yolo_params& params) {
     RegionYoloKernelRef::DispatchData kd;
 
-    kd.fp16UnitUsed = (params.inputs[0].GetDType() == Datatype::F16);
-
     const auto& input = params.inputs[0];
     std::vector<size_t> global;
     if (input.GetLayout() == DataLayout::bfyx) {

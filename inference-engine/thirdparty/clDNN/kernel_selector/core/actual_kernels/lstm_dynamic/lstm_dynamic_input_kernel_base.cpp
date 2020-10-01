@@ -39,7 +39,6 @@ LSTM_DynamicInputKernelBase::DispatchData LSTM_DynamicInputKernelBase::SetDefaul
     const lstm_dynamic_input_params& params) {
     DispatchData kd;
     const auto& out = params.output;
-    kd.fp16UnitUsed = params.inputs[0].GetDType() == Datatype::F16;
 
     // 4 * hidden, batch * dir, seq_len
     std::vector<size_t> global = {out.X().v, out.Batch().v * out.Y().v, out.Feature().v};

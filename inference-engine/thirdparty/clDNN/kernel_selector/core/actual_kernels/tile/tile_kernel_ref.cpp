@@ -94,8 +94,6 @@ CommonDispatchData TileKernelRef::SetDefault(const tile_params& params, const op
         runInfo.lws2 = 1;
     }
 
-    runInfo.fp16UnitUsed = params.inputs[0].GetDType() == Datatype::F16;
-
     return runInfo;
 }
 

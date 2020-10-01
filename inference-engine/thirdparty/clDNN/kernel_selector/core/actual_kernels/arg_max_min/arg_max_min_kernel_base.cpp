@@ -39,8 +39,6 @@ JitConstants ArgMaxMinKernelBase::GetJitConstants(const arg_max_min_params& para
 ArgMaxMinKernelBase::DispatchData ArgMaxMinKernelBase::SetDefault(const arg_max_min_params& params) const {
     DispatchData kd;
 
-    kd.fp16UnitUsed = params.inputs[0].GetDType() == Datatype::F16;
-
     // Determine global work sizes.
     kd.gws0 = 128;
     kd.gws1 = params.inputs[0].Batch().v;

@@ -44,8 +44,6 @@ NormalizeKernelBase::DispatchData NormalizeKernelBase::SetDefault(const normaliz
 
     DispatchData kd;
 
-    kd.fp16UnitUsed = params.inputs[0].GetDType() == Datatype::F16;
-
     std::vector<size_t> global(3);
 
     if (params.normMode == NormalizeMode::WITHIN_SPATIAL) {

@@ -45,7 +45,6 @@ ActivationKernelBase::DispatchData ActivationKernelBase::SetDefault(const activa
     runInfo.lws2 = local[2];
 
     runInfo.efficiency = DONT_USE_IF_HAVE_SOMETHING_ELSE;
-    runInfo.fp16UnitUsed = out.GetDType() == Datatype::F16;
 
     return runInfo;
 }

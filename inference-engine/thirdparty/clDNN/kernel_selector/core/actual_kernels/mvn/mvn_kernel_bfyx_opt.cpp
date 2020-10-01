@@ -48,8 +48,6 @@ MVNKernelBfyxOpt::Parent::DispatchData MVNKernelBfyxOpt::SetDefault(const mvn_pa
 
     const auto& input = params.inputs[0];
 
-    kd.fp16UnitUsed = params.inputs[0].GetDType() == Datatype::F16;
-
     if (params.mvnMode == MVNMode::WITHIN_CHANNELS) {
         kd.dataSetSize = input.X().v * input.Y().v * input.Z().v;
         kd.dataSetsCount = input.Batch().v * input.Feature().v;
@@ -65,7 +63,7 @@ MVNKernelBfyxOpt::Parent::DispatchData MVNKernelBfyxOpt::SetDefault(const mvn_pa
     kd.itemsNum = kd.dataSetSize;
 
     // We have two units of data per work item in current implementation.
-    auto local_mem_per_wi = 2 * (kd.fp16UnitUsed ? sizeof(short) : sizeof(float));
+    auto local_mem_per_wi = 2 * BytesPerElement(params.inputs[0].GetDType());
     // Combining device execution and local memory restrictions to compute maximum possible LWS.
     auto max_lws = std::min(params.engineInfo.maxWorkGroupSize, params.engineInfo.maxLocalMemSize / local_mem_per_wi);
 

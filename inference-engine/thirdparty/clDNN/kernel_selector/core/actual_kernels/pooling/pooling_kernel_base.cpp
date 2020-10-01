@@ -133,8 +133,6 @@ PoolingKernelBase::DispatchData PoolingKernelBase::SetDefault(const pooling_para
 
     DispatchData kd;
 
-    kd.fp16UnitUsed = params.inputs[0].GetDType() == Datatype::F16;
-
     if (output.GetLayout() == DataLayout::bfyx || output.GetLayout() == DataLayout::b_fs_yx_fsv4 ||
         output.GetLayout() == DataLayout::byxf ||
         output.GetLayout() == DataLayout::bfzyx || output.GetLayout() == DataLayout::b_fs_zyx_fsv16 ||

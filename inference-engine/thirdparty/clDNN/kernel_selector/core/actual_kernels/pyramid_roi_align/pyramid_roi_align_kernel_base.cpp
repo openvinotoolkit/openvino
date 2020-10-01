@@ -33,8 +33,6 @@ JitConstants PyramidROIAlignKernelBase::GetJitConstants(const PyramidROIAlign_pa
 PyramidROIAlignKernelBase::DispatchData PyramidROIAlignKernelBase::SetDefault(const PyramidROIAlign_params& params) const {
     DispatchData kd;
 
-    kd.fp16UnitUsed = params.inputs[0].GetDType() == Datatype::F16;
-
     std::vector<size_t> global;
     global = {1, 1, 1};
 

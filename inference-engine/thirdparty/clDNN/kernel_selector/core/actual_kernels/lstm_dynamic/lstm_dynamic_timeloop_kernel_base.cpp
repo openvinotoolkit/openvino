@@ -88,7 +88,6 @@ LSTM_DynamicTimeloopKernelBase::DispatchData LSTM_DynamicTimeloopKernelBase::Set
     const lstm_dynamic_timeloop_params& params) {
     DispatchData kd;
     const auto& out = params.output;
-    kd.fp16UnitUsed = params.inputs[0].GetDType() == Datatype::F16;
 
     auto out_x_size = out.X().v;
     auto gws0 = out_x_size > 256 ? 256 : out_x_size;

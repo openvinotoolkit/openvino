@@ -63,8 +63,6 @@ CommonDispatchData QuantizeKernelRef::SetDefault(const quantize_params& params, 
         runInfo.lws2 = 16;
     }
 
-    runInfo.fp16UnitUsed = params.inputs[0].GetDType() == Datatype::F16;
-
     return runInfo;
 }
 

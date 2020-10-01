@@ -86,8 +86,6 @@ CommonDispatchData QuantizeKernelScaleShift::SetDefault(const quantize_params& p
         runInfo.lws2 = local[2];
     }
 
-    runInfo.fp16UnitUsed = params.inputs[0].GetDType() == Datatype::F16;
-
     return runInfo;
 }
 

@@ -29,8 +29,6 @@ GRNKernelBase::DispatchData GRNKernelBase::SetDefault(const grn_params& params) 
     const auto& output = params.output;
 
     DispatchData kd;
-    kd.fp16UnitUsed = params.inputs[0].GetDType() == Datatype::F16;
-
     std::vector<size_t> global = { output.Batch().v, output.Y().v, output.X().v };
     auto local = GetOptimalLocalWorkGroupSizes(global, params.engineInfo);
 

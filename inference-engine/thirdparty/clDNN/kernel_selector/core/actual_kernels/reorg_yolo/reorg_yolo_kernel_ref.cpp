@@ -46,8 +46,6 @@ JitConstants ReorgYoloKernelRef::GetJitConstants(const reorg_yolo_params& ry) co
 ReorgYoloKernelRef::DispatchData SetDefault(const reorg_yolo_params& params) {
     ReorgYoloKernelRef::DispatchData kd;
 
-    kd.fp16UnitUsed = (params.inputs[0].GetDType() == Datatype::F16);
-
     const auto& input = params.inputs[0];
     std::vector<size_t> global;
     if (input.GetLayout() == DataLayout::bfyx) {

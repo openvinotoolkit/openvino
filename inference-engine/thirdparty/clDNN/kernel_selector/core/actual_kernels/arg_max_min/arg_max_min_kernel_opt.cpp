@@ -62,8 +62,6 @@ KernelsData ArgMaxMinKernelOpt::GetKernelsData(const Params& params, const optio
         auto entryPoint = GetEntryPoint(kernelName, newParams.layerID, options);
         auto jit = CreateJit(kernelName, cldnnJit, entryPoint);
 
-        runInfo.fp16UnitUsed = orgParams.inputs[0].GetDType() == Datatype::F16;
-
         runInfo.gws0 = Align(size, 16);
         runInfo.gws1 = orgParams.inputs[0].Batch().v;  // B
         runInfo.gws2 = 1;

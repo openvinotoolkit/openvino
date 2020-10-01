@@ -33,7 +33,7 @@ JitConstants SoftmaxKernelBase::GetJitConstants(const softmax_params& params,
     return mem_consts;
 }
 
-SoftmaxKernelBase::DispatchData SoftmaxKernelBase::SetDefault(const softmax_params& params,
+SoftmaxKernelBase::DispatchData SoftmaxKernelBase::SetDefault(const softmax_params&,
                                                               const optional_params&) const {
     DispatchData runInfo;
 
@@ -45,7 +45,6 @@ SoftmaxKernelBase::DispatchData SoftmaxKernelBase::SetDefault(const softmax_para
     runInfo.lws1 = 1;
     runInfo.lws2 = 1;
 
-    runInfo.fp16UnitUsed = params.inputs[0].GetDType() == Datatype::F16;
     runInfo.leftovers = 0;
     runInfo.itemsNum = 0;
     runInfo.normIndex = 0;

@@ -52,7 +52,6 @@ DetectionOutputKernelBase::DispatchData DetectionOutputKernelBase::SetDefault(
     const detection_output_params& params) const {
     DispatchData kd;
 
-    kd.fp16UnitUsed = params.inputs[0].GetDType() == Datatype::F16;
     kd.gws0 = 0;
     kd.gws1 = 0;
     kd.gws2 = 0;

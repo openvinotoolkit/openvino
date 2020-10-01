@@ -92,7 +92,6 @@ DeconvolutionKernelBase::DispatchData DeconvolutionKernelBase::SetDefault(const 
 
     DispatchData kd;
 
-    kd.fp16UnitUsed = params.inputs[0].GetDType() == Datatype::F16;
     size_t gws0 = output_features * batch_size;
     size_t lws0 = std::min(gws0, static_cast<size_t>(32));
     while (gws0 % lws0) {

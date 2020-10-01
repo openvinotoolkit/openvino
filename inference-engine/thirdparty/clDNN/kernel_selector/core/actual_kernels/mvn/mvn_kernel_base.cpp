@@ -49,8 +49,6 @@ MVNKernelBase::DispatchData MVNKernelBase::SetDefault(const mvn_params& params) 
 
     std::vector<size_t> global(3);
 
-    kd.fp16UnitUsed = params.inputs[0].GetDType() == Datatype::F16;
-
     if (params.mvnMode == MVNMode::WITHIN_CHANNELS) {
         global = {output.Batch().v, output.Feature().v, 1};
     } else {

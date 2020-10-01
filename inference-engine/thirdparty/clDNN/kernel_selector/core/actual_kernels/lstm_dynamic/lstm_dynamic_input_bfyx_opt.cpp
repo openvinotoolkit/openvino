@@ -94,8 +94,6 @@ KernelsData LSTM_DynamicInputKernelBfyxOpt::GetKernelsData(const Params& params,
     run_info.lws1 = local[1];
     run_info.lws2 = local[2];
 
-    run_info.fp16UnitUsed = dlstm_params.inputs[0].GetDType() == Datatype::F16;
-
     bool succeed = UpdateWeightsParams(dlstm_params,
         options,
         WeightsLayout::dlstm_dir_io,

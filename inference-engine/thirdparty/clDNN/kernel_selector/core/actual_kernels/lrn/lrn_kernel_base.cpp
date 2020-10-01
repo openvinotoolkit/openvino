@@ -57,10 +57,10 @@ JitConstants LRNKernelBase::GetJitConstants(const lrn_params& params, const LRNK
     auto alpha_div_by_size_abs_sqrt = std::sqrt(std::abs(alpha_div_by_size));
 
     mem_consts.AddConstants({
-        MakeJitConstant("ALPHA_AFTER_FACTORED", kd.fp16UnitUsed ? alpha_sign : alpha),
-        MakeJitConstant("ALPHA_DIV_BY_SIZE", kd.fp16UnitUsed ? alpha_sign : alpha_div_by_size),
-        MakeJitConstant("ALPHA_VAL_FACTOR", kd.fp16UnitUsed ? alpha_abs_sqrt : 1.0f),
-        MakeJitConstant("ALPHA_VAL_FACTOR_DIV_BY_SIZE", kd.fp16UnitUsed ? alpha_div_by_size_abs_sqrt : 1.0f),
+        MakeJitConstant("ALPHA_AFTER_FACTORED", params.inputs[0].GetDType() == Datatype::F16 ? alpha_sign : alpha),
+        MakeJitConstant("ALPHA_DIV_BY_SIZE", params.inputs[0].GetDType() == Datatype::F16 ? alpha_sign : alpha_div_by_size),
+        MakeJitConstant("ALPHA_VAL_FACTOR", params.inputs[0].GetDType() == Datatype::F16 ? alpha_abs_sqrt : 1.0f),
+        MakeJitConstant("ALPHA_VAL_FACTOR_DIV_BY_SIZE", params.inputs[0].GetDType() == Datatype::F16 ? alpha_div_by_size_abs_sqrt : 1.0f),
     });
 
     return mem_consts;
@@ -71,7 +71,6 @@ LRNKernelBase::DispatchData LRNKernelBase::SetDefault(const lrn_params& params) 
 
     DispatchData kd;
 
-    kd.fp16UnitUsed = params.inputs[0].GetDType() == Datatype::F16;
     // Determine global work sizes.
     kd.gws0 = output.Batch().v * output.Feature().v;  // B, F
     kd.gws1 = output.X().v;                           // X

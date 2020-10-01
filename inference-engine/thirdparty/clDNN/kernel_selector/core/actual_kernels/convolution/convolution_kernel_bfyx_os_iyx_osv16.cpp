@@ -180,7 +180,7 @@ ConvolutionKernelBase::DispatchData ConvolutionKernel_bfyx_os_iyx_osv16::SetDefa
                                                           cp.stride,
                                                           cp.dilation,
                                                           sub_group_size,
-                                                          runInfo.fp16UnitUsed ? sub_group_size : sub_group_size / 2,
+                                                          cp.output.GetDType() == Datatype::F16 ? sub_group_size : sub_group_size / 2,
                                                           sub_group_size);
     runInfo.cldnnStyle.inputBlockArraySize = input_block_dims.first;
     runInfo.cldnnStyle.inputBlockWidth = input_block_dims.second;

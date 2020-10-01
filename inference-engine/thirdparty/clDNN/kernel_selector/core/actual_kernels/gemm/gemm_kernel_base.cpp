@@ -38,8 +38,6 @@ GemmKernelBase::DispatchData GemmKernelBase::SetDefault(const gemm_params& param
 
     DispatchData kd;
 
-    kd.fp16UnitUsed = params.inputs[0].GetDType() == Datatype::F16;
-
     auto total_batches = output.LogicalSize() / (output.X().v * output.Y().v);
     std::vector<size_t> global = { output.X().v, output.Y().v, total_batches };
 

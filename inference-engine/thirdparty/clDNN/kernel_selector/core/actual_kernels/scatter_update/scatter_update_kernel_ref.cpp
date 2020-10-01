@@ -87,7 +87,7 @@ static inline std::string GetOrderString(std::vector<std::string>& order) {
     std::string order_str = order[0];
     for (size_t i = 1; i < order.size(); i++)
         order_str += ", " + order[i];
-    
+
     return order_str;
 }
 
@@ -114,7 +114,7 @@ static std::string GetUpdatesIndexOrder(const scatter_update_params& params, siz
     std::string FYX_indices_size = "(INPUT1_FEATURE_NUM * INPUT1_SIZE_Y * INPUT1_SIZE_X)";
     std::string YX_indices_size = "(INPUT1_SIZE_Y * INPUT1_SIZE_X)";
     std::string X_indices_size = "(INPUT1_SIZE_X)";
-    
+
     // Shift indices of ScatterUpdate updates input related to Indices dims
     for (size_t i = default_order.size() - 1; i > (axis + indices_non_empty_dims - 1); i--)
         default_order[i] = default_order[i - indices_non_empty_dims + 1];
@@ -197,18 +197,16 @@ CommonDispatchData ScatterUpdateKernelRef::SetDefault(const scatter_update_param
         break;
     default: break;
     }
-    
+
     std::vector<size_t> local = GetOptimalLocalWorkGroupSizes(global, params.engineInfo);
 
     runInfo.gws0 = global[0];
     runInfo.gws1 = global[1];
     runInfo.gws2 = global[2];
-    
+
     runInfo.lws0 = local[0];
     runInfo.lws1 = local[1];
     runInfo.lws2 = local[2];
-
-    runInfo.fp16UnitUsed = params.inputs[0].GetDType() == Datatype::F16;
 
     return runInfo;
 }
@@ -270,7 +268,7 @@ KernelsData ScatterUpdateKernelRef::GetKernelsData(const Params& params, const o
     const scatter_update_params& orgParams = static_cast<const scatter_update_params&>(params);
     const size_t indices_size = orgParams.inputs[1].LogicalSize();
     int start_with_iteration = 0;
-    
+
     // if dim of output along axis is equal to logical size of indices, we miss copying kernel
     if (orgParams.inputs[0].Extract(orgParams.inputs[0].GetLayout(), Tensor::DataChannelName(orgParams.axis), orgParams.inputs[0].GetDims()).v == indices_size) {
         start_with_iteration = 1;
@@ -295,7 +293,7 @@ KernelsData ScatterUpdateKernelRef::GetKernelsData(const Params& params, const o
     }
 
     kd.estimatedTime = DONT_USE_IF_HAVE_SOMETHING_ELSE;
-    
+
     return {kd};
 }
 }  // namespace kernel_selector

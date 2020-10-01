@@ -60,7 +60,7 @@ FullyConnected_bs_f_bsv16_b1::DispatchData FullyConnected_bs_f_bsv16_b1::SetDefa
 
     // Properties of chunk and unit.
     const char* chunk_type = "uint";
-    const uint32_t unit_byte_size = run_info.fp16UnitUsed ? sizeof(short) : sizeof(float);
+    const uint32_t unit_byte_size = BytesPerElement(arg.inputs[0].GetDType());
     constexpr uint32_t chunk_byte_size = sizeof(uint32_t);
     constexpr uint32_t sub_group_size = 16;
     const uint32_t units_per_chunk = chunk_byte_size / unit_byte_size;

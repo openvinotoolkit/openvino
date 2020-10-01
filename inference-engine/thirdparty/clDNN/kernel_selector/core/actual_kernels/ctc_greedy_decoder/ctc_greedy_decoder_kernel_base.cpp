@@ -34,7 +34,6 @@ JitConstants CTCGreedyDecoderKernelBase::GetJitConstants(const ctc_greedy_decode
 
 CTCGreedyDecoderKernelBase::DispatchData CTCGreedyDecoderKernelBase::SetDefault(const ctc_greedy_decoder_params& params) const {
     DispatchData kd;
-    kd.fp16UnitUsed = params.inputs[0].GetDType() == Datatype::F16;
 
     std::vector<size_t> global = { 1, 1, 1 };
     auto local = GetOptimalLocalWorkGroupSizes(global, params.engineInfo);
