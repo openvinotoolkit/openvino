@@ -66,41 +66,50 @@ struct FilteredBoxes
     int box_index;
 };
 
-void non_max_suppression(const float* boxes_data,
-                         const Shape& boxes_data_shape,
-                         const float* scores_data,
-                         const Shape& scores_data_shape,
-                         int64_t max_output_boxes_per_class,
-                         float iou_threshold,
-                         float score_threshold,
-                         float soft_nms_sigma,
-                         int64_t* selected_indices,
-                         const Shape& selected_indices_shape,
-                         float* selected_scores,
-                         const Shape& selected_scores_shape,
-                         int64_t* valid_outputs)
+namespace ngraph
 {
-    float scale = 0.0f;
-    if (soft_nms_sigma > 0.0f) {
-        scale = - 0.5f / soft_nms_sigma;
-    }
-
-    auto func = [iou_threshold, scale](float iou) {
-        const float weight = std::exp(scale * iou * iou)));
-        return iou <= iou_threshold ? weight : 0.0f;
-    };
-
-    // boxes shape: {num_batches, num_boxes, 4}
-    // scores shape: {num_batches, num_classes, num_boxes}
-    size_t num_batches = scores_data_shape[0];
-    size_t num_classes = scores_data_shape[1];
-
-    std::vector<FilteredBoxes> fb;
-
-    for (int batch = 0; batch < num_batches; batch++)
+    namespace runtime
     {
-        for (int class_idx = 0; class_idx < num_classes; class_idx++)
+        namespace reference
         {
+            void non_max_suppression(const float* boxes_data,
+                                     const Shape& boxes_data_shape,
+                                     const float* scores_data,
+                                     const Shape& scores_data_shape,
+                                     int64_t max_output_boxes_per_class,
+                                     float iou_threshold,
+                                     float score_threshold,
+                                     float soft_nms_sigma,
+                                     int64_t* selected_indices,
+                                     const Shape& selected_indices_shape,
+                                     float* selected_scores,
+                                     const Shape& selected_scores_shape,
+                                     int64_t* valid_outputs)
+            {
+                float scale = 0.0f;
+                if (soft_nms_sigma > 0.0f) {
+                    scale = - 0.5f / soft_nms_sigma;
+                }
+
+                auto func = [iou_threshold, scale](float iou) {
+                    const float weight = std::exp(scale * iou * iou)));
+                    return iou <= iou_threshold ? weight : 0.0f;
+                };
+
+                // boxes shape: {num_batches, num_boxes, 4}
+                // scores shape: {num_batches, num_classes, num_boxes}
+                size_t num_batches = scores_data_shape[0];
+                size_t num_classes = scores_data_shape[1];
+
+                std::vector<FilteredBoxes> fb;
+
+                for (int batch = 0; batch < num_batches; batch++)
+                {
+                    for (int class_idx = 0; class_idx < num_classes; class_idx++)
+                    {
+                    }
+                }
+            }
         }
     }
 }
