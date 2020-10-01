@@ -52,7 +52,7 @@ aocl program acl0 "C:\Program Files (x86)\IntelSWTools\openvino\a10_vision_desig
 
 > **NOTE**: The SqueezeNet Caffe* model was already downloaded and converted to an FP16 IR when you ran the Image Classification Verification Script while [installing the Intel® Distribution of OpenVINO™ toolkit for Windows* with FPGA Support](installing-openvino-windows-fpga.md). Read this section only if you want to convert the model manually, otherwise skip and go to the next section to run the Image Classification sample application.
 
-In this section, you will prepare a sample FP16 model suitable for hardware accelerators. For more information, see the [FPGA plugin](https://docs.openvinotoolkit.org/latest/_docs_IE_DG_supported_plugins_FPGA.html) section in the Inference Engine Developer Guide.
+In this section, you will prepare a sample FP16 model suitable for hardware accelerators. For more information, see the [FPGA plugin](../IE_DG/supported_plugins/FPGA.html) section in the Inference Engine Developer Guide.
 
 1. Create a directory for the FP16 SqueezeNet Model:
 ```sh
@@ -108,8 +108,6 @@ Congratulations, you are done with the Intel® Distribution of OpenVINO™ toolk
 
 ## Additional Resources
 
-Intel® Distribution of OpenVINO™ toolkit home page: [https://software.intel.com/en-us/openvino-toolkit](https://software.intel.com/en-us/openvino-toolkit)
-
-Intel® Distribution of OpenVINO™ toolkit documentation: [https://docs.openvinotoolkit.org/](https://docs.openvinotoolkit.org/)
-
-Inference Engine FPGA plugin documentation: [https://docs.openvinotoolkit.org/latest/_docs_IE_DG_supported_plugins_FPGA.html](https://docs.openvinotoolkit.org/latest/_docs_IE_DG_supported_plugins_FPGA.html)
+* Intel® Distribution of OpenVINO™ toolkit home page: [https://software.intel.com/en-us/openvino-toolkit](https://software.intel.com/en-us/openvino-toolkit).
+* Intel® Distribution of OpenVINO™ toolkit documentation: [https://docs.openvinotoolkit.org](https://docs.openvinotoolkit.org).
+* [Inference Engine FPGA plugin documentation](../IE_DG/supported_plugins/FPGA.md).
