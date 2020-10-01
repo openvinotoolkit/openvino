@@ -40,3 +40,5 @@ def test_timetest(instance, executable, niter):
     }
     retcode, aggr_stats = run_timetest(exe_args, log=logging)
     assert retcode == 0, "Run of executable failed"
+
+    instance["results"] = aggr_stats    # append values to report to DB
