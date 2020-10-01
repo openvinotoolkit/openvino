@@ -40,6 +40,7 @@ void FuseFakeQuantizeAndScaleShiftTransformation::SetUp() {
         fakeQuantizeOnData);
 
     ngraph::pass::InitNodeInfo().run_on_function(function);
+
     EXPECT_EQ(1ul, function->get_output_size());
     EXPECT_EQ(1ul, function->get_output_op(0)->get_input_size());
     const std::string referenceOutputLayerName = function->get_output_op(0)->get_input_node_ptr(0)->get_friendly_name();
@@ -53,6 +54,7 @@ void FuseFakeQuantizeAndScaleShiftTransformation::validate(const std::string& re
     InferenceEngine::details::LayerTransformation::Params params;
     ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantizeOnData;
     std::tie(netPrecision, inputShape, targetDevice, params, fakeQuantizeOnData) = this->GetParam();
+
     auto transformations = getLowPrecisionTransformations(params);
     const InferenceEngine::CNNNetwork network = transform(transformations);
 
