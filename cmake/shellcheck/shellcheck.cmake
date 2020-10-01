@@ -2,10 +2,6 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-# TODO
-set(IE_SHELLCHECK_REPORTS "${CMAKE_BINARY_DIR}/shellcheck")
-# file(MAKE_DIRECTORY "${IE_SHELLCHECK_REPORTS}")
-
 include(CMakeParseArguments)
 
 find_host_program(shellcheck_PROGRAM NAMES shellcheck DOC "Path to shellcheck tool")
@@ -32,9 +28,11 @@ function(ie_shellcheck_process)
             continue()
         endif()
 
-        message("PROCESS ${script}")
+        get_filename_component(dir_name "${script}" DIRECTORY)
+        string(REPLACE "${IE_SHELLCHECK_DIRECTORY}" "${CMAKE_BINARY_DIR}/shellcheck" output_file ${script})
+        set(output_file "${output_file}.txt")
         get_filename_component(script_name "${script}" NAME)
-        set(output_file "${IE_SHELLCHECK_REPORTS}/${script_name}.txt")
+
         add_custom_command(OUTPUT ${output_file} 
                            COMMAND ${CMAKE_COMMAND}
                              -D IE_SHELLCHECK_PROGRAM=${shellcheck_PROGRAM}

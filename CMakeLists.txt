@@ -152,13 +152,11 @@ ie_shellcheck_process(DIRECTORY "${OpenVINO_MAIN_SOURCE_DIR}"
                            "${IE_MAIN_SOURCE_DIR}/samples/thirdparty"
                            "${IE_MAIN_SOURCE_DIR}/thirdparty"
                            "${IE_MAIN_SOURCE_DIR}/temp"
-                           # TODO fix and enable back
+                           # TODO fix and enable back:
                            "${OpenVINO_MAIN_SOURCE_DIR}/scripts/install_dependencies"
-                           "${OpenVINO_MAIN_SOURCE_DIR}/model-optimizer"
                            "${OpenVINO_MAIN_SOURCE_DIR}/scripts/demo"
                            "${OpenVINO_MAIN_SOURCE_DIR}/ngraph"
-                           "${IE_MAIN_SOURCE_DIR}/scripts"
-                           )
+                           "${IE_MAIN_SOURCE_DIR}/scripts")
 
 #
 # cpack
