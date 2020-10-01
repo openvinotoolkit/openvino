@@ -21,13 +21,8 @@ class TRANSFORMATIONS_API ConvertGELU;
 }  // namespace pass
 }  // namespace ngraph
 
-class ngraph::pass::ConvertGELU: public ngraph::pass::GraphRewrite {
+class ngraph::pass::ConvertGELU: public ngraph::pass::MatcherPass {
 public:
     NGRAPH_RTTI_DECLARATION;
-    ConvertGELU() : GraphRewrite() {
-        convert_gelu();
-    }
-
-private:
-    void convert_gelu();
+    ConvertGELU();
 };

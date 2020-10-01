@@ -123,3 +123,49 @@ INSTANTIATE_TEST_CASE_P(NGraph, nGraphFQReshapeFusionTests, testing::Values(
     FQReshapeFusionTestCase{{1, 2, 1, 3}, {2, 1, 3}, {1}, {1, 1}, {1, 2, 1, 1}, {1, 2, 1, 3}, {}, {},  {}, {}, true},
     FQReshapeFusionTestCase{{1, 2, 1, 3}, {2, 1, 1}, {1}, {1, 1}, {1, 2, 1, 1}, {6}, {}, {},  {}, {}, true}));
 }  // namespace
+
+TEST(nGraphFQReshapeFusionTests, FQReshapeGroupConvolution) {
+    auto get_function = [](const FQReshapeFusionTestCase & test_case) {
+        const auto & data =  std::make_shared<ngraph::opset4::Constant>(ngraph::element::f32, test_case.data_shape, 0);
+        auto il = std::make_shared<ngraph::opset4::Parameter>(ngraph::element::f32, test_case.il_shape);
+        auto ih = std::make_shared<ngraph::opset4::Parameter>(ngraph::element::f32, test_case.ih_shape);
+        auto ol = std::make_shared<ngraph::opset4::Parameter>(ngraph::element::f32, test_case.ol_shape);
+        auto oh = std::make_shared<ngraph::opset4::Parameter>(ngraph::element::f32, test_case.oh_shape);
+
+        auto fq = std::make_shared<ngraph::opset4::FakeQuantize>(data, il, ih, ol, oh, 42);
+
+        auto reshape_pattern = std::make_shared<ngraph::opset4::Constant>(
+                ngraph::element::i64, ngraph::Shape{test_case.reshape_pattern.size()}, test_case.reshape_pattern);
+        auto reshape = std::make_shared<ngraph::opset4::Reshape>(fq, reshape_pattern, true);
+
+        auto input = std::make_shared<ngraph::opset4::Parameter>(ngraph::element::f32, test_case.data_shape);
+        ngraph::Strides stride{1, 1};
+        ngraph::CoordinateDiff pad{0, 0};
+        auto group_conv = std::make_shared<ngraph::opset4::GroupConvolution>(input, reshape, stride, pad, pad, stride);
+
+        auto result = std::make_shared<ngraph::op::Result>(group_conv);
+        ngraph::ParameterVector params = {il, ih, ol, oh, input};
+        ngraph::ResultVector results = {result};
+        return std::make_shared<ngraph::Function>(results, params);
+    };
+
+    FQReshapeFusionTestCase params;
+    params.data_shape = {1, 2, 1, 3};
+    params.il_shape = {2, 1, 1};
+    params.ih_shape = {1};
+    params.ol_shape = {1, 1};
+    params.oh_shape = {1, 2, 1, 1};
+    params.reshape_pattern = {2, 3, 1, 1, 1};
+
+    auto f = get_function(params);
+
+    ngraph::pass::Manager manager;
+    manager.register_pass<ngraph::pass::InitNodeInfo>();
+    manager.register_pass<ngraph::pass::FakeQuantizeReshapeFusion>();
+    manager.run_passes(f);
+
+    ASSERT_NO_THROW(check_rt_info(f));
+
+    auto res = compare_functions(f, get_function(params));
+    ASSERT_TRUE(res.first) << res.second;
+}

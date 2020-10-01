@@ -16,7 +16,7 @@ NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertBroadcastToTiles, "ConvertBroadcastT
 ngraph::pass::ConvertBroadcastToTiles::ConvertBroadcastToTiles() {
     auto broadcast = ngraph::pattern::wrap_type<ngraph::opset1::Broadcast>();
 
-    ngraph::graph_rewrite_callback callback = [](pattern::Matcher& m) {
+    ngraph::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
         auto broadcast = std::dynamic_pointer_cast<ngraph::opset1::Broadcast>(m.get_match_root());
 
         if (!broadcast) {
@@ -83,7 +83,7 @@ ngraph::pass::ConvertBroadcastToTiles::ConvertBroadcastToTiles() {
         }
 
         auto const_node = std::make_shared<ngraph::opset1::Constant>(element::i64, Shape {dims_count}, dims);
-        auto tile = std::make_shared<ngraph::opset1::Tile>(last_node, const_node);
+        auto tile = register_new_node<ngraph::opset1::Tile>(last_node, const_node);
         new_ops.push_back(tile);
         tile->set_friendly_name(broadcast->get_friendly_name());
 

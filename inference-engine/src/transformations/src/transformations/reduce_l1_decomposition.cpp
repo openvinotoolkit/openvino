@@ -25,7 +25,7 @@ ngraph::pass::ReduceL1Decomposition::ReduceL1Decomposition() {
         }
 
         auto abs = std::make_shared<ngraph::opset4::Abs>(reduce_l1_node->input_value(0));
-        auto reduce_sum = std::make_shared<ngraph::opset4::ReduceSum>(abs, reduce_l1_node->input_value(1), reduce_l1_node->get_keep_dims());
+        auto reduce_sum = register_new_node<ngraph::opset4::ReduceSum>(abs, reduce_l1_node->input_value(1), reduce_l1_node->get_keep_dims());
 
         reduce_sum->set_friendly_name(m.get_match_root()->get_friendly_name());
         ngraph::copy_runtime_info(reduce_l1_node,
