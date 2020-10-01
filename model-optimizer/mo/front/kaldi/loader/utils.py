@@ -62,6 +62,8 @@ supported_components = [
     'softmaxcomponent',
     'specaugmenttimemaskcomponent',
     'splicecomponent',
+    'statisticsextractioncomponent',
+    'statisticspoolingcomponent',
     'sumgroupcomponent',
     'tanhcomponent',
     'tdnncomponent',

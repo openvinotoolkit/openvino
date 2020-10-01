@@ -518,5 +518,8 @@ def parse_specifier(string, graph, layer_node_map):
             graph.create_edge(node, scale_node, out_port, 1)
         else:
             scale_name = layer_node_map[layer_name]
-
         return scale_name
+    elif spec == b'Round':
+        node = parse_specifier(args[0], graph, layer_node_map)
+        graph.add_node(node, parameters=[], op="Identity", kind='op')
+        return node
