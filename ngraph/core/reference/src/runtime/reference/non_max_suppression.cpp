@@ -103,10 +103,9 @@ struct BoxInfo
     BoxInfo(const Rectangle& r, int64_t idx, float sc, int64_t suppress_idx)
         : box{r}
         , index{idx}
-        , score{sc}
         , suppress_begin_index{suppress_idx}
+        , score{sc}
     {
-      area = (box.y2 - box.y1) * (box.x2 - box.x1);
     }
 
     BoxInfo() = default;
@@ -118,9 +117,8 @@ struct BoxInfo
 
     Rectangle box;
     int64_t index = 0;
-    float score = 0.0f;
     int64_t suppress_begin_index = 0;
-    float area = 0.0f;
+    float score = 0.0f;
 };
 
 namespace ngraph
@@ -171,7 +169,9 @@ namespace ngraph
 
                 for (size_t batch = 0; batch < num_batches; batch++)
                 {
-                     const float* boxesPtr = boxes_data + batch * boxesStrides;
+                    const float* boxesPtr = boxes_data + batch * boxesStrides;
+                    Rectangle* r = reinterpret_cast<Rectangle*>(const_cast<float*>(boxesPtr));
+
                     for (size_t class_idx = 0; class_idx < num_classes; class_idx++)
                     {
                         const float* scoresPtr = scores_data + batch * scoresStrides[0] +
@@ -184,8 +184,7 @@ namespace ngraph
                         {
                             if (scoresPtr[box_idx] > score_threshold)
                             {
-                                Rectangle* r = reinterpret_cast<Rectangle*>(boxesPtr) + box_idx;
-                                candidate_boxes.emplace_back(*r, box_idx, scoresPtr[box_idx], 0);
+                                candidate_boxes.emplace_back(r[box_idx], box_idx, scoresPtr[box_idx], 0);
                             }
                         }
 
@@ -229,8 +228,8 @@ namespace ngraph
                             {
                                 if (next_candidate.score == original_score)
                                 {
-                                    // // Suppression has not occurred, so select next_candidate
-                                    // selected.push_back(next_candidate.box_index);
+                                    // Suppression has not occurred, so select next_candidate
+                                    selected.push_back(next_candidate.box_index);
                                     // selected_scores.push_back(next_candidate.score);
                                     // continue;
                                 }
