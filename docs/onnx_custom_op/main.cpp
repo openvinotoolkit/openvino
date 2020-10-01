@@ -152,5 +152,9 @@ opset_import {
 
     assert(std::memcmp(expected.data(), actual_values, expected.size() * sizeof(expected[0])) == 0);
 
+//! [onnx_custom_op:unregister_operator]
+    ngraph::onnx_import::unregister_operator("CustomRelu", 1, "com.example");
+//! [onnx_custom_op:unregister_operator]
+
     return 0;
 }

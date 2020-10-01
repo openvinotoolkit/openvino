@@ -195,6 +195,44 @@ namespace ngraph
             }
         }
 
+        void OperatorsBridge::_unregister_operator(const std::string& name,
+                                                   std::int64_t version,
+                                                   const std::string& domain)
+        {
+            std::lock_guard<std::mutex> guard(lock);
+
+            auto domain_it = m_map.find(domain);
+            if (domain_it == m_map.end())
+            {
+                NGRAPH_ERR << "unregister_operator: domain '" + domain +
+                                  "' was not registered before";
+                return;
+            }
+            auto name_it = domain_it->second.find(name);
+            if (name_it == domain_it->second.end())
+            {
+                NGRAPH_ERR << "unregister_operator: operator '" + name +
+                                  "' was not registered before";
+                return;
+            }
+            auto version_it = name_it->second.find(version);
+            if (version_it == name_it->second.end())
+            {
+                NGRAPH_ERR << "unregister_operator: operator '" + name + "' with version " +
+                                  std::to_string(version) + " was not registered before";
+                return;
+            }
+            m_map[domain][name].erase(version_it);
+            if (m_map[domain][name].empty())
+            {
+                m_map[domain].erase(name);
+                if (m_map[domain].empty())
+                {
+                    m_map.erase(domain);
+                }
+            }
+        }
+
         OperatorSet OperatorsBridge::_get_operator_set(const std::string& domain,
                                                        std::int64_t version)
         {

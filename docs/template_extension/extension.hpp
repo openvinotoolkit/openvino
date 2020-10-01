@@ -20,6 +20,7 @@ namespace TemplateExtension {
 class EXPORT Extension : public InferenceEngine::IExtension {
 public:
     Extension();
+    ~Extension();
     void GetVersion(const InferenceEngine::Version*& versionInfo) const noexcept override;
     void Unload() noexcept override {}
     void Release() noexcept override { delete this; }

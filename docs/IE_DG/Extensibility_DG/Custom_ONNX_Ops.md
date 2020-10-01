@@ -32,6 +32,9 @@ New operator registration must happen before the ONNX model is read, e.g. if a O
 
 Re-registering ONNX operators within the same process is supported. During registration of existing operator, a warning is printed.
 
+If operator is no longer needed, it can be unregistered by calling `unregister_operator`. The function takes three arguments `op_type`, `version` and `domain`.
+@snippet onnx_custom_op/main.cpp onnx_custom_op:unregister_operator
+
 ## Registering custom ONNX operator based on custom nGraph operations
 
 The same principles apply when registering custom ONNX operator based on custom nGraph operations.
@@ -39,6 +42,11 @@ This example shows how to register custom ONNX operator based on `Operation` pre
 @snippet extension.cpp extension:ctor
 
 Here, the `register_operator` function is called in Extension's constructor, which makes sure that it's called before InferenceEngine::Core::ReadNetwork (since InferenceEngine::Core::AddExtension must be called before a model with custom operator is read).
+
+
+Below, there is an example on how to unregister operator from Extension's destructor:
+@snippet extension.cpp extension:dtor
+Note that it is mandatory to unregister custom ONNX operator if it is defined in dynamic shared library.
 
 ## Requirements for building with CMake
 

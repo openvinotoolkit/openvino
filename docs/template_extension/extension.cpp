@@ -27,6 +27,12 @@ Extension::Extension() {
 }
 //! [extension:ctor]
 
+//! [extension:dtor]
+Extension::~Extension() {
+    ngraph::onnx_import::unregister_operator(Operation::type_info.name, 1, "custom_domain");
+}
+//! [extension:dtor]
+
 //! [extension:GetVersion]
 void Extension::GetVersion(const InferenceEngine::Version *&versionInfo) const noexcept {
     static InferenceEngine::Version ExtensionDescription = {
