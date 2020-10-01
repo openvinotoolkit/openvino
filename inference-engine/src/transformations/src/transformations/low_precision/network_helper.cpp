@@ -56,8 +56,7 @@ int NetworkHelper::onWeightsInDepth(std::shared_ptr<Node> layer) {
     for (std::shared_ptr<Node> child : children) {
         if ((is_type<opset1::Convolution>(child) ||
             is_type<opset1::GroupConvolution>(child) ||
-            is_type<opset1::MatMul>(child) ||
-            (is_type<opset1::Multiply>(child) && (is_type<opset1::Constant>(layer->get_input_node_shared_ptr(0))))) &&
+            is_type<opset1::MatMul>(child)) &&
             (child->inputs().size() >= 2lu)) {
             const std::vector<std::shared_ptr<Node>> parents = getParentsRecursivelyExceptTypes(child, {}, 1);
             for (const std::shared_ptr<Node>& parent : parents) {

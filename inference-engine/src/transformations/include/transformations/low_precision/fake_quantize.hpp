@@ -20,8 +20,10 @@ public:
     void registerMatcherIn(GraphRewrite& pass, TransformationContext& context) const override;
     bool transform(TransformationContext& context, ngraph::pattern::Matcher &m) const override;
     bool isPrecisionPreserved(std::shared_ptr<Node> layer) const noexcept override;
+
+    static bool checkElementwise(const std::shared_ptr<Node>& eltwise);
 private:
-    std::shared_ptr<opset1::FakeQuantize> handle(
+    std::shared_ptr<opset1::FakeQuantize> fuseElementwise(
         TransformationContext& context,
         const std::shared_ptr<opset1::FakeQuantize>& fakeQuantize) const;
 };

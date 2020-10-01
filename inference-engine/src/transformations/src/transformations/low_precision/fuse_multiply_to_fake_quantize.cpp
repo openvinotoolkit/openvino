@@ -5,6 +5,7 @@
 #include "transformations/low_precision/fuse_multiply_to_fake_quantize.hpp"
 #include <memory>
 #include <ngraph/ngraph.hpp>
+#include "transformations/low_precision/fake_quantize.hpp"
 #include "transformations/low_precision/network_helper.hpp"
 
 namespace ngraph {
@@ -63,6 +64,10 @@ bool FuseMultiplyToFakeQuantizeTransformation::transform(TransformationContext& 
 
 bool FuseMultiplyToFakeQuantizeTransformation::canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> operation) const {
     if (!is_type<opset1::Constant>(operation->get_input_node_shared_ptr(1))) {
+        return false;
+    }
+
+    if (!FakeQuantizeTransformation::checkElementwise(operation)) {
         return false;
     }
 

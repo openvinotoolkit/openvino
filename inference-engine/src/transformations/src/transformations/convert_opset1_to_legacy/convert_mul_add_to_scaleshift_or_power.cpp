@@ -87,6 +87,10 @@ void ngraph::pass::ConvertMulAddToScaleShiftOrPower::convert_mul_add_to_scaleshi
             const_bias_node = ngraph::as_type_ptr<ngraph::opset1::Constant>(add_input_0);
         }
 
+        if (const_bias_node->output(0).get_element_type() != add_node->output(0).get_element_type()) {
+            return false;
+        }
+
         auto mul_input_0 = mul_node->input(0).get_source_output().get_node_shared_ptr();
         auto mul_input_1 = mul_node->input(1).get_source_output().get_node_shared_ptr();
 
@@ -95,6 +99,10 @@ void ngraph::pass::ConvertMulAddToScaleShiftOrPower::convert_mul_add_to_scaleshi
         if (!const_weights_node) {
             data_node = mul_node->input(1).get_source_output();
             const_weights_node = ngraph::as_type_ptr<ngraph::opset1::Constant>(mul_input_0);
+        }
+
+        if (const_weights_node->output(0).get_element_type() != mul_node->output(0).get_element_type()) {
+            return false;
         }
 
         if (add_node->get_output_partial_shape(0).rank().is_dynamic() ||

@@ -191,13 +191,13 @@ const std::vector<MultiplyTransformationTestValues> multiplyTransformationTestVa
     },
 
     // constantFolding test
-    {
-        true,
-        LayerTransformation::createParamsU8I8(),
-        { ngraph::element::i8, { 30.f }, { 100.f }, ngraph::element::f32, { }, { 0.1f } },
-        { ngraph::element::f32, { }, { 7.f }, ngraph::element::f32, { }, {  } },
-        true
-    },
+    // {
+    //    true,
+    //    LayerTransformation::createParamsU8I8(),
+    //    { ngraph::element::i8, { 30.f }, { 100.f }, ngraph::element::f32, { }, { 0.1f } },
+    //    { ngraph::element::f32, { }, { 7.f }, ngraph::element::f32, { }, {  } },
+    //    true
+    // },
 };
 
 INSTANTIATE_TEST_CASE_P(

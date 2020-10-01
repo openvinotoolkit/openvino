@@ -53,8 +53,8 @@ bool MultiplyTransformation::transform(TransformationContext& context, ngraph::p
         const auto multiplyBranch = getMultiplyConstBranch(multiply);
 
         if (multiplyBranch.first == -1 || multiplyBranch.second == -1) {
-            NetworkHelper::foldDequantization(multiply, 0, true);
-            NetworkHelper::foldDequantization(multiply, 1, true);
+            NetworkHelper::foldDequantization(multiply, 0);
+            NetworkHelper::foldDequantization(multiply, 1);
             return false;
         }
 
