@@ -301,10 +301,7 @@ static void setPrecisions(const InferenceEngine::CNNNetwork &network, const std:
                 input->second->setPrecision(getInputPrecision(user_precision));
             }
         } else if (output != outputs.end()) {
-            const auto output_precision = output->second->getPrecision();
-            if (isFloat(output_precision) && isFloat(getOutputPrecision(user_precision))) {
-                output->second->setPrecision(getOutputPrecision(user_precision));
-            }
+            output->second->setPrecision(getOutputPrecision(user_precision));
         } else {
             throw std::logic_error(layer_name + " is not an input neither output");
         }
@@ -366,10 +363,7 @@ static void processPrecisions(InferenceEngine::CNNNetwork &network,
     if (!outputs_precision.empty()) {
         auto precision = getOutputPrecision(outputs_precision);
         for (auto &&layer : network.getOutputsInfo()) {
-            const auto layerPrecision = layer.second->getPrecision();
-            if (isFloat(layerPrecision) && isFloat(precision)) {
-                layer.second->setPrecision(precision);
-            }
+            layer.second->setPrecision(precision);
         }
     }
 
