@@ -647,20 +647,34 @@ void ConvolutionNCHWPass::run() {
 
         // TODO: add check for convolution with H != 1 and W != 1
         // TODO: add check for convolution with H != 1 and W == 1
+        // required for Reshape1DOps transformation
+        if (layerBeforeConv->name.find("reshape_begin") != std::string::npos &&
+            layerBeforeConv->insData.begin()->lock()->getLayout() == InferenceEngine::Layout::CHW &&
+            layerBeforeConv->outData.front()->getLayout() == InferenceEngine::Layout::NCHW) {
+            continue;
+        }
 
         if (l->outData[0]->getLayout() == Layout::NCHW) {
             auto convolutionInputDims = layerBeforeConv->outData[0]->getDims();
             auto convolutionOutputDims = l->outData[0]->getDims();
             // if channel dim doesn't equal 1,
             // if height dim and width dim both equal 1, the permute is not needed to return correct results
-            // if height dim doesn't equal 1,
+            // if height dim doesn't equal 1, the case requires additional permute
             if (convolutionInputDims[1] != 1 ||
                 (convolutionInputDims[2] == 1 && convolutionInputDims[3] == 1) ||
                 convolutionInputDims[2] != 1) {
                 continue;
             }
 
-            // GNA convolution output is transposed to NHWC
+            if (std::min(convolutionOutputDims[1], convolutionOutputDims[3]) > 8 ||
+                ALIGN(std::max(convolutionOutputDims[1], convolutionOutputDims[3]), 8) != std::max(convolutionOutputDims[1], convolutionOutputDims[3])) {
+                gnalog() << "Skipping permute addition. The created permute wouldn't be supported because of permute dimensions ["
+                    << convolutionOutputDims[0] << ", " << convolutionOutputDims[1] << ", " << convolutionOutputDims[2] << ", "
+                    << convolutionOutputDims[3] << "]. The output will need to be transposed from NHWC to NCHW.";
+                continue;
+            }
+
+            // GNA convolution output is transposed to NHWC so permute is needed to return to NCHW
             auto permuteNextName = std::string("permute_next_layer_") + std::to_string(numOfadditionalPermuteLayers);
             auto layerAfterConvName = layerAfterConv == nullptr ? "nullptr" : layerAfterConv->name;
             gnalog() << "Inserted " << permuteNextName << " between: " << l->name << " and "
