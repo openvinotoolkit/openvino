@@ -92,7 +92,7 @@ namespace ngraph
                 }
 
                 auto func = [iou_threshold, scale](float iou) {
-                    const float weight = std::exp(scale * iou * iou)));
+                    const float weight = std::exp(scale * iou * iou);
                     return iou <= iou_threshold ? weight : 0.0f;
                 };
 
