@@ -4,6 +4,11 @@
 """Utility module."""
 
 import os
+from pymongo import MongoClient
+
+# constants
+DATABASE = 'timetests'   # database name for timetests results
+DB_COLLECTIONS = ["commit", "nightly", "weekly"]
 
 
 def expand_env_vars(obj):
@@ -18,3 +23,11 @@ def expand_env_vars(obj):
     else:
         obj = os.path.expandvars(obj)
     return obj
+
+
+def upload_timetest_data(data, db_url, db_collection):
+    """ Upload timetest data to database
+    """
+    client = MongoClient(db_url)
+    collection = client[DATABASE][db_collection]
+    collection.replace_one({'_id': data['_id']}, data, upsert=True)
