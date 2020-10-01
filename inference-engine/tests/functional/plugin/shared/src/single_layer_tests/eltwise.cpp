@@ -106,12 +106,6 @@ void EltwiseLayerTest::SetUp() {
     }
 
     auto eltwise = ngraph::builder::makeEltwise(input[0], secondaryInput, eltwiseType);
-    eltwise->set_friendly_name("Eltwise");
-    if (netPrecision == InferenceEngine::Precision::BF16) {
-        inPrc = outPrc = netPrecision;
-        expectedPrecisions["Eltwise"] = "BF16";
-    }
-
     function = std::make_shared<ngraph::Function>(eltwise, input, "Eltwise");
 }
 

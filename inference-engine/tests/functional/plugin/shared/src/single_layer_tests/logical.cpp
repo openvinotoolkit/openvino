@@ -80,12 +80,6 @@ void LogicalLayerTest::SetUp() {
     } else {
         logicalNode = ngraph::builder::makeLogical(inputs[0], ngraph::Output<ngraph::Node>(), logicalOpType);
     }
-    logicalNode->set_friendly_name("Logical");
-
-    if (InferenceEngine::Precision::BF16 == netPrecision) {
-        inPrc = outPrc = netPrecision;
-        expectedPrecisions["Logical"] = "BF16";
-    }
 
     function = std::make_shared<ngraph::Function>(logicalNode, inputs, "Logical");
 }

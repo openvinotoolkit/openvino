@@ -88,7 +88,6 @@ public:
 
 protected:
     void SetUp() override;
-    void setActivationExpectedPrc(std::string name, InferenceEngine::Precision netPrc);
 };
 
 class ActivationParamLayerTest : public ActivationLayerTest {
