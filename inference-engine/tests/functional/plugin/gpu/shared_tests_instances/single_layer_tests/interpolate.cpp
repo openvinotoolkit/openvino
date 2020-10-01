@@ -1,4 +1,4 @@
-// Copyright (C) 2019 Intel Corporation
+// Copyright (C) 2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,20 +17,20 @@ const std::vector<InferenceEngine::Precision> prc = {
 };
 
 const std::vector<std::vector<size_t>> inShapes = {
-        {1, 1, 30, 30},
+        {1, 1, 23, 23},
 };
 
 const std::vector<std::vector<size_t>> targetShapes = {
-        {1, 1, 40, 40},
+        {1, 1, 46, 46},
 };
 
-const  std::vector<ngraph::op::v4::Interpolate::InterpolateMode> modesWithoutNearest = {
+const std::vector<ngraph::op::v4::Interpolate::InterpolateMode> modesWithoutNearest = {
         ngraph::op::v4::Interpolate::InterpolateMode::linear,
-        ngraph::op::v4::Interpolate::InterpolateMode::linear_onnx,
         ngraph::op::v4::Interpolate::InterpolateMode::cubic,
+        ngraph::op::v4::Interpolate::InterpolateMode::linear_onnx,
 };
 
-const  std::vector<ngraph::op::v4::Interpolate::InterpolateMode> nearestMode = {
+const std::vector<ngraph::op::v4::Interpolate::InterpolateMode> nearestMode = {
         ngraph::op::v4::Interpolate::InterpolateMode::nearest,
 };
 
@@ -75,11 +75,11 @@ const std::vector<double> cubeCoefs = {
 };
 
 const std::vector<std::vector<int64_t>> defaultAxes = {
-    {2, 3}
+    {0, 1, 2, 3}
 };
 
 const std::vector<std::vector<float>> defaultScales = {
-    {1.33333f, 1.33333f}
+    {1.f, 1.f, 2.f, 2.f}
 };
 
 const auto interpolateCasesWithoutNearest = ::testing::Combine(
@@ -94,7 +94,7 @@ const auto interpolateCasesWithoutNearest = ::testing::Combine(
         ::testing::ValuesIn(defaultAxes),
         ::testing::ValuesIn(defaultScales));
 
-const auto interpolateCases = ::testing::Combine(
+const auto interpolateCasesNearesMode = ::testing::Combine(
         ::testing::ValuesIn(nearestMode),
         ::testing::ValuesIn(shapeCalculationMode),
         ::testing::ValuesIn(coordinateTransformModes),
@@ -111,15 +111,15 @@ INSTANTIATE_TEST_CASE_P(Interpolate_Basic, InterpolateLayerTest, ::testing::Comb
         ::testing::ValuesIn(prc),
         ::testing::ValuesIn(inShapes),
         ::testing::ValuesIn(targetShapes),
-        ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+        ::testing::Values(CommonTestUtils::DEVICE_GPU)),
     InterpolateLayerTest::getTestCaseName);
 
 INSTANTIATE_TEST_CASE_P(Interpolate_Nearest, InterpolateLayerTest, ::testing::Combine(
-        interpolateCases,
+        interpolateCasesNearesMode,
         ::testing::ValuesIn(prc),
         ::testing::ValuesIn(inShapes),
         ::testing::ValuesIn(targetShapes),
-        ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+        ::testing::Values(CommonTestUtils::DEVICE_GPU)),
     InterpolateLayerTest::getTestCaseName);
 
 } // namespace
