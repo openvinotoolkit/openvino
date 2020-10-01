@@ -171,11 +171,12 @@ namespace ngraph
 
                 for (size_t batch = 0; batch < num_batches; batch++)
                 {
-                    float* boxesPtr = boxes_data + batch * boxesStrides;
+                     const float* boxesPtr = boxes_data + batch * boxesStrides;
                     for (size_t class_idx = 0; class_idx < num_classes; class_idx++)
                     {
-                        float* scoresPtr = scores_data + batch * scoresStrides[0] +
-                                           class_idx * scoresStrides[1];
+                        const float* scoresPtr = scores_data + batch * scoresStrides[0] +
+                                                 class_idx * scoresStrides[1];
+
                         std::vector<BoxInfo> candidate_boxes;
                         candidate_boxes.reserve(num_boxes);
 
