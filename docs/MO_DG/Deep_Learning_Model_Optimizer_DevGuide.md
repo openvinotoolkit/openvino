@@ -14,41 +14,49 @@ Model Optimizer produces an Intermediate Representation (IR) of the network, whi
 
 ## What's New in the Model Optimizer in this Release?
 
-**Deprecation Notice**
-
-<table>
-  <tr>
-    <td><strong>Deprecation Begins</strong></td>
-    <td>June 1, 2020</td>
-  </tr>
-  <tr>
-    <td><strong>Removal Date</strong></td>
-    <td>December 1, 2020</td>
-  </tr>
-</table> 
-
-*Starting with the OpenVINO™ toolkit 2020.2 release, all of the features previously available through nGraph have been merged into the OpenVINO™ toolkit. As a result, all the features previously available through ONNX RT Execution Provider for nGraph have been merged with ONNX RT Execution Provider for OpenVINO™ toolkit.*
-
-*Therefore, ONNX RT Execution Provider for nGraph will be deprecated starting June 1, 2020 and will be completely removed on December 1, 2020. Users are recommended to migrate to the ONNX RT Execution Provider for OpenVINO™ toolkit as the unified solution for all AI inferencing on Intel® hardware.*
-
 * Common changes:
-    * Implemented generation of a compressed OpenVINO IR suitable for INT8 inference, which takes up to 4 times less disk space than an expanded one. Use the `--disable_weights_compression` Model Optimizer command-line parameter to get an expanded version.
-    * Implemented an optimization transformation to replace a sub-graph with the `Erf` operation into the `GeLU` operation.
-    * Implemented an optimization transformation to replace an upsamping pattern that is represented as a sequence of `Split` and `Concat` operations to a single `Interpolate` operation.
-    * Fixed a number of Model Optimizer bugs to generate reshape-able IRs of many models with the command line parameter `--keep_shape_ops`.
-    * Fixed a number of Model Optimizer transformations to set operations name in an IR equal to the original framework model operation name.
-    * The following operations are no longer generated with `version="opset1"`: `MVN`, `ROIPooling`, `ReorgYolo`. They became a part of new `opset2` operation set and generated with `version="opset2"`. Before this fix, the operations were generated with `version="opset1"` by mistake, they were not a part of `opset1` nGraph namespace; `opset1` specification was fixed accordingly.
-
+    * Implemented several optimization transformations to replace sub-graphs of operations with HSwish, Mish, Swish and SoftPlus operations.
+    * Model Optimizer generates IR keeping shape-calculating sub-graphs **by default**. Previously, this behavior was triggered if the "--keep_shape_ops" command line parameter was provided. The key is ignored in this release and will be deleted in the next release. To trigger the legacy behavior to generate an IR for a fixed input shape (folding ShapeOf operations and shape-calculating sub-graphs to Constant), use the "--static_shape" command line parameter. Changing model input shape using the Inference Engine API in runtime may fail for such an IR.
+    * Fixed Model Optimizer conversion issues resulted in non-reshapeable IR using the Inference Engine reshape API.
+    * Enabled transformations to fix non-reshapeable patterns in the original networks:
+        * Hardcoded Reshape
+            * In Reshape(2D)->MatMul pattern
+            * Reshape->Transpose->Reshape when the pattern can be fused to the ShuffleChannels or DepthToSpace operation
+        * Hardcoded Interpolate
+            * In Interpolate->Concat pattern
+        * Added a dedicated requirements file for TensorFlow 2.X as well as the dedicated install prerequisites scripts.
+        * Replaced the SparseToDense operation with ScatterNDUpdate-4.
 * ONNX*:
-    * Added support for the following operations: `MeanVarianceNormalization` if normalization is performed over spatial dimensions.
-
+    * Enabled an ability to specify the model output **tensor** name using the "--output" command line parameter.
+    * Added support for the following operations:
+        * Acosh
+        * Asinh
+        * Atanh
+        * DepthToSpace-11, 13
+        * DequantizeLinear-10 (zero_point must be constant)
+        * HardSigmoid-1,6
+        * QuantizeLinear-10 (zero_point must be constant)
+        * ReduceL1-11, 13
+        * ReduceL2-11, 13
+        * Resize-11, 13 (except mode="nearest" with 5D+ input, mode="tf_crop_and_resize", and attributes exclude_outside and extrapolation_value with non-zero values)
+        * ScatterND-11, 13
+        * SpaceToDepth-11, 13
 * TensorFlow*:
-    * Added support for the TensorFlow Object Detection models version 1.15.X.
-    * Added support for the following operations: `BatchToSpaceND`, `SpaceToBatchND`, `Floor`.
-
+    * Added support for the following operations:
+        * Acosh
+        * Asinh
+        * Atanh
+        * CTCLoss
+        * EuclideanNorm
+        * ExtractImagePatches
+        * FloorDiv
 * MXNet*:
     * Added support for the following operations:
-        * `Reshape` with input shape values equal to -2, -3, and -4.
+        * Acosh
+        * Asinh
+        * Atanh
+* Kaldi*:
+    * Fixed bug with ParallelComponent support. Now it is fully supported with no restrictions.
 
 > **NOTE:** 
 > [Intel® System Studio](https://software.intel.com/en-us/system-studio) is an all-in-one, cross-platform tool suite, purpose-built to simplify system bring-up and improve system and IoT device application performance on Intel® platforms. If you are using the Intel® Distribution of OpenVINO™ with Intel® System Studio, go to [Get Started with Intel® System Studio](https://software.intel.com/en-us/articles/get-started-with-openvino-and-intel-system-studio-2019).
