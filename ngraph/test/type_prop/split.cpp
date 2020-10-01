@@ -61,6 +61,49 @@ TEST(type_prop, split)
     EXPECT_EQ(split->get_output_element_type(1), element::i32);
 }
 
+TEST(type_prop, split_v1_dynamic_dims_axis_static)
+{
+    const auto DYN = Dimension::dynamic();
+    const auto data = make_shared<op::Parameter>(element::i32, PartialShape{DYN, 6, DYN});
+
+    const auto axis = op::Constant::create(element::i64, Shape{}, {1});
+    const auto split = make_shared<op::v1::Split>(data, axis, 2);
+    EXPECT_EQ(split->outputs().size(), 2);
+    EXPECT_EQ(split->get_output_partial_shape(0), (PartialShape{DYN, 3, DYN}));
+    EXPECT_EQ(split->get_output_partial_shape(1), (PartialShape{DYN, 3, DYN}));
+    EXPECT_EQ(split->get_output_element_type(0), element::i32);
+    EXPECT_EQ(split->get_output_element_type(1), element::i32);
+}
+
+TEST(type_prop, split_v1_dynamic_dims_axis_dynamic)
+{
+    const auto DYN = Dimension::dynamic();
+    const auto data = make_shared<op::Parameter>(element::i32, PartialShape{DYN, DYN, DYN});
+
+    const auto axis = op::Constant::create(element::i64, Shape{}, {1});
+    const auto split = make_shared<op::v1::Split>(data, axis, 3);
+    EXPECT_EQ(split->outputs().size(), 3);
+    EXPECT_EQ(split->get_output_partial_shape(0), (PartialShape{DYN, DYN, DYN}));
+    EXPECT_EQ(split->get_output_partial_shape(1), (PartialShape{DYN, DYN, DYN}));
+    EXPECT_EQ(split->get_output_partial_shape(2), (PartialShape{DYN, DYN, DYN}));
+    EXPECT_EQ(split->get_output_element_type(0), element::i32);
+    EXPECT_EQ(split->get_output_element_type(1), element::i32);
+    EXPECT_EQ(split->get_output_element_type(2), element::i32);
+}
+
+TEST(type_prop, split_v1_dynamic_rank)
+{
+    const auto data = make_shared<op::Parameter>(element::i32, PartialShape::dynamic());
+
+    const auto axis = op::Constant::create(element::i64, Shape{}, {1});
+    const auto split = make_shared<op::v1::Split>(data, axis, 2);
+    EXPECT_EQ(split->outputs().size(), 2);
+    EXPECT_EQ(split->get_output_partial_shape(0), (PartialShape::dynamic()));
+    EXPECT_EQ(split->get_output_partial_shape(1), (PartialShape::dynamic()));
+    EXPECT_EQ(split->get_output_element_type(0), element::i32);
+    EXPECT_EQ(split->get_output_element_type(1), element::i32);
+}
+
 TEST(type_prop, split_axis_must_be_scalar)
 {
     const auto data = make_shared<op::Parameter>(element::i32, Shape{2, 6});
