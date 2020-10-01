@@ -40,6 +40,9 @@ std::shared_ptr<ngraph::Function> ConvolutionFunction::getOriginal(
 
     if (weights->cast_vector<float>().size() == 1ul) {
         auto targetShape = ngraph::Shape{ outputChannelsCount, inputChannelsCount, 1, 1 };
+        if (inputShape.size() == 5) {
+            targetShape.push_back(1ul);
+        }
         weights = as_type_ptr<ngraph::opset1::Constant>(fold<ngraph::opset1::Broadcast>(
             weights, op::Constant::create(ngraph::element::i64, Shape{ targetShape.size() }, targetShape)));
     }
@@ -57,10 +60,10 @@ std::shared_ptr<ngraph::Function> ConvolutionFunction::getOriginal(
     auto convolutionOriginal = ngraph::opset1::Convolution(
         ngraph::op::TemporaryReplaceOutputType(dequantization, element::f32).get(),
         ngraph::op::TemporaryReplaceOutputType(onWeights, element::f32).get(),
-        ngraph::Strides{ 1, 1 },
-        ngraph::CoordinateDiff{ 0, 0 },
-        ngraph::CoordinateDiff{ 0, 0 },
-        ngraph::Strides{ 1, 1 });
+        inputShape.size() == 5ul ? ngraph::Strides{ 1, 1, 1 } : ngraph::Strides{ 1, 1 },
+        inputShape.size() == 5ul ? ngraph::CoordinateDiff{ 0, 0, 0 } : ngraph::CoordinateDiff{ 0, 0 },
+        inputShape.size() == 5ul ? ngraph::CoordinateDiff{ 0, 0, 0 } : ngraph::CoordinateDiff{ 0, 0 },
+        inputShape.size() == 5ul ? ngraph::Strides{ 1, 1, 1 } : ngraph::Strides{ 1, 1 });
     std::shared_ptr<ngraph::opset1::Convolution> convolution = std::make_shared<ngraph::op::TypeRelaxed<ngraph::opset1::Convolution>>(
         convolutionOriginal,
         std::vector<element::Type>{ element::f32, element::f32 },
@@ -231,6 +234,9 @@ std::shared_ptr<ngraph::Function> ConvolutionFunction::getReference(
 
     if (weights->cast_vector<float>().size() == 1ul) {
         auto targetShape = ngraph::Shape{ outputChannelsCount, inputChannelsCount, 1, 1 };
+        if (inputShape.size() == 5) {
+            targetShape.push_back(1ul);
+        }
         weights = as_type_ptr<ngraph::opset1::Constant>(fold<ngraph::opset1::Broadcast>(
             weights, op::Constant::create(ngraph::element::i64, Shape{ targetShape.size() }, targetShape)));
     }
@@ -250,10 +256,10 @@ std::shared_ptr<ngraph::Function> ConvolutionFunction::getReference(
     auto convolutionOriginal = ngraph::opset1::Convolution(
         ngraph::op::TemporaryReplaceOutputType(deqBefore, element::f32).get(),
         ngraph::op::TemporaryReplaceOutputType(onWeights, element::f32).get(),
-        ngraph::Strides{ 1, 1 },
-        ngraph::CoordinateDiff{ 0, 0 },
-        ngraph::CoordinateDiff{ 0, 0 },
-        ngraph::Strides{ 1, 1 });
+        inputShape.size() == 5ul ? ngraph::Strides{ 1, 1, 1 } : ngraph::Strides{ 1, 1 },
+        inputShape.size() == 5ul ? ngraph::CoordinateDiff{ 0, 0, 0 } : ngraph::CoordinateDiff{ 0, 0 },
+        inputShape.size() == 5ul ? ngraph::CoordinateDiff{ 0, 0, 0 } : ngraph::CoordinateDiff{ 0, 0 },
+        inputShape.size() == 5ul ? ngraph::Strides{ 1, 1, 1 } : ngraph::Strides{ 1, 1 });
 
     std::shared_ptr<ngraph::opset1::Convolution> convolution = std::make_shared<ngraph::op::TypeRelaxed<ngraph::opset1::Convolution>>(
         convolutionOriginal,
@@ -261,7 +267,6 @@ std::shared_ptr<ngraph::Function> ConvolutionFunction::getReference(
         std::vector<element::Type>{});
 
     ngraph::pass::low_precision::NetworkHelper::setOutDataPrecisionForTypeRelaxed(convolution, precisionAfterOperation);
-
     const auto deqAfter = makeDequantization(convolution, dequantizationAfter);
     deqAfter->set_friendly_name("output");
 
