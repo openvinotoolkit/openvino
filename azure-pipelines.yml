@@ -354,7 +354,7 @@ jobs:
       testResultsFormat: 'JUnit' # Options: JUnit, NUnit, VSTest, xUnit, cTest
       testResultsFiles: '**/TEST-*.xml' 
       #searchFolder: '$(BUILD_DIR)'
-      #mergeTestResults: false # Optional
+      mergeTestResults: true # Optional
       #failTaskOnFailedTests: false # Optional
       testRunTitle: 'Pre/Post-Commit' # Optional
       buildPlatform: 'x64' # Optional
