@@ -81,13 +81,15 @@ namespace ngraph
                         m_map[LSTMInput::LSTM_INPUT_W] = ngraph::op::util::convert_lstm_node_format(
                             ng_inputs.at(1),
                             ngraph::op::util::LSTMWeightsFormat::IOFC,
-                            ngraph::op::util::LSTMWeightsFormat::FICO);
+                            ngraph::op::util::LSTMWeightsFormat::FICO,
+                            1);
                         // The recurrence weight tensor.
                         // Shape: [num_directions, 4*hidden_size, hidden_size]
                         m_map[LSTMInput::LSTM_INPUT_R] = ngraph::op::util::convert_lstm_node_format(
                             ng_inputs.at(2),
                             ngraph::op::util::LSTMWeightsFormat::IOFC,
-                            ngraph::op::util::LSTMWeightsFormat::FICO);
+                            ngraph::op::util::LSTMWeightsFormat::FICO,
+                            1);
 
                         const std::size_t hidden_size =
                             m_map[LSTMInput::LSTM_INPUT_R].get_shape().back();
@@ -109,7 +111,8 @@ namespace ngraph
                                 ngraph::op::util::convert_lstm_node_format(
                                     m_map[LSTMInput::LSTM_INPUT_B],
                                     ngraph::op::util::LSTMWeightsFormat::IOFC,
-                                    ngraph::op::util::LSTMWeightsFormat::FICO);
+                                    ngraph::op::util::LSTMWeightsFormat::FICO,
+                                    1);
                         }
                         else
                         {
