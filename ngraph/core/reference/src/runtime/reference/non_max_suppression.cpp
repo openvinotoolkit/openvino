@@ -171,10 +171,10 @@ namespace ngraph
 
                 for (size_t batch = 0; batch < num_batches; batch++)
                 {
-                    float* boxesPtr = boxes + batch * boxesStrides;
+                    float* boxesPtr = boxes_data + batch * boxesStrides;
                     for (size_t class_idx = 0; class_idx < num_classes; class_idx++)
                     {
-                        float* scoresPtr = scores + batch * scoresStrides[0] +
+                        float* scoresPtr = scores_data + batch * scoresStrides[0] +
                                            class_idx * scoresStrides[1];
                         std::vector<BoxInfo> candidate_boxes;
                         candidate_boxes.reserve(num_boxes);
@@ -212,7 +212,7 @@ namespace ngraph
 
                                 if (iou >= iou_threshold)
                                 {
-                                    should_hard_suppress = true
+                                    should_hard_suppress = true;
                                     break;
                                 }
 
@@ -224,17 +224,20 @@ namespace ngraph
 
                             next_candidate.suppress_begin_index = selected.size();
 
-                            if (!should_hard_suppress) {
-                                if (next_candidate.score == original_score) {
+                            if (!should_hard_suppress)
+                            {
+                                if (next_candidate.score == original_score)
+                                {
                                     // // Suppression has not occurred, so select next_candidate
                                     // selected.push_back(next_candidate.box_index);
                                     // selected_scores.push_back(next_candidate.score);
                                     // continue;
                                 }
-                                if (next_candidate.score > score_threshold) {
+                                if (next_candidate.score > score_threshold)
+                                {
                                     // Soft suppression has occurred and current score is still greater than
                                     // score_threshold; add next_candidate back onto priority queue.
-                                    candidate_priority_queue.push(next_candidate);
+                                    sorted_boxes.push(next_candidate);
                                 }
                             }
                         }
