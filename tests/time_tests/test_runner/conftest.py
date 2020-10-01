@@ -21,8 +21,9 @@ import pytest
 from pathlib import Path
 import yaml
 import hashlib
+from copy import deepcopy
 
-from test_runner.utils import expand_env_vars, upload_timetest_data, \
+from test_runner.utils import upload_timetest_data, \
     DATABASE, DB_COLLECTIONS
 
 
@@ -52,6 +53,12 @@ def pytest_addoption(parser):
         default=3
     )
     # TODO: add support of --mo, --omz etc. required for OMZ support
+    helpers_args_parser = parser.getgroup("test helpers")
+    helpers_args_parser.addoption(
+        "--dump_refs",
+        type=Path,
+        help="path to dump test config with references updated with statistics collected while run",
+    )
     db_args_parser = parser.getgroup("timetest database use")
     db_args_parser.addoption(
         '--db_submit',
@@ -104,7 +111,8 @@ def pytest_generate_tests(metafunc):
     parameters.
     """
     with open(metafunc.config.getoption('test_conf'), "r") as file:
-        test_cases = expand_env_vars(yaml.safe_load(file))
+        test_cases = yaml.safe_load(file)
+        TestConfDumper.fill(test_cases)
     if test_cases:
         metafunc.parametrize("instance", test_cases)
 
@@ -120,10 +128,11 @@ def pytest_make_parametrize_id(config, val, argname):
         else:
             yield d
 
-    keys = val.keys()
-    values = list(get_dict_values(val))
+    keys = ["device", "model"]
+    values = {key: val[key] for key in keys}
+    values = list(get_dict_values(values))
 
-    return "-".join(["_".join([key, val]) for key, val in zip(keys, values)])
+    return "-".join(["_".join([key, str(val)]) for key, val in zip(keys, values)])
 
 
 @pytest.mark.hookwrapper
@@ -168,3 +177,41 @@ def pytest_runtest_makereport(item, call):
             else:
                 data["status"] = "passed"
         upload_timetest_data(data, db_url, db_collection)
+
+
+class TestConfDumper:
+    """Class for preparing and dumping new test config with
+    tests' results saved as references
+
+    While run, every test case is patched with it's execution results.
+     To dump new test config, need to add these results to original records
+     as references."""
+    orig_cases = []
+    patched_cases = []
+
+    @classmethod
+    def fill(cls, test_cases: list):
+        """Fill internal fields"""
+        cls.orig_cases = deepcopy(test_cases)
+        cls.patched_cases = test_cases    # don't deepcopy() to allow cases' patching while test run
+
+    @classmethod
+    def dump(cls, path):
+        """Dump tests' cases with new references to a file"""
+        assert len(cls.orig_cases) == len(cls.patched_cases), \
+            "Number of patched cases ('{}') isn't equal to original number ('{}')"\
+                .format(len(cls.patched_cases), len(cls.orig_cases))
+        for orig_rec, patched_rec in zip(cls.orig_cases, cls.patched_cases):
+            assert all([orig_rec[key] == patched_rec[key] for key in orig_rec]), \
+                "Can't map original record to a patched record." \
+                " Dump of test config with updated references is skipped"
+            orig_rec["references"] = patched_rec.get("results", {})
+        with open(path, "w") as tconf:
+            yaml.safe_dump(cls.orig_cases, tconf)
+
+
+def pytest_sessionfinish(session):
+    """Pytest hook for session finish."""
+    new_tconf_path = session.config.getoption('dump_refs')
+    if new_tconf_path:
+        TestConfDumper.dump(new_tconf_path)
