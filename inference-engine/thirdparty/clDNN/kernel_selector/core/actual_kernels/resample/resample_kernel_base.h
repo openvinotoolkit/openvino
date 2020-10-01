@@ -16,6 +16,8 @@
 
 #include "common_kernel_base.h"
 
+#include <map>
+
 namespace kernel_selector {
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // resample_params
@@ -23,10 +25,17 @@ namespace kernel_selector {
 struct resample_params : public base_params {
     resample_params() : base_params(KernelType::RESAMPLE) {}
 
-    uint32_t pad_begin = 0;
-    uint32_t pad_end = 0;
+    std::vector<int32_t> pads_begin = {};
+    std::vector<int32_t> pads_end = {};
     uint32_t align_corners = 0;
     ResampleType resampleType = ResampleType::NEAREST_NEIGHBOR;
+    CoordinateTransformationMode coordTransMode = CoordinateTransformationMode::HALF_PIXEL;
+    NearestMode nearestMode = NearestMode::ROUND_PREFER_FLOOR;
+    ShapeCalculationMode shapeCalculationMode = ShapeCalculationMode::SIZES;
+    uint32_t antialias = 0;
+    float cube_coeff = -0.75f;
+    using AxesAndScales = std::map<InterpolateAxis, float>;
+    AxesAndScales axesAndScales;
 
     virtual ParamsKey GetParamsKey() const {
         auto k = base_params::GetParamsKey();
