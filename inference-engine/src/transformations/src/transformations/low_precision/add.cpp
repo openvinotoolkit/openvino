@@ -191,7 +191,8 @@ bool AddTransformation::transform(TransformationContext& context, ngraph::patter
     updateOutput(context, newMultiply, newAddOrSubtract);
 
     if (fullPathIndex != -1) {
-        NetworkHelper::foldDequantization(std::dynamic_pointer_cast<Node>(add), fullPathIndex);
+        std::shared_ptr<Node> node = add;
+        NetworkHelper::foldDequantization(node, fullPathIndex);
     }
 
     return true;
