@@ -141,10 +141,13 @@ void op::v1::Split::validate_and_infer_types()
     const auto axis_ps = input_value(1).get_partial_shape();
     const auto axis_et = input_value(1).get_element_type();
 
-    NODE_VALIDATION_CHECK(this,
-                          axis_ps.rank().is_static() && axis_ps.rank().get_length() == 0,
-                          "The 'axis' input is expected to be a scalar. Got: ",
-                          axis_ps);
+    if (axis_ps.rank().is_static())
+    {
+        NODE_VALIDATION_CHECK(this,
+                              axis_ps.rank().get_length() == 0,
+                              "The 'axis' input is expected to be a scalar. Got: ",
+                              axis_ps);
+    }
 
     NODE_VALIDATION_CHECK(
         this, axis_et.is_integral(), "The 'axis' input only accepts integral types");

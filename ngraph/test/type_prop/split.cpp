@@ -220,3 +220,17 @@ TEST(type_prop, split_v1_axis_not_const_data_rank_unknown)
         EXPECT_EQ(split->get_output_partial_shape(i), PartialShape::dynamic());
     }
 }
+
+TEST(type_prop, split_v1_axis_dynamic_rank)
+{
+    const auto data = make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
+    const auto axis = make_shared<op::Parameter>(element::u8, PartialShape::dynamic());
+    const size_t num_splits = 3;
+    const auto split = make_shared<op::v1::Split>(data, axis, num_splits);
+
+    EXPECT_EQ(split->outputs().size(), num_splits);
+    for (int i = 0; i < num_splits; ++i)
+    {
+        EXPECT_EQ(split->get_output_partial_shape(i), PartialShape::dynamic());
+    }
+}
