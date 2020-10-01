@@ -22,6 +22,7 @@ from pathlib import Path
 import yaml
 import hashlib
 from copy import deepcopy
+import shutil
 
 from test_runner.utils import upload_timetest_data, \
     DATABASE, DB_COLLECTIONS
@@ -102,6 +103,22 @@ def niter(request):
     return request.config.getoption('niter')
 
 # -------------------- CLI options --------------------
+
+
+@pytest.fixture(scope="function")
+def cl_cache_dir(pytestconfig):
+    """Generate directory to save OpenCL cache before test run and clean up after run.
+
+    Folder `cl_cache` should be created in a directory where tests were run. In this case
+    cache will be saved correctly. This behaviour is OS independent.
+    More: https://github.com/intel/compute-runtime/blob/master/opencl/doc/FAQ.md#how-can-cl_cache-be-enabled
+    """
+    cl_cache_dir = pytestconfig.invocation_dir / "cl_cache"
+    if cl_cache_dir.exists():
+        shutil.rmtree(cl_cache_dir)
+    cl_cache_dir.mkdir()
+    yield cl_cache_dir
+    shutil.rmtree(cl_cache_dir)
 
 
 def pytest_generate_tests(metafunc):
