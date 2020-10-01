@@ -99,7 +99,7 @@ void ConvConcatSubgraphTest::SetUp() {
         }
     }
     for (size_t conv = 0; conv < convolutionNodes.size(); conv++) {
-        convolutionNodes[conv]->get_rt_info() = setCPUInfo(inFmts, outFmts, priority);
+        convolutionNodes[conv]->get_rt_info() = makeCPUInfo(inFmts, outFmts, priority);
     }
 
     auto concat = ngraph::builder::makeConcat(ngraph::OutputVector{convolutionNodes[0], convolutionNodes[1]}, axis);

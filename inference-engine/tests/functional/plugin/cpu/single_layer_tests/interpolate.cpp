@@ -74,7 +74,7 @@ protected:
                                                                          secondaryInput,
                                                                          scalesInput,
                                                                          interpolateAttributes);
-        interpolate->get_rt_info() = CPUTestsBase::setCPUInfo(inFmts, outFmts, priority);
+        interpolate->get_rt_info() = CPUTestsBase::makeCPUInfo(inFmts, outFmts, priority);
         const ngraph::ResultVector results{std::make_shared<ngraph::opset3::Result>(interpolate)};
         function = std::make_shared<ngraph::Function>(results, params, "interpolate");
     }
