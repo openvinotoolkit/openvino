@@ -455,11 +455,11 @@ class ScaleFactorPerLayer<InferenceEngine::ConcatLayer*> {
         static std::map<std::string, size_t> restarted_counter;
         auto restartedCountIt = restarted_counter.find(concatLayer->name);
         if (restartedCountIt == restarted_counter.end()) {
-            auto pos = restarted_counter.insert({ "concatLayer->name", 0 });
+            auto pos = restarted_counter.insert({ concatLayer->name, 0 });
             restartedCountIt = pos.first;
         }
 
-        if (restartedCountIt->second % 2 == 1 && restartedCountIt->second > 2) {
+        if (((restartedCountIt->second) / 2) % 2 == 1) {
             std::reverse(inputLayers.begin(), inputLayers.end());
         }
         ++restartedCountIt->second;
@@ -552,7 +552,7 @@ class ScaleFactorPerLayer<InferenceEngine::ConcatLayer*> {
                 quantDataForConCatInput->_dst_quant.scale = sourceQuantParams->_dst_quant.scale;
             }
             if (restarLayerInfo.isConst()) {
-                gnalog() << "... warning const layer will be requantized";
+                gnalog() << "... warning const layer will be requantized\n";
                 quantDataForConCatInput->_dst_quant.scale = sourceQuantParams->_dst_quant.scale;
             }
             result = ScaleFactorUpdateResult(restartedLayer.get());

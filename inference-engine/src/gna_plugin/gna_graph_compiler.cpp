@@ -1982,7 +1982,7 @@ void GNAGraphCompiler::connectOutput(InferenceEngine::CNNLayerPtr layer, void *p
 
                                 for (auto rInput :  realConcatInputs) {
                                     if (LayerInfo(rInput.first).isInput()) {
-                                        inputDesc->bytes_allocated_for_input[rInput.first->name] += inputLayer.tensorSize;
+                                        inputDesc->bytes_allocated_for_input[rInput.first->name] += inputLayer.tensorSize + inputLayer.offset;
                                     }
                                     if (LayerInfo(rInput.first).isConcat()) {
                                         auto concatLayerInfo = concat_connection.find(rInput.first->name);
@@ -2054,13 +2054,13 @@ GNAPluginNS::ConnectionDetails GNAGraphCompiler::connectInput(CNNLayerPtr layer,
             }
             inputDesc->bytes_allocated_for_input[prevLayer->name] = num_data_bytes_in;
         }
-        //if (ALIGN(num_data_bytes_in, 64) > ALIGN(inputDesc->bytes_allocated_for_input[prevLayer->name], 64)) {
-        //    THROW_GNA_EXCEPTION
-        //            << "Layer: " << layer->name
-        //            << " Cannot bind pointer to already allocated input(" << prevLayer->name
-        //            << "), due to size_allocated=" << inputDesc->bytes_allocated_for_input[prevLayer->name]
-        //            << ", and size_requested=" << num_data_bytes_in;
-       // }
+        if (ALIGN(num_data_bytes_in, 64) > ALIGN(inputDesc->bytes_allocated_for_input[prevLayer->name], 64)) {
+            THROW_GNA_EXCEPTION
+                    << "Layer: " << layer->name
+                    << " Cannot bind pointer to already allocated input(" << prevLayer->name
+                    << "), due to size_allocated=" << inputDesc->bytes_allocated_for_input[prevLayer->name]
+                    << ", and size_requested=" << num_data_bytes_in;
+        }
 
         if (offset >= 0) {
             gnamem->bind_ptr(ptr, &inputDesc->getPtrInputsGlobal(prevLayer->name).front(), offset);
