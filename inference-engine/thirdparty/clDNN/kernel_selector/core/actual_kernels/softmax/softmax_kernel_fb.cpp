@@ -35,13 +35,13 @@ ParamsKey SoftmaxKernel_fb::GetSupportedKey() const {
 
 SoftmaxKernel_fb::Parent::DispatchData SoftmaxKernel_fb::SetDefault(const softmax_params& params,
                                                                     const optional_params& optParams) const {
-    auto kd = Parent::SetDefault(params, optParams);
+    auto dispatchData = Parent::SetDefault(params, optParams);
     // start with 1 thread per data set
-    kd.gws0 = kd.dataSetsCount;
-    kd.gws1 = 1;
-    kd.itemsNum = kd.dataSetSize;
+    dispatchData.gws[0] = dispatchData.dataSetsCount;
+    dispatchData.gws[1] = 1;
+    dispatchData.itemsNum = dispatchData.dataSetSize;
 
-    kd.normIndex = 1;
+    dispatchData.normIndex = 1;
 
     // We have two units of data per work item in current implementation.
     auto local_mem_per_wi = 2 * BytesPerElement(params.inputs[0].GetDType());
@@ -49,22 +49,22 @@ SoftmaxKernel_fb::Parent::DispatchData SoftmaxKernel_fb::SetDefault(const softma
     auto max_lws = static_cast<std::size_t>(
         std::min(params.engineInfo.maxWorkGroupSize, params.engineInfo.maxLocalMemSize / local_mem_per_wi));
 
-    kd.lws0 = std::min(kd.dataSetsCount, max_lws);
+    dispatchData.lws[0] = std::min(dispatchData.dataSetsCount, max_lws);
     // Compute maximum possible LWS that does not exceed device capabilities and optimizes number of global memory
     // reads.
-    while ((kd.itemsNum > 32 || kd.lws0 < kd.itemsNum) && (2 * kd.lws0 <= max_lws)) {
-        kd.lws0 *= 2;
-        kd.itemsNum /= 2;
+    while ((dispatchData.itemsNum > 32 || dispatchData.lws[0] < dispatchData.itemsNum) && (2 * dispatchData.lws[0] <= max_lws)) {
+        dispatchData.lws[0] *= 2;
+        dispatchData.itemsNum /= 2;
     }
 
-    kd.gws0 = kd.lws0;
-    kd.gws1 = 1;
-    kd.leftovers = (kd.dataSetSize * kd.dataSetsCount) % kd.lws0;
+    dispatchData.gws[0] = dispatchData.lws[0];
+    dispatchData.gws[1] = 1;
+    dispatchData.leftovers = (dispatchData.dataSetSize * dispatchData.dataSetsCount) % dispatchData.lws[0];
 
-    assert(kd.itemsNum > 0 && kd.lws0 && kd.gws0 > 0);
+    assert(dispatchData.itemsNum > 0 && dispatchData.lws[0] && dispatchData.gws[0] > 0);
 
-    kd.efficiency = FORCE_PRIORITY_6;
-    return kd;
+    dispatchData.efficiency = FORCE_PRIORITY_6;
+    return dispatchData;
 }
 
 bool kernel_selector::SoftmaxKernel_fb::Validate(const Params& params, const optional_params& o) const {

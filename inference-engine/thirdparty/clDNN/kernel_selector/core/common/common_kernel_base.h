@@ -48,7 +48,7 @@ protected:
     uint32_t GetFusedPrimitiveInputsCount(const Params &params) const;
 
     void FillCLKernelData(clKernelData& kernel,
-                          const CommonDispatchData& runInfo,
+                          const CommonDispatchData& dispatchData,
                           const EngineInfo& engine_info,
                           const std::string& kernel_map_name,
                           const std::string& jit,

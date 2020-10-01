@@ -141,74 +141,65 @@ static std::string GetUpdatesIndexOrder(const scatter_update_params& params, siz
 }
 
 CommonDispatchData ScatterUpdateKernelRef::SetDefault(const scatter_update_params& params, const optional_params&, bool is_second) const {
-    CommonDispatchData runInfo;
+    CommonDispatchData dispatchData;
     const auto& output = params.output;
 
-    std::vector<size_t> global(3);
     const size_t indices_size = params.inputs[1].LogicalSize();
 
     switch (params.inputs[0].GetLayout()) {
     case DataLayout::bfyx:
-        global = {output.X().v, output.Y().v, output.Feature().v * output.Batch().v};
+        dispatchData.gws = {output.X().v, output.Y().v, output.Feature().v * output.Batch().v};
         if (is_second) {
             if (params.axis == ScatterUpdateAxis::BATCH)
-                global[2] = indices_size * output.Feature().v;
+                dispatchData.gws[2] = indices_size * output.Feature().v;
             else if (params.axis == ScatterUpdateAxis::FEATURE)
-                global[2] = indices_size * output.Batch().v;
+                dispatchData.gws[2] = indices_size * output.Batch().v;
             else if (params.axis == ScatterUpdateAxis::Y)
-                global[1] = indices_size;
+                dispatchData.gws[1] = indices_size;
             else
-                global[0] = indices_size;
+                dispatchData.gws[0] = indices_size;
         }
         break;
 
     case DataLayout::bfzyx:
-        global = {output.X().v * output.Y().v, output.Z().v, output.Feature().v * output.Batch().v};
+        dispatchData.gws = {output.X().v * output.Y().v, output.Z().v, output.Feature().v * output.Batch().v};
         if (is_second) {
             if (params.axis == ScatterUpdateAxis::BATCH)
-                global[2] = indices_size * output.Feature().v;
+                dispatchData.gws[2] = indices_size * output.Feature().v;
             else if (params.axis == ScatterUpdateAxis::FEATURE)
-                global[2] = indices_size * output.Batch().v;
+                dispatchData.gws[2] = indices_size * output.Batch().v;
             else if (params.axis == ScatterUpdateAxis::Z)
-                global[1] = indices_size;
+                dispatchData.gws[1] = indices_size;
             else if (params.axis == ScatterUpdateAxis::Y)
-                global[0] = indices_size * output.X().v;
+                dispatchData.gws[0] = indices_size * output.X().v;
             else
-                global[0] = indices_size * output.Y().v;
+                dispatchData.gws[0] = indices_size * output.Y().v;
         }
         break;
 
     case DataLayout::bfwzyx:
-        global = {output.X().v * output.Y().v, output.Z().v * output.W().v, output.Feature().v * output.Batch().v};
+        dispatchData.gws = {output.X().v * output.Y().v, output.Z().v * output.W().v, output.Feature().v * output.Batch().v};
         if (is_second) {
             if (params.axis == ScatterUpdateAxis::BATCH)
-                global[2] = indices_size * output.Feature().v;
+                dispatchData.gws[2] = indices_size * output.Feature().v;
             else if (params.axis == ScatterUpdateAxis::FEATURE)
-                global[2] = indices_size * output.Batch().v;
+                dispatchData.gws[2] = indices_size * output.Batch().v;
             else if (params.axis == ScatterUpdateAxis::Z)
-                global[1] = indices_size * output.W().v;
+                dispatchData.gws[1] = indices_size * output.W().v;
             else if (params.axis == ScatterUpdateAxis::W)
-                global[1] = indices_size * output.Z().v;
+                dispatchData.gws[1] = indices_size * output.Z().v;
             else if (params.axis == ScatterUpdateAxis::Y)
-                global[0] = indices_size * output.X().v;
+                dispatchData.gws[0] = indices_size * output.X().v;
             else
-                global[0] = indices_size * output.Y().v;
+                dispatchData.gws[0] = indices_size * output.Y().v;
         }
         break;
     default: break;
     }
 
-    std::vector<size_t> local = GetOptimalLocalWorkGroupSizes(global, params.engineInfo);
+    dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo);
 
-    runInfo.gws0 = global[0];
-    runInfo.gws1 = global[1];
-    runInfo.gws2 = global[2];
-
-    runInfo.lws0 = local[0];
-    runInfo.lws1 = local[1];
-    runInfo.lws2 = local[2];
-
-    return runInfo;
+    return dispatchData;
 }
 
 static std::string GetOutputIndexOnAxis(const scatter_update_params& params, size_t axis) {
@@ -279,7 +270,7 @@ KernelsData ScatterUpdateKernelRef::GetKernelsData(const Params& params, const o
     auto cldnn_jit = GetJitConstants(newParams);
 
     for (int i = start_with_iteration; i < 2; i++) {
-        auto runInfo = SetDefault(newParams, options, (i == 1));
+        auto dispatchData = SetDefault(newParams, options, (i == 1));
         auto entry_point = GetEntryPoint(kernelName, newParams.layerID, options);
 
         if (i == 1){
@@ -289,7 +280,7 @@ KernelsData ScatterUpdateKernelRef::GetKernelsData(const Params& params, const o
 
         clKernelData& kernel = kd.kernels[i - start_with_iteration];
 
-        FillCLKernelData(kernel, runInfo, params.engineInfo, kernelName, jit, entry_point, "", false, false, 3, GetFusedPrimitiveInputsCount(params));
+        FillCLKernelData(kernel, dispatchData, params.engineInfo, kernelName, jit, entry_point, "", false, false, 3, GetFusedPrimitiveInputsCount(params));
     }
 
     kd.estimatedTime = DONT_USE_IF_HAVE_SOMETHING_ELSE;

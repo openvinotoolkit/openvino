@@ -27,13 +27,18 @@ namespace kernel_selector {
 using primitive_db = kernel_selector::gpu::cache::primitive_db;
 
 struct CommonDispatchData {
-    // TODO: change it to std::vector<size_t>
-    size_t gws0, gws1, gws2;
-    size_t lws0, lws1, lws2;
+    std::vector<size_t> gws;
+    std::vector<size_t> lws;
     float efficiency;
 
-    CommonDispatchData() : gws0(0), gws1(0), gws2(0), lws0(0), lws1(0), lws2(0), efficiency(0.0f) {}
+    CommonDispatchData() : gws({0, 0, 0}), lws({0, 0, 0}), efficiency(0.0f) {}
 };
+
+std::string toString(const kernel_selector::CommonDispatchData& dispatchData);
+
+static inline std::ostream &operator<<(std::ostream &os, CommonDispatchData disptchData) {
+    return os << toString(disptchData);
+}
 
 class KernelBase {
 public:
@@ -65,6 +70,7 @@ protected:
     static const primitive_db db;
     const std::string kernelName;
 
+    static void CheckDispatchData(const std::string& kernelName, const kernel_selector::CommonDispatchData& dispatchData);
     static size_t UniqeID() { return counter++; }  // TODO: use interlocked
     virtual Datatype GetUnitType(const base_params& params) const;
 
