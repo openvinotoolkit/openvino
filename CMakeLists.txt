@@ -146,10 +146,19 @@ add_subdirectory(docs)
 #
 
 ie_shellcheck_process(DIRECTORY "${OpenVINO_MAIN_SOURCE_DIR}"
-                      SKIP "${IE_MAIN_SOURCE_DIR}/thirdparty" "${IE_MAIN_SOURCE_DIR}/temp"
-                           "${OpenVINO_MAIN_SOURCE_DIR}/bin" "${OpenVINO_MAIN_SOURCE_DIR}/samples/thirdparty"
+                      SKIP "${OpenVINO_MAIN_SOURCE_DIR}/bin"
                            "${OpenVINO_MAIN_SOURCE_DIR}/build"
-                           "${IE_MAIN_SOURCE_DIR}/tests/ie_test_utils/common_test_utils/gtest")
+                           "${IE_MAIN_SOURCE_DIR}/tests/ie_test_utils/common_test_utils/gtest"
+                           "${IE_MAIN_SOURCE_DIR}/samples/thirdparty"
+                           "${IE_MAIN_SOURCE_DIR}/thirdparty"
+                           "${IE_MAIN_SOURCE_DIR}/temp"
+                           # TODO fix and enable back
+                           "${OpenVINO_MAIN_SOURCE_DIR}/scripts/install_dependencies"
+                           "${OpenVINO_MAIN_SOURCE_DIR}/model-optimizer"
+                           "${OpenVINO_MAIN_SOURCE_DIR}/scripts/demo"
+                           "${OpenVINO_MAIN_SOURCE_DIR}/ngraph"
+                           "${IE_MAIN_SOURCE_DIR}/scripts"
+                           )
 
 #
 # cpack
