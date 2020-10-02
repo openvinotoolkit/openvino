@@ -64,7 +64,7 @@ protected:
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
         auto params = ngraph::builder::makeParams(ngPrc, {shapes.first});
         auto activation = ngraph::builder::makeActivation(params[0], ngPrc, activationType, shapes.second, constantsValue);
-        activation->get_rt_info() = CPUTestsBase::makeCPUInfo(inFmts, outFmts, priority);
+        activation->get_rt_info() = getCPUInfo();
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{activation}, params, "Activation");
     }
 };
@@ -73,7 +73,7 @@ TEST_P(ActivationLayerCPUTest, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
     Run();
-    CheckCPUImpl(executableNetwork, "Eltwise", inFmts, outFmts, selectedType);
+    CheckCPUImpl(executableNetwork, "Eltwise");
 }
 
 

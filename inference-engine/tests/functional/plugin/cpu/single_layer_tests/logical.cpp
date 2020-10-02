@@ -73,7 +73,7 @@ protected:
             logicalNode = ngraph::builder::makeLogical(inputs[0], ngraph::Output<ngraph::Node>(), logicalOpType);
         }
 
-        logicalNode->get_rt_info() = CPUTestsBase::makeCPUInfo(inFmts, outFmts, priority);
+        logicalNode->get_rt_info() = getCPUInfo();
 
         function = std::make_shared<ngraph::Function>(logicalNode, inputs, "Logical");
     }
@@ -83,7 +83,7 @@ TEST_P(LogicalLayerCPUTest, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
     Run();
-    CheckCPUImpl(executableNetwork, "Eltwise", inFmts, outFmts, selectedType);
+    CheckCPUImpl(executableNetwork, "Eltwise");
 }
 
 namespace {

@@ -115,7 +115,7 @@ protected:
         }
 
         auto eltwise = ngraph::builder::makeEltwise(input[0], secondaryInput, eltwiseType);
-        eltwise->get_rt_info() = CPUTestsBase::makeCPUInfo(inFmts, outFmts, priority);
+        eltwise->get_rt_info() = getCPUInfo();
         function = std::make_shared<ngraph::Function>(eltwise, input, "Eltwise");
     }
 };
@@ -124,7 +124,7 @@ TEST_P(EltwiseLayerCPUTest, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
     Run();
-    CheckCPUImpl(executableNetwork, "Eltwise", inFmts, outFmts, selectedType);
+    CheckCPUImpl(executableNetwork, "Eltwise");
 }
 
 namespace {
