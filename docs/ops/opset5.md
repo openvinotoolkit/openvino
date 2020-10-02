@@ -54,6 +54,7 @@ declared in `namespace opset5`.
 * [Floor](arithmetic/Floor_1.md)
 * [FloorMod](arithmetic/FloorMod_1.md)
 * [Gather](movement/Gather_1.md)
+* [GatherND_5](movement/GatherND_5.md)
 * [GatherTree](movement/GatherTree_1.md)
 * [Gelu](activation/GELU_2.md)
 * [Greater](comparison/Greater_1.md)
