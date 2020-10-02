@@ -16,7 +16,6 @@
 
 
 #include <algorithm>
-#include <array>
 #include <cmath>
 #include <vector>
 #include <queue>
@@ -154,31 +153,28 @@ namespace ngraph
 
                 // boxes shape: {num_batches, num_boxes, 4}
                 // scores shape: {num_batches, num_classes, num_boxes}
-                size_t num_batches = scores_data_shape[0];
-                size_t num_classes = scores_data_shape[1];
-                size_t num_boxes = boxes_data_shape[1];
+                int64_t num_batches = static_cast<int64_t>(scores_data_shape[0]);
+                int64_t num_classes = static_cast<int64_t>(scores_data_shape[1]);
+                int64_t num_boxes = static_cast<int64_t>(boxes_data_shape[1]);
 
                 SelectedIndex* selected_indices_ptr =
                     reinterpret_cast<SelectedIndex*>(selected_indices);
                 SelectedScore* selected_scores_ptr =
                     reinterpret_cast<SelectedScore*>(selected_scores);
 
-                size_t boxesStrides = num_boxes * 4;
-                std::array<size_t, 2> scoresStrides = {num_classes * num_boxes, num_boxes};
-
                 size_t boxes_per_class = static_cast<size_t>(max_output_boxes_per_class);
 
                 int64_t num_of_valid_boxes = 0;
 
-                for (size_t batch = 0; batch < num_batches; batch++)
+                for (int64_t batch = 0; batch < num_batches; batch++)
                 {
-                    const float* boxesPtr = boxes_data + batch * boxesStrides;
+                    const float* boxesPtr = boxes_data + batch * num_boxes * 4;
                     Rectangle* r = reinterpret_cast<Rectangle*>(const_cast<float*>(boxesPtr));
 
-                    for (size_t class_idx = 0; class_idx < num_classes; class_idx++)
+                    for (int64_t class_idx = 0; class_idx < num_classes; class_idx++)
                     {
-                        const float* scoresPtr = scores_data + batch * scoresStrides[0] +
-                                                 class_idx * scoresStrides[1];
+                        const float* scoresPtr = scores_data + batch * (num_classes * num_boxes) +
+                                                 class_idx * num_boxes;
 
                         std::vector<BoxInfo> candidate_boxes;
                         candidate_boxes.reserve(num_boxes);
@@ -232,7 +228,7 @@ namespace ngraph
                                 if (next_candidate.score == original_score)
                                 {
                                     // Suppression has not occurred, so select next_candidate
-                                    selected.push_back(next_candidate.index);
+                                    selected.push_back(next_candidate);
                                     continue;
                                 }
                                 if (next_candidate.score > score_threshold)
