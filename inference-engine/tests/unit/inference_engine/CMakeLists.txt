@@ -12,17 +12,25 @@ else()
     add_definitions(-DUSE_OPENCV)
 endif()
 
+set(DEPENDENCIES mock_engine)
+
+if (NGRAPH_ONNX_IMPORT_ENABLE)
+    set(DEPENDENCIES ${DEPENDENCIES} template_extension)
+else()
+    set(EXCLUDED_SOURCE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/extension)
+endif()
+
+
 addIeTargetTest(
         NAME ${TARGET_NAME}
         ROOT ${CMAKE_CURRENT_SOURCE_DIR}
+        EXCLUDED_SOURCE_DIRS ${EXCLUDED_SOURCE_DIRS}
         LINK_LIBRARIES
             unitTestUtils
             inference_engine_transformations
             ${OpenCV_LIBRARIES}
         ADD_CPPLINT
-        DEPENDENCIES
-            template_extension
-            mock_engine
+        DEPENDENCIES ${DEPENDENCIES}
         LABELS
             IE
 )

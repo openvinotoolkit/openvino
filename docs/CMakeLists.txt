@@ -17,8 +17,10 @@ if(NOT ENABLE_DOCKER)
         set(InferenceEngine_DIR ${CMAKE_BINARY_DIR})
     endif()
 
-    add_subdirectory(onnx_custom_op)
-    add_subdirectory(template_extension)
+    if (NGRAPH_ONNX_IMPORT_ENABLE)
+        add_subdirectory(onnx_custom_op)
+        add_subdirectory(template_extension)
+    endif()
 
     set(all_docs_targets
         ie_docs_examples

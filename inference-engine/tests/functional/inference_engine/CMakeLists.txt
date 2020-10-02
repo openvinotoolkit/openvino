@@ -5,27 +5,35 @@
 
 set(TARGET_NAME ieFuncTests)
 
+set(LINK_LIBRARIES
+    gmock
+    funcTestUtils
+    ngraphFunctions
+    inference_engine_transformations
+)
+set(DEPENDENCIES
+    mock_engine
+    inference_engine_ir_reader
+    inference_engine_ir_v7_reader
+)
+
+if (NGRAPH_ONNX_IMPORT_ENABLE)
+    set(LINK_LIBRARIES ${LINK_LIBRARIES} onnx_importer)
+    set(DEPENDENCIES ${DEPENDENCIES} onnx_importer template_extension)
+else()
+    set(EXCLUDED_SOURCE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/extension)
+endif()
+
 addIeTargetTest(
         NAME ${TARGET_NAME}
         ROOT ${CMAKE_CURRENT_SOURCE_DIR}
         INCLUDES
             # TODO: remove after removing `cnn_network_ngraph_imp.hpp`
             ${IE_MAIN_SOURCE_DIR}/src/inference_engine
-        EXCLUDED_SOURCE_DIRS
-            ${CMAKE_CURRENT_SOURCE_DIR}/extension_lib
-        LINK_LIBRARIES
-            gmock
-            funcTestUtils
-            ngraphFunctions
-            inference_engine_transformations
-            onnx_importer
+        EXCLUDED_SOURCE_DIRS ${EXCLUDED_SOURCE_DIRS}
+        LINK_LIBRARIES ${LINK_LIBRARIES}
         ADD_CPPLINT
-        DEPENDENCIES
-            template_extension
-            mock_engine
-            inference_engine_ir_reader
-            inference_engine_ir_v7_reader
-            onnx_importer
+        DEPENDENCIES ${DEPENDENCIES}
         LABELS
             IE
 )
