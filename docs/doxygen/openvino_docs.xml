@@ -4,8 +4,8 @@
         <tab type="mainpage" title="OpenVINO Home" url="@ref index"/>
         
         <!-- GET STARTED category -->
-        <tab type="usergroup" title="GET STARTED" url="@ref index">
-            <tab type="user" title="OpenVINO Toolkit Overview" url="@ref index"/>
+        <tab type="usergroup" title="GET STARTED" url="index.html">
+            <tab type="user" title="OpenVINO Toolkit Overview" url="index.html"/>
             <!-- Install Directly -->
             <tab type="usergroup" title="Install Directly" url=""><!--automatically generated-->
                 <tab type="user" title="Linux" url="@ref openvino_docs_install_guides_installing_openvino_linux"/>
