@@ -64,9 +64,7 @@ std::string CPUTestsBase::impls2str(const std::vector<std::string> &priority) {
     return str;
 }
 
-void CPUTestsBase::CheckCPUImpl(InferenceEngine::ExecutableNetwork &execNet, std::string nodeType,
-                                std::vector<cpu_memory_format_t> inputMemoryFormats,
-                                std::vector<cpu_memory_format_t> outputMemoryFormats, std::string selectedType) {
+void CPUTestsBase::CheckCPUImpl(InferenceEngine::ExecutableNetwork &execNet, std::string nodeType) const {
     IE_SUPPRESS_DEPRECATED_START
     ASSERT_TRUE(!selectedType.empty()) << "Node type is not defined.";
     bool isNodeFound = false;
@@ -93,20 +91,20 @@ void CPUTestsBase::CheckCPUImpl(InferenceEngine::ExecutableNetwork &execNet, std
 
         if (getExecValue(ExecGraphInfoSerialization::LAYER_TYPE) == nodeType) {
             isNodeFound = true;
-            ASSERT_LE(inputMemoryFormats.size(), node->get_input_size());
-            ASSERT_LE(outputMemoryFormats.size(), node->get_output_size());
-            for (int i = 0; i < inputMemoryFormats.size(); i++) {
+            ASSERT_LE(inFmts.size(), node->get_input_size());
+            ASSERT_LE(outFmts.size(), node->get_output_size());
+            for (int i = 0; i < inFmts.size(); i++) {
                 const auto parentPort = node->input_values()[i];
                 const auto port = node->inputs()[i];
                 if ((parentPort.get_tensor_ptr() == port.get_tensor_ptr())) {
                     auto parentNode = parentPort.get_node_shared_ptr();
                     auto actualInputMemoryFormat = getExecValueOutputsLayout(parentNode);
-                    ASSERT_EQ(inputMemoryFormats[i], cpu_str2fmt(actualInputMemoryFormat.c_str()));
+                    ASSERT_EQ(inFmts[i], cpu_str2fmt(actualInputMemoryFormat.c_str()));
                 }
             }
-            for (int i = 0; i < outputMemoryFormats.size(); i++) {
+            for (int i = 0; i < outFmts.size(); i++) {
                 auto actualOutputMemoryFormat = getExecValue(ExecGraphInfoSerialization::OUTPUT_LAYOUTS);
-                ASSERT_EQ(outputMemoryFormats[i], cpu_str2fmt(actualOutputMemoryFormat.c_str()));
+                ASSERT_EQ(outFmts[i], cpu_str2fmt(actualOutputMemoryFormat.c_str()));
             }
             auto primType = getExecValue(ExecGraphInfoSerialization::IMPL_TYPE);
             ASSERT_EQ(selectedType, primType);
@@ -122,9 +120,9 @@ std::string CPUTestsBase::getTestCaseName(CPUSpecificParams params) {
     std::vector<std::string> priority;
     std::string selectedType;
     std::tie(inFmts, outFmts, priority, selectedType) = params;
-//    if (!inFmts.empty()) {
+    if (!inFmts.empty()) {
         result << "_inFmts=" << fmts2str(inFmts);
-//    }
+    }
     if (!outFmts.empty()) {
         result << "_outFmts=" << fmts2str(outFmts);
     }
@@ -134,9 +132,7 @@ std::string CPUTestsBase::getTestCaseName(CPUSpecificParams params) {
     return result.str();
 }
 
-std::map<std::string, std::shared_ptr<ngraph::Variant>> CPUTestsBase::makeCPUInfo(std::vector<cpu_memory_format_t> inFmts,
-                                                                                 std::vector<cpu_memory_format_t> outFmts,
-                                                                                 std::vector<std::string> priority) {
+std::map<std::string, std::shared_ptr<ngraph::Variant>> CPUTestsBase::getCPUInfo() const {
     std::map<std::string, std::shared_ptr<ngraph::Variant>> cpuInfo;
 
     if (!inFmts.empty()) {

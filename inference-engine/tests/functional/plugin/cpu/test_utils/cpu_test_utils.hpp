@@ -37,18 +37,14 @@ namespace CPUTestUtils {
 
 class CPUTestsBase {
 public:
-    static void CheckCPUImpl(InferenceEngine::ExecutableNetwork &execNet, std::string nodeType, std::vector<cpu_memory_format_t> inputMemoryFormats,
-                      std::vector<cpu_memory_format_t> outputMemoryFormats, std::string selectedType);
-
     static std::string getTestCaseName(CPUSpecificParams params);
-
-    static std::map<std::string, std::shared_ptr<ngraph::Variant>> makeCPUInfo(std::vector<cpu_memory_format_t> inFmts,
-                                                                               std::vector<cpu_memory_format_t> outFmts,
-                                                                               std::vector<std::string> priority);
     static const char *cpu_fmt2str(cpu_memory_format_t v);
     static cpu_memory_format_t cpu_str2fmt(const char *str);
     static std::string fmts2str(const std::vector<cpu_memory_format_t> &fmts);
     static std::string impls2str(const std::vector<std::string> &priority);
+
+    std::map<std::string, std::shared_ptr<ngraph::Variant>> getCPUInfo() const;
+    void CheckCPUImpl(InferenceEngine::ExecutableNetwork &execNet, std::string nodeType) const;
 
 protected:
     std::vector<cpu_memory_format_t> inFmts, outFmts;
