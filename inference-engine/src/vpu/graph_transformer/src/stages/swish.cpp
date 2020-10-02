@@ -23,6 +23,9 @@ private:
 
         serializer.append(static_cast<float>(beta));
     }
+    StageSHAVEsRequirements getSHAVEsRequirementsImpl() const override {
+        return StageSHAVEsRequirements::NeedMax;
+    }
 };
 
 }  // namespace
