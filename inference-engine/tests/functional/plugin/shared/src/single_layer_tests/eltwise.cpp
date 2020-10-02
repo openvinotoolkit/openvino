@@ -92,11 +92,6 @@ void EltwiseLayerTest::SetUp() {
         eltwiseType == ngraph::helpers::EltwiseTypes::MOD) {
         std::vector<float> data(ngraph::shape_size(shape_input_secondary));
         data = NGraphFunctions::Utils::generateVector<ngraph::element::Type_t::f32>(ngraph::shape_size(shape_input_secondary), 10, 2);
-        for (float &i : data) {
-            if (i == 0) {
-                i = 1;
-            }
-        }
         secondaryInput = ngraph::builder::makeConstant(ngPrc, shape_input_secondary, data);
     } else {
         secondaryInput = ngraph::builder::makeInputLayer(ngPrc, secondaryInputType, shape_input_secondary);
