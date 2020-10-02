@@ -14,8 +14,8 @@
 // limitations under the License.
 //*****************************************************************************
 
-#include <cstring>
 #include "ngraph/op/non_max_suppression.hpp"
+#include <cstring>
 #include "ngraph/attribute_visitor.hpp"
 #include "ngraph/op/constant.hpp"
 #include "ngraph/op/util/op_types.hpp"
@@ -952,7 +952,7 @@ static void normalize_center(float* boxes, const Shape& boxes_shape)
             float y1 = y_center - height / 2.0;
             float x1 = x_center - width / 2.0;
             float y2 = y_center + height / 2.0;
-            float x2 = x_center + width / 2.0;;
+            float x2 = x_center + width / 2.0;
 
             box_ptr[0] = y1;
             box_ptr[1] = x1;
@@ -964,9 +964,8 @@ static void normalize_center(float* boxes, const Shape& boxes_shape)
     }
 }
 
-static void normalize_box_encoding(float* boxes,
-                                   const Shape& boxes_shape,
-                                   const V5BoxEncoding box_encoding)
+static void
+    normalize_box_encoding(float* boxes, const Shape& boxes_shape, const V5BoxEncoding box_encoding)
 {
     if (box_encoding == V5BoxEncoding::CORNER)
     {
@@ -1134,11 +1133,8 @@ bool op::v5::NonMaxSuppression::evaluate(const HostTensorVector& outputs,
                                             &valid_outputs,
                                             m_sort_result_descending);
 
-    evaluate_postprocessing(outputs,
-                            m_output_type,
-                            selected_indices,
-                            selected_scores,
-                            valid_outputs);
+    evaluate_postprocessing(
+        outputs, m_output_type, selected_indices, selected_scores, valid_outputs);
 
     return true;
 }

@@ -15,11 +15,11 @@
 //*****************************************************************************
 
 
+#include "ngraph/op/non_max_suppression.hpp"
 #include <algorithm>
 #include <cmath>
-#include <vector>
 #include <queue>
-#include "ngraph/op/non_max_suppression.hpp"
+#include <vector>
 #include "ngraph/runtime/reference/non_max_suppression.hpp"
 #include "ngraph/shape.hpp"
 
@@ -33,8 +33,8 @@ struct Rectangle
         , x1{x_left}
         , y2{y_right}
         , x2{x_right}
-        {
-        }
+    {
+    }
 
     Rectangle() = default;
 
@@ -60,41 +60,41 @@ static float intersectionOverUnion(const Rectangle& boxI, const Rectangle& boxJ)
     float intersection_xmax = std::min(boxI.x2, boxJ.x2);
 
     float intersection_area = std::max(intersection_ymax - intersection_ymin, 0.0f) *
-        std::max(intersection_xmax - intersection_xmin, 0.0f);
+                              std::max(intersection_xmax - intersection_xmin, 0.0f);
 
     return intersection_area / (areaI + areaJ - intersection_area);
 }
 
 struct SelectedIndex
 {
-  SelectedIndex(int64_t batch_idx, int64_t class_idx, int64_t box_idx)
-      : batch_index(batch_idx)
-      , class_index(class_idx)
-      , box_index(box_idx)
-      {
-      }
+    SelectedIndex(int64_t batch_idx, int64_t class_idx, int64_t box_idx)
+        : batch_index(batch_idx)
+        , class_index(class_idx)
+        , box_index(box_idx)
+    {
+    }
 
-  SelectedIndex() = default;
+    SelectedIndex() = default;
 
-  int64_t batch_index = 0;
-  int64_t class_index = 0;
-  int64_t box_index = 0;
+    int64_t batch_index = 0;
+    int64_t class_index = 0;
+    int64_t box_index = 0;
 };
 
 struct SelectedScore
 {
-  SelectedScore(float batch_idx, float class_idx, float score)
-      : batch_index{batch_idx}
-      , class_index{class_idx}
-      , box_score{score}
-      {
-      }
+    SelectedScore(float batch_idx, float class_idx, float score)
+        : batch_index{batch_idx}
+        , class_index{class_idx}
+        , box_score{score}
+    {
+    }
 
-  SelectedScore() = default;
+    SelectedScore() = default;
 
-  float batch_index = 0.0f;
-  float class_index = 0.0f;
-  float box_score = 0.0f;
+    float batch_index = 0.0f;
+    float class_index = 0.0f;
+    float box_score = 0.0f;
 };
 
 struct BoxInfo
@@ -142,7 +142,8 @@ namespace ngraph
                                      const bool sort_result_descending)
             {
                 float scale = 0.0f;
-                if (soft_nms_sigma > 0.0f) {
+                if (soft_nms_sigma > 0.0f)
+                {
                     scale = - 0.5f / soft_nms_sigma;
                 }
 
@@ -173,8 +174,8 @@ namespace ngraph
 
                     for (int64_t class_idx = 0; class_idx < num_classes; class_idx++)
                     {
-                        const float* scoresPtr = scores_data + batch * (num_classes * num_boxes) +
-                                                 class_idx * num_boxes;
+                        const float* scoresPtr =
+                            scores_data + batch * (num_classes * num_boxes) + class_idx * num_boxes;
 
                         std::vector<BoxInfo> candidate_boxes;
                         candidate_boxes.reserve(num_boxes);
@@ -183,7 +184,8 @@ namespace ngraph
                         {
                             if (scoresPtr[box_idx] > score_threshold)
                             {
-                                candidate_boxes.emplace_back(r[box_idx], box_idx, scoresPtr[box_idx], 0);
+                                candidate_boxes.emplace_back(
+                                    r[box_idx], box_idx, scoresPtr[box_idx], 0);
                             }
                         }
 
@@ -204,9 +206,11 @@ namespace ngraph
 
                             bool should_hard_suppress = false;
                             for (int64_t j = static_cast<int64_t>(selected.size()) - 1;
-                                 j >= next_candidate.suppress_begin_index; --j)
+                                 j >= next_candidate.suppress_begin_index;
+                                 --j)
                             {
-                                float iou = intersectionOverUnion(next_candidate.box, selected[j].box);
+                                float iou =
+                                    intersectionOverUnion(next_candidate.box, selected[j].box);
                                 next_candidate.score *= func(iou);
 
                                 if (iou >= iou_threshold)
@@ -227,14 +231,11 @@ namespace ngraph
                             {
                                 if (next_candidate.score == original_score)
                                 {
-                                    // Suppression has not occurred, so select next_candidate
                                     selected.push_back(next_candidate);
                                     continue;
                                 }
                                 if (next_candidate.score > score_threshold)
                                 {
-                                    // Soft suppression has occurred and current score is still greater than
-                                    // score_threshold; add next_candidate back onto priority queue.
                                     sorted_boxes.push(next_candidate);
                                 }
                             }
@@ -244,7 +245,8 @@ namespace ngraph
                         {
                             SelectedIndex selected_index{batch, class_idx, box_info.index};
                             SelectedScore selected_score{static_cast<float>(batch),
-                                static_cast<float>(class_idx), box_info.score};
+                                                         static_cast<float>(class_idx),
+                                                         box_info.score};
 
                             selected_indices_ptr[num_of_valid_boxes] = selected_index;
                             selected_scores_ptr[num_of_valid_boxes] = selected_score;
