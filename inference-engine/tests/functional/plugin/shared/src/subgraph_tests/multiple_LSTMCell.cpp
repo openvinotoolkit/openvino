@@ -89,9 +89,11 @@ void MultipleLSTMCellTest::SetUp() {
 
     auto cell_memory_constant = ngraph::builder::makeConstant<float>(ngPrc, cell_memory_dims, cell_memory_init);
     auto cell_memory_read = std::make_shared<ngraph::op::ReadValue>(cell_memory_constant, "cell_memory");
+    cell_memory_read->set_friendly_name("cell_memory");
 
     auto hidden_memory_constant = ngraph::builder::makeConstant<float>(ngPrc, hidden_memory_dims, hidden_memory_init);
     auto hidden_memory_read = std::make_shared<ngraph::op::ReadValue>(hidden_memory_constant, "hidden_memory");
+    hidden_memory_read->set_friendly_name("hidden_memory");
 
     // Body - inputs
     auto X = std::make_shared<ngraph::op::Parameter>(ngPrc, ngraph::Shape{1, 1, inputSize});
@@ -142,9 +144,11 @@ void MultipleLSTMCellTest::SetUp() {
     // Second TI
     auto cell_memory_2_constant = ngraph::builder::makeConstant<float>(ngPrc, cell_memory_dims, cell_memory_init);
     auto cell_memory_2_read = std::make_shared<ngraph::op::ReadValue>(cell_memory_2_constant, "cell_memory_2");
+    cell_memory_2_read->set_friendly_name("cell_memory_2");
 
     auto hidden_memory_2_constant = ngraph::builder::makeConstant<float>(ngPrc, hidden_memory_dims, hidden_memory_init);
     auto hidden_memory_2_read = std::make_shared<ngraph::op::ReadValue>(hidden_memory_2_constant, "hidden_memory_2");
+    hidden_memory_2_read->set_friendly_name("hidden_memory_2");
 
     // Body - inputs
     auto X_2 = std::make_shared<ngraph::op::Parameter>(ngPrc, ngraph::Shape{1, 1, hiddenSize});
@@ -278,25 +282,27 @@ void MultipleLSTMCellTest::switchToNgraphFriendlyModel() {
 
 void MultipleLSTMCellTest::Run() {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
-
+    InferenceEngine::TensorDesc state_description(InferenceEngine::Precision::FP32,
+                                                  InferenceEngine::SizeVector({1, hiddenSize}),
+                                                  InferenceEngine::Layout::NC);
     LoadNetwork();
     auto states = executableNetwork.QueryState();
     for (auto& state : states) {
         auto name = state.GetName();
         if (name == "cell_memory") {
-            auto blob = FuncTestUtils::createAndFillBlobWithFloatArray(state.GetLastState()->getTensorDesc(),
+            auto blob = FuncTestUtils::createAndFillBlobWithFloatArray(state_description,
                                                                        cell_memory_init.data(), cell_memory_init.size());
             state.SetState(blob);
         } else if (name == "hidden_memory") {
-            auto blob = FuncTestUtils::createAndFillBlobWithFloatArray(state.GetLastState()->getTensorDesc(),
+            auto blob = FuncTestUtils::createAndFillBlobWithFloatArray(state_description,
                                                                        hidden_memory_init.data(), hidden_memory_init.size());
             state.SetState(blob);
         } else if (name == "cell_memory_2") {
-            auto blob = FuncTestUtils::createAndFillBlobWithFloatArray(state.GetLastState()->getTensorDesc(),
+            auto blob = FuncTestUtils::createAndFillBlobWithFloatArray(state_description,
                 cell_memory_init.data(), cell_memory_init.size());
             state.SetState(blob);
         } else if (name == "hidden_memory_2") {
-            auto blob = FuncTestUtils::createAndFillBlobWithFloatArray(state.GetLastState()->getTensorDesc(),
+            auto blob = FuncTestUtils::createAndFillBlobWithFloatArray(state_description,
                 hidden_memory_init.data(), hidden_memory_init.size());
             state.SetState(blob);
         } else {
