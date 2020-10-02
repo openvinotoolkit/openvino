@@ -130,16 +130,13 @@ VVVF<OutputT> reference_convolve(VVVVF<InputT> &input, VVVVF<WeightsT> &filter,
                                     weights_val = static_cast<AccT>(filter[f][zf][yf][xf]);
                                 } else if (grouped) {
                                     weights_val = static_cast<AccT>(filter[f - filter_begin][zf][yf][xf]);
-                                }
-                                else {
+                                } else {
                                     weights_val = static_cast<AccT>(filter[0][zf][yf][xf]);
                                 }
 
                                 if (asymm_weights) {
                                     weights_val = weights_val - static_cast<AccT>(weights_zp);
                                 }
-
-                                //std::cout << std::endl << "f=" << f << ", z=" << z << ", y=" << y << ", x=" << x << ", zf=" << zf << ", yf=" << yf << ", xf=" << xf << ": " << (int)input_val << " * " << (int)weights_val;
 
                                 values.push_back(input_val * weights_val);
                             }
