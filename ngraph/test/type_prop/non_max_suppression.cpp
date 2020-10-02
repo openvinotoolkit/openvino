@@ -547,3 +547,35 @@ TEST(type_prop, nms_v4_dynamic_boxes_and_scores)
     ASSERT_TRUE(
         nms->get_output_partial_shape(0).same_scheme(PartialShape{Dimension::dynamic(), 3}));
 }
+
+// ------------------------------ V5 ------------------------------
+
+TEST(type_prop, nms_v5_incorrect_boxes_rank)
+{
+    try
+    {
+        const auto boxes = make_shared<op::Parameter>(element::f32, Shape{1, 2, 3, 4});
+        const auto scores = make_shared<op::Parameter>(element::f32, Shape{1, 2, 3});
+
+        make_shared<op::v5::NonMaxSuppression>(boxes, scores);
+    }
+    catch (const NodeValidationFailure& error)
+    {
+        EXPECT_HAS_SUBSTRING(error.what(), "Expected a 3D tensor for the 'boxes' input");
+    }
+}
+
+TEST(type_prop, nms_v5_incorrect_scores_rank)
+{
+    try
+    {
+        const auto boxes = make_shared<op::Parameter>(element::f32, Shape{1, 2, 3});
+        const auto scores = make_shared<op::Parameter>(element::f32, Shape{1, 2});
+
+        make_shared<op::v5::NonMaxSuppression>(boxes, scores);
+    }
+    catch (const NodeValidationFailure& error)
+    {
+        EXPECT_HAS_SUBSTRING(error.what(), "Expected a 3D tensor for the 'scores' input");
+    }
+}
