@@ -119,15 +119,13 @@ KERNEL(eltwise)(
 #if HAS_FUSED_OPS
     FUSED_OPS;
     OUTPUT_TYPE out = FUSED_OPS_RESULT;
-#elif QUANTIZATION_TERM && !OUTPUT_IS_FP
-    OUTPUT_TYPE out = TO_OUTPUT_TYPE(ACTIVATION(res, ACTIVATION_PARAMS));
 #else
-    OUTPUT_TYPE out = TO_OUTPUT_TYPE(ACTIVATION_TYPED(res, ACTIVATION_PARAMS_TYPED));
+    #define out res
 #endif
 
 #if QUANTIZATION_TERM && !OUTPUT_IS_FP
-    output[output_offset] = TO_OUTPUT_TYPE_SAT(out);
+    output[output_offset] = TO_OUTPUT_TYPE_SAT(ACTIVATION(out, ACTIVATION_PARAMS));
 #else
-    output[output_offset] = out;
+    output[output_offset] = ACTIVATION_TYPED(out, ACTIVATION_PARAMS_TYPED);
 #endif
 }
