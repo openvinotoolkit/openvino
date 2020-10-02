@@ -171,10 +171,10 @@ audio "glitches". To make sure that processing can satisfy real time requirement
 schedule, thereby causing long running GNA tasks to terminate early.
 
 Applications should be prepared for this situation.
-If an inference (in `GNA_HW` mode) cannot be executed because of such interruption, then `InferRequest::Wait()` will return status code
+If an inference (in `GNA_HW` mode) cannot be executed because of such an interruption, then `InferRequest::Wait()` will return status code
 `StatusCode::INFER_NOT_STARTED` (note that it will be changed to a more meaningful status code in future releases).
 
-Any application working with GNA must properly react if receives this code. Various strategies are possible.
+Any application working with GNA must properly react if it receives this code. Various strategies are possible.
 One of the options is to immediately switch to GNA SW emulation mode:
 
 ```cpp
@@ -184,7 +184,7 @@ executableNet.SetConfig(newConfig);
 
 ```
 
-and switch back to GNA_HW after some time hoping that the competing application has finished.
+then resubmit and switch back to GNA_HW after some time hoping that the competing application has finished.
 
 ## See Also
 
