@@ -41,7 +41,7 @@ namespace {
             {"GNA_SCALE_FACTOR_2", "1"}
     };
 
-    INSTANTIATE_TEST_CASE_P(cascade_concat, CascadeConcat,
+    INSTANTIATE_TEST_CASE_P(smoke_cascade_concat, CascadeConcat,
                             ::testing::Combine(
                                     ::testing::ValuesIn(shape1),
                                     ::testing::ValuesIn(shape2),
@@ -52,7 +52,7 @@ namespace {
                                     ::testing::Values(additional_config)),
                             CascadeConcat::getTestCaseName);
 
-    INSTANTIATE_TEST_CASE_P(cascade_concat_multioutput, CascadeConcat,
+    INSTANTIATE_TEST_CASE_P(smoke_cascade_concat_multioutput, CascadeConcat,
                             ::testing::Combine(
                                     ::testing::ValuesIn(shape1),
                                     ::testing::ValuesIn(shape2),

@@ -56,7 +56,7 @@ const auto fqParams = ::testing::Combine(
     ::testing::ValuesIn(inputParams)
 );
 
-INSTANTIATE_TEST_CASE_P(FakeQuantize, FakeQuantizeLayerTest,
+INSTANTIATE_TEST_CASE_P(smoke_FakeQuantize, FakeQuantizeLayerTest,
     ::testing::Combine(
     fqParams,
     ::testing::ValuesIn(netPrecisions),

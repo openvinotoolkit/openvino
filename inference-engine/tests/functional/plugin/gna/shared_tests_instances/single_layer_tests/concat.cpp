@@ -24,7 +24,7 @@ std::vector<InferenceEngine::Precision> netPrecisions = {InferenceEngine::Precis
                                                          InferenceEngine::Precision::FP16};
 
 // TODO: Issue:  26421
-INSTANTIATE_TEST_CASE_P(DISABLED_NoReshape, ConcatLayerTest,
+INSTANTIATE_TEST_CASE_P(DISABLED_smoke_NoReshape, ConcatLayerTest,
                         ::testing::Combine(
                                 ::testing::ValuesIn(axes),
                                 ::testing::ValuesIn(inShapes),

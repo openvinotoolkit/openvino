@@ -145,14 +145,14 @@ protected:
         }
     };
 
-    INSTANTIATE_TEST_CASE_P(PermutationPass, RemovePermutationsNHWCToNCHWPassTest,
+    INSTANTIATE_TEST_CASE_P(smoke_PermutationPass, RemovePermutationsNHWCToNCHWPassTest,
         ::testing::Combine(
             ::testing::ValuesIn(netPrecisions),
             ::testing::Values(CommonTestUtils::DEVICE_GNA),
             ::testing::ValuesIn(configs)),
         RemovePermutationsNHWCToNCHWPassTest::getTestCaseName);
 
-    INSTANTIATE_TEST_CASE_P(PermutationPass, RemovePermutationsNHWCToNCHWPass4DOutputTest,
+    INSTANTIATE_TEST_CASE_P(smoke_PermutationPass, RemovePermutationsNHWCToNCHWPass4DOutputTest,
         ::testing::Combine(
             ::testing::ValuesIn(netPrecisions),
             ::testing::Values(CommonTestUtils::DEVICE_GNA),
