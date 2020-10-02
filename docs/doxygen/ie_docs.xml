@@ -256,7 +256,7 @@
                         <tab type="user" title="RemoteBlob API of GPU Plugin" url="@ref openvino_docs_IE_DG_supported_plugins_GPU_RemoteBlob_API"/>
                     </tab>
                     <tab type="user" title="CPU Plugin" url="@ref openvino_docs_IE_DG_supported_plugins_CPU"/>
-                    <tab type="user" title="FPGA Plugin" url="@ref openvino_docs_IE_DG_supported_plugins_FPGA"/>
+                    <tab type="user" title="[DEPRECATED] FPGA Plugin" url="@ref openvino_docs_IE_DG_supported_plugins_FPGA"/>
                     <tab type="usergroup" title="VPU Plugins" url="@ref openvino_docs_IE_DG_supported_plugins_VPU">
                         <tab type="user" title="MYRIAD Plugin " url="@ref openvino_docs_IE_DG_supported_plugins_MYRIAD"/>
                         <tab type="user" title="HDDL Plugin " url="@ref openvino_docs_IE_DG_supported_plugins_HDDL"/>
@@ -275,55 +275,29 @@
 
             <!-- Compile Tool -->
             <tab type="user" title="Compile Tool" url="@ref openvino_inference_engine_tools_compile_tool_README"/>
-
-            <!-- IE C -->
-            <tab type="user" title="Inference Engine C API Reference" url="ie_c_api/modules.html"/>
-            <!-- IE C++-->
-            <tab type="classes" visible="yes" title="Inference Engine С++ API Reference">
-                <tab type="classlist" visible="yes" title=""/>
-                <tab type="hierarchy" visible="yes" title=""/>
-                <tab type="namespacemembers" visible="yes" title="" intro=""/>
-                <tab type="pages" visible="no"/>
-                <tab type="files" visible="no"/>
-                <tab type="filelist" visible="no"/>
-                <tab type="globals" visible="no"/>
-            </tab>
-            <!-- IE Python -->
-            <tab type="user" title="Inference Engine Python API Reference" url="ie_python_api/annotated.html"/>
             
+            <!-- API References -->
+            <tab id="api_references" type="usergroup" title="API References">
+                <!-- IE C -->
+                <tab type="user" title="Inference Engine C API Reference" url="ie_c_api/modules.html"/>
+                <!-- IE C++-->
+                <tab type="classes" visible="yes" title="Inference Engine С++ API Reference">
+                    <tab type="classlist" visible="yes" title=""/>
+                    <tab type="hierarchy" visible="yes" title=""/>
+                    <tab type="namespacemembers" visible="yes" title="" intro=""/>
+                    <tab type="pages" visible="no"/>
+                    <tab type="files" visible="no"/>
+                    <tab type="filelist" visible="no"/>
+                    <tab type="globals" visible="no"/>
+                </tab>
+                <!-- IE Python -->
+                <tab type="user" title="Inference Engine Python API Reference" url="ie_python_api/annotated.html"/>
+            </tab>
             <!-- Inference Engine Plugin Development Guide-->
             <tab type="user" title="Inference Engine Plugin Development Guide" url="ie_plugin_api/index.html"/>
         </tab>
 
         <!-- Custom Layers Guide -->
         <tab id="custom_layers_guide" type="usergroup" title="Custom Layers Guide" url="@ref openvino_docs_HOWTO_Custom_Layers_Guide"></tab>
-
-        <tab id="legal_information" type="usergroup" title="Legal Information" url="@ref openvino_docs_Legal_Information"></tab>
-        
-        <!-- API References -->
-        <tab id="api_references" type="usergroup" title="API REFERENCES">
-            <!-- OpenVX -->
-            <tab type="user" title="OpenVX Developer Guide" url="https://khronos.org/openvx"/>
-            <!-- OpenCV -->
-            <tab type="user" title="OpenCV Developer Guide" url="https://docs.opencv.org/master/"/>
-            
-            <!-- DL Streamer -->
-            <tab type="user" title="DL Streamer API Reference" url="https://openvinotoolkit.github.io/dlstreamer_gst/"/>
-
-            <!-- DL Streamer Examples -->
-            <tab type="usergroup" title="DL Streamer Examples" url="@ref gst_samples_README">
-                <tab type="usergroup" title="Command Line Samples" url="">
-                    <tab type="user" title="Face Detection And Classification Sample" url="@ref gst_samples_gst_launch_face_detection_and_classification_README"/>
-                    <tab type="user" title="Vehicle and Pedestrian Tracking Sample" url="@ref gst_samples_gst_launch_vehicle_pedestrian_tracking_README"/>
-                    <tab type="usergroup" title="Metadata Publishing Sample" url="@ref gst_samples_gst_launch_metapublish_README">
-                        <tab type="user" title="MetaPublish Listeners" url="@ref gst_samples_gst_launch_metapublish_listener"/>
-                    </tab>
-                    <tab type="user" title="gvapython Sample" url="@ref gst_samples_gst_launch_gvapython_face_detection_and_classification_README"/>
-                </tab>
-                <tab type="user" title="Draw Face Attributes C++ Sample" url="@ref gst_samples_cpp_draw_face_attributes_README"/>
-                <tab type="user" title="Draw Face Attributes Python Sample" url="@ref gst_samples_python_draw_face_attributes_README"/>
-                <tab type="user" title="Benchmark Sample" url="@ref gst_samples_benchmark_README"/>
-            </tab>
-        </tab>
     </navindex>
 </doxygenlayout>

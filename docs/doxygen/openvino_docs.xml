@@ -5,7 +5,6 @@
         
         <!-- GET STARTED category -->
         <tab type="usergroup" title="GET STARTED" url="@ref index">
-            <tab type="user" title="OpenVINO Toolkit Overview" url="@ref index"/>
             <!-- Install Directly -->
             <tab type="usergroup" title="Install Directly" url=""><!--automatically generated-->
                 <tab type="user" title="Linux" url="@ref openvino_docs_install_guides_installing_openvino_linux"/>
@@ -27,15 +26,22 @@
             </tab>
             <!-- Get Started Guides-->
             <tab type="usergroup" title="Get Started Guides" url=""><!--automatically generated-->
-                <tab type="user" title="Get Started with OpenVINO™ toolkit on Linux*" url="@ref openvino_docs_get_started_get_started_linux"/>
-                <tab type="user" title="Get Started with OpenVINO™ toolkit on Windows*" url="@ref openvino_docs_get_started_get_started_windows"/>
-                <tab type="user" title="Get Started with OpenVINO™ toolkit on macOS*" url="@ref openvino_docs_get_started_get_started_macos"/>
+                <tab type="user" title="OpenVINO™ Toolkit Overview" url="@ref index"/>
+                <tab type="user" title="Linux" url="@ref openvino_docs_get_started_get_started_linux"/>
+                <tab type="user" title="Windows" url="@ref openvino_docs_get_started_get_started_windows"/>
+                <tab type="user" title="macOS" url="@ref openvino_docs_get_started_get_started_macos"/>
             </tab>
             <!-- Configuration for Hardware -->
             <tab type="usergroup" title="Configuration for Hardware" url=""><!--automatically generated-->
-                <tab type="user" title="Configuration Guide for the Intel® Distribution of OpenVINO™ toolkit and the Intel® Vision Accelerator Design with Intel® Movidius™ VPUs on Linux*" url="@ref openvino_docs_install_guides_installing_openvino_linux_ivad_vpu"/>
-                <tab type="user" title="Intel® Movidius™ VPUs Setup Guide for Use with Intel® Distribution of OpenVINO™ toolkit" url="@ref openvino_docs_install_guides_movidius_setup_guide"/>
-                <tab type="user" title="Intel® Movidius™ VPUs Programming Guide for Use with Intel® Distribution of OpenVINO™ toolkit" url="@ref openvino_docs_install_guides_movidius_programming_guide"/>              
+                <tab type="usergroup" title="VPUs" url="@ref openvino_docs_install_guides_movidius_setup_guide">
+                    <tab type="user" title="Configuration Guide for Intel® Vision Accelerator Design with Intel® Movidius™ VPUs on Linux" url="@ref openvino_docs_install_guides_installing_openvino_linux_ivad_vpu"/>
+                    <tab type="user" title="Intel® Movidius™ VPUs Setup Guide" url="@ref openvino_docs_install_guides_movidius_setup_guide"/>
+                    <tab type="user" title="Intel® Movidius™ VPUs Programming Guide" url="@ref openvino_docs_install_guides_movidius_programming_guide"/>
+                </tab>
+                <tab type="usergroup" title="[DEPRECATED] FPGAs" url="@ref openvino_docs_install_guides_VisionAcceleratorFPGA_Configure">
+                    <tab type="user" title="[DEPRECATED] Configuration Guide for Intel® Vision Accelerator Design with an Intel® Arria 10 FPGA SG2 (IEIs Mustang-F100-A10) on Linux" url="@ref openvino_docs_install_guides_VisionAcceleratorFPGA_Configure"/>
+                    <tab type="user" title="[DEPRECATED] Configuration Guide for Intel® Programmable Acceleration Card with Intel® Arria® 10 FPGA GX on CentOS or Ubuntu*" url="@ref openvino_docs_install_guides_PAC_Configure"/>   
+                </tab>
             </tab>
             <!-- Security -->
             <tab type="usergroup" title="Security" url="@ref openvino_docs_security_guide_introduction"><!--automatically generated-->
@@ -52,14 +58,19 @@
             <xi:include href="ie_docs.xml" xpointer="xpointer(//tab[@id='intermediate_representaton_and_operations_sets'])"/>
             <xi:include href="ie_docs.xml" xpointer="xpointer(//tab[@id='deploying_inference'])"/>
             <xi:include href="ie_docs.xml" xpointer="xpointer(//tab[@id='custom_layers_guide'])"/>
-            <xi:include href="ie_docs.xml" xpointer="xpointer(//tab[@id='legal_information'])"/>
             <!-- Workbench -->
             <xi:include href="workbench_docs.xml" xpointer="xpointer(//tab[@id='deep_learning_workbench'])"/>
             <!-- Optimization docs -->
             <xi:include href="optimization_docs.xml" xpointer="xpointer(//tab[@id='tuning_for_performance'])"/>
             <tab type="usergroup" title="Media Processing">
+                <!-- DL Streamer -->
+                <tab type="user" title="DL Streamer API Reference" url="https://openvinotoolkit.github.io/dlstreamer_gst/"/>
+                <!-- DL Streamer Examples -->
+                <tab type="usergroup" title="DL Streamer Examples" url="@ref gst_samples_README">
+                </tab>    
                 <!-- OpenVX -->
-                <tab type="user" title="OpenVX* Developer Guide" url="https://software.intel.com/en-us/openvino-ovx-guide"/>
+                <tab type="user" title="OpenVX Developer Guide" url="https://software.intel.com/en-us/openvino-ovx-guide"/>
+                <tab type="user" title="OpenVX API Reference" url="https://khronos.org/openvx"/>
                 <!-- OpenCV -->
                 <tab type="user" title="OpenCV* Developer Guide" url="https://docs.opencv.org/master/"/>
                 <!-- OpenCL -->
@@ -98,6 +109,7 @@
             <!-- DL Streamer Examples -->
             <tab type="usergroup" title="DL Streamer Examples" url="@ref gst_samples_README">
                 <tab type="usergroup" title="Command Line Samples" url="">
+                    <tab type="user" title="Audio Detection Sample" url="@ref gst_samples_gst_launch_audio_detect_README"/>
                     <tab type="user" title="Face Detection And Classification Sample" url="@ref gst_samples_gst_launch_face_detection_and_classification_README"/>
                     <tab type="user" title="Vehicle and Pedestrian Tracking Sample" url="@ref gst_samples_gst_launch_vehicle_pedestrian_tracking_README"/>
                     <tab type="usergroup" title="Metadata Publishing Sample" url="@ref gst_samples_gst_launch_metapublish_README">
