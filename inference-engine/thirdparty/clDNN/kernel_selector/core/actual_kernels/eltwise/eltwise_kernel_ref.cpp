@@ -70,8 +70,9 @@ JitConstants EltwiseKernelRef::GetJitConstants(const eltwise_params& params) con
             idx_order = {"d6", "d5", "d4", "d3", "d2", "d1"};
         }
 
-        FusedOpsConfiguration conf = {"", idx_order, "res", input_dt, 1};
-        jit.Merge(MakeFusedOpsJitConstants(params, {conf}));
+        FusedOpsConfiguration tensor_coord = {"_TENSOR", idx_order, "res", input_dt, 1};
+        FusedOpsConfiguration linear_coord = {"_LINEAR", {"d1"}, "res", input_dt, 1, LoadType::LT_UNALIGNED, BoundaryCheck::ENABLED, IndexType::LINEAR_OFFSET};
+        jit.Merge(MakeFusedOpsJitConstants(params, {tensor_coord, linear_coord}));
     }
 
     return jit;

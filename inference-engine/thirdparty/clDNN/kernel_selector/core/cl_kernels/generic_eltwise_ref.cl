@@ -117,8 +117,13 @@ KERNEL(eltwise)(
     DO_ELTWISE;
 
 #if HAS_FUSED_OPS
-    FUSED_OPS;
-    OUTPUT_TYPE out = FUSED_OPS_RESULT;
+    #if ELTWISE_NO_PITCH_SAME_DIMS
+        FUSED_OPS_LINEAR;
+        OUTPUT_TYPE out = FUSED_OPS_RESULT_LINEAR;
+    #else
+        FUSED_OPS_TENSOR;
+        OUTPUT_TYPE out = FUSED_OPS_RESULT_TENSOR;
+    #endif
 #else
     #define out res
 #endif
