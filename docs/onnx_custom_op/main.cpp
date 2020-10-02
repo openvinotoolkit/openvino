@@ -129,7 +129,8 @@ opset_import {
 
     auto blob = std::make_shared<InferenceEngine::TBlob<float>>(input_info->getTensorDesc());
     blob->allocate();
-    float* blob_buffer = blob->wmap().template as<float*>();
+    InferenceEngine::LockedMemory<void> locked_input = blob->wmap();
+    float* blob_buffer = locked_input.template as<float*>();
     std::array<float, 8> input_values{0, -1, 2, -3, 4, -5, 6, -7};
     std::array<float, 8> expected{0, -3, 4, -9, 8, -15, 12, -21};
     std::copy(input_values.begin(), input_values.end(), blob_buffer);
