@@ -164,11 +164,12 @@ Heterogeneous plugin was tested with the Intel&reg; GNA as a primary device and 
 
 ## Recovery from interruption by high-priority Windows audio processes\*
 
-As noted in the introduction, GNA is designed for real-time workloads such as noise reduction or speech recognition. 
+As noted in the introduction, GNA is designed for real-time workloads such as noise reduction.
 For such workloads, processing should be time constrained, otherwise extra delays may cause undesired effects such as
 audio "glitches". To make sure that processing can satisfy real time requirements, the GNA driver provides a QoS
-(Quality of Service) mechanism which interrupts the requests which cannot be fulfilled in time.
-This means that high-priority real-time audio applications on Windows may cause long running GNA tasks to terminate early.
+(Quality of Service) mechanism which interrupts requests that might cause high-priority Windows audio processes to miss
+schedule, thereby causing long running GNA tasks to terminate early.
+
 Applications should be prepared for this situation.
 If an inference (in `GNA_HW` mode) cannot be executed because of such interruption, then `InferRequest::Wait()` will return status code
 `StatusCode::INFER_NOT_STARTED` (note that it will be changed to a more meaningful status code in future releases).
