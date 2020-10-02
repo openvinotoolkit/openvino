@@ -243,7 +243,8 @@ namespace ngraph
                         for (const auto& box_info : selected)
                         {
                             SelectedIndex selected_index{batch, class_idx, box_info.index};
-                            SelectedScore selected_score{batch, class_idx, box_info.score};
+                            SelectedScore selected_score{static_cast<float>(batch),
+                                static_cast<float>(class_idx), box_info.score};
 
                             selected_indices_ptr[num_of_valid_boxes] = selected_index;
                             selected_scores_ptr[num_of_valid_boxes] = selected_score;
