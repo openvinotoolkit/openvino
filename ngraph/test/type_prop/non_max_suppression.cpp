@@ -676,23 +676,29 @@ TEST(type_prop, nms_v5_output_shape)
     EXPECT_TRUE(nms_scores_out_ps.rank().is_static());
     EXPECT_EQ(nms_scores_out_ps.rank().get_length(), 2);
     EXPECT_EQ(nms->get_output_shape(1), (Shape{0, 3}));
+
+    EXPECT_EQ(nms->get_output_shape(2), (Shape{}));
 }
 
-// TEST(type_prop, nms_v5_output_shape_2)
-// {
-//     const auto boxes = make_shared<op::Parameter>(element::f32, Shape{2, 7, 4});
-//     const auto scores = make_shared<op::Parameter>(element::f32, Shape{2, 5, 7});
-//     const auto max_output_boxes_per_class = op::Constant::create(element::i32, Shape{}, {3});
-//     const auto iou_threshold = make_shared<op::Parameter>(element::f32, Shape{});
-//     const auto score_threshold = make_shared<op::Parameter>(element::f32, Shape{});
-//
-//     const auto nms = make_shared<op::v5::NonMaxSuppression>(
-//         boxes, scores, max_output_boxes_per_class, iou_threshold, score_threshold);
-//
-//     ASSERT_EQ(nms->get_element_type(), element::i64);
-//     ASSERT_EQ(nms->get_shape(), (Shape{2 * 5 * 3, 3}));
-// }
-//
+TEST(type_prop, nms_v5_output_shape_2)
+{
+    const auto boxes = make_shared<op::Parameter>(element::f32, Shape{2, 7, 4});
+    const auto scores = make_shared<op::Parameter>(element::f32, Shape{2, 5, 7});
+    const auto max_output_boxes_per_class = op::Constant::create(element::i32, Shape{}, {3});
+    const auto iou_threshold = make_shared<op::Parameter>(element::f32, Shape{});
+    const auto score_threshold = make_shared<op::Parameter>(element::f32, Shape{});
+
+    const auto nms = make_shared<op::v5::NonMaxSuppression>(
+        boxes, scores, max_output_boxes_per_class, iou_threshold, score_threshold);
+
+    ASSERT_EQ(nms->get_output_element_type(0), element::i64);
+    ASSERT_EQ(nms->get_output_element_type(1), element::f32);
+    ASSERT_EQ(nms->get_output_shape(0), (Shape{2 * 5 * 3, 3}));
+    ASSERT_EQ(nms->get_output_shape(1), (Shape{2 * 5 * 3, 3}));
+
+    EXPECT_EQ(nms->get_output_shape(2), (Shape{}));
+}
+
 // TEST(type_prop, nms_v5_output_shape_3)
 // {
 //     const auto boxes = make_shared<op::Parameter>(element::f32, Shape{2, 7, 4});
