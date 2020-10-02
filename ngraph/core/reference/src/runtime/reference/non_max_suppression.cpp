@@ -14,7 +14,6 @@
 // limitations under the License.
 //*****************************************************************************
 
-
 #include "ngraph/op/non_max_suppression.hpp"
 #include <algorithm>
 #include <cmath>
@@ -266,7 +265,7 @@ namespace ngraph
                               [](const BoxInfo& l, const BoxInfo& r) { return l.score > r.score; });
                 }
 
-                size_t max_num_of_selected_indices = selected_indices_shape[0]
+                size_t max_num_of_selected_indices = selected_indices_shape[0];
                 size_t output_size = std::min(filteredBoxes.size(), max_num_of_selected_indices);
 
                 *valid_outputs = output_size;
@@ -275,9 +274,8 @@ namespace ngraph
                 for (idx = 0; idx < output_size; idx++)
                 {
                     const auto& box_info = filteredBoxes[idx];
-                    SelectedIndex selected_index{box_info.batch_index,
-                                                 box_info.class_index,
-                                                 box_info.index};
+                    SelectedIndex selected_index{
+                        box_info.batch_index, box_info.class_index, box_info.index};
                     SelectedScore selected_score{static_cast<float>(box_info.batch_index),
                                                  static_cast<float>(box_info.class_index),
                                                  box_info.score};
