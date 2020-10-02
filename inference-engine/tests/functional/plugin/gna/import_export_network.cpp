@@ -179,7 +179,7 @@ class ImportNetworkTest : public testing::WithParamInterface<exportImportNetwork
         },
     };
 
-    INSTANTIATE_TEST_CASE_P(ImportNetworkCase, ImportNetworkTest,
+    INSTANTIATE_TEST_CASE_P(smoke_ImportNetworkCase, ImportNetworkTest,
         ::testing::Combine(
             ::testing::ValuesIn(netPrecisions),
             ::testing::Values(CommonTestUtils::DEVICE_GNA),
