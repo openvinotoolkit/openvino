@@ -97,20 +97,20 @@ sudo apt install intel-openvino-<PACKAGE_TYPE>-ubuntu<OS_VERSION>-<VERSION>.<UPD
 
   On Ubuntu 18.04:
   ```sh
-  sudo apt install intel-openvino-runtime-ubuntu18-2021.1.101
+  sudo apt install intel-openvino-runtime-ubuntu18-2021.1.105
   ```
   On Ubuntu 20.04:
   ```sh
-  sudo apt install intel-openvino-runtime-ubuntu20-2021.1.101
+  sudo apt install intel-openvino-runtime-ubuntu20-2021.1.105
   ```
 * **Developer Package**<br>
   On Ubuntu 18.04:
   ```sh
-  sudo apt install intel-openvino-dev-ubuntu18-2021.1.101 
+  sudo apt install intel-openvino-dev-ubuntu18-2021.1.105 
   ```
   On Ubuntu 20.04:
   ```sh
-  sudo apt install intel-openvino-dev-ubuntu20-2021.1.101
+  sudo apt install intel-openvino-dev-ubuntu20-2021.1.105
   ```
 
 ---
