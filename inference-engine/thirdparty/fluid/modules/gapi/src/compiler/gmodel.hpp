@@ -2,7 +2,7 @@
 // It is subject to the license terms in the LICENSE file found in the top-level directory
 // of this distribution and at http://opencv.org/license.html.
 //
-// Copyright (C) 2018 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 
 
 #ifndef OPENCV_GAPI_GMODEL_HPP
@@ -26,6 +26,7 @@
 
 #include <opencv2/gapi/garg.hpp>
 #include <opencv2/gapi/gkernel.hpp>
+#include <opencv2/gapi/gcommon.hpp>
 
 #include "compiler/gobjref.hpp"
 #include "compiler/gislandmodel.hpp"
@@ -71,9 +72,10 @@ struct Data
     int      rc;
     GMetaArg meta;
     HostCtor ctor;  // T-specific helper to deal with unknown types in our code
+    cv::detail::OpaqueKind kind; // FIXME: is needed to store GArray/GOpaque type
     // FIXME: Why rc+shape+meta is not represented as RcDesc here?
 
-    enum class Storage
+    enum class Storage: int
     {
         INTERNAL,   // data object is not listed in GComputation protocol
         INPUT,      // data object is listed in GComputation protocol as Input
@@ -138,7 +140,9 @@ class DataObjectCounter
 public:
     static const char* name() { return "DataObjectCounter"; }
     int GetNewId(GShape shape) { return m_next_data_id[shape]++; }
-private:
+
+    // NB: private!!! but used in the serialization
+    // couldn't get the `friend` stuff working correctly -- DM
     std::unordered_map<cv::GShape, int> m_next_data_id;
 };
 
@@ -165,6 +169,19 @@ struct Streaming
 {
     static const char *name() { return "StreamingFlag"; }
 };
+
+
+// This is a graph-global flag indicating this graph is compiled
+// after the deserialization. Some bits of information may be
+// unavailable (mainly callbacks) so let sensitive passes obtain
+// the required information in their special way.
+//
+// FIXME: Probably a better design can be suggested.
+struct Deserialized
+{
+    static const char *name() { return "DeserializedFlag"; }
+};
+
 
 // Backend-specific inference parameters for a neural network.
 // Since these parameters are set on compilation stage (not
@@ -213,6 +230,7 @@ namespace GModel
         , ActiveBackends
         , CustomMetaFunction
         , Streaming
+        , Deserialized
         >;
 
     // FIXME: How to define it based on GModel???
@@ -234,6 +252,7 @@ namespace GModel
         , ActiveBackends
         , CustomMetaFunction
         , Streaming
+        , Deserialized
         >;
 
     // FIXME:

@@ -2,7 +2,7 @@
 // It is subject to the license terms in the LICENSE file found in the top-level directory
 // of this distribution and at http://opencv.org/license.html.
 //
-// Copyright (C) 2018 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 
 
 #include "precomp.hpp"
@@ -33,13 +33,13 @@
 //
 // If not, we need to introduce that!
 using GOCLModel = ade::TypedGraph
-    < cv::gimpl::Unit
+    < cv::gimpl::OCLUnit
     , cv::gimpl::Protocol
     >;
 
 // FIXME: Same issue with Typed and ConstTyped
 using GConstGOCLModel = ade::ConstTypedGraph
-    < cv::gimpl::Unit
+    < cv::gimpl::OCLUnit
     , cv::gimpl::Protocol
     >;
 
@@ -53,7 +53,7 @@ namespace
         {
             GOCLModel gm(graph);
             auto ocl_impl = cv::util::any_cast<cv::GOCLKernel>(impl.opaque);
-            gm.metadata(op_node).set(cv::gimpl::Unit{ocl_impl});
+            gm.metadata(op_node).set(cv::gimpl::OCLUnit{ocl_impl});
         }
 
         virtual EPtr compile(const ade::Graph &graph,
@@ -96,7 +96,7 @@ cv::gimpl::GOCLExecutable::GOCLExecutable(const ade::Graph &g,
             if (desc.storage == Data::Storage::INTERNAL && desc.shape == GShape::GMAT)
             {
                 const auto mat_desc = util::get<cv::GMatDesc>(desc.meta);
-                auto& mat = m_res.slot<cv::gapi::own::Mat>()[desc.rc];
+                auto& mat = m_res.slot<cv::Mat>()[desc.rc];
                 createMat(mat_desc, mat);
             }
             break;
@@ -198,7 +198,7 @@ void cv::gimpl::GOCLExecutable::run(std::vector<InObj>  &&input_objs,
 
         // Obtain our real execution unit
         // TODO: Should kernels be copyable?
-        GOCLKernel k = gcm.metadata(op_info.nh).get<Unit>().k;
+        GOCLKernel k = gcm.metadata(op_info.nh).get<OCLUnit>().k;
 
         // Initialize kernel's execution context:
         // - Input parameters

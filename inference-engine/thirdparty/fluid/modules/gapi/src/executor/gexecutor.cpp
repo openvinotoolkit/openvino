@@ -2,7 +2,7 @@
 // It is subject to the license terms in the LICENSE file found in the top-level directory
 // of this distribution and at http://opencv.org/license.html.
 //
-// Copyright (C) 2018 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 
 
 #include "precomp.hpp"
@@ -100,7 +100,7 @@ void cv::gimpl::GExecutor::initResource(const ade::NodeHandle &orig_nh)
     case GShape::GMAT:
         {
             const auto desc = util::get<cv::GMatDesc>(d.meta);
-            auto& mat = m_res.slot<cv::gapi::own::Mat>()[d.rc];
+            auto& mat = m_res.slot<cv::Mat>()[d.rc];
             createMat(desc, mat);
         }
         break;
@@ -114,6 +114,13 @@ void cv::gimpl::GExecutor::initResource(const ade::NodeHandle &orig_nh)
         break;
 
     case GShape::GARRAY:
+        if (d.storage == Data::Storage::CONST_VAL)
+        {
+            auto rc = RcDesc{d.rc, d.shape, d.ctor};
+            magazine::bindInArg(m_res, rc, m_gm.metadata(orig_nh).get<ConstValue>().arg);
+        }
+        break;
+    case GShape::GOPAQUE:
         // Constructed on Reset, do nothing here
         break;
 
@@ -121,6 +128,30 @@ void cv::gimpl::GExecutor::initResource(const ade::NodeHandle &orig_nh)
         GAPI_Assert(false);
     }
 }
+
+class cv::gimpl::GExecutor::Input final: public cv::gimpl::GIslandExecutable::IInput
+{
+    cv::gimpl::Mag &mag;
+    virtual StreamMsg get() override
+    {
+        cv::GRunArgs res;
+        for (const auto &rc : desc()) { res.emplace_back(magazine::getArg(mag, rc)); }
+        return StreamMsg{std::move(res)};
+    }
+    virtual StreamMsg try_get() override { return get(); }
+public:
+    Input(cv::gimpl::Mag &m, const std::vector<RcDesc> &rcs) : mag(m) { set(rcs); }
+};
+
+class cv::gimpl::GExecutor::Output final: public cv::gimpl::GIslandExecutable::IOutput
+{
+    cv::gimpl::Mag &mag;
+    virtual GRunArgP get(int idx) override { return magazine::getObjPtr(mag, desc()[idx]); }
+    virtual void post(GRunArgP&&) override { } // Do nothing here
+    virtual void post(EndOfStream&&) override {} // Do nothing here too
+public:
+    Output(cv::gimpl::Mag &m, const std::vector<RcDesc> &rcs) : mag(m) { set(rcs); }
+};
 
 void cv::gimpl::GExecutor::run(cv::gimpl::GRuntimeArgs &&args)
 {
@@ -144,8 +175,9 @@ void cv::gimpl::GExecutor::run(cv::gimpl::GRuntimeArgs &&args)
 
     namespace util = ade::util;
 
-    //ensure that output Mat parameters are correctly allocated
-    for (auto index : util::iota(proto.out_nhs.size()) )     //FIXME: avoid copy of NodeHandle and GRunRsltComp ?
+    // ensure that output Mat parameters are correctly allocated
+    // FIXME: avoid copy of NodeHandle and GRunRsltComp ?
+    for (auto index : util::iota(proto.out_nhs.size()))
     {
         auto& nh = proto.out_nhs.at(index);
         const Data &d = m_gm.metadata(nh).get<Data>();
@@ -156,14 +188,15 @@ void cv::gimpl::GExecutor::run(cv::gimpl::GRuntimeArgs &&args)
 
             auto check_own_mat = [&desc, &args, &index]()
             {
-                auto& out_mat = *get<cv::gapi::own::Mat*>(args.outObjs.at(index));
+                auto& out_mat = *get<cv::Mat*>(args.outObjs.at(index));
                 GAPI_Assert(out_mat.data != nullptr &&
                         desc.canDescribe(out_mat));
             };
 
 #if !defined(GAPI_STANDALONE)
-            // Building as part of OpenCV - follow OpenCV behavior
-            // In the case of cv::Mat if output buffer is not enough to hold the result, reallocate it
+            // Building as part of OpenCV - follow OpenCV behavior In
+            // the case of cv::Mat if output buffer is not enough to
+            // hold the result, reallocate it
             if (cv::util::holds_alternative<cv::Mat*>(args.outObjs.at(index)))
             {
                 auto& out_mat = *get<cv::Mat*>(args.outObjs.at(index));
@@ -204,24 +237,9 @@ void cv::gimpl::GExecutor::run(cv::gimpl::GRuntimeArgs &&args)
     for (auto &op : m_ops)
     {
         // (5)
-        using InObj  = GIslandExecutable::InObj;
-        using OutObj = GIslandExecutable::OutObj;
-        std::vector<InObj>  in_objs;
-        std::vector<OutObj> out_objs;
-        in_objs.reserve (op.in_objects.size());
-        out_objs.reserve(op.out_objects.size());
-
-        for (const auto &rc : op.in_objects)
-        {
-            in_objs.emplace_back(InObj{rc, magazine::getArg(m_res, rc)});
-        }
-        for (const auto &rc : op.out_objects)
-        {
-            out_objs.emplace_back(OutObj{rc, magazine::getObjPtr(m_res, rc)});
-        }
-
-        // (6)
-        op.isl_exec->run(std::move(in_objs), std::move(out_objs));
+        Input i{m_res, op.in_objects};
+        Output o{m_res, op.out_objects};
+        op.isl_exec->run(i, o);
     }
 
     // (7)
@@ -252,4 +270,12 @@ void cv::gimpl::GExecutor::reshape(const GMetaArgs& inMetas, const GCompileArgs&
     passes::initMeta(ctx, inMetas);
     passes::inferMeta(ctx, true);
     m_ops[0].isl_exec->reshape(g, args);
+}
+
+void cv::gimpl::GExecutor::prepareForNewStream()
+{
+    for (auto &op : m_ops)
+    {
+        op.isl_exec->handleNewStream();
+    }
 }

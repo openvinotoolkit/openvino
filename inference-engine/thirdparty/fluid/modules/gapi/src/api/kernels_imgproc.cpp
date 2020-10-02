@@ -2,7 +2,7 @@
 // It is subject to the license terms in the LICENSE file found in the top-level directory
 // of this distribution and at http://opencv.org/license.html.
 //
-// Copyright (C) 2018 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 
 
 #include "precomp.hpp"
@@ -87,6 +87,16 @@ std::tuple<GMat, GMat> SobelXY(const GMat& src, int ddepth, int order, int ksize
     return imgproc::GSobelXY::on(src, ddepth, order, ksize, scale, delta, borderType, bordVal);
 }
 
+GMat Laplacian(const GMat& src, int ddepth, int ksize, double scale, double delta, int borderType)
+{
+    return imgproc::GLaplacian::on(src, ddepth, ksize, scale, delta, borderType);
+}
+
+GMat bilateralFilter(const GMat& src, int d, double sigmaColor, double sigmaSpace, int borderType)
+{
+    return imgproc::GBilateralFilter::on(src, d, sigmaColor, sigmaSpace, borderType);
+}
+
 GMat equalizeHist(const GMat& src)
 {
     return imgproc::GEqHist::on(src);
@@ -95,6 +105,14 @@ GMat equalizeHist(const GMat& src)
 GMat Canny(const GMat& src, double thr1, double thr2, int apertureSize, bool l2gradient)
 {
     return imgproc::GCanny::on(src, thr1, thr2, apertureSize, l2gradient);
+}
+
+cv::GArray<cv::Point2f> goodFeaturesToTrack(const GMat& image, int maxCorners, double qualityLevel,
+                                            double minDistance, const Mat& mask, int blockSize,
+                                            bool useHarrisDetector, double k)
+{
+    return imgproc::GGoodFeatures::on(image, maxCorners, qualityLevel, minDistance, mask, blockSize,
+                                      useHarrisDetector, k);
 }
 
 GMat RGB2Gray(const GMat& src)
