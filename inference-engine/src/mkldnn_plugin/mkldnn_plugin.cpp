@@ -294,7 +294,7 @@ void Engine::QueryNetwork(const ICNNNetwork& network, const std::map<std::string
             auto layerIsSupported = [&] {
                 std::unique_ptr<MKLDNNNode> ptr;
                 try {
-                    ptr.reset(MKLDNNNode::CreateNode(*itLayer, {mkldnn::engine::kind::cpu, 0}, extensionManager, fake_w_cache));
+                    ptr.reset(MKLDNNNode::factory().create(*itLayer, {mkldnn::engine::kind::cpu, 0}, extensionManager, fake_w_cache));
                 } catch (InferenceEngine::details::InferenceEngineException&) {
                      return false;
                 }
@@ -339,7 +339,7 @@ void Engine::QueryNetwork(const ICNNNetwork& network, const std::map<std::string
             try {
                 mkldnn::engine eng(mkldnn::engine(mkldnn::engine::kind::cpu, 0));
                 // if we can create and have not thrown exception, then layer is supported
-                std::unique_ptr <MKLDNNNode>(MKLDNNNode::CreateNode(*i, eng, extensionManager, fake_w_cache));
+                std::unique_ptr <MKLDNNNode>(MKLDNNNode::factory().create(*i, eng, extensionManager, fake_w_cache));
                 res.supportedLayersMap.insert({ (*i)->name, GetName() });
             } catch (InferenceEngine::details::InferenceEngineException&) {
             }
