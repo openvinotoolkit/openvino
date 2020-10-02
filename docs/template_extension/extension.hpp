@@ -12,12 +12,10 @@
 #include <string>
 #include <map>
 
-#include "visibility.hpp"
-
 //! [extension:header]
 namespace TemplateExtension {
 
-class EXPORT Extension : public InferenceEngine::IExtension {
+class Extension : public InferenceEngine::IExtension {
 public:
     Extension();
     ~Extension();
