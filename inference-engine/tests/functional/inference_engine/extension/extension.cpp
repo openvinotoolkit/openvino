@@ -7,6 +7,10 @@
 #include <ngraph/ngraph.hpp>
 #include <onnx_import/onnx_utils.hpp>
 #include <file_utils.h>
+#include <common_test_utils/test_assertions.hpp>
+#include <functional_test_utils/test_model/test_model.hpp>
+#include <functional_test_utils/threading.hpp>
+
 
 
 class CustomReluKernel : public InferenceEngine::ILayerExecImpl {
@@ -408,3 +412,24 @@ opset_import {
 }
 
 
+void safeAddExtension(InferenceEngine::Core & ie) {
+    try {
+        auto extension = InferenceEngine::make_so_pointer<InferenceEngine::IExtension>(get_extension_path());
+        ie.AddExtension(extension);
+    } catch (const InferenceEngine::details::InferenceEngineException & ex) {
+        ASSERT_STR_CONTAINS(ex.what(), "name: custom_opset. Opset");
+    }
+}
+
+
+// tested function: ReadNetwork, AddExtension
+TEST(Extension, AddExtensionMultithreaded) {
+    InferenceEngine::Core ie;
+    auto model = FuncTestUtils::TestModel::convReluNormPoolFcModelFP32;
+    auto network = ie.ReadNetwork(model.model_xml_str, model.weights_blob);
+
+    runParallel([&] () {
+        safeAddExtension(ie);
+        (void)ie.ReadNetwork(model.model_xml_str, model.weights_blob);
+    }, 100, 12);
+}

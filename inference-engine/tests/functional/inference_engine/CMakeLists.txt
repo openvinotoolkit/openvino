@@ -21,7 +21,8 @@ if (NGRAPH_ONNX_IMPORT_ENABLE)
     set(LINK_LIBRARIES ${LINK_LIBRARIES} onnx_importer)
     set(DEPENDENCIES ${DEPENDENCIES} onnx_importer template_extension)
 else()
-    set(EXCLUDED_SOURCE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/extension)
+    set(EXCLUDED_SOURCE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/extension
+                             ${CMAKE_CURRENT_SOURCE_DIR}/onnx_reader)
 endif()
 
 addIeTargetTest(
