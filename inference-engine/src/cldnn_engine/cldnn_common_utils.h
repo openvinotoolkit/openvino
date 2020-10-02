@@ -130,6 +130,7 @@ inline cldnn::format ImageFormatFromLayout(InferenceEngine::Layout l) {
 
 inline cldnn::format defaultFormatForDims(size_t dimensions) {
     switch (dimensions) {
+    case 0:
     case 1:
     case 2:
     case 3:
