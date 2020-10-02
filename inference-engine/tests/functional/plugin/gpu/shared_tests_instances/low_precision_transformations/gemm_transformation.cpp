@@ -23,7 +23,7 @@ const std::vector<LayerTransformation::Params> trasformationParamValues = {
     LayerTestsUtils::LayerTransformationParamsFactory::createParamsI8I8()
 };
 
-INSTANTIATE_TEST_CASE_P(LPT, GemmTransformation,
+INSTANTIATE_TEST_CASE_P(smoke_LPT, GemmTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(netPrecisions),
         ::testing::ValuesIn(dimensions),

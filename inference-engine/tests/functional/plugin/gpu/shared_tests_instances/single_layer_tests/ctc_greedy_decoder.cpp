@@ -23,7 +23,7 @@ namespace {
         ::testing::Values(true, false),
         ::testing::Values(CommonTestUtils::DEVICE_GPU));
 
-    INSTANTIATE_TEST_CASE_P(CTC_Greedy_decoder_Basic, CTCGreedyDecoderLayerTest,
+    INSTANTIATE_TEST_CASE_P(smoke_CTC_Greedy_decoder_Basic, CTCGreedyDecoderLayerTest,
                             basicCases,
                             CTCGreedyDecoderLayerTest::getTestCaseName);
 }  // namespace

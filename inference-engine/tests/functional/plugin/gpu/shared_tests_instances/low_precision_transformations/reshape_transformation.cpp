@@ -19,7 +19,7 @@ const std::vector<InferenceEngine::details::LayerTransformation::Params> trasfor
 };
 
 
-INSTANTIATE_TEST_CASE_P(LPT, ReshapeTransformation,
+INSTANTIATE_TEST_CASE_P(smoke_LPT, ReshapeTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(netPrecisions),
         ::testing::Values(InferenceEngine::SizeVector({ 1, 3, 16, 16 })),

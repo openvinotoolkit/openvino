@@ -52,7 +52,7 @@ const auto conv2DParams_AutoPadValid = ::testing::Combine(
         ::testing::Values(ngraph::op::PadType::VALID)
 );
 
-INSTANTIATE_TEST_CASE_P(ConvolutionBackpropData2D_ExplicitPadding, ConvolutionBackpropDataLayerTest,
+INSTANTIATE_TEST_CASE_P(smoke_ConvolutionBackpropData2D_ExplicitPadding, ConvolutionBackpropDataLayerTest,
                         ::testing::Combine(
                                 conv2DParams_ExplicitPadding,
                                 ::testing::ValuesIn(netPrecisions2D),
@@ -60,7 +60,7 @@ INSTANTIATE_TEST_CASE_P(ConvolutionBackpropData2D_ExplicitPadding, ConvolutionBa
                                 ::testing::Values(CommonTestUtils::DEVICE_GPU)),
                         ConvolutionBackpropDataLayerTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(ConvolutionBackpropData2D_AutoPadValid, ConvolutionBackpropDataLayerTest,
+INSTANTIATE_TEST_CASE_P(smoke_ConvolutionBackpropData2D_AutoPadValid, ConvolutionBackpropDataLayerTest,
                         ::testing::Combine(
                                 conv2DParams_AutoPadValid,
                                 ::testing::ValuesIn(netPrecisions2D),
@@ -100,7 +100,7 @@ const auto conv3DParams_AutoPadValid = ::testing::Combine(
         ::testing::Values(ngraph::op::PadType::VALID)
 );
 
-INSTANTIATE_TEST_CASE_P(ConvolutionBackpropData3D_ExplicitPadding, ConvolutionBackpropDataLayerTest,
+INSTANTIATE_TEST_CASE_P(smoke_ConvolutionBackpropData3D_ExplicitPadding, ConvolutionBackpropDataLayerTest,
                         ::testing::Combine(
                                 conv3DParams_ExplicitPadding,
                                 ::testing::ValuesIn(netPrecisions3D),
@@ -108,7 +108,7 @@ INSTANTIATE_TEST_CASE_P(ConvolutionBackpropData3D_ExplicitPadding, ConvolutionBa
                                 ::testing::Values(CommonTestUtils::DEVICE_GPU)),
                         ConvolutionBackpropDataLayerTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(ConvolutionBackpropData3D_AutoPadValid, ConvolutionBackpropDataLayerTest,
+INSTANTIATE_TEST_CASE_P(smoke_ConvolutionBackpropData3D_AutoPadValid, ConvolutionBackpropDataLayerTest,
                         ::testing::Combine(
                                 conv3DParams_AutoPadValid,
                                 ::testing::ValuesIn(netPrecisions3D),

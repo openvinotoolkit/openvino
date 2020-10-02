@@ -94,7 +94,7 @@ const auto GatherAxes4 = testing::Combine(
 );
 
 INSTANTIATE_TEST_CASE_P(
-        GatherAxes4,
+        smoke_GatherAxes4,
         GatherLayerTest,
         GatherAxes4,
         GatherLayerTest::getTestCaseName
@@ -110,7 +110,7 @@ const auto Gather6dAxes4 = testing::Combine(
 );
 
 INSTANTIATE_TEST_CASE_P(
-        Gather6dAxes4,
+        smoke_Gather6dAxes4,
         GatherLayerTest,
         Gather6dAxes4,
         GatherLayerTest::getTestCaseName
@@ -154,7 +154,7 @@ const auto GatherAxes3 = testing::Combine(
 );
 
 INSTANTIATE_TEST_CASE_P(
-        GatherAxes3,
+        smoke_GatherAxes3,
         GatherLayerTest,
         GatherAxes3,
         GatherLayerTest::getTestCaseName
@@ -170,7 +170,7 @@ const auto Gather6dAxes3 = testing::Combine(
 );
 
 INSTANTIATE_TEST_CASE_P(
-        Gather6dAxes3,
+        smoke_Gather6dAxes3,
         GatherLayerTest,
         Gather6dAxes3,
         GatherLayerTest::getTestCaseName
@@ -214,7 +214,7 @@ const auto GatherAxes2 = testing::Combine(
 );
 
 INSTANTIATE_TEST_CASE_P(
-        GatherAxes2,
+        smoke_GatherAxes2,
         GatherLayerTest,
         GatherAxes2,
         GatherLayerTest::getTestCaseName
@@ -230,7 +230,7 @@ const auto Gather6dAxes2 = testing::Combine(
 );
 
 INSTANTIATE_TEST_CASE_P(
-        Gather6dAxes2,
+        smoke_Gather6dAxes2,
         GatherLayerTest,
         Gather6dAxes2,
         GatherLayerTest::getTestCaseName
@@ -274,7 +274,7 @@ const auto GatherAxes1 = testing::Combine(
 );
 
 INSTANTIATE_TEST_CASE_P(
-        GatherAxes1,
+        smoke_GatherAxes1,
         GatherLayerTest,
         GatherAxes1,
         GatherLayerTest::getTestCaseName
@@ -290,7 +290,7 @@ const auto Gather6dAxes1 = testing::Combine(
 );
 
 INSTANTIATE_TEST_CASE_P(
-        Gather6dAxes1,
+        smoke_Gather6dAxes1,
         GatherLayerTest,
         Gather6dAxes1,
         GatherLayerTest::getTestCaseName
@@ -334,7 +334,7 @@ const auto GatherAxes0 = testing::Combine(
 );
 
 INSTANTIATE_TEST_CASE_P(
-        GatherAxes0,
+        smoke_GatherAxes0,
         GatherLayerTest,
         GatherAxes0,
         GatherLayerTest::getTestCaseName
@@ -350,7 +350,7 @@ const auto Gather6dAxes0 = testing::Combine(
 );
 
 INSTANTIATE_TEST_CASE_P(
-        Gather6dAxes0,
+        smoke_Gather6dAxes0,
         GatherLayerTest,
         Gather6dAxes0,
         GatherLayerTest::getTestCaseName

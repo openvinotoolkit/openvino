@@ -59,6 +59,6 @@ const auto basicCases = ::testing::Combine(
         ::testing::Values(CommonTestUtils::DEVICE_GPU)
 );
 
-INSTANTIATE_TEST_CASE_P(Activation_Basic, ActivationLayerTest, basicCases, ActivationLayerTest::getTestCaseName);
+INSTANTIATE_TEST_CASE_P(smoke_Activation_Basic, ActivationLayerTest, basicCases, ActivationLayerTest::getTestCaseName);
 
 }  // namespace
