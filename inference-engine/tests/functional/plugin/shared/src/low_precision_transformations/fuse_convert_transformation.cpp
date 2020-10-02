@@ -8,43 +8,53 @@
 #include <tuple>
 #include <vector>
 #include <string>
+
 #include <ie_core.hpp>
 
-#include <transformations/init_node_info.hpp>
+#include "common_test_utils/common_utils.hpp"
+#include "functional_test_utils/plugin_cache.hpp"
+#include "functional_test_utils/layer_test_utils.hpp"
+#include "functional_test_utils/blob_utils.hpp"
+
+#include "ngraph_functions/pass/convert_prc.hpp"
 #include "ngraph_functions/low_precision_transformations/fuse_convert_function.hpp"
+
+#include <ngraph/pass/visualize_tree.hpp>
 
 namespace LayerTestsDefinitions {
 
 std::string FuseConvertTransformation::getTestCaseName(testing::TestParamInfo<FuseConvertTransformationParams> obj) {
-    ngraph::element::Type precision;
     std::string targetDevice;
+    ngraph::Shape shape;
+    ngraph::element::Type precision;
+    auto params = LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8();
     LayerTestsUtils::LayerTransformation::LptVersion version;
-    FuseConvertTransformationTestValues testValues;
-    std::tie(precision, targetDevice, version, testValues) = obj.param;
+    ngraph::builder::subgraph::DequantizationOperations deqOperations;
+    bool constInput;
+    std::tie(precision, shape, targetDevice, version, deqOperations, constInput) = obj.param;
 
     std::ostringstream result;
-    result << version << "_" <<
-        precision << "_" <<
-        targetDevice << "_" <<
-        testValues.inputShape << "_" <<
-        testValues.fqOnData;
-
+    result << getTestCaseNameByParams(precision, shape, targetDevice, params, version) <<
+           "_" << deqOperations << "_" << constInput;
     return result.str();
 }
 
 void FuseConvertTransformation::SetUp() {
+    ngraph::Shape shape;
     ngraph::element::Type precision;
+    auto params = LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8();
     LayerTestsUtils::LayerTransformation::LptVersion version;
-    FuseConvertTransformationTestValues testValues;
-    std::tie(precision, targetDevice, version, testValues) = this->GetParam();
+    ngraph::builder::subgraph::DequantizationOperations deqOperations;
+    bool constInput;
+    std::tie(precision, shape, targetDevice, version, deqOperations, constInput) = this->GetParam();
 
     ConfigurePlugin(version);
 
-    function = ngraph::builder::subgraph::FuseConvertFunction::getOriginal(
-        testValues.inputShape,
-        testValues.transposeConstValues,
-        testValues.precisionBeforeFq,
-        testValues.fqOnData);
+    function = ngraph::builder::subgraph::FuseConvertFunction::getWithFQ(
+        shape,
+        precision,
+        deqOperations,
+        constInput);
 }
 
 TEST_P(FuseConvertTransformation, CompareWithRefImpl) {

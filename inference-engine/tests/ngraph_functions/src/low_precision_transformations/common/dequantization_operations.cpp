@@ -72,6 +72,11 @@ bool DequantizationOperations::Subtract::empty() const noexcept {
     return isEmpty;
 }
 
+DequantizationOperations::Subtract& DequantizationOperations::Subtract::setConstantPrecision(const ngraph::element::Type& precision) {
+    constantPrecision = precision;
+    return *this;
+}
+
 DequantizationOperations::Multiply::Multiply() :
     isEmpty(true),
     outPrecision(ngraph::element::undefined),
@@ -112,6 +117,11 @@ DequantizationOperations::Multiply::Multiply(
 
 bool DequantizationOperations::Multiply::empty() const noexcept {
     return isEmpty;
+}
+
+DequantizationOperations::Multiply& DequantizationOperations::Multiply::setConstantPrecision(const ngraph::element::Type& precision) {
+    constantPrecision = precision;
+    return *this;
 }
 
 DequantizationOperations::DequantizationOperations() {}

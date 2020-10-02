@@ -44,7 +44,9 @@ std::shared_ptr<Node> makeDequantization(
         }
 
         const auto subtractConst = std::make_shared<ngraph::opset1::Constant>(
-            parent.get_element_type(),
+            dequantizationOperations.subtract.constantPrecision != element::undefined ?
+                dequantizationOperations.subtract.constantPrecision :
+                parent.get_element_type(),
             shape,
             dequantizationOperations.subtract.values);
 
@@ -52,7 +54,11 @@ std::shared_ptr<Node> makeDequantization(
             (dequantizationOperations.subtract.outPrecision == parent.get_element_type())) {
             subtract = std::make_shared<ngraph::pass::low_precision::DequantizationSubtract>(parent, subtractConst);
         } else {
-            subtract = std::make_shared<op::TypeRelaxed<ngraph::pass::low_precision::DequantizationSubtract>>(parent, subtractConst);
+            subtract = std::make_shared<op::TypeRelaxed<ngraph::pass::low_precision::DequantizationSubtract>>(
+                    std::vector<element::Type>{element::f32, element::f32},
+                    std::vector<element::Type>{ element::f32 },
+                    ngraph::op::TemporaryReplaceOutputType(parent, element::f32).get(),
+                    ngraph::op::TemporaryReplaceOutputType(subtractConst, element::f32).get());
             ngraph::pass::low_precision::NetworkHelper::setOutDataPrecision(subtract, dequantizationOperations.subtract.outPrecision);
         }
         if (!dequantizationOperations.subtract.addDequantizationAttribute) {
@@ -85,7 +91,12 @@ std::shared_ptr<Node> makeDequantization(
                 std::vector<element::Type>{ element::f32 },
                 ngraph::op::TemporaryReplaceOutputType(parent, element::f32).get(),
                 ngraph::op::TemporaryReplaceOutputType(
-                    std::make_shared<ngraph::opset1::Constant>(parent.get_element_type(), shape, dequantizationOperations.multiply.values),
+                    std::make_shared<ngraph::opset1::Constant>(
+                        dequantizationOperations.multiply.constantPrecision != element::undefined ?
+                            dequantizationOperations.multiply.constantPrecision :
+                            parent.get_element_type(),
+                        shape,
+                        dequantizationOperations.multiply.values),
                     element::f32).get());
 
         parent = multiply;

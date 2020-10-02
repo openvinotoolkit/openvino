@@ -8,33 +8,32 @@
 #include <memory>
 
 #include "functional_test_utils/low_precision_transformations/layer_transformation.hpp"
+#include "ngraph_functions/low_precision_transformations/common/fake_quantize_on_data.hpp"
 #include "ngraph_functions/low_precision_transformations/common/dequantization_operations.hpp"
+
+using namespace ngraph;
 
 namespace LayerTestsDefinitions {
 
-class FuseConvertTransformationTestValues {
-public:
-    ngraph::Shape inputShape;
-    std::vector<int> transposeConstValues;
-    ngraph::pass::low_precision::LayerTransformation::Params params;
-    ngraph::element::Type precisionBeforeFq;
-    ngraph::builder::subgraph::FakeQuantizeOnData fqOnData;
-};
-
-typedef std::tuple<
-    ngraph::element::Type,
+typedef std::tuple <
+    element::Type,
+    Shape,
     std::string,
     LayerTestsUtils::LayerTransformation::LptVersion,
-    FuseConvertTransformationTestValues> FuseConvertTransformationParams;
+    ngraph::builder::subgraph::DequantizationOperations,
+    bool> FuseConvertTransformationParams;
 
 class FuseConvertTransformation :
-    public testing::WithParamInterface<FuseConvertTransformationParams>,
-    public LayerTestsUtils::LayerTransformation {
+        public testing::WithParamInterface<FuseConvertTransformationParams>,
+        public LayerTestsUtils::LayerTransformation {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<FuseConvertTransformationParams> obj);
 
 protected:
     void SetUp() override;
+
+private:
+    void validate();
 };
 
 }  // namespace LayerTestsDefinitions

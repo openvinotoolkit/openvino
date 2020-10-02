@@ -32,12 +32,14 @@ public:
         Subtract(const std::vector<float>& values, const ngraph::element::Type outPrecision, const bool addDeqAttr = true);
         Subtract(const std::vector<float>& values, const ngraph::element::Type outPrecision, const ngraph::Shape& constantShape, const bool addDeqAttr = true);
         bool empty() const noexcept;
+        Subtract& setConstantPrecision(const ngraph::element::Type& precision);
 
         std::vector<float> values;
         ngraph::element::Type outPrecision;
         ngraph::Shape constantShape;
         bool constantShapeIsDefined;
         bool addDequantizationAttribute;
+        ngraph::element::Type constantPrecision = ngraph::element::undefined;
     private:
         bool isEmpty;
     };
@@ -50,11 +52,13 @@ public:
         Multiply(const std::vector<float>& values, const ngraph::element::Type outPrecision);
         Multiply(const std::vector<float>& values, const ngraph::element::Type outPrecision, const ngraph::Shape& constantShape);
         bool empty() const noexcept;
+        Multiply& setConstantPrecision(const ngraph::element::Type& precision);
 
         std::vector<float> values;
         ngraph::element::Type outPrecision;
         ngraph::Shape constantShape;
         bool constantShapeIsDefined;
+        ngraph::element::Type constantPrecision = ngraph::element::undefined;
     private:
         bool isEmpty;
     };

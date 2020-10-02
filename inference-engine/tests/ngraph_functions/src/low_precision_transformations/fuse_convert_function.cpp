@@ -5,84 +5,85 @@
 #include "ngraph_functions/low_precision_transformations/fuse_convert_function.hpp"
 
 #include <ngraph/opsets/opset1.hpp>
+#include "ngraph_functions/subgraph_builders.hpp"
 #include "ngraph_functions/low_precision_transformations/common/builders.hpp"
 
 namespace ngraph {
 namespace builder {
 namespace subgraph {
 
-std::shared_ptr<ngraph::Function> FuseConvertFunction::getOriginal(
+std::shared_ptr<ngraph::Function> FuseConvertFunction::get(
     const ngraph::Shape& inputShape,
-    const std::vector<int>& transposeConstValues,
-    const ngraph::element::Type precisionBeforeDequantization,
-    const ngraph::builder::subgraph::DequantizationOperations& dequantizationWithConvert) {
-    const std::shared_ptr<op::v0::Parameter> input = std::make_shared<ngraph::opset1::Parameter>(
-        precisionBeforeDequantization,
-        ngraph::Shape(inputShape));
+    const ngraph::element::Type inputPrecision,
+    const ngraph::builder::subgraph::DequantizationOperations& dequantization,
+    const bool constInput) {
+    std::shared_ptr<Node> parent;
+    std::shared_ptr<op::Parameter> input;
+    if (constInput) {
+        parent = std::make_shared<opset1::Constant>(inputPrecision, inputShape, std::vector<float>{ 128.f });
+    } else {
+        input = std::make_shared<ngraph::opset1::Parameter>(
+            inputPrecision,
+            ngraph::Shape(inputShape));
+        parent = input;
+    }
 
-    const std::shared_ptr<Node> transpose = std::make_shared<ngraph::opset1::Transpose>(
-        input,
-        std::make_shared<ngraph::opset1::Constant>(ngraph::element::i64, ngraph::Shape{ transposeConstValues.size() }, transposeConstValues));
-
-    const std::shared_ptr<Node> dequantizationOp = makeDequantization(transpose, dequantizationWithConvert);
+    const std::shared_ptr<Node> dequantizationOp = makeDequantization(parent, dequantization);
     dequantizationOp->set_friendly_name("output");
 
+    auto parameters = constInput ?
+        ngraph::ParameterVector{}:
+        ngraph::ParameterVector{ input };
+
     ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(dequantizationOp) };
-    return std::make_shared<ngraph::Function>(results, ngraph::ParameterVector{ input }, "TransposeFunction");
+    return std::make_shared<ngraph::Function>(results, parameters, "FuseConvertFunction");
 }
 
-std::shared_ptr<ngraph::Function> FuseConvertFunction::getOriginal(
+std::shared_ptr<ngraph::Function> FuseConvertFunction::getWithFQ(
     const ngraph::Shape& inputShape,
-    const std::vector<int>& transposeConstValues,
-    const ngraph::element::Type precisionBeforeFq,
-    const FakeQuantizeOnData& fqOnData) {
-    const std::shared_ptr<op::v0::Parameter> input = std::make_shared<ngraph::opset1::Parameter>(
-        precisionBeforeFq,
-        ngraph::Shape(inputShape));
-
-    const std::shared_ptr<Node> quantizationOp = fqOnData.empty() ?
-        std::dynamic_pointer_cast<ngraph::Node>(input) :
-        makeFakeQuantize(input, precisionBeforeFq, fqOnData);
-
-    const std::shared_ptr<Node> transpose = std::make_shared<ngraph::opset1::Transpose>(
-        quantizationOp,
-        std::make_shared<ngraph::opset1::Constant>(ngraph::element::i64, ngraph::Shape{ transposeConstValues.size() }, transposeConstValues));
-
-    ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(transpose) };
-    return std::make_shared<ngraph::Function>(results, ngraph::ParameterVector{ input }, "TransposeFunction");
-}
-
-std::shared_ptr<ngraph::Function> FuseConvertFunction::getReference(
-    const ngraph::Shape& inputShape,
-    const std::vector<int>& transposeConstValues,
-    const ngraph::element::Type precisionBeforeDequantization,
-    const ngraph::builder::subgraph::DequantizationOperations& dequantizationBefore,
-    const ngraph::element::Type precisionAfterOperation,
-    const ngraph::builder::subgraph::DequantizationOperations& dequantizationAfter) {
-    const std::shared_ptr<op::v0::Parameter> input = std::make_shared<ngraph::opset1::Parameter>(
-        precisionBeforeDequantization,
-        ngraph::Shape(inputShape));
-
-    const std::shared_ptr<Node> quantizationOpBefore = makeDequantization(input, dequantizationBefore);
-
-    const std::shared_ptr<ngraph::opset1::Constant> transposeConstant = std::make_shared<ngraph::opset1::Constant>(
-        ngraph::element::i64,
-        ngraph::Shape{ transposeConstValues.size() },
-        transposeConstValues);
-    const std::shared_ptr<ngraph::opset1::Transpose> transpose = std::make_shared<ngraph::opset1::Transpose>(quantizationOpBefore, transposeConstant);
-    if (quantizationOpBefore->get_output_element_type(0) != precisionAfterOperation) {
-        THROW_IE_LPT_EXCEPTION(*quantizationOpBefore) << "unexpected precision '" << precisionAfterOperation << "' after operation";
-    }
-    if (transpose->get_output_element_type(0) != precisionAfterOperation) {
-        THROW_IE_LPT_EXCEPTION(*transpose) << "unexpected precision '" << precisionAfterOperation << "' after operation";
+    const ngraph::element::Type inputPrecision,
+    const ngraph::builder::subgraph::DequantizationOperations& dequantization,
+    const bool constInput) {
+    std::shared_ptr<Node> parent;
+    std::shared_ptr<op::Parameter> input1;
+    if (constInput) {
+        parent = std::make_shared<opset1::Constant>(inputPrecision, inputShape, std::vector<float>{ 128.f });
+    } else {
+        input1 = std::make_shared<ngraph::opset1::Parameter>(
+                inputPrecision,
+                ngraph::Shape(inputShape));
+        parent = input1;
     }
 
-    const std::shared_ptr<Node> quantizationOpAfter = makeDequantization(transpose, dequantizationAfter);
-    quantizationOpAfter->set_friendly_name("output");
+    const std::shared_ptr<Node> dequantizationOp = makeDequantization(parent, dequantization);
 
-    ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(quantizationOpAfter) };
-    return std::make_shared<ngraph::Function>(results, ngraph::ParameterVector{ input }, "TransposeFunction");
+    std::shared_ptr<op::Parameter> input2 = std::make_shared<ngraph::opset1::Parameter>(
+            inputPrecision,
+            ngraph::Shape(inputShape));
+
+    const auto fakeQuantizeOnActivations = ngraph::builder::makeFakeQuantize(
+        input2, inputPrecision, 256ul, { 1ul },
+        { 0.f }, { 255.f }, { 0.f }, { 255.f });
+
+    // just some non-transparent layer
+    const auto power = std::make_shared<opset1::Power>(
+        fakeQuantizeOnActivations,
+        std::make_shared<opset1::Constant>(element::f32, Shape{}, std::vector<float>{2.f}));
+
+    const auto add = std::make_shared<opset1::Add>(
+        dequantizationOp,
+        power);
+
+    add->set_friendly_name("output");
+
+    auto parameters = constInput ?
+                      ngraph::ParameterVector{ input2 }:
+                      ngraph::ParameterVector{ input1, input2 };
+
+    ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(add) };
+    return std::make_shared<ngraph::Function>(results, parameters, "FuseConvertFunction");
 }
+
 
 }  // namespace subgraph
 }  // namespace builder

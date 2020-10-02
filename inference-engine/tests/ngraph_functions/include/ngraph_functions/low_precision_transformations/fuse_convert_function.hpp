@@ -16,25 +16,17 @@ namespace subgraph {
 
 class FuseConvertFunction {
 public:
-    static std::shared_ptr<ngraph::Function> getOriginal(
-        const ngraph::Shape& inputShape,
-        const std::vector<int>& transposeConstValues,
-        const ngraph::element::Type precisionBeforeDequantization,
-        const ngraph::builder::subgraph::DequantizationOperations& dequantizationWithConvert);
+    static std::shared_ptr<ngraph::Function> get(
+            const ngraph::Shape& inputShape,
+            const ngraph::element::Type inputPrecision,
+            const ngraph::builder::subgraph::DequantizationOperations& dequantization,
+            const bool constInput);
 
-    static std::shared_ptr<ngraph::Function> getOriginal(
-        const ngraph::Shape& inputShape,
-        const std::vector<int>& transposeConstValues,
-        const ngraph::element::Type precisionBeforeFq,
-        const FakeQuantizeOnData& fqOnData);
-
-    static std::shared_ptr<ngraph::Function> getReference(
-        const ngraph::Shape& inputShape,
-        const std::vector<int>& transposeConstValues,
-        const ngraph::element::Type precisionBeforeDequantization,
-        const ngraph::builder::subgraph::DequantizationOperations& dequantizationBefore,
-        const ngraph::element::Type precisionAfterOperation,
-        const ngraph::builder::subgraph::DequantizationOperations& dequantizationAfter);
+    static std::shared_ptr<ngraph::Function> getWithFQ(
+            const ngraph::Shape& inputShape,
+            const ngraph::element::Type inputPrecision,
+            const ngraph::builder::subgraph::DequantizationOperations& dequantization,
+            const bool constInput);
 };
 
 }  // namespace subgraph
