@@ -712,7 +712,7 @@ void InsertCopyLayerPass::run() {
                     while (LayerInfo(current_layer).isNonFunctional() || LayerInfo(current_layer).isSplit()) {
                         if (current_layer->outData.size() == 0) break;
                         if (getInputTo(current_layer->outData[0]).size() == 0) break;
-                        auto new_layer = CNNNetGetNextLayerSkipCertain(current_layer,0,0,[](CNNLayerPtr origin){return false;}).first;
+                        auto new_layer = CNNNetGetNextLayerSkipCertain(current_layer, 0, 0, [](CNNLayerPtr origin){return false;}).first;
                         current_layer = new_layer;
                     }
                     // if preceding layer is common for memory and concat
