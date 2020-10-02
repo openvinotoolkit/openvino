@@ -18,7 +18,7 @@
 #include "subgraph_tests/get_output_before_activation.hpp"
 
 namespace SubgraphTestsDefinitions {
-std::ostream& SubgraphTestsDefinitions::operator<<(std::ostream& os, const midOutputType& oType) {
+std::ostream& operator<<(std::ostream& os, const midOutputType& oType) {
     switch (oType) {
     case midOutputType::Sub:
         return (os << "Sub");
@@ -31,7 +31,7 @@ std::ostream& SubgraphTestsDefinitions::operator<<(std::ostream& os, const midOu
     }
 }
 
-std::string SubgraphTestsDefinitions::OutputBeforeActivation::getTestCaseName(const testing::TestParamInfo<outputBeforeActivationParams>& obj) {
+std::string OutputBeforeActivation::getTestCaseName(const testing::TestParamInfo<outputBeforeActivationParams>& obj) {
     std::string targetDevice;
     InferenceEngine::Precision netPrecision;
     size_t inputSize;
