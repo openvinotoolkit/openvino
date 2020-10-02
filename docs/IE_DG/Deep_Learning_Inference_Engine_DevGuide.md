@@ -21,7 +21,7 @@ The OpenVINO™ toolkit includes the following components:
     preparing them for optimal execution with the Deep Learning Inference Engine. The Model Optimizer supports converting Caffe*,
     TensorFlow*, MXNet*, Kaldi*, ONNX* models.
     - [Deep Learning Inference Engine](inference_engine_intro.md) — A unified API to allow high performance inference on many hardware types
-    including Intel® CPU, Intel® Processor Graphics, Intel® FPGA, Intel® Neural Compute Stick 2.
+    including Intel® CPU, Intel® Processor Graphics, Intel® Neural Compute Stick 2.
     - [nGraph](nGraph_Flow.md) — graph representation and manipulation engine which is used to represent a model inside Inference Engine and allows the run-time model construction without using Model Optimizer.
 * [OpenCV](https://docs.opencv.org/) — OpenCV* community version compiled for Intel® hardware.
 Includes PVL libraries for computer vision.
@@ -78,7 +78,6 @@ inference of a pre-trained and optimized deep learning model and a set of sample
 * [Supported Devices](supported_plugins/Supported_Devices.md)
     * [GPU](supported_plugins/CL_DNN.md)
     * [CPU](supported_plugins/CPU.md)
-    * [FPGA](supported_plugins/FPGA.md)
     * [VPU](supported_plugins/VPU.md)
       * [MYRIAD](supported_plugins/MYRIAD.md)
       * [HDDL](supported_plugins/HDDL.md)

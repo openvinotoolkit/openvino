@@ -2,8 +2,6 @@
 
 > **NOTES**:
 > - This guide applies to Microsoft Windows\* 10 64-bit. For Linux* OS information and instructions, see the [Installation Guide for Linux](installing-openvino-linux.md).
-> - For the Intel® Distribution of OpenVINO™ toolkit for Windows* 10 with FPGA
-support, see [Installation Guide for Windows* with FPGA support](installing-openvino-windows-fpga.md).
 > - [Intel® System Studio](https://software.intel.com/en-us/system-studio) is an all-in-one, cross-platform tool suite, purpose-built to simplify system bring-up and improve system and IoT device application performance on Intel® platforms. If you are using the Intel® Distribution of OpenVINO™ with Intel® System Studio, go to [Get Started with Intel® System Studio](https://software.intel.com/en-us/articles/get-started-with-openvino-and-intel-system-studio-2019).
 
 ## Introduction
