@@ -26,7 +26,7 @@ ngraph::pass::ReduceL2Decomposition::ReduceL2Decomposition() {
 
         auto const_2 = ngraph::opset4::Constant::create(reduce_l2_node->input_value(0).get_element_type(), Shape{}, {2.0f});
         auto square = std::make_shared<ngraph::opset4::Power>(reduce_l2_node->input_value(0), const_2);
-        auto reduce_sum = std::make_shared<ngraph::opset4::ReduceSum>(square, reduce_l2_node->input_value(1), reduce_l2_node->get_keep_dims());
+        auto reduce_sum = register_new_node<ngraph::opset4::ReduceSum>(square, reduce_l2_node->input_value(1), reduce_l2_node->get_keep_dims());
         auto sqrt = std::make_shared<ngraph::opset4::Sqrt>(reduce_sum);
         reduce_sum->set_friendly_name(m.get_match_root()->get_friendly_name());
         ngraph::copy_runtime_info(reduce_l2_node,
