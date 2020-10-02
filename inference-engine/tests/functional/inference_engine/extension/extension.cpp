@@ -6,9 +6,7 @@
 #include <ie_core.hpp>
 #include <ngraph/ngraph.hpp>
 #include <onnx_import/onnx_utils.hpp>
-
-#include "extension.hpp"
-#include "op.hpp"
+#include <file_utils.h>
 
 
 class CustomReluKernel : public InferenceEngine::ILayerExecImpl {
@@ -128,28 +126,10 @@ class CustomReluExtension : public InferenceEngine::IExtension {
         }
 };
 
-template <typename Extension, typename CustomOp>
-void test_extension(const std::string& model, const std::vector<float>& input_values, const std::vector<float>& expected,
-                    bool register_onnx_op, int opset_ver = 0, std::string domain = "") {
-    InferenceEngine::Core ie;
+void infer_model(InferenceEngine::Core& ie, const std::string& model, const std::vector<float>& input_values, const std::vector<float>& expected) {
     InferenceEngine::Blob::CPtr weights;
-    ie.AddExtension(std::make_shared<Extension>());
-    if (register_onnx_op) {
-        ngraph::onnx_import::register_operator(
-            CustomOp::type_info.name, opset_ver, domain, [](const ngraph::onnx_import::Node& node) -> ngraph::OutputVector {
-                ngraph::OutputVector ng_inputs{node.get_ng_inputs()};
-                return {std::make_shared<CustomRelu>(ng_inputs.at(0))};
-        });
-    }
     auto network = ie.ReadNetwork(model, weights);
     auto function = network.getFunction();
-
-    int ops_count = 0;
-    for (auto op : function->get_ops()) {
-        const auto op_type = std::string(op->get_type_name());
-        ops_count += (op_type == CustomOp::type_info.name ? 1 : 0);
-    }
-    ASSERT_EQ(ops_count, 1);
 
     auto network_inputs = network.getInputsInfo();
     auto network_outputs = network.getOutputsInfo();
@@ -218,13 +198,23 @@ graph {
   }
 }
 opset_import {
-  version: 4
+  version: 1
+  domain: "custom_domain"
 }
 )V0G0N";
 
     std::vector<float> input_values{1, -2, 3, -4, 5, -6, 7, -8, 9, -10};
     std::vector<float> expected{1, -4, 3, -8, 5, -12, 7, -16, 9, -20};
-    test_extension<CustomReluExtension, CustomRelu>(model, input_values, expected, true, 1, "custom_domain");
+    InferenceEngine::Core ie;
+    ie.AddExtension(std::make_shared<CustomReluExtension>());
+    ngraph::onnx_import::register_operator(
+        CustomRelu::type_info.name, 1, "custom_domain", [](const ngraph::onnx_import::Node& node) -> ngraph::OutputVector {
+            ngraph::OutputVector ng_inputs{node.get_ng_inputs()};
+            return {std::make_shared<CustomRelu>(ng_inputs.at(0))};
+    });
+
+    infer_model(ie, model, input_values, expected);
+    ngraph::onnx_import::unregister_operator(CustomRelu::type_info.name, 1, "custom_domain");
 }
 
 
@@ -269,7 +259,15 @@ TEST(Extension, XmlModelWithCustomRelu) {
 
     std::vector<float> input_values{1, -2, 3, -4, 5, -6, 7, -8, 9, -10};
     std::vector<float> expected{1, -4, 3, -8, 5, -12, 7, -16, 9, -20};
-    test_extension<CustomReluExtension, CustomRelu>(model, input_values, expected, false);
+    InferenceEngine::Core ie;
+    ie.AddExtension(std::make_shared<CustomReluExtension>());
+    infer_model(ie, model, input_values, expected);
+}
+
+
+static std::string get_extension_path() {
+    return FileUtils::makeSharedLibraryName<char>({},
+            std::string("template_extension") + IE_BUILD_POSTFIX);
 }
 
 
@@ -327,7 +325,9 @@ TEST(Extension, XmlModelWithExtensionFromDSO) {
 
     std::vector<float> input_values{1, 2, 3, 4, 5, 6, 7, 8};
     std::vector<float> expected{12, 13, 14, 15, 16, 17, 18, 19};
-    test_extension<TemplateExtension::Extension, TemplateExtension::Operation>(model, input_values, expected, false);
+    InferenceEngine::Core ie;
+    ie.AddExtension(InferenceEngine::make_so_pointer<InferenceEngine::IExtension>(get_extension_path()));
+    infer_model(ie, model, input_values, expected);
 }
 
 
@@ -395,13 +395,16 @@ graph {
   }
 }
 opset_import {
-  version: 4
+  version: 1
+  domain: "com.example"
 }
 )V0G0N";
 
     std::vector<float> input_values{1, 2, 3, 4, 5, 6, 7, 8};
     std::vector<float> expected{12, 13, 14, 15, 16, 17, 18, 19};
-    test_extension<TemplateExtension::Extension, TemplateExtension::Operation>(model, input_values, expected, false);
+    InferenceEngine::Core ie;
+    ie.AddExtension(InferenceEngine::make_so_pointer<InferenceEngine::IExtension>(get_extension_path()));
+    infer_model(ie, model, input_values, expected);
 }
 
 

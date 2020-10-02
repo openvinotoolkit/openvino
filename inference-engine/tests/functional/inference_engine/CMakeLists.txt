@@ -11,7 +11,6 @@ addIeTargetTest(
         INCLUDES
             # TODO: remove after removing `cnn_network_ngraph_imp.hpp`
             ${IE_MAIN_SOURCE_DIR}/src/inference_engine
-            ${OpenVINO_MAIN_SOURCE_DIR}/docs/template_extension
         EXCLUDED_SOURCE_DIRS
             ${CMAKE_CURRENT_SOURCE_DIR}/extension_lib
         LINK_LIBRARIES
@@ -19,7 +18,6 @@ addIeTargetTest(
             funcTestUtils
             ngraphFunctions
             inference_engine_transformations
-            template_extension
             onnx_importer
         ADD_CPPLINT
         DEPENDENCIES
