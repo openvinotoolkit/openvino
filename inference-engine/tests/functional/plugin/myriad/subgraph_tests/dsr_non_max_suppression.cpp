@@ -63,7 +63,7 @@ TEST_P(DSR_NonMaxSuppression, CompareWithReference) {
 }
 
 // #-30919
-INSTANTIATE_TEST_CASE_P(DISABLED_DynamicNonMaxSupression, DSR_NonMaxSuppression,
+INSTANTIATE_TEST_CASE_P(DISABLED_smoke_DynamicNonMaxSupression, DSR_NonMaxSuppression,
     ::testing::Combine(
          ::testing::Values(
                     ngraph::element::f16,

@@ -19,7 +19,7 @@ std::vector<std::vector<InferenceEngine::SizeVector>> inShapes = {
         {{1}, {1, 256, 512}},
 };
 
-INSTANTIATE_TEST_CASE_P(equalS32, EqualLayerTest,
+INSTANTIATE_TEST_CASE_P(smoke_equalS32, EqualLayerTest,
         ::testing::Combine(
                 ::testing::ValuesIn(inShapes),
                 ::testing::Values(InferenceEngine::Precision::I32),

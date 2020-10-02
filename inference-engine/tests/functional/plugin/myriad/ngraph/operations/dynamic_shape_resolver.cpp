@@ -88,7 +88,7 @@ std::set<ngraph::element::Type_t> allNGraphStaticTypes() {
     return staticTypes;
 }
 
-INSTANTIATE_TEST_CASE_P(NGraph, DynamicShapeResolverTests, testing::Combine(
+INSTANTIATE_TEST_CASE_P(smoke_NGraph, DynamicShapeResolverTests, testing::Combine(
     testing::ValuesIn(allNGraphStaticTypes()),
     testing::Values(DataShape{1, 800}, DataShape{1, 1})));
 
@@ -120,7 +120,7 @@ TEST_P(DynamicShapeResolverNegativeTestsDataType, ThrowsOnInvalidDimsType) {
     ASSERT_THROW(std::make_shared<ngraph::vpu::op::DynamicShapeResolver>(data, dims), ngraph::ngraph_error);
 }
 
-INSTANTIATE_TEST_CASE_P(NGraph, DynamicShapeResolverNegativeTestsDataType, testing::Combine(
+INSTANTIATE_TEST_CASE_P(smoke_NGraph, DynamicShapeResolverNegativeTestsDataType, testing::Combine(
     testing::Values(ngraph::element::dynamic),
     testing::Values(ngraph::element::i64),
     testing::Values(DataPartialShape{1, 800}),
@@ -140,7 +140,7 @@ std::set<ngraph::element::Type_t> allNGraphNotIntegralTypes() {
     return notIntegralTypes;
 }
 
-INSTANTIATE_TEST_CASE_P(NGraph, DynamicShapeResolverNegativeTestsDimsType, testing::Combine(
+INSTANTIATE_TEST_CASE_P(smoke_NGraph, DynamicShapeResolverNegativeTestsDimsType, testing::Combine(
     testing::ValuesIn(allNGraphStaticTypes()),
     testing::ValuesIn(allNGraphNotIntegralTypes()),
     testing::Values(DataPartialShape{1, 800}),
@@ -151,7 +151,7 @@ TEST_P(DynamicShapeResolverNegativeTestsDataShape, ThrowsOnInvalidDimsType) {
     ASSERT_THROW(std::make_shared<ngraph::vpu::op::DynamicShapeResolver>(data, dims), ngraph::ngraph_error);
 }
 
-INSTANTIATE_TEST_CASE_P(NGraph, DynamicShapeResolverNegativeTestsDataShape, testing::Combine(
+INSTANTIATE_TEST_CASE_P(smoke_NGraph, DynamicShapeResolverNegativeTestsDataShape, testing::Combine(
     testing::ValuesIn(allNGraphStaticTypes()),
     testing::Values(ngraph::element::i64),
     testing::Values(
@@ -166,7 +166,7 @@ TEST_P(DynamicShapeResolverNegativeTestsDimsShape, ThrowsOnInvalidDimsType) {
     ASSERT_THROW(std::make_shared<ngraph::vpu::op::DynamicShapeResolver>(data, dims), ngraph::ngraph_error);
 }
 
-INSTANTIATE_TEST_CASE_P(NGraph, DynamicShapeResolverNegativeTestsDimsShape, testing::Combine(
+INSTANTIATE_TEST_CASE_P(smoke_NGraph, DynamicShapeResolverNegativeTestsDimsShape, testing::Combine(
     testing::ValuesIn(allNGraphTypes()),
     testing::Values(ngraph::element::i64),
     testing::Values(DataShape{1, 800}),
@@ -276,7 +276,7 @@ const auto basicCases = ::testing::Combine(
 );
 
 
-INSTANTIATE_TEST_CASE_P(DynamicShapeResolverPluginTests, DynamicShapeResolverPluginTests,
+INSTANTIATE_TEST_CASE_P(smoke_DynamicShapeResolverPluginTests, DynamicShapeResolverPluginTests,
                         ::testing::Combine(
                                 ::testing::ValuesIn(inputDatas),
                                 ::testing::Values(CommonTestUtils::DEVICE_MYRIAD)),

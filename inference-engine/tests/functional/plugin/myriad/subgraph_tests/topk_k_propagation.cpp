@@ -64,7 +64,7 @@ const std::vector<int64_t> kVec = {0, 10, 100, 200, 500};
 TEST_P(DynamicToStaticTopKPropagation, KPropagation) {
 }
 
-INSTANTIATE_TEST_CASE_P(NGraph, DynamicToStaticTopKPropagation, ::testing::ValuesIn(kVec));
+INSTANTIATE_TEST_CASE_P(smoke_NGraph, DynamicToStaticTopKPropagation, ::testing::ValuesIn(kVec));
 
 class DynamicToStaticTopKPropagationReshape : public DynamicToStaticTopKPropagation {
 protected:
@@ -76,7 +76,7 @@ protected:
 TEST_P(DynamicToStaticTopKPropagationReshape, KPropagation) {
 }
 
-INSTANTIATE_TEST_CASE_P(NGraph, DynamicToStaticTopKPropagationReshape, ::testing::ValuesIn(kVec));
+INSTANTIATE_TEST_CASE_P(smoke_NGraph, DynamicToStaticTopKPropagationReshape, ::testing::ValuesIn(kVec));
 
 class DynamicToStaticTopKPropagationSqueezeUnsqueeze : public DynamicToStaticTopKPropagation {
 protected:
@@ -89,7 +89,7 @@ protected:
 TEST_P(DynamicToStaticTopKPropagationSqueezeUnsqueeze, KPropagation) {
 }
 
-INSTANTIATE_TEST_CASE_P(NGraph, DynamicToStaticTopKPropagationSqueezeUnsqueeze, ::testing::ValuesIn(kVec));
+INSTANTIATE_TEST_CASE_P(smoke_NGraph, DynamicToStaticTopKPropagationSqueezeUnsqueeze, ::testing::ValuesIn(kVec));
 
 class DynamicToStaticTopKPropagationConvert : public DynamicToStaticTopKPropagation {
 protected:
@@ -102,6 +102,6 @@ protected:
 TEST_P(DynamicToStaticTopKPropagationConvert, KPropagation) {
 }
 
-INSTANTIATE_TEST_CASE_P(NGraph, DynamicToStaticTopKPropagationConvert, ::testing::ValuesIn(kVec));
+INSTANTIATE_TEST_CASE_P(smoke_NGraph, DynamicToStaticTopKPropagationConvert, ::testing::ValuesIn(kVec));
 
 }  // namespace

@@ -110,7 +110,7 @@ std::vector<InferenceEngine::Precision> broadcastPrecisions = {
         InferenceEngine::Precision::I32,
 };
 
-INSTANTIATE_TEST_CASE_P(accuracy, StaticShapeBroadcastLayerTest,
+INSTANTIATE_TEST_CASE_P(smoke_accuracy, StaticShapeBroadcastLayerTest,
                         ::testing::Combine(
                                 ::testing::ValuesIn(broadcastParam),
                                 ::testing::ValuesIn(broadcastPrecisions),

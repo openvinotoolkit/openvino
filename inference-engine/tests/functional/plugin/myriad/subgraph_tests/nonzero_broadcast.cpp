@@ -60,7 +60,7 @@ TEST_P(NonZero_Broadcast, CompareWithReference) {
     Run();
 }
 
-INSTANTIATE_TEST_CASE_P(DynamicBroadcast, NonZero_Broadcast, ::testing::Combine(
+INSTANTIATE_TEST_CASE_P(smoke_DynamicBroadcast, NonZero_Broadcast, ::testing::Combine(
         ::testing::Values(ngraph::element::f16, ngraph::element::f32, ngraph::element::i32),
         ::testing::Values(
                 TensorShape{1000},

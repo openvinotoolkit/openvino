@@ -39,7 +39,7 @@ const std::vector<InferenceEngine::Precision> inputPrecisions = {
         InferenceEngine::Precision::U8,
 };
 
-INSTANTIATE_TEST_CASE_P(nonzero, NonZeroLayerTest,
+INSTANTIATE_TEST_CASE_P(smoke_nonzero, NonZeroLayerTest,
         ::testing::Combine(
                 ::testing::ValuesIn(inShapes),
                 ::testing::ValuesIn(inputPrecisions),

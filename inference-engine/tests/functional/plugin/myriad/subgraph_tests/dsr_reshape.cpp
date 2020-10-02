@@ -52,7 +52,7 @@ std::vector<ReshapeTestParams> reshapeTestParams = {
         std::make_tuple(DataShapeWithUpperBound{{750}, {1000}}, true, ShapeDescriptor{1, 1, -1}),
 };
 
-INSTANTIATE_TEST_CASE_P(DynamicReshape, DSR_Reshape,
+INSTANTIATE_TEST_CASE_P(smoke_DynamicReshape, DSR_Reshape,
     ::testing::Combine(
         ::testing::Values(ngraph::element::f16,
                           ngraph::element::f32,
