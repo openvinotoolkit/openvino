@@ -99,10 +99,17 @@ struct SelectedScore
 
 struct BoxInfo
 {
-    BoxInfo(const Rectangle& r, int64_t idx, float sc, int64_t suppress_idx)
+    BoxInfo(const Rectangle& r,
+            int64_t idx,
+            float sc,
+            int64_t suppress_idx,
+            int64_t batch_idx,
+            int64_t class_idx)
         : box{r}
         , index{idx}
         , suppress_begin_index{suppress_idx}
+        , batch_index{batch_idx}
+        , class_index{class_idx}
         , score{sc}
     {
     }
@@ -117,6 +124,8 @@ struct BoxInfo
     Rectangle box;
     int64_t index = 0;
     int64_t suppress_begin_index = 0;
+    int64_t batch_index = 0;
+    int64_t class_index = 0;
     float score = 0.0f;
 };
 
@@ -144,7 +153,7 @@ namespace ngraph
                 float scale = 0.0f;
                 if (soft_nms_sigma > 0.0f)
                 {
-                    scale = - 0.5f / soft_nms_sigma;
+                    scale = -0.5f / soft_nms_sigma;
                 }
 
                 auto func = [iou_threshold, scale](float iou) {
@@ -167,6 +176,8 @@ namespace ngraph
 
                 int64_t num_of_valid_boxes = 0;
 
+                std::vector<BoxInfo> filteredBoxes;
+
                 for (int64_t batch = 0; batch < num_batches; batch++)
                 {
                     const float* boxesPtr = boxes_data + batch * num_boxes * 4;
@@ -185,7 +196,7 @@ namespace ngraph
                             if (scoresPtr[box_idx] > score_threshold)
                             {
                                 candidate_boxes.emplace_back(
-                                    r[box_idx], box_idx, scoresPtr[box_idx], 0);
+                                    r[box_idx], box_idx, scoresPtr[box_idx], 0, batch, class_idx);
                             }
                         }
 
@@ -243,27 +254,45 @@ namespace ngraph
 
                         for (const auto& box_info : selected)
                         {
-                            SelectedIndex selected_index{batch, class_idx, box_info.index};
-                            SelectedScore selected_score{static_cast<float>(batch),
-                                                         static_cast<float>(class_idx),
-                                                         box_info.score};
-
-                            selected_indices_ptr[num_of_valid_boxes] = selected_index;
-                            selected_scores_ptr[num_of_valid_boxes] = selected_score;
-
-                            num_of_valid_boxes++;
+                            filteredBoxes.push_back(box_info);
                         }
                     }
                 }
 
-
                 if (sort_result_descending)
                 {
-                }
-                else
-                {
+                    std::sort(filteredBoxes.begin(),
+                              filteredBoxes.end(),
+                              [](const BoxInfo& l, const BoxInfo& r) { return l.score > r.score; });
                 }
 
+                size_t max_num_of_selected_indices = selected_indices_shape[0]
+                size_t output_size = std::min(filteredBoxes.size(), max_num_of_selected_indices);
+
+                *valid_outputs = output_size;
+
+                size_t idx;
+                for (idx = 0; idx < output_size; idx++)
+                {
+                    const auto& box_info = filteredBoxes[idx];
+                    SelectedIndex selected_index{box_info.batch_index,
+                                                 box_info.class_index,
+                                                 box_info.index};
+                    SelectedScore selected_score{static_cast<float>(box_info.batch_index),
+                                                 static_cast<float>(box_info.class_index),
+                                                 box_info.score};
+
+                    selected_indices_ptr[idx] = selected_index;
+                    selected_scores_ptr[idx] = selected_score;
+                }
+
+                SelectedIndex selected_index_filler{0, 0, 0};
+                SelectedScore selected_score_filler{0.0f, 0.0f, 0.0f};
+                for (; idx < max_num_of_selected_indices; idx++)
+                {
+                    selected_indices_ptr[idx] = selected_index_filler;
+                    selected_scores_ptr[idx] = selected_score_filler;
+                }
             }
         }
     }
