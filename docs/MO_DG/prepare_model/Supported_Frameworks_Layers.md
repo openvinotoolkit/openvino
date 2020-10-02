@@ -287,6 +287,8 @@ Standard Kaldi\* Layers:
 | softsign | No |
 | specaugmenttimemaskcomponent | Not needed for inference |
 | splicecomponent | No |
+| statisticsextractioncomponent | Supported only for half-infinite time window (left_context = 0) |
+| statisticspoolingcomponent | Supported only for half-infinite time window (left_context = 0) |
 | tanhcomponent | No |
 | tdnncomponent | No |
 
