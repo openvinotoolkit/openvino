@@ -23,7 +23,7 @@ const std::vector<LayerTransformation::Params> trasformationParamValues = {
     LayerTestsUtils::LayerTransformationParamsFactory::createParamsU8I8()
 };
 
-INSTANTIATE_TEST_CASE_P(LPT, ConcatTransformation,
+INSTANTIATE_TEST_CASE_P(smoke_LPT, ConcatTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(netPrecisions),
         ::testing::Values(InferenceEngine::SizeVector({ 1, 3, 16, 16 })),

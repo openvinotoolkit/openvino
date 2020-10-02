@@ -32,7 +32,7 @@ const std::vector<ngraph::builder::subgraph::FakeQuantizeOnData> fakeQuantizeOnD
     },
 };
 
-INSTANTIATE_TEST_CASE_P(LPT, FuseFakeQuantizeAndScaleShiftTransformation,
+INSTANTIATE_TEST_CASE_P(smoke_LPT, FuseFakeQuantizeAndScaleShiftTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(netPrecisions),
         ::testing::Values(InferenceEngine::SizeVector({ 1, 3, 9, 9 })),

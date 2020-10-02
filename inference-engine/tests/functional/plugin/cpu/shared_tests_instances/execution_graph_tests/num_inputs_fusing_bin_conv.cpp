@@ -7,5 +7,5 @@
 
 using namespace LayerTestsDefinitions;
 
-INSTANTIATE_TEST_CASE_P(inputsNumFusingBinConv, ExecGraphInputsFusingBinConv, ::testing::Values(CommonTestUtils::DEVICE_CPU),
+INSTANTIATE_TEST_CASE_P(smoke_inputsNumFusingBinConv, ExecGraphInputsFusingBinConv, ::testing::Values(CommonTestUtils::DEVICE_CPU),
                         ExecGraphInputsFusingBinConv::getTestCaseName);

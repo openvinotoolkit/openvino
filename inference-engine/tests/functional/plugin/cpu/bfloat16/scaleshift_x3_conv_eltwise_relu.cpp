@@ -160,7 +160,7 @@ TEST_P(Scaleshift_x3_ConvEltwiseRelu, CompareWithRefImpl) {
     test();
 };
 
-INSTANTIATE_TEST_CASE_P(FP32_bfloat16_NoReshape, Scaleshift_x3_ConvEltwiseRelu,
+INSTANTIATE_TEST_CASE_P(smoke_FP32_bfloat16_NoReshape, Scaleshift_x3_ConvEltwiseRelu,
                         ::testing::Combine(
                                 ::testing::Values(Precision::FP32),
                                 ::testing::Values(Precision::FP32),
@@ -169,7 +169,7 @@ INSTANTIATE_TEST_CASE_P(FP32_bfloat16_NoReshape, Scaleshift_x3_ConvEltwiseRelu,
                                 ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                         Scaleshift_x3_ConvEltwiseRelu::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(BF16_bfloat16_NoReshape, Scaleshift_x3_ConvEltwiseRelu,
+INSTANTIATE_TEST_CASE_P(smoke_BF16_bfloat16_NoReshape, Scaleshift_x3_ConvEltwiseRelu,
                         ::testing::Combine(
                             ::testing::Values(Precision::FP32),
                             ::testing::Values(Precision::BF16),

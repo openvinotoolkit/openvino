@@ -26,7 +26,7 @@ const std::vector<std::pair<InferenceEngine::SizeVector, InferenceEngine::SizeVe
     std::pair<InferenceEngine::SizeVector, InferenceEngine::SizeVector>({ InferenceEngine::SizeVector({ 1, 16 }), InferenceEngine::SizeVector({ 16, 10 }) })
 };
 
-INSTANTIATE_TEST_CASE_P(LPT, MatMulWithOptimizedConstantFakeQuantizeTransformation,
+INSTANTIATE_TEST_CASE_P(smoke_LPT, MatMulWithOptimizedConstantFakeQuantizeTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(netPrecisions),
         ::testing::ValuesIn(inputShapes),

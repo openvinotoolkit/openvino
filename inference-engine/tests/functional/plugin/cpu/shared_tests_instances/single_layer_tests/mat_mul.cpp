@@ -27,7 +27,7 @@ std::vector<ngraph::helpers::InputLayerType> secondaryInputTypes = {
         ngraph::helpers::InputLayerType::PARAMETER,
 };
 
-INSTANTIATE_TEST_CASE_P(MatMul, MatMulTest,
+INSTANTIATE_TEST_CASE_P(smoke_MatMul, MatMulTest,
         ::testing::Combine(
                 ::testing::ValuesIn(inputPrecisions),
                 ::testing::ValuesIn(shapesA),

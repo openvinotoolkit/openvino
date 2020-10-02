@@ -9,7 +9,7 @@ using namespace LayerTestsDefinitions;
 
 namespace {
 
-INSTANTIATE_TEST_CASE_P(KeepAssign, ExecGraphKeepAssignNode,
+INSTANTIATE_TEST_CASE_P(smoke_KeepAssign, ExecGraphKeepAssignNode,
         ::testing::Values(CommonTestUtils::DEVICE_CPU),
         ExecGraphKeepAssignNode::getTestCaseName);
 

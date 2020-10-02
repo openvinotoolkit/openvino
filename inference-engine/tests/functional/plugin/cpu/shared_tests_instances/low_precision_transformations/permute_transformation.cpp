@@ -107,7 +107,7 @@ const std::vector<PermuteTransformationTestValues> testValues = {
     }
 };
 
-INSTANTIATE_TEST_CASE_P(LPT, PermuteTransformation,
+INSTANTIATE_TEST_CASE_P(smoke_LPT, PermuteTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(netPrecisions),
         ::testing::Values(CommonTestUtils::DEVICE_CPU),

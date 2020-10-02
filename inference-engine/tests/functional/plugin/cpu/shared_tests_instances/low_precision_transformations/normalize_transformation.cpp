@@ -26,7 +26,7 @@ const std::vector<bool> fuseMultiplyValues = { true, false };
 
 const std::vector<bool> shiftValues = { true, false };
 
-INSTANTIATE_TEST_CASE_P(LPT, NormalizeTransformation,
+INSTANTIATE_TEST_CASE_P(smoke_LPT, NormalizeTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(netPrecisions),
         ::testing::Values(InferenceEngine::SizeVector({ 1, 16, 8, 8 })),

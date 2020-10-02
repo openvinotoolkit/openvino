@@ -40,7 +40,7 @@ const auto params = testing::Combine(
 );
 
 INSTANTIATE_TEST_CASE_P(
-        Gather,
+        smoke_Gather,
         GatherLayerTest,
         params,
         GatherLayerTest::getTestCaseName

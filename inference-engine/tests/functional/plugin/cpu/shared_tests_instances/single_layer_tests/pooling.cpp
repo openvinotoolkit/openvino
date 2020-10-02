@@ -46,7 +46,7 @@ const auto maxPool_ExplicitPad_FloorRounding_Params = ::testing::Combine(
         ::testing::Values(false)  // placeholder value - exclude pad not applicable for max pooling
 );
 
-INSTANTIATE_TEST_CASE_P(MaxPool_ExplicitPad_FloorRpunding, PoolingLayerTest,
+INSTANTIATE_TEST_CASE_P(smoke_MaxPool_ExplicitPad_FloorRpunding, PoolingLayerTest,
                         ::testing::Combine(
                                 maxPool_ExplicitPad_FloorRounding_Params,
                                 ::testing::ValuesIn(netPrecisions),
@@ -66,7 +66,7 @@ const auto maxPool_ExplicitPad_CeilRounding_Params = ::testing::Combine(
         ::testing::Values(false)  // placeholder value - exclude pad not applicable for max pooling
 );
 
-INSTANTIATE_TEST_CASE_P(MaxPool_ExplicitPad_CeilRpunding, PoolingLayerTest,
+INSTANTIATE_TEST_CASE_P(smoke_MaxPool_ExplicitPad_CeilRpunding, PoolingLayerTest,
                         ::testing::Combine(
                                 maxPool_ExplicitPad_CeilRounding_Params,
                                 ::testing::ValuesIn(netPrecisions),
@@ -89,7 +89,7 @@ const auto avgPoolExplicitPadCeilRoundingParams = ::testing::Combine(
         ::testing::Values(true, false)
 );
 
-INSTANTIATE_TEST_CASE_P(AvgPool_ExplicitPad_CeilRounding, PoolingLayerTest,
+INSTANTIATE_TEST_CASE_P(smoke_AvgPool_ExplicitPad_CeilRounding, PoolingLayerTest,
                         ::testing::Combine(
                                 avgPoolExplicitPadCeilRoundingParams,
                                 ::testing::ValuesIn(netPrecisions),
@@ -102,7 +102,7 @@ std::vector<poolSpecificParams> psParams({poolSpecificParams(ngraph::helpers::Po
     poolSpecificParams(ngraph::helpers::PoolingTypes::AVG, {7, 7}, {1, 1}, {0, 0}, {1, 1},
                         ngraph::op::RoundingType::CEIL, ngraph::op::PadType::EXPLICIT, false)});
 
-INSTANTIATE_TEST_CASE_P(AvgPool_ExplicitPad_CeilRounding_corner, PoolingLayerTest,
+INSTANTIATE_TEST_CASE_P(smoke_AvgPool_ExplicitPad_CeilRounding_corner, PoolingLayerTest,
                         ::testing::Combine(
                                 ::testing::ValuesIn(psParams),
                                 ::testing::ValuesIn(netPrecisions),
@@ -123,7 +123,7 @@ const auto avgPoolExplicitPadFloorRoundingParams = ::testing::Combine(
 );
 
 
-INSTANTIATE_TEST_CASE_P(AvgPool_ExplicitPad_FloorRounding, PoolingLayerTest,
+INSTANTIATE_TEST_CASE_P(smoke_AvgPool_ExplicitPad_FloorRounding, PoolingLayerTest,
                         ::testing::Combine(
                                 avgPoolExplicitPadFloorRoundingParams,
                                 ::testing::ValuesIn(netPrecisions),
@@ -145,7 +145,7 @@ const auto allPools_ValidPad_Params = ::testing::Combine(
         ::testing::Values(false)  // placeholder value - exclude pad not applicable for max pooling
 );
 
-INSTANTIATE_TEST_CASE_P(MAX_and_AVGPool_ValidPad, PoolingLayerTest,
+INSTANTIATE_TEST_CASE_P(smoke_MAX_and_AVGPool_ValidPad, PoolingLayerTest,
                         ::testing::Combine(
                                 allPools_ValidPad_Params,
                                 ::testing::ValuesIn(netPrecisions),
