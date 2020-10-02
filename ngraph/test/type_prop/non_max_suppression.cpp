@@ -579,3 +579,95 @@ TEST(type_prop, nms_v5_incorrect_scores_rank)
         EXPECT_HAS_SUBSTRING(error.what(), "Expected a 3D tensor for the 'scores' input");
     }
 }
+
+TEST(type_prop, nms_v5_incorrect_scheme_num_batches)
+{
+    try
+    {
+        const auto boxes = make_shared<op::Parameter>(element::f32, Shape{1, 2, 3});
+        const auto scores = make_shared<op::Parameter>(element::f32, Shape{2, 2, 3});
+
+        make_shared<op::v5::NonMaxSuppression>(boxes, scores);
+    }
+    catch (const NodeValidationFailure& error)
+    {
+        EXPECT_HAS_SUBSTRING(error.what(),
+                             "The first dimension of both 'boxes' and 'scores' must match");
+    }
+}
+
+TEST(type_prop, nms_v5_incorrect_scheme_num_boxes)
+{
+    try
+    {
+        const auto boxes = make_shared<op::Parameter>(element::f32, Shape{1, 2, 3});
+        const auto scores = make_shared<op::Parameter>(element::f32, Shape{1, 2, 3});
+
+        make_shared<op::v5::NonMaxSuppression>(boxes, scores);
+    }
+    catch (const NodeValidationFailure& error)
+    {
+        EXPECT_HAS_SUBSTRING(error.what(),
+                             "'boxes' and 'scores' input shapes must match at the second and third "
+                             "dimension respectively");
+    }
+}
+
+TEST(type_prop, nms_v5_scalar_inputs_check)
+{
+    const auto boxes = make_shared<op::Parameter>(element::f32, Shape{1, 2, 4});
+    const auto scores = make_shared<op::Parameter>(element::f32, Shape{1, 2, 2});
+
+    const auto scalar = make_shared<op::Parameter>(element::f32, Shape{});
+    const auto non_scalar = make_shared<op::Parameter>(element::f32, Shape{1});
+
+    try
+    {
+        make_shared<op::v5::NonMaxSuppression>(boxes, scores, non_scalar, scalar, scalar);
+    }
+    catch (const NodeValidationFailure& error)
+    {
+        EXPECT_HAS_SUBSTRING(error.what(),
+                             "Expected a scalar for the 'max_output_boxes_per_class' input");
+    }
+
+    try
+    {
+        make_shared<op::v5::NonMaxSuppression>(boxes, scores, scalar, non_scalar, scalar);
+    }
+    catch (const NodeValidationFailure& error)
+    {
+        EXPECT_HAS_SUBSTRING(error.what(), "Expected a scalar for the 'iou_threshold' input");
+    }
+
+    try
+    {
+        make_shared<op::v5::NonMaxSuppression>(boxes, scores, scalar, scalar, non_scalar);
+    }
+    catch (const NodeValidationFailure& error)
+    {
+        EXPECT_HAS_SUBSTRING(error.what(), "Expected a scalar for the 'score_threshold' input");
+    }
+
+    try
+    {
+        make_shared<op::v5::NonMaxSuppression>(boxes, scores, scalar, scalar, scalar, non_scalar);
+    }
+    catch (const NodeValidationFailure& error)
+    {
+        EXPECT_HAS_SUBSTRING(error.what(), "Expected a scalar for the 'soft_nms_sigma' input");
+    }
+}
+
+TEST(type_prop, nms_v5_output_shape)
+{
+    const auto boxes = make_shared<op::Parameter>(element::f32, Shape{5, 2, 4});
+    const auto scores = make_shared<op::Parameter>(element::f32, Shape{5, 3, 2});
+
+    const auto nms = make_shared<op::v5::NonMaxSuppression>(boxes, scores);
+    const auto nms_indices_out_ps = nms->get_output_partial_shape(0);
+
+    EXPECT_TRUE(nms_indices_out_ps.rank().is_static());
+    EXPECT_EQ(nms_indices_out_ps.rank().get_length(), 2);
+    EXPECT_EQ(nms->get_shape(), (Shape{0, 3}));
+}
