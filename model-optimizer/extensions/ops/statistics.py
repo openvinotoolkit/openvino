@@ -27,6 +27,7 @@ class KaldiStatisticsExtraction(Op):
             'in_ports_count': 1,
             'out_ports_count': 1,
             'infer': None,
+            'input_dim': None,
         }, attrs)
 
 

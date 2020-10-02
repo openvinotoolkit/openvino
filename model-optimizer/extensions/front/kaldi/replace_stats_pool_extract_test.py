@@ -24,7 +24,7 @@ from mo.front.common.partial_infer.utils import int64_array
 
 nodes = {
     **regular_op('input', {'type': 'Parameter'}),
-    **regular_op('stats_ext', {'op': 'statisticsextractioncomponent'}),
+    **regular_op('stats_ext', {'op': 'statisticsextractioncomponent', 'input_dim': 1500}),
     **regular_op('stats_pool', {'op': 'statisticspoolingcomponent'}),
 
     **regular_op('count', {'op': 'ReadValue'}),

@@ -23,13 +23,14 @@ from mo.ops.concat import Concat
 from mo.ops.const import Const
 from mo.ops.read_value import ReadValue
 from mo.ops.result import Result
-
+import numpy as np
 
 class StatsPoolExtractReplacer(FrontReplacementSubgraph):
     enabled = True
 
     def run_after(self):
         from extensions.front.kaldi.memory_offset_adjustment import MemoryOffsetAdjustment
+
         return [MemoryOffsetAdjustment]
 
     def find_and_replace_pattern(self, graph: Graph):
@@ -38,6 +39,8 @@ class StatsPoolExtractReplacer(FrontReplacementSubgraph):
 
     def replace_stats(self, graph: Graph, stats_node: Node):
         stats_node_name = stats_node.soft_get('name', stats_node.id)
+        assert stats_node.has_and_set('input_dim'), 'statistics extracting does not have set input_dim'
+        default_zeros = np.zeros([1, stats_node.input_dim], dtype=np.float32)
 
         # count infer requests
         count_name = stats_node_name + '/count/'
@@ -70,8 +73,8 @@ class StatsPoolExtractReplacer(FrontReplacementSubgraph):
         assign_new_Sn.out_port(0).connect(res_node.in_port(0))  # so that Assign will not be deleted
 
         # default values of Mn and Sn are returned on the first infer request
-        default_Mn = Const(graph, {'name': alg_name + 'default_Mn', 'value': float_array([0])}).create_node()
-        default_Sn = Const(graph, {'name': alg_name + 'default_Sn', 'value': float_array([0])}).create_node()
+        default_Mn = Const(graph, {'name': alg_name + 'default_Mn', 'value': default_zeros}).create_node()
+        default_Sn = Const(graph, {'name': alg_name + 'default_Sn', 'value': default_zeros}).create_node()
         default_Mn.out_port(0).connect(Mn.in_port(0))
         default_Sn.out_port(0).connect(Sn.in_port(0))
 
