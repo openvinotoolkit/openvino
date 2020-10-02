@@ -80,6 +80,7 @@ TEST_P(ActivationLayerCPUTest, CompareWithRefs) {
 namespace {
 // list only types supported by eltwise
 const std::map<ActivationTypes, std::vector<std::vector<float>>> activationTypes = {
+        {Sqrt,        {{}}},
         {Sigmoid,     {{}}},
         {Tanh,        {{}}},
         {Relu,        {{}}},
@@ -89,6 +90,7 @@ const std::map<ActivationTypes, std::vector<std::vector<float>>> activationTypes
         {Elu,         {{0.1f}}},
         {Swish,       {{0.1f}}},
         {HSwish,      {{}}},
+        {Mish,        {{}}}
 };
 
 const std::map<ActivationTypes, std::vector<std::vector<float>>> activationParamTypes = {
@@ -113,7 +115,7 @@ const auto basicCases = ::testing::Combine(
             ::testing::Values(Precision::BF16),
             ::testing::ValuesIn(CommonTestUtils::combineParams(basic)),
             ::testing::Values(CommonTestUtils::DEVICE_CPU)),
-        ::testing::Values(emptyCPUSpec),
+        ::testing::Values(CPUSpecificParams({}, {}, {}, "jit_avx512_BF16")),
         ::testing::ValuesIn(bf16InpOutPrc),
         ::testing::ValuesIn(bf16InpOutPrc));
 
@@ -123,7 +125,7 @@ const auto basicPreluCases = ::testing::Combine(
                 ::testing::Values(Precision::BF16),
                 ::testing::ValuesIn(CommonTestUtils::combineParams(preluBasic)),
                 ::testing::Values(CommonTestUtils::DEVICE_CPU)),
-        ::testing::Values(emptyCPUSpec),
+        ::testing::Values(CPUSpecificParams({}, {}, {}, "jit_avx512_BF16")),
         ::testing::ValuesIn(bf16InpOutPrc),
         ::testing::ValuesIn(bf16InpOutPrc));
 
