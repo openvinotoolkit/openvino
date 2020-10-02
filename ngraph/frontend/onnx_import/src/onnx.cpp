@@ -75,7 +75,7 @@ namespace ngraph
             } // namespace error
 
             static const std::vector<std::string> legacy_ops_to_fixup = {
-                "FakeQuantize", "DetectionOutput", "Normalize", "PriorBox"};
+                "DetectionOutput", "FakeQuantize", "GroupNorm", "Normalize", "PriorBox"};
 
             // There are some models with custom OPs (list above) that has the default domain set.
             // So in order to load the models, we need overwrite the OPs' domain to the one they're

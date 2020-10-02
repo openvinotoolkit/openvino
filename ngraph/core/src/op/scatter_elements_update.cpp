@@ -274,20 +274,10 @@ bool op::v3::ScatterElementsUpdate::evaluate(const HostTensorVector& outputs,
 {
     OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v3::ScatterElementsUpdate::evaluate");
 
-    int64_t axis = 0;
-    switch (inputs[3]->get_element_type())
-    {
-    case element::Type_t::i8: axis = inputs[3]->get_data_ptr<element::Type_t::i8>()[0]; break;
-    case element::Type_t::i16: axis = inputs[3]->get_data_ptr<element::Type_t::i16>()[0]; break;
-    case element::Type_t::i32: axis = inputs[3]->get_data_ptr<element::Type_t::i32>()[0]; break;
-    case element::Type_t::i64: axis = inputs[3]->get_data_ptr<element::Type_t::i64>()[0]; break;
-    case element::Type_t::u8: axis = inputs[3]->get_data_ptr<element::Type_t::u8>()[0]; break;
-    case element::Type_t::u16: axis = inputs[3]->get_data_ptr<element::Type_t::u16>()[0]; break;
-    case element::Type_t::u32: axis = inputs[3]->get_data_ptr<element::Type_t::u32>()[0]; break;
-    case element::Type_t::u64: axis = inputs[3]->get_data_ptr<element::Type_t::u64>()[0]; break;
-    default: throw ngraph_error("axis element type is not integral data type");
-    }
+    NGRAPH_CHECK(inputs[3]->get_element_type().is_integral_number(),
+                 "axis element type is not integral data type");
 
+    int64_t axis = host_tensor_2_vector<int64_t>(inputs[3])[0];
     const auto& input_rank = get_input_partial_shape(0).rank();
     int64_t normalized_axis = axis;
 

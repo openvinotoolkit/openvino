@@ -52,7 +52,6 @@ intel_dnn_component_t * DnnComponents::findComponent(InferenceEngine::CNNLayerPt
     return nullptr;
 }
 
-
 std::vector<intel_dnn_component_t> DnnComponents::getExecutionOrder() {
     std::vector<intel_dnn_component_t> result(components.size());
 
