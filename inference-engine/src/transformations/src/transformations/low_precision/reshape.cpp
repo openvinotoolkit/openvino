@@ -31,9 +31,13 @@ void reshapeDequantizationConstant(const std::shared_ptr<opset1::Reshape>& resha
         auto replaceConstant = [](const std::shared_ptr<opset1::Reshape>& reshape, const std::shared_ptr<Node>& op) {
             if (reshape->output(0).get_shape().size() == 2ul) {
                 const auto inputShape = reshape->input(0).get_shape();
+
+                Shape shape(inputShape);
+                shape[0] = 1ul;
+
                 const std::shared_ptr<Node> broadcastedConstant = fold<opset1::Broadcast>(
                     op->get_input_node_shared_ptr(1),
-                    std::make_shared<opset1::Constant>(element::i32, Shape{ inputShape.size() }, inputShape));
+                    std::make_shared<opset1::Constant>(element::i32, Shape{ shape.size() }, shape));
 
                 const std::shared_ptr<Node> reshapedConstant = fold<opset1::Reshape>(
                     broadcastedConstant,
@@ -83,6 +87,19 @@ void reshapeDequantizationConstant(const std::shared_ptr<opset1::Reshape>& resha
 
                 replace_node(op->get_input_node_shared_ptr(1), resultConstant);
             }
+
+            // const std::shared_ptr<opset1::Constant> originalConstant = as_type_ptr<opset1::Constant>(op->get_input_node_shared_ptr(1));
+            // const Shape originalShape = originalConstant->output(0).get_shape();
+            // if (originalShape.size() >= 2ul) {
+            //    Shape shape = Shape(reshape->output(0).get_shape().size(), 1ul);
+            //    shape[1] = reshape->output(0).get_shape()[1];
+
+            //    const std::shared_ptr<opset1::Constant> newConstant = std::make_shared<opset1::Constant>(
+            //        originalConstant->output(0).get_element_type(),
+            //        shape,
+            //        originalConstant->cast_vector<float>());
+            //    replace_node(op->get_input_node_shared_ptr(1), newConstant);
+            // }
         };
 
         if (dequantization.subtract != nullptr) {
@@ -97,6 +114,12 @@ void reshapeDequantizationConstant(const std::shared_ptr<opset1::Reshape>& resha
 
 bool ReshapeTransformation::transform(TransformationContext& context, ngraph::pattern::Matcher &m) const {
     std::shared_ptr<opset1::Reshape> reshape = as_type_ptr<opset1::Reshape>(m.get_match_root());
+
+    // if (reshape->get_friendly_name() == "reshape_swap_proposals_2d") {
+    //    ngraph::pass::VisualizeTree("c:\\Projects\\temp\\cpu.tmp1").run_on_function(context.function);
+    //    std::cout << "ReshapeTransformation::transform" << std::endl;
+    // }
+
     if ((reshape == nullptr) || (!canBeTransformed(context, reshape))) {
         return false;
     }
@@ -104,6 +127,12 @@ bool ReshapeTransformation::transform(TransformationContext& context, ngraph::pa
     reshape = as_type_ptr<opset1::Reshape>(separateInStandaloneBranch(reshape));
     reshapeDequantizationConstant(reshape);
     moveDequantizationAfter(context, reshape, NetworkHelper::getDequantization(reshape, 0), false);
+
+    // if (reshape->get_friendly_name() == "reshape_swap_proposals_2d") {
+    //    ngraph::pass::VisualizeTree("c:\\Projects\\temp\\cpu.tmp2").run_on_function(context.function);
+    //    std::cout << "ReshapeTransformation::transform" << std::endl;
+    // }
+
     return true;
 }
 
@@ -175,11 +204,7 @@ bool ReshapeTransformation::canBeTransformed(
     const ngraph::Shape& multiplyShape,
     const ngraph::Shape& inputShape,
     const ngraph::Shape& outputShape) {
-    if (inputShape.size() < 2ul) {
-        return false;
-    }
-
-    if (outputShape.size() < 2ul) {
+    if ((inputShape.size() < 2ul) || (outputShape.size() < 2ul) || (inputShape[0] != outputShape[0])) {
         return false;
     }
 
