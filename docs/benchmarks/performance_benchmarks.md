@@ -129,7 +129,8 @@ Testing by Intel done on: see test date for each HW platform below.
 
 |                      | Intel® Core™ i5-8500               | Intel® Core™ i7-8700T               | Intel® Core™ i9-10920X               | 11th Gen Intel® Core™ i5-1145G7E  |
 | -------------------- | ---------------------------------- | ----------------------------------- |--------------------------------------|-----------------------------------|
-| Motherboard          | ASUS* PRIME Z370-A                 | GIGABYTE* Z370M DS3H-CF             | ASUS* PRIME X299-A II                | Intel Corporation /<br>TigerLake U DDR4 SODIMM RVP |
+| Motherboard          | ASUS* PRIME Z370-A                 | GIGABYTE* Z370M DS3H-CF             | ASUS* PRIME X299-A II                | Intel Corporation /<br>internal/
+Reference Validation Platform |
 | CPU                  | Intel® Core™ i5-8500 CPU @ 3.00GHz | Intel® Core™ i7-8700T CPU @ 2.40GHz | Intel® Core™ i9-10920X CPU @ 3.50GHz | 11th Gen Intel® Core™ i5-1145G7E @ 2.60GHz   |
 | Hyper Threading      | OFF                                | ON                                  | ON                                   | ON                                           |
 | Turbo Setting        | ON                                 | ON                                  | ON                                   | ON                                           |
