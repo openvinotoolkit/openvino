@@ -78,14 +78,6 @@ def prepare_executable_cmd(args: dict):
             "-d", args["device"]]
 
 
-def generate_tmp_path():
-    """Generate temporary file path without file's creation"""
-    tmp_stats_file = tempfile.NamedTemporaryFile()
-    path = tmp_stats_file.name
-    tmp_stats_file.close()  # remove temp file in order to create it by executable
-    return path
-
-
 def run_timetest(args: dict, log=None):
     """Run provided executable several times and aggregate collected statistics"""
 
@@ -97,7 +89,7 @@ def run_timetest(args: dict, log=None):
     # Run executable and collect statistics
     stats = {}
     for run_iter in range(args["niter"]):
-        tmp_stats_path = generate_tmp_path()
+        tmp_stats_path = tempfile.NamedTemporaryFile().name     # create temp file, get path and delete temp file
         retcode, msg = run_cmd(cmd_common + ["-s", str(tmp_stats_path)], log=log)
         if retcode != 0:
             log.error("Run of executable '{}' failed with return code '{}'. Error: {}\n"
