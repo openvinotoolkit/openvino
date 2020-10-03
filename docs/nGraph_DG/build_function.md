@@ -1,7 +1,7 @@
-# Build a Model with nGraph Library {#openvino_docs_nGraph_DG_build_function}
+# Build nGraph Function {#openvino_docs_nGraph_DG_build_function}
 
 This section illustrates how to construct an nGraph function 
-composed of operations from the `opset4` namespace. Once created, 
+composed of operations from an available opset. Once created, 
 it can wrap into a `CNNNetwork`, creating utility for data scientists 
 or app developers to define a deep-learning model in a neutral way
 that does not depend on existing Deep Learning (DL) frameworks.
@@ -14,41 +14,13 @@ For a complete list of operation sets supported by Inference Engine, see [Availa
 To add custom nGraph operations to an existing `CNNNetwork`, see 
 the [Add Custom nGraph Operations](../IE_DG/Extensibility_DG/Intro.md) document.
 
-Now that you can build graphs with anything from the `opset4` definition, some 
-parameters for shape-relevant (or shape-specific) inputs can be added. The 
-following code prepares a graph for shape-relevant parameters. 
+Below you can find examples on to how build `ngraph::Function` from the `opset3` operations:
 
-> **NOTE**: `validate_nodes_and_infer_types(ops)` must be included for partial shape inference. 
+@snippet example_ngraph_utils.cpp ngraph:include
 
-```cpp
-#include "ngraph/opsets/opset.hpp"
-#include "ngraph/opsets/opset4.hpp"
+@snippet example_ngraph_utils.cpp ngraph_utils:simple_function
 
-using namespace std;
-using namespace ngraph;
-
-auto arg0 = make_shared<opset4::Parameter>(element::f32, Shape{7});
-auto arg1 = make_shared<opset4::Parameter>(element::f32, Shape{7});
-// Create an 'Add' operation with two inputs 'arg0' and 'arg1'
-auto add0 = make_shared<opset4::Add>(arg0, arg1);
-auto abs0 = make_shared<opset4::Abs>(add0);
-// Create a node whose inputs/attributes will be specified later
-auto acos0 = make_shared<opset4::Acos>();
-// Create a node using opset factories
-auto add1 = shared_ptr<Node>(get_opset4().create("Add"));
-// Set inputs to nodes explicitly
-acos0->set_argument(0, add0);
-add1->set_argument(0, acos0);
-add1->set_argument(1, abs0);
-
-// Run shape inference on the nodes
-NodeVector ops{arg0, arg1, add0, abs0, acos0, add1};
-validate_nodes_and_infer_types(ops);
-
-// Create a graph with one output (add1) and four inputs (arg0, arg1)
-auto ng_function = make_shared<Function>(OutputVector{add1}, ParameterVector{arg0, arg1});
-
-```
+@snippet example_ngraph_utils.cpp ngraph_utils:advanced_function
 
 To wrap it into a CNNNetwork, use: 
 ```cpp
