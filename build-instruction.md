@@ -450,7 +450,7 @@ cmake --build . --config Release
 inference on Intel CPUs only.
 
 The software was validated on:
-- macOS\* 10.14, 64-bit
+- macOS\* 10.15, 64-bit
 
 ### Software Requirements
 
@@ -466,19 +466,11 @@ The software was validated on:
     cd openvino
     git submodule update --init --recursive
     ```
-2. Install build dependencies using the `install_dependencies.sh` script in the
-   project root folder:
-   ```sh
-   chmod +x install_dependencies.sh
-   ```
-   ```sh
-   ./install_dependencies.sh
-   ```
-3. Create a build folder:
+2. Create a build folder:
 ```sh
-  mkdir build
+  mkdir build && cd build
 ```
-4. Inference Engine uses a CMake-based build system. In the created `build`
+3. Inference Engine uses a CMake-based build system. In the created `build`
    directory, run `cmake` to fetch project dependencies and create Unix makefiles,
    then run `make` to build the project:
 ```sh
@@ -514,12 +506,17 @@ You can use the following additional build options:
 
 - To build the Python API wrapper, use the `-DENABLE_PYTHON=ON` option. To
   specify an exact Python version, use the following options:
-```sh
-  -DPYTHON_EXECUTABLE=/Library/Frameworks/Python.framework/Versions/3.7/bin/python3.7 \
-  -DPYTHON_LIBRARY=/Library/Frameworks/Python.framework/Versions/3.7/lib/libpython3.7m.dylib \
-  -DPYTHON_INCLUDE_DIR=/Library/Frameworks/Python.framework/Versions/3.7/include/python3.7m
-```
-
+   - If you installed Python through Homebrew*, set the following flags:
+   ```sh
+   -DPYTHON_EXECUTABLE=/usr/local/Cellar/python/3.7.7/Frameworks/Python.framework/Versions/3.7/bin/python3.7m \
+   -DPYTHON_LIBRARY=/usr/local/Cellar/python/3.7.7/Frameworks/Python.framework/Versions/3.7/lib/libpython3.7m.dylib \
+   -DPYTHON_INCLUDE_DIR=/usr/local/Cellar/python/3.7.7/Frameworks/Python.framework/Versions/3.7/include/python3.7m 
+   ```
+   - If you installed Python another way, you can use the following commands to find where the `dylib` and `include_dir` are located, respectively: 
+   ```sh
+   find /usr/ -name 'libpython*m.dylib'
+   find /usr/ -type d -name python3.7m
+   ```
 - nGraph-specific compilation options:
   `-DNGRAPH_ONNX_IMPORT_ENABLE=ON` enables the building of the nGraph ONNX importer.
   `-DNGRAPH_DEBUG_ENABLE=ON` enables additional debug prints.
