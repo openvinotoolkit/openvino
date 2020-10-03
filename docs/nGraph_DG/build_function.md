@@ -1,7 +1,7 @@
-# Build a Model with nGraph Library {#openvino_docs_nGraph_DG_build_function}
+# Build nGraph Function {#openvino_docs_nGraph_DG_build_function}
 
 This section illustrates how to construct an nGraph function 
-composed of operations from the `opset4` namespace. Once created, 
+composed of operations from an available opset. Once created, 
 it can wrap into a `CNNNetwork`, creating utility for data scientists 
 or app developers to define a deep-learning model in a neutral way
 that does not depend on existing Deep Learning (DL) frameworks.
@@ -14,17 +14,13 @@ For a complete list of operation sets supported by Inference Engine, see [Availa
 To add custom nGraph operations to an existing `CNNNetwork`, see 
 the [Add Custom nGraph Operations](../IE_DG/Extensibility_DG/Intro.md) document.
 
-Now that you can build graphs with anything from the `opset4` definition, some 
-parameters for shape-relevant (or shape-specific) inputs can be added. The 
-following code prepares a graph for shape-relevant parameters. 
+Below you can find examples on to how build `ngraph::Function` from the `opset3` operations:
 
-> **NOTE**: `validate_nodes_and_infer_types(ops)` must be included for partial shape inference. 
+@snippet example_ngraph_utils.cpp ngraph:include
 
-@snippet openvino/docs/snippets/nGraphTutorial.cpp part0
+@snippet example_ngraph_utils.cpp ngraph_utils:simple_function
 
-To wrap it into a CNNNetwork, use: 
-
-@snippet openvino/docs/snippets/nGraphTutorial.cpp part1
+@snippet example_ngraph_utils.cpp ngraph_utils:advanced_function
 
 ## See Also
 
