@@ -47,9 +47,10 @@ bool compare_rt_keys(const std::shared_ptr<ngraph::Node>& node1, const std::shar
     const auto& first_node_rt_info = node1->get_rt_info();
     const auto& second_node_rt_info = node2->get_rt_info();
 
-    if (first_node_rt_info.size() != second_node_rt_info.size()) {
-        return false;
-    }
+    // TODO: should be uncommented
+    // if (first_node_rt_info.size() != second_node_rt_info.size()) {
+    //    return false;
+    // }
 
     for (auto first_it = first_node_rt_info.begin(); first_it != first_node_rt_info.end(); ++first_it) {
         bool was_found = false;
