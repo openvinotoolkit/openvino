@@ -8,70 +8,39 @@
 #include <ngraph/ngraph.hpp>
 
 #include "functional_test_utils/low_precision_transformations/layer_transformation.hpp"
+#include "ngraph_functions/low_precision_transformations/common/constant.hpp"
+#include "ngraph_functions/low_precision_transformations/common/dequantization_operations.hpp"
 
 namespace ngraph {
 namespace builder {
 namespace subgraph {
 
-class MultiplyActualValues {
+class MultiplyBranch {
 public:
-    ngraph::element::Type precision1;
-    std::vector<float> subtractValues1;
-    std::vector<float> mutliplyValues1;
-    ngraph::element::Type precision2;
-    std::vector<float> subtractValues2;
-    std::vector<float> mutliplyValues2;
+    Shape inputShape;
+    ngraph::builder::subgraph::Constant constant;
+    ngraph::element::Type precisionBeforeDequantization;
+    ngraph::builder::subgraph::DequantizationOperations dequantization;
 };
 
-inline std::ostream& operator<<(std::ostream& out, const MultiplyActualValues& values) {
-    return out <<
-        "_" << values.precision1 <<
-        "_subtract" << values.subtractValues1.size() <<
-        "_mutliply" << values.mutliplyValues1.size() <<
-        "_" << values.precision2 <<
-        "_subtract" << values.subtractValues2.size() <<
-        "_mutliply" << values.mutliplyValues2.size();
+inline std::ostream& operator<<(std::ostream& out, const MultiplyBranch& branch) {
+    return out << "_" << branch.constant << "_" << branch.precisionBeforeDequantization << "_" << branch.dequantization;
 }
 
-class MultiplyExpectedValues {
+class MultiplyValues {
 public:
-    ngraph::element::Type precision1;
-    std::vector<float> subtractValues1;
-    std::vector<float> mutliplyValues1;
-    ngraph::element::Type precision2;
-    std::vector<float> subtractValues2;
-    std::vector<float> mutliplyValues2;
+    MultiplyBranch branch1;
+    MultiplyBranch branch2;
+    bool isDequantization = false;
 };
 
-inline std::ostream& operator<<(std::ostream& out, const MultiplyExpectedValues& values) {
-    return out <<
-        "_" << values.precision1 <<
-        "_subtract" << values.subtractValues1.size() <<
-        "_mutliply" << values.mutliplyValues1.size() <<
-        "_" << values.precision2 <<
-        "_subtract" << values.subtractValues2.size() <<
-        "_mutliply" << values.mutliplyValues2.size();
+inline std::ostream& operator<<(std::ostream& out, const MultiplyValues& values) {
+    return out << "_" << values.branch1 << "_" << values.branch2 << (values.isDequantization ? "_isDequantization" : "");
 }
 
 class MultiplyFunction {
 public:
-    static std::shared_ptr<ngraph::Function> getOriginal(
-        const ngraph::element::Type precision,
-        const ngraph::Shape& inputShape,
-        const bool& broadcast,
-        const ngraph::pass::low_precision::LayerTransformation::Params& params,
-        const MultiplyActualValues& actualValues,
-        const bool& constInput,
-        const bool& constantFolding);
-
-    static std::shared_ptr<ngraph::Function> getReference(
-        const ngraph::element::Type precision,
-        const ngraph::Shape& inputShape,
-        const bool& broadcast,
-        const ngraph::pass::low_precision::LayerTransformation::Params& params,
-        const MultiplyExpectedValues& actualValues,
-        const bool& constInput,
-        const bool& constantFolding);
+    static std::shared_ptr<ngraph::Function> get(const ngraph::Shape& inputShape, const MultiplyValues& actualValues);
 };
 
 }  // namespace subgraph
