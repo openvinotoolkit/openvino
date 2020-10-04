@@ -31,7 +31,7 @@ class MultiplyValues {
 public:
     MultiplyBranch branch1;
     MultiplyBranch branch2;
-    bool isDequantization = false;
+    bool isDequantization;
 };
 
 inline std::ostream& operator<<(std::ostream& out, const MultiplyValues& values) {
