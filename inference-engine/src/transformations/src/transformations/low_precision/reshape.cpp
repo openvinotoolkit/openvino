@@ -31,9 +31,13 @@ void reshapeDequantizationConstant(const std::shared_ptr<opset1::Reshape>& resha
         auto replaceConstant = [](const std::shared_ptr<opset1::Reshape>& reshape, const std::shared_ptr<Node>& op) {
             if (reshape->output(0).get_shape().size() == 2ul) {
                 const auto inputShape = reshape->input(0).get_shape();
+
+                Shape shape(inputShape);
+                shape[0] = 1ul;
+
                 const std::shared_ptr<Node> broadcastedConstant = fold<opset1::Broadcast>(
                     op->get_input_node_shared_ptr(1),
-                    std::make_shared<opset1::Constant>(element::i32, Shape{ inputShape.size() }, inputShape));
+                    std::make_shared<opset1::Constant>(element::i32, Shape{ shape.size() }, shape));
 
                 const std::shared_ptr<Node> reshapedConstant = fold<opset1::Reshape>(
                     broadcastedConstant,
@@ -175,11 +179,7 @@ bool ReshapeTransformation::canBeTransformed(
     const ngraph::Shape& multiplyShape,
     const ngraph::Shape& inputShape,
     const ngraph::Shape& outputShape) {
-    if (inputShape.size() < 2ul) {
-        return false;
-    }
-
-    if (outputShape.size() < 2ul) {
+    if ((inputShape.size() < 2ul) || (outputShape.size() < 2ul) || (inputShape[0] != outputShape[0])) {
         return false;
     }
 
