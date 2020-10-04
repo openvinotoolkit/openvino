@@ -121,12 +121,6 @@ bool MatMulTransformation::canBeTransformed(const TransformationContext& context
         return false;
     }
 
-    const Shape input1 = layer->input(0).get_shape();
-    const Shape input2 = layer->input(1).get_shape();
-    if (input1[1] != input2[0]) {
-        return false;
-    }
-
     if (!canSubtractBeHandled(layer)) {
         return false;
     }
@@ -150,6 +144,12 @@ bool MatMulTransformation::canBeTransformed(const TransformationContext& context
     const auto fakeQuantize = as_type_ptr<opset1::FakeQuantize>(layer->get_input_node_shared_ptr(1));
     if (fakeQuantize != nullptr) {
         if (!QuantizationDetails::outputLayoutIsSupported(fakeQuantize)) {
+            return false;
+        }
+
+        const Shape input1 = layer->input(0).get_shape();
+        const Shape input2 = layer->input(1).get_shape();
+        if (input1[1] != input2[0]) {
             return false;
         }
     }
