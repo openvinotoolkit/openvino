@@ -39,7 +39,7 @@ BranchNodes getBranch(const MultiplyBranch& branch) {
         std::make_shared<ngraph::opset1::Parameter>(branch.precisionBeforeDequantization, branch.inputShape) :
         std::dynamic_pointer_cast<Node>(std::make_shared<ngraph::opset1::Constant>(
             branch.constant.outPrecision,
-            Shape({ branch.constant.shape }),
+            branch.constant.shape,
             branch.constant.values));
 
     const auto dequantization = makeDequantization(parent, branch.dequantization);
