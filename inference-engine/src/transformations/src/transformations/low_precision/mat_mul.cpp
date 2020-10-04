@@ -121,6 +121,12 @@ bool MatMulTransformation::canBeTransformed(const TransformationContext& context
         return false;
     }
 
+    const Shape input1 = layer->input(0).get_shape();
+    const Shape input2 = layer->input(1).get_shape();
+    if (input1[1] != input2[0]) {
+        return false;
+    }
+
     if (!canSubtractBeHandled(layer)) {
         return false;
     }
