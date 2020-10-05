@@ -26,6 +26,7 @@ import shutil
 
 from test_runner.utils import upload_timetest_data, \
     DATABASE, DB_COLLECTIONS
+from scripts.run_timetest import check_positive_int
 
 
 # -------------------- CLI options --------------------
@@ -49,7 +50,7 @@ def pytest_addoption(parser):
     )
     test_args_parser.addoption(
         "--niter",
-        type=int,
+        type=check_positive_int,
         help="number of iterations to run executable and aggregate results",
         default=3
     )

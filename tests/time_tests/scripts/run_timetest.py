@@ -104,6 +104,15 @@ def run_timetest(args: dict, log=None):
     return 0, aggregated_stats
 
 
+def check_positive_int(val):
+    """Check argsparse argument is positive integer and return it"""
+    value = int(val)
+    if value < 1:
+        msg = "%r is less than 1" % val
+        raise argparse.ArgumentTypeError(msg)
+    return value
+
+
 def cli_parser():
     """parse command-line arguments"""
     parser = argparse.ArgumentParser(description='Run timetest executable')
@@ -123,7 +132,7 @@ def cli_parser():
                         help='target device to infer on')
     parser.add_argument('-niter',
                         default=3,
-                        type=int,
+                        type=check_positive_int,
                         help='number of times to execute binary to aggregate statistics of')
     parser.add_argument('-s',
                         dest="stats_path",
