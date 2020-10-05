@@ -30,16 +30,14 @@ public:
         device = test_params.device;
 
         test_refs.collect_vm_values_for_test(test_name, test_params);
-        if (!Environment::Instance().getCollectResultsOnly()) {
-            ASSERT_GT(test_refs.references[VMSIZE], 0) << "Reference value of VmSize is less than 0. Value: "
-                                               << test_refs.references[VMSIZE];
-            ASSERT_GT(test_refs.references[VMPEAK], 0) << "Reference value of VmPeak is less than 0. Value: "
-                                               << test_refs.references[VMPEAK];
-            ASSERT_GT(test_refs.references[VMRSS], 0) << "Reference value of VmRSS is less than 0. Value: "
-                                              << test_refs.references[VMRSS];
-            ASSERT_GT(test_refs.references[VMHWM], 0) << "Reference value of VmHWM is less than 0. Value: "
-                                              << test_refs.references[VMHWM];
-        }
+        EXPECT_GT(test_refs.references[VMSIZE], 0) << "Reference value of VmSize is less than 0. Value: "
+                                           << test_refs.references[VMSIZE];
+        EXPECT_GT(test_refs.references[VMPEAK], 0) << "Reference value of VmPeak is less than 0. Value: "
+                                           << test_refs.references[VMPEAK];
+        EXPECT_GT(test_refs.references[VMRSS], 0) << "Reference value of VmRSS is less than 0. Value: "
+                                          << test_refs.references[VMRSS];
+        EXPECT_GT(test_refs.references[VMHWM], 0) << "Reference value of VmHWM is less than 0. Value: "
+                                          << test_refs.references[VMHWM];
     }
 };
 

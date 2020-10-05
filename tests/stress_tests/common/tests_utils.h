@@ -68,8 +68,6 @@ public:
 
     const pugi::xml_document & getTestConfig();
     void setTestConfig(const pugi::xml_document &test_config);
-    const bool & getCollectResultsOnly();
-    void setCollectResultsOnly(const bool &collect_results_only);
 };
 
 std::vector<TestCase> generateTestsParams(std::initializer_list<std::string> items);
