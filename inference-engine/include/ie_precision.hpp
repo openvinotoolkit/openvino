@@ -29,6 +29,7 @@ public:
         FP32 = 10,         /**< 32bit floating point value */
         FP16 = 11,         /**< 16bit floating point value, 5 bit for exponent, 10 bit for mantisa */
         BF16 = 12,         /**< 16bit floating point value, 8 bit for exponent, 7 bit for mantisa*/
+        FP64 = 13,         /**< 64bit floating point value */
         Q78 = 20,          /**< 16bit specific signed fixed point precision */
         I16 = 30,          /**< 16bit signed integer value */
         U8 = 40,           /**< 8bit unsigned integer value */
@@ -108,6 +109,7 @@ public:
 
             switch (precisionInfo.value) {
                 CASE(FP32, float);
+                CASE(FP64, double);
                 CASE2(FP16, int16_t, uint16_t);
                 CASE2(BF16, int16_t, uint16_t);
                 CASE(I8, int8_t);
@@ -188,7 +190,7 @@ public:
             PRECISION_NAME(Q78),  PRECISION_NAME(BOOL),  PRECISION_NAME(BF16),
             PRECISION_NAME(I8),   PRECISION_NAME(I16),   PRECISION_NAME(I32),  PRECISION_NAME(I64),
             PRECISION_NAME(U8),   PRECISION_NAME(U16),   PRECISION_NAME(U32),  PRECISION_NAME(U64),
-            PRECISION_NAME(FP32), PRECISION_NAME(FP16),  PRECISION_NAME(MIXED), PRECISION_NAME(BIN),
+            PRECISION_NAME(FP32), PRECISION_NAME(FP64), PRECISION_NAME(FP16),  PRECISION_NAME(MIXED), PRECISION_NAME(BIN),
 #undef PRECISION_NAME
         };
         auto i = names.find(str);
@@ -220,7 +222,7 @@ public:
      */
     bool isSigned() const noexcept {
         return (precisionInfo.value == Precision::UNSPECIFIED) || (precisionInfo.value == Precision::MIXED) ||
-               (precisionInfo.value == Precision::FP32) || (precisionInfo.value == Precision::FP16) ||
+               (precisionInfo.value == Precision::FP32) || (precisionInfo.value == Precision::FP64) || (precisionInfo.value == Precision::FP16) ||
                (precisionInfo.value == Precision::Q78) || (precisionInfo.value == Precision::I16) ||
                (precisionInfo.value == Precision::I8) || (precisionInfo.value == Precision::I32) ||
                (precisionInfo.value == Precision::I64) || (precisionInfo.value == Precision::BIN) ||
@@ -264,6 +266,7 @@ protected:
         return makePrecisionInfo<x>(#x);
         switch (v) {
             CASE(FP32);
+            CASE(FP64);
             CASE(FP16);
             CASE(BF16);
             CASE(I8);
@@ -295,6 +298,11 @@ struct PrecisionTrait {};
 template <>
 struct PrecisionTrait<Precision::FP32> {
     using value_type = float;
+};
+
+template <>
+struct PrecisionTrait<Precision::FP64> {
+    using value_type = double;
 };
 
 template <>
