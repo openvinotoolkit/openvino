@@ -18,7 +18,7 @@ from mo.front.extractor import FrontExtractorOp
 
 
 class GatherNDFrontExtractor(FrontExtractorOp):
-    op = 'GatherND'
+    op = 'GatherNd'
     enabled = True
 
     @classmethod
