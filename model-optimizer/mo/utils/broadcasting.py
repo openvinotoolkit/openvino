@@ -79,7 +79,7 @@ def bi_directional_shape_broadcasting(input_shape_1: np.array, input_shape_2: np
     return np.maximum(shape_1, shape_2)
 
 
-def explicit_shape_broadcasting(input_shape: np.array, target_shape: np.array, axes_mapping: np.array) -> np.array:
+def explicit_shape_broadcasting(input_shape: np.array, target_shape: np.array, axes_mapping: np.array) -> [np.array, np.array]:
     """
     Explicit shape broadcasting of input tensor. Function only asserts that values are correct and normalizes axes.
     Resulting shape is equal to target_shape.
