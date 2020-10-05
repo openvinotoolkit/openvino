@@ -241,17 +241,25 @@ std::map<std::string, std::string> extractMeta(const StageMetaInfo& stageMeta) {
     serializationInfo[ExecGraphInfoSerialization::OUTPUT_LAYOUTS] = layoutStream.str();
 
     std::string outPrecisionsStr;
+    auto fp16name = InferenceEngine::Precision(InferenceEngine::Precision::FP16).name();
+    auto i32name = InferenceEngine::Precision(InferenceEngine::Precision::I32).name();
+    std::string runtimePrecisionStr = i32name;
     ind = 0;
     for (auto &outPrecision : stageMeta.outPrecisions) {
+        // if we have any output precision not equal I32 -> we assume runtimePrecision is FP16
+        auto outPrecisionName = outPrecision.name();
+        if (runtimePrecisionStr != fp16name) {
+            runtimePrecisionStr = (outPrecisionName == i32name) ? outPrecisionName : fp16name;
+        }
         if (ind == 0) {
-            outPrecisionsStr += outPrecision.name();
+            outPrecisionsStr += outPrecisionName;
             ind++;
             continue;
         }
-        outPrecisionsStr += ',' + std::string(outPrecision.name());
+        outPrecisionsStr += ',' + std::string(outPrecisionName);
     }
     serializationInfo[ExecGraphInfoSerialization::OUTPUT_PRECISIONS] = outPrecisionsStr;
-
+    serializationInfo[ExecGraphInfoSerialization::RUNTIME_PRECISION] = runtimePrecisionStr;
     return serializationInfo;
 }
 

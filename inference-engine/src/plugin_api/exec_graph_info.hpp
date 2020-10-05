@@ -71,6 +71,12 @@ static const char LAYER_TYPE[] = "layerType";
 
 /**
  * @ingroup ie_dev_exec_graph
+ * @brief Used to get runtime precisions of the executable primitive.
+ */
+static const char RUNTIME_PRECISION[] = "runtimePrecisions";
+
+/**
+ * @ingroup ie_dev_exec_graph
  * @brief The Execution node which is used to represent node in execution graph.
  * 
  * It contains the following type of information in node runtime information:
@@ -81,6 +87,7 @@ static const char LAYER_TYPE[] = "layerType";
  * - ExecGraphInfoSerialization::OUTPUT_LAYOUTS
  * - ExecGraphInfoSerialization::EXECUTION_ORDER
  * - ExecGraphInfoSerialization::LAYER_TYPE
+ * - ExecGraphInfoSerialization::RUNTIME_PRECISION
  */
 class INFERENCE_ENGINE_API_CLASS(ExecutionNode) : public ngraph::Node {
 public:
