@@ -209,6 +209,34 @@ onnx_model_range_positive_step
 onnx_model_range_negative_step
 onnx_dyn_shapes_slice_1_3d_input_21_axes_ends_max
 
+# GRUCell/GRUSequence operation has a form that is not supported
+# (Constant W, B, R inputs are required)
+IE_CPU.onnx_model_gru_defaults_fwd
+IE_CPU.onnx_model_gru_fwd_activations
+IE_CPU.onnx_model_gru_fwd_mixed_seq_len
+IE_CPU.onnx_model_gru_rev_clip
+IE_CPU.onnx_model_gru_reverse
+IE_CPU.onnx_model_gru_fwd_bias_initial_h
+IE_CPU.onnx_model_gru_bidirectional
+IE_CPU.onnx_model_gru_fwd_linear_before_reset
+
+# RNNCell/RNNSequence operation has a form that is not supported
+# (Constant W, B, R inputs are required)
+IE_CPU.onnx_model_rnn_defaults_fwd
+IE_CPU.onnx_model_rnn_fwd_activations
+IE_CPU.onnx_model_rnn_fwd_mixed_seq_len
+IE_CPU.onnx_model_rnn_rev_clip
+IE_CPU.onnx_model_rnn_reverse
+IE_CPU.onnx_model_rnn_fwd_bias_initial_h
+IE_CPU.onnx_model_rnn_bidirectional
+
+## RNN/GRU Sequence - seq_lengths are not supported
+IE_CPU.onnx_model_rnn_fwd_mixed_seq_len
+IE_CPU.onnx_model_rnn_fwd_mixed_seq_len_const
+IE_CPU.onnx_model_gru_fwd_mixed_seq_len
+IE_CPU.onnx_model_gru_fwd_mixed_seq_len_const
+
+
 #-------------------------------------------------------------------------------
 #
 #       nGraph backend unit tests
@@ -552,6 +580,9 @@ abc_int64
 
 # Unsupported primitive of type: SigmoidBackprop
 sigmoid_bprop_n1c1h4
+
+# Unsupported primitive of type: ROIAlign
+IE_CPU.onnx_roi_align_f32
 
 # [NOT_IMPLEMENTED] Input image format BOOL is not supported yet...
 select
@@ -1081,29 +1112,9 @@ IE_CPU.acosh
 # Unsupported collapse op with dynamic shape
 IE_CPU.builder_opset1_collapse_dyn_shape
 
-# GRUCell operation has a form that is not supported
-onnx_model_gru_defaults_fwd
-onnx_model_gru_fwd_activations
-onnx_model_gru_fwd_mixed_seq_len
-onnx_model_gru_rev_clip
-onnx_model_gru_reverse
-onnx_model_gru_fwd_bias_initial_h
-onnx_model_gru_bidirectional
-onnx_model_gru_fwd_linear_before_reset
-
 # nGraph Interpolate operation with name: Y cannot be converted to Interpolate layer with name:
 # Y because output with index 0 contains dynamic shapes: {?,?,?,?}
 IE_CPU.onnx_resize11_scales_nearest_asymmetric_floor_dynamic_sizes
-
-# RNNCell operation has a form that is not supported
-IE_CPU.onnx_model_rnn_defaults_fwd
-IE_CPU.onnx_model_rnn_fwd_activations
-IE_CPU.onnx_model_rnn_fwd_mixed_seq_len
-IE_CPU.onnx_model_rnn_rev_clip
-IE_CPU.onnx_model_rnn_reverse
-IE_CPU.onnx_model_rnn_fwd_bias_initial_h
-IE_CPU.onnx_model_rnn_bidirectional
-IE_CPU.onnx_model_rnn_bidirectional_const
 
 #-------------------------------------------------------------------------------
 #
@@ -1190,7 +1201,7 @@ IE_GPU.onnx_dyn_shapes_avg_pool_dyn_shape
 IE_GPU.onnx_dyn_shapes_max_pool_dyn_shape
 IE_GPU.onnx_dyn_shapes_global_avg_pool_dyn_shape
 IE_GPU.onnx_dyn_shapes_global_max_pool_dyn_shape
-
+IE_GPU.onnx_roi_align_f32
 IE_GPU.tanh
 IE_GPU.tan
 IE_GPU.sum_to_scalar

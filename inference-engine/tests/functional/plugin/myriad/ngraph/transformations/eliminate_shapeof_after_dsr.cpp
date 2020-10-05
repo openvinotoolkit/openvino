@@ -66,7 +66,7 @@ protected:
 TEST_P(EliminateShapeOfAfterDSRTest, CompareFunctions) {
 }
 
-INSTANTIATE_TEST_CASE_P(NGraph, EliminateShapeOfAfterDSRTest, testing::Combine(
+INSTANTIATE_TEST_CASE_P(smoke_NGraph, EliminateShapeOfAfterDSRTest, testing::Combine(
         testing::Values(
                 ngraph::element::f16,
                 ngraph::element::f32,
@@ -129,7 +129,7 @@ protected:
 TEST_P(EliminateShapeOfAfterDSRWithoutOutputDSR, CompareFunctions) {
 }
 
-INSTANTIATE_TEST_CASE_P(NGraph, EliminateShapeOfAfterDSRWithoutOutputDSR, testing::Combine(
+INSTANTIATE_TEST_CASE_P(smoke_NGraph, EliminateShapeOfAfterDSRWithoutOutputDSR, testing::Combine(
         testing::Values(
                 ngraph::element::f16,
                 ngraph::element::f32,
@@ -196,7 +196,7 @@ protected:
 TEST_P(EliminateShapeOfAfterDSRKeepDSR, CompareFunctions) {
 }
 
-INSTANTIATE_TEST_CASE_P(NGraph, EliminateShapeOfAfterDSRKeepDSR, testing::Combine(
+INSTANTIATE_TEST_CASE_P(smoke_NGraph, EliminateShapeOfAfterDSRKeepDSR, testing::Combine(
         testing::Values(
                 ngraph::element::f16,
                 ngraph::element::f32,

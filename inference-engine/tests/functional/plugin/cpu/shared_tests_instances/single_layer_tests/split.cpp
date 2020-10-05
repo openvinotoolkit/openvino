@@ -16,7 +16,7 @@ const std::vector<InferenceEngine::Precision> netPrecisions = {
         InferenceEngine::Precision::FP16
 };
 
-INSTANTIATE_TEST_CASE_P(NumSplitsCheck, SplitLayerTest,
+INSTANTIATE_TEST_CASE_P(smoke_NumSplitsCheck, SplitLayerTest,
                         ::testing::Combine(
                                 ::testing::Values(1),
                                 ::testing::Values(0, 1, 2, 3),
