@@ -118,6 +118,7 @@ opset_import {
 //! [onnx_custom_op:register_operator]
 
     InferenceEngine::Core ie;
+    // use empty blob because the ONNX doesn't require weights
     InferenceEngine::Blob::CPtr weights;
     InferenceEngine::CNNNetwork network = ie.ReadNetwork(model, weights);
     InferenceEngine::InputsDataMap network_inputs = network.getInputsInfo();
