@@ -23,7 +23,6 @@ The Intel® Distribution of OpenVINO™ toolkit for Linux\*:
 |-----------------------------------------------------------------------------------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | [Model Optimizer](../MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md) | This tool imports, converts, and optimizes models that were trained in popular frameworks to a format usable by Intel tools, especially the Inference Engine. <br>Popular frameworks include Caffe\*, TensorFlow\*, MXNet\*, and ONNX\*.                                                                              |
 | [Inference Engine](../IE_DG/inference_engine_intro.md)               | This is the engine that runs the deep learning model. It includes a set of libraries for an easy inference integration into your applications.                                                                                                                                                                |
-| Drivers and runtimes for OpenCL™ version 2.1                                                        | Enables OpenCL on the GPU/CPU for Intel® processors                                                                                                                                                                                                                                                           |
 | Intel® Media SDK                                                                                    | Offers access to hardware accelerated video codecs and frame processing                                                                                                                                                                                                                                       |
 | [OpenCV](https://docs.opencv.org/master/)                                                           | OpenCV\* community version compiled for Intel® hardware                                                                                                                                                                                                                                                       |
 | [Inference Engine Code Samples](../IE_DG/Samples_Overview.md)           | A set of simple console applications demonstrating how to utilize specific OpenVINO capabilities in an application and how to perform specific tasks, such as loading a model, running inference, querying specific device capabilities, and more. |
@@ -54,7 +53,7 @@ The Intel® Distribution of OpenVINO™ toolkit for Linux\*:
 **Operating Systems**
 
 - Ubuntu 18.04.x long-term support (LTS), 64-bit
-- CentOS 7.4, 64-bit (for target only)
+- CentOS 7.6, 64-bit (for target only)
 - Yocto Project v3.0, 64-bit (for target only and requires modifications)
 
 ## Overview
