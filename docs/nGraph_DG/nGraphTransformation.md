@@ -1,4 +1,4 @@
-# Writing ngraph transformations {#new_ngraph_transformation}
+# Overview of Transformations API {#ngraph_transformation}
 
 This guide contains all necessary information that could help you to start writing nGraph transformations.
 
@@ -95,7 +95,7 @@ Callback is an action applied to every pattern entrance. In general callback is 
 
 Example above shows callback structure and how Matcher can be used for accessing nodes detected by pattern.
 Callback return value must be `true` if root node was replaced and another pattern can't be applied to the same root node otherwise it must be `false`.
-> **NOTE**: it's not recommended to manipulate with nodes that are under root node. This may affect GraphRewrite execution as it's expected that all nodes that comes after root node in topological order are valid and can be used in pattern matching. 
+> **NOTE**: It's not recommended to manipulate with nodes that are under root node. This may affect GraphRewrite execution as it's expected that all nodes that comes after root node in topological order are valid and can be used in pattern matching. 
 
 MatcherPass also provides functionality that allows to report which newly created nodes can be used in additional pattern matching.
 If MatcherPass was registered in `pass::Manager` or `pass::GraphRewrite` then this registered nodes will be added for additional pattern matching.
@@ -154,7 +154,7 @@ And then creates map from registered MatcherPases. That helps to avoid additiona
 
 ![graph_rewrite_efficient_search] 
 
-## Pattern matching <a name="pattern_matching"></a>
+## Pattern Matching <a name="pattern_matching"></a>
 
 Sometimes patterns can't be expressed via regular nGraph operations or it is too complicated. 
 For example if you want to detect Convolution->Add sub-graph without specifying particular input type for Convolution operation or you want to create pattern where some of operations can have different types.
@@ -188,7 +188,7 @@ This example shows how to use predicate to construct pattern. Also it shows how 
 
 In this chapter we will review nGraph API that allows us to manipulate with `ngraph::Function`.
 
-###1. ngraph::Node input and output ports
+### ngraph::Node input and output ports
 
 First of all let's talk about `ngraph::Node` input/output ports. Each nGraph operation has input and output ports except cases when operation has `Result`, `Parameter` or `Constant` type.
 
@@ -208,7 +208,7 @@ auto neg = std::make_shared<ngraph::opset1::Multiply>(data, neg_const);
 In this example `opset3::Multiply` operation takes `Output<Node>` and `std::shared_ptr<Node>` as inputs. But constructor takes both as `Output<Node>`. 
 In this case `std::shared_ptr<Node>` will be automatically converted to `Output<Node>` if node has exactly one output port otherwise conversion will raise an exception.   
 
-###2. ngraph::Node replacement
+### ngraph::Node replacement
 
 nGraph provides two ways for node replacement: via nGraph helper function and directly via port methods. We are going to review both of them.
 
@@ -239,7 +239,7 @@ The alternative way to insert operation is to make a node copy and use `replace_
 
 @snippet example_ngraph_utils.cpp ngraph:insert_node_with_copy
 
-###3. ngraph::Node elimination
+### ngraph::Node elimination
 
 Another type of node replacement is its elimination.
 
@@ -254,13 +254,13 @@ To eliminate operation nGraph has special method that consider all limitations r
 
 When developing transformation we need to follow next transformation rules:
 
-###1. Operation Set (OpSet)
+### Operation Set (OpSet)
 
 Which OpSet to use in your transformation? The right answer is latest that exists at the moment. An exception is ConvertOpSetXToOpSetY transformations where operations from OpSetX and OpSetY are required to use.
 
 @snippet example_ngraph_utils.cpp ngraph:include
 
-###2. Dynamic Shape and Rank
+### Dynamic Shape and Rank
 
 nGraph has two types for shape representation: 
 `ngraph::Shape` - represents static shape.

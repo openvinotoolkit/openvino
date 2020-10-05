@@ -22,22 +22,18 @@ Custom operation set should be created to support custom operation. Please read 
 ## Static and Partial Shapes
 
 nGraph has two types for shape representation: 
-`ngraph::Shape` - represents static shape.
-`ngraph::PartialShape` - represents dynamic shape. That means that rank or some of dimensions are dynamic (undefined).
-`ngraph::PartialShape` can be converted to `ngraph::Shape` using `get_shape()` method if all dimensions are static otherwise conversion will raise an exception.
 
-* `ngraph::Shape` represents the static (fully defined) shapes.
-  TODO: Need examples (Copy from nGraph doc and ./nGraphTransformation.md)
-  @snippet example_ngraph_utils.cpp ngraph:shape
+* `ngraph::Shape` - Represents static (fully defined) shapes.
 
-* `ngraph::PartialShape` defines a class to work with dynamic shapes.
-  TODO: Need examples (Copy from nGraph doc and ./nGraphTransformation.md)
+* `ngraph::PartialShape` - Represents dynamic shapes. That means that the rank or some of dimensions are dynamic (undefined). `ngraph::PartialShape` can be converted to `ngraph::Shape` using the `get_shape()` method if all dimensions are static; otherwise the conversion raises an exception.
+
+For examples, see the Dynamic Shape and Rank section in the [Overview of Transformations API](./nGraphTransformation.md).
 
 
 ## Transformation API
+
 nGraph transformation API allows you to manipulate the graph represented by `nGraph::Function`. For more details, see the [Overview of Transformations API](./nGraphTransformation.md) section.
 
 ## Pattern Matcher
 
-For more details, see the Pattern Matching section in [Overview of Transformations API](./nGraphTransformation.md) section.
-TODO: Need examples (Copy from nGraph doc and ./nGraphTransformation.md)
+For more details, see the Pattern Matching section in the [Overview of Transformations API](./nGraphTransformation.md).
