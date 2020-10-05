@@ -17,7 +17,7 @@ set(DEPENDENCIES
     inference_engine_ir_v7_reader
 )
 
-if (NGRAPH_ONNX_IMPORT_ENABLE)
+if (NGRAPH_ONNX_IMPORT_ENABLE AND ENABLE_MKL_DNN)
     set(LINK_LIBRARIES ${LINK_LIBRARIES} onnx_importer)
     set(DEPENDENCIES ${DEPENDENCIES} onnx_importer template_extension)
 else()
