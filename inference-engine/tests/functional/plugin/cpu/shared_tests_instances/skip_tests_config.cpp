@@ -56,7 +56,12 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*EltwiseLayerTest.*eltwiseOpType=Mod.*netPRC=BF16.*)",
         // TODO: Issue: 38841
         R"(.*TopKLayerTest.*k=10.*mode=min.*sort=index.*)",
-        R"(.*TopKLayerTest.*k=5.*sort=(none|index).*)"
+        R"(.*TopKLayerTest.*k=5.*sort=(none|index).*)",
+        // Caution!!! Disabled Until the jit_eltwise layer is implemented.
+        R"(.*EltwiseLayerTest.*)",
+        R"(.*EltwiseLayerCPUTest.*)",
+        R"(.*ActivationLayerCPUTest.*)",
+        R"(.*LogicalLayerCPUTest.*)"
     };
 
 

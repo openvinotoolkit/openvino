@@ -149,7 +149,7 @@ std::vector<ngraph::helpers::EltwiseTypes> eltwiseOpTypesBinInp = { // Always tw
 
 std::vector<ngraph::helpers::EltwiseTypes> eltwiseOpTypesDiffInp = { // Different number of input nodes depending on optimizations
         ngraph::helpers::EltwiseTypes::POWER,
-        ngraph::helpers::EltwiseTypes::MOD
+        //ngraph::helpers::EltwiseTypes::MOD //Disabled Until the jit_eltwise layer is implemented.
 };
 // Withing the test scope we don't need any implicit bf16 optimisations, so let's run the network as is.
 std::map<std::string, std::string> additional_config = {{PluginConfigParams::KEY_ENFORCE_BF16, PluginConfigParams::NO}};
