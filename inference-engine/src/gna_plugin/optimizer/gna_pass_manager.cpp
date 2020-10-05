@@ -632,7 +632,7 @@ void ReversePermutationsPass::run() {
     }
 }
 
-void ConvolutionNCHWPass::run() {
+void InsertPermuteConvolutionOutputNHWCToNCHWPass::run() {
     int numOfadditionalPermuteLayers = 0;
     auto quantized = InferenceEngine::getInjectedData<QuantizedLayerParams>(pLayers->front());
 
@@ -645,10 +645,12 @@ void ConvolutionNCHWPass::run() {
         auto layerBeforeConv = CNNNetPrevLayer(l);
         auto layerAfterConv = !getInputTo(l->outData.front()).empty() ? getInputTo(l->outData.front()).begin()->second : nullptr;
 
-        // TODO: add check for convolution with H != 1 and W != 1
-        // TODO: add check for convolution with H != 1 and W == 1
+        if (LayerInfo(layerAfterConv).isTrivialPermute()) {
+            continue;
+        }
+
         // required for Reshape1DOps transformation
-        if (layerBeforeConv->name.find("reshape_begin") != std::string::npos &&
+        if (LayerInfo(layerBeforeConv).isNonFunctional() &&
             layerBeforeConv->insData.begin()->lock()->getLayout() == InferenceEngine::Layout::CHW &&
             layerBeforeConv->outData.front()->getLayout() == InferenceEngine::Layout::NCHW) {
             continue;
@@ -657,7 +659,6 @@ void ConvolutionNCHWPass::run() {
         if (l->outData[0]->getLayout() == Layout::NCHW) {
             auto convolutionInputDims = layerBeforeConv->outData[0]->getDims();
             auto convolutionOutputDims = l->outData[0]->getDims();
-            // if channel dim doesn't equal 1,
             // if height dim and width dim both equal 1, the permute is not needed to return correct results
             // if height dim doesn't equal 1, the case requires additional permute
             if (convolutionInputDims[1] != 1 ||
@@ -667,7 +668,7 @@ void ConvolutionNCHWPass::run() {
             }
 
             if (std::min(convolutionOutputDims[1], convolutionOutputDims[3]) > 8 ||
-                ALIGN(std::max(convolutionOutputDims[1], convolutionOutputDims[3]), 8) != std::max(convolutionOutputDims[1], convolutionOutputDims[3])) {
+                std::max(convolutionOutputDims[1], convolutionOutputDims[3]) % 8 != 0) {
                 gnalog() << "Skipping permute addition. The created permute wouldn't be supported because of permute dimensions ["
                     << convolutionOutputDims[0] << ", " << convolutionOutputDims[1] << ", " << convolutionOutputDims[2] << ", "
                     << convolutionOutputDims[3] << "]. The output will need to be transposed from NHWC to NCHW.";
@@ -679,7 +680,8 @@ void ConvolutionNCHWPass::run() {
             auto layerAfterConvName = layerAfterConv == nullptr ? "nullptr" : layerAfterConv->name;
             gnalog() << "Inserted " << permuteNextName << " between: " << l->name << " and "
                 << layerAfterConvName << "\n" << std::flush;
-            CNNLayerPtr permuteNextLayer = std::make_shared<GenericLayer>(LayerParams({ permuteNextName, "permute", inputs->getTensorDesc().getPrecision() }));
+            CNNLayerPtr permuteNextLayer = std::make_shared<GenericLayer>(LayerParams({ permuteNextName, "permute",
+                inputs->getTensorDesc().getPrecision() }));
             auto permuteNextLayerWithQuant = quantized ?
                 InferenceEngine::injectData<QuantizedLayerParams>(permuteNextLayer) :
                 permuteNextLayer;
@@ -695,8 +697,6 @@ void ConvolutionNCHWPass::run() {
 
             l->outData[0]->setDims({ convolutionOutputDims[0], convolutionOutputDims[2], convolutionOutputDims[3], convolutionOutputDims[1] });
             l->outData[0]->setLayout(Layout::NHWC);
-        } else {
-            continue;
         }
     }
 }

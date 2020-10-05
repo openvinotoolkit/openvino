@@ -91,7 +91,12 @@ DECL_PASS(ReversePermutations);
  */
 DECL_PASS(RemovePermutationsNHWCToNCHW);
 
-DECL_PASS(ConvolutionNCHW);
+/**
+ * @brief GNA convolution output is transposed to NHWC in GNA so permute is needed to return to NCHW
+ * if this is not resolved in any other way
+ * @param layers
+ */
+DECL_PASS(InsertPermuteConvolutionOutputNHWCToNCHW);
 
 /**
  * brief @search for specific patter in the graph (6 layers are replaced by single one)

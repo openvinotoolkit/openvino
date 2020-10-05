@@ -241,13 +241,6 @@ void GNAGraphCompiler::ConvolutionPrimitive(InferenceEngine::CNNLayerPtr layer) 
         THROW_GNA_LAYER_EXCEPTION(layer) << "with layout " << inputs->getLayout() << " isn't currently supported on GNA";
     }
 
-    /*if (outputs->getLayout() != InferenceEngine::Layout::NHWC) {
-        THROW_GNA_LAYER_EXCEPTION(layer) << "GNA output is transposed to NHWC but output layout is " << outputs->getLayout();
-    }*/
-    /*if (inputs->getLayout() != outputs->getLayout()) {
-        THROW_GNA_LAYER_EXCEPTION(layer) << "I/O layout mismatch: " << inputs->getLayout() << " vs " << outputs->getLayout();
-    }*/
-
     auto in_order = getFromIRDimsOrderNCHW(inputs->getLayout());
     auto in_batch = FROM_IR_DIM(inputs, in_order[0]);
     auto in_channels = FROM_IR_DIM(inputs, in_order[1]);

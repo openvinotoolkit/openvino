@@ -26,10 +26,14 @@ std::string InputConvTest::getTestCaseName(testing::TestParamInfo<inputConvParam
     std::vector<size_t> inputShape;
     std::string targetDevice;
     std::map<std::string, std::string> configuration;
-    std::tie(netPrecision, targetDevice, configuration, inputShape) = obj.param;
+    size_t output_channels;
+    bool with_bias;
+    std::tie(netPrecision, targetDevice, configuration, inputShape, output_channels, with_bias) = obj.param;
 
     std::ostringstream result;
     result << "IS=" << CommonTestUtils::vec2str(inputShape) << "_";
+    result << "OC=" << output_channels << "_";
+    result << "bias=" << with_bias << "_";
     result << "netPRC=" << netPrecision.name() << "_";
     result << "targetDevice=" << targetDevice;
     for (auto const& configItem : configuration) {
@@ -44,19 +48,13 @@ InferenceEngine::Blob::Ptr InputConvTest::GenerateInput(const InferenceEngine::I
     auto precision = info.getPrecision();
 
     auto* rawBlobDataPtr = blob->buffer().as<float*>();
-    auto counter = 0;
     for (size_t i = 0; i < blob->size(); i++) {
-        auto value = counter;
+        float value = i % 16;
         if (typeid(precision) == typeid(typename InferenceEngine::PrecisionTrait<InferenceEngine::Precision::FP16>::value_type)) {
             rawBlobDataPtr[i] = ngraph::float16(value).to_bits();
         } else {
             rawBlobDataPtr[i] = value;
         }
-
-        if (counter == 15)
-            counter = 0;
-        else
-            ++counter;
     }
     return blob;
 }
@@ -66,7 +64,7 @@ void InputConvTest::SetUp() {
         std::vector<float> res;
         for (int i = 0; i < out_channels; ++i) {
             for (int j = 0; j < kernel_size; ++j) {
-                res.emplace_back(j == 0 ? 1 : 0);
+                res.emplace_back(1.0f);
             }
         }
 
@@ -76,30 +74,27 @@ void InputConvTest::SetUp() {
     InferenceEngine::Precision netPrecision;
     std::map<std::string, std::string> tempConfig;
     std::vector<size_t> inputShape;
-    std::tie(netPrecision, targetDevice, tempConfig, inputShape) = this->GetParam();
+    size_t output_channels;
+    bool with_bias;
+    std::tie(netPrecision, targetDevice, tempConfig, inputShape, output_channels, with_bias) = this->GetParam();
     configuration.insert(tempConfig.begin(), tempConfig.end());
 
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
-    size_t output_channels = 4;
     size_t kernel_y = 1;
     size_t kernel_x = 9;
     auto params = ngraph::builder::makeParams(ngPrc, { inputShape });
 
     auto conv_0 = ngraph::builder::makeConvolution(params[0], ngPrc, { kernel_y, kernel_x }, { 1, 1 }, { 0, 0 },
-        { 0, 0 }, { 1, 1 }, ngraph::op::PadType::VALID, output_channels, false, generateWeights(output_channels, kernel_x));
+        { 0, 0 }, { 1, 1 }, ngraph::op::PadType::VALID, output_channels, with_bias,
+        generateWeights(output_channels, kernel_x));
 
-    //// without additional op at the end for int16 ConvertToFloat gives incorrect values but intermediate representation is ok
-    //// fp32 works with and without reshape
-    //size_t num_output_width = (((inputShape[1] * inputShape[2] * inputShape[3] - kernel_x * kernel_y) / inputShape[1]) + 1);
-    //std::vector<size_t> outFormShapes_0 = { 1, output_channels * num_output_width };
-    //auto pattern_0 = std::make_shared<ngraph::opset1::Constant>(ngraph::element::Type_t::i64, ngraph::Shape{ 2 }, outFormShapes_0);
-    //auto reshape_0 = std::make_shared<ngraph::opset1::Reshape>(mul_0, pattern_0, false);
+    //permute accepts and return 2-byte values. If it's the last operation in the model, that's why the output is incorrect for int16 then
+    size_t num_output_width = (((inputShape[1] * inputShape[2] * inputShape[3] - kernel_x * kernel_y) / inputShape[1]) + 1);
+    std::vector<size_t> outFormShapes_0 = { 1, output_channels * num_output_width };
+    auto pattern_0 = std::make_shared<ngraph::opset1::Constant>(ngraph::element::Type_t::i64, ngraph::Shape{ 2 }, outFormShapes_0);
+    auto reshape_0 = std::make_shared<ngraph::opset1::Reshape>(conv_0, pattern_0, false);
 
-    auto permute_0 = std::make_shared<ngraph::op::Transpose>(conv_0,
-        ngraph::op::Constant::create(ngraph::element::i64, ngraph::Shape{ 4 }, { 0, 3, 1, 2 }));
-    permute_0->set_friendly_name("permute1");
-
-    ngraph::ResultVector results {std::make_shared<ngraph::op::Result>(permute_0)};
+    ngraph::ResultVector results {std::make_shared<ngraph::op::Result>(reshape_0)};
     function = std::make_shared<ngraph::Function>(results, params, "InputConvTest");
 }
 
