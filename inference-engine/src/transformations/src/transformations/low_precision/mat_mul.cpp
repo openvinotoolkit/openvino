@@ -147,9 +147,16 @@ bool MatMulTransformation::canBeTransformed(const TransformationContext& context
             return false;
         }
 
+        std::shared_ptr<opset1::MatMul> matMul = as_type_ptr<opset1::MatMul>(layer);
+        const size_t channelIndex1 = matMul->get_transpose_a() ? 0 : 1;
+        const size_t channelIndex2 = matMul->get_transpose_b() ? 1 : 0;
+
+        // for MatMul with 3D input the channel is 3'rd dimension (not 2'nd)
         const Shape input1 = layer->input(0).get_shape();
         const Shape input2 = layer->input(1).get_shape();
-        if (input1[1] != input2[0]) {
+        if ((input1[channelIndex1] != input2[channelIndex2]) &&
+            ((dequantization1.multiply->input(1).get_shape().size() > 1) ||
+            (fakeQuantize->input(3).get_shape().size() > 1) || (fakeQuantize->input(4).get_shape().size() > 1))) {
             return false;
         }
     }
