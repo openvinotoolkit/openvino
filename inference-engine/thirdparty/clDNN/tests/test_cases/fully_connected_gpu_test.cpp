@@ -1189,7 +1189,7 @@ struct fully_connected_random_test_5d : ::testing::TestWithParam<fully_connected
 
 using fully_connected_random_test_f32_5d = fully_connected_random_test_5d<float, float, float, float>;
 using fully_connected_random_test_f16_5d = fully_connected_random_test_5d<FLOAT16, FLOAT16, FLOAT16, FLOAT16>;
-using fully_connected_random_test_i8_5d = fully_connected_random_test_5d<INT8, INT8, INT8, float>;
+using fully_connected_random_test_i8_5d = fully_connected_random_test_5d<int8_t, int8_t, int8_t, float>;
 
 TEST_P(fully_connected_random_test_f32_5d, basic) {
     run_test();
