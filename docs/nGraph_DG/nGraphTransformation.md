@@ -145,6 +145,15 @@ And then creates map from registered MatcherPases. That helps to avoid additiona
 
 ![graph_rewrite_efficient_search] 
 
+GraphRewrite has two algorithms for MatcherPasses execution. First algorithm is a straight-forward. It applies each MatcherPass in registraion order to current node.
+
+![graph_rewrite_execution]
+
+But it is nor really efficient when you have a lot of registered passes. So first of all GraphRewrite check that all MatcherPass patterns has type based root node (it means that type of this node is not hidden into predicate).
+And then creates map from registered MatcherPases. That helps to avoid additional cost of applying each MatcherPass for each node.
+
+![graph_rewrite_efficient_search] 
+
 ## Pattern matching <a name="pattern_matching"></a>
 
 Sometimes patterns can't be expressed via regular nGraph operations or it is too complicated. 

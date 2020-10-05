@@ -8,14 +8,14 @@ The Deployment Manager is a Python\* command-line tool that is delivered within 
 
 * Intel® Distribution of OpenVINO™ toolkit for Linux\* (version 2019 R3 or higher) or Intel® Distribution of OpenVINO™ toolkit for Windows\* (version 2019 R4 or higher) installed on your development machine.
 * Python\* 3.6 or higher is required to run the Deployment Manager.
-* To run inference on a target device other than CPU, device drivers must be pre-installed. To install, see the following steps:
-   * **For Linux**:
-     * [Steps for Intel® Processor Graphics (GPU)](https://docs.openvinotoolkit.org/latest/_docs_install_guides_installing_openvino_linux.html#additional-GPU-steps)
-     * [Steps for Intel® Neural Compute Stick 2](https://docs.openvinotoolkit.org/latest/_docs_install_guides_installing_openvino_linux.html#additional-NCS-steps)
-     * [Steps for Intel® Vision Accelerator Design with Intel® Movidius™ VPUs](https://docs.openvinotoolkit.org/latest/_docs_install_guides_installing_openvino_linux.html#install-VPU)
-   * **For Windows**:
-     * [Steps for Intel® Processor Graphics (GPU)](https://docs.openvinotoolkit.org/latest/_docs_install_guides_installing_openvino_windows.html#Install-GPU)
-     * [Steps for the Intel® Vision Accelerator Design with Intel® Movidius™ VPUs](https://docs.openvinotoolkit.org/latest/_docs_install_guides_installing_openvino_windows.html#hddl-myriad)
+* To run inference on a target device other than CPU, device drivers must be pre-installed:
+   * For **Linux**, see the following sections in the [installation instructions for Linux](../install_guides/installing-openvino-linux.md): 
+     * Steps for Intel® Processor Graphics (GPU) section 
+     * Steps for Intel® Neural Compute Stick 2 section
+     * Steps for Intel® Vision Accelerator Design with Intel® Movidius™ VPUs
+   * **For Windows**, see the following sections in the [installation instructions for Windows](../install_guides/installing-openvino-windows.md):
+     * Steps for Intel® Processor Graphics (GPU)
+     * Steps for the Intel® Vision Accelerator Design with Intel® Movidius™ VPUs
      
 
 > **IMPORTANT**: The operating system on the target host must be the same as the development system on which you are creating the package. For example, if the target system is Ubuntu 16.04, the deployment package must be created from the OpenVINO™ toolkit installed on Ubuntu 16.04.     

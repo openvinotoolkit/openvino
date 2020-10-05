@@ -65,10 +65,12 @@ uint32_t md_parser_t::evaluate_expr(const md_expr_t *expression,
     case md_type_op_xor:
     case md_type_op_shl:
     case md_type_op_lshr:
-      uint32_t rhs = values.rbegin()[0];
-      uint32_t lhs = values.rbegin()[1];
-      values.pop_back();
-      values.back() = md_eval_expression_type_op_2(v.type, lhs, rhs);
+      if (!values.empty()) {
+        uint32_t rhs = values.rbegin()[0];
+        uint32_t lhs = values.rbegin()[1];
+        values.pop_back();
+        values.back() = md_eval_expression_type_op_2(v.type, lhs, rhs);
+      }
     }
       break;
     case md_type_global_size:

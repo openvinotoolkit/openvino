@@ -610,7 +610,6 @@ xfail_issue_35926(test_cases.test_bertsquad_opset10_cpu)
 
 xfail_issue_35926(test_cases.test_gpt2_opset10_cpu)
 
-xfail_issue_36535(test_cases.test_super_resolution_opset10_cpu)
 xfail_issue_36535(test_cases.test_tinyyolov2_opset7_cpu)
 xfail_issue_36535(test_cases.test_tinyyolov2_opset8_cpu)
 

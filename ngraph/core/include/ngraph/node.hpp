@@ -155,9 +155,11 @@ namespace ngraph
 
     protected:
         /// \brief Construct an unitialized Node
-        Node() {}
+        Node() = default;
         /// \brief Copying a node
         Node(const Node&);
+        /// \brief Assignment operator
+        Node& operator=(const Node&);
 
         /// \brief Construct an unitialized Node
         /// \param output_size Number of outputs for this node
