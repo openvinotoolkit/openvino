@@ -1102,14 +1102,14 @@ bool op::v5::NonMaxSuppression::evaluate(const HostTensorVector& outputs,
                                             m_sort_result_descending);
 
     outputs[0]->set_element_type(m_output_type);
-    outputs[0]->set_shape(Shape{valid_outputs, 3});
+    outputs[0]->set_shape(Shape{static_cast<size_t>(valid_outputs), 3});
 
     size_t num_of_outputs = outputs.size();
 
     if (num_of_outputs >= 2)
     {
         outputs[1]->set_element_type(element::f32);
-        outputs[1]->set_shape(Shape{valid_outputs, 3});
+        outputs[1]->set_shape(Shape{static_cast<size_t>(valid_outputs), 3});
     }
 
     if (num_of_outputs >= 3)
