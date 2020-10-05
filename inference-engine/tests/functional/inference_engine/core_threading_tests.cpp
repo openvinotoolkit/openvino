@@ -117,8 +117,7 @@ TEST_F(CoreThreadingTests, RegisterPlugins) {
 }
 
 // tested function: GetAvailableDevices, UnregisterPlugin
-// TODO: some plugins initialization (e.g. GNA) failed during such stress-test scenario
-TEST_F(CoreThreadingTests, DISABLED_GetAvailableDevices) {
+TEST_F(CoreThreadingTests, GetAvailableDevices) {
     InferenceEngine::Core ie;
     runParallel([&] () {
         std::vector<std::string> devices = ie.GetAvailableDevices();
