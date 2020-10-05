@@ -30,24 +30,6 @@ using namespace ngraph;
 static string s_manifest = "${MANIFEST}";
 using TestEngine = test::ENGINE_CLASS_NAME(${BACKEND_NAME});
 
-template <typename T>
-static bool referenceData2Vector(string file_path, vector<T>& data, int count)
-{
-    std::ifstream in(file_path, std::ios::binary);
-    if (!in.is_open())
-    {
-        return false;
-    }
-
-    T* in_buf = new T[count];
-    in.read((char*)in_buf, count * sizeof(T));
-    in.close();
-    vector<T> in_data(in_buf, in_buf + count);
-    data = in_data;
-    delete[] in_buf;
-    return true;
-}
-
 NGRAPH_TEST(${BACKEND_NAME}, region_yolo_v2_caffe)
 {
     const size_t num = 5;
@@ -67,18 +49,11 @@ NGRAPH_TEST(${BACKEND_NAME}, region_yolo_v2_caffe)
     auto R = make_shared<op::v0::RegionYolo>(A, coords, classes, num, true, mask, 1, 3);
     auto f = make_shared<Function>(R, ParameterVector{A});
 
-    std::vector<float> input;
-    std::vector<float> output;
-
-    ASSERT_TRUE(referenceData2Vector<float>(
-        "../ngraph/test/files/region_in_yolov2_caffe.data", input, count));
-    ASSERT_TRUE(referenceData2Vector<float>(
-        "../ngraph/test/files/region_out_yolov2_caffe.data", output, count));
-
     auto test_case = test::TestCase<TestEngine>(f);
 
-    test_case.add_input<float>(input_shape, input);
-    test_case.add_expected_output<float>(output_shape, output);
+    test_case.add_input_from_file<float>(input_shape, TEST_FILES, "region_in_yolov2_caffe.data");
+    test_case.add_expected_output_from_file<float>(
+        output_shape, TEST_FILES, "region_out_yolov2_caffe.data");
     test_case.run_with_tolerance_as_fp(1.0e-4f);
 }
 
@@ -102,17 +77,10 @@ NGRAPH_TEST(${BACKEND_NAME}, region_yolo_v3_mxnet)
 
     EXPECT_EQ(R->get_output_shape(0), shape);
 
-    std::vector<float> input;
-    std::vector<float> output;
-
-    ASSERT_TRUE(referenceData2Vector<float>(
-        "../ngraph/test/files/region_in_yolov3_mxnet.data", input, count));
-    ASSERT_TRUE(referenceData2Vector<float>(
-        "../ngraph/test/files/region_out_yolov3_mxnet.data", output, count));
-
     auto test_case = test::TestCase<TestEngine>(f);
 
-    test_case.add_input<float>(shape, input);
-    test_case.add_expected_output<float>(shape, output);
+    test_case.add_input_from_file<float>(shape, TEST_FILES, "region_in_yolov3_mxnet.data");
+    test_case.add_expected_output_from_file<float>(
+        shape, TEST_FILES, "region_out_yolov3_mxnet.data");
     test_case.run_with_tolerance_as_fp(1.0e-4f);
 }
