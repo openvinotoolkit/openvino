@@ -22,8 +22,7 @@ include(features)
 # include developer package
 include(developer_package)
 
-# These options are shared with 3rdparty plugins
-# by means of developer package
+# These options are shared with 3rdparty plugins by means of developer package
 include(check_features)
 include(dependencies)
 
@@ -39,6 +38,10 @@ message (STATUS "CMAKE_BUILD_TYPE ...................... " ${CMAKE_BUILD_TYPE})
 # remove file with exported developer targets to force its regeneration
 file(REMOVE "${CMAKE_BINARY_DIR}/targets_developer.cmake")
 file(REMOVE "${CMAKE_BINARY_DIR}/targets.cmake")
+
+#
+# Build
+#
 
 function(build_ngraph)
     function(ngraph_set option value)
@@ -130,7 +133,6 @@ function(openvino_developer_export_targets)
         "Paths to extra Inference Engine plugins" FORCE)
 endfunction()
 
-
 add_subdirectory(openvino)
 
 build_ngraph()
@@ -139,7 +141,26 @@ add_subdirectory(inference-engine)
 
 add_subdirectory(docs)
 
+#
+# Shellcheck
+#
+
+ie_shellcheck_process(DIRECTORY "${OpenVINO_MAIN_SOURCE_DIR}"
+                      SKIP "${OpenVINO_MAIN_SOURCE_DIR}/bin"
+                           "${OpenVINO_MAIN_SOURCE_DIR}/build"
+                           "${IE_MAIN_SOURCE_DIR}/tests/ie_test_utils/common_test_utils/gtest"
+                           "${IE_MAIN_SOURCE_DIR}/samples/thirdparty"
+                           "${IE_MAIN_SOURCE_DIR}/thirdparty"
+                           "${IE_MAIN_SOURCE_DIR}/temp"
+                           # TODO fix and enable back:
+                           "${OpenVINO_MAIN_SOURCE_DIR}/scripts/install_dependencies"
+                           "${OpenVINO_MAIN_SOURCE_DIR}/scripts/demo"
+                           "${OpenVINO_MAIN_SOURCE_DIR}/ngraph"
+                           "${IE_MAIN_SOURCE_DIR}/scripts")
+
+#
 # cpack
+#
 
 # install setupvars
 
