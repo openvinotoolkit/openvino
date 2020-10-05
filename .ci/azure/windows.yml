@@ -14,6 +14,8 @@ jobs:
     BIN_DIR: $(REPO_DIR)\bin\intel64
     MSVS_VARS_PATH: C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\VC\Auxiliary\Build\vcvars64.bat
     MSVC_COMPILER_PATH: C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\VC\Tools\MSVC\14.24.28314\bin\Hostx64\x64\cl.exe
+    IB_TESTCONSOLE: C:\Program Files (x86)\IncrediBuild\IBTestConsole.exe
+    IB_DIR: C:\Program Files (x86)\IncrediBuild
   steps:
   - checkout: self
     clean: true
@@ -71,8 +73,8 @@ jobs:
     displayName: 'nGraph UT'
     continueOnError: false
   - script: |
-      set PATH=$(REPO_DIR)\inference-engine\temp\tbb\bin;%PATH%
-      $(BIN_DIR)\InferenceEngineUnitTests --gtest_print_time=1 --gtest_output=xml:TEST-InferenceEngineUnitTests.xml
+      set PATH=$(REPO_DIR)\inference-engine\temp\tbb\bin;$(IB_DIR);%PATH%
+      "$(IB_TESTCONSOLE)" $(BIN_DIR)\InferenceEngineUnitTests --gtest_print_time=1 --gtest_output=xml:TEST-InferenceEngineUnitTests.xml /testlevel=128
     displayName: 'IE UT old'
     continueOnError: false
   - script: |
@@ -101,8 +103,8 @@ jobs:
     displayName: 'IE FuncTests'
     continueOnError: false
   - script: |
-      set PATH=$(REPO_DIR)\inference-engine\temp\tbb\bin;%PATH%
-      $(BIN_DIR)\cpuFuncTests --gtest_print_time=1 --gtest_output=xml:TEST-cpuFuncTests.xml
+      set PATH=$(REPO_DIR)\inference-engine\temp\tbb\bin;$(IB_DIR);%PATH%
+      "$(IB_TESTCONSOLE)" $(BIN_DIR)\cpuFuncTests --gtest_print_time=1 --gtest_filter=*smoke* --gtest_output=xml:TEST-cpuFuncTests.xml /testlevel=128
     displayName: 'CPU FuncTests'
     continueOnError: false
   - script: |
@@ -121,7 +123,7 @@ jobs:
       set PATH=$(REPO_DIR)\inference-engine\temp\tbb\bin;$(REPO_DIR)\inference-engine\temp\opencv_4.5.0\opencv\bin;%PATH%
       set DATA_PATH=$(BUILD_DIR)\testdata
       set MODELS_PATH=$(BUILD_DIR)\testdata
-      $(BIN_DIR)\MklDnnFunctionalTests --gtest_print_time=1 --gtest_output=xml:TEST-MklDnnFunctionalTests.xml
+      $(BIN_DIR)\MklDnnFunctionalTests --gtest_print_time=1 --gtest_filter=*smoke* --gtest_output=xml:TEST-MklDnnFunctionalTests.xml
     displayName: 'MklDnnFunctionalTests'
     continueOnError: false
   - script: |
