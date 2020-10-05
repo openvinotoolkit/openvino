@@ -16,13 +16,11 @@
 
 import numpy as np
 
-from mo.front.common.partial_infer.utils import tf_window_op_pad_infer
-from mo.front.extractor import attr_getter
-# from mo.front.common.partial_infer.pooling import pool_explicit_padding_infer
-from mo.front.extractor import spatial_getter
+from mo.front.common.partial_infer.utils import tf_window_op_pad_infer, int64_array, float_array
 from mo.front.onnx.extractors.utils import get_backend_pad
 from mo.graph.graph import Node, Graph
 from mo.ops.op import Op, PermuteAttrs
+from mo.utils.error import Error
 
 
 class Pooling(Op):
@@ -30,10 +28,10 @@ class Pooling(Op):
 
     def __init__(self, graph: Graph, attrs: dict):
         super().__init__(graph, {
-            'type': __class__.op,
-            'op': __class__.op,
+            'type': self.op,
+            'op': self.op,
             'version': 'opset1',
-            'infer': __class__.infer,
+            'infer': self.infer,
             'in_ports_count': 1,
             'out_ports_count': 1,
         }, attrs)
@@ -68,11 +66,11 @@ class Pooling(Op):
 
         # Setting default pad and stride attrs in case of None specified
         if not node.has_valid('pad'):
-            node['pad'] = np.array([[0, 0] for x in range(len(input_shape))], dtype=np.int64)
+            node['pad'] = int64_array([[0, 0] for x in range(len(input_shape))])
         if not node.has_valid('pad_spatial_shape'):
             node['pad_spatial_shape'] = node.pad[node.spatial_dims]
         if not node.has_valid('stride'):
-            node['stride'] = np.array([1 for x in range(len(input_shape))], dtype=np.int64)
+            node['stride'] = int64_array([1 for x in range(len(input_shape))])
 
         if node.has_and_set('global_pool'):
             node['window'] = np.zeros(len(input_shape), dtype=np.int64)
@@ -96,9 +94,13 @@ class Pooling(Op):
             rounding = np.floor
             if node.soft_get('pooling_convention') == 'full' or node.soft_get('rounding_type') == 'ceil':
                 rounding = np.ceil
-            output_spatial_shape = np.array(rounding(
-                np.array(input_spatial_shape + pad_spatial_shape - window_spatial_shape,
-                         dtype=np.float) / stride_spatial), dtype=np.int64) + 1
+
+            padded_spatial_shape = input_spatial_shape + pad_spatial_shape - window_spatial_shape
+            if np.any(padded_spatial_shape < 0):
+                raise Error("Data after padding has dimension less than window size. " +
+                            "Possible reason of error is incorrectly specified model input shape(s).")
+
+            output_spatial_shape = int64_array(rounding(float_array(padded_spatial_shape) / stride_spatial)) + 1
 
             original_pads = np.array([i[1] for i in node.pad_spatial_shape])
 

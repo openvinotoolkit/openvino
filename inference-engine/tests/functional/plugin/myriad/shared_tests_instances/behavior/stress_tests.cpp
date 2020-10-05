@@ -9,7 +9,7 @@ using namespace LayerTestsDefinitions;
 const unsigned int g_BugAllocationLimit = 10000;
 
 namespace {
-    INSTANTIATE_TEST_CASE_P(BehaviorTests, MultipleAllocations,
+    INSTANTIATE_TEST_CASE_P(smoke_BehaviorTests, MultipleAllocations,
                             ::testing::Combine(
                                 ::testing::Values(CommonTestUtils::DEVICE_MYRIAD),
                                 ::testing::Values(g_BugAllocationLimit)),

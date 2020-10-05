@@ -21,13 +21,15 @@
 
 #include <legacy/convert_function_to_cnn_network.hpp>
 #include <generic_ie.hpp>
+#include <ngraph/pass/manager.hpp>
 #include <ngraph/opsets/opset3.hpp>
 #include <ngraph/opsets/opset4.hpp>
-#include <transformations/tensor_iterator_transformations/apply_transformations_to_ti_body.hpp>
 #include <transformations/convert_opset3_to_opset2/convert_opset3_to_opset2.hpp>
 #include <transformations/convert_opset2_to_opset1/convert_opset2_to_opset1.hpp>
 #include <transformations/convert_opset1_to_legacy/convert_opset1_to_legacy.hpp>
+#include <transformations/convert_opset1_to_legacy/convert_prior_to_ie_prior.hpp>
 #include <transformations/common_optimizations/common_optimizations.hpp>
+#include <transformations/init_node_info.hpp>
 #include <vpu/ngraph/transformations/merge_subsequent_dsr_operations.hpp>
 #include <vpu/ngraph/transformations/convert_nms_4_to_nms_dynamic.hpp>
 #include "vpu/ngraph/transformations/dynamic_to_static_shape.hpp"
@@ -168,6 +170,9 @@ ie::ICNNNetwork::Ptr FrontEnd::convertNetwork(ie::ICNNNetwork& network) {
     ngraph::op::GenericIE::DisableReshape noReshape(nGraphFunc);
 
     ngraph::pass::Manager manager;
+    manager.register_pass<::ngraph::pass::InitNodeInfo>();
+    // WA: ConvertPriorBox must be executed before the 1st ConstantFolding pass
+    manager.register_pass<::ngraph::pass::ConvertPriorBox>();
     manager.register_pass<vpu::UpgradeNMS4ToNMSDynamic>();
     manager.register_pass<ngraph::pass::CommonOptimizations>();
     manager.register_pass<vpu::DynamicToStaticShape>();
@@ -177,10 +182,6 @@ ie::ICNNNetwork::Ptr FrontEnd::convertNetwork(ie::ICNNNetwork& network) {
     manager.register_pass<ngraph::pass::ConvertOpSet1ToLegacy>();
     manager.set_callback(transformationsPredicate);
     manager.run_passes(nGraphFunc);
-
-    ngraph::pass::Manager ti_manager;
-    ti_manager.register_pass<ngraph::pass::ApplyTransformationsToTIBody>(manager);
-    ti_manager.run_passes(nGraphFunc);
 
     vpu::MergeSubsequentDSROperations().run_on_function(nGraphFunc);
 

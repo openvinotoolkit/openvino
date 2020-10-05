@@ -20,57 +20,11 @@ following code prepares a graph for shape-relevant parameters.
 
 > **NOTE**: `validate_nodes_and_infer_types(ops)` must be included for partial shape inference. 
 
-```cpp
-#include "ngraph/opsets/opset.hpp"
-#include "ngraph/opsets/opset3.hpp"
-
-using namespace std;
-using namespace ngraph;
-
-auto arg0 = make_shared<opset3::Parameter>(element::f32, Shape{7});
-auto arg1 = make_shared<opset3::Parameter>(element::f32, Shape{7});
-// Create an 'Add' operation with two inputs 'arg0' and 'arg1'
-auto add0 = make_shared<opset3::Add>(arg0, arg1);
-auto abs0 = make_shared<opset3::Abs>(add0);
-// Create a node whose inputs/attributes will be specified later
-auto acos0 = make_shared<opset3::Acos>();
-// Create a node using opset factories
-auto add1 = shared_ptr<Node>(get_opset3().create("Add"));
-// Set inputs to nodes explicitly
-acos0->set_argument(0, add0);
-add1->set_argument(0, acos0);
-add1->set_argument(1, abs0);
-
-// Run shape inference on the nodes
-NodeVector ops{arg0, arg1, add0, abs0, acos0, add1};
-validate_nodes_and_infer_types(ops);
-
-// Create a graph with one output (add1) and four inputs (arg0, arg1)
-auto ng_function = make_shared<Function>(OutputVector{add1}, ParameterVector{arg0, arg1});
-
-```
+@snippet openvino/docs/snippets/nGraphTutorial.cpp part0
 
 To wrap it into a CNNNetwork, use: 
-```cpp
-CNNNetwork net (ng_function);
-```
 
-## Deprecation Notice
-
-<table>
-  <tr>
-    <td><strong>Deprecation Begins</strong></td>
-    <td>June 1, 2020</td>
-  </tr>
-  <tr>
-    <td><strong>Removal Date</strong></td>
-    <td>December 1, 2020</td>
-  </tr>
-</table> 
-
-*Starting with the OpenVINO™ toolkit 2020.2 release, all of the features previously available through nGraph have been merged into the OpenVINO™ toolkit. As a result, all the features previously available through ONNX RT Execution Provider for nGraph have been merged with ONNX RT Execution Provider for OpenVINO™ toolkit.*
-
-*Therefore, ONNX RT Execution Provider for nGraph will be deprecated starting June 1, 2020 and will be completely removed on December 1, 2020. Users are recommended to migrate to the ONNX RT Execution Provider for OpenVINO™ toolkit as the unified solution for all AI inferencing on Intel® hardware.*
+@snippet openvino/docs/snippets/nGraphTutorial.cpp part1
 
 ## See Also
 

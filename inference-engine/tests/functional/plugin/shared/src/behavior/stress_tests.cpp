@@ -26,14 +26,12 @@ void MultipleAllocations::SetUp() {
 TEST_P(MultipleAllocations, InferWorksCorrectAfterAllocations) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
-    ConfigurePlugin();
-
     InferenceEngine::CNNNetwork cnnNet(function);
     auto ie = PluginCache::get().ie();
 
     std::cout << "Load the network " << m_allocationsCount << " times..." << std::flush;
     for (int i = 0; i < m_allocationsCount; ++i) {
-        ie->LoadNetwork(cnnNet, targetDevice);
+        ie->LoadNetwork(cnnNet, targetDevice, configuration);
     }
 
     std::cout << "\nCheck inference.\n";

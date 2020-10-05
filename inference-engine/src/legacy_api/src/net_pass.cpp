@@ -398,8 +398,10 @@ bool convertToRNNSeq(CNNLayerPtr cur, const N& net) {
     IE_ASSERT(cell->insData.size() == NS + 1);  // {data, state1, [state2]}
     IE_ASSERT(cell->outData.size() == NS);      // {state1, [state2]}
 
+    auto outData0InputsTo = getInputTo(cell->outData[0]);
     if (getCreatorLayer(cell->insData[0].lock()).lock() != rsp1 ||
-        getInputTo(cell->outData[0]).begin()->second != rsp2)
+            outData0InputsTo.empty() ||
+            outData0InputsTo.begin()->second != rsp2)
         return false;
 
     // Check port mapping
@@ -580,6 +582,12 @@ bool unrollTI(CNNLayerPtr cur, ICNNNetwork& net) {
     for (int i = 0; i < first_class.size(); i++) {
         auto& rule = first_class[i];
         auto out_data = ti->outData[rule.from];
+
+        if (num == 1) {
+            getInputTo(body_list[0].outputs[rule.to]) = getInputTo(out_data);
+            getInputTo(body_list[0].outputs[rule.to]).begin()->second->insData[0] = body_list[0].outputs[rule.to];
+            continue;
+        }
 
         std::string name = ti->name + ":out_concat_" + std::to_string(i);
         auto concat = std::make_shared<ConcatLayer>(LayerParams {name, "Concat", cur->precision});
