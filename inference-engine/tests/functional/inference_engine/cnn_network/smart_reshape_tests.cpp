@@ -87,12 +87,8 @@ public:
             auto input_B = std::make_shared<ngraph::opset4::Parameter>(ngraph::element::f32, test_case.B_shape);
             input_B->set_friendly_name("input_B");
 
-            auto reshape_pattern_const = std::make_shared<ngraph::opset4::Constant>(
-                    ngraph::element::i64, ngraph::Shape{test_case.reshape_pattern.size()}, test_case.reshape_pattern);
-            reshape_pattern_const->set_friendly_name("reshape_pattern");
-            std::vector<int64_t> values(2);
-            auto add_const = std::make_shared<ngraph::opset4::Constant>(ngraph::element::i64, ngraph::Shape{2}, values);
-            auto reshape_pattern = std::make_shared<ngraph::opset4::Add>(add_const, reshape_pattern_const);
+            auto reshape_pattern = std::make_shared<ngraph::opset4::Parameter>(ngraph::element::i64, ngraph::Shape{2});
+            reshape_pattern->set_friendly_name("reshape_pattern");
             auto reshape = std::make_shared<ngraph::opset4::Reshape>(test_case.reshape_is_A_input ? input_A : input_B, reshape_pattern, true);
             reshape->set_friendly_name("reshape");
 
@@ -102,7 +98,7 @@ public:
             mat_mul->set_friendly_name("matmul");
 
             auto result = std::make_shared<ngraph::op::Result>(mat_mul);
-            ngraph::ParameterVector params = {input_A, input_B};
+            ngraph::ParameterVector params = {input_A, input_B, reshape_pattern};
             ngraph::ResultVector results = {result};
             ngraph = std::make_shared<ngraph::Function>(results, params);
         }
