@@ -67,7 +67,7 @@ The following components are installed by default:
 
 **Hardware**
 
-* 6th to 10th generation Intel® Core™ processors and Intel® Xeon® processors 
+* 6th to 11th generation Intel® Core™ processors and Intel® Xeon® processors 
 * Intel® Xeon® processor E family (formerly code named Sandy Bridge, Ivy Bridge, Haswell, and Broadwell)
 * 3rd generation Intel® Xeon® Scalable processor (formerly code named Cooper Lake)
 * Intel® Xeon® Scalable processor (formerly Skylake and Cascade Lake)
