@@ -132,6 +132,7 @@ jobs:
     displayName: 'IE CAPITests'
     continueOnError: false
   - task: PublishTestResults@2
+    condition: always()
     inputs:
       testResultsFormat: 'JUnit' # Options: JUnit, NUnit, VSTest, xUnit, cTest
       testResultsFiles: '**/TEST-*.xml'
