@@ -3,6 +3,7 @@
 //
 
 #include "transformations/convert_opset1_to_legacy/convert_prelu_to_relu_ie.hpp"
+#include "transformations/itt.hpp"
 
 #include <memory>
 #include <vector>
@@ -20,8 +21,9 @@ ngraph::pass::ConvertPReLUToReLUIE::ConvertPReLUToReLUIE() {
     auto input_1 = std::make_shared<pattern::op::Label>(element::f32, Shape{1});
     auto prelu = std::make_shared<ngraph::opset1::PRelu>(input_0, input_1);
 
-
+#if GraphGen(OV_GEN_NGRAPH_PASS(ConvertPReLUToReLUIE, callback))
     ngraph::matcher_pass_callback callback = [](pattern::Matcher& m) {
+        OV_ITT_IE_TRANSFORM_CALLBACK(m, "callback")
         auto prelu = std::dynamic_pointer_cast<ngraph::opset1::PRelu> (m.get_match_root());
         if (!prelu) {
             return false;
@@ -41,7 +43,11 @@ ngraph::pass::ConvertPReLUToReLUIE::ConvertPReLUToReLUIE() {
         }
         return false;
     };
-
+#else
+    ngraph::matcher_pass_callback callback = [](ngraph::pattern::Matcher & m) -> bool {
+        return false;
+    };
+#endif
     auto m = std::make_shared<ngraph::pattern::Matcher>(prelu, "ConvertPReLUToReLUIE");
     this->register_matcher(m, callback);
 }

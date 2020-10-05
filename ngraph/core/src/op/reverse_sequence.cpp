@@ -17,6 +17,8 @@
 #include <algorithm>
 #include <memory>
 
+#include "itt.hpp"
+
 #include "ngraph/attribute_visitor.hpp"
 #include "ngraph/node.hpp"
 #include "ngraph/op/reverse_sequence.hpp"
@@ -42,13 +44,20 @@ op::ReverseSequence::ReverseSequence(const Output<Node>& arg,
 
 bool ngraph::op::v0::ReverseSequence::visit_attributes(AttributeVisitor& visitor)
 {
+#if GraphGen(OV_GEN_NGRAPH_OP(ReverseSequence, v0, visit_attributes))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
     visitor.on_attribute("batch_axis", m_batch_axis);
     visitor.on_attribute("seq_axis", m_seq_axis);
     return true;
+#else
+    return false;
+#endif
 }
 
 void op::ReverseSequence::validate_and_infer_types()
 {
+#if GraphGen(OV_GEN_NGRAPH_OP(ReverseSequence, v0, validate_and_infer_types))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
     auto input_shape = get_input_partial_shape(0);
     auto input_rank = input_shape.rank();
 
@@ -89,6 +98,9 @@ void op::ReverseSequence::validate_and_infer_types()
     }
 
     set_output_type(0, get_input_element_type(0), output_shape);
+#else
+    NODE_VALIDATION_CHECK(this, false, "Function is not included into the selective build.");
+#endif
 }
 
 shared_ptr<Node> op::ReverseSequence::clone_with_new_inputs(const OutputVector& new_args) const

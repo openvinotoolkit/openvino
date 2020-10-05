@@ -3,6 +3,7 @@
 //
 
 #include "transformations/convert_opset1_to_legacy/convert_cells_to_cells_ie.hpp"
+#include "transformations/itt.hpp"
 
 #include <memory>
 #include <vector>
@@ -25,7 +26,9 @@ ngraph::pass::ConvertLSTMCellMatcher::ConvertLSTMCellMatcher() {
         return pattern::has_class<ngraph::opset1::LSTMCell>()(n) || pattern::has_class<ngraph::opset4::LSTMCell>()(n);
     };
     auto any_lstm = std::make_shared<pattern::op::Label>(element::f32, Shape{}, is_supported_lstm_cell);
+#if GraphGen(OV_GEN_NGRAPH_PASS(ConvertLSTMCellToLSTMCellIE, callback))
     ngraph::matcher_pass_callback callback = [](pattern::Matcher& m) {
+        OV_ITT_IE_TRANSFORM_CALLBACK(m, "callback")
         auto lstm_cell = std::dynamic_pointer_cast<ngraph::op::util::RNNCellBase>(m.get_match_root());
         if (!lstm_cell) {
             return false;
@@ -57,7 +60,11 @@ ngraph::pass::ConvertLSTMCellMatcher::ConvertLSTMCellMatcher() {
         ngraph::replace_node(m.get_match_root(), lstm_cell_ie);
         return true;
     };
-
+#else
+    ngraph::matcher_pass_callback callback = [](ngraph::pattern::Matcher & m) -> bool {
+        return false;
+    };
+#endif
     auto m = std::make_shared<ngraph::pattern::Matcher>(any_lstm, "ConvertLSTMCellToLSTMCellIE");
     this->register_matcher(m, callback);
 }
@@ -66,8 +73,9 @@ NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertGRUCellMatcher, "ConvertGRUCellMatch
 
 ngraph::pass::ConvertGRUCellMatcher::ConvertGRUCellMatcher() {
     auto gru_cell_ngraph = ngraph::pattern::wrap_type<ngraph::opset3::GRUCell>();
-
+#if GraphGen(OV_GEN_NGRAPH_PASS(ConvertGRUCellToGRUCellIE, callback))
     ngraph::matcher_pass_callback callback = [](pattern::Matcher& m) {
+        OV_ITT_IE_TRANSFORM_CALLBACK(m, "callback")
         auto gru_cell = std::dynamic_pointer_cast<ngraph::opset3::GRUCell> (m.get_match_root());
         if (!gru_cell) {
             return false;
@@ -100,7 +108,11 @@ ngraph::pass::ConvertGRUCellMatcher::ConvertGRUCellMatcher() {
         ngraph::replace_node(m.get_match_root(), gru_cell_ie);
         return true;
     };
-
+#else
+    ngraph::matcher_pass_callback callback = [](ngraph::pattern::Matcher & m) -> bool {
+        return false;
+    };
+#endif
     auto m = std::make_shared<ngraph::pattern::Matcher>(gru_cell_ngraph, "ConvertGRUCellToGRUCellIE");
     this->register_matcher(m, callback);
 }
@@ -109,8 +121,9 @@ NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertRNNCellMatcher, "ConvertRNNCellMatch
 
 ngraph::pass::ConvertRNNCellMatcher::ConvertRNNCellMatcher() {
     auto rnn_cell_ngraph = ngraph::pattern::wrap_type<ngraph::opset3::RNNCell>();
-
+#if GraphGen(OV_GEN_NGRAPH_PASS(ConvertRNNCellToRNNCellIE, callback))
     ngraph::matcher_pass_callback callback = [](pattern::Matcher& m) {
+        OV_ITT_IE_TRANSFORM_CALLBACK(m, "callback")
         auto rnn_cell = std::dynamic_pointer_cast<ngraph::opset3::RNNCell> (m.get_match_root());
         if (!rnn_cell) {
             return false;
@@ -142,7 +155,11 @@ ngraph::pass::ConvertRNNCellMatcher::ConvertRNNCellMatcher() {
         ngraph::replace_node(m.get_match_root(), rnn_cell_ie);
         return true;
     };
-
+#else
+    ngraph::matcher_pass_callback callback = [](ngraph::pattern::Matcher & m) -> bool {
+        return false;
+    };
+#endif
     auto m = std::make_shared<ngraph::pattern::Matcher>(rnn_cell_ngraph, "ConvertRNNCellToRNNCellIE");
     this->register_matcher(m, callback);
 }

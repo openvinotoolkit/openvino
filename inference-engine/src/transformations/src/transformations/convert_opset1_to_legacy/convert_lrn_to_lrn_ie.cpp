@@ -3,6 +3,7 @@
 //
 
 #include "transformations/convert_opset1_to_legacy/convert_lrn_to_lrn_ie.hpp"
+#include "transformations/itt.hpp"
 
 #include <memory>
 #include <vector>
@@ -19,8 +20,9 @@ ngraph::pass::ConvertLRNToLegacyMatcher::ConvertLRNToLegacyMatcher() {
     auto input_0 = std::make_shared<pattern::op::Label>(element::f32, Shape{1, 1, 1, 1});
     auto input_1 = std::make_shared<pattern::op::Label>(element::i64, Shape{1});
     auto lrn = std::make_shared<ngraph::opset1::LRN>(input_0, input_1, 1, 1, 1, 1);
-
+#if GraphGen(OV_GEN_NGRAPH_PASS(ConvertLRNToLegacy, callback))
     ngraph::matcher_pass_callback callback = [](pattern::Matcher& m) {
+        OV_ITT_IE_TRANSFORM_CALLBACK(m, "callback")
         auto lrn = std::dynamic_pointer_cast<ngraph::opset1::LRN> (m.get_match_root());
         if (!lrn) {
             return false;
@@ -63,7 +65,11 @@ ngraph::pass::ConvertLRNToLegacyMatcher::ConvertLRNToLegacyMatcher() {
         ngraph::replace_node(lrn, lrn_ie);
         return true;
     };
-
+#else
+    ngraph::matcher_pass_callback callback = [](ngraph::pattern::Matcher & m) -> bool {
+        return false;
+    };
+#endif
     auto m = std::make_shared<ngraph::pattern::Matcher>(lrn, "ConvertLRNToLegacy");
     this->register_matcher(m, callback);
 }

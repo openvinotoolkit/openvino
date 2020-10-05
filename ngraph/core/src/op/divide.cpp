@@ -50,9 +50,14 @@ op::v0::Divide::Divide(const Output<Node>& arg0,
 
 bool op::v0::Divide::visit_attributes(AttributeVisitor& visitor)
 {
+#if GraphGen(OV_GEN_NGRAPH_OP(Divide, v0, visit_attributes))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
     BinaryElementwiseArithmetic::visit_attributes(visitor);
     visitor.on_attribute("m_pythondiv", m_pythondiv);
     return true;
+#else
+    return false;
+#endif
 }
 
 shared_ptr<Node> op::v0::Divide::clone_with_new_inputs(const OutputVector& new_args) const
@@ -116,8 +121,12 @@ namespace
 
 bool op::v0::Divide::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v0::Divide::evaluate");
+#if GraphGen(OV_GEN_NGRAPH_OP(Divide, v0, evaluate))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
     return evaluate_divide(inputs[0], inputs[1], outputs[0], get_autob(), is_pythondiv());
+#else
+    return false;
+#endif
 }
 
 // ------------------------------ v1 -------------------------------------------
@@ -144,9 +153,14 @@ op::v1::Divide::Divide(const Output<Node>& arg0,
 
 bool op::v1::Divide::visit_attributes(AttributeVisitor& visitor)
 {
+#if GraphGen(OV_GEN_NGRAPH_OP(Divide, v1, visit_attributes))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
     BinaryElementwiseArithmetic::visit_attributes(visitor);
     visitor.on_attribute("m_pythondiv", m_pythondiv);
     return true;
+#else
+    return false;
+#endif
 }
 
 shared_ptr<Node> op::v1::Divide::clone_with_new_inputs(const OutputVector& new_args) const
@@ -158,6 +172,10 @@ shared_ptr<Node> op::v1::Divide::clone_with_new_inputs(const OutputVector& new_a
 
 bool op::v1::Divide::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v1::Divide::evaluate");
+#if GraphGen(OV_GEN_NGRAPH_OP(Divide, v1, evaluate))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
     return evaluate_divide(inputs[0], inputs[1], outputs[0], get_autob(), is_pythondiv());
+#else
+    return false;
+#endif
 }

@@ -91,8 +91,12 @@ namespace
 bool op::v0::GreaterEq::evaluate(const HostTensorVector& outputs,
                                  const HostTensorVector& inputs) const
 {
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v0::GreaterEq::evaluate");
+#if GraphGen(OV_GEN_NGRAPH_OP(GreaterEq, v0, evaluate))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
     return evaluate_greater_equal(inputs[0], inputs[1], outputs[0], get_autob());
+#else
+    return false;
+#endif
 }
 
 //---------------------------------- v1 ----------------------------------------
@@ -116,6 +120,10 @@ shared_ptr<Node> op::v1::GreaterEqual::clone_with_new_inputs(const OutputVector&
 bool op::v1::GreaterEqual::evaluate(const HostTensorVector& outputs,
                                     const HostTensorVector& inputs) const
 {
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v1::GreaterEqual::evaluate");
+#if GraphGen(OV_GEN_NGRAPH_OP(GreaterEq, v1, evaluate))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
     return evaluate_greater_equal(inputs[0], inputs[1], outputs[0], get_autob());
+#else
+    return false;
+#endif
 }

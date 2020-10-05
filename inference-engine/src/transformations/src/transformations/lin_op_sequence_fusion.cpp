@@ -3,6 +3,7 @@
 //
 
 #include "transformations/lin_op_sequence_fusoin.hpp"
+#include "transformations/itt.hpp"
 
 #include <memory>
 #include <vector>
@@ -37,8 +38,9 @@ ngraph::pass::AddMultiplyFusion::AddMultiplyFusion() {
     auto m_add = ngraph::pattern::wrap_type<opset3::Add>({m_data, m_add_constant}, pattern::consumers_count(1));
     auto m_mul_constant = ngraph::pattern::wrap_type<opset3::Constant>();
     auto m_mul = ngraph::pattern::wrap_type<opset3::Multiply>({m_add, m_mul_constant});
-
+#if GraphGen(OV_GEN_NGRAPH_PASS(AddMultiplyFusion, callback))
     ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher & m) -> bool {
+        OV_ITT_IE_TRANSFORM_CALLBACK(m, "callback")
         auto & label_to_output = m.get_pattern_value_map();
 
         auto mul = label_to_output[m_mul].get_node_shared_ptr();
@@ -61,7 +63,11 @@ ngraph::pass::AddMultiplyFusion::AddMultiplyFusion() {
         replace_node(mul, new_add);
         return true;
     };
-
+#else
+    matcher_pass_callback callback = [](ngraph::pattern::Matcher & m) -> bool {
+        return false;
+    };
+#endif
     auto m = std::make_shared<ngraph::pattern::Matcher>(m_mul, "AddMultiplyFusion");
     this->register_matcher(m, callback);
 }
@@ -76,7 +82,9 @@ ngraph::pass::AddAddFusion::AddAddFusion() {
     auto m_add2_constant = ngraph::pattern::wrap_type<opset3::Constant>();
     auto m_add2 = ngraph::pattern::wrap_type<opset3::Add>({m_add1, m_add2_constant});
 
+#if GraphGen(OV_GEN_NGRAPH_PASS(AddAddFusion, callback))
     ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher & m) -> bool {
+        OV_ITT_IE_TRANSFORM_CALLBACK(m, "callback")
         auto & label_to_output = m.get_pattern_value_map();
 
         auto add1 = label_to_output[m_add1].get_node_shared_ptr();
@@ -95,7 +103,11 @@ ngraph::pass::AddAddFusion::AddAddFusion() {
         replace_node(add2, new_add);
         return true;
     };
-
+#else
+    matcher_pass_callback callback = [](ngraph::pattern::Matcher & m) -> bool {
+        return false;
+    };
+#endif
     auto m = std::make_shared<ngraph::pattern::Matcher>(m_add2, "AddAddFusion");
     this->register_matcher(m, callback);
 }
@@ -109,8 +121,9 @@ ngraph::pass::MultiplyMultiplyFusion::MultiplyMultiplyFusion() {
     auto m_mul1 = ngraph::pattern::wrap_type<opset3::Multiply>({m_data, m_mul1_constant}, pattern::consumers_count(1));
     auto m_mul2_constant = ngraph::pattern::wrap_type<opset3::Constant>();
     auto m_mul2 = ngraph::pattern::wrap_type<ngraph::opset3::Multiply>({m_mul1, m_mul2_constant});
-
+#if GraphGen(OV_GEN_NGRAPH_PASS(MultiplyMultiplyFusion, callback))
     ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher & m) -> bool {
+        OV_ITT_IE_TRANSFORM_CALLBACK(m, "callback")
         auto & label_to_output = m.get_pattern_value_map();
 
         auto mul1 = label_to_output[m_mul1].get_node_shared_ptr();
@@ -129,7 +142,11 @@ ngraph::pass::MultiplyMultiplyFusion::MultiplyMultiplyFusion() {
         replace_node(mul2, new_mul);
         return true;
     };
-
+#else
+    ngraph::matcher_pass_callback callback = [](ngraph::pattern::Matcher & m) -> bool {
+        return false;
+    };
+#endif
     auto m = std::make_shared<ngraph::pattern::Matcher>(m_mul2, "MultiplyMultiplyFusion");
     this->register_matcher(m, callback);
 }

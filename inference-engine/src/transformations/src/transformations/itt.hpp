@@ -32,3 +32,5 @@ namespace domains {
 }
 }
 }
+#define OV_ITT_IE_TRANSFORM_CALLBACK(M, CN) OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::IETransform, "ngraph::pass::" + M.get_name() + "::" + CN)
+#define OV_GEN_NGRAPH_PASS(NAME, FUNC) OV_ITT_GLUE_UNDERSCORE(Gen, OV_ITT_GLUE_UNDERSCORE(ngraph, OV_ITT_GLUE_UNDERSCORE(pass, OV_ITT_GLUE_UNDERSCORE(NAME, FUNC))))

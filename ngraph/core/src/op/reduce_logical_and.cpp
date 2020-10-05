@@ -70,7 +70,8 @@ namespace
 bool op::v1::ReduceLogicalAnd::evaluate(const HostTensorVector& outputs,
                                         const HostTensorVector& inputs) const
 {
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v1::ReduceLogicalAnd::evaluate");
+#if GraphGen(OV_GEN_NGRAPH_OP(ReduceLogicalAnd, v1, evaluate))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
 
     const auto& data = inputs[0];
     const auto& axes = inputs[1];
@@ -84,4 +85,7 @@ bool op::v1::ReduceLogicalAnd::evaluate(const HostTensorVector& outputs,
     {
         return evaluate_reduce_logical_and(data, axes, out, get_keep_dims());
     }
+#else
+    return false;
+#endif
 }

@@ -3,6 +3,7 @@
 //
 
 #include "transformations/convert_precision.hpp"
+#include "transformations/itt.hpp"
 
 #include <memory>
 #include <vector>
@@ -75,6 +76,8 @@ bool fuse_type_to_reduce_logical(std::shared_ptr<ngraph::Node> & node, ngraph::e
 NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertPrecision, "ConvertPrecision", 0);
 
 bool ngraph::pass::ConvertPrecision::run_on_function(std::shared_ptr<ngraph::Function> f) {
+#if GraphGen(OV_GEN_NGRAPH_PASS(ConvertPrecision, run_on_function))
+    OV_ITT_SCOPED_TASK(itt::domains::IETransform);
     static std::map<ngraph::NodeTypeInfo, std::function<bool(std::shared_ptr<Node>&, element::Type, size_t idx)>> type_to_fuse {
         {opset4::Parameter::type_info, fuse_type_to_parameter},
         {opset4::Convert::type_info, fuse_type_to_convert},
@@ -191,6 +194,9 @@ bool ngraph::pass::ConvertPrecision::run_on_function(std::shared_ptr<ngraph::Fun
         }
     }
     return true;
+#else
+    return false;
+#endif
 }
 
 bool fuse_type_to_shapeof(std::shared_ptr<Node> & node, element::Type to, size_t idx) {

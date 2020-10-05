@@ -3,6 +3,7 @@
 //
 
 #include "transformations/swish_fusion.hpp"
+#include "transformations/itt.hpp"
 
 #include <memory>
 
@@ -36,8 +37,9 @@ ngraph::pass::SwishFusionWithSigmoid::SwishFusionWithSigmoid() {
     auto input = ngraph::pattern::any_input();
     auto sigmoid = std::make_shared<ngraph::opset4::Sigmoid>(input);
     auto mul = std::make_shared<ngraph::opset4::Multiply>(input, sigmoid);
-
+#if GraphGen(OV_GEN_NGRAPH_PASS(SwishFusionWithSigmoid, callback))
     ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher &m) {
+        OV_ITT_IE_TRANSFORM_CALLBACK(m, "callback")
         auto &pattern_to_output = m.get_pattern_value_map();
         auto exp_input = pattern_to_output.at(input);
 
@@ -50,7 +52,11 @@ ngraph::pass::SwishFusionWithSigmoid::SwishFusionWithSigmoid() {
         ngraph::replace_node(m.get_match_root(), swish);
         return true;
     };
-
+#else
+    ngraph::graph_rewrite_callback callback = [](ngraph::pattern::Matcher & m) -> bool {
+        return false;
+    };
+#endif
     auto m = std::make_shared<ngraph::pattern::Matcher>(mul, "SwishWithSigmoidFusion");
     register_matcher(m, callback);
 }
@@ -64,8 +70,9 @@ ngraph::pass::SwishFusionWithSigmoidWithBeta::SwishFusionWithSigmoidWithBeta() {
     auto mul_beta = std::make_shared<ngraph::opset4::Multiply>(input, beta);
     auto sigmoid = std::make_shared<ngraph::opset4::Sigmoid>(mul_beta);
     auto mul = std::make_shared<ngraph::opset4::Multiply>(input, sigmoid);
-
+#if GraphGen(OV_GEN_NGRAPH_PASS(SwishFusionWithSigmoidWithBeta, callback))
     ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher &m) {
+        OV_ITT_IE_TRANSFORM_CALLBACK(m, "callback")
         auto &pattern_to_output = m.get_pattern_value_map();
         auto exp_input = pattern_to_output.at(input);
         auto beta_input = pattern_to_output.at(beta);
@@ -95,7 +102,11 @@ ngraph::pass::SwishFusionWithSigmoidWithBeta::SwishFusionWithSigmoidWithBeta() {
         ngraph::replace_node(m.get_match_root(), swish);
         return true;
     };
-
+#else
+    ngraph::graph_rewrite_callback callback = [](ngraph::pattern::Matcher & m) -> bool {
+        return false;
+    };
+#endif
     auto m = std::make_shared<ngraph::pattern::Matcher>(mul, "SwishWithSigmoidWithBetaFusion");
     register_matcher(m, callback);
 }
@@ -112,8 +123,9 @@ ngraph::pass::SwishFusionWithBeta::SwishFusionWithBeta() {
     auto add_constant = ngraph::pattern::wrap_type<ngraph::opset4::Constant>();
     auto add = std::make_shared<ngraph::opset4::Add>(exp, add_constant);
     auto div = std::make_shared<ngraph::opset4::Divide>(input, add);
-
+#if GraphGen(OV_GEN_NGRAPH_PASS(SwishFusionWithBeta, callback))
     ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher &m) {
+        OV_ITT_IE_TRANSFORM_CALLBACK(m, "callback")
         auto &pattern_to_output = m.get_pattern_value_map();
         auto exp_input = pattern_to_output.at(input);
 
@@ -136,7 +148,11 @@ ngraph::pass::SwishFusionWithBeta::SwishFusionWithBeta() {
         ngraph::replace_node(m.get_match_root(), swish);
         return true;
     };
-
+#else
+    ngraph::graph_rewrite_callback callback = [](ngraph::pattern::Matcher & m) -> bool {
+        return false;
+    };
+#endif
     auto m = std::make_shared<ngraph::pattern::Matcher>(div, "SwishWithBetaFusion");
     register_matcher(m, callback);
 }
@@ -151,8 +167,9 @@ ngraph::pass::SwishFusionWithoutBeta::SwishFusionWithoutBeta() {
     auto add_constant = ngraph::pattern::wrap_type<ngraph::opset4::Constant>();
     auto add = std::make_shared<ngraph::opset4::Add>(exp, add_constant);
     auto div = std::make_shared<ngraph::opset4::Divide>(input, add);
-
+#if GraphGen(OV_GEN_NGRAPH_PASS(SwishFusionWithoutBeta, callback))
     ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
+        OV_ITT_IE_TRANSFORM_CALLBACK(m, "callback")
         auto & pattern_to_output = m.get_pattern_value_map();
         auto exp_input = pattern_to_output.at(input);
 
@@ -173,7 +190,11 @@ ngraph::pass::SwishFusionWithoutBeta::SwishFusionWithoutBeta() {
         ngraph::replace_node(m.get_match_root(), swish);
         return true;
     };
-
+#else
+    ngraph::graph_rewrite_callback callback = [](ngraph::pattern::Matcher & m) -> bool {
+        return false;
+    };
+#endif
     auto m = std::make_shared<ngraph::pattern::Matcher>(div, "SwishWithoutBetaFusion");
     register_matcher(m, callback);
 }

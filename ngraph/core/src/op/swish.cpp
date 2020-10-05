@@ -14,9 +14,11 @@
 // limitations under the License.
 //*****************************************************************************
 
-#include "ngraph/op/swish.hpp"
+#include "itt.hpp"
+
 #include "ngraph/attribute_visitor.hpp"
 #include "ngraph/op/constant.hpp"
+#include "ngraph/op/swish.hpp"
 
 #include "ngraph/runtime/host_tensor.hpp"
 #include "ngraph/runtime/reference/swish.hpp"
@@ -45,6 +47,8 @@ bool op::v4::Swish::visit_attributes(AttributeVisitor& visitor)
 
 void op::v4::Swish::validate_and_infer_types()
 {
+#if GraphGen(OV_GEN_NGRAPH_OP(Swish, v4, validate_and_infer_types))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
     auto inputs_count = input_values().size();
     NODE_VALIDATION_CHECK(this,
                           inputs_count == 1 || inputs_count == 2,
@@ -71,6 +75,9 @@ void op::v4::Swish::validate_and_infer_types()
     }
     set_output_size(1);
     set_output_type(0, get_input_element_type(0), get_input_partial_shape(0));
+#else
+    NODE_VALIDATION_CHECK(this, false, "Function is not included into the selective build.");
+#endif
 }
 
 shared_ptr<Node> op::v4::Swish::clone_with_new_inputs(const OutputVector& new_args) const
@@ -129,6 +136,8 @@ namespace
 
 bool op::v4::Swish::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
+#if GraphGen(OV_GEN_NGRAPH_OP(Swish, v4, evaluate))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
     if (inputs.size() == 2)
     {
         return evaluate_swish(inputs[0], inputs[1], outputs[0], shape_size(get_output_shape(0)));
@@ -137,4 +146,7 @@ bool op::v4::Swish::evaluate(const HostTensorVector& outputs, const HostTensorVe
     {
         return evaluate_swish(inputs[0], nullptr, outputs[0], shape_size(get_output_shape(0)));
     }
+#else
+    return false;
+#endif
 }

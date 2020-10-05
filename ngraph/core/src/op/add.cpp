@@ -44,8 +44,13 @@ shared_ptr<Node> op::v0::Add::clone_with_new_inputs(const OutputVector& new_args
 
 bool op::v0::Add::visit_attributes(AttributeVisitor& visitor)
 {
+#if GraphGen(OV_GEN_NGRAPH_OP(Add, v0, visit_attributes))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
     BinaryElementwiseArithmetic::visit_attributes(visitor);
     return true;
+#else
+    return false;
+#endif
 }
 
 shared_ptr<Node> ngraph::operator+(const Output<Node>& arg0, const Output<Node>& arg1)
@@ -109,8 +114,12 @@ namespace
 
 bool op::v0::Add::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v0::Add::evaluate");
+#if GraphGen(OV_GEN_NGRAPH_OP(Add, v0, evaluate))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
     return evaluate_add(inputs[0], inputs[1], outputs[0], get_autob());
+#else
+    return false;
+#endif
 }
 
 // ------------------------------- v1 ------------------------------------------
@@ -127,8 +136,13 @@ op::v1::Add::Add(const Output<Node>& arg0,
 
 bool op::v1::Add::visit_attributes(AttributeVisitor& visitor)
 {
+#if GraphGen(OV_GEN_NGRAPH_OP(Add, v1, visit_attributes))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
     BinaryElementwiseArithmetic::visit_attributes(visitor);
     return true;
+#else
+    return false;
+#endif
 }
 
 shared_ptr<Node> op::v1::Add::clone_with_new_inputs(const OutputVector& new_args) const
@@ -139,6 +153,10 @@ shared_ptr<Node> op::v1::Add::clone_with_new_inputs(const OutputVector& new_args
 
 bool op::v1::Add::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v1::Add::evaluate");
+#if GraphGen(OV_GEN_NGRAPH_OP(Add, v1, evaluate))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
     return evaluate_add(inputs[0], inputs[1], outputs[0], get_autob());
+#else
+    return false;
+#endif
 }

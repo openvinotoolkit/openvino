@@ -3,6 +3,7 @@
 //
 
 #include "transformations/convert_pad_to_group_conv.hpp"
+#include "transformations/itt.hpp"
 
 #include <memory>
 #include <vector>
@@ -16,8 +17,9 @@ NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertPadToGroupConvolution, "ConvertPadTo
 
 ngraph::pass::ConvertPadToGroupConvolution::ConvertPadToGroupConvolution() {
     auto neg = ngraph::pattern::wrap_type<opset4::Pad>(pattern::has_static_dim(1));
-
+#if GraphGen(OV_GEN_NGRAPH_PASS(ConvertPadToGroupConvolution, callback))
     ngraph::matcher_pass_callback callback = [this](pattern::Matcher& m) {
+        OV_ITT_IE_TRANSFORM_CALLBACK(m, "callback")
         auto pad = std::dynamic_pointer_cast<ngraph::opset4::Pad> (m.get_match_root());
         if (!pad || !m_transformation_callback(pad) /* disabled by default */) {
             return false;
@@ -79,7 +81,11 @@ ngraph::pass::ConvertPadToGroupConvolution::ConvertPadToGroupConvolution() {
         ngraph::replace_node(pad, conv);
         return true;
     };
-
+#else
+    ngraph::graph_rewrite_callback callback = [](ngraph::pattern::Matcher & m) -> bool {
+        return false;
+    };
+#endif
     auto m = std::make_shared<ngraph::pattern::Matcher>(neg, "ConvertPadToGroupConvolution");
     this->register_matcher(m, callback);
 }

@@ -9,6 +9,7 @@
 #include <ngraph/rt_info.hpp>
 
 #include "transformations/remove_filtering_boxes_by_size.hpp"
+#include "transformations/itt.hpp"
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::RemoveFilteringBoxesBySize, "RemoveFilteringBoxesBySize", 0);
 
@@ -78,8 +79,9 @@ void ngraph::pass::RemoveFilteringBoxesBySize::remove_filtering_boxes_by_size() 
     auto squeeze_3 = std::make_shared<ngraph::opset3::Squeeze>(transpose, squeeze_3_axis);
 
     auto cast = std::make_shared<ngraph::opset3::Convert>(squeeze_3, ngraph::element::i64);
-
+#if GraphGen(OV_GEN_NGRAPH_PASS(RemoveFilteringBoxesBySize, callback))
     ngraph::graph_rewrite_callback callback = [data](pattern::Matcher& m) {
+        OV_ITT_IE_TRANSFORM_CALLBACK(m, "callback")
         auto start = opset3::Constant::create(element::i64, Shape{}, std::vector<int64_t >({0}));
         auto step = opset3::Constant::create(element::i64, Shape{}, std::vector<int64_t >({1}));
 
@@ -102,7 +104,11 @@ void ngraph::pass::RemoveFilteringBoxesBySize::remove_filtering_boxes_by_size() 
 
         return true;
     };
-
+#else
+    ngraph::graph_rewrite_callback callback = [](ngraph::pattern::Matcher & m) -> bool {
+        return false;
+    };
+#endif
     auto m = std::make_shared<ngraph::pattern::Matcher>(cast, "RemoveFilteringBoxesBySize");
     this->add_matcher(m, callback, PassProperty::CHANGE_DYNAMIC_STATE);
 }

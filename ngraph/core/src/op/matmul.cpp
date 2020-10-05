@@ -44,13 +44,20 @@ op::MatMul::MatMul(const Output<Node>& A,
 
 bool ngraph::op::v0::MatMul::visit_attributes(AttributeVisitor& visitor)
 {
+#if GraphGen(OV_GEN_NGRAPH_OP(MatMul, v0, visit_attributes))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
     visitor.on_attribute("transpose_a", m_transpose_a);
     visitor.on_attribute("transpose_b", m_transpose_b);
     return true;
+#else
+    return false;
+#endif
 }
 
 void op::MatMul::pre_validate_and_infer_types()
 {
+#if GraphGen(OV_GEN_NGRAPH_OP(MatMul, v0, pre_validate_and_infer_types))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
     element::Type result_et;
     NODE_VALIDATION_CHECK(
         this,
@@ -73,10 +80,15 @@ void op::MatMul::pre_validate_and_infer_types()
     {
         set_output_type(0, result_et, PartialShape::dynamic());
     }
+#else
+    NODE_VALIDATION_CHECK(this, false, "Function is not included into the selective build.");
+#endif
 }
 
 OutputVector op::MatMul::decompose_op() const
 {
+#if GraphGen(OV_GEN_NGRAPH_OP(MatMul, v0, decompose_op))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
     auto A = input_value(0);
     auto B = input_value(1);
 
@@ -103,6 +115,9 @@ OutputVector op::MatMul::decompose_op() const
 
     builder::MatmulFactory factory({A, B});
     return factory.make_matmul_op();
+#else
+    NODE_VALIDATION_CHECK(this, false, "Function is not included into the selective build.");
+#endif
 }
 
 shared_ptr<Node> op::MatMul::clone_with_new_inputs(const OutputVector& new_args) const
@@ -235,6 +250,10 @@ namespace
 
 bool op::MatMul::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::MatMul::evaluate");
+#if GraphGen(OV_GEN_NGRAPH_OP(MatMul, v0, evaluate))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
     return evaluate_matmul(inputs[0], inputs[1], outputs[0], get_transpose_a(), get_transpose_b());
+#else
+    return false;
+#endif
 }

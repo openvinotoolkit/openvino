@@ -13,6 +13,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 //*****************************************************************************
+#include "itt.hpp"
 
 #include "ngraph/op/quantize.hpp"
 #include "ngraph/shape_util.hpp"
@@ -41,6 +42,8 @@ op::Quantize::Quantize(const Output<Node>& input,
 
 void op::Quantize::validate_and_infer_types()
 {
+#if GraphGen(OV_GEN_NGRAPH_OP(Quantize, v0, validate_and_infer_types))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
     enum
     {
         INPUT,
@@ -153,6 +156,9 @@ void op::Quantize::validate_and_infer_types()
     {
         set_output_type(0, quantized_type, PartialShape::dynamic());
     }
+#else
+    NODE_VALIDATION_CHECK(this, false, "Function is not included into the selective build.");
+#endif
 }
 
 shared_ptr<Node> op::Quantize::clone_with_new_inputs(const OutputVector& new_args) const

@@ -4,6 +4,7 @@
 
 #include "transformations/hswish_fusion.hpp"
 #include "transformations/utils/utils.hpp"
+#include "transformations/itt.hpp"
 
 #include <memory>
 
@@ -26,8 +27,9 @@ ngraph::pass::HSwishFusionWithReluDiv::HSwishFusionWithReluDiv() {
     auto mul = std::make_shared<ngraph::opset4::Multiply>(input, min);
     auto div_constant = ngraph::pattern::wrap_type<ngraph::opset4::Constant>();
     auto div = std::make_shared<ngraph::opset4::Divide>(mul, div_constant);
-
+#if GraphGen(OV_GEN_NGRAPH_PASS(HSwishFusionWithReluDiv, callback))
     ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher &m) {
+        OV_ITT_IE_TRANSFORM_CALLBACK(m, "callback")
         auto &pattern_to_output = m.get_pattern_value_map();
         auto x_output = pattern_to_output.at(input);
 
@@ -59,7 +61,11 @@ ngraph::pass::HSwishFusionWithReluDiv::HSwishFusionWithReluDiv() {
         ngraph::replace_node(m.get_match_root(), hswish);
         return true;
     };
-
+#else
+    matcher_pass_callback callback = [](ngraph::pattern::Matcher & m) -> bool {
+        return false;
+    };
+#endif
     auto m = std::make_shared<ngraph::pattern::Matcher>(div, "HSwishWithReluDivFusion");
     register_matcher(m, callback);
 }
@@ -77,8 +83,9 @@ ngraph::pass::HSwishFusionWithReluMul::HSwishFusionWithReluMul() {
     auto mul_first = std::make_shared<ngraph::opset4::Multiply>(input, min);
     auto mul_constant = ngraph::pattern::wrap_type<ngraph::opset4::Constant>();
     auto mul_second = std::make_shared<ngraph::opset4::Multiply>(mul_first, mul_constant);
-
+#if GraphGen(OV_GEN_NGRAPH_PASS(HSwishFusionWithReluMul, callback))
     ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher &m) {
+        OV_ITT_IE_TRANSFORM_CALLBACK(m, "callback")
         auto &pattern_to_output = m.get_pattern_value_map();
         auto x_output = pattern_to_output.at(input);
 
@@ -110,7 +117,11 @@ ngraph::pass::HSwishFusionWithReluMul::HSwishFusionWithReluMul() {
         ngraph::replace_node(m.get_match_root(), hswish);
         return true;
     };
-
+#else
+    matcher_pass_callback callback = [](ngraph::pattern::Matcher & m) -> bool {
+        return false;
+    };
+#endif
     auto m = std::make_shared<ngraph::pattern::Matcher>(mul_second, "HSwishWithReluMulFusion");
     register_matcher(m, callback);
 }
@@ -129,8 +140,9 @@ ngraph::pass::HSwishFusionWithoutRelu::HSwishFusionWithoutRelu() {
     auto div_constant = ngraph::pattern::wrap_type<ngraph::opset4::Constant>();
     auto div = std::make_shared<ngraph::opset4::Divide>(min, div_constant);
     auto mul = std::make_shared<ngraph::opset4::Multiply>(input, div);
-
+#if GraphGen(OV_GEN_NGRAPH_PASS(HSwishFusionWithoutRelu, callback))
     ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher &m) {
+        OV_ITT_IE_TRANSFORM_CALLBACK(m, "callback")
         auto &pattern_to_output = m.get_pattern_value_map();
         auto x_output = pattern_to_output.at(input);
 
@@ -165,7 +177,11 @@ ngraph::pass::HSwishFusionWithoutRelu::HSwishFusionWithoutRelu() {
         ngraph::replace_node(m.get_match_root(), hswish);
         return true;
     };
-
+#else
+    matcher_pass_callback callback = [](ngraph::pattern::Matcher & m) -> bool {
+        return false;
+    };
+#endif
     auto m = std::make_shared<ngraph::pattern::Matcher>(mul, "HSwishWithoutReluFusion");
     register_matcher(m, callback);
 }
@@ -181,8 +197,9 @@ ngraph::pass::HSwishFusionWithClamp::HSwishFusionWithClamp() {
     auto mul_constant = ngraph::pattern::wrap_type<ngraph::opset4::Constant>();
     auto mul_first = std::make_shared<ngraph::opset4::Multiply>(clamp, mul_constant);
     auto mul_second = std::make_shared<ngraph::opset4::Multiply>(input, mul_first);
-
+#if GraphGen(OV_GEN_NGRAPH_PASS(HSwishFusionWithClamp, callback))
     ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher &m) {
+        OV_ITT_IE_TRANSFORM_CALLBACK(m, "callback")
         auto &pattern_to_output = m.get_pattern_value_map();
         auto x_output = pattern_to_output.at(input);
 
@@ -210,7 +227,11 @@ ngraph::pass::HSwishFusionWithClamp::HSwishFusionWithClamp() {
         ngraph::replace_node(m.get_match_root(), hswish);
         return true;
     };
-
+#else
+    ngraph::graph_rewrite_callback callback = [](ngraph::pattern::Matcher & m) -> bool {
+        return false;
+    };
+#endif
     auto m = std::make_shared<ngraph::pattern::Matcher>(mul_second, "HSwishWithClampFusion");
     register_matcher(m, callback);
 }

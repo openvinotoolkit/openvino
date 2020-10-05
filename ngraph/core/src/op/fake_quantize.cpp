@@ -13,8 +13,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 //*****************************************************************************
-
 #include <memory>
+
+#include "itt.hpp"
 
 #include "fake_quantize.hpp"
 #include "ngraph/attribute_visitor.hpp"
@@ -57,6 +58,8 @@ op::FakeQuantize::FakeQuantize(const Output<Node>& data,
 
 void op::FakeQuantize::validate_and_infer_types()
 {
+#if GraphGen(OV_GEN_NGRAPH_OP(FakeQuantize, v0, validate_and_infer_types))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
     PartialShape data_pshape = get_input_partial_shape(0);
 
     for (auto i = 1; i <= 4; i++)
@@ -81,17 +84,27 @@ void op::FakeQuantize::validate_and_infer_types()
         }
     }
     set_output_type(0, get_input_element_type(0), get_input_partial_shape(0));
+#else
+    NODE_VALIDATION_CHECK(this, false, "Function is not included into the selective build.");
+#endif
 }
 
 bool ngraph::op::v0::FakeQuantize::visit_attributes(AttributeVisitor& visitor)
 {
+#if GraphGen(OV_GEN_NGRAPH_OP(FakeQuantize, v0, visit_attributes))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
     visitor.on_attribute("levels", m_levels);
     visitor.on_attribute("auto_broadcast", m_auto_broadcast);
     return true;
+#else
+    return false;
+#endif
 }
 
 OutputVector op::FakeQuantize::decompose_op() const
 {
+#if GraphGen(OV_GEN_NGRAPH_OP(FakeQuantize, v0, decompose_op))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
     Output<Node> data{input_value(0)};
     Output<Node> input_low{input_value(1)};
     Output<Node> input_high{input_value(2)};
@@ -160,6 +173,9 @@ OutputVector op::FakeQuantize::decompose_op() const
 
     // shift the results so that they fall into the <output_low;output_high> range
     return {dequantized_data + output_low};
+#else
+    NODE_VALIDATION_CHECK(this, false, "Function is not included into the selective build.");
+#endif
 }
 
 shared_ptr<Node> op::FakeQuantize::clone_with_new_inputs(const OutputVector& new_args) const

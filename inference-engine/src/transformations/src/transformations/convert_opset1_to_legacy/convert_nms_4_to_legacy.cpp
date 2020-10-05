@@ -13,6 +13,7 @@
 #include <transformations/utils/utils.hpp>
 
 #include "transformations/convert_opset1_to_legacy/convert_nms_4_to_legacy.hpp"
+#include "transformations/itt.hpp"
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertNMS4ToLegacyMatcher, "ConvertNMS4ToLegacyMatcher", 0);
 
@@ -24,8 +25,9 @@ ngraph::pass::ConvertNMS4ToLegacyMatcher::ConvertNMS4ToLegacyMatcher() {
     auto score_threshold = ngraph::opset4::Constant::create(element::f32, Shape{}, {0.7});
     auto nms = std::make_shared<ngraph::opset4::NonMaxSuppression>(boxes, scores, max_output_boxes_per_class,
                                                                    iou_threshold, score_threshold);
-
+#if GraphGen(OV_GEN_NGRAPH_PASS(ConvertNMS4ToNMSLegacy, callback))
     ngraph::matcher_pass_callback callback = [](pattern::Matcher &m) {
+        OV_ITT_IE_TRANSFORM_CALLBACK(m, "callback")
         auto nms_4 = std::dynamic_pointer_cast<ngraph::opset4::NonMaxSuppression>(m.get_match_root());
         if (!nms_4) {
             return false;
@@ -107,7 +109,11 @@ ngraph::pass::ConvertNMS4ToLegacyMatcher::ConvertNMS4ToLegacyMatcher() {
         ngraph::replace_node(nms_4, nms_legacy);
         return true;
     };
-
+#else
+    ngraph::matcher_pass_callback callback = [](ngraph::pattern::Matcher & m) -> bool {
+        return false;
+    };
+#endif
     auto m = std::make_shared<ngraph::pattern::Matcher>(nms, "ConvertNMS4ToNMSLegacy");
     this->register_matcher(m, callback);
 }

@@ -3,6 +3,7 @@
 //
 
 #include "transformations/convert_opset1_to_legacy/convert_gathertree_to_gathertree_ie.hpp"
+#include "transformations/itt.hpp"
 
 #include <memory>
 #include <vector>
@@ -18,8 +19,9 @@ ngraph::pass::ConvertGatherTreeToGatherTreeIEMatcher::ConvertGatherTreeToGatherT
     auto input2 = std::make_shared<pattern::op::Label>(element::i64, Shape{1});
     auto input3 = std::make_shared<pattern::op::Label>(element::i64, Shape{});
     auto gt = std::make_shared<ngraph::opset1::GatherTree>(input0, input1, input2, input3);
-
+#if GraphGen(OV_GEN_NGRAPH_PASS(ConvertGatherTreeToGatherTreeIE, callback))
     ngraph::matcher_pass_callback callback = [](pattern::Matcher& m) {
+        OV_ITT_IE_TRANSFORM_CALLBACK(m, "callback")
         auto gt = std::dynamic_pointer_cast<ngraph::opset1::GatherTree> (m.get_match_root());
         if (!gt) {
             return false;
@@ -34,7 +36,11 @@ ngraph::pass::ConvertGatherTreeToGatherTreeIEMatcher::ConvertGatherTreeToGatherT
         ngraph::replace_node(gt, gt_ie);
         return true;
     };
-
+#else
+    ngraph::matcher_pass_callback callback = [](ngraph::pattern::Matcher & m) -> bool {
+        return false;
+    };
+#endif
     auto m = std::make_shared<ngraph::pattern::Matcher>(gt, "ConvertGatherTreeToGatherTreeIE");
     this->register_matcher(m, callback);
 }

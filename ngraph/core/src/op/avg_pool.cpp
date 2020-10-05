@@ -14,9 +14,11 @@
 // limitations under the License.
 //*****************************************************************************
 
-#include "ngraph/op/avg_pool.hpp"
+#include "itt.hpp"
+
 #include "ngraph/attribute_visitor.hpp"
 #include "ngraph/graph_util.hpp"
+#include "ngraph/op/avg_pool.hpp"
 #include "ngraph/validation_util.hpp"
 
 using namespace std;
@@ -65,6 +67,8 @@ op::v1::AvgPool::AvgPool(const Output<Node>& arg,
 
 bool op::v1::AvgPool::visit_attributes(AttributeVisitor& visitor)
 {
+#if GraphGen(OV_GEN_NGRAPH_OP(AvgPool, v1, visit_attributes))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
     visitor.on_attribute("kernel", m_kernel);
     visitor.on_attribute("strides", m_strides);
     visitor.on_attribute("pads_begin", m_pads_begin);
@@ -73,10 +77,15 @@ bool op::v1::AvgPool::visit_attributes(AttributeVisitor& visitor)
     visitor.on_attribute("auto_pad", m_auto_pad);
     visitor.on_attribute("rounding_type", m_rounding_type);
     return true;
+#else
+    return false;
+#endif
 }
 
 void op::v1::AvgPool::validate_and_infer_types()
 {
+#if GraphGen(OV_GEN_NGRAPH_OP(AvgPool, v1, validate_and_infer_types))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
     if (0 == m_strides.size())
     {
         m_strides = Strides(m_kernel.size(), 1);
@@ -140,6 +149,9 @@ void op::v1::AvgPool::validate_and_infer_types()
                                                         !m_exclude_pad,
                                                         m_rounding_type == op::RoundingType::CEIL)
                         : output_shape);
+#else
+    NODE_VALIDATION_CHECK(this, false, "Function is not included into the selective build.");
+#endif
 }
 
 const Shape& op::v1::AvgPool::get_kernel() const

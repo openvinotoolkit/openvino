@@ -13,6 +13,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 //*****************************************************************************
+#include "itt.hpp"
 
 #include "ngraph/op/lstm_sequence.hpp"
 
@@ -34,6 +35,8 @@ NGRAPH_RTTI_DEFINITION(op::v5::LSTMSequence, "LSTMSequence", 5);
 
 bool ngraph::op::v0::LSTMSequence::visit_attributes(AttributeVisitor& visitor)
 {
+#if GraphGen(OV_GEN_NGRAPH_OP(LSTMSequence, v0, visit_attributes))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
     visitor.on_attribute("hidden_size", m_hidden_size);
     visitor.on_attribute("activations", m_activations);
     visitor.on_attribute("activations_alpha", m_activations_alpha);
@@ -44,9 +47,14 @@ bool ngraph::op::v0::LSTMSequence::visit_attributes(AttributeVisitor& visitor)
     visitor.on_attribute("input_forget", m_input_forget);
     visitor.on_attribute("weights_format", m_weights_format);
     return true;
+#else
+    return false;
+#endif
 }
 OutputVector op::v0::LSTMSequence::decompose_op() const
 {
+#if GraphGen(OV_GEN_NGRAPH_OP(LSTMSequence, v0, decompose_op))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
     OutputVector results;
     if (m_direction == direction::FORWARD || m_direction == direction::REVERSE)
     {
@@ -67,6 +75,9 @@ OutputVector op::v0::LSTMSequence::decompose_op() const
         results = OutputVector{Y, Y_h, Y_c};
     }
     return results;
+#else
+    NODE_VALIDATION_CHECK(this, false, "Function is not included into the selective build.");
+#endif
 }
 
 shared_ptr<Node> op::v0::LSTMSequence::clone_with_new_inputs(const OutputVector& new_args) const
@@ -263,6 +274,8 @@ shared_ptr<Node> op::v0::LSTMSequence::prepare_input(Output<Node> node,
 
 void op::v0::LSTMSequence::validate_and_infer_types()
 {
+#if GraphGen(OV_GEN_NGRAPH_OP(LSTMSequence, v0, validate_and_infer_types))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
     std::vector<ngraph::PartialShape> input_param{};
 
     auto lstm_seq_gates_count = 4;
@@ -417,12 +430,20 @@ void op::v0::LSTMSequence::validate_and_infer_types()
         0, result_et, {merged_batch_size, merged_num_directions, x_pshape[1], merged_hidden_size});
     set_output_type(1, result_et, {merged_batch_size, merged_num_directions, merged_hidden_size});
     set_output_type(2, result_et, {merged_batch_size, merged_num_directions, merged_hidden_size});
+#else
+    NODE_VALIDATION_CHECK(this, false, "Function is not included into the selective build.");
+#endif
 }
 
 bool ngraph::op::v5::LSTMSequence::visit_attributes(AttributeVisitor& visitor)
 {
+#if GraphGen(OV_GEN_NGRAPH_OP(LSTMSequence, v5, visit_attributes))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
     visitor.on_attribute("direction", m_direction);
     return op::util::RNNCellBase::visit_attributes(visitor);
+#else
+    return false;
+#endif
 }
 
 shared_ptr<Node> op::v5::LSTMSequence::clone_with_new_inputs(const OutputVector& new_args) const
@@ -452,6 +473,8 @@ shared_ptr<Node> op::v5::LSTMSequence::clone_with_new_inputs(const OutputVector&
 
 void op::v5::LSTMSequence::validate_and_infer_types()
 {
+#if GraphGen(OV_GEN_NGRAPH_OP(LSTMSequence, v5, validate_and_infer_types))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
     for (const auto& input : inputs())
     {
         if (input.get_partial_shape().rank().is_dynamic())
@@ -585,4 +608,7 @@ void op::v5::LSTMSequence::validate_and_infer_types()
         0, result_et, {merged_batch_size, merged_num_directions, x_pshape[1], merged_hidden_size});
     set_output_type(1, result_et, {merged_batch_size, merged_num_directions, merged_hidden_size});
     set_output_type(2, result_et, {merged_batch_size, merged_num_directions, merged_hidden_size});
+#else
+    NODE_VALIDATION_CHECK(this, false, "Function is not included into the selective build.");
+#endif
 }

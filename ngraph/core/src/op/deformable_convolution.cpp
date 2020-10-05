@@ -13,10 +13,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 //*****************************************************************************
+#include "itt.hpp"
 
-#include "ngraph/op/deformable_convolution.hpp"
 #include "ngraph/axis_vector.hpp"
 #include "ngraph/coordinate_diff.hpp"
+#include "ngraph/op/deformable_convolution.hpp"
 #include "ngraph/op/reshape.hpp"
 #include "ngraph/util.hpp"
 #include "ngraph/validation_util.hpp"
@@ -50,6 +51,8 @@ op::v1::DeformableConvolution::DeformableConvolution(const Output<Node>& arg,
 
 bool op::v1::DeformableConvolution::visit_attributes(AttributeVisitor& visitor)
 {
+#if GraphGen(OV_GEN_NGRAPH_OP(DeformableConvolution, v1, visit_attributes))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
     visitor.on_attribute("strides", m_strides);
     visitor.on_attribute("dilations", m_dilations);
     visitor.on_attribute("pads_begin", m_pads_begin);
@@ -58,10 +61,15 @@ bool op::v1::DeformableConvolution::visit_attributes(AttributeVisitor& visitor)
     visitor.on_attribute("group", m_group);
     visitor.on_attribute("deformable_group", m_deformable_group);
     return true;
+#else
+    return false;
+#endif
 }
 
 void op::v1::DeformableConvolution::validate_and_infer_types()
 {
+#if GraphGen(OV_GEN_NGRAPH_OP(DeformableConvolution, v1, validate_and_infer_types))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
     const PartialShape& data_batch_shape = get_input_partial_shape(0);
     const PartialShape& deformable_values_shape = get_input_partial_shape(1);
     const PartialShape& filters_shape = get_input_partial_shape(2);
@@ -192,6 +200,9 @@ void op::v1::DeformableConvolution::validate_and_infer_types()
                                              m_dilations);
 
     set_output_type(0, result_et, result_shape);
+#else
+    NODE_VALIDATION_CHECK(this, false, "Function is not included into the selective build.");
+#endif
 }
 
 shared_ptr<Node>

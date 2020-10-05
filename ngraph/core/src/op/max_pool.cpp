@@ -80,6 +80,8 @@ op::v1::MaxPool::MaxPool(const Output<Node>& arg,
 
 bool ngraph::op::v1::MaxPool::visit_attributes(AttributeVisitor& visitor)
 {
+#if GraphGen(OV_GEN_NGRAPH_OP(MaxPool, v1, visit_attributes))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
     visitor.on_attribute("strides", m_strides);
     visitor.on_attribute("pads_begin", m_pads_begin);
     visitor.on_attribute("pads_end", m_pads_end);
@@ -87,10 +89,15 @@ bool ngraph::op::v1::MaxPool::visit_attributes(AttributeVisitor& visitor)
     visitor.on_attribute("rounding_type", m_rounding_type);
     visitor.on_attribute("auto_pad", m_auto_pad);
     return true;
+#else
+    return false;
+#endif
 }
 
 void op::v1::MaxPool::validate_and_infer_types()
 {
+#if GraphGen(OV_GEN_NGRAPH_OP(MaxPool, v1, validate_and_infer_types))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
     if (0 == m_strides.size())
     {
         m_strides = Strides(m_kernel.size(), 1);
@@ -141,6 +148,9 @@ void op::v1::MaxPool::validate_and_infer_types()
                                                         true,
                                                         m_rounding_type == op::RoundingType::CEIL)
                         : output_shape);
+#else
+    NODE_VALIDATION_CHECK(this, false, "Function is not included into the selective build.");
+#endif
 }
 
 shared_ptr<Node> op::v1::MaxPool::clone_with_new_inputs(const OutputVector& new_args) const
@@ -213,7 +223,8 @@ namespace
 bool op::v1::MaxPool::evaluate(const HostTensorVector& outputs,
                                const HostTensorVector& inputs) const
 {
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v1::MaxPool::evaluate");
+#if GraphGen(OV_GEN_NGRAPH_OP(MaxPool, v1, evaluate))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
 
     auto arg_shape = inputs[0]->get_partial_shape();
     auto pads_begin_s = get_pads_begin();
@@ -237,4 +248,7 @@ bool op::v1::MaxPool::evaluate(const HostTensorVector& outputs,
                             get_strides(),
                             get_pads_begin(),
                             get_pads_end());
+#else
+    return false;
+#endif
 }

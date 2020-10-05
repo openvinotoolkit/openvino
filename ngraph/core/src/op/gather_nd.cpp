@@ -13,6 +13,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 //*****************************************************************************
+#include "itt.hpp"
 
 #include "ngraph/op/gather_nd.hpp"
 #include "ngraph/shape.hpp"
@@ -35,6 +36,8 @@ shared_ptr<Node> op::GatherND::clone_with_new_inputs(const OutputVector& new_arg
 
 void op::GatherND::validate_and_infer_types()
 {
+#if GraphGen(OV_GEN_NGRAPH_OP(GatherND, v0, validate_and_infer_types))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
     element::Type result_et = get_input_element_type(PARAMS);
     element::Type indices_et = get_input_element_type(INDICES);
 
@@ -86,4 +89,7 @@ void op::GatherND::validate_and_infer_types()
     }
 
     set_output_type(0, result_et, result_shape);
+#else
+    NODE_VALIDATION_CHECK(this, false, "Function is not included into the selective build.");
+#endif
 }

@@ -95,8 +95,12 @@ namespace
 bool op::v0::Subtract::evaluate(const HostTensorVector& outputs,
                                 const HostTensorVector& inputs) const
 {
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v0::Subtract::evaluate");
+#if GraphGen(OV_GEN_NGRAPH_OP(Subtract, v0, evaluate))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
     return evaluate_subtract(inputs[0], inputs[1], outputs[0], get_autob());
+#else
+    return false;
+#endif
 }
 
 // ------------------------------- v1 ------------------------------------------
@@ -120,6 +124,10 @@ shared_ptr<Node> op::v1::Subtract::clone_with_new_inputs(const OutputVector& new
 bool op::v1::Subtract::evaluate(const HostTensorVector& outputs,
                                 const HostTensorVector& inputs) const
 {
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v1::Subtract::evaluate");
+#if GraphGen(OV_GEN_NGRAPH_OP(Subtract, v1, evaluate))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
     return evaluate_subtract(inputs[0], inputs[1], outputs[0], get_autob());
+#else
+    return false;
+#endif
 }

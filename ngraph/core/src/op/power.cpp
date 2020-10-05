@@ -91,8 +91,12 @@ namespace
 
 bool op::v0::Power::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v0::Power::evaluate");
+#if GraphGen(OV_GEN_NGRAPH_OP(Power, v0, evaluate))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
     return evaluate_power(inputs[0], inputs[1], outputs[0], get_autob());
+#else
+    return false;
+#endif
 }
 
 // ------------------------------ v1 -------------------------------------------
@@ -115,6 +119,10 @@ shared_ptr<Node> op::v1::Power::clone_with_new_inputs(const OutputVector& new_ar
 
 bool op::v1::Power::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v1::Power::evaluate");
+#if GraphGen(OV_GEN_NGRAPH_OP(Power, v1, evaluate))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
     return evaluate_power(inputs[0], inputs[1], outputs[0], get_autob());
+#else
+    return false;
+#endif
 }

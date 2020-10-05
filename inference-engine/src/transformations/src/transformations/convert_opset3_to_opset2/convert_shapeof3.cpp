@@ -3,6 +3,7 @@
 //
 
 #include "transformations/convert_opset3_to_opset2/convert_shapeof3.hpp"
+#include "transformations/itt.hpp"
 
 #include <memory>
 #include <vector>
@@ -16,8 +17,9 @@ NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertShapeOf3, "ConvertShapeOf3", 0);
 void ngraph::pass::ConvertShapeOf3::convert_shapeof3() {
     auto input = std::make_shared<pattern::op::Label>(element::i64, Shape{1, 1, 1, 1});
     auto shapeof = std::make_shared<ngraph::opset3::ShapeOf>(input);
-
+#if GraphGen(OV_GEN_NGRAPH_PASS(ConvertShapeOf3, callback))
     ngraph::graph_rewrite_callback callback = [](pattern::Matcher& m) {
+        OV_ITT_IE_TRANSFORM_CALLBACK(m, "callback")
         auto shapeof = std::dynamic_pointer_cast<ngraph::opset3::ShapeOf> (m.get_match_root());
         if (!shapeof) {
             return false;
@@ -41,7 +43,11 @@ void ngraph::pass::ConvertShapeOf3::convert_shapeof3() {
         ngraph::replace_node(shapeof, last.get_node_shared_ptr());
         return true;
     };
-
+#else
+    ngraph::graph_rewrite_callback callback = [](ngraph::pattern::Matcher & m) -> bool {
+        return false;
+    };
+#endif
     auto m = std::make_shared<ngraph::pattern::Matcher>(shapeof, "ConvertShapeOf3");
     this->add_matcher(m, callback, PassProperty::CHANGE_DYNAMIC_STATE);
 }

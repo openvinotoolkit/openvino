@@ -40,12 +40,19 @@ op::v4::Range::Range(const Output<Node>& start,
 
 bool ngraph::op::v4::Range::visit_attributes(AttributeVisitor& visitor)
 {
+#if GraphGen(OV_GEN_NGRAPH_OP(Range, v4, visit_attributes))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
     visitor.on_attribute("output_type", m_output_type);
     return true;
+#else
+    return false;
+#endif
 }
 
 void op::v4::Range::validate_and_infer_types()
 {
+#if GraphGen(OV_GEN_NGRAPH_OP(Range, v4, validate_and_infer_types))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
     set_input_is_relevant_to_shape(0);
     set_input_is_relevant_to_shape(1);
     set_input_is_relevant_to_shape(2);
@@ -112,6 +119,9 @@ void op::v4::Range::validate_and_infer_types()
         result = PartialShape{Dimension(static_cast<int64_t>(strided))};
     }
     set_output_type(0, m_output_type, result);
+#else
+    NODE_VALIDATION_CHECK(this, false, "Function is not included into the selective build.");
+#endif
 }
 
 shared_ptr<Node> op::v4::Range::clone_with_new_inputs(const OutputVector& new_args) const
@@ -188,6 +198,8 @@ bool evaluate_v4_range(const HostTensorPtr& out,
 
 bool op::v4::Range::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
+#if GraphGen(OV_GEN_NGRAPH_OP(Range, v4, evaluate))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
     HostTensorPtr out = outputs[0];
     HostTensorPtr start = inputs[0];
     HostTensorPtr stop = inputs[1];
@@ -212,6 +224,9 @@ bool op::v4::Range::evaluate(const HostTensorVector& outputs, const HostTensorVe
         return evaluate_v4_range<element::Type_t::u64>(out, start, stop, step);
     default: return false;
     }
+#else
+    return false;
+#endif
 }
 
 constexpr NodeTypeInfo op::v0::Range::type_info;
@@ -359,6 +374,8 @@ bool ngraph::op::v0::Range::visit_attributes(AttributeVisitor& visitor)
 
 void op::v0::Range::validate_and_infer_types()
 {
+#if GraphGen(OV_GEN_NGRAPH_OP(Range, v0, validate_and_infer_types))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
     set_input_is_relevant_to_shape(0);
     set_input_is_relevant_to_shape(1);
     set_input_is_relevant_to_shape(2);
@@ -417,6 +434,9 @@ void op::v0::Range::validate_and_infer_types()
 #endif
 
     set_output_type(0, result_et, result_shape);
+#else
+    NODE_VALIDATION_CHECK(this, false, "Function is not included into the selective build.");
+#endif
 }
 
 shared_ptr<Node> op::v0::Range::clone_with_new_inputs(const OutputVector& new_args) const
@@ -468,7 +488,8 @@ bool try_evaluate_range(const HostTensorPtr& out,
 
 bool op::v0::Range::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v0::Range::evaluate");
+#if GraphGen(OV_GEN_NGRAPH_OP(Range, v0, evaluate))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
 
     HostTensorPtr out = outputs[0];
     HostTensorPtr start = inputs[0];
@@ -486,4 +507,7 @@ bool op::v0::Range::evaluate(const HostTensorVector& outputs, const HostTensorVe
            try_evaluate_range<element::Type_t::f16>(out, start, stop, step) ||
            try_evaluate_range<element::Type_t::bf16>(out, start, stop, step) ||
            try_evaluate_range<element::Type_t::f64>(out, start, stop, step);
+#else
+    return false;
+#endif
 }

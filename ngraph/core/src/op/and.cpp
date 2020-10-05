@@ -34,8 +34,13 @@ op::v1::LogicalAnd::LogicalAnd(const Output<Node>& arg0,
 
 bool op::v1::LogicalAnd::visit_attributes(AttributeVisitor& visitor)
 {
+#if GraphGen(OV_GEN_NGRAPH_OP(LogicalAnd, v1, visit_attributes))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
     BinaryElementwiseLogical::visit_attributes(visitor);
     return true;
+#else
+    return false;
+#endif
 }
 
 shared_ptr<Node> op::v1::LogicalAnd::clone_with_new_inputs(const OutputVector& new_args) const
@@ -93,6 +98,10 @@ namespace
 bool op::v1::LogicalAnd::evaluate(const HostTensorVector& outputs,
                                   const HostTensorVector& inputs) const
 {
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v1::LogicalAnd::evaluate");
+#if GraphGen(OV_GEN_NGRAPH_OP(LogicalAnd, v1, evaluate))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
     return evaluate_logand(inputs[0], inputs[1], outputs[0], get_autob());
+#else
+    return false;
+#endif
 }

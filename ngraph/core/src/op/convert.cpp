@@ -34,13 +34,23 @@ op::Convert::Convert(const Output<Node>& arg, const element::Type& destination_t
 
 void op::Convert::validate_and_infer_types()
 {
+#if GraphGen(OV_GEN_NGRAPH_OP(Convert, v0, validate_and_infer_types))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
     set_output_type(0, m_destination_type, get_input_partial_shape(0));
+#else
+    NODE_VALIDATION_CHECK(this, false, "Function is not included into the selective build.");
+#endif
 }
 
 bool op::Convert::visit_attributes(AttributeVisitor& visitor)
 {
+#if GraphGen(OV_GEN_NGRAPH_OP(Convert, v0, visit_attributes))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
     visitor.on_attribute("destination_type", m_destination_type);
     return true;
+#else
+    return false;
+#endif
 }
 
 shared_ptr<Node> op::Convert::clone_with_new_inputs(const OutputVector& new_args) const
@@ -125,9 +135,14 @@ namespace
         return rc;
     }
 }
+
 bool op::v0::Convert::evaluate(const HostTensorVector& output_values,
                                const HostTensorVector& input_values) const
 {
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v0::Convert::evaluate");
+#if GraphGen(OV_GEN_NGRAPH_OP(Convert, v0, evaluate))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
     return evaluate_convert(input_values[0], output_values[0]);
+#else
+    return false;
+#endif
 }

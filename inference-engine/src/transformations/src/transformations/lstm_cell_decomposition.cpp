@@ -3,6 +3,7 @@
 //
 
 #include "transformations/lstm_cell_decomposition.hpp"
+#include "transformations/itt.hpp"
 
 #include <memory>
 #include <vector>
@@ -16,7 +17,9 @@ NGRAPH_RTTI_DEFINITION(ngraph::pass::LSTMCellDecomposition, "LSTMCellDecompositi
 
 ngraph::pass::LSTMCellDecomposition::LSTMCellDecomposition() {
     auto lstm_cell = ngraph::pattern::wrap_type<opset4::LSTMCell>();
+#if GraphGen(OV_GEN_NGRAPH_PASS(LSTMCellDecomposition, callback))
     ngraph::matcher_pass_callback callback = [](ngraph::pattern::Matcher& m) {
+        OV_ITT_IE_TRANSFORM_CALLBACK(m, "callback")
         auto lstm_cell = std::dynamic_pointer_cast<ngraph::opset4::LSTMCell> (m.get_match_root());
         if (!lstm_cell) {
             return false;
@@ -81,7 +84,11 @@ ngraph::pass::LSTMCellDecomposition::LSTMCellDecomposition() {
         ngraph::replace_node(lstm_cell, {out_H->output(0), out_C->output(0)});
         return true;
     };
-
+#else
+    ngraph::graph_rewrite_callback callback = [](ngraph::pattern::Matcher & m) -> bool {
+        return false;
+    };
+#endif
     auto m = std::make_shared<ngraph::pattern::Matcher>(lstm_cell, "LSTMCellDecomposition");
     register_matcher(m, callback);
 }

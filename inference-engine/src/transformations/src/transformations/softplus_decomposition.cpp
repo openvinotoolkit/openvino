@@ -3,6 +3,7 @@
 //
 
 #include "transformations/softplus_decomposition.hpp"
+#include "transformations/itt.hpp"
 
 #include <memory>
 #include <vector>
@@ -17,8 +18,9 @@ ngraph::pass::SoftPlusDecomposition::SoftPlusDecomposition() {
     // decomposes SoftPlus(x) operation into ln(exp(x) + 1.0)
     auto input = ngraph::pattern::any_input();
     auto softplus = std::make_shared<ngraph::opset4::SoftPlus>(input);
-
+#if GraphGen(OV_GEN_NGRAPH_PASS(SoftPlusDecomposition, callback))
     ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
+        OV_ITT_IE_TRANSFORM_CALLBACK(m, "callback")
         auto &pattern_to_output = m.get_pattern_value_map();
         auto softplus_input = pattern_to_output.at(input);
         auto softplus_node = pattern_to_output.at(softplus).get_node_shared_ptr();
@@ -37,7 +39,11 @@ ngraph::pass::SoftPlusDecomposition::SoftPlusDecomposition() {
         ngraph::replace_node(softplus_node, log);
         return true;
     };
-
+#else
+    ngraph::graph_rewrite_callback callback = [](ngraph::pattern::Matcher & m) -> bool {
+        return false;
+    };
+#endif
     auto m = std::make_shared<ngraph::pattern::Matcher>(softplus, "SoftPlusDecomposition");
     register_matcher(m, callback);
 }

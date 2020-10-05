@@ -15,6 +15,8 @@
 //*****************************************************************************
 #include <algorithm>
 
+#include "itt.hpp"
+
 #include "mvn.hpp"
 #include "ngraph/builder/reduce_ops.hpp"
 #include "ngraph/op/add.hpp"
@@ -55,6 +57,8 @@ op::MVN::MVN(const Output<Node>& data, AxisSet reduction_axes, bool normalize_va
 // instead of relying on op decomposition.
 void op::MVN::validate_and_infer_types()
 {
+#if GraphGen(OV_GEN_NGRAPH_OP(MVN, v0, validate_and_infer_types))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
     // if m_across_channels is true we should calculate mean and variance per batch
     // else we calculate these per channel
     if (m_reduction_axes.empty() && input_value(0).get_partial_shape().rank().is_static())
@@ -70,10 +74,15 @@ void op::MVN::validate_and_infer_types()
     }
 
     set_output_type(0, get_input_element_type(0), get_input_partial_shape(0));
+#else
+    NODE_VALIDATION_CHECK(this, false, "Function is not included into the selective build.");
+#endif
 }
 
 OutputVector op::MVN::decompose_op() const
 {
+#if GraphGen(OV_GEN_NGRAPH_OP(MVN, v0, decompose_op))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
     auto data = input_value(0);
     auto data_shape = data.get_shape(); // assume that data has n and c channels.
 
@@ -99,6 +108,9 @@ OutputVector op::MVN::decompose_op() const
 
         return OutputVector{mean_normalization / variance};
     }
+#else
+    NODE_VALIDATION_CHECK(this, false, "Function is not included into the selective build.");
+#endif
 }
 
 shared_ptr<Node> op::MVN::clone_with_new_inputs(const OutputVector& new_args) const
@@ -112,9 +124,14 @@ shared_ptr<Node> op::MVN::clone_with_new_inputs(const OutputVector& new_args) co
 
 bool op::MVN::visit_attributes(AttributeVisitor& visitor)
 {
+#if GraphGen(OV_GEN_NGRAPH_OP(MVN, v0, visit_attributes))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
     visitor.on_attribute("eps", m_eps);
     visitor.on_attribute("across_channels", m_across_channels);
     visitor.on_attribute("normalize_variance", m_normalize_variance);
     visitor.on_attribute("reduction_axes", m_reduction_axes);
     return true;
+#else
+    return false;
+#endif
 }

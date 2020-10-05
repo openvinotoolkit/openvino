@@ -13,9 +13,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 //*****************************************************************************
+#include "itt.hpp"
 
-#include "ngraph/op/one_hot.hpp"
 #include "ngraph/attribute_visitor.hpp"
+#include "ngraph/op/one_hot.hpp"
 #include "ngraph/op/util/op_types.hpp"
 #include "ngraph/validation_util.hpp"
 
@@ -36,6 +37,8 @@ op::v0::OneHot::OneHot(const Output<Node>& arg, const PartialShape& shape, size_
 
 void op::v0::OneHot::validate_and_infer_types()
 {
+#if GraphGen(OV_GEN_NGRAPH_OP(OneHot, v0, validate_and_infer_types))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
     element::Type arg_et = get_input_element_type(0);
     PartialShape arg_shape = get_input_partial_shape(0);
     Rank arg_rank = arg_shape.rank();
@@ -95,6 +98,9 @@ void op::v0::OneHot::validate_and_infer_types()
     }
 
     set_output_type(0, arg_et, result_shape);
+#else
+    NODE_VALIDATION_CHECK(this, false, "Function is not included into the selective build.");
+#endif
 }
 
 shared_ptr<Node> op::v0::OneHot::clone_with_new_inputs(const OutputVector& new_args) const
@@ -118,6 +124,8 @@ op::v1::OneHot::OneHot(const Output<Node>& indices,
 
 void op::v1::OneHot::validate_and_infer_types()
 {
+#if GraphGen(OV_GEN_NGRAPH_OP(OneHot, v1, validate_and_infer_types))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
     const auto& indices_et = get_input_element_type(0);
     const auto& depth_et = get_input_element_type(1);
     const auto& on_value_et = get_input_element_type(2);
@@ -196,12 +204,20 @@ void op::v1::OneHot::validate_and_infer_types()
     }
 
     set_output_type(0, on_value_et, result_shape);
+#else
+    NODE_VALIDATION_CHECK(this, false, "Function is not included into the selective build.");
+#endif
 }
 
 bool ngraph::op::v1::OneHot::visit_attributes(AttributeVisitor& visitor)
 {
+#if GraphGen(OV_GEN_NGRAPH_OP(OneHot, v1, visit_attributes))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
     visitor.on_attribute("axis", m_axis);
     return true;
+#else
+    return false;
+#endif
 }
 
 shared_ptr<Node> op::v1::OneHot::clone_with_new_inputs(const OutputVector& new_args) const

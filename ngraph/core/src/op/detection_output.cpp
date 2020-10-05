@@ -13,6 +13,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 //*****************************************************************************
+#include "itt.hpp"
 
 #include "ngraph/op/detection_output.hpp"
 
@@ -45,6 +46,8 @@ op::DetectionOutput::DetectionOutput(const Output<Node>& box_logits,
 
 void op::DetectionOutput::validate_and_infer_types()
 {
+#if GraphGen(OV_GEN_NGRAPH_OP(DetectionOutput, v0, validate_and_infer_types))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
     if (get_input_partial_shape(0).is_static())
     {
         auto box_logits_shape = get_input_partial_shape(0).to_shape();
@@ -55,6 +58,9 @@ void op::DetectionOutput::validate_and_infer_types()
     {
         set_output_type(0, element::f32, PartialShape::dynamic());
     }
+#else
+    NODE_VALIDATION_CHECK(this, false, "Function is not included into the selective build.");
+#endif
 }
 
 shared_ptr<Node> op::DetectionOutput::clone_with_new_inputs(const OutputVector& new_args) const
@@ -84,6 +90,8 @@ shared_ptr<Node> op::DetectionOutput::clone_with_new_inputs(const OutputVector& 
 
 bool op::DetectionOutput::visit_attributes(AttributeVisitor& visitor)
 {
+#if GraphGen(OV_GEN_NGRAPH_OP(DetectionOutput, v0, visit_attributes))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
     visitor.on_attribute("num_classes", m_attrs.num_classes);
     visitor.on_attribute("background_label_id", m_attrs.background_label_id);
     visitor.on_attribute("top_k", m_attrs.top_k);
@@ -101,4 +109,7 @@ bool op::DetectionOutput::visit_attributes(AttributeVisitor& visitor)
     visitor.on_attribute("input_width", m_attrs.input_width);
     visitor.on_attribute("objectness_score", m_attrs.objectness_score);
     return true;
+#else
+    return false;
+#endif
 }

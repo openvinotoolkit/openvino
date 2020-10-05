@@ -78,11 +78,18 @@ op::v0::RNNCell::RNNCell(const Output<Node>& X,
 
 bool op::v0::RNNCell::visit_attributes(AttributeVisitor& visitor)
 {
+#if GraphGen(OV_GEN_NGRAPH_OP(RNNCell, v0, visit_attributes))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
     return op::util::RNNCellBase::visit_attributes(visitor);
+#else
+    return false;
+#endif
 }
 
 void op::v0::RNNCell::validate_and_infer_types()
 {
+#if GraphGen(OV_GEN_NGRAPH_OP(RNNCell, v0, validate_and_infer_types))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
     for (const auto& input : inputs())
     {
         if (input.get_partial_shape().rank().is_dynamic())
@@ -175,6 +182,9 @@ void op::v0::RNNCell::validate_and_infer_types()
     // Set output size, type and shape
     set_output_size(1);
     set_output_type(0, result_et, {merged_batch_size, merged_hidden_size});
+#else
+    NODE_VALIDATION_CHECK(this, false, "Function is not included into the selective build.");
+#endif
 }
 
 Output<Node> op::v0::RNNCell::get_default_bias_input() const

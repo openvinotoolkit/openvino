@@ -3,6 +3,7 @@
 //
 
 #include "transformations/convert_opset1_to_legacy/convert_power_to_power_ie.hpp"
+#include "transformations/itt.hpp"
 
 #include <memory>
 #include <vector>
@@ -20,9 +21,10 @@ ngraph::pass::ConvertPowerToPowerIEMatcher::ConvertPowerToPowerIEMatcher() {
     auto input_1 = std::make_shared<pattern::op::Label>(element::f32, Shape{1});
     auto power = std::make_shared<ngraph::opset1::Power>(input_0, input_1);
 
-
+#if GraphGen(OV_GEN_NGRAPH_PASS(ConvertPowerToPowerIE, callback))
     ngraph::matcher_pass_callback callback = [](pattern::Matcher& m) {
         auto power = std::dynamic_pointer_cast<ngraph::opset1::Power> (m.get_match_root());
+        OV_ITT_IE_TRANSFORM_CALLBACK(m, "callback")
         if (!power) {
             return false;
         }
@@ -41,7 +43,11 @@ ngraph::pass::ConvertPowerToPowerIEMatcher::ConvertPowerToPowerIEMatcher() {
         }
         return false;
     };
-
+#else
+    ngraph::matcher_pass_callback callback = [](ngraph::pattern::Matcher & m) -> bool {
+        return false;
+    };
+#endif
     auto m = std::make_shared<ngraph::pattern::Matcher>(power, "ConvertPowerToPowerIE");
     this->register_matcher(m, callback);
 }

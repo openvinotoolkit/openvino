@@ -44,11 +44,16 @@ bool ngraph::op::v1::LogicalNot::visit_attributes(AttributeVisitor& visitor)
 // TODO(amprocte): Update this to allow only boolean, for consistency with logical binops.
 void op::v1::LogicalNot::validate_and_infer_types()
 {
+#if GraphGen(OV_GEN_NGRAPH_OP(LogicalNot, v1, validate_and_infer_types))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
     auto args_et_pshape = op::util::validate_and_infer_elementwise_args(this);
     element::Type& args_et = std::get<0>(args_et_pshape);
     PartialShape& args_pshape = std::get<1>(args_et_pshape);
 
     set_output_type(0, args_et, args_pshape);
+#else
+    NODE_VALIDATION_CHECK(this, false, "Function is not included into the selective build.");
+#endif
 }
 
 shared_ptr<Node> op::v1::LogicalNot::clone_with_new_inputs(const OutputVector& new_args) const
@@ -98,8 +103,12 @@ namespace
 bool op::v1::LogicalNot::evaluate(const HostTensorVector& outputs,
                                   const HostTensorVector& inputs) const
 {
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v1::LogicalNot::evaluate");
+#if GraphGen(OV_GEN_NGRAPH_OP(LogicalNot, v1, evaluate))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
     return evaluate_not(inputs[0], outputs[0], shape_size(get_output_shape(0)));
+#else
+    return false;
+#endif
 }
 
 constexpr NodeTypeInfo op::v0::Not::type_info;
@@ -113,11 +122,16 @@ op::v0::Not::Not(const Output<Node>& arg)
 // TODO(amprocte): Update this to allow only boolean, for consistency with logical binops.
 void op::v0::Not::validate_and_infer_types()
 {
+#if GraphGen(OV_GEN_NGRAPH_OP(Not, v0, validate_and_infer_types))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
     auto args_et_pshape = ngraph::op::util::validate_and_infer_elementwise_args(this);
     element::Type& args_et = std::get<0>(args_et_pshape);
     PartialShape& args_pshape = std::get<1>(args_et_pshape);
 
     set_output_type(0, args_et, args_pshape);
+#else
+    NODE_VALIDATION_CHECK(this, false, "Function is not included into the selective build.");
+#endif
 }
 
 shared_ptr<Node> op::v0::Not::clone_with_new_inputs(const OutputVector& new_args) const
@@ -128,6 +142,10 @@ shared_ptr<Node> op::v0::Not::clone_with_new_inputs(const OutputVector& new_args
 
 bool op::Not::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::Not::evaluate");
+#if GraphGen(OV_GEN_NGRAPH_OP(LogicalNot, v0, evaluate))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
     return evaluate_not(inputs[0], outputs[0], shape_size(get_output_shape(0)));
+#else
+    return false;
+#endif
 }

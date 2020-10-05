@@ -42,12 +42,19 @@ op::Concat::Concat(const NodeVector& args, int64_t axis)
 
 bool op::Concat::visit_attributes(AttributeVisitor& visitor)
 {
+#if GraphGen(OV_GEN_NGRAPH_OP(Concat, v0, visit_attributes))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
     visitor.on_attribute("axis", m_axis);
     return true;
+#else
+    return false;
+#endif
 }
 
 void op::Concat::validate_and_infer_types()
 {
+#if GraphGen(OV_GEN_NGRAPH_OP(Concat, v0, validate_and_infer_types))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
     NODE_VALIDATION_CHECK(this, get_input_size() >= 1, "At least one argument required.");
 
     PartialShape inputs_shape_scheme{PartialShape::dynamic()};
@@ -107,6 +114,9 @@ void op::Concat::validate_and_infer_types()
     {
         set_output_type(0, inputs_et, PartialShape::dynamic(concatenation_axis_output_dim));
     }
+#else
+    NODE_VALIDATION_CHECK(this, false, "Function is not included into the selective build.");
+#endif
 }
 
 shared_ptr<Node> op::Concat::clone_with_new_inputs(const OutputVector& new_args) const
@@ -145,7 +155,11 @@ namespace
 
 bool op::Concat::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::Concat::evaluate");
+#if GraphGen(OV_GEN_NGRAPH_OP(Concat, v0, evaluate))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
     auto concat_axis = get_axis() < 0 ? get_axis() + inputs[0]->get_shape().size() : get_axis();
     return evaluate_concat(inputs, outputs[0], concat_axis);
+#else
+    return false;
+#endif
 }

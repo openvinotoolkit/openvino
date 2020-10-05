@@ -3,6 +3,7 @@
 //
 
 #include "transformations/convert_opset1_to_legacy/convert_sequences_to_sequences_ie.hpp"
+#include "transformations/itt.hpp"
 
 #include <memory>
 
@@ -16,8 +17,9 @@
 
 ngraph::pass::ConvertLSTMSequenceMatcher::ConvertLSTMSequenceMatcher() {
     auto lstm_sequence_ngraph = ngraph::pattern::wrap_type<ngraph::opset5::LSTMSequence>();
-
+#if GraphGen(OV_GEN_NGRAPH_PASS(ConvertLSTMSequenceToLSTMSequenceIE, callback))
     ngraph::matcher_pass_callback callback = [](pattern::Matcher &m) {
+        OV_ITT_IE_TRANSFORM_CALLBACK(m, "callback")
         auto lstm_sequence = std::dynamic_pointer_cast<ngraph::opset5::LSTMSequence>(m.get_match_root());
         if (!lstm_sequence) {
             return false;
@@ -65,15 +67,20 @@ ngraph::pass::ConvertLSTMSequenceMatcher::ConvertLSTMSequenceMatcher() {
         ngraph::replace_node(lstm_sequence, {unsqueeze_1->output(0), unsqueeze_2->output(0), unsqueeze_3->output(0)});
         return true;
     };
-
+#else
+    ngraph::matcher_pass_callback callback = [](ngraph::pattern::Matcher & m) -> bool {
+        return false;
+    };
+#endif
     auto m = std::make_shared<ngraph::pattern::Matcher>(lstm_sequence_ngraph, "ConvertLSTMSequenceToLSTMSequenceIE");
     this->register_matcher(m, callback);
 }
 
 ngraph::pass::ConvertGRUSequenceMatcher::ConvertGRUSequenceMatcher() {
     auto gru_sequence_ngraph = ngraph::pattern::wrap_type<ngraph::opset5::GRUSequence>();
-
+#if GraphGen(OV_GEN_NGRAPH_PASS(ConvertGRUSequenceToGRUSequenceIE, callback))
     ngraph::matcher_pass_callback callback = [](pattern::Matcher &m) {
+        OV_ITT_IE_TRANSFORM_CALLBACK(m, "callback")
         auto gru_sequence = std::dynamic_pointer_cast<ngraph::opset5::GRUSequence>(m.get_match_root());
         if (!gru_sequence) {
             return false;
@@ -118,15 +125,20 @@ ngraph::pass::ConvertGRUSequenceMatcher::ConvertGRUSequenceMatcher() {
         ngraph::replace_node(gru_sequence, {unsqueeze_1, unsqueeze_2});
         return true;
     };
-
+#else
+    ngraph::matcher_pass_callback callback = [](ngraph::pattern::Matcher & m) -> bool {
+        return false;
+    };
+#endif
     auto m = std::make_shared<ngraph::pattern::Matcher>(gru_sequence_ngraph, "ConvertGRUSequenceToGRUSequenceIE");
     this->register_matcher(m, callback);
 }
 
 ngraph::pass::ConvertRNNSequenceMatcher::ConvertRNNSequenceMatcher() {
     auto rnn_sequence_ngraph = ngraph::pattern::wrap_type<ngraph::opset5::RNNSequence>();
-
+#if GraphGen(OV_GEN_NGRAPH_PASS(ConvertRNNSequenceToRNNSequenceIE, callback))
     ngraph::matcher_pass_callback callback = [](pattern::Matcher &m) {
+        OV_ITT_IE_TRANSFORM_CALLBACK(m, "callback")
         auto rnn_sequence = std::dynamic_pointer_cast<ngraph::opset5::RNNSequence>(m.get_match_root());
         if (!rnn_sequence) {
             return false;
@@ -170,7 +182,11 @@ ngraph::pass::ConvertRNNSequenceMatcher::ConvertRNNSequenceMatcher() {
         ngraph::replace_node(rnn_sequence, {unsqueeze_1->output(0), unsqueeze_2->output(0)});
         return true;
     };
-
+#else
+    ngraph::matcher_pass_callback callback = [](ngraph::pattern::Matcher & m) -> bool {
+        return false;
+    };
+#endif
     auto m = std::make_shared<ngraph::pattern::Matcher>(rnn_sequence_ngraph, "ConvertRNNSequenceToRNNSequenceIE");
     this->register_matcher(m, callback);
 }

@@ -3,6 +3,7 @@
 //
 
 #include "transformations/convert_opset1_to_legacy/fc_bias_fusion.hpp"
+#include "transformations/itt.hpp"
 
 #include <memory>
 #include <numeric>
@@ -17,8 +18,9 @@ NGRAPH_RTTI_DEFINITION(ngraph::pass::FullyConnectedBiasFusion, "FullyConnectedBi
 ngraph::pass::FullyConnectedBiasFusion::FullyConnectedBiasFusion() {
     auto fc = ngraph::pattern::wrap_type<op::FullyConnected>();
     auto add = ngraph::pattern::wrap_type<opset1::Add>({fc, std::make_shared<pattern::op::Label>()});
-
+#if GraphGen(OV_GEN_NGRAPH_PASS(FullyConnectedBiasFusion, callback))
     ngraph::graph_rewrite_callback callback = [](pattern::Matcher &m) {
+        OV_ITT_IE_TRANSFORM_CALLBACK(m, "callback")
         auto add = m.get_match_root();
         auto add_input_0 = add->input(0).get_source_output().get_node_shared_ptr();
         auto add_input_1 = add->input(1).get_source_output().get_node_shared_ptr();
@@ -73,7 +75,11 @@ ngraph::pass::FullyConnectedBiasFusion::FullyConnectedBiasFusion() {
         ngraph::replace_node(add, new_fc);
         return true;
     };
-
+#else
+    ngraph::graph_rewrite_callback callback = [](ngraph::pattern::Matcher & m) -> bool {
+        return false;
+    };
+#endif
     auto m = std::make_shared<ngraph::pattern::Matcher>(add, "FullyConnectedBiasFusion");
     this->register_matcher(m, callback);
 }

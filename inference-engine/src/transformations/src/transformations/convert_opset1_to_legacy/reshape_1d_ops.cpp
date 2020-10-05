@@ -3,6 +3,7 @@
 //
 
 #include "transformations/convert_opset1_to_legacy/reshape_1d_ops.hpp"
+#include "transformations/itt.hpp"
 
 #include <memory>
 #include <vector>
@@ -106,6 +107,7 @@ std::shared_ptr<Node> convert(const Output<Node> & data, std::shared_ptr<opset1:
 
 matcher_pass_callback get_callback() {
     return [](pattern::Matcher& m) {
+        OV_ITT_IE_TRANSFORM_CALLBACK(m, "callback")
         auto node = m.get_match_root();
         if (!node || node->input(0).get_partial_shape().rank().get_length() != 3) {
             return false;
@@ -154,7 +156,14 @@ NGRAPH_RTTI_DEFINITION(ngraph::pass::Reshape1DConvolution, "Reshape1DConvolution
 ngraph::pass::Reshape1DConvolution::Reshape1DConvolution() {
     auto conv = ngraph::pattern::wrap_type<op::ConvolutionIE>();
     auto m = std::make_shared<ngraph::pattern::Matcher>(conv, "Reshape1DConvolution");
-    this->register_matcher(m, get_callback());
+#if GraphGen(OV_GEN_NGRAPH_PASS(Reshape1DConvolution, callback))
+    matcher_pass_callback callback = get_callback();
+#else
+    matcher_pass_callback callback = [](ngraph::pattern::Matcher & m) -> bool {
+        return false;
+    };
+#endif
+    this->register_matcher(m, callback);
 }
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::Reshape1DAvgPool, "Reshape1DAvgPool", 0);
@@ -162,7 +171,14 @@ NGRAPH_RTTI_DEFINITION(ngraph::pass::Reshape1DAvgPool, "Reshape1DAvgPool", 0);
 ngraph::pass::Reshape1DAvgPool::Reshape1DAvgPool() {
     auto pool = ngraph::pattern::wrap_type<opset1::AvgPool>();
     auto m = std::make_shared<ngraph::pattern::Matcher>(pool, "Reshape1DAvgPool");
-    this->register_matcher(m, get_callback());
+#if GraphGen(OV_GEN_NGRAPH_PASS(Reshape1DAvgPool, callback))
+    matcher_pass_callback callback = get_callback();
+#else
+    matcher_pass_callback callback = [](ngraph::pattern::Matcher & m) -> bool {
+        return false;
+    };
+#endif
+    this->register_matcher(m, callback);
 }
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::Reshape1DMaxPool, "Reshape1DMaxPool", 0);
@@ -170,5 +186,12 @@ NGRAPH_RTTI_DEFINITION(ngraph::pass::Reshape1DMaxPool, "Reshape1DMaxPool", 0);
 ngraph::pass::Reshape1DMaxPool::Reshape1DMaxPool() {
     auto pool = ngraph::pattern::wrap_type<opset1::MaxPool>();
     auto m = std::make_shared<ngraph::pattern::Matcher>(pool, "Reshape1DMaxPool");
-    this->register_matcher(m, get_callback());
+#if GraphGen(OV_GEN_NGRAPH_PASS(Reshape1DMaxPool, callback))
+    matcher_pass_callback callback = get_callback();
+#else
+    matcher_pass_callback callback = [](ngraph::pattern::Matcher & m) -> bool {
+        return false;
+    };
+#endif
+    this->register_matcher(m, callback);
 }

@@ -86,6 +86,8 @@ void op::v0::Softmax::set_axes(const AxisSet& axes)
 
 void op::v0::Softmax::validate_and_infer_types()
 {
+#if GraphGen(OV_GEN_NGRAPH_OP(Softmax, v0, validate_and_infer_types))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
     const PartialShape& input_shape = get_input_partial_shape(0);
 
     if (input_shape.is_dynamic())
@@ -122,6 +124,9 @@ void op::v0::Softmax::validate_and_infer_types()
     }
 
     set_input_is_relevant_to_shape(1);
+#else
+    NODE_VALIDATION_CHECK(this, false, "Function is not included into the selective build.");
+#endif
 }
 
 shared_ptr<Node> op::v0::Softmax::clone_with_new_inputs(const OutputVector& new_args) const
@@ -156,9 +161,13 @@ namespace
 bool op::v0::Softmax::evaluate(const HostTensorVector& outputs,
                                const HostTensorVector& inputs) const
 {
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v0::Softmax::evaluate");
+#if GraphGen(OV_GEN_NGRAPH_OP(Softmax, v0, evaluate))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
     outputs[0]->set_unary(inputs[0]);
     return evaluate_softmax(inputs[0], outputs[0], get_axes());
+#else
+    return false;
+#endif
 }
 
 // *** SOFTMAX OP SET V1 ***
@@ -173,12 +182,19 @@ op::v1::Softmax::Softmax(const Output<Node>& arg, const size_t axis)
 
 bool ngraph::op::v1::Softmax::visit_attributes(AttributeVisitor& visitor)
 {
+#if GraphGen(OV_GEN_NGRAPH_OP(Softmax, v1, visit_attributes))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
     visitor.on_attribute("axis", m_axis);
     return true;
+#else
+    return false;
+#endif
 }
 
 void op::v1::Softmax::validate_and_infer_types()
 {
+#if GraphGen(OV_GEN_NGRAPH_OP(Softmax, v1, validate_and_infer_types))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
     const PartialShape& input_shape = get_input_partial_shape(0);
     if (input_shape.rank().is_static())
         NODE_VALIDATION_CHECK(this,
@@ -190,6 +206,9 @@ void op::v1::Softmax::validate_and_infer_types()
                               ").");
 
     set_output_type(0, get_input_element_type(0), input_shape);
+#else
+    NODE_VALIDATION_CHECK(this, false, "Function is not included into the selective build.");
+#endif
 }
 
 shared_ptr<Node> op::v1::Softmax::clone_with_new_inputs(const OutputVector& new_args) const
@@ -201,7 +220,11 @@ shared_ptr<Node> op::v1::Softmax::clone_with_new_inputs(const OutputVector& new_
 bool op::v1::Softmax::evaluate(const HostTensorVector& outputs,
                                const HostTensorVector& inputs) const
 {
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v1::Softmax::evaluate");
+#if GraphGen(OV_GEN_NGRAPH_OP(Softmax, v1, evaluate))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
     outputs[0]->set_unary(inputs[0]);
     return evaluate_softmax(inputs[0], outputs[0], AxisSet{m_axis});
+#else
+    return false;
+#endif
 }

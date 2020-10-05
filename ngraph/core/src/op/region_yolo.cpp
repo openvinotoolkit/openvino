@@ -13,9 +13,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 //*****************************************************************************
+#include "itt.hpp"
 
-#include "ngraph/op/region_yolo.hpp"
 #include "ngraph/attribute_visitor.hpp"
+#include "ngraph/op/region_yolo.hpp"
 
 using namespace std;
 using namespace ngraph;
@@ -46,6 +47,8 @@ op::RegionYolo::RegionYolo(const Output<Node>& input,
 
 bool ngraph::op::v0::RegionYolo::visit_attributes(AttributeVisitor& visitor)
 {
+#if GraphGen(OV_GEN_NGRAPH_OP(RegionYolo, v0, visit_attributes))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
     visitor.on_attribute("anchors", m_anchors);
     visitor.on_attribute("axis", m_axis);
     visitor.on_attribute("coords", m_num_coords);
@@ -55,10 +58,15 @@ bool ngraph::op::v0::RegionYolo::visit_attributes(AttributeVisitor& visitor)
     visitor.on_attribute("do_softmax", m_do_softmax);
     visitor.on_attribute("mask", m_mask);
     return true;
+#else
+    return false;
+#endif
 }
 
 void op::RegionYolo::validate_and_infer_types()
 {
+#if GraphGen(OV_GEN_NGRAPH_OP(RegionYolo, v0, validate_and_infer_types))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
     auto input_et = get_input_element_type(0);
     if (get_input_partial_shape(0).is_static())
     {
@@ -100,6 +108,9 @@ void op::RegionYolo::validate_and_infer_types()
     {
         set_output_type(0, input_et, PartialShape::dynamic());
     }
+#else
+    NODE_VALIDATION_CHECK(this, false, "Function is not included into the selective build.");
+#endif
 }
 
 shared_ptr<Node> op::RegionYolo::clone_with_new_inputs(const OutputVector& new_args) const

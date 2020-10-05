@@ -13,6 +13,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 //*****************************************************************************
+#include "itt.hpp"
 
 #include "ngraph/op/util/fused_op.hpp"
 
@@ -34,6 +35,8 @@ op::util::FusedOp::FusedOp(const OutputVector& args)
 
 void op::util::FusedOp::validate_and_infer_types()
 {
+#if GraphGen(OV_GEN_NGRAPH_OP_UTIL(FusedOp, validate_and_infer_types))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
     pre_validate_and_infer_types();
 
     if (!can_decompose_with_partial_shapes() && is_dynamic())
@@ -60,4 +63,7 @@ void op::util::FusedOp::validate_and_infer_types()
     }
 
     post_validate_and_infer_types();
+#else
+    NODE_VALIDATION_CHECK(this, false, "Function is not included into the selective build.");
+#endif
 }

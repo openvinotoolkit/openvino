@@ -3,6 +3,7 @@
 //
 
 #include "transformations/convert_opset1_to_legacy/convert_topk_to_topk_ie.hpp"
+#include "transformations/itt.hpp"
 
 #include <memory>
 #include <vector>
@@ -18,8 +19,9 @@ NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertTopKToTopKIEMatcher, "ConvertTopKToT
 
 ngraph::pass::ConvertTopKToTopKIEMatcher::ConvertTopKToTopKIEMatcher() {
     auto topk = ngraph::pattern::wrap_type<opset1::TopK>();
-
+#if GraphGen(OV_GEN_NGRAPH_PASS(ConvertTopKToTopKIE, callback))
     ngraph::matcher_pass_callback callback = [](pattern::Matcher &m) {
+        OV_ITT_IE_TRANSFORM_CALLBACK(m, "callback")
         auto topk = std::dynamic_pointer_cast<opset1::TopK>(m.get_match_root());
         if (!topk || topk->input(1).get_partial_shape().rank().is_dynamic()) {
             return false;
@@ -75,7 +77,11 @@ ngraph::pass::ConvertTopKToTopKIEMatcher::ConvertTopKToTopKIEMatcher() {
         topk->output(1).replace(index_output);
         return true;
     };
-
+#else
+    ngraph::matcher_pass_callback callback = [](ngraph::pattern::Matcher & m) -> bool {
+        return false;
+    };
+#endif
     auto m = std::make_shared<ngraph::pattern::Matcher>(topk, "ConvertTopKToTopKIE");
     this->register_matcher(m, callback);
 }

@@ -3,6 +3,7 @@
 //
 
 #include "transformations/convert_opset3_to_opset2/convert_broadcast3.hpp"
+#include "transformations/itt.hpp"
 
 #include <memory>
 #include <vector>
@@ -16,8 +17,9 @@ NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertBroadcast3, "ConvertBroadcast3", 0);
 
 void ngraph::pass::ConvertBroadcast3::convert_broadcast3() {
     auto broadcast = std::make_shared<pattern::op::Label>(element::f32, Shape {}, pattern::has_class<opset3::Broadcast>());
-
+#if GraphGen(OV_GEN_NGRAPH_PASS(ConvertBroadcast3, callback))
     ngraph::graph_rewrite_callback callback = [](pattern::Matcher& m) {
+        OV_ITT_IE_TRANSFORM_CALLBACK(m, "callback")
         auto broadcast = std::dynamic_pointer_cast<ngraph::opset3::Broadcast>(m.get_match_root());
         if (!broadcast) {
             return false;
@@ -50,7 +52,11 @@ void ngraph::pass::ConvertBroadcast3::convert_broadcast3() {
         ngraph::replace_node(m.get_match_root(), last_node);
         return true;
     };
-
+#else
+    ngraph::graph_rewrite_callback callback = [](ngraph::pattern::Matcher & m) -> bool {
+        return false;
+    };
+#endif
     auto m = std::make_shared<ngraph::pattern::Matcher>(broadcast, "ConvertBroadcast3");
     this->add_matcher(m, callback, PassProperty::CHANGE_DYNAMIC_STATE);
 }

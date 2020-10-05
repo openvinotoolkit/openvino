@@ -13,9 +13,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 //*****************************************************************************
+#include "itt.hpp"
 
-#include "ngraph/op/util/binary_elementwise_logical.hpp"
 #include "ngraph/attribute_visitor.hpp"
+#include "ngraph/op/util/binary_elementwise_logical.hpp"
 #include "ngraph/op/util/elementwise_args.hpp"
 
 using namespace std;
@@ -38,6 +39,9 @@ op::util::BinaryElementwiseLogical::BinaryElementwiseLogical(const Output<Node>&
 void op::util::BinaryElementwiseLogical::validate_and_infer_elementwise_logical(
     const op::AutoBroadcastSpec& autob)
 {
+#if GraphGen(                                                                                      \
+    OV_GEN_NGRAPH_OP_UTIL(BinaryElementwiseLogical, validate_and_infer_elementwise_logical))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
     auto args_et_pshape = op::util::validate_and_infer_elementwise_args(this, autob);
     element::Type& args_et = std::get<0>(args_et_pshape);
     PartialShape& args_pshape = std::get<1>(args_et_pshape);
@@ -50,15 +54,28 @@ void op::util::BinaryElementwiseLogical::validate_and_infer_elementwise_logical(
         ".");
 
     set_output_type(0, element::boolean, args_pshape);
+#else
+    NODE_VALIDATION_CHECK(this, false, "Function is not included into the selective build.");
+#endif
 }
 
 void op::util::BinaryElementwiseLogical::validate_and_infer_types()
 {
+#if GraphGen(OV_GEN_NGRAPH_OP_UTIL(BinaryElementwiseLogical, validate_and_infer_types))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
     validate_and_infer_elementwise_logical(m_autob);
+#else
+    NODE_VALIDATION_CHECK(this, false, "Function is not included into the selective build.");
+#endif
 }
 
 bool op::util::BinaryElementwiseLogical::visit_attributes(AttributeVisitor& visitor)
 {
+#if GraphGen(OV_GEN_NGRAPH_OP_UTIL(BinaryElementwiseLogical, visit_attributes))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
     visitor.on_attribute("auto_broadcast", m_autob);
     return true;
+#else
+    return false;
+#endif
 }

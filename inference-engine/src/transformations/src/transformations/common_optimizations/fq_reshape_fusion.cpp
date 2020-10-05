@@ -3,6 +3,7 @@
 //
 
 #include "transformations/common_optimizations/fq_reshape_fusion.hpp"
+#include "transformations/itt.hpp"
 
 #include <memory>
 #include <vector>
@@ -28,7 +29,7 @@ ngraph::pass::FakeQuantizeReshapeFusion::FakeQuantizeReshapeFusion() {
                             return input.get_node()->get_type_info() != opset4::GroupConvolution::type_info;
                         });
             });
-
+#if GraphGen(OV_GEN_NGRAPH_PASS(FakeQuantizeReshapeFusion, callback))
     ngraph::matcher_pass_callback callback = [=](pattern::Matcher &m) {
         const auto &pattern_map = m.get_pattern_value_map();
         const auto fq_node = pattern_map.at(fq_node_p).get_node_shared_ptr();
@@ -71,7 +72,11 @@ ngraph::pass::FakeQuantizeReshapeFusion::FakeQuantizeReshapeFusion() {
         copy_runtime_info({fq_node, reshape_node}, new_fq_node);
         return true;
     };
-
+#else
+    ngraph::matcher_pass_callback callback = [](ngraph::pattern::Matcher & m) -> bool {
+        return false;
+    };
+#endif
     auto m = std::make_shared<ngraph::pattern::Matcher>(reshape_node_p, "FakeQuantizeReshapeFusion");
     this->register_matcher(m, callback);
 }

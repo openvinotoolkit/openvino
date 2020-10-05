@@ -14,9 +14,11 @@
 // limitations under the License.
 //*****************************************************************************
 
-#include "ngraph/op/util/logical_reduction_keep_dims.hpp"
+#include "itt.hpp"
+
 #include "ngraph/attribute_visitor.hpp"
 #include "ngraph/op/constant.hpp"
+#include "ngraph/op/util/logical_reduction_keep_dims.hpp"
 #include "ngraph/validation_util.hpp"
 
 using namespace std;
@@ -33,12 +35,19 @@ op::util::LogicalReductionKeepDims::LogicalReductionKeepDims(
 
 bool ngraph::op::util::LogicalReductionKeepDims::visit_attributes(AttributeVisitor& visitor)
 {
+#if GraphGen(OV_GEN_NGRAPH_OP_UTIL(LogicalReductionKeepDims, visit_attributes))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
     visitor.on_attribute("keep_dims", m_keep_dims);
     return true;
+#else
+    return false;
+#endif
 }
 
 void op::util::LogicalReductionKeepDims::validate_and_infer_types()
 {
+#if GraphGen(OV_GEN_NGRAPH_OP_UTIL(LogicalReductionKeepDims, validate_and_infer_types))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
     if (m_keep_dims)
     {
         const auto input_shape = get_input_partial_shape(0);
@@ -98,4 +107,7 @@ void op::util::LogicalReductionKeepDims::validate_and_infer_types()
     {
         LogicalReduction::validate_and_infer_types();
     }
+#else
+    NODE_VALIDATION_CHECK(this, false, "Function is not included into the selective build.");
+#endif
 }

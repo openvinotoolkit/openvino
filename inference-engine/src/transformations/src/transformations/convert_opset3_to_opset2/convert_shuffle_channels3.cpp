@@ -3,6 +3,7 @@
 //
 
 #include "transformations/convert_opset3_to_opset2/convert_shuffle_channels3.hpp"
+#include "transformations/itt.hpp"
 
 #include <memory>
 #include <vector>
@@ -18,8 +19,9 @@ NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertShuffleChannels3, "ConvertShuffleCha
 void ngraph::pass::ConvertShuffleChannels3::convert_shuffle_channels3() {
     auto input = std::make_shared<pattern::op::Label>(element::f32, Shape{1, 1, 1, 1});
     auto shuffle_channels = std::make_shared<::opset3::ShuffleChannels>(input);
-
+#if GraphGen(OV_GEN_NGRAPH_PASS(ConvertShuffleChannels3, callback))
     ngraph::graph_rewrite_callback callback = [this](pattern::Matcher &m) {
+        OV_ITT_IE_TRANSFORM_CALLBACK(m, "callback")
         auto shuffle_channels = std::dynamic_pointer_cast<::opset3::ShuffleChannels>(m.get_match_root());
         if (!shuffle_channels || m_transformation_callback(shuffle_channels)) {
             return false;
@@ -96,7 +98,11 @@ void ngraph::pass::ConvertShuffleChannels3::convert_shuffle_channels3() {
         ::replace_node(shuffle_channels, reshape_back);
         return true;
     };
-
+#else
+    ngraph::graph_rewrite_callback callback = [](ngraph::pattern::Matcher & m) -> bool {
+        return false;
+    };
+#endif
     auto m = std::make_shared<ngraph::pattern::Matcher>(shuffle_channels, "ConvertShuffleChannels3");
     this->add_matcher(m, callback, PassProperty::CHANGE_DYNAMIC_STATE);
 }

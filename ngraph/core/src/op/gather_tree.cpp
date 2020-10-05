@@ -13,6 +13,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 //*****************************************************************************
+#include "itt.hpp"
 
 #include "ngraph/op/gather_tree.hpp"
 #include "ngraph/shape.hpp"
@@ -45,6 +46,8 @@ bool ngraph::op::v1::GatherTree::visit_attributes(AttributeVisitor& visitor)
 
 void op::v1::GatherTree::validate_and_infer_types()
 {
+#if GraphGen(OV_GEN_NGRAPH_OP(GatherTree, v1, validate_and_infer_types))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
     const auto& step_ids_rank = get_input_partial_shape(0);
     const auto& parent_idx_rank = get_input_partial_shape(1);
     const auto& max_seq_len_rank = get_input_partial_shape(2);
@@ -80,4 +83,7 @@ void op::v1::GatherTree::validate_and_infer_types()
 
     const auto& step_ids_et = get_input_element_type(0);
     set_output_type(0, step_ids_et, step_ids_rank);
+#else
+    NODE_VALIDATION_CHECK(this, false, "Function is not included into the selective build.");
+#endif
 }

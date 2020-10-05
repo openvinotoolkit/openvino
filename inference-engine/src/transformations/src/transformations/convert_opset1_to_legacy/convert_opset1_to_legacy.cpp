@@ -65,7 +65,8 @@
 NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertOpSet1ToLegacy, "ConvertOpSet1ToLegacy", 0);
 
 bool ngraph::pass::ConvertOpSet1ToLegacy::run_on_function(std::shared_ptr<ngraph::Function> f) {
-    OV_ITT_SCOPED_TASK(itt::domains::IETransform, "ngraph::pass::ConvertOpSet1ToLegacy");
+#if GraphGen(OV_GEN_NGRAPH_PASS(ConvertOpSet1ToLegacy, run_on_function))
+    OV_ITT_SCOPED_TASK(itt::domains::IETransform);
 
     ngraph::pass::Manager manager;
 
@@ -157,4 +158,7 @@ bool ngraph::pass::ConvertOpSet1ToLegacy::run_on_function(std::shared_ptr<ngraph
     manager.set_callback(m_transformation_callback);
     manager.run_passes(f);
     return true;
+#else
+    return false;
+#endif
 }

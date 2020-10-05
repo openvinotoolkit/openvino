@@ -13,9 +13,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 //*****************************************************************************
+#include "itt.hpp"
 
-#include "ngraph/op/embedding_segments_sum.hpp"
 #include "ngraph/op/constant.hpp"
+#include "ngraph/op/embedding_segments_sum.hpp"
 #include "ngraph/opsets/opset3.hpp"
 
 using namespace std;
@@ -55,6 +56,8 @@ op::v3::EmbeddingSegmentsSum::EmbeddingSegmentsSum(const Output<Node>& emb_table
 
 void op::v3::EmbeddingSegmentsSum::validate_and_infer_types()
 {
+#if GraphGen(OV_GEN_NGRAPH_OP(EmbeddingSegmentsSum, v3, validate_and_infer_types))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
     NODE_VALIDATION_CHECK(this,
                           get_input_element_type(SEGMENT_IDS) == element::i64 ||
                               get_input_element_type(SEGMENT_IDS) == element::i32,
@@ -177,6 +180,9 @@ void op::v3::EmbeddingSegmentsSum::validate_and_infer_types()
     }
 
     set_output_type(0, result_et, result_shape);
+#else
+    NODE_VALIDATION_CHECK(this, false, "Function is not included into the selective build.");
+#endif
 }
 
 shared_ptr<Node>

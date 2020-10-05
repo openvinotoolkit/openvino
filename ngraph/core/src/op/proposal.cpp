@@ -13,6 +13,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 //*****************************************************************************
+#include "itt.hpp"
 
 #include "ngraph/op/proposal.hpp"
 
@@ -35,6 +36,8 @@ op::v0::Proposal::Proposal(const Output<Node>& class_probs,
 
 void op::v0::Proposal::validate_and_infer_types()
 {
+#if GraphGen(OV_GEN_NGRAPH_OP(Proposal, v0, validate_and_infer_types))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
     const auto& class_probs_pshape = get_input_partial_shape(0);
     const auto& class_bbox_deltas_pshape = get_input_partial_shape(1);
     const auto& image_shape_pshape = get_input_partial_shape(2);
@@ -80,6 +83,9 @@ void op::v0::Proposal::validate_and_infer_types()
     {
         set_output_type(0, get_input_element_type(0), PartialShape::dynamic());
     }
+#else
+    NODE_VALIDATION_CHECK(this, false, "Function is not included into the selective build.");
+#endif
 }
 
 shared_ptr<Node> op::v0::Proposal::clone_with_new_inputs(const OutputVector& new_args) const
@@ -90,6 +96,8 @@ shared_ptr<Node> op::v0::Proposal::clone_with_new_inputs(const OutputVector& new
 
 bool op::v0::Proposal::visit_attributes(AttributeVisitor& visitor)
 {
+#if GraphGen(OV_GEN_NGRAPH_OP(Proposal, v0, visit_attributes))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
     visitor.on_attribute("base_size", m_attrs.base_size);
     visitor.on_attribute("pre_nms_topn", m_attrs.pre_nms_topn);
     visitor.on_attribute("post_nms_topn", m_attrs.post_nms_topn);
@@ -105,6 +113,9 @@ bool op::v0::Proposal::visit_attributes(AttributeVisitor& visitor)
     visitor.on_attribute("box_coordinate_scale", m_attrs.box_coordinate_scale);
     visitor.on_attribute("framework", m_attrs.framework);
     return true;
+#else
+    return false;
+#endif
 }
 
 NGRAPH_RTTI_DEFINITION(op::v4::Proposal, "Proposal", 4);
@@ -120,6 +131,8 @@ op::v4::Proposal::Proposal(const Output<Node>& class_probs,
 
 void op::v4::Proposal::validate_and_infer_types()
 {
+#if GraphGen(OV_GEN_NGRAPH_OP(Proposal, v4, validate_and_infer_types))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
     v0::Proposal::validate_and_infer_types();
 
     const auto& class_probs_pshape = get_input_partial_shape(0);
@@ -132,6 +145,9 @@ void op::v4::Proposal::validate_and_infer_types()
             1, get_input_element_type(0), PartialShape{batch_size * m_attrs.post_nms_topn});
     else
         set_output_type(1, get_input_element_type(0), PartialShape::dynamic());
+#else
+    NODE_VALIDATION_CHECK(this, false, "Function is not included into the selective build.");
+#endif
 }
 
 std::shared_ptr<Node> op::v4::Proposal::clone_with_new_inputs(const OutputVector& new_args) const

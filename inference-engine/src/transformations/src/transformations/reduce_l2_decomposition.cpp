@@ -3,6 +3,7 @@
 //
 
 #include "transformations/reduce_l2_decomposition.hpp"
+#include "transformations/itt.hpp"
 
 #include <memory>
 
@@ -15,8 +16,9 @@ NGRAPH_RTTI_DEFINITION(ngraph::pass::ReduceL2Decomposition, "ReduceL2Decompositi
 ngraph::pass::ReduceL2Decomposition::ReduceL2Decomposition() {
     // decomposes ReduceL2 operations into sqrt(ReduceSum(x * x))
     auto reduce_l2 = ngraph::pattern::wrap_type<opset4::ReduceL2>();
-
+#if GraphGen(OV_GEN_NGRAPH_PASS(ReduceL2Decomposition, callback))
     ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher &m) {
+        OV_ITT_IE_TRANSFORM_CALLBACK(m, "callback")
         auto &pattern_to_output = m.get_pattern_value_map();
         auto reduce_l2_node = std::dynamic_pointer_cast<ngraph::opset4::ReduceL2>(pattern_to_output.at(reduce_l2).get_node_shared_ptr());
 
@@ -34,7 +36,11 @@ ngraph::pass::ReduceL2Decomposition::ReduceL2Decomposition() {
         ngraph::replace_node(m.get_match_root(), sqrt);
         return true;
     };
-
+#else
+    ngraph::graph_rewrite_callback callback = [](ngraph::pattern::Matcher & m) -> bool {
+        return false;
+    };
+#endif
     auto m = std::make_shared<ngraph::pattern::Matcher>(reduce_l2, "ReduceL2Decomposition");
     register_matcher(m, callback);
 }

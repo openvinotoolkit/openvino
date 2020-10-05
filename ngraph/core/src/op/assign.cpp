@@ -14,8 +14,10 @@
 // limitations under the License.
 //*****************************************************************************
 
-#include "ngraph/op/assign.hpp"
+#include "itt.hpp"
+
 #include <ops.hpp>
+#include "ngraph/op/assign.hpp"
 #include "ngraph/op/read_value.hpp"
 
 using namespace std;
@@ -32,6 +34,8 @@ op::v3::Assign::Assign(const Output<Node>& new_value, const std::string& variabl
 
 void op::v3::Assign::validate_and_infer_types()
 {
+#if GraphGen(OV_GEN_NGRAPH_OP(Assign, v3, validate_and_infer_types))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
     auto value = input_value(0);
     auto arg_t = get_input_element_type(0);
     auto output_shape = get_input_partial_shape(0);
@@ -74,6 +78,9 @@ void op::v3::Assign::validate_and_infer_types()
     {
         set_output_type(0, arg_t, PartialShape::dynamic());
     }
+#else
+    NODE_VALIDATION_CHECK(this, false, "Function is not included into the selective build.");
+#endif
 }
 
 shared_ptr<Node> op::v3::Assign::clone_with_new_inputs(const OutputVector& new_args) const
@@ -84,6 +91,11 @@ shared_ptr<Node> op::v3::Assign::clone_with_new_inputs(const OutputVector& new_a
 
 bool op::v3::Assign::visit_attributes(AttributeVisitor& visitor)
 {
+#if GraphGen(OV_GEN_NGRAPH_OP(Asinh, v3, evaluate))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
     visitor.on_attribute("variable_id", m_variable_id);
     return true;
+#else
+    return false;
+#endif
 }

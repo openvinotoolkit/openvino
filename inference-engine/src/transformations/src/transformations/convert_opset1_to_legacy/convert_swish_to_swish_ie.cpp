@@ -3,6 +3,7 @@
 //
 
 #include "transformations/convert_opset1_to_legacy/convert_swish_to_swish_ie.hpp"
+#include "transformations/itt.hpp"
 
 #include <memory>
 
@@ -17,8 +18,9 @@ NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertSwishToSwishIEMatcher, "ConvertSwish
 
 ngraph::pass::ConvertSwishToSwishIEMatcher::ConvertSwishToSwishIEMatcher() {
     auto swish = ngraph::pattern::wrap_type<ngraph::opset4::Swish>();
-
+#if GraphGen(OV_GEN_NGRAPH_PASS(ConvertSwishToSwishIE, callback))
     ngraph::matcher_pass_callback callback = [](pattern::Matcher& m) {
+        OV_ITT_IE_TRANSFORM_CALLBACK(m, "callback")
         auto swish = std::dynamic_pointer_cast<ngraph::opset4::Swish> (m.get_match_root());
         if (!swish) {
             return false;
@@ -42,7 +44,11 @@ ngraph::pass::ConvertSwishToSwishIEMatcher::ConvertSwishToSwishIEMatcher() {
         ngraph::replace_node(swish, swish_ie);
         return true;
     };
-
+#else
+    ngraph::matcher_pass_callback callback = [](ngraph::pattern::Matcher & m) -> bool {
+        return false;
+    };
+#endif
     auto m = std::make_shared<ngraph::pattern::Matcher>(swish, "ConvertSwishToSwishIE");
     this->register_matcher(m, callback);
 }

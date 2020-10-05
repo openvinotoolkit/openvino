@@ -13,9 +13,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 //*****************************************************************************
+#include "itt.hpp"
 
-#include "ngraph/op/util/arithmetic_reduction.hpp"
 #include "ngraph/op/constant.hpp"
+#include "ngraph/op/util/arithmetic_reduction.hpp"
 #include "ngraph/validation_util.hpp"
 
 using namespace std;
@@ -65,6 +66,8 @@ void op::util::ArithmeticReduction::set_reduction_axes(const AxisSet& reduction_
 
 void op::util::ArithmeticReduction::validate_and_infer_types()
 {
+#if GraphGen(OV_GEN_NGRAPH_OP_UTIL(ArithmeticReduction, validate_and_infer_types))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
     auto input_shape = get_input_partial_shape(0);
     const auto input_rank = input_shape.rank();
 
@@ -112,4 +115,7 @@ void op::util::ArithmeticReduction::validate_and_infer_types()
     set_input_is_relevant_to_shape(1);
 
     set_output_type(0, get_input_element_type(0), result_shape);
+#else
+    NODE_VALIDATION_CHECK(this, false, "Function is not included into the selective build.");
+#endif
 }

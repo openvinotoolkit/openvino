@@ -13,6 +13,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 //*****************************************************************************
+#include "itt.hpp"
 
 #include "ngraph/op/slice.hpp"
 
@@ -51,6 +52,8 @@ op::Slice::Slice(const Output<Node>& arg,
 
 void op::Slice::validate_and_infer_types()
 {
+#if GraphGen(OV_GEN_NGRAPH_OP(Slice, v0, validate_and_infer_types))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
     // An empty stride vector with lower_bounds/upper_bounds filled in means that we need to
     // construct the default value.
     if (m_strides.size() == 0)
@@ -128,6 +131,9 @@ void op::Slice::validate_and_infer_types()
     }
 
     set_output_type(0, get_input_element_type(0), PartialShape{result_dims});
+#else
+    NODE_VALIDATION_CHECK(this, false, "Function is not included into the selective build.");
+#endif
 }
 
 shared_ptr<Node> op::Slice::clone_with_new_inputs(const OutputVector& new_args) const
@@ -159,8 +165,13 @@ namespace
 
 bool op::Slice::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
+#if GraphGen(OV_GEN_NGRAPH_OP(Slice, v0, evaluate))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
     const auto& data = inputs[0];
     const auto& output = outputs[0];
 
     return evaluate_slice(data, output, m_lower_bounds, m_upper_bounds, m_strides);
+#else
+    return false;
+#endif
 }

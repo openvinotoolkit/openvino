@@ -4,6 +4,7 @@
 
 #include "transformations/common_optimizations/fq_mul_fusion.hpp"
 #include "transformations/utils/utils.hpp"
+#include "transformations/itt.hpp"
 
 #include <memory>
 #include <vector>
@@ -74,8 +75,9 @@ ngraph::pass::FakeQuantizeMulFusion::FakeQuantizeMulFusion() {
   const auto mul_constant_p = ngraph::pattern::wrap_type<opset4::Constant>();
   const auto mul_node_p = ngraph::pattern::wrap_type<opset4::Multiply>(
       {fq_node_p, mul_constant_p}, pattern::consumers_count(1));
-
+#if GraphGen(OV_GEN_NGRAPH_PASS(FakeQuantizeMulFusion, callback))
   ngraph::matcher_pass_callback callback = [=](pattern::Matcher &m) {
+    OV_ITT_IE_TRANSFORM_CALLBACK(m, "callback")
     const auto& pattern_map = m.get_pattern_value_map();
 
     const auto fq_node = pattern_map.at(fq_node_p).get_node_shared_ptr();
@@ -101,7 +103,11 @@ ngraph::pass::FakeQuantizeMulFusion::FakeQuantizeMulFusion() {
 
     return true;
   };
-
+#else
+  ngraph::matcher_pass_callback callback = [](ngraph::pattern::Matcher & m) -> bool {
+    return false;
+  };
+#endif
   auto m = std::make_shared<ngraph::pattern::Matcher>(mul_node_p,
                                                       "FakeQuantizeMulFusion");
   this->register_matcher(m, callback);

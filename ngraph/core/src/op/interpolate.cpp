@@ -19,6 +19,7 @@
 #include <cmath>
 #include <cstring>
 #include <numeric>
+#include "itt.hpp"
 #include "ngraph/op/constant.hpp"
 #include "ngraph/runtime/reference/interpolate.hpp"
 
@@ -38,6 +39,8 @@ op::v0::Interpolate::Interpolate(const Output<Node>& image,
 
 bool op::v0::Interpolate::visit_attributes(AttributeVisitor& visitor)
 {
+#if GraphGen(OV_GEN_NGRAPH_OP(Interpolate, v0, visit_attributes))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
     visitor.on_attribute("align_corners", m_attrs.align_corners);
     visitor.on_attribute("antialias", m_attrs.antialias);
     visitor.on_attribute("axes", m_attrs.axes);
@@ -45,10 +48,15 @@ bool op::v0::Interpolate::visit_attributes(AttributeVisitor& visitor)
     visitor.on_attribute("pads_begin", m_attrs.pads_begin);
     visitor.on_attribute("pads_end", m_attrs.pads_end);
     return true;
+#else
+    return false;
+#endif
 }
 
 void op::v0::Interpolate::validate_and_infer_types()
 {
+#if GraphGen(OV_GEN_NGRAPH_OP(Interpolate, v0, validate_and_infer_types))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
     NODE_VALIDATION_CHECK(this,
                           get_input_element_type(1).is_integral_number(),
                           "output shape must be an integral number.");
@@ -74,6 +82,9 @@ void op::v0::Interpolate::validate_and_infer_types()
         }
     }
     set_output_type(0, get_input_element_type(0), output_shape);
+#else
+    NODE_VALIDATION_CHECK(this, false, "Function is not included into the selective build.");
+#endif
 }
 
 shared_ptr<Node> op::v0::Interpolate::clone_with_new_inputs(const OutputVector& new_args) const
@@ -132,6 +143,8 @@ op::v4::Interpolate::Interpolate(const Output<Node>& image,
 
 bool op::v4::Interpolate::visit_attributes(AttributeVisitor& visitor)
 {
+#if GraphGen(OV_GEN_NGRAPH_OP(Interpolate, v4, visit_attributes))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
     visitor.on_attribute("mode", m_attrs.mode);
     visitor.on_attribute("shape_calculation_mode", m_attrs.shape_calculation_mode);
     visitor.on_attribute("coordinate_transformation_mode", m_attrs.coordinate_transformation_mode);
@@ -141,6 +154,9 @@ bool op::v4::Interpolate::visit_attributes(AttributeVisitor& visitor)
     visitor.on_attribute("pads_end", m_attrs.pads_end);
     visitor.on_attribute("cube_coeff", m_attrs.cube_coeff);
     return true;
+#else
+    return false;
+#endif
 }
 
 std::vector<int64_t> op::v4::Interpolate::get_axes() const
@@ -219,6 +235,8 @@ PartialShape op::v4::Interpolate::get_padded_input_shape(const PartialShape& inp
 
 void op::v4::Interpolate::validate_and_infer_types()
 {
+#if GraphGen(OV_GEN_NGRAPH_OP(Interpolate, v4, validate_and_infer_types))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
     element::Type input_et = get_input_element_type(0);
     NODE_VALIDATION_CHECK(this,
                           input_et == element::f32 || input_et == element::f16 ||
@@ -269,6 +287,9 @@ void op::v4::Interpolate::validate_and_infer_types()
     }
 
     set_output_type(0, get_input_element_type(0), output_shape);
+#else
+    NODE_VALIDATION_CHECK(this, false, "Function is not included into the selective build.");
+#endif
 }
 
 shared_ptr<Node> op::v4::Interpolate::clone_with_new_inputs(const OutputVector& new_args) const
@@ -420,6 +441,8 @@ static void pad_input_data(const uint8_t* data_ptr,
 bool op::v4::Interpolate::evaluate(const HostTensorVector& outputs,
                                    const HostTensorVector& inputs) const
 {
+#if GraphGen(OV_GEN_NGRAPH_OP(Interpolate, v4, evaluate))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
     element::Type input_et = get_input_element_type(0);
     size_t type_size = input_et.size();
 
@@ -491,6 +514,9 @@ bool op::v4::Interpolate::evaluate(const HostTensorVector& outputs,
     }
 
     return true;
+#else
+    return false;
+#endif
 }
 
 namespace ngraph

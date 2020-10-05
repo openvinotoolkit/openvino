@@ -3,6 +3,7 @@
 //
 
 #include "transformations/convert_scatter_elements_to_scatter.hpp"
+#include "transformations/itt.hpp"
 
 #include <memory>
 #include <vector>
@@ -24,8 +25,9 @@ void ngraph::pass::ConvertScatterElementsToScatter::convert_scatter_elements_to_
     auto broadcast = std::make_shared<ngraph::opset3::Broadcast>(indices, broadcast_shape);
 
     auto scatter = std::make_shared<ngraph::opset3::ScatterElementsUpdate>(data, broadcast, updates, axis);
-
+#if GraphGen(OV_GEN_NGRAPH_PASS(ConvertScatterElementsToScatter, callback))
     ngraph::graph_rewrite_callback callback = [](pattern::Matcher& m) {
+        OV_ITT_IE_TRANSFORM_CALLBACK(m, "callback")
         auto scatter = m.get_match_root();
         auto broadcast = scatter->input_value(1).get_node_shared_ptr();
         auto axis_const = std::dynamic_pointer_cast<ngraph::opset3::Constant>(scatter->input_value(3).get_node_shared_ptr());
@@ -207,7 +209,11 @@ void ngraph::pass::ConvertScatterElementsToScatter::convert_scatter_elements_to_
         ngraph::replace_node(scatter, scatter_update);
         return true;
     };
-
+#else
+    ngraph::graph_rewrite_callback callback = [](ngraph::pattern::Matcher & m) -> bool {
+        return false;
+    };
+#endif
     auto m = std::make_shared<ngraph::pattern::Matcher>(scatter, "ConvertScatterElementsToScatter");
     this->add_matcher(m, callback, PassProperty::CHANGE_DYNAMIC_STATE);
 }

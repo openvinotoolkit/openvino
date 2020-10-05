@@ -4,6 +4,7 @@
 
 #include "transformations/convert_quantize_dequantize.hpp"
 #include "transformations/utils/utils.hpp"
+#include "transformations/itt.hpp"
 
 #include <memory>
 #include <vector>
@@ -71,8 +72,9 @@ ngraph::pass::ConvertQuantizeDequantize::ConvertQuantizeDequantize() {
     auto sub_pattern = ngraph::pattern::wrap_type<opset4::Subtract>({convert2_pattern, zero_point_pattern}, pattern::consumers_count(1));
     auto scale_pattern = ngraph::pattern::any_input();
     auto mul_pattern = ngraph::pattern::wrap_type<opset4::Multiply>({sub_pattern, scale_pattern});
-
+#if GraphGen(OV_GEN_NGRAPH_PASS(ConvertQuantizeDequantize, callback))
     ngraph::matcher_pass_callback callback = [=](pattern::Matcher& m) {
+        OV_ITT_IE_TRANSFORM_CALLBACK(m, "callback")
         auto pattern_map = m.get_pattern_value_map();
         auto data = pattern_map[data_pattern];
         auto input_low = pattern_map[input_low_pattern];
@@ -148,7 +150,11 @@ ngraph::pass::ConvertQuantizeDequantize::ConvertQuantizeDequantize() {
 
         return true;
     };
-
+#else
+    ngraph::graph_rewrite_callback callback = [](ngraph::pattern::Matcher & m) -> bool {
+        return false;
+    };
+#endif
     auto m = std::make_shared<ngraph::pattern::Matcher>(mul_pattern, "ConvertQuantizeDequantize");
     this->register_matcher(m, callback);
 }

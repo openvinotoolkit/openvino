@@ -13,12 +13,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 //*****************************************************************************
-#include "ngraph/op/mod.hpp"
+#include "itt.hpp"
+
 #include "ngraph/attribute_visitor.hpp"
 #include "ngraph/builder/make_constant.hpp"
 #include "ngraph/op/abs.hpp"
 #include "ngraph/op/convert.hpp"
 #include "ngraph/op/divide.hpp"
+#include "ngraph/op/mod.hpp"
 #include "ngraph/op/multiply.hpp"
 #include "ngraph/op/sign.hpp"
 #include "ngraph/op/subtract.hpp"
@@ -40,12 +42,19 @@ op::v1::Mod::Mod(const Output<Node>& A,
 
 bool ngraph::op::v1::Mod::visit_attributes(AttributeVisitor& visitor)
 {
+#if GraphGen(OV_GEN_NGRAPH_OP(Mod, v1, visit_attributes))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
     visitor.on_attribute("auto_broadcast", m_auto_broadcast);
     return true;
+#else
+    return false;
+#endif
 }
 
 OutputVector op::v1::Mod::decompose_op() const
 {
+#if GraphGen(OV_GEN_NGRAPH_OP(Mod, v1, decompose_op))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
     const auto dividend = make_shared<op::Abs>(input_value(0));
     const auto dividend_sign = make_shared<op::Sign>(input_value(0));
     const auto dividend_et = dividend->get_element_type();
@@ -62,6 +71,9 @@ OutputVector op::v1::Mod::decompose_op() const
 
     // apply sign of dividend
     return {make_shared<op::v1::Multiply>(dividend_sign, mod, m_auto_broadcast)};
+#else
+    NODE_VALIDATION_CHECK(this, false, "Function is not included into the selective build.");
+#endif
 }
 
 shared_ptr<Node> op::v1::Mod::clone_with_new_inputs(const OutputVector& new_args) const

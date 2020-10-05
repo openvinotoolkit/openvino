@@ -16,6 +16,8 @@
 
 #include <memory>
 
+#include "itt.hpp"
+
 #include "ngraph/op/convert_like.hpp"
 
 using namespace std;
@@ -31,12 +33,22 @@ op::v1::ConvertLike::ConvertLike(const Output<Node>& data, const Output<Node>& l
 
 void op::v1::ConvertLike::validate_and_infer_types()
 {
+#if GraphGen(OV_GEN_NGRAPH_OP(ConvertLike, v1, validate_and_infer_types))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
     set_output_type(0, get_input_element_type(1), get_input_partial_shape(0));
+#else
+    NODE_VALIDATION_CHECK(this, false, "Function is not included into the selective build.");
+#endif
 }
 
 bool op::v1::ConvertLike::visit_attributes(AttributeVisitor& visitor)
 {
+#if GraphGen(OV_GEN_NGRAPH_OP(ConvertLike, v1, visit_attributes))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
     return true;
+#else
+    return false;
+#endif
 }
 
 shared_ptr<Node> op::v1::ConvertLike::clone_with_new_inputs(const OutputVector& new_args) const

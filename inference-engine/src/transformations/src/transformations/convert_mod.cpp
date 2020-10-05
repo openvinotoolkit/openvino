@@ -3,6 +3,7 @@
 //
 
 #include "transformations/convert_mod.hpp"
+#include "transformations/itt.hpp"
 
 #include <memory>
 #include <vector>
@@ -15,8 +16,9 @@ NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertMod, "ConvertMod", 0);
 
 ngraph::pass::ConvertMod::ConvertMod() {
     auto mod = ngraph::pattern::wrap_type<opset1::Mod>();
-
+#if GraphGen(OV_GEN_NGRAPH_PASS(ConvertMod, callback))
     ngraph::matcher_pass_callback callback = [this](pattern::Matcher& m) {
+        OV_ITT_IE_TRANSFORM_CALLBACK(m, "callback")
         auto mod = std::dynamic_pointer_cast<ngraph::opset1::Mod> (m.get_match_root());
         if (!mod) {
             return false;
@@ -44,7 +46,11 @@ ngraph::pass::ConvertMod::ConvertMod() {
         ngraph::replace_node(mod, mul);
         return true;
     };
-
+#else
+    ngraph::graph_rewrite_callback callback = [](ngraph::pattern::Matcher & m) -> bool {
+        return false;
+    };
+#endif
     auto m = std::make_shared<ngraph::pattern::Matcher>(mod, "ConvertMod");
     this->register_matcher(m, callback, PassProperty::CHANGE_DYNAMIC_STATE);
 }

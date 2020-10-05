@@ -3,6 +3,7 @@
 //
 
 #include "transformations/convert_opset1_to_legacy/convert_nms_to_nms_ie.hpp"
+#include "transformations/itt.hpp"
 
 #include <memory>
 #include <vector>
@@ -18,8 +19,9 @@ NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertNMSToNMSIEMatcher, "ConvertNMSToNMSI
 
 ngraph::pass::ConvertNMSToNMSIEMatcher::ConvertNMSToNMSIEMatcher() {
     auto nms = ngraph::pattern::wrap_type<opset3::NonMaxSuppression>();
-
+#if GraphGen(OV_GEN_NGRAPH_PASS(ConvertNMSToNMSIE, callback))
     ngraph::matcher_pass_callback callback = [](pattern::Matcher &m) {
+        OV_ITT_IE_TRANSFORM_CALLBACK(m, "callback")
         auto nms = std::dynamic_pointer_cast<opset3::NonMaxSuppression>(m.get_match_root());
         if (!nms) {
             return false;
@@ -98,7 +100,11 @@ ngraph::pass::ConvertNMSToNMSIEMatcher::ConvertNMSToNMSIEMatcher() {
         ngraph::replace_node(nms, new_nms);
         return true;
     };
-
+#else
+    ngraph::matcher_pass_callback callback = [](ngraph::pattern::Matcher & m) -> bool {
+        return false;
+    };
+#endif
     auto m = std::make_shared<ngraph::pattern::Matcher>(nms, "ConvertNMSToNMSIE");
     this->register_matcher(m, callback);
 }

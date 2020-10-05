@@ -13,9 +13,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 //*****************************************************************************
+#include "itt.hpp"
 
-#include "ngraph/op/util/scatter_base.hpp"
 #include "ngraph/op/util/op_types.hpp"
+#include "ngraph/op/util/scatter_base.hpp"
 #include "ngraph/shape.hpp"
 #include "ngraph/validation_util.hpp"
 
@@ -35,6 +36,8 @@ op::util::ScatterBase::ScatterBase(const Output<Node>& data,
 
 void op::util::ScatterBase::validate_and_infer_types()
 {
+#if GraphGen(OV_GEN_NGRAPH_OP_UTIL(ScatterBase, validate_and_infer_types))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
     const auto& data_et = get_input_element_type(DATA);
     const auto& indices_et = get_input_element_type(INDICES);
     const auto& updates_et = get_input_element_type(UPDATES);
@@ -129,6 +132,9 @@ void op::util::ScatterBase::validate_and_infer_types()
         set_input_is_relevant_to_shape(0);
     }
     set_output_type(0, data_et, data_shape);
+#else
+    NODE_VALIDATION_CHECK(this, false, "Function is not included into the selective build.");
+#endif
 }
 
 bool op::util::ScatterBase::visit_attributes(AttributeVisitor& visitor)

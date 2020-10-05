@@ -14,9 +14,11 @@
 // limitations under the License.
 //*****************************************************************************
 
-#include "ngraph/op/non_max_suppression.hpp"
+#include "itt.hpp"
+
 #include "ngraph/attribute_visitor.hpp"
 #include "ngraph/op/constant.hpp"
+#include "ngraph/op/non_max_suppression.hpp"
 #include "ngraph/op/util/op_types.hpp"
 
 using namespace std;
@@ -81,13 +83,20 @@ shared_ptr<Node>
 
 bool ngraph::op::v1::NonMaxSuppression::visit_attributes(AttributeVisitor& visitor)
 {
+#if GraphGen(OV_GEN_NGRAPH_OP(NonMaxSuppression, v1, visit_attributes))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
     visitor.on_attribute("box_encoding", m_box_encoding);
     visitor.on_attribute("sort_result_descending", m_sort_result_descending);
     return true;
+#else
+    return false;
+#endif
 }
 
 void op::v1::NonMaxSuppression::validate_and_infer_types()
 {
+#if GraphGen(OV_GEN_NGRAPH_OP(NonMaxSuppression, v1, validate_and_infer_types))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
     const auto boxes_ps = get_input_partial_shape(0);
     const auto scores_ps = get_input_partial_shape(1);
 
@@ -180,6 +189,9 @@ void op::v1::NonMaxSuppression::validate_and_infer_types()
         out_shape[0] = std::min(num_boxes, max_output_boxes_per_class * num_classes);
     }
     set_output_type(0, output_element_type, out_shape);
+#else
+    NODE_VALIDATION_CHECK(this, false, "Function is not included into the selective build.");
+#endif
 }
 
 int64_t op::v1::NonMaxSuppression::max_boxes_output_from_input() const
@@ -285,10 +297,15 @@ shared_ptr<Node>
 
 bool ngraph::op::v3::NonMaxSuppression::visit_attributes(AttributeVisitor& visitor)
 {
+#if GraphGen(OV_GEN_NGRAPH_OP(NonMaxSuppression, v3, visit_attributes))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
     visitor.on_attribute("box_encoding", m_box_encoding);
     visitor.on_attribute("sort_result_descending", m_sort_result_descending);
     visitor.on_attribute("output_type", m_output_type);
     return true;
+#else
+    return false;
+#endif
 }
 
 void op::v3::NonMaxSuppression::validate()
@@ -371,6 +388,8 @@ void op::v3::NonMaxSuppression::validate()
 
 void op::v3::NonMaxSuppression::validate_and_infer_types()
 {
+#if GraphGen(OV_GEN_NGRAPH_OP(NonMaxSuppression, v3, validate_and_infer_types))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
     const auto boxes_ps = get_input_partial_shape(0);
     const auto scores_ps = get_input_partial_shape(1);
 
@@ -395,6 +414,9 @@ void op::v3::NonMaxSuppression::validate_and_infer_types()
         }
     }
     set_output_type(0, m_output_type, out_shape);
+#else
+    NODE_VALIDATION_CHECK(this, false, "Function is not included into the selective build.");
+#endif
 }
 
 int64_t op::v3::NonMaxSuppression::max_boxes_output_from_input() const
@@ -504,6 +526,8 @@ shared_ptr<Node>
 
 void op::v4::NonMaxSuppression::validate_and_infer_types()
 {
+#if GraphGen(OV_GEN_NGRAPH_OP(NonMaxSuppression, v4, validate_and_infer_types))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
     const auto boxes_ps = get_input_partial_shape(0);
     const auto scores_ps = get_input_partial_shape(1);
 
@@ -529,4 +553,7 @@ void op::v4::NonMaxSuppression::validate_and_infer_types()
         }
     }
     set_output_type(0, m_output_type, out_shape);
+#else
+    NODE_VALIDATION_CHECK(this, false, "Function is not included into the selective build.");
+#endif
 }

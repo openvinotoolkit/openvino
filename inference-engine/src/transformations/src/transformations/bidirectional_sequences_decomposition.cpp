@@ -3,6 +3,7 @@
 //
 
 #include "transformations/bidirectional_sequences_decomposition.hpp"
+#include "transformations/itt.hpp"
 
 #include <memory>
 
@@ -13,8 +14,9 @@
 
 ngraph::pass::BidirectionalLSTMSequenceDecomposition::BidirectionalLSTMSequenceDecomposition() {
     auto lstm_sequence_ngraph = ngraph::pattern::wrap_type<ngraph::opset5::LSTMSequence>();
-
+#if GraphGen(OV_GEN_NGRAPH_PASS(BidirectionalLSTMSequenceDecomposition, callback))
     ngraph::matcher_pass_callback callback = [](pattern::Matcher &m) {
+        OV_ITT_IE_TRANSFORM_CALLBACK(m, "callback")
         auto lstm_sequence = std::dynamic_pointer_cast<ngraph::opset5::LSTMSequence>(m.get_match_root());
         if (!lstm_sequence) {
             return false;
@@ -74,15 +76,20 @@ ngraph::pass::BidirectionalLSTMSequenceDecomposition::BidirectionalLSTMSequenceD
         ngraph::replace_node(lstm_sequence, {concat_0->output(0), concat_1->output(0), concat_2->output(0)});
         return true;
     };
-
+#else
+    ngraph::matcher_pass_callback callback = [](ngraph::pattern::Matcher & m) -> bool {
+        return false;
+    };
+#endif
     auto m = std::make_shared<ngraph::pattern::Matcher>(lstm_sequence_ngraph, "BidirectionalLSTMSequenceDecomposition");
     this->register_matcher(m, callback);
 }
 
 ngraph::pass::BidirectionalGRUSequenceDecomposition::BidirectionalGRUSequenceDecomposition() {
     auto gru_sequence_ngraph = ngraph::pattern::wrap_type<ngraph::opset5::GRUSequence>();
-
+#if GraphGen(OV_GEN_NGRAPH_PASS(BidirectionalGRUSequenceDecomposition, callback))
     ngraph::matcher_pass_callback callback = [](pattern::Matcher &m) {
+        OV_ITT_IE_TRANSFORM_CALLBACK(m, "callback")
         auto gru_sequence = std::dynamic_pointer_cast<ngraph::opset5::GRUSequence>(m.get_match_root());
         if (!gru_sequence) {
             return false;
@@ -138,7 +145,11 @@ ngraph::pass::BidirectionalGRUSequenceDecomposition::BidirectionalGRUSequenceDec
         ngraph::replace_node(gru_sequence, {concat_0->output(0), concat_1->output(0)});
         return true;
     };
-
+#else
+    ngraph::graph_rewrite_callback callback = [](ngraph::pattern::Matcher & m) -> bool {
+        return false;
+    };
+#endif
     auto m = std::make_shared<ngraph::pattern::Matcher>(gru_sequence_ngraph, "BidirectionalGRUSequenceDecomposition");
     this->register_matcher(m, callback);
 }
@@ -146,7 +157,9 @@ ngraph::pass::BidirectionalGRUSequenceDecomposition::BidirectionalGRUSequenceDec
 ngraph::pass::BidirectionalRNNSequenceDecomposition::BidirectionalRNNSequenceDecomposition() {
     auto rnn_sequence_ngraph = ngraph::pattern::wrap_type<ngraph::opset5::RNNSequence>();
 
+#if GraphGen(OV_GEN_NGRAPH_PASS(BidirectionalRNNSequenceDecomposition, callback))
     ngraph::matcher_pass_callback callback = [](pattern::Matcher &m) {
+        OV_ITT_IE_TRANSFORM_CALLBACK(m, "callback")
         auto rnn_sequence = std::dynamic_pointer_cast<ngraph::opset5::RNNSequence>(m.get_match_root());
         if (!rnn_sequence) {
             return false;
@@ -200,7 +213,11 @@ ngraph::pass::BidirectionalRNNSequenceDecomposition::BidirectionalRNNSequenceDec
         ngraph::replace_node(rnn_sequence, {concat_0->output(0), concat_1->output(0)});
         return true;
     };
-
+#else
+    ngraph::graph_rewrite_callback callback = [](ngraph::pattern::Matcher & m) -> bool {
+        return false;
+    };
+#endif
     auto m = std::make_shared<ngraph::pattern::Matcher>(rnn_sequence_ngraph, "BidirectionalRNNSequenceDecomposition");
     this->register_matcher(m, callback);
 }

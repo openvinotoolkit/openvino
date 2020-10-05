@@ -38,6 +38,8 @@ op::PriorBoxClustered::PriorBoxClustered(const Output<Node>& layer_shape,
 
 void op::PriorBoxClustered::validate_and_infer_types()
 {
+#if GraphGen(OV_GEN_NGRAPH_OP(PriorBoxClustered, v0, validate_and_infer_types))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
     // shape node should have integer data type. For now we only allow i64
     auto layer_shape_et = get_input_element_type(0);
     NODE_VALIDATION_CHECK(this,
@@ -86,6 +88,9 @@ void op::PriorBoxClustered::validate_and_infer_types()
     {
         set_output_type(0, element::f32, PartialShape::dynamic());
     }
+#else
+    NODE_VALIDATION_CHECK(this, false, "Function is not included into the selective build.");
+#endif
 }
 
 shared_ptr<Node> op::PriorBoxClustered::clone_with_new_inputs(const OutputVector& new_args) const
@@ -96,6 +101,8 @@ shared_ptr<Node> op::PriorBoxClustered::clone_with_new_inputs(const OutputVector
 
 bool op::PriorBoxClustered::visit_attributes(AttributeVisitor& visitor)
 {
+#if GraphGen(OV_GEN_NGRAPH_OP(PriorBoxClustered, v0, visit_attributes))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
     visitor.on_attribute("widths", m_attrs.widths);
     visitor.on_attribute("heights", m_attrs.heights);
     visitor.on_attribute("clip", m_attrs.clip);
@@ -104,6 +111,9 @@ bool op::PriorBoxClustered::visit_attributes(AttributeVisitor& visitor)
     visitor.on_attribute("offset", m_attrs.offset);
     visitor.on_attribute("variances", m_attrs.variances);
     return true;
+#else
+    return false;
+#endif
 }
 
 namespace
@@ -155,7 +165,6 @@ namespace
 bool op::v0::PriorBoxClustered::evaluate(const HostTensorVector& outputs,
                                          const HostTensorVector& inputs) const
 {
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v0::PriorBoxClustered::evaluate");
     return false;
     // Todo (itikhono): enable the use of the reference implementation after supporting constants as
     // outputs in plugins

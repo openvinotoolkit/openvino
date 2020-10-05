@@ -3,6 +3,7 @@
 //
 
 #include "transformations/convert_opset1_to_legacy/convert_mul_add_to_scaleshift_or_power.hpp"
+#include "transformations/itt.hpp"
 
 #include <memory>
 #include <vector>
@@ -65,8 +66,9 @@ void ngraph::pass::ConvertMulAddToScaleShiftOrPower::convert_mul_add_to_scaleshi
 
     auto mul = std::make_shared<ngraph::opset1::Multiply>(data_batch, weights);
     auto add = std::make_shared<ngraph::opset1::Add>(mul, bias);
-
+#if GraphGen(OV_GEN_NGRAPH_PASS(CPUFusion_MulAddToScaleShiftOrPower, callback))
     ngraph::graph_rewrite_callback callback = [](pattern::Matcher& m) {
+        OV_ITT_IE_TRANSFORM_CALLBACK(m, "callback")
         auto add_node = ngraph::as_type_ptr<ngraph::opset1::Add>(m.get_match_root());
 
         if (!add_node) {
@@ -183,7 +185,11 @@ void ngraph::pass::ConvertMulAddToScaleShiftOrPower::convert_mul_add_to_scaleshi
 
         return true;
     };
-
+#else
+    ngraph::graph_rewrite_callback callback = [](ngraph::pattern::Matcher & m) -> bool {
+        return false;
+    };
+#endif
     auto m = std::make_shared<ngraph::pattern::Matcher>(add, "CPUFusion.MulAddToScaleShiftOrPower");
     this->add_matcher(m, callback, PassProperty::CHANGE_DYNAMIC_STATE);
 }

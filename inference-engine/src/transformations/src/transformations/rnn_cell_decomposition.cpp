@@ -3,6 +3,7 @@
 //
 
 #include "transformations/rnn_cell_decomposition.hpp"
+#include "transformations/itt.hpp"
 
 #include <memory>
 #include <transformations/utils/utils.hpp>
@@ -16,7 +17,9 @@ NGRAPH_RTTI_DEFINITION(ngraph::pass::RNNCellDecomposition, "RNNCellDecomposition
 
 ngraph::pass::RNNCellDecomposition::RNNCellDecomposition() {
     auto rnn_cell = ngraph::pattern::wrap_type<opset4::RNNCell>();
+#if GraphGen(OV_GEN_NGRAPH_PASS(RNNCellDecomposition, callback))
     ngraph::matcher_pass_callback callback = [](ngraph::pattern::Matcher& m) {
+        OV_ITT_IE_TRANSFORM_CALLBACK(m, "callback")
         auto rnn_cell = std::dynamic_pointer_cast<ngraph::opset4::RNNCell> (m.get_match_root());
         if (!rnn_cell) {
             return false;
@@ -48,7 +51,11 @@ ngraph::pass::RNNCellDecomposition::RNNCellDecomposition() {
         ngraph::replace_node(rnn_cell, out);
         return true;
     };
-
+#else
+    ngraph::graph_rewrite_callback callback = [](ngraph::pattern::Matcher & m) -> bool {
+        return false;
+    };
+#endif
     auto m = std::make_shared<ngraph::pattern::Matcher>(rnn_cell, "RNNCellDecomposition");
     register_matcher(m, callback);
 }

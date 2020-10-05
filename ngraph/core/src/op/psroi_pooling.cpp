@@ -13,9 +13,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 //*****************************************************************************
+#include "itt.hpp"
 
-#include "ngraph/op/psroi_pooling.hpp"
 #include "ngraph/attribute_visitor.hpp"
+#include "ngraph/op/psroi_pooling.hpp"
 
 using namespace std;
 using namespace ngraph;
@@ -43,6 +44,8 @@ op::PSROIPooling::PSROIPooling(const Output<Node>& input,
 
 bool ngraph::op::v0::PSROIPooling::visit_attributes(AttributeVisitor& visitor)
 {
+#if GraphGen(OV_GEN_NGRAPH_OP(PSROIPooling, v0, visit_attributes))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
     visitor.on_attribute("output_dim", m_output_dim);
     visitor.on_attribute("group_size", m_group_size);
     visitor.on_attribute("spatial_scale", m_spatial_scale);
@@ -50,10 +53,15 @@ bool ngraph::op::v0::PSROIPooling::visit_attributes(AttributeVisitor& visitor)
     visitor.on_attribute("spatial_bins_x", m_spatial_bins_x);
     visitor.on_attribute("spatial_bins_y", m_spatial_bins_y);
     return true;
+#else
+    return false;
+#endif
 }
 
 void op::PSROIPooling::validate_and_infer_types()
 {
+#if GraphGen(OV_GEN_NGRAPH_OP(PSROIPooling, v0, validate_and_infer_types))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
     auto input_et = get_input_element_type(0);
     if (get_input_partial_shape(0).is_static() && get_input_partial_shape(1).is_static())
     {
@@ -78,6 +86,9 @@ void op::PSROIPooling::validate_and_infer_types()
     {
         set_output_type(0, input_et, PartialShape::dynamic());
     }
+#else
+    NODE_VALIDATION_CHECK(this, false, "Function is not included into the selective build.");
+#endif
 }
 
 shared_ptr<Node> op::PSROIPooling::clone_with_new_inputs(const OutputVector& new_args) const

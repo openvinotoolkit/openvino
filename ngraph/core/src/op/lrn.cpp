@@ -13,10 +13,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 //*****************************************************************************
+#include "itt.hpp"
 
-#include "ngraph/op/lrn.hpp"
 #include "ngraph/attribute_visitor.hpp"
 #include "ngraph/op/constant.hpp"
+#include "ngraph/op/lrn.hpp"
 #include "ngraph/op/multiply.hpp"
 
 using namespace std;
@@ -58,6 +59,8 @@ AxisSet op::LRN::get_reduction_axes() const
 
 void op::LRN::validate_and_infer_types()
 {
+#if GraphGen(OV_GEN_NGRAPH_OP(LRN, v0, validate_and_infer_types))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
     element::Type arg_type = get_input_element_type(0);
     PartialShape arg_shape = get_input_partial_shape(0);
     set_output_type(0, arg_type, arg_shape);
@@ -110,15 +113,23 @@ void op::LRN::validate_and_infer_types()
                           "Axes input must be integral numbers, but are: ",
                           axes_type,
                           ").");
+#else
+    NODE_VALIDATION_CHECK(this, false, "Function is not included into the selective build.");
+#endif
 }
 
 bool ngraph::op::v0::LRN::visit_attributes(AttributeVisitor& visitor)
 {
+#if GraphGen(OV_GEN_NGRAPH_OP(LRN, v0, visit_attributes))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
     visitor.on_attribute("alpha", m_alpha);
     visitor.on_attribute("beta", m_beta);
     visitor.on_attribute("bias", m_bias);
     visitor.on_attribute("size", m_size);
     return true;
+#else
+    return false;
+#endif
 }
 
 shared_ptr<Node> op::LRN::clone_with_new_inputs(const OutputVector& new_args) const

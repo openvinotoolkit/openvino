@@ -13,9 +13,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 //*****************************************************************************
+#include "itt.hpp"
 
-#include "ngraph/op/util/binary_elementwise_comparison.hpp"
 #include "ngraph/attribute_visitor.hpp"
+#include "ngraph/op/util/binary_elementwise_comparison.hpp"
 #include "ngraph/op/util/elementwise_args.hpp"
 
 using namespace std;
@@ -36,14 +37,24 @@ op::util::BinaryElementwiseComparison::BinaryElementwiseComparison(const Output<
 
 void op::util::BinaryElementwiseComparison::validate_and_infer_types()
 {
+#if GraphGen(OV_GEN_NGRAPH_OP_UTIL(BinaryElementwiseComparison, validate_and_infer_types))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
     auto args_et_pshape = op::util::validate_and_infer_elementwise_args(this, m_autob);
     PartialShape& args_pshape = std::get<1>(args_et_pshape);
 
     set_output_type(0, element::boolean, args_pshape);
+#else
+    NODE_VALIDATION_CHECK(this, false, "Function is not included into the selective build.");
+#endif
 }
 
 bool op::util::BinaryElementwiseComparison::visit_attributes(AttributeVisitor& visitor)
 {
+#if GraphGen(OV_GEN_NGRAPH_OP_UTIL(BinaryElementwiseComparison, visit_attributes))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
     visitor.on_attribute("auto_broadcast", m_autob);
     return true;
+#else
+    return false;
+#endif
 }

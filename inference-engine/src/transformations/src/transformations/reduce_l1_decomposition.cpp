@@ -3,6 +3,7 @@
 //
 
 #include "transformations/reduce_l1_decomposition.hpp"
+#include "transformations/itt.hpp"
 
 #include <memory>
 
@@ -16,7 +17,9 @@ ngraph::pass::ReduceL1Decomposition::ReduceL1Decomposition() {
     // decomposes ReduceL1 operations into ReduceSum(abs(x))
     auto reduce_l1 = ngraph::pattern::wrap_type<opset4::ReduceL1>();
 
+#if GraphGen(OV_GEN_NGRAPH_PASS(ReduceL1Decomposition, callback))
     ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher &m) {
+        OV_ITT_IE_TRANSFORM_CALLBACK(m, "callback")
         auto &pattern_to_output = m.get_pattern_value_map();
         auto reduce_l1_node = std::dynamic_pointer_cast<ngraph::opset4::ReduceL1>(pattern_to_output.at(reduce_l1).get_node_shared_ptr());
 
@@ -33,7 +36,11 @@ ngraph::pass::ReduceL1Decomposition::ReduceL1Decomposition() {
         ngraph::replace_node(m.get_match_root(), reduce_sum);
         return true;
     };
-
+#else
+    ngraph::graph_rewrite_callback callback = [](ngraph::pattern::Matcher & m) -> bool {
+        return false;
+    };
+#endif
     auto m = std::make_shared<ngraph::pattern::Matcher>(reduce_l1, "ReduceL1Decomposition");
     register_matcher(m, callback);
 }

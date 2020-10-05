@@ -3,6 +3,7 @@
 //
 
 #include "transformations/convert_opset1_to_legacy/convert_convolutions.hpp"
+#include "transformations/itt.hpp"
 
 #include <memory>
 #include <vector>
@@ -19,8 +20,9 @@ NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertConvolution, "ConvertConvolution", 0
 
 ngraph::pass::ConvertConvolution::ConvertConvolution() {
     auto conv = ngraph::pattern::wrap_type<opset1::Convolution>();
-
+#if GraphGen(OV_GEN_NGRAPH_PASS(ConvertConvolution, callback))
     ngraph::matcher_pass_callback callback = [](pattern::Matcher& m) {
+        OV_ITT_IE_TRANSFORM_CALLBACK(m, "callback")
         auto conv = std::dynamic_pointer_cast<ngraph::opset1::Convolution> (m.get_match_root());
         if (!conv) {
             return false;
@@ -39,7 +41,11 @@ ngraph::pass::ConvertConvolution::ConvertConvolution() {
         ngraph::replace_node(conv, conv_ie);
         return true;
     };
-
+#else
+    ngraph::matcher_pass_callback callback = [](ngraph::pattern::Matcher & m) -> bool {
+        return false;
+    };
+#endif
     auto m = std::make_shared<ngraph::pattern::Matcher>(conv, "ConvertConvolution");
     this->register_matcher(m, callback);
 }
@@ -48,9 +54,11 @@ NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertGroupConvolution, "ConvertGroupConvo
 
 ngraph::pass::ConvertGroupConvolution::ConvertGroupConvolution() {
     auto gconv = ngraph::pattern::wrap_type<opset1::GroupConvolution>();
-
+#if GraphGen(OV_GEN_NGRAPH_PASS(ConvertGroupConvolution, callback))
     ngraph::matcher_pass_callback callback = [](pattern::Matcher& m) {
+        OV_ITT_IE_TRANSFORM_CALLBACK(m, "callback")
         auto gconv = std::dynamic_pointer_cast<ngraph::opset1::GroupConvolution> (m.get_match_root());
+
         if (!gconv) {
             return false;
         }
@@ -83,7 +91,11 @@ ngraph::pass::ConvertGroupConvolution::ConvertGroupConvolution() {
         ngraph::replace_node(gconv, conv_ie);
         return true;
     };
-
+#else
+    ngraph::matcher_pass_callback callback = [](ngraph::pattern::Matcher & m) -> bool {
+        return false;
+    };
+#endif
     auto m = std::make_shared<ngraph::pattern::Matcher>(gconv, "ConvertGroupConvolution");
     this->register_matcher(m, callback);
 }
@@ -92,8 +104,9 @@ NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertDeconvolution, "ConvertDeconvolution
 
 ngraph::pass::ConvertDeconvolution::ConvertDeconvolution() {
     auto conv = ngraph::pattern::wrap_type<opset1::ConvolutionBackpropData>();
-
+#if GraphGen(OV_GEN_NGRAPH_PASS(ConvertConvolutionBackpropData, callback))
     ngraph::matcher_pass_callback callback = [](pattern::Matcher& m) {
+        OV_ITT_IE_TRANSFORM_CALLBACK(m, "callback")
         auto deconv = std::dynamic_pointer_cast<ngraph::opset1::ConvolutionBackpropData> (m.get_match_root());
         if (!deconv) {
             return false;
@@ -115,7 +128,11 @@ ngraph::pass::ConvertDeconvolution::ConvertDeconvolution() {
         ngraph::replace_node(deconv, deconv_ie);
         return true;
     };
-
+#else
+    ngraph::matcher_pass_callback callback = [](ngraph::pattern::Matcher & m) -> bool {
+        return false;
+    };
+#endif
     auto m = std::make_shared<ngraph::pattern::Matcher>(conv, "ConvertConvolutionBackpropData");
     this->register_matcher(m, callback);
 }
@@ -124,8 +141,9 @@ NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertGroupDeconvolution, "ConvertGroupDec
 
 ngraph::pass::ConvertGroupDeconvolution::ConvertGroupDeconvolution() {
     auto gconv = ngraph::pattern::wrap_type<opset1::GroupConvolutionBackpropData>();
-
+#if GraphGen(OV_GEN_NGRAPH_PASS(ConvertGroupConvolutionBackpropData, callback))
     ngraph::matcher_pass_callback callback = [](pattern::Matcher& m) {
+        OV_ITT_IE_TRANSFORM_CALLBACK(m, "callback")
         auto gconv = std::dynamic_pointer_cast<ngraph::opset1::GroupConvolutionBackpropData> (m.get_match_root());
         if (!gconv) {
             return false;
@@ -159,7 +177,11 @@ ngraph::pass::ConvertGroupDeconvolution::ConvertGroupDeconvolution() {
         ngraph::replace_node(gconv, conv_ie);
         return true;
     };
-
+#else
+    ngraph::matcher_pass_callback callback = [](ngraph::pattern::Matcher & m) -> bool {
+        return false;
+    };
+#endif
     auto m = std::make_shared<ngraph::pattern::Matcher>(gconv, "ConvertGroupConvolutionBackpropData");
     this->register_matcher(m, callback);
 }

@@ -3,6 +3,7 @@
 //
 
 #include "transformations/convert_depth_to_space.hpp"
+#include "transformations/itt.hpp"
 
 #include <memory>
 #include <vector>
@@ -15,8 +16,9 @@ NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertDepthToSpace, "ConvertDepthToSpace",
 
 ngraph::pass::ConvertDepthToSpace::ConvertDepthToSpace() {
     auto dts_node = ngraph::pattern::wrap_type<ngraph::opset1::DepthToSpace>();
-
+#if GraphGen(OV_GEN_NGRAPH_PASS(ConvertDepthToSpace, callback))
     ngraph::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
+        OV_ITT_IE_TRANSFORM_CALLBACK(m, "callback")
         auto dts_node = std::dynamic_pointer_cast<ngraph::opset1::DepthToSpace> (m.get_match_root());
         if (!dts_node || m_transformation_callback(dts_node)) {
             return false;
@@ -99,7 +101,11 @@ ngraph::pass::ConvertDepthToSpace::ConvertDepthToSpace() {
         ngraph::replace_node(dts_node, reshape_end);
         return true;
     };
-
+#else
+    ngraph::graph_rewrite_callback callback = [](ngraph::pattern::Matcher & m) -> bool {
+        return false;
+    };
+#endif
     auto m = std::make_shared<ngraph::pattern::Matcher>(dts_node, "ConvertDepthToSpace");
     this->register_matcher(m, callback);
 }

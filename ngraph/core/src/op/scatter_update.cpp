@@ -15,6 +15,7 @@
 //*****************************************************************************
 
 #include "ngraph/op/scatter_update.hpp"
+#include "itt.hpp"
 #include "ngraph/runtime/reference/scatter_update.hpp"
 #include "ngraph/shape.hpp"
 #include "ngraph/type/element_type.hpp"
@@ -44,6 +45,9 @@ shared_ptr<Node> op::v3::ScatterUpdate::clone_with_new_inputs(const OutputVector
 bool op::v3::ScatterUpdate::evaluate(const HostTensorVector& outputs,
                                      const HostTensorVector& inputs) const
 {
+#if GraphGen(OV_GEN_NGRAPH_OP(ScatterUpdate, v3, evaluate))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
+
     const auto& data = inputs[0];
     const auto& indices = inputs[1];
     const auto& updates = inputs[2];
@@ -136,4 +140,7 @@ bool op::v3::ScatterUpdate::evaluate(const HostTensorVector& outputs,
                                        updates->get_shape());
 
     return true;
+#else
+    return false;
+#endif
 }

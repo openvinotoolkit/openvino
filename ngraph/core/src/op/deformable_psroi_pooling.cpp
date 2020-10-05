@@ -14,6 +14,8 @@
 // limitations under the License.
 //*****************************************************************************
 
+#include "itt.hpp"
+
 #include "deformable_psroi_pooling.hpp"
 
 using namespace std;
@@ -70,6 +72,8 @@ op::v1::DeformablePSROIPooling::DeformablePSROIPooling(const Output<Node>& input
 
 bool op::v1::DeformablePSROIPooling::visit_attributes(AttributeVisitor& visitor)
 {
+#if GraphGen(OV_GEN_NGRAPH_OP(DeformablePSROIPooling, v1, visit_attributes))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
     visitor.on_attribute("output_dim", m_output_dim);
     visitor.on_attribute("spatial_scale", m_spatial_scale);
     visitor.on_attribute("group_size", m_group_size);
@@ -79,10 +83,15 @@ bool op::v1::DeformablePSROIPooling::visit_attributes(AttributeVisitor& visitor)
     visitor.on_attribute("trans_std", m_trans_std);
     visitor.on_attribute("part_size", m_part_size);
     return true;
+#else
+    return false;
+#endif
 }
 
 void op::v1::DeformablePSROIPooling::validate_and_infer_types()
 {
+#if GraphGen(OV_GEN_NGRAPH_OP(DeformablePSROIPooling, v1, validate_and_infer_types))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
     const auto& input_et = get_input_element_type(0);
 
     const auto& input_pshape = get_input_partial_shape(0);
@@ -123,6 +132,9 @@ void op::v1::DeformablePSROIPooling::validate_and_infer_types()
     }
 
     set_output_type(0, input_et, PartialShape(output_dim_vec));
+#else
+    NODE_VALIDATION_CHECK(this, false, "Function is not included into the selective build.");
+#endif
 }
 
 shared_ptr<Node>

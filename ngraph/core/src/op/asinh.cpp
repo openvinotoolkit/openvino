@@ -76,6 +76,10 @@ namespace
 
 bool op::v3::Asinh::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v3::Asinh::evaluate");
+#if GraphGen(OV_GEN_NGRAPH_OP(Asinh, v3, evaluate))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
     return evaluate_asinh(inputs[0], outputs[0]);
+#else
+    return false;
+#endif
 }

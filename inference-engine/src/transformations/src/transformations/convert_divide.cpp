@@ -3,6 +3,7 @@
 //
 
 #include "transformations/convert_divide.hpp"
+#include "transformations/itt.hpp"
 
 #include <memory>
 #include <vector>
@@ -15,8 +16,9 @@ NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertDivide, "ConvertDivide", 0);
 
 ngraph::pass::ConvertDivide::ConvertDivide() {
     auto div = ngraph::pattern::wrap_type<ngraph::opset1::Divide>();
-
+#if GraphGen(OV_GEN_NGRAPH_PASS(ConvertDivide, callback))
     ngraph::graph_rewrite_callback callback = [](pattern::Matcher& m) {
+        OV_ITT_IE_TRANSFORM_CALLBACK(m, "callback")
         auto div = std::dynamic_pointer_cast<ngraph::opset1::Divide> (m.get_match_root());
         // We can not apply this transformation in case with integer input data type
         if (!div || div->input(0).get_element_type().is_integral()) {
@@ -33,7 +35,11 @@ ngraph::pass::ConvertDivide::ConvertDivide() {
         ngraph::replace_node(div, mul);
         return true;
     };
-
+#else
+    ngraph::graph_rewrite_callback callback = [](ngraph::pattern::Matcher & m) -> bool {
+        return false;
+    };
+#endif
     auto m = std::make_shared<ngraph::pattern::Matcher>(div, "ConvertDivide");
     this->register_matcher(m, callback);
 }

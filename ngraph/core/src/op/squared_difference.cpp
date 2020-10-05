@@ -13,11 +13,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 //*****************************************************************************
+#include "itt.hpp"
 
-#include "ngraph/op/squared_difference.hpp"
 #include "ngraph/attribute_visitor.hpp"
 #include "ngraph/node.hpp"
 #include "ngraph/op/multiply.hpp"
+#include "ngraph/op/squared_difference.hpp"
 #include "ngraph/op/subtract.hpp"
 #include "ngraph/op/util/fused_op.hpp"
 
@@ -39,18 +40,28 @@ op::SquaredDifference::SquaredDifference(const Output<Node>& x1,
 
 bool ngraph::op::v0::SquaredDifference::visit_attributes(AttributeVisitor& visitor)
 {
+#if GraphGen(OV_GEN_NGRAPH_OP(SquaredDifference, v0, visit_attributes))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
     visitor.on_attribute("auto_broadcast", m_autobroadcast);
     return true;
+#else
+    return false;
+#endif
 }
 
 OutputVector op::SquaredDifference::decompose_op() const
 {
+#if GraphGen(OV_GEN_NGRAPH_OP(SquaredDifference, v0, decompose_op))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
     const auto x1 = input_value(0);
     const auto x2 = input_value(1);
 
     const auto difference = make_shared<op::Subtract>(x1, x2, m_autobroadcast);
 
     return {difference * difference};
+#else
+    NODE_VALIDATION_CHECK(this, false, "Function is not included into the selective build.");
+#endif
 }
 
 shared_ptr<Node> op::SquaredDifference::clone_with_new_inputs(const OutputVector& new_args) const

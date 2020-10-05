@@ -38,8 +38,13 @@ bool op::v4::SoftPlus::visit_attributes(AttributeVisitor& visitor)
 
 void op::v4::SoftPlus::validate_and_infer_types()
 {
+#if GraphGen(OV_GEN_NGRAPH_OP(SoftPlus, v4, validate_and_infer_types))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
     set_output_size(1);
     set_output_type(0, get_input_element_type(0), get_input_partial_shape(0));
+#else
+    NODE_VALIDATION_CHECK(this, false, "Function is not included into the selective build.");
+#endif
 }
 
 shared_ptr<Node> op::v4::SoftPlus::clone_with_new_inputs(const OutputVector& new_args) const
@@ -80,6 +85,10 @@ namespace
 bool op::v4::SoftPlus::evaluate(const HostTensorVector& outputs,
                                 const HostTensorVector& inputs) const
 {
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::SoftPlus::evaluate");
+#if GraphGen(OV_GEN_NGRAPH_OP(SoftPlus, v4, evaluate))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
     return evaluate_softplus(inputs[0], outputs[0], shape_size(get_output_shape(0)));
+#else
+    return false;
+#endif
 }

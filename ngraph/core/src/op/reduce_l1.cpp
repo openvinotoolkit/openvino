@@ -86,6 +86,10 @@ namespace
 bool op::v4::ReduceL1::evaluate(const HostTensorVector& outputs,
                                 const HostTensorVector& inputs) const
 {
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v4::ReduceL1::evaluate");
+#if GraphGen(OV_GEN_NGRAPH_OP(ReduceL1, v4, evaluate))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
     return evaluate_sum(inputs[0], outputs[0], get_reduction_axes(), get_keep_dims());
+#else
+    return false;
+#endif
 }

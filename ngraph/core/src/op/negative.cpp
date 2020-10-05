@@ -80,8 +80,12 @@ namespace
 
 bool op::Negative::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::Negative::evaluate");
+#if GraphGen(OV_GEN_NGRAPH_OP(Negative, v0, evaluate))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
     return evaluate_negative(inputs[0], outputs[0], shape_size(get_output_shape(0)));
+#else
+    return false;
+#endif
 }
 
 shared_ptr<Node> ngraph::operator-(const Output<Node>& arg0)

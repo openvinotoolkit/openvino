@@ -16,6 +16,8 @@
 
 #include <memory>
 
+#include "itt.hpp"
+
 #include "ngraph/op/add.hpp"
 #include "ngraph/op/constant.hpp"
 #include "ngraph/op/hard_sigmoid.hpp"
@@ -46,6 +48,8 @@ bool ngraph::op::v0::HardSigmoid::visit_attributes(AttributeVisitor& visitor)
 
 void op::HardSigmoid::pre_validate_and_infer_types()
 {
+#if GraphGen(OV_GEN_NGRAPH_OP(HardSigmoid, v0, pre_validate_and_infer_types))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
     const auto& alpha_pshape = get_input_partial_shape(1);
     const auto& beta_pshape = get_input_partial_shape(2);
 
@@ -75,10 +79,15 @@ void op::HardSigmoid::pre_validate_and_infer_types()
         this,
         data_et == alpha_et && data_et == beta_et,
         "The element types of both alpha and beta inputs must match the data input type.");
+#else
+    NODE_VALIDATION_CHECK(this, false, "Function is not included into the selective build.");
+#endif
 }
 
 OutputVector op::HardSigmoid::decompose_op() const
 {
+#if GraphGen(OV_GEN_NGRAPH_OP(HardSigmoid, v0, decompose_op))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
     const auto data = input_value(0);
 
     const auto one_node =
@@ -98,6 +107,9 @@ OutputVector op::HardSigmoid::decompose_op() const
 
     return {std::make_shared<op::v1::Minimum>(
         std::make_shared<op::v1::Maximum>(alpha_x_plus_beta, zero_node), one_node)};
+#else
+    NODE_VALIDATION_CHECK(this, false, "Function is not included into the selective build.");
+#endif
 }
 
 shared_ptr<Node> op::HardSigmoid::clone_with_new_inputs(const OutputVector& new_args) const

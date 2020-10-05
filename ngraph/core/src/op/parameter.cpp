@@ -16,6 +16,7 @@
 
 #include <sstream>
 
+#include "itt.hpp"
 #include "ngraph/attribute_visitor.hpp"
 #include "ngraph/op/parameter.hpp"
 
@@ -37,16 +38,26 @@ op::Parameter::Parameter(const element::Type& element_type,
 
 bool op::Parameter::visit_attributes(AttributeVisitor& visitor)
 {
+#if GraphGen(OV_GEN_NGRAPH_OP(Parameter, v0, visit_attributes))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
     visitor.on_attribute("cacheable", m_cacheable);
     visitor.on_attribute("shape", m_partial_shape);
     visitor.on_attribute("element_type", m_element_type);
     return true;
+#else
+    return false;
+#endif
 }
 
 void op::Parameter::validate_and_infer_types()
 {
+#if GraphGen(OV_GEN_NGRAPH_OP(Parameter, v0, validate_and_infer_types))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
     Op::validate_and_infer_types();
     set_output_type(0, m_element_type, m_partial_shape);
+#else
+    NODE_VALIDATION_CHECK(this, false, "Function is not included into the selective build.");
+#endif
 }
 
 shared_ptr<Node> op::Parameter::clone_with_new_inputs(const OutputVector& new_args) const

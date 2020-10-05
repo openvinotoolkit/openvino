@@ -13,9 +13,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 //*****************************************************************************
+#include "itt.hpp"
 
-#include "ngraph/op/util/embeddingbag_packed_base.hpp"
 #include "ngraph/op/constant.hpp"
+#include "ngraph/op/util/embeddingbag_packed_base.hpp"
 
 using namespace std;
 using namespace ngraph;
@@ -39,6 +40,8 @@ op::util::EmbeddingBagPackedBase::EmbeddingBagPackedBase(const Output<Node>& emb
 
 void op::util::EmbeddingBagPackedBase::validate_and_infer_types()
 {
+#if GraphGen(OV_GEN_NGRAPH_OP_UTIL(EmbeddingBagPackedBase, validate_and_infer_types))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
     NODE_VALIDATION_CHECK(this,
                           get_input_element_type(INDICES) == element::i64 ||
                               get_input_element_type(INDICES) == element::i32,
@@ -90,6 +93,9 @@ void op::util::EmbeddingBagPackedBase::validate_and_infer_types()
     }
 
     set_output_type(0, result_et, result_shape);
+#else
+    NODE_VALIDATION_CHECK(this, false, "Function is not included into the selective build.");
+#endif
 }
 
 bool op::util::EmbeddingBagPackedBase::visit_attributes(AttributeVisitor& visitor)

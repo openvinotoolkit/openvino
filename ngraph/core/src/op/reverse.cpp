@@ -17,6 +17,7 @@
 #include <algorithm>
 #include <sstream>
 
+#include "itt.hpp"
 #include "ngraph/attribute_visitor.hpp"
 #include "ngraph/function.hpp"
 #include "ngraph/op/constant.hpp"
@@ -40,6 +41,8 @@ op::v0::Reverse::Reverse(const Output<Node>& arg, const AxisSet& reversed_axes)
 
 void op::v0::Reverse::validate_and_infer_types()
 {
+#if GraphGen(OV_GEN_NGRAPH_OP(Reverse, v0, validate_and_infer_types))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
     const auto input_shape = get_input_partial_shape(0);
     const Dimension input_rank = input_shape.rank();
 
@@ -59,6 +62,9 @@ void op::v0::Reverse::validate_and_infer_types()
     }
 
     set_output_type(0, get_input_element_type(0), input_shape);
+#else
+    NODE_VALIDATION_CHECK(this, false, "Function is not included into the selective build.");
+#endif
 }
 
 shared_ptr<Node> op::v0::Reverse::clone_with_new_inputs(const OutputVector& new_args) const
@@ -89,12 +95,19 @@ op::v1::Reverse::Reverse(const Output<Node>& data,
 
 bool ngraph::op::v1::Reverse::visit_attributes(AttributeVisitor& visitor)
 {
+#if GraphGen(OV_GEN_NGRAPH_OP(Reverse, v1, visit_attributes))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
     visitor.on_attribute("mode", m_mode);
     return true;
+#else
+    return false;
+#endif
 }
 
 void op::v1::Reverse::validate_and_infer_types()
 {
+#if GraphGen(OV_GEN_NGRAPH_OP(Reverse, v1, validate_and_infer_types))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
     if (m_mode == Mode::MASK)
     {
         NODE_VALIDATION_CHECK(this,
@@ -169,6 +182,9 @@ void op::v1::Reverse::validate_and_infer_types()
     }
 
     set_output_type(0, get_input_element_type(0), input_shape);
+#else
+    NODE_VALIDATION_CHECK(this, false, "Function is not included into the selective build.");
+#endif
 }
 
 shared_ptr<Node> op::v1::Reverse::clone_with_new_inputs(const OutputVector& new_args) const
@@ -189,6 +205,8 @@ op::v1::Reverse::Mode op::v1::Reverse::mode_from_string(const std::string& mode)
 bool op::v0::Reverse::evaluate(const HostTensorVector& outputs,
                                const HostTensorVector& inputs) const
 {
+#if GraphGen(OV_GEN_NGRAPH_OP(Reverse, v0, evaluate))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
     runtime::reference::reverse(inputs[0]->get_data_ptr<const char>(),
                                 outputs[0]->get_data_ptr<char>(),
                                 inputs[0]->get_shape(),
@@ -196,10 +214,15 @@ bool op::v0::Reverse::evaluate(const HostTensorVector& outputs,
                                 get_reversed_axes(),
                                 inputs[0]->get_element_type().size());
     return true;
+#else
+    return false;
+#endif
 }
 bool op::v1::Reverse::evaluate(const HostTensorVector& outputs,
                                const HostTensorVector& inputs) const
 {
+#if GraphGen(OV_GEN_NGRAPH_OP(Reverse, v1, evaluate))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
     AxisSet axes{};
     if (get_mode() == op::v1::Reverse::Mode::INDEX)
     {
@@ -227,6 +250,9 @@ bool op::v1::Reverse::evaluate(const HostTensorVector& outputs,
                                 axes,
                                 inputs[0]->get_element_type().size());
     return true;
+#else
+    return false;
+#endif
 }
 
 namespace ngraph

@@ -34,3 +34,13 @@ namespace ngraph
         }
     }
 }
+
+#define OV_NGRAPH_OP(NAME, OPSET, FUNC)                                                            \
+    OV_ITT_GLUE_UNDERSCORE(                                                                        \
+        ngraph,                                                                                    \
+        OV_ITT_GLUE_UNDERSCORE(op,                                                                 \
+                               OV_ITT_GLUE_UNDERSCORE(OPSET, OV_ITT_GLUE_UNDERSCORE(NAME, FUNC))))
+#define OV_GEN_NGRAPH_OP(NAME, OPSET, FUNC)                                                        \
+    OV_ITT_GLUE_UNDERSCORE(Gen, OV_NGRAPH_OP(NAME, OPSET, FUNC))
+#define OV_GEN_NGRAPH_OP_UTIL(NAME, FUNC)                                                          \
+    OV_ITT_GLUE_UNDERSCORE(Gen, OV_NGRAPH_OP(NAME, util, FUNC))

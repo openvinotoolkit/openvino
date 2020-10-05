@@ -24,6 +24,7 @@
 #include <ngraph/util.hpp>
 #include <ngraph/log.hpp>
 #include <transformations/common_optimizations/nop_elimination.hpp>
+#include "transformations/itt.hpp"
 
 NGRAPH_SUPPRESS_DEPRECATED_START
 
@@ -338,6 +339,8 @@ static bool eliminate_stop_gradient(const std::shared_ptr<Node>& node) {
 }
 
 bool pass::NopElimination::run_on_function(std::shared_ptr<Function> function) {
+#if GraphGen(OV_GEN_NGRAPH_PASS(NopElimination, run_on_function))
+    OV_ITT_SCOPED_TASK(itt::domains::IETransform);
     static const std::unordered_map<NodeTypeInfo, std::function<bool(const std::shared_ptr<Node>&)>>
         dispatcher{{TI(opset3::Pad), &eliminate_nop},
                    {TI(op::v0::Sum), &eliminate_sum},
@@ -366,4 +369,7 @@ bool pass::NopElimination::run_on_function(std::shared_ptr<Function> function) {
     }
 
     return clobbered;
+#else
+    return false;
+#endif
 }

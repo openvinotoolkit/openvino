@@ -4,6 +4,7 @@
 
 #include "transformations/normalize_l2_fusion.hpp"
 #include "transformations/utils/utils.hpp"
+#include "transformations/itt.hpp"
 
 #include <memory>
 #include <vector>
@@ -27,8 +28,9 @@ ngraph::pass::NormalizeL2FusionWithMax::NormalizeL2FusionWithMax() {
     auto eps_const = ngraph::pattern::wrap_type<ngraph::opset4::Constant>();
     auto sqrt_max_eps = std::make_shared<ngraph::opset4::Maximum>(sqrt, eps_const);
     auto divide = std::make_shared<ngraph::opset4::Divide>(input, sqrt_max_eps);
-
+#if GraphGen(OV_GEN_NGRAPH_PASS(NormalizeL2FusionWithMax, callback))
     ngraph::graph_rewrite_callback matcher_pass_callback = [=](ngraph::pattern::Matcher& m) {
+        OV_ITT_IE_TRANSFORM_CALLBACK(m, "callback")
         auto& pattern_to_output = m.get_pattern_value_map();
 
         const auto data_input = pattern_to_output.at(input);
@@ -62,7 +64,11 @@ ngraph::pass::NormalizeL2FusionWithMax::NormalizeL2FusionWithMax() {
         ngraph::replace_node(m.get_match_root(), normalize_l2);
         return true;
     };
-
+#else
+    ngraph::graph_rewrite_callback matcher_pass_callback = [](ngraph::pattern::Matcher & m) -> bool {
+        return false;
+    };
+#endif
     auto m = std::make_shared<ngraph::pattern::Matcher>(divide, "NormalizeL2FusionWithMax");
     register_matcher(m, matcher_pass_callback);
 }
@@ -81,7 +87,9 @@ ngraph::pass::NormalizeL2FusionWithAdd::NormalizeL2FusionWithAdd() {
     auto sqrt_add_eps = std::make_shared<ngraph::opset4::Add>(sqrt, eps_const);
     auto divide = std::make_shared<ngraph::opset4::Divide>(input, sqrt_add_eps);
 
+#if GraphGen(OV_GEN_NGRAPH_PASS(NormalizeL2FusionWithAdd, callback))
     ngraph::graph_rewrite_callback matcher_pass_callback = [=](ngraph::pattern::Matcher& m) {
+        OV_ITT_IE_TRANSFORM_CALLBACK(m, "callback")
         auto& pattern_to_output = m.get_pattern_value_map();
 
         const auto data_input = pattern_to_output.at(input);
@@ -115,7 +123,11 @@ ngraph::pass::NormalizeL2FusionWithAdd::NormalizeL2FusionWithAdd() {
         ngraph::replace_node(m.get_match_root(), normalize_l2);
         return true;
     };
-
+#else
+    ngraph::graph_rewrite_callback matcher_pass_callback = [](ngraph::pattern::Matcher & m) -> bool {
+        return false;
+    };
+#endif
     auto m = std::make_shared<ngraph::pattern::Matcher>(divide, "NormalizeL2FusionWithMax");
     register_matcher(m, matcher_pass_callback);
 }

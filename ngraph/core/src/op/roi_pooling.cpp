@@ -13,6 +13,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 //*****************************************************************************
+#include "itt.hpp"
 
 #include "ngraph/op/roi_pooling.hpp"
 
@@ -36,6 +37,8 @@ op::ROIPooling::ROIPooling(const Output<Node>& input,
 
 void op::ROIPooling::validate_and_infer_types()
 {
+#if GraphGen(OV_GEN_NGRAPH_OP(ROIPooling, v0, validate_and_infer_types))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
     auto input_et = get_input_element_type(0);
     if (get_input_partial_shape(0).is_static() && get_input_partial_shape(1).is_static())
     {
@@ -63,6 +66,9 @@ void op::ROIPooling::validate_and_infer_types()
     {
         set_output_type(0, input_et, PartialShape::dynamic());
     }
+#else
+    NODE_VALIDATION_CHECK(this, false, "Function is not included into the selective build.");
+#endif
 }
 
 shared_ptr<Node> op::ROIPooling::clone_with_new_inputs(const OutputVector& new_args) const
@@ -74,8 +80,13 @@ shared_ptr<Node> op::ROIPooling::clone_with_new_inputs(const OutputVector& new_a
 
 bool op::ROIPooling::visit_attributes(AttributeVisitor& visitor)
 {
+#if GraphGen(OV_GEN_NGRAPH_OP(ROIPooling, v0, visit_attributes))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
     visitor.on_attribute("output_size", m_output_size);
     visitor.on_attribute("spatial_scale", m_spatial_scale);
     visitor.on_attribute("method", m_method);
     return true;
+#else
+    return false;
+#endif
 }

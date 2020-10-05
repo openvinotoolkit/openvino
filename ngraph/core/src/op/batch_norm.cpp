@@ -14,6 +14,8 @@
 // limitations under the License.
 //*****************************************************************************
 
+#include "itt.hpp"
+
 #include <sstream>
 
 #include "ngraph/attribute_visitor.hpp"
@@ -39,12 +41,19 @@ op::BatchNormInference::BatchNormInference(const Output<Node>& input,
 
 bool op::BatchNormInference::visit_attributes(AttributeVisitor& visitor)
 {
+#if GraphGen(OV_GEN_NGRAPH_OP(BatchNormInference, v0, visit_attributes))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
     visitor.on_attribute("epsilon", m_epsilon);
     return true;
+#else
+    return false;
+#endif
 }
 
 void op::BatchNormInference::validate_and_infer_types()
 {
+#if GraphGen(OV_GEN_NGRAPH_OP(BatchNormInference, v0, validate_and_infer_types))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
     element::Type result_et;
     PartialShape result_batch_shape;
     PartialShape result_channel_shape; // unused here
@@ -64,6 +73,9 @@ void op::BatchNormInference::validate_and_infer_types()
                                  get_input_partial_shape(INPUT_VARIANCE));
 
     set_output_type(0, result_et, result_batch_shape);
+#else
+    NODE_VALIDATION_CHECK(this, false, "Function is not included into the selective build.");
+#endif
 }
 
 std::shared_ptr<Node>

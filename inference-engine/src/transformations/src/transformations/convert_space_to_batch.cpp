@@ -3,6 +3,7 @@
 //
 
 #include "transformations/convert_space_to_batch.hpp"
+#include "transformations/itt.hpp"
 
 #include <memory>
 #include <vector>
@@ -15,7 +16,9 @@ NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertSpaceToBatch, "ConvertSpaceToBatch",
 
 void ngraph::pass::ConvertSpaceToBatch::convert_space_to_batch() {
     auto space_to_batch = ngraph::pattern::wrap_type<ngraph::opset3::SpaceToBatch>();
+#if GraphGen(OV_GEN_NGRAPH_PASS(ConvertSpaceToBatch, callback))
     ngraph::matcher_pass_callback callback = [](pattern::Matcher& m) {
+        OV_ITT_IE_TRANSFORM_CALLBACK(m, "callback")
         auto space_to_batch = std::dynamic_pointer_cast<ngraph::opset3::SpaceToBatch> (m.get_match_root());
         if (!space_to_batch) {
             return false;
@@ -112,15 +115,21 @@ void ngraph::pass::ConvertSpaceToBatch::convert_space_to_batch() {
         ngraph::replace_node(space_to_batch, flat_node);
         return true;
     };
-
+#else
+    ngraph::graph_rewrite_callback callback = [](ngraph::pattern::Matcher & m) -> bool {
+        return false;
+    };
+#endif
     auto m = std::make_shared<ngraph::pattern::Matcher>(space_to_batch, "ConvertSpaceToBatch");
     this->register_matcher(m, callback);
 }
 
 void ngraph::pass::ConvertSpaceToBatch::convert_space_to_batch_by_elements() {
     auto space_to_batch = ngraph::pattern::wrap_type<ngraph::opset3::SpaceToBatch>();
+#if GraphGen(OV_GEN_NGRAPH_PASS(ConvertSpaceToBatch, callback_by_elements))
     ngraph::matcher_pass_callback callback = [this](pattern::Matcher& m) {
         auto space_to_batch = std::dynamic_pointer_cast<ngraph::opset3::SpaceToBatch> (m.get_match_root());
+        OV_ITT_IE_TRANSFORM_CALLBACK(m, "callback_by_elements")
         if (!space_to_batch) {
             return false;
         }
@@ -203,7 +212,11 @@ void ngraph::pass::ConvertSpaceToBatch::convert_space_to_batch_by_elements() {
         ngraph::replace_node(space_to_batch, flat_node);
         return true;
     };
-
+#else
+    ngraph::graph_rewrite_callback callback = [](ngraph::pattern::Matcher & m) -> bool {
+        return false;
+    };
+#endif
     auto m = std::make_shared<ngraph::pattern::Matcher>(space_to_batch, "ConvertSpaceToBatch");
     this->register_matcher(m, callback);
 }

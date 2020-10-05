@@ -13,9 +13,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 //*****************************************************************************
+#include "itt.hpp"
 
-#include "ngraph/op/util/binary_elementwise_arithmetic.hpp"
 #include "ngraph/attribute_visitor.hpp"
+#include "ngraph/op/util/binary_elementwise_arithmetic.hpp"
 #include "ngraph/op/util/elementwise_args.hpp"
 
 using namespace std;
@@ -36,6 +37,7 @@ op::util::BinaryElementwiseArithmetic::BinaryElementwiseArithmetic(const Output<
 {
 }
 
+#if GraphGen(OV_GEN_NGRAPH_OP_UTIL(BinaryElementwiseArithmetic, validate_and_infer_types))
 void op::util::BinaryElementwiseArithmetic::validate_and_infer_elementwise_arithmetic(
     const op::AutoBroadcastSpec& autob)
 {
@@ -51,14 +53,25 @@ void op::util::BinaryElementwiseArithmetic::validate_and_infer_elementwise_arith
 
     set_output_type(0, args_et, args_pshape);
 }
+#endif
 
 void op::util::BinaryElementwiseArithmetic::validate_and_infer_types()
 {
+#if GraphGen(OV_GEN_NGRAPH_OP_UTIL(BinaryElementwiseArithmetic, validate_and_infer_types))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
     validate_and_infer_elementwise_arithmetic(m_autob);
+#else
+    NODE_VALIDATION_CHECK(this, false, "Function is not included into the selective build.");
+#endif
 }
 
 bool op::util::BinaryElementwiseArithmetic::visit_attributes(AttributeVisitor& visitor)
 {
+#if GraphGen(OV_GEN_NGRAPH_OP_UTIL(BinaryElementwiseArithmetic, visit_attributes))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
     visitor.on_attribute("auto_broadcast", m_autob);
     return true;
+#else
+    return false;
+#endif
 }

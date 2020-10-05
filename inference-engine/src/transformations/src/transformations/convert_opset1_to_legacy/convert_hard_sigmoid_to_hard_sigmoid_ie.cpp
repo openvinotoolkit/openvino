@@ -3,6 +3,7 @@
 //
 
 #include "transformations/convert_opset1_to_legacy/convert_hard_sigmoid_to_hard_sigmoid_ie.hpp"
+#include "transformations/itt.hpp"
 
 #include <memory>
 #include <vector>
@@ -20,8 +21,9 @@ ngraph::pass::ConvertHardSigmoidToLegacyMatcher::ConvertHardSigmoidToLegacyMatch
     auto input_1 = std::make_shared<pattern::op::Label>(element::f32, Shape{});
     auto input_2 = std::make_shared<pattern::op::Label>(element::f32, Shape{});
     auto node = std::make_shared<ngraph::opset1::HardSigmoid>(input_0, input_1, input_2);
-
+#if GraphGen(OV_GEN_NGRAPH_PASS(ConvertHardSigmoidToLegacy, callback))
     ngraph::matcher_pass_callback callback = [](pattern::Matcher& m) {
+        OV_ITT_IE_TRANSFORM_CALLBACK(m, "callback")
         auto hard_sigmoid = std::dynamic_pointer_cast<ngraph::opset1::HardSigmoid> (m.get_match_root());
         if (!hard_sigmoid) {
             return false;
@@ -51,7 +53,11 @@ ngraph::pass::ConvertHardSigmoidToLegacyMatcher::ConvertHardSigmoidToLegacyMatch
         ngraph::replace_node(hard_sigmoid, hard_sigmoid_ie);
         return true;
     };
-
+#else
+    ngraph::matcher_pass_callback callback = [](ngraph::pattern::Matcher & m) -> bool {
+        return false;
+    };
+#endif
     auto m = std::make_shared<ngraph::pattern::Matcher>(node, "ConvertHardSigmoidToLegacy");
     this->register_matcher(m, callback);
 }

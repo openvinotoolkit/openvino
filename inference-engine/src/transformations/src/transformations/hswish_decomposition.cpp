@@ -3,6 +3,7 @@
 //
 
 #include "transformations/hswish_decomposition.hpp"
+#include "transformations/itt.hpp"
 
 #include <memory>
 
@@ -15,8 +16,9 @@ NGRAPH_RTTI_DEFINITION(ngraph::pass::HSwishDecomposition, "HSwishDecomposition",
 ngraph::pass::HSwishDecomposition::HSwishDecomposition() {
     // Decomposes HSwish(x) op into sub-graph x * (min(Relu(x + 3), 6) * const(1/6)
     auto hswish = ngraph::pattern::wrap_type<opset4::HSwish>();
-
+#if GraphGen(OV_GEN_NGRAPH_PASS(HSwishDecomposition, callback))
     ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher &m) {
+        OV_ITT_IE_TRANSFORM_CALLBACK(m, "callback")
         auto &pattern_to_output = m.get_pattern_value_map();
         auto hswish_node = pattern_to_output.at(hswish).get_node_shared_ptr();
 
@@ -40,7 +42,11 @@ ngraph::pass::HSwishDecomposition::HSwishDecomposition() {
         ngraph::replace_node(m.get_match_root(), mul_second);
         return true;
     };
-
+#else
+    ngraph::graph_rewrite_callback callback = [](ngraph::pattern::Matcher & m) -> bool {
+        return false;
+    };
+#endif
     auto m = std::make_shared<ngraph::pattern::Matcher>(hswish, "HSwishDecomposition");
     register_matcher(m, callback);
 }

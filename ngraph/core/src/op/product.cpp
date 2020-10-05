@@ -94,6 +94,10 @@ namespace
 bool op::v0::Product::evaluate(const HostTensorVector& outputs,
                                const HostTensorVector& inputs) const
 {
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v0::Product::evaluate");
+#if GraphGen(OV_GEN_NGRAPH_OP(Product, v0, evaluate))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
     return evaluate_product(inputs[0], outputs[0], get_reduction_axes(), false);
+#else
+    return false;
+#endif
 }

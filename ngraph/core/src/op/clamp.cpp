@@ -88,9 +88,13 @@ namespace
 
 bool op::v0::Clamp::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v0::Clamp::evaluate");
+#if GraphGen(OV_GEN_NGRAPH_OP(Clamp, v0, evaluate))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
     return evaluate_clamp(
         inputs[0], outputs[0], get_min(), get_max(), shape_size(get_input_shape(0)));
+#else
+    return false;
+#endif
 }
 
 op::Clamp::Clamp(const Output<Node>& data, const double min, const double max)
@@ -103,13 +107,20 @@ op::Clamp::Clamp(const Output<Node>& data, const double min, const double max)
 
 void op::Clamp::pre_validate_and_infer_types()
 {
+#if GraphGen(OV_GEN_NGRAPH_OP(Clamp, v0, pre_validate_and_infer_types))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
     NODE_VALIDATION_CHECK(
         this, m_min < m_max, "The 'min' parameter needs to be less than 'max' for Clamp");
     set_output_type(0, get_input_element_type(0), get_input_partial_shape(0));
+#else
+    NODE_VALIDATION_CHECK(this, false, "Function is not included into the selective build.");
+#endif
 }
 
 OutputVector op::Clamp::decompose_op() const
 {
+#if GraphGen(OV_GEN_NGRAPH_OP(Clamp, v0, decompose_op))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
     const auto data = input_value(0);
     const auto type = data.get_element_type();
     const auto shape = data.get_shape();
@@ -223,6 +234,9 @@ OutputVector op::Clamp::decompose_op() const
 
     auto max = make_shared<op::Maximum>(clamp_min, data);
     return {make_shared<op::Minimum>(clamp_max, max)};
+#else
+    NODE_VALIDATION_CHECK(this, false, "Function is not included into the selective build.");
+#endif
 }
 
 shared_ptr<Node> op::Clamp::clone_with_new_inputs(const OutputVector& new_args) const
@@ -237,7 +251,12 @@ shared_ptr<Node> op::Clamp::clone_with_new_inputs(const OutputVector& new_args) 
 
 bool op::Clamp::visit_attributes(AttributeVisitor& visitor)
 {
+#if GraphGen(OV_GEN_NGRAPH_OP(Clamp, v0, visit_attributes))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
     visitor.on_attribute("min", m_min);
     visitor.on_attribute("max", m_max);
     return true;
+#else
+    return false;
+#endif
 }

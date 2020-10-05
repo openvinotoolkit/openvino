@@ -3,6 +3,7 @@
 //
 
 #include "transformations/softplus_fusion.hpp"
+#include "transformations/itt.hpp"
 
 #include <memory>
 #include <vector>
@@ -20,8 +21,9 @@ ngraph::pass::SoftPlusFusion::SoftPlusFusion() {
     auto add_constant = ngraph::pattern::wrap_type<ngraph::opset4::Constant>();
     auto add = std::make_shared<ngraph::opset4::Add>(exp, add_constant);
     auto log = std::make_shared<ngraph::opset4::Log>(add);
-
+#if GraphGen(OV_GEN_NGRAPH_PASS(SoftPlusFusion, callback))
     ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher &m) {
+        OV_ITT_IE_TRANSFORM_CALLBACK(m, "callback")
         auto &pattern_to_output = m.get_pattern_value_map();
         auto exp_input = pattern_to_output.at(input);
 
@@ -49,7 +51,11 @@ ngraph::pass::SoftPlusFusion::SoftPlusFusion() {
         ngraph::replace_node(m.get_match_root(), softplus);
         return true;
     };
-
+#else
+    ngraph::graph_rewrite_callback callback = [](ngraph::pattern::Matcher & m) -> bool {
+        return false;
+    };
+#endif
     auto m = std::make_shared<ngraph::pattern::Matcher>(log, "SoftPlusFusion");
     register_matcher(m, callback);
 }

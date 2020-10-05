@@ -3,6 +3,7 @@
 //
 
 #include "transformations/convert_negative.hpp"
+#include "transformations/itt.hpp"
 
 #include <memory>
 #include <vector>
@@ -15,8 +16,9 @@ NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertNegative, "ConvertNegative", 0);
 
 ngraph::pass::ConvertNegative::ConvertNegative() {
     auto neg = ngraph::pattern::wrap_type<ngraph::opset1::Negative>();
-
+#if GraphGen(OV_GEN_NGRAPH_PASS(ConvertNegative, callback))
     ngraph::graph_rewrite_callback callback = [](pattern::Matcher& m) {
+        OV_ITT_IE_TRANSFORM_CALLBACK(m, "callback")
         auto neg = std::dynamic_pointer_cast<ngraph::opset1::Negative> (m.get_match_root());
         if (!neg) {
             return false;
@@ -29,7 +31,11 @@ ngraph::pass::ConvertNegative::ConvertNegative() {
         ngraph::replace_node(neg, mul);
         return true;
     };
-
+#else
+    ngraph::graph_rewrite_callback callback = [](ngraph::pattern::Matcher & m) -> bool {
+        return false;
+    };
+#endif
     auto m = std::make_shared<ngraph::pattern::Matcher>(neg, "ConvertNegative");
     this->register_matcher(m, callback);
 }

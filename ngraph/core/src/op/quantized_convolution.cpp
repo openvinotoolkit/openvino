@@ -13,10 +13,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 //*****************************************************************************
+#include "itt.hpp"
 
-#include "quantized_convolution.hpp"
 #include "ngraph/coordinate_diff.hpp"
 #include "ngraph/validation_util.hpp"
+#include "quantized_convolution.hpp"
 
 NGRAPH_SUPPRESS_DEPRECATED_START
 
@@ -65,6 +66,8 @@ op::QuantizedConvolution::QuantizedConvolution(const Output<Node>& input,
 
 void op::QuantizedConvolution::validate_and_infer_types()
 {
+#if GraphGen(OV_GEN_NGRAPH_OP(QuantizedConvolution, v0, validate_and_infer_types))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
     enum
     {
         INPUT,
@@ -171,6 +174,9 @@ void op::QuantizedConvolution::validate_and_infer_types()
         ")");
 
     set_output_type(0, m_output_type, result_shape);
+#else
+    NODE_VALIDATION_CHECK(this, false, "Function is not included into the selective build.");
+#endif
 }
 
 shared_ptr<Node> op::QuantizedConvolution::clone_with_new_inputs(const OutputVector& new_args) const

@@ -3,6 +3,7 @@
 //
 
 #include "transformations/mish_fusion.hpp"
+#include "transformations/itt.hpp"
 
 #include <memory>
 #include <vector>
@@ -20,8 +21,9 @@ ngraph::pass::MishFusion::MishFusion() {
     auto log = std::make_shared<ngraph::opset4::Log>(add);
     auto tanh = std::make_shared<ngraph::opset4::Tanh>(log);
     auto mul = std::make_shared<ngraph::opset4::Multiply>(input, tanh);
-
+#if GraphGen(OV_GEN_NGRAPH_PASS(MishFusion, callback))
     ngraph::graph_rewrite_callback matcher_pass_callback = [=](ngraph::pattern::Matcher& m) {
+        OV_ITT_IE_TRANSFORM_CALLBACK(m, "callback")
         auto & pattern_to_output = m.get_pattern_value_map();
         auto exp_input = pattern_to_output.at(input);
 
@@ -36,7 +38,11 @@ ngraph::pass::MishFusion::MishFusion() {
         ngraph::replace_node(m.get_match_root(), mish);
         return true;
     };
-
+#else
+    ngraph::graph_rewrite_callback matcher_pass_callback = [](ngraph::pattern::Matcher & m) -> bool {
+        return false;
+    };
+#endif
     auto m = std::make_shared<ngraph::pattern::Matcher>(mul, "MishFusion");
     register_matcher(m, matcher_pass_callback);
 }

@@ -3,6 +3,7 @@
 //
 
 #include "transformations/convert_extract_image_patches_to_reorg_yolo.hpp"
+#include "transformations/itt.hpp"
 
 #include <memory>
 #include <vector>
@@ -17,8 +18,9 @@ ngraph::pass::ConvertExtractImagePatchesToReorgYolo::ConvertExtractImagePatchesT
     auto image = std::make_shared<ngraph::pattern::op::Label>(ngraph::element::f32, ngraph::Shape{1, 1, 1, 1});
     auto eip = std::make_shared<ngraph::opset3::ExtractImagePatches>(image, ngraph::Shape{1, 1}, ngraph::Strides{1, 1}, ngraph::Shape{1, 1},
             ngraph::op::PadType::VALID);
-
+#if GraphGen(OV_GEN_NGRAPH_PASS(ConvertExtractImagePatchesToReorgYolo, callback))
     ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher &m) {
+        OV_ITT_IE_TRANSFORM_CALLBACK(m, "callback")
         auto &pattern_to_output = m.get_pattern_value_map();
         auto extract_image_patches =  std::dynamic_pointer_cast<ngraph::opset3::ExtractImagePatches>(m.get_match_root());
 
@@ -83,7 +85,11 @@ ngraph::pass::ConvertExtractImagePatchesToReorgYolo::ConvertExtractImagePatchesT
         ngraph::replace_node(extract_image_patches, reorg_yolo);
         return true;
     };
-
+#else
+    ngraph::graph_rewrite_callback callback = [](ngraph::pattern::Matcher & m) -> bool {
+        return false;
+    };
+#endif
     auto m = std::make_shared<ngraph::pattern::Matcher>(eip, "ConvertExtractImagePatchesToReorgYolo");
     register_matcher(m, callback);
 }

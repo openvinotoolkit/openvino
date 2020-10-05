@@ -13,6 +13,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 //*****************************************************************************
+#include "itt.hpp"
 
 #include "ngraph/op/dequantize.hpp"
 #include "ngraph/shape_util.hpp"
@@ -39,6 +40,9 @@ op::Dequantize::Dequantize(const Output<Node>& input,
 
 void op::Dequantize::validate_and_infer_types()
 {
+#if GraphGen(OV_GEN_NGRAPH_OP(Dequantize, v0, validate_and_infer_types))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
+
     enum
     {
         INPUT,
@@ -151,6 +155,9 @@ void op::Dequantize::validate_and_infer_types()
     {
         set_output_type(0, unquantized_type, PartialShape::dynamic());
     }
+#else
+    NODE_VALIDATION_CHECK(this, false, "Function is not included into the selective build.");
+#endif
 }
 
 shared_ptr<Node> op::Dequantize::clone_with_new_inputs(const OutputVector& new_args) const

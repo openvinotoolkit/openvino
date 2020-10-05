@@ -14,10 +14,12 @@
 // limitations under the License.
 //*****************************************************************************
 
-#include "ngraph/op/binary_convolution.hpp"
+#include "itt.hpp"
+
 #include "ngraph/attribute_visitor.hpp"
 #include "ngraph/axis_vector.hpp"
 #include "ngraph/coordinate_diff.hpp"
+#include "ngraph/op/binary_convolution.hpp"
 #include "ngraph/op/reshape.hpp"
 #include "ngraph/util.hpp"
 #include "ngraph/validation_util.hpp"
@@ -71,6 +73,8 @@ op::v1::BinaryConvolution::BinaryConvolution(const Output<Node>& data,
 
 void op::v1::BinaryConvolution::validate_and_infer_types()
 {
+#if GraphGen(OV_GEN_NGRAPH_OP(BinaryConvolution, v1, validate_and_infer_types))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
     const PartialShape& data_batch_shape = get_input_partial_shape(0);
     element::Type data_batch_et = get_input_element_type(0);
     const PartialShape& filters_shape = get_input_partial_shape(1);
@@ -147,6 +151,9 @@ void op::v1::BinaryConvolution::validate_and_infer_types()
                                              m_dilations);
 
     set_output_type(0, data_batch_et, result_shape);
+#else
+    NODE_VALIDATION_CHECK(this, false, "Function is not included into the selective build.");
+#endif
 }
 
 shared_ptr<Node>
@@ -166,6 +173,8 @@ shared_ptr<Node>
 
 bool op::v1::BinaryConvolution::visit_attributes(AttributeVisitor& visitor)
 {
+#if GraphGen(OV_GEN_NGRAPH_OP(BinaryConvolution, v1, visit_attributes))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp)
     visitor.on_attribute("strides", m_strides);
     visitor.on_attribute("pads_begin", m_pads_begin);
     visitor.on_attribute("pads_end", m_pads_end);
@@ -174,6 +183,9 @@ bool op::v1::BinaryConvolution::visit_attributes(AttributeVisitor& visitor)
     visitor.on_attribute("pad_value", m_pad_value);
     visitor.on_attribute("auto_pad", m_auto_pad);
     return true;
+#else
+    return false;
+#endif
 }
 
 namespace ngraph

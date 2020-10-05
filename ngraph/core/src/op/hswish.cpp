@@ -15,6 +15,7 @@
 //*****************************************************************************
 
 #include "ngraph/op/hswish.hpp"
+#include "itt.hpp"
 #include "ngraph/attribute_visitor.hpp"
 #include "ngraph/op/constant.hpp"
 
@@ -74,5 +75,10 @@ namespace
 
 bool op::v4::HSwish::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
+#if GraphGen(OV_GEN_NGRAPH_OP(HSwish, v4, evaluate))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
     return evaluate_hswish(inputs[0], outputs[0], shape_size(get_output_shape(0)));
+#else
+    return false;
+#endif
 }

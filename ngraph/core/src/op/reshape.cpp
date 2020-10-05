@@ -71,6 +71,8 @@ op::Reshape::Reshape(const Output<Node>& arg,
 
 void op::Reshape::validate_and_infer_types()
 {
+#if GraphGen(OV_GEN_NGRAPH_OP(Reshape, v0, validate_and_infer_types))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
     auto& input_shape = get_input_partial_shape(0);
     auto input_rank = input_shape.rank();
 
@@ -139,6 +141,9 @@ void op::Reshape::validate_and_infer_types()
         m_is_transpose = true;
     }
     set_output_type(0, get_input_element_type(0), m_output_shape);
+#else
+    NODE_VALIDATION_CHECK(this, false, "Function is not included into the selective build.");
+#endif
 }
 
 shared_ptr<Node> op::Reshape::clone_with_new_inputs(const OutputVector& new_args) const
@@ -149,16 +154,25 @@ shared_ptr<Node> op::Reshape::clone_with_new_inputs(const OutputVector& new_args
 
 bool op::Reshape::visit_attributes(AttributeVisitor& visitor)
 {
+#if GraphGen(OV_GEN_NGRAPH_OP(Reshape, v0, visit_attributes))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
     visitor.on_attribute("input_order", m_input_order);
     visitor.on_attribute("output_shape", m_output_shape);
     return true;
+#else
+    return false;
+#endif
 }
 
 bool op::v0::Reshape::evaluate(const HostTensorVector& outputs,
                                const HostTensorVector& inputs) const
 {
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v0::Reshape::evaluate");
+#if GraphGen(OV_GEN_NGRAPH_OP(Reshape, v0, evaluate))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
     return evaluate_reshape(inputs[0], outputs[0], get_input_order());
+#else
+    return false;
+#endif
 }
 
 NGRAPH_RTTI_DEFINITION(op::v1::Reshape, "Reshape", 1);
@@ -172,12 +186,19 @@ op::v1::Reshape::Reshape(const Output<Node>& arg, const Output<Node>& pattern, b
 
 bool op::v1::Reshape::visit_attributes(AttributeVisitor& visitor)
 {
+#if GraphGen(OV_GEN_NGRAPH_OP(Reshape, v1, visit_attributes))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
     visitor.on_attribute("special_zero", m_special_zero);
     return true;
+#else
+    return false;
+#endif
 }
 
 void op::v1::Reshape::validate_and_infer_types()
 {
+#if GraphGen(OV_GEN_NGRAPH_OP(Reshape, v1, validate_and_infer_types))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
     auto pattern_et = get_input_element_type(1);
     // check data types
     NODE_VALIDATION_CHECK(
@@ -323,6 +344,9 @@ void op::v1::Reshape::validate_and_infer_types()
     {
         set_output_type(0, get_input_element_type(0), PartialShape::dynamic(output_rank));
     }
+#else
+    NODE_VALIDATION_CHECK(this, false, "Function is not included into the selective build.");
+#endif
 }
 
 shared_ptr<Node> op::v1::Reshape::clone_with_new_inputs(const OutputVector& new_args) const
@@ -334,7 +358,8 @@ shared_ptr<Node> op::v1::Reshape::clone_with_new_inputs(const OutputVector& new_
 bool op::v1::Reshape::evaluate(const HostTensorVector& outputs,
                                const HostTensorVector& inputs) const
 {
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v1::Reshape::evaluate");
+#if GraphGen(OV_GEN_NGRAPH_OP(Reshape, v1, evaluate))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
 
     // infer and set output shape if the output shape contain -1
     // and zero value dimension
@@ -452,4 +477,7 @@ bool op::v1::Reshape::evaluate(const HostTensorVector& outputs,
     }
     const AxisVector order = get_default_order(inputs[0]->get_shape());
     return evaluate_reshape(inputs[0], outputs[0], order);
+#else
+    return false;
+#endif
 }

@@ -4,6 +4,7 @@
 
 #include "transformations/tensor_iterator_transformations/unroll_tensor_iterator.hpp"
 #include "transformations/utils/utils.hpp"
+#include "transformations/itt.hpp"
 
 #include <memory>
 #include <vector>
@@ -17,7 +18,9 @@ NGRAPH_RTTI_DEFINITION(ngraph::pass::UnrollTensorIterator, "UnrollTensorIterator
 
 ngraph::pass::UnrollTensorIterator::UnrollTensorIterator() : MatcherPass() {
     auto tensor_iterator = ngraph::pattern::wrap_type<ngraph::opset4::TensorIterator>();
+#if GraphGen(OV_GEN_NGRAPH_PASS(UnrollTensorIterator, callback))
     ngraph::matcher_pass_callback callback = [this](pattern::Matcher& m) {
+        OV_ITT_IE_TRANSFORM_CALLBACK(m, "callback")
         auto ti = std::dynamic_pointer_cast<ngraph::opset4::TensorIterator>(m.get_match_root());
         if (!ti) {
             return false;
@@ -185,7 +188,11 @@ ngraph::pass::UnrollTensorIterator::UnrollTensorIterator() : MatcherPass() {
 
         return true;
     };
-
+#else
+    ngraph::matcher_pass_callback callback  = [](ngraph::pattern::Matcher & m) -> bool {
+        return false;
+    };
+#endif
     auto m = std::make_shared<ngraph::pattern::Matcher>(tensor_iterator, "UnrollTensorIterator");
     register_matcher(m, callback);
 }

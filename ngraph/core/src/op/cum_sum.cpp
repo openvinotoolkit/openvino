@@ -13,12 +13,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 //*****************************************************************************
+#include "itt.hpp"
 
-#include "ngraph/op/cum_sum.hpp"
 #include "ngraph/attribute_visitor.hpp"
 #include "ngraph/graph_util.hpp"
 #include "ngraph/op/broadcast.hpp"
 #include "ngraph/op/constant.hpp"
+#include "ngraph/op/cum_sum.hpp"
 
 using namespace std;
 using namespace ngraph;
@@ -46,13 +47,20 @@ op::v0::CumSum::CumSum(const Output<Node>& arg, const bool exclusive, const bool
 
 bool op::v0::CumSum::visit_attributes(AttributeVisitor& visitor)
 {
+#if GraphGen(OV_GEN_NGRAPH_OP(CumSum, v0, visit_attributes))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
     visitor.on_attribute("exclusive", m_exclusive);
     visitor.on_attribute("reverse", m_reverse);
     return true;
+#else
+    return false;
+#endif
 }
 
 void op::v0::CumSum::validate_and_infer_types()
 {
+#if GraphGen(OV_GEN_NGRAPH_OP(CumSum, v0, validate_and_infer_types))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
     element::Type arg_type = get_input_element_type(0);
     PartialShape arg_shape = get_input_partial_shape(0);
     set_output_type(0, arg_type, arg_shape);
@@ -69,6 +77,9 @@ void op::v0::CumSum::validate_and_infer_types()
                           "axis element type must be either int64_t or int32_t but got (",
                           axis_type,
                           ").");
+#else
+    NODE_VALIDATION_CHECK(this, false, "Function is not included into the selective build.");
+#endif
 }
 
 shared_ptr<Node> op::v0::CumSum::clone_with_new_inputs(const OutputVector& new_args) const

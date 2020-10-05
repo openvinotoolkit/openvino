@@ -17,6 +17,8 @@
 #include <cmath>
 #include <functional>
 
+#include "itt.hpp"
+
 #include "ngraph/attribute_visitor.hpp"
 #include "ngraph/op/concat.hpp"
 #include "ngraph/op/constant.hpp"
@@ -129,6 +131,8 @@ op::v0::LSTMCell::LSTMCell(const Output<Node>& X,
 
 bool ngraph::op::v0::LSTMCell::visit_attributes(AttributeVisitor& visitor)
 {
+#if GraphGen(OV_GEN_NGRAPH_OP(LSTMCell, v0, visit_attributes))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
     visitor.on_attribute("hidden_size", m_hidden_size);
     visitor.on_attribute("activations", m_activations);
     visitor.on_attribute("activations_alpha", m_activations_alpha);
@@ -138,10 +142,15 @@ bool ngraph::op::v0::LSTMCell::visit_attributes(AttributeVisitor& visitor)
     visitor.on_attribute("input_forget", m_input_forget);
     visitor.on_attribute("weights_format", m_weights_format);
     return true;
+#else
+    return false;
+#endif
 }
 
 void op::v0::LSTMCell::validate_and_infer_types()
 {
+#if GraphGen(OV_GEN_NGRAPH_OP(LSTMCell, v0, validate_and_infer_types))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
     for (const auto& input : inputs())
     {
         if (input.get_partial_shape().rank().is_dynamic())
@@ -288,6 +297,9 @@ void op::v0::LSTMCell::validate_and_infer_types()
     set_output_size(2);
     set_output_type(0, result_et, {merged_batch_size, merged_hidden_size});
     set_output_type(1, result_et, {merged_batch_size, merged_hidden_size});
+#else
+    NODE_VALIDATION_CHECK(this, false, "Function is not included into the selective build.");
+#endif
 }
 
 Output<Node> op::v0::LSTMCell::get_default_bias_input() const
@@ -441,11 +453,18 @@ op::v4::LSTMCell::LSTMCell(const Output<Node>& X,
 
 bool ngraph::op::v4::LSTMCell::visit_attributes(AttributeVisitor& visitor)
 {
+#if GraphGen(OV_GEN_NGRAPH_OP(LSTMCell, v4, visit_attributes))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
     return op::util::RNNCellBase::visit_attributes(visitor);
+#else
+    return false;
+#endif
 }
 
 void op::v4::LSTMCell::validate_and_infer_types()
 {
+#if GraphGen(OV_GEN_NGRAPH_OP(LSTMCell, v4, validate_and_infer_types))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
     for (const auto& input : inputs())
     {
         if (input.get_partial_shape().rank().is_dynamic())
@@ -552,6 +571,9 @@ void op::v4::LSTMCell::validate_and_infer_types()
     set_output_size(2);
     set_output_type(0, result_et, {merged_batch_size, merged_hidden_size});
     set_output_type(1, result_et, {merged_batch_size, merged_hidden_size});
+#else
+    NODE_VALIDATION_CHECK(this, false, "Function is not included into the selective build.");
+#endif
 }
 
 Output<Node> op::v4::LSTMCell::get_default_bias_input() const

@@ -13,6 +13,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 //*****************************************************************************
+#include "itt.hpp"
 
 #include "ngraph/op/tile.hpp"
 
@@ -37,6 +38,8 @@ bool ngraph::op::v0::Tile::visit_attributes(AttributeVisitor& visitor)
 
 void op::v0::Tile::validate_and_infer_types()
 {
+#if GraphGen(OV_GEN_NGRAPH_OP(Tile, v0, validate_and_infer_types))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
     auto arg_et = get_input_element_type(0);
 
     // Repeats should have integer data type. For now we only allow i64
@@ -87,6 +90,9 @@ void op::v0::Tile::validate_and_infer_types()
 
     set_input_is_relevant_to_shape(0);
     set_input_is_relevant_to_shape(1);
+#else
+    NODE_VALIDATION_CHECK(this, false, "Function is not included into the selective build.");
+#endif
 }
 
 shared_ptr<Node> op::v0::Tile::clone_with_new_inputs(const OutputVector& new_args) const
@@ -97,6 +103,8 @@ shared_ptr<Node> op::v0::Tile::clone_with_new_inputs(const OutputVector& new_arg
 
 bool op::v0::Tile::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
+#if GraphGen(OV_GEN_NGRAPH_OP(Tile, v0, evaluate))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
     const auto& data = inputs[0];
     const auto& axis = inputs[1];
     auto& output = outputs[0];
@@ -122,4 +130,7 @@ bool op::v0::Tile::evaluate(const HostTensorVector& outputs, const HostTensorVec
                              data->get_element_type().size());
 
     return true;
+#else
+    return false;
+#endif
 }

@@ -38,6 +38,8 @@ op::PriorBox::PriorBox(const Output<Node>& layer_shape,
 
 void op::PriorBox::validate_and_infer_types()
 {
+#if GraphGen(OV_GEN_NGRAPH_OP(PriorBox, v0, validate_and_infer_types))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
     // shape node should have integer data type. For now we only allow i64
     auto layer_shape_et = get_input_element_type(0);
     NODE_VALIDATION_CHECK(this,
@@ -81,6 +83,9 @@ void op::PriorBox::validate_and_infer_types()
     {
         set_output_type(0, element::f32, PartialShape::dynamic());
     }
+#else
+    NODE_VALIDATION_CHECK(this, false, "Function is not included into the selective build.");
+#endif
 }
 
 shared_ptr<Node> op::PriorBox::clone_with_new_inputs(const OutputVector& new_args) const
@@ -136,6 +141,8 @@ std::vector<float> op::PriorBox::normalized_aspect_ratio(const std::vector<float
 
 bool op::PriorBox::visit_attributes(AttributeVisitor& visitor)
 {
+#if GraphGen(OV_GEN_NGRAPH_OP(PriorBox, v0, visit_attributes))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
     visitor.on_attribute("min_size", m_attrs.min_size);
     visitor.on_attribute("max_size", m_attrs.max_size);
     visitor.on_attribute("aspect_ratio", m_attrs.aspect_ratio);
@@ -149,6 +156,9 @@ bool op::PriorBox::visit_attributes(AttributeVisitor& visitor)
     visitor.on_attribute("variance", m_attrs.variance);
     visitor.on_attribute("scale_all_sizes", m_attrs.scale_all_sizes);
     return true;
+#else
+    return false;
+#endif
 }
 
 namespace
@@ -200,7 +210,6 @@ namespace
 bool op::v0::PriorBox::evaluate(const HostTensorVector& outputs,
                                 const HostTensorVector& inputs) const
 {
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v0::PriorBox::evaluate");
     return false;
     // Todo (itikhono): enable the use of the reference implementation after supporting constants as
     // outputs in plugins

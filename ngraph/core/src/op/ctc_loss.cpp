@@ -13,6 +13,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 //*****************************************************************************
+#include "itt.hpp"
 
 #include "ngraph/op/ctc_loss.hpp"
 
@@ -54,6 +55,7 @@ op::v4::CTCLoss::CTCLoss(const Output<Node>& logits,
 
 void op::v4::CTCLoss::validate_and_infer_types()
 {
+#if GraphGen(OV_GEN_NGRAPH_OP(CTCLoss, v4, validate_and_infer_types))
     // check types of input tensors
     const auto& logits_type = get_input_element_type(0);
     const auto& logit_length_type = get_input_element_type(1);
@@ -225,14 +227,22 @@ void op::v4::CTCLoss::validate_and_infer_types()
     {
         set_output_type(0, logits_type, PartialShape{Dimension::dynamic()});
     }
+#else
+    NODE_VALIDATION_CHECK(this, false, "Function is not included into the selective build.");
+#endif
 }
 
 bool op::v4::CTCLoss::visit_attributes(AttributeVisitor& visitor)
 {
+#if GraphGen(OV_GEN_NGRAPH_OP(CTCLoss, v4, visit_attributes))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
     visitor.on_attribute("preprocess_collapse_repeated", preprocess_collapse_repeated_);
     visitor.on_attribute("ctc_merge_repeated", ctc_merge_repeated_);
     visitor.on_attribute("unique", unique_);
     return true;
+#else
+    return false;
+#endif
 }
 
 shared_ptr<Node> op::v4::CTCLoss::clone_with_new_inputs(const OutputVector& new_args) const

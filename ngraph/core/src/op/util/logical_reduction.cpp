@@ -13,9 +13,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 //*****************************************************************************
+#include "itt.hpp"
 
-#include "ngraph/op/util/logical_reduction.hpp"
 #include "ngraph/op/constant.hpp"
+#include "ngraph/op/util/logical_reduction.hpp"
 #include "ngraph/validation_util.hpp"
 
 using namespace std;
@@ -64,6 +65,8 @@ void op::util::LogicalReduction::set_reduction_axes(const AxisSet& reduction_axe
 
 void op::util::LogicalReduction::validate_and_infer_types()
 {
+#if GraphGen(OV_GEN_NGRAPH_OP_UTIL(LogicalReduction, validate_and_infer_types))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
     auto input_shape = get_input_partial_shape(0);
     auto input_rank = input_shape.rank();
 
@@ -115,4 +118,7 @@ void op::util::LogicalReduction::validate_and_infer_types()
                           "Input element type must be boolean.");
 
     set_output_type(0, element::boolean, result_shape);
+#else
+    NODE_VALIDATION_CHECK(this, false, "Function is not included into the selective build.");
+#endif
 }

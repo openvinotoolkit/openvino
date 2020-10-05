@@ -145,6 +145,8 @@ namespace
 
 void op::v3::Broadcast::validate_and_infer_types()
 {
+#if GraphGen(OV_GEN_NGRAPH_OP(Broadcast, v3, validate_and_infer_types))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
     if (m_mode.m_type == BroadcastType::NONE)
     {
         NODE_VALIDATION_CHECK(this,
@@ -184,6 +186,9 @@ void op::v3::Broadcast::validate_and_infer_types()
         set_input_is_relevant_to_shape(2); // axes_mapping - Broadcast type
     }
     set_output_type(0, get_input_element_type(0), result_shape);
+#else
+    NODE_VALIDATION_CHECK(this, false, "Function is not included into the selective build.");
+#endif
 }
 
 shared_ptr<Node> op::v3::Broadcast::clone_with_new_inputs(const OutputVector& new_args) const
@@ -205,14 +210,20 @@ shared_ptr<Node> op::v3::Broadcast::clone_with_new_inputs(const OutputVector& ne
 
 bool op::v3::Broadcast::visit_attributes(AttributeVisitor& visitor)
 {
+#if GraphGen(OV_GEN_NGRAPH_OP(Broadcast, v3, visit_attributes))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
     visitor.on_attribute("broadcast_spec", m_mode);
     return true;
+#else
+    return false;
+#endif
 }
 
 bool op::v3::Broadcast::evaluate(const HostTensorVector& outputs,
                                  const HostTensorVector& inputs) const
 {
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v3::Broadcast::evaluate");
+#if GraphGen(OV_GEN_NGRAPH_OP(Broadcast, v3, evaluate))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
     if (get_broadcast_spec().m_type == op::BroadcastType::BIDIRECTIONAL)
     {
         auto arg_shape = inputs[0]->get_shape();
@@ -225,6 +236,9 @@ bool op::v3::Broadcast::evaluate(const HostTensorVector& outputs,
             inputs[0], outputs[0], pair_broadcast_axes, result_shape.to_shape());
     }
     return op::util::BroadcastBase::evaluate(outputs, inputs);
+#else
+    return false;
+#endif
 }
 
 namespace
@@ -270,11 +284,16 @@ op::v1::Broadcast::Broadcast(const Output<Node>& arg,
 
 void op::v1::Broadcast::validate_and_infer_types()
 {
+#if GraphGen(OV_GEN_NGRAPH_OP(Broadcast, v1, validate_and_infer_types))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
     util::BroadcastBase::validate_and_infer_types();
 
     set_input_is_relevant_to_shape(0); // arg - Result element type
     set_input_is_relevant_to_shape(1); // target_shape - Result shape
     set_input_is_relevant_to_shape(2); // axes_mapping - Broadcast type
+#else
+    NODE_VALIDATION_CHECK(this, false, "Function is not included into the selective build.");
+#endif
 }
 
 shared_ptr<Node> op::v1::Broadcast::clone_with_new_inputs(const OutputVector& new_args) const
@@ -286,15 +305,24 @@ shared_ptr<Node> op::v1::Broadcast::clone_with_new_inputs(const OutputVector& ne
 
 bool op::v1::Broadcast::visit_attributes(AttributeVisitor& visitor)
 {
+#if GraphGen(OV_GEN_NGRAPH_OP(Broadcast, v1, visit_attributes))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
     visitor.on_attribute("broadcast_spec", m_broadcast_spec);
     return true;
+#else
+    return false;
+#endif
 }
 
 bool op::v1::Broadcast::evaluate(const HostTensorVector& outputs,
                                  const HostTensorVector& inputs) const
 {
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v1::Broadcast::evaluate");
+#if GraphGen(OV_GEN_NGRAPH_OP(Broadcast, v1, evaluate))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
     return op::util::BroadcastBase::evaluate(outputs, inputs);
+#else
+    return false;
+#endif
 }
 
 constexpr NodeTypeInfo op::v0::Broadcast::type_info;
@@ -318,13 +346,21 @@ op::v0::Broadcast::Broadcast(const Output<Node>& arg,
 
 bool op::v0::Broadcast::visit_attributes(AttributeVisitor& visitor)
 {
+#if GraphGen(OV_GEN_NGRAPH_OP(Broadcast, v0, visit_attributes))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
     visitor.on_attribute("shape", m_shape);
     visitor.on_attribute("broadcast_axes", m_broadcast_axes);
     return true;
+#else
+    return false;
+#endif
 }
 
 void op::v0::Broadcast::validate_and_infer_types()
 {
+#if GraphGen(OV_GEN_NGRAPH_OP(Broadcast, v0, validate_and_infer_types))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
+
     infer_shape();
 
     for (auto axis : m_broadcast_axes)
@@ -364,6 +400,9 @@ void op::v0::Broadcast::validate_and_infer_types()
         ").");
 
     set_output_type(0, get_input_element_type(0), m_shape);
+#else
+    NODE_VALIDATION_CHECK(this, false, "Function is not included into the selective build.");
+#endif
 }
 
 shared_ptr<Node> op::v0::Broadcast::clone_with_new_inputs(const OutputVector& new_args) const
@@ -437,8 +476,12 @@ namespace
 bool op::v0::Broadcast::evaluate(const HostTensorVector& outputs,
                                  const HostTensorVector& inputs) const
 {
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v0::Broadcast::evaluate");
+#if GraphGen(OV_GEN_NGRAPH_OP(Broadcast, v0, evaluate))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
     return evaluate_broadcast_v0(inputs[0], outputs[0], get_broadcast_axes(), get_output_shape(0));
+#else
+    return false;
+#endif
 }
 
 constexpr NodeTypeInfo op::v0::BroadcastLike::type_info;
@@ -454,10 +497,15 @@ op::v0::BroadcastLike::BroadcastLike(const Output<Node>& arg,
 
 bool op::v0::BroadcastLike::visit_attributes(AttributeVisitor& visitor)
 {
+#if GraphGen(OV_GEN_NGRAPH_OP(BroadcastLike, v0, visit_attributes))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
     visitor.on_attribute("shape", m_shape);
     visitor.on_attribute("broadcast_axes", m_broadcast_axes);
     visitor.on_attribute("initial_broadcast_axes", m_initial_broadcast_axes);
     return true;
+#else
+    return false;
+#endif
 }
 
 shared_ptr<Node> op::v0::BroadcastLike::clone_with_new_inputs(const OutputVector& new_args) const

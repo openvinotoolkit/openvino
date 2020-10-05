@@ -3,6 +3,7 @@
 //
 
 #include "transformations/convert_opset1_to_legacy/convert_matmul_to_fc_or_gemm.hpp"
+#include "transformations/itt.hpp"
 
 #include <algorithm>
 #include <utility>
@@ -23,8 +24,9 @@ ngraph::pass::ConvertMatMulToFC::ConvertMatMulToFC() {
     auto input_0 = std::make_shared<pattern::op::Label>(element::f32, Shape {1, 1});
     auto input_1 = std::make_shared<pattern::op::Label>(element::f32, Shape {1, 1});
     auto matmul = std::make_shared<ngraph::opset1::MatMul>(input_0, input_1);
-
+#if GraphGen(OV_GEN_NGRAPH_PASS(ConvertMatMulToFC, callback))
     ngraph::matcher_pass_callback callback = [this](pattern::Matcher& m) {
+        OV_ITT_IE_TRANSFORM_CALLBACK(m, "callback")
         auto matmul = std::dynamic_pointer_cast<ngraph::opset1::MatMul>(m.get_match_root());
         if (!matmul || m_transformation_callback(matmul)) {
             return false;
@@ -155,7 +157,11 @@ ngraph::pass::ConvertMatMulToFC::ConvertMatMulToFC() {
         }
         return false;
     };
-
+#else
+    ngraph::matcher_pass_callback callback = [](ngraph::pattern::Matcher & m) -> bool {
+        return false;
+    };
+#endif
     auto m = std::make_shared<ngraph::pattern::Matcher>(matmul, "ConvertMatMulToFC");
     this->register_matcher(m, callback);
 }
@@ -166,8 +172,9 @@ ngraph::pass::ConvertMatMulToGemm::ConvertMatMulToGemm() {
     auto input_0 = std::make_shared<pattern::op::Label>(element::f32, Shape {1, 1});
     auto input_1 = std::make_shared<pattern::op::Label>(element::f32, Shape {1, 1});
     auto matmul = std::make_shared<ngraph::opset1::MatMul>(input_0, input_1);
-
+#if GraphGen(OV_GEN_NGRAPH_PASS(ConvertMatMulToGemm, callback))
     ngraph::matcher_pass_callback callback = [this](pattern::Matcher& m) {
+        OV_ITT_IE_TRANSFORM_CALLBACK(m, "callback")
         auto matmul = std::dynamic_pointer_cast<ngraph::opset1::MatMul>(m.get_match_root());
         if (!matmul) {
             return false;
@@ -228,7 +235,11 @@ ngraph::pass::ConvertMatMulToGemm::ConvertMatMulToGemm() {
 
         return true;
     };
-
+#else
+    ngraph::matcher_pass_callback callback = [](ngraph::pattern::Matcher & m) -> bool {
+        return false;
+    };
+#endif
     auto m = std::make_shared<ngraph::pattern::Matcher>(matmul, "ConvertMatMulToGemm");
     this->register_matcher(m, callback);
 }

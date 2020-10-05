@@ -21,7 +21,8 @@
 NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertOpSet3ToOpSet2, "ConvertOpSet3ToOpSet2", 0);
 
 bool ngraph::pass::ConvertOpSet3ToOpSet2::run_on_function(std::shared_ptr<ngraph::Function> f) {
-    OV_ITT_SCOPED_TASK(itt::domains::IETransform, "ngraph::pass::ConvertOpSet3ToOpSet2");
+#if GraphGen(OV_GEN_NGRAPH_PASS(ConvertOpSet3ToOpSet2, run_on_function))
+    OV_ITT_SCOPED_TASK(itt::domains::IETransform);
 
     ngraph::pass::Manager manager;
 
@@ -36,4 +37,7 @@ bool ngraph::pass::ConvertOpSet3ToOpSet2::run_on_function(std::shared_ptr<ngraph
     manager.set_callback(m_transformation_callback);
     manager.run_passes(f);
     return true;
+#else
+    return false;
+#endif
 }

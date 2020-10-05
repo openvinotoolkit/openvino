@@ -39,6 +39,17 @@ message (STATUS "CMAKE_BUILD_TYPE ...................... " ${CMAKE_BUILD_TYPE})
 file(REMOVE "${CMAKE_BINARY_DIR}/targets_developer.cmake")
 file(REMOVE "${CMAKE_BINARY_DIR}/targets.cmake")
 
+include(selective_build)
+SET(OpenVINO_SELECTIVE_BUILD_HEADER "${CMAKE_BINARY_DIR}/include/ov_gen.hpp")
+if(ENABLE_SELECTIVE_BUILD)
+    set(ITT_TRACES "" CACHE STRING "Paths to folder with ITT trace to optimize binary size")
+    set(ITT_DOMAINS "IETransform" "nGraph" "nGraph__Op")
+    ie_gen_header("${OpenVINO_SELECTIVE_BUILD_HEADER}" "${ITT_TRACES}" "${ITT_DOMAINS}")
+else()
+    ie_gen_default_header("${OpenVINO_SELECTIVE_BUILD_HEADER}")
+endif()
+message (STATUS "OpenVINO_SELECTIVE_BUILD_HEADER........ " ${OpenVINO_SELECTIVE_BUILD_HEADER})
+
 #
 # Build
 #

@@ -13,9 +13,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 //*****************************************************************************
+#include "itt.hpp"
 
-#include "ngraph/op/extractimagepatches.hpp"
 #include "ngraph/attribute_visitor.hpp"
+#include "ngraph/op/extractimagepatches.hpp"
 
 using namespace std;
 using namespace ngraph;
@@ -40,6 +41,8 @@ op::v3::ExtractImagePatches::ExtractImagePatches(const Output<Node>& image,
 
 void op::v3::ExtractImagePatches::validate_and_infer_types()
 {
+#if GraphGen(OV_GEN_NGRAPH_OP(ExtractImagePatches, v3, validate_and_infer_types))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
     const PartialShape input_Pshape = get_input_partial_shape(0);
 
     NODE_VALIDATION_CHECK(this, input_Pshape.rank() == 4, "input tensor must be 4D tensor.");
@@ -144,15 +147,23 @@ void op::v3::ExtractImagePatches::validate_and_infer_types()
 
         set_output_type(0, get_input_element_type(0), output_Pshape);
     }
+#else
+    NODE_VALIDATION_CHECK(this, false, "Function is not included into the selective build.");
+#endif
 }
 
 bool op::v3::ExtractImagePatches::visit_attributes(AttributeVisitor& visitor)
 {
+#if GraphGen(OV_GEN_NGRAPH_OP(ExtractImagePatches, v3, visit_attributes))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
     visitor.on_attribute("sizes", m_patch_sizes);
     visitor.on_attribute("strides", m_patch_movement_strides);
     visitor.on_attribute("rates", m_patch_selection_rates);
     visitor.on_attribute("auto_pad", m_padding);
     return true;
+#else
+    return false;
+#endif
 }
 
 shared_ptr<Node>

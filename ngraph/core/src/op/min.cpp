@@ -124,8 +124,12 @@ namespace
 
 bool op::v0::Min::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v0::Min::evaluate");
+#if GraphGen(OV_GEN_NGRAPH_OP(Min, v0, evaluate))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
     return evaluate_min(inputs[0], outputs[0], get_reduction_axes());
+#else
+    return false;
+#endif
 }
 
 constexpr NodeTypeInfo op::v1::ReduceMin::type_info;
@@ -147,6 +151,10 @@ shared_ptr<Node> op::v1::ReduceMin::clone_with_new_inputs(const OutputVector& ne
 bool op::v1::ReduceMin::evaluate(const HostTensorVector& outputs,
                                  const HostTensorVector& inputs) const
 {
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v1::ReduceMin::evaluate");
+#if GraphGen(OV_GEN_NGRAPH_OP(ReduceMin, v1, evaluate))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
     return evaluate_min(inputs[0], outputs[0], get_reduction_axes());
+#else
+    return false;
+#endif
 }

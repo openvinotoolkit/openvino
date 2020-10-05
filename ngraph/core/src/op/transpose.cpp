@@ -39,6 +39,8 @@ bool ngraph::op::v1::Transpose::visit_attributes(AttributeVisitor& visitor)
 
 void op::v1::Transpose::validate_and_infer_types()
 {
+#if GraphGen(OV_GEN_NGRAPH_OP(Transpose, v1, validate_and_infer_types))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
     const auto& input_order_et = get_input_element_type(1);
     NODE_VALIDATION_CHECK(this,
                           input_order_et.is_dynamic() || input_order_et.is_integral_number(),
@@ -78,6 +80,9 @@ void op::v1::Transpose::validate_and_infer_types()
     {
         set_output_type(0, get_input_element_type(0), PartialShape::dynamic(arg_shape.rank()));
     }
+#else
+    NODE_VALIDATION_CHECK(this, false, "Function is not included into the selective build.");
+#endif
 }
 
 shared_ptr<Node> op::v1::Transpose::clone_with_new_inputs(const OutputVector& new_args) const
@@ -141,9 +146,14 @@ namespace
         return true;
     }
 }
+
 bool op::v1::Transpose::evaluate(const HostTensorVector& output_values,
                                  const HostTensorVector& input_values) const
 {
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v1::Transpose::evaluate");
+#if GraphGen(OV_GEN_NGRAPH_OP(Transpose, v1, evaluate))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
     return evaluate_transpose(input_values[0], input_values[1], output_values[0]);
+#else
+    return false;
+#endif
 }

@@ -13,10 +13,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 //*****************************************************************************
+#include "itt.hpp"
 
-#include "ngraph/op/tensor_iterator.hpp"
 #include "ngraph/factory.hpp"
 #include "ngraph/graph_util.hpp"
+#include "ngraph/op/tensor_iterator.hpp"
 #include "ngraph/specialize_function.hpp"
 
 using namespace std;
@@ -77,6 +78,7 @@ shared_ptr<op::v0::TensorIterator::InputDescription>
 
 bool op::v0::TensorIterator::SliceInputDescription::visit_attributes(AttributeVisitor& visitor)
 {
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
     InputDescription::visit_attributes(visitor);
     visitor.on_attribute("start", m_start);
     visitor.on_attribute("stride", m_stride);
@@ -303,11 +305,16 @@ namespace ngraph
 
 bool op::v0::TensorIterator::visit_attributes(AttributeVisitor& visitor)
 {
+#if GraphGen(OV_GEN_NGRAPH_OP(TensorIterator, v0, visit_attributes))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
     visitor.on_attribute("body", m_body);
     visitor.on_attribute("input_descriptions", m_input_descriptions);
     visitor.on_attribute("output_descriptions", m_output_descriptions);
 
     return false;
+#else
+    return false;
+#endif
 }
 
 Input<Node> op::v0::TensorIterator::input_for_value(const Output<Node>& value)
@@ -422,6 +429,8 @@ void op::v0::TensorIterator::revalidate_and_infer_types_for_body_ops()
 
 void op::v0::TensorIterator::validate_and_infer_types()
 {
+#if GraphGen(OV_GEN_NGRAPH_OP(TensorIterator, v0, validate_and_infer_types))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
     NODE_VALIDATION_CHECK(this,
                           get_input_size() == m_input_descriptions.size(),
                           "Number of inputs must be the same as number of input descriptions");
@@ -606,6 +615,9 @@ void op::v0::TensorIterator::validate_and_infer_types()
             set_output_type(index, body_value.get_element_type(), body_value.get_partial_shape());
         }
     }
+#else
+    NODE_VALIDATION_CHECK(this, false, "Function is not included into the selective build.");
+#endif
 }
 
 std::shared_ptr<Function> op::v0::TensorIterator::get_function()

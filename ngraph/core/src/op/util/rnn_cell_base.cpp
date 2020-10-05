@@ -18,6 +18,8 @@
 #include <iterator>
 #include <locale>
 
+#include "itt.hpp"
+
 #include "ngraph/attribute_visitor.hpp"
 #include "ngraph/op/add.hpp"
 #include "ngraph/op/clamp.hpp"
@@ -87,12 +89,17 @@ op::util::RNNCellBase::RNNCellBase(const OutputVector& args,
 
 bool ngraph::op::util::RNNCellBase::visit_attributes(AttributeVisitor& visitor)
 {
+#if GraphGen(OV_GEN_NGRAPH_OP_UTIL(RNNCellBase, visit_attributes))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
     visitor.on_attribute("hidden_size", m_hidden_size);
     visitor.on_attribute("activations", m_activations);
     visitor.on_attribute("activations_alpha", m_activations_alpha);
     visitor.on_attribute("activations_beta", m_activations_beta);
     visitor.on_attribute("clip", m_clip);
     return true;
+#else
+    return false;
+#endif
 }
 
 void ngraph::op::util::RNNCellBase::validate_input_rank_dimension(

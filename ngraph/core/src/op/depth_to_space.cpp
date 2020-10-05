@@ -17,6 +17,8 @@
 #include <cstddef>
 #include <memory>
 
+#include "itt.hpp"
+
 #include "depth_to_space.hpp"
 #include "ngraph/builder/reshape.hpp"
 #include "ngraph/node.hpp"
@@ -48,13 +50,20 @@ op::DepthToSpace::DepthToSpace(const Output<Node>& data,
 
 bool op::DepthToSpace::visit_attributes(AttributeVisitor& visitor)
 {
+#if GraphGen(OV_GEN_NGRAPH_OP(DepthToSpace, v0, visit_attributes))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
     visitor.on_attribute("block_size", m_blocksize);
     visitor.on_attribute("mode", m_mode);
     return true;
+#else
+    return false;
+#endif
 }
 
 OutputVector op::DepthToSpace::decompose_op() const
 {
+#if GraphGen(OV_GEN_NGRAPH_OP(DepthToSpace, v0, decompose_op))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
     auto data = input_value(0);
     auto data_shape = data.get_shape();
 
@@ -151,6 +160,9 @@ OutputVector op::DepthToSpace::decompose_op() const
     flat_node = builder::opset1::reshape(flat_node, squeezed_shape);
 
     return OutputVector{flat_node};
+#else
+    NODE_VALIDATION_CHECK(this, false, "Function is not included into the selective build.");
+#endif
 }
 
 shared_ptr<Node> op::DepthToSpace::clone_with_new_inputs(const OutputVector& new_args) const

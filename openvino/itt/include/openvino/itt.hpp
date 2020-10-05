@@ -23,6 +23,7 @@
 #include <openvino/function_name.hpp>
 #include <openvino/macro_overload.hpp>
 #include <string>
+#include <algorithm>
 
 namespace openvino
 {
@@ -175,10 +176,27 @@ inline openvino::itt::domain_t domainName() noexcept                            
  * @cond
  */
 
+#define ITT_FILE_NAME __FILE__
+
+inline const std::string full_function_name(const std::string& prettyFunction) {
+    size_t colons = prettyFunction.find("(");
+    size_t begin = prettyFunction.substr(0, colons).rfind(" ") + 1;
+    size_t end = colons - begin;
+    return prettyFunction.substr(begin, end);
+}
+
+#define ITT_FUNCTION_NAME_ONLY openvino::itt::full_function_name(std::string(ITT_FUNCTION_NAME))
+
+#if defined(ITT_USE_FULL_FUNCTION_SIGNATURE)
+    #define ITT_DEFAULT_NAME ITT_FUNCTION_NAME
+#else
+    #define ITT_DEFAULT_NAME ITT_FUNCTION_NAME_ONLY
+#endif
+
 #define OV_ITT_SCOPED_TASK_1(domain)                                                                \
         struct Task ## __LINE__ {};                                                                 \
         openvino::itt::ScopedTask<domain> ittScopedTask ## __LINE__                                 \
-                    (openvino::itt::handle<Task ## __LINE__>(ITT_FUNCTION_NAME));
+                    (openvino::itt::handle<Task ## __LINE__>(ITT_DEFAULT_NAME));
 
 #define OV_ITT_SCOPED_TASK_2(domain, taskOrTaskName)                                                \
         struct Task ## __LINE__ {};                                                                 \

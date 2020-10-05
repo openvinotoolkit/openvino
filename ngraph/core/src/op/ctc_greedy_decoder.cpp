@@ -13,6 +13,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 //*****************************************************************************
+#include "itt.hpp"
 
 #include "ngraph/op/ctc_greedy_decoder.hpp"
 
@@ -32,6 +33,8 @@ op::CTCGreedyDecoder::CTCGreedyDecoder(const Output<Node>& input,
 
 void op::CTCGreedyDecoder::validate_and_infer_types()
 {
+#if GraphGen(OV_GEN_NGRAPH_OP(CTCGreedyDecoder, v0, validate_and_infer_types))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
     auto input_et = get_input_element_type(0);
     if (get_input_partial_shape(0).is_static())
     {
@@ -48,12 +51,20 @@ void op::CTCGreedyDecoder::validate_and_infer_types()
     {
         set_output_type(0, input_et, PartialShape::dynamic());
     }
+#else
+    NODE_VALIDATION_CHECK(this, false, "Function is not included into the selective build.");
+#endif
 }
 
 bool op::CTCGreedyDecoder::visit_attributes(AttributeVisitor& visitor)
 {
+#if GraphGen(OV_GEN_NGRAPH_OP(CTCGreedyDecoder, v0, visit_attributes))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
     visitor.on_attribute("ctc_merge_repeated", m_ctc_merge_repeated);
     return true;
+#else
+    return false;
+#endif
 }
 
 shared_ptr<Node> op::CTCGreedyDecoder::clone_with_new_inputs(const OutputVector& new_args) const

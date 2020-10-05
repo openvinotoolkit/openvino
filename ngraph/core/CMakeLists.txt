@@ -101,6 +101,9 @@ target_include_directories(ngraph PRIVATE ${NGRAPH_INCLUDE_DIR}
 #Add an alias so that library can be used inside the build tree, e.g. when testing
 add_library(ngraph::ngraph ALIAS ngraph)
 
+include(selective_build)
+ie_forced_include(ngraph "${OpenVINO_SELECTIVE_BUILD_HEADER}" OFF)
+
 if (NOT WIN32)
     target_link_libraries(ngraph PRIVATE dl)
 endif()

@@ -17,6 +17,8 @@
 #include <functional>
 #include <memory>
 
+#include "itt.hpp"
+
 #include "ngraph/axis_vector.hpp"
 #include "ngraph/graph_util.hpp"
 #include "ngraph/op/broadcast.hpp"
@@ -49,6 +51,8 @@ op::Dot::Dot(const Output<Node>& arg0,
 
 void op::Dot::validate_and_infer_types()
 {
+#if GraphGen(OV_GEN_NGRAPH_OP(Dot, v0, validate_and_infer_types))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
     element::Type result_et;
 
     NODE_VALIDATION_CHECK(
@@ -155,6 +159,9 @@ void op::Dot::validate_and_infer_types()
     }
 
     set_output_type(0, result_et, result_shape);
+#else
+    NODE_VALIDATION_CHECK(this, false, "Function is not included into the selective build.");
+#endif
 }
 
 shared_ptr<op::Reshape> make_reshape_axes_to_front(const Output<Node>& n,

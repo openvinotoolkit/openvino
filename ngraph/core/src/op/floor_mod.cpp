@@ -91,6 +91,10 @@ namespace
 bool op::v1::FloorMod::evaluate(const HostTensorVector& outputs,
                                 const HostTensorVector& inputs) const
 {
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v1::FloorMod::evaluate");
+#if GraphGen(OV_GEN_NGRAPH_OP(FloorMod, v1, evaluate))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
     return evaluate_floor_mod(inputs[0], inputs[1], outputs[0], get_autob());
+#else
+    return false;
+#endif
 }

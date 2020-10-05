@@ -85,6 +85,10 @@ namespace
 
 bool op::Tan::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::Tan::evaluate");
+#if GraphGen(OV_GEN_NGRAPH_OP(Tan, v0, evaluate))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
     return evaluate_tan(inputs[0], outputs[0], shape_size(get_output_shape(0)));
+#else
+    return false;
+#endif
 }

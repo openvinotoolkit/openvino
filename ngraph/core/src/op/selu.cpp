@@ -13,6 +13,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 //*****************************************************************************
+#include "itt.hpp"
+
 #include "ngraph/op/selu.hpp"
 
 #include "ngraph/op/add.hpp"
@@ -43,6 +45,8 @@ bool ngraph::op::v0::Selu::visit_attributes(AttributeVisitor& visitor)
 
 OutputVector op::v0::Selu::decompose_op() const
 {
+#if GraphGen(OV_GEN_NGRAPH_OP(Selu, v0, decompose_op))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
     const auto data = input_value(0);
     const auto alpha = input_value(1);
     const auto lambda = input_value(2);
@@ -58,6 +62,9 @@ OutputVector op::v0::Selu::decompose_op() const
                     alpha,
                     std::make_shared<op::Exp>(std::make_shared<op::v1::Minimum>(data, zero_node))),
                 alpha)))};
+#else
+    NODE_VALIDATION_CHECK(this, false, "Function is not included into the selective build.");
+#endif
 }
 
 shared_ptr<Node> op::v0::Selu::clone_with_new_inputs(const OutputVector& new_args) const

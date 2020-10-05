@@ -3,6 +3,7 @@
 //
 
 #include "transformations/convert_opset3_to_opset2/convert_nms3.hpp"
+#include "transformations/itt.hpp"
 
 #include <memory>
 #include <vector>
@@ -22,8 +23,9 @@ void ngraph::pass::ConvertNMS1ToNMS3::convert_nms1_to_nms3() {
     auto score_threshold = ngraph::opset3::Constant::create(element::f32, Shape{}, {0.7});
     auto nms = std::make_shared<ngraph::opset1::NonMaxSuppression>(boxes, scores, max_output_boxes_per_class,
                                                                    iou_threshold, score_threshold);
-
+#if GraphGen(OV_GEN_NGRAPH_PASS(ConvertNMS1ToNMS3, callback))
     ngraph::graph_rewrite_callback callback = [](pattern::Matcher &m) {
+        OV_ITT_IE_TRANSFORM_CALLBACK(m, "callback")
         auto nms = std::dynamic_pointer_cast<ngraph::opset1::NonMaxSuppression>(m.get_match_root());
         if (!nms) {
             return false;
@@ -39,7 +41,11 @@ void ngraph::pass::ConvertNMS1ToNMS3::convert_nms1_to_nms3() {
         ngraph::replace_node(nms, nms3);
         return true;
     };
-
+#else
+    ngraph::graph_rewrite_callback callback = [](ngraph::pattern::Matcher & m) -> bool {
+        return false;
+    };
+#endif
     auto m = std::make_shared<ngraph::pattern::Matcher>(nms, "ConvertNMS1ToNMS3");
     this->add_matcher(m, callback, PassProperty::CHANGE_DYNAMIC_STATE);
 }

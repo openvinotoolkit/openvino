@@ -89,8 +89,12 @@ namespace
 bool op::v1::LogicalOr::evaluate(const HostTensorVector& outputs,
                                  const HostTensorVector& inputs) const
 {
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v1::LogicalOr::evaluate");
+#if GraphGen(OV_GEN_NGRAPH_OP(LogicalOr, v1, evaluate))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
     return evaluate_logor(inputs[0], inputs[1], outputs[0], get_autob());
+#else
+    return false;
+#endif
 }
 
 constexpr NodeTypeInfo op::v0::Or::type_info;
@@ -111,6 +115,10 @@ shared_ptr<Node> op::v0::Or::clone_with_new_inputs(const OutputVector& new_args)
 
 bool op::v0::Or::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v0::Or::evaluate");
+#if GraphGen(OV_GEN_NGRAPH_OP(LogicalOr, v0, evaluate))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
     return evaluate_logor(inputs[0], inputs[1], outputs[0], get_autob());
+#else
+    return false;
+#endif
 }

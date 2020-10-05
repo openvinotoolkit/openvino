@@ -16,6 +16,8 @@
 
 #include <memory>
 
+#include "itt.hpp"
+
 #include "ngraph/attribute_visitor.hpp"
 #include "ngraph/log.hpp"
 #include "ngraph/op/convert.hpp"
@@ -42,6 +44,8 @@ op::v1::Select::Select(const Output<Node>& arg0,
 
 void op::v1::Select::validate_and_infer_types()
 {
+#if GraphGen(OV_GEN_NGRAPH_OP(Select, v1, validate_and_infer_types))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
     // Condition element type check
     NODE_VALIDATION_CHECK(this,
                           get_input_element_type(0).is_dynamic() ||
@@ -82,6 +86,9 @@ void op::v1::Select::validate_and_infer_types()
         }
     }
     set_output_type(0, result_et, result_shape);
+#else
+    NODE_VALIDATION_CHECK(this, false, "Function is not included into the selective build.");
+#endif
 }
 
 shared_ptr<Node> op::v1::Select::clone_with_new_inputs(const OutputVector& new_args) const
@@ -93,8 +100,13 @@ shared_ptr<Node> op::v1::Select::clone_with_new_inputs(const OutputVector& new_a
 
 bool op::v1::Select::visit_attributes(AttributeVisitor& visitor)
 {
+#if GraphGen(OV_GEN_NGRAPH_OP(Select, v1, visit_attributes))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
     visitor.on_attribute("auto_broadcast", m_auto_broadcast);
     return true;
+#else
+    return false;
+#endif
 }
 
 constexpr NodeTypeInfo op::v0::Select::type_info;
@@ -107,6 +119,8 @@ op::v0::Select::Select(const Output<Node>& arg0, const Output<Node>& arg1, const
 
 void op::v0::Select::validate_and_infer_types()
 {
+#if GraphGen(OV_GEN_NGRAPH_OP(Select, v0, validate_and_infer_types))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
     NODE_VALIDATION_CHECK(this,
                           get_input_element_type(0).is_dynamic() ||
                               get_input_element_type(0) == element::boolean,
@@ -131,6 +145,9 @@ void op::v0::Select::validate_and_infer_types()
         "Argument 1 and 2 element types are inconsistent.");
 
     set_output_type(0, result_et, result_shape);
+#else
+    NODE_VALIDATION_CHECK(this, false, "Function is not included into the selective build.");
+#endif
 }
 
 shared_ptr<Node> op::v0::Select::clone_with_new_inputs(const OutputVector& new_args) const

@@ -4,6 +4,7 @@
 
 #include "transformations/tensor_iterator_transformations/convert_ti_to_sequences.h"
 #include "transformations/utils/utils.hpp"
+#include "transformations/itt.hpp"
 
 #include <memory>
 #include <vector>
@@ -19,7 +20,9 @@
 ngraph::pass::ConvertTensorIteratorToLSTMSequence::ConvertTensorIteratorToLSTMSequence() {
     auto tensor_iterator = std::make_shared<ngraph::pattern::op::Label>(ngraph::element::f32,
                                                                         ngraph::Shape{}, ngraph::pattern::has_class<ngraph::opset5::TensorIterator>());
+#if GraphGen(OV_GEN_NGRAPH_PASS(ConvertTensorIteratorToLSTMSequence, callback))
     ngraph::matcher_pass_callback callback = [this](pattern::Matcher &m) {
+        OV_ITT_IE_TRANSFORM_CALLBACK(m, "callback")
         auto ti = std::dynamic_pointer_cast<ngraph::opset5::TensorIterator>(m.get_match_root());
         if (!ti || !m_transformation_callback(ti))
             return false;
@@ -169,7 +172,11 @@ ngraph::pass::ConvertTensorIteratorToLSTMSequence::ConvertTensorIteratorToLSTMSe
         copy_runtime_info(ti, new_nodes);
         return true;
     };
-
+#else
+    ngraph::matcher_pass_callback callback  = [](ngraph::pattern::Matcher & m) -> bool {
+        return false;
+    };
+#endif
     auto m = std::make_shared<ngraph::pattern::Matcher>(tensor_iterator, "ConvertTensorIteratorToLSTMSequence");
     register_matcher(m, callback);
 }
@@ -177,7 +184,9 @@ ngraph::pass::ConvertTensorIteratorToLSTMSequence::ConvertTensorIteratorToLSTMSe
 ngraph::pass::ConvertTensorIteratorToRNNSequence::ConvertTensorIteratorToRNNSequence() {
     auto tensor_iterator = std::make_shared<ngraph::pattern::op::Label>(ngraph::element::f32,
                                                                         ngraph::Shape{}, ngraph::pattern::has_class<ngraph::opset5::TensorIterator>());
+#if GraphGen(OV_GEN_NGRAPH_PASS(ConvertTensorIteratorToRNNSequence, callback))
     ngraph::matcher_pass_callback callback = [this](pattern::Matcher &m) {
+        OV_ITT_IE_TRANSFORM_CALLBACK(m, "callback")
         auto ti = std::dynamic_pointer_cast<ngraph::opset5::TensorIterator>(m.get_match_root());
         if (!ti || !m_transformation_callback(ti))
             return false;
@@ -320,7 +329,11 @@ ngraph::pass::ConvertTensorIteratorToRNNSequence::ConvertTensorIteratorToRNNSequ
         copy_runtime_info(ti, as_node_vector(new_nodes));
         return true;
     };
-
+#else
+    ngraph::matcher_pass_callback callback  = [](ngraph::pattern::Matcher & m) -> bool {
+        return false;
+    };
+#endif
     auto m = std::make_shared<ngraph::pattern::Matcher>(tensor_iterator, "ConvertTensorIteratorToRNNSequence");
     register_matcher(m, callback);
 }
@@ -328,7 +341,9 @@ ngraph::pass::ConvertTensorIteratorToRNNSequence::ConvertTensorIteratorToRNNSequ
 ngraph::pass::ConvertTensorIteratorToGRUSequence::ConvertTensorIteratorToGRUSequence() {
     auto tensor_iterator = std::make_shared<ngraph::pattern::op::Label>(ngraph::element::f32,
                                                                         ngraph::Shape{}, ngraph::pattern::has_class<ngraph::opset5::TensorIterator>());
+#if GraphGen(OV_GEN_NGRAPH_PASS(ConvertTensorIteratorToGRUSequence, callback))
     ngraph::matcher_pass_callback callback = [this](pattern::Matcher &m) {
+        OV_ITT_IE_TRANSFORM_CALLBACK(m, "callback")
         auto ti = std::dynamic_pointer_cast<ngraph::opset5::TensorIterator>(m.get_match_root());
         if (!ti || !m_transformation_callback(ti))
             return false;
@@ -472,7 +487,11 @@ ngraph::pass::ConvertTensorIteratorToGRUSequence::ConvertTensorIteratorToGRUSequ
         copy_runtime_info(ti, as_node_vector(new_nodes));
         return true;
     };
-
+#else
+    ngraph::matcher_pass_callback callback  = [](ngraph::pattern::Matcher & m) -> bool {
+        return false;
+    };
+#endif
     auto m = std::make_shared<ngraph::pattern::Matcher>(tensor_iterator, "ConvertTensorIteratorToGRUSequence");
     register_matcher(m, callback);
 }

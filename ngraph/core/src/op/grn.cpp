@@ -16,6 +16,8 @@
 #include <algorithm>
 #include <iterator>
 
+#include "itt.hpp"
+
 #include "grn.hpp"
 #include "ngraph/attribute_visitor.hpp"
 #include "ngraph/axis_set.hpp"
@@ -42,12 +44,19 @@ op::GRN::GRN(const Output<Node>& data, float bias)
 
 bool ngraph::op::v0::GRN::visit_attributes(AttributeVisitor& visitor)
 {
+#if GraphGen(OV_GEN_NGRAPH_OP(GRN, v0, visit_attributes))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
     visitor.on_attribute("bias", m_bias);
     return true;
+#else
+    return false;
+#endif
 }
 
 void op::GRN::pre_validate_and_infer_types()
 {
+#if GraphGen(OV_GEN_NGRAPH_OP(GRN, v0, pre_validate_and_infer_types))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
     const auto& data_pshape = get_input_partial_shape(0);
 
     if (data_pshape.is_static())
@@ -62,10 +71,15 @@ void op::GRN::pre_validate_and_infer_types()
                               data_shape,
                               ").");
     }
+#else
+    NODE_VALIDATION_CHECK(this, false, "Function is not included into the selective build.");
+#endif
 }
 
 OutputVector op::GRN::decompose_op() const
 {
+#if GraphGen(OV_GEN_NGRAPH_OP(GRN, v0, decompose_op))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
     Output<Node> data{input_value(0)};
     const Shape& input_shape{data.get_shape()};
 
@@ -91,6 +105,9 @@ OutputVector op::GRN::decompose_op() const
     }
 
     return OutputVector{data};
+#else
+    NODE_VALIDATION_CHECK(this, false, "Function is not included into the selective build.");
+#endif
 }
 
 shared_ptr<Node> op::GRN::clone_with_new_inputs(const OutputVector& new_args) const

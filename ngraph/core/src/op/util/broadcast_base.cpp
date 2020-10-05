@@ -156,6 +156,8 @@ void op::util::BroadcastBase::validate_target_shape_none(const Shape& arg_shape,
 
 void op::util::BroadcastBase::validate_and_infer_types()
 {
+#if GraphGen(OV_GEN_NGRAPH_OP_UTIL(BroadcastBase, validate_and_infer_types))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
     // shape node should have integer data type. For now we only allow i64
     auto shape_et = get_input_element_type(1);
     NODE_VALIDATION_CHECK(this,
@@ -283,6 +285,9 @@ void op::util::BroadcastBase::validate_and_infer_types()
         }
     }
     set_output_type(0, get_input_element_type(0), result_shape);
+#else
+    NODE_VALIDATION_CHECK(this, false, "Function is not included into the selective build.");
+#endif
 }
 
 std::pair<bool, AxisSet> op::util::BroadcastBase::get_broadcast_axes_numpy_pdpd(
@@ -527,7 +532,8 @@ Shape op::util::BroadcastBase::get_target_shape(const HostTensorPtr& input1) con
 bool op::util::BroadcastBase::evaluate(const HostTensorVector& outputs,
                                        const HostTensorVector& inputs) const
 {
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::util::BroadcastBase::evaluate");
+#if GraphGen(OV_GEN_NGRAPH_OP_UTIL(BroadcastBase, evaluate))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
 
     Shape target_shape = get_target_shape(inputs[1]);
 
@@ -572,4 +578,7 @@ bool op::util::BroadcastBase::evaluate(const HostTensorVector& outputs,
     }
 
     return evaluate_broadcast(inputs[0], outputs[0], pair_broadcast_axes, result_shape.to_shape());
+#else
+    return false;
+#endif
 }

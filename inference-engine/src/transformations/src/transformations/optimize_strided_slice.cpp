@@ -6,6 +6,7 @@
 #include <vector>
 
 #include <transformations/optimize_strided_slice.hpp>
+#include <transformations/itt.hpp>
 #include <ngraph/opsets/opset1.hpp>
 #include <ngraph/opsets/opset3.hpp>
 #include <ngraph/rt_info.hpp>
@@ -15,6 +16,8 @@ NGRAPH_RTTI_DEFINITION(ngraph::pass::StridedSliceOptimization, "StridedSliceOpti
 NGRAPH_RTTI_DEFINITION(ngraph::pass::UselessStridedSliceEraser, "UselessStridedSliceEraser", 0);
 
 bool ngraph::pass::UselessStridedSliceEraser::run_on_function(std::shared_ptr<ngraph::Function> f) {
+#if GraphGen(OV_GEN_NGRAPH_PASS(UselessStridedSliceEraser, run_on_function))
+    OV_ITT_SCOPED_TASK(itt::domains::IETransform);
     bool rewritten = false;
     for (auto & node : f->get_ordered_ops()) {
         // Recursively apply transformation for sub-graph based operations
@@ -37,6 +40,9 @@ bool ngraph::pass::UselessStridedSliceEraser::run_on_function(std::shared_ptr<ng
         }
     }
     return rewritten;
+#else
+    return false;
+#endif
 }
 
 ngraph::SlicePlan get_slice_plan(std::shared_ptr<ngraph::opset1::StridedSlice> slice) {
@@ -89,6 +95,8 @@ bool strided_slices_perform_the_same(std::shared_ptr<ngraph::opset1::StridedSlic
 NGRAPH_RTTI_DEFINITION(ngraph::pass::SharedStridedSliceEraser, "SharedStridedSliceEraser", 0);
 
 bool ngraph::pass::SharedStridedSliceEraser::run_on_function(std::shared_ptr<ngraph::Function> f) {
+#if GraphGen(OV_GEN_NGRAPH_PASS(SharedStridedSliceEraser, run_on_function))
+    OV_ITT_SCOPED_TASK(itt::domains::IETransform);
     bool graph_rewritten = false;
 
     std::map<ngraph::Output<Node>, std::vector<std::shared_ptr<ngraph::opset1::StridedSlice>>> source_to_ss;
@@ -115,11 +123,16 @@ bool ngraph::pass::SharedStridedSliceEraser::run_on_function(std::shared_ptr<ngr
         }
     }
     return graph_rewritten;
+#else
+    return false;
+#endif
 }
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::GroupedStridedSliceOptimizer, "GroupedStridedSliceOptimizer", 0);
 
 bool ngraph::pass::GroupedStridedSliceOptimizer::run_on_function(std::shared_ptr<ngraph::Function> f) {
+#if GraphGen(OV_GEN_NGRAPH_PASS(GroupedStridedSliceOptimizer, run_on_function))
+    OV_ITT_SCOPED_TASK(itt::domains::IETransform);
     bool graph_rewritten = false;
     using planned_slice = std::pair<std::shared_ptr<ngraph::opset1::StridedSlice>, ngraph::SlicePlan>;
 
@@ -229,5 +242,8 @@ bool ngraph::pass::GroupedStridedSliceOptimizer::run_on_function(std::shared_ptr
         copy_runtime_info(ops_to_replace, variadic_split);
     }
     return graph_rewritten;
+#else
+    return false;
+#endif
 }
 

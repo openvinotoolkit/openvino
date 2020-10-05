@@ -90,8 +90,12 @@ namespace
 
 bool op::v0::Equal::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v0::Equal::evaluate");
+#if GraphGen(OV_GEN_NGRAPH_OP(Equal, v0, evaluate))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
     return evaluate_equal(inputs[0], inputs[1], outputs[0], get_autob());
+#else
+    return false;
+#endif
 }
 
 //------------------------------- v1 -------------------------------------------
@@ -114,6 +118,10 @@ shared_ptr<Node> op::v1::Equal::clone_with_new_inputs(const OutputVector& new_ar
 
 bool op::v1::Equal::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v1::Equal::evaluate");
+#if GraphGen(OV_GEN_NGRAPH_OP(Equal, v1, evaluate))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
     return evaluate_equal(inputs[0], inputs[1], outputs[0], get_autob());
+#else
+    return false;
+#endif
 }

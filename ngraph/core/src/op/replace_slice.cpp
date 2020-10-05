@@ -13,9 +13,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 //*****************************************************************************
+#include "itt.hpp"
 
-#include "ngraph/op/replace_slice.hpp"
 #include "ngraph/op/constant.hpp"
+#include "ngraph/op/replace_slice.hpp"
 #include "ngraph/op/slice.hpp"
 
 NGRAPH_SUPPRESS_DEPRECATED_START
@@ -52,6 +53,8 @@ op::ReplaceSlice::ReplaceSlice(const Output<Node>& arg0,
 
 void op::ReplaceSlice::validate_and_infer_types()
 {
+#if GraphGen(OV_GEN_NGRAPH_OP(ReplaceSlice, v0, validate_and_infer_types))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
     // An empty stride vector with lower_bounds/upper_bounds filled in means that we need to
     // construct the default value.
     if (m_strides.size() == 0)
@@ -168,6 +171,9 @@ void op::ReplaceSlice::validate_and_infer_types()
             : PartialShape(std::vector<Dimension>(output_rank, Dimension::dynamic()));
 
     set_output_type(0, merged_args_et, result_shape);
+#else
+    NODE_VALIDATION_CHECK(this, false, "Function is not included into the selective build.");
+#endif
 }
 
 shared_ptr<Node> op::ReplaceSlice::clone_with_new_inputs(const OutputVector& new_args) const

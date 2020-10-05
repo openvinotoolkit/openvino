@@ -14,6 +14,8 @@
 // limitations under the License.
 //*****************************************************************************
 
+#include "itt.hpp"
+
 #include "bucketize.hpp"
 
 using namespace ngraph;
@@ -34,13 +36,20 @@ op::v3::Bucketize::Bucketize(const Output<Node>& data,
 
 bool op::v3::Bucketize::visit_attributes(AttributeVisitor& visitor)
 {
+#if GraphGen(OV_GEN_NGRAPH_OP(Bucketize, v3, visit_attributes))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
     visitor.on_attribute("output_type", m_output_type);
     visitor.on_attribute("with_right_bound", m_with_right_bound);
     return true;
+#else
+    return false;
+#endif
 }
 
 void op::v3::Bucketize::validate_and_infer_types()
 {
+#if GraphGen(OV_GEN_NGRAPH_OP(Bucketize, v3, validate_and_infer_types))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
     const PartialShape& data_pshape = get_input_partial_shape(0);
     const PartialShape& buckets_pshape = get_input_partial_shape(1);
 
@@ -61,6 +70,9 @@ void op::v3::Bucketize::validate_and_infer_types()
 
     set_output_size(1);
     set_output_type(0, m_output_type, data_pshape);
+#else
+    NODE_VALIDATION_CHECK(this, false, "Function is not included into the selective build.");
+#endif
 }
 
 shared_ptr<Node> op::v3::Bucketize::clone_with_new_inputs(const OutputVector& inputs) const

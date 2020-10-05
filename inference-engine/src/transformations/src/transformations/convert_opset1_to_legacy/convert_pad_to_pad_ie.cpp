@@ -3,6 +3,7 @@
 //
 
 #include "transformations/convert_opset1_to_legacy/convert_pad_to_pad_ie.hpp"
+#include "transformations/itt.hpp"
 
 #include <memory>
 #include <vector>
@@ -16,7 +17,9 @@ NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertPadToLegacyMatcher, "ConvertPadToLeg
 ngraph::pass::ConvertPadToLegacyMatcher::ConvertPadToLegacyMatcher() {
     auto m_pad = ngraph::pattern::wrap_type<ngraph::opset1::Pad>();
 
+#if GraphGen(OV_GEN_NGRAPH_PASS(ConvertPadToLegacy, callback))
     ngraph::matcher_pass_callback callback = [](pattern::Matcher& m) {
+        OV_ITT_IE_TRANSFORM_CALLBACK(m, "callback")
         auto pad = std::dynamic_pointer_cast<ngraph::opset1::Pad> (m.get_match_root());
         if (!pad) {
             return false;
@@ -28,7 +31,11 @@ ngraph::pass::ConvertPadToLegacyMatcher::ConvertPadToLegacyMatcher() {
         ngraph::replace_node(pad, pad_ie);
         return true;
     };
-
+#else
+    ngraph::matcher_pass_callback callback = [](ngraph::pattern::Matcher & m) -> bool {
+        return false;
+    };
+#endif
     auto m = std::make_shared<ngraph::pattern::Matcher>(m_pad, "ConvertPadToLegacy");
     this->register_matcher(m, callback);
 }

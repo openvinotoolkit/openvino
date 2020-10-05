@@ -13,13 +13,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 //*****************************************************************************
-#include "ngraph/runtime/reference/split.hpp"
+#include "itt.hpp"
+
 #include <numeric>
 #include "ngraph/attribute_visitor.hpp"
 #include "ngraph/builder/split.hpp"
 #include "ngraph/op/constant.hpp"
 #include "ngraph/op/split.hpp"
 #include "ngraph/op/util/op_types.hpp"
+#include "ngraph/runtime/reference/split.hpp"
 #include "ngraph/validation_util.hpp"
 
 #include "ngraph/runtime/host_tensor.hpp"
@@ -53,6 +55,8 @@ op::v0::Split::Split(const Output<Node>& data,
 
 void op::v0::Split::pre_validate_and_infer_types()
 {
+#if GraphGen(OV_GEN_NGRAPH_OP(Split, v0, pre_validate_and_infer_types))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
     const auto axis_shape = get_input_shape(1);
     NODE_VALIDATION_CHECK(this, is_scalar(axis_shape), "The 'axis' input node must be scalar");
 
@@ -107,11 +111,19 @@ void op::v0::Split::pre_validate_and_infer_types()
                               "All values of the 'splits' attribute must be greater than zero");
     }
     set_input_is_relevant_to_shape(0);
+#else
+    NODE_VALIDATION_CHECK(this, false, "Function is not included into the selective build.");
+#endif
 }
 
 OutputVector op::v0::Split::decompose_op() const
 {
+#if GraphGen(OV_GEN_NGRAPH_OP(Split, v0, decompose_op))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
     return builder::split(input_value(0), m_splits, m_axis);
+#else
+    NODE_VALIDATION_CHECK(this, false, "Function is not included into the selective build.");
+#endif
 }
 
 shared_ptr<Node> op::v0::Split::clone_with_new_inputs(const OutputVector& new_args) const
@@ -131,12 +143,19 @@ op::v1::Split::Split(const Output<Node>& data, const Output<Node>& axis, const s
 
 bool ngraph::op::v1::Split::visit_attributes(AttributeVisitor& visitor)
 {
+#if GraphGen(OV_GEN_NGRAPH_OP(Split, v1, visit_attributes))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
     visitor.on_attribute("num_splits", m_num_splits);
     return true;
+#else
+    return false;
+#endif
 }
 
 void op::v1::Split::validate_and_infer_types()
 {
+#if GraphGen(OV_GEN_NGRAPH_OP(Split, v1, validate_and_infer_types))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
     const auto data_ps = input_value(0).get_partial_shape();
     const auto axis_ps = input_value(1).get_partial_shape();
     const auto axis_et = input_value(1).get_element_type();
@@ -190,6 +209,9 @@ void op::v1::Split::validate_and_infer_types()
     }
 
     set_input_is_relevant_to_shape(0);
+#else
+    NODE_VALIDATION_CHECK(this, false, "Function is not included into the selective build.");
+#endif
 }
 
 shared_ptr<Node> op::v1::Split::clone_with_new_inputs(const OutputVector& new_args) const
@@ -241,8 +263,14 @@ namespace
 
 bool op::v1::Split::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
+#if GraphGen(OV_GEN_NGRAPH_OP(Split, v1, evaluate))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
+
     const auto& data = inputs[0];
     const auto& axis = inputs[1];
 
     return evaluate_split(data, axis, outputs, m_num_splits, this);
+#else
+    return false;
+#endif
 }

@@ -42,6 +42,8 @@ bool op::v3::ScatterElementsUpdate::visit_attributes(AttributeVisitor& visitor)
 
 void op::v3::ScatterElementsUpdate::validate_and_infer_types()
 {
+#if GraphGen(OV_GEN_NGRAPH_OP(ScatterElementsUpdate, v3, validate_and_infer_types))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
     element::Type data_et = get_input_element_type(0);
     element::Type indices_et = get_input_element_type(1);
     element::Type updates_et = get_input_element_type(2);
@@ -120,6 +122,9 @@ void op::v3::ScatterElementsUpdate::validate_and_infer_types()
 
     set_output_size(1);
     set_output_type(0, data_et, data_shape);
+#else
+    NODE_VALIDATION_CHECK(this, false, "Function is not included into the selective build.");
+#endif
 }
 
 shared_ptr<Node>
@@ -272,7 +277,8 @@ namespace
 bool op::v3::ScatterElementsUpdate::evaluate(const HostTensorVector& outputs,
                                              const HostTensorVector& inputs) const
 {
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v3::ScatterElementsUpdate::evaluate");
+#if GraphGen(OV_GEN_NGRAPH_OP(ScatterElementsUpdate, v3, evaluate))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
 
     NGRAPH_CHECK(inputs[3]->get_element_type().is_integral_number(),
                  "axis element type is not integral data type");
@@ -296,4 +302,7 @@ bool op::v3::ScatterElementsUpdate::evaluate(const HostTensorVector& outputs,
 
     return evaluate_scatter_element_update(
         inputs[0], inputs[1], inputs[2], inputs[3], outputs[0], normalized_axis);
+#else
+    return false;
+#endif
 }

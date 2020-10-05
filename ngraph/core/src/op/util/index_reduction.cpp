@@ -16,6 +16,8 @@
 
 #include <memory>
 
+#include "itt.hpp"
+
 #include "ngraph/attribute_visitor.hpp"
 #include "ngraph/op/util/index_reduction.hpp"
 
@@ -54,6 +56,8 @@ void op::util::IndexReduction::set_index_element_type(const element::Type& index
 
 void op::util::IndexReduction::validate_and_infer_types()
 {
+#if GraphGen(OV_GEN_NGRAPH_OP_UTIL(IndexReduction, validate_and_infer_types))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
     // TODO(amprocte): Should reject if size of reduction axis is zero.
     const PartialShape& arg_shape = get_input_partial_shape(0);
     Rank rank = arg_shape.rank();
@@ -101,11 +105,19 @@ void op::util::IndexReduction::validate_and_infer_types()
     }
 
     set_output_type(0, m_index_element_type, output_shape);
+#else
+    NODE_VALIDATION_CHECK(this, false, "Function is not included into the selective build.");
+#endif
 }
 
 bool op::util::IndexReduction::visit_attributes(AttributeVisitor& visitor)
 {
+#if GraphGen(OV_GEN_NGRAPH_OP_UTIL(IndexReduction, visit_attributes))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
     visitor.on_attribute("axis", m_axis);
     visitor.on_attribute("index_element_type", m_index_element_type);
     return true;
+#else
+    return false;
+#endif
 }

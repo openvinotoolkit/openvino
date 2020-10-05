@@ -3,6 +3,7 @@
 //
 
 #include "transformations/pull_transpose_through_fq.hpp"
+#include "transformations/itt.hpp"
 
 #include <memory>
 #include <vector>
@@ -21,8 +22,9 @@ ngraph::pass::PullTransposeThroughFQUp::PullTransposeThroughFQUp() {
     auto fq = std::make_shared<ngraph::opset1::FakeQuantize>(data1, data2, data3, data4, data5, 1);
     auto transpose_order = std::make_shared<pattern::op::Label>(element::i64, Shape{4});
     auto transpose = std::make_shared<ngraph::opset1::Transpose>(fq, transpose_order);
-
+#if GraphGen(OV_GEN_NGRAPH_PASS(PullTransposeThroughFQUp, callback))
     ngraph::graph_rewrite_callback callback = [](pattern::Matcher& m) {
+        OV_ITT_IE_TRANSFORM_CALLBACK(m, "callback")
         auto transpose = ngraph::as_type_ptr<ngraph::opset1::Transpose>(m.get_match_root());
         if (!transpose) {
             return false;
@@ -70,7 +72,11 @@ ngraph::pass::PullTransposeThroughFQUp::PullTransposeThroughFQUp() {
 
         return true;
     };
-
+#else
+    ngraph::graph_rewrite_callback callback = [](ngraph::pattern::Matcher & m) -> bool {
+        return false;
+    };
+#endif
     auto m = std::make_shared<ngraph::pattern::Matcher>(transpose, "PullTransposeThroughFQUp");
     this->register_matcher(m, callback);
 }

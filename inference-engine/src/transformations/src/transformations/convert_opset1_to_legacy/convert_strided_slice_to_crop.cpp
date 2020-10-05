@@ -3,6 +3,7 @@
 //
 
 #include "transformations/convert_opset1_to_legacy/convert_strided_slice_to_crop.hpp"
+#include "transformations/itt.hpp"
 
 #include <algorithm>
 #include <memory>
@@ -23,8 +24,9 @@ ngraph::pass::ConvertStridedSliceToCropMatcher::ConvertStridedSliceToCropMatcher
     std::vector<int64_t> begin_mask = {0, 0, 0, 0};
     std::vector<int64_t> end_mask = {0, 0, 0, 0};
     auto m_slice = std::make_shared<ngraph::opset1::StridedSlice>(data, m_begin, m_end, m_stride, begin_mask, end_mask);
-
+#if GraphGen(OV_GEN_NGRAPH_PASS(ConvertStridedSliceToCrop, callback))
     ngraph::matcher_pass_callback callback = [this](pattern::Matcher& m) {
+        OV_ITT_IE_TRANSFORM_CALLBACK(m, "callback")
         auto slice = std::dynamic_pointer_cast<ngraph::opset1::StridedSlice> (m.get_match_root());
         if (!slice || m_transformation_callback(slice)) {
             return false;
@@ -227,7 +229,11 @@ ngraph::pass::ConvertStridedSliceToCropMatcher::ConvertStridedSliceToCropMatcher
         ngraph::replace_node(slice, data_node);
         return true;
     };
-
+#else
+    ngraph::matcher_pass_callback callback = [](ngraph::pattern::Matcher & m) -> bool {
+        return false;
+    };
+#endif
     auto m = std::make_shared<ngraph::pattern::Matcher>(m_slice, "ConvertStridedSliceToCrop");
     this->register_matcher(m, callback);
 }

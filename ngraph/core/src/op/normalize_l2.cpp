@@ -16,6 +16,8 @@
 #include <algorithm>
 #include <iterator>
 
+#include "itt.hpp"
+
 #include "ngraph/attribute_visitor.hpp"
 #include "ngraph/builder/norm.hpp"
 #include "ngraph/builder/reshape.hpp"
@@ -45,13 +47,20 @@ op::NormalizeL2::NormalizeL2(const Output<Node>& data,
 
 bool ngraph::op::v0::NormalizeL2::visit_attributes(AttributeVisitor& visitor)
 {
+#if GraphGen(OV_GEN_NGRAPH_OP(NormalizeL2, v0, visit_attributes))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
     visitor.on_attribute("eps", m_eps);
     visitor.on_attribute("eps_mode", m_eps_mode);
     return true;
+#else
+    NODE_VALIDATION_CHECK(this, false, "Function is not included into the selective build.");
+#endif
 }
 
 void op::NormalizeL2::pre_validate_and_infer_types()
 {
+#if GraphGen(OV_GEN_NGRAPH_OP(NormalizeL2, v0, pre_validate_and_infer_types))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
     auto axes_node = input_value(1).get_node_shared_ptr();
     const auto& input_pshape = get_input_partial_shape(0);
     const auto& axes_pshape = get_input_partial_shape(1);
@@ -84,6 +93,9 @@ void op::NormalizeL2::pre_validate_and_infer_types()
             }
         }
     }
+#else
+    NODE_VALIDATION_CHECK(this, false, "Function is not included into the selective build.");
+#endif
 }
 
 AxisSet op::NormalizeL2::get_reduction_axes() const

@@ -3,6 +3,7 @@
 //
 
 #include "transformations/convert_broadcast_to_tiles.hpp"
+#include "transformations/itt.hpp"
 
 #include <memory>
 #include <vector>
@@ -15,7 +16,7 @@ NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertBroadcastToTiles, "ConvertBroadcastT
 
 ngraph::pass::ConvertBroadcastToTiles::ConvertBroadcastToTiles() {
     auto broadcast = ngraph::pattern::wrap_type<ngraph::opset1::Broadcast>();
-
+#if GraphGen(OV_GEN_NGRAPH_PASS(ConvertBroadcastToTile, callback))
     ngraph::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
         auto broadcast = std::dynamic_pointer_cast<ngraph::opset1::Broadcast>(m.get_match_root());
 
@@ -92,7 +93,11 @@ ngraph::pass::ConvertBroadcastToTiles::ConvertBroadcastToTiles() {
         ngraph::replace_node(broadcast, last_node);
         return true;
     };
-
+#else
+    ngraph::graph_rewrite_callback callback = [](ngraph::pattern::Matcher & m) -> bool {
+        return false;
+    };
+#endif
     auto m = std::make_shared<ngraph::pattern::Matcher>(broadcast, "ConvertBroadcastToTile");
     this->register_matcher(m, callback);
 }

@@ -3,6 +3,7 @@
 //
 
 #include "transformations/batch_norm_decomposition.hpp"
+#include "transformations/itt.hpp"
 
 #include <memory>
 #include <vector>
@@ -24,8 +25,9 @@ ngraph::pass::BatchNormDecomposition::BatchNormDecomposition() {
     auto beta_shape = Shape{2};
     auto beta = make_shared<pattern::op::Label>(element::f32, beta_shape);
     auto bn = make_shared<opset1::BatchNormInference>(input, gamma, beta, mean, var, 0.001);
-
+#if GraphGen(OV_GEN_NGRAPH_PASS(BatchNormDecomposition, callback))
     ngraph::graph_rewrite_callback callback = [this, input, gamma, beta, mean, var](ngraph::pattern::Matcher &m) {
+        OV_ITT_IE_TRANSFORM_CALLBACK(m, "callback")
         auto pattern_map = m.get_pattern_map();
 
         auto m_input = pattern_map[input];
@@ -75,7 +77,11 @@ ngraph::pass::BatchNormDecomposition::BatchNormDecomposition() {
 
         return true;
     };
-
+#else
+    ngraph::graph_rewrite_callback callback = [](ngraph::pattern::Matcher & m) -> bool {
+        return false;
+    };
+#endif
     auto m = std::make_shared<ngraph::pattern::Matcher>(bn, "BatchNormDecomposition");
     this->register_matcher(m, callback);
 }

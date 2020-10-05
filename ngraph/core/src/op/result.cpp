@@ -42,10 +42,15 @@ bool ngraph::op::v0::Result::visit_attributes(AttributeVisitor& visitor)
 
 void op::Result::validate_and_infer_types()
 {
+#if GraphGen(OV_GEN_NGRAPH_OP(Result, v0, validate_and_infer_types))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
     NODE_VALIDATION_CHECK(
         this, get_input_size() == 1, "Argument has ", get_input_size(), " outputs (1 expected).");
 
     set_output_type(0, get_input_element_type(0), get_input_partial_shape(0));
+#else
+    NODE_VALIDATION_CHECK(this, false, "Function is not included into the selective build.");
+#endif
 }
 
 shared_ptr<Node> op::Result::clone_with_new_inputs(const OutputVector& new_args) const
@@ -58,12 +63,16 @@ shared_ptr<Node> op::Result::clone_with_new_inputs(const OutputVector& new_args)
 
 bool op::Result::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::Result::evaluate");
+#if GraphGen(OV_GEN_NGRAPH_OP(Result, v0, evaluate))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
     outputs[0]->set_unary(inputs[0]);
     void* output = outputs[0]->get_data_ptr();
     void* input = inputs[0]->get_data_ptr();
     memcpy(output, input, outputs[0]->get_size_in_bytes());
     return true;
+#else
+    return false;
+#endif
 }
 
 bool op::Result::constant_fold(OutputVector& output_values, const OutputVector& inputs_values)

@@ -3,6 +3,7 @@
 //
 
 #include "transformations/convert_subtract.hpp"
+#include "transformations/itt.hpp"
 
 #include <memory>
 #include <vector>
@@ -15,8 +16,9 @@ NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertSubtract, "ConvertSubtract", 0);
 
 ngraph::pass::ConvertSubtract::ConvertSubtract() {
     auto sub = ngraph::pattern::wrap_type<ngraph::opset1::Subtract>();
-
+#if GraphGen(OV_GEN_NGRAPH_PASS(ConvertSubtract, callback))
     ngraph::graph_rewrite_callback callback = [](pattern::Matcher& m) {
+        OV_ITT_IE_TRANSFORM_CALLBACK(m, "callback")
         auto sub = std::dynamic_pointer_cast<ngraph::opset1::Subtract> (m.get_match_root());
         if (!sub) {
             return false;
@@ -32,7 +34,11 @@ ngraph::pass::ConvertSubtract::ConvertSubtract() {
         ngraph::replace_node(sub, add);
         return true;
     };
-
+#else
+    ngraph::graph_rewrite_callback callback = [](ngraph::pattern::Matcher & m) -> bool {
+        return false;
+    };
+#endif
     auto m = std::make_shared<ngraph::pattern::Matcher>(sub, "ConvertSubtract");
     this->register_matcher(m, callback);
 }

@@ -108,16 +108,23 @@ op::v1::StridedSlice::StridedSlice(const Output<Node>& data,
 
 bool ngraph::op::v1::StridedSlice::visit_attributes(AttributeVisitor& visitor)
 {
+#if GraphGen(OV_GEN_NGRAPH_OP(StridedSlice, v1, visit_attributes))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
     visitor.on_attribute("begin_mask", m_begin_mask);
     visitor.on_attribute("end_mask", m_end_mask);
     visitor.on_attribute("new_axis_mask", m_new_axis_mask);
     visitor.on_attribute("shrink_axis_mask", m_shrink_axis_mask);
     visitor.on_attribute("ellipsis_mask", m_ellipsis_mask);
     return true;
+#else
+    return false;
+#endif
 }
 
 void op::v1::StridedSlice::validate_and_infer_types()
 {
+#if GraphGen(OV_GEN_NGRAPH_OP(StridedSlice, v1, validate_and_infer_types))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
     const auto& begin_mask_et = get_input_element_type(1);
     const auto& end_mask_et = get_input_element_type(2);
     NODE_VALIDATION_CHECK(this,
@@ -199,6 +206,9 @@ void op::v1::StridedSlice::validate_and_infer_types()
     {
         set_output_type(0, get_input_element_type(0), PartialShape::dynamic(data_rank));
     }
+#else
+    NODE_VALIDATION_CHECK(this, false, "Function is not included into the selective build.");
+#endif
 }
 
 AxisSet op::v1::StridedSlice::convert_mask_to_axis_set(const std::vector<int64_t>& mask) const
@@ -273,7 +283,8 @@ namespace
 bool op::v1::StridedSlice::evaluate(const HostTensorVector& output_values,
                                     const HostTensorVector& input_values) const
 {
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v1::StridedSlice::evaluate");
+#if GraphGen(OV_GEN_NGRAPH_OP(StridedSlice, v1, evaluate))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
     return evaluate_strided_slice(input_values[0],
                                   input_values[1],
                                   input_values[2],
@@ -284,4 +295,7 @@ bool op::v1::StridedSlice::evaluate(const HostTensorVector& output_values,
                                   convert_mask_to_axis_set(get_shrink_axis_mask()),
                                   convert_mask_to_axis_set(get_ellipsis_mask()),
                                   output_values[0]);
+#else
+    return false;
+#endif
 }

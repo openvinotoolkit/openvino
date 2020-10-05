@@ -13,7 +13,8 @@
 #include <transformations/init_node_info.hpp>
 
 bool ngraph::pass::SmartReshape::run_on_function(std::shared_ptr<ngraph::Function> f) {
-    OV_ITT_SCOPED_TASK(itt::domains::IETransform, "ngraph::pass::SmartReshape");
+#if GraphGen(OV_GEN_NGRAPH_PASS(SmartReshape, run_on_function))
+    OV_ITT_SCOPED_TASK(itt::domains::IETransform);
 
     ngraph::pass::Manager manager;
     // This pass must be called first in pipeline
@@ -24,4 +25,7 @@ bool ngraph::pass::SmartReshape::run_on_function(std::shared_ptr<ngraph::Functio
 
     manager.run_passes(f);
     return true;
+#else
+    return false;
+#endif
 }

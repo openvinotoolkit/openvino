@@ -40,6 +40,8 @@ op::Unsqueeze::Unsqueeze(const Output<Node>& data, const Output<Node>& axes)
 
 void op::Unsqueeze::pre_validate_and_infer_types()
 {
+#if GraphGen(OV_GEN_NGRAPH_OP(Unsqueeze, v0, pre_validate_and_infer_types))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
     const auto data = input_value(0);
     auto data_partial_shape = data.get_partial_shape();
     const auto data_rank = data_partial_shape.rank();
@@ -76,10 +78,15 @@ void op::Unsqueeze::pre_validate_and_infer_types()
         output_shape.insert(next(begin(output_shape), axis), 1);
     }
     set_output_type(0, get_input_element_type(0), PartialShape{output_shape});
+#else
+    NODE_VALIDATION_CHECK(this, false, "Function is not included into the selective build.");
+#endif
 }
 
 OutputVector op::Unsqueeze::decompose_op() const
 {
+#if GraphGen(OV_GEN_NGRAPH_OP(Unsqueeze, v0, decompose_op))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
     NODE_VALIDATION_CHECK(
         this,
         (get_output_partial_shape(0).is_static()),
@@ -89,6 +96,9 @@ OutputVector op::Unsqueeze::decompose_op() const
     auto output_shape = get_output_shape(0);
     AxisVector input_order{ngraph::get_default_order(data_shape.size())};
     return {make_shared<ngraph::op::Reshape>(data, input_order, output_shape)};
+#else
+    NODE_VALIDATION_CHECK(this, false, "Function is not included into the selective build.");
+#endif
 }
 
 bool ngraph::op::v0::Unsqueeze::visit_attributes(AttributeVisitor& visitor)
@@ -170,6 +180,10 @@ namespace
 bool op::v0::Unsqueeze::evaluate(const HostTensorVector& outputs,
                                  const HostTensorVector& inputs) const
 {
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v0::Unsqueeze::evaluate");
+#if GraphGen(OV_GEN_NGRAPH_OP(Unsqueeze, v0, evaluate))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
     return evaluate_unsqueeze(inputs[0], inputs[1], outputs[0]);
+#else
+    return false;
+#endif
 }

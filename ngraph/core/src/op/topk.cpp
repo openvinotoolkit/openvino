@@ -138,6 +138,8 @@ void op::v0::TopK::set_top_k_axis(size_t top_k_axis)
 
 void op::v0::TopK::validate_and_infer_types()
 {
+#if GraphGen(OV_GEN_NGRAPH_OP(TopK, v0, validate_and_infer_types))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
     const PartialShape& input_shape = get_input_partial_shape(0);
     Rank input_rank = input_shape.rank();
     element::Type input_element_type = get_input_element_type(0);
@@ -213,6 +215,9 @@ void op::v0::TopK::validate_and_infer_types()
     set_output_size(2);
     set_output_type(0, m_index_element_type, output_shape);
     set_output_type(1, input_element_type, output_shape);
+#else
+    NODE_VALIDATION_CHECK(this, false, "Function is not included into the selective build.");
+#endif
 }
 
 shared_ptr<Node> op::v0::TopK::clone_with_new_inputs(const OutputVector& new_args) const
@@ -382,7 +387,8 @@ Shape op::v0::TopK::compute_output_shape(const Shape input_shape,
 
 bool op::v0::TopK::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v0::TopK::evaluate");
+#if GraphGen(OV_GEN_NGRAPH_OP(TopK, v0, evaluate))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
 
     // check data types for arg, k and output element type
     Shape arg_shape = inputs[0]->get_shape();
@@ -427,6 +433,9 @@ bool op::v0::TopK::evaluate(const HostTensorVector& outputs, const HostTensorVec
                          compute_max,
                          sort_type,
                          get_index_element_type());
+#else
+    return false;
+#endif
 }
 
 // v1 version starts
@@ -468,14 +477,21 @@ op::v1::TopK::TopK(const Output<Node>& data,
 
 bool ngraph::op::v1::TopK::visit_attributes(AttributeVisitor& visitor)
 {
+#if GraphGen(OV_GEN_NGRAPH_OP(TopK, v1, visit_attributes))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
     visitor.on_attribute("axis", m_axis);
     visitor.on_attribute("mode", m_mode);
     visitor.on_attribute("sort", m_sort);
     return true;
+#else
+    return false;
+#endif
 }
 
 void op::v1::TopK::validate_and_infer_types()
 {
+#if GraphGen(OV_GEN_NGRAPH_OP(TopK, v1, validate_and_infer_types))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
     const auto& input_partial_shape = get_input_partial_shape(0);
     const auto input_rank = input_partial_shape.rank();
 
@@ -520,6 +536,9 @@ void op::v1::TopK::validate_and_infer_types()
     set_output_size(2);
     set_output_type(0, get_input_element_type(0), output_shape);
     set_output_type(1, m_index_element_type, output_shape);
+#else
+    NODE_VALIDATION_CHECK(this, false, "Function is not included into the selective build.");
+#endif
 }
 
 Shape op::v1::TopK::compute_output_shape(const std::string& node_description,
@@ -665,7 +684,8 @@ void op::v1::TopK::set_k(size_t k)
 
 bool op::v1::TopK::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v1::TopK::evaluate");
+#if GraphGen(OV_GEN_NGRAPH_OP(TopK, v1, evaluate))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
 
     Shape arg_shape = inputs[0]->get_shape();
     // 1. get axis, mode ( max/min), sort_type
@@ -705,6 +725,9 @@ bool op::v1::TopK::evaluate(const HostTensorVector& outputs, const HostTensorVec
                          compute_max,
                          sort_type,
                          get_index_element_type());
+#else
+    return false;
+#endif
 }
 
 // v3 version starts
@@ -734,20 +757,30 @@ op::v3::TopK::TopK(const Output<Node>& data,
 
 bool ngraph::op::v3::TopK::visit_attributes(AttributeVisitor& visitor)
 {
+#if GraphGen(OV_GEN_NGRAPH_OP(TopK, v3, visit_attributes))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
     visitor.on_attribute("axis", m_axis);
     visitor.on_attribute("mode", m_mode);
     visitor.on_attribute("sort", m_sort);
     visitor.on_attribute("index_element_type", m_index_element_type);
     return true;
+#else
+    return false;
+#endif
 }
 
 void op::v3::TopK::validate_and_infer_types()
 {
+#if GraphGen(OV_GEN_NGRAPH_OP(TopK, v3, validate_and_infer_types))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
     NODE_VALIDATION_CHECK(this,
                           get_input_element_type(1).is_integral_number(),
                           "K input has to be an integer type, which does match the provided one:",
                           get_input_element_type(1));
     op::v1::TopK::validate_and_infer_types();
+#else
+    NODE_VALIDATION_CHECK(this, false, "Function is not included into the selective build.");
+#endif
 }
 
 size_t op::v3::TopK::read_k_from_constant_node(const shared_ptr<Node>& node,
@@ -793,6 +826,10 @@ shared_ptr<Node> op::v3::TopK::clone_with_new_inputs(const OutputVector& new_arg
 
 bool op::v3::TopK::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v3::TopK::evaluate");
+#if GraphGen(OV_GEN_NGRAPH_OP(TopK, v3, evaluate))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
     return op::v1::TopK::evaluate(outputs, inputs);
+#else
+    return false;
+#endif
 }

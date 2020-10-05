@@ -13,6 +13,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 //*****************************************************************************
+#include "itt.hpp"
 
 #include "roi_align.hpp"
 
@@ -63,6 +64,8 @@ op::v3::ROIAlign::ROIAlign(const Output<Node>& input,
 
 void op::v3::ROIAlign::validate_and_infer_types()
 {
+#if GraphGen(OV_GEN_NGRAPH_OP(ROIAlign, v3, validate_and_infer_types))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
     NODE_VALIDATION_CHECK(
         this,
         get_input_element_type(0).is_real() && get_input_element_type(1).is_real(),
@@ -158,10 +161,15 @@ void op::v3::ROIAlign::validate_and_infer_types()
         set_input_is_relevant_to_shape(1);
         set_input_is_relevant_to_shape(2);
     }
+#else
+    NODE_VALIDATION_CHECK(this, false, "Function is not included into the selective build.");
+#endif
 }
 
 bool op::v3::ROIAlign::visit_attributes(AttributeVisitor& visitor)
 {
+#if GraphGen(OV_GEN_NGRAPH_OP(ROIAlign, v3, visit_attributes))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
     visitor.on_attribute("pooled_h", m_pooled_h);
     visitor.on_attribute("pooled_w", m_pooled_w);
     visitor.on_attribute("sampling_ratio", m_sampling_ratio);
@@ -169,6 +177,9 @@ bool op::v3::ROIAlign::visit_attributes(AttributeVisitor& visitor)
     visitor.on_attribute("mode", m_mode);
 
     return true;
+#else
+    return false;
+#endif
 }
 
 shared_ptr<Node> op::v3::ROIAlign::clone_with_new_inputs(const OutputVector& new_args) const
@@ -283,6 +294,11 @@ namespace
 bool op::v3::ROIAlign::evaluate(const HostTensorVector& outputs,
                                 const HostTensorVector& inputs) const
 {
+#if GraphGen(OV_GEN_NGRAPH_OP(ROIAlign, v3, evaluate))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
     return evaluate_roi_align(
         inputs, outputs[0], m_pooled_h, m_pooled_w, m_sampling_ratio, m_spatial_scale, m_mode);
+#else
+    return false;
+#endif
 }

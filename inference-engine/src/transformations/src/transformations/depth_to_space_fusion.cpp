@@ -3,6 +3,7 @@
 //
 
 #include "transformations/depth_to_space_fusion.hpp"
+#include "transformations/itt.hpp"
 
 #include <memory>
 #include <vector>
@@ -91,8 +92,9 @@ void ngraph::pass::DepthToSpaceFusion::depth_to_space_fusion() {
     auto reshape_before = std::make_shared<ngraph::opset3::Reshape> (input0, input1, false);
     auto permute = std::make_shared<ngraph::opset3::Transpose> (reshape_before, input2);
     auto reshape_after = std::make_shared<ngraph::opset3::Reshape> (permute, input3, false);
-
+#if GraphGen(OV_GEN_NGRAPH_PASS(DepthToSpaceFusion, callback))
     ngraph::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
+        OV_ITT_IE_TRANSFORM_CALLBACK(m, "callback")
         auto reshape_after = std::dynamic_pointer_cast<ngraph::opset3::Reshape>(m.get_match_root());
         if (!reshape_after) {
             return false;
@@ -163,7 +165,11 @@ void ngraph::pass::DepthToSpaceFusion::depth_to_space_fusion() {
         ngraph::replace_node(reshape_after, depth_to_space);
         return true;
     };
-
+#else
+    ngraph::graph_rewrite_callback callback = [](ngraph::pattern::Matcher & m) -> bool {
+        return false;
+    };
+#endif
     auto m = std::make_shared<ngraph::pattern::Matcher>(reshape_after, "DepthToSpaceFusion");
     this->add_matcher(m, callback, PassProperty::CHANGE_DYNAMIC_STATE);
 }

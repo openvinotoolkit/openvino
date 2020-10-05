@@ -3,6 +3,7 @@
 //
 
 #include "transformations/convert_opset1_to_legacy/convert_gather_to_gather_ie.hpp"
+#include "transformations/itt.hpp"
 
 #include <memory>
 #include <vector>
@@ -15,8 +16,9 @@ NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertGatherToGatherIEMatcher, "ConvertGat
 
 ngraph::pass::ConvertGatherToGatherIEMatcher::ConvertGatherToGatherIEMatcher() {
     auto gather = ngraph::pattern::wrap_type<opset1::Gather>();
-
+#if GraphGen(OV_GEN_NGRAPH_PASS(ConvertGatherToGatherIE, callback))
     ngraph::matcher_pass_callback callback = [](pattern::Matcher &m) {
+        OV_ITT_IE_TRANSFORM_CALLBACK(m, "callback")
         auto gather = std::dynamic_pointer_cast<ngraph::opset1::Gather>(m.get_match_root());
         if (!gather) {
             return false;
@@ -64,7 +66,11 @@ ngraph::pass::ConvertGatherToGatherIEMatcher::ConvertGatherToGatherIEMatcher() {
         }
         return true;
     };
-
+#else
+    ngraph::matcher_pass_callback callback = [](ngraph::pattern::Matcher & m) -> bool {
+        return false;
+    };
+#endif
     auto m1 = std::make_shared<ngraph::pattern::Matcher>(gather, "ConvertGatherToGatherIE");
     this->register_matcher(m1, callback);
 }

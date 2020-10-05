@@ -13,12 +13,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 //*****************************************************************************
+#include "itt.hpp"
 
-#include "ngraph/op/pad.hpp"
 #include "ngraph/attribute_visitor.hpp"
 #include "ngraph/except.hpp"
 #include "ngraph/op/broadcast.hpp"
 #include "ngraph/op/constant.hpp"
+#include "ngraph/op/pad.hpp"
 #include "ngraph/op/util/op_types.hpp"
 #include "ngraph/runtime/reference/pad.hpp"
 
@@ -74,12 +75,19 @@ CoordinateDiff op::v1::Pad::get_pads_end() const
 
 bool ngraph::op::v1::Pad::visit_attributes(AttributeVisitor& visitor)
 {
+#if GraphGen(OV_GEN_NGRAPH_OP(Pad, v1, visit_attributes))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
     visitor.on_attribute("pad_mode", m_pad_mode);
     return true;
+#else
+    return false;
+#endif
 }
 
 void op::v1::Pad::validate_and_infer_types()
 {
+#if GraphGen(OV_GEN_NGRAPH_OP(Pad, v1, validate_and_infer_types))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
     element::Type result_et;
 
     const auto& arg_element_type = get_input_element_type(0);
@@ -193,6 +201,9 @@ void op::v1::Pad::validate_and_infer_types()
     {
         set_output_type(0, get_input_element_type(0), PartialShape::dynamic());
     }
+#else
+    NODE_VALIDATION_CHECK(this, false, "Function is not included into the selective build.");
+#endif
 }
 
 shared_ptr<Node> op::v1::Pad::clone_with_new_inputs(const OutputVector& new_args) const
@@ -211,6 +222,8 @@ shared_ptr<Node> op::v1::Pad::clone_with_new_inputs(const OutputVector& new_args
 
 bool op::v1::Pad::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
+#if GraphGen(OV_GEN_NGRAPH_OP(Pad, v1, evaluate))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
     const auto& data = inputs[0];
     const auto elem_size = data->get_element_type().size();
 
@@ -237,4 +250,7 @@ bool op::v1::Pad::evaluate(const HostTensorVector& outputs, const HostTensorVect
                                     get_pad_mode());
 
     return true;
+#else
+    return false;
+#endif
 }

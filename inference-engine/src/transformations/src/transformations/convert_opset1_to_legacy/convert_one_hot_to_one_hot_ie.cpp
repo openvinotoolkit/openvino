@@ -3,6 +3,7 @@
 //
 
 #include "transformations/convert_opset1_to_legacy/convert_one_hot_to_one_hot_ie.hpp"
+#include "transformations/itt.hpp"
 
 #include <memory>
 #include <vector>
@@ -21,8 +22,9 @@ ngraph::pass::ConvertOneHotToOneHotIEMatcher::ConvertOneHotToOneHotIEMatcher() {
     auto on_value = std::make_shared<pattern::op::Label>(element::f32, Shape{});
     auto off_value = std::make_shared<pattern::op::Label>(element::f32, Shape{});
     auto one_hot = std::make_shared<ngraph::opset1::OneHot>(input, depth, on_value, off_value, 1);
-
+#if GraphGen(OV_GEN_NGRAPH_PASS(ConvertOneHotToOneHotIE, callback))
     ngraph::matcher_pass_callback callback = [=](pattern::Matcher& m) {
+        OV_ITT_IE_TRANSFORM_CALLBACK(m, "callback")
         auto one_hot = std::dynamic_pointer_cast<ngraph::opset1::OneHot> (m.get_match_root());
         if (!one_hot) {
             return false;
@@ -56,7 +58,11 @@ ngraph::pass::ConvertOneHotToOneHotIEMatcher::ConvertOneHotToOneHotIEMatcher() {
 
         return true;
     };
-
+#else
+    ngraph::matcher_pass_callback callback = [](ngraph::pattern::Matcher & m) -> bool {
+        return false;
+    };
+#endif
     auto m = std::make_shared<ngraph::pattern::Matcher>(one_hot, "ConvertOneHotToOneHotIE");
     this->register_matcher(m, callback);
 }

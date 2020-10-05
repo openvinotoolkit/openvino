@@ -3,6 +3,7 @@
 //
 
 #include "transformations/convert_opset1_to_legacy/convert_prior_to_ie_prior.hpp"
+#include "transformations/itt.hpp"
 
 #include <memory>
 #include <vector>
@@ -35,7 +36,9 @@ void ngraph::pass::ConvertPriorBox::convert_prior_box() {
     auto prior_box = std::make_shared<ngraph::opset1::PriorBox>(data, image, attr);
     auto unsqueeze = std::make_shared<ngraph::opset1::Unsqueeze> (prior_box, axes);
 
+#if GraphGen(OV_GEN_NGRAPH_PASS(CPUFusion_ConvertPriorBoxToPriorBoxIE, callback))
     ngraph::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
+        OV_ITT_IE_TRANSFORM_CALLBACK(m, "callback")
         auto unsqueeze = std::dynamic_pointer_cast<ngraph::opset1::Unsqueeze> (m.get_match_root());
         if (!unsqueeze) {
             return false;
@@ -152,7 +155,11 @@ void ngraph::pass::ConvertPriorBox::convert_prior_box() {
         ngraph::replace_node(m.get_match_root(), prior_box_ie);
         return true;
     };
-
+#else
+    ngraph::graph_rewrite_callback callback = [](ngraph::pattern::Matcher & m) -> bool {
+        return false;
+    };
+#endif
     auto m = std::make_shared<ngraph::pattern::Matcher>(unsqueeze, "CPUFusion.ConvertPriorBoxToPriorBoxIE");
     this->add_matcher(m, callback, PassProperty::CHANGE_DYNAMIC_STATE);
 }
@@ -173,8 +180,9 @@ void ngraph::pass::ConvertPriorBox::convert_prior_box_clustered() {
 
     auto prior_box = std::make_shared<ngraph::opset1::PriorBoxClustered>(data, image, attr);
     auto unsqueeze = std::make_shared<ngraph::opset1::Unsqueeze> (prior_box, axes);
-
+#if GraphGen(OV_GEN_NGRAPH_PASS(CPUFusion_ConvertPriorBoxClusteredToPriorBoxClusteredIE, callback))
     ngraph::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
+        OV_ITT_IE_TRANSFORM_CALLBACK(m, "callback")
         auto unsqueeze = std::dynamic_pointer_cast<ngraph::opset1::Unsqueeze> (m.get_match_root());
         if (!unsqueeze) {
             return false;
@@ -290,7 +298,11 @@ void ngraph::pass::ConvertPriorBox::convert_prior_box_clustered() {
         ngraph::replace_node(unsqueeze, prior_box_ie);
         return true;
     };
-
+#else
+    ngraph::graph_rewrite_callback callback = [](ngraph::pattern::Matcher & m) -> bool {
+        return false;
+    };
+#endif
     auto m = std::make_shared<ngraph::pattern::Matcher>(unsqueeze, "CPUFusion.ConvertPriorBoxClusteredToPriorBoxClusteredIE");
     this->add_matcher(m, callback, PassProperty::CHANGE_DYNAMIC_STATE);
 }

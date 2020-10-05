@@ -16,6 +16,8 @@
 
 #include <numeric>
 
+#include "itt.hpp"
+
 #include "ngraph/op/constant.hpp"
 #include "ngraph/op/util/op_types.hpp"
 #include "ngraph/op/variadic_split.hpp"
@@ -44,6 +46,8 @@ bool ngraph::op::v1::VariadicSplit::visit_attributes(AttributeVisitor& visitor)
 
 void ngraph::op::v1::VariadicSplit::validate_and_infer_types()
 {
+#if GraphGen(OV_GEN_NGRAPH_OP(VariadicSplit, v1, validate_and_infer_types))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
     set_input_is_relevant_to_value(0);
     set_input_is_relevant_to_value(1);
     set_input_is_relevant_to_value(2);
@@ -138,6 +142,9 @@ void ngraph::op::v1::VariadicSplit::validate_and_infer_types()
             }
         }
     }
+#else
+    NODE_VALIDATION_CHECK(this, false, "Function is not included into the selective build.");
+#endif
 }
 
 shared_ptr<Node> op::v1::VariadicSplit::clone_with_new_inputs(const OutputVector& new_args) const
@@ -216,9 +223,15 @@ namespace
 bool op::v1::VariadicSplit::evaluate(const HostTensorVector& outputs,
                                      const HostTensorVector& inputs) const
 {
+#if GraphGen(OV_GEN_NGRAPH_OP(VariadicSplit, v1, evaluate))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
+
     const auto& data = inputs[0];
     const auto& axis = inputs[1];
     const auto& split_lengths = inputs[2];
 
     return evaluate_variadic_split(data, axis, split_lengths, outputs, this);
+#else
+    return false;
+#endif
 }

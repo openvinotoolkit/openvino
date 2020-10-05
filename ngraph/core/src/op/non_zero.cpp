@@ -48,12 +48,19 @@ op::v3::NonZero::NonZero(const Output<Node>& arg, const element::Type& output_ty
 
 bool ngraph::op::v3::NonZero::visit_attributes(AttributeVisitor& visitor)
 {
+#if GraphGen(OV_GEN_NGRAPH_OP(NonZero, v3, visit_attributes))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
     visitor.on_attribute("output_type", m_output_type);
     return true;
+#else
+    return false;
+#endif
 }
 
 void op::v3::NonZero::validate_and_infer_types()
 {
+#if GraphGen(OV_GEN_NGRAPH_OP(NonZero, v3, validate_and_infer_types))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
     const PartialShape& input_shape = get_input_partial_shape(0);
     const auto input_et = get_input_element_type(0);
 
@@ -76,6 +83,9 @@ void op::v3::NonZero::validate_and_infer_types()
     }
 
     set_input_is_relevant_to_shape(0);
+#else
+    NODE_VALIDATION_CHECK(this, false, "Function is not included into the selective build.");
+#endif
 }
 
 shared_ptr<Node> op::v3::NonZero::clone_with_new_inputs(const OutputVector& new_args) const
@@ -162,6 +172,10 @@ namespace
 bool op::v3::NonZero::evaluate(const HostTensorVector& outputs,
                                const HostTensorVector& inputs) const
 {
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v3::NonZero::evaluate");
+#if GraphGen(OV_GEN_NGRAPH_OP(NonZero, v3, evaluate))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
     return evaluate_nonzero(inputs[0], outputs[0]);
+#else
+    return false;
+#endif
 }

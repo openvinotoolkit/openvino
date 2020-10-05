@@ -40,8 +40,13 @@ shared_ptr<Node> op::v1::LogicalXor::clone_with_new_inputs(const OutputVector& n
 
 bool ngraph::op::v1::LogicalXor::visit_attributes(AttributeVisitor& visitor)
 {
+#if GraphGen(OV_GEN_NGRAPH_OP(LogicalXor, v1, visit_attributes))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
     BinaryElementwiseLogical::visit_attributes(visitor);
     return true;
+#else
+    return false;
+#endif
 }
 
 namespace
@@ -93,8 +98,12 @@ namespace
 bool op::v1::LogicalXor::evaluate(const HostTensorVector& outputs,
                                   const HostTensorVector& inputs) const
 {
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v1::LogicalXor::evaluate");
+#if GraphGen(OV_GEN_NGRAPH_OP(LogicalXor, v1, evaluate))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
     return evaluate_logxor(inputs[0], inputs[1], outputs[0], get_autob());
+#else
+    return false;
+#endif
 }
 
 constexpr NodeTypeInfo op::v0::Xor::type_info;
@@ -115,6 +124,10 @@ shared_ptr<Node> op::v0::Xor::clone_with_new_inputs(const OutputVector& new_args
 
 bool op::v0::Xor::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v0::Xor::evaluate");
+#if GraphGen(OV_GEN_NGRAPH_OP(Xor, v0, evaluate))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
     return evaluate_logxor(inputs[0], inputs[1], outputs[0], get_autob());
+#else
+    return false;
+#endif
 }

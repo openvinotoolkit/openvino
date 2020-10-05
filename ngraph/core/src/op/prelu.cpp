@@ -47,11 +47,18 @@ bool ngraph::op::v0::PRelu::visit_attributes(AttributeVisitor& visitor)
 
 void ngraph::op::v0::PRelu::pre_validate_and_infer_types()
 {
+#if GraphGen(OV_GEN_NGRAPH_OP(PRelu, v0, pre_validate_and_infer_types))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
     set_output_type(0, get_input_element_type(0), get_input_partial_shape(0));
+#else
+    NODE_VALIDATION_CHECK(this, false, "Function is not included into the selective build.");
+#endif
 }
 
 OutputVector op::PRelu::decompose_op() const
 {
+#if GraphGen(OV_GEN_NGRAPH_OP(PRelu, v0, decompose_op))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
     auto data = input_value(0);
     auto data_shape = data.get_shape();
     auto slope = input_value(1);
@@ -85,6 +92,9 @@ OutputVector op::PRelu::decompose_op() const
     slope = negative_map * slope + positive_map;
 
     return {data * slope};
+#else
+    NODE_VALIDATION_CHECK(this, false, "Function is not included into the selective build.");
+#endif
 }
 
 shared_ptr<Node> op::PRelu::clone_with_new_inputs(const OutputVector& new_args) const
@@ -127,6 +137,10 @@ bool evaluate_prelu(const HostTensorPtr& arg, const HostTensorPtr& slope, const 
 
 bool op::PRelu::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::PRelu::evaluate");
+#if GraphGen(OV_GEN_NGRAPH_OP(PRelu, v0, evaluate))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
     return evaluate_prelu(inputs[0], inputs[1], outputs[0]);
+#else
+    return false;
+#endif
 }

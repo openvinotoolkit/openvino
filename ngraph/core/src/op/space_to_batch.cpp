@@ -17,6 +17,8 @@
 #include <cstddef>
 #include <memory>
 
+#include "itt.hpp"
+
 #include "ngraph/builder/make_constant.hpp"
 #include "ngraph/node.hpp"
 #include "ngraph/op/space_to_batch.hpp"
@@ -39,6 +41,8 @@ ngraph::op::v1::SpaceToBatch::SpaceToBatch(const ngraph::Output<ngraph::Node>& d
 
 void op::v1::SpaceToBatch::validate_and_infer_types()
 {
+#if GraphGen(OV_GEN_NGRAPH_OP(SpaceToBatch, v1, validate_and_infer_types))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
     PartialShape data_pshape = get_input_partial_shape(0);
     const auto& data_type = get_input_element_type(0);
     const auto& block_shape_type = get_input_element_type(1);
@@ -121,6 +125,9 @@ void op::v1::SpaceToBatch::validate_and_infer_types()
     {
         set_output_type(0, data_type, PartialShape::dynamic());
     }
+#else
+    NODE_VALIDATION_CHECK(this, false, "Function is not included into the selective build.");
+#endif
 }
 
 std::shared_ptr<Node>

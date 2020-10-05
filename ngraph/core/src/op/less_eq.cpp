@@ -91,8 +91,12 @@ namespace
 bool op::v1::LessEqual::evaluate(const HostTensorVector& outputs,
                                  const HostTensorVector& inputs) const
 {
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v1::LessEqual::evaluate");
+#if GraphGen(OV_GEN_NGRAPH_OP(LessEq, v1, evaluate))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
     return evaluate_less_equal(inputs[0], inputs[1], outputs[0], get_autob());
+#else
+    return false;
+#endif
 }
 
 // ---------------------------------- v0 ---------------------------------------
@@ -115,6 +119,10 @@ shared_ptr<Node> op::v0::LessEq::clone_with_new_inputs(const OutputVector& new_a
 
 bool op::v0::LessEq::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v0::LessEq::evaluate");
+#if GraphGen(OV_GEN_NGRAPH_OP(LessEq, v0, evaluate))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
     return evaluate_less_equal(inputs[0], inputs[1], outputs[0], get_autob());
+#else
+    return false;
+#endif
 }

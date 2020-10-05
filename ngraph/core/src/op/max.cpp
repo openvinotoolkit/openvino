@@ -130,8 +130,12 @@ namespace
 
 bool op::v0::Max::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v0::Max::evaluate");
+#if GraphGen(OV_GEN_NGRAPH_OP(Max, v0, evaluate))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
     return evaluate_max(inputs[0], outputs[0], get_reduction_axes(), false);
+#else
+    return false;
+#endif
 }
 
 constexpr NodeTypeInfo op::v1::ReduceMax::type_info;
@@ -153,6 +157,10 @@ shared_ptr<Node> op::v1::ReduceMax::clone_with_new_inputs(const OutputVector& ne
 bool op::v1::ReduceMax::evaluate(const HostTensorVector& outputs,
                                  const HostTensorVector& inputs) const
 {
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v1::ReduceMax::evaluate");
+#if GraphGen(OV_GEN_NGRAPH_OP(Max, v1, evaluate))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
     return evaluate_max(inputs[0], outputs[0], get_reduction_axes(), get_keep_dims());
+#else
+    return false;
+#endif
 }

@@ -49,6 +49,8 @@ shared_ptr<Node> op::v0::Gather::clone_with_new_inputs(const OutputVector& new_a
 
 void op::v0::Gather::validate_and_infer_types()
 {
+#if GraphGen(OV_GEN_NGRAPH_OP(Gather, v0, validate_and_infer_types))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
     element::Type result_et = get_input_element_type(PARAMS);
     element::Type indices_et = get_input_element_type(INDICES);
 
@@ -95,6 +97,9 @@ void op::v0::Gather::validate_and_infer_types()
     }
 
     set_output_type(0, result_et, result_shape);
+#else
+    NODE_VALIDATION_CHECK(this, false, "Function is not included into the selective build.");
+#endif
 }
 
 constexpr NodeTypeInfo op::v1::Gather::type_info;
@@ -115,6 +120,8 @@ bool ngraph::op::v1::Gather::visit_attributes(AttributeVisitor& visitor)
 
 void op::v1::Gather::validate_and_infer_types()
 {
+#if GraphGen(OV_GEN_NGRAPH_OP(Gather, v1, validate_and_infer_types))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
     const auto& input_rank = get_input_partial_shape(PARAMS).rank();
     const auto& axis_shape = get_input_partial_shape(AXIS);
     const auto& axis_rank = axis_shape.rank();
@@ -175,6 +182,9 @@ void op::v1::Gather::validate_and_infer_types()
     }
 
     set_output_type(0, result_et, result_shape);
+#else
+    NODE_VALIDATION_CHECK(this, false, "Function is not included into the selective build.");
+#endif
 }
 
 int64_t op::v1::Gather::get_axis() const
@@ -289,13 +299,18 @@ namespace
 
 bool op::v0::Gather::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v0::Gather::evaluate");
+#if GraphGen(OV_GEN_NGRAPH_OP(Gather, v0, evaluate))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
     return evaluate_gather(inputs[0], inputs[1], outputs[0], get_axis());
+#else
+    return false;
+#endif
 }
 
 bool op::v1::Gather::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v1::Gather::evaluate");
+#if GraphGen(OV_GEN_NGRAPH_OP(Gather, v1, evaluate))
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
     int64_t axis = 0;
     switch (inputs[2]->get_element_type())
     {
@@ -319,4 +334,7 @@ bool op::v1::Gather::evaluate(const HostTensorVector& outputs, const HostTensorV
         }
     }
     return evaluate_gather(inputs[0], inputs[1], outputs[0], axis);
+#else
+    return false;
+#endif
 }
