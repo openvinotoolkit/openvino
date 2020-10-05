@@ -29,6 +29,7 @@ and release your contribution under these terms.
 * [Introduction to Deep Learning Deployment Toolkit](https://docs.openvinotoolkit.org/latest/_docs_IE_DG_Introduction.html)
 * [Inference Engine Developer Guide](https://docs.openvinotoolkit.org/latest/_docs_IE_DG_Deep_Learning_Inference_Engine_DevGuide.html)
 * [Model Optimizer Developer Guide](https://docs.openvinotoolkit.org/latest/_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide.html)
+* [Get Started with DockerHub CI for OpenVINO™ toolkit](https://github.com/openvinotoolkit/docker_ci/blob/master/README.md)
 
 ## How to Contribute
 See [CONTRIBUTING](./CONTRIBUTING.md) for contribution to the code.

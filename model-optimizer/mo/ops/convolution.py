@@ -22,6 +22,7 @@ from mo.front.common.partial_infer.utils import int64_array, float_array, mark_i
     tf_window_op_pad_infer
 from mo.front.onnx.extractors.utils import get_backend_pad
 from mo.graph.graph import Node, Graph
+from mo.graph.perm_inputs import PermuteInputs
 from mo.ops.op import Op, PermuteAttrs
 from mo.utils.error import Error
 
@@ -264,5 +265,6 @@ class Convolution(Op):
                                                        ('output_feature_channel', 'input:{}'.format(weights_index)),
                                                        ])
 
-        PermuteAttrs.set_permutation(node.in_node(weights_index), node,
-                                     node.get_weights_permute if node.has_valid('get_weights_permute') else None)
+        PermuteAttrs.set_permutation(node.in_node(weights_index), node, node.soft_get('get_weights_permute', None))
+        PermuteInputs().set_input_permutation(
+            node.in_node(weights_index), node, 'input:{}'.format(weights_index), 'transpose')

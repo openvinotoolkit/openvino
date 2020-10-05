@@ -51,6 +51,8 @@
 #include <transformations/hswish_decomposition.hpp>
 #include <transformations/reduce_l1_decomposition.hpp>
 #include <transformations/reduce_l2_decomposition.hpp>
+#include <transformations/common_optimizations/fq_mul_fusion.hpp>
+#include <transformations/common_optimizations/fq_reshape_fusion.hpp>
 
 #include <ngraph/pass/constant_folding.hpp>
 #include <ngraph/pass/manager.hpp>
@@ -66,49 +68,26 @@ bool ngraph::pass::ConvertOpSet1ToLegacy::run_on_function(std::shared_ptr<ngraph
     OV_ITT_SCOPED_TASK(itt::domains::IETransform, "ngraph::pass::ConvertOpSet1ToLegacy");
 
     ngraph::pass::Manager manager;
-    std::vector<std::shared_ptr<ngraph::pass::PassBase> > transforms;
 
     manager.register_pass<ngraph::pass::ConstantFolding>();
 
-    // the following two transformations produce ReduceSum operations so they
-    // must be executed before the ConvertReduceSumToPooling transformation
-    manager.register_pass<ngraph::pass::ReduceL1Decomposition>();
-    manager.register_pass<ngraph::pass::ReduceL2Decomposition>();
-
-    // HSwishDecomposition produce Minimum, Relu and Multiply operations
-    // so it must be executed before
-    manager.register_pass<ngraph::pass::HSwishDecomposition>();
-
-    // List if Decomposition and Conversion transformations that can be
-    // applied simultaneously in a single graph traversal
+    // Some passes before ConvertOpSet1ToLegacy can produce some of this
+    // operations. So for convenience we decompose this operations here and
+    // in CommonOptimizations.
     auto decomp = manager.register_pass<ngraph::pass::GraphRewrite>();
-    decomp->add_matcher<ngraph::pass::ConvertBroadcastToTiles>();
-    decomp->add_matcher<ngraph::pass::ConvertReduceMeanToPooling>();
-    decomp->add_matcher<ngraph::pass::ConvertReduceMaxToPooling>();
-    decomp->add_matcher<ngraph::pass::ConvertReduceSumToPooling>();
     decomp->add_matcher<ngraph::pass::ConvertMod>();
     decomp->add_matcher<ngraph::pass::ConvertMinimum>();
     decomp->add_matcher<ngraph::pass::ConvertSubtract>();
     decomp->add_matcher<ngraph::pass::ConvertDivide>();
     decomp->add_matcher<ngraph::pass::ConvertNegative>();
-    decomp->add_matcher<ngraph::pass::ConvertDepthToSpace>();
-    decomp->add_matcher<ngraph::pass::ConvertSpaceToDepth>();
-    decomp->add_matcher<ngraph::pass::BatchNormDecomposition>();
-    decomp->add_matcher<ngraph::pass::ConvertMatMulToFC>();
-    decomp->add_matcher<ngraph::pass::ConvertMatMulToGemm>();
-    decomp->add_matcher<ngraph::pass::PullTransposeThroughFQUp>();
-    decomp->set_name("ngraph::pass::Decompositions");
+    decomp->set_name("ngraph::pass::LegacyDecompositions");
 
-    // CF is required after all decompositions
-    manager.register_pass<ngraph::pass::ConstantFolding>();
+    auto convert_matmul = manager.register_pass<ngraph::pass::GraphRewrite>();
+    convert_matmul->add_matcher<ngraph::pass::ConvertMatMulToFC>();
+    convert_matmul->add_matcher<ngraph::pass::PullTransposeThroughFQUp>();
+    convert_matmul->add_matcher<ngraph::pass::ConvertMatMulToGemm>();
+    convert_matmul->set_name("ngraph::pass::ConvertMatMul");
 
-    // LinOpSequenceFusion must be executed after all decompositions
-    manager.register_pass<ngraph::pass::LinOpSequenceFusion>();
-
-    manager.register_pass<ngraph::pass::ConvolutionMultiplyFusion>();
-    manager.register_pass<ngraph::pass::GroupConvolutionMultiplyFusion>();
-    manager.register_pass<ngraph::pass::ConvolutionBackpropDataMultiplyFusion>();
-    manager.register_pass<ngraph::pass::GroupConvolutionBackpropDataMultiplyFusion>();
     manager.register_pass<ngraph::pass::ConstantFolding>();
 
     // Convolution/Deconvolution/FullyConnected fusions
@@ -124,7 +103,7 @@ bool ngraph::pass::ConvertOpSet1ToLegacy::run_on_function(std::shared_ptr<ngraph
     fusion->add_matcher<ngraph::pass::ConvAddFusion>();
     fusion->add_matcher<ngraph::pass::DeconvAddFusion>();
     fusion->add_matcher<ngraph::pass::FullyConnectedBiasFusion>();
-    fusion->set_name("ngraph::pass::Fusions");
+    fusion->set_name("ngraph::pass::BiasFusions");
 
     // CF is required after fusions
     manager.register_pass<ngraph::pass::ConstantFolding>();
@@ -141,6 +120,7 @@ bool ngraph::pass::ConvertOpSet1ToLegacy::run_on_function(std::shared_ptr<ngraph
     anchor->add_matcher<ngraph::pass::ConvertHardSigmoidToLegacyMatcher>();
     anchor->add_matcher<ngraph::pass::ConvertProposalToLegacyMatcher>();
     anchor->add_matcher<ngraph::pass::ConvertProposal4ToLegacyMatcher>();
+    anchor->add_matcher<ngraph::pass::ConvertBroadcastToTiles>();
     anchor->add_matcher<ngraph::pass::ConvertTileToLegacyMatcher>();
     anchor->add_matcher<ngraph::pass::ConvertLRNToLegacyMatcher>();
     anchor->add_matcher<ngraph::pass::ConvertPadToLegacyMatcher>();
@@ -163,7 +143,7 @@ bool ngraph::pass::ConvertOpSet1ToLegacy::run_on_function(std::shared_ptr<ngraph
     anchor->add_matcher<ngraph::pass::ConvertGRUSequenceMatcher>();
     anchor->add_matcher<ngraph::pass::ConvertRNNSequenceMatcher>();
     anchor->add_matcher<ngraph::pass::ConvertLSTMSequenceMatcher>();
-    anchor->set_name("ngraph::pass::ConvertOpSet1ToLegacy");
+    anchor->set_name("ngraph::pass::LegacyConversions");
 
     // List of final conversion transformations that must to be executed
     // after previous group of transformations

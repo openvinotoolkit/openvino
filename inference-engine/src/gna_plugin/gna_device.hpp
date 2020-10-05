@@ -6,8 +6,10 @@
 
 #include <cstdint>
 #include <memory>
+#include <mutex>
 #include <string>
 #include <map>
+#include <vector>
 #include <thread>
 
 #include <ie_common.h>
@@ -26,11 +28,17 @@
 #include "gna-api-instrumentation.h"
 #endif
 
+enum GnaWaitStatus : int {
+    GNA_REQUEST_COMPLETED = 0,  // and removed from GNA library queue
+    GNA_REQUEST_ABORTED = 1,    // for QoS purposes
+    GNA_REQUEST_PENDING = 2     // for device busy purposes
+};
 
 /**
  * holds gna - style handle in RAII way
  */
 class GNADeviceHelper {
+    static std::mutex acrossPluginsSync;
 #if GNA_LIB_VER == 1
     intel_gna_status_t nGNAStatus = GNA_NOERROR;
     intel_gna_handle_t nGNAHandle = 0;
@@ -49,7 +57,7 @@ class GNADeviceHelper {
     uint64_t instrumentationResults[TotalGna2InstrumentationPoints] = {};
     uint64_t instrumentationTotal[TotalGna2InstrumentationPoints] = {};
     uint32_t instrumentationConfigId = 0;
-
+    std::vector<uint32_t> unwaitedRequestIds;
 #define MAX_TIMEOUT 500000
 #endif
     bool isPerformanceMeasuring = false;
@@ -114,7 +122,7 @@ public:
     static void checkGna2Status(Gna2Status status);
     static void checkGna2Status(Gna2Status status, const Gna2Model& gnaModel);
 #endif
-    bool wait(uint32_t id, int64_t millisTimeout = MAX_TIMEOUT);
+    GnaWaitStatus wait(uint32_t id, int64_t millisTimeout = MAX_TIMEOUT);
 
     struct DumpResult {
 #if GNA_LIB_VER == 2
@@ -162,6 +170,7 @@ public:
     void setOMPThreads(uint8_t const n_threads);
 
     void initGnaPerfCounters() {
+        std::unique_lock<std::mutex> lockGnaCalls{ acrossPluginsSync };
 #if GNA_LIB_VER == 1
         nGNAPerfResults = {{0, 0, 0, 0, 0, 0, 0}, {0, 0}, {0, 0, 0}, {0, 0}};
         nGNAPerfResultsTotal = {{0, 0, 0, 0, 0, 0, 0}, {0, 0}, {0, 0, 0}, {0, 0}};
