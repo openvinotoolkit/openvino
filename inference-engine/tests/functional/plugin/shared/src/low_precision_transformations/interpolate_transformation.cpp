@@ -17,14 +17,14 @@ namespace LayerTestsDefinitions {
 
 template <typename T>
 inline std::ostream& operator<<(std::ostream& os, const std::vector<T>& values) {
-    os << "{ ";
+    os << "{";
     for (size_t i = 0; i < values.size(); ++i) {
         os << values[i];
         if (i != (values.size() - 1ul)) {
-            os << ", ";
+            os << ",";
         }
     }
-    os << " }";
+    os << "}";
     return os;
 }
 
@@ -32,20 +32,20 @@ std::string InterpolateTransformation::getTestCaseName(testing::TestParamInfo<In
     ngraph::element::Type precision;
     std::pair<ngraph::Shape, ngraph::Shape> shapes;
     std::string targetDevice;
-    ngraph::op::InterpolateAttrs interpAttrs;
+    interpAttributes attributes;
     auto params = LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8();
     LayerTestsUtils::LayerTransformation::LptVersion version;
-    std::tie(precision, shapes, targetDevice, interpAttrs, version) = obj.param;
+    std::tie(precision, shapes, targetDevice, attributes, version) = obj.param;
 
     std::ostringstream result;
-    result << getTestCaseNameByParams(precision, shapes.first, targetDevice, params, version) <<
-        "_" << shapes.second << "_" <<
-        interpAttrs.align_corners <<
-        interpAttrs.antialias <<
-        interpAttrs.axes <<
-        interpAttrs.mode <<
-        interpAttrs.pads_begin <<
-        interpAttrs.pads_end;
+    result << getTestCaseNameByParams(precision, shapes.first, targetDevice, params, version) << "_" <<
+        shapes.second << "_" <<
+        attributes.align_corners << "_" <<
+        attributes.antialias << "_" <<
+        attributes.axes << "_" <<
+        attributes.mode << "_" <<
+        attributes.pads_begin << "_" <<
+        attributes.pads_end;
     return result.str();
 }
 
@@ -53,10 +53,18 @@ void InterpolateTransformation::SetUp() {
     SetRefMode(LayerTestsUtils::RefMode::IE);
     ngraph::element::Type precision;
     std::pair<ngraph::Shape, ngraph::Shape> shapes;
-    ngraph::op::InterpolateAttrs interpAttrs;
+    interpAttributes attributes;
     auto params = LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8();
     LayerTestsUtils::LayerTransformation::LptVersion version;
-    std::tie(precision, shapes, targetDevice, interpAttrs, version) = this->GetParam();
+    std::tie(precision, shapes, targetDevice, attributes, version) = this->GetParam();
+
+    ngraph::op::InterpolateAttrs interpAttrs;
+    interpAttrs.axes = attributes.axes;
+    interpAttrs.mode = attributes.mode;
+    interpAttrs.align_corners = attributes.align_corners;
+    interpAttrs.antialias = attributes.antialias;
+    interpAttrs.pads_begin = attributes.pads_begin;
+    interpAttrs.pads_end = attributes.pads_end;
 
     ConfigurePlugin(version);
 
@@ -71,7 +79,7 @@ void InterpolateTransformation::validate() {
     ngraph::element::Type precision;
     std::pair<ngraph::Shape, ngraph::Shape> shapes;
     std::string targetDevice;
-    ngraph::op::InterpolateAttrs interpAttrs;
+    interpAttributes interpAttrs;
     auto params = LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8();
     LayerTestsUtils::LayerTransformation::LptVersion version;
     std::tie(precision, shapes, targetDevice, interpAttrs, version) = this->GetParam();
@@ -86,16 +94,16 @@ void InterpolateTransformation::validate() {
     std::map<std::string, InferenceEngine::DataPtr>::iterator it = outputs.begin();
     const InferenceEngine::CNNLayerPtr outputLayer = getCreatorLayer(it->second).lock();
     EXPECT_TRUE(outputLayer != nullptr);
-    EXPECT_EQ("ScaleShift", outputLayer->type);
+    EXPECT_EQ(interpAttrs.mode == "linear" ? "Interp" : "ScaleShift", outputLayer->type);
 
     EXPECT_EQ(1ul, outputLayer->insData.size());
     const InferenceEngine::DataPtr insData = outputLayer->insData[0].lock();
     EXPECT_TRUE(insData != nullptr);
     const InferenceEngine::CNNLayerPtr interpolate = getCreatorLayer(insData).lock();
     EXPECT_TRUE(interpolate != nullptr);
-    EXPECT_EQ("Resample", interpolate->type);
+    EXPECT_EQ(interpAttrs.mode == "linear" ? "ScaleShift" : "Resample", interpolate->type);
 
-    if (params.updatePrecisions) {
+    if (params.updatePrecisions && interpAttrs.mode == "nearest") {
         const InferenceEngine::Precision precision = interpolate->outData[0]->getTensorDesc().getPrecision();
         EXPECT_TRUE((precision == InferenceEngine::Precision::U8) || (precision == InferenceEngine::Precision::I8));
     }
