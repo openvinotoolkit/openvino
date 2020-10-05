@@ -49,6 +49,7 @@
                 <tab type="user" title="Using DL Workbench Securely" url="@ref openvino_docs_security_guide_workbench"/>
                 <tab type="user" title="Using Encrypted Models" url="@ref openvino_docs_IE_DG_protecting_model_guide"/>
             </tab>
+            <tab type="user" title="Legal Information" url="@ref openvino_docs_Legal_Information"/>
         </tab>
 
         <!-- DOCUMENTATION category -->

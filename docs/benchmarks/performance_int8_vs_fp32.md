@@ -10,7 +10,7 @@ The table below illustrates the speed-up factor for the performance gain by swit
     <th>Intel® Xeon® <br>Gold <br>5218T</th>
     <th>Intel® Xeon® <br>Platinum <br>8270</th>
     <th>Intel® Core™ <br>i7-1065G7</th>
-    <th>Intel® Core™ <br>i7-1145G7E</th>
+    <th>Intel® Core™ <br>i5-1145G7E</th>
   </tr>
   <tr align="left">
     <th>OpenVINO <br>benchmark <br>model name</th>
