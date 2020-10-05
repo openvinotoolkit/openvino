@@ -155,8 +155,8 @@ bool MatMulTransformation::canBeTransformed(const TransformationContext& context
         const Shape input1 = layer->input(0).get_shape();
         const Shape input2 = layer->input(1).get_shape();
         if ((input1[channelIndex1] != input2[channelIndex2]) &&
-            ((dequantization1.multiply->input(1).get_shape().size() > 1) ||
-            (fakeQuantize->input(3).get_shape().size() > 1) || (fakeQuantize->input(4).get_shape().size() > 1))) {
+            ((shape_size(dequantization1.multiply->input(1).get_shape()) > 1) ||
+            (shape_size(fakeQuantize->input(3).get_shape()) > 1) || (shape_size(fakeQuantize->input(4).get_shape()) > 1))) {
             return false;
         }
     }

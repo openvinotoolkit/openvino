@@ -29,6 +29,7 @@ class MatMullTransformationTestValues {
 public:
     class Actual {
     public:
+        ngraph::Shape inputShape;
         ngraph::element::Type precisionBeforeDequantization;
         ngraph::builder::subgraph::DequantizationOperations dequantization;
         ngraph::Shape weightsConstShape;
@@ -38,14 +39,17 @@ public:
 
     class Expected {
     public:
+        ngraph::Shape inputShape;
         ngraph::element::Type precisionBeforeDequantization;
         ngraph::builder::subgraph::DequantizationOperations dequantization;
         ngraph::element::Type weightsConstPrecision;
         ngraph::Shape weightsConstShape;
         std::vector<float> weightsConstValues;
-        ngraph::element::Type precisionBeforeOperation1;
-        ngraph::element::Type precisionBeforeOperation2;
+
+        ngraph::element::Type precisionBeforeOperation;
         ngraph::builder::subgraph::DequantizationOperations resultDequantization;
+
+        ngraph::builder::subgraph::FakeQuantizeOnWeights fqOnWeights;
     };
 
     ngraph::pass::low_precision::LayerTransformation::Params params;
@@ -54,15 +58,21 @@ public:
 };
 
 inline std::ostream& operator << (std::ostream& out, const MatMullTransformationTestValues::Actual& actual) {
-    return out << "_" << actual.dequantization << "_" << actual.fqOnWeights;
+    return out << "_" <<
+        actual.inputShape << "_" <<
+        actual.precisionBeforeDequantization << "_" <<
+        actual.dequantization << "_" <<
+        actual.weightsConstShape << "_" <<
+        actual.fqOnWeights;
 }
 
 inline std::ostream& operator << (std::ostream& out, const MatMullTransformationTestValues::Expected& expected) {
     return out << "_" <<
+        expected.weightsConstShape <<"_" <<
         expected.dequantization << "_" <<
-        expected.precisionBeforeOperation1 << "_" <<
-        expected.precisionBeforeOperation2 << "_" <<
-        expected.resultDequantization;
+        expected.precisionBeforeOperation << "_" <<
+        expected.resultDequantization << "_" <<
+        expected.fqOnWeights;
 }
 
 inline std::ostream& operator << (std::ostream& out, const MatMullTransformationTestValues& values) {
@@ -71,19 +81,22 @@ inline std::ostream& operator << (std::ostream& out, const MatMullTransformation
 
 typedef std::tuple<
     ngraph::element::Type,
-    ngraph::Shape,
+    size_t,
     MatMullTransformationTestValues> MatMulTransformationParams;
 
 class MatMulWithConstantTransformation : public LayerTransformation, public testing::WithParamInterface<MatMulTransformationParams> {
 public:
     void SetUp() override {
         const ngraph::element::Type precision = std::get<0>(GetParam());
-        const ngraph::Shape shape = std::get<1>(GetParam());
-        const MatMullTransformationTestValues testValues = std::get<2>(GetParam());
+        const size_t batch = std::get<1>(GetParam());
+
+        MatMullTransformationTestValues testValues = std::get<2>(GetParam());
+        testValues.actual.inputShape[0] = batch;
+        testValues.expected.inputShape[0] = batch;
 
         actualFunction = ngraph::builder::subgraph::MatMulFunction::getOriginal(
             precision,
-            shape,
+            testValues.actual.inputShape,
             testValues.actual.precisionBeforeDequantization,
             testValues.actual.dequantization,
             testValues.actual.weightsConstShape,
@@ -94,25 +107,34 @@ public:
         transformer.add<ngraph::pass::low_precision::MatMulTransformation, ngraph::opset1::MatMul>(testValues.params);
         transformer.transform(actualFunction);
 
-        referenceFunction = ngraph::builder::subgraph::MatMulFunction::getReference(
-            precision,
-            shape,
-            testValues.expected.precisionBeforeDequantization,
-            testValues.expected.dequantization,
-            testValues.expected.weightsConstPrecision,
-            testValues.expected.weightsConstShape,
-            testValues.expected.weightsConstValues,
-            testValues.expected.resultDequantization);
+        referenceFunction = testValues.expected.fqOnWeights.empty() ?
+            ngraph::builder::subgraph::MatMulFunction::getReference(
+                precision,
+                testValues.expected.inputShape,
+                testValues.expected.precisionBeforeDequantization,
+                testValues.expected.dequantization,
+                testValues.expected.weightsConstPrecision,
+                testValues.expected.weightsConstShape,
+                testValues.expected.weightsConstValues,
+                testValues.expected.resultDequantization) :
+            ngraph::builder::subgraph::MatMulFunction::getOriginal(
+                precision,
+                testValues.expected.inputShape,
+                testValues.expected.precisionBeforeDequantization,
+                testValues.expected.dequantization,
+                testValues.expected.weightsConstShape,
+                testValues.expected.weightsConstValues,
+                testValues.expected.fqOnWeights);
     }
 
     static std::string getTestCaseName(testing::TestParamInfo<MatMulTransformationParams> obj) {
         ngraph::element::Type precision;
-        ngraph::Shape shapes;
+        size_t batch;
         MatMullTransformationTestValues testValues;
-        std::tie(precision, shapes, testValues) = obj.param;
+        std::tie(precision, batch, testValues) = obj.param;
 
         std::stringstream ss;
-        ss << precision << "_" << shapes << "_" << testValues;
+        ss << precision << "_" << batch << "_" << testValues;
         return ss.str();
     }
 };
@@ -131,16 +153,100 @@ const std::vector<ngraph::element::Type> precisions = {
     // ngraph::element::f16
 };
 
-const std::vector<ngraph::Shape> shapes = {
-    { 1, 2048 },
-    { 4, 2048 }
-};
+const std::vector<size_t> batches = { 1, 4 };
 
 std::vector<MatMullTransformationTestValues> testValues = {
-    // U8 & I8
+    // supported 3D: U8 & I8
     {
         LayerTransformation::createParamsU8I8(),
         {
+            { 1, 384, 1024 },
+            ngraph::element::u8,
+            { ngraph::element::f32, {}, { 0.02f } },
+            { 1024, 1024 },
+            std::vector<float>(1024 * 1024, 1.f),
+            { 255, { 1, 1 },  {0.f}, {254.f}, {-12.7f}, {12.7} },
+        },
+        {
+            { 1, 384, 1024 },
+            ngraph::element::u8,
+            { {}, {}, {} },
+            ngraph::element::i8,
+            { 1024, 1024 },
+            std::vector<float>(1024 * 1024, -126),
+            ngraph::element::i8,
+            { {}, {}, { 0.02f * 0.1f } },
+            {}
+        }
+    },
+
+    // not supported 3D: U8 & I8
+    {
+        LayerTransformation::createParamsU8I8(),
+        {
+            { 1, 3, 4 },
+            ngraph::element::u8,
+            { ngraph::element::f32, {}, { {0.01f, 0.02f, 0.03f} } },
+            { 4, 4 },
+            std::vector<float>(4 * 4, 1.f),
+            { 255, { 1, 1 },  {0.f}, {254.f}, {-12.7f}, {12.7} },
+        },
+        {
+            { 1, 3, 4 },
+            ngraph::element::u8,
+            { ngraph::element::f32, {}, { {0.01f, 0.02f, 0.03f} } },
+            ngraph::element::i8,
+            {4, 4},
+            std::vector<float>(4 * 4, 1.f),
+            ngraph::element::f32,
+            {},
+            { 255, { 1, 1 },  {0.f}, {254.f}, {-12.7f}, {12.7} },
+        }
+    },
+
+    // not supported 3D: U8 & I8
+    {
+        LayerTransformation::createParamsU8I8(),
+        {
+            { 1, 3, 4 },
+            ngraph::element::u8,
+            { ngraph::element::f32, {}, { 0.02f } },
+            { 4, 4 },
+            std::vector<float>(4 * 4, 1.f),
+            {
+                255,
+                { 4, 1 },
+                {0.f, 0.f, 0.f, 0.f},
+                {254.f, 254.f, 254.f, 254.f},
+                {-12.7f / 4.f, -12.7f / 3.f, -12.7f / 2.f, -12.7f},
+                {12.7f / 4.f, 12.7f / 3.f, 12.7f / 2.f, 12.7f}
+            },
+        },
+        {
+            { 1, 3, 4 },
+            ngraph::element::u8,
+            { ngraph::element::f32, {}, { 0.02f } },
+            ngraph::element::i8,
+            {4, 4},
+            std::vector<float>(4 * 4, 1.f),
+            ngraph::element::f32,
+            {},
+            {
+                255,
+                { 4, 1 },
+                {0.f, 0.f, 0.f, 0.f},
+                {254.f, 254.f, 254.f, 254.f},
+                {-12.7f / 4.f, -12.7f / 3.f, -12.7f / 2.f, -12.7f},
+                {12.7f / 4.f, 12.7f / 3.f, 12.7f / 2.f, 12.7f}
+            },
+        }
+    },
+
+    // 2D: U8 & I8
+    {
+        LayerTransformation::createParamsU8I8(),
+        {
+            { 1, 2048 },
             ngraph::element::u8,
             { ngraph::element::f32, {}, { 0.02f } },
             { 2048, 1000 },
@@ -148,20 +254,22 @@ std::vector<MatMullTransformationTestValues> testValues = {
             { 255, { 1, 1 },  {0.f}, {254.f}, {-12.7f}, {12.7} },
         },
         {
+            { 1, 2048 },
             ngraph::element::u8,
             { {}, {}, {} },
             ngraph::element::i8,
             {2048, 1000},
             std::vector<float>(2048 * 1000, -126),
-            ngraph::element::u8,
             ngraph::element::i8,
             { {}, {}, { 0.02f * 0.1f } },
+            {}
         }
     },
-    // I8 & I8
+    // 2D: I8 & I8
     {
         LayerTransformation::createParamsI8I8(),
         {
+            { 1, 2048 },
             ngraph::element::i8,
             { ngraph::element::f32, {}, { 0.02f } },
             { 2048, 1000 },
@@ -169,20 +277,22 @@ std::vector<MatMullTransformationTestValues> testValues = {
             { 255, { 1, 1 },  {0.f}, {254.f}, {-12.7f}, {12.7} },
         },
         {
+            { 1, 2048 },
             ngraph::element::i8,
             { {}, {}, {} },
             ngraph::element::i8,
             {2048, 1000},
             std::vector<float>(2048 * 1000, -126),
             ngraph::element::i8,
-            ngraph::element::i8,
             { {}, {}, { 0.02f * 0.1f } },
+            {}
         }
     },
-    // FP32 & FP328
+    // 2D: FP32 & FP328
     {
         LayerTransformation::createParamsU8I8().setUpdatePrecisions(false),
         {
+            { 1, 2048 },
             ngraph::element::f32,
             { {}, {}, { 0.02f } },
             { 2048, 1000 },
@@ -190,14 +300,15 @@ std::vector<MatMullTransformationTestValues> testValues = {
             { 255, { 1, 1 },  {0.f}, {254.f}, {-12.7f}, {12.7} },
         },
         {
+            { 1, 2048 },
             ngraph::element::f32,
             { {}, {}, {} },
             ngraph::element::f32,
             {2048, 1000},
             std::vector<float>(2048 * 1000, -126),
             ngraph::element::f32,
-            ngraph::element::f32,
             { {}, {}, { 0.02f * 0.1f } },
+            {}
         }
     },
 };
@@ -207,7 +318,7 @@ INSTANTIATE_TEST_CASE_P(
     MatMulWithConstantTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(precisions),
-        ::testing::ValuesIn(shapes),
+        ::testing::ValuesIn(batches),
         ::testing::ValuesIn(testValues)),
     MatMulWithConstantTransformation::getTestCaseName);
 
