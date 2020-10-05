@@ -1195,7 +1195,7 @@ TEST_P(fully_connected_random_test_f32_5d, basic) {
     run_test();
 }
 
-INSTANTIATE_TEST_CASE_P(xdsmoke,
+INSTANTIATE_TEST_CASE_P(smoke,
                         fully_connected_random_test_f32_5d,
                         ::testing::Combine(
                             ::testing::Values(1, 2),
@@ -1212,7 +1212,7 @@ TEST_P(fully_connected_random_test_f16_5d, basic) {
     run_test();
 }
 
-INSTANTIATE_TEST_CASE_P(xdsmoke,
+INSTANTIATE_TEST_CASE_P(smoke,
                         fully_connected_random_test_f16_5d,
                         ::testing::Combine(
                             ::testing::Values(1, 2),
@@ -1229,7 +1229,7 @@ TEST_P(fully_connected_random_test_i8_5d, basic) {
     run_test();
 }
 
-INSTANTIATE_TEST_CASE_P(xdsmoke,
+INSTANTIATE_TEST_CASE_P(smoke,
                         fully_connected_random_test_i8_5d,
                         ::testing::Combine(
                             ::testing::Values(1, 2),

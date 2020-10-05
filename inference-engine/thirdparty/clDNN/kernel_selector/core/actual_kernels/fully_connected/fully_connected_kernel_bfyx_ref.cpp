@@ -83,7 +83,6 @@ JitConstants FullyConnected_bfyx_Ref::GetJitConstants(const fully_connected_para
     jit.Merge(MakeActivationJitConstants(params.activations, activation_dt, "_TYPED"));
 
     if (!params.fused_ops.empty()) {
-
         FusedOpsConfiguration conf = { "", {"b", "ofm", "0", "0"}, "dequantized", activation_dt, 1 };
         jit.Merge(MakeFusedOpsJitConstants(params, { conf }));
     }
@@ -92,11 +91,11 @@ JitConstants FullyConnected_bfyx_Ref::GetJitConstants(const fully_connected_para
 
 KernelsData FullyConnected_bfyx_Ref::GetKernelsData(const Params& params, const optional_params& options) const {
     KernelsData res = {};
-    DataLayout format = DataLayout::bfyx;
+    DataLayout input_format = DataLayout::bfyx;
     WeightsLayout weight_format = WeightsLayout::oiyx;
     auto& fc_params = static_cast<const fully_connected_params&>(params);
     if (fc_params.inputs[0].GetLayout() == DataLayout::bfzyx) {
-        format = DataLayout::bfzyx;
+        input_format = DataLayout::bfzyx;
         weight_format = WeightsLayout::oizyx;
     }
 
@@ -104,7 +103,7 @@ KernelsData FullyConnected_bfyx_Ref::GetKernelsData(const Params& params, const 
         KernelsData kd = GetTunedKernelsDataByIndex(
             params,
             options,
-            format,
+            input_format,
             weight_format,
             DONT_USE_IF_HAVE_SOMETHING_ELSE,
             static_cast<int>(i));
