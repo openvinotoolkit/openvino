@@ -1189,23 +1189,59 @@ struct fully_connected_random_test_5d : ::testing::TestWithParam<fully_connected
 
 using fully_connected_random_test_f32_5d = fully_connected_random_test_5d<float, float, float, float>;
 using fully_connected_random_test_f16_5d = fully_connected_random_test_5d<FLOAT16, FLOAT16, FLOAT16, FLOAT16>;
+using fully_connected_random_test_i8_5d = fully_connected_random_test_5d<INT8, INT8, INT8, float>;
 
 TEST_P(fully_connected_random_test_f32_5d, basic) {
     run_test();
 }
 
-INSTANTIATE_TEST_CASE_P(smoke,
+INSTANTIATE_TEST_CASE_P(xdsmoke,
                         fully_connected_random_test_f32_5d,
                         ::testing::Combine(
-                            ::testing::Values(1, 2, 16),
-                            ::testing::Values(1, 3, 32),
+                            ::testing::Values(1, 2),
+                            ::testing::Values(3, 32),
+                            ::testing::Values(1, 2),
                             ::testing::Values(1, 3),
-                            ::testing::Values(1, 3),
-                            ::testing::Values(1, 3),
-                            ::testing::Values(1, 3, 32),
+                            ::testing::Values(1, 4),
+                            ::testing::Values(3, 32),
                             ::testing::Values(format::bfzyx),
                             ::testing::Values(format::any),
                             ::testing::Values("")), );
+
+TEST_P(fully_connected_random_test_f16_5d, basic) {
+    run_test();
+}
+
+INSTANTIATE_TEST_CASE_P(xdsmoke,
+                        fully_connected_random_test_f16_5d,
+                        ::testing::Combine(
+                            ::testing::Values(1, 2),
+                            ::testing::Values(3, 32),
+                            ::testing::Values(1, 2),
+                            ::testing::Values(1, 3),
+                            ::testing::Values(1, 4),
+                            ::testing::Values(3, 32),
+                            ::testing::Values(format::bfzyx),
+                            ::testing::Values(format::any),
+                            ::testing::Values("")), );
+
+TEST_P(fully_connected_random_test_i8_5d, basic) {
+    run_test();
+}
+
+INSTANTIATE_TEST_CASE_P(xdsmoke,
+                        fully_connected_random_test_i8_5d,
+                        ::testing::Combine(
+                            ::testing::Values(1, 2),
+                            ::testing::Values(3, 32),
+                            ::testing::Values(1, 2),
+                            ::testing::Values(1, 3),
+                            ::testing::Values(1, 4),
+                            ::testing::Values(3, 32),
+                            ::testing::Values(format::bfzyx),
+                            ::testing::Values(format::any),
+                            ::testing::Values("")), );
+
 
 struct quantization_t {
     VF<float> input_low;

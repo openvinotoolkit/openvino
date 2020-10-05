@@ -50,6 +50,7 @@ ParamsKey FullyConnected_bf_tiled::GetSupportedKey() const {
     k.EnableInputWeightsType(WeightsType::F16);
     k.EnableInputWeightsType(WeightsType::F32);
     k.EnableInputLayout(DataLayout::bf);
+    k.EnableInputLayout(DataLayout::bfzyx);
     k.EnableInputLayout(DataLayout::bfyx);
     k.EnableOutputLayout(DataLayout::bf);
     k.EnableBatching();
@@ -74,12 +75,14 @@ bool FullyConnected_bf_tiled::Validate(const Params& params, const optional_para
     if (input.GetDType() == Datatype::F16 && input.Batch().pitch % 2 != 0 && input.Batch().v > 1)
         return false;
 
-    if (input.GetLayout() == DataLayout::bfyx) {
+    if (input.GetLayout() == DataLayout::bfyx || input.GetLayout() == DataLayout::bfzyx) {
         // Padding on input is not supported.
         // TODO: Enable by mirroring the padding in weights.
         if (input.X().pad.Total() != 0)
             return false;
         if (input.Y().pad.Total() != 0)
+            return false;
+        if (input.Z().pad.Total() != 0)
             return false;
     }
 
@@ -292,10 +295,18 @@ KernelsData FullyConnected_bf_tiled::GetTunedKernelsDataByIndex(const Params &pa
     tune_params tparams = GetAutoTuneParams(fc_params, autoTuneIndex);
 
     WeightsLayout weights_layout = WeightsLayout::os_iyx_osv16;
-    if (tparams.tile_ofm * simd == 32)
-        weights_layout = WeightsLayout::os_iyx_osv32;
-    else if (tparams.tile_ofm * simd == 64)
-        weights_layout = WeightsLayout::os_iyx_osv64;
+    if (fc_params.inputs[0].GetLayout() == DataLayout::bfzyx) {
+        weights_layout = WeightsLayout::os_izyx_osv16;
+        if (tparams.tile_ofm * simd == 32)
+            weights_layout = WeightsLayout::os_izyx_osv32;
+        else if (tparams.tile_ofm * simd == 64)
+            weights_layout = WeightsLayout::os_izyx_osv64;
+    } else {
+        if (tparams.tile_ofm * simd == 32)
+            weights_layout = WeightsLayout::os_iyx_osv32;
+        else if (tparams.tile_ofm * simd == 64)
+            weights_layout = WeightsLayout::os_iyx_osv64;
+    }
 
     float estimated_time = DONT_USE_IF_HAVE_SOMETHING_ELSE;
     if (fc_params.output.Batch().v > 1 && fc_params.inputs[0].GetDType() == Datatype::F32)

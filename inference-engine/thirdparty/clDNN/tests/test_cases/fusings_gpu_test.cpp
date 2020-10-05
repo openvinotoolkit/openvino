@@ -525,17 +525,22 @@ public:
 #define CASE_FC_FP32_2 {2, 1, 3, 1}, {2, 4, 1, 1}, {4, 1, 3, 1}, tensor{1}, tensor{0}, tensor{1}, 1, data_types::f32, format::yxfb, data_types::f32, format::oiyx, data_types::f32, format::bfyx
 #define CASE_FC_FP32_3 {2, 32, 1, 1}, {2, 16, 1, 1}, {16, 32, 1, 1}, tensor{1}, tensor{0}, tensor{1}, 1, data_types::f32, format::bfyx, data_types::i8, format::oiyx, data_types::f32, format::bfyx
 
-#define CASE_FC_3D_FP32_1 {1, 1, 3, 4, 5}, {1, 4, 1, 1, 1}, {4, 1, 3, 4, 5}, tensor{1}, tensor{0}, tensor{1}, 1, data_types::f32, format::bfzyx, data_types::f32, format::oizyx, data_types::f32, format::bfzyx
-#define CASE_FC_3D_FP32_2 {2, 1, 3, 1, 4}, {2, 4, 1, 1, 1}, {4, 1, 3, 1, 4}, tensor{1}, tensor{0}, tensor{1}, 1, data_types::f32, format::bfzyx, data_types::f32, format::oizyx, data_types::f32, format::bfzyx
-#define CASE_FC_3D_FP32_3 {2, 32, 1, 1, 3}, {2, 16, 1, 1, 1}, {16, 32, 1, 1, 3}, tensor{1}, tensor{0}, tensor{1}, 1, data_types::f32, format::bfzyx, data_types::i8, format::oizyx, data_types::f32, format::bfzyx
+#define CASE_FC_3D_FP32_1 {2, 1, 3, 4, 5}, {2, 16, 1, 1, 1}, {16, 1, 3, 4, 5}, tensor{1}, tensor{0}, tensor{1}, 1, data_types::f32, format::bfzyx, data_types::f32, format::oizyx, data_types::f32, format::bfzyx
+#define CASE_FC_3D_FP32_2 {2, 3, 3, 1, 4}, {2, 32, 1, 1, 1}, {32, 3, 3, 1, 4}, tensor{1}, tensor{0}, tensor{1}, 1, data_types::f32, format::bfzyx, data_types::f16, format::oizyx, data_types::f32, format::bfzyx
+#define CASE_FC_3D_FP32_3 {8, 16, 1, 1, 3}, {2, 32, 1, 1, 1}, {32, 16, 1, 1, 3}, tensor{1}, tensor{0}, tensor{1}, 1, data_types::f32, format::bfzyx, data_types::i8, format::oizyx, data_types::f32, format::bfzyx
+#define CASE_FC_3D_FP32_4 {16, 8, 1, 3, 1}, {2, 16, 1, 1, 1}, {16, 8, 1, 3, 1}, tensor{1}, tensor{0}, tensor{1}, 1, data_types::f32, format::bfzyx, data_types::f32, format::oizyx, data_types::f32, format::bfzyx
+#define CASE_FC_3D_FP32_5 {1, 1, 1, 1, 1}, {1, 4, 1, 1, 1}, {4, 1, 1, 1, 1}, tensor{1}, tensor{0}, tensor{1}, 1, data_types::f32, format::bfzyx, data_types::f32, format::oizyx, data_types::f32, format::bfzyx
 
 #define CASE_FC_U8S8_1 {1, 1, 3, 1}, {1, 4, 1, 1}, {4, 1, 3, 1}, tensor{1}, tensor{0}, tensor{1}, 1, data_types::u8, format::bfyx, data_types::i8, format::oiyx, data_types::f32, format::bfyx
 #define CASE_FC_U8S8_2 {2, 1, 3, 1}, {2, 4, 1, 1}, {4, 1, 3, 1}, tensor{1}, tensor{0}, tensor{1}, 1, data_types::u8, format::b_fs_yx_fsv4, data_types::i8, format::oiyx, data_types::f32, format::bfyx
 #define CASE_FC_U8S8_3 {2, 32, 1, 1}, {2, 16, 1, 1}, {16, 32, 1, 1}, tensor{1}, tensor{0}, tensor{1}, 1, data_types::u8, format::b_fs_yx_fsv4, data_types::i8, format::oiyx, data_types::f32, format::bfyx
 
 #define CASE_FC_3D_U8S8_1 {1, 1, 3, 1, 4}, {1, 4, 1, 1, 1}, {4, 1, 3, 1, 4}, tensor{1}, tensor{0}, tensor{1}, 1, data_types::u8, format::bfzyx, data_types::i8, format::oizyx, data_types::f32, format::bfzyx
-#define CASE_FC_3D_U8S8_2 {2, 1, 1, 1, 1}, {2, 4, 1, 1, 1}, {4, 1, 1, 1, 1}, tensor{1}, tensor{0}, tensor{1}, 1, data_types::u8, format::bfzyx, data_types::i8, format::oizyx, data_types::f32, format::bfzyx
+#define CASE_FC_3D_U8S8_2 {2, 1, 1, 1, 3}, {2, 1, 1, 1, 1}, {1, 1, 1, 1, 3}, tensor{1}, tensor{0}, tensor{1}, 1, data_types::u8, format::bfzyx, data_types::i8, format::oizyx, data_types::f32, format::bfzyx
 #define CASE_FC_3D_U8S8_3 {2, 32, 3, 4, 5}, {2, 16, 1, 1, 1}, {16, 32, 3, 4, 5}, tensor{1}, tensor{0}, tensor{1}, 1, data_types::u8, format::bfzyx, data_types::i8, format::oizyx, data_types::f32, format::bfzyx
+#define CASE_FC_3D_U8S8_4 {1, 16, 5, 4, 3}, {1, 3, 1, 1, 1}, {3, 16, 5, 4, 3}, tensor{1}, tensor{0}, tensor{1}, 1, data_types::u8, format::bfzyx, data_types::i8, format::oizyx, data_types::f32, format::bfzyx
+#define CASE_FC_3D_U8S8_5 {1, 1, 1, 1, 1}, {1, 4, 1, 1, 1}, {4, 1, 1, 1, 1}, tensor{1}, tensor{0}, tensor{1}, 1, data_types::u8, format::bfzyx, data_types::i8, format::oizyx, data_types::f32, format::bfzyx
+#define CASE_FC_3D_U8S8_6 {3, 8, 1, 1, 1}, {3, 16, 1, 1, 1}, {16, 8, 1, 1, 1}, tensor{1}, tensor{0}, tensor{1}, 1, data_types::u8, format::bfzyx, data_types::i8, format::oizyx, data_types::f32, format::bfzyx
 
 #define CASE_NORMALIZE_I8_1 {1, 2, 3, 3}, data_types::u8, format::bfyx, data_types::f32, format::bfyx
 
@@ -2328,7 +2333,7 @@ TEST_P(fc_fp32_activation, basic) {
                 data("weights", get_mem(get_weights_layout(p))),
                 data("bias", get_mem(get_bias_layout(p))),
                 fully_connected("fc_prim", "input", "weights", "bias"),
-                activation("activation", "fc_prim", activation_func::abs),
+                activation("activation", "fc_prim", activation_func::logistic),
                 reorder("reorder_bfyx", "activation", p.default_format, data_types::f32)
     );
 
@@ -2337,13 +2342,16 @@ TEST_P(fc_fp32_activation, basic) {
 }
 
 INSTANTIATE_TEST_CASE_P(fusings_gpu, fc_fp32_activation,
-        ::testing::ValuesIn(std::vector<bc_test_params>{
-            bc_test_params{ CASE_FC_FP32_1, 2, 3 },
-            bc_test_params{ CASE_FC_FP32_2, 2, 3 },
-            bc_test_params{ CASE_FC_FP32_3, 2, 3 },
-            bc_test_params{ CASE_FC_3D_FP32_1, 2, 3 },
-            bc_test_params{ CASE_FC_3D_FP32_2, 2, 3 },
-            bc_test_params{ CASE_FC_3D_FP32_3, 2, 3 },
+    ::testing::ValuesIn(std::vector<bc_test_params>{
+        bc_test_params{ CASE_FC_FP32_1, 2, 3 },
+        bc_test_params{ CASE_FC_FP32_2, 2, 3 },
+        bc_test_params{ CASE_FC_FP32_3, 2, 3 },
+
+        bc_test_params{ CASE_FC_3D_FP32_1, 2, 3 },
+        bc_test_params{ CASE_FC_3D_FP32_2, 2, 3 },
+        bc_test_params{ CASE_FC_3D_FP32_3, 2, 3 },
+        bc_test_params{ CASE_FC_3D_FP32_4, 2, 3 },
+        bc_test_params{ CASE_FC_3D_FP32_5, 2, 3 },
             }), );
 
 class fc_int8_scale : public FCFusingTest {};
@@ -2382,9 +2390,13 @@ INSTANTIATE_TEST_CASE_P(fusings_gpu, fc_int8_scale,
         bc_test_params{ CASE_FC_U8S8_1, 2, 3 },
         bc_test_params{ CASE_FC_U8S8_2, 2, 3 },
         bc_test_params{ CASE_FC_U8S8_3, 2, 3 },
+
         bc_test_params{ CASE_FC_3D_U8S8_1, 2, 3 },
         bc_test_params{ CASE_FC_3D_U8S8_2, 2, 3 },
         bc_test_params{ CASE_FC_3D_U8S8_3, 2, 3 },
+        bc_test_params{ CASE_FC_3D_U8S8_4, 2, 3 },
+        bc_test_params{ CASE_FC_3D_U8S8_5, 2, 3 },
+        bc_test_params{ CASE_FC_3D_U8S8_6, 2, 3 },
         }), );
 
 class fc_int8_quantize_u8 : public FCFusingTest {};
@@ -2406,14 +2418,18 @@ TEST_P(fc_int8_quantize_u8, basic) {
     execute(p);
 }
 
-INSTANTIATE_TEST_CASE_P(fusings_gpu_fc, fc_int8_quantize_u8,
+INSTANTIATE_TEST_CASE_P(fusings_gpu, fc_int8_quantize_u8,
     ::testing::ValuesIn(std::vector<bc_test_params>{
         bc_test_params{ CASE_FC_U8S8_1, 2, 3 },
         bc_test_params{ CASE_FC_U8S8_2, 2, 3 },
         bc_test_params{ CASE_FC_U8S8_3, 2, 3 },
+
         bc_test_params{ CASE_FC_3D_U8S8_1, 2, 3 },
         bc_test_params{ CASE_FC_3D_U8S8_2, 2, 3 },
         bc_test_params{ CASE_FC_3D_U8S8_3, 2, 3 },
+        bc_test_params{ CASE_FC_3D_U8S8_4, 2, 3 },
+        bc_test_params{ CASE_FC_3D_U8S8_5, 2, 3 },
+        bc_test_params{ CASE_FC_3D_U8S8_6, 2, 3 },
         }), );
 
 class fc_int8_scale_quantize_i8 : public FCFusingTest {};
@@ -2441,9 +2457,13 @@ INSTANTIATE_TEST_CASE_P(fusings_gpu, fc_int8_scale_quantize_i8,
         bc_test_params{ CASE_FC_U8S8_1, 2, 4 },
         bc_test_params{ CASE_FC_U8S8_2, 2, 4 },
         bc_test_params{ CASE_FC_U8S8_3, 2, 4 },
+
         bc_test_params{ CASE_FC_3D_U8S8_2, 2, 4 },
         bc_test_params{ CASE_FC_3D_U8S8_3, 2, 4 },
         bc_test_params{ CASE_FC_3D_U8S8_1, 2, 4 },
+        bc_test_params{ CASE_FC_3D_U8S8_4, 2, 4 },
+        bc_test_params{ CASE_FC_3D_U8S8_5, 2, 4 },
+        bc_test_params{ CASE_FC_3D_U8S8_6, 2, 4 },
         }), );
 
 
@@ -2475,9 +2495,13 @@ INSTANTIATE_TEST_CASE_P(fusings_gpu, fc_int8_scale_activation_quantize_i8,
         bc_test_params{ CASE_FC_U8S8_1, 2, 5 },
         bc_test_params{ CASE_FC_U8S8_2, 2, 5 },
         bc_test_params{ CASE_FC_U8S8_3, 2, 5 },
+
+        bc_test_params{ CASE_FC_3D_U8S8_1, 2, 5 },
         bc_test_params{ CASE_FC_3D_U8S8_2, 2, 5 },
         bc_test_params{ CASE_FC_3D_U8S8_3, 2, 5 },
-        bc_test_params{ CASE_FC_3D_U8S8_1, 2, 5 },
+        bc_test_params{ CASE_FC_3D_U8S8_4, 2, 5 },
+        bc_test_params{ CASE_FC_3D_U8S8_5, 2, 5 },
+        bc_test_params{ CASE_FC_3D_U8S8_6, 2, 5 },
         }), );
 
 
@@ -4242,7 +4266,7 @@ TEST_P(deconv_scale_actv_quant_u8_eltw_scale_actv_quant_i8, basic) {
         reorder("out", "quant2", p.default_format, data_types::f32)
     );
 
-    tolerance = 1.f;
+    tolerance = 2.f;
     execute(p);
 }
 
@@ -4346,7 +4370,7 @@ TEST_P(deconv_scale_activation_quantize_i8_eltwise_quantize_u8, basic) {
                  quantize("quant2", "eltw", "in_low2", "in_high2", "out_low2", "out_high2", 256, data_types::u8),
                  reorder("reorder_bfyx", "quant2", p.default_format, data_types::f32)
     );
-    tolerance = 1.f;
+    tolerance = 2.f;
     execute(p);
 }
 

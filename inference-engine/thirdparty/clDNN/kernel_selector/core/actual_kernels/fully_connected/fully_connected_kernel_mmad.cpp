@@ -32,6 +32,7 @@ ParamsKey FullyConnectedKernelMMAD::GetSupportedKey() const {
     k.EnableDifferentInputWeightsTypes();
     k.EnableDifferentTypes();
 
+    k.EnableInputLayout(DataLayout::bfzyx);
     k.EnableInputLayout(DataLayout::bfyx);
     k.EnableInputLayout(DataLayout::b_fs_yx_fsv32);
     k.EnableInputLayout(DataLayout::b_fs_zyx_fsv32);
@@ -53,7 +54,7 @@ bool FullyConnectedKernelMMAD::Validate(const Params& params, const optional_par
 
     auto fc_params = static_cast<const fully_connected_params&>(params);
     auto input = fc_params.inputs[0];
-    if (input.GetLayout() == DataLayout::bfyx &&
+    if ((input.GetLayout() == DataLayout::bfyx || input.GetLayout() == DataLayout::bfzyx) &&
         (input.X().LogicalDimPadded() != 1 || input.Y().LogicalDimPadded() != 1 || input.Z().LogicalDimPadded() != 1)) {
         return false;
     }
@@ -66,7 +67,7 @@ FullyConnectedKernelMMAD::FullyConnectedTuningData FullyConnectedKernelMMAD::Set
 
     const auto& input = params.inputs[0];
 
-    size_t feature_blocks_count = input.GetLayout() == DataLayout::bfyx && input.Feature().v % 32 != 0 ?
+    size_t feature_blocks_count = (input.GetLayout() == DataLayout::bfyx || input.GetLayout() == DataLayout::bfzyx) && input.Feature().v % 32 != 0 ?
                                   input.Feature().v / 32 : CeilDiv(input.Feature().v, 32);
 
     if (feature_blocks_count)
@@ -144,7 +145,7 @@ JitConstants FullyConnectedKernelMMAD::GetJitConstants(const fully_connected_par
     size_t input_y_pitch = input.Y().pitch;
     size_t input_z_pitch = input.Z().pitch;
 
-    if (input.GetLayout() == DataLayout::bfyx) {
+    if (input.GetLayout() == DataLayout::bfyx || input.GetLayout() == DataLayout::bfzyx) {
         jit.AddConstant(MakeJitConstant("MMAD_INPUT_FBLOCK_PITCH", 32));
     } else if (input.GetLayout() == DataLayout::b_fs_yx_fsv32 || input.GetLayout() == DataLayout::b_fs_zyx_fsv32) {
         input_x_pitch = 32;
@@ -158,7 +159,7 @@ JitConstants FullyConnectedKernelMMAD::GetJitConstants(const fully_connected_par
     size_t feature_blocks_count;
     size_t temp_unroll_factor = 9, unroll_factor, full_unroll_factor;
 
-    if (input.GetLayout() == DataLayout::bfyx && input.Feature().v % 32 != 0) {
+    if ((input.GetLayout() == DataLayout::bfyx || input.GetLayout() == DataLayout::bfzyx) && input.Feature().v % 32 != 0) {
         feature_blocks_count = input.Feature().v / 32;
         jit.AddConstant(MakeJitConstant("HAS_FEATURE_LEFTOVERS", true));
     } else {

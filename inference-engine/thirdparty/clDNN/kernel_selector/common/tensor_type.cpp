@@ -106,6 +106,9 @@ WeightsTensor::WeightsChannelArray WeightsTensor::weightsChannelArray {{
     { WeightsLayout::os_is_osv32_isv32_swizzled_by_4,             { -1, -1, -1,   0,   1, -1, -1, -1 } },
     { WeightsLayout::os_is_zyx_isv8_osv16_isv2,                   {  0,  1,  2,   3,   4, -1, -1, -1 } },
     { WeightsLayout::os_is_yx_isv8_osv16_isv2,                    {  0,  1, -1,   2,   3, -1, -1, -1 } },
+    { WeightsLayout::os_izyx_osv16,                               {  0,  1,  2,   3,   4, -1, -1, -1 } },
+    { WeightsLayout::os_izyx_osv32,                               {  0,  1,  2,   3,   4, -1, -1, -1 } },
+    { WeightsLayout::os_izyx_osv64,                               {  0,  1,  2,   3,   4, -1, -1, -1 } },
     { WeightsLayout::os_zyxi_osv16,                               {  1,  2,  3,   0,   4, -1, -1, -1 } },
     { WeightsLayout::os_i_yxs_osv4_yxsv4,                         {  0,  1, -1,   2,   3, -1, -1, -1 } },
     { WeightsLayout::goiyx,                                       {  0,  1, -1,   2,   3, -1, -1,  4 } },
@@ -534,6 +537,18 @@ NDims WeightsTensor::GetSimpleDims(const std::vector<size_t>& d, WeightsLayout l
             assert(newDims.size() == 5);
             newDims[3] = RoundUp(newDims[3], 16);
             newDims[4] = RoundUp(newDims[4], 16);
+            break;
+        case os_izyx_osv16:
+            assert(newDims.size() == 5);
+            newDims[4] = RoundUp(newDims[0], 16);
+            break;
+        case os_izyx_osv32:
+            assert(newDims.size() == 5);
+            newDims[4] = RoundUp(newDims[0], 32);
+            break;
+        case os_izyx_osv64:
+            assert(newDims.size() == 5);
+            newDims[4] = RoundUp(newDims[0], 64);
             break;
         case os_zyxi_osv16:
             assert(newDims.size() == 5);

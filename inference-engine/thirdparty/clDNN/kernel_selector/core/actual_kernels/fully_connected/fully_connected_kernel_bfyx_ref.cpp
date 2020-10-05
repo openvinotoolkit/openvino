@@ -83,11 +83,8 @@ JitConstants FullyConnected_bfyx_Ref::GetJitConstants(const fully_connected_para
     jit.Merge(MakeActivationJitConstants(params.activations, activation_dt, "_TYPED"));
 
     if (!params.fused_ops.empty()) {
-        std::vector<std::string> idx_order = {"b", "ofm", "y", "x"};
-        if (params.inputs[0].GetDims().size() == 5)
-            idx_order = {"b", "ofm", "z", "y", "x"};
 
-        FusedOpsConfiguration conf = { "", idx_order, "dequantized", activation_dt, 1 };
+        FusedOpsConfiguration conf = { "", {"b", "ofm", "0", "0"}, "dequantized", activation_dt, 1 };
         jit.Merge(MakeFusedOpsJitConstants(params, { conf }));
     }
     return jit;

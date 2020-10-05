@@ -533,6 +533,17 @@ inline uint FUNC(get_os_zyxi_osv16_index)(uint o, uint i, uint z, uint y, uint x
         ((o) / (sub_group_size))*CAT(prefix, _OFM_PITCH)                 \
     )
 
+#define GET_FILTER_OS_IZYX_OSV16_INDEX(prefix, o, i, z, y, x, sub_group_size) \
+    CAT(prefix, _OFFSET) +                                               \
+    ((o) % (sub_group_size)) +                                           \
+    (sub_group_size)*(                                                   \
+        (x)*CAT(prefix, _X_PITCH) +                                      \
+        (y)*CAT(prefix, _Y_PITCH) +                                      \
+        (z)*CAT(prefix, _Z_PITCH) +                                      \
+        (i)*CAT(prefix, _IFM_PITCH) +                                    \
+        ((o) / (sub_group_size))*CAT(prefix, _OFM_PITCH)                 \
+    )
+
 #define GET_FILTER_OS_IYX_OSV8_ROTATE_180_INDEX(prefix, o, i, y, x, sub_group_size) \
     CAT(prefix, _OFFSET) +                                                          \
     ((o) % (sub_group_size)) +                                                      \

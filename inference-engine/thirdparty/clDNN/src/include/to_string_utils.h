@@ -172,6 +172,12 @@ inline std::string fmt_to_str(format fmt) {
             return "os_is_osv32_isv32_swizzled_by_4";
         case format::os_is_zyx_isv8_osv16_isv2:
             return "os_is_zyx_isv8_osv16_isv2";
+        case format::os_izyx_osv16:
+            return "os_izyx_osv16";
+        case format::os_izyx_osv32:
+            return "os_izyx_osv32";
+        case format::os_izyx_osv64:
+            return "os_izyx_osv64";
         case format::os_zyxi_osv16:
             return "os_zyxi_osv16";
 

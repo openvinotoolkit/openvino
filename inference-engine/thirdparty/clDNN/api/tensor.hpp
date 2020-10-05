@@ -127,6 +127,9 @@ struct format {
         os_is_yx_osv16_isv16,                         ///< format used for convolution i8 weights
         os_is_zyx_osv32_isv16,
         os_is_zyx_osv64_isv16,
+        os_izyx_osv16,                                ///< format used for 3D weights in fully connected
+        os_izyx_osv32,                                ///< format used for 3D weights in fully connected
+        os_izyx_osv64,                                ///< format used for 3D weights in fully connected
         os_zyxi_osv16,                                ///< format used for weights for 3D convolution
         os_is_yx_isv16_osv16,                         ///< format used for blocked convolution
         os_is_zyx_isv16_osv16,                        ///< format used for weights for blocked 3D convolution
@@ -136,10 +139,10 @@ struct format {
         os_is_zyx_isv8_osv16_isv2,                    ///< format used for weights for blocked 3D convolution
                                                       ///< os - output feature maps slice, i - input feature maps,
                                                       ///< yx - spatials, sv16 - 16 values of single slice.
-        os_iyx_osv32,                                 ///< format used only for convolution weights:
+        os_iyx_osv32,                                 ///< format used only for convolution weights and in FC tiled:
                                                       ///< os - output feature maps slice, i - input feature maps,
                                                       ///< yx - spatials, sv32 - 32 values of single slice.
-        os_iyx_osv64,                                 ///< format used only for convolution weights:
+        os_iyx_osv64,                                 ///< format used for convolution weights and in FC tiled:
                                                       ///< os - output feature maps slice, i - input feature maps,
                                                       ///< yx - spatials, sv64 - 64 values of single slice.
         image_2d_weights_c4_fyx_b,                    ///< image format for weights, width size is f*y*x/4
@@ -286,6 +289,9 @@ struct format {
                 { is_os_yx_isv16_osv16,                        { 1, 1, 2, 0, 0, "ioyx",   "oixyz",      {{1, 16}, {0, 16}}}},
                 { os_is_osv32_isv32_swizzled_by_4,             { 1, 1, 0, 0, 0, "oixy",   "oixy?",      {{0, 32}, {1, 32}}}},
                 { os_is_zyx_isv8_osv16_isv2,                   { 1, 1, 3, 0, 0, "oizyx",  "oixyz",      {{1, 8}, {0, 16}, {1, 2}}}},
+                { os_izyx_osv16,                               { 1, 1, 2, 0, 0, "oizyx",  "oixyz",      {{0, 16}}}},
+                { os_izyx_osv32,                               { 1, 1, 2, 0, 0, "oizyx",  "oixyz",      {{0, 32}}}},
+                { os_izyx_osv64,                               { 1, 1, 2, 0, 0, "oizyx",  "oixyz",      {{0, 64}}}},
                 { os_zyxi_osv16,                               { 1, 1, 3, 0, 0, "ozyxi",  "oixyz",      {{0, 16}}}},
                 { os_is_yx_isv8_osv16_isv2,                    { 1, 1, 2, 0, 0, "oizyx",  "oixyz",      {{1, 8}, {0, 16}, {1, 2}}}},
                 { os_is_yx_osv16_isv16,                        { 1, 1, 2, 0, 0, "oiyx",   "oixy",       {{1, 16}, {0, 16}}}},
