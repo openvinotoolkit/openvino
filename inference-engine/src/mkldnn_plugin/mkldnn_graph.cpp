@@ -781,8 +781,13 @@ void MKLDNNGraph::PullOutputData(BlobMap &out) {
         size_t size_to_copy = intr_blob.GetSize() * MB_to_process / MB;
 
         ie_memcpy(ext_blob_ptr, ext_blob->byteSize(), intr_blob_ptr, size_to_copy);
-        if (config.dynamicSequence && ext_blob->byteSize() > size_to_copy)
-            memset((unsigned char*)ext_blob_ptr + size_to_copy, 0, ext_blob->byteSize() - size_to_copy);
+        if (config.dynamicSequence && ext_blob->size() > intr_blob.GetElementsCount()) {
+            if (ext_blob->getTensorDesc().getPrecision() != InferenceEngine::Precision::FP32)
+                THROW_IE_EXCEPTION << "Dynamic sequence is supported only for the fp32 outputs only!";
+            auto elements = intr_blob.GetElementsCount();
+            std::fill(static_cast<float*>(ext_blob_ptr) + elements,
+                       static_cast<float*>(ext_blob_ptr) + ext_blob->size(), -std::numeric_limits<float>::max());
+        }
     }
 }
 
