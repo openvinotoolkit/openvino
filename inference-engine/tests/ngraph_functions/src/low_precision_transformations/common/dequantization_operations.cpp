@@ -59,13 +59,13 @@ DequantizationOperations::Subtract::Subtract(
     const std::vector<float>& values,
     const ngraph::element::Type outPrecision,
     const ngraph::Shape& constantShape,
-    const bool addDeqAttr) :
+    const bool addDequantizationAttribute) :
     isEmpty(false),
     values(values),
     outPrecision(outPrecision),
     constantShape(constantShape),
     constantShapeIsDefined(true),
-    addDequantizationAttribute(addDeqAttr) {
+    addDequantizationAttribute(addDequantizationAttribute) {
 }
 
 bool DequantizationOperations::Subtract::empty() const noexcept {
@@ -107,11 +107,15 @@ DequantizationOperations::Multiply::Multiply(const std::vector<float>& values, c
 DequantizationOperations::Multiply::Multiply(
     const std::vector<float>& values,
     const ngraph::element::Type outPrecision,
-    const ngraph::Shape& constantShape) :
+    const ngraph::Shape& constantShape,
+    const bool addDequantizationAttribute,
+    const size_t constantIndex) :
     isEmpty(false),
     values(values),
     outPrecision(outPrecision),
     constantShape(constantShape),
+    addDequantizationAttribute(addDequantizationAttribute),
+    constantIndex(constantIndex),
     constantShapeIsDefined(true) {
 }
 

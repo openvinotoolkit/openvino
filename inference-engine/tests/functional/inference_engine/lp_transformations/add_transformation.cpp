@@ -147,7 +147,7 @@ TEST_P(AddTransformation, CompareFunctions) {
 }
 
 const std::vector<AddTransformationTestValues> addTransformationTestValues = {
-    //// U8
+    // U8
     {
         ngraph::element::f32,
         ngraph::Shape{1, 4, 16, 16},
@@ -378,6 +378,30 @@ const std::vector<AddTransformationTestValues> addTransformationTestValues = {
             { {},  {}, {} },
             { {},  {}, {5.f} },
             {}
+        },
+        ""
+    },
+
+    {
+        ngraph::element::f32,
+        ngraph::Shape{4, 1},
+        false,
+        -1,
+        LayerTransformation::createParamsU8I8(),
+        {
+            ngraph::element::u8,
+            { {ngraph::element::f32},  { }, { {1.f, 2.f, 3.f, 4.f}, ngraph::element::f32, {4, 1}, true, 0ul }},
+            ngraph::element::f32,
+            {},
+            { 5.f, 6.f, 7.f, 8.f }
+        },
+        {
+            ngraph::element::u8,
+            { {ngraph::element::f32},  { }, { {1.f, 2.f, 3.f, 4.f}, ngraph::element::f32, {4, 1}, true, 0ul }},
+            ngraph::element::f32,
+            { {},  {}, {} },
+            { {},  {}, {} },
+            { 5.f, 6.f, 7.f, 8.f }
         },
         ""
     },

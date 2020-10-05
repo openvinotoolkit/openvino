@@ -80,24 +80,37 @@ std::shared_ptr<Node> makeDequantization(
             }
         }
 
-        std::shared_ptr<ngraph::opset1::Multiply> multiply =
-            (dequantizationOperations.multiply.outPrecision == element::undefined) ||
-            (dequantizationOperations.multiply.outPrecision == parent.get_element_type()) ?
-            std::make_shared<ngraph::pass::low_precision::DequantizationMultiply>(
-                parent,
-                std::make_shared<ngraph::opset1::Constant>(parent.get_element_type(), shape, dequantizationOperations.multiply.values)) :
-            std::make_shared<op::TypeRelaxed<ngraph::pass::low_precision::DequantizationMultiply>>(
-                std::vector<element::Type>{element::f32, element::f32},
-                std::vector<element::Type>{ element::f32 },
-                ngraph::op::TemporaryReplaceOutputType(parent, element::f32).get(),
-                ngraph::op::TemporaryReplaceOutputType(
-                    std::make_shared<ngraph::opset1::Constant>(
-                        dequantizationOperations.multiply.constantPrecision != element::undefined ?
-                            dequantizationOperations.multiply.constantPrecision :
-                            parent.get_element_type(),
-                        shape,
-                        dequantizationOperations.multiply.values),
-                    element::f32).get());
+        std::shared_ptr<ngraph::opset1::Multiply> multiply;
+        if ((dequantizationOperations.multiply.outPrecision == element::undefined) ||
+            (dequantizationOperations.multiply.outPrecision == parent.get_element_type())) {
+            const std::shared_ptr<ngraph::opset1::Constant> constant = std::make_shared<ngraph::opset1::Constant>(
+                parent.get_element_type(),
+                shape,
+                dequantizationOperations.multiply.values);
+
+            multiply = dequantizationOperations.multiply.constantIndex == 1ul ?
+                std::make_shared<ngraph::pass::low_precision::DequantizationMultiply>(parent, constant) :
+                std::make_shared<ngraph::pass::low_precision::DequantizationMultiply>(constant, parent);
+        } else {
+            const std::shared_ptr<ngraph::opset1::Constant> constant = std::make_shared<ngraph::opset1::Constant>(
+                dequantizationOperations.multiply.constantPrecision != element::undefined ?
+                    dequantizationOperations.multiply.constantPrecision :
+                    parent.get_element_type(),
+                shape,
+                dequantizationOperations.multiply.values);
+
+            multiply = dequantizationOperations.multiply.constantIndex == 1ul ?
+                std::make_shared<op::TypeRelaxed<ngraph::pass::low_precision::DequantizationMultiply>>(
+                    std::vector<element::Type>{element::f32, element::f32},
+                    std::vector<element::Type>{ element::f32 },
+                    ngraph::op::TemporaryReplaceOutputType(parent, element::f32).get(),
+                    ngraph::op::TemporaryReplaceOutputType(constant, element::f32).get()) :
+                std::make_shared<op::TypeRelaxed<ngraph::pass::low_precision::DequantizationMultiply>>(
+                    std::vector<element::Type>{element::f32, element::f32},
+                    std::vector<element::Type>{ element::f32 },
+                    ngraph::op::TemporaryReplaceOutputType(constant, element::f32).get(),
+                    ngraph::op::TemporaryReplaceOutputType(parent, element::f32).get());
+        }
 
         parent = multiply;
     }
