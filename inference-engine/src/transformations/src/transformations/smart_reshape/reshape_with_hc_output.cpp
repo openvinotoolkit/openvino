@@ -74,7 +74,7 @@ bool relax_hc_reshape_followed_by_matmul(const ngraph::pattern::PatternValueMap 
             auto old_raw = -3;
             std::vector<int64_t > axes;
             for (size_t i = 1; i < reshape->get_output_partial_shape(0).rank().get_length() - 2; i++) {
-                axes.push_back(old_raw);
+                axes.insert(axes.begin(), old_raw);
                 old_raw--;
             }
             const auto &reshape_indices = ngraph::normalize_axes(matmul->description(), axes,
