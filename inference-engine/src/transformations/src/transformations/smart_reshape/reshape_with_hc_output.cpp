@@ -71,12 +71,9 @@ bool relax_hc_reshape_followed_by_matmul(const ngraph::pattern::PatternValueMap 
                 (matmul->get_transpose_a() ? ngraph::OutputVector({N, C, D}) : ngraph::OutputVector({N, D, C})) :
                 (matmul->get_transpose_b() ? ngraph::OutputVector({N, D, C}) : ngraph::OutputVector({N, C, D}));
         if (reshape->get_output_partial_shape(0).rank().get_length() > 3) {
-            auto shape = reshape_pattern->get_shape();
-            shape.erase(shape.begin());
-            shape.erase(shape.end(), shape.end() - 1);
             auto old_raw = -3;
             std::vector<int64_t > axes;
-            for (auto i : shape) {
+            for (size_t i = 1; i < reshape->get_output_partial_shape(0).rank().get_length() - 2; i++) {
                 axes.push_back(old_raw);
                 old_raw--;
             }
