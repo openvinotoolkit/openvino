@@ -12,6 +12,13 @@
 #include <functional_test_utils/threading.hpp>
 
 
+static std::string get_extension_path() {
+    return FileUtils::makeSharedLibraryName<char>({},
+            std::string("template_extension") + IE_BUILD_POSTFIX);
+}
+
+
+#ifdef MKL_DNN_ENABLED
 
 class CustomReluKernel : public InferenceEngine::ILayerExecImpl {
     public:
@@ -269,12 +276,6 @@ TEST(Extension, XmlModelWithCustomRelu) {
 }
 
 
-static std::string get_extension_path() {
-    return FileUtils::makeSharedLibraryName<char>({},
-            std::string("template_extension") + IE_BUILD_POSTFIX);
-}
-
-
 TEST(Extension, XmlModelWithExtensionFromDSO) {
     std::string model = R"V0G0N(
 <net name="Network" version="10">
@@ -410,6 +411,7 @@ opset_import {
     ie.AddExtension(InferenceEngine::make_so_pointer<InferenceEngine::IExtension>(get_extension_path()));
     infer_model(ie, model, input_values, expected);
 }
+#endif // MKL_DNN_ENABLED
 
 
 void safeAddExtension(InferenceEngine::Core & ie) {
