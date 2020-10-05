@@ -19,7 +19,7 @@ Devices with Intel&reg; GNA support:
 
 * [Amazon Alexa* Premium Far-Field Developer Kit](https://developer.amazon.com/en-US/alexa/alexa-voice-service/dev-kits/amazon-premium-voice)
 
-* [Gemini Lake](https://ark.intel.com/content/www/us/en/ark/products/codename/83915/gemini-lake.html):
+* [Intel&reg; Pentium&reg; Silver Processors N5xxx, J5xxx and Intel&reg; Celeron&reg; Processors N4xxx, J4xxx](https://ark.intel.com/content/www/us/en/ark/products/codename/83915/gemini-lake.html):
 	- Intel&reg; Pentium&reg; Silver J5005 Processor
 	- Intel&reg; Pentium&reg; Silver N5000 Processor
 	- Intel&reg; Celeron&reg; J4005 Processor
@@ -27,10 +27,10 @@ Devices with Intel&reg; GNA support:
 	- Intel&reg; Celeron&reg; Processor N4100
 	- Intel&reg; Celeron&reg; Processor N4000
 
-* [Cannon Lake](https://ark.intel.com/content/www/us/en/ark/products/136863/intel-core-i3-8121u-processor-4m-cache-up-to-3-20-ghz.html):
+* [Intel&reg; Core&trade; Processors (formerly codenamed Cannon Lake)](https://ark.intel.com/content/www/us/en/ark/products/136863/intel-core-i3-8121u-processor-4m-cache-up-to-3-20-ghz.html):
 Intel&reg; Core&trade; i3-8121U Processor
 
-* [Ice Lake](https://ark.intel.com/content/www/us/en/ark/products/codename/74979/ice-lake.html):
+* [10th Generation Intel&reg; Core&trade; Processors (formerly codenamed Ice Lake)](https://ark.intel.com/content/www/us/en/ark/products/codename/74979/ice-lake.html):
 	- Intel&reg; Core&trade; i7-1065G7 Processor
 	- Intel&reg; Core&trade; i7-1060G7 Processor
 	- Intel&reg; Core&trade; i5-1035G4 Processor
@@ -42,7 +42,7 @@ Intel&reg; Core&trade; i3-8121U Processor
 	- Intel&reg; Core&trade; i3-1000G1 Processor
 	- Intel&reg; Core&trade; i3-1000G4 Processor
 
-* All [Tiger Lake](https://ark.intel.com/content/www/us/en/ark/products/codename/88759/tiger-lake.html) processors.
+* All [11th Generation Intel&reg; Core&trade; Processors (formerly codenamed Tiger Lake)](https://ark.intel.com/content/www/us/en/ark/products/codename/88759/tiger-lake.html).
 
 > **NOTE**: On platforms where Intel&reg; GNA is not enabled in the BIOS, the driver cannot be installed, so the GNA plugin uses the software emulation mode only.
 
