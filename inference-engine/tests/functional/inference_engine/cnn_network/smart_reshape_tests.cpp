@@ -31,7 +31,7 @@ struct ReshapeMatMulTestCase {
     std::vector<int64_t> reshape_pattern;
     bool transpose_a, transpose_b;
     reshape_map new_shapes;
-    std::vector<uint64_t> ref_shape;
+    std::vector<size_t> ref_shape;
 };
 
 class CNNNGraphImplSmartReshapeTests : public CommonTestUtils::TestsCommon, public testing::WithParamInterface<std::tuple<ReshapeMatMulTestCase>> {
