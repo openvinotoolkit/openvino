@@ -31,7 +31,6 @@
             <tab type="user" title="Install Intel® Distribution of OpenVINO™ toolkit from Anaconda* Cloud" url="@ref openvino_docs_install_guides_installing_openvino_conda"/>
             <tab type="user" title="Create a Yocto* Image with OpenVINO™ toolkit" url="@ref openvino_docs_install_guides_installing_openvino_yocto"/>
             <tab type="user" title="OpenVINO Model Server" url="@ref openvino_docs_ovms"/>
-
         </tab>
         <!-- How To category -->
         <tab type="usergroup" title="HOW TOs" url="@ref openvino_docs_how_tos_how_to_links">
