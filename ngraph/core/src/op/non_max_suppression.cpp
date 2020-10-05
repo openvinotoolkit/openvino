@@ -831,21 +831,6 @@ void op::v5::NonMaxSuppression::validate_and_infer_types()
 
     validate();
 
-    if (boxes_ps.rank().is_static() && scores_ps.rank().is_static())
-    {
-        const auto num_boxes_boxes = boxes_ps[1];
-        const auto max_output_boxes_per_class_node = input_value(2).get_node_shared_ptr();
-        if (num_boxes_boxes.is_static() && scores_ps[0].is_static() && scores_ps[1].is_static() &&
-            op::is_constant(max_output_boxes_per_class_node))
-        {
-            const auto num_boxes = num_boxes_boxes.get_length();
-            const auto num_classes = scores_ps[1].get_length();
-            const auto max_output_boxes_per_class = max_boxes_output_from_input();
-
-            out_shape[0] = std::min(num_boxes, max_output_boxes_per_class) * num_classes *
-                           scores_ps[0].get_length();
-        }
-    }
     set_output_type(0, m_output_type, out_shape);
     set_output_type(1, element::f32, out_shape);
     set_output_type(2, m_output_type, Shape{});
@@ -1037,19 +1022,19 @@ static void evaluate_postprocessing(const HostTensorVector& outputs,
                                     int64_t valid_outputs)
 {
     size_t num_of_outputs = outputs.size();
+    size_t selected_size = valid_outputs * 3;
 
     if (output_type == ngraph::element::i64)
     {
         int64_t* indices_ptr = outputs[0]->get_data_ptr<int64_t>();
-        memcpy(indices_ptr, selected_indices.data(), selected_indices.size() * sizeof(int64_t));
+        memcpy(indices_ptr, selected_indices.data(), selected_size * sizeof(int64_t));
     }
     else
     {
         int32_t* indices_ptr = outputs[0]->get_data_ptr<int32_t>();
-        for (int64_t idx : selected_indices)
+        for (size_t i = 0; i < selected_size; ++i)
         {
-            *indices_ptr = static_cast<int32_t>(idx);
-            indices_ptr++;
+            indices_ptr[i] = static_cast<int32_t>(selected_indices[i]);
         }
     }
 
@@ -1059,7 +1044,7 @@ static void evaluate_postprocessing(const HostTensorVector& outputs,
     }
 
     float* scores_ptr = outputs[1]->get_data_ptr<float>();
-    memcpy(scores_ptr, selected_scores.data(), selected_scores.size() * sizeof(float));
+    memcpy(scores_ptr, selected_scores.data(), selected_size * sizeof(float));
 
     if (num_of_outputs < 3)
     {
@@ -1089,23 +1074,6 @@ bool op::v5::NonMaxSuppression::evaluate(const HostTensorVector& outputs,
     auto selected_indices_shape = infer_selected_indices_shape(inputs, max_output_boxes_per_class);
     Shape out_shape = selected_indices_shape.to_shape();
 
-    outputs[0]->set_element_type(m_output_type);
-    outputs[0]->set_shape(out_shape);
-
-    size_t num_of_outputs = outputs.size();
-
-    if (num_of_outputs >= 2)
-    {
-        outputs[1]->set_element_type(element::f32);
-        outputs[1]->set_shape(out_shape);
-    }
-
-    if (num_of_outputs >= 3)
-    {
-        outputs[2]->set_element_type(element::f32);
-        outputs[2]->set_shape(Shape{});
-    }
-
     Shape boxes_shape = inputs[boxes_port]->get_shape();
     Shape scores_shape = inputs[scores_port]->get_shape();
 
@@ -1132,6 +1100,23 @@ bool op::v5::NonMaxSuppression::evaluate(const HostTensorVector& outputs,
                                             out_shape,
                                             &valid_outputs,
                                             m_sort_result_descending);
+
+    outputs[0]->set_element_type(m_output_type);
+    outputs[0]->set_shape(Shape{valid_outputs, 3});
+
+    size_t num_of_outputs = outputs.size();
+
+    if (num_of_outputs >= 2)
+    {
+        outputs[1]->set_element_type(element::f32);
+        outputs[1]->set_shape(Shape{valid_outputs, 3});
+    }
+
+    if (num_of_outputs >= 3)
+    {
+        outputs[2]->set_element_type(m_output_type);
+        outputs[2]->set_shape(Shape{});
+    }
 
     evaluate_postprocessing(
         outputs, m_output_type, selected_indices, selected_scores, valid_outputs);
