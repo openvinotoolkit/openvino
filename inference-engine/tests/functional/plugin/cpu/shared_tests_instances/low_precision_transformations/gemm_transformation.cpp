@@ -32,7 +32,7 @@ const std::vector<LayerTestsUtils::LayerTransformation::LptVersion> versionValue
     // LayerTestsUtils::LayerTransformation::LptVersion::nGraph
 };
 
-INSTANTIATE_TEST_CASE_P(LPT, GemmTransformation,
+INSTANTIATE_TEST_CASE_P(smoke_LPT, GemmTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(netPrecisions),
         ::testing::ValuesIn(dimensions),

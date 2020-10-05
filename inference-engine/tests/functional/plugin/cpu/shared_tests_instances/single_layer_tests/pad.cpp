@@ -34,7 +34,7 @@ const auto pad2DConstparams = testing::Combine(
 );
 
 INSTANTIATE_TEST_CASE_P(
-        Pad2DConst,
+        smoke_Pad2DConst,
         PadLayerTest,
         pad2DConstparams,
         PadLayerTest::getTestCaseName
@@ -51,7 +51,7 @@ const auto pad2Dparams = testing::Combine(
 );
 
 INSTANTIATE_TEST_CASE_P(
-        Pad2D,
+        smoke_Pad2D,
         PadLayerTest,
         pad2Dparams,
         PadLayerTest::getTestCaseName
@@ -71,7 +71,7 @@ const auto pad4DConstparams = testing::Combine(
 );
 
 INSTANTIATE_TEST_CASE_P(
-        Pad4DConst,
+        smoke_Pad4DConst,
         PadLayerTest,
         pad4DConstparams,
         PadLayerTest::getTestCaseName
@@ -88,7 +88,7 @@ const auto pad4Dparams = testing::Combine(
 );
 
 INSTANTIATE_TEST_CASE_P(
-        Pad4D,
+        smoke_Pad4D,
         PadLayerTest,
         pad4Dparams,
         PadLayerTest::getTestCaseName

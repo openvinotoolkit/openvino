@@ -55,5 +55,5 @@ const auto DepthToSpaceBS3 = ::testing::Combine(
     ::testing::ValuesIn(versions)
 );
 
-INSTANTIATE_TEST_CASE_P(LPT_BS3, DepthToSpaceTransformation, DepthToSpaceBS3, DepthToSpaceTransformation::getTestCaseName);
+INSTANTIATE_TEST_CASE_P(smoke_LPT_BS3, DepthToSpaceTransformation, DepthToSpaceBS3, DepthToSpaceTransformation::getTestCaseName);
 }  // namespace

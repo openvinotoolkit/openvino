@@ -141,15 +141,19 @@ void op::v1::Split::validate_and_infer_types()
     const auto axis_ps = input_value(1).get_partial_shape();
     const auto axis_et = input_value(1).get_element_type();
 
-    NODE_VALIDATION_CHECK(this,
-                          axis_ps.rank().is_static() && axis_ps.rank().get_length() == 0,
-                          "The 'axis' input is expected to be a scalar. Got: ",
-                          axis_ps);
+    if (axis_ps.rank().is_static())
+    {
+        NODE_VALIDATION_CHECK(this,
+                              axis_ps.rank().get_length() == 0,
+                              "The 'axis' input is expected to be a scalar. Got: ",
+                              axis_ps);
+    }
 
     NODE_VALIDATION_CHECK(
         this, axis_et.is_integral(), "The 'axis' input only accepts integral types");
 
-    if (op::is_constant(input_value(1).get_node()) && data_ps.is_static())
+    PartialShape each_output_shape{data_ps};
+    if (op::is_constant(input_value(1).get_node()) && data_ps.rank().is_static())
     {
         const auto axis_input = as_type_ptr<op::Constant>(input_value(1).get_node_shared_ptr());
         auto axis = axis_input->cast_vector<int64_t>()[0];
@@ -157,33 +161,35 @@ void op::v1::Split::validate_and_infer_types()
         const auto data_rank = get_input_partial_shape(0).rank();
         axis = ngraph::normalize_axis(this, axis, data_rank);
 
-        const auto data_shape = data_ps.to_shape();
-        const auto dimension_at_axis = data_shape.at(axis);
-
-        NODE_VALIDATION_CHECK(this,
-                              dimension_at_axis % m_num_splits == 0,
-                              "The input tensor's dimension pointed by the 'axis' parameter: ",
-                              dimension_at_axis,
-                              " has to be a multiple of the 'num_splits' attribute value: ",
-                              m_num_splits);
-
-        Shape each_output_shape{data_shape};
-        each_output_shape.at(axis) = dimension_at_axis / m_num_splits;
-
-        for (size_t i = 0; i < m_num_splits; ++i)
+        if (data_ps[axis].is_static())
         {
-            set_output_type(i, get_input_element_type(0), each_output_shape);
+            const auto dimension_at_axis = data_ps[axis].get_length();
+
+            NODE_VALIDATION_CHECK(this,
+                                  dimension_at_axis % m_num_splits == 0,
+                                  "The input tensor's dimension pointed by the 'axis' parameter: ",
+                                  dimension_at_axis,
+                                  " has to be a multiple of the 'num_splits' attribute value: ",
+                                  m_num_splits);
+
+            each_output_shape[axis] = dimension_at_axis / m_num_splits;
+        }
+        else
+        {
+            each_output_shape[axis] = Dimension::dynamic();
         }
     }
     else
     {
-        for (size_t i = 0; i < m_num_splits; ++i)
-        {
-            set_output_type(i, get_input_element_type(0), PartialShape::dynamic());
-        }
-
-        set_input_is_relevant_to_shape(0);
+        each_output_shape = PartialShape::dynamic(data_ps.rank());
     }
+
+    for (size_t i = 0; i < m_num_splits; ++i)
+    {
+        set_output_type(i, get_input_element_type(0), each_output_shape);
+    }
+
+    set_input_is_relevant_to_shape(0);
 }
 
 shared_ptr<Node> op::v1::Split::clone_with_new_inputs(const OutputVector& new_args) const

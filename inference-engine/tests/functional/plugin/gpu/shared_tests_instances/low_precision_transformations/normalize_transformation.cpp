@@ -34,7 +34,7 @@ const std::vector<bool> fuseMultiplyValues = { true, false };
 
 const std::vector<bool> shiftValues = { true, false };
 
-INSTANTIATE_TEST_CASE_P(LPT, NormalizeL2Transformation,
+INSTANTIATE_TEST_CASE_P(smoke_LPT, NormalizeL2Transformation,
     ::testing::Combine(
         ::testing::ValuesIn(precisions),
         ::testing::ValuesIn(inputAndQuantizationShapes),

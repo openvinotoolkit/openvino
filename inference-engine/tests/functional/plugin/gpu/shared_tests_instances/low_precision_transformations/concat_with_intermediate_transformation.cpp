@@ -31,7 +31,7 @@ const std::vector<LayerTestsUtils::LayerTransformation::LptVersion> versions = {
 const std::vector<bool> transparentIntermediateValues = { true, false };
 const std::vector<bool> multiChannelValues = { /*true,*/ false };
 
-INSTANTIATE_TEST_CASE_P(LPT, ConcatWithIntermediateTransformation,
+INSTANTIATE_TEST_CASE_P(smoke_LPT, ConcatWithIntermediateTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(netPrecisions),
         ::testing::Values(ngraph::Shape({ 1, 3, 16, 16 })),
