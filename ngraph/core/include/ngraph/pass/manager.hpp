@@ -42,12 +42,14 @@ public:
     std::shared_ptr<T> register_pass(Args&&... args)
     {
         auto rc = push_pass<T>(std::forward<Args>(args)...);
+        rc->set_pass_config(m_pass_config);
         if (m_per_pass_validation)
         {
             push_pass<Validate>();
         }
-        if (!Enable) {
-            m_pass_config->disable(T::type_info);
+        if (!Enable)
+        {
+            m_pass_config->disable<T>();
         }
         return rc;
     }
@@ -76,31 +78,17 @@ public:
     /// }
     /// \param callback lamda function that returns true in case if node is supported by plugin and
     /// transformation is not needed
-    void set_callback(const param_callback & callback)
+    NGRAPH_DEPRECATED("Please use get_pass_config() to configure transformation pipeline")
+    void set_callback(const param_callback& callback) { m_pass_config->set_callback(callback); }
+    /// \return PassConfig shared object. This object is used for transformations pipeline
+    /// configuration.
+    /// This object allows to disable/enable transformations execution, set callback to particular
+    /// transformation.
+    std::shared_ptr<PassConfig> get_pass_config() { return m_pass_config; }
+    /// \brief Set external PassConfig object.
+    void set_pass_config(const std::shared_ptr<PassConfig>& pass_config)
     {
-        m_pass_config->set_transformation_callback(callback);
-    }
-
-    void set_callback_map(const param_callback_map & callback_map)
-    {
-        m_pass_config->set_transformation_callback_map(callback_map);
-    }
-
-    void set_pass_config(std::shared_ptr<PassConfig> pass_config)
-    {
-        m_pass_config = std::move(pass_config);
-    }
-
-    template <typename T>
-    void disable()
-    {
-        m_pass_config->disable(T::type_info);
-    }
-
-    template <typename T>
-    void enable()
-    {
-        m_pass_config->enable(T::type_info);
+        *m_pass_config = *pass_config;
     }
 
 protected:
@@ -115,7 +103,6 @@ protected:
     }
 
     std::shared_ptr<PassConfig> m_pass_config;
-
     std::vector<std::shared_ptr<PassBase>> m_pass_list;
     bool m_visualize = false;
     bool m_per_pass_validation = true;

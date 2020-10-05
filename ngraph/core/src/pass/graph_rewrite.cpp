@@ -139,8 +139,6 @@ bool pass::GraphRewrite::run_on_function(shared_ptr<Function> f)
             return false;
         }
 
-        m_pass->set_pass_config(m_pass_config);
-
         // Apply MatcherPass. In case if it returns true no other MatcherPasses will apply
         // to this node
         bool status = m_pass->apply(node);

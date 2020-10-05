@@ -126,12 +126,18 @@ public:
         m_matchers.push_back(pass);
     }
 
-    template <typename T, class... Args>
+    template <typename T, bool Enabled = true, class... Args>
     std::shared_ptr<T> add_matcher(Args&&... args)
     {
         static_assert(std::is_base_of<pass::MatcherPass, T>::value,
                       "pass not derived from MatcherPass");
         auto pass = std::make_shared<T>(std::forward<Args>(args)...);
+        auto pass_config = get_pass_config();
+        pass->set_pass_config(pass_config);
+        if (!Enabled)
+        {
+            pass_config->disable<T>();
+        }
         m_matchers.push_back(pass);
         return pass;
     }

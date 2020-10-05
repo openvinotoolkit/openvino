@@ -45,46 +45,68 @@ namespace ngraph
         class NGRAPH_API PassConfig
         {
         public:
-            void disable(const DiscreteTypeInfo & type_info)
+            void disable(const DiscreteTypeInfo& type_info) { m_disabled.insert(type_info); }
+            template <typename T>
+            void disable()
             {
-                m_disabled.insert(type_info);
+                disable(T::type_info);
             }
 
-            void enable(const DiscreteTypeInfo & type_info)
+            void enable(const DiscreteTypeInfo& type_info) { m_disabled.erase(type_info); }
+            template <typename T>
+            void enable()
             {
-                m_disabled.erase(type_info);
+                enable(T::type_info);
             }
 
-            void set_transformation_callback(const param_callback & callback)
+            void set_callback(const param_callback& callback) { m_callback = callback; }
+            template <typename... Args>
+            typename std::enable_if<sizeof...(Args) == 0>::type
+                set_callback(const param_callback& callback)
             {
-                m_transformation_callback = callback;
             }
 
-            void set_transformation_callback_map(const param_callback_map & callback_map)
+            template <typename T, class... Args>
+            void set_callback(const param_callback& callback)
             {
-                m_transformation_callback_map = callback_map;
+                m_callback_map[T::type_info] = callback;
+                set_callback<Args...>(callback);
             }
 
-            param_callback get_transformation_callback(const DiscreteTypeInfo & type_info) const
+            param_callback get_callback(const DiscreteTypeInfo& type_info) const
             {
-                if (m_transformation_callback_map.count(type_info))
+                if (m_callback_map.count(type_info))
                 {
-                    return m_transformation_callback_map.at(type_info);
+                    return m_callback_map.at(type_info);
                 }
                 else
                 {
-                    return m_transformation_callback;
+                    return m_callback;
                 }
             }
 
-            bool is_disabled(const DiscreteTypeInfo & type_info) const
+            template <typename T>
+            param_callback get_callback() const
+            {
+                return get_callback(T::type_info);
+            }
+
+            bool is_disabled(const DiscreteTypeInfo& type_info) const
             {
                 return m_disabled.count(type_info);
             }
 
+            template <typename T>
+            bool is_disabled() const
+            {
+                return is_disabled(T::type_info);
+            }
+
         private:
-            param_callback m_transformation_callback;
-            param_callback_map m_transformation_callback_map;
+            param_callback m_callback = [](const std::shared_ptr<const ::ngraph::Node>&) {
+                return false;
+            };
+            param_callback_map m_callback_map;
             std::unordered_set<DiscreteTypeInfo> m_disabled;
         };
 
@@ -103,14 +125,21 @@ namespace ngraph
 
             void set_callback(const param_callback& callback);
 
-            void set_pass_config(std::shared_ptr<PassConfig> pass_config)
+            void set_pass_config(const std::shared_ptr<PassConfig>& pass_config)
             {
-                m_pass_config = std::move(pass_config);
+                m_pass_config = pass_config;
             }
 
-            bool m_transformation_callback(const std::shared_ptr<const Node> & node)
+            std::shared_ptr<PassConfig> get_pass_config() { return m_pass_config; }
+            NGRAPH_DEPRECATED("Please use transformation_callback method instead")
+            bool m_transformation_callback(const std::shared_ptr<const Node>& node)
             {
-                return m_pass_config->get_transformation_callback(get_type_info())(node);
+                return m_pass_config->get_callback(get_type_info())(node);
+            }
+
+            bool transformation_callback(const std::shared_ptr<const Node>& node)
+            {
+                return m_pass_config->get_callback(get_type_info())(node);
             }
 
             using type_info_t = DiscreteTypeInfo;
@@ -120,10 +149,11 @@ namespace ngraph
         protected:
             void set_property(const PassPropertyMask& prop, bool value);
 
-            std::shared_ptr<PassConfig> m_pass_config;
         private:
             PassPropertyMask m_property;
+
             std::string m_name;
+            std::shared_ptr<PassConfig> m_pass_config;
         };
 
         class NGRAPH_API FunctionPass : public PassBase

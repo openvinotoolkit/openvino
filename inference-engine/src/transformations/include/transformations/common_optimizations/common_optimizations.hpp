@@ -10,8 +10,6 @@
 #include <transformations_visibility.hpp>
 
 #include <ngraph/pass/graph_rewrite.hpp>
-#include <ngraph/pass/manager.hpp>
-
 
 namespace ngraph {
 namespace pass {
