@@ -56,6 +56,9 @@ bool FakeQuantizeDequantization::checkElementwise(const std::shared_ptr<ngraph::
 
     std::shared_ptr<opset1::Constant> constant = as_type_ptr<opset1::Constant>(dequantizationElementwise->get_input_node_shared_ptr(1));
     if (constant == nullptr) {
+        constant = as_type_ptr<opset1::Constant>(dequantizationElementwise->get_input_node_shared_ptr(0));
+    }
+    if (constant == nullptr) {
         THROW_IE_LPT_EXCEPTION(*dequantizationElementwise) << "unexpected operation type " <<
             dequantizationElementwise->get_type_info().name << " on the second branch";
     }
