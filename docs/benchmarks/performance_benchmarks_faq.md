@@ -1,6 +1,6 @@
 # Performance Information Frequently Asked Questions {#openvino_docs_performance_benchmarks_faq}
 
-The following questions and answers are related to performance benchmarks published on the [Performance Information](https://docs.openvinotoolkit.org/latest/_docs_performance_benchmarks.html) documentation site.
+The following questions and answers are related to [performance benchmarks](./performance_benchmarks.md) published on the documentation site.
 
 #### 1. How often do performance benchmarks get updated?
 New performance benchmarks are typically published on every `major.minor` release of the Intel® Distribution of OpenVINO™ toolkit.
@@ -15,7 +15,7 @@ The models used in the performance benchmarks were chosen based on general adopt
 CF means Caffe*, while TF means TensorFlow*.
 
 #### 5. How can I run the benchmark results on my own?
-All of the performance benchmarks were generated using the open-sourced tool within the Intel® Distribution of OpenVINO™ toolkit called `benchmark_app`, which is available in both [C++](https://docs.openvinotoolkit.org/latest/_inference_engine_samples_benchmark_app_README.html) and [Python](https://docs.openvinotoolkit.org/latest/_inference_engine_tools_benchmark_tool_README.html).
+All of the performance benchmarks were generated using the open-sourced tool within the Intel® Distribution of OpenVINO™ toolkit called `benchmark_app`, which is available in both [C++](../../inference-engine/samples/benchmark_app/README.md) and [Python](../../inference-engine/tools/benchmark_tool/README.md). 
 
 #### 6. What image sizes are used for the classification network models?
 The image size used in the inference depends on the network being benchmarked. The following table shows the list of input sizes for each network model.
@@ -34,13 +34,13 @@ The image size used in the inference depends on the network being benchmarked. T
 |    [ssd300-CF](https://github.com/opencv/open_model_zoo/tree/master/models/public/ssd300)										     |    SSD (VGG-16)_VOC-2007_Caffe          |    object detection         |    300x300						 |
 
 #### 7. Where can I purchase the specific hardware used in the benchmarking?
-Intel partners with various vendors all over the world. Visit the [Intel® AI: In Production Partners & Solutions Catalog](https://www.intel.com/content/www/us/en/internet-of-things/ai-in-production/partners-solutions-catalog.html) for a list of Equipment Makers and the [Supported Devices](https://docs.openvinotoolkit.org/latest/_docs_IE_DG_supported_plugins_Supported_Devices.html) documentation. You can also remotely test and run models before purchasing any hardware by using [Intel® DevCloud for the Edge](http://devcloud.intel.com/edge/).
+Intel partners with various vendors all over the world. Visit the [Intel® AI: In Production Partners & Solutions Catalog](https://www.intel.com/content/www/us/en/internet-of-things/ai-in-production/partners-solutions-catalog.html) for a list of Equipment Makers and the [Supported Devices](../IE_DG/supported_plugins/Supported_Devices.md) documentation. You can also remotely test and run models before purchasing any hardware by using [Intel® DevCloud for the Edge](http://devcloud.intel.com/edge/).
 
 #### 8. How can I optimize my models for better performance or accuracy?
-We published a set of guidelines and recommendations to optimize your models available in an [introductory](https://docs.openvinotoolkit.org/latest/_docs_IE_DG_Intro_to_Performance.html) guide and an [advanced](https://docs.openvinotoolkit.org/latest/_docs_optimization_guide_dldt_optimization_guide.html) guide. For further support, please join the conversation in the [Community Forum](https://software.intel.com/en-us/forums/intel-distribution-of-openvino-toolkit).
+We published a set of guidelines and recommendations to optimize your models available in an [introductory](../IE_DG/Intro_to_Performance.md) guide and an [advanced](../optimization_guide/dldt_optimization_guide.md) guide. For further support, please join the conversation in the [Community Forum](https://software.intel.com/en-us/forums/intel-distribution-of-openvino-toolkit).
 
 #### 9. Why are INT8 optimized models used for benchmarking on CPUs with no VNNI support?
-The benefit of low-precision optimization using the OpenVINO™ toolkit model optimizer extends beyond processors supporting VNNI through Intel® DL Boost. The reduced bit width of INT8 compared to FP32 allows Intel® CPU to process the data faster and thus offers better throughput on any converted model agnostic of the intrinsically supported low-precision optimizations within Intel® hardware. Please refer to [INT8 vs. FP32 Comparison on Select Networks and Platforms](https://docs.openvinotoolkit.org/latest/_docs_performance_int8_vs_fp32.html) for comparison on boost factors for different network models and a selection of Intel® CPU architectures, including AVX-2 with Intel® Core™ i7-8700T, and AVX-512 (VNNI) with Intel® Xeon® 5218T and Intel® Xeon® 8270.
+The benefit of low-precision optimization using the OpenVINO™ toolkit model optimizer extends beyond processors supporting VNNI through Intel® DL Boost. The reduced bit width of INT8 compared to FP32 allows Intel® CPU to process the data faster and thus offers better throughput on any converted model agnostic of the intrinsically supported low-precision optimizations within Intel® hardware. Please refer to [INT8 vs. FP32 Comparison on Select Networks and Platforms](./performance_int8_vs_fp32.html) for comparison on boost factors for different network models and a selection of Intel® CPU architectures, including AVX-2 with Intel® Core™ i7-8700T, and AVX-512 (VNNI) with Intel® Xeon® 5218T and Intel® Xeon® 8270.
 
 #### 10. Previous releases included benchmarks on googlenet-v1. Why is there no longer benchmarks on this neural network model?
 We replaced googlenet-v1 to [resnet-18-pytorch](https://github.com/opencv/open_model_zoo/blob/master/models/public/resnet-18-pytorch/resnet-18-pytorch.md) due to changes in developer usage. The public model resnet-18 is used by many developers as an Image Classification model. This pre-optimized model was also trained on the ImageNet database, similar to googlenet-v1. Both googlenet-v1 and resnet-18 will remain part of the Open Model Zoo. Developers are encouraged to utilize resnet-18-pytorch for Image Classification use cases.

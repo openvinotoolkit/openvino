@@ -69,7 +69,7 @@ std::vector<ngraph::helpers::LogicalTypes> eltwiseLogicalTypesInt = {
         ngraph::helpers::LogicalTypes::LOGICAL_AND,
 };
 
-INSTANTIATE_TEST_CASE_P(EltwiseLogicalInt,
+INSTANTIATE_TEST_CASE_P(smoke_EltwiseLogicalInt,
                         LogicalLayerTestVPU,
                         ::testing::Combine(
                                 ::testing::ValuesIn(LogicalLayerTest::combineShapes(inputShapes)),
@@ -81,7 +81,7 @@ INSTANTIATE_TEST_CASE_P(EltwiseLogicalInt,
                                 ::testing::Values(Config{{InferenceEngine::MYRIAD_DETECT_NETWORK_BATCH, CONFIG_VALUE(NO)}})),
                         LogicalLayerTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(EltwiseLogicalNotInt,
+INSTANTIATE_TEST_CASE_P(smoke_EltwiseLogicalNotInt,
                         LogicalLayerTestVPU,
                         ::testing::Combine(
                                 ::testing::ValuesIn(LogicalLayerTest::combineShapes(inputShapesNot)),
