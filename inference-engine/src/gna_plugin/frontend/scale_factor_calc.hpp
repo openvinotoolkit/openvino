@@ -443,8 +443,9 @@ class ScaleFactorPerLayer<InferenceEngine::ConcatLayer*> {
         }
 
         // find a source quant value
-        // - 1st candidate - non-activation layer with non-1 scale factor
-        // - 2nd candidate - 1st layer with non-1 scale factor
+        // - 1st candidate - input layer
+        // - 2nd candidate - non-activation layer with non-1 scale factor
+        // - 3rd candidate - 1st layer with non-1 scale factor
         auto sourceLayerCheck = [&fp32eq](InferenceEngine::CNNLayerPtr& inputLayer) {
             auto quantParams = InferenceEngine::getInjectedData<QuantizedLayerParams>(inputLayer);
             LayerInfo info(inputLayer);
@@ -454,16 +455,17 @@ class ScaleFactorPerLayer<InferenceEngine::ConcatLayer*> {
         static std::map<std::string, size_t> restarted_counter;
         auto restartedCountIt = restarted_counter.find(concatLayer->name);
         if (restartedCountIt == restarted_counter.end()) {
-            auto pos = restarted_counter.insert({ "concatLayer->name", 0 });
+            auto pos = restarted_counter.insert({ concatLayer->name, 0 });
             restartedCountIt = pos.first;
         }
 
-        if (restartedCountIt->second % 2 == 1) {
+        if (((restartedCountIt->second) / 2) % 2 == 1) {
             std::reverse(inputLayers.begin(), inputLayers.end());
         }
         ++restartedCountIt->second;
 
-        auto sourceLayerIt = std::find_if(inputLayers.begin(), inputLayers.end(), sourceLayerCheck);
+        auto sourceLayerIt = (firstInputIt != inputLayers.end()) ? firstInputIt
+                                                                 : std::find_if(inputLayers.begin(), inputLayers.end(), sourceLayerCheck);
         if (sourceLayerIt == inputLayers.end()) {
             auto nonDefaultScaleFactor = [&fp32eq](InferenceEngine::CNNLayerPtr& inputLayer) {
                 auto quantParams = InferenceEngine::getInjectedData<QuantizedLayerParams>(inputLayer);
@@ -527,7 +529,7 @@ class ScaleFactorPerLayer<InferenceEngine::ConcatLayer*> {
                     gnalog() << "[UFS] from : " << concatLayer->name << " reached: " << layer->name;
                     // found that direct input to concat is a indirect parent of align filter - so no link required
                     auto info = LayerInfo(layer);
-                    if (!info.isWeightable() && !info.isActivation()) {
+                    if (!info.isWeightable() && !info.isActivation() && !info.isConst()) {
                         gnalog() << "... skipped\n";
                         return;
                     }
@@ -549,7 +551,10 @@ class ScaleFactorPerLayer<InferenceEngine::ConcatLayer*> {
                 // requantize activation by just changing it's output scale factor
                 quantDataForConCatInput->_dst_quant.scale = sourceQuantParams->_dst_quant.scale;
             }
-
+            if (restarLayerInfo.isConst()) {
+                gnalog() << "... warning const layer will be requantized\n";
+                quantDataForConCatInput->_dst_quant.scale = sourceQuantParams->_dst_quant.scale;
+            }
             result = ScaleFactorUpdateResult(restartedLayer.get());
         }
 

@@ -40,5 +40,7 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*IEClassGetAvailableDevices.*)",
         // TODO: Issue 32923
         R"(.*IEClassHeteroExecutableNetworkGetMetricTest_TARGET_FALLBACK.*)",
+        // TODO: Issue 39358
+        R"(.*unaligned.*MultipleConcatTest.*)",
     };
 }
