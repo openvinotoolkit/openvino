@@ -665,7 +665,7 @@ TEST(type_prop, nms_v5_output_shape)
     const auto scores = make_shared<op::Parameter>(element::f32, Shape{5, 3, 2});
 
     const auto nms = make_shared<op::v5::NonMaxSuppression>(boxes, scores);
-    
+
     ASSERT_TRUE(
         nms->get_output_partial_shape(0).same_scheme(PartialShape{Dimension::dynamic(), 3}));
     ASSERT_TRUE(
