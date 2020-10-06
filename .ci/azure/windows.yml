@@ -73,7 +73,7 @@ jobs:
     continueOnError: false
   - script: |
       set PATH=$(REPO_DIR)\inference-engine\temp\tbb\bin;$(IB_DIR);%PATH%
-      "$(IB_TESTCONSOLE)" $(BIN_DIR)\InferenceEngineUnitTests.exe --gtest_print_time=1 --gtest_output=xml:TEST-InferenceEngineUnitTests.xml /testlevel=128
+      "$(IB_TESTCONSOLE)" $(BIN_DIR)\InferenceEngineUnitTests.exe --gtest_output=xml:TEST-InferenceEngineUnitTests.xml /testlevel=128
     displayName: 'IE UT old'
     continueOnError: false
   - script: |
@@ -103,7 +103,7 @@ jobs:
     continueOnError: false
   - script: |
       set PATH=$(REPO_DIR)\inference-engine\temp\tbb\bin;$(IB_DIR);%PATH%
-      "$(IB_TESTCONSOLE)" $(BIN_DIR)\cpuFuncTests.exe --gtest_filter=*smoke* --gtest_print_time=1 --gtest_output=xml:TEST-cpuFuncTests.xml /testlevel=128
+      "$(IB_TESTCONSOLE)" $(BIN_DIR)\cpuFuncTests.exe --gtest_filter=*smoke* --gtest_output=xml:TEST-cpuFuncTests.xml /testlevel=128
     displayName: 'CPU FuncTests'
     continueOnError: false
   - script: |
@@ -123,14 +123,14 @@ jobs:
       set DATA_PATH=$(BUILD_DIR)\testdata
       set MODELS_PATH=$(BUILD_DIR)\testdata
       "$(IB_TESTCONSOLE)" $(BIN_DIR)\MklDnnFunctionalTests.exe --gtest_filter=*smoke*:-CPU_run_smoke/IO_BlobTest*:CPU_run_smoke/LayoutTTTest* --gtest_print_time=1 --gtest_output=xml:TEST-MklDnnFunctionalTests.xml /testlevel=128
-      $(BIN_DIR)\MklDnnFunctionalTests.exe --gtest_filter=CPU_run_smoke/IO_BlobTest*:CPU_run_smoke/LayoutTTTest* --gtest_print_time=1 --gtest_output=xml:TEST-MklDnnFunctionalTests.xml
+      $(BIN_DIR)\MklDnnFunctionalTests.exe --gtest_filter=CPU_run_smoke/IO_BlobTest*:CPU_run_smoke/LayoutTTTest* --gtest_output=xml:TEST-MklDnnFunctionalTests.xml
     displayName: 'MklDnnFunctionalTests'
     continueOnError: false
   - script: |
       set PATH=$(REPO_DIR)\inference-engine\temp\tbb\bin;$(REPO_DIR)\inference-engine\temp\opencv_4.5.0\opencv\bin;%PATH%
       set DATA_PATH=$(BUILD_DIR)\testdata
       set MODELS_PATH=$(BUILD_DIR)\testdata
-      $(BIN_DIR)\MklDnnFunctionalTests.exe --gtest_filter=CPU_run_smoke/IO_BlobTest*:CPU_run_smoke/LayoutTTTest* --gtest_print_time=1 --gtest_output=xml:TEST-MklDnnFunctionalTests-other.xml
+      $(BIN_DIR)\MklDnnFunctionalTests --gtest_filter=CPU_run_smoke/IO_BlobTest*:CPU_run_smoke/LayoutTTTest* --gtest_print_time=1 --gtest_output=xml:TEST-MklDnnFunctionalTests-other.xml
     displayName: 'MklDnnFunctionalTests Other'
     continueOnError: false
   - script: |
