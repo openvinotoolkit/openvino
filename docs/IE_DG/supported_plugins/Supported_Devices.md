@@ -89,7 +89,7 @@ the supported output precision  depends on the actual underlying devices. _Gener
 |CPU plugin    |Supported     |Supported     |Supported     |Supported     |
 |GPU plugin    |Supported     |Supported     |Supported     |Supported     |
 |VPU plugins   |Not supported |Supported     |Supported     |Supported     |
-|GNA plugin    |Not supported |Not supported |Not supported |Supported     |
+|GNA plugin    |Not supported |Supported     |Supported     |Supported     |
 
 ### Supported Output Layout
 
