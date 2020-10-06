@@ -27,8 +27,7 @@
                 <tab type="user" title="APT" url="@ref openvino_docs_install_guides_installing_openvino_apt"/>
                 <tab type="user" title="YUM" url="@ref openvino_docs_install_guides_installing_openvino_yum"/>
                 <tab type="user" title="Anaconda Cloud" url="@ref openvino_docs_install_guides_installing_openvino_conda"/>
-                <tab type="user" title="PIP" url="@ref openvino_docs_install_guides_installing_pip"/>
-                <tab type="user" title="Yocto" url="@ref openvino_docs_install_guides_installing_openvino_yocto"/>              
+                <tab type="user" title="Yocto" url="@ref openvino_docs_install_guides_installing_openvino_yocto"/>
             </tab>
             <!-- Get Started Guides-->
             <tab type="usergroup" title="Get Started Guides" url=""><!--automatically generated-->
