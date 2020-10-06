@@ -42,8 +42,6 @@ inference of a pre-trained and optimized deep learning model and a set of sample
 
 ## Table of Contents
 
-* [Introduction to Intel® Deep Learning Deployment Toolkit](Introduction.md)
-
 * [Inference Engine API Changes History](API_Changes.md)
 
 * [Introduction to Inference Engine](inference_engine_intro.md)
@@ -87,4 +85,4 @@ inference of a pre-trained and optimized deep learning model and a set of sample
 
 * [Known Issues](Known_Issues_Limitations.md)
 
-**Typical Next Step:** [Introduction to Intel® Deep Learning Deployment Toolkit](Introduction.md)
+**Typical Next Step:** [Introduction to Inference Engine](inference_engine_intro.md)

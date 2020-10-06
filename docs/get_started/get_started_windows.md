@@ -533,7 +533,7 @@ You can see all the sample application’s parameters by adding the `-h` or `--h
 Use these resources to learn more about the OpenVINO™ toolkit:
 
 * [OpenVINO™ Release Notes](https://software.intel.com/en-us/articles/OpenVINO-RelNotes)
-* [Introduction to Intel® Deep Learning Deployment Toolkit](../IE_DG/Introduction.md)
+* [OpenVINO™ Toolkit Overview](../index.md)
 * [Inference Engine Developer Guide](../IE_DG/Deep_Learning_Inference_Engine_DevGuide.md)
 * [Model Optimizer Developer Guide](../MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md)
 * [Inference Engine Samples Overview](../IE_DG/Samples_Overview.md)
