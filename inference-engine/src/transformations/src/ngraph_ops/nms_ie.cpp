@@ -101,3 +101,26 @@ void op::NonMaxSuppressionIE2::validate_and_infer_types() {
                                                            m_output_type);
     set_output_type(0, nms->output(0).get_element_type(), nms->output(0).get_partial_shape());
 }
+
+constexpr NodeTypeInfo op::NonMaxSuppressionIE3::type_info;
+
+op::NonMaxSuppressionIE3::NonMaxSuppressionIE3(const Output<Node>& boxes,
+                                               const Output<Node>& scores,
+                                               const Output<Node>& max_output_boxes_per_class,
+                                               const Output<Node>& iou_threshold,
+                                               const Output<Node>& score_threshold,
+                                               const Output<Node>& soft_nms_sigma,
+                                               int center_point_box,
+                                               bool sort_result_descending,
+                                               const ngraph::element::Type& output_type)
+        : Op({boxes, scores, max_output_boxes_per_class, iou_threshold, score_threshold, soft_nms_sigma}),
+          m_center_point_box(center_point_box), m_sort_result_descending(sort_result_descending), m_output_type(output_type) {
+    constructor_validate_and_infer_types();
+}
+
+std::shared_ptr<Node> op::NonMaxSuppressionIE3::clone_with_new_inputs(const ngraph::OutputVector &new_args) const {
+    check_new_args_count(this, new_args);
+    return make_shared<NonMaxSuppressionIE2>(new_args.at(0), new_args.at(1), new_args.at(2), new_args.at(3),
+                                             new_args.at(4), new_args.at(5), m_center_point_box, m_sort_result_descending,
+                                             m_output_type);
+}
