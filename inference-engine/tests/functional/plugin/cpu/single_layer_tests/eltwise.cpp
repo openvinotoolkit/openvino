@@ -56,9 +56,9 @@ protected:
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
 
         std::string strExpectedPrc;
-        if (Precision::BF16 == netPrecision) {
+        if (Precision::BF16 == inPrc) {
             strExpectedPrc = "BF16";
-        } else if (Precision::FP32 == netPrecision) {
+        } else if (Precision::FP32 == inPrc) {
             strExpectedPrc = "FP32";
         }
 
@@ -156,25 +156,6 @@ std::map<std::string, std::string> additional_config = {{PluginConfigParams::KEY
 
 std::vector<Precision> bf16InpOutPrc = {Precision::BF16, Precision::FP32};
 
-std::vector<CPUSpecificParams> filterCPUSpecificParams(std::vector<CPUSpecificParams>& paramsVector) {
-    auto adjustBlockedFormatByIsa = [](std::vector<cpu_memory_format_t>& formats) {
-        for (int i = 0; i < formats.size(); i++) {
-            if (formats[i] == nChw16c)
-                formats[i] = nChw8c;
-            if (formats[i] == nCdhw16c)
-                formats[i] = nCdhw8c;
-        }
-    };
-
-    if (!with_cpu_x86_avx512f()) {
-        for (auto& param : paramsVector) {
-            adjustBlockedFormatByIsa(std::get<0>(param));
-            adjustBlockedFormatByIsa(std::get<1>(param));
-        }
-    }
-
-    return paramsVector;
-}
 
 std::vector<std::vector<std::vector<size_t>>> inShapes_4D = {
         {{2, 4, 4, 1}},

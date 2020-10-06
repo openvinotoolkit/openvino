@@ -148,4 +148,24 @@ std::map<std::string, std::shared_ptr<ngraph::Variant>> CPUTestsBase::getCPUInfo
     return cpuInfo;
 }
 
+std::vector<CPUSpecificParams> filterCPUSpecificParams(std::vector<CPUSpecificParams> &paramsVector) {
+    auto adjustBlockedFormatByIsa = [](std::vector<cpu_memory_format_t>& formats) {
+        for (int i = 0; i < formats.size(); i++) {
+            if (formats[i] == nChw16c)
+                formats[i] = nChw8c;
+            if (formats[i] == nCdhw16c)
+                formats[i] = nCdhw8c;
+        }
+    };
+
+    if (!InferenceEngine::with_cpu_x86_avx512f()) {
+        for (auto& param : paramsVector) {
+            adjustBlockedFormatByIsa(std::get<0>(param));
+            adjustBlockedFormatByIsa(std::get<1>(param));
+        }
+    }
+
+    return paramsVector;
+}
+
 } // namespace CPUTestUtils

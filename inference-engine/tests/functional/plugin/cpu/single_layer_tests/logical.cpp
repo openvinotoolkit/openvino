@@ -48,6 +48,25 @@ protected:
 
         std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
 
+        std::string strExpectedPrc;
+        if (Precision::BF16 == inPrc) {
+            strExpectedPrc = "BF16";
+        } else if (Precision::FP32 == inPrc) {
+            strExpectedPrc = "FP32";
+        }
+
+        std::string isaType;
+        if (with_cpu_x86_avx512f()) {
+            isaType = "jit_avx512";
+        } else if (with_cpu_x86_avx2()) {
+            isaType = "jit_avx2";
+        } else if (with_cpu_x86_sse42()) {
+            isaType = "jit_sse42";
+        } else {
+            isaType = "ref";
+        }
+        selectedType = isaType + "_" + strExpectedPrc;
+
         LayerTestsDefinitions::LogicalParams::InputShapesTuple inputShapes;
         InferenceEngine::Precision inputsPrecision;
         ngraph::helpers::LogicalTypes logicalOpType;
@@ -135,7 +154,7 @@ const auto LogicalTestParams = ::testing::Combine(
             ::testing::Values(Precision::BF16),
             ::testing::Values(CommonTestUtils::DEVICE_CPU),
             ::testing::Values(additional_config)),
-        ::testing::Values(CPUSpecificParams({}, {}, {}, "jit_avx512_BF16")),
+        ::testing::Values(emptyCPUSpec),
         ::testing::ValuesIn(bf16InpOutPrc),
         ::testing::ValuesIn(bf16InpOutPrc));
 
@@ -148,7 +167,7 @@ const auto LogicalTestParamsNot = ::testing::Combine(
                 ::testing::Values(Precision::BF16),
                 ::testing::Values(CommonTestUtils::DEVICE_CPU),
                 ::testing::Values(additional_config)),
-        ::testing::Values(CPUSpecificParams({}, {}, {}, "jit_avx512_BF16")),
+        ::testing::Values(emptyCPUSpec),
         ::testing::ValuesIn(bf16InpOutPrc),
         ::testing::ValuesIn(bf16InpOutPrc));
 

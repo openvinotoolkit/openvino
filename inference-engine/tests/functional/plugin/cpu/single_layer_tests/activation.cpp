@@ -51,6 +51,25 @@ protected:
 
         std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
 
+        std::string strExpectedPrc;
+        if (Precision::BF16 == inPrc) {
+            strExpectedPrc = "BF16";
+        } else if (Precision::FP32 == inPrc) {
+            strExpectedPrc = "FP32";
+        }
+
+        std::string isaType;
+        if (with_cpu_x86_avx512f()) {
+            isaType = "jit_avx512";
+        } else if (with_cpu_x86_avx2()) {
+            isaType = "jit_avx2";
+        } else if (with_cpu_x86_sse42()) {
+            isaType = "jit_sse42";
+        } else {
+            isaType = "ref";
+        }
+        selectedType = isaType + "_" + strExpectedPrc;
+
         InferenceEngine::Precision netPrecision;
         std::pair<std::vector<size_t>, std::vector<size_t>> shapes;
         std::pair<ActivationTypes, std::vector<float>> activationDecl;
