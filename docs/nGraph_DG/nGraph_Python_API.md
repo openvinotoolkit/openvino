@@ -53,7 +53,7 @@ You can combine a graph together with its input parameters into an nGraph functi
 
 ## Run inference
 
-In order to run inference on an nGraph function convert it to an Inference Engine network and call its `infer` method.
+In order to run inference on an nGraph function, convert it to an Inference Engine network and call its `infer` method.
 
 ```python
 >>> from openvino.inference_engine import IECore, IENetwork
@@ -205,9 +205,9 @@ if node.get_type_name() == 'Constant':
     data = node.get_data()
 ``` 
 
-## Optimize graphs
+## Transform graphs
 
-nGraph supports a growing number of optimization passes, which can be applied to a graph to increase model execution performance. To perform constant folding of subgraphs, you can use the `ConstantFolding` pass. To do this, create an optimization pass `Manager`, register the passes you need to execute, and feed an nGraph function to the configured pass manager.
+nGraph supports a growing number of transformation passes, which can be applied to a graph. For example, to perform constant folding of applicable subgraphs, you can use the `ConstantFolding` pass. To do this, create an optimization pass `Manager`, register the passes you want to execute, and feed an nGraph function to the configured pass manager.
 
 The following code example illustrates the process:
 
@@ -217,3 +217,5 @@ pass_manager = Manager()
 pass_manager.register_pass('ConstantFolding')
 pass_manager.run_passes(function)
 ```
+
+Please note that the list of available transformations may change in future versions of OpenVINO.
