@@ -46,7 +46,6 @@ from tests import (BACKEND_NAME,
                    xfail_issue_38089,
                    xfail_issue_38090,
                    xfail_issue_38091,
-                   xfail_issue_35929,
                    xfail_issue_38699,
                    xfail_issue_33596,
                    xfail_issue_38701,
@@ -82,7 +81,8 @@ from tests import (BACKEND_NAME,
                    xfail_issue_38732,
                    xfail_issue_38733,
                    xfail_issue_38734,
-                   xfail_issue_38735)
+                   xfail_issue_38735,
+                   xfail_issue_40331)
 
 
 def expect_fail(test_case_path, xfail):  # type: (str) -> None
@@ -355,7 +355,10 @@ tests_expected_to_fail = [
         "OnnxBackendNodeModelTest.test_logsoftmax_axis_0_cpu",
         "OnnxBackendNodeModelTest.test_logsoftmax_axis_1_cpu",
         "OnnxBackendNodeModelTest.test_logsoftmax_default_axis_cpu"),
-    (xfail_issue_35929,
+    (xfail_issue_40331,
+        "OnnxBackendNodeModelTest.test_eyelike_with_dtype_cpu"
+    ),
+    (xfail_issue_40319,
         "OnnxBackendPyTorchOperatorModelTest.test_operator_add_size1_broadcast_cpu",
         "OnnxBackendPyTorchOperatorModelTest.test_operator_add_size1_singleton_broadcast_cpu",
         "OnnxBackendPyTorchOperatorModelTest.test_operator_add_broadcast_cpu",
@@ -371,7 +374,6 @@ tests_expected_to_fail = [
         "OnnxBackendNodeModelTest.test_cumsum_1d_reverse_exclusive_cpu",
         "OnnxBackendNodeModelTest.test_cumsum_2d_axis_0_cpu",
         "OnnxBackendNodeModelTest.test_cumsum_2d_negative_axis_cpu",
-        "OnnxBackendNodeModelTest.test_eyelike_with_dtype_cpu",
         "OnnxBackendNodeModelTest.test_cumsum_2d_axis_1_cpu",
         "OnnxBackendNodeModelTest.test_mod_mixed_sign_float64_cpu",
         "OnnxBackendNodeModelTest.test_max_float64_cpu",
