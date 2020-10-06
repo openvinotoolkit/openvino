@@ -33,31 +33,35 @@ ngraph::pass::ConvertNMS5ToLegacyMatcher::ConvertNMS5ToLegacyMatcher() {
         }
 
         const auto new_args = nms_5->input_values();
-//         const auto& arg2 = new_args.size() > 2 ? new_args.at(2) : ngraph::opset4::Constant::create(element::i32, Shape{}, {0});
-//         const auto& arg3 = new_args.size() > 3 ? new_args.at(3) : ngraph::opset4::Constant::create(element::f32, Shape{}, {.0f});
-//         const auto& arg4 = new_args.size() > 4 ? new_args.at(4) : ngraph::opset4::Constant::create(element::f32, Shape{}, {.0f});
-//
-//         const auto max_output_boxes_per_class_rank = arg2.get_partial_shape().rank();
-//         const auto iou_threshold_rank = arg3.get_partial_shape().rank();
-//         const auto score_threshold_rank = arg4.get_partial_shape().rank();
-//
-//         // Check that required ranks are not dynamic
-//         if (max_output_boxes_per_class_rank.is_dynamic() ||
-//             iou_threshold_rank.is_dynamic() ||
-//             score_threshold_rank.is_dynamic()) {
-//             return false;
-//         }
-//
-//         if (max_output_boxes_per_class_rank.get_length() == 1 &&
-//             iou_threshold_rank.get_length() == 1 &&
-//             score_threshold_rank.get_length() == 1) {
-//             return false;
-//         }
-//
-//         // vector of new nGraph operations
-//         NodeVector new_ops;
-//
-//         auto new_max_per_class = arg2;
+        const auto& arg2 = new_args.size() > 2 ? new_args.at(2) : ngraph::opset5::Constant::create(element::i32, Shape{}, {0});
+        const auto& arg3 = new_args.size() > 3 ? new_args.at(3) : ngraph::opset5::Constant::create(element::f32, Shape{}, {.0f});
+        const auto& arg4 = new_args.size() > 4 ? new_args.at(4) : ngraph::opset5::Constant::create(element::f32, Shape{}, {.0f});
+        const auto& arg5 = new_args.size() > 5 ? new_args.at(5) : ngraph::opset5::Constant::create(element::f32, Shape{}, {.0f});
+
+        const auto max_output_boxes_per_class_rank = arg2.get_partial_shape().rank();
+        const auto iou_threshold_rank = arg3.get_partial_shape().rank();
+        const auto score_threshold_rank = arg4.get_partial_shape().rank();
+        const auto soft_nms_sigma_rank = arg5.get_partial_shape().rank();
+
+        // Check that required ranks are not dynamic
+        if (max_output_boxes_per_class_rank.is_dynamic() ||
+            iou_threshold_rank.is_dynamic() ||
+            score_threshold_rank.is_dynamic() ||
+            soft_nms_sigma_rank.is_dynamic()) {
+            return false;
+        }
+
+        if (max_output_boxes_per_class_rank.get_length() == 1 &&
+            iou_threshold_rank.get_length() == 1 &&
+            score_threshold_rank.get_length() == 1 &&
+            soft_nms_sigma_rank.get_length() == 1) {
+            return false;
+        }
+
+        // vector of new nGraph operations
+        NodeVector new_ops;
+
+        auto new_max_per_class = arg2;
 //         if (max_output_boxes_per_class_rank.get_length() == 0) {
 //             // WA: we need to create Constant manually because it requires by NMS shape inference
 //             //     otherwise we will get dynamic shape until first CF is executed. It can be resolved
