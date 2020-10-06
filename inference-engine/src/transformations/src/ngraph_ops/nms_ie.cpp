@@ -136,8 +136,7 @@ static constexpr size_t boxes_port = 0;
 static constexpr size_t scores_port = 1;
 static constexpr size_t max_output_boxes_per_class_port = 2;
 
-int64_t op::NonMaxSuppressionIE3::max_boxes_output_from_input() const
-{
+int64_t op::NonMaxSuppressionIE3::max_boxes_output_from_input() const {
     int64_t max_output_boxes{0};
 
     const auto max_output_boxes_input =
@@ -155,13 +154,11 @@ void op::NonMaxSuppressionIE3::validate_and_infer_types() {
     // that have the following format: [batch_index, class_index, box_index]
     PartialShape out_shape = {Dimension::dynamic(), 3};
 
-    if (boxes_ps.rank().is_static() && scores_ps.rank().is_static())
-    {
+    if (boxes_ps.rank().is_static() && scores_ps.rank().is_static()) {
         const auto num_boxes_boxes = boxes_ps[1];
         const auto max_output_boxes_per_class_node = input_value(max_output_boxes_per_class_port).get_node_shared_ptr();
         if (num_boxes_boxes.is_static() && scores_ps[0].is_static() && scores_ps[1].is_static() &&
-            op::is_constant(max_output_boxes_per_class_node))
-        {
+            op::is_constant(max_output_boxes_per_class_node)) {
             const auto num_boxes = num_boxes_boxes.get_length();
             const auto num_classes = scores_ps[1].get_length();
             const auto max_output_boxes_per_class = max_boxes_output_from_input();
