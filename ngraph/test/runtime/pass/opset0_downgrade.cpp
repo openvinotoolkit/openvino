@@ -469,11 +469,6 @@ namespace
         return replacement_node;
     }
 
-    shared_ptr<Node> op_cast(shared_ptr<op::v1::Power> node)
-    {
-        return op_cast_binary_elementwise_node<op::v0::Power, op::v1::Power>(node);
-    }
-
     shared_ptr<Node> op_cast(shared_ptr<op::v1::ReduceMax> node)
     {
         auto replacement_node = op_cast_reduction_node<op::v0::Max, op::v1::ReduceMax>(node);
