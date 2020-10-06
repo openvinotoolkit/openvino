@@ -91,16 +91,16 @@ class StatsExtractPoolReplacer(FrontReplacementSubgraph):
         concat.add_sequence_of_ports('in', range(2))
 
         # connect graph for Welford's algorithm
-        delta_1.in_port(0).connect(stats_node.in_port(0).get_source())  # todo: check ports
-        delta_1.in_port(1).connect(Mn.out_port(0))  # todo: check ports
-        delta_2.in_port(0).connect(stats_node.in_port(0).get_source())  # todo: check ports
-        delta_1.out_port(0).connect(delta_1_div_count.in_port(0))  # todo: check ports
-        count.out_port(0).connect(delta_1_div_count.in_port(1)) # todo: check ports
+        delta_1.in_port(0).connect(stats_node.in_port(0).get_source())
+        delta_1.in_port(1).connect(Mn.out_port(0))
+        delta_2.in_port(0).connect(stats_node.in_port(0).get_source())
+        delta_1.out_port(0).connect(delta_1_div_count.in_port(0))
+        count.out_port(0).connect(delta_1_div_count.in_port(1))
 
         Mn.out_port(0).connect(Mn_new.in_port(0))
         delta_1_div_count.out_port(0).connect(Mn_new.in_port(1))
         Mn_new.out_port(0).connect(assign_new_Mn.in_port(0))
-        Mn_new.out_port(0).connect(delta_2.in_port(1))  # delta_2 = x - M(n) (todo: check ports)
+        Mn_new.out_port(0).connect(delta_2.in_port(1))  # delta_2 = x - M(n)
 
         delta_1.out_port(0).connect(delta_1_mul_delta_2.in_port(0))
         delta_2.out_port(0).connect(delta_1_mul_delta_2.in_port(1))
@@ -108,11 +108,10 @@ class StatsExtractPoolReplacer(FrontReplacementSubgraph):
         delta_1_mul_delta_2.out_port(0).connect(Sn_new.in_port(1))
         Sn_new.out_port(0).connect(assign_new_Sn.in_port(0))
 
-        Sn_new.out_port(0).connect(var_n.in_port(0))  # Var = S(n+1) / count (todo: check ports)
-        count.out_port(0).connect(var_n.in_port(1))  # Var = S(n+1) / count (todo: check ports)
-        Mn_new.out_port(0).connect(concat.in_port(0))  # todo: check in_ports
-        var_n.out_port(0).connect(concat.in_port(1))  # todo: check in_ports
+        Sn_new.out_port(0).connect(var_n.in_port(0))  # Var = S(n+1) / count
+        count.out_port(0).connect(var_n.in_port(1))  # Var = S(n+1) / count
+        Mn_new.out_port(0).connect(concat.in_port(0))
+        var_n.out_port(0).connect(concat.in_port(1))
 
         stats_node.out_node().out_port(0).get_connection().set_source(concat.out_port(0))
         stats_node.in_port(0).disconnect()
-        pass
