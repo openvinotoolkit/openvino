@@ -1,5 +1,5 @@
 # [OpenVINO™ Toolkit](https://01.org/openvinotoolkit) - Deep Learning Deployment Toolkit repository
-[![Stable release](https://img.shields.io/badge/version-2020.4-green.svg)](https://github.com/openvinotoolkit/openvino/releases/tag/2020.4.0)
+[![Stable release](https://img.shields.io/badge/version-2021.1-green.svg)](https://github.com/openvinotoolkit/openvino/releases/tag/2021.1)
 [![Apache License Version 2.0](https://img.shields.io/badge/license-Apache_2.0-green.svg)](LICENSE)
 ![Azure DevOps builds (branch)](https://img.shields.io/azure-devops/build/openvinoci/b2bab62f-ab2f-4871-a538-86ea1be7d20f/9/master?label=Public%20CI)
 
