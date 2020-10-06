@@ -75,6 +75,9 @@ std::vector<std::pair<master, slave>> combineParams(
     const std::map<master, std::vector<slave>>& keyValueSets) {
     std::vector<std::pair<master, slave>> resVec;
     for (auto& keyValues : keyValueSets) {
+        if (keyValues.second.empty()) {
+            resVec.push_back({keyValues.first, {}});
+        }
         for (auto& item : keyValues.second) {
             resVec.push_back({keyValues.first, item});
         }

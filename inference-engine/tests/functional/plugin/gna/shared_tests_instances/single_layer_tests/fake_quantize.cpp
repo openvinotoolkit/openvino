@@ -13,7 +13,7 @@ using namespace LayerTestsDefinitions;
 namespace {
 
 const std::vector<InferenceEngine::Precision> netPrecisions = {
-    InferenceEngine::Precision::FP32,
+    InferenceEngine::Precision::FP32, InferenceEngine::Precision::FP16
 };
 
 using ConfigType = std::map<std::string, std::string>;
@@ -56,7 +56,7 @@ const auto fqParams = ::testing::Combine(
     ::testing::ValuesIn(inputParams)
 );
 
-INSTANTIATE_TEST_CASE_P(FakeQuantize, FakeQuantizeLayerTest,
+INSTANTIATE_TEST_CASE_P(smoke_FakeQuantize, FakeQuantizeLayerTest,
     ::testing::Combine(
     fqParams,
     ::testing::ValuesIn(netPrecisions),

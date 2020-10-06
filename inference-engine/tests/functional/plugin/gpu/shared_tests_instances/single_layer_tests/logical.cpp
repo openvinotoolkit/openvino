@@ -68,8 +68,8 @@ const auto LogicalTestParamsNot = ::testing::Combine(
         ::testing::Values(CommonTestUtils::DEVICE_CPU),
         ::testing::Values(additional_config));
 
-INSTANTIATE_TEST_CASE_P(CompareWithRefs, LogicalLayerTest, LogicalTestParams, LogicalLayerTest::getTestCaseName);
+INSTANTIATE_TEST_CASE_P(smoke_CompareWithRefs, LogicalLayerTest, LogicalTestParams, LogicalLayerTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(CompareWithRefsNot, LogicalLayerTest, LogicalTestParamsNot, LogicalLayerTest::getTestCaseName);
+INSTANTIATE_TEST_CASE_P(smoke_CompareWithRefsNot, LogicalLayerTest, LogicalTestParamsNot, LogicalLayerTest::getTestCaseName);
 
 }  // namespace
