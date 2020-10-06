@@ -14,22 +14,26 @@
 // limitations under the License.
 //*****************************************************************************
 
-#include "ngraph/op/tensor_iterator.hpp"
+#include "ngraph/op/loop.hpp"
 #include "ngraph/factory.hpp"
 #include "ngraph/graph_util.hpp"
+#include "ngraph/opsets/opset5.hpp"
 #include "ngraph/specialize_function.hpp"
 
 using namespace std;
 using namespace ngraph;
 
-constexpr NodeTypeInfo op::v0::TensorIterator::type_info;
+constexpr NodeTypeInfo op::v5::Loop::type_info;
 
-op::v0::TensorIterator::TensorIterator(const OutputVector& values)
-    : op::util::SubGraphOp(values)
+op::v5::Loop::Loop(const Output<Node>& trip_count,
+                   const Output<Node>& condition,
+                   const OutputVector& values)
+    : op::util::SubGraphOp({trip_count, condition})
 {
+    set_arguments(values);
 }
 
-bool op::v0::TensorIterator::visit_attributes(AttributeVisitor& visitor)
+bool op::v5::Loop::visit_attributes(AttributeVisitor& visitor)
 {
     visitor.on_attribute("body", m_body);
     visitor.on_attribute("input_descriptions", m_input_descriptions);
@@ -38,51 +42,7 @@ bool op::v0::TensorIterator::visit_attributes(AttributeVisitor& visitor)
     return false;
 }
 
-void op::v0::TensorIterator::revalidate_and_infer_types_for_body_ops()
-{
-    std::stack<std::shared_ptr<Node>, std::vector<std::shared_ptr<Node>>> nodes_to_do;
-    std::unordered_set<std::shared_ptr<Node>> nodes_done;
-
-    for (const auto& r : m_body->get_results())
-    {
-        nodes_to_do.push(r);
-    }
-    while (nodes_to_do.size() > 0)
-    {
-        auto node = nodes_to_do.top();
-        if (nodes_done.count(node) == 0)
-        {
-            NGRAPH_CHECK(as_type_ptr<op::v0::TensorIterator>(node) == nullptr,
-                         "No nested TensorIterator");
-            bool can_add = true;
-            size_t arg_count = node->get_input_size();
-            for (size_t i = 0; i < arg_count; ++i)
-            {
-                auto dep = node->input(arg_count - i - 1)
-                               .get_source_output()
-                               .get_node()
-                               ->shared_from_this();
-                if (nodes_done.count(dep) == 0)
-                {
-                    can_add = false;
-                    nodes_to_do.push(dep);
-                }
-            }
-            if (can_add)
-            {
-                nodes_done.insert(node);
-                node->revalidate_and_infer_types();
-                nodes_to_do.pop();
-            }
-        }
-        else
-        {
-            nodes_to_do.pop();
-        }
-    }
-}
-
-void op::v0::TensorIterator::validate_and_infer_types()
+void op::v5::Loop::validate_and_infer_types()
 {
     NODE_VALIDATION_CHECK(this,
                           get_input_size() == m_input_descriptions.size(),
@@ -94,14 +54,6 @@ void op::v0::TensorIterator::validate_and_infer_types()
 
     std::vector<std::shared_ptr<Node>> ends;
 
-    auto make_positive = [](int64_t value, uint64_t dim_size) -> int64_t {
-        if (value < 0)
-        {
-            value = dim_size + value;
-        }
-        return value;
-    };
-
     // Input
     uint64_t index_it = 0;
     for (const auto& input_description : m_input_descriptions)
@@ -110,66 +62,13 @@ void op::v0::TensorIterator::validate_and_infer_types()
         NODE_VALIDATION_CHECK(this, index == index_it, "Input_index not in order");
         index_it++;
 
-        if (auto slice_input_description = as_type_ptr<SliceInputDescription>(input_description))
-        {
-            auto body_parameter =
-                m_body->get_parameters().at(slice_input_description->m_body_parameter_index);
-            auto body_param_partial_shape = body_parameter->get_partial_shape();
-            auto input_partial_shape = inputs().at(index).get_source_output().get_partial_shape();
-            if (input_partial_shape.is_static())
-            {
-                auto input_shape = input_partial_shape.to_shape();
-                auto axis = slice_input_description->m_axis;
-                auto part_size = slice_input_description->m_part_size;
-
-                auto dim_size = input_shape[axis];
-                auto start = make_positive(slice_input_description->m_start, dim_size);
-                auto end = make_positive(slice_input_description->m_end, dim_size);
-
-                if (m_num_iterations == -1)
-                {
-                    // +1 because the left and right borders are included [start, end]
-                    m_num_iterations = (abs(end - start) + 1) / part_size;
-                }
-                else
-                {
-                    NODE_VALIDATION_CHECK(this,
-                                          m_num_iterations == (abs(end - start) + 1) / part_size,
-                                          "Number of slices not the same");
-                }
-
-                if (body_param_partial_shape.is_static())
-                {
-                    // validate
-                    auto body_param_shape = body_param_partial_shape.to_shape();
-                    for (auto i = 0; i < input_shape.size(); i++)
-                    {
-                        if (i != axis)
-                        {
-                            NODE_VALIDATION_CHECK(
-                                this,
-                                input_shape[i] == body_param_shape[i],
-                                "Iterator input is not compatible with body param");
-                        }
-                    }
-                }
-                else
-                {
-                    // infer type for m_body_parameter
-                    Shape out_shape{input_shape};
-                    out_shape[axis] = part_size;
-                    body_parameter->set_partial_shape(out_shape);
-                }
-            }
-        }
-        else if (auto merged_input_description =
-                     as_type_ptr<MergedInputDescription>(input_description))
+        if (auto merged_input_description = as_type_ptr<MergedInputDescription>(input_description))
         {
             auto body_value =
                 m_body->get_results().at(merged_input_description->m_body_value_index)->input(0);
             ends.push_back(body_value.get_node()->shared_from_this());
 
-            auto body_value_partial_shape = body_value.get_partial_shape();
+            const auto& body_value_partial_shape = body_value.get_partial_shape();
             auto body_parameter =
                 m_body->get_parameters().at(merged_input_description->m_body_parameter_index);
 
@@ -193,7 +92,7 @@ void op::v0::TensorIterator::validate_and_infer_types()
             }
         }
         else if (auto invariant_input_description =
-                     as_type_ptr<InvariantInputDescription>(input_description))
+                     as_type_ptr<TensorIterator::InvariantInputDescription>(input_description))
         {
             auto body_parameter =
                 m_body->get_parameters().at(invariant_input_description->m_body_parameter_index);
@@ -217,7 +116,52 @@ void op::v0::TensorIterator::validate_and_infer_types()
     }
 
     // Body
-    revalidate_and_infer_types_for_body_ops();
+    m_body->validate_nodes_and_infer_types();
+
+    // todo: check condition is not const??
+    bool zero_number_of_iter = false;
+    const auto& loop_condition = input_value(1);
+    if (const auto& cond_value = std::dynamic_pointer_cast<const ngraph::opset5::Constant>(
+            loop_condition.get_node_shared_ptr()))
+    {
+        auto val = cond_value->cast_vector<bool>();
+        NODE_VALIDATION_CHECK(this,
+                              val.size() == 1,
+                              "The number of values in the Condition constant is greater than 1");
+
+        if (!val[0])
+        {
+            zero_number_of_iter = true;
+        }
+    }
+
+    bool condition_always_true = false;
+    const auto& body_condition = m_body->get_results()[0]->input_value(0);
+    if (const auto& cond_value = std::dynamic_pointer_cast<const ngraph::opset5::Constant>(
+            body_condition.get_node_shared_ptr()))
+    {
+        auto val = cond_value->cast_vector<bool>();
+        NODE_VALIDATION_CHECK(this,
+                              val.size() == 1,
+                              "The number of values in the Condition constant is greater than 1");
+
+        if (!val[0])
+        {
+            condition_always_true = true;
+        }
+    }
+
+    const auto& trip_count = input_value(0);
+    if (const auto& trip_count_val = std::dynamic_pointer_cast<const ngraph::opset5::Constant>(
+            trip_count.get_node_shared_ptr()))
+    {
+        auto val = trip_count_val->cast_vector<int64_t>();
+        NODE_VALIDATION_CHECK(this,
+                              val.size() == 1,
+                              "The number of values in the TripCount constant is greater than 1");
+        if (condition_always_true)
+            m_num_iterations = val[0];
+    }
 
     // Output
     index_it = 0;
@@ -231,9 +175,9 @@ void op::v0::TensorIterator::validate_and_infer_types()
             m_body->get_results().at(output_description->m_body_value_index)->input_value(0);
 
         if (auto concat_output_description =
-                as_type_ptr<ConcatOutputDescription>(output_description))
+                as_type_ptr<TensorIterator::ConcatOutputDescription>(output_description))
         {
-            auto body_value_partial_shape = body_value.get_partial_shape();
+            const auto& body_value_partial_shape = body_value.get_partial_shape();
             set_output_type(index, body_value.get_element_type(), PartialShape::dynamic());
             if (body_value_partial_shape.is_static())
             {
@@ -249,7 +193,7 @@ void op::v0::TensorIterator::validate_and_infer_types()
                         this,
                         axis == 0,
                         "Axis must be equal to 0 if concatenated output tensor slices are scalars. "
-                        "TensorIterator output index: ",
+                        "Loop output index: ",
                         index);
                     out_shape = Shape(1);
                 }
@@ -258,27 +202,36 @@ void op::v0::TensorIterator::validate_and_infer_types()
                 {
                     // for simple RNN case where stride is the same as part_size
                     out_shape[axis] = m_num_iterations * part_size;
+                    if (zero_number_of_iter)
+                    {
+                        out_shape.at(0) = 0;
+                    }
                     set_output_type(index, body_value.get_element_type(), out_shape);
                 }
             }
         }
         else if (auto body_output_description =
-                     as_type_ptr<BodyOutputDescription>(output_description))
+                     as_type_ptr<TensorIterator::BodyOutputDescription>(output_description))
         {
-            set_output_type(index, body_value.get_element_type(), body_value.get_partial_shape());
+            const PartialShape& ps = body_value.get_partial_shape();
+            if (ps.is_dynamic())
+            {
+                set_output_type(index, body_value.get_element_type(), ps);
+            }
+            else
+            {
+                auto shape = ps.get_shape();
+                shape.at(0) = 0;
+                set_output_type(index, body_value.get_element_type(), shape);
+            }
         }
     }
 }
 
-std::shared_ptr<Function> op::v0::TensorIterator::get_function()
+std::shared_ptr<Node> op::v5::Loop::clone_with_new_inputs(const OutputVector& new_args) const
 {
-    return get_body();
-}
-
-std::shared_ptr<Node>
-    op::v0::TensorIterator::clone_with_new_inputs(const OutputVector& new_args) const
-{
-    auto op = make_shared<op::v0::TensorIterator>(new_args);
+    const OutputVector body_params_args(new_args.begin() + 2, new_args.end());
+    auto op = make_shared<op::v5::Loop>(new_args[0], new_args[1], body_params_args);
     NGRAPH_CHECK(op.get(),
                  op != nullptr,
                  "Cannot clone ",
@@ -300,17 +253,6 @@ std::shared_ptr<Node>
                     new_args[input_index].get_element_type();
                 new_shapes[input_description->m_body_parameter_index] =
                     new_args[input_index].get_partial_shape();
-
-                if (new_shapes[input_description->m_body_parameter_index].is_static())
-                {
-                    if (auto slice_in = ::ngraph::as_type_ptr<
-                            ngraph::op::v0::TensorIterator::SliceInputDescription>(
-                            input_description))
-                    {
-                        new_shapes[slice_in->m_body_parameter_index][slice_in->m_axis] =
-                            slice_in->m_part_size;
-                    }
-                }
             }
         }
     }
