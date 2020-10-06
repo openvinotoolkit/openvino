@@ -16,6 +16,7 @@ Options[*]:
 
 from pathlib import Path
 import logging
+import os
 
 from scripts.run_timetest import run_timetest
 from test_runner.utils import expand_env_vars
@@ -23,7 +24,7 @@ from test_runner.utils import expand_env_vars
 REFS_FACTOR = 1.2      # 120%
 
 
-def test_timetest(instance, executable, niter):
+def test_timetest(instance, executable, niter, cl_cache_dir):
     """Parameterized test.
 
     :param instance: test instance
@@ -41,6 +42,14 @@ def test_timetest(instance, executable, niter):
         "device": instance["device"]["name"],
         "niter": niter
     }
+    if exe_args["device"] == "GPU":
+        # Generate cl_cache via additional timetest run
+        _exe_args = exe_args.copy()
+        _exe_args["niter"] = 1
+        logging.info("Run timetest once to generate cl_cache to {}".format(cl_cache_dir))
+        run_timetest(_exe_args, log=logging)
+        assert os.listdir(cl_cache_dir), "cl_cache isn't generated"
+
     retcode, aggr_stats = run_timetest(exe_args, log=logging)
     assert retcode == 0, "Run of executable failed"
 
