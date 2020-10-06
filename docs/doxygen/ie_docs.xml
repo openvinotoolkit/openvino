@@ -294,6 +294,10 @@
                 </tab>
                 <!-- IE Python -->
                 <tab type="user" title="Inference Engine Python API Reference" url="ie_python_api/annotated.html"/>
+                <!-- nGraph C++ -->
+                <tab type="user" title="nGraph C++ API Reference" url="ngraph_cpp_api/annotated.html"/>
+                <!-- nGraph Python -->
+                <tab type="user" title="nGraph Python API Reference" url="ngraph_python_api/files.html"/>
             </tab>
             <!-- Inference Engine Plugin Development Guide-->
             <tab type="user" title="Inference Engine Plugin Development Guide" url="ie_plugin_api/index.html"/>
