@@ -17,7 +17,7 @@
 import unittest
 
 import numpy as np
-from extensions.front.kaldi.replace_stats_pool_extract import StatsPoolExtractReplacer
+from extensions.front.kaldi.replace_stats_extract_pool import StatsExtractPoolReplacer
 from mo.utils.ir_engine.compare_graphs import compare_graphs
 from mo.utils.unittest.graph import build_graph, regular_op, connect_front, const, result
 from mo.front.common.partial_infer.utils import int64_array
@@ -96,7 +96,7 @@ class StatsReplacerTest(unittest.TestCase):
         graph = build_graph(nodes_attrs=nodes, edges=edges, nodes_with_edges_only=True)
         graph.stage = 'front'
 
-        StatsPoolExtractReplacer().find_and_replace_pattern(graph)
+        StatsExtractPoolReplacer().find_and_replace_pattern(graph)
 
         graph_ref = build_graph(nodes_attrs=nodes, edges=edges_ref, nodes_with_edges_only=True)
 

@@ -25,7 +25,7 @@ from mo.ops.read_value import ReadValue
 from mo.ops.result import Result
 import numpy as np
 
-class StatsPoolExtractReplacer(FrontReplacementSubgraph):
+class StatsExtractPoolReplacer(FrontReplacementSubgraph):
     enabled = True
 
     def run_after(self):

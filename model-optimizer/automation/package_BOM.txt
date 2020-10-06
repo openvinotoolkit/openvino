@@ -143,6 +143,7 @@ extensions/front/kaldi/memory_offset_adjustment.py
 extensions/front/kaldi/replace_eltwise_nin1.py
 extensions/front/kaldi/replace_lstm_node_pattern.py
 extensions/front/kaldi/replace_lstm_nonlinearity.py
+extensions/front/kaldi/replace_stats_extract_pool.py
 extensions/front/kaldi/set_ports.py
 extensions/front/kaldi/sigmoid_ext.py
 extensions/front/kaldi/split_recurrent_memoryoffset.py
@@ -687,6 +688,7 @@ extensions/ops/sparse_segment_sum.py
 extensions/ops/spatial_transformer.py
 extensions/ops/splice.py
 extensions/ops/split.py
+extensions/ops/statistics.py
 extensions/ops/stop_gradient.py
 extensions/ops/swapaxis.py
 extensions/ops/switch.py
@@ -807,6 +809,8 @@ mo/front/kaldi/extractors/scale_component_ext.py
 mo/front/kaldi/extractors/softmax_ext.py
 mo/front/kaldi/extractors/specaugment_component_ext.py
 mo/front/kaldi/extractors/splice_component_ext.py
+mo/front/kaldi/extractors/statistics_extracting_ext.py
+mo/front/kaldi/extractors/statistics_pooling_ext.py
 mo/front/kaldi/extractors/tdnncomponent_ext.py
 mo/front/kaldi/loader/__init__.py
 mo/front/kaldi/loader/loader.py
