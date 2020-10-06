@@ -14,6 +14,11 @@
 # limitations under the License.
 # ******************************************************************************
 
+if(ENABLE_PROFILING_ITT)
+    add_subdirectory(ittapi)
+    openvino_developer_export_targets(ittnotify)
+endif()
+
 add_subdirectory(itt)
 
 openvino_developer_export_targets(openvino::itt)

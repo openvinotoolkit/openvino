@@ -20,18 +20,11 @@ list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 
 file(GLOB_RECURSE SOURCES "src/*.cpp")
 
-if(ENABLE_PROFILING_ITT)
-    find_package(ITT)
-    if(NOT ITT_FOUND)
-        message(WARNING "Profiling option enabled, but no ITT library was found")
-    endif()
-endif()
-
 add_library(${TARGET_NAME} STATIC ${SOURCES})
 
 add_library(openvino::itt ALIAS ${TARGET_NAME})
 
-if(TARGET ittnotify)
+if(ENABLE_PROFILING_ITT)
     target_link_libraries(${TARGET_NAME} PUBLIC ittnotify)
 endif()
 
