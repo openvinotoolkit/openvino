@@ -188,6 +188,16 @@ public:
     }
 
     /**
+     * @brief Returns constant nGraph function
+     *
+     * @return constant nGraph function
+     */
+    void setWeights(const Blob::CPtr& weights) {
+        if (actual == nullptr) THROW_IE_EXCEPTION << "CNNNetwork was not initialized.";
+        return actual->setWeights(weights);
+    }
+
+    /**
      * @copybrief ICNNNetwork::addOutput
      *
      * Wraps ICNNNetwork::addOutput

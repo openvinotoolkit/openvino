@@ -40,6 +40,10 @@ public:
         return nullptr;
     }
 
+    void setWeights(const Blob::CPtr& weights) noexcept override {
+        _weights = weights;
+    }
+
     void getOutputsInfo(std::map<std::string, DataPtr>& out) const noexcept override;
 
     void getInputsInfo(InputsDataMap& inputs) const noexcept override;
@@ -134,6 +138,7 @@ protected:
     std::map<std::string, DataPtr> _outputData;
     std::string _name;
     DataPtr _emptyData;
+    Blob::CPtr _weights;
 };
 
 typedef std::shared_ptr<CNNNetworkImpl> CNNNetworkImplPtr;

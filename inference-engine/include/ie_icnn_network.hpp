@@ -56,6 +56,11 @@ public:
     virtual std::shared_ptr<const ngraph::Function> getFunction() const noexcept = 0;
 
     /**
+     * @brief Sets a weights blob
+     */
+    virtual void setWeights(const Blob::CPtr& weights) noexcept = 0;
+
+    /**
      * @brief Gets the network output Data node information. The received info is stored in the given Data node.
      *
      * For single and multiple outputs networks.

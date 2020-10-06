@@ -78,6 +78,10 @@ public:
 
     virtual void validate(int = 10);
 
+    void setWeights(const Blob::CPtr& weights) noexcept override {
+        _weights = weights;
+    }
+
     StatusCode reshape(const std::map<std::string, std::vector<size_t>>& inputShapes,
                        ResponseDesc* resp) noexcept override;
 
@@ -87,6 +91,7 @@ public:
 protected:
     virtual std::shared_ptr<::ngraph::Function> cloneFunction(bool constFolding = false) const;
     std::shared_ptr<::ngraph::Function> _ngraph_function;
+    Blob::CPtr _weights;
 
 private:
     std::map<std::string, DataPtr> _data;

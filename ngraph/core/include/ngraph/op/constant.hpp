@@ -233,6 +233,13 @@ namespace ngraph
                 /// \param data A void* to constant data.
                 Constant(const element::Type& type, const Shape& shape, const void* data);
 
+                /// \brief Constructs a tensor constant with the supplied data
+                ///
+                /// \param type The element type of the tensor constant.
+                /// \param shape The shape of the tensor constant.
+                /// \param data A pointer to pre-allocated data.
+                Constant(const element::Type& type, const Shape& shape, std::shared_ptr<runtime::AlignedBufferPtr> data);
+
                 Constant(const Constant& other);
                 Constant& operator=(const Constant&) = delete;
 
