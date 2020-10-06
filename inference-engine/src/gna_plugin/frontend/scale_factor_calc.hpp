@@ -450,7 +450,7 @@ class ScaleFactorPerLayer<InferenceEngine::ConcatLayer*> {
             LayerInfo info(inputLayer);
             return !info.isActivation() && !fp32eq(quantParams->_dst_quant.scale, 1.0f);
         };
-        
+
         if (firstInputIt != inputLayers.end()) {
             sourceQuantParams = InferenceEngine::getInjectedData<QuantizedLayerParams>(*firstInputIt);
         } else {
