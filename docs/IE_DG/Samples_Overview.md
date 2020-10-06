@@ -101,7 +101,7 @@ for the debug configuration — in `<path_to_build_directory>/intel64/Debug/`.
 The recommended Windows* build environment is the following:
 * Microsoft Windows* 10
 * Microsoft Visual Studio* 2017, or 2019
-* CMake* version 2.8.12 or higher
+* CMake* version 3.10 or higher
 
 > **NOTE**: If you want to use Microsoft Visual Studio 2019, you are required to install CMake 3.14.
 
