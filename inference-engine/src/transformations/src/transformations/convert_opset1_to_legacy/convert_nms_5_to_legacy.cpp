@@ -14,11 +14,11 @@
 
 #include "transformations/convert_opset1_to_legacy/convert_nms_5_to_legacy.hpp"
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertNMS5ToLegacyMatcher, "ConvertNMS4ToLegacyMatcher", 0);
+NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertNMS5ToLegacyMatcher, "ConvertNMS5ToLegacyMatcher", 0);
 
 ngraph::pass::ConvertNMS5ToLegacyMatcher::ConvertNMS5ToLegacyMatcher() {
-//     auto boxes = std::make_shared<pattern::op::Label>(element::f32, Shape{1, 1000, 4});
-//     auto scores = std::make_shared<pattern::op::Label>(element::f32, Shape{1, 1, 1000});
+    auto boxes = std::make_shared<pattern::op::Label>(element::f32, Shape{1, 1000, 4});
+    auto scores = std::make_shared<pattern::op::Label>(element::f32, Shape{1, 1, 1000});
 //     auto max_output_boxes_per_class = ngraph::opset4::Constant::create(element::i64, Shape{}, {10});
 //     auto iou_threshold = ngraph::opset4::Constant::create(element::f32, Shape{}, {0.75});
 //     auto score_threshold = ngraph::opset4::Constant::create(element::f32, Shape{}, {0.7});
