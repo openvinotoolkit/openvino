@@ -56,28 +56,28 @@ jobs:
     displayName: 'Build Mac'
   - script: ls -alR $(REPO_DIR)/bin/
     displayName: 'List files'
-  - script: $(BIN_DIR)/unit-test --gtest_print_time=1 --gtest_filter=-backend_api.config_unsupported:*IE_GPU*:IE_CPU.onnx_model_sigmoid
+  - script: $(BIN_DIR)/unit-test --gtest_print_time=1 --gtest_filter=-backend_api.config_unsupported:*IE_GPU*:IE_CPU.onnx_model_sigmoid --gtest_output=xml:TEST-NGraphUT.xml
     displayName: 'nGraph UT'
     continueOnError: false
-  - script: $(BIN_DIR)/InferenceEngineUnitTests --gtest_print_time=1
+  - script: $(BIN_DIR)/InferenceEngineUnitTests --gtest_print_time=1 --gtest_output=xml:TEST-InferenceEngineUnitTests.xml
     displayName: 'IE UT old'
     continueOnError: false
-  - script: $(BIN_DIR)/ieUnitTests
+  - script: $(BIN_DIR)/ieUnitTests --gtest_output=xml:TEST-ieUnitTests.xml
     displayName: 'IE UT'
     continueOnError: false
-  - script: $(BIN_DIR)/cpuUnitTests
+  - script: $(BIN_DIR)/cpuUnitTests --gtest_output=xml:TEST-cpuUnitTests.xml
     displayName: 'CPU UT'
     continueOnError: false
-  - script: $(BIN_DIR)/vpuUnitTests
+  - script: $(BIN_DIR)/vpuUnitTests --gtest_output=xml:TEST-vpuUnitTests.xml
     displayName: 'VPU UT'
     continueOnError: false
-  - script: $(BIN_DIR)/ieFuncTests
+  - script: $(BIN_DIR)/ieFuncTests --gtest_output=xml:TEST-ieFuncTests.xml
     displayName: 'IE FuncTests'
     continueOnError: false
-  - script: $(BIN_DIR)/cpuFuncTests --gtest_filter=*smoke* --gtest_print_time=1
+  - script: $(BIN_DIR)/cpuFuncTests --gtest_filter=*smoke* --gtest_print_time=1 --gtest_output=xml:TEST-cpuFuncTests.xml
     displayName: 'CPU FuncTests'
     continueOnError: false
-  - script: $(BIN_DIR)/MklDnnBehaviorTests
+  - script: $(BIN_DIR)/MklDnnBehaviorTests --gtest_output=xml:TEST-MklDnnBehaviorTests.xml
     displayName: 'MklDnnBehaviorTests'
     continueOnError: false
   - script: |
@@ -95,7 +95,18 @@ jobs:
   - script: |
       export DATA_PATH=$(WORK_DIR)/testdata
       export MODELS_PATH=$(WORK_DIR)/testdata
-      $(BIN_DIR)/InferenceEngineCAPITests
+      $(BIN_DIR)/InferenceEngineCAPITests --gtest_output=xml:TEST-InferenceEngineCAPITests.xml
     displayName: 'IE CAPITests'
     continueOnError: false
-
+  - task: PublishTestResults@2
+    condition: always()
+    inputs:
+      testResultsFormat: 'JUnit' # Options: JUnit, NUnit, VSTest, xUnit, cTest
+      testResultsFiles: '**/TEST-*.xml'
+      #searchFolder: '$(BUILD_DIR)'
+      mergeTestResults: false # Optional
+      #failTaskOnFailedTests: false # Optional
+      #testRunTitle: 'Pre/Post-Commit' # Optional
+      buildPlatform: 'x64' # Optional
+      buildConfiguration: 'Mac' # Optional
+      #publishRunAttachments: true # Optional
