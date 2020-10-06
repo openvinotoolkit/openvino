@@ -159,6 +159,8 @@ void MKLDNNPlugin::MKLDNNInferRequest::InferImpl() {
                             THROW_IE_EXCEPTION << "Cannot get TBlob";
                         copyToFloat<uint8_t>(in_f->data(), input.second.get());
                         pushInput<float>(input.first, iconv);
+                    } else if (dynamic_cast<InferenceEngine::TBlob<bool> *>(input.second.get())) {
+                        pushInput<bool>(input.first, input.second);
                     } else {
                         // Instead we can send I8 directly
                         pushInput<uint8_t>(input.first, input.second);
