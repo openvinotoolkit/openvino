@@ -15,16 +15,19 @@ set(DEPENDENCIES
     mock_engine
     inference_engine_ir_reader
     inference_engine_ir_v7_reader
+    template_extension
 )
 
 if (NGRAPH_ONNX_IMPORT_ENABLE)
     set(LINK_LIBRARIES ${LINK_LIBRARIES} onnx_importer)
-    set(DEPENDENCIES ${DEPENDENCIES} onnx_importer template_extension)
+    set(DEPENDENCIES ${DEPENDENCIES} onnx_importer)
 else()
-    set(EXCLUDED_SOURCE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/extension
-                             ${CMAKE_CURRENT_SOURCE_DIR}/onnx_reader)
+    set(EXCLUDED_SOURCE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/onnx_reader)
 endif()
 
+if (NOT NGRAPH_ONNX_IMPORT_ENABLE OR NOT ENABLE_MKL_DNN)
+    set(EXCLUDED_SOURCE_DIRS ${EXCLUDED_SOURCE_DIRS} ${CMAKE_CURRENT_SOURCE_DIR}/extension)
+endif()
 
 addIeTargetTest(
         NAME ${TARGET_NAME}
@@ -39,10 +42,6 @@ addIeTargetTest(
         LABELS
             IE
 )
-
-if (ENABLE_MKL_DNN)
-    target_compile_definitions(${TARGET_NAME} PRIVATE MKL_DNN_ENABLED)
-endif()
 
 ie_faster_build(${TARGET_NAME}
     PCH PRIVATE "precomp.hpp"

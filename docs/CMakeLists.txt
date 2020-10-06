@@ -19,8 +19,8 @@ if(NOT ENABLE_DOCKER)
 
     if (NGRAPH_ONNX_IMPORT_ENABLE)
         add_subdirectory(onnx_custom_op)
-        add_subdirectory(template_extension)
     endif()
+    add_subdirectory(template_extension)
 
     set(all_docs_targets
         ie_docs_examples

@@ -10,7 +10,6 @@
 #include <file_utils.h>
 #include <ngraph_functions/subgraph_builders.hpp>
 #include <functional_test_utils/test_model/test_model.hpp>
-#include <functional_test_utils/threading.hpp>
 #include <common_test_utils/file_utils.hpp>
 #include <common_test_utils/test_assertions.hpp>
 
@@ -21,8 +20,44 @@
 #include <chrono>
 #include <fstream>
 
+class CoreThreadingTests : public ::testing::Test {
+public:
+    void SetUp() override {
+    }
+
+    void runParallel(std::function<void(void)> func,
+                     const unsigned int iterations = 100,
+                     const unsigned int threadsNum = 8) {
+        std::vector<std::thread> threads(threadsNum);
+
+        for (auto & thread : threads) {
+            thread = std::thread([&](){
+                for (unsigned int i = 0; i < iterations; ++i) {
+                    func();
+                }
+            });
+        }
+
+        for (auto & thread : threads) {
+            if (thread.joinable())
+                thread.join();
+        }
+    }
+
+    void safeAddExtension(InferenceEngine::Core & ie) {
+        try {
+            auto extension = InferenceEngine::make_so_pointer<InferenceEngine::IExtension>(
+                FileUtils::makeSharedLibraryName<char>({},
+                    std::string("template_extension") + IE_BUILD_POSTFIX));
+            ie.AddExtension(extension);
+        } catch (const InferenceEngine::details::InferenceEngineException & ex) {
+            ASSERT_STR_CONTAINS(ex.what(), "name: custom_opset. Opset");
+        }
+    }
+};
+
 // tested function: SetConfig
-TEST(CoreThreadingTests, SetConfigPluginDoesNotExist) {
+TEST_F(CoreThreadingTests, SetConfigPluginDoesNotExist) {
     InferenceEngine::Core ie;
     std::map<std::string, std::string> localConfig = {
         { CONFIG_KEY(PERF_COUNT), InferenceEngine::PluginConfigParams::YES }
@@ -34,7 +69,7 @@ TEST(CoreThreadingTests, SetConfigPluginDoesNotExist) {
 }
 
 // tested function: RegisterPlugin
-TEST(CoreThreadingTests, RegisterPlugin) {
+TEST_F(CoreThreadingTests, RegisterPlugin) {
     InferenceEngine::Core ie;
     std::atomic<int> index{0};
     runParallel([&] () {
@@ -46,7 +81,7 @@ TEST(CoreThreadingTests, RegisterPlugin) {
 }
 
 // tested function: RegisterPlugins
-TEST(CoreThreadingTests, RegisterPlugins) {
+TEST_F(CoreThreadingTests, RegisterPlugins) {
     InferenceEngine::Core ie;
     std::atomic<unsigned int> index{0};
 
@@ -83,7 +118,7 @@ TEST(CoreThreadingTests, RegisterPlugins) {
 
 // tested function: GetAvailableDevices, UnregisterPlugin
 // TODO: some plugins initialization (e.g. GNA) failed during such stress-test scenario
-TEST(CoreThreadingTests, DISABLED_GetAvailableDevices) {
+TEST_F(CoreThreadingTests, DISABLED_GetAvailableDevices) {
     InferenceEngine::Core ie;
     runParallel([&] () {
         std::vector<std::string> devices = ie.GetAvailableDevices();
@@ -101,3 +136,14 @@ TEST(CoreThreadingTests, DISABLED_GetAvailableDevices) {
     }, 30);
 }
 
+// tested function: ReadNetwork, AddExtension
+TEST_F(CoreThreadingTests, ReadNetwork) {
+    InferenceEngine::Core ie;
+    auto model = FuncTestUtils::TestModel::convReluNormPoolFcModelFP32;
+    auto network = ie.ReadNetwork(model.model_xml_str, model.weights_blob);
+
+    runParallel([&] () {
+        safeAddExtension(ie);
+        (void)ie.ReadNetwork(model.model_xml_str, model.weights_blob);
+    }, 100, 12);
+}

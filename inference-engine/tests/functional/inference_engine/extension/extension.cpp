@@ -9,16 +9,7 @@
 #include <file_utils.h>
 #include <common_test_utils/test_assertions.hpp>
 #include <functional_test_utils/test_model/test_model.hpp>
-#include <functional_test_utils/threading.hpp>
 
-
-static std::string get_extension_path() {
-    return FileUtils::makeSharedLibraryName<char>({},
-            std::string("template_extension") + IE_BUILD_POSTFIX);
-}
-
-
-#ifdef MKL_DNN_ENABLED
 
 class CustomReluKernel : public InferenceEngine::ILayerExecImpl {
     public:
@@ -276,6 +267,12 @@ TEST(Extension, XmlModelWithCustomRelu) {
 }
 
 
+static std::string get_extension_path() {
+    return FileUtils::makeSharedLibraryName<char>({},
+            std::string("template_extension") + IE_BUILD_POSTFIX);
+}
+
+
 TEST(Extension, XmlModelWithExtensionFromDSO) {
     std::string model = R"V0G0N(
 <net name="Network" version="10">
@@ -410,28 +407,4 @@ opset_import {
     InferenceEngine::Core ie;
     ie.AddExtension(InferenceEngine::make_so_pointer<InferenceEngine::IExtension>(get_extension_path()));
     infer_model(ie, model, input_values, expected);
-}
-#endif // MKL_DNN_ENABLED
-
-
-void safeAddExtension(InferenceEngine::Core & ie) {
-    try {
-        auto extension = InferenceEngine::make_so_pointer<InferenceEngine::IExtension>(get_extension_path());
-        ie.AddExtension(extension);
-    } catch (const InferenceEngine::details::InferenceEngineException & ex) {
-        ASSERT_STR_CONTAINS(ex.what(), "name: custom_opset. Opset");
-    }
-}
-
-
-// tested function: ReadNetwork, AddExtension
-TEST(Extension, AddExtensionMultithreaded) {
-    InferenceEngine::Core ie;
-    auto model = FuncTestUtils::TestModel::convReluNormPoolFcModelFP32;
-    auto network = ie.ReadNetwork(model.model_xml_str, model.weights_blob);
-
-    runParallel([&] () {
-        safeAddExtension(ie);
-        (void)ie.ReadNetwork(model.model_xml_str, model.weights_blob);
-    }, 100, 12);
 }
