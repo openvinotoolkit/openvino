@@ -25,8 +25,11 @@ namespace ngraph
         namespace v0
         {
             /// \brief create StopGrdient op
-            class NGRAPH_API StopGradient : public util::UnaryElementwiseArithmetic
+            class NGRAPH_DEPRECATED(
+                "This operation is deprecated and will be removed soon. Please do not use it.")
+                NGRAPH_API StopGradient : public util::UnaryElementwiseArithmetic
             {
+                NGRAPH_SUPPRESS_DEPRECATED_START
             public:
                 static constexpr NodeTypeInfo type_info{"StopGradient", 0};
                 const NodeTypeInfo& get_type_info() const override { return type_info; }
@@ -38,8 +41,11 @@ namespace ngraph
 
                 virtual std::shared_ptr<Node>
                     clone_with_new_inputs(const OutputVector& new_args) const override;
+                NGRAPH_SUPPRESS_DEPRECATED_END
             };
         }
+        NGRAPH_SUPPRESS_DEPRECATED_START
         using v0::StopGradient;
+        NGRAPH_SUPPRESS_DEPRECATED_END
     }
 }

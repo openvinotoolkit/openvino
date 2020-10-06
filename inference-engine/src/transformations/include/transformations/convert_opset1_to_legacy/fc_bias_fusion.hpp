@@ -10,7 +10,6 @@
 #include <transformations_visibility.hpp>
 
 #include <ngraph_ops/fully_connected.hpp>
-#include <ngraph/builder/make_constant.hpp>
 #include <ngraph/graph_util.hpp>
 #include <ngraph/op/add.hpp>
 #include <ngraph/pattern/matcher.hpp>
@@ -33,5 +32,6 @@ class TRANSFORMATIONS_API FullyConnectedBiasFusion;
 
 class ngraph::pass::FullyConnectedBiasFusion : public ngraph::pass::MatcherPass {
 public:
+    NGRAPH_RTTI_DECLARATION;
     FullyConnectedBiasFusion();
 };

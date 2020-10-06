@@ -40,6 +40,7 @@ ParamsKey ResampleKernelRef::GetSupportedKey() const {
     k.EnableReampleType(ResampleType::NEAREST_NEIGHBOR);
     k.EnableReampleType(ResampleType::CAFFE_BILINEAR_INTERP);
     k.EnableReampleType(ResampleType::BILINEAR_INTERP);
+    k.EnableReampleType(ResampleType::CUBIC);
     return k;
 }
 
@@ -61,8 +62,6 @@ static size_t packing_factor(const resample_params& params) {
             return 16;
         case DataLayout::b_fs_yx_fsv4:
             return 4;
-        case DataLayout::byxf_af32:
-            return 16;
         default:
             break;
         }

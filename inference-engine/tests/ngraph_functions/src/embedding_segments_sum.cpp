@@ -31,7 +31,7 @@ std::shared_ptr<Node> makeEmbeddingSegmentsSum(
     if (with_default_index) {
         auto defIdxNode = std::make_shared<ngraph::opset1::Constant>(indicesType, shape_0, default_index);
         if (with_weights) {
-            auto weightsNode = makeConstant(dataType, {indices.size()}, {}, true);
+            auto weightsNode = makeConstant<float>(dataType, {indices.size()}, {}, true);
 
             embBag = std::make_shared<opset3::EmbeddingSegmentsSum>(
                 embTableNode, indicesNode, segmentIdNode, segmentNumNode, defIdxNode, weightsNode);

@@ -20,6 +20,7 @@
 #include <sstream>
 
 #include "ngraph/log.hpp"
+#include "ngraph/node.hpp"
 #include "ngraph/provenance.hpp"
 #include "onnx_import/core/graph.hpp"
 #include "onnx_import/core/node.hpp"
@@ -43,11 +44,6 @@ namespace ngraph
                     result += (it != std::begin(map) ? ", " : "") + it->first;
                 }
                 return result;
-            }
-
-            static std::string get_node_domain(const ONNX_NAMESPACE::NodeProto& node_proto)
-            {
-                return (node_proto.domain().empty() ? "" : node_proto.domain());
             }
 
             /// \brief      Gets the operator represented by provided node unique identificator.
@@ -86,10 +82,27 @@ namespace ngraph
                 if (initializer_tensor.has_name())
                 {
                     Tensor tensor = Tensor{initializer_tensor};
-                    initializers.emplace(initializer_tensor.name(), tensor);
-
+                    std::shared_ptr<default_opset::Constant> ng_constant;
                     // For each initializer create a Constant node and store it in cache
-                    auto ng_constant = tensor.get_ng_constant();
+                    try
+                    {
+                        ng_constant = tensor.get_ng_constant();
+                    }
+                    catch (const error::invalid_external_data&)
+                    {
+                        // invalid external data makes initializers creation impossible
+                        throw;
+                    }
+                    catch (const ngraph::ngraph_error& exc)
+                    {
+                        NGRAPH_WARN << "Could not create an nGraph Constant for initializer '"
+                                    << initializer_tensor.name() << "'. Detailed error:\n"
+                                    << exc.what();
+                        ng_constant =
+                            default_opset::Constant::create(tensor.get_ng_type(), Shape{}, {0});
+                    }
+
+                    initializers.emplace(initializer_tensor.name(), tensor);
                     add_provenance_tag_to_initializer(tensor, ng_constant);
                     m_cache->emplace_node(initializer_tensor.name(), std::move(ng_constant));
                 }
@@ -129,7 +142,7 @@ namespace ngraph
                                               node_proto);
                     // If a node from an unregistered domain is detected, try registering that
                     // domain
-                    m_model->enable_opset_domain(detail::get_node_domain(node_proto));
+                    m_model->enable_opset_domain(get_node_domain(node_proto));
                 }
             }
 
@@ -291,6 +304,37 @@ namespace ngraph
                   model,
                   std::unique_ptr<SubgraphCache>(new SubgraphCache(parent_graph.get_graph_cache())))
         {
+            std::vector<std::shared_ptr<ngraph::Node>> subgraph_root_nodes;
+            const auto& outputs = as_result_vector(get_ng_outputs());
+            for (auto& out : outputs)
+            {
+                subgraph_root_nodes.push_back(out);
+            }
+            const auto& params = get_ng_parameters();
+            for (auto& param : params)
+            {
+                subgraph_root_nodes.push_back(param);
+            }
+            const auto subgraph_nodes = topological_sort(subgraph_root_nodes);
+
+            const auto& parent_graph_parameters = parent_graph.get_ng_parameters();
+            for (const auto& node : subgraph_nodes)
+            {
+                if (op::is_parameter(node))
+                {
+                    const auto sub_it = std::find(m_parameters.begin(), m_parameters.end(), node);
+                    // not present as subgraph parameter
+                    if (sub_it == m_parameters.end())
+                    {
+                        const auto parent_it = std::find(
+                            parent_graph_parameters.begin(), parent_graph_parameters.end(), node);
+                        if (parent_it != m_parameters.end())
+                        {
+                            m_parameters.push_back(*parent_it);
+                        }
+                    }
+                }
+            }
         }
 
     } // namespace onnx_import

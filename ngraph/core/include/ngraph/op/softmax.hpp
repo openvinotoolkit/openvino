@@ -26,8 +26,11 @@ namespace ngraph
         {
             /// \brief Softmax operation.
             ///
-            class NGRAPH_API Softmax : public Op
+            class NGRAPH_DEPRECATED(
+                "This operation is deprecated and will be removed soon. "
+                "Use v1::Softmax instead of it.") NGRAPH_API Softmax : public Op
             {
+                NGRAPH_SUPPRESS_DEPRECATED_START
             public:
                 static constexpr NodeTypeInfo type_info{"Softmax", 0};
                 const NodeTypeInfo& get_type_info() const override { return type_info; }
@@ -63,6 +66,7 @@ namespace ngraph
 
                 bool evaluate(const HostTensorVector& outputs,
                               const HostTensorVector& inputs) const override;
+                NGRAPH_SUPPRESS_DEPRECATED_END
             };
         }
 
@@ -105,6 +109,8 @@ namespace ngraph
         }
 
         // default opset version
+        NGRAPH_SUPPRESS_DEPRECATED_START
         using v0::Softmax;
+        NGRAPH_SUPPRESS_DEPRECATED_END
     }
 }

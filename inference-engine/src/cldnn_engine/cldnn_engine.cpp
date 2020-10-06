@@ -26,12 +26,13 @@
 #include <ngraph/opsets/opset4.hpp>
 #include <ngraph/pass/manager.hpp>
 #include <generic_ie.hpp>
-#include <transformations/tensor_iterator_transformations/apply_transformations_to_ti_body.hpp>
 #include <transformations/tensor_iterator_transformations/unroll_tensor_iterator.hpp>
 #include <transformations/common_optimizations/common_optimizations.hpp>
 #include <transformations/convert_opset1_to_legacy/convert_opset1_to_legacy.hpp>
+#include <transformations/convert_opset1_to_legacy/convert_prior_to_ie_prior.hpp>
 #include <transformations/convert_opset2_to_opset1/convert_opset2_to_opset1.hpp>
 #include <transformations/convert_opset3_to_opset2/convert_opset3_to_opset2.hpp>
+#include <transformations/init_node_info.hpp>
 #include <transformations/rt_info/fused_names_attribute.hpp>
 #include <legacy/convert_function_to_cnn_network.hpp>
 #include <legacy/ie_util_internal.hpp>
@@ -87,12 +88,39 @@ InferenceEngine::ICNNNetwork::Ptr clDNNEngine::CloneAndTransformNetwork(const In
                 return stdOp->input_value(0).get_shape().size() <= 5lu && stdOp->input_value(0).get_shape().size() == stdOp->get_output_shape(0).size();
             }
 
+            // Reduce node implementation with reduce along features performs better with Reshape->Pooling->Reshape pattern
+            // Reshape->Pooling->Reshape scenario is also more optimal in case when batch > 1 and network precission is FP16
+            if (auto redOp = std::dynamic_pointer_cast<const ::ngraph::opset1::ReduceMean>(node)) {
+                auto reduction_axes = redOp->get_reduction_axes().to_vector();
+                bool reduce_along_f = redOp->get_reduction_axes().size() == 1 && std::count(reduction_axes.begin(), reduction_axes.end(), 1) != 0;
+                bool fp16_batch_not_1 = redOp->get_element_type() == ngraph::element::f16 && redOp->input(0).get_shape()[0] != 1;
+                bool can_use_reduce = !reduce_along_f && !fp16_batch_not_1;
+                return can_use_reduce;
+            }
+            if (auto redOp = std::dynamic_pointer_cast<const ::ngraph::opset1::ReduceMax>(node)) {
+                auto reduction_axes = redOp->get_reduction_axes().to_vector();
+                bool reduce_along_f = redOp->get_reduction_axes().size() == 1 && std::count(reduction_axes.begin(), reduction_axes.end(), 1) != 0;
+                bool fp16_batch_not_1 = redOp->get_element_type() == ngraph::element::f16 && redOp->input(0).get_shape()[0] != 1;
+                bool can_use_reduce = !reduce_along_f && !fp16_batch_not_1;
+                return can_use_reduce;
+            }
+            if (auto redOp = std::dynamic_pointer_cast<const ::ngraph::opset1::ReduceSum>(node)) {
+                auto reduction_axes = redOp->get_reduction_axes().to_vector();
+                bool reduce_along_f = redOp->get_reduction_axes().size() == 1 && std::count(reduction_axes.begin(), reduction_axes.end(), 1) != 0;
+                bool fp16_batch_not_1 = redOp->get_element_type() == ngraph::element::f16 && redOp->input(0).get_shape()[0] != 1;
+                bool can_use_reduce = !reduce_along_f && !fp16_batch_not_1;
+                return can_use_reduce;
+            }
+
             return std::dynamic_pointer_cast<const ::ngraph::opset2::Gelu>(node) ||
                    std::dynamic_pointer_cast<const ::ngraph::opset3::ShuffleChannels>(node) ||
                    std::dynamic_pointer_cast<const ::ngraph::opset2::BatchToSpace>(node) ||
                    std::dynamic_pointer_cast<const ::ngraph::opset2::SpaceToBatch>(node) ||
+                   std::dynamic_pointer_cast<const ::ngraph::opset3::ExtractImagePatches>(node) ||
+                   std::dynamic_pointer_cast<const ::ngraph::opset4::HSwish>(node) ||
                    std::dynamic_pointer_cast<const ::ngraph::opset4::ReduceL1>(node) ||
-                   std::dynamic_pointer_cast<const ::ngraph::opset4::ReduceL2>(node);
+                   std::dynamic_pointer_cast<const ::ngraph::opset4::ReduceL2>(node) ||
+                   std::dynamic_pointer_cast<const ::ngraph::opset4::SoftPlus>(node);
         };
         auto nGraphFunc = clonedNetwork->getFunction();
         // Disable shape inference (WA for generic operations)
@@ -100,6 +128,9 @@ InferenceEngine::ICNNNetwork::Ptr clDNNEngine::CloneAndTransformNetwork(const In
 
         // Note: instead of running all Conversion Transformations you can make up your own transformation pipeline
         ngraph::pass::Manager manager;
+        manager.register_pass<ngraph::pass::InitNodeInfo>();
+        // WA: ConvertPriorBox must be executed before the 1st ConstantFolding pass
+        manager.register_pass<ngraph::pass::ConvertPriorBox>();
         manager.register_pass<ngraph::pass::CommonOptimizations>();
         manager.register_pass<ngraph::pass::ConvertOpSet3ToOpSet2>();
         manager.register_pass<ngraph::pass::ConvertOpSet2ToOpSet1>();
@@ -109,10 +140,9 @@ InferenceEngine::ICNNNetwork::Ptr clDNNEngine::CloneAndTransformNetwork(const In
         manager.run_passes(nGraphFunc);
 
         ngraph::pass::Manager ti_manager;
-        // Apply all transformations to TensorIterator body
-        ti_manager.register_pass<ngraph::pass::ApplyTransformationsToTIBody>(manager);
         // Unroll will be called after all conversions
-        ti_manager.register_pass<ngraph::pass::UnrollTensorIterator>();
+        // temporarily switch back to plugin unroller from NGraph unroller until TI output names are corrected
+        // ti_manager.register_pass<ngraph::pass::UnrollTensorIterator>();
         ti_manager.run_passes(nGraphFunc);
 
         clonedNetwork = InferenceEngine::details::convertFunctionToICNNNetwork(nGraphFunc, *clonedNetwork);
@@ -288,10 +318,7 @@ void clDNNEngine::QueryNetwork(const ICNNNetwork& network,
     if (function != nullptr) {
         std::unordered_set<std::string> originalOps;
         for (auto&& node : function->get_ops()) {
-            if (!ngraph::op::is_parameter(node) &&
-                !ngraph::op::is_output(node)) {
-                originalOps.emplace(node->get_friendly_name());
-            }
+            originalOps.emplace(node->get_friendly_name());
         }
         auto clonedNetwork = CloneAndTransformNetwork(network);
         std::unordered_set<std::string> supported;
@@ -419,6 +446,23 @@ void clDNNEngine::QueryNetwork(const ICNNNetwork& network,
             }
         }
 
+        for (auto&& node : function->get_ops()) {
+            if (contains(supported, node->get_friendly_name())) {
+                for (auto&& inputNodeOutput : node->input_values()) {
+                    if (ngraph::op::is_constant(inputNodeOutput.get_node()) || ngraph::op::is_parameter(inputNodeOutput.get_node())) {
+                        supported.emplace(inputNodeOutput.get_node()->get_friendly_name());
+                    }
+                }
+                for (auto&& outputs : node->outputs()) {
+                    for (auto&& outputNodeInput : outputs.get_target_inputs()) {
+                        if (ngraph::op::is_output(outputNodeInput.get_node())) {
+                            supported.emplace(outputNodeInput.get_node()->get_friendly_name());
+                        }
+                    }
+                }
+            }
+        }
+
         for (auto&& layerName : supported) {
             res.supportedLayersMap.emplace(layerName, GetName());
         }
@@ -537,7 +581,9 @@ Parameter clDNNEngine::GetMetric(const std::string& name, const std::map<std::st
             availableDevices.push_back(dev.first);
         IE_SET_METRIC_RETURN(AVAILABLE_DEVICES, availableDevices);
     } else if (name == METRIC_KEY(FULL_DEVICE_NAME)) {
-        IE_SET_METRIC_RETURN(FULL_DEVICE_NAME, StringRightTrim(device_info.dev_name, "NEO", false));
+        auto deviceName = StringRightTrim(device_info.dev_name, "NEO", false);
+        deviceName += std::string(" (") + (device_info.dev_type == cldnn::device_type::discrete_gpu ? "dGPU" : "iGPU") + ")";
+        IE_SET_METRIC_RETURN(FULL_DEVICE_NAME, deviceName);
     } else if (name == METRIC_KEY(SUPPORTED_CONFIG_KEYS)) {
         std::vector<std::string> configKeys;
         for (auto opt : _impl->m_config.key_config_map)

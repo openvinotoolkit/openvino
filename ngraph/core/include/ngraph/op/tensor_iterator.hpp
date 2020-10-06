@@ -20,11 +20,8 @@
 
 #include "ngraph/factory_adapter.hpp"
 #include "ngraph/function.hpp"
-#include "ngraph/lambda.hpp"
 #include "ngraph/op/parameter.hpp"
-#include "ngraph/op/util/fused_op.hpp"
-
-NGRAPH_SUPPRESS_DEPRECATED_START
+#include "ngraph/op/util/sub_graph_base.hpp"
 
 namespace ngraph
 {
@@ -33,7 +30,7 @@ namespace ngraph
         namespace v0
         {
             /// \brief  Iterate a body over tensors, accumulating into tensors.
-            class NGRAPH_API TensorIterator : public util::FusedOp
+            class NGRAPH_API TensorIterator : public op::util::SubGraphOp
             {
             public:
                 static constexpr NodeTypeInfo type_info{"TensorIterator", 0};
@@ -46,28 +43,6 @@ namespace ngraph
 
                 TensorIterator() = default;
                 TensorIterator(const OutputVector& values);
-
-                class NGRAPH_API BodyLambda : public Lambda
-                {
-                public:
-                    using type_info_t = DiscreteTypeInfo;
-                    static constexpr type_info_t type_info{"BodyLamdba", 0};
-                    const type_info_t& get_type_info() const { return type_info; }
-                    BodyLambda(const OutputVector& outputs, const ParameterVector& parameters)
-                        : Lambda(outputs, parameters)
-                    {
-                    }
-                    BodyLambda(const ResultVector& results, const ParameterVector& parameters)
-                        : Lambda(results, parameters)
-                    {
-                    }
-                    BodyLambda() = default;
-                    virtual bool visit_attributes(AttributeVisitor& visitor);
-                    std::shared_ptr<Function> to_function()
-                    {
-                        return std::make_shared<Function>(get_results(), get_parameters());
-                    }
-                };
 
                 /// \brief Describes a connection between a TensorIterator input and the body.
                 class InputDescription
@@ -331,11 +306,10 @@ namespace ngraph
 
                 std::shared_ptr<Node>
                     clone_with_new_inputs(const OutputVector& new_args) const override;
-                OutputVector decompose_op() const override;
                 /// \return the body of the iteration
-                std::shared_ptr<BodyLambda> get_body() const { return m_body; }
+                std::shared_ptr<Function> get_body() const { return m_body; }
                 /// \param body set the body of the iteration
-                void set_body(const std::shared_ptr<BodyLambda>& body) { m_body = body; }
+                void set_body(const std::shared_ptr<Function>& body) { m_body = body; }
                 /// \return a reference to the input descriptions.
                 const std::vector<std::shared_ptr<InputDescription>>& get_input_descriptions() const
                 {
@@ -363,6 +337,8 @@ namespace ngraph
                 }
                 virtual void validate_and_infer_types() override;
                 void revalidate_and_infer_types_for_body_ops();
+                /// \return the body of the iteration
+                std::shared_ptr<Function> get_function() override;
 
                 int64_t get_num_iterations() const { return m_num_iterations; }
                 void set_num_iterations(int64_t num_iterations)
@@ -374,7 +350,7 @@ namespace ngraph
                 // Find an input corresponding to value, adding one if necessary.
                 Input<Node> input_for_value(const Output<Node>& value);
 
-                std::shared_ptr<BodyLambda> m_body;
+                std::shared_ptr<Function> m_body;
                 std::vector<std::shared_ptr<InputDescription>> m_input_descriptions;
                 std::vector<std::shared_ptr<OutputDescription>> m_output_descriptions;
 
@@ -449,5 +425,3 @@ namespace ngraph
         std::vector<std::shared_ptr<op::TensorIterator::OutputDescription>>& m_ref;
     };
 }
-
-NGRAPH_SUPPRESS_DEPRECATED_END

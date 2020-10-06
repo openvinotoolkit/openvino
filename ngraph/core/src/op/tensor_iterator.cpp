@@ -33,15 +33,8 @@ constexpr DiscreteTypeInfo op::v0::TensorIterator::InvariantInputDescription::ty
 constexpr DiscreteTypeInfo op::v0::TensorIterator::BodyOutputDescription::type_info;
 constexpr DiscreteTypeInfo op::v0::TensorIterator::ConcatOutputDescription::type_info;
 
-constexpr DiscreteTypeInfo op::v0::TensorIterator::BodyLambda::type_info;
-
-bool op::v0::TensorIterator::BodyLambda::visit_attributes(AttributeVisitor& visitor)
-{
-    return true;
-}
-
 op::v0::TensorIterator::TensorIterator(const OutputVector& values)
-    : op::util::FusedOp(values)
+    : op::util::SubGraphOp(values)
 {
 }
 
@@ -310,12 +303,7 @@ namespace ngraph
 
 bool op::v0::TensorIterator::visit_attributes(AttributeVisitor& visitor)
 {
-    if (!m_body)
-    {
-        m_body = make_shared<BodyLambda>();
-    }
-    shared_ptr<Lambda> lambda = m_body;
-    visitor.on_attribute("body", lambda);
+    visitor.on_attribute("body", m_body);
     visitor.on_attribute("input_descriptions", m_input_descriptions);
     visitor.on_attribute("output_descriptions", m_output_descriptions);
 
@@ -386,12 +374,6 @@ Output<Node> op::v0::TensorIterator::get_concatenated_slices(const Output<Node>&
         m_body->get_result_index(body_value), output_index, start, stride, part_size, end, axis));
     set_output_size(output_index + 1);
     return Output<Node>(shared_from_this(), output_index);
-}
-
-OutputVector op::v0::TensorIterator::decompose_op() const
-{
-    // Stub
-    return OutputVector{};
 }
 
 void op::v0::TensorIterator::revalidate_and_infer_types_for_body_ops()
@@ -590,6 +572,7 @@ void op::v0::TensorIterator::validate_and_infer_types()
                 as_type_ptr<ConcatOutputDescription>(output_description))
         {
             auto body_value_partial_shape = body_value.get_partial_shape();
+            set_output_type(index, body_value.get_element_type(), PartialShape::dynamic());
             if (body_value_partial_shape.is_static())
             {
                 auto body_value_shape = body_value_partial_shape.to_shape();
@@ -625,10 +608,21 @@ void op::v0::TensorIterator::validate_and_infer_types()
     }
 }
 
+std::shared_ptr<Function> op::v0::TensorIterator::get_function()
+{
+    return get_body();
+}
+
 std::shared_ptr<Node>
     op::v0::TensorIterator::clone_with_new_inputs(const OutputVector& new_args) const
 {
     auto op = make_shared<op::v0::TensorIterator>(new_args);
+    NGRAPH_CHECK(op.get(),
+                 op != nullptr,
+                 "Cannot clone ",
+                 description(),
+                 " operation with name ",
+                 get_friendly_name());
     op->set_output_size(m_output_descriptions.size());
 
     std::vector<::ngraph::element::Type> types(m_body->get_parameters().size());
@@ -663,8 +657,7 @@ std::shared_ptr<Node>
     auto func = std::make_shared<Function>(m_body->get_results(), m_body->get_parameters());
     auto spec_func =
         specialize_function(func, types, new_shapes, std::vector<void*>(new_args.size(), nullptr));
-    op->m_body =
-        std::make_shared<BodyLambda>(spec_func->get_results(), spec_func->get_parameters());
+    op->m_body = std::make_shared<Function>(spec_func->get_results(), spec_func->get_parameters());
 
     for (auto& input_description : m_input_descriptions)
     {

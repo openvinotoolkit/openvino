@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2019 Intel Corporation
+﻿// Copyright (c) 2019-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -30,6 +30,7 @@
 #include "fully_connected_kernel_mmad.h"
 #include "fully_connected_kernel_imad.h"
 #include "fully_connected_kernel_fs_byx_fsv32.h"
+#include "fully_connected_kernel_bf_tiled.h"
 
 namespace kernel_selector {
 
@@ -50,6 +51,7 @@ fully_connected_kernel_selector::fully_connected_kernel_selector() {
     Attach<FullyConnectedKernelMMAD>();
     Attach<FullyConnectedKernelIMAD>();
     Attach<FullyConnected_fs_byx_fsv32>();
+    Attach<FullyConnected_bf_tiled>();
 }
 
 KernelsData fully_connected_kernel_selector::GetBestKernels(const Params& params,

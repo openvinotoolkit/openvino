@@ -20,123 +20,12 @@
 #include "ngraph/op/broadcast.hpp"
 #include "ngraph/op/constant.hpp"
 #include "ngraph/op/util/op_types.hpp"
+#include "ngraph/runtime/reference/pad.hpp"
+
+NGRAPH_SUPPRESS_DEPRECATED_START
 
 using namespace std;
 using namespace ngraph;
-
-constexpr NodeTypeInfo op::v0::Pad::type_info;
-
-op::v0::Pad::Pad(const Output<Node>& arg,
-                 const Output<Node>& arg_pad_value,
-                 const CoordinateDiff& padding_below,
-                 const CoordinateDiff& padding_above,
-                 PadMode pad_mode)
-    : Op({arg, arg_pad_value})
-    , m_padding_below(padding_below)
-    , m_padding_above(padding_above)
-    , m_padding_interior_fake(padding_below.size())
-    , m_pad_mode(pad_mode)
-{
-    constructor_validate_and_infer_types();
-}
-
-void op::v0::Pad::validate_and_infer_types()
-{
-    element::Type result_et;
-
-    NODE_VALIDATION_CHECK(
-        this,
-        element::Type::merge(result_et, get_input_element_type(0), get_input_element_type(1)),
-        "Argument element types do not match (arg0 element type: ",
-        get_input_element_type(0),
-        ", arg1 element type: ",
-        get_input_element_type(1),
-        ").");
-
-    NODE_VALIDATION_CHECK(this,
-                          get_input_partial_shape(1).compatible(PartialShape{}),
-                          "Argument for padding value is not a scalar (shape: ",
-                          get_input_partial_shape(1),
-                          ").");
-
-    auto arg_shape = get_input_partial_shape(0);
-
-    NODE_VALIDATION_CHECK(this,
-                          m_padding_below.size() == m_padding_above.size(),
-                          "Ranks for padding below (",
-                          m_padding_below,
-                          ") and padding above (",
-                          m_padding_above,
-                          ") do not match.");
-
-    size_t implied_rank = m_padding_below.size();
-
-    NODE_VALIDATION_CHECK(this,
-                          arg_shape.rank().compatible(implied_rank),
-                          "Rank for padding below and padding above do not match the rank of the ",
-                          "data argument (padding below: ",
-                          m_padding_below,
-                          ", padding above: ",
-                          m_padding_above,
-                          ").");
-
-    std::vector<Dimension> result_dims(implied_rank, Dimension::dynamic());
-
-    if (arg_shape.rank().is_static())
-    {
-        for (size_t i = 0; i < implied_rank; i++)
-        {
-            if (arg_shape[i].is_static())
-            {
-                ptrdiff_t result_dim =
-                    m_padding_below[i] + arg_shape[i].get_length() + m_padding_above[i];
-                NODE_VALIDATION_CHECK(this,
-                                      result_dim >= 0,
-                                      "Inferred result dimension at axis ",
-                                      i,
-                                      " is negative after padding (padding below: ",
-                                      m_padding_below,
-                                      ", ",
-                                      ", padding above: ",
-                                      m_padding_above,
-                                      ").");
-                result_dims[i] = static_cast<size_t>(result_dim);
-                if (i > 1)
-                {
-                    NODE_VALIDATION_CHECK(
-                        this,
-                        m_pad_mode != op::PadMode::EDGE || arg_shape[i].get_length() >= 1,
-                        "EDGE padding mode requires an input of dimension of at least 1 at each "
-                        "spatial axis.");
-                    NODE_VALIDATION_CHECK(
-                        this,
-                        m_pad_mode != op::PadMode::REFLECT || arg_shape[i].get_length() >= 2,
-                        "REFLECT padding mode requires an input of dimension of at least 2 at each "
-                        "spatial axis.");
-                }
-            }
-        }
-    }
-
-    set_output_type(0, result_et, PartialShape(result_dims));
-}
-
-shared_ptr<Node> op::v0::Pad::clone_with_new_inputs(const OutputVector& new_args) const
-{
-    check_new_args_count(this, new_args);
-    return make_shared<v0::Pad>(
-        new_args.at(0), new_args.at(1), m_padding_below, m_padding_above, m_pad_mode);
-}
-
-std::shared_ptr<Node> op::Pad::get_default_value() const
-{
-    AxisSet axes{};
-    for (size_t i = 0; i < get_shape().size(); i++)
-    {
-        axes.insert(i);
-    }
-    return std::make_shared<op::Broadcast>(input_value(1), get_shape(), axes);
-}
 
 constexpr NodeTypeInfo op::v1::Pad::type_info;
 
@@ -155,7 +44,7 @@ op::v1::Pad::Pad(const Output<Node>& arg,
                  const Output<Node>& pads_begin,
                  const Output<Node>& pads_end,
                  PadMode pad_mode)
-    : Op({arg, pads_begin, pads_end})
+    : Op({arg, pads_begin, pads_end, op::Constant::create(arg.get_element_type(), Shape{}, {0})})
     , m_pad_mode{pad_mode}
 {
     constructor_validate_and_infer_types();
@@ -197,8 +86,7 @@ void op::v1::Pad::validate_and_infer_types()
     const auto& pads_begin_element_type = get_input_element_type(1);
     const auto& pads_end_element_type = get_input_element_type(2);
 
-    const auto arg_pad_value_provided = get_input_size() == 4;
-    if (m_pad_mode == PadMode::CONSTANT && arg_pad_value_provided)
+    if (m_pad_mode == PadMode::CONSTANT && get_input_size() == 4)
     {
         const auto& arg_pad_element_type = get_input_element_type(3);
         const auto& arg_pad_shape = get_input_partial_shape(3);
@@ -310,8 +198,7 @@ void op::v1::Pad::validate_and_infer_types()
 shared_ptr<Node> op::v1::Pad::clone_with_new_inputs(const OutputVector& new_args) const
 {
     check_new_args_count(this, new_args);
-    const auto arg_pad_value_provided = get_input_size() == 4;
-    if (arg_pad_value_provided)
+    if (get_input_size() == 4)
     {
         return make_shared<v1::Pad>(
             new_args.at(0), new_args.at(1), new_args.at(2), new_args.at(3), m_pad_mode);
@@ -320,4 +207,34 @@ shared_ptr<Node> op::v1::Pad::clone_with_new_inputs(const OutputVector& new_args
     {
         return make_shared<v1::Pad>(new_args.at(0), new_args.at(1), new_args.at(2), m_pad_mode);
     }
+}
+
+bool op::v1::Pad::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
+{
+    const auto& data = inputs[0];
+    const auto elem_size = data->get_element_type().size();
+
+    const char* pad_value = nullptr;
+    const std::vector<char> pad_zero_value(elem_size, 0);
+    if (get_input_size() == 4)
+    {
+        pad_value = inputs[3]->get_data_ptr<char>();
+    }
+    else
+    {
+        pad_value = pad_zero_value.data();
+    }
+    const auto& out = outputs[0];
+
+    ngraph::runtime::reference::pad(data->get_data_ptr<char>(),
+                                    pad_value,
+                                    out->get_data_ptr<char>(),
+                                    elem_size,
+                                    data->get_shape(),
+                                    out->get_shape(),
+                                    get_pads_begin(),
+                                    get_pads_end(),
+                                    get_pad_mode());
+
+    return true;
 }

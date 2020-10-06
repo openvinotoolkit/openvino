@@ -19,6 +19,8 @@
 #include "ngraph/op/util/op_types.hpp"
 #include "ngraph/validation_util.hpp"
 
+NGRAPH_SUPPRESS_DEPRECATED_START
+
 using namespace std;
 using namespace ngraph;
 

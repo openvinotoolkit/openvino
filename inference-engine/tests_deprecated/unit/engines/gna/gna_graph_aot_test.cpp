@@ -41,15 +41,12 @@ TEST_F(GNAAOTTests, DISABLED_AffineWith2AffineOutputs_canbe_export_imported) {
         .inNotCompactMode().gna().propagate_forward().called().once();
 }
 
-
-// Disabled because of random fails: Issue-23611
 TEST_F(GNAAOTTests, DISABLED_AffineWith2AffineOutputs_canbe_imported_verify_structure) {
-
-#if GNA_LIB_VER == 2
+// Disabled because of random fails: Issue-23611
+#if GNA_LIB_VER == 1
     GTEST_SKIP();
 #endif
-
-    auto & nnet_type = storage<intel_nnet_type_t>();
+    auto & nnet_type = storage<gna_nnet_type_t>();
 
     // saving pointer to nnet - todo probably deep copy required
     save_args().onInferModel(AffineWith2AffineOutputsModel())
@@ -121,13 +118,9 @@ TEST_F(GNAAOTTests, PoolingModel_canbe_export_imported) {
             .inNotCompactMode().gna().propagate_forward().called().once();
 }
 
-TEST_F(GNAAOTTests, CanConvertFromAOTtoSueModel) {
+TEST_F(GNAAOTTests, DISABLED_CanConvertFromAOTtoSueModel) {
 
-#if GNA_LIB_VER == 2
-    GTEST_SKIP();
-#endif
-
-    auto & nnet_type = storage<intel_nnet_type_t>();
+    auto & nnet_type = storage<gna_nnet_type_t>();
 
     // saving pointer to nnet - todo probably deep copy required
     save_args().onInferModel(AffineWith2AffineOutputsModel())

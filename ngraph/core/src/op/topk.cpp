@@ -16,9 +16,9 @@
 
 #include <memory>
 
+#include "itt.hpp"
 #include "ngraph/attribute_visitor.hpp"
 #include "ngraph/axis_vector.hpp"
-#include "ngraph/itt.hpp"
 #include "ngraph/op/constant.hpp"
 #include "ngraph/op/topk.hpp"
 #include "ngraph/op/util/op_types.hpp"
@@ -27,6 +27,8 @@
 
 #include "ngraph/runtime/host_tensor.hpp"
 #include "ngraph/runtime/reference/topk.hpp"
+
+NGRAPH_SUPPRESS_DEPRECATED_START
 
 using namespace std;
 using namespace ngraph;

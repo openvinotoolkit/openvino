@@ -19,10 +19,10 @@
 #include <iostream>
 #include <memory>
 
+#include "itt.hpp"
 #include "ngraph/env_util.hpp"
 #include "ngraph/function.hpp"
 #include "ngraph/graph_util.hpp"
-#include "ngraph/itt.hpp"
 #include "ngraph/log.hpp"
 #include "ngraph/node.hpp"
 #include "ngraph/pass/graph_rewrite.hpp"

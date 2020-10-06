@@ -11,6 +11,8 @@
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
 
+NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertSpaceToBatch, "ConvertSpaceToBatch", 0);
+
 void ngraph::pass::ConvertSpaceToBatch::convert_space_to_batch() {
     auto space_to_batch = ngraph::pattern::wrap_type<ngraph::opset3::SpaceToBatch>();
     ngraph::matcher_pass_callback callback = [](pattern::Matcher& m) {
@@ -142,12 +144,14 @@ void ngraph::pass::ConvertSpaceToBatch::convert_space_to_batch_by_elements() {
         const auto pads_begin_const = as_type_ptr<opset3::Constant>(pads_begin.get_node_shared_ptr());
         const auto pads_end_const = as_type_ptr<opset3::Constant>(pads_end.get_node_shared_ptr());
 
+        if (!block_const || !pads_begin_const || !pads_end_const) {
+            return false;
+        }
         const std::vector<int64_t> &block_values = block_const->cast_vector<int64_t>();
 
         NodeVector new_ops;
 
-        std::shared_ptr<Node> flat_node = data.get_node_shared_ptr();
-        flat_node = std::make_shared<opset3::Pad>(flat_node, pads_begin_const, pads_end_const, ngraph::op::PadMode::CONSTANT);
+        std::shared_ptr<Node> flat_node = std::make_shared<opset3::Pad>(data, pads_begin_const, pads_end_const, ngraph::op::PadMode::CONSTANT);
         new_ops.push_back(flat_node);
         auto out_shape = flat_node->get_shape();
 

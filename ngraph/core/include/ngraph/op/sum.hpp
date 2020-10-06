@@ -74,8 +74,10 @@ namespace ngraph
             /// | ----------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
             /// | \f$N[\textit{delete}(A,d_1,\dots,d_n)]\f$ | The tensor \f$T\f$, where \f$T\f$ is the input tensor with the `reduction_axes` \f$A\f$ eliminated by summation. |
             // clang-format off
-            class NGRAPH_API Sum : public util::ArithmeticReduction
+            class NGRAPH_DEPRECATED("This operation is deprecated and will be removed soon. "
+                                    "Use v1::ReduceSum instead of it.") NGRAPH_API Sum : public util::ArithmeticReduction
             {
+                NGRAPH_SUPPRESS_DEPRECATED_START
             public:
                 static constexpr NodeTypeInfo type_info{ "Sum", 0 };
                 const NodeTypeInfo& get_type_info() const override { return type_info; }
@@ -100,9 +102,12 @@ namespace ngraph
 
                 bool evaluate(const HostTensorVector& outputs,
                               const HostTensorVector& inputs) const override;
+                NGRAPH_SUPPRESS_DEPRECATED_END
             };
         }
         // default opset version
+        NGRAPH_SUPPRESS_DEPRECATED_START
         using v0::Sum;
+        NGRAPH_SUPPRESS_DEPRECATED_END
     }
 }

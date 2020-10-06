@@ -1,6 +1,7 @@
 # [OpenVINO™ Toolkit](https://01.org/openvinotoolkit) - Deep Learning Deployment Toolkit repository
 [![Stable release](https://img.shields.io/badge/version-2020.4-green.svg)](https://github.com/openvinotoolkit/openvino/releases/tag/2020.4.0)
 [![Apache License Version 2.0](https://img.shields.io/badge/license-Apache_2.0-green.svg)](LICENSE)
+![Azure DevOps builds (branch)](https://img.shields.io/azure-devops/build/openvinoci/b2bab62f-ab2f-4871-a538-86ea1be7d20f/9/master?label=Public%20CI)
 
 This toolkit allows developers to deploy pre-trained deep learning models
 through a high-level C++ Inference Engine API integrated with application logic.
@@ -28,6 +29,7 @@ and release your contribution under these terms.
 * [Introduction to Deep Learning Deployment Toolkit](https://docs.openvinotoolkit.org/latest/_docs_IE_DG_Introduction.html)
 * [Inference Engine Developer Guide](https://docs.openvinotoolkit.org/latest/_docs_IE_DG_Deep_Learning_Inference_Engine_DevGuide.html)
 * [Model Optimizer Developer Guide](https://docs.openvinotoolkit.org/latest/_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide.html)
+* [Get Started with DockerHub CI for OpenVINO™ toolkit](https://github.com/openvinotoolkit/docker_ci/blob/master/README.md)
 
 ## How to Contribute
 See [CONTRIBUTING](./CONTRIBUTING.md) for contribution to the code.

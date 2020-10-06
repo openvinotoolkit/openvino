@@ -22,6 +22,7 @@ class TRANSFORMATIONS_API ConvertOneHotToOneHotIEMatcher;
 
 class ngraph::pass::ConvertOneHotToOneHotIEMatcher: public ngraph::pass::MatcherPass {
 public:
+    NGRAPH_RTTI_DECLARATION;
     ConvertOneHotToOneHotIEMatcher();
 
     void detect_output_type(const std::shared_ptr<Function> & f);

@@ -24,12 +24,12 @@
 #include <legacy/convert_function_to_cnn_network.hpp>
 #include <transformations/common_optimizations/common_optimizations.hpp>
 #include <transformations/convert_opset1_to_legacy/convert_opset1_to_legacy.hpp>
+#include <transformations/convert_opset1_to_legacy/convert_prior_to_ie_prior.hpp>
 #include <transformations/convert_opset2_to_opset1/convert_opset2_to_opset1.hpp>
 #include <transformations/convert_opset3_to_opset2/convert_opset3_to_opset2.hpp>
+#include <transformations/init_node_info.hpp>
 #include <transformations/convert_precision.hpp>
 #include <transformations/rt_info/fused_names_attribute.hpp>
-#include <transformations/tensor_iterator_transformations/apply_transformations_to_ti_body.hpp>
-#include <ngraph/opsets/opset1.hpp>
 #include <ngraph/opsets/opset2.hpp>
 #include <ngraph/opsets/opset3.hpp>
 #include <ngraph/opsets/opset4.hpp>
@@ -81,14 +81,21 @@ static void Transformation(ICNNNetwork::Ptr& clonedNetwork) {
         return std::dynamic_pointer_cast<const ngraph::opset2::Gelu>(node) ||
                std::dynamic_pointer_cast<const ngraph::opset2::BatchToSpace>(node) ||
                std::dynamic_pointer_cast<const ngraph::opset2::SpaceToBatch>(node) ||
+               std::dynamic_pointer_cast<const ngraph::opset3::ExtractImagePatches>(node) ||
+               std::dynamic_pointer_cast<const ngraph::opset4::HSwish>(node) ||
                std::dynamic_pointer_cast<const ngraph::opset4::ReduceL1>(node) ||
-               std::dynamic_pointer_cast<const ngraph::opset4::ReduceL2>(node);
+               std::dynamic_pointer_cast<const ngraph::opset4::ReduceL2>(node) ||
+               std::dynamic_pointer_cast<const ngraph::opset4::SoftPlus>(node) ||
+               std::dynamic_pointer_cast<const ngraph::opset4::Pad>(node);
     };
     auto nGraphFunc = clonedNetwork->getFunction();
     // Disable shape inference (WA for generic operations)
     ngraph::op::GenericIE::DisableReshape noReshape(nGraphFunc);
 
     ngraph::pass::Manager manager;
+    manager.register_pass<ngraph::pass::InitNodeInfo>();
+    // WA: ConvertPriorBox must be executed before the 1st ConstantFolding pass
+    manager.register_pass<ngraph::pass::ConvertPriorBox>();
     manager.register_pass<ngraph::pass::CommonOptimizations>();
     manager.register_pass<ngraph::pass::ConvertOpSet3ToOpSet2>();
     manager.register_pass<ngraph::pass::ConvertOpSet2ToOpSet1>();
@@ -111,11 +118,6 @@ static void Transformation(ICNNNetwork::Ptr& clonedNetwork) {
 
     manager.set_callback(transformations_callback);
     manager.run_passes(nGraphFunc);
-
-    // Apply all transformations to TensorIterator body
-    ngraph::pass::Manager ti_manager;
-    ti_manager.register_pass<ngraph::pass::ApplyTransformationsToTIBody>(manager);
-    ti_manager.run_passes(nGraphFunc);
 
     clonedNetwork = InferenceEngine::details::convertFunctionToICNNNetwork(nGraphFunc, *clonedNetwork);
 
@@ -282,9 +284,7 @@ void Engine::QueryNetwork(const ICNNNetwork& network, const std::map<std::string
     if (function != nullptr) {
         std::unordered_set<std::string> originalOps;
         for (auto&& node : function->get_ops()) {
-            if (!ngraph::op::is_constant(node) && !ngraph::op::is_parameter(node) && !ngraph::op::is_output(node)) {
-                originalOps.emplace(node->get_friendly_name());
-            }
+            originalOps.emplace(node->get_friendly_name());
         }
         auto clonedNetwork = cloneNetwork(network);
         Transformation(clonedNetwork);
@@ -294,7 +294,7 @@ void Engine::QueryNetwork(const ICNNNetwork& network, const std::map<std::string
             auto layerIsSupported = [&] {
                 std::unique_ptr<MKLDNNNode> ptr;
                 try {
-                    ptr.reset(MKLDNNNode::CreateNode(*itLayer, {mkldnn::engine::kind::cpu, 0}, extensionManager, fake_w_cache));
+                    ptr.reset(MKLDNNNode::factory().create(*itLayer, {mkldnn::engine::kind::cpu, 0}, extensionManager, fake_w_cache));
                 } catch (InferenceEngine::details::InferenceEngineException&) {
                      return false;
                 }
@@ -310,6 +310,24 @@ void Engine::QueryNetwork(const ICNNNetwork& network, const std::map<std::string
                 }
             }
         }
+
+        for (auto&& node : function->get_ops()) {
+            if (!contains(unsupported, node->get_friendly_name())) {
+                for (auto&& inputNodeOutput : node->input_values()) {
+                    if (ngraph::op::is_constant(inputNodeOutput.get_node())) {
+                        supported.emplace(inputNodeOutput.get_node()->get_friendly_name());
+                    }
+                }
+                for (auto&& outputs : node->outputs()) {
+                    for (auto&& outputNodeInput : outputs.get_target_inputs()) {
+                        if (ngraph::op::is_output(outputNodeInput.get_node())) {
+                            supported.emplace(outputNodeInput.get_node()->get_friendly_name());
+                        }
+                    }
+                }
+            }
+        }
+
         for (auto&& layerName : supported) {
             if (!contains(unsupported, layerName)) {
                 res.supportedLayersMap.emplace(layerName, GetName());
@@ -321,7 +339,7 @@ void Engine::QueryNetwork(const ICNNNetwork& network, const std::map<std::string
             try {
                 mkldnn::engine eng(mkldnn::engine(mkldnn::engine::kind::cpu, 0));
                 // if we can create and have not thrown exception, then layer is supported
-                std::unique_ptr <MKLDNNNode>(MKLDNNNode::CreateNode(*i, eng, extensionManager, fake_w_cache));
+                std::unique_ptr <MKLDNNNode>(MKLDNNNode::factory().create(*i, eng, extensionManager, fake_w_cache));
                 res.supportedLayersMap.insert({ (*i)->name, GetName() });
             } catch (InferenceEngine::details::InferenceEngineException&) {
             }

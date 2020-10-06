@@ -57,7 +57,6 @@
 #include "onnx_import/op/exp.hpp"
 #include "onnx_import/op/expand.hpp"
 #include "onnx_import/op/eye_like.hpp"
-#include "onnx_import/op/fake_quantize.hpp"
 #include "onnx_import/op/flatten.hpp"
 #include "onnx_import/op/floor.hpp"
 #include "onnx_import/op/gather.hpp"
@@ -111,9 +110,9 @@
 #include "onnx_import/op/reverse_sequence.hpp"
 #include "onnx_import/op/rnn.hpp"
 #include "onnx_import/op/roi_align.hpp"
-// #include "onnx_import/op/round.hpp"
+#include "onnx_import/op/round.hpp"
 #include "onnx_import/op/scatter_elements.hpp"
-// #include "onnx_import/op/scatter_nd.hpp"
+#include "onnx_import/op/scatter_nd.hpp"
 #include "onnx_import/op/selu.hpp"
 #include "onnx_import/op/shape.hpp"
 #include "onnx_import/op/shrink.hpp"
@@ -144,6 +143,12 @@
 #include "onnx_import/op/xor.hpp"
 #include "onnx_import/ops_bridge.hpp"
 
+#include "onnx_import/op/org.openvinotoolkit/detection_output.hpp"
+#include "onnx_import/op/org.openvinotoolkit/fake_quantize.hpp"
+#include "onnx_import/op/org.openvinotoolkit/group_norm.hpp"
+#include "onnx_import/op/org.openvinotoolkit/normalize.hpp"
+#include "onnx_import/op/org.openvinotoolkit/prior_box.hpp"
+
 namespace ngraph
 {
     namespace onnx_import
@@ -153,7 +158,6 @@ namespace ngraph
             const std::map<std::int64_t, Operator>::const_iterator
                 find(std::int64_t version, const std::map<std::int64_t, Operator>& map)
             {
-                std::map<std::int64_t, Operator>::const_iterator it{};
                 // Get the latest version.
                 if (version == -1)
                 {
@@ -161,13 +165,13 @@ namespace ngraph
                 }
                 while (version > 0)
                 {
-                    it = map.find(version--);
+                    std::map<std::int64_t, Operator>::const_iterator it = map.find(version--);
                     if (it != std::end(map))
                     {
                         return it;
                     }
                 }
-                return it;
+                return std::end(map);
             }
         }
 
@@ -249,6 +253,9 @@ namespace ngraph
 #define REGISTER_OPERATOR(name_, ver_, fn_)                                                        \
     m_map[""][name_].emplace(ver_, std::bind(op::set_##ver_::fn_, std::placeholders::_1))
 
+#define REGISTER_OPERATOR_WITH_DOMAIN(domain_, name_, ver_, fn_)                                   \
+    m_map[domain_][name_].emplace(ver_, std::bind(op::set_##ver_::fn_, std::placeholders::_1))
+
         OperatorsBridge::OperatorsBridge()
         {
             REGISTER_OPERATOR("Abs", 1, abs);
@@ -310,7 +317,7 @@ namespace ngraph
             REGISTER_OPERATOR("Less", 1, less);
             REGISTER_OPERATOR("Log", 1, log);
             REGISTER_OPERATOR("LogSoftmax", 1, log_softmax);
-            REGISTER_OPERATOR("Loop", 1, loop);
+            // REGISTER_OPERATOR("Loop", 1, loop); // Loop operator disabled for the 2021.1 release
             REGISTER_OPERATOR("LpNormalization", 1, lp_norm);
             REGISTER_OPERATOR("LRN", 1, lrn);
             REGISTER_OPERATOR("LSTM", 1, lstm);
@@ -360,10 +367,10 @@ namespace ngraph
             REGISTER_OPERATOR("ReverseSequence", 1, reverse_sequence);
             REGISTER_OPERATOR("RNN", 1, rnn);
             REGISTER_OPERATOR("RoiAlign", 1, roi_align);
-            // REGISTER_OPERATOR("Round", 1, round);
+            REGISTER_OPERATOR("Round", 1, round);
             REGISTER_OPERATOR("Scatter", 1, scatter_elements);
             REGISTER_OPERATOR("ScatterElements", 1, scatter_elements);
-            // REGISTER_OPERATOR("ScatterND", 1, scatter_nd);
+            REGISTER_OPERATOR("ScatterND", 1, scatter_nd);
             REGISTER_OPERATOR("Selu", 1, selu);
             REGISTER_OPERATOR("Shape", 1, shape);
             REGISTER_OPERATOR("Shrink", 1, shrink);
@@ -399,11 +406,17 @@ namespace ngraph
             REGISTER_OPERATOR("Where", 1, where);
             REGISTER_OPERATOR("Xor", 1, logical_xor);
 
-            // TODO Change the domain
-            m_map[""]["FakeQuantize"].emplace(1, op::set_1::fake_quantize);
+            // custom OPs
+            REGISTER_OPERATOR_WITH_DOMAIN(
+                OPENVINO_ONNX_DOMAIN, "DetectionOutput", 1, detection_output);
+            REGISTER_OPERATOR_WITH_DOMAIN(OPENVINO_ONNX_DOMAIN, "FakeQuantize", 1, fake_quantize);
+            REGISTER_OPERATOR_WITH_DOMAIN(OPENVINO_ONNX_DOMAIN, "GroupNorm", 1, group_norm);
+            REGISTER_OPERATOR_WITH_DOMAIN(OPENVINO_ONNX_DOMAIN, "Normalize", 1, normalize);
+            REGISTER_OPERATOR_WITH_DOMAIN(OPENVINO_ONNX_DOMAIN, "PriorBox", 1, prior_box);
         }
 
 #undef REGISTER_OPERATOR
+#undef REGISTER_OPERATOR_WITH_DOMAIN
     } // namespace onnx_import
 
 } // namespace ngraph

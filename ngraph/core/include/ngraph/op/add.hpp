@@ -28,8 +28,11 @@ namespace ngraph
         {
             /// \brief Elementwise addition operation.
             ///
-            class NGRAPH_API Add : public util::BinaryElementwiseArithmetic
+            class NGRAPH_DEPRECATED(
+                "This operation is deprecated and will be removed soon. Use v1::Add instead of it.")
+                NGRAPH_API Add : public util::BinaryElementwiseArithmetic
             {
+                NGRAPH_SUPPRESS_DEPRECATED_START
             public:
                 static constexpr NodeTypeInfo type_info{"Add", 0};
                 const NodeTypeInfo& get_type_info() const override { return type_info; }
@@ -59,6 +62,7 @@ namespace ngraph
                 bool visit_attributes(AttributeVisitor& visitor) override;
                 bool evaluate(const HostTensorVector& outputs,
                               const HostTensorVector& inputs) const override;
+                NGRAPH_SUPPRESS_DEPRECATED_END
             };
         } // namespace v0
 
@@ -102,9 +106,12 @@ namespace ngraph
             };
 
         } // namespace v1
+        NGRAPH_SUPPRESS_DEPRECATED_START
         using v0::Add;
+        NGRAPH_SUPPRESS_DEPRECATED_END
     } // namespace op
 
+    NGRAPH_DEPRECATED("This operator was deprecated and will be removed with v0 operation.")
     NGRAPH_API
     std::shared_ptr<Node> operator+(const Output<Node>& arg0, const Output<Node>& arg1);
 } // namespace ngraph

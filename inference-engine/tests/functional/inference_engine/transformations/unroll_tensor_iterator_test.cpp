@@ -46,7 +46,7 @@ TEST(TransformationTests, UnrollTensorIteratorGRUCell) {
         auto res_1 = std::make_shared<opset4::Result>(gru_cell);
         auto unsqueeze = std::make_shared<opset4::Unsqueeze>(gru_cell, axis);
         auto res_2 = std::make_shared<opset4::Result>(unsqueeze);
-        auto body = std::make_shared<opset4::TensorIterator::BodyLambda>(OutputVector{res_1, res_2},
+        auto body = std::make_shared<Function>(OutputVector{res_1, res_2},
                                                                          ParameterVector{Xi, Yi});
 
         auto tensor_iterator = std::make_shared<opset4::TensorIterator>();
@@ -128,7 +128,7 @@ TEST(TransformationTests, UnrollTensorIteratorRNNCell) {
         auto res_1 = std::make_shared<opset4::Result>(rnn_cell);
         auto unsqueeze = std::make_shared<opset4::Unsqueeze>(rnn_cell, axis);
         auto res_2 = std::make_shared<opset4::Result>(unsqueeze);
-        auto body = std::make_shared<opset4::TensorIterator::BodyLambda>(OutputVector{res_1, res_2},
+        auto body = std::make_shared<Function>(OutputVector{res_1, res_2},
                                                                          ParameterVector{Xi, Yi});
 
         auto tensor_iterator = std::make_shared<opset4::TensorIterator>();
@@ -212,7 +212,7 @@ TEST(TransformationTests, UnrollTensorIteratorLSTMCell) {
         auto res_1 = std::make_shared<opset4::Result>(lstm_cell);
         auto unsqueeze = std::make_shared<opset4::Unsqueeze>(lstm_cell, axis);
         auto res_2 = std::make_shared<opset4::Result>(unsqueeze);
-        auto body = std::make_shared<opset4::TensorIterator::BodyLambda>(OutputVector{res_1, res_2},
+        auto body = std::make_shared<Function>(OutputVector{res_1, res_2},
                                                                          ParameterVector{Xi, Yi, Zi});
 
         auto tensor_iterator = std::make_shared<opset4::TensorIterator>();
@@ -296,7 +296,7 @@ TEST(TransformationTests, UnrollTensorIteratorGRUCellSingleIteration) {
         auto res_1 = std::make_shared<opset4::Result>(gru_cell);
         auto unsqueeze = std::make_shared<opset4::Unsqueeze>(gru_cell, axis);
         auto res_2 = std::make_shared<opset4::Result>(unsqueeze);
-        auto body = std::make_shared<opset4::TensorIterator::BodyLambda>(OutputVector{res_1, res_2},
+        auto body = std::make_shared<Function>(OutputVector{res_1, res_2},
                                                                          ParameterVector{Xi, Yi});
 
         auto tensor_iterator = std::make_shared<opset4::TensorIterator>();
@@ -372,7 +372,7 @@ TEST(TransformationTests, UnrollTensorIteratorRNNCellSingleIteration) {
         auto res_1 = std::make_shared<opset4::Result>(rnn_cell);
         auto unsqueeze = std::make_shared<opset4::Unsqueeze>(rnn_cell, axis);
         auto res_2 = std::make_shared<opset4::Result>(unsqueeze);
-        auto body = std::make_shared<opset4::TensorIterator::BodyLambda>(OutputVector{res_1, res_2},
+        auto body = std::make_shared<Function>(OutputVector{res_1, res_2},
                                                                          ParameterVector{Xi, Yi});
 
         auto tensor_iterator = std::make_shared<opset4::TensorIterator>();
@@ -449,7 +449,7 @@ TEST(TransformationTests, UnrollTensorIteratorLSTMCellSingleIterationSingleItera
         auto res_1 = std::make_shared<opset4::Result>(lstm_cell);
         auto unsqueeze = std::make_shared<opset4::Unsqueeze>(lstm_cell, axis);
         auto res_2 = std::make_shared<opset4::Result>(unsqueeze);
-        auto body = std::make_shared<opset4::TensorIterator::BodyLambda>(OutputVector{res_1, res_2},
+        auto body = std::make_shared<Function>(OutputVector{res_1, res_2},
                                                                          ParameterVector{Xi, Yi, Zi});
 
         auto tensor_iterator = std::make_shared<opset4::TensorIterator>();

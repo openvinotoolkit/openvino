@@ -17,7 +17,7 @@
 #include <cmath>
 #include <cstdio>
 
-#include "ngraph/itt.hpp"
+#include "itt.hpp"
 #include "ngraph/log.hpp"
 #include "ngraph/op/constant.hpp"
 #include "ngraph/op/util/attr_types.hpp"

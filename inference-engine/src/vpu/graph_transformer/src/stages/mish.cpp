@@ -20,6 +20,10 @@ private:
 
     void serializeParamsImpl(BlobSerializer&) const override {
     }
+
+    StageSHAVEsRequirements getSHAVEsRequirementsImpl() const override {
+        return StageSHAVEsRequirements::NeedMax;
+    }
 };
 
 }  // namespace

@@ -29,7 +29,7 @@ class MemoryStateTests : public ::testing::Test {
 };
 
 TEST_F(MemoryStateTests, ExecutableNetworkCanConvertOneMemoryStateFromCppToAPI) {
-    auto net = ExecutableNetwork(make_executable_network(mockExeNetworkInternal));
+    auto net = make_executable_network(mockExeNetworkInternal);
     std::vector<IMemoryStateInternal::Ptr> toReturn(1);
     toReturn[0] = mockMemoryStateInternal;
 
@@ -40,7 +40,7 @@ TEST_F(MemoryStateTests, ExecutableNetworkCanConvertOneMemoryStateFromCppToAPI) 
 }
 
 TEST_F(MemoryStateTests, ExecutableNetworkCanConvertZeroMemoryStateFromCppToAPI) {
-    auto net = ExecutableNetwork(make_executable_network(mockExeNetworkInternal));
+    auto net = make_executable_network(mockExeNetworkInternal);
     std::vector<IMemoryStateInternal::Ptr> toReturn;
 
     EXPECT_CALL(*mockExeNetworkInternal.get(), QueryState()).WillOnce(Return(toReturn));
@@ -50,7 +50,7 @@ TEST_F(MemoryStateTests, ExecutableNetworkCanConvertZeroMemoryStateFromCppToAPI)
 }
 
 TEST_F(MemoryStateTests, ExecutableNetworkCanConvert2MemoryStatesFromCPPtoAPI) {
-    auto net = ExecutableNetwork(make_executable_network(mockExeNetworkInternal));
+    auto net = make_executable_network(mockExeNetworkInternal);
     std::vector<IMemoryStateInternal::Ptr> toReturn;
     toReturn.push_back(mockMemoryStateInternal);
     toReturn.push_back(mockMemoryStateInternal);
@@ -62,7 +62,7 @@ TEST_F(MemoryStateTests, ExecutableNetworkCanConvert2MemoryStatesFromCPPtoAPI) {
 }
 
 TEST_F(MemoryStateTests, MemoryStatePropagatesReset) {
-    auto net = ExecutableNetwork(make_executable_network(mockExeNetworkInternal));
+    auto net = make_executable_network(mockExeNetworkInternal);
     std::vector<IMemoryStateInternal::Ptr> toReturn;
     toReturn.push_back(mockMemoryStateInternal);
 
@@ -74,7 +74,7 @@ TEST_F(MemoryStateTests, MemoryStatePropagatesReset) {
 }
 
 TEST_F(MemoryStateTests, MemoryStatePropagatesExceptionsFromReset) {
-    auto net = ExecutableNetwork(make_executable_network(mockExeNetworkInternal));
+    auto net = make_executable_network(mockExeNetworkInternal);
     std::vector<IMemoryStateInternal::Ptr> toReturn;
     toReturn.push_back(mockMemoryStateInternal);
 
@@ -86,7 +86,7 @@ TEST_F(MemoryStateTests, MemoryStatePropagatesExceptionsFromReset) {
 }
 
 TEST_F(MemoryStateTests, MemoryStatePropagatesGetName) {
-    auto net = ExecutableNetwork(make_executable_network(mockExeNetworkInternal));
+    auto net = make_executable_network(mockExeNetworkInternal);
     std::vector<IMemoryStateInternal::Ptr> toReturn;
     toReturn.push_back(mockMemoryStateInternal);
 
@@ -98,7 +98,7 @@ TEST_F(MemoryStateTests, MemoryStatePropagatesGetName) {
 }
 
 TEST_F(MemoryStateTests, MemoryStatePropagatesGetNameWithZeroLen) {
-    auto net = ExecutableNetwork(make_executable_network(mockExeNetworkInternal));
+    auto net = make_executable_network(mockExeNetworkInternal);
     std::vector<IMemoryStateInternal::Ptr> toReturn;
     toReturn.push_back(mockMemoryStateInternal);
 
@@ -114,7 +114,7 @@ TEST_F(MemoryStateTests, MemoryStatePropagatesGetNameWithZeroLen) {
 
 
 TEST_F(MemoryStateTests, MemoryStatePropagatesGetNameWithLenOfOne) {
-    auto net = ExecutableNetwork(make_executable_network(mockExeNetworkInternal));
+    auto net = make_executable_network(mockExeNetworkInternal);
     std::vector<IMemoryStateInternal::Ptr> toReturn;
     toReturn.push_back(mockMemoryStateInternal);
 
@@ -130,7 +130,7 @@ TEST_F(MemoryStateTests, MemoryStatePropagatesGetNameWithLenOfOne) {
 }
 
 TEST_F(MemoryStateTests, MemoryStatePropagatesGetNameWithLenOfTwo) {
-    auto net = ExecutableNetwork(make_executable_network(mockExeNetworkInternal));
+    auto net = make_executable_network(mockExeNetworkInternal);
     std::vector<IMemoryStateInternal::Ptr> toReturn;
     toReturn.push_back(mockMemoryStateInternal);
 
@@ -146,7 +146,7 @@ TEST_F(MemoryStateTests, MemoryStatePropagatesGetNameWithLenOfTwo) {
 }
 
 TEST_F(MemoryStateTests, MemoryStateCanPropagateSetState) {
-    auto net = ExecutableNetwork(make_executable_network(mockExeNetworkInternal));
+    auto net = make_executable_network(mockExeNetworkInternal);
     std::vector<IMemoryStateInternal::Ptr> toReturn;
     Blob::Ptr saver;
     toReturn.push_back(mockMemoryStateInternal);
@@ -164,7 +164,7 @@ TEST_F(MemoryStateTests, MemoryStateCanPropagateSetState) {
 }
 
 TEST_F(MemoryStateTests, MemoryStateCanPropagateGetLastState) {
-    auto net = ExecutableNetwork(make_executable_network(mockExeNetworkInternal));
+    auto net = make_executable_network(mockExeNetworkInternal);
     std::vector<IMemoryStateInternal::Ptr> toReturn;
 
     float data[] = {123, 124, 125};

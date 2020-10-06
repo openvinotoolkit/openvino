@@ -16,7 +16,7 @@
 
 #include <memory>
 
-#include "ngraph/itt.hpp"
+#include "itt.hpp"
 #include "ngraph/op/convert.hpp"
 #include "ngraph/op/greater.hpp"
 #include "ngraph/op/maximum.hpp"
@@ -24,6 +24,8 @@
 #include "ngraph/runtime/host_tensor.hpp"
 #include "ngraph/runtime/reference/maximum.hpp"
 #include "ngraph/type/element_type.hpp"
+
+NGRAPH_SUPPRESS_DEPRECATED_START
 
 using namespace std;
 using namespace ngraph;

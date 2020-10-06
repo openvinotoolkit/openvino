@@ -22,5 +22,6 @@ class TRANSFORMATIONS_API ConvertPowerToPowerIEMatcher;
 
 class ngraph::pass::ConvertPowerToPowerIEMatcher: public ngraph::pass::MatcherPass {
 public:
+    NGRAPH_RTTI_DECLARATION;
     ConvertPowerToPowerIEMatcher();
 };

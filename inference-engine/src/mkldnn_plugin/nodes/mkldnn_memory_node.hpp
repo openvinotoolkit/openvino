@@ -84,7 +84,7 @@ class MKLDNNMemoryOutputNode : public MKLDNNNode, public MKLDNNMemoryNode {
      * @brief keeps reference to input sibling node
      */
     MKLDNNNode* inputNode = nullptr;
-    static Register<MKLDNNMemoryOutputNode> reg;
+    static Registrar<MKLDNNMemoryOutputNode> reg;
     MKLDNNMemoryNodeVirtualEdge::Holder* holder = nullptr;
 };
 
@@ -106,7 +106,7 @@ public:
     MKLDNNMemoryPtr getStore();
  private:
     MKLDNNMemoryPtr dataStore;
-    static Register<MKLDNNMemoryInputNode> reg;
+    static Registrar<MKLDNNMemoryInputNode> reg;
     MKLDNNMemoryNodeVirtualEdge::Holder* holder = nullptr;
 };
 #endif

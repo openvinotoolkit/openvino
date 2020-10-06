@@ -283,7 +283,7 @@ def get_common_cli_parser(parser: argparse.ArgumentParser = None):
                               action='store_true')
     common_group.add_argument('--move_to_preprocess',
                               help='Move mean values to IR preprocess section',
-                              action='store_true')
+                              action=DeprecatedStoreTrue)
     # we use CanonicalizeDirCheckExistenceAction instead of readable_dirs to handle empty strings
     common_group.add_argument("--extensions",
                               help="Directory or a comma separated list of directories with extensions. To disable all "
@@ -317,10 +317,14 @@ def get_common_cli_parser(parser: argparse.ArgumentParser = None):
                               help='Force to generate deprecated IR V7 with layers from old IR specification.',
                               action=IgnoredAction,
                               default=False)
-    common_group.add_argument('--keep_shape_ops',
-                              help='[ Experimental feature ] Enables `Shape` operation with all children keeping. '
-                                   'This feature makes model reshapable in Inference Engine',
+    common_group.add_argument('--static_shape',
+                              help='Enables IR generation for fixed input shape (folding `ShapeOf` operations and '
+                                   'shape-calculating sub-graphs to `Constant`). Changing model input shape using '
+                                   'the Inference Engine API in runtime may fail for such an IR.',
                               action='store_true', default=False)
+    common_group.add_argument('--keep_shape_ops',
+                              help='The option is ignored. Expected behavior is enabled by default.',
+                              action=IgnoredAction, default=True)
     common_group.add_argument('--disable_weights_compression',
                               help='Disable compression and store weights with original precision.',
                               action='store_true', default=False)
@@ -610,7 +614,7 @@ def get_onnx_cli_parser(parser: argparse.ArgumentParser = None):
         parser = argparse.ArgumentParser(usage='%(prog)s [options]')
         get_common_cli_parser(parser=parser)
 
-    tf_group = parser.add_argument_group('ONNX*-specific parameters')
+    onnx_group = parser.add_argument_group('ONNX*-specific parameters')
 
     return parser
 

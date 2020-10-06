@@ -1,4 +1,5 @@
 #distutils: language=c++
+#cython: embedsignature=True
 from cython.operator cimport dereference as deref
 from libcpp.string cimport string
 from libcpp.vector cimport vector
@@ -13,7 +14,6 @@ from libc.string cimport memcpy
 
 import os
 from fnmatch import fnmatch
-from pathlib import Path
 import threading
 import warnings
 from copy import deepcopy
@@ -258,7 +258,7 @@ cdef class IECore:
     #  ie = IECore()
     #  net = ie.read_network(model=path_to_xml_file, weights=path_to_bin_file)
     #  ```
-    cpdef IENetwork read_network(self, model: [str, bytes, Path], weights: [str, bytes, Path] = "", init_from_buffer: bool = False):
+    cpdef IENetwork read_network(self, model: [str, bytes, os.PathLike], weights: [str, bytes, os.PathLike] = "", init_from_buffer: bool = False):
         cdef uint8_t*bin_buffer
         cdef string weights_
         cdef string model_
@@ -270,22 +270,18 @@ cdef class IECore:
             net.impl = self.impl.readNetwork(model_, bin_buffer, len(weights))
         else:
             weights_ = "".encode()
-            if isinstance(model, Path) and (isinstance(weights, Path) or not weights):
-                if not model.is_file():
-                    raise Exception("Path to the model {} doesn't exist or it's a directory".format(model))
-                if model.suffix not in [ ".onnx", ".prototxt"]:
-                    if not weights.is_file():
-                        raise Exception("Path to the weights {} doesn't exist or it's a directory".format(weights))
-                    weights_ = bytes(weights)
-                model_ = bytes(model)
-            else:
-                if not os.path.isfile(model):
-                    raise Exception("Path to the model {} doesn't exist or it's a directory".format(model))
-                if not (fnmatch(model, "*.onnx") or fnmatch(model, "*.prototxt")):
-                    if not os.path.isfile(weights):
-                        raise Exception("Path to the weights {} doesn't exist or it's a directory".format(weights))
-                    weights_ = weights.encode()
-                model_ = model.encode()
+
+            model = os.fspath(model)
+            if not os.path.isfile(model):
+                raise Exception("Path to the model {} doesn't exist or it's a directory".format(model))
+            model_ = model.encode()
+
+            if not (fnmatch(model, "*.onnx") or fnmatch(model, "*.prototxt")):
+                weights = os.fspath(weights)
+                if not os.path.isfile(weights):
+                    raise Exception("Path to the weights {} doesn't exist or it's a directory".format(weights))
+                weights_ = weights.encode()
+
             net.impl =  self.impl.readNetwork(model_, weights_)
         return net
 
@@ -736,6 +732,8 @@ cdef class DataPtr:
 
     @property
     def creator_layer(self):
+        warnings.warn("'creator_layer' property of DataPtr class is deprecated and is going to be removed in 2021.2.",
+                      DeprecationWarning)
         cdef C.CNNLayerWeakPtr _l_ptr
         cdef IENetLayer creator_layer
 
@@ -752,6 +750,8 @@ cdef class DataPtr:
 
     @property
     def input_to(self):
+        warnings.warn("'input_to' property of DataPtr class is deprecated and is going to be removed in 2021.2.",
+                      DeprecationWarning)
         cdef map[string, C.CNNLayerPtr] _l_ptr_map
         cdef IENetLayer input_to
 

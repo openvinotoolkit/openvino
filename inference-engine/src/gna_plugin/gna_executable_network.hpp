@@ -21,10 +21,22 @@ class GNAExecutableNetwork : public InferenceEngine::ExecutableNetworkThreadSafe
     std::shared_ptr<GNAPlugin> plg;
 
  public:
-    GNAExecutableNetwork(const std::string &aotFileName, std::shared_ptr<GNAPlugin> plg)
+     GNAExecutableNetwork(const std::string& aotFileName, std::shared_ptr<GNAPlugin> plg)
+         : plg(plg) {
+         std::fstream inputStream(aotFileName, std::ios_base::in | std::ios_base::binary);
+         if (inputStream.fail()) {
+             THROW_GNA_EXCEPTION << "Cannot open file to import model: " << aotFileName;
+         }
+
+         plg->ImportNetwork(inputStream);
+         _networkInputs = plg->GetInputs();
+         _networkOutputs = plg->GetOutputs();
+     }
+
+    GNAExecutableNetwork(std::istream& networkModel, std::shared_ptr<GNAPlugin> plg)
         : plg(plg) {
-        plg->ImportNetwork(aotFileName);
-        _networkInputs  = plg->GetInputs();
+        plg->ImportNetwork(networkModel);
+        _networkInputs = plg->GetInputs();
         _networkOutputs = plg->GetOutputs();
     }
 
@@ -33,7 +45,7 @@ class GNAExecutableNetwork : public InferenceEngine::ExecutableNetworkThreadSafe
         plg->LoadNetwork(network);
     }
 
-    GNAExecutableNetwork(const std::string &aotFileName, const std::map<std::string, std::string> &config)
+    GNAExecutableNetwork(const std::string& aotFileName, const std::map<std::string, std::string>& config)
         : GNAExecutableNetwork(aotFileName, std::make_shared<GNAPlugin>(config)) {
     }
 

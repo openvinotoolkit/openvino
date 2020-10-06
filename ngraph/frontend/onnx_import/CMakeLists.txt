@@ -20,19 +20,15 @@ file(GLOB_RECURSE LIBRARY_SRC ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp)
 file(GLOB_RECURSE PUBLIC_HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/include/*.hpp)
 
 # Remove disabled ops
-list(REMOVE_ITEM LIBRARY_SRC 
+list(REMOVE_ITEM LIBRARY_SRC
     ${CMAKE_CURRENT_SOURCE_DIR}/src/op/conv_integer.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/op/gather_nd.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/op/quant_conv.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/op/round.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/op/scatter_nd.cpp
     )
-list(REMOVE_ITEM PUBLIC_HEADERS 
+list(REMOVE_ITEM PUBLIC_HEADERS
     ${CMAKE_CURRENT_SOURCE_DIR}/include/onnx_import/op/conv_integer.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/onnx_import/op/gather_nd.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/onnx_import/op/quant_conv.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/include/onnx_import/op/round.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/include/onnx_import/op/scatter_nd.hpp
     )
 
 set(ONNX_IMPORT_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/include CACHE INTERNAL "")
@@ -46,7 +42,13 @@ source_group("include" FILES ${PUBLIC_HEADERS})
 # Create shared library
 add_library(onnx_importer SHARED ${LIBRARY_SRC} ${PUBLIC_HEADERS})
 
-target_link_libraries(onnx_importer PRIVATE onnx onnx_proto ${Protobuf_LIBRARIES})
+if(COMMAND ie_faster_build)
+    ie_faster_build(onnx_importer
+        PCH PRIVATE "src/precomp.hpp"
+    )
+endif()
+
+target_link_libraries(onnx_importer PRIVATE onnx onnx_proto ${Protobuf_LIBRARIES} ngraph::builder)
 target_link_libraries(onnx_importer PUBLIC ngraph)
 
 set_target_properties(onnx_importer PROPERTIES
@@ -58,7 +60,7 @@ target_include_directories(onnx_importer SYSTEM PUBLIC $<BUILD_INTERFACE:${ONNX_
                                                        $<INSTALL_INTERFACE:include/ngraph/frontend/>)
 target_include_directories(onnx_importer SYSTEM PRIVATE ${NGRAPH_INCLUDE_PATH} ${NGRAPH_INCLUDE_PATH}/ngraph
         ${ONNX_INCLUDE_DIR} ${ONNX_PROTO_INCLUDE_DIR} ${Protobuf_INCLUDE_DIRS})
-target_include_directories(onnx_importer PRIVATE ${ONNX_IMPORT_INCLUDE_DIR}/onnx_import/core 
+target_include_directories(onnx_importer PRIVATE ${ONNX_IMPORT_INCLUDE_DIR}/onnx_import/core
                                                  ${ONNX_IMPORT_INCLUDE_DIR}/onnx_import/op
                                                  ${ONNX_IMPORT_INCLUDE_DIR}/onnx_import/utils)
 

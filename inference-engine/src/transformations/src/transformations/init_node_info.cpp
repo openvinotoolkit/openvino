@@ -13,6 +13,8 @@
 #include <ngraph/rt_info.hpp>
 #include <ngraph/variant.hpp>
 
+NGRAPH_RTTI_DEFINITION(ngraph::pass::InitNodeInfo, "InitNodeInfo", 0);
+
 bool ngraph::pass::InitNodeInfo::run_on_function(std::shared_ptr<ngraph::Function> f) {
     std::vector<std::shared_ptr<Variant> > attributes {
         std::make_shared<VariantWrapper<FusedNames> >(FusedNames())
@@ -28,6 +30,12 @@ bool ngraph::pass::InitNodeInfo::run_on_function(std::shared_ptr<ngraph::Functio
     };
 
     for (auto & node : f->get_ops()) {
+        // Recursively apply transformation for sub-graph based operations
+        if (auto sub_graph_node = std::dynamic_pointer_cast<op::util::SubGraphOp>(node)) {
+            if (auto sub_graph = sub_graph_node->get_function()) {
+                run_on_function(sub_graph);
+            }
+        }
         auto & rtInfo = node->get_rt_info();
         // Default attributes initialization
         for (auto & attr : attributes) {

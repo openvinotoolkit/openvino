@@ -25,6 +25,7 @@ class TRANSFORMATIONS_API ConvertScatterElementsToScatter;
  */
 class ngraph::pass::ConvertScatterElementsToScatter: public ngraph::pass::GraphRewrite {
 public:
+    NGRAPH_RTTI_DECLARATION;
     ConvertScatterElementsToScatter() : GraphRewrite() {
         convert_scatter_elements_to_scatter();
     }

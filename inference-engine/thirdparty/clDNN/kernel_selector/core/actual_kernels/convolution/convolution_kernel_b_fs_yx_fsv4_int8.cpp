@@ -23,11 +23,16 @@ constexpr size_t sub_group_size = 16;
 
 ParamsKey ConvolutionKernel_b_fs_yx_fsv4_int8::GetSupportedKey() const {
     ParamsKey k;
-    k.EnableOutputDataType(Datatype::F32);
     k.EnableInputDataType(Datatype::INT8);
-    k.EnableInputWeightsType(WeightsType::INT8);
-    k.EnableOutputDataType(Datatype::INT8);
     k.EnableInputDataType(Datatype::UINT8);
+
+    k.EnableOutputDataType(Datatype::F32);
+    k.EnableOutputDataType(Datatype::F16);
+    k.EnableOutputDataType(Datatype::INT8);
+    k.EnableOutputDataType(Datatype::UINT8);
+
+    k.EnableInputWeightsType(WeightsType::INT8);
+
     k.EnableInputLayout(DataLayout::b_fs_yx_fsv4);
     k.EnableOutputLayout(DataLayout::b_fs_yx_fsv4);
     k.EnableTensorOffset();

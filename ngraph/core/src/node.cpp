@@ -19,9 +19,9 @@
 #include <typeindex>
 #include <typeinfo>
 
+#include "itt.hpp"
 #include "ngraph/descriptor/input.hpp"
 #include "ngraph/graph_util.hpp"
-#include "ngraph/itt.hpp"
 #include "ngraph/node.hpp"
 #include "ngraph/op/constant.hpp"
 #include "ngraph/op/parameter.hpp"
@@ -53,6 +53,26 @@ Node::Node(const Node& node)
         input = descriptor::Input(this, input.get_index(), input.get_output());
         input.get_output().add_input(&input);
     }
+}
+
+Node& Node::operator=(const Node& node)
+{
+    this->m_control_dependents = node.m_control_dependents;
+    this->m_control_dependencies = node.m_control_dependencies;
+    this->m_instance_id = m_next_instance_id.fetch_add(1);
+    this->m_friendly_name = node.m_friendly_name;
+    this->m_provenance_tags = node.m_provenance_tags;
+    this->m_provenance_group = node.m_provenance_group;
+    this->m_inputs = node.m_inputs;
+    this->m_op_annotations = node.m_op_annotations;
+    this->m_rt_info = node.m_rt_info;
+    // cannot do it without copying node.m_inputs first due to too limiting const qualifiers
+    for (auto& input : m_inputs)
+    {
+        input = descriptor::Input(this, input.get_index(), input.get_output());
+        input.get_output().add_input(&input);
+    }
+    return *this;
 }
 
 Node::Node(size_t output_size)
@@ -556,14 +576,14 @@ std::ostream& Node::write_description(std::ostream& out, uint32_t depth) const
 {
     if (depth == 0)
     {
-        out << get_name();
+        out << get_friendly_name();
     }
     else
     {
-        out << "v" << get_type_info().version << "::" << get_type_info().name << " " << get_name()
-            << "(";
+        out << "v" << get_type_info().version << "::" << get_type_info().name << " "
+            << get_friendly_name() << " (";
         string sep = "";
-        for (auto arg : input_values())
+        for (const auto& arg : input_values())
         {
             out << sep << arg;
             sep = ", ";

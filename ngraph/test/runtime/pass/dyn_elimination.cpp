@@ -28,6 +28,8 @@
 #include "ngraph/runtime/reference/range.hpp"
 #include "ngraph/slice_plan.hpp"
 
+NGRAPH_SUPPRESS_DEPRECATED_START
+
 using namespace std;
 using namespace ngraph;
 
