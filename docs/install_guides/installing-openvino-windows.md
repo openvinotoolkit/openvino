@@ -2,8 +2,6 @@
 
 > **NOTES**:
 > - This guide applies to Microsoft Windows\* 10 64-bit. For Linux* OS information and instructions, see the [Installation Guide for Linux](installing-openvino-linux.md).
-> - For the Intel® Distribution of OpenVINO™ toolkit for Windows* 10 with FPGA
-support, see [Installation Guide for Windows* with FPGA support](installing-openvino-windows-fpga.md).
 > - [Intel® System Studio](https://software.intel.com/en-us/system-studio) is an all-in-one, cross-platform tool suite, purpose-built to simplify system bring-up and improve system and IoT device application performance on Intel® platforms. If you are using the Intel® Distribution of OpenVINO™ with Intel® System Studio, go to [Get Started with Intel® System Studio](https://software.intel.com/en-us/articles/get-started-with-openvino-and-intel-system-studio-2019).
 
 ## Introduction
@@ -19,9 +17,9 @@ Your installation is complete when these are all completed:
 2. Install the dependencies:
 
    - [Microsoft Visual Studio* with C++ **2019 or 2017** with MSBuild](http://visualstudio.microsoft.com/downloads/)  
-   - [CMake **2.8.12 or higher** 64-bit](https://cmake.org/download/)
+   - [CMake **3.10 or higher** 64-bit](https://cmake.org/download/)
    > **NOTE**: If you want to use Microsoft Visual Studio 2019, you are required to install CMake 3.14.
-   - [Python **3.5** - **3.7** 64-bit](https://www.python.org/downloads/windows/)
+   - [Python **3.6** - **3.8** 64-bit](https://www.python.org/downloads/windows/)
    > **IMPORTANT**: As part of this installation, make sure you click the option to add the application to your `PATH` environment variable.
 
 3. <a href="#set-the-environment-variables">Set Environment Variables</a>         
@@ -62,14 +60,14 @@ The following components are installed by default:
 |[OpenCV\*](https://docs.opencv.org/master/)                                                         |OpenCV* community version compiled for Intel® hardware                                                                                                                                                                                         |
 |[Inference Engine Samples](../IE_DG/Samples_Overview.md)                             |A set of simple console applications demonstrating how to use Intel's Deep Learning Inference Engine in your applications.  |
 | [Demos](@ref omz_demos_README)                                   | A set of console applications that demonstrate how you can use the Inference Engine in your applications to solve specific use-cases  |
-| [Additional Tools](../IE_DG/Tools_Overview.md)                                   | A set of tools to work with your models  |
+| Additional Tools                                   | A set of tools to work with your models including [Accuracy Checker utility](@ref omz_tools_accuracy_checker_README), [Post-Training Optimization Tool Guide](@ref pot_README), [Model Downloader](@ref omz_tools_downloader_README) and other  |
 | [Documentation for Pre-Trained Models ](@ref omz_models_intel_index)                                   | Documentation for the pre-trained models available in the [Open Model Zoo repo](https://github.com/opencv/open_model_zoo)  |
 
 ### System Requirements
 
 **Hardware**
 
-* 6th to 10th generation Intel® Core™ processors and Intel® Xeon® processors 
+* 6th to 11th generation Intel® Core™ processors and Intel® Xeon® processors 
 * Intel® Xeon® processor E family (formerly code named Sandy Bridge, Ivy Bridge, Haswell, and Broadwell)
 * 3rd generation Intel® Xeon® Scalable processor (formerly code named Cooper Lake)
 * Intel® Xeon® Scalable processor (formerly Skylake and Cascade Lake)
@@ -91,9 +89,9 @@ The following components are installed by default:
 
 **Software**
 - [Microsoft Visual Studio* with C++ **2019 or 2017** with MSBuild](http://visualstudio.microsoft.com/downloads/)
-- [CMake **2.8.12 or higher** 64-bit](https://cmake.org/download/)
+- [CMake **3.10 or higher** 64-bit](https://cmake.org/download/)
    > **NOTE**: If you want to use Microsoft Visual Studio 2019, you are required to install CMake 3.14.
-- [Python **3.5** - **3.7** 64-bit](https://www.python.org/downloads/windows/)
+- [Python **3.6** - **3.8** 64-bit](https://www.python.org/downloads/windows/)
 
 ## Installation Steps
 

@@ -18,7 +18,7 @@ The Deployment Manager is a Python\* command-line tool that is delivered within 
      * Steps for the Intel® Vision Accelerator Design with Intel® Movidius™ VPUs
      
 
-> **IMPORTANT**: The operating system on the target host must be the same as the development system on which you are creating the package. For example, if the target system is Ubuntu 16.04, the deployment package must be created from the OpenVINO™ toolkit installed on Ubuntu 16.04.     
+> **IMPORTANT**: The operating system on the target host must be the same as the development system on which you are creating the package. For example, if the target system is Ubuntu 18.04, the deployment package must be created from the OpenVINO™ toolkit installed on Ubuntu 18.04.     
 
 ## Create Deployment Package Using Deployment Manager
 
