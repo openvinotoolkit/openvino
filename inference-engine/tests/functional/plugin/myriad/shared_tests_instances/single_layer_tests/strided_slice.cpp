@@ -48,7 +48,7 @@ Config getConfig() {
     return config;
 }
 
-INSTANTIATE_TEST_CASE_P(StridedSlice_tests, StridedSliceLayerTest,
+INSTANTIATE_TEST_CASE_P(smoke_StridedSlice_tests, StridedSliceLayerTest,
                         ::testing::Combine(
                             ::testing::ValuesIn(testCases),
                             ::testing::ValuesIn(precisions),

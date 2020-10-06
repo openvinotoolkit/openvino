@@ -24,6 +24,7 @@
 #include <ngraph/pass/manager.hpp>
 #include <ngraph/opsets/opset3.hpp>
 #include <ngraph/opsets/opset4.hpp>
+#include <ngraph/opsets/opset5.hpp>
 #include <transformations/convert_opset3_to_opset2/convert_opset3_to_opset2.hpp>
 #include <transformations/convert_opset2_to_opset1/convert_opset2_to_opset1.hpp>
 #include <transformations/convert_opset1_to_legacy/convert_opset1_to_legacy.hpp>
@@ -155,7 +156,9 @@ ie::ICNNNetwork::Ptr FrontEnd::convertNetwork(ie::ICNNNetwork& network) {
     // disable transformations for some cases
     const auto transformationsPredicate = [](const std::shared_ptr<const ngraph::Node>& node) -> bool {
         const bool casesWithDynamicOrStaticUsage =
-            std::dynamic_pointer_cast<const ngraph::opset3::Gelu>(node) || std::dynamic_pointer_cast<const ngraph::opset4::SoftPlus>(node);
+            std::dynamic_pointer_cast<const ngraph::opset3::Gelu>(node) ||
+            std::dynamic_pointer_cast<const ngraph::opset4::SoftPlus>(node) ||
+            std::dynamic_pointer_cast<const ngraph::opset5::Minimum>(node);
 
         const bool casesWithOnlyDynamicUsage =
             (std::dynamic_pointer_cast<const ngraph::opset3::MatMul>(node) ||
