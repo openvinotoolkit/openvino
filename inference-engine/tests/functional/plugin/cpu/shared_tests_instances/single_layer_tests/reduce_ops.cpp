@@ -119,42 +119,42 @@ const auto params_ReductionTypes = testing::Combine(
 );
 
 INSTANTIATE_TEST_CASE_P(
-        ReduceOneAxis,
+        smoke_ReduceOneAxis,
         ReduceOpsLayerTest,
         paramsOneAxis,
         ReduceOpsLayerTest::getTestCaseName
 );
 
 INSTANTIATE_TEST_CASE_P(
-        Reduce_Precisions,
+        smoke_Reduce_Precisions,
         ReduceOpsLayerTest,
         params_Precisions,
         ReduceOpsLayerTest::getTestCaseName
 );
 
 INSTANTIATE_TEST_CASE_P(
-        Reduce_InputShapes,
+        smoke_Reduce_InputShapes,
         ReduceOpsLayerTest,
         params_InputShapes,
         ReduceOpsLayerTest::getTestCaseName
 );
 
 INSTANTIATE_TEST_CASE_P(
-        Reduce_Axes,
+        smoke_Reduce_Axes,
         ReduceOpsLayerTest,
         params_Axes,
         ReduceOpsLayerTest::getTestCaseName
 );
 
 INSTANTIATE_TEST_CASE_P(
-        Reduce_ReductionTypes,
+        smoke_Reduce_ReductionTypes,
         ReduceOpsLayerTest,
         params_ReductionTypes,
         ReduceOpsLayerTest::getTestCaseName
 );
 
 INSTANTIATE_TEST_CASE_P(
-        Reduce,
+        smoke_Reduce,
         ReduceOpsLayerWithSpecificInputTest,
         testing::Combine(
                 testing::ValuesIn(decltype(axes) {{0}, {1}}),

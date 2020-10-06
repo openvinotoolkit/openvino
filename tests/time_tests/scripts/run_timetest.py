@@ -53,7 +53,7 @@ def run_cmd(args: list, log=None, verbose=True):
 def read_stats(stats_path, stats: dict):
     """Read statistics from a file and extend provided statistics"""
     with open(stats_path, "r") as file:
-        parsed_data = yaml.load(file, Loader=yaml.FullLoader)
+        parsed_data = yaml.safe_load(file)
     return dict((step_name, stats.get(step_name, []) + [duration])
                 for step_name, duration in parsed_data.items())
 
@@ -68,7 +68,7 @@ def aggregate_stats(stats: dict):
 def write_aggregated_stats(stats_path, stats: dict):
     """Write aggregated statistics to a file in YAML format"""
     with open(stats_path, "w") as file:
-        yaml.dump(stats, file)
+        yaml.safe_dump(stats, file)
 
 
 def prepare_executable_cmd(args: dict):
