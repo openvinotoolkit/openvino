@@ -42,5 +42,10 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*IEClassHeteroExecutableNetworkGetMetricTest_TARGET_FALLBACK.*)",
         // TODO: Issue 39358
         R"(.*unaligned.*MultipleConcatTest.*)",
+        // TODO: Issue 38974
+        R"(.*ConcatMultiInput.CompareWithRefConstOnly.*IS=\(1.8\).*)",
+        R"(.*ConcatMultiInput.CompareWithRefConstOnly.*IS=\(1.16\).*)",
+        // TODO: Issue 40309
+        R"(.*ConcatMultiInput.CompareWithRefConstOnly.*IS=\(1.16\)\(1.32\).*)",
     };
 }
