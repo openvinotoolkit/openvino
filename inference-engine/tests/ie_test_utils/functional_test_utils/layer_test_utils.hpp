@@ -60,7 +60,7 @@ public:
 
     virtual void SetRefMode(RefMode mode);
 
-    void сheckKernel(std::string layerType, std::string permissibleKernel);
+    void checkKernel(std::string layerType, std::string permissibleKernel);
 
     std::string getKernel(std::string layerName);
 

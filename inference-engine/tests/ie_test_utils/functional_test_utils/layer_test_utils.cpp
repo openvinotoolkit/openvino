@@ -211,7 +211,7 @@ void LayerTestsCommon::Validate() {
     Compare(expectedOutputs, actualOutputs);
 }
 
-void LayerTestsCommon::сheckKernel(std::string layerType, std::string permissibleKernel) {
+void LayerTestsCommon::checkKernel(std::string layerType, std::string permissibleKernel) {
     std::vector<std::string> opNames;
     auto perfomanceCounters = inferRequest.GetPerformanceCounts();
     for (auto& pc : perfomanceCounters) {
