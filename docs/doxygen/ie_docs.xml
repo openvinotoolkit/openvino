@@ -56,6 +56,8 @@
             </tab>
             <!-- Model Downloader -->
             <tab type="user" title="Model Downloader" url="@ref omz_tools_downloader_README"/>
+            <!-- Custom Layers Guide -->
+            <tab type="usergroup" title="Custom Layers Guide" url="@ref openvino_docs_HOWTO_Custom_Layers_Guide"></tab>
         </tab>    
         
         <!-- Intermediate Representation and Operations Sets -->
@@ -296,8 +298,5 @@
             <!-- Inference Engine Plugin Development Guide-->
             <tab type="user" title="Inference Engine Plugin Development Guide" url="ie_plugin_api/index.html"/>
         </tab>
-
-        <!-- Custom Layers Guide -->
-        <tab id="custom_layers_guide" type="usergroup" title="Custom Layers Guide" url="@ref openvino_docs_HOWTO_Custom_Layers_Guide"></tab>
     </navindex>
 </doxygenlayout>

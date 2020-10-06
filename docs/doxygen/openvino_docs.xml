@@ -13,7 +13,7 @@
                 </tab>     
                 <tab type="usergroup" title="Windows" url="@ref openvino_docs_install_guides_installing_openvino_windows">
                     <tab type="user" title="Install Intel® Distribution of OpenVINO™ toolkit for Windows* 10" url="@ref openvino_docs_install_guides_installing_openvino_windows"/>
-                    <tab type="user" title="[DEPRECATED] Install Intel® Distribution of OpenVINO™ toolkit for Windows* with FPGA support" url="openvino_docs_install_guides_installing_openvino_windows_fpga"/>
+                    <tab type="user" title="[DEPRECATED] Install Intel® Distribution of OpenVINO™ toolkit for Windows* with FPGA support" url="@ref openvino_docs_install_guides_installing_openvino_windows_fpga"/>
                 </tab>
                 <tab type="user" title="macOS" url="@ref openvino_docs_install_guides_installing_openvino_macos"/>
                 <tab type="user" title="Raspbian OS" url="@ref openvino_docs_install_guides_installing_openvino_raspbian"/>
@@ -36,6 +36,7 @@
                 <tab type="user" title="Linux" url="@ref openvino_docs_get_started_get_started_linux"/>
                 <tab type="user" title="Windows" url="@ref openvino_docs_get_started_get_started_windows"/>
                 <tab type="user" title="macOS" url="@ref openvino_docs_get_started_get_started_macos"/>
+                <tab type="user" title="Legal Information" url="@ref openvino_docs_Legal_Information"/>
             </tab>
             <!-- Configuration for Hardware -->
             <tab type="usergroup" title="Configuration for Hardware" url=""><!--automatically generated-->
@@ -55,7 +56,6 @@
                 <tab type="user" title="Using DL Workbench Securely" url="@ref openvino_docs_security_guide_workbench"/>
                 <tab type="user" title="Using Encrypted Models" url="@ref openvino_docs_IE_DG_protecting_model_guide"/>
             </tab>
-            <tab type="user" title="Legal Information" url="@ref openvino_docs_Legal_Information"/>
         </tab>
 
         <!-- DOCUMENTATION category -->
@@ -64,7 +64,6 @@
             <xi:include href="ie_docs.xml" xpointer="xpointer(//tab[@id='converting_and_preparing_models'])"/>
             <xi:include href="ie_docs.xml" xpointer="xpointer(//tab[@id='intermediate_representaton_and_operations_sets'])"/>
             <xi:include href="ie_docs.xml" xpointer="xpointer(//tab[@id='deploying_inference'])"/>
-            <xi:include href="ie_docs.xml" xpointer="xpointer(//tab[@id='custom_layers_guide'])"/>
             <!-- Workbench -->
             <xi:include href="workbench_docs.xml" xpointer="xpointer(//tab[@id='deep_learning_workbench'])"/>
             <!-- Optimization docs -->
