@@ -82,6 +82,8 @@ public:
     int m_center_point_box;
     bool m_sort_result_descending = true;
     element::Type m_output_type;
+private:
+    int64_t max_boxes_output_from_input() const;
 };
 
 }  // namespace op

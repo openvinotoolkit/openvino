@@ -863,7 +863,7 @@ static PartialShape infer_selected_indices_shape(const HostTensorVector& inputs,
                                                  int64_t max_output_boxes_per_class)
 {
     const auto boxes_ps = inputs[boxes_port]->get_partial_shape();
-    const auto scores_ps = inputs[1]->get_partial_shape();
+    const auto scores_ps = inputs[scores_port]->get_partial_shape();
 
     // NonMaxSuppression produces triplets
     // that have the following format: [batch_index, class_index, box_index]
