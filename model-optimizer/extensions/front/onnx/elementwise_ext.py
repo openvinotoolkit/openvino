@@ -196,5 +196,5 @@ class RoundFrontExtractor(FrontExtractorOp):
 
     @classmethod
     def extract(cls, node: Node):
-        Round.update_node_stat(node)
+        Round.update_node_stat(node, {'mode': 'half_to_even'})
         return cls.enabled

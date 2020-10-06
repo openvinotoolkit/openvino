@@ -209,14 +209,20 @@ class Round(Elementwise):
     op_type = 'Round'
     version = 'opset4'
     operation = staticmethod(lambda a: np.round(a))
+
     def __init__(self, graph: Graph, attrs):
-        elu_attrs = {'in_ports_count': 1}
-        elu_attrs.update(attrs)
-        super().__init__(graph, elu_attrs)
+        round_attrs = {'in_ports_count': 1,
+                       'mode': 'half_to_even'
+                       }
+        round_attrs.update(attrs)
+        super().__init__(graph, round_attrs)
 
     @staticmethod
     def type_infer(node):
         copy_type_infer(node)
+
+    def backend_attrs(self):
+        return ['mode']
 
 
 class LogicalOr(LogicalElementwise):
