@@ -48,6 +48,13 @@ const std::vector<LayerTestsDefinitions::ConvolutionTransformationParam> params 
         false,
         "jit[0-9a-z_]*I8"
     },
+    {
+        { 256ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 255.f }, { -12.7f }, { 12.8f } },
+        true,
+        { 255ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 254.f }, { -12.7f }, { 12.7f } },
+        false,
+        "jit[0-9a-z_]*I8"
+    },
     //{
     //    { 256ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 255.f }, { 1.f }, { 25.5f } },
     //    true,
