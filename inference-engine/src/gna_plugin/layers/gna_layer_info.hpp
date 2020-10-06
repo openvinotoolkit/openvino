@@ -13,6 +13,7 @@
 #include "backend/gna_types.h"
 #include "gna_permute.hpp"
 #include "gna_lib_ver_selector.hpp"
+#include "gna_copy_layer.hpp"
 
 
 namespace GNAPluginNS {
@@ -48,6 +49,10 @@ class LayerInfo {
     }
     explicit LayerInfo(InferenceEngine::CNNLayer * layer)
         : layer(layer) {
+    }
+    bool hasMultipleInputs() const noexcept {
+        IS_VALID();
+        return layer->insData.size() > 1;
     }
     bool has16BOutput() const noexcept {
         IS_VALID();
@@ -200,14 +205,17 @@ class LayerInfo {
     bool isConcat() const noexcept {
         return isOfType("concat");
     }
+    bool isFakeQnatize() const noexcept {
+        return isOfType("FakeQnatize");
+    }
     bool isNonFunctional() const noexcept {
-        return isOfType("reshape") || isOfType("squeeze") || isOfType("unsqueeze");
+        return isOfType("reshape") || isOfType("squeeze") || isOfType("unsqueeze") || isTrivialPermute();
     }
     bool isPermute() const noexcept {
         return isOfType("permute");
     }
     // @brief this not only mathematically trivial, has some WA for kaldi case
-    bool isTrivialPermute() {
+    bool isTrivialPermute() const {
         if (!isPermute()) return false;
 
         auto layerOrder = layer->GetParamAsInts("order");
@@ -260,16 +268,22 @@ class LayerInfo {
     bool isCropAffined() const noexcept {
         auto cropLayer = dynamic_cast<InferenceEngine::CropLayer *> (layer);
         if (cropLayer != nullptr && !cropLayer->offset.empty()) {
-            try {
-                size_t cropOffset = cropLayer->offset.back() * cropLayer->precision.size();
-                return (ALIGN64(cropOffset) != cropOffset);
-            } catch (InferenceEngine::details::InferenceEngineException) {}
+            // currently crop layer only supports 2 bytes in int16 and int8 mode.
+            // In fp32 mode this is not necessary but is useful for testing
+            auto bytesPerCropElement = 2;
+            size_t cropOffset = cropLayer->offset.back() * bytesPerCropElement;
+            return (ALIGN64(cropOffset) != cropOffset);
         }
         return false;
     }
     bool isCopy() const noexcept {
-        return isOfType("copy");
+        return isOfType(CopyLayerName) || isOfType(DelayedCopyLayerName);
     }
+
+    bool isCopyDelayed() const noexcept {
+        return isOfType(DelayedCopyLayerName);
+    }
+
     size_t paddingSize() const {
         static InferenceEngine::details::caseless_set<std::string> layersWithPossiblePadding = {"FullyConnected",
                                                                         "InnerProduct",

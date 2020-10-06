@@ -17,11 +17,11 @@ const std::vector<InferenceEngine::Precision> prc = {
 };
 
 const std::vector<std::vector<size_t>> inShapes = {
-        {1, 4, 30, 30},
+        {1, 1, 30, 30},
 };
 
 const std::vector<std::vector<size_t>> targetShapes = {
-        {1, 4, 40, 40},
+        {1, 1, 40, 40},
 };
 
 const  std::vector<ngraph::op::v4::Interpolate::InterpolateMode> modesWithoutNearest = {
@@ -40,6 +40,11 @@ const std::vector<ngraph::op::v4::Interpolate::CoordinateTransformMode> coordina
         ngraph::op::v4::Interpolate::CoordinateTransformMode::half_pixel,
         ngraph::op::v4::Interpolate::CoordinateTransformMode::asymmetric,
         ngraph::op::v4::Interpolate::CoordinateTransformMode::align_corners,
+};
+
+const std::vector<ngraph::op::v4::Interpolate::ShapeCalcMode> shapeCalculationMode = {
+        ngraph::op::v4::Interpolate::ShapeCalcMode::sizes,
+        ngraph::op::v4::Interpolate::ShapeCalcMode::scales,
 };
 
 const std::vector<ngraph::op::v4::Interpolate::NearestMode> nearestModes = {
@@ -69,25 +74,39 @@ const std::vector<double> cubeCoefs = {
         -0.75f,
 };
 
+const std::vector<std::vector<int64_t>> defaultAxes = {
+    {2, 3}
+};
+
+const std::vector<std::vector<float>> defaultScales = {
+    {1.33333f, 1.33333f}
+};
+
 const auto interpolateCasesWithoutNearest = ::testing::Combine(
         ::testing::ValuesIn(modesWithoutNearest),
+        ::testing::ValuesIn(shapeCalculationMode),
         ::testing::ValuesIn(coordinateTransformModes),
         ::testing::ValuesIn(defaultNearestMode),
         ::testing::ValuesIn(antialias),
         ::testing::ValuesIn(pads),
         ::testing::ValuesIn(pads),
-        ::testing::ValuesIn(cubeCoefs));
+        ::testing::ValuesIn(cubeCoefs),
+        ::testing::ValuesIn(defaultAxes),
+        ::testing::ValuesIn(defaultScales));
 
 const auto interpolateCases = ::testing::Combine(
         ::testing::ValuesIn(nearestMode),
+        ::testing::ValuesIn(shapeCalculationMode),
         ::testing::ValuesIn(coordinateTransformModes),
         ::testing::ValuesIn(nearestModes),
         ::testing::ValuesIn(antialias),
         ::testing::ValuesIn(pads),
         ::testing::ValuesIn(pads),
-        ::testing::ValuesIn(cubeCoefs));
+        ::testing::ValuesIn(cubeCoefs),
+        ::testing::ValuesIn(defaultAxes),
+        ::testing::ValuesIn(defaultScales));
 
-INSTANTIATE_TEST_CASE_P(Interpolate_Basic, InterpolateLayerTest, ::testing::Combine(
+INSTANTIATE_TEST_CASE_P(smoke_Interpolate_Basic, InterpolateLayerTest, ::testing::Combine(
         interpolateCasesWithoutNearest,
         ::testing::ValuesIn(prc),
         ::testing::ValuesIn(inShapes),
@@ -95,7 +114,7 @@ INSTANTIATE_TEST_CASE_P(Interpolate_Basic, InterpolateLayerTest, ::testing::Comb
         ::testing::Values(CommonTestUtils::DEVICE_CPU)),
     InterpolateLayerTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(Interpolate_Nearest, InterpolateLayerTest, ::testing::Combine(
+INSTANTIATE_TEST_CASE_P(smoke_Interpolate_Nearest, InterpolateLayerTest, ::testing::Combine(
         interpolateCases,
         ::testing::ValuesIn(prc),
         ::testing::ValuesIn(inShapes),

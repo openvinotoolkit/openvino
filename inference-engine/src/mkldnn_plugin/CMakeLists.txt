@@ -46,6 +46,7 @@ set(LAYERS
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_normalize_node.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_scatter_update_node.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_interpolate_node.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_reduce_node.cpp
 
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/list.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/batch_to_space.cpp
@@ -77,7 +78,6 @@ set(LAYERS
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/proposal_onnx.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/psroi.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/range.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/nodes/reduce.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/region_yolo.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/reorg_yolo.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/reverse_sequence.cpp
@@ -174,8 +174,8 @@ target_compile_definitions(${TARGET_NAME} PUBLIC -DMKLDNN_THR=${MKLDNN_THR})
 target_link_libraries(${TARGET_NAME} PRIVATE inference_engine inference_engine_lp_transformations
                       inference_engine_transformations mkldnn)
 
-## Cross compiled function
-## TODO: The same for proposal, proposalONNX, topk
+# Cross compiled function
+# TODO: The same for proposal, proposalONNX, topk
 cross_compiled_file(${TARGET_NAME}
         ARCH AVX512F AVX2 SSE42 ANY
                     nodes/argmax_imp.cpp

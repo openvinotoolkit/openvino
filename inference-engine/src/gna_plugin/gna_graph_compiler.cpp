@@ -110,6 +110,12 @@ void GNAGraphCompiler::fillConcatConnections(InferenceEngine::CNNLayerPtr layer)
                 InferenceEngine::details::product(begin(dataInput->getDims()),
                                                   end(dataInput->getDims())) * dataInput->getPrecision().size();
 
+        // concat align layer can have additional padding, so the size of layer needs to be calculated
+        // based on original number of rows
+        if (ptrConcatLayerInput->CheckParamPresence("original_num_rows")) {
+            layer_size = ptrConcatLayerInput->GetParamAsInt("original_num_rows") * dataInput->getPrecision().size();
+        }
+
         layerInfoItem.concatInputLayers.emplace_back(GNAConcatLayer::ConcatConnectedLayerInfo{ptrConcatLayerInput->name, concat_size, layer_size});
 
         concat_size += layer_size;
@@ -398,6 +404,11 @@ void GNAGraphCompiler::ConvolutionPrimitive(InferenceEngine::CNNLayerPtr layer) 
         ptr_weights,
         ptr_biases);
 
+    if (inputs->getLayout() == Layout::NHWC) {
+        currentComponent.orientation_in  = kDnnInterleavedOrientation;
+        currentComponent.orientation_out = kDnnInterleavedOrientation;
+    }
+
     size_t num_data_bytes_out =
         InferenceEngine::details::product(begin(outputs->getDims()), end(outputs->getDims()))
         * outputs->getPrecision().size();
@@ -531,9 +542,11 @@ void GNAGraphCompiler::PowerPrimitive(InferenceEngine::CNNLayerPtr layer) {
         connectInput(layer, ptr_inputs, num_data_bytes_in, 0, 0);
 
         if (gnaFlags->sw_fp32) {
+            IE_ASSERT(quantized == nullptr);
             gnamem->readonly().push_value(ptr_weights, power.scale, num_rows_out, 64);
             gnamem->readonly().push_value(ptr_biases, power.offset, num_rows_out, 64);
         } else {
+            IE_ASSERT(quantized != nullptr);
             auto quantizedScale = FLOAT_TO_INT16(std::min(quantized->_weights_quant.scale * power.scale,
                 static_cast<float>(INT16_MAX)));
             auto quantizedOffset = FLOAT_TO_INT32(std::min(quantized->_dst_quant.scale * power.offset,
@@ -693,7 +706,7 @@ void GNAGraphCompiler::CopyPrimitive(InferenceEngine::CNNLayerPtr layer) {
     void* ptr_outputs = nullptr;
     auto orientation = kDnnInterleavedOrientation;
 
-    auto& currentComponent = dnnComponents.addComponent(layer->name, "copy");
+    auto &currentComponent = dnnComponents.addComponent(layer->name, layer->type);
 
     dnn->InitCopyComponent(currentComponent,
         orientation,
@@ -843,7 +856,7 @@ void GNAGraphCompiler::CropPrimitive(InferenceEngine::CNNLayerPtr layer) {
     size_t cropOffset = offset.front() * cropLayer->precision.size();
     size_t cropOutputSize = dim.front() * cropLayer->precision.size();
 
-    if (ALIGN64(cropOffset) == cropOffset) {
+    if (!LayerInfo(cropLayer).isCropAffined()) {
         // leave crop as it is
         GNAPluginNS::GNACropLayer cropLayerInfoItem(layer);
         std::string& id = layer->name;
@@ -1282,7 +1295,7 @@ void GNAGraphCompiler::ConcatAlignFilterPrimitive(InferenceEngine::CNNLayerPtr l
 
         auto orientation = kDnnInterleavedOrientation;
 
-        auto& copyComponent = dnnComponents.addComponent(layer->name + "_synthetic_copy", "copy");
+        auto& copyComponent = dnnComponents.addComponent(layer->name + "_synthetic_copy", CopyLayerName);
 
         dnn->InitCopyComponent(copyComponent,
                                orientation,
@@ -1467,6 +1480,14 @@ void GNAGraphCompiler::AffineFilterPrimitive(InferenceEngine::CNNLayerPtr layer)
     }
 }
 
+void GNAGraphCompiler::FakeQuantizePrimitive(InferenceEngine::CNNLayerPtr layer) {
+    // in FP32 mode lets use special form of activation that satisfies fakeQuantize formula
+    if (gnaFlags->sw_fp32) {
+        PWLPrimitive(layer);
+        return;
+    }
+}
+
 void GNAGraphCompiler::PWLPrimitive(InferenceEngine::CNNLayerPtr layer) {
     auto* generic = dynamic_cast<GenericLayer*>(layer.get());
     std::string type;
@@ -1545,7 +1566,8 @@ void GNAGraphCompiler::PWLPrimitive(InferenceEngine::CNNLayerPtr layer) {
         {"neglog", kActNegLog},
         {"neghalflog", kActNegHalfLog},
         {"identity", kActIdentity},
-        {"softsign", kActSoftSign}
+        {"softsign", kActSoftSign},
+        {"fakequantize", kActFakeQuantize}
     };
 
     auto it = supportedActivations.find(type);
@@ -1558,6 +1580,42 @@ void GNAGraphCompiler::PWLPrimitive(InferenceEngine::CNNLayerPtr layer) {
         activation_type.args.lrelu.negative_slope = reluLayer != nullptr ? reluLayer->negative_slope : 0.0f;
     } else {
         activation_type.args.lrelu.negative_slope = 0.0f;
+    }
+
+    if (it->second == kActFakeQuantize) {
+        // get params from const input
+        auto GetParamFromInputAsFloat = [](CNNLayerPtr input, size_t idx) {
+            if (input->insData.size() <= idx) {
+                THROW_GNA_LAYER_EXCEPTION(input) << "cannot get data from " << idx << "input";
+            }
+            auto iLayerData = input->insData[idx].lock();
+            if (!iLayerData) {
+                THROW_GNA_LAYER_EXCEPTION(input) << "cannot get data from " << idx << ", input: cannot dereference data weak-pointer";
+            }
+            auto iLayer = getCreatorLayer(iLayerData).lock();
+            if (!iLayer) {
+                THROW_GNA_LAYER_EXCEPTION(input) << "cannot get data from " << idx << ", input: cannot dereference creator layer weak-pointer";
+            }
+            if (!LayerInfo(iLayer).isConst()) {
+                THROW_GNA_LAYER_EXCEPTION(input) << "cannot get data from " << idx << ", input: expected to be of type const, but was: " << iLayer->type;
+            }
+
+            if (!iLayer->blobs.count("custom")) {
+                THROW_GNA_LAYER_EXCEPTION(iLayer) << "cannot get custom blob";
+            }
+            auto data = iLayer->blobs["custom"];
+            if (data->getTensorDesc().getPrecision() != Precision::FP32) {
+                THROW_GNA_LAYER_EXCEPTION(iLayer) << "cannot cast custom blob to type FP32, since it is of type: " << data->getTensorDesc().getPrecision();
+            }
+
+            return data->cbuffer().as<float*>()[0];
+        };
+
+        activation_type.args.fakeQuantize.levels = layer->GetParamAsInt("levels");
+        activation_type.args.fakeQuantize.input_low = GetParamFromInputAsFloat(layer, 1);
+        activation_type.args.fakeQuantize.input_high = GetParamFromInputAsFloat(layer, 2);
+        activation_type.args.fakeQuantize.output_low = GetParamFromInputAsFloat(layer, 3);
+        activation_type.args.fakeQuantize.output_high = GetParamFromInputAsFloat(layer, 4);
     }
 
     string actName = "unknown";
@@ -1761,9 +1819,11 @@ void GNAGraphCompiler::CreateLayerPrimitive(CNNLayerPtr layer) {
         {{"Reshape"}, SKIP},  // TODO: handled not in GNA but rather in GNA plugin
         {{"Squeeze"}, SKIP},  // TODO: handled not in GNA but rather in GNA plugin
         {{"Crop"}, CREATE(CropPrimitive)},
-        {{"Copy"}, CREATE(CopyPrimitive)},
+        {{CopyLayerName}, CREATE(CopyPrimitive)},
+        {{DelayedCopyLayerName}, CREATE(CopyPrimitive)},
         {{"TensorIterator"}, SKIP},
-        {{"LSTMCell"}, SKIP}
+        {{"LSTMCell"}, SKIP},
+        {{"FakeQuantize"}, CREATE(FakeQuantizePrimitive)}  // TODO: fakequantize layer should be properly converted to GNA scale factors for integer case
     };
     auto it = LayersBuilder::getStorage().find(layer->type);
     if (it != LayersBuilder::getStorage().end()) {
@@ -1773,7 +1833,17 @@ void GNAGraphCompiler::CreateLayerPrimitive(CNNLayerPtr layer) {
     }
 }
 
-void GNAGraphCompiler::connectOutput(InferenceEngine::CNNLayerPtr layer, void *ptr, size_t num_data_bytes_out) {
+void GNAGraphCompiler::connectOutput(InferenceEngine::CNNLayerPtr layer, void *ptr,
+    size_t num_data_bytes_out) {
+    auto getOffsetForBinding = [](InferenceEngine::CNNLayerPtr layer) {
+        int32_t output_offset = 0;
+        if (layer->params.find("output_offset") != layer->params.end()) {
+            output_offset = layer->GetParamAsInt("output_offset");
+        }
+        return output_offset;
+    };
+
+
     gnalog() << "Connecting output " << layer->name << " ...\n";
     // in case of Memory Layer it's input allocated in meminput layer
     if (layer->outData.size() == 1) {
@@ -1803,12 +1873,12 @@ void GNAGraphCompiler::connectOutput(InferenceEngine::CNNLayerPtr layer, void *p
                     auto memorySize = InferenceEngine::details::product(nextMemoryLayer.getDims()) * nextMemoryLayer.elementSizeBytes();
 
                     gnamem->reserve_ptr(&nextMemoryLayer.gna_ptr, ALIGN64(memorySize), 64);
-                    gnamem->bind_ptr(ptr, &nextMemoryLayer.gna_ptr, 0);
+                    gnamem->bind_ptr(ptr, &nextMemoryLayer.gna_ptr, getOffsetForBinding(layer));
 
                     nextMemoryLayer.reserved_size = ALIGN64(memorySize);
                 } else {
                     IE_ASSERT(nextMemoryLayer.reserved_size >= ALIGN64(num_data_bytes_out));
-                    gnamem->bind_ptr(ptr, &nextMemoryLayer.gna_ptr, 0);
+                    gnamem->bind_ptr(ptr, &nextMemoryLayer.gna_ptr, getOffsetForBinding(layer));
                 }
                 return;
             }
@@ -1901,13 +1971,29 @@ void GNAGraphCompiler::connectOutput(InferenceEngine::CNNLayerPtr layer, void *p
                     if (included == concat_connection.end()) {
                         gnamem->reserve_ptr(&concatLayerInfoItem.gna_ptr, ALIGN64(concatLayerInfoItem.reserved_size), 64);
 
-                        for (auto &&inputLayer : concatLayerInfoItem.concatInputLayers) {
-                            if (InferenceEngine::details::CaselessEq<std::string>()
-                                    (inputLayer.name, "input")) {
-                                inputDesc->bytes_allocated_for_input[inputLayer.name] = inputLayer.tensorSize;
+                        std::function<void(GNAConcatLayer, GNAPluginNS::InputDesc&, ConcatConnection&)> allocate_input_recursively =
+                            [&allocate_input_recursively](GNAConcatLayer clayer, GNAPluginNS::InputDesc& inputDesc, ConcatConnection& concat_connection) {
+                            size_t concatInputIdx = 0;
+                            for (auto &&inputLayer : clayer.concatInputLayers) {
+                                // skipping non functional and reshape layer, as in that case input might be not connected to anything
+                                auto realConcatInputs = CNNNetGetPrevLayersSkip(clayer.getConcat(), [](CNNLayerPtr l) {
+                                    return !LayerInfo(l).isNonFunctional() && !LayerInfo(l).isSplit();
+                                    }, concatInputIdx++);
+
+                                for (auto rInput :  realConcatInputs) {
+                                    if (LayerInfo(rInput.first).isInput()) {
+                                        inputDesc.bytes_allocated_for_input[rInput.first->name] += inputLayer.tensorSize + inputLayer.offset;
+                                    }
+                                    if (LayerInfo(rInput.first).isConcat()) {
+                                        auto concatLayerInfo = concat_connection.find(rInput.first->name);
+                                        allocate_input_recursively(concatLayerInfo->second, inputDesc, concat_connection);
+                                    }
+                                }
                             }
-                        }
-                        concatLayerInfoItem.input_allocated = true;
+                            clayer.input_allocated = true;
+                        };
+
+                        allocate_input_recursively(concatLayerInfoItem, *inputDesc, concat_connection);
                     }
                     concatLayerInfo->second.output_allocation_flag = true;
                 }
@@ -1947,7 +2033,14 @@ GNAPluginNS::ConnectionDetails GNAGraphCompiler::connectInput(CNNLayerPtr layer,
     // real input not a memory input
     if (LayerInfo(prevLayer).isInput()) {
         if (0 == inputDesc->bytes_allocated_for_input[prevLayer->name]) {
-            // real allocation pointer will be kept in ptr not in ptf_inputs_global
+            // if request for allocation less that realTensorInput - we need to extend request
+            auto minInput = inputDesc->minBytesRequiredForStoreInput(prevLayer);
+            if (num_data_bytes_in < minInput) {
+                gnalog() << "[INPUT] : requested bytes: " << num_data_bytes_in << ", extended to" << ALIGN(minInput, 8);
+                num_data_bytes_in = ALIGN(minInput, 8);
+            }
+
+            // real allocation pointer will be kept in ptr not in ptr_inputs_global
             if (offset < 0) {
                 gnamem->push_value(ptr,
                                    static_cast<uint8_t>(0),
@@ -1959,7 +2052,6 @@ GNAPluginNS::ConnectionDetails GNAGraphCompiler::connectInput(CNNLayerPtr layer,
                                    num_data_bytes_in,
                                    64);
             }
-
             inputDesc->bytes_allocated_for_input[prevLayer->name] = num_data_bytes_in;
         }
         if (ALIGN(num_data_bytes_in, 64) > ALIGN(inputDesc->bytes_allocated_for_input[prevLayer->name], 64)) {
@@ -2060,7 +2152,7 @@ GNAPluginNS::ConnectionDetails GNAGraphCompiler::connectInput(CNNLayerPtr layer,
                 gnamem->reserve_ptr(&memoryLayer.gna_ptr, ALIGN64(memorySize), 64);
                 gnamem->bind_ptr(ptr, &memoryLayer.gna_ptr, offset);
             } else {
-                if (num_data_bytes_in > memorySize) {
+                if (num_data_bytes_in > memorySize - offset) {
                     THROW_GNA_LAYER_EXCEPTION(layer) <<" invalid allocation request of "
                                                      << num_data_bytes_in << " is more then state tensor size of: " << memorySize;
                 }

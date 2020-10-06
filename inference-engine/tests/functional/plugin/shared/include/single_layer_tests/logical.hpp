@@ -30,6 +30,7 @@ typedef std::tuple<
 class LogicalLayerTest : public testing::WithParamInterface<LogicalTestParams>,
     virtual public LayerTestsUtils::LayerTestsCommon {
 protected:
+    InferenceEngine::Blob::Ptr GenerateInput(const InferenceEngine::InputInfo &info) const override;
     void SetUp() override;
 
 public:

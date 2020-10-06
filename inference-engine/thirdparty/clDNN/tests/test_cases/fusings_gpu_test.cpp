@@ -5377,7 +5377,7 @@ INSTANTIATE_TEST_CASE_P(fusings_gpu, scatter_update_quantize,
                         scatter_update_test_params{ CASE_SCATTER_UPDATE_FP16_4, 2, 3 },
                         scatter_update_test_params{ CASE_SCATTER_UPDATE_FP16_5, 2, 3 },
 
-                        
+
                         scatter_update_test_params{ CASE_SCATTER_UPDATE_5D_FP32_1, 2, 3 },
                         scatter_update_test_params{ CASE_SCATTER_UPDATE_5D_FP32_2, 2, 3 },
                         scatter_update_test_params{ CASE_SCATTER_UPDATE_5D_FP32_3, 2, 3 },
@@ -5421,7 +5421,7 @@ INSTANTIATE_TEST_CASE_P(fusings_gpu, scatter_update_scale_activation,
                         scatter_update_test_params{ CASE_SCATTER_UPDATE_FP16_4, 2, 4 },
                         scatter_update_test_params{ CASE_SCATTER_UPDATE_FP16_5, 2, 4 },
 
-                        
+
                         scatter_update_test_params{ CASE_SCATTER_UPDATE_5D_FP32_1, 2, 4 },
                         scatter_update_test_params{ CASE_SCATTER_UPDATE_5D_FP32_2, 2, 4 },
                         scatter_update_test_params{ CASE_SCATTER_UPDATE_5D_FP32_3, 2, 4 },
@@ -6251,6 +6251,76 @@ INSTANTIATE_TEST_CASE_P(fusings_gpu,
                             eltwise_test_params{CASE_ELTWISE_U8_FP16_1},
                             eltwise_test_params{CASE_ELTWISE_U8_FP16_2},
                             eltwise_test_params{CASE_ELTWISE_U8_FP16_3},
+                        }), );
+
+class eltwise_no_pitches_same_dims_quantize : public EltwiseFusingTest {};
+TEST_P(eltwise_no_pitches_same_dims_quantize, quantize_f32_output) {
+    auto p = GetParam();
+    create_topologies(input_layout("input", get_input_layout(p)),
+                      input_layout("input2", get_input_layout2(p)),
+                      eltwise("eltwise", {"input", "input2"}, p.mode, p.default_type),
+                      data("in_lo", get_mem(get_per_channel_layout(p), min_random, 0)),
+                      data("in_hi", get_mem(get_per_channel_layout(p), 1, max_random)),
+                      data("out_lo", get_mem(get_single_element_layout(p), -128)),
+                      data("out_hi", get_mem(get_single_element_layout(p), 127)),
+                      quantize("quantize", "eltwise", "in_lo", "in_hi", "out_lo", "out_hi", 256, p.input_type),
+                      reorder("out", "quantize", p.default_format, data_types::f32));
+
+    tolerance = 1.f;
+    execute(p);
+}
+
+INSTANTIATE_TEST_CASE_P(fusings_gpu,
+                        eltwise_no_pitches_same_dims_quantize,
+                        ::testing::ValuesIn(std::vector<eltwise_test_params>{
+                            eltwise_test_params{CASE_ELTWISE_FP16_1},
+                            eltwise_test_params{CASE_ELTWISE_FP16_2},
+                            eltwise_test_params{CASE_ELTWISE_FP16_3},
+                            eltwise_test_params{CASE_ELTWISE_FP32_1},
+                            eltwise_test_params{CASE_ELTWISE_FP32_2},
+                            eltwise_test_params{CASE_ELTWISE_FP32_3},
+                        }), );
+
+class eltwise_activation : public EltwiseFusingTest {};
+TEST_P(eltwise_activation, basic) {
+    auto p = GetParam();
+    create_topologies(input_layout("input", get_input_layout(p)),
+                      input_layout("input2", get_input_layout2(p)),
+                      eltwise("eltwise", {"input", "input2"}, p.mode, p.default_type),
+                      activation("activation", "eltwise", activation_func::relu, {6.0f, 0.0f}),
+                      reorder("out", "activation", p.default_format, data_types::f32));
+
+    tolerance = 1e-5f;
+    execute(p);
+}
+
+TEST_P(eltwise_activation, fp16_out) {
+    auto p = GetParam();
+    create_topologies(input_layout("input", get_input_layout(p)),
+                      input_layout("input2", get_input_layout2(p)),
+                      eltwise("eltwise", {"input", "input2"}, p.mode, data_types::f16),
+                      activation("activation", "eltwise", activation_func::relu, {6.0f, 0.0f}),
+                      reorder("out", "activation", p.default_format, data_types::f32));
+
+    tolerance = 1e-5f;
+    execute(p);
+}
+
+INSTANTIATE_TEST_CASE_P(fusings_gpu,
+                        eltwise_activation,
+                        ::testing::ValuesIn(std::vector<eltwise_test_params>{
+                            eltwise_test_params{CASE_ELTWISE_FP16_1},
+                            eltwise_test_params{CASE_ELTWISE_FP16_2},
+                            eltwise_test_params{CASE_ELTWISE_FP16_3},
+                            eltwise_test_params{CASE_ELTWISE_FP32_1},
+                            eltwise_test_params{CASE_ELTWISE_FP32_2},
+                            eltwise_test_params{CASE_ELTWISE_FP32_3},
+                            eltwise_test_params{CASE_ELTWISE_FP32_FP16_1},
+                            eltwise_test_params{CASE_ELTWISE_FP32_FP16_2},
+                            eltwise_test_params{CASE_ELTWISE_FP32_FP16_3},
+                            eltwise_test_params{CASE_ELTWISE_FP16_FP32_1},
+                            eltwise_test_params{CASE_ELTWISE_FP16_FP32_2},
+                            eltwise_test_params{CASE_ELTWISE_FP16_FP32_3}
                         }), );
 
 /* ----------------------------------------------------------------------------------------------------- */

@@ -48,15 +48,21 @@ public:
 
     static Blob::Ptr makeNewBlobPtr(const TensorDesc& desc);
 
-    static void invertFakeQuantize(const CNNLayer& fakeQuantize);
-
-    static void updateBlobs(CNNLayer& layer, const std::string& blobName, float value);
-
     static void updateBlobs(const CNNLayer& quantizeLayer, int constLayerIndex, float value);
 
     static void updateBlobs(const CNNLayer& quantizeLayer, int constLayerIndex, const std::vector<float>& values);
 
+    static void updateBlobs(TransformationContext& context, const CNNLayer& quantizeLayer, int constLayerIndex, float value);
+
+    static void updateBlobs(TransformationContext& context, const CNNLayer& quantizeLayer, int constLayerIndex, const std::vector<float>& values);
+
     static void updateBlobs(CNNLayer& layer, const std::string& blobName, const std::vector<float>& values);
+
+    static CNNLayerPtr copyConstant(
+        TransformationContext& context,
+        const CNNLayer& quantizeLayer,
+        const CNNLayerPtr& blobLayer,
+        const size_t constLayerIndex);
 
     // return true if at least one child uses layer on weights
     static bool onWeights(const CNNLayer& layer);
@@ -140,7 +146,9 @@ public:
 
     static void replaceLayer(TransformationContext& context, const CNNLayerPtr source, const CNNLayerPtr target);
 
-    static CNNLayerPtr addScaleShiftBetween(
+    // Add ScaleShift beween parent and child layers. Affected edges (output and input ports) are not specified.
+    // As result ScaleShift will be added for all edges between parent and children.
+    static std::vector<CNNLayerPtr> addScaleShiftBetween(
         TransformationContext& context,
         const CNNLayerPtr parent,
         const CNNLayerPtr child,
@@ -158,7 +166,8 @@ public:
         DataPtr parentOutData,
         CNNLayer::Ptr layer,
         const std::string& nextLayerName,
-        ICNNNetwork& net);
+        ICNNNetwork& net,
+        const int childInsDataIndex = -1);
 
     IE_SUPPRESS_DEPRECATED_START
     static void fillInScaleShift(ScaleShiftLayer* layer, const size_t channels, const float* scales, const float* shifts);

@@ -211,9 +211,8 @@ void CompareFunctions(const Function& actual, const Function& expected) {
     std::queue<ComparingNodesPair> nodes;
     nodes.emplace(actualResult, expectedResult);
     while (!nodes.empty()) {
-        const auto& checkingNodes = nodes.front();
-        const auto& actualNode    = checkingNodes.first;
-        const auto& expectedNode  = checkingNodes.second;
+        const auto actualNode   = nodes.front().first;
+        const auto expectedNode = nodes.front().second;
         nodes.pop();
 
         CompareNodes(*actualNode, *expectedNode);
@@ -492,6 +491,10 @@ std::vector<std::uint8_t> convertOutputPrecision(std::vector<std::uint8_t> &outp
             case element::Type_t::f32: {
                 return convertPrecision<float, float>(output, elementsCount, element::Type(toPrecision).size());
             }
+            case element::Type_t::f16: {
+                // ngraph float16 has single ctor from float
+              return convertPrecision<float, ngraph::float16>(output, elementsCount, element::Type(toPrecision).size());
+            }
             case element::Type_t::u64: {
                 return convertPrecision<float, uint64_t>(output, elementsCount, element::Type(toPrecision).size());
             }
@@ -546,6 +549,18 @@ std::ostream& operator<<(std::ostream & os, ngraph::helpers::EltwiseTypes type) 
             break;
         case ngraph::helpers::EltwiseTypes::ADD:
             os << "Sum";
+            break;
+        case ngraph::helpers::EltwiseTypes::DIVIDE:
+            os << "Div";
+            break;
+        case ngraph::helpers::EltwiseTypes::SQUARED_DIFF:
+            os << "SqDiff";
+            break;
+        case ngraph::helpers::EltwiseTypes::POWER:
+            os << "Pow";
+            break;
+        case ngraph::helpers::EltwiseTypes::FLOOR_MOD:
+            os << "FloorMod";
             break;
         default:
             throw std::runtime_error("NOT_SUPPORTED_OP_TYPE");
@@ -686,6 +701,20 @@ std::ostream& operator<<(std::ostream & os, ngraph::op::v4::Interpolate::Nearest
             break;
         case ngraph::op::v4::Interpolate::NearestMode::simple:
             os << "simple";
+            break;
+        default:
+            throw std::runtime_error("NOT_SUPPORTED_OP_TYPE");
+    }
+    return os;
+}
+
+std::ostream& operator<<(std::ostream & os, ngraph::op::v4::Interpolate::ShapeCalcMode type) {
+    switch (type) {
+        case ngraph::op::v4::Interpolate::ShapeCalcMode::scales:
+            os << "scales";
+            break;
+        case ngraph::op::v4::Interpolate::ShapeCalcMode::sizes:
+            os << "sizes";
             break;
         default:
             throw std::runtime_error("NOT_SUPPORTED_OP_TYPE");

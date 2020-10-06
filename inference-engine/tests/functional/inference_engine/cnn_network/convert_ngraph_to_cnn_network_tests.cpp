@@ -10,6 +10,7 @@
 #include <ngraph/pass/manager.hpp>
 #include <transformations/common_optimizations/common_optimizations.hpp>
 #include <transformations/convert_opset1_to_legacy/convert_opset1_to_legacy.hpp>
+#include <transformations/convert_opset1_to_legacy/convert_prior_to_ie_prior.hpp>
 #include <transformations/convert_opset2_to_opset1/convert_opset2_to_opset1.hpp>
 #include <transformations/convert_opset3_to_opset2/convert_opset3_to_opset2.hpp>
 #include <transformations/convert_precision.hpp>
@@ -85,15 +86,15 @@ TEST(ConvertFunctionToCNNNetworkTests, OpsShouldBeConvertedToIERepresentation) {
             std::make_shared<ngraph::opset4::GroupConvolution>(),
             std::make_shared<ngraph::opset4::GroupConvolutionBackpropData>(),
             std::make_shared<ngraph::opset4::GRUCell>(),
-            // std::make_shared<ngraph::opset4::GRUSequence>(), todo: enable after GRUSequence support
+            // std::make_shared<ngraph::op::v5::GRUSequence>(), todo: enable after GRUSequence support
             std::make_shared<ngraph::opset4::HardSigmoid>(),
             std::make_shared<ngraph::opset4::LRN>(),
             std::make_shared<ngraph::opset4::LSTMCell>(),
-            // std::make_shared<ngraph::opset4::LSTMSequence>(), todo: enable after LSTMSequence support
+            // std::make_shared<ngraph::op::v5::LSTMSequence>(), todo: enable after LSTMSequence support
             std::make_shared<ngraph::opset4::NonMaxSuppression>(),
             std::make_shared<ngraph::opset4::NormalizeL2>(),
             std::make_shared<ngraph::opset4::RNNCell>(),
-            // std::make_shared<ngraph::opset4::RNNSequence>(), todo: enable after RNNSequence support
+            // std::make_shared<ngraph::op::v5::RNNSequence>(), todo: enable after RNNSequence support
             std::make_shared<ngraph::opset4::OneHot>(),
             std::make_shared<ngraph::opset4::Pad>(),
             std::make_shared<ngraph::opset4::PriorBoxClustered>(),
@@ -167,6 +168,9 @@ TEST(ConvertFunctionToCNNNetworkTests, ConvertTopKWithOneInput) {
     }
 
     ngraph::pass::Manager manager;
+    manager.register_pass<ngraph::pass::InitNodeInfo>();
+    // WA: ConvertPriorBox must be executed before the 1st ConstantFolding pass
+    manager.register_pass<ngraph::pass::ConvertPriorBox>();
     manager.register_pass<ngraph::pass::CommonOptimizations>();
     manager.register_pass<ngraph::pass::ConvertOpSet3ToOpSet2>();
     manager.register_pass<ngraph::pass::ConvertOpSet2ToOpSet1>();

@@ -58,9 +58,9 @@ struct format_traits {
     /// @brief Block sizes as a vector of pairs of dimension number and block size ordered from rare to often.
     std::vector<std::pair<size_t, int>> block_sizes;
     /// @brief Characters representing batch dimensions in an order.
-    static const char* batch_chars() { return "bn"; }
+    static const char* batch_chars() { return "bno"; }
     /// @brief Characters representing feature map/channel dimensions in an order.
-    static const char* feature_chars() { return "fioc"; }
+    static const char* feature_chars() { return "fic"; }
     /// @brief Characters representing spatial dimensions in an order.
     static const char* spatial_chars() { return "xyzhsw"; }
     /// @brief Characters representing local dimensions in an order.
@@ -122,8 +122,11 @@ struct format {
         oiyx,                                         ///< the most common format for 2D weights
         yxio,                                         ///< format used 2D weights
         oizyx,                                        ///< the most common format for 3D convolution
+        iyxo,
         os_iyx_osv16,                                 ///< format used only for convolution weights:
-        os_is_yx_osv16_isv16,                               ///< format used for convolution i8 weights
+        os_is_yx_osv16_isv16,                         ///< format used for convolution i8 weights
+        os_is_zyx_osv32_isv16,
+        os_is_zyx_osv64_isv16,
         os_zyxi_osv16,                                ///< format used for weights for 3D convolution
         os_is_yx_isv16_osv16,                         ///< format used for blocked convolution
         os_is_zyx_isv16_osv16,                        ///< format used for weights for blocked 3D convolution
@@ -173,6 +176,11 @@ struct format {
         lstm_weights_dio,                             ///< dynamic_lstm, direction,
                                                       ///< than IO (I - input size, O - 4 * hidden_size)
         os_is_osv32_isv32_swizzled_by_4,              ///< format for weights for 1x1 IMAD convolution
+        os_iyx_osv32__ai32,
+        iy_xs_os_xsv2_osv8__ao32,
+        iy_xs_os_xsv2_osv16__ao32,
+        i_yxs_os_yxsv2_osv16,
+        os_i_yxs_osv4_yxsv4,
 
         goiyx,                                        ///< format used for weights for 2D convolution
         yxiog,                                        ///< format used for weights for 2D convolution
@@ -196,6 +204,13 @@ struct format {
         g_os_zyx_is_osv32_isv4,                       ///< format for imad deconvolution
         g_os_zyx_is_osv32_isv16,                      ///< format for imad deconvolution
         g_os_zyx_is_osv32_isv32,                      ///< format for imad deconvolution
+        g_os_is_yx_isv16_osv16,
+        gs_oi_yxs_gsv4_yxsv4,
+        gs_oi_yxs_gsv16_yxsv4,
+        gs_oi_yxs_gsv32_yxsv4,
+        gi_yxs_os_yxsv2_osv16,
+        giy_xs_os_xsv2_osv8__ao32,
+        giy_xs_os_xsv2_osv16__ao32,
 
         format_num,  ///< number of format types
         any        = -1
@@ -212,7 +227,7 @@ struct format {
                 // Order - dims changing order from rare to often
                 // Inner order - dims order for internal storage in _sizes array
                 // Block sizes - vector of pairs of dimension number (by inner order) and block size ordered from rare to often
-                // Format                 B  F  S  L  G  Order  Inner order  Block sizes
+                // Format                  B  F  S  L  G  Order  Inner order  Block sizes
                 { yxfb,                  { 1, 1, 2, 0, 0, "yxfb",   "bfxy?",  {}}},
                 { byxf,                  { 1, 1, 2, 0, 0, "byxf",   "bfxy?",  {}}},
                 { bfyx,                  { 1, 1, 2, 0, 0, "bfyx",   "bfxy?",  {}}},
@@ -235,66 +250,81 @@ struct format {
                 { nv12,                  { 1, 1, 2, 0, 0, "bfyx",   "bfxy?",  {}}},
                 { image_2d_rgba,         { 1, 1, 2, 0, 0, "bfyx",   "bfxy?",  {}}},
 
-                { oiyx,                                        { 1, 1, 2, 0, 0, "bfyx",   "bfxy",       {}}},
-                { yxio,                                        { 1, 1, 2, 0, 0, "yxfb",   "bfxy?",      {}}},
-                { oizyx,                                       { 1, 1, 3, 0, 0, "bfzyx",  "bfxyz",      {}}},
-                { os_is_yx_isv16_osv16,                        { 1, 1, 2, 0, 0, "bfyx",   "bfxy",       {{1, 16}, {0, 16}}}},
-                { os_iyx_osv16,                                { 1, 1, 2, 0, 0, "bfyx",   "bfxy?",      {{0, 16}}}},
-                { os_iyx_osv32,                                { 1, 1, 2, 0, 0, "bfyx",   "bfxy?",      {{0, 32}}}},
-                { os_iyx_osv64,                                { 1, 1, 2, 0, 0, "bfyx",   "bfxy?",      {{0, 64}}}},
-                { winograd_2x3_s1_weights,                     { 1, 1, 2, 0, 0, "bfyx",   "bfxy?",      {}}},
-                { winograd_2x3_s1_fused_weights,               { 1, 1, 2, 0, 0, "xyfb",   "bfxy?",      {}}},
-                { winograd_6x3_s1_fused_weights,               { 1, 1, 2, 0, 0, "xyfb",   "bfxy?",      {}}},
-                { image_2d_weights_winograd_6x3_s1_fbxyb,      { 1, 1, 2, 0, 0, "xyfb",   "bfxy?",      {}}},
-                { image_2d_weights_winograd_6x3_s1_xfbyb,      { 1, 1, 2, 0, 0, "xyfb",   "bfxy?",      {}}},
-                { image_2d_weights_c4_fyx_b,                   { 1, 1, 2, 0, 0, "bfyx",   "bfxy?",      {}}},
-                { image_2d_weights_c1_b_fyx,                   { 1, 1, 2, 0, 0, "bfyx",   "bfxy?",      {}}},
-                { lstm_weights_dio,                            { 1, 1, 2, 0, 0, "bfxy",   "bfxy?",      {}}},
-                { os_is_yx_isa8_osv8_isv4,                     { 1, 1, 2, 0, 0, "bfyx",   "bfxy?",      {}}},
-                { os_is_yx_isa8_osv8_isv4_swizzled_by_4,       { 1, 1, 2, 0, 0, "bfyx",   "bfxy?",      {}}},
-                { os_is_zyx_isa8_osv8_isv4,                    { 1, 1, 3, 0, 0, "bfzyx",  "bfxyz",      {{1, 8}, {0, 8}, {1, 4}}}},
-                { os_is_yx_osa4_isa8_osv8_isv4_swizzled_by_4,  { 1, 1, 2, 0, 0, "bfyx",   "bfxy?",      {{0, 32}, {1, 32}}}},
-                { os_is_zyx_osa4_isa8_osv8_isv4_swizzled_by_4, { 1, 1, 3, 0, 0, "bfzyx",  "bfxyz",      {{0, 32}, {1, 32}}}},
-                { is_o_yx_isv32,                               { 1, 1, 2, 0, 0, "byxf",   "bfxy?",      {{1, 32}}}},
-                { is_o32_yx_isv32_swizzled_by_4,               { 1, 1, 2, 0, 0, "byxf",   "bfxy?",      {}}},
-                { os_is_y_x8_osv8_isv4,                        { 1, 1, 2, 0, 0, "byxf",   "bfxy?",      {}}},
-                { os_is_y_x8_osv8_isv4_swizzled_by_4,          { 1, 1, 2, 0, 0, "byxf",   "bfxy?",      {}}},
-                { os_is_yx_osv16_isv4,                         { 1, 1, 2, 0, 0, "bfyx",   "bfxy?",      {{0, 16}, {1, 4}}}},
-                { os_is_zyx_osv16_isv16,                       { 1, 1, 3, 0, 0, "bfzyx",  "bfxyz",      {{0, 16}, {1, 16}}}},
-                { os_is_yx_osv32_isv4_swizzled_by_2,           { 1, 1, 2, 0, 0, "bfxy",   "bfxy?",      {{0, 32}, {1, 4}}}},
-                { os_is_yx_osv32_isv4,                         { 1, 1, 2, 0, 0, "bfxy",   "bfxy?",      {{0, 32}, {1, 4}}}},
-                { os_is_zyx_osv32_isv4,                        { 1, 1, 3, 0, 0, "bfzyx",  "bfxyz",      {{0, 32}, {1, 4}}}},
-                { os_is_yx_osv32_isv32p,                       { 1, 1, 1, 0, 0, "bfxy",   "bfxy?",      {}}},
-                { os_is_zyx_isv16_osv16,                       { 1, 1, 3, 0, 0, "bfzyx",  "bfxyz",      {{0, 16}, {1, 16}}}},
-                { is_os_zyx_isv16_osv16,                       { 1, 1, 3, 0, 0, "fbzyx",  "bfxyz",      {{1, 16}, {0, 16}}}},
-                { is_os_yx_isv16_osv16,                        { 1, 1, 2, 0, 0, "fbyx",   "bfxyz",      {{1, 16}, {0, 16}}}},
-                { os_is_osv32_isv32_swizzled_by_4,             { 1, 1, 0, 0, 0, "bfxy",   "bfxy?",      {{0, 32}, {1, 32}}}},
-                { os_is_zyx_isv8_osv16_isv2,                   { 1, 1, 3, 0, 0, "bfzyx",  "bfxyz",      {{1, 8}, {0, 16}, {1, 2}}}},
-                { os_zyxi_osv16,                               { 1, 1, 3, 0, 0, "bzyxf",  "bfxyz",      {{0, 16}}}},
-                { os_is_yx_isv8_osv16_isv2,                    { 1, 1, 2, 0, 0, "bfzyx",  "bfxyz",      {{1, 8}, {0, 16}, {1, 2}}}},
-                { os_is_yx_osv16_isv16,                        { 1, 1, 2, 0, 0, "bfyx",   "bfxy",       {{1, 16}, {0, 16}}}},
+                { oiyx,                                        { 1, 1, 2, 0, 0, "oiyx",   "oixy",       {}}},
+                { iyxo,                                        { 1, 1, 2, 0, 0, "iyxo",   "oixy",       {}}},
+                { yxio,                                        { 1, 1, 2, 0, 0, "yxio",   "oixy?",      {}}},
+                { oizyx,                                       { 1, 1, 3, 0, 0, "oizyx",  "oixyz",      {}}},
+                { os_is_yx_isv16_osv16,                        { 1, 1, 2, 0, 0, "oiyx",   "oixy",       {{1, 16}, {0, 16}}}},
+                { os_iyx_osv16,                                { 1, 1, 2, 0, 0, "oiyx",   "oixy?",      {{0, 16}}}},
+                { os_iyx_osv32,                                { 1, 1, 2, 0, 0, "oiyx",   "oixy?",      {{0, 32}}}},
+                { os_iyx_osv64,                                { 1, 1, 2, 0, 0, "oiyx",   "oixy?",      {{0, 64}}}},
+                { winograd_2x3_s1_weights,                     { 1, 1, 2, 0, 0, "oiyx",   "oixy?",      {}}},
+                { winograd_2x3_s1_fused_weights,               { 1, 1, 2, 0, 0, "xyio",   "oixy?",      {}}},
+                { winograd_6x3_s1_fused_weights,               { 1, 1, 2, 0, 0, "xyio",   "oixy?",      {}}},
+                { image_2d_weights_winograd_6x3_s1_fbxyb,      { 1, 1, 2, 0, 0, "xyio",   "oixy?",      {}}},
+                { image_2d_weights_winograd_6x3_s1_xfbyb,      { 1, 1, 2, 0, 0, "xyio",   "oixy?",      {}}},
+                { image_2d_weights_c4_fyx_b,                   { 1, 1, 2, 0, 0, "oiyx",   "oixy?",      {}}},
+                { image_2d_weights_c1_b_fyx,                   { 1, 1, 2, 0, 0, "oiyx",   "oixy?",      {}}},
+                { lstm_weights_dio,                            { 1, 1, 2, 0, 0, "oixy",   "oixy?",      {}}},
+                { os_is_yx_isa8_osv8_isv4,                     { 1, 1, 2, 0, 0, "oiyx",   "oixy?",      {}}},
+                { os_is_yx_isa8_osv8_isv4_swizzled_by_4,       { 1, 1, 2, 0, 0, "oiyx",   "oixy?",      {}}},
+                { os_is_zyx_isa8_osv8_isv4,                    { 1, 1, 3, 0, 0, "oizyx",  "oixyz",      {{1, 8}, {0, 8}, {1, 4}}}},
+                { os_is_yx_osa4_isa8_osv8_isv4_swizzled_by_4,  { 1, 1, 2, 0, 0, "oiyx",   "oixy?",      {{0, 32}, {1, 32}}}},
+                { os_is_zyx_osa4_isa8_osv8_isv4_swizzled_by_4, { 1, 1, 3, 0, 0, "oizyx",  "oixyz",      {{0, 32}, {1, 32}}}},
+                { is_o_yx_isv32,                               { 1, 1, 2, 0, 0, "oyxi",   "oixy?",      {{1, 32}}}},
+                { is_o32_yx_isv32_swizzled_by_4,               { 1, 1, 2, 0, 0, "oyxi",   "oixy?",      {}}},
+                { os_is_y_x8_osv8_isv4,                        { 1, 1, 2, 0, 0, "oyxi",   "oixy?",      {}}},
+                { os_is_y_x8_osv8_isv4_swizzled_by_4,          { 1, 1, 2, 0, 0, "oyxi",   "oixy?",      {}}},
+                { os_is_yx_osv16_isv4,                         { 1, 1, 2, 0, 0, "oixy",   "oixy?",      {{0, 16}, {1, 4}}}},
+                { os_is_zyx_osv16_isv16,                       { 1, 1, 3, 0, 0, "oizyx",  "oixyz",      {{0, 16}, {1, 16}}}},
+                { os_is_yx_osv32_isv4_swizzled_by_2,           { 1, 1, 2, 0, 0, "oixy",   "oixy?",      {{0, 32}, {1, 4}}}},
+                { os_is_yx_osv32_isv4,                         { 1, 1, 2, 0, 0, "oixy",   "oixy?",      {{0, 32}, {1, 4}}}},
+                { os_is_zyx_osv32_isv4,                        { 1, 1, 3, 0, 0, "oizyx",  "oixyz",      {{0, 32}, {1, 4}}}},
+                { os_is_yx_osv32_isv32p,                       { 1, 1, 1, 0, 0, "oixy",   "oixy?",      {}}},
+                { os_is_zyx_isv16_osv16,                       { 1, 1, 3, 0, 0, "oizyx",  "oixyz",      {{0, 16}, {1, 16}}}},
+                { is_os_zyx_isv16_osv16,                       { 1, 1, 3, 0, 0, "iozyx",  "oixyz",      {{1, 16}, {0, 16}}}},
+                { is_os_yx_isv16_osv16,                        { 1, 1, 2, 0, 0, "ioyx",   "oixyz",      {{1, 16}, {0, 16}}}},
+                { os_is_osv32_isv32_swizzled_by_4,             { 1, 1, 0, 0, 0, "oixy",   "oixy?",      {{0, 32}, {1, 32}}}},
+                { os_is_zyx_isv8_osv16_isv2,                   { 1, 1, 3, 0, 0, "oizyx",  "oixyz",      {{1, 8}, {0, 16}, {1, 2}}}},
+                { os_zyxi_osv16,                               { 1, 1, 3, 0, 0, "ozyxi",  "oixyz",      {{0, 16}}}},
+                { os_is_yx_isv8_osv16_isv2,                    { 1, 1, 2, 0, 0, "oizyx",  "oixyz",      {{1, 8}, {0, 16}, {1, 2}}}},
+                { os_is_yx_osv16_isv16,                        { 1, 1, 2, 0, 0, "oiyx",   "oixy",       {{1, 16}, {0, 16}}}},
+                { os_is_zyx_osv32_isv16,                       { 1, 1, 3, 0, 0, "oizyx",  "oixyz",      {{0, 32}, {1, 16}}}},
+                { os_is_zyx_osv64_isv16,                       { 1, 1, 3, 0, 0, "oizyx",  "oixyz",      {{0, 64}, {1, 16}}}},
+                { os_iyx_osv32__ai32,                          { 1, 1, 2, 0, 0, "oiyx",   "oixy",       {{0, 32}}}},
+                { i_yxs_os_yxsv2_osv16,                        { 1, 1, 2, 0, 0, "iyxo",   "oixy",       {{0, 16}}}},
+                { iy_xs_os_xsv2_osv8__ao32,                    { 1, 1, 2, 0, 0, "iyxo",   "oixy",       {{2, 2}, {0, 8}}}},
+                { iy_xs_os_xsv2_osv16__ao32,                   { 1, 1, 2, 0, 0, "iyxo",   "oixy",       {{2, 2}, {0, 16}}}},
+                { os_i_yxs_osv4_yxsv4,                         { 1, 1, 2, 0, 0, "oiyx",   "oixy",       {{0, 4}}}},
 
-                { goiyx,                                       { 1, 1, 2, 0, 1, "gbfyx",  "bfxy????g",  {}}},
-                { goizyx,                                      { 1, 1, 3, 0, 1, "gbfzyx", "bfxyz???g",  {}}},
-                { g_os_iyx_osv16,                              { 1, 1, 2, 0, 1, "gbfyx",  "bfxy????g",  {{0, 16}}}},
-                { g_os_iyx_osv32,                              { 1, 1, 2, 0, 1, "gbfyx",  "bfxy????g",  {{0, 32}}}},
-                { gs_oiyx_gsv16,                               { 1, 1, 2, 0, 1, "gbfyx",  "bfxy????g",  {{8, 16}}}},
-                { gs_oizyx_gsv16,                              { 1, 1, 3, 0, 1, "gbfzyx", "bfxyz???g",  {{8, 16}}}},
-                { gs_oiyx_gsv32,                               { 1, 1, 2, 0, 1, "gbfyx",  "bfxy????g",  {{8, 32}}}},
-                { gyxio,                                       { 1, 1, 2, 0, 1, "gyxfb",  "bfxy????g",  {}}},
-                { g_is_os_zyx_isv16_osv16,                     { 1, 1, 3, 0, 1, "gfbzyx", "bfxyz???g",  {{1, 16}, {0, 16}}}},
-                { g_is_os_yx_isv16_osv16,                      { 1, 1, 2, 0, 1, "gfbyx",  "bfxy????g",  {{1, 16}, {0, 16}}}},
-                { g_os_is_zyx_isv8_osv16_isv2,                 { 1, 1, 3, 0, 1, "gbfzyx", "bfxyz???g",  {{1, 8}, {0, 16}, {1, 2}}}},
-                { g_os_is_yx_isv8_osv16_isv2,                  { 1, 1, 2, 0, 1, "gbfyx",  "bfxy????g",  {{1, 8}, {0, 16}, {1, 2}}}},
-                { g_os_is_zyx_isv16_osv16,                     { 1, 1, 3, 0, 1, "gbfzyx", "bfxyz???g",  {{0, 16}, {1, 16}}}},
-                { g_os_is_yx_osv16_isv4,                       { 1, 1, 2, 0, 1, "gbfyx",  "bfxy????g",  {{0, 16}, {1, 4}}}},
-                { g_os_is_zyx_osv16_isv16,                     { 1, 1, 3, 0, 1, "gbfzyx", "bfxyz???g",  {{0, 16}, {1, 16}}}},
-                { g_os_zyx_is_osv16_isv4,                      { 1, 1, 3, 0, 1, "gbzyxi", "bfxyz???g",  {{0, 16}, {1, 4}}}},
-                { g_os_zyx_is_osv16_isv16,                     { 1, 1, 3, 0, 1, "gbzyxi", "bfxyz???g",  {{0, 16}, {1, 16}}}},
-                { g_os_zyx_is_osv16_isv32,                     { 1, 1, 3, 0, 1, "gbzyxi", "bfxyz???g",  {{0, 16}, {1, 32}}}},
-                { g_os_zyx_is_osv32_isv4,                      { 1, 1, 3, 0, 1, "gbzyxi", "bfxyz???g",  {{0, 32}, {1, 4}}}},
-                { g_os_zyx_is_osv32_isv16,                     { 1, 1, 3, 0, 1, "gbzyxi", "bfxyz???g",  {{0, 32}, {1, 16}}}},
-                { g_os_zyx_is_osv32_isv32,                     { 1, 1, 3, 0, 1, "gbzyxi", "bfxyz???g",  {{0, 32}, {1, 32}}}},
+                { goiyx,                                       { 1, 1, 2, 0, 1, "goiyx",  "oixy????g",  {}}},
+                { goizyx,                                      { 1, 1, 3, 0, 1, "goizyx", "oixyz???g",  {}}},
+                { g_os_iyx_osv16,                              { 1, 1, 2, 0, 1, "goiyx",  "oixy????g",  {{0, 16}}}},
+                { g_os_iyx_osv32,                              { 1, 1, 2, 0, 1, "goiyx",  "oixy????g",  {{0, 32}}}},
+                { gs_oiyx_gsv16,                               { 1, 1, 2, 0, 1, "goiyx",  "oixy????g",  {{8, 16}}}},
+                { gs_oizyx_gsv16,                              { 1, 1, 3, 0, 1, "goizyx", "oixyz???g",  {{8, 16}}}},
+                { gs_oiyx_gsv32,                               { 1, 1, 2, 0, 1, "goiyx",  "oixy????g",  {{8, 32}}}},
+                { gyxio,                                       { 1, 1, 2, 0, 1, "gyxio",  "oixy????g",  {}}},
+                { g_is_os_zyx_isv16_osv16,                     { 1, 1, 3, 0, 1, "giozyx", "oixyz???g",  {{1, 16}, {0, 16}}}},
+                { g_is_os_yx_isv16_osv16,                      { 1, 1, 2, 0, 1, "gioyx",  "oixy????g",  {{1, 16}, {0, 16}}}},
+                { g_os_is_zyx_isv8_osv16_isv2,                 { 1, 1, 3, 0, 1, "goizyx", "oixyz???g",  {{1, 8}, {0, 16}, {1, 2}}}},
+                { g_os_is_yx_isv8_osv16_isv2,                  { 1, 1, 2, 0, 1, "goiyx",  "oixy????g",  {{1, 8}, {0, 16}, {1, 2}}}},
+                { g_os_is_zyx_isv16_osv16,                     { 1, 1, 3, 0, 1, "goizyx", "oixyz???g",  {{0, 16}, {1, 16}}}},
+                { g_os_is_yx_osv16_isv4,                       { 1, 1, 2, 0, 1, "goixy",  "oixy????g",  {{0, 16}, {1, 4}}}},
+                { g_os_is_zyx_osv16_isv16,                     { 1, 1, 3, 0, 1, "goizyx", "oixyz???g",  {{0, 16}, {1, 16}}}},
+                { g_os_zyx_is_osv16_isv4,                      { 1, 1, 3, 0, 1, "gozyxi", "oixyz???g",  {{0, 16}, {1, 4}}}},
+                { g_os_zyx_is_osv16_isv16,                     { 1, 1, 3, 0, 1, "gozyxi", "oixyz???g",  {{0, 16}, {1, 16}}}},
+                { g_os_zyx_is_osv16_isv32,                     { 1, 1, 3, 0, 1, "gozyxi", "oixyz???g",  {{0, 16}, {1, 32}}}},
+                { g_os_zyx_is_osv32_isv4,                      { 1, 1, 3, 0, 1, "gozyxi", "oixyz???g",  {{0, 32}, {1, 4}}}},
+                { g_os_zyx_is_osv32_isv16,                     { 1, 1, 3, 0, 1, "gozyxi", "oixyz???g",  {{0, 32}, {1, 16}}}},
+                { g_os_zyx_is_osv32_isv32,                     { 1, 1, 3, 0, 1, "gozyxi", "oixyz???g",  {{0, 32}, {1, 32}}}},
+                { gs_oi_yxs_gsv4_yxsv4,                        { 1, 1, 2, 0, 1, "goiyx",  "oixy????g",  {{8, 4}}}},
+                { gs_oi_yxs_gsv16_yxsv4,                       { 1, 1, 2, 0, 1, "goiyx",  "oixy????g",  {{8, 16}}}},
+                { gs_oi_yxs_gsv32_yxsv4,                       { 1, 1, 2, 0, 1, "goiyx",  "oixy????g",  {{8, 32}}}},
+                { g_os_is_yx_isv16_osv16,                      { 1, 1, 2, 0, 1, "goiyx",  "oixy????g",  {{1, 16}, {0, 16}}}},
+                { gi_yxs_os_yxsv2_osv16,                       { 1, 1, 2, 0, 1, "giyxo",  "oixy????g",  {{0, 16}}}},
+                { iy_xs_os_xsv2_osv8__ao32,                    { 1, 1, 2, 0, 0, "giyxo",  "oixy????g",  {{2, 2}, {0, 8}}}},
+                { iy_xs_os_xsv2_osv16__ao32,                   { 1, 1, 2, 0, 1, "giyxo",  "oixy????g",  {{2, 2}, {0, 16}}}},
         };
         return traits.at(fmt);
     }
@@ -333,6 +363,17 @@ struct format {
                 fmt == image_2d_weights_winograd_6x3_s1_xfbyb ||
                 fmt == nv12 ||
                 fmt == image_2d_rgba);
+    }
+    /// @brief Checks if @p format is weights format
+    static bool is_weights_format(type fmt) {
+        const auto internal_order = traits(fmt).internal_order;
+        const auto weights_chars = { "o", "i" };
+        for (const auto& c : weights_chars) {
+            if (internal_order.find_first_of(c) != std::string::npos) {
+                return true;
+            }
+        }
+        return false;
     }
     /// @brief Checks if @p format is of grouped type
     static bool is_grouped(type fmt) { return group_num(fmt) != 0; }
@@ -957,6 +998,45 @@ public:
             my_sizes[1] = align_to(my_sizes[1], 4);
             my_sizes[0] = align_to(my_sizes[0], 8);
             my_sizes[2] = align_to(my_sizes[2], 8);
+        } else if (fmt == cldnn::format::gs_oi_yxs_gsv4_yxsv4 || fmt == cldnn::format::gs_oi_yxs_gsv16_yxsv4 || fmt == cldnn::format::gs_oi_yxs_gsv32_yxsv4) {
+            const auto yxsv = 4;
+            const auto flat_xy = adjusted_coords[4] + adjusted_coords[3] * my_sizes[4];
+
+            my_sizes.push_back(yxsv);
+            my_sizes[4] = ceil_div(my_sizes[3] * my_sizes[4], yxsv);
+            my_sizes[3] = 1;
+
+            adjusted_coords.push_back(flat_xy % yxsv);
+            adjusted_coords[4] = flat_xy / yxsv;
+            adjusted_coords[3] = 0;
+        } else if (fmt == cldnn::format::os_iyx_osv32__ai32 && !is_aligned_to(my_sizes[1], 32)) {
+            my_sizes[1] = align_to(my_sizes[1], 32);
+        } else if ((fmt == cldnn::format::iy_xs_os_xsv2_osv8__ao32 || fmt == cldnn::format::iy_xs_os_xsv2_osv16__ao32) && !is_aligned_to(my_sizes[3], 32)) {
+            my_sizes[3] = align_to(my_sizes[3], 32);
+        } else if (fmt == cldnn::format::i_yxs_os_yxsv2_osv16 || fmt == cldnn::format::gi_yxs_os_yxsv2_osv16) {
+            const auto yxsv = 2;
+            auto flat_xy = adjusted_coords[2] + adjusted_coords[1] * my_sizes[2];
+
+            my_sizes.insert(std::prev(my_sizes.end()), yxsv);
+            my_sizes[2] = ceil_div(my_sizes[1] * my_sizes[2], yxsv);
+            my_sizes[1] = 1;
+
+            adjusted_coords.insert(std::prev(adjusted_coords.end()), flat_xy % yxsv);
+            adjusted_coords[2] = flat_xy / yxsv;
+            adjusted_coords[1] = 0;
+        } else if (fmt == cldnn::format::os_i_yxs_osv4_yxsv4) {
+            const auto yxsv = 4;
+            const auto flat_xy = adjusted_coords[3] + adjusted_coords[2] * my_sizes[3];
+
+            my_sizes.push_back(yxsv);
+            my_sizes[3] = ceil_div(my_sizes[2] * my_sizes[3], yxsv);
+            my_sizes[2] = 1;
+
+            adjusted_coords.push_back(flat_xy % yxsv);
+            adjusted_coords[3] = flat_xy / yxsv;
+            adjusted_coords[2] = 0;
+        } else if ((fmt == cldnn::format::giy_xs_os_xsv2_osv8__ao32 || fmt == cldnn::format::giy_xs_os_xsv2_osv16__ao32) && !is_aligned_to(my_sizes[3], 32)) {
+            my_sizes[4] = align_to(my_sizes[4], 32);
         }
 
         assert(my_sizes.size() == adjusted_coords.size());

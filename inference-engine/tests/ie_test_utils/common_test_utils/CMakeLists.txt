@@ -9,6 +9,9 @@ set(gtest_force_shared_crt ON CACHE BOOL "disable static CRT for google test")
 function(add_gtest_libraries)
     if (UNIX)
         ie_add_compiler_flags(-Wno-undef)
+        if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+            ie_add_compiler_flags(-Wno-deprecated-copy)
+        endif()
     endif ()
 
     add_subdirectory(gtest)
@@ -52,6 +55,11 @@ function(add_common_utils ADD_TARGET_NAME)
             DEVELOPER_PACKAGE
             EXPORT_DEPENDENCIES
                 ${EXPORT_DEPENDENCIES}
+    )
+
+    ie_faster_build(${ADD_TARGET_NAME}
+        UNITY
+        PCH PRIVATE "precomp.hpp"
     )
 
     # detecting regex support
