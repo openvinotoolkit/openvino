@@ -463,7 +463,7 @@ To learn more about converting deep learning models, go to:
 - [Intel Distribution of OpenVINO Toolkit home page](https://software.intel.com/en-us/openvino-toolkit)
 - [Intel Distribution of OpenVINO Toolkit documentation](https://software.intel.com/en-us/openvino-toolkit/documentation/featured)
 - [OpenVINO™ Release Notes](https://software.intel.com/en-us/articles/OpenVINO-RelNotes)
-- [Introduction to Intel® Deep Learning Deployment Toolkit](../IE_DG/Introduction.md)
+- [Introduction to Inference Engine](inference_engine_intro.md)
 - [Inference Engine Developer Guide](../IE_DG/Deep_Learning_Inference_Engine_DevGuide.md)
 - [Model Optimizer Developer Guide](../MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md)
 - [Inference Engine Samples Overview](../IE_DG/Samples_Overview.md)
