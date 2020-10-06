@@ -145,7 +145,7 @@ TEST_P(MatMulWithConstantTransformation, CompareWithRefImpl) {
     Run();
     if (targetDevice == "CPU") {
         std::string kernel = std::get<3>(this->GetParam()).kernel;
-        сheckKernel("FullyConnected", kernel);
+        checkKernel("FullyConnected", kernel);
     }
 };
 

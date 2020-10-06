@@ -129,7 +129,7 @@ TEST_P(ConvolutionTransformation, CompareWithRefImpl) {
     Run();
     if (targetDevice == "CPU") {
         std::string kernel = std::get<5>(this->GetParam()).kernel;
-        сheckKernel("Convolution", kernel);
+        checkKernel("Convolution", kernel);
     }
 };
 
