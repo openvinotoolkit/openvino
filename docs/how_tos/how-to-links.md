@@ -33,13 +33,6 @@ To learn about what is *custom layers* and how to work with them in the Deep Lea
 <iframe width="560" height="315" src="https://www.youtube.com/embed/1_iI_4Zgufw" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
 
 
-## Deploying Intel® FPGAs for Deep Learning Inferencing with OpenVINO™ Toolkit
-
-[![](https://img.youtube.com/vi/7yh1c8kJn1A/0.jpg)](https://www.youtube.com/watch?v=7yh1c8kJn1A)
-
-<iframe width="560" height="315" src="https://www.youtube.com/embed/7yh1c8kJn1A" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
-
-
 ## Computer Vision at the Edge with OpenVINO by Krishnakumar Shetti at ODSC_India
 
 [![](https://img.youtube.com/vi/RfRCrq35LXg/0.jpg)](https://www.youtube.com/watch?v=RfRCrq35LXg)

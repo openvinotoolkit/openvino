@@ -3,7 +3,6 @@
 > **NOTES**:
 > - These steps apply to Ubuntu\*, CentOS\*, and Yocto\*.
 > - If you are using Intel® Distribution of OpenVINO™ toolkit on Windows\* OS, see the [Installation Guide for Windows*](installing-openvino-windows.md).
-> - For the Intel Distribution of OpenVINO toolkit with FPGA support, see [Installation Guide for Linux* with FPGA support](installing-openvino-linux-fpga.md).
 > - CentOS and Yocto installations will require some modifications that are not covered in this guide.
 > - An internet connection is required to follow the steps in this guide.
 > - [Intel® System Studio](https://software.intel.com/en-us/system-studio) is an all-in-one, cross-platform tool suite, purpose-built to simplify system bring-up and improve system and IoT device application performance on Intel® platforms. If you are using the Intel® Distribution of OpenVINO™ with Intel® System Studio, go to [Get Started with Intel® System Studio](https://software.intel.com/en-us/articles/get-started-with-openvino-and-intel-system-studio-2019).
@@ -24,7 +23,6 @@ The Intel® Distribution of OpenVINO™ toolkit for Linux\*:
 |-----------------------------------------------------------------------------------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | [Model Optimizer](../MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md) | This tool imports, converts, and optimizes models that were trained in popular frameworks to a format usable by Intel tools, especially the Inference Engine. <br>Popular frameworks include Caffe\*, TensorFlow\*, MXNet\*, and ONNX\*.                                                                              |
 | [Inference Engine](../IE_DG/inference_engine_intro.md)               | This is the engine that runs the deep learning model. It includes a set of libraries for an easy inference integration into your applications.                                                                                                                                                                |
-| Drivers and runtimes for OpenCL™ version 2.1                                                        | Enables OpenCL on the GPU/CPU for Intel® processors                                                                                                                                                                                                                                                           |
 | Intel® Media SDK                                                                                    | Offers access to hardware accelerated video codecs and frame processing                                                                                                                                                                                                                                       |
 | [OpenCV](https://docs.opencv.org/master/)                                                           | OpenCV\* community version compiled for Intel® hardware                                                                                                                                                                                                                                                       |
 | [Inference Engine Code Samples](../IE_DG/Samples_Overview.md)           | A set of simple console applications demonstrating how to utilize specific OpenVINO capabilities in an application and how to perform specific tasks, such as loading a model, running inference, querying specific device capabilities, and more. |
@@ -36,7 +34,7 @@ The Intel® Distribution of OpenVINO™ toolkit for Linux\*:
 
 **Hardware**
 
-* 6th to 10th generation Intel® Core™ processors and Intel® Xeon® processors 
+* 6th to 11th generation Intel® Core™ processors and Intel® Xeon® processors 
 * Intel® Xeon® processor E family (formerly code named Sandy Bridge, Ivy Bridge, Haswell, and Broadwell)
 * 3rd generation Intel® Xeon® Scalable processor (formerly code named Cooper Lake)
 * Intel® Xeon® Scalable processor (formerly Skylake and Cascade Lake)
@@ -55,7 +53,7 @@ The Intel® Distribution of OpenVINO™ toolkit for Linux\*:
 **Operating Systems**
 
 - Ubuntu 18.04.x long-term support (LTS), 64-bit
-- CentOS 7.4, 64-bit (for target only)
+- CentOS 7.6, 64-bit (for target only)
 - Yocto Project v3.0, 64-bit (for target only and requires modifications)
 
 ## Overview
