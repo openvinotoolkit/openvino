@@ -78,8 +78,8 @@ class StatsExtractPoolReplacer(FrontReplacementSubgraph):
         default_Mn.out_port(0).connect(Mn.in_port(0))
         default_Sn.out_port(0).connect(Sn.in_port(0))
 
-        delta_1 = Sub(graph, {'name': alg_name + '/M(n-1)-x/'}).create_node()  # delta_1 = x - Mn
-        delta_2 = Sub(graph, {'name': alg_name + '/Mn-x/'}).create_node()  # delta_2 = x - M(n)
+        delta_1 = Sub(graph, {'name': alg_name + '/x-Mn/'}).create_node()      # delta_1 = x - Mn
+        delta_2 = Sub(graph, {'name': alg_name + '/x-M(n+1)/'}).create_node()  # delta_2 = x - M(n+1)
 
         delta_1_div_count = Div(graph, {'name': alg_name + '/delta_1_div_count/'}).create_node()  # delta_1 / count
         var_n = Div(graph, {'name': alg_name + '/Sn_div_count/'}).create_node()  # Variance(n) = S(n) / count
@@ -109,7 +109,7 @@ class StatsExtractPoolReplacer(FrontReplacementSubgraph):
         Sn_new.out_port(0).connect(assign_new_Sn.in_port(0))
 
         Sn_new.out_port(0).connect(var_n.in_port(0))  # Var = S(n+1) / count
-        count.out_port(0).connect(var_n.in_port(1))  # Var = S(n+1) / count
+        count.out_port(0).connect(var_n.in_port(1))   # Var = S(n+1) / count
         Mn_new.out_port(0).connect(concat.in_port(0))
         var_n.out_port(0).connect(concat.in_port(1))
 

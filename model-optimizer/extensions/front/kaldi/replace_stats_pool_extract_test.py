@@ -89,7 +89,7 @@ edges_ref = [
     *connect_front('assign(S(n+1))', 'S(n+1)_fake_output'),
 
     *connect_front('S(n+1)', '0:Var'),  # Var = S(n+1) / count
-    *connect_front('count', '1:Var'),  # Var = S(n+1) / count
+    *connect_front('count', '1:Var'),   # Var = S(n+1) / count
     *connect_front('M(n+1)', '0:concat'),
     *connect_front('Var', '1:concat'),
     *connect_front('concat', 'output'),
