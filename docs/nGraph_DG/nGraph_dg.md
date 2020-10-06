@@ -8,6 +8,4 @@
 * [Graph Constructing](./build_function.md)
 * [Transformations](./nGraphTransformation.md)
 * [Debug Capabilities](./nGraph_debug_capabilities.md)
-* [Python API](./python_api.md)
-
-**Typical Next Step:** [Introduction to Intel® Deep Learning Deployment Toolkit](Introduction.md)
+* [Python API](./nGraph_Python_API.md)
