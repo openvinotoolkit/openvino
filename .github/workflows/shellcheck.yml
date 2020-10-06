@@ -23,6 +23,6 @@ jobs:
           cmake ..
 
       - name: ShellCheck
-        run: cmake --build --target ie_shellcheck
+        run: make ie_shellcheck
         working-directory: build
 
