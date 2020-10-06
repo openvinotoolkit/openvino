@@ -8,7 +8,7 @@
 #include <ie_common.h>
 #include <legacy/ie_layers.h>
 #include <iomanip>
-#include <details/caseless.hpp>
+#include <caseless.hpp>
 #include <layers/gna_copy_layer.hpp>
 #include "backend/dnn_types.h"
 
@@ -51,7 +51,6 @@ intel_dnn_component_t * DnnComponents::findComponent(InferenceEngine::CNNLayerPt
 
     return nullptr;
 }
-
 
 std::vector<intel_dnn_component_t> DnnComponents::getExecutionOrder() {
     std::vector<intel_dnn_component_t> result(components.size());
