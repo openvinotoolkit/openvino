@@ -8,7 +8,7 @@ set(TARGET_NAME "onnx_custom_op")
 find_package(ngraph REQUIRED)
 find_package(InferenceEngine REQUIRED)
 
-add_executable(${TARGET_NAME} main.cpp)
+add_library(${TARGET_NAME} STATIC onnx_custom_op.cpp)
 
 target_compile_options(${TARGET_NAME} PRIVATE -std=c++11)
 

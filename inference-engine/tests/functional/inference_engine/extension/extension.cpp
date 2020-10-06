@@ -9,11 +9,12 @@
 #include <file_utils.h>
 #include <common_test_utils/test_assertions.hpp>
 #include <functional_test_utils/test_model/test_model.hpp>
+#include <onnx_custom_op.hpp>
 
 
-class CustomReluKernel : public InferenceEngine::ILayerExecImpl {
+class CustomAbsKernel : public InferenceEngine::ILayerExecImpl {
     public:
-        explicit CustomReluKernel(const std::shared_ptr<ngraph::Node>& node): node(node) {}
+        explicit CustomAbsKernel(const std::shared_ptr<ngraph::Node>& node): node(node) {}
 
         InferenceEngine::StatusCode
         init(InferenceEngine::LayerConfig& /*config*/, InferenceEngine::ResponseDesc* /*resp*/) noexcept override {
@@ -65,7 +66,7 @@ class CustomReluKernel : public InferenceEngine::ILayerExecImpl {
                 auto inputData = minputHolder.as<const float *>();
                 auto outputData = moutputHolder.as<float  *>();
                 for (size_t j = 0; j < minput->size(); j++) {
-                    outputData[j] = inputData[j] < 0 ? inputData[j] * 2 : inputData[j];
+                    outputData[j] = inputData[j] < 0 ? (-inputData[j] * 2) : inputData[j];
                 }
             }
             return InferenceEngine::StatusCode::OK;
@@ -77,30 +78,30 @@ class CustomReluKernel : public InferenceEngine::ILayerExecImpl {
         const std::shared_ptr<ngraph::Node> node;
 };
 
-class CustomRelu : public ngraph::op::Op {
+class CustomAbs : public ngraph::op::Op {
 public:
-    static constexpr ngraph::NodeTypeInfo type_info{"CustomRelu", 100500};
+    static constexpr ngraph::NodeTypeInfo type_info{"CustomAbs", 100500};
     const ngraph::NodeTypeInfo& get_type_info() const override { return type_info;  }
-    CustomRelu() = default;
-    CustomRelu(const ngraph::Output<ngraph::Node>& arg): ngraph::op::Op({arg}) {
+    CustomAbs() = default;
+    CustomAbs(const ngraph::Output<ngraph::Node>& arg): ngraph::op::Op({arg}) {
         constructor_validate_and_infer_types();
     }
     void validate_and_infer_types() override {
         set_output_type(0, get_input_element_type(0), get_input_partial_shape(0));
     }
     std::shared_ptr<ngraph::Node> clone_with_new_inputs(const ngraph::OutputVector& new_args) const override {
-        return std::make_shared<CustomRelu>(new_args.at(0));
+        return std::make_shared<CustomAbs>(new_args.at(0));
     }
     bool visit_attributes(ngraph::AttributeVisitor& visitor) override {
         return true;
     }
 };
 
-constexpr ngraph::NodeTypeInfo CustomRelu::type_info;
+constexpr ngraph::NodeTypeInfo CustomAbs::type_info;
 
-class CustomReluExtension : public InferenceEngine::IExtension {
+class CustomAbsExtension : public InferenceEngine::IExtension {
     public:
-        CustomReluExtension() {
+        CustomAbsExtension() {
         }
 
         void GetVersion(const InferenceEngine::Version*& versionInfo) const noexcept override {}
@@ -112,19 +113,19 @@ class CustomReluExtension : public InferenceEngine::IExtension {
         std::map<std::string, ngraph::OpSet> getOpSets() override {
             std::map<std::string, ngraph::OpSet> opsets;
             ngraph::OpSet opset;
-            opset.insert<CustomRelu>();
+            opset.insert<CustomAbs>();
             opsets["custom_opset"] = opset;
             return opsets;
         }
 
         std::vector<std::string> getImplTypes(const std::shared_ptr<ngraph::Node>& node) override {
-            if (node->description() != CustomRelu::type_info.name)
+            if (node->description() != CustomAbs::type_info.name)
                 return {};
             return {"CPU"};
         }
 
         InferenceEngine::ILayerImpl::Ptr getImplementation(const std::shared_ptr<ngraph::Node>& node, const std::string& implType) override {
-            return std::make_shared<CustomReluKernel>(node);
+            return std::make_shared<CustomAbsKernel>(node);
         }
 };
 
@@ -159,7 +160,7 @@ void infer_model(InferenceEngine::Core& ie, const std::string& model, const std:
 }
 
 
-TEST(Extension, OnnxModelWithCustomRelu) {
+TEST(Extension, OnnxModelWithCustomAbs) {
     std::string model = R"V0G0N(
 ir_version: 3
 producer_name: "nGraph ONNX Importer"
@@ -168,7 +169,7 @@ graph {
     input: "A"
     output: "Y"
     name: "customrelu"
-    op_type: "CustomRelu"
+    op_type: "CustomAbs"
     domain: "custom_domain"
   }
   name: "test_graph"
@@ -206,21 +207,21 @@ opset_import {
 )V0G0N";
 
     std::vector<float> input_values{1, -2, 3, -4, 5, -6, 7, -8, 9, -10};
-    std::vector<float> expected{1, -4, 3, -8, 5, -12, 7, -16, 9, -20};
+    std::vector<float> expected{1, 4, 3, 8, 5, 12, 7, 16, 9, 20};
     InferenceEngine::Core ie;
-    ie.AddExtension(std::make_shared<CustomReluExtension>());
+    ie.AddExtension(std::make_shared<CustomAbsExtension>());
     ngraph::onnx_import::register_operator(
-        CustomRelu::type_info.name, 1, "custom_domain", [](const ngraph::onnx_import::Node& node) -> ngraph::OutputVector {
+        CustomAbs::type_info.name, 1, "custom_domain", [](const ngraph::onnx_import::Node& node) -> ngraph::OutputVector {
             ngraph::OutputVector ng_inputs{node.get_ng_inputs()};
-            return {std::make_shared<CustomRelu>(ng_inputs.at(0))};
+            return {std::make_shared<CustomAbs>(ng_inputs.at(0))};
     });
 
     infer_model(ie, model, input_values, expected);
-    ngraph::onnx_import::unregister_operator(CustomRelu::type_info.name, 1, "custom_domain");
+    ngraph::onnx_import::unregister_operator(CustomAbs::type_info.name, 1, "custom_domain");
 }
 
 
-TEST(Extension, XmlModelWithCustomRelu) {
+TEST(Extension, XmlModelWithCustomAbs) {
     std::string model = R"V0G0N(
 <net name="Network" version="10">
     <layers>
@@ -232,7 +233,7 @@ TEST(Extension, XmlModelWithCustomRelu) {
                 </port>
             </output>
         </layer>
-        <layer name="activation" id="1" type="CustomRelu" version="custom_opset">
+        <layer name="activation" id="1" type="CustomAbs" version="custom_opset">
             <input>
                 <port id="1" precision="FP32">
                     <dim>10</dim>
@@ -260,9 +261,9 @@ TEST(Extension, XmlModelWithCustomRelu) {
 )V0G0N";
 
     std::vector<float> input_values{1, -2, 3, -4, 5, -6, 7, -8, 9, -10};
-    std::vector<float> expected{1, -4, 3, -8, 5, -12, 7, -16, 9, -20};
+    std::vector<float> expected{1, 4, 3, 8, 5, 12, 7, 16, 9, 20};
     InferenceEngine::Core ie;
-    ie.AddExtension(std::make_shared<CustomReluExtension>());
+    ie.AddExtension(std::make_shared<CustomAbsExtension>());
     infer_model(ie, model, input_values, expected);
 }
 
@@ -407,4 +408,15 @@ opset_import {
     InferenceEngine::Core ie;
     ie.AddExtension(InferenceEngine::make_so_pointer<InferenceEngine::IExtension>(get_extension_path()));
     infer_model(ie, model, input_values, expected);
+}
+
+
+TEST(Extension, OnnxModelWithCustomReluDocsExample) {
+    std::vector<float> input_values{0, -1, 2, -3, 4, -5, 6, -7};
+    std::vector<float> expected{0, -3, 4, -9, 8, -15, 12, -21};
+
+    register_custom_relu_operator();
+    InferenceEngine::Core ie;
+    infer_model(ie, custom_relu_model(), input_values, expected);
+    unregister_custom_relu_operator();
 }

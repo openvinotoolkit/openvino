@@ -5,6 +5,7 @@
 
 set(TARGET_NAME ieFuncTests)
 
+set(INCLUDES ${IE_MAIN_SOURCE_DIR}/src/inference_engine)
 set(LINK_LIBRARIES
     gmock
     funcTestUtils
@@ -19,8 +20,9 @@ set(DEPENDENCIES
 )
 
 if (NGRAPH_ONNX_IMPORT_ENABLE)
-    set(LINK_LIBRARIES ${LINK_LIBRARIES} onnx_importer)
-    set(DEPENDENCIES ${DEPENDENCIES} onnx_importer)
+    set(INCLUDES ${INCLUDES} ${OpenVINO_MAIN_SOURCE_DIR}/docs/onnx_custom_op)
+    set(LINK_LIBRARIES ${LINK_LIBRARIES} onnx_importer onnx_custom_op)
+    set(DEPENDENCIES ${DEPENDENCIES} onnx_importer onnx_custom_op)
 else()
     set(EXCLUDED_SOURCE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/onnx_reader)
 endif()
@@ -32,9 +34,7 @@ endif()
 addIeTargetTest(
         NAME ${TARGET_NAME}
         ROOT ${CMAKE_CURRENT_SOURCE_DIR}
-        INCLUDES
-            # TODO: remove after removing `cnn_network_ngraph_imp.hpp`
-            ${IE_MAIN_SOURCE_DIR}/src/inference_engine
+        INCLUDES ${INCLUDES}
         EXCLUDED_SOURCE_DIRS ${EXCLUDED_SOURCE_DIRS}
         LINK_LIBRARIES ${LINK_LIBRARIES}
         ADD_CPPLINT
