@@ -11,9 +11,7 @@
 #include <string>
 #include <vector>
 
-#include "ie_layers.h"
-#include <ie_data.h>
-#include <ie_common.h>
+#include <legacy/ie_layers.h>
 #include "descriptions/gna_input_desc.hpp"
 #include "descriptions/gna_flags.hpp"
 #include "connection_details.hpp"

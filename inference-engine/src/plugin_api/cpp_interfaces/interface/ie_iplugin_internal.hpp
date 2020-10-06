@@ -59,8 +59,6 @@ static void copyInputOutputInfo(const InputsDataMap & networkInputs, const Outpu
     _networkInputs.clear();
     _networkOutputs.clear();
 
-    IE_SUPPRESS_DEPRECATED_START
-
     for (const auto& it : networkInputs) {
         InputInfo::Ptr newPtr;
         if (it.second) {
@@ -78,8 +76,6 @@ static void copyInputOutputInfo(const InputsDataMap & networkInputs, const Outpu
         }
         _networkOutputs[it.first] = newData;
     }
-
-    IE_SUPPRESS_DEPRECATED_END
 }
 
 /**
