@@ -24,8 +24,8 @@
 #include "ngraph/axis_vector.hpp"
 #include "ngraph/coordinate_transform.hpp"
 #include "ngraph/runtime/reference/concat.hpp"
-#include "ngraph/runtime/reference/split.hpp"
 #include "ngraph/runtime/reference/reverse.hpp"
+#include "ngraph/runtime/reference/split.hpp"
 #include "ngraph/util.hpp"
 
 namespace ngraph
@@ -77,7 +77,6 @@ namespace ngraph
                                      size_t out_batch_axis,
                                      size_t out_channel_axis)
             {
-
                 auto old_mode = std::fegetround();
                 std::fesetround(FE_TONEAREST);
                 // Comments throughout assume without loss of generality that:
@@ -198,7 +197,7 @@ namespace ngraph
                     }
 
                     CoordinateTransform filter_transform(
-                            filter_shape, filter_transform_start, filter_transform_end);
+                        filter_shape, filter_transform_start, filter_transform_end);
 
                     // As we go, we sum up:
                     //
@@ -213,7 +212,7 @@ namespace ngraph
 
                     size_t in_channel_stride = row_major_strides(in_shape).at(in_channel_axis);
                     size_t filter_in_channel_stride =
-                            row_major_strides(filter_shape).at(filter_in_channel_axis);
+                        row_major_strides(filter_shape).at(filter_in_channel_axis);
 
                     while (in_it != in_it_end && filter_it != filter_it_end)
                     {
@@ -238,7 +237,6 @@ namespace ngraph
                     }
 
                     out[out_transform.index(out_coord)] = result;
-
                 }
                 std::fesetround(old_mode);
             }
