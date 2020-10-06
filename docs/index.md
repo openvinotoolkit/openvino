@@ -14,7 +14,7 @@ OpenVINO™ toolkit:
 ## OpenVINO™ Toolkit Workflow
 
 The following diagram illustrates the typical OpenVINO™ workflow (click to see the full-size image):
-![](img/OV-diagram-full.png)
+![](img/OpenVINO-diagram.png)
 
 ### Model Preparation, Conversion and Optimization
 
