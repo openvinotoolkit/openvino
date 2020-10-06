@@ -27,7 +27,7 @@ The Intel® Distribution of OpenVINO™ toolkit for Linux\*:
 | [OpenCV](https://docs.opencv.org/master/)                                                           | OpenCV\* community version compiled for Intel® hardware                                                                                                                                                                                                                                                       |
 | [Inference Engine Code Samples](../IE_DG/Samples_Overview.md)           | A set of simple console applications demonstrating how to utilize specific OpenVINO capabilities in an application and how to perform specific tasks, such as loading a model, running inference, querying specific device capabilities, and more. |
 | [Demo Applications](@ref omz_demos_README)           | A set of simple console applications that provide robust application templates to help you implement specific deep learning scenarios. |
-| [Additional Tools](../IE_DG/Tools_Overview.md)                                   | A set of tools to work with your models  |
+| Additional Tools                                   | A set of tools to work with your models including [Accuracy Checker utility](@ref omz_tools_accuracy_checker_README), [Post-Training Optimization Tool Guide](@ref pot_README), [Model Downloader](@ref omz_tools_downloader_README) and other  |
 | [Documentation for Pre-Trained Models ](@ref omz_models_intel_index)                                   | Documentation for the pre-trained models available in the [Open Model Zoo repo](https://github.com/opencv/open_model_zoo)  |
 
 ## System Requirements

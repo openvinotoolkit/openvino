@@ -29,7 +29,7 @@ The following components are installed by default:
 | [OpenCV\*](https://docs.opencv.org/master/)                                                         | OpenCV\* community version compiled for Intel® hardware                                                                                                                                                                                                      |
 | [Sample Applications](../IE_DG/Samples_Overview.md)                                                                                | A set of simple console applications demonstrating how to use the Inference Engine in your applications. |
 | [Demos](@ref omz_demos_README)                                   | A set of console applications that demonstrate how you can use the Inference Engine in your applications to solve specific use-cases  |
-| [Additional Tools](../IE_DG/Tools_Overview.md)                                   | A set of tools to work with your models  |
+| Additional Tools                                   | A set of tools to work with your models including [Accuracy Checker utility](@ref omz_tools_accuracy_checker_README), [Post-Training Optimization Tool Guide](@ref pot_README), [Model Downloader](@ref omz_tools_downloader_README) and other  |
 | [Documentation for Pre-Trained Models ](@ref omz_models_intel_index)                                   | Documentation for the pre-trained models available in the [Open Model Zoo repo](https://github.com/opencv/open_model_zoo)  |
 
 ## Development and Target Platform

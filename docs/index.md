@@ -14,7 +14,7 @@ OpenVINO™ toolkit:
 ## OpenVINO™ Toolkit Workflow
 
 The following diagram illustrates the typical OpenVINO™ workflow (click to see the full-size image):
-![](img/OV-diagram-full.svg)
+![](img/OV-diagram-full.png)
 
 ### Model Preparation, Conversion and Optimization
 
@@ -23,7 +23,7 @@ Several of these pretrained models are used also in the [code samples](E_DG/Samp
 
 One of the core component of the OpenVINO™ toolkit is the [Model Optimizer](MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md) a cross-platform command-line
 tool that converts a trained neural network from its source framework to an open-source, nGraph-compatible [Intermediate Representation (IR)](MO_DG/IR_and_opsets.md) for use in inference operations. The Model Optimizer imports models trained in popular frameworks such as Caffe*, TensorFlow*, MXNet*, Kaldi*, and ONNX* and performs a few optimizations to remove excess layers and group operations when possible into simpler, faster graphs.
-![](img/OV-diagram-step2.svg)
+![](img/OV-diagram-step2.png)
 
 If your neural network model contains layers that are not in the list of known layers for supported frameworks, you can adjust the conversion and optimization process through use of  [Custom Layers](HOWTO/Custom_Layers_Guide.md).
 
@@ -44,7 +44,7 @@ The other core component of OpenVINO™ is the [Inference Engine](IE_DG/Deep_Lea
 You can use OpenVINO™ Tuning Utilities with the Inference Engine to trial and test inference on your model. The Benchmark utility uses an input model to run iterative tests for throughput or latency measures, and the Cross Check utility compares performance of differently configured inferences. The [Post-Training Optimization Tool](@ref pot_README) integrates a suite of quantization- and calibration-based tools to further streamline performance.
 
 For a full browser-based studio integrating these other key tuning utilities, try the [Deep Learning Workbench](@ref workbench_docs_Workbench_DG_Introduction).
-![](img/OV-diagram-step3.svg)
+![](img/OV-diagram-step3.png)
 
 OpenVINO™ toolkit includes a set of [inference code samples](IE_DG/Samples_Overview.md) and [application demos](@ref omz_demos_README) showing how inference is run and output processed for use in retail environments, classrooms, smart camera applications, and other solutions.
 
