@@ -349,4 +349,41 @@ TEST(PassConfigTest, Test1)
         manager2.set_pass_config(pass_config);
         ASSERT_EQ(pass_config.use_count(), 1);
     }
+
+    {
+        auto f = get_function();
+
+        pass::Manager manager;
+        manager.register_pass<TestPass>();
+
+        auto pass_config = manager.get_pass_config();
+        pass_config->set_callback<TestPass>(get_callback());
+
+        pass_config->disable<TestPass>();
+        manager.run_passes(f);
+        ASSERT_EQ(count_ops_of_type<opset3::Relu>(f), 0);
+
+        pass_config->enable<TestPass>();
+        manager.run_passes(f);
+        ASSERT_EQ(count_ops_of_type<opset3::Relu>(f), 1);
+    }
+
+    {
+        auto f = get_function();
+
+        pass::Manager manager;
+        auto anchor = manager.register_pass<Anchor>();
+        anchor->add_matcher<TestPass>();
+
+        auto pass_config = manager.get_pass_config();
+        pass_config->set_callback<TestPass>(get_callback());
+
+        pass_config->disable<TestPass>();
+        manager.run_passes(f);
+        ASSERT_EQ(count_ops_of_type<opset3::Relu>(f), 0);
+
+        pass_config->enable<TestPass>();
+        manager.run_passes(f);
+        ASSERT_EQ(count_ops_of_type<opset3::Relu>(f), 1);
+    }
 }
