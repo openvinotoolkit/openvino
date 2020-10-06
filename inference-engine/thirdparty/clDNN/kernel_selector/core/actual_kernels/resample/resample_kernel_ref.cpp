@@ -40,6 +40,7 @@ ParamsKey ResampleKernelRef::GetSupportedKey() const {
     k.EnableReampleType(ResampleType::NEAREST_NEIGHBOR);
     k.EnableReampleType(ResampleType::CAFFE_BILINEAR_INTERP);
     k.EnableReampleType(ResampleType::BILINEAR_INTERP);
+    k.EnableReampleType(ResampleType::CUBIC);
     return k;
 }
 

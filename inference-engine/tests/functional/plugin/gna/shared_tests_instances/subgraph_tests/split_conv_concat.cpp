@@ -13,7 +13,7 @@ const std::vector<InferenceEngine::Precision> netPrecisions = {
         InferenceEngine::Precision::FP16
 };
 // TODO: Issue:  26421 (Concat issue)
-INSTANTIATE_TEST_CASE_P(DISABLED_ReshapeNoReshape, SplitConvConcat,
+INSTANTIATE_TEST_CASE_P(DISABLED_smoke_ReshapeNoReshape, SplitConvConcat,
                         ::testing::Combine(
                                 ::testing::ValuesIn(netPrecisions),
                                 ::testing::Values(std::vector<size_t >({1, 6, 40, 40})),

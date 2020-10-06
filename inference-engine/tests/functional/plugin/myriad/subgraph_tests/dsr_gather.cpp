@@ -82,7 +82,7 @@ TEST_P(DSR_GatherDynamicDataStaticIdx, CompareWithReference) {
     Run();
 }
 
-INSTANTIATE_TEST_CASE_P(DynamicGatherData, DSR_GatherDynamicDataStaticIdx, testing::Combine(
+INSTANTIATE_TEST_CASE_P(smoke_DynamicGatherData, DSR_GatherDynamicDataStaticIdx, testing::Combine(
         testing::ValuesIn(dataTypeVector),
         testing::ValuesIn(idxTypeVector),
         testing::Values(
@@ -118,7 +118,7 @@ TEST_P(DSR_GatherStaticDataDynamicIdx, CompareWithReference) {
     Run();
 }
 
-INSTANTIATE_TEST_CASE_P(DynamicGatherIdx, DSR_GatherStaticDataDynamicIdx, testing::Combine(
+INSTANTIATE_TEST_CASE_P(smoke_DynamicGatherIdx, DSR_GatherStaticDataDynamicIdx, testing::Combine(
         testing::ValuesIn(dataTypeVector),
         testing::ValuesIn(idxTypeVector),
         testing::Values(
@@ -153,7 +153,7 @@ TEST_P(DSR_GatherDynamicDataDynamicIdx, CompareWithReference) {
     Run();
 }
 
-INSTANTIATE_TEST_CASE_P(DynamicGather, DSR_GatherDynamicDataDynamicIdx, testing::Combine(
+INSTANTIATE_TEST_CASE_P(smoke_DynamicGather, DSR_GatherDynamicDataDynamicIdx, testing::Combine(
         testing::ValuesIn(dataTypeVector),
         testing::ValuesIn(idxTypeVector),
         testing::Values(

@@ -163,6 +163,7 @@ public:
         Copy,
         Resample,
         Interp,
+        Interpolate,
         RegionYolo,
         ReorgYolo,
         ConstantBlob,
@@ -346,6 +347,7 @@ private:
     void CreateCopyPrimitive(cldnn::topology& topology, InferenceEngine::CNNLayerPtr &layer);
     void CreateResamplePrimitive(cldnn::topology& topology, InferenceEngine::CNNLayerPtr &layer);
     void CreateInterpPrimitive(cldnn::topology& topology, InferenceEngine::CNNLayerPtr &layer);
+    void CreateInterpolatePrimitive(cldnn::topology& topology, InferenceEngine::CNNLayerPtr &layer);
     void CreateYOLO2RegionPrimitive(cldnn::topology& topology, InferenceEngine::CNNLayerPtr &layer);
     void CreateYOLO2ReorgPrimitive(cldnn::topology& topology, InferenceEngine::CNNLayerPtr &layer);
     void CreateArgMaxMinPrimitive(cldnn::topology& topology, InferenceEngine::CNNLayerPtr &layer, const LayerType type);
