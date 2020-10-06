@@ -708,8 +708,15 @@ void InsertCopyLayerPass::run() {
                     || LayerInfo(prevIndirectLayer).isSplit()) { bInsertDelayed = true;}
                 // memory usualy preceded by either activation or split, or other layers in order to have 2b precision
                 for (auto && inputto : getInputTo(prevLayers[i].first->outData[prevLayers[i].second])) {
+                    auto current_layer = inputto.second;
+                    while (LayerInfo(current_layer).isNonFunctional() || LayerInfo(current_layer).isSplit()) {
+                        if (current_layer->outData.size() == 0) break;
+                        if (getInputTo(current_layer->outData[0]).size() == 0) break;
+                        auto new_layer = CNNNetGetNextLayerSkipCertain(current_layer, 0, 0, [](CNNLayerPtr origin){return false;}).first;
+                        current_layer = new_layer;
+                    }
                     // if preceding layer is common for memory and concat
-                    if (LayerInfo(inputto.second).isConcat()) {
+                    if (LayerInfo(current_layer).isConcat()) {
                         bInsertDelayed = true;
                         break;
                     }
