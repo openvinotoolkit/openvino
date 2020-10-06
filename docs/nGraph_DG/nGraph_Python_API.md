@@ -1,10 +1,10 @@
 # Using nGraph's Python API
 
-nGraph is OpenVINO's graph manipulation library, used to represent neural network models in the form of a computational graph. Using nGraph's Python APIs, you can create, inspect and manipulate computational graphs. You can also use the API to set runtime properties of the graph, which will be used by OpenVINO during inference.
+nGraph is the OpenVINO&trade; graph manipulation library, used to represent neural network models in the form of a computational graph. With nGraph Python APIs, you can create, inspect, and modify computational graphs.
 
 ## nGraph namespace module
 
-nGraph has a large set of mathematical operations, chosen to cover most ops used in popular neural network models. The `ngraph` module is the basic namespace used to expose commonly used API methods. You can inspect the `ngraph` module or call `help` on any method for usage information.
+nGraph is able to represent a large set of mathematical operations, chosen to cover most operations used in popular neural network models. The `ngraph` module is the basic namespace used to expose commonly used API methods. You can inspect the `ngraph` module or call `help` on any method for usage information.
 
 ```python
 import ngraph as ng
@@ -14,11 +14,8 @@ help(ng.space_to_batch)
 
 ## Create a simple graph
 
-nGraph's Python API can be used to create computational models. Let's say you want to create a model which represents the following formula:
+You can use nGraph's Python API to create computational models. For example, to create a model that represents the formula `y=ReLU(x + b)`, you can use the following code to create parameters `x` and `b` and create the computational graph:
 
-    y = ReLU(x + b)
-
-You can use the following code to create parameters `x` and `b` and create the computational graph representing the formula:
 
 ```python
 import numpy as np
@@ -30,9 +27,9 @@ parameter_b = ng.parameter(shape=[2, 2], dtype=np.float32, name="b")
 graph = ng.relu(parameter_x + parameter_b, name="y")
 ```
 
-nGraph operations are organized into sets, which are released with new versions of OpenVINO. As operation signatures can change between operation sets, it's good practice to use operations from a specific operation set in your scripts. This will ensure that your code is compatible with future versions of OpenVINO.
+nGraph operations are organized into sets, which are released with new versions of OpenVINO. As operation signatures can change between operation sets, it is a good practice to use operations from a specific operation set in your scripts. This ensures that your code is compatible with future versions of OpenVINO.
 
-The example above can be rewritten like this to use only operations from opset 4:
+The example, the code above can be rewritten like this to use only operations from opset 4:
 
 ```python
 import ngraph.opset4 as ops
@@ -46,16 +43,17 @@ graph = ops.relu(parameter_x + parameter_b, name="y")
 
 ## Create an nGraph function from a graph
 
-You can combine a graph together with it's input parameters into an nGraph function object. An nGraph function can be passed to other parts of OpenVINO to perform analysis and inference.
+You can combine a graph together with its input parameters into an nGraph function object. An nGraph function can be passed to other parts of OpenVINO to perform analysis and inference.
 
 ```python
 >>> function = ng.impl.Function(graph, [parameter_x, parameter_b], "TestFunction")
+>>> function
 <Function: 'TestFunction' ({2,2})>
 ```
 
 ## Run inference
 
-In order to run inference on an nGraph function, you'll need to convert it to an Inference Engine network
+In order to run inference on an nGraph function convert it to an Inference Engine network and call its `infer` method.
 
 ```python
 >>> from openvino.inference_engine import IECore, IENetwork
@@ -65,19 +63,18 @@ In order to run inference on an nGraph function, you'll need to convert it to an
 >>> ie = IECore()
 >>> executable_network = ie.load_network(ie_network, 'CPU')
 >>> 
->>> request = executable_network.requests[0]
->>> request.infer({
+>>> output = executable_network.infer({
 >>>    'x': np.array([[-1, 0], [1, 2]]),
 >>>    'b': np.array([[-1, 0], [0, 1]]),
 >>> })
->>> request.output_blobs['y'].buffer
+>>> output['y']
 array([[-0.,  0.],
        [ 1.,  3.]], dtype=float32)
 ```
 
 ## Load an nGraph function from a file
 
-It's common to load a model from a file using the Inference Engine `read_network` method:
+You can load a model from a file using the Inference Engine `read_network` method:
 
     network = ie_core.read_network(model=model_path, weights=weights_path)
 
@@ -98,7 +95,7 @@ function = ng.function_from_cnn(network)
 
 ## Inspect an nGraph function
 
-You can use the nGraph function's `get_ordered_ops` method to get a topologically sorted list of it's graph `Node`s. 
+You can use the nGraph function's `get_ordered_ops` method to get a topologically sorted list of its graph `Node`s. 
 
 ```python
 >>> function.get_ordered_ops()
@@ -109,7 +106,7 @@ You can use the nGraph function's `get_ordered_ops` method to get a topologicall
  <Result: 'Result_4' ({2,2})>]
 ```
 
-Each `Node` has a unique `name` property, assigned at creation time. User provided names can be retrieved using the `get_friendly_name` method. `get_type_name` returns the operation type of the node and the `shape` property returns the shape of the node's output tensor.
+Each `Node` has a unique `name` property, assigned at creation time. User-provided names can be retrieved using the `get_friendly_name` method. `get_type_name` returns the operation type of the node and the `shape` property returns the shape of the node's output tensor.
 
 ```python
 >>> for node in function.get_ordered_ops():
@@ -134,7 +131,7 @@ Add_2 node has parent x
 Add_2 node has parent b
 ```
 
-By analogy, `Node`'s children can be retrieved using the `outputs()` method which returns a list of `Output` objects. By contrast to inputs, each output can be connected to multiple downstream nodes.
+By analogy, `Node`'s children can be retrieved using the `outputs()` method, which returns a list of `Output` objects. By contrast to inputs, each output can be connected to multiple downstream nodes.
 
 ```python
 >>> for node_output in node.outputs():
@@ -146,7 +143,7 @@ Add_2 node has children y
 
 ### Shapes
 
-Each `Input` and `Output` has an associated tensor shape, which describes what data it can accept or produce. Shapes can be dynamic, which means that they are only partially known. You can get information about this shape by calling the `get_partial_shape` method. If the returned `PartialShape` object's `is_dynamic` property returns `True`, then the shape is known partially. Otherwise you can convert the shape to a fully known static shape (list of integers).
+Each `Input` and `Output` has an associated tensor shape, which describes what data it can accept or produce. Shapes can be dynamic, which means that they are only partially known. You can get information about this shape by calling the `get_partial_shape` method. If the returned `PartialShape` object's `is_dynamic` property returns `True`, then the shape is known partially. Otherwise, you can convert the shape to a fully known static shape (list of integers).
 
 ```python
 partial_shape = node_input.get_partial_shape()
@@ -159,7 +156,7 @@ else:
 
 ### Node attributes
 
-Nodes may also have additional attributes. For example a `Softmax` node has an `axis` attribute. Each attribute may be retrieved using a dedicated method, for example `node.get_axis()`.
+Nodes may also have additional attributes. For example, a `Softmax` node has an `axis` attribute. Each attribute may be retrieved using a dedicated method, for example, `node.get_axis()`.
 
 ```python
 >>> node = ng.softmax(data=[[1, 2], [3, 4]], axis=1)
@@ -210,9 +207,9 @@ if node.get_type_name() == 'Constant':
 
 ## Optimize graphs
 
-nGraph supports a growing number of optimization passes, which can be applied to a graph to increase model execution performance. In order to perform constant folding of sub-graphs you can use the `ConstantFolding` pass. To do this you will need to create an optimization pass `Manager`, register the passes you want to execute and feed an nGraph function to the configured pass manager.
+nGraph supports a growing number of optimization passes, which can be applied to a graph to increase model execution performance. To perform constant folding of subgraphs, you can use the `ConstantFolding` pass. To do this, create an optimization pass `Manager`, register the passes you need to execute, and feed an nGraph function to the configured pass manager.
 
-The following code example illustrates the principal:
+The following code example illustrates the process:
 
 ```python
 from ngraph.impl.passes import Manager
