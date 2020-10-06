@@ -61,9 +61,6 @@ jobs:
       call "$(MSVS_VARS_PATH)" && "C:\Program Files (x86)\IncrediBuild\BuildConsole.exe" /COMMAND="ninja" /MaxCPUS=40
     workingDirectory: $(BUILD_DIR)
     displayName: 'Build Win'
-  - script: echo Stop IncrediBuild_Agent && net stop IncrediBuild_Agent
-    displayName: Stop IncrediBuild
-    continueOnError: true
   - script: dir $(REPO_DIR)\bin\ /s /b
     displayName: 'List files'
   - script: |
@@ -140,6 +137,9 @@ jobs:
       $(BIN_DIR)\InferenceEngineCAPITests --gtest_output=xml:TEST-InferenceEngineCAPITests.xml
     displayName: 'IE CAPITests'
     continueOnError: false
+  - script: echo Stop IncrediBuild_Agent && net stop IncrediBuild_Agent
+    displayName: Stop IncrediBuild
+    continueOnError: true
   - task: PublishTestResults@2
     inputs:
       testResultsFormat: 'JUnit' # Options: JUnit, NUnit, VSTest, xUnit, cTest
