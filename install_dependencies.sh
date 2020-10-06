@@ -39,7 +39,7 @@ if [ -f /etc/lsb-release ]; then
             ca-certificates \
             git \
             libboost-regex-dev \
-            $x86_64_specific_packages \
+            "$x86_64_specific_packages" \
             libgtk2.0-dev \
             pkg-config \
             unzip \
