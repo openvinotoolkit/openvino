@@ -58,7 +58,7 @@ Useful documents for inference tuning:
 * [Post-Training Optimization Tool Guide](@ref pot_README)
 * [Deep Learning Workbench Guide](@ref workbench_docs_Workbench_DG_Introduction)
 * [Intel Media SDK](https://github.com/Intel-Media-SDK/MediaSDK)
-* [DL Streamer Samples](IE_DG/Tools_Overview.md)
+* [DL Streamer Samples](@ref gst_samples_README)
 * [OpenCV](https://docs.opencv.org/master/)
 * [OpenVX](https://software.intel.com/en-us/openvino-ovx-guide)
 
@@ -69,12 +69,12 @@ The Intel Distribution of OpenVINO™ toolkit outputs optimized inference runtim
 * Intel® Neural Compute Stick 2
 * Intel® Vision Accelerator Design with Intel® Movidius™ VPUs
 
-The Inference Engine's plug-in architecture can be extended to meet other specialized needs. [Deployment Manager](install_guides/deployment_manager_tool.md) is a Python* command-line tool that assembles the tuned model, IR files, your application, and required dependencies into a runtime package for your target device. It outputs packages for CPU, GPU, and VPU on Linux* and Windows*, and Neural Compute Stick-optimized packages with Linux.
+The Inference Engine's plug-in architecture can be extended to meet other specialized needs. [Deployment Manager](./install_guides/deployment-manager-tool.md) is a Python* command-line tool that assembles the tuned model, IR files, your application, and required dependencies into a runtime package for your target device. It outputs packages for CPU, GPU, and VPU on Linux* and Windows*, and Neural Compute Stick-optimized packages with Linux.
 
-[Inference Engine Integration Workflow](IE_DG/Integrate_with_customer_application_new_API.md)
-[Inference Engine API References](./api_references.html)
-[Inference Engine Plug-in Developer Guide](./ie_plugin_api/index.html)
-[Deployment Manager Guide](install_guides/deployment_manager_tool.md)
+* [Inference Engine Integration Workflow](IE_DG/Integrate_with_customer_application_new_API.md)
+* [Inference Engine API References](./api_references.html)
+* [Inference Engine Plug-in Developer Guide](./ie_plugin_api/index.html)
+* [Deployment Manager Guide](./install_guides/deployment-manager-tool.md)
 
 
 ## OpenVINO™ Toolkit Components 
@@ -92,11 +92,11 @@ Intel® Distribution of OpenVINO™ toolkit includes the following components:
 - [Post-Training Optimization tool](@ref pot_README) - A tool to calibrate a model and then execute it in the INT8 precision
 - [Deep Learning Workbench](@ref workbench_docs_Workbench_DG_Introduction) -  A web-based graphical environment that allows you to easily use various sophisticated OpenVINO™ toolkit components
 - Deep Learning Streamer (DL Streamer) – Streaming analytics framework, based on GStreamer, for constructing graphs of media analytics components. DL Streamer can be installed by the Intel® Distribution of OpenVINO™ toolkit installer. Its open source version is available on [GitHub](https://github.com/opencv/gst-video-analytics). For the DL Streamer documentation, see:
-    - [DL Streamer Samples](IE_DG/Tools_Overview.md)
+    - [DL Streamer Samples](@ref gst_samples_README)
     - [API Reference](https://openvinotoolkit.github.io/dlstreamer_gst/)
     - [Elements](https://github.com/opencv/gst-video-analytics/wiki/Elements)
     - [Tutorial](https://github.com/opencv/gst-video-analytics/wiki/DL%20Streamer%20Tutorial)
 - [OpenCV](https://docs.opencv.org/master/) - OpenCV* community version compiled for Intel® hardware
 - [Intel® Media SDK](https://software.intel.com/en-us/media-sdk) (in Intel® Distribution of OpenVINO™ toolkit for Linux only)
 
-OpenVINO™ Toolkit opensource version is available on [GitHub](https://github.com/openvinotoolkit/openvino). For building the Inference Engine from the source code, see the [building instructions](https://github.com/openvinotoolkit/openvino/blob/master/build-instruction.md).
+OpenVINO™ Toolkit opensource version is available on [GitHub](https://github.com/openvinotoolkit/openvino). For building the Inference Engine from the source code, see the <a href="https://github.com/openvinotoolkit/openvino/blob/master/build-instruction.md">build instructions</a>.
