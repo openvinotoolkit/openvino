@@ -153,6 +153,7 @@
                         <tab type="user" title="GRUSequence-5" url="@ref openvino_docs_ops_sequence_GRUSequence_5"/>
                         <tab type="user" title="GatherTree-1" url="@ref openvino_docs_ops_movement_GatherTree_1"/>
                         <tab type="user" title="Gather-1" url="@ref openvino_docs_ops_movement_Gather_1"/>
+                        <tab type="user" title="GatherND-5" url="@ref openvino_docs_ops_movement_GatherND_5"/>
                         <tab type="user" title="Gelu-2" url="@ref openvino_docs_ops_activation_GELU_2"/>
                         <tab type="user" title="GreaterEqual-1" url="@ref openvino_docs_ops_comparison_GreaterEqual_1"/>
                         <tab type="user" title="Greater-1" url="@ref openvino_docs_ops_comparison_Greater_1"/>
