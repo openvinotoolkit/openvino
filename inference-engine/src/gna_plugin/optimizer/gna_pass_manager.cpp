@@ -1158,6 +1158,7 @@ void EltwiseSplitOverChannelsPass::run() {
 }
 
 void SubstituteScaleShiftBroadCastPass::run() {
+    std::map<std::string, InferenceEngine::SizeVector> reshaped_data;
     for (auto & l : *pLayers) {
         LayerInfo layerInfo(l);
 
@@ -1172,12 +1173,20 @@ void SubstituteScaleShiftBroadCastPass::run() {
             THROW_GNA_EXCEPTION << "Cannot get inputs data for layer: " << l->name;
         }
 
-        if (insData->getDims().size() <= 2) {
+        bool was_reshaped = reshaped_data.count(insData->getName()) != 0;
+        InferenceEngine::SizeVector dataDims;
+        if (was_reshaped) {
+            dataDims = reshaped_data[insData->getName()];
+        } else {
+            dataDims = insData->getDims();
+        }
+
+        if (dataDims.size() <= 2) {
             // NC or C cannot do broadcast
             continue;
         }
-        auto batchSize = insData->getDims()[0];
-        auto nElements = product(begin(insData->getDims()), end(insData->getDims())) / batchSize;
+        auto batchSize = dataDims[0];
+        auto nElements = product(begin(dataDims), end(dataDims)) / batchSize;
         auto weightsElements = scaleShift->_weights->size();
         auto weightsBytes = scaleShift->_weights->byteSize();
 
@@ -1186,12 +1195,12 @@ void SubstituteScaleShiftBroadCastPass::run() {
         }
 
         // only 3d scaleshift supported where number of c is arbitrary
-        auto lastD = insData->getDims()[insData->getDims().size() - 1];
+        auto lastD = dataDims[dataDims.size() - 1];
         if (lastD != weightsElements) {
             THROW_GNA_EXCEPTION << "Unsupported layer: " << l->name
                                 << " should have last dim(" << lastD << ") equal to weights(" << weightsElements << ") length";
         }
-        if (insData->getDims().size() == 2) {
+        if (dataDims.size() == 2) {
             THROW_GNA_EXCEPTION << "For layer: " << l->name
                                 << " weights size(" << weightsElements<< ") invalid: should match input size of(" << lastD << ")";
         }
@@ -1212,7 +1221,10 @@ void SubstituteScaleShiftBroadCastPass::run() {
 
             // currently data type no providing reshape method of tensor desc
             scaleShift->outData.front()->reshape({batchSize, nElements}, Layout::NC);
-            insData->reshape({batchSize, nElements}, Layout::NC);
+            if (!was_reshaped) {
+                reshaped_data[insData->getName()] = insData->getDims();
+                insData->reshape({batchSize, nElements}, Layout::NC);
+            }
         } else {
             THROW_GNA_EXCEPTION << "Not implemented substitution of scaleshift broadcast policy of "
                                 << getPassManager()->getPolicy().ScaleShiftPolicy <<  "using layers tiling, layer: " << l->name;
@@ -1302,6 +1314,46 @@ void InsertIdentityToLSTMCellPass::run() {
                 }
                 input_to.clear();
                 input_to[activationName] = activationLayerWithQuant;
+            }
+        }
+    }
+}
+
+void BreakFusingOfOutputLayersPass::run() {
+#if GNA_LIB_VER == 1
+    return;
+#endif
+    OutputsDataMap outputsMap;
+    this->getPassManager()->getNetwork()->getOutputsInfo(outputsMap);
+    for (auto layer : *pLayers) {
+        for (int output_idx = 0; output_idx < layer->outData.size(); output_idx++) {
+            auto& output = layer->outData[output_idx];
+            auto& input_to = getInputTo(output);
+
+            auto output_name = output->getName();
+            auto is_network_output = outputsMap.find(output_name) != outputsMap.end();
+            // In cases that this layer is network output you cannot use identity as sole output on
+            // it since it will possibly be fused and layer outputs will be unavailable
+            if (is_network_output) {
+                if (input_to.size() != 1) continue;
+                if (!LayerInfo(input_to.begin()->second).isActivation()) continue;
+
+                CNNLayerPtr additional_output =
+                    std::make_shared<GenericLayer>(LayerParams({output_name + "_side_identity", "identity", InferenceEngine::Precision::FP32}));
+
+                auto quantized = InferenceEngine::getInjectedData<QuantizedLayerParams>(layer);
+                auto additional_output_quant = quantized ? InferenceEngine::injectData<QuantizedLayerParams>(additional_output) : additional_output;
+
+                additional_output_quant->insData.resize(1);
+                additional_output_quant->outData.resize(1);
+
+                auto out_data = DataPtr(new Data(output_name + "_side_identity_data", output->getTensorDesc()));
+                getCreatorLayer(out_data) = additional_output_quant;
+
+                additional_output_quant->outData[0] = out_data;
+
+                input_to[additional_output_quant->name] = additional_output_quant;
+                additional_output_quant->insData[0] = output;
             }
         }
     }
