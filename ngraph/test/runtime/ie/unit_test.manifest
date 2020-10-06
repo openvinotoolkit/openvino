@@ -63,6 +63,7 @@ onnx_model_elu
 onnx_model_top_k
 onnx_model_erf
 onnx_model_addmul_abc
+IE_CPU.interpolate_down_scales_const_linear
 
 # data [<name>] doesn't exist
 onnx_model_sum_one_input
@@ -1111,20 +1112,8 @@ IE_CPU.acosh
 # Unsupported collapse op with dynamic shape
 IE_CPU.builder_opset1_collapse_dyn_shape
 
-# Interpolate-1 in linear mode
-# 2.666666507720947266 is not close to 3 at index 1
-# IE_CPU.interpolate_down_scales_const_linear
-
-# Not implemented Interpolate-4:
-IE_CPU.onnx_model_round
-IE_CPU.onnx_upsample9_scales_const_linear_infer
-IE_CPU.onnx_upsample9_scales_const_nearest_infer
-IE_CPU.onnx_upsample8_nearest_infer
-IE_CPU.onnx_upsample8_linear_infer
-IE_CPU.interpolate_down_scales_const_linear
-IE_CPU.onnx_upsample8_import_only
-IE_CPU.onnx_upsample9_scales_const_import_only
-IE_CPU.onnx_empty_initializers_handling
+# nGraph Interpolate operation with name: Y cannot be converted to Interpolate layer with name:
+# Y because output with index 0 contains dynamic shapes: {?,?,?,?}
 IE_CPU.onnx_resize11_scales_nearest_asymmetric_floor_dynamic_sizes
 
 #-------------------------------------------------------------------------------
@@ -1470,4 +1459,3 @@ onnx_controlflow_loop_add_value_access_to_body_scope_exception
 onnx_controlflow_loop_add_value_the_same_node_from_parent_and_subgraph
 onnx_controlflow_loop_2d_add_exception_if_no_identity_cond
 onnx_controlflow_loop_2d_add_const_cond
-
