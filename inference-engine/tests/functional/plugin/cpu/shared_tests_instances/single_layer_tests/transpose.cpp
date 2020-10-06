@@ -32,7 +32,7 @@ const auto params = testing::Combine(
 );
 
 INSTANTIATE_TEST_CASE_P(
-        Transpose,
+        smoke_Transpose,
         TransposeLayerTest,
         params,
         TransposeLayerTest::getTestCaseName
