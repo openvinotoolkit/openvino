@@ -30,7 +30,7 @@ namespace ngraph
         namespace v0
         {
             /// \brief Permutes data in the channel dimension of the input
-            class NGRAPH_API ShuffleChannels : public ngraph::op::util::FusedOp
+            class NGRAPH_API ShuffleChannels : public Op
             {
             public:
                 static constexpr NodeTypeInfo type_info{"ShuffleChannels", 0};
@@ -53,7 +53,7 @@ namespace ngraph
                 bool visit_attributes(AttributeVisitor& visitor) override;
                 size_t get_zero_based_axis() const;
 
-                virtual void pre_validate_and_infer_types() override;
+                virtual void validate_and_infer_types() override;
 
                 virtual OutputVector decompose_op() const override;
 

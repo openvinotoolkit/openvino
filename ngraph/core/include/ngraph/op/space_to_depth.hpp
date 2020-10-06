@@ -35,7 +35,7 @@ namespace ngraph
             ///
             ///        Output node produces a tensor with shape:
             ///        [N, C * blocksize * blocksize, H / blocksize, W / blocksize]
-            class NGRAPH_API SpaceToDepth : public ngraph::op::util::FusedOp
+            class NGRAPH_API SpaceToDepth : public Op
             {
             public:
                 static constexpr NodeTypeInfo type_info{"SpaceToDepth", 0};
@@ -67,7 +67,7 @@ namespace ngraph
                 std::size_t get_block_size() const { return m_blocksize; }
                 SpaceToDepthMode get_mode() const { return m_mode; }
                 virtual OutputVector decompose_op() const override;
-
+                void validate_and_infer_types() override;
                 virtual std::shared_ptr<Node>
                     clone_with_new_inputs(const OutputVector& new_args) const override;
 

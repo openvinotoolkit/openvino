@@ -35,7 +35,7 @@ constexpr NodeTypeInfo op::SpaceToDepth::type_info;
 op::SpaceToDepth::SpaceToDepth(const Output<Node>& data,
                                const SpaceToDepthMode& mode,
                                size_t block_size)
-    : FusedOp({data})
+    : Op({data})
     , m_blocksize(block_size)
     , m_mode(mode)
 {
@@ -153,6 +153,51 @@ shared_ptr<Node> op::SpaceToDepth::clone_with_new_inputs(const OutputVector& new
         throw ngraph_error("Incorrect number of new arguments");
     }
     return make_shared<SpaceToDepth>(new_args.at(0), m_mode, m_blocksize);
+}
+
+void ngraph::op::v0::SpaceToDepth::validate_and_infer_types()
+{
+    PartialShape data_pshape = get_input_partial_shape(0);
+
+    const auto& data_type = get_input_element_type(0);
+
+    auto data = input_value(0);
+
+    if (data_pshape.is_static())
+    {
+        const auto& data_shape = data.get_shape();
+
+        NODE_VALIDATION_CHECK(
+            this,
+            !(data_shape.size() < 3),
+            "The input tensor with rank lower than 3 is not supported (input rank: ",
+            data_shape.size(),
+            ")");
+
+        auto divider = std::pow(m_blocksize, data_shape.size() - 2);
+
+        auto out_shape = data_shape;
+        out_shape[1] *= divider;
+        for (size_t i = 2; i < out_shape.size(); i++)
+        {
+            NODE_VALIDATION_CHECK(this,
+                                  !(out_shape[i] % m_blocksize),
+                                  "The dimension on position: ",
+                                  i,
+                                  " equal to: ",
+                                  out_shape[i],
+                                  " must be a multiple of m_blocksize: ",
+                                  m_blocksize);
+            out_shape[i] /= m_blocksize;
+        }
+
+        set_output_size(1);
+        set_output_type(0, data_type, out_shape);
+    }
+    else
+    {
+        set_output_type(0, data_type, PartialShape::dynamic());
+    }
 }
 
 bool ngraph::op::v0::SpaceToDepth::evaluate(const HostTensorVector& outputs,
