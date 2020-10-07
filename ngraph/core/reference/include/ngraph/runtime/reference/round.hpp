@@ -40,12 +40,26 @@ namespace ngraph
             }
 
             template <typename T>
-            void round(const T* arg, T* out, size_t count)
+            T round_away_from_zero(const T arg)
             {
-                for (size_t i = 0; i < count; ++i)
-                {
-                    out[i] = round_to_nearest_even(arg[i]);
-                }
+                return std::round(arg)
+            }
+
+            template <typename T>
+            void round(const T* arg, T* out, size_t count, std::string& mode)
+            {
+                if (mode == "half_to_even")
+					for (size_t i = 0; i < count; ++i)
+					{
+						out[i] = round_to_nearest_even(arg[i]);
+					}
+				else
+				{
+                    for (size_t i = 0; i < count; ++i)
+                    {
+                        out[i] = round_away_from_zero(arg[i]);
+                    }
+				}
             }
         }
     }
