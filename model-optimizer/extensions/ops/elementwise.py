@@ -76,7 +76,6 @@ class UnaryElementwise(Elementwise):
     def __init__(self, graph: Graph, attrs: dict):
         super().__init__(graph, {**{
             'in_ports_count': 1,
-            'out_ports_count': 1,
         }, **attrs})
 
     @staticmethod
