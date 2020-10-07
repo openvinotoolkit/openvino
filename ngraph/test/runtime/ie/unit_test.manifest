@@ -1116,6 +1116,9 @@ IE_CPU.builder_opset1_collapse_dyn_shape
 # Y because output with index 0 contains dynamic shapes: {?,?,?,?}
 IE_CPU.onnx_resize11_scales_nearest_asymmetric_floor_dynamic_sizes
 
+# Input data precision not supported. Expected float.
+ctc_greedy_decoder_f16
+
 #-------------------------------------------------------------------------------
 #
 #       Inference Engine GPU plugin excludes
@@ -1201,6 +1204,12 @@ IE_GPU.onnx_dyn_shapes_avg_pool_dyn_shape
 IE_GPU.onnx_dyn_shapes_max_pool_dyn_shape
 IE_GPU.onnx_dyn_shapes_global_avg_pool_dyn_shape
 IE_GPU.onnx_dyn_shapes_global_max_pool_dyn_shape
+IE_GPU.ctc_greedy_decoder
+IE_GPU.ctc_greedy_decoder_multiple_batches
+IE_GPU.ctc_greedy_decoder_single_batch_short_sequence
+IE_GPU.ctc_greedy_decoder_merge
+IE_GPU.ctc_greedy_decoder_single_no_merge
+IE_GPU.ctc_greedy_decoder_multiple_sequences
 IE_GPU.onnx_roi_align_f32
 IE_GPU.tanh
 IE_GPU.tan

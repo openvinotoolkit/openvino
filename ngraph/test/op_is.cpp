@@ -982,7 +982,7 @@ namespace
         EXPECT_FALSE(op::is_binary_elementwise_comparison(&node));
         EXPECT_TRUE(op::is_binary_elementwise_logical(&node));
     }
-}
+} // namespace
 
 TEST(op_is, check)
 {

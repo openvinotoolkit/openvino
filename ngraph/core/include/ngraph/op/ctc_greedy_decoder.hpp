@@ -48,7 +48,7 @@ namespace ngraph
             private:
                 bool m_ctc_merge_repeated;
             };
-        }
+        } // namespace v0
         using v0::CTCGreedyDecoder;
-    }
-}
+    } // namespace op
+} // namespace ngraph

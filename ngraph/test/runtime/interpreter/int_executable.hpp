@@ -44,6 +44,7 @@
 #include "ngraph/runtime/reference/convolution.hpp"
 #include "ngraph/runtime/reference/cos.hpp"
 #include "ngraph/runtime/reference/cosh.hpp"
+#include "ngraph/runtime/reference/ctc_greedy_decoder.hpp"
 #include "ngraph/runtime/reference/ctc_loss.hpp"
 #include "ngraph/runtime/reference/cum_sum.hpp"
 #include "ngraph/runtime/reference/dequantize.hpp"
@@ -59,7 +60,6 @@
 #include "ngraph/runtime/reference/floor.hpp"
 #include "ngraph/runtime/reference/gather.hpp"
 #include "ngraph/runtime/reference/gather_nd.hpp"
-#include "ngraph/runtime/reference/gather_tree.hpp"
 #include "ngraph/runtime/reference/gather_tree.hpp"
 #include "ngraph/runtime/reference/gru_cell.hpp"
 #include "ngraph/runtime/reference/log.hpp"
@@ -395,6 +395,18 @@ protected:
             size_t element_count = shape_size(node.get_output_shape(0));
             reference::cosh<T>(
                 args[0]->get_data_ptr<const T>(), out[0]->get_data_ptr<T>(), element_count);
+            break;
+        }
+        case OP_TYPEID::CTCGreedyDecoder_v0:
+        {
+            const auto ctc_greedy_dec = static_cast<const op::v0::CTCGreedyDecoder*>(&node);
+            reference::ctc_greedy_decoder<T>(args[0]->get_data_ptr<const T>(),
+                                             args[1]->get_data_ptr<const T>(),
+                                             out[0]->get_data_ptr<T>(),
+                                             args[0]->get_shape(),
+                                             args[1]->get_shape(),
+                                             out[0]->get_shape(),
+                                             ctc_greedy_dec->get_ctc_merge_repeated());
             break;
         }
         case OP_TYPEID::CTCLoss_v4:
@@ -809,9 +821,7 @@ protected:
                                                 gru_seq->get_activations()[1],
                                                 gru_seq->get_clip(),
                                                 gru_seq->get_direction(),
-                                                gru_seq->get_linear_before_reset()
-
-                                                    );
+                                                gru_seq->get_linear_before_reset());
             break;
         }
         case OP_TYPEID::RNNSequence_v5:
