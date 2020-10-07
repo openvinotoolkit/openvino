@@ -269,19 +269,12 @@ namespace ngraph
                                                                          in_pad_below,
                                                                          in_pad_above,
                                                                          in_dilation,
-                                                                         num_groups,
                                                                          0,
                                                                          1,
-                                                                         filter_out_channel_axis,
-                                                                         filter_in_channel_axis,
                                                                          0,
                                                                          1,
-                                                                         input_scale,
-                                                                         input_zero_point,
-                                                                         filter_scale,
-                                                                         filter_zero_point,
-                                                                         output_scale,
-                                                                         output_zero_point);
+                                                                         0,
+                                                                         1);
             }
 
             template <typename OUTPUT,
