@@ -39,6 +39,8 @@ class TestElementwiseOp(unittest.TestCase):
         }
     }
 
+    value = np.array([-23.5, -22.5, -2.5, -1.5, -0.5, 0.5, 0.9, 1.5, 2.3, 2.5, 3.5, 22.5, 23.5])
+
     def test_elementwise_round_even_infer(self):
         graph = build_graph(self.nodes_attributes,
                             [
@@ -47,7 +49,7 @@ class TestElementwiseOp(unittest.TestCase):
                             ],
                             {
                                 'node_1': {
-                                    'value': np.array([-23.5, -22.5, -2.5, -1.5, -0.5, 0.5, 0.9, 1.5, 2.3, 2.5, 3.5, 22.5, 23.5])
+                                    'value': self.value
                                 },
                                 'elementwise_node': {
                                     'op': 'Round',
@@ -78,7 +80,7 @@ class TestElementwiseOp(unittest.TestCase):
                             ],
                             {
                                 'node_1': {
-                                    'value': np.array([-23.5, -22.5, -2.5, -1.5, -0.5, 0.5, 0.9, 1.5, 2.3, 2.5, 3.5, 22.5, 23.5])
+                                    'value': self.value
                                 },
                                 'elementwise_node': {
                                     'op': 'Round',
