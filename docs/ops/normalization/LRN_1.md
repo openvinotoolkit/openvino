@@ -50,7 +50,7 @@
 
 * **1**: Output tensor of the same shape and type as the `data` input tensor.
 
-**Detailed description**: [Reference](http://yeephycho.github.io/2016/08/03/Normalizations-in-neural-networks/#Local-Response-Normalization-LRN)
+**Detailed description**: [Reference](http://papers.nips.cc/paper/4824-imagenet-classification-with-deep-convolutional-neural-networks.pdf) chapter 3.3.
 
 Here is an example for 4D `data` input tensor and `axes` = `[1]`:
 
