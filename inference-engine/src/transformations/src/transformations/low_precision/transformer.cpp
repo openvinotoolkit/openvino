@@ -18,6 +18,7 @@
 #include <vector>
 
 #include "ngraph_ops/type_relaxed.hpp"
+#include "ngraph/pass/constant_folding.hpp"
 
 // branch specific transformations
 #include "transformations/low_precision/concat.hpp"
@@ -346,6 +347,9 @@ void LowPrecisionTransformer::transform(std::shared_ptr<Function> network) {
     if (!isFunctionQuantized(network)) {
         return;
     }
+
+    ngraph::pass::ConstantFolding constantFolding;
+    constantFolding.run_on_function(network);
 
     transformations.setParamsManager(this);
     transformations.setLayerTransformationsManager(this);

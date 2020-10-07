@@ -156,7 +156,7 @@ static void Transformation(ICNNNetwork::Ptr& clonedNetwork, const Config& conf) 
         manager.register_pass<ngraph::pass::ConvertPrecision>(ngraph::element::i64, ngraph::element::i32);
         manager.set_callback(transformations_callback);
         manager.run_passes(nGraphFunc);
-   }
+    }
 
     clonedNetwork = InferenceEngine::details::convertFunctionToICNNNetwork(nGraphFunc, *clonedNetwork);
 

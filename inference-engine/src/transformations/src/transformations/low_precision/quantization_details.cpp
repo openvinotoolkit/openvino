@@ -107,6 +107,13 @@ QuantizationDetails::QuantizationDetails(const size_t levels, const std::vector<
       outputChannelsCount(outputChannelsCount) {}
 
 bool QuantizationDetails::outputLayoutIsSupported(std::shared_ptr<opset1::FakeQuantize> quantize) {
+    if (!is_type<opset1::Constant>(quantize->get_input_node_ptr(1)) ||
+        !is_type<opset1::Constant>(quantize->get_input_node_ptr(2)) ||
+        !is_type<opset1::Constant>(quantize->get_input_node_ptr(3)) ||
+        !is_type<opset1::Constant>(quantize->get_input_node_ptr(4))) {
+        return false;
+    }
+
     std::vector<float> outputLowValues;
     std::vector<float> outputHighValues;
     size_t outputIntervalsCount;
