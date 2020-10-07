@@ -425,6 +425,7 @@ TEST(type_prop, loop_operation_for_and_condition_mode_dynamic_iter_dynamic_shape
 
 // trip_count = -1
 // execution_condition = true
+// body_condition = true
 // concat output will be dynamic, another outputs are static
 TEST(type_prop, loop_operation_infinite_loop_mode_dynamic_iter_dynamic_shapes)
 {
