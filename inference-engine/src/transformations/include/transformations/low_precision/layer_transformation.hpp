@@ -260,6 +260,8 @@ public:
 
     PrecisionDetails getPrecisionDetails(const QuantizationDetails& quantizationDetails) const;
 
+    static std::shared_ptr<ngraph::Node> separateInStandaloneBranch(std::shared_ptr<ngraph::Node> node);
+
     // return true if operation can be quantized and false otherwise
     // for example: if convolution operation weights are not quantized, then isQuantize returns false and true otherwise
     // note: dequantization operations on activations are absent during method execution
@@ -305,8 +307,6 @@ protected:
     ILayerTransformationsManager* layerTransformationsManager;
 
 protected:
-    std::shared_ptr<ngraph::Node> separateInStandaloneBranch(std::shared_ptr<ngraph::Node> node) const;
-
     std::shared_ptr<ngraph::Node> moveDequantizationAfter(
         TransformationContext &context,
         const std::shared_ptr<ngraph::Node>& operation,

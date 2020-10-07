@@ -381,7 +381,7 @@ std::vector<std::shared_ptr<Node>> LayerTransformation::getChildrenRecursivelyEx
 }
 
 
-std::shared_ptr<ngraph::Node> LayerTransformation::separateInStandaloneBranch(std::shared_ptr<ngraph::Node> node) const {
+std::shared_ptr<ngraph::Node> LayerTransformation::separateInStandaloneBranch(std::shared_ptr<ngraph::Node> node) {
     FakeQuantizeDequantization dequantization = NetworkHelper::getDequantization(node);
     if (dequantization.isShared()) {
         Output<Node> parent = dequantization.data;
