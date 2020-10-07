@@ -184,4 +184,71 @@ ngraph::pass::ConvertNMS1ToNMS5::ConvertNMS1ToNMS5() {
     auto score_threshold = ngraph::opset1::Constant::create(element::f32, Shape{}, {0.7});
     auto nms = std::make_shared<ngraph::opset1::NonMaxSuppression>(boxes, scores, max_output_boxes_per_class,
                                                                    iou_threshold, score_threshold);
+
+    ngraph::matcher_pass_callback callback = [](pattern::Matcher &m) {
+        auto nms_1 = std::dynamic_pointer_cast<ngraph::opset1::NonMaxSuppression>(m.get_match_root());
+        if (!nms_1) {
+            return false;
+        }
+
+        const auto new_args = nms_1->input_values();
+
+        size_t num_of_args = new_args.size();
+
+        const auto& arg2 = num_of_args > 2 ? new_args.at(2) : ngraph::opset5::Constant::create(element::i32, Shape{}, {0});
+        const auto& arg3 = num_of_args > 3 ? new_args.at(3) : ngraph::opset5::Constant::create(element::f32, Shape{}, {.0f});
+        const auto& arg4 = num_of_args > 4 ? new_args.at(4) : ngraph::opset5::Constant::create(element::f32, Shape{}, {.0f});
+        const auto& arg5 = ngraph::opset5::Constant::create(element::f32, Shape{}, {.0f});
+
+        auto box_encoding = ::ngraph::opset5::NonMaxSuppression::BoxEncodingType::CENTER;
+        switch (nms_1->get_box_encoding()) {
+            case ::ngraph::opset1::NonMaxSuppression::BoxEncodingType::CENTER:
+                box_encoding = ::ngraph::opset5::NonMaxSuppression::BoxEncodingType::CENTER;
+                break;
+            case ::ngraph::opset1::NonMaxSuppression::BoxEncodingType::CORNER:
+                box_encoding = ::ngraph::opset5::NonMaxSuppression::BoxEncodingType::CORNER;
+                break;
+            default:
+                throw ngraph_error("NonMaxSuppression layer " + nms_1->get_friendly_name() +
+                                   " has unsupported box encoding");
+        }
+
+        // list of new nGraph operations
+        std::list<std::shared_ptr<::ngraph::Node>> new_ops_list;
+
+        new_ops_list.push_front(arg5);
+        if (num_of_args <= 4) {
+            new_ops_list.push_front(arg4.get_node_shared_ptr());
+        }
+        if (num_of_args <= 3) {
+            new_ops_list.push_front(arg3.get_node_shared_ptr());
+        }
+        if (num_of_args <= 2) {
+            new_ops_list.push_front(arg2.get_node_shared_ptr());
+        }
+
+        const auto nms_5 = std::make_shared<ngraph::op::v5::NonMaxSuppression>(
+                new_args.at(0),
+                new_args.at(1),
+                arg2,
+                arg3,
+                arg4,
+                arg5,
+                box_encoding,
+                nms_1->get_sort_result_descending(),
+                ::ngraph::element::i64);
+
+        new_ops_list.push_back(nms_5);
+
+        // vector of new nGraph operations
+        NodeVector new_ops(new_ops_list.begin(), new_ops_list.end());
+
+        nms_5->set_friendly_name(nms_1->get_friendly_name());
+        ngraph::copy_runtime_info(nms_1, new_ops);
+        ngraph::replace_node(nms_1, nms_5);
+        return true;
+    };
+
+    auto m = std::make_shared<ngraph::pattern::Matcher>(nms, "ConvertNMS1ToNMS5");
+    this->register_matcher(m, callback);
 }
