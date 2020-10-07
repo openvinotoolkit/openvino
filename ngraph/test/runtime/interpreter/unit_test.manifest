@@ -138,3 +138,6 @@ onnx_model_gru_fwd_activations
 # Peepholes, input_forget are not supported
 lstm_cell_bias_peepholes
 lstm_cell_bias_peepholes_clip_input_forget
+
+# unsupported element type f16 
+INTERPRETER.ctc_greedy_decoder_f16
