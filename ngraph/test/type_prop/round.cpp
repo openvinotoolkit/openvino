@@ -21,10 +21,18 @@
 using namespace std;
 using namespace ngraph;
 
-TEST(type_prop, round)
+TEST(type_prop, round_to_even)
 {
     auto data = make_shared<op::Parameter>(element::f32, Shape{1, 3, 6});
-    auto round_func = make_shared<op::v5::Round>(data);
+    auto round_func = make_shared<op::v5::Round>(data, "half_to_even");
+    EXPECT_EQ(round_func->get_element_type(), element::f32);
+    EXPECT_EQ(round_func->get_shape(), (Shape{1, 3, 6}));
+}
+
+TEST(type_prop, round_away)
+{
+    auto data = make_shared<op::Parameter>(element::f32, Shape{1, 3, 6});
+    auto round_func = make_shared<op::v5::Round>(data, "half_away_from_zero");
     EXPECT_EQ(round_func->get_element_type(), element::f32);
     EXPECT_EQ(round_func->get_shape(), (Shape{1, 3, 6}));
 }
