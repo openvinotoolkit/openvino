@@ -261,7 +261,6 @@
                     <tab type="user" title="Inference Engine API Changes History" url="@ref openvino_docs_IE_DG_API_Changes"/>
                     <tab type="user" title="Inference Engine Memory primitives" url="@ref openvino_docs_IE_DG_Memory_primitives"/>
                     <tab type="user" title="Inference Engine Device Query API" url="@ref openvino_docs_IE_DG_InferenceEngine_QueryAPI"/>
-                    <tab type="user" title="Place of nGraph in the Inference Engine" url="@ref openvino_docs_IE_DG_nGraph_Flow"/>
                     <tab type="usergroup" title="Inference Engine Extensibility Mechanism" url="@ref openvino_docs_IE_DG_Extensibility_DG_Intro">
                         <tab type="user" title="Extension Library" url="@ref openvino_docs_IE_DG_Extensibility_DG_Extension"/>
                         <tab type="user" title="Custom Operations" url="@ref openvino_docs_IE_DG_Extensibility_DG_AddingNGraphOps"/>
@@ -274,7 +273,6 @@
                     <tab type="user" title="[DEPRECATED] Migration from Inference Engine Plugin API to Core API" url="@ref openvino_docs_IE_DG_Migration_CoreAPI"/>
                     <tab type="user" title="Introduction to Performance Topics" url="@ref openvino_docs_IE_DG_Intro_to_Performance"/>
                     <tab type="user" title="Inference Engine Python* API Overview" url="@ref openvino_inference_engine_ie_bridges_python_docs_api_overview"/>
-                    <tab type="user" title="Build a Model with nGraph" url="@ref openvino_docs_IE_DG_nGraphTutorial"/>
                     <tab type="user" title="Read an ONNX model" url="@ref openvino_docs_IE_DG_ONNX_Support"/>
                     <tab type="user" title="[DEPRECATED] Import an ONNX model" url="@ref openvino_docs_IE_DG_OnnxImporterTutorial"/>
                     <tab type="user" title="Graph Debug Capabilities" url="@ref openvino_docs_IE_DG_Graph_debug_capabilities"/>
@@ -305,6 +303,16 @@
                     <tab type="user" title="Known Issues" url="@ref openvino_docs_IE_DG_Known_Issues_Limitations"/>
                     <tab type="user" title="Optimization Notice" url="@ref openvino_docs_Optimization_notice"/>
                     <tab type="user" title="Glossary" url="@ref openvino_docs_IE_DG_Glossary"/>
+                </tab>
+                <!-- nGraph -->
+                <tab type="usergroup" title="nGraph Developer Guide" url="@ref openvino_docs_nGraph_DG_DevGuide">
+                    <tab type="user" title="Introduction" url="@ref openvino_docs_nGraph_DG_Introduction"/>
+                    <tab type="user" title="Basic Concepts" url="@ref openvino_docs_nGraph_DG_basic_concepts"/>
+                    <tab type="user" title="Operation sets" url="@ref openvino_docs_MO_DG_IR_and_opsets"/>
+                    <tab type="user" title="Graph building" url="@ref openvino_docs_nGraph_DG_build_function"/>
+                    <tab type="user" title="Transfomations" url="@ref ngraph_transformation"/>
+                    <tab type="user" title="Debug capabilities" url="@ref openvino_docs_nGraph_DG_Debug_capabilities"/>
+                    <tab type="user" title="Python API" url="@ref openvino_docs_nGraph_DG_PythonAPI"/>
                 </tab>
                 <!-- Workbench -->
                 <tab type="usergroup" title="Deep Learning Workbench" url="@ref workbench_docs_Workbench_DG_Introduction">
