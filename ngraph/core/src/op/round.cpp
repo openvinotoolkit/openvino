@@ -25,18 +25,25 @@
 using namespace std;
 using namespace ngraph;
 
-NGRAPH_RTTI_DEFINITION(op::v5::<Round>, "<Round>", 5);	// error
+NGRAPH_RTTI_DEFINITION(op::v5::<Round>, "<Round>", 5);
 
-op::v5::Round(const Output<Node>& arg)
-    : Op({arg})
+op::v5::Round::Round(const Output<Node>& arg, const std::string& mode)
+    : Op({arg}
+    , m_mode(mode)
 {
     constructor_validate_and_infer_types();
+}
+
+bool ngraph::op::v5::Round::visit_attributes(AttributeVisitor& visitor)
+{
+    visitor.on_attribute("mode", m_mode);
+    return true;
 }
 
 shared_ptr<Node> op::Round::clone_with_new_inputs(const OutputVector& new_args) const
 {
     check_new_args_count(this, new_args);
-    return make_shared<Round>(new_args.at(0));
+    return make_shared<Round>(new_args.at(0), m_mode);
 }
 
 namespace
@@ -96,5 +103,5 @@ namespace
 bool op::Round::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
     OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::Round::evaluate");
-    return evaluate_round(inputs[0], outputs[0], shape_size(get_output_shape(0)));
+    return evaluate_round(inputs[0], outputs[0], shape_size(get_output_shape(0)), get_mode());
 }

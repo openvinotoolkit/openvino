@@ -25,29 +25,43 @@ namespace ngraph
     {
         namespace v5
         {
-            /// \brief Elementwise round operation.
+            /// \brief Elementwise round operation. The output is round to the nearest integer
+            /// for each value. In case of halfs, the rule is defined in attribute 'mode':
+			///		'half_to_even' - round halfs to the nearest even integer.
+			///		'half_avay_from_zero': - round in such a way that the result heads away from zero.
+
             class NGRAPH_API Round : public ngraph::op::Op
             {
             public:
                 NGRAPH_RTTI_DECLARATION;
 
-                // static constexpr NodeTypeInfo type_info{"Round", 0};
-                // const NodeTypeInfo& get_type_info() const override { return type_info; }
                 /// \brief Constructs a round operation.
                 Round() = default;
 
-                /// \brief Constructs a round operation. The output is round to the nearest integer
-                /// for each value. In case of halfs, the rule is to round them to the nearest even
-                /// integer.
+                /// \brief Constructs a round operation. 
                 ///
                 /// \param arg Node that produces the input tensor.
-                Round(const Output<Node>& arg);
+				/// \param mode Rule to resolve halfs
+                Round(const Output<Node>& arg, const std::string& mode);
+
+				bool visit_attributes(AttributeVisitor& visitor) override;
+                void validate_and_infer_types() override;
 
                 virtual std::shared_ptr<Node>
                     clone_with_new_inputs(const OutputVector& new_args) const override;
 
                 bool evaluate(const HostTensorVector& outputs,
                               const HostTensorVector& inputs) const override;
+
+                std::string get_mode() const { return m_mode; }
+
+                void set_mode(const std::string& mode)
+                {
+                    m_mode = mode;
+                }
+
+			private:
+                std::string m_mode;
             };
         }
     }
