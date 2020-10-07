@@ -130,7 +130,7 @@ ngraph::pass::ConvertNMS3ToNMS5::ConvertNMS3ToNMS5() {
                 center_point_box = ::ngraph::opset5::NonMaxSuppression::BoxEncodingType::CORNER;
                 break;
             default:
-                throw ngraph_error("NonMaxSuppression layer " + nms_4->get_friendly_name() +
+                throw ngraph_error("NonMaxSuppression layer " + nms_3->get_friendly_name() +
                                    " has unsupported box encoding");
         }
 
