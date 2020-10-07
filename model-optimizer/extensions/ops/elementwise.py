@@ -72,6 +72,18 @@ class Elementwise(Op):
         node.out_port(0).set_data_type(node.in_port(0).get_data_type())
 
 
+class UnaryElementwise(Elementwise):
+    def __init__(self, graph: Graph, attrs: dict):
+        super().__init__(graph, {**{
+            'in_ports_count': 1,
+            'out_ports_count': 1,
+        }, **attrs})
+
+    @staticmethod
+    def type_infer(node):
+        copy_type_infer(node)
+
+
 class Add(Elementwise):
     enabled = False
     op = 'Add'
@@ -203,26 +215,39 @@ class Minimum(Elementwise):
     operation = staticmethod(lambda a, b: np.minimum(a, b))
 
 
-class Round(Elementwise):
+class Round(UnaryElementwise):
     enabled = False
     op = 'Round'
     op_type = 'Round'
-    version = 'opset4'
-    operation = staticmethod(lambda a: np.round(a))
+    version = 'opset5'
 
     def __init__(self, graph: Graph, attrs):
-        round_attrs = {'in_ports_count': 1,
-                       'mode': 'half_to_even'
+        round_attrs = {'mode': 'half_to_even',
+                       'infer': self.infer
                        }
         round_attrs.update(attrs)
         super().__init__(graph, round_attrs)
 
-    @staticmethod
-    def type_infer(node):
-        copy_type_infer(node)
-
     def backend_attrs(self):
         return ['mode']
+
+    @classmethod
+    def infer(cls, node: Node):
+        node.out_port(0).data.set_shape(node.in_port(0).data.get_shape())
+
+        a = node.in_port(0).data.get_value()
+        if a is not None:
+            assert node.soft_get('mode') in ['half_to_even', 'half_away_from_zero'], \
+                'Round node {} has unsupported "mode" attribute value: {}'.format(node.soft_get('name', node.id),
+                                                                                  node.soft_get('mode'))
+            if node.mode == 'half_away_from_zero':
+                mask = (a >= 0)
+                out = np.empty_like(a)
+                out[mask] = np.floor(a[mask] + 0.5)
+                out[~mask] = np.ceil(a[~mask] - 0.5)
+            else:
+                out = np.round(a)
+            node.out_port(0).data.set_value(out)
 
 
 class LogicalOr(LogicalElementwise):
@@ -253,12 +278,8 @@ class FloorMod(Elementwise):
     operation = staticmethod(lambda a, b: a % b)
 
 
-class Negative(Elementwise):
+class Negative(UnaryElementwise):
     enabled = False
     op = 'Negative'
     op_type = 'Negative'
     operation = staticmethod(lambda a: -a)
-
-    @staticmethod
-    def type_infer(node):
-        copy_type_infer(node)
