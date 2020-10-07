@@ -26,7 +26,7 @@
 
 * *bias*
 
-  * **Description**: *beta* represents the offset. Usually positive number to avoid dividing by zero.
+  * **Description**: *bias* represents the offset. Usually positive number to avoid dividing by zero.
   * **Range of values**: no restrictions
   * **Type**: float
   * **Default value**: None
