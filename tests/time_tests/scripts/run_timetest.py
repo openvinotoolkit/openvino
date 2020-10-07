@@ -61,7 +61,7 @@ def read_stats(stats_path, stats: dict):
 def aggregate_stats(stats: dict):
     """Aggregate provided statistics"""
     return {step_name: {"avg": statistics.mean(duration_list),
-                        "stdev": statistics.stdev(duration_list)}
+                        "stdev": statistics.stdev(duration_list) if len(duration_list) > 1 else 0}
             for step_name, duration_list in stats.items()}
 
 

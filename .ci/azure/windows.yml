@@ -17,7 +17,6 @@ jobs:
   steps:
   - checkout: self
     clean: true
-    fetchDepth: 1
     lfs: false
     submodules: recursive
     path: openvino
@@ -102,7 +101,7 @@ jobs:
     continueOnError: false
   - script: |
       set PATH=$(REPO_DIR)\inference-engine\temp\tbb\bin;%PATH%
-      $(BIN_DIR)\cpuFuncTests --gtest_print_time=1 --gtest_output=xml:TEST-cpuFuncTests.xml
+      $(BIN_DIR)\cpuFuncTests --gtest_filter=*smoke* --gtest_print_time=1 --gtest_output=xml:TEST-cpuFuncTests.xml
     displayName: 'CPU FuncTests'
     continueOnError: false
   - script: |
@@ -116,12 +115,12 @@ jobs:
     workingDirectory: $(BUILD_DIR)
     displayName: 'Clone testdata & gtest-parallel'
     # Add for gtest-parallel, it hangs now (CVS-33386)
-    #python $(BUILD_DIR)\gtest-parallel\gtest-parallel $(BIN_DIR)\MklDnnFunctionalTests --workers=$(WORKERS_NUMBER) --print_test_times --dump_json_test_results=MklDnnFunctionalTests.json -- --gtest_print_time=1
+    #python $(BUILD_DIR)\gtest-parallel\gtest-parallel $(BIN_DIR)\MklDnnFunctionalTests --workers=$(WORKERS_NUMBER) --print_test_times --dump_json_test_results=MklDnnFunctionalTests.json --gtest_filter=*smoke* -- --gtest_print_time=1
   - script: |
       set PATH=$(REPO_DIR)\inference-engine\temp\tbb\bin;$(REPO_DIR)\inference-engine\temp\opencv_4.5.0\opencv\bin;%PATH%
       set DATA_PATH=$(BUILD_DIR)\testdata
       set MODELS_PATH=$(BUILD_DIR)\testdata
-      $(BIN_DIR)\MklDnnFunctionalTests --gtest_print_time=1 --gtest_output=xml:TEST-MklDnnFunctionalTests.xml
+      $(BIN_DIR)\MklDnnFunctionalTests --gtest_filter=*smoke* --gtest_print_time=1 --gtest_output=xml:TEST-MklDnnFunctionalTests.xml
     displayName: 'MklDnnFunctionalTests'
     continueOnError: false
   - script: |
@@ -132,13 +131,14 @@ jobs:
     displayName: 'IE CAPITests'
     continueOnError: false
   - task: PublishTestResults@2
+    condition: always()
     inputs:
       testResultsFormat: 'JUnit' # Options: JUnit, NUnit, VSTest, xUnit, cTest
       testResultsFiles: '**/TEST-*.xml'
       #searchFolder: '$(BUILD_DIR)'
-      mergeTestResults: true # Optional
+      mergeTestResults: false # Optional
       #failTaskOnFailedTests: false # Optional
-      testRunTitle: 'Pre/Post-Commit' # Optional
+      #testRunTitle: 'Pre/Post-Commit' # Optional
       buildPlatform: 'x64' # Optional
       buildConfiguration: 'Windows' # Optional
       #publishRunAttachments: true # Optional
