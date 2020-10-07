@@ -99,17 +99,6 @@ void op::ShuffleChannels::validate_and_infer_types()
     }
 }
 
-OutputVector op::ShuffleChannels::decompose_op() const
-{
-    const auto data = input_value(0);
-    const auto& data_shape = data.get_shape();
-
-    const auto reshaped = builder::opset1::reshape(data, get_pre_shuffle_shape(data_shape));
-    const auto shuffled = builder::opset1::reorder_axes(reshaped, {0, 2, 1, 3});
-
-    return {builder::opset1::reshape(shuffled, data_shape)};
-}
-
 shared_ptr<Node> op::ShuffleChannels::clone_with_new_inputs(const OutputVector& new_args) const
 {
     if (new_args.size() != 1)
