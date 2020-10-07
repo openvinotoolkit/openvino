@@ -255,7 +255,7 @@ namespace ngraph
                 /// \param      end        The last index on axis of the slicing
                 /// \param      axis       The axis to slice along
                 ///
-                void set_sliced_input(const std::shared_ptr<Parameter>& parameter,
+                virtual void set_sliced_input(const std::shared_ptr<Parameter>& parameter,
                                       const Output<Node>& value,
                                       int64_t start,
                                       int64_t stride,

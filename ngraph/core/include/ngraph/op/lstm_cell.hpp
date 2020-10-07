@@ -293,7 +293,7 @@ namespace ngraph
             class NGRAPH_API LSTMCell : public util::RNNCellBase
             {
             public:
-                static constexpr NodeTypeInfo type_info{"LSTMCell", 1};
+                static constexpr NodeTypeInfo type_info{"LSTMCell", 4};
                 const NodeTypeInfo& get_type_info() const override { return type_info; }
                 LSTMCell();
                 ///

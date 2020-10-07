@@ -44,8 +44,54 @@ bool op::v5::Loop::visit_attributes(AttributeVisitor& visitor)
 
 void op::v5::Loop::validate_and_infer_types()
 {
+    bool zero_number_of_iter = false;
+    const auto& loop_condition = input_value(1);
+    if (const auto& cond_value = std::dynamic_pointer_cast<const ngraph::opset5::Constant>(
+            loop_condition.get_node_shared_ptr()))
+    {
+        auto val = cond_value->cast_vector<bool>();
+        NODE_VALIDATION_CHECK(this,
+                              val.size() == 1,
+                              "The number of values in the Condition constant is greater than 1");
+
+        if (!val[0])
+        {
+            zero_number_of_iter = true;
+        }
+    }
+
+    bool condition_always_true = false;
+    const auto& body_condition = m_body->get_results()[0]->input_value(0);
+    if (const auto& cond_value = std::dynamic_pointer_cast<const ngraph::opset5::Constant>(
+            body_condition.get_node_shared_ptr()))
+    {
+        auto val = cond_value->cast_vector<bool>();
+        NODE_VALIDATION_CHECK(this,
+                              val.size() == 1,
+                              "The number of values in the Condition constant is greater than 1");
+
+        if (val[0])
+        {
+            condition_always_true = true;
+        } else {
+            m_num_iterations = 1; // condition_always_false
+        }
+    }
+
+    const auto& trip_count = input_value(0);
+    if (const auto& trip_count_val = std::dynamic_pointer_cast<const ngraph::opset5::Constant>(
+            trip_count.get_node_shared_ptr()))
+    {
+        auto val = trip_count_val->cast_vector<int64_t>();
+        NODE_VALIDATION_CHECK(this,
+                              val.size() == 1,
+                              "The number of values in the TripCount constant is greater than 1");
+        if (condition_always_true)
+            m_num_iterations = val[0];
+    }
+
     NODE_VALIDATION_CHECK(this,
-                          get_input_size() == m_input_descriptions.size(),
+                          get_input_size() == m_input_descriptions.size() + 2,
                           "Number of inputs must be the same as number of input descriptions");
 
     NODE_VALIDATION_CHECK(this,
@@ -55,7 +101,7 @@ void op::v5::Loop::validate_and_infer_types()
     std::vector<std::shared_ptr<Node>> ends;
 
     // Input
-    uint64_t index_it = 0;
+    uint64_t index_it = 2;
     for (const auto& input_description : m_input_descriptions)
     {
         auto index = input_description->m_input_index;
@@ -118,51 +164,6 @@ void op::v5::Loop::validate_and_infer_types()
     // Body
     m_body->validate_nodes_and_infer_types();
 
-    // todo: check condition is not const??
-    bool zero_number_of_iter = false;
-    const auto& loop_condition = input_value(1);
-    if (const auto& cond_value = std::dynamic_pointer_cast<const ngraph::opset5::Constant>(
-            loop_condition.get_node_shared_ptr()))
-    {
-        auto val = cond_value->cast_vector<bool>();
-        NODE_VALIDATION_CHECK(this,
-                              val.size() == 1,
-                              "The number of values in the Condition constant is greater than 1");
-
-        if (!val[0])
-        {
-            zero_number_of_iter = true;
-        }
-    }
-
-    bool condition_always_true = false;
-    const auto& body_condition = m_body->get_results()[0]->input_value(0);
-    if (const auto& cond_value = std::dynamic_pointer_cast<const ngraph::opset5::Constant>(
-            body_condition.get_node_shared_ptr()))
-    {
-        auto val = cond_value->cast_vector<bool>();
-        NODE_VALIDATION_CHECK(this,
-                              val.size() == 1,
-                              "The number of values in the Condition constant is greater than 1");
-
-        if (!val[0])
-        {
-            condition_always_true = true;
-        }
-    }
-
-    const auto& trip_count = input_value(0);
-    if (const auto& trip_count_val = std::dynamic_pointer_cast<const ngraph::opset5::Constant>(
-            trip_count.get_node_shared_ptr()))
-    {
-        auto val = trip_count_val->cast_vector<int64_t>();
-        NODE_VALIDATION_CHECK(this,
-                              val.size() == 1,
-                              "The number of values in the TripCount constant is greater than 1");
-        if (condition_always_true)
-            m_num_iterations = val[0];
-    }
-
     // Output
     index_it = 0;
     for (const auto& output_description : m_output_descriptions)
@@ -221,7 +222,9 @@ void op::v5::Loop::validate_and_infer_types()
             else
             {
                 auto shape = ps.get_shape();
-                shape.at(0) = 0;
+                if (zero_number_of_iter) {
+                    shape.at(0) = 0;
+                }
                 set_output_type(index, body_value.get_element_type(), shape);
             }
         }
