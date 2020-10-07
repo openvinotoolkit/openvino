@@ -166,6 +166,7 @@ from ngraph.opset4 import topk
 from ngraph.opset4 import transpose
 from ngraph.opset4 import unsqueeze
 from ngraph.opset4 import variadic_split
+from ngraph.opset5 import round
 
 
 # Extend Node class to support binary operators
