@@ -28,6 +28,6 @@ namespace pass {
 class ngraph::pass::ConvertNMS5ToLegacyMatcher: public ngraph::pass::MatcherPass {
 public:
     NGRAPH_RTTI_DECLARATION;
-    ConvertNMS4ToLegacyMatcher();
+    ConvertNMS5ToLegacyMatcher();
 };
 
