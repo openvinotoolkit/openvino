@@ -83,6 +83,7 @@ void pass::ConstantFolding::construct_constant_gather_with_subgraph()
         }
         gathered->set_friendly_name(gather->get_friendly_name());
         replace_node(gather, gathered);
+        copy_runtime_info_to_target_inputs(gather, gathered);
         return true;
     };
 

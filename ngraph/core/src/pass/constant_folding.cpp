@@ -15,6 +15,7 @@
 //*****************************************************************************
 
 #include "constant_folding.hpp"
+#include <ngraph/rt_info.hpp>
 
 using namespace std;
 using namespace ngraph;
@@ -38,12 +39,22 @@ bool ngraph::pass::ConstantFolding::cf_is_disabled(const std::shared_ptr<Node>& 
     return rt_info.count("DISABLED_CONSTANT_FOLDING") != 0;
 }
 
+void ngraph::pass::ConstantFolding::copy_runtime_info_to_target_inputs(
+    const std::shared_ptr<Node>& node, const Output<Node>& replacement)
+{
+    for (auto& input : replacement.get_target_inputs())
+    {
+        auto consumer = input.get_node()->shared_from_this();
+        copy_runtime_info({node, consumer}, consumer);
+    }
+}
+
 void ngraph::pass::ConstantFolding::construct_constant_default()
 {
     m_matchers.push_back(std::make_shared<MatcherPass>(
         "Constant folding defaults",
         nullptr,
-        [](const std::shared_ptr<Node>& node) -> bool {
+        [=](const std::shared_ptr<Node>& node) -> bool {
             OutputVector replacements(node->get_output_size());
             if (!node->constant_fold(replacements, node->input_values()))
             {
@@ -70,6 +81,8 @@ void ngraph::pass::ConstantFolding::construct_constant_default()
                             node->get_friendly_name() + "." + std::to_string(i));
                     }
                     node_output.replace(replacement);
+                    // Propagate runtime info attributes to replacement consumer nodes
+                    copy_runtime_info_to_target_inputs(node, replacement);
                     result = true;
                 }
             }
