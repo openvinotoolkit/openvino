@@ -216,7 +216,7 @@ void MKLDNNFullyConnectedNode::setPostOps(mkldnn::primitive_attr &attr, bool ini
                         static_cast<float *>(PostOpsIntBlobMemory[blob_idx]->GetData())[i] = broadcastValue;
                     }
                 } else {
-                    PostOpsIntBlobMemory[blob_idx]->SetData(memory::data_type::f32, memory::x,
+                    PostOpsIntBlobMemory[blob_idx]->SetData(MKLDNNMemory::createMemDesc(depthwiseDims, memory::data_type::f32, memory::x),
                                                             depthwiseLayer->_weights->buffer(),
                                                             depthwiseLayer->_weights->size() *
                                                             MKLDNNExtensionUtils::sizeOfDataType(memory::data_type::f32));
@@ -234,7 +234,7 @@ void MKLDNNFullyConnectedNode::setPostOps(mkldnn::primitive_attr &attr, bool ini
                             static_cast<float *>(PostOpsIntBlobMemory[blob_idx + 1]->GetData())[i] = broadcastValue;
                         }
                     } else {
-                        PostOpsIntBlobMemory[blob_idx + 1]->SetData(memory::data_type::f32, memory::x,
+                        PostOpsIntBlobMemory[blob_idx + 1]->SetData(MKLDNNMemory::createMemDesc(depthwiseDims, memory::data_type::f32, memory::x),
                                                                     depthwiseLayer->_biases->buffer(),
                                                                     depthwiseLayer->_biases->size() *
                                                                     MKLDNNExtensionUtils::sizeOfDataType(memory::data_type::f32));

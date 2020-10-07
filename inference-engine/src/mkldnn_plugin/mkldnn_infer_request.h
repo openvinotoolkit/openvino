@@ -48,9 +48,10 @@ public:
     std::vector<InferenceEngine::IVariableStateInternal::Ptr> QueryState() override;
 
 private:
-    void PushInputData();
+    void PushInputData(std::vector<uint8_t*> &convBlobMemPtr);
 
-    void pushInput(const std::string& inputName, InferenceEngine::Blob::Ptr& inputBlob, InferenceEngine::Precision dataType);
+    void pushInput(const std::string& inputName, InferenceEngine::Blob::Ptr& inputBlob, InferenceEngine::Precision dataType,
+                   std::vector<uint8_t*> &convBlobMemPtr);
 
     void changeDefaultPtr();
     std::shared_ptr<MKLDNNExecNetwork>  execNetwork;
@@ -58,5 +59,6 @@ private:
     std::map<std::string, void*>        externalPtr;
     openvino::itt::handle_t             profilingTask;
     std::vector<InferenceEngine::IVariableStateInternal::Ptr> memoryStates;
+    std::vector<uint8_t *> defaultBlob;
 };
 }  // namespace MKLDNNPlugin

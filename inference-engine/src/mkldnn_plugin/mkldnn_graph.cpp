@@ -682,23 +682,24 @@ void MKLDNNGraph::PushInputData(const std::string& name, const InferenceEngine::
 
     auto input = inputNodes.find(name);
     if (input != inputNodes.end()) {
-        MKLDNNDims outDims = input->second->getChildEdgeAt(0)->getDims();
-
         const void *ext_data_ptr = in->cbuffer();
         void *inter_data_ptr = input->second->getChildEdgeAt(0)->getMemory().GetData();
 
         if (ext_data_ptr != inter_data_ptr) {
-            auto l = in->getTensorDesc().getLayout();
-            if (l == CHW && input->second->getChildEdgeAt(0)->getDims().ndims() == 4)
-                l = NCHW;
+            auto inTensDesc = in->getTensorDesc();
+            auto inMemDesc = MKLDNNMemoryDesc(in->getTensorDesc(), inTensDesc.getLayout() == Layout::BLOCKED);
+            if (inMemDesc.getFormat() == mkldnn::memory::format::any) {
+                inMemDesc = MKLDNNMemory::createMemDesc(inMemDesc.getDims(), inMemDesc.getDataType(), inMemDesc.getFormat());
+            }
 
-            input->second->getChildEdgeAt(0)->getMemory().SetData(
-                    MKLDNNExtensionUtils::IEPrecisionToDataType(in->getTensorDesc().getPrecision()),
-                    MKLDNNMemory::Convert(l), ext_data_ptr, in->byteSize(), false);
+            size_t elementsCount = MKLDNNExtensionUtils::getRealElementCount(in->getTensorDesc());
+            input->second->getChildEdgeAt(0)->getMemory().SetData(inMemDesc, ext_data_ptr,
+                                                                  elementsCount * in->getTensorDesc().getPrecision().size());
         }
 
         // todo: make sure 'name' exists in this map...
         if (_meanImages.find(name) != _meanImages.end()) {
+            MKLDNNDims outDims = input->second->getChildEdgeAt(0)->getDims();
             if (in->getTensorDesc().getPrecision() == InferenceEngine::Precision::FP32) {
                 _meanImages[name].Subtract(outDims, reinterpret_cast<float *>(inter_data_ptr), in->getTensorDesc().getLayout());
             } else {
@@ -722,7 +723,7 @@ void MKLDNNGraph::PullOutputData(BlobMap &out) {
             // TODO: Create blob from MemoryDesc
             Blob::Ptr outBlob = make_shared_blob<float>({Precision::FP32, node->getParentEdgeAt(0)->getDims().ToSizeVector(),
                                                          TensorDesc::getLayoutByDims(node->getParentEdgeAt(0)->getDims().ToSizeVector())},
-                                                        reinterpret_cast<float*>(intr_blob.GetData()));
+                                                         reinterpret_cast<float*>(intr_blob.GetData()));
             out[name] = outBlob;
         }
 
@@ -736,15 +737,20 @@ void MKLDNNGraph::PullOutputData(BlobMap &out) {
 
         auto srcPrec = MKLDNNExtensionUtils::DataTypeToIEPrecision(intr_blob.GetDataType());
         auto dstPrec = ext_blob->getTensorDesc().getPrecision();
-        if (srcPrec == dstPrec && ext_blob->byteSize() != intr_blob.GetSize())
-                THROW_IE_EXCEPTION << "Output blob byte size is not equal network output byte size ("
-                                   << ext_blob->byteSize() << "!=" << intr_blob.GetSize() << ").";
-        if (ext_blob->size() != intr_blob.GetElementsCount())
-            THROW_IE_EXCEPTION << "Output blob number of elements is not equal network output number of elements ("
-                               << ext_blob->size() << "!=" << intr_blob.GetElementsCount() << ").";
 
-        void *ext_blob_ptr = ext_blob->buffer();
-        void *intr_blob_ptr = intr_blob.GetData();
+        auto extBlockingDesc = ext_blob->getTensorDesc().getBlockingDesc();
+        size_t extBlobElemCount = MKLDNNExtensionUtils::getRealElementCount(ext_blob->getTensorDesc());
+        size_t byteSize = extBlobElemCount * dstPrec.size();
+
+        if (srcPrec == dstPrec && byteSize != intr_blob.GetSize())
+                THROW_IE_EXCEPTION << "Output blob byte size is not equal network output byte size ("
+                                   << byteSize << "!=" << intr_blob.GetSize() << ").";
+        if (extBlobElemCount != intr_blob.GetElementsCount())
+            THROW_IE_EXCEPTION << "Output blob number of elements is not equal network output number of elements ("
+                               << extBlobElemCount << "!=" << intr_blob.GetElementsCount() << ").";
+
+        uint8_t *ext_blob_ptr = ext_blob->buffer().as<uint8_t *>();
+        uint8_t *intr_blob_ptr = reinterpret_cast<uint8_t *>(intr_blob.GetData());
 
         // That is the same memory. No need to copy
         if (ext_blob_ptr == intr_blob_ptr) continue;
@@ -756,7 +762,8 @@ void MKLDNNGraph::PullOutputData(BlobMap &out) {
             MB_to_process = std::min<int>(config.batchLimit, MB_to_process);
         size_t size_to_copy = intr_blob.GetElementsCount() * MB_to_process / MB;
 
-        cpu_convert(intr_blob_ptr, ext_blob_ptr, srcPrec, dstPrec, size_to_copy);
+        cpu_convert(intr_blob_ptr + intr_blob.GetDescriptor().data.layout_desc.blocking.offset_padding * srcPrec.size(),
+                    ext_blob_ptr + extBlockingDesc.getOffsetPadding() * dstPrec.size(), srcPrec, dstPrec, size_to_copy);
     }
 }
 

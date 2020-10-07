@@ -189,7 +189,7 @@ void MKLDNNBinaryConvolutionNode::setPostOps(mkldnn::primitive_attr &attr, bool 
                 PostOpsIntBlobMemory[blob_idx]->Create(binarizationDims, memory::data_type::f32, memory::format::x);
                 PostOpsIntBlobMemory[blob_idx]->FillZero();
 
-                PostOpsIntBlobMemory[blob_idx]->SetData(memory::data_type::f32, memory::x,
+                PostOpsIntBlobMemory[blob_idx]->SetData(MKLDNNMemory::createMemDesc(binarizationDims, memory::data_type::f32, memory::x),
                                                         quantizeNode->getBinarizationTresholdsPtr(),
                                                         quantizeNode->getBinarizationTresholdsSize() *
                                                         MKLDNNExtensionUtils::sizeOfDataType(memory::data_type::f32));
@@ -198,10 +198,10 @@ void MKLDNNBinaryConvolutionNode::setPostOps(mkldnn::primitive_attr &attr, bool 
                 PostOpsIntBlobMemory[blob_idx+1]->Create(binarizationDims, memory::data_type::f32, memory::format::x);
                 PostOpsIntBlobMemory[blob_idx+1]->FillZero();
 
-                PostOpsIntBlobMemory[blob_idx+1]->SetData(memory::data_type::f32, memory::x,
-                                                        quantizeNode->getBinarizationOutputMaskPtr(),
-                                                        quantizeNode->getBinarizationOutputMaskSize() *
-                                                        MKLDNNExtensionUtils::sizeOfDataType(memory::data_type::f32));
+                PostOpsIntBlobMemory[blob_idx+1]->SetData(MKLDNNMemory::createMemDesc(binarizationDims, memory::data_type::f32, memory::x),
+                                                          quantizeNode->getBinarizationOutputMaskPtr(),
+                                                          quantizeNode->getBinarizationOutputMaskSize() *
+                                                          MKLDNNExtensionUtils::sizeOfDataType(memory::data_type::f32));
 
                 ops.append_binarization(binarization_depthwise, (const float*)PostOpsIntBlobMemory[blob_idx+0]->GetData(),
                                                                 (const float*)PostOpsIntBlobMemory[blob_idx+1]->GetData());
@@ -230,7 +230,7 @@ void MKLDNNBinaryConvolutionNode::setPostOps(mkldnn::primitive_attr &attr, bool 
                     PostOpsIntBlobMemory[blob_idx]->Create(dwWeightsDims, memory::data_type::f32, w_fmt);
                     PostOpsIntBlobMemory[blob_idx]->FillZero();
 
-                    PostOpsIntBlobMemory[blob_idx]->SetData(memory::data_type::f32, memory::goihw,
+                    PostOpsIntBlobMemory[blob_idx]->SetData(MKLDNNMemory::createMemDesc(dwWeightsDims, memory::data_type::f32, memory::goihw),
                                                             convLayer->_weights->buffer(),
                                                             dwWeightsDims.size() *
                                                             MKLDNNExtensionUtils::sizeOfDataType(
@@ -241,7 +241,7 @@ void MKLDNNBinaryConvolutionNode::setPostOps(mkldnn::primitive_attr &attr, bool 
                     PostOpsIntBlobMemory[blob_idx + 1]->Create(dwBiasesDims, memory::data_type::f32,
                                                                memory::format::x);
                     PostOpsIntBlobMemory[blob_idx + 1]->FillZero();
-                    PostOpsIntBlobMemory[blob_idx + 1]->SetData(memory::data_type::f32, memory::x,
+                    PostOpsIntBlobMemory[blob_idx + 1]->SetData(MKLDNNMemory::createMemDesc(dwBiasesDims, memory::data_type::f32, memory::x),
                                                                 convLayer->_biases->buffer(),
                                                                 dwBiasesDims.size() *
                                                                 MKLDNNExtensionUtils::sizeOfDataType(

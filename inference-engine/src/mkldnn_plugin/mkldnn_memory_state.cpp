@@ -25,7 +25,9 @@ void  MKLDNNVariableState::SetState(Blob::Ptr newState) {
     auto data_ptr = newState->cbuffer().as<void*>();
     auto data_size = newState->byteSize();
 
-    storage->SetData(data_type, data_layout, data_ptr, data_size);
+    auto memData = storage->GetDescriptor().data;
+    std::vector<ptrdiff_t> dims(memData.dims, memData.dims + memData.ndims);
+    storage->SetData(MKLDNNMemory::createMemDesc(dims, data_type, data_layout), data_ptr, data_size);
 }
 
 InferenceEngine::Blob::CPtr MKLDNNVariableState::GetState() const {

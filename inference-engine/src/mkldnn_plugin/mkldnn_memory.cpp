@@ -14,6 +14,7 @@
 #include "mkldnn_node.h"
 #include "mkldnn_extension_utils.h"
 #include "nodes/common/cpu_memcpy.h"
+#include "nodes/common/cpu_convert.h"
 
 using namespace InferenceEngine;
 using namespace mkldnn;
@@ -34,7 +35,7 @@ size_t MKLDNNMemory::GetElementsCount() const {
     return std::accumulate(std::begin(dims), std::end(dims), (size_t) 1, std::multiplies<size_t>());
 }
 
-void MKLDNNMemory::Create(memory::dims dims, memory::data_type data_type, memory::format format, const void* data) {
+MKLDNNMemoryDesc MKLDNNMemory::createMemDesc(mkldnn::memory::dims dims, mkldnn::memory::data_type data_type, mkldnn::memory::format format) {
     if (!isConsistant(dims, format)) {
         THROW_IE_EXCEPTION << "dims and format are inconsistent.";
     }
@@ -44,10 +45,14 @@ void MKLDNNMemory::Create(memory::dims dims, memory::data_type data_type, memory
     }
 
     memory::desc desc = MKLDNNMemoryDesc({dims}, data_type, format);
-
     if (format == memory::any) {
         CreateBlockingDesc(desc);
     }
+    return MKLDNNMemoryDesc(desc);
+}
+
+void MKLDNNMemory::Create(memory::dims dims, memory::data_type data_type, memory::format format, const void* data) {
+    memory::desc desc = createMemDesc(dims, data_type, format);
 
     Create(desc, data);
 }
@@ -89,30 +94,55 @@ void MKLDNNMemory::Create(const mkldnn::memory::desc& desc, const void *data, bo
     }
 }
 
-void MKLDNNMemory::SetData(memory::data_type dataType, memory::format format, const void* data, size_t size, bool ftz) const {
-    uint8_t itemSize = MKLDNNExtensionUtils::sizeOfDataType(mkldnn::memory::data_type(dataType));
+void MKLDNNMemory::SetData(const MKLDNNMemoryDesc& memDesc, const void* data, size_t size, bool ftz) const {
+    if (MKLDNNMemoryDesc(GetDescriptor()) != memDesc) {
+        try {
+            MKLDNNMemory src(eng);
+            src.Create(memDesc, data);
+            std::shared_ptr<mkldnn::reorder> pReorder =
+                    std::shared_ptr<mkldnn::reorder>(new mkldnn::reorder(src.GetPrimitive(), GetPrimitive()));
+            mkldnn::stream(stream::kind::eager).submit({*pReorder});
+        } catch(...) {
+            // create input desc for reorder
+            mkldnn::memory::desc srcDesc = static_cast<mkldnn::memory::desc>(memDesc);
+            srcDesc.data.data_type = GetDescriptor().data.data_type;
 
-    if (static_cast<mkldnn_memory_format_t>(format) != GetDescriptor().data.format ||
-            GetDataType() != dataType) {
-        auto memData = GetDescriptor().data;
+            // convert data
+            size_t elemCount = size / MKLDNNExtensionUtils::sizeOfDataType(memDesc.getDataType());
+            const uint8_t *srcConvPtr = reinterpret_cast<const uint8_t *>(data) + srcDesc.data.layout_desc.blocking.offset_padding *
+                                        MKLDNNExtensionUtils::sizeOfDataType(memDesc.getDataType());
+            size_t allocSize = (elemCount + srcDesc.data.layout_desc.blocking.offset_padding) *
+                                MKLDNNExtensionUtils::sizeOfDataType(GetDataType());
+            std::vector<uint8_t> dstBuffer(allocSize);
+            uint8_t *dstConvPtr = reinterpret_cast<uint8_t *>(dstBuffer.data()) + srcDesc.data.layout_desc.blocking.offset_padding *
+                                  MKLDNNExtensionUtils::sizeOfDataType(GetDataType());
+            cpu_convert(srcConvPtr, dstConvPtr, MKLDNNExtensionUtils::DataTypeToIEPrecision(memDesc.getDataType()),
+                        MKLDNNExtensionUtils::DataTypeToIEPrecision(GetDataType()), elemCount);
 
-        std::vector<ptrdiff_t> dims(memData.dims, memData.dims + memData.ndims);
-
-        MKLDNNMemory src(eng);
-        src.Create(dims, dataType, format, data);
-
-        std::shared_ptr<mkldnn::reorder> pReorder =
-                std::shared_ptr<mkldnn::reorder>(new mkldnn::reorder(src.GetPrimitive(), GetPrimitive()));
-
-        mkldnn::stream(stream::kind::eager).submit({*pReorder});
+            // call reorder if necessary
+            if (MKLDNNMemoryDesc(GetDescriptor()) != MKLDNNMemoryDesc(srcDesc)) {
+                MKLDNNMemory src(eng);
+                src.Create(srcDesc, dstConvPtr);
+                std::shared_ptr<mkldnn::reorder> pReorder =
+                        std::shared_ptr<mkldnn::reorder>(new mkldnn::reorder(src.GetPrimitive(), GetPrimitive()));
+                mkldnn::stream(stream::kind::eager).submit({*pReorder});
+            } else {
+                uint8_t *dstPtr = reinterpret_cast<uint8_t *>(GetData()) + GetDescriptor().data.layout_desc.blocking.offset_padding *
+                                  MKLDNNExtensionUtils::sizeOfDataType(GetDataType());
+                cpu_memcpy(dstPtr, dstConvPtr, elemCount * MKLDNNExtensionUtils::sizeOfDataType(GetDataType()));
+            }
+        }
     } else {
-        uint8_t* dataPtr = static_cast<uint8_t*>(GetData());
+        uint8_t itemSize = MKLDNNExtensionUtils::sizeOfDataType(memDesc.getDataType());
+        uint8_t* dstDataPtr = static_cast<uint8_t*>(GetData());
         // We cannot support strides for i/o blobs because it affects performance.
-        dataPtr += itemSize * prim->get_primitive_desc().desc().data.layout_desc.blocking.offset_padding;
-        cpu_memcpy(dataPtr, data, size);
+        dstDataPtr += itemSize * GetDescriptor().data.layout_desc.blocking.offset_padding;
+        const uint8_t* srcDataPtr = reinterpret_cast<const uint8_t*>(data);
+        srcDataPtr += itemSize * static_cast<mkldnn::memory::desc>(memDesc).data.layout_desc.blocking.offset_padding;
+        cpu_memcpy(dstDataPtr, srcDataPtr, size);
     }
 
-    if (ftz && dataType == mkldnn_f32) {
+    if (ftz && memDesc.getDataType() == mkldnn_f32) {
         // Internal blobs haven't strides yet.
         auto *memData = static_cast<float *>(GetData());
         memData += prim->get_primitive_desc().desc().data.layout_desc.blocking.offset_padding;
@@ -1051,7 +1081,7 @@ MKLDNNMemoryDesc::operator InferenceEngine::TensorDesc() const {
     return tensorDesc;
 }
 
-MKLDNNMemoryDesc::MKLDNNMemoryDesc(const TensorDesc& tDesc):
+MKLDNNMemoryDesc::MKLDNNMemoryDesc(const TensorDesc& tDesc, bool createAsBlocked):
         desc({}, mkldnn::memory::data_type::f32, mkldnn::memory::format::format_undef) {
     mkldnn::memory::data_type data_type;
     switch (tDesc.getPrecision()) {
@@ -1331,6 +1361,14 @@ MKLDNNMemoryDesc::MKLDNNMemoryDesc(const TensorDesc& tDesc):
     }
     if (mkldnnFormat == memory::format_undef)
         THROW_IE_EXCEPTION << "Cannot detect the right memory format!";
+
+    static const std::vector<mkldnn::memory::format> supportedDataFormat{mkldnn::memory::format::nchw, mkldnn::memory::format::nhwc,
+                                                                         mkldnn::memory::format::nChw8c, mkldnn::memory::format::nChw16c,
+                                                                         mkldnn::memory::format::ncdhw, mkldnn::memory::format::ndhwc,
+                                                                         mkldnn::memory::format::nCdhw8c, mkldnn::memory::format::nCdhw16c};
+    if (createAsBlocked && realDims.ndims() > 3)
+        if (std::find(supportedDataFormat.begin(), supportedDataFormat.end(), mkldnnFormat) == supportedDataFormat.end())
+            mkldnnFormat = memory::format::blocked;
 
     bool notDefault = false;
     size_t currentStride = 1;

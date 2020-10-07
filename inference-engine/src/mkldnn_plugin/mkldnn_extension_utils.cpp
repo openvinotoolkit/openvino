@@ -5,6 +5,7 @@
 #include "mkldnn_extension_utils.h"
 #include <limits>
 #include <vector>
+#include <numeric>
 
 using namespace mkldnn;
 using namespace MKLDNNPlugin;
@@ -136,4 +137,34 @@ std::string MKLDNNExtensionUtils::getReorderArgs(const InferenceEngine::TensorDe
         outArgs += (outArgs.empty() ? "" : "_") + MKLDNNMemory::formatToString(MKLDNNMemoryDesc(childDesc).getFormat());
     }
     return inArgs + "_" + outArgs;
+}
+
+size_t MKLDNNExtensionUtils::getRealElementCount(const InferenceEngine::TensorDesc desc) {
+    auto blockDims = desc.getBlockingDesc().getBlockDims();
+    return std::accumulate(blockDims.begin(), blockDims.end(), (size_t)1, std::multiplies<size_t>());
+}
+
+bool MKLDNNExtensionUtils::isZeroOffsetDataPadding(const InferenceEngine::TensorDesc &desc) {
+    const InferenceEngine::SizeVector &dataPadding = desc.getBlockingDesc().getOffsetPaddingToData();
+    return std::all_of(dataPadding.begin(), dataPadding.end(), [](size_t it) { return it == 0; });
+}
+
+bool MKLDNNExtensionUtils::isDefaultStrides(const InferenceEngine::TensorDesc &desc) {
+    if (desc.getLayout() == InferenceEngine::Layout::SCALAR)
+        return true;
+    auto blockDims = desc.getBlockingDesc().getBlockDims();
+    InferenceEngine::SizeVector strides(blockDims.size());
+    strides.back() = 1;
+    for (size_t i = 2; i <= blockDims.size(); i++) {
+        strides[strides.size() - i] = strides[strides.size() - (i - 1)] * blockDims[blockDims.size() - (i - 1)];
+    }
+    return desc.getBlockingDesc().getStrides() == strides;
+}
+
+std::tuple<std::shared_ptr<InferenceEngine::IAllocator>, uint8_t *> MKLDNNExtensionUtils::allocRealSizeMem(const InferenceEngine::TensorDesc &desc,
+                                                                                                           const InferenceEngine::Precision prec) {
+    size_t allocatedSize = (MKLDNNExtensionUtils::getRealElementCount(desc) + desc.getBlockingDesc().getOffsetPadding()) * prec.size();
+    uint8_t *blobBuffer = new uint8_t[allocatedSize];
+    std::shared_ptr<InferenceEngine::IAllocator> preAllocator = InferenceEngine::details::make_pre_allocator(blobBuffer, allocatedSize);
+    return std::make_tuple(preAllocator, blobBuffer);
 }

@@ -100,9 +100,11 @@ public:
             const void *ext_data_ptr = in->cbuffer();
             void *inter_data_ptr = input->second->getChildEdgeAt(0)->getMemory().GetData();
 
+            mkldnn::memory::data_type inPrc = MKLDNNPlugin::MKLDNNExtensionUtils::IEPrecisionToDataType(in->getTensorDesc().getPrecision());
             if (ext_data_ptr != inter_data_ptr)
-                input->second->getChildEdgeAt(0)->getMemory().SetData(MKLDNNPlugin::MKLDNNExtensionUtils::IEPrecisionToDataType(in->getTensorDesc().getPrecision()),
-                                                                      MKLDNNPlugin::MKLDNNMemory::GetPlainFormat(outDims), ext_data_ptr, in->byteSize() / outDims[0] * batch, false);
+                input->second->getChildEdgeAt(0)->getMemory().SetData(MKLDNNPlugin::MKLDNNMemory::createMemDesc(outDims, inPrc,
+                                                                      MKLDNNPlugin::MKLDNNMemory::GetPlainFormat(outDims)),
+                                                                      ext_data_ptr, in->byteSize() / outDims[0] * batch, false);
 
             // todo: make sure 'name' exists in this map...
             if (_meanImages.find(name) != _meanImages.end()) {

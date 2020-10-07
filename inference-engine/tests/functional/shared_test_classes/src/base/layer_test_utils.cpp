@@ -221,6 +221,50 @@ InferenceEngine::Blob::Ptr LayerTestsCommon::GenerateInput(const InferenceEngine
     return FuncTestUtils::createAndFillBlob(info.getTensorDesc());
 }
 
+void LayerTestsCommon::Compare(InferenceEngine::Precision prec, const uint8_t *expected, const uint8_t *actual, const size_t size, float _threshold) {
+    switch (prec) {
+        case InferenceEngine::Precision::FP32:
+            Compare<float>(reinterpret_cast<const float *>(expected),
+                           reinterpret_cast<const float *>(actual), size, _threshold);
+            break;
+        case InferenceEngine::Precision::I32:
+            Compare<int32_t>(reinterpret_cast<const int32_t *>(expected),
+                             reinterpret_cast<const int32_t *>(actual), size, 0);
+            break;
+        case InferenceEngine::Precision::I64:
+            Compare<int64_t>(reinterpret_cast<const int64_t *>(expected),
+                             reinterpret_cast<const int64_t *>(actual), size, 0);
+            break;
+        case InferenceEngine::Precision::I8:
+            Compare<int8_t>(reinterpret_cast<const int8_t *>(expected),
+                            reinterpret_cast<const int8_t *>(actual), size, 0);
+            break;
+        case InferenceEngine::Precision::U16:
+            Compare<uint16_t>(reinterpret_cast<const uint16_t *>(expected),
+                              reinterpret_cast<const uint16_t *>(actual), size, 0);
+            break;
+        case InferenceEngine::Precision::I16:
+            Compare<int16_t>(reinterpret_cast<const int16_t *>(expected),
+                             reinterpret_cast<const int16_t *>(actual), size, 0);
+            break;
+        case InferenceEngine::Precision::BOOL:
+        case InferenceEngine::Precision::U8:
+            Compare<uint8_t>(reinterpret_cast<const uint8_t *>(expected),
+                             reinterpret_cast<const uint8_t *>(actual), size, 0);
+            break;
+        case InferenceEngine::Precision::U64:
+            Compare<uint64_t>(reinterpret_cast<const uint64_t *>(expected),
+                              reinterpret_cast<const uint64_t *>(actual), size, 0);
+            break;
+        case InferenceEngine::Precision::BF16:
+            Compare(reinterpret_cast<const ngraph::bfloat16 *>(expected),
+                    reinterpret_cast<const ngraph::bfloat16 *>(actual), size, ngraph::bfloat16(_threshold));
+            break;
+        default:
+            FAIL() << "Comparator for " << prec << " precision isn't supported";
+    }
+}
+
 void LayerTestsCommon::Compare(const std::vector<std::uint8_t> &expected, const InferenceEngine::Blob::Ptr &actual) {
     ASSERT_EQ(expected.size(), actual->byteSize());
     const auto &expectedBuffer = expected.data();
@@ -232,47 +276,8 @@ void LayerTestsCommon::Compare(const std::vector<std::uint8_t> &expected, const 
 
     const auto &precision = actual->getTensorDesc().getPrecision();
     const auto &size = actual->size();
-    switch (precision) {
-        case InferenceEngine::Precision::FP32:
-            Compare<float>(reinterpret_cast<const float *>(expectedBuffer),
-                           reinterpret_cast<const float *>(actualBuffer), size, threshold);
-            break;
-        case InferenceEngine::Precision::I32:
-            Compare<int32_t>(reinterpret_cast<const int32_t *>(expectedBuffer),
-                             reinterpret_cast<const int32_t *>(actualBuffer), size, 0);
-            break;
-        case InferenceEngine::Precision::I64:
-            Compare<int64_t>(reinterpret_cast<const int64_t *>(expectedBuffer),
-                             reinterpret_cast<const int64_t *>(actualBuffer), size, 0);
-            break;
-        case InferenceEngine::Precision::I8:
-            Compare<int8_t>(reinterpret_cast<const int8_t *>(expectedBuffer),
-                            reinterpret_cast<const int8_t *>(actualBuffer), size, 0);
-            break;
-        case InferenceEngine::Precision::U16:
-            Compare<uint16_t>(reinterpret_cast<const uint16_t *>(expectedBuffer),
-                              reinterpret_cast<const uint16_t *>(actualBuffer), size, 0);
-            break;
-        case InferenceEngine::Precision::I16:
-            Compare<int16_t>(reinterpret_cast<const int16_t *>(expectedBuffer),
-                             reinterpret_cast<const int16_t *>(actualBuffer), size, 0);
-            break;
-        case InferenceEngine::Precision::BOOL:
-        case InferenceEngine::Precision::U8:
-            Compare<uint8_t>(reinterpret_cast<const uint8_t *>(expectedBuffer),
-                             reinterpret_cast<const uint8_t *>(actualBuffer), size, 0);
-            break;
-        case InferenceEngine::Precision::U64:
-            Compare<uint64_t>(reinterpret_cast<const uint64_t *>(expectedBuffer),
-                              reinterpret_cast<const uint64_t *>(actualBuffer), size, 0);
-            break;
-        case InferenceEngine::Precision::BF16:
-            Compare(reinterpret_cast<const ngraph::bfloat16 *>(expectedBuffer),
-                    reinterpret_cast<const ngraph::bfloat16 *>(actualBuffer), size, ngraph::bfloat16(threshold));
-            break;
-        default:
-            FAIL() << "Comparator for " << precision << " precision isn't supported";
-    }
+
+    Compare(precision, expectedBuffer, actualBuffer, size, threshold);
 }
 
 void LayerTestsCommon::Compare(const InferenceEngine::Blob::Ptr &expected, const InferenceEngine::Blob::Ptr &actual) {

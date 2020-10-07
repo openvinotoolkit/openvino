@@ -311,9 +311,46 @@ void MKLDNNConvolutionNode::getSupportedDescriptors() {
         }
 
         Layout layout = convLayer->input()->getLayout();
+        bool IsnChw8c = false, IsnChw16c = false;
+        bool IsnCdhw8c = false, IsnCdhw16c = false;
 
-        if (layout == NCHW || layout == NHWC) {
-            if (IC == 3 || IC == 1) {
+        if (layout == Layout::BLOCKED) {
+            auto inputInfo = convLayer->input();
+            auto dims = inputInfo->getDims();
+            auto blockDesc = inputInfo->getTensorDesc().getBlockingDesc();
+            if (dims.size() == 4) {
+                if (blockDesc.getOrder() == SizeVector{0, 1, 2, 3, 1}) {
+                    if (blockDesc.getBlockDims()[4] == 16 && blockDesc.getBlockDims()[1] == dims[1] / 16 + (dims[1] % 16 ? 1 : 0)) {
+                        IsnChw16c = true;
+                    } else if (blockDesc.getBlockDims()[4] == 8 && blockDesc.getBlockDims()[1] == dims[1] / 8 + (dims[1] % 8 ? 1 : 0)) {
+                        IsnChw8c = true;
+                    }
+                }
+            } else if (dims.size() == 5) {
+                if (blockDesc.getOrder() == SizeVector{0, 1, 2, 3, 4, 1}) {
+                    if (blockDesc.getBlockDims()[5] == 16 && blockDesc.getBlockDims()[1] == dims[1] / 16 + (dims[1] % 16 ? 1 : 0)) {
+                        IsnCdhw16c = true;
+                    } else if (blockDesc.getBlockDims()[5] == 8 && blockDesc.getBlockDims()[1] == dims[1] / 8 + (dims[1] % 8 ? 1 : 0)) {
+                        IsnCdhw8c = true;
+                    }
+                }
+            }
+            if (IsnChw8c || IsnChw16c || IsnCdhw8c || IsnCdhw16c) {
+                SizeVector expectedStrides(blockDesc.getOrder().size());
+                auto blockDims = blockDesc.getBlockDims();
+                expectedStrides[expectedStrides.size() - 1] = 1;
+                for (size_t i = 2; i <= expectedStrides.size(); i++) {
+                    expectedStrides[expectedStrides.size() - i] = expectedStrides[expectedStrides.size() - i + 1] *
+                                                                  blockDims[blockDims.size() - i + 1];
+                }
+                if (expectedStrides != blockDesc.getStrides()) {
+                    IsnChw8c = false;  IsnChw16c = false;  IsnCdhw8c = false; IsnCdhw16c = false;
+                }
+            }
+        }
+
+        if (layout == NCHW || layout == NHWC || IsnChw8c || IsnChw16c) {
+            if ((IC == 3 || IC == 1) && (layout == NCHW || layout == NHWC)) {
                 in_candidate = MKLDNNMemoryDesc(getParentEdgeAt(0)->getDims(), inputDataType,
                                                 layout == NCHW ? memory::nchw : memory::nhwc);
                 out_candidate = MKLDNNMemoryDesc(getChildEdgeAt(0)->getDims(), outputDataType, memory::nChw16c);
@@ -329,15 +366,17 @@ void MKLDNNConvolutionNode::getSupportedDescriptors() {
                 createDescriptor({in_candidate}, {out_candidate});
             }
 
-            in_candidate = MKLDNNMemoryDesc(getParentEdgeAt(0)->getDims(), inputDataType,
-                    layout == NCHW ? memory::nchw : memory::nhwc);
-            out_candidate = MKLDNNMemoryDesc(getChildEdgeAt(0)->getDims(), outputDataType,
-                    layout == NCHW ? memory::nchw : memory::nhwc);
-            createDescriptor({in_candidate}, {out_candidate});
-        } else if (layout == NCDHW || layout == NDHWC) {
+            if (layout == NCHW || layout == NHWC) {
+                in_candidate = MKLDNNMemoryDesc(getParentEdgeAt(0)->getDims(), inputDataType,
+                        layout == NCHW ? memory::nchw : memory::nhwc);
+                out_candidate = MKLDNNMemoryDesc(getChildEdgeAt(0)->getDims(), outputDataType,
+                        layout == NCHW ? memory::nchw : memory::nhwc);
+                createDescriptor({in_candidate}, {out_candidate});
+            }
+        } else if (layout == NCDHW || layout == NDHWC || IsnCdhw8c || IsnCdhw16c) {
             in_candidate = MKLDNNMemoryDesc(getParentEdgeAt(0)->getDims(), inputDataType,
                     layout == NCDHW ? memory::ncdhw : memory::ndhwc);
-            if (IC == 3 || IC == 1) {
+            if ((IC == 3 || IC == 1) && (layout == NCDHW || layout == NDHWC)) {
                 out_candidate = MKLDNNMemoryDesc(getChildEdgeAt(0)->getDims(), outputDataType, memory::nCdhw16c);
                 createDescriptor({in_candidate}, {out_candidate});
                 out_candidate = MKLDNNMemoryDesc(getChildEdgeAt(0)->getDims(), outputDataType, memory::nCdhw8c);
@@ -351,11 +390,13 @@ void MKLDNNConvolutionNode::getSupportedDescriptors() {
                 createDescriptor({in_candidate}, {out_candidate});
             }
 
-            in_candidate = MKLDNNMemoryDesc(getParentEdgeAt(0)->getDims(), inputDataType,
-                    layout == NCDHW ? memory::ncdhw : memory::ndhwc);
-            out_candidate = MKLDNNMemoryDesc(getChildEdgeAt(0)->getDims(), outputDataType,
-                    layout == NCDHW ? memory::ncdhw : memory::ndhwc);
-            createDescriptor({in_candidate}, {out_candidate});
+            if (layout == NCDHW || layout == NDHWC) {
+                in_candidate = MKLDNNMemoryDesc(getParentEdgeAt(0)->getDims(), inputDataType,
+                        layout == NCDHW ? memory::ncdhw : memory::ndhwc);
+                out_candidate = MKLDNNMemoryDesc(getChildEdgeAt(0)->getDims(), outputDataType,
+                        layout == NCDHW ? memory::ncdhw : memory::ndhwc);
+                createDescriptor({in_candidate}, {out_candidate});
+            }
         }
     }
 }
@@ -402,14 +443,14 @@ void MKLDNNConvolutionNode::setPostOps(mkldnn::primitive_attr &attr, bool initWe
                     Blob::Ptr weights = convLayer->blobs.find("weights")->second;
                     Blob::Ptr biases = convLayer->blobs.find("biases")->second;
 
-                    PostOpsIntBlobMemory[blob_idx]->SetData(weightsPrc, memory::goihw, weights->buffer(),
+                    PostOpsIntBlobMemory[blob_idx]->SetData(MKLDNNMemory::createMemDesc(dwWeightsDims, weightsPrc, memory::goihw), weights->buffer(),
                                                             dwWeightsDims.size() * MKLDNNExtensionUtils::sizeOfDataType(weightsPrc));
 
                     PostOpsIntBlobMemory.push_back(MKLDNNMemoryPtr(new MKLDNNMemory(getEngine())));
                     MKLDNNDims dwBiasesDims({dw_conv_oc});
                     PostOpsIntBlobMemory[blob_idx + 1]->Create(dwBiasesDims, biasPrc, memory::format::x);
                     PostOpsIntBlobMemory[blob_idx + 1]->FillZero();
-                    PostOpsIntBlobMemory[blob_idx + 1]->SetData(biasPrc, memory::x, biases->buffer(),
+                    PostOpsIntBlobMemory[blob_idx + 1]->SetData(MKLDNNMemory::createMemDesc(dwBiasesDims, biasPrc, memory::x), biases->buffer(),
                                                                 dwBiasesDims.size() * MKLDNNExtensionUtils::sizeOfDataType(biasPrc));
                     ops.append_dw_conv(dw_conv_ih, dw_conv_iw, dw_conv_kernel[Y_AXIS], dw_conv_kernel[X_AXIS],
                                        dw_conv_strides[Y_AXIS], dw_conv_strides[X_AXIS],
@@ -460,13 +501,13 @@ void MKLDNNConvolutionNode::setPostOps(mkldnn::primitive_attr &attr, bool initWe
                 PostOpsIntBlobMemory.push_back(MKLDNNMemoryPtr(new MKLDNNMemory(getEngine())));
                 PostOpsIntBlobMemory[blob_idx]->Create(oScaleDims, memory::data_type::f32, memory::format::x);
                 PostOpsIntBlobMemory[blob_idx]->FillZero();
-                PostOpsIntBlobMemory[blob_idx]->SetData(memory::data_type::f32, memory::x, &oScaleDataVector[0],
+                PostOpsIntBlobMemory[blob_idx]->SetData(MKLDNNMemory::createMemDesc(oScaleDims, memory::data_type::f32, memory::x), &oScaleDataVector[0],
                                                         oScaleDataVector.size() * MKLDNNExtensionUtils::sizeOfDataType(memory::data_type::f32));
 
                 PostOpsIntBlobMemory.push_back(MKLDNNMemoryPtr(new MKLDNNMemory(getEngine())));
                 PostOpsIntBlobMemory[blob_idx + 1]->Create(oScaleDims, memory::data_type::f32, memory::format::x);
                 PostOpsIntBlobMemory[blob_idx + 1]->FillZero();
-                PostOpsIntBlobMemory[blob_idx + 1]->SetData(memory::data_type::f32, memory::x, &oShiftDataVector[0],
+                PostOpsIntBlobMemory[blob_idx + 1]->SetData(MKLDNNMemory::createMemDesc(oScaleDims, memory::data_type::f32, memory::x), &oShiftDataVector[0],
                                                             oShiftDataVector.size() * MKLDNNExtensionUtils::sizeOfDataType(memory::data_type::f32));
 
                 ops.append_depthwise(depthwise_scale_shift,

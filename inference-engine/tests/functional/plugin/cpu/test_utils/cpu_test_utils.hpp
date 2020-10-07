@@ -13,6 +13,7 @@
 
 namespace CPUTestUtils {
     typedef enum {
+        any,
         nchw,
         nChw8c,
         nChw16c,
@@ -21,6 +22,7 @@ namespace CPUTestUtils {
         nCdhw8c,
         nCdhw16c,
         ndhwc,
+        tnc,
         nc,
         x,
         undef
@@ -48,7 +50,12 @@ public:
                                std::vector<std::string> priority);
 
     CPUInfo getCPUInfo() const;
-    void CheckCPUImpl(InferenceEngine::ExecutableNetwork &execNet, std::string nodeType) const;
+    void CheckCPUImpl(InferenceEngine::ExecutableNetwork &execNet, std::string nodeType, bool checkForReorders = false) const;
+
+    InferenceEngine::TensorDesc createTensorDesc(const InferenceEngine::SizeVector shape, const InferenceEngine::Precision prec, cpu_memory_format_t fmt,
+                                                 const size_t offsetPadding = 0);
+
+    void checkOffsetPadding(const InferenceEngine::ExecutableNetwork &execNet, int inOffPadding = -1, int outOffPadding = -1);
 
 protected:
     std::string getPrimitiveType() const;
@@ -84,7 +91,14 @@ const auto conv_sse42_2D_1x1 = CPUSpecificParams{{nChw8c}, {nChw8c}, {"jit_sse42
 const auto conv_avx2_2D_1x1 = CPUSpecificParams{{nChw8c}, {nChw8c}, {"jit_avx2_1x1"}, "jit_avx2_1x1_FP32"};
 const auto conv_avx512_2D_1x1 = CPUSpecificParams{{nChw16c}, {nChw16c}, {"jit_avx512_1x1"}, "jit_avx512_1x1_FP32"};
 
+const auto conv_avx2_2D_IC_1_3_OC_8 = CPUSpecificParams{{nchw}, {nChw8c}, {"jit_avx2"}, "jit_avx2_FP32"};
+const auto conv_avx512_2D_IC_1_3_OC_16 = CPUSpecificParams{{nchw}, {nChw16c}, {"jit_avx512"}, "jit_avx512_FP32"};
+
+const auto conv_avx2_3D_IC_1_3_OC_8 = CPUSpecificParams{{ncdhw}, {nCdhw8c}, {"jit_avx2"}, "jit_avx2_FP32"};
+const auto conv_avx512_3D_IC_1_3_OC_16 = CPUSpecificParams{{ncdhw}, {nCdhw16c}, {"jit_avx512"}, "jit_avx512_FP32"};
+
 // utility functions
 std::vector<CPUSpecificParams> filterCPUSpecificParams(std::vector<CPUSpecificParams>& paramsVector);
+std::vector<CPUSpecificParams> filterCPUInfoForDevice(const std::vector<CPUSpecificParams>& CPUParams);
 
 } // namespace CPUTestUtils

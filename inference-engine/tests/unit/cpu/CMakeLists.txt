@@ -10,6 +10,8 @@ addIeTargetTest(
         INCLUDES
             ${IE_MAIN_SOURCE_DIR}/src/mkldnn_plugin
             ${IE_MAIN_SOURCE_DIR}/src/transformations/include
+            ${IE_MAIN_SOURCE_DIR}/thirdparty/mkl-dnn/include
+            ${CMAKE_BINARY_DIR}/include
         OBJECT_FILES
             $<TARGET_OBJECTS:MKLDNNPlugin_obj>
         LINK_LIBRARIES

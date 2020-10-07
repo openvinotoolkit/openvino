@@ -49,19 +49,38 @@ void MKLDNNInputNode::initSupportedPrimitiveDescriptors() {
     config.dynBatchSupport = true;
     memory::format outFormat = mkldnn::memory::format_undef;
     if (getType() == Input || getType() == MemoryInput) {
+        const InferenceEngine::TensorDesc &srcTensorDesc = getCnnLayer()->outData[0]->getTensorDesc();
+        const InferenceEngine::BlockingDesc &srcBlockingDesc = srcTensorDesc.getBlockingDesc();
+
+        const InferenceEngine::SizeVector &dataPadding = srcBlockingDesc.getOffsetPaddingToData();
+        if (!MKLDNNExtensionUtils::isZeroOffsetDataPadding(srcTensorDesc))
+            THROW_IE_EXCEPTION << "Input node with name '" << getName() << "' doesn't support non zero data padding";
+        if (!MKLDNNExtensionUtils::isDefaultStrides(srcTensorDesc))
+            THROW_IE_EXCEPTION << "Input node with name '" << getName() << "' doesn't support custom strides";
+
         precision = getCnnLayer()->outData[0]->getPrecision();
         if (precision == InferenceEngine::Precision::U16 || isMeanImage) {
             precision = InferenceEngine::Precision::FP32;
         }
-        auto outputDataType = MKLDNNExtensionUtils::IEPrecisionToDataType(precision);
         InferenceEngine::DataConfig dataConfig;
         dataConfig.inPlace = -1;
         dataConfig.constant = false;
 
-        outFormat = MKLDNNMemory::Convert(getCnnLayer()->outData[0]->getLayout());
-        dataConfig.desc = MKLDNNMemoryDesc(getChildEdgeAt(0)->getDims(), outputDataType, outFormat);
+        const InferenceEngine::TensorDesc dstTensorDesc = InferenceEngine::TensorDesc(precision, srcTensorDesc.getDims(), srcBlockingDesc);
+
+        auto memDesc = MKLDNNMemoryDesc(dstTensorDesc, dstTensorDesc.getLayout() == InferenceEngine::Layout::BLOCKED);
+        outFormat = memDesc.getFormat();
+        dataConfig.desc = memDesc;
         config.outConfs.push_back(dataConfig);
     } else if (getType() == Output) {
+        const InferenceEngine::TensorDesc &srcTensorDesc = getCnnLayer()->insData[0].lock()->getTensorDesc();
+        const InferenceEngine::BlockingDesc &srcBlockingDesc = srcTensorDesc.getBlockingDesc();
+
+        if (!MKLDNNExtensionUtils::isZeroOffsetDataPadding(srcTensorDesc))
+            THROW_IE_EXCEPTION << "Output node with name '" << getName() << "' doesn't support non zero data padding";
+        if (!MKLDNNExtensionUtils::isDefaultStrides(srcTensorDesc))
+            THROW_IE_EXCEPTION << "Output node with name '" << getName() << "' doesn't support custom strides";
+
         precision = getCnnLayer()->insData[0].lock()->getPrecision();
         if (precision == InferenceEngine::Precision::U16) precision = InferenceEngine::Precision::FP32;
         auto inputDataType = MKLDNNExtensionUtils::IEPrecisionToDataType(precision);
@@ -69,8 +88,11 @@ void MKLDNNInputNode::initSupportedPrimitiveDescriptors() {
         dataConfig.inPlace = -1;
         dataConfig.constant = false;
 
-        outFormat = MKLDNNMemory::Convert(getCnnLayer()->insData[0].lock()->getLayout());
-        dataConfig.desc = MKLDNNMemoryDesc(getParentEdgeAt(0)->getDims(), inputDataType, outFormat);
+        const InferenceEngine::TensorDesc dstTensorDesc = InferenceEngine::TensorDesc(precision, srcTensorDesc.getDims(), srcBlockingDesc);
+
+        auto memDesc = MKLDNNMemoryDesc(dstTensorDesc, dstTensorDesc.getLayout() == InferenceEngine::Layout::BLOCKED);
+        outFormat = memDesc.getFormat();
+        dataConfig.desc = memDesc;
         config.inConfs.push_back(dataConfig);
     }
     supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::unknown, outFormat);

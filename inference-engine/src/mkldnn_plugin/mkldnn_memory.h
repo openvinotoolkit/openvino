@@ -19,7 +19,7 @@ namespace MKLDNNPlugin {
 class MKLDNNMemoryDesc {
 public:
     MKLDNNMemoryDesc(): desc({}, mkldnn::memory::data_type::f32, mkldnn::memory::format::format_undef) {}
-    explicit MKLDNNMemoryDesc(const InferenceEngine::TensorDesc& tDesc);
+    explicit MKLDNNMemoryDesc(const InferenceEngine::TensorDesc& tDesc, bool createAsBlocked = false);
     explicit MKLDNNMemoryDesc(const mkldnn::memory::desc& desc): desc(desc) {}
     MKLDNNMemoryDesc(mkldnn::memory::dims dims, mkldnn::memory::data_type dataType, mkldnn::memory::format format);
 
@@ -104,7 +104,9 @@ public:
 
     void Create(const mkldnn::memory::desc& desc, const void* data = nullptr, bool pads_zeroing = true);
 
-    void SetData(mkldnn::memory::data_type dataType, mkldnn::memory::format format, const void* data, size_t size, bool ftz = true) const;
+    static MKLDNNMemoryDesc createMemDesc(mkldnn::memory::dims dims, mkldnn::memory::data_type data_type, mkldnn::memory::format format);
+
+    void SetData(const MKLDNNMemoryDesc& memDesc, const void* data, size_t size, bool ftz = true) const;
     void SetData(const MKLDNNMemory& memory, bool ftz = true) const;
 
     void FillZero();

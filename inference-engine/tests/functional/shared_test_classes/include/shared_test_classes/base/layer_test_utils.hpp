@@ -146,6 +146,8 @@ public:
 
     virtual void Compare(const InferenceEngine::Blob::Ptr &expected, const InferenceEngine::Blob::Ptr &actual);
 
+    virtual void Compare(InferenceEngine::Precision prec, const uint8_t *expected, const uint8_t *actual, const size_t size, float threshold);
+
     virtual void SetRefMode(RefMode mode);
 
     std::shared_ptr<ngraph::Function> GetFunction();

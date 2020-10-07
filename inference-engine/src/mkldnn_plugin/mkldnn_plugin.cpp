@@ -7,6 +7,7 @@
 #include "mkldnn_extension_mngr.h"
 #include "mkldnn_weights_cache.hpp"
 #include "mkldnn_itt.h"
+#include "mkldnn_extension_utils.h"
 
 #include <legacy/net_pass.h>
 #include <threading/ie_executor_manager.hpp>
@@ -289,6 +290,25 @@ Engine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network, const std
             THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str
                                << "Input image format " << input_precision << " is not supported yet...";
         }
+    }
+
+    for (const auto &in : _networkInputs) {
+        if (!MKLDNNExtensionUtils::isZeroOffsetDataPadding(in.second->getTensorDesc()))
+            THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str
+                               << "CPU plug-in doesn't support network input with non zero data padding. Input name: '" << in.first << "'";
+        if (!MKLDNNExtensionUtils::isDefaultStrides(in.second->getTensorDesc()))
+            THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str
+                               << "CPU plug-in doesn't support network input with custom strides. Input name: '" << in.first << "'";
+    }
+
+    InferenceEngine::OutputsDataMap _networkOutputs = network.getOutputsInfo();
+    for (const auto &out : _networkOutputs) {
+        if (!MKLDNNExtensionUtils::isZeroOffsetDataPadding(out.second->getTensorDesc()))
+            THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str
+                               << "CPU plug-in doesn't support network output with non zero data padding. Output name: '" << out.first << "'";
+        if (!MKLDNNExtensionUtils::isDefaultStrides(out.second->getTensorDesc()))
+            THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str
+                               << "CPU plug-in doesn't support network output with custom strides. Output name: '" << out.first << "'";
     }
 
     // TODO: handle input precision differently - per input and not one per network...

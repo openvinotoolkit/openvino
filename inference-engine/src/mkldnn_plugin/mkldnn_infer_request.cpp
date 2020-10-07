@@ -65,10 +65,17 @@ MKLDNNPlugin::MKLDNNInferRequest::MKLDNNInferRequest(InferenceEngine::InputsData
 
 MKLDNNPlugin::MKLDNNInferRequest::~MKLDNNInferRequest() {
     --(execNetwork->_numRequests);
+
+    for (size_t i = 0; i < defaultBlob.size(); i++) {
+        if (defaultBlob[i] != nullptr)
+            delete [] defaultBlob[i];
+    }
 }
 
-void MKLDNNPlugin::MKLDNNInferRequest::pushInput(const std::string& inputName, InferenceEngine::Blob::Ptr& inputBlob, InferenceEngine::Precision inPrec) {
-    bool needConvert = inPrec != inputBlob->getTensorDesc().getPrecision();
+void MKLDNNPlugin::MKLDNNInferRequest::pushInput(const std::string& inputName, InferenceEngine::Blob::Ptr& inputBlob, InferenceEngine::Precision inPrec,
+                                                 std::vector<uint8_t*> &convBlobMemPtr) {
+    auto inputTensorDesc = inputBlob->getTensorDesc();
+    bool needConvert = inPrec != inputTensorDesc.getPrecision();
 
     if (inputBlob->cbuffer().as<const void *>() == nullptr) {
         THROW_IE_EXCEPTION << "Input blob has no allocated memory";
@@ -76,25 +83,28 @@ void MKLDNNPlugin::MKLDNNInferRequest::pushInput(const std::string& inputName, I
 
     InferenceEngine::Blob::Ptr iconv;
     if (needConvert) {
-        iconv = make_blob_with_precision(inPrec, InferenceEngine::TensorDesc(inPrec, inputBlob->getTensorDesc().getDims(),
-                                         inputBlob->getTensorDesc().getLayout()));
-        iconv->allocate();
-        if (inputBlob->size() != iconv->size())
-            THROW_IE_EXCEPTION << "Can't copy tensor: input and converted tensors have different number of elements: " << inputBlob->size() << " and "
-                               << iconv->size();
+        uint8_t *blobBuffer;
+        std::shared_ptr<InferenceEngine::IAllocator> preAllocator;
+        std::tie(preAllocator, blobBuffer) = MKLDNNExtensionUtils::allocRealSizeMem(inputTensorDesc, inPrec);
+        convBlobMemPtr.push_back(blobBuffer);
 
-        void *srcData = inputBlob->cbuffer().as<void *>();
-        void *dstData = iconv->buffer().as<void *>();
+        auto inputBlockingDesc = inputTensorDesc.getBlockingDesc();
+        iconv = make_blob_with_precision(inPrec, InferenceEngine::TensorDesc(inPrec, inputTensorDesc.getDims(), inputBlockingDesc), preAllocator);
+        iconv->allocate();
+
+        const uint8_t *srcData = inputBlob->cbuffer().as<const uint8_t *>() + inputBlockingDesc.getOffsetPadding() * inputTensorDesc.getPrecision().size();
+        uint8_t *dstData = iconv->buffer().as<uint8_t *>() + inputBlockingDesc.getOffsetPadding() * inPrec.size();
         if (dstData == nullptr) {
             THROW_IE_EXCEPTION << "Converted input blob has no allocated memory";
         }
-        cpu_convert(srcData, dstData, inputBlob->getTensorDesc().getPrecision(), iconv->getTensorDesc().getPrecision(), iconv->size());
+        size_t blobElemCount = MKLDNNExtensionUtils::getRealElementCount(inputTensorDesc);
+        cpu_convert(srcData, dstData, inputTensorDesc.getPrecision(), iconv->getTensorDesc().getPrecision(), blobElemCount);
     }
 
     graph->PushInputData(inputName, needConvert ? iconv : inputBlob);
 }
 
-void MKLDNNPlugin::MKLDNNInferRequest::PushInputData() {
+void MKLDNNPlugin::MKLDNNInferRequest::PushInputData(std::vector<uint8_t*> &convBlobMemPtr) {
     for (auto input : _inputs) {
         if (!_networkInputs[input.first]) {
             THROW_IE_EXCEPTION << "Input blobs map contains not registered during IInferencePlugin::LoadNetwork blob with name " << input.first;
@@ -128,7 +138,14 @@ void MKLDNNPlugin::MKLDNNInferRequest::PushInputData() {
             default:
                 THROW_IE_EXCEPTION << "Unsupported input precision " << input.second->getTensorDesc().getPrecision();
         }
-        pushInput(input.first, input.second, inPrec);
+        pushInput(input.first, input.second, inPrec, convBlobMemPtr);
+    }
+}
+
+void releaseMemory(std::vector<uint8_t*> &convBlobMemPtr) {
+    for (size_t i = 0; i < convBlobMemPtr.size(); i++) {
+        if (convBlobMemPtr[i] != nullptr)
+            delete [] convBlobMemPtr[i];
     }
 }
 
@@ -142,11 +159,14 @@ void MKLDNNPlugin::MKLDNNInferRequest::InferImpl() {
 
     changeDefaultPtr();
 
-    PushInputData();
+    std::vector<uint8_t *> convBlobMemPtr;
+    PushInputData(convBlobMemPtr);
 
     graph->Infer(m_curBatch);
 
     graph->PullOutputData(_outputs);
+
+    releaseMemory(convBlobMemPtr);
 }
 
 InferenceEngine::StatusCode MKLDNNPlugin::MKLDNNInferRequest::Cancel() {
@@ -187,17 +207,19 @@ void MKLDNNPlugin::MKLDNNInferRequest::GetBlob(const char *name, InferenceEngine
         InferenceEngine::TensorDesc desc = blobs[name]->getTensorDesc();
         InferenceEngine::Precision originPrecision = blobs[name]->getTensorDesc().getPrecision();
         if (_networkInputs.find(name) != _networkInputs.end()) {
-            InferenceEngine::Layout l = _networkInputs[name]->getLayout();
-            InferenceEngine::Precision p = _networkInputs[name]->getPrecision();
-            InferenceEngine::SizeVector dims = _networkInputs[name]->getTensorDesc().getDims();
-
-            desc = InferenceEngine::TensorDesc(p, dims, l);
+            desc = _networkInputs[name]->getTensorDesc();
         }
 
-        _inputs[name] = make_blob_with_precision(desc);
+        uint8_t *blobBuffer;
+        std::shared_ptr<InferenceEngine::IAllocator> preAllocator;
+        std::tie(preAllocator, blobBuffer) = MKLDNNExtensionUtils::allocRealSizeMem(desc, desc.getPrecision());
+        defaultBlob.push_back(blobBuffer);
+
+        _inputs[name] = make_blob_with_precision(desc, preAllocator);
         _inputs[name]->allocate();
         if (desc.getPrecision() == originPrecision &&
-                graph->_meanImages.find(name) == graph->_meanImages.end() && !graph->getProperty().batchLimit) {
+                graph->_meanImages.find(name) == graph->_meanImages.end() && !graph->getProperty().batchLimit &&
+                blobs[name]->getTensorDesc() == _inputs[name]->getTensorDesc()) {
             externalPtr[name] = _inputs[name]->buffer();
         }
         data = _inputs[name];
@@ -214,17 +236,19 @@ void MKLDNNPlugin::MKLDNNInferRequest::GetBlob(const char *name, InferenceEngine
         }
 
         InferenceEngine::TensorDesc desc = blobs[name]->getTensorDesc();
+        if (_networkOutputs.find(name) != _networkOutputs.end()) {
+            desc = _networkOutputs[name]->getTensorDesc();
+        }
 
-        // WA: need to avoid exception thrown when we compare blocking desc in SetBlob
-        // in situation if we push output blobs as inputs for next network (in Hetero plugin)
-        // it may be that output tensor desc will be different from real input tensor desc for next network
-        // because the optimal descriptor was chosen (e.g. inPlace case for Split node)
-        auto currBlockDesc = InferenceEngine::BlockingDesc(desc.getBlockingDesc().getBlockDims(), desc.getBlockingDesc().getOrder());
-        desc = InferenceEngine::TensorDesc(desc.getPrecision(), desc.getDims(), currBlockDesc);
+        uint8_t *blobBuffer;
+        std::shared_ptr<InferenceEngine::IAllocator> preAllocator;
+        std::tie(preAllocator, blobBuffer) = MKLDNNExtensionUtils::allocRealSizeMem(desc, desc.getPrecision());
+        defaultBlob.push_back(blobBuffer);
 
-        _outputs[name] = make_blob_with_precision(desc);
+        _outputs[name] = make_blob_with_precision(desc, preAllocator);
         _outputs[name]->allocate();
-        if (desc.getPrecision() == InferenceEngine::Precision::FP32 && !graph->getProperty().batchLimit) {
+        if (desc.getPrecision() == InferenceEngine::Precision::FP32 && !graph->getProperty().batchLimit &&
+            blobs[name]->getTensorDesc() == _outputs[name]->getTensorDesc()) {
             externalPtr[name] = _outputs[name]->buffer();
         }
         data = _outputs[name];
@@ -252,6 +276,7 @@ void MKLDNNPlugin::MKLDNNInferRequest::SetBlob(const char *name, const Inference
     InferenceEngine::InputInfo::Ptr foundInput;
     InferenceEngine::DataPtr foundOutput;
     size_t dataSize = data->size();
+
     if (findInputAndOutputBlobByName(name, foundInput, foundOutput)) {
         if (foundInput->getPrecision() != data->getTensorDesc().getPrecision()) {
             THROW_IE_EXCEPTION << PARAMETER_MISMATCH_str << "Failed to set input blob with precision: "
@@ -290,8 +315,12 @@ void MKLDNNPlugin::MKLDNNInferRequest::SetBlob(const char *name, const Inference
                 THROW_IE_EXCEPTION << PARAMETER_MISMATCH_str << "Failed to set input blob. Blocking descriptor mismatch.";
             }
 
+            InferenceEngine::BlobMap blobs;
+            graph->getInputBlobs(blobs);
+
             if (data->getTensorDesc().getPrecision() == InferenceEngine::Precision::FP32 &&
-                graph->_meanImages.find(name) == graph->_meanImages.end() && !graph->getProperty().batchLimit) {
+                graph->_meanImages.find(name) == graph->_meanImages.end() && !graph->getProperty().batchLimit &&
+                blobs.find(name) != blobs.end() && data->getTensorDesc() == blobs[name]->getTensorDesc()) {
                 externalPtr[name] = data->buffer();
             } else if (externalPtr.find(name) != externalPtr.end()) {
                 externalPtr.erase(name);
@@ -321,8 +350,12 @@ void MKLDNNPlugin::MKLDNNInferRequest::SetBlob(const char *name, const Inference
             foundOutput->getTensorDesc().getBlockingDesc() != data->getTensorDesc().getBlockingDesc()) {
                 THROW_IE_EXCEPTION << PARAMETER_MISMATCH_str << "Failed to set output blob. Blocking descriptor mismatch.";
         }
-        if (data->getTensorDesc().getPrecision() == InferenceEngine::Precision::FP32 &&
-                !graph->getProperty().batchLimit) {
+
+        InferenceEngine::BlobMap blobs;
+        graph->getOutputBlobs(blobs);
+
+        if (data->getTensorDesc().getPrecision() == InferenceEngine::Precision::FP32 && !graph->getProperty().batchLimit &&
+            blobs.find(name) != blobs.end() && data->getTensorDesc() == blobs[name]->getTensorDesc()) {
             externalPtr[name] = data->buffer();
         } else if (externalPtr.find(name) != externalPtr.end()) {
             externalPtr.erase(name);

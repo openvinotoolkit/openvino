@@ -7,7 +7,32 @@
 
 namespace CPUTestUtils {
 
+using namespace InferenceEngine;
+
+std::vector<CPUSpecificParams> filterCPUInfoForDevice(const std::vector<CPUSpecificParams>& CPUParams) {
+    std::vector<CPUSpecificParams> resCPUParams;
+    const int selectedTypeIndex = 3;
+
+    for (auto param : CPUParams) {
+        auto selectedTypeStr = std::get<selectedTypeIndex>(param);
+
+        if (selectedTypeStr.find("jit") != std::string::npos && !with_cpu_x86_sse42())
+            continue;
+        if (selectedTypeStr.find("sse42") != std::string::npos && !with_cpu_x86_sse42())
+            continue;
+        if (selectedTypeStr.find("avx2") != std::string::npos && !with_cpu_x86_avx2())
+            continue;
+        if (selectedTypeStr.find("avx512") != std::string::npos && !with_cpu_x86_avx512f())
+            continue;
+
+        resCPUParams.push_back(param);
+    }
+
+    return resCPUParams;
+}
+
 const char *CPUTestsBase::cpu_fmt2str(cpu_memory_format_t v) {
+    if (v == any) return "any";
     if (v == nchw) return "nchw";
     if (v == nChw8c) return "nChw8c";
     if (v == nChw16c) return "nChw16c";
@@ -16,6 +41,7 @@ const char *CPUTestsBase::cpu_fmt2str(cpu_memory_format_t v) {
     if (v == nCdhw8c) return "nCdhw8c";
     if (v == nCdhw16c) return "nCdhw16c";
     if (v == ndhwc) return "ndhwc";
+    if (v == tnc) return "tnc";
     if (v == nc) return "nc";
     if (v == x) return "x";
     assert(!"unknown fmt");
@@ -36,6 +62,7 @@ cpu_memory_format_t CPUTestsBase::cpu_str2fmt(const char *str) {
     CASE(nCdhw8c);
     CASE(nCdhw16c);
     CASE(ndhwc);
+    CASE(tnc);
     CASE(nc);
     CASE(x);
 #undef CASE
@@ -65,7 +92,7 @@ std::string CPUTestsBase::impls2str(const std::vector<std::string> &priority) {
     return str;
 }
 
-void CPUTestsBase::CheckCPUImpl(InferenceEngine::ExecutableNetwork &execNet, std::string nodeType) const {
+void CPUTestsBase::CheckCPUImpl(InferenceEngine::ExecutableNetwork &execNet, std::string nodeType, bool checkForReorders) const {
     IE_SUPPRESS_DEPRECATED_START
     ASSERT_TRUE(!selectedType.empty()) << "Node type is not defined.";
     bool isNodeFound = false;
@@ -89,6 +116,10 @@ void CPUTestsBase::CheckCPUImpl(InferenceEngine::ExecutableNetwork &execNet, std
             IE_ASSERT(nullptr != value);
             return value->get();
         };
+
+        if (checkForReorders) {
+            ASSERT_NE("Reorder", getExecValue(ExecGraphInfoSerialization::LAYER_TYPE));
+        }
 
         if (getExecValue(ExecGraphInfoSerialization::LAYER_TYPE) == nodeType) {
             isNodeFound = true;
@@ -188,6 +219,91 @@ std::vector<CPUSpecificParams> filterCPUSpecificParams(std::vector<CPUSpecificPa
     }
 
     return paramsVector;
+}
+
+TensorDesc CPUTestsBase::createTensorDesc(const SizeVector dims, const Precision prec, cpu_memory_format_t fmt, const size_t offsetPadding) {
+    SizeVector order, blockedDims = dims;
+    switch (fmt) {
+        case nchw: {
+            order = {0, 1, 2, 3};
+            break;
+        }
+        case nhwc: {
+            order = {0, 2, 3, 1};
+            blockedDims = {dims[0], dims[2], dims[3], dims[1]};
+            break;
+        }
+        case nChw8c: {
+            order = {0, 1, 2, 3, 1};
+            blockedDims[1] = blockedDims[1] / 8 + (blockedDims[1] % 8 ? 1 : 0);
+            blockedDims.push_back(8);
+            break;
+        }
+        case nChw16c: {
+            order = {0, 1, 2, 3, 1};
+            blockedDims[1] = blockedDims[1] / 16 + (blockedDims[1] % 16 ? 1 : 0);
+            blockedDims.push_back(16);
+            break;
+        }
+        case ncdhw: {
+            order = {0, 1, 2, 3, 4};
+            break;
+        }
+        case ndhwc: {
+            order = {0, 2, 3, 4, 1};
+            blockedDims = {dims[0], dims[2], dims[3], dims[4], dims[1]};
+            break;
+        }
+        case nCdhw8c: {
+            order = {0, 1, 2, 3, 4, 1};
+            blockedDims[1] = blockedDims[1] / 8 + (blockedDims[1] % 8 ? 1 : 0);
+            blockedDims.push_back(8);
+            break;
+        }
+        case nCdhw16c: {
+            order = {0, 1, 2, 3, 4, 1};
+            blockedDims[1] = blockedDims[1] / 16 + (blockedDims[1] % 16 ? 1 : 0);
+            blockedDims.push_back(16);
+            break;
+        }
+        case tnc: {
+            order = {0, 1, 2};
+            break;
+        }
+        case nc: {
+            order = {0, 1};
+            break;
+        }
+        case x: {
+            order = {0};
+            break;
+        }
+        case any: {
+            order.resize(blockedDims.size());
+            std::iota(order.begin(), order.end(), 0);
+            break;
+        }
+        default: {
+            std::string error = "Unsupported data format " + std::string(cpu_fmt2str(fmt));
+            throw std::runtime_error(error);
+        }
+    }
+    return TensorDesc(prec, dims, BlockingDesc(blockedDims, order, offsetPadding));
+}
+
+void CPUTestsBase::checkOffsetPadding(const ExecutableNetwork &execNet, int inOffPadding, int outOffPadding) {
+    if (inOffPadding != -1) {
+        for (const auto &in : execNet.GetInputsInfo()) {
+            int actualOffset = in.second->getInputData()->getTensorDesc().getBlockingDesc().getOffsetPadding();
+            ASSERT_EQ(inOffPadding, actualOffset);
+        }
+    }
+    if (outOffPadding != -1) {
+        for (const auto &out : execNet.GetOutputsInfo()) {
+            int actualOffset = out.second->getTensorDesc().getBlockingDesc().getOffsetPadding();
+            ASSERT_EQ(outOffPadding, actualOffset);
+        }
+    }
 }
 
 } // namespace CPUTestUtils

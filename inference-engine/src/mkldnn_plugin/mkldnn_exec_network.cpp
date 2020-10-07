@@ -198,6 +198,46 @@ MKLDNNExecNetwork::MKLDNNExecNetwork(const InferenceEngine::ICNNNetwork &network
                 memoryStates.emplace_back(new MKLDNNVariableState(state_name, state_store));
             }
         }
+
+        auto isEqualDesc = [](InferenceEngine::TensorDesc ld, InferenceEngine::TensorDesc rd) {
+            if (ld.getLayout() == Layout::SCALAR || rd.getLayout() == Layout::SCALAR) {
+                if (ld.getLayout() == Layout::SCALAR && rd.getLayout() == Layout::SCALAR)
+                    return true;
+                if (ld.getLayout() == Layout::C) {
+                    return ld.getDims() == SizeVector{1};
+                } else if (rd.getLayout() == Layout::C) {
+                    return rd.getDims() == SizeVector{1};
+                }
+                return false;
+            }
+            return ld.getDims() == rd.getDims() &&
+                   ld.getBlockingDesc().getBlockDims() == rd.getBlockingDesc().getBlockDims() &&
+                   ld.getBlockingDesc().getOrder() == rd.getBlockingDesc().getOrder();
+        };
+
+        InferenceEngine::BlobMap blobs;
+        _graphs.begin()->get()->getInputBlobs(blobs);
+        InferenceEngine::InputsDataMap _networkInputs;
+        _clonedNetwork->getInputsInfo(_networkInputs);
+        for (auto &blob : blobs) {
+            std::string name = blob.first;
+            if (_networkInputs.find(name) != _networkInputs.end()) {
+                if (!isEqualDesc(blob.second->getTensorDesc(), _networkInputs[name]->getTensorDesc()))
+                    THROW_IE_EXCEPTION <<  "Network and executable graph inputs have different descriptors. Input name: '" << name << "'";
+            }
+        }
+
+        blobs.clear();
+        _graphs.begin()->get()->getOutputBlobs(blobs);
+        InferenceEngine::OutputsDataMap _networkOutputs;
+        _clonedNetwork->getOutputsInfo(_networkOutputs);
+        for (auto &blob : blobs) {
+            std::string name = blob.first;
+            if (_networkOutputs.find(name) != _networkOutputs.end()) {
+                if (!isEqualDesc(blob.second->getTensorDesc(), _networkOutputs[name]->getTensorDesc()))
+                    THROW_IE_EXCEPTION <<  "Network and executable graph outputs have different descriptors. Output name: '" << name << "'";
+            }
+        }
     }
 }
 
