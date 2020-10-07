@@ -33,7 +33,7 @@ bool WeightableLayerTransformation::canBeTransformed(const TransformationContext
 
         const std::shared_ptr<opset1::Constant> multiplyConst = as_type_ptr<opset1::Constant>(dequantization.multiply->get_input_node_shared_ptr(1));
         const Shape multiplyConstShape = multiplyConst->get_output_shape(0);
-        if (!multiplyConstShape.empty() && (multiplyConstShape.size() != 1ul)) {
+        if (!multiplyConstShape.empty() && (shape_size(multiplyConstShape) != 1ul)) {
             const size_t groupsCount = NetworkHelper::getGroupsCount(layer);
             const ngraph::Shape inputShape = layer->get_input_shape(0);
             const size_t inputChannelsInGroup = inputShape[1] / groupsCount;
