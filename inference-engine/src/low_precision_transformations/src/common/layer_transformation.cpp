@@ -381,27 +381,46 @@ std::vector<std::shared_ptr<Node>> LayerTransformation::getChildrenRecursivelyEx
 }
 
 
-std::shared_ptr<ngraph::Node> LayerTransformation::separateInStandaloneBranch(std::shared_ptr<ngraph::Node> node) const {
+std::shared_ptr<ngraph::Node> LayerTransformation::separateInStandaloneBranch(std::shared_ptr<ngraph::Node> node) {
     FakeQuantizeDequantization dequantization = NetworkHelper::getDequantization(node);
     if (dequantization.isShared()) {
+        size_t parentIdx = NetworkHelper::getParentOutputIndex(dequantization.multiply, node);
+        std::vector<ngraph::Input<ngraph::Node>> targetInputs;
+        for (const auto& input : dequantization.multiply->get_output_target_inputs(parentIdx)) {
+            targetInputs.push_back(input);
+        }
+
+        std::string postfix;
+        for (size_t i = 0; i < targetInputs.size(); ++i) {
+            if (targetInputs[i].get_node() == node.get()) {
+                postfix = "/" + std::to_string(i);
+                break;
+            }
+        }
+
         Output<Node> parent = dequantization.data;
         if (dequantization.convert != nullptr) {
-            parent = dequantization.convert->clone_with_new_inputs({ parent });
-            parent.get_node_shared_ptr()->set_friendly_name(parent.get_node_shared_ptr()->get_name() + "_new");
+            const auto convert = dequantization.convert->clone_with_new_inputs({ parent });
+            convert->set_friendly_name(dequantization.convert->get_friendly_name() + postfix);
+            parent = convert;
         }
 
         if (dequantization.subtract != nullptr) {
-            parent = dequantization.subtract->clone_with_new_inputs({
-                parent,
-                dequantization.subtract->get_input_node_shared_ptr(1)->clone_with_new_inputs({}) });
-            parent.get_node_shared_ptr()->set_friendly_name(parent.get_node_shared_ptr()->get_name() + "_new");
+            const auto subConst = dequantization.subtractConstant->clone_with_new_inputs({});
+            subConst->set_friendly_name(dequantization.subtractConstant->get_friendly_name() + postfix);
+
+            const auto subtract = dequantization.subtract->clone_with_new_inputs({ parent, subConst });
+            subtract->set_friendly_name(dequantization.subtract->get_friendly_name() + postfix);
+            parent = subtract;
         }
 
         if (dequantization.multiply != nullptr) {
-            parent = dequantization.multiply->clone_with_new_inputs({
-                parent,
-                dequantization.multiply->get_input_node_shared_ptr(1)->clone_with_new_inputs({}) });
-            parent.get_node_shared_ptr()->set_friendly_name(parent.get_node_shared_ptr()->get_name() + "_new");
+            const auto mulConst = dequantization.multiplyConstant->clone_with_new_inputs({});
+            mulConst->set_friendly_name(dequantization.multiplyConstant->get_friendly_name() + postfix);
+
+            const auto multiply = dequantization.multiply->clone_with_new_inputs({ parent, mulConst });
+            multiply->set_friendly_name(dequantization.multiply->get_friendly_name() + postfix);
+            parent = multiply;
         }
 
         std::vector<Output<Node>> inputs = NetworkHelper::getInputs(node);
@@ -410,7 +429,7 @@ std::shared_ptr<ngraph::Node> LayerTransformation::separateInStandaloneBranch(st
         const std::shared_ptr<Node> newNode = node->clone_with_new_inputs(inputs);
 
         replace_node(node, newNode);
-        newNode->set_friendly_name(node->get_friendly_name());
+        NetworkHelper::copyInfo(node, newNode);
 
         return newNode;
     }
