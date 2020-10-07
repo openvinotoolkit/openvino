@@ -28,7 +28,7 @@ typedef std::tuple<
     // mulDataInput
     size_t> GetDequantizationTestValues;
 
-class GetDequantization : public LayerTransformation, public testing::WithParamInterface<GetDequantizationTestValues> {
+class GetDequantizationTransformation : public LayerTransformation, public testing::WithParamInterface<GetDequantizationTestValues> {
 public:
     void SetUp() override {
         bool isConvert;
@@ -70,7 +70,7 @@ std::vector<size_t> subDataInput = { 0ul, 1ul };
 std::vector<size_t> mulDataInput = { 0ul, 1ul };
 
 
-TEST_P(GetDequantization, CompareFunctions) {
+TEST_P(GetDequantizationTransformation, CompareFunctions) {
     InitNodeInfo().run_on_function(actualFunction);
     actualFunction->validate_nodes_and_infer_types();
 
@@ -78,11 +78,11 @@ TEST_P(GetDequantization, CompareFunctions) {
     ASSERT_TRUE(res.first) << res.second;
 }
 
-INSTANTIATE_TEST_CASE_P(LPT, GetDequantization,
+INSTANTIATE_TEST_CASE_P(LPT, GetDequantizationTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(isConvert),
         ::testing::ValuesIn(isSubtract),
         ::testing::ValuesIn(subDataInput),
         ::testing::ValuesIn(mulDataInput)),
-    GetDequantization::getTestCaseName);
+    GetDequantizationTransformation::getTestCaseName);
 } // namespace
