@@ -240,7 +240,6 @@
                 <tab type="user" title="Inference Engine Python* API Overview" url="@ref openvino_inference_engine_ie_bridges_python_docs_api_overview"/>
                 <tab type="user" title="Read an ONNX model" url="@ref openvino_docs_IE_DG_ONNX_Support"/>
                 <tab type="user" title="[DEPRECATED] Import an ONNX model" url="@ref openvino_docs_IE_DG_OnnxImporterTutorial"/>
-                <tab type="user" title="Graph Debug Capabilities" url="@ref openvino_docs_IE_DG_Graph_debug_capabilities"/>
                 <tab type="user" title="Using Dynamic Batching Feature" url="@ref openvino_docs_IE_DG_DynamicBatching"/>
                 <tab type="user" title="Using Static Shape Infer Feature" url="@ref openvino_docs_IE_DG_ShapeInference"/>
                 <tab type="user" title="Using GPU kernels tuning" url="@ref openvino_docs_IE_DG_GPU_Kernels_Tuning"/>
