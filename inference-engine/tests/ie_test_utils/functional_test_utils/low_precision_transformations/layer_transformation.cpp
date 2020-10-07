@@ -11,7 +11,6 @@
 #include <unordered_set>
 
 #include <ie_core.hpp>
-#include <net_pass.h>
 #include "cpp_interfaces/interface/ie_internal_plugin_config.hpp"
 #include <legacy/net_pass.h>
 

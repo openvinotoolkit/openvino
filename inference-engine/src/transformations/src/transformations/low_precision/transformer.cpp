@@ -270,7 +270,10 @@ bool LowPrecisionTransformer::isFunctionQuantized(const std::shared_ptr<Function
                 continue;
             }
 
-            if (is_type<ngraph::opset1::FakeQuantize>(parent)) {
+            const std::shared_ptr<ngraph::opset1::FakeQuantize> fakeQuantize = as_type_ptr<ngraph::opset1::FakeQuantize>(parent);
+            if ((fakeQuantize != nullptr) &&
+                QuantizationDetails::outputLayoutIsSupported(fakeQuantize) &&
+                QuantizationDetails::isSupportedLevel(fakeQuantize->get_levels())) {
                 return true;
             }
 

@@ -139,7 +139,10 @@ InferenceEngine::ICNNNetwork::Ptr clDNNEngine::CloneAndTransformNetwork(const In
         // Disable shape inference (WA for generic operations)
         ::ngraph::op::GenericIE::DisableReshape noReshape(nGraphFunc);
 
-        const bool enableInt8 = config.enableInt8 && (config.lptVersion == Config::LptVersion::nGraph);
+        const bool enableInt8 =
+            config.enableInt8 &&
+            (config.lptVersion == Config::LptVersion::nGraph) &&
+            ngraph::pass::low_precision::LowPrecisionTransformer::isFunctionQuantized(nGraphFunc);
 
         {
             // Note: instead of running all Conversion Transformations you can make up your own transformation pipeline
