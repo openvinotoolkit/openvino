@@ -78,14 +78,6 @@ def prepare_executable_cmd(args: dict):
             "-d", args["device"]]
 
 
-def generate_tmp_path():
-    """Generate temporary file path without file's creation"""
-    tmp_stats_file = tempfile.NamedTemporaryFile()
-    path = tmp_stats_file.name
-    tmp_stats_file.close()  # remove temp file in order to create it by executable
-    return path
-
-
 def run_timetest(args: dict, log=None):
     """Run provided executable several times and aggregate collected statistics"""
 
@@ -97,7 +89,7 @@ def run_timetest(args: dict, log=None):
     # Run executable and collect statistics
     stats = {}
     for run_iter in range(args["niter"]):
-        tmp_stats_path = generate_tmp_path()
+        tmp_stats_path = tempfile.NamedTemporaryFile().name     # create temp file, get path and delete temp file
         retcode, msg = run_cmd(cmd_common + ["-s", str(tmp_stats_path)], log=log)
         if retcode != 0:
             log.error("Run of executable '{}' failed with return code '{}'. Error: {}\n"
@@ -110,6 +102,15 @@ def run_timetest(args: dict, log=None):
     aggregated_stats = aggregate_stats(stats)
 
     return 0, aggregated_stats
+
+
+def check_positive_int(val):
+    """Check argsparse argument is positive integer and return it"""
+    value = int(val)
+    if value < 1:
+        msg = "%r is less than 1" % val
+        raise argparse.ArgumentTypeError(msg)
+    return value
 
 
 def cli_parser():
@@ -131,7 +132,7 @@ def cli_parser():
                         help='target device to infer on')
     parser.add_argument('-niter',
                         default=3,
-                        type=int,
+                        type=check_positive_int,
                         help='number of times to execute binary to aggregate statistics of')
     parser.add_argument('-s',
                         dest="stats_path",
