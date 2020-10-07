@@ -65,8 +65,8 @@ bool relax_hc_reshape_followed_by_matmul(const ngraph::pattern::PatternValueMap 
                                       (matmul->get_transpose_b() ? -2 : -1);
         const auto &reshape_idx = ngraph::normalize_axes(matmul->description(), {reshape_raw_idx},
                                                          reshape->get_output_partial_shape(0).rank());
-        const auto &D = ngraph::op::util::node_to_get_shape_value_of_indices_from_shape_node(const_reshape_pattern,
-                                                                                               reshape_idx);
+        const auto &convert_idx = std::make_shared<ngraph::opset4::Convert>(const_reshape_pattern, ngraph::element::i64);
+        const auto &D = ngraph::op::util::node_to_get_shape_value_of_indices_from_shape_node(convert_idx, reshape_idx);
         auto pattern_vector = reshape_is_A_input ?
                 (matmul->get_transpose_a() ? ngraph::OutputVector({N, C, D}) : ngraph::OutputVector({N, D, C})) :
                 (matmul->get_transpose_b() ? ngraph::OutputVector({N, D, C}) : ngraph::OutputVector({N, C, D}));
@@ -79,8 +79,8 @@ bool relax_hc_reshape_followed_by_matmul(const ngraph::pattern::PatternValueMap 
             }
             const auto &reshape_indices = ngraph::normalize_axes(matmul->description(), axes,
                                                                   reshape->get_output_partial_shape(0).rank());
-            const auto &reshape_indices_value = ngraph::op::util::node_to_get_shape_value_of_indices_from_shape_node(const_reshape_pattern,
-                                                                                                                     reshape_indices);
+            const auto &reshape_indices_value = ngraph::op::util::node_to_get_shape_value_of_indices_from_shape_node(convert_idx,
+                    reshape_indices);
             pattern_vector.insert(pattern_vector.begin() + 1, reshape_indices_value);
         }
         const auto & new_reshape_pattern = std::make_shared<ngraph::opset4::Concat>(pattern_vector, 0);
