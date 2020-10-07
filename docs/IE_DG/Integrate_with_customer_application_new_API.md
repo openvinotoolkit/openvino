@@ -206,7 +206,7 @@ build/                  - build directory
 ```
 
 2. **Include Inference Engine, nGraph and OpenCV libraries** in `project/CMakeLists.txt`  
-[OpenCV](https://docs.opencv.org/master/db/df5/tutorial_linux_gcc_cmake.html) integration is needed mostly for pre-processing input data and ngraph for more complex applications using [ngraph API](nGraph_Flow.md).
+[OpenCV](https://docs.opencv.org/master/db/df5/tutorial_linux_gcc_cmake.html) integration is needed mostly for pre-processing input data and ngraph for more complex applications using [ngraph API](../nGraph_DG/nGraph_dg.md).
 ``` cmake
 cmake_minimum_required(VERSION 3.0.0)
 project(project_name)

@@ -43,7 +43,7 @@ To build test binaries together with other build artifacts, use the `make all` c
 
 ### Tests for plugin-specific ngraph transformations
 
-Please, refer to [Transformation testing](@ref new_ngraph_transformation) guide.
+Please, refer to [Transformation testing](@ref ngraph_transformation) guide.
 
 ### How to Extend Inference Engine Plugin Tests
 
