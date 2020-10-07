@@ -65,6 +65,7 @@ declared in `namespace opset5`.
 * [GRUCell](sequence/GRUCell_3.md)
 * [GRUSequence](sequence/GRUSequence_5.md)
 * [HardSigmoid](activation/HardSigmoid_1.md)
+* [HSigmoid](activation/HSigmoid_5.md)
 * [HSwish](activation/HSwish_4.md)
 * [Interpolate](image/Interpolate_4.md)
 * [Less](comparison/Less_1.md)
