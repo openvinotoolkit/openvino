@@ -41,37 +41,44 @@ namespace ngraph
                        entry * width * height + loc;
             }
 
-            static inline float logistic_activate(float x) { return 1.f / (1.f + std::exp(-x)); }
             template <typename T>
-            static inline void
-                softmax_generic(const T* src_data, T* dst_data, int B, int C, int H, int W)
+            static inline T sigmoid(float x)
+            {
+                return static_cast<T>(1.f / (1.f + std::exp(-x)));
+            }
+            template <typename T>
+            static inline void softmax_generic(
+                const T* src_data, T* dst_data, int batches, int channels, int height, int width)
             {
                 int start = 0;
-                for (unsigned int b = 0; b < B; b++)
+                for (unsigned int b = 0; b < batches; b++)
                 {
-                    for (unsigned int i = start; i < H * W; i++)
+                    for (unsigned int i = start; i < height * width; i++)
                     {
-                        float max = src_data[b * C * H * W + i];
-                        for (unsigned int c = 0; c < C; c++)
+                        T max = src_data[b * channels * height * width + i];
+                        for (unsigned int c = 0; c < channels; c++)
                         {
-                            float val = src_data[b * C * H * W + c * H * W + i];
+                            T val =
+                                src_data[b * channels * height * width + c * height * width + i];
                             if (val > max)
                             {
                                 max = val;
                             }
                         }
 
-                        float sum = 0;
-                        for (unsigned int c = 0; c < C; c++)
+                        T sum = 0;
+                        for (unsigned int c = 0; c < channels; c++)
                         {
-                            dst_data[b * C * H * W + c * H * W + i] =
-                                std::exp(src_data[b * C * H * W + c * H * W + i] - max);
-                            sum += dst_data[b * C * H * W + c * H * W + i];
+                            dst_data[b * channels * height * width + c * height * width + i] =
+                                std::exp(src_data[b * channels * height * width +
+                                                  c * height * width + i] -
+                                         max);
+                            sum += dst_data[b * channels * height * width + c * height * width + i];
                         }
 
-                        for (unsigned int c = 0; c < C; c++)
+                        for (unsigned int c = 0; c < channels; c++)
                         {
-                            dst_data[b * C * H * W + c * H * W + i] /= sum;
+                            dst_data[b * channels * height * width + c * height * width + i] /= sum;
                         }
                     }
                 }
@@ -91,17 +98,14 @@ namespace ngraph
             {
                 NGRAPH_CHECK(input_shape.size() == 4);
 
-                const int B = input_shape[0];
-                const int C = input_shape[1];
-                const int H = input_shape[2];
-                const int W = input_shape[3];
+                const int batches = input_shape[0];
+                const int channels = input_shape[1];
+                const int height = input_shape[2];
+                const int width = input_shape[3];
 
                 const auto mask_size = mask.size();
-                const int tensor_size = B * C * H * W;
-                for (unsigned int i = 0; i < tensor_size; i++)
-                {
-                    output[i] = input[i];
-                }
+
+                std::copy(input, input + shape_size(input_shape), output);
 
                 int num_regions = 0;
                 int end_index = 0;
@@ -110,49 +114,56 @@ namespace ngraph
                 {
                     // Region layer (Yolo v2)
                     num_regions = regions;
-                    end_index = W * H;
+                    end_index = width * height;
                 }
                 else
                 {
                     // Yolo layer (Yolo v3)
                     num_regions = mask_size;
-                    end_index = W * H * (classes + 1);
+                    end_index = width * height * (classes + 1);
                 }
 
-                const int inputs_size = W * H * num_regions * (classes + coords + 1);
+                const int inputs_size = width * height * num_regions * (classes + coords + 1);
 
-                for (unsigned int b = 0; b < B; b++)
+                for (unsigned int b = 0; b < batches; b++)
                 {
                     for (unsigned int n = 0; n < num_regions; n++)
                     {
-                        int index =
-                            entry_index(W, H, coords, classes, inputs_size, b, n * W * H, 0);
-                        for (unsigned int i = index; i < index + 2 * W * H; i++)
+                        int index = entry_index(
+                            width, height, coords, classes, inputs_size, b, n * width * height, 0);
+                        for (unsigned int i = index; i < index + 2 * width * height; i++)
                         {
-                            output[i] = logistic_activate(output[i]);
+                            output[i] = sigmoid<T>(output[i]);
                         }
 
-                        index =
-                            entry_index(W, H, coords, classes, inputs_size, b, n * W * H, coords);
+                        index = entry_index(width,
+                                            height,
+                                            coords,
+                                            classes,
+                                            inputs_size,
+                                            b,
+                                            n * width * height,
+                                            coords);
                         for (unsigned int i = index; i < index + end_index; i++)
                         {
-                            output[i] = logistic_activate(output[i]);
+                            output[i] = sigmoid<T>(output[i]);
                         }
                     }
                 }
 
                 if (do_softmax)
                 {
-                    int index = entry_index(W, H, coords, classes, inputs_size, 0, 0, coords + 1);
+                    int index =
+                        entry_index(width, height, coords, classes, inputs_size, 0, 0, coords + 1);
                     int batch_offset = inputs_size / regions;
-                    for (unsigned int b = 0; b < B * regions; b++)
+                    for (unsigned int b = 0; b < batches * regions; b++)
                     {
                         softmax_generic<T>(input + index + b * batch_offset,
                                            output + index + b * batch_offset,
                                            1,
                                            classes,
-                                           H,
-                                           W);
+                                           height,
+                                           width);
                     }
                 }
             }
