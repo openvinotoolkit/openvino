@@ -22,11 +22,11 @@
   * **Range of values**: `half_to_even` or `half_away_from_zero`
   * **Type**: string
   * **Default value**: `half_to_even`
-  * **Required**: *yes*
+  * **Required**: *no*
 
 **Inputs**
 
-* **1**: An tensor of type *T*. **Required.**
+* **1**: A tensor of type *T*. **Required.**
 
 **Outputs**
 
