@@ -57,6 +57,11 @@ bool FuseConvertTransformation::transform(TransformationContext& context, ngraph
     }
 
     std::shared_ptr<opset1::Convert> convert = as_type_ptr<opset1::Convert>(op->get_input_node_shared_ptr(0));
+    // issue #40395
+    if (convert == nullptr) {
+        return false;
+    }
+
     std::shared_ptr<Node> parent = convert->get_input_node_shared_ptr(0);
 
     if (is_type<opset1::Constant>(parent)) {
