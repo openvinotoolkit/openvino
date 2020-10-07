@@ -253,7 +253,7 @@ namespace ngraph
                 const NodeTypeInfo& get_type_info() const override { return type_info; }
                 NonMaxSuppression() = default;
 
-                /// \brief Constructs a NonMaxSuppression operation with default values in the last.
+                /// \brief Constructs a NonMaxSuppression operation with default values in the last
                 ///        4 inputs.
                 ///
                 /// \param boxes Node producing the box coordinates
