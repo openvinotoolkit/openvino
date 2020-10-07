@@ -59,6 +59,16 @@ void ngraph::pass::ConstantFolding::construct_constant_default()
                 auto replacement = replacements.at(i);
                 if (replacement.get_node_shared_ptr() && (node_output != replacement))
                 {
+                    if (replacements.size() == 1)
+                    {
+                        replacement.get_node_shared_ptr()->set_friendly_name(
+                            node->get_friendly_name());
+                    }
+                    else
+                    {
+                        replacement.get_node_shared_ptr()->set_friendly_name(
+                            node->get_friendly_name() + "." + std::to_string(i));
+                    }
                     node_output.replace(replacement);
                     result = true;
                 }

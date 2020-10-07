@@ -101,9 +101,10 @@ void pass::ConstantFolding::construct_constant_logical_reduction()
             return false;
 
         NGRAPH_CHECK(revalidate_and_ensure_static(reduction_match));
+        auto const_node = fold_constant_logical_reduction(constant_match, reduction_match);
+        const_node->set_friendly_name(reduction_match->get_friendly_name());
+        replace_node(reduction_match, const_node);
 
-        replace_node(reduction_match,
-                     fold_constant_logical_reduction(constant_match, reduction_match));
         return true;
     };
 
