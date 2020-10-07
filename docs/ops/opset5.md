@@ -122,6 +122,7 @@ declared in `namespace opset5`.
 * [RNNSequence](sequence/RNNSequence_5.md)
 * [ROIAlign](detection/ROIAlign_3.md)
 * [ROIPooling](detection/ROIPooling_1.md)
+* [Round](arithmetic/Round_5.md)
 * [ScatterElementsUpdate](movement/ScatterElementsUpdate_3.md)
 * [ScatterNDUpdate](movement/ScatterNDUpdate_3.md)
 * [ScatterUpdate](movement/ScatterUpdate_3.md)
