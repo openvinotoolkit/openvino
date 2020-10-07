@@ -62,40 +62,44 @@ ngraph::pass::ConvertNMS5ToLegacyMatcher::ConvertNMS5ToLegacyMatcher() {
         NodeVector new_ops;
 
         auto new_max_per_class = arg2;
-//         if (max_output_boxes_per_class_rank.get_length() == 0) {
-//             // WA: we need to create Constant manually because it requires by NMS shape inference
-//             //     otherwise we will get dynamic shape until first CF is executed. It can be resolved
-//             //     if CF will be executed right after transformation and before Validate pass.
-//             if (auto new_max_per_class_const = std::dynamic_pointer_cast<opset1::Constant>(new_max_per_class.get_node_shared_ptr())) {
-//                 new_max_per_class = opset1::Constant::create(element::i64, Shape{1}, new_max_per_class_const->cast_vector<int64_t>());
-//             } else {
-//                 new_max_per_class = std::make_shared<ngraph::op::Unsqueeze>(arg2, opset1::Constant::create(element::i64, Shape{1}, {0}));
-//                 new_ops.push_back(new_max_per_class.get_node_shared_ptr());
-//             }
-//         }
-//         auto new_iou_threshold = arg3;
-//         if (iou_threshold_rank.get_length() == 0) {
-//             new_iou_threshold = std::make_shared<ngraph::op::Unsqueeze>(arg3, opset1::Constant::create(element::i64, Shape{1}, {0}));
-//             new_ops.push_back(new_iou_threshold.get_node_shared_ptr());
-//         }
-//         auto new_score_threshold = arg4;
-//         if (score_threshold_rank.get_length() == 0) {
-//             new_score_threshold = std::make_shared<ngraph::op::Unsqueeze>(arg4, opset1::Constant::create(element::i64, Shape{1}, {0}));
-//             new_ops.push_back(new_score_threshold.get_node_shared_ptr());
-//         }
-//
-//         int center_point_box = 0;
-//         switch (nms_4->get_box_encoding()) {
-//             case ::ngraph::opset4::NonMaxSuppression::BoxEncodingType::CENTER:
-//                 center_point_box = 1;
-//                 break;
-//             case ::ngraph::opset4::NonMaxSuppression::BoxEncodingType::CORNER:
-//                 center_point_box = 0;
-//                 break;
-//             default:
-//                 throw ngraph_error("NonMaxSuppression layer " + nms_4->get_friendly_name() +
-//                                    " has unsupported box encoding");
-//         }
+        if (max_output_boxes_per_class_rank.get_length() == 0) {
+            // WA: we need to create Constant manually because it requires by NMS shape inference
+            //     otherwise we will get dynamic shape until first CF is executed. It can be resolved
+            //     if CF will be executed right after transformation and before Validate pass.
+            if (auto new_max_per_class_const = std::dynamic_pointer_cast<opset1::Constant>(new_max_per_class.get_node_shared_ptr())) {
+                new_max_per_class = opset1::Constant::create(element::i64, Shape{1}, new_max_per_class_const->cast_vector<int64_t>());
+            } else {
+                new_max_per_class = std::make_shared<ngraph::op::Unsqueeze>(arg2, opset1::Constant::create(element::i64, Shape{1}, {0}));
+                new_ops.push_back(new_max_per_class.get_node_shared_ptr());
+            }
+        }
+        auto new_iou_threshold = arg3;
+        if (iou_threshold_rank.get_length() == 0) {
+            new_iou_threshold = std::make_shared<ngraph::op::Unsqueeze>(arg3, opset1::Constant::create(element::f32, Shape{1}, {0.0f}));
+            new_ops.push_back(new_iou_threshold.get_node_shared_ptr());
+        }
+        auto new_score_threshold = arg4;
+        if (score_threshold_rank.get_length() == 0) {
+            new_score_threshold = std::make_shared<ngraph::op::Unsqueeze>(arg4, opset1::Constant::create(element::f32, Shape{1}, {0.0f}));
+            new_ops.push_back(new_score_threshold.get_node_shared_ptr());
+        }
+        auto new_soft_nms_sigma = arg5;
+        if (soft_nms_sigma_rank.get_length() == 0) {
+            new_soft_nms_sigma = std::make_shared<ngraph::op::Unsqueeze>(arg5, opset1::Constant::create(element::f32, Shape{1}, {0.0f}));
+            new_ops.push_back(new_soft_nms_sigma.get_node_shared_ptr());
+        }
+        int center_point_box = 0;
+        switch (nms_5->get_box_encoding()) {
+            case ::ngraph::opset5::NonMaxSuppression::BoxEncodingType::CENTER:
+                center_point_box = 1;
+                break;
+            case ::ngraph::opset5::NonMaxSuppression::BoxEncodingType::CORNER:
+                center_point_box = 0;
+                break;
+            default:
+                throw ngraph_error("NonMaxSuppression layer " + nms_5->get_friendly_name() +
+                                   " has unsupported box encoding");
+        }
 //         const auto nms_legacy = std::make_shared<op::NonMaxSuppressionIE2>(
 //                 new_args.at(0),
 //                 new_args.at(1),
