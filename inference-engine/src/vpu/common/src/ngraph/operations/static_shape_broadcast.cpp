@@ -18,7 +18,7 @@ StaticShapeBroadcast::StaticShapeBroadcast(const Output<Node>& arg,
                                            const Output<Node>& targetShape,
                                            const Output<Node>& axesMapping,
                                            const ngraph::op::BroadcastModeSpec& broadcastSpec)
-        : ::ngraph::op::util::BroadcastBase{arg, targetShape, axesMapping, broadcastSpec},
+        : ::ngraph::op::v3::Broadcast{arg, targetShape, axesMapping, broadcastSpec},
           m_evaluatedOutputShape{PartialShape::dynamic()} {
     constructor_validate_and_infer_types();
 }
@@ -26,7 +26,7 @@ StaticShapeBroadcast::StaticShapeBroadcast(const Output<Node>& arg,
 StaticShapeBroadcast::StaticShapeBroadcast(const Output<Node>& arg,
                                            const Output<Node>& targetShape,
                                            const ngraph::op::BroadcastModeSpec& broadcastSpec)
-        : ::ngraph::op::util::BroadcastBase{arg, targetShape, broadcastSpec},
+        : ::ngraph::op::v3::Broadcast{arg, targetShape, broadcastSpec},
           m_evaluatedOutputShape{PartialShape::dynamic()} {
     constructor_validate_and_infer_types();
 }
@@ -42,6 +42,11 @@ void StaticShapeBroadcast::validate_and_infer_types() {
                               "StaticShapeBroadcast (", get_friendly_name(), ") ",
                               "with numpy mode must have 2 inputs, provided: ",
                               get_input_size());
+    } else if (m_mode.m_type == ngraph::op::BroadcastType::BIDIRECTIONAL) {
+        NODE_VALIDATION_CHECK(this, get_input_size() == 2,
+                              "StaticShapeBroadcast (", get_friendly_name(), ") ",
+                              "with bidirectional mode must have 2 inputs, provided: ",
+                               get_input_size());
     } else {
         NODE_VALIDATION_CHECK(this, false,
                               "StaticShapeBroadcast (", get_friendly_name(), ") ",
@@ -49,7 +54,7 @@ void StaticShapeBroadcast::validate_and_infer_types() {
     }
 
     if (get_output_partial_shape(0).is_dynamic()) {
-        ::ngraph::op::util::BroadcastBase::validate_and_infer_types();
+        ::ngraph::op::v3::Broadcast::validate_and_infer_types();
         // Try to evaluate output shape. After some transformations further, we may not be able
         // to evaluate the target shape again, then we will leave the evaluated shape unchanged.
         // For example, EliminateShapeOfAfterDSR remove ShapeOf and pass the second input of DSR.
@@ -87,6 +92,8 @@ bool StaticShapeBroadcast::visit_attributes(ngraph::AttributeVisitor& visitor) {
         mode = "explicit";
     } else if (m_mode.m_type == ngraph::op::BroadcastType::NUMPY) {
         mode = "numpy";
+    } else if (m_mode.m_type == ngraph::op::BroadcastType::BIDIRECTIONAL) {
+        mode = "bidirectional";
     }
     visitor.on_attribute("mode", mode);
 
@@ -94,7 +101,7 @@ bool StaticShapeBroadcast::visit_attributes(ngraph::AttributeVisitor& visitor) {
 }
 
 bool StaticShapeBroadcast::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
-    return ::ngraph::op::util::BroadcastBase::evaluate(outputs, inputs);
+    return ::ngraph::op::v3::Broadcast::evaluate(outputs, inputs);
 }
 
 }  // namespace op

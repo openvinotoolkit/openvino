@@ -33,8 +33,12 @@ void dynamicToStaticShapeBroadcast(std::shared_ptr<ngraph::Node> target) {
         staticShapeBroadcast = std::make_shared<ngraph::vpu::op::StaticShapeBroadcast>(
                 broadcast->input_value(0),
                 broadcast->input_value(1));
+    } else if (broadcast->get_broadcast_spec() == ngraph::op::BroadcastType::BIDIRECTIONAL) {
+        staticShapeBroadcast = std::make_shared<ngraph::vpu::op::StaticShapeBroadcast>(
+                broadcast->input_value(0),
+                broadcast->input_value(1), ngraph::op::BroadcastType::BIDIRECTIONAL);
     } else {
-        VPU_THROW_FORMAT("dynamicToStaticShapeBroadcast supports only explicit and numpy modes,"
+        VPU_THROW_FORMAT("dynamicToStaticShapeBroadcast supports only explicit, numpy and bidirectional modes,"
                          "provided {}", broadcast->get_broadcast_spec().m_type);
     }
 

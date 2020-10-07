@@ -27,6 +27,7 @@ using StaticShapeBroadcastTestParam = std::tuple<
         InferenceEngine::Precision,      // Input precision
         LayerTestsUtils::TargetDevice>;  // Device name
 
+
 namespace LayerTestsDefinitions {
 
 class StaticShapeBroadcastLayerTest : public testing::WithParamInterface<StaticShapeBroadcastTestParam>,
@@ -113,6 +114,77 @@ std::vector<InferenceEngine::Precision> broadcastPrecisions = {
 INSTANTIATE_TEST_CASE_P(smoke_accuracy, StaticShapeBroadcastLayerTest,
                         ::testing::Combine(
                                 ::testing::ValuesIn(broadcastParam),
+                                ::testing::ValuesIn(broadcastPrecisions),
+                                ::testing::Values(CommonTestUtils::DEVICE_MYRIAD)),
+                        StaticShapeBroadcastLayerTest::getTestCaseName);
+
+
+class StaticShapeBidirectionalBroadcastLayerTest : public testing::WithParamInterface<StaticShapeBroadcastTestParam>,
+                                      virtual public LayerTestsUtils::LayerTestsCommon {
+public:
+    static std::string getTestCaseName(const testing::TestParamInfo<StaticShapeBroadcastTestParam>& obj) {
+        StaticShapeBroadcastParam shapes;
+        InferenceEngine::Precision inputPrecision;
+        std::string targetDevice;
+        std::tie(shapes, inputPrecision, targetDevice) = obj.param;
+
+        const auto inputShape = std::get<0>(shapes);
+        const auto targetShape = std::get<1>(shapes);
+        const auto axesMapping = std::get<2>(shapes);
+
+        std::ostringstream result;
+        result << "IS=" << CommonTestUtils::vec2str(inputShape) << "_";
+        result << "TS=" << CommonTestUtils::vec2str(targetShape) << "_";
+        result << "BID_";
+        result << "inPrc=" << inputPrecision.name() << "_";
+        result << "targetDevice=" << targetDevice;
+        return result.str();
+    }
+
+protected:
+    void SetUp() override {
+        SetRefMode(LayerTestsUtils::RefMode::INTERPRETER);
+        configuration[InferenceEngine::MYRIAD_DETECT_NETWORK_BATCH] = CONFIG_VALUE(NO);
+
+        StaticShapeBroadcastParam shapes;
+        std::tie(shapes, inPrc, targetDevice) = this->GetParam();
+
+        const auto inputShape = std::get<0>(shapes);
+        const auto targetShape = std::get<1>(shapes);
+        const auto axesMapping = std::get<2>(shapes);
+
+        auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(inPrc);
+
+        const auto inputParam = std::make_shared<ngraph::opset3::Parameter>(
+                ngPrc, ngraph::Shape(inputShape));
+        const auto targetShapeConst = std::make_shared<ngraph::opset3::Constant>(
+                ngraph::element::i64, ngraph::Shape{targetShape.size()}, targetShape);
+
+        std::shared_ptr<ngraph::vpu::op::StaticShapeBroadcast> staticShapeBroadcast;
+            staticShapeBroadcast = std::make_shared<ngraph::vpu::op::StaticShapeBroadcast>(
+                    inputParam, targetShapeConst, ngraph::op::BroadcastType::BIDIRECTIONAL);
+        ngraph::ResultVector results{std::make_shared<ngraph::opset3::Result>(staticShapeBroadcast->output(0))};
+        function = std::make_shared<ngraph::Function>(results, ngraph::ParameterVector{inputParam});
+    }
+};
+
+TEST_P(StaticShapeBidirectionalBroadcastLayerTest, accuracy) {
+    Run();
+}
+
+std::vector<StaticShapeBroadcastParam> bidirectionalBroadcastParam = {
+        std::make_tuple(TensorShape{ 14         }, TensorShape{  2, 16, 15, 14 }, TensorShape{}),
+        std::make_tuple(TensorShape{ 15,  1     }, TensorShape{  2, 16, 15, 14 }, TensorShape{}),
+        std::make_tuple(TensorShape{  2, 16, 15, 14 }, TensorShape{ 15, 14     }, TensorShape{}),
+        std::make_tuple(TensorShape{  2, 16, 15, 14 }, TensorShape{ 16,  1,  1 }, TensorShape{}),
+        std::make_tuple(TensorShape{  2, 16, 15, 14 }, TensorShape{ 16,  1, 14 }, TensorShape{}),
+        std::make_tuple(TensorShape{ 16, 15,  1 }, TensorShape{  2, 1, 15, 14 }, TensorShape{}),
+};
+
+
+INSTANTIATE_TEST_CASE_P(accuracy, StaticShapeBidirectionalBroadcastLayerTest,
+                        ::testing::Combine(
+                                ::testing::ValuesIn(bidirectionalBroadcastParam),
                                 ::testing::ValuesIn(broadcastPrecisions),
                                 ::testing::Values(CommonTestUtils::DEVICE_MYRIAD)),
                         StaticShapeBroadcastLayerTest::getTestCaseName);
