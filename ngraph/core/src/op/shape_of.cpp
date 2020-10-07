@@ -149,7 +149,9 @@ namespace
                 }
             }
 
-            replacement = std::make_shared<op::Concat>(dimensions, 0);
+            auto concat = std::make_shared<op::Concat>(dimensions, 0);
+            concat->set_friendly_name(shape_of_node->get_friendly_name());
+            replacement = concat->output(0);
             return true;
         }
         return false;
