@@ -258,37 +258,37 @@ Input<Node> op::util::SubGraphOp::input_for_value(const Output<Node>& value)
 namespace ngraph
 {
     template <>
-    FactoryRegistry<op::v0::TensorIterator::InputDescription>&
-        FactoryRegistry<op::v0::TensorIterator::InputDescription>::get()
+    FactoryRegistry<op::util::SubGraphOp::InputDescription>&
+        FactoryRegistry<op::util::SubGraphOp::InputDescription>::get()
     {
-        static FactoryRegistry<op::v0::TensorIterator::InputDescription> registry;
+        static FactoryRegistry<op::util::SubGraphOp::InputDescription> registry;
         static std::mutex init_guard;
         if (registry.m_factory_map.size() == 0)
         {
             std::lock_guard<std::mutex> guard(init_guard);
             if (registry.m_factory_map.size() == 0)
             {
-                registry.register_factory<op::v0::TensorIterator::SliceInputDescription>();
-                registry.register_factory<op::v0::TensorIterator::MergedInputDescription>();
-                registry.register_factory<op::v0::TensorIterator::InvariantInputDescription>();
+                registry.register_factory<op::util::SubGraphOp::SliceInputDescription>();
+                registry.register_factory<op::util::SubGraphOp::MergedInputDescription>();
+                registry.register_factory<op::util::SubGraphOp::InvariantInputDescription>();
             }
         }
         return registry;
     }
 
     constexpr DiscreteTypeInfo
-        AttributeAdapter<std::shared_ptr<op::TensorIterator::InputDescription>>::type_info;
+        AttributeAdapter<std::shared_ptr<op::util::SubGraphOp::InputDescription>>::type_info;
 
     constexpr DiscreteTypeInfo AttributeAdapter<
-        std::vector<std::shared_ptr<op::TensorIterator::InputDescription>>>::type_info;
+        std::vector<std::shared_ptr<op::util::SubGraphOp::InputDescription>>>::type_info;
 
-    AttributeAdapter<std::vector<std::shared_ptr<op::TensorIterator::InputDescription>>>::
-        AttributeAdapter(std::vector<std::shared_ptr<op::TensorIterator::InputDescription>>& ref)
+    AttributeAdapter<std::vector<std::shared_ptr<op::util::SubGraphOp::InputDescription>>>::
+        AttributeAdapter(std::vector<std::shared_ptr<op::util::SubGraphOp::InputDescription>>& ref)
         : m_ref(ref)
     {
     }
 
-    bool AttributeAdapter<std::vector<std::shared_ptr<op::TensorIterator::InputDescription>>>::
+    bool AttributeAdapter<std::vector<std::shared_ptr<op::util::SubGraphOp::InputDescription>>>::
         visit_attributes(AttributeVisitor& visitor)
     {
         int64_t size = m_ref.size();
@@ -308,10 +308,10 @@ namespace ngraph
     }
 
     template <>
-    FactoryRegistry<op::v0::TensorIterator::OutputDescription>&
-        FactoryRegistry<op::v0::TensorIterator::OutputDescription>::get()
+    FactoryRegistry<op::util::SubGraphOp::OutputDescription>&
+        FactoryRegistry<op::util::SubGraphOp::OutputDescription>::get()
     {
-        static FactoryRegistry<op::v0::TensorIterator::OutputDescription> registry;
+        static FactoryRegistry<op::util::SubGraphOp::OutputDescription> registry;
         static std::mutex init_guard;
         // TODO: Add a lock
         if (registry.m_factory_map.size() == 0)
@@ -319,26 +319,26 @@ namespace ngraph
             std::lock_guard<std::mutex> guard(init_guard);
             if (registry.m_factory_map.size() == 0)
             {
-                registry.register_factory<op::v0::TensorIterator::ConcatOutputDescription>();
-                registry.register_factory<op::v0::TensorIterator::BodyOutputDescription>();
+                registry.register_factory<op::util::SubGraphOp::ConcatOutputDescription>();
+                registry.register_factory<op::util::SubGraphOp::BodyOutputDescription>();
             }
         }
         return registry;
     }
 
     constexpr DiscreteTypeInfo AttributeAdapter<
-        std::vector<std::shared_ptr<op::TensorIterator::OutputDescription>>>::type_info;
+        std::vector<std::shared_ptr<op::util::SubGraphOp::OutputDescription>>>::type_info;
 
     constexpr DiscreteTypeInfo
-        AttributeAdapter<std::shared_ptr<op::TensorIterator::OutputDescription>>::type_info;
+        AttributeAdapter<std::shared_ptr<op::util::SubGraphOp::OutputDescription>>::type_info;
 
-    AttributeAdapter<std::vector<std::shared_ptr<op::TensorIterator::OutputDescription>>>::
-        AttributeAdapter(std::vector<std::shared_ptr<op::TensorIterator::OutputDescription>>& ref)
+    AttributeAdapter<std::vector<std::shared_ptr<op::util::SubGraphOp::OutputDescription>>>::
+        AttributeAdapter(std::vector<std::shared_ptr<op::util::SubGraphOp::OutputDescription>>& ref)
         : m_ref(ref)
     {
     }
 
-    bool AttributeAdapter<std::vector<std::shared_ptr<op::TensorIterator::OutputDescription>>>::
+    bool AttributeAdapter<std::vector<std::shared_ptr<op::util::SubGraphOp::OutputDescription>>>::
         visit_attributes(AttributeVisitor& visitor)
     {
         int64_t size = m_ref.size();
