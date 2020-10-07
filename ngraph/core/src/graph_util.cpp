@@ -181,8 +181,8 @@ void ngraph::replace_node(std::shared_ptr<Node> target,
             input.replace_source_output(replacement->output(output_order[i]));
         }
     }
-
     replacement->add_node_control_dependents(target);
+    replacement->add_node_control_dependencies(target);
     target->clear_control_dependents();
 }
 
