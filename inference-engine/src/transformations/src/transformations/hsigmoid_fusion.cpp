@@ -145,7 +145,7 @@ ngraph::pass::HSigmoidFusionWithoutRelu::HSigmoidFusionWithoutRelu() {
             return false;
         }
 
-        auto hsigmoid = std::make_shared<ngraph::opset4::HSigmoid>(x_output);
+        auto hsigmoid = std::make_shared<ngraph::opset5::HSigmoid>(x_output);
 
         hsigmoid->set_friendly_name(m.get_match_root()->get_friendly_name());
         ngraph::copy_runtime_info({ pattern_to_output.at(add_constant).get_node_shared_ptr(),
