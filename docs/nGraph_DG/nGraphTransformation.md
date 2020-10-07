@@ -253,13 +253,13 @@ To eliminate operation, nGraph has special method that considers all limitations
 
 When developing a transformation, you need to follow these transformation rules:
 
-### Operation Set (OpSet)
+###1. Operation Set (OpSet)
 
 Use the latest version of OpSet in your transformation. An exception is ConvertOpSetXToOpSetY transformations, where you must use operations from OpSetX and OpSetY.
 
 @snippet example_ngraph_utils.cpp ngraph:include
 
-### Dynamic Shape and Rank
+###2. Dynamic Shape and Rank
 
 nGraph has two types for shape representation: 
 `ngraph::Shape` - represents static shape.
@@ -435,9 +435,9 @@ The basic transformation test looks like this:
 @snippet tests/functional/transformations/template_transformations_test.cpp transformation:test
 
 
-[ngraph_replace_node]: ../images/ngraph_replace_node.png
-[ngraph_insert_node]: ../images/ngraph_insert_node.png
-[transformations_structure]: ../images/transformations_structure.png
-[register_new_node]: ../images/register_new_node.png
-[graph_rewrite_execution]: ../images/graph_rewrite_execution.png
-[graph_rewrite_efficient_search]: ../images/graph_rewrite_efficient_search.png
+[ngraph_replace_node]: ./img/ngraph_replace_node.png
+[ngraph_insert_node]: ./img/ngraph_insert_node.png
+[transformations_structure]: ./img/transformations_structure.png
+[register_new_node]: ./img/register_new_node.png
+[graph_rewrite_execution]: ./img/graph_rewrite_execution.png
+[graph_rewrite_efficient_search]: ./img/graph_rewrite_efficient_search.png
