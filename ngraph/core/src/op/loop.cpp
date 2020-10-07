@@ -73,7 +73,9 @@ void op::v5::Loop::validate_and_infer_types()
         if (val[0])
         {
             condition_always_true = true;
-        } else {
+        }
+        else
+        {
             m_num_iterations = 1; // condition_always_false
         }
     }
@@ -222,7 +224,8 @@ void op::v5::Loop::validate_and_infer_types()
             else
             {
                 auto shape = ps.get_shape();
-                if (zero_number_of_iter) {
+                if (zero_number_of_iter)
+                {
                     shape.at(0) = 0;
                 }
                 set_output_type(index, body_value.get_element_type(), shape);

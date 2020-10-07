@@ -20,8 +20,8 @@
 
 #include "ngraph/factory_adapter.hpp"
 #include "ngraph/function.hpp"
-#include "ngraph/op/parameter.hpp"
 #include "ngraph/op/constant.hpp"
+#include "ngraph/op/parameter.hpp"
 #include "ngraph/op/tensor_iterator.hpp"
 #include "ngraph/op/util/sub_graph_base.hpp"
 
@@ -39,11 +39,13 @@ namespace ngraph
                 const NodeTypeInfo& get_type_info() const override { return type_info; }
                 bool visit_attributes(AttributeVisitor& visitor) override;
 
-                Loop() {
+                Loop()
+                {
                     // default trip_count, execution_condition
-                    auto trip_count = std::make_shared<ngraph::op::Constant>(ngraph::element::i64, ngraph::Shape{1}, -1);
-                    auto exec_condition = std::make_shared<ngraph::op::Constant>(ngraph::element::boolean,
-                                                                                ngraph::Shape{1}, true);
+                    auto trip_count = std::make_shared<ngraph::op::Constant>(
+                        ngraph::element::i64, ngraph::Shape{1}, -1);
+                    auto exec_condition = std::make_shared<ngraph::op::Constant>(
+                        ngraph::element::boolean, ngraph::Shape{1}, true);
                     set_argument(0, Output<Node>(trip_count));
                     set_argument(1, Output<Node>(exec_condition));
                 };
@@ -67,23 +69,25 @@ namespace ngraph
                     m_num_iterations = num_iterations;
                 }
 
-                void set_trip_count_input(const Output<Node>& value) {
-                    set_argument(0, value);
-                }
-
-                void set_execution_condition_input(const Output<Node>& value) {
+                void set_trip_count_input(const Output<Node>& value) { set_argument(0, value); }
+                void set_execution_condition_input(const Output<Node>& value)
+                {
                     set_argument(1, value);
                 }
 
                 void set_sliced_input(const std::shared_ptr<Parameter>& parameter,
-                                                            const Output<Node>& value,
-                                                            int64_t start,
-                                                            int64_t stride,
-                                                            int64_t part_size,
-                                                            int64_t end,
-                                                            int64_t axis) override {
-                    NGRAPH_CHECK(false, "Incorrect type of input. Implicit slicing is not supported in Loop operation.");
+                                      const Output<Node>& value,
+                                      int64_t start,
+                                      int64_t stride,
+                                      int64_t part_size,
+                                      int64_t end,
+                                      int64_t axis) override
+                {
+                    NGRAPH_CHECK(false,
+                                 "Incorrect type of input. Implicit slicing is not supported in "
+                                 "Loop operation.");
                 }
+
             private:
                 int64_t m_num_iterations = -1;
             };

@@ -256,12 +256,12 @@ namespace ngraph
                 /// \param      axis       The axis to slice along
                 ///
                 virtual void set_sliced_input(const std::shared_ptr<Parameter>& parameter,
-                                      const Output<Node>& value,
-                                      int64_t start,
-                                      int64_t stride,
-                                      int64_t part_size,
-                                      int64_t end,
-                                      int64_t axis);
+                                              const Output<Node>& value,
+                                              int64_t start,
+                                              int64_t stride,
+                                              int64_t part_size,
+                                              int64_t end,
+                                              int64_t axis);
                 ///
                 /// \brief      Indicates that a body parameter has an initial value in the first
                 ///             iteration and computed value thereafter

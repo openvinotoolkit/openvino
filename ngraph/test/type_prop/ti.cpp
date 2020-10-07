@@ -22,8 +22,9 @@
 using namespace std;
 using namespace ngraph;
 
-TEST(type_prop, tensor_iterator_lstm) {
-// That which we iterate over
+TEST(type_prop, tensor_iterator_lstm)
+{
+    // That which we iterate over
     const size_t N = 32; // Batch size
     const size_t L = 10; // Sequence length
     const size_t I = 8;  // Input size
@@ -38,27 +39,27 @@ TEST(type_prop, tensor_iterator_lstm) {
     auto H_t = make_shared<op::Parameter>(element::f32, Shape{N, 1, H});
     auto C_t = make_shared<op::Parameter>(element::f32, Shape{N, 1, H});
 
-// Body
+    // Body
     auto X = make_shared<op::Parameter>(element::f32, Shape{N, 1, I});
     auto W_body = make_shared<op::Parameter>(element::f32, Shape{4 * H, I});
     auto R_body = make_shared<op::Parameter>(element::f32, Shape{4 * H, H});
-    auto LSTM_cell =
-            make_shared<opset5::LSTMCell>(make_shared<op::Reshape>(X, AxisVector{0, 1, 2}, Shape{N, I}),
-                                      make_shared<op::Reshape>(H_t, AxisVector{0, 1, 2}, Shape{N, H}),
-                                      make_shared<op::Reshape>(C_t, AxisVector{0, 1, 2}, Shape{N, H}),
-                                      W_body,
-                                      R_body,
-                                      H);
+    auto LSTM_cell = make_shared<opset5::LSTMCell>(
+        make_shared<op::Reshape>(X, AxisVector{0, 1, 2}, Shape{N, I}),
+        make_shared<op::Reshape>(H_t, AxisVector{0, 1, 2}, Shape{N, H}),
+        make_shared<op::Reshape>(C_t, AxisVector{0, 1, 2}, Shape{N, H}),
+        W_body,
+        R_body,
+        H);
     auto H_o = make_shared<op::Reshape>(LSTM_cell->output(0), AxisVector{0, 1}, Shape{N, 1, H});
     auto C_o = make_shared<op::Reshape>(LSTM_cell->output(1), AxisVector{0, 1}, Shape{N, 1, H});
-    auto body = make_shared<ngraph::Function>(
-            OutputVector{H_o, C_o}, ParameterVector{X, H_t, C_t, W_body, R_body});
+    auto body = make_shared<ngraph::Function>(OutputVector{H_o, C_o},
+                                              ParameterVector{X, H_t, C_t, W_body, R_body});
 
     auto tensor_iterator = make_shared<op::TensorIterator>();
     tensor_iterator->set_body(body);
-// start=0, stride=1, part_size=1, end=39, axis=1
+    // start=0, stride=1, part_size=1, end=39, axis=1
     tensor_iterator->set_sliced_input(X, SENT, 0, 1, 1, -1, 1);
-// H_t is Hinit on the first iteration, Ho after that
+    // H_t is Hinit on the first iteration, Ho after that
     tensor_iterator->set_merged_input(H_t, H_init, H_o);
     tensor_iterator->set_merged_input(C_t, C_init, C_o);
     tensor_iterator->set_invariant_input(W_body, W);
@@ -73,7 +74,8 @@ TEST(type_prop, tensor_iterator_lstm) {
     auto f = make_shared<Function>(results, ParameterVector{SENT, H_init, C_init, W, R});
 }
 
-TEST(type_prop, tensor_iterator_2_slice_inputs_part_size_2) {
+TEST(type_prop, tensor_iterator_2_slice_inputs_part_size_2)
+{
     // That which we iterate over
     auto X = make_shared<op::Parameter>(element::f32, Shape{32, 40, 10});
     auto Y = make_shared<op::Parameter>(element::f32, Shape{32, 40, 10});
@@ -87,8 +89,7 @@ TEST(type_prop, tensor_iterator_2_slice_inputs_part_size_2) {
 
     // Body
     auto Zo = (Xi + Yi) * M_body;
-    auto body = make_shared<ngraph::Function>(OutputVector{Zo},
-                                                            ParameterVector{Xi, Yi, M_body});
+    auto body = make_shared<ngraph::Function>(OutputVector{Zo}, ParameterVector{Xi, Yi, M_body});
 
     auto tensor_iterator = make_shared<op::TensorIterator>();
     tensor_iterator->set_body(body);
@@ -115,10 +116,10 @@ TEST(type_prop, tensor_iterator_2_slice_inputs_part_size_2) {
     auto f = make_shared<Function>(results, ParameterVector{X, Y, M});
     EXPECT_EQ(result0->get_output_shape(0), out0_shape);
     EXPECT_EQ(result1->get_output_shape(0), out1_shape);
-
 }
 
-TEST(type_prop, tensor_iterator_2_slice_inputs_part_size_2_dynamic) {
+TEST(type_prop, tensor_iterator_2_slice_inputs_part_size_2_dynamic)
+{
     // That which we iterate over
     auto X = make_shared<op::Parameter>(element::f32, Shape{32, 40, 10});
     auto Y = make_shared<op::Parameter>(element::f32, Shape{32, 40, 10});
@@ -145,16 +146,22 @@ TEST(type_prop, tensor_iterator_2_slice_inputs_part_size_2_dynamic) {
     tensor_iterator->set_invariant_input(M_body, M);
 
     // check input descriptors
-    for (auto &desc : tensor_iterator->get_input_descriptions()) {
+    for (auto& desc : tensor_iterator->get_input_descriptions())
+    {
         auto type_info = desc->get_type_info();
-        if (std::strcmp(type_info.name, "InvariantInputDescription") == 0) {
+        if (std::strcmp(type_info.name, "InvariantInputDescription") == 0)
+        {
             auto input_desc =
-                    as_type_ptr<ngraph::op::TensorIterator::InvariantInputDescription>(desc);
+                as_type_ptr<ngraph::op::TensorIterator::InvariantInputDescription>(desc);
             EXPECT_NE(input_desc, nullptr);
-        } else if (std::strcmp(type_info.name, "SliceInputDescription") == 0) {
+        }
+        else if (std::strcmp(type_info.name, "SliceInputDescription") == 0)
+        {
             auto input_desc = as_type_ptr<ngraph::op::TensorIterator::SliceInputDescription>(desc);
             EXPECT_NE(input_desc, nullptr);
-        } else if (std::strcmp(type_info.name, "MergedInputDescription") == 0) {
+        }
+        else if (std::strcmp(type_info.name, "MergedInputDescription") == 0)
+        {
             auto input_desc = as_type_ptr<ngraph::op::TensorIterator::MergedInputDescription>(desc);
             EXPECT_NE(input_desc, nullptr);
         }
@@ -167,13 +174,17 @@ TEST(type_prop, tensor_iterator_2_slice_inputs_part_size_2_dynamic) {
     auto out1 = tensor_iterator->get_concatenated_slices(Zo, 0, 2, 2, 38, 1);
 
     // check output descriptors
-    for (auto &desc : tensor_iterator->get_output_descriptions()) {
+    for (auto& desc : tensor_iterator->get_output_descriptions())
+    {
         auto type_info = desc->get_type_info();
-        if (std::strcmp(type_info.name, "ConcatOutputDescription") == 0) {
+        if (std::strcmp(type_info.name, "ConcatOutputDescription") == 0)
+        {
             auto output_desc =
-                    as_type_ptr<ngraph::op::TensorIterator::ConcatOutputDescription>(desc);
+                as_type_ptr<ngraph::op::TensorIterator::ConcatOutputDescription>(desc);
             EXPECT_NE(output_desc, nullptr);
-        } else if (std::strcmp(type_info.name, "BodyOutputDescription") == 0) {
+        }
+        else if (std::strcmp(type_info.name, "BodyOutputDescription") == 0)
+        {
             auto output_desc = as_type_ptr<ngraph::op::TensorIterator::BodyOutputDescription>(desc);
             EXPECT_NE(output_desc, nullptr);
         }
