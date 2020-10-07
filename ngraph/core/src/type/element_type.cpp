@@ -167,15 +167,7 @@ size_t element::Type::hash() const
 
 const std::string& element::Type::get_type_name() const
 {
-    try
-    {
-        return get_type_info_map().at(m_type).m_type_name;
-    }
-    catch (...)
-    {
-        static const std::string incorrect = "INCORRECT_DATA_TYPE";
-        return incorrect;
-    }
+    return get_type_info_map().at(m_type).m_type_name;
 }
 
 namespace ngraph

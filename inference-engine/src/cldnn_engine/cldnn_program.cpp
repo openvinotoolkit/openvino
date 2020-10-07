@@ -459,14 +459,14 @@ Program::Program(InferenceEngine::ICNNNetwork& network, std::shared_ptr<const cl
         if (fqFound && baselineIsFP16 && config.enable_fp16_for_quantized_models) {
             auto layersSorted = BFSSort(network);
 
-            for (auto &layer : layersSorted) {
+            for (auto& layer : layersSorted) {
                 if (layer == nullptr)
                     continue;
 
                 if (layer->outData.empty() || layer->insData.empty())
                     continue;
 
-                auto canReduceOutputPrecision = [](const CNNLayerPtr &l) -> bool {
+                auto canReduceOutputPrecision = [](const CNNLayerPtr& l) -> bool {
                     auto type = LayerTypeFromStr(l->type);
                     // Don't do conversion for outputs
                     auto next = GetNextLayers(l);
@@ -494,11 +494,11 @@ Program::Program(InferenceEngine::ICNNNetwork& network, std::shared_ptr<const cl
                     return false;
                 };
 
-                auto canReducePrecision = [](const CNNLayerPtr &l) -> bool {
+                auto canReducePrecision = [](const CNNLayerPtr& l) -> bool {
                     auto layerType = LayerTypeFromStr(l->type);
 
                     bool result = true;
-                    for (auto &in : l->insData) {
+                    for (auto& in : l->insData) {
                         auto input = in.lock();
                         auto precision = input->getPrecision();
                         auto in_type = LayerTypeFromStr(getCreatorLayer(input).lock()->type);

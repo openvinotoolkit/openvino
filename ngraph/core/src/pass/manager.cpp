@@ -56,7 +56,6 @@ void pass::Manager::run_passes(shared_ptr<Function> func)
     bool function_changed = false;
     for (auto& pass : m_pass_list)
     {
-        // std::cerr << "pass " << typeid(*pass).name() << "\n";
         pass_timer.start();
         if (!m_has_default_callback)
         {
