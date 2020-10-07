@@ -44,7 +44,7 @@ ngraph::pass::ConvertNMS4ToNMS5::ConvertNMS4ToNMS5() {
         auto box_encoding = ::ngraph::opset5::NonMaxSuppression::BoxEncodingType::CENTER;
         switch (nms_4->get_box_encoding()) {
             case ::ngraph::opset4::NonMaxSuppression::BoxEncodingType::CENTER:
-                box_encoding = ::ngraph::opset5::NonMaxSuppression::BoxEncodingType::CENTER;;
+                box_encoding = ::ngraph::opset5::NonMaxSuppression::BoxEncodingType::CENTER;
                 break;
             case ::ngraph::opset4::NonMaxSuppression::BoxEncodingType::CORNER:
                 box_encoding = ::ngraph::opset5::NonMaxSuppression::BoxEncodingType::CORNER;
@@ -124,10 +124,10 @@ ngraph::pass::ConvertNMS3ToNMS5::ConvertNMS3ToNMS5() {
         auto box_encoding = ::ngraph::opset5::NonMaxSuppression::BoxEncodingType::CENTER;
         switch (nms_3->get_box_encoding()) {
             case ::ngraph::opset3::NonMaxSuppression::BoxEncodingType::CENTER:
-                center_point_box = ::ngraph::opset5::NonMaxSuppression::BoxEncodingType::CENTER;;
+                box_encoding = ::ngraph::opset5::NonMaxSuppression::BoxEncodingType::CENTER;
                 break;
             case ::ngraph::opset3::NonMaxSuppression::BoxEncodingType::CORNER:
-                center_point_box = ::ngraph::opset5::NonMaxSuppression::BoxEncodingType::CORNER;
+                box_encoding = ::ngraph::opset5::NonMaxSuppression::BoxEncodingType::CORNER;
                 break;
             default:
                 throw ngraph_error("NonMaxSuppression layer " + nms_3->get_friendly_name() +
@@ -172,4 +172,16 @@ ngraph::pass::ConvertNMS3ToNMS5::ConvertNMS3ToNMS5() {
 
     auto m = std::make_shared<ngraph::pattern::Matcher>(nms, "ConvertNMS3ToNMS5");
     this->register_matcher(m, callback);
+}
+
+NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertNMS1ToNMS5, "ConvertNMS1ToNMS5", 0);
+
+ngraph::pass::ConvertNMS1ToNMS5::ConvertNMS1ToNMS5() {
+    auto boxes = std::make_shared<pattern::op::Label>(element::f32, Shape{1, 1000, 4});
+    auto scores = std::make_shared<pattern::op::Label>(element::f32, Shape{1, 1, 1000});
+    auto max_output_boxes_per_class = ngraph::opset1::Constant::create(element::i64, Shape{}, {10});
+    auto iou_threshold = ngraph::opset1::Constant::create(element::f32, Shape{}, {0.75});
+    auto score_threshold = ngraph::opset1::Constant::create(element::f32, Shape{}, {0.7});
+    auto nms = std::make_shared<ngraph::opset1::NonMaxSuppression>(boxes, scores, max_output_boxes_per_class,
+                                                                   iou_threshold, score_threshold);
 }
