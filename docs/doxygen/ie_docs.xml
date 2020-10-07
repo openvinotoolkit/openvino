@@ -222,6 +222,7 @@
                         <tab type="user" title="RNNSequence-5" url="@ref openvino_docs_ops_sequence_RNNSequence_5"/>
                         <tab type="user" title="ROIAlign-3" url="@ref openvino_docs_ops_detection_ROIAlign_3"/>
                         <tab type="user" title="ROIPooling-1" url="@ref openvino_docs_ops_detection_ROIPooling_1"/>
+                        <tab type="user" title="Round-5" url="@ref openvino_docs_ops_arithmetic_Round_5"/>
                         <tab type="user" title="ScatterElementsUpdate-3" url="@ref openvino_docs_ops_movement_ScatterElementsUpdate_3"/>
                         <tab type="user" title="ScatterNDUpdate" url="@ref openvino_docs_ops_movement_ScatterNDUpdate_3"/>
                         <tab type="user" title="ScatterUpdate-3" url="@ref openvino_docs_ops_movement_ScatterUpdate_3"/>
