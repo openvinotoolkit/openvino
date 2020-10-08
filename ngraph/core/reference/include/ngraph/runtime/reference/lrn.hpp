@@ -68,10 +68,10 @@ namespace ngraph
                      const AxisSet& axes,
                      T* out,
                      const Shape& arg_shape,
-                     double dalpha,
-                     double dbeta,
-                     double dbias,
-                     size_t size)
+                     float dalpha,
+                     float dbeta,
+                     float dbias,
+                     int size)
             {
                 T alpha = static_cast<T>(dalpha);
                 T beta = static_cast<T>(dbeta);
