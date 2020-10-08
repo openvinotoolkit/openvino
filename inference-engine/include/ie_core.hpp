@@ -57,7 +57,6 @@ public:
      * For IR format (*.bin):
      *  * if path is empty, will try to read bin file with the same name as xml and
      *  * if bin file with the same name was not found, will load IR without weights.
-     * ONNX models with data files are not supported
      * @return CNNNetwork
      */
     CNNNetwork ReadNetwork(const std::wstring& modelPath, const std::wstring& binPath = {}) const;
@@ -70,7 +69,6 @@ public:
      * For IR format (*.bin):
      *  * if path is empty, will try to read bin file with the same name as xml and
      *  * if bin file with the same name was not found, will load IR without weights.
-     * ONNX models with data files are not supported
      * @return CNNNetwork
      */
     CNNNetwork ReadNetwork(const std::string& modelPath, const std::string& binPath = {}) const;
@@ -79,6 +77,8 @@ public:
      * @param model string with model in IR or ONNX format
      * @param weights shared pointer to constant blob with weights
      * ONNX models doesn't support models with data blobs.
+     * If you read ONNX model which requires external data feature,
+     * use ReadNetwork overloading which takes path to the model.
      * For ONNX case the second parameter should contain empty blob.
      * @return CNNNetwork
      */

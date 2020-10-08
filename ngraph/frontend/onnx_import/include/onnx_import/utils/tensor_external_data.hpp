@@ -34,7 +34,6 @@ namespace ngraph
                 ///
                 /// \note       If read data from external file fails,
                 ///             the invalid_external_data is thrown.
-                ///             Paths to external data saved as unicode are not supported.
                 ///
                 /// \return     External binary data loaded into a std::string
                 std::string load_external_data() const;
