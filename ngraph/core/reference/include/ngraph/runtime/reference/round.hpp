@@ -42,7 +42,7 @@ namespace ngraph
             template <typename T>
             T round_away_from_zero(const T arg)
             {
-                return std::round(arg)
+                return std::round(arg);
             }
 
             template <typename T>
