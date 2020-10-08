@@ -7,6 +7,8 @@ jobs:
   variables:
     system.debug: true
     WORKERS_NUMBER: 3
+    VSTS_HTTP_RETRY: 5
+    VSTS_HTTP_TIMEOUT: 200
     BUILD_TYPE: Release
     REPO_DIR: $(Build.Repository.LocalPath)
     WORK_DIR: $(Pipeline.Workspace)/_w
