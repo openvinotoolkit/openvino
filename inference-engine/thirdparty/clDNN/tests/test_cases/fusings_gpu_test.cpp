@@ -79,6 +79,25 @@ struct bc_test_params {
     size_t expected_not_fused_primitives;
 };
 
+struct bc_force_kernel_params {
+    tensor in_shape;
+    tensor out_shape;
+    tensor kernel;
+    tensor stride;
+    tensor pad;
+    tensor dilation;
+    uint32_t groups;
+    data_types data_type;
+    format input_format;
+    data_types weights_type;
+    format weights_format;
+    data_types default_type;
+    format default_format;
+    size_t expected_fused_primitives;
+    size_t expected_not_fused_primitives;
+    std::string kernel_name;
+};
+
 struct conv_eltw_test_params {
     tensor in_shape;
     tensor out_shape;
@@ -326,26 +345,27 @@ public:
     }
 };
 
-class WeightsPrimitiveFusingTest : public ::BaseFusingTest<bc_test_params> {
+template <typename T>
+class WeightsPrimitiveFusingTest : public ::BaseFusingTest<T> {
 public:
 
-    void execute(bc_test_params& p) {
-        auto input_prim = get_mem(get_input_layout(p));
-        network network_not_fused(this->engine, this->topology_non_fused, bo_not_fused);
-        network network_fused(this->engine, this->topology_fused, bo_fused);
+    void execute(T& p) {
+        auto input_prim = this->get_mem(get_input_layout(p));
+        network network_not_fused(this->engine, this->topology_non_fused, this->bo_not_fused);
+        network network_fused(this->engine, this->topology_fused, this->bo_fused);
         network_fused.set_input_data("input", input_prim);
         network_not_fused.set_input_data("input", input_prim);
 
-        compare(network_not_fused, network_fused, p);
+        this->compare(network_not_fused, network_fused, p);
     }
 
-    layout get_input_layout(bc_test_params& p) {
+    layout get_input_layout(T& p) {
         auto pad = p.pad.negate();
         std::vector<int> pad_ = { 0, 0, pad.spatial[0], pad.spatial[1] };
         return layout{ p.data_type, p.input_format, p.in_shape, padding{pad_} };
     }
 
-    layout get_per_channel_layout(bc_test_params& p) {
+    layout get_per_channel_layout(T& p) {
         return layout{ p.default_type, p.default_format, tensor{1, p.out_shape.feature[0], 1, 1} };
     }
 };
@@ -465,6 +485,7 @@ public:
 #define CASE_CONV_FP16_10 {32, 16, 4, 5, 4}, {32, 32, 2, 3, 2}, {1, 1, 3, 3, 3}, tensor{1}, tensor{0}, tensor{1}, 1, data_types::f16, format::bs_fs_zyx_bsv16_fsv16, data_types::f16, format::bfzyx, data_types::f16, format::bfzyx
 #define CASE_CONV_FP16_11 {1, 32, 4, 5, 4}, {1, 16, 2, 3, 2}, {1, 1, 3, 3, 3}, tensor{1}, tensor{0}, tensor{1}, 2, data_types::f16, format::b_fs_zyx_fsv16, data_types::f16, format::os_is_zyx_isv16_osv16, data_types::f16, format::bfzyx
 #define CASE_CONV_FP16_12 {1, 16, 4, 5, 4}, {1, 16, 2, 3, 2}, {1, 1, 3, 3, 3}, tensor{1}, tensor{0}, tensor{1}, 2, data_types::f16, format::b_fs_zyx_fsv16, data_types::f16, format::os_is_zyx_isv16_osv16, data_types::f16, format::bfzyx
+#define CASE_CONV_FP16_13 {16, 32, 4, 5}, {16, 64, 2, 3}, {1, 1, 3, 3}, tensor{1}, tensor{0}, tensor{1}, 1, data_types::f16, format::fs_b_yx_fsv32, data_types::f16, format::bfyx, data_types::f16, format::bfyx
 
 #define CASE_CONV_U8S8_1 {1, 15, 4, 5}, {1, 30, 2, 3}, {1, 1, 3, 3}, tensor{1}, tensor{0}, tensor{1}, 1, data_types::u8, format::bfyx, data_types::i8, format::bfyx, data_types::f32, format::bfyx
 #define CASE_CONV_U8S8_2 {1, 15, 5, 5}, {1, 30, 3, 3}, {1, 1, 3, 3}, tensor{1}, tensor{0}, tensor{1}, 1, data_types::u8, format::bfyx, data_types::i8, format::bfyx, data_types::f32, format::bfyx
@@ -535,7 +556,7 @@ public:
 /* ---------------------------------------- FP32 convolution cases ------------------------------------- */
 /* ----------------------------------------------------------------------------------------------------- */
 /* ----------- NOTE: A part of tests is disabled until all FP kernels don't support fusings ------------ */
-class ConvFusingTest : public WeightsPrimitiveFusingTest {
+class ConvFusingTest : public WeightsPrimitiveFusingTest<bc_test_params> {
 public:
     void execute(bc_test_params& p) {
         auto input_prim = get_mem(get_input_layout(p));
@@ -1026,7 +1047,7 @@ INSTANTIATE_TEST_CASE_P(fusings_gpu, conv_fp32_scale_activation_quantize_i8_eltw
                                 bc_test_params{CASE_CONV_FP32_3, 2, 7},
                         }), );
 
-class conv_fp32_activation_eltwise_in_u8_fp32 : public WeightsPrimitiveFusingTest {};
+class conv_fp32_activation_eltwise_in_u8_fp32 : public WeightsPrimitiveFusingTest<bc_test_params> {};
 TEST_P(conv_fp32_activation_eltwise_in_u8_fp32, basic) {
     auto p = GetParam();
     create_topologies(input_layout("input", get_input_layout(p)),
@@ -1118,7 +1139,6 @@ INSTANTIATE_TEST_CASE_P(fusings_gpu, conv_scale_activation_eltwise_fp32_quantize
                                 conv_eltw_test_params{CASE_CONV_ELTW_FP32_7, 3, 6},
                                 conv_eltw_test_params{CASE_CONV_ELTW_FP32_8, 3, 6},
                         }), );
-
 
 /* ----------------------------------------------------------------------------------------------------- */
 /* -------------------------------------- binary convolution cases ------------------------------------- */
@@ -1300,7 +1320,6 @@ INSTANTIATE_TEST_CASE_P(fusings_gpu, conv_bin_scale_conv_dw_prelu,
                             bc_test_params{CASE_BIN_CONV2, 3, 5},
                             bc_test_params{CASE_BIN_CONV3, 3, 5},
                                             }), );
-
 
 /* ----------------------------------------------------------------------------------------------------- */
 /* ---------------------------------------- INT8 convolution cases ------------------------------------- */
@@ -2310,9 +2329,80 @@ INSTANTIATE_TEST_CASE_P(fusings_gpu, conv_i8_activation_eltwise_diff_sizes,
                         }), );
 
 /* ----------------------------------------------------------------------------------------------------- */
+/* ----------------------------------- Force convolution kernel cases ---------------------------------- */
+/* ----------------------------------------------------------------------------------------------------- */
+class ConvFusingForceKernelTest : public ::WeightsPrimitiveFusingTest<bc_force_kernel_params> {
+    public:
+    void execute(bc_force_kernel_params& p) {
+        auto input_prim = get_mem(get_input_layout(p));
+        build_options options;
+        options.set_option(build_option::optimize_data(true));
+        implementation_desc conv_impl = {p.input_format, p.kernel_name};
+        options.set_option(build_option::force_implementations({{"conv_prim", conv_impl}}));
+
+        network network_not_fused(this->engine, this->topology_non_fused, bo_not_fused);
+        network network_fused(this->engine, this->topology_fused, options);
+        network_fused.set_input_data("input", input_prim);
+        network_not_fused.set_input_data("input", input_prim);
+
+        compare(network_not_fused, network_fused, p);
+        auto find_conv = [](primitive_info& p) -> bool {
+            if (p.original_id == "conv_prim")
+                return true;
+            return false;
+        };
+
+        auto pi_fused = network_fused.get_primitives_info();
+        auto info_fused = std::find_if(pi_fused.begin(), pi_fused.end(), find_conv);
+        if (info_fused != pi_fused.end())
+            std::cout << "kernel: " << info_fused->kernel_id << std::endl;
+    }
+};
+
+class conv_fp16_activation : public ConvFusingForceKernelTest {};
+TEST_P(conv_fp16_activation, basic) {
+    auto p = GetParam();
+    create_topologies(input_layout("input", get_input_layout(p)),
+                 data("weights", get_mem(get_weights_layout(p))),
+                 data("bias", get_mem(get_bias_layout(p))),
+                 convolution("conv_prim", "input", {"weights"}, {"bias"}, p.groups, p.stride, p.pad, p.dilation),
+                 activation("activation", "conv_prim", activation_func::abs),
+                 reorder("reorder_bfyx", "activation", p.default_format, data_types::f32)
+    );
+
+    execute(p);
+}
+
+INSTANTIATE_TEST_CASE_P(fusings_gpu, conv_fp16_activation, ::testing::ValuesIn(std::vector<bc_force_kernel_params>{
+                                                                           bc_force_kernel_params{CASE_CONV_FP16_13, 2, 3, "convolution_gpu_fs_byx_fsv32"},
+                                                                           }), );
+
+
+class conv_fp16_scale : public ConvFusingForceKernelTest {};
+TEST_P(conv_fp16_scale, basic) {
+    auto p = GetParam();
+    create_topologies(input_layout("input", get_input_layout(p)),
+                 data("weights", get_mem(get_weights_layout(p))),
+                 data("bias", get_mem(get_bias_layout(p))),
+                 data("scale_data", get_mem(get_per_channel_layout(p), 1.0f/p.kernel.count())),
+                 convolution("conv_prim", "input", {"weights"}, {"bias"}, p.groups, p.stride, p.pad, p.dilation),
+                 scale("scale", "conv_prim", "scale_data"),
+                 reorder("reorder_bfyx", "scale", p.default_format, data_types::f32)
+    );
+
+    tolerance = 1e-5f;
+    execute(p);
+}
+
+INSTANTIATE_TEST_CASE_P(fusings_gpu, conv_fp16_scale,
+                        ::testing::ValuesIn(std::vector<bc_force_kernel_params>{
+                                             bc_force_kernel_params{CASE_CONV_FP16_13, 2, 3, "convolution_gpu_fs_byx_fsv32"},
+                                             }), );
+
+/* ----------------------------------------------------------------------------------------------------- */
 /* ---------------------------------------- FC cases --------------------------------------------------- */
 /* ----------------------------------------------------------------------------------------------------- */
-class FCFusingTest : public WeightsPrimitiveFusingTest {};
+class FCFusingTest : public WeightsPrimitiveFusingTest<bc_test_params> {};
 class fc_fp32_activation : public FCFusingTest {};
 TEST_P(fc_fp32_activation, basic) {
     auto p = GetParam();
@@ -3810,7 +3900,7 @@ using deconv_test_params = bc_test_params;
 #define CASE_DECONV_ELTW_i8_5 {1, 16, 2, 4}, {1, 16, 4, 6}, {1, 16, 4, 1}, {1, 1, 3, 3}, tensor{1}, tensor{0}, tensor{1}, 1, data_types::i8, format::b_fs_yx_fsv16, data_types::i8, format::os_is_yx_osv16_isv16, data_types::f32, format::bfyx
 
 
-class DeconvolutionFusingTest : public ::WeightsPrimitiveFusingTest {
+class DeconvolutionFusingTest : public ::WeightsPrimitiveFusingTest<bc_test_params> {
 public:
     void execute(deconv_test_params& p) {
         auto input_prim = get_mem(get_input_layout(p));
