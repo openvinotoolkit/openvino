@@ -30,10 +30,10 @@ class NonMaxSuppressionNormalize(FrontReplacementSubgraph):
 
     def find_and_replace_pattern(self, graph: Graph):
         for nms in graph.get_op_nodes(op='NonMaxSuppression'):
-            # make inputs 2 to 4 to have shape [] instead of [1] (convert 1D to 0D)
+            # make inputs 2 to 4 to have shape [1] instead of [0] (convert 0D to 1D)
+            nms_name = nms.soft_get('name', nms.id)
             for port_id in range(2, 5):
                 if port_id in nms.in_ports() and not nms.in_port(port_id).disconnected():
-                    reshape_1d = create_op_node_with_second_input(graph, Reshape, int64_array([]),
-                                                                  {'name': nms.soft_get('name') +
-                                                                           '/Reshape_0D'.format(port_id)})
+                    reshape_1d = create_op_node_with_second_input(graph, Reshape, int64_array([1]),
+                                                                  {'name': nms_name + '/Reshape_1D_{}'.format(port_id)})
                     nms.in_port(port_id).get_connection().insert_node(reshape_1d)
