@@ -730,6 +730,8 @@ TEST(GAPI_Streaming_Types, OutputScalar)
 
     cv::VideoCapture cap;
     cap.open(video_path);
+    if (!cap.isOpened())
+        throw SkipTestException("Video file can not be opened");
 
     cv::Mat tmp;
     cv::Scalar out_scl;
@@ -774,6 +776,8 @@ TEST(GAPI_Streaming_Types, OutputVector)
 
     cv::VideoCapture cap;
     cap.open(video_path);
+    if (!cap.isOpened())
+        throw SkipTestException("Video file can not be opened");
 
     cv::Mat tmp;
     std::vector<int> ref_vec;
@@ -814,6 +818,10 @@ struct GAPI_Streaming_Unit: public ::testing::Test {
         ref = cc.compile(a_desc, b_desc);
     }
 };
+
+// FIXME: (GAPI_Streaming_Types,   InputOpaque) test is missing here!
+// FIXME: (GAPI_Streaming_Types, XChangeOpaque) test is missing here!
+// FIXME: (GAPI_Streaming_Types,  OutputOpaque) test is missing here!
 
 TEST_F(GAPI_Streaming_Unit, TestTwoVideoSourcesFail)
 {

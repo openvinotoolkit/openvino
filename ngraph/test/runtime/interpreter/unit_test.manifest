@@ -138,3 +138,6 @@ onnx_model_lstm_fwd_with_clip_peepholes
 onnx_model_lstm_bdir_short_input_seq_peepholes
 lstm_cell_bias_peepholes
 lstm_cell_bias_peepholes_clip_input_forget
+
+# unsupported element type f16 
+INTERPRETER.ctc_greedy_decoder_f16
