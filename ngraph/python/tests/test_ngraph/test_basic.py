@@ -31,7 +31,6 @@ from tests import (xfail_issue_34323,
                    xfail_issue_35926,
                    xfail_issue_36476,
                    xfail_issue_36478,
-                   xfail_issue_36479,
                    xfail_issue_36480)
 
 from openvino.inference_engine import IENetwork
@@ -66,11 +65,11 @@ def test_ngraph_function_api():
     [
         np.float32,
         pytest.param(np.float64, marks=xfail_issue_35929),
-        pytest.param(np.int8, marks=xfail_issue_36479),
+        np.int8,
         np.int16,
         np.int32,
         pytest.param(np.int64, marks=xfail_issue_35926),
-        pytest.param(np.uint8, marks=xfail_issue_36479),
+        np.uint8,
         np.uint16,
         pytest.param(np.uint32, marks=xfail_issue_36476),
         pytest.param(np.uint64, marks=xfail_issue_36478),
@@ -146,7 +145,6 @@ def test_broadcast_3():
     assert np.allclose(result, expected)
 
 
-@pytest.mark.xfail(reason="AssertionError: assert dtype('float32') == <class 'bool'")
 @pytest.mark.parametrize(
     "destination_type, input_data",
     [(bool, np.zeros((2, 2), dtype=np.int32)), ("boolean", np.zeros((2, 2), dtype=np.int32))],

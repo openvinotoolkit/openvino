@@ -94,12 +94,11 @@ xfail_issue_35929 = xfail_test(reason="RuntimeError: Incorrect precision f64!")
 xfail_issue_35930 = xfail_test(reason="onnx.onnx_cpp2py_export.checker.ValidationError: "
                                       "Required attribute 'to' is missing.")
 xfail_issue_35932 = xfail_test(reason="Assertion error - logsoftmax results mismatch")
-xfail_issue_36437 = xfail_test(reason="RuntimeError: Cannot find blob with name: <value>")
+xfail_issue_00000 = xfail_test(reason="TMP")
 xfail_issue_36476 = xfail_test(reason="RuntimeError: [NOT_IMPLEMENTED] Input image format U32 is "
                                "not supported yet...")
 xfail_issue_36478 = xfail_test(reason="RuntimeError: [NOT_IMPLEMENTED] Input image format U64 is "
                                "not supported yet...")
-xfail_issue_36479 = xfail_test(reason="Assertion error - basic computation on ndarrays mismatch")
 xfail_issue_36480 = xfail_test(reason="RuntimeError: [NOT_FOUND] Unsupported property dummy_option "
                                "by CPU plugin")
 xfail_issue_36483 = xfail_test(reason="RuntimeError: Unsupported primitive of type: "
@@ -123,7 +122,6 @@ xfail_issue_38088 = xfail_test(reason="RuntimeError: Check '((axis >= axis_range
                                       "/openvino/ngraph/core/src/validation_util.cpp:913: "
                                       "Split Parameter axis <value> out of the tensor rank range <value>.")
 xfail_issue_38089 = xfail_test(reason="RuntimeError: Node 2 contains empty child edge for index 0")
-xfail_issue_38090 = xfail_test(reason="AssertionError: Items types are not equal")
 xfail_issue_38091 = xfail_test(reason="AssertionError: Mismatched elements")
 xfail_issue_38699 = xfail_test(reason="RuntimeError: nGraph does not support the following ONNX operations:"
                                       "ai.onnx.preview.training.Gradient")
