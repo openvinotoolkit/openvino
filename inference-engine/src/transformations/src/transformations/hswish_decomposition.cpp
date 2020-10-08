@@ -29,7 +29,7 @@ ngraph::pass::HSwishDecomposition::HSwishDecomposition() {
         auto add = std::make_shared<ngraph::opset4::Add>(hswish_node->input_value(0), add_constant);
         auto relu = std::make_shared<ngraph::opset4::Relu>(add);
         auto min_constant = ngraph::opset4::Constant::create(input_type, ngraph::Shape{}, {6.0});
-        auto min = std::make_shared<ngraph::opset4::Minimum>(relu, min_constant);
+        auto min = register_new_node<ngraph::opset4::Minimum>(relu, min_constant);
         auto mul_first = std::make_shared<ngraph::opset4::Multiply>(hswish_node->input_value(0), min);
         auto mul_constant = ngraph::opset4::Constant::create(input_type, ngraph::Shape{}, {(1.0/6.0)});  // const(1/6)
         auto mul_second = std::make_shared<ngraph::opset4::Multiply>(mul_first, mul_constant);

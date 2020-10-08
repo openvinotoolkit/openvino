@@ -251,6 +251,8 @@ std::string toString(TileAxis a);
 std::string toString(GatherAxis a);
 std::string toString(ScatterUpdateAxis a);
 std::string toString(ResampleType type);
+std::string toString(CoordinateTransformationMode mode);
+std::string toString(NearestMode mode);
 std::string toString(const BorderType type);
 std::string toString(const Tensor::Dim& dim);
 std::string toString(const DataTensor& tensor);

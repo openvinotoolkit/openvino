@@ -133,7 +133,7 @@ void MKLDNNGraph::Replicate(const TensorIterator::Body &subgraph, const MKLDNNEx
     for (const auto layer : NetPass::TIBodySortTopologically(subgraph)) {
         CNNLayerPtr _layer = layer;
 
-        const MKLDNNNodePtr node(MKLDNNNode::CreateNode(_layer, getEngine(), extMgr, weightsCache));
+        const MKLDNNNodePtr node(MKLDNNNode::factory().create(_layer, getEngine(), extMgr, weightsCache));
         graphNodes.push_back(node);
         layer2node[layer] = node;
 
@@ -162,7 +162,7 @@ void MKLDNNGraph::Replicate(const TensorIterator::Body &subgraph, const MKLDNNEx
         CNNLayerPtr layer(new CNNLayer({"out_" + output->getName(), "Output", output->getTensorDesc().getPrecision()}));
         layer->insData.push_back(output);
 
-        const MKLDNNNodePtr node(MKLDNNNode::CreateNode(layer, getEngine(), extMgr, weightsCache));
+        const MKLDNNNodePtr node(MKLDNNNode::factory().create(layer, getEngine(), extMgr, weightsCache));
 
         MKLDNNEdgePtr edge(new MKLDNNEdge(parent_node, node, _parent_port(output), 0));
         node->addEdge(edge);
@@ -182,7 +182,7 @@ void MKLDNNGraph::Replicate(const TensorIterator::Body &subgraph, const MKLDNNEx
         CNNLayerPtr layer(new CNNLayer({"stub_" + parent_layer->name, "Output", to_stub_data->getTensorDesc().getPrecision()}));
         layer->insData.push_back(to_stub_data);
 
-        const MKLDNNNodePtr node(MKLDNNNode::CreateNode(layer, getEngine(), extMgr, weightsCache));
+        const MKLDNNNodePtr node(MKLDNNNode::factory().create(layer, getEngine(), extMgr, weightsCache));
 
         MKLDNNEdgePtr edge(new MKLDNNEdge(parent_node, node, _parent_port(to_stub_data), 0));
         node->addEdge(edge);
@@ -197,7 +197,7 @@ void MKLDNNGraph::Replicate(const TensorIterator::Body &subgraph, const MKLDNNEx
         CNNLayerPtr layer(new CNNLayer({"in_" + input->getName(), "Input", input->getTensorDesc().getPrecision()}));
         layer->outData.push_back(input);
 
-        const MKLDNNNodePtr node(MKLDNNNode::CreateNode(layer, getEngine(), extMgr, weightsCache));
+        const MKLDNNNodePtr node(MKLDNNNode::factory().create(layer, getEngine(), extMgr, weightsCache));
 
         for (auto p : getInputTo(input)) {
             auto consumer = p.second;
@@ -251,7 +251,7 @@ void MKLDNNGraph::Replicate(const ICNNNetwork &network, const MKLDNNExtensionMan
             _layer->outData = layer->outData;
         }
 
-        const MKLDNNNodePtr node(MKLDNNNode::CreateNode(_layer, getEngine(), extMgr, weightsCache));
+        const MKLDNNNodePtr node(MKLDNNNode::factory().create(_layer, getEngine(), extMgr, weightsCache));
         graphNodes.push_back(node);
         layer2node[layer] = node;
 
@@ -289,7 +289,7 @@ void MKLDNNGraph::Replicate(const ICNNNetwork &network, const MKLDNNExtensionMan
         CNNLayerPtr layer(new CNNLayer({"out_" + output.first, "Output", data->getTensorDesc().getPrecision()}));
         layer->insData.push_back(data);
 
-        const MKLDNNNodePtr node(MKLDNNNode::CreateNode(layer, getEngine(), extMgr, weightsCache));
+        const MKLDNNNodePtr node(MKLDNNNode::factory().create(layer, getEngine(), extMgr, weightsCache));
 
         MKLDNNEdgePtr edge(new MKLDNNEdge(parent_node, node, _parent_port(data), 0));
         node->addEdge(edge);
@@ -309,7 +309,7 @@ void MKLDNNGraph::Replicate(const ICNNNetwork &network, const MKLDNNExtensionMan
         CNNLayerPtr layer(new CNNLayer({"stub_" + parent_layer->name, "Output", to_stub_data->getTensorDesc().getPrecision()}));
         layer->insData.push_back(to_stub_data);
 
-        const MKLDNNNodePtr node(MKLDNNNode::CreateNode(layer, getEngine(), extMgr, weightsCache));
+        const MKLDNNNodePtr node(MKLDNNNode::factory().create(layer, getEngine(), extMgr, weightsCache));
 
         MKLDNNEdgePtr edge(new MKLDNNEdge(parent_node, node, _parent_port(to_stub_data), 0));
         node->addEdge(edge);

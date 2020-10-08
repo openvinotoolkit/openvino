@@ -77,7 +77,17 @@ protected:
 struct base_events : virtual public ocl_base_event {
 public:
     base_events(std::shared_ptr<gpu_toolkit> ctx, std::vector<event_impl::ptr> const& ev)
-        : ocl_base_event(0, true), _ctx(ctx), _events(ev) {
+        : ocl_base_event(0, true), _ctx(ctx) {
+        for (size_t i = 0; i < ev.size(); i++) {
+            auto multiple_events = dynamic_cast<base_events*>(ev[i].get());
+            if (multiple_events) {
+                for (size_t j = 0; j < multiple_events->_events.size(); j++) {
+                    _events.push_back(multiple_events->_events[j]);
+                }
+            } else {
+                _events.push_back(ev[i]);
+            }
+        }
         set_queue_stamp();
     }
 
@@ -86,18 +96,28 @@ public:
     void attach_events(const std::vector<event_impl::ptr>& ev) {
         if (_attached)
             throw std::runtime_error("Trying to attach events to valid event object.");
-        _events = ev;
+        for (size_t i = 0; i < ev.size(); i++) {
+            auto multiple_events = dynamic_cast<base_events*>(ev[i].get());
+            if (multiple_events) {
+                for (size_t j = 0; j < multiple_events->_events.size(); j++) {
+                    _events.push_back(multiple_events->_events[j]);
+                }
+            } else {
+                _events.push_back(ev[i]);
+            }
+        }
         _attached = true;
         set_queue_stamp();
     }
 
     std::shared_ptr<gpu_toolkit> get_context() const { return _ctx; }
+    const std::vector<event_impl::ptr>& get_events() { return _events; };
 
 private:
     void set_queue_stamp() {
         uint64_t _queue_stamp_max = 0;
         for (size_t i = 0; i < _events.size(); i++) {
-            auto* _base_event = dynamic_cast<base_event*>(_events[i].get());
+            auto* _base_event = dynamic_cast<ocl_base_event*>(_events[i].get());
             if (_base_event->get_queue_stamp() > _queue_stamp_max)
                 _queue_stamp_max = _base_event->get_queue_stamp();
         }
