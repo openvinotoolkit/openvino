@@ -70,7 +70,7 @@ jobs:
     continueOnError: false
   - script: |
       set PATH=$(REPO_DIR)\inference-engine\temp\tbb\bin;%PATH%
-      $(BIN_DIR)\InferenceEngineUnitTests --gtest_print_time=1 --gtest_output=xml:TEST-InferenceEngineUnitTests.xml | tee TEST-InferenceEngineUnitTests.log
+      powershell "$(BIN_DIR)\InferenceEngineUnitTests --gtest_print_time=1 --gtest_output=xml:TEST-InferenceEngineUnitTests.xml | tee TEST-InferenceEngineUnitTests.log"
     displayName: 'IE UT old'
     continueOnError: false
   - script: python $(REPO_DIR)\.ci\azure\analyze_gtest_log.py --log-file=TEST-InferenceEngineUnitTests.log
