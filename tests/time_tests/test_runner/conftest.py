@@ -16,6 +16,7 @@ This plugin adds the following command-line options:
 """
 
 # pylint:disable=import-error
+import os
 import sys
 import pytest
 from pathlib import Path
@@ -115,6 +116,9 @@ def cl_cache_dir(pytestconfig):
     More: https://github.com/intel/compute-runtime/blob/master/opencl/doc/FAQ.md#how-can-cl_cache-be-enabled
     """
     cl_cache_dir = pytestconfig.invocation_dir / "cl_cache"
+    # if cl_cache generation to a local `cl_cache` folder doesn't work, specify
+    # `cl_cache_dir` environment variable in an attempt to fix it (Linux specific)
+    os.environ["cl_cache_dir"] = str(cl_cache_dir)
     if cl_cache_dir.exists():
         shutil.rmtree(cl_cache_dir)
     cl_cache_dir.mkdir()
