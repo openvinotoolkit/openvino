@@ -186,6 +186,7 @@
                         <tab type="user" title="NonMaxSuppression-1" url="@ref openvino_docs_ops_sort_NonMaxSuppression_1"/>
                         <tab type="user" title="NonMaxSuppression-3" url="@ref openvino_docs_ops_sort_NonMaxSuppression_3"/>
                         <tab type="user" title="NonMaxSuppression-4" url="@ref openvino_docs_ops_sort_NonMaxSuppression_4"/>
+                        <tab type="user" title="NonMaxSuppression-5" url="@ref openvino_docs_ops_sort_NonMaxSuppression_5"/>
                         <tab type="user" title="NonZero-3" url="@ref openvino_docs_ops_condition_NonZero_3"/>
                         <tab type="user" title="NormalizeL2-1" url="@ref openvino_docs_ops_normalization_NormalizeL2_1"/>
                         <tab type="user" title="NotEqual-1" url="@ref openvino_docs_ops_comparison_NotEqual_1"/>
@@ -366,7 +367,7 @@
                 		<tab type="user" title="Build Application with Deployment Package" url="@ref workbench_docs_Workbench_DG_Deployment_Package"/>
                 		<tab type="user" title="Deploy and Integrate Performance Criteria into Application" url="@ref workbench_docs_Workbench_DG_Deploy_and_Integrate_Performance_Criteria_into_Application"/>
                 	  <tab type="user" title="Persist Database State" url="@ref workbench_docs_Workbench_DG_Persist_Database"/>
-					          <tab type="user" title="Work with Docker Container" url="@ref workbench_docs_Workbench_DG_Docker_Container"/>                	
+					          <tab type="user" title="Work with Docker Container" url="@ref workbench_docs_Workbench_DG_Docker_Container"/>
                   </tab>
                 	<tab type="usergroup" title="DL Workbench Security Guide" url="@ref workbench_docs_Workbench_DG_Configure_TLS">
                 		<tab type="user" title="Configure Transport Layer Security (TLS)" url="@ref workbench_docs_Workbench_DG_Configure_TLS"/>
@@ -617,7 +618,7 @@
                     <tab type="user" title="driver-action-recognition-adas-0002" url="@ref omz_models_intel_driver_action_recognition_adas_0002_description_driver_action_recognition_adas_0002"/>
                     <tab type="user" title="action-recognition-0001" url="@ref omz_models_intel_action_recognition_0001_description_action_recognition_0001"/>
                     <tab type="user" title="asl-recognition-0004" url="@ref omz_models_intel_asl_recognition_0004_description_asl_recognition_0004"/>
-                    <tab type="user" title="weld-porosity-detection-0001" url="@ref omz_models_intel_weld_porosity_detection_0001_description_weld_porosity_detection_0001"/>                    
+                    <tab type="user" title="weld-porosity-detection-0001" url="@ref omz_models_intel_weld_porosity_detection_0001_description_weld_porosity_detection_0001"/>
                 </tab>
                 <tab type="usergroup" title="Image Retrieval" url="">
                     <tab type="user" title="image-retrieval-0001" url="@ref omz_models_intel_image_retrieval_0001_description_image_retrieval_0001"/>

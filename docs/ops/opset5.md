@@ -87,7 +87,7 @@ declared in `namespace opset5`.
 * [MVN](normalization/MVN_1.md)
 * [Multiply](arithmetic/Multiply_1.md)
 * [Negative](arithmetic/Negative_1.md)
-* [NonMaxSuppression](sort/NonMaxSuppression_4.md)
+* [NonMaxSuppression](sort/NonMaxSuppression_5.md)
 * [NonZero](condition/NonZero_3.md)
 * [NormalizeL2](normalization/NormalizeL2_1.md)
 * [NotEqual](comparison/NotEqual_1.md)
