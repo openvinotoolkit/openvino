@@ -40,6 +40,7 @@
 #include "ngraph/runtime/reference/batch_norm.hpp"
 #include "ngraph/runtime/reference/batch_norm.hpp"
 #include "ngraph/runtime/reference/convolution.hpp"
+#include "ngraph/runtime/reference/ctc_greedy_decoder.hpp"
 #include "ngraph/runtime/reference/ctc_loss.hpp"
 #include "ngraph/runtime/reference/cum_sum.hpp"
 #include "ngraph/runtime/reference/detection_output.hpp"
@@ -53,7 +54,6 @@
 #include "ngraph/runtime/reference/normalize_l2.hpp"
 #include "ngraph/runtime/reference/reverse_sequence.hpp"
 #include "ngraph/runtime/reference/scatter_nd_update.hpp"
-#include "ngraph/runtime/reference/ctc_greedy_decoder.hpp"
 #include "reference/elu.hpp"
 #include "reference/gelu.hpp"
 #include "reference/hard_sigmoid.hpp"
@@ -127,7 +127,6 @@ namespace
             op->get_strides());
         return true;
     }
-
 
     template <element::Type_t ET>
     bool evaluate(const shared_ptr<op::v0::CumSum>& op,
