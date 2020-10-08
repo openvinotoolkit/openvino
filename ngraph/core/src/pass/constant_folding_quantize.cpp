@@ -84,16 +84,20 @@ void pass::ConstantFolding::construct_constant_quantize()
 
         if (type == element::u8)
         {
-            replace_node(
-                m.get_match_root(),
-                fold_constant_quantize<float, uint8_t>(constant_match, quantize_op, scale, offset));
+            auto const_node =
+                fold_constant_quantize<float, uint8_t>(constant_match, quantize_op, scale, offset);
+            const_node->set_friendly_name(m.get_match_root()->get_friendly_name());
+            replace_node(m.get_match_root(), const_node);
+            copy_runtime_info_to_target_inputs(m.get_match_root(), const_node);
             return true;
         }
         else if (type == element::i8)
         {
-            replace_node(
-                m.get_match_root(),
-                fold_constant_quantize<float, int8_t>(constant_match, quantize_op, scale, offset));
+            auto const_node =
+                fold_constant_quantize<float, int8_t>(constant_match, quantize_op, scale, offset);
+            const_node->set_friendly_name(m.get_match_root()->get_friendly_name());
+            replace_node(m.get_match_root(), const_node);
+            copy_runtime_info_to_target_inputs(m.get_match_root(), const_node);
             return true;
         }
 
