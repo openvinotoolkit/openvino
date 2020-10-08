@@ -75,9 +75,10 @@ namespace ngraph
 
             param_callback get_callback(const DiscreteTypeInfo& type_info) const
             {
-                if (m_callback_map.count(type_info))
+                const auto& it = m_callback_map.find(type_info);
+                if (it != m_callback_map.end())
                 {
-                    return m_callback_map.at(type_info);
+                    return it->second;
                 }
                 else
                 {

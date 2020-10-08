@@ -104,7 +104,6 @@ static void Transformation(ICNNNetwork::Ptr& clonedNetwork) {
     manager.register_pass<ngraph::pass::ConvertOpSet1ToLegacy>();
     manager.register_pass<ngraph::pass::ConvertPrecision>(ngraph::element::i64, ngraph::element::i32);
 
-    // Fine-Grain transformations pipeline tuning
     auto pass_config = manager.get_pass_config();
 
     using const_node_ptr = const std::shared_ptr<const ngraph::Node>;
