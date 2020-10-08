@@ -20,15 +20,15 @@ set(DEPENDENCIES
 )
 
 if (NGRAPH_ONNX_IMPORT_ENABLE)
-    set(INCLUDES ${INCLUDES} ${OpenVINO_MAIN_SOURCE_DIR}/docs/onnx_custom_op)
-    set(LINK_LIBRARIES ${LINK_LIBRARIES} onnx_importer onnx_custom_op)
-    set(DEPENDENCIES ${DEPENDENCIES} onnx_importer onnx_custom_op)
+    list(APPEND INCLUDES "${OpenVINO_MAIN_SOURCE_DIR}/docs/onnx_custom_op")
+    list(APPEND LINK_LIBRARIES onnx_custom_op)
+    list(APPEND DEPENDENCIES onnx_custom_op)
 else()
-    set(EXCLUDED_SOURCE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/onnx_reader)
+    set(EXCLUDED_SOURCE_DIRS "${CMAKE_CURRENT_SOURCE_DIR}/onnx_reader")
 endif()
 
 if (NOT NGRAPH_ONNX_IMPORT_ENABLE OR NOT ENABLE_MKL_DNN)
-    set(EXCLUDED_SOURCE_DIRS ${EXCLUDED_SOURCE_DIRS} ${CMAKE_CURRENT_SOURCE_DIR}/extension)
+    set(EXCLUDED_SOURCE_DIRS ${EXCLUDED_SOURCE_DIRS} "${CMAKE_CURRENT_SOURCE_DIR}/extension")
 endif()
 
 addIeTargetTest(
