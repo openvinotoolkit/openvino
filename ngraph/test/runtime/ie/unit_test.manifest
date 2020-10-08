@@ -336,6 +336,12 @@ max_3d_eliminate_zero_dim
 lrn_across_empty
 lrn_2d_across_empty
 normalize_across_empty_axes_input
+normalize_l2_all_mode_add
+normalize_l2_none_mode_add
+normalize_l2_zero_mode_add
+normalize_l2_all_mode_max
+normalize_l2_none_mode_max
+normalize_l2_zero_mode_max
 squeeze_default_axes
 dynamic_abc
 broadcast_v1
@@ -1288,6 +1294,12 @@ IE_GPU.node_name
 IE_GPU.negative
 IE_GPU.negative_i32
 IE_GPU.negative_f32
+IE_GPU.normalize_l2_all_mode_add
+IE_GPU.normalize_l2_none_mode_add
+IE_GPU.normalize_l2_zero_mode_add
+IE_GPU.normalize_l2_all_mode_max
+IE_GPU.normalize_l2_none_mode_max
+IE_GPU.normalize_l2_zero_mode_max
 IE_GPU.multiply
 IE_GPU.multiply_overload
 IE_GPU.multiple_backends
