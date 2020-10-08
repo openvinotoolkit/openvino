@@ -58,8 +58,13 @@ class PyTorchLoader(Loader):
         outs = model(inp)
 
         # Add output nodes
-        for out in outs if isinstance(outs, tuple) else (outs):
-            name = outs.node_name
+        if not hasattr(outs, '__contains__'):  # if a single tensor
+            outs = [outs]
+        if isinstance(outs, dict):
+            outs = outs.values()
+
+        for out in outs:
+            name = out.node_name
             graph.add_node('output', kind='op', op='Result')
             edge_attrs = {
                 'out': 0,

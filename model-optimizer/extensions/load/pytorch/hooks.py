@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 
 # Callback which is executed after nn.Module forward
 def forward_hook(self, inputs, output):
@@ -55,24 +56,28 @@ def forward_hook(self, inputs, output):
 # PyTorch functional ops and Tensor operations are not tracked by forward_hook.
 # So we need to introduce own tensor type to track them.
 HANDLED_FUNCTIONS = {}
-class OpenVINOTensor(torch.Tensor):
+class OpenVINOTensor(object):
     def __init__(self, value):
         self._value = value
         self.graph = None
         self.node_name = None
+        self.shape = value.shape
 
     def __repr__(self):
-        return ""
+        return self.node_name
 
     def tensor(self):
         return self._value
+
+    def dim(self):
+        return self._value.dim()
 
     def data_ptr(self):
         return self._value.data_ptr()
 
     # Overrides += over tensors
     def __iadd__(self, a):
-        self._value += a
+        self._value += a._value
         class Add(nn.Module):
             pass
         forward_hook(Add(), (self, a), self)
@@ -107,12 +112,12 @@ def register_functional_hook(func):
         return output
 
 register_functional_hook(torch.conv2d)
-register_functional_hook(nn.functional.batch_norm)
-register_functional_hook(nn.functional.relu)
-register_functional_hook(nn.functional.max_pool2d)
-register_functional_hook(nn.functional.adaptive_avg_pool2d)
-register_functional_hook(nn.functional.linear)
-register_functional_hook(nn.functional.dropout)
+register_functional_hook(F.batch_norm)
+register_functional_hook(F.relu)
+register_functional_hook(F.max_pool2d)
+register_functional_hook(F.adaptive_avg_pool2d)
+register_functional_hook(F.linear)
+register_functional_hook(F.dropout)
 
 
 @implements(torch.flatten)
@@ -128,3 +133,40 @@ def function_hook(input, *args, **kwargs):
 
     forward_hook(Flatten(*args, **kwargs), (input,), output)
     return output
+
+
+@implements(F.interpolate)
+def function_hook(input, *args, **kwargs):
+
+    class Upsample(nn.Module):
+        def __init__(self, size, scale_factor, mode, align_corners, recompute_scale_factor):
+            super().__init__()
+            self.size = size
+            self.scale_factor = scale_factor
+            self.mode = mode
+            self.align_corners = align_corners
+            self.recompute_scale_factor = recompute_scale_factor
+
+    output = OpenVINOTensor(F.interpolate(input.tensor(), *args, **kwargs))
+    output.graph = input.graph
+
+    forward_hook(Upsample(*args, **kwargs), (input,), output)
+    return output
+
+
+# Workaround for a bug https://github.com/pytorch/pytorch/issues/34294
+original_cat = torch.cat
+def concat(inputs, dim):
+    class Concat(nn.Module):
+        def __init__(self, dim):
+            super().__init__()
+            self.dim = dim
+
+    tensors = [inp.tensor() for inp in inputs]
+    output = OpenVINOTensor(original_cat(tensors, dim))
+    output.graph = inputs[0].graph
+
+    forward_hook(Concat(dim), inputs, output)
+    return output
+
+torch.cat = concat

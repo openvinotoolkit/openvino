@@ -64,8 +64,14 @@ class AdaptiveAvgPool2dFrontExtractor(FrontExtractorOp):
 
     @classmethod
     def extract(cls, node):
+        output_size = node.module.output_size
+
+        # If a single integer but not a tuple or list
+        if not hasattr(output_size, '__contains__'):
+            output_size = [output_size, output_size]
+
         data = {
-            'output_size': node.module.output_size,
+            'output_size': output_size,
         }
         AdaptiveAvgPooling.update_node_stat(node, data)
         return cls.enabled

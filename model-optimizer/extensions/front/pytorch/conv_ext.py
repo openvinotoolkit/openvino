@@ -37,10 +37,15 @@ class Conv2dFrontExtractor(FrontExtractorOp):
         strides = node.module.stride
         final_strides = np.array([1, 1, *strides], dtype=np.int64)
 
+        # Extract strides attribute
+        dilations = node.module.dilation
+        final_dilations = np.array([1, 1, *dilations], dtype=np.int64)
+
         attrs = {
             'op': __class__.op,
             'pad': final_pads,
             'stride': final_strides,
+            'dilation': final_dilations,
             'group': 1,
             'kernel_spatial': np.array(node.module.kernel_size, dtype=np.int64),
 
