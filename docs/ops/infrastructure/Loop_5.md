@@ -9,13 +9,13 @@ The operation has similar semantic to the ONNX* Loop [operation](https://github.
 
 **Detailed description**
 
-The body of the Loop can be executed 0 or more times depending on the values passed to the Loop operation inputs called "trip count", "condition" and input of the Loop body called "current iteration".
+The body of the Loop can be executed 0 or more times depending on the values passed to the Loop operation inputs called "trip count", "execution condition" and input of the Loop body called "current iteration".
 
 These Loop operation inputs have the following meaning:
 1. Trip count is an integer scalar or 1D tensor with 1 element input specifying maximum number of iterations. To simulate infinite loop Constant `-1` can be provided as input.
-2. Loop condition input is a boolean scalar or 1D tensor with 1 element input specifying whether to run the first loop iteration or not. Note, that the body of the Loop must yield the condition value for the consecutive iterations.
+2. Loop execution condition input is a boolean scalar or 1D tensor with 1 element input specifying whether to run the first loop iteration or not. Note, that the body of the Loop must yield the condition value for the consecutive iterations.
 
-There are several combinations of these two inputs `(trip_count, condition)` which are described in the following code snippet:
+There are several combinations of these two inputs `(trip_count, execution condition)` which are described in the following code snippet:
 
 ```
   input (-1, true) // infinite loop
@@ -57,7 +57,7 @@ There are several combinations of these two inputs `(trip_count, condition)` whi
 ```
 
 1. One of the body graph inputs called "current iteration" is an integer scalar or 1D integer tensor with 1 number specifying current iteration number. The iteration number starts from 0 and incremented by one for each iteration. This input is optional and may not exist if the iteration number value is not used in the body.
-2. One of the body graph outputs is called "condition" is a boolean scalar value. This value is used to decide whenever to perform the next iteration or not.
+2. One of the body graph outputs is called "condition" is a boolean scalar or 1D tensor with 1 element. This value is used to decide whenever to perform the next iteration or not.
 
 Loop operation description in the IR has regular sections: `input` and `output`. They connect Loop body to the outer graph and specify condition(s).
 Loop operation description in the IR also has several special sections: `body`, `port_map` and `back_edges` similar to the ones from the TensorIterator operation but having some important features described below.
@@ -131,9 +131,9 @@ Loop operation description in the IR also has several special sections: `body`, 
 
 **Loop Inputs**
 
-* **Trip count**: A scalar tensor of `int64` type specifying maximum number of iterations. *Required*.
+* **Trip count**: A scalar or 1D tensor with 1 element of `int64` or `int32` type specifying maximum number of iterations. *Required*.
 
-* **Condition**: A scalar tensor of `boolean` type specifying whether to execute the first iteration or not. `True` means to execute the 1st iteration. *Required*.
+* **ExecutionCondition**: A scalar or 1D tensor with 1 element of `boolean` type specifying whether to execute the first iteration or not. `True` value means to execute the 1st iteration. *Required*.
 
 * **Multiple other inputs**: tensors of different types and shapes. *Optional*.
 
@@ -144,12 +144,10 @@ Loop operation description in the IR also has several special sections: `body`, 
 
 **Body Inputs**
 
-* **Multiple inputs**: tensors of different types and shapes. One of the inputs corresponds to current iteration number input (this input is optional). This input is marked in the port_map with attribute `purpose = "iteration_number"`. *Optional*.
+* **Multiple inputs**: tensors of different types and shapes. One of the inputs corresponds to current iteration number input (this input is optional). This input is marked in the port_map with attribute `purpose = "current_iteration"`. *Optional*.
 
 
 **Body Outputs**
-
-* **Condition**: A scalar tensor of `boolean` type specifying whether to execute the next iteration or not. `True` means to continue execution.
 
 * **Multiple outputs**: Results of execution of the `body`. Tensors of any type and shape. One of the outputs corresponds to the output with execution condition. This output is marked in the port_map with attribute `purpose = "execution_condition"`.
 
@@ -164,7 +162,7 @@ Loop operation description in the IR also has several special sections: `body`, 
     <port_map>
         <input external_port_id="0" internal_layer_id="0"/>
         <input external_port_id="1" internal_layer_id="1"/>
-        <input external_port_id="-1" internal_layer_id="2" purpose="iteration_number"/>
+        <input external_port_id="-1" internal_layer_id="2" purpose="current_iteration"/>
         ...
         <output external_port_id="3" internal_layer_id="4"/>
         <output external_port_id="4" internal_layer_id="10" axis="1"/>
