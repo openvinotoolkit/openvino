@@ -32,8 +32,12 @@ namespace ngraph
             {
                 inline OutputVector pow(const Node& node)
                 {
-                    return {std::make_shared<default_opset::Power>(node.get_ng_inputs().at(0),
-                                                                   node.get_ng_inputs().at(1))};
+                    auto inputs = node.get_ng_inputs();
+                    return {std::make_shared<default_opset::Convert>(
+                        std::make_shared<default_opset::Power>(
+                            std::make_shared<default_opset::Convert>(inputs[0], element::f32),
+                            std::make_shared<default_opset::Convert>(inputs[1], element::f32)),
+                        inputs[0].get_element_type())};
                 }
 
             } // namespace set_1
