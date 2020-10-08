@@ -22,6 +22,7 @@ from pathlib import Path
 import yaml
 import hashlib
 import shutil
+import logging
 
 from test_runner.utils import upload_timetest_data, \
     DATABASE, DB_COLLECTIONS
@@ -147,6 +148,7 @@ def prepare_tconf_with_refs(pytestconfig):
     yield
     new_tconf_path = pytestconfig.getoption('dump_refs')
     if new_tconf_path:
+        logging.info("Save new test config with test results as references to {}".format(new_tconf_path))
         upd_cases = pytestconfig.orig_cases.copy()
         for record in pytestconfig.session_info:
             rec_i = upd_cases.index(record["orig_instance"])
@@ -227,4 +229,5 @@ def pytest_runtest_makereport(item, call):
                 data["error_msg"] = report.longrepr.reprcrash.message
             else:
                 data["status"] = "passed"
+        logging.info("Upload data to {}/{}.{}. Data: {}".format(db_url, DATABASE, db_collection, data))
         upload_timetest_data(data, db_url, db_collection)
