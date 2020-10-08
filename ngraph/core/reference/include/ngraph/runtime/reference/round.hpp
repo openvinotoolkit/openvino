@@ -46,7 +46,7 @@ namespace ngraph
             }
 
             template <typename T>
-            void round(const T* arg, T* out, size_t count, std::string& mode)
+            void round(const T* arg, T* out, size_t count, const std::string& mode)
             {
                 if (mode == "half_to_even")
 					for (size_t i = 0; i < count; ++i)

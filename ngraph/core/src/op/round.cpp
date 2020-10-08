@@ -25,7 +25,7 @@
 using namespace std;
 using namespace ngraph;
 
-NGRAPH_RTTI_DEFINITION(op::v5::<Round>, "<Round>", 5);
+NGRAPH_RTTI_DEFINITION(op::v5::Round, "Round", 5);
 
 op::v5::Round::Round(const Output<Node>& arg, const std::string& mode)
     : Op({arg}
@@ -40,6 +40,12 @@ bool ngraph::op::v5::Round::visit_attributes(AttributeVisitor& visitor)
     return true;
 }
 
+void op::v5::Round::validate_and_infer_types()
+{
+    set_output_size(1);
+    set_output_type(0, get_input_element_type(0), get_input_partial_shape(0));
+}
+
 shared_ptr<Node> op::Round::clone_with_new_inputs(const OutputVector& new_args) const
 {
     check_new_args_count(this, new_args);
@@ -50,22 +56,30 @@ namespace
 {
     // function used by TYPE_CASE
     template <element::Type_t ET>
-    inline bool evaluate(const HostTensorPtr& arg0, const HostTensorPtr& out, const size_t count)
+    inline bool evaluate(const HostTensorPtr& arg0,
+                         const HostTensorPtr& out,
+                         const size_t count,
+                         const std::string& mode)
     {
         using T = typename element_type_traits<ET>::value_type;
-        runtime::reference::round<T>(arg0->get_data_ptr<ET>(), out->get_data_ptr<ET>(), count);
+        runtime::reference::round<T>(arg0->get_data_ptr<ET>(), out->get_data_ptr<ET>(), count, mode);
         return true;
     }
 
     // function used by COPY_TENSOR
     template <element::Type_t ET>
-    inline bool copy_tensor(const HostTensorPtr& arg0, const HostTensorPtr& out, const size_t count)
+    inline bool copy_tensor(const HostTensorPtr& arg0,
+                            const HostTensorPtr& out,
+                            const size_t count)
     {
         runtime::reference::copy(arg0->get_data_ptr<ET>(), out->get_data_ptr<ET>(), count);
         return true;
     }
 
-    bool evaluate_round(const HostTensorPtr& arg0, const HostTensorPtr& out, const size_t count)
+    bool evaluate_round(const HostTensorPtr& arg0,
+                        const HostTensorPtr& out,
+                        const size_t count,
+                        const std::string& mode)
     {
         bool rc = true;
         out->set_unary(arg0);
@@ -90,9 +104,9 @@ namespace
             break;
             COPY_TENSOR(u64)(arg0, out, count);
             break;
-            TYPE_CASE(f16)(arg0, out, count);
+            TYPE_CASE(f16)(arg0, out, count, mode);
             break;
-            TYPE_CASE(f32)(arg0, out, count);
+            TYPE_CASE(f32)(arg0, out, count, mode);
             break;
         default: rc = false; break;
         }
