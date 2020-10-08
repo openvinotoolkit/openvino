@@ -74,11 +74,11 @@ jobs:
     displayName: 'IE UT old'
     continueOnError: false
   - script: python $(REPO_DIR)\.ci\azure\analyze_gtest_log.py --log-file=TEST-InferenceEngineUnitTests.log
-    displayName: 'IE UT Analyze
+    displayName: 'IE UT Analyze'
     continueOnError: true
   - script: |
       set PATH=$(REPO_DIR)\inference-engine\temp\tbb\bin;$(IB_DIR);%PATH%
-      powershell -command "@{\"$(IB_TESTCONSOLE)\"} $(BIN_DIR)\InferenceEngineUnitTests.exe --gtest_output=xml:TEST-InferenceEngineUnitTests-IB.xml /testlevel=128 | tee TEST-InferenceEngineUnitTests-IB.log"
+      powershell -command "\"$(IB_TESTCONSOLE)\" $(BIN_DIR)\InferenceEngineUnitTests.exe --gtest_output=xml:TEST-InferenceEngineUnitTests-IB.xml /testlevel=128 | tee TEST-InferenceEngineUnitTests-IB.log"
     displayName: 'IE UT old IB'
     continueOnError: false
   - script: python $(REPO_DIR)\.ci\azure\analyze_gtest_log.py --log-file=TEST-InferenceEngineUnitTests-IB.log
