@@ -114,8 +114,3 @@ bool op::v1::Divide::evaluate(const HostTensorVector& outputs, const HostTensorV
     OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v1::Divide::evaluate");
     return evaluate_divide(inputs[0], inputs[1], outputs[0], get_autob(), is_pythondiv());
 }
-
-shared_ptr<Node> ngraph::operator/(const Output<Node>& arg0, const Output<Node>& arg1)
-{
-    return make_shared<op::v1::Divide>(arg0, arg1);
-}

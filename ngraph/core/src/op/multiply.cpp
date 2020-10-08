@@ -92,10 +92,3 @@ bool op::v1::Multiply::evaluate(const HostTensorVector& outputs,
     OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v1::Multiply::evaluate");
     return evaluate_multiply(inputs[0], inputs[1], outputs[0], get_autob());
 }
-
-// -----------------------------------------------------------------------------
-
-shared_ptr<Node> ngraph::operator*(const Output<Node>& arg0, const Output<Node>& arg1)
-{
-    return make_shared<op::Multiply>(arg0, arg1);
-}

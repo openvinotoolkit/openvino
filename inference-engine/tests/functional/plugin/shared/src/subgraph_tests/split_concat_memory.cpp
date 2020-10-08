@@ -64,7 +64,7 @@ void SplitConcatMemory::SetUp() {
     auto spl = std::make_shared<ngraph::op::v1::VariadicSplit>(cnc, axis_c, chunk_c);
 
     auto one = std::make_shared<ngraph::op::Constant>(ngPrc, ngraph::Shape{}, 1);
-    auto plus = std::make_shared<ngraph::op::Add>(cnc, one, ngraph::op::AutoBroadcastSpec::NUMPY);
+    auto plus = std::make_shared<ngraph::op::v1::Add>(cnc, one, ngraph::op::AutoBroadcastSpec::NUMPY);
     plus->set_friendly_name("plus_one");
 
     auto mem_w = std::make_shared<ngraph::op::Assign>(spl->output(1), "id");

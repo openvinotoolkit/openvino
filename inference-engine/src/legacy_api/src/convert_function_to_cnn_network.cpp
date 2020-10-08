@@ -801,7 +801,7 @@ void convertFunctionToICNNNetwork(const std::shared_ptr<const ::ngraph::Function
                 std::make_shared<Builder::NodeConverter<::ngraph::op::v1::StridedSlice>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::Squeeze>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::Sqrt>>(),
-                std::make_shared<Builder::NodeConverter<::ngraph::op::Subtract>>(),
+                std::make_shared<Builder::NodeConverter<::ngraph::op::v1::Subtract>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::Tan>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::Tanh>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::TileIE>>(),

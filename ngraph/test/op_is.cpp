@@ -49,7 +49,7 @@ namespace
 
     void op_is_Add()
     {
-        op::Add node;
+        op::v1::Add node;
         EXPECT_FALSE(op::is_unary_elementwise_arithmetic(&node));
         EXPECT_TRUE(op::is_binary_elementwise_arithmetic(&node));
         EXPECT_FALSE(op::is_binary_elementwise_comparison(&node));
@@ -229,7 +229,7 @@ namespace
 
     void op_is_Divide()
     {
-        op::Divide node;
+        op::v1::Divide node;
         EXPECT_FALSE(op::is_unary_elementwise_arithmetic(&node));
         EXPECT_TRUE(op::is_binary_elementwise_arithmetic(&node));
         EXPECT_FALSE(op::is_binary_elementwise_comparison(&node));
@@ -283,7 +283,7 @@ namespace
 
     void op_is_Equal()
     {
-        op::Equal node;
+        op::v1::Equal node;
         EXPECT_FALSE(op::is_unary_elementwise_arithmetic(&node));
         EXPECT_FALSE(op::is_binary_elementwise_arithmetic(&node));
         EXPECT_TRUE(op::is_binary_elementwise_comparison(&node));
@@ -382,7 +382,7 @@ namespace
 
     void op_is_Greater()
     {
-        op::Greater node;
+        op::v1::Greater node;
         EXPECT_FALSE(op::is_unary_elementwise_arithmetic(&node));
         EXPECT_FALSE(op::is_binary_elementwise_arithmetic(&node));
         EXPECT_TRUE(op::is_binary_elementwise_comparison(&node));
@@ -391,7 +391,7 @@ namespace
 
     void op_is_GreaterEq()
     {
-        op::GreaterEq node;
+        op::v1::GreaterEq node;
         EXPECT_FALSE(op::is_unary_elementwise_arithmetic(&node));
         EXPECT_FALSE(op::is_binary_elementwise_arithmetic(&node));
         EXPECT_TRUE(op::is_binary_elementwise_comparison(&node));
@@ -544,7 +544,7 @@ namespace
 
     void op_is_Multiply()
     {
-        op::Multiply node;
+        op::v1::Multiply node;
         EXPECT_FALSE(op::is_unary_elementwise_arithmetic(&node));
         EXPECT_TRUE(op::is_binary_elementwise_arithmetic(&node));
         EXPECT_FALSE(op::is_binary_elementwise_comparison(&node));
@@ -904,7 +904,7 @@ namespace
 
     void op_is_Subtract()
     {
-        op::Subtract node;
+        op::v1::Subtract node;
         EXPECT_FALSE(op::is_unary_elementwise_arithmetic(&node));
         EXPECT_TRUE(op::is_binary_elementwise_arithmetic(&node));
         EXPECT_FALSE(op::is_binary_elementwise_comparison(&node));

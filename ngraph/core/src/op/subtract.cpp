@@ -20,15 +20,8 @@
 #include "ngraph/runtime/host_tensor.hpp"
 #include "ngraph/runtime/reference/subtract.hpp"
 
-NGRAPH_SUPPRESS_DEPRECATED_START
-
 using namespace std;
 using namespace ngraph;
-
-shared_ptr<ngraph::Node> ngraph::operator-(const Output<Node> arg0, const Output<Node> arg1)
-{
-    return make_shared<op::v1::Subtract>(arg0, arg1);
-}
 
 template <element::Type_t ET>
 bool evaluate(const HostTensorPtr& arg0,

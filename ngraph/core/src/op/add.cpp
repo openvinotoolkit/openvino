@@ -22,11 +22,6 @@
 using namespace std;
 using namespace ngraph;
 
-shared_ptr<Node> ngraph::operator+(const Output<Node>& arg0, const Output<Node>& arg1)
-{
-    return make_shared<op::Add>(arg0, arg1);
-}
-
 namespace
 {
     template <element::Type_t ET>

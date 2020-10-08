@@ -34,8 +34,6 @@ using namespace std;
 using namespace ngraph;
 using ::testing::Return;
 
-NGRAPH_SUPPRESS_DEPRECATED_START
-
 using ProvSet = std::unordered_set<std::string>;
 
 TEST(provenance, provenance)
@@ -70,16 +68,16 @@ TEST(provenance, provenance)
         auto x = make_shared<op::Parameter>(element::i32, PartialShape{2, 3, 4});
         auto y = make_shared<op::Parameter>(element::i32, PartialShape{2, 3, 4});
 
-        auto a = make_shared<op::Add>(x, y);
+        auto a = make_shared<op::v1::Add>(x, y);
         a->add_provenance_tag("tag_a");
-        auto b = make_shared<op::Multiply>(y, x);
+        auto b = make_shared<op::v1::Multiply>(y, x);
         b->add_provenance_tag("tag_b");
-        auto c = make_shared<op::Subtract>(a, b);
+        auto c = make_shared<op::v1::Subtract>(a, b);
         c->add_provenance_tag("tag_c");
 
         auto f = make_shared<Function>(c, ParameterVector{x, y});
 
-        auto new_c = make_shared<op::Subtract>(a, b);
+        auto new_c = make_shared<op::v1::Subtract>(a, b);
         replace_node(c, new_c);
 
         EXPECT_EQ(new_c->get_provenance_tags(), ProvSet{"tag_c"});
@@ -115,16 +113,16 @@ TEST(provenance, provenance)
         auto x = make_shared<op::Parameter>(element::i32, PartialShape{2, 3, 4});
         auto y = make_shared<op::Parameter>(element::i32, PartialShape{2, 3, 4});
 
-        auto a = make_shared<op::Add>(x, y);
+        auto a = make_shared<op::v1::Add>(x, y);
         a->add_provenance_tag("tag_a");
-        auto b = make_shared<op::Multiply>(y, x);
+        auto b = make_shared<op::v1::Multiply>(y, x);
         b->add_provenance_tag("tag_b");
-        auto c = make_shared<op::Subtract>(a, b);
+        auto c = make_shared<op::v1::Subtract>(a, b);
         c->add_provenance_tag("tag_c");
 
         auto f = make_shared<Function>(c, ParameterVector{x, y});
 
-        auto d = make_shared<op::Subtract>(a, b);
+        auto d = make_shared<op::v1::Subtract>(a, b);
         d->add_provenance_tag("tag_d");
         replace_node(c, d);
 
@@ -153,11 +151,11 @@ TEST(provenance, provenance)
         auto x = make_shared<op::Parameter>(element::i32, PartialShape{2, 3, 4});
         auto y = make_shared<op::Parameter>(element::i32, PartialShape{2, 3, 4});
 
-        auto a = make_shared<op::Add>(x, y);
+        auto a = make_shared<op::v1::Add>(x, y);
         a->add_provenance_tag("tag_a");
-        auto b = make_shared<op::Multiply>(y, x);
+        auto b = make_shared<op::v1::Multiply>(y, x);
         b->add_provenance_tag("tag_b");
-        auto c = make_shared<op::Subtract>(a, b);
+        auto c = make_shared<op::v1::Subtract>(a, b);
         c->add_provenance_tag("tag_c");
 
         auto f = make_shared<Function>(c, ParameterVector{x, y});
@@ -191,11 +189,11 @@ TEST(provenance, provenance)
         auto x = make_shared<op::Parameter>(element::i32, PartialShape{2, 3, 4});
         auto y = make_shared<op::Parameter>(element::i32, PartialShape{2, 3, 4});
 
-        auto a = make_shared<op::Add>(x, y);
+        auto a = make_shared<op::v1::Add>(x, y);
         a->add_provenance_tag("tag_a");
-        auto b = make_shared<op::Multiply>(y, x);
+        auto b = make_shared<op::v1::Multiply>(y, x);
         b->add_provenance_tag("tag_b");
-        auto c = make_shared<op::Subtract>(a, b);
+        auto c = make_shared<op::v1::Subtract>(a, b);
         c->add_provenance_tag("tag_c");
 
         auto f = make_shared<Function>(c, ParameterVector{x, y});
@@ -238,17 +236,17 @@ TEST(provenance, provenance)
         auto x = make_shared<op::Parameter>(element::i32, PartialShape{2, 3, 4});
         auto y = make_shared<op::Parameter>(element::i32, PartialShape{2, 3, 4});
 
-        auto a = make_shared<op::Add>(x, y);
+        auto a = make_shared<op::v1::Add>(x, y);
         a->add_provenance_tag("tag_a");
-        auto b = make_shared<op::Multiply>(y, x);
+        auto b = make_shared<op::v1::Multiply>(y, x);
         b->add_provenance_tag("tag_b");
-        auto c = make_shared<op::Subtract>(a, b);
+        auto c = make_shared<op::v1::Subtract>(a, b);
         c->add_provenance_tag("tag_c");
 
         auto f = make_shared<Function>(c, ParameterVector{x, y});
 
-        auto e = make_shared<op::Subtract>(a, x);
-        auto d = make_shared<op::Subtract>(e, b);
+        auto e = make_shared<op::v1::Subtract>(a, x);
+        auto d = make_shared<op::v1::Subtract>(e, b);
         d->add_provenance_tag("tag_d");
 
         replace_node(c, d);
@@ -289,18 +287,18 @@ TEST(provenance, provenance)
         auto x = make_shared<op::Parameter>(element::i32, PartialShape{2, 3, 4});
         auto y = make_shared<op::Parameter>(element::i32, PartialShape{2, 3, 4});
 
-        auto a = make_shared<op::Add>(x, y);
+        auto a = make_shared<op::v1::Add>(x, y);
         a->add_provenance_tag("tag_a");
-        auto b = make_shared<op::Multiply>(y, x);
+        auto b = make_shared<op::v1::Multiply>(y, x);
         b->add_provenance_tag("tag_b");
-        auto c = make_shared<op::Subtract>(a, b);
+        auto c = make_shared<op::v1::Subtract>(a, b);
         c->add_provenance_tag("tag_c");
 
         auto f = make_shared<Function>(c, ParameterVector{x, y});
 
-        auto e = make_shared<op::Subtract>(a, x);
+        auto e = make_shared<op::v1::Subtract>(a, x);
         e->add_provenance_tag("tag_e");
-        auto d = make_shared<op::Subtract>(e, b);
+        auto d = make_shared<op::v1::Subtract>(e, b);
         d->add_provenance_tag("tag_d");
 
         replace_node(c, d);
@@ -316,8 +314,8 @@ TEST(provenance, add_group_above)
     p1->add_provenance_tag("P1");
     auto p2 = make_shared<op::Parameter>(element::i32, PartialShape{2, 3, 4});
     p2->add_provenance_tag("P2");
-    auto a1 = p1 + p2;
-    auto m1 = (a1 * a1)->add_provenance_group_members_above({p1, p2});
+    auto a1 = make_shared<op::v1::Add>(p1, p2);
+    auto m1 = make_shared<op::v1::Multiply>(a1, a1)->add_provenance_group_members_above({p1, p2});
     m1->add_provenance_tag("m1");
     EXPECT_EQ(p1->get_provenance_tags(), (ProvSet{"P1"}));
     EXPECT_EQ(p2->get_provenance_tags(), (ProvSet{"P2"}));
@@ -330,9 +328,9 @@ TEST(provenance, add_tags_above)
     auto x = make_shared<op::Parameter>(element::i32, PartialShape{2, 3, 4});
     auto y = make_shared<op::Parameter>(element::i32, PartialShape{2, 3, 4});
 
-    auto a = make_shared<op::Add>(x, y);
-    auto b = make_shared<op::Multiply>(x, y);
-    auto c = make_shared<op::Subtract>(a, b);
+    auto a = make_shared<op::v1::Add>(x, y);
+    auto b = make_shared<op::v1::Multiply>(x, y);
+    auto c = make_shared<op::v1::Subtract>(a, b);
     auto d = make_shared<op::Abs>(c);
 
     // Add tags to Subtract and all nodes until Parameters (all above c, until params x, y)

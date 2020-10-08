@@ -82,7 +82,7 @@ OutputVector op::GRN::decompose_op() const
     shared_ptr<Node> norm = builder::opset1::l2_norm(data, axis_set_const, m_bias);
     // Get back reduced axis.
     norm = std::make_shared<Broadcast>(norm, data.get_shape(), AxisSet{1});
-    data = data / norm;
+    data = std::make_shared<op::v1::Divide>(data, norm);
 
     // get back original input tensor rank
     if (input_shape.size() != 4)

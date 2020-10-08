@@ -70,10 +70,5 @@ namespace ngraph
                 bool m_pythondiv{true};
             };
         } // namespace v1
-
-        using v1::Divide;
-    } // namespace op
-
-    NGRAPH_API
-    std::shared_ptr<Node> operator/(const Output<Node>& arg0, const Output<Node>& arg1);
+    }     // namespace op
 } // namespace ngraph

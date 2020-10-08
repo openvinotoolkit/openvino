@@ -121,7 +121,7 @@ namespace
         return replacement_node;
     }
 
-    shared_ptr<Node> op_cast(shared_ptr<op::Divide> node)
+    shared_ptr<Node> op_cast(shared_ptr<op::v1::Divide> node)
     {
         const auto autob = node->get_autob();
         const bool pydiv = node->is_pythondiv();

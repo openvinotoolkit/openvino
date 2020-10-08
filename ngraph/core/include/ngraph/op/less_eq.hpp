@@ -51,6 +51,5 @@ namespace ngraph
                               const HostTensorVector& inputs) const override;
             };
         } // namespace v1
-        using v1::LessEqual;
-    } // namespace op
+    }     // namespace op
 } // namespace ngraph
