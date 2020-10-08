@@ -247,7 +247,7 @@ void file_util::iterate_files(const string& path,
 
 #ifdef ENABLE_UNICODE_PATH_SUPPORT
 
-std::string wstring_to_string(const std::wstring& wstr)
+std::string file_util::wstring_to_string(const std::wstring& wstr)
 {
 #ifdef _WIN32
     int size_needed =
@@ -262,7 +262,7 @@ std::string wstring_to_string(const std::wstring& wstr)
 #endif
 }
 
-std::wstring multi_byte_char_to_wstring(const char* str)
+std::wstring file_util::multi_byte_char_to_wstring(const char* str)
 {
 #ifdef _WIN32
     int strSize = static_cast<int>(std::strlen(str));
