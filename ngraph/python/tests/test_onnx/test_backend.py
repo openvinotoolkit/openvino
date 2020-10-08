@@ -81,7 +81,7 @@ from tests import (BACKEND_NAME,
                    xfail_issue_38733,
                    xfail_issue_38734,
                    xfail_issue_38735,
-                   xfail_issue_00000)
+                   xfail_issue_40485)
 
 
 def expect_fail(test_case_path, xfail):  # type: (str) -> None
@@ -262,7 +262,7 @@ tests_expected_to_fail = [
     (xfail_issue_36478,
         "OnnxBackendNodeModelTest.test_max_uint64_cpu",
         "OnnxBackendNodeModelTest.test_min_uint64_cpu"),
-    (xfail_issue_00000,
+    (xfail_issue_40485,
         "OnnxBackendNodeModelTest.test_argmax_negative_axis_keepdims_example_select_last_index_cpu",
         "OnnxBackendNodeModelTest.test_argmax_keepdims_example_select_last_index_cpu",
         "OnnxBackendNodeModelTest.test_argmax_no_keepdims_example_select_last_index_cpu",
