@@ -124,7 +124,6 @@ public:
 
     QueryNetworkResult QueryNetwork(const ICNNNetwork& /*network*/, const std::map<std::string, std::string>& /*config*/) const override {
         THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str;
-        return {};
     }
 
     void SetName(const std::string& pluginName) noexcept override {

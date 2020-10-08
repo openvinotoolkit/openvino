@@ -77,7 +77,6 @@ public:
 
     CNNNetwork GetExecGraphInfo() override {
         THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str;
-        return {};
     }
 
     /**
@@ -90,8 +89,7 @@ public:
     }
 
     std::vector<IMemoryStateInternal::Ptr> QueryState() override {
-        // meaning base plugin reports as no state available - plugin owners need to create proper override of this
-        return {};
+        THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str;
     }
 
     void SetConfig(const std::map<std::string, Parameter>& config) override {
@@ -105,7 +103,6 @@ public:
     Parameter GetConfig(const std::string& name) const override {
         (void)name;
         THROW_IE_EXCEPTION << "GetConfig for executable network is not supported by this device";
-        return {};
     }
 
     Parameter GetMetric(const std::string& name) const override {
@@ -115,7 +112,6 @@ public:
 
     RemoteContext::Ptr GetContext() const override {
         THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str;
-        return {};
     }
 
 protected:

@@ -144,8 +144,6 @@ InferenceEngine::Parameter TemplatePlugin::ExecutableNetwork::GetMetric(const st
     } else {
         THROW_IE_EXCEPTION << "Unsupported ExecutableNetwork metric: " << name;
     }
-
-    return {};
 }
 // ! [executable_network:get_metric]
 

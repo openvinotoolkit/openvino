@@ -114,20 +114,6 @@ private:
     }
 #endif
 
-#ifdef ENABLE_UNICODE_PATH_SUPPORT
-    void ExcludeCurrentDirectoryW() {
-        // Exclude current directory from DLL search path process wise.
-        // If application specific path was configured before then
-        // current directory is alread excluded.
-        // GetDLLDirectory does not distinguish if aplication specific
-        // path was set to "" or NULL so reset it to "" to keep
-        // aplication safe.
-        if (GetDllDirectoryW(0, NULL) <= 1) {
-            SetDllDirectoryW(TEXT(""));
-        }
-    }
-#endif
-
 public:
 #ifdef ENABLE_UNICODE_PATH_SUPPORT
     explicit Impl(const wchar_t* pluginName) {
