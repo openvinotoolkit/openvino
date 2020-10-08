@@ -275,6 +275,7 @@ set(MULTI_TEST_SRC
     backend/convolution.in.cpp
     backend/cos.in.cpp
     backend/cosh.in.cpp
+    backend/ctc_greedy_decoder.in.cpp
     backend/cum_sum.in.cpp
     backend/divide.in.cpp
     backend/dot.in.cpp
@@ -304,6 +305,7 @@ set(MULTI_TEST_SRC
     backend/multiply.in.cpp
     backend/negative.in.cpp
     backend/node_name.in.cpp
+    backend/normalize_l2.in.cpp
     backend/not.in.cpp
     backend/non_zero.in.cpp
     backend/numeric.in.cpp
