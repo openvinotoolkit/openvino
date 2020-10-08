@@ -70,6 +70,7 @@
 #include "ngraph/runtime/reference/max_pool.hpp"
 #include "ngraph/runtime/reference/min.hpp"
 #include "ngraph/runtime/reference/negate.hpp"
+#include "ngraph/runtime/reference/normalize_l2.hpp"
 #include "ngraph/runtime/reference/not.hpp"
 #include "ngraph/runtime/reference/one_hot.hpp"
 #include "ngraph/runtime/reference/pad.hpp"
@@ -1372,6 +1373,17 @@ protected:
                                    args[1]->get_element_type());
             break;
         }
+        case OP_TYPEID::NormalizeL2:
+        {
+            const op::NormalizeL2* norm = static_cast<const op::NormalizeL2*>(&node);
+            reference::normalize_l2<T>(args[0]->get_data_ptr<const T>(),
+                                       out[0]->get_data_ptr<T>(),
+                                       node.get_input_shape(0),
+                                       norm->get_reduction_axes(),
+                                       norm->get_eps(),
+                                       norm->get_eps_mode());
+            break;
+        }
 
         // Fused Ops are not supported in interpreter. They need to be decomposed before execution
         case OP_TYPEID::DepthToSpace:
@@ -1384,7 +1396,6 @@ protected:
         case OP_TYPEID::HardSigmoid:
         case OP_TYPEID::Interpolate:
         case OP_TYPEID::MVN:
-        case OP_TYPEID::NormalizeL2:
         case OP_TYPEID::PRelu:
         case OP_TYPEID::ScatterUpdate_v3:
         case OP_TYPEID::Selu:
