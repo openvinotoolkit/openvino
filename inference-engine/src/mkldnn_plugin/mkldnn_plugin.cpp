@@ -138,7 +138,6 @@ static void Transformation(ICNNNetwork::Ptr& clonedNetwork) {
     pass_config->disable<ngraph::pass::ReduceL2Decomposition>();
     pass_config->disable<ngraph::pass::SoftPlusDecomposition>();
 
-    pass_config->enable<ngraph::pass::DepthToSpaceFusion>();
     pass_config->enable<ngraph::pass::ConvertPadToGroupConvolution>();
 
     manager.run_passes(nGraphFunc);
