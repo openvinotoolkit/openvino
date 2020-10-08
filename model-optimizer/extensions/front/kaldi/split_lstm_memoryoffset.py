@@ -20,6 +20,7 @@ from mo.graph.graph import Graph
 from mo.ops.memoryoffset import MemoryOffset
 from mo.ops.result import Result
 from mo.utils.error import Error
+from mo.utils.graph import Node
 
 
 class SplitLstmMemoryOffset(FrontReplacementSubgraph):
@@ -33,19 +34,16 @@ class SplitLstmMemoryOffset(FrontReplacementSubgraph):
     enabled = True
     graph_condition = [lambda graph: graph.graph['fw'] == 'kaldi']
 
-    def run_after(self):
-        from extensions.front.restore_ports import RestorePorts
-        return [RestorePorts]
-
-    def split_offset(self, offset_node):
+    @staticmethod
+    def split_offset(offset_node: Node):
         paired_node = MemoryOffset(offset_node.graph, {'name': offset_node.pair_name, 'splitted': True,
-                                           'pair_name': offset_node.id,
-                                           'element_size': offset_node['element_size'],
-                                           't': offset_node.t,
-                                           'has_default': offset_node.has_default}).create_node()
+                                                       'pair_name': offset_node.id,
+                                                       'element_size': offset_node['element_size'],
+                                                       't': offset_node.t,
+                                                       'has_default': offset_node.has_default}).create_node()
         offset_node['splitted'] = True
         offset_node.out_port(0).get_connection().set_source(paired_node.out_port(0))
-        res_node = Result(offset_node.graph, {'name': offset_node.id + "_output"}).create_node()
+        res_node = Result(offset_node.graph, {'name': offset_node.id + '_output'}).create_node()
         offset_node.out_port(0).connect(res_node.in_port(0))
 
     def find_and_replace_pattern(self, graph: Graph):
@@ -53,10 +51,10 @@ class SplitLstmMemoryOffset(FrontReplacementSubgraph):
             try:
                 # if graph contains LSTM block with cycle, split MemoryOffset to enable shape infer
                 nx.find_cycle(graph, offset_node.id)
-                assert offset_node.has_valid('element_size')
-                self.split_offset(offset_node)
             except nx.NetworkXNoCycle as e:
                 # MemoryOffset node is not in a recursive LSTM block -- no splitting is needed
                 return
-            except AssertionError as e:
-                raise Error("MemoryOffset node in a LSTM block has no element_size. Out shape can not be inferred")
+
+            if not offset_node.has_valid('element_size'):
+                raise Error("In a recurrent block 'element_size' for node {} is not set".format(offset_node.id))
+            SplitLstmMemoryOffset.split_offset(offset_node)

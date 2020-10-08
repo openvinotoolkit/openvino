@@ -27,10 +27,6 @@ class SplitTdnnMemoryOffset(MiddleReplacementPattern):
     enabled = True
     run_not_recursively = True
 
-    def run_after(self):
-        from extensions.middle.PartialInfer import PartialInfer
-        return [PartialInfer]
-
     def run_before(self):
         from extensions.middle.ReplaceMemoryOffsetWithSplice import ReplaceMemoryOffsetWithMemoryNodePattern, ReplaceMemoryOffsetNodePattern
         return [ReplaceMemoryOffsetNodePattern, ReplaceMemoryOffsetWithMemoryNodePattern]

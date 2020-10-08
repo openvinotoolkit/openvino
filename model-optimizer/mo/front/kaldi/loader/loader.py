@@ -501,7 +501,7 @@ def parse_specifier(string, graph, layer_node_map):
     elif spec == b'Scale':
         node_name = parse_specifier(args[1], graph, layer_node_map)
         scale_value = float(args[0])
-        layer_name = 'Scale_{}_{}'.format(node_name, scale_value)
+        layer_name = '{}/Mul/{}'.format(node_name, scale_value)
 
         if layer_name not in layer_node_map:
             scale_name = graph.unique_id(prefix=layer_name)
@@ -509,7 +509,7 @@ def parse_specifier(string, graph, layer_node_map):
 
             layer_node_map[layer_name] = scale_name
 
-            scale_const_name = 'Scale_{}_const_{}'.format(node_name, scale_value)
+            scale_const_name = 'Const_{}'.format(scale_value)
             const_node = Const(graph, {'name': scale_const_name, 'value': float_array([scale_value])}).create_node()
 
             node = Node(graph, node_name)

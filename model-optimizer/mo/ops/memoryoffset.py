@@ -21,7 +21,7 @@ from mo.ops.op import Op
 
 class MemoryOffset(Op):
     op = 'MemoryOffset'
-    enabled = True
+    enabled = False
 
     def __init__(self, graph: Graph, attrs: dict):
         super().__init__(graph, {
@@ -38,7 +38,7 @@ class MemoryOffset(Op):
     @staticmethod
     def infer(node: Node):
         if node.has_valid('element_size'):
-            # already splitted MemoryOffset from LSTM block
+            # 'element_size' should be set on the loader or on 'memory_offset_adjustment'
             node.out_port(0).data.set_shape([1, node['element_size']])
         else:
             copy_shape_infer(node)

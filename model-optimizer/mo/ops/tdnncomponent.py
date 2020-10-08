@@ -13,12 +13,9 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 """
-import numpy as np
 
-from mo.front.common.partial_infer.elemental import copy_shape_infer
-from mo.graph.graph import Graph, Node
+from mo.graph.graph import Graph
 from mo.ops.op import Op
-from mo.utils.error import Error
 
 
 class TdnnComponent(Op):

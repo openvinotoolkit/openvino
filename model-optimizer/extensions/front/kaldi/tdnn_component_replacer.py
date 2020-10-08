@@ -16,10 +16,10 @@
 
 from extensions.ops.MatMul import FullyConnected
 from mo.front.common.replacement import FrontReplacementPattern
+from mo.front.tf.graph_utils import create_op_with_const_inputs
 from mo.graph.graph import Graph, Node
 from mo.graph.graph import rename_nodes
 from mo.ops.concat import Concat
-from mo.ops.const import Const
 from mo.ops.memoryoffset import MemoryOffset
 
 
@@ -48,10 +48,6 @@ class TdnnComponentReplacer(FrontReplacementPattern):
     enabled = True
     run_not_recursively = True
 
-    def run_after(self):
-        from extensions.front.restore_ports import RestorePorts
-        return [RestorePorts]
-
     def run_before(self):
         from extensions.front.kaldi.memory_offset_adjustment import MemoryOffsetAdjustment
         return [MemoryOffsetAdjustment]
@@ -66,39 +62,34 @@ class TdnnComponentReplacer(FrontReplacementPattern):
         concat_node = Concat(graph, {'axis': 1}).create_node()
         rename_nodes([(tdnn_node, tdnn_name + '/to_be_removed'), (concat_node, tdnn_name)])
 
-        for i, t in enumerate(tdnn_node['time_offsets']):
-            concat_node.add_input_port(i)
+        for offfset_ind, t in enumerate(tdnn_node['time_offsets']):
+            concat_node.add_input_port(offfset_ind)
             if t != 0:
-                memory_name = tdnn_name + '_memoryoffset_' + str(abs(t))
+                memory_name = tdnn_name + '/MemoryOffset/' + str(abs(t))
                 memoryoffset_node = MemoryOffset(graph, {'name': memory_name, 't': t,
                                                          'pair_name': memory_name + '_out',
                                                          'has_default': False, 'splitted': False}).create_node()
 
                 tdnn_node.in_port(0).get_source().connect(memoryoffset_node.in_port(0))
-                memoryoffset_node.out_port(0).connect(concat_node.in_port(i))
+                memoryoffset_node.out_port(0).connect(concat_node.in_port(offfset_ind))
             else:
                 # 0 time delay is not allowed in IE, it's meaningless
                 # if time offset is 0 then connect input of tdnncomponent directly to Concat without memoryoffset
-                tdnn_node.in_port(0).get_source().connect(concat_node.in_port(i))
+                tdnn_node.in_port(0).get_source().connect(concat_node.in_port(offfset_ind))
 
         weights = tdnn_node['weights']
-        bias_term = False
-        if tdnn_node.has_valid('biases') and tdnn_node['biases'] is not None:
-            bias_term = True
-            biases = tdnn_node['biases']
-            assert len(biases) == weights.shape[0]
+        fc_inputs = {1: weights}
 
-        fc_node = FullyConnected(graph, {'name': tdnn_name + '_fc',
-                                         'out-size': weights.shape[0],
-                                         'transpose_weights': True,
-                                         'bias_term': bias_term}).create_node()
+        bias_term = False
+        if tdnn_node.has_valid('biases'):
+            assert len(tdnn_node['biases']) == weights.shape[0]
+            fc_inputs.update({2: tdnn_node['biases']})
+            bias_term = True
+
+        fc_node = create_op_with_const_inputs(graph, FullyConnected, fc_inputs,
+                                              {'name': tdnn_name + '/FC', 'out-size': weights.shape[0],
+                                               'transpose_weights': True, 'bias_term': bias_term})
+
         concat_node.out_port(0).connect(fc_node.in_port(0))
         tdnn_node.in_port(0).disconnect()
         tdnn_node.out_port(0).get_connection().set_source(fc_node.out_port(0))
-
-        weights_node = Const(graph, {'name': tdnn_name + '_fc_weights', 'value': tdnn_node['weights']}).create_node()
-        weights_node.out_port(0).connect(fc_node.in_port(1))
-
-        if bias_term:
-            biases_node = Const(graph, {'name': tdnn_name + '_fc_biases', 'value': biases}).create_node()
-            biases_node.out_port(0).connect(fc_node.in_port(2))
