@@ -24,3 +24,9 @@ def function_from_cnn(cnn_network: IENetwork) -> Function:
     capsule = cnn_network._get_function_capsule()
     ng_function = Function.from_capsule(capsule)
     return ng_function
+
+
+def function_to_cnn(ng_function: Function) -> Function:
+    """Get Inference Engine CNN network from nGraph function."""
+    capsule = Function.to_capsule(ng_function)
+    return IENetwork(capsule)
