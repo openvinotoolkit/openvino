@@ -70,9 +70,9 @@ class must not exceed `max_output_boxes_per_class`.
 
 *   **1**: `selected_indices` - tensor of type *T_IND* and shape `[number of selected boxes, 3]` containing information about selected boxes as triplets `[batch_index, class_index, box_index]`.
 
-*   **2**: `selected_scores` -  tensor of type *T_THRESHOLDS* and shape `[number of selected boxes, 3]` containing information about scores for each selected box as triplets `[batch_index, class_index, box_score]`.
+*   **2**: `selected_scores` - tensor of type *T_THRESHOLDS* and shape `[number of selected boxes, 3]` containing information about scores for each selected box as triplets `[batch_index, class_index, box_score]`.
 
-*   **3**: `valid_outputs` -  scalar of type *T_IND* representing the total number of selected boxes. Optional.
+*   **3**: `valid_outputs` - 1D tensor with 1 element of type *T_IND* representing the total number of selected boxes. Optional.
 
 **Types**
 
@@ -113,7 +113,9 @@ class must not exceed `max_output_boxes_per_class`.
             <dim>150</dim> <!-- min(100, 10) * 3 * 5 -->
             <dim>3</dim>
         </port>
-        <port id="7" precision="I64"/>
+        <port id="7" precision="I64">
+            <dim>1</dim>
+        </port>
     </output>
 </layer>
 ```
