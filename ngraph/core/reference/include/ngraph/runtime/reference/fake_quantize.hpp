@@ -30,69 +30,72 @@ namespace ngraph
     {
         namespace reference
         {
-            std::vector<size_t>
+            namespace {
+                std::vector<size_t>
                 calc_broadcast_index_offset(const std::vector<size_t>& memory_offsets,
                                             const std::vector<size_t>& broadcast_shape)
-            {
-                std::vector<size_t> broadcast_offsets(broadcast_shape.size(), 0);
-                for (int i = broadcast_shape.size() - 2; i >= 0; --i)
                 {
-                    if (broadcast_shape[i] == 1)
+                    std::vector<size_t> broadcast_offsets(broadcast_shape.size(), 0);
+                    for (int i = broadcast_shape.size() - 2; i >= 0; --i)
                     {
-                        broadcast_offsets[i] = memory_offsets[i];
+                        if (broadcast_shape[i] == 1)
+                        {
+                            broadcast_offsets[i] = memory_offsets[i];
+                        }
+                        else
+                        {
+                            broadcast_offsets[i] = std::accumulate(broadcast_offsets.begin() + i,
+                                                                   broadcast_offsets.end(),
+                                                                   0,
+                                                                   std::plus<size_t>());
+                        }
                     }
-                    else
+                    if (!std::all_of(broadcast_shape.begin(),
+                                     broadcast_shape.end(),
+                                     [](size_t i) { return i == 1; }) &&
+                        broadcast_shape.back() == 1)
                     {
-                        broadcast_offsets[i] = std::accumulate(broadcast_offsets.begin() + i,
-                                                               broadcast_offsets.end(),
-                                                               0,
-                                                               std::plus<size_t>());
+                        broadcast_offsets[broadcast_offsets.size() - 1] = 1;
+                    }
+                    return broadcast_offsets;
+                }
+
+                size_t calc_full_broadcast_offset(const std::vector<size_t>& current_dims,
+                                                  const std::vector<size_t>& offsets)
+                {
+                    size_t full_index_offset = 0;
+                    for (size_t i = 0; i < current_dims.size(); ++i)
+                    {
+                        full_index_offset += offsets[i] * current_dims[i];
+                    }
+                    return full_index_offset;
+                }
+
+                void align_shape_sizes(Shape& shape, size_t target_size)
+                {
+                    for (size_t i = 0; i < shape.size() - target_size; ++i)
+                    {
+                        shape.insert(shape.begin(), 1);
                     }
                 }
-                if (!std::all_of(broadcast_shape.begin(),
-                                 broadcast_shape.end(),
-                                 [](size_t i) { return i == 1; }) &&
-                    broadcast_shape.back() == 1)
+
+                void increment_current_dim(std::vector<size_t>& current_dims,
+                                           const std::vector<size_t>& shape,
+                                           size_t incremented_dim_number)
                 {
-                    broadcast_offsets[broadcast_offsets.size() - 1] = 1;
+                    current_dims[incremented_dim_number] += 1;
+                    if (current_dims[incremented_dim_number] == shape[incremented_dim_number] &&
+                        incremented_dim_number != 0)
+                    {
+                        for (size_t i = incremented_dim_number; i < shape.size(); ++i)
+                        {
+                            current_dims[i] = 0;
+                        }
+                        increment_current_dim(current_dims, shape, incremented_dim_number - 1);
+                    }
                 }
-                return broadcast_offsets;
             }
 
-            size_t calc_full_broadcast_offset(const std::vector<size_t>& current_dims,
-                                              const std::vector<size_t>& offsets)
-            {
-                size_t full_index_offset = 0;
-                for (size_t i = 0; i < current_dims.size(); ++i)
-                {
-                    full_index_offset += offsets[i] * current_dims[i];
-                }
-                return full_index_offset;
-            }
-
-            void align_shape_sizes(Shape& shape, size_t target_size)
-            {
-                for (size_t i = 0; i < shape.size() - target_size; ++i)
-                {
-                    shape.insert(shape.begin(), 1);
-                }
-            }
-
-            void increment_current_dim(std::vector<size_t>& current_dims,
-                                       const std::vector<size_t>& shape,
-                                       size_t incremented_dim_number)
-            {
-                current_dims[incremented_dim_number] += 1;
-                if (current_dims[incremented_dim_number] == shape[incremented_dim_number] and
-                    incremented_dim_number != 0)
-                {
-                    for (size_t i = incremented_dim_number; i < shape.size(); ++i)
-                    {
-                        current_dims[i] = 0;
-                    }
-                    increment_current_dim(current_dims, shape, incremented_dim_number - 1);
-                }
-            }
 
             template <typename T>
             void fake_quantize(const T* arg,
