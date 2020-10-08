@@ -1,0 +1,48 @@
+- device:
+    name: CPU
+  model:
+    path: ${VPUX_MODELS_PKG}/resnet-50-pytorch/caffe2/FP16/resnet-50-pytorch.xml
+    precision: FP16
+    framework: caffe2
+- device:
+    name: GPU
+  model:
+    path: ${VPUX_MODELS_PKG}/resnet-50-pytorch/caffe2/FP16/resnet-50-pytorch.xml
+    precision: FP16
+    framework: caffe2
+- device:
+    name: CPU
+  model:
+    path: ${VPUX_MODELS_PKG}/resnet-50-pytorch/caffe2/FP16-INT8/resnet-50-pytorch.xml
+    precision: FP16-INT8
+    framework: caffe2
+- device:
+    name: GPU
+  model:
+    path: ${VPUX_MODELS_PKG}/resnet-50-pytorch/caffe2/FP16-INT8/resnet-50-pytorch.xml
+    precision: FP16-INT8
+    framework: caffe2
+- device:
+    name: CPU
+  model:
+    path: ${VPUX_MODELS_PKG}/mobilenet-v2/caffe2/FP16/mobilenet-v2.xml
+    precision: FP16
+    framework: caffe2
+- device:
+    name: GPU
+  model:
+    path: ${VPUX_MODELS_PKG}/mobilenet-v2/caffe2/FP16/mobilenet-v2.xml
+    precision: FP16
+    framework: caffe2
+- device:
+    name: CPU
+  model:
+    path: ${VPUX_MODELS_PKG}/mobilenet-v2/caffe2/FP16-INT8/mobilenet-v2.xml
+    precision: FP16-INT8
+    framework: caffe2
+- device:
+    name: GPU
+  model:
+    path: ${VPUX_MODELS_PKG}/mobilenet-v2/caffe2/FP16-INT8/mobilenet-v2.xml
+    precision: FP16-INT8
+    framework: caffe2
