@@ -26,7 +26,9 @@ CNNNetwork ReadNetwork(const std::string& modelPath, const std::string& binPath,
  * @param model string with IR
  * @param weights shared pointer to constant blob with weights
  * @param exts vector with extensions
- * @note If you read onnx model which requires external data feature, use ReadNetwork overloading which takes path to the model.
+ * @note Reading ONNX models doesn't support loading weights from data blobs.
+         If you are using an ONNX model with external data files, please use the
+         ReadNetwork function overload which takes a filesystem path to the model.
  * @return CNNNetwork
  */
 CNNNetwork ReadNetwork(const std::string& model, const Blob::CPtr& weights, const std::vector<IExtensionPtr>& exts);
