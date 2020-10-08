@@ -7,6 +7,8 @@ jobs:
   variables:
     system.debug: true
     WORKERS_NUMBER: 8
+    VSTS_HTTP_RETRY: 5
+    VSTS_HTTP_TIMEOUT: 200
     BUILD_TYPE: Release
     REPO_DIR: $(Build.Repository.LocalPath)
     WORK_DIR: $(Pipeline.Workspace)\_w
@@ -131,13 +133,14 @@ jobs:
     displayName: 'IE CAPITests'
     continueOnError: false
   - task: PublishTestResults@2
+    condition: always()
     inputs:
       testResultsFormat: 'JUnit' # Options: JUnit, NUnit, VSTest, xUnit, cTest
       testResultsFiles: '**/TEST-*.xml'
       #searchFolder: '$(BUILD_DIR)'
-      mergeTestResults: true # Optional
+      mergeTestResults: false # Optional
       #failTaskOnFailedTests: false # Optional
-      testRunTitle: 'Pre/Post-Commit' # Optional
+      #testRunTitle: 'Pre/Post-Commit' # Optional
       buildPlatform: 'x64' # Optional
       buildConfiguration: 'Windows' # Optional
       #publishRunAttachments: true # Optional
