@@ -37,6 +37,7 @@ NGRAPH_OP(RNNCell, op::v0)
 NGRAPH_OP(Selu, op::v0)
 NGRAPH_OP(FakeQuantize, op::v0)
 NGRAPH_OP(NormalizeL2, op::v0)
+NGRAPH_OP(CTCGreedyDecoder, op::v0)
 
 NGRAPH_OP(AvgPool, op::v1)
 NGRAPH_OP(Convolution, ngraph::op::v1)

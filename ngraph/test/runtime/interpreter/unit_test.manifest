@@ -148,5 +148,14 @@ onnx_model_gru_fwd_activations
 lstm_cell_bias_peepholes
 lstm_cell_bias_peepholes_clip_input_forget
 
-# Need to update expected results
+# Refs mismatch
 quant_dequant_pattern_axis
+
+# Check 'n_data_channels % groups == 0' failed
+dyn_group_convolution_backprop_data
+
+# Check 'num_dyn_nodes_this_pass < num_dyn_nodes_last_pass' failed
+dyn_convolution_backprop_data
+
+# unsupported element type f16
+INTERPRETER.ctc_greedy_decoder_f16

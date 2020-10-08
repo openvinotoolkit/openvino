@@ -53,6 +53,7 @@
 #include "ngraph/runtime/reference/normalize_l2.hpp"
 #include "ngraph/runtime/reference/reverse_sequence.hpp"
 #include "ngraph/runtime/reference/scatter_nd_update.hpp"
+#include "ngraph/runtime/reference/ctc_greedy_decoder.hpp"
 #include "reference/elu.hpp"
 #include "reference/gelu.hpp"
 #include "reference/hard_sigmoid.hpp"
@@ -126,65 +127,7 @@ namespace
             op->get_strides());
         return true;
     }
-    //
-    //    template <element::Type_t ET>
-    //    bool evaluate(const shared_ptr<op::v1::GroupConvolution>& op,
-    //                  const HostTensorVector& outputs,
-    //                  const HostTensorVector& inputs)
-    //    {
-    //        const auto filter_data = inputs[1]->get_data_ptr<ET>();
-    //        auto out_data_ptr = outputs[0]->get_data_ptr<ET>();
-    //        const auto in_data_ptr = inputs[0]->get_data_ptr<ET>();
-    //        const auto& out_shape = outputs[0]->get_shape();
-    //        const auto& in_shape = inputs[0]->get_shape();
-    //        const auto& filter_shape = inputs[1]->get_shape();
-    //        Strides in_dilation(std::vector<size_t>(in_shape.size() - 2));
-    //        std::fill(in_dilation.begin(), in_dilation.end(), 1);
-    //        runtime::reference::group_convolution<typename element_type_traits<ET>::value_type>(
-    //            in_data_ptr,
-    //            filter_data,
-    //            out_data_ptr,
-    //            in_shape,
-    //            filter_shape,
-    //            out_shape,
-    //            op->get_strides(),
-    //            op->get_dilations(),
-    //            op->get_pads_begin(),
-    //            op->get_pads_end(),
-    //            in_dilation,
-    //            filter_shape.at(0));
-    //        return true;
-    //    }
 
-    //    template <element::Type_t ET>
-    //    bool evaluate(const shared_ptr<op::v1::GroupConvolutionBackpropData>& op,
-    //                  const HostTensorVector& outputs,
-    //                  const HostTensorVector& inputs)
-    //    {
-    //        const auto filter_data = inputs[1]->get_data_ptr<ET>();
-    //        auto out_data_ptr = outputs[0]->get_data_ptr<ET>();
-    //        const auto in_data_ptr = inputs[0]->get_data_ptr<ET>();
-    //        const auto& out_shape = outputs[0]->get_shape();
-    //        const auto& in_shape = inputs[0]->get_shape();
-    //        const auto& filter_shape = inputs[1]->get_shape();
-    //        Strides in_dilation(std::vector<size_t>(in_shape.size() - 2));
-    //        std::fill(in_dilation.begin(), in_dilation.end(), 1);
-    //        runtime::reference::convolution_backprop_in<typename
-    //        element_type_traits<ET>::value_type>(
-    //            in_data_ptr,
-    //            filter_data,
-    //            out_data_ptr,
-    //            in_shape,
-    //            filter_shape,
-    //            out_shape,
-    //            in_dilation,
-    //            op->get_dilations(),
-    //            op->get_pads_begin(),
-    //            op->get_pads_end(),
-    //            op->get_strides(),
-    //            filter_shape.at(0));
-    //        return true;
-    //    }
 
     template <element::Type_t ET>
     bool evaluate(const shared_ptr<op::v0::CumSum>& op,
@@ -1035,6 +978,21 @@ namespace
         return true;
     }
 
+    template <element::Type_t ET>
+    bool evaluate(const shared_ptr<op::v0::CTCGreedyDecoder>& op,
+                  const HostTensorVector& outputs,
+                  const HostTensorVector& inputs)
+    {
+        using T = typename element_type_traits<ET>::value_type;
+        runtime::reference::ctc_greedy_decoder<T>(inputs[0]->get_data_ptr<const T>(),
+                                                  inputs[1]->get_data_ptr<const T>(),
+                                                  outputs[0]->get_data_ptr<T>(),
+                                                  inputs[0]->get_shape(),
+                                                  inputs[1]->get_shape(),
+                                                  outputs[0]->get_shape(),
+                                                  op->get_ctc_merge_repeated());
+        return true;
+    }
     template <typename T>
     bool evaluate_node(std::shared_ptr<Node> node,
                        const HostTensorVector& outputs,
