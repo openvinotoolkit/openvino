@@ -5,15 +5,15 @@ graph {
     input: "A"
     input: "B"
     output: "X"
-    name: "add_node1"
-    op_type: "Add"
+    name: "multiply_node_1"
+    op_type: "Multiply"
   }
   node {
     input: "X"
     input: "C"
     output: "Y"
-    name: "add_node2"
-    op_type: "Add"
+    name: "multiply_node_2"
+    op_type: "Multiply"
   }
   name: "test_graph"
   initializer {
