@@ -1,3 +1,7 @@
+// Copyright (C) 2020 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
 //! [onnx_custom_op:headers]
 // onnx_import/onnx_utils.hpp provides ngraph::onnx_import::register_operator function, that registers operator in ONNX importer's set.
 #include <onnx_import/onnx_utils.hpp>
