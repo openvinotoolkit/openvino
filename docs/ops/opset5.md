@@ -75,6 +75,7 @@ declared in `namespace opset5`.
 * [LogicalNot](logical/LogicalNot_1.md)
 * [LogicalOr](logical/LogicalOr_1.md)
 * [LogicalXor](logical/LogicalXor_1.md)
+* [LogSoftmax](activation/LogSoftmax_5.md)
 * [LRN](normalization/LRN_1.md)
 * [LSTMCell](sequence/LSTMCell_1.md)
 * [LSTMSequence](sequence/LSTMSequence_1.md)
