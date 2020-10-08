@@ -233,6 +233,8 @@ class Convolution(Op):
         # this attribute should store lambda node: ... (check tf convolution extractor)
         if node.has_valid('get_group'):
             node['group'] = node.get_group(node)
+            if node['group'] == 1 and input_shape[node.channel_dims] != kernel_shape[node.input_feature_channel]:
+                node['group'] = input_shape[node.channel_dims] / kernel_shape[node.input_feature_channel]
         output_shape = np.full_like(input_shape, -1, dtype=np.int64)
         output_shape[node.batch_dims] = input_shape[node.batch_dims]  # pylint: disable=unsupported-assignment-operation
         output_shape[node.spatial_dims] = node.output_spatial_shape  # pylint: disable=unsupported-assignment-operation
