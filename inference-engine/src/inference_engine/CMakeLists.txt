@@ -104,7 +104,6 @@ add_library(${TARGET_NAME}_plugin_api INTERFACE)
 target_include_directories(${TARGET_NAME}_plugin_api INTERFACE
     "${IE_MAIN_SOURCE_DIR}/src/plugin_api"
     "${IE_MAIN_SOURCE_DIR}/src/legacy_api/include"
-    "${IE_MAIN_SOURCE_DIR}/src/legacy_api/include/legacy" # for compatibility
     $<TARGET_PROPERTY:${TARGET_NAME}_preproc,INTERFACE_INCLUDE_DIRECTORIES>
     ${PUBLIC_HEADERS_DIR})
 
@@ -241,7 +240,7 @@ ie_developer_export_targets(${TARGET_NAME} ${TARGET_NAME}_plugin_api xbyak)
 
 list(APPEND core_components ngraph)
 
-if(THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO")
+if((THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO") AND TBBROOT MATCHES ${TEMP})
     ie_cpack_add_component(tbb REQUIRED)
     list(APPEND core_components tbb)
 

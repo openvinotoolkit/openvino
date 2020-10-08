@@ -48,7 +48,7 @@ Refer to the sections below for details.
 > ```
 
 Once you create the `ng_function`, you can use it to run computation on the Inference Engine.
-As it was shown in [Build a Model with nGraph Library](nGraphTutorial.md), `std::shared_ptr<ngraph::Function>` can be transformed into a `CNNNetwork`.
+As it was shown in [Build a Model with nGraph Library](../nGraph_DG/build_function.md), `std::shared_ptr<ngraph::Function>` can be transformed into a `CNNNetwork`.
 
 
 ### <a name="stream">Stream as Input</a>
@@ -65,21 +65,3 @@ The code below shows how to convert the ONNX ResNet50 model to the nGraph functi
 
 [onnx_header]: https://github.com/NervanaSystems/ngraph/blob/master/src/ngraph/frontend/onnx_import/onnx.hpp
 [onnx_model_zoo]: https://github.com/onnx/models
-
-
-## Deprecation Notice
-
-<table>
-  <tr>
-    <td><strong>Deprecation Begins</strong></td>
-    <td>June 1, 2020</td>
-  </tr>
-  <tr>
-    <td><strong>Removal Date</strong></td>
-    <td>December 1, 2020</td>
-  </tr>
-</table> 
-
-*Starting with the OpenVINO™ toolkit 2020.2 release, all of the features previously available through nGraph have been merged into the OpenVINO™ toolkit. As a result, all the features previously available through ONNX RT Execution Provider for nGraph have been merged with ONNX RT Execution Provider for OpenVINO™ toolkit.*
-
-*Therefore, ONNX RT Execution Provider for nGraph will be deprecated starting June 1, 2020 and will be completely removed on December 1, 2020. Users are recommended to migrate to the ONNX RT Execution Provider for OpenVINO™ toolkit as the unified solution for all AI inferencing on Intel® hardware.*

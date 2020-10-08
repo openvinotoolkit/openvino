@@ -53,7 +53,7 @@ def run_cmd(args: list, log=None, verbose=True):
 def read_stats(stats_path, stats: dict):
     """Read statistics from a file and extend provided statistics"""
     with open(stats_path, "r") as file:
-        parsed_data = yaml.load(file, Loader=yaml.FullLoader)
+        parsed_data = yaml.safe_load(file)
     return dict((step_name, stats.get(step_name, []) + [duration])
                 for step_name, duration in parsed_data.items())
 
@@ -61,29 +61,21 @@ def read_stats(stats_path, stats: dict):
 def aggregate_stats(stats: dict):
     """Aggregate provided statistics"""
     return {step_name: {"avg": statistics.mean(duration_list),
-                        "stdev": statistics.stdev(duration_list)}
+                        "stdev": statistics.stdev(duration_list) if len(duration_list) > 1 else 0}
             for step_name, duration_list in stats.items()}
 
 
 def write_aggregated_stats(stats_path, stats: dict):
     """Write aggregated statistics to a file in YAML format"""
     with open(stats_path, "w") as file:
-        yaml.dump(stats, file)
+        yaml.safe_dump(stats, file)
 
 
 def prepare_executable_cmd(args: dict):
     """Generate common part of cmd from arguments to execute"""
-    return [str(args["executable"].resolve()),
-            "-m", str(args["model"].resolve()),
+    return [str(args["executable"].resolve(strict=True)),
+            "-m", str(args["model"].resolve(strict=True)),
             "-d", args["device"]]
-
-
-def generate_tmp_path():
-    """Generate temporary file path without file's creation"""
-    tmp_stats_file = tempfile.NamedTemporaryFile()
-    path = tmp_stats_file.name
-    tmp_stats_file.close()  # remove temp file in order to create it by executable
-    return path
 
 
 def run_timetest(args: dict, log=None):
@@ -97,7 +89,7 @@ def run_timetest(args: dict, log=None):
     # Run executable and collect statistics
     stats = {}
     for run_iter in range(args["niter"]):
-        tmp_stats_path = generate_tmp_path()
+        tmp_stats_path = tempfile.NamedTemporaryFile().name     # create temp file, get path and delete temp file
         retcode, msg = run_cmd(cmd_common + ["-s", str(tmp_stats_path)], log=log)
         if retcode != 0:
             log.error("Run of executable '{}' failed with return code '{}'. Error: {}\n"
@@ -110,6 +102,15 @@ def run_timetest(args: dict, log=None):
     aggregated_stats = aggregate_stats(stats)
 
     return 0, aggregated_stats
+
+
+def check_positive_int(val):
+    """Check argsparse argument is positive integer and return it"""
+    value = int(val)
+    if value < 1:
+        msg = "%r is less than 1" % val
+        raise argparse.ArgumentTypeError(msg)
+    return value
 
 
 def cli_parser():
@@ -131,7 +132,7 @@ def cli_parser():
                         help='target device to infer on')
     parser.add_argument('-niter',
                         default=3,
-                        type=int,
+                        type=check_positive_int,
                         help='number of times to execute binary to aggregate statistics of')
     parser.add_argument('-s',
                         dest="stats_path",

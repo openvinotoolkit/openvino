@@ -14,7 +14,6 @@
             <tab type="user" url="@ref plugin_build" visibile="yes" title="Build Your Plugin with CMake*"/>
             <tab type="user" url="@ref plugin_testing" visibile="yes" title="Test Your Plugin"/>
             <tab type="user" url="@ref quantized_networks" visibile="yes" title="Quantized networks guide"/>
-            <tab type="user" url="@ref new_ngraph_transformation" visibile="yes" title="Writing ngraph transformations"/>
         </tab>
         <!-- API References -->
         <tab type="usergroup" title="API REFERENCE">

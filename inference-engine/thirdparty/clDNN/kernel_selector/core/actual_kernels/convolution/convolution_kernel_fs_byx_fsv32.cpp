@@ -37,6 +37,9 @@ ParamsKey ConvolutionKernel_fs_byx_fsv32::GetSupportedKey() const {
     ParamsKey k;
     k.EnableInputDataType(Datatype::F16);
     k.EnableOutputDataType(Datatype::F16);
+    k.EnableOutputDataType(Datatype::INT8);
+    k.EnableOutputDataType(Datatype::UINT8);
+    k.EnableOutputDataType(Datatype::F32);
     k.EnableInputWeightsType(WeightsType::F16);
     k.EnableInputLayout(DataLayout::fs_b_yx_fsv32);
     k.EnableOutputLayout(DataLayout::fs_b_yx_fsv32);
@@ -149,7 +152,11 @@ bool ConvolutionKernel_fs_byx_fsv32::Validate(const Params& p, const optional_pa
 JitConstants ConvolutionKernel_fs_byx_fsv32::GetJitConstants(const convolution_params& params,
                                                              const DispatchData& kd) const {
     auto jit = ConvolutionKernelBase::GetJitConstants(params, kd);
+    auto accumulator_type = GetAccumulatorType(params);
+    auto activation_type = GetAccumulatorType(params);
 
+    jit.Merge(MakeTypeJitConstants(accumulator_type, "ACCUMULATOR"));
+    jit.Merge(MakeTypeJitConstants(activation_type, "ACTIVATION"));
     jit.AddConstant(MakeJitConstant("INPUT_BLOCK_WIDTH", kd.cldnnStyle.inputBlockWidth));
     jit.AddConstant(MakeJitConstant("OUTPUT_BLOCK_WIDTH", kd.cldnnStyle.blockWidth));
     jit.AddConstant(MakeJitConstant("FSV", fsv));
@@ -157,13 +164,12 @@ JitConstants ConvolutionKernel_fs_byx_fsv32::GetJitConstants(const convolution_p
     jit.AddConstant(MakeJitConstant("FSV_PER_THREAD", fsvPerThread));
 
     if (!params.fused_ops.empty()) {
-        auto input_dt = GetUnitType(params);
         FusedOpsConfiguration conf_vec_elem = {"_VEC_ELEM",
                                                {"b", "(fs * FSV + sglid + out_f * SUB_GROUP_SIZE)", "or", "oc + out_x"},
-                                               "tmp_write[out_f]", input_dt, 1 };
+                                               "tmp_write[out_f]", activation_type, 1 };
         FusedOpsConfiguration conf_scalar = {"_SCALAR",
                                              {"b", "(fs * FSV + sglid + out_f * SUB_GROUP_SIZE)", "or", "oc + out_x"},
-                                             "out[out_idx]", input_dt, 1 };
+                                             "res", activation_type, 1 };
         jit.Merge(MakeFusedOpsJitConstants(params, {conf_vec_elem, conf_scalar}));
     }
 

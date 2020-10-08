@@ -206,7 +206,7 @@ build/                  - build directory
 ```
 
 2. **Include Inference Engine, nGraph and OpenCV libraries** in `project/CMakeLists.txt`  
-[OpenCV](https://docs.opencv.org/master/db/df5/tutorial_linux_gcc_cmake.html) integration is needed mostly for pre-processing input data and ngraph for more complex applications using [ngraph API](nGraph_Flow.md).
+[OpenCV](https://docs.opencv.org/master/db/df5/tutorial_linux_gcc_cmake.html) integration is needed mostly for pre-processing input data and ngraph for more complex applications using [ngraph API](../nGraph_DG/nGraph_dg.md).
 ``` cmake
 cmake_minimum_required(VERSION 3.0.0)
 project(project_name)
@@ -235,20 +235,3 @@ Redistributable and Intel® C++ Compiler 2017 Redistributable packages are insta
 application folder or accessible via `%PATH%` environment variable.
 
 [integration_process]: img/integration_process.png
-
-## Deprecation Notice
-
-<table>
-  <tr>
-    <td><strong>Deprecation Begins</strong></td>
-    <td>June 1, 2020</td>
-  </tr>
-  <tr>
-    <td><strong>Removal Date</strong></td>
-    <td>December 1, 2020</td>
-  </tr>
-</table> 
-
-*Starting with the OpenVINO™ toolkit 2020.2 release, all of the features previously available through nGraph have been merged into the OpenVINO™ toolkit. As a result, all the features previously available through ONNX RT Execution Provider for nGraph have been merged with ONNX RT Execution Provider for OpenVINO™ toolkit.*
-
-*Therefore, ONNX RT Execution Provider for nGraph will be deprecated starting June 1, 2020 and will be completely removed on December 1, 2020. Users are recommended to migrate to the ONNX RT Execution Provider for OpenVINO™ toolkit as the unified solution for all AI inferencing on Intel® hardware.*

@@ -20,7 +20,7 @@ const std::vector<LayerTransformation::Params> trasformationParamValues = {
 };
 
 // disabled while GPU is not supported DepthToSpace
-INSTANTIATE_TEST_CASE_P(DISABLED_LPT, DepthToSpaceTransformation,
+INSTANTIATE_TEST_CASE_P(DISABLED_smoke_LPT, DepthToSpaceTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(netPrecisions),
         ::testing::Values(InferenceEngine::SizeVector({ 1, 32, 72, 48 })),
