@@ -70,7 +70,8 @@ jobs:
     continueOnError: false
   - script: |
       set PATH=$(REPO_DIR)\inference-engine\temp\tbb\bin;%PATH%
-      powershell "$(BIN_DIR)\InferenceEngineUnitTests --gtest_print_time=1 --gtest_output=xml:TEST-InferenceEngineUnitTests.xml | tee TEST-InferenceEngineUnitTests.log"
+      $(BIN_DIR)\InferenceEngineUnitTests --gtest_print_time=1 --gtest_output=xml:TEST-InferenceEngineUnitTests.xml >TEST-InferenceEngineUnitTests.log
+      type TEST-InferenceEngineUnitTests.log
     displayName: 'IE UT old'
     continueOnError: false
   - script: python $(REPO_DIR)\.ci\azure\analyze_gtest_log.py --log-file=TEST-InferenceEngineUnitTests.log
@@ -78,7 +79,8 @@ jobs:
     continueOnError: true
   - script: |
       set PATH=$(REPO_DIR)\inference-engine\temp\tbb\bin;$(IB_DIR);%PATH%
-      powershell "\"$(IB_TESTCONSOLE)\" $(BIN_DIR)\InferenceEngineUnitTests.exe --gtest_output=xml:TEST-InferenceEngineUnitTests-IB.xml /testlevel=128 | tee TEST-InferenceEngineUnitTests-IB.log"
+      "$(IB_TESTCONSOLE)" $(BIN_DIR)\InferenceEngineUnitTests.exe --gtest_output=xml:TEST-InferenceEngineUnitTests-IB.xml /testlevel=128 >TEST-InferenceEngineUnitTests-IB.log
+      type TEST-InferenceEngineUnitTests-IB.log
     displayName: 'IE UT old IB'
     continueOnError: false
   - script: python $(REPO_DIR)\.ci\azure\analyze_gtest_log.py --log-file=TEST-InferenceEngineUnitTests-IB.log
@@ -111,7 +113,8 @@ jobs:
     continueOnError: false
   - script: |
       set PATH=$(REPO_DIR)\inference-engine\temp\tbb\bin;%PATH%
-      powershell "$(BIN_DIR)\cpuFuncTests --gtest_filter=*smoke* --gtest_print_time=1 --gtest_output=xml:TEST-cpuFuncTests.xml | tee TEST-cpuFuncTests.log"
+      $(BIN_DIR)\cpuFuncTests --gtest_filter=*smoke* --gtest_print_time=1 --gtest_output=xml:TEST-cpuFuncTests.xml >TEST-cpuFuncTests.log
+      type TEST-cpuFuncTests.log
     displayName: 'CPU FuncTests'
     continueOnError: false
   - script: python $(REPO_DIR)\.ci\azure\analyze_gtest_log.py --log-file=TEST-cpuFuncTests.log
@@ -119,7 +122,8 @@ jobs:
     continueOnError: true
   - script: |
       set PATH=$(REPO_DIR)\inference-engine\temp\tbb\bin;$(IB_DIR);%PATH%
-      powershell "\"$(IB_TESTCONSOLE)\" $(BIN_DIR)\cpuFuncTests.exe --gtest_filter=*smoke* --gtest_output=xml:TEST-cpuFuncTests-IB.xml /testlevel=128 | tee TEST-cpuFuncTests-IB.log"
+      "$(IB_TESTCONSOLE)" $(BIN_DIR)\cpuFuncTests.exe --gtest_filter=*smoke* --gtest_output=xml:TEST-cpuFuncTests-IB.xml /testlevel=128 >TEST-cpuFuncTests-IB.log
+      type TEST-cpuFuncTests-IB.log
     displayName: 'CPU FuncTests IB'
     continueOnError: false
   - script: python $(REPO_DIR)\.ci\azure\analyze_gtest_log.py --log-file=TEST-cpuFuncTests-IB.log
