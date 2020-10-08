@@ -9,11 +9,11 @@ The operation has similar semantic to the ONNX* Loop [operation](https://github.
 
 **Detailed description**
 
-The body of the Loop can be executed 0 or more times depending on the values passed to the Loop operation inputs called "trip count", "condition" and inputs of Loop body called "current iteration".
+The body of the Loop can be executed 0 or more times depending on the values passed to the Loop operation inputs called "trip count", "condition" and input of the Loop body called "current iteration".
 
 These Loop operation inputs have the following meaning:
-1. Trip count is an integer scalar input specifying maximum number of iterations. To simulate infinite loop Constant `-1` can be provided as input.
-2. Loop condition input is a boolean scalar input specifying whether to run the first loop iteration or not. Note, that the body of the Loop must yield the condition value for the consecutive iterations.
+1. Trip count is an integer scalar or 1D tensor with 1 element input specifying maximum number of iterations. To simulate infinite loop Constant `-1` can be provided as input.
+2. Loop condition input is a boolean scalar or 1D tensor with 1 element input specifying whether to run the first loop iteration or not. Note, that the body of the Loop must yield the condition value for the consecutive iterations.
 
 There are several combinations of these two inputs `(trip_count, condition)` which are described in the following code snippet:
 
@@ -56,17 +56,17 @@ There are several combinations of these two inputs `(trip_count, condition)` whi
       }
 ```
 
-1. The body graph first input called "current iteration" is an integer scalar number specifying current iteration number. The iteration number starts from 0 and incremented by one for each iteration.
-2. The body graph first output called "condition" is a boolean scalar value. This value is used to decide whenever to perform the next iteration or not.
+1. One of the body graph inputs called "current iteration" is an integer scalar or 1D integer tensor with 1 number specifying current iteration number. The iteration number starts from 0 and incremented by one for each iteration. This input is optional and may not exist if the iteration number value is not used in the body.
+2. One of the body graph outputs is called "condition" is a boolean scalar value. This value is used to decide whenever to perform the next iteration or not.
 
 Loop operation description in the IR has regular sections: `input` and `output`. They connect Loop body to the outer graph and specify condition(s).
 Loop operation description in the IR also has several special sections: `body`, `port_map` and `back_edges` similar to the ones from the TensorIterator operation but having some important features described below.
 
-3. The body operation getting an input from the main graph should have an entry in the `port_map` section of the Loop operation. These edges connect input ports of the Loop with the body `Parameter`s.
-4. The body operation producing tensor to be used in the subsequent iterations (like in RNN models) should have a back edge described in the `back_edges` section of the operation. The back edge connects the respective body `Parameter` and `Result` operations. For such a case the Loop operation node provides input for the first iteration, while corresponding Loop operation output produces the tensor computed during the last iteration.
-5. Output tensors produced by a particular body operation across all iterations can be concatenated and returned as a Loop operation output (this is a "scan output" according to the ONNX* Loop operation [specification](https://github.com/onnx/onnx/blob/master/docs/Changelog.md#Loop-13)). The corresponding `output` entry in the `port_map` should have `axis` attribute specifying the axis to concatenate. Therefore, outputs from operations corresponding to `output` entries in the `port_map` without `axis` attribute are returned "as is" (without concatenation).
-6. There is one body `Parameter` operation not connected through the `port_map`. This is a "current iteration" input. The Loop operation is responsible for providing the appropriate value for each iteration.
-7. Connection of nodes inside the Loop body with the main graph should be done through `Parameter` and `Result` body operations. No other ways to connect graphs are allowed.
+1. The body operation getting an input from the main graph should have an entry in the `port_map` section of the Loop operation. These edges connect input ports of the Loop with the body `Parameter`s.
+2. The body operation producing tensor to be used in the subsequent iterations (like in RNN models) should have a back edge described in the `back_edges` section of the operation. The back edge connects the respective body `Parameter` and `Result` operations. For such a case the Loop operation node provides input for the first iteration, while corresponding Loop operation output produces the tensor computed during the last iteration.
+3. Output tensors produced by a particular body operation across all iterations can be concatenated and returned as a Loop operation output (this is a "scan output" according to the ONNX* Loop operation [specification](https://github.com/onnx/onnx/blob/master/docs/Changelog.md#Loop-13)). The corresponding `output` entry in the `port_map` should have `axis` attribute specifying the axis to concatenate. Therefore, outputs from operations corresponding to `output` entries in the `port_map` without `axis` attribute are returned "as is" (without concatenation).
+4. There is one body `Parameter` operation not connected through the `port_map`. This is a "current iteration" input. The Loop operation is responsible for providing the appropriate value for each iteration.
+5. Connection of nodes inside the Loop body with the main graph should be done through `Parameter` and `Result` body operations. No other ways to connect graphs are allowed.
 
 **Loop attributes**:
 
@@ -144,16 +144,14 @@ Loop operation description in the IR also has several special sections: `body`, 
 
 **Body Inputs**
 
-* **Current iteration**: A scalar tensor of `int64` type specifying the current iteration number. *Required*.
-
-* **Multiple other inputs**: tensors of different types and shapes. *Optional*.
+* **Multiple inputs**: tensors of different types and shapes. One of the inputs corresponds to current iteration number input (this input is optional). This input is marked in the port_map with attribute `purpose = "iteration_number"`. *Optional*.
 
 
 **Body Outputs**
 
 * **Condition**: A scalar tensor of `boolean` type specifying whether to execute the next iteration or not. `True` means to continue execution.
 
-* **Multiple outputs**: Results of execution of the `body`. Tensors of any type and shape.
+* **Multiple outputs**: Results of execution of the `body`. Tensors of any type and shape. One of the outputs corresponds to the output with execution condition. This output is marked in the port_map with attribute `purpose = "execution_condition"`.
 
 
 **Examples**
@@ -166,13 +164,15 @@ Loop operation description in the IR also has several special sections: `body`, 
     <port_map>
         <input external_port_id="0" internal_layer_id="0"/>
         <input external_port_id="1" internal_layer_id="1"/>
+        <input external_port_id="-1" internal_layer_id="2" purpose="iteration_number"/>
         ...
-        <output external_port_id="3" internal_layer_id="2"/>
+        <output external_port_id="3" internal_layer_id="4"/>
         <output external_port_id="4" internal_layer_id="10" axis="1"/>
+        <output external_port_id="-1" internal_layer_id="22" purpose="execution_condition"/>
         ...
     </port_map>
     <back_edges>
-        <edge from-layer="1" to-layer="2"/>
+        <edge from-layer="1" to-layer="5"/>
         ...
     </back_edges>
     <body>
