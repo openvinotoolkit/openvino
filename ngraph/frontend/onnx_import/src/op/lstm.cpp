@@ -25,6 +25,7 @@
 #include "ngraph/builder/reshape.hpp"
 #include "ngraph/builder/split.hpp"
 #include "ngraph/enum_names.hpp"
+#include "ngraph/log.hpp"
 #include "ngraph/op/add.hpp"
 #include "ngraph/op/constant.hpp"
 #include "ngraph/op/lstm_sequence.hpp"
@@ -166,17 +167,12 @@ namespace ngraph
                                 std::vector<float>(batch_size * num_directions * hidden_size, 0.f));
                         }
                         // The weight tensor for peepholes. Shape [num_directions, 3*hidde_size]
+                        // Peepholes input is not supported by OpenVino
                         if (ng_inputs.size() > 7 && !ngraph::op::is_null(ng_inputs.at(7)))
                         {
-                            m_map[LSTMInput::LSTM_INPUT_P] = ng_inputs.at(7);
-                        }
-                        else
-                        {
-                            m_map[LSTMInput::LSTM_INPUT_P] = default_opset::Constant::create(
-                                element::f32,
-                                Shape{num_directions, peepholes_count * hidden_size},
-                                std::vector<float>(num_directions * peepholes_count * hidden_size,
-                                                   0.f));
+                            NGRAPH_WARN
+                                << (node)
+                                << " Input `P` (peepholes) is not supported and will be ignored ";
                         }
                     }
 
@@ -207,6 +203,12 @@ namespace ngraph
 
                         m_direction =
                             ngraph::as_enum<ngraph::op::RecurrentSequenceDirection>(direction);
+
+                        if (m_input_forget != 0)
+                        {
+                            NGRAPH_WARN << (node) << " Attribute `input_forget` is not supported "
+                                                     "and will be ignored ";
+                        }
                     }
 
                     ngraph::op::RecurrentSequenceDirection m_direction;
