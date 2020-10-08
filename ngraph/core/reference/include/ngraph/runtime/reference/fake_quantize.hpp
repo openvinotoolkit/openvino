@@ -30,10 +30,11 @@ namespace ngraph
     {
         namespace reference
         {
-            namespace {
+            namespace
+            {
                 std::vector<size_t>
-                calc_broadcast_index_offset(const std::vector<size_t>& memory_offsets,
-                                            const std::vector<size_t>& broadcast_shape)
+                    calc_broadcast_index_offset(const std::vector<size_t>& memory_offsets,
+                                                const std::vector<size_t>& broadcast_shape)
                 {
                     std::vector<size_t> broadcast_offsets(broadcast_shape.size(), 0);
                     for (int i = broadcast_shape.size() - 2; i >= 0; --i)
@@ -95,7 +96,6 @@ namespace ngraph
                     }
                 }
             }
-
 
             template <typename T>
             void fake_quantize(const T* arg,
