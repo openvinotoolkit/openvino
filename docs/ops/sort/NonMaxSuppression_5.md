@@ -58,13 +58,13 @@ class must not exceed `max_output_boxes_per_class`.
 
 *   **2**: `scores` - tensor of type *T* and shape `[num_batches, num_classes, num_boxes]` with box scores. Required.
 
-*   **3**: `max_output_boxes_per_class` - scalar tensor of type *T_MAX_BOXES* specifying maximum number of boxes to be selected per class. Optional with default value 0 meaning select no boxes.
+*   **3**: `max_output_boxes_per_class` - scalar or 1D tensor with 1 element of type *T_MAX_BOXES* specifying maximum number of boxes to be selected per class. Optional with default value 0 meaning select no boxes.
 
-*   **4**: `iou_threshold` - scalar tensor of type *T_THRESHOLDS* specifying intersection over union threshold. Optional with default value 0 meaning keep all boxes.
+*   **4**: `iou_threshold` - scalar or 1D tensor with 1 element of type *T_THRESHOLDS* specifying intersection over union threshold. Optional with default value 0 meaning keep all boxes.
 
-*   **5**: `score_threshold` - scalar tensor of type *T_THRESHOLDS* specifying minimum score to consider box for the processing. Optional with default value 0.
+*   **5**: `score_threshold` - scalar or 1D tensor with 1 element of type *T_THRESHOLDS* specifying minimum score to consider box for the processing. Optional with default value 0.
 
-*   **6**:  `soft_nms_sigma` - scalar tensor of type *T_THRESHOLDS* specifying the sigma parameter for Soft-NMS; see [Bodla et al](https://arxiv.org/abs/1704.04503.pdf). Optional with default value 0.
+*   **6**:  `soft_nms_sigma` - scalar or 1D tensor with 1 element of type *T_THRESHOLDS* specifying the sigma parameter for Soft-NMS; see [Bodla et al](https://arxiv.org/abs/1704.04503.pdf). Optional with default value 0.
 
 **Outputs**:
 
