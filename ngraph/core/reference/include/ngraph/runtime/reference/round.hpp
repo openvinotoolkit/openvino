@@ -49,17 +49,17 @@ namespace ngraph
             void round(const T* arg, T* out, size_t count, const std::string& mode)
             {
                 if (mode == "half_to_even")
-					for (size_t i = 0; i < count; ++i)
-					{
-						out[i] = round_to_nearest_even(arg[i]);
-					}
-				else
-				{
+                    for (size_t i = 0; i < count; ++i)
+                    {
+                        out[i] = round_to_nearest_even(arg[i]);
+                    }
+                else
+                {
                     for (size_t i = 0; i < count; ++i)
                     {
                         out[i] = round_away_from_zero(arg[i]);
                     }
-				}
+                }
             }
         }
     }

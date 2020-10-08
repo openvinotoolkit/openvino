@@ -14,9 +14,9 @@
 // limitations under the License.
 //*****************************************************************************
 
+#include "ngraph/op/round.hpp"
 #include "itt.hpp"
 #include "ngraph/attribute_visitor.hpp"
-#include "ngraph/op/round.hpp"
 #include "ngraph/op/util/eval_copy.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
 #include "ngraph/runtime/reference/copy.hpp"
@@ -62,15 +62,14 @@ namespace
                          const std::string& mode)
     {
         using T = typename element_type_traits<ET>::value_type;
-        runtime::reference::round<T>(arg0->get_data_ptr<ET>(), out->get_data_ptr<ET>(), count, mode);
+        runtime::reference::round<T>(
+            arg0->get_data_ptr<ET>(), out->get_data_ptr<ET>(), count, mode);
         return true;
     }
 
     // function used by COPY_TENSOR
     template <element::Type_t ET>
-    inline bool copy_tensor(const HostTensorPtr& arg0,
-                            const HostTensorPtr& out,
-                            const size_t count)
+    inline bool copy_tensor(const HostTensorPtr& arg0, const HostTensorPtr& out, const size_t count)
     {
         runtime::reference::copy(arg0->get_data_ptr<ET>(), out->get_data_ptr<ET>(), count);
         return true;

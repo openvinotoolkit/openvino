@@ -27,8 +27,8 @@ namespace ngraph
         {
             /// \brief Elementwise round operation. The output is round to the nearest integer
             /// for each value. In case of halfs, the rule is defined in attribute 'mode':
-			///		'half_to_even' - round halfs to the nearest even integer.
-			///		'half_avay_from_zero': - round in such a way that the result heads away from zero.
+            ///     'half_to_even' - round halfs to the nearest even integer.
+            ///     'half_avay_from_zero': - round in such a way that the result heads away from zero.
 
             class NGRAPH_API Round : public ngraph::op::Op
             {
@@ -38,13 +38,13 @@ namespace ngraph
                 /// \brief Constructs a round operation.
                 Round() = default;
 
-                /// \brief Constructs a round operation. 
+                /// \brief Constructs a round operation.
                 ///
                 /// \param arg Node that produces the input tensor.
-				/// \param mode Rule to resolve halfs
+                /// \param mode Rule to resolve halfs
                 Round(const Output<Node>& arg, const std::string& mode);
 
-				bool visit_attributes(AttributeVisitor& visitor) override;
+                bool visit_attributes(AttributeVisitor& visitor) override;
                 void validate_and_infer_types() override;
 
                 virtual std::shared_ptr<Node>
@@ -60,7 +60,7 @@ namespace ngraph
                     m_mode = mode;
                 }
 
-			private:
+            private:
                 std::string m_mode;
             };
         }
