@@ -50,16 +50,16 @@ namespace ngraph
             static inline void softmax_generic(
                 const T* src_data, T* dst_data, int batches, int channels, int height, int width)
             {
-                int start = 0;
-                for (unsigned int b = 0; b < batches; b++)
+                const int area = height * width;
+                for (unsigned int batch_idx = 0; batch_idx < batches; batch_idx++)
                 {
-                    for (unsigned int i = start; i < height * width; i++)
+                    const int offset = batch_idx * channels * area;
+                    for (unsigned int i = 0; i < height * width; i++)
                     {
-                        T max = src_data[b * channels * height * width + i];
-                        for (unsigned int c = 0; c < channels; c++)
+                        T max = src_data[batch_idx * channels * area + i];
+                        for (unsigned int channel_idx = 0; channel_idx < channels; channel_idx++)
                         {
-                            T val =
-                                src_data[b * channels * height * width + c * height * width + i];
+                            T val = src_data[offset + channel_idx * area + i];
                             if (val > max)
                             {
                                 max = val;
@@ -67,18 +67,16 @@ namespace ngraph
                         }
 
                         T sum = 0;
-                        for (unsigned int c = 0; c < channels; c++)
+                        for (unsigned int channel_idx = 0; channel_idx < channels; channel_idx++)
                         {
-                            dst_data[b * channels * height * width + c * height * width + i] =
-                                std::exp(src_data[b * channels * height * width +
-                                                  c * height * width + i] -
-                                         max);
-                            sum += dst_data[b * channels * height * width + c * height * width + i];
+                            dst_data[offset + channel_idx * area + i] =
+                                std::exp(src_data[offset + channel_idx * area + i] - max);
+                            sum += dst_data[offset + channel_idx * area + i];
                         }
 
-                        for (unsigned int c = 0; c < channels; c++)
+                        for (unsigned int channel_idx = 0; channel_idx < channels; channel_idx++)
                         {
-                            dst_data[b * channels * height * width + c * height * width + i] /= sum;
+                            dst_data[offset + channel_idx * area + i] /= sum;
                         }
                     }
                 }
@@ -125,12 +123,18 @@ namespace ngraph
 
                 const int inputs_size = width * height * num_regions * (classes + coords + 1);
 
-                for (unsigned int b = 0; b < batches; b++)
+                for (unsigned int batch_idx = 0; batch_idx < batches; batch_idx++)
                 {
                     for (unsigned int n = 0; n < num_regions; n++)
                     {
-                        int index = entry_index(
-                            width, height, coords, classes, inputs_size, b, n * width * height, 0);
+                        int index = entry_index(width,
+                                                height,
+                                                coords,
+                                                classes,
+                                                inputs_size,
+                                                batch_idx,
+                                                n * width * height,
+                                                0);
                         for (unsigned int i = index; i < index + 2 * width * height; i++)
                         {
                             output[i] = sigmoid<T>(output[i]);
@@ -141,7 +145,7 @@ namespace ngraph
                                             coords,
                                             classes,
                                             inputs_size,
-                                            b,
+                                            batch_idx,
                                             n * width * height,
                                             coords);
                         for (unsigned int i = index; i < index + end_index; i++)
@@ -156,10 +160,10 @@ namespace ngraph
                     int index =
                         entry_index(width, height, coords, classes, inputs_size, 0, 0, coords + 1);
                     int batch_offset = inputs_size / regions;
-                    for (unsigned int b = 0; b < batches * regions; b++)
+                    for (unsigned int batch_idx = 0; batch_idx < batches * regions; batch_idx++)
                     {
-                        softmax_generic<T>(input + index + b * batch_offset,
-                                           output + index + b * batch_offset,
+                        softmax_generic<T>(input + index + batch_idx * batch_offset,
+                                           output + index + batch_idx * batch_offset,
                                            1,
                                            classes,
                                            height,
