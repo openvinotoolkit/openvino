@@ -107,11 +107,11 @@ The disk image is mounted to `/Volumes/m_openvino_toolkit_p_<version>` and autom
 
    - If you used **root** or **administrator** privileges to run the installer, it installs the OpenVINO toolkit to `/opt/intel/openvino_<version>/`
 
-     For simplicity, a symbolic link to the latest installation is also created: `/opt/intel/openvino/`
+     For simplicity, a symbolic link to the latest installation is also created: `/opt/intel/openvino_2021/`
 
    - If you used **regular user** privileges to run the installer, it installs the OpenVINO toolkit to `/home/<user>/intel/openvino_<version>/`
 
-     For simplicity, a symbolic link to the latest installation is also created: `/home/<user>/intel/openvino/`
+     For simplicity, a symbolic link to the latest installation is also created: `/home/<user>/intel/openvino_2021/`
 
 9. If needed, click **Customize** to change the installation directory or the components you want to install:
     ![](../img/openvino-install-macos-04.png)
@@ -131,7 +131,7 @@ The disk image is mounted to `/Volumes/m_openvino_toolkit_p_<version>` and autom
 You need to update several environment variables before you can compile and run OpenVINO™ applications. Open the macOS Terminal\* or a command-line interface shell you prefer and run the following script to temporarily set your environment variables:
 
    ```sh
-   source /opt/intel/openvino/bin/setupvars.sh
+   source /opt/intel/openvino_2021/bin/setupvars.sh
    ```  
 
 <strong>Optional</strong>: The OpenVINO environment variables are removed when you close the shell. You can permanently set the environment variables as follows:
@@ -144,7 +144,7 @@ You need to update several environment variables before you can compile and run 
 
 3. Add this line to the end of the file:
    ```sh
-   source /opt/intel/openvino/bin/setupvars.sh
+   source /opt/intel/openvino_2021/bin/setupvars.sh
    ```
 
 3. Save and close the file: press the **Esc** key, type `:wq` and press the **Enter** key.
@@ -178,7 +178,7 @@ You can choose to either configure the Model Optimizer for all supported framewo
 
 1. Go to the Model Optimizer prerequisites directory:
    ```sh
-   cd /opt/intel/openvino/deployment_tools/model_optimizer/install_prerequisites
+   cd /opt/intel/openvino_2021/deployment_tools/model_optimizer/install_prerequisites
    ```
 
 2. Run the script to configure the Model Optimizer for Caffe, TensorFlow 1.x, MXNet, Kaldi\*, and ONNX:
@@ -192,7 +192,7 @@ Configure individual frameworks separately **ONLY** if you did not select **Opti
 
 1. Go to the Model Optimizer prerequisites directory:
    ```sh
-   cd /opt/intel/openvino/deployment_tools/model_optimizer/install_prerequisites
+   cd /opt/intel/openvino_2021/deployment_tools/model_optimizer/install_prerequisites
    ```
 
 2. Run the script for your model framework. You can run more than one script:
@@ -243,7 +243,7 @@ To verify the installation and compile two Inference Engine samples, run the ver
 
 1. Go to the **Inference Engine demo** directory:
    ```sh
-   cd /opt/intel/openvino/deployment_tools/demo
+   cd /opt/intel/openvino_2021/deployment_tools/demo
    ```
 
 2. Run the **Image Classification verification script**:
@@ -263,7 +263,7 @@ This script is complete. Continue to the next section to run the Inference Pipel
 
 ### Run the Inference Pipeline Verification Script
 
-While still in `/opt/intel/openvino/deployment_tools/demo/`, run the Inference Pipeline verification script:
+While still in `/opt/intel/openvino_2021/deployment_tools/demo/`, run the Inference Pipeline verification script:
    ```sh
    ./demo_security_barrier_camera.sh
    ```
@@ -299,7 +299,7 @@ Visit the Intel Distribution of OpenVINO Toolkit [Inference Tutorials for Face D
 
 ## Additional Resources
 
-- To learn more about the verification applications, see `README.txt` in `/opt/intel/openvino/deployment_tools/demo/`.
+- To learn more about the verification applications, see `README.txt` in `/opt/intel/openvino_2021/deployment_tools/demo/`.
 
 - For detailed description of the pre-trained models, go to the [Overview of OpenVINO toolkit Pre-Trained Models](@ref omz_models_intel_index) page.
 

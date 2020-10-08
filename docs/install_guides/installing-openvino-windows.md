@@ -99,7 +99,7 @@ The following components are installed by default:
 
 1. If you have not downloaded the Intel® Distribution of OpenVINO™ toolkit, [download the latest version](http://software.intel.com/en-us/openvino-toolkit/choose-download/free-download-windows). By default, the file is saved to the `Downloads` directory as `w_openvino_toolkit_p_<version>.exe`.
 
-2. Go to the `Downloads` folder and double-click `w_openvino_toolkit_p_<version>.exe`. A window opens to let you choose your installation directory and components. The default installation directory is `C:\Program Files (x86)\IntelSWTools\openvino_<version>`, for simplicity, a shortcut to the latest installation is also created: `C:\Program Files (x86)\IntelSWTools\openvino`. If you choose a different installation directory, the installer will create the directory for you:
+2. Go to the `Downloads` folder and double-click `w_openvino_toolkit_p_<version>.exe`. A window opens to let you choose your installation directory and components. The default installation directory is `C:\Program Files (x86)\Intel\openvino_<version>`, for simplicity, a shortcut to the latest installation is also created: `C:\Program Files (x86)\Intel\openvino_2021`. If you choose a different installation directory, the installer will create the directory for you:
 
    ![](../img/openvino-install-windows-01.png)
 
@@ -124,11 +124,11 @@ The screen example below indicates you are missing two dependencies:
 
 ### Set the Environment Variables <a name="set-the-environment-variables"></a>
 
-> **NOTE**: If you installed the Intel® Distribution of OpenVINO™ to the non-default install directory, replace `C:\Program Files (x86)\IntelSWTools` with the directory in which you installed the software.
+> **NOTE**: If you installed the Intel® Distribution of OpenVINO™ to the non-default install directory, replace `C:\Program Files (x86)\Intel` with the directory in which you installed the software.
 
 You must update several environment variables before you can compile and run OpenVINO™ applications. Open the Command Prompt, and run the `setupvars.bat` batch file to temporarily set your environment variables:
 ```sh
-cd C:\Program Files (x86)\IntelSWTools\openvino\bin\
+cd C:\Program Files (x86)\Intel\openvino_2021\bin\
 ```
 
 ```sh
@@ -152,7 +152,7 @@ The Model Optimizer is a key component of the Intel® Distribution of OpenVINO�
 
 The Inference Engine reads, loads, and infers the IR files, using a common API across the CPU, GPU, or VPU hardware.  
 
-The Model Optimizer is a Python*-based command line tool (`mo.py`), which is located in `C:\Program Files (x86)\IntelSWTools\openvino\deployment_tools\model_optimizer`. Use this tool on models trained with popular deep learning frameworks such as Caffe\*, TensorFlow\*, MXNet\*, and ONNX\* to convert them to an optimized IR format that the Inference Engine can use.
+The Model Optimizer is a Python*-based command line tool (`mo.py`), which is located in `C:\Program Files (x86)\Intel\openvino_2021\deployment_tools\model_optimizer`. Use this tool on models trained with popular deep learning frameworks such as Caffe\*, TensorFlow\*, MXNet\*, and ONNX\* to convert them to an optimized IR format that the Inference Engine can use.
 
 This section explains how to use scripts to configure the Model Optimizer either for all of the supported frameworks at the same time or for individual frameworks. If you want to manually configure the Model Optimizer instead of using scripts, see the **Using Manual Configuration Process** section on the [Configuring the Model Optimizer](../MO_DG/prepare_model/Config_Model_Optimizer.md) page.
 
@@ -167,8 +167,8 @@ You can configure the Model Optimizer either for all supported frameworks at onc
 
 > **NOTE**:
 > In the steps below:
-> - If you you want to use the Model Optimizer from another installed versions of Intel® Distribution of OpenVINO™ toolkit installed, replace `openvino` with `openvino_<version>`.
-> - If you installed the Intel® Distribution of OpenVINO™ toolkit to the non-default installation directory, replace `C:\Program Files (x86)\IntelSWTools` with the directory where you installed the software.
+> - If you you want to use the Model Optimizer from another installed versions of Intel® Distribution of OpenVINO™ toolkit installed, replace `openvino_2021` with `openvino_<version>`, where `<version>` is the required version.
+> - If you installed the Intel® Distribution of OpenVINO™ toolkit to the non-default installation directory, replace `C:\Program Files (x86)\Intel` with the directory where you installed the software.
 
 These steps use a command prompt to make sure you see error messages.
 
@@ -181,7 +181,7 @@ Type commands in the opened window:
 
 2. Go to the Model Optimizer prerequisites directory.<br>
 ```sh
-cd C:\Program Files (x86)\IntelSWTools\openvino\deployment_tools\model_optimizer\install_prerequisites
+cd C:\Program Files (x86)\Intel\openvino_2021\deployment_tools\model_optimizer\install_prerequisites
 ```
 
 3. Run the following batch file to configure the Model Optimizer for Caffe\*, TensorFlow\* 1.x, MXNet\*, Kaldi\*, and ONNX\*:<br>
@@ -193,7 +193,7 @@ install_prerequisites.bat
 
 1. Go to the Model Optimizer prerequisites directory:<br>
 ```sh
-cd C:\Program Files (x86)\IntelSWTools\openvino\deployment_tools\model_optimizer\install_prerequisites
+cd C:\Program Files (x86)\Intel\openvino_2021\deployment_tools\model_optimizer\install_prerequisites
 ```
 
 2. Run the batch file for the framework you will use with the Model Optimizer. You can use more than one:
@@ -242,14 +242,14 @@ If you want to use a GPU or VPU, or update your Windows* environment variables, 
 > **IMPORTANT**: This section is required. In addition to confirming your installation was successful, demo scripts perform other steps, such as setting up your computer to use the Inference Engine samples.
 
 > **NOTE**:
-> The paths in this section assume you used the default installation directory. If you used a directory other than `C:\Program Files (x86)\IntelSWTools`, update the directory with the location where you installed the software.   
+> The paths in this section assume you used the default installation directory. If you used a directory other than `C:\Program Files (x86)\Intel`, update the directory with the location where you installed the software.   
 To verify the installation and compile two samples, run the verification applications provided with the product on the CPU:
 
 1. Open a command prompt window.
 
 2. Go to the Inference Engine demo directory:<br>
    ```sh
-   cd C:\Program Files (x86)\IntelSWTools\openvino\deployment_tools\demo\
+   cd C:\Program Files (x86)\Intel\openvino_2021\deployment_tools\demo\
    ```
 
 3. Run the verification scripts by following the instructions in the next section.
@@ -291,7 +291,7 @@ When the demo completes, you have two windows open:
 
 Close the image viewer window to end the demo.
 
-To learn more about the verification scripts, see `README.txt` in `C:\Program Files (x86)\IntelSWTools\openvino\deployment_tools\demo`.
+To learn more about the verification scripts, see `README.txt` in `C:\Program Files (x86)\Intel\openvino_2021\deployment_tools\demo`.
 
 For detailed description of the OpenVINO™ pre-trained object detection and object recognition models, see the [Overview of OpenVINO™ toolkit Pre-Trained Models](@ref omz_models_intel_index) page.
 
@@ -358,7 +358,7 @@ After configuration is done, you are ready to run the verification scripts with 
 
 2. Go to the Inference Engine demo directory:
    ```sh
-   cd C:\Program Files (x86)\IntelSWTools\openvino\deployment_tools\demo\
+   cd C:\Program Files (x86)\Intel\openvino_2021\deployment_tools\demo\
    ```
 3. Run the Image Classification verification script. If you have access to the Internet through the proxy server only, please make sure that it is configured in your environment.
    ```sh
@@ -405,13 +405,13 @@ Image Classification sample application binary file was automatically built and 
 The Image Classification sample application binary file located in the `C:\Users\<username>\Documents\Intel\OpenVINO\inference_engine_samples_build\intel64\Release\` directory. 
 The Caffe* Squeezenet model IR files (`.bin` and `.xml`) are located in the  in the `C:\Users\<username>\Documents\Intel\OpenVINO\openvino_models\ir\public\squeezenet1.1\FP16\` directory.
 
-> **NOTE**: If you installed the Intel® Distribution of OpenVINO™ toolkit to the non-default installation directory, replace `C:\Program Files (x86)\IntelSWTools` with the directory where you installed the software.
+> **NOTE**: If you installed the Intel® Distribution of OpenVINO™ toolkit to the non-default installation directory, replace `C:\Program Files (x86)\Intel` with the directory where you installed the software.
 
 To run the sample application:
 
 1. Set up environment variables:
 ```sh
-cd C:\Program Files (x86)\IntelSWTools\openvino\bin\setupvars.bat
+cd C:\Program Files (x86)\Intel\openvino_2021\bin\setupvars.bat
 ```
 2. Go to the samples build directory:
 ```sh
@@ -422,22 +422,22 @@ cd C:\Users\<username>\Documents\Intel\OpenVINO\inference_engine_samples_build\i
 
    - For CPU:    
    ```sh
-   classification_sample_async.exe -i "C:\Program Files (x86)\IntelSWTools\openvino\deployment_tools\demo\car.png" -m "C:\Users\<username>\Documents\Intel\OpenVINO\openvino_models\ir\public\squeezenet1.1\FP16\squeezenet1.1.xml" -d CPU
+   classification_sample_async.exe -i "C:\Program Files (x86)\Intel\openvino_2021\deployment_tools\demo\car.png" -m "C:\Users\<username>\Documents\Intel\OpenVINO\openvino_models\ir\public\squeezenet1.1\FP16\squeezenet1.1.xml" -d CPU
    ```
    
    - For GPU:
    ```sh
-   classification_sample_async.exe -i "C:\Program Files (x86)\IntelSWTools\openvino\deployment_tools\demo\car.png" -m "C:\Users\<username>\Documents\Intel\OpenVINO\openvino_models\ir\public\squeezenet1.1\FP16\squeezenet1.1.xml" -d GPU
+   classification_sample_async.exe -i "C:\Program Files (x86)\Intel\openvino_2021\deployment_tools\demo\car.png" -m "C:\Users\<username>\Documents\Intel\OpenVINO\openvino_models\ir\public\squeezenet1.1\FP16\squeezenet1.1.xml" -d GPU
    ```
    
    - For VPU (Intel® Neural Compute Stick 2):
    ```sh
-   classification_sample_async.exe -i "C:\Program Files (x86)\IntelSWTools\openvino\deployment_tools\demo\car.png" -m "C:\Users\<username>\Documents\Intel\OpenVINO\openvino_models\ir\public\squeezenet1.1\FP16\squeezenet1.1.xml" -d MYRIAD
+   classification_sample_async.exe -i "C:\Program Files (x86)\Intel\openvino_2021\deployment_tools\demo\car.png" -m "C:\Users\<username>\Documents\Intel\OpenVINO\openvino_models\ir\public\squeezenet1.1\FP16\squeezenet1.1.xml" -d MYRIAD
    ```
    
    - For VPU (Intel® Vision Accelerator Design with Intel® Movidius™ VPUs):
    ```sh
-   classification_sample_async.exe -i "C:\Program Files (x86)\IntelSWTools\openvino\deployment_tools\demo\car.png" -m "C:\Users\<username>\Documents\Intel\OpenVINO\openvino_models\ir\public\squeezenet1.1\FP16\squeezenet1.1.xml" -d HDDL
+   classification_sample_async.exe -i "C:\Program Files (x86)\Intel\openvino_2021\deployment_tools\demo\car.png" -m "C:\Users\<username>\Documents\Intel\OpenVINO\openvino_models\ir\public\squeezenet1.1\FP16\squeezenet1.1.xml" -d HDDL
    ```
 
 For information on Sample Applications, see the [Inference Engine Samples Overview](../IE_DG/Samples_Overview.md).

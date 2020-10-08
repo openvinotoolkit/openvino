@@ -128,7 +128,7 @@ looks like this:
         ![](../img/openvino-install-linux-03.png)
     When installed as **root** the default installation directory for the Intel Distribution of OpenVINO is
     `/opt/intel/openvino_<version>/`.<br>
-    For simplicity, a symbolic link to the latest installation is also created: `/opt/intel/openvino/`.
+    For simplicity, a symbolic link to the latest installation is also created: `/opt/intel/openvino_2021/`.
    > **NOTE**: The Intel® Media SDK component is always installed in the `/opt/intel/mediasdk` directory regardless of the OpenVINO installation path chosen.
 
 8. A Complete screen indicates that the core components have been installed:
@@ -149,7 +149,7 @@ These dependencies are required for:
 
 1. Change to the `install_dependencies` directory:
 ```sh
-cd /opt/intel/openvino/install_dependencies
+cd /opt/intel/openvino_2021/install_dependencies
 ```
 2. Run a script to download and install the external software dependencies:
 ```sh
@@ -162,7 +162,7 @@ The dependencies are installed. Continue to the next section to set your environ
 You must update several environment variables before you can compile and run OpenVINO™ applications. Run the following script to temporarily set your environment variables:
 
 ```sh
-source /opt/intel/openvino/bin/setupvars.sh
+source /opt/intel/openvino_2021/bin/setupvars.sh
 ```  
 
 **Optional:** The OpenVINO environment variables are removed when you close the shell. As an option, you can permanently set the environment variables as follows:
@@ -174,7 +174,7 @@ vi <user_directory>/.bashrc
 
 2. Add this line to the end of the file:
 ```sh
-source /opt/intel/openvino/bin/setupvars.sh
+source /opt/intel/openvino_2021/bin/setupvars.sh
 ```
 
 3. Save and close the file: press the **Esc** key and type `:wq`.
@@ -210,7 +210,7 @@ You can choose to either configure all supported frameworks at once **OR** confi
 
 1.  Go to the Model Optimizer prerequisites directory:
 ```sh
-cd /opt/intel/openvino/deployment_tools/model_optimizer/install_prerequisites
+cd /opt/intel/openvino_2021/deployment_tools/model_optimizer/install_prerequisites
 ```
 2.  Run the script to configure the Model Optimizer for Caffe,
     TensorFlow 1.x, MXNet, Kaldi\*, and ONNX:
@@ -224,7 +224,7 @@ Configure individual frameworks separately **ONLY** if you did not select **Opti
 
 1.  Go to the Model Optimizer prerequisites directory:
 ```sh
-cd /opt/intel/openvino/deployment_tools/model_optimizer/install_prerequisites
+cd /opt/intel/openvino_2021/deployment_tools/model_optimizer/install_prerequisites
 ```
 2.  Run the script for your model framework. You can run more than one script:
 
@@ -271,7 +271,7 @@ To verify the installation and compile two samples, use the steps below to run t
 
 1. Go to the **Inference Engine demo** directory:
 ```sh
-cd /opt/intel/openvino/deployment_tools/demo
+cd /opt/intel/openvino_2021/deployment_tools/demo
 ```
 
 2. Run the **Image Classification verification script**:
@@ -296,7 +296,7 @@ This script downloads three pre-trained model IRs, builds the [Security Barrier
 4. Close the image viewer window to complete the verification script.
 
 
-To learn about the verification scripts, see the `README.txt` file in `/opt/intel/openvino/deployment_tools/demo`.
+To learn about the verification scripts, see the `README.txt` file in `/opt/intel/openvino_2021/deployment_tools/demo`.
 
 For a description of the Intel Distribution of OpenVINO™ pre-trained object detection and object recognition models, see [Overview of OpenVINO™ Toolkit Pre-Trained Models](@ref omz_models_intel_index).
 
@@ -312,7 +312,7 @@ The steps in this section are required only if you want to enable the toolkit co
 
 1. Go to the install_dependencies directory:
 ```sh
-cd /opt/intel/openvino/install_dependencies/
+cd /opt/intel/openvino_2021/install_dependencies/
 ```
 2. Enter the super user mode:
 ```sh
@@ -350,7 +350,7 @@ Log out and log in for it to take effect.
 
 2. To perform inference on Intel® Neural Compute Stick 2, install the USB rules as follows:
 ```sh
-sudo cp /opt/intel/openvino/inference_engine/external/97-myriad-usbboot.rules /etc/udev/rules.d/
+sudo cp /opt/intel/openvino_2021/inference_engine/external/97-myriad-usbboot.rules /etc/udev/rules.d/
 ```
 ```sh
 sudo udevadm control --reload-rules
@@ -373,7 +373,7 @@ After configuration is done, you are ready to run the verification scripts with 
 
 1. Go to the **Inference Engine demo** directory:
 ```sh
-cd /opt/intel/openvino/deployment_tools/demo
+cd /opt/intel/openvino_2021/deployment_tools/demo
 ```
 
 2. Run the **Image Classification verification script**. If you have access to the Internet through the proxy server only, please make sure that it is configured in your OS environment.
@@ -403,7 +403,7 @@ To run the sample application:
 
 1. Set up environment variables:
 ```sh
-source /opt/intel/openvino/bin/setupvars.sh
+source /opt/intel/openvino_2021/bin/setupvars.sh
 ```
 2. Go to the samples build directory:
 ```sh
@@ -414,24 +414,24 @@ cd ~/inference_engine_samples_build/intel64/Release
 
    - **For CPU**:    
    ```sh
-   ./classification_sample_async -i /opt/intel/openvino/deployment_tools/demo/car.png -m ~/openvino_models/ir/public/squeezenet1.1/FP16/squeezenet1.1.xml -d CPU
+   ./classification_sample_async -i /opt/intel/openvino_2021/deployment_tools/demo/car.png -m ~/openvino_models/ir/public/squeezenet1.1/FP16/squeezenet1.1.xml -d CPU
    ```
 
    - **For GPU**:
    ```sh
-   ./classification_sample_async -i /opt/intel/openvino/deployment_tools/demo/car.png -m ~/openvino_models/ir/public/squeezenet1.1/FP16/squeezenet1.1.xml -d GPU
+   ./classification_sample_async -i /opt/intel/openvino_2021/deployment_tools/demo/car.png -m ~/openvino_models/ir/public/squeezenet1.1/FP16/squeezenet1.1.xml -d GPU
    ```
 
    - **For MYRIAD**:
    > **NOTE**: Running inference on Intel® Neural Compute Stick 2 with the MYRIAD plugin requires performing [additional hardware configuration steps](#additional-NCS-steps).
    ```sh
-   ./classification_sample_async -i /opt/intel/openvino/deployment_tools/demo/car.png -m ~/openvino_models/ir/public/squeezenet1.1/FP16/squeezenet1.1.xml -d MYRIAD
+   ./classification_sample_async -i /opt/intel/openvino_2021/deployment_tools/demo/car.png -m ~/openvino_models/ir/public/squeezenet1.1/FP16/squeezenet1.1.xml -d MYRIAD
    ```
 
    - **For HDDL**:
    > **NOTE**: Running inference on Intel® Vision Accelerator Design with Intel® Movidius™ VPUs with the HDDL plugin requires performing [additional hardware configuration steps](installing-openvino-linux-ivad-vpu.md)
    ```sh
-   ./classification_sample_async -i /opt/intel/openvino/deployment_tools/demo/car.png -m ~/openvino_models/ir/public/squeezenet1.1/FP16/squeezenet1.1.xml -d HDDL
+   ./classification_sample_async -i /opt/intel/openvino_2021/deployment_tools/demo/car.png -m ~/openvino_models/ir/public/squeezenet1.1/FP16/squeezenet1.1.xml -d HDDL
    ```
 
 For information on Sample Applications, see the [Inference Engine Samples Overview](../IE_DG/Samples_Overview.md).
