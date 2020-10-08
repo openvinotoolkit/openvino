@@ -33,19 +33,14 @@ NGRAPH_TEST(${BACKEND_NAME}, logical_and)
     Shape shape{3, 4};
     auto A = make_shared<op::Parameter>(element::boolean, shape);
     auto B = make_shared<op::Parameter>(element::boolean, shape);
-    auto f = make_shared<Function>(std::make_shared<op::v1::LogicalAnd>(A,B), ParameterVector{A, B});
+    auto f =
+        make_shared<Function>(std::make_shared<op::v1::LogicalAnd>(A, B), ParameterVector{A, B});
 
-    std::vector<bool> a{true,  true,  true, true, 
-                        true,  false, true, false, 
-                        false, true,  true, true};
-    std::vector<bool> b{true,  true,  true, true, 
-                        true,  false, true, false, 
-                        false, true,  true, false};
+    std::vector<bool> a{true, true, true, true, true, false, true, false, false, true, true, true};
+    std::vector<bool> b{true, true, true, true, true, false, true, false, false, true, true, false};
 
     auto test_case_1 = test::TestCase<TestEngine>(f);
     test_case_1.add_multiple_inputs<bool>({a, b});
-    test_case_1.add_expected_output<float>(shape, {1., 1., 1., 1.,
-                                                   1., 0., 1., 0.,
-                                                   0., 1., 1., 0.});
+    test_case_1.add_expected_output<float>(shape, {1., 1., 1., 1., 1., 0., 1., 0., 0., 1., 1., 0.});
     test_case_1.run();
 }
