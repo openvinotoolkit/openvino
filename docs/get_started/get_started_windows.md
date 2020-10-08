@@ -24,7 +24,7 @@ In addition, demo scripts, code samples and demo applications are provided to he
 ## <a name="openvino-installation"></a>Intel® Distribution of OpenVINO™ toolkit Installation and Deployment Tools Directory Structure
 This guide assumes you completed all Intel® Distribution of OpenVINO™ toolkit installation and configuration steps. If you have not yet installed and configured the toolkit, see [Install Intel® Distribution of OpenVINO™ toolkit for Windows*](../install_guides/installing-openvino-windows.md).
 
-By default, the installation directory is `C:\Program Files (x86)\IntelSWTools\openvino`, referred to as `<INSTALL_DIR>`. If you installed the Intel® Distribution of OpenVINO™ toolkit to a directory other than the default, replace `C:\Program Files (x86)\IntelSWTools` with the directory in which you installed the software.
+By default, the installation directory is `C:\Program Files (x86)\Intel\openvino_<version>`, referred to as `<INSTALL_DIR>`. If you installed the Intel® Distribution of OpenVINO™ toolkit to a directory other than the default, replace `C:\Program Files (x86)\Intel` with the directory in which you installed the software. For simplicity, a shortcut to the latest installation is also created: `C:\Program Files (x86)\Intel\openvino_2021`.
 
 The primary tools for deploying your models and applications are installed to the `<INSTALL_DIR>\deployment_tools` directory.
 <details>
@@ -106,7 +106,7 @@ When the script completes, you see the label and confidence for the top-10 categ
 
 Top 10 results:
 
-Image C:\Program Files (x86)\IntelSWTools\openvino\deployment_tools\demo\car.png
+Image C:\Program Files (x86)\Intel\openvino_2021\deployment_tools\demo\car.png
 
 classid probability label
 ------- ----------- -----
@@ -403,7 +403,7 @@ When the Sample Application completes, you see the label and confidence for the 
 ```bat
 Top 10 results:
 
-Image C:\Program Files (x86)\IntelSWTools\openvino\deployment_tools\demo\car.png
+Image C:\Program Files (x86)\Intel\openvino_2021\deployment_tools\demo\car.png
 
 classid probability label
 ------- ----------- -----
