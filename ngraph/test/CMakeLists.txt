@@ -303,6 +303,7 @@ set(MULTI_TEST_SRC
     backend/multiply.in.cpp
     backend/negative.in.cpp
     backend/node_name.in.cpp
+    backend/normalize_l2.in.cpp
     backend/not.in.cpp
     backend/non_zero.in.cpp
     backend/numeric.in.cpp

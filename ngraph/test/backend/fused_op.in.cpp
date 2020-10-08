@@ -502,9 +502,13 @@ NGRAPH_TEST(${BACKEND_NAME}, normalize_across_empty_axes_input)
 
     test_case.add_input<float>(input_data);
 
-    // output should be filled with 1f values
-    test_case.add_expected_output<float>(data_shape, vector<float>(shape_size(data_shape), 1));
+    test_case.add_expected_output<float>(
+        data_shape,
+        vector<float>{0.01428571, 0.02857143, 0.04285714, 0.05714286, 0.07142857, 0.08571429,
+                      0.1,        0.11428571, 0.12857144, 0.14285715, 0.15714286, 0.17142858,
 
+                      0.18571429, 0.2,        0.21428572, 0.22857143, 0.24285714, 0.25714287,
+                      0.27142859, 0.2857143,  0.3,        0.31428573, 0.32857144, 0.34285715});
     test_case.run(DEFAULT_FLOAT_TOLERANCE_BITS + 1);
 }
 
