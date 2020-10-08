@@ -397,7 +397,16 @@ StatusCode CNNNetworkNGraphImpl::serialize(const std::string &xmlPath,
                                            const std::string &binPath,
                                            ResponseDesc *resp) const noexcept {
   try {
-    Serialization::SerializeV10(xmlPath, binPath, *_ngraph_function);
+    if (auto f = getFunction()) {
+      Serialization::SerializeV10(xmlPath, binPath, *f);
+    } else {
+#ifdef ENABLE_V7_SERIALIZE
+      auto network = std::make_shared<details::CNNNetworkImpl>(*this);
+      return network->serialize(xmlPath, binPath, resp);
+#else
+      return GENERAL_ERROR;
+#endif
+    }
   } catch (const InferenceEngineException &e) {
     return DescriptionBuffer(GENERAL_ERROR, resp) << e.what();
   } catch (const std::exception &e) {
