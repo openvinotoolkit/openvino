@@ -50,6 +50,7 @@
 #include "legacy/net_pass.h"
 #include <legacy/cnn_network_impl.hpp>
 #include <ie_cnn_layer_builder_ngraph.h>
+#include <ngraph/pass/constant_folding.hpp>
 
 namespace InferenceEngine {
 namespace Builder {
@@ -156,6 +157,9 @@ CNNLayer::Ptr NodeConverter<ngraph::op::TensorIterator>::createLayer(const std::
     std::map<std::string, std::vector<TensorDesc>> layer_name_to_tensor_desc;
     {
         CNNNetwork body_net(tensor_iterator->get_body());
+        ngraph::pass::Manager pass_manager;
+        pass_manager.register_pass<ngraph::pass::ConstantFolding>();
+        pass_manager.run_passes(body_net.getFunction());
         CNNNetwork net(InferenceEngine::details::convertFunctionToICNNNetwork(body_net.getFunction(), body_net));
         // Paranoid check for cycles
         bool res = CNNNetForestDFS(
