@@ -47,5 +47,5 @@ Now you are ready to develop and run your application.
 - [Inference Engine Developer Guide](../IE_DG/Deep_Learning_Inference_Engine_DevGuide.md).
 - For more information on Sample Applications, see the [Inference Engine Samples Overview](../IE_DG/Samples_Overview.md).
 - For information on Inference Engine Tutorials, see the [Inference Tutorials](https://github.com/intel-iot-devkit/inference-tutorials-generic).
-- [Intel® distribution of OpenVINO™ toolkit PIP home page](https://pypi.org/project/openvino-python/)
+- [Intel® Distribution of OpenVINO™ toolkit PIP home page](https://pypi.org/project/openvino-python/)
 
