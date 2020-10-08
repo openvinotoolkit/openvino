@@ -61,7 +61,8 @@ void op::v5::Loop::validate_and_infer_types()
     }
 
     bool condition_always_true = false;
-    const auto& body_condition = m_body->get_results()[0]->input_value(0);
+    const auto& body_condition =
+        m_body->get_results()[m_special_body_ports.body_condition_output_idx]->input_value(0);
     if (const auto& cond_value = std::dynamic_pointer_cast<const ngraph::opset5::Constant>(
             body_condition.get_node_shared_ptr()))
     {
@@ -76,7 +77,7 @@ void op::v5::Loop::validate_and_infer_types()
         }
         else
         {
-            m_num_iterations = 1; // condition_always_false
+            m_num_iterations = 1; // condition_always_false, do_while mode
         }
     }
 
@@ -236,6 +237,7 @@ void op::v5::Loop::validate_and_infer_types()
 
 std::shared_ptr<Node> op::v5::Loop::clone_with_new_inputs(const OutputVector& new_args) const
 {
+    // 0 - trip_count, 1 - execution condition, these inputs are not connected to the body params
     const OutputVector body_params_args(new_args.begin() + 2, new_args.end());
     auto op = make_shared<op::v5::Loop>(new_args[0], new_args[1], body_params_args);
     NGRAPH_CHECK(op.get(),
@@ -265,8 +267,8 @@ std::shared_ptr<Node> op::v5::Loop::clone_with_new_inputs(const OutputVector& ne
 
     op->m_num_iterations = m_num_iterations;
     auto func = std::make_shared<Function>(m_body->get_results(), m_body->get_parameters());
-    auto spec_func =
-        specialize_function(func, types, new_shapes, std::vector<void*>(new_args.size(), nullptr));
+    auto spec_func = specialize_function(
+        func, types, new_shapes, std::vector<void*>(body_params_args.size(), nullptr));
     op->m_body = std::make_shared<Function>(spec_func->get_results(), spec_func->get_parameters());
 
     for (auto& input_description : m_input_descriptions)

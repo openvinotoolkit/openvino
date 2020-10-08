@@ -35,6 +35,13 @@ namespace ngraph
             class NGRAPH_API Loop : public op::util::SubGraphOp
             {
             public:
+                struct SpecialBodyPorts
+                {
+                    int64_t current_iteration_input_idx =
+                        -1; // -1 means input is not provided, this input is optional
+                    int64_t body_condition_output_idx = 0; // default index, this output is required
+                };
+
                 static constexpr NodeTypeInfo type_info{"Loop", 5};
                 const NodeTypeInfo& get_type_info() const override { return type_info; }
                 bool visit_attributes(AttributeVisitor& visitor) override;
@@ -88,7 +95,14 @@ namespace ngraph
                                  "Loop operation.");
                 }
 
+                void set_special_body_ports(const SpecialBodyPorts& special_body_ports)
+                {
+                    m_special_body_ports = special_body_ports;
+                }
+
+                SpecialBodyPorts get_special_body_ports() const { return m_special_body_ports; }
             private:
+                SpecialBodyPorts m_special_body_ports;
                 int64_t m_num_iterations = -1;
             };
         }

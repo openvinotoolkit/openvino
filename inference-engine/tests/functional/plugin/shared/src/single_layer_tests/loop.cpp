@@ -120,7 +120,7 @@ namespace LayerTestsDefinitions {
             Zo = body_params[i] + Zo;
         }
 
-        body_params.insert(body_params.begin(), current_iteration);
+        // body_params.insert(body_params.begin(), current_iteration);
         auto body = std::make_shared<ngraph::Function>(ngraph::OutputVector{body_condition_const, Zo},
                                                   body_params);
 
@@ -129,13 +129,13 @@ namespace LayerTestsDefinitions {
         loop->set_trip_count_input(trip_count_const);
         loop->set_execution_condition_input(exec_condition);
 
-        for (int i = 0; i < body_params.size() - 1; ++i) {
+        for (int i = 0; i < body_params.size(); ++i) {
             if (types_separate[i] == LOOP_IN_TYPE::INVARIANT) {
-                loop->set_invariant_input(body_params[i + 1], params[i]);
+                loop->set_invariant_input(body_params[i], params[i]);
             } else if (types_separate[i] == LOOP_IN_TYPE::MERGED) {
                 // todo: support several merged inputs
-                // now supported only one
-                loop->set_merged_input(body_params[i + 1], params[i], Zo);
+                // now supported only one in this sample
+                loop->set_merged_input(body_params[i], params[i], Zo);
             }
         }
 
