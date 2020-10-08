@@ -70,6 +70,7 @@ Standard MXNet\* symbols:
 | repeat | No |
 | rnn | No |
 | rnn_param_concat | No |
+| round | No |
 | sigmoid | No |
 | slice | No |
 | slice_axis | No |
