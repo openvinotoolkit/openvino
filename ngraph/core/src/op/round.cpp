@@ -28,7 +28,7 @@ using namespace ngraph;
 NGRAPH_RTTI_DEFINITION(op::v5::Round, "Round", 5);
 
 op::v5::Round::Round(const Output<Node>& arg, const std::string& mode)
-    : Op({arg}
+    : Op({arg})
     , m_mode(mode)
 {
     constructor_validate_and_infer_types();

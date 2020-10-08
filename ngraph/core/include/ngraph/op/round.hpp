@@ -29,7 +29,7 @@ namespace ngraph
             /// for each value. In case of halfs, the rule is defined in attribute 'mode':
             ///     'half_to_even' - round halfs to the nearest even integer.
             ///     'half_avay_from_zero': - round in such a way that the result heads away from 
-            ///zero.
+            /// zero.
 
             class NGRAPH_API Round : public ngraph::op::Op
             {
@@ -55,9 +55,7 @@ namespace ngraph
                               const HostTensorVector& inputs) const override;
 
                 std::string get_mode() const { return m_mode; }
-
                 void set_mode(const std::string& mode) { m_mode = mode; }
-
             private:
                 std::string m_mode;
             };
