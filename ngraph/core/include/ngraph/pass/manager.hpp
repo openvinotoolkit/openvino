@@ -63,8 +63,10 @@ public:
     void set_per_pass_validation(bool new_state) { m_per_pass_validation = new_state; }
     /// \brief Callback is a lambda function that can be used by registered transformations.
     /// The main purpose of this callback is to provide a way for plugins to disable/enable
-    /// transformations. In some cases plugins may want not to execute some transformations.
-    /// For example plugin can disable unpleasant decompositions because of performance reasons.
+    /// transformations based on some conditions. In some cases plugins may want not to execute some
+    /// transformations.
+    /// For example plugin can disable unpleasant decompositions because of performance reasons for
+    /// some cases.
     /// Callback example:
     /// auto callback = [](const std::shared_ptr<const ngraph::Node> & node) -> bool {
     ///     return std::dynamic_pointer_cast<const ngraph::opset3::DepthToSpace>(node) != nullptr;
@@ -73,7 +75,7 @@ public:
     /// decomposition pass will check is this decomposition needed or plugin can execute this
     /// operation directly. And of course on transformation side we need to have a response for this
     /// callback.
-    /// if (m_transformation_callback(batch_to_space)) {
+    /// if (transformation_callback(batch_to_space)) {
     ///     return false;
     /// }
     /// \param callback lamda function that returns true in case if node is supported by plugin and
@@ -83,7 +85,7 @@ public:
     /// \return PassConfig shared object. This object is used for transformations pipeline
     /// configuration.
     /// This object allows to disable/enable transformations execution, set callback to particular
-    /// transformation.
+    /// transformation. For mo details see PassConfig class.
     std::shared_ptr<PassConfig> get_pass_config() { return m_pass_config; }
     /// \brief Set external PassConfig object.
     void set_pass_config(const std::shared_ptr<PassConfig>& pass_config)
