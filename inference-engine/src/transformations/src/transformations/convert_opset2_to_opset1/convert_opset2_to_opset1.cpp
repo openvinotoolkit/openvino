@@ -4,9 +4,8 @@
 
 #include "transformations/convert_opset2_to_opset1/convert_opset2_to_opset1.hpp"
 
-#include "transformations/convert_gelu.hpp"
-#include "transformations/convert_batch_to_space.hpp"
-#include "transformations/convert_space_to_batch.hpp"
+#include "transformations/convert_opset2_to_opset1/convert_batch_to_space.hpp"
+#include "transformations/convert_opset2_to_opset1/convert_space_to_batch.hpp"
 #include "transformations/itt.hpp"
 
 #include <memory>
