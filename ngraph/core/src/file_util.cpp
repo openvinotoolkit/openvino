@@ -23,6 +23,7 @@
 #include <sys/time.h>
 #include <unistd.h>
 #endif
+#include <algorithm>
 #include <fcntl.h>
 #include <fstream>
 #include <iostream>
@@ -32,7 +33,6 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <vector>
-#include <algorithm>
 
 #include "ngraph/env_util.hpp"
 #include "ngraph/file_util.hpp"

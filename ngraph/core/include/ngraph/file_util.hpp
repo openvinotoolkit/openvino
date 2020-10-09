@@ -64,7 +64,6 @@ namespace ngraph
                            bool recurse = false,
                            bool include_links = false);
 
-
         /// \brief Change Linux-style path ('/') to Windows-style ('\\')
         /// \param path The path to change file separator
         NGRAPH_API void convert_path_win_style(std::string& path);
