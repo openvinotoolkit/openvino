@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "convert_opset1_to_legacy/convert_normalizel2_to_normalize_ie.hpp"
+#include "legacy/transformations/convert_opset1_to_legacy/convert_normalizel2_to_normalize_ie.hpp"
 
 #include <memory>
 #include <vector>
@@ -10,7 +10,7 @@
 #include <ngraph/opsets/opset1.hpp>
 #include <ngraph/rt_info.hpp>
 
-#include "ngraph_ops/normalize_ie.hpp"
+#include "legacy/ngraph_ops/normalize_ie.hpp"
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertNormalizeL2WithMulToNormalizeIE, "ConvertNormalizeL2WithMulToNormalizeIE", 0);
 

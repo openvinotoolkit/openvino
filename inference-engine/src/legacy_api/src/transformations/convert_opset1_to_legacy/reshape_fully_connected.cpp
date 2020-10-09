@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "transformations/convert_opset1_to_legacy/reshape_fully_connected.hpp"
+#include "legacy/transformations/convert_opset1_to_legacy/reshape_fully_connected.hpp"
 
 #include <memory>
 #include <vector>
@@ -10,7 +10,7 @@
 #include <ngraph/opsets/opset1.hpp>
 #include <ngraph/rt_info.hpp>
 
-#include "ngraph_ops/fully_connected.hpp"
+#include "legacy/ngraph_ops/fully_connected.hpp"
 #include "transformations/utils/utils.hpp"
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::ReshapeFullyConnected, "ReshapeFullyConnected", 0);

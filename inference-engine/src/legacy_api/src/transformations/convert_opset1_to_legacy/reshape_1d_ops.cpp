@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "transformations/convert_opset1_to_legacy/reshape_1d_ops.hpp"
+#include "legacy/transformations/convert_opset1_to_legacy/reshape_1d_ops.hpp"
 
 #include <memory>
 #include <vector>

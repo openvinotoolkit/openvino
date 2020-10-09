@@ -11,7 +11,7 @@
 #include <transformations_visibility.hpp>
 
 #include <ngraph/pass/graph_rewrite.hpp>
-#include <ngraph_ops/gather_ie.hpp>
+#include <legacy/ngraph_ops/gather_ie.hpp>
 
 #include "ngraph/op/gather.hpp"
 #include "ngraph/op/constant.hpp"

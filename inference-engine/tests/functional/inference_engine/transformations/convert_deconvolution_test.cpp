@@ -18,7 +18,7 @@
 #include <transformations/utils/utils.hpp>
 #include <transformations/init_node_info.hpp>
 #include <ngraph/pass/visualize_tree.hpp>
-#include <transformations/convert_opset1_to_legacy/convert_convolutions.hpp>
+#include <transformations/common_transformations/convert_convolutions.hpp>
 #include <ngraph_ops/convolution_ie.hpp>
 #include <ngraph_ops/deconvolution_ie.hpp>
 

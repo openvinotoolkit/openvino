@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph_ops/eltwise.hpp"
+#include "legacy/ngraph_ops/eltwise.hpp"
 
 #include <algorithm>
 #include <memory>

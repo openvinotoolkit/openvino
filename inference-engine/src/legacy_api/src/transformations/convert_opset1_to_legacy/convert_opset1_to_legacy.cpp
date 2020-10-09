@@ -2,57 +2,51 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "convert_opset1_to_legacy/convert_opset1_to_legacy.hpp"
+#include "legacy/transformations/convert_opset1_to_legacy/convert_opset1_to_legacy.hpp"
 
-#include "convert_opset1_to_legacy/convert_broadcast_to_tiles.hpp"
-#include <transformations/convert_opset1_to_legacy/convert_convolutions.hpp"
-#include <transformations/itt.hpp>
-#include "convert_opset1_to_legacy/convert_cells_to_cells_ie.hpp"
-#include "convert_opset1_to_legacy/convert_gather_to_gather_ie.hpp"
-#include "convert_opset1_to_legacy/convert_gathertree_to_gathertree_ie.hpp"
-#include "convert_opset1_to_legacy/convert_interpolate_to_interp_or_resample.hpp"
-#include "convert_opset1_to_legacy/convert_lrn_to_lrn_ie.hpp"
-#include "convert_opset1_to_legacy/convert_matmul_to_fc_or_gemm.hpp"
-#include "convert_opset1_to_legacy/convert_mul_add_to_scaleshift_or_power.hpp"
-#include "convert_opset1_to_legacy/convert_mul_or_add_finally.hpp"
-#include "convert_opset1_to_legacy/convert_nms_to_nms_ie.hpp"
-#include "convert_opset1_to_legacy/convert_nms_4_to_legacy.hpp"
-#include "convert_opset1_to_legacy/convert_normalizel2_to_normalize_ie.hpp"
-#include "convert_opset1_to_legacy/convert_one_hot_to_one_hot_ie.hpp"
-#include "convert_opset1_to_legacy/convert_pad_to_pad_ie.hpp"
-#include "convert_opset1_to_legacy/convert_sqrt_to_power_ie.hpp"
-#include "convert_opset1_to_legacy/convert_power_to_power_ie.hpp"
-#include "convert_opset1_to_legacy/convert_prelu_to_relu_ie.hpp"
-#include "convert_opset1_to_legacy/convert_proposal_to_proposal_ie.hpp"
-#include "convert_opset1_to_legacy/convert_strided_slice_to_crop.hpp"
-#include "convert_opset1_to_legacy/convert_selu_to_selu_ie.hpp"
-#include "convert_opset1_to_legacy/convert_sequences_to_sequences_ie.hpp"
-#include "convert_opset1_to_legacy/convert_swish_to_swish_ie.hpp"
-#include "convert_opset1_to_legacy/convert_tile_to_ie_tile.hpp"
-#include "convert_opset1_to_legacy/convert_topk_to_topk_ie.hpp"
-#include "convert_depth_to_space.hpp"
-#include "convert_space_to_depth.hpp"
-#include "batch_norm_decomposition.hpp"
-#include "convert_opset1_to_legacy/conv_bias_fusion.hpp"
-#include "convert_opset1_to_legacy/fc_bias_fusion.hpp"
-#include "convert_opset1_to_legacy/reshape_fc_fusion.hpp"
-#include "convert_opset1_to_legacy/reshape_1d_ops.hpp"
-#include "convert_opset1_to_legacy/reshape_fully_connected.hpp"
-#include "pull_transpose_through_fq.hpp"
-#include "convert_opset1_to_legacy/convert_hard_sigmoid_to_hard_sigmoid_ie.hpp"
-#include "lin_op_sequence_fusoin.hpp"
-#include "common_optimizations/conv_mul_fusion.hpp"
-#include "hswish_decomposition.hpp"
-#include "reduce_l1_decomposition.hpp"
-#include "reduce_l2_decomposition.hpp"
+#include "legacy/transformations/convert_opset1_to_legacy/convert_cells_to_cells_ie.hpp"
+#include "legacy/transformations/convert_opset1_to_legacy/convert_gather_to_gather_ie.hpp"
+#include "legacy/transformations/convert_opset1_to_legacy/convert_gathertree_to_gathertree_ie.hpp"
+#include "legacy/transformations/convert_opset1_to_legacy/convert_interpolate_to_interp_or_resample.hpp"
+#include "legacy/transformations/convert_opset1_to_legacy/convert_lrn_to_lrn_ie.hpp"
+#include "legacy/transformations/convert_opset1_to_legacy/convert_matmul_to_fc_or_gemm.hpp"
+#include "legacy/transformations/convert_opset1_to_legacy/convert_mul_add_to_scaleshift_or_power.hpp"
+#include "legacy/transformations/convert_opset1_to_legacy/convert_mul_or_add_finally.hpp"
+#include "legacy/transformations/convert_opset1_to_legacy/convert_nms_to_nms_ie.hpp"
+#include "legacy/transformations/convert_opset1_to_legacy/convert_nms_4_to_legacy.hpp"
+#include "legacy/transformations/convert_opset1_to_legacy/convert_normalizel2_to_normalize_ie.hpp"
+#include "legacy/transformations/convert_opset1_to_legacy/convert_one_hot_to_one_hot_ie.hpp"
+#include "legacy/transformations/convert_opset1_to_legacy/convert_pad_to_pad_ie.hpp"
+#include "legacy/transformations/convert_opset1_to_legacy/convert_sqrt_to_power_ie.hpp"
+#include "legacy/transformations/convert_opset1_to_legacy/convert_power_to_power_ie.hpp"
+#include "legacy/transformations/convert_opset1_to_legacy/convert_prelu_to_relu_ie.hpp"
+#include "legacy/transformations/convert_opset1_to_legacy/convert_proposal_to_proposal_ie.hpp"
+#include "legacy/transformations/convert_opset1_to_legacy/convert_strided_slice_to_crop.hpp"
+#include "legacy/transformations/convert_opset1_to_legacy/convert_selu_to_selu_ie.hpp"
+#include "legacy/transformations/convert_opset1_to_legacy/convert_sequences_to_sequences_ie.hpp"
+#include "legacy/transformations/convert_opset1_to_legacy/convert_swish_to_swish_ie.hpp"
+#include "legacy/transformations/convert_opset1_to_legacy/convert_tile_to_ie_tile.hpp"
+#include "legacy/transformations/convert_opset1_to_legacy/convert_topk_to_topk_ie.hpp"
+#include "legacy/transformations/convert_opset1_to_legacy/fc_bias_fusion.hpp"
+#include "legacy/transformations/convert_opset1_to_legacy/reshape_fc_fusion.hpp"
+#include "legacy/transformations/convert_opset1_to_legacy/reshape_1d_ops.hpp"
+#include "legacy/transformations/convert_opset1_to_legacy/reshape_fully_connected.hpp"
+#include "legacy/transformations/convert_opset1_to_legacy/convert_hard_sigmoid_to_hard_sigmoid_ie.hpp"
 
 #include <transformations/common_optimizations/fq_mul_fusion.hpp>
+#include <transformations/common_optimizations/fq_reshape_fusion.hpp>
+#include <transformations/common_optimizations/pull_transpose_through_fq.hpp>
 #include <transformations/common_optimizations/convert_negative.hpp>
+#include <transformations/common_optimizations/convert_broadcast_to_tiles.hpp>
 #include <transformations/common_optimizations/convert_mod.hpp>
 #include <transformations/common_optimizations/convert_divide.hpp>
 #include <transformations/common_optimizations/convert_minimum_to_power_and_max.hpp>
 #include <transformations/common_optimizations/convert_subtract.hpp>
-#include <transformations/common_optimizations/fq_reshape_fusion.hpp>
+
+#include <transformations/common_transformations/conv_bias_fusion.hpp>
+#include <transformations/common_transformations/convert_convolutions.hpp>
+
+#include "ie_legacy_itt.hpp"
 
 #include <ngraph/pass/constant_folding.hpp>
 #include <ngraph/pass/manager.hpp>
@@ -65,7 +59,7 @@
 NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertOpSet1ToLegacy, "ConvertOpSet1ToLegacy", 0);
 
 bool ngraph::pass::ConvertOpSet1ToLegacy::run_on_function(std::shared_ptr<ngraph::Function> f) {
-    OV_ITT_SCOPED_TASK(itt::domains::IETransform, "ngraph::pass::ConvertOpSet1ToLegacy");
+    OV_ITT_SCOPED_TASK(InferenceEngine::itt::domains::IELegacy, "ngraph::pass::ConvertOpSet1ToLegacy");
 
     ngraph::pass::Manager manager;
 

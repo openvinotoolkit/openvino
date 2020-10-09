@@ -8,11 +8,11 @@
 #include <ngraph/graph_util.hpp>
 #include <ngraph/opsets/opset1.hpp>
 #include <ngraph/opsets/opset4.hpp>
-#include <ngraph_ops/nms_ie.hpp>
+#include <legacy/ngraph_ops/nms_ie.hpp>
 #include <ngraph/rt_info.hpp>
 #include <transformations/utils/utils.hpp>
 
-#include "convert_opset1_to_legacy/convert_nms_4_to_legacy.hpp"
+#include "legacy/transformations/convert_opset1_to_legacy/convert_nms_4_to_legacy.hpp"
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertNMS4ToLegacyMatcher, "ConvertNMS4ToLegacyMatcher", 0);
 

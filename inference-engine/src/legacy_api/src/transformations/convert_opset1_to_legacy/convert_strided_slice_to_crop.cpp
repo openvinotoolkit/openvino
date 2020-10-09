@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "transformations/convert_opset1_to_legacy/convert_strided_slice_to_crop.hpp"
+#include "legacy/transformations/convert_opset1_to_legacy/convert_strided_slice_to_crop.hpp"
 
 #include <algorithm>
 #include <memory>
@@ -10,7 +10,7 @@
 
 #include <ngraph/opsets/opset1.hpp>
 
-#include <ngraph_ops/crop_ie.hpp>
+#include <legacy/ngraph_ops/crop_ie.hpp>
 #include <ngraph/rt_info.hpp>
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertStridedSliceToCropMatcher, "ConvertStridedSliceToCropMatcher", 0);

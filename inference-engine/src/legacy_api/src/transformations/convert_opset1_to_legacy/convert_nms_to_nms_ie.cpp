@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "convert_opset1_to_legacy/convert_nms_to_nms_ie.hpp"
+#include "legacy/transformations/convert_opset1_to_legacy/convert_nms_to_nms_ie.hpp"
 
 #include <memory>
 #include <vector>
@@ -10,7 +10,7 @@
 #include <ngraph/opsets/opset3.hpp>
 #include <ngraph/opsets/opset1.hpp>
 
-#include <ngraph_ops/nms_ie.hpp>
+#include <legacy/ngraph_ops/nms_ie.hpp>
 #include <ngraph/rt_info.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 

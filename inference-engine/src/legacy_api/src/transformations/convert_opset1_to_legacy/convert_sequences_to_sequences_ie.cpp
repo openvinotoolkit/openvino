@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "transformations/convert_opset1_to_legacy/convert_sequences_to_sequences_ie.hpp"
+#include "legacy/transformations/convert_opset1_to_legacy/convert_sequences_to_sequences_ie.hpp"
 
 #include <memory>
 
@@ -10,9 +10,9 @@
 #include <ngraph/rt_info.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 
-#include <ngraph_ops/lstm_sequence_ie.hpp>
-#include <ngraph_ops/gru_sequence_ie.hpp>
-#include <ngraph_ops/rnn_sequence_ie.hpp>
+#include <legacy/ngraph_ops/lstm_sequence_ie.hpp>
+#include <legacy/ngraph_ops/gru_sequence_ie.hpp>
+#include <legacy/ngraph_ops/rnn_sequence_ie.hpp>
 
 ngraph::pass::ConvertLSTMSequenceMatcher::ConvertLSTMSequenceMatcher() {
     auto lstm_sequence_ngraph = ngraph::pattern::wrap_type<ngraph::opset5::LSTMSequence>();

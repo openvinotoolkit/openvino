@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "transformations/common_optimizations/softplus_decomposition.hpp"
+#include "transformations/convert_opset3_to_opset2/softplus_decomposition.hpp"
 
 #include <memory>
 #include <vector>

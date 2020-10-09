@@ -2,14 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "transformations/convert_opset1_to_legacy/convert_prelu_to_relu_ie.hpp"
+#include "legacy/transformations/convert_opset1_to_legacy/convert_prelu_to_relu_ie.hpp"
 
 #include <memory>
 #include <vector>
 
 #include <ngraph/opsets/opset1.hpp>
 
-#include <ngraph_ops/relu_ie.hpp>
+#include <legacy/ngraph_ops/relu_ie.hpp>
 #include <transformations/utils/utils.hpp>
 #include <ngraph/rt_info.hpp>
 

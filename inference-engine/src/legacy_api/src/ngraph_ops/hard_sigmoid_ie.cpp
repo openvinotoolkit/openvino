@@ -5,7 +5,7 @@
 #include <memory>
 #include <string>
 
-#include "ngraph_ops/hard_sigmoid_ie.hpp"
+#include "legacy/ngraph_ops/hard_sigmoid_ie.hpp"
 
 #include "ngraph/op/hard_sigmoid.hpp"
 #include "ngraph/op/constant.hpp"

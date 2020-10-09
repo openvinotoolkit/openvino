@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "convert_opset1_to_legacy/convert_mul_add_to_scaleshift_or_power.hpp"
+#include "legacy/transformations/convert_opset1_to_legacy/convert_mul_add_to_scaleshift_or_power.hpp"
 
 #include <memory>
 #include <vector>
@@ -13,8 +13,8 @@
 
 #include "transformations/utils/utils.hpp"
 
-#include "ngraph_ops/power.hpp"
-#include "ngraph_ops/scaleshift.hpp"
+#include "legacy/ngraph_ops/power.hpp"
+#include "legacy/ngraph_ops/scaleshift.hpp"
 
 CONVERSION_RESULT check_constant(const std::shared_ptr<ngraph::opset1::Constant>& constant,
                                  const ngraph::PartialShape& shape) {

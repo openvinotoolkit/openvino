@@ -9,7 +9,7 @@
 
 #include <transformations_visibility.hpp>
 
-#include <ngraph_ops/fully_connected.hpp>
+#include <legacy/ngraph_ops/fully_connected.hpp>
 #include <ngraph/graph_util.hpp>
 #include <ngraph/op/add.hpp>
 #include <ngraph/pattern/matcher.hpp>

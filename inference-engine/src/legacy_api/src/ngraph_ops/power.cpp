@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph_ops/power.hpp"
+#include "legacy/ngraph_ops/power.hpp"
 
 #include <memory>
 

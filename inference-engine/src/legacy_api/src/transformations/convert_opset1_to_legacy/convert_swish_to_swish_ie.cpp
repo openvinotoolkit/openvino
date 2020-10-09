@@ -2,13 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "transformations/convert_opset1_to_legacy/convert_swish_to_swish_ie.hpp"
+#include "legacy/transformations/convert_opset1_to_legacy/convert_swish_to_swish_ie.hpp"
 
 #include <memory>
 
 #include <ngraph/opsets/opset4.hpp>
 
-#include <ngraph_ops/swish_ie.hpp>
+#include <legacy/ngraph_ops/swish_ie.hpp>
 #include <transformations/utils/utils.hpp>
 #include <ngraph/rt_info.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>

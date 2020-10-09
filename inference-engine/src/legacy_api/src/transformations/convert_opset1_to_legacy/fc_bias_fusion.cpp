@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "transformations/convert_opset1_to_legacy/fc_bias_fusion.hpp"
+#include "legacy/transformations/convert_opset1_to_legacy/fc_bias_fusion.hpp"
 
 #include <memory>
 #include <numeric>

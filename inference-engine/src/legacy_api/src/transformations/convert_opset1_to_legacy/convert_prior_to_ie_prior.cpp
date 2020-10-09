@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "transformations/convert_opset1_to_legacy/convert_prior_to_ie_prior.hpp"
+#include "legacy/transformations/convert_opset1_to_legacy/convert_prior_to_ie_prior.hpp"
 
 #include <memory>
 #include <vector>
@@ -10,8 +10,8 @@
 #include <ngraph/opsets/opset3.hpp>
 #include <ngraph/opsets/opset1.hpp>
 
-#include <ngraph_ops/prior_box_ie.hpp>
-#include <ngraph_ops/prior_box_clustered_ie.hpp>
+#include <legacy/ngraph_ops/prior_box_ie.hpp>
+#include <legacy/ngraph_ops/prior_box_clustered_ie.hpp>
 #include <ngraph/rt_info.hpp>
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertPriorBox, "ConvertPriorBox", 0);

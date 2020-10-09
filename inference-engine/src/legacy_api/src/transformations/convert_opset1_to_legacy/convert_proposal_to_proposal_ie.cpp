@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "transformations/convert_opset1_to_legacy/convert_proposal_to_proposal_ie.hpp"
+#include "legacy/transformations/convert_opset1_to_legacy/convert_proposal_to_proposal_ie.hpp"
 
 #include <memory>
 #include <vector>
@@ -10,7 +10,7 @@
 #include <ngraph/opsets/opset1.hpp>
 #include <ngraph/opsets/opset4.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
-#include <ngraph_ops/proposal_ie.hpp>
+#include <legacy/ngraph_ops/proposal_ie.hpp>
 #include <ngraph/rt_info.hpp>
 
 bool convert_to_proposal_ie(std::shared_ptr<ngraph::op::v0::Proposal> proposal, bool infer_probs = false) {

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "convert_opset1_to_legacy/convert_hard_sigmoid_to_hard_sigmoid_ie.hpp"
+#include "legacy/transformations/convert_opset1_to_legacy/convert_hard_sigmoid_to_hard_sigmoid_ie.hpp"
 
 #include <memory>
 #include <vector>
@@ -11,7 +11,7 @@
 #include <ngraph/rt_info.hpp>
 
 #include <transformations/utils/utils.hpp>
-#include <ngraph_ops/hard_sigmoid_ie.hpp>
+#include <legacy/ngraph_ops/hard_sigmoid_ie.hpp>
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertHardSigmoidToLegacyMatcher, "ConvertHardSigmoidToLegacyMatcher", 0);
 

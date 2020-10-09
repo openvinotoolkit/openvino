@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph_ops/onehot_ie.hpp"
+#include "legacy/ngraph_ops/onehot_ie.hpp"
 
 #include <memory>
 

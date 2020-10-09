@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "convert_opset1_to_legacy/convert_cells_to_cells_ie.hpp"
+#include "legacy/transformations/convert_opset1_to_legacy/convert_cells_to_cells_ie.hpp"
 
 #include <memory>
 #include <vector>
@@ -14,9 +14,9 @@
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/op/util/rnn_cell_base.hpp>
 
-#include "ngraph_ops/lstm_cell_ie.hpp"
-#include "ngraph_ops/gru_cell_ie.hpp"
-#include "ngraph_ops/rnn_cell_ie.hpp"
+#include "legacy/ngraph_ops/lstm_cell_ie.hpp"
+#include "legacy/ngraph_ops/gru_cell_ie.hpp"
+#include "legacy/ngraph_ops/rnn_cell_ie.hpp"
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertLSTMCellMatcher, "ConvertLSTMCellMatcher", 0);
 

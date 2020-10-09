@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph_ops/fully_connected.hpp"
+#include "legacy/ngraph_ops/fully_connected.hpp"
 
 #include <memory>
 #include <numeric>

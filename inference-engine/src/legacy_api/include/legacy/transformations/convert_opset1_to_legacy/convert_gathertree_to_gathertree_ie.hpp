@@ -12,7 +12,7 @@
 #include <ngraph/pass/graph_rewrite.hpp>
 
 #include <ngraph/op/gather_tree.hpp>
-#include <ngraph_ops/gather_tree_ie.hpp>
+#include <legacy/ngraph_ops/gather_tree_ie.hpp>
 
 namespace ngraph {
 namespace pass {

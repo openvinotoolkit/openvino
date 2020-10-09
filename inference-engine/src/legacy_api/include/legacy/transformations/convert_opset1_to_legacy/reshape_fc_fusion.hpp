@@ -8,7 +8,7 @@
 #include <memory>
 #include <numeric>
 
-#include <ngraph_ops/fully_connected.hpp>
+#include <legacy/ngraph_ops/fully_connected.hpp>
 #include <ngraph/graph_util.hpp>
 #include <ngraph/pattern/matcher.hpp>
 #include <ngraph/pattern/op/label.hpp>

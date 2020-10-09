@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "transformations/convert_opset1_to_legacy/convert_pad_to_pad_ie.hpp"
+#include "legacy/transformations/convert_opset1_to_legacy/convert_pad_to_pad_ie.hpp"
 
 #include <memory>
 #include <vector>

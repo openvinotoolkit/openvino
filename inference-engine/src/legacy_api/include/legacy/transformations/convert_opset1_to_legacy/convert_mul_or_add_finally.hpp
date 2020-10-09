@@ -14,13 +14,13 @@
 #include <ngraph/opsets/opset1.hpp>
 #include <ngraph/rt_info.hpp>
 
-#include "ngraph_ops/scaleshift.hpp"
-#include "ngraph_ops/eltwise.hpp"
-#include "ngraph_ops/power.hpp"
+#include "legacy/ngraph_ops/scaleshift.hpp"
+#include "legacy/ngraph_ops/eltwise.hpp"
+#include "legacy/ngraph_ops/power.hpp"
 
 #include "transformations/utils/utils.hpp"
 
-#include "transformations/convert_opset1_to_legacy/convert_mul_add_to_scaleshift_or_power.hpp"
+#include "legacy/transformations/convert_opset1_to_legacy/convert_mul_add_to_scaleshift_or_power.hpp"
 
 namespace ngraph {
 namespace pass {

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph_ops/swish_ie.hpp"
+#include "legacy/ngraph_ops/swish_ie.hpp"
 
 #include <algorithm>
 #include <memory>

@@ -2,14 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "convert_opset1_to_legacy/convert_one_hot_to_one_hot_ie.hpp"
+#include "legacy/transformations/convert_opset1_to_legacy/convert_one_hot_to_one_hot_ie.hpp"
 
 #include <memory>
 #include <vector>
 
 #include <ngraph/opsets/opset1.hpp>
 
-#include <ngraph_ops/onehot_ie.hpp>
+#include <legacy/ngraph_ops/onehot_ie.hpp>
 #include <transformations/utils/utils.hpp>
 #include <ngraph/rt_info.hpp>
 
