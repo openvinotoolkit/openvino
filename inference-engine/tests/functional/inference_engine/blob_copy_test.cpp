@@ -44,8 +44,10 @@ SizeVector  SetDimVector(BatchNum batchNum, ChannelNum channelNum, Dims dims) {
 InferenceEngine::Blob::Ptr createBlob(InferenceEngine::Precision precision, SizeVector dimsVector, InferenceEngine::Layout layout) {
     InferenceEngine::TensorDesc tensorDesc(precision, dimsVector, layout);
     switch (precision) {
-        case  InferenceEngine::Precision::FP32 :
+        case  InferenceEngine::Precision::FP32:
              return make_shared_blob<float>(tensorDesc);
+        case  InferenceEngine::Precision::FP64:
+             return make_shared_blob<double>(tensorDesc);
         case InferenceEngine::Precision::FP16:
         case InferenceEngine::Precision::I16:
         case InferenceEngine::Precision::Q78:
@@ -115,8 +117,10 @@ void FillBlobRandom(Blob::Ptr& inputBlob) {
 void FillBlob(Blob::Ptr& inputBlob) {
     auto precision = inputBlob->getTensorDesc().getPrecision();
     switch (precision) {
-        case  InferenceEngine::Precision::FP32 :
+        case  InferenceEngine::Precision::FP32:
             return FillBlobRandom<float>(inputBlob);
+        case  InferenceEngine::Precision::FP64:
+            return FillBlobRandom<double>(inputBlob);
         case InferenceEngine::Precision::FP16:
         case InferenceEngine::Precision::I16:
         case InferenceEngine::Precision::Q78:
@@ -203,8 +207,10 @@ bool IsCorrectBlobCopy_Impl(Blob::Ptr& srcBlob, Blob::Ptr& dstBlob) {
 
 bool IsCorrectBlobCopy(Blob::Ptr& srcBlob, Blob::Ptr& dstBlob) {
     switch (srcBlob->getTensorDesc().getPrecision()) {
-        case  InferenceEngine::Precision::FP32 :
+        case  InferenceEngine::Precision::FP32:
             return IsCorrectBlobCopy_Impl<float>(srcBlob, dstBlob);
+        case  InferenceEngine::Precision::FP64:
+            return IsCorrectBlobCopy_Impl<double>(srcBlob, dstBlob);
         case InferenceEngine::Precision::FP16:
         case InferenceEngine::Precision::I16:
         case InferenceEngine::Precision::Q78:
@@ -298,6 +304,7 @@ std::vector<Dims> BlobCopy_Dims = {
 //  Cases with other precision are not supported
 std::vector<PrecisionType> BlobCopy_PrecisionParams = {
         InferenceEngine::Precision::FP32,
+        InferenceEngine::Precision::FP64,
         InferenceEngine::Precision::FP16,
         InferenceEngine::Precision::U8,
         InferenceEngine::Precision::I8,
@@ -332,6 +339,8 @@ bool IsEqualBlobCopy(Blob::Ptr& srcBlob, Blob::Ptr& dstBlob) {
     switch (srcBlob->getTensorDesc().getPrecision()) {
     case InferenceEngine::Precision::FP32:
         return IsEqualBlobCopy_Impl<float>(srcBlob, dstBlob);
+    case InferenceEngine::Precision::FP64:
+        return IsEqualBlobCopy_Impl<double>(srcBlob, dstBlob);
     case InferenceEngine::Precision::FP16:
     case InferenceEngine::Precision::I16:
     case InferenceEngine::Precision::Q78:
@@ -381,6 +390,8 @@ void copy3DBlobsAllBytesWithReLayoutWrapper(const Blob::Ptr& srcLayoutBlob, Blob
     switch (precision) {
     case InferenceEngine::Precision::FP32:
         return copy3DBlobsAllBytesWithReLayout<float>(srcLayoutBlob, trgLayoutBlob);
+    case InferenceEngine::Precision::FP64:
+        return copy3DBlobsAllBytesWithReLayout<double>(srcLayoutBlob, trgLayoutBlob);
     case InferenceEngine::Precision::FP16:
     case InferenceEngine::Precision::I16:
     case InferenceEngine::Precision::Q78:

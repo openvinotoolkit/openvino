@@ -190,7 +190,8 @@ public:
             PRECISION_NAME(Q78),  PRECISION_NAME(BOOL),  PRECISION_NAME(BF16),
             PRECISION_NAME(I8),   PRECISION_NAME(I16),   PRECISION_NAME(I32),  PRECISION_NAME(I64),
             PRECISION_NAME(U8),   PRECISION_NAME(U16),   PRECISION_NAME(U32),  PRECISION_NAME(U64),
-            PRECISION_NAME(FP32), PRECISION_NAME(FP64), PRECISION_NAME(FP16),  PRECISION_NAME(MIXED), PRECISION_NAME(BIN),
+            PRECISION_NAME(FP32), PRECISION_NAME(FP64),  PRECISION_NAME(FP16),  PRECISION_NAME(MIXED),
+            PRECISION_NAME(BIN),
 #undef PRECISION_NAME
         };
         auto i = names.find(str);
@@ -222,11 +223,12 @@ public:
      */
     bool isSigned() const noexcept {
         return (precisionInfo.value == Precision::UNSPECIFIED) || (precisionInfo.value == Precision::MIXED) ||
-               (precisionInfo.value == Precision::FP32) || (precisionInfo.value == Precision::FP64) || (precisionInfo.value == Precision::FP16) ||
-               (precisionInfo.value == Precision::Q78) || (precisionInfo.value == Precision::I16) ||
-               (precisionInfo.value == Precision::I8) || (precisionInfo.value == Precision::I32) ||
-               (precisionInfo.value == Precision::I64) || (precisionInfo.value == Precision::BIN) ||
-               (precisionInfo.value == Precision::BF16) || (precisionInfo.value == Precision::CUSTOM);
+               (precisionInfo.value == Precision::FP32) || (precisionInfo.value == Precision::FP64) ||
+               (precisionInfo.value == Precision::FP16) || (precisionInfo.value == Precision::Q78) ||
+               (precisionInfo.value == Precision::I16) || (precisionInfo.value == Precision::I8) ||
+               (precisionInfo.value == Precision::I32) || (precisionInfo.value == Precision::I64) ||
+               (precisionInfo.value == Precision::BIN) || (precisionInfo.value == Precision::BF16) ||
+               (precisionInfo.value == Precision::CUSTOM);
     }
 
 protected:
