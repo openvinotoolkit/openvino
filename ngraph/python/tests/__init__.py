@@ -91,7 +91,6 @@ xfail_issue_35926 = xfail_test(reason="RuntimeError: [NOT_IMPLEMENTED] Input ima
                                       "not supported yet...")
 xfail_issue_35927 = xfail_test(reason="RuntimeError: B has zero dimension that is not allowable")
 xfail_issue_40319 = xfail_test(reason="RuntimeError: [NOT_IMPLEMENTED] Input image format FP64 is not supported yet...")
-xfail_issue_40331 = xfail_test(reason="RuntimeError: cannot locate blob for precision: FP64")
 xfail_issue_35930 = xfail_test(reason="onnx.onnx_cpp2py_export.checker.ValidationError: "
                                       "Required attribute 'to' is missing.")
 xfail_issue_35932 = xfail_test(reason="Assertion error - logsoftmax results mismatch")

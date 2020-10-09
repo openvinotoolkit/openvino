@@ -19,7 +19,7 @@ import pytest
 import ngraph as ng
 from tests.runtime import get_runtime
 from tests.test_ngraph.util import run_op_node, run_op_numeric_data
-from tests import xfail_issue_34323, xfail_issue_40331
+from tests import xfail_issue_34323
 
 
 def test_concat():
@@ -51,7 +51,7 @@ def test_constant_from_bool(val_type, value):
     "val_type, value",
     [
         pytest.param(np.float32, np.float32(0.1234), marks=xfail_issue_34323),
-        pytest.param(np.float64, np.float64(0.1234), marks=xfail_issue_40331),
+        pytest.param(np.float64, np.float64(0.1234), marks=xfail_issue_34323),
         pytest.param(np.int8, np.int8(-63), marks=xfail_issue_34323),
         pytest.param(np.int16, np.int16(-12345), marks=xfail_issue_34323),
         pytest.param(np.int32, np.int32(-123456), marks=xfail_issue_34323),
@@ -72,7 +72,7 @@ def test_constant_from_scalar(val_type, value):
     "val_type",
     [
         pytest.param(np.float32, marks=xfail_issue_34323),
-        pytest.param(np.float64, marks=xfail_issue_40331),
+        pytest.param(np.float64, marks=xfail_issue_34323),
     ],
 )
 def test_constant_from_float_array(val_type):

@@ -25,8 +25,7 @@ from tests.test_onnx.utils import get_node_model, import_onnx_model, run_model, 
 from tests import (xfail_issue_34323,
                    xfail_issue_35930,
                    xfail_issue_35932,
-                   xfail_issue_36483,
-                   xfail_issue_40331)
+                   xfail_issue_36483)
 
 
 @pytest.mark.parametrize(
@@ -507,7 +506,7 @@ def test_cast_errors():
 
 @pytest.mark.parametrize("value_type",
                          [pytest.param(np.float32, marks=xfail_issue_34323),
-                          pytest.param(np.float64, marks=xfail_issue_40331)])
+                          pytest.param(np.float64, marks=xfail_issue_34323)])
 def test_constant(value_type):
     values = np.random.randn(5, 5).astype(value_type)
     node = onnx.helper.make_node(
