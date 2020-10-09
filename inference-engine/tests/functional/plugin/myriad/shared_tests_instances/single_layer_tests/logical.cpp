@@ -57,7 +57,6 @@ std::map<std::vector<size_t>, std::vector<std::vector<size_t >>> inputShapes = {
 };
 
 std::map<std::vector<size_t>, std::vector<std::vector<size_t >>> inputShapesNot = {
-        {{1}, {}},
         {{5}, {}},
         {{2, 200}, {}},
         {{1, 3, 20}, {}},
@@ -69,6 +68,10 @@ std::vector<ngraph::helpers::LogicalTypes> eltwiseLogicalTypesInt = {
         ngraph::helpers::LogicalTypes::LOGICAL_AND,
 };
 
+std::map<std::string, std::string> additional_config = {
+    {InferenceEngine::MYRIAD_DETECT_NETWORK_BATCH, CONFIG_VALUE(NO)}
+};
+
 INSTANTIATE_TEST_CASE_P(smoke_EltwiseLogicalInt,
                         LogicalLayerTestVPU,
                         ::testing::Combine(
@@ -78,19 +81,19 @@ INSTANTIATE_TEST_CASE_P(smoke_EltwiseLogicalInt,
                                 ::testing::Values(ngraph::helpers::InputLayerType::PARAMETER),
                                 ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                                 ::testing::Values(CommonTestUtils::DEVICE_MYRIAD),
-                                ::testing::Values(Config{{InferenceEngine::MYRIAD_DETECT_NETWORK_BATCH, CONFIG_VALUE(NO)}})),
+                                ::testing::Values(additional_config)),
                         LogicalLayerTest::getTestCaseName);
 
 INSTANTIATE_TEST_CASE_P(smoke_EltwiseLogicalNotInt,
-                        LogicalLayerTestVPU,
+                        LogicalLayerTest,
                         ::testing::Combine(
                                 ::testing::ValuesIn(LogicalLayerTest::combineShapes(inputShapesNot)),
-                                ::testing::Values(InferenceEngine::Precision::BOOL),
+                                ::testing::Values(InferenceEngine::Precision::I32),
                                 ::testing::Values(ngraph::helpers::LogicalTypes::LOGICAL_NOT),
-                                ::testing::Values(ngraph::helpers::InputLayerType::PARAMETER),
+                                ::testing::Values(ngraph::helpers::InputLayerType::CONSTANT),
                                 ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                                 ::testing::Values(CommonTestUtils::DEVICE_MYRIAD),
-                                ::testing::Values(Config{{InferenceEngine::MYRIAD_DETECT_NETWORK_BATCH, CONFIG_VALUE(NO)}})),
+                                ::testing::Values(additional_config)),
                         LogicalLayerTest::getTestCaseName);
 
 } // namespace
