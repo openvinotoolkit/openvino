@@ -85,8 +85,8 @@
             </tab>    
         </tab>
 
-        <!-- EXAMPLES category -->
-        <tab type="usergroup" title="EXAMPLES">
+        <!-- RESOURCES category -->
+        <tab type="usergroup" title="RESOURCES">
             <!-- Models and Demos Documentation-->
             <xi:include href="omz_docs.xml" xpointer="xpointer(//tab[@id='trained_models'])"/>
             <xi:include href="omz_docs.xml" xpointer="xpointer(//tab[@id='application_demos'])"/>
