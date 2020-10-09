@@ -23,6 +23,7 @@
 #include "ngraph/deprecated.hpp"
 #include "ngraph/function.hpp"
 #include "ngraph/node.hpp"
+#include "ngraph/pass/pass_config.hpp"
 #include "ngraph/util.hpp"
 
 namespace ngraph
@@ -39,7 +40,6 @@ namespace ngraph
 
         typedef EnumMask<PassProperty> PassPropertyMask;
         const PassPropertyMask all_pass_property_off;
-        using param_callback = std::function<bool(const std::shared_ptr<const ::ngraph::Node>)>;
 
         class NGRAPH_API PassBase
         {
@@ -54,7 +54,39 @@ namespace ngraph
             void set_name(const std::string& name) { m_name = name; }
             std::string get_name() const;
 
+            /// \brief Set callback for particular transformation type.
+            /// This method set global callback. For more details see PassConfig class
+            /// documentation.
+            /// \param callback lambda function that takes node and returns bool
             void set_callback(const param_callback& callback);
+
+            /// \brief Set PassConfig for particular transformation instance
+            /// \param pass_config is a PassConfig shared_ptr
+            void set_pass_config(const std::shared_ptr<PassConfig>& pass_config)
+            {
+                m_pass_config = pass_config;
+            }
+
+            /// \brief Allows to access PassConfig shared instance
+            /// \return Shared instance of PassConfig class
+            std::shared_ptr<PassConfig> get_pass_config() { return m_pass_config; }
+            /// \brief Applies callback for given node. By default callback returns false.
+            /// This method remains here only for backward compatibility and will be removed
+            /// after all transformations are moved to transformation_callback() method.
+            /// \return result of callback execution for given node
+            NGRAPH_DEPRECATED("Please use transformation_callback method instead")
+            bool m_transformation_callback(const std::shared_ptr<const Node>& node)
+            {
+                return m_pass_config->get_callback(get_type_info())(node);
+            }
+
+            /// \brief Applies callback for given node. By default callback returns false.
+            /// \param node which will be used inside callback
+            /// \return result of callback execution for given node
+            bool transformation_callback(const std::shared_ptr<const Node>& node)
+            {
+                return m_pass_config->get_callback(get_type_info())(node);
+            }
 
             using type_info_t = DiscreteTypeInfo;
 
@@ -63,13 +95,11 @@ namespace ngraph
         protected:
             void set_property(const PassPropertyMask& prop, bool value);
 
-            param_callback m_transformation_callback =
-                [](const std::shared_ptr<const Node>&) -> bool { return false; };
-            bool m_has_default_callback = true;
-
         private:
             PassPropertyMask m_property;
+
             std::string m_name;
+            std::shared_ptr<PassConfig> m_pass_config;
         };
 
         class NGRAPH_API FunctionPass : public PassBase

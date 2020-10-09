@@ -51,6 +51,8 @@ set (SRC
     pass/shape_relevance.hpp
     )
 
+disable_deprecated_warnings()
+
 add_library(ngraph_backend SHARED ${SRC})
 target_compile_definitions(ngraph_backend
     PRIVATE

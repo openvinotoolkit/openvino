@@ -68,7 +68,7 @@ bool ngraph::pass::CommonOptimizations::run_on_function(std::shared_ptr<ngraph::
     manager.register_pass<ngraph::pass::SoftPlusToMishFusion>();
     manager.register_pass<ngraph::pass::SwishFusion>();
     manager.register_pass<ngraph::pass::HSwishFusion>();
-    manager.register_pass<ngraph::pass::ConvertPadToGroupConvolution>();
+    manager.register_pass<ngraph::pass::ConvertPadToGroupConvolution, false>();
     manager.register_pass<ngraph::pass::NormalizeL2Fusion>();
     manager.register_pass<ngraph::pass::BidirectionalLSTMSequenceDecomposition>();
     manager.register_pass<ngraph::pass::BidirectionalRNNSequenceDecomposition>();
@@ -111,7 +111,8 @@ bool ngraph::pass::CommonOptimizations::run_on_function(std::shared_ptr<ngraph::
     fq_fusions->add_matcher<ngraph::pass::PullTransposeThroughFQUp>();
     fq_fusions->set_name("ngraph::pass::FakeQuantizeFusions");
 
-    manager.set_callback(m_transformation_callback);
+    // Propagate local PassConfig to internal pass::Manager
+    manager.set_pass_config(get_pass_config());
     manager.run_passes(f);
     return true;
 }

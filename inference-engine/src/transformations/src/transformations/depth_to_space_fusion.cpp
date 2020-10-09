@@ -155,11 +155,6 @@ void ngraph::pass::DepthToSpaceFusion::depth_to_space_fusion() {
                 std::make_shared<ngraph::opset3::DepthToSpace>(reshape_before->input_value(0), mode, block_size);
         depth_to_space->set_friendly_name(reshape_after->get_friendly_name());
         ngraph::copy_runtime_info({reshape_before, permute, reshape_after}, depth_to_space);
-
-        if (!m_transformation_callback(depth_to_space)) {
-            return false;
-        }
-
         ngraph::replace_node(reshape_after, depth_to_space);
         return true;
     };
