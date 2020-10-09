@@ -166,7 +166,31 @@ void GNAModelSerial::Import(void *basePointer,
         InferenceEngine::OutputsDataMap& outputsDataMap) {
     is.exceptions(std::istream::failbit);
 
+    for (auto inputIndex = 0; inputIndex < modelHeader.nInputs; inputIndex++) {
+        uint32_t nameSize = 0;
+        readNBits<64>(nameSize, is);
+        std::vector<char> inName;
+        for (uint32_t i = 0; i < nameSize; i++) {
+            char next_char;
+            readBits(next_char, is);
+            inName.push_back(next_char);
+        }
+        inputNames.emplace_back(std::string(inName.begin(), inName.end()));
+    }
     ImportInputs(is, basePointer, inputsDesc, inputsDataMap);
+
+    for (auto inputIndex = 0; inputIndex < modelHeader.nOutputs; inputIndex++) {
+        uint32_t nameSize = 0;
+        readNBits<64>(nameSize, is);
+
+        std::vector<char> outName;
+        for (uint32_t i = 0; i < nameSize; i++) {
+            char next_char;
+            readBits(next_char, is);
+            outName.push_back(next_char);
+        }
+        outputNames.emplace_back(outName.begin(), outName.end());
+    }
     ImportOutputs(is, basePointer, desc, outputsDataMap);
 
     for (auto operation = gna2Model->Operations; operation != gna2Model->Operations + gna2Model->NumberOfOperations; ++operation) {
@@ -311,8 +335,16 @@ void GNAModelSerial::Export(void * basePointer, size_t gnaGraphSize, std::ostrea
 
     writeBits(header, os);
 
+    for (auto &name : inputNames) {
+        writeBits(name.size(), os);
+        writeNBytes(name.c_str(), name.size(), os);
+    }
     for (const auto &input : inputs) {
         writeBits(convert_to_serial(input), os);
+    }
+    for (auto &name : outputNames) {
+        writeBits(name.size(), os);
+        writeNBytes(name.c_str(), name.size(), os);
     }
     for (const auto &output : outputs) {
         writeBits(convert_to_serial(output), os);
@@ -691,7 +723,7 @@ void GNAModelSerial::ImportInputs(std::istream &is,
     dataMap.clear();
 
     for (auto inputIndex = 0; inputIndex < modelHeader.nInputs; inputIndex++) {
-        std::string name = "input" + std::to_string(inputIndex);
+        std::string name = inputNames.at(inputIndex);
         HeaderLatest::RuntimeEndPoint input;
         is.read(reinterpret_cast<char *>(&input), sizeof(input));
         inputsDesc->getPtrInputsGlobal(name).push_back(reinterpret_cast<float*>(reinterpret_cast<uint8_t *> (basePtr) + input.descriptor_offset));
@@ -719,7 +751,7 @@ void GNAModelSerial::ImportOutputs(std::istream &is,
     desc.resize(modelHeader.nOutputs);
 
     for (auto outputIndex = 0; outputIndex < modelHeader.nOutputs; outputIndex++) {
-        std::string name = "output" + std::to_string(outputIndex);
+        std::string name = outputNames.at(outputIndex);
         HeaderLatest::RuntimeEndPoint output;
         is.read(reinterpret_cast<char *>(&output), sizeof(output));
         OutputDesc description;
