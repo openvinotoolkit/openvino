@@ -6,14 +6,14 @@ graph {
     input: "B"
     output: "X"
     name: "multiply_node_1"
-    op_type: "Multiply"
+    op_type: "Mul"
   }
   node {
     input: "X"
     input: "C"
     output: "Y"
     name: "multiply_node_2"
-    op_type: "Multiply"
+    op_type: "Mul"
   }
   name: "test_graph"
   initializer {
@@ -23,7 +23,7 @@ graph {
     name: "A"
     external_data {
         key: "location",
-        value: "data/tensor.data"
+        value: "../data/tensor.data"
     }
     data_location: 1
   }

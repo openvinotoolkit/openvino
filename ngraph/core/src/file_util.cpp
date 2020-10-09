@@ -32,6 +32,7 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <vector>
+#include <algorithm>
 
 #include "ngraph/env_util.hpp"
 #include "ngraph/file_util.hpp"
@@ -81,10 +82,19 @@ string file_util::get_file_ext(const string& s)
 string file_util::get_directory(const string& s)
 {
     string rc = s;
+    // Linux-style separator
     auto pos = s.find_last_of('/');
     if (pos != string::npos)
     {
         rc = s.substr(0, pos);
+        return rc;
+    }
+    // Windows-style separator
+    pos = s.find_last_of('\\');
+    if (pos != string::npos)
+    {
+        rc = s.substr(0, pos);
+        return rc;
     }
     return rc;
 }
@@ -243,6 +253,11 @@ void file_util::iterate_files(const string& path,
     {
         func(f, true);
     }
+}
+
+NGRAPH_API void file_util::convert_path_win_style(std::string& path)
+{
+    std::replace(path.begin(), path.end(), '/', '\\');
 }
 
 #ifdef ENABLE_UNICODE_PATH_SUPPORT
