@@ -29,5 +29,9 @@ TEST(op_eval, nonmaxsuppression_center_point_box_format)
     const int64_t max_output_boxes_per_class = 3;
     const float iou_threshold = 0.0f;
     const float score_threshold = 0.0f;
+    const auto box_encoding = op::v5::BoxEncodingType::CENTER;
+    const auto boxes_shape = Shape{1, 6, 4};
+    const auto scores_shape = Shape{1, 1, 6};
+
     ASSERT_TRUE(true);
 }
