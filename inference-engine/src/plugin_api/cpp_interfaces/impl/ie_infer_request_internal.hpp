@@ -63,6 +63,8 @@ public:
         InferImpl();
     }
 
+    virtual void ResetCancellationRequest() = 0;
+
     /**
      * @brief Given optional implementation of setting blob to avoid need for it to be implemented by plugin
      * @param name - a name of input or output blob.

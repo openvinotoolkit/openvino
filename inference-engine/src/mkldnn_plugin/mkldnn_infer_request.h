@@ -25,6 +25,8 @@ public:
 
     void InferImpl() override;
 
+    InferenceEngine::StatusCode Cancel() override;
+
     void GetPerformanceCounts(std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> &perfMap) const override;
 
     /**
@@ -44,6 +46,9 @@ public:
     void SetBatch(int batch = -1) override;
 
     std::vector<InferenceEngine::IVariableStateInternal::Ptr> QueryState() override;
+
+protected:
+    void ResetCancellationRequest() override;
 
 private:
     void PushInputData();
