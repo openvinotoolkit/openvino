@@ -45,4 +45,4 @@ class SplitTdnnMemoryOffset(MiddleReplacementPattern):
                 paired_node['element_size'] = offset_node['element_size']
             # Copy shape from previous node. Typically (but not always) for TDNN blocks this is the case
             else:
-                paired_node['element_size'] = offset_node.in_node().shape[1]
+                paired_node['element_size'] = offset_node.in_node().get_shape()[1]
