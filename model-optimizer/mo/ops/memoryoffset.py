@@ -40,7 +40,7 @@ class MemoryOffset(Op):
 
     @staticmethod
     def infer(node: Node):
-        # MemoryOffset is splitted in 2 parts to avoid cycle in graph
+        # MemoryOffset is split into 2 parts to avoid cycle in graph
         # Calculate shape from shape of previous layer where possible
         # In other cases information about shapes from initial Kaldi model used
         if not node.in_port(0).disconnected():
