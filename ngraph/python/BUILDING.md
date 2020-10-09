@@ -12,7 +12,7 @@ In order to build the nGraph Python wheel, you will need to install a few packag
 On Ubuntu 20.04 LTS you can use the following instructions to install the required packages, including Python and Cython.
 
     apt install git wget build-essential cmake
-    apt install python3 python3-dev python3-pip python-is-python3
+    apt install python3 python3-dev python3-pip python3-virtualenv python-is-python3
     pip3 install cython
 
 You can see a full working example od an Ubuntu environment used in our continuous environment in this 
@@ -60,12 +60,13 @@ When OpenVINO is built and installed, we can build the Python wheel by issuing t
 
 Once completed, the wheel package should be located under the following path:
 
-    $ ls "${MY_OPENVINO_BASEDIR}/ngraph/python/dist/"
+    $ ls "${MY_OPENVINO_BASEDIR}/openvino/ngraph/python/dist/"
     ngraph_core-0.0.0-cp38-cp38-linux_x86_64.whl
 
 You can now install the wheel in your Python environment:
 
-    pip3 install dist/ngraph_core-0.0.0.dev0-cp38-cp38-linux_x86_64.whl
+    cd "${MY_OPENVINO_BASEDIR}/openvino/ngraph/python/dist/"
+    pip3 install ngraph_core-0.0.0-cp38-cp38-linux_x86_64.whl
 
 #### What does `make python_wheel` do?
 
