@@ -66,7 +66,7 @@ else
     printf "Error: setupvars.sh is not found\n"
 fi
 
-if ! . $setupvars_path ; then
+if ! . "$setupvars_path" ; then
     printf "Unable to run ./setupvars.sh. Please check its presence. ${run_again}"
     exit 1
 fi
@@ -116,7 +116,7 @@ elif [[ $DISTRO == "ubuntu" ]]; then
     pip_binary=pip3
 
     system_ver=`cat /etc/lsb-release | grep -i "DISTRIB_RELEASE" | cut -d "=" -f2`
-    if [ $system_ver = "16.04" ]; then
+    if [ "$system_ver" = "16.04" ]; then
         sudo -E apt-get install -y libpng12-dev
     else
         sudo -E apt-get install -y libpng-dev
@@ -144,9 +144,9 @@ if ! command -v $python_binary &>/dev/null; then
 fi
 
 if [[ "$OSTYPE" == "darwin"* ]]; then
-    $pip_binary install -r $ROOT_DIR/../open_model_zoo/tools/downloader/requirements.in
+    "$pip_binary" install -r "$ROOT_DIR/../open_model_zoo/tools/downloader/requirements.in"
 else
-    sudo -E $pip_binary install -r $ROOT_DIR/../open_model_zoo/tools/downloader/requirements.in
+    sudo -E "$pip_binary" install -r "$ROOT_DIR/../open_model_zoo/tools/downloader/requirements.in"
 fi
 
 downloader_dir="${INTEL_OPENVINO_DIR}/deployment_tools/open_model_zoo/tools/downloader"
@@ -188,7 +188,7 @@ printf "Build Inference Engine samples\n\n"
 OS_PATH=$(uname -m)
 NUM_THREADS="-j2"
 
-if [ $OS_PATH == "x86_64" ]; then
+if [ "$OS_PATH" == "x86_64" ]; then
   OS_PATH="intel64"
   NUM_THREADS="-j8"
 fi
@@ -197,12 +197,12 @@ samples_path="${INTEL_OPENVINO_DIR}/deployment_tools/inference_engine/samples/cp
 build_dir="$HOME/inference_engine_samples_build"
 binaries_dir="${build_dir}/${OS_PATH}/Release"
 
-if [ -e $build_dir/CMakeCache.txt ]; then
-	rm -rf $build_dir/CMakeCache.txt
+if [ -e "$build_dir/CMakeCache.txt" ]; then
+  rm -rf "$build_dir/CMakeCache.txt"
 fi
-mkdir -p $build_dir
-cd $build_dir
-cmake -DCMAKE_BUILD_TYPE=Release $samples_path
+mkdir -p "$build_dir"
+cd "$build_dir"
+cmake -DCMAKE_BUILD_TYPE=Release "$samples_path"
 
 make $NUM_THREADS classification_sample_async
 
@@ -210,9 +210,9 @@ make $NUM_THREADS classification_sample_async
 printf "${dashes}"
 printf "Run Inference Engine classification sample\n\n"
 
-cd $binaries_dir
+cd "$binaries_dir"
 
-cp -f $ROOT_DIR/${model_name}.labels ${ir_dir}/
+cp -f "$ROOT_DIR/${model_name}.labels" "${ir_dir}/"
 
 print_and_run ./classification_sample_async -d "$target" -i "$target_image_path" -m "${ir_dir}/${model_name}.xml" ${sampleoptions}
 

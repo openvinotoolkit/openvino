@@ -14,7 +14,7 @@ if(NOT DEFINED IE_SHELLCHECK_OUTPUT)
     message(FATAL_ERROR "IE_SHELLCHECK_OUTPUT is not defined")
 endif()
 
-set(rules "SC1091,SC2236,SC2164,SC2086,SC2162,SC1090")
+set(rules "SC1091,SC2164,SC2162,SC1090")
 execute_process(COMMAND ${IE_SHELLCHECK_PROGRAM} --exclude=${rules} ${IE_SHELL_SCRIPT}
                 OUTPUT_VARIABLE error_message
                 RESULT_VARIABLE exit_code
