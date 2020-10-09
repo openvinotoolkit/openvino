@@ -18,7 +18,6 @@ import os
 
 import numpy as np
 import ngraph as ng
-import onnx
 from openvino.inference_engine import IECore
 
 from tests.runtime import get_runtime

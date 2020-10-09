@@ -82,7 +82,8 @@ public:
      * @param weights shared pointer to constant blob with weights
      * Reading ONNX models doesn't support loading weights from data blobs.
      * If you are using an ONNX model with external data files, please use the
-     * ReadNetwork function overload which takes a filesystem path to the model.
+     * `InferenceEngine::Core::ReadNetwork(const std::string& model, const Blob::CPtr& weights) const`
+     * function overload which takes a filesystem path to the model.
      * For ONNX case the second parameter should contain empty blob.
      * @return CNNNetwork
      */
