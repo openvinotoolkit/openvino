@@ -28,7 +28,7 @@ class SparseSegmentSum(Op):
             - [0, required] Data tensor from which rows are selected for the sum (ND),
             - [1, required] Tensor of indices of selected rows from the first input tensor along 0 dimension (1D),
             - [2, required] Tensor of segment IDs to which selected rows for the sum belong.
-                            Selected rows beloging to the same segment are summed up. The tensor has the same size as the second input.
+                            Selected rows belonging to the same segment are summed up. The tensor has the same size as the second input.
                             Values must be sorted and can be repeated. (1D).
         
         One output:

@@ -66,7 +66,7 @@ class FakeQuantize(Op):
         inputs = [node.in_node(i) for i in range(5)]
         x, input_low, input_high, output_low, output_high = inputs
         assert x.has_valid('shape')
-        # TODO Check all input[1..4] shapes are broadcastable to intput[0] shape
+        # TODO Check all inputs[1..4] shapes are broadcastable to inputs[0] shape
         assert all([broadcastable(inputs[i].shape, inputs[0].shape) for i in range(1, 5)]), \
             "Not all shapes from FakeQuantize inputs can be broadcasted to input[0] for node {}".format(
                 node.soft_get('name'))

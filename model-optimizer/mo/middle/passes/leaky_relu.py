@@ -23,7 +23,7 @@ from mo.middle.pattern_match import apply_pattern
 
 def _convert_to_leaky_relu_action(graph: Graph, matches: dict):
     """
-    This function checks given patten and if pattern satisfies all requirements, converts to ReLU with negative slope
+    This function checks given pattern and if pattern satisfies all requirements, converts to ReLU with negative slope
     """
     mul_op = matches['mul_op']
     mul_value_data = matches['const_data']

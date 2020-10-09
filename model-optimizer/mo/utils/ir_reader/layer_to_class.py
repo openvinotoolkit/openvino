@@ -41,7 +41,7 @@ from mo.utils.class_registration import update_registration
 from mo.utils.import_extensions import import_by_path
 from mo.utils.ir_reader.extender import Extender
 
-# Operations not registred in collect_ops() function
+# Operations not registered in collect_ops() function
 custom_ops = {
     'AvgPool': Pooling,
     'BiasAdd': BiasAdd,
@@ -272,7 +272,7 @@ def copy_graph_with_ops(graph: Graph) -> Graph:
     """
     Function to copy graph and apply extenders to appropriate nodes
     :param graph: Graph to copy
-    :return:Copied graph with applyed extenders
+    :return:Copied graph with applied extenders
     """
     new_graph = Graph()
     new_graph.stage = 'back'

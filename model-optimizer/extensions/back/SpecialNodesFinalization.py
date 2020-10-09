@@ -80,7 +80,7 @@ class CreateConstNodesReplacement(BackReplacementPattern):
     def replace_pattern(self, graph: Graph, match: dict):
         """
             Adds layers with type 'Const' that produce blob from 'bin' file. The pass finds data nodes with one output which
-            doesn't have edge with 'bin' attribute (or with two outputs and at least one output havent 'bin' attr)
+            doesn't have edge with 'bin' attribute (or with two outputs and at least one output doesn't have 'bin' attr)
             and generate Const op node before the node and data node before the Const node. The data node before 'Const'
             node is needed because the op node dumps input tensors to bin file.
         """
