@@ -28,6 +28,7 @@ class MemoryOffset(Op):
             'op': 'MemoryOffset',
             'type': None,
             'pair_name': None,
+            'splitted': False,
             'has_default': False,
             'infer': __class__.infer,
             'in_ports_count': 1,
@@ -38,7 +39,8 @@ class MemoryOffset(Op):
     @staticmethod
     def infer(node: Node):
         if node.has_valid('element_size'):
-            # 'element_size' should be set on the loader or on 'memory_offset_adjustment'
+            # element_size should be set by Kaldi loader or by MemoryOffsetAdjustment
             node.out_port(0).data.set_shape([1, node['element_size']])
         else:
+            # for TDNN blocks
             copy_shape_infer(node)

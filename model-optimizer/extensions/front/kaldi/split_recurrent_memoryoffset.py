@@ -23,13 +23,15 @@ from mo.utils.error import Error
 from mo.utils.graph import Node
 
 
-class SplitLstmMemoryOffset(FrontReplacementSubgraph):
+class SplitRecurrentMemoryOffset(FrontReplacementSubgraph):
     """
-    Splits MemoryOffsets in LSTM blocks into 2 parts. These parts then will be converted to ReadValue and Assign.
+    Splits MemoryOffsets in recurrent blocks (typically LSTM blocks) into 2 parts.
 
-    Splitting complicates shape inference but MemoryOffsets in LSTM blocks are cycled and, in order to make topological
-    sort possible during shape inference, they are splitted earlier on the front phase. In contrast, MemoryOffsets in
-    TDNN blocks are not cycled, so they will be splitted after shape infer on the middle.
+    These parts then will be converted to ReadValue and Assign. Splitting complicates shape inference but
+    MemoryOffsets in recurrent blocks are cycled and, in order to make topological sort possible
+    during shape inference, they are splitted earlier on the front phase. In contrast,
+    MemoryOffsets in TDNN blocks are not cycled, so they will be splitted after shape infer on the middle.
+    Now only LSTM blocks with MemoryOffset are present.
     """
     enabled = True
     graph_condition = [lambda graph: graph.graph['fw'] == 'kaldi']
@@ -47,14 +49,14 @@ class SplitLstmMemoryOffset(FrontReplacementSubgraph):
         offset_node.out_port(0).connect(res_node.in_port(0))
 
     def find_and_replace_pattern(self, graph: Graph):
-        for offset_node in graph.get_op_nodes(op='MemoryOffset'):
+        for offset_node in graph.get_op_nodes(op='MemoryOffset', splitted=False):
             try:
-                # if graph contains LSTM block with cycle, split MemoryOffset to enable shape infer
+                # if graph contains recurrent block -> split MemoryOffset to enable shape infer
                 nx.find_cycle(graph, offset_node.id)
             except nx.NetworkXNoCycle as e:
-                # MemoryOffset node is not in a recursive LSTM block -- no splitting is needed
+                # MemoryOffset node is not in a recurrent block -- no splitting is needed
                 return
 
             if not offset_node.has_valid('element_size'):
                 raise Error("In a recurrent block 'element_size' for node {} is not set".format(offset_node.id))
-            SplitLstmMemoryOffset.split_offset(offset_node)
+            SplitRecurrentMemoryOffset.split_offset(offset_node)

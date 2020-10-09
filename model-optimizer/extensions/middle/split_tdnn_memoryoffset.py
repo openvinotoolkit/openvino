@@ -39,4 +39,10 @@ class SplitTdnnMemoryOffset(MiddleReplacementPattern):
             offset_node.out_port(0).get_connection().set_source(paired_node.out_port(0))
             res_node = Result(graph, {'name': offset_node.id + "_output"}).create_node()
             offset_node.out_port(0).connect(res_node.in_port(0))
-            paired_node['need_shape_inference'] = False
+
+            # If 'element_size' is previously copied from Parameter of from node with defined dim
+            if offset_node.has_valid('element_size'):
+                paired_node['element_size'] = offset_node['element_size']
+            # Copy shape from previous node. Typically (but not always) for TDNN blocks this is the case
+            else:
+                paired_node['element_size'] = offset_node.in_node().shape[1]

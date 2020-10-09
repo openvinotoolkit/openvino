@@ -62,8 +62,8 @@ class TdnnComponentReplacer(FrontReplacementPattern):
         concat_node = Concat(graph, {'axis': 1}).create_node()
         rename_nodes([(tdnn_node, tdnn_name + '/to_be_removed'), (concat_node, tdnn_name)])
 
-        for offfset_ind, t in enumerate(tdnn_node['time_offsets']):
-            concat_node.add_input_port(offfset_ind)
+        for offset_ind, t in enumerate(tdnn_node['time_offsets']):
+            concat_node.add_input_port(offset_ind)
             if t != 0:
                 memory_name = tdnn_name + '/MemoryOffset/' + str(abs(t))
                 memoryoffset_node = MemoryOffset(graph, {'name': memory_name, 't': t,
@@ -71,11 +71,11 @@ class TdnnComponentReplacer(FrontReplacementPattern):
                                                          'has_default': False, 'splitted': False}).create_node()
 
                 tdnn_node.in_port(0).get_source().connect(memoryoffset_node.in_port(0))
-                memoryoffset_node.out_port(0).connect(concat_node.in_port(offfset_ind))
+                memoryoffset_node.out_port(0).connect(concat_node.in_port(offset_ind))
             else:
                 # 0 time delay is not allowed in IE, it's meaningless
                 # if time offset is 0 then connect input of tdnncomponent directly to Concat without memoryoffset
-                tdnn_node.in_port(0).get_source().connect(concat_node.in_port(offfset_ind))
+                tdnn_node.in_port(0).get_source().connect(concat_node.in_port(offset_ind))
 
         weights = tdnn_node['weights']
         fc_inputs = {1: weights}

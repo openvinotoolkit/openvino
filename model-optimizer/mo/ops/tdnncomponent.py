@@ -20,7 +20,7 @@ from mo.ops.op import Op
 
 class TdnnComponent(Op):
     op = 'tdnncomponent'
-    enabled = True
+    enabled = False
 
     def __init__(self, graph: Graph, attrs: dict):
         super().__init__(graph, {
