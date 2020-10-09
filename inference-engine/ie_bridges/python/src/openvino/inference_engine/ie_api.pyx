@@ -138,7 +138,7 @@ cdef class Blob:
             precision = tensor_desc.precision
             if precision == "FP32":
                 self._ptr = C.make_shared_blob[float](c_tensor_desc)
-            if precision == "FP64":
+            elif precision == "FP64":
                 self._ptr = C.make_shared_blob[double](c_tensor_desc)
             elif precision == "FP16" or precision == "I16":
                 self._ptr = C.make_shared_blob[int16_t](c_tensor_desc)
@@ -171,7 +171,7 @@ cdef class Blob:
             if precision == "FP32":
                 fp32_array_memview = self._array_data
                 self._ptr = C.make_shared_blob[float](c_tensor_desc, &fp32_array_memview[0], fp32_array_memview.shape[0])
-            if precision == "FP64":
+            elif precision == "FP64":
                 fp64_array_memview = self._array_data
                 self._ptr = C.make_shared_blob[double](c_tensor_desc, &fp64_array_memview[0], fp64_array_memview.shape[0])
             elif precision == "FP16":
