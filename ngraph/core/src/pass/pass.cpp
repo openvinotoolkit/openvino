@@ -33,6 +33,7 @@ NGRAPH_RTTI_DEFINITION(ngraph::pass::NodePass, "ngraph::pass::NodePass", 0);
 
 pass::PassBase::PassBase()
     : m_property{all_pass_property_off}
+    , m_pass_config(std::make_shared<PassConfig>())
 {
 }
 
@@ -73,8 +74,7 @@ std::string pass::PassBase::get_name() const
 
 void pass::PassBase::set_callback(const param_callback& callback)
 {
-    m_transformation_callback = callback;
-    m_has_default_callback = false;
+    m_pass_config->set_callback(callback);
 }
 
 // The symbols are requiered to be in cpp file to workaround RTTI issue on Android LLVM
