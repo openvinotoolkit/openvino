@@ -32,7 +32,7 @@ class NonMaxSuppressionNormalize(FrontReplacementSubgraph):
         for nms in graph.get_op_nodes(op='NonMaxSuppression'):
             # make inputs 2 to 4 to have shape [1] instead of [0] (convert 0D to 1D)
             nms_name = nms.soft_get('name', nms.id)
-            for port_id in range(2, 5):
+            for port_id in range(2, 6):
                 if port_id in nms.in_ports() and not nms.in_port(port_id).disconnected():
                     reshape_1d = create_op_node_with_second_input(graph, Reshape, int64_array([1]),
                                                                   {'name': nms_name + '/Reshape_1D_{}'.format(port_id)})
