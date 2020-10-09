@@ -96,6 +96,8 @@ public:
      */
     virtual StatusCode Infer(ResponseDesc* resp) noexcept = 0;
 
+    virtual StatusCode Cancel(ResponseDesc* resp) noexcept = 0;
+
     /**
      * @brief Queries performance measures per layer to get feedback of what is the most time consuming layer
      *

@@ -159,6 +159,12 @@ public:
         CALL_STATUS_FNC_NO_ARGS(Infer);
     }
 
+    StatusCode Cancel() {
+        ResponseDesc resp;
+        if (actual == nullptr) THROW_IE_EXCEPTION << "InferRequest was not initialized.";
+        return actual->Cancel(&resp);
+    }
+
     /**
      * @copybrief IInferRequest::GetPerformanceCounts
      *

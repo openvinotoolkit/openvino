@@ -25,6 +25,8 @@ public:
 
     void InferImpl() override;
 
+    InferenceEngine::StatusCode Cancel() override;
+
     void GetPerformanceCounts(std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> &perfMap) const override;
 
     /**
@@ -42,6 +44,9 @@ public:
     void GetBlob(const char *name, InferenceEngine::Blob::Ptr &data) override;
 
     void SetBatch(int batch = -1) override;
+
+protected:
+    void ResetCancellationRequest() override;
 
 private:
     template <typename T> void pushInput(const std::string& inputName, InferenceEngine::Blob::Ptr& inputBlob);

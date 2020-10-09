@@ -799,6 +799,10 @@ void MKLDNNGraph::Infer(int batch) {
         }
 
         ENABLE_DUMP(do_after(DUMP_DIR, graphNodes[i]));
+
+        if (IsCancellationRequested()) {
+            break;
+        }
     }
 
     if (infer_count != -1) infer_count++;

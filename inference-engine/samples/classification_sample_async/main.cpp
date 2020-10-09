@@ -194,6 +194,7 @@ int main(int argc, char *argv[]) {
                         /* here a user can read output containing inference results and put new input
                            to repeat async request again */
                         inferRequest.StartAsync();
+                        inferRequest.Cancel();
                     } else {
                         /* continue sample execution after last Asynchronous inference request execution */
                         condVar.notify_one();
@@ -202,7 +203,14 @@ int main(int argc, char *argv[]) {
 
         /* Start async request for the first time */
         slog::info << "Start inference (" << numIterations << " asynchronous executions)" << slog::endl;
+
+        StatusCode code;
+
+        code = inferRequest.Cancel();
+
         inferRequest.StartAsync();
+
+        code = inferRequest.Cancel();
 
         /* Wait all repetitions of the async request */
         std::mutex mutex;
