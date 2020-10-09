@@ -175,6 +175,7 @@ def test_convert_to_float(destination_type, rand_range, in_dtype, expected_type)
     assert np.allclose(result, expected)
     assert np.array(result).dtype == expected_type
 
+
 @xfail_issue_40319
 @pytest.mark.parametrize(
     "destination_type, expected_type",
