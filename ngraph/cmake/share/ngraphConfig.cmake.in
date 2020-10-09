@@ -20,11 +20,12 @@
 #
 # This will define the following variables:
 #
-#   ngraph_FOUND              - True if the system has the nGraph library
-#   NGRAPH_LIBRARIES          - nGraph libraries
-#   ngraph::ngraph            - nGraph core target
-#   ONNX_IMPORTER_LIBRARIES   - ONNX importer libraries
-#   ngraph::onnx_importer     - ONNX importer target
+#   ngraph_FOUND               - True if the system has the nGraph library
+#   NGRAPH_LIBRARIES           - nGraph libraries
+#   ngraph::ngraph             - nGraph core target
+#   ngraph_onnx_importer_FOUND - True if the system has onnx_importer library
+#   ONNX_IMPORTER_LIBRARIES    - ONNX importer libraries
+#   ngraph::onnx_importer      - ONNX importer target
 #
 #
 
