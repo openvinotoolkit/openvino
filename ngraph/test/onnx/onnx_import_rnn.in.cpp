@@ -43,10 +43,145 @@ static std::string s_manifest = "${MANIFEST}";
 using TestEngine = test::ENGINE_CLASS_NAME(${BACKEND_NAME});
 
 // ONNX LSTM tests (implemented by nGraph LSTMCell and LSTMSequence)
-NGRAPH_TEST(${BACKEND_NAME}, onnx_model_lstm_fwd_with_clip)
+NGRAPH_TEST(${BACKEND_NAME}, onnx_model_lstm_fwd_default_const)
 {
     auto function = onnx_import::import_onnx_model(
-        file_util::path_join(SERIALIZED_ZOO, "onnx/lstm_fwd_with_clip.prototxt"));
+        file_util::path_join(SERIALIZED_ZOO, "onnx/lstm_fwd_default_const.prototxt"));
+
+    auto test_case = test::TestCase<TestEngine>(function);
+    test_case.add_input<float>({0.68172926, 1.1405563, -0.03931177, -0.03759607}); // X
+
+    test_case.add_expected_output<float>(
+        Shape{2, 1, 1, 2}, {-0.063373, -0.20347191, -0.07230289, -0.13298286});       // Y_data
+    test_case.add_expected_output<float>(Shape{1, 1, 2}, {-0.07230289, -0.13298286}); // Y_h_data
+    test_case.add_expected_output<float>(Shape{1, 1, 2}, {-0.1557954, -0.24502525});  // Y_c_data
+
+    test_case.run(DEFAULT_FLOAT_TOLERANCE_BITS + 1);
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_model_lstm_reverse_const)
+{
+    auto function = onnx_import::import_onnx_model(
+        file_util::path_join(SERIALIZED_ZOO, "onnx/lstm_reverse_const.prototxt"));
+
+    auto test_case = test::TestCase<TestEngine>(function);
+    test_case.add_input<float>({0.68172926, 1.1405563, -0.03931177, -0.03759607}); // X
+
+    test_case.add_expected_output<float>(
+        Shape{2, 1, 1, 2}, {-0.06082131, -0.19985214, 0.00860566, 0.00920492});       // Y_data
+    test_case.add_expected_output<float>(Shape{1, 1, 2}, {-0.06082131, -0.19985214}); // Y_h_data
+    test_case.add_expected_output<float>(Shape{1, 1, 2}, {-0.25917438, -0.3832652});  // Y_c_data
+
+    test_case.run(DEFAULT_FLOAT_TOLERANCE_BITS + 1);
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_model_lstm_bidir_const)
+{
+    auto function = onnx_import::import_onnx_model(
+        file_util::path_join(SERIALIZED_ZOO, "onnx/lstm_bidir_const.prototxt"));
+
+    auto test_case = test::TestCase<TestEngine>(function);
+    test_case.add_input<float>({0.68172926, 1.1405563, -0.03931177, -0.03759607}); // X
+
+    test_case.add_expected_output<float>(Shape{2, 2, 1, 2},
+                                         {-0.063373,
+                                          -0.20347191,
+                                          -0.06082131,
+                                          -0.19985214,
+                                          -0.07230289,
+                                          -0.13298286,
+                                          0.00860566,
+                                          0.00920492}); // Y_data
+    test_case.add_expected_output<float>(
+        Shape{2, 1, 2}, {-0.07230289, -0.13298286, -0.06082131, -0.19985214}); // Y_h_data
+    test_case.add_expected_output<float>(
+        Shape{2, 1, 2}, {-0.1557954, -0.24502525, -0.25917438, -0.3832652}); // Y_c_data
+
+    test_case.run(DEFAULT_FLOAT_TOLERANCE_BITS + 1);
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_model_lstm_fwd_with_clip_const)
+{
+    auto function = onnx_import::import_onnx_model(
+        file_util::path_join(SERIALIZED_ZOO, "onnx/lstm_fwd_clip_const.prototxt"));
+
+    auto test_case = test::TestCase<TestEngine>(function);
+    test_case.add_input<float>({0.68172926, 1.1405563, -0.03931177, -0.03759607}); // X
+
+    test_case.add_expected_output<float>(
+        Shape{2, 1, 1, 2}, {-0.02391884, -0.02744377, -0.01024176, -0.01188637});     // Y_data
+    test_case.add_expected_output<float>(Shape{1, 1, 2}, {-0.01024176, -0.01188637}); // Y_h_data
+    test_case.add_expected_output<float>(Shape{1, 1, 2}, {-0.02039271, -0.02353566}); // Y_c_data
+
+    test_case.run(DEFAULT_FLOAT_TOLERANCE_BITS + 1);
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_model_lstm_fwd_mixed_seq_const)
+{
+    auto function = onnx_import::import_onnx_model(
+        file_util::path_join(SERIALIZED_ZOO, "onnx/lstm_fwd_mixed_seq_const.prototxt"));
+
+    auto test_case = test::TestCase<TestEngine>(function);
+    test_case.add_input<float>({0.68172926, 1.1405563, -0.03931177, -0.03759607}); // X
+
+    test_case.add_expected_output<float>(Shape{2, 1, 2, 3},
+                                         {0.13528088,
+                                          -0.1779867,
+                                          -0.07448981,
+                                          0.14769037,
+                                          -0.16327181,
+                                          -0.10419653,
+                                          0.,
+                                          0.,
+                                          0.,
+                                          0.08759661,
+                                          -0.04002844,
+                                          -0.08617793}); // Y_data
+    test_case.add_expected_output<float>(
+        Shape{1, 2, 3},
+        {0.13528088, -0.1779867, -0.07448981, 0.08759661, -0.04002844, -0.08617793}); // Y_h_data
+    test_case.add_expected_output<float>(
+        Shape{1, 2, 3},
+        {0.367563, -0.43762812, -0.20435227, 0.17330585, -0.0732716, -0.18809439}); // Y_c_data
+
+    test_case.run(DEFAULT_FLOAT_TOLERANCE_BITS + 1);
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_model_lstm_reverse_mixed_seq_const)
+{
+    auto function = onnx_import::import_onnx_model(
+        file_util::path_join(SERIALIZED_ZOO, "onnx/lstm_reverse_mixed_seq_const.prototxt"));
+
+    auto test_case = test::TestCase<TestEngine>(function);
+    test_case.add_input<float>({0.68172926, 1.1405563, -0.03931177, -0.03759607}); // X
+
+    test_case.add_expected_output<float>(Shape{2, 1, 2, 3},
+                                         {0.13528088,
+                                          -0.1779867,
+                                          -0.07448981,
+                                          0.14696799,
+                                          -0.15571019,
+                                          -0.10270946,
+                                          0.,
+                                          0.,
+                                          0.,
+                                          -0.01110403,
+                                          0.0228607,
+                                          0.00397353}); // Y_data
+    test_case.add_expected_output<float>(
+        Shape{1, 2, 3},
+        {0.13528088, -0.1779867, -0.07448981, 0.14696799, -0.15571019, -0.10270946}); // Y_h_data
+    test_case.add_expected_output<float>(
+        Shape{1, 2, 3},
+        {0.367563, -0.43762812, -0.20435227, 0.50598085, -0.42627674, -0.3641275}); // Y_c_data
+
+    test_case.run(DEFAULT_FLOAT_TOLERANCE_BITS + 1);
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_model_lstm_fwd_with_clip_peepholes)
+{
+    auto function = onnx_import::import_onnx_model(
+        file_util::path_join(SERIALIZED_ZOO, "onnx/lstm_fwd_with_clip_peepholes.prototxt"));
 
     auto test_case = test::TestCase<TestEngine>(function);
     test_case.add_input<float>({-0.455351, -0.276391, -0.185934, -0.269585}); // X
@@ -108,7 +243,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_lstm_fwd_with_clip)
 
     // We have to enlarge tolerance bits to 3 - it's only one bit more than default value.
     // The discrepancies may occur at most on 7th decimal position.
-    test_case.run(DEFAULT_FLOAT_TOLERANCE_BITS + 1);
+    test_case.run(DEFAULT_FLOAT_TOLERANCE_BITS + 3);
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_lstm_fwd_mixed_seq)
@@ -251,7 +386,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_lstm_fwd_large_batch_no_clip)
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_model_lstm_bdir_short_input_seq)
+NGRAPH_TEST(${BACKEND_NAME}, onnx_model_lstm_bdir_short_input_seq_peepholes)
 {
     auto function = onnx_import::import_onnx_model(
         file_util::path_join(SERIALIZED_ZOO, "onnx/lstm_bdir_short_input_seq.prototxt"));
