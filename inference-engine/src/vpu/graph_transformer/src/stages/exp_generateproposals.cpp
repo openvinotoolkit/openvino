@@ -60,6 +60,8 @@ private:
         for (auto& outputEdge : outputEdges()) {
             outputEdge->output()->serializeBuffer(serializer);
         }
+
+        tempBuffer(0)->serializeBuffer(serializer);
     }
 };
 
@@ -129,6 +131,13 @@ void FrontEnd::parseExpGenerateProposals(
         outputs);
 
     stage->attrs().set("params", params);
+
+    const int numProposals = sizeof(uint8_t) * 2 * inputScores->desc().dim(Dim::H) * inputScores->desc().dim(Dim::W) * inputScores->desc().dim(Dim::C);
+    const int sizeAuxBuff = sizeof(uint8_t) * params.pre_nms_topn;
+    const int sizeRoiIndicesBuf = sizeof(int32_t) * params.post_nms_topn;
+    int buffer_size = numProposals + sizeAuxBuff + sizeRoiIndicesBuf;
+
+    model->addTempBuffer(stage, buffer_size);
 }
 
 }  // namespace vpu
