@@ -33,8 +33,8 @@ ie_faster_build(${TARGET_NAME}
 )
 
 if(TARGET inference_engine_onnx_reader)
-    add_dependencies(${TARGET_NAME} inference_engine_onnx_reader)
     add_definitions("-DONNX_TEST_MODELS=\"${CMAKE_CURRENT_SOURCE_DIR}/onnx_reader/models/\"")
+    add_dependencies(${TARGET_NAME} inference_engine_onnx_reader)
 endif()
 
 include(CMakeParseArguments)
