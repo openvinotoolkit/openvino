@@ -38,6 +38,18 @@ public:
     Manager();
     ~Manager();
 
+    /// \brief Register given transformation class type to execution list
+    /// Example below show the basic usage of pass::Manager
+    ///
+    ///     pass::Manager manager;
+    ///     manager.register_pass<MyTransformation>(/*transformation constructor ars*/);
+    ///     manager.run_passes(f);
+    ///
+    /// For some purposes transformation can be registered and disabled by default.
+    ///
+    ///     manager.register_pass<MyTransformation, false>();
+    ///
+    /// \return shared_ptr to the transformation instance
     template <typename T, bool Enable = true, class... Args>
     std::shared_ptr<T> register_pass(Args&&... args)
     {
