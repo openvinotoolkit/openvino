@@ -101,9 +101,6 @@ pipeline {
             }
         }
         stage("Run tests") {
-            options {
-                  timeout(time: 25, unit: 'MINUTES')
-              }
             steps{
                 runTests()
             }
