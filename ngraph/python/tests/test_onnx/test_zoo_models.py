@@ -37,7 +37,8 @@ from tests import (BACKEND_NAME,
                    xfail_issue_35926,
                    xfail_issue_36535,
                    xfail_issue_36537,
-                   xfail_issue_36538)
+                   xfail_issue_36538,
+                   skip)
 
 _GITHUB_MODELS_LTS = "https://media.githubusercontent.com/media/onnx/models/master/"
 
@@ -617,6 +618,7 @@ xfail_issue_36537(test_cases.test_shufflenet_v2_opset10_cpu)
 xfail_issue_36538(test_cases.test_yolov3_opset10_cpu)
 xfail_issue_36538(test_cases.test_tiny_yolov3_opset11_cpu)
 
+skip(test_cases.test_tinyyolov2_opset1_cpu)
 for test_case in test_cases_list:
     xfail_issue_36533(test_case)
 
