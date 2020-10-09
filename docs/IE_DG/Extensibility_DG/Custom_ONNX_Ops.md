@@ -21,8 +21,8 @@ where alpha, beta are float constants.
 The `register_operator` function takes four arguments: op_type, opset version, domain, and a function object.
 The function object is a user-defined function that takes `ngraph::onnx_import::Node` as an input and based on that, returns a graph with nGraph operations.
 The `ngraph::onnx_import::Node` class represents a node in ONNX model. It provides functions to fetch input node(s) (`get_ng_inputs`), fetch attribute value (`get_attribute_value`) and many more (please refer to `onnx_import/core/node.hpp` for full class declaration).
-New operator registration must happen before the ONNX model is read, for example if an ONNX model uses operator 'CustomRelu', `register_operator("CustomRelu", ...)` must be called before InferenceEngine::Core::ReadNetwork.
-Re-registering ONNX operators within the same process is supported. During registration of existing operator, a warning is printed.
+New operator registration must happen before the ONNX model is read, for example, if an ONNX model uses the 'CustomRelu' operator, `register_operator("CustomRelu", ...)` must be called before InferenceEngine::Core::ReadNetwork.
+Re-registering ONNX operators within the same process is supported. During registration of the existing operator, a warning is printed.
 
 The example below demonstrates an examplary model that requires previously created 'CustomRelu' operator:
 @snippet onnx_custom_op/main.cpp onnx_custom_op:model
