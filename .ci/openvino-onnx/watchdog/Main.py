@@ -8,12 +8,12 @@ import sys
 from Watchdog import Watchdog
 
 DEFAULT_MSTEAMS_URL_FILE = '/home/lab_nerval/tokens/msteams_url'
-DEFAULT_GITHUB_ORGANIZATION = 'NervanaSystems'
-DEFAULT_GITHUB_PROJECT = 'ngraph-onnx'
+DEFAULT_GITHUB_ORGANIZATION = 'openvinotoolkit'
+DEFAULT_GITHUB_PROJECT = 'openvino'
 DEFAULT_JENKINS_TOKEN_FILE = '/home/lab_nerval/tokens/crackerjack'
 DEFAULT_JENKINS_SERVER = 'https://crackerjack.intel.com/'
 DEFAULT_JENKINS_USER = 'lab_nerval'
-DEFAULT_CI_JOB_NAME = 'onnx/ngraph-onnx-ci'
+DEFAULT_CI_JOB_NAME = 'onnx/OpenVino_CI'
 DEFAULT_WATCHDOG_JOB_NAME = 'onnx/ci_watchdog'
 
 

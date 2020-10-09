@@ -75,9 +75,9 @@ class JenkinsWrapper:
         """Query Jenkins for idle servers.
 
         Send GET request to Jenkins server, querying for idle servers labeled
-        for nGraph-ONNX CI job.
+        for OpenVino-ONNX CI job.
 
-            :return:     Number of idle hosts delegated to nGraph-ONNX CI
+            :return:     Number of idle hosts delegated to OpenVino-ONNX CI
             :rtype:      int
         """
         jenkins_request_url = self.jenkins_server + 'label/ci&&onnx/api/json?pretty=true'

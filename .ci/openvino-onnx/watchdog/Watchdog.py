@@ -7,6 +7,7 @@ import datetime
 import time
 import re
 import logging
+import requests
 from MSTeamsCommunicator import MSTeamsCommunicator
 from JenkinsWrapper import JenkinsWrapper
 from jenkins import NotFoundException
@@ -28,6 +29,12 @@ _WATCHDOG_DIR = os.path.expanduser('~')
 _PR_REPORTS_CONFIG_KEY = 'pr_reports'
 _CI_BUILD_FAIL_MESSAGE = 'ERROR:   py3: commands failed'
 _CI_BUILD_SUCCESS_MESSAGE = 'py3: commands succeeded'
+_GITHUB_CI_CHECK_NAME = 'OpenVINO-ONNX'
+
+INTERNAL_ERROR_MESSAGE_HEADER = '!!! --- !!! INTERNAL WATCHDOG ERROR !!! --- !!!'
+ERROR_MESSAGE_HEADER = '!!! OpenVino-ONNX CI Error !!!'
+WARNING_MESSAGE_HEADER = 'OpenVino-ONNX CI WARNING'
+INFO_MESSAGE_HEADER = 'OpenVino-ONNX CI INFO'
 
 
 class Watchdog:
@@ -44,7 +51,7 @@ class Watchdog:
     :param jenkins_user:        Username used to connect to Jenkins
     :param github_credentials:  Credentials used to connect to GitHub
     :param msteams_url:         URL used to connect to MS Teams channel
-    :param ci_job_name:         nGraph-ONNX CI job name used in Jenkins
+    :param ci_job_name:         OpenVino-ONNX CI job name used in Jenkins
     :param watchdog_job_name:   Watchdog job name used in Jenkins
     :type jenkins_token:        String
     :type jenkins_server:       String
@@ -55,7 +62,7 @@ class Watchdog:
     :type watchdog_job_name:    String
 
     .. note::
-        Watchdog and nGraph-ONNX CI job must be placed on the same Jenkins server.
+        Watchdog and OpenVino-ONNX CI job must be placed on the same Jenkins server.
     """
 
     def __init__(self, jenkins_token, jenkins_server, jenkins_user, github_credentials, git_org,
@@ -69,7 +76,7 @@ class Watchdog:
         self._git = GitWrapper(github_credentials, repository=git_org, project=git_project)
         # Create MS Teams api object
         self._msteams_hook = MSTeamsCommunicator(msteams_url)
-        self._ci_job_name = ci_job_name
+        self._ci_job_name = ci_job_name.lower()
         self._watchdog_job_name = watchdog_job_name
         # Read config file
         self._config = self._read_config_file()
@@ -98,7 +105,7 @@ class Watchdog:
                 self._check_pr(pr)
             except Exception as e:
                 log.exception(str(e))
-                self._queue_message(str(e), message_severity='internal')
+                self._queue_message(str(e), message_severity='internal', pr=pr)
         self._update_config()
         self._send_message(quiet=quiet)
 
@@ -126,7 +133,7 @@ class Watchdog:
         """Check pull request (if there's no reason to skip).
 
         Retrieve list of statuses for every PR's last commit and interpret them. Filters out statuses
-        unrelated to nGraph-ONNX Jenkins CI and passes relevant statuses to method that interprets them.
+        unrelated to OpenVino-ONNX Jenkins CI and passes relevant statuses to method that interprets them.
         If no commit statuses related to Jenkins are available after time defined by
         **_AWAITING_JENKINS_THRESHOLD** calls appropriate method to check for builds waiting in queue.
 
@@ -141,6 +148,8 @@ class Watchdog:
         self._current_prs[str(pr.number)] = self._get_pr_timestamps(pr, last_status)
         if self._should_ignore(pr) or self._updated_since_last_run(pr):
             log.info('Ignoring PR#{}'.format(pr.number))
+            log.info('Last status of PR#{}'.format(last_status))
+
             return
 
         # Calculate time passed since PR update (any commit, merge or comment)
@@ -189,7 +198,7 @@ class Watchdog:
         # and check if CI in Jenkins started
         statuses = last_commit.get_statuses()
         jenk_statuses = [stat for stat in statuses if
-                         'nGraph-ONNX Jenkins CI (IGK)' in stat.context]
+                         _GITHUB_CI_CHECK_NAME in stat.context]
         try:
             last_status = jenk_statuses[0]
         except IndexError:
@@ -206,11 +215,6 @@ class Watchdog:
         :return:            Returns True if PR should be ignored
         :rtype:             Bool
         """
-        # # Ignore PR if it's external contribution
-        # if pr.head.repo.fork:
-        #     log.info('PR#{} should be ignored. External contribution.'.format(pr.number))
-        #     return True
-
         # Ignore PR if it has WIP label or WIP in title
         if 'WIP' in pr.title:
             log.info('PR#{} should be ignored. WIP tag in title.'.format(pr.number))
@@ -257,16 +261,19 @@ class Watchdog:
         :type pr:                   github.PullRequest.PullRequest
         """
         pr_time_delta = self._now_time - pr.updated_at
-        build_number = self._build_scheduled(pr)
-        if self._build_in_queue(pr, build_number):
-            message = ('PR# {}: build waiting in queue after {} minutes.'
-                       .format(pr.number, pr_time_delta.seconds / 60))
-            severity = 'warning'
-        else:
-            message = ('PR# {}: missing status on GitHub after {} minutes.'
-                       .format(pr.number, pr_time_delta.seconds / 60))
-            severity = 'error'
-        self._queue_message(message, message_severity=severity, pr=pr)
+        try:
+            build_number = self._build_scheduled(pr)
+            if self._build_in_queue(pr, build_number):
+                message = ('PR# {}: build waiting in queue after {} minutes.'
+                           .format(pr.number, pr_time_delta.seconds / 60))
+                severity = 'warning'
+            else:
+                message = ('PR# {}: missing status on GitHub after {} minutes.'
+                           .format(pr.number, pr_time_delta.seconds / 60))
+                severity = 'error'
+            self._queue_message(message, message_severity=severity, pr=pr)
+        except TypeError:
+            log.info('Committer outside of OpenVino organization')
 
     def _build_scheduled(self, pr):
         """Check if Jenkins build corresponding to PR was scheduled.
@@ -274,8 +281,8 @@ class Watchdog:
         This method takes last Jenkins build for given PR and compares hash from Jenkins console output
         and sha from PR object to determine if CI build for appropriate commit was scheduled.
 
-        :param pr:                  Single PR being currently checked
-        :type pr:                   github.PullRequest.PullRequest
+        :param pr:          Single PR being currently checked
+        :type pr:           github.PullRequest.PullRequest
 
         :return:            Returns build number or -1 if no build found
         :rtype:             int
@@ -295,7 +302,7 @@ class Watchdog:
                 return last_build_number
             else:
                 return -1
-        except (NotFoundException, AttributeError):
+        except (NotFoundException, AttributeError, requests.exceptions.HTTPError):
             message = ('PR #{}: Jenkins build corresponding to commit {} not found!'
                        .format(pr_number, pr.get_commits().reversed[0].sha))
             self._queue_message(message, message_severity='error', pr=pr)
@@ -394,14 +401,14 @@ class Watchdog:
         log.info(message)
         internal = False
         if 'internal' in message_severity:
-            message_header = '!!! --- !!! INTERNAL WATCHDOG ERROR !!! --- !!!'
+            message_header = INTERNAL_ERROR_MESSAGE_HEADER
             internal = True
         elif 'error' in message_severity:
-            message_header = '!!! nGraph-ONNX CI Error !!!'
+            message_header = ERROR_MESSAGE_HEADER
         elif 'warning' in message_severity:
-            message_header = 'nGraph-ONNX CI WARNING'
+            message_header = WARNING_MESSAGE_HEADER
         else:
-            message_header = 'nGraph-ONNX CI INFO'
+            message_header = INFO_MESSAGE_HEADER
         # If message is related to PR attatch url
         if pr:
             message = message + '\n' + pr.html_url

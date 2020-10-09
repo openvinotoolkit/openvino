@@ -39,30 +39,31 @@ class MSTeamsCommunicator:
         """
         self._queued_messages[self._ci_alerts_channel_url].append(message)
 
-    def _parse_text(self, message):
+    def _parse_text(self, watchdog_log, message):
         """
         Parse text to display as alert.
 
-            :param message:     Unparsed message content
-            :type message:      String
+            :param watchdog_log:     Watchdog log content
+            :param message:          Unparsed message content
+            :type watchdog_log:      String
+            :type message:           String
         """
         message_split = message.split('\n')
-        print(message_split)
-        title = message_split[2]
-        log_url = message_split[-1]
-        text = message_split[3]
-        header = message_split[0].split(' - ')
+        log_url = None
+        if len(message_split) == 3:
+            log_url = message_split[-1]
+        title = message_split[0]
+        text = message_split[1]
+        header = watchdog_log.split(' - ')
         header_formatted = '{} - [Watchdog Log]({})'.format(header[0], header[1])
-        text_formatted = '{}: ***{}***'.format(text.split(':', 1)[0], text.split(':', 1)[1])
-
-        return title, log_url, '{}\n\n{}'.format(header_formatted, text_formatted)
+        return title, log_url, '{}\n\n{}'.format(header_formatted, text)
 
     def _json_request_content(self, title, log_url, text_formatted):
         """
         Create final json request to send message to MS Teams channel.
 
             :param title:            Title of alert
-            :param log_url:          URL to Watchdog log
+            :param log_url:          URL to PR
             :param text_formatted:   General content of alert - finally formatted
             :type title:             String
             :type title:             String
@@ -91,34 +92,37 @@ class MSTeamsCommunicator:
         }
         return data
 
-    def _send_to_channel(self, message, channel_url):
+    def _send_to_channel(self, watchdog_log, message_queue, channel_url):
         """
         Send MSTeams message to specified channel.
 
-            :param message:            Message content
-            :type message:             String
-            :param channel_url:        Channel url
-            :type channel_url:         String
+            :param watchdog_log:            Watchdog log content
+            :param message_queue:           Queued messages to send
+            :param channel_url:             Channel url
+            :type watchdog_log:             String
+            :type message_queue:            String
+            :type channel_url:              String
+
         """
-        title, log_url, text_formatted = self._parse_text(message)
-        data = self._json_request_content(title, log_url, text_formatted)
+        for message in message_queue:
+            title, log_url, text_formatted = self._parse_text(watchdog_log, message)
+            data = self._json_request_content(title, log_url, text_formatted)
 
-        try:
-            requests.post(url=channel_url, json=data)
-        except Exception as ex:
-            raise Exception('!!CRITICAL!! MSTeamsCommunicator: Could not send message '
-                            'due to {}'.format(ex))
+            try:
+                requests.post(url=channel_url, json=data)
+            except Exception as ex:
+                raise Exception('!!CRITICAL!! MSTeamsCommunicator: Could not send message '
+                                'due to {}'.format(ex))
 
-    def send_message(self, message, quiet=False):
+    def send_message(self, watchdog_log, quiet=False):
         """
         Send queued messages as single communication.
 
-            :param message:     Final message's content
-            :param quiet:       Flag for disabling sending report through MS Teams
-            :type message:      String
-            :type quiet:        Boolean
+            :param watchdog_log:     Watchdog log content
+            :param quiet:            Flag for disabling sending report through MS Teams
+            :type watchdog_log:      String
+            :type quiet:             Boolean
         """
         for channel, message_queue in self._queued_messages.items():
-            final_message = message + '\n\n' + '\n'.join(message_queue)
             if not quiet and message_queue:
-                self._send_to_channel(final_message, channel)
+                self._send_to_channel(watchdog_log, message_queue, channel)
