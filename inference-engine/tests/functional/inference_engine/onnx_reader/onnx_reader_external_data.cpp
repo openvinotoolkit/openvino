@@ -14,11 +14,9 @@
 #include <streambuf>
 #include <ngraph/ngraph.hpp>
 
-static const std::string MODELS_DIR{ONNX_TEST_MODELS};
-
 TEST(ONNX_Reader_Tests, ImportModelWithExternalDataFromFile) {
     InferenceEngine::Core ie;
-    auto cnnNetwork = ie.ReadNetwork(MODELS_DIR + "onnx_external_data.prototxt", "");
+    auto cnnNetwork = ie.ReadNetwork(std::string(ONNX_TEST_MODELS) + "onnx_external_data.prototxt", "");
     auto function = cnnNetwork.getFunction();
 
     int count_additions = 0;
@@ -50,7 +48,7 @@ TEST(ONNX_Reader_Tests, ImportModelWithExternalDataFromFile) {
 
 TEST(ONNX_Reader_Tests, ImportModelWithExternalDataFromStringException) {
     InferenceEngine::Core ie;
-    const auto path = MODELS_DIR + "onnx_external_data.prototxt";
+    const auto path = std::string(ONNX_TEST_MODELS) + "onnx_external_data.prototxt";
     InferenceEngine::Blob::CPtr weights; //not used
     std::ifstream stream(path, std::ios::binary);
     std::string modelAsString((std::istreambuf_iterator<char>(stream)), std::istreambuf_iterator<char>());
@@ -77,7 +75,7 @@ TEST(ONNX_Reader_Tests, ImportModelWithExternalDataFromStringException) {
 #if defined(ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
 TEST(ONNX_Reader_Tests, ImportModelWithExternalDataFromWstringNamedFile) {
     InferenceEngine::Core ie;
-    auto win_dir_path = MODELS_DIR;
+    std::string win_dir_path = ONNX_TEST_MODELS;
     std::replace(win_dir_path.begin(), win_dir_path.end(), '/', '\\');
     const std::wstring unicode_win_dir_path = FileUtils::multiByteCharToWString(win_dir_path.c_str());
     const std::wstring path = unicode_win_dir_path + L"АБВГДЕЁЖЗИЙ\\ひらがな日本語.prototxt";
