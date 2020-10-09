@@ -36,7 +36,7 @@ ngraph::pass::ConvertNMS4ToNMS5::ConvertNMS4ToNMS5() {
 
         size_t num_of_args = new_args.size();
 
-        const auto& arg2 = num_of_args > 2 ? new_args.at(2) : ngraph::opset5::Constant::create(element::i32, Shape{}, {0});
+        const auto& arg2 = num_of_args > 2 ? new_args.at(2) : ngraph::opset5::Constant::create(element::i64, Shape{}, {0});
         const auto& arg3 = num_of_args > 3 ? new_args.at(3) : ngraph::opset5::Constant::create(element::f32, Shape{}, {.0f});
         const auto& arg4 = num_of_args > 4 ? new_args.at(4) : ngraph::opset5::Constant::create(element::f32, Shape{}, {.0f});
         const auto& arg5 = ngraph::opset5::Constant::create(element::f32, Shape{}, {.0f});
@@ -86,7 +86,7 @@ ngraph::pass::ConvertNMS4ToNMS5::ConvertNMS4ToNMS5() {
 
         nms_5->set_friendly_name(nms_4->get_friendly_name());
         ngraph::copy_runtime_info(nms_4, new_ops);
-        ngraph::replace_node(nms_4, nms_5);
+        nms_4->output(0).replace(nms_5->output(0));
         return true;
     };
 
@@ -116,7 +116,7 @@ ngraph::pass::ConvertNMS3ToNMS5::ConvertNMS3ToNMS5() {
 
         size_t num_of_args = new_args.size();
 
-        const auto& arg2 = num_of_args > 2 ? new_args.at(2) : ngraph::opset5::Constant::create(element::i32, Shape{}, {0});
+        const auto& arg2 = num_of_args > 2 ? new_args.at(2) : ngraph::opset5::Constant::create(element::i64, Shape{}, {0});
         const auto& arg3 = num_of_args > 3 ? new_args.at(3) : ngraph::opset5::Constant::create(element::f32, Shape{}, {.0f});
         const auto& arg4 = num_of_args > 4 ? new_args.at(4) : ngraph::opset5::Constant::create(element::f32, Shape{}, {.0f});
         const auto& arg5 = ngraph::opset5::Constant::create(element::f32, Shape{}, {.0f});
@@ -166,7 +166,7 @@ ngraph::pass::ConvertNMS3ToNMS5::ConvertNMS3ToNMS5() {
 
         nms_5->set_friendly_name(nms_3->get_friendly_name());
         ngraph::copy_runtime_info(nms_3, new_ops);
-        ngraph::replace_node(nms_3, nms_5);
+        nms_3->output(0).replace(nms_5->output(0));
         return true;
     };
 
@@ -245,7 +245,7 @@ ngraph::pass::ConvertNMS1ToNMS5::ConvertNMS1ToNMS5() {
 
         nms_5->set_friendly_name(nms_1->get_friendly_name());
         ngraph::copy_runtime_info(nms_1, new_ops);
-        ngraph::replace_node(nms_1, nms_5);
+        nms_1->output(0).replace(nms_5->output(0));
         return true;
     };
 
