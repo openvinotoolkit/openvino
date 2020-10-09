@@ -48,10 +48,10 @@ Note that it is mandatory to unregister custom ONNX operator if it is defined in
 
 ## Requirements for building with CMake
 
-Program that uses `register_operator` functionality, requires (in addition to Inference Engine) `ngraph` and `onnx_importer` libraries.
-Both `ngraph` and `onnx_importer` libraries are under single package namespace, so `find_package(ngraph REQUIRED)` is sufficient to find them both.
-`ngraph` package exposes two variables (`${NGRAPH_LIBRARIES}` and `${ONNX_IMPORTER_LIBRARIES}`), which reference `ngraph` and `onnx_importer` libraries.
-Those variables need to be passed to `target_link_libraries` command in CMakeLists.txt file.
+Program that uses the `register_operator` functionality, requires (in addition to Inference Engine) `ngraph` and `onnx_importer` libraries.
+The `onnx_importer` is a component of `ngraph` package , so `find_package(ngraph REQUIRED COMPONENTS onnx_importer)` is sufficient to find both.
+The `ngraph` package exposes two variables (`${NGRAPH_LIBRARIES}` and `${ONNX_IMPORTER_LIBRARIES}`), which reference `ngraph` and `onnx_importer` libraries.
+Those variables need to be passed to the `target_link_libraries` command in the CMakeLists.txt file.
 
 See below CMakeLists.txt for reference:
 @snippet onnx_custom_op/CMakeLists.txt cmake:onnx_custom_op
