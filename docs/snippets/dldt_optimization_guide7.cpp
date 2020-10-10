@@ -4,14 +4,15 @@
 
 
 int main() {
-using namespace InferenceEngine;
-Core plugin;
-auto network0 = plugin.ReadNetwork("sample.xml");
-auto network1 = plugin.ReadNetwork("sample.xml");
+InferenceEngine::Core core;
+auto network0 = core.ReadNetwork("sample.xml");
+auto network1 = core.ReadNetwork("sample.xml");
 //! [part7]
 //these two networks go thru same plugin (aka device) and their requests will not overlap.
-auto executable_network0 = plugin.LoadNetwork(network0, "CPU", {{PluginConfigParams::KEY_EXCLUSIVE_ASYNC_REQUESTS, PluginConfigParams::YES}});
-auto executable_network1 = plugin.LoadNetwork(network1, "GPU", {{PluginConfigParams::KEY_EXCLUSIVE_ASYNC_REQUESTS, PluginConfigParams::YES}});
+auto executable_network0 = core.LoadNetwork(network0, "CPU",
+    {{InferenceEngine::PluginConfigParams::KEY_EXCLUSIVE_ASYNC_REQUESTS, InferenceEngine::PluginConfigParams::YES}});
+auto executable_network1 = core.LoadNetwork(network1, "GPU",
+    {{InferenceEngine::PluginConfigParams::KEY_EXCLUSIVE_ASYNC_REQUESTS, InferenceEngine::PluginConfigParams::YES}});
 //! [part7]
 return 0;
 }

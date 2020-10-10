@@ -1,15 +1,14 @@
 #include <inference_engine.hpp>
 #include <ngraph/ngraph.hpp>
-#include "ngraph/frontend/onnx_import/onnx.hpp"
+#include "onnx_import/onnx.hpp"
 #include <iostream>
+#include <fstream>
 
 int main() {
-using namespace InferenceEngine;
-using namespace ngraph;
 //! [part2]
- const std::string resnet50_path = "resnet50/model.onnx";
+ const char * resnet50_path = "resnet50/model.onnx";
  std::ifstream resnet50_stream(resnet50_path);
- if(resnet50_stream.is_open())
+ if (resnet50_stream.is_open())
  {
      try
      {
