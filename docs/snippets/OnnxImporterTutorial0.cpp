@@ -1,11 +1,10 @@
 #include <inference_engine.hpp>
 #include <ngraph/ngraph.hpp>
-#include "onnx/onnx-ml.pb.h"
+#include "onnx_import/onnx.hpp"
 #include <iostream>
 #include <set>
 
 int main() {
-using namespace InferenceEngine;
 //! [part0]
 const std::int64_t version = 12;
 const std::string domain = "ai.onnx";
