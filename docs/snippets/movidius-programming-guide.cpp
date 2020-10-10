@@ -1,8 +1,8 @@
 #include <inference_engine.hpp>
 
 int main() {
-using namespace InferenceEngine;
-Core core;
+InferenceEngine::Core core;
+InferenceEngine::IInferRequest::CompletionCallback callback;
 int numRequests = 42;
 int i = 1;
 auto network = core.ReadNetwork("sample.xml");
@@ -30,7 +30,7 @@ request[i].inferRequest->StartAsync();
 //! [part3]
 
 //! [part4]
-request[i].inferRequest->SetCompletionCallback(InferenceEngine::IInferRequest::Ptr context);
+request[i].inferRequest->SetCompletionCallback(callback);
 //! [part4]
 
 return 0;
