@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,9 +14,10 @@
 // limitations under the License.
 //*****************************************************************************
 
-#pragma once
-
-#include "onnx_import/core/node.hpp"
+#include "onnx_import/op/pow.hpp"
+#include <memory>
+#include "ngraph/node.hpp"
+#include "onnx_import/default_opset.hpp"
 
 namespace ngraph
 {
@@ -26,7 +27,21 @@ namespace ngraph
         {
             namespace set_1
             {
-                OutputVector pow(const Node& node);
+                OutputVector pow(const Node& node)
+                {
+                    auto inputs = node.get_ng_inputs();
+                    auto base_type = inputs[0].get_element_type();
+                    std::shared_ptr<ngraph::Node> exponent;
+                    if (inputs[1].get_element_type() != base_type)
+                    {
+                        exponent = std::make_shared<default_opset::Convert>(inputs[1], base_type);
+                    }
+                    else
+                    {
+                        exponent = inputs[1].get_node_shared_ptr();
+                    }
+                    return {std::make_shared<default_opset::Power>(inputs[0], exponent)};
+                }
 
             } // namespace set_1
 
