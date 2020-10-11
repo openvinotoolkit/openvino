@@ -17,9 +17,10 @@ std::string LrnLayerTest::getTestCaseName(testing::TestParamInfo<lrnLayerTestPar
     size_t size;
     std::vector<int64_t> axes;
     InferenceEngine::Precision  netPrecision;
+    InferenceEngine::Precision inPrc, outPrc;
     std::vector<size_t> inputShapes;
     std::string targetDevice;
-    std::tie(alpha, beta, bias, size, axes, netPrecision, inputShapes, targetDevice) = obj.param;
+    std::tie(alpha, beta, bias, size, axes, netPrecision, inPrc, outPrc, inputShapes, targetDevice) = obj.param;
 
     std::ostringstream result;
     const char separator = '_';
@@ -30,7 +31,9 @@ std::string LrnLayerTest::getTestCaseName(testing::TestParamInfo<lrnLayerTestPar
     result << "Size=" << size << separator;
     result << "Axes=" << CommonTestUtils::vec2str(axes) << separator;
     result << "netPRC=" << netPrecision.name() << separator;
-    result << "targetDevice=" << targetDevice;
+    result << "inPRC=" << inPrc.name() << separator;
+    result << "outPRC=" << outPrc.name() << separator;
+    result << "trgDev=" << targetDevice;
 
     return result.str();
 }
@@ -41,7 +44,7 @@ void LrnLayerTest::SetUp() {
     double alpha, beta, bias;
     size_t size;
     std::vector<int64_t> axes;
-    std::tie(alpha, beta, bias, size, axes, netPrecision, inputShapes, targetDevice) = GetParam();
+    std::tie(alpha, beta, bias, size, axes, netPrecision, inPrc, outPrc, inputShapes, targetDevice) = GetParam();
 
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
     auto params = ngraph::builder::makeParams(ngPrc, {inputShapes});

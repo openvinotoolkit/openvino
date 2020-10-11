@@ -18,6 +18,10 @@ namespace {
 
     const auto basicCases = ::testing::Combine(
         ::testing::ValuesIn(netPrecisions),
+        ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+        ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+        ::testing::Values(InferenceEngine::Layout::ANY),
+        ::testing::Values(InferenceEngine::Layout::ANY),
         ::testing::Values(std::vector<size_t>({ 1, 3, 30, 30 }),
                             std::vector<size_t>({ 2, 16, 15, 20})),
         ::testing::Values(0.33f, 1.1f),

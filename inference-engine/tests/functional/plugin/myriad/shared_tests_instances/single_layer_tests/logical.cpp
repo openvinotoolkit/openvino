@@ -23,10 +23,10 @@ class LogicalLayerTestVPU : public LogicalLayerTest {
 protected:
     void SetUp() override {
         const auto& inputShapes = std::get<0>(GetParam());
-        const auto& ngInputsPrecision = std::get<1>(GetParam());
-        const auto& logicalOpType = std::get<2>(GetParam());
+        const auto& ngInputsPrecision = std::get<4>(GetParam());
+        const auto& logicalOpType = std::get<1>(GetParam());
         targetDevice = std::get<5>(GetParam());
-        const auto& additionalConfig = std::get<6>(GetParam());
+        const auto& additionalConfig = std::get<9>(GetParam());
         configuration.insert(additionalConfig.begin(), additionalConfig.end());
         outPrc = ngInputsPrecision;
 
@@ -76,10 +76,13 @@ INSTANTIATE_TEST_CASE_P(smoke_EltwiseLogicalInt,
                         LogicalLayerTestVPU,
                         ::testing::Combine(
                                 ::testing::ValuesIn(LogicalLayerTest::combineShapes(inputShapes)),
-                                ::testing::Values(InferenceEngine::Precision::I32),
                                 ::testing::ValuesIn(eltwiseLogicalTypesInt),
                                 ::testing::Values(ngraph::helpers::InputLayerType::PARAMETER),
                                 ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                ::testing::Values(InferenceEngine::Precision::I32),
+                                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                ::testing::Values(InferenceEngine::Layout::ANY),
+                                ::testing::Values(InferenceEngine::Layout::ANY),
                                 ::testing::Values(CommonTestUtils::DEVICE_MYRIAD),
                                 ::testing::Values(additional_config)),
                         LogicalLayerTest::getTestCaseName);
@@ -88,10 +91,13 @@ INSTANTIATE_TEST_CASE_P(smoke_EltwiseLogicalNotInt,
                         LogicalLayerTest,
                         ::testing::Combine(
                                 ::testing::ValuesIn(LogicalLayerTest::combineShapes(inputShapesNot)),
-                                ::testing::Values(InferenceEngine::Precision::I32),
                                 ::testing::Values(ngraph::helpers::LogicalTypes::LOGICAL_NOT),
                                 ::testing::Values(ngraph::helpers::InputLayerType::CONSTANT),
                                 ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                ::testing::Values(InferenceEngine::Precision::I32),
+                                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                ::testing::Values(InferenceEngine::Layout::ANY),
+                                ::testing::Values(InferenceEngine::Layout::ANY),
                                 ::testing::Values(CommonTestUtils::DEVICE_MYRIAD),
                                 ::testing::Values(additional_config)),
                         LogicalLayerTest::getTestCaseName);

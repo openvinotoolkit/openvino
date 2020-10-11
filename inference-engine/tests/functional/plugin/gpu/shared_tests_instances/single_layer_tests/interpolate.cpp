@@ -11,7 +11,7 @@ using namespace LayerTestsDefinitions;
 
 namespace {
 
-const std::vector<InferenceEngine::Precision> prc = {
+const std::vector<InferenceEngine::Precision> netPrecisions = {
         InferenceEngine::Precision::FP16,
         InferenceEngine::Precision::FP32,
 };
@@ -108,7 +108,11 @@ const auto interpolateCasesNearesMode = ::testing::Combine(
 
 INSTANTIATE_TEST_CASE_P(smoke_Interpolate_Basic, InterpolateLayerTest, ::testing::Combine(
         interpolateCasesWithoutNearest,
-        ::testing::ValuesIn(prc),
+        ::testing::ValuesIn(netPrecisions),
+        ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+        ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+        ::testing::Values(InferenceEngine::Layout::ANY),
+        ::testing::Values(InferenceEngine::Layout::ANY),
         ::testing::ValuesIn(inShapes),
         ::testing::ValuesIn(targetShapes),
         ::testing::Values(CommonTestUtils::DEVICE_GPU)),
@@ -116,7 +120,11 @@ INSTANTIATE_TEST_CASE_P(smoke_Interpolate_Basic, InterpolateLayerTest, ::testing
 
 INSTANTIATE_TEST_CASE_P(smoke_Interpolate_Nearest, InterpolateLayerTest, ::testing::Combine(
         interpolateCasesNearesMode,
-        ::testing::ValuesIn(prc),
+        ::testing::ValuesIn(netPrecisions),
+        ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+        ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+        ::testing::Values(InferenceEngine::Layout::ANY),
+        ::testing::Values(InferenceEngine::Layout::ANY),
         ::testing::ValuesIn(inShapes),
         ::testing::ValuesIn(targetShapes),
         ::testing::Values(CommonTestUtils::DEVICE_GPU)),

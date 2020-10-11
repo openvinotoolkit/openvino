@@ -49,6 +49,10 @@ INSTANTIATE_TEST_CASE_P(smoke_GroupConvolution2D_ExplicitPadding, GroupConvoluti
                         ::testing::Combine(
                                 groupConv2DParams_ExplicitPadding,
                                 ::testing::ValuesIn(netPrecisions),
+                                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                ::testing::Values(InferenceEngine::Layout::ANY),
+                                ::testing::Values(InferenceEngine::Layout::ANY),
                                 ::testing::Values(std::vector<size_t >({1, 16, 30, 30})),
                                 ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                         GroupConvolutionLayerTest::getTestCaseName);
@@ -57,6 +61,10 @@ INSTANTIATE_TEST_CASE_P(smoke_GroupConvolution2D_AutoPadValid, GroupConvolutionL
                         ::testing::Combine(
                                 groupConv2DParams_AutoPadValid,
                                 ::testing::ValuesIn(netPrecisions),
+                                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                ::testing::Values(InferenceEngine::Layout::ANY),
+                                ::testing::Values(InferenceEngine::Layout::ANY),
                                 ::testing::Values(std::vector<size_t >({1, 16, 30, 30})),
                                 ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                         GroupConvolutionLayerTest::getTestCaseName);
@@ -93,6 +101,10 @@ INSTANTIATE_TEST_CASE_P(smoke_GroupConvolution3D_ExplicitPadding, GroupConvoluti
                         ::testing::Combine(
                                 groupConv3DParams_ExplicitPadding,
                                 ::testing::ValuesIn(netPrecisions),
+                                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                ::testing::Values(InferenceEngine::Layout::ANY),
+                                ::testing::Values(InferenceEngine::Layout::ANY),
                                 ::testing::Values(std::vector<size_t >({1, 4, 10, 10, 10})),
                                 ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                         GroupConvolutionLayerTest::getTestCaseName);
@@ -101,6 +113,10 @@ INSTANTIATE_TEST_CASE_P(smoke_GroupConvolution3D_AutoPadValid, GroupConvolutionL
                         ::testing::Combine(
                                 groupConv3DParams_AutoPadValid,
                                 ::testing::ValuesIn(netPrecisions),
+                                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                ::testing::Values(InferenceEngine::Layout::ANY),
+                                ::testing::Values(InferenceEngine::Layout::ANY),
                                 ::testing::Values(std::vector<size_t >({1, 4, 10, 10, 10})),
                                 ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                         GroupConvolutionLayerTest::getTestCaseName);

@@ -18,6 +18,10 @@ typedef std::vector<size_t> TileSpecificParams;
 typedef std::tuple<
         TileSpecificParams,
         InferenceEngine::Precision,    // Net precision
+        InferenceEngine::Precision,    // Input precision
+        InferenceEngine::Precision,    // Output precision
+        InferenceEngine::Layout,       // Input layout
+        InferenceEngine::Layout,       // Output layout
         InferenceEngine::SizeVector,   // Input shapes
         LayerTestsUtils::TargetDevice  // Device name
 > TileLayerTestParamsSet;

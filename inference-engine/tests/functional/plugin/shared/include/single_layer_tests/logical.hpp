@@ -19,10 +19,13 @@ using InputShapesTuple = std::pair<std::vector<size_t>, std::vector<size_t>>;
 
 typedef std::tuple<
     LogicalParams::InputShapesTuple,    // Input shapes tuple
-    InferenceEngine::Precision,         // Inputs precision
     ngraph::helpers::LogicalTypes,      // Logical op type
     ngraph::helpers::InputLayerType,    // Second input type
     InferenceEngine::Precision,         // Net precision
+    InferenceEngine::Precision,         // Input precision
+    InferenceEngine::Precision,         // Output precision
+    InferenceEngine::Layout,            // Input layout
+    InferenceEngine::Layout,            // Output layout
     std::string,                        // Device name
     std::map<std::string, std::string>  // Additional network configuration
 > LogicalTestParams;

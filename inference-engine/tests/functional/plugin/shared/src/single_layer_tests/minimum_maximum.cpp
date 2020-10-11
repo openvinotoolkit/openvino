@@ -17,17 +17,23 @@ namespace LayerTestsDefinitions {
     std::string MaxMinLayerTest::getTestCaseName(const testing::TestParamInfo<MaxMinParamsTuple> &obj) {
         std::vector<std::vector<size_t>> inputShapes;
         InferenceEngine::Precision netPrecision;
+        InferenceEngine::Precision inPrc, outPrc;
+        InferenceEngine::Layout inLayout, outLayout;
         std::string targetName;
         ngraph::helpers::InputLayerType inputType;
         ngraph::helpers::MinMaxOpType opType;
-        std::tie(inputShapes, opType, netPrecision, inputType, targetName) = obj.param;
+        std::tie(inputShapes, opType, netPrecision, inPrc, outPrc, inLayout, outLayout, inputType, targetName) = obj.param;
         std::ostringstream results;
 
         results << "IS=" << CommonTestUtils::vec2str(inputShapes) << "_";
         results << "OpType=" << opType << "_";
         results << "SecondaryInputType=" << inputType << "_";
         results << "netPRC=" << netPrecision.name() << "_";
-        results << "targetDevice=" << targetName << "_";
+        results << "inPRC=" << inPrc.name() << "_";
+        results << "outPRC=" << outPrc.name() << "_";
+        results << "inL=" << inLayout << "_";
+        results << "outL=" << outLayout << "_";
+        results << "trgDev=" << targetName << "_";
         return results.str();
     }
 
@@ -36,7 +42,7 @@ namespace LayerTestsDefinitions {
         InferenceEngine::Precision netPrecision;
         ngraph::helpers::InputLayerType inputType;
         ngraph::helpers::MinMaxOpType opType;
-        std::tie(inputShapes, opType, netPrecision, inputType, targetDevice) = this->GetParam();
+        std::tie(inputShapes, opType, netPrecision, inPrc, outPrc, inLayout, outLayout, inputType, targetDevice) = this->GetParam();
         if (inputShapes.size() != 2) {
             THROW_IE_EXCEPTION << "Unsupported inputs number for Minimum/Maximum operaton";
         }

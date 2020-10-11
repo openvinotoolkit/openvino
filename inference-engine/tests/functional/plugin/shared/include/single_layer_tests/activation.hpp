@@ -76,6 +76,10 @@ static std::map<ngraph::helpers::ActivationTypes, std::string> activationNames =
 typedef std::tuple<
         std::pair<ngraph::helpers::ActivationTypes, std::vector<float>>, // Activation type and constant value
         InferenceEngine::Precision,
+        InferenceEngine::Precision,    // Input precision
+        InferenceEngine::Precision,    // Output precision
+        InferenceEngine::Layout,       // Input layout
+        InferenceEngine::Layout,       // Output layout
         std::pair<std::vector<size_t>, std::vector<size_t>>,
         std::string> activationParams;
 

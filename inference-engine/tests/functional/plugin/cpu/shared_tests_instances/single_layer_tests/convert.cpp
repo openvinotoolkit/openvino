@@ -24,6 +24,8 @@ INSTANTIATE_TEST_CASE_P(smoke_NoReshape, ConvertLayerTest,
                                 ::testing::Values(inShape),
                                 ::testing::ValuesIn(netPrecisions),
                                 ::testing::ValuesIn(netPrecisions),
+                                ::testing::Values(InferenceEngine::Layout::ANY),
+                                ::testing::Values(InferenceEngine::Layout::ANY),
                                 ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                         ConvertLayerTest::getTestCaseName);
 

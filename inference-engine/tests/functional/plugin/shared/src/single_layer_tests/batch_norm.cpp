@@ -8,16 +8,22 @@
 namespace LayerTestsDefinitions {
 std::string BatchNormLayerTest::getTestCaseName(const testing::TestParamInfo<BatchNormLayerTestParams>& obj) {
     InferenceEngine::Precision netPrecision;
+    InferenceEngine::Precision inPrc, outPrc;
+    InferenceEngine::Layout inLayout, outLayout;
     InferenceEngine::SizeVector inputShapes;
     double epsilon;
     std::string targetDevice;
-    std::tie(epsilon, netPrecision, inputShapes, targetDevice) = obj.param;
+    std::tie(epsilon, netPrecision, inPrc, outPrc, inLayout, outLayout, inputShapes, targetDevice) = obj.param;
 
     std::ostringstream result;
     result << "IS=" << CommonTestUtils::vec2str(inputShapes) << "_";
     result << "epsilon=" << epsilon << "_";
     result << "netPRC=" << netPrecision.name() << "_";
-    result << "targetDevice=" << targetDevice;
+    result << "inPRC=" << inPrc.name() << "_";
+    result << "outPRC=" << outPrc.name() << "_";
+    result << "inL=" << inLayout << "_";
+    result << "outL=" << outLayout << "_";
+    result << "trgDev=" << targetDevice;
     return result.str();
 }
 
@@ -25,7 +31,7 @@ void BatchNormLayerTest::SetUp() {
     InferenceEngine::Precision netPrecision;
     InferenceEngine::SizeVector inputShapes;
     double epsilon;
-    std::tie(epsilon, netPrecision, inputShapes, targetDevice) = this->GetParam();
+    std::tie(epsilon, netPrecision, inPrc, outPrc, inLayout, outLayout, inputShapes, targetDevice) = this->GetParam();
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
 
     auto params = ngraph::builder::makeParams(ngPrc, {inputShapes});

@@ -30,6 +30,10 @@ INSTANTIATE_TEST_CASE_P(smoke_BasicPositive, RangeAddSubgraphTest,
                                 ::testing::ValuesIn(positiveStop),
                                 ::testing::ValuesIn(positiveStep),
                                 ::testing::ValuesIn(netPrecisions),
+                                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                ::testing::Values(InferenceEngine::Layout::ANY),
+                                ::testing::Values(InferenceEngine::Layout::ANY),
                                 ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                         RangeAddSubgraphTest::getTestCaseName);
 
@@ -39,6 +43,10 @@ INSTANTIATE_TEST_CASE_P(smoke_BasicNegative, RangeAddSubgraphTest,
                                 ::testing::ValuesIn(negativeStop),
                                 ::testing::ValuesIn(negativeStep),
                                 ::testing::ValuesIn(netPrecisions),
+                                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                ::testing::Values(InferenceEngine::Layout::ANY),
+                                ::testing::Values(InferenceEngine::Layout::ANY),
                                 ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                         RangeAddSubgraphTest::getTestCaseName);
 }  // namespace

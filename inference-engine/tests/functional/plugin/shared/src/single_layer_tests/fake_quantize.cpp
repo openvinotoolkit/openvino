@@ -34,10 +34,12 @@ namespace LayerTestsDefinitions {
 std::string FakeQuantizeLayerTest::getTestCaseName(testing::TestParamInfo<fqLayerTestParamsSet> obj) {
     fqSpecificParams fqParams;
     InferenceEngine::Precision netPrecision;
+    InferenceEngine::Precision inPrc, outPrc;
+    InferenceEngine::Layout inLayout, outLayout;
     InferenceEngine::SizeVector inputShapes;
     std::string targetDevice;
     std::pair<std::string, std::map<std::string, std::string>> config;
-    std::tie(fqParams, netPrecision, inputShapes, targetDevice, config) = obj.param;
+    std::tie(fqParams, netPrecision, inPrc, outPrc, inLayout, outLayout, inputShapes, targetDevice, config) = obj.param;
     size_t levels;
     std::vector<size_t> constShape;
     std::vector<float> fqDirectArgs;
@@ -49,7 +51,11 @@ std::string FakeQuantizeLayerTest::getTestCaseName(testing::TestParamInfo<fqLaye
     result << "CS=" << CommonTestUtils::vec2str(constShape) << "_";
     result << "LEVELS=" << levels << "_";
     result << "netPRC=" << netPrecision.name() << "_";
-    result << "targetDevice=" << targetDevice;
+    result << "inPRC=" << inPrc.name() << "_";
+    result << "outPRC=" << outPrc.name() << "_";
+    result << "inL=" << inLayout << "_";
+    result << "outL=" << outLayout << "_";
+    result << "trgDev=" << targetDevice;
     if (!config.first.empty()) {
         result << "_targetConfig=" << config.first;
     }
@@ -67,7 +73,7 @@ void FakeQuantizeLayerTest::SetUp() {
     std::vector<size_t> inputShape;
     std::pair<std::string, std::map<std::string, std::string>> config;
     auto netPrecision = InferenceEngine::Precision::UNSPECIFIED;
-    std::tie(fqParams, netPrecision, inputShape, targetDevice, config) = this->GetParam();
+    std::tie(fqParams, netPrecision, inPrc, outPrc, inLayout, outLayout, inputShape, targetDevice, config) = this->GetParam();
     InferenceEngine::SizeVector kernel, stride, dilation;
     size_t levels;
     std::vector<size_t> constShape;
@@ -116,7 +122,8 @@ void FakeQuantizeLayerTest::SetUp() {
 }
 
 InferenceEngine::Blob::Ptr FakeQuantizeLayerTest::GenerateInput(const InferenceEngine::InputInfo &info) const {
-    return FuncTestUtils::createAndFillBlob(info.getTensorDesc(), inputDataMax - inputDataMin, inputDataMin, 1 / inputDataResolution, seed);
+    return FuncTestUtils::createAndFillBlob(info.getTensorDesc(), inputDataMax - inputDataMin, inputDataMin, 1 / inputDataResolution,
+      seed);
 }
 
 void FakeQuantizeLayerTest::UpdateSeed() {

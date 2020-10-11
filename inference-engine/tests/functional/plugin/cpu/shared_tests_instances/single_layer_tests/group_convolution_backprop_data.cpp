@@ -52,6 +52,10 @@ INSTANTIATE_TEST_CASE_P(smoke_GroupConvBackpropData2D_ExplicitPadding, GroupConv
                         ::testing::Combine(
                                 groupConvBackpropData2DParams_ExplicitPadding,
                                 ::testing::ValuesIn(netPrecisions),
+                                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                ::testing::Values(InferenceEngine::Layout::ANY),
+                                ::testing::Values(InferenceEngine::Layout::ANY),
                                 ::testing::ValuesIn(inputShapes2D),
                                 ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                         GroupConvBackpropDataLayerTest::getTestCaseName);
@@ -60,6 +64,10 @@ INSTANTIATE_TEST_CASE_P(smoke_GroupConvBackpropData2D_AutoPadValid, GroupConvBac
                         ::testing::Combine(
                                 groupConvBackpropData2DParams_AutoPadValid,
                                 ::testing::ValuesIn(netPrecisions),
+                                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                ::testing::Values(InferenceEngine::Layout::ANY),
+                                ::testing::Values(InferenceEngine::Layout::ANY),
                                 ::testing::ValuesIn(inputShapes2D),
                                 ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                         GroupConvBackpropDataLayerTest::getTestCaseName);
@@ -98,6 +106,10 @@ INSTANTIATE_TEST_CASE_P(smoke_GroupConvBackpropData3D_ExplicitPadding, GroupConv
                         ::testing::Combine(
                                 groupConvBackpropData3DParams_ExplicitPadding,
                                 ::testing::ValuesIn(netPrecisions),
+                                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                ::testing::Values(InferenceEngine::Layout::ANY),
+                                ::testing::Values(InferenceEngine::Layout::ANY),
                                 ::testing::ValuesIn(inputShapes3D),
                                 ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                         GroupConvBackpropDataLayerTest::getTestCaseName);
@@ -106,6 +118,10 @@ INSTANTIATE_TEST_CASE_P(smoke_GroupConvBackpropData3D_AutoPadValid, GroupConvBac
                         ::testing::Combine(
                                 groupConvBackpropData3DParams_AutoPadValid,
                                 ::testing::ValuesIn(netPrecisions),
+                                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                ::testing::Values(InferenceEngine::Layout::ANY),
+                                ::testing::Values(InferenceEngine::Layout::ANY),
                                 ::testing::ValuesIn(inputShapes3D),
                                 ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                         GroupConvBackpropDataLayerTest::getTestCaseName);

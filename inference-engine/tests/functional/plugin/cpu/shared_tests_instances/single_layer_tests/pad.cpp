@@ -29,6 +29,9 @@ const auto pad2DConstparams = testing::Combine(
         testing::ValuesIn(argPadValue),
         testing::Values(ngraph::helpers::PadMode::CONSTANT),
         testing::ValuesIn(netPrecisions),
+        testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+        testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+        testing::Values(InferenceEngine::Layout::ANY),
         testing::Values(std::vector<size_t>{13, 5}),
         testing::Values(CommonTestUtils::DEVICE_CPU)
 );
@@ -46,6 +49,9 @@ const auto pad2Dparams = testing::Combine(
         testing::Values(0),
         testing::ValuesIn(padMode),
         testing::ValuesIn(netPrecisions),
+        testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+        testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+        testing::Values(InferenceEngine::Layout::ANY),
         testing::Values(std::vector<size_t>{13, 5}),
         testing::Values(CommonTestUtils::DEVICE_CPU)
 );
@@ -66,6 +72,9 @@ const auto pad4DConstparams = testing::Combine(
         testing::ValuesIn(argPadValue),
         testing::Values(ngraph::helpers::PadMode::CONSTANT),
         testing::ValuesIn(netPrecisions),
+        testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+        testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+        testing::Values(InferenceEngine::Layout::ANY),
         testing::Values(std::vector<size_t>{3, 5, 10, 11}),
         testing::Values(CommonTestUtils::DEVICE_CPU)
 );
@@ -83,6 +92,9 @@ const auto pad4Dparams = testing::Combine(
         testing::Values(0),
         testing::ValuesIn(padMode),
         testing::ValuesIn(netPrecisions),
+        testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+        testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+        testing::Values(InferenceEngine::Layout::ANY),
         testing::Values(std::vector<size_t>{3, 5, 10, 11}),
         testing::Values(CommonTestUtils::DEVICE_CPU)
 );

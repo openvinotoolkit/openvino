@@ -25,6 +25,10 @@ typedef std::tuple<
 typedef std::tuple<
         groupConvSpecificParams,
         InferenceEngine::Precision,
+        InferenceEngine::Precision,    // Input precision
+        InferenceEngine::Precision,    // Output precision
+        InferenceEngine::Layout,       // Input layout
+        InferenceEngine::Layout,       // Output layout
         InferenceEngine::SizeVector,
         LayerTestsUtils::TargetDevice> groupConvLayerTestParamsSet;
 
