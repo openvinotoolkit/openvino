@@ -42,7 +42,7 @@ protected:
         groupConvSpecificParams groupConvParams;
         std::vector<size_t> inputShape;
         auto netPrecision   = InferenceEngine::Precision::UNSPECIFIED;
-        std::tie(groupConvParams, netPrecision, inputShape, targetDevice) = basicParamsSet;
+        std::tie(groupConvParams, netPrecision, inPrc, outPrc, inLayout, outLayout, inputShape, targetDevice) = basicParamsSet;
 
         ngraph::op::PadType padType;
         InferenceEngine::SizeVector kernel, stride, dilation;
@@ -171,6 +171,10 @@ INSTANTIATE_TEST_CASE_P(smoke_GroupConv_2D_Planar_FP32, GroupConvolutionLayerCPU
                                 ::testing::Combine(
                                         groupConvParams_ExplicitPadding_Planar_2D,
                                         ::testing::Values(Precision::FP32),
+                                        ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                        ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                        ::testing::Values(InferenceEngine::Layout::ANY),
+                                        ::testing::Values(InferenceEngine::Layout::ANY),
                                         ::testing::Values(std::vector<size_t >({2, 12, 7, 7})),
                                         ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                                 ::testing::ValuesIn(filterCPUInfoForDevice(CPUParams_Planar_2D))),
@@ -197,6 +201,10 @@ INSTANTIATE_TEST_CASE_P(smoke_GroupConv_3D_Planar_FP32, GroupConvolutionLayerCPU
                                 ::testing::Combine(
                                         groupConvParams_ExplicitPadding_Planar_3D,
                                         ::testing::Values(Precision::FP32),
+                                        ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                        ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                        ::testing::Values(InferenceEngine::Layout::ANY),
+                                        ::testing::Values(InferenceEngine::Layout::ANY),
                                         ::testing::Values(std::vector<size_t >({2, 12, 7, 7, 7})),
                                         ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                                 ::testing::ValuesIn(filterCPUInfoForDevice(CPUParams_Planar_3D))),
@@ -225,6 +233,10 @@ INSTANTIATE_TEST_CASE_P(smoke_GroupConv_2D_Blocked_FP32, GroupConvolutionLayerCP
                                 ::testing::Combine(
                                         groupConvParams_ExplicitPadding_Blocked_2D,
                                         ::testing::Values(Precision::FP32),
+                                        ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                        ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                        ::testing::Values(InferenceEngine::Layout::ANY),
+                                        ::testing::Values(InferenceEngine::Layout::ANY),
                                         ::testing::Values(std::vector<size_t >({2, 64, 7, 7})),
                                         ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                                 ::testing::ValuesIn(filterCPUInfoForDevice(CPUParams_Blocked_2D))),
@@ -253,6 +265,10 @@ INSTANTIATE_TEST_CASE_P(smoke_GroupConv_3D_Blocked_FP32, GroupConvolutionLayerCP
                                 ::testing::Combine(
                                         groupConvParams_ExplicitPadding_Blocked_3D,
                                         ::testing::Values(Precision::FP32),
+                                        ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                        ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                        ::testing::Values(InferenceEngine::Layout::ANY),
+                                        ::testing::Values(InferenceEngine::Layout::ANY),
                                         ::testing::Values(std::vector<size_t >({2, 64, 7, 7, 7})),
                                         ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                                 ::testing::ValuesIn(filterCPUInfoForDevice(CPUParams_Blocked_3D))),
@@ -281,6 +297,10 @@ INSTANTIATE_TEST_CASE_P(smoke_GroupConv_2D_DW_FP32, GroupConvolutionLayerCPUTest
                                 ::testing::Combine(
                                         groupConvParams_ExplicitPadding_DW_2D,
                                         ::testing::Values(Precision::FP32),
+                                        ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                        ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                        ::testing::Values(InferenceEngine::Layout::ANY),
+                                        ::testing::Values(InferenceEngine::Layout::ANY),
                                         ::testing::Values(std::vector<size_t >({2, 32, 7, 7})),
                                         ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                                 ::testing::ValuesIn(filterCPUInfoForDevice(CPUParams_DW_2D))),
@@ -309,6 +329,10 @@ INSTANTIATE_TEST_CASE_P(smoke_GroupConv_3D_DW_FP32, GroupConvolutionLayerCPUTest
                                 ::testing::Combine(
                                         groupConvParams_ExplicitPadding_DW_3D,
                                         ::testing::Values(Precision::FP32),
+                                        ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                        ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                        ::testing::Values(InferenceEngine::Layout::ANY),
+                                        ::testing::Values(InferenceEngine::Layout::ANY),
                                         ::testing::Values(std::vector<size_t >({2, 32, 7, 7, 7})),
                                         ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                                 ::testing::ValuesIn(filterCPUInfoForDevice(CPUParams_DW_3D))),
@@ -330,7 +354,11 @@ groupConvLayerCPUTestParamsSet makeSingleGroupConvCPUTestCase(SizeVector kernels
     inputShapes.insert(inputShapes.end(), spDims.begin(), spDims.end());
 
     groupConvSpecificParams specificParams(kernels, strides, padBegins, padEnds, dilations, outChannels, groups, padType);
-    groupConvLayerTestParamsSet basicParamsSet(specificParams, Precision::FP32, inputShapes, CommonTestUtils::DEVICE_CPU);
+    groupConvLayerTestParamsSet basicParamsSet(specificParams, Precision::FP32,
+        InferenceEngine::Precision::UNSPECIFIED,
+        InferenceEngine::Precision::UNSPECIFIED,
+        InferenceEngine::Layout::ANY,
+        InferenceEngine::Layout::ANY, inputShapes, CommonTestUtils::DEVICE_CPU);
     return groupConvLayerCPUTestParamsSet(basicParamsSet, CPUParams);
 }
 
