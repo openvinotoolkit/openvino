@@ -44,19 +44,24 @@ std::vector<int64_t> createPitches(const Shape& dims)
 {
     std::vector<int64_t> pitch;
     auto tensor_rank = dims.size();
-    
+
     for (int i = 0; i < tensor_rank - 1; i++)
     {
-        int64_t val = std::accumulate(dims.begin() + i + 1, dims.end(), 1, std::multiplies<int64_t>());
+        int64_t val =
+            std::accumulate(dims.begin() + i + 1, dims.end(), 1, std::multiplies<int64_t>());
         pitch.push_back(val);
     }
-    pitch.push_back(1);    
+    pitch.push_back(1);
 
     return pitch;
 }
 
-void runtime::reference::tile(
-    const char* arg, char* out, const Shape& in_shape, const Shape& out_shape, size_t elem_size, std::vector<int64_t> repeats)
+void runtime::reference::tile(const char* arg,
+                              char* out,
+                              const Shape& in_shape,
+                              const Shape& out_shape,
+                              size_t elem_size,
+                              std::vector<int64_t> repeats)
 {
     Shape in_shape_expanded(in_shape);
     in_shape_expanded.insert(in_shape_expanded.begin(), out_shape.size() - in_shape.size(), 1);
@@ -71,8 +76,8 @@ void runtime::reference::tile(
     size_t axis(indices.size());
 
     pitches = createPitches(out_shape);
-    
-    while(run)
+
+    while (run)
     {
         block_size = last_dim * elem_size;
         memcpy(out, arg, block_size);
@@ -85,9 +90,9 @@ void runtime::reference::tile(
         {
             memcpy(out, copy, block_size);
             out += block_size;
-        } 
+        }
 
-        while(Increase(in_shape_expanded, indices, axis, run))
+        while (Increase(in_shape_expanded, indices, axis, run))
         {
             ptrdiff_t pitch = pitches[axis] * in_shape_expanded[axis];
             block_size = pitch * elem_size;
@@ -101,4 +106,3 @@ void runtime::reference::tile(
         }
     }
 }
-
