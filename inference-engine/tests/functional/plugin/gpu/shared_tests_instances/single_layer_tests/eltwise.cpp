@@ -53,6 +53,9 @@ const auto multiply_params = ::testing::Combine(
         ::testing::ValuesIn(secondaryInputTypes),
         ::testing::ValuesIn(opTypes),
         ::testing::ValuesIn(netPrecisions),
+        ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+        ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+        ::testing::Values(InferenceEngine::Layout::ANY),
         ::testing::Values(CommonTestUtils::DEVICE_GPU),
         ::testing::Values(additional_config));
 
