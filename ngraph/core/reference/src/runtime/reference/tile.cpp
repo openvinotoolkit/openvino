@@ -22,15 +22,15 @@
 
 using namespace ngraph;
 
-bool Increment(std::vector<int64_t>& indices, size_t& axis, const Shape& input_shape, bool& run)
+bool Increase(const Shape& shape, std::vector<int64_t>& indices, size_t& axis, bool& run)
 {
     if (axis-- == 0)
     {
         run = false;
         return false;
     }
-    
-    if (++indices[axis] != input_shape[axis])
+
+    if (++indices[axis] != shape[axis])
     {
         axis = indices.size();
         return false;
@@ -40,22 +40,16 @@ bool Increment(std::vector<int64_t>& indices, size_t& axis, const Shape& input_s
     return true;
 }
 
-std::vector<int64_t> createPitch(const Shape& dims)
+std::vector<int64_t> createPitches(const Shape& dims)
 {
     std::vector<int64_t> pitch;
     auto tensor_rank = dims.size();
-    /*
-    if (tensor_rank == 1)
+    
+    for (int i = 0; i < tensor_rank - 1; i++)
     {
-        return pitch;
-    }
-    */
-    for (int i = 1; i < tensor_rank - 1; i++)
-    {
-        int64_t val = std::accumulate(dims.begin() + 1, dims.end(), 0);
+        int64_t val = std::accumulate(dims.begin() + i + 1, dims.end(), 1, std::multiplies<int64_t>());
         pitch.push_back(val);
     }
-
     pitch.push_back(1);    
 
     return pitch;
@@ -64,43 +58,42 @@ std::vector<int64_t> createPitch(const Shape& dims)
 void runtime::reference::tile(
     const char* arg, char* out, const Shape& in_shape, const Shape& out_shape, size_t elem_size, std::vector<int64_t> repeats)
 {
-    
     Shape in_shape_expanded(in_shape);
     in_shape_expanded.insert(in_shape_expanded.begin(), out_shape.size() - in_shape.size(), 1);
     int input_rank = in_shape_expanded.size();
-    std::vector<int64_t> repeats;
+    const int64_t last_dim = in_shape_expanded[input_rank - 1];
     size_t block_size = 0;
     int64_t num_repeats = 0;
     const char* copy = nullptr;
-    const int64_t innermost_dim = in_shape_expanded[input_rank - 1];
-    std::vector<int64_t> indices{input_rank - 1, 0};
-    std::vector<int64_t> output_pitches;
-    size_t axis = indices.size();
+    std::vector<int64_t> pitches;
     bool run = true;
-    
-    output_pitches = createPitch(out_shape);
+    std::vector<int64_t> indices(in_shape_expanded.size() - 1, 0);
+    size_t axis(indices.size());
 
+    pitches = createPitches(out_shape);
+    
     while(run)
     {
-        block_size = innermost_dim * elem_size;
+        block_size = last_dim * elem_size;
         memcpy(out, arg, block_size);
         out += block_size;
         arg += block_size;
 
         copy = out - block_size;
         num_repeats = repeats[input_rank - 1] - 1;
-        for (int64_t repeat = 0; repeat < num_repeats; ++repeat)
+        for (int64_t i = 0; i < num_repeats; ++i)
         {
             memcpy(out, copy, block_size);
+            out += block_size;
         } 
 
-        while(Increment(indices, axis, in_shape, run))
+        while(Increase(in_shape_expanded, indices, axis, run))
         {
-            ptrdiff_t pitch = output_pitches[axis] * in_shape_expanded[axis];
+            ptrdiff_t pitch = pitches[axis] * in_shape_expanded[axis];
             block_size = pitch * elem_size;
             copy = out - block_size;
             num_repeats = repeats[axis] - 1;
-            for (int64_t repeat = 0; repeat < num_repeats; repeat++)
+            for (int64_t i = 0; i < num_repeats; i++)
             {
                 memcpy(out, copy, block_size);
                 out += block_size;
