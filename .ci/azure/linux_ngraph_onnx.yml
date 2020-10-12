@@ -76,7 +76,6 @@ jobs:
   - script: make install
     workingDirectory: $(BUILD_DIR)
     displayName: 'Install'
-    workingDirectory: $(BUILD_DIR)
     enabled: false
 
   - script: |
