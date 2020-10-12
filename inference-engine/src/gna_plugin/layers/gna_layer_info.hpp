@@ -7,7 +7,7 @@
 #include <string>
 #include <memory>
 #include <vector>
-#include "ie_layers.h"
+#include <legacy/ie_layers.h>
 #include "caseless.hpp"
 #include "ie_algorithm.hpp"
 #include "backend/gna_types.h"
