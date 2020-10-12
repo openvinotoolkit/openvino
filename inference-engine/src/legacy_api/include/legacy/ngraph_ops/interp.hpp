@@ -8,7 +8,7 @@
 #include <memory>
 #include <string>
 
-#include <transformations_visibility.hpp>
+#include <ie_api.h>
 
 #include "ngraph/op/op.hpp"
 
@@ -28,7 +28,7 @@ struct InterpolateIEAttrs {
     int pad_end = 0;
 };
 
-class TRANSFORMATIONS_API Interp : public Op {
+class INFERENCE_ENGINE_API_CLASS(Interp) : public Op {
 public:
     static constexpr NodeTypeInfo type_info{"Interp", 1};
     const NodeTypeInfo& get_type_info() const override { return type_info; }
@@ -51,7 +51,7 @@ struct ResampleIEAttrs {
     std::string mode = "";
 };
 
-class TRANSFORMATIONS_API ResampleV2 : public Op {
+class INFERENCE_ENGINE_API_CLASS(ResampleV2) : public Op {
 public:
     static constexpr NodeTypeInfo type_info{"ResampleV2", 1};
     const NodeTypeInfo& get_type_info() const override { return type_info; }

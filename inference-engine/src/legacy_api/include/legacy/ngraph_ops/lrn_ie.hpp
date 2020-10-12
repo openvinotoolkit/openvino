@@ -7,14 +7,14 @@
 #include <memory>
 #include <string>
 
-#include <transformations_visibility.hpp>
+#include <ie_api.h>
 
 #include "ngraph/op/op.hpp"
 
 namespace ngraph {
 namespace op {
 
-class TRANSFORMATIONS_API LRN_IE : public Op {
+class INFERENCE_ENGINE_API_CLASS(LRN_IE) : public Op {
 public:
     static constexpr NodeTypeInfo type_info{"LRN_IE", 1};
     const NodeTypeInfo& get_type_info() const override { return type_info; }

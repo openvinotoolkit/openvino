@@ -7,14 +7,14 @@
 #include <vector>
 #include <memory>
 
-#include <transformations_visibility.hpp>
+#include <ie_api.h>
 
 #include <ngraph/pass/graph_rewrite.hpp>
 
 namespace ngraph {
 namespace pass {
 
-class TRANSFORMATIONS_API ConvertMulAddToScaleShiftOrPower;
+class INFERENCE_ENGINE_API_CLASS(ConvertMulAddToScaleShiftOrPower);
 
 }  // namespace pass
 }  // namespace ngraph
@@ -44,5 +44,5 @@ enum class CONVERSION_RESULT {
  *      NONE - default return value
  */
 
-TRANSFORMATIONS_API CONVERSION_RESULT
+INFERENCE_ENGINE_API_CPP(CONVERSION_RESULT)
 check_constant(const std::shared_ptr<ngraph::op::Constant> & constant, const ngraph::PartialShape & shape);

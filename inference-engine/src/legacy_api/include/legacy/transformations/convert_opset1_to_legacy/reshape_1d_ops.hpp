@@ -7,17 +7,17 @@
 #include <vector>
 #include <memory>
 
-#include <transformations_visibility.hpp>
+#include <ie_api.h>
 
 #include <ngraph/pass/graph_rewrite.hpp>
 
 namespace ngraph {
 namespace pass {
 
-class TRANSFORMATIONS_API Reshape1DOps;
-class TRANSFORMATIONS_API Reshape1DConvolution;
-class TRANSFORMATIONS_API Reshape1DAvgPool;
-class TRANSFORMATIONS_API Reshape1DMaxPool;
+class INFERENCE_ENGINE_API_CLASS(Reshape1DOps);
+class INFERENCE_ENGINE_API_CLASS(Reshape1DConvolution);
+class INFERENCE_ENGINE_API_CLASS(Reshape1DAvgPool);
+class INFERENCE_ENGINE_API_CLASS(Reshape1DMaxPool);
 
 }  // namespace pass
 }  // namespace ngraph

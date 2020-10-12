@@ -7,14 +7,14 @@
 #include <vector>
 #include <memory>
 
-#include <transformations_visibility.hpp>
+#include <ie_api.h>
 
 #include <ngraph/pass/graph_rewrite.hpp>
 
 namespace ngraph {
 namespace pass {
 
-    class TRANSFORMATIONS_API ConvertNMS4ToLegacyMatcher;
+    class INFERENCE_ENGINE_API_CLASS(ConvertNMS4ToLegacyMatcher);
 
 }  // namespace pass
 }  // namespace ngraph

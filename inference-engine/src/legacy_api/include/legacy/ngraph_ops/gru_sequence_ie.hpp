@@ -8,14 +8,16 @@
 #include <string>
 #include <vector>
 
-#include <transformations_visibility.hpp>
+#include <ie_api.h>
+
+#include <ie_api.h>
 
 #include "ngraph/opsets/opset4.hpp"
 #include "ngraph/op/op.hpp"
 
 namespace ngraph {
 namespace op {
-class TRANSFORMATIONS_API GRUSequenceIE : public ngraph::op::util::RNNCellBase {
+class INFERENCE_ENGINE_API_CLASS(GRUSequenceIE) : public ngraph::op::util::RNNCellBase {
 public:
     NGRAPH_RTTI_DECLARATION;
 

@@ -6,14 +6,14 @@
 
 #include <memory>
 
-#include <transformations_visibility.hpp>
+#include <ie_api.h>
 
 #include "ngraph/op/op.hpp"
 
 namespace ngraph {
 namespace op {
 
-class TRANSFORMATIONS_API PowerIE : public Op {
+class INFERENCE_ENGINE_API_CLASS(PowerIE) : public Op {
 public:
     static constexpr NodeTypeInfo type_info{"PowerIE", 1};
     const NodeTypeInfo& get_type_info() const override { return type_info; }

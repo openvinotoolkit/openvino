@@ -8,7 +8,7 @@
 #include <memory>
 #include <string>
 
-#include <transformations_visibility.hpp>
+#include <ie_api.h>
 
 #include <ngraph/pass/graph_rewrite.hpp>
 #include <legacy/ngraph_ops/pad_ie.hpp>
@@ -19,7 +19,7 @@
 namespace ngraph {
 namespace pass {
 
-class TRANSFORMATIONS_API ConvertPadToLegacyMatcher;
+class INFERENCE_ENGINE_API_CLASS(ConvertPadToLegacyMatcher);
 
 }  // namespace pass
 }  // namespace ngraph

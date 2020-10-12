@@ -6,7 +6,7 @@
 
 #include <memory>
 
-#include <transformations_visibility.hpp>
+#include <ie_api.h>
 
 #include <ngraph/op/op.hpp>
 #include <ngraph/op/prior_box_clustered.hpp>
@@ -14,7 +14,7 @@
 namespace ngraph {
 namespace op {
 
-class TRANSFORMATIONS_API PriorBoxClusteredIE : public Op {
+class INFERENCE_ENGINE_API_CLASS(PriorBoxClusteredIE) : public Op {
 public:
     static constexpr NodeTypeInfo type_info{"PriorBoxClusteredIE", 1};
     const NodeTypeInfo& get_type_info() const override { return type_info; }

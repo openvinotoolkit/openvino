@@ -8,16 +8,16 @@
 #include <memory>
 #include <string>
 
-#include <transformations_visibility.hpp>
+#include <ie_api.h>
 
 #include <ngraph/pass/graph_rewrite.hpp>
 
 namespace ngraph {
 namespace pass {
 
-class TRANSFORMATIONS_API ConvertLSTMSequenceMatcher;
-class TRANSFORMATIONS_API ConvertGRUSequenceMatcher;
-class TRANSFORMATIONS_API ConvertRNNSequenceMatcher;
+class INFERENCE_ENGINE_API_CLASS(ConvertLSTMSequenceMatcher);
+class INFERENCE_ENGINE_API_CLASS(ConvertGRUSequenceMatcher);
+class INFERENCE_ENGINE_API_CLASS(ConvertRNNSequenceMatcher);
 
 }  // namespace pass
 }  // namespace ngraph

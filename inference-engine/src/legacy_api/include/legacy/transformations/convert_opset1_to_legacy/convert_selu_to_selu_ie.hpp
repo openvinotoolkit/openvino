@@ -8,14 +8,14 @@
 #include <memory>
 #include <string>
 
-#include <transformations_visibility.hpp>
+#include <ie_api.h>
 
 #include <ngraph/pass/graph_rewrite.hpp>
 
 namespace ngraph {
 namespace pass {
 
-class TRANSFORMATIONS_API ConvertSeluToSeluIEMatcher;
+class INFERENCE_ENGINE_API_CLASS(ConvertSeluToSeluIEMatcher);
 
 }  // namespace pass
 }  // namespace ngraph

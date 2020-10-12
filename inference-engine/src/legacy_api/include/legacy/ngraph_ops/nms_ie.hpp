@@ -7,14 +7,14 @@
 #include <memory>
 #include <string>
 
-#include <transformations_visibility.hpp>
+#include <ie_api.h>
 
 #include "ngraph/op/op.hpp"
 
 namespace ngraph {
 namespace op {
 
-class TRANSFORMATIONS_API NonMaxSuppressionIE : public Op {
+class INFERENCE_ENGINE_API_CLASS(NonMaxSuppressionIE) : public Op {
 public:
     static constexpr NodeTypeInfo type_info{"NonMaxSuppressionIE", 1};
     const NodeTypeInfo& get_type_info() const override { return type_info; }
@@ -39,7 +39,7 @@ public:
     element::Type m_output_type;
 };
 
-class TRANSFORMATIONS_API NonMaxSuppressionIE2 : public NonMaxSuppressionIE {
+class INFERENCE_ENGINE_API_CLASS(NonMaxSuppressionIE2) : public NonMaxSuppressionIE {
 public:
     static constexpr NodeTypeInfo type_info{"NonMaxSuppressionIE", 2};
     const NodeTypeInfo& get_type_info() const override { return type_info; }
