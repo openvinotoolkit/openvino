@@ -59,6 +59,7 @@ public:
      * @brief Default common implementation for all plugins with checking input and output blobs before inference
      */
     void Infer() override {
+        ResetCancellationRequest();
         checkBlobs();
         InferImpl();
     }

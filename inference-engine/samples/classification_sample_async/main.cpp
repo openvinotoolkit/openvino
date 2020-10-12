@@ -186,20 +186,23 @@ int main(int argc, char *argv[]) {
         size_t curIteration = 0;
         std::condition_variable condVar;
 
-        inferRequest.SetCompletionCallback(
-                [&] {
-                    curIteration++;
-                    slog::info << "Completed " << curIteration << " async request execution" << slog::endl;
-                    if (curIteration < numIterations) {
-                        /* here a user can read output containing inference results and put new input
-                           to repeat async request again */
-                        inferRequest.StartAsync();
-                        inferRequest.Cancel();
-                    } else {
-                        /* continue sample execution after last Asynchronous inference request execution */
-                        condVar.notify_one();
-                    }
-                });
+        using callback_t = std::function<void(InferenceEngine::InferRequest, InferenceEngine::StatusCode)>;
+
+        callback_t callback = [&](InferenceEngine::IInferRequest::Ptr inferRequest, InferenceEngine::StatusCode code) {
+            curIteration++;
+            slog::info << "Completed " << curIteration << " async request execution" << slog::endl;
+            if (curIteration < numIterations) {
+                /* here a user can read output containing inference results and put new input
+                   to repeat async request again */
+                ResponseDesc respDescr;
+                inferRequest->StartAsync(&respDescr);
+            } else {
+                /* continue sample execution after last Asynchronous inference request execution */
+                condVar.notify_one();
+            }
+        };
+
+        inferRequest.SetCompletionCallback(callback);
 
         /* Start async request for the first time */
         slog::info << "Start inference (" << numIterations << " asynchronous executions)" << slog::endl;
