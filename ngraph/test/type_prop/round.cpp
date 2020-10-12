@@ -47,7 +47,8 @@ TEST(type_prop, rounding_to_even_partial)
 
     // rank unknown
     auto softplus_partial = make_shared<op::v5::Round>(
-        make_shared<op::Parameter>(element::f32, PartialShape::dynamic()), op::v5::Round::Mode::half_to_even);
+        make_shared<op::Parameter>(element::f32, PartialShape::dynamic()),
+        op::v5::Round::Mode::half_to_even);
     ASSERT_TRUE(softplus_partial->get_output_partial_shape(0).same_scheme(PartialShape::dynamic()));
 }
 
@@ -61,7 +62,8 @@ TEST(type_prop, rounding_away_partial)
 
     // rank unknown
     auto softplus_partial = make_shared<op::v5::Round>(
-        make_shared<op::Parameter>(element::f32, PartialShape::dynamic()), op::v5::Round::Mode::half_away_from_zero);
+        make_shared<op::Parameter>(element::f32, PartialShape::dynamic()),
+        op::v5::Round::Mode::half_away_from_zero);
     ASSERT_TRUE(softplus_partial->get_output_partial_shape(0).same_scheme(PartialShape::dynamic()));
 }
 
