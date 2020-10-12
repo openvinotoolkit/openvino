@@ -20,6 +20,7 @@ import numpy as np
 
 from mo.front.common.partial_infer.utils import int64_array
 from mo.graph.graph import Node, Graph
+from mo.graph.perm_inputs import PermuteInputs
 from mo.ops.op import Op, PermuteAttrs
 
 
@@ -58,6 +59,8 @@ def infer_for_opset4(node: Node):
         assert scales is not None
         for i, axis in enumerate(axes):
             output_shape[axis] = math.floor(scales[i] * output_shape[axis] + 1.0e-5)
+
+    # PermuteInputs().set_input_permutation(node.in_node(3), node, 'output:0', 'shape')
 
     node.out_port(0).data.set_shape(output_shape)
 
