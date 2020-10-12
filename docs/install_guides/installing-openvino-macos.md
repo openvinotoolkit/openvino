@@ -1,22 +1,21 @@
 # Install Intel® Distribution of OpenVINO™ toolkit for macOS* {#openvino_docs_install_guides_installing_openvino_macos}
 
 > **NOTES**:
-> - The Intel® Distribution of OpenVINO™ is supported on macOS\* 10.14.x versions.
-> - This installation has been validated on macOS 10.14.4.
+> - The Intel® Distribution of OpenVINO™ is supported on macOS\* 10.15.x versions.
 > - An internet connection is required to follow the steps in this guide. If you have access to the Internet through the proxy server only, please make sure that it is configured in your OS environment.
 
 ## Introduction
 
 The Intel® Distribution of OpenVINO™ toolkit quickly deploys applications and solutions that emulate human vision. Based on Convolutional Neural Networks (CNN), the toolkit extends computer vision (CV) workloads across Intel® hardware, maximizing performance.
 
-The Intel® Distribution of OpenVINO™ toolkit for macOS* includes the Intel® Deep Learning Deployment Toolkit (Intel® DLDT) and OpenCV* to deploy applications for accelerated inference on Intel® CPUs.  
+The Intel® Distribution of OpenVINO™ toolkit for macOS* includes the Inference Engine, OpenCV* libraries and Model Optimizer tool to deploy applications for accelerated inference on Intel® CPUs and Intel® Neural Compute Stick 2.  
 
 The Intel® Distribution of OpenVINO™ toolkit for macOS*:
 
--  Enables CNN-based deep learning inference on the edge  
+- Enables CNN-based deep learning inference on the edge  
 - Supports heterogeneous execution across Intel® CPU and Intel® Neural Compute Stick 2 with Intel® Movidius™ VPUs
--  Speeds time-to-market via an easy-to-use library of computer vision functions and pre-optimized kernels
--  Includes optimized calls for computer vision standards including OpenCV\*
+- Speeds time-to-market via an easy-to-use library of computer vision functions and pre-optimized kernels
+- Includes optimized calls for computer vision standards including OpenCV\*
 
 **Included with the Installation**
 
