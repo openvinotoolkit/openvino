@@ -1201,7 +1201,7 @@ protected:
         {
             size_t element_count = shape_size(node.get_output_shape(0));
             reference::round<T>(
-                args[0]->get_data_ptr<const T>(), out[0]->get_data_ptr<T>(), element_count);
+                args[0]->get_data_ptr<const T>(), out[0]->get_data_ptr<T>(), element_count, op::v5::Round::Mode::HALF_TO_EVEN);
             break;
         }
         case OP_TYPEID::Select:
