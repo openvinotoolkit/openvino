@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "transformations/common_transformations/convert_convolutions.hpp"
+#include "transformations/internal/convert_convolutions.hpp"
 
 #include <memory>
 #include <vector>

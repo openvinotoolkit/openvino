@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "transformations/common_transformations/conv_bias_fusion.hpp"
+#include "transformations/internal/conv_bias_fusion.hpp"
 
 #include <memory>
 #include <numeric>

@@ -43,8 +43,8 @@
 #include <transformations/common_optimizations/convert_minimum_to_power_and_max.hpp>
 #include <transformations/common_optimizations/convert_subtract.hpp>
 
-#include <transformations/common_transformations/conv_bias_fusion.hpp>
-#include <transformations/common_transformations/convert_convolutions.hpp>
+#include <transformations/internal/conv_bias_fusion.hpp>
+#include <transformations/internal/convert_convolutions.hpp>
 
 #include "ie_legacy_itt.hpp"
 
