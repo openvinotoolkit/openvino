@@ -35,10 +35,10 @@ from tests import (
     xfail_issue_39685,
     xfail_issue_37957,
     xfail_issue_36465,
-    xfail_issue_38090,
     xfail_issue_38084,
     xfail_issue_39669,
-    xfail_issue_38726)
+    xfail_issue_38726,
+    xfail_issue_40686)
 
 MODELS_ROOT_DIR = tests.MODEL_ZOO_DIR
 
@@ -81,6 +81,8 @@ tolerance_map = {
     "rain-princess-9": {"atol": 0.001, "rtol": 0.001},
     "udnie-8": {"atol": 0.001, "rtol": 0.001},
     "udnie-9": {"atol": 0.001, "rtol": 0.001},
+    "mxnet_arcface": {"atol": 1.5e-5, "rtol": 0.001},
+    "resnet100": {"atol": 1.5e-5, "rtol": 0.001},
 }
 
 zoo_models = []
@@ -160,10 +162,7 @@ if len(zoo_models) > 0:
             (xfail_issue_36533, "test_onnx_model_zoo_vision_style_transfer_fast_neural_style_model_mosaic_8_mosaic_mosaic_cpu"),
             (xfail_issue_36533, "test_onnx_model_zoo_vision_classification_resnet_model_resnet18_v2_7_resnet18v2_resnet18_v2_7_cpu"),
             (xfail_issue_36533, "test_onnx_model_zoo_vision_classification_resnet_model_resnet101_v1_7_resnet101v1_resnet101_v1_7_cpu"),
-            (xfail_issue_36533, "test_onnx_model_zoo_vision_classification_resnet_model_resnet152_v1_7_resnet152v1_resnet152_v1_7_cpu"),
-            (xfail_issue_36533, "test_onnx_model_zoo_vision_classification_densenet_121_model_densenet_3_densenet121_model_cpu"),
             (xfail_issue_38084, "test_onnx_model_zoo_vision_object_detection_segmentation_mask_rcnn_model_MaskRCNN_10_mask_rcnn_R_50_FPN_1x_cpu"),
-            (xfail_issue_38090, "test_onnx_model_zoo_vision_object_detection_segmentation_ssd_model_ssd_10_model_cpu"),
             (xfail_issue_38084, "test_onnx_model_zoo_vision_object_detection_segmentation_faster_rcnn_model_FasterRCNN_10_faster_rcnn_R_50_FPN_1x_cpu"),
 
             # Model MSFT
@@ -177,13 +176,8 @@ if len(zoo_models) > 0:
             (xfail_issue_36533, "test_MSFT_opset11_tf_inception_v2_model_cpu"),
             (xfail_issue_36533, "test_MSFT_opset7_test_mobilenetv2_1.0_mobilenetv2_1.0_cpu"),
 
-            (xfail_issue_38090, "test_MSFT_opset7_fp16_tiny_yolov2_onnxzoo_winmlperf_tiny_yolov2_cpu"),
-            (xfail_issue_38090, "test_MSFT_opset8_fp16_inception_v1_onnxzoo_lotus_inception_v1_cpu"),
-            (xfail_issue_38090, "test_MSFT_opset8_fp16_tiny_yolov2_onnxzoo_winmlperf_tiny_yolov2_cpu"),
-            (xfail_issue_38090, "test_MSFT_opset8_fp16_shufflenet_onnxzoo_lotus_shufflenet_cpu"),
-            (xfail_issue_38090, "test_MSFT_opset7_fp16_inception_v1_onnxzoo_lotus_inception_v1_cpu"),
-            (xfail_issue_38090, "test_MSFT_opset10_mlperf_resnet_resnet50_v1_cpu"),
-            (xfail_issue_38090, "test_MSFT_opset7_fp16_shufflenet_onnxzoo_lotus_shufflenet_cpu"),
+            (xfail_issue_40686, "test_MSFT_opset7_fp16_tiny_yolov2_onnxzoo_winmlperf_tiny_yolov2_cpu"),
+            (xfail_issue_40686, "test_MSFT_opset8_fp16_tiny_yolov2_onnxzoo_winmlperf_tiny_yolov2_cpu"),
 
             (xfail_issue_38084, "test_MSFT_opset10_mask_rcnn_mask_rcnn_R_50_FPN_1x_cpu"),
             (xfail_issue_38084, "test_MSFT_opset10_faster_rcnn_faster_rcnn_R_50_FPN_1x_cpu"),

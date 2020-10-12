@@ -205,3 +205,4 @@ xfail_issue_37957 = xfail_test(reason="RuntimeError: nGraph does not support the
                                       "com.microsoft.CropAndResize, com.microsoft.GatherND,"
                                       "com.microsoft.Pad, com.microsoft.Range")
 xfail_issue_39669 = xfail_test(reason="AssertionError: This model has no test data")
+xfail_issue_40686 = xfail_test(reason="NANs as results")
