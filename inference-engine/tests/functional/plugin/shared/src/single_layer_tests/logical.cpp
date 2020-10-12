@@ -60,20 +60,18 @@ InferenceEngine::Blob::Ptr LogicalLayerTest::GenerateInput(const InferenceEngine
     return FuncTestUtils::createAndFillBlob(info.getTensorDesc(), 2, 0);
 }
 
-void LogicalLayerTest::SetUp() {
-    InputShapesTuple inputShapes;
-    InferenceEngine::Precision inputsPrecision;
-    ngraph::helpers::LogicalTypes logicalOpType;
-    ngraph::helpers::InputLayerType secondInputType;
-    InferenceEngine::Precision netPrecision;
-    std::string targetName;
-    std::map<std::string, std::string> additional_config;
-    std::tie(inputShapes, logicalOpType, secondInputType, netPrecision, inPrc, outPrc, inLayout, outLayout, targetDevice, additional_config) =
+void LogicalLayerTest::SetupParams() {
+    std::tie(inputShapes, logicalOpType, secondInputType, netPrecision,
+             inPrc, outPrc, inLayout, outLayout, targetDevice, additional_config) =
         this->GetParam();
 
-    auto ngInputsPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(inPrc);
     configuration.insert(additional_config.begin(), additional_config.end());
+}
 
+void LogicalLayerTest::SetUp() {
+    SetupParams();
+
+    auto ngInputsPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(inPrc);
     auto inputs = ngraph::builder::makeParams(ngInputsPrc, {inputShapes.first});
 
     std::shared_ptr<ngraph::Node> logicalNode;
