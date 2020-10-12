@@ -8,9 +8,11 @@ namespace LayerTestsDefinitions {
 
 std::string RangeAddSubgraphTest::getTestCaseName(testing::TestParamInfo<RangeParams> obj) {
     InferenceEngine::Precision netPrecision;
+    InferenceEngine::Precision inPrc, outPrc;
+    InferenceEngine::Layout inLayout, outLayout;
     float start, stop, step;
     std::string targetDevice;
-    std::tie(start, stop, step, netPrecision, targetDevice) = obj.param;
+    std::tie(start, stop, step, netPrecision, inPrc, outPrc, inLayout, outLayout, targetDevice) = obj.param;
 
     std::ostringstream result;
     const char separator = '_';
@@ -25,7 +27,7 @@ std::string RangeAddSubgraphTest::getTestCaseName(testing::TestParamInfo<RangePa
 void RangeAddSubgraphTest::SetUp() {
     InferenceEngine::Precision netPrecision;
     float start, stop, step;
-    std::tie(start, stop, step, netPrecision, targetDevice) = GetParam();
+    std::tie(start, stop, step, netPrecision, inPrc, outPrc, inLayout, outLayout, targetDevice) = GetParam();
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
 
     auto startConstant = std::make_shared<ngraph::opset1::Constant>(ngPrc, ngraph::Shape{}, start);
