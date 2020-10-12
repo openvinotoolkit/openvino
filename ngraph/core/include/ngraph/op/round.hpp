@@ -68,6 +68,11 @@ namespace ngraph
             class NGRAPH_API Round : public ngraph::op::Op
             {
             public:
+                enum class Mode
+                {
+                    half_to_even,
+                    half_away_from_zero
+                };
                 NGRAPH_RTTI_DECLARATION;
 
                 /// \brief Constructs a round operation.
@@ -77,7 +82,7 @@ namespace ngraph
                 ///
                 /// \param arg Node that produces the input tensor.
                 /// \param mode Rule to resolve halfs
-                Round(const Output<Node>& arg, const std::string& mode);
+                Round(const Output<Node>& arg, const Mode mode);
 
                 bool visit_attributes(AttributeVisitor& visitor) override;
                 void validate_and_infer_types() override;
@@ -88,10 +93,9 @@ namespace ngraph
                 bool evaluate(const HostTensorVector& outputs,
                               const HostTensorVector& inputs) const override;
 
-                std::string get_mode() const { return m_mode; }
-                void set_mode(const std::string& mode) { m_mode = mode; }
+                Mode get_mode() const { return m_mode; }
             private:
-                std::string m_mode;
+                Mode m_mode;
             };
         }
     }

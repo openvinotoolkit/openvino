@@ -48,7 +48,7 @@ namespace
     inline bool evaluate(const HostTensorPtr& arg0,
                          const HostTensorPtr& out,
                          const size_t count,
-                         const std::string& mode)
+                         const op::v5::Round::Mode mode)
     {
         using T = typename element_type_traits<ET>::value_type;
         runtime::reference::round<T>(
@@ -67,7 +67,7 @@ namespace
     bool evaluate_round(const HostTensorPtr& arg0,
                         const HostTensorPtr& out,
                         const size_t count,
-                        const std::string& mode)
+                        const op::v5::Round::Mode mode)
     {
         bool rc = true;
         out->set_unary(arg0);
@@ -105,13 +105,13 @@ namespace
 bool op::v0::Round::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
     OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v0::Round::evaluate");
-    return evaluate_round(inputs[0], outputs[0], shape_size(get_output_shape(0)), "half_to_even");
+    return evaluate_round(inputs[0], outputs[0], shape_size(get_output_shape(0)), op::v5::Round::Mode::half_to_even);
 }
 NGRAPH_SUPPRESS_DEPRECATED_END
 
 NGRAPH_RTTI_DEFINITION(op::v5::Round, "Round", 5);
 
-op::v5::Round::Round(const Output<Node>& arg, const std::string& mode)
+op::v5::Round::Round(const Output<Node>& arg, Mode mode)
     : Op({arg})
     , m_mode(mode)
 {
