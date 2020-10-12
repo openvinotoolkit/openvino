@@ -106,7 +106,7 @@ bool op::v0::Round::evaluate(const HostTensorVector& outputs, const HostTensorVe
 {
     OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v0::Round::evaluate");
     return evaluate_round(
-        inputs[0], outputs[0], shape_size(get_output_shape(0)), op::v5::Round::Mode::half_to_even);
+        inputs[0], outputs[0], shape_size(get_output_shape(0)), op::v5::Round::Mode::HALF_TO_EVEN);
 }
 NGRAPH_SUPPRESS_DEPRECATED_END
 

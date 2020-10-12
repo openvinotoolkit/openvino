@@ -61,7 +61,7 @@ namespace ngraph
         {
             /// \brief Elementwise round operation. The output is round to the nearest integer
             /// for each value. In case of halfs, the rule is defined in attribute 'mode':
-            ///     'half_to_even' - round halfs to the nearest even integer.
+            ///     'HALF_TO_EVEN' - round halfs to the nearest even integer.
             ///     'half_away_from_zero': - round in such a way that the result heads away from
             /// zero.
 
@@ -70,8 +70,8 @@ namespace ngraph
             public:
                 enum class Mode
                 {
-                    half_to_even,
-                    half_away_from_zero
+                    HALF_TO_EVEN,
+                    HALF_AWAY_FROM_ZERO
                 };
                 NGRAPH_RTTI_DECLARATION;
 
@@ -112,7 +112,7 @@ namespace ngraph
         {
         }
 
-        static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<op::v5::Round::Mode>", 1};
+        static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<op::v5::Round::Mode>", 5};
         const DiscreteTypeInfo& get_type_info() const override { return type_info; }
     };
 }

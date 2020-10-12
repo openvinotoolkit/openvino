@@ -48,7 +48,7 @@ namespace ngraph
             template <typename T>
             void round(const T* arg, T* out, size_t count, const op::v5::Round::Mode mode)
             {
-                if (mode == op::v5::Round::Mode::half_away_from_zero)
+                if (mode == op::v5::Round::Mode::HALF_AWAY_FROM_ZERO)
                     for (size_t i = 0; i < count; ++i)
                     {
                         out[i] = round_to_nearest_even(arg[i]);
