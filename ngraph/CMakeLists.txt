@@ -476,22 +476,10 @@ endif()
 
 add_subdirectory(core)
 
-add_subdirectory(frontend)
-
-if (NGRAPH_TEST_UTIL_ENABLE)
-    include(cmake/external_gtest.cmake)
-endif()
-
-add_subdirectory(test)
-
-if (NGRAPH_PYTHON_BUILD_ENABLE)
-    add_subdirectory(python)
-endif()
-
 if (NGRAPH_EXPORT_TARGETS_ENABLE)
     include(CMakePackageConfigHelpers)
-
-    export(TARGETS ngraph NAMESPACE ngraph:: FILE "${CMAKE_CURRENT_BINARY_DIR}/ngraphTargets.cmake")
+    set(NGRAPH_TARGETS_FILE "${CMAKE_CURRENT_BINARY_DIR}/ngraphTargets.cmake")
+    export(TARGETS ngraph NAMESPACE ngraph:: FILE "${NGRAPH_TARGETS_FILE}")
 
     install(EXPORT ngraphTargets
         FILE ngraphTargets.cmake
@@ -511,6 +499,18 @@ if (NGRAPH_EXPORT_TARGETS_ENABLE)
         ${CMAKE_CURRENT_BINARY_DIR}/ngraphConfigVersion.cmake
         DESTINATION ${NGRAPH_COMPONENT_PREFIX}cmake
         COMPONENT ngraph)
+endif()
+
+add_subdirectory(frontend)
+
+if (NGRAPH_TEST_UTIL_ENABLE)
+    include(cmake/external_gtest.cmake)
+endif()
+
+add_subdirectory(test)
+
+if (NGRAPH_PYTHON_BUILD_ENABLE)
+    add_subdirectory(python)
 endif()
 
 install(DIRECTORY

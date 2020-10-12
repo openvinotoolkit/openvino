@@ -41,6 +41,7 @@ source_group("include" FILES ${PUBLIC_HEADERS})
 
 # Create shared library
 add_library(onnx_importer SHARED ${LIBRARY_SRC} ${PUBLIC_HEADERS})
+add_library(ngraph::onnx_importer ALIAS onnx_importer)
 
 if(COMMAND ie_faster_build)
     ie_faster_build(onnx_importer
@@ -56,8 +57,9 @@ set_target_properties(onnx_importer PROPERTIES
                       C_VISIBILITY_PRESET hidden
                       VISIBILITY_INLINES_HIDDEN ON
                       POSITION_INDEPENDENT_CODE ON)
+set(ONNX_INSTALL_INCLUDE "${NGRAPH_INSTALL_INCLUDE}/ngraph/frontend")
 target_include_directories(onnx_importer SYSTEM PUBLIC $<BUILD_INTERFACE:${ONNX_IMPORT_INCLUDE_DIR}>
-                                                       $<INSTALL_INTERFACE:include/ngraph/frontend/>)
+                                                       $<INSTALL_INTERFACE:${ONNX_INSTALL_INCLUDE}>)
 target_include_directories(onnx_importer SYSTEM PRIVATE ${NGRAPH_INCLUDE_PATH} ${NGRAPH_INCLUDE_PATH}/ngraph
         ${ONNX_INCLUDE_DIR} ${ONNX_PROTO_INCLUDE_DIR} ${Protobuf_INCLUDE_DIRS})
 target_include_directories(onnx_importer PRIVATE ${ONNX_IMPORT_INCLUDE_DIR}/onnx_import/core
@@ -83,10 +85,15 @@ install(TARGETS onnx_importer EXPORT ngraphTargets
         ARCHIVE DESTINATION ${NGRAPH_INSTALL_LIB} COMPONENT ngraph
         LIBRARY DESTINATION ${NGRAPH_INSTALL_LIB} COMPONENT ngraph)
 
-    install(DIRECTORY ${ONNX_IMPORT_INCLUDE_DIR}/onnx_import
-    DESTINATION ${NGRAPH_INSTALL_INCLUDE}/ngraph/frontend/
+install(DIRECTORY ${ONNX_IMPORT_INCLUDE_DIR}/onnx_import
+    DESTINATION ${ONNX_INSTALL_INCLUDE}
     COMPONENT ngraph
     FILES_MATCHING
         PATTERN "*.hpp"
         PATTERN "*.h"
 )
+
+
+if (NGRAPH_EXPORT_TARGETS_ENABLE)
+    export(TARGETS onnx_importer NAMESPACE ngraph:: APPEND FILE "${NGRAPH_TARGETS_FILE}")
+endif()

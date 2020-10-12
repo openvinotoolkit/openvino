@@ -49,7 +49,7 @@ function(add_common_utils ADD_TARGET_NAME)
             NAME ${ADD_TARGET_NAME}
             TYPE STATIC
             ROOT ${CMAKE_CURRENT_SOURCE_DIR}
-            EXCLUDED_SOURCE_DIRS
+            EXCLUDED_SOURCE_PATHS
                 ${CMAKE_CURRENT_SOURCE_DIR}/gtest
             ADD_CPPLINT
             DEVELOPER_PACKAGE

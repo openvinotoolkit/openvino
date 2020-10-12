@@ -13,7 +13,7 @@ addIeTarget(
    ROOT ${CMAKE_CURRENT_SOURCE_DIR}
    ADDITIONAL_SOURCE_DIRS
         /some/additional/sources
-   EXCLUDED_SOURCE_DIRS
+   EXCLUDED_SOURCE_PATHS
         ${CMAKE_CURRENT_SOURCE_DIR}/unnecessary_sources/
    INCLUDES
         ${SDL_INCLUDES}
@@ -47,7 +47,7 @@ function(addIeTarget)
         DEFINES                       # extra preprocessor definitions
         ADDITIONAL_SOURCE_DIRS        # list of directories which will be used to recursive search of source files in addition to ROOT
         OBJECT_FILES                  # list of object files to be additionally built into the target
-        EXCLUDED_SOURCE_DIRS          # list of directories excluded from the global recursive search of source files
+        EXCLUDED_SOURCE_PATHS         # list of paths excluded from the global recursive search of source files
         LINK_LIBRARIES_WHOLE_ARCHIVE  # list of static libraries to link, each object file should be used and not discarded
         LINK_FLAGS                    # list of extra commands to linker
         EXPORT_DEPENDENCIES           # list of the dependencies to be exported with the target through the developer package
@@ -76,10 +76,10 @@ function(addIeTarget)
     file(GLOB_RECURSE sources  ${sourceSearch})
 
     # remove unnecessary directories
-    if (ARG_EXCLUDED_SOURCE_DIRS)
-        list(FILTER includes EXCLUDE REGEX "${ARG_EXCLUDED_SOURCE_DIRS}/*")
-        list(FILTER sources EXCLUDE REGEX "${ARG_EXCLUDED_SOURCE_DIRS}/*")
-    endif()
+    foreach(excludedDir ${ARG_EXCLUDED_SOURCE_PATHS})
+        list(FILTER includes EXCLUDE REGEX "${excludedDir}*")
+        list(FILTER sources EXCLUDE REGEX "${excludedDir}*")
+    endforeach()
 
     source_group("include" FILES ${includes})
     source_group("src"     FILES ${sources})

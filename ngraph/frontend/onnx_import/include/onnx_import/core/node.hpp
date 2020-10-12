@@ -51,6 +51,8 @@ namespace ngraph
 
         // forward declaration
         class Graph;
+        class Subgraph;
+        class Tensor;
 
         class ONNX_IMPORTER_API Node
         {
@@ -95,6 +97,114 @@ namespace ngraph
             // default deleter due to incomple type.
             std::unique_ptr<Impl, void (*)(Impl*)> m_pimpl;
         };
+
+        template <>
+        ONNX_IMPORTER_API float Node::get_attribute_value(const std::string& name,
+                                                          float default_value) const;
+
+        template <>
+        ONNX_IMPORTER_API double Node::get_attribute_value(const std::string& name,
+                                                           double default_value) const;
+
+        template <>
+        ONNX_IMPORTER_API std::int64_t Node::get_attribute_value(const std::string& name,
+                                                                 std::int64_t default_value) const;
+
+        template <>
+        ONNX_IMPORTER_API std::string Node::get_attribute_value(const std::string& name,
+                                                                std::string default_value) const;
+
+        template <>
+        ONNX_IMPORTER_API Tensor Node::get_attribute_value(const std::string& name,
+                                                           Tensor default_value) const;
+
+        template <>
+        ONNX_IMPORTER_API Graph Node::get_attribute_value(const std::string& name,
+                                                          Graph default_value) const;
+
+        template <>
+        ONNX_IMPORTER_API std::vector<float>
+            Node::get_attribute_value(const std::string& name,
+                                      std::vector<float> default_value) const;
+
+        template <>
+        ONNX_IMPORTER_API std::vector<double>
+            Node::get_attribute_value(const std::string& name,
+                                      std::vector<double> default_value) const;
+
+        template <>
+        ONNX_IMPORTER_API std::vector<std::int64_t>
+            Node::get_attribute_value(const std::string& name,
+                                      std::vector<std::int64_t> default_value) const;
+
+        template <>
+        ONNX_IMPORTER_API std::vector<std::size_t>
+            Node::get_attribute_value(const std::string& name,
+                                      std::vector<std::size_t> default_value) const;
+
+        template <>
+        ONNX_IMPORTER_API std::vector<std::string>
+            Node::get_attribute_value(const std::string& name,
+                                      std::vector<std::string> default_value) const;
+
+        template <>
+        ONNX_IMPORTER_API std::vector<Tensor>
+            Node::get_attribute_value(const std::string& name,
+                                      std::vector<Tensor> default_value) const;
+
+        template <>
+        ONNX_IMPORTER_API std::vector<Graph>
+            Node::get_attribute_value(const std::string& name,
+                                      std::vector<Graph> default_value) const;
+
+        template <>
+        ONNX_IMPORTER_API float Node::get_attribute_value(const std::string& name) const;
+
+        template <>
+        ONNX_IMPORTER_API double Node::get_attribute_value(const std::string& name) const;
+
+        template <>
+        ONNX_IMPORTER_API std::int64_t Node::get_attribute_value(const std::string& name) const;
+
+        template <>
+        ONNX_IMPORTER_API std::size_t Node::get_attribute_value(const std::string& name) const;
+
+        template <>
+        ONNX_IMPORTER_API std::string Node::get_attribute_value(const std::string& name) const;
+
+        template <>
+        ONNX_IMPORTER_API Tensor Node::get_attribute_value(const std::string& name) const;
+
+        template <>
+        ONNX_IMPORTER_API Subgraph Node::get_attribute_value(const std::string& name) const;
+
+        template <>
+        ONNX_IMPORTER_API std::vector<float>
+            Node::get_attribute_value(const std::string& name) const;
+
+        template <>
+        ONNX_IMPORTER_API std::vector<double>
+            Node::get_attribute_value(const std::string& name) const;
+
+        template <>
+        ONNX_IMPORTER_API std::vector<std::int64_t>
+            Node::get_attribute_value(const std::string& name) const;
+
+        template <>
+        ONNX_IMPORTER_API std::vector<std::size_t>
+            Node::get_attribute_value(const std::string& name) const;
+
+        template <>
+        ONNX_IMPORTER_API std::vector<std::string>
+            Node::get_attribute_value(const std::string& name) const;
+
+        template <>
+        ONNX_IMPORTER_API std::vector<Tensor>
+            Node::get_attribute_value(const std::string& name) const;
+
+        template <>
+        ONNX_IMPORTER_API std::vector<Graph>
+            Node::get_attribute_value(const std::string& name) const;
 
         inline std::ostream& operator<<(std::ostream& outs, const Node& node)
         {

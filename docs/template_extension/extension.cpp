@@ -5,6 +5,9 @@
 #include "cpu_kernel.hpp"
 #include "op.hpp"
 #include <ngraph/ngraph.hpp>
+#ifdef NGRAPH_ONNX_IMPORT_ENABLED
+#include <onnx_import/onnx_utils.hpp>
+#endif
 
 #include <map>
 #include <memory>
@@ -13,6 +16,28 @@
 #include <vector>
 
 using namespace TemplateExtension;
+
+
+//! [extension:ctor]
+Extension::Extension() {
+#ifdef NGRAPH_ONNX_IMPORT_ENABLED
+    ngraph::onnx_import::register_operator(
+        Operation::type_info.name, 1, "custom_domain", [](const ngraph::onnx_import::Node& node) -> ngraph::OutputVector {
+            ngraph::OutputVector ng_inputs{node.get_ng_inputs()};
+            int64_t add = node.get_attribute_value<int64_t>("add");
+            return {std::make_shared<Operation>(ng_inputs.at(0), add)};
+    });
+#endif
+}
+//! [extension:ctor]
+
+//! [extension:dtor]
+Extension::~Extension() {
+#ifdef NGRAPH_ONNX_IMPORT_ENABLED
+    ngraph::onnx_import::unregister_operator(Operation::type_info.name, 1, "custom_domain");
+#endif
+}
+//! [extension:dtor]
 
 //! [extension:GetVersion]
 void Extension::GetVersion(const InferenceEngine::Version *&versionInfo) const noexcept {

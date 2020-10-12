@@ -5,25 +5,40 @@
 
 set(TARGET_NAME ieFuncTests)
 
+set(INCLUDES ${IE_MAIN_SOURCE_DIR}/src/inference_engine)
+set(LINK_LIBRARIES
+    gmock
+    funcTestUtils
+    ngraphFunctions
+    inference_engine_transformations
+)
+set(DEPENDENCIES
+    mock_engine
+    inference_engine_ir_reader
+    inference_engine_ir_v7_reader
+    template_extension
+)
+
+if (NGRAPH_ONNX_IMPORT_ENABLE)
+    list(APPEND INCLUDES "${OpenVINO_MAIN_SOURCE_DIR}/docs/onnx_custom_op")
+    list(APPEND LINK_LIBRARIES onnx_custom_op)
+    list(APPEND DEPENDENCIES onnx_custom_op)
+else()
+    set(EXCLUDED_SOURCE_PATHS "${CMAKE_CURRENT_SOURCE_DIR}/onnx_reader")
+endif()
+
+if (NOT NGRAPH_ONNX_IMPORT_ENABLE OR NOT ENABLE_MKL_DNN)
+    set(EXCLUDED_SOURCE_PATHS ${EXCLUDED_SOURCE_PATHS} "${CMAKE_CURRENT_SOURCE_DIR}/extension.cpp")
+endif()
+
 addIeTargetTest(
         NAME ${TARGET_NAME}
         ROOT ${CMAKE_CURRENT_SOURCE_DIR}
-        INCLUDES
-            # TODO: remove after removing `cnn_network_ngraph_imp.hpp`
-            ${IE_MAIN_SOURCE_DIR}/src/inference_engine
-        EXCLUDED_SOURCE_DIRS
-            ${CMAKE_CURRENT_SOURCE_DIR}/extension_lib
-        LINK_LIBRARIES
-            gmock
-            funcTestUtils
-            ngraphFunctions
-            inference_engine_transformations
+        INCLUDES ${INCLUDES}
+        EXCLUDED_SOURCE_PATHS ${EXCLUDED_SOURCE_PATHS}
+        LINK_LIBRARIES ${LINK_LIBRARIES}
         ADD_CPPLINT
-        DEPENDENCIES
-            template_extension
-            mock_engine
-            inference_engine_ir_reader
-            inference_engine_ir_v7_reader
+        DEPENDENCIES ${DEPENDENCIES}
         LABELS
             IE
 )
