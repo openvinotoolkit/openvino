@@ -44,7 +44,7 @@ export_library_path() {
 }
 
 export_env_variable() {
-    export $2="$DL_SDK_TEMP/test_dependencies/$1"
+    export "$2"="$DL_SDK_TEMP/test_dependencies/$1"
 }
 
 ma2480_path=""

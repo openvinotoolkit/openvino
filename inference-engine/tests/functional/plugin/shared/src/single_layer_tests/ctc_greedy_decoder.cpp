@@ -24,11 +24,14 @@
 namespace LayerTestsDefinitions {
 std::string CTCGreedyDecoderLayerTest::getTestCaseName(
     const testing::TestParamInfo<ctcGreedyDecoderParams>& obj) {
-    InferenceEngine::Precision inputPrecision, netPrecision;
+    InferenceEngine::Precision netPrecision;
+    InferenceEngine::Precision inPrc, outPrc;
+    InferenceEngine::Layout inLayout, outLayout;
     InferenceEngine::SizeVector inputShapes;
     std::string targetDevice;
     bool mergeRepeated;
     std::tie(netPrecision,
+        inPrc, outPrc, inLayout, outLayout,
         inputShapes,
         mergeRepeated,
         targetDevice) = obj.param;
@@ -38,8 +41,12 @@ std::string CTCGreedyDecoderLayerTest::getTestCaseName(
 
     result << "IS="     << CommonTestUtils::vec2str(inputShapes) << separator;
     result << "netPRC=" << netPrecision.name() << separator;
+    result << "inPRC=" << inPrc.name() << separator;
+    result << "outPRC=" << outPrc.name() << separator;
+    result << "inL=" << inLayout << separator;
+    result << "outL=" << outLayout << separator;
     result << "merge_repeated=" << std::boolalpha << mergeRepeated << separator;
-    result << "targetDevice=" << targetDevice;
+    result << "trgDev=" << targetDevice;
 
     return result.str();
 }
@@ -123,7 +130,7 @@ std::vector<std::vector<std::uint8_t>> CTCGreedyDecoderLayerTest::CalculateRefs(
 
 void CTCGreedyDecoderLayerTest::SetUp() {
     auto netPrecision = InferenceEngine::Precision::UNSPECIFIED;
-    std::tie(netPrecision, inputShapes, mergeRepeated, targetDevice) = GetParam();
+    std::tie(netPrecision, inPrc, outPrc, inLayout, outLayout, inputShapes, mergeRepeated, targetDevice) = GetParam();
     sequenceLengths = { inputShapes.at(0), inputShapes.at(1) };
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
     auto paramsIn = ngraph::builder::makeParams(ngPrc, { inputShapes, sequenceLengths });

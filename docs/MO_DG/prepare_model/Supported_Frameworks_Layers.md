@@ -265,6 +265,9 @@ Standard Kaldi\* Layers:
 | Crop | No |
 | elementwiseproductcomponent | No |
 | fixedaffinecomponent | No |
+| fixedbiascomponent | No |
+| fixedscalecomponent | No |
+| generaldropoutcomponent| Not needed for inference |
 | linearcomponent | No |
 | logsoftmaxcomponent | No |
 | lstmnonlinearitycomponent | No |
@@ -280,12 +283,13 @@ Standard Kaldi\* Layers:
 | rectifiedlinearcomponent | No |
 | rescale | No |
 | sigmoid | No |
-| slice | No |
 | softmax | No |
 | softmaxComponent | No |
 | softsign | No |
+| specaugmenttimemaskcomponent | Not needed for inference |
 | splicecomponent | No |
 | tanhcomponent | No |
+| tdnncomponent | No |
 
 
 ## ONNX\* Supported Operators
