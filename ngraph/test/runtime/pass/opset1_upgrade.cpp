@@ -49,6 +49,11 @@ namespace
 
     // Default is that we didn nothing
     shared_ptr<Node> op_cast(shared_ptr<Node> node) { return nullptr; }
+    shared_ptr<Node> op_cast(shared_ptr<op::Add> node)
+    {
+        return op_cast_binary_elementwise_node<op::v0::Add, op::v1::Add>(node);
+    }
+
     shared_ptr<Node> op_cast(shared_ptr<op::Broadcast> node)
     {
         auto replacement_node = ngraph::builder::opset1::make_broadcast(
@@ -121,7 +126,7 @@ namespace
         return replacement_node;
     }
 
-    shared_ptr<Node> op_cast(shared_ptr<op::v1::Divide> node)
+    shared_ptr<Node> op_cast(shared_ptr<op::Divide> node)
     {
         const auto autob = node->get_autob();
         const bool pydiv = node->is_pythondiv();
@@ -139,6 +144,11 @@ namespace
         return replacement_node;
     }
 
+    shared_ptr<Node> op_cast(shared_ptr<op::Equal> node)
+    {
+        return op_cast_binary_elementwise_node<op::v0::Equal, op::v1::Equal>(node);
+    }
+
     shared_ptr<Node> op_cast(shared_ptr<op::Gather> node)
     {
         int64_t axis = node->get_axis();
@@ -148,6 +158,16 @@ namespace
             make_shared<op::v1::Gather>(node->input_value(0), node->input_value(1), axis_node);
         replace_node(node, replacement_node);
         return replacement_node;
+    }
+
+    shared_ptr<Node> op_cast(shared_ptr<op::Greater> node)
+    {
+        return op_cast_binary_elementwise_node<op::v0::Greater, op::v1::Greater>(node);
+    }
+
+    shared_ptr<Node> op_cast(shared_ptr<op::GreaterEq> node)
+    {
+        return op_cast_binary_elementwise_node<op::v0::GreaterEq, op::v1::GreaterEqual>(node);
     }
 
     shared_ptr<Node> op_cast(shared_ptr<op::v0::GroupConvolution> node)
@@ -247,6 +267,16 @@ namespace
         return replacement_node;
     }
 
+    shared_ptr<Node> op_cast(shared_ptr<op::Less> node)
+    {
+        return op_cast_binary_elementwise_node<op::v0::Less, op::v1::Less>(node);
+    }
+
+    shared_ptr<Node> op_cast(shared_ptr<op::LessEq> node)
+    {
+        return op_cast_binary_elementwise_node<op::v0::LessEq, op::v1::LessEqual>(node);
+    }
+
     shared_ptr<Node> op_cast(shared_ptr<op::Max> node)
     {
         bool keep_dims = false;
@@ -254,6 +284,11 @@ namespace
             make_shared<op::v1::ReduceMax>(node->input_value(0), node->input_value(1), keep_dims);
         replace_node(node, replacement_node);
         return replacement_node;
+    }
+
+    shared_ptr<Node> op_cast(shared_ptr<op::Maximum> node)
+    {
+        return op_cast_binary_elementwise_node<op::v0::Maximum, op::v1::Maximum>(node);
     }
 
     shared_ptr<Node> op_cast(shared_ptr<op::Min> node)
@@ -265,11 +300,26 @@ namespace
         return replacement_node;
     }
 
+    shared_ptr<Node> op_cast(shared_ptr<op::Minimum> node)
+    {
+        return op_cast_binary_elementwise_node<op::v0::Minimum, op::v1::Minimum>(node);
+    }
+
+    shared_ptr<Node> op_cast(shared_ptr<op::Multiply> node)
+    {
+        return op_cast_binary_elementwise_node<op::v0::Multiply, op::v1::Multiply>(node);
+    }
+
     shared_ptr<Node> op_cast(shared_ptr<op::Not> node)
     {
         auto replacement_node = make_shared<op::v1::LogicalNot>(node->input_value(0));
         replace_node(node, replacement_node);
         return replacement_node;
+    }
+
+    shared_ptr<Node> op_cast(shared_ptr<op::NotEqual> node)
+    {
+        return op_cast_binary_elementwise_node<op::v0::NotEqual, op::v1::NotEqual>(node);
     }
 
     shared_ptr<Node> op_cast(shared_ptr<op::OneHot> node)
@@ -296,6 +346,11 @@ namespace
     shared_ptr<Node> op_cast(shared_ptr<op::Or> node)
     {
         return op_cast_binary_elementwise_node<op::v0::Or, op::v1::LogicalOr>(node);
+    }
+
+    shared_ptr<Node> op_cast(shared_ptr<op::Power> node)
+    {
+        return op_cast_binary_elementwise_node<op::v0::Power, op::v1::Power>(node);
     }
 
     shared_ptr<Node> op_cast(shared_ptr<op::Product> node)
@@ -400,6 +455,11 @@ namespace
 
         replace_node(node, replacement_node);
         return replacement_node;
+    }
+
+    shared_ptr<Node> op_cast(shared_ptr<op::Subtract> node)
+    {
+        return op_cast_binary_elementwise_node<op::v0::Subtract, op::v1::Subtract>(node);
     }
 
     shared_ptr<Node> op_cast(shared_ptr<op::Sum> node)
