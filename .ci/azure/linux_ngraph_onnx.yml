@@ -1,0 +1,88 @@
+jobs:
+- job: nGraph_ONNX_Lin
+
+  # About 150% of total time
+  timeoutInMinutes: 60
+
+  pool:
+    name: LIN_VMSS_VENV_F8S_WU2
+
+  variables:
+    system.debug: true
+    VSTS_HTTP_RETRY: 5
+    VSTS_HTTP_TIMEOUT: 200
+    WORKERS_NUMBER: 8
+    BUILD_TYPE: Release
+    REPO_DIR: $(Build.Repository.LocalPath)
+    WORK_DIR: $(Pipeline.Workspace)/_w
+    BUILD_DIR: $(WORK_DIR)/build
+    BIN_DIR: $(REPO_DIR)/bin/intel64/$(BUILD_TYPE)
+    INSTALL_DIR: $(WORK_DIR)/install
+
+  steps:
+  - checkout: self
+    clean: true
+    lfs: false
+    submodules: recursive
+    path: openvino
+
+  - script: |
+      curl -H Metadata:true --noproxy "*" "http://169.254.169.254/metadata/instance?api-version=2019-06-01"
+      whoami
+      uname -a
+      which python3
+      python3 --version
+      gcc --version
+      lsb_release
+      env
+      cat /proc/cpuinfo
+      cat /proc/meminfo
+      vmstat -s
+      df
+    displayName: 'System info'
+
+  - script: |
+      rm -rf $(WORK_DIR) ; mkdir $(WORK_DIR)
+      rm -rf $(BUILD_DIR) ; mkdir $(BUILD_DIR)
+    displayName: 'Make dir'
+
+  - script: |
+      sudo apt --assume-yes install libusb-1.0-0-dev
+      python3 -m pip install -r ./inference-engine/ie_bridges/python/requirements.txt
+      # For running Python API tests
+      python3 -m pip install -r ./inference-engine/ie_bridges/python/src/requirements-dev.txt
+    displayName: 'Install dependencies'
+
+  - script: |
+      wget https://github.com/ninja-build/ninja/releases/download/v1.10.0/ninja-linux.zip
+      unzip ninja-linux.zip
+      sudo cp -v ninja /usr/local/bin/
+    workingDirectory: $(WORK_DIR)
+    displayName: 'Install Ninja'
+
+  - task: CMake@1
+    inputs:
+      # CMake must get Python 3.x version by default
+      cmakeArgs: -GNinja -DCMAKE_BUILD_TYPE=$(BUILD_TYPE) -DENABLE_VPU=OFF -DENABLE_GNA=OFF -DENABLE_OPENCV=OFF -DENABLE_CPPLINT=OFF -DENABLE_TESTS=OFF -DENABLE_BEH_TESTS=OFF -DENABLE_FUNCTIONAL_TESTS=OFF -DENABLE_MKL_DNN=ON -DENABLE_CLDNN=OFF -DENABLE_PROFILING_ITT=OFF -DENABLE_SAMPLES=OFF -DENABLE_SPEECH_DEMO=OFF -DENABLE_PYTHON=ON -DPYTHON_EXECUTABLE=/usr/bin/python3.6 -DNGRAPH_ONNX_IMPORT_ENABLE=ON -DNGRAPH_INTERPRETER_ENABLE=ON -DNGRAPH_DEBUG_ENABLE=OFF -DNGRAPH_DYNAMIC_COMPONENTS_ENABLE=ON -DCMAKE_INSTALL_PREFIX=$(INSTALL_DIR) $(REPO_DIR)
+      workingDirectory: $(BUILD_DIR)
+
+  - script: ninja
+    workingDirectory: $(BUILD_DIR)
+    displayName: 'Build'
+
+  - script: make install
+    workingDirectory: $(BUILD_DIR)
+    displayName: 'Install'
+
+  - script: |
+      ls -alR $(REPO_DIR)/bin/
+      ls -alR $(INSTALL_DIR)
+    displayName: 'List files'
+
+  - script: docker build --tag=openvino-onnx-ci-image --file=$(REPO_DIR)/.ci/openvino-onnx/Dockerfile .
+    workingDirectory: $(BUILD_DIR)
+    displayName: 'Docker build'
+
+  - script: docker run --name openvino-onnx-ci-container openvino-onnx-ci-image
+    workingDirectory: $(BUILD_DIR)
+    displayName: 'Docker run tests'
