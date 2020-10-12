@@ -57,8 +57,11 @@ class NonMaxSuppression(Op):
     @staticmethod
     def infer(node: Node):
         num_of_inputs = len(node.in_ports())
-        assert 2 <= num_of_inputs <= 6, \
-            "NonMaxSuppression node {} must have from 2 to 6 inputs".format(node.soft_get(node.name, node.id))
+        opset = node.get_opset()
+        max_num_of_inputs = 6 if opset == 'opset5' else 5
+        input_msg_fmt = 'NonMaxSuppression node {} from {} must have from 2 to {} inputs'
+        inputs_msg = input_msg_fmt.format(node.soft_get('name', node.id), opset, max_num_of_inputs)
+        assert 2 <= num_of_inputs <= max_num_of_inputs, inputs_msg
 
         boxes_shape = node.in_port(0).data.get_shape()
         assert boxes_shape is not None, 'The shape of tensor with boxes is not defined'
