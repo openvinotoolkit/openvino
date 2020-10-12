@@ -1,0 +1,17 @@
+name: nGraph
+on: [push, pull_request]
+
+jobs:
+  nGraph ONNX Lin:
+    runs-on: ubuntu-20.04
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          submodules: recursive
+
+      - name: Docker build
+        run: docker build --tag=openvino-onnx-ci-image --file=$(REPO_DIR)/.ci/openvino-onnx/Dockerfile .
+
+      - name: Docker run tests
+        run: docker run --name openvino-onnx-ci-container --volume /localdisk/lab_nerval/ONNX_CI/onnx-models/.onnx:/root/.onnx openvino-onnx-ci-image
+
