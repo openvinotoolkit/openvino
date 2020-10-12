@@ -86,10 +86,8 @@ jobs:
     enabled: false
 
   - script: docker build --tag=openvino-onnx-ci-image --file=.ci/openvino-onnx/Dockerfile .
-    workingDirectory: $(BUILD_DIR)
     displayName: 'Docker build'
 
   - script: docker run --name openvino-onnx-ci-container openvino-onnx-ci-image
-    workingDirectory: $(BUILD_DIR)
     displayName: 'Docker run tests'
 
