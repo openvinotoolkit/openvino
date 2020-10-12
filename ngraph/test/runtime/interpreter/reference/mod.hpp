@@ -19,6 +19,8 @@
 #include <cmath>
 #include <cstddef>
 
+#include "ngraph/runtime/reference/autobroadcast_binop.hpp"
+
 namespace ngraph
 {
     namespace runtime
