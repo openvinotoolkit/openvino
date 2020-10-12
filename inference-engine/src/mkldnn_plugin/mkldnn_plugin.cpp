@@ -165,6 +165,7 @@ Engine::LoadExeNetworkImpl(const InferenceEngine::ICNNNetwork &network, const st
             input_precision != InferenceEngine::Precision::I16 &&
             input_precision != InferenceEngine::Precision::I8 &&
             input_precision != InferenceEngine::Precision::U8 &&
+            input_precision != InferenceEngine::Precision::BF16 &&
             input_precision != InferenceEngine::Precision::BOOL) {
             THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str
                                << "Input image format " << input_precision << " is not supported yet...";

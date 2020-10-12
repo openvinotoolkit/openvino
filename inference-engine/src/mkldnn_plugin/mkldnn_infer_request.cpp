@@ -113,6 +113,9 @@ void MKLDNNPlugin::MKLDNNInferRequest::InferImpl() {
                 case InferenceEngine::Precision::I8:
                     pushInput<int8_t>(input.first, input.second);
                     break;
+                case InferenceEngine::Precision::BF16:
+                    pushInput<InferenceEngine::PrecisionTrait<InferenceEngine::Precision::BF16>::value_type>(input.first, input.second);
+                    break;
                 case InferenceEngine::Precision::U16: {
                     // U16 is unsupported by mkldnn, so here we convert the blob and send I32
                     iconv = InferenceEngine::make_shared_blob<std::int32_t>({InferenceEngine::Precision::I32,

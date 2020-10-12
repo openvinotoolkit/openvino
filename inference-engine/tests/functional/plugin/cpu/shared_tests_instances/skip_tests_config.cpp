@@ -5,10 +5,11 @@
 #include <vector>
 #include <string>
 
+#include <ie_system_conf.h>
 #include "functional_test_utils/skip_tests_config.hpp"
 
 std::vector<std::string> disabledTestPatterns() {
-    return {
+    std::vector<std::string> retVector{
         // TODO: Issue 26264
         R"(.*(MaxPool|AvgPool).*S\(1\.2\).*Rounding=CEIL.*)",
         // TODO: Issue 31841
@@ -51,8 +52,24 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*ActivationParamLayerTest.*)",
         // TODO: Issue: 37862
         R"(.*ReverseSequenceLayerTest.*netPRC=(I8|U8).*)",
+        // TODO: Issue: 39726
+        R"(.*EltwiseLayerTest.*eltwiseOpType=Mod.*netPRC=BF16.*)",
         // TODO: Issue: 38841
         R"(.*TopKLayerTest.*k=10.*mode=min.*sort=index.*)",
-        R"(.*TopKLayerTest.*k=5.*sort=(none|index).*)"
+        R"(.*TopKLayerTest.*k=5.*sort=(none|index).*)",
+        // Caution!!! Disabled Until the jit_eltwise layer is implemented.
+        R"(.*EltwiseLayerTest.*)",
+        R"(.*EltwiseLayerCPUTest.*)",
+        R"(.*ActivationLayerCPUTest.*)",
+        R"(.*LogicalLayerCPUTest.*)"
     };
+
+
+    if (!InferenceEngine::with_cpu_x86_bfloat16()) {
+        // on platforms which do not support bfloat16, we are disabling bf16 tests since there are no bf16 primitives,
+        // tests are useless on such platforms
+       retVector.emplace_back(R"(.*BF16.*)");
+    }
+
+    return retVector;
 }
