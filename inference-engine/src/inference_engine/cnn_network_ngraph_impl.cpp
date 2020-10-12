@@ -409,7 +409,8 @@ StatusCode CNNNetworkNGraphImpl::serialize(const std::string &xmlPath,
       auto network = std::make_shared<details::CNNNetworkImpl>(*this);
       return network->serialize(xmlPath, binPath, resp);
 #else
-      return GENERAL_ERROR;
+      return DescriptionBuffer(NOT_IMPLEMENTED, resp)
+             << "The serialization of legacy IR is not implemented";
 #endif
     }
   } catch (const InferenceEngineException &e) {
