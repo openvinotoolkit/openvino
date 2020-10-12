@@ -99,4 +99,20 @@ namespace ngraph
             };
         }
     }
+    NGRAPH_API
+    std::ostream& operator<<(std::ostream& s, const op::v5::Round::Mode& type);
+
+    template <>
+    class NGRAPH_API AttributeAdapter<op::v5::Round::Mode>
+        : public EnumAttributeAdapterBase<op::v5::Round::Mode>
+    {
+    public:
+        AttributeAdapter(op::v5::Round::Mode& value)
+            : EnumAttributeAdapterBase<op::v5::Round::Mode>(value)
+        {
+        }
+
+        static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<op::v5::Round::Mode>", 1};
+        const DiscreteTypeInfo& get_type_info() const override { return type_info; }
+    };
 }
