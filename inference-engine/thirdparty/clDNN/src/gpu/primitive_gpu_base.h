@@ -186,8 +186,11 @@ protected:
             tmp_events = new_events;
         }
 
-        bool group_events = split > 1 ? true : false;
-        return aggregate_events(tmp_events, net_id, group_events);
+        if ((all_events.size() == 0) && (tmp_events.size() > 0))
+            return aggregate_events(tmp_events, net_id);
+
+        bool group_events = (all_events.size() > 1);
+        return aggregate_events(all_events, net_id, group_events);
     }
 };
 

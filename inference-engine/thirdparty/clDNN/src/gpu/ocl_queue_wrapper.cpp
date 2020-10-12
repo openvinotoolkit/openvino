@@ -138,6 +138,7 @@ event_impl::ptr gpu_queue::enqueue_marker(std::vector<event_impl::ptr> const& de
 }
 
 event_impl::ptr gpu_queue::group_events(std::vector<event_impl::ptr> const& deps) {
+    sync_events(deps);
     return _events_pool->get_from_group_pool(context(), deps);
 }
 
