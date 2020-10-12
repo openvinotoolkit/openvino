@@ -18,22 +18,27 @@ using namespace LayerTestsDefinitions::LogicalParams;
 namespace LayerTestsDefinitions {
 std::string LogicalLayerTest::getTestCaseName(testing::TestParamInfo<LogicalTestParams> obj) {
     InputShapesTuple inputShapes;
-    InferenceEngine::Precision inputsPrecision;
     ngraph::helpers::LogicalTypes comparisonOpType;
     ngraph::helpers::InputLayerType secondInputType;
     InferenceEngine::Precision netPrecision;
+    InferenceEngine::Precision inPrc, outPrc;
+    InferenceEngine::Layout inLayout, outLayout;
     std::string targetName;
     std::map<std::string, std::string> additional_config;
-    std::tie(inputShapes, inputsPrecision, comparisonOpType, secondInputType, netPrecision, targetName, additional_config) = obj.param;
+    std::tie(inputShapes, comparisonOpType, secondInputType, netPrecision, inPrc, outPrc, inLayout, outLayout, targetName, additional_config)
+        = obj.param;
     std::ostringstream results;
 
     results << "IS0=" << CommonTestUtils::vec2str(inputShapes.first) << "_";
     results << "IS1=" << CommonTestUtils::vec2str(inputShapes.second) << "_";
-    results << "inputsPRC=" << inputsPrecision.name() << "_";
     results << "comparisonOpType=" << comparisonOpType << "_";
     results << "secondInputType=" << secondInputType << "_";
     results << "netPRC=" << netPrecision.name() << "_";
-    results << "targetDevice=" << targetName;
+    results << "inPRC=" << inPrc.name() << "_";
+    results << "outPRC=" << outPrc.name() << "_";
+    results << "inL=" << inLayout << "_";
+    results << "outL=" << outLayout << "_";
+    results << "trgDev=" << targetName;
     return results.str();
 }
 
@@ -55,19 +60,18 @@ InferenceEngine::Blob::Ptr LogicalLayerTest::GenerateInput(const InferenceEngine
     return FuncTestUtils::createAndFillBlob(info.getTensorDesc(), 2, 0);
 }
 
-void LogicalLayerTest::SetUp() {
-    InputShapesTuple inputShapes;
-    InferenceEngine::Precision inputsPrecision;
-    ngraph::helpers::LogicalTypes logicalOpType;
-    ngraph::helpers::InputLayerType secondInputType;
-    InferenceEngine::Precision netPrecision;
-    std::string targetName;
-    std::map<std::string, std::string> additional_config;
-    std::tie(inputShapes, inputsPrecision, logicalOpType, secondInputType, netPrecision, targetDevice, additional_config) = this->GetParam();
+void LogicalLayerTest::SetupParams() {
+    std::tie(inputShapes, logicalOpType, secondInputType, netPrecision,
+             inPrc, outPrc, inLayout, outLayout, targetDevice, additional_config) =
+        this->GetParam();
 
-    auto ngInputsPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(inputsPrecision);
     configuration.insert(additional_config.begin(), additional_config.end());
+}
 
+void LogicalLayerTest::SetUp() {
+    SetupParams();
+
+    auto ngInputsPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(inPrc);
     auto inputs = ngraph::builder::makeParams(ngInputsPrc, {inputShapes.first});
 
     std::shared_ptr<ngraph::Node> logicalNode;
