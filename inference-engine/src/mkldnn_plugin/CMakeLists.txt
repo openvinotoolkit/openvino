@@ -205,8 +205,6 @@ set_ie_threading_interface_for(${TARGET_NAME}_obj)
 target_compile_definitions(${TARGET_NAME}_obj PUBLIC -DMKLDNN_THR=${MKLDNN_THR}
                                               PRIVATE USE_STATIC_IE IMPLEMENT_INFERENCE_ENGINE_PLUGIN)
 
-set(mkldnn_plugin_object_libraries "${TARGET_NAME}_obj" CACHE INTERNAL "" FORCE)
-
 # install
 
 if(GEMM STREQUAL "MKL")

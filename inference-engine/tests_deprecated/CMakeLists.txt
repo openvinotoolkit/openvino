@@ -2,9 +2,9 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-#####################################################################################################
-#                                         SETUP TESTS                                               #
-#####################################################################################################
+if(ENABLE_LTO AND CMAKE_COMPILER_IS_GNUCC AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER 9.0)
+    ie_enable_lto()
+endif()
 
 enable_testing()
 
@@ -25,5 +25,5 @@ endif()
 disable_deprecated_warnings()
 
 if(ENABLE_TESTS)
-  add_subdirectory(unit)
+    add_subdirectory(unit)
 endif()
