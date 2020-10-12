@@ -336,8 +336,8 @@ trusted-host = mirrors.aliyun.com
 - OpenVINO™ toolkit online documentation: [https://docs.openvinotoolkit.org](https://docs.openvinotoolkit.org)
 - [Inference Engine FPGA plugin documentation](../IE_DG/supported_plugins/FPGA.md)
 - [Model Optimizer Developer Guide](../MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md).
-- For more information on Sample Applications, see the [Inference Engine Samples Overview](https://docs.openvinotoolkit.org/latest/_docs_IE_DG_Samples_Overview.html)
-- To learn about pre-trained models for OpenVINO™ toolkit, see the [Pre-Trained Models Overview](https://docs.openvinotoolkit.org/latest/_docs_docs_Pre_Trained_Models.html)
+- For more information on Sample Applications, see the [Inference Engine Samples Overview](../IE_DG/Samples_Overview.md).
+- To learn about pre-trained models for OpenVINO™ toolkit, see the [Pre-Trained Models Overview](@ref omz_models_intel_index).
 - For information on Inference Engine Tutorials, see the [Inference Tutorials](https://github.com/intel-iot-devkit/inference-tutorials-generic)
 - For IoT Libraries & Code Samples see the [Intel® IoT Developer Kit](https://github.com/intel-iot-devkit).
 

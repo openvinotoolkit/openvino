@@ -18,7 +18,9 @@
             <tab type="usergroup" title="Install Intel® Distribution of OpenVINO™ toolkit for Windows* with FPGA support" url="@ref openvino_docs_install_guides_installing_openvino_windows_fpga">
                  <tab type="user" title="Configuration Guide for OpenVINO and the Intel® Vision Accelerator Design with an Intel® Arria 10 FPGA SG2 (IEIs Mustang-F100-A10) on Windows*" url="@ref openvino_docs_install_guides_VisionAcceleratorFPGA_Configure_Windows"/>
             </tab>
+            <tab type="user" title="Get Started with OpenVINO™ toolkit on Windows*" url="@ref openvino_docs_get_started_get_started_windows"/>
             <tab type="user" title="Install Intel® Distribution of OpenVINO™ toolkit for macOS*" url="@ref openvino_docs_install_guides_installing_openvino_macos"/>
+            <tab type="user" title="Get Started with OpenVINO™ toolkit on macOS*" url="@ref openvino_docs_get_started_get_started_macos"/>
             <tab type="user" title="Install Intel® Distribution of OpenVINO™ toolkit for Raspbian* OS" url="@ref openvino_docs_install_guides_installing_openvino_raspbian"/>
             <tab type="user" title="Intel® Movidius™ VPUs Setup Guide for Use with Intel® Distribution of OpenVINO™ toolkit" url="@ref openvino_docs_install_guides_movidius_setup_guide"/>
 			      <tab type="user" title="Intel® Movidius™ VPUs Programming Guide for Use with Intel® Distribution of OpenVINO™ toolkit" url="@ref openvino_docs_install_guides_movidius_programming_guide"/>
@@ -151,12 +153,14 @@
                         <tab type="user" title="GRUSequence-5" url="@ref openvino_docs_ops_sequence_GRUSequence_5"/>
                         <tab type="user" title="GatherTree-1" url="@ref openvino_docs_ops_movement_GatherTree_1"/>
                         <tab type="user" title="Gather-1" url="@ref openvino_docs_ops_movement_Gather_1"/>
+                        <tab type="user" title="GatherND-5" url="@ref openvino_docs_ops_movement_GatherND_5"/>
                         <tab type="user" title="Gelu-2" url="@ref openvino_docs_ops_activation_GELU_2"/>
                         <tab type="user" title="GreaterEqual-1" url="@ref openvino_docs_ops_comparison_GreaterEqual_1"/>
                         <tab type="user" title="Greater-1" url="@ref openvino_docs_ops_comparison_Greater_1"/>
                         <tab type="user" title="GroupConvolutionBackpropData-1" url="@ref openvino_docs_ops_convolution_GroupConvolutionBackpropData_1"/>
                         <tab type="user" title="GroupConvolution-1" url="@ref openvino_docs_ops_convolution_GroupConvolution_1"/>
                         <tab type="user" title="HardSigmoid-1" url="@ref openvino_docs_ops_activation_HardSigmoid_1"/>
+                        <tab type="user" title="HSigmoid-5" url="@ref openvino_docs_ops_activation_HSigmoid_5"/>
                         <tab type="user" title="HSwish-4" url="@ref openvino_docs_ops_activation_HSwish_4"/>
                         <tab type="user" title="Interpolate-1" url="@ref openvino_docs_ops_image_Interpolate_1"/>
                         <tab type="user" title="Interpolate-4" url="@ref openvino_docs_ops_image_Interpolate_4"/>
@@ -170,6 +174,7 @@
                         <tab type="user" title="LogicalNot-1" url="@ref openvino_docs_ops_logical_LogicalNot_1"/>
                         <tab type="user" title="LogicalOr-1" url="@ref openvino_docs_ops_logical_LogicalOr_1"/>
                         <tab type="user" title="LogicalXor-1" url="@ref openvino_docs_ops_logical_LogicalXor_1"/>
+                        <tab type="user" title="LogSoftmax-5" url="@ref openvino_docs_ops_activation_LogSoftmax_5"/>
                         <tab type="user" title="MVN-1" url="@ref openvino_docs_ops_normalization_MVN_1"/>
                         <tab type="user" title="MatMul-1" url="@ref openvino_docs_ops_matrix_MatMul_1"/>
                         <tab type="user" title="MaxPool-1" url="@ref openvino_docs_ops_pooling_MaxPool_1"/>
@@ -182,6 +187,7 @@
                         <tab type="user" title="NonMaxSuppression-1" url="@ref openvino_docs_ops_sort_NonMaxSuppression_1"/>
                         <tab type="user" title="NonMaxSuppression-3" url="@ref openvino_docs_ops_sort_NonMaxSuppression_3"/>
                         <tab type="user" title="NonMaxSuppression-4" url="@ref openvino_docs_ops_sort_NonMaxSuppression_4"/>
+                        <tab type="user" title="NonMaxSuppression-5" url="@ref openvino_docs_ops_sort_NonMaxSuppression_5"/>
                         <tab type="user" title="NonZero-3" url="@ref openvino_docs_ops_condition_NonZero_3"/>
                         <tab type="user" title="NormalizeL2-1" url="@ref openvino_docs_ops_normalization_NormalizeL2_1"/>
                         <tab type="user" title="NotEqual-1" url="@ref openvino_docs_ops_comparison_NotEqual_1"/>
@@ -218,6 +224,7 @@
                         <tab type="user" title="RNNSequence-5" url="@ref openvino_docs_ops_sequence_RNNSequence_5"/>
                         <tab type="user" title="ROIAlign-3" url="@ref openvino_docs_ops_detection_ROIAlign_3"/>
                         <tab type="user" title="ROIPooling-1" url="@ref openvino_docs_ops_detection_ROIPooling_1"/>
+                        <tab type="user" title="Round-5" url="@ref openvino_docs_ops_arithmetic_Round_5"/>
                         <tab type="user" title="ScatterElementsUpdate-3" url="@ref openvino_docs_ops_movement_ScatterElementsUpdate_3"/>
                         <tab type="user" title="ScatterNDUpdate" url="@ref openvino_docs_ops_movement_ScatterNDUpdate_3"/>
                         <tab type="user" title="ScatterUpdate-3" url="@ref openvino_docs_ops_movement_ScatterUpdate_3"/>
@@ -258,7 +265,6 @@
                     <tab type="user" title="Inference Engine API Changes History" url="@ref openvino_docs_IE_DG_API_Changes"/>
                     <tab type="user" title="Inference Engine Memory primitives" url="@ref openvino_docs_IE_DG_Memory_primitives"/>
                     <tab type="user" title="Inference Engine Device Query API" url="@ref openvino_docs_IE_DG_InferenceEngine_QueryAPI"/>
-                    <tab type="user" title="Place of nGraph in the Inference Engine" url="@ref openvino_docs_IE_DG_nGraph_Flow"/>
                     <tab type="usergroup" title="Inference Engine Extensibility Mechanism" url="@ref openvino_docs_IE_DG_Extensibility_DG_Intro">
                         <tab type="user" title="Extension Library" url="@ref openvino_docs_IE_DG_Extensibility_DG_Extension"/>
                         <tab type="user" title="Custom Operations" url="@ref openvino_docs_IE_DG_Extensibility_DG_AddingNGraphOps"/>
@@ -271,7 +277,6 @@
                     <tab type="user" title="[DEPRECATED] Migration from Inference Engine Plugin API to Core API" url="@ref openvino_docs_IE_DG_Migration_CoreAPI"/>
                     <tab type="user" title="Introduction to Performance Topics" url="@ref openvino_docs_IE_DG_Intro_to_Performance"/>
                     <tab type="user" title="Inference Engine Python* API Overview" url="@ref openvino_inference_engine_ie_bridges_python_docs_api_overview"/>
-                    <tab type="user" title="Build a Model with nGraph" url="@ref openvino_docs_IE_DG_nGraphTutorial"/>
                     <tab type="user" title="Read an ONNX model" url="@ref openvino_docs_IE_DG_ONNX_Support"/>
                     <tab type="user" title="[DEPRECATED] Import an ONNX model" url="@ref openvino_docs_IE_DG_OnnxImporterTutorial"/>
                     <tab type="user" title="Graph Debug Capabilities" url="@ref openvino_docs_IE_DG_Graph_debug_capabilities"/>
@@ -302,6 +307,16 @@
                     <tab type="user" title="Known Issues" url="@ref openvino_docs_IE_DG_Known_Issues_Limitations"/>
                     <tab type="user" title="Optimization Notice" url="@ref openvino_docs_Optimization_notice"/>
                     <tab type="user" title="Glossary" url="@ref openvino_docs_IE_DG_Glossary"/>
+                </tab>
+                <!-- nGraph -->
+                <tab type="usergroup" title="nGraph Developer Guide" url="@ref openvino_docs_nGraph_DG_DevGuide">
+                    <tab type="user" title="Introduction" url="@ref openvino_docs_nGraph_DG_Introduction"/>
+                    <tab type="user" title="Basic Concepts" url="@ref openvino_docs_nGraph_DG_basic_concepts"/>
+                    <tab type="user" title="Operation sets" url="@ref openvino_docs_MO_DG_IR_and_opsets"/>
+                    <tab type="user" title="Graph building" url="@ref openvino_docs_nGraph_DG_build_function"/>
+                    <tab type="user" title="Transfomations" url="@ref ngraph_transformation"/>
+                    <tab type="user" title="Debug capabilities" url="@ref openvino_docs_nGraph_DG_Debug_capabilities"/>
+                    <tab type="user" title="Python API" url="@ref openvino_docs_nGraph_DG_PythonAPI"/>
                 </tab>
                 <!-- Workbench -->
                 <tab type="usergroup" title="Deep Learning Workbench" url="@ref workbench_docs_Workbench_DG_Introduction">
@@ -353,7 +368,7 @@
                 		<tab type="user" title="Build Application with Deployment Package" url="@ref workbench_docs_Workbench_DG_Deployment_Package"/>
                 		<tab type="user" title="Deploy and Integrate Performance Criteria into Application" url="@ref workbench_docs_Workbench_DG_Deploy_and_Integrate_Performance_Criteria_into_Application"/>
                 	  <tab type="user" title="Persist Database State" url="@ref workbench_docs_Workbench_DG_Persist_Database"/>
-					          <tab type="user" title="Work with Docker Container" url="@ref workbench_docs_Workbench_DG_Docker_Container"/>                	
+					          <tab type="user" title="Work with Docker Container" url="@ref workbench_docs_Workbench_DG_Docker_Container"/>
                   </tab>
                 	<tab type="usergroup" title="DL Workbench Security Guide" url="@ref workbench_docs_Workbench_DG_Configure_TLS">
                 		<tab type="user" title="Configure Transport Layer Security (TLS)" url="@ref workbench_docs_Workbench_DG_Configure_TLS"/>
@@ -604,7 +619,7 @@
                     <tab type="user" title="driver-action-recognition-adas-0002" url="@ref omz_models_intel_driver_action_recognition_adas_0002_description_driver_action_recognition_adas_0002"/>
                     <tab type="user" title="action-recognition-0001" url="@ref omz_models_intel_action_recognition_0001_description_action_recognition_0001"/>
                     <tab type="user" title="asl-recognition-0004" url="@ref omz_models_intel_asl_recognition_0004_description_asl_recognition_0004"/>
-                    <tab type="user" title="weld-porosity-detection-0001" url="@ref omz_models_intel_weld_porosity_detection_0001_description_weld_porosity_detection_0001"/>                    
+                    <tab type="user" title="weld-porosity-detection-0001" url="@ref omz_models_intel_weld_porosity_detection_0001_description_weld_porosity_detection_0001"/>
                 </tab>
                 <tab type="usergroup" title="Image Retrieval" url="">
                     <tab type="user" title="image-retrieval-0001" url="@ref omz_models_intel_image_retrieval_0001_description_image_retrieval_0001"/>
@@ -801,7 +816,7 @@
             <!-- OpenCV -->
             <tab type="user" title="OpenCV Developer Guide" url="https://docs.opencv.org/master/"/>
             <!-- IE C -->
-            <tab type="user" title="Inference Engine C API Reference" url="ie_c_api/groups.html"/>
+            <tab type="user" title="Inference Engine C API Reference" url="ie_c_api/modules.html"/>
             <!-- IE C++-->
             <tab type="classes" visible="yes" title="Inference Engine С++ API Reference">
                 <tab type="classlist" visible="yes" title=""/>
@@ -815,7 +830,7 @@
             <!-- IE Python -->
             <tab type="user" title="Inference Engine Python API Reference" url="ie_python_api/annotated.html"/>
             <!-- DL Streamer -->
-            <tab type="user" title="DL Streamer API Reference" url="https://opencv.github.io/gst-video-analytics/"/>
+            <tab type="user" title="DL Streamer API Reference" url="https://openvinotoolkit.github.io/dlstreamer_gst/"/>
 
         </tab>
         <!-- Chinese docs -->

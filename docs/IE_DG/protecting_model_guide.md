@@ -33,14 +33,7 @@ a temporary memory block for model decryption, and use
 For more information, see the `InferenceEngine::Core` Class
 Reference Documentation.
 
-```cpp
-std::vector<uint8_t> model;
-std::vector<uint8_t> weights;
-
-// Read model files and decrypt them into temporary memory block
-decrypt_file(model_file, password, model);
-decrypt_file(weights_file, password, weights);
-```
+@snippet openvino/docs/snippets/protecting_model_guide.cpp part0
 
 Hardware-based protection, such as Intel&reg; Software Guard Extensions
 (Intel&reg; SGX), can be utilized to protect decryption operation secrets and
@@ -50,12 +43,7 @@ Extensions](https://software.intel.com/en-us/sgx).
 Use `InferenceEngine::Core::ReadNetwork()` to set model representations and
 weights respectively.
 
-```cpp
-Core core;
-// Load model from temporary memory block
-std::string strModel(model.begin(), model.end());
-CNNNetwork network = core.ReadNetwork(strModel, make_shared_blob<uint8_t>({Precision::U8, {weights.size()}, C}, weights.data()));
-```
+@snippet openvino/docs/snippets/protecting_model_guide.cpp part1
 
 [deploy_encrypted_model]: img/deploy_encrypted_model.png
 
@@ -63,9 +51,9 @@ CNNNetwork network = core.ReadNetwork(strModel, make_shared_blob<uint8_t>({Preci
 
 - Intel® Distribution of OpenVINO™ toolkit home page: [https://software.intel.com/en-us/openvino-toolkit](https://software.intel.com/en-us/openvino-toolkit)
 - OpenVINO™ toolkit online documentation: [https://docs.openvinotoolkit.org](https://docs.openvinotoolkit.org)
-- Model Optimizer Developer Guide: [Model Optimizer Developer Guide](https://docs.openvinotoolkit.org/latest/_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide.html)
-- Inference Engine Developer Guide: [Inference Engine Developer Guide](https://docs.openvinotoolkit.org/latest/_docs_IE_DG_Deep_Learning_Inference_Engine_DevGuide.html)
-- For more information on Sample Applications, see the [Inference Engine Samples Overview](https://docs.openvinotoolkit.org/latest/_docs_IE_DG_Samples_Overview.html)
+- Model Optimizer Developer Guide: [Model Optimizer Developer Guide](../MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md)
+- Inference Engine Developer Guide: [Inference Engine Developer Guide](Deep_Learning_Inference_Engine_DevGuide.md)
+- For more information on Sample Applications, see the [Inference Engine Samples Overview](Samples_Overview.html)
 - For information on a set of pre-trained models, see the [Overview of OpenVINO™ Toolkit Pre-Trained Models](@ref omz_models_intel_index)
 - For information on Inference Engine Tutorials, see the [Inference Tutorials](https://github.com/intel-iot-devkit/inference-tutorials-generic)
 - For IoT Libraries and Code Samples see the [Intel® IoT Developer Kit](https://github.com/intel-iot-devkit).

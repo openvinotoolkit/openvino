@@ -29,11 +29,15 @@ const std::vector<ngraph::helpers::SqueezeOpType> opTypes = {
         ngraph::helpers::SqueezeOpType::UNSQUEEZE
 };
 
-INSTANTIATE_TEST_CASE_P(Basic, SqueezeUnsqueezeLayerTest,
+INSTANTIATE_TEST_CASE_P(smoke_Basic, SqueezeUnsqueezeLayerTest,
                         ::testing::Combine(
                                 ::testing::ValuesIn(CommonTestUtils::combineParams(axesVectors)),
                                 ::testing::ValuesIn(opTypes),
                                 ::testing::ValuesIn(netPrecisions),
+                                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                ::testing::Values(InferenceEngine::Layout::ANY),
+                                ::testing::Values(InferenceEngine::Layout::ANY),
                                 ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                         SqueezeUnsqueezeLayerTest::getTestCaseName);
 }  // namespace

@@ -36,11 +36,15 @@ const auto params = testing::Combine(
         testing::ValuesIn(axes),
         testing::ValuesIn(inputShapes),
         testing::ValuesIn(netPrecisions),
+        testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+        testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+        testing::Values(InferenceEngine::Layout::ANY),
+        testing::Values(InferenceEngine::Layout::ANY),
         testing::Values(CommonTestUtils::DEVICE_CPU)
 );
 
 INSTANTIATE_TEST_CASE_P(
-        Gather,
+        smoke_Gather,
         GatherLayerTest,
         params,
         GatherLayerTest::getTestCaseName

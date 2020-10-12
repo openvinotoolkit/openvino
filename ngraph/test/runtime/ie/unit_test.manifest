@@ -47,14 +47,6 @@ onnx_model_gatherND_float
 # Round op doesn't support some specific cases of rounding
 onnx_model_round_half_nearest_even
 
-# LSTMSequence Layer is not instance of RNNLayer class
-onnx_model_lstm_fwd_with_clip
-onnx_model_lstm_fwd_mixed_seq
-onnx_model_lstm_fwd_hardsigmoid_activation
-onnx_model_lstm_fwd_large_batch_no_clip
-onnx_model_lstm_bdir_short_input_seq
-onnx_model_lstm_mixed_seq_reverse
-
 # Result mismatch
 onnx_model_split_equal_parts_default
 onnx_model_argmin_no_keepdims
@@ -63,6 +55,7 @@ onnx_model_elu
 onnx_model_top_k
 onnx_model_erf
 onnx_model_addmul_abc
+IE_CPU.interpolate_down_scales_const_linear
 
 # data [<name>] doesn't exist
 onnx_model_sum_one_input
@@ -208,6 +201,45 @@ onnx_model_range_positive_step
 onnx_model_range_negative_step
 onnx_dyn_shapes_slice_1_3d_input_21_axes_ends_max
 
+# LSTMSequence Layer is not instance of RNNLayer class
+# (Constant W, B, R inputs are required)
+onnx_model_lstm_fwd_with_clip_peepholes
+onnx_model_lstm_fwd_mixed_seq
+onnx_model_lstm_fwd_hardsigmoid_activation
+onnx_model_lstm_fwd_large_batch_no_clip
+onnx_model_lstm_bdir_short_input_seq_peepholes
+onnx_model_lstm_mixed_seq_reverse
+
+# GRUCell/GRUSequence operation has a form that is not supported
+# (Constant W, B, R inputs are required)
+IE_CPU.onnx_model_gru_defaults_fwd
+IE_CPU.onnx_model_gru_fwd_activations
+IE_CPU.onnx_model_gru_fwd_mixed_seq_len
+IE_CPU.onnx_model_gru_rev_clip
+IE_CPU.onnx_model_gru_reverse
+IE_CPU.onnx_model_gru_fwd_bias_initial_h
+IE_CPU.onnx_model_gru_bidirectional
+IE_CPU.onnx_model_gru_fwd_linear_before_reset
+
+# RNNCell/RNNSequence operation has a form that is not supported
+# (Constant W, B, R inputs are required)
+IE_CPU.onnx_model_rnn_defaults_fwd
+IE_CPU.onnx_model_rnn_fwd_activations
+IE_CPU.onnx_model_rnn_fwd_mixed_seq_len
+IE_CPU.onnx_model_rnn_rev_clip
+IE_CPU.onnx_model_rnn_reverse
+IE_CPU.onnx_model_rnn_fwd_bias_initial_h
+IE_CPU.onnx_model_rnn_bidirectional
+
+## RNN/GRU/LSTM Sequence: Output values mismatch - seq_lengths not supported
+IE_CPU.onnx_model_lstm_fwd_mixed_seq_const
+IE_CPU.onnx_model_lstm_reverse_mixed_seq_const
+IE_CPU.onnx_model_rnn_fwd_mixed_seq_len
+IE_CPU.onnx_model_rnn_fwd_mixed_seq_len_const
+IE_CPU.onnx_model_gru_fwd_mixed_seq_len
+IE_CPU.onnx_model_gru_fwd_mixed_seq_len_const
+
+
 #-------------------------------------------------------------------------------
 #
 #       nGraph backend unit tests
@@ -307,6 +339,12 @@ max_3d_eliminate_zero_dim
 lrn_across_empty
 lrn_2d_across_empty
 normalize_across_empty_axes_input
+normalize_l2_all_mode_add
+normalize_l2_none_mode_add
+normalize_l2_zero_mode_add
+normalize_l2_all_mode_max
+normalize_l2_none_mode_max
+normalize_l2_zero_mode_max
 squeeze_default_axes
 dynamic_abc
 broadcast_v1
@@ -551,6 +589,9 @@ abc_int64
 
 # Unsupported primitive of type: SigmoidBackprop
 sigmoid_bprop_n1c1h4
+
+# Unsupported primitive of type: ROIAlign
+IE_CPU.onnx_roi_align_f32
 
 # [NOT_IMPLEMENTED] Input image format BOOL is not supported yet...
 select
@@ -1080,41 +1121,12 @@ IE_CPU.acosh
 # Unsupported collapse op with dynamic shape
 IE_CPU.builder_opset1_collapse_dyn_shape
 
-# Interpolate-1 in linear mode
-# 2.666666507720947266 is not close to 3 at index 1
-# IE_CPU.interpolate_down_scales_const_linear
-
-# GRUCell operation has a form that is not supported
-onnx_model_gru_defaults_fwd
-onnx_model_gru_fwd_activations
-onnx_model_gru_fwd_mixed_seq_len
-onnx_model_gru_rev_clip
-onnx_model_gru_reverse
-onnx_model_gru_fwd_bias_initial_h
-onnx_model_gru_bidirectional
-onnx_model_gru_fwd_linear_before_reset
-
-# Not implemented Interpolate-4:
-IE_CPU.onnx_model_round
-IE_CPU.onnx_upsample9_scales_const_linear_infer
-IE_CPU.onnx_upsample9_scales_const_nearest_infer
-IE_CPU.onnx_upsample8_nearest_infer
-IE_CPU.onnx_upsample8_linear_infer
-IE_CPU.interpolate_down_scales_const_linear
-IE_CPU.onnx_upsample8_import_only
-IE_CPU.onnx_upsample9_scales_const_import_only
-IE_CPU.onnx_empty_initializers_handling
+# nGraph Interpolate operation with name: Y cannot be converted to Interpolate layer with name:
+# Y because output with index 0 contains dynamic shapes: {?,?,?,?}
 IE_CPU.onnx_resize11_scales_nearest_asymmetric_floor_dynamic_sizes
 
-# RNNCell operation has a form that is not supported
-IE_CPU.onnx_model_rnn_defaults_fwd
-IE_CPU.onnx_model_rnn_fwd_activations
-IE_CPU.onnx_model_rnn_fwd_mixed_seq_len
-IE_CPU.onnx_model_rnn_rev_clip
-IE_CPU.onnx_model_rnn_reverse
-IE_CPU.onnx_model_rnn_fwd_bias_initial_h
-IE_CPU.onnx_model_rnn_bidirectional
-IE_CPU.onnx_model_rnn_bidirectional_const
+# Input data precision not supported. Expected float.
+ctc_greedy_decoder_f16
 
 #-------------------------------------------------------------------------------
 #
@@ -1201,7 +1213,13 @@ IE_GPU.onnx_dyn_shapes_avg_pool_dyn_shape
 IE_GPU.onnx_dyn_shapes_max_pool_dyn_shape
 IE_GPU.onnx_dyn_shapes_global_avg_pool_dyn_shape
 IE_GPU.onnx_dyn_shapes_global_max_pool_dyn_shape
-
+IE_GPU.ctc_greedy_decoder
+IE_GPU.ctc_greedy_decoder_multiple_batches
+IE_GPU.ctc_greedy_decoder_single_batch_short_sequence
+IE_GPU.ctc_greedy_decoder_merge
+IE_GPU.ctc_greedy_decoder_single_no_merge
+IE_GPU.ctc_greedy_decoder_multiple_sequences
+IE_GPU.onnx_roi_align_f32
 IE_GPU.tanh
 IE_GPU.tan
 IE_GPU.sum_to_scalar
@@ -1279,6 +1297,12 @@ IE_GPU.node_name
 IE_GPU.negative
 IE_GPU.negative_i32
 IE_GPU.negative_f32
+IE_GPU.normalize_l2_all_mode_add
+IE_GPU.normalize_l2_none_mode_add
+IE_GPU.normalize_l2_zero_mode_add
+IE_GPU.normalize_l2_all_mode_max
+IE_GPU.normalize_l2_none_mode_max
+IE_GPU.normalize_l2_zero_mode_max
 IE_GPU.multiply
 IE_GPU.multiply_overload
 IE_GPU.multiple_backends
