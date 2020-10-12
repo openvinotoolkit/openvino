@@ -28,7 +28,7 @@
 using namespace std;
 using namespace ngraph;
 
-TEST(op_eval, round_to_even)
+TEST(op_eval, rounding_to_even)
 {
     auto p = make_shared<op::Parameter>(element::f32, Shape{9});
     auto round = make_shared<op::v5::Round>(p, "half_to_even");
@@ -47,7 +47,7 @@ TEST(op_eval, round_to_even)
         EXPECT_NEAR(result_data[i], expected_result[i], 0.000001);
 }
 
-TEST(op_eval, round_away)
+TEST(op_eval, rounding_away)
 {
     auto p = make_shared<op::Parameter>(element::f32, Shape{9});
     auto round = make_shared<op::v5::Round>(p, "half_away_from_zero");
@@ -64,3 +64,4 @@ TEST(op_eval, round_away)
     auto result_data = read_vector<float>(result);
     for (auto i = 0; i < inputs.size(); i++)
         EXPECT_NEAR(result_data[i], expected_result[i], 0.000001);
+}
