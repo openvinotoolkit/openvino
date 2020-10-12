@@ -20,9 +20,11 @@ const auto combinations = testing::Combine(
                 ngraph::element::i32),
         testing::Values(
                 SplitTestCase{{{6, 12, 10}, {6, 12, 15}}, 1, 3},
+                SplitTestCase{{{6, 12, 10}, {9, 12, 10}}, 1, 3},
                 SplitTestCase{{{6, 12}, {10, 12}}, 1, 4},
                 SplitTestCase{{{6, 12, 10, 24}, {6, 12, 10, 50}}, 0, 6},
-                SplitTestCase{{{6, 12, 10, 24}, {6, 12, 10, 50}}, -3, 2}),
+                SplitTestCase{{{6, 12, 10, 24}, {6, 12, 10, 50}}, -3, 2},
+                SplitTestCase{{{1, 128, 4}, {1, 256, 4}}, 2, 4}),
         testing::Values(CommonTestUtils::DEVICE_MYRIAD));
 
 

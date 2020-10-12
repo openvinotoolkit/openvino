@@ -34,9 +34,13 @@ void dynamicToStaticShapeSplit(std::shared_ptr<ngraph::Node> target) {
 
     const auto dataRank = target->get_input_partial_shape(0).rank();
     VPU_THROW_UNLESS(dataRank.is_static(), "dynamicToStaticShapeSplit transformation for {} doesn't support dynamic rank", target);
-    int64_t axis = ngraph::normalize_axis(target->description(), axisNode->cast_vector<int64_t>()[0], dataRank);
+    const auto srcAxis = axisNode->cast_vector<int64_t>();
+    VPU_THROW_UNLESS(srcAxis.size() == 1,
+                     "dynamicToStaticShapeSplit transformation for {} failed: axis node is represented as {} values while 1 is expected",
+                     target, srcAxis.size());
+    const auto resultAxis = ngraph::normalize_axis(target->description(), axisNode->cast_vector<int64_t>()[0], dataRank);
 
-    const auto axisVector = ngraph::opset5::Constant::create(dataShapeType, {1}, {axis});
+    const auto axisVector = ngraph::opset5::Constant::create(dataShapeType, {1}, {resultAxis});
 
     const auto dimToSplitBy = std::make_shared<ngraph::opset5::Gather>(dataShape,
                                                                        axisVector,
