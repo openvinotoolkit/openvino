@@ -495,10 +495,6 @@ std::shared_ptr<ngraph::Node> V10Parser::createNode(const std::vector<ngraph::Ou
         }
     }
 
-    if (params.type == "BatchNormInference") {
-        int breakMeHere = 1;
-    }
-
     // Try to create operation from loaded opsets
     if (!ngraphNode && opsets.count(params.version)) {
         auto opset = opsets.at(params.version);
