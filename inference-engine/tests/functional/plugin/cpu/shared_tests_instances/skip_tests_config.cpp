@@ -68,7 +68,7 @@ std::vector<std::string> disabledTestPatterns() {
     if (!InferenceEngine::with_cpu_x86_bfloat16()) {
         // on platforms which do not support bfloat16, we are disabling bf16 tests since there are no bf16 primitives,
         // tests are useless on such platforms
-       retVector.emplace_back(R"(.*netPRC=BF16.*)");
+       retVector.emplace_back(R"(.*BF16.*)");
     }
 
     return retVector;
