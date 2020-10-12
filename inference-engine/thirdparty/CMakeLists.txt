@@ -55,22 +55,31 @@ function(build_with_lto)
         set(BUILD_TESTS ${BUILD_TESTS_current} CACHE BOOL "Build tests" FORCE)
     endfunction()
 
-    ie_build_pugixml()
+    if (USE_SYSTEM_PUGIXML)
+        find_package(PugiXML REQUIRED)
+        set_property(TARGET pugixml PROPERTY IMPORTED_GLOBAL TRUE)
+    else()
+        ie_build_pugixml()
+        target_include_directories(pugixml INTERFACE "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/pugixml/src>")
+    endif()
     add_subdirectory(stb_lib)
     add_subdirectory(ade)
     add_subdirectory(fluid/modules/gapi)
 
-    target_include_directories(pugixml INTERFACE "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/pugixml/src>")
-
-    set_target_properties(pugixml ade fluid stb_image
+    set_target_properties(ade fluid stb_image
                           PROPERTIES FOLDER thirdparty)
 
     # developer package
 
-    ie_developer_export_targets(ade fluid pugixml)
-    if(TARGET pugixml_mt)
-        ie_developer_export_targets(pugixml_mt)
-        set_target_properties(pugixml_mt PROPERTIES FOLDER thirdparty)
+    ie_developer_export_targets(ade fluid)
+
+    if (NOT USE_SYSTEM_PUGIXML)
+        set_target_properties(pugixml PROPERTIES FOLDER thirdparty)
+        ie_developer_export_targets(pugixml)
+        if(TARGET pugixml_mt)
+            ie_developer_export_targets(pugixml_mt)
+            set_target_properties(pugixml_mt PROPERTIES FOLDER thirdparty)
+        endif()
     endif()
 
     if(ENABLE_MKL_DNN)
