@@ -18,9 +18,6 @@ typedef std::tuple<
         float,                         // argPadValue
         ngraph::helpers::PadMode,      // padMode
         InferenceEngine::Precision,    // Net precision
-        InferenceEngine::Precision,    // Input precision
-        InferenceEngine::Precision,    // Output precision
-        InferenceEngine::Layout,       // Input layout
         InferenceEngine::SizeVector,   // Input shapes
         LayerTestsUtils::TargetDevice  // Target device name
 > padLayerTestParamsSet;

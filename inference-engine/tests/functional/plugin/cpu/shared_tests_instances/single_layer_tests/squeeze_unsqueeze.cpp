@@ -34,10 +34,6 @@ INSTANTIATE_TEST_CASE_P(smoke_Basic, SqueezeUnsqueezeLayerTest,
                                 ::testing::ValuesIn(CommonTestUtils::combineParams(axesVectors)),
                                 ::testing::ValuesIn(opTypes),
                                 ::testing::ValuesIn(netPrecisions),
-                                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-                                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-                                ::testing::Values(InferenceEngine::Layout::ANY),
-                                ::testing::Values(InferenceEngine::Layout::ANY),
                                 ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                         SqueezeUnsqueezeLayerTest::getTestCaseName);
 }  // namespace

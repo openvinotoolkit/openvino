@@ -36,10 +36,6 @@ INSTANTIATE_TEST_CASE_P(smoke_ShuffleChannels4D, ShuffleChannelsLayerTest,
         ::testing::Combine(
                 shuffleChannelsParams4D,
                 ::testing::ValuesIn(netPrecisions),
-                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-                ::testing::Values(InferenceEngine::Layout::ANY),
-                ::testing::Values(InferenceEngine::Layout::ANY),
                 ::testing::Values(std::vector<size_t >({6, 6, 6, 6})),
                 ::testing::Values(CommonTestUtils::DEVICE_CPU)),
         ShuffleChannelsLayerTest::getTestCaseName);
@@ -48,10 +44,6 @@ INSTANTIATE_TEST_CASE_P(smoke_ShuffleChannelsNegativeAxis4D, ShuffleChannelsLaye
         ::testing::Combine(
                 shuffleChannelsParamsNegativeAxis4D,
                 ::testing::ValuesIn(netPrecisions),
-                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-                ::testing::Values(InferenceEngine::Layout::ANY),
-                ::testing::Values(InferenceEngine::Layout::ANY),
                 ::testing::Values(std::vector<size_t >({6, 6, 6, 6})),
                 ::testing::Values(CommonTestUtils::DEVICE_CPU)),
         ShuffleChannelsLayerTest::getTestCaseName);

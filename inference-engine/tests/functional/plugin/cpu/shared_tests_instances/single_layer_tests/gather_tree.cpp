@@ -28,10 +28,6 @@ INSTANTIATE_TEST_CASE_P(Basic_smoke, GatherTreeLayerTest,
                             ::testing::ValuesIn(inputShapes),
                             ::testing::ValuesIn(secondaryInputTypes),
                             ::testing::ValuesIn(netPrecisions),
-                            ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-                            ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-                            ::testing::Values(InferenceEngine::Layout::ANY),
-                            ::testing::Values(InferenceEngine::Layout::ANY),
                             ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                         GatherTreeLayerTest::getTestCaseName);
 

@@ -17,10 +17,6 @@ namespace LayerTestsDefinitions {
 typedef std::tuple<
         bool,                               // SpecialZero
         InferenceEngine::Precision,         // Network precision
-        InferenceEngine::Precision,         // Input precision
-        InferenceEngine::Precision,         // Output precision
-        InferenceEngine::Layout,            // Input layout
-        InferenceEngine::Layout,            // Output layout
         std::vector<size_t>,                // Input shapes
         std::vector<size_t>,                // OutForm Shapes
         std::string,                        // Device name

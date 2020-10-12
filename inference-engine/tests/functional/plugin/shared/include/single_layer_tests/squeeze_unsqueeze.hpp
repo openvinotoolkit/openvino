@@ -19,10 +19,6 @@ typedef std::tuple<
         ShapeAxesTuple,                 // InputShape, Squeeze indexes
         ngraph::helpers::SqueezeOpType, // OpType
         InferenceEngine::Precision,     // Net precision
-        InferenceEngine::Precision,     // Input precision
-        InferenceEngine::Precision,     // Output precision
-        InferenceEngine::Layout,        // Input layout
-        InferenceEngine::Layout,        // Output layout
         std::string                     // Target device name
 > squeezeParams;
 

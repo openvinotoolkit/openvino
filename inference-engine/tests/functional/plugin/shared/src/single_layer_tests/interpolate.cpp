@@ -22,11 +22,9 @@ namespace LayerTestsDefinitions {
 std::string InterpolateLayerTest::getTestCaseName(testing::TestParamInfo<InterpolateLayerTestParams> obj) {
     InterpolateSpecificParams interpolateParams;
     InferenceEngine::Precision netPrecision;
-    InferenceEngine::Precision inPrc, outPrc;
-    InferenceEngine::Layout inLayout, outLayout;
     InferenceEngine::SizeVector inputShapes, targetShapes;
     std::string targetDevice;
-    std::tie(interpolateParams, netPrecision, inPrc, outPrc, inLayout, outLayout, inputShapes, targetShapes, targetDevice) = obj.param;
+    std::tie(interpolateParams, netPrecision, inputShapes, targetShapes, targetDevice) = obj.param;
     std::vector<size_t> padBegin, padEnd;
     std::vector<int64_t> axes;
     std::vector<float> scales;
@@ -51,11 +49,7 @@ std::string InterpolateLayerTest::getTestCaseName(testing::TestParamInfo<Interpo
     result << "Axes=" << CommonTestUtils::vec2str(axes) << "_";
     result << "Scales=" << CommonTestUtils::vec2str(scales) << "_";
     result << "netPRC=" << netPrecision.name() << "_";
-    result << "inPRC=" << inPrc.name() << "_";
-    result << "outPRC=" << outPrc.name() << "_";
-    result << "inL=" << inLayout << "_";
-    result << "outL=" << outLayout << "_";
-    result << "trgDev=" << targetDevice;
+    result << "targetDevice=" << targetDevice;
     return result.str();
 }
 
@@ -64,7 +58,7 @@ void InterpolateLayerTest::SetUp() {
     std::vector<size_t> inputShape, targetShape;
     auto netPrecision = InferenceEngine::Precision::UNSPECIFIED;
 
-    std::tie(interpolateParams, netPrecision, inPrc, outPrc, inLayout, outLayout, inputShape, targetShape, targetDevice) = this->GetParam();
+    std::tie(interpolateParams, netPrecision, inputShape, targetShape, targetDevice) = this->GetParam();
     std::vector<size_t> padBegin, padEnd;
     std::vector<int64_t> axes;
     std::vector<float> scales;

@@ -19,11 +19,9 @@ namespace LayerTestsDefinitions {
 
 std::string RangeLayerTest::getTestCaseName(testing::TestParamInfo<RangeParams> obj) {
     InferenceEngine::Precision netPrecision;
-    InferenceEngine::Precision inPrc, outPrc;
-    InferenceEngine::Layout inLayout, outLayout;
     float start, stop, step;
     std::string targetDevice;
-    std::tie(start, stop, step, netPrecision, inPrc, outPrc, inLayout, outLayout, targetDevice) = obj.param;
+    std::tie(start, stop, step, netPrecision, targetDevice) = obj.param;
 
     std::ostringstream result;
     const char separator = '_';
@@ -31,11 +29,7 @@ std::string RangeLayerTest::getTestCaseName(testing::TestParamInfo<RangeParams> 
     result << "Stop=" << stop << separator;
     result << "Step=" << step << separator;
     result << "netPRC=" << netPrecision.name() << separator;
-    result << "inPRC=" << inPrc.name() << separator;
-    result << "outPRC=" << outPrc.name() << separator;
-    result << "inL=" << inLayout << separator;
-    result << "outL=" << outLayout << separator;
-    result << "trgDev=" << targetDevice;
+    result << "targetDevice=" << targetDevice;
     return result.str();
 }
 
@@ -57,7 +51,7 @@ void RangeLayerTest::Infer() {
 
 void RangeLayerTest::SetUp() {
     InferenceEngine::Precision netPrecision;
-    std::tie(start, stop, step, netPrecision, inPrc, outPrc, inLayout, outLayout, targetDevice) = GetParam();
+    std::tie(start, stop, step, netPrecision, targetDevice) = GetParam();
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
 
     auto params = ngraph::builder::makeParams(ngPrc, {std::vector<size_t>(), std::vector<size_t>(), std::vector<size_t>()});

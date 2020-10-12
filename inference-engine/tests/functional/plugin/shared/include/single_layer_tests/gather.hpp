@@ -21,10 +21,6 @@ typedef std::tuple<
         int,                               // Gather axis
         std::vector<size_t>,               // Input shapes
         InferenceEngine::Precision,        // Network precision
-        InferenceEngine::Precision,        // Input precision
-        InferenceEngine::Precision,        // Output precision
-        InferenceEngine::Layout,           // Input layout
-        InferenceEngine::Layout,           // Output layout
         std::string                        // Device name
 > gatherParamsTuple;
 class GatherLayerTest : public testing::WithParamInterface<gatherParamsTuple>,

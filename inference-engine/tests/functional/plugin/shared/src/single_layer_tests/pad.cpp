@@ -15,15 +15,12 @@ namespace LayerTestsDefinitions {
 
 std::string PadLayerTest::getTestCaseName(testing::TestParamInfo<padLayerTestParamsSet> obj) {
     InferenceEngine::Precision netPrecision;
-    InferenceEngine::Precision inPrc, outPrc;
-    InferenceEngine::Layout inLayout;
     InferenceEngine::SizeVector inputShapes;
     std::vector<int64_t> padsBegin, padsEnd;
     ngraph::helpers::PadMode padMode;
     float argPadValue;
     std::string targetDevice;
-    std::tie(padsBegin, padsEnd, argPadValue, padMode, netPrecision, inPrc, outPrc, inLayout, inputShapes, targetDevice) =
-      obj.param;
+    std::tie(padsBegin, padsEnd, argPadValue, padMode, netPrecision, inputShapes, targetDevice) = obj.param;
 
     std::ostringstream result;
     result << "IS=" << CommonTestUtils::vec2str(inputShapes) << "_";
@@ -34,10 +31,7 @@ std::string PadLayerTest::getTestCaseName(testing::TestParamInfo<padLayerTestPar
     }
     result << "PadMode=" << padMode << "_";
     result << "netPRC=" << netPrecision.name() << "_";
-    result << "inPRC=" << inPrc.name() << "_";
-    result << "outPRC=" << outPrc.name() << "_";
-    result << "inL=" << inLayout << "_";
-    result << "trgDev=" << targetDevice;
+    result << "targetDevice=" << targetDevice;
     return result.str();
 }
 
@@ -47,8 +41,7 @@ void PadLayerTest::SetUp() {
     float argPadValue;
     ngraph::helpers::PadMode padMode;
     InferenceEngine::Precision netPrecision;
-    std::tie(padsBegin, padsEnd, argPadValue, padMode, netPrecision, inPrc, outPrc, inLayout, inputShape, targetDevice) =
-    this->GetParam();
+    std::tie(padsBegin, padsEnd, argPadValue, padMode, netPrecision, inputShape, targetDevice) = this->GetParam();
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
     auto params = ngraph::builder::makeParams(ngPrc, {inputShape});
     auto paramOuts = ngraph::helpers::convert2OutputVector(

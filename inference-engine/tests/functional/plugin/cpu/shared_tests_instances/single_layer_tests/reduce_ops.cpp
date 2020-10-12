@@ -68,9 +68,6 @@ const auto paramsOneAxis = testing::Combine(
         testing::Values(true, false),
         testing::ValuesIn(reductionTypes),
         testing::Values(InferenceEngine::Precision::FP32),
-        testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-        testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-        testing::Values(InferenceEngine::Layout::ANY),
         testing::ValuesIn(inputShapes),
         testing::Values(CommonTestUtils::DEVICE_CPU)
 );
@@ -82,9 +79,6 @@ const auto params_Precisions = testing::Combine(
         testing::Values(ngraph::helpers::ReductionType::Sum),
         testing::Values(InferenceEngine::Precision::FP32,
                         InferenceEngine::Precision::I32),
-        testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-        testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-        testing::Values(InferenceEngine::Layout::ANY),
         testing::Values(std::vector<size_t>{2, 2, 2, 2}),
         testing::Values(CommonTestUtils::DEVICE_CPU)
 );
@@ -95,9 +89,6 @@ const auto params_InputShapes = testing::Combine(
         testing::ValuesIn(keepDims),
         testing::Values(ngraph::helpers::ReductionType::Mean),
         testing::Values(InferenceEngine::Precision::FP32),
-        testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-        testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-        testing::Values(InferenceEngine::Layout::ANY),
         testing::Values(std::vector<size_t>{3},
                         std::vector<size_t>{3, 5},
                         std::vector<size_t>{2, 4, 6},
@@ -113,9 +104,6 @@ const auto params_Axes = testing::Combine(
         testing::ValuesIn(keepDims),
         testing::Values(ngraph::helpers::ReductionType::Mean),
         testing::Values(InferenceEngine::Precision::FP32),
-        testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-        testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-        testing::Values(InferenceEngine::Layout::ANY),
         testing::ValuesIn(inputShapes),
         testing::Values(CommonTestUtils::DEVICE_CPU)
 );
@@ -126,9 +114,6 @@ const auto params_ReductionTypes = testing::Combine(
         testing::ValuesIn(keepDims),
         testing::ValuesIn(reductionTypes),
         testing::Values(InferenceEngine::Precision::FP32),
-        testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-        testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-        testing::Values(InferenceEngine::Layout::ANY),
         testing::Values(std::vector<size_t>{2, 9, 2, 9}),
         testing::Values(CommonTestUtils::DEVICE_CPU)
 );
@@ -178,9 +163,6 @@ INSTANTIATE_TEST_CASE_P(
                 testing::Values(ngraph::helpers::ReductionType::Sum),
                 testing::Values(InferenceEngine::Precision::FP32,
                                 InferenceEngine::Precision::I32),
-                testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-                testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-                testing::Values(InferenceEngine::Layout::ANY),
                 testing::Values(std::vector<size_t> {2, 10}),
                 testing::Values(CommonTestUtils::DEVICE_CPU)),
         ReduceOpsLayerWithSpecificInputTest::getTestCaseName

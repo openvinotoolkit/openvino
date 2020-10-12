@@ -31,10 +31,6 @@
 namespace LayerTestsDefinitions {
 typedef std::tuple<
     InferenceEngine::Precision,
-    InferenceEngine::Precision,    // Input precision
-    InferenceEngine::Precision,    // Output precision
-    InferenceEngine::Layout,       // Input layout
-    InferenceEngine::Layout,       // Output layout
     InferenceEngine::SizeVector,
     float,
     std::string> grnParams;

@@ -24,13 +24,10 @@
 namespace LayerTestsDefinitions {
 std::string GrnLayerTest::getTestCaseName(const testing::TestParamInfo<grnParams>& obj) {
     InferenceEngine::Precision netPrecision;
-    InferenceEngine::Precision inPrc, outPrc;
-    InferenceEngine::Layout inLayout, outLayout;
     InferenceEngine::SizeVector inputShapes;
     std::string targetDevice;
     float bias;
     std::tie(netPrecision,
-        inPrc, outPrc, inLayout, outLayout,
         inputShapes,
         bias,
         targetDevice) = obj.param;
@@ -40,18 +37,14 @@ std::string GrnLayerTest::getTestCaseName(const testing::TestParamInfo<grnParams
 
     result << "IS="     << CommonTestUtils::vec2str(inputShapes) << separator;
     result << "netPRC=" << netPrecision.name() << separator;
-    result << "inPRC=" << inPrc.name() << separator;
-    result << "outPRC=" << outPrc.name() << separator;
-    result << "inL=" << inLayout << separator;
-    result << "outL=" << outLayout << separator;
     result << "bias="   << bias << separator;
-    result << "trgDev=" << targetDevice;
+    result << "targetDevice=" << targetDevice;
     return result.str();
 }
 
 void GrnLayerTest::SetUp() {
     InferenceEngine::Precision netPrecision;
-    std::tie(netPrecision, inPrc, outPrc, inLayout, outLayout, inputShapes, bias, targetDevice) = GetParam();
+    std::tie(netPrecision, inputShapes, bias, targetDevice) = GetParam();
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
     auto paramsIn = ngraph::builder::makeParams(ngPrc, { inputShapes });
     auto paramsOut = ngraph::helpers::convert2OutputVector(

@@ -23,11 +23,9 @@ namespace LayerTestsDefinitions {
 std::string GroupConvolutionLayerTest::getTestCaseName(testing::TestParamInfo<groupConvLayerTestParamsSet> obj) {
     groupConvSpecificParams groupConvParams;
     InferenceEngine::Precision netPrecision;
-    InferenceEngine::Precision inPrc, outPrc;
-    InferenceEngine::Layout inLayout, outLayout;
     InferenceEngine::SizeVector inputShapes;
     std::string targetDevice;
-    std::tie(groupConvParams, netPrecision, inPrc, outPrc, inLayout, outLayout, inputShapes, targetDevice) = obj.param;
+    std::tie(groupConvParams, netPrecision, inputShapes, targetDevice) = obj.param;
     ngraph::op::PadType padType;
     InferenceEngine::SizeVector kernel, stride, dilation;
     std::vector<ptrdiff_t> padBegin, padEnd;
@@ -45,11 +43,7 @@ std::string GroupConvolutionLayerTest::getTestCaseName(testing::TestParamInfo<gr
     result << "G=" << numGroups << "_";
     result << "AP=" << padType << "_";
     result << "netPRC=" << netPrecision.name() << "_";
-    result << "inPRC=" << inPrc.name() << "_";
-    result << "outPRC=" << outPrc.name() << "_";
-    result << "inL=" << inLayout << "_";
-    result << "outL=" << outLayout << "_";
-    result << "trgDev=" << targetDevice;
+    result << "targetDevice=" << targetDevice;
     return result.str();
 }
 
@@ -57,7 +51,7 @@ void GroupConvolutionLayerTest::SetUp() {
     groupConvSpecificParams groupConvParams;
     std::vector<size_t> inputShape;
     auto netPrecision   = InferenceEngine::Precision::UNSPECIFIED;
-    std::tie(groupConvParams, netPrecision, inPrc, outPrc, inLayout, outLayout, inputShape, targetDevice) = this->GetParam();
+    std::tie(groupConvParams, netPrecision, inputShape, targetDevice) = this->GetParam();
     ngraph::op::PadType padType;
     InferenceEngine::SizeVector kernel, stride, dilation;
     std::vector<ptrdiff_t> padBegin, padEnd;

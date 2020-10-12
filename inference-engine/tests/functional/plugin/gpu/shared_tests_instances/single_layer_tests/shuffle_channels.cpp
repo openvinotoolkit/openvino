@@ -8,7 +8,7 @@
 
 using namespace LayerTestsDefinitions;
 
-const std::vector<InferenceEngine::Precision> netPrecisions = {
+const std::vector<InferenceEngine::Precision> inputPrecision = {
     InferenceEngine::Precision::FP32,
     InferenceEngine::Precision::FP16,
     InferenceEngine::Precision::U8,
@@ -25,11 +25,7 @@ const std::vector<std::tuple<int, int>> shuffleParameters = {
 };
 
 const auto testCases = ::testing::Combine(::testing::ValuesIn(shuffleParameters),
-                                          ::testing::ValuesIn(netPrecisions),
-                                          ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-                                          ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-                                          ::testing::Values(InferenceEngine::Layout::ANY),
-                                          ::testing::Values(InferenceEngine::Layout::ANY),
+                                          ::testing::ValuesIn(inputPrecision),
                                           ::testing::ValuesIn(inputShapes),
                                           ::testing::Values(CommonTestUtils::DEVICE_GPU));
 

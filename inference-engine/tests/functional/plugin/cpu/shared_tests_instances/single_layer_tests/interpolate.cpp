@@ -11,7 +11,7 @@ using namespace LayerTestsDefinitions;
 
 namespace {
 
-const std::vector<InferenceEngine::Precision> netPrecisions = {
+const std::vector<InferenceEngine::Precision> prc = {
         InferenceEngine::Precision::FP16,
         InferenceEngine::Precision::FP32,
 };
@@ -108,11 +108,7 @@ const auto interpolateCases = ::testing::Combine(
 
 INSTANTIATE_TEST_CASE_P(smoke_Interpolate_Basic, InterpolateLayerTest, ::testing::Combine(
         interpolateCasesWithoutNearest,
-        ::testing::ValuesIn(netPrecisions),
-        ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-        ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-        ::testing::Values(InferenceEngine::Layout::ANY),
-        ::testing::Values(InferenceEngine::Layout::ANY),
+        ::testing::ValuesIn(prc),
         ::testing::ValuesIn(inShapes),
         ::testing::ValuesIn(targetShapes),
         ::testing::Values(CommonTestUtils::DEVICE_CPU)),
@@ -120,11 +116,7 @@ INSTANTIATE_TEST_CASE_P(smoke_Interpolate_Basic, InterpolateLayerTest, ::testing
 
 INSTANTIATE_TEST_CASE_P(smoke_Interpolate_Nearest, InterpolateLayerTest, ::testing::Combine(
         interpolateCases,
-        ::testing::ValuesIn(netPrecisions),
-        ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-        ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-        ::testing::Values(InferenceEngine::Layout::ANY),
-        ::testing::Values(InferenceEngine::Layout::ANY),
+        ::testing::ValuesIn(prc),
         ::testing::ValuesIn(inShapes),
         ::testing::ValuesIn(targetShapes),
         ::testing::Values(CommonTestUtils::DEVICE_CPU)),

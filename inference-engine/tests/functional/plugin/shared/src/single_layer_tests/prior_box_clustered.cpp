@@ -25,14 +25,11 @@
 namespace LayerTestsDefinitions {
 std::string PriorBoxClusteredLayerTest::getTestCaseName(const testing::TestParamInfo<priorBoxClusteredLayerParams>& obj) {
     InferenceEngine::Precision netPrecision;
-    InferenceEngine::Precision inPrc, outPrc;
-    InferenceEngine::Layout inLayout, outLayout;
     InferenceEngine::SizeVector inputShapes, imageShapes;
     std::string targetDevice;
     priorBoxClusteredSpecificParams specParams;
     std::tie(specParams,
         netPrecision,
-        inPrc, outPrc, inLayout, outLayout,
         inputShapes,
         imageShapes,
         targetDevice) = obj.param;
@@ -54,10 +51,6 @@ std::string PriorBoxClusteredLayerTest::getTestCaseName(const testing::TestParam
     result << "IS="      << CommonTestUtils::vec2str(inputShapes) << separator;
     result << "imageS="  << CommonTestUtils::vec2str(imageShapes) << separator;
     result << "netPRC="  << netPrecision.name()   << separator;
-    result << "inPRC="   << inPrc.name() << separator;
-    result << "outPRC="  << outPrc.name() << separator;
-    result << "inL="     << inLayout << separator;
-    result << "outL="    << outLayout << separator;
     result << "widths="  << CommonTestUtils::vec2str(widths)  << separator;
     result << "heights=" << CommonTestUtils::vec2str(heights) << separator;
     result << "variances=";
@@ -69,7 +62,7 @@ std::string PriorBoxClusteredLayerTest::getTestCaseName(const testing::TestParam
     result << "stepHeight=" << step_height << separator;
     result << "offset="     << offset      << separator;
     result << "clip=" << std::boolalpha << clip << separator;
-    result << "trgDev=" << targetDevice;
+    result << "targetDevice=" << targetDevice;
     return result.str();
 }
 
@@ -153,7 +146,6 @@ std::vector<std::vector<std::uint8_t>> PriorBoxClusteredLayerTest::CalculateRefs
 void PriorBoxClusteredLayerTest::SetUp() {
     priorBoxClusteredSpecificParams specParams;
     std::tie(specParams, netPrecision,
-        inPrc, outPrc, inLayout, outLayout,
         inputShapes, imageShapes, targetDevice) = GetParam();
 
     std::tie(widths,

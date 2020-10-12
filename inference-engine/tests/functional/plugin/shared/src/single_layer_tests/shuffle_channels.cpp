@@ -16,11 +16,9 @@ namespace LayerTestsDefinitions {
 std::string ShuffleChannelsLayerTest::getTestCaseName(testing::TestParamInfo<shuffleChannelsLayerTestParamsSet> obj) {
     shuffleChannelsSpecificParams shuffleChannelsParams;
     InferenceEngine::Precision netPrecision;
-    InferenceEngine::Precision inPrc, outPrc;
-    InferenceEngine::Layout inLayout, outLayout;
     InferenceEngine::SizeVector inputShapes;
     std::string targetDevice;
-    std::tie(shuffleChannelsParams, netPrecision, inPrc, outPrc, inLayout, outLayout, inputShapes, targetDevice) = obj.param;
+    std::tie(shuffleChannelsParams, netPrecision, inputShapes, targetDevice) = obj.param;
     int axis, group;
     std::tie(axis, group) = shuffleChannelsParams;
 
@@ -29,11 +27,7 @@ std::string ShuffleChannelsLayerTest::getTestCaseName(testing::TestParamInfo<shu
     result << "Axis=" << std::to_string(axis) << "_";
     result << "Group=" << std::to_string(group) << "_";
     result << "netPRC=" << netPrecision.name() << "_";
-    result << "inPRC=" << inPrc.name() << "_";
-    result << "outPRC=" << outPrc.name() << "_";
-    result << "inL=" << inLayout << "_";
-    result << "outL=" << outLayout << "_";
-    result << "trgDev=" << targetDevice;
+    result << "targetDevice=" << targetDevice;
     return result.str();
 }
 
@@ -41,7 +35,7 @@ void ShuffleChannelsLayerTest::SetUp() {
     shuffleChannelsSpecificParams shuffleChannelsParams;
     std::vector<size_t> inputShape;
     auto netPrecision   = InferenceEngine::Precision::UNSPECIFIED;
-    std::tie(shuffleChannelsParams, netPrecision, inPrc, outPrc, inLayout, outLayout, inputShape, targetDevice) = this->GetParam();
+    std::tie(shuffleChannelsParams, netPrecision, inputShape, targetDevice) = this->GetParam();
     int axis, group;
     std::tie(axis, group) = shuffleChannelsParams;
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);

@@ -25,11 +25,9 @@ namespace LayerTestsDefinitions {
 std::string PoolingLayerTest::getTestCaseName(testing::TestParamInfo<poolLayerTestParamsSet> obj) {
     poolSpecificParams poolParams;
     InferenceEngine::Precision netPrecision;
-    InferenceEngine::Precision inPrc, outPrc;
-    InferenceEngine::Layout inLayout, outLayout;
     std::vector<size_t> inputShapes;
     std::string targetDevice;
-    std::tie(poolParams, netPrecision, inPrc, outPrc, inLayout, outLayout, inputShapes, targetDevice) = obj.param;
+    std::tie(poolParams, netPrecision, inputShapes, targetDevice) = obj.param;
     ngraph::helpers::PoolingTypes poolType;
     std::vector<size_t> kernel, stride;
     std::vector<size_t> padBegin, padEnd;
@@ -58,22 +56,16 @@ std::string PoolingLayerTest::getTestCaseName(testing::TestParamInfo<poolLayerTe
     }
     result << "AutoPad=" << padType << "_";
     result << "netPRC=" << netPrecision.name() << "_";
-    result << "inPRC=" << inPrc.name() << "_";
-    result << "outPRC=" << outPrc.name() << "_";
-    result << "inL=" << inLayout << "_";
-    result << "outL=" << outLayout << "_";
-    result << "trgDev=" << targetDevice;
+    result << "targetDevice=" << targetDevice;
     return result.str();
 }
 
 std::string GlobalPoolingLayerTest::getTestCaseName(testing::TestParamInfo<globalPoolLayerTestParamsSet> obj) {
     poolSpecificParams poolParams;
     InferenceEngine::Precision netPrecision;
-    InferenceEngine::Precision inPrc, outPrc;
-    InferenceEngine::Layout inLayout, outLayout;
     std::string targetDevice;
     size_t channels;
-    std::tie(poolParams, netPrecision, inPrc, outPrc, inLayout, outLayout, channels, targetDevice) = obj.param;
+    std::tie(poolParams, netPrecision, channels, targetDevice) = obj.param;
     ngraph::helpers::PoolingTypes poolType;
     std::vector<size_t> kernel, stride;
     std::vector<size_t> padBegin, padEnd;
@@ -104,11 +96,7 @@ std::string GlobalPoolingLayerTest::getTestCaseName(testing::TestParamInfo<globa
     }
     result << "AutoPad=" << padType << "_";
     result << "netPRC=" << netPrecision.name() << "_";
-    result << "inPRC=" << inPrc.name() << "_";
-    result << "outPRC=" << outPrc.name() << "_";
-    result << "inL=" << inLayout << "_";
-    result << "outL=" << outLayout << "_";
-    result << "trgDev=" << targetDevice;
+    result << "targetDevice=" << targetDevice;
     return result.str();
 }
 
@@ -116,7 +104,7 @@ void PoolingLayerTest::SetUp() {
     poolSpecificParams poolParams;
     std::vector<size_t> inputShape;
     InferenceEngine::Precision netPrecision;
-    std::tie(poolParams, netPrecision, inPrc, outPrc, inLayout, outLayout, inputShape, targetDevice) = this->GetParam();
+    std::tie(poolParams, netPrecision, inputShape, targetDevice) = this->GetParam();
     ngraph::helpers::PoolingTypes poolType;
     std::vector<size_t> kernel, stride;
     std::vector<size_t> padBegin, padEnd;
@@ -148,7 +136,7 @@ void GlobalPoolingLayerTest::SetUp() {
     poolSpecificParams poolParams;
     InferenceEngine::Precision netPrecision;
     size_t channels;
-    std::tie(poolParams, netPrecision, inPrc, outPrc, inLayout, outLayout, channels, targetDevice) = this->GetParam();
+    std::tie(poolParams, netPrecision, channels, targetDevice) = this->GetParam();
     ngraph::helpers::PoolingTypes poolType;
     std::vector<size_t> kernel, stride;
     std::vector<size_t> padBegin, padEnd;

@@ -31,10 +31,6 @@ const std::vector<std::vector<size_t>> inputShapes = {
 const auto batchNormParams = testing::Combine(
         testing::ValuesIn(epsilon),
         testing::ValuesIn(netPrecisions),
-        testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-        testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-        testing::Values(InferenceEngine::Layout::ANY),
-        testing::Values(InferenceEngine::Layout::ANY),
         testing::ValuesIn(inputShapes),
         testing::Values(CommonTestUtils::DEVICE_CPU)
 );
