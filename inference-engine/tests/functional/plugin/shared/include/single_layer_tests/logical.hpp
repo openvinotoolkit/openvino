@@ -34,10 +34,18 @@ class LogicalLayerTest : public testing::WithParamInterface<LogicalTestParams>,
     virtual public LayerTestsUtils::LayerTestsCommon {
 protected:
     InferenceEngine::Blob::Ptr GenerateInput(const InferenceEngine::InputInfo &info) const override;
+    void SetupParams();
     void SetUp() override;
 
 public:
     static std::string getTestCaseName(testing::TestParamInfo<LogicalTestParams> obj);
     static std::vector<LogicalParams::InputShapesTuple> combineShapes(const std::map<std::vector<size_t>, std::vector<std::vector<size_t >>>& inputShapes);
+
+protected:
+    LogicalParams::InputShapesTuple inputShapes;
+    ngraph::helpers::LogicalTypes logicalOpType;
+    ngraph::helpers::InputLayerType secondInputType;
+    InferenceEngine::Precision netPrecision;
+    std::map<std::string, std::string> additional_config;
 };
 } // namespace LayerTestsDefinitions
