@@ -276,17 +276,11 @@ ngraph::graph_rewrite_callback get_callback() {
             // In case Add we create fake scale equal to 1, in case of Multiply we create fake shift equal to 0
             std::shared_ptr<ngraph::op::PowerIE> power;
             if (std::is_same<T, ngraph::opset1::Add>()) {
-<<<<<<< HEAD
-                power = std::make_shared<ngraph::op::PowerIE>(data_node, 1., 1., value, lin_op->get_output_element_type(0));
+                power = std::make_shared<ngraph::op::PowerIE>(data_node, 1.0f, 1.0f, value, lin_op->get_output_element_type(0));
             } else if (std::is_same<T, ngraph::opset1::Multiply>()) {
-                power = std::make_shared<ngraph::op::PowerIE>(data_node, 1., value, 0., lin_op->get_output_element_type(0));
+                power = std::make_shared<ngraph::op::PowerIE>(data_node, 1.0f, value, 0.0f, lin_op->get_output_element_type(0));
             } else if (std::is_same<T, ngraph::opset1::Subtract>()) {
-                power = std::make_shared<ngraph::op::PowerIE>(data_node, 1., 1., -value, lin_op->get_output_element_type(0));
-=======
-                power = std::make_shared<ngraph::op::PowerIE>(data_node, 1.0f, 1.0f, value);
-            } else if (std::is_same<T, ngraph::opset1::Multiply>()) {
-                power = std::make_shared<ngraph::op::PowerIE>(data_node, 1.0f, value, 0.0f);
->>>>>>> 18da58446... Fix MSVC build warnings in transformations library
+                power = std::make_shared<ngraph::op::PowerIE>(data_node, 1.0f, 1.0f, -value, lin_op->get_output_element_type(0));
             } else {
                 return false;
             }

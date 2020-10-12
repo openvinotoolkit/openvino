@@ -33,11 +33,7 @@ ngraph::pass::ConvertPowerToPowerIEMatcher::ConvertPowerToPowerIEMatcher() {
                 return false;
             }
 
-<<<<<<< HEAD
-            auto power_ie = std::make_shared<ngraph::op::PowerIE>(power->input(0).get_source_output(), value, 1, 0, power->output(0).get_element_type());
-=======
-            auto power_ie = std::make_shared<ngraph::op::PowerIE>(power->input(0).get_source_output(), value, 1.0f, 0.0f);
->>>>>>> 18da58446... Fix MSVC build warnings in transformations library
+            auto power_ie = std::make_shared<ngraph::op::PowerIE>(power->input(0).get_source_output(), value, 1.0f, 0.0f, power->output(0).get_element_type());
             power_ie->set_friendly_name(power->get_friendly_name());
             ngraph::copy_runtime_info(power, power_ie);
             ngraph::replace_node(power, power_ie);
