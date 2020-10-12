@@ -62,13 +62,13 @@ namespace ngraph
             /// \brief Elementwise round operation. The output is round to the nearest integer
             /// for each value. In case of halfs, the rule is defined in attribute 'mode':
             ///     'HALF_TO_EVEN' - round halfs to the nearest even integer.
-            ///     'half_away_from_zero': - round in such a way that the result heads away from
+            ///     'HALF_AWAY_FROM_ZERO': - round in such a way that the result heads away from
             /// zero.
 
             class NGRAPH_API Round : public ngraph::op::Op
             {
             public:
-                enum class Mode
+                enum class RoundMode
                 {
                     HALF_TO_EVEN,
                     HALF_AWAY_FROM_ZERO
@@ -82,7 +82,7 @@ namespace ngraph
                 ///
                 /// \param arg Node that produces the input tensor.
                 /// \param mode Rule to resolve halfs
-                Round(const Output<Node>& arg, const Mode mode);
+                Round(const Output<Node>& arg, const RoundMode mode);
 
                 bool visit_attributes(AttributeVisitor& visitor) override;
                 void validate_and_infer_types() override;
@@ -93,22 +93,22 @@ namespace ngraph
                 bool evaluate(const HostTensorVector& outputs,
                               const HostTensorVector& inputs) const override;
 
-                Mode get_mode() const { return m_mode; }
+                RoundMode get_mode() const { return m_mode; }
             private:
-                Mode m_mode;
+                RoundMode m_mode;
             };
         }
     }
     NGRAPH_API
-    std::ostream& operator<<(std::ostream& s, const op::v5::Round::Mode& type);
+    std::ostream& operator<<(std::ostream& s, const op::v5::Round::RoundMode& type);
 
     template <>
-    class NGRAPH_API AttributeAdapter<op::v5::Round::Mode>
-        : public EnumAttributeAdapterBase<op::v5::Round::Mode>
+    class NGRAPH_API AttributeAdapter<op::v5::Round::RoundMode>
+        : public EnumAttributeAdapterBase<op::v5::Round::RoundMode>
     {
     public:
-        AttributeAdapter(op::v5::Round::Mode& value)
-            : EnumAttributeAdapterBase<op::v5::Round::Mode>(value)
+        AttributeAdapter(op::v5::Round::RoundMode& value)
+            : EnumAttributeAdapterBase<op::v5::Round::RoundMode>(value)
         {
         }
 
