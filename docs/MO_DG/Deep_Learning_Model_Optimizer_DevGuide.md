@@ -63,6 +63,8 @@ Model Optimizer produces an Intermediate Representation (IR) of the network, whi
 
 ## Table of Content
 
+* [Introduction to OpenVINO™ Deep Learning Deployment Toolkit](../IE_DG/Introduction.md)
+
 * [Preparing and Optimizing your Trained Model with Model Optimizer](prepare_model/Prepare_Trained_Model.md)
     * [Configuring Model Optimizer](prepare_model/Config_Model_Optimizer.md)
     * [Converting a Model to Intermediate Representation (IR)](prepare_model/convert_model/Converting_Model.md)
