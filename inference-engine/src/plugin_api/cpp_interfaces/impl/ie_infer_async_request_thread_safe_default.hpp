@@ -45,7 +45,9 @@ class AsyncInferRequestThreadSafeDefault : public AsyncInferRequestThreadSafeInt
     using Futures = std::vector<std::shared_future<void>>;
     using Promise = std::shared_ptr<std::promise<void>>;
     enum Stage_e : std::uint8_t { executor, task };
-    struct DisableCallbackGuard{
+    InferRequestInternal::Ptr _syncRequest;
+
+    struct DisableCallbackGuard {
         explicit DisableCallbackGuard(AtomicCallback& callback)
             : _callbackRef(callback), _callback(callback.exchange(nullptr)) {}
         ~DisableCallbackGuard() {
@@ -54,7 +56,12 @@ class AsyncInferRequestThreadSafeDefault : public AsyncInferRequestThreadSafeInt
         AtomicCallback& _callbackRef;
         IInferRequest::CompletionCallback _callback;
     };
-    InferRequestInternal::Ptr _syncRequest;
+
+    struct ImmediateStreamsExecutor : public InferenceEngine::ITaskExecutor {
+        explicit ImmediateStreamsExecutor(const IStreamsExecutor::Ptr& streamsExecutor) : _streamsExecutor{streamsExecutor} {}
+        void run(InferenceEngine::Task task) override {_streamsExecutor->Execute(std::move(task));}
+        IStreamsExecutor::Ptr _streamsExecutor;
+    };
 
 public:
     /**
@@ -78,14 +85,9 @@ public:
         _requestExecutor {taskExecutor},
         _callbackExecutor {callbackExecutor},
         _pipeline {{taskExecutor, [this] {_syncRequest->Infer();}}},
-        _syncPipeline{{std::make_shared<ImmediateExecutor>(), [this] {_syncRequest->Infer();}}} {
+        _syncPipeline {{std::make_shared<ImmediateExecutor>(), [this] {_syncRequest->Infer();}}} {
         auto streamsExecutor = std::dynamic_pointer_cast<IStreamsExecutor>(taskExecutor);
         if (streamsExecutor != nullptr) {
-            struct ImmediateStreamsExecutor : public InferenceEngine::ITaskExecutor {
-                explicit ImmediateStreamsExecutor(const IStreamsExecutor::Ptr& streamsExecutor) : _streamsExecutor{streamsExecutor} {}
-                void run(InferenceEngine::Task task) override {_streamsExecutor->Execute(std::move(task));}
-                IStreamsExecutor::Ptr _streamsExecutor;
-            };
             _syncPipeline = {{std::make_shared<ImmediateStreamsExecutor>(std::move(streamsExecutor)), [this] {_syncRequest->Infer();}}};
         }
     }
