@@ -26,8 +26,6 @@
 #include "onnx_import/exceptions.hpp"
 #include "onnx_import/utils/reshape.hpp"
 
-NGRAPH_SUPPRESS_DEPRECATED_START
-
 namespace ngraph
 {
     namespace onnx_import
@@ -99,27 +97,49 @@ namespace ngraph
                 {
                     const auto& ng_inputs = node.get_ng_inputs();
                     // optional inputs
-                    const Output<ngraph::Node> trip_count = ng_inputs.at(0);
-                    const Output<ngraph::Node> loop_cond = ng_inputs.at(1);
+                    Output<ngraph::Node> trip_count;
+                    if(ngraph::op::is_null(ng_inputs.at(0))) // trip count skipped
+                    {
+                        // -1 means infinite Loop
+                        trip_count = ngraph::op::Constant::create(ngraph::element::i64, {}, {-1});
+                    }
+                    else
+                    {
+                        trip_count = ng_inputs.at(0);
+                        std::cout << "trip_count: " << trip_count.get_node_shared_ptr()->get_friendly_name() << "\n";
+                        std::cout << "trip_count: " << trip_count.get_node_shared_ptr()->get_name() << "\n";
+                    }
 
-                    // At this moment nGraph TensorIterator doesn't have support for conditional
-                    // termination of iterations.
-                    CHECK_VALID_NODE(node,
-                                     !ngraph::op::is_null(trip_count),
-                                     "Currently nGraph requires trip count input to be provided.");
+                    Output<ngraph::Node> termination_cond;
+                    if(ngraph::op::is_null(ng_inputs.at(1))) // termination condition skipped
+                    {
+                        // true means that first interation should be run
+                        termination_cond = ngraph::op::Constant::create(ngraph::element::boolean, {}, {true});
+                    }
+                    else
+                    {
+                        termination_cond = ng_inputs.at(1);
+                    }
+                    std::cout << "termination_cond: " << termination_cond.get_node_shared_ptr()->get_friendly_name() << "\n";
+                    std::cout << "termination_cond: " << termination_cond.get_node_shared_ptr()->get_name() << "\n";
 
                     const OutputVector loop_carried_dependencies{std::next(ng_inputs.begin(), 2),
                                                                  ng_inputs.end()};
 
-                    // required
                     const Subgraph& body_graph{node.get_attribute_value<Subgraph>("body")};
-                    const auto& graph_outputs = body_graph.get_ng_outputs();
-                    const auto& graph_inputs = body_graph.get_ng_parameters();
+                    auto body_outputs = body_graph.get_ng_outputs();
+                    const auto& body_inputs = body_graph.get_ng_parameters();
+
+                    const auto& body_loop_cond = body_outputs.at(0).get_node_shared_ptr();
+                    if(is_termination_condition_always_true(termination_cond, body_loop_cond))
+                    {
+                        body_outputs[0] = ngraph::op::Constant::create(ngraph::element::boolean, {}, {true});
+                    }
 
                     CHECK_VALID_NODE(node,
-                                     graph_inputs.size() >= loop_carried_dependencies.size() + 2,
+                                     body_inputs.size() >= loop_carried_dependencies.size() + 2,
                                      "The provided loop body graph inputs size (",
-                                     graph_inputs.size(),
+                                     body_inputs.size(),
                                      "), is not greater than the sum of loop carried dependencies "
                                      "and two mandatory"
                                      " inputs (",
@@ -127,70 +147,46 @@ namespace ngraph
                                      ")");
 
                     CHECK_VALID_NODE(node,
-                                     graph_outputs.size() >= loop_carried_dependencies.size() + 1,
+                                     body_outputs.size() >= loop_carried_dependencies.size() + 1,
                                      "The provided loop body graph outputs size (",
-                                     graph_outputs.size(),
+                                     body_outputs.size(),
                                      ") has to small number of outpus. Required at least: ",
                                      loop_carried_dependencies.size() + 1);
 
-                    const auto& body_loop_cond = graph_outputs.at(0).get_node_shared_ptr();
-                    CHECK_VALID_NODE(
-                        node,
-                        is_termination_condition_always_true(loop_cond, body_loop_cond),
-                        "Given termination loop condition input is not supported by Loop operator");
-
-                    // TODO: Remove when loop condition would be supported.
-                    const auto& cond_node =
-                        default_opset::Constant::create(element::boolean, Shape{}, {true});
-
                     // create the loop body
                     const auto body =
-                        std::make_shared<ngraph::Function>(graph_outputs, graph_inputs);
-                    auto tensor_iterator = std::make_shared<ngraph::op::TensorIterator>();
-                    tensor_iterator->set_body(body);
-
-                    // TensorIterator need to iterate over some input, thus we have to create
-                    // 1 dim tensor with number of values equal to value provided by trip_count
-                    // input.
-                    const auto loop_trip_count = std::make_shared<default_opset::Range>(
-                        default_opset::Constant::create(
-                            trip_count.get_element_type(), Shape{}, {0}),
-                        ngraph::onnx_import::reshape::interpret_as_scalar(trip_count),
-                        default_opset::Constant::create(
-                            trip_count.get_element_type(), Shape{}, {1}),
-                        trip_count.get_element_type());
-
-                    // We iterate over trip_count input.
-                    // start=0, stride=1, part_size=1, end=-1, axis=0
-                    tensor_iterator->set_sliced_input(
-                        graph_inputs.at(0), loop_trip_count, 0, 1, 1, -1, 0);
-
-                    // Set loop condition input, which should be changing over the iterations.
-                    tensor_iterator->set_merged_input(
-                        graph_inputs.at(1), cond_node, graph_outputs.at(0));
+                        std::make_shared<ngraph::Function>(body_outputs, body_inputs); //TODO CHECK
+                    auto loop = std::make_shared<default_opset::Loop>();
+                    loop->set_trip_count_input(trip_count);
+                    loop->set_execution_condition_input(termination_cond);
+                    loop->set_body(body);
 
                     // Setting up other Loop body inputs.
-                    auto graph_inputs_it = std::next(graph_inputs.begin(), 2);
-                    auto graph_outputs_it = std::next(graph_outputs.begin(), 1);
+                    // body_inputs[0] is iteration number, body_inputs[1] is termination condition
+                    auto body_inputs_it = std::next(body_inputs.begin(), 2);
+                    // body_outputs[0] is termination condition output
+                    auto body_outputs_it = std::next(body_outputs.begin(), 1);
 
                     // Set-up loop carried dependencies and final output values
                     OutputVector final_values;
                     for (const auto& dep : loop_carried_dependencies)
                     {
-                        tensor_iterator->set_merged_input(
-                            *graph_inputs_it++, dep, *graph_outputs_it);
+                        std::cout << "final: " << body_outputs_it->get_node_shared_ptr()->get_friendly_name() << "\n";
+                        loop->set_merged_input(
+                            *body_inputs_it++, dep, *body_outputs_it);
                         final_values.push_back(
-                            tensor_iterator->get_iter_value(*graph_outputs_it++, -1));
+                            loop->get_iter_value(*body_outputs_it++, -1));
                     }
 
                     // Set-up scan outputs
                     OutputVector scan_outputs;
-                    for (; graph_outputs_it != graph_outputs.end(); graph_outputs_it++)
+                    for (; body_outputs_it != body_outputs.end(); body_outputs_it++)
                     {
+                        std::cout << "scan outputs: " << body_outputs_it->get_node_shared_ptr()->get_friendly_name() << "\n";
                         // TODO: does concatenating along 0 axis is right?
                         // start=0, stride=1, part_size=1, end=-1, axis=0
-                        scan_outputs.push_back(tensor_iterator->get_concatenated_slices(
-                            *graph_outputs_it, 0, 1, 1, -1, 0));
+                        scan_outputs.push_back(loop->get_concatenated_slices(
+                            *body_outputs_it, 0, 1, 1, -1, 0)); // CHECK
                     }
 
                     OutputVector node_outputs;
