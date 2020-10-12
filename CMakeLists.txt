@@ -97,7 +97,7 @@ function(build_ngraph)
     set(CMAKE_ORIGINAL_MODULE_LINKER_FLAGS_RELEASE "${CMAKE_MODULE_LINKER_FLAGS_RELEASE}")
 
     if(ENABLE_LTO)
-        ie_enable_lto()
+        set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE ON)
     endif()
 
     ie_cpack_add_component(ngraph)
