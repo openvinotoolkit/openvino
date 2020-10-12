@@ -68,8 +68,8 @@ def buildDockerImage() {
 
 def runTests() {
     sh """
-        docker run --rm --name ${DOCKER_CONTAINER_NAME} \
-        --volume ${HOME}/ONNX_CI/onnx_models/.onnx:/root/.onnx ${DOCKER_IMAGE_TAG}
+        docker run --name ${DOCKER_CONTAINER_NAME} \
+        --volume ${HOME}/ONNX_CI/onnx-models/.onnx:/root/.onnx ${DOCKER_IMAGE_TAG}
     """
 }
 
@@ -83,6 +83,7 @@ pipeline {
     }
     options {
         skipDefaultCheckout true
+        timeout(activity: true, time: 10, unit: 'MINUTES')
     }
     stages {
         stage("Clone repository") {
@@ -101,6 +102,9 @@ pipeline {
             }
         }
         stage("Run tests") {
+            options {
+                  timeout(time: 15, unit: 'MINUTES')
+              }
             steps{
                 runTests()
             }
@@ -118,6 +122,7 @@ pipeline {
                 deleteDir()
                 sh """
                     docker image prune -f
+                    docker rm -f ${DOCKER_CONTAINER_NAME}
                 """
             }
         }

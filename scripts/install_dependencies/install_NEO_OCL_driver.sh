@@ -47,12 +47,12 @@ _install_prerequisites_centos()
           "yum -y install rpmdevtools openssl openssl-devel bc numactl ocl-icd ocl-icd-devel")
 
     for cmd in "${CMDS[@]}"; do
-        echo $cmd
-        eval $cmd
+        echo "$cmd"
+        eval "$cmd"
         if [[ $? -ne 0 ]]; then
-            echo ERROR: failed to run $cmd >&2
-            echo Problem \(or disk space\)? >&2
-            echo . Verify that you have enough disk space, and run the script again. >&2
+            echo "ERROR: failed to run $cmd" >&2
+            echo "Problem (or disk space)?" >&2
+            echo ". Verify that you have enough disk space, and run the script again." >&2
             exit $EXIT_FAILURE
         fi
     done
@@ -65,13 +65,13 @@ _install_prerequisites_ubuntu()
           "apt-get -y install libnuma1 ocl-icd-libopencl1")
 
     for cmd in "${CMDS[@]}"; do
-        echo $cmd
-        eval $cmd
+        echo "$cmd"
+        eval "$cmd"
         if [[ $? -ne 0 ]]; then
-            echo ERROR: failed to run $cmd >&2
-            echo Problem \(or disk space\)? >&2
+            echo "ERROR: failed to run $cmd" >&2
+            echo "Problem (or disk space)?" >&2
             echo "                sudo -E $0" >&2
-            echo 2. Verify that you have enough disk space, and run the script again. >&2
+            echo "2. Verify that you have enough disk space, and run the script again." >&2
             exit $EXIT_FAILURE
         fi
     done
@@ -98,15 +98,15 @@ _deploy_rpm()
     # IGFX_RPM_FLAGS="--force" sudo -E ./install_NEO_OCL_driver.sh install
     #
     cmd="rpm $IGFX_RPM_FLAGS -ivh --nodeps --force $1"
-    echo $cmd
-    eval $cmd
+    echo "$cmd"
+    eval "$cmd"
 }
 
 _deploy_deb()
 {
     cmd="dpkg -i $1"
-    echo $cmd
-    eval $cmd
+    echo "$cmd"
+    eval "$cmd"
 }
 
 
@@ -114,8 +114,8 @@ _install_user_mode_centos()
 {
     _deploy_rpm "intel*.rpm"
     if [[ $? -ne 0 ]]; then
-        echo ERROR: failed to install rpms $cmd error  >&2
-        echo Make sure you have enough disk space or fix the problem manually and try again. >&2
+        echo "ERROR: failed to install rpms $cmd error"  >&2
+        echo "Make sure you have enough disk space or fix the problem manually and try again." >&2
         exit $EXIT_FAILURE
     fi
 }
@@ -124,8 +124,8 @@ _install_user_mode_ubuntu()
 {
     _deploy_deb "intel*.deb"
     if [[ $? -ne 0 ]]; then
-        echo ERROR: failed to install rpms $cmd error  >&2
-        echo Make sure you have enough disk space or fix the problem manually and try again. >&2
+        echo "ERROR: failed to install rpms $cmd error"  >&2
+        echo "Make sure you have enough disk space or fix the problem manually and try again." >&2
         exit $EXIT_FAILURE
     fi
 }
@@ -143,7 +143,7 @@ install_user_mode()
     # exit from $SCRIPT_DIR/neo folder
     cd -
     # clean it up
-    rm -rf $SCRIPT_DIR/neo
+    rm -rf "$SCRIPT_DIR/neo"
 }
 
 _uninstall_user_mode_centos()
@@ -156,15 +156,15 @@ _uninstall_user_mode_centos()
            "intel-igc-opencl")
     for package in "${PACKAGES[@]}"; do      
         echo "rpm -qa | grep $package"
-        found_package=$(rpm -qa | grep $package)
+        found_package=$(rpm -qa | grep "$package")
         if [[ $? -eq 0 ]]; then
-            echo Found installed user-mode driver, performing uninstall...
+            echo "Found installed user-mode driver, performing uninstall..."
             cmd="rpm -e --nodeps ${found_package}"
-            echo $cmd
-            eval $cmd
+            echo "$cmd"
+            eval "$cmd"
             if [[ $? -ne 0 ]]; then
-                echo ERROR: failed to uninstall existing user-mode driver. >&2
-                echo Please try again manually and run the script again. >&2
+                echo "ERROR: failed to uninstall existing user-mode driver." >&2
+                echo "Please try again manually and run the script again." >&2
                 exit $EXIT_FAILURE
             fi
         fi
@@ -182,13 +182,15 @@ _uninstall_user_mode_ubuntu()
            "intel-igc-opencl")
 
     for package in "${PACKAGES[@]}"; do
-        found_package=$(dpkg-query -W -f='${binary:Package}\n' ${package})
+        found_package=$(dpkg-query -W -f='${binary:Package}\n' "${package}")
         if [[ $? -eq 0 ]]; then
-            echo Found $found_package installed, uninstalling...
-            dpkg --purge $found_package
+            echo "Found installed user-mode driver, performing uninstall..."
+            cmd="apt-get autoremove -y $package"
+            echo "$cmd"
+            eval "$cmd"
             if [[ $? -ne 0 ]]; then
-                echo "ERROR: unable to remove $found_package" >&2
-                echo "       please resolve it manually and try to launch the script again." >&2
+                echo "ERROR: failed to uninstall existing user-mode driver." >&2
+                echo "Please try again manually and run the script again." >&2
                 exit $EXIT_FAILURE
             fi
         fi
@@ -211,8 +213,8 @@ _is_package_installed()
     else
         cmd="dpkg-query -W -f='${binary:Package}\n' $pkg"
     fi
-    echo $cmd
-    eval $cmd
+    echo "$cmd"
+    eval "$cmd"
 }
 
 
@@ -244,7 +246,7 @@ _verify_checksum_ubuntu()
 
 _verify_checksum_centos()
 {
-    sha1sum -c $SCRIPT_DIR/neo_centos_ww41.sum
+    sha1sum -c "$SCRIPT_DIR/neo_centos_ww41.sum"
 }
 
 verify_checksum()
@@ -258,8 +260,8 @@ verify_checksum()
 
 download_packages()
 {
-    mkdir -p $SCRIPT_DIR/neo
-    cd $SCRIPT_DIR/neo
+    mkdir -p "$SCRIPT_DIR/neo"
+    cd "$SCRIPT_DIR/neo"
     
     if [[ $DISTRO == "centos" ]]; then
         _download_packages_centos
@@ -310,19 +312,19 @@ check_root_access()
 {
     if [[ $EUID -ne 0 ]]; then
         echo "ERROR: you must run this script as root." >&2
-        echo "Please try again with "sudo -E $0", or as root." >&2
+        echo "Please try again with \"sudo -E $0\", or as root." >&2
         exit $EXIT_FAILURE
     fi
 }
 
 add_user_to_video_group()
 {
-    local real_user=$(logname 2>/dev/null || echo ${SUDO_USER:-${USER}})
+    local real_user=$(logname 2>/dev/null || echo "${SUDO_USER:-${USER}}")
     echo
-    echo Adding $real_user to the video group...
-    usermod -a -G video $real_user
+    echo "Adding $real_user to the video group..."
+    usermod -a -G video "$real_user"
     if [[ $? -ne 0 ]]; then
-        echo WARNING: unable to add $real_user to the video group >&2
+        echo "WARNING: unable to add $real_user to the video group" >&2
     fi
 }
 
@@ -331,8 +333,8 @@ _check_distro_version()
     if [[ $DISTRO == centos ]]; then
         CENTOS_MINOR=$(sed 's/CentOS Linux release 7\.\([[:digit:]]\+\).\+/\1/' /etc/centos-release)
         if [[ $? -ne 0 ]]; then
-            echo ERROR: failed to obtain CentOS version minor. >&2
-            echo This script is supported only on CentOS 7 and above. >&2
+            echo "ERROR: failed to obtain CentOS version minor." >&2
+            echo "This script is supported only on CentOS 7 and above." >&2
             exit $EXIT_FAILURE
         fi
     elif [[ $DISTRO == ubuntu ]]; then
@@ -340,7 +342,8 @@ _check_distro_version()
         if [[ $UBUNTU_VERSION != '18.04' && $UBUNTU_VERSION != '20.04' ]]; then
             echo "Warning: This runtime can be installed only on Ubuntu 18.04 or Ubuntu 20.04."
             echo "More info https://github.com/intel/compute-runtime/releases" >&2
-            exit "Installation of Intel Compute Runtime interrupted"
+            echo "Installation of Intel Compute Runtime interrupted"
+            exit $EXIT_FAILURE
         fi
     fi
 }
@@ -363,7 +366,7 @@ check_agreement()
     fi
 
     echo "This script will download and install Intel(R) Graphics Compute Runtime $INSTALL_DRIVER_VERSION, "
-    echo "that was used to validate this OpenVINO package.\n"
+    echo "that was used to validate this OpenVINO package."
     echo "In case if you already have the driver - script will try to remove it."
     while true; do
         read -p "Want to proceed? (y/n): " yn
@@ -382,18 +385,20 @@ check_current_driver()
     elif [[ $DISTRO == ubuntu ]]; then
         gfx_version=$(apt show intel-opencl | grep Version)
     fi
-    gfx_version=${gfx_version##*:}
+    gfx_version="$(echo -e "${gfx_version}" | sed -e 's/^Version\:[[:space:]]*//')"
     # install NEO OCL driver if current driver version < 19.41.14441
     if [[ ! -z $gfx_version && "$(printf '%s\n' "$INSTALL_DRIVER_VERSION" "$gfx_version" | sort -V | head -n 1)" = "$INSTALL_DRIVER_VERSION" ]]; then
-        echo "Intel(R) Graphics Compute Runtime installation skipped because current version greater or equal to $INSTALL_DRIVER_VERSION"
-        exit "Installation of Intel Compute Runtime interrupted"
+        echo "Intel(R) Graphics Compute Runtime installation skipped because current version greater or equal to $INSTALL_DRIVER_VERSION" >&2
+        echo "Installation of Intel Compute Runtime interrupted" >&2
+        exit $EXIT_FAILURE
     else
         echo "Starting installation"
     fi
 }
 
 install()
-{       
+{   
+        
     uninstall_user_mode
     install_prerequisites
     download_packages

@@ -151,6 +151,8 @@ Standard TensorFlow\* operations:
 | ExperimentalSparseWeightedSum | CPU only |
 | ExtractImagePatches | No |
 | EuclideanNorm | No |
+| FakeQuantWithMinMaxVars | No |
+| FakeQuantWithMinMaxVarsPerChannel | No |
 | Fill | No |
 | Floor | No |
 | FloorDiv | No |
@@ -376,7 +378,7 @@ Standard ONNX\* operators:
 | ReduceSum | No |
 | Relu | No |
 | Reshape | No |
-| Resize | Opset-10 version is supported |
+| Resize | Coordinate transformation mode `tf_crop_and_resize` is not supported, `nearest` mode is not supported for 5D+ inputs. |
 | ReverseSequence | No |
 | Scatter | Supported if fuse-able to ScatterUpdate. MYRIAD only |
 | ScatterND | No |

@@ -12,6 +12,9 @@
 #include <ie_core.hpp>
 #include <multi-device/multi_device_config.hpp>
 #include <ngraph/opsets/opset.hpp>
+#include <ngraph/ngraph.hpp>
+#include <ngraph/graph_util.hpp>
+#include <ngraph/pass/constant_folding.hpp>
 
 #include <cpp_interfaces/exception2status.hpp>
 #include "ie_plugin_cpp.hpp"

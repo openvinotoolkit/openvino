@@ -42,6 +42,10 @@ function(build_with_lto)
         endif()
 
         add_subdirectory(clDNN)
+
+        # disable CLDNN docs build
+        set_target_properties(docs PROPERTIES EXCLUDE_FROM_ALL ON
+                                              FOLDER docs)
     endif()
 
     function(ie_build_pugixml)

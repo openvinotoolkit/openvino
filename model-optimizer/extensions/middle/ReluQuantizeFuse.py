@@ -142,7 +142,7 @@ class ClampQuantizeMark(MiddleReplacementPattern):
                 return
             max_value = quantize.in_port(2).data.get_value()
             if max_value is None:
-                log.debug('ReluQuantizeFuse: cannot fuse because FakeQuantize op has dynamic input on the 2st port, '
+                log.debug('ReluQuantizeFuse: cannot fuse because FakeQuantize op has dynamic input on the 2nd port, '
                           'levels=`{}`'.format(quantize.levels))
                 return
             if np.all(min_value >= clamp_min) and np.all(max_value <= clamp_max):

@@ -233,13 +233,13 @@ class Log(Activation):
 class SoftPlus(Activation):
     op = 'SoftPlus'
     version = 'opset4'
-    operation = staticmethod(lambda x: np.ln(np.exp(x) + 1.0))
+    operation = staticmethod(lambda x: np.log(np.exp(x) + 1.0))
 
 
 class Mish(Activation):
     op = 'Mish'
     version = 'opset4'
-    operation = staticmethod(lambda x: x * np.tanh(np.ln(np.exp(x) + 1.0)))
+    operation = staticmethod(lambda x: x * np.tanh(np.log(np.exp(x) + 1.0)))
 
 
 class HSwish(Activation):

@@ -18,12 +18,15 @@ namespace LayerTestsDefinitions {
 std::string EltwiseLayerTest::getTestCaseName(testing::TestParamInfo<EltwiseTestParams> obj) {
     std::vector<std::vector<size_t>> inputShapes;
     InferenceEngine::Precision netPrecision;
+    InferenceEngine::Precision inPrc, outPrc;
+    InferenceEngine::Layout inLayout;
     ngraph::helpers::InputLayerType secondaryInputType;
     CommonTestUtils::OpType opType;
     ngraph::helpers::EltwiseTypes eltwiseOpType;
     std::string targetName;
     std::map<std::string, std::string> additional_config;
-    std::tie(inputShapes, eltwiseOpType, secondaryInputType, opType, netPrecision, targetName, additional_config) = obj.param;
+    std::tie(inputShapes, eltwiseOpType, secondaryInputType, opType, netPrecision, inPrc, outPrc, inLayout, targetName, additional_config) =
+        obj.param;
     std::ostringstream results;
 
     results << "IS=" << CommonTestUtils::vec2str(inputShapes) << "_";
@@ -31,8 +34,26 @@ std::string EltwiseLayerTest::getTestCaseName(testing::TestParamInfo<EltwiseTest
     results << "secondaryInputType=" << secondaryInputType << "_";
     results << "opType=" << opType << "_";
     results << "netPRC=" << netPrecision.name() << "_";
-    results << "targetDevice=" << targetName;
+    results << "inPRC=" << inPrc.name() << "_";
+    results << "outPRC=" << outPrc.name() << "_";
+    results << "inL=" << inLayout << "_";
+    results << "trgDev=" << targetName;
     return results.str();
+}
+
+InferenceEngine::Blob::Ptr EltwiseLayerTest::GenerateInput(const InferenceEngine::InputInfo &info) const {
+    const auto opType = std::get<1>(GetParam());
+    switch (opType) {
+        case ngraph::helpers::EltwiseTypes::POWER:
+        case ngraph::helpers::EltwiseTypes::FLOOR_MOD:
+            return info.getPrecision().is_float() ? FuncTestUtils::createAndFillBlob(info.getTensorDesc(), 2, 2, 128):
+                                                    FuncTestUtils::createAndFillBlob(info.getTensorDesc(), 4, 2);
+        case ngraph::helpers::EltwiseTypes::DIVIDE:
+            return info.getPrecision().is_float() ? FuncTestUtils::createAndFillBlob(info.getTensorDesc(), 2, 2, 128):
+                                                    FuncTestUtils::createAndFillBlob(info.getTensorDesc(), 100, 101);
+        default:
+            return FuncTestUtils::createAndFillBlob(info.getTensorDesc());
+    }
 }
 
 void EltwiseLayerTest::SetUp() {
@@ -42,7 +63,8 @@ void EltwiseLayerTest::SetUp() {
     CommonTestUtils::OpType opType;
     ngraph::helpers::EltwiseTypes eltwiseType;
     std::map<std::string, std::string> additional_config;
-    std::tie(inputShapes, eltwiseType, secondaryInputType, opType, netPrecision, targetDevice, additional_config) = this->GetParam();
+    std::tie(inputShapes, eltwiseType, secondaryInputType, opType, netPrecision, inPrc, outPrc, inLayout, targetDevice, additional_config) =
+        this->GetParam();
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
 
     std::vector<size_t> inputShape1, inputShape2;

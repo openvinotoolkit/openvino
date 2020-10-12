@@ -1,21 +1,22 @@
-import java.util.Map;
-
 import org.intel.openvino.*;
+
+import java.util.Map;
 
 public class InferReqWrap {
 
-    public InferReqWrap(ExecutableNetwork net, int id, InferRequestsQueue irQueue) { 
-        request = net.CreateInferRequest(); 
+    public InferReqWrap(ExecutableNetwork net, int id, InferRequestsQueue irQueue) {
+        request = net.CreateInferRequest();
         this.id = id;
         this.irQueue = irQueue;
-        request.SetCompletionCallback(new Runnable() {
+        request.SetCompletionCallback(
+                new Runnable() {
 
-            @Override
-            public void run() {
-                endTime = System.nanoTime();
-                irQueue.putIdleRequest(id, getExecutionTimeInMilliseconds());
-            }
-        });
+                    @Override
+                    public void run() {
+                        endTime = System.nanoTime();
+                        irQueue.putIdleRequest(id, getExecutionTimeInMilliseconds());
+                    }
+                });
     }
 
     void startAsync() {
@@ -43,9 +44,9 @@ public class InferReqWrap {
     }
 
     double getExecutionTimeInMilliseconds() {
-        return (double)(endTime - startTime)  * 1e-6;
+        return (double) (endTime - startTime) * 1e-6;
     }
- 
+
     InferRequest request;
     private InferRequestsQueue irQueue;
     private long startTime;

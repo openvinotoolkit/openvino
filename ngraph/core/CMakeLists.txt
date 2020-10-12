@@ -36,6 +36,12 @@ configure_file(include/ngraph/version.in.hpp include/ngraph/version.hpp)
 # Create shared library
 add_library(ngraph SHARED ${LIBRARY_SRC} ${PUBLIC_HEADERS})
 
+if(COMMAND ie_faster_build)
+    ie_faster_build(ngraph
+        PCH PRIVATE "src/precomp.hpp"
+    )
+endif()
+
 set_target_properties(ngraph PROPERTIES
                       CXX_VISIBILITY_PRESET hidden
                       C_VISIBILITY_PRESET hidden
@@ -81,7 +87,7 @@ elseif(APPLE)
 endif()
 
 # Defines macro in C++ to load backend plugin
-target_include_directories(ngraph PUBLIC $<BUILD_INTERFACE:${NGRAPH_INCLUDE_PATH}> $<INSTALL_INTERFACE:include>)
+target_include_directories(ngraph PUBLIC $<BUILD_INTERFACE:${NGRAPH_INCLUDE_PATH}> $<INSTALL_INTERFACE:${NGRAPH_INSTALL_INCLUDE}>)
 target_include_directories(ngraph PRIVATE ${NGRAPH_INCLUDE_DIR}
                                           ${NGRAPH_INCLUDE_DIR}/op
                                           ${NGRAPH_INCLUDE_DIR}/op/util

@@ -11,12 +11,14 @@
 #include <ngraph/rt_info.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 
+NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertDepthToSpace, "ConvertDepthToSpace", 0);
+
 ngraph::pass::ConvertDepthToSpace::ConvertDepthToSpace() {
     auto dts_node = ngraph::pattern::wrap_type<ngraph::opset1::DepthToSpace>();
 
     ngraph::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
         auto dts_node = std::dynamic_pointer_cast<ngraph::opset1::DepthToSpace> (m.get_match_root());
-        if (!dts_node || m_transformation_callback(dts_node)) {
+        if (!dts_node || transformation_callback(dts_node)) {
             return false;
         }
 

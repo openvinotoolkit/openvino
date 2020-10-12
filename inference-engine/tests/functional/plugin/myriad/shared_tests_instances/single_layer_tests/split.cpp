@@ -14,7 +14,7 @@ const std::vector<InferenceEngine::Precision> netPrecisions = {
         InferenceEngine::Precision::FP16
 };
 
-INSTANTIATE_TEST_CASE_P(NumSplitsCheck, SplitLayerTest,
+INSTANTIATE_TEST_CASE_P(smoke_NumSplitsCheck, SplitLayerTest,
                         ::testing::Combine(
                                 ::testing::Values(1),
                                 // TODO: 0-axis excluded
@@ -23,6 +23,10 @@ INSTANTIATE_TEST_CASE_P(NumSplitsCheck, SplitLayerTest,
                                 //  The sum of the dimensions on the axis(0) is not equal out_sizes: [30]
                                 ::testing::Values(1, 2, 3),
                                 ::testing::ValuesIn(netPrecisions),
+                                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                ::testing::Values(InferenceEngine::Layout::ANY),
+                                ::testing::Values(InferenceEngine::Layout::ANY),
                                 ::testing::Values(std::vector<size_t >({30, 30, 30, 30})),
                                 ::testing::Values(CommonTestUtils::DEVICE_MYRIAD)),
                         SplitLayerTest::getTestCaseName);

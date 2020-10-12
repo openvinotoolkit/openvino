@@ -117,17 +117,20 @@ KERNEL(eltwise)(
     DO_ELTWISE;
 
 #if HAS_FUSED_OPS
-    FUSED_OPS;
-    OUTPUT_TYPE out = FUSED_OPS_RESULT;
-#elif QUANTIZATION_TERM && !OUTPUT_IS_FP
-    OUTPUT_TYPE out = ACTIVATION(TO_OUTPUT_TYPE(res), ACTIVATION_PARAMS);
+    #if ELTWISE_NO_PITCH_SAME_DIMS
+        FUSED_OPS_LINEAR;
+        OUTPUT_TYPE out = FUSED_OPS_RESULT_LINEAR;
+    #else
+        FUSED_OPS_TENSOR;
+        OUTPUT_TYPE out = FUSED_OPS_RESULT_TENSOR;
+    #endif
 #else
-    OUTPUT_TYPE out = ACTIVATION_TYPED(TO_OUTPUT_TYPE(res), ACTIVATION_PARAMS_TYPED);
+    #define out res
 #endif
 
 #if QUANTIZATION_TERM && !OUTPUT_IS_FP
-    output[output_offset] = TO_OUTPUT_TYPE_SAT(out);
+    output[output_offset] = TO_OUTPUT_TYPE_SAT(ACTIVATION(out, ACTIVATION_PARAMS));
 #else
-    output[output_offset] = out;
+    output[output_offset] = ACTIVATION_TYPED(out, ACTIVATION_PARAMS_TYPED);
 #endif
 }

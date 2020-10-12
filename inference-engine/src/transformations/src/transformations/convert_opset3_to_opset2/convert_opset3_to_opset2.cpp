@@ -18,6 +18,8 @@
 
 #include <ngraph/pass/manager.hpp>
 
+NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertOpSet3ToOpSet2, "ConvertOpSet3ToOpSet2", 0);
+
 bool ngraph::pass::ConvertOpSet3ToOpSet2::run_on_function(std::shared_ptr<ngraph::Function> f) {
     OV_ITT_SCOPED_TASK(itt::domains::IETransform, "ngraph::pass::ConvertOpSet3ToOpSet2");
 
@@ -31,7 +33,7 @@ bool ngraph::pass::ConvertOpSet3ToOpSet2::run_on_function(std::shared_ptr<ngraph
     manager.register_pass<ngraph::pass::ConvertExtractImagePatchesToReorgYolo>();
     manager.register_pass<ngraph::pass::SoftPlusDecomposition>();
 
-    manager.set_callback(m_transformation_callback);
+    manager.set_pass_config(get_pass_config());
     manager.run_passes(f);
     return true;
 }

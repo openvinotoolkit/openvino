@@ -19,6 +19,7 @@ OpenVINO™ toolkit includes the following components:
     - [Deep Learning Model Optimizer](MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md) - A cross-platform command-line tool for importing models and
     preparing them for optimal execution with the Inference Engine. The Model Optimizer imports, converts, and optimizes models, which were trained in popular frameworks, such as Caffe*,
     TensorFlow*, MXNet*, Kaldi*, and ONNX*.
+    - [nGraph](nGraph_DG/nGraph_dg.md) - A unified API for graph representation and manipulation engine which is used to represent a model inside Inference Engine and allows the run-time model construction without using Model Optimizer.
     - [Deep Learning Inference Engine](IE_DG/inference_engine_intro.md) - A unified API to allow high performance inference on many hardware types
     including the following:  
         - Intel® CPU
@@ -35,7 +36,7 @@ OpenVINO™ toolkit includes the following components:
 - [Deep Learning Workbench](@ref workbench_docs_Workbench_DG_Introduction) -  A web-based graphical environment that allows you to easily use various sophisticated OpenVINO™ toolkit components
 - Deep Learning Streamer (DL Streamer) – Streaming analytics framework, based on GStreamer, for constructing graphs of media analytics components. DL Streamer can be installed by the Intel® Distribution of OpenVINO™ toolkit installer. Its open source version is available on [GitHub](https://github.com/opencv/gst-video-analytics). For the DL Streamer documentation, see:
     - [DL Streamer Samples](IE_DG/Tools_Overview.md)
-    - [API Reference](https://opencv.github.io/gst-video-analytics/)
+    - [API Reference](https://openvinotoolkit.github.io/dlstreamer_gst/)
     - [Elements](https://github.com/opencv/gst-video-analytics/wiki/Elements)
     - [Tutorial](https://github.com/opencv/gst-video-analytics/wiki/DL%20Streamer%20Tutorial)
 - [OpenCV](https://docs.opencv.org/master/) - OpenCV* community version compiled for Intel® hardware

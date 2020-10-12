@@ -8,17 +8,7 @@ cmake_policy(SET CMP0054 NEW)
 # it allows to install targets created outside of current projects
 # See https://blog.kitware.com/cmake-3-13-0-available-for-download/
 
-if (APPLE)
-    if(CMAKE_GENERATOR STREQUAL "Xcode")
-        # due to https://gitlab.kitware.com/cmake/cmake/issues/14254
-        cmake_minimum_required(VERSION 3.12.0 FATAL_ERROR)
-    else()
-        # due to https://cmake.org/cmake/help/v3.12/policy/CMP0068.html
-        cmake_minimum_required(VERSION 3.9 FATAL_ERROR)
-    endif()
-else()
-    cmake_minimum_required(VERSION 3.7.2 FATAL_ERROR)
-endif()
+cmake_minimum_required(VERSION 3.13 FATAL_ERROR)
 
 project(OpenVINO)
 
@@ -32,8 +22,7 @@ include(features)
 # include developer package
 include(developer_package)
 
-# These options are shared with 3rdparty plugins
-# by means of developer package
+# These options are shared with 3rdparty plugins by means of developer package
 include(check_features)
 include(dependencies)
 
@@ -49,6 +38,10 @@ message (STATUS "CMAKE_BUILD_TYPE ...................... " ${CMAKE_BUILD_TYPE})
 # remove file with exported developer targets to force its regeneration
 file(REMOVE "${CMAKE_BINARY_DIR}/targets_developer.cmake")
 file(REMOVE "${CMAKE_BINARY_DIR}/targets.cmake")
+
+#
+# Build
+#
 
 function(build_ngraph)
     function(ngraph_set option value)
@@ -73,7 +66,7 @@ function(build_ngraph)
         ngraph_set(NGRAPH_UNIT_TEST_ENABLE FALSE)
     endif()
 
-    if(NOT ANDROID)
+    if(NOT (ANDROID OR WINDOWS_STORE))
         ngraph_set(NGRAPH_ONNX_IMPORT_ENABLE TRUE)
     else()
         ngraph_set(NGRAPH_ONNX_IMPORT_ENABLE FALSE)
@@ -140,7 +133,6 @@ function(openvino_developer_export_targets)
         "Paths to extra Inference Engine plugins" FORCE)
 endfunction()
 
-
 add_subdirectory(openvino)
 
 build_ngraph()
@@ -149,7 +141,26 @@ add_subdirectory(inference-engine)
 
 add_subdirectory(docs)
 
+#
+# Shellcheck
+#
+
+ie_shellcheck_process(DIRECTORY "${OpenVINO_MAIN_SOURCE_DIR}"
+                      SKIP "${OpenVINO_MAIN_SOURCE_DIR}/bin"
+                           "${OpenVINO_MAIN_SOURCE_DIR}/build"
+                           "${IE_MAIN_SOURCE_DIR}/tests/ie_test_utils/common_test_utils/gtest"
+                           "${IE_MAIN_SOURCE_DIR}/samples/thirdparty"
+                           "${IE_MAIN_SOURCE_DIR}/thirdparty"
+                           "${IE_MAIN_SOURCE_DIR}/temp"
+                           # TODO fix and enable back:
+                           "${OpenVINO_MAIN_SOURCE_DIR}/scripts/install_dependencies"
+                           "${OpenVINO_MAIN_SOURCE_DIR}/scripts/demo"
+                           "${OpenVINO_MAIN_SOURCE_DIR}/ngraph"
+                           "${IE_MAIN_SOURCE_DIR}/scripts")
+
+#
 # cpack
+#
 
 # install setupvars
 

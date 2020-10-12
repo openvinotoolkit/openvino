@@ -53,14 +53,15 @@ as a part of [Intel® Distribution of OpenVINO™].
 
 The software was validated on:
 - Ubuntu\* 18.04 (64-bit) with default GCC\* 7.5.0
-- Ubuntu\* 16.04 (64-bit) with default GCC\* 5.4.0
-- CentOS\* 7.4 (64-bit) with default GCC\* 4.8.5
+- Ubuntu\* 20.04 (64-bit) with default GCC\* 9.3.0
+- CentOS\* 7.6 (64-bit) with default GCC\* 4.8.5
 
 ### Software Requirements
-- [CMake]\* 3.11 or higher
+- [CMake]\* 3.13 or higher
 - GCC\* 4.8 or higher to build the Inference Engine
-- Python 3.5 or higher for Inference Engine Python API wrapper
+- Python 3.6 or higher for Inference Engine Python API wrapper
 - (Optional) [Install Intel® Graphics Compute Runtime for OpenCL™ Driver package 19.41.14441].
+> **NOTE**: Building samples and demos from the Intel® Distribution of OpenVINO™ toolkit package requires CMake\* 3.10 or higher. 
 
 ### Build Steps
 1. Clone submodules:
@@ -331,14 +332,14 @@ You can use the following additional build options:
 ## Build on Windows* Systems
 
 The software was validated on:
-- Microsoft\* Windows\* 10 (64-bit) with Visual Studio 2017 and Intel® C++
-  Compiler 2018 Update 3
+- Microsoft\* Windows\* 10 (64-bit) with Visual Studio 2019
 
 ### Software Requirements
-- [CMake]\*3.11 or higher
-- Microsoft\* Visual Studio 2017, 2019 or [Intel® C++ Compiler] 18.0
+- [CMake]\*3.13 or higher
+- Microsoft\* Visual Studio 2017, 2019
 - (Optional) Intel® Graphics Driver for Windows* (26.20) [driver package].
-- Python 3.5 or higher for Inference Engine Python API wrapper
+- Python 3.6 or higher for Inference Engine Python API wrapper
+> **NOTE**: Building samples and demos from the Intel® Distribution of OpenVINO™ toolkit package requires CMake\* 3.10 or higher. 
 
 ### Build Steps
 
@@ -369,20 +370,13 @@ cmake -G "Visual Studio 15 2017 Win64" -DCMAKE_BUILD_TYPE=Release ..
 cmake -G "Visual Studio 16 2019" -A x64 -DCMAKE_BUILD_TYPE=Release ..
 ```
 
-   For Intel® C++ Compiler 18:
-```sh
-cmake -G "Visual Studio 15 2017 Win64" -T "Intel C++ Compiler 18.0" ^
-    -DCMAKE_BUILD_TYPE=Release ^
-    -DICCLIB="C:\Program Files (x86)\IntelSWTools\compilers_and_libraries_2018\windows\compiler\lib" ..
-```
-
 5. Build generated solution in Visual Studio or run
    `cmake --build . --config Release` to build from the command line.
 
 6. Before running the samples, add paths to the TBB and OpenCV binaries used for
    the build to the `%PATH%` environment variable. By default, TBB binaries are
    downloaded by the CMake-based script to the `<openvino_repo>/inference-engine/temp/tbb/bin`
-   folder, OpenCV binaries to the `<openvino_repo>/inference-engine/temp/opencv_4.3.0/opencv/bin`
+   folder, OpenCV binaries to the `<openvino_repo>/inference-engine/temp/opencv_4.5.0/opencv/bin`
    folder.
 
 ### Additional Build Options
@@ -448,13 +442,14 @@ cmake --build . --config Release
 inference on Intel CPUs only.
 
 The software was validated on:
-- macOS\* 10.14, 64-bit
+- macOS\* 10.15, 64-bit
 
 ### Software Requirements
 
-- [CMake]\* 3.11 or higher
+- [CMake]\* 3.13 or higher
 - Clang\* compiler from Xcode\* 10.1 or higher
-- Python\* 3.5 or higher for the Inference Engine Python API wrapper
+- Python\* 3.6 or higher for the Inference Engine Python API wrapper
+> **NOTE**: Building samples and demos from the Intel® Distribution of OpenVINO™ toolkit package requires CMake\* 3.10 or higher. 
 
 ### Build Steps
 
@@ -463,19 +458,11 @@ The software was validated on:
     cd openvino
     git submodule update --init --recursive
     ```
-2. Install build dependencies using the `install_dependencies.sh` script in the
-   project root folder:
-   ```sh
-   chmod +x install_dependencies.sh
-   ```
-   ```sh
-   ./install_dependencies.sh
-   ```
-3. Create a build folder:
+2. Create a build folder:
 ```sh
-  mkdir build
+  mkdir build && cd build
 ```
-4. Inference Engine uses a CMake-based build system. In the created `build`
+3. Inference Engine uses a CMake-based build system. In the created `build`
    directory, run `cmake` to fetch project dependencies and create Unix makefiles,
    then run `make` to build the project:
 ```sh
@@ -511,12 +498,17 @@ You can use the following additional build options:
 
 - To build the Python API wrapper, use the `-DENABLE_PYTHON=ON` option. To
   specify an exact Python version, use the following options:
-```sh
-  -DPYTHON_EXECUTABLE=/Library/Frameworks/Python.framework/Versions/3.7/bin/python3.7 \
-  -DPYTHON_LIBRARY=/Library/Frameworks/Python.framework/Versions/3.7/lib/libpython3.7m.dylib \
-  -DPYTHON_INCLUDE_DIR=/Library/Frameworks/Python.framework/Versions/3.7/include/python3.7m
-```
-
+   - If you installed Python through Homebrew*, set the following flags:
+   ```sh
+   -DPYTHON_EXECUTABLE=/usr/local/Cellar/python/3.7.7/Frameworks/Python.framework/Versions/3.7/bin/python3.7m \
+   -DPYTHON_LIBRARY=/usr/local/Cellar/python/3.7.7/Frameworks/Python.framework/Versions/3.7/lib/libpython3.7m.dylib \
+   -DPYTHON_INCLUDE_DIR=/usr/local/Cellar/python/3.7.7/Frameworks/Python.framework/Versions/3.7/include/python3.7m 
+   ```
+   - If you installed Python another way, you can use the following commands to find where the `dylib` and `include_dir` are located, respectively: 
+   ```sh
+   find /usr/ -name 'libpython*m.dylib'
+   find /usr/ -type d -name python3.7m
+   ```
 - nGraph-specific compilation options:
   `-DNGRAPH_ONNX_IMPORT_ENABLE=ON` enables the building of the nGraph ONNX importer.
   `-DNGRAPH_DEBUG_ENABLE=ON` enables additional debug prints.
@@ -527,8 +519,9 @@ This section describes how to build Inference Engine for Android x86 (64-bit) op
 
 ### Software Requirements
 
-- [CMake]\* 3.11 or higher
+- [CMake]\* 3.13 or higher
 - Android NDK (this guide has been validated with r20 release)
+> **NOTE**: Building samples and demos from the Intel® Distribution of OpenVINO™ toolkit package requires CMake\* 3.10 or higher. 
 
 ### Build Steps
 
@@ -698,5 +691,4 @@ This target collects all dependencies, prepares the nGraph package and copies it
 [build instructions]:https://docs.opencv.org/master/df/d65/tutorial_table_of_content_introduction.html
 [driver package]:https://downloadcenter.intel.com/download/29335/Intel-Graphics-Windows-10-DCH-Drivers
 [Intel® Neural Compute Stick 2 Get Started]:https://software.intel.com/en-us/neural-compute-stick/get-started
-[Intel® C++ Compiler]:https://software.intel.com/en-us/intel-parallel-studio-xe
 [OpenBLAS]:https://sourceforge.net/projects/openblas/files/v0.2.14/OpenBLAS-v0.2.14-Win64-int64.zip/download

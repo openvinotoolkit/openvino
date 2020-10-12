@@ -67,8 +67,7 @@ protected:
 
         const auto inputDataSubgraph = createInputSubgraphWithDSR(inDataType, gatherSetup.inputShapes);
 
-        const auto indicesParam = std::make_shared<ngraph::opset3::Parameter>(idxType, gatherSetup.indexShape.shape);
-        m_parameterVector.push_back(indicesParam);
+        const auto indicesParam = createParameter(idxType, gatherSetup.indexShape.shape);
         m_indicesInputNames.insert(indicesParam->get_friendly_name());
 
         const auto axis = ngraph::opset3::Constant::create(ngraph::element::i32, {1}, std::vector<int64_t>{gatherSetup.axis});
@@ -83,7 +82,7 @@ TEST_P(DSR_GatherDynamicDataStaticIdx, CompareWithReference) {
     Run();
 }
 
-INSTANTIATE_TEST_CASE_P(DynamicGatherData, DSR_GatherDynamicDataStaticIdx, testing::Combine(
+INSTANTIATE_TEST_CASE_P(smoke_DynamicGatherData, DSR_GatherDynamicDataStaticIdx, testing::Combine(
         testing::ValuesIn(dataTypeVector),
         testing::ValuesIn(idxTypeVector),
         testing::Values(
@@ -119,7 +118,7 @@ TEST_P(DSR_GatherStaticDataDynamicIdx, CompareWithReference) {
     Run();
 }
 
-INSTANTIATE_TEST_CASE_P(DynamicGatherIdx, DSR_GatherStaticDataDynamicIdx, testing::Combine(
+INSTANTIATE_TEST_CASE_P(smoke_DynamicGatherIdx, DSR_GatherStaticDataDynamicIdx, testing::Combine(
         testing::ValuesIn(dataTypeVector),
         testing::ValuesIn(idxTypeVector),
         testing::Values(
@@ -154,7 +153,7 @@ TEST_P(DSR_GatherDynamicDataDynamicIdx, CompareWithReference) {
     Run();
 }
 
-INSTANTIATE_TEST_CASE_P(DynamicGather, DSR_GatherDynamicDataDynamicIdx, testing::Combine(
+INSTANTIATE_TEST_CASE_P(smoke_DynamicGather, DSR_GatherDynamicDataDynamicIdx, testing::Combine(
         testing::ValuesIn(dataTypeVector),
         testing::ValuesIn(idxTypeVector),
         testing::Values(

@@ -23,3 +23,4 @@ Implement the  InferenceEngine::IExtension::getOpSets method if the extension co
 Read the [guide about custom operations](AddingNGraphOps.md) for more information.
 
 To understand how integrate execution kernels to the extension library, read the [guide about development of custom CPU kernels](CPU_Kernel.md).
+To understand how to register custom ONNX operator to the extension library, read the [guide about custom ONNX operators](Custom_ONNX_Ops.md).

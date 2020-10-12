@@ -22,7 +22,6 @@
 #include <vector>
 
 #include "ngraph/pass/pass.hpp"
-#include "ngraph/pass/pass_config.hpp"
 #include "ngraph/pass/validate.hpp"
 
 namespace ngraph
@@ -39,13 +38,30 @@ public:
     Manager();
     ~Manager();
 
-    template <typename T, class... Args>
+    /// \brief Register given transformation class type to execution list
+    /// Example below show the basic usage of pass::Manager
+    ///
+    ///     pass::Manager manager;
+    ///     manager.register_pass<MyTransformation>(/*transformation constructor ars*/);
+    ///     manager.run_passes(f);
+    ///
+    /// For some purposes transformation can be registered and disabled by default.
+    ///
+    ///     manager.register_pass<MyTransformation, false>();
+    ///
+    /// \return shared_ptr to the transformation instance
+    template <typename T, bool Enable = true, class... Args>
     std::shared_ptr<T> register_pass(Args&&... args)
     {
         auto rc = push_pass<T>(std::forward<Args>(args)...);
+        rc->set_pass_config(m_pass_config);
         if (m_per_pass_validation)
         {
             push_pass<Validate>();
+        }
+        if (!Enable)
+        {
+            m_pass_config->disable<T>();
         }
         return rc;
     }
@@ -59,8 +75,10 @@ public:
     void set_per_pass_validation(bool new_state) { m_per_pass_validation = new_state; }
     /// \brief Callback is a lambda function that can be used by registered transformations.
     /// The main purpose of this callback is to provide a way for plugins to disable/enable
-    /// transformations. In some cases plugins may want not to execute some transformations.
-    /// For example plugin can disable unpleasant decompositions because of performance reasons.
+    /// transformations based on some conditions. In some cases plugins may want not to execute some
+    /// transformations.
+    /// For example plugin can disable unpleasant decompositions because of performance reasons for
+    /// some cases.
     /// Callback example:
     /// auto callback = [](const std::shared_ptr<const ngraph::Node> & node) -> bool {
     ///     return std::dynamic_pointer_cast<const ngraph::opset3::DepthToSpace>(node) != nullptr;
@@ -69,15 +87,22 @@ public:
     /// decomposition pass will check is this decomposition needed or plugin can execute this
     /// operation directly. And of course on transformation side we need to have a response for this
     /// callback.
-    /// if (m_transformation_callback(batch_to_space)) {
+    /// if (transformation_callback(batch_to_space)) {
     ///     return false;
     /// }
     /// \param callback lamda function that returns true in case if node is supported by plugin and
     /// transformation is not needed
-    void set_callback(param_callback callback)
+    NGRAPH_DEPRECATED("Please use get_pass_config() to configure transformation pipeline")
+    void set_callback(const param_callback& callback) { m_pass_config->set_callback(callback); }
+    /// \return PassConfig shared object. This object is used for transformations pipeline
+    /// configuration.
+    /// This object allows to disable/enable transformations execution, set callback to particular
+    /// transformation. For mo details see PassConfig class.
+    std::shared_ptr<PassConfig> get_pass_config() { return m_pass_config; }
+    /// \brief Set external PassConfig object.
+    void set_pass_config(const std::shared_ptr<PassConfig>& pass_config)
     {
-        m_transformation_callback = callback;
-        m_has_default_callback = false;
+        *m_pass_config = *pass_config;
     }
 
 protected:
@@ -91,11 +116,7 @@ protected:
         return pass;
     }
 
-    param_callback m_transformation_callback = [](const std::shared_ptr<const Node>&) -> bool {
-        return false;
-    };
-    bool m_has_default_callback = true;
-
+    std::shared_ptr<PassConfig> m_pass_config;
     std::vector<std::shared_ptr<PassBase>> m_pass_list;
     bool m_visualize = false;
     bool m_per_pass_validation = true;

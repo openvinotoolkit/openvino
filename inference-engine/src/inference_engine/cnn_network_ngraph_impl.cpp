@@ -22,6 +22,7 @@
 
 #include <transformations/utils/utils.hpp>
 #include <transformations/convert_opset1_to_legacy/convert_one_hot_to_one_hot_ie.hpp>
+#include <transformations/smart_reshape/smart_reshape.hpp>
 
 #include "ngraph_ops/eltwise.hpp"
 #include "exec_graph_info.hpp"
@@ -29,7 +30,7 @@
 #include "ie_itt.hpp"
 #include "network_serializer.hpp"
 #include "generic_ie.hpp"
-#include <legacy/shape_infer/built-in/ie_built_in_holder.hpp>
+#include "shape_infer/ie_built_in_holder.hpp"
 
 using namespace std;
 using namespace InferenceEngine;
@@ -125,6 +126,10 @@ CNNNetworkNGraphImpl::CNNNetworkNGraphImpl(const std::shared_ptr<Function>& nGra
 
     // Add shape infer method for old operations which are not included to opset1, opset2 and opset3
     ::ngraph::op::GenericIE::addExtension(_ngraph_function, std::make_shared<ShapeInfer::BuiltInShapeInferHolder>());
+
+    ngraph::pass::Manager ssr_manager;
+    ssr_manager.register_pass<ngraph::pass::SmartReshape>();
+    ssr_manager.run_passes(_ngraph_function);
 
     reshape();
     for (const auto& layer : _ngraph_function->get_parameters()) {

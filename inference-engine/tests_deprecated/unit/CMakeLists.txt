@@ -6,7 +6,7 @@ cmake_policy(SET CMP0054 NEW)
 
 set(TARGET_NAME InferenceEngineUnitTests)
 
-#rpath enabled for unit tests only
+# rpath enabled for unit tests only
 SET (CMAKE_SKIP_RPATH OFF)
 
 # collect sources
@@ -59,7 +59,6 @@ if (ENABLE_MKL_DNN)
     file(GLOB
             MKLDNN_TESTS
             engines/mkldnn/*.cpp
-            engines/mkldnn/normalizer/*.cpp
             engines/mkldnn/graph/layers/extensions/*.cpp
             engines/mkldnn/graph/layers/internal/*.cpp
             engines/mkldnn/graph/structure/*.cpp
@@ -72,11 +71,7 @@ if (ENABLE_MKL_DNN)
             ${CMAKE_BINARY_DIR}/include/)
 
     source_group("mkldnn" FILES ${MKLDNN_TESTS} ${MKLDNN_TESTS_INCLUDE})
-
-    foreach(obj_lib IN LISTS mkldnn_plugin_object_libraries)
-        list(APPEND mkldnn_object_files $<TARGET_OBJECTS:${obj_lib}>)
-    endforeach()
-    list(APPEND MKLDNN_TESTS ${mkldnn_object_files})
+    list(APPEND MKLDNN_TESTS $<TARGET_OBJECTS:MKLDNNPlugin_obj>)
 endif ()
 
 if (ENABLE_MYRIAD)

@@ -19,7 +19,7 @@ ngraph::pass::ConvertPadToGroupConvolution::ConvertPadToGroupConvolution() {
 
     ngraph::matcher_pass_callback callback = [this](pattern::Matcher& m) {
         auto pad = std::dynamic_pointer_cast<ngraph::opset4::Pad> (m.get_match_root());
-        if (!pad || !m_transformation_callback(pad) /* disabled by default */) {
+        if (!pad) {
             return false;
         }
 

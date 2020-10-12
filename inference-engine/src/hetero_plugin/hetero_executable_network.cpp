@@ -23,7 +23,7 @@
 #include <array>
 #include <cstdint>
 
-#include "ie_ngraph_utils.hpp"
+#include "legacy/ie_ngraph_utils.hpp"
 #include "ie_plugin_config.hpp"
 #include "cpp_interfaces/interface/ie_internal_plugin_config.hpp"
 #include "hetero/hetero_plugin_config.hpp"
@@ -714,7 +714,7 @@ HeteroExecutableNetwork::HeteroExecutableNetwork(std::istream&                  
     std::getline(heteroModel, heteroXmlStr);
 
     pugi::xml_document heteroXmlDoc;
-    pugi::xml_parse_result res = heteroXmlDoc.load(heteroXmlStr.c_str());
+    pugi::xml_parse_result res = heteroXmlDoc.load_string(heteroXmlStr.c_str());
 
     if (res.status != pugi::status_ok) {
         THROW_IE_EXCEPTION << "Error reading HETERO plugin xml header";
