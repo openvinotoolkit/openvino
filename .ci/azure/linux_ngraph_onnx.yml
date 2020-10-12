@@ -85,7 +85,7 @@ jobs:
     displayName: 'List files'
     enabled: false
 
-  - script: docker build --tag=openvino-onnx-ci-image --file=$(REPO_DIR)/.ci/openvino-onnx/Dockerfile .
+  - script: docker build --tag=openvino-onnx-ci-image --file=.ci/openvino-onnx/Dockerfile .
     workingDirectory: $(BUILD_DIR)
     displayName: 'Docker build'
 
