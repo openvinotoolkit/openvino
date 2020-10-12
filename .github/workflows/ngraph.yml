@@ -2,7 +2,7 @@ name: nGraph
 on: [push, pull_request]
 
 jobs:
-  nGraph ONNX Lin:
+  nGraph-ONNX-Lin:
     runs-on: ubuntu-20.04
     steps:
       - uses: actions/checkout@v2
