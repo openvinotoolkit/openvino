@@ -204,13 +204,11 @@ int main(int argc, char *argv[]) {
         /* Start async request for the first time */
         slog::info << "Start inference (" << numIterations << " asynchronous executions)" << slog::endl;
 
-        StatusCode code;
-
-        code = inferRequest.Cancel();
+        inferRequest.Cancel();
 
         inferRequest.StartAsync();
 
-        code = inferRequest.Cancel();
+        inferRequest.Cancel();
 
         /* Wait all repetitions of the async request */
         std::mutex mutex;

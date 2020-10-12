@@ -111,5 +111,13 @@ class GNAInferRequest : public InferenceEngine::AsyncInferRequestInternal {
         }
         return InferenceEngine::OK;
     }
+
+    InferenceEngine::StatusCode Cancel() override {
+        return InferenceEngine::NOT_IMPLEMENTED;
+    }
+
+protected:
+    void ResetCancellationRequest() {
+    }
 };
 }  // namespace GNAPluginNS
