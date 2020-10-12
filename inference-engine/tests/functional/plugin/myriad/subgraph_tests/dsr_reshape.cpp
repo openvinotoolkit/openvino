@@ -72,7 +72,7 @@ TEST_P(DSR_ReshapeWithDynamicDescriptor, CompareWithReference) {
     Run();
 }
 
-std::vector<ReshapeTestParams> reshapeTestParams = {
+const std::vector<ReshapeTestParams> reshapeTestParams = {
         std::make_tuple(DataShapeWithUpperBound{{1, 750}, {1, 1000}}, true, ShapeDescriptor{-1, 1}),
         std::make_tuple(DataShapeWithUpperBound{{750, 1}, {1000, 1}}, true, ShapeDescriptor{-1}),
         std::make_tuple(DataShapeWithUpperBound{{750, 1}, {750, 1}}, true, ShapeDescriptor{-1, 1, 1, 1}),
@@ -82,19 +82,21 @@ std::vector<ReshapeTestParams> reshapeTestParams = {
         std::make_tuple(DataShapeWithUpperBound{{800, 256, 7, 7}, {1000, 256, 7, 7}}, true, ShapeDescriptor{0, -1}),
 };
 
+const std::vector<ngraph::element::Type> dataTypesVector = {
+        ngraph::element::f16,
+        ngraph::element::f32,
+        ngraph::element::i32,
+};
+
 INSTANTIATE_TEST_CASE_P(smoke_DynamicReshape, DSR_ReshapeWithStaticDescriptor,
     ::testing::Combine(
-        ::testing::Values(ngraph::element::f16,
-                          ngraph::element::f32,
-                          ngraph::element::i32),
+        ::testing::ValuesIn(dataTypesVector),
         ::testing::ValuesIn(reshapeTestParams),
         ::testing::Values(CommonTestUtils::DEVICE_MYRIAD)));
 
 INSTANTIATE_TEST_CASE_P(smoke_DynamicReshape, DSR_ReshapeWithDynamicDescriptor,
     ::testing::Combine(
-        ::testing::Values(ngraph::element::f16,
-                          ngraph::element::f32,
-                          ngraph::element::i32),
+        ::testing::ValuesIn(dataTypesVector),
         ::testing::ValuesIn(reshapeTestParams),
         ::testing::Values(CommonTestUtils::DEVICE_MYRIAD)));
 
