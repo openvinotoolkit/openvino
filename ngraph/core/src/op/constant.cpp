@@ -317,7 +317,8 @@ op::Constant::Constant(const element::Type& type, const Shape& shape, const void
     m_all_elements_bitwise_identical = are_all_data_elements_bitwise_identical();
 }
 
-op::Constant::Constant(const element::Type& type, const Shape& shape,
+op::Constant::Constant(const element::Type& type,
+                       const Shape& shape,
                        std::shared_ptr<runtime::AlignedBufferPtr> data)
     : Constant(type, shape)
 {

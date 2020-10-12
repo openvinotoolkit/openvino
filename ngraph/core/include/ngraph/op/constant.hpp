@@ -238,7 +238,8 @@ namespace ngraph
                 /// \param type The element type of the tensor constant.
                 /// \param shape The shape of the tensor constant.
                 /// \param data A pointer to pre-allocated data.
-                Constant(const element::Type& type, const Shape& shape,
+                Constant(const element::Type& type,
+                         const Shape& shape,
                          std::shared_ptr<runtime::AlignedBufferPtr> data);
 
                 Constant(const Constant& other);

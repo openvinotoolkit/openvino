@@ -44,6 +44,7 @@ class MockICNNNetwork : public InferenceEngine::ICNNNetwork {
             const std::string &,
             const std::string &,
             InferenceEngine::ResponseDesc*));
+    MOCK_QUALIFIED_METHOD1(setWeightsBlobPtr, noexcept, void(const InferenceEngine::Blob::CPtr& weights));
 };
 
 /**
