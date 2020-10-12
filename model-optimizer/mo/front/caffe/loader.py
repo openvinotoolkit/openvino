@@ -99,12 +99,12 @@ def load_caffe_proto_model(caffe_pb2, proto_path: str, model_path: [str, None] =
             from google.protobuf.pyext import cpp_message
             # Check os windows and env variable PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION
             if os.name == 'nt' and os.environ.get('PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION', default='') != 'cpp':
-                # 2. cpp implementaion is available but not used
+                # 2. cpp implementation is available but not used
                 message += 'However, cpp implementation is available, you can boost ' \
                            'model conversion by setting PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION env variable to cpp. \n' \
                            'Run: set PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION=cpp \n'
         except ImportError:
-            # 3. cpp implementaion is not available
+            # 3. cpp implementation is not available
             message += 'However you can use the C++ protobuf implementation that is supplied with the OpenVINO toolkit' \
                        'or build protobuf library from sources. \n' \
                        'Navigate to "install_prerequisites" folder and run: ' \

@@ -12,8 +12,6 @@ if (ENABLE_CLDNN)
             HeteroPlugin)
 endif()
 
-include(add_ie_target)
-
 addIeTarget(
         NAME myriadTestData
         DEVELOPER_PACKAGE
