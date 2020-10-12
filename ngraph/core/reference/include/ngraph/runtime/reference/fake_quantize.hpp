@@ -214,11 +214,10 @@ namespace ngraph
                     }
                     else
                     {
-                        out[i] = std::roundf((arg[i] - in_low_val) / (in_high_val - in_low_val) *
-                                             (levels - 1)) /
+                        out[i] = nearbyint((arg[i] - in_low_val) / (in_high_val - in_low_val) *
+                                           (levels - 1)) /
                                      (levels - 1) * (out_high_val - out_low_val) +
                                  out_low_val;
-                        //                        out[i] = std::roundf(value);
                     }
                     increment_current_dim(current_dim, arg_shape, arg_shape.size() - 1);
                 }

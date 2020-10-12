@@ -26,8 +26,8 @@
 /**
  * redefine this seed to reproduce issue with given seed that can be read from gtest logs
  */
-#define BASE_SEED   USE_CLOCK_TIME
-#define NGRAPH_SEED USE_CLOCK_TIME
+#define BASE_SEED   123
+#define NGRAPH_SEED 123
 
 namespace LayerTestsDefinitions {
 

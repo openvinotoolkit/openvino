@@ -54,6 +54,8 @@
 #include "ngraph/runtime/reference/normalize_l2.hpp"
 #include "ngraph/runtime/reference/reverse_sequence.hpp"
 #include "ngraph/runtime/reference/scatter_nd_update.hpp"
+#include "ngraph/runtime/reference/sqrt.hpp"
+#include "ngraph/runtime/reference/squared_difference.hpp"
 #include "reference/elu.hpp"
 #include "reference/gelu.hpp"
 #include "reference/hard_sigmoid.hpp"
@@ -990,6 +992,21 @@ namespace
                                                   inputs[1]->get_shape(),
                                                   outputs[0]->get_shape(),
                                                   op->get_ctc_merge_repeated());
+        return true;
+    }
+
+    template <element::Type_t ET>
+    bool evaluate(const shared_ptr<op::v0::SquaredDifference>& op,
+                  const HostTensorVector& outputs,
+                  const HostTensorVector& inputs)
+    {
+        using T = typename element_type_traits<ET>::value_type;
+        runtime::reference::squared_difference<T>(inputs[0]->get_data_ptr<const T>(),
+                                                  inputs[1]->get_data_ptr<const T>(),
+                                                  outputs[0]->get_data_ptr<T>(),
+                                                  inputs[0]->get_shape(),
+                                                  inputs[1]->get_shape(),
+                                                  ngraph::op::AutoBroadcastSpec::NUMPY);
         return true;
     }
     template <typename T>
