@@ -14,10 +14,11 @@
 // limitations under the License.
 //*****************************************************************************
 
-#include "onnx_import/op/pow.hpp"
 #include <memory>
+
 #include "ngraph/node.hpp"
 #include "onnx_import/default_opset.hpp"
+#include "onnx_import/op/pow.hpp"
 
 namespace ngraph
 {
@@ -30,17 +31,30 @@ namespace ngraph
                 OutputVector pow(const Node& node)
                 {
                     auto inputs = node.get_ng_inputs();
+                    NGRAPH_CHECK(inputs.size() == 2,
+                                 "Power operation requires 2 inputs. Got: ",
+                                 inputs.size());
+
+                    auto base = inputs[0];
+                    auto exponent = inputs[1];
                     auto base_type = inputs[0].get_element_type();
-                    std::shared_ptr<ngraph::Node> exponent;
-                    if (inputs[1].get_element_type() != base_type)
+                    auto exponent_type = inputs[1].get_element_type();
+                    if (exponent_type != base_type)
                     {
-                        exponent = std::make_shared<default_opset::Convert>(inputs[1], base_type);
+                        if (exponent_type.is_integral() ||
+                            (base_type.is_real() && base_type > exponent_type))
+                        {
+                            exponent =
+                                std::make_shared<default_opset::Convert>(exponent, base_type);
+                        }
+                        else
+                        {
+                            base = std::make_shared<default_opset::Convert>(base, exponent_type);
+                            auto power = std::make_shared<default_opset::Power>(base, exponent);
+                            return {std::make_shared<default_opset::Convert>(power, base_type)};
+                        }
                     }
-                    else
-                    {
-                        exponent = inputs[1].get_node_shared_ptr();
-                    }
-                    return {std::make_shared<default_opset::Power>(inputs[0], exponent)};
+                    return {std::make_shared<default_opset::Power>(base, exponent)};
                 }
 
             } // namespace set_1
