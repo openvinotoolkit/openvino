@@ -25,6 +25,8 @@
 using namespace std;
 using namespace ngraph;
 
+NGRAPH_SUPPRESS_DEPRECATED_START
+
 constexpr NodeTypeInfo op::Round::type_info;
 
 op::v0::Round::Round(const Output<Node>& arg)
@@ -36,7 +38,7 @@ op::v0::Round::Round(const Output<Node>& arg)
 shared_ptr<Node> op::v0::Round::clone_with_new_inputs(const OutputVector& new_args) const
 {
     check_new_args_count(this, new_args);
-    return make_shared<Round>(new_args.at(0));
+    return make_shared<v0::Round>(new_args.at(0));
 }
 
 namespace
@@ -100,10 +102,13 @@ namespace
     }
 }
 
-bool op::v0::Round::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs)
+bool op::v0::Round::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v0::Round::evaluate");
     return evaluate_round(inputs[0], outputs[0], shape_size(get_output_shape(0)), "half_to_even");
 }
+NGRAPH_SUPPRESS_DEPRECATED_END
+
 
 NGRAPH_RTTI_DEFINITION(op::v5::Round, "Round", 5);
 
@@ -129,7 +134,7 @@ void op::v5::Round::validate_and_infer_types()
 shared_ptr<Node> op::v5::Round::clone_with_new_inputs(const OutputVector& new_args) const
 {
     check_new_args_count(this, new_args);
-    return make_shared<Round>(new_args.at(0), m_mode);
+    return make_shared<v5::Round>(new_args.at(0), m_mode);
 }
 
 bool op::v5::Round::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const

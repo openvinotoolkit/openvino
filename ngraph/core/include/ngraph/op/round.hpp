@@ -27,8 +27,11 @@ namespace ngraph
         namespace v0
         {
             /// \brief Elementwise round operation.
-            class NGRAPH_API Round : public util::UnaryElementwiseArithmetic
+            class NGRAPH_DEPRECATED(
+                    "This operation is deprecated and will be removed soon. Please do not use it.")
+                    NGRAPH_API Round : public util::UnaryElementwiseArithmetic
             {
+                NGRAPH_SUPPRESS_DEPRECATED_START
             public:
                 static constexpr NodeTypeInfo type_info{"Round", 0};
                 const NodeTypeInfo& get_type_info() const override { return type_info; }
@@ -46,10 +49,13 @@ namespace ngraph
                     clone_with_new_inputs(const OutputVector& new_args) const override;
 
                 bool evaluate(const HostTensorVector& outputs,
-                              const HostTensorVector& inputs) override;
+                              const HostTensorVector& inputs) const override;
+                NGRAPH_SUPPRESS_DEPRECATED_END
             };
         }
+        NGRAPH_SUPPRESS_DEPRECATED_START
         using v0::Round;
+        NGRAPH_SUPPRESS_DEPRECATED_END
 
         namespace v5
         {
