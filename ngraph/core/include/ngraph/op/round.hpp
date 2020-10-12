@@ -18,17 +18,45 @@
 
 #include "ngraph/node.hpp"
 #include "ngraph/op/op.hpp"
+#include "ngraph/op/util/unary_elementwise_arithmetic.hpp"
 
 namespace ngraph
 {
     namespace op
     {
+        namespace v0
+        {
+            /// \brief Elementwise round operation.
+            class NGRAPH_API Round : public util::UnaryElementwiseArithmetic
+            {
+            public:
+                static constexpr NodeTypeInfo type_info{"Round", 0};
+                const NodeTypeInfo& get_type_info() const override { return type_info; }
+                /// \brief Constructs a round operation.
+                Round() = default;
+
+                /// \brief Constructs a round operation. The output is round to the nearest integer
+                /// for each value. In case of halfs, the rule is to round them to the nearest even
+                /// integer.
+                ///
+                /// \param arg Node that produces the input tensor.
+                Round(const Output<Node>& arg);
+
+                virtual std::shared_ptr<Node>
+                    clone_with_new_inputs(const OutputVector& new_args) const override;
+
+                bool evaluate(const HostTensorVector& outputs,
+                              const HostTensorVector& inputs) override;
+            };
+        }
+        using v0::Round;
+
         namespace v5
         {
             /// \brief Elementwise round operation. The output is round to the nearest integer
             /// for each value. In case of halfs, the rule is defined in attribute 'mode':
             ///     'half_to_even' - round halfs to the nearest even integer.
-            ///     'half_avay_from_zero': - round in such a way that the result heads away from 
+            ///     'half_away_from_zero': - round in such a way that the result heads away from
             /// zero.
 
             class NGRAPH_API Round : public ngraph::op::Op
