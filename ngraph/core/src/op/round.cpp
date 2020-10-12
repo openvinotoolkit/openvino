@@ -109,7 +109,6 @@ bool op::v0::Round::evaluate(const HostTensorVector& outputs, const HostTensorVe
 }
 NGRAPH_SUPPRESS_DEPRECATED_END
 
-
 NGRAPH_RTTI_DEFINITION(op::v5::Round, "Round", 5);
 
 op::v5::Round::Round(const Output<Node>& arg, const std::string& mode)

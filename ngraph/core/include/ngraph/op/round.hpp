@@ -28,8 +28,8 @@ namespace ngraph
         {
             /// \brief Elementwise round operation.
             class NGRAPH_DEPRECATED(
-                    "This operation is deprecated and will be removed soon. Please do not use it.")
-                    NGRAPH_API Round : public util::UnaryElementwiseArithmetic
+                "This operation is deprecated and will be removed soon. Please do not use it.")
+                NGRAPH_API Round : public util::UnaryElementwiseArithmetic
             {
                 NGRAPH_SUPPRESS_DEPRECATED_START
             public:
