@@ -272,6 +272,7 @@
                         <tab type="user" title="GPU Kernels Extensibility" url="@ref openvino_docs_IE_DG_Extensibility_DG_GPU_Kernel"/>
                         <tab type="user" title="VPU Kernels Extensibility" url="@ref openvino_docs_IE_DG_Extensibility_DG_VPU_Kernel"/>
                         <tab type="user" title="Build Extension Library Using CMake" url="@ref openvino_docs_IE_DG_Extensibility_DG_Building"/>
+                        <tab type="user" title="Custom ONNX operators" url="@ref openvino_docs_IE_DG_Extensibility_DG_Custom_ONNX_Ops"/>
                     </tab>
                     <tab type="user" title="Integrate the Inference Engine with Your Application" url="@ref openvino_docs_IE_DG_Integrate_with_customer_application_new_API"/>
                     <tab type="user" title="[DEPRECATED] Migration from Inference Engine Plugin API to Core API" url="@ref openvino_docs_IE_DG_Migration_CoreAPI"/>
