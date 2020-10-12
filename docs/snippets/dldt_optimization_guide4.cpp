@@ -7,8 +7,8 @@ int main() {
 using namespace InferenceEngine;
 //! [part4]
 InferenceEngine::SizeVector dims_src = {
-       1 	    /* batch, N*/,
-       3 	    /*Channels,*/,
+       1     /* batch, N*/,
+       3     /*Channels,*/,
        (size_t) frame_in->Info.Height  /* Height */,
        (size_t) frame_in->Info.Width    /* Width */,
        };

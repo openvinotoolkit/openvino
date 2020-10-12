@@ -428,5 +428,10 @@ std::shared_ptr<ngraph::Node> makeRNN(const OutputVector& in,
 
 std::shared_ptr<ngraph::Node> makeTile(const ngraph::Output<Node>& in,
                                        const std::vector<size_t>& repeats);
+
+std::shared_ptr<ngraph::Node> makeNormalizeL2(const ngraph::Output<Node>& data,
+                                              const std::vector<int64_t>& axes,
+                                              float eps,
+                                              ngraph::op::EpsMode epsMode);
 }  // namespace builder
 }  // namespace ngraph
