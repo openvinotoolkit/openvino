@@ -54,7 +54,7 @@ TEST(op_eval, rounding_away)
     auto fun = make_shared<Function>(OutputVector{round}, ParameterVector{p});
 
     std::vector<float> inputs{-2.5f, -1.5f, -0.5f, 0.5f, 0.9f, 1.5f, 2.3f, 2.5f, 3.5f};
-    std::vector<float> expected_result{-2.f, -2.f, -0.f, 0.f, 1.f, 2.f, 2.f, 2.f, 4.f};
+    std::vector<float> expected_result{-3.f, -2.f, -1.f, 1.f, 1.f, 2.f, 2.f, 3.f, 4.f};
 
     auto result = make_shared<HostTensor>();
     ASSERT_TRUE(
