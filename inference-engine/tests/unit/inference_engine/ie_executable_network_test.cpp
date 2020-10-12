@@ -224,17 +224,16 @@ protected:
 };
 
 // CreateInferRequest
-// TODO: fix
-TEST_F(ExecutableNetworkBaseTests, DISABLED_canForwardCreateInferRequest) {
+TEST_F(ExecutableNetworkBaseTests, canForwardCreateInferRequest) {
     IInferRequest::Ptr req;
-    EXPECT_CALL(*mock_impl.get(), CreateInferRequest()).Times(1);
+    EXPECT_CALL(*mock_impl.get(), CreateInferRequest()).Times(1).WillRepeatedly(Return(req));
     ASSERT_EQ(OK, exeNetwork->CreateInferRequest(req, &dsc));
 }
 
 TEST_F(ExecutableNetworkBaseTests, canReportErrorInCreateInferRequest) {
     EXPECT_CALL(*mock_impl.get(), CreateInferRequest()).WillOnce(Throw(std::runtime_error("compare")));
     IInferRequest::Ptr req;
-    ASSERT_NE(exeNetwork->CreateInferRequest(req, &dsc), OK);
+    ASSERT_NE(OK, exeNetwork->CreateInferRequest(req, &dsc));
     ASSERT_STREQ(dsc.msg, "compare");
 }
 
