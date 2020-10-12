@@ -17,11 +17,11 @@ const std::vector<InferenceEngine::Precision> netPrecisions = {
 };
 
 const std::vector<std::vector<size_t>> inShapes = {
-        {1, 1, 30, 30},
+        {1, 4, 30, 30},
 };
 
 const std::vector<std::vector<size_t>> targetShapes = {
-        {1, 1, 40, 40},
+        {1, 4, 40, 40},
 };
 
 const  std::vector<ngraph::op::v4::Interpolate::InterpolateMode> modesWithoutNearest = {

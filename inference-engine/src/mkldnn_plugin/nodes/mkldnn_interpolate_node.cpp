@@ -61,8 +61,6 @@ struct jit_uni_interpolate_kernel_f32 : public jit_uni_interpolate_kernel, publi
 
         this->preamble();
 
-        mov(reg_work_amount, ptr[reg_params + GET_OFF(work_amount)]);
-        mov(reg_dst, ptr[reg_params + GET_OFF(dst)]);
         if (attr_.post_ops_.len_ != 0)
             mov(reg_oc_off, ptr[reg_params + GET_OFF(oc_off)]);
         if (isa == cpu::avx512_common)
@@ -70,8 +68,10 @@ struct jit_uni_interpolate_kernel_f32 : public jit_uni_interpolate_kernel, publi
 
         switch (jcp_.mode) {
             case InterpolateMode::nearest: {
+                mov(reg_dst, ptr[reg_params + GET_OFF(dst)]);
                 mov(reg_src, ptr[reg_params + GET_OFF(src)]);
                 mov(reg_index, ptr[reg_params + GET_OFF(index)]);
+                mov(reg_work_amount, ptr[reg_params + GET_OFF(work_amount)]);
 
                 switch (jcp_.layout) {
                     case InterpolateLayoutType::planar: {
@@ -94,28 +94,11 @@ struct jit_uni_interpolate_kernel_f32 : public jit_uni_interpolate_kernel, publi
             case InterpolateMode::linear_onnx: {
                 switch (jcp_.layout) {
                     case InterpolateLayoutType::planar: {
-                        mov(reg_src, ptr[reg_params + GET_OFF(src)]);
-                        mov(reg_index, ptr[reg_params + GET_OFF(index)]);
-                        mov(reg_src_aux, ptr[reg_params + GET_OFF(weight)]);
-
                         linear_onnx_planar();
                         break;
                     }
                     case InterpolateLayoutType::block:
                     case InterpolateLayoutType::by_channel: {
-                        mov(reg_src, ptr[reg_params + GET_OFF(weight)]);
-                        mov(reg_src_aux, ptr[reg_params + GET_OFF(weightR)]);
-                        mov(reg_src_aux1, ptr[reg_params + GET_OFF(weightT)]);
-                        mov(reg_src_aux2, ptr[reg_params + GET_OFF(weightB)]);
-                        uni_vbroadcastss(vmm_weightL, ptr[reg_src]);
-                        uni_vbroadcastss(vmm_weightR, ptr[reg_src_aux]);
-                        uni_vbroadcastss(vmm_weightT, ptr[reg_src_aux1]);
-                        uni_vbroadcastss(vmm_weightB, ptr[reg_src_aux2]);
-                        mov(reg_src, ptr[reg_params + GET_OFF(src)]);
-                        mov(reg_src_aux, ptr[reg_params + GET_OFF(srcTR)]);
-                        mov(reg_src_aux1, ptr[reg_params + GET_OFF(srcBL)]);
-                        mov(reg_src_aux2, ptr[reg_params + GET_OFF(srcBR)]);
-
                         linear_onnx_c_gathered();
                         break;
                     }
@@ -124,8 +107,23 @@ struct jit_uni_interpolate_kernel_f32 : public jit_uni_interpolate_kernel, publi
                 }
                 break;
             }
-            case InterpolateMode::linear:
             case InterpolateMode::cubic: {
+                switch (jcp_.layout) {
+                    case InterpolateLayoutType::planar: {
+                        cubic_planar();
+                        break;
+                    }
+                    case InterpolateLayoutType::block:
+                    case InterpolateLayoutType::by_channel: {
+                        cubic_c_gathered();
+                        break;
+                    }
+                    default:
+                        assert(!"unsupported memory layout for interpolate layer with cubic mode.");
+                }
+                break;
+            }
+            case InterpolateMode::linear: {
                 assert(!"unsupported mode for interpolate layer with JITTED implimentation.");
                 break;
             }
@@ -138,6 +136,9 @@ struct jit_uni_interpolate_kernel_f32 : public jit_uni_interpolate_kernel, publi
 
         for (auto& inj : eltwise_injectors)
             inj->prepare_table();
+        if ((jcp_.mode == InterpolateMode::cubic) && (jcp_.layout == InterpolateLayoutType::planar)) {
+            prepare_cubic_planar_table();
+        }
 
         ker_ = (decltype(ker_)) this->getCode();
     }
@@ -164,7 +165,12 @@ private:
     Xbyak::Reg64 reg_oc_off = rax;
     Xbyak::Reg64 reg_d_weights = rbx;
     Xbyak::Reg64 reg_d_bias = rcx;
-    Xbyak::Reg32 reg_index_oc = edx;
+    Xbyak::Reg32 reg_index_offset = edx;
+
+    // for cubic planar
+    Xbyak::Reg64 reg_tbl_y = rsi;
+    Xbyak::Reg64 reg_tbl_x = rbp;
+    Xbyak::Reg64 reg_table = rdx;   // do not need reg_index_offset in this mode, so use rdx
 
     Vmm vmm_val = Vmm(0);
     Xmm xmm_val = Xmm(0);
@@ -174,6 +180,7 @@ private:
     Vmm vmm_d_weights = Vmm(4);
     Vmm vmm_d_bias = Vmm(5);
 
+    // for linear
     Vmm vmm_weightT = Vmm(15);
     Xmm xmm_weightT = Xmm(15);
     Vmm vmm_weightB = Vmm(14);
@@ -190,6 +197,33 @@ private:
     Xmm xmm_valBL = Xmm(9);
     Vmm vmm_valBR = Vmm(8);
     Xmm xmm_valBR = Xmm(8);
+
+    // for cubic
+    Vmm vmm_src = Vmm(6);
+    Xmm xmm_src = Xmm(6);
+    Vmm vmm_dstX = Vmm(7);
+
+    Vmm vmm_weightX0 = vmm_weightT;
+    Vmm vmm_weightX1 = vmm_weightB;
+    Vmm vmm_weightX2 = vmm_weightL;
+    Vmm vmm_weightX3 = vmm_weightR;
+    Vmm vmm_weightY0 = vmm_valTL;
+    Vmm vmm_weightY1 = Vmm(10);  // vmm_valTR is vmm_val, need reserved
+    Vmm vmm_weightY2 = vmm_valBL;
+    Vmm vmm_weightY3 = vmm_valBR;
+    // cubic planar
+    Vmm vmm_one = vmm_index;
+    Vmm vmm_weightY = vmm_weightY0;
+    Vmm vmm_index_y_itr = vmm_weightY1;
+    Vmm vmm_index_x_itr = vmm_weightY2;
+    Vmm vmm_tbl_y = vmm_weightY3;
+    // temporally used. when post ops, value in vmm_d_weights and vmm_d_bias is re-loaded(init) each time.
+    Vmm vmm_index_in_y = vmm_d_weights;
+    Vmm vmm_index_in_x = vmm_d_bias;
+
+    Xbyak::Label l_table_idx_oh;
+    Xbyak::Label l_table_idx_ow;
+    Xbyak::Label l_table_constant;
 
     std::vector<std::shared_ptr<jit_uni_eltwise_injector_f32<isa>>> eltwise_injectors;
     std::vector<std::shared_ptr<jit_uni_depthwise_injector_f32<isa>>> depthwise_injectors;
@@ -221,8 +255,8 @@ private:
             Xbyak::Reg64 reg_src_h = rsi;
             mov(reg_src_h, reg_src);
             // index_h * IW * dataSize done when built to avoid redundent compute
-            mov(reg_index_oc, dword[reg_index_h]);
-            add(reg_src_h, reg_index_oc);  // reg_src_h now point to begin of row
+            mov(reg_index_offset, dword[reg_index_h]);
+            add(reg_src_h, reg_index_offset);  // reg_src_h now point to begin of row
 
             // reset index_w, index_w * dataSize done when built to avoid redundent compute
             mov(reg_index, reg_index_w);
@@ -260,8 +294,8 @@ private:
                 jl(nn_tail_loop_end_label, T_NEAR);
 
                 mov(reg_src_aux, reg_src_h);
-                mov(reg_index_oc, dword[reg_index]);
-                add(reg_src_aux, reg_index_oc);
+                mov(reg_index_offset, dword[reg_index]);
+                add(reg_src_aux, reg_index_offset);
 
                 load_scalar(xmm_val, ptr[reg_src_aux], jcp_.src_dt);
                 if (attr_.post_ops_.len_ != 0)
@@ -298,8 +332,8 @@ private:
             jle(nn_loop_end_label, T_NEAR);
 
             mov(reg_src_aux, reg_src);
-            mov(reg_index_oc, dword[reg_index]);
-            add(reg_src_aux, reg_index_oc);
+            mov(reg_index_offset, dword[reg_index]);
+            add(reg_src_aux, reg_index_offset);
 
             load_vector(vmm_val, ptr[reg_src_aux], jcp_.src_dt);
             if (attr_.post_ops_.len_ != 0)
@@ -353,8 +387,8 @@ private:
             // dst and index address is continous, advanced each interator.
             mov(reg_src_aux, reg_src);
             // index*C*dataSize done when built to avoid redundent compute
-            mov(reg_index_oc, dword[reg_index]);
-            add(reg_src_aux, reg_index_oc);
+            mov(reg_index_offset, dword[reg_index]);
+            add(reg_src_aux, reg_index_offset);
 
             mov(reg_work_amount, ptr[reg_params + GET_OFF(work_amount)]);
             if (attr_.post_ops_.len_ != 0)
@@ -409,6 +443,21 @@ private:
     }
 
     void linear_onnx_c_gathered() {
+        mov(reg_dst, ptr[reg_params + GET_OFF(dst)]);
+        mov(reg_src, ptr[reg_params + GET_OFF(weight)]);
+        mov(reg_src_aux, ptr[reg_params + GET_OFF(weightR)]);
+        mov(reg_src_aux1, ptr[reg_params + GET_OFF(weightT)]);
+        mov(reg_src_aux2, ptr[reg_params + GET_OFF(weightB)]);
+        uni_vbroadcastss(vmm_weightL, ptr[reg_src]);
+        uni_vbroadcastss(vmm_weightR, ptr[reg_src_aux]);
+        uni_vbroadcastss(vmm_weightT, ptr[reg_src_aux1]);
+        uni_vbroadcastss(vmm_weightB, ptr[reg_src_aux2]);
+        mov(reg_src, ptr[reg_params + GET_OFF(src)]);
+        mov(reg_src_aux, ptr[reg_params + GET_OFF(srcTR)]);
+        mov(reg_src_aux1, ptr[reg_params + GET_OFF(srcBL)]);
+        mov(reg_src_aux2, ptr[reg_params + GET_OFF(srcBR)]);
+        mov(reg_work_amount, ptr[reg_params + GET_OFF(work_amount)]);
+
         int step = vlen / sizeof(float);
         int blk = (isa == cpu::sse42) ? (2 * step) : step;
 
@@ -528,6 +577,12 @@ private:
     }
 
     void linear_onnx_planar() {
+        mov(reg_dst, ptr[reg_params + GET_OFF(dst)]);
+        mov(reg_src, ptr[reg_params + GET_OFF(src)]);
+        mov(reg_index, ptr[reg_params + GET_OFF(index)]);
+        mov(reg_src_aux, ptr[reg_params + GET_OFF(weight)]);
+        mov(reg_work_amount, ptr[reg_params + GET_OFF(work_amount)]);
+
         int step = vlen / sizeof(float);
         int index_stride = jcp_.OW * jcp_.OH * jcp_.indices_size;
         int weight_stride = jcp_.OW * jcp_.OH * sizeof(float);
@@ -594,23 +649,23 @@ private:
 
             // still use xmm on avx2/avx512
             mov(reg_src_aux1, reg_src);
-            mov(reg_index_oc, dword[reg_index]);
-            add(reg_src_aux1, reg_index_oc);
+            mov(reg_index_offset, dword[reg_index]);
+            add(reg_src_aux1, reg_index_offset);
             load_scalar(xmm_valTL, ptr[reg_src_aux1], jcp_.src_dt);
 
             mov(reg_src_aux1, reg_src);
-            mov(reg_index_oc, dword[reg_index + index_stride]);
-            add(reg_src_aux1, reg_index_oc);
+            mov(reg_index_offset, dword[reg_index + index_stride]);
+            add(reg_src_aux1, reg_index_offset);
             load_scalar(xmm_valTR, ptr[reg_src_aux1], jcp_.src_dt);
 
             mov(reg_src_aux1, reg_src);
-            mov(reg_index_oc, dword[reg_index + 2 * index_stride]);
-            add(reg_src_aux1, reg_index_oc);
+            mov(reg_index_offset, dword[reg_index + 2 * index_stride]);
+            add(reg_src_aux1, reg_index_offset);
             load_scalar(xmm_valBL, ptr[reg_src_aux1], jcp_.src_dt);
 
             mov(reg_src_aux1, reg_src);
-            mov(reg_index_oc, dword[reg_index + 3 * index_stride]);
-            add(reg_src_aux1, reg_index_oc);
+            mov(reg_index_offset, dword[reg_index + 3 * index_stride]);
+            add(reg_src_aux1, reg_index_offset);
             load_scalar(xmm_valBR, ptr[reg_src_aux1], jcp_.src_dt);
 
             load_scalar(xmm_weightL, ptr[reg_src_aux], memory::f32);
@@ -640,6 +695,585 @@ private:
         L(tail_loop_end_label);
     }
 
+    void cubic_c_gathered() {
+        mov(reg_dst, ptr[reg_params + GET_OFF(dst)]);
+        mov(reg_src, ptr[reg_params + GET_OFF(src)]);
+        mov(reg_index, ptr[reg_params + GET_OFF(index)]);
+        mov(reg_work_amount, ptr[reg_params + GET_OFF(work_amount)]);
+
+        // weight point to weightX
+        mov(reg_src_aux1, ptr[reg_params + GET_OFF(weight)]);
+        uni_vbroadcastss(vmm_weightX0, ptr[reg_src_aux1]);
+        uni_vbroadcastss(vmm_weightX1, ptr[reg_src_aux1 + 1 * sizeof(float)]);
+        uni_vbroadcastss(vmm_weightX2, ptr[reg_src_aux1 + 2 * sizeof(float)]);
+        uni_vbroadcastss(vmm_weightX3, ptr[reg_src_aux1 + 3 * sizeof(float)]);
+
+        // weightT point to weightY
+        mov(reg_src_aux1, ptr[reg_params + GET_OFF(weightT)]);
+        uni_vbroadcastss(vmm_weightY0, ptr[reg_src_aux1]);
+        uni_vbroadcastss(vmm_weightY1, ptr[reg_src_aux1 + 1 * sizeof(float)]);
+        uni_vbroadcastss(vmm_weightY2, ptr[reg_src_aux1 + 2 * sizeof(float)]);
+        uni_vbroadcastss(vmm_weightY3, ptr[reg_src_aux1 + 3 * sizeof(float)]);
+
+        int step = vlen / sizeof(float);
+        int blk = (isa == cpu::sse42) ? (2 * step) : step;
+
+        Xbyak::Label main_loop_label;
+        Xbyak::Label main_loop_end_label;
+        Xbyak::Label tail_loop_label;
+        Xbyak::Label tail_loop_end_label;
+        L(main_loop_label);
+        {
+            if (jcp_.layout == InterpolateLayoutType::by_channel) {
+                cmp(reg_work_amount, step);
+                jl(main_loop_end_label, T_NEAR);
+            } else {
+                cmp(reg_work_amount, 1);
+                jl(tail_loop_end_label, T_NEAR);
+            }
+
+            uni_vpxor(vmm_val, vmm_val, vmm_val);
+            // y0:  (x0 * weightX0 + x1 * weightX1 + x2 * weightX2 + x3 * weightX3) * weightY0
+            uni_vpxor(vmm_dstX, vmm_dstX, vmm_dstX);
+            cubic_c_gathered_cell(0, vmm_weightX0, false);
+            cubic_c_gathered_cell(1, vmm_weightX1, false);
+            cubic_c_gathered_cell(2, vmm_weightX2, false);
+            cubic_c_gathered_cell(3, vmm_weightX3, false);
+            uni_vfmadd231ps(vmm_val, vmm_dstX, vmm_weightY0);
+
+            // y1
+            uni_vpxor(vmm_dstX, vmm_dstX, vmm_dstX);
+            cubic_c_gathered_cell(4, vmm_weightX0, false);
+            cubic_c_gathered_cell(5, vmm_weightX1, false);
+            cubic_c_gathered_cell(6, vmm_weightX2, false);
+            cubic_c_gathered_cell(7, vmm_weightX3, false);
+            uni_vfmadd231ps(vmm_val, vmm_dstX, vmm_weightY1);
+
+            // y2
+            uni_vpxor(vmm_dstX, vmm_dstX, vmm_dstX);
+            cubic_c_gathered_cell(8, vmm_weightX0, false);
+            cubic_c_gathered_cell(9, vmm_weightX1, false);
+            cubic_c_gathered_cell(10, vmm_weightX2, false);
+            cubic_c_gathered_cell(11, vmm_weightX3, false);
+            uni_vfmadd231ps(vmm_val, vmm_dstX, vmm_weightY2);
+
+            // y3
+            uni_vpxor(vmm_dstX, vmm_dstX, vmm_dstX);
+            cubic_c_gathered_cell(12, vmm_weightX0, false);
+            cubic_c_gathered_cell(13, vmm_weightX1, false);
+            cubic_c_gathered_cell(14, vmm_weightX2, false);
+            cubic_c_gathered_cell(15, vmm_weightX3, false);
+            uni_vfmadd231ps(vmm_val, vmm_dstX, vmm_weightY3);
+
+            if (attr_.post_ops_.len_ != 0) {
+                apply_post_ops(jcp_.dst_dt, false);     // vmm_val is default dst value to post_ops and store
+                add(reg_oc_off, step * sizeof(float));
+            }
+            store_vector(ptr[reg_dst], vmm_val, jcp_.dst_dt);
+
+            if ((isa == cpu::sse42) && (jcp_.layout == InterpolateLayoutType::block)) {
+                int sse42_offset = 4;  // vmm is xmm here
+                add(reg_src, sse42_offset * jcp_.src_data_size);
+                add(reg_dst, sse42_offset * jcp_.dst_data_size);
+
+                uni_vpxor(vmm_val, vmm_val, vmm_val);
+                // y0:  (x0 * weightX0 + x1 * weightX1 + x2 * weightX2 + x3 * weightX3) * weightY0
+                uni_vpxor(vmm_dstX, vmm_dstX, vmm_dstX);
+                cubic_c_gathered_cell(0, vmm_weightX0, false);
+                cubic_c_gathered_cell(1, vmm_weightX1, false);
+                cubic_c_gathered_cell(2, vmm_weightX2, false);
+                cubic_c_gathered_cell(3, vmm_weightX3, false);
+                uni_vfmadd231ps(vmm_val, vmm_dstX, vmm_weightY0);
+
+                // y1
+                uni_vpxor(vmm_dstX, vmm_dstX, vmm_dstX);
+                cubic_c_gathered_cell(4, vmm_weightX0, false);
+                cubic_c_gathered_cell(5, vmm_weightX1, false);
+                cubic_c_gathered_cell(6, vmm_weightX2, false);
+                cubic_c_gathered_cell(7, vmm_weightX3, false);
+                uni_vfmadd231ps(vmm_val, vmm_dstX, vmm_weightY1);
+
+                // y2
+                uni_vpxor(vmm_dstX, vmm_dstX, vmm_dstX);
+                cubic_c_gathered_cell(8, vmm_weightX0, false);
+                cubic_c_gathered_cell(9, vmm_weightX1, false);
+                cubic_c_gathered_cell(10, vmm_weightX2, false);
+                cubic_c_gathered_cell(11, vmm_weightX3, false);
+                uni_vfmadd231ps(vmm_val, vmm_dstX, vmm_weightY2);
+
+                // y3
+                uni_vpxor(vmm_dstX, vmm_dstX, vmm_dstX);
+                cubic_c_gathered_cell(12, vmm_weightX0, false);
+                cubic_c_gathered_cell(13, vmm_weightX1, false);
+                cubic_c_gathered_cell(14, vmm_weightX2, false);
+                cubic_c_gathered_cell(15, vmm_weightX3, false);
+                uni_vfmadd231ps(vmm_val, vmm_dstX, vmm_weightY3);
+
+                if (attr_.post_ops_.len_ != 0) {
+                    apply_post_ops(jcp_.dst_dt, false);
+                    add(reg_oc_off, step * sizeof(float));  // second step for one blk
+                }
+                store_vector(ptr[reg_dst], vmm_val, jcp_.dst_dt);
+
+                sub(reg_src, sse42_offset * jcp_.src_data_size);
+                sub(reg_dst, sse42_offset * jcp_.dst_data_size);
+            }
+            if (jcp_.layout == InterpolateLayoutType::by_channel) {
+                int dst_stride = step * jcp_.dst_data_size;
+                int src_stride = step * jcp_.src_data_size;
+                add(reg_dst, dst_stride);
+                add(reg_src, src_stride);
+                sub(reg_work_amount, step);    // work_amount is c
+            } else {
+                int dst_stride = blk * jcp_.OW * jcp_.OH * jcp_.dst_data_size;
+                int src_stride = blk * jcp_.IW * jcp_.IH * jcp_.src_data_size;
+                add(reg_dst, dst_stride);
+                add(reg_src, src_stride);
+                sub(reg_work_amount, 1);  // work_amount = div_up(c, blk), no tails
+            }
+
+            jmp(main_loop_label, T_NEAR);
+        }
+        L(main_loop_end_label);
+
+        // only for by_channel layout for tails.
+        step = 1;
+        L(tail_loop_label);
+        {
+            cmp(reg_work_amount, 1);
+            jl(tail_loop_end_label, T_NEAR);
+
+            // store final computed value
+            uni_vpxor(vmm_val, vmm_val, vmm_val);
+
+            // y0:  (x0 * weightX0 + x1 * weightX1 + x2 * weightX2 + x3 * weightX3) * weightY0
+            uni_vpxor(vmm_dstX, vmm_dstX, vmm_dstX);
+            cubic_c_gathered_cell(0, vmm_weightX0, true);
+            cubic_c_gathered_cell(1, vmm_weightX1, true);
+            cubic_c_gathered_cell(2, vmm_weightX2, true);
+            cubic_c_gathered_cell(3, vmm_weightX3, true);
+            uni_vfmadd231ps(vmm_val, vmm_dstX, vmm_weightY0);
+
+            // y1
+            uni_vpxor(vmm_dstX, vmm_dstX, vmm_dstX);
+            cubic_c_gathered_cell(4, vmm_weightX0, true);
+            cubic_c_gathered_cell(5, vmm_weightX1, true);
+            cubic_c_gathered_cell(6, vmm_weightX2, true);
+            cubic_c_gathered_cell(7, vmm_weightX3, true);
+            uni_vfmadd231ps(vmm_val, vmm_dstX, vmm_weightY1);
+
+            // y2
+            uni_vpxor(vmm_dstX, vmm_dstX, vmm_dstX);
+            cubic_c_gathered_cell(8, vmm_weightX0, true);
+            cubic_c_gathered_cell(9, vmm_weightX1, true);
+            cubic_c_gathered_cell(10, vmm_weightX2, true);
+            cubic_c_gathered_cell(11, vmm_weightX3, true);
+            uni_vfmadd231ps(vmm_val, vmm_dstX, vmm_weightY2);
+
+            // y3
+            uni_vpxor(vmm_dstX, vmm_dstX, vmm_dstX);
+            cubic_c_gathered_cell(12, vmm_weightX0, true);
+            cubic_c_gathered_cell(13, vmm_weightX1, true);
+            cubic_c_gathered_cell(14, vmm_weightX2, true);
+            cubic_c_gathered_cell(15, vmm_weightX3, true);
+            uni_vfmadd231ps(vmm_val, vmm_dstX, vmm_weightY3);
+
+            if (attr_.post_ops_.len_ != 0) {
+                apply_post_ops(jcp_.dst_dt, false);     // vmm_val is default dst value
+                add(reg_oc_off, step * sizeof(float));
+            }
+            store_scalar(ptr[reg_dst], xmm_val, jcp_.dst_dt);
+
+            int dst_stride = step * jcp_.dst_data_size;
+            int src_stride = step * jcp_.src_data_size;
+            add(reg_dst, dst_stride);
+            add(reg_src, src_stride);
+            sub(reg_work_amount, step);    // work_amount is c
+
+            jmp(tail_loop_label, T_NEAR);
+        }
+        L(tail_loop_end_label);
+    }
+
+    inline void cubic_c_gathered_cell(int i, Vmm vmm_weight, bool is_scalar) {
+        mov(reg_src_aux, reg_src);
+        mov(reg_index_offset, dword[reg_index + i * jcp_.indices_size]);
+        add(reg_src_aux, reg_index_offset);
+        if (!is_scalar) {
+            load_vector(vmm_src, ptr[reg_src_aux], jcp_.src_dt);
+        } else {
+            load_scalar(xmm_src, ptr[reg_src_aux], jcp_.src_dt);
+        }
+        uni_vfmadd231ps(vmm_dstX, vmm_src, vmm_weight);
+    }
+
+    void cubic_planar() {
+        mov(reg_table, l_table_constant);
+        mov(reg_tbl_y, l_table_idx_oh);
+        mov(reg_tbl_x, l_table_idx_ow);
+        uni_vmovdqu(vmm_one, cubic_planar_table_val(0));
+        uni_vpxor(vmm_zero, vmm_zero, vmm_zero);
+
+        mov(reg_dst, ptr[reg_params + GET_OFF(dst)]);
+        mov(reg_src, ptr[reg_params + GET_OFF(src)]);
+        // index_OW
+        mov(reg_index, ptr[reg_params + GET_OFF(index)]);
+        // index_OH
+        Xbyak::Reg64 reg_index_y = reg_src_aux;
+        mov(reg_index_y, ptr[reg_params + GET_OFF(srcTR)]);
+        // weight_OW
+        Xbyak::Reg64 reg_weight_x = reg_src_aux1;
+        mov(reg_weight_x, ptr[reg_params + GET_OFF(weight)]);
+        // weight_OH
+        Xbyak::Reg64 reg_weight_y = reg_src_aux2;
+        mov(reg_weight_y, ptr[reg_params + GET_OFF(weightT)]);
+        mov(reg_work_amount, ptr[reg_params + GET_OFF(work_amount)]);
+
+        int step = vlen / sizeof(float);
+        int grid_len = 4;
+
+        // 0   1   2   3   4   5   6   7   8   9   10   11   12   13   14   15   16   17   18   19
+        // 20  21  22  23  24  25  26  27  28  29  30   31   32   33   34   35   36   37   38   39
+        // for 3th step(8): 16  17  18  19  20  21  22  23
+        //               y: 0   0   0   0   1   1   1   1
+        //               x: 16  17  18  19  0   1   2   3
+
+        Xbyak::Label main_loop_label;
+        Xbyak::Label main_loop_end_label;
+        Xbyak::Label tail_loop_label;
+        Xbyak::Label tail_loop_end_label;
+        L(main_loop_label);
+        {
+            cmp(reg_work_amount, step);
+            jl(main_loop_end_label, T_NEAR);
+
+            // vmm_tbl_y: (0 0 0 0 1 1 1 1 * index_size) --> (0 0 0 0 4 4 4 4)
+            uni_vmovdqu(vmm_tbl_y, ptr[reg_tbl_y]);
+            uni_vpcmpeqd(vmm_mask, vmm_mask, vmm_mask);
+            // vmm_index_in_y: 0 0 0 0 2 2 2 2
+            vpgatherdd(vmm_index_in_y, ptr[reg_index_y + vmm_tbl_y], vmm_mask);
+
+            // use vmm_val temporally for value in reg_tbl_x: 16  17  18  19  0   1   2   3
+            uni_vmovdqu(vmm_val, ptr[reg_tbl_x]);
+            uni_vpcmpeqd(vmm_mask, vmm_mask, vmm_mask);
+            // e.g. vmm_index_in_x: 32 34 36 38 0 2 4 6, now save src index.
+            vpgatherdd(vmm_index_in_x, ptr[reg_index + vmm_val], vmm_mask);
+
+            // build weightX used in y0-y3
+            // weight format: w0_0 w1_0 w2_0 w3_0 w0_1 w1_1 w2_1 w3_1 ...
+            uni_vpcmpeqd(vmm_mask, vmm_mask, vmm_mask);
+            vgatherdps(vmm_weightX0, ptr[reg_weight_x + vmm_val * grid_len], vmm_mask);  // 4 in vmm_val for weight_size, another 4 for grid_len
+
+            uni_vpcmpeqd(vmm_mask, vmm_mask, vmm_mask);
+            // shift weight_size then gather second weight
+            vgatherdps(vmm_weightX1, ptr[reg_weight_x + sizeof(float) + (vmm_val * grid_len)], vmm_mask);
+
+            uni_vpcmpeqd(vmm_mask, vmm_mask, vmm_mask);
+            vgatherdps(vmm_weightX2, ptr[reg_weight_x + 2 * sizeof(float) + (vmm_val * grid_len)], vmm_mask);
+
+            uni_vpcmpeqd(vmm_mask, vmm_mask, vmm_mask);
+            vgatherdps(vmm_weightX3, ptr[reg_weight_x + 3 * sizeof(float) + (vmm_val * grid_len)], vmm_mask);
+            // vmm_val is now relieved and used for dst_value
+
+            uni_vpxor(vmm_val, vmm_val, vmm_val);
+            // y0
+            vpsubd(vmm_index_y_itr, vmm_index_in_y, vmm_one);
+            // crop to [0, IH - 1]
+            vpminsd(vmm_index_y_itr, vmm_index_y_itr, cubic_planar_table_val(1));
+            vpmaxsd(vmm_index_y_itr, vmm_index_y_itr, vmm_zero);
+
+            // weight y0
+            uni_vpcmpeqd(vmm_mask, vmm_mask, vmm_mask);
+            vgatherdps(vmm_weightY, ptr[reg_weight_y + (vmm_tbl_y * grid_len)], vmm_mask);
+
+            uni_vpxor(vmm_dstX, vmm_dstX, vmm_dstX);
+            cubic_planar_cell(0, false);
+            cubic_planar_cell(1, false);
+            cubic_planar_cell(2, false);
+            cubic_planar_cell(3, false);
+            uni_vfmadd231ps(vmm_val, vmm_dstX, vmm_weightY);
+
+            // y1
+            // crop to [0, IH - 1]
+            vpminsd(vmm_index_y_itr, vmm_index_in_y, cubic_planar_table_val(1));
+            vpmaxsd(vmm_index_y_itr, vmm_index_y_itr, vmm_zero);
+            // weight y1: shift weight_size
+            uni_vpcmpeqd(vmm_mask, vmm_mask, vmm_mask);
+            vgatherdps(vmm_weightY, ptr[reg_weight_y + sizeof(float) + (vmm_tbl_y * grid_len)], vmm_mask);
+
+            uni_vpxor(vmm_dstX, vmm_dstX, vmm_dstX);
+            cubic_planar_cell(0, false);
+            cubic_planar_cell(1, false);
+            cubic_planar_cell(2, false);
+            cubic_planar_cell(3, false);
+            uni_vfmadd231ps(vmm_val, vmm_dstX, vmm_weightY);
+
+            // y2
+            vpaddd(vmm_index_y_itr, vmm_index_in_y, vmm_one);
+            // crop to [0, IH - 1]
+            vpminsd(vmm_index_y_itr, vmm_index_y_itr, cubic_planar_table_val(1));
+            vpmaxsd(vmm_index_y_itr, vmm_index_y_itr, vmm_zero);
+            // weight y2
+            uni_vpcmpeqd(vmm_mask, vmm_mask, vmm_mask);
+            vgatherdps(vmm_weightY, ptr[reg_weight_y + 2 * sizeof(float) + (vmm_tbl_y * grid_len)], vmm_mask);
+
+            uni_vpxor(vmm_dstX, vmm_dstX, vmm_dstX);
+            cubic_planar_cell(0, false);
+            cubic_planar_cell(1, false);
+            cubic_planar_cell(2, false);
+            cubic_planar_cell(3, false);
+            uni_vfmadd231ps(vmm_val, vmm_dstX, vmm_weightY);
+
+            // y3
+            vpaddd(vmm_index_y_itr, vmm_index_in_y, vmm_one);
+            vpaddd(vmm_index_y_itr, vmm_index_y_itr, vmm_one);
+            // crop to [0, IH - 1]
+            vpminsd(vmm_index_y_itr, vmm_index_y_itr, cubic_planar_table_val(1));
+            vpmaxsd(vmm_index_y_itr, vmm_index_y_itr, vmm_zero);
+            // weight y3
+            uni_vpcmpeqd(vmm_mask, vmm_mask, vmm_mask);
+            vgatherdps(vmm_weightY, ptr[reg_weight_y + 3 * sizeof(float) + (vmm_tbl_y * grid_len)], vmm_mask);
+
+            uni_vpxor(vmm_dstX, vmm_dstX, vmm_dstX);
+            cubic_planar_cell(0, false);
+            cubic_planar_cell(1, false);
+            cubic_planar_cell(2, false);
+            cubic_planar_cell(3, false);
+            uni_vfmadd231ps(vmm_val, vmm_dstX, vmm_weightY);
+
+            if (attr_.post_ops_.len_ != 0) {
+                apply_post_ops(jcp_.dst_dt, true);  // oc_off is broadcast and always the same value for this channel
+            }
+            store_vector(ptr[reg_dst], vmm_val, jcp_.dst_dt);
+
+            add(reg_tbl_y, step * sizeof(int));  // sizeof(int): sequence by dd()
+            add(reg_tbl_x, step * sizeof(int));
+            add(reg_dst, step * jcp_.dst_data_size);
+
+            sub(reg_work_amount, step);
+
+            jmp(main_loop_label, T_NEAR);
+        }
+        L(main_loop_end_label);
+
+        step = 1;
+        L(tail_loop_label);
+        {
+            cmp(reg_work_amount, 1);
+            jl(tail_loop_end_label, T_NEAR);
+
+            // get idx for input
+            movss(Xmm(vmm_tbl_y.getIdx()), ptr[reg_tbl_y]);
+            gather_i32_indices(vmm_index_in_y, reg_index_y, 0, vmm_tbl_y, 1, memory::s32, true);
+
+            movss(Xmm(vmm_val.getIdx()), ptr[reg_tbl_x]);
+            gather_i32_indices(vmm_index_in_x, reg_index, 0, vmm_val, 1, memory::s32, true);
+            // gather weightX by input idx, used in y0-y3
+            gather_i32_indices(vmm_weightX0, reg_weight_x, 0, vmm_val, grid_len, memory::f32, true);
+            gather_i32_indices(vmm_weightX1, reg_weight_x, sizeof(float), vmm_val, grid_len, memory::f32, true);
+            gather_i32_indices(vmm_weightX2, reg_weight_x, 2 * sizeof(float), vmm_val, grid_len, memory::f32, true);
+            gather_i32_indices(vmm_weightX3, reg_weight_x, 3 * sizeof(float), vmm_val, grid_len, memory::f32, true);
+            // vmm_val is now relieved and used for dst_value
+
+            uni_vpxor(vmm_val, vmm_val, vmm_val);
+            // y0
+            vpsubd(vmm_index_y_itr, vmm_index_in_y, vmm_one);
+            // crop to [0, IH - 1]
+            vpminsd(vmm_index_y_itr, vmm_index_y_itr, cubic_planar_table_val(1));
+            vpmaxsd(vmm_index_y_itr, vmm_index_y_itr, vmm_zero);
+
+            gather_i32_indices(vmm_weightY, reg_weight_y, 0, vmm_tbl_y, grid_len, memory::f32, true);
+            uni_vpxor(vmm_dstX, vmm_dstX, vmm_dstX);
+            cubic_planar_cell(0, true);
+            cubic_planar_cell(1, true);
+            cubic_planar_cell(2, true);
+            cubic_planar_cell(3, true);
+            uni_vfmadd231ps(vmm_val, vmm_dstX, vmm_weightY);
+
+            // y1
+            // crop to [0, IH - 1]
+            vpminsd(vmm_index_y_itr, vmm_index_in_y, cubic_planar_table_val(1));
+            vpmaxsd(vmm_index_y_itr, vmm_index_y_itr, vmm_zero);
+            // weight y1: shift weight_size
+            gather_i32_indices(vmm_weightY, reg_weight_y, sizeof(float), vmm_tbl_y, grid_len, memory::f32, true);
+
+            uni_vpxor(vmm_dstX, vmm_dstX, vmm_dstX);
+            cubic_planar_cell(0, true);
+            cubic_planar_cell(1, true);
+            cubic_planar_cell(2, true);
+            cubic_planar_cell(3, true);
+            uni_vfmadd231ps(vmm_val, vmm_dstX, vmm_weightY);
+
+            // y2
+            vpaddd(vmm_index_y_itr, vmm_index_in_y, vmm_one);
+            // crop to [0, IH - 1]
+            vpminsd(vmm_index_y_itr, vmm_index_y_itr, cubic_planar_table_val(1));
+            vpmaxsd(vmm_index_y_itr, vmm_index_y_itr, vmm_zero);
+            // weight y2
+            gather_i32_indices(vmm_weightY, reg_weight_y, 2 * sizeof(float), vmm_tbl_y, grid_len, memory::f32, true);
+
+            uni_vpxor(vmm_dstX, vmm_dstX, vmm_dstX);
+            cubic_planar_cell(0, true);
+            cubic_planar_cell(1, true);
+            cubic_planar_cell(2, true);
+            cubic_planar_cell(3, true);
+            uni_vfmadd231ps(vmm_val, vmm_dstX, vmm_weightY);
+
+            // y3
+            vpaddd(vmm_index_y_itr, vmm_index_in_y, vmm_one);
+            vpaddd(vmm_index_y_itr, vmm_index_y_itr, vmm_one);
+            // crop to [0, IH - 1]
+            vpminsd(vmm_index_y_itr, vmm_index_y_itr, cubic_planar_table_val(1));
+            vpmaxsd(vmm_index_y_itr, vmm_index_y_itr, vmm_zero);
+            // weight y3
+            gather_i32_indices(vmm_weightY, reg_weight_y, 3 * sizeof(float), vmm_tbl_y, grid_len, memory::f32, true);
+
+            uni_vpxor(vmm_dstX, vmm_dstX, vmm_dstX);
+            cubic_planar_cell(0, true);
+            cubic_planar_cell(1, true);
+            cubic_planar_cell(2, true);
+            cubic_planar_cell(3, true);
+            uni_vfmadd231ps(vmm_val, vmm_dstX, vmm_weightY);
+
+            if (attr_.post_ops_.len_ != 0) {
+                apply_post_ops(jcp_.dst_dt, true);  // oc_off is broadcast and always the same value for this channel
+            }
+            store_scalar(ptr[reg_dst], Xmm(vmm_val.getIdx()), jcp_.dst_dt);
+
+            add(reg_tbl_y, step * sizeof(int));  // sizeof(int): sequence with dd()
+            add(reg_tbl_x, step * sizeof(int));
+            add(reg_dst, step * jcp_.dst_data_size);
+
+            sub(reg_work_amount, step);
+
+            jmp(tail_loop_label, T_NEAR);
+        }
+        L(tail_loop_end_label);
+    }
+
+    inline void cubic_planar_cell(int itr, bool is_scalar) {
+        // vmm_index_in_x have index for src
+        if (itr == 0) {
+            vpsubd(vmm_index_x_itr, vmm_index_in_x, vmm_one);
+        } else if (itr == 1) {
+            vpaddd(vmm_index_x_itr, vmm_index_in_x, vmm_zero);
+        } else if (itr == 2) {
+            vpaddd(vmm_index_x_itr, vmm_index_in_x, vmm_one);
+        } else if (itr == 3) {
+            vpaddd(vmm_index_x_itr, vmm_index_in_x, vmm_one);
+            vpaddd(vmm_index_x_itr, vmm_index_x_itr, vmm_one);
+        }
+
+        // crop to [0, IW - 1]
+        vpminsd(vmm_index_x_itr, vmm_index_x_itr, cubic_planar_table_val(2));
+        vpmaxsd(vmm_index_x_itr, vmm_index_x_itr, vmm_zero);
+
+        // value
+        // vgatherdps(vmm_src, ptr[reg_src + (vmm_index_y_itr * jcp_.IW + vmm_index_x_itr) * jcp_.src_data_size], vmm_mask);
+        uni_vmovdqu(vmm_mask, cubic_planar_table_val(2));
+        vpaddd(vmm_mask, vmm_mask, vmm_one);  // (IW - 1) + 1 = IW
+        uni_vpmulld(vmm_mask, vmm_mask, vmm_index_y_itr);
+        uni_vpaddd(vmm_index_x_itr, vmm_index_x_itr, vmm_mask);
+        // index: ptr[reg_src + vmm_index_x_itr * jcp_.src_data_size]
+        gather_i32_indices(vmm_src, reg_src, 0, vmm_index_x_itr, jcp_.src_data_size, memory::f32, is_scalar);
+
+        if (itr == 0) {
+            uni_vfmadd231ps(vmm_dstX, vmm_src, vmm_weightX0);
+        } else if (itr == 1) {
+            uni_vfmadd231ps(vmm_dstX, vmm_src, vmm_weightX1);
+        } else if (itr == 2) {
+            uni_vfmadd231ps(vmm_dstX, vmm_src, vmm_weightX2);
+        } else if (itr == 3) {
+            uni_vfmadd231ps(vmm_dstX, vmm_src, vmm_weightX3);
+        }
+    }
+
+    inline void prepare_cubic_planar_table() {
+        align(64);
+        L(l_table_idx_oh);
+        for (int h = 0; h < jcp_.OH; h++) {
+            for (int w = 0; w < jcp_.OW; ++w) {
+                dd(h * jcp_.indices_size);
+            }
+        }
+
+        align(64);
+        L(l_table_idx_ow);
+        for (int h = 0; h < jcp_.OH; h++) {
+            for (int w = 0; w < jcp_.OW; ++w) {
+                dd(w * jcp_.indices_size);
+            }
+        }
+
+        auto broadcast_int = [&](int val) {
+            for (size_t d = 0; d < vlen / sizeof(int); ++d) {
+                dd(val);
+            }
+        };
+
+        align(64);
+        L(l_table_constant);
+        broadcast_int(vals_for_cubic_planar.int_one);
+        broadcast_int(jcp_.IH - 1);
+        broadcast_int(jcp_.IW - 1);
+        dd(vals_for_cubic_planar.mask_gather_avx512);
+    }
+
+    struct vals_for_cubic_planar_type {
+        int int_one = 0x00000001;
+        int mask_gather_avx512 = 0x0000ffff;  // 00000000000000001111111111111111
+    } vals_for_cubic_planar;
+
+    inline Xbyak::Address cubic_planar_table_val(int index) {
+        return ptr[reg_table + index * vlen];
+    }
+
+    // always gather to Vmm, compute with Vmm, store with Xmm if scalar
+    inline void gather_i32_indices(Vmm vmm_src, const Xbyak::Reg64 &base, int offset, Vmm vmm_indices, int scale,
+                                memory::data_type src_dt, bool is_scalar) {
+        Xbyak::Address table_idx = ptr[base + offset + vmm_indices * scale];
+        if (mayiuse(cpu::avx512_common) && !is_scalar) {
+            Opmask k_mask = k0;
+            // [0-15] bit of int to mask
+            kmovw(k_mask, cubic_planar_table_val(3));
+            if (src_dt == memory::f32) {
+                vgatherdps(vmm_src | k_mask, table_idx);  // dword index, packed single data
+            } else if (src_dt == memory::s32) {
+                vpgatherdd(vmm_src | k_mask, table_idx);  // dword index, dword data
+            }
+        } else if (mayiuse(cpu::avx2) && !is_scalar) {
+            uni_vpcmpeqd(vmm_mask, vmm_mask, vmm_mask);
+            if (src_dt == memory::f32) {
+                vgatherdps(vmm_src, table_idx, vmm_mask);
+            } else if (src_dt == memory::s32) {
+                vpgatherdd(vmm_src, table_idx, vmm_mask);
+            }
+        } else {
+            const int gpr_size = 8;
+            sub(rsp, gpr_size);
+            // move content in register to content in address(ptr[])
+            mov(ptr[rsp], reg_tmp_64);
+
+            // replace index with value in stack
+            sub(rsp, vlen);
+            uni_vmovdqu(ptr[rsp], vmm_indices);
+
+            int repeats = is_scalar ? 1 : vlen / sizeof(float);
+            for (size_t i = 0; i < repeats; ++i) {
+                mov(reg_tmp_64.cvt32(), ptr[rsp + i * sizeof(int)]);       // sizeof(int)  index_size
+                table_idx = ptr[base + offset + reg_tmp_64 * scale];       // scale: sizeof(float)   value_size
+                mov(reg_tmp_64.cvt32(), table_idx);
+                mov(ptr[rsp + i * sizeof(int)], reg_tmp_64.cvt32());
+            }
+
+            uni_vmovups(vmm_src, ptr[rsp]);
+            add(rsp, vlen);
+            // restore GPR state
+            mov(reg_tmp_64, ptr[rsp]);
+            add(rsp, gpr_size);
+        }
+    }
+
     inline void load_vector(Vmm vmm_src, const Xbyak::Address &op, memory::data_type src_dt) {
         switch (src_dt) {
             case memory::f32:
@@ -657,6 +1291,7 @@ private:
                     vpmovzxwd(vmm_src, op);
                 }
                 uni_vpslld(vmm_src, vmm_src, 16);
+                break;
             default:
                 assert(!"unknown dst_dt");
         }
@@ -682,6 +1317,7 @@ private:
             case memory::bf16:
                 pinsrw(xmm_src, op, 0x0);
                 uni_vpslld(xmm_src, xmm_src, 16);
+                break;
             default:
                 assert(!"unknown dst_dt");
         }
@@ -761,6 +1397,7 @@ private:
             case memory::bf16:
                 uni_vpsrld(xmm_dst, xmm_dst, 16);
                 pextrw(op, xmm_dst, 0x0);
+                break;
             default:
                 assert(!"unknown dst_dt");
         }
@@ -1056,7 +1693,7 @@ void MKLDNNInterpolateNode::initSupportedPrimitiveDescriptors() {
         supportedPrimitiveDescriptors.push_back({config, implDetail, dataFormat});
     };
 
-    if (mode == InterpolateMode::nearest || mode == InterpolateMode::linear_onnx) {
+    if (mode != InterpolateMode::linear) {
         // blk and by_channel JIT kernel on sse42 or above machine
         if (mayiuse(cpu::sse42)) {
             if (getParentEdgeAt(DATA_ID)->getDims().ndims() == 4) {
@@ -1091,7 +1728,7 @@ void MKLDNNInterpolateNode::initSupportedPrimitiveDescriptors() {
         if (mayiuse(cpu::avx2) && inputPrec == Precision::FP32) {
             pushDesc(MKLDNNMemory::GetPlainFormat(getParentEdgeAt(DATA_ID)->getDims()), jit_avx2);
         }
-    } else if (mode == InterpolateMode::linear || mode == InterpolateMode::cubic) {
+    } else {
         pushDesc(MKLDNNMemory::GetPlainFormat(getParentEdgeAt(DATA_ID)->getDims()), ref);
     }
 }
@@ -1140,7 +1777,7 @@ void MKLDNNInterpolateNode::createPrimitive() {
         jcp.layout = InterpolateLayoutType::block;
     }
 
-    if (mode == InterpolateMode::nearest || mode == InterpolateMode::linear_onnx) {
+    if (mode == InterpolateMode::nearest || mode == InterpolateMode::linear_onnx || mode == InterpolateMode::cubic) {
         if (jcp.layout != InterpolateLayoutType::planar) {
             if (mayiuse(cpu::avx512_common)) {
                 interpolateKernel.reset(new jit_uni_interpolate_kernel_f32<cpu::avx512_common>(jcp, *attr.get()));
@@ -1623,16 +2260,6 @@ void MKLDNNInterpolateNode::execute(mkldnn::stream strm) {
             }
             break;
         }
-        case InterpolateMode::linear: {
-            float fz = (dimSize == 5) ? dataScales[dimSize - 3] : 1.f;
-            float fy = dataScales[dimSize - 2];
-            float fx = dataScales[dimSize - 1];
-
-            bool isDownsample = (fx < 1.f) || (fy < 1.f) || (fz < 1.f);
-            int kernel_width = 2;
-            linearInterpolation(src_data, dst_data, N, C, ID, IH, IW, fx, fy, fz, OD, OH, OW, kernel_width, isDownsample && antialias);
-            break;
-        }
         case InterpolateMode::linear_onnx: {
             if (interpolateKernel) {
                 if (layout == InterpolateLayoutType::planar) {
@@ -1646,7 +2273,25 @@ void MKLDNNInterpolateNode::execute(mkldnn::stream strm) {
             break;
         }
         case InterpolateMode::cubic: {
-            cubic(src_data, dst_data, N, C, IH, IW, OH, OW, cubeCoeff);
+            if (interpolateKernel) {
+                if (layout == InterpolateLayoutType::planar) {
+                    cubicPlanar(src_data, dst_data, N, C, IH, IW, OH, OW);
+                } else {
+                    cubicCGathered(src_data, dst_data, N, C, IH, IW, OH, OW);
+                }
+            } else {
+                cubicRef(src_data, dst_data, N, C, IH, IW, OH, OW);
+            }
+            break;
+        }
+        case InterpolateMode::linear: {
+            float fz = (dimSize == 5) ? dataScales[dimSize - 3] : 1.f;
+            float fy = dataScales[dimSize - 2];
+            float fx = dataScales[dimSize - 1];
+
+            bool isDownsample = (fx < 1.f) || (fy < 1.f) || (fz < 1.f);
+            int kernel_width = 2;
+            linearInterpolation(src_data, dst_data, N, C, ID, IH, IW, fx, fy, fz, OD, OH, OW, kernel_width, isDownsample && antialias);
             break;
         }
         default: {
@@ -1983,7 +2628,107 @@ void MKLDNNInterpolateNode::linearInterpolation(const uint8_t *in_ptr_, uint8_t 
     });
 }
 
-void MKLDNNInterpolateNode::cubic(const uint8_t *in_ptr_, uint8_t *out_ptr_, int B, int C, int IH, int IW, int OH, int OW, float a) {
+void MKLDNNInterpolateNode::cubicCGathered(const uint8_t *in_ptr_, uint8_t *out_ptr_, int B, int C, int IH, int IW, int OH, int OW) {
+    const int idxNum = 1;
+    int *xOrigin = static_cast<int*>(&indexTable[0]);
+    float *xFactor = reinterpret_cast<float*>(&indexTable[OW]);
+    int *yOrigin = static_cast<int*>(&indexTable[(CUBIC_GRID_LEN + idxNum) * OW]);
+    float *yFactor = reinterpret_cast<float*>(&indexTable[(CUBIC_GRID_LEN + idxNum) * OW + OH]);
+
+    Layout layout = getParentEdgeAt(0)->getDesc().getLayout();
+    bool isByChannel = (layout == NHWC) ? true : false;
+
+    if (isByChannel) {
+        parallel_for3d(B, OH, OW, [&](size_t b, size_t h, size_t w) {
+            uint8_t *out_ptr_nhw = out_ptr_ + (OH * OW * C * b + OW * C * h + C * w) * dstDataSize;
+            const uint8_t *in_ptr_n = in_ptr_ + (IH * IW * C * b) * srcDataSize;
+
+            std::vector<int> kernelIndex(CUBIC_GRID_LEN * CUBIC_GRID_LEN);  // 16 address offset to src(batch)
+            int iy = yOrigin[h];
+            int ix = xOrigin[w];
+            for (int y = iy - 1, i = 0; y <= iy + 2; y++, i++) {
+                int yInRange = std::max(0, std::min(y, IH - 1));
+                yInRange = yInRange * C * IW * srcDataSize;
+                for (int x = ix - 1, j = 0; x <= ix + 2; x++, j++) {
+                    int xInRange = std::max(0, std::min(x, IW - 1));
+                    xInRange = yInRange + xInRange * C * srcDataSize;
+                    kernelIndex[i * CUBIC_GRID_LEN + j] = xInRange;
+                }
+            }
+
+            auto arg = jit_interpolate_call_args();
+            arg.dst = out_ptr_nhw;
+            // src + index to get input address
+            arg.src = in_ptr_n;
+            arg.index = static_cast<int*>(&kernelIndex[0]);
+            // weight for X, weightT for Y
+            arg.weight = static_cast<float*>(&xFactor[w * CUBIC_GRID_LEN]);
+            arg.weightT = static_cast<float*>(&yFactor[h * CUBIC_GRID_LEN]);
+            // src + step, dst + step, process next step on continuous memory
+            arg.work_amount = C;
+            arg.oc_off = 0;
+            (*interpolateKernel)(&arg);
+        });
+    } else {
+        size_t blkSize = mayiuse(cpu::avx512_common) ? 16 : 8;
+        size_t CB = div_up(C, blkSize);
+        parallel_for3d(B, OH, OW, [&](size_t b, size_t h, size_t w) {
+            uint8_t *out_ptr_nhw = out_ptr_ + (CB * OH * OW * blkSize * b + OW * blkSize * h + blkSize * w) * dstDataSize;
+            const uint8_t *in_ptr_n = in_ptr_ + (CB * IH * IW * blkSize * b) * srcDataSize;
+
+            std::vector<int> kernelIndex(CUBIC_GRID_LEN * CUBIC_GRID_LEN);  // 16 address offset to src(CB)
+            int iy = yOrigin[h];
+            int ix = xOrigin[w];
+            for (int y = iy - 1, i = 0; y <= iy + 2; y++, i++) {
+                int yInRange = std::max(0, std::min(y, IH - 1));
+                yInRange = yInRange * blkSize * IW * srcDataSize;
+                for (int x = ix - 1, j = 0; x <= ix + 2; x++, j++) {
+                    int xInRange = std::max(0, std::min(x, IW - 1));
+                    xInRange = yInRange + xInRange * blkSize * srcDataSize;
+                    kernelIndex[i * CUBIC_GRID_LEN + j] = xInRange;
+                }
+            }
+
+            auto arg = jit_interpolate_call_args();
+            arg.dst = out_ptr_nhw;
+            arg.src = in_ptr_n;
+            // index is offset to current CB
+            arg.index = static_cast<int*>(&kernelIndex[0]);
+            arg.weight = static_cast<float*>(&xFactor[w * CUBIC_GRID_LEN]);
+            arg.weightT = static_cast<float*>(&yFactor[h * CUBIC_GRID_LEN]);
+            // src + IW*IH*blkSize, dst + OW*OH*blkSize, process the blkSize on next CB
+            arg.work_amount = CB;
+            arg.oc_off = 0;
+            (*interpolateKernel)(&arg);
+        });
+    }
+}
+
+void MKLDNNInterpolateNode::cubicPlanar(const uint8_t *in_ptr_, uint8_t *out_ptr_, int B, int C, int IH, int IW, int OH, int OW) {
+    const int idxNum = 1;
+    int *xOrigin = static_cast<int*>(&indexTable[0]);
+    float *xFactor = reinterpret_cast<float*>(&indexTable[OW]);
+    int *yOrigin = static_cast<int*>(&indexTable[(CUBIC_GRID_LEN + idxNum) * OW]);
+    float *yFactor = reinterpret_cast<float*>(&indexTable[(CUBIC_GRID_LEN + idxNum) * OW + OH]);
+
+    parallel_for2d(B, C, [&](size_t n, size_t c) {
+        const uint8_t *in_ptr_nc = in_ptr_ + (IW * IH * C * n + IW * IH * c) * srcDataSize;
+        uint8_t *out_ptr_nc = out_ptr_ + (OW * OH * C * n + OW * OH * c) * dstDataSize;
+
+        auto arg = jit_interpolate_call_args();
+        arg.dst = out_ptr_nc;
+        arg.src = in_ptr_nc;
+        arg.index = xOrigin;
+        arg.srcTR = yOrigin;
+        arg.weight = xFactor;
+        arg.weightT = yFactor;
+        arg.work_amount = static_cast<size_t>(OW * OH);
+        arg.oc_off = static_cast<size_t>(C);
+        (*interpolateKernel)(&arg);
+    });
+}
+
+void MKLDNNInterpolateNode::cubicRef(const uint8_t *in_ptr_, uint8_t *out_ptr_, int B, int C, int IH, int IW, int OH, int OW) {
     const int idxNum = 1;
     int *xOrigin = static_cast<int*>(&indexTable[0]);
     float *xFactor = reinterpret_cast<float*>(&indexTable[OW]);
