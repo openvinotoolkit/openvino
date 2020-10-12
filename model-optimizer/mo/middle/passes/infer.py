@@ -108,7 +108,7 @@ def partial_infer(graph: Graph, start_node: str = None):
     graph.strict_mode = True
 
     # Mark all nodes as not inferred yet
-    if not start_node is None:
+    if start_node is not None:
         start_index = nodes.index(start_node)
         nx.set_node_attributes(G=graph.subgraph(nodes[start_index:]), name='is_partial_inferred', values=False)
     else:

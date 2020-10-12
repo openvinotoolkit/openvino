@@ -13,17 +13,21 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 """
+
 import logging as log
 from io import IOBase
 
 import networkx as nx
 import numpy as np
 
+from extensions.ops.elementwise import Mul
 from extensions.ops.split import AttributedVariadicSplit
+from mo.front.common.partial_infer.utils import float_array
 from mo.front.kaldi.loader.utils import find_next_tag, read_placeholder, find_next_component, get_name_from_path, \
     find_end_of_component, end_of_nnet_tag, read_binary_integer32_token, get_parameters, read_token_value, \
     collect_until_token, collect_until_token_and_read, create_edge_attrs, get_args_for_specifier
 from mo.graph.graph import Node, Graph
+from mo.ops.const import Const
 from mo.utils.error import Error
 from mo.utils.utils import refer_to_faq_msg
 
@@ -74,7 +78,7 @@ def load_parallel_component(file_descr, graph: Graph, prev_layer_id):
     split_id = graph.unique_id(prefix='NestedNets/VariadicSplit')
     attrs = {'out_ports_count': nnet_count, 'size_splits': split_points, 'axis': 1, 'name': split_id}
     variadic_split_node = AttributedVariadicSplit(graph, attrs).create_node()
-    prev_layer_node  = Node(graph, prev_layer_id)
+    prev_layer_node = Node(graph, prev_layer_id)
     prev_layer_node.add_output_port(0)
     graph.create_edge(prev_layer_node, variadic_split_node, 0, 0)
 
@@ -247,9 +251,7 @@ def load_components(file_descr, graph, component_layer_map=None):
                     node = Node(graph, layer)
                     node['parameters'] = get_parameters(file_descr, start_index, end_index)
                     node['op'] = component_type
-                    # read dim info where possible to simplify shape calculation for MemoryOffset
-                    # shape calculation for MemoryOffset can't be done through shape of previous layer because
-                    # it is separated in 2 parts to remove cycle from graph
+                    # Read dim info where possible to simplify shape calculation for MemoryOffset
                     for o_n_name, params in node.get_outputs():
                         o_n = Node(graph, o_n_name)
                         if o_n['op'] == 'MemoryOffset' and dim != 0:
@@ -459,7 +461,7 @@ def parse_specifier(string, graph, layer_node_map):
             out_port = len(Node(graph, node).out_nodes())
             in_port = len(Node(graph, memory_name).in_nodes())
             Node(graph, memory_name).add_input_port(in_port)
-            Node(graph, node).add_output_port(out_port)
+            Node(graph, node).add_output_port(out_port, skip_if_exist=True)
             graph.create_edge(Node(graph, node), Node(graph, memory_name), out_port, in_port)
         else:
             memory_name = layer_node_map[layer_name]
@@ -480,13 +482,12 @@ def parse_specifier(string, graph, layer_node_map):
         else:
             sum_name = layer_node_map[layer_name]
 
-        i = 0
-        for node in nodes:
+        for i, node in enumerate(nodes):
             out_port = len(Node(graph, node).out_nodes())
-            Node(graph, node).add_output_port(out_port)
+            Node(graph, node).add_output_port(out_port, skip_if_exist=True)
             Node(graph, sum_name).add_input_port(i)
             graph.add_edge(node, sum_name, **create_edge_attrs(node, sum_name, i))
-            i = i + 1
+
         return sum_name
     elif spec == b'IfDefined':
         node_id = parse_specifier(args[0], graph, layer_node_map)
@@ -497,3 +498,25 @@ def parse_specifier(string, graph, layer_node_map):
     elif spec == b'ReplaceIndex':
         node = parse_specifier(args[0], graph, layer_node_map)
         return node
+    elif spec == b'Scale':
+        node_name = parse_specifier(args[1], graph, layer_node_map)
+        scale_value = float(args[0])
+        layer_name = '{}/Mul/{}'.format(node_name, scale_value)
+
+        if layer_name not in layer_node_map:
+            scale_name = graph.unique_id(prefix=layer_name)
+            scale_node = Mul(graph, {'name': scale_name}).create_node()
+
+            layer_node_map[layer_name] = scale_name
+
+            scale_const_name = 'Const_{}'.format(scale_value)
+            const_node = Const(graph, {'name': scale_const_name, 'value': float_array([scale_value])}).create_node()
+
+            node = Node(graph, node_name)
+            graph.create_edge(const_node, scale_node, 0, 0)
+            out_port = len(node.out_nodes())
+            graph.create_edge(node, scale_node, out_port, 1)
+        else:
+            scale_name = layer_node_map[layer_name]
+
+        return scale_name

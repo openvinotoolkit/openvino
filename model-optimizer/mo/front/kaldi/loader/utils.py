@@ -13,6 +13,7 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 """
+
 import io
 import os
 import struct
@@ -40,6 +41,7 @@ supported_components = [
     'fixedaffinecomponent',
     'fixedscalecomponent',
     'fixedbiascomponent',
+    'generaldropoutcomponent',
     'linearcomponent',
     'logsoftmaxcomponent',
     'lstmnonlinearitycomponent',
@@ -58,9 +60,11 @@ supported_components = [
     'sigmoidcomponent',
     'softmax',
     'softmaxcomponent',
+    'specaugmenttimemaskcomponent',
     'splicecomponent',
     'sumgroupcomponent',
     'tanhcomponent',
+    'tdnncomponent',
 ]
 
 
