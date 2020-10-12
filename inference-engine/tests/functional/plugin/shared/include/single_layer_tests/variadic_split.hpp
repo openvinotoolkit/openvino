@@ -18,6 +18,10 @@ namespace LayerTestsDefinitions {
             std::vector<size_t>,            // Num splits
             size_t,                         // Axis
             InferenceEngine::Precision,     // Net precision
+            InferenceEngine::Precision,     // Input precision
+            InferenceEngine::Precision,     // Output precision
+            InferenceEngine::Layout,        // Input layout
+            InferenceEngine::Layout,        // Output layout
             std::vector<size_t>,            // Input shapes
             std::string                     // Target device name
     > VariadicSplitParams;
