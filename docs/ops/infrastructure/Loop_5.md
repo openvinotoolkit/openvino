@@ -144,12 +144,12 @@ Loop operation description in the IR also has several special sections: `body`, 
 
 **Body Inputs**
 
-* **Multiple inputs**: tensors of different types and shapes. One of the inputs corresponds to current iteration number input (this input is optional). This input is marked in the port_map with attribute `purpose = "current_iteration"`. *Optional*.
+* **Multiple inputs**: tensors of different types and shapes except the one corresponding to the current iteration number. This input is marked in the port_map with attribute `purpose = "current_iteration"` and produces a scalar or 1D tensor with 1 element of `int64` or `int32` type. *Optional*.
 
 
 **Body Outputs**
 
-* **Multiple outputs**: Results of execution of the `body`. Tensors of any type and shape. One of the outputs corresponds to the output with execution condition. This output is marked in the port_map with attribute `purpose = "execution_condition"`.
+* **Multiple outputs**: Results of execution of the `body`. Tensors of any type and shape except the one corresponding to the output with execution condition. This output is marked in the port_map with attribute `purpose = "execution_condition"` and is mandatory and produces a scalar or 1D tensor with 1 element of `boolean` type. Other outputs are optional. 
 
 
 **Examples**
