@@ -43,7 +43,6 @@ jobs:
 
   - script: |
       rm -rf $(WORK_DIR) ; mkdir $(WORK_DIR)
-      rm -rf $(BUILD_DIR) ; mkdir $(BUILD_DIR)
     displayName: 'Make dir'
 
   - script: |
@@ -52,6 +51,7 @@ jobs:
       # For running Python API tests
       python3 -m pip install -r ./inference-engine/ie_bridges/python/src/requirements-dev.txt
     displayName: 'Install dependencies'
+    enabled: false
 
   - script: |
       wget https://github.com/ninja-build/ninja/releases/download/v1.10.0/ninja-linux.zip
@@ -59,30 +59,38 @@ jobs:
       sudo cp -v ninja /usr/local/bin/
     workingDirectory: $(WORK_DIR)
     displayName: 'Install Ninja'
+    enabled: false
 
   - task: CMake@1
     inputs:
       # CMake must get Python 3.x version by default
       cmakeArgs: -GNinja -DCMAKE_BUILD_TYPE=$(BUILD_TYPE) -DENABLE_VPU=OFF -DENABLE_GNA=OFF -DENABLE_OPENCV=OFF -DENABLE_CPPLINT=OFF -DENABLE_TESTS=OFF -DENABLE_BEH_TESTS=OFF -DENABLE_FUNCTIONAL_TESTS=OFF -DENABLE_MKL_DNN=ON -DENABLE_CLDNN=OFF -DENABLE_PROFILING_ITT=OFF -DENABLE_SAMPLES=OFF -DENABLE_SPEECH_DEMO=OFF -DENABLE_PYTHON=ON -DPYTHON_EXECUTABLE=/usr/bin/python3.6 -DNGRAPH_ONNX_IMPORT_ENABLE=ON -DNGRAPH_INTERPRETER_ENABLE=ON -DNGRAPH_DEBUG_ENABLE=OFF -DNGRAPH_DYNAMIC_COMPONENTS_ENABLE=ON -DCMAKE_INSTALL_PREFIX=$(INSTALL_DIR) $(REPO_DIR)
       workingDirectory: $(BUILD_DIR)
+    enabled: false
 
   - script: ninja
     workingDirectory: $(BUILD_DIR)
     displayName: 'Build'
+    enabled: false
 
   - script: make install
     workingDirectory: $(BUILD_DIR)
     displayName: 'Install'
+    workingDirectory: $(BUILD_DIR)
+    enabled: false
 
   - script: |
       ls -alR $(REPO_DIR)/bin/
       ls -alR $(INSTALL_DIR)
     displayName: 'List files'
+    enabled: false
 
   - script: docker build --tag=openvino-onnx-ci-image --file=$(REPO_DIR)/.ci/openvino-onnx/Dockerfile .
     workingDirectory: $(BUILD_DIR)
     displayName: 'Docker build'
+    enabled: false
 
   - script: docker run --name openvino-onnx-ci-container openvino-onnx-ci-image
     workingDirectory: $(BUILD_DIR)
     displayName: 'Docker run tests'
+    enabled: false
