@@ -46,4 +46,28 @@ void regclass_IECore(py::module m)
         return self.LoadNetwork(network, device_name);
     });
 
+    cls.def("add_extension", [](InferenceEngine::Core& self, std::string extension_path, std::string device_name) {
+        auto extension_ptr = InferenceEngine::make_so_pointer<InferenceEngine::IExtension>(extension_path);
+        auto extension = std::dynamic_pointer_cast<InferenceEngine::IExtension>(extension_ptr);
+        self.AddExtension(extension, device_name);
+    });
+
+    cls.def("get_version", [](InferenceEngine::Core& self, std::string device_name){
+        return self.GetVersions(deviceName);
+    });
+
+    cls.def("read_network", [](InferenceEngine::Core& self, std::string model, std::string weights){
+        return self.ReadNetwork(model, weigths),
+    });
+
+//    cls.def("import_network", [](InferenceEngine::Core& self, std::string model_file, std::string device_name, py::kwargs kwargs){
+//
+//    });
+
+//    cls.def("get_config", [](InferenceEngine::Core& self, std::string device_name, std::string config_name){
+//        InferenceEngine::Parameter param = self.GetConfig(device_name, config_name);
+//    });
+
+    cls.def_property("available_devices", &InferenceEngine::Core::GetAvailableDevices);
+
 }
