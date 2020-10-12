@@ -106,5 +106,9 @@ namespace ngraph
             };
 
         } // namespace v1
-    }     // namespace op
+        NGRAPH_SUPPRESS_DEPRECATED_START
+        using v0::Add;
+        NGRAPH_SUPPRESS_DEPRECATED_END
+    } // namespace op
+
 } // namespace ngraph
