@@ -40,10 +40,6 @@ public:
         return nullptr;
     }
 
-    void setWeights(const Blob::CPtr& weights) noexcept override {
-        _weights = weights;
-    }
-
     void getOutputsInfo(std::map<std::string, DataPtr>& out) const noexcept override;
 
     void getInputsInfo(InputsDataMap& inputs) const noexcept override;
@@ -130,6 +126,11 @@ public:
 
     StatusCode serialize(const std::string& xmlPath, const std::string& binPath, ResponseDesc* resp) const
         noexcept override;
+
+protected:
+    void setWeightsBlobPtr(const Blob::CPtr& weights) noexcept override {
+        _weights = weights;
+    }
 
 protected:
     std::map<std::string, DataPtr> _data;

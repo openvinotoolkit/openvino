@@ -219,7 +219,6 @@ CNNNetwork details::ReadNetwork(const std::string& modelPath, const std::string&
 
                 // read model with weights
                 auto network = reader->read(modelStream, weights, exts);
-                network.setWeights(weights);
                 modelStream.close();
                 return network;
             }

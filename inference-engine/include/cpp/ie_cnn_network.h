@@ -188,16 +188,6 @@ public:
     }
 
     /**
-     * @brief Returns constant nGraph function
-     *
-     * @return constant nGraph function
-     */
-    void setWeights(const Blob::CPtr& weights) {
-        if (actual == nullptr) THROW_IE_EXCEPTION << "CNNNetwork was not initialized.";
-        return actual->setWeights(weights);
-    }
-
-    /**
      * @copybrief ICNNNetwork::addOutput
      *
      * Wraps ICNNNetwork::addOutput
@@ -253,6 +243,17 @@ public:
 
 protected:
     /**
+     * @brief Sets weights blob pointer
+     *
+     * @param weights blob pointer
+     */
+    void setWeightsBlobPtr(const Blob::CPtr& weights) {
+        if (actual == nullptr) THROW_IE_EXCEPTION << "CNNNetwork was not initialized.";
+        actual->setWeightsBlobPtr(weights);
+    }
+
+protected:
+    /**
      * @brief Network extra interface, might be nullptr
      */
     std::shared_ptr<ICNNNetwork> network;
@@ -265,6 +266,8 @@ protected:
      * @brief A pointer to output data
      */
     DataPtr output;
+
+    friend class V10Parser;
 };
 
 }  // namespace InferenceEngine

@@ -195,6 +195,7 @@ std::shared_ptr<ICNNNetwork> V10Parser::parse(const pugi::xml_node& root, const 
         }
     }
     CNNNetwork net(function);
+    net.setWeightsBlobPtr(weights);
     parsePreProcess(net, root, weights);
     return net;
 }

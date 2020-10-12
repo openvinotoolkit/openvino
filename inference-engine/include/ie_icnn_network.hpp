@@ -57,8 +57,10 @@ public:
 
     /**
      * @brief Sets a weights blob
+     *
+     * @param weights blob pointer.
      */
-    virtual void setWeights(const Blob::CPtr& weights) noexcept = 0;
+    virtual void setWeightsBlobPtr(const Blob::CPtr& weights) noexcept = 0;
 
     /**
      * @brief Gets the network output Data node information. The received info is stored in the given Data node.
