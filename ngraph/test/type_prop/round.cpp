@@ -32,7 +32,8 @@ TEST(type_prop, rounding_to_even)
 TEST(type_prop, rounding_away)
 {
     auto data = make_shared<op::Parameter>(element::f32, Shape{1, 3, 6});
-    auto round_func = make_shared<op::v5::Round>(data, op::v5::Round::RoundMode::HALF_AWAY_FROM_ZERO);
+    auto round_func =
+        make_shared<op::v5::Round>(data, op::v5::Round::RoundMode::HALF_AWAY_FROM_ZERO);
     EXPECT_EQ(round_func->get_element_type(), element::f32);
     EXPECT_EQ(round_func->get_shape(), (Shape{1, 3, 6}));
 }
@@ -55,7 +56,8 @@ TEST(type_prop, rounding_to_even_partial)
 TEST(type_prop, rounding_away_partial)
 {
     auto data = make_shared<op::Parameter>(element::f32, PartialShape{1, Dimension::dynamic(), 6});
-    auto softplus_func = make_shared<op::v5::Round>(data, op::v5::Round::RoundMode::HALF_AWAY_FROM_ZERO);
+    auto softplus_func =
+        make_shared<op::v5::Round>(data, op::v5::Round::RoundMode::HALF_AWAY_FROM_ZERO);
     EXPECT_EQ(softplus_func->get_element_type(), element::f32);
     ASSERT_TRUE(softplus_func->get_output_partial_shape(0).same_scheme(
         (PartialShape{1, Dimension::dynamic(), 6})));
@@ -80,7 +82,8 @@ TEST(type_prop, rounding_to_even_partial_static_rank)
 TEST(type_prop, rounding_away_partial_static_rank)
 {
     auto data = make_shared<op::Parameter>(element::f32, PartialShape{1, Dimension::dynamic(), 6});
-    auto softplus_func = make_shared<op::v5::Round>(data, op::v5::Round::RoundMode::HALF_AWAY_FROM_ZERO);
+    auto softplus_func =
+        make_shared<op::v5::Round>(data, op::v5::Round::RoundMode::HALF_AWAY_FROM_ZERO);
     EXPECT_EQ(softplus_func->get_element_type(), element::f32);
     ASSERT_TRUE(softplus_func->get_output_partial_shape(0).same_scheme(
         (PartialShape{1, Dimension::dynamic(), 6})));

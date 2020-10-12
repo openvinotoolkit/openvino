@@ -112,7 +112,8 @@ namespace ngraph
         {
         }
 
-        static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<op::v5::Round::Mode>", 5};
+        static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<op::v5::Round::RoundMode>",
+                                                    5};
         const DiscreteTypeInfo& get_type_info() const override { return type_info; }
     };
 }

@@ -105,8 +105,10 @@ namespace
 bool op::v0::Round::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
     OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v0::Round::evaluate");
-    return evaluate_round(
-        inputs[0], outputs[0], shape_size(get_output_shape(0)), op::v5::Round::RoundMode::HALF_TO_EVEN);
+    return evaluate_round(inputs[0],
+                          outputs[0],
+                          shape_size(get_output_shape(0)),
+                          op::v5::Round::RoundMode::HALF_TO_EVEN);
 }
 NGRAPH_SUPPRESS_DEPRECATED_END
 
@@ -142,3 +144,23 @@ bool op::v5::Round::evaluate(const HostTensorVector& outputs, const HostTensorVe
     OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v5::Round::evaluate");
     return evaluate_round(inputs[0], outputs[0], shape_size(get_output_shape(0)), get_mode());
 }
+
+namespace ngraph
+{
+    template <>
+    EnumNames<op::v5::Round::RoundMode>& EnumNames<op::v5::Round::RoundMode>::get()
+    {
+        static auto enum_names = EnumNames<op::v5::Round::RoundMode>(
+            "op::v5::Round::RoundMode",
+            {{"half_to_even", op::v5::Round::RoundMode::HALF_TO_EVEN},
+             {"half_away_from_zero", op::v5::Round::RoundMode::HALF_AWAY_FROM_ZERO}});
+        return enum_names;
+    }
+
+    constexpr DiscreteTypeInfo AttributeAdapter<op::v5::Round::RoundMode>::type_info;
+
+    std::ostream& operator<<(std::ostream& s, const op::v5::Round::RoundMode& type)
+    {
+        return s << as_string(type);
+    }
+} // namespace ngraph
