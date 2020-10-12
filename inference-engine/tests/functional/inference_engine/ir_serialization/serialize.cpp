@@ -65,8 +65,21 @@ TEST_F(SerializationTest, DISABLED_ModelWithMultipleOutputs) {
   ASSERT_TRUE(success) << message;
 }
 
-TEST_F(SerializationTest, DISABLED_ModelWithMultipleLayers) {
-  FAIL() << "not implemented";
+TEST_F(SerializationTest, ModelWithMultipleLayers) {
+  const std::string model = IR_SERIALIZATION_MODELS_PATH "addmul_abc.xml";
+  const std::string weights = IR_SERIALIZATION_MODELS_PATH "addmul_abc.bin";
+
+  InferenceEngine::Core ie;
+  auto expected = ie.ReadNetwork(model, weights);
+  expected.serialize(m_out_xml_path, m_out_bin_path);
+  auto result = ie.ReadNetwork(m_out_xml_path, m_out_bin_path);
+
+  bool success;
+  std::string message;
+  std::tie(success, message) =
+      compare_functions(result.getFunction(), expected.getFunction());
+
+  ASSERT_TRUE(success) << message;
 }
 
 TEST_F(SerializationTest, ModelWithConstants) {
