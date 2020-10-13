@@ -34,10 +34,14 @@ class TFNonMaxSuppressionNormalize(FrontReplacementSubgraph):
     TF inputs: boxes = [num_boxes, 4]
                scores = [num_boxes]
        outputs: box_indices [selected_boxes_count]
+                box_scores [selected_boxes_count]
+                valid_outputs selected_boxes_count
 
     IE inputs: boxes = [num_batches, num_boxes, 4]
                scores = [num_batches, num_classes, num_boxes]
        outputs: selected_indices [num_selected_indices, 3] where each element is [batch_index, class_index, box_index]
+                selected_scores [num_selected_indices, 3] where each element is [batch_index, class_index, box_score]
+                valid_outputs num_selected_indices
     """
     enabled = True
 
