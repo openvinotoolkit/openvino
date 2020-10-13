@@ -20,7 +20,3 @@ addIeTargetTest(
             TEMPLATE
 )
 # [cmake:functional_tests]
-
-# if(CMAKE_COMPILER_IS_GNUCC AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 9.0)
-#     set_target_properties(${TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION ${ENABLE_LTO})
-# endif()

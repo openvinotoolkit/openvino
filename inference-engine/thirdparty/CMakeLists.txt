@@ -17,7 +17,7 @@ elseif((CMAKE_CXX_COMPILER_ID STREQUAL "MSVC") AND (MSVC_VERSION VERSION_GREATER
 endif()
 
 if(ENABLE_LTO)
-    ie_enable_lto()
+    set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE ON)
 endif()
 
 if (ENABLE_CLDNN)
@@ -43,8 +43,7 @@ if (ENABLE_CLDNN)
     add_subdirectory(clDNN)
 
     # disable CLDNN docs build
-    set_target_properties(docs PROPERTIES EXCLUDE_FROM_ALL ON
-                                            FOLDER docs)
+    set_target_properties(docs PROPERTIES EXCLUDE_FROM_ALL ON FOLDER docs)
 endif()
 
 function(ie_build_pugixml)
@@ -61,12 +60,12 @@ else()
     ie_build_pugixml()
     target_include_directories(pugixml INTERFACE "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/pugixml/src>")
 endif()
+
 add_subdirectory(stb_lib)
 add_subdirectory(ade)
 add_subdirectory(fluid/modules/gapi)
 
-set_target_properties(ade fluid stb_image
-                        PROPERTIES FOLDER thirdparty)
+set_target_properties(ade fluid stb_image PROPERTIES FOLDER thirdparty)
 
 # developer package
 

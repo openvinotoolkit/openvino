@@ -2,9 +2,9 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-disable_deprecated_warnings()
-
 set(TARGET_NAME vpuUnitTests)
+
+disable_deprecated_warnings()
 
 include(${XLINK_DIR}/XLink.cmake)
 
@@ -16,12 +16,12 @@ addIeTargetTest(
             ${IE_MAIN_SOURCE_DIR}/thirdparty/movidius
             ${IE_MAIN_SOURCE_DIR}/thirdparty/movidius/mvnc/include/watchdog
             ${XLINK_INCLUDE}
+            $<TARGET_PROPERTY:ngraphFunctions,INTERFACE_INCLUDE_DIRECTORIES>
             ${XLINK_PLATFORM_INCLUDE}
-            ${CMAKE_CURRENT_SOURCE_DIR}/base/
+            ${CMAKE_CURRENT_SOURCE_DIR}/base
         LINK_LIBRARIES
             vpu_graph_transformer_test_static
             unitTestUtils
-            ngraphFunctions
             mvnc
         ADD_CPPLINT
         LABELS
