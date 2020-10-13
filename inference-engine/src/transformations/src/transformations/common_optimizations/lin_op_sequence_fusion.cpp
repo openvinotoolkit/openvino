@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "transformations/common_optimizations/lin_op_sequence_fusoin.hpp"
+#include "transformations/common_optimizations/lin_op_sequence_fusion.hpp"
 
 #include <memory>
 #include <vector>

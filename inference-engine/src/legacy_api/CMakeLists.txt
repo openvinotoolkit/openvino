@@ -39,7 +39,7 @@ set_ie_threading_interface_for(${TARGET_NAME}_obj)
 target_compile_definitions(${TARGET_NAME}_obj PRIVATE IMPLEMENT_INFERENCE_ENGINE_API)
 
 target_include_directories(${TARGET_NAME}_obj PRIVATE
-    ${PUBLIC_HEADERS_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/src ${CMAKE_CURRENT_SOURCE_DIR}/include/legacy/transformations
+    ${PUBLIC_HEADERS_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/src
     ${IE_MAIN_SOURCE_DIR}/src/inference_engine                                          # For CNNNetworkNGraphImpl
     $<TARGET_PROPERTY:inference_engine_transformations,INTERFACE_INCLUDE_DIRECTORIES>
     $<TARGET_PROPERTY:inference_engine_plugin_api,INTERFACE_INCLUDE_DIRECTORIES>

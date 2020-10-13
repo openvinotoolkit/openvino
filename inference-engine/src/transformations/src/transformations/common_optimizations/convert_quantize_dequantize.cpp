@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "transformations/op_conversions/convert_quantize_dequantize.hpp"
+#include "transformations/common_optimizations/convert_quantize_dequantize.hpp"
 #include "transformations/utils/utils.hpp"
 
 #include <memory>
