@@ -125,6 +125,15 @@ public:
 
     void on_adapter(const std::string& name, ::ngraph::ValueAccessor<void>& adapter) override;
 
+    void on_adapter(const std::string& name, ::ngraph::ValueAccessor<void*>& adapter) override {
+        //auto data = const_cast<char*>(reinterpret_cast<const char*>(adapter.get_ptr()));
+        auto data = reinterpret_cast<char*>(adapter.get_ptr());
+        std::vector<char> dataBuff(data, data + adapter.size());
+        std::stringstream ss;
+        copy(dataBuff.begin(), dataBuff.end(), std::ostream_iterator<char>(ss, ","));
+        params[name] = ss.str();
+    }
+
 private:
     std::shared_ptr<::ngraph::Node> node;
     std::map<std::string, std::string> params;
@@ -696,6 +705,27 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
         auto res = std::make_shared<InferenceEngine::ReduceLayer>(attrs);
         res->params = params;
         res->params["keep_dims"] = reduce_node->get_keep_dims() ? "True" : "False";
+        return res;
+    });
+
+    addSpecificCreator({"Constant"}, [](const std::shared_ptr<::ngraph::Node>& node, const std::map<std::string, std::string>& params) -> CNNLayerPtr {
+        LayerParams attrs = {node->get_friendly_name(), "Const", details::convertPrecision(node->get_output_element_type(0))};
+        auto res = std::make_shared<InferenceEngine::CNNLayer>(attrs);
+        if (res == nullptr) THROW_IE_EXCEPTION << "Cannot get " << attrs.type << " layer " << attrs.name;
+
+        auto dataPrecision = details::convertPrecision(node->get_element_type());
+
+        size_t shapeSize = ngraph::shape_size(node->get_shape());
+        if (dataPrecision == Precision::BIN) {
+            shapeSize = (shapeSize % 8 == 0 ? shapeSize / 8 : (shapeSize / 8) + 1);
+        }
+
+        TensorDesc td(dataPrecision, {shapeSize}, Layout::C);
+
+        auto blob = make_blob_with_precision(td);
+        blob->allocate();
+        res->blobs["custom"] = blob;
+
         return res;
     });
 }

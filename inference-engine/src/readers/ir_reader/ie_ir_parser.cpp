@@ -527,17 +527,14 @@ std::shared_ptr<ngraph::Node> V10Parser::createNode(const std::vector<ngraph::Ou
     // Try to create operation from loaded opsets
     if (!ngraphNode && opsets.count(params.version)) {
         auto opset = opsets.at(params.version);
-        if (params.type == "Const") {
-            if (!opset.contains_type("Constant")) {
-                THROW_IE_EXCEPTION << "Opset " << params.version << " doesn't contain the operation with type: Constant";
-            }
-            ngraphNode = std::shared_ptr<ngraph::Node>(opset.create("Constant"));
-        } else {
-            if (!opset.contains_type(params.type)) {
-                THROW_IE_EXCEPTION << "Opset " << params.version << " doesn't contain the operation with type: " << params.type;
-            }
-            ngraphNode = std::shared_ptr<ngraph::Node>(opset.create(params.type));
+        std::string type = params.type;
+        if (type == "Const") {
+            type = "Constant";
         }
+        if (!opset.contains_type(type)) {
+            THROW_IE_EXCEPTION << "Opset " << params.version << " doesn't contain the operation with type: " << type;
+        }
+        ngraphNode = std::shared_ptr<ngraph::Node>(opset.create(type));
 
         ngraphNode->set_arguments(inputs);
         XmlDeserializer visitor(node, binStream);
