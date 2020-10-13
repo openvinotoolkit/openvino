@@ -74,7 +74,7 @@ class LeakyReLUFusion(MiddleReplacementPattern):
             return
 
         const_value = const_node.out_port(0).data.get_value()
-        if const_value is not None and const_value.size != 1:
+        if const_value is None or const_value.size != 1:
             log.debug('Mul layer ({}) can not participate in conversion to leaky ReLU due to value {}'
                       ''.format(mul_node.id, const_value))
             return
