@@ -14,6 +14,7 @@
 #include <ngraph/ops.hpp>
 #include <ngraph/variant.hpp>
 #include "exec_graph_info.hpp"
+#include "ngraph/opsets/opset.hpp"
 #include "xml_parse_utils.h"
 
 namespace InferenceEngine {
@@ -69,7 +70,9 @@ public:
 
     void on_adapter(const std::string& name,
                     ngraph::ValueAccessor<void>& adapter) override {
+#if 0  // TODO: remove when Constant will support VisitorAPI
         m_data.append_attribute(name.c_str());
+#endif
     }
     void on_adapter(const std::string& name,
                     ngraph::ValueAccessor<bool>& adapter) override {
@@ -161,6 +164,21 @@ ConstantAtributes dump_constant_data(std::vector<uint8_t>& bin,
     return attr;
 }
 
+std::string get_opset_name(ngraph::Node* n) {
+    // return the oldest opset name where node type is present
+    auto opsets = ngraph::get_opsets_ordered();
+
+    for (int idx = 0; idx < opsets.size(); idx++) {
+        int number = idx + 1;
+        if (opsets[idx].get().contains_op_type(n)) {
+            return "opset" + std::to_string(number);
+        }
+    }
+
+    THROW_IE_EXCEPTION << "unknown opset: " << n->get_name() << " v"
+                       << n->get_version();
+}
+
 void ngfunction_2_irv10(pugi::xml_document& doc, std::vector<uint8_t>& bin,
                         const ngraph::Function& f) {
     pugi::xml_node netXml = doc.append_child("net");
@@ -176,8 +194,8 @@ void ngfunction_2_irv10(pugi::xml_document& doc, std::vector<uint8_t>& bin,
         layer.append_attribute("name").set_value(
             node->get_friendly_name().c_str());
         layer.append_attribute("type").set_value(node->get_type_name());
-        // TODO: calculate real opset
-        layer.append_attribute("version").set_value("opset1");
+        layer.append_attribute("version").set_value(
+            get_opset_name(node.get()).c_str());
 
         // <layers/data>
         pugi::xml_node data = layer.append_child("data");
@@ -186,7 +204,7 @@ void ngfunction_2_irv10(pugi::xml_document& doc, std::vector<uint8_t>& bin,
         XmlVisitor visitor{data};
 
         if (!node->visit_attributes(visitor)) {
-              THROW_IE_EXCEPTION << "cannot visit " << node->get_name();
+            THROW_IE_EXCEPTION << "cannot visit " << node->get_name();
         }
 
         // <layers/data> constant atributes (special case)
