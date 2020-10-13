@@ -243,14 +243,13 @@ namespace ngraph
             class NGRAPH_API NonMaxSuppression : public Op
             {
             public:
+                NGRAPH_RTTI_DECLARATION;
                 enum class BoxEncodingType
                 {
                     CORNER,
                     CENTER
                 };
 
-                static constexpr NodeTypeInfo type_info{"NonMaxSuppression", 5};
-                const NodeTypeInfo& get_type_info() const override { return type_info; }
                 NonMaxSuppression() = default;
 
                 /// \brief Constructs a NonMaxSuppression operation with default values in the last
