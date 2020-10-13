@@ -889,63 +889,49 @@ using V5BoxEncoding = op::v5::NonMaxSuppression::BoxEncodingType;
 
 static void normalize_corner(float* boxes, const Shape& boxes_shape)
 {
-    size_t num_batches = boxes_shape[0];
-    size_t num_boxes = boxes_shape[1];
-
-    float* box_ptr = boxes;
-
-    for (size_t batch = 0; batch < num_batches; ++batch)
+    size_t total_num_of_boxes = shape_size(boxes_shape) / 4;
+    for (size_t i = 0; i < total_num_of_boxes; ++i)
     {
-        for (size_t box = 0; box < num_boxes; ++num_boxes)
-        {
-            float y1 = box_ptr[0];
-            float x1 = box_ptr[1];
-            float y2 = box_ptr[2];
-            float x2 = box_ptr[3];
+        float* current_box = boxes + 4 * i;
 
-            float ymin = std::min(y1, y2);
-            float ymax = std::max(y1, y2);
-            float xmin = std::min(x1, x2);
-            float xmax = std::max(x1, x2);
+        float y1 = current_box[0];
+        float x1 = current_box[1];
+        float y2 = current_box[2];
+        float x2 = current_box[3];
 
-            box_ptr[0] = ymin;
-            box_ptr[1] = xmin;
-            box_ptr[2] = ymax;
-            box_ptr[3] = xmax;
+        float ymin = std::min(y1, y2);
+        float ymax = std::max(y1, y2);
+        float xmin = std::min(x1, x2);
+        float xmax = std::max(x1, x2);
 
-            box_ptr += 4;
-        }
+        current_box[0] = ymin;
+        current_box[1] = xmin;
+        current_box[2] = ymax;
+        current_box[3] = xmax;
     }
 }
 
 static void normalize_center(float* boxes, const Shape& boxes_shape)
 {
-    size_t num_batches = boxes_shape[0];
-    size_t num_boxes = boxes_shape[1];
-
-    float* box_ptr = boxes;
-
-    for (size_t batch = 0; batch < num_batches; ++batch)
+    size_t total_num_of_boxes = shape_size(boxes_shape) / 4;
+    for (size_t i = 0; i < total_num_of_boxes; ++i)
     {
-        for (size_t box = 0; box < num_boxes; ++num_boxes)
-        {
-            float x_center = box_ptr[0];
-            float y_center = box_ptr[1];
-            float width = box_ptr[2];
-            float height = box_ptr[3];
+        float* current_box = boxes + 4 * i;
 
-            float y1 = y_center - height / 2.0;
-            float x1 = x_center - width / 2.0;
-            float y2 = y_center + height / 2.0;
-            float x2 = x_center + width / 2.0;
+        float x_center = current_box[0];
+        float y_center = current_box[1];
+        float width = current_box[2];
+        float height = current_box[3];
 
-            box_ptr[0] = y1;
-            box_ptr[1] = x1;
-            box_ptr[2] = y2;
-            box_ptr[3] = x2;
+        float y1 = y_center - height / 2.0;
+        float x1 = x_center - width / 2.0;
+        float y2 = y_center + height / 2.0;
+        float x2 = x_center + width / 2.0;
 
-            box_ptr += 4;
-        }
+        current_box[0] = y1;
+        current_box[1] = x1;
+        current_box[2] = y2;
+        current_box[3] = x2;
     }
 }
 
@@ -986,7 +972,6 @@ static std::vector<float> prepare_boxes_data(const HostTensorPtr& boxes,
     }
 
     normalize_box_encoding(result.data(), boxes_shape, box_encoding);
-
     return result;
 }
 
