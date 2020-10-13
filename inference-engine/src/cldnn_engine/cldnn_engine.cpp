@@ -139,10 +139,7 @@ InferenceEngine::ICNNNetwork::Ptr clDNNEngine::CloneAndTransformNetwork(const In
         // Disable shape inference (WA for generic operations)
         ::ngraph::op::GenericIE::DisableReshape noReshape(nGraphFunc);
 
-        const bool enableInt8 =
-            config.enableInt8 &&
-            (config.lptVersion == Config::LptVersion::nGraph) &&
-            ngraph::pass::low_precision::LowPrecisionTransformer::isFunctionQuantized(nGraphFunc);
+        bool enableInt8;
 
         {
             // Note: instead of running all Conversion Transformations you can make up your own transformation pipeline
@@ -168,6 +165,9 @@ InferenceEngine::ICNNNetwork::Ptr clDNNEngine::CloneAndTransformNetwork(const In
 
             ngraph::pass::Manager conversion_manager;
 
+            enableInt8 = config.enableInt8 &&
+                (config.lptVersion == Config::LptVersion::nGraph) &&
+                ngraph::pass::low_precision::LowPrecisionTransformer::isFunctionQuantized(nGraphFunc);
             if (enableInt8) {
                 // [WA part1] Convert quantized FP16 model to FP32 to avoid possible overflow and mixed precision errors
                 conversion_manager.register_pass<ngraph::pass::ConvertPrecision>(ngraph::element::f16, ngraph::element::f32);
