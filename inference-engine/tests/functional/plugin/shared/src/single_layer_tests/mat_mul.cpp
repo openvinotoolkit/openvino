@@ -15,13 +15,16 @@ namespace LayerTestsDefinitions {
 
 std::string MatMulTest::getTestCaseName(const testing::TestParamInfo<MatMulLayerTestParamsSet> &obj) {
     InferenceEngine::Precision netPrecision;
+    InferenceEngine::Precision inPrc, outPrc;
+    InferenceEngine::Layout inLayout;
     InferenceEngine::SizeVector inputShape0;
     InferenceEngine::SizeVector inputShape1;
     bool transpose_a;
     bool transpose_b;
     ngraph::helpers::InputLayerType secondaryInputType;
     std::string targetDevice;
-    std::tie(netPrecision, inputShape0, inputShape1, transpose_a, transpose_b, secondaryInputType, targetDevice) = obj.param;
+    std::tie(netPrecision, inPrc, outPrc, inLayout, inputShape0, inputShape1, transpose_a, transpose_b, secondaryInputType, targetDevice) =
+        obj.param;
 
     std::ostringstream result;
     result << "IS0=" << CommonTestUtils::vec2str(inputShape0) << "_";
@@ -30,7 +33,10 @@ std::string MatMulTest::getTestCaseName(const testing::TestParamInfo<MatMulLayer
     result << "transpose_b=" << transpose_b << "_";
     result << "secondaryInputType=" << secondaryInputType << "_";
     result << "netPRC=" << netPrecision.name() << "_";
-    result << "targetDevice=" << targetDevice;
+    result << "inPRC=" << inPrc.name() << "_";
+    result << "outPRC=" << outPrc.name() << "_";
+    result << "inL=" << inLayout << "_";
+    result << "trgDev=" << targetDevice;
     return result.str();
 }
 
@@ -41,7 +47,8 @@ void MatMulTest::SetUp() {
     bool transpose_b;
     ngraph::helpers::InputLayerType secondaryInputType;
     auto netPrecision = InferenceEngine::Precision::UNSPECIFIED;
-    std::tie(netPrecision, inputShape0, inputShape1, transpose_a, transpose_b, secondaryInputType, targetDevice) = this->GetParam();
+    std::tie(netPrecision, inPrc, outPrc, inLayout, inputShape0, inputShape1, transpose_a, transpose_b, secondaryInputType, targetDevice) =
+        this->GetParam();
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
     auto params = ngraph::builder::makeParams(ngPrc, {inputShape0});
 

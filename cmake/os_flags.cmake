@@ -152,7 +152,7 @@ macro(ie_enable_lto)
             set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -flto")
         endif()
 
-        # modify linker and ar
+        # modify runlib and ar tools
         if(LINUX)
             set(CMAKE_AR  "gcc-ar")
             set(CMAKE_RANLIB "gcc-ranlib")

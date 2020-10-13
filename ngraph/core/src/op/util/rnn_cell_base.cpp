@@ -32,7 +32,8 @@ using namespace ngraph;
 
 std::shared_ptr<Node> ngraph::op::util::convert_lstm_node_format(const Output<Node>& node,
                                                                  LSTMWeightsFormat from_format,
-                                                                 LSTMWeightsFormat to_format)
+                                                                 LSTMWeightsFormat to_format,
+                                                                 int64_t axis)
 {
     static const std::map<op::util::LSTMWeightsFormat, std::vector<size_t>> gate_order_map{
         {op::util::LSTMWeightsFormat::FICO, {0, 1, 2, 3}},
@@ -45,7 +46,7 @@ std::shared_ptr<Node> ngraph::op::util::convert_lstm_node_format(const Output<No
     const auto& to = gate_order_map.at(to_format);
     size_t num_gates = 4;
 
-    auto axis_const = std::make_shared<opset4::Constant>(element::i64, Shape{}, 0);
+    auto axis_const = std::make_shared<opset4::Constant>(element::i64, Shape{}, axis);
     OutputVector splitted_node =
         std::make_shared<opset4::Split>(node, axis_const, num_gates)->outputs();
     OutputVector nodes_in_new_format(num_gates);
@@ -53,7 +54,7 @@ std::shared_ptr<Node> ngraph::op::util::convert_lstm_node_format(const Output<No
     {
         nodes_in_new_format[to[from[i]]] = splitted_node[i];
     }
-    return std::make_shared<opset4::Concat>(nodes_in_new_format, 0);
+    return std::make_shared<opset4::Concat>(nodes_in_new_format, axis);
 }
 
 // Modify input vector in-place and return reference to modified vector.
