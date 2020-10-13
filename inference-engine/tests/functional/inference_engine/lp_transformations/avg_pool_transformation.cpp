@@ -99,12 +99,12 @@ const std::vector<ngraph::element::Type> precisions = {
 
 const std::vector<std::string> additionalLayer = {
     "",
-    "maxpool"  // any transparent layer
+    //"maxpool"  // any transparent layer
 };
 
 const std::vector<bool> addFQ = {
     true,
-    false
+    //false
 };
 
 const std::vector<ngraph::Shape> shapes = {
