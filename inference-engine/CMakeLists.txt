@@ -28,6 +28,7 @@ endif()
 find_package(Threads REQUIRED)
 
 unset(IEDeveloperPackageTargets CACHE)
+unset(OpenVINODeveloperPackageTargets CACHE)
 function(ie_developer_export_targets)
     set(IEDeveloperPackageTargets "${IEDeveloperPackageTargets};${ARGV}")
 
