@@ -42,7 +42,8 @@ namespace ngraph
                     if (exponent_type != base_type)
                     {
                         if (exponent_type.is_integral() ||
-                            (base_type.is_real() && base_type > exponent_type))
+                            (base_type.is_real() &&
+                             base_type.bitwidth() >= exponent_type.bitwidth()))
                         {
                             exponent =
                                 std::make_shared<default_opset::Convert>(exponent, base_type);
