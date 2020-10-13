@@ -180,10 +180,6 @@ InferenceEngine::StatusCode MKLDNNPlugin::MKLDNNInferRequest::Cancel() {
     return InferenceEngine::OK;
 }
 
-void MKLDNNPlugin::MKLDNNInferRequest::ResetCancellationRequest() {
-    graph->ResetCancellationRequest();
-}
-
 void MKLDNNPlugin::MKLDNNInferRequest::GetPerformanceCounts(
         std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> &perfMap) const {
     if (!graph || !graph->IsReady())

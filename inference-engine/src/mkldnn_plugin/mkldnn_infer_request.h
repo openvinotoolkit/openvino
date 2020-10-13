@@ -45,9 +45,6 @@ public:
 
     void SetBatch(int batch = -1) override;
 
-protected:
-    void ResetCancellationRequest() override;
-
 private:
     template <typename T> void pushInput(const std::string& inputName, InferenceEngine::Blob::Ptr& inputBlob);
 

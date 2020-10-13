@@ -801,6 +801,7 @@ void MKLDNNGraph::Infer(int batch) {
         ENABLE_DUMP(do_after(DUMP_DIR, graphNodes[i]));
 
         if (IsCancellationRequested()) {
+            ResetCancellationRequest();
             THROW_IE_EXCEPTION << InferenceEngine::details::as_status << InferenceEngine::INFER_CANCELLED;
         }
     }

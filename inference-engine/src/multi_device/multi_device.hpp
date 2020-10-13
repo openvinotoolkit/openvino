@@ -52,14 +52,6 @@ public:
     }
     // Multi-Device impl specific: sets the data (blobs from the device-less requets to the specific device request)
     void SetBlobsToAnotherRequest(InferenceEngine::InferRequest& req);
-
-    InferenceEngine::StatusCode Cancel() override {
-        return InferenceEngine::NOT_IMPLEMENTED;
-    }
-
-protected:
-    void ResetCancellationRequest() {
-    }
 };
 
 #if ((IE_THREAD == IE_THREAD_TBB) || (IE_THREAD == IE_THREAD_TBB_AUTO))

@@ -46,10 +46,6 @@ public:
     void EnableProfiling() { m_useProfiling = true; }
     void EnableStreams() { m_useStreams = true; }
 
-    InferenceEngine::StatusCode Cancel() override {
-        return InferenceEngine::NOT_IMPLEMENTED;
-    }
-
 protected:
     std::map<std::string, cldnn::memory> inputsMemory;
     std::map<std::string, cldnn::primitive_id> outputsMap;
@@ -81,9 +77,6 @@ protected:
 
     void PrepareInput(const cldnn::primitive_id &inputName, const InferenceEngine::Blob &inputBlob);
     void PrepareInputDyn(const cldnn::primitive_id &inputName, const InferenceEngine::Blob &inputBlob);
-
-    void ResetCancellationRequest() override {
-    }
 
 private:
     static const char fp32_suffix[];
