@@ -339,37 +339,35 @@ static bool eliminate_stop_gradient(const std::shared_ptr<Node>& node) {
 }
 
 bool pass::NopElimination::run_on_function(std::shared_ptr<Function> function) {
-#if GraphGen(OV_GEN_NGRAPH_PASS(NopElimination, run_on_function))
-    OV_ITT_SCOPED_TASK(itt::domains::IETransform);
-    static const std::unordered_map<NodeTypeInfo, std::function<bool(const std::shared_ptr<Node>&)>>
-        dispatcher{{TI(opset3::Pad), &eliminate_nop},
-                   {TI(op::v0::Sum), &eliminate_sum},
-                   {TI(opset3::Convert), &eliminate_convert},
-                   {TI(op::v0::Slice), &eliminate_nop},
-                   {TI(op::v0::StopGradient), &eliminate_stop_gradient},
-                   {TI(opset3::Reshape), &eliminate_reshape_v1},
-                   {TI(opset3::Concat), &eliminate_concat},
-                   {TI(opset3::Squeeze), &eliminate_squeeze},
-                   {TI(opset3::Unsqueeze), &eliminate_unsqueeze},
-                   {TI(op::v0::Broadcast), &eliminate_nop}};
+    IETRANSFORM_SCOPE(NopElimination,
+        static const std::unordered_map<NodeTypeInfo, std::function<bool(const std::shared_ptr<Node>&)>>
+            dispatcher{{TI(opset3::Pad), &eliminate_nop},
+                    {TI(op::v0::Sum), &eliminate_sum},
+                    {TI(opset3::Convert), &eliminate_convert},
+                    {TI(op::v0::Slice), &eliminate_nop},
+                    {TI(op::v0::StopGradient), &eliminate_stop_gradient},
+                    {TI(opset3::Reshape), &eliminate_reshape_v1},
+                    {TI(opset3::Concat), &eliminate_concat},
+                    {TI(opset3::Squeeze), &eliminate_squeeze},
+                    {TI(opset3::Unsqueeze), &eliminate_unsqueeze},
+                    {TI(op::v0::Broadcast), &eliminate_nop}};
 
-    bool clobbered = false;
+        bool clobbered = false;
 
-    for (const auto& node : function->get_ops()) {
-        // Recursively apply transformation for sub-graph based operations
-        if (auto sub_graph_node = std::dynamic_pointer_cast<op::util::SubGraphOp>(node)) {
-            if (auto sub_graph = sub_graph_node->get_function()) {
-                clobbered |= run_on_function(sub_graph);
+        for (const auto& node : function->get_ops()) {
+            // Recursively apply transformation for sub-graph based operations
+            if (auto sub_graph_node = std::dynamic_pointer_cast<op::util::SubGraphOp>(node)) {
+                if (auto sub_graph = sub_graph_node->get_function()) {
+                    clobbered |= run_on_function(sub_graph);
+                }
+            }
+            auto handler = dispatcher.find(node->get_type_info());
+            if (handler != dispatcher.end()) {
+                clobbered |= handler->second(node);
             }
         }
-        auto handler = dispatcher.find(node->get_type_info());
-        if (handler != dispatcher.end()) {
-            clobbered |= handler->second(node);
-        }
-    }
 
-    return clobbered;
-#else
-    return false;
-#endif
+        return clobbered;
+    )
+    NGRAPH_CHECK(false, "nGraph pass is not included into the selective build.");
 }

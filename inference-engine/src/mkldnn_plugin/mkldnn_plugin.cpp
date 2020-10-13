@@ -93,12 +93,12 @@ static void Transformation(ICNNNetwork::Ptr& clonedNetwork) {
     ngraph::op::GenericIE::DisableReshape noReshape(nGraphFunc);
 
     ngraph::pass::Manager manager;
-    manager.register_pass<ngraph::pass::InitNodeInfo>();
+    REGISTER_PASS(manager, InitNodeInfo);
     // WA: ConvertPriorBox must be executed before the 1st ConstantFolding pass
-    manager.register_pass<ngraph::pass::ConvertPriorBox>();
-    manager.register_pass<ngraph::pass::CommonOptimizations>();
-    manager.register_pass<ngraph::pass::ConvertOpSet3ToOpSet2>();
-    manager.register_pass<ngraph::pass::ConvertOpSet2ToOpSet1>();
+    REGISTER_PASS(manager, ConvertPriorBox);
+    REGISTER_PASS(manager, CommonOptimizations);
+    REGISTER_PASS(manager, ConvertOpSet3ToOpSet2);
+    REGISTER_PASS(manager, ConvertOpSet2ToOpSet1);
 
     std::vector<std::pair<ngraph::element::Type, ngraph::element::Type>> convert_precision_list {
             {ngraph::element::i64, ngraph::element::i32},
@@ -110,11 +110,10 @@ static void Transformation(ICNNNetwork::Ptr& clonedNetwork) {
     };
 
     for (auto & precision : convert_precision_list) {
-        manager.register_pass<ngraph::pass::ConvertPrecision>(precision.first, precision.second);
+        REGISTER_PASS(manager, ConvertPrecision, precision.first, precision.second);
     }
-
-    manager.register_pass<ngraph::pass::ConvertOpSet1ToLegacy>();
-    manager.register_pass<ngraph::pass::ConvertPrecision>(ngraph::element::i64, ngraph::element::i32);
+    REGISTER_PASS(manager, ConvertOpSet1ToLegacy);
+    REGISTER_PASS(manager, ConvertPrecision, ngraph::element::i64, ngraph::element::i32);
 
     manager.set_callback(transformations_callback);
     manager.run_passes(nGraphFunc);

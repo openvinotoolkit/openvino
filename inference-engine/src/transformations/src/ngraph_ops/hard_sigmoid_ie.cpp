@@ -6,6 +6,7 @@
 #include <string>
 
 #include "ngraph_ops/hard_sigmoid_ie.hpp"
+#include "itt.hpp"
 
 #include "ngraph/op/hard_sigmoid.hpp"
 #include "ngraph/op/constant.hpp"
@@ -26,9 +27,13 @@ op::HardSigmoid_IE::HardSigmoid_IE(const ngraph::Output<ngraph::Node> &arg,
 }
 
 void op::HardSigmoid_IE::validate_and_infer_types() {
-    element::Type arg_type = get_input_element_type(0);
-    PartialShape arg_shape = get_input_partial_shape(0);
-    set_output_type(0, arg_type, arg_shape);
+    NGRAPH_OP_SCOPE(HardSigmoid_IE_validate_and_infer_types,
+        element::Type arg_type = get_input_element_type(0);
+        PartialShape arg_shape = get_input_partial_shape(0);
+        set_output_type(0, arg_type, arg_shape);
+        return;
+    )
+    NODE_VALIDATION_CHECK(this, false, "Function is not included into the selective build.");
 }
 
 shared_ptr<Node> op::HardSigmoid_IE::clone_with_new_inputs(const OutputVector& new_args) const {

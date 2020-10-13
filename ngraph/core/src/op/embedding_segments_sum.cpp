@@ -56,133 +56,132 @@ op::v3::EmbeddingSegmentsSum::EmbeddingSegmentsSum(const Output<Node>& emb_table
 
 void op::v3::EmbeddingSegmentsSum::validate_and_infer_types()
 {
-#if GraphGen(OV_GEN_NGRAPH_OP(EmbeddingSegmentsSum, v3, validate_and_infer_types))
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
-    NODE_VALIDATION_CHECK(this,
-                          get_input_element_type(SEGMENT_IDS) == element::i64 ||
-                              get_input_element_type(SEGMENT_IDS) == element::i32,
-                          "SEGMENT_IDS type must be i32 or i64");
-
-    NODE_VALIDATION_CHECK(this,
-                          get_input_element_type(INDICES) == element::i64 ||
-                              get_input_element_type(INDICES) == element::i32,
-                          "INDICES type must be i32 or i64");
-
-    NODE_VALIDATION_CHECK(this,
-                          get_input_element_type(NUM_SEGMENTS) == element::i64 ||
-                              get_input_element_type(NUM_SEGMENTS) == element::i32,
-                          "NUM_SEGMENTS type must be i32 or i64");
-
-    NODE_VALIDATION_CHECK(
-        this,
-        get_input_element_type(INDICES).compatible(get_input_element_type(SEGMENT_IDS)),
-        "Segment_ids element type (",
-        get_input_element_type(SEGMENT_IDS),
-        ") must match indices element type (",
-        get_input_element_type(INDICES),
-        ")");
-
-    NODE_VALIDATION_CHECK(
-        this,
-        get_input_element_type(SEGMENT_IDS).compatible(get_input_element_type(NUM_SEGMENTS)),
-        "Num_segments element type (",
-        get_input_element_type(NUM_SEGMENTS),
-        ") must match Segment_ids element type (",
-        get_input_element_type(SEGMENT_IDS),
-        ")");
-
-    NODE_VALIDATION_CHECK(this,
-                          get_input_partial_shape(INDICES).is_dynamic() ||
-                              get_input_partial_shape(INDICES).to_shape().size() == 1,
-                          "INDICES must be 1D");
-
-    NODE_VALIDATION_CHECK(this,
-                          get_input_partial_shape(SEGMENT_IDS).is_dynamic() ||
-                              get_input_partial_shape(SEGMENT_IDS).to_shape().size() == 1,
-                          "SEGMENT_IDS must be 1D");
-
-    NODE_VALIDATION_CHECK(
-        this,
-        get_input_partial_shape(INDICES).compatible(get_input_partial_shape(SEGMENT_IDS)),
-        "INDICES and SEGMENT_IDS shape must be same");
-
-    NODE_VALIDATION_CHECK(this,
-                          get_input_partial_shape(NUM_SEGMENTS).compatible(PartialShape{}),
-                          "NUM_SEGMENTS must be a scalar");
-
-    if (get_input_size() >= 5)
-    {
+    NGRAPH_OP_SCOPE(v3_EmbeddingSegmentsSum_validate_and_infer_types,
         NODE_VALIDATION_CHECK(this,
-                              get_input_element_type(DEFAULT_INDEX) == element::i64 ||
-                                  get_input_element_type(DEFAULT_INDEX) == element::i32,
-                              "DEFAULT_INDEX type must be i32 or i64");
+                            get_input_element_type(SEGMENT_IDS) == element::i64 ||
+                                get_input_element_type(SEGMENT_IDS) == element::i32,
+                            "SEGMENT_IDS type must be i32 or i64");
+
+        NODE_VALIDATION_CHECK(this,
+                            get_input_element_type(INDICES) == element::i64 ||
+                                get_input_element_type(INDICES) == element::i32,
+                            "INDICES type must be i32 or i64");
+
+        NODE_VALIDATION_CHECK(this,
+                            get_input_element_type(NUM_SEGMENTS) == element::i64 ||
+                                get_input_element_type(NUM_SEGMENTS) == element::i32,
+                            "NUM_SEGMENTS type must be i32 or i64");
 
         NODE_VALIDATION_CHECK(
             this,
-            get_input_element_type(INDICES).compatible(get_input_element_type(DEFAULT_INDEX)),
-            "Default_index element type (",
-            get_input_element_type(DEFAULT_INDEX),
+            get_input_element_type(INDICES).compatible(get_input_element_type(SEGMENT_IDS)),
+            "Segment_ids element type (",
+            get_input_element_type(SEGMENT_IDS),
             ") must match indices element type (",
             get_input_element_type(INDICES),
             ")");
 
-        NODE_VALIDATION_CHECK(this,
-                              get_input_partial_shape(DEFAULT_INDEX).compatible(PartialShape{}),
-                              "DEFAULT_INDEX must be a scalar");
-    }
-
-    if (get_input_size() == 6)
-    {
-        NODE_VALIDATION_CHECK(this,
-                              get_input_element_type(EMB_TABLE).compatible(
-                                  get_input_element_type(PER_SAMPLE_WEIGHTS)),
-                              "Per sample weight element type (",
-                              get_input_element_type(PER_SAMPLE_WEIGHTS),
-                              ") must match embedding table element type (",
-                              get_input_element_type(EMB_TABLE),
-                              ")");
+        NODE_VALIDATION_CHECK(
+            this,
+            get_input_element_type(SEGMENT_IDS).compatible(get_input_element_type(NUM_SEGMENTS)),
+            "Num_segments element type (",
+            get_input_element_type(NUM_SEGMENTS),
+            ") must match Segment_ids element type (",
+            get_input_element_type(SEGMENT_IDS),
+            ")");
 
         NODE_VALIDATION_CHECK(this,
-                              get_input_partial_shape(PER_SAMPLE_WEIGHTS).is_dynamic() ||
-                                  get_input_partial_shape(PER_SAMPLE_WEIGHTS).to_shape().size() ==
-                                      1,
-                              "PER_SAMPLE_WEIGHTS must be 1D");
+                            get_input_partial_shape(INDICES).is_dynamic() ||
+                                get_input_partial_shape(INDICES).to_shape().size() == 1,
+                            "INDICES must be 1D");
 
         NODE_VALIDATION_CHECK(this,
-                              get_input_partial_shape(INDICES).compatible(
-                                  get_input_partial_shape(PER_SAMPLE_WEIGHTS)),
-                              "INDICES and PER_SAMPLE_WEIGHTS shape must be same");
-    }
+                            get_input_partial_shape(SEGMENT_IDS).is_dynamic() ||
+                                get_input_partial_shape(SEGMENT_IDS).to_shape().size() == 1,
+                            "SEGMENT_IDS must be 1D");
 
-    element::Type result_et = get_input_element_type(EMB_TABLE);
+        NODE_VALIDATION_CHECK(
+            this,
+            get_input_partial_shape(INDICES).compatible(get_input_partial_shape(SEGMENT_IDS)),
+            "INDICES and SEGMENT_IDS shape must be same");
 
-    const PartialShape& emb_table_shape = get_input_partial_shape(EMB_TABLE);
+        NODE_VALIDATION_CHECK(this,
+                            get_input_partial_shape(NUM_SEGMENTS).compatible(PartialShape{}),
+                            "NUM_SEGMENTS must be a scalar");
 
-    PartialShape result_shape;
-    if (emb_table_shape.rank().is_static())
-    {
-        result_shape = emb_table_shape;
-        if (auto num_segments_const =
-                as_type<opset3::Constant>(this->get_input_node_ptr(NUM_SEGMENTS)))
+        if (get_input_size() >= 5)
         {
-            result_shape[0] = num_segments_const->cast_vector<int64_t>()[0];
+            NODE_VALIDATION_CHECK(this,
+                                get_input_element_type(DEFAULT_INDEX) == element::i64 ||
+                                    get_input_element_type(DEFAULT_INDEX) == element::i32,
+                                "DEFAULT_INDEX type must be i32 or i64");
+
+            NODE_VALIDATION_CHECK(
+                this,
+                get_input_element_type(INDICES).compatible(get_input_element_type(DEFAULT_INDEX)),
+                "Default_index element type (",
+                get_input_element_type(DEFAULT_INDEX),
+                ") must match indices element type (",
+                get_input_element_type(INDICES),
+                ")");
+
+            NODE_VALIDATION_CHECK(this,
+                                get_input_partial_shape(DEFAULT_INDEX).compatible(PartialShape{}),
+                                "DEFAULT_INDEX must be a scalar");
+        }
+
+        if (get_input_size() == 6)
+        {
+            NODE_VALIDATION_CHECK(this,
+                                get_input_element_type(EMB_TABLE).compatible(
+                                    get_input_element_type(PER_SAMPLE_WEIGHTS)),
+                                "Per sample weight element type (",
+                                get_input_element_type(PER_SAMPLE_WEIGHTS),
+                                ") must match embedding table element type (",
+                                get_input_element_type(EMB_TABLE),
+                                ")");
+
+            NODE_VALIDATION_CHECK(this,
+                                get_input_partial_shape(PER_SAMPLE_WEIGHTS).is_dynamic() ||
+                                    get_input_partial_shape(PER_SAMPLE_WEIGHTS).to_shape().size() ==
+                                        1,
+                                "PER_SAMPLE_WEIGHTS must be 1D");
+
+            NODE_VALIDATION_CHECK(this,
+                                get_input_partial_shape(INDICES).compatible(
+                                    get_input_partial_shape(PER_SAMPLE_WEIGHTS)),
+                                "INDICES and PER_SAMPLE_WEIGHTS shape must be same");
+        }
+
+        element::Type result_et = get_input_element_type(EMB_TABLE);
+
+        const PartialShape& emb_table_shape = get_input_partial_shape(EMB_TABLE);
+
+        PartialShape result_shape;
+        if (emb_table_shape.rank().is_static())
+        {
+            result_shape = emb_table_shape;
+            if (auto num_segments_const =
+                    as_type<opset3::Constant>(this->get_input_node_ptr(NUM_SEGMENTS)))
+            {
+                result_shape[0] = num_segments_const->cast_vector<int64_t>()[0];
+            }
+            else
+            {
+                result_shape[0] = Dimension::dynamic();
+                set_input_is_relevant_to_shape(NUM_SEGMENTS);
+            }
         }
         else
         {
-            result_shape[0] = Dimension::dynamic();
+            result_shape = PartialShape::dynamic();
             set_input_is_relevant_to_shape(NUM_SEGMENTS);
         }
-    }
-    else
-    {
-        result_shape = PartialShape::dynamic();
-        set_input_is_relevant_to_shape(NUM_SEGMENTS);
-    }
 
-    set_output_type(0, result_et, result_shape);
-#else
+        set_output_type(0, result_et, result_shape);
+        return;
+    )
     NODE_VALIDATION_CHECK(this, false, "Function is not included into the selective build.");
-#endif
 }
 
 shared_ptr<Node>

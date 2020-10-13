@@ -53,10 +53,8 @@ void pass::PassBase::set_property(const PassPropertyMask& prop, bool value)
     }
 }
 
-std::string pass::PassBase::get_name() const
+std::string pass::PassBase::get_class_name() const
 {
-    if (m_name.empty())
-    {
         const PassBase* p = this;
         std::string pass_name = typeid(*p).name();
 #ifndef _WIN32
@@ -64,6 +62,13 @@ std::string pass::PassBase::get_name() const
         pass_name = abi::__cxa_demangle(pass_name.c_str(), nullptr, nullptr, &status);
 #endif
         return pass_name;
+}
+
+std::string pass::PassBase::get_name() const
+{
+    if (m_name.empty())
+    {
+        return get_class_name();
     }
     else
     {

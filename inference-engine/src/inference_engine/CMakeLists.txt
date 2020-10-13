@@ -174,6 +174,9 @@ add_library(${TARGET_NAME} SHARED
             ${IE_STATIC_DEPENDENT_FILES}
             $<TARGET_OBJECTS:${TARGET_NAME}_obj>)
 
+include(selective_build)
+ie_forced_include(${TARGET_NAME} "${OpenVINO_SELECTIVE_BUILD_HEADER}" ON)
+
 set_ie_threading_interface_for(${TARGET_NAME})
 
 target_link_libraries(${TARGET_NAME} PRIVATE ${CMAKE_DL_LIBS} Threads::Threads pugixml openvino::itt

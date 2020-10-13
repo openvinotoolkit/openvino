@@ -74,18 +74,12 @@ namespace
         bool rc = true;
         switch (arg->get_element_type())
         {
-            TYPE_CASE(i32)(arg, out, axes, keep_dims);
-            break;
-            TYPE_CASE(i64)(arg, out, axes, keep_dims);
-            break;
-            TYPE_CASE(u32)(arg, out, axes, keep_dims);
-            break;
-            TYPE_CASE(u64)(arg, out, axes, keep_dims);
-            break;
-            TYPE_CASE(f16)(arg, out, axes, keep_dims);
-            break;
-            TYPE_CASE(f32)(arg, out, axes, keep_dims);
-            break;
+            NGRAPH_TYPE_CASE(evaluate_sum, i32, arg, out, axes, keep_dims)
+            NGRAPH_TYPE_CASE(evaluate_sum, i64, arg, out, axes, keep_dims)
+            NGRAPH_TYPE_CASE(evaluate_sum, u32, arg, out, axes, keep_dims)
+            NGRAPH_TYPE_CASE(evaluate_sum, u64, arg, out, axes, keep_dims)
+            NGRAPH_TYPE_CASE(evaluate_sum, f16, arg, out, axes, keep_dims)
+            NGRAPH_TYPE_CASE(evaluate_sum, f32, arg, out, axes, keep_dims)
         default: rc = false; break;
         }
         return rc;
@@ -94,10 +88,9 @@ namespace
 
 bool op::v0::Sum::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
-#if GraphGen(OV_GEN_NGRAPH_OP(Sum, v0, evaluate))
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
-    return evaluate_sum(inputs[0], outputs[0], get_reduction_axes(), false);
-#else
-    return false;
-#endif
+    bool rc = false;
+    NGRAPH_OP_SCOPE(v0_Sum_evaluate,
+        rc = evaluate_sum(inputs[0], outputs[0], get_reduction_axes(), false);
+    )
+    return rc;
 }

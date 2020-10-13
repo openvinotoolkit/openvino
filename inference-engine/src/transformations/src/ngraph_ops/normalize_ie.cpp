@@ -3,6 +3,7 @@
 //
 
 #include "ngraph_ops/normalize_ie.hpp"
+#include "itt.hpp"
 
 #include <memory>
 #include <string>
@@ -21,15 +22,19 @@ op::NormalizeIE::NormalizeIE(const Output<Node>& data, const Output<Node>& weigh
 }
 
 void op::NormalizeIE::validate_and_infer_types() {
-    element::Type arg_type = get_input_element_type(0);
-    PartialShape arg_shape = get_input_partial_shape(0);
-    set_output_type(0, arg_type, arg_shape);
+    NGRAPH_OP_SCOPE(NormalizeIE_validate_and_infer_types,
+        element::Type arg_type = get_input_element_type(0);
+        PartialShape arg_shape = get_input_partial_shape(0);
+        set_output_type(0, arg_type, arg_shape);
 
-    const PartialShape& input_shape = get_input_partial_shape(0);
+        const PartialShape& input_shape = get_input_partial_shape(0);
 
-    NODE_VALIDATION_CHECK(this,
-                          input_shape.rank().is_dynamic() || input_shape.rank().get_length() >= 2 && input_shape.rank().get_length() <= 4,
-                          "Argument must have rank >= 2 and <= 4 (argument shape: ", input_shape, ").");
+        NODE_VALIDATION_CHECK(this,
+                            input_shape.rank().is_dynamic() || input_shape.rank().get_length() >= 2 && input_shape.rank().get_length() <= 4,
+                            "Argument must have rank >= 2 and <= 4 (argument shape: ", input_shape, ").");
+        return;
+    )
+    NODE_VALIDATION_CHECK(this, false, "Function is not included into the selective build.");
 }
 
 shared_ptr<Node> op::NormalizeIE::clone_with_new_inputs(const OutputVector& new_args) const {

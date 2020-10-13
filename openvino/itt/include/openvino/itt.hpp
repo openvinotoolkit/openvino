@@ -178,19 +178,26 @@ inline openvino::itt::domain_t domainName() noexcept                            
 
 #define ITT_FILE_NAME __FILE__
 
-inline const std::string full_function_name(const std::string& prettyFunction) {
+inline const std::string namespace_with_function_name(const std::string& prettyFunction) {
     size_t colons = prettyFunction.find("(");
     size_t begin = prettyFunction.substr(0, colons).rfind(" ") + 1;
     size_t end = colons - begin;
     return prettyFunction.substr(begin, end);
 }
 
-#define ITT_FUNCTION_NAME_ONLY openvino::itt::full_function_name(std::string(ITT_FUNCTION_NAME))
+inline const std::string function_name_only(const std::string& prettyFunction) {
+    auto namespace_with_fn = namespace_with_function_name(prettyFunction);
+    size_t colons = namespace_with_fn.find_last_of(":");
+    return namespace_with_fn.substr(colons + 1, namespace_with_fn.length());
+}
+
+#define ITT_NAMESPACE_FUNCTION_NAME openvino::itt::namespace_with_function_name(std::string(ITT_FUNCTION_NAME))
+#define ITT_FUNCTION_NAME_ONLY openvino::itt::function_name_only(std::string(ITT_FUNCTION_NAME))
 
 #if defined(ITT_USE_FULL_FUNCTION_SIGNATURE)
     #define ITT_DEFAULT_NAME ITT_FUNCTION_NAME
 #else
-    #define ITT_DEFAULT_NAME ITT_FUNCTION_NAME_ONLY
+    #define ITT_DEFAULT_NAME ITT_NAMESPACE_FUNCTION_NAME
 #endif
 
 #define OV_ITT_SCOPED_TASK_1(domain)                                                                \

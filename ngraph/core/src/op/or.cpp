@@ -66,20 +66,13 @@ namespace
         out->set_broadcast(broadcast_spec, arg0, arg1);
         switch (arg0->get_element_type())
         {
-            TYPE_CASE(boolean)(arg0, arg1, out, broadcast_spec);
-            break;
-            TYPE_CASE(i32)(arg0, arg1, out, broadcast_spec);
-            break;
-            TYPE_CASE(i64)(arg0, arg1, out, broadcast_spec);
-            break;
-            TYPE_CASE(u32)(arg0, arg1, out, broadcast_spec);
-            break;
-            TYPE_CASE(u64)(arg0, arg1, out, broadcast_spec);
-            break;
-            TYPE_CASE(f16)(arg0, arg1, out, broadcast_spec);
-            break;
-            TYPE_CASE(f32)(arg0, arg1, out, broadcast_spec);
-            break;
+            NGRAPH_TYPE_CASE(evaluate_logor, boolean, arg0, arg1, out, broadcast_spec)
+            NGRAPH_TYPE_CASE(evaluate_logor, i32, arg0, arg1, out, broadcast_spec)
+            NGRAPH_TYPE_CASE(evaluate_logor, i64, arg0, arg1, out, broadcast_spec)
+            NGRAPH_TYPE_CASE(evaluate_logor, u32, arg0, arg1, out, broadcast_spec)
+            NGRAPH_TYPE_CASE(evaluate_logor, u64, arg0, arg1, out, broadcast_spec)
+            NGRAPH_TYPE_CASE(evaluate_logor, f16, arg0, arg1, out, broadcast_spec)
+            NGRAPH_TYPE_CASE(evaluate_logor, f32, arg0, arg1, out, broadcast_spec)
         default: rc = false; break;
         }
         return rc;
@@ -89,12 +82,11 @@ namespace
 bool op::v1::LogicalOr::evaluate(const HostTensorVector& outputs,
                                  const HostTensorVector& inputs) const
 {
-#if GraphGen(OV_GEN_NGRAPH_OP(LogicalOr, v1, evaluate))
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
-    return evaluate_logor(inputs[0], inputs[1], outputs[0], get_autob());
-#else
-    return false;
-#endif
+    bool rc = false;
+    NGRAPH_OP_SCOPE(v1_LogicalOr_evaluate,
+        rc = evaluate_logor(inputs[0], inputs[1], outputs[0], get_autob());
+    )
+    return rc;
 }
 
 constexpr NodeTypeInfo op::v0::Or::type_info;
@@ -115,10 +107,9 @@ shared_ptr<Node> op::v0::Or::clone_with_new_inputs(const OutputVector& new_args)
 
 bool op::v0::Or::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
-#if GraphGen(OV_GEN_NGRAPH_OP(LogicalOr, v0, evaluate))
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
-    return evaluate_logor(inputs[0], inputs[1], outputs[0], get_autob());
-#else
-    return false;
-#endif
+    bool rc = false;
+    NGRAPH_OP_SCOPE(v0_Or_evaluate,
+        rc = evaluate_logor(inputs[0], inputs[1], outputs[0], get_autob());
+    )
+    return rc;
 }

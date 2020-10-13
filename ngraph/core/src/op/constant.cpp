@@ -78,97 +78,110 @@ op::Constant::Constant(const element::Type& type,
         // broadcast single value
         switch (m_element_type)
         {
-        case element::Type_t::boolean:
-        {
-            bool value = stoi(values[0]) != 0;
-            auto target = get_data_ptr_nc<element::Type_t::boolean>();
-            std::fill(target, target + shape_size(m_shape), value);
-            break;
-        }
-        case element::Type_t::bf16:
-        {
-            bfloat16 value = parse_string<float>(values[0]);
-            auto target = get_data_ptr_nc<element::Type_t::bf16>();
-            std::fill(target, target + shape_size(m_shape), value);
-            break;
-        }
-        case element::Type_t::f16:
-        {
-            float16 value = parse_string<float>(values[0]);
-            auto target = get_data_ptr_nc<element::Type_t::f16>();
-            std::fill(target, target + shape_size(m_shape), value);
-            break;
-        }
-        case element::Type_t::f32:
-        {
-            float value = parse_string<float>(values[0]);
-            auto target = get_data_ptr_nc<element::Type_t::f32>();
-            std::fill(target, target + shape_size(m_shape), value);
-            break;
-        }
-        case element::Type_t::f64:
-        {
-            double value = parse_string<double>(values[0]);
-            auto target = get_data_ptr_nc<element::Type_t::f64>();
-            std::fill(target, target + shape_size(m_shape), value);
-            break;
-        }
-        case element::Type_t::i8:
-        {
-            int8_t value = parse_string<int64_t>(values[0]);
-            auto target = get_data_ptr_nc<element::Type_t::i8>();
-            std::fill(target, target + shape_size(m_shape), value);
-            break;
-        }
-        case element::Type_t::i16:
-        {
-            int16_t value = parse_string<int64_t>(values[0]);
-            auto target = get_data_ptr_nc<element::Type_t::i16>();
-            std::fill(target, target + shape_size(m_shape), value);
-            break;
-        }
-        case element::Type_t::i32:
-        {
-            int32_t value = parse_string<int64_t>(values[0]);
-            auto target = get_data_ptr_nc<element::Type_t::i32>();
-            std::fill(target, target + shape_size(m_shape), value);
-            break;
-        }
-        case element::Type_t::i64:
-        {
-            int64_t value = parse_string<int64_t>(values[0]);
-            auto target = get_data_ptr_nc<element::Type_t::i64>();
-            std::fill(target, target + shape_size(m_shape), value);
-            break;
-        }
-        case element::Type_t::u8:
-        {
-            uint8_t value = parse_string<uint64_t>(values[0]);
-            auto target = get_data_ptr_nc<element::Type_t::u8>();
-            std::fill(target, target + shape_size(m_shape), value);
-            break;
-        }
-        case element::Type_t::u16:
-        {
-            uint16_t value = parse_string<uint64_t>(values[0]);
-            auto target = get_data_ptr_nc<element::Type_t::u16>();
-            std::fill(target, target + shape_size(m_shape), value);
-            break;
-        }
-        case element::Type_t::u32:
-        {
-            uint32_t value = parse_string<uint64_t>(values[0]);
-            auto target = get_data_ptr_nc<element::Type_t::u32>();
-            std::fill(target, target + shape_size(m_shape), value);
-            break;
-        }
-        case element::Type_t::u64:
-        {
-            uint64_t value = parse_string<uint64_t>(values[0]);
-            auto target = get_data_ptr_nc<element::Type_t::u64>();
-            std::fill(target, target + shape_size(m_shape), value);
-            break;
-        }
+        NGRAPH_CASE(ngraph_op_v0_Constant_s1, boolean,
+            {
+                bool value = stoi(values[0]) != 0;
+                auto target = get_data_ptr_nc<element::Type_t::boolean>();
+                std::fill(target, target + shape_size(m_shape), value);
+                break;
+            }
+        )
+        NGRAPH_CASE(ngraph_op_v0_Constant_s1, bf16,
+            {
+                bfloat16 value = parse_string<float>(values[0]);
+                auto target = get_data_ptr_nc<element::Type_t::bf16>();
+                std::fill(target, target + shape_size(m_shape), value);
+                break;
+            }
+        )
+        NGRAPH_CASE(ngraph_op_v0_Constant_s1, f16,
+            {
+                float16 value = parse_string<float>(values[0]);
+                auto target = get_data_ptr_nc<element::Type_t::f16>();
+                std::fill(target, target + shape_size(m_shape), value);
+                break;
+            }
+        )
+        NGRAPH_CASE(ngraph_op_v0_Constant_s1, f32,
+            {
+                float value = parse_string<float>(values[0]);
+                auto target = get_data_ptr_nc<element::Type_t::f32>();
+                std::fill(target, target + shape_size(m_shape), value);
+                break;
+            }
+        )
+        NGRAPH_CASE(ngraph_op_v0_Constant_s1, f64,
+            {
+                double value = parse_string<double>(values[0]);
+                auto target = get_data_ptr_nc<element::Type_t::f64>();
+                std::fill(target, target + shape_size(m_shape), value);
+                break;
+            }
+        )
+        NGRAPH_CASE(ngraph_op_v0_Constant_s1, i8,
+            {
+                int8_t value = parse_string<int64_t>(values[0]);
+                auto target = get_data_ptr_nc<element::Type_t::i8>();
+                std::fill(target, target + shape_size(m_shape), value);
+                break;
+            }
+        )
+        NGRAPH_CASE(ngraph_op_v0_Constant_s1, i16,
+            {
+                int16_t value = parse_string<int64_t>(values[0]);
+                auto target = get_data_ptr_nc<element::Type_t::i16>();
+                std::fill(target, target + shape_size(m_shape), value);
+                break;
+            }
+        )
+        NGRAPH_CASE(ngraph_op_v0_Constant_s1, i32,
+            {
+                int32_t value = parse_string<int64_t>(values[0]);
+                auto target = get_data_ptr_nc<element::Type_t::i32>();
+                std::fill(target, target + shape_size(m_shape), value);
+                break;
+            }
+        )
+        NGRAPH_CASE(ngraph_op_v0_Constant_s1, i64,
+            {
+                int64_t value = parse_string<int64_t>(values[0]);
+                auto target = get_data_ptr_nc<element::Type_t::i64>();
+                std::fill(target, target + shape_size(m_shape), value);
+                break;
+            }
+        )
+        NGRAPH_CASE(ngraph_op_v0_Constant_s1, u8,
+            {
+                uint8_t value = parse_string<uint64_t>(values[0]);
+                auto target = get_data_ptr_nc<element::Type_t::u8>();
+                std::fill(target, target + shape_size(m_shape), value);
+                break;
+            }
+        )
+        NGRAPH_CASE(ngraph_op_v0_Constant_s1, u16,
+            {
+                uint16_t value = parse_string<uint64_t>(values[0]);
+                auto target = get_data_ptr_nc<element::Type_t::u16>();
+                std::fill(target, target + shape_size(m_shape), value);
+                break;
+            }
+        )
+        NGRAPH_CASE(ngraph_op_v0_Constant_s1, u32,
+            {
+                uint32_t value = parse_string<uint64_t>(values[0]);
+                auto target = get_data_ptr_nc<element::Type_t::u32>();
+                std::fill(target, target + shape_size(m_shape), value);
+                break;
+            }
+        )
+        NGRAPH_CASE(ngraph_op_v0_Constant_s1, u64,
+            {
+                uint64_t value = parse_string<uint64_t>(values[0]);
+                auto target = get_data_ptr_nc<element::Type_t::u64>();
+                std::fill(target, target + shape_size(m_shape), value);
+                break;
+            }
+        )
         case element::Type_t::undefined:
         {
             throw std::runtime_error("deserialize unsupported type undefined");
@@ -179,6 +192,9 @@ op::Constant::Constant(const element::Type& type,
         }
         case element::Type_t::u1: { throw std::runtime_error("deserialize unsupported type u1");
         }
+#if defined(OV_SELECTIVE_BUILD)
+        default: throw std::runtime_error("Type " + m_element_type.get_type_name() + " is not included into the selective build.");
+#endif
         }
         m_all_elements_bitwise_identical = true;
     }
@@ -186,108 +202,124 @@ op::Constant::Constant(const element::Type& type,
     {
         switch (m_element_type)
         {
-        case element::Type_t::boolean:
-        {
-            vector<uint8_t> value = parse_string<uint8_t>(values);
-            auto target = get_data_ptr_nc<element::Type_t::boolean>();
-            std::copy(value.begin(), value.end(), target);
-            break;
-        }
-        case element::Type_t::bf16:
-        {
-            vector<float> value = parse_string<float>(values);
-            auto target = get_data_ptr_nc<element::Type_t::bf16>();
-            for (size_t i = 0; i < value.size(); i++)
+        NGRAPH_CASE(ngraph_op_v0_Constant_s2, boolean,
             {
-                target[i] = value[i];
+                vector<uint8_t> value = parse_string<uint8_t>(values);
+                auto target = get_data_ptr_nc<element::Type_t::boolean>();
+                std::copy(value.begin(), value.end(), target);
+                break;
             }
-            break;
-        }
-        case element::Type_t::f16:
-        {
-            vector<float> value = parse_string<float>(values);
-            auto target = get_data_ptr_nc<element::Type_t::f16>();
-            for (size_t i = 0; i < value.size(); i++)
+        )
+        NGRAPH_CASE(ngraph_op_v0_Constant_s2, bf16,
             {
-                target[i] = value[i];
+                vector<float> value = parse_string<float>(values);
+                auto target = get_data_ptr_nc<element::Type_t::bf16>();
+                for (size_t i = 0; i < value.size(); i++)
+                {
+                    target[i] = value[i];
+                }
+                break;
             }
-            break;
-        }
-        case element::Type_t::f32:
-        {
-            vector<float> value = parse_string<float>(values);
-            auto target = get_data_ptr_nc<element::Type_t::f32>();
-            std::copy(value.begin(), value.end(), target);
-            break;
-        }
-        case element::Type_t::f64:
-        {
-            vector<double> value = parse_string<double>(values);
-            auto target = get_data_ptr_nc<element::Type_t::f64>();
-            std::copy(value.begin(), value.end(), target);
-            break;
-        }
-        case element::Type_t::i8:
-        {
-            vector<int8_t> value = parse_string<int8_t>(values);
-            auto target = get_data_ptr_nc<element::Type_t::i8>();
-            std::copy(value.begin(), value.end(), target);
-            break;
-        }
-        case element::Type_t::i16:
-        {
-            vector<int16_t> value = parse_string<int16_t>(values);
-            auto target = get_data_ptr_nc<element::Type_t::i16>();
-            std::copy(value.begin(), value.end(), target);
-            break;
-        }
-        case element::Type_t::i32:
-        {
-            vector<int32_t> value = parse_string<int32_t>(values);
-            auto target = get_data_ptr_nc<element::Type_t::i32>();
-            std::copy(value.begin(), value.end(), target);
-            break;
-        }
-        case element::Type_t::i64:
-        {
-            vector<int64_t> value = parse_string<int64_t>(values);
-            auto target = get_data_ptr_nc<element::Type_t::i64>();
-            std::copy(value.begin(), value.end(), target);
-            break;
-        }
-        case element::Type_t::u8:
-        {
-            vector<uint8_t> value = parse_string<uint8_t>(values);
-            auto target = get_data_ptr_nc<element::Type_t::u8>();
-            std::copy(value.begin(), value.end(), target);
-            break;
-        }
-        case element::Type_t::u16:
-        {
-            vector<uint16_t> value = parse_string<uint16_t>(values);
-            auto target = get_data_ptr_nc<element::Type_t::u16>();
-            std::copy(value.begin(), value.end(), target);
-            break;
-        }
-        case element::Type_t::u32:
-        {
-            vector<uint32_t> value = parse_string<uint32_t>(values);
-            auto target = get_data_ptr_nc<element::Type_t::u32>();
-            std::copy(value.begin(), value.end(), target);
-            break;
-        }
-        case element::Type_t::u64:
-        {
-            vector<uint64_t> value = parse_string<uint64_t>(values);
-            auto target = get_data_ptr_nc<element::Type_t::u64>();
-            std::copy(value.begin(), value.end(), target);
-            break;
-        }
+        )
+        NGRAPH_CASE(ngraph_op_v0_Constant_s2, f16,
+            {
+                vector<float> value = parse_string<float>(values);
+                auto target = get_data_ptr_nc<element::Type_t::f16>();
+                for (size_t i = 0; i < value.size(); i++)
+                {
+                    target[i] = value[i];
+                }
+                break;
+            }
+        )
+        NGRAPH_CASE(ngraph_op_v0_Constant_s2, f32,
+            {
+                vector<float> value = parse_string<float>(values);
+                auto target = get_data_ptr_nc<element::Type_t::f32>();
+                std::copy(value.begin(), value.end(), target);
+                break;
+            }
+        )
+        NGRAPH_CASE(ngraph_op_v0_Constant_s2, f64,
+            {
+                vector<double> value = parse_string<double>(values);
+                auto target = get_data_ptr_nc<element::Type_t::f64>();
+                std::copy(value.begin(), value.end(), target);
+                break;
+            }
+        )
+        NGRAPH_CASE(ngraph_op_v0_Constant_s2, i8,
+            {
+                vector<int8_t> value = parse_string<int8_t>(values);
+                auto target = get_data_ptr_nc<element::Type_t::i8>();
+                std::copy(value.begin(), value.end(), target);
+                break;
+            }
+        )
+        NGRAPH_CASE(ngraph_op_v0_Constant_s2, i16,
+            {
+                vector<int16_t> value = parse_string<int16_t>(values);
+                auto target = get_data_ptr_nc<element::Type_t::i16>();
+                std::copy(value.begin(), value.end(), target);
+                break;
+            }
+        )
+        NGRAPH_CASE(ngraph_op_v0_Constant_s2, i32,
+            {
+                vector<int32_t> value = parse_string<int32_t>(values);
+                auto target = get_data_ptr_nc<element::Type_t::i32>();
+                std::copy(value.begin(), value.end(), target);
+                break;
+            }
+        )
+        NGRAPH_CASE(ngraph_op_v0_Constant_s2, i64,
+            {
+                vector<int64_t> value = parse_string<int64_t>(values);
+                auto target = get_data_ptr_nc<element::Type_t::i64>();
+                std::copy(value.begin(), value.end(), target);
+                break;
+            }
+        )
+        NGRAPH_CASE(ngraph_op_v0_Constant_s2, u8,
+            {
+                vector<uint8_t> value = parse_string<uint8_t>(values);
+                auto target = get_data_ptr_nc<element::Type_t::u8>();
+                std::copy(value.begin(), value.end(), target);
+                break;
+            }
+        )
+        NGRAPH_CASE(ngraph_op_v0_Constant_s2, u16,
+            {
+                vector<uint16_t> value = parse_string<uint16_t>(values);
+                auto target = get_data_ptr_nc<element::Type_t::u16>();
+                std::copy(value.begin(), value.end(), target);
+                break;
+            }
+        )
+        NGRAPH_CASE(ngraph_op_v0_Constant_s2, u32,
+            {
+                vector<uint32_t> value = parse_string<uint32_t>(values);
+                auto target = get_data_ptr_nc<element::Type_t::u32>();
+                std::copy(value.begin(), value.end(), target);
+                break;
+            }
+        )
+        NGRAPH_CASE(ngraph_op_v0_Constant_s2, u64,
+            {
+                vector<uint64_t> value = parse_string<uint64_t>(values);
+                auto target = get_data_ptr_nc<element::Type_t::u64>();
+                std::copy(value.begin(), value.end(), target);
+                break;
+            }
+        )
         case element::Type_t::undefined:
             throw std::runtime_error("deserialize unsupported type undefined");
         case element::Type_t::dynamic:
             throw std::runtime_error("deserialize unsupported type dynamic");
         case element::Type_t::u1: throw std::runtime_error("deserialize unsupported type u1");
+#if defined(OV_SELECTIVE_BUILD)
+        default: throw std::runtime_error("Type " + m_element_type.get_type_name() + " is not included into the selective build.");
+#endif
         }
         m_all_elements_bitwise_identical = are_all_data_elements_bitwise_identical();
     }
@@ -333,37 +365,76 @@ op::Constant::~Constant()
 string op::Constant::convert_value_to_string(size_t index) const
 {
     string rc;
-#if defined(__GNUC__) && !(__GNUC__ == 4 && __GNUC_MINOR__ == 8)
+#if defined(__GNUC__) && !(__GNUC__ == 4 && __GNUC_MINOR__ == 8) && !defined(OV_SELECTIVE_BUILD)
 #pragma GCC diagnostic push
 #pragma GCC diagnostic error "-Wswitch"
 #pragma GCC diagnostic error "-Wswitch-enum"
 #endif
     switch (get_element_type())
     {
-    case element::Type_t::boolean: rc = to_string(get_data_ptr<char>()[index]); break;
-    case element::Type_t::bf16:
+    NGRAPH_CASE(ngraph_op_v0_Constant_convert_value_to_string, boolean,
+        rc = to_string(get_data_ptr<char>()[index]);
+        break;
+    )
+    NGRAPH_CASE(ngraph_op_v0_Constant_convert_value_to_string, bf16,
         rc = to_cpp_string(static_cast<float>(get_data_ptr<bfloat16>()[index]));
         break;
-    case element::Type_t::f16:
+    )
+    NGRAPH_CASE(ngraph_op_v0_Constant_convert_value_to_string, f16,
         rc = to_cpp_string(static_cast<float>(get_data_ptr<float16>()[index]));
         break;
-    case element::Type_t::f32: rc = to_cpp_string(get_data_ptr<float>()[index]); break;
-    case element::Type_t::f64: rc = to_cpp_string(get_data_ptr<double>()[index]); break;
-    case element::Type_t::i8: rc = to_string(get_data_ptr<int8_t>()[index]); break;
-    case element::Type_t::i16: rc = to_string(get_data_ptr<int16_t>()[index]); break;
-    case element::Type_t::i32: rc = to_string(get_data_ptr<int32_t>()[index]); break;
-    case element::Type_t::i64: rc = to_string(get_data_ptr<int64_t>()[index]); break;
-    case element::Type_t::u1:
+    )
+    NGRAPH_CASE(ngraph_op_v0_Constant_convert_value_to_string, f32,
+        rc = to_cpp_string(get_data_ptr<float>()[index]);
+        break;
+    )
+    NGRAPH_CASE(ngraph_op_v0_Constant_convert_value_to_string, f64,
+        rc = to_cpp_string(get_data_ptr<double>()[index]);
+        break;
+    )
+    NGRAPH_CASE(ngraph_op_v0_Constant_convert_value_to_string, i8,
+        rc = to_string(get_data_ptr<int8_t>()[index]);
+        break;
+    )
+    NGRAPH_CASE(ngraph_op_v0_Constant_convert_value_to_string, i16,
+        rc = to_string(get_data_ptr<int16_t>()[index]);
+        break;
+    )
+    NGRAPH_CASE(ngraph_op_v0_Constant_convert_value_to_string, i32,
+        rc = to_string(get_data_ptr<int32_t>()[index]);
+        break;
+    )
+    NGRAPH_CASE(ngraph_op_v0_Constant_convert_value_to_string, i64,
+        rc = to_string(get_data_ptr<int64_t>()[index]);
+        break;
+    )
+    NGRAPH_CASE(ngraph_op_v0_Constant_convert_value_to_string, u1,
         rc = to_string((get_data_ptr<uint8_t>()[index / 8] >> (7 - (index % 8))) & 1);
         break;
-    case element::Type_t::u8: rc = to_string(get_data_ptr<uint8_t>()[index]); break;
-    case element::Type_t::u16: rc = to_string(get_data_ptr<uint16_t>()[index]); break;
-    case element::Type_t::u32: rc = to_string(get_data_ptr<uint32_t>()[index]); break;
-    case element::Type_t::u64: rc = to_string(get_data_ptr<uint64_t>()[index]); break;
+    )
+    NGRAPH_CASE(ngraph_op_v0_Constant_convert_value_to_string, u8,
+        rc = to_string(get_data_ptr<uint8_t>()[index]);
+        break;
+    )
+    NGRAPH_CASE(ngraph_op_v0_Constant_convert_value_to_string, u16,
+        rc = to_string(get_data_ptr<uint16_t>()[index]);
+        break;
+    )
+    NGRAPH_CASE(ngraph_op_v0_Constant_convert_value_to_string, u32,
+        rc = to_string(get_data_ptr<uint32_t>()[index]);
+        break;
+    )
+    NGRAPH_CASE(ngraph_op_v0_Constant_convert_value_to_string, u64,
+        rc = to_string(get_data_ptr<uint64_t>()[index]);
+        break;
+    )
     case element::Type_t::undefined: throw runtime_error("unsupported type");
     case element::Type_t::dynamic: throw runtime_error("unsupported type");
+#if defined(OV_SELECTIVE_BUILD)
+    default: throw std::runtime_error("Type " + get_element_type().get_type_name() + " is not included into the selective build.");
+#endif
     }
-#if defined(__GNUC__) && !(__GNUC__ == 4 && __GNUC_MINOR__ == 8)
+#if defined(__GNUC__) && !(__GNUC__ == 4 && __GNUC_MINOR__ == 8) && !defined(OV_SELECTIVE_BUILD)
 #pragma GCC diagnostic pop
 #endif
     return rc;
@@ -373,96 +444,109 @@ vector<string> op::Constant::get_value_strings() const
 {
     vector<string> rc;
 
-#if defined(__GNUC__) && !(__GNUC__ == 4 && __GNUC_MINOR__ == 8)
+#if defined(__GNUC__) && !(__GNUC__ == 4 && __GNUC_MINOR__ == 8) && !defined(OV_SELECTIVE_BUILD)
 #pragma GCC diagnostic push
 #pragma GCC diagnostic error "-Wswitch"
 #pragma GCC diagnostic error "-Wswitch-enum"
 #endif
     switch (get_element_type())
     {
-    case element::Type_t::boolean:
+    NGRAPH_CASE(ngraph_op_v0_Constant_get_value_strings, boolean,
         for (int value : get_vector<char>())
         {
             rc.push_back(to_string(value));
         }
         break;
-    case element::Type_t::bf16:
+    )
+    NGRAPH_CASE(ngraph_op_v0_Constant_get_value_strings, bf16,
         for (bfloat16 value : get_vector<bfloat16>())
         {
             rc.push_back(to_cpp_string(static_cast<float>(value)));
         }
         break;
-    case element::Type_t::f16:
+    )
+    NGRAPH_CASE(ngraph_op_v0_Constant_get_value_strings, f16,
         for (float16 value : get_vector<float16>())
         {
             rc.push_back(to_cpp_string(static_cast<float>(value)));
         }
         break;
-    case element::Type_t::f32:
+    )
+    NGRAPH_CASE(ngraph_op_v0_Constant_get_value_strings, f32,
         for (float value : get_vector<float>())
         {
             rc.push_back(to_cpp_string(value));
         }
         break;
-    case element::Type_t::f64:
+    )
+    NGRAPH_CASE(ngraph_op_v0_Constant_get_value_strings, f64,
         for (double value : get_vector<double>())
         {
             rc.push_back(to_cpp_string(value));
         }
         break;
-    case element::Type_t::i8:
+    )
+    NGRAPH_CASE(ngraph_op_v0_Constant_get_value_strings, i8,
         for (int value : get_vector<int8_t>())
         {
             rc.push_back(to_string(value));
         }
         break;
-    case element::Type_t::i16:
+    )
+    NGRAPH_CASE(ngraph_op_v0_Constant_get_value_strings, i16,
         for (int value : get_vector<int16_t>())
         {
             rc.push_back(to_string(value));
         }
         break;
-    case element::Type_t::i32:
+    )
+    NGRAPH_CASE(ngraph_op_v0_Constant_get_value_strings, i32,
         for (int32_t value : get_vector<int32_t>())
         {
             rc.push_back(to_string(value));
         }
         break;
-    case element::Type_t::i64:
+    )
+    NGRAPH_CASE(ngraph_op_v0_Constant_get_value_strings, i64,
         for (int64_t value : get_vector<int64_t>())
         {
             rc.push_back(to_string(value));
         }
         break;
-    case element::Type_t::u8:
+    )
+    NGRAPH_CASE(ngraph_op_v0_Constant_get_value_strings, u8,
         for (uint32_t value : get_vector<uint8_t>())
         {
             rc.push_back(to_string(value));
         }
         break;
-    case element::Type_t::u16:
+    )
+    NGRAPH_CASE(ngraph_op_v0_Constant_get_value_strings, u16,
         for (uint32_t value : get_vector<uint16_t>())
         {
             rc.push_back(to_string(value));
         }
         break;
-    case element::Type_t::u32:
+    )
+    NGRAPH_CASE(ngraph_op_v0_Constant_get_value_strings, u32,
         for (uint32_t value : get_vector<uint32_t>())
         {
             rc.push_back(to_string(value));
         }
         break;
-    case element::Type_t::u64:
+    )
+    NGRAPH_CASE(ngraph_op_v0_Constant_get_value_strings, u64,
         for (uint64_t value : get_vector<uint64_t>())
         {
             rc.push_back(to_string(value));
         }
         break;
+    )
     case element::Type_t::u1: throw runtime_error("unsupported type");
     case element::Type_t::undefined: throw runtime_error("unsupported type");
     case element::Type_t::dynamic: throw runtime_error("unsupported type");
     }
-#if defined(__GNUC__) && !(__GNUC__ == 4 && __GNUC_MINOR__ == 8)
+#if defined(__GNUC__) && !(__GNUC__ == 4 && __GNUC_MINOR__ == 8) && !defined(OV_SELECTIVE_BUILD)
 #pragma GCC diagnostic pop
 #endif
 
@@ -570,47 +654,97 @@ static bool test_bitwise_identical(const op::Constant* constant)
 bool op::Constant::are_all_data_elements_bitwise_identical() const
 {
     bool rc = false;
-#if defined(__GNUC__) && !(__GNUC__ == 4 && __GNUC_MINOR__ == 8)
+#if defined(__GNUC__) && !(__GNUC__ == 4 && __GNUC_MINOR__ == 8) && !defined(OV_SELECTIVE_BUILD)
 #pragma GCC diagnostic push
 #pragma GCC diagnostic error "-Wswitch"
 #pragma GCC diagnostic error "-Wswitch-enum"
 #endif
     switch (get_element_type())
     {
-    case element::Type_t::boolean:
-    case element::Type_t::i8:
-    case element::Type_t::u8:
-    {
-        rc = test_bitwise_identical<uint8_t>(this);
-        break;
-    }
-    case element::Type_t::bf16:
-    case element::Type_t::f16:
-    case element::Type_t::i16:
-    case element::Type_t::u16:
-    {
-        rc = test_bitwise_identical<uint16_t>(this);
-        break;
-    }
-    case element::Type_t::f32:
-    case element::Type_t::i32:
-    case element::Type_t::u32:
-    {
-        rc = test_bitwise_identical<uint32_t>(this);
-        break;
-    }
-    case element::Type_t::f64:
-    case element::Type_t::i64:
-    case element::Type_t::u64:
-    {
-        rc = test_bitwise_identical<uint64_t>(this);
-        break;
-    }
+    NGRAPH_CASE(ngraph_op_v0_Constant_are_all_data_elements_bitwise_identical, boolean,
+        {
+            rc = test_bitwise_identical<uint8_t>(this);
+            break;
+        }
+    )
+    NGRAPH_CASE(ngraph_op_v0_Constant_are_all_data_elements_bitwise_identical, i8,
+        {
+            rc = test_bitwise_identical<uint8_t>(this);
+            break;
+        }
+    )
+    NGRAPH_CASE(ngraph_op_v0_Constant_are_all_data_elements_bitwise_identical, u8,
+        {
+            rc = test_bitwise_identical<uint8_t>(this);
+            break;
+        }
+    )
+    NGRAPH_CASE(ngraph_op_v0_Constant_are_all_data_elements_bitwise_identical, bf16,
+        {
+            rc = test_bitwise_identical<uint16_t>(this);
+            break;
+        }
+    )
+    NGRAPH_CASE(ngraph_op_v0_Constant_are_all_data_elements_bitwise_identical, f16,
+        {
+            rc = test_bitwise_identical<uint16_t>(this);
+            break;
+        }
+    )
+    NGRAPH_CASE(ngraph_op_v0_Constant_are_all_data_elements_bitwise_identical, i16,
+        {
+            rc = test_bitwise_identical<uint16_t>(this);
+            break;
+        }
+    )
+    NGRAPH_CASE(ngraph_op_v0_Constant_are_all_data_elements_bitwise_identical, u16,
+        {
+            rc = test_bitwise_identical<uint16_t>(this);
+            break;
+        }
+    )
+    NGRAPH_CASE(ngraph_op_v0_Constant_are_all_data_elements_bitwise_identical, f32,
+        {
+            rc = test_bitwise_identical<uint32_t>(this);
+            break;
+        }
+    )
+    NGRAPH_CASE(ngraph_op_v0_Constant_are_all_data_elements_bitwise_identical, i32,
+        {
+            rc = test_bitwise_identical<uint32_t>(this);
+            break;
+        }
+    )
+    NGRAPH_CASE(ngraph_op_v0_Constant_are_all_data_elements_bitwise_identical, u32,
+        {
+            rc = test_bitwise_identical<uint32_t>(this);
+            break;
+        }
+    )
+    NGRAPH_CASE(ngraph_op_v0_Constant_are_all_data_elements_bitwise_identical, f64,
+        {
+            rc = test_bitwise_identical<uint64_t>(this);
+            break;
+        }
+    )
+    NGRAPH_CASE(ngraph_op_v0_Constant_are_all_data_elements_bitwise_identical, i64,
+        {
+            rc = test_bitwise_identical<uint64_t>(this);
+            break;
+        }
+    )
+    NGRAPH_CASE(ngraph_op_v0_Constant_are_all_data_elements_bitwise_identical, u64,
+        {
+            rc = test_bitwise_identical<uint64_t>(this);
+            break;
+        }
+    )
     case element::Type_t::u1:
     case element::Type_t::undefined:
     case element::Type_t::dynamic: break;
+    default: break;
     }
-#if defined(__GNUC__) && !(__GNUC__ == 4 && __GNUC_MINOR__ == 8)
+#if defined(__GNUC__) && !(__GNUC__ == 4 && __GNUC_MINOR__ == 8) && !defined(OV_SELECTIVE_BUILD)
 #pragma GCC diagnostic pop
 #endif
     return rc;
@@ -618,33 +752,29 @@ bool op::Constant::are_all_data_elements_bitwise_identical() const
 
 bool op::v0::Constant::visit_attributes(AttributeVisitor& visitor)
 {
-#if GraphGen(OV_GEN_NGRAPH_OP(Constant, v0, visit_attributes))
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
-    visitor.on_attribute("element_type", m_element_type);
-    visitor.on_attribute("shape", m_shape);
-    if (m_data == nullptr)
-    {
-        // Filling in a fresh constant
-        allocate_buffer();
-    }
-    visitor.on_attribute("value", m_data);
-    return true;
-#else
+    NGRAPH_OP_SCOPE(v0_Constant_visit_attributes,
+        visitor.on_attribute("element_type", m_element_type);
+        visitor.on_attribute("shape", m_shape);
+        if (m_data == nullptr)
+        {
+            // Filling in a fresh constant
+            allocate_buffer();
+        }
+        visitor.on_attribute("value", m_data);
+        return true;
+    )
     return false;
-#endif
 }
 
 bool op::v0::Constant::evaluate(const HostTensorVector& outputs,
                                 const HostTensorVector& inputs) const
 {
-#if GraphGen(OV_GEN_NGRAPH_OP(Constant, v0, evaluate))
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
-    auto output = outputs[0];
-    output->write(get_data_ptr(), output->get_size_in_bytes());
-    return true;
-#else
+    NGRAPH_OP_SCOPE(v0_Constant_evaluate,
+        auto output = outputs[0];
+        output->write(get_data_ptr(), output->get_size_in_bytes());
+        return true;
+    )
     return false;
-#endif
 }
 
 //

@@ -40,88 +40,85 @@ op::v4::Range::Range(const Output<Node>& start,
 
 bool ngraph::op::v4::Range::visit_attributes(AttributeVisitor& visitor)
 {
-#if GraphGen(OV_GEN_NGRAPH_OP(Range, v4, visit_attributes))
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
-    visitor.on_attribute("output_type", m_output_type);
-    return true;
-#else
+    NGRAPH_OP_SCOPE(v4_Range_visit_attributes,
+        visitor.on_attribute("output_type", m_output_type);
+        return true;
+    )
     return false;
-#endif
 }
 
 void op::v4::Range::validate_and_infer_types()
 {
-#if GraphGen(OV_GEN_NGRAPH_OP(Range, v4, validate_and_infer_types))
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
-    set_input_is_relevant_to_shape(0);
-    set_input_is_relevant_to_shape(1);
-    set_input_is_relevant_to_shape(2);
+    NGRAPH_OP_SCOPE(v4_Range_validate_and_infer_types,
+        set_input_is_relevant_to_shape(0);
+        set_input_is_relevant_to_shape(1);
+        set_input_is_relevant_to_shape(2);
 
-    NODE_VALIDATION_CHECK(
-        this, get_input_partial_shape(0).compatible(Shape{}), "'start' input is not a scalar");
-    NODE_VALIDATION_CHECK(
-        this, get_input_partial_shape(1).compatible(Shape{}), "'stop' input is not a scalar");
-    NODE_VALIDATION_CHECK(
-        this, get_input_partial_shape(2).compatible(Shape{}), "'step' input is not a scalar");
-
-    auto const_start = as_type_ptr<op::Constant>(this->input_value(0).get_node_shared_ptr());
-    auto const_stop = as_type_ptr<op::Constant>(this->input_value(1).get_node_shared_ptr());
-    auto const_step = as_type_ptr<op::Constant>(this->input_value(2).get_node_shared_ptr());
-
-    double start = 0;
-    double stop = 0;
-    double step = 0;
-
-    if (const_start != nullptr)
-    {
-        std::vector<double> start_val = const_start->cast_vector<double>();
-        NODE_VALIDATION_CHECK(this, start_val.size() == 1);
-        start = start_val[0];
         NODE_VALIDATION_CHECK(
-            this, std::isfinite(start) && !std::isnan(start), "'start' cannot be nan or infinite.");
-    }
-
-    if (const_stop != nullptr)
-    {
-        std::vector<double> stop_val = const_stop->cast_vector<double>();
-        NODE_VALIDATION_CHECK(this, stop_val.size() == 1);
-        stop = stop_val[0];
+            this, get_input_partial_shape(0).compatible(Shape{}), "'start' input is not a scalar");
         NODE_VALIDATION_CHECK(
-            this, std::isfinite(stop) && !std::isnan(stop), "'stop' cannot be nan or infinite.");
-    }
-
-    if (const_step != nullptr)
-    {
-        std::vector<double> step_val = const_step->cast_vector<double>();
-        NODE_VALIDATION_CHECK(this, step_val.size() == 1);
-        step = step_val[0];
+            this, get_input_partial_shape(1).compatible(Shape{}), "'stop' input is not a scalar");
         NODE_VALIDATION_CHECK(
-            this, std::isfinite(step) && !std::isnan(step), "'step' cannot be nan or infinite.");
-    }
+            this, get_input_partial_shape(2).compatible(Shape{}), "'step' input is not a scalar");
 
-    PartialShape result{PartialShape::dynamic(1)};
+        auto const_start = as_type_ptr<op::Constant>(this->input_value(0).get_node_shared_ptr());
+        auto const_stop = as_type_ptr<op::Constant>(this->input_value(1).get_node_shared_ptr());
+        auto const_step = as_type_ptr<op::Constant>(this->input_value(2).get_node_shared_ptr());
 
-    if (const_start != nullptr && const_stop != nullptr && const_step != nullptr)
-    {
-        double span;
+        double start = 0;
+        double stop = 0;
+        double step = 0;
 
-        if ((step > 0 && start >= stop) || (step < 0 && start <= stop))
+        if (const_start != nullptr)
         {
-            span = 0;
-        }
-        else
-        {
-            span = stop - start;
+            std::vector<double> start_val = const_start->cast_vector<double>();
+            NODE_VALIDATION_CHECK(this, start_val.size() == 1);
+            start = start_val[0];
+            NODE_VALIDATION_CHECK(
+                this, std::isfinite(start) && !std::isnan(start), "'start' cannot be nan or infinite.");
         }
 
-        double strided = ceil(fabs(span) / fabs(step));
+        if (const_stop != nullptr)
+        {
+            std::vector<double> stop_val = const_stop->cast_vector<double>();
+            NODE_VALIDATION_CHECK(this, stop_val.size() == 1);
+            stop = stop_val[0];
+            NODE_VALIDATION_CHECK(
+                this, std::isfinite(stop) && !std::isnan(stop), "'stop' cannot be nan or infinite.");
+        }
 
-        result = PartialShape{Dimension(static_cast<int64_t>(strided))};
-    }
-    set_output_type(0, m_output_type, result);
-#else
+        if (const_step != nullptr)
+        {
+            std::vector<double> step_val = const_step->cast_vector<double>();
+            NODE_VALIDATION_CHECK(this, step_val.size() == 1);
+            step = step_val[0];
+            NODE_VALIDATION_CHECK(
+                this, std::isfinite(step) && !std::isnan(step), "'step' cannot be nan or infinite.");
+        }
+
+        PartialShape result{PartialShape::dynamic(1)};
+
+        if (const_start != nullptr && const_stop != nullptr && const_step != nullptr)
+        {
+            double span;
+
+            if ((step > 0 && start >= stop) || (step < 0 && start <= stop))
+            {
+                span = 0;
+            }
+            else
+            {
+                span = stop - start;
+            }
+
+            double strided = ceil(fabs(span) / fabs(step));
+
+            result = PartialShape{Dimension(static_cast<int64_t>(strided))};
+        }
+        set_output_type(0, m_output_type, result);
+    return;
+    )
     NODE_VALIDATION_CHECK(this, false, "Function is not included into the selective build.");
-#endif
 }
 
 shared_ptr<Node> op::v4::Range::clone_with_new_inputs(const OutputVector& new_args) const
@@ -135,33 +132,42 @@ bool get_casted_value(const HostTensorPtr& tensor, T* val)
 {
     switch (tensor->get_element_type())
     {
-    case element::Type_t::bf16:
+    NGRAPH_CASE(get_casted_value, bf16,
         *val = static_cast<T>(*tensor->get_data_ptr<element::Type_t::bf16>());
         break;
-    case element::Type_t::f16:
+    )
+    NGRAPH_CASE(get_casted_value, f16,
         *val = static_cast<T>(*tensor->get_data_ptr<element::Type_t::f16>());
         break;
-    case element::Type_t::f32:
+    )
+    NGRAPH_CASE(get_casted_value, f32,
         *val = static_cast<T>(*tensor->get_data_ptr<element::Type_t::f32>());
         break;
-    case element::Type_t::i8:
+    )
+    NGRAPH_CASE(get_casted_value, i8,
         *val = static_cast<T>(*tensor->get_data_ptr<element::Type_t::i8>());
         break;
-    case element::Type_t::i32:
+    )
+    NGRAPH_CASE(get_casted_value, i32,
         *val = static_cast<T>(*tensor->get_data_ptr<element::Type_t::i32>());
         break;
-    case element::Type_t::i64:
+    )
+    NGRAPH_CASE(get_casted_value, i64,
         *val = static_cast<T>(*tensor->get_data_ptr<element::Type_t::i64>());
         break;
-    case element::Type_t::u8:
+    )
+    NGRAPH_CASE(get_casted_value, u8,
         *val = static_cast<T>(*tensor->get_data_ptr<element::Type_t::u8>());
         break;
-    case element::Type_t::u32:
+    )
+    NGRAPH_CASE(get_casted_value, u32,
         *val = static_cast<T>(*tensor->get_data_ptr<element::Type_t::u32>());
         break;
-    case element::Type_t::u64:
+    )
+    NGRAPH_CASE(get_casted_value, u64,
         *val = static_cast<T>(*tensor->get_data_ptr<element::Type_t::u64>());
         break;
+    )
     default: return false;
     }
     return true;
@@ -198,35 +204,44 @@ bool evaluate_v4_range(const HostTensorPtr& out,
 
 bool op::v4::Range::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
-#if GraphGen(OV_GEN_NGRAPH_OP(Range, v4, evaluate))
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
-    HostTensorPtr out = outputs[0];
-    HostTensorPtr start = inputs[0];
-    HostTensorPtr stop = inputs[1];
-    HostTensorPtr step = inputs[2];
-    switch (m_output_type)
-    {
-    case element::Type_t::bf16:
-        return evaluate_v4_range<element::Type_t::bf16>(out, start, stop, step);
-    case element::Type_t::f16:
-        return evaluate_v4_range<element::Type_t::f16>(out, start, stop, step);
-    case element::Type_t::f32:
-        return evaluate_v4_range<element::Type_t::f32>(out, start, stop, step);
-    case element::Type_t::i8: return evaluate_v4_range<element::Type_t::i8>(out, start, stop, step);
-    case element::Type_t::i32:
-        return evaluate_v4_range<element::Type_t::i32>(out, start, stop, step);
-    case element::Type_t::i64:
-        return evaluate_v4_range<element::Type_t::i64>(out, start, stop, step);
-    case element::Type_t::u8: return evaluate_v4_range<element::Type_t::u8>(out, start, stop, step);
-    case element::Type_t::u32:
-        return evaluate_v4_range<element::Type_t::u32>(out, start, stop, step);
-    case element::Type_t::u64:
-        return evaluate_v4_range<element::Type_t::u64>(out, start, stop, step);
-    default: return false;
-    }
-#else
+    NGRAPH_OP_SCOPE(v4_Range_evaluate,
+        HostTensorPtr out = outputs[0];
+        HostTensorPtr start = inputs[0];
+        HostTensorPtr stop = inputs[1];
+        HostTensorPtr step = inputs[2];
+        switch (m_output_type)
+        {
+        NGRAPH_CASE(ngraph_op_v4_Range_evaluate, bf16,
+            return evaluate_v4_range<element::Type_t::bf16>(out, start, stop, step);
+        )
+        NGRAPH_CASE(ngraph_op_v4_Range_evaluate, f16,
+            return evaluate_v4_range<element::Type_t::f16>(out, start, stop, step);
+        )
+        NGRAPH_CASE(ngraph_op_v4_Range_evaluate, f32,
+            return evaluate_v4_range<element::Type_t::f32>(out, start, stop, step);
+        )
+        NGRAPH_CASE(ngraph_op_v4_Range_evaluate, i8,
+            return evaluate_v4_range<element::Type_t::i8>(out, start, stop, step);
+        )
+        NGRAPH_CASE(ngraph_op_v4_Range_evaluate, i32,
+            return evaluate_v4_range<element::Type_t::i32>(out, start, stop, step);
+        )
+        NGRAPH_CASE(ngraph_op_v4_Range_evaluate, i64,
+            return evaluate_v4_range<element::Type_t::i64>(out, start, stop, step);
+        )
+        NGRAPH_CASE(ngraph_op_v4_Range_evaluate, u8,
+            return evaluate_v4_range<element::Type_t::u8>(out, start, stop, step);
+        )
+        NGRAPH_CASE(ngraph_op_v4_Range_evaluate, u32,
+            return evaluate_v4_range<element::Type_t::u32>(out, start, stop, step);
+        )
+        NGRAPH_CASE(ngraph_op_v4_Range_evaluate, u64,
+            return evaluate_v4_range<element::Type_t::u64>(out, start, stop, step);
+        )
+        default: return false;
+        }
+    )
     return false;
-#endif
 }
 
 constexpr NodeTypeInfo op::v0::Range::type_info;
@@ -374,69 +389,95 @@ bool ngraph::op::v0::Range::visit_attributes(AttributeVisitor& visitor)
 
 void op::v0::Range::validate_and_infer_types()
 {
-#if GraphGen(OV_GEN_NGRAPH_OP(Range, v0, validate_and_infer_types))
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
-    set_input_is_relevant_to_shape(0);
-    set_input_is_relevant_to_shape(1);
-    set_input_is_relevant_to_shape(2);
+    NGRAPH_OP_SCOPE(v0_Range_validate_and_infer_types,
+        set_input_is_relevant_to_shape(0);
+        set_input_is_relevant_to_shape(1);
+        set_input_is_relevant_to_shape(2);
 
-    auto result_et = element::dynamic;
+        auto result_et = element::dynamic;
 
-    NODE_VALIDATION_CHECK(
-        this,
-        element::Type::merge(result_et, result_et, get_input_element_type(0)) &&
-            element::Type::merge(result_et, result_et, get_input_element_type(1)) &&
-            element::Type::merge(result_et, result_et, get_input_element_type(2)),
-        "Element types for start, stop, and step do not match.");
-
-    NODE_VALIDATION_CHECK(this,
-                          result_et != element::boolean,
-                          "Element type for start, stop, and step, must not be boolean.");
-
-    NODE_VALIDATION_CHECK(
-        this, get_input_partial_shape(0).compatible(Shape{}), "'start' input is not a scalar");
-    NODE_VALIDATION_CHECK(
-        this, get_input_partial_shape(1).compatible(Shape{}), "'stop' input is not a scalar");
-    NODE_VALIDATION_CHECK(
-        this, get_input_partial_shape(2).compatible(Shape{}), "'step' input is not a scalar");
-
-    PartialShape result_shape;
-
-#if defined(__GNUC__) && !(__GNUC__ == 4 && __GNUC_MINOR__ == 8)
-#pragma GCC diagnostic push
-#pragma GCC diagnostic error "-Wswitch"
-#pragma GCC diagnostic error "-Wswitch-enum"
-#endif
-    switch (result_et)
-    {
-    case element::Type_t::bf16: result_shape = infer_output_shape<bfloat16>(this, result_et); break;
-    case element::Type_t::f16: result_shape = infer_output_shape<float16>(this, result_et); break;
-    case element::Type_t::f32: result_shape = infer_output_shape<float>(this, result_et); break;
-    case element::Type_t::f64: result_shape = infer_output_shape<double>(this, result_et); break;
-    case element::Type_t::i8: result_shape = infer_output_shape<int8_t>(this, result_et); break;
-    case element::Type_t::i16: result_shape = infer_output_shape<int16_t>(this, result_et); break;
-    case element::Type_t::i32: result_shape = infer_output_shape<int32_t>(this, result_et); break;
-    case element::Type_t::i64: result_shape = infer_output_shape<int64_t>(this, result_et); break;
-    case element::Type_t::u8: result_shape = infer_output_shape<uint8_t>(this, result_et); break;
-    case element::Type_t::u16: result_shape = infer_output_shape<uint16_t>(this, result_et); break;
-    case element::Type_t::u32: result_shape = infer_output_shape<uint32_t>(this, result_et); break;
-    case element::Type_t::u64: result_shape = infer_output_shape<uint64_t>(this, result_et); break;
-    case element::Type_t::dynamic: result_shape = PartialShape::dynamic(1); break;
-    case element::Type_t::u1:
-    case element::Type_t::undefined:
-    case element::Type_t::boolean:
         NODE_VALIDATION_CHECK(
-            this, false, "Internal nGraph error: unsupported element type: ", result_et);
-        break;
-    }
-#if defined(__GNUC__) && !(__GNUC__ == 4 && __GNUC_MINOR__ == 8)
-#pragma GCC diagnostic pop
-#endif
+            this,
+            element::Type::merge(result_et, result_et, get_input_element_type(0)) &&
+                element::Type::merge(result_et, result_et, get_input_element_type(1)) &&
+                element::Type::merge(result_et, result_et, get_input_element_type(2)),
+            "Element types for start, stop, and step do not match.");
 
-    set_output_type(0, result_et, result_shape);
-#else
-    NODE_VALIDATION_CHECK(this, false, "Function is not included into the selective build.");
+        NODE_VALIDATION_CHECK(this,
+                            result_et != element::boolean,
+                            "Element type for start, stop, and step, must not be boolean.");
+
+        NODE_VALIDATION_CHECK(
+            this, get_input_partial_shape(0).compatible(Shape{}), "'start' input is not a scalar");
+        NODE_VALIDATION_CHECK(
+            this, get_input_partial_shape(1).compatible(Shape{}), "'stop' input is not a scalar");
+        NODE_VALIDATION_CHECK(
+            this, get_input_partial_shape(2).compatible(Shape{}), "'step' input is not a scalar");
+
+        PartialShape result_shape;
+
+    #if defined(__GNUC__) && !(__GNUC__ == 4 && __GNUC_MINOR__ == 8) && !defined(OV_SELECTIVE_BUILD)
+    #pragma GCC diagnostic push
+    #pragma GCC diagnostic error "-Wswitch"
+    #pragma GCC diagnostic error "-Wswitch-enum"
+    #endif
+        switch (result_et)
+        {
+        NGRAPH_CASE(ngraph_op_v0_Range_validate_and_infer_types, bf16,
+            result_shape = infer_output_shape<bfloat16>(this, result_et); break;
+        )
+        NGRAPH_CASE(ngraph_op_v0_Range_validate_and_infer_types, f16,
+            result_shape = infer_output_shape<float16>(this, result_et); break;
+        )
+        NGRAPH_CASE(ngraph_op_v0_Range_validate_and_infer_types, f32,
+            result_shape = infer_output_shape<float>(this, result_et); break;
+        )
+        NGRAPH_CASE(ngraph_op_v0_Range_validate_and_infer_types, f64,
+            result_shape = infer_output_shape<double>(this, result_et); break;
+        )
+        NGRAPH_CASE(ngraph_op_v0_Range_validate_and_infer_types, i8,
+            result_shape = infer_output_shape<int8_t>(this, result_et); break;
+        )
+        NGRAPH_CASE(ngraph_op_v0_Range_validate_and_infer_types, i16,
+            result_shape = infer_output_shape<int16_t>(this, result_et); break;
+        )
+        NGRAPH_CASE(ngraph_op_v0_Range_validate_and_infer_types, i32,
+            result_shape = infer_output_shape<int32_t>(this, result_et); break;
+        )
+        NGRAPH_CASE(ngraph_op_v0_Range_validate_and_infer_types, i64,
+            result_shape = infer_output_shape<int64_t>(this, result_et); break;
+        )
+        NGRAPH_CASE(ngraph_op_v0_Range_validate_and_infer_types, u8,
+            result_shape = infer_output_shape<uint8_t>(this, result_et); break;
+        )
+        NGRAPH_CASE(ngraph_op_v0_Range_validate_and_infer_types, u16,
+            result_shape = infer_output_shape<uint16_t>(this, result_et); break;
+        )
+        NGRAPH_CASE(ngraph_op_v0_Range_validate_and_infer_types, u32,
+            result_shape = infer_output_shape<uint32_t>(this, result_et); break;
+        )
+        NGRAPH_CASE(ngraph_op_v0_Range_validate_and_infer_types, u64,
+            result_shape = infer_output_shape<uint64_t>(this, result_et); break;
+        )
+        case element::Type_t::dynamic: result_shape = PartialShape::dynamic(1); break;
+        case element::Type_t::u1:
+        case element::Type_t::undefined:
+        case element::Type_t::boolean:
+            NODE_VALIDATION_CHECK(
+                this, false, "Internal nGraph error: unsupported element type: ", result_et);
+            break;
+#if defined(OV_SELECTIVE_BUILD)
+        default: throw std::runtime_error("Type " + get_element_type().get_type_name() + " is not included into the selective build.");
 #endif
+        }
+    #if defined(__GNUC__) && !(__GNUC__ == 4 && __GNUC_MINOR__ == 8) && !defined(OV_SELECTIVE_BUILD)
+    #pragma GCC diagnostic pop
+    #endif
+
+        set_output_type(0, result_et, result_shape);
+        return;
+    )
+    NODE_VALIDATION_CHECK(this, false, "Function is not included into the selective build.");
 }
 
 shared_ptr<Node> op::v0::Range::clone_with_new_inputs(const OutputVector& new_args) const
@@ -488,26 +529,24 @@ bool try_evaluate_range(const HostTensorPtr& out,
 
 bool op::v0::Range::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
-#if GraphGen(OV_GEN_NGRAPH_OP(Range, v0, evaluate))
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
+    NGRAPH_OP_SCOPE(v0_Range_evaluate,
 
-    HostTensorPtr out = outputs[0];
-    HostTensorPtr start = inputs[0];
-    HostTensorPtr stop = inputs[1];
-    HostTensorPtr step = inputs[2];
-    return try_evaluate_range<element::Type_t::i8>(out, start, stop, step) ||
-           try_evaluate_range<element::Type_t::i16>(out, start, stop, step) ||
-           try_evaluate_range<element::Type_t::i32>(out, start, stop, step) ||
-           try_evaluate_range<element::Type_t::i64>(out, start, stop, step) ||
-           try_evaluate_range<element::Type_t::u8>(out, start, stop, step) ||
-           try_evaluate_range<element::Type_t::u16>(out, start, stop, step) ||
-           try_evaluate_range<element::Type_t::u32>(out, start, stop, step) ||
-           try_evaluate_range<element::Type_t::u64>(out, start, stop, step) ||
-           try_evaluate_range<element::Type_t::f32>(out, start, stop, step) ||
-           try_evaluate_range<element::Type_t::f16>(out, start, stop, step) ||
-           try_evaluate_range<element::Type_t::bf16>(out, start, stop, step) ||
-           try_evaluate_range<element::Type_t::f64>(out, start, stop, step);
-#else
+        HostTensorPtr out = outputs[0];
+        HostTensorPtr start = inputs[0];
+        HostTensorPtr stop = inputs[1];
+        HostTensorPtr step = inputs[2];
+        return try_evaluate_range<element::Type_t::i8>(out, start, stop, step) ||
+            try_evaluate_range<element::Type_t::i16>(out, start, stop, step) ||
+            try_evaluate_range<element::Type_t::i32>(out, start, stop, step) ||
+            try_evaluate_range<element::Type_t::i64>(out, start, stop, step) ||
+            try_evaluate_range<element::Type_t::u8>(out, start, stop, step) ||
+            try_evaluate_range<element::Type_t::u16>(out, start, stop, step) ||
+            try_evaluate_range<element::Type_t::u32>(out, start, stop, step) ||
+            try_evaluate_range<element::Type_t::u64>(out, start, stop, step) ||
+            try_evaluate_range<element::Type_t::f32>(out, start, stop, step) ||
+            try_evaluate_range<element::Type_t::f16>(out, start, stop, step) ||
+            try_evaluate_range<element::Type_t::bf16>(out, start, stop, step) ||
+            try_evaluate_range<element::Type_t::f64>(out, start, stop, step);
+    )
     return false;
-#endif
 }

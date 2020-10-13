@@ -3,6 +3,7 @@
 //
 
 #include "ngraph_ops/gru_cell_ie.hpp"
+#include "itt.hpp"
 
 #include <memory>
 #include <string>
@@ -28,16 +29,20 @@ op::GRUCellIE::GRUCellIE(const Output<Node>& X, const Output<Node>& H_t,
 }
 
 void op::GRUCellIE::validate_and_infer_types() {
-    element::Type arg_type = get_input_element_type(0);
+    NGRAPH_OP_SCOPE(GRUCellIE_validate_and_infer_types,
+        element::Type arg_type = get_input_element_type(0);
 
-    PartialShape output_shape{PartialShape::dynamic(2)};
+        PartialShape output_shape{PartialShape::dynamic(2)};
 
-    if (get_input_partial_shape(0).is_static()) {
-        int64_t batch_size = get_input_partial_shape(0).get_shape()[0];
-        output_shape = {batch_size, m_hidden_size};
-    }
+        if (get_input_partial_shape(0).is_static()) {
+            int64_t batch_size = get_input_partial_shape(0).get_shape()[0];
+            output_shape = {batch_size, m_hidden_size};
+        }
 
-    set_output_type(0, arg_type, output_shape);
+        set_output_type(0, arg_type, output_shape);
+        return;
+    )
+    NODE_VALIDATION_CHECK(this, false, "Function is not included into the selective build.");
 }
 
 shared_ptr<Node> op::GRUCellIE::clone_with_new_inputs(const OutputVector& new_args) const {
@@ -48,11 +53,14 @@ shared_ptr<Node> op::GRUCellIE::clone_with_new_inputs(const OutputVector& new_ar
 }
 
 bool op::GRUCellIE::visit_attributes(AttributeVisitor &visitor) {
-    visitor.on_attribute("hidden_size", m_hidden_size);
-    visitor.on_attribute("activations", m_activations);
-    visitor.on_attribute("activations_alpha", m_activations_alpha);
-    visitor.on_attribute("activations_beta", m_activations_beta);
-    visitor.on_attribute("clip", m_clip);
-    visitor.on_attribute("linear_before_reset", m_linear_before_reset);
-    return true;
+    NGRAPH_OP_SCOPE(GRUCellIE_visit_attributes,
+        visitor.on_attribute("hidden_size", m_hidden_size);
+        visitor.on_attribute("activations", m_activations);
+        visitor.on_attribute("activations_alpha", m_activations_alpha);
+        visitor.on_attribute("activations_beta", m_activations_beta);
+        visitor.on_attribute("clip", m_clip);
+        visitor.on_attribute("linear_before_reset", m_linear_before_reset);
+        return true;
+    )
+    return false;
 }

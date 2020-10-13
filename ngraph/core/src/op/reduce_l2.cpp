@@ -67,12 +67,9 @@ namespace
         bool rc = true;
         switch (arg->get_element_type())
         {
-            TYPE_CASE(bf16)(arg, out, axes, keep_dims);
-            break;
-            TYPE_CASE(f16)(arg, out, axes, keep_dims);
-            break;
-            TYPE_CASE(f32)(arg, out, axes, keep_dims);
-            break;
+            NGRAPH_TYPE_CASE(ReduceL2_evaluate_sum, bf16, arg, out, axes, keep_dims)
+            NGRAPH_TYPE_CASE(ReduceL2_evaluate_sum, f16, arg, out, axes, keep_dims)
+            NGRAPH_TYPE_CASE(ReduceL2_evaluate_sum, f32, arg, out, axes, keep_dims)
         default: rc = false; break;
         }
         return rc;
@@ -82,10 +79,9 @@ namespace
 bool op::v4::ReduceL2::evaluate(const HostTensorVector& outputs,
                                 const HostTensorVector& inputs) const
 {
-#if GraphGen(OV_GEN_NGRAPH_OP(ReduceL2, v4, evaluate))
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
-    return evaluate_reduce_l2(inputs[0], outputs[0], get_reduction_axes(), get_keep_dims());
-#else
-    return false;
-#endif
+    bool rc = false;
+    NGRAPH_OP_SCOPE(v4_ReduceL2_evaluate,
+        rc = evaluate_reduce_l2(inputs[0], outputs[0], get_reduction_axes(), get_keep_dims());
+    )
+    return rc;
 }

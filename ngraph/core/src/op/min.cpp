@@ -50,37 +50,53 @@ shared_ptr<Node> op::v0::Min::get_default_value() const
 {
     switch (get_element_type())
     {
-    case element::Type_t::boolean:
+    NGRAPH_CASE(ngraph_op_v0_Min_get_default_value, boolean,
         return make_constant_from_string("1", get_element_type(), get_shape());
-    case element::Type_t::bf16:
-    case element::Type_t::f16:
-    case element::Type_t::f32:
-    case element::Type_t::f64:
+    )
+    NGRAPH_CASE(ngraph_op_v0_Min_get_default_value, bf16,
         return make_constant_from_string("INFINITY", get_element_type(), get_shape());
-    case element::Type_t::i8:
+    )
+    NGRAPH_CASE(ngraph_op_v0_Min_get_default_value, f16,
+        return make_constant_from_string("INFINITY", get_element_type(), get_shape());
+    )
+    NGRAPH_CASE(ngraph_op_v0_Min_get_default_value, f32,
+        return make_constant_from_string("INFINITY", get_element_type(), get_shape());
+    )
+    NGRAPH_CASE(ngraph_op_v0_Min_get_default_value, f64,
+        return make_constant_from_string("INFINITY", get_element_type(), get_shape());
+    )
+    NGRAPH_CASE(ngraph_op_v0_Min_get_default_value, i8,
         return make_constant_from_string(
             to_string(numeric_limits<int8_t>::max()), get_element_type(), get_shape());
-    case element::Type_t::i16:
+    )
+    NGRAPH_CASE(ngraph_op_v0_Min_get_default_value, i16,
         return make_constant_from_string(
             to_string(numeric_limits<int16_t>::max()), get_element_type(), get_shape());
-    case element::Type_t::i32:
+    )
+    NGRAPH_CASE(ngraph_op_v0_Min_get_default_value, i32,
         return make_constant_from_string(
             to_string(numeric_limits<int32_t>::max()), get_element_type(), get_shape());
-    case element::Type_t::i64:
-        return make_constant_from_string(
-            to_string(numeric_limits<int64_t>::max()), get_element_type(), get_shape());
-    case element::Type_t::u8:
+    )
+    NGRAPH_CASE(ngraph_op_v0_Min_get_default_value, i64,
+            return make_constant_from_string(
+                to_string(numeric_limits<int64_t>::max()), get_element_type(), get_shape());
+    )
+    NGRAPH_CASE(ngraph_op_v0_Min_get_default_value, u8,
         return make_constant_from_string(
             to_string(numeric_limits<uint8_t>::max()), get_element_type(), get_shape());
-    case element::Type_t::u16:
+    )
+    NGRAPH_CASE(ngraph_op_v0_Min_get_default_value, u16,
         return make_constant_from_string(
             to_string(numeric_limits<uint16_t>::max()), get_element_type(), get_shape());
-    case element::Type_t::u32:
+    )
+    NGRAPH_CASE(ngraph_op_v0_Min_get_default_value, u32,
         return make_constant_from_string(
             to_string(numeric_limits<uint32_t>::max()), get_element_type(), get_shape());
-    case element::Type_t::u64:
+    )
+    NGRAPH_CASE(ngraph_op_v0_Min_get_default_value, u64,
         return make_constant_from_string(
             to_string(numeric_limits<uint64_t>::max()), get_element_type(), get_shape());
+    )
     case element::Type_t::u1:
     case element::Type_t::undefined:
     case element::Type_t::dynamic:
@@ -104,18 +120,12 @@ namespace
         bool rc = true;
         switch (arg->get_element_type())
         {
-            TYPE_CASE(i32)(arg, out, axes);
-            break;
-            TYPE_CASE(i64)(arg, out, axes);
-            break;
-            TYPE_CASE(u32)(arg, out, axes);
-            break;
-            TYPE_CASE(u64)(arg, out, axes);
-            break;
-            TYPE_CASE(f16)(arg, out, axes);
-            break;
-            TYPE_CASE(f32)(arg, out, axes);
-            break;
+            NGRAPH_TYPE_CASE(evaluate_min, i32, arg, out, axes);
+            NGRAPH_TYPE_CASE(evaluate_min, i64, arg, out, axes);
+            NGRAPH_TYPE_CASE(evaluate_min, u32, arg, out, axes);
+            NGRAPH_TYPE_CASE(evaluate_min, u64, arg, out, axes);
+            NGRAPH_TYPE_CASE(evaluate_min, f16, arg, out, axes);
+            NGRAPH_TYPE_CASE(evaluate_min, f32, arg, out, axes);
         default: rc = false; break;
         }
         return rc;
@@ -124,12 +134,11 @@ namespace
 
 bool op::v0::Min::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
-#if GraphGen(OV_GEN_NGRAPH_OP(Min, v0, evaluate))
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
-    return evaluate_min(inputs[0], outputs[0], get_reduction_axes());
-#else
-    return false;
-#endif
+    bool rc = false;
+    NGRAPH_OP_SCOPE(v0_Min_evaluate,
+        rc =  evaluate_min(inputs[0], outputs[0], get_reduction_axes());
+    )
+    return rc;
 }
 
 constexpr NodeTypeInfo op::v1::ReduceMin::type_info;
@@ -151,10 +160,9 @@ shared_ptr<Node> op::v1::ReduceMin::clone_with_new_inputs(const OutputVector& ne
 bool op::v1::ReduceMin::evaluate(const HostTensorVector& outputs,
                                  const HostTensorVector& inputs) const
 {
-#if GraphGen(OV_GEN_NGRAPH_OP(ReduceMin, v1, evaluate))
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
-    return evaluate_min(inputs[0], outputs[0], get_reduction_axes());
-#else
-    return false;
-#endif
+    bool rc = false;
+    NGRAPH_OP_SCOPE(v1_ReduceMin_evaluate,
+        rc = evaluate_min(inputs[0], outputs[0], get_reduction_axes());
+    )
+    return rc;
 }

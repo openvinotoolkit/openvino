@@ -48,45 +48,43 @@ bool relax_hc_reshape_followed_by_matmul(const ngraph::pattern::PatternValueMap 
 }
 
 ngraph::pass::ReshapeAMatMul::ReshapeAMatMul() {
-    auto other_input_label = pattern::any_input();
-    auto reshape_input_label = pattern::any_input();
-    auto reshape_pattern_label = ngraph::pattern::wrap_type<opset4::Constant>();
-    auto reshape_label = ngraph::pattern::wrap_type<opset4::Reshape>({reshape_input_label, reshape_pattern_label});
-    auto matmul_label = ngraph::pattern::wrap_type<opset4::MatMul>({reshape_label, other_input_label});
-#if GraphGen(OV_GEN_NGRAPH_PASS(ReshapeMatMul_A, callback))
-    matcher_pass_callback callback = [=](pattern::Matcher &m) -> bool {
-        OV_ITT_IE_TRANSFORM_CALLBACK(m, "callback")
-        const auto & pattern_to_output = m.get_pattern_value_map();
-        return relax_hc_reshape_followed_by_matmul(
-                pattern_to_output, matmul_label, reshape_label, other_input_label, reshape_pattern_label, true);
-    };
-#else
-    matcher_pass_callback callback = [](ngraph::pattern::Matcher & m) -> bool {
-        return false;
-    };
-#endif
-    auto m = std::make_shared<ngraph::pattern::Matcher>(matmul_label, "ReshapeMatMul_A");
-    register_matcher(m, callback);
+    IETRANSFORM_SCOPE(ReshapeAMatMul,
+        auto other_input_label = pattern::any_input();
+        auto reshape_input_label = pattern::any_input();
+        auto reshape_pattern_label = ngraph::pattern::wrap_type<opset4::Constant>();
+        auto reshape_label = ngraph::pattern::wrap_type<opset4::Reshape>({reshape_input_label, reshape_pattern_label});
+        auto matmul_label = ngraph::pattern::wrap_type<opset4::MatMul>({reshape_label, other_input_label});
+
+        matcher_pass_callback callback = [=](pattern::Matcher &m) -> bool {
+            const auto & pattern_to_output = m.get_pattern_value_map();
+            return relax_hc_reshape_followed_by_matmul(
+                    pattern_to_output, matmul_label, reshape_label, other_input_label, reshape_pattern_label, true);
+        };
+
+        auto m = std::make_shared<ngraph::pattern::Matcher>(matmul_label, matcher_name);
+        register_matcher(m, callback);
+        return;
+    )
+    NGRAPH_CHECK(false, "nGraph pass is not included into the selective build.");
 }
 
 ngraph::pass::ReshapeBMatMul::ReshapeBMatMul() {
-    auto other_input_label = pattern::any_input();
-    auto reshape_input_label = pattern::any_input();
-    auto reshape_pattern_label = ngraph::pattern::wrap_type<opset4::Constant>();
-    auto reshape_label = ngraph::pattern::wrap_type<opset4::Reshape>({reshape_input_label, reshape_pattern_label});
-    auto matmul_label = ngraph::pattern::wrap_type<opset4::MatMul>({other_input_label, reshape_label});
-#if GraphGen(OV_GEN_NGRAPH_PASS(ReshapeMatMul_B, callback))
-    matcher_pass_callback callback = [=](pattern::Matcher &m) -> bool {
-        OV_ITT_IE_TRANSFORM_CALLBACK(m, "callback")
-        const auto & pattern_to_output = m.get_pattern_value_map();
-        return relax_hc_reshape_followed_by_matmul(
-                pattern_to_output, matmul_label, reshape_label, other_input_label, reshape_pattern_label, false);
-    };
-#else
-    matcher_pass_callback callback = [](ngraph::pattern::Matcher & m) -> bool {
-        return false;
-    };
-#endif
-    auto m = std::make_shared<ngraph::pattern::Matcher>(matmul_label, "ReshapeMatMul_B");
-    register_matcher(m, callback);
+    IETRANSFORM_SCOPE(ReshapeBMatMul,
+        auto other_input_label = pattern::any_input();
+        auto reshape_input_label = pattern::any_input();
+        auto reshape_pattern_label = ngraph::pattern::wrap_type<opset4::Constant>();
+        auto reshape_label = ngraph::pattern::wrap_type<opset4::Reshape>({reshape_input_label, reshape_pattern_label});
+        auto matmul_label = ngraph::pattern::wrap_type<opset4::MatMul>({other_input_label, reshape_label});
+
+        matcher_pass_callback callback = [=](pattern::Matcher &m) -> bool {
+            const auto & pattern_to_output = m.get_pattern_value_map();
+            return relax_hc_reshape_followed_by_matmul(
+                    pattern_to_output, matmul_label, reshape_label, other_input_label, reshape_pattern_label, false);
+        };
+
+        auto m = std::make_shared<ngraph::pattern::Matcher>(matmul_label, matcher_name);
+        register_matcher(m, callback);
+        return;
+    )
+    NGRAPH_CHECK(false, "nGraph pass is not included into the selective build.");
 }

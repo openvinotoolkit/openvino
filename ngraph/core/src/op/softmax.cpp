@@ -86,47 +86,46 @@ void op::v0::Softmax::set_axes(const AxisSet& axes)
 
 void op::v0::Softmax::validate_and_infer_types()
 {
-#if GraphGen(OV_GEN_NGRAPH_OP(Softmax, v0, validate_and_infer_types))
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
-    const PartialShape& input_shape = get_input_partial_shape(0);
+    NGRAPH_OP_SCOPE(v0_Softmax_validate_and_infer_types,
+        const PartialShape& input_shape = get_input_partial_shape(0);
 
-    if (input_shape.is_dynamic())
-    {
-        set_output_type(0, get_input_element_type(0), input_shape);
-    }
-    else
-    {
-        set_output_type(0, get_input_element_type(0), input_shape.to_shape());
-
-        if (are_axes_constant())
+        if (input_shape.is_dynamic())
         {
-            auto m_axes = get_axes();
-            for (auto axis : m_axes)
+            set_output_type(0, get_input_element_type(0), input_shape);
+        }
+        else
+        {
+            set_output_type(0, get_input_element_type(0), input_shape.to_shape());
+
+            if (are_axes_constant())
             {
-                NODE_VALIDATION_CHECK(this,
-                                      axis < input_shape.rank().get_length(),
-                                      "Reduction axis (",
-                                      axis,
-                                      ") is out of bounds (argument shape: ",
-                                      input_shape,
-                                      ").");
-            }
-            // empty axes == all axes
-            if (m_axes.size() == 0)
-            {
-                for (size_t i = 0; i < get_shape().size(); ++i)
+                auto m_axes = get_axes();
+                for (auto axis : m_axes)
                 {
-                    m_axes.insert(i);
+                    NODE_VALIDATION_CHECK(this,
+                                        axis < input_shape.rank().get_length(),
+                                        "Reduction axis (",
+                                        axis,
+                                        ") is out of bounds (argument shape: ",
+                                        input_shape,
+                                        ").");
                 }
-                set_axes(m_axes);
+                // empty axes == all axes
+                if (m_axes.size() == 0)
+                {
+                    for (size_t i = 0; i < get_shape().size(); ++i)
+                    {
+                        m_axes.insert(i);
+                    }
+                    set_axes(m_axes);
+                }
             }
         }
-    }
 
-    set_input_is_relevant_to_shape(1);
-#else
+        set_input_is_relevant_to_shape(1);
+        return;
+    )
     NODE_VALIDATION_CHECK(this, false, "Function is not included into the selective build.");
-#endif
 }
 
 shared_ptr<Node> op::v0::Softmax::clone_with_new_inputs(const OutputVector& new_args) const
@@ -161,13 +160,12 @@ namespace
 bool op::v0::Softmax::evaluate(const HostTensorVector& outputs,
                                const HostTensorVector& inputs) const
 {
-#if GraphGen(OV_GEN_NGRAPH_OP(Softmax, v0, evaluate))
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
-    outputs[0]->set_unary(inputs[0]);
-    return evaluate_softmax(inputs[0], outputs[0], get_axes());
-#else
-    return false;
-#endif
+    bool rc = false;
+    NGRAPH_OP_SCOPE(v0_Softmax_evaluate,
+        outputs[0]->set_unary(inputs[0]);
+        rc = evaluate_softmax(inputs[0], outputs[0], get_axes());
+    )
+    return rc;
 }
 
 // *** SOFTMAX OP SET V1 ***
@@ -182,33 +180,30 @@ op::v1::Softmax::Softmax(const Output<Node>& arg, const size_t axis)
 
 bool ngraph::op::v1::Softmax::visit_attributes(AttributeVisitor& visitor)
 {
-#if GraphGen(OV_GEN_NGRAPH_OP(Softmax, v1, visit_attributes))
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
-    visitor.on_attribute("axis", m_axis);
-    return true;
-#else
+    NGRAPH_OP_SCOPE(v1_Softmax_visit_attributes,
+        visitor.on_attribute("axis", m_axis);
+        return true;
+    )
     return false;
-#endif
 }
 
 void op::v1::Softmax::validate_and_infer_types()
 {
-#if GraphGen(OV_GEN_NGRAPH_OP(Softmax, v1, validate_and_infer_types))
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
-    const PartialShape& input_shape = get_input_partial_shape(0);
-    if (input_shape.rank().is_static())
-        NODE_VALIDATION_CHECK(this,
-                              m_axis < input_shape.rank().get_length(),
-                              "Reduction axis (",
-                              m_axis,
-                              ") is out of bounds (argument shape: ",
-                              input_shape,
-                              ").");
+    NGRAPH_OP_SCOPE(v1_Softmax_validate_and_infer_type,
+        const PartialShape& input_shape = get_input_partial_shape(0);
+        if (input_shape.rank().is_static())
+            NODE_VALIDATION_CHECK(this,
+                                m_axis < input_shape.rank().get_length(),
+                                "Reduction axis (",
+                                m_axis,
+                                ") is out of bounds (argument shape: ",
+                                input_shape,
+                                ").");
 
-    set_output_type(0, get_input_element_type(0), input_shape);
-#else
+        set_output_type(0, get_input_element_type(0), input_shape);
+        return;
+    )
     NODE_VALIDATION_CHECK(this, false, "Function is not included into the selective build.");
-#endif
 }
 
 shared_ptr<Node> op::v1::Softmax::clone_with_new_inputs(const OutputVector& new_args) const
@@ -220,11 +215,10 @@ shared_ptr<Node> op::v1::Softmax::clone_with_new_inputs(const OutputVector& new_
 bool op::v1::Softmax::evaluate(const HostTensorVector& outputs,
                                const HostTensorVector& inputs) const
 {
-#if GraphGen(OV_GEN_NGRAPH_OP(Softmax, v1, evaluate))
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
-    outputs[0]->set_unary(inputs[0]);
-    return evaluate_softmax(inputs[0], outputs[0], AxisSet{m_axis});
-#else
-    return false;
-#endif
+    bool rc = false;
+    NGRAPH_OP_SCOPE(v1_Softmax_evaluate,
+        outputs[0]->set_unary(inputs[0]);
+        rc = evaluate_softmax(inputs[0], outputs[0], AxisSet{m_axis});
+    )
+    return rc;
 }

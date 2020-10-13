@@ -41,41 +41,38 @@ op::BatchNormInference::BatchNormInference(const Output<Node>& input,
 
 bool op::BatchNormInference::visit_attributes(AttributeVisitor& visitor)
 {
-#if GraphGen(OV_GEN_NGRAPH_OP(BatchNormInference, v0, visit_attributes))
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
-    visitor.on_attribute("epsilon", m_epsilon);
-    return true;
-#else
+    NGRAPH_OP_SCOPE(v0_BatchNormInference_visit_attributes,
+        visitor.on_attribute("epsilon", m_epsilon);
+        return true;
+    )
     return false;
-#endif
 }
 
 void op::BatchNormInference::validate_and_infer_types()
 {
-#if GraphGen(OV_GEN_NGRAPH_OP(BatchNormInference, v0, validate_and_infer_types))
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
-    element::Type result_et;
-    PartialShape result_batch_shape;
-    PartialShape result_channel_shape; // unused here
+    NGRAPH_OP_SCOPE(v0_BatchNormInference_validate_and_infer_types,
+        element::Type result_et;
+        PartialShape result_batch_shape;
+        PartialShape result_channel_shape; // unused here
 
-    set_output_size(1);
-    std::tie(result_et, result_batch_shape, result_channel_shape) =
-        infer_batch_norm_forward(this,
-                                 get_input_element_type(INPUT_DATA),
-                                 get_input_element_type(INPUT_GAMMA),
-                                 get_input_element_type(INPUT_BETA),
-                                 get_input_element_type(INPUT_MEAN),
-                                 get_input_element_type(INPUT_VARIANCE),
-                                 get_input_partial_shape(INPUT_DATA),
-                                 get_input_partial_shape(INPUT_GAMMA),
-                                 get_input_partial_shape(INPUT_BETA),
-                                 get_input_partial_shape(INPUT_MEAN),
-                                 get_input_partial_shape(INPUT_VARIANCE));
+        set_output_size(1);
+        std::tie(result_et, result_batch_shape, result_channel_shape) =
+            infer_batch_norm_forward(this,
+                                    get_input_element_type(INPUT_DATA),
+                                    get_input_element_type(INPUT_GAMMA),
+                                    get_input_element_type(INPUT_BETA),
+                                    get_input_element_type(INPUT_MEAN),
+                                    get_input_element_type(INPUT_VARIANCE),
+                                    get_input_partial_shape(INPUT_DATA),
+                                    get_input_partial_shape(INPUT_GAMMA),
+                                    get_input_partial_shape(INPUT_BETA),
+                                    get_input_partial_shape(INPUT_MEAN),
+                                    get_input_partial_shape(INPUT_VARIANCE));
 
-    set_output_type(0, result_et, result_batch_shape);
-#else
+        set_output_type(0, result_et, result_batch_shape);
+        return;
+    )
     NODE_VALIDATION_CHECK(this, false, "Function is not included into the selective build.");
-#endif
 }
 
 std::shared_ptr<Node>

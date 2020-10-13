@@ -10,6 +10,8 @@
 #include <transformations_visibility.hpp>
 #include <ngraph/pass/graph_rewrite.hpp>
 
+#include "transformations/itt.hpp"
+
 namespace ngraph {
 namespace pass {
 
@@ -30,10 +32,10 @@ class ngraph::pass::SwishFusion: public ngraph::pass::GraphRewrite {
 public:
     NGRAPH_RTTI_DECLARATION;
     SwishFusion() {
-        add_matcher<ngraph::pass::SwishFusionWithSigmoid>();
-        add_matcher<ngraph::pass::SwishFusionWithSigmoidWithBeta>();
-        add_matcher<ngraph::pass::SwishFusionWithBeta>();
-        add_matcher<ngraph::pass::SwishFusionWithoutBeta>();
+        ADD_MATCHER(this, SwishFusionWithSigmoid);
+        ADD_MATCHER(this, SwishFusionWithSigmoidWithBeta);
+        ADD_MATCHER(this, SwishFusionWithBeta);
+        ADD_MATCHER(this, SwishFusionWithoutBeta);
     }
 };
 

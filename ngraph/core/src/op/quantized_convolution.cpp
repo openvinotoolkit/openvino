@@ -66,117 +66,116 @@ op::QuantizedConvolution::QuantizedConvolution(const Output<Node>& input,
 
 void op::QuantizedConvolution::validate_and_infer_types()
 {
-#if GraphGen(OV_GEN_NGRAPH_OP(QuantizedConvolution, v0, validate_and_infer_types))
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
-    enum
-    {
-        INPUT,
-        FILTER,
-        INPUT_SCALE,
-        INPUT_ZERO_POINT,
-        FILTER_SCALE,
-        FILTER_ZERO_POINT,
-        OUTPUT_SCALE,
-        OUTPUT_ZERO_POINT
-    };
+    NGRAPH_OP_SCOPE(v0_QuantizedConvolution_validate_and_infer_types,
+        enum
+        {
+            INPUT,
+            FILTER,
+            INPUT_SCALE,
+            INPUT_ZERO_POINT,
+            FILTER_SCALE,
+            FILTER_ZERO_POINT,
+            OUTPUT_SCALE,
+            OUTPUT_ZERO_POINT
+        };
 
-    NODE_VALIDATION_CHECK(
-        this, m_output_type.is_static(), "Output element type must not be dynamic");
+        NODE_VALIDATION_CHECK(
+            this, m_output_type.is_static(), "Output element type must not be dynamic");
 
-    NODE_VALIDATION_CHECK(this,
-                          m_output_type.is_quantized(),
-                          "Output element type (",
-                          m_output_type,
-                          ") must be a quantized type");
+        NODE_VALIDATION_CHECK(this,
+                            m_output_type.is_quantized(),
+                            "Output element type (",
+                            m_output_type,
+                            ") must be a quantized type");
 
-    NODE_VALIDATION_CHECK(this,
-                          get_input_element_type(INPUT).is_quantized(),
-                          "Input element type (",
-                          get_input_element_type(INPUT),
-                          ") must be a quantized type");
+        NODE_VALIDATION_CHECK(this,
+                            get_input_element_type(INPUT).is_quantized(),
+                            "Input element type (",
+                            get_input_element_type(INPUT),
+                            ") must be a quantized type");
 
-    NODE_VALIDATION_CHECK(this,
-                          get_input_element_type(FILTER).is_quantized(),
-                          "Filter element type (",
-                          get_input_element_type(FILTER),
-                          ") must be a quantized type");
+        NODE_VALIDATION_CHECK(this,
+                            get_input_element_type(FILTER).is_quantized(),
+                            "Filter element type (",
+                            get_input_element_type(FILTER),
+                            ") must be a quantized type");
 
-    NODE_VALIDATION_CHECK(this,
-                          get_input_element_type(INPUT_SCALE).is_real() ||
-                              get_input_element_type(INPUT_SCALE).is_dynamic() ||
-                              get_input_element_type(FILTER_SCALE).is_real() ||
-                              get_input_element_type(FILTER_SCALE).is_dynamic() ||
-                              get_input_element_type(OUTPUT_SCALE).is_real() ||
-                              get_input_element_type(OUTPUT_SCALE).is_dynamic(),
-                          "Scale must be a floating point number");
+        NODE_VALIDATION_CHECK(this,
+                            get_input_element_type(INPUT_SCALE).is_real() ||
+                                get_input_element_type(INPUT_SCALE).is_dynamic() ||
+                                get_input_element_type(FILTER_SCALE).is_real() ||
+                                get_input_element_type(FILTER_SCALE).is_dynamic() ||
+                                get_input_element_type(OUTPUT_SCALE).is_real() ||
+                                get_input_element_type(OUTPUT_SCALE).is_dynamic(),
+                            "Scale must be a floating point number");
 
-    NODE_VALIDATION_CHECK(
-        this,
-        get_input_element_type(0).compatible(get_input_element_type(INPUT_ZERO_POINT)),
-        "Input Zero point element type (",
-        get_input_element_type(INPUT_ZERO_POINT),
-        ") must match input element type (",
-        get_input_element_type(0),
-        ")");
+        NODE_VALIDATION_CHECK(
+            this,
+            get_input_element_type(0).compatible(get_input_element_type(INPUT_ZERO_POINT)),
+            "Input Zero point element type (",
+            get_input_element_type(INPUT_ZERO_POINT),
+            ") must match input element type (",
+            get_input_element_type(0),
+            ")");
 
-    NODE_VALIDATION_CHECK(
-        this,
-        get_input_element_type(1).compatible(get_input_element_type(FILTER_ZERO_POINT)),
-        "Filter Zero point element type (",
-        get_input_element_type(FILTER_ZERO_POINT),
-        ") must match filter element type (",
-        get_input_element_type(1),
-        ")");
+        NODE_VALIDATION_CHECK(
+            this,
+            get_input_element_type(1).compatible(get_input_element_type(FILTER_ZERO_POINT)),
+            "Filter Zero point element type (",
+            get_input_element_type(FILTER_ZERO_POINT),
+            ") must match filter element type (",
+            get_input_element_type(1),
+            ")");
 
-    // TODO Remove these checks once we support channelwise and vector of scales
-    NODE_VALIDATION_CHECK(this,
-                          get_input_partial_shape(2).compatible(PartialShape{}) &&
-                              get_input_partial_shape(3).compatible(PartialShape{}),
-                          "Input scale and input zero point shape must be same and 1");
+        // TODO Remove these checks once we support channelwise and vector of scales
+        NODE_VALIDATION_CHECK(this,
+                            get_input_partial_shape(2).compatible(PartialShape{}) &&
+                                get_input_partial_shape(3).compatible(PartialShape{}),
+                            "Input scale and input zero point shape must be same and 1");
 
-    NODE_VALIDATION_CHECK(this,
-                          get_input_partial_shape(4).compatible(PartialShape{}) &&
-                              get_input_partial_shape(5).compatible(PartialShape{}),
-                          "Filter scale and filter zero point shape must be same and 1");
+        NODE_VALIDATION_CHECK(this,
+                            get_input_partial_shape(4).compatible(PartialShape{}) &&
+                                get_input_partial_shape(5).compatible(PartialShape{}),
+                            "Filter scale and filter zero point shape must be same and 1");
 
-    NODE_VALIDATION_CHECK(this,
-                          get_input_partial_shape(6).compatible(PartialShape{}) &&
-                              get_input_partial_shape(7).compatible(PartialShape{}),
-                          "Output scale and output zero point shape must be same and 1");
+        NODE_VALIDATION_CHECK(this,
+                            get_input_partial_shape(6).compatible(PartialShape{}) &&
+                                get_input_partial_shape(7).compatible(PartialShape{}),
+                            "Output scale and output zero point shape must be same and 1");
 
-    // AxisSet should be empty till we support channel wise quantization
-    NODE_VALIDATION_CHECK(this,
-                          m_input_axes == AxisSet{} && m_filter_axes == AxisSet{} &&
-                              m_output_axes == AxisSet{},
-                          "Input, filter and output AxisSet should be empty");
+        // AxisSet should be empty till we support channel wise quantization
+        NODE_VALIDATION_CHECK(this,
+                            m_input_axes == AxisSet{} && m_filter_axes == AxisSet{} &&
+                                m_output_axes == AxisSet{},
+                            "Input, filter and output AxisSet should be empty");
 
-    const PartialShape& input_shape = get_input_partial_shape(0);
-    const PartialShape& filters_shape = get_input_partial_shape(1);
+        const PartialShape& input_shape = get_input_partial_shape(0);
+        const PartialShape& filters_shape = get_input_partial_shape(1);
 
-    PartialShape result_shape;
+        PartialShape result_shape;
 
-    result_shape = infer_convolution_forward(this,
-                                             input_shape,
-                                             m_data_dilation_strides,
-                                             m_padding_below,
-                                             m_padding_above,
-                                             filters_shape,
-                                             m_window_movement_strides,
-                                             m_window_dilation_strides);
+        result_shape = infer_convolution_forward(this,
+                                                input_shape,
+                                                m_data_dilation_strides,
+                                                m_padding_below,
+                                                m_padding_above,
+                                                filters_shape,
+                                                m_window_movement_strides,
+                                                m_window_dilation_strides);
 
-    NODE_VALIDATION_CHECK(
-        this,
-        get_output_element_type(0).compatible(get_input_element_type(OUTPUT_ZERO_POINT)),
-        "Output Zero point element type (",
-        get_input_element_type(OUTPUT_ZERO_POINT),
-        ") must match output element type (",
-        get_output_element_type(0),
-        ")");
+        NODE_VALIDATION_CHECK(
+            this,
+            get_output_element_type(0).compatible(get_input_element_type(OUTPUT_ZERO_POINT)),
+            "Output Zero point element type (",
+            get_input_element_type(OUTPUT_ZERO_POINT),
+            ") must match output element type (",
+            get_output_element_type(0),
+            ")");
 
-    set_output_type(0, m_output_type, result_shape);
-#else
+        set_output_type(0, m_output_type, result_shape);
+        return;
+    )
     NODE_VALIDATION_CHECK(this, false, "Function is not included into the selective build.");
-#endif
 }
 
 shared_ptr<Node> op::QuantizedConvolution::clone_with_new_inputs(const OutputVector& new_args) const

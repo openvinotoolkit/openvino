@@ -95,14 +95,14 @@ target_include_directories(ngraph PRIVATE ${NGRAPH_INCLUDE_DIR}
                                           ${NGRAPH_INCLUDE_DIR}/pattern
                                           ${NGRAPH_INCLUDE_DIR}/pattern/op
                                           ${NGRAPH_INCLUDE_DIR}/runtime
-                                          ${CMAKE_CURRENT_SOURCE_DIR}/src
+                                          ${CMAKE_CURRENT_SOURCE_DIR}/src/
                                           )
 
 #Add an alias so that library can be used inside the build tree, e.g. when testing
 add_library(ngraph::ngraph ALIAS ngraph)
 
 include(selective_build)
-ie_forced_include(ngraph "${OpenVINO_SELECTIVE_BUILD_HEADER}" OFF)
+ie_forced_include(ngraph "${OpenVINO_SELECTIVE_BUILD_HEADER}" ON)
 
 if (NOT WIN32)
     target_link_libraries(ngraph PRIVATE dl)

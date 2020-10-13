@@ -3,6 +3,7 @@
 //
 
 #include "ngraph_ops/eltwise.hpp"
+#include "itt.hpp"
 
 #include <algorithm>
 #include <memory>
@@ -29,45 +30,49 @@ std::shared_ptr<Node> op::Eltwise::clone_with_new_inputs(const OutputVector& new
 }
 
 void op::Eltwise::validate_and_infer_types() {
-    //  Check that weights and biases has the same type
-    element::Type data1_et = get_input_element_type(0);
-    element::Type data2_et = get_input_element_type(1);
+    NGRAPH_OP_SCOPE(Eltwise_validate_and_infer_types,
+        //  Check that weights and biases has the same type
+        element::Type data1_et = get_input_element_type(0);
+        element::Type data2_et = get_input_element_type(1);
 
-    element::Type et_result;
-    NODE_VALIDATION_CHECK(this, element::Type::merge(et_result, data1_et, data2_et),
-                          "Element types for first and second do not match :", data1_et, " and ", data2_et);
+        element::Type et_result;
+        NODE_VALIDATION_CHECK(this, element::Type::merge(et_result, data1_et, data2_et),
+                            "Element types for first and second do not match :", data1_et, " and ", data2_et);
 
-    if (get_input_partial_shape(0).rank().is_dynamic() ||
-        get_input_partial_shape(1).rank().is_dynamic()) {
-        set_output_type(0, et_result, PartialShape::dynamic());
-        return;
-    }
+        if (get_input_partial_shape(0).rank().is_dynamic() ||
+            get_input_partial_shape(1).rank().is_dynamic()) {
+            set_output_type(0, et_result, PartialShape::dynamic());
+            return;
+        }
 
-    std::vector<Dimension> shape1(get_input_partial_shape(0));
-    std::vector<Dimension> shape2(get_input_partial_shape(1));
+        std::vector<Dimension> shape1(get_input_partial_shape(0));
+        std::vector<Dimension> shape2(get_input_partial_shape(1));
 
-    std::vector<Dimension> output_shape(PartialShape::dynamic(std::max(shape1.size(), shape2.size())));
-    auto output_shape_it = output_shape.rbegin();
+        std::vector<Dimension> output_shape(PartialShape::dynamic(std::max(shape1.size(), shape2.size())));
+        auto output_shape_it = output_shape.rbegin();
 
-    auto shape1_it = shape1.rbegin(), shape2_it = shape2.rbegin();
-    while (shape1_it != shape1.rend() || shape2_it != shape2.rend()) {
-        if (shape1_it != shape1.rend() && shape2_it != shape2.rend()) {
-            if (shape1_it->is_static() && shape2_it->is_static()) {
-                *output_shape_it = (shape1_it->get_length() > shape2_it->get_length() ? *shape1_it : *shape2_it);
+        auto shape1_it = shape1.rbegin(), shape2_it = shape2.rbegin();
+        while (shape1_it != shape1.rend() || shape2_it != shape2.rend()) {
+            if (shape1_it != shape1.rend() && shape2_it != shape2.rend()) {
+                if (shape1_it->is_static() && shape2_it->is_static()) {
+                    *output_shape_it = (shape1_it->get_length() > shape2_it->get_length() ? *shape1_it : *shape2_it);
+                }
+            } else if (shape1_it != shape1.rend()) {
+                *output_shape_it = *shape1_it;
+            } else if (shape2_it != shape2.rend()) {
+                *output_shape_it = *shape2_it;
             }
-        } else if (shape1_it != shape1.rend()) {
-            *output_shape_it = *shape1_it;
-        } else if (shape2_it != shape2.rend()) {
-            *output_shape_it = *shape2_it;
+
+            if (shape1_it != shape1.rend()) ++shape1_it;
+            if (shape2_it != shape2.rend()) ++shape2_it;
+            ++output_shape_it;
+            if (output_shape_it == output_shape.rend()) {
+                break;
+            }
         }
 
-        if (shape1_it != shape1.rend()) ++shape1_it;
-        if (shape2_it != shape2.rend()) ++shape2_it;
-        ++output_shape_it;
-        if (output_shape_it == output_shape.rend()) {
-            break;
-        }
-    }
-
-    set_output_type(0, et_result, output_shape);
+        set_output_type(0, et_result, output_shape);
+        return;
+    )
+    NODE_VALIDATION_CHECK(this, false, "Function is not included into the selective build.");
 }

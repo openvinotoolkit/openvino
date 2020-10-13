@@ -15,31 +15,29 @@
 NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertDivide, "ConvertDivide", 0);
 
 ngraph::pass::ConvertDivide::ConvertDivide() {
-    auto div = ngraph::pattern::wrap_type<ngraph::opset1::Divide>();
-#if GraphGen(OV_GEN_NGRAPH_PASS(ConvertDivide, callback))
-    ngraph::graph_rewrite_callback callback = [](pattern::Matcher& m) {
-        OV_ITT_IE_TRANSFORM_CALLBACK(m, "callback")
-        auto div = std::dynamic_pointer_cast<ngraph::opset1::Divide> (m.get_match_root());
-        // We can not apply this transformation in case with integer input data type
-        if (!div || div->input(0).get_element_type().is_integral()) {
-            return false;
-        }
+    IETRANSFORM_SCOPE(ConvertDivide,
+        auto div = ngraph::pattern::wrap_type<ngraph::opset1::Divide>();
+        ngraph::graph_rewrite_callback callback = [](pattern::Matcher& m) {
+            auto div = std::dynamic_pointer_cast<ngraph::opset1::Divide> (m.get_match_root());
+            // We can not apply this transformation in case with integer input data type
+            if (!div || div->input(0).get_element_type().is_integral()) {
+                return false;
+            }
 
-        auto pow = std::make_shared<ngraph::opset1::Power>(div->input(1).get_source_output(),
-                                                           op::Constant::create(div->get_input_element_type(1), Shape{1}, {-1}));
+            auto pow = std::make_shared<ngraph::opset1::Power>(div->input(1).get_source_output(),
+                                                            op::Constant::create(div->get_input_element_type(1), Shape{1}, {-1}));
 
-        auto mul = std::make_shared<ngraph::opset1::Multiply>(div->input(0).get_source_output(), pow);
+            auto mul = std::make_shared<ngraph::opset1::Multiply>(div->input(0).get_source_output(), pow);
 
-        mul->set_friendly_name(div->get_friendly_name());
-        ngraph::copy_runtime_info(div, {pow, mul});
-        ngraph::replace_node(div, mul);
-        return true;
-    };
-#else
-    ngraph::graph_rewrite_callback callback = [](ngraph::pattern::Matcher & m) -> bool {
-        return false;
-    };
-#endif
-    auto m = std::make_shared<ngraph::pattern::Matcher>(div, "ConvertDivide");
-    this->register_matcher(m, callback);
+            mul->set_friendly_name(div->get_friendly_name());
+            ngraph::copy_runtime_info(div, {pow, mul});
+            ngraph::replace_node(div, mul);
+            return true;
+        };
+
+        auto m = std::make_shared<ngraph::pattern::Matcher>(div, matcher_name);
+        this->register_matcher(m, callback);
+        return;
+    )
+    NGRAPH_CHECK(false, "nGraph pass is not included into the selective build.");
 }

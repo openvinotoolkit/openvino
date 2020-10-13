@@ -62,30 +62,19 @@ namespace
         bool rc = true;
         out->set_unary(arg0);
 
-        switch (arg0->get_element_type())
+        switch(arg0->get_element_type())
         {
-            COPY_TENSOR(boolean)(arg0, out, count);
-            break;
-            COPY_TENSOR(i8)(arg0, out, count);
-            break;
-            COPY_TENSOR(i16)(arg0, out, count);
-            break;
-            COPY_TENSOR(i32)(arg0, out, count);
-            break;
-            COPY_TENSOR(i64)(arg0, out, count);
-            break;
-            COPY_TENSOR(u8)(arg0, out, count);
-            break;
-            COPY_TENSOR(u16)(arg0, out, count);
-            break;
-            COPY_TENSOR(u32)(arg0, out, count);
-            break;
-            COPY_TENSOR(u64)(arg0, out, count);
-            break;
-            TYPE_CASE(f16)(arg0, out, count);
-            break;
-            TYPE_CASE(f32)(arg0, out, count);
-            break;
+            NGRAPH_COPY_TENSOR(evaluate_ceiling, boolean, arg0, out, count)
+            NGRAPH_COPY_TENSOR(evaluate_ceiling, i8, arg0, out, count)
+            NGRAPH_COPY_TENSOR(evaluate_ceiling, i16, arg0, out, count)
+            NGRAPH_COPY_TENSOR(evaluate_ceiling, i32, arg0, out, count)
+            NGRAPH_COPY_TENSOR(evaluate_ceiling, i64, arg0, out, count)
+            NGRAPH_COPY_TENSOR(evaluate_ceiling, u8, arg0, out, count)
+            NGRAPH_COPY_TENSOR(evaluate_ceiling, u16, arg0, out, count)
+            NGRAPH_COPY_TENSOR(evaluate_ceiling, u32, arg0, out, count)
+            NGRAPH_COPY_TENSOR(evaluate_ceiling, u64, arg0, out, count)
+            NGRAPH_COPY_TENSOR(evaluate_ceiling, f16, arg0, out, count)
+            NGRAPH_COPY_TENSOR(evaluate_ceiling, f32, arg0, out, count)
         default: rc = false; break;
         }
         return rc;
@@ -94,10 +83,8 @@ namespace
 
 bool op::Ceiling::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
-#if GraphGen(OV_GEN_NGRAPH_OP(Ceiling, v0, evaluate))
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
-    return evaluate_ceiling(inputs[0], outputs[0], shape_size(get_output_shape(0)));
-#else
+    NGRAPH_OP_SCOPE(v0_Ceiling_evaluate,
+        return evaluate_ceiling(inputs[0], outputs[0], shape_size(get_output_shape(0)));
+    )
     return false;
-#endif
 }

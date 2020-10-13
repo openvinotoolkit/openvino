@@ -45,26 +45,24 @@ bool ngraph::op::v0::Selu::visit_attributes(AttributeVisitor& visitor)
 
 OutputVector op::v0::Selu::decompose_op() const
 {
-#if GraphGen(OV_GEN_NGRAPH_OP(Selu, v0, decompose_op))
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
-    const auto data = input_value(0);
-    const auto alpha = input_value(1);
-    const auto lambda = input_value(2);
-    const auto zero_node = op::Constant::create(data.get_element_type(), Shape{1}, {0});
+    NGRAPH_OP_SCOPE(v0_Selu_decompose_op,
+        const auto data = input_value(0);
+        const auto alpha = input_value(1);
+        const auto lambda = input_value(2);
+        const auto zero_node = op::Constant::create(data.get_element_type(), Shape{1}, {0});
 
-    // lambda * ((max(data, 0) + (alpha * exp(min(data, 0)) - alpha))
-    return {std::make_shared<op::v1::Multiply>(
-        lambda,
-        std::make_shared<op::v1::Add>(
-            std::make_shared<op::v1::Maximum>(data, zero_node),
-            std::make_shared<op::v1::Subtract>(
-                std::make_shared<op::v1::Multiply>(
-                    alpha,
-                    std::make_shared<op::Exp>(std::make_shared<op::v1::Minimum>(data, zero_node))),
-                alpha)))};
-#else
+        // lambda * ((max(data, 0) + (alpha * exp(min(data, 0)) - alpha))
+        return {std::make_shared<op::v1::Multiply>(
+            lambda,
+            std::make_shared<op::v1::Add>(
+                std::make_shared<op::v1::Maximum>(data, zero_node),
+                std::make_shared<op::v1::Subtract>(
+                    std::make_shared<op::v1::Multiply>(
+                        alpha,
+                        std::make_shared<op::Exp>(std::make_shared<op::v1::Minimum>(data, zero_node))),
+                    alpha)))};
+    )
     NODE_VALIDATION_CHECK(this, false, "Function is not included into the selective build.");
-#endif
 }
 
 shared_ptr<Node> op::v0::Selu::clone_with_new_inputs(const OutputVector& new_args) const

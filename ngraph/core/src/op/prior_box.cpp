@@ -38,54 +38,53 @@ op::PriorBox::PriorBox(const Output<Node>& layer_shape,
 
 void op::PriorBox::validate_and_infer_types()
 {
-#if GraphGen(OV_GEN_NGRAPH_OP(PriorBox, v0, validate_and_infer_types))
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
-    // shape node should have integer data type. For now we only allow i64
-    auto layer_shape_et = get_input_element_type(0);
-    NODE_VALIDATION_CHECK(this,
-                          layer_shape_et.is_integral_number(),
-                          "layer shape input must be an integral number, but is: ",
-                          layer_shape_et);
-
-    auto image_shape_et = get_input_element_type(1);
-    NODE_VALIDATION_CHECK(this,
-                          image_shape_et.is_integral_number(),
-                          "image shape input must be an integral number, but is: ",
-                          image_shape_et);
-
-    auto layer_shape_rank = get_input_partial_shape(0).rank();
-    auto image_shape_rank = get_input_partial_shape(1).rank();
-    NODE_VALIDATION_CHECK(this,
-                          layer_shape_rank.compatible(image_shape_rank),
-                          "layer shape input rank ",
-                          layer_shape_rank,
-                          " must match image shape input rank ",
-                          image_shape_rank);
-
-    set_input_is_relevant_to_shape(0);
-
-    if (auto const_shape = as_type_ptr<op::Constant>(input_value(0).get_node_shared_ptr()))
-    {
+    NGRAPH_OP_SCOPE(v0_PriorBox_validate_and_infer_types,
+        // shape node should have integer data type. For now we only allow i64
+        auto layer_shape_et = get_input_element_type(0);
         NODE_VALIDATION_CHECK(this,
-                              shape_size(const_shape->get_shape()) == 2,
-                              "Layer shape must have rank 2",
-                              const_shape->get_shape());
+                            layer_shape_et.is_integral_number(),
+                            "layer shape input must be an integral number, but is: ",
+                            layer_shape_et);
 
-        auto layer_shape = const_shape->get_shape_val();
+        auto image_shape_et = get_input_element_type(1);
+        NODE_VALIDATION_CHECK(this,
+                            image_shape_et.is_integral_number(),
+                            "image shape input must be an integral number, but is: ",
+                            image_shape_et);
 
-        set_output_type(0,
-                        element::f32,
-                        Shape{2,
-                              4 * layer_shape[0] * layer_shape[1] *
-                                  static_cast<size_t>(number_of_priors(m_attrs))});
-    }
-    else
-    {
-        set_output_type(0, element::f32, PartialShape::dynamic());
-    }
-#else
+        auto layer_shape_rank = get_input_partial_shape(0).rank();
+        auto image_shape_rank = get_input_partial_shape(1).rank();
+        NODE_VALIDATION_CHECK(this,
+                            layer_shape_rank.compatible(image_shape_rank),
+                            "layer shape input rank ",
+                            layer_shape_rank,
+                            " must match image shape input rank ",
+                            image_shape_rank);
+
+        set_input_is_relevant_to_shape(0);
+
+        if (auto const_shape = as_type_ptr<op::Constant>(input_value(0).get_node_shared_ptr()))
+        {
+            NODE_VALIDATION_CHECK(this,
+                                shape_size(const_shape->get_shape()) == 2,
+                                "Layer shape must have rank 2",
+                                const_shape->get_shape());
+
+            auto layer_shape = const_shape->get_shape_val();
+
+            set_output_type(0,
+                            element::f32,
+                            Shape{2,
+                                4 * layer_shape[0] * layer_shape[1] *
+                                    static_cast<size_t>(number_of_priors(m_attrs))});
+        }
+        else
+        {
+            set_output_type(0, element::f32, PartialShape::dynamic());
+        }
+        return;
+    )
     NODE_VALIDATION_CHECK(this, false, "Function is not included into the selective build.");
-#endif
 }
 
 shared_ptr<Node> op::PriorBox::clone_with_new_inputs(const OutputVector& new_args) const
@@ -141,24 +140,22 @@ std::vector<float> op::PriorBox::normalized_aspect_ratio(const std::vector<float
 
 bool op::PriorBox::visit_attributes(AttributeVisitor& visitor)
 {
-#if GraphGen(OV_GEN_NGRAPH_OP(PriorBox, v0, visit_attributes))
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
-    visitor.on_attribute("min_size", m_attrs.min_size);
-    visitor.on_attribute("max_size", m_attrs.max_size);
-    visitor.on_attribute("aspect_ratio", m_attrs.aspect_ratio);
-    visitor.on_attribute("density", m_attrs.density);
-    visitor.on_attribute("fixed_ratio", m_attrs.fixed_ratio);
-    visitor.on_attribute("fixed_size", m_attrs.fixed_size);
-    visitor.on_attribute("clip", m_attrs.clip);
-    visitor.on_attribute("flip", m_attrs.flip);
-    visitor.on_attribute("step", m_attrs.step);
-    visitor.on_attribute("offset", m_attrs.offset);
-    visitor.on_attribute("variance", m_attrs.variance);
-    visitor.on_attribute("scale_all_sizes", m_attrs.scale_all_sizes);
-    return true;
-#else
+    NGRAPH_OP_SCOPE(v0_PriorBox_visit_attributes,
+        visitor.on_attribute("min_size", m_attrs.min_size);
+        visitor.on_attribute("max_size", m_attrs.max_size);
+        visitor.on_attribute("aspect_ratio", m_attrs.aspect_ratio);
+        visitor.on_attribute("density", m_attrs.density);
+        visitor.on_attribute("fixed_ratio", m_attrs.fixed_ratio);
+        visitor.on_attribute("fixed_size", m_attrs.fixed_size);
+        visitor.on_attribute("clip", m_attrs.clip);
+        visitor.on_attribute("flip", m_attrs.flip);
+        visitor.on_attribute("step", m_attrs.step);
+        visitor.on_attribute("offset", m_attrs.offset);
+        visitor.on_attribute("variance", m_attrs.variance);
+        visitor.on_attribute("scale_all_sizes", m_attrs.scale_all_sizes);
+        return true;
+    )
     return false;
-#endif
 }
 
 namespace
@@ -185,22 +182,14 @@ namespace
         bool rc = true;
         switch (arg0->get_element_type())
         {
-            TYPE_CASE(i8)(arg0, arg1, out, attrs);
-            break;
-            TYPE_CASE(i16)(arg0, arg1, out, attrs);
-            break;
-            TYPE_CASE(i32)(arg0, arg1, out, attrs);
-            break;
-            TYPE_CASE(i64)(arg0, arg1, out, attrs);
-            break;
-            TYPE_CASE(u8)(arg0, arg1, out, attrs);
-            break;
-            TYPE_CASE(u16)(arg0, arg1, out, attrs);
-            break;
-            TYPE_CASE(u32)(arg0, arg1, out, attrs);
-            break;
-            TYPE_CASE(u64)(arg0, arg1, out, attrs);
-            break;
+            NGRAPH_TYPE_CASE(evaluate_prior_box, i8, arg0, arg1, out, attrs)
+            NGRAPH_TYPE_CASE(evaluate_prior_box, i16, arg0, arg1, out, attrs)
+            NGRAPH_TYPE_CASE(evaluate_prior_box, i32, arg0, arg1, out, attrs)
+            NGRAPH_TYPE_CASE(evaluate_prior_box, i64, arg0, arg1, out, attrs)
+            NGRAPH_TYPE_CASE(evaluate_prior_box, u8, arg0, arg1, out, attrs)
+            NGRAPH_TYPE_CASE(evaluate_prior_box, u16, arg0, arg1, out, attrs)
+            NGRAPH_TYPE_CASE(evaluate_prior_box, u32, arg0, arg1, out, attrs)
+            NGRAPH_TYPE_CASE(evaluate_prior_box, u64, arg0, arg1, out, attrs)
         default: rc = false; break;
         }
         return rc;

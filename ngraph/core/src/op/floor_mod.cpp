@@ -64,24 +64,15 @@ namespace
         out->set_broadcast(broadcast_spec, arg0, arg1);
         switch (arg0->get_element_type())
         {
-            TYPE_CASE(i8)(arg0, arg1, out, broadcast_spec);
-            break;
-            TYPE_CASE(i32)(arg0, arg1, out, broadcast_spec);
-            break;
-            TYPE_CASE(i64)(arg0, arg1, out, broadcast_spec);
-            break;
-            TYPE_CASE(u8)(arg0, arg1, out, broadcast_spec);
-            break;
-            TYPE_CASE(u32)(arg0, arg1, out, broadcast_spec);
-            break;
-            TYPE_CASE(u64)(arg0, arg1, out, broadcast_spec);
-            break;
-            TYPE_CASE(bf16)(arg0, arg1, out, broadcast_spec);
-            break;
-            TYPE_CASE(f16)(arg0, arg1, out, broadcast_spec);
-            break;
-            TYPE_CASE(f32)(arg0, arg1, out, broadcast_spec);
-            break;
+            NGRAPH_TYPE_CASE(evaluate_floor_mod, i8, arg0, arg1, out, broadcast_spec)
+            NGRAPH_TYPE_CASE(evaluate_floor_mod, i32, arg0, arg1, out, broadcast_spec)
+            NGRAPH_TYPE_CASE(evaluate_floor_mod, i64, arg0, arg1, out, broadcast_spec)
+            NGRAPH_TYPE_CASE(evaluate_floor_mod, u8, arg0, arg1, out, broadcast_spec)
+            NGRAPH_TYPE_CASE(evaluate_floor_mod, u32, arg0, arg1, out, broadcast_spec)
+            NGRAPH_TYPE_CASE(evaluate_floor_mod, u64, arg0, arg1, out, broadcast_spec)
+            NGRAPH_TYPE_CASE(evaluate_floor_mod, bf16, arg0, arg1, out, broadcast_spec)
+            NGRAPH_TYPE_CASE(evaluate_floor_mod, f16, arg0, arg1, out, broadcast_spec)
+            NGRAPH_TYPE_CASE(evaluate_floor_mod, f32, arg0, arg1, out, broadcast_spec)
         default: rc = false; break;
         }
         return rc;
@@ -91,10 +82,9 @@ namespace
 bool op::v1::FloorMod::evaluate(const HostTensorVector& outputs,
                                 const HostTensorVector& inputs) const
 {
-#if GraphGen(OV_GEN_NGRAPH_OP(FloorMod, v1, evaluate))
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
-    return evaluate_floor_mod(inputs[0], inputs[1], outputs[0], get_autob());
-#else
-    return false;
-#endif
+    bool rc = false;
+    NGRAPH_OP_SCOPE(v1_FloorMod_evaluate,
+        return evaluate_floor_mod(inputs[0], inputs[1], outputs[0], get_autob());
+    )
+    return rc;
 }

@@ -49,23 +49,21 @@ bool ngraph::op::v0::Gelu::visit_attributes(AttributeVisitor& visitor)
 // f(x) = 0.5 * x * (1.0 + erf( x / sqrt(2.0) )
 OutputVector op::Gelu::decompose_op() const
 {
-#if GraphGen(OV_GEN_NGRAPH_OP(Gelu, v0, decompose_op))
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
-    auto data = input_value(0);
+    NGRAPH_OP_SCOPE(v0_Gelu_decompose_op,
+        auto data = input_value(0);
 
-    shared_ptr<ngraph::Node> half =
-        builder::make_constant(data.get_element_type(), data.get_shape(), 0.5);
+        shared_ptr<ngraph::Node> half =
+            builder::make_constant(data.get_element_type(), data.get_shape(), 0.5);
 
-    shared_ptr<ngraph::Node> one =
-        builder::make_constant(data.get_element_type(), data.get_shape(), 1.0);
+        shared_ptr<ngraph::Node> one =
+            builder::make_constant(data.get_element_type(), data.get_shape(), 1.0);
 
-    shared_ptr<ngraph::Node> sqrt_two =
-        builder::make_constant(data.get_element_type(), data.get_shape(), std::sqrt(2.0));
+        shared_ptr<ngraph::Node> sqrt_two =
+            builder::make_constant(data.get_element_type(), data.get_shape(), std::sqrt(2.0));
 
-    return {half * data * (one + make_shared<ngraph::op::Erf>(data / sqrt_two))};
-#else
+        return {half * data * (one + make_shared<ngraph::op::Erf>(data / sqrt_two))};
+    )
     NODE_VALIDATION_CHECK(this, false, "Function is not included into the selective build.");
-#endif
 }
 
 shared_ptr<Node> op::Gelu::clone_with_new_inputs(const OutputVector& new_args) const
@@ -79,22 +77,21 @@ shared_ptr<Node> op::Gelu::clone_with_new_inputs(const OutputVector& new_args) c
 
 void op::Gelu::pre_validate_and_infer_types()
 {
-#if GraphGen(OV_GEN_NGRAPH_OP(Gelu, v0, pre_validate_and_infer_types))
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
-    element::Type input_element_type = get_input_element_type(0);
-    PartialShape input_pshape = get_input_partial_shape(0);
+    NGRAPH_OP_SCOPE(v0_Gelu_pre_validate_and_infer_types,
+        element::Type input_element_type = get_input_element_type(0);
+        PartialShape input_pshape = get_input_partial_shape(0);
 
-    NODE_VALIDATION_CHECK(this,
-                          input_element_type.is_dynamic() || input_element_type.is_real(),
-                          "Argument element type must be f16, bf16, f32, f64 or dynamic (got ",
-                          input_element_type,
-                          ").");
+        NODE_VALIDATION_CHECK(this,
+                            input_element_type.is_dynamic() || input_element_type.is_real(),
+                            "Argument element type must be f16, bf16, f32, f64 or dynamic (got ",
+                            input_element_type,
+                            ").");
 
-    if (input_pshape.is_dynamic())
-    {
-        set_output_type(0, input_element_type, input_pshape);
-    }
-#else
+        if (input_pshape.is_dynamic())
+        {
+            set_output_type(0, input_element_type, input_pshape);
+        }
+        return;
+    )
     NODE_VALIDATION_CHECK(this, false, "Function is not included into the selective build.");
-#endif
 }

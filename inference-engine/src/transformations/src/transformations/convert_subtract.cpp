@@ -15,30 +15,28 @@
 NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertSubtract, "ConvertSubtract", 0);
 
 ngraph::pass::ConvertSubtract::ConvertSubtract() {
-    auto sub = ngraph::pattern::wrap_type<ngraph::opset1::Subtract>();
-#if GraphGen(OV_GEN_NGRAPH_PASS(ConvertSubtract, callback))
-    ngraph::graph_rewrite_callback callback = [](pattern::Matcher& m) {
-        OV_ITT_IE_TRANSFORM_CALLBACK(m, "callback")
-        auto sub = std::dynamic_pointer_cast<ngraph::opset1::Subtract> (m.get_match_root());
-        if (!sub) {
-            return false;
-        }
+    IETRANSFORM_SCOPE(ConvertSubtract,
+        auto sub = ngraph::pattern::wrap_type<ngraph::opset1::Subtract>();
+        ngraph::graph_rewrite_callback callback = [](pattern::Matcher& m) {
+            auto sub = std::dynamic_pointer_cast<ngraph::opset1::Subtract> (m.get_match_root());
+            if (!sub) {
+                return false;
+            }
 
-        auto neg = std::make_shared<ngraph::opset1::Multiply>(sub->input(1).get_source_output(),
-                                                              opset1::Constant::create(sub->get_input_element_type(1), Shape{1}, {-1}));
+            auto neg = std::make_shared<ngraph::opset1::Multiply>(sub->input(1).get_source_output(),
+                                                                opset1::Constant::create(sub->get_input_element_type(1), Shape{1}, {-1}));
 
-        auto add = std::make_shared<ngraph::opset1::Add>(sub->input(0).get_source_output(), neg);
+            auto add = std::make_shared<ngraph::opset1::Add>(sub->input(0).get_source_output(), neg);
 
-        add->set_friendly_name(sub->get_friendly_name());
-        ngraph::copy_runtime_info(sub, {neg, add});
-        ngraph::replace_node(sub, add);
-        return true;
-    };
-#else
-    ngraph::graph_rewrite_callback callback = [](ngraph::pattern::Matcher & m) -> bool {
-        return false;
-    };
-#endif
-    auto m = std::make_shared<ngraph::pattern::Matcher>(sub, "ConvertSubtract");
-    this->register_matcher(m, callback);
+            add->set_friendly_name(sub->get_friendly_name());
+            ngraph::copy_runtime_info(sub, {neg, add});
+            ngraph::replace_node(sub, add);
+            return true;
+        };
+
+        auto m = std::make_shared<ngraph::pattern::Matcher>(sub, matcher_name);
+        this->register_matcher(m, callback);
+        return;
+    )
+    NGRAPH_CHECK(false, "nGraph pass is not included into the selective build.");
 }

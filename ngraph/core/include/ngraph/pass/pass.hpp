@@ -24,7 +24,9 @@
 #include "ngraph/function.hpp"
 #include "ngraph/node.hpp"
 #include "ngraph/util.hpp"
-
+#if defined(OV_SELECTIVE_BUILD_LOG) || defined(ENABLE_PROFILING_ITT)
+#include "openvino/itt.hpp"
+#endif
 namespace ngraph
 {
     namespace pass
@@ -52,6 +54,7 @@ namespace ngraph
             bool get_property(const PassPropertyMask& prop_mask) const;
 
             void set_name(const std::string& name) { m_name = name; }
+            std::string get_class_name() const;
             std::string get_name() const;
 
             void set_callback(const param_callback& callback);

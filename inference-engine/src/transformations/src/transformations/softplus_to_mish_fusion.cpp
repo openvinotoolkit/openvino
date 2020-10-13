@@ -15,30 +15,29 @@
 NGRAPH_RTTI_DEFINITION(ngraph::pass::SoftPlusToMishFusion, "SoftPlusToMishFusion", 0);
 
 ngraph::pass::SoftPlusToMishFusion::SoftPlusToMishFusion() {
-    auto input = ngraph::pattern::any_input();
-    auto softplus = ngraph::pattern::wrap_type<ngraph::opset4::SoftPlus>({input}, pattern::consumers_count(1));
-    auto tanh = ngraph::pattern::wrap_type<ngraph::opset4::Tanh>({softplus}, pattern::consumers_count(1));
-    auto mul = std::make_shared<ngraph::opset4::Multiply>(input, tanh);
-#if GraphGen(OV_GEN_NGRAPH_PASS(SoftPlusToMishFusion, callback))
-    ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
-        OV_ITT_IE_TRANSFORM_CALLBACK(m, "callback")
-        auto & pattern_to_output = m.get_pattern_value_map();
-        auto exp_input = pattern_to_output.at(input);
+    IETRANSFORM_SCOPE(SoftPlusToMishFusion,
+        auto input = ngraph::pattern::any_input();
+        auto softplus = ngraph::pattern::wrap_type<ngraph::opset4::SoftPlus>({input}, pattern::consumers_count(1));
+        auto tanh = ngraph::pattern::wrap_type<ngraph::opset4::Tanh>({softplus}, pattern::consumers_count(1));
+        auto mul = std::make_shared<ngraph::opset4::Multiply>(input, tanh);
 
-        auto mish = std::make_shared<ngraph::opset4::Mish>(exp_input);
+        ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
+            auto & pattern_to_output = m.get_pattern_value_map();
+            auto exp_input = pattern_to_output.at(input);
 
-        mish->set_friendly_name(m.get_match_root()->get_friendly_name());
-        ngraph::copy_runtime_info({pattern_to_output.at(mul).get_node_shared_ptr(),
-                                   pattern_to_output.at(tanh).get_node_shared_ptr(),
-                                   pattern_to_output.at(softplus).get_node_shared_ptr()}, mish);
-        ngraph::replace_node(m.get_match_root(), mish);
-        return true;
-    };
-#else
-    ngraph::graph_rewrite_callback callback = [](ngraph::pattern::Matcher & m) -> bool {
-        return false;
-    };
-#endif
-    auto m = std::make_shared<ngraph::pattern::Matcher>(mul, "SoftPlusToMishFusion");
-    register_matcher(m, callback);
+            auto mish = std::make_shared<ngraph::opset4::Mish>(exp_input);
+
+            mish->set_friendly_name(m.get_match_root()->get_friendly_name());
+            ngraph::copy_runtime_info({pattern_to_output.at(mul).get_node_shared_ptr(),
+                                    pattern_to_output.at(tanh).get_node_shared_ptr(),
+                                    pattern_to_output.at(softplus).get_node_shared_ptr()}, mish);
+            ngraph::replace_node(m.get_match_root(), mish);
+            return true;
+        };
+
+        auto m = std::make_shared<ngraph::pattern::Matcher>(mul, matcher_name);
+        register_matcher(m, callback);
+        return;
+    )
+    NGRAPH_CHECK(false, "nGraph pass is not included into the selective build.");
 }

@@ -10,6 +10,7 @@
 #include <transformations_visibility.hpp>
 
 #include <ngraph/pass/graph_rewrite.hpp>
+#include "transformations/itt.hpp"
 
 namespace ngraph {
 namespace pass {

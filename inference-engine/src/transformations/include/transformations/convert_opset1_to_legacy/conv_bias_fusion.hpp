@@ -23,6 +23,8 @@
 
 #include <ngraph/pass/graph_rewrite.hpp>
 
+#include "transformations/itt.hpp"
+
 namespace ngraph {
 namespace pass {
 
@@ -37,9 +39,9 @@ class TRANSFORMATIONS_API DeconvAddFusion;
 class ngraph::pass::ConvFusion: public ngraph::pass::GraphRewrite {
 public:
     ConvFusion() : GraphRewrite() {
-        add_matcher<ngraph::pass::ConvAddFusion>();
-        add_matcher<ngraph::pass::ConvMultiplyFusion>();
-        add_matcher<ngraph::pass::DeconvAddFusion>();
+        ADD_MATCHER(this, ConvAddFusion);
+        ADD_MATCHER(this, ConvMultiplyFusion);
+        ADD_MATCHER(this, DeconvAddFusion);
     }
 };
 

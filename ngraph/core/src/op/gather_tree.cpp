@@ -46,44 +46,43 @@ bool ngraph::op::v1::GatherTree::visit_attributes(AttributeVisitor& visitor)
 
 void op::v1::GatherTree::validate_and_infer_types()
 {
-#if GraphGen(OV_GEN_NGRAPH_OP(GatherTree, v1, validate_and_infer_types))
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
-    const auto& step_ids_rank = get_input_partial_shape(0);
-    const auto& parent_idx_rank = get_input_partial_shape(1);
-    const auto& max_seq_len_rank = get_input_partial_shape(2);
-    const auto& end_token_rank = get_input_partial_shape(3);
+    NGRAPH_OP_SCOPE(v1_GatherTree_validate_and_infer_type,
+        const auto& step_ids_rank = get_input_partial_shape(0);
+        const auto& parent_idx_rank = get_input_partial_shape(1);
+        const auto& max_seq_len_rank = get_input_partial_shape(2);
+        const auto& end_token_rank = get_input_partial_shape(3);
 
-    NODE_VALIDATION_CHECK(this,
-                          step_ids_rank.rank().is_dynamic() ||
-                              step_ids_rank.rank().get_length() == 3,
-                          "step_ids input rank must equal to 3 (step_ids rank: ",
-                          step_ids_rank.rank().get_length(),
-                          ")");
+        NODE_VALIDATION_CHECK(this,
+                            step_ids_rank.rank().is_dynamic() ||
+                                step_ids_rank.rank().get_length() == 3,
+                            "step_ids input rank must equal to 3 (step_ids rank: ",
+                            step_ids_rank.rank().get_length(),
+                            ")");
 
-    NODE_VALIDATION_CHECK(this,
-                          parent_idx_rank.rank().is_dynamic() ||
-                              parent_idx_rank.rank().get_length() == 3,
-                          "parent_idx input rank must equal to 3 (parent_idx rank: ",
-                          parent_idx_rank.rank().get_length(),
-                          ")");
+        NODE_VALIDATION_CHECK(this,
+                            parent_idx_rank.rank().is_dynamic() ||
+                                parent_idx_rank.rank().get_length() == 3,
+                            "parent_idx input rank must equal to 3 (parent_idx rank: ",
+                            parent_idx_rank.rank().get_length(),
+                            ")");
 
-    NODE_VALIDATION_CHECK(this,
-                          max_seq_len_rank.rank().is_dynamic() ||
-                              max_seq_len_rank.rank().get_length() == 1,
-                          "max_seq_len input rank must equal to 1 (max_seq_len rank: ",
-                          max_seq_len_rank.rank().get_length(),
-                          ")");
+        NODE_VALIDATION_CHECK(this,
+                            max_seq_len_rank.rank().is_dynamic() ||
+                                max_seq_len_rank.rank().get_length() == 1,
+                            "max_seq_len input rank must equal to 1 (max_seq_len rank: ",
+                            max_seq_len_rank.rank().get_length(),
+                            ")");
 
-    NODE_VALIDATION_CHECK(this,
-                          end_token_rank.rank().is_dynamic() ||
-                              end_token_rank.rank().get_length() == 0,
-                          "end_token input rank must be scalar (end_token rank: ",
-                          end_token_rank.rank().get_length(),
-                          ")");
+        NODE_VALIDATION_CHECK(this,
+                            end_token_rank.rank().is_dynamic() ||
+                                end_token_rank.rank().get_length() == 0,
+                            "end_token input rank must be scalar (end_token rank: ",
+                            end_token_rank.rank().get_length(),
+                            ")");
 
-    const auto& step_ids_et = get_input_element_type(0);
-    set_output_type(0, step_ids_et, step_ids_rank);
-#else
+        const auto& step_ids_et = get_input_element_type(0);
+        set_output_type(0, step_ids_et, step_ids_rank);
+        return;
+    )
     NODE_VALIDATION_CHECK(this, false, "Function is not included into the selective build.");
-#endif
 }

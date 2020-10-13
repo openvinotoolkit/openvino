@@ -65,100 +65,99 @@
 NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertOpSet1ToLegacy, "ConvertOpSet1ToLegacy", 0);
 
 bool ngraph::pass::ConvertOpSet1ToLegacy::run_on_function(std::shared_ptr<ngraph::Function> f) {
-#if GraphGen(OV_GEN_NGRAPH_PASS(ConvertOpSet1ToLegacy, run_on_function))
-    OV_ITT_SCOPED_TASK(itt::domains::IETransform);
+    IETRANSFORM_SCOPE(ConvertOpSet1ToLegacy,
+        ngraph::pass::Manager manager;
 
-    ngraph::pass::Manager manager;
+        REGISTER_PASS(manager, ConstantFolding);
 
-    manager.register_pass<ngraph::pass::ConstantFolding>();
+        // Some passes before ConvertOpSet1ToLegacy can produce some of this
+        // operations. So for convenience we decompose this operations here and
+        // in CommonOptimizations.
+        auto decomp = manager.register_pass<GraphRewrite>();
+        ADD_MATCHER(decomp, ConvertMod);
+        ADD_MATCHER(decomp, ConvertMinimum);
+        ADD_MATCHER(decomp, ConvertSubtract);
+        ADD_MATCHER(decomp, ConvertDivide);
+        ADD_MATCHER(decomp, ConvertNegative);
+        decomp->set_name("ngraph::pass::LegacyDecompositions");
 
-    // Some passes before ConvertOpSet1ToLegacy can produce some of this
-    // operations. So for convenience we decompose this operations here and
-    // in CommonOptimizations.
-    auto decomp = manager.register_pass<ngraph::pass::GraphRewrite>();
-    decomp->add_matcher<ngraph::pass::ConvertMod>();
-    decomp->add_matcher<ngraph::pass::ConvertMinimum>();
-    decomp->add_matcher<ngraph::pass::ConvertSubtract>();
-    decomp->add_matcher<ngraph::pass::ConvertDivide>();
-    decomp->add_matcher<ngraph::pass::ConvertNegative>();
-    decomp->set_name("ngraph::pass::LegacyDecompositions");
+        auto convert_matmul = manager.register_pass<GraphRewrite>();
+        ADD_MATCHER(convert_matmul, ConvertMatMulToFC);
+        ADD_MATCHER(convert_matmul, PullTransposeThroughFQUp);
+        ADD_MATCHER(convert_matmul, ConvertMatMulToGemm);
+        convert_matmul->set_name("ngraph::pass::ConvertMatMul");
 
-    auto convert_matmul = manager.register_pass<ngraph::pass::GraphRewrite>();
-    convert_matmul->add_matcher<ngraph::pass::ConvertMatMulToFC>();
-    convert_matmul->add_matcher<ngraph::pass::PullTransposeThroughFQUp>();
-    convert_matmul->add_matcher<ngraph::pass::ConvertMatMulToGemm>();
-    convert_matmul->set_name("ngraph::pass::ConvertMatMul");
+        REGISTER_PASS(manager, ConstantFolding);
 
-    manager.register_pass<ngraph::pass::ConstantFolding>();
+        // Convolution/Deconvolution/FullyConnected fusions
+        auto convert_convolutions = manager.register_pass<GraphRewrite>();
+        ADD_MATCHER(convert_convolutions, ConvertConvolution);
+        ADD_MATCHER(convert_convolutions, ConvertGroupConvolution);
+        ADD_MATCHER(convert_convolutions, ConvertDeconvolution);
+        ADD_MATCHER(convert_convolutions, ConvertGroupDeconvolution);
+        convert_convolutions->set_name("ngraph::pass::ConvertConvolutions");
 
-    // Convolution/Deconvolution/FullyConnected fusions
-    auto convert_convolutions = manager.register_pass<ngraph::pass::GraphRewrite>();
-    convert_convolutions->add_matcher<ngraph::pass::ConvertConvolution>();
-    convert_convolutions->add_matcher<ngraph::pass::ConvertGroupConvolution>();
-    convert_convolutions->add_matcher<ngraph::pass::ConvertDeconvolution>();
-    convert_convolutions->add_matcher<ngraph::pass::ConvertGroupDeconvolution>();
-    convert_convolutions->set_name("ngraph::pass::ConvertConvolutions");
+        // Convolution/Deconvolution/FullyConnected fusions
+        auto fusion = manager.register_pass<GraphRewrite>();
+        ADD_MATCHER(fusion, ConvAddFusion);
+        ADD_MATCHER(fusion, DeconvAddFusion);
+        ADD_MATCHER(fusion, FullyConnectedBiasFusion);
 
-    // Convolution/Deconvolution/FullyConnected fusions
-    auto fusion = manager.register_pass<ngraph::pass::GraphRewrite>();
-    fusion->add_matcher<ngraph::pass::ConvAddFusion>();
-    fusion->add_matcher<ngraph::pass::DeconvAddFusion>();
-    fusion->add_matcher<ngraph::pass::FullyConnectedBiasFusion>();
-    fusion->set_name("ngraph::pass::BiasFusions");
+        fusion->set_name("ngraph::pass::BiasFusions");
 
-    // CF is required after fusions
-    manager.register_pass<ngraph::pass::ConstantFolding>();
+        // CF is required after fusions
+        REGISTER_PASS(manager, ConstantFolding);
 
-    // List of passes that convert opset1 operations to legacy
-    // plus transformations that are required by InferenceEngine
-    // All this transformations can be executed simultaneously
-    auto anchor = manager.register_pass<ngraph::pass::GraphRewrite>();
-    anchor->add_matcher<ngraph::pass::ReshapeFullyConnected>();
-    anchor->add_matcher<ngraph::pass::Reshape1DConvolution>();
-    anchor->add_matcher<ngraph::pass::Reshape1DAvgPool>();
-    anchor->add_matcher<ngraph::pass::Reshape1DMaxPool>();
-    anchor->add_matcher<ngraph::pass::ConvertNormalizeL2WithMulToNormalizeIE>();
-    anchor->add_matcher<ngraph::pass::ConvertHardSigmoidToLegacyMatcher>();
-    anchor->add_matcher<ngraph::pass::ConvertProposalToLegacyMatcher>();
-    anchor->add_matcher<ngraph::pass::ConvertProposal4ToLegacyMatcher>();
-    anchor->add_matcher<ngraph::pass::ConvertBroadcastToTiles>();
-    anchor->add_matcher<ngraph::pass::ConvertTileToLegacyMatcher>();
-    anchor->add_matcher<ngraph::pass::ConvertLRNToLegacyMatcher>();
-    anchor->add_matcher<ngraph::pass::ConvertPadToLegacyMatcher>();
-    anchor->add_matcher<ngraph::pass::ConvertLSTMCellMatcher>();
-    anchor->add_matcher<ngraph::pass::ConvertRNNCellMatcher>();
-    anchor->add_matcher<ngraph::pass::ConvertGRUCellMatcher>();
-    anchor->add_matcher<ngraph::pass::ConvertInterpolateToInterpOrResampleMatcher>();
-    anchor->add_matcher<ngraph::pass::ConvertStridedSliceToCropMatcher>();
-    anchor->add_matcher<ngraph::pass::ConvertPowerToPowerIEMatcher>();
-    anchor->add_matcher<ngraph::pass::ConvertSqrtToPowerIEMatcher>();
-    anchor->add_matcher<ngraph::pass::ConvertPReLUToReLUIE>();
-    anchor->add_matcher<ngraph::pass::ConvertGatherToGatherIEMatcher>();
-    anchor->add_matcher<ngraph::pass::ConvertSeluToSeluIEMatcher>();
-    anchor->add_matcher<ngraph::pass::ConvertSwishToSwishIEMatcher>();
-    anchor->add_matcher<ngraph::pass::ConvertOneHotToOneHotIEMatcher>()->detect_output_type(f);
-    anchor->add_matcher<ngraph::pass::ConvertGatherTreeToGatherTreeIEMatcher>();
-    anchor->add_matcher<ngraph::pass::ConvertTopKToTopKIEMatcher>();
-    anchor->add_matcher<ngraph::pass::ConvertNMSToNMSIEMatcher>();
-    anchor->add_matcher<ngraph::pass::ConvertNMS4ToLegacyMatcher>();
-    anchor->add_matcher<ngraph::pass::ConvertGRUSequenceMatcher>();
-    anchor->add_matcher<ngraph::pass::ConvertRNNSequenceMatcher>();
-    anchor->add_matcher<ngraph::pass::ConvertLSTMSequenceMatcher>();
-    anchor->set_name("ngraph::pass::LegacyConversions");
+        // List of passes that convert opset1 operations to legacy
+        // plus transformations that are required by InferenceEngine
+        // All this transformations can be executed simultaneously
+        auto anchor = manager.register_pass<GraphRewrite>();
+        ADD_MATCHER(anchor, ReshapeFullyConnected);
+        ADD_MATCHER(anchor, Reshape1DConvolution);
+        ADD_MATCHER(anchor, Reshape1DAvgPool);
+        ADD_MATCHER(anchor, Reshape1DMaxPool);
+        ADD_MATCHER(anchor, ConvertNormalizeL2WithMulToNormalizeIE);
+        ADD_MATCHER(anchor, ConvertHardSigmoidToLegacyMatcher);
+        ADD_MATCHER(anchor, ConvertProposalToLegacyMatcher);
+        ADD_MATCHER(anchor, ConvertProposal4ToLegacyMatcher);
+        ADD_MATCHER(anchor, ConvertBroadcastToTiles);
+        ADD_MATCHER(anchor, ConvertTileToLegacyMatcher);
+        ADD_MATCHER(anchor, ConvertLRNToLegacyMatcher);
+        ADD_MATCHER(anchor, ConvertPadToLegacyMatcher);
+        ADD_MATCHER(anchor, ConvertLSTMCellMatcher);
+        ADD_MATCHER(anchor, ConvertRNNCellMatcher);
+        ADD_MATCHER(anchor, ConvertGRUCellMatcher);
+        ADD_MATCHER(anchor, ConvertInterpolateToInterpOrResampleMatcher);
+        ADD_MATCHER(anchor, ConvertStridedSliceToCropMatcher);
+        ADD_MATCHER(anchor, ConvertPowerToPowerIEMatcher);
+        ADD_MATCHER(anchor, ConvertSqrtToPowerIEMatcher);
+        ADD_MATCHER(anchor, ConvertPReLUToReLUIE);
+        ADD_MATCHER(anchor, ConvertGatherToGatherIEMatcher);
+        ADD_MATCHER(anchor, ConvertSeluToSeluIEMatcher);
+        ADD_MATCHER(anchor, ConvertSwishToSwishIEMatcher);
+        auto convert_one_hot = ADD_MATCHER(anchor, ConvertOneHotToOneHotIEMatcher);
+        if (convert_one_hot)
+            convert_one_hot->detect_output_type(f);
+        ADD_MATCHER(anchor, ConvertGatherTreeToGatherTreeIEMatcher);
+        ADD_MATCHER(anchor, ConvertTopKToTopKIEMatcher);
+        ADD_MATCHER(anchor, ConvertNMSToNMSIEMatcher);
+        ADD_MATCHER(anchor, ConvertNMS4ToLegacyMatcher);
+        ADD_MATCHER(anchor, ConvertGRUSequenceMatcher);
+        ADD_MATCHER(anchor, ConvertRNNSequenceMatcher);
+        ADD_MATCHER(anchor, ConvertLSTMSequenceMatcher);
+        anchor->set_name("ngraph::pass::LegacyConversions");
 
-    // List of final conversion transformations that must to be executed
-    // after previous group of transformations
-    manager.register_pass<ngraph::pass::ReshapeFullyConnectedFusion>();
-    manager.register_pass<ngraph::pass::ConvertNormalizeL2ToLegacyMatcher>();
-    manager.register_pass<ngraph::pass::ConvertMulAddToScaleShiftOrPower>();
-    manager.register_pass<ngraph::pass::ConvertMulOrAddFinally>();
+        // List of final conversion transformations that must to be executed
+        // after previous group of transformations
+        REGISTER_PASS(manager, ReshapeFullyConnectedFusion);
+        REGISTER_PASS(manager, ConvertNormalizeL2ToLegacyMatcher);
+        REGISTER_PASS(manager, ConvertMulAddToScaleShiftOrPower);
+        REGISTER_PASS(manager, ConvertMulOrAddFinally);
+        REGISTER_PASS(manager, ConstantFolding);
 
-    manager.register_pass<ngraph::pass::ConstantFolding>();
-
-    manager.set_callback(m_transformation_callback);
-    manager.run_passes(f);
-    return true;
-#else
-    return false;
-#endif
+        manager.set_callback(m_transformation_callback);
+        manager.run_passes(f);
+        return true;
+    )
+    NGRAPH_CHECK(false, "nGraph pass is not included into the selective build.");
 }

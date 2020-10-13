@@ -15,27 +15,25 @@
 NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertPadToLegacyMatcher, "ConvertPadToLegacyMatcher", 0);
 
 ngraph::pass::ConvertPadToLegacyMatcher::ConvertPadToLegacyMatcher() {
-    auto m_pad = ngraph::pattern::wrap_type<ngraph::opset1::Pad>();
+    IETRANSFORM_SCOPE(ConvertPadToLegacyMatcher,
+        auto m_pad = ngraph::pattern::wrap_type<ngraph::opset1::Pad>();
 
-#if GraphGen(OV_GEN_NGRAPH_PASS(ConvertPadToLegacy, callback))
-    ngraph::matcher_pass_callback callback = [](pattern::Matcher& m) {
-        OV_ITT_IE_TRANSFORM_CALLBACK(m, "callback")
-        auto pad = std::dynamic_pointer_cast<ngraph::opset1::Pad> (m.get_match_root());
-        if (!pad) {
-            return false;
-        }
+        ngraph::matcher_pass_callback callback = [](pattern::Matcher& m) {
+            auto pad = std::dynamic_pointer_cast<ngraph::opset1::Pad> (m.get_match_root());
+            if (!pad) {
+                return false;
+            }
 
-        auto pad_ie = std::make_shared<ngraph::op::PadIE>(pad);
-        pad_ie->set_friendly_name(pad->get_friendly_name());
-        ngraph::copy_runtime_info(pad, pad_ie);
-        ngraph::replace_node(pad, pad_ie);
-        return true;
-    };
-#else
-    ngraph::matcher_pass_callback callback = [](ngraph::pattern::Matcher & m) -> bool {
-        return false;
-    };
-#endif
-    auto m = std::make_shared<ngraph::pattern::Matcher>(m_pad, "ConvertPadToLegacy");
-    this->register_matcher(m, callback);
+            auto pad_ie = std::make_shared<ngraph::op::PadIE>(pad);
+            pad_ie->set_friendly_name(pad->get_friendly_name());
+            ngraph::copy_runtime_info(pad, pad_ie);
+            ngraph::replace_node(pad, pad_ie);
+            return true;
+        };
+
+        auto m = std::make_shared<ngraph::pattern::Matcher>(m_pad, matcher_name);
+        this->register_matcher(m, callback);
+        return;
+    )
+    NGRAPH_CHECK(false, "nGraph pass is not included into the selective build.");
 }

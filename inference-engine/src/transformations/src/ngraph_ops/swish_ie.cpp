@@ -3,6 +3,7 @@
 //
 
 #include "ngraph_ops/swish_ie.hpp"
+#include "itt.hpp"
 
 #include <algorithm>
 #include <memory>
@@ -26,12 +27,19 @@ std::shared_ptr<Node> op::SwishIE::clone_with_new_inputs(const OutputVector& new
 }
 
 bool op::SwishIE::visit_attributes(AttributeVisitor& visitor) {
-    visitor.on_attribute("alpha", m_alpha);
-    return true;
+    NGRAPH_OP_SCOPE(SwishIE_visit_attributes,
+        visitor.on_attribute("alpha", m_alpha);
+        return true;
+    )
+    return false;
 }
 
 void op::SwishIE::validate_and_infer_types() {
-    set_output_type(0, get_input_element_type(0), get_input_partial_shape(0));
+    NGRAPH_OP_SCOPE(SwishIE_validate_and_infer_types,
+        set_output_type(0, get_input_element_type(0), get_input_partial_shape(0));
+        return;
+    )
+    NODE_VALIDATION_CHECK(this, false, "Function is not included into the selective build.");
 }
 
 void op::SwishIE::set_alpha(float alpha)  {

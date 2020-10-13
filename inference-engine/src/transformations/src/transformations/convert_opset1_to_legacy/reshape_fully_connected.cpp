@@ -17,66 +17,65 @@
 NGRAPH_RTTI_DEFINITION(ngraph::pass::ReshapeFullyConnected, "ReshapeFullyConnected", 0);
 
 ngraph::pass::ReshapeFullyConnected::ReshapeFullyConnected() {
-    auto input0 = std::make_shared<pattern::op::Label>(element::i64, Shape{1, 1});
-    auto input1 = std::make_shared<pattern::op::Label>(element::i64, Shape{1, 1});
-    auto input2 = std::make_shared<pattern::op::Label>(element::i64, Shape{1});
-    auto fc = std::make_shared<ngraph::op::FullyConnected>(input0, input1, input2, Shape{1, 1});
-#if GraphGen(OV_GEN_NGRAPH_PASS(ReshapeFullyConnected, callback))
-    ngraph::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
-        OV_ITT_IE_TRANSFORM_CALLBACK(m, "callback")
-        auto fc = std::dynamic_pointer_cast<ngraph::op::FullyConnected> (m.get_match_root());
-        if (!fc || m_transformation_callback(fc)) {
-            return false;
-        }
+    IETRANSFORM_SCOPE(ReshapeFullyConnected,
+        auto input0 = std::make_shared<pattern::op::Label>(element::i64, Shape{1, 1});
+        auto input1 = std::make_shared<pattern::op::Label>(element::i64, Shape{1, 1});
+        auto input2 = std::make_shared<pattern::op::Label>(element::i64, Shape{1});
+        auto fc = std::make_shared<ngraph::op::FullyConnected>(input0, input1, input2, Shape{1, 1});
 
-        auto input_shape = fc->input_value(0).get_shape();
-        auto output_shape = fc->get_shape();
+        ngraph::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
+            auto fc = std::dynamic_pointer_cast<ngraph::op::FullyConnected> (m.get_match_root());
+            if (!fc || m_transformation_callback(fc)) {
+                return false;
+            }
 
-        if (input_shape.size() == 2) {
-            return false;
-        }
+            auto input_shape = fc->input_value(0).get_shape();
+            auto output_shape = fc->get_shape();
 
-        NodeVector new_ops;
+            if (input_shape.size() == 2) {
+                return false;
+            }
 
-        std::vector<int64_t> reshape_shape{-1, static_cast<int64_t>(input_shape.back())};
-        auto reshape = std::make_shared<opset1::Reshape>(fc->input_value(0),
-                                                         opset1::Constant::create(element::i64, Shape{2}, reshape_shape), true);
-        new_ops.push_back(reshape);
+            NodeVector new_ops;
 
-        reshape->set_friendly_name(fc->get_friendly_name() + "/Reshape");
+            std::vector<int64_t> reshape_shape{-1, static_cast<int64_t>(input_shape.back())};
+            auto reshape = std::make_shared<opset1::Reshape>(fc->input_value(0),
+                                                            opset1::Constant::create(element::i64, Shape{2}, reshape_shape), true);
+            new_ops.push_back(reshape);
 
-        // Calculate output shape for new FullyConnected layer
-        // [I, K] * [O, K] = [I, O]
-        auto I = reshape->get_shape()[0];
-        auto O = fc->input_value(1).get_shape()[0];
-        Shape output_shape_new{I, O};
+            reshape->set_friendly_name(fc->get_friendly_name() + "/Reshape");
 
-        auto fc_new = std::make_shared<op::FullyConnected>(reshape,
-                                                           fc->input_value(1),
-                                                           fc->input_value(2),
-                                                           output_shape_new);
-        new_ops.push_back(fc_new);
+            // Calculate output shape for new FullyConnected layer
+            // [I, K] * [O, K] = [I, O]
+            auto I = reshape->get_shape()[0];
+            auto O = fc->input_value(1).get_shape()[0];
+            Shape output_shape_new{I, O};
 
-        if (output_shape != output_shape_new) {
-            auto reshape_output = op::util::reshapeTo(fc_new, output_shape);
-            new_ops.push_back(reshape_output);
-            reshape_output->set_friendly_name(fc->get_friendly_name());
-            fc->set_friendly_name(fc->get_friendly_name() + "/FC");
-            ngraph::copy_runtime_info(fc, new_ops);
-            ngraph::replace_node(fc, reshape_output);
-        } else {
-            fc_new->set_friendly_name(fc->get_friendly_name());
-            ngraph::copy_runtime_info(fc, new_ops);
-            ngraph::replace_node(fc, fc_new);
-        }
+            auto fc_new = std::make_shared<op::FullyConnected>(reshape,
+                                                            fc->input_value(1),
+                                                            fc->input_value(2),
+                                                            output_shape_new);
+            new_ops.push_back(fc_new);
 
-        return true;
-    };
-#else
-    ngraph::graph_rewrite_callback callback = [](ngraph::pattern::Matcher & m) -> bool {
-        return false;
-    };
-#endif
-    auto m = std::make_shared<ngraph::pattern::Matcher>(fc, "ReshapeFullyConnected");
-    this->register_matcher(m, callback);
+            if (output_shape != output_shape_new) {
+                auto reshape_output = op::util::reshapeTo(fc_new, output_shape);
+                new_ops.push_back(reshape_output);
+                reshape_output->set_friendly_name(fc->get_friendly_name());
+                fc->set_friendly_name(fc->get_friendly_name() + "/FC");
+                ngraph::copy_runtime_info(fc, new_ops);
+                ngraph::replace_node(fc, reshape_output);
+            } else {
+                fc_new->set_friendly_name(fc->get_friendly_name());
+                ngraph::copy_runtime_info(fc, new_ops);
+                ngraph::replace_node(fc, fc_new);
+            }
+
+            return true;
+        };
+
+        auto m = std::make_shared<ngraph::pattern::Matcher>(fc, matcher_name);
+        this->register_matcher(m, callback);
+        return;
+    )
+    NGRAPH_CHECK(false, "nGraph pass is not included into the selective build.");
 }

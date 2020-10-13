@@ -22,6 +22,7 @@
 #pragma once
 
 #include <openvino/itt.hpp>
+#include <openvino/conditional_compilation.hpp>
 
 namespace ngraph
 {
@@ -31,16 +32,86 @@ namespace ngraph
         {
             OV_ITT_DOMAIN(nGraph);
             OV_ITT_DOMAIN(nGraphOp, "nGraph::Op");
+#if defined(OV_SELECTIVE_BUILD_LOG)
+            OV_ITT_DOMAIN(CC_nGraphPassRegister);
+            OV_ITT_DOMAIN(CC_nGraphPassAddMatcher);
+            OV_ITT_DOMAIN(CC_nGraphPassCallback);
+#endif
         }
     }
 }
 
-#define OV_NGRAPH_OP(NAME, OPSET, FUNC)                                                            \
-    OV_ITT_GLUE_UNDERSCORE(                                                                        \
-        ngraph,                                                                                    \
-        OV_ITT_GLUE_UNDERSCORE(op,                                                                 \
-                               OV_ITT_GLUE_UNDERSCORE(OPSET, OV_ITT_GLUE_UNDERSCORE(NAME, FUNC))))
-#define OV_GEN_NGRAPH_OP(NAME, OPSET, FUNC)                                                        \
-    OV_ITT_GLUE_UNDERSCORE(Gen, OV_NGRAPH_OP(NAME, OPSET, FUNC))
-#define OV_GEN_NGRAPH_OP_UTIL(NAME, FUNC)                                                          \
-    OV_ITT_GLUE_UNDERSCORE(Gen, OV_NGRAPH_OP(NAME, util, FUNC))
+#if defined(OV_SELECTIVE_BUILD_LOG)
+#define NGRAPH_DOMAIN OVConditionalCompilation::internal::itt::domains::CC0OV
+#define NGRAPH_PASS_ADD_MATCHER_DOMAIN ngraph::itt::domains::CC_nGraphPassAddMatcher
+#define NGRAPH_PASS_CALLBACK_DOMAIN ngraph::itt::domains::CC_nGraphPassCallback
+#define NGRAPH_PASS_REGISTER_DOMAIN ngraph::itt::domains::CC_nGraphPassRegister
+#else
+#define NGRAPH_DOMAIN ngraph::itt::domains::nGraph
+#define NGRAPH_PASS_ADD_MATCHER_DOMAIN ngraph::itt::domains::nGraph
+#define NGRAPH_PASS_CALLBACK_DOMAIN ngraph::itt::domains::nGraph
+#define NGRAPH_PASS_REGISTER_DOMAIN graph::itt::domains::nGraph
+#endif
+
+
+#if defined(OV_SELECTIVE_BUILD_LOG) || defined(ENABLE_PROFILING_ITT)
+#define NGRAPH_TYPE_CASE(NAME, TYPE, ...)                                                          \
+    case element::Type_t::TYPE: {                                                                  \
+        OV_ITT_SCOPED_TASK(NGRAPH_DOMAIN, std::string(OV_TOSTRING(NAME ## _ ## TYPE)));            \
+        rc = evaluate<element::Type_t::TYPE>(__VA_ARGS__);                                         \
+        break;                                                                                     \
+    }
+#define NGRAPH_COPY_TENSOR(NAME, TYPE, ...)                                                        \
+    case element::Type_t::TYPE: {                                                                  \
+        OV_ITT_SCOPED_TASK(NGRAPH_DOMAIN, std::string(OV_TOSTRING(NAME ## _ ## TYPE)));            \
+        rc = copy_tensor<element::Type_t::TYPE>(__VA_ARGS__);                                      \
+        break;                                                                                     \
+    }
+#define NGRAPH_CASE(NAME, TYPE, ...)                                                               \
+    case element::Type_t::TYPE: {                                                                  \
+        const std::string case_name = std::string(OV_TOSTRING(NAME ## _ ## TYPE));                 \
+        OV_ITT_SCOPED_TASK(NGRAPH_DOMAIN, case_name);                                              \
+        __VA_ARGS__                                                                                \
+    }
+#else
+#define NGRAPH_TYPE_CASE(NAME, TYPE, ...)                                                          \
+    OV_SCOPE(OV_CAT(OV_CAT(NAME, _), TYPE),                                                        \
+        TYPE_CASE(TYPE)(__VA_ARGS__);                                                              \
+        break;                                                                                     \
+    )
+#define NGRAPH_COPY_TENSOR(NAME, TYPE, ...)                                                        \
+    OV_SCOPE(OV_CAT(OV_CAT(NAME, _), TYPE),                                                        \
+        COPY_TENSOR(TYPE)(__VA_ARGS__);                                                            \
+        break;                                                                                     \
+    )
+#define NGRAPH_CASE(NAME, TYPE, ...)                                                               \
+    OV_SCOPE(OV_CAT(OV_CAT(NAME, _), TYPE),                                                        \
+        case element::Type_t::TYPE: {                                                              \
+            __VA_ARGS__                                                                            \
+        }                                                                                          \
+    )
+#endif
+
+#if defined(OV_SELECTIVE_BUILD_LOG) || defined(ENABLE_PROFILING_ITT)
+    template<typename PASS>
+    struct PassTag;
+    #define NGRAPH_PASS_ADD_MATCHER(PASS)                                                                \
+        OV_ITT_SCOPED_TASK(NGRAPH_PASS_ADD_MATCHER_DOMAIN,                                               \
+            openvino::itt::handle<PassTag<T>>(this->get_class_name() +                                   \
+                std::string("_") + PASS->get_name()))
+    #define NGRAPH_PASS_CALLBACK(M) OV_ITT_SCOPED_TASK(NGRAPH_PASS_CALLBACK_DOMAIN, M->m_callback_handle)
+    #define NGRAPH_PASS_SCOPE(region, ...)                                                              \
+        OV_ITT_SCOPED_TASK(NGRAPH_PASS_REGISTER_DOMAIN, OV_TOSTRING(region));                           \
+        __VA_ARGS__
+#elif defined(OV_SELECTIVE_BUILD)
+    #define NGRAPH_PASS_SCOPE(region, ...)                                                              \
+        OV_EXPAND(OV_CAT(OV_SCOPE_, OV_SCOPE_IS_ENABLED(OV_CAT(REGISTER_PASS_, region)))(__VA_ARGS__))
+    #define NGRAPH_PASS_ADD_MATCHER(...)
+    #define NGRAPH_PASS_CALLBACK(...)
+#else
+    #define NGRAPH_PASS_ADD_MATCHER(...)
+    #define NGRAPH_PASS_CALLBACK(...)
+#endif
+
+#define NGRAPH_OP_SCOPE(region, ...) OV_SCOPE(OV_CAT(ngraph_op_, region), __VA_ARGS__)
+#define NGRAPH_OP_UTIL_SCOPE(region, ...) OV_SCOPE(OV_CAT(ngraph_op_util_, region), __VA_ARGS__)

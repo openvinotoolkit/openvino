@@ -40,28 +40,24 @@ op::SquaredDifference::SquaredDifference(const Output<Node>& x1,
 
 bool ngraph::op::v0::SquaredDifference::visit_attributes(AttributeVisitor& visitor)
 {
-#if GraphGen(OV_GEN_NGRAPH_OP(SquaredDifference, v0, visit_attributes))
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
-    visitor.on_attribute("auto_broadcast", m_autobroadcast);
-    return true;
-#else
+    NGRAPH_OP_SCOPE(v0_SquaredDifference_visit_attributes,
+        visitor.on_attribute("auto_broadcast", m_autobroadcast);
+        return true;
+    )
     return false;
-#endif
 }
 
 OutputVector op::SquaredDifference::decompose_op() const
 {
-#if GraphGen(OV_GEN_NGRAPH_OP(SquaredDifference, v0, decompose_op))
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
-    const auto x1 = input_value(0);
-    const auto x2 = input_value(1);
+    NGRAPH_OP_SCOPE(v0_SquaredDifference_decompose_op,
+        const auto x1 = input_value(0);
+        const auto x2 = input_value(1);
 
-    const auto difference = make_shared<op::Subtract>(x1, x2, m_autobroadcast);
+        const auto difference = make_shared<op::Subtract>(x1, x2, m_autobroadcast);
 
-    return {difference * difference};
-#else
+        return {difference * difference};
+    )
     NODE_VALIDATION_CHECK(this, false, "Function is not included into the selective build.");
-#endif
 }
 
 shared_ptr<Node> op::SquaredDifference::clone_with_new_inputs(const OutputVector& new_args) const

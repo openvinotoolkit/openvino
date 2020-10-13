@@ -44,63 +44,60 @@ op::ReverseSequence::ReverseSequence(const Output<Node>& arg,
 
 bool ngraph::op::v0::ReverseSequence::visit_attributes(AttributeVisitor& visitor)
 {
-#if GraphGen(OV_GEN_NGRAPH_OP(ReverseSequence, v0, visit_attributes))
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
-    visitor.on_attribute("batch_axis", m_batch_axis);
-    visitor.on_attribute("seq_axis", m_seq_axis);
-    return true;
-#else
+    NGRAPH_OP_SCOPE(v0_ReverseSequence_visit_attributes,
+        visitor.on_attribute("batch_axis", m_batch_axis);
+        visitor.on_attribute("seq_axis", m_seq_axis);
+        return true;
+    )
     return false;
-#endif
 }
 
 void op::ReverseSequence::validate_and_infer_types()
 {
-#if GraphGen(OV_GEN_NGRAPH_OP(ReverseSequence, v0, validate_and_infer_types))
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
-    auto input_shape = get_input_partial_shape(0);
-    auto input_rank = input_shape.rank();
+    NGRAPH_OP_SCOPE(v0_ReverseSequence_validate_and_infer_types,
+        auto input_shape = get_input_partial_shape(0);
+        auto input_rank = input_shape.rank();
 
-    m_normalized_batch_axis = ngraph::normalize_axis(this, m_batch_axis, input_rank);
-    m_normalized_seq_axis = ngraph::normalize_axis(this, m_seq_axis, input_rank);
+        m_normalized_batch_axis = ngraph::normalize_axis(this, m_batch_axis, input_rank);
+        m_normalized_seq_axis = ngraph::normalize_axis(this, m_seq_axis, input_rank);
 
-    auto indices_shape = get_input_partial_shape(1);
-    auto indices_rank = indices_shape.rank();
+        auto indices_shape = get_input_partial_shape(1);
+        auto indices_rank = indices_shape.rank();
 
-    NODE_VALIDATION_CHECK(
-        this,
-        indices_rank.is_dynamic() || indices_rank.get_length() == 1,
-        "Sequence indices must be a 1-dimensional tensor (sequence indices shape: ",
-        indices_shape,
-        ").");
+        NODE_VALIDATION_CHECK(
+            this,
+            indices_rank.is_dynamic() || indices_rank.get_length() == 1,
+            "Sequence indices must be a 1-dimensional tensor (sequence indices shape: ",
+            indices_shape,
+            ").");
 
-    PartialShape output_shape{input_shape};
+        PartialShape output_shape{input_shape};
 
-    if (input_rank.is_static() && indices_rank.is_static())
-    {
-        Dimension merged_sequence_length;
+        if (input_rank.is_static() && indices_rank.is_static())
+        {
+            Dimension merged_sequence_length;
 
-        NODE_VALIDATION_CHECK(this,
-                              Dimension::merge(merged_sequence_length,
-                                               input_shape[m_normalized_batch_axis],
-                                               indices_shape[0]),
-                              "Sequence length (",
-                              indices_shape[0],
-                              ") is not equal to batch axis ",
-                              "dimension (",
-                              input_shape[m_normalized_batch_axis],
-                              ") (argument shape: ",
-                              input_shape,
-                              ", sequence indices shape: ",
-                              indices_shape,
-                              ").");
-        output_shape[m_normalized_batch_axis] = merged_sequence_length;
-    }
+            NODE_VALIDATION_CHECK(this,
+                                Dimension::merge(merged_sequence_length,
+                                                input_shape[m_normalized_batch_axis],
+                                                indices_shape[0]),
+                                "Sequence length (",
+                                indices_shape[0],
+                                ") is not equal to batch axis ",
+                                "dimension (",
+                                input_shape[m_normalized_batch_axis],
+                                ") (argument shape: ",
+                                input_shape,
+                                ", sequence indices shape: ",
+                                indices_shape,
+                                ").");
+            output_shape[m_normalized_batch_axis] = merged_sequence_length;
+        }
 
-    set_output_type(0, get_input_element_type(0), output_shape);
-#else
+        set_output_type(0, get_input_element_type(0), output_shape);
+        return;
+    )
     NODE_VALIDATION_CHECK(this, false, "Function is not included into the selective build.");
-#endif
 }
 
 shared_ptr<Node> op::ReverseSequence::clone_with_new_inputs(const OutputVector& new_args) const

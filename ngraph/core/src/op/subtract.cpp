@@ -74,18 +74,12 @@ namespace
         out->set_broadcast(broadcast_spec, arg0, arg1);
         switch (arg0->get_element_type())
         {
-            TYPE_CASE(i32)(arg0, arg1, out, broadcast_spec);
-            break;
-            TYPE_CASE(i64)(arg0, arg1, out, broadcast_spec);
-            break;
-            TYPE_CASE(u32)(arg0, arg1, out, broadcast_spec);
-            break;
-            TYPE_CASE(u64)(arg0, arg1, out, broadcast_spec);
-            break;
-            TYPE_CASE(f16)(arg0, arg1, out, broadcast_spec);
-            break;
-            TYPE_CASE(f32)(arg0, arg1, out, broadcast_spec);
-            break;
+            NGRAPH_TYPE_CASE(evaluate_subtract, i32, arg0, arg1, out, broadcast_spec)
+            NGRAPH_TYPE_CASE(evaluate_subtract, i64, arg0, arg1, out, broadcast_spec)
+            NGRAPH_TYPE_CASE(evaluate_subtract, u32, arg0, arg1, out, broadcast_spec)
+            NGRAPH_TYPE_CASE(evaluate_subtract, u64, arg0, arg1, out, broadcast_spec)
+            NGRAPH_TYPE_CASE(evaluate_subtract, f16, arg0, arg1, out, broadcast_spec)
+            NGRAPH_TYPE_CASE(evaluate_subtract, f32, arg0, arg1, out, broadcast_spec)
         default: rc = false; break;
         }
         return rc;
@@ -95,12 +89,11 @@ namespace
 bool op::v0::Subtract::evaluate(const HostTensorVector& outputs,
                                 const HostTensorVector& inputs) const
 {
-#if GraphGen(OV_GEN_NGRAPH_OP(Subtract, v0, evaluate))
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
-    return evaluate_subtract(inputs[0], inputs[1], outputs[0], get_autob());
-#else
-    return false;
-#endif
+    bool rc = false;
+    NGRAPH_OP_SCOPE(v0_Subtract_evaluate,
+        rc = evaluate_subtract(inputs[0], inputs[1], outputs[0], get_autob());
+    )
+    return rc;
 }
 
 // ------------------------------- v1 ------------------------------------------
@@ -124,10 +117,9 @@ shared_ptr<Node> op::v1::Subtract::clone_with_new_inputs(const OutputVector& new
 bool op::v1::Subtract::evaluate(const HostTensorVector& outputs,
                                 const HostTensorVector& inputs) const
 {
-#if GraphGen(OV_GEN_NGRAPH_OP(Subtract, v1, evaluate))
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
-    return evaluate_subtract(inputs[0], inputs[1], outputs[0], get_autob());
-#else
-    return false;
-#endif
+    bool rc = false;
+    NGRAPH_OP_SCOPE(v1_Subtract_evaluate,
+        rc = evaluate_subtract(inputs[0], inputs[1], outputs[0], get_autob());
+    )
+    return rc;
 }

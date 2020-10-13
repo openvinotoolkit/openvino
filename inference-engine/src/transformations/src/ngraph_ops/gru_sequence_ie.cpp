@@ -4,6 +4,7 @@
 
 #include "ngraph_ops/gru_sequence_ie.hpp"
 #include "ngraph/op/util/recurrent_sequence.hpp"
+#include "itt.hpp"
 
 #include <memory>
 #include <string>
@@ -33,48 +34,55 @@ op::GRUSequenceIE::GRUSequenceIE(const Output<Node>& X,
 }
 
 void op::GRUSequenceIE::validate_and_infer_types() {
-    for (const auto& input : inputs()) {
-        if (input.get_partial_shape().rank().is_dynamic()) {
-            set_output_type(0, get_input_element_type(0), PartialShape::dynamic());
-            set_output_type(1, get_input_element_type(0), PartialShape::dynamic());
-            return;
+    NGRAPH_OP_SCOPE(GRUSequenceIE_validate_and_infer_types,
+        for (const auto& input : inputs()) {
+            if (input.get_partial_shape().rank().is_dynamic()) {
+                set_output_type(0, get_input_element_type(0), PartialShape::dynamic());
+                set_output_type(1, get_input_element_type(0), PartialShape::dynamic());
+                return;
+            }
         }
-    }
-    // rank validation
-    auto x_pshape = get_input_partial_shape(0);
-    auto h_state_pshape = get_input_partial_shape(1);
-    auto seq_lengths_pshape = get_input_partial_shape(2);
-    auto wr_pshape = get_input_partial_shape(3);
-    auto b_pshape = get_input_partial_shape(4);
-    std::vector<ngraph::PartialShape> pshapes = {x_pshape, h_state_pshape, seq_lengths_pshape, wr_pshape, b_pshape};
+        // rank validation
+        auto x_pshape = get_input_partial_shape(0);
+        auto h_state_pshape = get_input_partial_shape(1);
+        auto seq_lengths_pshape = get_input_partial_shape(2);
+        auto wr_pshape = get_input_partial_shape(3);
+        auto b_pshape = get_input_partial_shape(4);
+        std::vector<ngraph::PartialShape> pshapes = {x_pshape, h_state_pshape, seq_lengths_pshape, wr_pshape, b_pshape};
 
-    std::vector<std::string> in_names = {"X", "H", "seq_lenghts", "WR", "B"};
-    // num_direction dimension should be squeezed, we don't support bidirectional case
-    std::vector<size_t> ranks = {3, 2, 1, 2, 1};
-    for (size_t i = 0; i < pshapes.size(); ++i) {
-        NGRAPH_CHECK((pshapes[i].rank().get_length() == ranks[i]),
-                     "GRUSequenceIE ",
-                     in_names[i],
-                     " input rank is not correct.");
-    }
+        std::vector<std::string> in_names = {"X", "H", "seq_lenghts", "WR", "B"};
+        // num_direction dimension should be squeezed, we don't support bidirectional case
+        std::vector<size_t> ranks = {3, 2, 1, 2, 1};
+        for (size_t i = 0; i < pshapes.size(); ++i) {
+            NGRAPH_CHECK((pshapes[i].rank().get_length() == ranks[i]),
+                        "GRUSequenceIE ",
+                        in_names[i],
+                        " input rank is not correct.");
+        }
 
-    element::Type arg_type = get_input_element_type(0);
-    PartialShape output_shape_0{PartialShape::dynamic(3)};
-    PartialShape output_shape_1{PartialShape::dynamic(2)};
-    if (get_input_partial_shape(0).is_static()) {
-        size_t batch_size = get_input_partial_shape(0).get_shape()[0];
-        size_t seq_length = get_input_partial_shape(0).get_shape()[1];
-        output_shape_0 = Shape{batch_size, seq_length, m_hidden_size};
-        output_shape_1 = Shape{batch_size, m_hidden_size};
-    }
-    set_output_type(0, arg_type, output_shape_0);
-    set_output_type(1, arg_type, output_shape_1);
+        element::Type arg_type = get_input_element_type(0);
+        PartialShape output_shape_0{PartialShape::dynamic(3)};
+        PartialShape output_shape_1{PartialShape::dynamic(2)};
+        if (get_input_partial_shape(0).is_static()) {
+            size_t batch_size = get_input_partial_shape(0).get_shape()[0];
+            size_t seq_length = get_input_partial_shape(0).get_shape()[1];
+            output_shape_0 = Shape{batch_size, seq_length, m_hidden_size};
+            output_shape_1 = Shape{batch_size, m_hidden_size};
+        }
+        set_output_type(0, arg_type, output_shape_0);
+        set_output_type(1, arg_type, output_shape_1);
+        return;
+    )
+    NODE_VALIDATION_CHECK(this, false, "Function is not included into the selective build.");
 }
 
 bool op::GRUSequenceIE::visit_attributes(AttributeVisitor& visitor) {
-    visitor.on_attribute("direction", m_direction);
-    visitor.on_attribute("linear_before_reset", m_linear_before_reset);
-    return op::util::RNNCellBase::visit_attributes(visitor);
+    NGRAPH_OP_SCOPE(GRUSequenceIE_visit_attributes,
+        visitor.on_attribute("direction", m_direction);
+        visitor.on_attribute("linear_before_reset", m_linear_before_reset);
+        return op::util::RNNCellBase::visit_attributes(visitor);
+    )
+    return false;
 }
 
 shared_ptr<Node> op::GRUSequenceIE::clone_with_new_inputs(const OutputVector& new_args) const {

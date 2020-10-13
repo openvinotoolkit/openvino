@@ -44,51 +44,48 @@ op::PSROIPooling::PSROIPooling(const Output<Node>& input,
 
 bool ngraph::op::v0::PSROIPooling::visit_attributes(AttributeVisitor& visitor)
 {
-#if GraphGen(OV_GEN_NGRAPH_OP(PSROIPooling, v0, visit_attributes))
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
-    visitor.on_attribute("output_dim", m_output_dim);
-    visitor.on_attribute("group_size", m_group_size);
-    visitor.on_attribute("spatial_scale", m_spatial_scale);
-    visitor.on_attribute("mode", m_mode);
-    visitor.on_attribute("spatial_bins_x", m_spatial_bins_x);
-    visitor.on_attribute("spatial_bins_y", m_spatial_bins_y);
-    return true;
-#else
+    NGRAPH_OP_SCOPE(v0_PSROIPooling_visit_attributes,
+        visitor.on_attribute("output_dim", m_output_dim);
+        visitor.on_attribute("group_size", m_group_size);
+        visitor.on_attribute("spatial_scale", m_spatial_scale);
+        visitor.on_attribute("mode", m_mode);
+        visitor.on_attribute("spatial_bins_x", m_spatial_bins_x);
+        visitor.on_attribute("spatial_bins_y", m_spatial_bins_y);
+        return true;
+    )
     return false;
-#endif
 }
 
 void op::PSROIPooling::validate_and_infer_types()
 {
-#if GraphGen(OV_GEN_NGRAPH_OP(PSROIPooling, v0, validate_and_infer_types))
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
-    auto input_et = get_input_element_type(0);
-    if (get_input_partial_shape(0).is_static() && get_input_partial_shape(1).is_static())
-    {
-        Shape input_shape = get_input_partial_shape(0).to_shape();
-        Shape coords_shape = get_input_partial_shape(1).to_shape();
-        NODE_VALIDATION_CHECK(this,
-                              input_shape.size() >= 3,
-                              "PSROIPooling expects 3 or higher dimensions for input. Got ",
-                              input_shape.size());
-        NODE_VALIDATION_CHECK(this,
-                              coords_shape.size() == 2,
-                              "PSROIPooling expects 2 dimensions for box coordinates. Got ",
-                              coords_shape.size());
-        Shape output_shape{coords_shape[0], m_output_dim};
-        for (size_t i = 2; i < input_shape.size(); i++)
+    NGRAPH_OP_SCOPE(v0_PSROIPooling_validate_and_infer_types,
+        auto input_et = get_input_element_type(0);
+        if (get_input_partial_shape(0).is_static() && get_input_partial_shape(1).is_static())
         {
-            output_shape.push_back(m_group_size);
+            Shape input_shape = get_input_partial_shape(0).to_shape();
+            Shape coords_shape = get_input_partial_shape(1).to_shape();
+            NODE_VALIDATION_CHECK(this,
+                                input_shape.size() >= 3,
+                                "PSROIPooling expects 3 or higher dimensions for input. Got ",
+                                input_shape.size());
+            NODE_VALIDATION_CHECK(this,
+                                coords_shape.size() == 2,
+                                "PSROIPooling expects 2 dimensions for box coordinates. Got ",
+                                coords_shape.size());
+            Shape output_shape{coords_shape[0], m_output_dim};
+            for (size_t i = 2; i < input_shape.size(); i++)
+            {
+                output_shape.push_back(m_group_size);
+            }
+            set_output_type(0, input_et, output_shape);
         }
-        set_output_type(0, input_et, output_shape);
-    }
-    else
-    {
-        set_output_type(0, input_et, PartialShape::dynamic());
-    }
-#else
+        else
+        {
+            set_output_type(0, input_et, PartialShape::dynamic());
+        }
+        return;
+    )
     NODE_VALIDATION_CHECK(this, false, "Function is not included into the selective build.");
-#endif
 }
 
 shared_ptr<Node> op::PSROIPooling::clone_with_new_inputs(const OutputVector& new_args) const

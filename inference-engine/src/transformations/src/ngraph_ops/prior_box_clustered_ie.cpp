@@ -3,6 +3,7 @@
 //
 
 #include "ngraph_ops/prior_box_clustered_ie.hpp"
+#include "itt.hpp"
 
 #include <memory>
 
@@ -20,17 +21,21 @@ op::PriorBoxClusteredIE::PriorBoxClusteredIE(const Output<Node>& input, const Ou
 }
 
 void op::PriorBoxClusteredIE::validate_and_infer_types() {
-    if (get_input_partial_shape(0).is_dynamic() || get_input_partial_shape(1).is_dynamic()) {
-        set_output_type(0, element::f32, PartialShape::dynamic(3));
+    NGRAPH_OP_SCOPE(PriorBoxClusteredIE_validate_and_infer_types,
+        if (get_input_partial_shape(0).is_dynamic() || get_input_partial_shape(1).is_dynamic()) {
+            set_output_type(0, element::f32, PartialShape::dynamic(3));
+            return;
+        }
+
+        auto input_shape = get_input_shape(0);
+        auto image_shape = get_input_shape(1);
+
+        size_t num_priors = m_attrs.widths.size();
+
+        set_output_type(0, element::f32, Shape {1, 2, 4 * input_shape[2] * input_shape[3] * num_priors});
         return;
-    }
-
-    auto input_shape = get_input_shape(0);
-    auto image_shape = get_input_shape(1);
-
-    size_t num_priors = m_attrs.widths.size();
-
-    set_output_type(0, element::f32, Shape {1, 2, 4 * input_shape[2] * input_shape[3] * num_priors});
+    )
+    NODE_VALIDATION_CHECK(this, false, "Function is not included into the selective build.");
 }
 
 std::shared_ptr<Node> op::PriorBoxClusteredIE::clone_with_new_inputs(const OutputVector& new_args) const {

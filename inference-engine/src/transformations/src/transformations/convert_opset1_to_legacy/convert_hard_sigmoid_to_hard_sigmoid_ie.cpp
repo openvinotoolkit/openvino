@@ -17,47 +17,46 @@
 NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertHardSigmoidToLegacyMatcher, "ConvertHardSigmoidToLegacyMatcher", 0);
 
 ngraph::pass::ConvertHardSigmoidToLegacyMatcher::ConvertHardSigmoidToLegacyMatcher() {
-    auto input_0 = std::make_shared<pattern::op::Label>(element::f32, Shape{1, 1, 1, 1});
-    auto input_1 = std::make_shared<pattern::op::Label>(element::f32, Shape{});
-    auto input_2 = std::make_shared<pattern::op::Label>(element::f32, Shape{});
-    auto node = std::make_shared<ngraph::opset1::HardSigmoid>(input_0, input_1, input_2);
-#if GraphGen(OV_GEN_NGRAPH_PASS(ConvertHardSigmoidToLegacy, callback))
-    ngraph::matcher_pass_callback callback = [](pattern::Matcher& m) {
-        OV_ITT_IE_TRANSFORM_CALLBACK(m, "callback")
-        auto hard_sigmoid = std::dynamic_pointer_cast<ngraph::opset1::HardSigmoid> (m.get_match_root());
-        if (!hard_sigmoid) {
-            return false;
-        }
+    IETRANSFORM_SCOPE(ConvertHardSigmoidToLegacyMatcher,
+        auto input_0 = std::make_shared<pattern::op::Label>(element::f32, Shape{1, 1, 1, 1});
+        auto input_1 = std::make_shared<pattern::op::Label>(element::f32, Shape{});
+        auto input_2 = std::make_shared<pattern::op::Label>(element::f32, Shape{});
+        auto node = std::make_shared<ngraph::opset1::HardSigmoid>(input_0, input_1, input_2);
 
-        auto alpha = std::dynamic_pointer_cast<ngraph::opset1::Constant> (hard_sigmoid->input(1).get_source_output().get_node_shared_ptr());
-        if (!alpha) {
-            return false;
-        }
+        ngraph::matcher_pass_callback callback = [](pattern::Matcher& m) {
+            auto hard_sigmoid = std::dynamic_pointer_cast<ngraph::opset1::HardSigmoid> (m.get_match_root());
+            if (!hard_sigmoid) {
+                return false;
+            }
 
-        auto beta = std::dynamic_pointer_cast<ngraph::opset1::Constant> (hard_sigmoid->input(2).get_source_output().get_node_shared_ptr());
-        if (!beta) {
-            return false;
-        }
+            auto alpha = std::dynamic_pointer_cast<ngraph::opset1::Constant> (hard_sigmoid->input(1).get_source_output().get_node_shared_ptr());
+            if (!alpha) {
+                return false;
+            }
 
-        float alpha_value;
-        float beta_value;
-        if (!ngraph::op::util::get_single_value(alpha, alpha_value) || !ngraph::op::util::get_single_value(beta, beta_value))
-            return false;
+            auto beta = std::dynamic_pointer_cast<ngraph::opset1::Constant> (hard_sigmoid->input(2).get_source_output().get_node_shared_ptr());
+            if (!beta) {
+                return false;
+            }
 
-        auto hard_sigmoid_ie = std::make_shared<ngraph::op::HardSigmoid_IE> (hard_sigmoid->input(0).get_source_output(),
-                                                                             alpha_value,
-                                                                             beta_value);
+            float alpha_value;
+            float beta_value;
+            if (!ngraph::op::util::get_single_value(alpha, alpha_value) || !ngraph::op::util::get_single_value(beta, beta_value))
+                return false;
 
-        hard_sigmoid_ie->set_friendly_name(hard_sigmoid->get_friendly_name());
-        ngraph::copy_runtime_info(hard_sigmoid, hard_sigmoid_ie);
-        ngraph::replace_node(hard_sigmoid, hard_sigmoid_ie);
-        return true;
-    };
-#else
-    ngraph::matcher_pass_callback callback = [](ngraph::pattern::Matcher & m) -> bool {
-        return false;
-    };
-#endif
-    auto m = std::make_shared<ngraph::pattern::Matcher>(node, "ConvertHardSigmoidToLegacy");
-    this->register_matcher(m, callback);
+            auto hard_sigmoid_ie = std::make_shared<ngraph::op::HardSigmoid_IE> (hard_sigmoid->input(0).get_source_output(),
+                                                                                alpha_value,
+                                                                                beta_value);
+
+            hard_sigmoid_ie->set_friendly_name(hard_sigmoid->get_friendly_name());
+            ngraph::copy_runtime_info(hard_sigmoid, hard_sigmoid_ie);
+            ngraph::replace_node(hard_sigmoid, hard_sigmoid_ie);
+            return true;
+        };
+
+        auto m = std::make_shared<ngraph::pattern::Matcher>(node, matcher_name);
+        this->register_matcher(m, callback);
+        return;
+    )
+    NGRAPH_CHECK(false, "nGraph pass is not included into the selective build.");
 }

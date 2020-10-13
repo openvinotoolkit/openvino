@@ -56,68 +56,65 @@ void op::util::IndexReduction::set_index_element_type(const element::Type& index
 
 void op::util::IndexReduction::validate_and_infer_types()
 {
-#if GraphGen(OV_GEN_NGRAPH_OP_UTIL(IndexReduction, validate_and_infer_types))
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
-    // TODO(amprocte): Should reject if size of reduction axis is zero.
-    const PartialShape& arg_shape = get_input_partial_shape(0);
-    Rank rank = arg_shape.rank();
+    NGRAPH_OP_UTIL_SCOPE(IndexReduction_validate_and_infer_types,
+        // TODO(amprocte): Should reject if size of reduction axis is zero.
+        const PartialShape& arg_shape = get_input_partial_shape(0);
+        Rank rank = arg_shape.rank();
 
-    NODE_VALIDATION_CHECK(
-        this, rank.is_dynamic() || rank.get_length() >= 1, "Argument rank is zero.");
-    NODE_VALIDATION_CHECK(this,
-                          rank.is_dynamic() || m_axis < rank.get_length(),
-                          "Reduction axis (",
-                          m_axis,
-                          ") is not less than argument rank (",
-                          rank,
-                          ").");
-    NODE_VALIDATION_CHECK(this,
-                          m_index_element_type == element::i32 ||
-                              m_index_element_type == element::i64,
-                          "Index element is neither i64 or i32.");
+        NODE_VALIDATION_CHECK(
+            this, rank.is_dynamic() || rank.get_length() >= 1, "Argument rank is zero.");
+        NODE_VALIDATION_CHECK(this,
+                            rank.is_dynamic() || m_axis < rank.get_length(),
+                            "Reduction axis (",
+                            m_axis,
+                            ") is not less than argument rank (",
+                            rank,
+                            ").");
+        NODE_VALIDATION_CHECK(this,
+                            m_index_element_type == element::i32 ||
+                                m_index_element_type == element::i64,
+                            "Index element is neither i64 or i32.");
 
-    PartialShape output_shape{PartialShape::dynamic()};
+        PartialShape output_shape{PartialShape::dynamic()};
 
-    if (rank.is_static())
-    {
-        Dimension d = arg_shape[m_axis];
-        if (d.is_static())
+        if (rank.is_static())
         {
-            NODE_VALIDATION_CHECK(this,
-                                  0 != d.get_length(),
-                                  "Tensor reduction axis can not be empty, shape is: ",
-                                  arg_shape);
-        }
-
-        std::vector<Dimension> output_dims(rank.get_length() - 1);
-        size_t j = 0;
-
-        for (size_t i = 0; i < rank.get_length() - 1; i++)
-        {
-            if (j == m_axis)
+            Dimension d = arg_shape[m_axis];
+            if (d.is_static())
             {
-                j++;
+                NODE_VALIDATION_CHECK(this,
+                                    0 != d.get_length(),
+                                    "Tensor reduction axis can not be empty, shape is: ",
+                                    arg_shape);
             }
-            output_dims[i] = arg_shape[j++];
+
+            std::vector<Dimension> output_dims(rank.get_length() - 1);
+            size_t j = 0;
+
+            for (size_t i = 0; i < rank.get_length() - 1; i++)
+            {
+                if (j == m_axis)
+                {
+                    j++;
+                }
+                output_dims[i] = arg_shape[j++];
+            }
+
+            output_shape = PartialShape(output_dims);
         }
 
-        output_shape = PartialShape(output_dims);
-    }
-
-    set_output_type(0, m_index_element_type, output_shape);
-#else
+        set_output_type(0, m_index_element_type, output_shape);
+        return;
+    )
     NODE_VALIDATION_CHECK(this, false, "Function is not included into the selective build.");
-#endif
 }
 
 bool op::util::IndexReduction::visit_attributes(AttributeVisitor& visitor)
 {
-#if GraphGen(OV_GEN_NGRAPH_OP_UTIL(IndexReduction, visit_attributes))
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
-    visitor.on_attribute("axis", m_axis);
-    visitor.on_attribute("index_element_type", m_index_element_type);
-    return true;
-#else
+    NGRAPH_OP_UTIL_SCOPE(IndexReduction_visit_attribute,
+        visitor.on_attribute("axis", m_axis);
+        visitor.on_attribute("index_element_type", m_index_element_type);
+        return true;
+    )
     return false;
-#endif
 }

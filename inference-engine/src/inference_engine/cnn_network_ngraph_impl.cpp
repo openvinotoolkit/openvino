@@ -128,7 +128,7 @@ CNNNetworkNGraphImpl::CNNNetworkNGraphImpl(const std::shared_ptr<Function>& nGra
     ::ngraph::op::GenericIE::addExtension(_ngraph_function, std::make_shared<ShapeInfer::BuiltInShapeInferHolder>());
 
     ngraph::pass::Manager ssr_manager;
-    ssr_manager.register_pass<ngraph::pass::SmartReshape>();
+    REGISTER_PASS(ssr_manager, SmartReshape);
     ssr_manager.run_passes(_ngraph_function);
 
     reshape();
@@ -333,8 +333,9 @@ CNNNetworkNGraphImpl::reshape(const std::map<std::string, std::vector<size_t>>& 
             {
                 OV_ITT_SCOPED_TASK(itt::domains::IE, "CNNNetworkNGraphImpl::ConvertOneHot");
                 ::ngraph::pass::Manager manager;
-                manager.register_pass<::ngraph::pass::ConvertOneHotToOneHotIEMatcher>()->detect_output_type(
-                        specialized_ngraph_function);
+                auto one_hot_pass = REGISTER_PASS(manager, ConvertOneHotToOneHotIEMatcher);
+                if (one_hot_pass)
+                    one_hot_pass->detect_output_type(specialized_ngraph_function);
                 manager.run_passes(specialized_ngraph_function);
             }
             specialized_ngraph_function->validate_nodes_and_infer_types();

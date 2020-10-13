@@ -41,93 +41,92 @@ ngraph::op::v1::SpaceToBatch::SpaceToBatch(const ngraph::Output<ngraph::Node>& d
 
 void op::v1::SpaceToBatch::validate_and_infer_types()
 {
-#if GraphGen(OV_GEN_NGRAPH_OP(SpaceToBatch, v1, validate_and_infer_types))
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
-    PartialShape data_pshape = get_input_partial_shape(0);
-    const auto& data_type = get_input_element_type(0);
-    const auto& block_shape_type = get_input_element_type(1);
-    const auto& pads_begin_type = get_input_element_type(2);
-    const auto& pads_end_type = get_input_element_type(3);
+    NGRAPH_OP_SCOPE(v1_SpaceToBatch_validate_and_infer_types,
+        PartialShape data_pshape = get_input_partial_shape(0);
+        const auto& data_type = get_input_element_type(0);
+        const auto& block_shape_type = get_input_element_type(1);
+        const auto& pads_begin_type = get_input_element_type(2);
+        const auto& pads_end_type = get_input_element_type(3);
 
-    NODE_VALIDATION_CHECK(this,
-                          block_shape_type.is_integral_number(),
-                          "block_shape must be an integral number but got (",
-                          block_shape_type,
-                          ").");
+        NODE_VALIDATION_CHECK(this,
+                            block_shape_type.is_integral_number(),
+                            "block_shape must be an integral number but got (",
+                            block_shape_type,
+                            ").");
 
-    NODE_VALIDATION_CHECK(this,
-                          pads_begin_type.is_integral_number(),
-                          "crops_begin must be an integral number but got (",
-                          pads_begin_type,
-                          ").");
+        NODE_VALIDATION_CHECK(this,
+                            pads_begin_type.is_integral_number(),
+                            "crops_begin must be an integral number but got (",
+                            pads_begin_type,
+                            ").");
 
-    NODE_VALIDATION_CHECK(this,
-                          pads_end_type.is_integral_number(),
-                          "crops_end must be an integral number but got (",
-                          pads_end_type,
-                          ").");
+        NODE_VALIDATION_CHECK(this,
+                            pads_end_type.is_integral_number(),
+                            "crops_end must be an integral number but got (",
+                            pads_end_type,
+                            ").");
 
-    auto data = input_value(0);
-    auto block = input_value(1);
-    auto pads_begin = input_value(2);
-    auto pads_end = input_value(3);
+        auto data = input_value(0);
+        auto block = input_value(1);
+        auto pads_begin = input_value(2);
+        auto pads_end = input_value(3);
 
-    if (ngraph::op::is_constant(block.get_node_shared_ptr()) &&
-        ngraph::op::is_constant(pads_begin.get_node_shared_ptr()) &&
-        ngraph::op::is_constant(pads_end.get_node_shared_ptr()) && data_pshape.is_static())
-    {
-        const auto& data_shape = data.get_shape();
-
-        NODE_VALIDATION_CHECK(
-            this,
-            (data_shape.size() >= 2),
-            "The data tensor with rank lower than 2 is not supported (data rank: ",
-            data_shape.size(),
-            ")");
-
-        auto block_val = std::dynamic_pointer_cast<op::Constant>(block.get_node_shared_ptr())
-                             ->cast_vector<int64_t>();
-        auto pads_begin_val =
-            std::dynamic_pointer_cast<op::Constant>(pads_begin.get_node_shared_ptr())
-                ->cast_vector<int64_t>();
-        auto pads_end_val = std::dynamic_pointer_cast<op::Constant>(pads_end.get_node_shared_ptr())
-                                ->cast_vector<int64_t>();
-
-        int64_t block_prod = 1;
-        for (long idx : block_val)
-            block_prod *= idx;
-
-        Shape output_shape = {static_cast<size_t>(data_shape[0] * block_prod)};
-        for (size_t idx = 1; idx < data_shape.size(); ++idx)
+        if (ngraph::op::is_constant(block.get_node_shared_ptr()) &&
+            ngraph::op::is_constant(pads_begin.get_node_shared_ptr()) &&
+            ngraph::op::is_constant(pads_end.get_node_shared_ptr()) && data_pshape.is_static())
         {
-            NODE_VALIDATION_CHECK(
-                this, block_val.at(idx) > 0, "block_shape values must be greater than 0");
+            const auto& data_shape = data.get_shape();
+
             NODE_VALIDATION_CHECK(
                 this,
-                (pads_begin_val.at(idx) + data_shape.at(idx) + pads_end_val.at(idx)) %
-                        block_val.at(idx) ==
-                    0,
-                "The dimension on position: ",
-                idx,
-                " equal to: ",
-                pads_begin_val.at(idx) + data_shape.at(idx) + pads_end_val.at(idx),
-                " must be a multiple of block_values[i]: ",
-                block_val.at(idx));
-            output_shape.push_back(
-                static_cast<size_t>(pads_begin_val[idx] + data_shape[idx] + pads_end_val[idx]) /
-                block_val[idx]);
-        }
+                (data_shape.size() >= 2),
+                "The data tensor with rank lower than 2 is not supported (data rank: ",
+                data_shape.size(),
+                ")");
 
-        set_output_size(1);
-        set_output_type(0, data_type, output_shape);
-    }
-    else
-    {
-        set_output_type(0, data_type, PartialShape::dynamic());
-    }
-#else
+            auto block_val = std::dynamic_pointer_cast<op::Constant>(block.get_node_shared_ptr())
+                                ->cast_vector<int64_t>();
+            auto pads_begin_val =
+                std::dynamic_pointer_cast<op::Constant>(pads_begin.get_node_shared_ptr())
+                    ->cast_vector<int64_t>();
+            auto pads_end_val = std::dynamic_pointer_cast<op::Constant>(pads_end.get_node_shared_ptr())
+                                    ->cast_vector<int64_t>();
+
+            int64_t block_prod = 1;
+            for (long idx : block_val)
+                block_prod *= idx;
+
+            Shape output_shape = {static_cast<size_t>(data_shape[0] * block_prod)};
+            for (size_t idx = 1; idx < data_shape.size(); ++idx)
+            {
+                NODE_VALIDATION_CHECK(
+                    this, block_val.at(idx) > 0, "block_shape values must be greater than 0");
+                NODE_VALIDATION_CHECK(
+                    this,
+                    (pads_begin_val.at(idx) + data_shape.at(idx) + pads_end_val.at(idx)) %
+                            block_val.at(idx) ==
+                        0,
+                    "The dimension on position: ",
+                    idx,
+                    " equal to: ",
+                    pads_begin_val.at(idx) + data_shape.at(idx) + pads_end_val.at(idx),
+                    " must be a multiple of block_values[i]: ",
+                    block_val.at(idx));
+                output_shape.push_back(
+                    static_cast<size_t>(pads_begin_val[idx] + data_shape[idx] + pads_end_val[idx]) /
+                    block_val[idx]);
+            }
+
+            set_output_size(1);
+            set_output_type(0, data_type, output_shape);
+        }
+        else
+        {
+            set_output_type(0, data_type, PartialShape::dynamic());
+        }
+        return;
+    )
     NODE_VALIDATION_CHECK(this, false, "Function is not included into the selective build.");
-#endif
 }
 
 std::shared_ptr<Node>

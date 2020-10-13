@@ -51,117 +51,116 @@ op::Dot::Dot(const Output<Node>& arg0,
 
 void op::Dot::validate_and_infer_types()
 {
-#if GraphGen(OV_GEN_NGRAPH_OP(Dot, v0, validate_and_infer_types))
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
-    element::Type result_et;
+    NGRAPH_OP_SCOPE(v0_Dot_validate_and_infer_types,
+        element::Type result_et;
 
-    NODE_VALIDATION_CHECK(
-        this,
-        element::Type::merge(result_et, get_input_element_type(0), get_input_element_type(1)),
-        "Arguments do not have the same element type (arg0 element type: ",
-        get_input_element_type(0),
-        ", arg1 element type: ",
-        get_input_element_type(1),
-        ").");
+        NODE_VALIDATION_CHECK(
+            this,
+            element::Type::merge(result_et, get_input_element_type(0), get_input_element_type(1)),
+            "Arguments do not have the same element type (arg0 element type: ",
+            get_input_element_type(0),
+            ", arg1 element type: ",
+            get_input_element_type(1),
+            ").");
 
-    const PartialShape& arg0_shape = get_input_partial_shape(0);
-    const PartialShape& arg1_shape = get_input_partial_shape(1);
+        const PartialShape& arg0_shape = get_input_partial_shape(0);
+        const PartialShape& arg1_shape = get_input_partial_shape(1);
 
-    // If an explicit value was not passed for reduction axis count at construction time, we have
-    // some extra work to do.
-    //
-    // - If one of the arguments is known to be scalar, the count is 0.
-    // - If both of the arguments are known to be nonscalar, the count is 1.
-    // - Otherwise, the count is unknown.
-    bool reduction_axes_ambiguous = !m_has_reduction_axes_count;
+        // If an explicit value was not passed for reduction axis count at construction time, we have
+        // some extra work to do.
+        //
+        // - If one of the arguments is known to be scalar, the count is 0.
+        // - If both of the arguments are known to be nonscalar, the count is 1.
+        // - Otherwise, the count is unknown.
+        bool reduction_axes_ambiguous = !m_has_reduction_axes_count;
 
-    if (reduction_axes_ambiguous)
-    {
-        if (arg0_shape.rank().same_scheme(0) || arg1_shape.rank().same_scheme(0))
+        if (reduction_axes_ambiguous)
         {
-            m_reduction_axes_count = 0;
-            reduction_axes_ambiguous = false;
-        }
-        else if (arg0_shape.rank().is_static() && arg1_shape.rank().is_static())
-        {
-            m_reduction_axes_count = 1;
-            reduction_axes_ambiguous = false;
-        }
-    }
-
-    PartialShape result_shape;
-
-    NODE_VALIDATION_CHECK(this,
-                          reduction_axes_ambiguous || arg0_shape.rank().is_dynamic() ||
-                              m_reduction_axes_count <= arg0_shape.rank().get_length(),
-                          "Reduction axes count (",
-                          m_reduction_axes_count,
-                          ") is too large (arg0 shape: ",
-                          arg0_shape,
-                          ", arg1 shape: ",
-                          arg1_shape,
-                          ").");
-
-    NODE_VALIDATION_CHECK(this,
-                          reduction_axes_ambiguous || arg1_shape.rank().is_dynamic() ||
-                              m_reduction_axes_count <= arg1_shape.rank().get_length(),
-                          "Reduction axes count (",
-                          m_reduction_axes_count,
-                          ") is too large (arg0 shape: ",
-                          arg0_shape,
-                          ", arg1 shape: ",
-                          arg1_shape,
-                          ").");
-
-    if (!reduction_axes_ambiguous && arg0_shape.rank().is_static() && arg1_shape.rank().is_static())
-    {
-        for (size_t i = 0; i < m_reduction_axes_count; i++)
-        {
-            size_t axis_index_arg0 = arg0_shape.rank().get_length() - m_reduction_axes_count + i;
-            size_t axis_index_arg1 = i;
-
-            NODE_VALIDATION_CHECK(
-                this,
-                arg0_shape[axis_index_arg0].compatible(arg1_shape[axis_index_arg1]),
-                "Paired axes (axis ",
-                axis_index_arg0,
-                " from arg0, axis ",
-                axis_index_arg1,
-                " from arg1) do not have same length (arg0 shape: ",
-                arg0_shape,
-                ", arg1 shape: ",
-                arg1_shape,
-                ", reduction axes count: ",
-                m_reduction_axes_count,
-                ").");
+            if (arg0_shape.rank().same_scheme(0) || arg1_shape.rank().same_scheme(0))
+            {
+                m_reduction_axes_count = 0;
+                reduction_axes_ambiguous = false;
+            }
+            else if (arg0_shape.rank().is_static() && arg1_shape.rank().is_static())
+            {
+                m_reduction_axes_count = 1;
+                reduction_axes_ambiguous = false;
+            }
         }
 
-        std::vector<Dimension> result_dims(arg0_shape.rank().get_length() +
-                                           arg1_shape.rank().get_length() -
-                                           2 * m_reduction_axes_count);
+        PartialShape result_shape;
 
-        size_t i = 0;
+        NODE_VALIDATION_CHECK(this,
+                            reduction_axes_ambiguous || arg0_shape.rank().is_dynamic() ||
+                                m_reduction_axes_count <= arg0_shape.rank().get_length(),
+                            "Reduction axes count (",
+                            m_reduction_axes_count,
+                            ") is too large (arg0 shape: ",
+                            arg0_shape,
+                            ", arg1 shape: ",
+                            arg1_shape,
+                            ").");
 
-        for (size_t j = 0; j < arg0_shape.rank().get_length() - m_reduction_axes_count; j++)
+        NODE_VALIDATION_CHECK(this,
+                            reduction_axes_ambiguous || arg1_shape.rank().is_dynamic() ||
+                                m_reduction_axes_count <= arg1_shape.rank().get_length(),
+                            "Reduction axes count (",
+                            m_reduction_axes_count,
+                            ") is too large (arg0 shape: ",
+                            arg0_shape,
+                            ", arg1 shape: ",
+                            arg1_shape,
+                            ").");
+
+        if (!reduction_axes_ambiguous && arg0_shape.rank().is_static() && arg1_shape.rank().is_static())
         {
-            result_dims[i++] = arg0_shape[j];
+            for (size_t i = 0; i < m_reduction_axes_count; i++)
+            {
+                size_t axis_index_arg0 = arg0_shape.rank().get_length() - m_reduction_axes_count + i;
+                size_t axis_index_arg1 = i;
+
+                NODE_VALIDATION_CHECK(
+                    this,
+                    arg0_shape[axis_index_arg0].compatible(arg1_shape[axis_index_arg1]),
+                    "Paired axes (axis ",
+                    axis_index_arg0,
+                    " from arg0, axis ",
+                    axis_index_arg1,
+                    " from arg1) do not have same length (arg0 shape: ",
+                    arg0_shape,
+                    ", arg1 shape: ",
+                    arg1_shape,
+                    ", reduction axes count: ",
+                    m_reduction_axes_count,
+                    ").");
+            }
+
+            std::vector<Dimension> result_dims(arg0_shape.rank().get_length() +
+                                            arg1_shape.rank().get_length() -
+                                            2 * m_reduction_axes_count);
+
+            size_t i = 0;
+
+            for (size_t j = 0; j < arg0_shape.rank().get_length() - m_reduction_axes_count; j++)
+            {
+                result_dims[i++] = arg0_shape[j];
+            }
+            for (size_t j = m_reduction_axes_count; j < arg1_shape.rank().get_length(); j++)
+            {
+                result_dims[i++] = arg1_shape[j];
+            }
+
+            result_shape = PartialShape(result_dims);
         }
-        for (size_t j = m_reduction_axes_count; j < arg1_shape.rank().get_length(); j++)
+        else
         {
-            result_dims[i++] = arg1_shape[j];
+            result_shape = PartialShape::dynamic();
         }
 
-        result_shape = PartialShape(result_dims);
-    }
-    else
-    {
-        result_shape = PartialShape::dynamic();
-    }
-
-    set_output_type(0, result_et, result_shape);
-#else
+        set_output_type(0, result_et, result_shape);
+        return;
+    )
     NODE_VALIDATION_CHECK(this, false, "Function is not included into the selective build.");
-#endif
 }
 
 shared_ptr<op::Reshape> make_reshape_axes_to_front(const Output<Node>& n,

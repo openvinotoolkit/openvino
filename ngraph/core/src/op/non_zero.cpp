@@ -48,44 +48,41 @@ op::v3::NonZero::NonZero(const Output<Node>& arg, const element::Type& output_ty
 
 bool ngraph::op::v3::NonZero::visit_attributes(AttributeVisitor& visitor)
 {
-#if GraphGen(OV_GEN_NGRAPH_OP(NonZero, v3, visit_attributes))
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
-    visitor.on_attribute("output_type", m_output_type);
-    return true;
-#else
+    NGRAPH_OP_SCOPE(v3_NonZero_visit_attributes,
+        visitor.on_attribute("output_type", m_output_type);
+        return true;
+    )
     return false;
-#endif
 }
 
 void op::v3::NonZero::validate_and_infer_types()
 {
-#if GraphGen(OV_GEN_NGRAPH_OP(NonZero, v3, validate_and_infer_types))
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
-    const PartialShape& input_shape = get_input_partial_shape(0);
-    const auto input_et = get_input_element_type(0);
+    NGRAPH_OP_SCOPE(v3_NonZero_validate_and_infer_types,
+        const PartialShape& input_shape = get_input_partial_shape(0);
+        const auto input_et = get_input_element_type(0);
 
-    NODE_VALIDATION_CHECK(this,
-                          input_et.is_integral() || input_et.is_real(),
-                          "NonZero input data type needs to be a numeric type. Got: ",
-                          input_et);
-    NODE_VALIDATION_CHECK(this,
-                          m_output_type == element::i64 || m_output_type == element::i32,
-                          "Output type must be i32 or i64");
+        NODE_VALIDATION_CHECK(this,
+                            input_et.is_integral() || input_et.is_real(),
+                            "NonZero input data type needs to be a numeric type. Got: ",
+                            input_et);
+        NODE_VALIDATION_CHECK(this,
+                            m_output_type == element::i64 || m_output_type == element::i32,
+                            "Output type must be i32 or i64");
 
-    // For scalar non-zero value case, onnx test case expects output shape {1, 1}
-    if (input_shape.rank() == 0)
-    {
-        set_output_type(0, m_output_type, PartialShape{Dimension::dynamic(), Dimension::dynamic()});
-    }
-    else
-    {
-        set_output_type(0, m_output_type, PartialShape{input_shape.rank(), Dimension::dynamic()});
-    }
+        // For scalar non-zero value case, onnx test case expects output shape {1, 1}
+        if (input_shape.rank() == 0)
+        {
+            set_output_type(0, m_output_type, PartialShape{Dimension::dynamic(), Dimension::dynamic()});
+        }
+        else
+        {
+            set_output_type(0, m_output_type, PartialShape{input_shape.rank(), Dimension::dynamic()});
+        }
 
-    set_input_is_relevant_to_shape(0);
-#else
+        set_input_is_relevant_to_shape(0);
+        return;
+    )
     NODE_VALIDATION_CHECK(this, false, "Function is not included into the selective build.");
-#endif
 }
 
 shared_ptr<Node> op::v3::NonZero::clone_with_new_inputs(const OutputVector& new_args) const
@@ -149,20 +146,13 @@ namespace
 
         switch (input->get_element_type())
         {
-            TYPE_CASE(i32)(input, output);
-            break;
-            TYPE_CASE(i64)(input, output);
-            break;
-            TYPE_CASE(u8)(input, output);
-            break;
-            TYPE_CASE(u32)(input, output);
-            break;
-            TYPE_CASE(u64)(input, output);
-            break;
-            TYPE_CASE(f16)(input, output);
-            break;
-            TYPE_CASE(f32)(input, output);
-            break;
+            NGRAPH_TYPE_CASE(evaluate_nonzero, i32, input, output)
+            NGRAPH_TYPE_CASE(evaluate_nonzero, i64, input, output)
+            NGRAPH_TYPE_CASE(evaluate_nonzero, u8, input, output)
+            NGRAPH_TYPE_CASE(evaluate_nonzero, u32, input, output)
+            NGRAPH_TYPE_CASE(evaluate_nonzero, u64, input, output)
+            NGRAPH_TYPE_CASE(evaluate_nonzero, f16, input, output)
+            NGRAPH_TYPE_CASE(evaluate_nonzero, f32, input, output)
         default: rc = false; break;
         }
         return rc;
@@ -172,10 +162,9 @@ namespace
 bool op::v3::NonZero::evaluate(const HostTensorVector& outputs,
                                const HostTensorVector& inputs) const
 {
-#if GraphGen(OV_GEN_NGRAPH_OP(NonZero, v3, evaluate))
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
-    return evaluate_nonzero(inputs[0], outputs[0]);
-#else
-    return false;
-#endif
+    bool rc = false;
+    NGRAPH_OP_SCOPE(v3_NonZero_evaluate,
+        rc = evaluate_nonzero(inputs[0], outputs[0]);
+    )
+    return rc;
 }

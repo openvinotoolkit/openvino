@@ -47,70 +47,67 @@ op::RegionYolo::RegionYolo(const Output<Node>& input,
 
 bool ngraph::op::v0::RegionYolo::visit_attributes(AttributeVisitor& visitor)
 {
-#if GraphGen(OV_GEN_NGRAPH_OP(RegionYolo, v0, visit_attributes))
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
-    visitor.on_attribute("anchors", m_anchors);
-    visitor.on_attribute("axis", m_axis);
-    visitor.on_attribute("coords", m_num_coords);
-    visitor.on_attribute("classes", m_num_classes);
-    visitor.on_attribute("end_axis", m_end_axis);
-    visitor.on_attribute("num", m_num_regions);
-    visitor.on_attribute("do_softmax", m_do_softmax);
-    visitor.on_attribute("mask", m_mask);
-    return true;
-#else
+    NGRAPH_OP_SCOPE(v0_RegionYolo_visit_attributes,
+        visitor.on_attribute("anchors", m_anchors);
+        visitor.on_attribute("axis", m_axis);
+        visitor.on_attribute("coords", m_num_coords);
+        visitor.on_attribute("classes", m_num_classes);
+        visitor.on_attribute("end_axis", m_end_axis);
+        visitor.on_attribute("num", m_num_regions);
+        visitor.on_attribute("do_softmax", m_do_softmax);
+        visitor.on_attribute("mask", m_mask);
+        return true;
+    )
     return false;
-#endif
 }
 
 void op::RegionYolo::validate_and_infer_types()
 {
-#if GraphGen(OV_GEN_NGRAPH_OP(RegionYolo, v0, validate_and_infer_types))
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
-    auto input_et = get_input_element_type(0);
-    if (get_input_partial_shape(0).is_static())
-    {
-        Shape input_shape = get_input_partial_shape(0).to_shape();
-        Shape output_shape;
-        int end_axis = m_end_axis;
-        if (m_end_axis < 0)
+    NGRAPH_OP_SCOPE(v0_RegionYolo_validate_and_infer_types,
+        auto input_et = get_input_element_type(0);
+        if (get_input_partial_shape(0).is_static())
         {
-            m_end_axis += input_shape.size();
-        }
+            Shape input_shape = get_input_partial_shape(0).to_shape();
+            Shape output_shape;
+            int end_axis = m_end_axis;
+            if (m_end_axis < 0)
+            {
+                m_end_axis += input_shape.size();
+            }
 
-        if (m_do_softmax)
-        {
-            size_t flat_dim = 1;
-            for (int64_t i = 0; i < m_axis; i++)
+            if (m_do_softmax)
             {
-                output_shape.push_back(input_shape[i]);
+                size_t flat_dim = 1;
+                for (int64_t i = 0; i < m_axis; i++)
+                {
+                    output_shape.push_back(input_shape[i]);
+                }
+                for (int64_t i = m_axis; i < end_axis + 1; i++)
+                {
+                    flat_dim *= input_shape[i];
+                }
+                output_shape.push_back(flat_dim);
+                for (size_t i = end_axis + 1; i < input_shape.size(); i++)
+                {
+                    output_shape.push_back(input_shape[i]);
+                }
             }
-            for (int64_t i = m_axis; i < end_axis + 1; i++)
+            else
             {
-                flat_dim *= input_shape[i];
+                output_shape = {input_shape[0],
+                                (m_num_classes + m_num_coords + 1) * m_mask.size(),
+                                input_shape[2],
+                                input_shape[3]};
             }
-            output_shape.push_back(flat_dim);
-            for (size_t i = end_axis + 1; i < input_shape.size(); i++)
-            {
-                output_shape.push_back(input_shape[i]);
-            }
+            set_output_type(0, input_et, output_shape);
         }
         else
         {
-            output_shape = {input_shape[0],
-                            (m_num_classes + m_num_coords + 1) * m_mask.size(),
-                            input_shape[2],
-                            input_shape[3]};
+            set_output_type(0, input_et, PartialShape::dynamic());
         }
-        set_output_type(0, input_et, output_shape);
-    }
-    else
-    {
-        set_output_type(0, input_et, PartialShape::dynamic());
-    }
-#else
+        return;
+    )
     NODE_VALIDATION_CHECK(this, false, "Function is not included into the selective build.");
-#endif
 }
 
 shared_ptr<Node> op::RegionYolo::clone_with_new_inputs(const OutputVector& new_args) const

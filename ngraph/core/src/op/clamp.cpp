@@ -46,39 +46,34 @@ namespace
         auto floor_func = [](double x) { return floor(x); };
 
         bool rc = true;
-        switch (arg->get_element_type())
+        switch(arg->get_element_type())
         {
-            TYPE_CASE(i32)
-            (arg,
+            NGRAPH_TYPE_CASE(evaluate_clamp, i32,
+             arg,
              out,
              double_to_int<int32_t>(min, ceil_func),
              double_to_int<int32_t>(max, floor_func),
-             count);
-            break;
-            TYPE_CASE(i64)
-            (arg,
+             count)
+            NGRAPH_TYPE_CASE(evaluate_clamp, i64,
+             arg,
              out,
              double_to_int<int64_t>(min, ceil_func),
              double_to_int<int64_t>(max, floor_func),
-             count);
-            break;
-            TYPE_CASE(u32)
-            (arg,
+             count)
+            NGRAPH_TYPE_CASE(evaluate_clamp, u32,
+             arg,
              out,
              double_to_int<uint32_t>(min, ceil_func),
              double_to_int<uint32_t>(max, floor_func),
-             count);
-            break;
-            TYPE_CASE(u64)
-            (arg,
+             count)
+            NGRAPH_TYPE_CASE(evaluate_clamp, u64,
+             arg,
              out,
              double_to_int<uint64_t>(min, ceil_func),
              double_to_int<uint64_t>(max, floor_func),
-             count);
-            break;
-            TYPE_CASE(f16)(arg, out, static_cast<float16>(min), static_cast<float16>(max), count);
-            break;
-            TYPE_CASE(f32)(arg, out, static_cast<float>(min), static_cast<float>(max), count);
+             count)
+            NGRAPH_TYPE_CASE(evaluate_clamp, f16, arg, out, static_cast<float16>(min), static_cast<float16>(max), count)
+            NGRAPH_TYPE_CASE(evaluate_clamp, f32, arg, out, static_cast<float>(min), static_cast<float>(max), count)
             break;
         default: rc = false; break;
         }
@@ -88,13 +83,12 @@ namespace
 
 bool op::v0::Clamp::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
-#if GraphGen(OV_GEN_NGRAPH_OP(Clamp, v0, evaluate))
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
-    return evaluate_clamp(
-        inputs[0], outputs[0], get_min(), get_max(), shape_size(get_input_shape(0)));
-#else
-    return false;
-#endif
+    bool rc = false;
+    NGRAPH_OP_SCOPE(v0_Clamp_evaluate,
+        rc = evaluate_clamp(
+            inputs[0], outputs[0], get_min(), get_max(), shape_size(get_input_shape(0)));
+    )
+    return rc;
 }
 
 op::Clamp::Clamp(const Output<Node>& data, const double min, const double max)
@@ -107,20 +101,17 @@ op::Clamp::Clamp(const Output<Node>& data, const double min, const double max)
 
 void op::Clamp::pre_validate_and_infer_types()
 {
-#if GraphGen(OV_GEN_NGRAPH_OP(Clamp, v0, pre_validate_and_infer_types))
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
-    NODE_VALIDATION_CHECK(
-        this, m_min < m_max, "The 'min' parameter needs to be less than 'max' for Clamp");
-    set_output_type(0, get_input_element_type(0), get_input_partial_shape(0));
-#else
+    NGRAPH_OP_SCOPE(v0_Clamp_pre_validate_and_infer_types,
+        NODE_VALIDATION_CHECK(
+            this, m_min < m_max, "The 'min' parameter needs to be less than 'max' for Clamp");
+        set_output_type(0, get_input_element_type(0), get_input_partial_shape(0));
+        return;
+    )
     NODE_VALIDATION_CHECK(this, false, "Function is not included into the selective build.");
-#endif
 }
 
 OutputVector op::Clamp::decompose_op() const
 {
-#if GraphGen(OV_GEN_NGRAPH_OP(Clamp, v0, decompose_op))
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
     const auto data = input_value(0);
     const auto type = data.get_element_type();
     const auto shape = data.get_shape();
@@ -142,101 +133,110 @@ OutputVector op::Clamp::decompose_op() const
 
     switch (type)
     {
-    case element::Type_t::i8:
-    {
-        clamp_min = make_shared<op::Constant>(type, shape, double_to_int<int8_t>(m_min, ceil_func));
-        clamp_max =
-            make_shared<op::Constant>(type, shape, double_to_int<int8_t>(m_max, floor_func));
-        break;
-    }
-    case element::Type_t::i16:
-    {
-        clamp_min =
-            make_shared<op::Constant>(type, shape, double_to_int<int16_t>(m_min, ceil_func));
-        clamp_max =
-            make_shared<op::Constant>(type, shape, double_to_int<int16_t>(m_max, floor_func));
-        break;
-    }
-    case element::Type_t::i32:
-    {
-        clamp_min =
-            make_shared<op::Constant>(type, shape, double_to_int<int32_t>(m_min, ceil_func));
-        clamp_max =
-            make_shared<op::Constant>(type, shape, double_to_int<int32_t>(m_max, floor_func));
-        break;
-    }
-    case element::Type_t::i64:
-    {
-        clamp_min =
-            make_shared<op::Constant>(type, shape, double_to_int<int64_t>(m_min, ceil_func));
-        clamp_max =
-            make_shared<op::Constant>(type, shape, double_to_int<int64_t>(m_max, floor_func));
-        break;
-    }
-    case element::Type_t::u8:
-    {
-        clamp_min =
-            make_shared<op::Constant>(type, shape, double_to_int<uint8_t>(m_min, ceil_func));
-        clamp_max =
-            make_shared<op::Constant>(type, shape, double_to_int<uint8_t>(m_max, floor_func));
-        break;
-    }
-    case element::Type_t::u16:
-    {
-        clamp_min =
-            make_shared<op::Constant>(type, shape, double_to_int<uint16_t>(m_min, ceil_func));
-        clamp_max =
-            make_shared<op::Constant>(type, shape, double_to_int<uint16_t>(m_max, floor_func));
-        break;
-    }
-    case element::Type_t::u32:
-    {
-        clamp_min =
-            make_shared<op::Constant>(type, shape, double_to_int<uint32_t>(m_min, ceil_func));
-        clamp_max =
-            make_shared<op::Constant>(type, shape, double_to_int<uint32_t>(m_max, floor_func));
-        break;
-    }
-    case element::Type_t::u64:
-    {
-        clamp_min =
-            make_shared<op::Constant>(type, shape, double_to_int<uint64_t>(m_min, ceil_func));
-        clamp_max =
-            make_shared<op::Constant>(type, shape, double_to_int<uint64_t>(m_max, floor_func));
-        break;
-    }
-    case element::Type_t::f16:
-    {
-        clamp_min = builder::make_constant(type, shape, static_cast<float16>(m_min));
-        clamp_max = builder::make_constant(type, shape, static_cast<float16>(m_max));
-        break;
-    }
-    case element::Type_t::bf16:
-    {
-        clamp_min = builder::make_constant(type, shape, static_cast<bfloat16>(m_min));
-        clamp_max = builder::make_constant(type, shape, static_cast<bfloat16>(m_max));
-        break;
-    }
-    case element::Type_t::f32:
-    {
-        clamp_min = builder::make_constant(type, shape, static_cast<float>(m_min));
-        clamp_max = builder::make_constant(type, shape, static_cast<float>(m_max));
-        break;
-    }
-    case element::Type_t::f64:
-    {
-        clamp_min = builder::make_constant(type, shape, m_min);
-        clamp_max = builder::make_constant(type, shape, m_max);
-        break;
-    }
+    NGRAPH_CASE(ngraph_op_v0_Clamp_decompose_op, i8,
+        {
+            clamp_min = make_shared<op::Constant>(type, shape, double_to_int<int8_t>(m_min, ceil_func));
+            clamp_max =
+                make_shared<op::Constant>(type, shape, double_to_int<int8_t>(m_max, floor_func));
+            break;
+        }
+    )
+    NGRAPH_CASE(ngraph_op_v0_Clamp_decompose_op, i16,
+        {
+            clamp_min =
+                make_shared<op::Constant>(type, shape, double_to_int<int16_t>(m_min, ceil_func));
+            clamp_max =
+                make_shared<op::Constant>(type, shape, double_to_int<int16_t>(m_max, floor_func));
+            break;
+        }
+    )
+    NGRAPH_CASE(ngraph_op_v0_Clamp_decompose_op, i32,
+        {
+            clamp_min =
+                make_shared<op::Constant>(type, shape, double_to_int<int32_t>(m_min, ceil_func));
+            clamp_max =
+                make_shared<op::Constant>(type, shape, double_to_int<int32_t>(m_max, floor_func));
+            break;
+        }
+    )
+    NGRAPH_CASE(ngraph_op_v0_Clamp_decompose_op, i64,
+        {
+            clamp_min =
+                make_shared<op::Constant>(type, shape, double_to_int<int64_t>(m_min, ceil_func));
+            clamp_max =
+                make_shared<op::Constant>(type, shape, double_to_int<int64_t>(m_max, floor_func));
+            break;
+        }
+    )
+    NGRAPH_CASE(ngraph_op_v0_Clamp_decompose_op, u8,
+        {
+            clamp_min =
+                make_shared<op::Constant>(type, shape, double_to_int<uint8_t>(m_min, ceil_func));
+            clamp_max =
+                make_shared<op::Constant>(type, shape, double_to_int<uint8_t>(m_max, floor_func));
+            break;
+        }
+    )
+    NGRAPH_CASE(ngraph_op_v0_Clamp_decompose_op, u16,
+        {
+            clamp_min =
+                make_shared<op::Constant>(type, shape, double_to_int<uint16_t>(m_min, ceil_func));
+            clamp_max =
+                make_shared<op::Constant>(type, shape, double_to_int<uint16_t>(m_max, floor_func));
+            break;
+        }
+    )
+    NGRAPH_CASE(ngraph_op_v0_Clamp_decompose_op, u32,
+        {
+            clamp_min =
+                make_shared<op::Constant>(type, shape, double_to_int<uint32_t>(m_min, ceil_func));
+            clamp_max =
+                make_shared<op::Constant>(type, shape, double_to_int<uint32_t>(m_max, floor_func));
+            break;
+        }
+    )
+    NGRAPH_CASE(ngraph_op_v0_Clamp_decompose_op, u64,
+        {
+            clamp_min =
+                make_shared<op::Constant>(type, shape, double_to_int<uint64_t>(m_min, ceil_func));
+            clamp_max =
+                make_shared<op::Constant>(type, shape, double_to_int<uint64_t>(m_max, floor_func));
+            break;
+        }
+    )
+    NGRAPH_CASE(ngraph_op_v0_Clamp_decompose_op, f16,
+        {
+            clamp_min = builder::make_constant(type, shape, static_cast<float16>(m_min));
+            clamp_max = builder::make_constant(type, shape, static_cast<float16>(m_max));
+            break;
+        }
+    )
+    NGRAPH_CASE(ngraph_op_v0_Clamp_decompose_op, bf16,
+        {
+            clamp_min = builder::make_constant(type, shape, static_cast<bfloat16>(m_min));
+            clamp_max = builder::make_constant(type, shape, static_cast<bfloat16>(m_max));
+            break;
+        }
+    )
+    NGRAPH_CASE(ngraph_op_v0_Clamp_decompose_op, f32,
+        {
+            clamp_min = builder::make_constant(type, shape, static_cast<float>(m_min));
+            clamp_max = builder::make_constant(type, shape, static_cast<float>(m_max));
+            break;
+        }
+    )
+    NGRAPH_CASE(ngraph_op_v0_Clamp_decompose_op, f64,
+        {
+            clamp_min = builder::make_constant(type, shape, m_min);
+            clamp_max = builder::make_constant(type, shape, m_max);
+            break;
+        }
+    )
     default: throw runtime_error("Unsupported data type in op Clamp"); break;
     }
 
     auto max = make_shared<op::Maximum>(clamp_min, data);
     return {make_shared<op::Minimum>(clamp_max, max)};
-#else
-    NODE_VALIDATION_CHECK(this, false, "Function is not included into the selective build.");
-#endif
 }
 
 shared_ptr<Node> op::Clamp::clone_with_new_inputs(const OutputVector& new_args) const
@@ -251,12 +251,10 @@ shared_ptr<Node> op::Clamp::clone_with_new_inputs(const OutputVector& new_args) 
 
 bool op::Clamp::visit_attributes(AttributeVisitor& visitor)
 {
-#if GraphGen(OV_GEN_NGRAPH_OP(Clamp, v0, visit_attributes))
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
-    visitor.on_attribute("min", m_min);
-    visitor.on_attribute("max", m_max);
-    return true;
-#else
+    NGRAPH_OP_SCOPE(v0_Clamp_visit_attributes,
+        visitor.on_attribute("min", m_min);
+        visitor.on_attribute("max", m_max);
+        return true;
+    )
     return false;
-#endif
 }

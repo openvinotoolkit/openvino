@@ -64,122 +64,119 @@ op::v3::ROIAlign::ROIAlign(const Output<Node>& input,
 
 void op::v3::ROIAlign::validate_and_infer_types()
 {
-#if GraphGen(OV_GEN_NGRAPH_OP(ROIAlign, v3, validate_and_infer_types))
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
-    NODE_VALIDATION_CHECK(
-        this,
-        get_input_element_type(0).is_real() && get_input_element_type(1).is_real(),
-        "The data type for input and ROIs is expected to be a floating point type. Got: ",
-        get_input_element_type(0),
-        " and: ",
-        get_input_element_type(1));
+    NGRAPH_OP_SCOPE(v3_ROIAlign_validate_and_infer_types,
+        NODE_VALIDATION_CHECK(
+            this,
+            get_input_element_type(0).is_real() && get_input_element_type(1).is_real(),
+            "The data type for input and ROIs is expected to be a floating point type. Got: ",
+            get_input_element_type(0),
+            " and: ",
+            get_input_element_type(1));
 
-    NODE_VALIDATION_CHECK(
-        this,
-        get_input_element_type(0) == get_input_element_type(1),
-        "Type of feature maps (inputs) and rois is expected to be the same. Got: ",
-        get_input_element_type(0),
-        " and: ",
-        get_input_element_type(1));
+        NODE_VALIDATION_CHECK(
+            this,
+            get_input_element_type(0) == get_input_element_type(1),
+            "Type of feature maps (inputs) and rois is expected to be the same. Got: ",
+            get_input_element_type(0),
+            " and: ",
+            get_input_element_type(1));
 
-    NODE_VALIDATION_CHECK(this,
-                          get_input_element_type(2).is_integral_number(),
-                          "The data type for batch indices is expected to be an integer. Got: ",
-                          get_input_element_type(2));
-
-    const auto& input_ps = get_input_partial_shape(0);
-    NODE_VALIDATION_CHECK(this,
-                          input_ps.rank().compatible(4),
-                          "Expected a 4D tensor for the input data. Got: ",
-                          input_ps);
-
-    const auto& rois_ps = get_input_partial_shape(1);
-    NODE_VALIDATION_CHECK(this,
-                          rois_ps.rank().compatible(2),
-                          "Expected a 2D tensor for the ROIs input. Got: ",
-                          rois_ps);
-
-    const auto& batch_indices_ps = get_input_partial_shape(2);
-    NODE_VALIDATION_CHECK(this,
-                          batch_indices_ps.rank().compatible(1),
-                          "Expected a 1D tensor for the batch indices input. Got: ",
-                          batch_indices_ps);
-
-    if (rois_ps.rank().is_static())
-    {
-        const auto rois_second_dim = rois_ps[1];
         NODE_VALIDATION_CHECK(this,
-                              rois_second_dim.compatible(4),
-                              "The second dimension of ROIs input should contain box coordinates. ",
-                              "This dimension is expected to be equal to 4. Got: ",
-                              rois_second_dim);
+                            get_input_element_type(2).is_integral_number(),
+                            "The data type for batch indices is expected to be an integer. Got: ",
+                            get_input_element_type(2));
 
-        if (batch_indices_ps.rank().is_static())
+        const auto& input_ps = get_input_partial_shape(0);
+        NODE_VALIDATION_CHECK(this,
+                            input_ps.rank().compatible(4),
+                            "Expected a 4D tensor for the input data. Got: ",
+                            input_ps);
+
+        const auto& rois_ps = get_input_partial_shape(1);
+        NODE_VALIDATION_CHECK(this,
+                            rois_ps.rank().compatible(2),
+                            "Expected a 2D tensor for the ROIs input. Got: ",
+                            rois_ps);
+
+        const auto& batch_indices_ps = get_input_partial_shape(2);
+        NODE_VALIDATION_CHECK(this,
+                            batch_indices_ps.rank().compatible(1),
+                            "Expected a 1D tensor for the batch indices input. Got: ",
+                            batch_indices_ps);
+
+        if (rois_ps.rank().is_static())
         {
-            NODE_VALIDATION_CHECK(
-                this,
-                rois_ps[0].compatible(batch_indices_ps[0]),
-                "The first dimension of ROIs input must be equal to the first dimension ",
-                "of the batch indices input. Got: ",
-                rois_ps[0],
-                " and: ",
-                batch_indices_ps[0]);
+            const auto rois_second_dim = rois_ps[1];
+            NODE_VALIDATION_CHECK(this,
+                                rois_second_dim.compatible(4),
+                                "The second dimension of ROIs input should contain box coordinates. ",
+                                "This dimension is expected to be equal to 4. Got: ",
+                                rois_second_dim);
+
+            if (batch_indices_ps.rank().is_static())
+            {
+                NODE_VALIDATION_CHECK(
+                    this,
+                    rois_ps[0].compatible(batch_indices_ps[0]),
+                    "The first dimension of ROIs input must be equal to the first dimension ",
+                    "of the batch indices input. Got: ",
+                    rois_ps[0],
+                    " and: ",
+                    batch_indices_ps[0]);
+            }
         }
-    }
 
-    // the output shape should have the following format [NUM_ROIS, C, pooled_h, pooled_w]
-    auto output_shape = PartialShape{{Dimension::dynamic(),
-                                      input_ps[1],
-                                      Dimension{static_cast<int64_t>(m_pooled_h)},
-                                      Dimension{static_cast<int64_t>(m_pooled_w)}}};
+        // the output shape should have the following format [NUM_ROIS, C, pooled_h, pooled_w]
+        auto output_shape = PartialShape{{Dimension::dynamic(),
+                                        input_ps[1],
+                                        Dimension{static_cast<int64_t>(m_pooled_h)},
+                                        Dimension{static_cast<int64_t>(m_pooled_w)}}};
 
-    // if either of those 2 dimensions is static its value will be used
-    // for the first dimension of the output shape - 'NUM_ROIS'
-    if (rois_ps.rank().is_static() && rois_ps[0].is_static())
-    {
-        output_shape[0] = rois_ps[0];
-    }
-    else if (batch_indices_ps.rank().is_static() && batch_indices_ps[0].is_static())
-    {
-        output_shape[0] = batch_indices_ps[0];
-    }
+        // if either of those 2 dimensions is static its value will be used
+        // for the first dimension of the output shape - 'NUM_ROIS'
+        if (rois_ps.rank().is_static() && rois_ps[0].is_static())
+        {
+            output_shape[0] = rois_ps[0];
+        }
+        else if (batch_indices_ps.rank().is_static() && batch_indices_ps[0].is_static())
+        {
+            output_shape[0] = batch_indices_ps[0];
+        }
 
-    set_output_size(1);
-    set_output_type(0, get_input_element_type(0), output_shape);
+        set_output_size(1);
+        set_output_type(0, get_input_element_type(0), output_shape);
 
-    // if the channels dimension is not known
-    // the first input should be used during the function specialization
-    if (input_ps.rank().is_static() && input_ps[1].is_dynamic())
-    {
-        set_input_is_relevant_to_shape(0);
-    }
+        // if the channels dimension is not known
+        // the first input should be used during the function specialization
+        if (input_ps.rank().is_static() && input_ps[1].is_dynamic())
+        {
+            set_input_is_relevant_to_shape(0);
+        }
 
-    // if the 'NUM_ROIS' value is not known
-    // the last 2 inputs should be used during the function specialization
-    if (output_shape[0].is_dynamic())
-    {
-        set_input_is_relevant_to_shape(1);
-        set_input_is_relevant_to_shape(2);
-    }
-#else
+        // if the 'NUM_ROIS' value is not known
+        // the last 2 inputs should be used during the function specialization
+        if (output_shape[0].is_dynamic())
+        {
+            set_input_is_relevant_to_shape(1);
+            set_input_is_relevant_to_shape(2);
+        }
+        return;
+    )
     NODE_VALIDATION_CHECK(this, false, "Function is not included into the selective build.");
-#endif
 }
 
 bool op::v3::ROIAlign::visit_attributes(AttributeVisitor& visitor)
 {
-#if GraphGen(OV_GEN_NGRAPH_OP(ROIAlign, v3, visit_attributes))
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
-    visitor.on_attribute("pooled_h", m_pooled_h);
-    visitor.on_attribute("pooled_w", m_pooled_w);
-    visitor.on_attribute("sampling_ratio", m_sampling_ratio);
-    visitor.on_attribute("spatial_scale", m_spatial_scale);
-    visitor.on_attribute("mode", m_mode);
+    NGRAPH_OP_SCOPE(v3_ROIAlign_visit_attributes,
+        visitor.on_attribute("pooled_h", m_pooled_h);
+        visitor.on_attribute("pooled_w", m_pooled_w);
+        visitor.on_attribute("sampling_ratio", m_sampling_ratio);
+        visitor.on_attribute("spatial_scale", m_spatial_scale);
+        visitor.on_attribute("mode", m_mode);
 
-    return true;
-#else
+        return true;
+    )
     return false;
-#endif
 }
 
 shared_ptr<Node> op::v3::ROIAlign::clone_with_new_inputs(const OutputVector& new_args) const
@@ -233,12 +230,30 @@ namespace
 
         switch (feature_maps->get_element_type())
         {
-        case element::Type_t::bf16:
-        {
-            runtime::reference::roi_align<bfloat16>(feature_maps->get_data_ptr<bfloat16>(),
-                                                    rois->get_data_ptr<bfloat16>(),
+        NGRAPH_CASE(evaluate_roi_align, bf16,
+            {
+                runtime::reference::roi_align<bfloat16>(feature_maps->get_data_ptr<bfloat16>(),
+                                                        rois->get_data_ptr<bfloat16>(),
+                                                        batch_indices_vec_scaled_up.data(),
+                                                        out->get_data_ptr<bfloat16>(),
+                                                        feature_maps->get_shape(),
+                                                        rois->get_shape(),
+                                                        batch_indices->get_shape(),
+                                                        out->get_shape(),
+                                                        pooled_height,
+                                                        pooled_width,
+                                                        sampling_ratio,
+                                                        spatial_scale,
+                                                        pooling_mode);
+                break;
+            }
+        )
+        NGRAPH_CASE(evaluate_roi_align, f16,
+            {
+                runtime::reference::roi_align<float16>(feature_maps->get_data_ptr<float16>(),
+                                                    rois->get_data_ptr<float16>(),
                                                     batch_indices_vec_scaled_up.data(),
-                                                    out->get_data_ptr<bfloat16>(),
+                                                    out->get_data_ptr<float16>(),
                                                     feature_maps->get_shape(),
                                                     rois->get_shape(),
                                                     batch_indices->get_shape(),
@@ -248,42 +263,27 @@ namespace
                                                     sampling_ratio,
                                                     spatial_scale,
                                                     pooling_mode);
-            break;
-        }
-        case element::Type_t::f16:
-        {
-            runtime::reference::roi_align<float16>(feature_maps->get_data_ptr<float16>(),
-                                                   rois->get_data_ptr<float16>(),
-                                                   batch_indices_vec_scaled_up.data(),
-                                                   out->get_data_ptr<float16>(),
-                                                   feature_maps->get_shape(),
-                                                   rois->get_shape(),
-                                                   batch_indices->get_shape(),
-                                                   out->get_shape(),
-                                                   pooled_height,
-                                                   pooled_width,
-                                                   sampling_ratio,
-                                                   spatial_scale,
-                                                   pooling_mode);
-            break;
-        }
-        case element::Type_t::f32:
-        {
-            runtime::reference::roi_align<float>(feature_maps->get_data_ptr<float>(),
-                                                 rois->get_data_ptr<float>(),
-                                                 batch_indices_vec_scaled_up.data(),
-                                                 out->get_data_ptr<float>(),
-                                                 feature_maps->get_shape(),
-                                                 rois->get_shape(),
-                                                 batch_indices->get_shape(),
-                                                 out->get_shape(),
-                                                 pooled_height,
-                                                 pooled_width,
-                                                 sampling_ratio,
-                                                 spatial_scale,
-                                                 pooling_mode);
-            break;
-        }
+                break;
+            }
+        )
+        NGRAPH_CASE(evaluate_roi_align, f32,
+            {
+                runtime::reference::roi_align<float>(feature_maps->get_data_ptr<float>(),
+                                                    rois->get_data_ptr<float>(),
+                                                    batch_indices_vec_scaled_up.data(),
+                                                    out->get_data_ptr<float>(),
+                                                    feature_maps->get_shape(),
+                                                    rois->get_shape(),
+                                                    batch_indices->get_shape(),
+                                                    out->get_shape(),
+                                                    pooled_height,
+                                                    pooled_width,
+                                                    sampling_ratio,
+                                                    spatial_scale,
+                                                    pooling_mode);
+                break;
+            }
+        )
         default: NGRAPH_UNREACHABLE("unsupported input type for roi_align");
         }
 
@@ -294,11 +294,10 @@ namespace
 bool op::v3::ROIAlign::evaluate(const HostTensorVector& outputs,
                                 const HostTensorVector& inputs) const
 {
-#if GraphGen(OV_GEN_NGRAPH_OP(ROIAlign, v3, evaluate))
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
-    return evaluate_roi_align(
-        inputs, outputs[0], m_pooled_h, m_pooled_w, m_sampling_ratio, m_spatial_scale, m_mode);
-#else
-    return false;
-#endif
+    bool rc = false;
+    NGRAPH_OP_SCOPE(v3_ROIAlign_evaluate,
+        rc = evaluate_roi_align(
+            inputs, outputs[0], m_pooled_h, m_pooled_w, m_sampling_ratio, m_spatial_scale, m_mode);
+    )
+    return rc;
 }

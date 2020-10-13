@@ -42,38 +42,34 @@ op::v1::Mod::Mod(const Output<Node>& A,
 
 bool ngraph::op::v1::Mod::visit_attributes(AttributeVisitor& visitor)
 {
-#if GraphGen(OV_GEN_NGRAPH_OP(Mod, v1, visit_attributes))
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
-    visitor.on_attribute("auto_broadcast", m_auto_broadcast);
-    return true;
-#else
+    NGRAPH_OP_SCOPE(v1_Mod_visit_attributes,
+        visitor.on_attribute("auto_broadcast", m_auto_broadcast);
+        return true;
+    )
     return false;
-#endif
 }
 
 OutputVector op::v1::Mod::decompose_op() const
 {
-#if GraphGen(OV_GEN_NGRAPH_OP(Mod, v1, decompose_op))
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
-    const auto dividend = make_shared<op::Abs>(input_value(0));
-    const auto dividend_sign = make_shared<op::Sign>(input_value(0));
-    const auto dividend_et = dividend->get_element_type();
-    const auto divisor = make_shared<op::Abs>(input_value(1));
+    NGRAPH_OP_SCOPE(v1_Mod_decompose_op,
+        const auto dividend = make_shared<op::Abs>(input_value(0));
+        const auto dividend_sign = make_shared<op::Sign>(input_value(0));
+        const auto dividend_et = dividend->get_element_type();
+        const auto divisor = make_shared<op::Abs>(input_value(1));
 
-    // truncated(a / b)
-    auto division = make_shared<op::Convert>(
-        make_shared<op::v1::Divide>(dividend, divisor, m_auto_broadcast), ngraph::element::i64);
-    division = make_shared<op::Convert>(division, dividend_et);
-    // truncated(a / b) * b
-    const auto multiplication = make_shared<op::v1::Multiply>(division, divisor, m_auto_broadcast);
-    // a mod b = a - truncated(a / b) * b
-    const auto mod = make_shared<op::v1::Subtract>(dividend, multiplication, m_auto_broadcast);
+        // truncated(a / b)
+        auto division = make_shared<op::Convert>(
+            make_shared<op::v1::Divide>(dividend, divisor, m_auto_broadcast), ngraph::element::i64);
+        division = make_shared<op::Convert>(division, dividend_et);
+        // truncated(a / b) * b
+        const auto multiplication = make_shared<op::v1::Multiply>(division, divisor, m_auto_broadcast);
+        // a mod b = a - truncated(a / b) * b
+        const auto mod = make_shared<op::v1::Subtract>(dividend, multiplication, m_auto_broadcast);
 
-    // apply sign of dividend
-    return {make_shared<op::v1::Multiply>(dividend_sign, mod, m_auto_broadcast)};
-#else
+        // apply sign of dividend
+        return {make_shared<op::v1::Multiply>(dividend_sign, mod, m_auto_broadcast)};
+    )
     NODE_VALIDATION_CHECK(this, false, "Function is not included into the selective build.");
-#endif
 }
 
 shared_ptr<Node> op::v1::Mod::clone_with_new_inputs(const OutputVector& new_args) const

@@ -3,6 +3,7 @@
 //
 
 #include "ngraph_ops/tile_ie.hpp"
+#include "itt.hpp"
 
 #include <algorithm>
 #include <memory>
@@ -29,10 +30,14 @@ std::shared_ptr<Node> op::TileIE::clone_with_new_inputs(const OutputVector& new_
 }
 
 void op::TileIE::validate_and_infer_types() {
-    auto input_shape = get_input_partial_shape(0).to_shape();
+    NGRAPH_OP_SCOPE(TileIE_validate_and_infer_types,
+        auto input_shape = get_input_partial_shape(0).to_shape();
 
-    ngraph::Shape output_shape(input_shape);
-    output_shape[axis] *= tiles;
+        ngraph::Shape output_shape(input_shape);
+        output_shape[axis] *= tiles;
 
-    set_output_type(0, get_input_element_type(0), PartialShape(output_shape));
+        set_output_type(0, get_input_element_type(0), PartialShape(output_shape));
+        return;
+    )
+    NODE_VALIDATION_CHECK(this, false, "Function is not included into the selective build.");
 }

@@ -39,52 +39,49 @@ op::v0::Interpolate::Interpolate(const Output<Node>& image,
 
 bool op::v0::Interpolate::visit_attributes(AttributeVisitor& visitor)
 {
-#if GraphGen(OV_GEN_NGRAPH_OP(Interpolate, v0, visit_attributes))
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
-    visitor.on_attribute("align_corners", m_attrs.align_corners);
-    visitor.on_attribute("antialias", m_attrs.antialias);
-    visitor.on_attribute("axes", m_attrs.axes);
-    visitor.on_attribute("mode", m_attrs.mode);
-    visitor.on_attribute("pads_begin", m_attrs.pads_begin);
-    visitor.on_attribute("pads_end", m_attrs.pads_end);
-    return true;
-#else
+    NGRAPH_OP_SCOPE(v0_Interpolate_visit_attributes,
+        visitor.on_attribute("align_corners", m_attrs.align_corners);
+        visitor.on_attribute("antialias", m_attrs.antialias);
+        visitor.on_attribute("axes", m_attrs.axes);
+        visitor.on_attribute("mode", m_attrs.mode);
+        visitor.on_attribute("pads_begin", m_attrs.pads_begin);
+        visitor.on_attribute("pads_end", m_attrs.pads_end);
+        return true;
+    )
     return false;
-#endif
 }
 
 void op::v0::Interpolate::validate_and_infer_types()
 {
-#if GraphGen(OV_GEN_NGRAPH_OP(Interpolate, v0, validate_and_infer_types))
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
-    NODE_VALIDATION_CHECK(this,
-                          get_input_element_type(1).is_integral_number(),
-                          "output shape must be an integral number.");
-    set_input_is_relevant_to_shape(1);
+    NGRAPH_OP_SCOPE(v0_Interpolate_validate_and_infer_types,
+        NODE_VALIDATION_CHECK(this,
+                            get_input_element_type(1).is_integral_number(),
+                            "output shape must be an integral number.");
+        set_input_is_relevant_to_shape(1);
 
-    PartialShape output_shape = PartialShape(get_input_partial_shape(0));
-    if (output_shape.rank().is_static())
-    {
-        for (auto axis : m_attrs.axes)
+        PartialShape output_shape = PartialShape(get_input_partial_shape(0));
+        if (output_shape.rank().is_static())
         {
-            NGRAPH_CHECK(axis < output_shape.rank().get_length());
-            output_shape[axis] = Dimension::dynamic();
+            for (auto axis : m_attrs.axes)
+            {
+                NGRAPH_CHECK(axis < output_shape.rank().get_length());
+                output_shape[axis] = Dimension::dynamic();
+            }
         }
-    }
 
-    if (auto const_shape = as_type_ptr<op::v0::Constant>(input_value(1).get_node_shared_ptr()))
-    {
-        auto out_shape = const_shape->cast_vector<int64_t>();
-        size_t i = 0;
-        for (auto axis : m_attrs.axes)
+        if (auto const_shape = as_type_ptr<op::v0::Constant>(input_value(1).get_node_shared_ptr()))
         {
-            output_shape[axis] = Dimension(out_shape[i++]);
+            auto out_shape = const_shape->cast_vector<int64_t>();
+            size_t i = 0;
+            for (auto axis : m_attrs.axes)
+            {
+                output_shape[axis] = Dimension(out_shape[i++]);
+            }
         }
-    }
-    set_output_type(0, get_input_element_type(0), output_shape);
-#else
+        set_output_type(0, get_input_element_type(0), output_shape);
+        return;
+    )
     NODE_VALIDATION_CHECK(this, false, "Function is not included into the selective build.");
-#endif
 }
 
 shared_ptr<Node> op::v0::Interpolate::clone_with_new_inputs(const OutputVector& new_args) const
@@ -143,20 +140,18 @@ op::v4::Interpolate::Interpolate(const Output<Node>& image,
 
 bool op::v4::Interpolate::visit_attributes(AttributeVisitor& visitor)
 {
-#if GraphGen(OV_GEN_NGRAPH_OP(Interpolate, v4, visit_attributes))
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
-    visitor.on_attribute("mode", m_attrs.mode);
-    visitor.on_attribute("shape_calculation_mode", m_attrs.shape_calculation_mode);
-    visitor.on_attribute("coordinate_transformation_mode", m_attrs.coordinate_transformation_mode);
-    visitor.on_attribute("nearest_mode", m_attrs.nearest_mode);
-    visitor.on_attribute("antialias", m_attrs.antialias);
-    visitor.on_attribute("pads_begin", m_attrs.pads_begin);
-    visitor.on_attribute("pads_end", m_attrs.pads_end);
-    visitor.on_attribute("cube_coeff", m_attrs.cube_coeff);
-    return true;
-#else
+    NGRAPH_OP_SCOPE(v4_Interpolate_visit_attributes,
+        visitor.on_attribute("mode", m_attrs.mode);
+        visitor.on_attribute("shape_calculation_mode", m_attrs.shape_calculation_mode);
+        visitor.on_attribute("coordinate_transformation_mode", m_attrs.coordinate_transformation_mode);
+        visitor.on_attribute("nearest_mode", m_attrs.nearest_mode);
+        visitor.on_attribute("antialias", m_attrs.antialias);
+        visitor.on_attribute("pads_begin", m_attrs.pads_begin);
+        visitor.on_attribute("pads_end", m_attrs.pads_end);
+        visitor.on_attribute("cube_coeff", m_attrs.cube_coeff);
+        return true;
+    )
     return false;
-#endif
 }
 
 std::vector<int64_t> op::v4::Interpolate::get_axes() const
@@ -235,61 +230,60 @@ PartialShape op::v4::Interpolate::get_padded_input_shape(const PartialShape& inp
 
 void op::v4::Interpolate::validate_and_infer_types()
 {
-#if GraphGen(OV_GEN_NGRAPH_OP(Interpolate, v4, validate_and_infer_types))
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
-    element::Type input_et = get_input_element_type(0);
-    NODE_VALIDATION_CHECK(this,
-                          input_et == element::f32 || input_et == element::f16 ||
-                              input_et == element::i8,
-                          "Input element type must be f32, f16, or i8");
+    NGRAPH_OP_SCOPE(v4_Interpolate_validate_and_infer_types,
+        element::Type input_et = get_input_element_type(0);
+        NODE_VALIDATION_CHECK(this,
+                            input_et == element::f32 || input_et == element::f16 ||
+                                input_et == element::i8,
+                            "Input element type must be f32, f16, or i8");
 
-    PartialShape input_shape = PartialShape(get_input_partial_shape(0));
+        PartialShape input_shape = PartialShape(get_input_partial_shape(0));
 
-    if (!input_shape.rank().is_static())
-    {
-        set_output_type(0, get_input_element_type(0), input_shape);
+        if (!input_shape.rank().is_static())
+        {
+            set_output_type(0, get_input_element_type(0), input_shape);
+            return;
+        }
+
+        auto axes = get_axes();
+        correct_pads();
+
+        const auto input_rank = input_shape.rank().get_length();
+
+        PartialShape padded_input_shape = get_padded_input_shape(input_shape);
+        PartialShape output_shape = padded_input_shape;
+
+        if (output_shape.rank().is_static())
+        {
+            for (auto axis : axes)
+            {
+                NGRAPH_CHECK(axis < input_rank);
+                output_shape[axis] = Dimension::dynamic();
+            }
+        }
+
+        set_output_type(0, get_input_element_type(0), output_shape);
+        if (m_attrs.shape_calculation_mode == ShapeCalcMode::scales)
+        {
+            if (auto const_scales = as_type_ptr<op::v0::Constant>(input_value(2).get_node_shared_ptr()))
+            {
+                auto scales = const_scales->cast_vector<float>();
+                infer_using_scales(output_shape, axes, scales, padded_input_shape);
+            }
+        }
+        else
+        {
+            if (auto const_shape = as_type_ptr<op::v0::Constant>(input_value(1).get_node_shared_ptr()))
+            {
+                auto sizes = const_shape->cast_vector<int64_t>();
+                infer_using_shapes(output_shape, axes, sizes);
+            }
+        }
+
+        set_output_type(0, get_input_element_type(0), output_shape);
         return;
-    }
-
-    auto axes = get_axes();
-    correct_pads();
-
-    const auto input_rank = input_shape.rank().get_length();
-
-    PartialShape padded_input_shape = get_padded_input_shape(input_shape);
-    PartialShape output_shape = padded_input_shape;
-
-    if (output_shape.rank().is_static())
-    {
-        for (auto axis : axes)
-        {
-            NGRAPH_CHECK(axis < input_rank);
-            output_shape[axis] = Dimension::dynamic();
-        }
-    }
-
-    set_output_type(0, get_input_element_type(0), output_shape);
-    if (m_attrs.shape_calculation_mode == ShapeCalcMode::scales)
-    {
-        if (auto const_scales = as_type_ptr<op::v0::Constant>(input_value(2).get_node_shared_ptr()))
-        {
-            auto scales = const_scales->cast_vector<float>();
-            infer_using_scales(output_shape, axes, scales, padded_input_shape);
-        }
-    }
-    else
-    {
-        if (auto const_shape = as_type_ptr<op::v0::Constant>(input_value(1).get_node_shared_ptr()))
-        {
-            auto sizes = const_shape->cast_vector<int64_t>();
-            infer_using_shapes(output_shape, axes, sizes);
-        }
-    }
-
-    set_output_type(0, get_input_element_type(0), output_shape);
-#else
+    )
     NODE_VALIDATION_CHECK(this, false, "Function is not included into the selective build.");
-#endif
 }
 
 shared_ptr<Node> op::v4::Interpolate::clone_with_new_inputs(const OutputVector& new_args) const
@@ -441,82 +435,83 @@ static void pad_input_data(const uint8_t* data_ptr,
 bool op::v4::Interpolate::evaluate(const HostTensorVector& outputs,
                                    const HostTensorVector& inputs) const
 {
-#if GraphGen(OV_GEN_NGRAPH_OP(Interpolate, v4, evaluate))
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
-    element::Type input_et = get_input_element_type(0);
-    size_t type_size = input_et.size();
+    NGRAPH_OP_SCOPE(v4_Interpolate_evaluate,
+        element::Type input_et = get_input_element_type(0);
+        size_t type_size = input_et.size();
 
-    Shape input_shape{inputs[data_port]->get_shape()};
-    Shape padded_input_shape = get_padded_input_shape(input_shape).to_shape();
+        Shape input_shape{inputs[data_port]->get_shape()};
+        Shape padded_input_shape = get_padded_input_shape(input_shape).to_shape();
 
-    auto axes = get_axes_vector(inputs);
-    size_t num_of_axes = axes.size();
+        auto axes = get_axes_vector(inputs);
+        size_t num_of_axes = axes.size();
 
-    auto scales = get_scales_vector(inputs, padded_input_shape, m_attrs, axes);
+        auto scales = get_scales_vector(inputs, padded_input_shape, m_attrs, axes);
 
-    PartialShape output_shape{padded_input_shape};
+        PartialShape output_shape{padded_input_shape};
 
-    if (m_attrs.shape_calculation_mode == ShapeCalcMode::scales)
-    {
-        infer_using_scales(output_shape, axes, scales, padded_input_shape);
-    }
-    else
-    {
-        auto sizes = get_target_shape_vector(inputs, num_of_axes);
-        infer_using_shapes(output_shape, axes, sizes);
-    }
+        if (m_attrs.shape_calculation_mode == ShapeCalcMode::scales)
+        {
+            infer_using_scales(output_shape, axes, scales, padded_input_shape);
+        }
+        else
+        {
+            auto sizes = get_target_shape_vector(inputs, num_of_axes);
+            infer_using_shapes(output_shape, axes, sizes);
+        }
 
-    Shape out_shape = output_shape.to_shape();
+        Shape out_shape = output_shape.to_shape();
 
-    outputs[0]->set_element_type(inputs[0]->get_element_type());
-    outputs[0]->set_shape(out_shape);
+        outputs[0]->set_element_type(inputs[0]->get_element_type());
+        outputs[0]->set_shape(out_shape);
 
-    size_t bytes_in_padded_input = shape_size(padded_input_shape) * type_size;
+        size_t bytes_in_padded_input = shape_size(padded_input_shape) * type_size;
 
-    std::vector<uint8_t> padded_input_data(bytes_in_padded_input, 0);
+        std::vector<uint8_t> padded_input_data(bytes_in_padded_input, 0);
 
-    const uint8_t* data_ptr = inputs[0]->get_data_ptr<uint8_t>();
-    uint8_t* padded_data_ptr = padded_input_data.data();
+        const uint8_t* data_ptr = inputs[0]->get_data_ptr<uint8_t>();
+        uint8_t* padded_data_ptr = padded_input_data.data();
 
-    pad_input_data(
-        data_ptr, padded_data_ptr, type_size, input_shape, padded_input_shape, m_attrs.pads_begin);
+        pad_input_data(
+            data_ptr, padded_data_ptr, type_size, input_shape, padded_input_shape, m_attrs.pads_begin);
 
-    switch (input_et)
-    {
-    case element::Type_t::f32:
-        runtime::reference::interpolate<float>(reinterpret_cast<float*>(padded_data_ptr),
-                                               padded_input_shape,
-                                               scales,
-                                               axes,
-                                               outputs[0]->get_data_ptr<float>(),
-                                               out_shape,
-                                               m_attrs);
-        break;
-    case element::Type_t::f16:
-        runtime::reference::interpolate<float16>(reinterpret_cast<float16*>(padded_data_ptr),
-                                                 padded_input_shape,
-                                                 scales,
-                                                 axes,
-                                                 outputs[0]->get_data_ptr<float16>(),
-                                                 out_shape,
-                                                 m_attrs);
-        break;
-    case element::Type_t::i8:
-        runtime::reference::interpolate<int8_t>(reinterpret_cast<int8_t*>(padded_data_ptr),
+        switch (input_et)
+        {
+        NGRAPH_CASE(ngraph_op_v4_Interpolate_evaluate, f32,
+            runtime::reference::interpolate<float>(reinterpret_cast<float*>(padded_data_ptr),
                                                 padded_input_shape,
                                                 scales,
                                                 axes,
-                                                outputs[0]->get_data_ptr<int8_t>(),
+                                                outputs[0]->get_data_ptr<float>(),
                                                 out_shape,
                                                 m_attrs);
-        break;
-    default:;
-    }
+            break;
+        )
+        NGRAPH_CASE(ngraph_op_v4_Interpolate_evaluate, f16,
+            runtime::reference::interpolate<float16>(reinterpret_cast<float16*>(padded_data_ptr),
+                                                    padded_input_shape,
+                                                    scales,
+                                                    axes,
+                                                    outputs[0]->get_data_ptr<float16>(),
+                                                    out_shape,
+                                                    m_attrs);
+            break;
+        )
+        NGRAPH_CASE(ngraph_op_v4_Interpolate_evaluate, i8,
+            runtime::reference::interpolate<int8_t>(reinterpret_cast<int8_t*>(padded_data_ptr),
+                                                    padded_input_shape,
+                                                    scales,
+                                                    axes,
+                                                    outputs[0]->get_data_ptr<int8_t>(),
+                                                    out_shape,
+                                                    m_attrs);
+            break;
+        )
+        default:;
+        }
 
-    return true;
-#else
+        return true;
+    )
     return false;
-#endif
 }
 
 namespace ngraph

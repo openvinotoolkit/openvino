@@ -97,13 +97,13 @@ CNNNetworkImpl::CNNNetworkImpl(const ICNNNetwork & ngraphImpl) {
     ::ngraph::op::GenericIE::DisableReshape noReshape(graph);
 
     ::ngraph::pass::Manager manager;
-    manager.register_pass<::ngraph::pass::InitNodeInfo>();
+    REGISTER_PASS(manager, InitNodeInfo);
     // WA: ConvertPriorBox must be executed before the 1st ConstantFolding pass
-    manager.register_pass<::ngraph::pass::ConvertPriorBox>();
-    manager.register_pass<::ngraph::pass::CommonOptimizations>();
-    manager.register_pass<::ngraph::pass::ConvertOpSet3ToOpSet2>();
-    manager.register_pass<::ngraph::pass::ConvertOpSet2ToOpSet1>();
-    manager.register_pass<::ngraph::pass::ConvertOpSet1ToLegacy>();
+    REGISTER_PASS(manager, ConvertPriorBox);
+    REGISTER_PASS(manager, CommonOptimizations);
+    REGISTER_PASS(manager, ConvertOpSet3ToOpSet2);
+    REGISTER_PASS(manager, ConvertOpSet2ToOpSet1);
+    REGISTER_PASS(manager, ConvertOpSet1ToLegacy);
     manager.run_passes(graph);
 
     InferenceEngine::details::convertFunctionToICNNNetwork(graph, ngraphImpl, this, false);

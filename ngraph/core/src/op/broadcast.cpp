@@ -145,50 +145,49 @@ namespace
 
 void op::v3::Broadcast::validate_and_infer_types()
 {
-#if GraphGen(OV_GEN_NGRAPH_OP(Broadcast, v3, validate_and_infer_types))
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
-    if (m_mode.m_type == BroadcastType::NONE)
-    {
-        NODE_VALIDATION_CHECK(this,
-                              get_input_size() == 3,
-                              "axes_mapping input should be provided if explicit mode is used");
-    }
-    else
-    {
-        NODE_VALIDATION_CHECK(
-            this,
-            get_input_size() == 2,
-            "axes_mapping input should not be provided for mode other than explicit");
-    }
-
-    util::BroadcastBase::validate_and_infer_types();
-
-    auto result_shape = get_output_partial_shape(0);
-    if (m_mode.m_type == BroadcastType::BIDIRECTIONAL)
-    {
-        if (get_input_partial_shape(0).rank().is_static() && get_input_partial_shape(1).is_static())
+    NGRAPH_OP_SCOPE(v3_Broadcast_validate_and_infer_types,
+        if (m_mode.m_type == BroadcastType::NONE)
         {
-            auto arg_shape = get_input_partial_shape(0);
+            NODE_VALIDATION_CHECK(this,
+                                get_input_size() == 3,
+                                "axes_mapping input should be provided if explicit mode is used");
+        }
+        else
+        {
+            NODE_VALIDATION_CHECK(
+                this,
+                get_input_size() == 2,
+                "axes_mapping input should not be provided for mode other than explicit");
+        }
 
-            const auto shape_constant =
-                as_type_ptr<op::v0::Constant>(input_value(1).get_node_shared_ptr());
-            if (shape_constant)
+        util::BroadcastBase::validate_and_infer_types();
+
+        auto result_shape = get_output_partial_shape(0);
+        if (m_mode.m_type == BroadcastType::BIDIRECTIONAL)
+        {
+            if (get_input_partial_shape(0).rank().is_static() && get_input_partial_shape(1).is_static())
             {
-                auto target_shape = shape_constant->get_shape_val();
-                result_shape = get_result_shape_bidirectional(this, arg_shape, target_shape);
+                auto arg_shape = get_input_partial_shape(0);
+
+                const auto shape_constant =
+                    as_type_ptr<op::v0::Constant>(input_value(1).get_node_shared_ptr());
+                if (shape_constant)
+                {
+                    auto target_shape = shape_constant->get_shape_val();
+                    result_shape = get_result_shape_bidirectional(this, arg_shape, target_shape);
+                }
             }
         }
-    }
-    set_input_is_relevant_to_shape(0); // arg - Result element type
-    set_input_is_relevant_to_shape(1); // target_shape - Result shape
-    if (get_input_size() == 3)
-    {
-        set_input_is_relevant_to_shape(2); // axes_mapping - Broadcast type
-    }
-    set_output_type(0, get_input_element_type(0), result_shape);
-#else
+        set_input_is_relevant_to_shape(0); // arg - Result element type
+        set_input_is_relevant_to_shape(1); // target_shape - Result shape
+        if (get_input_size() == 3)
+        {
+            set_input_is_relevant_to_shape(2); // axes_mapping - Broadcast type
+        }
+        set_output_type(0, get_input_element_type(0), result_shape);
+        return;
+    )
     NODE_VALIDATION_CHECK(this, false, "Function is not included into the selective build.");
-#endif
 }
 
 shared_ptr<Node> op::v3::Broadcast::clone_with_new_inputs(const OutputVector& new_args) const
@@ -210,35 +209,31 @@ shared_ptr<Node> op::v3::Broadcast::clone_with_new_inputs(const OutputVector& ne
 
 bool op::v3::Broadcast::visit_attributes(AttributeVisitor& visitor)
 {
-#if GraphGen(OV_GEN_NGRAPH_OP(Broadcast, v3, visit_attributes))
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
-    visitor.on_attribute("broadcast_spec", m_mode);
-    return true;
-#else
+    NGRAPH_OP_SCOPE(v3_Broadcast_visit_attributes,
+        visitor.on_attribute("broadcast_spec", m_mode);
+        return true;
+    )
     return false;
-#endif
 }
 
 bool op::v3::Broadcast::evaluate(const HostTensorVector& outputs,
                                  const HostTensorVector& inputs) const
 {
-#if GraphGen(OV_GEN_NGRAPH_OP(Broadcast, v3, evaluate))
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
-    if (get_broadcast_spec().m_type == op::BroadcastType::BIDIRECTIONAL)
-    {
-        auto arg_shape = inputs[0]->get_shape();
-        Shape target_shape = op::util::BroadcastBase::get_target_shape(inputs[1]);
-        PartialShape result_shape =
-            get_result_shape_bidirectional(this, PartialShape{arg_shape}, target_shape);
-        auto pair_broadcast_axes =
-            get_broadcast_axes_bidirectional(arg_shape, result_shape.to_shape());
-        return op::util::BroadcastBase::evaluate_broadcast(
-            inputs[0], outputs[0], pair_broadcast_axes, result_shape.to_shape());
-    }
-    return op::util::BroadcastBase::evaluate(outputs, inputs);
-#else
+    NGRAPH_OP_SCOPE(v3_Broadcast_evaluate,
+        if (get_broadcast_spec().m_type == op::BroadcastType::BIDIRECTIONAL)
+        {
+            auto arg_shape = inputs[0]->get_shape();
+            Shape target_shape = op::util::BroadcastBase::get_target_shape(inputs[1]);
+            PartialShape result_shape =
+                get_result_shape_bidirectional(this, PartialShape{arg_shape}, target_shape);
+            auto pair_broadcast_axes =
+                get_broadcast_axes_bidirectional(arg_shape, result_shape.to_shape());
+            return op::util::BroadcastBase::evaluate_broadcast(
+                inputs[0], outputs[0], pair_broadcast_axes, result_shape.to_shape());
+        }
+        return op::util::BroadcastBase::evaluate(outputs, inputs);
+    )
     return false;
-#endif
 }
 
 namespace
@@ -284,16 +279,15 @@ op::v1::Broadcast::Broadcast(const Output<Node>& arg,
 
 void op::v1::Broadcast::validate_and_infer_types()
 {
-#if GraphGen(OV_GEN_NGRAPH_OP(Broadcast, v1, validate_and_infer_types))
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
-    util::BroadcastBase::validate_and_infer_types();
+    NGRAPH_OP_SCOPE(v1_Broadcast_validate_and_infer_types,
+        util::BroadcastBase::validate_and_infer_types();
 
-    set_input_is_relevant_to_shape(0); // arg - Result element type
-    set_input_is_relevant_to_shape(1); // target_shape - Result shape
-    set_input_is_relevant_to_shape(2); // axes_mapping - Broadcast type
-#else
+        set_input_is_relevant_to_shape(0); // arg - Result element type
+        set_input_is_relevant_to_shape(1); // target_shape - Result shape
+        set_input_is_relevant_to_shape(2); // axes_mapping - Broadcast type
+        return;
+    )
     NODE_VALIDATION_CHECK(this, false, "Function is not included into the selective build.");
-#endif
 }
 
 shared_ptr<Node> op::v1::Broadcast::clone_with_new_inputs(const OutputVector& new_args) const
@@ -305,24 +299,21 @@ shared_ptr<Node> op::v1::Broadcast::clone_with_new_inputs(const OutputVector& ne
 
 bool op::v1::Broadcast::visit_attributes(AttributeVisitor& visitor)
 {
-#if GraphGen(OV_GEN_NGRAPH_OP(Broadcast, v1, visit_attributes))
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
-    visitor.on_attribute("broadcast_spec", m_broadcast_spec);
-    return true;
-#else
+    NGRAPH_OP_SCOPE(v1_Broadcast_visit_attributes,
+        visitor.on_attribute("broadcast_spec", m_broadcast_spec);
+        return true;
+    )
     return false;
-#endif
 }
 
 bool op::v1::Broadcast::evaluate(const HostTensorVector& outputs,
                                  const HostTensorVector& inputs) const
 {
-#if GraphGen(OV_GEN_NGRAPH_OP(Broadcast, v1, evaluate))
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
-    return op::util::BroadcastBase::evaluate(outputs, inputs);
-#else
-    return false;
-#endif
+    bool rc = false;
+    NGRAPH_OP_SCOPE(v1_Broadcast_evaluate,
+        rc = op::util::BroadcastBase::evaluate(outputs, inputs);
+    )
+    return rc;
 }
 
 constexpr NodeTypeInfo op::v0::Broadcast::type_info;
@@ -346,63 +337,59 @@ op::v0::Broadcast::Broadcast(const Output<Node>& arg,
 
 bool op::v0::Broadcast::visit_attributes(AttributeVisitor& visitor)
 {
-#if GraphGen(OV_GEN_NGRAPH_OP(Broadcast, v0, visit_attributes))
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
-    visitor.on_attribute("shape", m_shape);
-    visitor.on_attribute("broadcast_axes", m_broadcast_axes);
-    return true;
-#else
+    NGRAPH_OP_SCOPE(v0_Broadcast_visit_attributes,
+        visitor.on_attribute("shape", m_shape);
+        visitor.on_attribute("broadcast_axes", m_broadcast_axes);
+        return true;
+    )
     return false;
-#endif
 }
 
 void op::v0::Broadcast::validate_and_infer_types()
 {
-#if GraphGen(OV_GEN_NGRAPH_OP(Broadcast, v0, validate_and_infer_types))
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
+    NGRAPH_OP_SCOPE(v0_Broadcast_validate_and_infer_types,
+        infer_shape();
 
-    infer_shape();
+        for (auto axis : m_broadcast_axes)
+        {
+            NODE_VALIDATION_CHECK(this,
+                                axis < m_shape.size(),
+                                "Broadcast axis index (",
+                                axis,
+                                ") exceeds specified output shape rank ",
+                                "(broadcast axes: ",
+                                m_broadcast_axes,
+                                ", output shape: ",
+                                m_shape,
+                                ").");
+        }
 
-    for (auto axis : m_broadcast_axes)
-    {
-        NODE_VALIDATION_CHECK(this,
-                              axis < m_shape.size(),
-                              "Broadcast axis index (",
-                              axis,
-                              ") exceeds specified output shape rank ",
-                              "(broadcast axes: ",
-                              m_broadcast_axes,
-                              ", output shape: ",
-                              m_shape,
-                              ").");
-    }
+        Shape required_input_shape = m_shape;
+        for (auto i = m_broadcast_axes.rbegin(); i != m_broadcast_axes.rend(); ++i)
+        {
+            required_input_shape.erase(required_input_shape.begin() + *i);
+        }
 
-    Shape required_input_shape = m_shape;
-    for (auto i = m_broadcast_axes.rbegin(); i != m_broadcast_axes.rend(); ++i)
-    {
-        required_input_shape.erase(required_input_shape.begin() + *i);
-    }
+        // TODO(amprocte): We can probably have a more helpful error message here.
+        // There are two things that can go wrong, which are being picked up in
+        // one fell swoop by this check: either the number of broadcast axes is not
+        // enough, or there is a mismatch with one of the pre-broadcast axis lengths.
+        NODE_VALIDATION_CHECK(
+            this,
+            get_input_partial_shape(0).compatible(required_input_shape),
+            "Broadcast argument shape, specified output shape, and axes are incompatible ",
+            "(argument shape: ",
+            get_input_partial_shape(0),
+            ", output shape: ",
+            m_shape,
+            ", broadcast axes: ",
+            m_broadcast_axes,
+            ").");
 
-    // TODO(amprocte): We can probably have a more helpful error message here.
-    // There are two things that can go wrong, which are being picked up in
-    // one fell swoop by this check: either the number of broadcast axes is not
-    // enough, or there is a mismatch with one of the pre-broadcast axis lengths.
-    NODE_VALIDATION_CHECK(
-        this,
-        get_input_partial_shape(0).compatible(required_input_shape),
-        "Broadcast argument shape, specified output shape, and axes are incompatible ",
-        "(argument shape: ",
-        get_input_partial_shape(0),
-        ", output shape: ",
-        m_shape,
-        ", broadcast axes: ",
-        m_broadcast_axes,
-        ").");
-
-    set_output_type(0, get_input_element_type(0), m_shape);
-#else
+        set_output_type(0, get_input_element_type(0), m_shape);
+        return;
+    )
     NODE_VALIDATION_CHECK(this, false, "Function is not included into the selective build.");
-#endif
 }
 
 shared_ptr<Node> op::v0::Broadcast::clone_with_new_inputs(const OutputVector& new_args) const
@@ -413,9 +400,24 @@ shared_ptr<Node> op::v0::Broadcast::clone_with_new_inputs(const OutputVector& ne
 
 namespace
 {
-#define TYPE_CASE_v0(a)                                                                            \
-    case element::Type_t::a: rc = evaluate_v0<element::Type_t::a>
+#define TYPE_CASE_v0(a) rc = evaluate_v0<element::Type_t::a>
 
+#if defined(OV_SELECTIVE_BUILD_LOG) || defined(ENABLE_PROFILING_ITT)
+#define NGRAPH_TYPE_CASE_V0(NAME, TYPE, ...)                                                       \
+    case element::Type_t::TYPE: {                                                                  \
+        OV_ITT_SCOPED_TASK(NGRAPH_DOMAIN, std::string(OV_TOSTRING(NAME ## _ ## TYPE)));            \
+        TYPE_CASE_v0(TYPE)(__VA_ARGS__);                                                           \
+        break;                                                                                     \
+    }
+#else
+#define NGRAPH_TYPE_CASE_V0(NAME, TYPE, ...)                                                       \
+    OV_SCOPE(OV_CAT(OV_CAT(NAME, _), TYPE),                                                        \
+        case element::Type_t::TYPE: {                                                              \
+            TYPE_CASE_v0(TYPE)(__VA_ARGS__);                                                       \
+            break;                                                                                 \
+        }                                                                                          \
+    )
+#endif
     template <element::Type_t ET>
     inline bool evaluate_v0(const HostTensorPtr& arg0,
                             const HostTensorPtr& out,
@@ -439,34 +441,21 @@ namespace
         Shape in_shape = arg0->get_shape();
         out->set_shape(output_shape);
         out->set_element_type(arg0->get_element_type());
-        switch (arg0->get_element_type())
+        switch(arg0->get_element_type())
         {
-            TYPE_CASE_v0(boolean)(arg0, out, broadcast_axes);
-            break;
-            TYPE_CASE_v0(i8)(arg0, out, broadcast_axes);
-            break;
-            TYPE_CASE_v0(i16)(arg0, out, broadcast_axes);
-            break;
-            TYPE_CASE_v0(i32)(arg0, out, broadcast_axes);
-            break;
-            TYPE_CASE_v0(i64)(arg0, out, broadcast_axes);
-            break;
-            TYPE_CASE_v0(u8)(arg0, out, broadcast_axes);
-            break;
-            TYPE_CASE_v0(u16)(arg0, out, broadcast_axes);
-            break;
-            TYPE_CASE_v0(u32)(arg0, out, broadcast_axes);
-            break;
-            TYPE_CASE_v0(u64)(arg0, out, broadcast_axes);
-            break;
-            TYPE_CASE_v0(bf16)(arg0, out, broadcast_axes);
-            break;
-            TYPE_CASE_v0(f16)(arg0, out, broadcast_axes);
-            break;
-            TYPE_CASE_v0(f32)(arg0, out, broadcast_axes);
-            break;
-            TYPE_CASE_v0(f64)(arg0, out, broadcast_axes);
-            break;
+            NGRAPH_TYPE_CASE_V0(evaluate_broadcast_v0, boolean, arg0, out, broadcast_axes)
+            NGRAPH_TYPE_CASE_V0(evaluate_broadcast_v0, i8, arg0, out, broadcast_axes)
+            NGRAPH_TYPE_CASE_V0(evaluate_broadcast_v0, i16, arg0, out, broadcast_axes)
+            NGRAPH_TYPE_CASE_V0(evaluate_broadcast_v0, i32, arg0, out, broadcast_axes)
+            NGRAPH_TYPE_CASE_V0(evaluate_broadcast_v0, i64, arg0, out, broadcast_axes)
+            NGRAPH_TYPE_CASE_V0(evaluate_broadcast_v0, u8, arg0, out, broadcast_axes)
+            NGRAPH_TYPE_CASE_V0(evaluate_broadcast_v0, u16, arg0, out, broadcast_axes)
+            NGRAPH_TYPE_CASE_V0(evaluate_broadcast_v0, u32, arg0, out, broadcast_axes)
+            NGRAPH_TYPE_CASE_V0(evaluate_broadcast_v0, u64, arg0, out, broadcast_axes)
+            NGRAPH_TYPE_CASE_V0(evaluate_broadcast_v0, bf16, arg0, out, broadcast_axes)
+            NGRAPH_TYPE_CASE_V0(evaluate_broadcast_v0, f16, arg0, out, broadcast_axes)
+            NGRAPH_TYPE_CASE_V0(evaluate_broadcast_v0, f32, arg0, out, broadcast_axes)
+            NGRAPH_TYPE_CASE_V0(evaluate_broadcast_v0, f64, arg0, out, broadcast_axes)
         default: rc = false; break;
         }
         return rc;
@@ -476,12 +465,10 @@ namespace
 bool op::v0::Broadcast::evaluate(const HostTensorVector& outputs,
                                  const HostTensorVector& inputs) const
 {
-#if GraphGen(OV_GEN_NGRAPH_OP(Broadcast, v0, evaluate))
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
-    return evaluate_broadcast_v0(inputs[0], outputs[0], get_broadcast_axes(), get_output_shape(0));
-#else
+    NGRAPH_OP_SCOPE(v0_Broadcast_evaluate,
+        return evaluate_broadcast_v0(inputs[0], outputs[0], get_broadcast_axes(), get_output_shape(0));
+    )
     return false;
-#endif
 }
 
 constexpr NodeTypeInfo op::v0::BroadcastLike::type_info;
@@ -497,15 +484,13 @@ op::v0::BroadcastLike::BroadcastLike(const Output<Node>& arg,
 
 bool op::v0::BroadcastLike::visit_attributes(AttributeVisitor& visitor)
 {
-#if GraphGen(OV_GEN_NGRAPH_OP(BroadcastLike, v0, visit_attributes))
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
-    visitor.on_attribute("shape", m_shape);
-    visitor.on_attribute("broadcast_axes", m_broadcast_axes);
-    visitor.on_attribute("initial_broadcast_axes", m_initial_broadcast_axes);
-    return true;
-#else
+    NGRAPH_OP_SCOPE(v0_BroadcastLike_visit_attributes,
+        visitor.on_attribute("shape", m_shape);
+        visitor.on_attribute("broadcast_axes", m_broadcast_axes);
+        visitor.on_attribute("initial_broadcast_axes", m_initial_broadcast_axes);
+        return true;
+    )
     return false;
-#endif
 }
 
 shared_ptr<Node> op::v0::BroadcastLike::clone_with_new_inputs(const OutputVector& new_args) const

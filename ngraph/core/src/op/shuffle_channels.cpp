@@ -38,14 +38,12 @@ op::ShuffleChannels::ShuffleChannels(const Output<Node>& data,
 
 bool ngraph::op::v0::ShuffleChannels::visit_attributes(AttributeVisitor& visitor)
 {
-#if GraphGen(OV_GEN_NGRAPH_OP(ShuffleChannels, v0, visit_attributes))
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
-    visitor.on_attribute("axis", m_axis);
-    visitor.on_attribute("group", m_group);
-    return true;
-#else
+    NGRAPH_OP_SCOPE(v0_ShuffleChannels_visit_attributes,
+        visitor.on_attribute("axis", m_axis);
+        visitor.on_attribute("group", m_group);
+        return true;
+    )
     return false;
-#endif
 }
 
 size_t op::ShuffleChannels::get_zero_based_axis() const
@@ -69,49 +67,46 @@ size_t op::ShuffleChannels::get_zero_based_axis() const
 
 void op::ShuffleChannels::pre_validate_and_infer_types()
 {
-#if GraphGen(OV_GEN_NGRAPH_OP(ShuffleChannels, v0, pre_validate_and_infer_types))
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
-    if (get_input_partial_shape(0).is_static())
-    {
-        const auto shape = get_input_shape(0);
+    NGRAPH_OP_SCOPE(v0_ShuffleChannels_pre_validate_and_infer_types,
+        if (get_input_partial_shape(0).is_static())
+        {
+            const auto shape = get_input_shape(0);
 
-        NODE_VALIDATION_CHECK(
-            this, shape.size() >= 1, "The input tensor's shape is expected to be at least 1D.");
-        size_t axis_zb = get_zero_based_axis();
+            NODE_VALIDATION_CHECK(
+                this, shape.size() >= 1, "The input tensor's shape is expected to be at least 1D.");
+            size_t axis_zb = get_zero_based_axis();
 
-        NODE_VALIDATION_CHECK(this,
-                              axis_zb < shape.size(),
-                              "The 'axis' parameter for ShuffleChannels has to point to one of the "
-                              "input tensor's shape dimensions.");
+            NODE_VALIDATION_CHECK(this,
+                                axis_zb < shape.size(),
+                                "The 'axis' parameter for ShuffleChannels has to point to one of the "
+                                "input tensor's shape dimensions.");
 
-        NODE_VALIDATION_CHECK(
-            this, m_group >= 1, "The 'group' parameter must be greater or equal to 1.");
+            NODE_VALIDATION_CHECK(
+                this, m_group >= 1, "The 'group' parameter must be greater or equal to 1.");
 
-        const auto channel_dim_size = shape.at(axis_zb);
-        NODE_VALIDATION_CHECK(
-            this,
-            channel_dim_size % m_group == 0,
-            "The channel dimension size has to be a multiple of the groups parameter value.");
-    }
-#else
+            const auto channel_dim_size = shape.at(axis_zb);
+            NODE_VALIDATION_CHECK(
+                this,
+                channel_dim_size % m_group == 0,
+                "The channel dimension size has to be a multiple of the groups parameter value.");
+        }
+        return;
+    )
     NODE_VALIDATION_CHECK(this, false, "Function is not included into the selective build.");
-#endif
 }
 
 OutputVector op::ShuffleChannels::decompose_op() const
 {
-#if GraphGen(OV_GEN_NGRAPH_OP(ShuffleChannels, v0, decompose_op))
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
-    const auto data = input_value(0);
-    const auto& data_shape = data.get_shape();
+    NGRAPH_OP_SCOPE(v0_ShuffleChannels_decompose_op,
+        const auto data = input_value(0);
+        const auto& data_shape = data.get_shape();
 
-    const auto reshaped = builder::opset1::reshape(data, get_pre_shuffle_shape(data_shape));
-    const auto shuffled = builder::opset1::reorder_axes(reshaped, {0, 2, 1, 3});
+        const auto reshaped = builder::opset1::reshape(data, get_pre_shuffle_shape(data_shape));
+        const auto shuffled = builder::opset1::reorder_axes(reshaped, {0, 2, 1, 3});
 
-    return {builder::opset1::reshape(shuffled, data_shape)};
-#else
+        return {builder::opset1::reshape(shuffled, data_shape)};
+    )
     NODE_VALIDATION_CHECK(this, false, "Function is not included into the selective build.");
-#endif
 }
 
 shared_ptr<Node> op::ShuffleChannels::clone_with_new_inputs(const OutputVector& new_args) const

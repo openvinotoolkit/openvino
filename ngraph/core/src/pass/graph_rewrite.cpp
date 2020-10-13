@@ -69,8 +69,6 @@ NGRAPH_RTTI_DEFINITION(ngraph::pass::MatcherPass, "ngraph::pass::MatcherPass", 0
 
 bool pass::GraphRewrite::run_on_function(shared_ptr<Function> f)
 {
-    OV_ITT_SCOPED_TASK(itt::domains::nGraph);
-
     bool rewritten = false;
 
     // Initialize execution queue with nodes in topological order
@@ -247,6 +245,7 @@ void pass::GraphRewrite::add_matcher(const shared_ptr<pattern::Matcher>& m,
             if (m->match(node->output(0)))
             {
                 NGRAPH_DEBUG << "Matcher " << m->get_name() << " matched " << node;
+                NGRAPH_PASS_CALLBACK(m);
                 bool status = callback(*m.get());
                 // explicitly clear Matcher state because it holds pointers to matched nodes
                 m->clear_state();
@@ -355,6 +354,7 @@ void ngraph::pass::MatcherPass::register_matcher(const std::shared_ptr<ngraph::p
         if (m->match(node->output(0)))
         {
             NGRAPH_DEBUG << "Matcher " << m->get_name() << " matched " << node;
+            NGRAPH_PASS_CALLBACK(m);
             bool status = callback(*m.get());
             // explicitly clear Matcher state because it holds pointers to matched nodes
             m->clear_state();
@@ -363,11 +363,15 @@ void ngraph::pass::MatcherPass::register_matcher(const std::shared_ptr<ngraph::p
         m->clear_state();
         return false;
     };
+
 }
 
 bool ngraph::pass::MatcherPass::apply(std::shared_ptr<ngraph::Node> node)
 {
     OV_ITT_SCOPED_TASK(itt::domains::nGraph);
     m_new_nodes.clear();
-    return m_handler(node);
+    if (m_handler)
+        return m_handler(node);
+    NGRAPH_CHECK(false, "nGraph pass handler " + this->get_name() + " is not set! "
+        "Make sure that pass is included into the selective build.");
 }

@@ -15,34 +15,33 @@
 NGRAPH_RTTI_DEFINITION(ngraph::pass::MishFusion, "MishFusion", 0);
 
 ngraph::pass::MishFusion::MishFusion() {
-    auto input = ngraph::pattern::any_input();
-    auto exp = std::make_shared<ngraph::opset4::Exp>(input);
-    auto add = std::make_shared<ngraph::opset4::Add>(exp, ngraph::pattern::wrap_type<ngraph::opset4::Constant>());
-    auto log = std::make_shared<ngraph::opset4::Log>(add);
-    auto tanh = std::make_shared<ngraph::opset4::Tanh>(log);
-    auto mul = std::make_shared<ngraph::opset4::Multiply>(input, tanh);
-#if GraphGen(OV_GEN_NGRAPH_PASS(MishFusion, callback))
-    ngraph::graph_rewrite_callback matcher_pass_callback = [=](ngraph::pattern::Matcher& m) {
-        OV_ITT_IE_TRANSFORM_CALLBACK(m, "callback")
-        auto & pattern_to_output = m.get_pattern_value_map();
-        auto exp_input = pattern_to_output.at(input);
+    IETRANSFORM_SCOPE(MishFusion,
+        auto input = ngraph::pattern::any_input();
+        auto exp = std::make_shared<ngraph::opset4::Exp>(input);
+        auto add = std::make_shared<ngraph::opset4::Add>(exp, ngraph::pattern::wrap_type<ngraph::opset4::Constant>());
+        auto log = std::make_shared<ngraph::opset4::Log>(add);
+        auto tanh = std::make_shared<ngraph::opset4::Tanh>(log);
+        auto mul = std::make_shared<ngraph::opset4::Multiply>(input, tanh);
 
-        auto mish = std::make_shared<ngraph::opset4::Mish>(exp_input);
+        ngraph::graph_rewrite_callback matcher_pass_callback = [=](ngraph::pattern::Matcher& m) {
+            auto & pattern_to_output = m.get_pattern_value_map();
+            auto exp_input = pattern_to_output.at(input);
 
-        mish->set_friendly_name(m.get_match_root()->get_friendly_name());
-        ngraph::copy_runtime_info({pattern_to_output.at(mul).get_node_shared_ptr(),
-                                   pattern_to_output.at(tanh).get_node_shared_ptr(),
-                                   pattern_to_output.at(log).get_node_shared_ptr(),
-                                   pattern_to_output.at(add).get_node_shared_ptr(),
-                                   pattern_to_output.at(exp).get_node_shared_ptr()}, mish);
-        ngraph::replace_node(m.get_match_root(), mish);
-        return true;
-    };
-#else
-    ngraph::graph_rewrite_callback matcher_pass_callback = [](ngraph::pattern::Matcher & m) -> bool {
-        return false;
-    };
-#endif
-    auto m = std::make_shared<ngraph::pattern::Matcher>(mul, "MishFusion");
-    register_matcher(m, matcher_pass_callback);
+            auto mish = std::make_shared<ngraph::opset4::Mish>(exp_input);
+
+            mish->set_friendly_name(m.get_match_root()->get_friendly_name());
+            ngraph::copy_runtime_info({pattern_to_output.at(mul).get_node_shared_ptr(),
+                                    pattern_to_output.at(tanh).get_node_shared_ptr(),
+                                    pattern_to_output.at(log).get_node_shared_ptr(),
+                                    pattern_to_output.at(add).get_node_shared_ptr(),
+                                    pattern_to_output.at(exp).get_node_shared_ptr()}, mish);
+            ngraph::replace_node(m.get_match_root(), mish);
+            return true;
+        };
+
+        auto m = std::make_shared<ngraph::pattern::Matcher>(mul, matcher_name);
+        register_matcher(m, matcher_pass_callback);
+        return;
+    )
+    NGRAPH_CHECK(false, "nGraph pass is not included into the selective build.");
 }

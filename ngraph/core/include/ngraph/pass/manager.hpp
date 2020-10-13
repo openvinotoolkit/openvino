@@ -24,6 +24,12 @@
 #include "ngraph/pass/pass.hpp"
 #include "ngraph/pass/pass_config.hpp"
 #include "ngraph/pass/validate.hpp"
+#if defined(OV_SELECTIVE_BUILD) || defined(OV_SELECTIVE_BUILD_LOG) || defined(ENABLE_PROFILING_ITT)
+#include "itt.hpp"
+#endif
+#if defined(OV_SELECTIVE_BUILD)
+#include "ov_gen.hpp"
+#endif
 
 namespace ngraph
 {
@@ -33,11 +39,31 @@ namespace ngraph
     }
 }
 
+#if defined(OV_SELECTIVE_BUILD)
+#define REGISTER_PASS(MANAGER, Impl, ...)                                                          \
+     MANAGER.OV_EXPAND(OV_CAT(register_pass_impl_,                                                 \
+        OV_SCOPE_IS_ENABLED(OV_CAT(REGISTER_PASS_, Impl)))<ngraph::pass::Impl>(__VA_ARGS__))
+#else
+#define REGISTER_PASS(MANAGER, Impl, ...) MANAGER.register_pass_impl_1<ngraph::pass::Impl>(__VA_ARGS__)
+#endif
+
+
 class NGRAPH_API ngraph::pass::Manager
 {
 public:
     Manager();
     ~Manager();
+
+#if defined(OV_SELECTIVE_BUILD)
+    template <typename T, class... Args>
+    std::shared_ptr<T> register_pass_impl_0(Args&&... args) {
+        return std::shared_ptr<T>(nullptr);
+    }
+#endif
+    template <typename T, class... Args>
+    std::shared_ptr<T> register_pass_impl_1(Args&&... args) {
+        return register_pass<T>(args...);
+    }
 
     template <typename T, class... Args>
     std::shared_ptr<T> register_pass(Args&&... args)

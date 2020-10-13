@@ -14,74 +14,73 @@
 NGRAPH_RTTI_DEFINITION(ngraph::pass::BatchNormDecomposition, "BatchNormDecomposition", 0);
 
 ngraph::pass::BatchNormDecomposition::BatchNormDecomposition() {
-    Shape shape{2, 2, 1, 1};
-    auto input = make_shared<pattern::op::Label>(element::f32, shape);
-    auto mean_shape = Shape{2};
-    auto mean = make_shared<pattern::op::Label>(element::f32, mean_shape);
-    auto var_shape = Shape{2};
-    auto var = make_shared<pattern::op::Label>(element::f32, var_shape);
-    auto gamma_shape = Shape{2};
-    auto gamma = make_shared<pattern::op::Label>(element::f32, gamma_shape);
-    auto beta_shape = Shape{2};
-    auto beta = make_shared<pattern::op::Label>(element::f32, beta_shape);
-    auto bn = make_shared<opset1::BatchNormInference>(input, gamma, beta, mean, var, 0.001);
-#if GraphGen(OV_GEN_NGRAPH_PASS(BatchNormDecomposition, callback))
-    ngraph::graph_rewrite_callback callback = [this, input, gamma, beta, mean, var](ngraph::pattern::Matcher &m) {
-        OV_ITT_IE_TRANSFORM_CALLBACK(m, "callback")
-        auto pattern_map = m.get_pattern_map();
+    IETRANSFORM_SCOPE(BatchNormDecomposition,
+        Shape shape{2, 2, 1, 1};
+        auto input = make_shared<pattern::op::Label>(element::f32, shape);
+        auto mean_shape = Shape{2};
+        auto mean = make_shared<pattern::op::Label>(element::f32, mean_shape);
+        auto var_shape = Shape{2};
+        auto var = make_shared<pattern::op::Label>(element::f32, var_shape);
+        auto gamma_shape = Shape{2};
+        auto gamma = make_shared<pattern::op::Label>(element::f32, gamma_shape);
+        auto beta_shape = Shape{2};
+        auto beta = make_shared<pattern::op::Label>(element::f32, beta_shape);
+        auto bn = make_shared<opset1::BatchNormInference>(input, gamma, beta, mean, var, 0.001);
 
-        auto m_input = pattern_map[input];
-        auto m_gamma = pattern_map[gamma];
-        auto m_beta = pattern_map[beta];
-        auto m_mean = pattern_map[mean];
-        auto m_var = pattern_map[var];
+        ngraph::graph_rewrite_callback callback = [this, input, gamma, beta, mean, var](ngraph::pattern::Matcher &m) {
+            auto pattern_map = m.get_pattern_map();
 
-        // TODO: check that all input shapes are static
+            auto m_input = pattern_map[input];
+            auto m_gamma = pattern_map[gamma];
+            auto m_beta = pattern_map[beta];
+            auto m_mean = pattern_map[mean];
+            auto m_var = pattern_map[var];
 
-        auto m_bn = dynamic_pointer_cast<opset1::BatchNormInference>(m.get_match_root());
-        if (!m_bn) {
-            return false;
-        }
+            // TODO: check that all input shapes are static
 
-        const auto& input_type = m_input->get_element_type();
-        // scale_add = variance + eps
-        auto scale_add = make_shared<opset1::Add>(m_var, opset1::Constant::create(input_type, Shape{}, {m_bn->get_eps_value()}));
-        // scale = sqrt(variance + eps)
-        auto scale = make_shared<opset1::Sqrt>(scale_add);
-        // Divide `gamma` by `sqrt(variance + eps)`
-        auto gamma_div_scale = std::make_shared<opset1::Divide>(m_gamma, scale);
+            auto m_bn = dynamic_pointer_cast<opset1::BatchNormInference>(m.get_match_root());
+            if (!m_bn) {
+                return false;
+            }
 
-        size_t dims_to_add = m_input->get_shape().size() - 2;
-        Shape input_aligned_shape = m_gamma->get_shape();
-        for (size_t i = 0; i < dims_to_add; ++i)
-            input_aligned_shape.push_back(1);
-        auto new_shape = opset1::Constant::create(element::i64, Shape{input_aligned_shape.size()}, input_aligned_shape);
+            const auto& input_type = m_input->get_element_type();
+            // scale_add = variance + eps
+            auto scale_add = make_shared<opset1::Add>(m_var, opset1::Constant::create(input_type, Shape{}, {m_bn->get_eps_value()}));
+            // scale = sqrt(variance + eps)
+            auto scale = make_shared<opset1::Sqrt>(scale_add);
+            // Divide `gamma` by `sqrt(variance + eps)`
+            auto gamma_div_scale = std::make_shared<opset1::Divide>(m_gamma, scale);
 
-        auto gamma_div_scale_aligned = make_shared<opset1::Reshape>(gamma_div_scale, new_shape, true);
-        auto beta_aligned = make_shared<opset1::Reshape>(m_beta, new_shape, true);
-        auto mean_aligned = make_shared<opset1::Reshape>(m_mean, new_shape, true);
+            size_t dims_to_add = m_input->get_shape().size() - 2;
+            Shape input_aligned_shape = m_gamma->get_shape();
+            for (size_t i = 0; i < dims_to_add; ++i)
+                input_aligned_shape.push_back(1);
+            auto new_shape = opset1::Constant::create(element::i64, Shape{input_aligned_shape.size()}, input_aligned_shape);
 
-        // input_sub_mean = input - mean
-        auto input_sub_mean = register_new_node<opset1::Subtract>(m_input, mean_aligned);
-        // Multiply  `input - mean` and `gamma / sqrt(variance + eps)`
-        auto mul = std::make_shared<opset1::Multiply>(input_sub_mean, gamma_div_scale_aligned);
-        // Add `(input - mean) * gamma / sqrt(variance + eps)` and `beta`
-        auto add = std::make_shared<opset1::Add>(mul, beta_aligned);
+            auto gamma_div_scale_aligned = make_shared<opset1::Reshape>(gamma_div_scale, new_shape, true);
+            auto beta_aligned = make_shared<opset1::Reshape>(m_beta, new_shape, true);
+            auto mean_aligned = make_shared<opset1::Reshape>(m_mean, new_shape, true);
 
-        add->set_friendly_name(m_bn->get_friendly_name());
+            // input_sub_mean = input - mean
+            auto input_sub_mean = register_new_node<opset1::Subtract>(m_input, mean_aligned);
+            // Multiply  `input - mean` and `gamma / sqrt(variance + eps)`
+            auto mul = std::make_shared<opset1::Multiply>(input_sub_mean, gamma_div_scale_aligned);
+            // Add `(input - mean) * gamma / sqrt(variance + eps)` and `beta`
+            auto add = std::make_shared<opset1::Add>(mul, beta_aligned);
 
-        copy_runtime_info(m_bn, {scale_add, scale, gamma_div_scale, gamma_div_scale_aligned,
-                                 beta_aligned, input_sub_mean, mul, add});
+            add->set_friendly_name(m_bn->get_friendly_name());
 
-        replace_node(m_bn, add);
+            copy_runtime_info(m_bn, {scale_add, scale, gamma_div_scale, gamma_div_scale_aligned,
+                                    beta_aligned, input_sub_mean, mul, add});
 
-        return true;
-    };
-#else
-    ngraph::graph_rewrite_callback callback = [](ngraph::pattern::Matcher & m) -> bool {
-        return false;
-    };
-#endif
-    auto m = std::make_shared<ngraph::pattern::Matcher>(bn, "BatchNormDecomposition");
-    this->register_matcher(m, callback);
+            replace_node(m_bn, add);
+
+            return true;
+        };
+
+        auto m = std::make_shared<ngraph::pattern::Matcher>(bn, matcher_name);
+        this->register_matcher(m, callback);
+        return;
+    )
+    NGRAPH_CHECK(false, "nGraph pass is not included into the selective build.");
 }

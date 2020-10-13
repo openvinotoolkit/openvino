@@ -3,6 +3,7 @@
 //
 
 #include "ngraph_ops/fully_connected.hpp"
+#include "itt.hpp"
 
 #include <memory>
 #include <numeric>
@@ -23,8 +24,12 @@ shared_ptr<Node> op::FullyConnected::clone_with_new_inputs(const OutputVector& n
 }
 
 void op::FullyConnected::validate_and_infer_types() {
-    if (m_output_shape.size() < 2)
-        throw ngraph_error("FullyConnected shape is incorrect");
-    m_output_size = m_output_shape.back();
-    set_output_type(0, input_value(0).get_element_type(), m_output_shape);
+    NGRAPH_OP_SCOPE(FullyConnected_validate_and_infer_types,
+        if (m_output_shape.size() < 2)
+            throw ngraph_error("FullyConnected shape is incorrect");
+        m_output_size = m_output_shape.back();
+        set_output_type(0, input_value(0).get_element_type(), m_output_shape);
+        return;
+    )
+    NODE_VALIDATION_CHECK(this, false, "Function is not included into the selective build.");
 }

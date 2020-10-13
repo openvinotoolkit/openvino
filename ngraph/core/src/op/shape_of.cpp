@@ -41,27 +41,24 @@ op::v3::ShapeOf::ShapeOf(const Output<Node>& arg, element::Type output_type)
 
 void op::v3::ShapeOf::validate_and_infer_types()
 {
-#if GraphGen(OV_GEN_NGRAPH_OP(ShapeOf, v3, validate_and_infer_types))
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
-    NODE_VALIDATION_CHECK(this,
+    NGRAPH_OP_SCOPE(v3_ShapeOf_validate_and_infer_types,
+        NODE_VALIDATION_CHECK(this,
                           m_output_type == element::i64 || m_output_type == element::i32,
                           "Output type must be i32 or i64");
-    set_input_is_relevant_to_value(0, false);
-    set_output_type(0, m_output_type, PartialShape{get_input_partial_shape(0).rank()});
-#else
+        set_input_is_relevant_to_value(0, false);
+        set_output_type(0, m_output_type, PartialShape{get_input_partial_shape(0).rank()});
+        return;
+    )
     NODE_VALIDATION_CHECK(this, false, "Function is not included into the selective build.");
-#endif
 }
 
 bool ngraph::op::v3::ShapeOf::visit_attributes(AttributeVisitor& visitor)
 {
-#if GraphGen(OV_GEN_NGRAPH_OP(ShapeOf, v3, visit_attributes))
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
-    visitor.on_attribute("output_type", m_output_type);
-    return true;
-#else
+    NGRAPH_OP_SCOPE(v3_ShapeOf_visit_attributes,
+        visitor.on_attribute("output_type", m_output_type);
+        return true;
+    )
     return false;
-#endif
 }
 
 shared_ptr<Node> op::v3::ShapeOf::clone_with_new_inputs(const OutputVector& new_args) const
@@ -88,14 +85,10 @@ namespace
         output_value->set_shape(Shape{shape.size()});
         switch (output_value->get_element_type())
         {
-            TYPE_CASE(i32)(shape, output_value);
-            break;
-            TYPE_CASE(i64)(shape, output_value);
-            break;
-            TYPE_CASE(u32)(shape, output_value);
-            break;
-            TYPE_CASE(u64)(shape, output_value);
-            break;
+            NGRAPH_TYPE_CASE(evaluate_shape_of, i32, shape, output_value)
+            NGRAPH_TYPE_CASE(evaluate_shape_of, i64, shape, output_value)
+            NGRAPH_TYPE_CASE(evaluate_shape_of, u32, shape, output_value)
+            NGRAPH_TYPE_CASE(evaluate_shape_of, u64, shape, output_value)
         default: rc = false; break;
         }
         return rc;
@@ -169,22 +162,20 @@ namespace
 bool op::v3::ShapeOf::evaluate(const HostTensorVector& output_values,
                                const HostTensorVector& input_values) const
 {
-#if GraphGen(OV_GEN_NGRAPH_OP(ShapeOf, v3, evaluate))
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
-    return evaluate_shape_of(output_values[0], input_values[0]);
-#else
-    return false;
-#endif
+    bool rc = false;
+    NGRAPH_OP_SCOPE(v3_ShapeOf_evaluate,
+        rc = evaluate_shape_of(output_values[0], input_values[0]);
+    )
+    return rc;
 }
 
 bool op::v3::ShapeOf::constant_fold(OutputVector& output_values, const OutputVector& input_values)
 {
-#if GraphGen(OV_GEN_NGRAPH_OP(ShapeOf, v3, constant_fold))
-    OV_ITT_SCOPED_TASK(itt::domains::nGraph);
-    return constant_fold_shape_of(this, output_values[0], input_values[0], m_is_foldable);
-#else
-    return false;
-#endif
+    bool rc = false;
+    NGRAPH_OP_SCOPE(v3_ShapeOf_constant_fold,
+        rc = constant_fold_shape_of(this, output_values[0], input_values[0], m_is_foldable);
+    )
+    return rc;
 }
 
 // op::v0::ShapeOf
@@ -198,13 +189,12 @@ op::v0::ShapeOf::ShapeOf(const Output<Node>& arg)
 
 void op::v0::ShapeOf::validate_and_infer_types()
 {
-#if GraphGen(OV_GEN_NGRAPH_OP(ShapeOf, v0, validate_and_infer_types))
-    OV_ITT_SCOPED_TASK(itt::domains::nGraph)
-    set_input_is_relevant_to_value(0, false);
-    set_output_type(0, element::i64, PartialShape{get_input_partial_shape(0).rank()});
-#else
+    NGRAPH_OP_SCOPE(v0_ShapeOf_validate_and_infer_types,
+        set_input_is_relevant_to_value(0, false);
+        set_output_type(0, element::i64, PartialShape{get_input_partial_shape(0).rank()});
+        return;
+    )
     NODE_VALIDATION_CHECK(this, false, "Function is not included into the selective build.");
-#endif
 }
 
 bool ngraph::op::v0::ShapeOf::visit_attributes(AttributeVisitor& visitor)
@@ -229,20 +219,18 @@ shared_ptr<Node> op::v0::ShapeOf::clone_with_new_inputs(const OutputVector& new_
 bool op::v0::ShapeOf::evaluate(const HostTensorVector& output_values,
                                const HostTensorVector& input_values) const
 {
-#if GraphGen(OV_GEN_NGRAPH_OP(ShapeOf, v0, evaluate))
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
-    return evaluate_shape_of(output_values[0], input_values[0]);
-#else
-    return false;
-#endif
+    bool rc = false;
+    NGRAPH_OP_SCOPE(v0_ShapeOf_evaluate,
+        rc = evaluate_shape_of(output_values[0], input_values[0]);
+    )
+    return rc;
 }
 
 bool op::v0::ShapeOf::constant_fold(OutputVector& output_values, const OutputVector& input_values)
 {
-#if GraphGen(OV_GEN_NGRAPH_OP(ShapeOf, v0, constant_fold))
-    OV_ITT_SCOPED_TASK(itt::domains::nGraph);
-    return constant_fold_shape_of(this, output_values[0], input_values[0], m_is_foldable);
-#else
-    return false;
-#endif
+    bool rc = false;
+    NGRAPH_OP_SCOPE(v0_ShapeOf_constant_fold,
+        rc = constant_fold_shape_of(this, output_values[0], input_values[0], m_is_foldable);
+    )
+    return rc;
 }

@@ -27,7 +27,9 @@
 #include "ngraph/pattern/op/any_output.hpp"
 #include "ngraph/pattern/op/label.hpp"
 #include "ngraph/pattern/op/skip.hpp"
-
+#if defined(OV_SELECTIVE_BUILD_LOG) || defined(ENABLE_PROFILING_ITT)
+#include "openvino/itt.hpp"
+#endif
 namespace ngraph
 {
     namespace pass
@@ -83,12 +85,18 @@ namespace ngraph
             Matcher(Output<Node>& pattern_node)
                 : m_pattern_node{pattern_node}
             {
+#if defined(OV_SELECTIVE_BUILD_LOG) || defined(ENABLE_PROFILING_ITT)
+                m_callback_handle = openvino::itt::handle("default");
+#endif
             }
 
             Matcher(Output<Node>& pattern_node, const std::string& name)
                 : m_pattern_node(pattern_node)
                 , m_name{name}
             {
+#if defined(OV_SELECTIVE_BUILD_LOG) || defined(ENABLE_PROFILING_ITT)
+                m_callback_handle = openvino::itt::handle(name);
+#endif
             }
 
             /// \brief Constructs a Matcher object
@@ -101,6 +109,9 @@ namespace ngraph
                 , m_name(name)
                 , m_strict_mode(strict_mode)
             {
+#if defined(OV_SELECTIVE_BUILD_LOG) || defined(ENABLE_PROFILING_ITT)
+                m_callback_handle = openvino::itt::handle(name);
+#endif
             }
 
             // Some matches should start on a node rather than an output. These three constructors
@@ -189,6 +200,10 @@ namespace ngraph
             PatternValueMap m_pattern_map;
             PatternValueMaps m_pattern_value_maps;
             OutputVector m_matched_list;
+
+#if defined(OV_SELECTIVE_BUILD_LOG) || defined(ENABLE_PROFILING_ITT)
+            openvino::itt::handle_t m_callback_handle;
+#endif
 
         protected:
             bool match_permutation(const OutputVector& pattern_args, const OutputVector& args);

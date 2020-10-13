@@ -40,13 +40,11 @@ shared_ptr<Node> op::v1::LogicalXor::clone_with_new_inputs(const OutputVector& n
 
 bool ngraph::op::v1::LogicalXor::visit_attributes(AttributeVisitor& visitor)
 {
-#if GraphGen(OV_GEN_NGRAPH_OP(LogicalXor, v1, visit_attributes))
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
-    BinaryElementwiseLogical::visit_attributes(visitor);
-    return true;
-#else
+    NGRAPH_OP_SCOPE(v1_LogicalXor_visit_attributes,
+        BinaryElementwiseLogical::visit_attributes(visitor);
+        return true;
+    )
     return false;
-#endif
 }
 
 namespace
@@ -75,20 +73,13 @@ namespace
         out->set_broadcast(broadcast_spec, arg0, arg1);
         switch (arg0->get_element_type())
         {
-            TYPE_CASE(boolean)(arg0, arg1, out, broadcast_spec);
-            break;
-            TYPE_CASE(i32)(arg0, arg1, out, broadcast_spec);
-            break;
-            TYPE_CASE(i64)(arg0, arg1, out, broadcast_spec);
-            break;
-            TYPE_CASE(u32)(arg0, arg1, out, broadcast_spec);
-            break;
-            TYPE_CASE(u64)(arg0, arg1, out, broadcast_spec);
-            break;
-            TYPE_CASE(f16)(arg0, arg1, out, broadcast_spec);
-            break;
-            TYPE_CASE(f32)(arg0, arg1, out, broadcast_spec);
-            break;
+            NGRAPH_TYPE_CASE(evaluate_logxor, boolean, arg0, arg1, out, broadcast_spec)
+            NGRAPH_TYPE_CASE(evaluate_logxor, i32, arg0, arg1, out, broadcast_spec)
+            NGRAPH_TYPE_CASE(evaluate_logxor, i64, arg0, arg1, out, broadcast_spec)
+            NGRAPH_TYPE_CASE(evaluate_logxor, u32, arg0, arg1, out, broadcast_spec)
+            NGRAPH_TYPE_CASE(evaluate_logxor, u64, arg0, arg1, out, broadcast_spec)
+            NGRAPH_TYPE_CASE(evaluate_logxor, f16, arg0, arg1, out, broadcast_spec)
+            NGRAPH_TYPE_CASE(evaluate_logxor, f32, arg0, arg1, out, broadcast_spec)
         default: rc = false; break;
         }
         return rc;
@@ -98,12 +89,11 @@ namespace
 bool op::v1::LogicalXor::evaluate(const HostTensorVector& outputs,
                                   const HostTensorVector& inputs) const
 {
-#if GraphGen(OV_GEN_NGRAPH_OP(LogicalXor, v1, evaluate))
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
-    return evaluate_logxor(inputs[0], inputs[1], outputs[0], get_autob());
-#else
-    return false;
-#endif
+    bool rc = false;
+    NGRAPH_OP_SCOPE(v1_LogicalXor_evaluate,
+        rc = evaluate_logxor(inputs[0], inputs[1], outputs[0], get_autob());
+    )
+    return rc;
 }
 
 constexpr NodeTypeInfo op::v0::Xor::type_info;
@@ -124,10 +114,9 @@ shared_ptr<Node> op::v0::Xor::clone_with_new_inputs(const OutputVector& new_args
 
 bool op::v0::Xor::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
-#if GraphGen(OV_GEN_NGRAPH_OP(Xor, v0, evaluate))
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
-    return evaluate_logxor(inputs[0], inputs[1], outputs[0], get_autob());
-#else
-    return false;
-#endif
+    bool rc = false;
+    NGRAPH_OP_SCOPE(v0_Xor_evaluate,
+        rc = evaluate_logxor(inputs[0], inputs[1], outputs[0], get_autob());
+    )
+    return rc;
 }

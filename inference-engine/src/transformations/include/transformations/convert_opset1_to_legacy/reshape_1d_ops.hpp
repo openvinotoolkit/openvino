@@ -10,6 +10,7 @@
 #include <transformations_visibility.hpp>
 
 #include <ngraph/pass/graph_rewrite.hpp>
+#include "transformations/itt.hpp"
 
 namespace ngraph {
 namespace pass {
@@ -26,9 +27,9 @@ class ngraph::pass::Reshape1DOps: public ngraph::pass::GraphRewrite {
 public:
     NGRAPH_RTTI_DECLARATION;
     Reshape1DOps() : GraphRewrite() {
-        add_matcher<ngraph::pass::Reshape1DConvolution>();
-        add_matcher<ngraph::pass::Reshape1DAvgPool>();
-        add_matcher<ngraph::pass::Reshape1DMaxPool>();
+        ADD_MATCHER(this, Reshape1DConvolution);
+        ADD_MATCHER(this, Reshape1DAvgPool);
+        ADD_MATCHER(this, Reshape1DMaxPool);
     }
 };
 

@@ -47,37 +47,36 @@ bool op::v4::Swish::visit_attributes(AttributeVisitor& visitor)
 
 void op::v4::Swish::validate_and_infer_types()
 {
-#if GraphGen(OV_GEN_NGRAPH_OP(Swish, v4, validate_and_infer_types))
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
-    auto inputs_count = input_values().size();
-    NODE_VALIDATION_CHECK(this,
-                          inputs_count == 1 || inputs_count == 2,
-                          "Swish must have 1 or 2 inputs, but it has: ",
-                          inputs_count);
-
-    if (inputs_count == 2)
-    {
+    NGRAPH_OP_SCOPE(v4_Swish_validate_and_infer_type,
+        auto inputs_count = input_values().size();
         NODE_VALIDATION_CHECK(this,
-                              input_value(0).get_element_type() ==
-                                  input_value(1).get_element_type(),
-                              "Swish inputs must have the same type but they are: ",
-                              input_value(0).get_element_type(),
-                              " and ",
-                              input_value(1).get_element_type());
-        if (get_input_partial_shape(1).rank().is_static())
+                            inputs_count == 1 || inputs_count == 2,
+                            "Swish must have 1 or 2 inputs, but it has: ",
+                            inputs_count);
+
+        if (inputs_count == 2)
         {
-            auto beta_rank = get_input_partial_shape(1).rank().get_length();
             NODE_VALIDATION_CHECK(this,
-                                  beta_rank == 0,
-                                  "Swish input with beta must be scalar but it has rank: ",
-                                  beta_rank);
+                                input_value(0).get_element_type() ==
+                                    input_value(1).get_element_type(),
+                                "Swish inputs must have the same type but they are: ",
+                                input_value(0).get_element_type(),
+                                " and ",
+                                input_value(1).get_element_type());
+            if (get_input_partial_shape(1).rank().is_static())
+            {
+                auto beta_rank = get_input_partial_shape(1).rank().get_length();
+                NODE_VALIDATION_CHECK(this,
+                                    beta_rank == 0,
+                                    "Swish input with beta must be scalar but it has rank: ",
+                                    beta_rank);
+            }
         }
-    }
-    set_output_size(1);
-    set_output_type(0, get_input_element_type(0), get_input_partial_shape(0));
-#else
+        set_output_size(1);
+        set_output_type(0, get_input_element_type(0), get_input_partial_shape(0));
+        return;
+    )
     NODE_VALIDATION_CHECK(this, false, "Function is not included into the selective build.");
-#endif
 }
 
 shared_ptr<Node> op::v4::Swish::clone_with_new_inputs(const OutputVector& new_args) const
@@ -124,9 +123,8 @@ namespace
 
         switch (arg0->get_element_type())
         {
-            TYPE_CASE(f16)(arg0, arg1, out, count);
-            break;
-            TYPE_CASE(f32)(arg0, arg1, out, count);
+            NGRAPH_TYPE_CASE(evaluate_swish, f16, arg0, arg1, out, count)
+            NGRAPH_TYPE_CASE(evaluate_swish, f32, arg0, arg1, out, count)
             break;
         default: rc = false; break;
         }
@@ -136,17 +134,15 @@ namespace
 
 bool op::v4::Swish::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
-#if GraphGen(OV_GEN_NGRAPH_OP(Swish, v4, evaluate))
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
-    if (inputs.size() == 2)
-    {
-        return evaluate_swish(inputs[0], inputs[1], outputs[0], shape_size(get_output_shape(0)));
-    }
-    else
-    {
-        return evaluate_swish(inputs[0], nullptr, outputs[0], shape_size(get_output_shape(0)));
-    }
-#else
+    NGRAPH_OP_SCOPE(v4_Swish_evaluate,
+        if (inputs.size() == 2)
+        {
+            return evaluate_swish(inputs[0], inputs[1], outputs[0], shape_size(get_output_shape(0)));
+        }
+        else
+        {
+            return evaluate_swish(inputs[0], nullptr, outputs[0], shape_size(get_output_shape(0)));
+        }
+    )
     return false;
-#endif
 }

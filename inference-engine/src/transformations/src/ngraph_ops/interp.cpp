@@ -3,6 +3,7 @@
 //
 
 #include "ngraph_ops/interp.hpp"
+#include "itt.hpp"
 
 #include <limits>
 #include <memory>
@@ -80,25 +81,29 @@ op::ResampleV2::ResampleV2(const Output<Node>& image, const ResampleIEAttrs& att
 }
 
 void op::ResampleV2::validate_and_infer_types() {
-    if (m_attrs.factor != 0) {
-        Shape output_shape(get_input_shape(0));
-        for (size_t i = 2; i < output_shape.size(); ++i) {
-            output_shape[i] *= m_attrs.factor;
-        }
-        set_output_type(0, get_input_element_type(0), output_shape);
-    } else if (auto const_shape = dynamic_pointer_cast<op::Constant>(input_value(1).get_node_shared_ptr())) {
-        NODE_VALIDATION_CHECK(this, shape_size(const_shape->get_shape()) == 4 || shape_size(const_shape->get_shape()) == 5,
-                              "Layer shape must have rank 4 or 5", const_shape->get_shape());
+    NGRAPH_OP_SCOPE(ResampleV2_validate_and_infer_types,
+        if (m_attrs.factor != 0) {
+            Shape output_shape(get_input_shape(0));
+            for (size_t i = 2; i < output_shape.size(); ++i) {
+                output_shape[i] *= m_attrs.factor;
+            }
+            set_output_type(0, get_input_element_type(0), output_shape);
+        } else if (auto const_shape = dynamic_pointer_cast<op::Constant>(input_value(1).get_node_shared_ptr())) {
+            NODE_VALIDATION_CHECK(this, shape_size(const_shape->get_shape()) == 4 || shape_size(const_shape->get_shape()) == 5,
+                                "Layer shape must have rank 4 or 5", const_shape->get_shape());
 
-        auto out_shape = const_shape->cast_vector<int64_t>();
-        Shape output_shape;
-        for (size_t i = 0; i < const_shape->get_shape()[0]; i++) {
-            output_shape.push_back((out_shape[i] > 0) ? out_shape[i] : 0);
+            auto out_shape = const_shape->cast_vector<int64_t>();
+            Shape output_shape;
+            for (size_t i = 0; i < const_shape->get_shape()[0]; i++) {
+                output_shape.push_back((out_shape[i] > 0) ? out_shape[i] : 0);
+            }
+            set_output_type(0, get_input_element_type(0), output_shape);
+        } else {
+            set_output_type(0, get_input_element_type(0), PartialShape::dynamic());
         }
-        set_output_type(0, get_input_element_type(0), output_shape);
-    } else {
-        set_output_type(0, get_input_element_type(0), PartialShape::dynamic());
-    }
+        return;
+    )
+    NODE_VALIDATION_CHECK(this, false, "Function is not included into the selective build.");
 }
 
 shared_ptr<Node> op::ResampleV2::clone_with_new_inputs(const OutputVector& new_args) const {

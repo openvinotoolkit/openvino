@@ -22,15 +22,38 @@
 #pragma once
 
 #include <openvino/itt.hpp>
+#include <openvino/conditional_compilation.hpp>
+#if defined(OV_SELECTIVE_BUILD)
+#include "ov_gen.hpp"
+#endif
 
 namespace ngraph {
 namespace pass {
 namespace itt {
 namespace domains {
     OV_ITT_DOMAIN(IETransform);
+#if defined(OV_SELECTIVE_BUILD_LOG)
+    OV_ITT_DOMAIN(CC_nGraphPassRegister);
+#endif
 }
 }
 }
 }
-#define OV_ITT_IE_TRANSFORM_CALLBACK(M, CN) OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::IETransform, "ngraph::pass::" + M.get_name() + "::" + CN)
-#define OV_GEN_NGRAPH_PASS(NAME, FUNC) OV_ITT_GLUE_UNDERSCORE(Gen, OV_ITT_GLUE_UNDERSCORE(ngraph, OV_ITT_GLUE_UNDERSCORE(pass, OV_ITT_GLUE_UNDERSCORE(NAME, FUNC))))
+
+#if defined(OV_SELECTIVE_BUILD)
+#define IETRANSFORM_SCOPE(region, ...)                                                             \
+    std::string matcher_name(OV_TOSTRING(region));                                                 \
+    OV_EXPAND(OV_CAT(OV_SCOPE_, OV_SCOPE_IS_ENABLED(OV_CAT(REGISTER_PASS_, region)))(__VA_ARGS__))
+#elif defined(OV_SELECTIVE_BUILD_LOG)
+#define IETRANSFORM_SCOPE(region, ...)                                                             \
+    std::string matcher_name(OV_TOSTRING(region));                                                 \
+    OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::CC_nGraphPassRegister,                          \
+        openvino::itt::handle(matcher_name));                                                      \
+    __VA_ARGS__
+#else
+#define IETRANSFORM_SCOPE(region, ...)                                                             \
+    std::string matcher_name(OV_TOSTRING(region));                                                 \
+    OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::IETransform,                                    \
+        openvino::itt::handle("ngraph::pass::" + matcher_name));                                   \
+    __VA_ARGS__
+#endif

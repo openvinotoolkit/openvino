@@ -40,13 +40,11 @@ bool op::v4::Mish::visit_attributes(AttributeVisitor& visitor)
 
 void op::v4::Mish::validate_and_infer_types()
 {
-#if GraphGen(OV_GEN_NGRAPH_OP(Mish, v4, validate_and_infer_types))
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
-    set_output_size(1);
-    set_output_type(0, get_input_element_type(0), get_input_partial_shape(0));
-#else
+    NGRAPH_OP_SCOPE(v4_Mish_validate_and_infer_types,
+        set_output_size(1);
+        set_output_type(0, get_input_element_type(0), get_input_partial_shape(0));
+    )
     NODE_VALIDATION_CHECK(this, false, "Function is not included into the selective build.");
-#endif
 }
 
 shared_ptr<Node> op::v4::Mish::clone_with_new_inputs(const OutputVector& new_args) const
@@ -72,10 +70,8 @@ namespace
 
         switch (arg0->get_element_type())
         {
-            TYPE_CASE(f16)(arg0, out, count);
-            break;
-            TYPE_CASE(f32)(arg0, out, count);
-            break;
+            NGRAPH_TYPE_CASE(evaluate_mish, f16, arg0, out, count)
+            NGRAPH_TYPE_CASE(evaluate_mish, f32, arg0, out, count)
         default: rc = false; break;
         }
         return rc;
@@ -84,10 +80,9 @@ namespace
 
 bool op::v4::Mish::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
-#if GraphGen(OV_GEN_NGRAPH_OP(Mish, v4, evaluate))
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
-    return evaluate_mish(inputs[0], outputs[0], shape_size(get_output_shape(0)));
-#else
-    return false;
-#endif
+    bool rc = false;
+    NGRAPH_OP_SCOPE(v4_Mish_evaluate,
+        rc = evaluate_mish(inputs[0], outputs[0], shape_size(get_output_shape(0)));
+    )
+    return rc;
 }

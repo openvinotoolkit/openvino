@@ -49,12 +49,18 @@ namespace ngraph
         Matcher::Matcher(std::shared_ptr<Node> pattern_node)
             : m_pattern_node(make_node_output(pattern_node))
         {
+#if defined(OV_SELECTIVE_BUILD_LOG) || defined(ENABLE_PROFILING_ITT)
+                m_callback_handle = openvino::itt::handle("default");
+#endif
         }
 
         Matcher::Matcher(std::shared_ptr<Node> pattern_node, const std::string& name)
             : m_pattern_node(make_node_output(pattern_node))
             , m_name(name)
         {
+#if defined(OV_SELECTIVE_BUILD_LOG) || defined(ENABLE_PROFILING_ITT)
+                m_callback_handle = openvino::itt::handle(name);
+#endif
         }
 
         Matcher::Matcher(std::shared_ptr<Node> pattern_node,
@@ -62,6 +68,9 @@ namespace ngraph
                          bool strict_mode)
             : Matcher(make_node_output(pattern_node), name, strict_mode)
         {
+#if defined(OV_SELECTIVE_BUILD_LOG) || defined(ENABLE_PROFILING_ITT)
+                m_callback_handle = openvino::itt::handle(name);
+#endif
         }
 
         MatcherState::~MatcherState()

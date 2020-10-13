@@ -62,18 +62,12 @@ namespace
 
         switch (arg0->get_element_type())
         {
-            TYPE_CASE(i32)(arg0, out, count);
-            break;
-            TYPE_CASE(i64)(arg0, out, count);
-            break;
-            TYPE_CASE(u32)(arg0, out, count);
-            break;
-            TYPE_CASE(u64)(arg0, out, count);
-            break;
-            TYPE_CASE(f16)(arg0, out, count);
-            break;
-            TYPE_CASE(f32)(arg0, out, count);
-            break;
+            NGRAPH_TYPE_CASE(evaluate_tanh, i32, arg0, out, count)
+            NGRAPH_TYPE_CASE(evaluate_tanh, i64, arg0, out, count)
+            NGRAPH_TYPE_CASE(evaluate_tanh, u32, arg0, out, count)
+            NGRAPH_TYPE_CASE(evaluate_tanh, u64, arg0, out, count)
+            NGRAPH_TYPE_CASE(evaluate_tanh, f16, arg0, out, count)
+            NGRAPH_TYPE_CASE(evaluate_tanh, f32, arg0, out, count)
         default: rc = false; break;
         }
         return rc;
@@ -82,10 +76,9 @@ namespace
 
 bool op::Tanh::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
-#if GraphGen(OV_GEN_NGRAPH_OP(Tanh, v0, evaluate))
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
-    return evaluate_tanh(inputs[0], outputs[0], shape_size(get_output_shape(0)));
-#else
-    return false;
-#endif
+    bool rc = false;
+    NGRAPH_OP_SCOPE(v0_Tanh_evaluate,
+        rc = evaluate_tanh(inputs[0], outputs[0], shape_size(get_output_shape(0)));
+    )
+    return rc;
 }

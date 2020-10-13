@@ -68,20 +68,13 @@ namespace
         out->set_broadcast(broadcast_spec, arg0, arg1, element::boolean);
         switch (arg0->get_element_type())
         {
-            TYPE_CASE(boolean)(arg0, arg1, out, broadcast_spec);
-            break;
-            TYPE_CASE(i32)(arg0, arg1, out, broadcast_spec);
-            break;
-            TYPE_CASE(i64)(arg0, arg1, out, broadcast_spec);
-            break;
-            TYPE_CASE(u32)(arg0, arg1, out, broadcast_spec);
-            break;
-            TYPE_CASE(u64)(arg0, arg1, out, broadcast_spec);
-            break;
-            TYPE_CASE(f16)(arg0, arg1, out, broadcast_spec);
-            break;
-            TYPE_CASE(f32)(arg0, arg1, out, broadcast_spec);
-            break;
+            NGRAPH_TYPE_CASE(evaluate_equal, boolean, arg0, arg1, out, broadcast_spec)
+            NGRAPH_TYPE_CASE(evaluate_equal, i32, arg0, arg1, out, broadcast_spec)
+            NGRAPH_TYPE_CASE(evaluate_equal, i64, arg0, arg1, out, broadcast_spec)
+            NGRAPH_TYPE_CASE(evaluate_equal, u32, arg0, arg1, out, broadcast_spec)
+            NGRAPH_TYPE_CASE(evaluate_equal, u64, arg0, arg1, out, broadcast_spec)
+            NGRAPH_TYPE_CASE(evaluate_equal, f16, arg0, arg1, out, broadcast_spec)
+            NGRAPH_TYPE_CASE(evaluate_equal, f32, arg0, arg1, out, broadcast_spec)
         default: rc = false; break;
         }
         return rc;
@@ -90,12 +83,11 @@ namespace
 
 bool op::v0::Equal::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
-#if GraphGen(OV_GEN_NGRAPH_OP(Equal, v0, evaluate))
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
-    return evaluate_equal(inputs[0], inputs[1], outputs[0], get_autob());
-#else
-    return false;
-#endif
+    bool rc = false;
+    NGRAPH_OP_SCOPE(v0_Equal_evaluate,
+        rc = evaluate_equal(inputs[0], inputs[1], outputs[0], get_autob());
+    )
+    return rc;
 }
 
 //------------------------------- v1 -------------------------------------------
@@ -118,10 +110,9 @@ shared_ptr<Node> op::v1::Equal::clone_with_new_inputs(const OutputVector& new_ar
 
 bool op::v1::Equal::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
-#if GraphGen(OV_GEN_NGRAPH_OP(Equal, v1, evaluate))
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
-    return evaluate_equal(inputs[0], inputs[1], outputs[0], get_autob());
-#else
-    return false;
-#endif
+    bool rc = false;
+    NGRAPH_OP_SCOPE(v1_Equal_evaluate,
+            rc = evaluate_equal(inputs[0], inputs[1], outputs[0], get_autob());
+    )
+    return rc;
 }

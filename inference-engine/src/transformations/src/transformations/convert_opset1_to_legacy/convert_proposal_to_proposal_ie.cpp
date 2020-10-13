@@ -50,48 +50,45 @@ bool convert_to_proposal_ie(std::shared_ptr<ngraph::op::v0::Proposal> proposal, 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertProposalToLegacyMatcher, "ConvertProposalToLegacyMatcher", 0);
 
 ngraph::pass::ConvertProposalToLegacyMatcher::ConvertProposalToLegacyMatcher() {
-    auto proposal = ngraph::pattern::wrap_type<ngraph::opset1::Proposal>();
+    IETRANSFORM_SCOPE(ConvertProposalToLegacyMatcher,
+        auto proposal = ngraph::pattern::wrap_type<ngraph::opset1::Proposal>();
 
-#if GraphGen(OV_GEN_NGRAPH_PASS(ConvertProposalToProposalIE, callback))
-    ngraph::matcher_pass_callback callback = [](pattern::Matcher &m) {
-        OV_ITT_IE_TRANSFORM_CALLBACK(m, "callback")
-        auto proposal = std::dynamic_pointer_cast<ngraph::opset1::Proposal>(m.get_match_root());
+        ngraph::matcher_pass_callback callback = [](pattern::Matcher &m) {
+            auto proposal = std::dynamic_pointer_cast<ngraph::opset1::Proposal>(m.get_match_root());
 
-        if (!proposal) {
-            return false;
-        }
-        convert_to_proposal_ie(proposal);
-        return true;
-    };
-#else
-    matcher_pass_callback callback = [](ngraph::pattern::Matcher & m) -> bool {
-        return false;
-    };
-#endif
-    auto m = std::make_shared<ngraph::pattern::Matcher>(proposal, "ConvertProposalToProposalIE");
-    this->register_matcher(m, callback);
+            if (!proposal) {
+                return false;
+            }
+            convert_to_proposal_ie(proposal);
+            return true;
+        };
+
+        auto m = std::make_shared<ngraph::pattern::Matcher>(proposal, matcher_name);
+        this->register_matcher(m, callback);
+        return;
+    )
+    NGRAPH_CHECK(false, "nGraph pass is not included into the selective build.");
 }
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertProposal4ToLegacyMatcher, "ConvertProposal4ToLegacyMatcher", 0);
 
 ngraph::pass::ConvertProposal4ToLegacyMatcher::ConvertProposal4ToLegacyMatcher() {
-    auto proposal = ngraph::pattern::wrap_type<ngraph::opset4::Proposal>();
-#if GraphGen(OV_GEN_NGRAPH_PASS(ConvertProposal4ToProposalIE, callback))
-    ngraph::matcher_pass_callback callback = [](pattern::Matcher &m) {
-        OV_ITT_IE_TRANSFORM_CALLBACK(m, "callback")
-        auto proposal = std::dynamic_pointer_cast<ngraph::opset4::Proposal>(m.get_match_root());
+    IETRANSFORM_SCOPE(ConvertProposal4ToLegacyMatcher,
+        auto proposal = ngraph::pattern::wrap_type<ngraph::opset4::Proposal>();
 
-        if (!proposal) {
-            return false;
-        }
-        convert_to_proposal_ie(proposal, true);
-        return true;
-    };
-#else
-    ngraph::matcher_pass_callback callback = [](ngraph::pattern::Matcher & m) -> bool {
-        return false;
-    };
-#endif
-    auto m = std::make_shared<ngraph::pattern::Matcher>(proposal, "ConvertProposal4ToProposalIE");
-    this->register_matcher(m, callback);
+        ngraph::matcher_pass_callback callback = [](pattern::Matcher &m) {
+            auto proposal = std::dynamic_pointer_cast<ngraph::opset4::Proposal>(m.get_match_root());
+
+            if (!proposal) {
+                return false;
+            }
+            convert_to_proposal_ie(proposal, true);
+            return true;
+        };
+
+        auto m = std::make_shared<ngraph::pattern::Matcher>(proposal, matcher_name);
+        this->register_matcher(m, callback);
+        return;
+    )
+    NGRAPH_CHECK(false, "nGraph pass is not included into the selective build.");
 }

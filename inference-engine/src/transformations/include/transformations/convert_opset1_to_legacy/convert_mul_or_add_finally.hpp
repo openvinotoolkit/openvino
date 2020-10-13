@@ -22,6 +22,8 @@
 
 #include "transformations/convert_opset1_to_legacy/convert_mul_add_to_scaleshift_or_power.hpp"
 
+#include "transformations/itt.hpp"
+
 namespace ngraph {
 namespace pass {
 
@@ -200,11 +202,15 @@ ngraph::graph_rewrite_callback get_callback() {
 
 template <typename T>
 void ngraph::pass::ConvertMulOrAddFinally::convert_mul_or_add_finally() {
-    auto data_batch_1 = std::make_shared<pattern::op::Label>(element::f32, Shape{2, 2, 1, 1});
-    auto data_batch_2 = std::make_shared<pattern::op::Label>(element::f32, Shape{2, 2, 1, 1});
+    IETRANSFORM_SCOPE(ConvertMulOrAddFinally,
+        auto data_batch_1 = std::make_shared<pattern::op::Label>(element::f32, Shape{2, 2, 1, 1});
+        auto data_batch_2 = std::make_shared<pattern::op::Label>(element::f32, Shape{2, 2, 1, 1});
 
-    auto lin_op = std::make_shared<T>(data_batch_1, data_batch_2);
+        auto lin_op = std::make_shared<T>(data_batch_1, data_batch_2);
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(lin_op);
-    this->add_matcher(m, get_callback<T>(), PassProperty::CHANGE_DYNAMIC_STATE);
+        auto m = std::make_shared<ngraph::pattern::Matcher>(lin_op, matcher_name);
+        this->add_matcher(m, get_callback<T>(), PassProperty::CHANGE_DYNAMIC_STATE);
+        return;
+    )
+    NGRAPH_CHECK(false, "nGraph pass is not included into the selective build.");
 }

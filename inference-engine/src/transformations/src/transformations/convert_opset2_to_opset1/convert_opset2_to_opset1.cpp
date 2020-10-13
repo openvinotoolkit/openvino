@@ -17,18 +17,15 @@
 NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertOpSet2ToOpSet1, "ConvertOpSet2ToOpSet1", 0);
 
 bool ngraph::pass::ConvertOpSet2ToOpSet1::run_on_function(std::shared_ptr<ngraph::Function> f) {
-#if GraphGen(OV_GEN_NGRAPH_PASS(ConvertOpSet2ToOpSet1, run_on_function))
-    OV_ITT_SCOPED_TASK(itt::domains::IETransform);
+    IETRANSFORM_SCOPE(ConvertOpSet2ToOpSet1,
+        ngraph::pass::Manager manager;
 
-    ngraph::pass::Manager manager;
+        REGISTER_PASS(manager, ConvertSpaceToBatch);
+        REGISTER_PASS(manager, ConvertBatchToSpace);
 
-    manager.register_pass<ngraph::pass::ConvertSpaceToBatch>();
-    manager.register_pass<ngraph::pass::ConvertBatchToSpace>();
-
-    manager.set_callback(m_transformation_callback);
-    manager.run_passes(f);
-    return true;
-#else
-    return false;
-#endif
+        manager.set_callback(m_transformation_callback);
+        manager.run_passes(f);
+        return true;
+    )
+    NGRAPH_CHECK(false, "nGraph pass is not included into the selective build.");
 }

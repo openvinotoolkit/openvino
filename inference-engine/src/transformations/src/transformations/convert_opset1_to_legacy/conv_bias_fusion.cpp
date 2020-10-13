@@ -40,8 +40,6 @@ std::pair<std::shared_ptr<A>, std::shared_ptr<B>> parse_eltwise_inputs(std::shar
 template <class Conv>
 ngraph::graph_rewrite_callback get_callback() {
     ngraph::graph_rewrite_callback callback = [](ngraph::pattern::Matcher &m) {
-        OV_ITT_IE_TRANSFORM_CALLBACK(m, "callback")
-
         auto eltwise = m.get_match_root();
 
         std::shared_ptr<ngraph::opset1::Constant> m_const;
@@ -131,52 +129,47 @@ ngraph::graph_rewrite_callback get_callback() {
 NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvAddFusion, "ConvAddFusion", 0);
 
 ngraph::pass::ConvAddFusion::ConvAddFusion() {
-    auto conv = ngraph::pattern::wrap_type<op::ConvolutionIE>(pattern::consumers_count(1));
-    auto add = ngraph::pattern::wrap_type<opset1::Add>({conv, std::make_shared<pattern::op::Label>()});
+    IETRANSFORM_SCOPE(ConvAddFusion,
+        auto conv = ngraph::pattern::wrap_type<op::ConvolutionIE>(pattern::consumers_count(1));
+        auto add = ngraph::pattern::wrap_type<opset1::Add>({conv, std::make_shared<pattern::op::Label>()});
 
-#if GraphGen(OV_GEN_NGRAPH_PASS(ConvAddFusion, callback))
-    matcher_pass_callback callback = get_callback<op::ConvolutionIE>();
-#else
-    matcher_pass_callback callback = [](ngraph::pattern::Matcher & m) -> bool {
-        return false;
-    };
-#endif
-    auto m = std::make_shared<ngraph::pattern::Matcher>(add, "ConvAddFusion");
-    register_matcher(m, callback);
+        matcher_pass_callback callback = get_callback<op::ConvolutionIE>();
+
+        auto m = std::make_shared<ngraph::pattern::Matcher>(add, matcher_name);
+        register_matcher(m, callback);
+        return;
+    )
+    NGRAPH_CHECK(false, "nGraph pass is not included into the selective build.");
 }
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvMultiplyFusion, "ConvMultiplyFusion", 0);
 
 ngraph::pass::ConvMultiplyFusion::ConvMultiplyFusion() {
-    auto conv = ngraph::pattern::wrap_type<op::ConvolutionIE>(pattern::consumers_count(1));
-    auto add = ngraph::pattern::wrap_type<opset1::Multiply>({conv, std::make_shared<pattern::op::Label>()});
+    IETRANSFORM_SCOPE(ConvMultiplyFusion,
+        auto conv = ngraph::pattern::wrap_type<op::ConvolutionIE>(pattern::consumers_count(1));
+        auto add = ngraph::pattern::wrap_type<opset1::Multiply>({conv, std::make_shared<pattern::op::Label>()});
 
-#if GraphGen(OV_GEN_NGRAPH_PASS(ConvMultiplyFusion, callback))
-    matcher_pass_callback callback = get_callback<op::ConvolutionIE>();
-#else
-    matcher_pass_callback callback = [](ngraph::pattern::Matcher & m) -> bool {
-        return false;
-    };
-#endif
+        matcher_pass_callback callback = get_callback<op::ConvolutionIE>();
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(add, "ConvMultiplyFusion");
-    register_matcher(m, callback);
+        auto m = std::make_shared<ngraph::pattern::Matcher>(add, matcher_name);
+        register_matcher(m, callback);
+        return;
+    )
+    NGRAPH_CHECK(false, "nGraph pass is not included into the selective build.");
 }
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::DeconvAddFusion, "DeconvAddFusion", 0);
 
 ngraph::pass::DeconvAddFusion::DeconvAddFusion() {
-    auto conv = ngraph::pattern::wrap_type<op::DeconvolutionIE>(pattern::consumers_count(1));
-    auto add = ngraph::pattern::wrap_type<opset1::Add>({conv, std::make_shared<pattern::op::Label>()});
+    IETRANSFORM_SCOPE(DeconvAddFusion,
+        auto conv = ngraph::pattern::wrap_type<op::DeconvolutionIE>(pattern::consumers_count(1));
+        auto add = ngraph::pattern::wrap_type<opset1::Add>({conv, std::make_shared<pattern::op::Label>()});
 
-#if GraphGen(OV_GEN_NGRAPH_PASS(DeconvAddFusion, callback))
-    matcher_pass_callback callback = get_callback<op::DeconvolutionIE>();
-#else
-    matcher_pass_callback callback = [](ngraph::pattern::Matcher & m) -> bool {
-        return false;
-    };
-#endif
+        matcher_pass_callback callback = get_callback<op::DeconvolutionIE>();
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(add, "DeconvAddFusion");
-    register_matcher(m, callback);
+        auto m = std::make_shared<ngraph::pattern::Matcher>(add, matcher_name);
+        register_matcher(m, callback);
+        return;
+    )
+    NGRAPH_CHECK(false, "nGraph pass is not included into the selective build.");
 }

@@ -48,9 +48,11 @@ op::v0::TensorIterator::InputDescription::InputDescription(uint64_t input_index,
 
 bool op::v0::TensorIterator::InputDescription::visit_attributes(AttributeVisitor& visitor)
 {
-    visitor.on_attribute("input_index", m_input_index);
-    visitor.on_attribute("body_parameter_index", m_body_parameter_index);
-    return true;
+    NGRAPH_OP_SCOPE(v0_TensorIterator_InputDescription_visit_attributes,
+        visitor.on_attribute("input_index", m_input_index);
+        visitor.on_attribute("body_parameter_index", m_body_parameter_index);
+        return true;
+    )
 }
 
 op::v0::TensorIterator::SliceInputDescription::SliceInputDescription(uint64_t input_index,
@@ -78,14 +80,16 @@ shared_ptr<op::v0::TensorIterator::InputDescription>
 
 bool op::v0::TensorIterator::SliceInputDescription::visit_attributes(AttributeVisitor& visitor)
 {
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
-    InputDescription::visit_attributes(visitor);
-    visitor.on_attribute("start", m_start);
-    visitor.on_attribute("stride", m_stride);
-    visitor.on_attribute("part_size", m_part_size);
-    visitor.on_attribute("end", m_end);
-    visitor.on_attribute("axis", m_axis);
-    return true;
+    NGRAPH_OP_SCOPE(v0_TensorIterator_SliceInputDescription_visit_attributes,
+        InputDescription::visit_attributes(visitor);
+        visitor.on_attribute("start", m_start);
+        visitor.on_attribute("stride", m_stride);
+        visitor.on_attribute("part_size", m_part_size);
+        visitor.on_attribute("end", m_end);
+        visitor.on_attribute("axis", m_axis);
+        return true;
+    )
+    return false;
 }
 
 op::v0::TensorIterator::MergedInputDescription::MergedInputDescription(
@@ -136,9 +140,12 @@ op::v0::TensorIterator::OutputDescription::OutputDescription(uint64_t body_value
 
 bool op::v0::TensorIterator::OutputDescription::visit_attributes(AttributeVisitor& visitor)
 {
-    visitor.on_attribute("body_value_index", m_body_value_index);
-    visitor.on_attribute("output_index", m_output_index);
-    return true;
+    NGRAPH_OP_SCOPE(v0_TensorIterator_OutputDescription_visit_attributes,
+        visitor.on_attribute("body_value_index", m_body_value_index);
+        visitor.on_attribute("output_index", m_output_index);
+        return true;
+    )
+    return false;
 }
 
 op::v0::TensorIterator::ConcatOutputDescription::ConcatOutputDescription(uint64_t body_value_index,
@@ -159,13 +166,16 @@ op::v0::TensorIterator::ConcatOutputDescription::ConcatOutputDescription(uint64_
 
 bool op::v0::TensorIterator::ConcatOutputDescription::visit_attributes(AttributeVisitor& visitor)
 {
-    OutputDescription::visit_attributes(visitor);
-    visitor.on_attribute("start", m_start);
-    visitor.on_attribute("stride", m_stride);
-    visitor.on_attribute("part_size", m_part_size);
-    visitor.on_attribute("end", m_end);
-    visitor.on_attribute("axis", m_axis);
-    return true;
+    NGRAPH_OP_SCOPE(v0_TensorIterator_ConcatOutputDescription_visit_attributes,
+        OutputDescription::visit_attributes(visitor);
+        visitor.on_attribute("start", m_start);
+        visitor.on_attribute("stride", m_stride);
+        visitor.on_attribute("part_size", m_part_size);
+        visitor.on_attribute("end", m_end);
+        visitor.on_attribute("axis", m_axis);
+        return true;
+    )
+    return false;
 }
 
 shared_ptr<op::v0::TensorIterator::OutputDescription>
@@ -191,9 +201,12 @@ shared_ptr<op::v0::TensorIterator::OutputDescription>
 
 bool op::v0::TensorIterator::BodyOutputDescription::visit_attributes(AttributeVisitor& visitor)
 {
-    OutputDescription::visit_attributes(visitor);
-    visitor.on_attribute("iteration", m_iteration);
-    return true;
+    NGRAPH_OP_SCOPE(v0_TensorIterator_BodyOutputDescription_visit_attributes,
+        OutputDescription::visit_attributes(visitor);
+        visitor.on_attribute("iteration", m_iteration);
+        return true;
+    )
+    return false;
 }
 
 namespace
@@ -305,16 +318,14 @@ namespace ngraph
 
 bool op::v0::TensorIterator::visit_attributes(AttributeVisitor& visitor)
 {
-#if GraphGen(OV_GEN_NGRAPH_OP(TensorIterator, v0, visit_attributes))
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
-    visitor.on_attribute("body", m_body);
-    visitor.on_attribute("input_descriptions", m_input_descriptions);
-    visitor.on_attribute("output_descriptions", m_output_descriptions);
+    NGRAPH_OP_SCOPE(v0_TensorIterator_visit_attributes,
+        visitor.on_attribute("body", m_body);
+        visitor.on_attribute("input_descriptions", m_input_descriptions);
+        visitor.on_attribute("output_descriptions", m_output_descriptions);
 
+        return false;
+    )
     return false;
-#else
-    return false;
-#endif
 }
 
 Input<Node> op::v0::TensorIterator::input_for_value(const Output<Node>& value)
@@ -429,195 +440,193 @@ void op::v0::TensorIterator::revalidate_and_infer_types_for_body_ops()
 
 void op::v0::TensorIterator::validate_and_infer_types()
 {
-#if GraphGen(OV_GEN_NGRAPH_OP(TensorIterator, v0, validate_and_infer_types))
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
-    NODE_VALIDATION_CHECK(this,
-                          get_input_size() == m_input_descriptions.size(),
-                          "Number of inputs must be the same as number of input descriptions");
+    NGRAPH_OP_SCOPE(v0_TensorIterator_validate_and_infer_types,
+        NODE_VALIDATION_CHECK(this,
+                            get_input_size() == m_input_descriptions.size(),
+                            "Number of inputs must be the same as number of input descriptions");
 
-    NODE_VALIDATION_CHECK(this,
-                          get_output_size() == m_output_descriptions.size(),
-                          "Number of outputs must be the same as number of output descriptions");
+        NODE_VALIDATION_CHECK(this,
+                            get_output_size() == m_output_descriptions.size(),
+                            "Number of outputs must be the same as number of output descriptions");
 
-    std::vector<std::shared_ptr<Node>> ends;
+        std::vector<std::shared_ptr<Node>> ends;
 
-    auto make_positive = [](int64_t value, uint64_t dim_size) -> int64_t {
-        if (value < 0)
-        {
-            value = dim_size + value;
-        }
-        return value;
-    };
-
-    // Input
-    uint64_t index_it = 0;
-    for (const auto& input_description : m_input_descriptions)
-    {
-        auto index = input_description->m_input_index;
-        NODE_VALIDATION_CHECK(this, index == index_it, "Input_index not in order");
-        index_it++;
-
-        if (auto slice_input_description = as_type_ptr<SliceInputDescription>(input_description))
-        {
-            auto body_parameter =
-                m_body->get_parameters().at(slice_input_description->m_body_parameter_index);
-            auto body_param_partial_shape = body_parameter->get_partial_shape();
-            auto input_partial_shape = inputs().at(index).get_source_output().get_partial_shape();
-            if (input_partial_shape.is_static())
+        auto make_positive = [](int64_t value, uint64_t dim_size) -> int64_t {
+            if (value < 0)
             {
-                auto input_shape = input_partial_shape.to_shape();
-                auto axis = slice_input_description->m_axis;
-                auto part_size = slice_input_description->m_part_size;
+                value = dim_size + value;
+            }
+            return value;
+        };
 
-                auto dim_size = input_shape[axis];
-                auto start = make_positive(slice_input_description->m_start, dim_size);
-                auto end = make_positive(slice_input_description->m_end, dim_size);
+        // Input
+        uint64_t index_it = 0;
+        for (const auto& input_description : m_input_descriptions)
+        {
+            auto index = input_description->m_input_index;
+            NODE_VALIDATION_CHECK(this, index == index_it, "Input_index not in order");
+            index_it++;
 
-                if (m_num_iterations == -1)
+            if (auto slice_input_description = as_type_ptr<SliceInputDescription>(input_description))
+            {
+                auto body_parameter =
+                    m_body->get_parameters().at(slice_input_description->m_body_parameter_index);
+                auto body_param_partial_shape = body_parameter->get_partial_shape();
+                auto input_partial_shape = inputs().at(index).get_source_output().get_partial_shape();
+                if (input_partial_shape.is_static())
                 {
-                    // +1 because the left and right borders are included [start, end]
-                    m_num_iterations = (abs(end - start) + 1) / part_size;
-                }
-                else
-                {
-                    NODE_VALIDATION_CHECK(this,
-                                          m_num_iterations == (abs(end - start) + 1) / part_size,
-                                          "Number of slices not the same");
-                }
+                    auto input_shape = input_partial_shape.to_shape();
+                    auto axis = slice_input_description->m_axis;
+                    auto part_size = slice_input_description->m_part_size;
 
-                if (body_param_partial_shape.is_static())
-                {
-                    // validate
-                    auto body_param_shape = body_param_partial_shape.to_shape();
-                    for (auto i = 0; i < input_shape.size(); i++)
+                    auto dim_size = input_shape[axis];
+                    auto start = make_positive(slice_input_description->m_start, dim_size);
+                    auto end = make_positive(slice_input_description->m_end, dim_size);
+
+                    if (m_num_iterations == -1)
                     {
-                        if (i != axis)
+                        // +1 because the left and right borders are included [start, end]
+                        m_num_iterations = (abs(end - start) + 1) / part_size;
+                    }
+                    else
+                    {
+                        NODE_VALIDATION_CHECK(this,
+                                            m_num_iterations == (abs(end - start) + 1) / part_size,
+                                            "Number of slices not the same");
+                    }
+
+                    if (body_param_partial_shape.is_static())
+                    {
+                        // validate
+                        auto body_param_shape = body_param_partial_shape.to_shape();
+                        for (auto i = 0; i < input_shape.size(); i++)
                         {
-                            NODE_VALIDATION_CHECK(
-                                this,
-                                input_shape[i] == body_param_shape[i],
-                                "Iterator input is not compatible with body param");
+                            if (i != axis)
+                            {
+                                NODE_VALIDATION_CHECK(
+                                    this,
+                                    input_shape[i] == body_param_shape[i],
+                                    "Iterator input is not compatible with body param");
+                            }
                         }
                     }
+                    else
+                    {
+                        // infer type for m_body_parameter
+                        Shape out_shape{input_shape};
+                        out_shape[axis] = part_size;
+                        body_parameter->set_partial_shape(out_shape);
+                    }
                 }
-                else
+            }
+            else if (auto merged_input_description =
+                        as_type_ptr<MergedInputDescription>(input_description))
+            {
+                auto body_value =
+                    m_body->get_results().at(merged_input_description->m_body_value_index)->input(0);
+                ends.push_back(body_value.get_node()->shared_from_this());
+
+                auto body_value_partial_shape = body_value.get_partial_shape();
+                auto body_parameter =
+                    m_body->get_parameters().at(merged_input_description->m_body_parameter_index);
+
+                auto body_param_partial_shape = body_parameter->get_partial_shape();
+                auto input_partial_shape = inputs().at(index).get_source_output().get_partial_shape();
+                NODE_VALIDATION_CHECK(this,
+                                    body_value_partial_shape.compatible(body_param_partial_shape),
+                                    "Iterator successive value is not compatible with body param");
+                NODE_VALIDATION_CHECK(this,
+                                    input_partial_shape.compatible(body_param_partial_shape),
+                                    "Iterator initial value is not compatible with body param");
+
+                if (input_partial_shape.is_static())
                 {
+                    auto input_shape = input_partial_shape.to_shape();
+                    // infer type for body_parameter
+                    if (body_param_partial_shape.is_dynamic())
+                    {
+                        body_parameter->set_partial_shape(input_shape);
+                    }
+                }
+            }
+            else if (auto invariant_input_description =
+                        as_type_ptr<InvariantInputDescription>(input_description))
+            {
+                auto body_parameter =
+                    m_body->get_parameters().at(invariant_input_description->m_body_parameter_index);
+
+                auto body_param_partial_shape = body_parameter->get_partial_shape();
+                auto input_partial_shape = inputs().at(index).get_source_output().get_partial_shape();
+                NODE_VALIDATION_CHECK(this,
+                                    input_partial_shape.compatible(body_param_partial_shape),
+                                    "Iterator initial value is not compatible with body param");
+
+                if (input_partial_shape.is_static())
+                {
+                    auto input_shape = input_partial_shape.to_shape();
                     // infer type for m_body_parameter
-                    Shape out_shape{input_shape};
-                    out_shape[axis] = part_size;
-                    body_parameter->set_partial_shape(out_shape);
+                    if (body_param_partial_shape.is_dynamic())
+                    {
+                        body_parameter->set_partial_shape(input_shape);
+                    }
                 }
             }
         }
-        else if (auto merged_input_description =
-                     as_type_ptr<MergedInputDescription>(input_description))
+
+        // Body
+        revalidate_and_infer_types_for_body_ops();
+
+        // Output
+        index_it = 0;
+        for (const auto& output_description : m_output_descriptions)
         {
+            auto index = output_description->m_output_index;
+            NODE_VALIDATION_CHECK(this, index == index_it, "Output_index not in order");
+            index_it++;
+
             auto body_value =
-                m_body->get_results().at(merged_input_description->m_body_value_index)->input(0);
-            ends.push_back(body_value.get_node()->shared_from_this());
+                m_body->get_results().at(output_description->m_body_value_index)->input_value(0);
 
-            auto body_value_partial_shape = body_value.get_partial_shape();
-            auto body_parameter =
-                m_body->get_parameters().at(merged_input_description->m_body_parameter_index);
-
-            auto body_param_partial_shape = body_parameter->get_partial_shape();
-            auto input_partial_shape = inputs().at(index).get_source_output().get_partial_shape();
-            NODE_VALIDATION_CHECK(this,
-                                  body_value_partial_shape.compatible(body_param_partial_shape),
-                                  "Iterator successive value is not compatible with body param");
-            NODE_VALIDATION_CHECK(this,
-                                  input_partial_shape.compatible(body_param_partial_shape),
-                                  "Iterator initial value is not compatible with body param");
-
-            if (input_partial_shape.is_static())
+            if (auto concat_output_description =
+                    as_type_ptr<ConcatOutputDescription>(output_description))
             {
-                auto input_shape = input_partial_shape.to_shape();
-                // infer type for body_parameter
-                if (body_param_partial_shape.is_dynamic())
+                auto body_value_partial_shape = body_value.get_partial_shape();
+                set_output_type(index, body_value.get_element_type(), PartialShape::dynamic());
+                if (body_value_partial_shape.is_static())
                 {
-                    body_parameter->set_partial_shape(input_shape);
+                    auto body_value_shape = body_value_partial_shape.to_shape();
+                    auto part_size = concat_output_description->m_part_size;
+                    auto axis = concat_output_description->m_axis;
+
+                    Shape out_shape{body_value_shape};
+
+                    if (body_value_shape.empty())
+                    {
+                        NODE_VALIDATION_CHECK(
+                            this,
+                            axis == 0,
+                            "Axis must be equal to 0 if concatenated output tensor slices are scalars. "
+                            "TensorIterator output index: ",
+                            index);
+                        out_shape = Shape(1);
+                    }
+
+                    if (m_num_iterations != -1)
+                    {
+                        // for simple RNN case where stride is the same as part_size
+                        out_shape[axis] = m_num_iterations * part_size;
+                        set_output_type(index, body_value.get_element_type(), out_shape);
+                    }
                 }
             }
-        }
-        else if (auto invariant_input_description =
-                     as_type_ptr<InvariantInputDescription>(input_description))
-        {
-            auto body_parameter =
-                m_body->get_parameters().at(invariant_input_description->m_body_parameter_index);
-
-            auto body_param_partial_shape = body_parameter->get_partial_shape();
-            auto input_partial_shape = inputs().at(index).get_source_output().get_partial_shape();
-            NODE_VALIDATION_CHECK(this,
-                                  input_partial_shape.compatible(body_param_partial_shape),
-                                  "Iterator initial value is not compatible with body param");
-
-            if (input_partial_shape.is_static())
+            else if (auto body_output_description =
+                        as_type_ptr<BodyOutputDescription>(output_description))
             {
-                auto input_shape = input_partial_shape.to_shape();
-                // infer type for m_body_parameter
-                if (body_param_partial_shape.is_dynamic())
-                {
-                    body_parameter->set_partial_shape(input_shape);
-                }
+                set_output_type(index, body_value.get_element_type(), body_value.get_partial_shape());
             }
         }
-    }
-
-    // Body
-    revalidate_and_infer_types_for_body_ops();
-
-    // Output
-    index_it = 0;
-    for (const auto& output_description : m_output_descriptions)
-    {
-        auto index = output_description->m_output_index;
-        NODE_VALIDATION_CHECK(this, index == index_it, "Output_index not in order");
-        index_it++;
-
-        auto body_value =
-            m_body->get_results().at(output_description->m_body_value_index)->input_value(0);
-
-        if (auto concat_output_description =
-                as_type_ptr<ConcatOutputDescription>(output_description))
-        {
-            auto body_value_partial_shape = body_value.get_partial_shape();
-            set_output_type(index, body_value.get_element_type(), PartialShape::dynamic());
-            if (body_value_partial_shape.is_static())
-            {
-                auto body_value_shape = body_value_partial_shape.to_shape();
-                auto part_size = concat_output_description->m_part_size;
-                auto axis = concat_output_description->m_axis;
-
-                Shape out_shape{body_value_shape};
-
-                if (body_value_shape.empty())
-                {
-                    NODE_VALIDATION_CHECK(
-                        this,
-                        axis == 0,
-                        "Axis must be equal to 0 if concatenated output tensor slices are scalars. "
-                        "TensorIterator output index: ",
-                        index);
-                    out_shape = Shape(1);
-                }
-
-                if (m_num_iterations != -1)
-                {
-                    // for simple RNN case where stride is the same as part_size
-                    out_shape[axis] = m_num_iterations * part_size;
-                    set_output_type(index, body_value.get_element_type(), out_shape);
-                }
-            }
-        }
-        else if (auto body_output_description =
-                     as_type_ptr<BodyOutputDescription>(output_description))
-        {
-            set_output_type(index, body_value.get_element_type(), body_value.get_partial_shape());
-        }
-    }
-#else
+    )
     NODE_VALIDATION_CHECK(this, false, "Function is not included into the selective build.");
-#endif
 }
 
 std::shared_ptr<Function> op::v0::TensorIterator::get_function()

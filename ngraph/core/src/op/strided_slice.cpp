@@ -108,107 +108,104 @@ op::v1::StridedSlice::StridedSlice(const Output<Node>& data,
 
 bool ngraph::op::v1::StridedSlice::visit_attributes(AttributeVisitor& visitor)
 {
-#if GraphGen(OV_GEN_NGRAPH_OP(StridedSlice, v1, visit_attributes))
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
-    visitor.on_attribute("begin_mask", m_begin_mask);
-    visitor.on_attribute("end_mask", m_end_mask);
-    visitor.on_attribute("new_axis_mask", m_new_axis_mask);
-    visitor.on_attribute("shrink_axis_mask", m_shrink_axis_mask);
-    visitor.on_attribute("ellipsis_mask", m_ellipsis_mask);
-    return true;
-#else
+    NGRAPH_OP_SCOPE(v1_StridedSlice_visit_attributes,
+        visitor.on_attribute("begin_mask", m_begin_mask);
+        visitor.on_attribute("end_mask", m_end_mask);
+        visitor.on_attribute("new_axis_mask", m_new_axis_mask);
+        visitor.on_attribute("shrink_axis_mask", m_shrink_axis_mask);
+        visitor.on_attribute("ellipsis_mask", m_ellipsis_mask);
+        return true;
+    )
     return false;
-#endif
 }
 
 void op::v1::StridedSlice::validate_and_infer_types()
 {
-#if GraphGen(OV_GEN_NGRAPH_OP(StridedSlice, v1, validate_and_infer_types))
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
-    const auto& begin_mask_et = get_input_element_type(1);
-    const auto& end_mask_et = get_input_element_type(2);
-    NODE_VALIDATION_CHECK(this,
-                          begin_mask_et.is_integral_number(),
-                          "Begin mask must be an integral number, but is: ",
-                          begin_mask_et);
-    NODE_VALIDATION_CHECK(this,
-                          end_mask_et.is_integral_number(),
-                          "End mask must be an integral number, but is: ",
-                          end_mask_et);
-
-    auto are_mask_elem_in_range = [](size_t e) { return e == 0 || e == 1; };
-    NODE_VALIDATION_CHECK(
-        this,
-        std::all_of(m_begin_mask.begin(), m_begin_mask.end(), are_mask_elem_in_range) &&
-            std::all_of(m_end_mask.begin(), m_end_mask.end(), are_mask_elem_in_range) &&
-            std::all_of(m_new_axis_mask.begin(), m_new_axis_mask.end(), are_mask_elem_in_range) &&
-            std::all_of(
-                m_shrink_axis_mask.begin(), m_shrink_axis_mask.end(), are_mask_elem_in_range) &&
-            std::all_of(m_ellipsis_mask.begin(), m_ellipsis_mask.end(), are_mask_elem_in_range),
-        "All masks of StridedSlice must have be 0 or 1");
-
-    const vector<size_t> attr_sizes = {m_begin_mask.size(),
-                                       m_end_mask.size(),
-                                       m_new_axis_mask.size(),
-                                       m_shrink_axis_mask.size(),
-                                       m_ellipsis_mask.size()};
-    const auto are_attr_sizes_eq =
-        std::all_of(attr_sizes.begin(), attr_sizes.end(), [&attr_sizes](size_t s) {
-            return (s == 0) || (attr_sizes[0] == s);
-        });
-    NODE_VALIDATION_CHECK(
-        this, are_attr_sizes_eq, "All masks of StridedSlice must have the same size");
-
-    const auto& data_rank = get_input_partial_shape(0).rank();
-    const auto& begin_shape = get_input_partial_shape(1);
-    if (begin_shape.rank().is_static())
-    {
+    NGRAPH_OP_SCOPE(v1_StridedSlice_validate_and_infer_types,
+        const auto& begin_mask_et = get_input_element_type(1);
+        const auto& end_mask_et = get_input_element_type(2);
         NODE_VALIDATION_CHECK(this,
-                              begin_shape.rank().get_length() == 1,
-                              "Begin input must be 1D (begin rank: ",
-                              begin_shape.rank(),
-                              ").");
-    }
-    const auto& end_shape = get_input_partial_shape(2);
-    if (end_shape.rank().is_static())
-    {
+                            begin_mask_et.is_integral_number(),
+                            "Begin mask must be an integral number, but is: ",
+                            begin_mask_et);
         NODE_VALIDATION_CHECK(this,
-                              end_shape.rank().get_length() == 1,
-                              "End input must be 1D (end rank: ",
-                              end_shape.rank(),
-                              ").");
-    }
+                            end_mask_et.is_integral_number(),
+                            "End mask must be an integral number, but is: ",
+                            end_mask_et);
 
-    set_input_is_relevant_to_shape(1);
-    set_input_is_relevant_to_shape(2);
-    set_input_is_relevant_to_shape(3);
+        auto are_mask_elem_in_range = [](size_t e) { return e == 0 || e == 1; };
+        NODE_VALIDATION_CHECK(
+            this,
+            std::all_of(m_begin_mask.begin(), m_begin_mask.end(), are_mask_elem_in_range) &&
+                std::all_of(m_end_mask.begin(), m_end_mask.end(), are_mask_elem_in_range) &&
+                std::all_of(m_new_axis_mask.begin(), m_new_axis_mask.end(), are_mask_elem_in_range) &&
+                std::all_of(
+                    m_shrink_axis_mask.begin(), m_shrink_axis_mask.end(), are_mask_elem_in_range) &&
+                std::all_of(m_ellipsis_mask.begin(), m_ellipsis_mask.end(), are_mask_elem_in_range),
+            "All masks of StridedSlice must have be 0 or 1");
 
-    auto begin_const = as_type_ptr<op::Constant>(input_value(1).get_node_shared_ptr());
-    auto end_const = as_type_ptr<op::Constant>(input_value(2).get_node_shared_ptr());
-    auto strides = as_type_ptr<op::Constant>(input_value(3).get_node_shared_ptr());
+        const vector<size_t> attr_sizes = {m_begin_mask.size(),
+                                        m_end_mask.size(),
+                                        m_new_axis_mask.size(),
+                                        m_shrink_axis_mask.size(),
+                                        m_ellipsis_mask.size()};
+        const auto are_attr_sizes_eq =
+            std::all_of(attr_sizes.begin(), attr_sizes.end(), [&attr_sizes](size_t s) {
+                return (s == 0) || (attr_sizes[0] == s);
+            });
+        NODE_VALIDATION_CHECK(
+            this, are_attr_sizes_eq, "All masks of StridedSlice must have the same size");
 
-    if (begin_const && end_const && strides)
-    {
-        set_output_type(0,
-                        get_input_element_type(0),
-                        infer_slice_shape(this,
-                                          get_input_partial_shape(0),
-                                          begin_const->cast_vector<int64_t>(),
-                                          end_const->cast_vector<int64_t>(),
-                                          strides->cast_vector<int64_t>(),
-                                          convert_mask_to_axis_set(get_begin_mask()),
-                                          convert_mask_to_axis_set(get_end_mask()),
-                                          convert_mask_to_axis_set(get_new_axis_mask()),
-                                          convert_mask_to_axis_set(get_shrink_axis_mask()),
-                                          convert_mask_to_axis_set(get_ellipsis_mask())));
-    }
-    else
-    {
-        set_output_type(0, get_input_element_type(0), PartialShape::dynamic(data_rank));
-    }
-#else
+        const auto& data_rank = get_input_partial_shape(0).rank();
+        const auto& begin_shape = get_input_partial_shape(1);
+        if (begin_shape.rank().is_static())
+        {
+            NODE_VALIDATION_CHECK(this,
+                                begin_shape.rank().get_length() == 1,
+                                "Begin input must be 1D (begin rank: ",
+                                begin_shape.rank(),
+                                ").");
+        }
+        const auto& end_shape = get_input_partial_shape(2);
+        if (end_shape.rank().is_static())
+        {
+            NODE_VALIDATION_CHECK(this,
+                                end_shape.rank().get_length() == 1,
+                                "End input must be 1D (end rank: ",
+                                end_shape.rank(),
+                                ").");
+        }
+
+        set_input_is_relevant_to_shape(1);
+        set_input_is_relevant_to_shape(2);
+        set_input_is_relevant_to_shape(3);
+
+        auto begin_const = as_type_ptr<op::Constant>(input_value(1).get_node_shared_ptr());
+        auto end_const = as_type_ptr<op::Constant>(input_value(2).get_node_shared_ptr());
+        auto strides = as_type_ptr<op::Constant>(input_value(3).get_node_shared_ptr());
+
+        if (begin_const && end_const && strides)
+        {
+            set_output_type(0,
+                            get_input_element_type(0),
+                            infer_slice_shape(this,
+                                            get_input_partial_shape(0),
+                                            begin_const->cast_vector<int64_t>(),
+                                            end_const->cast_vector<int64_t>(),
+                                            strides->cast_vector<int64_t>(),
+                                            convert_mask_to_axis_set(get_begin_mask()),
+                                            convert_mask_to_axis_set(get_end_mask()),
+                                            convert_mask_to_axis_set(get_new_axis_mask()),
+                                            convert_mask_to_axis_set(get_shrink_axis_mask()),
+                                            convert_mask_to_axis_set(get_ellipsis_mask())));
+        }
+        else
+        {
+            set_output_type(0, get_input_element_type(0), PartialShape::dynamic(data_rank));
+        }
+        return;
+    )
     NODE_VALIDATION_CHECK(this, false, "Function is not included into the selective build.");
-#endif
 }
 
 AxisSet op::v1::StridedSlice::convert_mask_to_axis_set(const std::vector<int64_t>& mask) const
@@ -283,19 +280,17 @@ namespace
 bool op::v1::StridedSlice::evaluate(const HostTensorVector& output_values,
                                     const HostTensorVector& input_values) const
 {
-#if GraphGen(OV_GEN_NGRAPH_OP(StridedSlice, v1, evaluate))
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
-    return evaluate_strided_slice(input_values[0],
-                                  input_values[1],
-                                  input_values[2],
-                                  input_values[3],
-                                  convert_mask_to_axis_set(get_begin_mask()),
-                                  convert_mask_to_axis_set(get_end_mask()),
-                                  convert_mask_to_axis_set(get_new_axis_mask()),
-                                  convert_mask_to_axis_set(get_shrink_axis_mask()),
-                                  convert_mask_to_axis_set(get_ellipsis_mask()),
-                                  output_values[0]);
-#else
+    NGRAPH_OP_SCOPE(v1_StridedSlice_evaluate,
+        return evaluate_strided_slice(input_values[0],
+                                    input_values[1],
+                                    input_values[2],
+                                    input_values[3],
+                                    convert_mask_to_axis_set(get_begin_mask()),
+                                    convert_mask_to_axis_set(get_end_mask()),
+                                    convert_mask_to_axis_set(get_new_axis_mask()),
+                                    convert_mask_to_axis_set(get_shrink_axis_mask()),
+                                    convert_mask_to_axis_set(get_ellipsis_mask()),
+                                    output_values[0]);
+    )
     return false;
-#endif
 }

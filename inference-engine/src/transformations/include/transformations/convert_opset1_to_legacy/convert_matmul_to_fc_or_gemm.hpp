@@ -15,6 +15,8 @@
 
 #include <ngraph/pass/graph_rewrite.hpp>
 
+#include "transformations/itt.hpp"
+
 namespace ngraph {
 namespace pass {
 
@@ -28,8 +30,8 @@ class TRANSFORMATIONS_API ConvertMatMulToGemm;
 class ngraph::pass::ConvertMatMulToFCorGemm: public ngraph::pass::GraphRewrite {
 public:
     ConvertMatMulToFCorGemm() {
-        add_matcher<ngraph::pass::ConvertMatMulToFC>();
-        add_matcher<ngraph::pass::ConvertMatMulToGemm>();
+        ADD_MATCHER(this, ConvertMatMulToFC);
+        ADD_MATCHER(this, ConvertMatMulToGemm);
     }
 };
 

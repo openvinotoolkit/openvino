@@ -10,6 +10,8 @@
 #include <transformations_visibility.hpp>
 #include <ngraph/pass/graph_rewrite.hpp>
 
+#include "transformations/itt.hpp"
+
 namespace ngraph {
 namespace pass {
 
@@ -25,9 +27,9 @@ class ngraph::pass::LinOpSequenceFusion: public ngraph::pass::GraphRewrite {
 public:
     NGRAPH_RTTI_DECLARATION;
     LinOpSequenceFusion() {
-        add_matcher<ngraph::pass::AddMultiplyFusion>();
-        add_matcher<ngraph::pass::AddAddFusion>();
-        add_matcher<ngraph::pass::MultiplyMultiplyFusion>();
+        ADD_MATCHER(this, AddMultiplyFusion);
+        ADD_MATCHER(this, AddAddFusion);
+        ADD_MATCHER(this, MultiplyMultiplyFusion);
     }
 };
 

@@ -9,6 +9,7 @@
 
 #include <transformations_visibility.hpp>
 #include <ngraph/pass/graph_rewrite.hpp>
+#include "transformations/itt.hpp"
 
 namespace ngraph {
 namespace pass {
@@ -31,10 +32,10 @@ class ngraph::pass::HSwishFusion: public ngraph::pass::GraphRewrite {
 public:
     NGRAPH_RTTI_DECLARATION;
     HSwishFusion() {
-        add_matcher<ngraph::pass::HSwishFusionWithReluDiv>();
-        add_matcher<ngraph::pass::HSwishFusionWithReluMul>();
-        add_matcher<ngraph::pass::HSwishFusionWithoutRelu>();
-        add_matcher<ngraph::pass::HSwishFusionWithClamp>();
+        ADD_MATCHER(this, HSwishFusionWithReluDiv);
+        ADD_MATCHER(this, HSwishFusionWithReluMul);
+        ADD_MATCHER(this, HSwishFusionWithoutRelu);
+        ADD_MATCHER(this, HSwishFusionWithClamp);
     }
 };
 

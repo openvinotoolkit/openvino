@@ -17,6 +17,7 @@
 #include <ngraph/rt_info.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 
+#include "transformations/itt.hpp"
 
 namespace ngraph {
 namespace pass {
@@ -38,33 +39,45 @@ public:
 class ngraph::pass::ConvertReduceToPooling: public ngraph::pass::GraphRewrite {
 public:
     ConvertReduceToPooling() {
-        add_matcher<ConvertReduceMeanToPooling>();
-        add_matcher<ConvertReduceMaxToPooling>();
-        add_matcher<ConvertReduceSumToPooling>();
+        ADD_MATCHER(this, ConvertReduceMeanToPooling);
+        ADD_MATCHER(this, ConvertReduceMaxToPooling);
+        ADD_MATCHER(this, ConvertReduceSumToPooling);
     }
 };
 
 class ngraph::pass::ConvertReduceMeanToPooling: public ConvertReduceBase {
 public:
     ConvertReduceMeanToPooling() {
-        auto m = std::make_shared<ngraph::pattern::Matcher>(ngraph::pattern::wrap_type<opset1::ReduceMean>(), "ConvertReduceMean");
-        register_matcher(m, convert_reduce_to_pooling<opset1::ReduceMean>());
+        IETRANSFORM_SCOPE(ConvertReduceMeanToPooling,
+            auto m = std::make_shared<ngraph::pattern::Matcher>(ngraph::pattern::wrap_type<opset1::ReduceMean>(), matcher_name);
+            register_matcher(m, convert_reduce_to_pooling<opset1::ReduceMean>());
+            return;
+        )
+        NGRAPH_CHECK(false, "nGraph pass is not included into the selective build.");
     }
 };
 
 class ngraph::pass::ConvertReduceMaxToPooling: public ConvertReduceBase {
 public:
     ConvertReduceMaxToPooling() {
-        auto m = std::make_shared<ngraph::pattern::Matcher>(ngraph::pattern::wrap_type<opset1::ReduceMax>(), "ConvertReduceMax");
-        register_matcher(m, convert_reduce_to_pooling<opset1::ReduceMax>());
+        IETRANSFORM_SCOPE(ConvertReduceMaxToPooling,
+            auto m = std::make_shared<ngraph::pattern::Matcher>(ngraph::pattern::wrap_type<opset1::ReduceMax>(), matcher_name);
+            register_matcher(m, convert_reduce_to_pooling<opset1::ReduceMax>());
+            return;
+        )
+        NGRAPH_CHECK(false, "nGraph pass is not included into the selective build.");
     }
 };
 
 class ngraph::pass::ConvertReduceSumToPooling: public ConvertReduceBase {
 public:
     ConvertReduceSumToPooling() {
-        auto m = std::make_shared<ngraph::pattern::Matcher>(ngraph::pattern::wrap_type<opset1::ReduceSum>(), "ConvertReduceSum");
-        register_matcher(m, convert_reduce_to_pooling<opset1::ReduceSum>());
+        IETRANSFORM_SCOPE(ConvertReduceSumToPooling,
+            auto m = std::make_shared<ngraph::pattern::Matcher>(ngraph::pattern::wrap_type<opset1::ReduceSum>(), matcher_name);
+            register_matcher(m, convert_reduce_to_pooling<opset1::ReduceSum>());
+            return;
+        )
+        NGRAPH_CHECK(false, "nGraph pass is not included into the selective build.");
     }
 };
 

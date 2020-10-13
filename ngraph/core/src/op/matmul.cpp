@@ -44,80 +44,75 @@ op::MatMul::MatMul(const Output<Node>& A,
 
 bool ngraph::op::v0::MatMul::visit_attributes(AttributeVisitor& visitor)
 {
-#if GraphGen(OV_GEN_NGRAPH_OP(MatMul, v0, visit_attributes))
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
-    visitor.on_attribute("transpose_a", m_transpose_a);
-    visitor.on_attribute("transpose_b", m_transpose_b);
-    return true;
-#else
+    NGRAPH_OP_SCOPE(v0_MatMul_visit_attributes,
+        visitor.on_attribute("transpose_a", m_transpose_a);
+        visitor.on_attribute("transpose_b", m_transpose_b);
+        return true;
+    )
     return false;
-#endif
 }
 
 void op::MatMul::pre_validate_and_infer_types()
 {
-#if GraphGen(OV_GEN_NGRAPH_OP(MatMul, v0, pre_validate_and_infer_types))
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
-    element::Type result_et;
-    NODE_VALIDATION_CHECK(
-        this,
-        element::Type::merge(result_et, get_input_element_type(0), get_input_element_type(1)),
-        "Arguments do not have the same element type (arg0 element type: ",
-        get_input_element_type(0),
-        ", arg1 element type: ",
-        get_input_element_type(1),
-        ").");
+    NGRAPH_OP_SCOPE(v0_MatMul_pre_validate_and_infer_types,
+        element::Type result_et;
+        NODE_VALIDATION_CHECK(
+            this,
+            element::Type::merge(result_et, get_input_element_type(0), get_input_element_type(1)),
+            "Arguments do not have the same element type (arg0 element type: ",
+            get_input_element_type(0),
+            ", arg1 element type: ",
+            get_input_element_type(1),
+            ").");
 
-    const Rank& A_rank = get_input_partial_shape(0).rank();
-    const Rank& B_rank = get_input_partial_shape(1).rank();
+        const Rank& A_rank = get_input_partial_shape(0).rank();
+        const Rank& B_rank = get_input_partial_shape(1).rank();
 
-    if (A_rank.is_static() && B_rank.is_static())
-    {
-        Rank max_rank = A_rank.get_length() > B_rank.get_length() ? A_rank : B_rank;
-        set_output_type(0, result_et, PartialShape::dynamic(max_rank));
-    }
-    else
-    {
-        set_output_type(0, result_et, PartialShape::dynamic());
-    }
-#else
+        if (A_rank.is_static() && B_rank.is_static())
+        {
+            Rank max_rank = A_rank.get_length() > B_rank.get_length() ? A_rank : B_rank;
+            set_output_type(0, result_et, PartialShape::dynamic(max_rank));
+        }
+        else
+        {
+            set_output_type(0, result_et, PartialShape::dynamic());
+        }
+        return;
+    )
     NODE_VALIDATION_CHECK(this, false, "Function is not included into the selective build.");
-#endif
 }
 
 OutputVector op::MatMul::decompose_op() const
 {
-#if GraphGen(OV_GEN_NGRAPH_OP(MatMul, v0, decompose_op))
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
-    auto A = input_value(0);
-    auto B = input_value(1);
+    NGRAPH_OP_SCOPE(v0_MatMul_decompose_op,
+        auto A = input_value(0);
+        auto B = input_value(1);
 
-    const auto a_rank = A.get_shape().size();
-    const auto b_rank = B.get_shape().size();
+        const auto a_rank = A.get_shape().size();
+        const auto b_rank = B.get_shape().size();
 
-    if (m_transpose_a && a_rank >= 2)
-    {
-        vector<size_t> axes_order(a_rank);
-        // generate default axes_order.
-        iota(axes_order.begin(), axes_order.end(), 0);
-        // transpose the last 2 spatial dims
-        swap(axes_order[a_rank - 1], axes_order[a_rank - 2]);
-        A = builder::opset1::reorder_axes(A, axes_order);
-    }
+        if (m_transpose_a && a_rank >= 2)
+        {
+            vector<size_t> axes_order(a_rank);
+            // generate default axes_order.
+            iota(axes_order.begin(), axes_order.end(), 0);
+            // transpose the last 2 spatial dims
+            swap(axes_order[a_rank - 1], axes_order[a_rank - 2]);
+            A = builder::opset1::reorder_axes(A, axes_order);
+        }
 
-    if (m_transpose_b && b_rank >= 2)
-    {
-        vector<size_t> axes_order(b_rank);
-        iota(axes_order.begin(), axes_order.end(), 0);
-        swap(axes_order[b_rank - 1], axes_order[b_rank - 2]);
-        B = builder::opset1::reorder_axes(B, axes_order);
-    }
+        if (m_transpose_b && b_rank >= 2)
+        {
+            vector<size_t> axes_order(b_rank);
+            iota(axes_order.begin(), axes_order.end(), 0);
+            swap(axes_order[b_rank - 1], axes_order[b_rank - 2]);
+            B = builder::opset1::reorder_axes(B, axes_order);
+        }
 
-    builder::MatmulFactory factory({A, B});
-    return factory.make_matmul_op();
-#else
+        builder::MatmulFactory factory({A, B});
+        return factory.make_matmul_op();
+    )
     NODE_VALIDATION_CHECK(this, false, "Function is not included into the selective build.");
-#endif
 }
 
 shared_ptr<Node> op::MatMul::clone_with_new_inputs(const OutputVector& new_args) const
@@ -230,18 +225,12 @@ namespace
 
         switch (arg0->get_element_type())
         {
-            TYPE_CASE(i32)(arg0, arg1, output, transpose_a, transpose_b);
-            break;
-            TYPE_CASE(i64)(arg0, arg1, output, transpose_a, transpose_b);
-            break;
-            TYPE_CASE(u32)(arg0, arg1, output, transpose_a, transpose_b);
-            break;
-            TYPE_CASE(u64)(arg0, arg1, output, transpose_a, transpose_b);
-            break;
-            TYPE_CASE(f16)(arg0, arg1, output, transpose_a, transpose_b);
-            break;
-            TYPE_CASE(f32)(arg0, arg1, output, transpose_a, transpose_b);
-            break;
+            NGRAPH_TYPE_CASE(evaluate_matmul, i32, arg0, arg1, output, transpose_a, transpose_b)
+            NGRAPH_TYPE_CASE(evaluate_matmul, i64, arg0, arg1, output, transpose_a, transpose_b)
+            NGRAPH_TYPE_CASE(evaluate_matmul, u32, arg0, arg1, output, transpose_a, transpose_b)
+            NGRAPH_TYPE_CASE(evaluate_matmul, u64, arg0, arg1, output, transpose_a, transpose_b)
+            NGRAPH_TYPE_CASE(evaluate_matmul, f16, arg0, arg1, output, transpose_a, transpose_b)
+            NGRAPH_TYPE_CASE(evaluate_matmul, f32, arg0, arg1, output, transpose_a, transpose_b)
         default: rc = false; break;
         }
         return rc;
@@ -250,10 +239,9 @@ namespace
 
 bool op::MatMul::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
-#if GraphGen(OV_GEN_NGRAPH_OP(MatMul, v0, evaluate))
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
-    return evaluate_matmul(inputs[0], inputs[1], outputs[0], get_transpose_a(), get_transpose_b());
-#else
-    return false;
-#endif
+    bool rc = false;
+    NGRAPH_OP_SCOPE(v0_MatMul_evaluate,
+        rc = evaluate_matmul(inputs[0], inputs[1], outputs[0], get_transpose_a(), get_transpose_b());
+    )
+    return rc;
 }

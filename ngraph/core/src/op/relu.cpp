@@ -56,20 +56,13 @@ namespace
 
         switch (arg0->get_element_type())
         {
-            TYPE_CASE(boolean)(arg0, out, count);
-            break;
-            TYPE_CASE(i32)(arg0, out, count);
-            break;
-            TYPE_CASE(i64)(arg0, out, count);
-            break;
-            TYPE_CASE(u32)(arg0, out, count);
-            break;
-            TYPE_CASE(u64)(arg0, out, count);
-            break;
-            TYPE_CASE(f16)(arg0, out, count);
-            break;
-            TYPE_CASE(f32)(arg0, out, count);
-            break;
+            NGRAPH_TYPE_CASE(evaluate_relu, boolean, arg0, out, count)
+            NGRAPH_TYPE_CASE(evaluate_relu, i32, arg0, out, count)
+            NGRAPH_TYPE_CASE(evaluate_relu, i64, arg0, out, count)
+            NGRAPH_TYPE_CASE(evaluate_relu, u32, arg0, out, count)
+            NGRAPH_TYPE_CASE(evaluate_relu, u64, arg0, out, count)
+            NGRAPH_TYPE_CASE(evaluate_relu, f16, arg0, out, count)
+            NGRAPH_TYPE_CASE(evaluate_relu, f32, arg0, out, count)
         default: rc = false; break;
         }
         return rc;
@@ -78,10 +71,9 @@ namespace
 
 bool op::Relu::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
-#if GraphGen(OV_GEN_NGRAPH_OP(Relu, v0, evaluate))
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
-    return evaluate_relu(inputs[0], outputs[0], shape_size(get_output_shape(0)));
-#else
-    return false;
-#endif
+    bool rc = false;
+    NGRAPH_OP_SCOPE(v0_Relu_evaluate,
+        rc = evaluate_relu(inputs[0], outputs[0], shape_size(get_output_shape(0)));
+    )
+    return rc;
 }

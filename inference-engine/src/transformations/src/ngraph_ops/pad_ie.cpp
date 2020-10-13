@@ -3,6 +3,7 @@
 //
 
 #include "ngraph_ops/pad_ie.hpp"
+#include "itt.hpp"
 
 #include <assert.h>
 
@@ -38,7 +39,11 @@ op::PadIE::PadIE(const std::shared_ptr<op::v1::Pad>& pad)
 }
 
 void op::PadIE::validate_and_infer_types() {
-    set_output_type(0, get_input_element_type(0), m_output_shape);
+    NGRAPH_OP_SCOPE(PadIE_validate_and_infer_types,
+        set_output_type(0, get_input_element_type(0), m_output_shape);
+        return;
+    )
+    NODE_VALIDATION_CHECK(this, false, "Function is not included into the selective build.");
 }
 
 shared_ptr<Node> op::PadIE::clone_with_new_inputs(const OutputVector& new_args) const {

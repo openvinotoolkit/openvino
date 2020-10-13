@@ -40,79 +40,78 @@ op::Squeeze::Squeeze(const Output<Node>& data, const Output<Node>& axes)
 
 void op::Squeeze::pre_validate_and_infer_types()
 {
-#if GraphGen(OV_GEN_NGRAPH_OP(Squeeze, v0, pre_validate_and_infer_types))
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
-    auto data = input_value(0);
-    auto axes_node = input_value(1).get_node_shared_ptr();
+    NGRAPH_OP_SCOPE(v0_Squeeze_pre_validate_and_infer_types,
+        auto data = input_value(0);
+        auto axes_node = input_value(1).get_node_shared_ptr();
 
-    bool data_has_dynamic_rank = data.get_partial_shape().rank().is_dynamic();
-    bool data_has_dynamic_shape = data.get_partial_shape().is_dynamic();
+        bool data_has_dynamic_rank = data.get_partial_shape().rank().is_dynamic();
+        bool data_has_dynamic_shape = data.get_partial_shape().is_dynamic();
 
-    auto axes_constant = as_type_ptr<op::v0::Constant>(axes_node);
-    bool axes_is_empty_constant =
-        (axes_constant) ? axes_constant->cast_vector<int64_t>().empty() : false;
+        auto axes_constant = as_type_ptr<op::v0::Constant>(axes_node);
+        bool axes_is_empty_constant =
+            (axes_constant) ? axes_constant->cast_vector<int64_t>().empty() : false;
 
-    if (data_has_dynamic_rank || !axes_constant ||
-        (data_has_dynamic_shape && axes_is_empty_constant))
-    {
-        set_output_type(0, get_input_element_type(0), PartialShape::dynamic());
-        return;
-    }
+        if (data_has_dynamic_rank || !axes_constant ||
+            (data_has_dynamic_shape && axes_is_empty_constant))
+        {
+            set_output_type(0, get_input_element_type(0), PartialShape::dynamic());
+            return;
+        }
 
-    auto data_partial_shape = data.get_partial_shape();
-    uint64_t data_rank = data_partial_shape.rank().get_length();
+        auto data_partial_shape = data.get_partial_shape();
+        uint64_t data_rank = data_partial_shape.rank().get_length();
 
-    // Get value of axes from Constant
-    auto axes =
-        normalize_axes(this->description(), axes_constant->cast_vector<int64_t>(), data_rank);
+        // Get value of axes from Constant
+        auto axes =
+            normalize_axes(this->description(), axes_constant->cast_vector<int64_t>(), data_rank);
 
-    // Prepare set of unique axes marked to be removed from input data.
-    vector<uint64_t> axes_to_squeeze(data_rank);
-    if (axes_is_empty_constant)
-    {
-        auto data_shape = data.get_shape();
-        // Default behaviour is to remove all single dimension axes.
+        // Prepare set of unique axes marked to be removed from input data.
+        vector<uint64_t> axes_to_squeeze(data_rank);
+        if (axes_is_empty_constant)
+        {
+            auto data_shape = data.get_shape();
+            // Default behaviour is to remove all single dimension axes.
+            for (uint64_t idx = 0; idx < data_rank; ++idx)
+            {
+                if (data_shape.at(idx) == 1)
+                {
+                    axes_to_squeeze.at(idx) = 1;
+                }
+                else
+                {
+                    axes_to_squeeze.at(idx) = 0;
+                }
+            }
+        }
+        else
+        {
+            set<size_t, greater<size_t>> unique_axes(begin(axes), end(axes));
+            for (uint64_t axis : unique_axes)
+            {
+                if (!data_has_dynamic_shape)
+                {
+                    auto data_shape = data.get_shape();
+                    NODE_VALIDATION_CHECK(
+                        this,
+                        (data_shape.at(axis) == 1),
+                        "provided axis value is invalid. Only axes of size 1 may be removed.");
+                }
+                axes_to_squeeze.at(axis) = 1;
+            }
+        }
+
+        vector<Dimension> output_data_shape;
         for (uint64_t idx = 0; idx < data_rank; ++idx)
         {
-            if (data_shape.at(idx) == 1)
+            if (axes_to_squeeze.at(idx) == 0)
             {
-                axes_to_squeeze.at(idx) = 1;
-            }
-            else
-            {
-                axes_to_squeeze.at(idx) = 0;
+                output_data_shape.push_back(data_partial_shape[idx]);
             }
         }
-    }
-    else
-    {
-        set<size_t, greater<size_t>> unique_axes(begin(axes), end(axes));
-        for (uint64_t axis : unique_axes)
-        {
-            if (!data_has_dynamic_shape)
-            {
-                auto data_shape = data.get_shape();
-                NODE_VALIDATION_CHECK(
-                    this,
-                    (data_shape.at(axis) == 1),
-                    "provided axis value is invalid. Only axes of size 1 may be removed.");
-            }
-            axes_to_squeeze.at(axis) = 1;
-        }
-    }
-
-    vector<Dimension> output_data_shape;
-    for (uint64_t idx = 0; idx < data_rank; ++idx)
-    {
-        if (axes_to_squeeze.at(idx) == 0)
-        {
-            output_data_shape.push_back(data_partial_shape[idx]);
-        }
-    }
-    set_output_type(0, get_input_element_type(0), PartialShape(output_data_shape));
-#else
+        set_output_type(0, get_input_element_type(0), PartialShape(output_data_shape));
+        return;
+    )
     NODE_VALIDATION_CHECK(this, false, "Function is not included into the selective build.");
-#endif
 }
 
 bool ngraph::op::v0::Squeeze::visit_attributes(AttributeVisitor& visitor)
@@ -122,20 +121,18 @@ bool ngraph::op::v0::Squeeze::visit_attributes(AttributeVisitor& visitor)
 
 OutputVector op::Squeeze::decompose_op() const
 {
-#if GraphGen(OV_GEN_NGRAPH_OP(Squeeze, v0, decompose_op))
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
-    NODE_VALIDATION_CHECK(
-        this,
-        (get_output_partial_shape(0).is_static()),
-        "output shape was not calculated during pre_validate_and_infer_types. Can not decompose.");
-    auto data = input_value(0);
-    auto data_shape = data.get_shape();
-    auto output_data_shape = get_output_shape(0);
-    AxisVector input_order{get_default_order(data_shape.size())};
-    return {make_shared<op::Reshape>(data, input_order, output_data_shape)};
-#else
+    NGRAPH_OP_SCOPE(v0_Squeeze_decompose_op,
+        NODE_VALIDATION_CHECK(
+            this,
+            (get_output_partial_shape(0).is_static()),
+            "output shape was not calculated during pre_validate_and_infer_types. Can not decompose.");
+        auto data = input_value(0);
+        auto data_shape = data.get_shape();
+        auto output_data_shape = get_output_shape(0);
+        AxisVector input_order{get_default_order(data_shape.size())};
+        return {make_shared<op::Reshape>(data, input_order, output_data_shape)};
+    )
     NODE_VALIDATION_CHECK(this, false, "Function is not included into the selective build.");
-#endif
 }
 
 shared_ptr<Node> op::Squeeze::clone_with_new_inputs(const OutputVector& new_args) const
@@ -198,18 +195,12 @@ namespace
         bool rc = true;
         switch (element_type)
         {
-            TYPE_CASE(i32)(arg0, out);
-            break;
-            TYPE_CASE(i64)(arg0, out);
-            break;
-            TYPE_CASE(u32)(arg0, out);
-            break;
-            TYPE_CASE(u64)(arg0, out);
-            break;
-            TYPE_CASE(f16)(arg0, out);
-            break;
-            TYPE_CASE(f32)(arg0, out);
-            break;
+            NGRAPH_TYPE_CASE(evaluate_squeeze, i32, arg0, out);
+            NGRAPH_TYPE_CASE(evaluate_squeeze, i64, arg0, out);
+            NGRAPH_TYPE_CASE(evaluate_squeeze, u32, arg0, out);
+            NGRAPH_TYPE_CASE(evaluate_squeeze, u64, arg0, out);
+            NGRAPH_TYPE_CASE(evaluate_squeeze, f16, arg0, out);
+            NGRAPH_TYPE_CASE(evaluate_squeeze, f32, arg0, out);
         default: rc = false; break;
         }
         return rc;
@@ -219,10 +210,9 @@ namespace
 bool op::v0::Squeeze::evaluate(const HostTensorVector& outputs,
                                const HostTensorVector& inputs) const
 {
-#if GraphGen(OV_GEN_NGRAPH_OP(Squeeze, v0, evaluate))
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
-    return evaluate_squeeze(inputs[0], inputs[1], outputs[0]);
-#else
-    return false;
-#endif
+    bool rc = false;
+    NGRAPH_OP_SCOPE(v0_Squeeze_evaluate,
+        rc = evaluate_squeeze(inputs[0], inputs[1], outputs[0]);
+    )
+    return rc;
 }

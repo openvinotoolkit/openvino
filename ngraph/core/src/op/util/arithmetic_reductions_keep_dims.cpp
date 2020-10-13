@@ -33,77 +33,74 @@ op::util::ArithmeticReductionKeepDims::ArithmeticReductionKeepDims(
 
 bool ngraph::op::util::ArithmeticReductionKeepDims::visit_attributes(AttributeVisitor& visitor)
 {
-#if GraphGen(OV_GEN_NGRAPH_OP_UTIL(ArithmeticReductionKeepDims, visit_attributes))
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
-    visitor.on_attribute("keep_dims", m_keep_dims);
-    return true;
-#else
+    NGRAPH_OP_UTIL_SCOPE(ArithmeticReductionKeepDims_visit_attributes,
+        visitor.on_attribute("keep_dims", m_keep_dims);
+        return true;
+    )
     return false;
-#endif
 }
 
 void op::util::ArithmeticReductionKeepDims::validate_and_infer_types()
 {
-#if GraphGen(OV_GEN_NGRAPH_OP_UTIL(ArithmeticReductionKeepDims, validate_and_infer_types))
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
-    if (m_keep_dims)
-    {
-        auto input_shape = get_input_partial_shape(0);
-        auto input_rank = input_shape.rank();
-        PartialShape result_shape{PartialShape::dynamic()};
-
-        if (input_rank.is_static())
-            result_shape = PartialShape::dynamic(input_rank);
-
-        if (input_rank.is_static() && reduction_axes_constant())
+    NGRAPH_OP_UTIL_SCOPE(ArithmeticReductionKeepDims_validate_and_infer_types,
+        if (m_keep_dims)
         {
-            AxisSet reduction_axes;
-            auto reduction_axes_val =
-                as_type<op::Constant>(input_value(1).get_node())->cast_vector<int64_t>();
-            for (auto axis : reduction_axes_val)
-            {
-                try
-                {
-                    axis = normalize_axis(this, axis, input_rank);
-                }
-                catch (const ngraph_error&)
-                {
-                    NODE_VALIDATION_CHECK(this,
-                                          false,
-                                          "Reduction axis (",
-                                          axis,
-                                          ") is out of bounds ",
-                                          "(argument shape: ",
-                                          input_shape,
-                                          ", reduction axes: ",
-                                          reduction_axes,
-                                          ")");
-                }
-                reduction_axes.insert(axis);
-            }
+            auto input_shape = get_input_partial_shape(0);
+            auto input_rank = input_shape.rank();
+            PartialShape result_shape{PartialShape::dynamic()};
 
-            std::vector<Dimension> dims;
-            for (size_t i = 0; i < input_rank.get_length(); i++)
+            if (input_rank.is_static())
+                result_shape = PartialShape::dynamic(input_rank);
+
+            if (input_rank.is_static() && reduction_axes_constant())
             {
-                if (reduction_axes.count(i) == 0)
+                AxisSet reduction_axes;
+                auto reduction_axes_val =
+                    as_type<op::Constant>(input_value(1).get_node())->cast_vector<int64_t>();
+                for (auto axis : reduction_axes_val)
                 {
-                    dims.push_back(input_shape[i]);
+                    try
+                    {
+                        axis = normalize_axis(this, axis, input_rank);
+                    }
+                    catch (const ngraph_error&)
+                    {
+                        NODE_VALIDATION_CHECK(this,
+                                            false,
+                                            "Reduction axis (",
+                                            axis,
+                                            ") is out of bounds ",
+                                            "(argument shape: ",
+                                            input_shape,
+                                            ", reduction axes: ",
+                                            reduction_axes,
+                                            ")");
+                    }
+                    reduction_axes.insert(axis);
                 }
-                else
+
+                std::vector<Dimension> dims;
+                for (size_t i = 0; i < input_rank.get_length(); i++)
                 {
-                    dims.push_back(Dimension{1});
+                    if (reduction_axes.count(i) == 0)
+                    {
+                        dims.push_back(input_shape[i]);
+                    }
+                    else
+                    {
+                        dims.push_back(Dimension{1});
+                    }
                 }
+                result_shape = PartialShape(dims);
             }
-            result_shape = PartialShape(dims);
+            set_input_is_relevant_to_shape(1);
+            set_output_type(0, get_input_element_type(0), result_shape);
         }
-        set_input_is_relevant_to_shape(1);
-        set_output_type(0, get_input_element_type(0), result_shape);
-    }
-    else
-    {
-        ArithmeticReduction::validate_and_infer_types();
-    }
-#else
+        else
+        {
+            ArithmeticReduction::validate_and_infer_types();
+        }
+        return;
+    )
     NODE_VALIDATION_CHECK(this, false, "Function is not included into the selective build.");
-#endif
 }

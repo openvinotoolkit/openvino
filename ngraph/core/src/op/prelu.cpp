@@ -47,54 +47,53 @@ bool ngraph::op::v0::PRelu::visit_attributes(AttributeVisitor& visitor)
 
 void ngraph::op::v0::PRelu::pre_validate_and_infer_types()
 {
-#if GraphGen(OV_GEN_NGRAPH_OP(PRelu, v0, pre_validate_and_infer_types))
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
-    set_output_type(0, get_input_element_type(0), get_input_partial_shape(0));
-#else
+    NGRAPH_OP_SCOPE(v0_PRelu_pre_validate_and_infer_types,
+
+        set_output_type(0, get_input_element_type(0), get_input_partial_shape(0));
+        return;
+    )
     NODE_VALIDATION_CHECK(this, false, "Function is not included into the selective build.");
-#endif
 }
 
 OutputVector op::PRelu::decompose_op() const
 {
-#if GraphGen(OV_GEN_NGRAPH_OP(PRelu, v0, decompose_op))
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
-    auto data = input_value(0);
-    auto data_shape = data.get_shape();
-    auto slope = input_value(1);
-    slope = std::make_shared<op::Convert>(slope, data.get_element_type());
-    auto slope_shape = slope.get_shape();
+    NGRAPH_OP_SCOPE(v0_PRelu_decompose_op,
 
-    if ((slope_shape.size() == 1) && (slope_shape.at(0) != 1))
-    {
-        auto it = std::find(std::begin(data_shape), std::end(data_shape), slope_shape.at(0));
-        auto index = std::distance(std::begin(data_shape), it);
-        slope = builder::make_broadcast_node(slope, data.get_shape(), index);
-    }
-    else if (data_shape != slope_shape)
-    {
-        slope = builder::numpy_broadcast(slope, data.get_shape());
-    }
+        auto data = input_value(0);
+        auto data_shape = data.get_shape();
+        auto slope = input_value(1);
+        slope = std::make_shared<op::Convert>(slope, data.get_element_type());
+        auto slope_shape = slope.get_shape();
 
-    // x <  0 => f(x) = x * slope
-    // x >= 0 => f(x) = x
+        if ((slope_shape.size() == 1) && (slope_shape.at(0) != 1))
+        {
+            auto it = std::find(std::begin(data_shape), std::end(data_shape), slope_shape.at(0));
+            auto index = std::distance(std::begin(data_shape), it);
+            slope = builder::make_broadcast_node(slope, data.get_shape(), index);
+        }
+        else if (data_shape != slope_shape)
+        {
+            slope = builder::numpy_broadcast(slope, data.get_shape());
+        }
 
-    std::shared_ptr<ngraph::Node> zero_node = std::make_shared<ngraph::op::Constant>(
-        data.get_element_type(), ngraph::Shape{}, std::vector<double>{0});
-    zero_node = builder::make_broadcast_node(zero_node, data.get_shape());
+        // x <  0 => f(x) = x * slope
+        // x >= 0 => f(x) = x
 
-    std::shared_ptr<ngraph::Node> negative_map = std::make_shared<ngraph::op::Convert>(
-        std::make_shared<ngraph::op::Less>(data, zero_node), data.get_element_type());
+        std::shared_ptr<ngraph::Node> zero_node = std::make_shared<ngraph::op::Constant>(
+            data.get_element_type(), ngraph::Shape{}, std::vector<double>{0});
+        zero_node = builder::make_broadcast_node(zero_node, data.get_shape());
 
-    std::shared_ptr<ngraph::Node> positive_map = std::make_shared<ngraph::op::Convert>(
-        std::make_shared<ngraph::op::Greater>(data, zero_node), data.get_element_type());
+        std::shared_ptr<ngraph::Node> negative_map = std::make_shared<ngraph::op::Convert>(
+            std::make_shared<ngraph::op::Less>(data, zero_node), data.get_element_type());
 
-    slope = negative_map * slope + positive_map;
+        std::shared_ptr<ngraph::Node> positive_map = std::make_shared<ngraph::op::Convert>(
+            std::make_shared<ngraph::op::Greater>(data, zero_node), data.get_element_type());
 
-    return {data * slope};
-#else
+        slope = negative_map * slope + positive_map;
+
+        return {data * slope};
+    )
     NODE_VALIDATION_CHECK(this, false, "Function is not included into the selective build.");
-#endif
 }
 
 shared_ptr<Node> op::PRelu::clone_with_new_inputs(const OutputVector& new_args) const
@@ -122,14 +121,10 @@ bool evaluate_prelu(const HostTensorPtr& arg, const HostTensorPtr& slope, const 
     bool rc = true;
     switch (arg->get_element_type())
     {
-        TYPE_CASE(i8)(arg, slope, out);
-        break;
-        TYPE_CASE(bf16)(arg, slope, out);
-        break;
-        TYPE_CASE(f16)(arg, slope, out);
-        break;
-        TYPE_CASE(f32)(arg, slope, out);
-        break;
+        NGRAPH_TYPE_CASE(evaluate_prelu, i8, arg, slope, out)
+        NGRAPH_TYPE_CASE(evaluate_prelu, bf16, arg, slope, out)
+        NGRAPH_TYPE_CASE(evaluate_prelu, f16, arg, slope, out)
+        NGRAPH_TYPE_CASE(evaluate_prelu, f32, arg, slope, out)
     default: rc = false; break;
     }
     return rc;
@@ -137,10 +132,9 @@ bool evaluate_prelu(const HostTensorPtr& arg, const HostTensorPtr& slope, const 
 
 bool op::PRelu::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
-#if GraphGen(OV_GEN_NGRAPH_OP(PRelu, v0, evaluate))
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
-    return evaluate_prelu(inputs[0], inputs[1], outputs[0]);
-#else
-    return false;
-#endif
+    bool rc = false;
+    NGRAPH_OP_SCOPE(v0_PRelu_evaluate,
+        rc = evaluate_prelu(inputs[0], inputs[1], outputs[0]);
+    )
+    return rc;
 }

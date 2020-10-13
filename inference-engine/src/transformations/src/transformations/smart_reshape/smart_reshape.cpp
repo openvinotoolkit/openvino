@@ -13,19 +13,16 @@
 #include <transformations/init_node_info.hpp>
 
 bool ngraph::pass::SmartReshape::run_on_function(std::shared_ptr<ngraph::Function> f) {
-#if GraphGen(OV_GEN_NGRAPH_PASS(SmartReshape, run_on_function))
-    OV_ITT_SCOPED_TASK(itt::domains::IETransform);
+    IETRANSFORM_SCOPE(SmartReshape,
+        ngraph::pass::Manager manager;
 
-    ngraph::pass::Manager manager;
-    // This pass must be called first in pipeline
-    manager.register_pass<ngraph::pass::InitNodeInfo>();
+        // This pass must be called first in pipeline
+        REGISTER_PASS(manager, InitNodeInfo);
+        REGISTER_PASS(manager, ReshapeAMatMul);
+        REGISTER_PASS(manager, ReshapeBMatMul);
 
-    manager.register_pass<ngraph::pass::ReshapeAMatMul>();
-    manager.register_pass<ngraph::pass::ReshapeBMatMul>();
-
-    manager.run_passes(f);
-    return true;
-#else
-    return false;
-#endif
+        manager.run_passes(f);
+        return true;
+    )
+    NGRAPH_CHECK(false, "nGraph pass is not included into the selective build.");
 }

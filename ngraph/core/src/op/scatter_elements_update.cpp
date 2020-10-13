@@ -42,89 +42,88 @@ bool op::v3::ScatterElementsUpdate::visit_attributes(AttributeVisitor& visitor)
 
 void op::v3::ScatterElementsUpdate::validate_and_infer_types()
 {
-#if GraphGen(OV_GEN_NGRAPH_OP(ScatterElementsUpdate, v3, validate_and_infer_types))
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
-    element::Type data_et = get_input_element_type(0);
-    element::Type indices_et = get_input_element_type(1);
-    element::Type updates_et = get_input_element_type(2);
-    element::Type axis_et = get_input_element_type(3);
+    NGRAPH_OP_SCOPE(v3_ScatterElementsUpdate_validate_and_infer_types,
+        element::Type data_et = get_input_element_type(0);
+        element::Type indices_et = get_input_element_type(1);
+        element::Type updates_et = get_input_element_type(2);
+        element::Type axis_et = get_input_element_type(3);
 
-    const PartialShape& data_shape = get_input_partial_shape(0);
-    const PartialShape& indices_shape = get_input_partial_shape(1);
-    const PartialShape& updates_shape = get_input_partial_shape(2);
-    const PartialShape& axis_shape = get_input_partial_shape(3);
+        const PartialShape& data_shape = get_input_partial_shape(0);
+        const PartialShape& indices_shape = get_input_partial_shape(1);
+        const PartialShape& updates_shape = get_input_partial_shape(2);
+        const PartialShape& axis_shape = get_input_partial_shape(3);
 
-    NODE_VALIDATION_CHECK(this,
-                          indices_et.is_integral(),
-                          "Indices element type must be integral_number, but is: ",
-                          indices_et);
+        NODE_VALIDATION_CHECK(this,
+                            indices_et.is_integral(),
+                            "Indices element type must be integral_number, but is: ",
+                            indices_et);
 
-    NODE_VALIDATION_CHECK(this,
-                          axis_et.is_integral(),
-                          "Axis element type must be integral_number, but is: ",
-                          axis_et);
+        NODE_VALIDATION_CHECK(this,
+                            axis_et.is_integral(),
+                            "Axis element type must be integral_number, but is: ",
+                            axis_et);
 
-    NODE_VALIDATION_CHECK(this,
-                          data_et == updates_et,
-                          "Data type and updates type are required to be the same. ",
-                          "Got: ",
-                          data_et,
-                          " and: ",
-                          updates_et);
+        NODE_VALIDATION_CHECK(this,
+                            data_et == updates_et,
+                            "Data type and updates type are required to be the same. ",
+                            "Got: ",
+                            data_et,
+                            " and: ",
+                            updates_et);
 
-    NODE_VALIDATION_CHECK(this,
-                          axis_shape.compatible(PartialShape{}) ||
-                              axis_shape.compatible(PartialShape{1}),
-                          "Axis input shape are required to be scalar or 1D tensor. ",
-                          "Got: ",
-                          axis_shape);
+        NODE_VALIDATION_CHECK(this,
+                            axis_shape.compatible(PartialShape{}) ||
+                                axis_shape.compatible(PartialShape{1}),
+                            "Axis input shape are required to be scalar or 1D tensor. ",
+                            "Got: ",
+                            axis_shape);
 
-    NODE_VALIDATION_CHECK(this,
-                          indices_shape.rank().compatible(data_shape.rank()),
-                          "Indices rank and data rank are required to be equal. ",
-                          "Got: ",
-                          indices_shape.rank(),
-                          " and: ",
-                          data_shape.rank());
+        NODE_VALIDATION_CHECK(this,
+                            indices_shape.rank().compatible(data_shape.rank()),
+                            "Indices rank and data rank are required to be equal. ",
+                            "Got: ",
+                            indices_shape.rank(),
+                            " and: ",
+                            data_shape.rank());
 
-    NODE_VALIDATION_CHECK(this,
-                          indices_shape.compatible(updates_shape),
-                          "Indices and updates input shapes are required to be equal. ",
-                          "Got: ",
-                          indices_shape,
-                          " and: ",
-                          updates_shape);
+        NODE_VALIDATION_CHECK(this,
+                            indices_shape.compatible(updates_shape),
+                            "Indices and updates input shapes are required to be equal. ",
+                            "Got: ",
+                            indices_shape,
+                            " and: ",
+                            updates_shape);
 
-    if (ngraph::op::is_constant(input_value(3).get_node()) && data_shape.rank().is_static())
-    {
-        const auto axis_input = as_type_ptr<op::v0::Constant>(input_value(3).get_node_shared_ptr());
-        auto axis = axis_input->cast_vector<int64_t>().at(0);
+        if (ngraph::op::is_constant(input_value(3).get_node()) && data_shape.rank().is_static())
+        {
+            const auto axis_input = as_type_ptr<op::v0::Constant>(input_value(3).get_node_shared_ptr());
+            auto axis = axis_input->cast_vector<int64_t>().at(0);
 
-        int64_t data_rank_length = data_shape.rank().get_length();
-        NODE_VALIDATION_CHECK(
-            this,
-            (-data_rank_length <= axis) && (axis <= data_rank_length - 1),
-            "Axis value has to be in range [-r, r-1] where r is rank of data shape. ",
-            " Data rank: ",
-            data_rank_length,
-            ", range:[",
-            -data_rank_length,
-            ", ",
-            data_rank_length - 1,
-            "]. Got axis value: ",
-            axis);
-    }
+            int64_t data_rank_length = data_shape.rank().get_length();
+            NODE_VALIDATION_CHECK(
+                this,
+                (-data_rank_length <= axis) && (axis <= data_rank_length - 1),
+                "Axis value has to be in range [-r, r-1] where r is rank of data shape. ",
+                " Data rank: ",
+                data_rank_length,
+                ", range:[",
+                -data_rank_length,
+                ", ",
+                data_rank_length - 1,
+                "]. Got axis value: ",
+                axis);
+        }
 
-    if (data_shape.is_dynamic())
-    {
-        set_input_is_relevant_to_shape(0);
-    }
+        if (data_shape.is_dynamic())
+        {
+            set_input_is_relevant_to_shape(0);
+        }
 
-    set_output_size(1);
-    set_output_type(0, data_et, data_shape);
-#else
+        set_output_size(1);
+        set_output_type(0, data_et, data_shape);
+        return;
+    )
     NODE_VALIDATION_CHECK(this, false, "Function is not included into the selective build.");
-#endif
 }
 
 shared_ptr<Node>
@@ -167,8 +166,22 @@ namespace
         return true;
     }
 
-#define TYPE_AXS_CASE(a)                                                                           \
-    case element::Type_t::a: rc = evaluate<DT, IT, element::Type_t::a>
+#define TYPE_AXS_CASE(a) rc = evaluate<DT, IT, element::Type_t::a>
+
+#if defined(OV_SELECTIVE_BUILD_LOG) || defined(ENABLE_PROFILING_ITT)
+#define NGRAPH_TYPE_AXS_CASE(NAME, TYPE, ...)                                                      \
+    case element::Type_t::TYPE: {                                                                  \
+        OV_ITT_SCOPED_TASK(NGRAPH_DOMAIN, std::string(OV_TOSTRING(NAME ## _ ## TYPE)));            \
+        TYPE_AXS_CASE(TYPE)(__VA_ARGS__);                                                          \
+        break;                                                                                     \
+    }
+#else
+#define NGRAPH_TYPE_AXS_CASE(NAME, TYPE, ...)                                                      \
+    OV_SCOPE(OV_CAT(OV_CAT(NAME, _), TYPE),                                                        \
+        TYPE_AXS_CASE(TYPE)(__VA_ARGS__);                                                          \
+        break;                                                                                     \
+    )
+#endif
 
     template <element::Type_t DT, element::Type_t IT>
     bool evaluate(const HostTensorPtr& arg0,
@@ -185,30 +198,37 @@ namespace
 
         switch (axis_type)
         {
-            TYPE_AXS_CASE(i8)(arg0, arg1, arg2, arg3, out, normalized_axis);
-            break;
-            TYPE_AXS_CASE(i16)(arg0, arg1, arg2, arg3, out, normalized_axis);
-            break;
-            TYPE_AXS_CASE(i32)(arg0, arg1, arg2, arg3, out, normalized_axis);
-            break;
-            TYPE_AXS_CASE(i64)(arg0, arg1, arg2, arg3, out, normalized_axis);
-            break;
-            TYPE_AXS_CASE(u8)(arg0, arg1, arg2, arg3, out, normalized_axis);
-            break;
-            TYPE_AXS_CASE(u16)(arg0, arg1, arg2, arg3, out, normalized_axis);
-            break;
-            TYPE_AXS_CASE(u32)(arg0, arg1, arg2, arg3, out, normalized_axis);
-            break;
-            TYPE_AXS_CASE(u64)(arg0, arg1, arg2, arg3, out, normalized_axis);
-            break;
+            NGRAPH_TYPE_AXS_CASE(evaluate_scatter_element_update_axs, i8, arg0, arg1, arg2, arg3, out, normalized_axis)
+            NGRAPH_TYPE_AXS_CASE(evaluate_scatter_element_update_axs, i16, arg0, arg1, arg2, arg3, out, normalized_axis)
+            NGRAPH_TYPE_AXS_CASE(evaluate_scatter_element_update_axs, i32, arg0, arg1, arg2, arg3, out, normalized_axis)
+            NGRAPH_TYPE_AXS_CASE(evaluate_scatter_element_update_axs, i64, arg0, arg1, arg2, arg3, out, normalized_axis)
+            NGRAPH_TYPE_AXS_CASE(evaluate_scatter_element_update_axs, u8, arg0, arg1, arg2, arg3, out, normalized_axis)
+            NGRAPH_TYPE_AXS_CASE(evaluate_scatter_element_update_axs, u16, arg0, arg1, arg2, arg3, out, normalized_axis)
+            NGRAPH_TYPE_AXS_CASE(evaluate_scatter_element_update_axs, u32, arg0, arg1, arg2, arg3, out, normalized_axis)
+            NGRAPH_TYPE_AXS_CASE(evaluate_scatter_element_update_axs, u64, arg0, arg1, arg2, arg3, out, normalized_axis)
         default: rc = false; break;
         }
         return rc;
     }
 
-#define TYPE_IND_CASE(a)                                                                           \
-    case element::Type_t::a: rc = evaluate<DT, element::Type_t::a>
+#define TYPE_IND_CASE(a) rc = evaluate<DT, element::Type_t::a>
 
+#if defined(OV_SELECTIVE_BUILD_LOG) || defined(ENABLE_PROFILING_ITT)
+#define NGRAPH_TYPE_IND_CASE(NAME, TYPE, ...)                                                      \
+    case element::Type_t::TYPE: {                                                                  \
+        OV_ITT_SCOPED_TASK(NGRAPH_DOMAIN, std::string(OV_TOSTRING(NAME ## _ ## TYPE)));            \
+        TYPE_IND_CASE(TYPE)(__VA_ARGS__);                                                          \
+        break;                                                                                     \
+    }
+#else
+#define NGRAPH_TYPE_IND_CASE(NAME, TYPE, ...)                                                      \
+    OV_SCOPE(OV_CAT(OV_CAT(NAME, _), TYPE),                                                        \
+        case element::Type_t::TYPE: {                                                              \
+            TYPE_IND_CASE(TYPE)(__VA_ARGS__);                                                      \
+            break;                                                                                 \
+        }                                                                                          \
+    )
+#endif
     template <element::Type_t DT>
     bool evaluate(const HostTensorPtr& arg0,
                   const HostTensorPtr& arg1,
@@ -224,22 +244,14 @@ namespace
 
         switch (indices_type)
         {
-            TYPE_IND_CASE(i8)(arg0, arg1, arg2, arg3, out, normalized_axis);
-            break;
-            TYPE_IND_CASE(i16)(arg0, arg1, arg2, arg3, out, normalized_axis);
-            break;
-            TYPE_IND_CASE(i32)(arg0, arg1, arg2, arg3, out, normalized_axis);
-            break;
-            TYPE_IND_CASE(i64)(arg0, arg1, arg2, arg3, out, normalized_axis);
-            break;
-            TYPE_IND_CASE(u8)(arg0, arg1, arg2, arg3, out, normalized_axis);
-            break;
-            TYPE_IND_CASE(u16)(arg0, arg1, arg2, arg3, out, normalized_axis);
-            break;
-            TYPE_IND_CASE(u32)(arg0, arg1, arg2, arg3, out, normalized_axis);
-            break;
-            TYPE_IND_CASE(u64)(arg0, arg1, arg2, arg3, out, normalized_axis);
-            break;
+            NGRAPH_TYPE_IND_CASE(evaluate_scatter_element_update_ind, i8, arg0, arg1, arg2, arg3, out, normalized_axis)
+            NGRAPH_TYPE_IND_CASE(evaluate_scatter_element_update_ind, i16, arg0, arg1, arg2, arg3, out, normalized_axis)
+            NGRAPH_TYPE_IND_CASE(evaluate_scatter_element_update_ind, i32, arg0, arg1, arg2, arg3, out, normalized_axis)
+            NGRAPH_TYPE_IND_CASE(evaluate_scatter_element_update_ind, i64, arg0, arg1, arg2, arg3, out, normalized_axis)
+            NGRAPH_TYPE_IND_CASE(evaluate_scatter_element_update_ind, u8, arg0, arg1, arg2, arg3, out, normalized_axis)
+            NGRAPH_TYPE_IND_CASE(evaluate_scatter_element_update_ind, u16, arg0, arg1, arg2, arg3, out, normalized_axis)
+            NGRAPH_TYPE_IND_CASE(evaluate_scatter_element_update_ind, u32, arg0, arg1, arg2, arg3, out, normalized_axis)
+            NGRAPH_TYPE_IND_CASE(evaluate_scatter_element_update_ind, u64, arg0, arg1, arg2, arg3, out, normalized_axis)
         default: rc = false; break;
         }
         return rc;
@@ -256,18 +268,12 @@ namespace
 
         switch (out->get_element_type())
         {
-            TYPE_CASE(i32)(arg0, arg1, arg2, arg3, out, normalized_axis);
-            break;
-            TYPE_CASE(i64)(arg0, arg1, arg2, arg3, out, normalized_axis);
-            break;
-            TYPE_CASE(u32)(arg0, arg1, arg2, arg3, out, normalized_axis);
-            break;
-            TYPE_CASE(u64)(arg0, arg1, arg2, arg3, out, normalized_axis);
-            break;
-            TYPE_CASE(f16)(arg0, arg1, arg2, arg3, out, normalized_axis);
-            break;
-            TYPE_CASE(f32)(arg0, arg1, arg2, arg3, out, normalized_axis);
-            break;
+            NGRAPH_TYPE_CASE(evaluate_scatter_element_update, i32, arg0, arg1, arg2, arg3, out, normalized_axis);
+            NGRAPH_TYPE_CASE(evaluate_scatter_element_update, i64, arg0, arg1, arg2, arg3, out, normalized_axis);
+            NGRAPH_TYPE_CASE(evaluate_scatter_element_update, u32, arg0, arg1, arg2, arg3, out, normalized_axis);
+            NGRAPH_TYPE_CASE(evaluate_scatter_element_update, u64, arg0, arg1, arg2, arg3, out, normalized_axis);
+            NGRAPH_TYPE_CASE(evaluate_scatter_element_update, f16, arg0, arg1, arg2, arg3, out, normalized_axis);
+            NGRAPH_TYPE_CASE(evaluate_scatter_element_update, f32, arg0, arg1, arg2, arg3, out, normalized_axis);
         default: rc = false; break;
         }
         return rc;
@@ -277,32 +283,29 @@ namespace
 bool op::v3::ScatterElementsUpdate::evaluate(const HostTensorVector& outputs,
                                              const HostTensorVector& inputs) const
 {
-#if GraphGen(OV_GEN_NGRAPH_OP(ScatterElementsUpdate, v3, evaluate))
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
+    NGRAPH_OP_SCOPE(v3_ScatterElementsUpdate_evaluate,
+        NGRAPH_CHECK(inputs[3]->get_element_type().is_integral_number(),
+                    "axis element type is not integral data type");
 
-    NGRAPH_CHECK(inputs[3]->get_element_type().is_integral_number(),
-                 "axis element type is not integral data type");
+        int64_t axis = host_tensor_2_vector<int64_t>(inputs[3])[0];
+        const auto& input_rank = get_input_partial_shape(0).rank();
+        int64_t normalized_axis = axis;
 
-    int64_t axis = host_tensor_2_vector<int64_t>(inputs[3])[0];
-    const auto& input_rank = get_input_partial_shape(0).rank();
-    int64_t normalized_axis = axis;
-
-    if (normalized_axis < 0)
-    {
-        if (input_rank.is_static())
+        if (normalized_axis < 0)
         {
-            normalized_axis = ngraph::normalize_axis(this, axis, input_rank);
+            if (input_rank.is_static())
+            {
+                normalized_axis = ngraph::normalize_axis(this, axis, input_rank);
+            }
+            else
+            {
+                normalized_axis = ngraph::normalize_axis(
+                    this, axis, static_cast<int64_t>(inputs[0]->get_shape().size()));
+            }
         }
-        else
-        {
-            normalized_axis = ngraph::normalize_axis(
-                this, axis, static_cast<int64_t>(inputs[0]->get_shape().size()));
-        }
-    }
 
-    return evaluate_scatter_element_update(
-        inputs[0], inputs[1], inputs[2], inputs[3], outputs[0], normalized_axis);
-#else
+        return evaluate_scatter_element_update(
+            inputs[0], inputs[1], inputs[2], inputs[3], outputs[0], normalized_axis);
+    )
     return false;
-#endif
 }

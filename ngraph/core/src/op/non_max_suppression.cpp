@@ -83,115 +83,112 @@ shared_ptr<Node>
 
 bool ngraph::op::v1::NonMaxSuppression::visit_attributes(AttributeVisitor& visitor)
 {
-#if GraphGen(OV_GEN_NGRAPH_OP(NonMaxSuppression, v1, visit_attributes))
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
-    visitor.on_attribute("box_encoding", m_box_encoding);
-    visitor.on_attribute("sort_result_descending", m_sort_result_descending);
-    return true;
-#else
+    NGRAPH_OP_SCOPE(v1_NonMaxSuppression_visit_attributes,
+        visitor.on_attribute("box_encoding", m_box_encoding);
+        visitor.on_attribute("sort_result_descending", m_sort_result_descending);
+        return true;
+    )
     return false;
-#endif
 }
 
 void op::v1::NonMaxSuppression::validate_and_infer_types()
 {
-#if GraphGen(OV_GEN_NGRAPH_OP(NonMaxSuppression, v1, validate_and_infer_types))
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
-    const auto boxes_ps = get_input_partial_shape(0);
-    const auto scores_ps = get_input_partial_shape(1);
+    NGRAPH_OP_SCOPE(v1_NonMaxSuppression_validate_and_infer_types,
+        const auto boxes_ps = get_input_partial_shape(0);
+        const auto scores_ps = get_input_partial_shape(1);
 
-    // the spec doesn't say what exact type should be used for the output of this op
-    // that's why we're setting it to 64-bit integer to provide the maximum range of values support
-    // this will be changed (configurable) in the next version of this op
-    const auto& output_element_type = element::i64;
+        // the spec doesn't say what exact type should be used for the output of this op
+        // that's why we're setting it to 64-bit integer to provide the maximum range of values support
+        // this will be changed (configurable) in the next version of this op
+        const auto& output_element_type = element::i64;
 
-    // NonMaxSuppression produces triplets
-    // that have the following format: [batch_index, class_index, box_index]
-    PartialShape out_shape = {Dimension::dynamic(), 3};
+        // NonMaxSuppression produces triplets
+        // that have the following format: [batch_index, class_index, box_index]
+        PartialShape out_shape = {Dimension::dynamic(), 3};
 
-    if (boxes_ps.is_dynamic() || scores_ps.is_dynamic())
-    {
+        if (boxes_ps.is_dynamic() || scores_ps.is_dynamic())
+        {
+            set_output_type(0, output_element_type, out_shape);
+            return;
+        }
+
+        NODE_VALIDATION_CHECK(this,
+                            boxes_ps.rank().is_static() && boxes_ps.rank().get_length() == 3,
+                            "Expected a 3D tensor for the 'boxes' input. Got: ",
+                            boxes_ps);
+
+        NODE_VALIDATION_CHECK(this,
+                            scores_ps.rank().is_static() && scores_ps.rank().get_length() == 3,
+                            "Expected a 3D tensor for the 'scores' input. Got: ",
+                            scores_ps);
+
+        if (inputs().size() >= 3)
+        {
+            const auto max_boxes_ps = get_input_partial_shape(2);
+            NODE_VALIDATION_CHECK(this,
+                                max_boxes_ps.is_dynamic() || is_scalar(max_boxes_ps.to_shape()),
+                                "Expected a scalar for the 'max_output_boxes_per_class' input. Got: ",
+                                max_boxes_ps);
+        }
+
+        if (inputs().size() >= 4)
+        {
+            const auto iou_threshold_ps = get_input_partial_shape(3);
+            NODE_VALIDATION_CHECK(this,
+                                iou_threshold_ps.is_dynamic() ||
+                                    is_scalar(iou_threshold_ps.to_shape()),
+                                "Expected a scalar for the 'iou_threshold' input. Got: ",
+                                iou_threshold_ps);
+        }
+
+        if (inputs().size() >= 5)
+        {
+            const auto score_threshold_ps = get_input_partial_shape(4);
+            NODE_VALIDATION_CHECK(this,
+                                score_threshold_ps.is_dynamic() ||
+                                    is_scalar(score_threshold_ps.to_shape()),
+                                "Expected a scalar for the 'score_threshold' input. Got: ",
+                                score_threshold_ps);
+        }
+
+        const auto num_batches_boxes = boxes_ps[0];
+        const auto num_batches_scores = scores_ps[0];
+        NODE_VALIDATION_CHECK(this,
+                            num_batches_boxes.same_scheme(num_batches_scores),
+                            "The first dimension of both 'boxes' and 'scores' must match. Boxes: ",
+                            num_batches_boxes,
+                            "; Scores: ",
+                            num_batches_scores);
+
+        const auto num_boxes_boxes = boxes_ps[1];
+        const auto num_boxes_scores = scores_ps[2];
+        NODE_VALIDATION_CHECK(this,
+                            num_boxes_boxes.same_scheme(num_boxes_scores),
+                            "'boxes' and 'scores' input shapes must match at the second and third "
+                            "dimension respectively. Boxes: ",
+                            num_boxes_boxes,
+                            "; Scores: ",
+                            num_boxes_scores);
+
+        NODE_VALIDATION_CHECK(this,
+                            boxes_ps[2].is_static() && boxes_ps[2].get_length() == 4u,
+                            "The last dimension of the 'boxes' input must be equal to 4. Got:",
+                            boxes_ps[2]);
+
+        const auto max_output_boxes_per_class = input_value(2).get_node_shared_ptr();
+        if (num_boxes_boxes.is_static() && scores_ps[1].is_static() &&
+            op::is_constant(max_output_boxes_per_class))
+        {
+            const auto num_boxes = num_boxes_boxes.get_length();
+            const auto max_output_boxes_per_class = max_boxes_output_from_input();
+            const auto num_classes = scores_ps[1].get_length();
+
+            out_shape[0] = std::min(num_boxes, max_output_boxes_per_class * num_classes);
+        }
         set_output_type(0, output_element_type, out_shape);
         return;
-    }
-
-    NODE_VALIDATION_CHECK(this,
-                          boxes_ps.rank().is_static() && boxes_ps.rank().get_length() == 3,
-                          "Expected a 3D tensor for the 'boxes' input. Got: ",
-                          boxes_ps);
-
-    NODE_VALIDATION_CHECK(this,
-                          scores_ps.rank().is_static() && scores_ps.rank().get_length() == 3,
-                          "Expected a 3D tensor for the 'scores' input. Got: ",
-                          scores_ps);
-
-    if (inputs().size() >= 3)
-    {
-        const auto max_boxes_ps = get_input_partial_shape(2);
-        NODE_VALIDATION_CHECK(this,
-                              max_boxes_ps.is_dynamic() || is_scalar(max_boxes_ps.to_shape()),
-                              "Expected a scalar for the 'max_output_boxes_per_class' input. Got: ",
-                              max_boxes_ps);
-    }
-
-    if (inputs().size() >= 4)
-    {
-        const auto iou_threshold_ps = get_input_partial_shape(3);
-        NODE_VALIDATION_CHECK(this,
-                              iou_threshold_ps.is_dynamic() ||
-                                  is_scalar(iou_threshold_ps.to_shape()),
-                              "Expected a scalar for the 'iou_threshold' input. Got: ",
-                              iou_threshold_ps);
-    }
-
-    if (inputs().size() >= 5)
-    {
-        const auto score_threshold_ps = get_input_partial_shape(4);
-        NODE_VALIDATION_CHECK(this,
-                              score_threshold_ps.is_dynamic() ||
-                                  is_scalar(score_threshold_ps.to_shape()),
-                              "Expected a scalar for the 'score_threshold' input. Got: ",
-                              score_threshold_ps);
-    }
-
-    const auto num_batches_boxes = boxes_ps[0];
-    const auto num_batches_scores = scores_ps[0];
-    NODE_VALIDATION_CHECK(this,
-                          num_batches_boxes.same_scheme(num_batches_scores),
-                          "The first dimension of both 'boxes' and 'scores' must match. Boxes: ",
-                          num_batches_boxes,
-                          "; Scores: ",
-                          num_batches_scores);
-
-    const auto num_boxes_boxes = boxes_ps[1];
-    const auto num_boxes_scores = scores_ps[2];
-    NODE_VALIDATION_CHECK(this,
-                          num_boxes_boxes.same_scheme(num_boxes_scores),
-                          "'boxes' and 'scores' input shapes must match at the second and third "
-                          "dimension respectively. Boxes: ",
-                          num_boxes_boxes,
-                          "; Scores: ",
-                          num_boxes_scores);
-
-    NODE_VALIDATION_CHECK(this,
-                          boxes_ps[2].is_static() && boxes_ps[2].get_length() == 4u,
-                          "The last dimension of the 'boxes' input must be equal to 4. Got:",
-                          boxes_ps[2]);
-
-    const auto max_output_boxes_per_class = input_value(2).get_node_shared_ptr();
-    if (num_boxes_boxes.is_static() && scores_ps[1].is_static() &&
-        op::is_constant(max_output_boxes_per_class))
-    {
-        const auto num_boxes = num_boxes_boxes.get_length();
-        const auto max_output_boxes_per_class = max_boxes_output_from_input();
-        const auto num_classes = scores_ps[1].get_length();
-
-        out_shape[0] = std::min(num_boxes, max_output_boxes_per_class * num_classes);
-    }
-    set_output_type(0, output_element_type, out_shape);
-#else
+    )
     NODE_VALIDATION_CHECK(this, false, "Function is not included into the selective build.");
-#endif
 }
 
 int64_t op::v1::NonMaxSuppression::max_boxes_output_from_input() const
@@ -297,126 +294,127 @@ shared_ptr<Node>
 
 bool ngraph::op::v3::NonMaxSuppression::visit_attributes(AttributeVisitor& visitor)
 {
-#if GraphGen(OV_GEN_NGRAPH_OP(NonMaxSuppression, v3, visit_attributes))
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
-    visitor.on_attribute("box_encoding", m_box_encoding);
-    visitor.on_attribute("sort_result_descending", m_sort_result_descending);
-    visitor.on_attribute("output_type", m_output_type);
-    return true;
-#else
+    NGRAPH_OP_SCOPE(v3_NonMaxSuppression_visit_attributes,
+        visitor.on_attribute("box_encoding", m_box_encoding);
+        visitor.on_attribute("sort_result_descending", m_sort_result_descending);
+        visitor.on_attribute("output_type", m_output_type);
+        return true;
+    )
     return false;
-#endif
 }
 
 void op::v3::NonMaxSuppression::validate()
 {
-    const auto boxes_ps = get_input_partial_shape(0);
-    const auto scores_ps = get_input_partial_shape(1);
+    NGRAPH_OP_SCOPE(v3_NonMaxSuppression_validate,
+        const auto boxes_ps = get_input_partial_shape(0);
+        const auto scores_ps = get_input_partial_shape(1);
 
-    NODE_VALIDATION_CHECK(this,
-                          m_output_type == element::i64 || m_output_type == element::i32,
-                          "Output type must be i32 or i64");
+        NODE_VALIDATION_CHECK(this,
+                            m_output_type == element::i64 || m_output_type == element::i32,
+                            "Output type must be i32 or i64");
 
-    if (boxes_ps.is_dynamic() || scores_ps.is_dynamic())
-    {
+        if (boxes_ps.is_dynamic() || scores_ps.is_dynamic())
+        {
+            return;
+        }
+
+        NODE_VALIDATION_CHECK(this,
+                            boxes_ps.rank().is_static() && boxes_ps.rank().get_length() == 3,
+                            "Expected a 3D tensor for the 'boxes' input. Got: ",
+                            boxes_ps);
+
+        NODE_VALIDATION_CHECK(this,
+                            scores_ps.rank().is_static() && scores_ps.rank().get_length() == 3,
+                            "Expected a 3D tensor for the 'scores' input. Got: ",
+                            scores_ps);
+
+        if (inputs().size() >= 3)
+        {
+            const auto max_boxes_ps = get_input_partial_shape(2);
+            NODE_VALIDATION_CHECK(this,
+                                max_boxes_ps.is_dynamic() || is_scalar(max_boxes_ps.to_shape()),
+                                "Expected a scalar for the 'max_output_boxes_per_class' input. Got: ",
+                                max_boxes_ps);
+        }
+
+        if (inputs().size() >= 4)
+        {
+            const auto iou_threshold_ps = get_input_partial_shape(3);
+            NODE_VALIDATION_CHECK(this,
+                                iou_threshold_ps.is_dynamic() ||
+                                    is_scalar(iou_threshold_ps.to_shape()),
+                                "Expected a scalar for the 'iou_threshold' input. Got: ",
+                                iou_threshold_ps);
+        }
+
+        if (inputs().size() >= 5)
+        {
+            const auto score_threshold_ps = get_input_partial_shape(4);
+            NODE_VALIDATION_CHECK(this,
+                                score_threshold_ps.is_dynamic() ||
+                                    is_scalar(score_threshold_ps.to_shape()),
+                                "Expected a scalar for the 'score_threshold' input. Got: ",
+                                score_threshold_ps);
+        }
+
+        const auto num_batches_boxes = boxes_ps[0];
+        const auto num_batches_scores = scores_ps[0];
+        NODE_VALIDATION_CHECK(this,
+                            num_batches_boxes.same_scheme(num_batches_scores),
+                            "The first dimension of both 'boxes' and 'scores' must match. Boxes: ",
+                            num_batches_boxes,
+                            "; Scores: ",
+                            num_batches_scores);
+
+        const auto num_boxes_boxes = boxes_ps[1];
+        const auto num_boxes_scores = scores_ps[2];
+        NODE_VALIDATION_CHECK(this,
+                            num_boxes_boxes.same_scheme(num_boxes_scores),
+                            "'boxes' and 'scores' input shapes must match at the second and third "
+                            "dimension respectively. Boxes: ",
+                            num_boxes_boxes,
+                            "; Scores: ",
+                            num_boxes_scores);
+
+        NODE_VALIDATION_CHECK(this,
+                            boxes_ps[2].is_static() && boxes_ps[2].get_length() == 4u,
+                            "The last dimension of the 'boxes' input must be equal to 4. Got:",
+                            boxes_ps[2]);
         return;
-    }
-
-    NODE_VALIDATION_CHECK(this,
-                          boxes_ps.rank().is_static() && boxes_ps.rank().get_length() == 3,
-                          "Expected a 3D tensor for the 'boxes' input. Got: ",
-                          boxes_ps);
-
-    NODE_VALIDATION_CHECK(this,
-                          scores_ps.rank().is_static() && scores_ps.rank().get_length() == 3,
-                          "Expected a 3D tensor for the 'scores' input. Got: ",
-                          scores_ps);
-
-    if (inputs().size() >= 3)
-    {
-        const auto max_boxes_ps = get_input_partial_shape(2);
-        NODE_VALIDATION_CHECK(this,
-                              max_boxes_ps.is_dynamic() || is_scalar(max_boxes_ps.to_shape()),
-                              "Expected a scalar for the 'max_output_boxes_per_class' input. Got: ",
-                              max_boxes_ps);
-    }
-
-    if (inputs().size() >= 4)
-    {
-        const auto iou_threshold_ps = get_input_partial_shape(3);
-        NODE_VALIDATION_CHECK(this,
-                              iou_threshold_ps.is_dynamic() ||
-                                  is_scalar(iou_threshold_ps.to_shape()),
-                              "Expected a scalar for the 'iou_threshold' input. Got: ",
-                              iou_threshold_ps);
-    }
-
-    if (inputs().size() >= 5)
-    {
-        const auto score_threshold_ps = get_input_partial_shape(4);
-        NODE_VALIDATION_CHECK(this,
-                              score_threshold_ps.is_dynamic() ||
-                                  is_scalar(score_threshold_ps.to_shape()),
-                              "Expected a scalar for the 'score_threshold' input. Got: ",
-                              score_threshold_ps);
-    }
-
-    const auto num_batches_boxes = boxes_ps[0];
-    const auto num_batches_scores = scores_ps[0];
-    NODE_VALIDATION_CHECK(this,
-                          num_batches_boxes.same_scheme(num_batches_scores),
-                          "The first dimension of both 'boxes' and 'scores' must match. Boxes: ",
-                          num_batches_boxes,
-                          "; Scores: ",
-                          num_batches_scores);
-
-    const auto num_boxes_boxes = boxes_ps[1];
-    const auto num_boxes_scores = scores_ps[2];
-    NODE_VALIDATION_CHECK(this,
-                          num_boxes_boxes.same_scheme(num_boxes_scores),
-                          "'boxes' and 'scores' input shapes must match at the second and third "
-                          "dimension respectively. Boxes: ",
-                          num_boxes_boxes,
-                          "; Scores: ",
-                          num_boxes_scores);
-
-    NODE_VALIDATION_CHECK(this,
-                          boxes_ps[2].is_static() && boxes_ps[2].get_length() == 4u,
-                          "The last dimension of the 'boxes' input must be equal to 4. Got:",
-                          boxes_ps[2]);
+    )
+    NODE_VALIDATION_CHECK(this, false, "Function is not included into the selective build.");
 }
 
 void op::v3::NonMaxSuppression::validate_and_infer_types()
 {
-#if GraphGen(OV_GEN_NGRAPH_OP(NonMaxSuppression, v3, validate_and_infer_types))
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
-    const auto boxes_ps = get_input_partial_shape(0);
-    const auto scores_ps = get_input_partial_shape(1);
+    NGRAPH_OP_SCOPE(v3_NonMaxSuppression_validate_and_infer_types,
+        const auto boxes_ps = get_input_partial_shape(0);
+        const auto scores_ps = get_input_partial_shape(1);
 
-    // NonMaxSuppression produces triplets
-    // that have the following format: [batch_index, class_index, box_index]
-    PartialShape out_shape = {Dimension::dynamic(), 3};
+        // NonMaxSuppression produces triplets
+        // that have the following format: [batch_index, class_index, box_index]
+        PartialShape out_shape = {Dimension::dynamic(), 3};
 
-    validate();
+        validate();
 
-    if (boxes_ps.rank().is_static() && scores_ps.rank().is_static())
-    {
-        const auto num_boxes_boxes = boxes_ps[1];
-        const auto max_output_boxes_per_class_node = input_value(2).get_node_shared_ptr();
-        if (num_boxes_boxes.is_static() && scores_ps[1].is_static() &&
-            op::is_constant(max_output_boxes_per_class_node))
+        if (boxes_ps.rank().is_static() && scores_ps.rank().is_static())
         {
-            const auto num_boxes = num_boxes_boxes.get_length();
-            const auto num_classes = scores_ps[1].get_length();
-            const auto max_output_boxes_per_class = max_boxes_output_from_input();
+            const auto num_boxes_boxes = boxes_ps[1];
+            const auto max_output_boxes_per_class_node = input_value(2).get_node_shared_ptr();
+            if (num_boxes_boxes.is_static() && scores_ps[1].is_static() &&
+                op::is_constant(max_output_boxes_per_class_node))
+            {
+                const auto num_boxes = num_boxes_boxes.get_length();
+                const auto num_classes = scores_ps[1].get_length();
+                const auto max_output_boxes_per_class = max_boxes_output_from_input();
 
-            out_shape[0] = std::min(num_boxes, max_output_boxes_per_class * num_classes);
+                out_shape[0] = std::min(num_boxes, max_output_boxes_per_class * num_classes);
+            }
         }
-    }
-    set_output_type(0, m_output_type, out_shape);
-#else
+        set_output_type(0, m_output_type, out_shape);
+        return;
+    )
     NODE_VALIDATION_CHECK(this, false, "Function is not included into the selective build.");
-#endif
 }
 
 int64_t op::v3::NonMaxSuppression::max_boxes_output_from_input() const
@@ -526,34 +524,33 @@ shared_ptr<Node>
 
 void op::v4::NonMaxSuppression::validate_and_infer_types()
 {
-#if GraphGen(OV_GEN_NGRAPH_OP(NonMaxSuppression, v4, validate_and_infer_types))
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
-    const auto boxes_ps = get_input_partial_shape(0);
-    const auto scores_ps = get_input_partial_shape(1);
+    NGRAPH_OP_SCOPE(v4_NonMaxSuppression_validate_and_infer_types,
+        const auto boxes_ps = get_input_partial_shape(0);
+        const auto scores_ps = get_input_partial_shape(1);
 
-    // NonMaxSuppression produces triplets
-    // that have the following format: [batch_index, class_index, box_index]
-    PartialShape out_shape = {Dimension::dynamic(), 3};
+        // NonMaxSuppression produces triplets
+        // that have the following format: [batch_index, class_index, box_index]
+        PartialShape out_shape = {Dimension::dynamic(), 3};
 
-    op::v3::NonMaxSuppression::validate();
+        op::v3::NonMaxSuppression::validate();
 
-    if (boxes_ps.rank().is_static() && scores_ps.rank().is_static())
-    {
-        const auto num_boxes_boxes = boxes_ps[1];
-        const auto max_output_boxes_per_class_node = input_value(2).get_node_shared_ptr();
-        if (num_boxes_boxes.is_static() && scores_ps[0].is_static() && scores_ps[1].is_static() &&
-            op::is_constant(max_output_boxes_per_class_node))
+        if (boxes_ps.rank().is_static() && scores_ps.rank().is_static())
         {
-            const auto num_boxes = num_boxes_boxes.get_length();
-            const auto num_classes = scores_ps[1].get_length();
-            const auto max_output_boxes_per_class = max_boxes_output_from_input();
+            const auto num_boxes_boxes = boxes_ps[1];
+            const auto max_output_boxes_per_class_node = input_value(2).get_node_shared_ptr();
+            if (num_boxes_boxes.is_static() && scores_ps[0].is_static() && scores_ps[1].is_static() &&
+                op::is_constant(max_output_boxes_per_class_node))
+            {
+                const auto num_boxes = num_boxes_boxes.get_length();
+                const auto num_classes = scores_ps[1].get_length();
+                const auto max_output_boxes_per_class = max_boxes_output_from_input();
 
-            out_shape[0] = std::min(num_boxes, max_output_boxes_per_class) * num_classes *
-                           scores_ps[0].get_length();
+                out_shape[0] = std::min(num_boxes, max_output_boxes_per_class) * num_classes *
+                            scores_ps[0].get_length();
+            }
         }
-    }
-    set_output_type(0, m_output_type, out_shape);
-#else
+        set_output_type(0, m_output_type, out_shape);
+        return;
+    )
     NODE_VALIDATION_CHECK(this, false, "Function is not included into the selective build.");
-#endif
 }

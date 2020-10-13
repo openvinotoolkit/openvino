@@ -49,57 +49,56 @@ shared_ptr<Node> op::v0::Gather::clone_with_new_inputs(const OutputVector& new_a
 
 void op::v0::Gather::validate_and_infer_types()
 {
-#if GraphGen(OV_GEN_NGRAPH_OP(Gather, v0, validate_and_infer_types))
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
-    element::Type result_et = get_input_element_type(PARAMS);
-    element::Type indices_et = get_input_element_type(INDICES);
+    NGRAPH_OP_SCOPE(v0_Gather_validate_and_infer_types,
+        element::Type result_et = get_input_element_type(PARAMS);
+        element::Type indices_et = get_input_element_type(INDICES);
 
-    const PartialShape& params_shape = get_input_partial_shape(PARAMS);
-    const PartialShape& indices_shape = get_input_partial_shape(INDICES);
+        const PartialShape& params_shape = get_input_partial_shape(PARAMS);
+        const PartialShape& indices_shape = get_input_partial_shape(INDICES);
 
-    NODE_VALIDATION_CHECK(this,
-                          indices_et == element::i32 || indices_et == element::i64,
-                          "Indices element type must be i64 or i32");
+        NODE_VALIDATION_CHECK(this,
+                            indices_et == element::i32 || indices_et == element::i64,
+                            "Indices element type must be i64 or i32");
 
-    // params rank must be at least (axis + 1)
-    // indices value must be in range [0, params.shape[axis]).
-    // output rank is rank(params) + rank(indices) - 1
-    NODE_VALIDATION_CHECK(this,
-                          params_shape.rank().is_dynamic() ||
-                              params_shape.rank().get_length() > static_cast<size_t>(m_axis),
-                          "params rank is expected to be at least axis + 1");
+        // params rank must be at least (axis + 1)
+        // indices value must be in range [0, params.shape[axis]).
+        // output rank is rank(params) + rank(indices) - 1
+        NODE_VALIDATION_CHECK(this,
+                            params_shape.rank().is_dynamic() ||
+                                params_shape.rank().get_length() > static_cast<size_t>(m_axis),
+                            "params rank is expected to be at least axis + 1");
 
-    PartialShape result_shape;
-    if (params_shape.rank().is_static() && indices_shape.rank().is_static())
-    {
-        std::vector<Dimension> result_dims(params_shape.rank().get_length() +
-                                           indices_shape.rank().get_length() - 1);
-        size_t i = 0;
-        for (; i < static_cast<size_t>(m_axis); i++)
+        PartialShape result_shape;
+        if (params_shape.rank().is_static() && indices_shape.rank().is_static())
         {
-            result_dims[i] = params_shape[i];
+            std::vector<Dimension> result_dims(params_shape.rank().get_length() +
+                                            indices_shape.rank().get_length() - 1);
+            size_t i = 0;
+            for (; i < static_cast<size_t>(m_axis); i++)
+            {
+                result_dims[i] = params_shape[i];
+            }
+            for (size_t j = 0; j < indices_shape.rank().get_length(); i++, j++)
+            {
+                result_dims[i] = indices_shape[j];
+            }
+            for (size_t j = static_cast<size_t>(m_axis) + 1; j < params_shape.rank().get_length();
+                i++, j++)
+            {
+                result_dims[i] = params_shape[j];
+            }
+
+            result_shape = PartialShape(result_dims);
         }
-        for (size_t j = 0; j < indices_shape.rank().get_length(); i++, j++)
+        else
         {
-            result_dims[i] = indices_shape[j];
-        }
-        for (size_t j = static_cast<size_t>(m_axis) + 1; j < params_shape.rank().get_length();
-             i++, j++)
-        {
-            result_dims[i] = params_shape[j];
+            result_shape = PartialShape::dynamic();
         }
 
-        result_shape = PartialShape(result_dims);
-    }
-    else
-    {
-        result_shape = PartialShape::dynamic();
-    }
-
-    set_output_type(0, result_et, result_shape);
-#else
+        set_output_type(0, result_et, result_shape);
+        return;
+    )
     NODE_VALIDATION_CHECK(this, false, "Function is not included into the selective build.");
-#endif
 }
 
 constexpr NodeTypeInfo op::v1::Gather::type_info;
@@ -120,71 +119,70 @@ bool ngraph::op::v1::Gather::visit_attributes(AttributeVisitor& visitor)
 
 void op::v1::Gather::validate_and_infer_types()
 {
-#if GraphGen(OV_GEN_NGRAPH_OP(Gather, v1, validate_and_infer_types))
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
-    const auto& input_rank = get_input_partial_shape(PARAMS).rank();
-    const auto& axis_shape = get_input_partial_shape(AXIS);
-    const auto& axis_rank = axis_shape.rank();
+    NGRAPH_OP_SCOPE(v1_Gather_validate_and_infer_types,
+        const auto& input_rank = get_input_partial_shape(PARAMS).rank();
+        const auto& axis_shape = get_input_partial_shape(AXIS);
+        const auto& axis_rank = axis_shape.rank();
 
-    if (axis_rank.is_static() && axis_shape.is_static())
-    {
-        const auto axis_is_scalar = axis_rank.get_length() == 0;
-        const auto axis_has_one_elem =
-            axis_rank.get_length() == 1 && axis_shape[0].get_length() == 1;
-        NODE_VALIDATION_CHECK(this,
-                              axis_is_scalar || axis_has_one_elem,
-                              "Axes input must be scalar or have 1 element (shape: ",
-                              axis_shape,
-                              ").");
-    }
-
-    int64_t axis = get_axis();
-    if (input_rank.is_static() && axis != AXIS_NOT_SET_VALUE)
-    {
-        NODE_VALIDATION_CHECK(this,
-                              axis < input_rank.get_length(),
-                              "The axis must => 0 and <= input_rank (axis: ",
-                              axis,
-                              ").");
-    }
-
-    element::Type result_et = get_input_element_type(PARAMS);
-    element::Type indices_et = get_input_element_type(INDICES);
-
-    const PartialShape& params_shape = get_input_partial_shape(PARAMS);
-    const PartialShape& indices_shape = get_input_partial_shape(INDICES);
-
-    PartialShape result_shape;
-    if (params_shape.rank().is_static() && indices_shape.rank().is_static() &&
-        axis != AXIS_NOT_SET_VALUE)
-    {
-        std::vector<Dimension> result_dims(params_shape.rank().get_length() +
-                                           indices_shape.rank().get_length() - 1);
-        uint64_t i = 0;
-        for (; i < axis; i++)
+        if (axis_rank.is_static() && axis_shape.is_static())
         {
-            result_dims[i] = params_shape[i];
-        }
-        for (uint64_t j = 0; j < indices_shape.rank().get_length(); i++, j++)
-        {
-            result_dims[i] = indices_shape[j];
-        }
-        for (uint64_t j = axis + 1; j < params_shape.rank().get_length(); i++, j++)
-        {
-            result_dims[i] = params_shape[j];
+            const auto axis_is_scalar = axis_rank.get_length() == 0;
+            const auto axis_has_one_elem =
+                axis_rank.get_length() == 1 && axis_shape[0].get_length() == 1;
+            NODE_VALIDATION_CHECK(this,
+                                axis_is_scalar || axis_has_one_elem,
+                                "Axes input must be scalar or have 1 element (shape: ",
+                                axis_shape,
+                                ").");
         }
 
-        result_shape = PartialShape(result_dims);
-    }
-    else
-    {
-        result_shape = PartialShape::dynamic();
-    }
+        int64_t axis = get_axis();
+        if (input_rank.is_static() && axis != AXIS_NOT_SET_VALUE)
+        {
+            NODE_VALIDATION_CHECK(this,
+                                axis < input_rank.get_length(),
+                                "The axis must => 0 and <= input_rank (axis: ",
+                                axis,
+                                ").");
+        }
 
-    set_output_type(0, result_et, result_shape);
-#else
+        element::Type result_et = get_input_element_type(PARAMS);
+        element::Type indices_et = get_input_element_type(INDICES);
+
+        const PartialShape& params_shape = get_input_partial_shape(PARAMS);
+        const PartialShape& indices_shape = get_input_partial_shape(INDICES);
+
+        PartialShape result_shape;
+        if (params_shape.rank().is_static() && indices_shape.rank().is_static() &&
+            axis != AXIS_NOT_SET_VALUE)
+        {
+            std::vector<Dimension> result_dims(params_shape.rank().get_length() +
+                                            indices_shape.rank().get_length() - 1);
+            uint64_t i = 0;
+            for (; i < axis; i++)
+            {
+                result_dims[i] = params_shape[i];
+            }
+            for (uint64_t j = 0; j < indices_shape.rank().get_length(); i++, j++)
+            {
+                result_dims[i] = indices_shape[j];
+            }
+            for (uint64_t j = axis + 1; j < params_shape.rank().get_length(); i++, j++)
+            {
+                result_dims[i] = params_shape[j];
+            }
+
+            result_shape = PartialShape(result_dims);
+        }
+        else
+        {
+            result_shape = PartialShape::dynamic();
+        }
+
+        set_output_type(0, result_et, result_shape);
+        return;
+    )
     NODE_VALIDATION_CHECK(this, false, "Function is not included into the selective build.");
-#endif
 }
 
 int64_t op::v1::Gather::get_axis() const
@@ -277,20 +275,13 @@ namespace
 
         switch (out->get_element_type())
         {
-            TYPE_CASE(i32)(arg0, arg1, out, axis);
-            break;
-            TYPE_CASE(i64)(arg0, arg1, out, axis);
-            break;
-            TYPE_CASE(u32)(arg0, arg1, out, axis);
-            break;
-            TYPE_CASE(u64)(arg0, arg1, out, axis);
-            break;
-            TYPE_CASE(f16)(arg0, arg1, out, axis);
-            break;
-            TYPE_CASE(f32)(arg0, arg1, out, axis);
-            break;
-            TYPE_CASE(boolean)(arg0, arg1, out, axis);
-            break;
+            NGRAPH_TYPE_CASE(evaluate_gather, i32, arg0, arg1, out, axis)
+            NGRAPH_TYPE_CASE(evaluate_gather, i64, arg0, arg1, out, axis)
+            NGRAPH_TYPE_CASE(evaluate_gather, u32, arg0, arg1, out, axis)
+            NGRAPH_TYPE_CASE(evaluate_gather, u64, arg0, arg1, out, axis)
+            NGRAPH_TYPE_CASE(evaluate_gather, f16, arg0, arg1, out, axis)
+            NGRAPH_TYPE_CASE(evaluate_gather, f32, arg0, arg1, out, axis)
+            NGRAPH_TYPE_CASE(evaluate_gather, boolean, arg0, arg1, out, axis)
         default: rc = false; break;
         }
         return rc;
@@ -299,42 +290,39 @@ namespace
 
 bool op::v0::Gather::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
-#if GraphGen(OV_GEN_NGRAPH_OP(Gather, v0, evaluate))
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
-    return evaluate_gather(inputs[0], inputs[1], outputs[0], get_axis());
-#else
-    return false;
-#endif
+    bool rc = false;
+    NGRAPH_OP_SCOPE(v0_Gather_evaluate,
+        rc = evaluate_gather(inputs[0], inputs[1], outputs[0], get_axis());
+    )
+    return rc;
 }
 
 bool op::v1::Gather::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
-#if GraphGen(OV_GEN_NGRAPH_OP(Gather, v1, evaluate))
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
-    int64_t axis = 0;
-    switch (inputs[2]->get_element_type())
-    {
-    case element::Type_t::i8: axis = inputs[2]->get_data_ptr<element::Type_t::i8>()[0]; break;
-    case element::Type_t::i16: axis = inputs[2]->get_data_ptr<element::Type_t::i16>()[0]; break;
-    case element::Type_t::i32: axis = inputs[2]->get_data_ptr<element::Type_t::i32>()[0]; break;
-    case element::Type_t::i64: axis = inputs[2]->get_data_ptr<element::Type_t::i64>()[0]; break;
-    case element::Type_t::u8: axis = inputs[2]->get_data_ptr<element::Type_t::u8>()[0]; break;
-    case element::Type_t::u16: axis = inputs[2]->get_data_ptr<element::Type_t::u16>()[0]; break;
-    case element::Type_t::u32: axis = inputs[2]->get_data_ptr<element::Type_t::u32>()[0]; break;
-    case element::Type_t::u64: axis = inputs[2]->get_data_ptr<element::Type_t::u64>()[0]; break;
-    default: throw ngraph_error("axis element type is not integral data type");
-    }
-
-    if (axis < 0)
-    {
-        const auto& input_rank = get_input_partial_shape(PARAMS).rank();
-        if (input_rank.is_static())
+    NGRAPH_OP_SCOPE(v1_Gather_evaluate,
+        int64_t axis = 0;
+        switch (inputs[2]->get_element_type())
         {
-            axis += input_rank.get_length();
+        case element::Type_t::i8: axis = inputs[2]->get_data_ptr<element::Type_t::i8>()[0]; break;
+        case element::Type_t::i16: axis = inputs[2]->get_data_ptr<element::Type_t::i16>()[0]; break;
+        case element::Type_t::i32: axis = inputs[2]->get_data_ptr<element::Type_t::i32>()[0]; break;
+        case element::Type_t::i64: axis = inputs[2]->get_data_ptr<element::Type_t::i64>()[0]; break;
+        case element::Type_t::u8: axis = inputs[2]->get_data_ptr<element::Type_t::u8>()[0]; break;
+        case element::Type_t::u16: axis = inputs[2]->get_data_ptr<element::Type_t::u16>()[0]; break;
+        case element::Type_t::u32: axis = inputs[2]->get_data_ptr<element::Type_t::u32>()[0]; break;
+        case element::Type_t::u64: axis = inputs[2]->get_data_ptr<element::Type_t::u64>()[0]; break;
+        default: throw ngraph_error("axis element type is not integral data type");
         }
-    }
-    return evaluate_gather(inputs[0], inputs[1], outputs[0], axis);
-#else
+
+        if (axis < 0)
+        {
+            const auto& input_rank = get_input_partial_shape(PARAMS).rank();
+            if (input_rank.is_static())
+            {
+                axis += input_rank.get_length();
+            }
+        }
+        return evaluate_gather(inputs[0], inputs[1], outputs[0], axis);
+    )
     return false;
-#endif
 }

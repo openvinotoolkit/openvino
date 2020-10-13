@@ -34,23 +34,20 @@ op::Convert::Convert(const Output<Node>& arg, const element::Type& destination_t
 
 void op::Convert::validate_and_infer_types()
 {
-#if GraphGen(OV_GEN_NGRAPH_OP(Convert, v0, validate_and_infer_types))
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
-    set_output_type(0, m_destination_type, get_input_partial_shape(0));
-#else
+    NGRAPH_OP_SCOPE(v0_Convert_validate_and_infer_types,
+        set_output_type(0, m_destination_type, get_input_partial_shape(0));
+        return;
+    )
     NODE_VALIDATION_CHECK(this, false, "Function is not included into the selective build.");
-#endif
 }
 
 bool op::Convert::visit_attributes(AttributeVisitor& visitor)
 {
-#if GraphGen(OV_GEN_NGRAPH_OP(Convert, v0, visit_attributes))
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
-    visitor.on_attribute("destination_type", m_destination_type);
-    return true;
-#else
+    NGRAPH_OP_SCOPE(v0_Convert_visit_attributes,
+        visitor.on_attribute("destination_type", m_destination_type);
+        return true;
+    )
     return false;
-#endif
 }
 
 shared_ptr<Node> op::Convert::clone_with_new_inputs(const OutputVector& new_args) const
@@ -76,6 +73,21 @@ namespace
 #define TYPE_OUT_CASE(a)                                                                           \
     case element::Type_t::a: rc = evaluate<INPUT_ET, element::Type_t::a>
 
+#if defined(OV_SELECTIVE_BUILD_LOG) || defined(ENABLE_PROFILING_ITT)
+#define NGRAPH_TYPE_OUT_CASE(NAME, TYPE, ...)                                                      \
+    case element::Type_t::TYPE: {                                                                  \
+        OV_ITT_SCOPED_TASK(NGRAPH_DOMAIN, std::string(OV_TOSTRING(NAME ## _ ## TYPE)));            \
+        rc = evaluate<INPUT_ET, element::Type_t::TYPE>(__VA_ARGS__);                               \
+        break;                                                                                     \
+    }
+#else
+#define NGRAPH_TYPE_OUT_CASE(NAME, TYPE, ...)                                                      \
+    OV_SCOPE(OV_CAT(OV_CAT(NAME, _), TYPE),                                                        \
+        TYPE_OUT_CASE(TYPE)(__VA_ARGS__);                                                          \
+        break;                                                                                     \
+    )
+#endif
+
     template <element::Type_t INPUT_ET>
     bool evaluate(const HostTensorPtr& arg, const HostTensorPtr& out)
     {
@@ -83,30 +95,18 @@ namespace
 
         switch (out->get_element_type())
         {
-            TYPE_OUT_CASE(i8)(arg, out);
-            break;
-            TYPE_OUT_CASE(i16)(arg, out);
-            break;
-            TYPE_OUT_CASE(i32)(arg, out);
-            break;
-            TYPE_OUT_CASE(i64)(arg, out);
-            break;
-            TYPE_OUT_CASE(u8)(arg, out);
-            break;
-            TYPE_OUT_CASE(u16)(arg, out);
-            break;
-            TYPE_OUT_CASE(u32)(arg, out);
-            break;
-            TYPE_OUT_CASE(u64)(arg, out);
-            break;
-            TYPE_OUT_CASE(bf16)(arg, out);
-            break;
-            TYPE_OUT_CASE(f16)(arg, out);
-            break;
-            TYPE_OUT_CASE(f32)(arg, out);
-            break;
-            TYPE_OUT_CASE(f64)(arg, out);
-            break;
+            NGRAPH_TYPE_OUT_CASE(evaluate, i8, arg, out)
+            NGRAPH_TYPE_OUT_CASE(evaluate, i16, arg, out)
+            NGRAPH_TYPE_OUT_CASE(evaluate, i32, arg, out)
+            NGRAPH_TYPE_OUT_CASE(evaluate, i64, arg, out)
+            NGRAPH_TYPE_OUT_CASE(evaluate, u8, arg, out)
+            NGRAPH_TYPE_OUT_CASE(evaluate, u16, arg, out)
+            NGRAPH_TYPE_OUT_CASE(evaluate, u32, arg, out)
+            NGRAPH_TYPE_OUT_CASE(evaluate, u64, arg, out)
+            NGRAPH_TYPE_OUT_CASE(evaluate, bf16, arg, out)
+            NGRAPH_TYPE_OUT_CASE(evaluate, f16, arg, out)
+            NGRAPH_TYPE_OUT_CASE(evaluate, f32, arg, out)
+            NGRAPH_TYPE_OUT_CASE(evaluate, f64, arg, out)
         default: rc = false; break;
         }
         return rc;
@@ -118,18 +118,12 @@ namespace
 
         switch (arg->get_element_type())
         {
-            TYPE_CASE(i32)(arg, out);
-            break;
-            TYPE_CASE(i64)(arg, out);
-            break;
-            TYPE_CASE(u32)(arg, out);
-            break;
-            TYPE_CASE(u64)(arg, out);
-            break;
-            TYPE_CASE(f16)(arg, out);
-            break;
-            TYPE_CASE(f32)(arg, out);
-            break;
+            NGRAPH_TYPE_CASE(evaluate_convert, i32, arg, out)
+            NGRAPH_TYPE_CASE(evaluate_convert, i64, arg, out)
+            NGRAPH_TYPE_CASE(evaluate_convert, u32, arg, out)
+            NGRAPH_TYPE_CASE(evaluate_convert, u64, arg, out)
+            NGRAPH_TYPE_CASE(evaluate_convert, f16, arg, out)
+            NGRAPH_TYPE_CASE(evaluate_convert, f32, arg, out)
         default: rc = false; break;
         }
         return rc;
@@ -139,10 +133,9 @@ namespace
 bool op::v0::Convert::evaluate(const HostTensorVector& output_values,
                                const HostTensorVector& input_values) const
 {
-#if GraphGen(OV_GEN_NGRAPH_OP(Convert, v0, evaluate))
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
-    return evaluate_convert(input_values[0], output_values[0]);
-#else
-    return false;
-#endif
+    bool rc = false;
+    NGRAPH_OP_SCOPE(v0_Convert_evaluate,
+        rc = evaluate_convert(input_values[0], output_values[0]);
+    )
+    return rc;
 }

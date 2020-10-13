@@ -10,6 +10,7 @@
 #include <transformations_visibility.hpp>
 #include <ngraph/pass/graph_rewrite.hpp>
 #include "ngraph/pattern/matcher.hpp"
+#include "transformations/itt.hpp"
 
 namespace ngraph {
 namespace pass {
@@ -29,8 +30,8 @@ class ngraph::pass::NormalizeL2Fusion: public ngraph::pass::GraphRewrite {
 public:
     NGRAPH_RTTI_DECLARATION;
     NormalizeL2Fusion() {
-        add_matcher<ngraph::pass::NormalizeL2FusionWithMax>();
-        add_matcher<ngraph::pass::NormalizeL2FusionWithAdd>();
+        ADD_MATCHER(this, NormalizeL2FusionWithMax);
+        ADD_MATCHER(this, NormalizeL2FusionWithAdd);
     }
 };
 

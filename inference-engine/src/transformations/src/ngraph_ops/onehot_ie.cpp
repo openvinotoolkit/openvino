@@ -3,6 +3,7 @@
 //
 
 #include "ngraph_ops/onehot_ie.hpp"
+#include "itt.hpp"
 
 #include <memory>
 
@@ -17,18 +18,22 @@ op::OneHotIE::OneHotIE(const Output<ngraph::Node>& input, int axis, int depth, f
 }
 
 void op::OneHotIE::validate_and_infer_types() {
-    const PartialShape& arg_shape = get_input_partial_shape(0);
+    NGRAPH_OP_SCOPE(OneHotIE_validate_and_infer_types,
+        const PartialShape& arg_shape = get_input_partial_shape(0);
 
-    if (arg_shape.is_dynamic()) {
-        set_output_type(0, m_type, PartialShape::dynamic());
-    } else {
-        Shape output_shape = arg_shape.to_shape();
-        int normalized_axis = m_axis;
-        if (m_axis < 0)
-            normalized_axis = m_axis + static_cast<int>(arg_shape.to_shape().size());
-        output_shape.insert(output_shape.begin() + normalized_axis, m_depth);
-        set_output_type(0, m_type, output_shape);
-    }
+        if (arg_shape.is_dynamic()) {
+            set_output_type(0, m_type, PartialShape::dynamic());
+        } else {
+            Shape output_shape = arg_shape.to_shape();
+            int normalized_axis = m_axis;
+            if (m_axis < 0)
+                normalized_axis = m_axis + static_cast<int>(arg_shape.to_shape().size());
+            output_shape.insert(output_shape.begin() + normalized_axis, m_depth);
+            set_output_type(0, m_type, output_shape);
+        }
+        return;
+    )
+    NODE_VALIDATION_CHECK(this, false, "Function is not included into the selective build.");
 }
 
 shared_ptr<Node> op::OneHotIE::clone_with_new_inputs(const OutputVector& new_args) const {

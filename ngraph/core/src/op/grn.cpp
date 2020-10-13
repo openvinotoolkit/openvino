@@ -44,70 +44,65 @@ op::GRN::GRN(const Output<Node>& data, float bias)
 
 bool ngraph::op::v0::GRN::visit_attributes(AttributeVisitor& visitor)
 {
-#if GraphGen(OV_GEN_NGRAPH_OP(GRN, v0, visit_attributes))
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
-    visitor.on_attribute("bias", m_bias);
-    return true;
-#else
+    NGRAPH_OP_SCOPE(v0_GRN_visit_attributes,
+        visitor.on_attribute("bias", m_bias);
+        return true;
+    )
     return false;
-#endif
 }
 
 void op::GRN::pre_validate_and_infer_types()
 {
-#if GraphGen(OV_GEN_NGRAPH_OP(GRN, v0, pre_validate_and_infer_types))
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
-    const auto& data_pshape = get_input_partial_shape(0);
+    NGRAPH_OP_SCOPE(v0_GRN_pre_validate_and_infer_types,
+        const auto& data_pshape = get_input_partial_shape(0);
 
-    if (data_pshape.is_static())
-    {
-        const Shape& data_shape{data_pshape.to_shape()};
+        if (data_pshape.is_static())
+        {
+            const Shape& data_shape{data_pshape.to_shape()};
 
-        // Input data must be 2, 3 or 4D tensor.
-        NODE_VALIDATION_CHECK(this,
-                              (data_shape.size() >= 2 && data_shape.size() <= 4),
-                              "Input tensor rank must be 2, 3 or 4 dimensional (actual input "
-                              "shape: ",
-                              data_shape,
-                              ").");
-    }
-#else
+            // Input data must be 2, 3 or 4D tensor.
+            NODE_VALIDATION_CHECK(this,
+                                (data_shape.size() >= 2 && data_shape.size() <= 4),
+                                "Input tensor rank must be 2, 3 or 4 dimensional (actual input "
+                                "shape: ",
+                                data_shape,
+                                ").");
+        }
+        return;
+    )
     NODE_VALIDATION_CHECK(this, false, "Function is not included into the selective build.");
-#endif
 }
 
 OutputVector op::GRN::decompose_op() const
 {
-#if GraphGen(OV_GEN_NGRAPH_OP(GRN, v0, decompose_op))
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
-    Output<Node> data{input_value(0)};
-    const Shape& input_shape{data.get_shape()};
+    NGRAPH_OP_SCOPE(v0_GRN_decompose_op,
+        Output<Node> data{input_value(0)};
+        const Shape& input_shape{data.get_shape()};
 
-    // Reshape to 4D tensor.
-    if (input_shape.size() != 4)
-    {
-        Shape data_shape(4 - input_shape.size(), 1);
-        copy(begin(input_shape), end(input_shape), back_inserter(data_shape));
-        data = builder::opset1::reshape(data, data_shape);
-    }
+        // Reshape to 4D tensor.
+        if (input_shape.size() != 4)
+        {
+            Shape data_shape(4 - input_shape.size(), 1);
+            copy(begin(input_shape), end(input_shape), back_inserter(data_shape));
+            data = builder::opset1::reshape(data, data_shape);
+        }
 
-    const auto axis_set_const = op::Constant::create(element::i64, {}, {1});
-    // Calculate l2 norm across channels.
-    shared_ptr<Node> norm = builder::opset1::l2_norm(data, axis_set_const, m_bias);
-    // Get back reduced axis.
-    norm = std::make_shared<Broadcast>(norm, data.get_shape(), AxisSet{1});
-    data = data / norm;
+        const auto axis_set_const = op::Constant::create(element::i64, {}, {1});
+        // Calculate l2 norm across channels.
+        shared_ptr<Node> norm = builder::opset1::l2_norm(data, axis_set_const, m_bias);
+        // Get back reduced axis.
+        norm = std::make_shared<Broadcast>(norm, data.get_shape(), AxisSet{1});
+        data = data / norm;
 
-    // get back original input tensor rank
-    if (input_shape.size() != 4)
-    {
-        data = builder::opset1::reshape(data, input_shape);
-    }
+        // get back original input tensor rank
+        if (input_shape.size() != 4)
+        {
+            data = builder::opset1::reshape(data, input_shape);
+        }
 
-    return OutputVector{data};
-#else
+        return OutputVector{data};
+    )
     NODE_VALIDATION_CHECK(this, false, "Function is not included into the selective build.");
-#endif
 }
 
 shared_ptr<Node> op::GRN::clone_with_new_inputs(const OutputVector& new_args) const

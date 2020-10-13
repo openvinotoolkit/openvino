@@ -41,30 +41,29 @@ op::v0::Reverse::Reverse(const Output<Node>& arg, const AxisSet& reversed_axes)
 
 void op::v0::Reverse::validate_and_infer_types()
 {
-#if GraphGen(OV_GEN_NGRAPH_OP(Reverse, v0, validate_and_infer_types))
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
-    const auto input_shape = get_input_partial_shape(0);
-    const Dimension input_rank = input_shape.rank();
+    NGRAPH_OP_SCOPE(v0_Reverse_validate_and_infer_types,
+        const auto input_shape = get_input_partial_shape(0);
+        const Dimension input_rank = input_shape.rank();
 
-    if (input_rank.is_static())
-    {
-        // Make sure all reversed axis indices are valid.
-        for (size_t axis : m_reversed_axes)
+        if (input_rank.is_static())
         {
-            NODE_VALIDATION_CHECK(this,
-                                  axis < input_rank.get_length(),
-                                  "Reverse axis (",
-                                  axis,
-                                  ") is out of bounds (argument shape: ",
-                                  input_shape,
-                                  ").");
+            // Make sure all reversed axis indices are valid.
+            for (size_t axis : m_reversed_axes)
+            {
+                NODE_VALIDATION_CHECK(this,
+                                    axis < input_rank.get_length(),
+                                    "Reverse axis (",
+                                    axis,
+                                    ") is out of bounds (argument shape: ",
+                                    input_shape,
+                                    ").");
+            }
         }
-    }
 
-    set_output_type(0, get_input_element_type(0), input_shape);
-#else
+        set_output_type(0, get_input_element_type(0), input_shape);
+        return;
+    )
     NODE_VALIDATION_CHECK(this, false, "Function is not included into the selective build.");
-#endif
 }
 
 shared_ptr<Node> op::v0::Reverse::clone_with_new_inputs(const OutputVector& new_args) const
@@ -95,96 +94,93 @@ op::v1::Reverse::Reverse(const Output<Node>& data,
 
 bool ngraph::op::v1::Reverse::visit_attributes(AttributeVisitor& visitor)
 {
-#if GraphGen(OV_GEN_NGRAPH_OP(Reverse, v1, visit_attributes))
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
-    visitor.on_attribute("mode", m_mode);
-    return true;
-#else
+    NGRAPH_OP_SCOPE(v1_Reverse_visit_attribute,
+        visitor.on_attribute("mode", m_mode);
+        return true;
+    )
     return false;
-#endif
 }
 
 void op::v1::Reverse::validate_and_infer_types()
 {
-#if GraphGen(OV_GEN_NGRAPH_OP(Reverse, v1, validate_and_infer_types))
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
-    if (m_mode == Mode::MASK)
-    {
-        NODE_VALIDATION_CHECK(this,
-                              get_input_element_type(1) == element::boolean,
-                              "In 'mask' mode the second input must contain boolean values.");
-    }
-
-    const auto input_shape = get_input_partial_shape(0);
-    const auto input_rank = input_shape.rank();
-
-    const auto rev_axes_shape = get_input_partial_shape(1);
-    const auto rev_axes_rank = rev_axes_shape.rank();
-
-    if (rev_axes_rank.is_static())
-    {
-        NODE_VALIDATION_CHECK(this,
-                              rev_axes_rank.get_length() == 1,
-                              "The reversed_axes input must be a 1D tensor (got ",
-                              rev_axes_rank.get_length(),
-                              ").");
-
+    NGRAPH_OP_SCOPE(v1_Reverse_validate_and_infer_types,
         if (m_mode == Mode::MASK)
         {
-            if (input_rank.is_static() && rev_axes_shape[0].is_static())
-            {
-                const auto rev_axes_mask_elems_count = rev_axes_shape[0].get_length();
-                NODE_VALIDATION_CHECK(this,
-                                      rev_axes_mask_elems_count == input_rank.get_length(),
-                                      "The number of elements in the reversed_axes tensor (",
-                                      rev_axes_mask_elems_count,
-                                      ") must match the input data tensor rank (",
-                                      input_rank.get_length(),
-                                      ") in 'mask' mode.");
-            }
+            NODE_VALIDATION_CHECK(this,
+                                get_input_element_type(1) == element::boolean,
+                                "In 'mask' mode the second input must contain boolean values.");
         }
-    }
 
-    if (input_rank.is_static())
-    {
-        const auto rank = input_rank.get_length();
-        const auto rev_axes_node = input_value(1).get_node_shared_ptr();
+        const auto input_shape = get_input_partial_shape(0);
+        const auto input_rank = input_shape.rank();
 
-        if (op::is_constant(rev_axes_node))
+        const auto rev_axes_shape = get_input_partial_shape(1);
+        const auto rev_axes_rank = rev_axes_shape.rank();
+
+        if (rev_axes_rank.is_static())
         {
-            const auto rev_axes_constant = as_type_ptr<op::Constant>(rev_axes_node);
+            NODE_VALIDATION_CHECK(this,
+                                rev_axes_rank.get_length() == 1,
+                                "The reversed_axes input must be a 1D tensor (got ",
+                                rev_axes_rank.get_length(),
+                                ").");
 
-            if (m_mode == Mode::INDEX)
+            if (m_mode == Mode::MASK)
             {
-                const AxisSet rev_axes = rev_axes_constant->get_axis_set_val();
-
-                NODE_VALIDATION_CHECK(this,
-                                      rev_axes.size() <= rank,
-                                      "Too many axes(",
-                                      rev_axes,
-                                      ") have been provided for given input shape(",
-                                      input_shape,
-                                      ").");
-
-                bool all_axes_in_range = all_of(rev_axes.begin(),
-                                                rev_axes.end(),
-                                                [&rank](const size_t axis) { return axis < rank; });
-
-                NODE_VALIDATION_CHECK(this,
-                                      all_axes_in_range,
-                                      "Some of the provided axes (",
-                                      rev_axes,
-                                      ") are out of bounds (input rank: ",
-                                      input_rank.get_length(),
-                                      ").");
+                if (input_rank.is_static() && rev_axes_shape[0].is_static())
+                {
+                    const auto rev_axes_mask_elems_count = rev_axes_shape[0].get_length();
+                    NODE_VALIDATION_CHECK(this,
+                                        rev_axes_mask_elems_count == input_rank.get_length(),
+                                        "The number of elements in the reversed_axes tensor (",
+                                        rev_axes_mask_elems_count,
+                                        ") must match the input data tensor rank (",
+                                        input_rank.get_length(),
+                                        ") in 'mask' mode.");
+                }
             }
         }
-    }
 
-    set_output_type(0, get_input_element_type(0), input_shape);
-#else
+        if (input_rank.is_static())
+        {
+            const auto rank = input_rank.get_length();
+            const auto rev_axes_node = input_value(1).get_node_shared_ptr();
+
+            if (op::is_constant(rev_axes_node))
+            {
+                const auto rev_axes_constant = as_type_ptr<op::Constant>(rev_axes_node);
+
+                if (m_mode == Mode::INDEX)
+                {
+                    const AxisSet rev_axes = rev_axes_constant->get_axis_set_val();
+
+                    NODE_VALIDATION_CHECK(this,
+                                        rev_axes.size() <= rank,
+                                        "Too many axes(",
+                                        rev_axes,
+                                        ") have been provided for given input shape(",
+                                        input_shape,
+                                        ").");
+
+                    bool all_axes_in_range = all_of(rev_axes.begin(),
+                                                    rev_axes.end(),
+                                                    [&rank](const size_t axis) { return axis < rank; });
+
+                    NODE_VALIDATION_CHECK(this,
+                                        all_axes_in_range,
+                                        "Some of the provided axes (",
+                                        rev_axes,
+                                        ") are out of bounds (input rank: ",
+                                        input_rank.get_length(),
+                                        ").");
+                }
+            }
+        }
+
+        set_output_type(0, get_input_element_type(0), input_shape);
+        return;
+    )
     NODE_VALIDATION_CHECK(this, false, "Function is not included into the selective build.");
-#endif
 }
 
 shared_ptr<Node> op::v1::Reverse::clone_with_new_inputs(const OutputVector& new_args) const
@@ -205,54 +201,50 @@ op::v1::Reverse::Mode op::v1::Reverse::mode_from_string(const std::string& mode)
 bool op::v0::Reverse::evaluate(const HostTensorVector& outputs,
                                const HostTensorVector& inputs) const
 {
-#if GraphGen(OV_GEN_NGRAPH_OP(Reverse, v0, evaluate))
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
-    runtime::reference::reverse(inputs[0]->get_data_ptr<const char>(),
-                                outputs[0]->get_data_ptr<char>(),
-                                inputs[0]->get_shape(),
-                                outputs[0]->get_shape(),
-                                get_reversed_axes(),
-                                inputs[0]->get_element_type().size());
-    return true;
-#else
+    NGRAPH_OP_SCOPE(v0_Reverse_evaluate,
+        runtime::reference::reverse(inputs[0]->get_data_ptr<const char>(),
+                                    outputs[0]->get_data_ptr<char>(),
+                                    inputs[0]->get_shape(),
+                                    outputs[0]->get_shape(),
+                                    get_reversed_axes(),
+                                    inputs[0]->get_element_type().size());
+        return true;
+    )
     return false;
-#endif
 }
 bool op::v1::Reverse::evaluate(const HostTensorVector& outputs,
                                const HostTensorVector& inputs) const
 {
-#if GraphGen(OV_GEN_NGRAPH_OP(Reverse, v1, evaluate))
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
-    AxisSet axes{};
-    if (get_mode() == op::v1::Reverse::Mode::INDEX)
-    {
-        auto axes_mask = inputs[1]->get_data_ptr<int64_t>();
-        for (size_t i = 0; i < inputs[1]->get_element_count(); ++i)
+    NGRAPH_OP_SCOPE(v1_Reverse_evaluate,
+        AxisSet axes{};
+        if (get_mode() == op::v1::Reverse::Mode::INDEX)
         {
-            axes.emplace(i);
-        }
-    }
-    else // Mode::MASK
-    {
-        auto axes_mask = inputs[1]->get_data_ptr<bool>();
-        for (size_t i = 0; i < inputs[1]->get_element_count(); ++i)
-        {
-            if (axes_mask[i])
+            auto axes_mask = inputs[1]->get_data_ptr<int64_t>();
+            for (size_t i = 0; i < inputs[1]->get_element_count(); ++i)
             {
                 axes.emplace(i);
             }
         }
-    }
-    runtime::reference::reverse(inputs[0]->get_data_ptr<const char>(),
-                                outputs[0]->get_data_ptr<char>(),
-                                inputs[0]->get_shape(),
-                                outputs[0]->get_shape(),
-                                axes,
-                                inputs[0]->get_element_type().size());
-    return true;
-#else
+        else // Mode::MASK
+        {
+            auto axes_mask = inputs[1]->get_data_ptr<bool>();
+            for (size_t i = 0; i < inputs[1]->get_element_count(); ++i)
+            {
+                if (axes_mask[i])
+                {
+                    axes.emplace(i);
+                }
+            }
+        }
+        runtime::reference::reverse(inputs[0]->get_data_ptr<const char>(),
+                                    outputs[0]->get_data_ptr<char>(),
+                                    inputs[0]->get_shape(),
+                                    outputs[0]->get_shape(),
+                                    axes,
+                                    inputs[0]->get_element_type().size());
+        return true;
+    )
     return false;
-#endif
 }
 
 namespace ngraph

@@ -3,6 +3,7 @@
 //
 
 #include "ngraph_ops/selu_ie.hpp"
+#include "itt.hpp"
 
 #include <algorithm>
 #include <memory>
@@ -28,5 +29,9 @@ std::shared_ptr<Node> op::SeluIE::clone_with_new_inputs(const OutputVector& new_
 }
 
 void op::SeluIE::validate_and_infer_types() {
-    set_output_type(0, get_input_element_type(0), get_input_partial_shape(0));
+    NGRAPH_OP_SCOPE(SeluIE_validate_and_infer_types,
+        set_output_type(0, get_input_element_type(0), get_input_partial_shape(0));
+        return;
+    )
+    NODE_VALIDATION_CHECK(this, false, "Function is not included into the selective build.");
 }

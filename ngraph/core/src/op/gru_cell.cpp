@@ -103,116 +103,115 @@ op::v3::GRUCell::GRUCell(const Output<Node>& X,
 
 bool op::v3::GRUCell::visit_attributes(AttributeVisitor& visitor)
 {
-#if GraphGen(OV_GEN_NGRAPH_OP(GRUCell, v3, visit_attributes))
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
-    visitor.on_attribute("linear_before_reset", m_linear_before_reset);
-    return op::util::RNNCellBase::visit_attributes(visitor);
-#else
+    NGRAPH_OP_SCOPE(v3_GRUCell_visit_attributes,
+
+        visitor.on_attribute("linear_before_reset", m_linear_before_reset);
+        return op::util::RNNCellBase::visit_attributes(visitor);
+    )
     return false;
-#endif
 }
 
 void op::v3::GRUCell::validate_and_infer_types()
 {
-#if GraphGen(OV_GEN_NGRAPH_OP(GRUCell, v3, validate_and_infer_types))
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
-    for (const auto& input : inputs())
-    {
-        if (input.get_partial_shape().rank().is_dynamic())
+    NGRAPH_OP_SCOPE(v3_GRUCell_validate_and_infer_types,
+
+        for (const auto& input : inputs())
         {
-            set_output_type(0, get_input_element_type(0), PartialShape::dynamic());
-            return;
+            if (input.get_partial_shape().rank().is_dynamic())
+            {
+                set_output_type(0, get_input_element_type(0), PartialShape::dynamic());
+                return;
+            }
         }
-    }
-    auto merged_batch_size = Dimension::dynamic();
-    auto merged_hidden_size = Dimension::dynamic();
-    auto result_et = element::dynamic;
+        auto merged_batch_size = Dimension::dynamic();
+        auto merged_hidden_size = Dimension::dynamic();
+        auto result_et = element::dynamic;
 
-    // Get input partial shape for all inputs
-    const auto& x_pshape = get_input_partial_shape(0);
-    const auto& ht_pshape = get_input_partial_shape(1);
-    const auto& w_pshape = get_input_partial_shape(2);
-    const auto& r_pshape = get_input_partial_shape(3);
-    const auto& b_pshape = get_input_partial_shape(4);
+        // Get input partial shape for all inputs
+        const auto& x_pshape = get_input_partial_shape(0);
+        const auto& ht_pshape = get_input_partial_shape(1);
+        const auto& w_pshape = get_input_partial_shape(2);
+        const auto& r_pshape = get_input_partial_shape(3);
+        const auto& b_pshape = get_input_partial_shape(4);
 
-    validate_input_rank_dimension({x_pshape, ht_pshape, w_pshape, r_pshape, b_pshape});
+        validate_input_rank_dimension({x_pshape, ht_pshape, w_pshape, r_pshape, b_pshape});
 
-    // Validate input types and save result for output type
-    NODE_VALIDATION_CHECK(
-        this,
-        element::Type::merge(result_et, result_et, get_input_element_type(0)) &&
-            element::Type::merge(result_et, result_et, get_input_element_type(1)) &&
-            element::Type::merge(result_et, result_et, get_input_element_type(2)) &&
-            element::Type::merge(result_et, result_et, get_input_element_type(3)) &&
-            element::Type::merge(result_et, result_et, get_input_element_type(4)),
-        "Element types for X, initial_hidden_state, W, R and B inputs do not match.");
+        // Validate input types and save result for output type
+        NODE_VALIDATION_CHECK(
+            this,
+            element::Type::merge(result_et, result_et, get_input_element_type(0)) &&
+                element::Type::merge(result_et, result_et, get_input_element_type(1)) &&
+                element::Type::merge(result_et, result_et, get_input_element_type(2)) &&
+                element::Type::merge(result_et, result_et, get_input_element_type(3)) &&
+                element::Type::merge(result_et, result_et, get_input_element_type(4)),
+            "Element types for X, initial_hidden_state, W, R and B inputs do not match.");
 
-    // Merge batch_size dimension across all inputs to evaluate output[0] dimension
-    NODE_VALIDATION_CHECK(
-        this,
-        Dimension::merge(merged_batch_size, merged_batch_size, ht_pshape[0]) &&
-            Dimension::merge(merged_batch_size, merged_batch_size, x_pshape[0]),
-        "Parameter batch_size not matched for X and initial_hidden_state inputs.");
+        // Merge batch_size dimension across all inputs to evaluate output[0] dimension
+        NODE_VALIDATION_CHECK(
+            this,
+            Dimension::merge(merged_batch_size, merged_batch_size, ht_pshape[0]) &&
+                Dimension::merge(merged_batch_size, merged_batch_size, x_pshape[0]),
+            "Parameter batch_size not matched for X and initial_hidden_state inputs.");
 
-    // Merge hidden_size dimension across all inputs to evaluate output[1] dimension
-    NODE_VALIDATION_CHECK(
-        this,
-        Dimension::merge(merged_hidden_size, merged_hidden_size, ht_pshape[1]) &&
-            Dimension::merge(merged_hidden_size, merged_hidden_size, r_pshape[1]),
-        "Parameter hidden_size not matched for R and initial_hidden_state inputs.");
+        // Merge hidden_size dimension across all inputs to evaluate output[1] dimension
+        NODE_VALIDATION_CHECK(
+            this,
+            Dimension::merge(merged_hidden_size, merged_hidden_size, ht_pshape[1]) &&
+                Dimension::merge(merged_hidden_size, merged_hidden_size, r_pshape[1]),
+            "Parameter hidden_size not matched for R and initial_hidden_state inputs.");
 
-    // Validate hidden_size value for W, B and R inputs
-    if (merged_hidden_size.is_static())
-    {
-        if (w_pshape[0].is_static())
+        // Validate hidden_size value for W, B and R inputs
+        if (merged_hidden_size.is_static())
         {
-            NODE_VALIDATION_CHECK(
-                this,
-                w_pshape[0].compatible(merged_hidden_size * s_gates_count),
-                "Parameter hidden_size mistmatched in W input. Current value is: ",
-                w_pshape[0].get_length(),
-                ", expected: ",
-                merged_hidden_size.get_length() * s_gates_count,
-                ".");
+            if (w_pshape[0].is_static())
+            {
+                NODE_VALIDATION_CHECK(
+                    this,
+                    w_pshape[0].compatible(merged_hidden_size * s_gates_count),
+                    "Parameter hidden_size mistmatched in W input. Current value is: ",
+                    w_pshape[0].get_length(),
+                    ", expected: ",
+                    merged_hidden_size.get_length() * s_gates_count,
+                    ".");
+            }
+
+            if (r_pshape[0].is_static())
+            {
+                NODE_VALIDATION_CHECK(
+                    this,
+                    r_pshape[0].compatible(merged_hidden_size * s_gates_count),
+                    "Parameter hidden_size mistmatched in R input. Current value is: ",
+                    r_pshape[0].get_length(),
+                    ", expected: ",
+                    merged_hidden_size.get_length() * s_gates_count,
+                    ".");
+            }
+
+            if (b_pshape[0].is_static())
+            {
+                NODE_VALIDATION_CHECK(
+                    this,
+                    b_pshape[0].compatible(merged_hidden_size *
+                                        (s_gates_count + m_linear_before_reset)),
+                    "Parameter hidden_size mistmatched in B input. Current value is: ",
+                    b_pshape[0].get_length(),
+                    ", expected: ",
+                    merged_hidden_size.get_length() * (s_gates_count + m_linear_before_reset),
+                    ".");
+            }
         }
 
-        if (r_pshape[0].is_static())
-        {
-            NODE_VALIDATION_CHECK(
-                this,
-                r_pshape[0].compatible(merged_hidden_size * s_gates_count),
-                "Parameter hidden_size mistmatched in R input. Current value is: ",
-                r_pshape[0].get_length(),
-                ", expected: ",
-                merged_hidden_size.get_length() * s_gates_count,
-                ".");
-        }
+        // Mark inputs which are relevant to output parameters
+        set_input_is_relevant_to_shape(0);
+        set_input_is_relevant_to_shape(1);
+        set_input_is_relevant_to_shape(3);
 
-        if (b_pshape[0].is_static())
-        {
-            NODE_VALIDATION_CHECK(
-                this,
-                b_pshape[0].compatible(merged_hidden_size *
-                                       (s_gates_count + m_linear_before_reset)),
-                "Parameter hidden_size mistmatched in B input. Current value is: ",
-                b_pshape[0].get_length(),
-                ", expected: ",
-                merged_hidden_size.get_length() * (s_gates_count + m_linear_before_reset),
-                ".");
-        }
-    }
-
-    // Mark inputs which are relevant to output parameters
-    set_input_is_relevant_to_shape(0);
-    set_input_is_relevant_to_shape(1);
-    set_input_is_relevant_to_shape(3);
-
-    // Set output size, type and shape
-    set_output_size(1);
-    set_output_type(0, result_et, {merged_batch_size, merged_hidden_size});
-#else
+        // Set output size, type and shape
+        set_output_size(1);
+        set_output_type(0, result_et, {merged_batch_size, merged_hidden_size});
+        return;
+    )
     NODE_VALIDATION_CHECK(this, false, "Function is not included into the selective build.");
-#endif
 }
 
 void op::v3::GRUCell::add_default_bias_input()

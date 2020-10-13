@@ -67,91 +67,88 @@ op::v1::AvgPool::AvgPool(const Output<Node>& arg,
 
 bool op::v1::AvgPool::visit_attributes(AttributeVisitor& visitor)
 {
-#if GraphGen(OV_GEN_NGRAPH_OP(AvgPool, v1, visit_attributes))
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
-    visitor.on_attribute("kernel", m_kernel);
-    visitor.on_attribute("strides", m_strides);
-    visitor.on_attribute("pads_begin", m_pads_begin);
-    visitor.on_attribute("pads_end", m_pads_end);
-    visitor.on_attribute("exclude_pad", m_exclude_pad);
-    visitor.on_attribute("auto_pad", m_auto_pad);
-    visitor.on_attribute("rounding_type", m_rounding_type);
-    return true;
-#else
+    NGRAPH_OP_SCOPE(v1_AvgPool_visit_attributes,
+        visitor.on_attribute("kernel", m_kernel);
+        visitor.on_attribute("strides", m_strides);
+        visitor.on_attribute("pads_begin", m_pads_begin);
+        visitor.on_attribute("pads_end", m_pads_end);
+        visitor.on_attribute("exclude_pad", m_exclude_pad);
+        visitor.on_attribute("auto_pad", m_auto_pad);
+        visitor.on_attribute("rounding_type", m_rounding_type);
+        return true;
+    )
     return false;
-#endif
 }
 
 void op::v1::AvgPool::validate_and_infer_types()
 {
-#if GraphGen(OV_GEN_NGRAPH_OP(AvgPool, v1, validate_and_infer_types))
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
-    if (0 == m_strides.size())
-    {
-        m_strides = Strides(m_kernel.size(), 1);
-    }
-
-    if (0 == m_pads_begin.size())
-    {
-        m_pads_begin = Shape(m_kernel.size(), 0);
-    }
-
-    if (0 == m_pads_end.size())
-    {
-        m_pads_end = Shape(m_kernel.size(), 0);
-    }
-
-    const PartialShape& arg_shape = get_input_partial_shape(0);
-    auto output_shape = PartialShape::dynamic();
-    if (arg_shape.rank().is_static())
-    {
-        output_shape = std::vector<Dimension>(arg_shape.rank().get_length(), Dimension::dynamic());
-        if (arg_shape.rank().get_length() > 1)
+    NGRAPH_OP_SCOPE(v1_AvgPool_validate_and_infer_types,
+        if (0 == m_strides.size())
         {
-            output_shape[0] = arg_shape[0]; // batch size
+            m_strides = Strides(m_kernel.size(), 1);
         }
-        if (arg_shape.rank().get_length() > 2)
+
+        if (0 == m_pads_begin.size())
         {
-            output_shape[1] = arg_shape[1]; // channel size
+            m_pads_begin = Shape(m_kernel.size(), 0);
         }
-    }
 
-    bool update_auto_padding_succeed = true;
-    if (m_auto_pad == PadType::SAME_UPPER || m_auto_pad == PadType::SAME_LOWER)
-    {
-        CoordinateDiff pads_end, pads_begin;
-        update_auto_padding_succeed =
-            try_apply_auto_padding(arg_shape,
-                                   m_kernel,
-                                   m_strides,
-                                   Strides(m_kernel.size(), 1), // No dilation
-                                   m_auto_pad,
-                                   pads_end,
-                                   pads_begin);
-        m_pads_end = Shape(pads_end.begin(), pads_end.end());
-        m_pads_begin = Shape(pads_begin.begin(), pads_begin.end());
-    }
+        if (0 == m_pads_end.size())
+        {
+            m_pads_end = Shape(m_kernel.size(), 0);
+        }
 
-    // infer_batched_forward_pooling wants CoordinateDiffs for these, while the pooling ops for
-    // now still take Shape (no negative padding).
-    CoordinateDiff pads_begin(m_pads_begin.begin(), m_pads_begin.end());
-    CoordinateDiff pads_end(m_pads_end.begin(), m_pads_end.end());
+        const PartialShape& arg_shape = get_input_partial_shape(0);
+        auto output_shape = PartialShape::dynamic();
+        if (arg_shape.rank().is_static())
+        {
+            output_shape = std::vector<Dimension>(arg_shape.rank().get_length(), Dimension::dynamic());
+            if (arg_shape.rank().get_length() > 1)
+            {
+                output_shape[0] = arg_shape[0]; // batch size
+            }
+            if (arg_shape.rank().get_length() > 2)
+            {
+                output_shape[1] = arg_shape[1]; // channel size
+            }
+        }
 
-    set_output_type(0,
-                    get_input_element_type(0),
-                    update_auto_padding_succeed
-                        ? infer_batched_pooling_forward(this,
-                                                        arg_shape,
-                                                        pads_begin,
-                                                        pads_end,
-                                                        m_kernel,
-                                                        m_strides,
-                                                        !m_exclude_pad,
-                                                        m_rounding_type == op::RoundingType::CEIL)
-                        : output_shape);
-#else
+        bool update_auto_padding_succeed = true;
+        if (m_auto_pad == PadType::SAME_UPPER || m_auto_pad == PadType::SAME_LOWER)
+        {
+            CoordinateDiff pads_end, pads_begin;
+            update_auto_padding_succeed =
+                try_apply_auto_padding(arg_shape,
+                                    m_kernel,
+                                    m_strides,
+                                    Strides(m_kernel.size(), 1), // No dilation
+                                    m_auto_pad,
+                                    pads_end,
+                                    pads_begin);
+            m_pads_end = Shape(pads_end.begin(), pads_end.end());
+            m_pads_begin = Shape(pads_begin.begin(), pads_begin.end());
+        }
+
+        // infer_batched_forward_pooling wants CoordinateDiffs for these, while the pooling ops for
+        // now still take Shape (no negative padding).
+        CoordinateDiff pads_begin(m_pads_begin.begin(), m_pads_begin.end());
+        CoordinateDiff pads_end(m_pads_end.begin(), m_pads_end.end());
+
+        set_output_type(0,
+                        get_input_element_type(0),
+                        update_auto_padding_succeed
+                            ? infer_batched_pooling_forward(this,
+                                                            arg_shape,
+                                                            pads_begin,
+                                                            pads_end,
+                                                            m_kernel,
+                                                            m_strides,
+                                                            !m_exclude_pad,
+                                                            m_rounding_type == op::RoundingType::CEIL)
+                            : output_shape);
+        return;
+    )
     NODE_VALIDATION_CHECK(this, false, "Function is not included into the selective build.");
-#endif
 }
 
 const Shape& op::v1::AvgPool::get_kernel() const

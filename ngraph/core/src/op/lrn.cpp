@@ -59,77 +59,74 @@ AxisSet op::LRN::get_reduction_axes() const
 
 void op::LRN::validate_and_infer_types()
 {
-#if GraphGen(OV_GEN_NGRAPH_OP(LRN, v0, validate_and_infer_types))
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
-    element::Type arg_type = get_input_element_type(0);
-    PartialShape arg_shape = get_input_partial_shape(0);
-    set_output_type(0, arg_type, arg_shape);
+    NGRAPH_OP_SCOPE(v0_LRN_validate_and_infer_types,
+        element::Type arg_type = get_input_element_type(0);
+        PartialShape arg_shape = get_input_partial_shape(0);
+        set_output_type(0, arg_type, arg_shape);
 
-    const PartialShape& input_shape = get_input_partial_shape(0);
-    const auto input_shape_rank = input_shape.rank();
+        const PartialShape& input_shape = get_input_partial_shape(0);
+        const auto input_shape_rank = input_shape.rank();
 
-    PartialShape axes_shape{PartialShape::dynamic()};
-    if (get_input_partial_shape(1).is_static())
-    {
-        axes_shape = get_input_partial_shape(1);
-    }
-
-    auto axes_rank = axes_shape.rank();
-    NODE_VALIDATION_CHECK(this,
-                          axes_rank.compatible(1),
-                          "Input axes must have rank equals 1 (axes_rank: ",
-                          axes_rank,
-                          ").");
-
-    NODE_VALIDATION_CHECK(
-        this,
-        axes_shape.is_dynamic() || input_shape_rank.is_dynamic() ||
-            axes_shape[0].get_length() <= input_shape_rank.get_length(),
-        "Number of elements of axes must be >= 0 and <= argument rank (axes_shape[0]: ",
-        axes_shape[0],
-        ").");
-
-    if (input_shape_rank.is_static())
-    {
-        const auto reduction_axes = get_reduction_axes();
-        for (auto axis : reduction_axes)
+        PartialShape axes_shape{PartialShape::dynamic()};
+        if (get_input_partial_shape(1).is_static())
         {
-            NODE_VALIDATION_CHECK(this,
-                                  axis < input_shape_rank.get_length(),
-                                  "Reduction axis (",
-                                  axis,
-                                  ") is out of bounds ",
-                                  "(argument shape: ",
-                                  input_shape,
-                                  ", reduction axes: ",
-                                  reduction_axes,
-                                  ")");
+            axes_shape = get_input_partial_shape(1);
         }
-    }
 
-    const auto& axes_type = get_input_element_type(1);
-    NODE_VALIDATION_CHECK(this,
-                          axes_type.is_integral_number(),
-                          "Axes input must be integral numbers, but are: ",
-                          axes_type,
-                          ").");
-#else
+        auto axes_rank = axes_shape.rank();
+        NODE_VALIDATION_CHECK(this,
+                            axes_rank.compatible(1),
+                            "Input axes must have rank equals 1 (axes_rank: ",
+                            axes_rank,
+                            ").");
+
+        NODE_VALIDATION_CHECK(
+            this,
+            axes_shape.is_dynamic() || input_shape_rank.is_dynamic() ||
+                axes_shape[0].get_length() <= input_shape_rank.get_length(),
+            "Number of elements of axes must be >= 0 and <= argument rank (axes_shape[0]: ",
+            axes_shape[0],
+            ").");
+
+        if (input_shape_rank.is_static())
+        {
+            const auto reduction_axes = get_reduction_axes();
+            for (auto axis : reduction_axes)
+            {
+                NODE_VALIDATION_CHECK(this,
+                                    axis < input_shape_rank.get_length(),
+                                    "Reduction axis (",
+                                    axis,
+                                    ") is out of bounds ",
+                                    "(argument shape: ",
+                                    input_shape,
+                                    ", reduction axes: ",
+                                    reduction_axes,
+                                    ")");
+            }
+        }
+
+        const auto& axes_type = get_input_element_type(1);
+        NODE_VALIDATION_CHECK(this,
+                            axes_type.is_integral_number(),
+                            "Axes input must be integral numbers, but are: ",
+                            axes_type,
+                            ").");
+        return;
+    )
     NODE_VALIDATION_CHECK(this, false, "Function is not included into the selective build.");
-#endif
 }
 
 bool ngraph::op::v0::LRN::visit_attributes(AttributeVisitor& visitor)
 {
-#if GraphGen(OV_GEN_NGRAPH_OP(LRN, v0, visit_attributes))
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
-    visitor.on_attribute("alpha", m_alpha);
-    visitor.on_attribute("beta", m_beta);
-    visitor.on_attribute("bias", m_bias);
-    visitor.on_attribute("size", m_size);
-    return true;
-#else
+    NGRAPH_OP_SCOPE(v0_LRN_visit_attributes,
+        visitor.on_attribute("alpha", m_alpha);
+        visitor.on_attribute("beta", m_beta);
+        visitor.on_attribute("bias", m_bias);
+        visitor.on_attribute("size", m_size);
+        return true;
+    )
     return false;
-#endif
 }
 
 shared_ptr<Node> op::LRN::clone_with_new_inputs(const OutputVector& new_args) const

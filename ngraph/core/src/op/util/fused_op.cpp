@@ -35,35 +35,34 @@ op::util::FusedOp::FusedOp(const OutputVector& args)
 
 void op::util::FusedOp::validate_and_infer_types()
 {
-#if GraphGen(OV_GEN_NGRAPH_OP_UTIL(FusedOp, validate_and_infer_types))
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
-    pre_validate_and_infer_types();
+    NGRAPH_OP_UTIL_SCOPE(FusedOp_validate_and_infer_types,
+        pre_validate_and_infer_types();
 
-    if (!can_decompose_with_partial_shapes() && is_dynamic())
-    {
-        return;
-    }
-
-    auto subgraph_outputs = decompose_op();
-    NodeVector nodes;
-    for (auto& val : input_values())
-        nodes.emplace_back(val.get_node_shared_ptr());
-    auto subgraph = extract_subgraph(ngraph::as_node_vector(subgraph_outputs), nodes);
-    validate_nodes_and_infer_types(subgraph);
-
-    size_t i = 0;
-    for (const auto& output : subgraph_outputs)
-    {
-        if (i >= get_output_size())
+        if (!can_decompose_with_partial_shapes() && is_dynamic())
         {
-            set_output_size(i + 1);
+            return;
         }
-        set_output_type(i, output.get_element_type(), output.get_shape());
-        i++;
-    }
 
-    post_validate_and_infer_types();
-#else
+        auto subgraph_outputs = decompose_op();
+        NodeVector nodes;
+        for (auto& val : input_values())
+            nodes.emplace_back(val.get_node_shared_ptr());
+        auto subgraph = extract_subgraph(ngraph::as_node_vector(subgraph_outputs), nodes);
+        validate_nodes_and_infer_types(subgraph);
+
+        size_t i = 0;
+        for (const auto& output : subgraph_outputs)
+        {
+            if (i >= get_output_size())
+            {
+                set_output_size(i + 1);
+            }
+            set_output_type(i, output.get_element_type(), output.get_shape());
+            i++;
+        }
+
+        post_validate_and_infer_types();
+        return;
+    )
     NODE_VALIDATION_CHECK(this, false, "Function is not included into the selective build.");
-#endif
 }

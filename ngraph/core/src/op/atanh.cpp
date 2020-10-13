@@ -54,20 +54,14 @@ namespace
     {
         bool rc = true;
         out->set_unary(arg0);
-        switch (arg0->get_element_type())
+        switch(arg0->get_element_type())
         {
-            TYPE_CASE(i32)(arg0, out);
-            break;
-            TYPE_CASE(i64)(arg0, out);
-            break;
-            TYPE_CASE(u32)(arg0, out);
-            break;
-            TYPE_CASE(u64)(arg0, out);
-            break;
-            TYPE_CASE(f16)(arg0, out);
-            break;
-            TYPE_CASE(f32)(arg0, out);
-            break;
+            NGRAPH_TYPE_CASE(evaluate_atanh, i32, arg0, out)
+            NGRAPH_TYPE_CASE(evaluate_atanh, i64, arg0, out)
+            NGRAPH_TYPE_CASE(evaluate_atanh, u32, arg0, out)
+            NGRAPH_TYPE_CASE(evaluate_atanh, u64, arg0, out)
+            NGRAPH_TYPE_CASE(evaluate_atanh, f16, arg0, out)
+            NGRAPH_TYPE_CASE(evaluate_atanh, f32, arg0, out)
         default: rc = false; break;
         }
         return rc;
@@ -76,10 +70,9 @@ namespace
 
 bool op::v3::Atanh::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
-#if GraphGen(OV_GEN_NGRAPH_OP(Atanh, v3, evaluate))
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
-    return evaluate_atanh(inputs[0], outputs[0]);
-#else
-    return false;
-#endif
+    bool rc = false;
+    NGRAPH_OP_SCOPE(v3_Atanh_evaluate,
+        rc = evaluate_atanh(inputs[0], outputs[0]);
+    )
+    return rc;
 }

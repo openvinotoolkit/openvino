@@ -22,6 +22,9 @@
 
 #include "ngraph/pass/pass.hpp"
 #include "ngraph/pattern/matcher.hpp"
+#if defined(OV_SELECTIVE_BUILD) || defined(OV_SELECTIVE_BUILD_LOG) || defined(ENABLE_PROFILING_ITT)
+#include "itt.hpp"
+#endif
 
 namespace ngraph
 {
@@ -113,6 +116,14 @@ private:
 /// or has ngraph::pattern::op::WrapType. That will help GraphRewrite to execute matcher passes more
 /// efficient.
 
+#if defined(OV_SELECTIVE_BUILD)
+ #define ADD_MATCHER(FUNCTION_PASS, Impl, ...)                                                   \
+    FUNCTION_PASS->OV_EXPAND(OV_CAT(add_matcher_impl_,                                           \
+        OV_SCOPE_IS_ENABLED(OV_CAT(REGISTER_PASS_, Impl)))<ngraph::pass::Impl>( __VA_ARGS__))
+#else
+#define ADD_MATCHER(FUNCTION_PASS, Impl, ...) FUNCTION_PASS->add_matcher_impl_1<Impl>(__VA_ARGS__)
+#endif
+
 class NGRAPH_API ngraph::pass::GraphRewrite : public ngraph::pass::FunctionPass
 {
 public:
@@ -126,12 +137,26 @@ public:
         m_matchers.push_back(pass);
     }
 
+#if defined(OV_SELECTIVE_BUILD)
+    template <typename T, class... Args>
+    std::shared_ptr<T> add_matcher_impl_0(Args&&... args) {
+        return std::shared_ptr<T>(nullptr);
+    }
+#endif
+    template <typename T, class... Args>
+    std::shared_ptr<T> add_matcher_impl_1(Args&&... args) {
+        return add_matcher<T>(args...);
+    }
+
     template <typename T, class... Args>
     std::shared_ptr<T> add_matcher(Args&&... args)
     {
         static_assert(std::is_base_of<pass::MatcherPass, T>::value,
                       "pass not derived from MatcherPass");
         auto pass = std::make_shared<T>(std::forward<Args>(args)...);
+#if defined(OV_SELECTIVE_BUILD_LOG) || defined(ENABLE_PROFILING_ITT)
+        NGRAPH_PASS_ADD_MATCHER(pass);
+#endif
         m_matchers.push_back(pass);
         return pass;
     }

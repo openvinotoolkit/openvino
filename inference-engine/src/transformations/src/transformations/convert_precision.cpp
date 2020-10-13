@@ -76,127 +76,125 @@ bool fuse_type_to_reduce_logical(std::shared_ptr<ngraph::Node> & node, ngraph::e
 NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertPrecision, "ConvertPrecision", 0);
 
 bool ngraph::pass::ConvertPrecision::run_on_function(std::shared_ptr<ngraph::Function> f) {
-#if GraphGen(OV_GEN_NGRAPH_PASS(ConvertPrecision, run_on_function))
-    OV_ITT_SCOPED_TASK(itt::domains::IETransform);
-    static std::map<ngraph::NodeTypeInfo, std::function<bool(std::shared_ptr<Node>&, element::Type, size_t idx)>> type_to_fuse {
-        {opset4::Parameter::type_info, fuse_type_to_parameter},
-        {opset4::Convert::type_info, fuse_type_to_convert},
-        {opset4::ShapeOf::type_info, fuse_type_to_shapeof},
-        {opset3::NonMaxSuppression::type_info, fuse_type_to_nms3},
-        {opset4::NonMaxSuppression::type_info, fuse_type_to_nms4},
-        {opset4::TopK::type_info, fuse_type_to_topk},
-        {opset4::NonZero::type_info, fuse_type_to_nonzero},
-        {opset4::Bucketize::type_info, fuse_type_to_bucketize},
-        {NodeTypeInfo("GenericIE", 1), fuse_type_to_generic_ie},
-        {opset4::Equal::type_info, fuse_type_to_binary_comparision<opset4::Equal>},
-        {opset4::NotEqual::type_info, fuse_type_to_binary_comparision<opset4::NotEqual>},
-        {opset4::Greater::type_info, fuse_type_to_binary_comparision<opset4::Greater>},
-        {opset4::GreaterEqual::type_info, fuse_type_to_binary_comparision<opset4::GreaterEqual>},
-        {opset4::Less::type_info, fuse_type_to_binary_comparision<opset4::Less>},
-        {opset4::LessEqual::type_info, fuse_type_to_binary_comparision<opset4::LessEqual>},
-        {opset4::LogicalAnd::type_info, fuse_type_to_logical<opset4::LogicalAnd>},
-        {opset4::LogicalOr::type_info, fuse_type_to_logical<opset4::LogicalOr>},
-        {opset4::LogicalXor::type_info, fuse_type_to_logical<opset4::LogicalXor>},
-        {opset4::LogicalNot::type_info, fuse_type_to_logical<opset4::LogicalNot>},
-        {opset4::ReduceLogicalAnd::type_info, fuse_type_to_reduce_logical<opset4::ReduceLogicalAnd>},
-        {opset4::ReduceLogicalOr::type_info, fuse_type_to_reduce_logical<opset4::ReduceLogicalOr>},
-        {opset1::ShapeOf::type_info, fuse_type_to_shapeof_v0}
-    };
+    IETRANSFORM_SCOPE(ConvertPrecision,
+        static std::map<ngraph::NodeTypeInfo, std::function<bool(std::shared_ptr<Node>&, element::Type, size_t idx)>> type_to_fuse {
+            {opset4::Parameter::type_info, fuse_type_to_parameter},
+            {opset4::Convert::type_info, fuse_type_to_convert},
+            {opset4::ShapeOf::type_info, fuse_type_to_shapeof},
+            {opset3::NonMaxSuppression::type_info, fuse_type_to_nms3},
+            {opset4::NonMaxSuppression::type_info, fuse_type_to_nms4},
+            {opset4::TopK::type_info, fuse_type_to_topk},
+            {opset4::NonZero::type_info, fuse_type_to_nonzero},
+            {opset4::Bucketize::type_info, fuse_type_to_bucketize},
+            {NodeTypeInfo("GenericIE", 1), fuse_type_to_generic_ie},
+            {opset4::Equal::type_info, fuse_type_to_binary_comparision<opset4::Equal>},
+            {opset4::NotEqual::type_info, fuse_type_to_binary_comparision<opset4::NotEqual>},
+            {opset4::Greater::type_info, fuse_type_to_binary_comparision<opset4::Greater>},
+            {opset4::GreaterEqual::type_info, fuse_type_to_binary_comparision<opset4::GreaterEqual>},
+            {opset4::Less::type_info, fuse_type_to_binary_comparision<opset4::Less>},
+            {opset4::LessEqual::type_info, fuse_type_to_binary_comparision<opset4::LessEqual>},
+            {opset4::LogicalAnd::type_info, fuse_type_to_logical<opset4::LogicalAnd>},
+            {opset4::LogicalOr::type_info, fuse_type_to_logical<opset4::LogicalOr>},
+            {opset4::LogicalXor::type_info, fuse_type_to_logical<opset4::LogicalXor>},
+            {opset4::LogicalNot::type_info, fuse_type_to_logical<opset4::LogicalNot>},
+            {opset4::ReduceLogicalAnd::type_info, fuse_type_to_reduce_logical<opset4::ReduceLogicalAnd>},
+            {opset4::ReduceLogicalOr::type_info, fuse_type_to_reduce_logical<opset4::ReduceLogicalOr>},
+            {opset1::ShapeOf::type_info, fuse_type_to_shapeof_v0}
+        };
 
-    static std::map<ngraph::NodeTypeInfo, std::function<bool(std::shared_ptr<Node>&, element::Type, size_t idx)>> type_to_extend {
-            {opset4::Select::type_info, extend_select_type},
-    };
+        static std::map<ngraph::NodeTypeInfo, std::function<bool(std::shared_ptr<Node>&, element::Type, size_t idx)>> type_to_extend {
+                {opset4::Select::type_info, extend_select_type},
+        };
 
-    // As Constant operations can be shared between multiple nGraph Functions so before
-    // changing precision we need to understand which Constant consumers belongs
-    // to the current nGraph Function
-    std::map<std::shared_ptr<Node>, std::vector<Input<Node>>> const_to_internal_output;
+        // As Constant operations can be shared between multiple nGraph Functions so before
+        // changing precision we need to understand which Constant consumers belongs
+        // to the current nGraph Function
+        std::map<std::shared_ptr<Node>, std::vector<Input<Node>>> const_to_internal_output;
 
-    std::function<void(const std::shared_ptr<Function> &)> register_constants =
-            [&const_to_internal_output, &register_constants](const std::shared_ptr<Function> & f) {
-        for (auto & node : f->get_ordered_ops()) {
-            for (auto & input : node->inputs()) {
-                if (auto const_node = std::dynamic_pointer_cast<opset4::Constant>(input.get_source_output().get_node_shared_ptr())) {
-                    const_to_internal_output[const_node].emplace_back(input);
+        std::function<void(const std::shared_ptr<Function> &)> register_constants =
+                [&const_to_internal_output, &register_constants](const std::shared_ptr<Function> & f) {
+            for (auto & node : f->get_ordered_ops()) {
+                for (auto & input : node->inputs()) {
+                    if (auto const_node = std::dynamic_pointer_cast<opset4::Constant>(input.get_source_output().get_node_shared_ptr())) {
+                        const_to_internal_output[const_node].emplace_back(input);
+                    }
                 }
             }
-        }
-    };
+        };
 
-    auto convert_node_output_precision = [this, &const_to_internal_output](std::shared_ptr<Node> & node) {
-        for (auto output : node->outputs()) {
-            if (output.get_element_type() == m_from) {
-                // Handle case with Constants as they can have consumers from other nGraph Function object
-                if (ngraph::op::is_constant(node) && const_to_internal_output.count(node)) {
-                    fuse_type_to_constant(node, m_to, const_to_internal_output.at(node));
-                    break;
-                }
+        auto convert_node_output_precision = [this, &const_to_internal_output](std::shared_ptr<Node> & node) {
+            for (auto output : node->outputs()) {
+                if (output.get_element_type() == m_from) {
+                    // Handle case with Constants as they can have consumers from other nGraph Function object
+                    if (ngraph::op::is_constant(node) && const_to_internal_output.count(node)) {
+                        fuse_type_to_constant(node, m_to, const_to_internal_output.at(node));
+                        break;
+                    }
 
-                // Check that node type exists in map and we can fuse type into node
-                if (type_to_fuse.count(node->get_type_info()) &&
-                    type_to_fuse.at(node->get_type_info())(node, m_to, output.get_index())) {
-                    // We need to break if original node was replaced
-                    break;
-                }
-            }
-        }
-    };
-
-    auto convert_node_input_precision = [this](std::shared_ptr<Node> & node) {
-        for (auto input : node->inputs()) {
-            if (input.get_element_type() == m_from) {
-                // For some operations we need to extend their input types to support new type
-                if (type_to_extend.count(node->get_type_info()) &&
-                    type_to_extend.at(node->get_type_info())(node, m_to, input.get_index())) {
-                    break;
+                    // Check that node type exists in map and we can fuse type into node
+                    if (type_to_fuse.count(node->get_type_info()) &&
+                        type_to_fuse.at(node->get_type_info())(node, m_to, output.get_index())) {
+                        // We need to break if original node was replaced
+                        break;
+                    }
                 }
             }
-        }
-    };
+        };
 
-    std::function<void(const std::shared_ptr<Function> &)> convert_function_precision =
-            [this, &const_to_internal_output,
-                   &register_constants,
-                   &convert_node_output_precision,
-                   &convert_node_input_precision,
-                   &convert_function_precision] (const std::shared_ptr<Function> & f) {
-        // Iterate over all nodes in topological order and then iterate over node outputs.
-        // If output type mismatch given type we try to fuse type into this operation
-        // otherwise we insert Convert operation.
+        auto convert_node_input_precision = [this](std::shared_ptr<Node> & node) {
+            for (auto input : node->inputs()) {
+                if (input.get_element_type() == m_from) {
+                    // For some operations we need to extend their input types to support new type
+                    if (type_to_extend.count(node->get_type_info()) &&
+                        type_to_extend.at(node->get_type_info())(node, m_to, input.get_index())) {
+                        break;
+                    }
+                }
+            }
+        };
+
+        std::function<void(const std::shared_ptr<Function> &)> convert_function_precision =
+                [this, &const_to_internal_output,
+                    &register_constants,
+                    &convert_node_output_precision,
+                    &convert_node_input_precision,
+                    &convert_function_precision] (const std::shared_ptr<Function> & f) {
+            // Iterate over all nodes in topological order and then iterate over node outputs.
+            // If output type mismatch given type we try to fuse type into this operation
+            // otherwise we insert Convert operation.
+            for (auto &node : f->get_ordered_ops()) {
+                // Recursively apply transformation for sub-graph based operations
+                if (auto sub_graph_node = std::dynamic_pointer_cast<op::util::SubGraphOp>(node)) {
+                    if (auto sub_graph = sub_graph_node->get_function()) {
+                        convert_function_precision(sub_graph);
+                    }
+                }
+                convert_node_input_precision(node);
+            }
+            // Register internal constants only after fixing input type that could lead to nodes replacement
+            register_constants(f);
+
+            for (auto &node : f->get_ordered_ops()) {
+                convert_node_output_precision(node);
+            }
+        };
+
+        convert_function_precision(f);
+        f->validate_nodes_and_infer_types();
+
+        // TODO: we need to split NopElimination pass to separate MatcherPasses and call Convert elimination here
         for (auto &node : f->get_ordered_ops()) {
-            // Recursively apply transformation for sub-graph based operations
-            if (auto sub_graph_node = std::dynamic_pointer_cast<op::util::SubGraphOp>(node)) {
-                if (auto sub_graph = sub_graph_node->get_function()) {
-                    convert_function_precision(sub_graph);
+            if (auto convert = std::dynamic_pointer_cast<opset4::Convert>(node)) {
+                // WA for topK, dont remove fake convert
+                if (convert->input(0).get_element_type() == convert->get_convert_element_type() &&
+                    convert->input_value(0).get_node_shared_ptr()->get_output_size() == 1) {
+                    replace_output_update_name(convert->output(0), convert->input_value(0));
                 }
             }
-            convert_node_input_precision(node);
         }
-        // Register internal constants only after fixing input type that could lead to nodes replacement
-        register_constants(f);
-
-        for (auto &node : f->get_ordered_ops()) {
-            convert_node_output_precision(node);
-        }
-    };
-
-    convert_function_precision(f);
-    f->validate_nodes_and_infer_types();
-
-    // TODO: we need to split NopElimination pass to separate MatcherPasses and call Convert elimination here
-    for (auto &node : f->get_ordered_ops()) {
-        if (auto convert = std::dynamic_pointer_cast<opset4::Convert>(node)) {
-            // WA for topK, dont remove fake convert
-            if (convert->input(0).get_element_type() == convert->get_convert_element_type() &&
-                convert->input_value(0).get_node_shared_ptr()->get_output_size() == 1) {
-                replace_output_update_name(convert->output(0), convert->input_value(0));
-            }
-        }
-    }
-    return true;
-#else
-    return false;
-#endif
+        return true;
+    )
+    NGRAPH_CHECK(false, "nGraph pass is not included into the selective build.");
 }
 
 bool fuse_type_to_shapeof(std::shared_ptr<Node> & node, element::Type to, size_t idx) {

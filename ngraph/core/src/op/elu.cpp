@@ -35,24 +35,22 @@ op::Elu::Elu(const Output<Node>& data, const double alpha)
 
 bool ngraph::op::v0::Elu::visit_attributes(AttributeVisitor& visitor)
 {
-#if GraphGen(OV_GEN_NGRAPH_OP(Elu, v0, visit_attributes))
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
-    visitor.on_attribute("alpha", m_alpha);
-    return true;
-#else
+    NGRAPH_OP_SCOPE(v0_Elu_visit_attributes,
+        visitor.on_attribute("alpha", m_alpha);
+        return true;
+    )
     return false;
-#endif
 }
 
 void op::v0::Elu::validate_and_infer_types()
 {
-#if GraphGen(OV_GEN_NGRAPH_OP(Elu, v0, visit_attributes))
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
-    set_output_size(1);
-    set_output_type(0, get_input_element_type(0), get_input_partial_shape(0));
-#else
+    NGRAPH_OP_SCOPE(v0_Elu_validate_and_infer_types,
+
+        set_output_size(1);
+        set_output_type(0, get_input_element_type(0), get_input_partial_shape(0));
+        return;
+    )
     NODE_VALIDATION_CHECK(this, false, "Function is not included into the selective build.");
-#endif
 }
 
 shared_ptr<Node> op::Elu::clone_with_new_inputs(const OutputVector& new_args) const

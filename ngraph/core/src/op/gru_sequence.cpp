@@ -62,134 +62,131 @@ op::v5::GRUSequence::GRUSequence(const Output<Node>& X,
 
 void op::v5::GRUSequence::validate_and_infer_types()
 {
-#if GraphGen(OV_GEN_NGRAPH_OP(GRUSequence, v5, validate_and_infer_types))
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
-    for (const auto& input : inputs())
-    {
-        if (input.get_partial_shape().rank().is_dynamic())
+    NGRAPH_OP_SCOPE(v5_GRUSequence_validate_and_infer_types,
+        for (const auto& input : inputs())
         {
-            set_output_type(0, get_input_element_type(0), PartialShape::dynamic());
-            set_output_type(1, get_input_element_type(0), PartialShape::dynamic());
-            return;
-        }
-    }
-
-    auto gru_seq_gates_count = 3;
-    auto merged_batch_size = Dimension::dynamic();
-    auto merged_hidden_size = Dimension::dynamic();
-    auto merged_num_directions = Dimension::dynamic();
-    auto result_et = element::dynamic;
-
-    auto x_pshape = get_input_partial_shape(0);
-    auto ht_pshape = get_input_partial_shape(1);
-    auto sl_pshape = get_input_partial_shape(2);
-    auto w_pshape = get_input_partial_shape(3);
-    auto r_pshape = get_input_partial_shape(4);
-    auto b_pshape = get_input_partial_shape(5);
-
-    ngraph::op::util::validate_seq_input_rank_dimension(
-        {x_pshape, ht_pshape, sl_pshape, w_pshape, r_pshape, b_pshape});
-
-    // Validate input types and save result for output type
-    NODE_VALIDATION_CHECK(
-        this,
-        element::Type::merge(result_et, result_et, get_input_element_type(0)) &&
-            element::Type::merge(result_et, result_et, get_input_element_type(1)) &&
-            element::Type::merge(result_et, result_et, get_input_element_type(3)) &&
-            element::Type::merge(result_et, result_et, get_input_element_type(4)) &&
-            element::Type::merge(result_et, result_et, get_input_element_type(5)),
-        "Element types for X, initial_hidden_state, W, R and B inputs do not "
-        "match.");
-
-    // Merge batch_size dimension across all inputs to evaluate output[0] dimension
-    NODE_VALIDATION_CHECK(this,
-                          Dimension::merge(merged_batch_size, merged_batch_size, ht_pshape[0]) &&
-                              Dimension::merge(merged_batch_size, merged_batch_size, x_pshape[0]) &&
-                              Dimension::merge(merged_batch_size, merged_batch_size, sl_pshape[0]),
-                          "Parameter batch_size not matched in RNNSequence.");
-
-    // Merge hidden_size dimension across all inputs to evaluate output dimension
-    NODE_VALIDATION_CHECK(this,
-                          Dimension::merge(merged_hidden_size, merged_hidden_size, ht_pshape[2]) &&
-                              Dimension::merge(merged_hidden_size, merged_hidden_size, r_pshape[2]),
-                          "Parameter hidden_size not matched RNNSequence.");
-
-    // Merge num_directions dimension across all inputs to evaluate output dimension
-    NODE_VALIDATION_CHECK(
-        this,
-        Dimension::merge(merged_num_directions, merged_num_directions, ht_pshape[1]) &&
-            Dimension::merge(merged_num_directions, merged_num_directions, w_pshape[0]) &&
-            Dimension::merge(merged_num_directions, merged_num_directions, r_pshape[0]) &&
-            Dimension::merge(merged_num_directions, merged_num_directions, b_pshape[0]),
-        "Parameter num_directions not matched in RNNSequence.");
-
-    // Validate hidden_size value for W, R, B inputs
-    if (merged_hidden_size.is_static())
-    {
-        if (w_pshape[1].is_static())
-        {
-            NODE_VALIDATION_CHECK(
-                this,
-                w_pshape[1].compatible(merged_hidden_size * gru_seq_gates_count),
-                "Parameter hidden_size mistmatched in W input. Current value is: ",
-                w_pshape[1].get_length(),
-                ", expected: ",
-                merged_hidden_size.get_length() * gru_seq_gates_count,
-                ".");
+            if (input.get_partial_shape().rank().is_dynamic())
+            {
+                set_output_type(0, get_input_element_type(0), PartialShape::dynamic());
+                set_output_type(1, get_input_element_type(0), PartialShape::dynamic());
+                return;
+            }
         }
 
-        if (r_pshape[1].is_static())
+        auto gru_seq_gates_count = 3;
+        auto merged_batch_size = Dimension::dynamic();
+        auto merged_hidden_size = Dimension::dynamic();
+        auto merged_num_directions = Dimension::dynamic();
+        auto result_et = element::dynamic;
+
+        auto x_pshape = get_input_partial_shape(0);
+        auto ht_pshape = get_input_partial_shape(1);
+        auto sl_pshape = get_input_partial_shape(2);
+        auto w_pshape = get_input_partial_shape(3);
+        auto r_pshape = get_input_partial_shape(4);
+        auto b_pshape = get_input_partial_shape(5);
+
+        ngraph::op::util::validate_seq_input_rank_dimension(
+            {x_pshape, ht_pshape, sl_pshape, w_pshape, r_pshape, b_pshape});
+
+        // Validate input types and save result for output type
+        NODE_VALIDATION_CHECK(
+            this,
+            element::Type::merge(result_et, result_et, get_input_element_type(0)) &&
+                element::Type::merge(result_et, result_et, get_input_element_type(1)) &&
+                element::Type::merge(result_et, result_et, get_input_element_type(3)) &&
+                element::Type::merge(result_et, result_et, get_input_element_type(4)) &&
+                element::Type::merge(result_et, result_et, get_input_element_type(5)),
+            "Element types for X, initial_hidden_state, W, R and B inputs do not "
+            "match.");
+
+        // Merge batch_size dimension across all inputs to evaluate output[0] dimension
+        NODE_VALIDATION_CHECK(this,
+                            Dimension::merge(merged_batch_size, merged_batch_size, ht_pshape[0]) &&
+                                Dimension::merge(merged_batch_size, merged_batch_size, x_pshape[0]) &&
+                                Dimension::merge(merged_batch_size, merged_batch_size, sl_pshape[0]),
+                            "Parameter batch_size not matched in RNNSequence.");
+
+        // Merge hidden_size dimension across all inputs to evaluate output dimension
+        NODE_VALIDATION_CHECK(this,
+                            Dimension::merge(merged_hidden_size, merged_hidden_size, ht_pshape[2]) &&
+                                Dimension::merge(merged_hidden_size, merged_hidden_size, r_pshape[2]),
+                            "Parameter hidden_size not matched RNNSequence.");
+
+        // Merge num_directions dimension across all inputs to evaluate output dimension
+        NODE_VALIDATION_CHECK(
+            this,
+            Dimension::merge(merged_num_directions, merged_num_directions, ht_pshape[1]) &&
+                Dimension::merge(merged_num_directions, merged_num_directions, w_pshape[0]) &&
+                Dimension::merge(merged_num_directions, merged_num_directions, r_pshape[0]) &&
+                Dimension::merge(merged_num_directions, merged_num_directions, b_pshape[0]),
+            "Parameter num_directions not matched in RNNSequence.");
+
+        // Validate hidden_size value for W, R, B inputs
+        if (merged_hidden_size.is_static())
         {
-            NODE_VALIDATION_CHECK(
-                this,
-                r_pshape[1].compatible(merged_hidden_size * gru_seq_gates_count),
-                "Parameter hidden_size mistmatched in R input. Current value is: ",
-                r_pshape[1].get_length(),
-                ", expected: ",
-                merged_hidden_size.get_length() * gru_seq_gates_count,
-                ".");
+            if (w_pshape[1].is_static())
+            {
+                NODE_VALIDATION_CHECK(
+                    this,
+                    w_pshape[1].compatible(merged_hidden_size * gru_seq_gates_count),
+                    "Parameter hidden_size mistmatched in W input. Current value is: ",
+                    w_pshape[1].get_length(),
+                    ", expected: ",
+                    merged_hidden_size.get_length() * gru_seq_gates_count,
+                    ".");
+            }
+
+            if (r_pshape[1].is_static())
+            {
+                NODE_VALIDATION_CHECK(
+                    this,
+                    r_pshape[1].compatible(merged_hidden_size * gru_seq_gates_count),
+                    "Parameter hidden_size mistmatched in R input. Current value is: ",
+                    r_pshape[1].get_length(),
+                    ", expected: ",
+                    merged_hidden_size.get_length() * gru_seq_gates_count,
+                    ".");
+            }
+
+            if (b_pshape[1].is_static())
+            {
+                NODE_VALIDATION_CHECK(
+                    this,
+                    b_pshape[1].compatible(merged_hidden_size * (m_linear_before_reset
+                                                                    ? (gru_seq_gates_count + 1)
+                                                                    : gru_seq_gates_count)),
+                    "Parameter hidden_size mistmatched in B input. Current value is: ",
+                    b_pshape[1].get_length(),
+                    ", expected: ",
+                    merged_hidden_size.get_length() *
+                        (m_linear_before_reset ? (gru_seq_gates_count + 1) : gru_seq_gates_count),
+                    ".");
+            }
         }
 
-        if (b_pshape[1].is_static())
-        {
-            NODE_VALIDATION_CHECK(
-                this,
-                b_pshape[1].compatible(merged_hidden_size * (m_linear_before_reset
-                                                                 ? (gru_seq_gates_count + 1)
-                                                                 : gru_seq_gates_count)),
-                "Parameter hidden_size mistmatched in B input. Current value is: ",
-                b_pshape[1].get_length(),
-                ", expected: ",
-                merged_hidden_size.get_length() *
-                    (m_linear_before_reset ? (gru_seq_gates_count + 1) : gru_seq_gates_count),
-                ".");
-        }
-    }
+        // Mark inputs which are relevant to output parameters
+        for (size_t i = 0; i <= 5; ++i)
+            set_input_is_relevant_to_shape(i);
 
-    // Mark inputs which are relevant to output parameters
-    for (size_t i = 0; i <= 5; ++i)
-        set_input_is_relevant_to_shape(i);
-
-    // Set output size, type and shape
-    set_output_size(2);
-    set_output_type(
-        0, result_et, {merged_batch_size, merged_num_directions, x_pshape[1], merged_hidden_size});
-    set_output_type(1, result_et, {merged_batch_size, merged_num_directions, merged_hidden_size});
-#else
+        // Set output size, type and shape
+        set_output_size(2);
+        set_output_type(
+            0, result_et, {merged_batch_size, merged_num_directions, x_pshape[1], merged_hidden_size});
+        set_output_type(1, result_et, {merged_batch_size, merged_num_directions, merged_hidden_size});
+        return;
+    )
     NODE_VALIDATION_CHECK(this, false, "Function is not included into the selective build.");
-#endif
 }
 
 bool op::v5::GRUSequence::visit_attributes(AttributeVisitor& visitor)
 {
-#if GraphGen(OV_GEN_NGRAPH_OP(GRUSequence, v5, visit_attributes))
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
-    visitor.on_attribute("direction", m_direction);
-    visitor.on_attribute("linear_before_reset", m_linear_before_reset);
-    return op::util::RNNCellBase::visit_attributes(visitor);
-#else
+    NGRAPH_OP_SCOPE(v5_GRUSequence_visit_attributes,
+        visitor.on_attribute("direction", m_direction);
+        visitor.on_attribute("linear_before_reset", m_linear_before_reset);
+        return op::util::RNNCellBase::visit_attributes(visitor);
+    )
     return false;
-#endif
 }
 
 shared_ptr<Node> op::v5::GRUSequence::clone_with_new_inputs(const OutputVector& new_args) const

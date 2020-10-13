@@ -3,6 +3,7 @@
 //
 
 #include "ngraph_ops/crop_ie.hpp"
+#include "itt.hpp"
 
 #include <algorithm>
 #include <memory>
@@ -31,17 +32,21 @@ std::shared_ptr<Node> op::CropIE::clone_with_new_inputs(const OutputVector& new_
 }
 
 void op::CropIE::validate_and_infer_types() {
-    auto input_shape = get_input_partial_shape(0).to_shape();
-    NODE_VALIDATION_CHECK(this, axes.size() == dim.size(), "axes and dim needs to have same number of values");
+    NGRAPH_OP_SCOPE(CropIE_validate_and_infer_types,
+        auto input_shape = get_input_partial_shape(0).to_shape();
+        NODE_VALIDATION_CHECK(this, axes.size() == dim.size(), "axes and dim needs to have same number of values");
 
-    NODE_VALIDATION_CHECK(this, axes.size() == offset.size(), "axes and offset needs to have same number of values");
+        NODE_VALIDATION_CHECK(this, axes.size() == offset.size(), "axes and offset needs to have same number of values");
 
-    ngraph::Shape output_shape(input_shape);
-    for (int i = 0; i < axes.size(); ++i) {
-        NODE_VALIDATION_CHECK(this, axes[i] >= 0 && axes[i] < output_shape.size(),
-                              "axes should be positive and less than number of input dims");
-        output_shape[axes[i]] = dim[i];
-    }
+        ngraph::Shape output_shape(input_shape);
+        for (int i = 0; i < axes.size(); ++i) {
+            NODE_VALIDATION_CHECK(this, axes[i] >= 0 && axes[i] < output_shape.size(),
+                                "axes should be positive and less than number of input dims");
+            output_shape[axes[i]] = dim[i];
+        }
 
-    set_output_type(0, get_input_element_type(0), PartialShape(output_shape));
+        set_output_type(0, get_input_element_type(0), PartialShape(output_shape));
+        return;
+    )
+    NODE_VALIDATION_CHECK(this, false, "Function is not included into the selective build.");
 }

@@ -3,6 +3,7 @@
 //
 
 #include "ngraph_ops/scaleshift.hpp"
+#include "itt.hpp"
 
 #include <memory>
 
@@ -28,15 +29,19 @@ std::shared_ptr<Node> op::ScaleShiftIE::clone_with_new_inputs(const OutputVector
 }
 
 void op::ScaleShiftIE::validate_and_infer_types() {
-    //  Check that weights and biases has the same type
-    element::Type data_et = get_input_element_type(0);
-    element::Type weights_et = get_input_element_type(1);
-    element::Type biases_et = get_input_element_type(2);
+    NGRAPH_OP_SCOPE(ScaleShiftIE_validate_and_infer_types,
+        //  Check that weights and biases has the same type
+        element::Type data_et = get_input_element_type(0);
+        element::Type weights_et = get_input_element_type(1);
+        element::Type biases_et = get_input_element_type(2);
 
-    element::Type et_result;
-    NODE_VALIDATION_CHECK(this, element::Type::merge(et_result, weights_et, biases_et),
-                          "Element types for bias and weights do not match (biases element type: ", biases_et,
-                          ", weights element type: ", weights_et, ").");
+        element::Type et_result;
+        NODE_VALIDATION_CHECK(this, element::Type::merge(et_result, weights_et, biases_et),
+                            "Element types for bias and weights do not match (biases element type: ", biases_et,
+                            ", weights element type: ", weights_et, ").");
 
-    set_output_type(0, data_et, get_input_partial_shape(0));
+        set_output_type(0, data_et, get_input_partial_shape(0));
+        return;
+    )
+    NODE_VALIDATION_CHECK(this, false, "Function is not included into the selective build.");
 }

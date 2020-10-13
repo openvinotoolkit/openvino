@@ -48,68 +48,65 @@ bool ngraph::op::v0::HardSigmoid::visit_attributes(AttributeVisitor& visitor)
 
 void op::HardSigmoid::pre_validate_and_infer_types()
 {
-#if GraphGen(OV_GEN_NGRAPH_OP(HardSigmoid, v0, pre_validate_and_infer_types))
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
-    const auto& alpha_pshape = get_input_partial_shape(1);
-    const auto& beta_pshape = get_input_partial_shape(2);
+    NGRAPH_OP_SCOPE(v0_HardSigmoid_pre_validate_and_infer_types,
+        const auto& alpha_pshape = get_input_partial_shape(1);
+        const auto& beta_pshape = get_input_partial_shape(2);
 
-    if (alpha_pshape.is_static())
-    {
-        const auto alpha_shape = alpha_pshape.to_shape();
-        NODE_VALIDATION_CHECK(this,
-                              is_scalar(alpha_shape),
-                              "A scalar is expected for the 'alpha' input. Got: ",
-                              alpha_shape);
-    }
+        if (alpha_pshape.is_static())
+        {
+            const auto alpha_shape = alpha_pshape.to_shape();
+            NODE_VALIDATION_CHECK(this,
+                                is_scalar(alpha_shape),
+                                "A scalar is expected for the 'alpha' input. Got: ",
+                                alpha_shape);
+        }
 
-    if (beta_pshape.is_static())
-    {
-        const auto beta_shape = beta_pshape.to_shape();
-        NODE_VALIDATION_CHECK(this,
-                              is_scalar(beta_shape),
-                              "A scalar is expected for the 'beta' input. Got: ",
-                              beta_shape);
-    }
+        if (beta_pshape.is_static())
+        {
+            const auto beta_shape = beta_pshape.to_shape();
+            NODE_VALIDATION_CHECK(this,
+                                is_scalar(beta_shape),
+                                "A scalar is expected for the 'beta' input. Got: ",
+                                beta_shape);
+        }
 
-    const auto& data_et = get_input_element_type(0);
-    const auto& alpha_et = get_input_element_type(1);
-    const auto& beta_et = get_input_element_type(2);
+        const auto& data_et = get_input_element_type(0);
+        const auto& alpha_et = get_input_element_type(1);
+        const auto& beta_et = get_input_element_type(2);
 
-    NODE_VALIDATION_CHECK(
-        this,
-        data_et == alpha_et && data_et == beta_et,
-        "The element types of both alpha and beta inputs must match the data input type.");
-#else
+        NODE_VALIDATION_CHECK(
+            this,
+            data_et == alpha_et && data_et == beta_et,
+            "The element types of both alpha and beta inputs must match the data input type.");
+        return;
+    )
     NODE_VALIDATION_CHECK(this, false, "Function is not included into the selective build.");
-#endif
 }
 
 OutputVector op::HardSigmoid::decompose_op() const
 {
-#if GraphGen(OV_GEN_NGRAPH_OP(HardSigmoid, v0, decompose_op))
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
-    const auto data = input_value(0);
+    NGRAPH_OP_SCOPE(v0_HardSigmoid_decompose_op,
+        const auto data = input_value(0);
 
-    const auto one_node =
-        ngraph::op::Constant::create<float>(data.get_element_type(), data.get_shape(), {1.0f});
+        const auto one_node =
+            ngraph::op::Constant::create<float>(data.get_element_type(), data.get_shape(), {1.0f});
 
-    const auto zero_node =
-        ngraph::op::Constant::create<float>(data.get_element_type(), data.get_shape(), {0.0f});
+        const auto zero_node =
+            ngraph::op::Constant::create<float>(data.get_element_type(), data.get_shape(), {0.0f});
 
-    const auto alpha_node = input_value(1).get_node_shared_ptr();
-    const auto beta_node = input_value(2).get_node_shared_ptr();
+        const auto alpha_node = input_value(1).get_node_shared_ptr();
+        const auto beta_node = input_value(2).get_node_shared_ptr();
 
-    std::shared_ptr<Node> alpha_x_plus_beta =
-        std::make_shared<op::v1::Multiply>(alpha_node, data, AutoBroadcastType::NUMPY);
+        std::shared_ptr<Node> alpha_x_plus_beta =
+            std::make_shared<op::v1::Multiply>(alpha_node, data, AutoBroadcastType::NUMPY);
 
-    alpha_x_plus_beta =
-        std::make_shared<op::v1::Add>(alpha_x_plus_beta, beta_node, AutoBroadcastType::NUMPY);
+        alpha_x_plus_beta =
+            std::make_shared<op::v1::Add>(alpha_x_plus_beta, beta_node, AutoBroadcastType::NUMPY);
 
-    return {std::make_shared<op::v1::Minimum>(
-        std::make_shared<op::v1::Maximum>(alpha_x_plus_beta, zero_node), one_node)};
-#else
+        return {std::make_shared<op::v1::Minimum>(
+            std::make_shared<op::v1::Maximum>(alpha_x_plus_beta, zero_node), one_node)};
+    )
     NODE_VALIDATION_CHECK(this, false, "Function is not included into the selective build.");
-#endif
 }
 
 shared_ptr<Node> op::HardSigmoid::clone_with_new_inputs(const OutputVector& new_args) const

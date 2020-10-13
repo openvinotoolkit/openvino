@@ -27,6 +27,7 @@
 #include "ngraph/pass/pass.hpp"
 #include "ngraph/pass/visualize_tree.hpp"
 #include "ngraph/util.hpp"
+#include "itt.hpp"
 
 using namespace ngraph;
 using namespace std;
@@ -182,48 +183,51 @@ NGRAPH_RTTI_DEFINITION(ngraph::pass::VisualizeTree, "ngraph::pass::VisualizeTree
 
 bool pass::VisualizeTree::run_on_function(std::shared_ptr<ngraph::Function> f)
 {
-    unordered_map<Node*, HeightMap> height_maps;
+    NGRAPH_PASS_SCOPE(VisualizeTree,
+        unordered_map<Node*, HeightMap> height_maps;
 
-    for (auto& node : f->get_ops())
-    {
-        if (node->description() == "Result")
+        for (auto& node : f->get_ops())
         {
-            height_maps[node.get()] = HeightMap({node.get()});
-        }
-        else
-        {
-            height_maps[node.get()] = HeightMap();
-        }
-    }
-
-    auto nodes = topological_sort(f->get_ops());
-
-    for (auto it = nodes.rbegin(); it != nodes.rend(); ++it)
-    {
-        auto& node = *it;
-        for (auto& output : node->outputs())
-        {
-            for (auto& input : output.get_target_inputs())
+            if (node->description() == "Result")
             {
-                auto target_node = input.get_node();
-                height_maps[node.get()].absorb(height_maps[target_node]);
+                height_maps[node.get()] = HeightMap({node.get()});
+            }
+            else
+            {
+                height_maps[node.get()] = HeightMap();
             }
         }
-    }
 
-    // TODO(amprocte): Maybe find a way to make this tunable.
+        auto nodes = topological_sort(f->get_ops());
 
-    size_t fake_node_ctr = 0;
+        for (auto it = nodes.rbegin(); it != nodes.rend(); ++it)
+        {
+            auto& node = *it;
+            for (auto& output : node->outputs())
+            {
+                for (auto& input : output.get_target_inputs())
+                {
+                    auto target_node = input.get_node();
+                    height_maps[node.get()].absorb(height_maps[target_node]);
+                }
+            }
+        }
 
-    traverse_nodes(
-        f, [&](shared_ptr<Node> node) { add_node_arguments(node, height_maps, fake_node_ctr); });
+        // TODO(amprocte): Maybe find a way to make this tunable.
 
-    render();
+        size_t fake_node_ctr = 0;
 
-    // Clean up local variable not to hold node pointers
-    m_nodes_with_attributes.clear();
+        traverse_nodes(
+            f, [&](shared_ptr<Node> node) { add_node_arguments(node, height_maps, fake_node_ctr); });
 
-    return false;
+        render();
+
+        // Clean up local variable not to hold node pointers
+        m_nodes_with_attributes.clear();
+
+        return false;
+    )
+    NGRAPH_CHECK(false, "nGraph pass is not included into the selective build.");
 }
 
 pass::VisualizeTree::VisualizeTree(const string& file_name, node_modifiers_t nm, bool dot_only)

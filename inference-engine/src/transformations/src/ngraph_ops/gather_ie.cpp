@@ -13,6 +13,8 @@
 #include "ngraph/util.hpp"
 #include "ngraph/validation_util.hpp"
 
+#include "itt.hpp"
+
 using namespace std;
 using namespace ngraph;
 
@@ -30,7 +32,11 @@ shared_ptr<Node> op::GatherIE::clone_with_new_inputs(const ngraph::OutputVector 
 }
 
 void op::GatherIE::validate_and_infer_types() {
-    // Use opset1::Gather to calculate output shape
-    auto gather = std::make_shared<opset1::Gather>(input_value(0), input_value(1), opset1::Constant::create(element::i64, Shape{1}, {m_axis}));
-    set_output_type(0, gather->output(0).get_element_type(), gather->output(0).get_partial_shape());
+    NGRAPH_OP_SCOPE(GatherIE_validate_and_infer_types,
+        // Use opset1::Gather to calculate output shape
+        auto gather = std::make_shared<opset1::Gather>(input_value(0), input_value(1), opset1::Constant::create(element::i64, Shape{1}, {m_axis}));
+        set_output_type(0, gather->output(0).get_element_type(), gather->output(0).get_partial_shape());
+        return;
+    )
+    NODE_VALIDATION_CHECK(this, false, "Function is not included into the selective build.");
 }

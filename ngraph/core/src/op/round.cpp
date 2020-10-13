@@ -66,28 +66,17 @@ namespace
 
         switch (arg0->get_element_type())
         {
-            COPY_TENSOR(boolean)(arg0, out, count);
-            break;
-            COPY_TENSOR(i8)(arg0, out, count);
-            break;
-            COPY_TENSOR(i16)(arg0, out, count);
-            break;
-            COPY_TENSOR(i32)(arg0, out, count);
-            break;
-            COPY_TENSOR(i64)(arg0, out, count);
-            break;
-            COPY_TENSOR(u8)(arg0, out, count);
-            break;
-            COPY_TENSOR(u16)(arg0, out, count);
-            break;
-            COPY_TENSOR(u32)(arg0, out, count);
-            break;
-            COPY_TENSOR(u64)(arg0, out, count);
-            break;
-            TYPE_CASE(f16)(arg0, out, count);
-            break;
-            TYPE_CASE(f32)(arg0, out, count);
-            break;
+            NGRAPH_COPY_TENSOR(evaluate_round, boolean, arg0, out, count)
+            NGRAPH_COPY_TENSOR(evaluate_round, i8, arg0, out, count)
+            NGRAPH_COPY_TENSOR(evaluate_round, i16, arg0, out, count)
+            NGRAPH_COPY_TENSOR(evaluate_round, i32, arg0, out, count)
+            NGRAPH_COPY_TENSOR(evaluate_round, i64, arg0, out, count)
+            NGRAPH_COPY_TENSOR(evaluate_round, u8, arg0, out, count)
+            NGRAPH_COPY_TENSOR(evaluate_round, u16, arg0, out, count)
+            NGRAPH_COPY_TENSOR(evaluate_round, u32, arg0, out, count)
+            NGRAPH_COPY_TENSOR(evaluate_round, u64, arg0, out, count)
+            NGRAPH_COPY_TENSOR(evaluate_round, f16, arg0, out, count)
+            NGRAPH_COPY_TENSOR(evaluate_round, f32, arg0, out, count)
         default: rc = false; break;
         }
         return rc;
@@ -96,10 +85,9 @@ namespace
 
 bool op::Round::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
-#if GraphGen(OV_GEN_NGRAPH_OP(Round, v0, evaluate))
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
-    return evaluate_round(inputs[0], outputs[0], shape_size(get_output_shape(0)));
-#else
-    return false;
-#endif
+    bool rc = false;
+    NGRAPH_OP_SCOPE(v0_Round_evaluate,
+        rc = evaluate_round(inputs[0], outputs[0], shape_size(get_output_shape(0)));
+    )
+    return rc;
 }

@@ -39,50 +39,49 @@ bool ngraph::op::v1::Transpose::visit_attributes(AttributeVisitor& visitor)
 
 void op::v1::Transpose::validate_and_infer_types()
 {
-#if GraphGen(OV_GEN_NGRAPH_OP(Transpose, v1, validate_and_infer_types))
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
-    const auto& input_order_et = get_input_element_type(1);
-    NODE_VALIDATION_CHECK(this,
-                          input_order_et.is_dynamic() || input_order_et.is_integral_number(),
-                          "Input order must have an integral number element type.");
-
-    const auto& input_order_shape = get_input_partial_shape(1);
-    NODE_VALIDATION_CHECK(
-        this, input_order_shape.rank().compatible(1), "Input order must be a vector.");
-
-    const auto& arg_shape = get_input_partial_shape(0);
-    NODE_VALIDATION_CHECK(this,
-                          input_order_shape.compatible(PartialShape{arg_shape.rank()}) ||
-                              (input_order_shape.is_static() && input_order_shape.rank() == 1 &&
-                               input_order_shape[0] == 0),
-                          "Input order must have shape [n], where n is the rank of arg.");
-
-    set_input_is_relevant_to_shape(1);
-
-    if (auto input_const = as_type_ptr<op::Constant>(input_value(1).get_node_shared_ptr()))
-    {
-        auto permutation = input_const->get_axis_vector_val();
-        if (permutation.empty())
-        {
-            for (int64_t i = 1; i <= arg_shape.rank().get_length(); ++i)
-                permutation.emplace_back(arg_shape.rank().get_length() - i);
-        }
+    NGRAPH_OP_SCOPE(v1_Transpose_validate_and_infer_types,
+        const auto& input_order_et = get_input_element_type(1);
         NODE_VALIDATION_CHECK(this,
-                              is_valid_permutation(permutation, arg_shape.rank()),
-                              "Permutation ",
-                              permutation,
-                              " is not valid for input shape ",
-                              arg_shape);
-        set_output_type(
-            0, get_input_element_type(0), ngraph::apply_permutation(arg_shape, permutation));
-    }
-    else
-    {
-        set_output_type(0, get_input_element_type(0), PartialShape::dynamic(arg_shape.rank()));
-    }
-#else
+                            input_order_et.is_dynamic() || input_order_et.is_integral_number(),
+                            "Input order must have an integral number element type.");
+
+        const auto& input_order_shape = get_input_partial_shape(1);
+        NODE_VALIDATION_CHECK(
+            this, input_order_shape.rank().compatible(1), "Input order must be a vector.");
+
+        const auto& arg_shape = get_input_partial_shape(0);
+        NODE_VALIDATION_CHECK(this,
+                            input_order_shape.compatible(PartialShape{arg_shape.rank()}) ||
+                                (input_order_shape.is_static() && input_order_shape.rank() == 1 &&
+                                input_order_shape[0] == 0),
+                            "Input order must have shape [n], where n is the rank of arg.");
+
+        set_input_is_relevant_to_shape(1);
+
+        if (auto input_const = as_type_ptr<op::Constant>(input_value(1).get_node_shared_ptr()))
+        {
+            auto permutation = input_const->get_axis_vector_val();
+            if (permutation.empty())
+            {
+                for (int64_t i = 1; i <= arg_shape.rank().get_length(); ++i)
+                    permutation.emplace_back(arg_shape.rank().get_length() - i);
+            }
+            NODE_VALIDATION_CHECK(this,
+                                is_valid_permutation(permutation, arg_shape.rank()),
+                                "Permutation ",
+                                permutation,
+                                " is not valid for input shape ",
+                                arg_shape);
+            set_output_type(
+                0, get_input_element_type(0), ngraph::apply_permutation(arg_shape, permutation));
+        }
+        else
+        {
+            set_output_type(0, get_input_element_type(0), PartialShape::dynamic(arg_shape.rank()));
+        }
+        return;
+    )
     NODE_VALIDATION_CHECK(this, false, "Function is not included into the selective build.");
-#endif
 }
 
 shared_ptr<Node> op::v1::Transpose::clone_with_new_inputs(const OutputVector& new_args) const
@@ -150,10 +149,9 @@ namespace
 bool op::v1::Transpose::evaluate(const HostTensorVector& output_values,
                                  const HostTensorVector& input_values) const
 {
-#if GraphGen(OV_GEN_NGRAPH_OP(Transpose, v1, evaluate))
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
-    return evaluate_transpose(input_values[0], input_values[1], output_values[0]);
-#else
-    return false;
-#endif
+    bool rc = false;
+    NGRAPH_OP_SCOPE(v1_Transpose_evaluate,
+        rc = evaluate_transpose(input_values[0], input_values[1], output_values[0]);
+    )
+    return rc;
 }

@@ -17,28 +17,26 @@
 NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertSqrtToPowerIEMatcher, "ConvertSqrtToPowerIEMatcher", 0);
 
 ngraph::pass::ConvertSqrtToPowerIEMatcher::ConvertSqrtToPowerIEMatcher() {
-    auto input_0 = std::make_shared<pattern::op::Label>(element::f32, Shape{1});
-    auto sqrt = std::make_shared<ngraph::opset1::Sqrt>(input_0);
+    IETRANSFORM_SCOPE(ConvertSqrtToPowerIEMatcher,
+        auto input_0 = std::make_shared<pattern::op::Label>(element::f32, Shape{1});
+        auto sqrt = std::make_shared<ngraph::opset1::Sqrt>(input_0);
 
-#if GraphGen(OV_GEN_NGRAPH_PASS(ConvertPowerToPowerIE, callback))
-    ngraph::matcher_pass_callback callback = [](pattern::Matcher& m) {
-        OV_ITT_IE_TRANSFORM_CALLBACK(m, "callback")
-        auto sqrt = std::dynamic_pointer_cast<ngraph::opset1::Sqrt>(m.get_match_root());
-        if (!sqrt) {
-            return false;
-        }
-        auto power_ie = std::make_shared<ngraph::op::PowerIE>(sqrt->input(0).get_source_output(), 0.5f, 1, 0);
-        power_ie->set_friendly_name(sqrt->get_friendly_name());
-        ngraph::copy_runtime_info(sqrt, power_ie);
-        ngraph::replace_node(sqrt, power_ie);
-        return true;
-    };
-#else
-    ngraph::matcher_pass_callback callback = [](ngraph::pattern::Matcher & m) -> bool {
-        return false;
-    };
-#endif
-    auto m = std::make_shared<ngraph::pattern::Matcher>(sqrt, "ConvertPowerToPowerIE");
-    this->register_matcher(m, callback);
+        ngraph::matcher_pass_callback callback = [](pattern::Matcher& m) {
+            auto sqrt = std::dynamic_pointer_cast<ngraph::opset1::Sqrt>(m.get_match_root());
+            if (!sqrt) {
+                return false;
+            }
+            auto power_ie = std::make_shared<ngraph::op::PowerIE>(sqrt->input(0).get_source_output(), 0.5f, 1, 0);
+            power_ie->set_friendly_name(sqrt->get_friendly_name());
+            ngraph::copy_runtime_info(sqrt, power_ie);
+            ngraph::replace_node(sqrt, power_ie);
+            return true;
+        };
+
+        auto m = std::make_shared<ngraph::pattern::Matcher>(sqrt, matcher_name);
+        this->register_matcher(m, callback);
+        return;
+    )
+    NGRAPH_CHECK(false, "nGraph pass is not included into the selective build.");
 }
 

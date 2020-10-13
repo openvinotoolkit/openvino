@@ -31,20 +31,19 @@ op::ReadValue::ReadValue(const Output<Node>& init_value, const std::string& vari
 
 void op::ReadValue::validate_and_infer_types()
 {
-#if GraphGen(OV_GEN_NGRAPH_OP(ReadValue, v0, validate_and_infer_types))
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
-    auto arg_t = get_input_element_type(0);
-    auto output_shape = get_input_partial_shape(0);
+    NGRAPH_OP_SCOPE(v0_ReadValue_validate_and_infer_types,
+        auto arg_t = get_input_element_type(0);
+        auto output_shape = get_input_partial_shape(0);
 
-    VariableInfo info = {output_shape, arg_t, m_variable_id};
-    if (m_variable == nullptr)
-        m_variable = std::make_shared<Variable>(info);
-    else
-        m_variable->update(info);
-    set_output_type(0, arg_t, output_shape);
-#else
+        VariableInfo info = {output_shape, arg_t, m_variable_id};
+        if (m_variable == nullptr)
+            m_variable = std::make_shared<Variable>(info);
+        else
+            m_variable->update(info);
+        set_output_type(0, arg_t, output_shape);
+        return;
+    )
     NODE_VALIDATION_CHECK(this, false, "Function is not included into the selective build.");
-#endif
 }
 
 shared_ptr<Node> op::ReadValue::clone_with_new_inputs(const OutputVector& new_args) const
@@ -55,11 +54,9 @@ shared_ptr<Node> op::ReadValue::clone_with_new_inputs(const OutputVector& new_ar
 
 bool op::v3::ReadValue::visit_attributes(AttributeVisitor& visitor)
 {
-#if GraphGen(OV_GEN_NGRAPH_OP(ReadValue, v3, visit_attributes))
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
-    visitor.on_attribute("variable_id", m_variable_id);
-    return true;
-#else
+    NGRAPH_OP_SCOPE(v3_ReadValue_visit_attributes,
+        visitor.on_attribute("variable_id", m_variable_id);
+        return true;
+    )
     return false;
-#endif
 }

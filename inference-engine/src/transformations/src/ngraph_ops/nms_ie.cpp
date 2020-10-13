@@ -3,6 +3,7 @@
 //
 
 #include "ngraph_ops/nms_ie.hpp"
+#include "itt.hpp"
 
 #include <memory>
 
@@ -35,29 +36,36 @@ std::shared_ptr<Node> op::NonMaxSuppressionIE::clone_with_new_inputs(const ngrap
 }
 
 void op::NonMaxSuppressionIE::validate_and_infer_types() {
-    auto squeeze_input = [](const Output<Node> &input) -> std::shared_ptr<Node> {
-        return std::make_shared<opset3::Squeeze>(input, opset3::Constant::create(element::i64, Shape{1}, {0}));
-    };
+    NGRAPH_OP_SCOPE(NonMaxSuppressionIE_validate_and_infer_types,
+        auto squeeze_input = [](const Output<Node> &input) -> std::shared_ptr<Node> {
+            return std::make_shared<opset3::Squeeze>(input, opset3::Constant::create(element::i64, Shape{1}, {0}));
+        };
 
-    // Calculate output shape using opset3::NonMaxSuppression
-    auto max_output_boxes_per_class = std::dynamic_pointer_cast<opset3::Constant>(input_value(2).get_node_shared_ptr());
-    auto nms = std::make_shared<opset3::NonMaxSuppression>(input_value(0), input_value(1),
-            /* second input is used for output calculation and only if it's Constant output shape won't be dynamic */
-                                                           max_output_boxes_per_class ? opset3::Constant::create(element::i64, Shape{},
-                                                                   max_output_boxes_per_class->cast_vector<int64_t>()) : squeeze_input(input_value(2)),
-                                                           squeeze_input(input_value(3)),
-                                                           squeeze_input(input_value(4)),
-                                                           opset3::NonMaxSuppression::BoxEncodingType::CENTER,
-                                                           m_sort_result_descending,
-                                                           m_output_type);
-    set_output_type(0, nms->output(0).get_element_type(), nms->output(0).get_partial_shape());
+        // Calculate output shape using opset3::NonMaxSuppression
+        auto max_output_boxes_per_class = std::dynamic_pointer_cast<opset3::Constant>(input_value(2).get_node_shared_ptr());
+        auto nms = std::make_shared<opset3::NonMaxSuppression>(input_value(0), input_value(1),
+                /* second input is used for output calculation and only if it's Constant output shape won't be dynamic */
+                                                            max_output_boxes_per_class ? opset3::Constant::create(element::i64, Shape{},
+                                                                    max_output_boxes_per_class->cast_vector<int64_t>()) : squeeze_input(input_value(2)),
+                                                            squeeze_input(input_value(3)),
+                                                            squeeze_input(input_value(4)),
+                                                            opset3::NonMaxSuppression::BoxEncodingType::CENTER,
+                                                            m_sort_result_descending,
+                                                            m_output_type);
+        set_output_type(0, nms->output(0).get_element_type(), nms->output(0).get_partial_shape());
+        return;
+    )
+    NODE_VALIDATION_CHECK(this, false, "Function is not included into the selective build.");
 }
 
 bool op::NonMaxSuppressionIE::visit_attributes(AttributeVisitor& visitor) {
-    visitor.on_attribute("center_point_box", m_center_point_box);
-    visitor.on_attribute("sort_result_descending", m_sort_result_descending);
-    visitor.on_attribute("output_type", m_output_type);
-    return true;
+    NGRAPH_OP_SCOPE(NonMaxSuppressionIE_visit_attributes,
+        visitor.on_attribute("center_point_box", m_center_point_box);
+        visitor.on_attribute("sort_result_descending", m_sort_result_descending);
+        visitor.on_attribute("output_type", m_output_type);
+        return true;
+    )
+    return false;
 }
 
 // The second version of the operation is different just in the shape infer function (uses v4::NMS)

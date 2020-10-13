@@ -45,102 +45,107 @@ shared_ptr<Node> op::v3::ScatterUpdate::clone_with_new_inputs(const OutputVector
 bool op::v3::ScatterUpdate::evaluate(const HostTensorVector& outputs,
                                      const HostTensorVector& inputs) const
 {
-#if GraphGen(OV_GEN_NGRAPH_OP(ScatterUpdate, v3, evaluate))
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
+    NGRAPH_OP_SCOPE(v3_ScatterUpdate_evaluate,
+        const auto& data = inputs[0];
+        const auto& indices = inputs[1];
+        const auto& updates = inputs[2];
+        const auto& axis = inputs[3];
+        const auto& out = outputs[0];
 
-    const auto& data = inputs[0];
-    const auto& indices = inputs[1];
-    const auto& updates = inputs[2];
-    const auto& axis = inputs[3];
-    const auto& out = outputs[0];
+        const auto elem_size = data->get_element_type().size();
+        out->set_shape(data->get_shape());
 
-    const auto elem_size = data->get_element_type().size();
-    out->set_shape(data->get_shape());
+        NGRAPH_CHECK(axis->get_element_type().is_integral_number(),
+                    "axis element type is not integral data type");
 
-    NGRAPH_CHECK(axis->get_element_type().is_integral_number(),
-                 "axis element type is not integral data type");
+        int64_t axis_val = host_tensor_2_vector<int64_t>(axis)[0];
+        if (axis_val < 0)
+        {
+            axis_val =
+                ngraph::normalize_axis(this, axis_val, static_cast<int64_t>(data->get_shape().size()));
+        }
 
-    int64_t axis_val = host_tensor_2_vector<int64_t>(axis)[0];
-    if (axis_val < 0)
-    {
-        axis_val =
-            ngraph::normalize_axis(this, axis_val, static_cast<int64_t>(data->get_shape().size()));
-    }
+        std::vector<int64_t> indices_casted_vector;
+        switch (indices->get_element_type())
+        {
+        NGRAPH_CASE(ngraph_op_v3_ScatterUpdate_evaluate, i8,
+            {
+                auto indices_ptr = indices->get_data_ptr<element::Type_t::i8>();
+                indices_casted_vector =
+                    std::vector<int64_t>(indices_ptr, indices_ptr + indices->get_element_count());
+                break;
+            }
+        )
+        NGRAPH_CASE(ngraph_op_v3_ScatterUpdate_evaluate, i16,
+            {
+                auto indices_ptr = indices->get_data_ptr<element::Type_t::i16>();
+                indices_casted_vector =
+                    std::vector<int64_t>(indices_ptr, indices_ptr + indices->get_element_count());
+                break;
+            }
+        )
+        NGRAPH_CASE(ngraph_op_v3_ScatterUpdate_evaluate, i32,
+            {
+                auto indices_ptr = indices->get_data_ptr<element::Type_t::i32>();
+                indices_casted_vector =
+                    std::vector<int64_t>(indices_ptr, indices_ptr + indices->get_element_count());
+                break;
+            }
+        )
+        NGRAPH_CASE(ngraph_op_v3_ScatterUpdate_evaluate, i64,
+            {
+                auto indices_ptr = indices->get_data_ptr<element::Type_t::i64>();
+                indices_casted_vector =
+                    std::vector<int64_t>(indices_ptr, indices_ptr + indices->get_element_count());
+                break;
+            }
+        )
+        NGRAPH_CASE(ngraph_op_v3_ScatterUpdate_evaluate, u8,
+            {
+                auto indices_ptr = indices->get_data_ptr<element::Type_t::u8>();
+                indices_casted_vector =
+                    std::vector<int64_t>(indices_ptr, indices_ptr + indices->get_element_count());
+                break;
+            }
+        )
+        NGRAPH_CASE(ngraph_op_v3_ScatterUpdate_evaluate, u16,
+            {
+                auto indices_ptr = indices->get_data_ptr<element::Type_t::u16>();
+                indices_casted_vector =
+                    std::vector<int64_t>(indices_ptr, indices_ptr + indices->get_element_count());
+                break;
+            }
+        )
+        NGRAPH_CASE(ngraph_op_v3_ScatterUpdate_evaluate, u32,
+            {
+                auto indices_ptr = indices->get_data_ptr<element::Type_t::u32>();
+                indices_casted_vector =
+                    std::vector<int64_t>(indices_ptr, indices_ptr + indices->get_element_count());
+                break;
+            }
+        )
+        NGRAPH_CASE(ngraph_op_v3_ScatterUpdate_evaluate, u64,
+            {
+                auto indices_ptr = indices->get_data_ptr<element::Type_t::u64>();
+                indices_casted_vector =
+                    std::vector<int64_t>(indices_ptr, indices_ptr + indices->get_element_count());
+                break;
+            }
+        )
+        default: throw ngraph_error("indices element type is not integral data type");
+        }
 
-    std::vector<int64_t> indices_casted_vector;
-    switch (indices->get_element_type())
-    {
-    case element::Type_t::i8:
-    {
-        auto indices_ptr = indices->get_data_ptr<element::Type_t::i8>();
-        indices_casted_vector =
-            std::vector<int64_t>(indices_ptr, indices_ptr + indices->get_element_count());
-        break;
-    }
-    case element::Type_t::i16:
-    {
-        auto indices_ptr = indices->get_data_ptr<element::Type_t::i16>();
-        indices_casted_vector =
-            std::vector<int64_t>(indices_ptr, indices_ptr + indices->get_element_count());
-        break;
-    }
-    case element::Type_t::i32:
-    {
-        auto indices_ptr = indices->get_data_ptr<element::Type_t::i32>();
-        indices_casted_vector =
-            std::vector<int64_t>(indices_ptr, indices_ptr + indices->get_element_count());
-        break;
-    }
-    case element::Type_t::i64:
-    {
-        auto indices_ptr = indices->get_data_ptr<element::Type_t::i64>();
-        indices_casted_vector =
-            std::vector<int64_t>(indices_ptr, indices_ptr + indices->get_element_count());
-        break;
-    }
-    case element::Type_t::u8:
-    {
-        auto indices_ptr = indices->get_data_ptr<element::Type_t::u8>();
-        indices_casted_vector =
-            std::vector<int64_t>(indices_ptr, indices_ptr + indices->get_element_count());
-        break;
-    }
-    case element::Type_t::u16:
-    {
-        auto indices_ptr = indices->get_data_ptr<element::Type_t::u16>();
-        indices_casted_vector =
-            std::vector<int64_t>(indices_ptr, indices_ptr + indices->get_element_count());
-        break;
-    }
-    case element::Type_t::u32:
-    {
-        auto indices_ptr = indices->get_data_ptr<element::Type_t::u32>();
-        indices_casted_vector =
-            std::vector<int64_t>(indices_ptr, indices_ptr + indices->get_element_count());
-        break;
-    }
-    case element::Type_t::u64:
-    {
-        auto indices_ptr = indices->get_data_ptr<element::Type_t::u64>();
-        indices_casted_vector =
-            std::vector<int64_t>(indices_ptr, indices_ptr + indices->get_element_count());
-        break;
-    }
-    default: throw ngraph_error("indices element type is not integral data type");
-    }
+        runtime::reference::scatter_update(data->get_data_ptr<char>(),
+                                        indices_casted_vector.data(),
+                                        updates->get_data_ptr<char>(),
+                                        axis_val,
+                                        out->get_data_ptr<char>(),
+                                        elem_size,
+                                        data->get_shape(),
+                                        indices->get_shape(),
+                                        updates->get_shape());
 
-    runtime::reference::scatter_update(data->get_data_ptr<char>(),
-                                       indices_casted_vector.data(),
-                                       updates->get_data_ptr<char>(),
-                                       axis_val,
-                                       out->get_data_ptr<char>(),
-                                       elem_size,
-                                       data->get_shape(),
-                                       indices->get_shape(),
-                                       updates->get_shape());
-
-    return true;
-#else
+        return true;
+    )
     return false;
-#endif
 }

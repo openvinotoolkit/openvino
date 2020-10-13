@@ -21,23 +21,20 @@
 NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertOpSet3ToOpSet2, "ConvertOpSet3ToOpSet2", 0);
 
 bool ngraph::pass::ConvertOpSet3ToOpSet2::run_on_function(std::shared_ptr<ngraph::Function> f) {
-#if GraphGen(OV_GEN_NGRAPH_PASS(ConvertOpSet3ToOpSet2, run_on_function))
-    OV_ITT_SCOPED_TASK(itt::domains::IETransform);
+    IETRANSFORM_SCOPE(ConvertOpSet3ToOpSet2,
+        ngraph::pass::Manager manager;
 
-    ngraph::pass::Manager manager;
+        REGISTER_PASS(manager, ConvertBroadcast3);
+        REGISTER_PASS(manager, ConvertNMS1ToNMS3);
+        REGISTER_PASS(manager, ConvertShapeOf3);
+        REGISTER_PASS(manager, ConvertShuffleChannels3);
+        REGISTER_PASS(manager, ConvertTopK3);
+        REGISTER_PASS(manager, ConvertExtractImagePatchesToReorgYolo);
+        REGISTER_PASS(manager, SoftPlusDecomposition);
 
-    manager.register_pass<ngraph::pass::ConvertBroadcast3>();
-    manager.register_pass<ngraph::pass::ConvertNMS1ToNMS3>();
-    manager.register_pass<ngraph::pass::ConvertShapeOf3>();
-    manager.register_pass<ngraph::pass::ConvertShuffleChannels3>();
-    manager.register_pass<ngraph::pass::ConvertTopK3>();
-    manager.register_pass<ngraph::pass::ConvertExtractImagePatchesToReorgYolo>();
-    manager.register_pass<ngraph::pass::SoftPlusDecomposition>();
-
-    manager.set_callback(m_transformation_callback);
-    manager.run_passes(f);
-    return true;
-#else
-    return false;
-#endif
+        manager.set_callback(m_transformation_callback);
+        manager.run_passes(f);
+        return true;
+    )
+    NGRAPH_CHECK(false, "nGraph pass is not included into the selective build.");
 }

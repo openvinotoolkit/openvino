@@ -61,54 +61,53 @@ namespace {
 //
 
 ngraph::pass::FakeQuantizeMulFusion::FakeQuantizeMulFusion() {
-  const auto fq_output_low_p = ngraph::pattern::any_input();
-  const auto fq_output_high_p = ngraph::pattern::any_input();
+  IETRANSFORM_SCOPE(FakeQuantizeMulFusion,
+    const auto fq_output_low_p = ngraph::pattern::any_input();
+    const auto fq_output_high_p = ngraph::pattern::any_input();
 
-  const auto fq_node_p = ngraph::pattern::wrap_type<opset4::FakeQuantize>(
-      {ngraph::pattern::any_input(),
-       ngraph::pattern::any_input(),
-       ngraph::pattern::any_input(),
-       fq_output_low_p,
-       fq_output_high_p},
-      pattern::consumers_count(1));
+    const auto fq_node_p = ngraph::pattern::wrap_type<opset4::FakeQuantize>(
+        {ngraph::pattern::any_input(),
+        ngraph::pattern::any_input(),
+        ngraph::pattern::any_input(),
+        fq_output_low_p,
+        fq_output_high_p},
+        pattern::consumers_count(1));
 
-  const auto mul_constant_p = ngraph::pattern::wrap_type<opset4::Constant>();
-  const auto mul_node_p = ngraph::pattern::wrap_type<opset4::Multiply>(
-      {fq_node_p, mul_constant_p}, pattern::consumers_count(1));
-#if GraphGen(OV_GEN_NGRAPH_PASS(FakeQuantizeMulFusion, callback))
-  ngraph::matcher_pass_callback callback = [=](pattern::Matcher &m) {
-    OV_ITT_IE_TRANSFORM_CALLBACK(m, "callback")
-    const auto& pattern_map = m.get_pattern_value_map();
+    const auto mul_constant_p = ngraph::pattern::wrap_type<opset4::Constant>();
+    const auto mul_node_p = ngraph::pattern::wrap_type<opset4::Multiply>(
+        {fq_node_p, mul_constant_p}, pattern::consumers_count(1));
 
-    const auto fq_node = pattern_map.at(fq_node_p).get_node_shared_ptr();
+    ngraph::matcher_pass_callback callback = [=](pattern::Matcher &m) {
+      const auto& pattern_map = m.get_pattern_value_map();
 
-    const auto original_output_low = pattern_map.at(fq_output_low_p);
-    const auto original_output_high = pattern_map.at(fq_output_high_p);
-    const auto mul_constant = pattern_map.at(mul_constant_p);
+      const auto fq_node = pattern_map.at(fq_node_p).get_node_shared_ptr();
 
-    const auto new_output_limits = get_adjusted_output_range(
-      original_output_low, original_output_high, mul_constant);
+      const auto original_output_low = pattern_map.at(fq_output_low_p);
+      const auto original_output_high = pattern_map.at(fq_output_high_p);
+      const auto mul_constant = pattern_map.at(mul_constant_p);
 
-    const auto new_fq_node = fq_node->clone_with_new_inputs({fq_node->input_value(0),
-                                                            fq_node->input_value(1),
-                                                            fq_node->input_value(2),
-                                                            new_output_limits.first,
-                                                            new_output_limits.second});
+      const auto new_output_limits = get_adjusted_output_range(
+        original_output_low, original_output_high, mul_constant);
 
-    const auto mul_node = pattern_map.at(mul_node_p).get_node_shared_ptr();
-    replace_node(mul_node, new_fq_node);
+      const auto new_fq_node = fq_node->clone_with_new_inputs({fq_node->input_value(0),
+                                                              fq_node->input_value(1),
+                                                              fq_node->input_value(2),
+                                                              new_output_limits.first,
+                                                              new_output_limits.second});
 
-    new_fq_node->set_friendly_name(fq_node->get_friendly_name());
-    copy_runtime_info({fq_node, mul_node}, new_fq_node);
+      const auto mul_node = pattern_map.at(mul_node_p).get_node_shared_ptr();
+      replace_node(mul_node, new_fq_node);
 
-    return true;
-  };
-#else
-  ngraph::matcher_pass_callback callback = [](ngraph::pattern::Matcher & m) -> bool {
-    return false;
-  };
-#endif
-  auto m = std::make_shared<ngraph::pattern::Matcher>(mul_node_p,
-                                                      "FakeQuantizeMulFusion");
-  this->register_matcher(m, callback);
+      new_fq_node->set_friendly_name(fq_node->get_friendly_name());
+      copy_runtime_info({fq_node, mul_node}, new_fq_node);
+
+      return true;
+    };
+
+    auto m = std::make_shared<ngraph::pattern::Matcher>(mul_node_p,
+                                                        matcher_name);
+    this->register_matcher(m, callback);
+    return;
+  )
+  NGRAPH_CHECK(false, "nGraph pass is not included into the selective build.");
 }

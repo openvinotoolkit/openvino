@@ -233,34 +233,32 @@ static bool replace_transpose_with_reshape(shared_ptr<Node> transpose) {
 }
 
 bool pass::AlgebraicSimplification::run_on_function(shared_ptr<Function> f) {
-#if GraphGen(OV_GEN_NGRAPH_PASS(AlgebraicSimplification, run_on_function))
-    OV_ITT_SCOPED_TASK(itt::domains::IETransform);
-    static const unordered_map<NodeTypeInfo, function<bool(shared_ptr<Node>)>> ops_to_simplifiers =
-        {{opset3::Gather::type_info, simplify_gather},
-         {opset2::ShapeOf::type_info, simplify_gather_shapeof},
-         {opset3::ShapeOf::type_info, simplify_gather_shapeof},
-         {opset3::Transpose::type_info, replace_transpose_with_reshape}};
+    IETRANSFORM_SCOPE(AlgebraicSimplification,
+        static const unordered_map<NodeTypeInfo, function<bool(shared_ptr<Node>)>> ops_to_simplifiers =
+            {{opset3::Gather::type_info, simplify_gather},
+            {opset2::ShapeOf::type_info, simplify_gather_shapeof},
+            {opset3::ShapeOf::type_info, simplify_gather_shapeof},
+            {opset3::Transpose::type_info, replace_transpose_with_reshape}};
 
-    bool replaced = false;
-    for (auto n : f->get_ordered_ops()) {
-        if (op::is_output(n) || op::is_parameter(n)) {
-            continue;
-        }
+        bool replaced = false;
+        for (auto n : f->get_ordered_ops()) {
+            if (op::is_output(n) || op::is_parameter(n)) {
+                continue;
+            }
 
-        // Recursively apply transformation for sub-graph based operations
-        if (auto sub_graph_node = std::dynamic_pointer_cast<op::util::SubGraphOp>(n)) {
-            if (auto sub_graph = sub_graph_node->get_function()) {
-                replaced |= run_on_function(sub_graph);
+            // Recursively apply transformation for sub-graph based operations
+            if (auto sub_graph_node = std::dynamic_pointer_cast<op::util::SubGraphOp>(n)) {
+                if (auto sub_graph = sub_graph_node->get_function()) {
+                    replaced |= run_on_function(sub_graph);
+                }
+            }
+
+            auto eh = ops_to_simplifiers.find(n->get_type_info());
+            if (eh != ops_to_simplifiers.end()) {
+                replaced |= eh->second(n);
             }
         }
-
-        auto eh = ops_to_simplifiers.find(n->get_type_info());
-        if (eh != ops_to_simplifiers.end()) {
-            replaced |= eh->second(n);
-        }
-    }
-    return replaced;
-#else
-    return false;
-#endif
+        return replaced;
+    )
+    NGRAPH_CHECK(false, "nGraph pass is not included into the selective build.");
 }

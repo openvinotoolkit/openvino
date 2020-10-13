@@ -47,12 +47,10 @@ void op::util::UnaryElementwiseArithmetic::validate_and_infer_elementwise_arithm
 
 void op::util::UnaryElementwiseArithmetic::validate_and_infer_types()
 {
-#if GraphGen(OV_GEN_NGRAPH_OP_UTIL(UnaryElementwiseArithmetic, validate_and_infer_types))
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
-    validate_and_infer_elementwise_arithmetic();
-#else
+    NGRAPH_OP_UTIL_SCOPE(UnaryElementwiseArithmetic_validate_and_infer_types,
+        return validate_and_infer_elementwise_arithmetic();
+    )
     NODE_VALIDATION_CHECK(this, false, "Function is not included into the selective build.");
-#endif
 }
 
 bool op::util::UnaryElementwiseArithmetic::visit_attributes(AttributeVisitor& visitor)

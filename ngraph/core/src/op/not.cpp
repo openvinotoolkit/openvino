@@ -44,16 +44,15 @@ bool ngraph::op::v1::LogicalNot::visit_attributes(AttributeVisitor& visitor)
 // TODO(amprocte): Update this to allow only boolean, for consistency with logical binops.
 void op::v1::LogicalNot::validate_and_infer_types()
 {
-#if GraphGen(OV_GEN_NGRAPH_OP(LogicalNot, v1, validate_and_infer_types))
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
-    auto args_et_pshape = op::util::validate_and_infer_elementwise_args(this);
-    element::Type& args_et = std::get<0>(args_et_pshape);
-    PartialShape& args_pshape = std::get<1>(args_et_pshape);
+    NGRAPH_OP_SCOPE(v1_LogicalNot_validate_and_infer_types,
+        auto args_et_pshape = op::util::validate_and_infer_elementwise_args(this);
+        element::Type& args_et = std::get<0>(args_et_pshape);
+        PartialShape& args_pshape = std::get<1>(args_et_pshape);
 
-    set_output_type(0, args_et, args_pshape);
-#else
+        set_output_type(0, args_et, args_pshape);
+        return;
+    )
     NODE_VALIDATION_CHECK(this, false, "Function is not included into the selective build.");
-#endif
 }
 
 shared_ptr<Node> op::v1::LogicalNot::clone_with_new_inputs(const OutputVector& new_args) const
@@ -80,20 +79,13 @@ namespace
 
         switch (arg0->get_element_type())
         {
-            TYPE_CASE(boolean)(arg0, out, count);
-            break;
-            TYPE_CASE(i32)(arg0, out, count);
-            break;
-            TYPE_CASE(i64)(arg0, out, count);
-            break;
-            TYPE_CASE(u32)(arg0, out, count);
-            break;
-            TYPE_CASE(u64)(arg0, out, count);
-            break;
-            TYPE_CASE(f16)(arg0, out, count);
-            break;
-            TYPE_CASE(f32)(arg0, out, count);
-            break;
+            NGRAPH_TYPE_CASE(evaluate_not, boolean, arg0, out, count)
+            NGRAPH_TYPE_CASE(evaluate_not, i32, arg0, out, count)
+            NGRAPH_TYPE_CASE(evaluate_not, i64, arg0, out, count)
+            NGRAPH_TYPE_CASE(evaluate_not, u32, arg0, out, count)
+            NGRAPH_TYPE_CASE(evaluate_not, u64, arg0, out, count)
+            NGRAPH_TYPE_CASE(evaluate_not, f16, arg0, out, count)
+            NGRAPH_TYPE_CASE(evaluate_not, f32, arg0, out, count)
         default: rc = false; break;
         }
         return rc;
@@ -103,12 +95,11 @@ namespace
 bool op::v1::LogicalNot::evaluate(const HostTensorVector& outputs,
                                   const HostTensorVector& inputs) const
 {
-#if GraphGen(OV_GEN_NGRAPH_OP(LogicalNot, v1, evaluate))
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
-    return evaluate_not(inputs[0], outputs[0], shape_size(get_output_shape(0)));
-#else
-    return false;
-#endif
+    bool rc = false;
+    NGRAPH_OP_SCOPE(v1_LogicalNot_evaluate,
+        rc = evaluate_not(inputs[0], outputs[0], shape_size(get_output_shape(0)));
+    )
+    return rc;
 }
 
 constexpr NodeTypeInfo op::v0::Not::type_info;
@@ -122,16 +113,15 @@ op::v0::Not::Not(const Output<Node>& arg)
 // TODO(amprocte): Update this to allow only boolean, for consistency with logical binops.
 void op::v0::Not::validate_and_infer_types()
 {
-#if GraphGen(OV_GEN_NGRAPH_OP(Not, v0, validate_and_infer_types))
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
-    auto args_et_pshape = ngraph::op::util::validate_and_infer_elementwise_args(this);
-    element::Type& args_et = std::get<0>(args_et_pshape);
-    PartialShape& args_pshape = std::get<1>(args_et_pshape);
+    NGRAPH_OP_SCOPE(v0_Not_validate_and_infer_types,
+        auto args_et_pshape = ngraph::op::util::validate_and_infer_elementwise_args(this);
+        element::Type& args_et = std::get<0>(args_et_pshape);
+        PartialShape& args_pshape = std::get<1>(args_et_pshape);
 
-    set_output_type(0, args_et, args_pshape);
-#else
+        set_output_type(0, args_et, args_pshape);
+        return;
+    )
     NODE_VALIDATION_CHECK(this, false, "Function is not included into the selective build.");
-#endif
 }
 
 shared_ptr<Node> op::v0::Not::clone_with_new_inputs(const OutputVector& new_args) const
@@ -142,10 +132,9 @@ shared_ptr<Node> op::v0::Not::clone_with_new_inputs(const OutputVector& new_args
 
 bool op::Not::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
-#if GraphGen(OV_GEN_NGRAPH_OP(LogicalNot, v0, evaluate))
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
-    return evaluate_not(inputs[0], outputs[0], shape_size(get_output_shape(0)));
-#else
-    return false;
-#endif
+    bool rc = false;
+    NGRAPH_OP_SCOPE(v0_Not_evaluate,
+        rc = evaluate_not(inputs[0], outputs[0], shape_size(get_output_shape(0)));
+    )
+    return rc;
 }

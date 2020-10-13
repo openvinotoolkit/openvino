@@ -11,6 +11,8 @@
 
 #include <ngraph/pass/graph_rewrite.hpp>
 
+#include "transformations/itt.hpp"
+
 namespace ngraph {
 namespace pass {
 
@@ -27,10 +29,10 @@ class TRANSFORMATIONS_API ConvertGroupDeconvolution;
 class ngraph::pass::ConvertConvolutions: public ngraph::pass::GraphRewrite {
 public:
     ConvertConvolutions() {
-        add_matcher<ngraph::pass::ConvertConvolution>();
-        add_matcher<ngraph::pass::ConvertGroupConvolution>();
-        add_matcher<ngraph::pass::ConvertDeconvolution>();
-        add_matcher<ngraph::pass::ConvertGroupDeconvolution>();
+        ADD_MATCHER(this, ConvertConvolution);
+        ADD_MATCHER(this, ConvertGroupConvolution);
+        ADD_MATCHER(this, ConvertDeconvolution);
+        ADD_MATCHER(this, ConvertGroupDeconvolution);
     }
 };
 

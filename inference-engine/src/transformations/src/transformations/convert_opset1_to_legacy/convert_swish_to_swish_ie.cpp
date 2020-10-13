@@ -17,38 +17,37 @@
 NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertSwishToSwishIEMatcher, "ConvertSwishToSwishIEMatcher", 0);
 
 ngraph::pass::ConvertSwishToSwishIEMatcher::ConvertSwishToSwishIEMatcher() {
-    auto swish = ngraph::pattern::wrap_type<ngraph::opset4::Swish>();
-#if GraphGen(OV_GEN_NGRAPH_PASS(ConvertSwishToSwishIE, callback))
-    ngraph::matcher_pass_callback callback = [](pattern::Matcher& m) {
-        OV_ITT_IE_TRANSFORM_CALLBACK(m, "callback")
-        auto swish = std::dynamic_pointer_cast<ngraph::opset4::Swish> (m.get_match_root());
-        if (!swish) {
-            return false;
-        }
-        float beta_value = 1.0;
-        if (swish->input_values().size() == 2) {
-            auto beta_node = swish->input_value(1).get_node_shared_ptr();
-            auto beta_const = std::dynamic_pointer_cast<ngraph::opset4::Constant>(beta_node);
+    IETRANSFORM_SCOPE(ConvertSwishToSwishIEMatcher,
+        auto swish = ngraph::pattern::wrap_type<ngraph::opset4::Swish>();
 
-            if (!beta_const) {
+        ngraph::matcher_pass_callback callback = [](pattern::Matcher& m) {
+            auto swish = std::dynamic_pointer_cast<ngraph::opset4::Swish> (m.get_match_root());
+            if (!swish) {
                 return false;
             }
-            if (!ngraph::op::util::get_single_value(beta_const, beta_value)) {
-                return false;
-            }
-        }
+            float beta_value = 1.0;
+            if (swish->input_values().size() == 2) {
+                auto beta_node = swish->input_value(1).get_node_shared_ptr();
+                auto beta_const = std::dynamic_pointer_cast<ngraph::opset4::Constant>(beta_node);
 
-        auto swish_ie = std::make_shared<ngraph::op::SwishIE>(swish->input(0).get_source_output(), beta_value);
-        swish_ie->set_friendly_name(swish->get_friendly_name());
-        ngraph::copy_runtime_info(swish, swish_ie);
-        ngraph::replace_node(swish, swish_ie);
-        return true;
-    };
-#else
-    ngraph::matcher_pass_callback callback = [](ngraph::pattern::Matcher & m) -> bool {
-        return false;
-    };
-#endif
-    auto m = std::make_shared<ngraph::pattern::Matcher>(swish, "ConvertSwishToSwishIE");
-    this->register_matcher(m, callback);
+                if (!beta_const) {
+                    return false;
+                }
+                if (!ngraph::op::util::get_single_value(beta_const, beta_value)) {
+                    return false;
+                }
+            }
+
+            auto swish_ie = std::make_shared<ngraph::op::SwishIE>(swish->input(0).get_source_output(), beta_value);
+            swish_ie->set_friendly_name(swish->get_friendly_name());
+            ngraph::copy_runtime_info(swish, swish_ie);
+            ngraph::replace_node(swish, swish_ie);
+            return true;
+        };
+
+        auto m = std::make_shared<ngraph::pattern::Matcher>(swish, matcher_name);
+        this->register_matcher(m, callback);
+        return;
+    )
+    NGRAPH_CHECK(false, "nGraph pass is not included into the selective build.");
 }

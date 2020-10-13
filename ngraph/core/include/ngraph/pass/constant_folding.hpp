@@ -35,18 +35,22 @@ public:
     ConstantFolding(const ngraph::BuildNodeExecutorMap& cfmap = ngraph::BuildNodeExecutorMap())
         : GraphRewrite()
     {
-        m_cfmap = cfmap;
-        m_enable_shape_inference = true;
-        construct_constant_quantize();
-        construct_constant_dequantize();
-        construct_constant_convert();
-        construct_constant_arithmetic_reduction();
-        construct_constant_logical_reduction();
-        construct_constant_gather_with_subgraph();
-        construct_constant_scatter_elements_update();
-        construct_constant_select();
-        construct_constant_one_hot();
-        construct_constant_default();
+        NGRAPH_PASS_SCOPE(ConstantFolding,
+            m_cfmap = cfmap;
+            m_enable_shape_inference = true;
+            construct_constant_quantize();
+            construct_constant_dequantize();
+            construct_constant_convert();
+            construct_constant_arithmetic_reduction();
+            construct_constant_logical_reduction();
+            construct_constant_gather_with_subgraph();
+            construct_constant_scatter_elements_update();
+            construct_constant_select();
+            construct_constant_one_hot();
+            construct_constant_default();
+            return;
+        )
+        NGRAPH_CHECK(false, "nGraph pass is not included into the selective build.");
     }
 
 private:

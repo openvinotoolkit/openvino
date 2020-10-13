@@ -3,6 +3,7 @@
 //
 
 #include "ngraph_ops/gather_tree_ie.hpp"
+#include "itt.hpp"
 
 #include <memory>
 #include <string>
@@ -27,39 +28,43 @@ shared_ptr<Node> op::GatherTreeIE::clone_with_new_inputs(const OutputVector& new
 }
 
 void op::GatherTreeIE::validate_and_infer_types() {
-    const auto& step_ids_rank = get_input_partial_shape(0);
-    const auto& parent_idx_rank = get_input_partial_shape(1);
-    const auto& max_seq_len_rank = get_input_partial_shape(2);
-    const auto& end_token_rank = get_input_partial_shape(3);
+    NGRAPH_OP_SCOPE(GatherTreeIE_validate_and_infer_types,
+        const auto& step_ids_rank = get_input_partial_shape(0);
+        const auto& parent_idx_rank = get_input_partial_shape(1);
+        const auto& max_seq_len_rank = get_input_partial_shape(2);
+        const auto& end_token_rank = get_input_partial_shape(3);
 
-    NODE_VALIDATION_CHECK(this,
-                          step_ids_rank.rank().is_dynamic() ||
-                          step_ids_rank.rank().get_length() == 3,
-                          "step_ids input rank must equal to 3 (step_ids rank: ",
-                          step_ids_rank.rank().get_length(),
-                          ")");
+        NODE_VALIDATION_CHECK(this,
+                            step_ids_rank.rank().is_dynamic() ||
+                            step_ids_rank.rank().get_length() == 3,
+                            "step_ids input rank must equal to 3 (step_ids rank: ",
+                            step_ids_rank.rank().get_length(),
+                            ")");
 
-    NODE_VALIDATION_CHECK(this,
-                          parent_idx_rank.rank().is_dynamic() ||
-                          parent_idx_rank.rank().get_length() == 3,
-                          "parent_idx input rank must equal to 3 (parent_idx rank: ",
-                          parent_idx_rank.rank().get_length(),
-                          ")");
+        NODE_VALIDATION_CHECK(this,
+                            parent_idx_rank.rank().is_dynamic() ||
+                            parent_idx_rank.rank().get_length() == 3,
+                            "parent_idx input rank must equal to 3 (parent_idx rank: ",
+                            parent_idx_rank.rank().get_length(),
+                            ")");
 
-    NODE_VALIDATION_CHECK(this,
-                          max_seq_len_rank.rank().is_dynamic() ||
-                          max_seq_len_rank.rank().get_length() == 1,
-                          "max_seq_len input rank must equal to 1 (max_seq_len rank: ",
-                          max_seq_len_rank.rank().get_length(),
-                          ")");
+        NODE_VALIDATION_CHECK(this,
+                            max_seq_len_rank.rank().is_dynamic() ||
+                            max_seq_len_rank.rank().get_length() == 1,
+                            "max_seq_len input rank must equal to 1 (max_seq_len rank: ",
+                            max_seq_len_rank.rank().get_length(),
+                            ")");
 
-    NODE_VALIDATION_CHECK(this,
-                          end_token_rank.rank().is_dynamic() ||
-                          end_token_rank.rank().get_length() == 1,
-                          "end_token input rank must be scalar (end_token rank: ",
-                          end_token_rank.rank().get_length(),
-                          ")");
+        NODE_VALIDATION_CHECK(this,
+                            end_token_rank.rank().is_dynamic() ||
+                            end_token_rank.rank().get_length() == 1,
+                            "end_token input rank must be scalar (end_token rank: ",
+                            end_token_rank.rank().get_length(),
+                            ")");
 
-    const auto& step_ids_et = get_input_element_type(0);
-    set_output_type(0, step_ids_et, step_ids_rank);
+        const auto& step_ids_et = get_input_element_type(0);
+        set_output_type(0, step_ids_et, step_ids_rank);
+        return;
+    )
+    NODE_VALIDATION_CHECK(this, false, "Function is not included into the selective build.");
 }

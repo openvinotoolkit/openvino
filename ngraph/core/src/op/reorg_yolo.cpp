@@ -31,28 +31,27 @@ op::ReorgYolo::ReorgYolo(const Output<Node>& input, const Strides& strides)
 
 void op::ReorgYolo::validate_and_infer_types()
 {
-#if GraphGen(OV_GEN_NGRAPH_OP(ReorgYolo, v0, validate_and_infer_types))
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
-    auto input_et = get_input_element_type(0);
-    if (get_input_partial_shape(0).is_static())
-    {
-        auto input_shape = get_input_partial_shape(0).to_shape();
-        Shape output_shape{input_shape[0], input_shape[1]};
-
-        for (size_t i = 2; i < input_shape.size(); i++)
+    NGRAPH_OP_SCOPE(v0_ReorgYolo_validate_and_infer_types,
+        auto input_et = get_input_element_type(0);
+        if (get_input_partial_shape(0).is_static())
         {
-            output_shape.push_back(input_shape[i] / m_strides[0]);
-            output_shape[1] *= m_strides[0];
+            auto input_shape = get_input_partial_shape(0).to_shape();
+            Shape output_shape{input_shape[0], input_shape[1]};
+
+            for (size_t i = 2; i < input_shape.size(); i++)
+            {
+                output_shape.push_back(input_shape[i] / m_strides[0]);
+                output_shape[1] *= m_strides[0];
+            }
+            set_output_type(0, input_et, output_shape);
         }
-        set_output_type(0, input_et, output_shape);
-    }
-    else
-    {
-        set_output_type(0, input_et, PartialShape::dynamic());
-    }
-#else
+        else
+        {
+            set_output_type(0, input_et, PartialShape::dynamic());
+        }
+        return;
+    )
     NODE_VALIDATION_CHECK(this, false, "Function is not included into the selective build.");
-#endif
 }
 
 shared_ptr<Node> op::ReorgYolo::clone_with_new_inputs(const OutputVector& new_args) const
@@ -63,11 +62,9 @@ shared_ptr<Node> op::ReorgYolo::clone_with_new_inputs(const OutputVector& new_ar
 
 bool op::ReorgYolo::visit_attributes(AttributeVisitor& visitor)
 {
-#if GraphGen(OV_GEN_NGRAPH_OP(ReorgYolo, v0, visit_attributes))
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
-    visitor.on_attribute("stride", m_strides);
-    return true;
-#else
+    NGRAPH_OP_SCOPE(v0_ReorgYolo_visit_attributes,
+        visitor.on_attribute("stride", m_strides);
+        return true;
+    )
     return false;
-#endif
 }

@@ -39,43 +39,37 @@ op::util::BinaryElementwiseLogical::BinaryElementwiseLogical(const Output<Node>&
 void op::util::BinaryElementwiseLogical::validate_and_infer_elementwise_logical(
     const op::AutoBroadcastSpec& autob)
 {
-#if GraphGen(                                                                                      \
-    OV_GEN_NGRAPH_OP_UTIL(BinaryElementwiseLogical, validate_and_infer_elementwise_logical))
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
-    auto args_et_pshape = op::util::validate_and_infer_elementwise_args(this, autob);
-    element::Type& args_et = std::get<0>(args_et_pshape);
-    PartialShape& args_pshape = std::get<1>(args_et_pshape);
+    NGRAPH_OP_UTIL_SCOPE(BinaryElementwiseLogical_validate_and_infer_elementwise_logical,
+        auto args_et_pshape = op::util::validate_and_infer_elementwise_args(this, autob);
+        element::Type& args_et = std::get<0>(args_et_pshape);
+        PartialShape& args_pshape = std::get<1>(args_et_pshape);
 
-    NODE_VALIDATION_CHECK(
-        this,
-        args_et.is_dynamic() || args_et == element::boolean,
-        "Operands for logical operators must have boolean element type but have element type ",
-        args_et,
-        ".");
+        NODE_VALIDATION_CHECK(
+            this,
+            args_et.is_dynamic() || args_et == element::boolean,
+            "Operands for logical operators must have boolean element type but have element type ",
+            args_et,
+            ".");
 
-    set_output_type(0, element::boolean, args_pshape);
-#else
+        set_output_type(0, element::boolean, args_pshape);
+        return;
+    )
     NODE_VALIDATION_CHECK(this, false, "Function is not included into the selective build.");
-#endif
 }
 
 void op::util::BinaryElementwiseLogical::validate_and_infer_types()
 {
-#if GraphGen(OV_GEN_NGRAPH_OP_UTIL(BinaryElementwiseLogical, validate_and_infer_types))
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
-    validate_and_infer_elementwise_logical(m_autob);
-#else
+    NGRAPH_OP_UTIL_SCOPE(BinaryElementwiseLogical_validate_and_infer_types,
+        return validate_and_infer_elementwise_logical(m_autob);
+    )
     NODE_VALIDATION_CHECK(this, false, "Function is not included into the selective build.");
-#endif
 }
 
 bool op::util::BinaryElementwiseLogical::visit_attributes(AttributeVisitor& visitor)
 {
-#if GraphGen(OV_GEN_NGRAPH_OP_UTIL(BinaryElementwiseLogical, visit_attributes))
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp);
-    visitor.on_attribute("auto_broadcast", m_autob);
-    return true;
-#else
+    NGRAPH_OP_UTIL_SCOPE(BinaryElementwiseLogical_visit_attributes,
+        visitor.on_attribute("auto_broadcast", m_autob);
+        return true;
+    )
     return false;
-#endif
 }
