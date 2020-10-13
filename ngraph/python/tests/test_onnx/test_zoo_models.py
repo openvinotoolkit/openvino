@@ -83,6 +83,8 @@ tolerance_map = {
     "udnie-9": {"atol": 0.001, "rtol": 0.001},
     "mxnet_arcface": {"atol": 1.5e-5, "rtol": 0.001},
     "resnet100": {"atol": 1.5e-5, "rtol": 0.001},
+    "densenet121": {"atol": 1e-7, "rtol": 0.0011},
+    "resnet152v1": {"atol": 1e-7, "rtol": 0.003},
 }
 
 zoo_models = []
