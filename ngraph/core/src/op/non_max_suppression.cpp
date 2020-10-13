@@ -19,8 +19,6 @@
 #include "ngraph/attribute_visitor.hpp"
 #include "ngraph/op/constant.hpp"
 #include "ngraph/op/util/op_types.hpp"
-#include "ngraph/runtime/reference/non_max_suppression.hpp"
-#include "ngraph/type/float16.hpp"
 
 using namespace std;
 using namespace ngraph;
