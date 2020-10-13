@@ -43,8 +43,8 @@ CNNNetworkIterator {
         InputsDataMap inputs;
         network->getInputsInfo(inputs);
         // scan for at least one input which does have a NEXT
-        for (auto& ip : inputs) {
-            auto& nextLayers = getInputTo(ip.second->getInputData());
+        for (const auto& in : inputs) {
+            auto& nextLayers = getInputTo(in.second->getInputData());
             if (!nextLayers.empty()) {
                 currentLayer = nextLayers.begin()->second;
                 nextLayersTovisit.push_back(currentLayer);
@@ -133,13 +133,7 @@ public:
      * @return true if the given iterator is equal to this one, false - otherwise
      */
     bool operator==(const CNNNetworkIterator& that) const {
-        bool retVal;
-        if (currentLayer == nullptr && that.currentLayer == nullptr) {
-            retVal = true;
-        } else {
-            retVal = network == that.network && currentLayer == that.currentLayer;
-        }
-        return retVal;
+        return currentLayer == that.currentLayer;
     }
 
 private:
@@ -177,18 +171,16 @@ private:
         if (nextLayersTovisit.empty()) {
             InputsDataMap inputs;
             network->getInputsInfo(inputs);
-            if (!inputs.empty()) {
-                for (auto itr=inputs.begin(); itr != inputs.end(); ++itr) {
-                    auto& nextLayers = getInputTo(itr->second->getInputData());
-                    if (nextLayers.empty()) {
-                        continue;
-                    }
-                    currentLayer = nextLayers.begin()->second;
-                    if (visited.find(currentLayer.get()) == visited.end()) {
-                        nextLayersTovisit.push_back(currentLayer);
-                        visited.insert(currentLayer.get());
-                        break;
-                    }
+            for (const auto& in : inputs) {
+                auto& nextLayers = getInputTo(in.second->getInputData());
+                if (nextLayers.empty()) {
+                    continue;
+                }
+                currentLayer = nextLayers.begin()->second;
+                if (visited.find(currentLayer.get()) == visited.end()) {
+                    nextLayersTovisit.push_back(currentLayer);
+                    visited.insert(currentLayer.get());
+                    break;
                 }
             }
         }
