@@ -25,6 +25,7 @@
 #include "ngraph/builder/reshape.hpp"
 #include "ngraph/builder/split.hpp"
 #include "ngraph/enum_names.hpp"
+#include "ngraph/log.hpp"
 #include "ngraph/op/add.hpp"
 #include "ngraph/op/constant.hpp"
 #include "ngraph/op/lstm_sequence.hpp"
@@ -78,10 +79,18 @@ namespace ngraph
                             builder::opset1::reorder_axes(ng_inputs.at(0), {1, 0, 2});
                         // Weight tensor for the gates.
                         // Shape: [num_directions, 4*hidden_size, input_size]
-                        m_map[LSTMInput::LSTM_INPUT_W] = ng_inputs.at(1);
+                        m_map[LSTMInput::LSTM_INPUT_W] = ngraph::op::util::convert_lstm_node_format(
+                            ng_inputs.at(1),
+                            ngraph::op::util::LSTMWeightsFormat::IOFC,
+                            ngraph::op::util::LSTMWeightsFormat::FICO,
+                            1);
                         // The recurrence weight tensor.
                         // Shape: [num_directions, 4*hidden_size, hidden_size]
-                        m_map[LSTMInput::LSTM_INPUT_R] = ng_inputs.at(2);
+                        m_map[LSTMInput::LSTM_INPUT_R] = ngraph::op::util::convert_lstm_node_format(
+                            ng_inputs.at(2),
+                            ngraph::op::util::LSTMWeightsFormat::IOFC,
+                            ngraph::op::util::LSTMWeightsFormat::FICO,
+                            1);
 
                         const std::size_t hidden_size =
                             m_map[LSTMInput::LSTM_INPUT_R].get_shape().back();
@@ -99,6 +108,12 @@ namespace ngraph
                             NGRAPH_SUPPRESS_DEPRECATED_START
                             m_map[LSTMInput::LSTM_INPUT_B] = split_bias.at(0) + split_bias.at(1);
                             NGRAPH_SUPPRESS_DEPRECATED_END
+                            m_map[LSTMInput::LSTM_INPUT_B] =
+                                ngraph::op::util::convert_lstm_node_format(
+                                    m_map[LSTMInput::LSTM_INPUT_B],
+                                    ngraph::op::util::LSTMWeightsFormat::IOFC,
+                                    ngraph::op::util::LSTMWeightsFormat::FICO,
+                                    1);
                         }
                         else
                         {
@@ -152,17 +167,12 @@ namespace ngraph
                                 std::vector<float>(batch_size * num_directions * hidden_size, 0.f));
                         }
                         // The weight tensor for peepholes. Shape [num_directions, 3*hidde_size]
+                        // Peepholes input is not supported by OpenVino
                         if (ng_inputs.size() > 7 && !ngraph::op::is_null(ng_inputs.at(7)))
                         {
-                            m_map[LSTMInput::LSTM_INPUT_P] = ng_inputs.at(7);
-                        }
-                        else
-                        {
-                            m_map[LSTMInput::LSTM_INPUT_P] = default_opset::Constant::create(
-                                element::f32,
-                                Shape{num_directions, peepholes_count * hidden_size},
-                                std::vector<float>(num_directions * peepholes_count * hidden_size,
-                                                   0.f));
+                            NGRAPH_WARN
+                                << (node)
+                                << " Input `P` (peepholes) is not supported and will be ignored ";
                         }
                     }
 
@@ -193,6 +203,12 @@ namespace ngraph
 
                         m_direction =
                             ngraph::as_enum<ngraph::op::RecurrentSequenceDirection>(direction);
+
+                        if (m_input_forget != 0)
+                        {
+                            NGRAPH_WARN << (node) << " Attribute `input_forget` is not supported "
+                                                     "and will be ignored ";
+                        }
                     }
 
                     ngraph::op::RecurrentSequenceDirection m_direction;
@@ -213,10 +229,7 @@ namespace ngraph
                     LSTMNgInputMap input_map{node};
                     LSTMAttributes attributes{node};
 
-                    // LSTMSequence is not fully supported in OpenVINO and is excluded from
-                    // opset4 (current the latest opset version), use one of the previous
-                    // opsets instead of default
-                    auto lstmSequence = std::make_shared<opset3::LSTMSequence>(
+                    auto lstm_sequence = std::make_shared<default_opset::LSTMSequence>(
                         input_map.at(LSTMInput::LSTM_INPUT_X),
                         input_map.at(LSTMInput::LSTM_INPUT_INIT_H),
                         input_map.at(LSTMInput::LSTM_INPUT_INIT_C),
@@ -224,19 +237,16 @@ namespace ngraph
                         input_map.at(LSTMInput::LSTM_INPUT_W),
                         input_map.at(LSTMInput::LSTM_INPUT_R),
                         input_map.at(LSTMInput::LSTM_INPUT_B),
-                        input_map.at(LSTMInput::LSTM_INPUT_P),
                         attributes.m_hidden_size,
                         attributes.m_direction,
-                        ngraph::op::LSTMWeightsFormat::IOFC,
                         attributes.m_activation_alpha,
                         attributes.m_activation_beta,
                         attributes.m_activations,
-                        attributes.m_clip_threshold,
-                        attributes.m_input_forget);
+                        attributes.m_clip_threshold);
 
-                    const auto Y = lstmSequence->output(0);
-                    const auto Y_h = lstmSequence->output(1);
-                    const auto Y_c = lstmSequence->output(2);
+                    const auto Y = lstm_sequence->output(0);
+                    const auto Y_h = lstm_sequence->output(1);
+                    const auto Y_c = lstm_sequence->output(2);
 
                     return {builder::opset1::reorder_axes(Y, {2, 1, 0, 3}),
                             builder::opset1::reorder_axes(Y_h, {1, 0, 2}),
