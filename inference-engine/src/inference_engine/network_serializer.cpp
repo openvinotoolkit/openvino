@@ -69,7 +69,7 @@ public:
 
     void on_adapter(const std::string& name,
                     ngraph::ValueAccessor<void>& adapter) override {
-        throw std::logic_error("Adapter is not handled");
+        m_data.append_attribute(name.c_str());
     }
     void on_adapter(const std::string& name,
                     ngraph::ValueAccessor<bool>& adapter) override {
@@ -184,20 +184,9 @@ void ngfunction_2_irv10(pugi::xml_document& doc, std::vector<uint8_t>& bin,
 
         // <layers/data> general atributes
         XmlVisitor visitor{data};
-        try {
-            if (!node->visit_attributes(visitor)) {
-#if 0  // TODO: need to decide if we want to throw on vistiation fail
-        THROW_IE_EXCEPTION << "cannot visit " << node->get_name();
-#else
-                std::cout << "cannot visit " << node->get_name() << "\n";
-#endif
-            }
-        } catch (std::logic_error& ex) {
-#if 0  // TODO: need to decide if we want to throw on vistiation fail
-       THROW_IE_EXCEPTION << ex.what() << "from " << node->get_name();
-#else
-            std::cout << ex.what() << "from " << node->get_name() << "\n";
-#endif
+
+        if (!node->visit_attributes(visitor)) {
+              THROW_IE_EXCEPTION << "cannot visit " << node->get_name();
         }
 
         // <layers/data> constant atributes (special case)
