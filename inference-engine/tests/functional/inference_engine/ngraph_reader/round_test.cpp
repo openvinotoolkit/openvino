@@ -98,7 +98,7 @@ TEST_F(NGraphReaderTests, ReadRoundEvenNetwork) {
 }
 
 TEST_F(NGraphReaderTests, ReadRoundAwayNetwork) {
-std::string model = R"V0G0N(
+    std::string model = R"V0G0N(
 <net name="Network" version="10">
     <layers>
         <layer name="in1" type="Parameter" id="0" version="opset1">
@@ -148,7 +148,7 @@ std::string model = R"V0G0N(
     </edges>
 </net>
 )V0G0N";
-std::string modelV5 = R"V0G0N(
+    std::string modelV5 = R"V0G0N(
 <net name="Network" version="5" precision="FP32" batch="1">
     <layers>
         <layer name="in1" type="Input" precision="FP32" id="0">
