@@ -2,10 +2,6 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-if(CMAKE_COMPILER_IS_GNUCC AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER 9.0)
-    set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
-endif()
-
 enable_testing()
 
 add_subdirectory(helpers)
@@ -21,8 +17,6 @@ endif()
 if (ENABLE_BEH_TESTS)
     add_subdirectory(behavior)
 endif()
-
-disable_deprecated_warnings()
 
 if(ENABLE_TESTS)
     add_subdirectory(unit)
