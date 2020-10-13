@@ -60,8 +60,7 @@ public:
 
 class TRANSFORMATIONS_API NonMaxSuppressionIE3 : public Op {
 public:
-    static constexpr NodeTypeInfo type_info{"NonMaxSuppressionIE", 3};
-    const NodeTypeInfo& get_type_info() const override { return type_info; }
+    NGRAPH_RTTI_DECLARATION;
 
     NonMaxSuppressionIE3(const Output<Node>& boxes,
                          const Output<Node>& scores,

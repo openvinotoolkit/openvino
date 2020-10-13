@@ -102,7 +102,7 @@ void op::NonMaxSuppressionIE2::validate_and_infer_types() {
     set_output_type(0, nms->output(0).get_element_type(), nms->output(0).get_partial_shape());
 }
 
-constexpr NodeTypeInfo op::NonMaxSuppressionIE3::type_info;
+NGRAPH_RTTI_DEFINITION(op::NonMaxSuppressionIE3, "NonMaxSuppressionIE", 3);
 
 op::NonMaxSuppressionIE3::NonMaxSuppressionIE3(const Output<Node>& boxes,
                                                const Output<Node>& scores,
@@ -170,5 +170,5 @@ void op::NonMaxSuppressionIE3::validate_and_infer_types() {
 
     set_output_type(0, m_output_type, out_shape);
     set_output_type(1, element::f32, out_shape);
-    set_output_type(2, m_output_type, Shape{});
+    set_output_type(2, m_output_type, Shape{1});
 }
