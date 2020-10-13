@@ -111,7 +111,7 @@ shared_ptr<Node> op::MatMul::clone_with_new_inputs(const OutputVector& new_args)
     return make_shared<MatMul>(new_args.at(0), new_args.at(1), m_transpose_a, m_transpose_b);
 }
 
-namespace
+namespace matmul
 {
     Shape evaluate_matmul_output_shape(const Shape& arg0_shape,
                                        const Shape& arg1_shape,
@@ -236,5 +236,6 @@ namespace
 bool op::MatMul::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
     OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::MatMul::evaluate");
-    return evaluate_matmul(inputs[0], inputs[1], outputs[0], get_transpose_a(), get_transpose_b());
+    return matmul::evaluate_matmul(
+        inputs[0], inputs[1], outputs[0], get_transpose_a(), get_transpose_b());
 }
