@@ -54,4 +54,5 @@ NGRAPH_OP(LSTMCell, op::v4)
 NGRAPH_OP(LSTMSequence, op::v5)
 NGRAPH_OP(GRUSequence, op::v5)
 NGRAPH_OP(RNNSequence, op::v5)
+NGRAPH_OP(Round, op::v5)
 #undef ID_SUFFIX
