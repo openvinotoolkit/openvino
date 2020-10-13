@@ -241,12 +241,12 @@ std::map<std::string, std::string> extractMeta(const StageMetaInfo& stageMeta) {
     serializationInfo[ExecGraphInfoSerialization::OUTPUT_LAYOUTS] = layoutStream.str();
 
     std::string outPrecisionsStr;
-    auto runtimePrecision = Precision(Precision::I32);
+    Precision runtimePrecision {Precision::I32};
     ind = 0;
     for (auto &outPrecision : stageMeta.outPrecisions) {
         // if we have any output precision not equal I32 -> we assume runtimePrecision is FP16
         if (outPrecision != Precision::I32) {
-            runtimePrecision = Precision(Precision::FP16);
+            runtimePrecision = Precision::FP16;
         }
         if (ind == 0) {
             outPrecisionsStr += outPrecision.name();
