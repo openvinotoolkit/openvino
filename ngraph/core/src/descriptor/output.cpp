@@ -54,7 +54,7 @@ shared_ptr<Node> descriptor::Output::get_node() const
     return m_node->shared_from_this();
 }
 
-Output<Node> descriptor::Output::get_output() const
+ngraph::Output<Node> descriptor::Output::get_output() const
 {
     return get_node()->output(m_index);
 }

@@ -40,7 +40,7 @@ shared_ptr<Node> op::Abs::clone_with_new_inputs(const OutputVector& new_args) co
     return make_shared<Abs>(new_args.at(0));
 }
 
-namespace
+namespace absop
 {
     template <element::Type_t ET>
     inline bool evaluate(const HostTensorPtr& arg0, const HostTensorPtr& out, const size_t count)
@@ -80,5 +80,5 @@ namespace
 bool op::Abs::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
     OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::Abs::evaluate");
-    return evaluate_abs(inputs[0], outputs[0], shape_size(get_output_shape(0)));
+    return absop::evaluate_abs(inputs[0], outputs[0], shape_size(get_output_shape(0)));
 }

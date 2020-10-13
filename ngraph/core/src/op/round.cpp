@@ -40,7 +40,7 @@ shared_ptr<Node> op::Round::clone_with_new_inputs(const OutputVector& new_args) 
     return make_shared<Round>(new_args.at(0));
 }
 
-namespace
+namespace roundop
 {
     // function used by TYPE_CASE
     template <element::Type_t ET>
@@ -97,5 +97,5 @@ namespace
 bool op::Round::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
     OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::Round::evaluate");
-    return evaluate_round(inputs[0], outputs[0], shape_size(get_output_shape(0)));
+    return roundop::evaluate_round(inputs[0], outputs[0], shape_size(get_output_shape(0)));
 }

@@ -146,7 +146,7 @@ shared_ptr<Node> op::v1::VariadicSplit::clone_with_new_inputs(const OutputVector
     return make_shared<v1::VariadicSplit>(new_args.at(0), new_args.at(1), new_args.at(2));
 }
 
-namespace
+namespace variadic_split
 {
     inline bool evaluate(const HostTensorPtr& in,
                          const HostTensorPtr& out,
@@ -220,5 +220,5 @@ bool op::v1::VariadicSplit::evaluate(const HostTensorVector& outputs,
     const auto& axis = inputs[1];
     const auto& split_lengths = inputs[2];
 
-    return evaluate_variadic_split(data, axis, split_lengths, outputs, this);
+    return variadic_split::evaluate_variadic_split(data, axis, split_lengths, outputs, this);
 }

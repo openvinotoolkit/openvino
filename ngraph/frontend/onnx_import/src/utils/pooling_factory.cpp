@@ -52,7 +52,7 @@ namespace ngraph
                                                                  m_padding_above,
                                                                  m_kernel_shape,
                                                                  !count_include_pad,
-                                                                 op::RoundingType::FLOOR,
+                                                                 ngraph::op::RoundingType::FLOOR,
                                                                  m_auto_pad)};
             }
 
@@ -63,7 +63,7 @@ namespace ngraph
                                                                  m_padding_below,
                                                                  m_padding_above,
                                                                  m_kernel_shape,
-                                                                 op::RoundingType::FLOOR,
+                                                                 ngraph::op::RoundingType::FLOOR,
                                                                  m_auto_pad)};
             }
 

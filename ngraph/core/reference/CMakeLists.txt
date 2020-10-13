@@ -32,6 +32,7 @@ add_library(${TARGET_NAME} STATIC ${LIBRARY_SRC} ${PUBLIC_HEADERS})
 
 if(COMMAND ie_faster_build)
     ie_faster_build(${TARGET_NAME}
+        UNITY
         PCH PRIVATE "src/precomp.hpp"
     )
 endif()

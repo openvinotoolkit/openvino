@@ -57,7 +57,7 @@ shared_ptr<Node> op::v1::LogicalNot::clone_with_new_inputs(const OutputVector& n
     return make_shared<v1::LogicalNot>(new_args.at(0));
 }
 
-namespace
+namespace notop
 {
     template <element::Type_t ET>
     inline bool evaluate(const HostTensorPtr& arg0, const HostTensorPtr& out, const size_t count)
@@ -99,7 +99,7 @@ bool op::v1::LogicalNot::evaluate(const HostTensorVector& outputs,
                                   const HostTensorVector& inputs) const
 {
     OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v1::LogicalNot::evaluate");
-    return evaluate_not(inputs[0], outputs[0], shape_size(get_output_shape(0)));
+    return notop::evaluate_not(inputs[0], outputs[0], shape_size(get_output_shape(0)));
 }
 
 constexpr NodeTypeInfo op::v0::Not::type_info;
@@ -129,5 +129,5 @@ shared_ptr<Node> op::v0::Not::clone_with_new_inputs(const OutputVector& new_args
 bool op::Not::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
     OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::Not::evaluate");
-    return evaluate_not(inputs[0], outputs[0], shape_size(get_output_shape(0)));
+    return notop::evaluate_not(inputs[0], outputs[0], shape_size(get_output_shape(0)));
 }

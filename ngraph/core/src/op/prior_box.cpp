@@ -151,7 +151,7 @@ bool op::PriorBox::visit_attributes(AttributeVisitor& visitor)
     return true;
 }
 
-namespace
+namespace prior_box
 {
     template <element::Type_t ET>
     bool evaluate(const HostTensorPtr& arg0,

@@ -35,7 +35,7 @@ NGRAPH_SUPPRESS_DEPRECATED_START
 using namespace std;
 using namespace ngraph;
 
-namespace
+namespace opset1_upgrade
 {
     template <typename OpV0, typename OpV1>
     shared_ptr<Node> op_cast_binary_elementwise_node(const shared_ptr<OpV0>& node)
@@ -547,12 +547,12 @@ namespace
         return dispatch_map;
         NGRAPH_SUPPRESS_DEPRECATED_END
     }
-} // namespace
+} // namespace opset1_upgrade
 
 bool pass::Opset1Upgrade::run_on_node(shared_ptr<Node> node)
 {
     bool modified = false;
-    auto& dispatch_map = get_dispatch_map();
+    auto& dispatch_map = opset1_upgrade::get_dispatch_map();
     auto it = dispatch_map.find(node->get_type_info());
     if (it != dispatch_map.end())
     {

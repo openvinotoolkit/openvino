@@ -45,6 +45,7 @@ add_library(ngraph::onnx_importer ALIAS onnx_importer)
 
 if(COMMAND ie_faster_build)
     ie_faster_build(onnx_importer
+        UNITY
         PCH PRIVATE "src/precomp.hpp"
     )
 endif()

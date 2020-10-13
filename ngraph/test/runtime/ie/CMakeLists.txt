@@ -27,6 +27,13 @@ set(SRC
 )
 
 add_library(ie_backend ${LIBRARY_TYPE} ${SRC})
+
+if(COMMAND ie_faster_build)
+    ie_faster_build(ie_backend
+        UNITY
+    )
+endif()
+
 add_dependencies(ie_backend inference_engine)
 target_compile_definitions(ie_backend PRIVATE IE_BACKEND_DLL_EXPORTS)
 target_include_directories(ie_backend PUBLIC ${IE_MAIN_SOURCE_DIR}/include)

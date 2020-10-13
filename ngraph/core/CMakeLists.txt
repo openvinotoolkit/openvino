@@ -38,6 +38,7 @@ add_library(ngraph SHARED ${LIBRARY_SRC} ${PUBLIC_HEADERS})
 
 if(COMMAND ie_faster_build)
     ie_faster_build(ngraph
+        UNITY
         PCH PRIVATE "src/precomp.hpp"
     )
 endif()

@@ -53,7 +53,7 @@ shared_ptr<Node> ngraph::operator+(const Output<Node>& arg0, const Output<Node>&
     return make_shared<op::Add>(arg0, arg1);
 }
 
-namespace
+namespace add
 {
     template <element::Type_t ET>
     bool evaluate(const HostTensorPtr& arg0,
@@ -110,7 +110,7 @@ namespace
 bool op::v0::Add::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
     OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v0::Add::evaluate");
-    return evaluate_add(inputs[0], inputs[1], outputs[0], get_autob());
+    return add::evaluate_add(inputs[0], inputs[1], outputs[0], get_autob());
 }
 
 // ------------------------------- v1 ------------------------------------------
@@ -140,5 +140,5 @@ shared_ptr<Node> op::v1::Add::clone_with_new_inputs(const OutputVector& new_args
 bool op::v1::Add::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
     OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v1::Add::evaluate");
-    return evaluate_add(inputs[0], inputs[1], outputs[0], get_autob());
+    return add::evaluate_add(inputs[0], inputs[1], outputs[0], get_autob());
 }

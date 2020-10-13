@@ -20,3 +20,7 @@ addIeTargetTest(
         LABELS
             CPU
 )
+
+ie_faster_build(${TARGET_NAME}
+    UNITY
+)

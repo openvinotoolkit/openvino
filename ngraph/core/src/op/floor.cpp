@@ -43,7 +43,7 @@ shared_ptr<Node> op::Floor::clone_with_new_inputs(const OutputVector& new_args) 
     return make_shared<Floor>(new_args.at(0));
 }
 
-namespace
+namespace floorop
 {
     // function used by TYPE_CASE
     template <element::Type_t ET>
@@ -100,5 +100,5 @@ namespace
 bool op::Floor::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
     OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::Floor::evaluate");
-    return evaluate_floor(inputs[0], outputs[0], shape_size(get_output_shape(0)));
+    return floorop::evaluate_floor(inputs[0], outputs[0], shape_size(get_output_shape(0)));
 }

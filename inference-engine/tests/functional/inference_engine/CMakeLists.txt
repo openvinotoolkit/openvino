@@ -44,6 +44,7 @@ addIeTargetTest(
 )
 
 ie_faster_build(${TARGET_NAME}
+    UNITY
     PCH PRIVATE "precomp.hpp"
 )
 

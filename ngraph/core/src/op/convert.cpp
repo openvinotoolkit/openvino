@@ -49,7 +49,7 @@ shared_ptr<Node> op::Convert::clone_with_new_inputs(const OutputVector& new_args
     return make_shared<Convert>(new_args.at(0), m_destination_type);
 }
 
-namespace
+namespace convert
 {
     template <element::Type_t INPUT_ET, element::Type_t OUTPUT_ET>
     bool evaluate(const HostTensorPtr& arg, const HostTensorPtr& out)
@@ -129,5 +129,5 @@ bool op::v0::Convert::evaluate(const HostTensorVector& output_values,
                                const HostTensorVector& input_values) const
 {
     OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v0::Convert::evaluate");
-    return evaluate_convert(input_values[0], output_values[0]);
+    return convert::evaluate_convert(input_values[0], output_values[0]);
 }

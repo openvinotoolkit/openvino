@@ -54,6 +54,13 @@ set (SRC
 disable_deprecated_warnings()
 
 add_library(ngraph_backend SHARED ${SRC})
+
+if(COMMAND ie_faster_build)
+    ie_faster_build(ngraph_backend
+        UNITY
+    )
+endif()
+
 target_compile_definitions(ngraph_backend
     PRIVATE
         SHARED_LIB_PREFIX="${CMAKE_SHARED_LIBRARY_PREFIX}"

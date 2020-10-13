@@ -45,7 +45,7 @@ shared_ptr<Node> op::Cosh::clone_with_new_inputs(const OutputVector& new_args) c
     return make_shared<Cosh>(new_args.at(0));
 }
 
-namespace
+namespace coshop
 {
     template <element::Type_t ET>
     inline bool evaluate(const HostTensorPtr& arg0, const HostTensorPtr& out, const size_t count)
@@ -85,5 +85,5 @@ namespace
 bool op::Cosh::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
     OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::Cosh::evaluate");
-    return evaluate_cosh(inputs[0], outputs[0], shape_size(get_output_shape(0)));
+    return coshop::evaluate_cosh(inputs[0], outputs[0], shape_size(get_output_shape(0)));
 }

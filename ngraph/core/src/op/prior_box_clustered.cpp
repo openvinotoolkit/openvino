@@ -106,7 +106,7 @@ bool op::PriorBoxClustered::visit_attributes(AttributeVisitor& visitor)
     return true;
 }
 
-namespace
+namespace prior_box_clustered
 {
     template <element::Type_t ET>
     bool evaluate(const HostTensorPtr& arg0,

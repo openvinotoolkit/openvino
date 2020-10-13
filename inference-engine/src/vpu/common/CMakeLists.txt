@@ -11,6 +11,10 @@ file(GLOB_RECURSE SOURCES *.cpp *.hpp *.h)
 function(add_common_target TARGET_NAME STATIC_IE)
     add_library(${TARGET_NAME} STATIC ${SOURCES})
 
+    ie_faster_build(${TARGET_NAME}
+        UNITY
+    )
+
     set_ie_threading_interface_for(${TARGET_NAME})
 
     if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")

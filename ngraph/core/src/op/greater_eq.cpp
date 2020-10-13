@@ -42,7 +42,7 @@ shared_ptr<Node> op::v0::GreaterEq::clone_with_new_inputs(const OutputVector& ne
     return make_shared<op::v0::GreaterEq>(new_args.at(0), new_args.at(1), this->get_autob());
 }
 
-namespace
+namespace greater_equalop
 {
     template <element::Type_t ET>
     bool evaluate(const HostTensorPtr& arg0,
@@ -92,7 +92,7 @@ bool op::v0::GreaterEq::evaluate(const HostTensorVector& outputs,
                                  const HostTensorVector& inputs) const
 {
     OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v0::GreaterEq::evaluate");
-    return evaluate_greater_equal(inputs[0], inputs[1], outputs[0], get_autob());
+    return greater_equalop::evaluate_greater_equal(inputs[0], inputs[1], outputs[0], get_autob());
 }
 
 //---------------------------------- v1 ----------------------------------------
@@ -117,5 +117,5 @@ bool op::v1::GreaterEqual::evaluate(const HostTensorVector& outputs,
                                     const HostTensorVector& inputs) const
 {
     OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v1::GreaterEqual::evaluate");
-    return evaluate_greater_equal(inputs[0], inputs[1], outputs[0], get_autob());
+    return greater_equalop::evaluate_greater_equal(inputs[0], inputs[1], outputs[0], get_autob());
 }

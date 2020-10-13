@@ -25,7 +25,7 @@ namespace ngraph
     {
         constexpr NodeTypeInfo NullNode::type_info;
 
-        std::shared_ptr<Node>
+        std::shared_ptr<ngraph::Node>
             NullNode::clone_with_new_inputs(const OutputVector& /* new_args */) const
         {
             return std::make_shared<NullNode>();

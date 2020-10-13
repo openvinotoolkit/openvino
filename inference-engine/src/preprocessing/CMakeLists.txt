@@ -128,6 +128,10 @@ add_library(${TARGET_NAME}_obj OBJECT
             ${LIBRARY_SRC}
             ${LIBRARY_HEADERS})
 
+ie_faster_build(${TARGET_NAME}_obj
+    UNITY
+)
+
 target_compile_definitions(${TARGET_NAME}_obj PRIVATE IMPLEMENT_PREPROC_PLUGIN
                                                       $<TARGET_PROPERTY:inference_engine,INTERFACE_COMPILE_DEFINITIONS>
                                                       $<TARGET_PROPERTY:fluid,INTERFACE_COMPILE_DEFINITIONS>)

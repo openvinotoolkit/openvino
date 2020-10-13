@@ -155,7 +155,7 @@ shared_ptr<Node> op::v1::MaxPool::get_default_value() const
     return op::Constant::create(get_element_type(), get_shape(), {0});
 }
 
-namespace
+namespace maxpool
 {
     template <element::Type_t ET>
     inline bool evaluate(const HostTensorPtr& arg,
@@ -230,11 +230,11 @@ bool op::v1::MaxPool::evaluate(const HostTensorVector& outputs,
                                                    true,
                                                    get_rounding_type() == op::RoundingType::CEIL);
 
-    return evaluate_maxpool(inputs[0],
-                            outputs[0],
-                            out_shape.get_shape(),
-                            get_kernel(),
-                            get_strides(),
-                            get_pads_begin(),
-                            get_pads_end());
+    return maxpool::evaluate_maxpool(inputs[0],
+                                     outputs[0],
+                                     out_shape.get_shape(),
+                                     get_kernel(),
+                                     get_strides(),
+                                     get_pads_begin(),
+                                     get_pads_end());
 }

@@ -41,7 +41,7 @@ NGRAPH_SUPPRESS_DEPRECATED_START
 using namespace std;
 using namespace ngraph;
 
-namespace
+namespace opset0_downgrade
 {
     template <typename OpV0, typename OpV1>
     shared_ptr<Node> op_cast_binary_elementwise_node(const shared_ptr<OpV1>& node)
@@ -767,12 +767,12 @@ namespace
         };
         return dispatch_map;
     }
-} // namespace
+} // namespace opset0_downgrade
 
 bool pass::Opset0Downgrade::run_on_node(shared_ptr<Node> node)
 {
     bool modified = false;
-    auto& dispatch_map = get_dispatch_map();
+    auto& dispatch_map = opset0_downgrade::get_dispatch_map();
     auto it = dispatch_map.find(node->get_type_info());
     if (it != dispatch_map.end())
     {
