@@ -110,8 +110,11 @@ KERNEL(convolution_bfyx_f16)(
     const int lid = get_sub_group_local_id();
     const int b = (uint)get_global_id(2);
 
-    //const int xy = get_global_id(0);
+#if CUSTOM_LWS0 == 8
     const int xy = get_group_id(0) * 8 + get_sub_group_id();
+#else
+    const int xy = get_global_id(0);
+#endif
     const int x = (xy % X_BLOCKS) * OUTPUT_X_BLOCK_SIZE;
     const int y = (xy / X_BLOCKS);
 
