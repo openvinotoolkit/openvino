@@ -27,10 +27,10 @@ class GatherND(Op):
     def __init__(self, graph: Graph, attrs: dict):
         mandatory_props = {
             'kind': 'op',
-            'type': __class__.op,
-            'op': __class__.op,
+            'type': self.op,
+            'op': self.op,
             'version': 'opset5',
-            'infer': __class__.infer,
+            'infer': self.infer,
             'in_ports_count': 2,
             'out_ports_count': 1,
         }

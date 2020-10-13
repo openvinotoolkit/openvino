@@ -132,6 +132,9 @@ inputs_inv3 = {'data_data': {'shape': int64_array([10, 40, 20, 10, 2]), 'value':
                'indices_data': {'shape': int64_array([10, 40, 4]), 'value': None}}
 
 class TestScatterNDUpdate(unittest.TestCase):
+    def setUp(self):
+        nodes_attributes['gathernd_node']['batch_dims'] = 0
+
     def test_partial_infer_gather_element(self):
         graph = build_graph(nodes_attributes, edges, inputs1)
         gathernd_node = Node(graph, 'gathernd_node')
@@ -174,7 +177,6 @@ class TestScatterNDUpdate(unittest.TestCase):
 
         self.assertTrue(np.array_equal(ref_output_shape, res_output_shape),
                         'values do not match expected: {} and given: {}'.format(ref_output_shape, res_output_shape))
-        nodes_attributes['gathernd_node']['batch_dims'] = 0
 
     def test_infer4(self):
         graph = build_graph(nodes_attributes, edges, inputs4)
@@ -209,7 +211,6 @@ class TestScatterNDUpdate(unittest.TestCase):
 
         self.assertTrue(np.array_equal(output6, res_output_value),
                         'values do not match expected: {} and given: {}'.format(output4, res_output_value))
-        nodes_attributes['gathernd_node']['batch_dims'] = 0
 
     def test_infer7(self):
         nodes_attributes['gathernd_node']['batch_dims'] = 2
@@ -222,7 +223,6 @@ class TestScatterNDUpdate(unittest.TestCase):
 
         self.assertTrue(np.array_equal(output7, res_output_value),
                         'values do not match expected: {} and given: {}'.format(output4, res_output_value))
-        nodes_attributes['gathernd_node']['batch_dims'] = 0
 
     def test_infer8(self):
         nodes_attributes['gathernd_node']['batch_dims'] = 2
@@ -235,7 +235,6 @@ class TestScatterNDUpdate(unittest.TestCase):
 
         self.assertTrue(np.array_equal(output8, res_output_value),
                         'values do not match expected: {} and given: {}'.format(output4, res_output_value))
-        nodes_attributes['gathernd_node']['batch_dims'] = 0
 
     def test_infer_invalid1(self):
         graph = build_graph(nodes_attributes, edges, inputs_inv1)
@@ -247,11 +246,9 @@ class TestScatterNDUpdate(unittest.TestCase):
         graph = build_graph(nodes_attributes, edges, inputs_inv2)
         gathernd_node = Node(graph, 'gathernd_node')
         self.assertRaises(AssertionError, GatherND.infer, gathernd_node)
-        nodes_attributes['gathernd_node']['batch_dims'] = 0
 
     def test_infer_invalid3(self):
         nodes_attributes['gathernd_node']['batch_dims'] = 2
         graph = build_graph(nodes_attributes, edges, inputs_inv3)
         gathernd_node = Node(graph, 'gathernd_node')
         self.assertRaises(AssertionError, GatherND.infer, gathernd_node)
-        nodes_attributes['gathernd_node']['batch_dims'] = 0
