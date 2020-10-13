@@ -8,10 +8,10 @@ import time
 import re
 import logging
 import requests
-from MSTeamsCommunicator import MSTeamsCommunicator
-from JenkinsWrapper import JenkinsWrapper
+from src.ms_teams_communicator import MSTeamsCommunicator
+from src.jenkins_wrapper import JenkinsWrapper
 from jenkins import NotFoundException
-from GitWrapper import GitWrapper, GitWrapperError
+from src.git_wrapper import GitWrapper, GitWrapperError
 import os
 import json
 
@@ -148,7 +148,6 @@ class Watchdog:
         self._current_prs[str(pr.number)] = self._get_pr_timestamps(pr, last_status)
         if self._should_ignore(pr) or self._updated_since_last_run(pr):
             log.info('Ignoring PR#{}'.format(pr.number))
-            log.info('Last status of PR#{}'.format(last_status))
 
             return
 
