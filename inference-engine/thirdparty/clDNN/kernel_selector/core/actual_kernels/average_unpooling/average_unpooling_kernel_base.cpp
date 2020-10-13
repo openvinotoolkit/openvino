@@ -42,9 +42,10 @@ AverageUnpoolingKernelBase::DispatchData AverageUnpoolingKernelBase::SetDefault(
 
     if (input.GetLayout() == DataLayout::bfyx || input.GetLayout() == DataLayout::byxf) {
         // Determine global work sizes.
-        dispatchData.gws =  { input.Batch().v * input.Feature().v,  // B, F
-                              Align(input.X().v, 32),               // X
-                              input.Y().v };                        // Y
+        dispatchData.gws =  { Align(input.X().v, 32),               // X
+                              input.Y().v,                          // Y
+                              input.Batch().v * input.Feature().v,  // B, F
+                            };
 
         dispatchData.lws = { 32, 1, 1 };
     } else {
