@@ -175,10 +175,12 @@ void pass::ConstantFolding::construct_constant_convert()
             return false;
 
         NGRAPH_CHECK(revalidate_and_ensure_static(convert_match));
+        auto const_node =
+            fold_constant_convert(constant_match, convert_match->get_output_element_type(0));
+        const_node->set_friendly_name(convert_match->get_friendly_name());
+        replace_node(convert_match, const_node);
+        copy_runtime_info_to_target_inputs(convert_match, const_node);
 
-        replace_node(
-            m.get_match_root(),
-            fold_constant_convert(constant_match, convert_match->get_output_element_type(0)));
         return true;
     };
 

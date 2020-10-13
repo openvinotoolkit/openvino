@@ -145,6 +145,12 @@ DECL_PASS(InsertConcatAligningFilter);
 DECL_PASS(ReorderConcatInputs);
 
 /**
+* @brief in cases that network output layer is connected to only one layer which is activation additional identity is inserted
+* so the operation is not fused with the activation allowing to get te results from said layer
+*/
+DECL_PASS(BreakFusingOfOutputLayers);
+
+/**
  * @brief insert identity at the output of LSTMCell which fixes cases where data is not propagated correctly through network
  * and LSTMCell returns all zeroes
  */

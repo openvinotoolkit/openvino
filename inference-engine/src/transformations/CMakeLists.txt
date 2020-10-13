@@ -23,6 +23,11 @@ source_group("include" FILES ${PUBLIC_HEADERS})
 
 add_library(${TARGET_NAME} SHARED ${LIBRARY_SRC} ${PUBLIC_HEADERS})
 
+ie_faster_build(${TARGET_NAME}
+    UNITY
+    PCH PRIVATE "src/precomp.hpp"
+)
+
 target_link_libraries(${TARGET_NAME} PUBLIC ${NGRAPH_LIBRARIES}
                                      PRIVATE openvino::itt ngraph::builder)
 

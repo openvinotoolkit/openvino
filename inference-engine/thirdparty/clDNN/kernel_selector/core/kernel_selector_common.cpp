@@ -429,6 +429,30 @@ std::string toString(ResampleType type) {
         case ResampleType::NEAREST_NEIGHBOR:  return "SAMPLE_TYPE_NEAREST";
         case ResampleType::BILINEAR_INTERP: return "SAMPLE_TYPE_INTERP";
         case ResampleType::CAFFE_BILINEAR_INTERP: return "SAMPLE_TYPE_CAFFE_INTERP";
+        case ResampleType::CUBIC: return "SAMPLE_TYPE_CUBIC";
+        case ResampleType::LINEAR_ONNX: return "SAMPLE_TYPE_LINEAR_ONNX";
+        default: return "";
+    }
+}
+
+std::string toString(CoordinateTransformationMode mode) {
+    switch (mode) {
+        case CoordinateTransformationMode::HALF_PIXEL:  return "COORD_TRANS_MODE_HALF_PIXEL";
+        case CoordinateTransformationMode::PYTORCH_HALF_PIXEL: return "COORD_TRANS_MODE_PYTORCH_HALF_PIXEL";
+        case CoordinateTransformationMode::ASYMMETRIC: return "COORD_TRANS_MODE_ASYMMETRIC";
+        case CoordinateTransformationMode::TF_HALF_PIXEL_FOR_NN: return "COORD_TRANS_MODE_TF_HALF_PIXEL_FOR_NN";
+        case CoordinateTransformationMode::ALIGN_CORNERS: return "COORD_TRANS_MODE_ALIGN_CORNERS";
+        default: return "";
+    }
+}
+
+std::string toString(NearestMode mode) {
+    switch (mode) {
+        case NearestMode::ROUND_PREFER_FLOOR:  return "NEAREST_ROUND_PREFER_FLOOR";
+        case NearestMode::ROUND_PREFER_CEIL: return "NEAREST_ROUND_PREFER_CEIL";
+        case NearestMode::FLOOR: return "NEAREST_FLOOR";
+        case NearestMode::CEIL: return "NEAREST_CEIL";
+        case NearestMode::SIMPLE: return "NEAREST_SIMPLE";
         default: return "";
     }
 }

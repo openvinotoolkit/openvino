@@ -104,7 +104,6 @@ add_library(${TARGET_NAME}_plugin_api INTERFACE)
 target_include_directories(${TARGET_NAME}_plugin_api INTERFACE
     "${IE_MAIN_SOURCE_DIR}/src/plugin_api"
     "${IE_MAIN_SOURCE_DIR}/src/legacy_api/include"
-    "${IE_MAIN_SOURCE_DIR}/src/legacy_api/include/legacy" # for compatibility
     $<TARGET_PROPERTY:${TARGET_NAME}_preproc,INTERFACE_INCLUDE_DIRECTORIES>
     ${PUBLIC_HEADERS_DIR})
 
@@ -122,6 +121,11 @@ add_cpplint_target(${TARGET_NAME}_plugin_api_cpplint FOR_SOURCES ${plugin_api_sr
 add_library(${TARGET_NAME}_common_obj OBJECT
             ${IE_BASE_SOURCE_FILES})
 
+ie_faster_build(${TARGET_NAME}_common_obj
+    UNITY
+    PCH PRIVATE "precomp.hpp"
+)
+
 target_compile_definitions(${TARGET_NAME}_common_obj PRIVATE IMPLEMENT_INFERENCE_ENGINE_API)
 target_include_directories(${TARGET_NAME}_common_obj PRIVATE
     "${CMAKE_CURRENT_SOURCE_DIR}"
@@ -138,6 +142,10 @@ add_library(${TARGET_NAME}_obj OBJECT
             ${LIBRARY_SRC}
             ${LIBRARY_HEADERS}
             ${PUBLIC_HEADERS})
+
+ie_faster_build(${TARGET_NAME}_obj
+    UNITY
+)
 
 target_compile_definitions(${TARGET_NAME}_obj PRIVATE IMPLEMENT_INFERENCE_ENGINE_API)
 
@@ -232,7 +240,7 @@ ie_developer_export_targets(${TARGET_NAME} ${TARGET_NAME}_plugin_api xbyak)
 
 list(APPEND core_components ngraph)
 
-if(THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO")
+if((THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO") AND TBBROOT MATCHES ${TEMP})
     ie_cpack_add_component(tbb REQUIRED)
     list(APPEND core_components tbb)
 

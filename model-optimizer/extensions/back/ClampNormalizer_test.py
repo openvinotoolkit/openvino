@@ -73,7 +73,7 @@ class AttributedClampNormalizerTests(unittest.TestCase):
         (flag, resp) = compare_graphs(graph, ref_graph, 'result')
         self.assertTrue(flag, resp)
 
-    def test_no_2nd_input(self):
+    def test_no_max_input(self):
         nodes = {
             **regular_op_with_shaped_data('placeholder', [1, 3, 20, 20], {'type': 'Parameter'}),
             **regular_op_with_shaped_data('a_clamp', [1, 3, 20, 20], {'type': None, 'op': 'Clamp'}),
@@ -95,7 +95,7 @@ class AttributedClampNormalizerTests(unittest.TestCase):
         (flag, resp) = compare_graphs(graph, ref_graph, 'result')
         self.assertTrue(flag, resp)
 
-    def test_no_1st_input(self):
+    def test_no_min_input(self):
         nodes = {
             **regular_op_with_shaped_data('placeholder', [1, 3, 20, 20], {'type': 'Parameter'}),
             **regular_op_with_shaped_data('a_clamp', [1, 3, 20, 20], {'type': None, 'op': 'Clamp'}),
