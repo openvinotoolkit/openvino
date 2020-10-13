@@ -109,3 +109,5 @@ ie_option(ENABLE_CLANG_FORMAT "Enable clang-format checks during the build" ON)
 set(IE_EXTRA_PLUGINS "" CACHE STRING "Extra paths for plugins to include into DLDT build tree")
 
 ie_dependent_option(ENABLE_TBB_RELEASE_ONLY "Only Release TBB libraries are linked to the Inference Engine binaries" ON "THREADING MATCHES TBB;LINUX" OFF)
+
+ie_option (USE_SYSTEM_PUGIXML "use the system copy of pugixml" OFF)
