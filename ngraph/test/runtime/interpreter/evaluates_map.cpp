@@ -16,12 +16,10 @@
 
 #include "evaluates_map.hpp"
 #include <interpreter/reference/mod.hpp>
-#include <ngraph/runtime/reference/any.hpp>
+#include <ngraph/runtime/reference/abs.hpp>
 #include <ngraph/runtime/reference/batch_norm.hpp>
 #include <ngraph/runtime/reference/ceiling.hpp>
 #include <ngraph/runtime/reference/convert.hpp>
-#include <ngraph/runtime/reference/dequantize.hpp>
-#include <ngraph/runtime/reference/dot.hpp>
 #include <ngraph/runtime/reference/extract_image_patches.hpp>
 #include <ngraph/runtime/reference/gather_nd.hpp>
 #include <ngraph/runtime/reference/gru_cell.hpp>
@@ -29,16 +27,13 @@
 #include <ngraph/runtime/reference/one_hot.hpp>
 #include <ngraph/runtime/reference/pad.hpp>
 #include <ngraph/runtime/reference/prior_box.hpp>
-#include <ngraph/runtime/reference/quantize.hpp>
-#include <ngraph/runtime/reference/replace_slice.hpp>
 #include <ngraph/runtime/reference/reverse_sequence.hpp>
 #include <ngraph/runtime/reference/rnn_cell.hpp>
 #include <ngraph/runtime/reference/select.hpp>
 #include <ngraph/runtime/reference/sequences.hpp>
+#include <ngraph/runtime/reference/sign.hpp>
 #include "ngraph/ops.hpp"
 #include "ngraph/runtime/reference/avg_pool.hpp"
-#include "ngraph/runtime/reference/batch_norm.hpp"
-#include "ngraph/runtime/reference/batch_norm.hpp"
 #include "ngraph/runtime/reference/convolution.hpp"
 #include "ngraph/runtime/reference/ctc_greedy_decoder.hpp"
 #include "ngraph/runtime/reference/ctc_loss.hpp"
@@ -52,9 +47,7 @@
 #include "ngraph/runtime/reference/lrn.hpp"
 #include "ngraph/runtime/reference/mvn.hpp"
 #include "ngraph/runtime/reference/normalize_l2.hpp"
-#include "ngraph/runtime/reference/reverse_sequence.hpp"
 #include "ngraph/runtime/reference/scatter_nd_update.hpp"
-#include "ngraph/runtime/reference/sqrt.hpp"
 #include "ngraph/runtime/reference/squared_difference.hpp"
 #include "reference/elu.hpp"
 #include "reference/gelu.hpp"
@@ -472,6 +465,42 @@ namespace
         runtime::reference::gelu<T>(input[0]->get_data_ptr<T>(),
                                     outputs[0]->get_data_ptr<T>(),
                                     shape_size(input[0]->get_shape()));
+        return true;
+    }
+
+    template <element::Type_t ET>
+    bool evaluate(const shared_ptr<op::v0::Relu>& op,
+                  const HostTensorVector& outputs,
+                  const HostTensorVector& input)
+    {
+        using T = typename element_type_traits<ET>::value_type;
+        runtime::reference::relu<T>(input[0]->get_data_ptr<T>(),
+                                    outputs[0]->get_data_ptr<T>(),
+                                    shape_size(input[0]->get_shape()));
+        return true;
+    }
+
+    template <element::Type_t ET>
+    bool evaluate(const shared_ptr<op::v0::Sign>& op,
+                  const HostTensorVector& outputs,
+                  const HostTensorVector& input)
+    {
+        using T = typename element_type_traits<ET>::value_type;
+        runtime::reference::sign<T>(input[0]->get_data_ptr<T>(),
+                                    outputs[0]->get_data_ptr<T>(),
+                                    shape_size(input[0]->get_shape()));
+        return true;
+    }
+
+    template <element::Type_t ET>
+    bool evaluate(const shared_ptr<op::v0::Abs>& op,
+                  const HostTensorVector& outputs,
+                  const HostTensorVector& input)
+    {
+        using T = typename element_type_traits<ET>::value_type;
+        runtime::reference::abs<T>(input[0]->get_data_ptr<T>(),
+                                   outputs[0]->get_data_ptr<T>(),
+                                   shape_size(input[0]->get_shape()));
         return true;
     }
 
