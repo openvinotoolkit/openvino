@@ -460,6 +460,7 @@ std::shared_ptr<ngraph::Node> V10Parser::createNode(const std::vector<ngraph::Ou
         std::make_shared<LayerCreator<ngraph::op::RegionYolo>>("RegionYolo"),
         std::make_shared<LayerCreator<ngraph::op::Result>>("Result"),
         std::make_shared<LayerCreator<ngraph::op::ROIPooling>>("ROIPooling"),
+        std::make_shared<LayerCreator<ngraph::op::v5::Round>>("Round"),
         std::make_shared<LayerCreator<ngraph::op::PSROIPooling>>("PSROIPooling"),
         std::make_shared<LayerCreator<ngraph::op::ShapeOf>>("ShapeOf"),
         std::make_shared<LayerCreator<ngraph::op::v0::Selu>>("Selu"),
