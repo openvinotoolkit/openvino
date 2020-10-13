@@ -15,6 +15,7 @@
 //*****************************************************************************
 
 #include <cmath>
+#include <numeric>
 #include <stdio.h>
 
 #include "ngraph/check.hpp"
