@@ -36,15 +36,15 @@
 #include <transformations/common_optimizations/fq_mul_fusion.hpp>
 #include <transformations/common_optimizations/fq_reshape_fusion.hpp>
 #include <transformations/common_optimizations/pull_transpose_through_fq.hpp>
-#include <transformations/common_optimizations/convert_negative.hpp>
-#include <transformations/common_optimizations/convert_broadcast_to_tiles.hpp>
-#include <transformations/common_optimizations/convert_mod.hpp>
-#include <transformations/common_optimizations/convert_divide.hpp>
-#include <transformations/common_optimizations/convert_minimum_to_power_and_max.hpp>
-#include <transformations/common_optimizations/convert_subtract.hpp>
+#include <transformations/op_conversions/convert_negative.hpp>
+#include <transformations/op_conversions/convert_broadcast_to_tiles.hpp>
+#include <transformations/op_conversions/convert_mod.hpp>
+#include <transformations/op_conversions/convert_divide.hpp>
+#include <transformations/op_conversions/convert_minimum_to_power_and_max.hpp>
+#include <transformations/op_conversions/convert_subtract.hpp>
 
-#include <transformations/internal/conv_bias_fusion.hpp>
-#include <transformations/internal/convert_convolutions.hpp>
+#include <transformations/common_optimizations/conv_bias_fusion.hpp>
+#include <transformations/op_conversions/convert_convolutions.hpp>
 
 #include "ie_legacy_itt.hpp"
 

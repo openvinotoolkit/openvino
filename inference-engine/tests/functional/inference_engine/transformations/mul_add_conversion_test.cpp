@@ -17,7 +17,7 @@
 #include <ngraph/pass/constant_folding.hpp>
 #include <transformations/utils/utils.hpp>
 #include <transformations/init_node_info.hpp>
-#include <transformations/internal/conv_bias_fusion.hpp>
+#include <transformations/common_optimizations/conv_bias_fusion.hpp>
 #include <ngraph/pass/visualize_tree.hpp>
 #include <legacy/transformations/convert_opset1_to_legacy/convert_mul_add_to_scaleshift_or_power.hpp>
 #include <legacy/transformations/convert_opset1_to_legacy/convert_mul_or_add_finally.hpp>

@@ -27,24 +27,26 @@
 #include <legacy/transformations/convert_opset1_to_legacy/reshape_fully_connected.hpp>
 #include <legacy/ngraph_ops/fully_connected.hpp>
 
+#include <transformations/opset_conversions/convert_opset3_to_opset2.hpp>
+#include <transformations/opset_conversions/convert_opset2_to_opset1.hpp>
+
 #include <transformations/common_optimizations/common_optimizations.hpp>
-#include <transformations/common_optimizations/convert_depth_to_space.hpp>
-#include <transformations/common_optimizations/convert_space_to_depth.hpp>
-#include <transformations/common_optimizations/convert_gelu.hpp>
 #include <transformations/common_optimizations/depth_to_space_fusion.hpp>
-#include <transformations/common_optimizations/hswish_decomposition.hpp>
-#include <transformations/common_optimizations/reduce_l1_decomposition.hpp>
-#include <transformations/common_optimizations/reduce_l2_decomposition.hpp>
-#include <transformations/common_optimizations/convert_pad_to_group_conv.hpp>
-#include <transformations/convert_opset3_to_opset2/convert_extract_image_patches_to_reorg_yolo.hpp>
-#include <transformations/convert_opset3_to_opset2/softplus_decomposition.hpp>
-#include <transformations/convert_opset3_to_opset2/convert_opset3_to_opset2.hpp>
-#include <transformations/convert_opset2_to_opset1/convert_space_to_batch.hpp>
-#include <transformations/convert_opset2_to_opset1/convert_batch_to_space.hpp>
-#include <transformations/convert_opset2_to_opset1/convert_opset2_to_opset1.hpp>
+#include <transformations/op_conversions/convert_depth_to_space.hpp>
+#include <transformations/op_conversions/convert_space_to_depth.hpp>
+#include <transformations/op_conversions/convert_gelu.hpp>
+#include <transformations/op_conversions/hswish_decomposition.hpp>
+#include <transformations/op_conversions/reduce_l1_decomposition.hpp>
+#include <transformations/op_conversions/reduce_l2_decomposition.hpp>
+#include <transformations/op_conversions/convert_pad_to_group_conv.hpp>
+#include <transformations/op_conversions/convert_extract_image_patches_to_reorg_yolo.hpp>
+#include <transformations/op_conversions/softplus_decomposition.hpp>
+#include <transformations/op_conversions/convert_space_to_batch.hpp>
+#include <transformations/op_conversions/convert_batch_to_space.hpp>
 #include <transformations/convert_precision.hpp>
 #include <transformations/init_node_info.hpp>
 #include <transformations/rt_info/fused_names_attribute.hpp>
+
 #include <ngraph/opsets/opset2.hpp>
 #include <ngraph/opsets/opset3.hpp>
 #include <ngraph/opsets/opset4.hpp>

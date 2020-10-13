@@ -13,8 +13,8 @@
 #include <ngraph/function.hpp>
 #include <ngraph/opsets/opset3.hpp>
 #include <ngraph/pass/manager.hpp>
-#include <transformations/convert_opset2_to_opset1/convert_batch_to_space.hpp>
-#include <transformations/convert_opset2_to_opset1/convert_space_to_batch.hpp>
+#include <transformations/op_conversions/convert_batch_to_space.hpp>
+#include <transformations/op_conversions/convert_space_to_batch.hpp>
 #include <transformations/utils/utils.hpp>
 #include <transformations/init_node_info.hpp>
 

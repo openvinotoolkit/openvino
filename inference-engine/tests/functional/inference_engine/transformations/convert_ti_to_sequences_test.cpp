@@ -13,7 +13,7 @@
 #include <ngraph/function.hpp>
 #include <ngraph/opsets/opset5.hpp>
 #include <legacy/ngraph_ops/fully_connected.hpp>
-#include <transformations/tensor_iterator_transformations/convert_ti_to_sequences.h>
+#include <transformations/op_conversions/convert_ti_to_sequences.hpp>
 #include <transformations/utils/utils.hpp>
 #include <transformations/init_node_info.hpp>
 
