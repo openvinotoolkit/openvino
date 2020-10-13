@@ -107,11 +107,12 @@ protected:
     virtual bool get_depthwise_sep_opt() const { return false; }
 
     event_impl::ptr aggregate_events(const std::vector<event_impl::ptr>& events,
-                                     uint32_t net_id) const {
+                                     uint32_t net_id,
+                                     bool group = false) const {
         if (events.size() == 1)
             return events[0];
 
-        if (events.size() > 1)
+        if (group)
             return _outer.get_program().get_engine().get_context()->group_events(net_id, events);
 
         return events_waiter(_outer.get_program().get_engine().get_context()).run(net_id, events);
@@ -160,7 +161,6 @@ protected:
         }
 
         std::vector<event_impl::ptr> tmp_events(events);
-        std::vector<event_impl::ptr> all_events;
 
         // TODO - split should be handle in kernel selector by providing multiple kernels.
         auto split = get_split();
@@ -181,16 +181,13 @@ protected:
 
                 auto event = _kernels[k].run(net_id, _kernel_data.kernels[k], tmp_events);
                 new_events.push_back(event);
-                all_events.push_back(event);
             }
 
             tmp_events = new_events;
         }
 
-        if ((all_events.size() == 0) && (tmp_events.size() > 0))
-            return aggregate_events(tmp_events, net_id);
-
-        return aggregate_events(all_events, net_id);
+        bool group_events = split > 1 ? true : false;
+        return aggregate_events(tmp_events, net_id, group_events);
     }
 };
 
