@@ -47,9 +47,6 @@ public:
 
     std::vector<InferenceEngine::IVariableStateInternal::Ptr> QueryState() override;
 
-protected:
-    void ResetCancellationRequest() override;
-
 private:
     void PushInputData();
 

@@ -54,14 +54,6 @@ public:
 
     void
     GetPerformanceCounts(std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> &perfMap) const override;
-
-    InferenceEngine::StatusCode Cancel() override {
-        return InferenceEngine::NOT_IMPLEMENTED;
-    }
-
-protected:
-    void ResetCancellationRequest() override {
-    }
 };
 
 }  // namespace MyriadPlugin

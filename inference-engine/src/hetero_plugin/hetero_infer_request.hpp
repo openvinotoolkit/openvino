@@ -44,18 +44,10 @@ public:
 
     void GetPerformanceCounts(std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> &perfMap) const override;
 
-    InferenceEngine::StatusCode Cancel() override {
-        return InferenceEngine::NOT_IMPLEMENTED;
-    }
-
     void updateInOutIfNeeded();
 
     SubRequestsList _inferRequests;
     std::map<std::string, InferenceEngine::Blob::Ptr>   _blobs;
-
-protected:
-    void ResetCancellationRequest() {
-    }
 };
 
 }  // namespace HeteroPlugin

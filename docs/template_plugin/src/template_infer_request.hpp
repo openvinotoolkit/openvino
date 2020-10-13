@@ -48,9 +48,6 @@ public:
     void waitPipeline();
     void inferPostprocess();
 
-protected:
-    void ResetCancellationRequest() override;
-
 private:
     void allocateDeviceBuffers();
     void allocateBlobs();

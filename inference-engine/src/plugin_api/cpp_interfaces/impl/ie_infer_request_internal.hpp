@@ -59,12 +59,13 @@ public:
      * @brief Default common implementation for all plugins with checking input and output blobs before inference
      */
     void Infer() override {
-        ResetCancellationRequest();
         checkBlobs();
         InferImpl();
     }
 
-    virtual void ResetCancellationRequest() = 0;
+    StatusCode Cancel() override {
+        return InferenceEngine::NOT_IMPLEMENTED;
+    }
 
     /**
      * @brief Given optional implementation of setting blob to avoid need for it to be implemented by plugin
