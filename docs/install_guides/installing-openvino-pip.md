@@ -25,12 +25,35 @@ This guide provides installation steps for the IntelÂ® distribution of OpenVINOâ
 3. Add PATH to environment variables.
  - Ubuntu* 18.04 and macOS*:
    ```sh
-   export LD_LIBRARY_PATH=<python_dir>/lib:${LD_LIBRARY_PATH}
+   export LD_LIBRARY_PATH=<library_dir>:${LD_LIBRARY_PATH}
    ```
  - Windows* 10:
     ```sh
-   set PATH=<python_dir>/Library/bin;%PATH%
+   set PATH=<library_dir>;%PATH%
    ```
+  How to find library_dir:
+ - Ubuntu* 18.04 and macOS*:
+   - Standart user:
+     ```sh
+     echo $(python3 -m site --user-base)/lib
+     ```
+   - root/sudo:
+     ```sh
+     /usr/local/lib
+     ```
+   - venv/custom install python:
+     ```sh
+     echo $(which python3)/../../lib
+     ```
+ - Windows* 10:
+   - Standart python:
+     ```sh
+      python -c "import os, sys; print((os.path.dirname(sys.executable))+'\Library\\bin')"
+     ```
+   - venv:
+     ```sh
+      python -c "import os, sys; print((os.path.dirname(sys.executable))+'\..\Library\\bin')"
+     ```
 4. Verify that the package is installed:
    ```sh
    python3 -c "import openvino"
