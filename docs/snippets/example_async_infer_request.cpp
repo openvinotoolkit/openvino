@@ -10,13 +10,13 @@ using namespace InferenceEngine;
 
 class AcceleratorSyncRequest : public InferRequestInternal {
 public:
-	using Ptr = std::shared_ptr<AcceleratorSyncRequest>;
+    using Ptr = std::shared_ptr<AcceleratorSyncRequest>;
 
-	void Preprocess();
-	void WriteToDevice();
-	void RunOnDevice();
-	void ReadFromDevice();
-	void PostProcess();
+    void Preprocess();
+    void WriteToDevice();
+    void RunOnDevice();
+    void ReadFromDevice();
+    void PostProcess();
 };
 
 // ! [async_infer_request:define_pipeline]
