@@ -1081,4 +1081,47 @@ TEST(CNNNGraphImplTests, SaveOriginalResultNameForMultiOutputOp) {
         ASSERT_NE(outputs.find("text_features"), outputs.end());
     }
 }
+TEST(CNNNGraphImplTests, multipleResultsFromDisjointSubgraphs) {
+    std::shared_ptr<ngraph::Function> ngraph;
+    {
+        auto paramNode1 = std::make_shared<ngraph::op::Parameter>(
+            ngraph::element::Type_t::f32, ngraph::Shape(std::vector<size_t>{{1, 1, 512, 256}}));
+        paramNode1->set_friendly_name("Parameter1");
+        auto paramNode2 = std::make_shared<ngraph::op::Parameter>(
+            ngraph::element::Type_t::f32, ngraph::Shape(std::vector<size_t>{{1, 1, 256, 512}}));
+        paramNode2->set_friendly_name("Parameter2");
+
+        std::shared_ptr<ngraph::Node> add1ConstantNode = std::make_shared<ngraph::op::Constant>(
+            ngraph::element::Type_t::f32, ngraph::Shape(std::vector<size_t>{{1, 1, 1, 1}}),
+            std::vector<float>{-0.0883883});
+        add1ConstantNode->set_friendly_name("Add1Const");
+        std::shared_ptr<ngraph::Node> add1Node = std::make_shared<ngraph::op::v1::Add>(
+            add1ConstantNode->output(0), paramNode1->output(0));
+
+        std::shared_ptr<ngraph::Node> add2ConstantNode = std::make_shared<ngraph::op::Constant>(
+            ngraph::element::Type_t::f32, ngraph::Shape(std::vector<size_t>{{1, 1, 1, 1}}),
+            std::vector<float>{-0.0883883});
+        add2ConstantNode->set_friendly_name("Add2Const");
+        std::shared_ptr<ngraph::Node> add2Node = std::make_shared<ngraph::op::v1::Add>(
+            add2ConstantNode->output(0), paramNode2->output(0));
+
+        auto result1 = std::make_shared<ngraph::op::Result>(add1Node->output(0));
+        auto result2 = std::make_shared<ngraph::op::Result>(add2Node->output(0));
+        ngraph::ParameterVector params = {paramNode1, paramNode2};
+        ngraph::ResultVector results = {result1, result2};
+
+        ngraph = std::make_shared<ngraph::Function>(results, params, "Func1");
+    }
+
+    CNNNetwork cnnNetwork(ngraph);
+    try {
+        InferenceEngine::Core ie;
+        ExecutableNetwork exe_network = ie.LoadNetwork(cnnNetwork, "CPU");
+        auto outputs = exe_network.GetOutputsInfo();
+        ASSERT_EQ(outputs.size(), 2);
+    } catch (const std::exception & ex) {
+        std::cerr << ex.what() << std::endl;
+        ASSERT_EQ(1, 2);
+    }
+}
 IE_SUPPRESS_DEPRECATED_END
