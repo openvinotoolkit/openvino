@@ -85,6 +85,7 @@ def run_timetest(args: dict, log=None):
         # Read raw statistics
         with open(tmp_stats_path, "r") as file:
             raw_data = yaml.safe_load(file)
+        log.debug("Raw statistics after run of executable #{}: {}".format(run_iter, raw_data))
 
         # Combine statistics from several runs
         stats = dict((step_name, stats.get(step_name, []) + [duration])
@@ -92,6 +93,7 @@ def run_timetest(args: dict, log=None):
 
     # Aggregate results
     aggregated_stats = aggregate_stats(stats)
+    log.debug("Aggregated statistics after full run: {}".format(aggregated_stats))
 
     return 0, aggregated_stats
 
