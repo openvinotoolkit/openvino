@@ -91,6 +91,7 @@ namespace
                 {"opset2", OpsetFunction(ngraph::get_opset2)},
                 {"opset3", OpsetFunction(ngraph::get_opset3)},
                 {"opset4", OpsetFunction(ngraph::get_opset4)},
+                {"opset5", OpsetFunction(ngraph::get_opset5)},
             };
 
             auto it = s_opsets.find(opset_ver);
