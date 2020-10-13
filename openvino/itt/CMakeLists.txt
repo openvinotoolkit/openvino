@@ -29,7 +29,7 @@ if(ENABLE_PROFILING_ITT)
     else()
         include(ExternalProject)
         set(ITTAPI_BINARY_DIR  ${CMAKE_CURRENT_BINARY_DIR}/ittapi/build)
-        set(ITTNOTIFY_LIBRARY  ${ITTAPI_BINARY_DIR}/bin/${CMAKE_FIND_LIBRARY_PREFIXES}ittnotify${CMAKE_STATIC_LIBRARY_SUFFIX})
+        set(ITTNOTIFY_LIBRARY  ${ITTAPI_BINARY_DIR}/bin/${CMAKE_STATIC_LIBRARY_PREFIX}ittnotify${CMAKE_STATIC_LIBRARY_SUFFIX})
         ExternalProject_Add(
             ittapi_external
             GIT_REPOSITORY https://github.com/intel/ittapi.git
