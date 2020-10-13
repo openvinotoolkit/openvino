@@ -398,29 +398,29 @@ CNNNetworkNGraphImpl::reshape(const std::map<std::string, std::vector<size_t>>& 
     return OK;
 }
 
-StatusCode CNNNetworkNGraphImpl::serialize(const std::string &xmlPath,
-                                           const std::string &binPath,
-                                           ResponseDesc *resp) const noexcept {
-  try {
-    if (auto f = getFunction()) {
-      Serialization::SerializeV10(xmlPath, binPath, *f);
-    } else {
+StatusCode CNNNetworkNGraphImpl::serialize(const std::string& xmlPath,
+                                           const std::string& binPath,
+                                           ResponseDesc* resp) const noexcept {
+    try {
+        if (auto f = getFunction()) {
+            Serialization::SerializeV10(xmlPath, binPath, *f);
+        } else {
 #ifdef ENABLE_V7_SERIALIZE
-      auto network = std::make_shared<details::CNNNetworkImpl>(*this);
-      return network->serialize(xmlPath, binPath, resp);
+            auto network = std::make_shared<details::CNNNetworkImpl>(*this);
+            return network->serialize(xmlPath, binPath, resp);
 #else
-      return DescriptionBuffer(NOT_IMPLEMENTED, resp)
-             << "The serialization of legacy IR is not implemented";
+            return DescriptionBuffer(NOT_IMPLEMENTED, resp)
+                   << "The serialization of legacy IR is not implemented";
 #endif
+        }
+    } catch (const InferenceEngineException& e) {
+        return DescriptionBuffer(GENERAL_ERROR, resp) << e.what();
+    } catch (const std::exception& e) {
+        return DescriptionBuffer(UNEXPECTED, resp) << e.what();
+    } catch (...) {
+        return DescriptionBuffer(UNEXPECTED, resp);
     }
-  } catch (const InferenceEngineException &e) {
-    return DescriptionBuffer(GENERAL_ERROR, resp) << e.what();
-  } catch (const std::exception &e) {
-    return DescriptionBuffer(UNEXPECTED, resp) << e.what();
-  } catch (...) {
-    return DescriptionBuffer(UNEXPECTED, resp);
-  }
-  return OK;
+    return OK;
 }
 
 StatusCode CNNNetworkNGraphImpl::setBatchSize(size_t size, ResponseDesc* responseDesc) noexcept {
