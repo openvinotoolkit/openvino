@@ -44,19 +44,21 @@
 
 * **1**: `data` - input tensor of any floating point type and arbitrary shape. Required.
 
-* **2**: `axes` - specifies indices of dimensions in `data` that define normalization slices. Required.
+* **2**: `axes` - specifies indices of dimensions in `data` that define normalization slices. There are two sets of values supported: axes = {1} (that corresponds to across channel mode) and axes = {2, 3, ..., len(data.shape) - 1} (corresponds to within channel mode). Required.
 
 **Outputs**
 
 * **1**: Output tensor of the same shape and type as the `data` input tensor.
 
-**Detailed description**: [Reference](http://papers.nips.cc/paper/4824-imagenet-classification-with-deep-convolutional-neural-networks.pdf) chapter 3.3.
+**Detailed description**:
+Local response normalization in OpenVino is based on Caffe's variation ([Caffe LRN](http://caffe.berkeleyvision.org/tutorial/layers/lrn.html)) of original definition ([Reference](http://papers.nips.cc/paper/4824-imagenet-classification-with-deep-convolutional-neural-networks.pdf) chapter 3.3).
 
 Here is an example for 4D `data` input tensor and `axes` = `[1]`:
 
     sqr_sum[a, b, c, d] =
-        sum(input[a, b - local_size : b + local_size + 1, c, d] ** 2)
-    output = input / (bias + alpha * sqr_sum) ** beta
+        sum(input[a, max(0, b - size / 2) : min(input.shape[1], b + size / 2 + 1), c, d] ** 2)
+    output = input / ((bias + (alpha / (size ** len(axes))) * sqr_sum) ** beta)
+
 
 **Example**
 
