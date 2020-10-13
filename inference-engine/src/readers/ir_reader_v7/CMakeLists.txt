@@ -35,6 +35,8 @@ target_include_directories(${TARGET_NAME} PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/"
 target_link_libraries(${TARGET_NAME} PRIVATE inference_engine_reader_api inference_engine_plugin_api
                                              inference_engine pugixml openvino::itt)
 
+ie_add_api_validator_post_build_step(TARGET ${TARGET_NAME})
+
 # code style
 
 add_cpplint_target(${TARGET_NAME}_cpplint FOR_TARGETS ${TARGET_NAME})

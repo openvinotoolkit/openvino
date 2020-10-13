@@ -26,6 +26,8 @@ target_compile_definitions(${TARGET_NAME} PRIVATE IMPLEMENT_INFERENCE_ENGINE_PLU
 
 target_link_libraries(${TARGET_NAME} PRIVATE inference_engine_reader_api onnx_importer inference_engine)
 
+ie_add_api_validator_post_build_step(TARGET ${TARGET_NAME})
+
 # code style
 
 add_cpplint_target(${TARGET_NAME}_cpplint FOR_TARGETS ${TARGET_NAME})

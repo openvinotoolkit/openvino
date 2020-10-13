@@ -24,3 +24,5 @@ ie_add_plugin(NAME ${TARGET_NAME}
 target_link_libraries(${TARGET_NAME} PRIVATE inference_engine)
 
 set_ie_threading_interface_for(${TARGET_NAME})
+
+ie_add_api_validator_post_build_step(TARGET ${TARGET_NAME})

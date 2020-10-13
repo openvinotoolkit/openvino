@@ -58,6 +58,8 @@ target_link_libraries(${TARGET_NAME} PRIVATE ${CMAKE_DL_LIBS} ${NGRAPH_LIBRARIES
 
 add_cpplint_target(${TARGET_NAME}_cpplint FOR_TARGETS ${TARGET_NAME})
 
+ie_add_api_validator_post_build_step(TARGET ${TARGET_NAME})
+
 # export targets
 
 export(TARGETS ${TARGET_NAME} NAMESPACE IE:: APPEND FILE "${CMAKE_BINARY_DIR}/targets.cmake")
