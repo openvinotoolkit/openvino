@@ -12,6 +12,10 @@ ie_add_plugin(NAME ${TARGET_NAME}
               SOURCES ${SOURCES} ${HEADERS}
               VERSION_DEFINES_FOR hetero_plugin.cpp)
 
+ie_faster_build(${TARGET_NAME}
+    UNITY
+)
+
 target_link_libraries(${TARGET_NAME} PRIVATE inference_engine ade pugixml ${NGRAPH_LIBRARIES} inference_engine_transformations)
 
 set_target_properties(${TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION ${ENABLE_LTO})
