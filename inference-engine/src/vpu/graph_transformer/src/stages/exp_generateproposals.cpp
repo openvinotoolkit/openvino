@@ -132,10 +132,26 @@ void FrontEnd::parseExpGenerateProposals(
 
     stage->attrs().set("params", params);
 
-    const int numProposals = sizeof(uint8_t) * 2 * inputScores->desc().dim(Dim::H) * inputScores->desc().dim(Dim::W) * inputScores->desc().dim(Dim::C);
-    const int sizeAuxBuff = sizeof(uint8_t) * params.pre_nms_topn;
-    const int sizeRoiIndicesBuf = sizeof(int32_t) * params.post_nms_topn;
-    int buffer_size = numProposals + sizeAuxBuff + sizeRoiIndicesBuf;
+    //This structure is required for sizeof to work
+    typedef struct {
+        int32_t idx;
+        fp16_t x0;
+        fp16_t y0;
+        fp16_t x1;
+        fp16_t y1;
+        fp16_t score;
+    } t_ExpGenerateProposalsProposal;
+
+    //Counting memory for tmpBuffer
+    const int ALIGN_VALUE = 64;
+    const int numProposals = sizeof(t_ExpGenerateProposalsProposal) *
+                             inputScores->desc().dim(Dim::H) *
+                             inputScores->desc().dim(Dim::W) *
+                             inputScores->desc().dim(Dim::C) + ALIGN_VALUE;
+    const int sizeAuxBuff = sizeof(int8_t) * params.pre_nms_topn + ALIGN_VALUE;
+    const int sizeRoiIndicesBuf = sizeof(int32_t) * params.post_nms_topn + ALIGN_VALUE;
+
+    int buffer_size = 2 * numProposals + sizeAuxBuff + sizeRoiIndicesBuf;
 
     model->addTempBuffer(stage, buffer_size);
 }
