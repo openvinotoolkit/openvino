@@ -1147,9 +1147,7 @@ protected:
                                       region_yolo->get_num_classes(),
                                       region_yolo->get_num_regions(),
                                       region_yolo->get_do_softmax(),
-                                      region_yolo->get_mask(),
-                                      region_yolo->get_axis(),
-                                      region_yolo->get_end_axis());
+                                      region_yolo->get_mask());
             break;
         }
         case OP_TYPEID::Relu:

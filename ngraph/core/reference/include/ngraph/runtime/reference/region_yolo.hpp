@@ -90,9 +90,7 @@ namespace ngraph
                              const int classes,
                              const int regions,
                              const bool do_softmax,
-                             const std::vector<int64_t>& mask,
-                             const int axis,
-                             const int end_axis)
+                             const std::vector<int64_t>& mask)
             {
                 NGRAPH_CHECK(input_shape.size() == 4);
 
