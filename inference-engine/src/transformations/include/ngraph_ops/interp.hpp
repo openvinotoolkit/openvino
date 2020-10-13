@@ -15,7 +15,7 @@
 namespace ngraph {
 namespace op {
 
-typedef struct {
+struct InterpolateIEAttrs {
     int height = -1;
     int width = -1;
     float zoom_factor = 0;
@@ -26,7 +26,7 @@ typedef struct {
     std::string mode = "";
     int pad_beg = 0;
     int pad_end = 0;
-} InterpolateIEAttrs;
+};
 
 class TRANSFORMATIONS_API Interp : public Op {
 public:
@@ -45,11 +45,11 @@ private:
     InterpolateIEAttrs m_attrs;
 };
 
-typedef struct {
+struct ResampleIEAttrs {
     bool antialias = true;
     int64_t factor = 0;
     std::string mode = "";
-} ResampleIEAttrs;
+};
 
 class TRANSFORMATIONS_API ResampleV2 : public Op {
 public:
