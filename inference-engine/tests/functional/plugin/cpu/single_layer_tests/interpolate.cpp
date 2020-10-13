@@ -237,7 +237,7 @@ INSTANTIATE_TEST_CASE_P(smoke_InterpolateLinearOnnx_Layout_Test, InterpolateLaye
 INSTANTIATE_TEST_CASE_P(smoke_InterpolateCubic_Layout_Test, InterpolateLayerCPUTest,
         ::testing::Combine(
             ::testing::Combine(
-                interpolateCasesLinearOnnx,
+                interpolateCasesCubic,
                 ::testing::ValuesIn(netPrecisions),
                 ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                 ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),

@@ -221,9 +221,8 @@ private:
     Vmm vmm_index_in_y = vmm_d_weights;
     Vmm vmm_index_in_x = vmm_d_bias;
 
-    Xbyak::Label l_table_idx_oh;
-    Xbyak::Label l_table_idx_ow;
     Xbyak::Label l_table_constant;
+    Opmask k_mask = Xbyak::Opmask(1);
 
     std::vector<std::shared_ptr<jit_uni_eltwise_injector_f32<isa>>> eltwise_injectors;
     std::vector<std::shared_ptr<jit_uni_depthwise_injector_f32<isa>>> depthwise_injectors;
@@ -909,8 +908,9 @@ private:
 
     void cubic_planar() {
         mov(reg_table, l_table_constant);
-        mov(reg_tbl_y, l_table_idx_oh);
-        mov(reg_tbl_x, l_table_idx_ow);
+        // srcBL for oh sequence, srcBR for ow sequence
+        mov(reg_tbl_y, ptr[reg_params + GET_OFF(srcBL)]);
+        mov(reg_tbl_x, ptr[reg_params + GET_OFF(srcBR)]);
         uni_vmovdqu(vmm_one, cubic_planar_table_val(0));
         uni_vpxor(vmm_zero, vmm_zero, vmm_zero);
 
@@ -1189,22 +1189,6 @@ private:
     }
 
     inline void prepare_cubic_planar_table() {
-        align(64);
-        L(l_table_idx_oh);
-        for (int h = 0; h < jcp_.OH; h++) {
-            for (int w = 0; w < jcp_.OW; ++w) {
-                dd(h * jcp_.indices_size);
-            }
-        }
-
-        align(64);
-        L(l_table_idx_ow);
-        for (int h = 0; h < jcp_.OH; h++) {
-            for (int w = 0; w < jcp_.OW; ++w) {
-                dd(w * jcp_.indices_size);
-            }
-        }
-
         auto broadcast_int = [&](int val) {
             for (size_t d = 0; d < vlen / sizeof(int); ++d) {
                 dd(val);
@@ -1232,8 +1216,7 @@ private:
     inline void gather_i32_indices(Vmm vmm_src, const Xbyak::Reg64 &base, int offset, Vmm vmm_indices, int scale,
                                 memory::data_type src_dt, bool is_scalar) {
         Xbyak::Address table_idx = ptr[base + offset + vmm_indices * scale];
-        if (mayiuse(cpu::avx512_common) && !is_scalar) {
-            Opmask k_mask = k0;
+        if ((isa == cpu::avx512_common) && !is_scalar) {
             // [0-15] bit of int to mask
             kmovw(k_mask, cubic_planar_table_val(3));
             if (src_dt == memory::f32) {
@@ -1241,7 +1224,7 @@ private:
             } else if (src_dt == memory::s32) {
                 vpgatherdd(vmm_src | k_mask, table_idx);  // dword index, dword data
             }
-        } else if (mayiuse(cpu::avx2) && !is_scalar) {
+        } else if ((isa == cpu::avx2) && !is_scalar) {
             uni_vpcmpeqd(vmm_mask, vmm_mask, vmm_mask);
             if (src_dt == memory::f32) {
                 vgatherdps(vmm_src, table_idx, vmm_mask);
@@ -1816,7 +1799,7 @@ void MKLDNNInterpolateNode::createPrimitive() {
             break;
         }
         case InterpolateMode::cubic: {
-            buidTblCubic(srcDimPad5d, dstDim5d, dataScales, cubeCoeff);
+            buidTblCubic(srcDimPad5d, dstDim5d, dataScales, cubeCoeff, jcp.layout);
             break;
         }
         default: {
@@ -2066,7 +2049,8 @@ std::vector<float> MKLDNNInterpolateNode::getCubicCoeffs(float mantissa, float a
 // table layout:
 // OW      OW         OW         OW         OW          OH       OH           OH           OH           OH
 // x_idx   x_weight0  x_weight1  x_weight2  x_weight3   y_idx    y_weight0    y_weight1    y_weight2    y_weight3
-void MKLDNNInterpolateNode::buidTblCubic(SizeVector& srcDimPad5d, SizeVector& dstDim5d, std::vector<float>& dataScales, float cubicCoeff) {
+void MKLDNNInterpolateNode::buidTblCubic(SizeVector& srcDimPad5d, SizeVector& dstDim5d, std::vector<float>& dataScales,
+                                        float cubicCoeff, InterpolateLayoutType layout) {
     int dimSize = srcDim.size();
     float fy = dataScales[dimSize - 2];
     float fx = dataScales[dimSize - 1];
@@ -2075,9 +2059,18 @@ void MKLDNNInterpolateNode::buidTblCubic(SizeVector& srcDimPad5d, SizeVector& ds
 
     // idxNum for index, CUBIC_GRID_LEN for weight
     const int idxNum = 1;
-    indexTable.resize((CUBIC_GRID_LEN + idxNum) * OW + (CUBIC_GRID_LEN + idxNum) * OH);
-    int *xOrigin = static_cast<int*>(&indexTable[0]);
-    float *xFactor = reinterpret_cast<float*>(&indexTable[OW]);
+    size_t idxWeightSize = (CUBIC_GRID_LEN + idxNum) * OW + (CUBIC_GRID_LEN + idxNum) * OH;
+    if (layout != InterpolateLayoutType::planar) {
+        indexTable.resize(idxWeightSize);
+    } else {
+        size_t sequenceSize = 2 * OH * OW;
+        indexTable.resize(idxWeightSize + sequenceSize);
+    }
+
+    int tblAdvance = 0;
+    int *xOrigin = static_cast<int*>(&indexTable[tblAdvance]);
+    tblAdvance += OW;
+    float *xFactor = reinterpret_cast<float*>(&indexTable[tblAdvance]);
     for (int ox = 0; ox < OW; ox++) {
         float ix = coordTransToInput(ox, fx, IW, OW);
         int ix_r = static_cast<int>(std::floor(ix));
@@ -2090,8 +2083,10 @@ void MKLDNNInterpolateNode::buidTblCubic(SizeVector& srcDimPad5d, SizeVector& ds
         xFactor[CUBIC_GRID_LEN * ox + 3] = coffes[3];
     }
 
-    int *yOrigin = static_cast<int*>(&indexTable[(CUBIC_GRID_LEN + idxNum) * OW]);
-    float *yFactor = reinterpret_cast<float*>(&indexTable[(CUBIC_GRID_LEN + idxNum) * OW + OH]);
+    tblAdvance += CUBIC_GRID_LEN * OW;
+    int *yOrigin = static_cast<int*>(&indexTable[tblAdvance]);
+    tblAdvance += OH;
+    float *yFactor = reinterpret_cast<float*>(&indexTable[tblAdvance]);
     for (int oy = 0; oy < OH; oy++) {
         float iy = coordTransToInput(oy, fy, IH, OH);
         int iy_r = static_cast<int>(std::floor(iy));
@@ -2102,6 +2097,20 @@ void MKLDNNInterpolateNode::buidTblCubic(SizeVector& srcDimPad5d, SizeVector& ds
         yFactor[CUBIC_GRID_LEN * oy + 1] = coffes[1];
         yFactor[CUBIC_GRID_LEN * oy + 2] = coffes[2];
         yFactor[CUBIC_GRID_LEN * oy + 3] = coffes[3];
+    }
+
+    if (layout == InterpolateLayoutType::planar) {
+        tblAdvance += CUBIC_GRID_LEN * OH;
+        int *sequenceOH = static_cast<int*>(&indexTable[tblAdvance]);
+        tblAdvance += OH * OW;
+        int *sequenceOW = static_cast<int*>(&indexTable[tblAdvance]);
+        for (int h = 0; h < OH; ++h) {
+            int offset = h * OW;
+            for (int w = 0; w < OW; ++w) {
+                sequenceOH[offset + w] = h * sizeof(int);
+                sequenceOW[offset + w] = w * sizeof(int);
+            }
+        }
     }
 }
 
@@ -2706,10 +2715,19 @@ void MKLDNNInterpolateNode::cubicCGathered(const uint8_t *in_ptr_, uint8_t *out_
 
 void MKLDNNInterpolateNode::cubicPlanar(const uint8_t *in_ptr_, uint8_t *out_ptr_, int B, int C, int IH, int IW, int OH, int OW) {
     const int idxNum = 1;
-    int *xOrigin = static_cast<int*>(&indexTable[0]);
-    float *xFactor = reinterpret_cast<float*>(&indexTable[OW]);
-    int *yOrigin = static_cast<int*>(&indexTable[(CUBIC_GRID_LEN + idxNum) * OW]);
-    float *yFactor = reinterpret_cast<float*>(&indexTable[(CUBIC_GRID_LEN + idxNum) * OW + OH]);
+    int tblAdvance = 0;
+    int *xOrigin = static_cast<int*>(&indexTable[tblAdvance]);
+    tblAdvance += OW;
+    float *xFactor = reinterpret_cast<float*>(&indexTable[tblAdvance]);
+    tblAdvance += CUBIC_GRID_LEN * OW;
+    int *yOrigin = static_cast<int*>(&indexTable[tblAdvance]);
+    tblAdvance += OH;
+    float *yFactor = reinterpret_cast<float*>(&indexTable[tblAdvance]);
+
+    tblAdvance += CUBIC_GRID_LEN * OH;
+    int *sequenceOH = static_cast<int*>(&indexTable[tblAdvance]);
+    tblAdvance += OW * OH;
+    int *sequenceOW = static_cast<int*>(&indexTable[tblAdvance]);
 
     parallel_for2d(B, C, [&](size_t n, size_t c) {
         const uint8_t *in_ptr_nc = in_ptr_ + (IW * IH * C * n + IW * IH * c) * srcDataSize;
@@ -2722,6 +2740,8 @@ void MKLDNNInterpolateNode::cubicPlanar(const uint8_t *in_ptr_, uint8_t *out_ptr
         arg.srcTR = yOrigin;
         arg.weight = xFactor;
         arg.weightT = yFactor;
+        arg.srcBL = static_cast<int*>(&sequenceOH[0]);
+        arg.srcBR = static_cast<int*>(&sequenceOW[0]);
         arg.work_amount = static_cast<size_t>(OW * OH);
         arg.oc_off = static_cast<size_t>(C);
         (*interpolateKernel)(&arg);

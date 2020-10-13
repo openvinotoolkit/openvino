@@ -123,7 +123,7 @@ private:
     void buildTblNN(SizeVector& srcDimPad5d, SizeVector& dstDim5d, std::vector<float>& dataScales, InterpolateLayoutType layout);
     void buildTblLinearOnnx(SizeVector& srcDimPad5d, SizeVector& dstDim5d, std::vector<float>& dataScales, InterpolateLayoutType layout);
     void buidTblLinear(SizeVector& srcDimPad5d, SizeVector& dstDim5d, std::vector<float>& dataScales, int kernel_width, bool antialias);
-    void buidTblCubic(SizeVector& srcDimPad5d, SizeVector& dstDim5d, std::vector<float>& dataScales, float cubicCoeff);
+    void buidTblCubic(SizeVector& srcDimPad5d, SizeVector& dstDim5d, std::vector<float>& dataScales, float cubicCoeff, InterpolateLayoutType layout);
 
     void setPostOps(mkldnn::primitive_attr &attr, bool initWeights = false);
 
