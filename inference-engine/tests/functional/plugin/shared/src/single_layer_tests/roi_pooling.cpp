@@ -58,11 +58,8 @@ namespace LayerTestsDefinitions {
     void ROIPoolingLayerTest::SetUp() {
         roiPoolingSpecificParams roiPoolParams;
         InferenceEngine::Precision netPrecision;
-        InferenceEngine::Precision inPrc, outPrc;
-        InferenceEngine::Layout inLayout, outLayout;
         InferenceEngine::SizeVector inputShape;
         InferenceEngine::SizeVector coordsShape;
-        std::string targetDevice;
         std::tie(roiPoolParams, netPrecision, inPrc, outPrc, inLayout, outLayout, inputShape, coordsShape, targetDevice) = this->GetParam();
         ngraph::helpers::ROIPoolingTypes poolType;
         std::vector<size_t> poolShape;
