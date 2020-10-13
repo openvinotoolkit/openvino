@@ -77,6 +77,8 @@ namespace ngraph
                 T beta = static_cast<T>(dbeta);
                 T bias = static_cast<T>(dbias);
 
+                T scale = alpha / std::pow(size, axes.size());
+
                 std::vector<size_t> begin_area(arg_shape.size());
                 std::vector<size_t> end_area(arg_shape.size());
 
@@ -106,7 +108,7 @@ namespace ngraph
 
                     T x = arg[input_transform.index(in_coord)];
                     out[input_transform.index(in_coord)] =
-                        x / (std::pow(bias + (alpha / size) * square_sum, beta));
+                        x / (std::pow(bias + scale * square_sum, beta));
                 }
             }
         }
