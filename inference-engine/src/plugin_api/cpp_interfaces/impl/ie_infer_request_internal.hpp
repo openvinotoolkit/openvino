@@ -197,6 +197,11 @@ public:
         }
     }
 
+    void SetBatch(int batch) override {
+        (void)batch;
+        THROW_IE_EXCEPTION << "Dynamic batch is not supported";
+    };
+
     /**
      * @brief      Sets the pointer to executable network internal.
      * @note       Needed to correctly handle ownership between objects.
@@ -218,10 +223,19 @@ public:
         }
     }
 
-    void SetBatch(int batch) override {
-        (void)batch;
-        THROW_IE_EXCEPTION << "Dynamic batch is not supported";
-    };
+protected:
+    InferenceEngine::InputsDataMap _networkInputs;  //!< Holds information about network inputs info
+    InferenceEngine::OutputsDataMap _networkOutputs;  //!< Holds information about network outputs data
+    InferenceEngine::BlobMap _inputs;  //!< A map of network input blobs
+    InferenceEngine::BlobMap _outputs;  //!< A map of network output blobs
+    std::map<std::string, PreProcessDataPtr> _preProcData;  //!< A map of pre-process data per input
+    int m_curBatch;  //!< Current batch value used in dynamic batching
+
+    /**
+     * @brief A shared pointer to ExecutableNetworkInternal interface
+     * @note Needed to correctly handle ownership between objects.
+     */
+    std::shared_ptr<ExecutableNetworkInternal> _exeNetwork;
 
     /**
      * @brief Checks and executes input data pre-processing if needed.
@@ -239,20 +253,6 @@ public:
             }
         }
     }
-
-protected:
-    InferenceEngine::InputsDataMap _networkInputs;  //!< Holds information about network inputs info
-    InferenceEngine::OutputsDataMap _networkOutputs;  //!< Holds information about network outputs data
-    InferenceEngine::BlobMap _inputs;  //!< A map of network input blobs
-    InferenceEngine::BlobMap _outputs;  //!< A map of network output blobs
-    std::map<std::string, PreProcessDataPtr> _preProcData;  //!< A map of pre-process data per input
-    int m_curBatch;  //!< Current batch value used in dynamic batching
-
-    /**
-     * @brief A shared pointer to ExecutableNetworkInternal interface
-     * @note Needed to correctly handle ownership between objects.
-     */
-    std::shared_ptr<ExecutableNetworkInternal> _exeNetwork;
 
     /**
      * @brief Helper function to find input or output blob by name

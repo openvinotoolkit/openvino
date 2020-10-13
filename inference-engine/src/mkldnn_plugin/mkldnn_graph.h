@@ -5,7 +5,7 @@
 #pragma once
 
 #include "ie_parallel.hpp"
-#include "ie_icnn_network.hpp"
+#include "cpp/ie_cnn_network.h"
 #include "config.h"
 #include "mkldnn_memory.h"
 #include "mean_image.h"
@@ -64,6 +64,10 @@ public:
         return graphNodes;
     }
 
+    std::string GetName() {
+        return _name;
+    }
+
     std::vector<MKLDNNEdgePtr>& GetEdges() {
         return graphEdges;
     }
@@ -83,7 +87,7 @@ public:
     void DropNode(const MKLDNNNodePtr& node);
     void DropDWConvNode(const MKLDNNNodePtr& node);
 
-    InferenceEngine::ICNNNetwork::Ptr dump() const;
+    InferenceEngine::CNNNetwork dump() const;
 
     template<typename NET>
     static void ApplyUnrollPasses(NET &net);
@@ -141,8 +145,8 @@ protected:
 
     friend class MKLDNNInferRequest;
     friend class MKLDNNGraphlessInferRequest;
-    friend std::shared_ptr<InferenceEngine::ICNNNetwork> dump_graph_as_ie_net(const MKLDNNGraph &graph);
-    friend std::shared_ptr<InferenceEngine::ICNNNetwork> dump_graph_as_ie_ngraph_net(const MKLDNNGraph &graph);
+    friend InferenceEngine::CNNNetwork dump_graph_as_ie_net(const MKLDNNGraph &graph);
+    friend InferenceEngine::CNNNetwork dump_graph_as_ie_ngraph_net(const MKLDNNGraph &graph);
 
 private:
     void dumpToDotFile(std::string file) const;

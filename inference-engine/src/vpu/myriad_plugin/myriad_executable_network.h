@@ -73,7 +73,8 @@ public:
                                                     _graphMetaData.stagesMeta, _config, _log, _executor);
     }
 
-    void CreateInferRequest(InferenceEngine::IInferRequest::Ptr &asyncRequest) override {
+    InferenceEngine::IInferRequest::Ptr CreateInferRequest() override {
+        InferenceEngine::IInferRequest::Ptr asyncRequest;
         if (_device == nullptr || !_device->isBooted()) {
             THROW_IE_EXCEPTION << "Can not create infer request: there is no available devices with platform "
                                << _device->_platform;
@@ -85,12 +86,13 @@ public:
                                                                     _executor);
         syncRequestImpl->setPointerToExecutableNetworkInternal(shared_from_this());
         auto taskExecutorGetResult = getNextTaskExecutor();
-        auto asyncTreadSafeImpl = std::make_shared<MyriadAsyncInferRequest>(
+        auto asyncThreadSafeImpl = std::make_shared<MyriadAsyncInferRequest>(
                 syncRequestImpl, _taskExecutor, _callbackExecutor, taskExecutorGetResult);
         asyncRequest.reset(new InferenceEngine::InferRequestBase<InferenceEngine::AsyncInferRequestThreadSafeDefault>(
-                           asyncTreadSafeImpl),
+                           asyncThreadSafeImpl),
                            [](InferenceEngine::IInferRequest *p) { p->Release(); });
-        asyncTreadSafeImpl->SetPointerToPublicInterface(asyncRequest);
+        asyncThreadSafeImpl->SetPointerToPublicInterface(asyncRequest);
+        return asyncRequest;
     }
 
     void Export(std::ostream& model) override {
@@ -107,9 +109,9 @@ public:
         }
     }
 
-    void GetMetric(const std::string &name, InferenceEngine::Parameter &result, InferenceEngine::ResponseDesc *resp) const override;
+    InferenceEngine::Parameter GetMetric(const std::string &name) const override;
 
-    void GetExecGraphInfo(InferenceEngine::ICNNNetwork::Ptr &graphPtr) override;
+    InferenceEngine::CNNNetwork GetExecGraphInfo() override;
 
     void Import(std::istream& strm,
                 std::vector<DevicePtr> &devicePool,

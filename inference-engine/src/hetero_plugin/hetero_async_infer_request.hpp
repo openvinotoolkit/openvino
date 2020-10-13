@@ -19,9 +19,9 @@ namespace HeteroPlugin {
 class HeteroAsyncInferRequest : public InferenceEngine::AsyncInferRequestThreadSafeDefault {
 public:
     using Ptr = std::shared_ptr<HeteroAsyncInferRequest>;
-    HeteroAsyncInferRequest(const HeteroInferRequest::Ptr&              request,
-                            const InferenceEngine::ITaskExecutor::Ptr&  taskExecutor,
-                            const InferenceEngine::ITaskExecutor::Ptr&  callbackExecutor);
+    HeteroAsyncInferRequest(const InferenceEngine::InferRequestInternal::Ptr& request,
+                            const InferenceEngine::ITaskExecutor::Ptr&        taskExecutor,
+                            const InferenceEngine::ITaskExecutor::Ptr&        callbackExecutor);
     ~HeteroAsyncInferRequest() override;
     void StartAsync_ThreadUnsafe() override;
     InferenceEngine::StatusCode Wait(int64_t millis_timeout) override;

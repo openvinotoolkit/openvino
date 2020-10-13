@@ -300,7 +300,8 @@ void Engine::AddExtension(InferenceEngine::IExtensionPtr extension) {
     extensionManager->AddExtension(extension);
 }
 
-void Engine::QueryNetwork(const ICNNNetwork& network, const std::map<std::string, std::string>& config, QueryNetworkResult& res) const {
+QueryNetworkResult Engine::QueryNetwork(const ICNNNetwork& network, const std::map<std::string, std::string>& config) const {
+    QueryNetworkResult res;
     MKLDNNWeightsSharing::Ptr fake_w_cache;
     auto function = network.getFunction();
     if (function != nullptr) {
@@ -368,6 +369,8 @@ void Engine::QueryNetwork(const ICNNNetwork& network, const std::map<std::string
             i++;
         }
     }
+
+    return res;
 }
 
 static const Version version = {{2, 1}, CI_BUILD_NUMBER, "MKLDNNPlugin"};

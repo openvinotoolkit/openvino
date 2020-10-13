@@ -309,10 +309,9 @@ void clDNNEngine::SetConfig(const std::map<std::string, std::string> &config) {
     _impl->m_config.UpdateFromMap(config);
 }
 
-void clDNNEngine::QueryNetwork(const ICNNNetwork& network,
-                               const std::map<std::string,
-                               std::string>& config,
-                               QueryNetworkResult& res) const {
+QueryNetworkResult clDNNEngine::QueryNetwork(const ICNNNetwork& network,
+                                             const std::map<std::string, std::string>& config) const {
+    QueryNetworkResult res;
     GetDeviceInfo(config);      // Verify device id
     auto function = network.getFunction();
     if (function != nullptr) {
@@ -525,6 +524,8 @@ void clDNNEngine::QueryNetwork(const ICNNNetwork& network,
             }
         }
     }
+
+    return res;
 }
 
 Parameter clDNNEngine::GetConfig(const std::string& name, const std::map<std::string, Parameter>& /*options*/) const {

@@ -1203,8 +1203,7 @@ TEST_F(MKLDNNGraphStructureTests, TestOutputAfterInplacePlusConcat) {
     InferenceEngine::OutputsDataMap _networkOutputs = network.getOutputsInfo();
     execNetwork->setNetworkInputs(_networkInputs);
     execNetwork->setNetworkOutputs(_networkOutputs);
-    InferenceEngine::IInferRequest::Ptr inferRequest;
-    execNetwork->CreateInferRequest(inferRequest);
+    InferenceEngine::IInferRequest::Ptr inferRequest = execNetwork->CreateInferRequest();
 
     InferenceEngine::TensorDesc desc(InferenceEngine::Precision::FP32, {1, 3, 2, 2}, InferenceEngine::NCHW);
     InferenceEngine::Blob::Ptr src = InferenceEngine::make_shared_blob<float>(desc);
@@ -1719,8 +1718,7 @@ TEST_F(MKLDNNGraphStructureTests, TestResnetPart) {
     InferenceEngine::OutputsDataMap _networkOutputs = network.getOutputsInfo();
     execNetwork->setNetworkInputs(_networkInputs);
     execNetwork->setNetworkOutputs(_networkOutputs);
-    InferenceEngine::IInferRequest::Ptr inferRequest;
-    execNetwork->CreateInferRequest(inferRequest);
+    InferenceEngine::IInferRequest::Ptr inferRequest = execNetwork->CreateInferRequest();
 
     InferenceEngine::TensorDesc desc(InferenceEngine::Precision::FP32, {1, 3, 224, 224}, InferenceEngine::NCHW);
     InferenceEngine::Blob::Ptr src = InferenceEngine::make_shared_blob<float>(desc);
@@ -1869,8 +1867,7 @@ TEST_F(MKLDNNGraphStructureTests, TestConcatAfterConcat) {
     InferenceEngine::OutputsDataMap _networkOutputs = network.getOutputsInfo();
     execNetwork->setNetworkInputs(_networkInputs);
     execNetwork->setNetworkOutputs(_networkOutputs);
-    InferenceEngine::IInferRequest::Ptr inferRequest;
-    execNetwork->CreateInferRequest(inferRequest);
+    InferenceEngine::IInferRequest::Ptr inferRequest = execNetwork->CreateInferRequest();
 
     InferenceEngine::TensorDesc desc1(InferenceEngine::Precision::FP32, {1, 3, 20, 20}, InferenceEngine::NCHW);
     InferenceEngine::Blob::Ptr src1 = InferenceEngine::make_shared_blob<float>(desc1);
@@ -2050,8 +2047,7 @@ TEST_F(MKLDNNGraphStructureTests, Test2ConcatFromConcat) {
     InferenceEngine::OutputsDataMap _networkOutputs = network.getOutputsInfo();
     execNetwork->setNetworkInputs(_networkInputs);
     execNetwork->setNetworkOutputs(_networkOutputs);
-    InferenceEngine::IInferRequest::Ptr inferRequest;
-    execNetwork->CreateInferRequest(inferRequest);
+    InferenceEngine::IInferRequest::Ptr inferRequest = execNetwork->CreateInferRequest();
 
     InferenceEngine::TensorDesc desc1(InferenceEngine::Precision::FP32, {1, 3, 2, 2}, InferenceEngine::NCHW);
     InferenceEngine::Blob::Ptr src1 = InferenceEngine::make_shared_blob<float>(desc1);
@@ -2382,8 +2378,7 @@ TEST_F(MKLDNNGraphStructureTests, TestLoadTopologyWithConstLayer) {
     InferenceEngine::OutputsDataMap _networkOutputs = network.getOutputsInfo();
     execNetwork->setNetworkInputs(_networkInputs);
     execNetwork->setNetworkOutputs(_networkOutputs);
-    InferenceEngine::IInferRequest::Ptr inferRequest;
-    execNetwork->CreateInferRequest(inferRequest);
+    InferenceEngine::IInferRequest::Ptr inferRequest = execNetwork->CreateInferRequest();
 
     InferenceEngine::TensorDesc desc1(InferenceEngine::Precision::FP32, {1, 3, 20, 20}, InferenceEngine::NCHW);
     InferenceEngine::Blob::Ptr src1 = InferenceEngine::make_shared_blob<float>(desc1);
@@ -2530,8 +2525,7 @@ TEST_F(MKLDNNGraphStructureTests, TestLoadTopologyWithEltwiseBeforeConcat) {
     InferenceEngine::OutputsDataMap _networkOutputs = network.getOutputsInfo();
     execNetwork->setNetworkInputs(_networkInputs);
     execNetwork->setNetworkOutputs(_networkOutputs);
-    InferenceEngine::IInferRequest::Ptr inferRequest;
-    execNetwork->CreateInferRequest(inferRequest);
+    InferenceEngine::IInferRequest::Ptr inferRequest = execNetwork->CreateInferRequest();
 
     InferenceEngine::TensorDesc desc1(InferenceEngine::Precision::FP32, {1, 3, 20, 20}, InferenceEngine::NCHW);
     InferenceEngine::Blob::Ptr src1 = InferenceEngine::make_shared_blob<float>(desc1);

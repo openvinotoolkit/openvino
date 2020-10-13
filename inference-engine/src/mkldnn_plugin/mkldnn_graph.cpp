@@ -1196,6 +1196,6 @@ void MKLDNNGraph::do_after(const std::string &dir, const MKLDNNNodePtr &node) {
     }
 }
 
-InferenceEngine::ICNNNetwork::Ptr MKLDNNGraph::dump() const {
+InferenceEngine::CNNNetwork MKLDNNGraph::dump() const {
     return dump_graph_as_ie_ngraph_net(*this);
 }
