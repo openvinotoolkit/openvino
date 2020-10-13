@@ -1,0 +1,17 @@
+name: Files Size
+on: [push, pull_request]
+
+jobs:
+  Check-Files-Size:
+    runs-on: ubuntu-18.04
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: git ls-tree
+        run: |
+          git ls-tree -r -t -l --full-name HEAD | sort -n -r -k 4
+
+      - name: git lfs ls-files
+        run: |
+          git lfs ls-files --size
+          
