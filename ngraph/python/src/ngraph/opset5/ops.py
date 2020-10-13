@@ -59,7 +59,7 @@ _get_node_factory_opset5 = partial(_get_node_factory, "opset5")
 
 
 @nameable_op
-def Round(data: NodeInput, mode: str = "half_to_even", name: Optional[str] = None) -> Node:
+def round(data: NodeInput, mode: str = "half_to_even", name: Optional[str] = None) -> Node:
     """Apply Round operation on each element of input tensor.
 
     :param data: The tensor providing input data.
