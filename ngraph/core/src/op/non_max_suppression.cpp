@@ -534,8 +534,6 @@ void op::v4::NonMaxSuppression::validate_and_infer_types()
 
 // ------------------------------ V5 ------------------------------
 
-constexpr NodeTypeInfo op::v5::NonMaxSuppression::type_info;
-
 NGRAPH_RTTI_DEFINITION(op::v5::NonMaxSuppression, "NonMaxSuppression", 5);
 
 op::v5::NonMaxSuppression::NonMaxSuppression(
