@@ -24,5 +24,7 @@ std::vector<std::string> disabledTestPatterns() {
             R"(.*EltwiseLayerTest.*IS=\(.*\..*\..*\..*\..*\).*eltwiseOpType=Pow.*secondaryInputType=CONSTANT.*)",
             // TODO: Issue: 40736
             R"(.*ReverseSequenceLayerTest.*)",
+            // TODO: Issue: 40741
+            R"(.*GatherTreeLayerTest.*)",
     };
 }

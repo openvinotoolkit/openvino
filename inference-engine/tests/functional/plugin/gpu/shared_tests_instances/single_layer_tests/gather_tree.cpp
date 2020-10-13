@@ -16,7 +16,7 @@ const std::vector<InferenceEngine::Precision> netPrecisions = {
         InferenceEngine::Precision::I32
 };
 
-const std::vector<std::vector<size_t>> inputShapes = {{1, 1, 10}};/**/
+const std::vector<std::vector<size_t>> inputShapes = { {5, 1, 10}, {1, 1, 10}, {20, 1, 10}, {20, 20, 10} };
 
 const std::vector<ngraph::helpers::InputLayerType> secondaryInputTypes = {
         ngraph::helpers::InputLayerType::CONSTANT,
@@ -24,15 +24,15 @@ const std::vector<ngraph::helpers::InputLayerType> secondaryInputTypes = {
 };
 
 INSTANTIATE_TEST_CASE_P(Basic_smoke, GatherTreeLayerTest,
-                        ::testing::Combine(
-                            ::testing::ValuesIn(inputShapes),
-                            ::testing::ValuesIn(secondaryInputTypes),
-                            ::testing::ValuesIn(netPrecisions),
-                            ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-                            ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-                            ::testing::Values(InferenceEngine::Layout::ANY),
-                            ::testing::Values(InferenceEngine::Layout::ANY),
-                            ::testing::Values(CommonTestUtils::DEVICE_GPU)),
-                        GatherTreeLayerTest::getTestCaseName);
+        ::testing::Combine(
+        ::testing::ValuesIn(inputShapes),
+        ::testing::ValuesIn(secondaryInputTypes),
+        ::testing::ValuesIn(netPrecisions),
+        ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+        ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+        ::testing::Values(InferenceEngine::Layout::ANY),
+        ::testing::Values(InferenceEngine::Layout::ANY),
+        ::testing::Values(CommonTestUtils::DEVICE_GPU)),
+        GatherTreeLayerTest::getTestCaseName);
 
 }  // namespace
