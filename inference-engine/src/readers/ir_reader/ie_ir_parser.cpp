@@ -2226,27 +2226,27 @@ std::shared_ptr<ngraph::Node> V10Parser::LayerCreator<ngraph::op::v1::NonMaxSupp
 }
 
 // Round layer
-    template <>
-    std::shared_ptr<ngraph::Node> V10Parser::LayerCreator<ngraph::op::v5::Round>::createLayer(
-            const ngraph::OutputVector& inputs, const pugi::xml_node& node, std::istream& binStream,
-            const GenericLayerParams& layerParsePrms) {
-        pugi::xml_node dn = node.child("data");
+template <>
+std::shared_ptr<ngraph::Node> V10Parser::LayerCreator<ngraph::op::v5::Round>::createLayer(
+        const ngraph::OutputVector& inputs, const pugi::xml_node& node, std::istream& binStream,
+        const GenericLayerParams& layerParsePrms) {
+    pugi::xml_node dn = node.child("data");
 
-        if (dn.empty())
-            THROW_IE_EXCEPTION << "Cannot read parameter for " << getType() << " layer with name: " << layerParsePrms.name;
+    if (dn.empty())
+        THROW_IE_EXCEPTION << "Cannot read parameter for " << getType() << " layer with name: " << layerParsePrms.name;
 
-        auto mode = GetStrAttr(dn, "mode");
-        ngraph::op::v5::Round::RoundMode round_mode;
-        if (mode == "half_to_even") {
-            round_mode = ngraph::op::v5::Round::RoundMode::HALF_TO_EVEN;
-        } else if (mode == "half_away_from_zero") {
-            round_mode = ngraph::op::v5::Round::RoundMode::HALF_AWAY_FROM_ZERO;
-        } else {
-            THROW_IE_EXCEPTION << "Unsupported round mode " << mode << " for " << getType() <<
-                               " layer with name: " << layerParsePrms.name;
-        }
-
-        return std::make_shared<ngraph::op::v5::Round>(inputs[0], round_mode);
+    auto mode = GetStrAttr(dn, "mode");
+    ngraph::op::v5::Round::RoundMode round_mode;
+    if (mode == "half_to_even") {
+        round_mode = ngraph::op::v5::Round::RoundMode::HALF_TO_EVEN;
+    } else if (mode == "half_away_from_zero") {
+        round_mode = ngraph::op::v5::Round::RoundMode::HALF_AWAY_FROM_ZERO;
+    } else {
+        THROW_IE_EXCEPTION << "Unsupported round mode " << mode << " for " << getType() <<
+                           " layer with name: " << layerParsePrms.name;
     }
+
+    return std::make_shared<ngraph::op::v5::Round>(inputs[0], round_mode);
+}
 
 }  // namespace InferenceEngine
