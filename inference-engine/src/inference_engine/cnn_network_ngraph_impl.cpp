@@ -311,9 +311,10 @@ CNNNetworkNGraphImpl::reshape(const std::map<std::string, std::vector<size_t>>& 
         return cnnNetwork->reshape(inputShapes, responseDesc);
     try {
         auto params = _ngraph_function->get_parameters();
-        bool needReshape = false;
 
-        for (size_t i = 0; i < params.size() && needReshape; i++) {
+        // Check that we need to do reshape only if input shapes will be changed
+        bool needReshape = false;
+        for (size_t i = 0; i < params.size() && !inputShapes.empty(); i++) {
             const auto& param = params[i];
             auto it = inputShapes.find(param->get_friendly_name());
             if (it == inputShapes.end())
