@@ -22,10 +22,10 @@
 #include "ngraph/runtime/reference/copy.hpp"
 #include "ngraph/runtime/reference/round.hpp"
 
+NGRAPH_SUPPRESS_DEPRECATED_START
+
 using namespace std;
 using namespace ngraph;
-
-NGRAPH_SUPPRESS_DEPRECATED_START
 
 constexpr NodeTypeInfo op::Round::type_info;
 
