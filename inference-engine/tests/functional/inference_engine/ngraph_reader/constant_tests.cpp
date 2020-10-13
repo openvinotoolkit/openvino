@@ -3,6 +3,7 @@
 //
 
 #include <string>
+#include <legacy/ie_util_internal.hpp>
 #include "ngraph_reader_tests.hpp"
 
 using namespace InferenceEngine;
@@ -39,6 +40,7 @@ TEST_F(NGraphReaderTests, ReadConstantNetwork) {
 </net>
 )V0G0N";
 
+        IE_SUPPRESS_DEPRECATED_START
         Core ie;
         Blob::Ptr weights;
 
@@ -46,9 +48,10 @@ TEST_F(NGraphReaderTests, ReadConstantNetwork) {
         weights->allocate();
 
         auto network = ie.ReadNetwork(model, weights);
-
-        IE_SUPPRESS_DEPRECATED_START
+        auto clonedNetwork = cloneNetwork(network);
         auto convertedNetwork = std::make_shared<InferenceEngine::details::CNNNetworkImpl>(network);
+        auto clonedNet = cloneNet(*convertedNetwork);
+
 
         IE_SUPPRESS_DEPRECATED_END
 }

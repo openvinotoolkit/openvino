@@ -4,7 +4,7 @@
 
 /**
  * @brief A header file for the CNNNetworkIterator class
- * 
+ *
  * @file ie_cnn_network_iterator.hpp
  */
 #pragma once
@@ -32,24 +32,44 @@ CNNNetworkIterator {
     IE_SUPPRESS_DEPRECATED_START
 
     std::unordered_set<CNNLayer*> visited;
-    std::list<CNNLayerPtr> nextLayersTovisit;
+    std::list<CNNLayerPtr> nextLayersToVisit;
     InferenceEngine::CNNLayerPtr currentLayer;
     ICNNNetwork* network = nullptr;
 
     void init(const ICNNNetwork* network) {
         if (network == nullptr) THROW_IE_EXCEPTION << "ICNNNetwork object is nullptr";
-        // IE_ASSERT(dynamic_cast<const details::CNNNetworkImpl*>(network) != nullptr);
-        InputsDataMap inputs;
-        network->getInputsInfo(inputs);
-        if (!inputs.empty()) {
-            auto& nextLayers = getInputTo(inputs.begin()->second->getInputData());
-            if (!nextLayers.empty()) {
-                currentLayer = nextLayers.begin()->second;
-                nextLayersTovisit.push_back(currentLayer);
-                visited.insert(currentLayer.get());
+        OutputsDataMap outputs;
+        network->getOutputsInfo(outputs);
+        std::list<CNNLayerPtr> layersQueue;
+
+        for (const auto& output : outputs) {
+            auto layer = getCreatorLayer(output.second).lock();
+            if (layer) {
+                layersQueue.push_back(layer);
             }
         }
+
+        while (!layersQueue.empty()) {
+            auto layer = layersQueue.front();
+            layersQueue.pop_front();
+            if (visited.find(layer.get()) != visited.end())
+                continue;
+            nextLayersToVisit.push_front(layer);
+            visited.insert(layer.get());
+            for (const auto& input : layer->insData) {
+                const auto inData = input.lock();
+                if (inData) {
+                    auto prevLayer = getCreatorLayer(inData).lock();
+                    if (prevLayer) {
+                        layersQueue.push_back(prevLayer);
+                    }
+                }
+            }
+        }
+
+        currentLayer = nextLayersToVisit.front();
     }
+
 
 public:
     /**
@@ -138,33 +158,13 @@ private:
      * @brief implementation based on BFS
      */
     CNNLayerPtr next() {
-        if (nextLayersTovisit.empty()) {
+        if (nextLayersToVisit.empty()) {
             return nullptr;
         }
 
-        auto nextLayer = nextLayersTovisit.front();
-        nextLayersTovisit.pop_front();
+        nextLayersToVisit.pop_front();
 
-        // visit child that not visited
-        for (auto&& output : nextLayer->outData) {
-            for (auto&& child : getInputTo(output)) {
-                if (visited.find(child.second.get()) == visited.end()) {
-                    nextLayersTovisit.push_back(child.second);
-                    visited.insert(child.second.get());
-                }
-            }
-        }
-
-        // visit parents
-        for (auto&& parent : nextLayer->insData) {
-            auto parentLayer = getCreatorLayer(parent.lock()).lock();
-            if (parentLayer && visited.find(parentLayer.get()) == visited.end()) {
-                nextLayersTovisit.push_back(parentLayer);
-                visited.insert(parentLayer.get());
-            }
-        }
-
-        return nextLayersTovisit.empty() ? nullptr : nextLayersTovisit.front();
+        return nextLayersToVisit.empty() ? nullptr : nextLayersToVisit.front();
     }
 
     IE_SUPPRESS_DEPRECATED_END
