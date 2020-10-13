@@ -2,81 +2,81 @@
 
 OpenVINO&trade; Model Server (OVMS) is a scalable, high-performance solution for serving machine learning models optimized for Intel&reg; architectures. 
 The server provides an inference service via gRPC or REST API - making it easy to deploy new algorithms and AI experiments using the same 
-architecture as [TensorFlow Serving](https://github.com/tensorflow/serving) for any models trained in a framework that is supported 
+architecture as [TensorFlow* Serving](https://github.com/tensorflow/serving) for any models trained in a framework that is supported 
 by [OpenVINO](https://software.intel.com/en-us/openvino-toolkit). 
 
 The server implements gRPC and REST API framework with data serialization and deserialization using TensorFlow Serving API,
- and OpenVINO&trade; as the inference execution provider. Model repositories may reside on a locally accessible file system (e.g. NFS),
+ and OpenVINO&trade; as the inference execution provider. Model repositories may reside on a locally accessible file system (for example, NFS),
   Google Cloud Storage (GCS), Amazon S3, Minio or Azure Blob Storage.
   
 OVMS is now implemented in C++ and provides much higher scalability compared to its predecessor in Python version.
-You can take advantage of all the power of Xeon CPU capabilities or AI accelerators and expose it over the network interface.
-Read [release notes](https://github.com/openvinotoolkit/model_server/releases) to find out what's new in C++ version.
+You can take advantage of all the power of Xeon® CPU capabilities or AI accelerators and expose it over the network interface.
+Read [release notes](https://github.com/openvinotoolkit/model_server/blob/main/releases) to find out what's new in C++ version.
 
-Review the [Architecture concept](https://github.com/openvinotoolkit/model_server/blob/main/docs/architecture.md) document for more details.
+Review the [Architecture concept](/docs/architecture.md) document for more details.
 
 A few key features: 
 - Support for multiple frameworks. Serve models trained in popular formats such as Caffe*, TensorFlow*, MXNet* and ONNX*.
-- Deploy new [model versions](https://github.com/openvinotoolkit/model_server/blob/main/docs/docker_container.md#model-version-policy) without changing client code.
-- Support for AI accelerators including [Intel Movidius Myriad VPUs](https://docs.openvinotoolkit.org/latest/openvino_docs_IE_DG_supported_plugins_VPU.html), 
-[GPU](https://docs.openvinotoolkit.org/latest/_docs_IE_DG_supported_plugins_CL_DNN.html) and [HDDL](https://docs.openvinotoolkit.org/latest/_docs_IE_DG_supported_plugins_HDDL.html). 
+- Deploy new [model versions](/docs/docker_container.md) without changing client code.
+- Support for AI accelerators including [Intel Movidius Myriad VPUs](@ref openvino_docs_IE_DG_supported_plugins_VPU), 
+[GPU](@ref docs_IE_DG_supported_plugins_CL_DNN) and [HDDL](@ref docs_IE_DG_supported_plugins_HDDL.html). 
 - The server can be enabled both on [Bare Metal Hosts](docs/host.md) or in
-[Docker containers](https://github.com/openvinotoolkit/model_server/blob/main/docs/docker_container.md).
+[Docker containers](/docs/docker_container.md).
 - [Kubernetes deployments](https://github.com/openvinotoolkit/model_server/blob/main/deploy). The server can be deployed in a Kubernetes cluster allowing the inference service to scale horizontally and ensure high availability.  
 - [Model reshaping](https://github.com/openvinotoolkit/model_server/blob/main/docs/docker_container.md#model-reshaping). The server supports reshaping models in runtime. 
-- [Model ensemble](https://github.com/openvinotoolkit/model_server/blob/main/docs/ensemble_scheduler.md) (preview). Connect multiple models to deploy complex processing solutions and reduce overhead of sending data back and forth.
+- [Model ensemble](docs/ensemble_scheduler.md) (preview). Connect multiple models to deploy complex processing solutions and reduce overhead of sending data back and forth.
 
-**Note: OVMS has been tested on CentOS* and Ubuntu*. Publically released docker images are based on CentOS.** 
+> **NOTE**: OVMS has been tested on CentOS* and Ubuntu*. Publically released docker images are based on CentOS.
 
 ## Build OpenVINO Model Server
-Build the docker image using command:
+
+Build the Docker image using the command called from the root directory of the repository:
 ```bash
 make docker_build DLDT_PACKAGE_URL=<URL>
 ```
-called from the root directory of the repository.
-Note: URL to OpenVINO Toolkit package can be received after registration on [OpenVINO™ Toolkit website](https://software.intel.com/en-us/openvino-toolkit/choose-download).
 
+> **NOTE**: Register on the [OpenVINO™ toolkit website](https://software.intel.com/en-us/openvino-toolkit/choose-download) to recieve the URL to the OpenVINO toolkit package .
 
-It will generate the images, tagged as:
+The command generates the images, tagged as:
 * `openvino/model_server:latest` - with CPU, NCS and HDDL support
 * `openvino/model_server:latest-gpu` - with CPU, NCS, HDDL and iGPU support
 
-as well as a release package (.tar.gz, with ovms binary and necessary libraries), in a ./dist directory.
+as well as a `.tar.gz` release package with OVMS binary and necessary libraries, in the `./dist` directory.
 
-The release package is compatible with linux machines on which `glibc` version is greater than or equal to the build image version.
-For debugging, an image with a suffix `-build` is also generated (i.e. `openvino/model_server-build:latest`).
+The release package is compatible with Linux machines on which `glibc` version is greater than or equal to the build image version.
+For debugging, the command also generates an image with a suffix `-build`, namely `openvino/model_server-build:latest`.
 
-*Note:* Images include OpenVINO 2021.1 release. <br>
+> **NOTE**: Images include OpenVINO 2021.1 release.
 
 
 ## Run OpenVINO Model Server
 
-A detailed description of how to use OpenVINO Model Server can be found in [ovms_quickstart](https://github.com/openvinotoolkit/model_server/blob/main/docs/ovms_quickstart.md).
+Find a detailed description of how to use the OpenVINO Model Server in [OVMS Quickstart](/docs/ovms_quickstart.md).
 
-More detailed guides to using Model Server in various scenarios can be found here:
+For more detailed guides on using the Model Server in various scenarios, visit the links below:
 
-* [Models repository configuration](https://github.com/openvinotoolkit/model_server/blob/main/docs/models_repository.md)
+* [Models repository configuration](/docs/models_repository.md)
 
-* [Using a docker container](https://github.com/openvinotoolkit/model_server/blob/main/docs/docker_container.md)
+* [Using a Docker container](/docs/docker_container.md)
 
-* [Landing on bare metal or virtual machine](https://github.com/openvinotoolkit/model_server/blob/main/docs/host.md)
+* [Landing on bare metal or virtual machine](/docs/host.md)
 
-* [Performance tuning](https://github.com/openvinotoolkit/model_server/blob/main/docs/performance_tuning.md)
+* [Performance tuning](/docs/performance_tuning.md)
 
-* [Model Ensemble Scheduler](https://github.com/openvinotoolkit/model_server/blob/main/docs/ensemble_scheduler.md)
+* [Model Ensemble Scheduler](/docs/ensemble_scheduler.md)
 
 
-## API documentation
+## API Documentation
 
 ### GRPC 
 
 OpenVINO&trade; Model Server gRPC API is documented in the proto buffer files in [tensorflow_serving_api](https://github.com/tensorflow/serving/tree/r2.2/tensorflow_serving/apis). 
 
-**Note:** The implementations for `Predict`, `GetModelMetadata` and `GetModelStatus` function calls are currently available. 
-These are the most generic function calls and should address most of the usage scenarios.
+> **NOTE:** The implementations for `Predict`, `GetModelMetadata`, and `GetModelStatus` function calls are currently available. 
+> These are the most generic function calls and should address most of the usage scenarios.
 
 [Predict proto](https://github.com/tensorflow/serving/blob/r2.2/tensorflow_serving/apis/predict.proto) defines two message specifications: `PredictRequest` and `PredictResponse` used while calling Prediction endpoint.  
-* `PredictRequest` specifies information about the model spec (name and version) and a map of input data serialized via 
+* `PredictRequest` specifies information about the model spec, that is name and version, and a map of input data serialized via 
 [TensorProto](https://github.com/tensorflow/tensorflow/blob/r2.2/tensorflow/core/framework/tensor.proto) to a string format.
 * `PredictResponse` includes a map of outputs serialized by 
 [TensorProto](https://github.com/tensorflow/tensorflow/blob/r2.2/tensorflow/core/framework/tensor.proto) and information about the used model spec.
@@ -87,7 +87,7 @@ These are the most generic function calls and should address most of the usage s
  A function call `GetModelMetadata` accepts model spec information as input and returns Signature Definition content in the format similar to TensorFlow Serving.
 
 [Get Model Status proto](https://github.com/tensorflow/serving/blob/r2.2/tensorflow_serving/apis/get_model_status.proto) defines three message definitions used while calling Status endpoint:
- `GetModelStatusRequest`, `ModelVersionStatus`, `GetModelStatusResponse` that are used to report all exposed versions including their state in their lifecycle. 
+ `GetModelStatusRequest`, `ModelVersionStatus`, `GetModelStatusResponse` that report all exposed versions including their state in their lifecycle. 
 
 Refer to the [example client code](https://github.com/openvinotoolkit/model_server/blob/main/example_client) to learn how to use this API and submit the requests using the gRPC interface.
 
@@ -95,31 +95,31 @@ Using the gRPC interface is recommended for optimal performance due to its faste
 
 ### REST
 
-OpenVINO&trade; Model Server RESTful API follows the documentation from [tensorflow serving rest api](https://www.tensorflow.org/tfx/serving/api_rest).
+OpenVINO&trade; Model Server RESTful API follows the documentation from the [TensorFlow Serving REST API](https://www.tensorflow.org/tfx/serving/api_rest).
 
 Both row and column format of the requests are implemented.
 
-**Note:** Just like with gRPC, only the implementations for `Predict`, `GetModelMetadata` and `GetModelStatus` function calls are currently available. 
+> **NOTE**: Just like with gRPC, only the implementations for `Predict`, `GetModelMetadata`, and `GetModelStatus` function calls are currently available. 
 
 Only the numerical data types are supported. 
 
 Review the exemplary clients below to find out more how to connect and run inference requests.
 
-REST API is recommended when the primary goal is in reducing the number of client side python dependencies and simpler application code.
+REST API is recommended when the primary goal is in reducing the number of client side Python dependencies and simpler application code.
 
 
 ## Known Limitations
 
-* Currently, `Predict`, `GetModelMetadata` and `GetModelStatus` calls are implemented using Tensorflow Serving API. 
-* `Classify`, `Regress` and `MultiInference` are not included.
-* Output_filter is not effective in the Predict call. All outputs defined in the model are returned to the clients. 
+* Currently, `Predict`, `GetModelMetadata`, and `GetModelStatus` calls are implemented using the Tensorflow Serving API. 
+* `Classify`, `Regress`, and `MultiInference` are not included.
+* `Output_filter` is not effective in the `Predict` call. All outputs defined in the model are returned to the clients. 
 
 
 ## OpenVINO Model Server Contribution Policy
 
 * All contributed code must be compatible with the [Apache 2](https://www.apache.org/licenses/LICENSE-2.0) license.
 
-* All changes needs to have pass linter, unit and functional tests.
+* All changes have to pass linter, unit, and functional tests.
 
 * All new features need to be covered by tests.
 
