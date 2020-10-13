@@ -32,7 +32,7 @@ using namespace ngraph;
 
 // ------------------------------------ v0 -------------------------------------
 
-namespace
+namespace maximumop
 {
     template <element::Type_t ET>
     bool evaluate(const HostTensorPtr& arg0,
@@ -98,5 +98,5 @@ bool op::v1::Maximum::evaluate(const HostTensorVector& outputs,
                                const HostTensorVector& inputs) const
 {
     OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v1::Maximum::evaluate");
-    return evaluate_maximum(inputs[0], inputs[1], outputs[0], get_autob());
+    return maximumop::evaluate_maximum(inputs[0], inputs[1], outputs[0], get_autob());
 }

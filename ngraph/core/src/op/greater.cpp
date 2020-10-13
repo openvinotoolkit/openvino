@@ -24,7 +24,7 @@ NGRAPH_SUPPRESS_DEPRECATED_START
 using namespace std;
 using namespace ngraph;
 
-namespace
+namespace greaterop
 {
     template <element::Type_t ET>
     bool evaluate(const HostTensorPtr& arg0,
@@ -92,5 +92,5 @@ bool op::v1::Greater::evaluate(const HostTensorVector& outputs,
                                const HostTensorVector& inputs) const
 {
     OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v1::Greater::evaluate");
-    return evaluate_greater(inputs[0], inputs[1], outputs[0], get_autob());
+    return greaterop::evaluate_greater(inputs[0], inputs[1], outputs[0], get_autob());
 }
