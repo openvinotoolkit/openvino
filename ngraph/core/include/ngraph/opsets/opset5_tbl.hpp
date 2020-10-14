@@ -164,6 +164,7 @@ NGRAPH_OP(SoftPlus, ngraph::op::v4)
 NGRAPH_OP(Swish, ngraph::op::v4)
 
 // New operations added in opset5
+NGRAPH_OP(GatherND, ngraph::op::v5)
 NGRAPH_OP(LogSoftmax, ngraph::op::v5)
 NGRAPH_OP(LSTMSequence, ngraph::op::v5)
 NGRAPH_OP(GRUSequence, ngraph::op::v5)

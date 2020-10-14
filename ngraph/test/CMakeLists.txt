@@ -287,6 +287,7 @@ set(MULTI_TEST_SRC
     backend/function_name.in.cpp
     backend/fused_op.in.cpp
     backend/gather.in.cpp
+    backend/gather_nd.in.cpp
     backend/gelu.in.cpp
     backend/group_convolution.in.cpp
     backend/interpolate.in.cpp
