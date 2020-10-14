@@ -73,8 +73,8 @@ def write_aggregated_stats(stats_path, stats: dict):
 
 def prepare_executable_cmd(args: dict):
     """Generate common part of cmd from arguments to execute"""
-    return [str(args["executable"].resolve()),
-            "-m", str(args["model"].resolve()),
+    return [str(args["executable"].resolve(strict=True)),
+            "-m", str(args["model"].resolve(strict=True)),
             "-d", args["device"]]
 
 

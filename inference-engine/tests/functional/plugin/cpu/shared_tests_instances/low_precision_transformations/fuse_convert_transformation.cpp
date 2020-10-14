@@ -17,7 +17,6 @@ const std::vector< ngraph::Shape > inputAndQuantizationShapes = {
 };
 
 const std::vector<LayerTestsUtils::LayerTransformation::LptVersion> versionValues = {
-        LayerTestsUtils::LayerTransformation::LptVersion::cnnNetwork,
         LayerTestsUtils::LayerTransformation::LptVersion::nGraph
 };
 

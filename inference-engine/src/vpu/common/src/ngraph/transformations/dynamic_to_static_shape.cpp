@@ -14,6 +14,7 @@
 #include "vpu/ngraph/transformations/dynamic_to_static_shape_reduce.hpp"
 #include "vpu/ngraph/transformations/dynamic_to_static_shape_reshape.hpp"
 #include "vpu/ngraph/transformations/dynamic_to_static_shape_roialign.hpp"
+#include "vpu/ngraph/transformations/dynamic_to_static_shape_split.hpp"
 #include "vpu/ngraph/transformations/dynamic_to_static_shape_squeeze.hpp"
 #include "vpu/ngraph/transformations/dynamic_to_static_shape_strided_slice.hpp"
 #include "vpu/ngraph/transformations/dynamic_to_static_shape_topk.hpp"
@@ -26,6 +27,7 @@
 #include "vpu/utils/error.hpp"
 
 #include "ngraph/opsets/opset3.hpp"
+#include "ngraph/opsets/opset5.hpp"
 #include "vpu/ngraph/operations/dynamic_non_max_suppression.hpp"
 
 namespace vpu {
@@ -104,6 +106,7 @@ const Transformations& getDefaultTransformations() {
         {ngraph::opset3::Reshape::type_info,                   dynamicToStaticShapeReshape},
         {ngraph::opset3::Broadcast::type_info,                 dynamicToStaticShapeBroadcast},
         {ngraph::opset3::MatMul::type_info,                    dynamicToStaticShapeMatMul},
+        {ngraph::opset5::Split::type_info,                     dynamicToStaticShapeSplit},
 
         // reduction
         {ngraph::opset3::ReduceLogicalAnd::type_info, dynamicToStaticShapeReduce},

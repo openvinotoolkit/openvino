@@ -10,7 +10,6 @@
 #include <cmath>
 #include <vector>
 
-#include "ngraph_ops/normalize_ie.hpp"
 #include "ngraph/type/element_type.hpp"
 #include "ngraph/type/element_type_traits.hpp"
 #include "transformations/low_precision/network_helper.hpp"

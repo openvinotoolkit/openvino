@@ -27,7 +27,7 @@ using namespace ngraph;
 
 NGRAPH_SUPPRESS_DEPRECATED_START
 
-namespace
+namespace clamp
 {
     template <element::Type_t ET, typename T>
     bool evaluate(const HostTensorPtr& arg, const HostTensorPtr& out, T min, T max, size_t count)
@@ -87,7 +87,7 @@ namespace
 bool op::v0::Clamp::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
     OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v0::Clamp::evaluate");
-    return evaluate_clamp(
+    return clamp::evaluate_clamp(
         inputs[0], outputs[0], get_min(), get_max(), shape_size(get_input_shape(0)));
 }
 

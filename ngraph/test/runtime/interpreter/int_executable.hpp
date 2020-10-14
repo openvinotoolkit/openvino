@@ -70,6 +70,7 @@
 #include "ngraph/runtime/reference/max_pool.hpp"
 #include "ngraph/runtime/reference/min.hpp"
 #include "ngraph/runtime/reference/negate.hpp"
+#include "ngraph/runtime/reference/normalize_l2.hpp"
 #include "ngraph/runtime/reference/not.hpp"
 #include "ngraph/runtime/reference/one_hot.hpp"
 #include "ngraph/runtime/reference/pad.hpp"
@@ -704,6 +705,35 @@ protected:
                                                  node.get_input_shape(0),
                                                  node.get_input_shape(1),
                                                  node.get_output_shape(0));
+            }
+            else
+            {
+                throw ngraph_error("Unexpected type");
+            }
+            break;
+        }
+        case OP_TYPEID::GatherND_v5:
+        {
+            const op::v5::GatherND* gatherNDNode = static_cast<const op::v5::GatherND*>(&node);
+            if (node.get_input_element_type(1) == element::i64)
+            {
+                reference::gather_nd<T, int64_t>(args[0]->get_data_ptr<T>(),
+                                                 args[1]->get_data_ptr<int64_t>(),
+                                                 out[0]->get_data_ptr<T>(),
+                                                 node.get_input_shape(0),
+                                                 node.get_input_shape(1),
+                                                 node.get_output_shape(0),
+                                                 gatherNDNode->get_batch_dims());
+            }
+            else if (node.get_input_element_type(1) == element::i32)
+            {
+                reference::gather_nd<T, int32_t>(args[0]->get_data_ptr<T>(),
+                                                 args[1]->get_data_ptr<int32_t>(),
+                                                 out[0]->get_data_ptr<T>(),
+                                                 node.get_input_shape(0),
+                                                 node.get_input_shape(1),
+                                                 node.get_output_shape(0),
+                                                 gatherNDNode->get_batch_dims());
             }
             else
             {
@@ -1372,6 +1402,17 @@ protected:
                                    args[1]->get_element_type());
             break;
         }
+        case OP_TYPEID::NormalizeL2:
+        {
+            const op::NormalizeL2* norm = static_cast<const op::NormalizeL2*>(&node);
+            reference::normalize_l2<T>(args[0]->get_data_ptr<const T>(),
+                                       out[0]->get_data_ptr<T>(),
+                                       node.get_input_shape(0),
+                                       norm->get_reduction_axes(),
+                                       norm->get_eps(),
+                                       norm->get_eps_mode());
+            break;
+        }
 
         // Fused Ops are not supported in interpreter. They need to be decomposed before execution
         case OP_TYPEID::DepthToSpace:
@@ -1384,7 +1425,6 @@ protected:
         case OP_TYPEID::HardSigmoid:
         case OP_TYPEID::Interpolate:
         case OP_TYPEID::MVN:
-        case OP_TYPEID::NormalizeL2:
         case OP_TYPEID::PRelu:
         case OP_TYPEID::ScatterUpdate_v3:
         case OP_TYPEID::Selu:

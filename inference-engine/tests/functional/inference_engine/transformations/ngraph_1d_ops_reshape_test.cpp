@@ -15,7 +15,7 @@
 #include <ngraph/op/constant.hpp>
 #include <ngraph_ops/convolution_ie.hpp>
 #include <ngraph/pass/constant_folding.hpp>
-#include <transformations/convert_opset1_to_legacy/reshape_1d_ops.hpp>
+#include <legacy/transformations/convert_opset1_to_legacy/reshape_1d_ops.hpp>
 #include <transformations/init_node_info.hpp>
 #include <ngraph/opsets/opset1.hpp>
 #include "common_test_utils/ngraph_test_utils.hpp"

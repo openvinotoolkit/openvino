@@ -42,7 +42,8 @@ std::vector<CommonTestUtils::OpType> opTypes = {
 std::vector<ngraph::helpers::EltwiseTypes> eltwiseOpTypes = {
         ngraph::helpers::EltwiseTypes::MULTIPLY,
         ngraph::helpers::EltwiseTypes::SUBTRACT,
-        ngraph::helpers::EltwiseTypes::ADD
+        ngraph::helpers::EltwiseTypes::ADD,
+        ngraph::helpers::EltwiseTypes::POWER
 };
 
 std::map<std::string, std::string> additional_config = {};
@@ -53,6 +54,9 @@ const auto multiply_params = ::testing::Combine(
         ::testing::ValuesIn(secondaryInputTypes),
         ::testing::ValuesIn(opTypes),
         ::testing::ValuesIn(netPrecisions),
+        ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+        ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+        ::testing::Values(InferenceEngine::Layout::ANY),
         ::testing::Values(CommonTestUtils::DEVICE_GPU),
         ::testing::Values(additional_config));
 

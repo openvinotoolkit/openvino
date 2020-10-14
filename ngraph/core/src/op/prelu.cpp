@@ -96,37 +96,42 @@ shared_ptr<Node> op::PRelu::clone_with_new_inputs(const OutputVector& new_args) 
     return make_shared<PRelu>(new_args.at(0), new_args.at(1));
 }
 
-template <element::Type_t ET>
-bool evaluate(const HostTensorPtr& arg, const HostTensorPtr& slope, const HostTensorPtr& out)
+namespace prelu
 {
-    runtime::reference::prelu(arg->get_data_ptr<ET>(),
-                              slope->get_data_ptr<ET>(),
-                              out->get_data_ptr<ET>(),
-                              arg->get_shape(),
-                              slope->get_shape());
-    return true;
-}
-
-bool evaluate_prelu(const HostTensorPtr& arg, const HostTensorPtr& slope, const HostTensorPtr& out)
-{
-    bool rc = true;
-    switch (arg->get_element_type())
+    template <element::Type_t ET>
+    bool evaluate(const HostTensorPtr& arg, const HostTensorPtr& slope, const HostTensorPtr& out)
     {
-        TYPE_CASE(i8)(arg, slope, out);
-        break;
-        TYPE_CASE(bf16)(arg, slope, out);
-        break;
-        TYPE_CASE(f16)(arg, slope, out);
-        break;
-        TYPE_CASE(f32)(arg, slope, out);
-        break;
-    default: rc = false; break;
+        runtime::reference::prelu(arg->get_data_ptr<ET>(),
+                                  slope->get_data_ptr<ET>(),
+                                  out->get_data_ptr<ET>(),
+                                  arg->get_shape(),
+                                  slope->get_shape());
+        return true;
     }
-    return rc;
+
+    bool evaluate_prelu(const HostTensorPtr& arg,
+                        const HostTensorPtr& slope,
+                        const HostTensorPtr& out)
+    {
+        bool rc = true;
+        switch (arg->get_element_type())
+        {
+            TYPE_CASE(i8)(arg, slope, out);
+            break;
+            TYPE_CASE(bf16)(arg, slope, out);
+            break;
+            TYPE_CASE(f16)(arg, slope, out);
+            break;
+            TYPE_CASE(f32)(arg, slope, out);
+            break;
+        default: rc = false; break;
+        }
+        return rc;
+    }
 }
 
 bool op::PRelu::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
     OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::PRelu::evaluate");
-    return evaluate_prelu(inputs[0], inputs[1], outputs[0]);
+    return prelu::evaluate_prelu(inputs[0], inputs[1], outputs[0]);
 }

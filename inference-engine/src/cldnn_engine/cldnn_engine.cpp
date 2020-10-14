@@ -26,12 +26,12 @@
 #include <ngraph/opsets/opset4.hpp>
 #include <ngraph/pass/manager.hpp>
 #include <generic_ie.hpp>
-#include <transformations/tensor_iterator_transformations/unroll_tensor_iterator.hpp>
+#include <transformations/control_flow/unroll_tensor_iterator.hpp>
 #include <transformations/common_optimizations/common_optimizations.hpp>
-#include <transformations/convert_opset1_to_legacy/convert_opset1_to_legacy.hpp>
-#include <transformations/convert_opset1_to_legacy/convert_prior_to_ie_prior.hpp>
-#include <transformations/convert_opset2_to_opset1/convert_opset2_to_opset1.hpp>
-#include <transformations/convert_opset3_to_opset2/convert_opset3_to_opset2.hpp>
+#include <legacy/transformations/convert_opset1_to_legacy/convert_opset1_to_legacy.hpp>
+#include <legacy/transformations/convert_opset1_to_legacy/convert_prior_to_ie_prior.hpp>
+#include <transformations/opset_conversions/convert_opset2_to_opset1.hpp>
+#include <transformations/opset_conversions/convert_opset3_to_opset2.hpp>
 #include <transformations/init_node_info.hpp>
 #include <transformations/convert_precision.hpp>
 #include <transformations/rt_info/fused_names_attribute.hpp>
@@ -381,10 +381,9 @@ void clDNNEngine::SetConfig(const std::map<std::string, std::string> &config) {
     _impl->m_config.UpdateFromMap(config);
 }
 
-void clDNNEngine::QueryNetwork(const ICNNNetwork& network,
-                               const std::map<std::string,
-                               std::string>& config,
-                               QueryNetworkResult& res) const {
+QueryNetworkResult clDNNEngine::QueryNetwork(const ICNNNetwork& network,
+                                             const std::map<std::string, std::string>& config) const {
+    QueryNetworkResult res;
     GetDeviceInfo(config);      // Verify device id
     auto function = network.getFunction();
     if (function != nullptr) {
@@ -597,6 +596,8 @@ void clDNNEngine::QueryNetwork(const ICNNNetwork& network,
             }
         }
     }
+
+    return res;
 }
 
 Parameter clDNNEngine::GetConfig(const std::string& name, const std::map<std::string, Parameter>& /*options*/) const {

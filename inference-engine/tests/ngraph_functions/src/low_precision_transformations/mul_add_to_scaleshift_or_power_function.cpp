@@ -8,8 +8,8 @@
 #include "ngraph_ops/type_relaxed.hpp"
 #include "transformations/low_precision/network_helper.hpp"
 
-#include "ngraph_ops/power.hpp"
-#include "ngraph_ops/scaleshift.hpp"
+#include <legacy/ngraph_ops/power.hpp>
+#include <legacy/ngraph_ops/scaleshift.hpp>
 
 #include "ngraph_functions/subgraph_builders.hpp"
 #include "ngraph_functions/low_precision_transformations/common/dequantization_operations.hpp"

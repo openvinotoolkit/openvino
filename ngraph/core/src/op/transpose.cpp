@@ -86,7 +86,7 @@ shared_ptr<Node> op::v1::Transpose::clone_with_new_inputs(const OutputVector& ne
     return make_shared<v1::Transpose>(new_args[0], new_args[1]);
 }
 
-namespace
+namespace transpose
 {
     template <element::Type_t ET>
     std::vector<int64_t> get_vector(const HostTensorPtr& arg)
@@ -145,5 +145,5 @@ bool op::v1::Transpose::evaluate(const HostTensorVector& output_values,
                                  const HostTensorVector& input_values) const
 {
     OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v1::Transpose::evaluate");
-    return evaluate_transpose(input_values[0], input_values[1], output_values[0]);
+    return transpose::evaluate_transpose(input_values[0], input_values[1], output_values[0]);
 }

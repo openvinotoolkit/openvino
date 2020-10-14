@@ -15,9 +15,6 @@
 
 namespace ngraph {
 
-template <typename T>
-VariantImpl<T>::~VariantImpl() { }
-
 template class ngraph::VariantImpl<DequantizationAttr>;
 
 constexpr VariantTypeInfo VariantWrapper<DequantizationAttr>::type_info;
