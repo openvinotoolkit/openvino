@@ -143,7 +143,7 @@ bool SubtractMultiplyToMultiplyAddTransformation::transform(TransformationContex
 
 bool SubtractMultiplyToMultiplyAddTransformation::canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> op) const {
     FakeQuantizeDequantization dequantization = get(op);
-    if (dequantization.empty() || (dequantization.multiply == nullptr) || is_type<opset1::FakeQuantize>(dequantization.data.get_node_shared_ptr())) {
+    if (dequantization.empty() || (dequantization.multiply == nullptr)) {
         return false;
     }
 
