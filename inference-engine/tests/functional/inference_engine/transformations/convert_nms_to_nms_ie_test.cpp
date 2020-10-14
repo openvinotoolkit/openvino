@@ -11,10 +11,10 @@
 #include <ngraph/function.hpp>
 #include <ngraph/opsets/opset1.hpp>
 #include <ngraph/opsets/opset3.hpp>
-#include <transformations/convert_opset1_to_legacy/convert_nms_to_nms_ie.hpp>
+#include <legacy/transformations/convert_opset1_to_legacy/convert_nms_to_nms_ie.hpp>
 #include <transformations/init_node_info.hpp>
 #include <transformations/utils/utils.hpp>
-#include <ngraph_ops/nms_ie.hpp>
+#include <legacy/ngraph_ops/nms_ie.hpp>
 #include <ngraph/pass/constant_folding.hpp>
 #include <ngraph/pass/manager.hpp>
 

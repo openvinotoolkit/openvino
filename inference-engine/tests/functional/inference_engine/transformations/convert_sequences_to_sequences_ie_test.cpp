@@ -8,14 +8,14 @@
 #include <memory>
 
 #include <transformations/init_node_info.hpp>
-#include <transformations/convert_opset1_to_legacy/convert_sequences_to_sequences_ie.hpp>
+#include <legacy/transformations/convert_opset1_to_legacy/convert_sequences_to_sequences_ie.hpp>
 
 #include <ngraph/ops.hpp>
 #include <ngraph/opsets/opset5.hpp>
 #include <ngraph/function.hpp>
-#include <ngraph_ops/gru_sequence_ie.hpp>
-#include <ngraph_ops/rnn_sequence_ie.hpp>
-#include <ngraph_ops/lstm_sequence_ie.hpp>
+#include <legacy/ngraph_ops/gru_sequence_ie.hpp>
+#include <legacy/ngraph_ops/rnn_sequence_ie.hpp>
+#include <legacy/ngraph_ops/lstm_sequence_ie.hpp>
 #include <ngraph/pass/manager.hpp>
 
 #include "common_test_utils/test_common.hpp"
