@@ -16,6 +16,7 @@
 
 #pragma once
 
+#include <algorithm>
 #include <cmath>
 
 #include "ngraph/shape.hpp"
@@ -60,10 +61,7 @@ namespace ngraph
                         for (unsigned int channel_idx = 0; channel_idx < channels; channel_idx++)
                         {
                             T val = src_data[offset + channel_idx * area + i];
-                            if (val > max)
-                            {
-                                max = val;
-                            }
+                            max = std::max(max, val);
                         }
 
                         T sum = 0;
@@ -133,10 +131,10 @@ namespace ngraph
                                                 batch_idx,
                                                 n * width * height,
                                                 0);
-                        for (unsigned int i = index; i < index + 2 * width * height; i++)
-                        {
-                            output[i] = sigmoid<T>(output[i]);
-                        }
+                        std::transform(output + index,
+                                       output + index + 2 * width * height,
+                                       output + index,
+                                       [](T elem) -> T { return sigmoid<T>(elem); });
 
                         index = entry_index(width,
                                             height,
@@ -146,10 +144,10 @@ namespace ngraph
                                             batch_idx,
                                             n * width * height,
                                             coords);
-                        for (unsigned int i = index; i < index + end_index; i++)
-                        {
-                            output[i] = sigmoid<T>(output[i]);
-                        }
+                        std::transform(output + index,
+                                       output + index + end_index,
+                                       output + index,
+                                       [](T elem) -> T { return sigmoid<T>(elem); });
                     }
                 }
 
