@@ -79,8 +79,8 @@ GemmKernelBase::DispatchData GemmKernelMMADint8::SetDefault(const gemm_params& p
     GemmTuningData td = SetTuningParams(params);
 
     dispatchData.gws = { Align(output.X().v, td.simd_size),
-               Align(output.Y().v, td.simd_size * td.tile_num) / (td.simd_size * td.tile_num),
-               total_batches };
+                         Align(output.Y().v, td.simd_size * td.tile_num) / (td.simd_size * td.tile_num),
+                         total_batches };
     dispatchData.lws = { td.simd_size, 1, 1 };
 
     return dispatchData;

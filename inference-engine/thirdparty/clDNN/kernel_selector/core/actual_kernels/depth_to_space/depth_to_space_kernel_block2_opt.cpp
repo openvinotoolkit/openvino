@@ -49,7 +49,7 @@ CommonDispatchData DepthToSpaceKernelBlock2Opt::SetDefault(const depth_to_space_
 
     dispatchData.gws = { Align(params.inputs[0].X().v / 2, 16),
                          params.inputs[0].Y().v,
-                         1};
+                         1 };
     dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo);
 
     return dispatchData;

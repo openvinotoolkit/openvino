@@ -85,8 +85,8 @@ JitConstants CumSumKernelBase::GetJitConstants(const cum_sum_params& params, Dis
 CumSumKernelBase::DispatchData CumSumKernelBase::SetDefault(const cum_sum_params& params) const {
     DispatchData dispatchData;
     dispatchData.gws = { params.output.Batch().v,
-               params.output.Feature().v * params.output.W().v,
-               params.output.Z().v * params.output.Y().v * params.output.X().v };
+                         params.output.Feature().v * params.output.W().v,
+                         params.output.Z().v * params.output.Y().v * params.output.X().v };
     dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo);
 
     return dispatchData;

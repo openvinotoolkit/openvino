@@ -33,7 +33,7 @@ GatherTreeKernelBase::DispatchData GatherTreeKernelBase::SetDefault(const gather
                          params.output.Feature().v,  // batch
                          1 };
     dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo);
-    return data;
+    return dispatchData;
 }
 
 KernelsData GatherTreeKernelBase::GetCommonKernelsData(const Params& params,

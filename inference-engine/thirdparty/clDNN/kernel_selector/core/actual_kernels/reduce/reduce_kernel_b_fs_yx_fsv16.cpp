@@ -76,8 +76,8 @@ CommonDispatchData ReduceKernel_b_fs_yx_fsv16::SetDefault(const reduce_params& p
 
     auto in_dims = calc_in_dims(params);
     dispatchData.gws = { 16,
-               CeilDiv(in_dims[3].v, calc_read_offset(params)) * in_dims[2].v,  // X, Y
-               CeilDiv(in_dims[1].v, SIMD) * in_dims[0].v};                     // F, B
+                         CeilDiv(in_dims[3].v, calc_read_offset(params)) * in_dims[2].v,  // X, Y
+                         CeilDiv(in_dims[1].v, SIMD) * in_dims[0].v };                    // F, B
     dispatchData.lws = { SIMD, 1, 1 };
 
     return dispatchData;

@@ -45,7 +45,7 @@ CommonDispatchData LRNKernelAcrossChannelMultipleFeaturesFSV16::SetDefault(const
 
     dispatchData.gws = { Align(out.Feature().v, alignment),
                          out.X().v,
-                         out.Y().v * out.Batch().v};
+                         out.Y().v * out.Batch().v };
     dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo);
 
     dispatchData.efficiency = FORCE_PRIORITY_6;

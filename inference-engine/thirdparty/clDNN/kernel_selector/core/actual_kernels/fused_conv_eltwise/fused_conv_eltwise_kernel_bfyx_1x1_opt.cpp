@@ -143,7 +143,7 @@ fused_conv_eltwise_kernel_base::DispatchData fused_conv_eltwise_kernel_bfyx_1x1_
     dispatchData.gws[0] = arg.output.X().v / block.out_width;
     dispatchData.gws[1] = arg.output.Y().v / block.out_height;
     dispatchData.gws[2] = 2 * (arg.output.Feature().v * arg.output.Batch().v) /
-                     block.out_depth;  // process 8 output channels per Workitem
+                          block.out_depth;  // process 8 output channels per Workitem
 
     dispatchData.lws[0] = 1;
     dispatchData.lws[1] = 1;

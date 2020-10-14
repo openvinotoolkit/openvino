@@ -58,8 +58,8 @@ CommonDispatchData ShuffleChannelsKernelRef::SetDefault(const shuffle_channels_p
     CommonDispatchData dispatchData;
 
     dispatchData.gws = { params.output.Batch().v,
-               params.output.Feature().v,
-               params.output.Y().v * params.output.X().v };
+                         params.output.Feature().v,
+                         params.output.Y().v * params.output.X().v };
     dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo);
 
     return dispatchData;
