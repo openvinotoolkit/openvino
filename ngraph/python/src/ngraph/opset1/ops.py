@@ -2642,7 +2642,7 @@ def sqrt(node: NodeInput, name: Optional[str] = None) -> Node:
 def squared_difference(
     x1: NodeInput, x2: NodeInput, auto_broadcast: str = "NUMPY", name: Optional[str] = None
 ) -> Node:
-    """! Perform an element-wise squared difference between two tensors.
+    r"""! Perform an element-wise squared difference between two tensors.
 
     \f[ y[i] = (x_1[i] - x_2[i])^2 \f]
 
@@ -2784,8 +2784,7 @@ def tensor_iterator(
     concat_output_desc: List[TensorIteratorConcatOutputDesc],
     name: Optional[str] = None,
 ) -> Node:
-    """!
-    Perform recurrent execution of the network described in the body, iterating through the data.
+    """! Perform recurrent execution of the network described in the body, iterating through the data.
 
     @param      inputs:                The provided to TensorIterator operator.
     @param      graph_body:            The graph representing the body we execute.
