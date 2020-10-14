@@ -26,13 +26,13 @@ class GatherND(Op):
 
     def __init__(self, graph: Graph, attrs: dict):
         mandatory_props = {
-            'kind': 'op',
             'type': self.op,
             'op': self.op,
             'version': 'opset5',
             'infer': self.infer,
             'in_ports_count': 2,
             'out_ports_count': 1,
+            'batch_dims': 0
         }
         super().__init__(graph, mandatory_props, attrs)
 
@@ -51,9 +51,8 @@ class GatherND(Op):
         indices_shape = node.in_port(1).data.get_shape()
         indices_value = node.in_port(1).data.get_value()
 
-        batch_dims = 0
-        if node.has_valid('batch_dims'):
-            batch_dims = node.batch_dims
+        assert node.has_valid('batch_dims'),  "Node {} must contain `batch_dims` attribute".format(node_name)
+        batch_dims = node.batch_dims
 
         # check that a number of batch dimensions is less than both ranks of data and indices tensors
         assert batch_dims < len(data_shape), "Number of batch dimensions must be less than a rank of data"

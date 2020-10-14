@@ -81,7 +81,7 @@ class GatherNDNormalize(MiddleReplacementPattern):
         # 0. All needed checks that we can replace GatherND by Gather
         gather_idx = self.indices_check(indices, input_shape)
         if gather_idx is None:
-            log.warning('Node {} with op=GatherND  can\'t be normalized to op=Gather.'.format(gather_name))
+            log.warning('Node {} with op=GatherND can\'t be normalized to op=Gather.'.format(gather_name))
             return
 
         # 1. Add Reshape and connect
