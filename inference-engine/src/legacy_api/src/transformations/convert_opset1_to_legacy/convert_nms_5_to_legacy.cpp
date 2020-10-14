@@ -12,7 +12,7 @@
 #include <ngraph/rt_info.hpp>
 #include <transformations/utils/utils.hpp>
 
-#include "transformations/convert_opset1_to_legacy/convert_nms_5_to_legacy.hpp"
+#include "legacy/transformations/convert_opset1_to_legacy/convert_nms_5_to_legacy.hpp"
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertNMS5ToLegacyMatcher, "ConvertNMS5ToLegacyMatcher", 0);
 
