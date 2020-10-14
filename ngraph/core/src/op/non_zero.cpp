@@ -84,7 +84,7 @@ shared_ptr<Node> op::v3::NonZero::clone_with_new_inputs(const OutputVector& new_
     return make_shared<v3::NonZero>(new_args.at(0), m_output_type);
 }
 
-namespace
+namespace nonzero
 {
     template <element::Type_t INPUT_ET, element::Type_t OUT_ET>
     bool evaluate_nonzero_execute(const HostTensorPtr& input, const HostTensorPtr& output)
@@ -163,5 +163,5 @@ bool op::v3::NonZero::evaluate(const HostTensorVector& outputs,
                                const HostTensorVector& inputs) const
 {
     OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v3::NonZero::evaluate");
-    return evaluate_nonzero(inputs[0], outputs[0]);
+    return nonzero::evaluate_nonzero(inputs[0], outputs[0]);
 }

@@ -52,7 +52,7 @@ shared_ptr<Node> op::v0::Sum::get_default_value() const
     return ngraph::make_constant_from_string("0", get_element_type(), get_shape());
 }
 
-namespace
+namespace sum
 {
     template <element::Type_t ET>
     bool evaluate(const HostTensorPtr& arg,
@@ -95,5 +95,5 @@ namespace
 bool op::v0::Sum::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
     OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v0::Sum::evaluate");
-    return evaluate_sum(inputs[0], outputs[0], get_reduction_axes(), false);
+    return sum::evaluate_sum(inputs[0], outputs[0], get_reduction_axes(), false);
 }

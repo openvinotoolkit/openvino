@@ -42,7 +42,7 @@ shared_ptr<Node> op::v0::Equal::clone_with_new_inputs(const OutputVector& new_ar
     return make_shared<op::v0::Equal>(new_args.at(0), new_args.at(1), this->get_autob());
 }
 
-namespace
+namespace equal
 {
     template <element::Type_t ET>
     bool evaluate(const HostTensorPtr& arg0,
@@ -91,7 +91,7 @@ namespace
 bool op::v0::Equal::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
     OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v0::Equal::evaluate");
-    return evaluate_equal(inputs[0], inputs[1], outputs[0], get_autob());
+    return equal::evaluate_equal(inputs[0], inputs[1], outputs[0], get_autob());
 }
 
 //------------------------------- v1 -------------------------------------------
@@ -115,5 +115,5 @@ shared_ptr<Node> op::v1::Equal::clone_with_new_inputs(const OutputVector& new_ar
 bool op::v1::Equal::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
     OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v1::Equal::evaluate");
-    return evaluate_equal(inputs[0], inputs[1], outputs[0], get_autob());
+    return equal::evaluate_equal(inputs[0], inputs[1], outputs[0], get_autob());
 }
