@@ -20,6 +20,7 @@
 #include "ngraph/op/constant.hpp"
 #include "ngraph/op/util/op_types.hpp"
 #include "ngraph/runtime/reference/non_max_suppression.hpp"
+#include "ngraph/type/bfloat16.hpp"
 #include "ngraph/type/float16.hpp"
 
 using namespace std;
@@ -871,54 +872,100 @@ namespace
         }
     }
 
+    std::vector<float> get_floats(const HostTensorPtr& input, const Shape& shape)
+    {
+        size_t input_size = shape_size(shape);
+        std::vector<float> result(input_size);
+
+        switch(input->get_element_type())
+        {
+        case element::Type_t::bf16:
+            {
+                bfloat16* p = input->get_data_ptr<bfloat16>();
+                for (size_t i = 0; i < input_size; ++i)
+                {
+                    result[i] = float(p[i]);
+                }
+            }
+            break;
+        case element::Type_t::f16:
+            {
+                float16* p = input->get_data_ptr<float16>();
+                for (size_t i = 0; i < input_size; ++i)
+                {
+                    result[i] = float(p[i]);
+                }
+            }
+            break;
+        case element::Type_t::f32:
+            {
+                float* p = input->get_data_ptr<float>();
+                memcpy(result.data(), p, input_size * sizeof(float));
+            }
+            break;
+        case element::Type_t::f64:
+            {
+                double* p = input->get_data_ptr<double>();
+                for (size_t i = 0; i < input_size; ++i)
+                {
+                    result[i] = float(p[i]);
+                }
+            }
+            break;
+        default:;
+        }
+
+        return result;
+    }
+
     std::vector<float> prepare_boxes_data(const HostTensorPtr& boxes,
                                           const Shape& boxes_shape,
                                           const V5BoxEncoding box_encoding)
     {
-        element::Type boxes_input_et = boxes->get_element_type();
-
-        size_t boxes_size = shape_size(boxes_shape);
-        std::vector<float> result(boxes_size);
-
-        if (boxes_input_et == ngraph::element::f32)
-        {
-            float* boxes_ptr = boxes->get_data_ptr<float>();
-            memcpy(result.data(), boxes_ptr, boxes_size * sizeof(float));
-        }
-        else
-        {
-            float16* boxes_ptr = boxes->get_data_ptr<float16>();
-            for (size_t i = 0; i < boxes_size; ++i)
-            {
-                result[i] = float(boxes_ptr[i]);
-            }
-        }
-
+        //         element::Type boxes_input_et = boxes->get_element_type();
+        //
+        //         size_t boxes_size = shape_size(boxes_shape);
+        //         std::vector<float> result(boxes_size);
+        //
+        //         if (boxes_input_et == ngraph::element::f32)
+        //         {
+        //             float* boxes_ptr = boxes->get_data_ptr<float>();
+        //             memcpy(result.data(), boxes_ptr, boxes_size * sizeof(float));
+        //         }
+        //         else
+        //         {
+        //             float16* boxes_ptr = boxes->get_data_ptr<float16>();
+        //             for (size_t i = 0; i < boxes_size; ++i)
+        //             {
+        //                 result[i] = float(boxes_ptr[i]);
+        //             }
+        //         }
+        auto result = get_floats(boxes, boxes_shape);
         normalize_box_encoding(result.data(), boxes_shape, box_encoding);
         return result;
     }
 
     std::vector<float> prepare_scores_data(const HostTensorPtr& scores, const Shape& scores_shape)
     {
-        element::Type scores_input_et = scores->get_element_type();
-
-        size_t scores_size = shape_size(scores_shape);
-        std::vector<float> result(scores_size);
-
-        if (scores_input_et == ngraph::element::f32)
-        {
-            float* scores_ptr = scores->get_data_ptr<float>();
-            memcpy(result.data(), scores_ptr, scores_size * sizeof(float));
-        }
-        else
-        {
-            float16* scores_ptr = scores->get_data_ptr<float16>();
-            for (size_t i = 0; i < scores_size; ++i)
-            {
-                result[i] = float(scores_ptr[i]);
-            }
-        }
-
+        //         element::Type scores_input_et = scores->get_element_type();
+        //
+        //         size_t scores_size = shape_size(scores_shape);
+        //         std::vector<float> result(scores_size);
+        //
+        //         if (scores_input_et == ngraph::element::f32)
+        //         {
+        //             float* scores_ptr = scores->get_data_ptr<float>();
+        //             memcpy(result.data(), scores_ptr, scores_size * sizeof(float));
+        //         }
+        //         else
+        //         {
+        //             float16* scores_ptr = scores->get_data_ptr<float16>();
+        //             for (size_t i = 0; i < scores_size; ++i)
+        //             {
+        //                 result[i] = float(scores_ptr[i]);
+        //             }
+        //         }
+        auto result = get_floats(scores, scores_shape);
         return result;
     }
 
