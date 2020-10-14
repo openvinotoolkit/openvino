@@ -31,26 +31,26 @@ This guide provides installation steps for the IntelÂ® distribution of OpenVINOâ
     ```sh
    set PATH=<library_dir>;%PATH%
    ```
-  How to find library_dir:
- - Ubuntu* 18.04 and macOS*:
-   - Standart user:
+  How to find `library_dir`:
+ - Ubuntu\*, macOS\*:
+   - standard user:
      ```sh
      echo $(python3 -m site --user-base)/lib
      ```
-   - root/sudo:
+   - root or sudo user:
      ```sh
      /usr/local/lib
      ```
-   - venv/custom install python:
+   - virtual environments or custom Python installations (from sources or tarball):
      ```sh
      echo $(which python3)/../../lib
      ```
- - Windows* 10:
-   - Standart python:
+ - Windows\*:
+   - standard Python:
      ```sh
       python -c "import os, sys; print((os.path.dirname(sys.executable))+'\Library\\bin')"
      ```
-   - venv:
+   - virtual environments or custom Python installations (from sources or tarball):
      ```sh
       python -c "import os, sys; print((os.path.dirname(sys.executable))+'\..\Library\\bin')"
      ```
