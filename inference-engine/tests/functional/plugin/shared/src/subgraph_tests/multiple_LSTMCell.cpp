@@ -18,7 +18,7 @@
 #include "ngraph_functions/utils/ngraph_helpers.hpp"
 #include "ngraph_functions/builders.hpp"
 
-#include <transformations/lstm_cell_decomposition.hpp>
+#include <transformations/op_conversions/lstm_cell_decomposition.hpp>
 #include "subgraph_tests/multiple_LSTMCell.hpp"
 
 namespace SubgraphTestsDefinitions {

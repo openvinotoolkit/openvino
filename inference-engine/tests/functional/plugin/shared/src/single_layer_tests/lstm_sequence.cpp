@@ -17,7 +17,7 @@
 #include "functional_test_utils/skip_tests_config.hpp"
 
 #include "single_layer_tests/lstm_sequence.hpp"
-#include <transformations/bidirectional_sequences_decomposition.hpp>
+#include <transformations/op_conversions/bidirectional_sequences_decomposition.hpp>
 
 namespace LayerTestsDefinitions {
 

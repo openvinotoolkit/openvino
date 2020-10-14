@@ -9,7 +9,7 @@
 #include "ie_system_conf.h"
 
 #include <ngraph/ngraph.hpp>
-#include <ngraph_ops/fully_connected.hpp>
+#include <legacy/ngraph_ops/fully_connected.hpp>
 
 namespace LayerTestsDefinitions {
 

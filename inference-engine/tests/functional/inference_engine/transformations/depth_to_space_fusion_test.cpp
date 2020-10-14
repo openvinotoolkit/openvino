@@ -15,8 +15,8 @@
 #include <ngraph/function.hpp>
 #include <ngraph/opsets/opset3.hpp>
 #include <ngraph/pass/constant_folding.hpp>
-#include <ngraph_ops/fully_connected.hpp>
-#include <transformations/depth_to_space_fusion.hpp>
+#include <legacy/ngraph_ops/fully_connected.hpp>
+#include <transformations/common_optimizations/depth_to_space_fusion.hpp>
 #include <transformations/utils/utils.hpp>
 #include <transformations/init_node_info.hpp>
 

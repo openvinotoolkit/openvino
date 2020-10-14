@@ -16,11 +16,11 @@
 #include <ngraph/opsets/opset3.hpp>
 #include <ngraph/opsets/opset4.hpp>
 #include <ngraph/function.hpp>
-#include <transformations/convert_opset1_to_legacy/convert_cells_to_cells_ie.hpp>
+#include <legacy/transformations/convert_opset1_to_legacy/convert_cells_to_cells_ie.hpp>
 #include <transformations/init_node_info.hpp>
-#include <ngraph_ops/gru_cell_ie.hpp>
-#include <ngraph_ops/rnn_cell_ie.hpp>
-#include <ngraph_ops/lstm_cell_ie.hpp>
+#include <legacy/ngraph_ops/gru_cell_ie.hpp>
+#include <legacy/ngraph_ops/rnn_cell_ie.hpp>
+#include <legacy/ngraph_ops/lstm_cell_ie.hpp>
 #include <ngraph/pass/manager.hpp>
 #include "common_test_utils/ngraph_test_utils.hpp"
 

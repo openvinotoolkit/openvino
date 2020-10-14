@@ -8,7 +8,7 @@
 #include <ngraph/op/parameter.hpp>
 #include <ngraph/ops.hpp>
 #include <ie_precision.hpp>
-#include <ngraph_ops/fully_connected.hpp>
+#include <legacy/ngraph_ops/fully_connected.hpp>
 #include "../gna_matcher.hpp"
 
 using namespace InferenceEngine;

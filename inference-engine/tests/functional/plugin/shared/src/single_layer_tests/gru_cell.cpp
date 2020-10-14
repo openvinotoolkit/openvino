@@ -16,7 +16,7 @@
 #include "functional_test_utils/plugin_cache.hpp"
 #include "functional_test_utils/skip_tests_config.hpp"
 
-#include <transformations/gru_cell_decomposition.hpp>
+#include <transformations/op_conversions/gru_cell_decomposition.hpp>
 #include "single_layer_tests/gru_cell.hpp"
 
 namespace LayerTestsDefinitions {

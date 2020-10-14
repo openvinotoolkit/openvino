@@ -15,8 +15,8 @@
 #include <ngraph/function.hpp>
 #include <ngraph/opsets/opset1.hpp>
 #include <ngraph/pass/constant_folding.hpp>
-#include <ngraph_ops/fully_connected.hpp>
-#include <transformations/convert_opset1_to_legacy/fc_bias_fusion.hpp>
+#include <legacy/ngraph_ops/fully_connected.hpp>
+#include <legacy/transformations/convert_opset1_to_legacy/fc_bias_fusion.hpp>
 #include <transformations/utils/utils.hpp>
 #include <transformations/init_node_info.hpp>
 

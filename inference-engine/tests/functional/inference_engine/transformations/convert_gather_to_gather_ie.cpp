@@ -10,10 +10,10 @@
 
 #include <ngraph/function.hpp>
 #include <ngraph/opsets/opset1.hpp>
-#include <transformations/convert_opset1_to_legacy/convert_gather_to_gather_ie.hpp>
+#include <legacy/transformations/convert_opset1_to_legacy/convert_gather_to_gather_ie.hpp>
 #include <transformations/init_node_info.hpp>
 #include <transformations/utils/utils.hpp>
-#include <ngraph_ops/gather_ie.hpp>
+#include <legacy/ngraph_ops/gather_ie.hpp>
 #include <ngraph/pass/manager.hpp>
 
 #include "common_test_utils/ngraph_test_utils.hpp"

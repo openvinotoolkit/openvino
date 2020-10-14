@@ -21,12 +21,12 @@
 #include <string>
 
 #include <transformations/utils/utils.hpp>
-#include <transformations/convert_opset1_to_legacy/convert_one_hot_to_one_hot_ie.hpp>
 #include <transformations/smart_reshape/smart_reshape.hpp>
 
-#include "ngraph_ops/eltwise.hpp"
-#include "exec_graph_info.hpp"
+#include <legacy/transformations/convert_opset1_to_legacy/convert_one_hot_to_one_hot_ie.hpp>
 #include <legacy/ie_ngraph_utils.hpp>
+
+#include "exec_graph_info.hpp"
 #include "ie_itt.hpp"
 #include "network_serializer.hpp"
 #include "generic_ie.hpp"

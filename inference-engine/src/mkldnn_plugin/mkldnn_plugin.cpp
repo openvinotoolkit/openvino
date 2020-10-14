@@ -22,33 +22,36 @@
 #include <legacy/ie_ngraph_utils.hpp>
 
 #include <legacy/convert_function_to_cnn_network.hpp>
+#include <legacy/transformations/convert_opset1_to_legacy/convert_opset1_to_legacy.hpp>
+#include <legacy/transformations/convert_opset1_to_legacy/convert_prior_to_ie_prior.hpp>
+#include <legacy/transformations/convert_opset1_to_legacy/reshape_fully_connected.hpp>
+#include <legacy/ngraph_ops/fully_connected.hpp>
+
+#include <transformations/opset_conversions/convert_opset3_to_opset2.hpp>
+#include <transformations/opset_conversions/convert_opset2_to_opset1.hpp>
+
 #include <transformations/common_optimizations/common_optimizations.hpp>
-#include <transformations/convert_opset1_to_legacy/convert_opset1_to_legacy.hpp>
-#include <transformations/convert_opset1_to_legacy/convert_prior_to_ie_prior.hpp>
-#include <transformations/convert_opset2_to_opset1/convert_opset2_to_opset1.hpp>
-#include <transformations/convert_opset3_to_opset2/convert_opset3_to_opset2.hpp>
-#include <transformations/convert_depth_to_space.hpp>
-#include <transformations/convert_space_to_depth.hpp>
-#include <transformations/init_node_info.hpp>
+#include <transformations/common_optimizations/depth_to_space_fusion.hpp>
+#include <transformations/op_conversions/convert_depth_to_space.hpp>
+#include <transformations/op_conversions/convert_space_to_depth.hpp>
+#include <transformations/op_conversions/convert_gelu.hpp>
+#include <transformations/op_conversions/hswish_decomposition.hpp>
+#include <transformations/op_conversions/reduce_l1_decomposition.hpp>
+#include <transformations/op_conversions/reduce_l2_decomposition.hpp>
+#include <transformations/op_conversions/convert_pad_to_group_conv.hpp>
+#include <transformations/op_conversions/convert_extract_image_patches_to_reorg_yolo.hpp>
+#include <transformations/op_conversions/softplus_decomposition.hpp>
+#include <transformations/op_conversions/convert_space_to_batch.hpp>
+#include <transformations/op_conversions/convert_batch_to_space.hpp>
 #include <transformations/convert_precision.hpp>
-#include <transformations/convert_opset1_to_legacy/reshape_fully_connected.hpp>
-#include <transformations/convert_gelu.hpp>
-#include <transformations/depth_to_space_fusion.hpp>
-#include <transformations/convert_batch_to_space.hpp>
-#include <transformations/convert_extract_image_patches_to_reorg_yolo.hpp>
-#include <transformations/hswish_decomposition.hpp>
-#include <transformations/reduce_l1_decomposition.hpp>
-#include <transformations/reduce_l2_decomposition.hpp>
-#include <transformations/convert_space_to_batch.hpp>
-#include <transformations/softplus_decomposition.hpp>
-#include <transformations/convert_pad_to_group_conv.hpp>
+#include <transformations/init_node_info.hpp>
 #include <transformations/rt_info/fused_names_attribute.hpp>
+
 #include <ngraph/opsets/opset2.hpp>
 #include <ngraph/opsets/opset3.hpp>
 #include <ngraph/opsets/opset4.hpp>
 #include <ngraph/op/util/op_types.hpp>
 #include <ngraph/pass/manager.hpp>
-#include "ngraph_ops/fully_connected.hpp"
 
 #if !defined(__arm__) && !defined(_M_ARM) && !defined(__aarch64__) && !defined(_M_ARM64)
 #if defined(_WIN32) || defined(WIN32)

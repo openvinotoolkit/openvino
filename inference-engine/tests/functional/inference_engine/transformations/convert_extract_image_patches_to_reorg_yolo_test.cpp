@@ -11,7 +11,7 @@
 #include <ngraph/opsets/opset1.hpp>
 #include <ngraph/opsets/opset3.hpp>
 #include <ngraph/pass/manager.hpp>
-#include <transformations/convert_extract_image_patches_to_reorg_yolo.hpp>
+#include <transformations/op_conversions/convert_extract_image_patches_to_reorg_yolo.hpp>
 #include <transformations/init_node_info.hpp>
 #include <transformations/utils/utils.hpp>
 

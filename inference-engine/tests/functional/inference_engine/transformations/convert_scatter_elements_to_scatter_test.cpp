@@ -15,7 +15,7 @@
 #include <ngraph/function.hpp>
 #include <ngraph/opsets/opset3.hpp>
 #include <ngraph/pass/constant_folding.hpp>
-#include <transformations/convert_scatter_elements_to_scatter.hpp>
+#include <transformations/op_conversions/convert_scatter_elements_to_scatter.hpp>
 #include <transformations/utils/utils.hpp>
 #include <transformations/init_node_info.hpp>
 
