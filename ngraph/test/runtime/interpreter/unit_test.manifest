@@ -127,6 +127,3 @@ lstm_cell_bias_peepholes_clip_input_forget
 
 # unsupported element type f16 
 INTERPRETER.ctc_greedy_decoder_f16
-
-# ONNX Loop
-onnx_controlflow_loop_2d_add_execution

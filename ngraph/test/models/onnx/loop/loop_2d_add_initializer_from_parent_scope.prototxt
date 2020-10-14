@@ -107,8 +107,8 @@ graph {
   dims: 1
   dims: 2
   data_type: 1
-  float_data: 1
-  float_data: 1
+  float_data: 2
+  float_data: 2
   name: "b"
   }
   input {

@@ -250,3 +250,36 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_controlflow_loop_2d_add_execution)
     test_case.add_expected_output<float>(Shape{3, 2}, {1.f, 1.f, 2.f, 2.f, 3.f, 3.f});
     test_case.run();
 }
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_controlflow_loop_add_initializer_from_parent_scope_execution)
+{
+    const auto function = onnx_import::import_onnx_model(file_util::path_join(
+        SERIALIZED_ZOO, "onnx/loop/loop_2d_add_initializer_from_parent_scope.prototxt"));
+
+    auto test_case = test::TestCase<TestEngine>(function);
+
+    // a_init
+    test_case.add_input<float>({0.f, 0.f});
+
+    test_case.add_expected_output<float>(Shape{1, 2}, {6.f, 6.f});
+    test_case.add_expected_output<float>(Shape{3, 2}, {2.f, 2.f, 4.f, 4.f, 6.f, 6.f});
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_controlflow_loop_slice_add_execution)
+{
+    const auto function = onnx_import::import_onnx_model(
+        file_util::path_join(SERIALIZED_ZOO, "onnx/loop/loop_slice_add.prototxt"));
+
+    auto test_case = test::TestCase<TestEngine>(function);
+    // trip_count
+    test_case.add_input<int64_t>({5});
+    // init condition
+    test_case.add_input<bool>({true});
+    // y_init
+    test_case.add_input<float>({-2.f});
+
+    test_case.add_expected_output<float>(Shape{1}, {13.f});
+    test_case.add_expected_output<float>(Shape{5}, {-1.f, 1.f, 4.f, 8.f, 13.f});
+    test_case.run();
+}

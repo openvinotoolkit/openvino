@@ -1,0 +1,212 @@
+ir_version: 7
+producer_name: "nGraph ONNX Importer"
+graph {
+  node {
+    input: "trip_count"
+    input: "cond_init"
+    input: "y_init"
+    output: "y_final"
+    output: "scan_final"
+    op_type: "Loop"
+    attribute {
+      name: "body"
+      g {
+        node {
+          input: "cond_in"
+          output: "cond_out"
+          op_type: "Identity"
+        }
+        node {
+          output: "x"
+          op_type: "Constant"
+          attribute {
+            name: "value"
+            t {
+              dims: 5
+              data_type: 1
+              float_data: 1
+              float_data: 2
+              float_data: 3
+              float_data: 4
+              float_data: 5
+              name: "const_tensor_x"
+            }
+            type: TENSOR
+          }
+        }
+        node {
+          output: "one"
+          op_type: "Constant"
+          attribute {
+            name: "value"
+            t {
+              data_type: 7
+              int64_data: 1
+              name: "const_tensor_one"
+            }
+            type: TENSOR
+          }
+        }
+        node {
+          input: "iter_count"
+          input: "one"
+          output: "end"
+          op_type: "Add"
+        }
+        node {
+          input: "iter_count"
+          output: "slice_start"
+          op_type: "Unsqueeze"
+          attribute {
+            name: "axes"
+            ints: 0
+            type: INTS
+          }
+        }
+        node {
+          input: "end"
+          output: "slice_end"
+          op_type: "Unsqueeze"
+          attribute {
+            name: "axes"
+            ints: 0
+            type: INTS
+          }
+        }
+        node {
+          input: "x"
+          input: "slice_start"
+          input: "slice_end"
+          output: "slice_out"
+          op_type: "Slice"
+        }
+        node {
+          input: "y_in"
+          input: "slice_out"
+          output: "y_out"
+          op_type: "Add"
+        }
+        node {
+          input: "y_out"
+          output: "scan_out"
+          op_type: "Identity"
+        }
+        name: "loop_body"
+        input {
+          name: "iter_count"
+          type {
+            tensor_type {
+              elem_type: 7
+              shape {
+              }
+            }
+          }
+        }
+        input {
+          name: "cond_in"
+          type {
+            tensor_type {
+              elem_type: 9
+              shape {
+              }
+            }
+          }
+        }
+        input {
+          name: "y_in"
+          type {
+            tensor_type {
+              elem_type: 1
+              shape {
+                dim {
+                  dim_value: 1
+                }
+              }
+            }
+          }
+        }
+        output {
+          name: "cond_out"
+          type {
+            tensor_type {
+              elem_type: 9
+              shape {
+              }
+            }
+          }
+        }
+        output {
+          name: "y_out"
+          type {
+            tensor_type {
+              elem_type: 1
+              shape {
+                dim {
+                  dim_value: 1
+                }
+              }
+            }
+          }
+        }
+        output {
+          name: "scan_out"
+          type {
+            tensor_type {
+              elem_type: 1
+            }
+          }
+        }
+      }
+      type: GRAPH
+    }
+  }
+  name: "test-loop"
+  input {
+    name: "trip_count"
+    type {
+      tensor_type {
+        elem_type: 7
+      }
+    }
+  }
+  input {
+    name: "cond_init"
+    type {
+      tensor_type {
+        elem_type: 9
+      }
+    }
+  }
+  input {
+    name: "y_init"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 1
+          }
+        }
+      }
+    }
+  }
+  output {
+    name: "y_final"
+    type {
+      tensor_type {
+        elem_type: 1
+      }
+    }
+  }
+  output {
+    name: "scan_final"
+    type {
+      tensor_type {
+        elem_type: 1
+      }
+    }
+  }
+}
+opset_import {
+  version: 12
+}
