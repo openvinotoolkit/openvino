@@ -75,7 +75,7 @@ class LeakyReLUFusion(MiddleReplacementPattern):
         # Create new LeakyReLU operation
         leaky_relu_node = LeakyReLU(graph, dict(negative_slope=const_value.item(0))).create_node()
 
-        data_in_port = int(mul_node.in_port(0).get_source().node.op == 'Const')
+        data_in_port = int(mul_node.in_port(0).get_source().node.type == 'Const')
         mul_node.in_port(data_in_port).get_source().connect(leaky_relu_node.in_port(0))
         max_node.out_port(0).get_connection().set_source(leaky_relu_node.out_port(0))
 
