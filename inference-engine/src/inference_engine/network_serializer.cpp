@@ -9,6 +9,7 @@
 #include <string>
 #include <vector>
 
+#include <debug.h>
 #include <legacy/ie_ngraph_utils.hpp>
 #include <ngraph/function.hpp>
 #include <ngraph/ops.hpp>
@@ -41,26 +42,8 @@ struct ConstantAtributes {
 template <typename T>
 std::string create_atribute_list(
     ngraph::ValueAccessor<std::vector<T>>& adapter) {
-    std::string comma_list = "";
-    for (auto v : adapter.get()) {
-        comma_list += std::to_string(v);
-        comma_list += ",";
-    }
-    comma_list.pop_back();
-    return comma_list;
+    return InferenceEngine::details::joinVec(adapter.get(), std::string(","));
 }
-
-template <>
-std::string create_atribute_list(
-    ngraph::ValueAccessor<std::vector<std::string>>& adapter) {
-    std::string comma_list = "";
-    for (auto v : adapter.get()) {
-        comma_list += v;
-        comma_list += ",";
-    }
-    comma_list.pop_back();
-    return comma_list;
-};
 
 class XmlVisitor : public ngraph::AttributeVisitor {
     pugi::xml_node m_data;
@@ -173,6 +156,13 @@ std::string get_opset_name(ngraph::Node* n) {
         if (opsets[idx].get().contains_op_type(n)) {
             return "opset" + std::to_string(number);
         }
+    }
+
+    // ExecGraph nodes are not present in official opsets
+    auto rt_info = n->get_rt_info();
+    if (rt_info.find(ExecGraphInfoSerialization::PERF_COUNTER) !=
+        rt_info.end()) {
+        return "";
     }
 
     THROW_IE_EXCEPTION << "unknown opset: " << n->get_name() << " v"
