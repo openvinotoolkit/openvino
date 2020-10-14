@@ -9,9 +9,9 @@ if(WIN32)
 
     message(STATUS "Trying to find apivalidator in: ${UWP_SDK_PATH}")
     find_host_program(UWP_API_VALIDATOR
-                    NAMES apivalidator
-                    PATHS "${UWP_SDK_PATH}"
-                    DOC "ApiValidator for UWP compliance")
+                      NAMES apivalidator
+                      PATHS "${UWP_SDK_PATH}"
+                      DOC "ApiValidator for UWP compliance")
 
     if(UWP_API_VALIDATOR)
         message(STATUS "Found apivalidator: ${UWP_API_VALIDATOR}")
@@ -62,11 +62,11 @@ function(_ie_add_api_validator_post_build_step)
     cmake_parse_arguments(API_VALIDATOR "" "TARGET" "" ${ARGN})
 
     if(NOT API_VALIDATOR_TARGET)
-    message(FATAL_ERROR "RunApiValidator requires TARGET to validate!")
+        message(FATAL_ERROR "RunApiValidator requires TARGET to validate!")
     endif()
 
     if(NOT TARGET ${API_VALIDATOR_TARGET})
-    message(FATAL_ERROR "${API_VALIDATOR_TARGET} is not a TARGET in the project tree.")
+        message(FATAL_ERROR "${API_VALIDATOR_TARGET} is not a TARGET in the project tree.")
     endif()
 
     # collect targets
@@ -76,31 +76,31 @@ function(_ie_add_api_validator_post_build_step)
     # remove targets which were tested before
 
     foreach(item IN LISTS VALIDATED_LIBRARIES)
-    list(REMOVE_ITEM API_VALIDATOR_TARGETS ${item})
+        list(REMOVE_ITEM API_VALIDATOR_TARGETS ${item})
     endforeach()
 
     list(REMOVE_DUPLICATES API_VALIDATOR_TARGETS)
 
     if(NOT API_VALIDATOR_TARGETS)
-    return()
+        return()
     endif()
 
     # generate rules
 
     foreach(target IN LISTS API_VALIDATOR_TARGETS)
-    list(APPEND commands
-            COMMAND "${UWP_API_VALIDATOR}"
-            -SupportedApiXmlFiles:${UWP_API_VALIDATOR_APIS}
-            -BinaryExclusionListXmlFile:${UWP_API_VALIDATOR_EXCLUSION}
-            -StrictCompliance:TRUE
-            -DriverPackagePath:$<TARGET_FILE:${target}>)
+        list(APPEND commands
+                COMMAND "${UWP_API_VALIDATOR}"
+                -SupportedApiXmlFiles:${UWP_API_VALIDATOR_APIS}
+                -BinaryExclusionListXmlFile:${UWP_API_VALIDATOR_EXCLUSION}
+                -StrictCompliance:TRUE
+                -DriverPackagePath:$<TARGET_FILE:${target}>)
     endforeach()
 
     # apply rules
 
     add_custom_command(TARGET ${API_VALIDATOR_TARGET} POST_BUILD
-    ${commands}
-    COMMENT "[apiValidator] Check $${API_VALIDATOR_TARGET} and its dependencies for WCOS compatibility"
+        ${commands}
+        COMMENT "[apiValidator] Check ${API_VALIDATOR_TARGET} and its dependencies for WCOS compatibility"
     VERBATIM)
 
     # update list of validated libraries
