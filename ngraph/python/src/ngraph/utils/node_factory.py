@@ -5,7 +5,7 @@ from _pyngraph import NodeFactory as _NodeFactory
 
 from ngraph.impl import Node
 
-DEFAULT_OPSET = "opset4"
+DEFAULT_OPSET = "opset5"
 
 
 class NodeFactory(object):
