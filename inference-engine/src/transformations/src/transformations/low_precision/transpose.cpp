@@ -100,9 +100,30 @@ bool TransposeTransformation::canBeTransformed(const TransformationContext& cont
         return false;
     }
 
+    const FakeQuantizeDequantization dequantization = NetworkHelper::getDequantization(op);
+    const bool isPerTensor =  [&] {
+        const auto sub = dequantization.subtract;
+        const auto mul = dequantization.multiply;
+        if (sub) {
+            auto subConst = as_type_ptr<ngraph::op::v0::Constant>(sub->get_input_node_shared_ptr(1));
+            if (!NetworkHelper::isScalarLike(subConst)) {
+                return false;
+            }
+        }
+        if (mul) {
+            auto mulConst = as_type_ptr<ngraph::op::v0::Constant>(mul->get_input_node_shared_ptr(1));
+            if (!NetworkHelper::isScalarLike(mulConst)) {
+                return false;
+            }
+        }
+        return true;
+    }();
+
     const auto values = constant->cast_vector<float>();
-    if ((values.size() < 2ul) || (values[0] != 0) || (values[1] != 1)) {
-        return false;
+    if (!isPerTensor) {
+        if ((values.size() < 2ul) || (values[0] != 0) || (values[1] != 1)) {
+            return false;
+        }
     }
 
     auto checkConstant = [](const std::shared_ptr<Node>& dequantizationConstant, const Shape& transposeOutputShape) -> bool {
@@ -118,7 +139,6 @@ bool TransposeTransformation::canBeTransformed(const TransformationContext& cont
         return (transposeOutputShape.size() - dequantizationShape.size()) == 1;
     };
 
-    const FakeQuantizeDequantization dequantization = NetworkHelper::getDequantization(op);
     return
         !dequantization.empty() &&
         ((dequantization.subtract == nullptr) || checkConstant(dequantization.subtract->get_input_node_shared_ptr(1), op->get_output_shape(0))) &&
