@@ -33,7 +33,8 @@ namespace ngraph
                 /// \brief      Load external data from tensor passed to constructor
                 ///
                 /// \note       If read data from external file fails,
-                ///             the invalid_external_data is thrown
+                /// \note       If reading data from external files fails,
+                ///             the invalid_external_data exception is thrown.
                 ///
                 /// \return     External binary data loaded into a std::string
                 std::string load_external_data() const;

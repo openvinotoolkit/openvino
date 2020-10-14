@@ -119,8 +119,12 @@ namespace ngraph
                     {
                         const auto external_data_relative_path =
                             initializer_tensor.external_data(location_key_value_index).value();
-                        const auto external_data_full_path =
+                        auto external_data_full_path =
                             file_util::path_join(model_dir_path, external_data_relative_path);
+
+#if defined(ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
+                        file_util::convert_path_win_style(external_data_full_path);
+#endif
 
                         // Set full paths to the external file
                         initializer_tensor.mutable_external_data(location_key_value_index)
