@@ -1169,12 +1169,11 @@ private:
         vpmaxsd(vmm_index_x_itr, vmm_index_x_itr, vmm_zero);
 
         // value
-        // vgatherdps(vmm_src, ptr[reg_src + (vmm_index_y_itr * jcp_.IW + vmm_index_x_itr) * jcp_.src_data_size], vmm_mask);
+        // index is: ptr[reg_src + (vmm_index_y_itr * jcp_.IW + vmm_index_x_itr) * jcp_.src_data_size]
         uni_vmovdqu(vmm_mask, cubic_planar_table_val(2));
         vpaddd(vmm_mask, vmm_mask, vmm_one);  // (IW - 1) + 1 = IW
         uni_vpmulld(vmm_mask, vmm_mask, vmm_index_y_itr);
         uni_vpaddd(vmm_index_x_itr, vmm_index_x_itr, vmm_mask);
-        // index: ptr[reg_src + vmm_index_x_itr * jcp_.src_data_size]
         gather_i32_indices(vmm_src, reg_src, 0, vmm_index_x_itr, jcp_.src_data_size, memory::f32, is_scalar);
 
         if (itr == 0) {

@@ -130,4 +130,60 @@ INSTANTIATE_TEST_CASE_P(smoke_Interpolate_Nearest, InterpolateLayerTest, ::testi
         ::testing::Values(CommonTestUtils::DEVICE_CPU)),
     InterpolateLayerTest::getTestCaseName);
 
+const std::vector<std::vector<size_t>> targetShapesTailTest = {
+        {1, 4, 10, 41},  // 10 * 41 is not multipler of 4, cover tail process code path
+};
+
+const std::vector<std::vector<float>> defaultScalesTailTest = {
+    {0.33333f, 1.36666f}
+};
+
+const auto interpolateCasesWithoutNearestTail = ::testing::Combine(
+        ::testing::ValuesIn(modesWithoutNearest),
+        ::testing::ValuesIn(shapeCalculationMode),
+        ::testing::ValuesIn(coordinateTransformModes),
+        ::testing::ValuesIn(defaultNearestMode),
+        ::testing::ValuesIn(antialias),
+        ::testing::ValuesIn(pads),
+        ::testing::ValuesIn(pads),
+        ::testing::ValuesIn(cubeCoefs),
+        ::testing::ValuesIn(defaultAxes),
+        ::testing::ValuesIn(defaultScalesTailTest));
+
+const auto interpolateCasesTail = ::testing::Combine(
+        ::testing::ValuesIn(nearestMode),
+        ::testing::ValuesIn(shapeCalculationMode),
+        ::testing::ValuesIn(coordinateTransformModes),
+        ::testing::ValuesIn(nearestModes),
+        ::testing::ValuesIn(antialias),
+        ::testing::ValuesIn(pads),
+        ::testing::ValuesIn(pads),
+        ::testing::ValuesIn(cubeCoefs),
+        ::testing::ValuesIn(defaultAxes),
+        ::testing::ValuesIn(defaultScalesTailTest));
+
+INSTANTIATE_TEST_CASE_P(smoke_Interpolate_Basic_2, InterpolateLayerTest, ::testing::Combine(
+        interpolateCasesWithoutNearestTail,
+        ::testing::ValuesIn(netPrecisions),
+        ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+        ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+        ::testing::Values(InferenceEngine::Layout::ANY),
+        ::testing::Values(InferenceEngine::Layout::ANY),
+        ::testing::ValuesIn(inShapes),
+        ::testing::ValuesIn(targetShapesTailTest),
+        ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+    InterpolateLayerTest::getTestCaseName);
+
+INSTANTIATE_TEST_CASE_P(smoke_Interpolate_Nearest_2, InterpolateLayerTest, ::testing::Combine(
+        interpolateCasesTail,
+        ::testing::ValuesIn(netPrecisions),
+        ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+        ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+        ::testing::Values(InferenceEngine::Layout::ANY),
+        ::testing::Values(InferenceEngine::Layout::ANY),
+        ::testing::ValuesIn(inShapes),
+        ::testing::ValuesIn(targetShapesTailTest),
+        ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+    InterpolateLayerTest::getTestCaseName);
+
 } // namespace
