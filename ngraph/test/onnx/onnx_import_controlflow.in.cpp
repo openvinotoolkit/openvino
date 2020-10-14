@@ -33,11 +33,12 @@ static std::string s_manifest = "${MANIFEST}";
 
 using TestEngine = test::ENGINE_CLASS_NAME(${BACKEND_NAME});
 
-// TODO remove output shapes
+// SHAPE INFERENCE AND PASSING PARAMS TESTS
+
 NGRAPH_TEST(${BACKEND_NAME}, onnx_controlflow_loop_2d_add_check_model)
 {
     const auto function = onnx_import::import_onnx_model(
-        file_util::path_join(SERIALIZED_ZOO, "onnx/loop_2d_add.prototxt"));
+        file_util::path_join(SERIALIZED_ZOO, "onnx/loop/loop_2d_add.prototxt"));
 
     const auto& parameters = function->get_parameters();
     EXPECT_EQ(parameters.size(), 1);
@@ -58,7 +59,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_controlflow_loop_2d_add_check_model)
 NGRAPH_TEST(${BACKEND_NAME}, onnx_controlflow_loop_scalars_check_model)
 {
     const auto function = onnx_import::import_onnx_model(
-        file_util::path_join(SERIALIZED_ZOO, "onnx/loop_scalars_add.prototxt"));
+        file_util::path_join(SERIALIZED_ZOO, "onnx/loop/loop_scalars_add.prototxt"));
 
     const auto& parameters = function->get_parameters();
     EXPECT_EQ(parameters.size(), 1);
@@ -79,7 +80,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_controlflow_loop_scalars_check_model)
 NGRAPH_TEST(${BACKEND_NAME}, onnx_controlflow_loop_add_initializer_from_parent_scope)
 {
     const auto function = onnx_import::import_onnx_model(file_util::path_join(
-        SERIALIZED_ZOO, "onnx/loop_2d_add_initializer_from_parent_scope.prototxt"));
+        SERIALIZED_ZOO, "onnx/loop/loop_2d_add_initializer_from_parent_scope.prototxt"));
 
     const auto& results = function->get_results();
     EXPECT_EQ(results.size(), 2);
@@ -94,7 +95,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_controlflow_loop_add_initializer_from_parent_s
 NGRAPH_TEST(${BACKEND_NAME}, onnx_controlflow_loop_add_input_from_parent_scope)
 {
     const auto function = onnx_import::import_onnx_model(
-        file_util::path_join(SERIALIZED_ZOO, "onnx/loop_2d_add_input_from_parent_scope.prototxt"));
+        file_util::path_join(SERIALIZED_ZOO, "onnx/loop/loop_2d_add_input_from_parent_scope.prototxt"));
 
     const auto& results = function->get_results();
     EXPECT_EQ(results.size(), 2);
@@ -109,7 +110,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_controlflow_loop_add_input_from_parent_scope)
 NGRAPH_TEST(${BACKEND_NAME}, onnx_controlflow_loop_add_node_from_parent_scope)
 {
     const auto function = onnx_import::import_onnx_model(
-        file_util::path_join(SERIALIZED_ZOO, "onnx/loop_2d_add_node_from_parent_scope.prototxt"));
+        file_util::path_join(SERIALIZED_ZOO, "onnx/loop/loop_2d_add_node_from_parent_scope.prototxt"));
 
     const auto& results = function->get_results();
     EXPECT_EQ(results.size(), 3);
@@ -126,7 +127,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_controlflow_loop_add_value_access_to_body_scop
     try
     {
         const auto function = onnx_import::import_onnx_model(file_util::path_join(
-            SERIALIZED_ZOO, "onnx/loop_2d_add_incorrect_access_body_scope.prototxt"));
+            SERIALIZED_ZOO, "onnx/loop/loop_2d_add_incorrect_access_body_scope.prototxt"));
         FAIL() << "Incorrect access to body scope not detected";
     }
     catch (const ngraph_error& e)
@@ -144,7 +145,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_controlflow_loop_add_value_access_to_body_scop
 NGRAPH_TEST(${BACKEND_NAME}, onnx_controlflow_loop_add_value_the_same_node_from_parent_and_subgraph)
 {
     const auto function = onnx_import::import_onnx_model(
-        file_util::path_join(SERIALIZED_ZOO, "onnx/loop_2d_add_the_same_name.prototxt"));
+        file_util::path_join(SERIALIZED_ZOO, "onnx/loop/loop_2d_add_the_same_name.prototxt"));
 
     const auto& results = function->get_results();
     EXPECT_EQ(results.size(), 2);
@@ -159,7 +160,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_controlflow_loop_add_value_the_same_node_from_
 NGRAPH_TEST(${BACKEND_NAME}, onnx_controlflow_loop_2d_add_const_cond)
 {
     const auto function = onnx_import::import_onnx_model(
-        file_util::path_join(SERIALIZED_ZOO, "onnx/loop_2d_add_const_cond.prototxt"));
+        file_util::path_join(SERIALIZED_ZOO, "onnx/loop/loop_2d_add_const_cond.prototxt"));
 
     const auto& results = function->get_results();
     EXPECT_EQ(results.size(), 2);
@@ -174,7 +175,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_controlflow_loop_2d_add_const_cond)
 NGRAPH_TEST(${BACKEND_NAME}, onnx_controlflow_loop_2d_trip_count_and_cond_skipped)
 {
     const auto function = onnx_import::import_onnx_model(file_util::path_join(
-        SERIALIZED_ZOO, "onnx/loop_2d_add_trip_count_and_cond_skipped.prototxt"));
+        SERIALIZED_ZOO, "onnx/loop/loop_2d_add_trip_count_and_cond_skipped.prototxt"));
 
     const auto& results = function->get_results();
     EXPECT_EQ(results.size(), 2);
@@ -189,7 +190,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_controlflow_loop_2d_trip_count_and_cond_skippe
 NGRAPH_TEST(${BACKEND_NAME}, onnx_controlflow_loop_2d_termination_condition_dynamic)
 {
     const auto function = onnx_import::import_onnx_model(file_util::path_join(
-        SERIALIZED_ZOO, "onnx/loop_2d_add_dynamic_termination_condition.prototxt"));
+        SERIALIZED_ZOO, "onnx/loop/loop_2d_add_dynamic_termination_condition.prototxt"));
 
     const auto& results = function->get_results();
     EXPECT_EQ(results.size(), 2);
@@ -201,7 +202,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_controlflow_loop_2d_termination_condition_dyna
     EXPECT_TRUE(function->get_output_partial_shape(1).rank().is_dynamic());
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_controlflow_loop_2d_termination_modified_in_body)
+NGRAPH_TEST(${BACKEND_NAME}, onnx_controlflow_loop_2d_not_identity_termination_condition)
 {
 }
 
@@ -213,12 +214,15 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_controlflow_loop_2d_output_shape_dynamic)
 {
 }
 
+
+// EXECUTION TESTS
+
 NGRAPH_TEST(${BACKEND_NAME}, onnx_controlflow_loop_2d_add_execution)
 {
     // The model contains a loop which has statically set iterations count equal 3.
     // In the loop body there is just simple add operation.
     const auto function = onnx_import::import_onnx_model(
-        file_util::path_join(SERIALIZED_ZOO, "onnx/loop_2d_add.prototxt"));
+        file_util::path_join(SERIALIZED_ZOO, "onnx/loop/loop_2d_add.prototxt"));
 
     auto test_case = test::TestCase<TestEngine>(function);
 
