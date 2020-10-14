@@ -106,9 +106,9 @@ bool op::v0::Round::evaluate(const HostTensorVector& outputs, const HostTensorVe
 {
     OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v0::Round::evaluate");
     return roundop::evaluate_round(inputs[0],
-                          outputs[0],
-                          shape_size(get_output_shape(0)),
-                          op::v5::Round::RoundMode::HALF_TO_EVEN);
+                                   outputs[0],
+                                   shape_size(get_output_shape(0)),
+                                   op::v5::Round::RoundMode::HALF_TO_EVEN);
 }
 NGRAPH_SUPPRESS_DEPRECATED_END
 
@@ -142,7 +142,8 @@ shared_ptr<Node> op::v5::Round::clone_with_new_inputs(const OutputVector& new_ar
 bool op::v5::Round::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
     OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v5::Round::evaluate");
-    return roundop::evaluate_round(inputs[0], outputs[0], shape_size(get_output_shape(0)), get_mode());
+    return roundop::evaluate_round(
+        inputs[0], outputs[0], shape_size(get_output_shape(0)), get_mode());
 }
 
 namespace ngraph
