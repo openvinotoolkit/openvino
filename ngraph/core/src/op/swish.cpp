@@ -85,7 +85,7 @@ shared_ptr<Node> op::v4::Swish::clone_with_new_inputs(const OutputVector& new_ar
     }
 }
 
-namespace
+namespace swish
 {
     template <element::Type_t ET>
     inline bool evaluate(const HostTensorPtr& arg0,
@@ -131,10 +131,12 @@ bool op::v4::Swish::evaluate(const HostTensorVector& outputs, const HostTensorVe
 {
     if (inputs.size() == 2)
     {
-        return evaluate_swish(inputs[0], inputs[1], outputs[0], shape_size(get_output_shape(0)));
+        return swish::evaluate_swish(
+            inputs[0], inputs[1], outputs[0], shape_size(get_output_shape(0)));
     }
     else
     {
-        return evaluate_swish(inputs[0], nullptr, outputs[0], shape_size(get_output_shape(0)));
+        return swish::evaluate_swish(
+            inputs[0], nullptr, outputs[0], shape_size(get_output_shape(0)));
     }
 }

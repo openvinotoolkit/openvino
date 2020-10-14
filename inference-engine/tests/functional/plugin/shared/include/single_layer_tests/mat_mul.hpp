@@ -13,6 +13,9 @@
 
 typedef std::tuple<
         InferenceEngine::Precision,
+        InferenceEngine::Precision,    // Input precision
+        InferenceEngine::Precision,    // Output precision
+        InferenceEngine::Layout,       // Input layout
         InferenceEngine::SizeVector,
         InferenceEngine::SizeVector,
         bool,
