@@ -20,7 +20,7 @@
 #include "functional_test_utils/layer_test_utils.hpp"
 
 #include "single_layer_tests/prior_box_clustered.hpp"
-#include "ngraph_ops/prior_box_clustered_ie.hpp"
+#include "legacy/ngraph_ops/prior_box_clustered_ie.hpp"
 
 namespace LayerTestsDefinitions {
 std::string PriorBoxClusteredLayerTest::getTestCaseName(const testing::TestParamInfo<priorBoxClusteredLayerParams>& obj) {
