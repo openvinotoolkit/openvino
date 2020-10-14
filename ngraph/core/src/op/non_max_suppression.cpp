@@ -922,24 +922,6 @@ namespace
                                           const Shape& boxes_shape,
                                           const V5BoxEncoding box_encoding)
     {
-        //         element::Type boxes_input_et = boxes->get_element_type();
-        //
-        //         size_t boxes_size = shape_size(boxes_shape);
-        //         std::vector<float> result(boxes_size);
-        //
-        //         if (boxes_input_et == ngraph::element::f32)
-        //         {
-        //             float* boxes_ptr = boxes->get_data_ptr<float>();
-        //             memcpy(result.data(), boxes_ptr, boxes_size * sizeof(float));
-        //         }
-        //         else
-        //         {
-        //             float16* boxes_ptr = boxes->get_data_ptr<float16>();
-        //             for (size_t i = 0; i < boxes_size; ++i)
-        //             {
-        //                 result[i] = float(boxes_ptr[i]);
-        //             }
-        //         }
         auto result = get_floats(boxes, boxes_shape);
         normalize_box_encoding(result.data(), boxes_shape, box_encoding);
         return result;
@@ -947,24 +929,6 @@ namespace
 
     std::vector<float> prepare_scores_data(const HostTensorPtr& scores, const Shape& scores_shape)
     {
-        //         element::Type scores_input_et = scores->get_element_type();
-        //
-        //         size_t scores_size = shape_size(scores_shape);
-        //         std::vector<float> result(scores_size);
-        //
-        //         if (scores_input_et == ngraph::element::f32)
-        //         {
-        //             float* scores_ptr = scores->get_data_ptr<float>();
-        //             memcpy(result.data(), scores_ptr, scores_size * sizeof(float));
-        //         }
-        //         else
-        //         {
-        //             float16* scores_ptr = scores->get_data_ptr<float16>();
-        //             for (size_t i = 0; i < scores_size; ++i)
-        //             {
-        //                 result[i] = float(scores_ptr[i]);
-        //             }
-        //         }
         auto result = get_floats(scores, scores_shape);
         return result;
     }
@@ -1072,7 +1036,7 @@ void op::v5::NonMaxSuppression::validate_and_infer_types()
 
     set_output_type(0, m_output_type, out_shape);
     set_output_type(1, element::f32, out_shape);
-    set_output_type(2, m_output_type, Shape{});
+    set_output_type(2, m_output_type, Shape{1});
 }
 
 namespace ngraph

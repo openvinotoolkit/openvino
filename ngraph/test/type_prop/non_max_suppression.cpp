@@ -671,7 +671,7 @@ TEST(type_prop, nms_v5_output_shape)
     ASSERT_TRUE(
         nms->get_output_partial_shape(1).same_scheme(PartialShape{Dimension::dynamic(), 3}));
 
-    EXPECT_EQ(nms->get_output_shape(2), (Shape{}));
+    EXPECT_EQ(nms->get_output_shape(2), (Shape{1}));
 }
 
 TEST(type_prop, nms_v5_output_shape_2)
@@ -693,7 +693,7 @@ TEST(type_prop, nms_v5_output_shape_2)
     ASSERT_TRUE(
         nms->get_output_partial_shape(1).same_scheme(PartialShape{Dimension::dynamic(), 3}));
 
-    EXPECT_EQ(nms->get_output_shape(2), (Shape{}));
+    EXPECT_EQ(nms->get_output_shape(2), (Shape{1}));
 }
 
 TEST(type_prop, nms_v5_output_shape_3)
@@ -715,7 +715,7 @@ TEST(type_prop, nms_v5_output_shape_3)
     ASSERT_TRUE(
         nms->get_output_partial_shape(1).same_scheme(PartialShape{Dimension::dynamic(), 3}));
 
-    EXPECT_EQ(nms->get_output_shape(2), (Shape{}));
+    EXPECT_EQ(nms->get_output_shape(2), (Shape{1}));
 }
 
 TEST(type_prop, nms_v5_output_shape_i32)
@@ -744,7 +744,7 @@ TEST(type_prop, nms_v5_output_shape_i32)
     ASSERT_TRUE(
         nms->get_output_partial_shape(1).same_scheme(PartialShape{Dimension::dynamic(), 3}));
 
-    EXPECT_EQ(nms->get_output_shape(2), (Shape{}));
+    EXPECT_EQ(nms->get_output_shape(2), (Shape{1}));
 }
 
 TEST(type_prop, nms_v5_dynamic_boxes_and_scores)
@@ -766,5 +766,5 @@ TEST(type_prop, nms_v5_dynamic_boxes_and_scores)
     ASSERT_TRUE(
         nms->get_output_partial_shape(1).same_scheme(PartialShape{Dimension::dynamic(), 3}));
 
-    EXPECT_EQ(nms->get_output_shape(2), (Shape{}));
+    EXPECT_EQ(nms->get_output_shape(2), (Shape{1}));
 }

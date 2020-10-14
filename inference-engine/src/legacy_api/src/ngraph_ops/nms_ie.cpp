@@ -170,5 +170,5 @@ void op::NonMaxSuppressionIE3::validate_and_infer_types() {
 
     set_output_type(0, m_output_type, out_shape);
     set_output_type(1, element::f32, out_shape);
-    set_output_type(2, m_output_type, Shape{});
+    set_output_type(2, m_output_type, Shape{1});
 }

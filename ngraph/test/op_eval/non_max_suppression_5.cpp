@@ -74,7 +74,7 @@ TEST(op_eval, nonmaxsuppression_center_point_box_format)
     EXPECT_EQ(results[2]->get_element_type(), element::i64);
     EXPECT_EQ(results[0]->get_shape(), (Shape{3, 3}));
     EXPECT_EQ(results[1]->get_shape(), (Shape{3, 3}));
-    EXPECT_EQ(results[2]->get_shape(), (Shape{}));
+    EXPECT_EQ(results[2]->get_shape(), (Shape{1}));
     EXPECT_EQ(read_vector<int64_t>(results[0]), expected_selected_indices);
     EXPECT_EQ(read_vector<float>(results[1]), expected_selected_scores);
     EXPECT_EQ(read_vector<int64_t>(results[2]), expected_valid_outputs);
@@ -132,7 +132,7 @@ TEST(op_eval, nonmaxsuppression_flipped_coordinates)
     EXPECT_EQ(results[2]->get_element_type(), element::i64);
     EXPECT_EQ(results[0]->get_shape(), (Shape{3, 3}));
     EXPECT_EQ(results[1]->get_shape(), (Shape{3, 3}));
-    EXPECT_EQ(results[2]->get_shape(), (Shape{}));
+    EXPECT_EQ(results[2]->get_shape(), (Shape{1}));
     EXPECT_EQ(read_vector<int64_t>(results[0]), expected_selected_indices);
     EXPECT_EQ(read_vector<float>(results[1]), expected_selected_scores);
     EXPECT_EQ(read_vector<int64_t>(results[2]), expected_valid_outputs);
@@ -191,7 +191,7 @@ TEST(op_eval, nonmaxsuppression_identical_boxes)
     EXPECT_EQ(results[2]->get_element_type(), element::i64);
     EXPECT_EQ(results[0]->get_shape(), (Shape{1, 3}));
     EXPECT_EQ(results[1]->get_shape(), (Shape{1, 3}));
-    EXPECT_EQ(results[2]->get_shape(), (Shape{}));
+    EXPECT_EQ(results[2]->get_shape(), (Shape{1}));
     EXPECT_EQ(read_vector<int64_t>(results[0]), expected_selected_indices);
     EXPECT_EQ(read_vector<float>(results[1]), expected_selected_scores);
     EXPECT_EQ(read_vector<int64_t>(results[2]), expected_valid_outputs);
@@ -249,7 +249,7 @@ TEST(op_eval, nonmaxsuppression_limit_output_size)
     EXPECT_EQ(results[2]->get_element_type(), element::i64);
     EXPECT_EQ(results[0]->get_shape(), (Shape{2, 3}));
     EXPECT_EQ(results[1]->get_shape(), (Shape{2, 3}));
-    EXPECT_EQ(results[2]->get_shape(), (Shape{}));
+    EXPECT_EQ(results[2]->get_shape(), (Shape{1}));
     EXPECT_EQ(read_vector<int64_t>(results[0]), expected_selected_indices);
     EXPECT_EQ(read_vector<float>(results[1]), expected_selected_scores);
     EXPECT_EQ(read_vector<int64_t>(results[2]), expected_valid_outputs);
@@ -305,7 +305,7 @@ TEST(op_eval, nonmaxsuppression_single_box)
     EXPECT_EQ(results[2]->get_element_type(), element::i64);
     EXPECT_EQ(results[0]->get_shape(), (Shape{1, 3}));
     EXPECT_EQ(results[1]->get_shape(), (Shape{1, 3}));
-    EXPECT_EQ(results[2]->get_shape(), (Shape{}));
+    EXPECT_EQ(results[2]->get_shape(), (Shape{1}));
     EXPECT_EQ(read_vector<int64_t>(results[0]), expected_selected_indices);
     EXPECT_EQ(read_vector<float>(results[1]), expected_selected_scores);
     EXPECT_EQ(read_vector<int64_t>(results[2]), expected_valid_outputs);
@@ -363,7 +363,7 @@ TEST(op_eval, nonmaxsuppression_suppress_by_IOU)
     EXPECT_EQ(results[2]->get_element_type(), element::i64);
     EXPECT_EQ(results[0]->get_shape(), (Shape{3, 3}));
     EXPECT_EQ(results[1]->get_shape(), (Shape{3, 3}));
-    EXPECT_EQ(results[2]->get_shape(), (Shape{}));
+    EXPECT_EQ(results[2]->get_shape(), (Shape{1}));
     EXPECT_EQ(read_vector<int64_t>(results[0]), expected_selected_indices);
     EXPECT_EQ(read_vector<float>(results[1]), expected_selected_scores);
     EXPECT_EQ(read_vector<int64_t>(results[2]), expected_valid_outputs);
@@ -421,7 +421,7 @@ TEST(op_eval, nonmaxsuppression_suppress_by_IOU_and_scores)
     EXPECT_EQ(results[2]->get_element_type(), element::i64);
     EXPECT_EQ(results[0]->get_shape(), (Shape{2, 3}));
     EXPECT_EQ(results[1]->get_shape(), (Shape{2, 3}));
-    EXPECT_EQ(results[2]->get_shape(), (Shape{}));
+    EXPECT_EQ(results[2]->get_shape(), (Shape{1}));
     EXPECT_EQ(read_vector<int64_t>(results[0]), expected_selected_indices);
     EXPECT_EQ(read_vector<float>(results[1]), expected_selected_scores);
     EXPECT_EQ(read_vector<int64_t>(results[2]), expected_valid_outputs);
@@ -482,7 +482,7 @@ TEST(op_eval, nonmaxsuppression_two_batches)
     EXPECT_EQ(results[2]->get_element_type(), element::i64);
     EXPECT_EQ(results[0]->get_shape(), (Shape{4, 3}));
     EXPECT_EQ(results[1]->get_shape(), (Shape{4, 3}));
-    EXPECT_EQ(results[2]->get_shape(), (Shape{}));
+    EXPECT_EQ(results[2]->get_shape(), (Shape{1}));
     EXPECT_EQ(read_vector<int64_t>(results[0]), expected_selected_indices);
     EXPECT_EQ(read_vector<float>(results[1]), expected_selected_scores);
     EXPECT_EQ(read_vector<int64_t>(results[2]), expected_valid_outputs);
@@ -542,7 +542,7 @@ TEST(op_eval, nonmaxsuppression_two_classes)
     EXPECT_EQ(results[2]->get_element_type(), element::i64);
     EXPECT_EQ(results[0]->get_shape(), (Shape{4, 3}));
     EXPECT_EQ(results[1]->get_shape(), (Shape{4, 3}));
-    EXPECT_EQ(results[2]->get_shape(), (Shape{}));
+    EXPECT_EQ(results[2]->get_shape(), (Shape{1}));
     EXPECT_EQ(read_vector<int64_t>(results[0]), expected_selected_indices);
     EXPECT_EQ(read_vector<float>(results[1]), expected_selected_scores);
     EXPECT_EQ(read_vector<int64_t>(results[2]), expected_valid_outputs);
