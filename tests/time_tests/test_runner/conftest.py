@@ -24,6 +24,7 @@ import yaml
 import hashlib
 import shutil
 import logging
+import tempfile
 
 from test_runner.utils import upload_timetest_data, \
     DATABASE, DB_COLLECTIONS
@@ -105,6 +106,16 @@ def niter(request):
     return request.config.getoption('niter')
 
 # -------------------- CLI options --------------------
+
+
+@pytest.fixture(scope="function")
+def temp_dir(pytestconfig):
+    """Create temporary directory for test purposes.
+    It will be cleaned up after every test run.
+    """
+    temp_dir = tempfile.TemporaryDirectory()
+    yield Path(temp_dir.name)
+    temp_dir.cleanup()
 
 
 @pytest.fixture(scope="function")
