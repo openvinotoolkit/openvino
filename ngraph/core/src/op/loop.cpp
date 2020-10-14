@@ -63,8 +63,6 @@ void op::v5::Loop::validate_and_infer_types()
     bool condition_always_true = false;
     const auto& body_condition =
         m_body->get_results()[m_special_body_ports.body_condition_output_idx]->input_value(0);
-    std::cout << "body_condition: " << body_condition.get_node_shared_ptr()->get_friendly_name();
-    std::cout << "body_condition: " << body_condition.get_node_shared_ptr()->get_name();
     if (const auto& cond_value = std::dynamic_pointer_cast<const ngraph::opset5::Constant>(
             body_condition.get_node_shared_ptr()))
     {

@@ -36,11 +36,12 @@ namespace ngraph
             {
                 namespace
                 {
-                    /// \brief      The termination condition input is not supported by
-                    ///             TensorIterator now. If it is possible to determine
-                    //              that termination condition is always true,
-                    //              it can be ignored and execute using current version
-                    //              of TensorIterator.
+                    /// \brief      Check if termination condition is true during all Loop
+                    /// iterations.
+                    ///             It allows to replace termination condition body output with
+                    ///             Constant.
+                    ///             As a result ngraph Loop shape iference is able to handle more
+                    ///             cases.
                     ///
                     /// \param[in]  loop_cond       Termination loop condition input of Loop
                     ///                             operator (initial value).
@@ -98,7 +99,7 @@ namespace ngraph
                     const auto& ng_inputs = node.get_ng_inputs();
                     // optional inputs
                     Output<ngraph::Node> trip_count;
-                    if(ngraph::op::is_null(ng_inputs.at(0))) // trip count skipped
+                    if (ngraph::op::is_null(ng_inputs.at(0))) // trip count skipped
                     {
                         // -1 means infinite Loop
                         trip_count = ngraph::op::Constant::create(ngraph::element::i64, {}, {-1});
@@ -106,22 +107,19 @@ namespace ngraph
                     else
                     {
                         trip_count = ng_inputs.at(0);
-                        std::cout << "trip_count: " << trip_count.get_node_shared_ptr()->get_friendly_name() << "\n";
-                        std::cout << "trip_count: " << trip_count.get_node_shared_ptr()->get_name() << "\n";
                     }
 
                     Output<ngraph::Node> termination_cond;
-                    if(ngraph::op::is_null(ng_inputs.at(1))) // termination condition skipped
+                    if (ngraph::op::is_null(ng_inputs.at(1))) // termination condition skipped
                     {
                         // true means that first interation should be run
-                        termination_cond = ngraph::op::Constant::create(ngraph::element::boolean, {}, {true});
+                        termination_cond =
+                            ngraph::op::Constant::create(ngraph::element::boolean, {}, {true});
                     }
                     else
                     {
                         termination_cond = ng_inputs.at(1);
                     }
-                    std::cout << "termination_cond: " << termination_cond.get_node_shared_ptr()->get_friendly_name() << "\n";
-                    std::cout << "termination_cond: " << termination_cond.get_node_shared_ptr()->get_name() << "\n";
 
                     const OutputVector loop_carried_dependencies{std::next(ng_inputs.begin(), 2),
                                                                  ng_inputs.end()};
@@ -131,9 +129,11 @@ namespace ngraph
                     const auto& body_inputs = body_graph.get_ng_parameters();
 
                     const auto& body_loop_cond = body_outputs.at(0).get_node_shared_ptr();
-                    if(is_termination_condition_always_true(termination_cond, body_loop_cond))
+                    // optimization allow to improve nG Loop shape inference
+                    if (is_termination_condition_always_true(termination_cond, body_loop_cond))
                     {
-                        body_outputs[0] = ngraph::op::Constant::create(ngraph::element::boolean, {}, {true});
+                        body_outputs[0] =
+                            ngraph::op::Constant::create(ngraph::element::boolean, {}, {true});
                     }
 
                     CHECK_VALID_NODE(node,
@@ -147,15 +147,13 @@ namespace ngraph
                                      ")");
 
                     CHECK_VALID_NODE(node,
-                                     body_outputs.size() >= loop_carried_dependencies.size() + 1,
+                                     body_outputs.size() > loop_carried_dependencies.size() + 1,
                                      "The provided loop body graph outputs size (",
                                      body_outputs.size(),
                                      ") has to small number of outpus. Required at least: ",
                                      loop_carried_dependencies.size() + 1);
 
-                    // create the loop body
-                    const auto body =
-                        std::make_shared<ngraph::Function>(body_outputs, body_inputs); //TODO CHECK
+                    const auto body = std::make_shared<ngraph::Function>(body_outputs, body_inputs);
                     auto loop = std::make_shared<default_opset::Loop>();
                     loop->set_trip_count_input(trip_count);
                     loop->set_execution_condition_input(termination_cond);
@@ -171,22 +169,18 @@ namespace ngraph
                     OutputVector final_values;
                     for (const auto& dep : loop_carried_dependencies)
                     {
-                        std::cout << "final: " << body_outputs_it->get_node_shared_ptr()->get_friendly_name() << "\n";
-                        loop->set_merged_input(
-                            *body_inputs_it++, dep, *body_outputs_it);
-                        final_values.push_back(
-                            loop->get_iter_value(*body_outputs_it++, -1));
+                        loop->set_merged_input(*body_inputs_it++, dep, *body_outputs_it);
+                        final_values.push_back(loop->get_iter_value(*body_outputs_it++, -1));
                     }
 
                     // Set-up scan outputs
                     OutputVector scan_outputs;
                     for (; body_outputs_it != body_outputs.end(); body_outputs_it++)
                     {
-                        std::cout << "scan outputs: " << body_outputs_it->get_node_shared_ptr()->get_friendly_name() << "\n";
                         // TODO: does concatenating along 0 axis is right?
                         // start=0, stride=1, part_size=1, end=-1, axis=0
-                        scan_outputs.push_back(loop->get_concatenated_slices(
-                            *body_outputs_it, 0, 1, 1, -1, 0)); // CHECK
+                        scan_outputs.push_back(
+                            loop->get_concatenated_slices(*body_outputs_it, 0, 1, 1, -1, 0));
                     }
 
                     OutputVector node_outputs;
