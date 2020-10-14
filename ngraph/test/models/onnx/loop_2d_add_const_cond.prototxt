@@ -45,11 +45,6 @@ graph {
           type {
             tensor_type {
               elem_type: 7
-              shape {
-                dim {
-                  dim_value: 1
-                }
-              }
             }
           }
         }
@@ -58,8 +53,6 @@ graph {
           type {
             tensor_type {
               elem_type: 9
-              shape {
-              }
             }
           }
         }
@@ -68,14 +61,6 @@ graph {
           type {
             tensor_type {
               elem_type: 1
-              shape {
-                dim {
-                  dim_value: 1
-                }
-                dim {
-                  dim_value: 2
-                }
-              }
             }
           }
         }
@@ -84,8 +69,6 @@ graph {
           type {
             tensor_type {
               elem_type: 9
-              shape {
-              }
             }
           }
         }
@@ -94,14 +77,6 @@ graph {
           type {
             tensor_type {
               elem_type: 1
-              shape {
-                dim {
-                  dim_value: 1
-                }
-                dim {
-                  dim_value: 2
-                }
-              }
             }
           }
         }
@@ -110,14 +85,6 @@ graph {
           type {
             tensor_type {
               elem_type: 1
-              shape {
-                dim {
-                  dim_value: 1
-                }
-                dim {
-                  dim_value: 2
-                }
-              }
             }
           }
         }
@@ -158,14 +125,6 @@ graph {
     type {
       tensor_type {
         elem_type: 1
-        shape {
-          dim {
-            dim_value: 1
-          }
-          dim {
-            dim_value: 2
-          }
-        }
       }
     }
   }
@@ -174,14 +133,6 @@ graph {
     type {
       tensor_type {
         elem_type: 1
-        shape {
-          dim {
-            dim_value: 3
-          }
-          dim {
-            dim_value: 2
-          }
-        }
       }
     }
   }
