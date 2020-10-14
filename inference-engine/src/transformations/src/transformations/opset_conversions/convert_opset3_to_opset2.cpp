@@ -5,7 +5,6 @@
 #include "transformations/opset_conversions/convert_opset3_to_opset2.hpp"
 
 #include "transformations/op_conversions/convert_broadcast3.hpp"
-#include "transformations/op_conversions/convert_nms3.hpp"
 #include "transformations/op_conversions/convert_shapeof3.hpp"
 #include "transformations/op_conversions/convert_shuffle_channels3.hpp"
 #include "transformations/op_conversions/convert_topk3.hpp"
