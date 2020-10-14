@@ -24,9 +24,9 @@ using namespace ngraph;
 
 TEST(op_eval, nonmaxsuppression_center_point_box_format)
 {
-    std::vector<float> boxes_data = {
-        0.5, 0.5, 1.0, 1.0, 0.5, 0.6, 1.0, 1.0, 0.5, 0.4, 1.0, 1.0, 0.5, 10.5, 1.0, 1.0, 0.5, 10.6,
-        1.0, 1.0, 0.5, 100.5, 1.0, 1.0};
+    std::vector<float> boxes_data = {0.5, 0.5,  1.0, 1.0, 0.5, 0.6,   1.0, 1.0,
+                                     0.5, 0.4,  1.0, 1.0, 0.5, 10.5,  1.0, 1.0,
+                                     0.5, 10.6, 1.0, 1.0, 0.5, 100.5, 1.0, 1.0};
 
     std::vector<float> scores_data = {0.9, 0.75, 0.6, 0.95, 0.5, 0.3};
 
@@ -42,7 +42,8 @@ TEST(op_eval, nonmaxsuppression_center_point_box_format)
     auto max_output_boxes_per_class =
         op::Constant::create<int64_t>(element::i64, Shape{}, {max_output_boxes_per_class_data});
     auto iou_threshold = op::Constant::create<float>(element::f32, Shape{}, {iou_threshold_data});
-    auto score_threshold = op::Constant::create<float>(element::f32, Shape{}, {score_threshold_data});
+    auto score_threshold =
+        op::Constant::create<float>(element::f32, Shape{}, {score_threshold_data});
     auto soft_nms_sigma = op::Constant::create<float>(element::f32, Shape{}, {0.0f});
     auto nms = make_shared<op::v5::NonMaxSuppression>(boxes,
                                                       scores,
@@ -60,10 +61,9 @@ TEST(op_eval, nonmaxsuppression_center_point_box_format)
     {
         result = make_shared<HostTensor>();
     }
-    ASSERT_TRUE(
-        f->evaluate(results,
-                    {make_host_tensor<element::Type_t::f32>(boxes_shape, boxes_data),
-                     make_host_tensor<element::Type_t::f32>(scores_shape, scores_data)}));
+    ASSERT_TRUE(f->evaluate(results,
+                           {make_host_tensor<element::Type_t::f32>(boxes_shape, boxes_data),
+                            make_host_tensor<element::Type_t::f32>(scores_shape, scores_data)}));
 
     std::vector<int64_t> expected_selected_indices = {0, 0, 3, 0, 0, 0, 0, 0, 5};
     std::vector<float> expected_selected_scores = {0.0, 0.0, 0.95, 0.0, 0.0, 0.9, 0.0, 0.0, 0.3};
@@ -82,9 +82,9 @@ TEST(op_eval, nonmaxsuppression_center_point_box_format)
 
 TEST(op_eval, nonmaxsuppression_flipped_coordinates)
 {
-    std::vector<float> boxes_data = {
-        1.0, 1.0, 0.0, 0.0, 0.0, 0.1, 1.0, 1.1, 0.0, 0.9, 1.0, -0.1, 0.0, 10.0, 1.0, 11.0,
-        1.0, 10.1, 0.0, 11.1, 1.0, 101.0, 0.0, 100.0};
+    std::vector<float> boxes_data = {1.0, 1.0,  0.0, 0.0,  0.0, 0.1,   1.0, 1.1,
+                                     0.0, 0.9,  1.0, -0.1, 0.0, 10.0,  1.0, 11.0,
+                                     1.0, 10.1, 0.0, 11.1, 1.0, 101.0, 0.0, 100.0};
 
     std::vector<float> scores_data = {0.9, 0.75, 0.6, 0.95, 0.5, 0.3};
 
@@ -100,7 +100,8 @@ TEST(op_eval, nonmaxsuppression_flipped_coordinates)
     auto max_output_boxes_per_class =
         op::Constant::create<int64_t>(element::i64, Shape{}, {max_output_boxes_per_class_data});
     auto iou_threshold = op::Constant::create<float>(element::f32, Shape{}, {iou_threshold_data});
-    auto score_threshold = op::Constant::create<float>(element::f32, Shape{}, {score_threshold_data});
+    auto score_threshold =
+        op::Constant::create<float>(element::f32, Shape{}, {score_threshold_data});
     auto soft_nms_sigma = op::Constant::create<float>(element::f32, Shape{}, {0.0f});
     auto nms = make_shared<op::v5::NonMaxSuppression>(boxes,
                                                       scores,
@@ -118,10 +119,9 @@ TEST(op_eval, nonmaxsuppression_flipped_coordinates)
     {
         result = make_shared<HostTensor>();
     }
-    ASSERT_TRUE(
-        f->evaluate(results,
-                    {make_host_tensor<element::Type_t::f32>(boxes_shape, boxes_data),
-                     make_host_tensor<element::Type_t::f32>(scores_shape, scores_data)}));
+    ASSERT_TRUE(f->evaluate(results,
+                            {make_host_tensor<element::Type_t::f32>(boxes_shape, boxes_data),
+                             make_host_tensor<element::Type_t::f32>(scores_shape, scores_data)}));
 
     std::vector<int64_t> expected_selected_indices = {0, 0, 3, 0, 0, 0, 0, 0, 5};
     std::vector<float> expected_selected_scores = {0.0, 0.0, 0.95, 0.0, 0.0, 0.9, 0.0, 0.0, 0.3};
@@ -140,10 +140,10 @@ TEST(op_eval, nonmaxsuppression_flipped_coordinates)
 
 TEST(op_eval, nonmaxsuppression_identical_boxes)
 {
-    std::vector<float> boxes_data = {
-        0.0, 0.0, 1.0, 1.0, 0.0, 0.0, 1.0, 1.0, 0.0, 0.0, 1.0, 1.0, 0.0, 0.0, 1.0, 1.0,
-        0.0, 0.0, 1.0, 1.0, 0.0, 0.0, 1.0, 1.0, 0.0, 0.0, 1.0, 1.0, 0.0, 0.0, 1.0, 1.0,
-        0.0, 0.0, 1.0, 1.0, 0.0, 0.0, 1.0, 1.0};
+    std::vector<float> boxes_data = {0.0, 0.0, 1.0, 1.0, 0.0, 0.0, 1.0, 1.0, 0.0, 0.0,
+                                     1.0, 1.0, 0.0, 0.0, 1.0, 1.0, 0.0, 0.0, 1.0, 1.0,
+                                     0.0, 0.0, 1.0, 1.0, 0.0, 0.0, 1.0, 1.0, 0.0, 0.0,
+                                     1.0, 1.0, 0.0, 0.0, 1.0, 1.0, 0.0, 0.0, 1.0, 1.0};
 
     std::vector<float> scores_data = {0.9, 0.9, 0.9, 0.9, 0.9, 0.9, 0.9, 0.9, 0.9, 0.9};
 
@@ -159,7 +159,8 @@ TEST(op_eval, nonmaxsuppression_identical_boxes)
     auto max_output_boxes_per_class =
         op::Constant::create<int64_t>(element::i64, Shape{}, {max_output_boxes_per_class_data});
     auto iou_threshold = op::Constant::create<float>(element::f32, Shape{}, {iou_threshold_data});
-    auto score_threshold = op::Constant::create<float>(element::f32, Shape{}, {score_threshold_data});
+    auto score_threshold =
+        op::Constant::create<float>(element::f32, Shape{}, {score_threshold_data});
     auto soft_nms_sigma = op::Constant::create<float>(element::f32, Shape{}, {0.0f});
     auto nms = make_shared<op::v5::NonMaxSuppression>(boxes,
                                                       scores,
@@ -177,10 +178,9 @@ TEST(op_eval, nonmaxsuppression_identical_boxes)
     {
         result = make_shared<HostTensor>();
     }
-    ASSERT_TRUE(
-        f->evaluate(results,
-                    {make_host_tensor<element::Type_t::f32>(boxes_shape, boxes_data),
-                     make_host_tensor<element::Type_t::f32>(scores_shape, scores_data)}));
+    ASSERT_TRUE(f->evaluate(results,
+                            {make_host_tensor<element::Type_t::f32>(boxes_shape, boxes_data),
+                             make_host_tensor<element::Type_t::f32>(scores_shape, scores_data)}));
 
     std::vector<int64_t> expected_selected_indices = {0, 0, 0};
     std::vector<float> expected_selected_scores = {0.0, 0.0, 0.9};
@@ -199,9 +199,9 @@ TEST(op_eval, nonmaxsuppression_identical_boxes)
 
 TEST(op_eval, nonmaxsuppression_limit_output_size)
 {
-    std::vector<float> boxes_data = {
-        0.0, 0.0, 1.0, 1.0, 0.0, 0.1, 1.0, 1.1, 0.0, -0.1, 1.0, 0.9, 0.0, 10.0, 1.0, 11.0,
-        0.0, 10.1, 1.0, 11.1, 0.0, 100.0, 1.0, 101.0};
+    std::vector<float> boxes_data = {0.0, 0.0,  1.0, 1.0,  0.0, 0.1,   1.0, 1.1,
+                                     0.0, -0.1, 1.0, 0.9,  0.0, 10.0,  1.0, 11.0,
+                                     0.0, 10.1, 1.0, 11.1, 0.0, 100.0, 1.0, 101.0};
 
     std::vector<float> scores_data = {0.9, 0.75, 0.6, 0.95, 0.5, 0.3};
 
@@ -217,7 +217,8 @@ TEST(op_eval, nonmaxsuppression_limit_output_size)
     auto max_output_boxes_per_class =
         op::Constant::create<int64_t>(element::i64, Shape{}, {max_output_boxes_per_class_data});
     auto iou_threshold = op::Constant::create<float>(element::f32, Shape{}, {iou_threshold_data});
-    auto score_threshold = op::Constant::create<float>(element::f32, Shape{}, {score_threshold_data});
+    auto score_threshold =
+        op::Constant::create<float>(element::f32, Shape{}, {score_threshold_data});
     auto soft_nms_sigma = op::Constant::create<float>(element::f32, Shape{}, {0.0f});
     auto nms = make_shared<op::v5::NonMaxSuppression>(boxes,
                                                       scores,
@@ -235,10 +236,9 @@ TEST(op_eval, nonmaxsuppression_limit_output_size)
     {
         result = make_shared<HostTensor>();
     }
-    ASSERT_TRUE(
-        f->evaluate(results,
-                    {make_host_tensor<element::Type_t::f32>(boxes_shape, boxes_data),
-                     make_host_tensor<element::Type_t::f32>(scores_shape, scores_data)}));
+    ASSERT_TRUE(f->evaluate(results,
+                            {make_host_tensor<element::Type_t::f32>(boxes_shape, boxes_data),
+                             make_host_tensor<element::Type_t::f32>(scores_shape, scores_data)}));
 
     std::vector<int64_t> expected_selected_indices = {0, 0, 3, 0, 0, 0};
     std::vector<float> expected_selected_scores = {0.0, 0.0, 0.95, 0.0, 0.0, 0.9};
@@ -273,7 +273,8 @@ TEST(op_eval, nonmaxsuppression_single_box)
     auto max_output_boxes_per_class =
         op::Constant::create<int64_t>(element::i64, Shape{}, {max_output_boxes_per_class_data});
     auto iou_threshold = op::Constant::create<float>(element::f32, Shape{}, {iou_threshold_data});
-    auto score_threshold = op::Constant::create<float>(element::f32, Shape{}, {score_threshold_data});
+    auto score_threshold =
+        op::Constant::create<float>(element::f32, Shape{}, {score_threshold_data});
     auto soft_nms_sigma = op::Constant::create<float>(element::f32, Shape{}, {0.0f});
     auto nms = make_shared<op::v5::NonMaxSuppression>(boxes,
                                                       scores,
@@ -291,10 +292,9 @@ TEST(op_eval, nonmaxsuppression_single_box)
     {
         result = make_shared<HostTensor>();
     }
-    ASSERT_TRUE(
-        f->evaluate(results,
-                    {make_host_tensor<element::Type_t::f32>(boxes_shape, boxes_data),
-                     make_host_tensor<element::Type_t::f32>(scores_shape, scores_data)}));
+    ASSERT_TRUE(f->evaluate(results,
+                            {make_host_tensor<element::Type_t::f32>(boxes_shape, boxes_data),
+                             make_host_tensor<element::Type_t::f32>(scores_shape, scores_data)}));
 
     std::vector<int64_t> expected_selected_indices = {0, 0, 0};
     std::vector<float> expected_selected_scores = {0.0, 0.0, 0.9};
@@ -313,9 +313,9 @@ TEST(op_eval, nonmaxsuppression_single_box)
 
 TEST(op_eval, nonmaxsuppression_suppress_by_IOU)
 {
-    std::vector<float> boxes_data = {
-        0.0, 0.0, 1.0, 1.0, 0.0, 0.1, 1.0, 1.1, 0.0, -0.1, 1.0, 0.9, 0.0, 10.0, 1.0, 11.0,
-        0.0, 10.1, 1.0, 11.1, 0.0, 100.0, 1.0, 101.0};
+    std::vector<float> boxes_data = {0.0, 0.0,  1.0, 1.0,  0.0, 0.1,   1.0, 1.1,
+                                     0.0, -0.1, 1.0, 0.9,  0.0, 10.0,  1.0, 11.0,
+                                     0.0, 10.1, 1.0, 11.1, 0.0, 100.0, 1.0, 101.0};
 
     std::vector<float> scores_data = {0.9, 0.75, 0.6, 0.95, 0.5, 0.3};
 
@@ -331,7 +331,8 @@ TEST(op_eval, nonmaxsuppression_suppress_by_IOU)
     auto max_output_boxes_per_class =
         op::Constant::create<int64_t>(element::i64, Shape{}, {max_output_boxes_per_class_data});
     auto iou_threshold = op::Constant::create<float>(element::f32, Shape{}, {iou_threshold_data});
-    auto score_threshold = op::Constant::create<float>(element::f32, Shape{}, {score_threshold_data});
+    auto score_threshold =
+        op::Constant::create<float>(element::f32, Shape{}, {score_threshold_data});
     auto soft_nms_sigma = op::Constant::create<float>(element::f32, Shape{}, {0.0f});
     auto nms = make_shared<op::v5::NonMaxSuppression>(boxes,
                                                       scores,
@@ -349,10 +350,9 @@ TEST(op_eval, nonmaxsuppression_suppress_by_IOU)
     {
         result = make_shared<HostTensor>();
     }
-    ASSERT_TRUE(
-        f->evaluate(results,
-                    {make_host_tensor<element::Type_t::f32>(boxes_shape, boxes_data),
-                     make_host_tensor<element::Type_t::f32>(scores_shape, scores_data)}));
+    ASSERT_TRUE(f->evaluate(results,
+                            {make_host_tensor<element::Type_t::f32>(boxes_shape, boxes_data),
+                             make_host_tensor<element::Type_t::f32>(scores_shape, scores_data)}));
 
     std::vector<int64_t> expected_selected_indices = {0, 0, 3, 0, 0, 0, 0, 0, 5};
     std::vector<float> expected_selected_scores = {0.0, 0.0, 0.95, 0.0, 0.0, 0.9, 0.0, 0.0, 0.3};
@@ -371,9 +371,9 @@ TEST(op_eval, nonmaxsuppression_suppress_by_IOU)
 
 TEST(op_eval, nonmaxsuppression_suppress_by_IOU_and_scores)
 {
-    std::vector<float> boxes_data = {
-        0.0, 0.0, 1.0, 1.0, 0.0, 0.1, 1.0, 1.1, 0.0, -0.1, 1.0, 0.9, 0.0, 10.0, 1.0, 11.0,
-        0.0, 10.1, 1.0, 11.1, 0.0, 100.0, 1.0, 101.0};
+    std::vector<float> boxes_data = {0.0, 0.0,  1.0, 1.0,  0.0, 0.1,   1.0, 1.1,
+                                     0.0, -0.1, 1.0, 0.9,  0.0, 10.0,  1.0, 11.0,
+                                     0.0, 10.1, 1.0, 11.1, 0.0, 100.0, 1.0, 101.0};
 
     std::vector<float> scores_data = {0.9, 0.75, 0.6, 0.95, 0.5, 0.3};
 
@@ -389,7 +389,8 @@ TEST(op_eval, nonmaxsuppression_suppress_by_IOU_and_scores)
     auto max_output_boxes_per_class =
         op::Constant::create<int64_t>(element::i64, Shape{}, {max_output_boxes_per_class_data});
     auto iou_threshold = op::Constant::create<float>(element::f32, Shape{}, {iou_threshold_data});
-    auto score_threshold = op::Constant::create<float>(element::f32, Shape{}, {score_threshold_data});
+    auto score_threshold =
+        op::Constant::create<float>(element::f32, Shape{}, {score_threshold_data});
     auto soft_nms_sigma = op::Constant::create<float>(element::f32, Shape{}, {0.0f});
     auto nms = make_shared<op::v5::NonMaxSuppression>(boxes,
                                                       scores,
@@ -407,10 +408,9 @@ TEST(op_eval, nonmaxsuppression_suppress_by_IOU_and_scores)
     {
         result = make_shared<HostTensor>();
     }
-    ASSERT_TRUE(
-        f->evaluate(results,
-                    {make_host_tensor<element::Type_t::f32>(boxes_shape, boxes_data),
-                     make_host_tensor<element::Type_t::f32>(scores_shape, scores_data)}));
+    ASSERT_TRUE(f->evaluate(results,
+                            {make_host_tensor<element::Type_t::f32>(boxes_shape, boxes_data),
+                             make_host_tensor<element::Type_t::f32>(scores_shape, scores_data)}));
 
     std::vector<int64_t> expected_selected_indices = {0, 0, 3, 0, 0, 0};
     std::vector<float> expected_selected_scores = {0.0, 0.0, 0.95, 0.0, 0.0, 0.9};
@@ -430,9 +430,9 @@ TEST(op_eval, nonmaxsuppression_suppress_by_IOU_and_scores)
 TEST(op_eval, nonmaxsuppression_two_batches)
 {
     std::vector<float> boxes_data = {
-        0.0, 0.0, 1.0, 1.0, 0.0, 0.1, 1.0, 1.1, 0.0, -0.1, 1.0, 0.9, 0.0, 10.0, 1.0, 11.0,
-        0.0, 10.1, 1.0, 11.1, 0.0, 100.0, 1.0, 101.0, 0.0, 0.0, 1.0, 1.0, 0.0, 0.1, 1.0, 1.1,
-        0.0, -0.1, 1.0, 0.9, 0.0, 10.0, 1.0, 11.0, 0.0, 10.1, 1.0, 11.1, 0.0, 100.0, 1.0, 101.0};
+        0.0, 0.0,  1.0, 1.0,  0.0, 0.1,   1.0, 1.1,   0.0, -0.1, 1.0, 0.9,  0.0, 10.0,  1.0, 11.0,
+        0.0, 10.1, 1.0, 11.1, 0.0, 100.0, 1.0, 101.0, 0.0, 0.0,  1.0, 1.0,  0.0, 0.1,   1.0, 1.1,
+        0.0, -0.1, 1.0, 0.9,  0.0, 10.0,  1.0, 11.0,  0.0, 10.1, 1.0, 11.1, 0.0, 100.0, 1.0, 101.0};
 
     std::vector<float> scores_data = {
         0.9, 0.75, 0.6, 0.95, 0.5, 0.3, 0.9, 0.75, 0.6, 0.95, 0.5, 0.3};
@@ -449,7 +449,8 @@ TEST(op_eval, nonmaxsuppression_two_batches)
     auto max_output_boxes_per_class =
         op::Constant::create<int64_t>(element::i64, Shape{}, {max_output_boxes_per_class_data});
     auto iou_threshold = op::Constant::create<float>(element::f32, Shape{}, {iou_threshold_data});
-    auto score_threshold = op::Constant::create<float>(element::f32, Shape{}, {score_threshold_data});
+    auto score_threshold =
+        op::Constant::create<float>(element::f32, Shape{}, {score_threshold_data});
     auto soft_nms_sigma = op::Constant::create<float>(element::f32, Shape{}, {0.0f});
     auto nms = make_shared<op::v5::NonMaxSuppression>(boxes,
                                                       scores,
@@ -467,13 +468,13 @@ TEST(op_eval, nonmaxsuppression_two_batches)
     {
         result = make_shared<HostTensor>();
     }
-    ASSERT_TRUE(
-        f->evaluate(results,
-                    {make_host_tensor<element::Type_t::f32>(boxes_shape, boxes_data),
-                     make_host_tensor<element::Type_t::f32>(scores_shape, scores_data)}));
+    ASSERT_TRUE(f->evaluate(results,
+                            {make_host_tensor<element::Type_t::f32>(boxes_shape, boxes_data),
+                             make_host_tensor<element::Type_t::f32>(scores_shape, scores_data)}));
 
     std::vector<int64_t> expected_selected_indices = {0, 0, 3, 0, 0, 0, 1, 0, 3, 1, 0, 0};
-    std::vector<float> expected_selected_scores = {0.0, 0.0, 0.95, 0.0, 0.0, 0.9, 1.0, 0.0, 0.95, 1.0, 0.0, 0.9};
+    std::vector<float> expected_selected_scores = {
+        0.0, 0.0, 0.95, 0.0, 0.0, 0.9, 1.0, 0.0, 0.95, 1.0, 0.0, 0.9};
     std::vector<int64_t> expected_valid_outputs = {4};
 
     EXPECT_EQ(results[0]->get_element_type(), element::i64);
@@ -489,9 +490,9 @@ TEST(op_eval, nonmaxsuppression_two_batches)
 
 TEST(op_eval, nonmaxsuppression_two_classes)
 {
-    std::vector<float> boxes_data = {
-        0.0, 0.0, 1.0, 1.0, 0.0, 0.1, 1.0, 1.1, 0.0, -0.1, 1.0, 0.9,
-        0.0, 10.0, 1.0, 11.0, 0.0, 10.1, 1.0, 11.1, 0.0, 100.0, 1.0, 101.0};
+    std::vector<float> boxes_data = {0.0, 0.0,  1.0, 1.0,  0.0, 0.1,   1.0, 1.1,
+                                     0.0, -0.1, 1.0, 0.9,  0.0, 10.0,  1.0, 11.0,
+                                     0.0, 10.1, 1.0, 11.1, 0.0, 100.0, 1.0, 101.0};
 
     std::vector<float> scores_data = {
         0.9, 0.75, 0.6, 0.95, 0.5, 0.3, 0.9, 0.75, 0.6, 0.95, 0.5, 0.3};
@@ -508,7 +509,8 @@ TEST(op_eval, nonmaxsuppression_two_classes)
     auto max_output_boxes_per_class =
         op::Constant::create<int64_t>(element::i64, Shape{}, {max_output_boxes_per_class_data});
     auto iou_threshold = op::Constant::create<float>(element::f32, Shape{}, {iou_threshold_data});
-    auto score_threshold = op::Constant::create<float>(element::f32, Shape{}, {score_threshold_data});
+    auto score_threshold =
+        op::Constant::create<float>(element::f32, Shape{}, {score_threshold_data});
     auto soft_nms_sigma = op::Constant::create<float>(element::f32, Shape{}, {0.0f});
     auto nms = make_shared<op::v5::NonMaxSuppression>(boxes,
                                                       scores,
@@ -526,13 +528,13 @@ TEST(op_eval, nonmaxsuppression_two_classes)
     {
         result = make_shared<HostTensor>();
     }
-    ASSERT_TRUE(
-        f->evaluate(results,
-                    {make_host_tensor<element::Type_t::f32>(boxes_shape, boxes_data),
-                     make_host_tensor<element::Type_t::f32>(scores_shape, scores_data)}));
+    ASSERT_TRUE(f->evaluate(results,
+                            {make_host_tensor<element::Type_t::f32>(boxes_shape, boxes_data),
+                             make_host_tensor<element::Type_t::f32>(scores_shape, scores_data)}));
 
     std::vector<int64_t> expected_selected_indices = {0, 0, 3, 0, 0, 0, 0, 1, 3, 0, 1, 0};
-    std::vector<float> expected_selected_scores = {0.0, 0.0, 0.95, 0.0, 0.0, 0.9, 0.0, 1.0, 0.95, 0.0, 1.0, 0.9};
+    std::vector<float> expected_selected_scores = {
+        0.0, 0.0, 0.95, 0.0, 0.0, 0.9, 0.0, 1.0, 0.95, 0.0, 1.0, 0.9};
     std::vector<int64_t> expected_valid_outputs = {4};
 
     EXPECT_EQ(results[0]->get_element_type(), element::i64);

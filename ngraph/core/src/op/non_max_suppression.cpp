@@ -775,7 +775,8 @@ int64_t op::v5::NonMaxSuppression::max_boxes_output_from_input() const
 
 using V5BoxEncoding = op::v5::NonMaxSuppression::BoxEncodingType;
 
-namespace {
+namespace
+{
     constexpr size_t boxes_port = 0;
     constexpr size_t scores_port = 1;
     constexpr size_t iou_threshold_port = 3;
@@ -897,8 +898,7 @@ namespace {
         return result;
     }
 
-    std::vector<float> prepare_scores_data(const HostTensorPtr& scores,
-                                           const Shape& scores_shape)
+    std::vector<float> prepare_scores_data(const HostTensorPtr& scores, const Shape& scores_shape)
     {
         element::Type scores_input_et = scores->get_element_type();
 
