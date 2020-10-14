@@ -11,17 +11,20 @@
 
 #include "functional_test_utils/layer_test_utils.hpp"
 
+struct ShapeRelatedParams {
+    InferenceEngine::SizeVector firstInputShape, secondInputShape;
+    bool transposeA, transposeB;
+};
+
 typedef std::tuple<
-        InferenceEngine::Precision,
-        InferenceEngine::Precision,    // Input precision
-        InferenceEngine::Precision,    // Output precision
-        InferenceEngine::Layout,       // Input layout
-        InferenceEngine::SizeVector,
-        InferenceEngine::SizeVector,
-        bool,
-        bool,
-        ngraph::helpers::InputLayerType,
-        LayerTestsUtils::TargetDevice
+        ShapeRelatedParams,
+        InferenceEngine::Precision,        // Network precision
+        InferenceEngine::Precision,        // Input precision
+        InferenceEngine::Precision,        // Output precision
+        InferenceEngine::Layout,           // Input layout
+        ngraph::helpers::InputLayerType,   // Secondary input type
+        LayerTestsUtils::TargetDevice,     // Device name
+        std::map<std::string, std::string> // Additional network configuration
 > MatMulLayerTestParamsSet;
 
 namespace LayerTestsDefinitions {
