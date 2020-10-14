@@ -51,6 +51,7 @@
 #include "ngraph/runtime/reference/squared_difference.hpp"
 #include "reference/elu.hpp"
 #include "reference/gelu.hpp"
+#include "reference/grn.hpp"
 #include "reference/hard_sigmoid.hpp"
 #include "reference/selu.hpp"
 
@@ -264,6 +265,19 @@ namespace
                                    op->get_beta(),
                                    op->get_bias(),
                                    op->get_nsize());
+        return true;
+    }
+
+    template <element::Type_t ET>
+    bool evaluate(const shared_ptr<op::v0::GRN>& op,
+                  const HostTensorVector& outputs,
+                  const HostTensorVector& inputs)
+    {
+        using T = typename element_type_traits<ET>::value_type;
+        runtime::reference::grn<T>(inputs[0]->get_data_ptr<ET>(),
+                                   outputs[0]->get_data_ptr<ET>(),
+                                   op->get_bias(),
+                                   inputs[0]->get_shape());
         return true;
     }
 

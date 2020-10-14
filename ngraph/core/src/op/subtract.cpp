@@ -23,12 +23,14 @@
 using namespace std;
 using namespace ngraph;
 
-namespace subtract {
-    template<element::Type_t ET>
-    bool evaluate(const HostTensorPtr &arg0,
-                  const HostTensorPtr &arg1,
-                  const HostTensorPtr &out,
-                  const op::AutoBroadcastSpec &broadcast_spec) {
+namespace subtract
+{
+    template <element::Type_t ET>
+    bool evaluate(const HostTensorPtr& arg0,
+                  const HostTensorPtr& arg1,
+                  const HostTensorPtr& out,
+                  const op::AutoBroadcastSpec& broadcast_spec)
+    {
         runtime::reference::subtract(arg0->get_data_ptr<ET>(),
                                      arg1->get_data_ptr<ET>(),
                                      out->get_data_ptr<ET>(),
@@ -38,33 +40,32 @@ namespace subtract {
         return true;
     }
 
-    bool evaluate_subtract(const HostTensorPtr &arg0,
-                           const HostTensorPtr &arg1,
-                           const HostTensorPtr &out,
-                           const op::AutoBroadcastSpec &broadcast_spec) {
+    bool evaluate_subtract(const HostTensorPtr& arg0,
+                           const HostTensorPtr& arg1,
+                           const HostTensorPtr& out,
+                           const op::AutoBroadcastSpec& broadcast_spec)
+    {
         bool rc = true;
         out->set_broadcast(broadcast_spec, arg0, arg1);
-        switch (arg0->get_element_type()) {
+        switch (arg0->get_element_type())
+        {
             TYPE_CASE(i32)(arg0, arg1, out, broadcast_spec);
-                break;
+            break;
             TYPE_CASE(i64)(arg0, arg1, out, broadcast_spec);
-                break;
+            break;
             TYPE_CASE(u32)(arg0, arg1, out, broadcast_spec);
-                break;
+            break;
             TYPE_CASE(u64)(arg0, arg1, out, broadcast_spec);
-                break;
+            break;
             TYPE_CASE(f16)(arg0, arg1, out, broadcast_spec);
-                break;
+            break;
             TYPE_CASE(f32)(arg0, arg1, out, broadcast_spec);
-                break;
-            default:
-                rc = false;
-                break;
+            break;
+        default: rc = false; break;
         }
         return rc;
     }
 }
-
 
 // ------------------------------- v1 ------------------------------------------
 
