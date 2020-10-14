@@ -10,7 +10,7 @@
 #include <ngraph/function.hpp>
 #include <ngraph/opsets/opset5.hpp>
 #include <ngraph/pass/manager.hpp>
-#include <transformations/hsigmoid_fusion.hpp>
+#include <transformations/common_optimizations/hsigmoid_fusion.hpp>
 #include <transformations/init_node_info.hpp>
 #include <transformations/utils/utils.hpp>
 
