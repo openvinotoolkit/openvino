@@ -257,7 +257,7 @@ tests_expected_to_fail = [
         "OnnxBackendNodeModelTest.test_argmin_no_keepdims_example_select_last_index_cpu",
         "OnnxBackendNodeModelTest.test_clip_default_int8_inbounds_cpu",
         "OnnxBackendNodeModelTest.test_clip_default_int8_max_cpu",
-        "OnnxBackendNodeModelTest.test_clip_default_int8_mix_cpu",
+        "OnnxBackendNodeModelTest.test_clip_default_int8_min_cpu",
         "OnnxBackendNodeModelTest.test_min_uint16_cpu",),
     (xfail_issue_38088,
         "OnnxBackendPyTorchConvertedModelTest.test_GLU_cpu"),
