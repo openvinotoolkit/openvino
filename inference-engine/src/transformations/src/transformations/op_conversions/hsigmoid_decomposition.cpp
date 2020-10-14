@@ -6,7 +6,7 @@
 
 #include <memory>
 
-#include <ngraph/opsets/opset4.hpp>
+#include <ngraph/opsets/opset5.hpp>
 #include <ngraph/rt_info.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 
@@ -25,12 +25,12 @@ ngraph::pass::HSigmoidDecomposition::HSigmoidDecomposition() {
         }
 
         auto input_type = hsigmoid_node->input_value(0).get_element_type();
-        auto add_constant = ngraph::opset4::Constant::create(input_type, ngraph::Shape{}, {3.0});
-        auto add = std::make_shared<ngraph::opset4::Add>(hsigmoid_node->input_value(0), add_constant);
-        auto relu = std::make_shared<ngraph::opset4::Relu>(add);
-        auto min_constant = ngraph::opset4::Constant::create(input_type, ngraph::Shape{}, {6.0});
-        auto min = register_new_node<ngraph::opset4::Minimum>(relu, min_constant);
-        auto mul = std::make_shared<ngraph::opset4::Multiply>(hsigmoid_node->input_value(0), min);
+        auto add_constant = ngraph::opset5::Constant::create(input_type, ngraph::Shape{}, {3.0});
+        auto add = std::make_shared<ngraph::opset5::Add>(hsigmoid_node->input_value(0), add_constant);
+        auto relu = std::make_shared<ngraph::opset5::Relu>(add);
+        auto min_constant = ngraph::opset5::Constant::create(input_type, ngraph::Shape{}, {6.0});
+        auto min = register_new_node<ngraph::opset5::Minimum>(relu, min_constant);
+        auto mul = std::make_shared<ngraph::opset5::Multiply>(hsigmoid_node->input_value(0), min);
 
         mul->set_friendly_name(m.get_match_root()->get_friendly_name());
         ngraph::copy_runtime_info(hsigmoid_node,
