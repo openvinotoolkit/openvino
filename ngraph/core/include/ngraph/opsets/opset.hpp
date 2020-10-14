@@ -16,6 +16,7 @@
 
 #pragma once
 
+#include <array>
 #include <locale>
 #include <map>
 #include <mutex>
