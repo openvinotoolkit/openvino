@@ -16,45 +16,48 @@
 
 #include <cmath>
 #include <numeric>
-#include <stdio.h>
+#include <cstdio>
 
 #include "ngraph/check.hpp"
 #include "ngraph/runtime/reference/tile.hpp"
 
 using namespace ngraph;
 
-bool Increase(const Shape& shape, std::vector<int64_t>& indices, size_t& axis, bool& run)
+namespace
 {
-    if (axis-- == 0)
+    bool Increase(const Shape& shape, std::vector<int64_t>& indices, size_t& axis, bool& run)
     {
-        run = false;
-        return false;
+        if (axis-- == 0)
+        {
+            run = false;
+            return false;
+        }
+
+        if (++indices[axis] != shape[axis])
+        {
+            axis = indices.size();
+            return false;
+        }
+
+        indices[axis] = 0;
+        return true;
     }
 
-    if (++indices[axis] != shape[axis])
+    std::vector<int64_t> createPitches(const Shape& dims)
     {
-        axis = indices.size();
-        return false;
+        std::vector<int64_t> pitch;
+        auto tensor_rank = dims.size();
+
+        for (int i = 0; i < tensor_rank - 1; i++)
+        {
+            int64_t val =
+                std::accumulate(dims.begin() + i + 1, dims.end(), 1, std::multiplies<int64_t>());
+            pitch.push_back(val);
+        }
+        pitch.push_back(1);
+
+        return pitch;
     }
-
-    indices[axis] = 0;
-    return true;
-}
-
-std::vector<int64_t> createPitches(const Shape& dims)
-{
-    std::vector<int64_t> pitch;
-    auto tensor_rank = dims.size();
-
-    for (int i = 0; i < tensor_rank - 1; i++)
-    {
-        int64_t val =
-            std::accumulate(dims.begin() + i + 1, dims.end(), 1, std::multiplies<int64_t>());
-        pitch.push_back(val);
-    }
-    pitch.push_back(1);
-
-    return pitch;
 }
 
 void runtime::reference::tile(const char* arg,
@@ -66,8 +69,6 @@ void runtime::reference::tile(const char* arg,
 {
     Shape in_shape_expanded(in_shape);
     in_shape_expanded.insert(in_shape_expanded.begin(), out_shape.size() - in_shape.size(), 1);
-    int input_rank = in_shape_expanded.size();
-    const int64_t last_dim = in_shape_expanded[input_rank - 1];
     size_t block_size = 0;
     int64_t num_repeats = 0;
     const char* copy = nullptr;
@@ -75,6 +76,8 @@ void runtime::reference::tile(const char* arg,
     bool run = true;
     std::vector<int64_t> indices(in_shape_expanded.size() - 1, 0);
     size_t axis(indices.size());
+    const int input_rank = in_shape_expanded.size();
+    const int64_t last_dim = in_shape_expanded[input_rank - 1];
 
     pitches = createPitches(out_shape);
 
