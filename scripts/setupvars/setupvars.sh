@@ -119,15 +119,20 @@ fi
 
 
 if [ -n "$python_version" ]; then
-    # add path to OpenCV API for Python 3.x
-    export PYTHONPATH="$INTEL_OPENVINO_DIR/python/python3:$PYTHONPATH"
-    pydir=$INTEL_OPENVINO_DIR/python/python$python_version
-    if [[ -d $pydir ]]; then
-        # add path to Inference Engine Python API
-        export PYTHONPATH="${pydir}:${PYTHONPATH}"
+    if [[ -d $INTEL_OPENVINO_DIR/python ]]; then
+        # add path to OpenCV API for Python 3.x
+        export PYTHONPATH="$INTEL_OPENVINO_DIR/python/python3:$PYTHONPATH"
+        pydir=$INTEL_OPENVINO_DIR/python/python$python_version
+        if [[ -d $pydir ]]; then
+            # add path to Inference Engine Python API
+            export PYTHONPATH="${pydir}:${PYTHONPATH}"
+        else
+            echo "[setupvars.sh] WARNING: Can not find OpenVINO Python module for python${python_version} by path ${pydir}"
+            echo "[setupvars.sh] WARNING: OpenVINO Python environment does not set properly"
+        fi
     else
-        echo "[setupvars.sh] ERROR: Can not find OpenVINO Python module for python${python_version} by path ${pydir}"
-        return 1
+        echo "[setupvars.sh] WARNING: Can not find OpenVINO Python binaries by path ${INTEL_OPENVINO_DIR}/python"
+        echo "[setupvars.sh] WARNING: OpenVINO Python environment does not set properly"
     fi
 fi
 
