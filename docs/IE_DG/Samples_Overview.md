@@ -183,4 +183,4 @@ sample, read the sample documentation by clicking the sample name in the samples
 list above.
 
 ## See Also
-* [Introduction to Intel's Deep Learning Inference Engine](Introduction.md)
+* [Introduction to Inference Engine](inference_engine_intro.md)

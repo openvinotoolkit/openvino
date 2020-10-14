@@ -19,7 +19,7 @@ The following diagram illustrates the typical OpenVINO™ workflow (click to see
 ### Model Preparation, Conversion and Optimization
 
 You can use your framework of choice to prepare and train a Deep Learning model or just download a pretrained model from the Open Model Zoo. The Open Model Zoo includes Deep Learning solutions to a variety of vision problems, including object recognition, face recognition, pose estimation, text detection, and action recognition, at a range of measured complexities.
-Several of these pretrained models are used also in the [code samples](E_DG/Samples_Overview.md) and [application demos](@ref omz_demos_README). To download models from the Open Model Zoo, the [Model Downloader](@ref omz_tools_downloader_README) tool is used.
+Several of these pretrained models are used also in the [code samples](IE_DG/Samples_Overview.md) and [application demos](@ref omz_demos_README). To download models from the Open Model Zoo, the [Model Downloader](@ref omz_tools_downloader_README) tool is used.
 
 One of the core component of the OpenVINO™ toolkit is the [Model Optimizer](MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md) a cross-platform command-line
 tool that converts a trained neural network from its source framework to an open-source, nGraph-compatible [Intermediate Representation (IR)](MO_DG/IR_and_opsets.md) for use in inference operations. The Model Optimizer imports models trained in popular frameworks such as Caffe*, TensorFlow*, MXNet*, Kaldi*, and ONNX* and performs a few optimizations to remove excess layers and group operations when possible into simpler, faster graphs.
@@ -84,10 +84,10 @@ Intel® Distribution of OpenVINO™ toolkit includes the following components:
 - [Deep Learning Model Optimizer](MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md) - A cross-platform command-line tool for importing models and preparing them for optimal execution with the Inference Engine. The Model Optimizer imports, converts, and optimizes models, which were trained in popular frameworks, such as Caffe*, TensorFlow*, MXNet*, Kaldi*, and ONNX*.
 - [Deep Learning Inference Engine](IE_DG/inference_engine_intro.md) - A unified API to allow high performance inference on many hardware types including Intel® CPU, Intel® Integrated Graphics, Intel® Neural Compute Stick 2, Intel® Vision Accelerator Design with Intel® Movidius™ vision processing unit (VPU)
 - [Inference Engine Samples](IE_DG/Samples_Overview.md) - A set of simple console applications demonstrating how to use the Inference Engine in your applications
-- [Tools](IE_DG/Tools_Overview.md) - A set of simple console tools to work with your models
+- Additional Tools - A set of tools to work with your models including [Accuracy Checker utility](@ref omz_tools_accuracy_checker_README), [Post-Training Optimization Tool Guide](@ref pot_README), [Model Downloader](@ref omz_tools_downloader_README) and other
 - [Open Model Zoo](@ref omz_models_intel_index)     
     - [Demos](@ref omz_demos_README) - Console applications that demonstrate how you can use the Inference Engine in your applications to solve specific use cases
-    - [Tools](IE_DG/Tools_Overview.md) - Additional tools to download models and check accuracy
+    - Additional Tools - A set of tools to work with your models including [Accuracy Checker utility](@ref omz_tools_accuracy_checker_README), [Post-Training Optimization Tool Guide](@ref pot_README), [Model Downloader](@ref omz_tools_downloader_README) and other
     - [Documentation for Pretrained Models](@ref omz_models_intel_index) - Documentation for pretrained models that are available in the [Open Model Zoo repository](https://github.com/opencv/open_model_zoo)
 - [Post-Training Optimization tool](@ref pot_README) - A tool to calibrate a model and then execute it in the INT8 precision
 - [Deep Learning Workbench](@ref workbench_docs_Workbench_DG_Introduction) -  A web-based graphical environment that allows you to easily use various sophisticated OpenVINO™ toolkit components

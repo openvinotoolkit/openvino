@@ -23,34 +23,34 @@ This guide provides installation steps for the Intel® distribution of OpenVINO�
    ```
 
 3. Add PATH to environment variables.
- - Ubuntu* 18.04 and macOS*:
+   - Ubuntu* 18.04 and macOS*:
    ```sh
    export LD_LIBRARY_PATH=<library_dir>:${LD_LIBRARY_PATH}
    ```
- - Windows* 10:
-    ```sh
+   - Windows* 10:
+   ```sh
    set PATH=<library_dir>;%PATH%
    ```
   How to find `library_dir`:
  - Ubuntu\*, macOS\*:
-   - standard user:
+   - Standard user:
      ```sh
      echo $(python3 -m site --user-base)/lib
      ```
-   - root or sudo user:
+   - Root or sudo user:
      ```sh
      /usr/local/lib
      ```
-   - virtual environments or custom Python installations (from sources or tarball):
+   - Virtual environments or custom Python installations (from sources or tarball):
      ```sh
      echo $(which python3)/../../lib
      ```
  - Windows\*:
-   - standard Python:
+   - Standard Python:
      ```sh
       python -c "import os, sys; print((os.path.dirname(sys.executable))+'\Library\\bin')"
      ```
-   - virtual environments or custom Python installations (from sources or tarball):
+   - Virtual environments or custom Python installations (from sources or tarball):
      ```sh
       python -c "import os, sys; print((os.path.dirname(sys.executable))+'\..\Library\\bin')"
      ```
@@ -69,6 +69,5 @@ Now you are ready to develop and run your application.
 - [Model Optimizer Developer Guide](../MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md).
 - [Inference Engine Developer Guide](../IE_DG/Deep_Learning_Inference_Engine_DevGuide.md).
 - For more information on Sample Applications, see the [Inference Engine Samples Overview](../IE_DG/Samples_Overview.md).
-- For information on Inference Engine Tutorials, see the [Inference Tutorials](https://github.com/intel-iot-devkit/inference-tutorials-generic).
 - [Intel® Distribution of OpenVINO™ toolkit PIP home page](https://pypi.org/project/openvino-python/)
 
