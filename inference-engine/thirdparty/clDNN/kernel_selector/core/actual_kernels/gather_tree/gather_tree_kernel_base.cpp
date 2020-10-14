@@ -65,7 +65,7 @@ KernelsData GatherTreeKernelBase::GetCommonKernelsData(const Params& params,
                         DEFAULT,
                         false,
                         false,
-                        gt_params.inputs.size());
+                        static_cast<int>(gt_params.inputs.size()));
     kernel_data.estimatedTime = estimated_time;
     return { kernel_data };
 }
