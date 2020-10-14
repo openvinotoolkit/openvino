@@ -94,8 +94,8 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_controlflow_loop_add_initializer_from_parent_s
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_controlflow_loop_add_input_from_parent_scope)
 {
-    const auto function = onnx_import::import_onnx_model(
-        file_util::path_join(SERIALIZED_ZOO, "onnx/loop/loop_2d_add_input_from_parent_scope.prototxt"));
+    const auto function = onnx_import::import_onnx_model(file_util::path_join(
+        SERIALIZED_ZOO, "onnx/loop/loop_2d_add_input_from_parent_scope.prototxt"));
 
     const auto& results = function->get_results();
     EXPECT_EQ(results.size(), 2);
@@ -109,8 +109,8 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_controlflow_loop_add_input_from_parent_scope)
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_controlflow_loop_add_node_from_parent_scope)
 {
-    const auto function = onnx_import::import_onnx_model(
-        file_util::path_join(SERIALIZED_ZOO, "onnx/loop/loop_2d_add_node_from_parent_scope.prototxt"));
+    const auto function = onnx_import::import_onnx_model(file_util::path_join(
+        SERIALIZED_ZOO, "onnx/loop/loop_2d_add_node_from_parent_scope.prototxt"));
 
     const auto& results = function->get_results();
     EXPECT_EQ(results.size(), 3);
@@ -187,10 +187,10 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_controlflow_loop_2d_trip_count_and_cond_skippe
     EXPECT_TRUE(function->get_output_partial_shape(1).rank().is_dynamic());
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_controlflow_loop_2d_termination_condition_dynamic)
+NGRAPH_TEST(${BACKEND_NAME}, onnx_controlflow_loop_2d_termination_cond_dynamic)
 {
     const auto function = onnx_import::import_onnx_model(file_util::path_join(
-        SERIALIZED_ZOO, "onnx/loop/loop_2d_add_dynamic_termination_condition.prototxt"));
+        SERIALIZED_ZOO, "onnx/loop/loop_2d_add_dynamic_termination_cond.prototxt"));
 
     const auto& results = function->get_results();
     EXPECT_EQ(results.size(), 2);
@@ -198,22 +198,39 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_controlflow_loop_2d_termination_condition_dyna
     EXPECT_TRUE(function->get_output_partial_shape(0).is_static());
     EXPECT_EQ(function->get_output_shape(0), (Shape{1, 2}));
     EXPECT_EQ(function->get_output_element_type(1), ngraph::element::f32);
-    // scan_outputs shape is not know if trip_count and termination condition is not determined
+    // scan_outputs shape is not know if termination condition is not constant
     EXPECT_TRUE(function->get_output_partial_shape(1).rank().is_dynamic());
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_controlflow_loop_2d_not_identity_termination_condition)
+NGRAPH_TEST(${BACKEND_NAME}, onnx_controlflow_loop_2d_no_identity_termination_cond)
 {
+    const auto function = onnx_import::import_onnx_model(file_util::path_join(
+        SERIALIZED_ZOO, "onnx/loop/loop_2d_add_const_no_identity_termination_cond.prototxt"));
+
+    const auto& results = function->get_results();
+    EXPECT_EQ(results.size(), 2);
+    EXPECT_EQ(function->get_output_element_type(0), ngraph::element::f32);
+    EXPECT_TRUE(function->get_output_partial_shape(0).is_static());
+    EXPECT_EQ(function->get_output_shape(0), (Shape{1, 2}));
+    EXPECT_EQ(function->get_output_element_type(1), ngraph::element::f32);
+    // scan_outputs shape is not know if terminadion condition is calculated during loop iterations
+    EXPECT_TRUE(function->get_output_partial_shape(1).rank().is_dynamic());
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_controlflow_loop_2d_trip_count_dynamic)
 {
-}
+    const auto function = onnx_import::import_onnx_model(
+        file_util::path_join(SERIALIZED_ZOO, "onnx/loop/loop_2d_add_trip_count_dynamic.prototxt"));
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_controlflow_loop_2d_output_shape_dynamic)
-{
+    const auto& results = function->get_results();
+    EXPECT_EQ(results.size(), 2);
+    EXPECT_EQ(function->get_output_element_type(0), ngraph::element::f32);
+    EXPECT_TRUE(function->get_output_partial_shape(0).is_static());
+    EXPECT_EQ(function->get_output_shape(0), (Shape{1, 2}));
+    EXPECT_EQ(function->get_output_element_type(1), ngraph::element::f32);
+    // scan_outputs shape is not know if trip_count is not constant
+    EXPECT_TRUE(function->get_output_partial_shape(1).rank().is_dynamic());
 }
-
 
 // EXECUTION TESTS
 
