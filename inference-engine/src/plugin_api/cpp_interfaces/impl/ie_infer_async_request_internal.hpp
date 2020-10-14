@@ -50,7 +50,7 @@ public:
      * IInferRequest::CompletionCallback
      * @param ptr A weak pointer to InferRequestBase
      */
-    void SetPublicInterfacePtr(IInferRequest::Ptr ptr) {
+    void SetPointerToPublicInterface(IInferRequest::Ptr ptr) {
         _publicInterface = ptr;
     }
 

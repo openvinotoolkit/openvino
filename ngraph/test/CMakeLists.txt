@@ -160,6 +160,7 @@ set(SRC
     type_prop/reverse.cpp
     type_prop/reverse_sequence.cpp
     type_prop/roi_align.cpp
+    type_prop/round.cpp
     type_prop/rnn_cell.cpp
     type_prop/rnn_sequence.cpp
     type_prop/scatter_elements_update.cpp
@@ -282,6 +283,7 @@ set(MULTI_TEST_SRC
     backend/function_name.in.cpp
     backend/fused_op.in.cpp
     backend/gather.in.cpp
+    backend/gather_nd.in.cpp
     backend/gelu.in.cpp
     backend/group_convolution.in.cpp
     backend/interpolate.in.cpp

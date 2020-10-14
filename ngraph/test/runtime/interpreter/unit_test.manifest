@@ -159,3 +159,7 @@ dyn_convolution_backprop_data
 
 # unsupported element type f16
 INTERPRETER.ctc_greedy_decoder_f16
+
+# Issue 37473. Fails on ia32 platforms only
+INTERPRETER.onnx_model_softmax_axis_0
+INTERPRETER.onnx_model_reshape_negative_dim

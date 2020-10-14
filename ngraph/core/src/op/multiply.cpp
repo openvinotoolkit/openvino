@@ -24,7 +24,7 @@ NGRAPH_SUPPRESS_DEPRECATED_START
 using namespace std;
 using namespace ngraph;
 
-namespace
+namespace multiplyop
 {
     template <element::Type_t ET>
     bool evaluate(const HostTensorPtr& arg0,
@@ -90,7 +90,7 @@ bool op::v0::Multiply::evaluate(const HostTensorVector& outputs,
                                 const HostTensorVector& inputs) const
 {
     OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v0::Multiply::evaluate");
-    return evaluate_multiply(inputs[0], inputs[1], outputs[0], get_autob());
+    return multiplyop::evaluate_multiply(inputs[0], inputs[1], outputs[0], get_autob());
 }
 
 // ------------------------------------ v1 -------------------------------------
@@ -115,5 +115,5 @@ bool op::v1::Multiply::evaluate(const HostTensorVector& outputs,
                                 const HostTensorVector& inputs) const
 {
     OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v1::Multiply::evaluate");
-    return evaluate_multiply(inputs[0], inputs[1], outputs[0], get_autob());
+    return multiplyop::evaluate_multiply(inputs[0], inputs[1], outputs[0], get_autob());
 }

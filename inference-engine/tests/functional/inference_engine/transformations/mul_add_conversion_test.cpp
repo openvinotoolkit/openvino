@@ -17,12 +17,12 @@
 #include <ngraph/pass/constant_folding.hpp>
 #include <transformations/utils/utils.hpp>
 #include <transformations/init_node_info.hpp>
-#include <transformations/convert_opset1_to_legacy/conv_bias_fusion.hpp>
+#include <transformations/common_optimizations/conv_bias_fusion.hpp>
 #include <ngraph/pass/visualize_tree.hpp>
-#include <transformations/convert_opset1_to_legacy/convert_mul_add_to_scaleshift_or_power.hpp>
-#include <transformations/convert_opset1_to_legacy/convert_mul_or_add_finally.hpp>
-#include <ngraph_ops/power.hpp>
-#include <ngraph_ops/scaleshift.hpp>
+#include <legacy/transformations/convert_opset1_to_legacy/convert_mul_add_to_scaleshift_or_power.hpp>
+#include <legacy/transformations/convert_opset1_to_legacy/convert_mul_or_add_finally.hpp>
+#include <legacy/ngraph_ops/power.hpp>
+#include <legacy/ngraph_ops/scaleshift.hpp>
 
 #include "common_test_utils/ngraph_test_utils.hpp"
 

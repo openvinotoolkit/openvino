@@ -26,7 +26,7 @@ NGRAPH_SUPPRESS_DEPRECATED_START
 using namespace std;
 using namespace ngraph;
 
-namespace
+namespace divide
 {
     template <element::Type_t ET>
     bool evaluate(const HostTensorPtr& arg0,
@@ -112,5 +112,5 @@ shared_ptr<Node> op::v1::Divide::clone_with_new_inputs(const OutputVector& new_a
 bool op::v1::Divide::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
     OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v1::Divide::evaluate");
-    return evaluate_divide(inputs[0], inputs[1], outputs[0], get_autob(), is_pythondiv());
+    return divide::evaluate_divide(inputs[0], inputs[1], outputs[0], get_autob(), is_pythondiv());
 }

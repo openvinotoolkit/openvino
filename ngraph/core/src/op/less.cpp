@@ -24,7 +24,7 @@ NGRAPH_SUPPRESS_DEPRECATED_START
 using namespace std;
 using namespace ngraph;
 
-namespace
+namespace lessop
 {
     template <element::Type_t ET>
     bool evaluate(const HostTensorPtr& arg0,
@@ -91,5 +91,5 @@ shared_ptr<Node> op::v1::Less::clone_with_new_inputs(const OutputVector& new_arg
 bool op::v1::Less::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
     OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v1::Less::evaluate");
-    return evaluate_less(inputs[0], inputs[1], outputs[0], get_autob());
+    return lessop::evaluate_less(inputs[0], inputs[1], outputs[0], get_autob());
 }
