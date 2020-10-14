@@ -46,4 +46,4 @@ from ngraph.pyngraph import AxisSet
 from ngraph.pyngraph import AxisVector
 from ngraph.pyngraph import Coordinate
 
-from _pyngraph import util
+from ngraph.pyngraph import util

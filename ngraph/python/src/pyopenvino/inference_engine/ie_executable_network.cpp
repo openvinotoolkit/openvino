@@ -22,9 +22,9 @@
 
 namespace py = pybind11;
 
-void regclass_IEExecutableNetwork(py::module m)
+void regclass_ExecutableNetwork(py::module m)
 {
-    py::class_<InferenceEngine::ExecutableNetwork, std::shared_ptr<InferenceEngine::ExecutableNetwork>> cls(m, "IEExecutableNetwork");
+    py::class_<InferenceEngine::ExecutableNetwork, std::shared_ptr<InferenceEngine::ExecutableNetwork>> cls(m, "ExecutableNetwork");
 
     cls.def("create_infer_request", &InferenceEngine::ExecutableNetwork::CreateInferRequest);
 }

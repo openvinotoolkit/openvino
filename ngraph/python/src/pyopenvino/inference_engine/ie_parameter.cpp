@@ -21,16 +21,11 @@
 
 namespace py = pybind11;
 
-void regclass_Parameter(py::module m)
-{
+void regclass_Parameter(py::module m) {
     py::class_<InferenceEngine::Parameter,
                std::shared_ptr<InferenceEngine::Parameter>>
         cls(m, "Parameter");
 
     cls.def(py::init<const char*>());
     cls.def(py::init<std::string>());
-
-    cls.def("__str__", [](){});
-    cls.def("__repr__", [](){});
-    cls.def("__eq__", [](){});
 }

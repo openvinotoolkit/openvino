@@ -16,8 +16,22 @@
 from openvino.inference_engine import IECore, ie_api
 import numpy as np
 import ngraph as ng
-from openvino.inference_engine import IENetwork
+from openvino.inference_engine import IENetwork, ExecutableNetwork
 from ngraph.impl import Function
+import os
+
+
+def model_path(is_myriad=False):
+    path_to_repo = os.environ["MODELS_PATH"]
+    if not is_myriad:
+        test_xml = os.path.join(path_to_repo, "models", "test_model", 'test_model_fp32.xml')
+        test_bin = os.path.join(path_to_repo, "models", "test_model", 'test_model_fp32.bin')
+    else:
+        test_xml = os.path.join(path_to_repo, "models", "test_model", 'test_model_fp16.xml')
+        test_bin = os.path.join(path_to_repo, "models", "test_model", 'test_model_fp16.bin')
+    return (test_xml, test_bin)
+
+test_net_xml, test_net_bin = model_path()
 
 
 def test_ie_core_class():
@@ -54,3 +68,39 @@ def test_ie_core_class():
     print(result)
 
     assert np.allclose(result, expected_output)
+
+
+def test_load_network(device):
+    ie = IECore()
+    net = ie.read_network(model=test_net_xml, weights=test_net_bin)
+    exec_net = ie.load_network(net, device)
+    assert isinstance(exec_net, ExecutableNetwork)
+
+
+def test_read_network():
+    ie_core = IECore()
+    net = ie_core.read_network(test_net_xml, test_net_bin)
+    assert isinstance(net, IENetwork)
+
+
+def test_get_version(device):
+    ie = IECore()
+    version = ie.get_versions(device)
+    assert isinstance(version, dict), "Returned version must be a dictionary"
+    assert device in version, "{} plugin version wasn't found in versions"
+    assert hasattr(version[device], "major"), "Returned version has no field 'major'"
+    assert hasattr(version[device], "minor"), "Returned version has no field 'minor'"
+    assert hasattr(version[device], "description"), "Returned version has no field 'description'"
+    assert hasattr(version[device], "build_number"), "Returned version has no field 'build_number'"
+
+
+def test_available_devices(device):
+    ie = IECore()
+    devices = ie.available_devices
+    assert device in devices, "Current device '{}' is not listed in available devices '{}'".format(device,
+                                                                                                   ', '.join(devices))
+
+def test_get_config():
+    ie = IECore()
+    conf = ie.get_config("CPU", "CPU_BIND_THREAD")
+    assert conf == "YES"
