@@ -93,3 +93,4 @@ xfail_issue_36537 = xfail_test(reason="ngraph.exceptions.UserInputError: (Provid
 xfail_issue_36538 = xfail_test(reason="RuntimeError: Check 'PartialShape::broadcast_merge_into( pshape, "
                                       "node->get_input_partial_shape(i), autob)' failed at "
                                       "/openvino/ngraph/src/ngraph/op/util/elementwise_args.cpp:48:")
+skip_issue_40589 = pytest.mark.skip(reason="Model: tinyyolov2_opset1_cpu causes hanging")
