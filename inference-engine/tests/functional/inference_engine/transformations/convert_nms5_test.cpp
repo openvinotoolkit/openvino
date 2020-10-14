@@ -9,8 +9,8 @@
 
 #include <ngraph/function.hpp>
 #include <ngraph/opsets/opset5.hpp>
-#include <ngraph_ops/nms_ie.hpp>
-#include <transformations/convert_opset1_to_legacy/convert_nms_5_to_legacy.hpp>
+#include <legacy/ngraph_ops/nms_ie.hpp>
+#include <legacy/transformations/convert_opset1_to_legacy/convert_nms_5_to_legacy.hpp>
 #include <transformations/init_node_info.hpp>
 #include <transformations/utils/utils.hpp>
 #include <ngraph/pass/manager.hpp>
