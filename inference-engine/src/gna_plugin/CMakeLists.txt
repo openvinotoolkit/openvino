@@ -3,10 +3,6 @@
 
 set(TARGET_NAME "GNAPlugin")
 
-if(ENABLE_LTO)
-    ie_enable_lto()
-endif()
-
 file(GLOB_RECURSE SOURCES
         ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp)
 
@@ -53,11 +49,8 @@ target_link_libraries(${TARGET_NAME}_test_static PUBLIC inference_engine_preproc
 target_include_directories(${TARGET_NAME}_test_static PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 set_target_properties(${TARGET_NAME}_test_static PROPERTIES COMPILE_PDB_NAME ${TARGET_NAME}_test_static)
 
-if(WIN32)
-    # Correct 'jnl' macro/jit issue
-    target_compile_options(${TARGET_NAME} PRIVATE $<$<CXX_COMPILER_ID:MSVC>:/bigobj> )
-    target_compile_options(${TARGET_NAME}_test_static PRIVATE $<$<CXX_COMPILER_ID:MSVC>:/bigobj> )
-endif()
+set_target_properties(${TARGET_NAME} ${TARGET_NAME}_test_static
+                      PROPERTIES INTERPROCEDURAL_OPTIMIZATION ${ENABLE_LTO})
 
 # install
 

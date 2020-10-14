@@ -4,10 +4,6 @@
 
 set (TARGET_NAME "inference_engine_lp_transformations")
 
-if(ENABLE_LTO)
-    ie_enable_lto()
-endif()
-
 set(PUBLIC_HEADERS_DIR "${CMAKE_CURRENT_SOURCE_DIR}/include")
 
 file(GLOB_RECURSE LIBRARY_SRC ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp)
@@ -35,9 +31,13 @@ target_compile_definitions(${TARGET_NAME} PRIVATE IMPLEMENT_INFERENCE_ENGINE_API
 target_link_libraries(${TARGET_NAME} PRIVATE inference_engine openvino::itt)
 
 target_include_directories(${TARGET_NAME} PUBLIC ${PUBLIC_HEADERS_DIR}
-	$<TARGET_PROPERTY:inference_engine_plugin_api,INTERFACE_INCLUDE_DIRECTORIES>)
+    $<TARGET_PROPERTY:inference_engine_plugin_api,INTERFACE_INCLUDE_DIRECTORIES>)
 
 add_cpplint_target(${TARGET_NAME}_cpplint FOR_TARGETS ${TARGET_NAME})
+
+# LTO
+
+set_target_properties(${TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION ${ENABLE_LTO})
 
 # developer package
 

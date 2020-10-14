@@ -16,12 +16,15 @@ This plugin adds the following command-line options:
 """
 
 # pylint:disable=import-error
+import os
 import sys
 import pytest
 from pathlib import Path
 import yaml
 import hashlib
 import shutil
+import logging
+import tempfile
 
 from test_runner.utils import upload_timetest_data, \
     DATABASE, DB_COLLECTIONS
@@ -106,6 +109,16 @@ def niter(request):
 
 
 @pytest.fixture(scope="function")
+def temp_dir(pytestconfig):
+    """Create temporary directory for test purposes.
+    It will be cleaned up after every test run.
+    """
+    temp_dir = tempfile.TemporaryDirectory()
+    yield Path(temp_dir.name)
+    temp_dir.cleanup()
+
+
+@pytest.fixture(scope="function")
 def cl_cache_dir(pytestconfig):
     """Generate directory to save OpenCL cache before test run and clean up after run.
 
@@ -114,6 +127,9 @@ def cl_cache_dir(pytestconfig):
     More: https://github.com/intel/compute-runtime/blob/master/opencl/doc/FAQ.md#how-can-cl_cache-be-enabled
     """
     cl_cache_dir = pytestconfig.invocation_dir / "cl_cache"
+    # if cl_cache generation to a local `cl_cache` folder doesn't work, specify
+    # `cl_cache_dir` environment variable in an attempt to fix it (Linux specific)
+    os.environ["cl_cache_dir"] = str(cl_cache_dir)
     if cl_cache_dir.exists():
         shutil.rmtree(cl_cache_dir)
     cl_cache_dir.mkdir()
@@ -147,6 +163,7 @@ def prepare_tconf_with_refs(pytestconfig):
     yield
     new_tconf_path = pytestconfig.getoption('dump_refs')
     if new_tconf_path:
+        logging.info("Save new test config with test results as references to {}".format(new_tconf_path))
         upd_cases = pytestconfig.orig_cases.copy()
         for record in pytestconfig.session_info:
             rec_i = upd_cases.index(record["orig_instance"])
@@ -227,4 +244,5 @@ def pytest_runtest_makereport(item, call):
                 data["error_msg"] = report.longrepr.reprcrash.message
             else:
                 data["status"] = "passed"
+        logging.info("Upload data to {}/{}.{}. Data: {}".format(db_url, DATABASE, db_collection, data))
         upload_timetest_data(data, db_url, db_collection)

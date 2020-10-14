@@ -79,18 +79,9 @@ event_impl::ptr gpu_queue::enqueue_kernel(kernels_cache::kernel_type const& kern
     std::vector<cl::Event> dep_events;
     auto dep_events_ptr = &dep_events;
     if (!context()->get_configuration().host_out_of_order) {
-        for (auto& dep : deps) {
-            auto multiple_events = dynamic_cast<base_events*>(dep.get());
-            if (multiple_events) {
-                for (size_t i = 0; i < multiple_events->get_events().size(); i++) {
-                    if (auto base_ev = dynamic_cast<base_event*>(multiple_events->get_events()[i].get()))
-                        dep_events.push_back(base_ev->get());
-                }
-            } else {
-                if (auto base_ev = dynamic_cast<base_event*>(dep.get()))
-                    dep_events.push_back(base_ev->get());
-            }
-        }
+        for (auto& dep : deps)
+            if (auto ocl_ev = dynamic_cast<base_event*>(dep.get()))
+                dep_events.push_back(ocl_ev->get());
     } else {
         dep_events_ptr = nullptr;
 
@@ -122,18 +113,9 @@ event_impl::ptr gpu_queue::enqueue_marker(std::vector<event_impl::ptr> const& de
         cl::Event ret_ev;
         if (!enabled_single_kernel) {
             std::vector<cl::Event> dep_events;
-            for (auto& dep : deps) {
-                auto multiple_events = dynamic_cast<base_events*>(dep.get());
-                if (multiple_events) {
-                    for (size_t i = 0; i < multiple_events->get_events().size(); i++) {
-                        if (auto base_ev = dynamic_cast<base_event*>(multiple_events->get_events()[i].get()))
-                            dep_events.push_back(base_ev->get());
-                    }
-                } else {
-                    if (auto base_ev = dynamic_cast<base_event*>(dep.get()))
-                        dep_events.push_back(base_ev->get());
-                }
-            }
+            for (auto& dep : deps)
+                if (auto ocl_ev = dynamic_cast<base_event*>(dep.get()))
+                    dep_events.push_back(ocl_ev->get());
 
             try {
                 _command_queue.enqueueMarkerWithWaitList(&dep_events, &ret_ev);
