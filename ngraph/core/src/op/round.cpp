@@ -16,6 +16,7 @@
 
 #include "ngraph/op/round.hpp"
 #include "itt.hpp"
+#include "ngraph/attribute_visitor.hpp"
 #include "ngraph/op/util/eval_copy.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
 #include "ngraph/runtime/reference/copy.hpp"
@@ -28,16 +29,16 @@ using namespace ngraph;
 
 constexpr NodeTypeInfo op::Round::type_info;
 
-op::Round::Round(const Output<Node>& arg)
+op::v0::Round::Round(const Output<Node>& arg)
     : UnaryElementwiseArithmetic(arg)
 {
     constructor_validate_and_infer_types();
 }
 
-shared_ptr<Node> op::Round::clone_with_new_inputs(const OutputVector& new_args) const
+shared_ptr<Node> op::v0::Round::clone_with_new_inputs(const OutputVector& new_args) const
 {
     check_new_args_count(this, new_args);
-    return make_shared<Round>(new_args.at(0));
+    return make_shared<v0::Round>(new_args.at(0));
 }
 
 namespace roundop
@@ -94,8 +95,56 @@ namespace roundop
     }
 }
 
-bool op::Round::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
+bool op::v0::Round::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::Round::evaluate");
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v0::Round::evaluate");
     return roundop::evaluate_round(inputs[0], outputs[0], shape_size(get_output_shape(0)));
 }
+NGRAPH_SUPPRESS_DEPRECATED_END
+
+NGRAPH_RTTI_DEFINITION(op::v5::Round, "Round", 5);
+
+op::v5::Round::Round(const Output<Node>& arg, RoundMode mode)
+    : Op({arg})
+    , m_mode(mode)
+{
+    constructor_validate_and_infer_types();
+}
+
+bool ngraph::op::v5::Round::visit_attributes(AttributeVisitor& visitor)
+{
+    visitor.on_attribute("mode", m_mode);
+    return true;
+}
+
+void op::v5::Round::validate_and_infer_types()
+{
+    set_output_size(1);
+    set_output_type(0, get_input_element_type(0), get_input_partial_shape(0));
+}
+
+shared_ptr<Node> op::v5::Round::clone_with_new_inputs(const OutputVector& new_args) const
+{
+    check_new_args_count(this, new_args);
+    return make_shared<v5::Round>(new_args.at(0), m_mode);
+}
+
+namespace ngraph
+{
+    template <>
+    EnumNames<op::v5::Round::RoundMode>& EnumNames<op::v5::Round::RoundMode>::get()
+    {
+        static auto enum_names = EnumNames<op::v5::Round::RoundMode>(
+            "op::v5::Round::RoundMode",
+            {{"half_to_even", op::v5::Round::RoundMode::HALF_TO_EVEN},
+             {"half_away_from_zero", op::v5::Round::RoundMode::HALF_AWAY_FROM_ZERO}});
+        return enum_names;
+    }
+
+    constexpr DiscreteTypeInfo AttributeAdapter<op::v5::Round::RoundMode>::type_info;
+
+    std::ostream& operator<<(std::ostream& s, const op::v5::Round::RoundMode& type)
+    {
+        return s << as_string(type);
+    }
+} // namespace ngraph
