@@ -21,7 +21,7 @@ JNIEXPORT void JNICALL Java_org_intel_openvino_IECore_SetConfig(JNIEnv *, jobjec
 JNIEXPORT void JNICALL Java_org_intel_openvino_IECore_SetConfig1(JNIEnv *, jobject, jlong, jobject);
 JNIEXPORT jlong JNICALL Java_org_intel_openvino_IECore_GetConfig(JNIEnv *, jobject, jlong, jstring, jstring);
 JNIEXPORT jlong JNICALL Java_org_intel_openvino_IECore_GetCore(JNIEnv *, jobject);
-JNIEXPORT jlong JNICALL Java_org_intel_openvino_IECore_GetCore_1(JNIEnv *, jobject, jstring);
+JNIEXPORT jlong JNICALL Java_org_intel_openvino_IECore_GetCore1(JNIEnv *, jobject, jstring);
 JNIEXPORT void JNICALL Java_org_intel_openvino_IECore_delete(JNIEnv *, jobject, jlong);
 
 //
