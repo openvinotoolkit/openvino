@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "transformations/hsigmoid_decomposition.hpp"
+#include "transformations/op_conversions/hsigmoid_decomposition.hpp"
 
 #include <memory>
 

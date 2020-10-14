@@ -22,6 +22,7 @@
 #include "transformations/common_optimizations/pull_transpose_through_fq.hpp"
 #include "transformations/common_optimizations/lin_op_sequence_fusion.hpp"
 #include "transformations/common_optimizations/remove_filtering_boxes_by_size.hpp"
+#include "transformations/common_optimizations/hsigmoid_fusion.hpp"
 #include "transformations/common_optimizations/hswish_fusion.hpp"
 #include "transformations/common_optimizations/convert_quantize_dequantize.hpp"
 #include "transformations/op_conversions/bidirectional_sequences_decomposition.hpp"

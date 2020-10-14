@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "transformations/hsigmoid_fusion.hpp"
+#include "transformations/common_optimizations/hsigmoid_fusion.hpp"
 #include "transformations/utils/utils.hpp"
 
 #include <memory>
