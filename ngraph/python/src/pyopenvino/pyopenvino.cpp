@@ -22,6 +22,8 @@
 #include "inference_engine/ie_infer_request.hpp"
 #include "inference_engine/ie_network.hpp"
 #include "inference_engine/tensor_description.hpp"
+#include "inference_engine/ie_version.hpp"
+#include "inference_engine/ie_parameter.hpp"
 
 namespace py = pybind11;
 
@@ -45,7 +47,9 @@ PYBIND11_MODULE(pyopenvino, m)
     // regclass_Blob<double>(m);
 
     regclass_IENetwork(m);
-    regclass_IEExecutableNetwork(m);
+    regclass_ExecutableNetwork(m);
     regclass_InferRequest(m);
     regclass_TensorDecription(m);
+    regclass_Version(m);
+    regclass_Parameter(m);
 }

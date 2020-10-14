@@ -20,4 +20,4 @@
 
 namespace py = pybind11;
 
-void regclass_Parameter(py::module m);
+void regclass_Version(py::module m);

@@ -71,7 +71,7 @@ def find_pybind_headers_dir():
 
 
 NGRAPH_CPP_DIST_DIR = find_ngraph_dist_dir()
-OPENVINO_CPP_INCLUDE_DIR = "/home/jiwaszki/openvino/inference-engine/include"
+OPENVINO_CPP_INCLUDE_DIR = "/home/akuporos/openvino/openvino/inference-engine/include"
 PYBIND11_INCLUDE_DIR = find_pybind_headers_dir() + "/include"
 NGRAPH_CPP_INCLUDE_DIR = NGRAPH_CPP_DIST_DIR + "/include"
 if os.path.exists(os.path.join(NGRAPH_CPP_DIST_DIR, "lib")):
@@ -247,6 +247,8 @@ pyopenvino_sources = [
     "pyopenvino/inference_engine/ie_infer_request.cpp",
     "pyopenvino/inference_engine/ie_network.cpp",
     "pyopenvino/inference_engine/tensor_description.cpp",
+    "pyopenvino/inference_engine/ie_version.cpp",
+    "pyopenvino/inference_engine/ie_parameter.cpp",
 ]
 pyopenvino_sources = [PYNGRAPH_SRC_DIR + "/" + source for source in pyopenvino_sources]
 
@@ -266,7 +268,7 @@ packages = [
 
 include_dirs = [PYNGRAPH_SRC_DIR, NGRAPH_CPP_INCLUDE_DIR, OPENVINO_CPP_INCLUDE_DIR, PYBIND11_INCLUDE_DIR]
 
-library_dirs = [NGRAPH_CPP_LIBRARY_DIR, "/home/jiwaszki/dldt_dist/debug/deployment_tools/inference_engine/lib/intel64/"]
+library_dirs = [NGRAPH_CPP_LIBRARY_DIR, "/home/akuporos/openvino/openvino_dist/deployment_tools/inference_engine/lib/intel64/"]
 
 
 extra_compile_args = []

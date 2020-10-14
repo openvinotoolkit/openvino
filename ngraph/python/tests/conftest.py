@@ -88,3 +88,8 @@ def pytest_collection_modifyitems(config, items):
         skip_this_backend = keywords[backend_name]
         if skip_this_backend in item.keywords:
             item.add_marker(skip_markers[backend_name])
+
+
+@pytest.fixture(scope='session')
+def device():
+    return os.environ.get("TEST_DEVICE") if os.environ.get("TEST_DEVICE") else "CPU"
