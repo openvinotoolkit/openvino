@@ -74,16 +74,35 @@ class LeakyReluFusionTest(unittest.TestCase):
         (flag, resp) = compare_graphs(graph, graph_ref, 'result')
         self.assertTrue(flag, resp)
 
-    def test_leaky_relu_not_applicable_multiple_consumers(self):
+    def test_leaky_relu_mul_multiple_consumers(self):
         # multiple consumers of Mul operation
         graph = build_graph_with_edge_attrs(nodes, edges, {})
-        additional_result = Result(graph, {}).create_node()
+        additional_result = Result(graph, {'name': 'result_2'}).create_node()
         Node(graph, 'mul').out_port(0).connect(additional_result.in_port(0))
 
-        graph_ref = graph.copy()
+        ref_nodes = {**regular_op_with_shaped_data('input', shape, {'type': 'Parameter', 'op': 'Parameter'}),
+                     **regular_op_with_shaped_data('mul', shape, {'type': 'Multiply', 'name': 'mul'}),
+                     **regular_op_with_shaped_data('max', shape, {'type': 'Maximum', 'name': 'final_max'}),
+                     **valued_const_with_data('const', float_array([0.5])),
+                     **regular_op_with_shaped_data('leaky_relu', shape, {'type': 'LeakyReLU', 'name': 'max_final',
+                                                                         'negative_slope': None}),
+                     **result('result'),
+                     **result('result_2')
+                     }
+        ref_edges = [*connect('input:0', '0:mul'),
+                     *connect('const', '1:mul'),
+                     *connect('max:0', 'result'),
+                     *connect('mul:0', 'result_2'),
+                     *connect_data('input', 'leaky_relu'),
+                     *connect('leaky_relu', 'result')
+                     ]
+        graph_ref = build_graph_with_edge_attrs(ref_nodes, ref_edges)
 
         LeakyReLUFusion().find_and_replace_pattern(graph)
         graph.clean_up()
 
         (flag, resp) = compare_graphs(graph, graph_ref, 'result')
+        self.assertTrue(flag, resp)
+
+        (flag, resp) = compare_graphs(graph, graph_ref, 'result_2')
         self.assertTrue(flag, resp)

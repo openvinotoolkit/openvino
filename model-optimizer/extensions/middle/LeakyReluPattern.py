@@ -66,31 +66,17 @@ class LeakyReLUFusion(MiddleReplacementPattern):
         max_node = match['max_op']
         max_name = max_node.soft_get('name', max_node.id)
 
-        # Check that nodes satisfies conversion requirements
-        connected_ports = [port for port in max_node.in_ports().values() if not port.disconnected()]
-        if len(connected_ports) > 2:
-            log.debug('Maximum layer ({}) can not participate in conversion to leaky ReLU due to it has more than two '
-                      'inputs ({})'.format(max_node.id, len(connected_ports)))
-            return
-
         const_value = const_node.out_port(0).data.get_value()
         if const_value is None or const_value.size != 1:
-            log.debug('Mul layer ({}) can not participate in conversion to leaky ReLU due to value {}'
-                      ''.format(mul_node.id, const_value))
-            return
-
-        scalar_value = const_value.item(0)
-        if len(mul_node.out_port(0).get_destinations()) > 1:
-            log.debug(
-                'Mul layer({}) can not participate in conversion to leaky ReLU due to it has more than one consumer'
-                ''.format(mul_node.id))
+            log.debug('Mul layer "{}" can not participate in conversion to the LeakyReLU because constant "{}" '
+                      'contains more than one element: {}'.format(mul_node.id, const_node.id, const_value.size))
             return
 
         # Create new LeakyReLU operation
-        leaky_relu_node = LeakyReLU(graph, dict(negative_slope=scalar_value)).create_node()
+        leaky_relu_node = LeakyReLU(graph, dict(negative_slope=const_value.item(0))).create_node()
 
         data_in_port = int(mul_node.in_port(0).get_source().node.op == 'Const')
-        mul_node.in_port(data_in_port).get_connection().set_destination(leaky_relu_node.in_port(0))
+        mul_node.in_port(data_in_port).get_source().connect(leaky_relu_node.in_port(0))
         max_node.out_port(0).get_connection().set_source(leaky_relu_node.out_port(0))
 
         rename_nodes([(max_node, max_name + '/TBR'), (leaky_relu_node, max_name)])
