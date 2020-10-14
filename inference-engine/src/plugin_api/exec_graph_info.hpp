@@ -71,7 +71,7 @@ static const char LAYER_TYPE[] = "layerType";
 
 /**
  * @ingroup ie_dev_exec_graph
- * @brief Used to get runtime precisions of the executable primitive.
+ * @brief Used to get runtime precision of the executable primitive.
  */
 static const char RUNTIME_PRECISION[] = "runtimePrecision";
 
