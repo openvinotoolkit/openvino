@@ -81,6 +81,7 @@ from ngraph.opset1.ops import logical_and
 from ngraph.opset1.ops import logical_not
 from ngraph.opset1.ops import logical_or
 from ngraph.opset1.ops import logical_xor
+from ngraph.opset5.ops import log_softmax
 from ngraph.opset1.ops import lrn
 from ngraph.opset4.ops import lstm_cell
 from ngraph.opset1.ops import lstm_sequence
