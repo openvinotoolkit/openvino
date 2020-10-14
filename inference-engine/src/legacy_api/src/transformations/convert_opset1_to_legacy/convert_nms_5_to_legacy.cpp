@@ -8,7 +8,7 @@
 #include <ngraph/graph_util.hpp>
 #include <ngraph/opsets/opset1.hpp>
 #include <ngraph/opsets/opset5.hpp>
-#include <ngraph_ops/nms_ie.hpp>
+#include <legacy/ngraph_ops/nms_ie.hpp>
 #include <ngraph/rt_info.hpp>
 #include <transformations/utils/utils.hpp>
 

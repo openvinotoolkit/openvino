@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "transformations/convert_previous_nms_to_nms_5.hpp"
+#include "transformations/op_conversions/convert_previous_nms_to_nms_5.hpp"
 
 #include <list>
 #include <memory>
