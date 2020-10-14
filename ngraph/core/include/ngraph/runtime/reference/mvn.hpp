@@ -23,7 +23,6 @@
 #include <ngraph/runtime/reference/sqrt.hpp>
 #include <ngraph/runtime/reference/subtract.hpp>
 #include <ngraph/runtime/reference/sum.hpp>
-#include <ngraph/runtime/reference/autobroadcast_binop.hpp>
 #include <ngraph/shape.hpp>
 
 namespace ngraph
@@ -43,7 +42,12 @@ namespace ngraph
                 auto reduced_shape = reduce(in_shape, reduction_axes, true);
                 std::vector<T> mean_val(shape_size(reduced_shape));
                 mean(arg, mean_val.data(), in_shape, reduction_axes, true);
-                subtract(arg, mean_val.data(), out, in_shape, reduced_shape, op::AutoBroadcastSpec::NUMPY);
+                subtract(arg,
+                         mean_val.data(),
+                         out,
+                         in_shape,
+                         reduced_shape,
+                         op::AutoBroadcastSpec::NUMPY);
 
                 if (normalize_variance)
                 {
