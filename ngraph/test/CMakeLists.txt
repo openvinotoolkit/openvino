@@ -161,6 +161,7 @@ set(SRC
     type_prop/reverse.cpp
     type_prop/reverse_sequence.cpp
     type_prop/roi_align.cpp
+    type_prop/round.cpp
     type_prop/rnn_cell.cpp
     type_prop/rnn_sequence.cpp
     type_prop/scatter_elements_update.cpp
@@ -303,6 +304,7 @@ set(MULTI_TEST_SRC
     backend/multiply.in.cpp
     backend/negative.in.cpp
     backend/node_name.in.cpp
+    backend/normalize_l2.in.cpp
     backend/not.in.cpp
     backend/non_zero.in.cpp
     backend/numeric.in.cpp
