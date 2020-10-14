@@ -30,6 +30,7 @@ from mo.front.pytorch.extractor import pytorch_op_extractor, pytorch_op_extracto
 from mo.graph.graph import Graph
 
 from .hooks import OpenVINOTensor, forward_hook
+from .model_hooks import register_model_hook
 
 
 class PyTorchLoader(Loader):
@@ -54,8 +55,12 @@ class PyTorchLoader(Loader):
                 continue
             module.register_forward_hook(forward_hook)
 
+        register_model_hook(model)
+
         graph.add_node('input', kind='op', op='Parameter', name='input', shape=list(inp.shape))
-        outs = model(inp)
+
+        with torch.no_grad():
+            outs = model(inp)
 
         # Add output nodes
         if not hasattr(outs, '__contains__'):  # if a single tensor

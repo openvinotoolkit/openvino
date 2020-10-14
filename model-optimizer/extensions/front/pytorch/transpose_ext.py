@@ -13,24 +13,24 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 """
-from extensions.ops.activation_ops import *
+
+import numpy as np
+
+from mo.front.common.partial_infer.utils import int64_array
 from mo.front.extractor import FrontExtractorOp
+from extensions.ops.transpose import Transpose
+from mo.utils.error import Error
 
-class ReLUExtractor(FrontExtractorOp):
-    op = 'ReLU'
+
+class TransposeFrontExtractor(FrontExtractorOp):
+    op = 'Transpose'
     enabled = True
 
     @classmethod
     def extract(cls, node):
-        ReLU.update_node_stat(node)
-        return cls.enabled
-
-
-class SigmoidExtractor(FrontExtractorOp):
-    op = 'Sigmoid'
-    enabled = True
-
-    @classmethod
-    def extract(cls, node):
-        Sigmoid.update_node_stat(node)
+        attrs = {
+            'op': __class__.op,
+            'order': node.module.order,
+        }
+        Transpose.update_node_stat(node, attrs)
         return cls.enabled

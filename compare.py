@@ -7,10 +7,9 @@ import torchvision.models as models
 np.random.seed(324)
 torch.manual_seed(32)
 
-# TODO: there is an issue with torch.cat when test multiple models.
 models = {
-    # models.alexnet: (227, 227),
-    # models.resnet18: (227, 227),
+    models.alexnet: (227, 227),
+    models.resnet18: (227, 227),
     models.segmentation.deeplabv3_resnet50: (240, 320),
 }
 

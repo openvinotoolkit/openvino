@@ -16,6 +16,7 @@
 
 import numpy as np
 from extensions.ops.interpolate import Interpolate
+from extensions.ops.upsample import UpsampleOp
 from mo.front.common.replacement import FrontReplacementOp
 from mo.graph.graph import Graph, Node
 from mo.ops.const import Const
@@ -23,7 +24,7 @@ from mo.ops.const import Const
 class InterpolateReplacer(FrontReplacementOp):
     op = 'Upsample'
     enabled = True
-    
+
     def replace_op(self, graph: Graph, node: Node):
         mode = node.module.mode
         if mode == 'bilinear':
@@ -51,15 +52,26 @@ class InterpolateReplacer(FrontReplacementOp):
             scales = Const(graph, {'value': np.array([1, 1], dtype=np.float32)}).create_node()
             interp = Interpolate(graph, attrs).create_node([node.in_node(0), sizes, scales, axes])
         else:
-            attrs = {
-                'name': node.name,
-                'version': 'opset1',
-                'height': node.module.size[0],
-                'width': node.module.size[1],
-                'mode': mode,
-                'axes': [2, 3],
-                'align_corners': node.module.align_corners,
-            }
-            interp = Interpolate(graph, attrs).create_node([node.in_node(0)])
+            if node.module.size:
+                attrs = {
+                    'name': node.name,
+                    'version': 'opset1',
+                    'height': node.module.size[0],
+                    'width': node.module.size[1],
+                    'mode': mode,
+                    'axes': [2, 3],
+                    'align_corners': node.module.align_corners,
+                }
+                interp = Interpolate(graph, attrs).create_node([node.in_node(0)])
+            else:
+                assert(node.module.scale_factor)
+                attrs = {
+                    'name': node.name,
+                    'height_scale': node.module.scale_factor,
+                    'width_scale': node.module.scale_factor,
+                    'mode': mode,
+                    'align_corners': node.module.align_corners,
+                }
+                interp = UpsampleOp(graph, attrs).create_node([node.in_node(0)])
 
         return [interp.id]

@@ -13,40 +13,28 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 """
+
 import numpy as np
 
-from extensions.ops.elementwise import *
+from mo.front.common.partial_infer.utils import int64_array
 from mo.front.extractor import FrontExtractorOp
-from mo.graph.graph import Node
-from mo.ops.eltwise_n import EltwiseNAdd, EltwiseNMax
-from mo.ops.power import AttributedPower
+from extensions.ops.DetectionOutput import DetectionOutput
+from mo.utils.error import Error
 
 
-class AddFrontExtractor(FrontExtractorOp):
-    op = 'Add'
+class DetectionOutputExtractor(FrontExtractorOp):
+    op = 'DetectionOutput'
     enabled = True
 
     @classmethod
-    def extract(cls, node: Node):
-        Add.update_node_stat(node)
-        return cls.enabled
-
-
-class SubFrontExtractor(FrontExtractorOp):
-    op = 'Sub'
-    enabled = True
-
-    @classmethod
-    def extract(cls, node: Node):
-        Sub.update_node_stat(node)
-        return cls.enabled
-
-
-class MulFrontExtractor(FrontExtractorOp):
-    op = 'Mul'
-    enabled = True
-
-    @classmethod
-    def extract(cls, node: Node):
-        Mul.update_node_stat(node)
+    def extract(cls, node):
+        attrs = {
+            'variance_encoded_in_target': int(node.module.variance_encoded_in_target),
+            'nms_threshold': node.module.nms_threshold,
+            'confidence_threshold': node.module.confidence_threshold,
+            'top_k': node.module.top_k,
+            'keep_top_k': node.module.keep_top_k,
+            'code_type': node.module.code_type,
+        }
+        DetectionOutput.update_node_stat(node, attrs)
         return cls.enabled

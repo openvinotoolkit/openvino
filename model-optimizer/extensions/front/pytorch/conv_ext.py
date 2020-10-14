@@ -39,6 +39,8 @@ class Conv2dFrontExtractor(FrontExtractorOp):
 
         # Extract strides attribute
         dilations = node.module.dilation
+        if isinstance(dilations, int):
+            dilations = [dilations, dilations]
         final_dilations = np.array([1, 1, *dilations], dtype=np.int64)
 
         attrs = {
