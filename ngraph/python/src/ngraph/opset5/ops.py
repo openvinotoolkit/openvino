@@ -91,6 +91,7 @@ def log_softmax(data: NodeInput, axis: int, name: Optional[str] = None) -> Node:
     """
     return _get_node_factory_opset5().create("LogSoftmax", [as_node(data)], {"axis": axis})
 
+
 @nameable_op
 def round(data: NodeInput, mode: str = "half_to_even", name: Optional[str] = None) -> Node:
     """Apply Round operation on each element of input tensor.
