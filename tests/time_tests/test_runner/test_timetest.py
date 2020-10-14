@@ -17,6 +17,7 @@ Options[*]:
 from pathlib import Path
 import logging
 import os
+import shutil
 
 from scripts.run_timetest import run_timetest
 from test_runner.utils import expand_env_vars
@@ -24,22 +25,30 @@ from test_runner.utils import expand_env_vars
 REFS_FACTOR = 1.2      # 120%
 
 
-def test_timetest(instance, executable, niter, cl_cache_dir, test_info):
+def test_timetest(instance, executable, niter, cl_cache_dir, test_info, temp_dir):
     """Parameterized test.
 
     :param instance: test instance. Should not be changed during test run
     :param executable: timetest executable to run
     :param niter: number of times to run executable
+    :param cl_cache_dir: directory to store OpenCL cache
     :param test_info: custom `test_info` field of built-in `request` pytest fixture
+    :param temp_dir: path to a temporary directory. Will be cleaned up after test run
     """
     # Prepare model to get model_path
     model_path = instance["model"].get("path")
     assert model_path, "Model path is empty"
+    model_path = Path(expand_env_vars(model_path))
+
+    # Copy model to a local temporary directory
+    model_dir = temp_dir / "model"
+    shutil.copytree(model_path.parent, model_dir)
+    model_path = model_dir / model_path.name
 
     # Run executable
     exe_args = {
         "executable": Path(executable),
-        "model": Path(expand_env_vars(model_path)),
+        "model": Path(model_path),
         "device": instance["device"]["name"],
         "niter": niter
     }
