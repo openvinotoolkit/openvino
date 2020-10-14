@@ -31,8 +31,8 @@ namespace ngraph
                       char* out,
                       const Shape& in_shape,
                       const Shape& out_shape,
-                      size_t elem_size,
-                      std::vector<int64_t> repeats);
+                      const size_t elem_size,
+                      const std::vector<int64_t>& repeats);
         }
     }
 }
