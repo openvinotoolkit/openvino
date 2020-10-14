@@ -1614,6 +1614,8 @@ cdef class BlobBuffer:
         cdef SizeVector shape
         if len(representation_shape) == 0:
             shape = desc.getDims()
+            if layout_int_to_str_map[desc.getLayout()] == 'SCALAR':
+                shape = [1]
         else:
             shape = representation_shape
         cdef Py_ssize_t itemsize = deref(ptr).element_size()

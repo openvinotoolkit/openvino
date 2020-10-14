@@ -110,6 +110,15 @@ def test_write_to_buffer_int64():
     assert np.array_equal(blob.buffer, ones_arr)
 
 
+def test_write_numpy_scalar_int64():
+    tensor_desc = TensorDesc("I64", [], "SCALAR")
+    scalar = np.array(0, dtype=np.int64)
+    blob = Blob(tensor_desc, scalar)
+    scalar_to_write = np.array(1, dtype=np.int64)
+    blob.buffer[:] = scalar_to_write
+    assert np.array_equal(blob.buffer, np.atleast_1d(scalar_to_write))
+
+
 def test_incompatible_array_and_td():
     tensor_desc = TensorDesc("FP32", [1, 3, 127, 127], "NCHW")
     array = np.zeros(shape=(1, 2, 3, 4), dtype=np.float32)
