@@ -33,6 +33,7 @@ from mo.front.common.register_custom_ops import check_for_duplicates
 from mo.front.common.register_custom_ops import update_extractors_with_extensions
 from mo.front.extractor import restore_edges, extract_node_attrs, remove_control_dependency_inputs
 from mo.front.tf.extractor import get_tf_edges, tf_op_extractor, tf_op_extractors
+from mo.front.tf.extractors.utils import tf_tensor_shape, tf_dtype_extractor
 from mo.front.tf.loader import load_tf_graph_def, protobuf2nx
 from mo.graph.graph import Graph
 from mo.utils import tensorboard_util
@@ -73,8 +74,6 @@ class TFLoader(Loader):
         if argv.tensorboard_logdir:
             tensorboard_util.dump_for_tensorboard(graph_def, argv.tensorboard_logdir)
 
-        update_extractors_with_extensions(tf_op_extractors)
-
         try:
             protobuf2nx(graph, graph_def)
         except Exception as e:
@@ -99,4 +98,38 @@ class TFLoader(Loader):
         remove_control_dependency_inputs(graph)
 
         graph.check_empty_graph('protobuf2nx. It may happen due to problems with loaded model')
+
+
+class TFExtractor(Loader):
+    id = "TFExtractor"
+    enabled = True
+
+    def run_after(self):
+        return [TFLoader]
+
+    def load(self, graph: Graph):
+        update_extractors_with_extensions(tf_op_extractors)
         extract_node_attrs(graph, lambda node: tf_op_extractor(node, check_for_duplicates(tf_op_extractors)))
+
+
+class TFPrivateExtractor(Loader):
+    id = "TFPrivateExtractor"
+    enabled = False
+
+    def run_after(self):
+        return [TFLoader]
+
+    def load(self, graph: Graph):
+        extract_node_attrs(graph, lambda node: tf_op_extractor(node, {}))
+        for node in graph.get_op_nodes():
+            if node.has('pb') and 'shape' in node.pb.attr:
+                node['shape'] = tf_tensor_shape(node.pb.attr["shape"].shape)
+            if node.has('pb') and 'shapes' in node.pb.attr:
+                shapes = node.pb.attr['shapes'].list.shape
+                node['shapes'] = [tf_tensor_shape(shape) for shape in shapes]
+            if node.has('pb') and 'data_type' in node.pb.attr:
+                node['data_type'] = tf_dtype_extractor(node.pb.attr["dtype"].type)
+            if node.has('pb') and 'value' in node.pb.attr:
+                node['value'] = True
+                node['shape'] = tf_tensor_shape(node.pb.attr["value"].tensor.tensor_shape)
+                node['data_type'] = tf_dtype_extractor(node.pb.attr["value"].tensor.dtype)

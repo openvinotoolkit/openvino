@@ -25,9 +25,8 @@ from collections import OrderedDict
 import numpy as np
 
 from extensions.back.SpecialNodesFinalization import RemoveConstOps, CreateConstNodesReplacement, NormalizeTI
-from mo.utils.get_ov_update_message import get_ov_update_message
 from mo.graph.graph import Graph
-from mo.middle.pattern_match import for_graph_and_each_sub_graph_recursively, for_each_sub_graph_recursively
+from mo.middle.pattern_match import for_graph_and_each_sub_graph_recursively
 from mo.pipeline.common import prepare_emit_ir, get_ir_version
 from mo.pipeline.unified import unified_pipeline
 from mo.utils import import_extensions
@@ -35,6 +34,7 @@ from mo.utils.cli_parser import get_placeholder_shapes, get_tuple_values, get_mo
     get_common_cli_options, get_caffe_cli_options, get_tf_cli_options, get_mxnet_cli_options, get_kaldi_cli_options, \
     get_onnx_cli_options, get_mean_scale_dictionary, parse_tuple_pairs, get_freeze_placeholder_values, get_meta_info
 from mo.utils.error import Error, FrameworkError
+from mo.utils.get_ov_update_message import get_ov_update_message
 from mo.utils.guess_framework import deduce_framework_by_namespace
 from mo.utils.logger import init_logger
 from mo.utils.model_analysis import AnalysisResults
@@ -93,7 +93,7 @@ def print_argv(argv: argparse.Namespace, is_caffe: bool, is_tf: bool, is_mxnet: 
     print('\n'.join(lines), flush=True)
 
 
-def prepare_ir(argv: argparse.Namespace):
+def arguments_post_parsing(argv: argparse.Namespace):
     is_tf, is_caffe, is_mxnet, is_kaldi, is_onnx = deduce_framework_by_namespace(argv)
 
     if not any([is_tf, is_caffe, is_mxnet, is_kaldi, is_onnx]):
@@ -207,7 +207,6 @@ def prepare_ir(argv: argparse.Namespace):
 
     log.debug("Placeholder shapes : {}".format(argv.placeholder_shapes))
 
-    ret_res = 1
     if hasattr(argv, 'extensions') and argv.extensions and argv.extensions != '':
         extensions = argv.extensions.split(',')
     else:
@@ -231,6 +230,11 @@ def prepare_ir(argv: argparse.Namespace):
     elif is_onnx:
         from mo.front.onnx.register_custom_ops import get_front_classes
         import_extensions.load_dirs(argv.framework, extensions, get_front_classes)
+    return argv
+
+
+def prepare_ir(argv: argparse.Namespace):
+    argv = arguments_post_parsing(argv)
     graph = unified_pipeline(argv)
     return graph
 

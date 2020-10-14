@@ -29,3 +29,11 @@ def unified_pipeline(argv: argparse.Namespace):
         class_registration.ClassType.BACK_REPLACER
     ])
     return graph
+
+
+def loader_pipeline(argv: argparse.Namespace):
+    graph = Graph(cmd_params=argv, name=argv.model_name, ir_version=get_ir_version(argv))
+    class_registration.apply_replacements(graph, [
+        class_registration.ClassType.LOADER
+    ])
+    return graph
