@@ -29,6 +29,13 @@ op::ReorgYolo::ReorgYolo(const Output<Node>& input, const Strides& strides)
     constructor_validate_and_infer_types();
 }
 
+op::ReorgYolo::ReorgYolo(const Output<Node>& input, const size_t stride)
+    : Op({input})
+    , m_strides(std::vector<size_t>{stride, stride})
+{
+    constructor_validate_and_infer_types();
+}
+
 void op::ReorgYolo::validate_and_infer_types()
 {
     auto input_et = get_input_element_type(0);
