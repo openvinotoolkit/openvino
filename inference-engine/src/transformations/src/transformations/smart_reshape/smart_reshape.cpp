@@ -4,24 +4,34 @@
 
 #include <memory>
 
-#include "transformations/smart_reshape/smart_reshape.hpp"
-#include "transformations/smart_reshape/reshape_with_hc_output.hpp"
-#include "transformations/itt.hpp"
-
 #include <ngraph/pass/manager.hpp>
-#include <ngraph/pass/constant_folding.hpp>
+
 #include <transformations/init_node_info.hpp>
+#include <transformations/itt.hpp>
+#include <transformations/smart_reshape/reshape_to_1D.hpp>
+#include <transformations/smart_reshape/reshape_with_hc_output.hpp>
+#include <transformations/smart_reshape/smart_reshape.hpp>
+#include <transformations/smart_reshape/proposal_scales_stridedslice.hpp>
 
 bool ngraph::pass::SmartReshape::run_on_function(std::shared_ptr<ngraph::Function> f) {
     OV_ITT_SCOPED_TASK(itt::domains::IETransform, "ngraph::pass::SmartReshape");
 
-    ngraph::pass::Manager manager;
+    ngraph::pass::Manager static_manager;
     // This pass must be called first in pipeline
-    manager.register_pass<ngraph::pass::InitNodeInfo>();
+    static_manager.register_pass<ngraph::pass::InitNodeInfo>();
 
-    manager.register_pass<ngraph::pass::ReshapeAMatMul>();
-    manager.register_pass<ngraph::pass::ReshapeBMatMul>();
+    static_manager.register_pass<ngraph::pass::ReshapeTo1D>();
+    static_manager.register_pass<ngraph::pass::ProposalScales>();
+    static_manager.run_passes(f);
 
-    manager.run_passes(f);
+    ngraph::pass::Manager dynamic_manager;
+    dynamic_manager.set_per_pass_validation(false);
+
+    // This pass must be called first in pipeline
+    dynamic_manager.register_pass<ngraph::pass::InitNodeInfo>();
+
+    dynamic_manager.register_pass<ngraph::pass::ReshapeAMatMul>();
+    dynamic_manager.register_pass<ngraph::pass::ReshapeBMatMul>();
+    dynamic_manager.run_passes(f);
     return true;
 }
