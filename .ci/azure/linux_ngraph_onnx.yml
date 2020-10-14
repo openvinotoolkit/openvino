@@ -47,5 +47,5 @@ jobs:
 
   - script: docker run --name openvino-onnx-ci-container openvino-onnx-ci-image
     displayName: 'Docker run tests'
-    enabled: false
+    enabled: true
 
