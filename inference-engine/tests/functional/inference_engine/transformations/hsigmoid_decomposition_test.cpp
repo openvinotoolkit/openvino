@@ -40,11 +40,9 @@ TEST(TransformationTests, HSigmoidDecompositionTest) {
         auto relu = std::make_shared<ngraph::opset4::Relu>(add);
         auto min_constant = ngraph::opset4::Constant::create(ngraph::element::f16, ngraph::Shape{}, {6.0});
         auto min = std::make_shared<ngraph::opset4::Minimum>(relu, min_constant);
-        auto mul_first = std::make_shared<ngraph::opset4::Multiply>(input, min);
-        auto mul_constant = ngraph::opset4::Constant::create(ngraph::element::f16, ngraph::Shape{}, {0.1666666716});
-        auto mul_second = std::make_shared<ngraph::opset4::Multiply>(mul_first, mul_constant);
+        auto mul = std::make_shared<ngraph::opset4::Multiply>(input, min);
 
-        f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{mul_second}, ngraph::ParameterVector{input});
+        f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{mul}, ngraph::ParameterVector{input});
     }
 
     auto res = compare_functions(f, f_ref);
