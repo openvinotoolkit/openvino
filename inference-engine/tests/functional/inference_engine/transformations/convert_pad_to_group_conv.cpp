@@ -10,7 +10,7 @@
 
 #include <ngraph/function.hpp>
 #include <ngraph/opsets/opset4.hpp>
-#include <transformations/convert_pad_to_group_conv.hpp>
+#include <transformations/op_conversions/convert_pad_to_group_conv.hpp>
 #include <transformations/init_node_info.hpp>
 #include <transformations/utils/utils.hpp>
 #include <ngraph/pass/manager.hpp>

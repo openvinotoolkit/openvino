@@ -39,7 +39,7 @@ function(ie_shellcheck_process)
                              -D IE_SHELL_SCRIPT=${script}
                              -D IE_SHELLCHECK_OUTPUT=${output_file}
                              -P ${IE_SHELLCHECK_SCRIPT}
-                           DEPENDS ${script}
+                           DEPENDS ${script} ${IE_SHELLCHECK_SCRIPT}
                            COMMENT "Check script ${script_name}"
                            VERBATIM)
         list(APPEND outputs ${output_file})

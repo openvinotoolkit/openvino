@@ -39,7 +39,7 @@ Thank you!
 ## Support
 Please report questions, issues and suggestions using:
 
-* The `openvino` [tag on StackOverflow]\*
+* The [`openvino`](https://stackoverflow.com/questions/tagged/openvino) tag on StackOverflow\*
 * [GitHub* Issues](https://github.com/openvinotoolkit/openvino/issues)
 * [Forum](https://software.intel.com/en-us/forums/computer-vision)
 
