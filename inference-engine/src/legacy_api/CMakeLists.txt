@@ -4,10 +4,6 @@
 
 set(TARGET_NAME "inference_engine_legacy")
 
-if(ENABLE_LTO)
-    ie_enable_lto()
-endif()
-
 file(GLOB_RECURSE LIBRARY_SRC ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp)
 file(GLOB_RECURSE PUBLIC_HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/include/*.hpp ${CMAKE_CURRENT_SOURCE_DIR}/include/*.h)
 
@@ -59,6 +55,11 @@ target_link_libraries(${TARGET_NAME} PRIVATE ${CMAKE_DL_LIBS} ${NGRAPH_LIBRARIES
 add_cpplint_target(${TARGET_NAME}_cpplint FOR_TARGETS ${TARGET_NAME})
 
 ie_add_api_validator_post_build_step(TARGET ${TARGET_NAME})
+
+# LTO
+
+set_target_properties(${TARGET_NAME} ${TARGET_NAME}_obj
+                      PROPERTIES INTERPROCEDURAL_OPTIMIZATION ${ENABLE_LTO})
 
 # export targets
 
