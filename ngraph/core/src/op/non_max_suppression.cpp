@@ -1114,7 +1114,7 @@ bool op::v5::NonMaxSuppression::evaluate(const HostTensorVector& outputs,
     if (num_of_outputs >= 3)
     {
         outputs[2]->set_element_type(m_output_type);
-        outputs[2]->set_shape(Shape{});
+        outputs[2]->set_shape(Shape{1});
     }
 
     evaluate_postprocessing(
