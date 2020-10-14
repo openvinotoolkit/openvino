@@ -107,6 +107,9 @@ def _remove_compiler_flags(obj):
         if sys.platform == "win32":
             obj.compiler.remove("/DNDEBUG")
             obj.compiler.remove("/O2")
+        if sys.platform == "darwin":
+            obj.compiler.remove("-DNDEBUG")
+            obj.compiler.remove("-O3")
         else:
             obj.compiler.remove("-DNDEBUG")
             obj.compiler.remove("-O2")
@@ -121,6 +124,9 @@ def _remove_compiler_so_flags(obj):
         if sys.platform == "win32":
             obj.compiler_so.remove("/DNDEBUG")
             obj.compiler_so.remove("/O2")
+        if sys.platform == "darwin":
+            obj.compiler_so.remove("-DNDEBUG")
+            obj.compiler_so.remove("-O3")
         else:
             obj.compiler_so.remove("-DNDEBUG")
             obj.compiler_so.remove("-O2")
