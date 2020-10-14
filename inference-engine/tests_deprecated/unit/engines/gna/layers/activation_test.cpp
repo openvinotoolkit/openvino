@@ -8,7 +8,7 @@
 #include <ngraph/op/parameter.hpp>
 #include <ngraph/ops.hpp>
 #include <ie_precision.hpp>
-#include <ngraph_ops/power.hpp>
+#include <legacy/ngraph_ops/power.hpp>
 #include <debug.h>
 #include "../gna_matcher.hpp"
 
