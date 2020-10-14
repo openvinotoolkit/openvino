@@ -76,6 +76,7 @@ from ngraph.opset5 import fake_quantize
 from ngraph.opset5 import floor
 from ngraph.opset5 import floor_mod
 from ngraph.opset5 import gather
+from ngraph.opset5 import gather_nd
 from ngraph.opset5 import gather_tree
 from ngraph.opset5 import gelu
 from ngraph.opset5 import greater
