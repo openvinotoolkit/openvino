@@ -50,7 +50,7 @@ namespace
         pitch.resize(dims.size());
         std::partial_sum(dims.rbegin(), dims.rend() - 1, pitch.begin(), std::multiplies<int64_t>());
         std::reverse(pitch.begin(), pitch.end() - 1);
-        
+
         pitch.back() = 1;
         return pitch;
     }
