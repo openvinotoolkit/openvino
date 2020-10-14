@@ -118,6 +118,7 @@ private:
      * @brief Reshape on the same shape
      */
     void reshape();
+    void reshape(const std::map<std::string, std::vector<size_t>>& inputShapes);
 };
 
 class TINGraphBody : public CNNNetworkNGraphImpl {
