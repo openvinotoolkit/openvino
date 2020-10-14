@@ -48,6 +48,7 @@ class LoopToTI(FrontReplacementSubgraph):
     def convert_to_ti(node: Node):
         main_graph = node.graph
         body_graph = Graph()
+        body_graph.graph['ir_version'] = 10
         graph_pb = node.body_proto
 
         initializers = Graph()
@@ -104,6 +105,8 @@ class LoopToTI(FrontReplacementSubgraph):
                         external_edges.append((inp, id, dst_port))  # (src node, src port),  dest node, dest port
                         continue
                     else:
+                        print(inp, pb_node)
+                        continue
                         raise Error(
                             'Reference to {} is not satisfied. A node refer not existing data tensor. ONNX model is not '
                             'consistent. Protobuf fragment: {}', inp, pb_node)
@@ -144,6 +147,10 @@ class LoopToTI(FrontReplacementSubgraph):
         scan_outputs_count = len(graph_pb.output) - 1 - loop_carried_dependencies_count
 
         body_graph.stage = 'front'
+        body_graph.graph['layout'] = 'NCHW'
+        body_graph.graph['fw'] = 'onnx'
+        body_graph.graph['feature_dim'] = 1
+
         # create TI node and connect inputs
         loop_node_name = node.soft_get('name', node.id)
         ti = TensorIterator(main_graph, {'name': loop_node_name + '/TensorIterator', 'body': body_graph}).create_node()
@@ -192,5 +199,5 @@ class LoopToTI(FrontReplacementSubgraph):
 
         # now when we replaced the Loop node with the TI node we can safely remove Loop node
         main_graph.remove_node(node.id)
-        # main_graph.dump_graph_for_graphviz(save_to_svg=True)
+        body_graph.dump_graph_for_graphviz(save_to_svg=True)
         # exit(0)
