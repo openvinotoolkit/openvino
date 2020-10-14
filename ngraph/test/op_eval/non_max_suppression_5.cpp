@@ -62,8 +62,8 @@ TEST(op_eval, nonmaxsuppression_center_point_box_format)
         result = make_shared<HostTensor>();
     }
     ASSERT_TRUE(f->evaluate(results,
-                           {make_host_tensor<element::Type_t::f32>(boxes_shape, boxes_data),
-                            make_host_tensor<element::Type_t::f32>(scores_shape, scores_data)}));
+                            {make_host_tensor<element::Type_t::f32>(boxes_shape, boxes_data),
+                             make_host_tensor<element::Type_t::f32>(scores_shape, scores_data)}));
 
     std::vector<int64_t> expected_selected_indices = {0, 0, 3, 0, 0, 0, 0, 0, 5};
     std::vector<float> expected_selected_scores = {0.0, 0.0, 0.95, 0.0, 0.0, 0.9, 0.0, 0.0, 0.3};
