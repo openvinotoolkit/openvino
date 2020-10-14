@@ -11,10 +11,6 @@ if (LINUX)
     endif()
 endif()
 
-if(ENABLE_LTO)
-    ie_enable_lto()
-endif()
-
 file(GLOB MAIN_SRC ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp)
 file(GLOB LIBRARY_HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/*.h)
 
@@ -34,6 +30,8 @@ target_include_directories(${TARGET_NAME} PRIVATE
         $<TARGET_PROPERTY:inference_engine_transformations,INTERFACE_INCLUDE_DIRECTORIES>
         ${CLDNN__IOCL_ICD_INCDIRS}
         ${CLDNN_TOP_FOLDER})
+
+set_target_properties(${TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION ${ENABLE_LTO})
 
 # install
 

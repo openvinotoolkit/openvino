@@ -1052,6 +1052,40 @@ namespace
                                                   ngraph::op::AutoBroadcastSpec::NUMPY);
         return true;
     }
+
+    template <element::Type_t ET>
+    bool evaluate(const shared_ptr<op::v5::GatherND>& op,
+                  const HostTensorVector& outputs,
+                  const HostTensorVector& inputs)
+    {
+        using T = typename element_type_traits<ET>::value_type;
+        if (op->get_input_element_type(1) == element::i64)
+        {
+            runtime::reference::gather_nd<T, int64_t>(inputs[0]->get_data_ptr<T>(),
+                                                      inputs[1]->get_data_ptr<int64_t>(),
+                                                      outputs[0]->get_data_ptr<T>(),
+                                                      op->get_input_shape(0),
+                                                      op->get_input_shape(1),
+                                                      op->get_output_shape(0),
+                                                      op->get_batch_dims());
+        }
+        else if (op->get_input_element_type(1) == element::i32)
+        {
+            runtime::reference::gather_nd<T, int32_t>(inputs[0]->get_data_ptr<T>(),
+                                                      inputs[1]->get_data_ptr<int32_t>(),
+                                                      outputs[0]->get_data_ptr<T>(),
+                                                      op->get_input_shape(0),
+                                                      op->get_input_shape(1),
+                                                      op->get_output_shape(0),
+                                                      op->get_batch_dims());
+        }
+        else
+        {
+            throw ngraph_error("Unexpected indices type for GatherND operation");
+        }
+        return true;
+    }
+
     template <typename T>
     bool evaluate_node(std::shared_ptr<Node> node,
                        const HostTensorVector& outputs,
