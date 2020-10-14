@@ -145,8 +145,9 @@ extensions/front/kaldi/replace_lstm_node_pattern.py
 extensions/front/kaldi/replace_lstm_nonlinearity.py
 extensions/front/kaldi/set_ports.py
 extensions/front/kaldi/sigmoid_ext.py
-extensions/front/kaldi/split_memoryoffsets.py
+extensions/front/kaldi/split_recurrent_memoryoffset.py
 extensions/front/kaldi/tanh_component_ext.py
+extensions/front/kaldi/tdnn_component_replacer.py
 extensions/front/LayerNorm.py
 extensions/front/Log1p.py
 extensions/front/LogSoftmax.py
@@ -567,6 +568,7 @@ extensions/middle/SharedWeightsDuplication.py
 extensions/middle/SliceConverter.py
 extensions/middle/SliceLikeToStridedSlice.py
 extensions/middle/sparse_reshape.py
+extensions/middle/split_tdnn_memoryoffset.py
 extensions/middle/SplitConcatPairToInterpolate.py
 extensions/middle/SwapAxesMiddleReplacer.py
 extensions/middle/TensorIterator_utils.py
@@ -781,17 +783,20 @@ mo/front/kaldi/extractors/batchnorm_component_ext.py
 mo/front/kaldi/extractors/bias_component_ext.py
 mo/front/kaldi/extractors/clip_ext.py
 mo/front/kaldi/extractors/concat_ext.py
+mo/front/kaldi/extractors/const_ext.py
 mo/front/kaldi/extractors/convolutional_1d_component_ext.py
 mo/front/kaldi/extractors/convolutional_component_ext.py
 mo/front/kaldi/extractors/copy_ext.py
 mo/front/kaldi/extractors/crop_ext.py
 mo/front/kaldi/extractors/elementwise_component_ext.py
 mo/front/kaldi/extractors/fixed_affine_component_ext.py
+mo/front/kaldi/extractors/generaldropout_ext.py
 mo/front/kaldi/extractors/linear_component_ext.py
 mo/front/kaldi/extractors/lstm_nonlinearity_ext.py
 mo/front/kaldi/extractors/lstm_projected_streams_ext.py
 mo/front/kaldi/extractors/max_pooling_ext.py
 mo/front/kaldi/extractors/memoryoffset_ext.py
+mo/front/kaldi/extractors/mul_ext.py
 mo/front/kaldi/extractors/naturalgradient_affine_component_ext.py
 mo/front/kaldi/extractors/noop_ext.py
 mo/front/kaldi/extractors/normalize_component_ext.py
@@ -800,7 +805,9 @@ mo/front/kaldi/extractors/rectified_linear_component_ext.py
 mo/front/kaldi/extractors/rescale_ext.py
 mo/front/kaldi/extractors/scale_component_ext.py
 mo/front/kaldi/extractors/softmax_ext.py
+mo/front/kaldi/extractors/specaugment_component_ext.py
 mo/front/kaldi/extractors/splice_component_ext.py
+mo/front/kaldi/extractors/tdnncomponent_ext.py
 mo/front/kaldi/loader/__init__.py
 mo/front/kaldi/loader/loader.py
 mo/front/kaldi/loader/utils.py
@@ -915,6 +922,7 @@ mo/ops/softmax.py
 mo/ops/space_to_batch.py
 mo/ops/squeeze.py
 mo/ops/strided_slice.py
+mo/ops/tdnncomponent.py
 mo/ops/tile.py
 mo/ops/unsqueeze.py
 mo/pipeline/__init__.py

@@ -110,7 +110,7 @@ def collect_sub_graphs(graph: Graph):
 def relabel_nodes_inplace_safe(graph: Graph, new_labels: dict):
     """ Safely relabels graph in-place without graph copy.
         
-        Safety in this place means that it is guarantied that
+        Safety in this place means that it is guaranteed that
         there won't be collisions during relabeling process.
     """
     # Relabel nodes in two stages
