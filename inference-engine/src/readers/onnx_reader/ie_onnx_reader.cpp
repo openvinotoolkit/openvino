@@ -21,8 +21,18 @@ bool ONNXReader::supportModel(std::istream& model) const {
     return !((header.find("<net ") != std::string::npos) || (header.find("<Net ") != std::string::npos));
 }
 
+namespace {
+    std::string readPathFromStream(std::istream& stream) {
+        if (stream.pword(0) == nullptr) {
+            return {};
+        }
+        // read saved path from extensible array
+        return std::string{static_cast<char*>(stream.pword(0))};
+    }
+}
+
 CNNNetwork ONNXReader::read(std::istream& model, const std::vector<IExtensionPtr>& exts) const {
-    return CNNNetwork(ngraph::onnx_import::import_onnx_model(model));
+    return CNNNetwork(ngraph::onnx_import::import_onnx_model(model, readPathFromStream(model)));
 }
 
 INFERENCE_PLUGIN_API(StatusCode) InferenceEngine::CreateReader(IReader*& reader, ResponseDesc *resp) noexcept {
