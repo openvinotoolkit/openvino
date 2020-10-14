@@ -25,10 +25,21 @@ using namespace ngraph;
 
 constexpr NodeTypeInfo op::v5::Loop::type_info;
 
+op::v5::Loop::Loop()
+{
+    // default trip_count, execution_condition
+    auto trip_count =
+        std::make_shared<ngraph::op::Constant>(ngraph::element::i64, ngraph::Shape{1}, -1);
+    auto exec_condition =
+        std::make_shared<ngraph::op::Constant>(ngraph::element::boolean, ngraph::Shape{1}, true);
+    set_argument(0, Output<Node>(trip_count));
+    set_argument(1, Output<Node>(exec_condition));
+}
+
 op::v5::Loop::Loop(const Output<Node>& trip_count,
-                   const Output<Node>& condition,
+                   const Output<Node>& execution_condition,
                    const OutputVector& values)
-    : op::util::SubGraphOp({trip_count, condition})
+    : op::util::SubGraphOp({trip_count, execution_condition})
 {
     set_arguments(values);
 }
@@ -44,10 +55,31 @@ bool op::v5::Loop::visit_attributes(AttributeVisitor& visitor)
 
 void op::v5::Loop::validate_and_infer_types()
 {
+    if (m_special_body_ports.current_iteration_input_idx >= 0)
+    {
+        const auto& cur_iter_rank =
+            m_body->get_parameters()[m_special_body_ports.current_iteration_input_idx]
+                ->get_partial_shape()
+                .rank();
+        if (cur_iter_rank.is_static())
+        {
+            NODE_VALIDATION_CHECK(this,
+                                  cur_iter_rank.compatible(1) || cur_iter_rank.compatible(0),
+                                  "Rank of CurrentIteration input must be equal to 0 or 1");
+        }
+    }
     bool zero_number_of_iter = false;
-    const auto& loop_condition = input_value(1);
+    const auto& loop_execution_condition = input_value(1);
+    const auto& loop_condition_rank = loop_execution_condition.get_partial_shape().rank();
+    if (loop_condition_rank.is_static())
+    {
+        NODE_VALIDATION_CHECK(this,
+                              loop_condition_rank.compatible(1) ||
+                                  loop_condition_rank.compatible(0),
+                              "Rank of ExecutionCondition input must be equal to 0 or 1");
+    }
     if (const auto& cond_value = std::dynamic_pointer_cast<const ngraph::opset5::Constant>(
-            loop_condition.get_node_shared_ptr()))
+            loop_execution_condition.get_node_shared_ptr()))
     {
         auto val = cond_value->cast_vector<bool>();
         NODE_VALIDATION_CHECK(this,
@@ -61,10 +93,22 @@ void op::v5::Loop::validate_and_infer_types()
     }
 
     bool condition_always_true = false;
-    const auto& body_condition =
+    NODE_VALIDATION_CHECK(this,
+                          m_special_body_ports.body_condition_output_idx >= 0,
+                          "Condition body output is not provided. "
+                          "Condition is a mandatory output of the body in Loop op.");
+    const auto& body_execution_condition =
         m_body->get_results()[m_special_body_ports.body_condition_output_idx]->input_value(0);
+    const auto& body_condition_rank = body_execution_condition.get_partial_shape().rank();
+    if (body_condition_rank.is_static())
+    {
+        NODE_VALIDATION_CHECK(this,
+                              body_condition_rank.compatible(0) ||
+                                  body_condition_rank.compatible(1),
+                              "Rank of BodyExecutionCondition output must be equal to 0 or 1");
+    }
     if (const auto& cond_value = std::dynamic_pointer_cast<const ngraph::opset5::Constant>(
-            body_condition.get_node_shared_ptr()))
+            body_execution_condition.get_node_shared_ptr()))
     {
         auto val = cond_value->cast_vector<bool>();
         NODE_VALIDATION_CHECK(this,
@@ -82,6 +126,13 @@ void op::v5::Loop::validate_and_infer_types()
     }
 
     const auto& trip_count = input_value(0);
+    const auto& trip_count_rank = trip_count.get_partial_shape().rank();
+    if (trip_count_rank.is_static())
+    {
+        NODE_VALIDATION_CHECK(this,
+                              trip_count_rank.compatible(1) || trip_count_rank.compatible(0),
+                              "Rank of TripCount input must be equal to 0 or 1");
+    }
     if (const auto& trip_count_val = std::dynamic_pointer_cast<const ngraph::opset5::Constant>(
             trip_count.get_node_shared_ptr()))
     {
@@ -266,6 +317,7 @@ std::shared_ptr<Node> op::v5::Loop::clone_with_new_inputs(const OutputVector& ne
     }
 
     op->m_num_iterations = m_num_iterations;
+    op->m_special_body_ports = m_special_body_ports;
     auto func = std::make_shared<Function>(m_body->get_results(), m_body->get_parameters());
     auto spec_func = specialize_function(
         func, types, new_shapes, std::vector<void*>(body_params_args.size(), nullptr));

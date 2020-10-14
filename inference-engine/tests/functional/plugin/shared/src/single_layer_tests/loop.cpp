@@ -50,6 +50,7 @@ namespace LayerTestsDefinitions {
     }
 
     void LoopTest::SetUp() {
+        SKIP_IF_CURRENT_TEST_IS_DISABLED()
         SetRefMode(LayerTestsUtils::IE);
         bool execute_first_iteration;
         bool is_body_condition_const;
@@ -126,6 +127,7 @@ namespace LayerTestsDefinitions {
 
         auto loop = std::make_shared<ngraph::opset5::Loop>();
         loop->set_body(body);
+        loop->set_special_body_ports(ngraph::opset5::Loop::SpecialBodyPorts{-1, 0});
         loop->set_trip_count_input(trip_count_const);
         loop->set_execution_condition_input(exec_condition);
 

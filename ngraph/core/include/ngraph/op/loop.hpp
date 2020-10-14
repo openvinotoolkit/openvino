@@ -37,27 +37,27 @@ namespace ngraph
             public:
                 struct SpecialBodyPorts
                 {
-                    int64_t current_iteration_input_idx =
-                        -1; // -1 means input is not provided, this input is optional
-                    int64_t body_condition_output_idx = 0; // default index, this output is required
+                    SpecialBodyPorts() = default;
+                    SpecialBodyPorts(int64_t in_current_iteration_input_idx,
+                                     int64_t in_body_condition_output_idx)
+                    {
+                        current_iteration_input_idx = in_current_iteration_input_idx;
+                        body_condition_output_idx = in_body_condition_output_idx;
+                    }
+                    // -1 means the input is not provided, this input is optional
+                    int64_t current_iteration_input_idx = -1;
+                    // -1 means the output is not provided,
+                    // this output is required, throw an exception if not provided
+                    int64_t body_condition_output_idx = -1;
                 };
 
                 static constexpr NodeTypeInfo type_info{"Loop", 5};
                 const NodeTypeInfo& get_type_info() const override { return type_info; }
                 bool visit_attributes(AttributeVisitor& visitor) override;
 
-                Loop()
-                {
-                    // default trip_count, execution_condition
-                    auto trip_count = std::make_shared<ngraph::op::Constant>(
-                        ngraph::element::i64, ngraph::Shape{1}, -1);
-                    auto exec_condition = std::make_shared<ngraph::op::Constant>(
-                        ngraph::element::boolean, ngraph::Shape{1}, true);
-                    set_argument(0, Output<Node>(trip_count));
-                    set_argument(1, Output<Node>(exec_condition));
-                };
+                Loop();
                 Loop(const Output<Node>& trip_count,
-                     const Output<Node>& condition,
+                     const Output<Node>& execution_condition,
                      const OutputVector& values);
 
                 std::shared_ptr<Node>
@@ -93,6 +93,22 @@ namespace ngraph
                     NGRAPH_CHECK(false,
                                  "Incorrect type of input. Implicit slicing is not supported in "
                                  "Loop operation.");
+                }
+
+                Output<Node> get_concatenated_slices(const Output<Node>& value,
+                                                     int64_t start,
+                                                     int64_t stride,
+                                                     int64_t part_size,
+                                                     int64_t end,
+                                                     int64_t axis) override
+                {
+                    NGRAPH_CHECK(
+                        start == 0 && stride == 1 && part_size == 1 && end == -1,
+                        "Invalid start, stride, part_size, or end attribute values in Loop op. "
+                        "Supported values for start {0}, for stride and part_size {1}, for end "
+                        "{-1}");
+                    return SubGraphOp::get_concatenated_slices(
+                        value, start, stride, part_size, end, axis);
                 }
 
                 void set_special_body_ports(const SpecialBodyPorts& special_body_ports)
