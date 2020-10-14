@@ -58,7 +58,7 @@ public:
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector & new_args) const override;
 };
 
-class TRANSFORMATIONS_API NonMaxSuppressionIE3 : public Op {
+class INFERENCE_ENGINE_API_CLASS(NonMaxSuppressionIE3) : public Op {
 public:
     NGRAPH_RTTI_DECLARATION;
 
