@@ -171,10 +171,15 @@ static void Transformation(ICNNNetwork::Ptr& clonedNetwork, const Config& conf) 
 
     auto legacyPassConfig = manager.get_pass_config();
     legacyPassConfig->set_callback<ngraph::pass::AddMultiplyFusion>([](const_node_ptr &node) -> bool {
-        if (auto add_op = std::dynamic_pointer_cast<const ngraph::opset1::Add>(node)) {
-            return ngraph::is_type<ngraph::opset1::Convolution>(add_op->get_input_node_shared_ptr(0)) ||
-                ngraph::is_type<ngraph::opset1::GroupConvolution>(add_op->get_input_node_shared_ptr(0)) ||
-                ngraph::is_type<ngraph::opset1::MatMul>(add_op->get_input_node_shared_ptr(0));
+        if (auto mul_op = std::dynamic_pointer_cast<const ngraph::opset1::Multiply>(node)) {
+            auto add_op = std::dynamic_pointer_cast<const ngraph::opset1::Add>(mul_op->get_input_node_shared_ptr(0));
+            auto constant = std::dynamic_pointer_cast<const ngraph::opset1::Constant>(mul_op->get_input_node_shared_ptr(1));
+            bool is_dequantization = mul_op->get_rt_info().count("DEQUANTIZATION") != 0;
+            if (add_op && constant && is_dequantization) {
+                return ngraph::is_type<ngraph::opset1::Convolution>(add_op->get_input_node_shared_ptr(0)) ||
+                    ngraph::is_type<ngraph::opset1::GroupConvolution>(add_op->get_input_node_shared_ptr(0)) ||
+                    ngraph::is_type<ngraph::opset1::MatMul>(add_op->get_input_node_shared_ptr(0));
+            }
         }
         return false;
     });
