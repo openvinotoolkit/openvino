@@ -30,9 +30,14 @@ struct BroadcastExplicitShapes {
     AxesMapping axesMapping;
 };
 
-
+struct BroadcastBidirectionalShapes {
+    TensorShape srcShape;
+    TensorShape targetShape;
+    TensorShape outputShape;
+};
 using BroadcastNumpyTestParams = std::tuple<TensorType, BroadcastNumpyShapes>;
 using BroadcastExplicitTestParams = std::tuple<TensorType, BroadcastExplicitShapes>;
+using BroadcastBidirectionalTestParams = std::tuple<TensorType, BroadcastBidirectionalShapes>;
 
 class StaticShapeBroadcastNumpyTests
         : public CommonTestUtils::TestsCommon,
@@ -76,22 +81,24 @@ protected:
 
 class StaticShapeBroadcastBidirectionalTests
         : public CommonTestUtils::TestsCommon,
-          public testing::WithParamInterface<BroadcastNumpyTestParams> {
+          public testing::WithParamInterface<BroadcastBidirectionalTestParams> {
 public:
     void SetUp() override {
         const auto& parameters  = GetParam();
         const auto& tensorType  = std::get<0>(parameters);
         const auto& tensorShape = std::get<1>(parameters).srcShape;
         const auto& targetShape = std::get<1>(parameters).targetShape;
+        const auto& outputShape = std::get<1>(parameters).outputShape;
 
         m_tensor = std::make_shared<ngraph::opset3::Parameter>(tensorType, tensorShape);
         m_tensorWithTargetShape = std::make_shared<ngraph::opset3::Parameter>(tensorType, targetShape);
+        m_tensorWithOutput = std::make_shared<ngraph::opset3::Parameter>(tensorType, outputShape);
     }
 protected:
     std::shared_ptr<ngraph::opset3::Parameter> m_tensor;
     std::shared_ptr<ngraph::opset3::Parameter> m_tensorWithTargetShape;
+    std::shared_ptr<ngraph::opset3::Parameter> m_tensorWithOutput;
 };
-
 
 std::vector<BroadcastNumpyShapes> testNumpyStaticShapes {
         BroadcastNumpyShapes{TensorShape{1, 100}, TensorShape{4, 100}},
@@ -104,13 +111,13 @@ std::vector<BroadcastExplicitShapes> testExplicitStaticShapes {
         BroadcastExplicitShapes{TensorShape{50, 50}, TensorShape{1, 50, 50, 16}, AxesMapping{1, 2}},
 };
 
-std::vector<BroadcastNumpyShapes> testBidirectionalStaticShapes {
-        BroadcastNumpyShapes{TensorShape{1, 100}, TensorShape{4, 100}},
-        BroadcastNumpyShapes{TensorShape{1, 100}, TensorShape{2, 4, 100}},
-        BroadcastNumpyShapes{TensorShape{16, 1, 1}, TensorShape{2, 16, 50, 50}},
-        BroadcastNumpyShapes{TensorShape{4, 100}, TensorShape{1, 100}},
-        BroadcastNumpyShapes{TensorShape{2, 4, 100}, TensorShape{1, 100}},
-        BroadcastNumpyShapes{TensorShape{2, 16, 1, 50}, TensorShape{16, 50, 1}},
+std::vector<BroadcastBidirectionalShapes> testBidirectionalStaticShapes {
+        BroadcastBidirectionalShapes{TensorShape{1, 100}, TensorShape{4, 100}, TensorShape{4, 100}},
+        BroadcastBidirectionalShapes{TensorShape{1, 100}, TensorShape{2, 4, 100}, TensorShape{2, 4, 100}},
+        BroadcastBidirectionalShapes{TensorShape{16, 1, 1}, TensorShape{2, 16, 50, 50}, TensorShape{2, 16, 50, 50}},
+        BroadcastBidirectionalShapes{TensorShape{4, 100}, TensorShape{1, 100}, TensorShape{4, 100}},
+        BroadcastBidirectionalShapes{TensorShape{2, 4, 100}, TensorShape{1, 100}, {2, 4, 100}},
+        BroadcastBidirectionalShapes{TensorShape{2, 16, 1, 50}, TensorShape{16, 50, 1}, TensorShape{2, 16, 50, 50}},
 };
 
 std::vector<ngraph::element::Type> testNGraphNumericTypes {
@@ -158,21 +165,13 @@ TEST_P(StaticShapeBroadcastExplicitTests, CanValidateAndInferTypes) {
     ASSERT_NO_THROW(std::make_shared<ngraph::Function>(
             ngraph::OutputVector{op->output(0)},
             ngraph::ParameterVector{m_tensor, m_tensorWithTargetShape}));
-    ASSERT_EQ(m_tensorWithTargetShape->get_shape(), op->output(0).get_shape());
+    ASSERT_EQ(m_tensorWithTargetShape->get_shape(), op->get_output_shape(0));
 }
 
 INSTANTIATE_TEST_CASE_P(smoke_NGraph, StaticShapeBroadcastExplicitTests, testing::Combine(
         testing::ValuesIn(testNGraphNumericTypes),
         testing::ValuesIn(testExplicitStaticShapes))
 );
-
-
-TEST_P(StaticShapeBroadcastBidirectionalTests, CanBeConstrocted) {
-    const auto shapeOf = std::make_shared<ngraph::opset3::ShapeOf>(m_tensorWithTargetShape);
-    std::shared_ptr<ngraph::vpu::op::StaticShapeBroadcast> op;
-    ASSERT_NO_THROW(op = std::make_shared<ngraph::vpu::op::StaticShapeBroadcast>(
-            m_tensor, shapeOf, ngraph::op::BroadcastType::BIDIRECTIONAL));
-}
 
 TEST_P(StaticShapeBroadcastBidirectionalTests, CanValidateAndInferTypes) {
     const auto shapeOf = std::make_shared<ngraph::opset3::ShapeOf>(m_tensorWithTargetShape);
@@ -182,10 +181,10 @@ TEST_P(StaticShapeBroadcastBidirectionalTests, CanValidateAndInferTypes) {
     ASSERT_NO_THROW(std::make_shared<ngraph::Function>(
             ngraph::OutputVector{op->output(0)},
             ngraph::ParameterVector{m_tensor, m_tensorWithTargetShape}));
-    ASSERT_EQ(m_tensorWithTargetShape->get_shape(), op->output(0).get_shape());
+    ASSERT_EQ(m_tensorWithOutput->get_shape(), op->output(0).get_shape());
 }
 
-INSTANTIATE_TEST_CASE_P(NGraph, StaticShapeBroadcastBidirectionalTests, testing::Combine(
+INSTANTIATE_TEST_CASE_P(smoke_NGraph, StaticShapeBroadcastBidirectionalTests, testing::Combine(
         testing::ValuesIn(testNGraphNumericTypes),
         testing::ValuesIn(testBidirectionalStaticShapes))
 );

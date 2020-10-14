@@ -37,16 +37,11 @@ void StaticShapeBroadcast::validate_and_infer_types() {
                               "StaticShapeBroadcast (", get_friendly_name(), ") ",
                               "with explicit mode must have 3 inputs, provided: ",
                               get_input_size());
-    } else if (m_mode.m_type == ngraph::op::BroadcastType::NUMPY) {
+    } else if (m_mode.m_type == ngraph::op::BroadcastType::NUMPY || m_mode.m_type == ngraph::op::BroadcastType::BIDIRECTIONAL) {
         NODE_VALIDATION_CHECK(this, get_input_size() == 2,
                               "StaticShapeBroadcast (", get_friendly_name(), ") ",
-                              "with numpy mode must have 2 inputs, provided: ",
+                              "with ", m_mode.m_type, " mode must have 2 inputs, provided: ",
                               get_input_size());
-    } else if (m_mode.m_type == ngraph::op::BroadcastType::BIDIRECTIONAL) {
-        NODE_VALIDATION_CHECK(this, get_input_size() == 2,
-                              "StaticShapeBroadcast (", get_friendly_name(), ") ",
-                              "with bidirectional mode must have 2 inputs, provided: ",
-                               get_input_size());
     } else {
         NODE_VALIDATION_CHECK(this, false,
                               "StaticShapeBroadcast (", get_friendly_name(), ") ",
@@ -63,7 +58,25 @@ void StaticShapeBroadcast::validate_and_infer_types() {
 
         const auto evaluatedTargetShape = ngraph::PartialShape(evaluatedDimensionValues);
         if (evaluatedTargetShape.is_static()) {
-            m_evaluatedOutputShape = evaluatedTargetShape;
+            if (m_mode.m_type == ngraph::op::BroadcastType::BIDIRECTIONAL) {
+                auto targetShape = evaluatedTargetShape.get_shape();
+                auto inputShape = get_input_partial_shape(0).get_shape();
+
+                auto& lowRankShape = targetShape.size() < inputShape.size() ? targetShape : inputShape;
+                auto& highRankShape = lowRankShape == targetShape ? inputShape : targetShape;
+
+                while (lowRankShape.size() < highRankShape.size()) {
+                    lowRankShape.insert(lowRankShape.begin(), 1);
+                }
+
+                for (size_t i = 0; i < targetShape.size(); i++) {
+                    targetShape[i] = std::max(targetShape[i], inputShape[i]);
+                }
+
+                m_evaluatedOutputShape = targetShape;
+            } else {
+                m_evaluatedOutputShape = evaluatedTargetShape;
+            }
         }
         NODE_VALIDATION_CHECK(this, m_evaluatedOutputShape.is_static(),
                               "StaticShapeBroadcast (", get_friendly_name(), ") ",
@@ -94,6 +107,10 @@ bool StaticShapeBroadcast::visit_attributes(ngraph::AttributeVisitor& visitor) {
         mode = "numpy";
     } else if (m_mode.m_type == ngraph::op::BroadcastType::BIDIRECTIONAL) {
         mode = "bidirectional";
+    } else {
+        NODE_VALIDATION_CHECK(this, false,
+            "StaticShapeBroadcast (", get_friendly_name(), ") ",
+            "has ", m_mode.m_type, " mode which isn't supported");
     }
     visitor.on_attribute("mode", mode);
 
