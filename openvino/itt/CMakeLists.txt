@@ -29,9 +29,11 @@ if(ENABLE_PROFILING_ITT)
     else()
         include(ExternalProject)
         set(ITTAPI_BINARY_DIR  ${CMAKE_CURRENT_BINARY_DIR}/ittapi/build)
+        set(ITTAPI_SOURCE_DIR  ${CMAKE_CURRENT_BINARY_DIR}/ittapi/source)
         set(ITTNOTIFY_LIBRARY  ${ITTAPI_BINARY_DIR}/bin/${CMAKE_STATIC_LIBRARY_PREFIX}ittnotify${CMAKE_STATIC_LIBRARY_SUFFIX})
         ExternalProject_Add(
-            ittapi_external
+            ext_ittapi
+            PREFIX ittapi
             GIT_REPOSITORY https://github.com/intel/ittapi.git
             GIT_TAG v3.18.6
             LOG_DOWNLOAD ON
@@ -43,11 +45,13 @@ if(ENABLE_PROFILING_ITT)
             CMAKE_GENERATOR_PLATFORM ${CMAKE_GENERATOR_PLATFORM}
             CMAKE_GENERATOR_TOOLSET ${CMAKE_GENERATOR_TOOLSET}
             BINARY_DIR ${ITTAPI_BINARY_DIR}
+            SOURCE_DIR ${ITTAPI_SOURCE_DIR}
             EXCLUDE_FROM_ALL TRUE
             BUILD_BYPRODUCTS ${ITTNOTIFY_LIBRARY})
         add_library(ittnotify INTERFACE)
         add_dependencies(ittnotify ittapi_external)
         target_link_libraries(ittnotify INTERFACE ${ITTNOTIFY_LIBRARY})
+        target_include_directories(ittnotify INTERFACE ${ITTAPI_SOURCE_DIR}/include)
         openvino_developer_export_targets(ittnotify)
     endif()
 endif()
