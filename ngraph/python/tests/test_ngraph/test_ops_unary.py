@@ -142,3 +142,19 @@ def test_hswish():
     assert node.get_output_size() == 1
     assert list(node.get_output_shape(0)) == [3, 10]
     assert node.get_output_element_type(0) == Type.f32
+
+
+def test_round_even():
+    input_tensor = np.array([-2.5, -1.5, -0.5, 0.5, 0.9, 1.5, 2.3, 2.5, 3.5], dtype=np.float32)
+    expected = [-2.0, -2.0, 0.0, 0.0, 1.0, 2.0, 2.0, 2.0, 4.0]
+
+    result = run_op_node([input_tensor], ng.round, "HALF_TO_EVEN")
+    assert np.allclose(result, expected)
+
+
+def test_round_away():
+    input_tensor = np.array([-2.5, -1.5, -0.5, 0.5, 0.9, 1.5, 2.3, 2.5, 3.5], dtype=np.float32)
+    expected = [-3.0, -2.0, -1.0, 1.0, 1.0, 2.0, 2.0, 3.0, 4.0]
+
+    result = run_op_node([input_tensor], ng.round, "HALF_AWAY_FROM_ZERO")
+    assert np.allclose(result, expected)
