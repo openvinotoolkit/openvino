@@ -26,7 +26,7 @@ const std::vector<LayerTransformation::Params> trasformationParamValues = {
 const std::vector<bool> transparentIntermediateValues = { true, false };
 const std::vector<bool> multiChannelValues = { /*true,*/ false };
 
-INSTANTIATE_TEST_CASE_P(LPT, ConcatWithIntermediateTransformation,
+INSTANTIATE_TEST_CASE_P(smoke_LPT, ConcatWithIntermediateTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(netPrecisions),
         ::testing::Values(InferenceEngine::SizeVector({ 1, 3, 16, 16 })),

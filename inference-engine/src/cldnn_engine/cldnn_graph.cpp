@@ -18,7 +18,6 @@
 #include <description_buffer.hpp>
 #include <cldnn/cldnn_config.hpp>
 #include <legacy/graph_tools.hpp>
-#include <legacy/ie_layers_internal.hpp>
 #include <legacy/net_pass.h>
 #include "cldnn_infer_request.h"
 #include <threading/ie_executor_manager.hpp>
@@ -27,7 +26,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <exec_graph_info.hpp>
-#include "ie_ngraph_utils.hpp"
+#include <legacy/ie_ngraph_utils.hpp>
 #include "generic_ie.hpp"
 #include <ngraph/variant.hpp>
 
@@ -102,7 +101,7 @@ std::shared_ptr<cldnn::network> CLDNNGraph::BuildNetwork(std::shared_ptr<cldnn::
     return network;
 }
 
-InferenceEngine::ICNNNetwork::Ptr CLDNNGraph::GetExecGraphInfoByPrimitivesInfo(std::vector<cldnn::primitive_info>& primitives_info,
+InferenceEngine::CNNNetwork CLDNNGraph::GetExecGraphInfoByPrimitivesInfo(std::vector<cldnn::primitive_info>& primitives_info,
                                                                                bool filter_const_primitives) {
     if (m_config.useProfiling) {
         try {
@@ -466,9 +465,9 @@ InferenceEngine::ICNNNetwork::Ptr CLDNNGraph::GetExecGraphInfoByPrimitivesInfo(s
     return net;
 }
 
-void CLDNNGraph::GetExecGraphInfo(InferenceEngine::ICNNNetwork::Ptr &graphPtr) {
+InferenceEngine::CNNNetwork CLDNNGraph::GetExecGraphInfo() {
     auto primitives_info = GetNetwork()->get_primitives_info();
-    graphPtr = GetExecGraphInfoByPrimitivesInfo(primitives_info, true);
+    return GetExecGraphInfoByPrimitivesInfo(primitives_info, true);
 }
 
 

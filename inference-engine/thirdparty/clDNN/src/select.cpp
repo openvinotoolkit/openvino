@@ -67,12 +67,21 @@ select_inst::typed_primitive_inst(network_impl& network, select_node const& node
                                 3,
                                 "");
 
-    CLDNN_ERROR_NOT_EQUAL(node.id(),
-                                "Mask format",
-                                deps[0]->get_output_layout().format,
-                                "Positive input format",
-                                deps[1]->get_output_layout().format,
-                                "");
+    if (deps[1]->get_output_layout().size != cldnn::tensor(1))
+        CLDNN_ERROR_NOT_EQUAL(node.id(),
+                              "Mask format",
+                              deps[0]->get_output_layout().format,
+                              "Positive input format",
+                              deps[1]->get_output_layout().format,
+                              "");
+             
+    if (deps[2]->get_output_layout().size != cldnn::tensor(1))
+        CLDNN_ERROR_NOT_EQUAL(node.id(),
+                              "Mask format",
+                              deps[0]->get_output_layout().format,
+                              "Positive input format",
+                              deps[2]->get_output_layout().format,
+                              "");
 
     if (node.get_primitive()->broadcast_type == "none") {
         CLDNN_ERROR_LAYOUT_MISMATCH(node.id(),
@@ -89,12 +98,13 @@ select_inst::typed_primitive_inst(network_impl& network, select_node const& node
                                 deps[1]->get_output_layout().size,
                                 "");
     } else if (node.get_primitive()->broadcast_type == "numpy") {
-        CLDNN_ERROR_NOT_EQUAL(node.id(),
-                                "Positive input format",
-                                deps[1]->get_output_layout().format,
-                                "Negative input format",
-                                deps[2]->get_output_layout().format,
-                                "");
+        if (deps[1]->get_output_layout().size != cldnn::tensor(1) && deps[2]->get_output_layout().size != cldnn::tensor(1))
+            CLDNN_ERROR_NOT_EQUAL(node.id(),
+                                  "Positive input format",
+                                  deps[1]->get_output_layout().format,
+                                  "Negative input format",
+                                  deps[2]->get_output_layout().format,
+                                  "");
 
         CLDNN_ERROR_DATA_TYPES_MISMATCH(node.id(),
                                 "Positive input data type",

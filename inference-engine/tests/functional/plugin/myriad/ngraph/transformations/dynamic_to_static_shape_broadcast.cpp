@@ -118,7 +118,7 @@ protected:
 TEST_P(DynamicToStaticShapeBroadcastTests, compareFunctions) {
 }
 
-INSTANTIATE_TEST_CASE_P(NGraph, DynamicToStaticShapeBroadcastTests, testing::Combine(
+INSTANTIATE_TEST_CASE_P(smoke_NGraph, DynamicToStaticShapeBroadcastTests, testing::Combine(
         testing::Values(
                 ngraph::element::f16,
                 ngraph::element::f32,

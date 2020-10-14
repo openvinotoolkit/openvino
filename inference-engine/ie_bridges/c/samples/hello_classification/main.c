@@ -42,8 +42,10 @@ struct classify_res *output_blob_to_classify_res(ie_blob_t *blob, size_t *n) {
 
     ie_blob_buffer_t blob_cbuffer;
     status = ie_blob_get_cbuffer(blob, &blob_cbuffer);
-    if (status != OK)
+    if (status != OK) {
+        free(cls);
         return NULL;
+    }
     float *blob_data = (float*) (blob_cbuffer.cbuffer);
 
     size_t i;
