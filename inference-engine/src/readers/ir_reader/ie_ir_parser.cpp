@@ -68,6 +68,7 @@ V10Parser::V10Parser(const std::vector<IExtensionPtr>& exts) {
     opsets["opset2"] = ngraph::get_opset2();
     opsets["opset3"] = ngraph::get_opset3();
     opsets["opset4"] = ngraph::get_opset4();
+    opsets["opset5"] = ngraph::get_opset5();
 
     // Load custom opsets
     for (const auto& ext : exts) {
