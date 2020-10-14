@@ -213,6 +213,7 @@ ie_config_t *parseConfig(const char *config_file, char comment) {
             cfg_temp = cfg_temp->next;
         }
     }
+    fclose(file);
 
     return cfg;
 }

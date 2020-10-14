@@ -136,7 +136,7 @@ shared_ptr<Node>
         inputs.at(0), inputs.at(1), inputs.at(2), inputs.at(3));
 }
 
-namespace
+namespace scatter_element_update
 {
     template <element::Type_t DT, element::Type_t IT, element::Type_t AT>
     bool evaluate(const HostTensorPtr& data,
@@ -294,6 +294,6 @@ bool op::v3::ScatterElementsUpdate::evaluate(const HostTensorVector& outputs,
         }
     }
 
-    return evaluate_scatter_element_update(
+    return scatter_element_update::evaluate_scatter_element_update(
         inputs[0], inputs[1], inputs[2], inputs[3], outputs[0], normalized_axis);
 }
