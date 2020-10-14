@@ -302,8 +302,6 @@ shaped_const_with_data = lambda name, shape: {**fake_const(name, shape), **shape
 
 valued_const_with_data = lambda name, value: {**const(name, value), **valued_data(name + '_d', value)}
 
-const_with_data = lambda name, value: {**const(name, value), **valued_data(name + '_d', value)}
-
 
 def extract_port_from_string(node_name: str):
     """

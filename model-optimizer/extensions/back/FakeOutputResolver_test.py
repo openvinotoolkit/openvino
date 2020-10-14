@@ -19,8 +19,8 @@ import unittest
 from extensions.back.FakeOutputResolver import FakeOutputResolver
 from mo.front.common.partial_infer.utils import int64_array
 from mo.utils.ir_engine.compare_graphs import compare_graphs
-from mo.utils.unittest.graph import build_graph, result, regular_op_with_empty_data, const_with_data, connect, \
-    empty_data
+from mo.utils.unittest.graph import build_graph, result, regular_op_with_empty_data, connect, empty_data, \
+    valued_const_with_data
 
 
 class FakeOutputResolverTest(unittest.TestCase):
@@ -59,8 +59,8 @@ class FakeOutputResolverTest(unittest.TestCase):
             **regular_op_with_empty_data('fake_output2',
                                          {'type': None, 'kind': 'op', 'op': 'FakeOutput', 'name': 'my_output_name2'}),
 
-            **const_with_data('const1', int64_array(0)),
-            **const_with_data('const2', int64_array(0)),
+            **valued_const_with_data('const1', int64_array(0)),
+            **valued_const_with_data('const2', int64_array(0)),
             **regular_op_with_empty_data('add1', {'type': None, 'kind': 'op', 'op': 'Add', 'name': 'my_output_name1'}),
             **regular_op_with_empty_data('add2', {'type': None, 'kind': 'op', 'op': 'Add', 'name': 'my_output_name2'}),
             **result('result1'),
