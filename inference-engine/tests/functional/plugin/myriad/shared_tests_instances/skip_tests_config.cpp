@@ -15,7 +15,6 @@ std::vector<std::string> disabledTestPatterns() {
         ".*ActivationLayerTest\\.CompareWithRefs/Log.*netPRC=FP32.*",
         ".*ActivationLayerTest\\.CompareWithRefs/Sigmoid.*netPRC=FP32.*",
         ".*ActivationLayerTest\\.CompareWithRefs/Relu.*netPRC=FP32.*",
-        ".*Behavior.*ExecGraphTests.*",
         // TODO: Issue: 26268
         ".*ConcatLayerTest.*axis=0.*",
         // TODO: Issue 31197
@@ -24,5 +23,7 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*(IEClassLoadNetwork).*(QueryNetworkMULTIWithHETERONoThrow_V10|QueryNetworkHETEROWithMULTINoThrow_V10).*)",
         // TODO: Issue: 34348
         R"(.*IEClassGetAvailableDevices.*)",
+        // TODO: Issue: 40473
+        R"(.*TopKLayerTest.*mode=min.*sort=index.*)",
     };
 }

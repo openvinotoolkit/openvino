@@ -130,40 +130,7 @@ endfunction()
 # Enables Link Time Optimization compilation
 #
 macro(ie_enable_lto)
-    if(CMAKE_CXX_COMPILER_ID STREQUAL "Intel" AND OFF)
-        ProcessorCount(N)
-        if(UNIX)
-            set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -ipo")
-            set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -ipo")
-            set(CMAKE_EXE_LINKER_FLAGS_RELEASE "${CMAKE_EXE_LINKER_FLAGS_RELEASE} -ipo-jobs${N}")
-            set(CMAKE_SHARED_LINKER_FLAGS_RELEASE "${CMAKE_SHARED_LINKER_FLAGS_RELEASE} -ipo-jobs${N}")
-            set(CMAKE_MODULE_LINKER_FLAGS_RELEASE "${CMAKE_MODULE_LINKER_FLAGS_RELEASE} -ipo-jobs${N}")
-        else()
-            set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /Qipo")
-            set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} /Qipo")
-            set(CMAKE_EXE_LINKER_FLAGS_RELEASE "${CMAKE_EXE_LINKER_FLAGS_RELEASE} /Qipo-jobs:${N}")
-            set(CMAKE_SHARED_LINKER_FLAGS_RELEASE "${CMAKE_SHARED_LINKER_FLAGS_RELEASE} /Qipo-jobs:${N}")
-            set(CMAKE_MODULE_LINKER_FLAGS_RELEASE "${CMAKE_MODULE_LINKER_FLAGS_RELEASE} /Qipo-jobs:${N}")
-        endif()
-    elseif(UNIX)
-        set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -flto")
-        # LTO causes issues with gcc 4.8.5 during cmake pthread check
-        if(NOT CMAKE_C_COMPILER_VERSION VERSION_LESS 4.9)
-            set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -flto")
-        endif()
-
-        # modify linker and ar
-        if(LINUX)
-            set(CMAKE_AR  "gcc-ar")
-            set(CMAKE_RANLIB "gcc-ranlib")
-        endif()
-    elseif(MSVC AND OFF)
-        set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /GL")
-        set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} /GL")
-        set(CMAKE_EXE_LINKER_FLAGS_RELEASE "${CMAKE_EXE_LINKER_FLAGS_RELEASE} /LTCG:STATUS")
-        set(CMAKE_SHARED_LINKER_FLAGS_RELEASE "${CMAKE_SHARED_LINKER_FLAGS_RELEASE} /LTCG:STATUS")
-        set(CMAKE_MODULE_LINKER_FLAGS_RELEASE "${CMAKE_MODULE_LINKER_FLAGS_RELEASE} /LTCG:STATUS")
-    endif()
+    set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE ON)
 endmacro()
 
 #
@@ -238,16 +205,17 @@ if(WIN32)
     endif()
 
     if(CMAKE_CXX_COMPILER_ID STREQUAL "Intel")
-        # 161 unrecognized pragma
-        # 177 variable was declared but never referenced
-        # 556 not matched type of assigned function pointer
+        # 161: unrecognized pragma
+        # 177: variable was declared but never referenced
+        # 556: not matched type of assigned function pointer
         # 1744: field of class type without a DLL interface used in a class with a DLL interface
-        # 2586 decorated name length exceeded, name was truncated
+        # 1879: unimplemented pragma ignored
+        # 2586: decorated name length exceeded, name was truncated
         # 2651: attribute does not apply to any entity
-        # 3180 unrecognized OpenMP pragma
+        # 3180: unrecognized OpenMP pragma
         # 11075: To get full report use -Qopt-report:4 -Qopt-report-phase ipo
-        # 15335 was not vectorized: vectorization possible but seems inefficient. Use vector always directive or /Qvec-threshold0 to override
-        ie_add_compiler_flags(/Qdiag-disable:161,177,556,1744,2586,2651,3180,11075,15335)
+        # 15335: was not vectorized: vectorization possible but seems inefficient. Use vector always directive or /Qvec-threshold0 to override
+        ie_add_compiler_flags(/Qdiag-disable:161,177,556,1744,1879,2586,2651,3180,11075,15335)
     endif()
 
     # Debug information flags
@@ -264,6 +232,7 @@ else()
     ie_add_compiler_flags(-ffunction-sections -fdata-sections)
     ie_add_compiler_flags(-fdiagnostics-show-option)
     ie_add_compiler_flags(-Wundef)
+    ie_add_compiler_flags(-Wreturn-type)
 
     # Disable noisy warnings
 

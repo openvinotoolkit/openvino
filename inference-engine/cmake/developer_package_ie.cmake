@@ -5,10 +5,6 @@
 include(cpplint)
 include(clang_format)
 
-if(ENABLE_PROFILING_ITT)
-    find_package(ITT REQUIRED)
-endif()
-
 set(TBB_FIND_RELEASE_ONLY ${ENABLE_TBB_RELEASE_ONLY})
 
 include(plugins/plugins)

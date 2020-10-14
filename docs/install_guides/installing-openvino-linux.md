@@ -215,7 +215,7 @@ You can choose to either configure all supported frameworks at once **OR** confi
 cd /opt/intel/openvino/deployment_tools/model_optimizer/install_prerequisites
 ```
 2.  Run the script to configure the Model Optimizer for Caffe,
-    TensorFlow, MXNet, Kaldi\*, and ONNX:
+    TensorFlow 1.x, MXNet, Kaldi\*, and ONNX:
 ```sh
 sudo ./install_prerequisites.sh
 ```
@@ -235,9 +235,14 @@ cd /opt/intel/openvino/deployment_tools/model_optimizer/install_prerequisites
    sudo ./install_prerequisites_caffe.sh
    ```
 
-   - For **TensorFlow**:
+   - For **TensorFlow 1.x**:
    ```sh
    sudo ./install_prerequisites_tf.sh
+   ```
+
+   - For **TensorFlow 2.x**:
+   ```sh
+   sudo ./install_prerequisites_tf2.sh
    ```
 
    - For **MXNet**:
@@ -453,9 +458,9 @@ trusted-host = mirrors.aliyun.com
 
 - Intel® Distribution of OpenVINO™ toolkit home page: [https://software.intel.com/en-us/openvino-toolkit](https://software.intel.com/en-us/openvino-toolkit)
 - OpenVINO™ toolkit online documentation: [https://docs.openvinotoolkit.org](https://docs.openvinotoolkit.org)
-- [Model Optimizer Developer Guide](https://docs.openvinotoolkit.org/latest/_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide.html)
-- [Inference Engine Developer Guide](https://docs.openvinotoolkit.org/latest/_docs_IE_DG_Deep_Learning_Inference_Engine_DevGuide.html)
-- For more information on Sample Applications, see the [Inference Engine Samples Overview](https://docs.openvinotoolkit.org/latest/_docs_IE_DG_Samples_Overview.html)
+- [Model Optimizer Developer Guide](../MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md).
+- [Inference Engine Developer Guide](../IE_DG/Deep_Learning_Inference_Engine_DevGuide.md).
+- For more information on Sample Applications, see the [Inference Engine Samples Overview](../IE_DG/Samples_Overview.md).
 - For information on a set of pre-trained models, see the [Overview of OpenVINO™ Toolkit Pre-Trained Models](@ref omz_models_intel_index)
 - For information on Inference Engine Tutorials, see the [Inference Tutorials](https://github.com/intel-iot-devkit/inference-tutorials-generic)
 - For IoT Libraries and Code Samples see the [Intel® IoT Developer Kit](https://github.com/intel-iot-devkit).

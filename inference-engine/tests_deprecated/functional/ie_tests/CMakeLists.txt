@@ -11,6 +11,10 @@ file(GLOB TEST_SRC ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp)
 
 add_library(${TARGET_NAME} STATIC ${TEST_INCLUDE} ${TEST_SRC})
 
+ie_faster_build(${TARGET_NAME}
+    UNITY
+)
+
 list(APPEND EXPORT_DEPENDENCIES
         funcTestUtils
         ieTestHelpers
@@ -28,4 +32,4 @@ target_link_libraries(${TARGET_NAME} PUBLIC
 
 # developer package
 
-ie_developer_export_targets(${TARGET_NAME} ${EXPORT_DEPENDENCIES})
+ie_developer_export_targets(${TARGET_NAME} ${EXPORT_DEPENDENCIES} ieTestHelpers_s)

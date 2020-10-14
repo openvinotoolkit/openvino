@@ -5,7 +5,7 @@
 #include "low_precision_transformations/permute.hpp"
 
 #include <algorithm>
-#include <details/caseless.hpp>
+#include <caseless.hpp>
 #include <string>
 #include <vector>
 

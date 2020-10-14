@@ -18,10 +18,10 @@ Your installation is complete when these are all completed:
 
 2. Install the dependencies:
 
-   - [Microsoft Visual Studio* with C++ **2019, 2017, or 2015** with MSBuild](http://visualstudio.microsoft.com/downloads/)  
-   - [CMake **3.4 or higher** 64-bit](https://cmake.org/download/)
+   - [Microsoft Visual Studio* with C++ **2019 or 2017** with MSBuild](http://visualstudio.microsoft.com/downloads/)  
+   - [CMake **2.8.12 or higher** 64-bit](https://cmake.org/download/)
    > **NOTE**: If you want to use Microsoft Visual Studio 2019, you are required to install CMake 3.14.
-   - [Python **3.6.5** 64-bit](https://www.python.org/downloads/release/python-365/)
+   - [Python **3.5** - **3.7** 64-bit](https://www.python.org/downloads/windows/)
    > **IMPORTANT**: As part of this installation, make sure you click the option to add the application to your `PATH` environment variable.
 
 3. <a href="#set-the-environment-variables">Set Environment Variables</a>         
@@ -90,10 +90,10 @@ The following components are installed by default:
 - Microsoft Windows\* 10 64-bit
 
 **Software**
-- [Microsoft Visual Studio* with C++ **2019, 2017, or 2015** with MSBuild](http://visualstudio.microsoft.com/downloads/)
-- [CMake **3.4 or higher** 64-bit](https://cmake.org/download/)
+- [Microsoft Visual Studio* with C++ **2019 or 2017** with MSBuild](http://visualstudio.microsoft.com/downloads/)
+- [CMake **2.8.12 or higher** 64-bit](https://cmake.org/download/)
    > **NOTE**: If you want to use Microsoft Visual Studio 2019, you are required to install CMake 3.14.
-- [Python **3.6.5** 64-bit](https://www.python.org/downloads/release/python-365/)
+- [Python **3.5** - **3.7** 64-bit](https://www.python.org/downloads/windows/)
 
 ## Installation Steps
 
@@ -186,7 +186,7 @@ Type commands in the opened window:
 cd C:\Program Files (x86)\IntelSWTools\openvino\deployment_tools\model_optimizer\install_prerequisites
 ```
 
-3. Run the following batch file to configure the Model Optimizer for Caffe\*, TensorFlow\*, MXNet\*, Kaldi\*, and ONNX\*:<br>
+3. Run the following batch file to configure the Model Optimizer for Caffe\*, TensorFlow\* 1.x, MXNet\*, Kaldi\*, and ONNX\*:<br>
 ```sh
 install_prerequisites.bat
 ```
@@ -205,9 +205,14 @@ cd C:\Program Files (x86)\IntelSWTools\openvino\deployment_tools\model_optimizer
    install_prerequisites_caffe.bat
    ```
 
-   * For **TensorFlow**:<br>
+   * For **TensorFlow 1.x**:<br>
    ```sh
    install_prerequisites_tf.bat
+   ```
+
+   * For **TensorFlow 2.x**:<br>
+   ```sh
+   install_prerequisites_tf2.bat
    ```
 
    * For **MXNet**:<br>
@@ -296,7 +301,7 @@ In this section, you saw a preview of the Intel® Distribution of OpenVINO™ to
 
 Congratulations. You have completed all the required installation, configuration, and build steps to work with your trained models using CPU. 
 
-If you want to use Intel® Processor graphics (GPU), Intel® Neural Compute Stick 2 or Intel® Vision Accelerator Design with Intel® Movidius™ (VPU), or add CMake* and Python* to your Windows* environment variables, read through the next section for additional steps.
+If you want to use Intel® Processor graphics (GPU), Intel® Neural Compute Stick 2 or Intel® Vision Accelerator Design with Intel® Movidius™ VPUs, or add CMake* and Python* to your Windows* environment variables, read through the next section for additional steps.
 
 If you want to continue and run the Image Classification Sample Application on one of the supported hardware device, see the [Run the Image Classification Sample Application](#run-the-image-classification-sample-application) section.
 
@@ -336,11 +341,10 @@ You are done updating your device driver and are ready to use your GPU.
 
 To perform inference on Intel® Vision Accelerator Design with Intel® Movidius™ VPUs, the following additional installation steps are required:
 
-  1. If your Intel® Vision Accelerator Design with Intel® Movidius™ VPUs card requires SMBUS connection to PCIe slot (Raw video data card with HW version Fab-B and before), install the SMBUS driver:
+  1. Download and install <a href="https://www.microsoft.com/en-us/download/details.aspx?id=48145">Visual C++ Redistributable for Visual Studio 2017</a>
+  2. Check with a support engineer if your Intel® Vision Accelerator Design with Intel® Movidius™ VPUs card requires SMBUS connection to PCIe slot (most unlikely). Install the SMBUS driver only if confirmed (by default, it's not required):
       1. Go to the `<INSTALL_DIR>\deployment_tools\inference-engine\external\hddl\SMBusDriver` directory, where `<INSTALL_DIR>` is the directory in which the Intel Distribution of OpenVINO toolkit is installed.
       2. Right click on the `hddlsmbus.inf` file and choose **Install** from the pop up menu.
-
-  2. Download and install <a href="https://www.microsoft.com/en-us/download/details.aspx?id=48145">Visual C++ Redistributable for Visual Studio 2015</a>
 
 You are done installing your device driver and are ready to use your Intel® Vision Accelerator Design with Intel® Movidius™ VPUs.
 
@@ -438,7 +442,7 @@ cd C:\Users\<username>\Documents\Intel\OpenVINO\inference_engine_samples_build\i
    classification_sample_async.exe -i "C:\Program Files (x86)\IntelSWTools\openvino\deployment_tools\demo\car.png" -m "C:\Users\<username>\Documents\Intel\OpenVINO\openvino_models\ir\public\squeezenet1.1\FP16\squeezenet1.1.xml" -d HDDL
    ```
 
-For information on Sample Applications, see the [Inference Engine Samples Overview](https://docs.openvinotoolkit.org/latest/_docs_IE_DG_Samples_Overview.html).
+For information on Sample Applications, see the [Inference Engine Samples Overview](../IE_DG/Samples_Overview.md).
 
 Congratulations, you have finished the installation of the Intel® Distribution of OpenVINO™ toolkit for Windows*. To learn more about how the Intel® Distribution of OpenVINO™ toolkit works, the Hello World tutorial and other resources are provided below.
 

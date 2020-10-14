@@ -109,6 +109,20 @@ event_impl::ptr primitive_inst::execute(const std::vector<event_impl::ptr>& even
     return _impl->execute(dependencies, *this);
 }
 
+void primitive_inst::set_arguments() {
+    const auto primitive_id = id();
+    CLDNN_ERROR_BOOL(primitive_id,
+                     "Invalid/unset input",
+                     !_has_valid_input,
+                     "Cannot set arguments for primitive " + primitive_id + " with invalid/unset input");
+
+    _impl->set_arguments(*this);
+}
+
+void primitive_inst::cleanup() {
+    _impl->cleanup(*this);
+}
+
 void primitive_inst::build_deps() {
     if (_deps.empty() && !_node.get_dependencies().empty()) {
         _deps = _network.get_primitives(_node.get_dependencies());
@@ -172,6 +186,9 @@ memory_impl::ptr primitive_inst::allocate_output() {
                                       _node.get_memory_dependencies(),
                                       alloc_type,
                                       false);
+    } else if (_network.is_internal() && _node.is_output() && _node.is_type<generic_layer>() &&
+               engine.supports_allocation(allocation_type::usm_device)) {
+        return engine.allocate_memory(layout, allocation_type::usm_device, net_id);
     } else if (_network.is_internal() || (!_node.can_share_buffer()) || _node.can_be_optimized() || _node.is_output()) {
         return engine.allocate_memory(layout, alloc_type, net_id);
     }

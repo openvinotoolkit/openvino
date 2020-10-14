@@ -3,10 +3,6 @@
 
 set(TARGET_NAME "GNAPlugin")
 
-if(ENABLE_LTO)
-    ie_enable_lto()
-endif()
-
 file(GLOB_RECURSE SOURCES
         ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp)
 
@@ -31,7 +27,7 @@ endif()
 #saving rpath to GNA shared library be used by CI
 log_rpath_from_dir(GNA ${libGNA_LIBRARIES_BASE_PATH})
 
-target_link_libraries(${TARGET_NAME} PRIVATE inference_engine inference_engine_lp_transformations ${INTEL_ITT_LIBS} Threads::Threads libGNA)
+target_link_libraries(${TARGET_NAME} PRIVATE inference_engine Threads::Threads libGNA)
 target_include_directories(${TARGET_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 target_compile_definitions(${TARGET_NAME}
     PRIVATE
@@ -53,11 +49,8 @@ target_link_libraries(${TARGET_NAME}_test_static PUBLIC inference_engine_preproc
 target_include_directories(${TARGET_NAME}_test_static PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 set_target_properties(${TARGET_NAME}_test_static PROPERTIES COMPILE_PDB_NAME ${TARGET_NAME}_test_static)
 
-if(WIN32)
-    # Correct 'jnl' macro/jit issue
-    target_compile_options(${TARGET_NAME} PRIVATE $<$<CXX_COMPILER_ID:MSVC>:/bigobj> )
-    target_compile_options(${TARGET_NAME}_test_static PRIVATE $<$<CXX_COMPILER_ID:MSVC>:/bigobj> )
-endif()
+set_target_properties(${TARGET_NAME} ${TARGET_NAME}_test_static
+                      PROPERTIES INTERPROCEDURAL_OPTIMIZATION ${ENABLE_LTO})
 
 # install
 

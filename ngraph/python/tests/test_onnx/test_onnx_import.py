@@ -17,11 +17,11 @@
 import os
 
 import numpy as np
+import ngraph as ng
 import onnx
 from onnx.helper import make_graph, make_model, make_node, make_tensor_value_info
 from openvino.inference_engine import IECore
 
-from ngraph.impl import Function
 from tests.runtime import get_runtime
 from tests.test_onnx.utils.onnx_helpers import import_onnx_model
 
@@ -31,8 +31,7 @@ def test_import_onnx_function():
     ie = IECore()
     ie_network = ie.read_network(model=model_path)
 
-    capsule = ie_network._get_function_capsule()
-    ng_function = Function.from_capsule(capsule)
+    ng_function = ng.function_from_cnn(ie_network)
 
     dtype = np.float32
     value_a = np.array([1.0], dtype=dtype)

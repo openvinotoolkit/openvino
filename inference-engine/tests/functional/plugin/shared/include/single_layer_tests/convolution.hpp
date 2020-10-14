@@ -13,6 +13,7 @@
 #include "ngraph_functions/builders.hpp"
 #include "ngraph_functions/utils/ngraph_helpers.hpp"
 
+// ! [test_convolution:definition]
 typedef std::tuple<
         InferenceEngine::SizeVector,    // Kernel size
         InferenceEngine::SizeVector,    // Strides
@@ -25,6 +26,10 @@ typedef std::tuple<
 typedef std::tuple<
         convSpecificParams,
         InferenceEngine::Precision,     // Net precision
+        InferenceEngine::Precision,     // Input precision
+        InferenceEngine::Precision,     // Output precision
+        InferenceEngine::Layout,        // Input layout
+        InferenceEngine::Layout,        // Output layout
         InferenceEngine::SizeVector,    // Input shapes
         LayerTestsUtils::TargetDevice   // Device name
 > convLayerTestParamsSet;
@@ -32,12 +37,13 @@ namespace LayerTestsDefinitions {
 
 
 class ConvolutionLayerTest : public testing::WithParamInterface<convLayerTestParamsSet>,
-                             public LayerTestsUtils::LayerTestsCommon {
+                             virtual public LayerTestsUtils::LayerTestsCommon {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<convLayerTestParamsSet> obj);
 
 protected:
     void SetUp() override;
 };
+// ! [test_convolution:definition]
 
 }  // namespace LayerTestsDefinitions

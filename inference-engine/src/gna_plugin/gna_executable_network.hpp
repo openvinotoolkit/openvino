@@ -21,10 +21,22 @@ class GNAExecutableNetwork : public InferenceEngine::ExecutableNetworkThreadSafe
     std::shared_ptr<GNAPlugin> plg;
 
  public:
-    GNAExecutableNetwork(const std::string &aotFileName, std::shared_ptr<GNAPlugin> plg)
+     GNAExecutableNetwork(const std::string& aotFileName, std::shared_ptr<GNAPlugin> plg)
+         : plg(plg) {
+         std::fstream inputStream(aotFileName, std::ios_base::in | std::ios_base::binary);
+         if (inputStream.fail()) {
+             THROW_GNA_EXCEPTION << "Cannot open file to import model: " << aotFileName;
+         }
+
+         plg->ImportNetwork(inputStream);
+         _networkInputs = plg->GetInputs();
+         _networkOutputs = plg->GetOutputs();
+     }
+
+    GNAExecutableNetwork(std::istream& networkModel, std::shared_ptr<GNAPlugin> plg)
         : plg(plg) {
-        plg->ImportNetwork(aotFileName);
-        _networkInputs  = plg->GetInputs();
+        plg->ImportNetwork(networkModel);
+        _networkInputs = plg->GetInputs();
         _networkOutputs = plg->GetOutputs();
     }
 
@@ -33,7 +45,7 @@ class GNAExecutableNetwork : public InferenceEngine::ExecutableNetworkThreadSafe
         plg->LoadNetwork(network);
     }
 
-    GNAExecutableNetwork(const std::string &aotFileName, const std::map<std::string, std::string> &config)
+    GNAExecutableNetwork(const std::string& aotFileName, const std::map<std::string, std::string>& config)
         : GNAExecutableNetwork(aotFileName, std::make_shared<GNAPlugin>(config)) {
     }
 
@@ -65,8 +77,7 @@ class GNAExecutableNetwork : public InferenceEngine::ExecutableNetworkThreadSafe
         THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str;
     }
 
-    void SetConfig(const std::map<std::string, InferenceEngine::Parameter>& config,
-                   InferenceEngine::ResponseDesc* /* resp */) override {
+    void SetConfig(const std::map<std::string, InferenceEngine::Parameter>& config) override {
         using namespace InferenceEngine::GNAConfigParams;
         if (config.empty()) {
             THROW_IE_EXCEPTION << "The list of configuration values is empty";
@@ -78,8 +89,7 @@ class GNAExecutableNetwork : public InferenceEngine::ExecutableNetworkThreadSafe
             }
         }
 
-        InferenceEngine::Parameter old_mode_parameter;
-        GetConfig(KEY_GNA_DEVICE_MODE, old_mode_parameter, {});
+        InferenceEngine::Parameter old_mode_parameter = GetConfig(KEY_GNA_DEVICE_MODE);
         auto old_mode = old_mode_parameter.as<std::string>();
         if (old_mode == InferenceEngine::GNAConfigParams::GNA_SW_FP32) {
             THROW_IE_EXCEPTION << "Dynamic switching from GNA_SW_FP32 mode is not supported for ExecutableNetwork.";
@@ -95,16 +105,12 @@ class GNAExecutableNetwork : public InferenceEngine::ExecutableNetworkThreadSafe
         plg->SetConfig(configForPlugin);
     }
 
-    void GetConfig(const std::string &name,
-                   InferenceEngine::Parameter &result,
-                   InferenceEngine::ResponseDesc* /*resp*/) const override {
-        result = plg->GetConfig(name, {});
+    InferenceEngine::Parameter GetConfig(const std::string &name) const override {
+        return plg->GetConfig(name, {});
     }
 
-    void GetMetric(const std::string& name,
-                   InferenceEngine::Parameter& result,
-                   InferenceEngine::ResponseDesc* /* resp */) const override {
-        result = plg->GetMetric(name, {});
+    InferenceEngine::Parameter GetMetric(const std::string& name) const override {
+        return plg->GetMetric(name, {});
     }
 };
 

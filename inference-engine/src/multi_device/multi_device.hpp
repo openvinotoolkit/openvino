@@ -23,7 +23,7 @@
 #include <ie_parallel.hpp>
 
 #if (IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO)
-#include <tbb/concurrent_queue.h>
+# include <tbb/concurrent_queue.h>
 #endif
 
 namespace MultiDevicePlugin {
@@ -31,6 +31,7 @@ namespace MultiDevicePlugin {
 using DeviceName = std::string;
 
 struct DeviceInformation {
+    DeviceName deviceName;
     std::map<std::string, std::string> config;
     int numRequestsPerDevices;
 };
@@ -99,15 +100,15 @@ public:
     using NotBusyWorkerRequests = ThreadSafeQueue<WorkerInferRequest*>;
 
     explicit MultiDeviceExecutableNetwork(const DeviceMap<InferenceEngine::ExecutableNetwork>&                  networksPerDevice,
-                                          const DeviceMap<DeviceInformation>&                                        networkDevices,
+                                          const std::vector<DeviceInformation>&                                 networkDevices,
                                           const std::unordered_map<std::string, InferenceEngine::Parameter>&    config,
                                           const bool                                                            needPerfCounters = false);
 
-    void SetConfig(const std::map<std::string, InferenceEngine::Parameter> &config, InferenceEngine::ResponseDesc *resp) override;
-    void GetConfig(const std::string &name, InferenceEngine::Parameter &result, InferenceEngine::ResponseDesc *resp) const override;
-    void GetMetric(const std::string &name, InferenceEngine::Parameter &result, InferenceEngine::ResponseDesc *resp) const override;
+    void SetConfig(const std::map<std::string, InferenceEngine::Parameter> &config) override;
+    InferenceEngine::Parameter GetConfig(const std::string &name) const override;
+    InferenceEngine::Parameter GetMetric(const std::string &name) const override;
     void run(Task inferTask) override;
-    void CreateInferRequest(InferenceEngine::IInferRequest::Ptr& asyncRequest) override;
+    InferenceEngine::IInferRequest::Ptr CreateInferRequest() override;
     InferenceEngine::InferRequestInternal::Ptr CreateInferRequestImpl(InferenceEngine::InputsDataMap networkInputs,
                                                                       InferenceEngine::OutputsDataMap networkOutputs) override;
     ~MultiDeviceExecutableNetwork() override;
@@ -117,7 +118,7 @@ public:
     static thread_local WorkerInferRequest*                     _thisWorkerInferRequest;
     std::atomic_bool                                            _terminate = {false};
     std::mutex                                                  _mutex;
-    DeviceMap<DeviceInformation>                                _devicePriorities;
+    std::vector<DeviceInformation>                              _devicePriorities;
     DeviceMap<InferenceEngine::ExecutableNetwork>               _networksPerDevice;
     ThreadSafeQueue<Task>                                       _inferPipelineTasks;
     DeviceMap<NotBusyWorkerRequests>                            _idleWorkerRequests;
@@ -157,13 +158,12 @@ public:
     void SetConfig(const std::map<std::string, std::string>& config) override;
     Parameter GetConfig(const std::string& name,
                         const std::map<std::string, Parameter> & options) const override;
-    void QueryNetwork(const InferenceEngine::ICNNNetwork&       network,
-                      const std::map<std::string, std::string>& config,
-                      InferenceEngine::QueryNetworkResult&      res) const override;
+    InferenceEngine::QueryNetworkResult QueryNetwork(const InferenceEngine::ICNNNetwork&       network,
+                                                     const std::map<std::string, std::string>& config) const override;
     InferenceEngine::Parameter GetMetric(const std::string& name,
                                          const std::map<std::string, InferenceEngine::Parameter>& options) const override;
 
-    DeviceMap<DeviceInformation> ParseMetaDevices(const std::string & devicesRequestsCfg,
+    std::vector<DeviceInformation> ParseMetaDevices(const std::string & devicesRequestsCfg,
                                                   const std::map<std::string, std::string> & config) const;
 
 protected:

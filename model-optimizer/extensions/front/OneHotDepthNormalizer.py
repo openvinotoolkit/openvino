@@ -23,7 +23,7 @@ from mo.ops.reshape import Reshape
 
 class OneHotDepthNormalizer(FrontReplacementPattern):
     """
-    Transformation performs squeezeng one-element tensors on 1st input in OneHot into 0D scalars. This transformation
+    Transformation performs squeezing one-element tensors on 1st input in OneHot into 0D scalars. This transformation
     allows to avoid problems with some models produced by tf2onnx which have 1D depth in OneHot.
     """
     enabled = True

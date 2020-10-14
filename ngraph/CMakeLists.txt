@@ -14,8 +14,6 @@
 # limitations under the License.
 # ******************************************************************************
 
-cmake_minimum_required (VERSION 3.11)
-
 # set directory where the custom finders live
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake/Modules/")
 
@@ -53,7 +51,7 @@ message(STATUS "NGRAPH_WHEEL_VERSION ${NGRAPH_WHEEL_VERSION}")
 message(STATUS "NGRAPH_API_VERSION ${NGRAPH_API_VERSION}")
 
 set(NGRAPH_INCLUDE_PATH
-    ${CMAKE_CURRENT_SOURCE_DIR}/src
+    ${CMAKE_CURRENT_SOURCE_DIR}/core/include
 )
 
 if (APPLE)
@@ -114,13 +112,11 @@ option(NGRAPH_UNIT_TEST_ENABLE "Control the building of unit tests" TRUE)
 option(NGRAPH_TEST_UTIL_ENABLE "Control the building of test utility" TRUE)
 option(NGRAPH_INTERPRETER_ENABLE "Control the building of the INTERPRETER backend" TRUE)
 option(NGRAPH_DEBUG_ENABLE "Enable output for NGRAPH_DEBUG statements" FALSE)
-option(NGRAPH_DEPRECATED_ENABLE "Enable compiler deprecation pragmas for deprecated APIs (recommended only for development use)" FALSE)
+option(NGRAPH_DEPRECATED_ENABLE "Enable compiler deprecation pragmas for deprecated APIs (recommended only for development use)" TRUE)
 option(NGRAPH_ONNX_IMPORT_ENABLE "Enable ONNX importer" FALSE)
 option(NGRAPH_CODE_COVERAGE_ENABLE "Enable code coverage data collection" FALSE)
 option(NGRAPH_LIB_VERSIONING_ENABLE "Enable shared library versioning" FALSE)
 option(NGRAPH_PYTHON_BUILD_ENABLE "Enable build nGraph python package wheel" FALSE)
-option(NGRAPH_IE_ENABLE "Enable the Inference Engine backend" FALSE)
-option(NGRAPH_JSON_ENABLE "Enable JSON based serialization and tracing features" TRUE)
 option(NGRAPH_DYNAMIC_COMPONENTS_ENABLE "Enable dynamic loading of components" TRUE)
 option(NGRAPH_EXPORT_TARGETS_ENABLE "Enable exporting nGraph cmake export targets" TRUE)
 option(NGRAPH_WARNINGS_AS_ERRORS "Make all nGraph compile-time warnings into errors" FALSE)
@@ -157,8 +153,6 @@ NORMALIZE_BOOL(NGRAPH_ONNX_IMPORT_ENABLE)
 NORMALIZE_BOOL(NGRAPH_CODE_COVERAGE_ENABLE)
 NORMALIZE_BOOL(NGRAPH_LIB_VERSIONING_ENABLE)
 NORMALIZE_BOOL(NGRAPH_PYTHON_BUILD_ENABLE)
-NORMALIZE_BOOL(NGRAPH_IE_ENABLE)
-NORMALIZE_BOOL(NGRAPH_JSON_ENABLE)
 
 NORMALIZE_BOOL(NGRAPH_DYNAMIC_COMPONENTS_ENABLE)
 NORMALIZE_BOOL(NGRAPH_EXPORT_TARGETS_ENABLE)
@@ -174,10 +168,8 @@ message(STATUS "NGRAPH_DEBUG_ENABLE:                  ${NGRAPH_DEBUG_ENABLE}")
 message(STATUS "NGRAPH_DEPRECATED_ENABLE:             ${NGRAPH_DEPRECATED_ENABLE}")
 message(STATUS "NGRAPH_DYNAMIC_COMPONENTS_ENABLE:     ${NGRAPH_DYNAMIC_COMPONENTS_ENABLE}")
 message(STATUS "NGRAPH_EXPORT_TARGETS_ENABLE:         ${NGRAPH_EXPORT_TARGETS_ENABLE}")
-message(STATUS "NGRAPH_IE_ENABLE:                     ${NGRAPH_IE_ENABLE}")
 message(STATUS "NGRAPH_IE_STATIC_LIB_ENABLE:          ${NGRAPH_IE_STATIC_LIB_ENABLE}")
 message(STATUS "NGRAPH_INTERPRETER_ENABLE:            ${NGRAPH_INTERPRETER_ENABLE}")
-message(STATUS "NGRAPH_JSON_ENABLE:                   ${NGRAPH_JSON_ENABLE}")
 message(STATUS "NGRAPH_LIB_VERSIONING_ENABLE:         ${NGRAPH_LIB_VERSIONING_ENABLE}")
 message(STATUS "NGRAPH_ONNX_IMPORT_ENABLE:            ${NGRAPH_ONNX_IMPORT_ENABLE}")
 message(STATUS "NGRAPH_PYTHON_BUILD_ENABLE:           ${NGRAPH_PYTHON_BUILD_ENABLE}")
@@ -344,10 +336,6 @@ if(WIN32)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -D_CRT_SECURE_NO_WARNINGS")
 endif()
 
-if (NGRAPH_IE_ENABLE)
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DNGRAPH_IE_ENABLE")
-endif()
-
 if (NGRAPH_DYNAMIC_COMPONENTS_ENABLE)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DNGRAPH_DYNAMIC_COMPONENTS_ENABLE")
 endif()
@@ -427,7 +415,7 @@ if(NGRAPH_DEPRECATED_ENABLE)
     add_definitions(-DNGRAPH_DEPRECATED_ENABLE)
 endif()
 
-add_definitions(-DPROJECT_ROOT_DIR="${CMAKE_CURRENT_SOURCE_DIR}")
+add_definitions(-DPROJECT_ROOT_DIR="${CMAKE_SOURCE_DIR}")
 
 #-----------------------------------------------------------------------------------------------
 # Print Global Options
@@ -486,26 +474,12 @@ if (NGRAPH_ONNX_IMPORT_ENABLE)
     endif()
 endif()
 
-if(NGRAPH_JSON_ENABLE)
-    include(cmake/external_json.cmake)
-endif()
-
-add_subdirectory(src)
-
-if (NGRAPH_TEST_UTIL_ENABLE)
-    include(cmake/external_gtest.cmake)
-endif()
-
-add_subdirectory(test)
-
-if (NGRAPH_PYTHON_BUILD_ENABLE)
-    add_subdirectory(python)
-endif()
+add_subdirectory(core)
 
 if (NGRAPH_EXPORT_TARGETS_ENABLE)
     include(CMakePackageConfigHelpers)
-
-    export(TARGETS ngraph NAMESPACE ngraph:: FILE "${CMAKE_CURRENT_BINARY_DIR}/ngraphTargets.cmake")
+    set(NGRAPH_TARGETS_FILE "${CMAKE_CURRENT_BINARY_DIR}/ngraphTargets.cmake")
+    export(TARGETS ngraph NAMESPACE ngraph:: FILE "${NGRAPH_TARGETS_FILE}")
 
     install(EXPORT ngraphTargets
         FILE ngraphTargets.cmake
@@ -525,6 +499,18 @@ if (NGRAPH_EXPORT_TARGETS_ENABLE)
         ${CMAKE_CURRENT_BINARY_DIR}/ngraphConfigVersion.cmake
         DESTINATION ${NGRAPH_COMPONENT_PREFIX}cmake
         COMPONENT ngraph)
+endif()
+
+add_subdirectory(frontend)
+
+if (NGRAPH_TEST_UTIL_ENABLE)
+    include(cmake/external_gtest.cmake)
+endif()
+
+add_subdirectory(test)
+
+if (NGRAPH_PYTHON_BUILD_ENABLE)
+    add_subdirectory(python)
 endif()
 
 install(DIRECTORY

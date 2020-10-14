@@ -45,31 +45,47 @@ static inline void parsePluginName(std::istream& networkModel) {
 }  // namespace
 
 /**
- * @brief Optimal implementation of IInferencePluginInternal interface to avoid duplication in all plugins
+ * @brief Optimal implementation of IInferencePlugin interface to avoid duplication in all plugins
  * @ingroup ie_dev_api_plugin_api
  */
-class InferencePluginInternal : public IInferencePluginInternal,
-                                public std::enable_shared_from_this<InferencePluginInternal> {
-public:
+class InferencePluginInternal : public IInferencePlugin {
+protected:
     /**
      * @brief Destroys the object.
      */
     ~InferencePluginInternal() override = default;
 
-    void LoadNetwork(IExecutableNetwork::Ptr& executableNetwork, const ICNNNetwork& network,
-                     const std::map<std::string, std::string>& config) override {
-        cloneAndCreateExecutableNetwork(executableNetwork, network, config);
+public:
+    ExecutableNetwork LoadNetwork(const ICNNNetwork& network,
+                                  const std::map<std::string, std::string>& config) override {
+        return LoadNetwork(network, config, nullptr);
     }
 
     ExecutableNetwork LoadNetwork(const ICNNNetwork& network, const std::map<std::string, std::string>& config,
                                   RemoteContext::Ptr context) override {
-        IExecutableNetwork::Ptr executableNetworkPtr;
-        cloneAndCreateExecutableNetwork(executableNetworkPtr, network, config, context);
-        return ExecutableNetwork(executableNetworkPtr);
+        InputsDataMap networkInputs, networkInputsCloned;
+        OutputsDataMap networkOutputs, networkOutputsCloned;
+        network.getInputsInfo(networkInputs);
+        network.getOutputsInfo(networkOutputs);
+        copyInputOutputInfo(networkInputs, networkOutputs, networkInputsCloned, networkOutputsCloned);
+
+        ExecutableNetworkInternal::Ptr impl;
+        if (nullptr == context) {
+            impl = LoadExeNetworkImpl(network, config);
+        } else {
+            impl = LoadExeNetworkImpl(network, context, config);
+        }
+
+        impl->setNetworkInputs(networkInputsCloned);
+        impl->setNetworkOutputs(networkOutputsCloned);
+        impl->SetPointerToPlugin(shared_from_this());
+
+        auto executableNetwork = make_executable_network(impl);
+        return ExecutableNetwork(executableNetwork);
     }
 
-    IExecutableNetwork::Ptr ImportNetwork(const std::string& modelFileName,
-                                          const std::map<std::string, std::string>& config) override {
+    ExecutableNetwork ImportNetwork(const std::string& modelFileName,
+                                    const std::map<std::string, std::string>& config) override {
         (void)modelFileName;
         (void)config;
         THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str;
@@ -106,8 +122,7 @@ public:
         THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str;
     }
 
-    void QueryNetwork(const ICNNNetwork& /*network*/, const std::map<std::string, std::string>& /*config*/,
-                      QueryNetworkResult& /*res*/) const override {
+    QueryNetworkResult QueryNetwork(const ICNNNetwork& /*network*/, const std::map<std::string, std::string>& /*config*/) const override {
         THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str;
     }
 
@@ -139,12 +154,11 @@ public:
 
 protected:
     /**
-     * @brief Creates an executable network from an pares network object, users can create as many networks as they need
+     * @brief Creates an executable network from a parsed network object, users can create as many networks as they need
      *        and use them simultaneously (up to the limitation of the HW resources)
      * @note The function is used in
-     * InferencePluginInternal::LoadNetwork(IExecutableNetwork::Ptr&, const ICNNNetwork&, const std::map<std::string, std::string>&)
+     * InferencePluginInternal::LoadNetwork(const ICNNNetwork&, const std::map<std::string, std::string>&)
      * which performs common steps first and calls this plugin-dependent method implementation after.
-     * @param core A pointer to ICore interface.
      * @param network A network object
      * @param config string-string map of config parameters relevant only for this load operation
      * @return Shared pointer to the ExecutableNetwork object
@@ -153,7 +167,7 @@ protected:
                                                               const std::map<std::string, std::string>& config) = 0;
 
     /**
-     * @brief Creates an executable network using remove context from an pares network object,
+     * @brief Creates an executable network using remote context from a parsed network object,
      * users can create as many networks as they need and use them simultaneously (up to the limitation of the HW resources)
      * @note The function is used in
      * InferencePluginInternal::LoadNetwork(const ICNNNetwork&, const std::map<std::string, std::string>&, RemoteContext::Ptr)
@@ -163,7 +177,8 @@ protected:
      * @param config string-string map of config parameters relevant only for this load operation
      * @return Shared pointer to the ExecutableNetwork object
      */
-    virtual ExecutableNetworkInternal::Ptr LoadExeNetworkImpl(const ICNNNetwork& network, RemoteContext::Ptr context,
+    virtual ExecutableNetworkInternal::Ptr LoadExeNetworkImpl(const ICNNNetwork& network,
+                                                              RemoteContext::Ptr context,
                                                               const std::map<std::string, std::string>& config) {
         (void)network;
         (void)context;
@@ -172,42 +187,9 @@ protected:
     }
 
     /**
-     * @brief A helper method which clones a ICNNNetwork object, keeps InputsDataMap and OutputsDataMap data maps,
-     * and creates an IExecutableNetwork object
-     * @param executableNetwork An output executable network object
-     * @param network An input ICNNNetwork object used to create an executable network object
-     * @param config A map of string -> string configuration options.
-     * @param context An optional pointer to RemoteContext
-     */
-    void cloneAndCreateExecutableNetwork(IExecutableNetwork::Ptr& executableNetwork, const ICNNNetwork& network,
-                                         const std::map<std::string, std::string>& config,
-                                         RemoteContext::Ptr context = nullptr) {
-        InputsDataMap networkInputs, networkInputsCloned;
-        OutputsDataMap networkOutputs, networkOutputsCloned;
-        network.getInputsInfo(networkInputs);
-        network.getOutputsInfo(networkOutputs);
-        copyInputOutputInfo(networkInputs, networkOutputs, networkInputsCloned, networkOutputsCloned);
-
-        ExecutableNetworkInternal::Ptr impl;
-        if (nullptr == context) {
-            impl = LoadExeNetworkImpl(network, config);
-        } else {
-            impl = LoadExeNetworkImpl(network, context, config);
-        }
-
-        impl->setNetworkInputs(networkInputsCloned);
-        impl->setNetworkOutputs(networkOutputsCloned);
-        impl->SetPointerToPluginInternal(shared_from_this());
-
-        executableNetwork.reset(new ExecutableNetworkBase<ExecutableNetworkInternal>(impl), [](details::IRelease* p) {
-            p->Release();
-        });
-    }
-
-    /**
      * @brief Creates an executable network from an previously exported network
      * @note The function is called from
-     * IInferencePluginInternal::ImportNetwork(std::istream&, const RemoteContext::Ptr&, const std::map<std::string, std::string>&)
+     * IInferencePlugin::ImportNetwork(std::istream&, const RemoteContext::Ptr&, const std::map<std::string, std::string>&)
      * performs common steps first and calls this plugin-dependent implementation after.
      * @param networkModel Reference to network model output stream
      * @param config A string -> string map of parameters

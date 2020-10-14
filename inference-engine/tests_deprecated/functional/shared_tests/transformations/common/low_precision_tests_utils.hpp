@@ -7,7 +7,7 @@
 #include <vector>
 
 #include <cpp/ie_cnn_network.h>
-#include <cnn_network_impl.hpp>
+#include <legacy/cnn_network_impl.hpp>
 
 void fillDataWithInitValue(InferenceEngine::Blob::Ptr& blob, float initValue);
 

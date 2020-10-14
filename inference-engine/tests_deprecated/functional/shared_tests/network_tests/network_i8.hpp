@@ -20,7 +20,7 @@
 #include "low_precision_transformations/fully_connected.hpp"
 #include "low_precision_transformations/eltwise.hpp"
 #include "low_precision_transformations/scaleshift_to_convolution.hpp"
-#include "ie_util_internal.hpp"
+#include <legacy/ie_util_internal.hpp>
 
 #include "cnn_network_ngraph_impl.hpp"
 #include <ie_system_conf.h>

@@ -9,7 +9,7 @@
 
 #pragma once
 
-#include <ie_iexecutable_network.hpp>
+#include <cpp/ie_executable_network.hpp>
 #include <cpp_interfaces/base/ie_memory_state_base.hpp>
 #include <cpp_interfaces/interface/ie_imemory_state_internal.hpp>
 #include <map>
@@ -51,7 +51,7 @@ public:
     }
 
     StatusCode CreateInferRequest(IInferRequest::Ptr& req, ResponseDesc* resp) noexcept override {
-        TO_STATUS(_impl->CreateInferRequest(req));
+        TO_STATUS(req = _impl->CreateInferRequest());
     }
 
     StatusCode Export(const std::string& modelFileName, ResponseDesc* resp) noexcept override {
@@ -63,7 +63,7 @@ public:
     }
 
     StatusCode GetExecGraphInfo(ICNNNetwork::Ptr& graphPtr, ResponseDesc* resp) noexcept override {
-        TO_STATUS(_impl->GetExecGraphInfo(graphPtr));
+        TO_STATUS(graphPtr = _impl->GetExecGraphInfo());
     }
 
     StatusCode QueryState(IMemoryState::Ptr& pState, size_t idx, ResponseDesc* resp) noexcept override {
@@ -91,19 +91,19 @@ public:
     }
 
     StatusCode SetConfig(const std::map<std::string, Parameter>& config, ResponseDesc* resp) noexcept override {
-        TO_STATUS(_impl->SetConfig(config, resp));
+        TO_STATUS(_impl->SetConfig(config));
     }
 
     StatusCode GetConfig(const std::string& name, Parameter& result, ResponseDesc* resp) const noexcept override {
-        TO_STATUS(_impl->GetConfig(name, result, resp));
+        TO_STATUS(result = _impl->GetConfig(name));
     }
 
     StatusCode GetMetric(const std::string& name, Parameter& result, ResponseDesc* resp) const noexcept override {
-        TO_STATUS(_impl->GetMetric(name, result, resp));
+        TO_STATUS(result = _impl->GetMetric(name));
     }
 
     StatusCode GetContext(RemoteContext::Ptr& pContext, ResponseDesc* resp) const noexcept override {
-        TO_STATUS(_impl->GetContext(pContext, resp));
+        TO_STATUS(pContext = _impl->GetContext());
     }
 
 private:
@@ -111,11 +111,11 @@ private:
 };
 
 template <class T>
-inline typename ExecutableNetworkBase<T>::Ptr make_executable_network(std::shared_ptr<T> impl) {
+inline typename InferenceEngine::ExecutableNetwork make_executable_network(std::shared_ptr<T> impl) {
     typename ExecutableNetworkBase<T>::Ptr net(new ExecutableNetworkBase<T>(impl), [](IExecutableNetwork* p) {
         p->Release();
     });
-    return net;
+    return InferenceEngine::ExecutableNetwork(net);
 }
 
 }  // namespace InferenceEngine

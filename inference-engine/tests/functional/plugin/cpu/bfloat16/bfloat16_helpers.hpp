@@ -51,7 +51,7 @@ public:
     static float getMaxAbsValue(const float* data, size_t size) {
         float maxVal = 0.f;
         for (size_t i = 0; i < size; i++) {
-            if (fabs(data[i] > maxVal)) {
+            if (fabs(data[i]) > maxVal) {
                 maxVal = fabs(data[i]);
             }
         }
@@ -120,7 +120,7 @@ typedef std::tuple<
  *  TEST_P(ScaleshiftConv_x3_Eltwise, CompareWithRefImpl) {
     test();
 };
- *  3. INSTANTIATE_TEST_CASE_P(bfloat16_NoReshape, ScaleshiftConv_x3_Eltwise,
+ *  3. INSTANTIATE_TEST_CASE_P(smoke_bfloat16_NoReshape, ScaleshiftConv_x3_Eltwise,
                         ::testing::Combine(
                             ::testing::Values(Precision::FP32),
                             ::testing::Values(Precision::FP32),
@@ -182,7 +182,7 @@ public:
         if (!InferenceEngine::with_cpu_x86_bfloat16()) {
             // on platforms which do not support bfloat16, we are disabling bf16 tests since there are no bf16 primitives,
             // tests are useless on such platforms
-            return;
+            GTEST_SKIP();
         }
         std::tie(inputPrecision, netPrecision, inputShapes, newInputShapes, targetDevice) = this->GetParam();
         InferenceEngine::CNNNetwork cnnNet(fnPtr);

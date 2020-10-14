@@ -40,9 +40,9 @@ inline cl::NDRange toNDRange(const std::vector<size_t>& v) {
     }
 }
 
-void set_arguments(kernels_cache::kernel_type& kernel,
-                   const kernel_selector::kernel_arguments& args,
-                   const kernel::kernel_arguments_data& data) {
+void set_arguments_impl(kernels_cache::kernel_type& kernel,
+                        const kernel_selector::kernel_arguments& args,
+                        const kernel::kernel_arguments_data& data) {
     for (uint32_t i = 0; i < static_cast<uint32_t>(args.size()); i++) {
         cl_int status = CL_INVALID_ARG_VALUE;
         switch (args[i].t) {
@@ -244,21 +244,41 @@ void set_arguments(kernels_cache::kernel_type& kernel,
 }
 }  // namespace
 
-event_impl::ptr kernel::run(uint32_t queue_id,
-                            const kernel_selector::cl_kernel_data& kernel_data,
-                            const std::vector<event_impl::ptr>& dependencies,
-                            const kernel_arguments_data& args) const {
+void kernel::set_arguments(uint32_t queue_id,
+                           const kernel_selector::cl_kernel_data& kernel_data,
+                           const kernel_arguments_data& args) {
     static std::mutex m;
     std::lock_guard<std::mutex> guard(m);
-    auto clkernel = context()->get_kernels_cache(_prog_id).get_kernel(_kernel_id, _one_time_kernel);
+    auto compiled_kernel = context()->get_kernels_cache(_prog_id).get_kernel(_kernel_id, _one_time_kernel);
+
+    // Create a copy of cl kernel for each stream if it doesn't exist
+    // Copy is needed to avoid data races between streams, but we create it only once for each stream
+    // because the cloning is quite expensive.
+    // Mutex is still needed to ensure that insert operation into the map is thread safe
+    if (_cl_kernels.find(queue_id) == _cl_kernels.end())
+        _cl_kernels[queue_id] = compiled_kernel.clone();
+
     try {
-        set_arguments(clkernel, kernel_data.arguments, args);
+        set_arguments_impl(_cl_kernels.at(queue_id), kernel_data.arguments, args);
     } catch (cl::Error const& err) {
         throw ocl_error(err);
     }
+}
+
+void kernel::cleanup(uint32_t queue_id) {
+    _cl_kernels.erase(queue_id);
+}
+
+event_impl::ptr kernel::run(uint32_t queue_id,
+                            const kernel_selector::cl_kernel_data& kernel_data,
+                            const std::vector<event_impl::ptr>& dependencies) const {
+
+    if (_cl_kernels.find(queue_id) == _cl_kernels.end() || _cl_kernels.at(queue_id).get() == NULL) {
+        throw std::runtime_error("[clDNN] Kernel for layer " + kernel_data.layerID + " is not found for stream " + std::to_string(queue_id));
+    }
 
     return context()->enqueue_kernel(queue_id,
-                                     clkernel,
+                                     _cl_kernels.at(queue_id),
                                      toNDRange(kernel_data.workGroups.global),
                                      toNDRange(kernel_data.workGroups.local),
                                      dependencies);

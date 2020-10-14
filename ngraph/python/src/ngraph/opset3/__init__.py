@@ -114,7 +114,6 @@ from ngraph.opset2.ops import reorg_yolo
 from ngraph.opset1.ops import relu
 from ngraph.opset1.ops import reshape
 from ngraph.opset1.ops import result
-from ngraph.opset3.ops import reverse
 from ngraph.opset1.ops import reverse_sequence
 from ngraph.opset3.ops import rnn_cell
 from ngraph.opset3.ops import roi_align

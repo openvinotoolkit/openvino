@@ -13,7 +13,7 @@
 #include <unordered_map>
 #include <vector>
 #include <utility>
-#include <ie_util_internal.hpp>
+#include <legacy/ie_util_internal.hpp>
 
 namespace HeteroPlugin {
 
@@ -29,8 +29,8 @@ public:
 
     void SetConfig(const Configs &config) override;
 
-    void QueryNetwork(const InferenceEngine::ICNNNetwork &network,
-                      const Configs& config, InferenceEngine::QueryNetworkResult &res) const override;
+    InferenceEngine::QueryNetworkResult QueryNetwork(const InferenceEngine::ICNNNetwork &network,
+                                                     const Configs& config) const override;
 
     InferenceEngine::Parameter GetMetric(const std::string& name, const std::map<std::string,
                                          InferenceEngine::Parameter> & options) const override;

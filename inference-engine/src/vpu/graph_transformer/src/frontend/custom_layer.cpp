@@ -27,7 +27,7 @@
 
 #include <description_buffer.hpp>
 #include <xml_parse_utils.h>
-#include <details/caseless.hpp>
+#include <caseless.hpp>
 
 #include <vpu/utils/simple_math.hpp>
 #include <vpu/utils/error.hpp>
@@ -184,6 +184,8 @@ CustomLayer::CustomLayer(std::string configDir, const pugi::xml_node& customLaye
             stageOrder.emplace(stageNum, CustomKernel{kernel, _configDir});
         }
 
+        VPU_THROW_UNLESS(!stageOrder.empty(),
+            "Error while binding %s custom layer: No kernels are found.", _layerName);
         VPU_THROW_UNLESS(stageOrder.begin()->first == 0,
             "Error while binding %s custom layer: Stage 0 is not found.", _layerName);
         VPU_THROW_UNLESS(stageOrder.rbegin()->first == stageOrder.size() - 1,

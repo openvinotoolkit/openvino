@@ -20,7 +20,7 @@ typedef std::tuple<
         > ReshapePermuteReshapeTuple;
 
 class ReshapePermuteReshape : public testing::WithParamInterface<ReshapePermuteReshapeTuple>,
-                              public LayerTestsUtils::LayerTestsCommon {
+                              virtual public LayerTestsUtils::LayerTestsCommon {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<ReshapePermuteReshapeTuple> &obj);
 

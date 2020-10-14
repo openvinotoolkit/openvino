@@ -75,8 +75,7 @@ public:
         networkModel << strm.rdbuf();
     }
 
-    void GetExecGraphInfo(ICNNNetwork::Ptr& graphPtr) override {
-        (void)graphPtr;
+    CNNNetwork GetExecGraphInfo() override {
         THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str;
     }
 
@@ -85,16 +84,15 @@ public:
      * @param[in]  plugin  The plugin
      * @note Needed to correctly handle ownership between objects.
      */
-    void SetPointerToPluginInternal(IInferencePluginInternal::Ptr plugin) {
+    void SetPointerToPlugin(IInferencePlugin::Ptr plugin) {
         _plugin = plugin;
     }
 
     std::vector<IMemoryStateInternal::Ptr> QueryState() override {
-        // meaning base plugin reports as no state available - plugin owners need to create proper override of this
-        return {};
+        THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str;
     }
 
-    void SetConfig(const std::map<std::string, Parameter>& config, ResponseDesc* /* resp */) override {
+    void SetConfig(const std::map<std::string, Parameter>& config) override {
         if (config.empty()) {
             THROW_IE_EXCEPTION << "The list of configuration values is empty";
         }
@@ -102,15 +100,17 @@ public:
                            << config.begin()->first;
     }
 
-    void GetConfig(const std::string& /* name */, Parameter& /* result */, ResponseDesc* /* resp */) const override {
+    Parameter GetConfig(const std::string& name) const override {
+        (void)name;
         THROW_IE_EXCEPTION << "GetConfig for executable network is not supported by this device";
     }
 
-    void GetMetric(const std::string& /* name */, Parameter& /* result */, ResponseDesc* /* resp */) const override {
+    Parameter GetMetric(const std::string& name) const override {
+        (void)name;
         THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str;
     }
 
-    void GetContext(RemoteContext::Ptr& /* pContext */, ResponseDesc* /* resp */) const override {
+    RemoteContext::Ptr GetContext() const override {
         THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str;
     }
 
@@ -130,10 +130,10 @@ protected:
     InferenceEngine::OutputsDataMap _networkOutputs;  //!< Holds information about network outputs data
 
     /**
-     * @brief A pointer to a IInferencePluginInternal interface.
+     * @brief A pointer to a IInferencePlugin interface.
      * @note Needed to correctly handle ownership between objects.
      */
-    IInferencePluginInternal::Ptr _plugin;
+    IInferencePlugin::Ptr _plugin;
 };
 
 }  // namespace InferenceEngine

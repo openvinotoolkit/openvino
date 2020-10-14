@@ -5,10 +5,6 @@
 # [cmake:plugin]
 set(TARGET_NAME "templatePlugin")
 
-if(ENABLE_LTO)
-    ie_enable_lto()
-endif()
-
 file(GLOB SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp)
 file(GLOB_RECURSE HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/*.hpp)
 
@@ -23,11 +19,22 @@ target_include_directories(${TARGET_NAME} PRIVATE
     "${CMAKE_CURRENT_SOURCE_DIR}"
     "${IE_MAIN_TEMPLATE_PLUGIN_SOURCE_DIR}/include")
 
-target_link_libraries(${TARGET_NAME} PRIVATE IE::inference_engine IE::inference_engine_transformations ${NGRAPH_LIBRARIES} ${INTEL_ITT_LIBS})
+# link common Inference Engine libraries
+target_link_libraries(${TARGET_NAME} PRIVATE
+    IE::inference_engine
+    IE::inference_engine_transformations
+    ${NGRAPH_LIBRARIES})
+
+# Link inference backend library to plugin. Here we use ngraph interpreter_backend as example
+target_link_libraries(${TARGET_NAME} PRIVATE
+    IE::ngraph_backend
+    IE::interpreter_backend)
+
+set_target_properties(${TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION ${ENABLE_LTO})
 
 # ATTENTION: uncomment to register a plugin in the plugins.xml file
 # ie_register_plugins(MAIN_TARGET ${TARGET_NAME}
-                    # POSSIBLE_PLUGINS ${TARGET_NAME})
+#                     POSSIBLE_PLUGINS ${TARGET_NAME})
 # [cmake:plugin]
 
 # ATTENTION: uncomment to install component

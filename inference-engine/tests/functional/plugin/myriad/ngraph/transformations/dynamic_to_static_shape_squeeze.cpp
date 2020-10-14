@@ -65,7 +65,7 @@ protected:
         node->set_output_type(0, dsr->get_input_element_type(0), ngraph::PartialShape::dynamic(node->get_output_partial_shape(0).rank()));
 
         const auto transformations = vpu::Transformations{{node->type_info, vpu::dynamicToStaticShapeSqueeze}};
-        vpu::DynamicToStaticShape(transformations).transform(function);
+        vpu::DynamicToStaticShape(transformations).run_on_function(function);
         return function;
     }
 
@@ -98,7 +98,7 @@ protected:
 TEST_P(DynamicToStaticShapeSqueeze, CompareFunctions) {
 }
 
-INSTANTIATE_TEST_CASE_P(NGraph, DynamicToStaticShapeSqueeze, testing::Combine(
+INSTANTIATE_TEST_CASE_P(smoke_NGraph, DynamicToStaticShapeSqueeze, testing::Combine(
     testing::Values(
         ngraph::element::f16,
         ngraph::element::f32,

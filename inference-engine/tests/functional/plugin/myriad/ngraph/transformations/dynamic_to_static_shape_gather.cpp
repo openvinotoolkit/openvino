@@ -82,7 +82,7 @@ protected:
                 gather_setup.data_shape.size() + gather_setup.index_shape.size() - 1));
 
         const auto transformations = vpu::Transformations{{node->type_info, vpu::dynamicToStaticShapeGather}};
-        vpu::DynamicToStaticShape(transformations).transform(function);
+        vpu::DynamicToStaticShape(transformations).run_on_function(function);
         return function;
     }
 
@@ -133,7 +133,7 @@ protected:
 TEST_P(DynamicToStaticShapeGatherDataDSR, CompareFunctions) {
 }
 
-INSTANTIATE_TEST_CASE_P(NGraph, DynamicToStaticShapeGatherDataDSR, combinations);
+INSTANTIATE_TEST_CASE_P(smoke_NGraph, DynamicToStaticShapeGatherDataDSR, combinations);
 
 class DynamicToStaticShapeGatherIdxDSR : public CommonTestUtils::TestsCommon,
         public testing::WithParamInterface<std::tuple<DataType, DataType, GatherTestCase>> {
@@ -171,7 +171,7 @@ protected:
                 gather_setup.data_shape.size() + gather_setup.index_shape.size() - 1));
 
         const auto transformations = vpu::Transformations{{node->type_info, vpu::dynamicToStaticShapeGather}};
-        vpu::DynamicToStaticShape(transformations).transform(function);
+        vpu::DynamicToStaticShape(transformations).run_on_function(function);
         return function;
     }
 
@@ -223,7 +223,7 @@ protected:
 TEST_P(DynamicToStaticShapeGatherIdxDSR, CompareFunctions) {
 }
 
-INSTANTIATE_TEST_CASE_P(NGraph, DynamicToStaticShapeGatherIdxDSR, combinations);
+INSTANTIATE_TEST_CASE_P(smoke_NGraph, DynamicToStaticShapeGatherIdxDSR, combinations);
 
 class DynamicToStaticShapeGather : public CommonTestUtils::TestsCommon,
         public testing::WithParamInterface<std::tuple<DataType, DataType, GatherTestCase>> {
@@ -263,7 +263,7 @@ protected:
                 gather_setup.data_shape.size() + gather_setup.index_shape.size() - 1));
 
         const auto transformations = vpu::Transformations{{node->type_info, vpu::dynamicToStaticShapeGather}};
-        vpu::DynamicToStaticShape(transformations).transform(function);
+        vpu::DynamicToStaticShape(transformations).run_on_function(function);
         return function;
     }
 
@@ -315,6 +315,6 @@ protected:
 TEST_P(DynamicToStaticShapeGather, CompareFunctions) {
 }
 
-INSTANTIATE_TEST_CASE_P(NGraph, DynamicToStaticShapeGather, combinations);
+INSTANTIATE_TEST_CASE_P(smoke_NGraph, DynamicToStaticShapeGather, combinations);
 
 }  // namespace

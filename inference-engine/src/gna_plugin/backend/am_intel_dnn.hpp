@@ -9,6 +9,7 @@
 #include <vector>
 
 #include "dnn_types.h"
+#include "gna_types.h"
 
 #include "gna_plugin_log.hpp"
 
@@ -176,7 +177,7 @@ public:
                                              float input_scale_factor,
                                              A *&ptr_inputs,
                                              B *&ptr_outputs,
-                                             intel_pwl_segment_t *ptr_segments) {
+                                             gna_pwl_segment_t *ptr_segments) {
         InitPiecewiseLinearComponentPrivate(cmp,
                                             function_id,
                                             orientation,
@@ -265,8 +266,6 @@ public:
     }
 
 
-    void Propagate();
-
     float OutputScaleFactor(uint32_t component_index) {
         return OutputScaleFactor(component[component_index]);
     }
@@ -308,6 +307,7 @@ public:
     std::vector<intel_dnn_component_t> component;
     uint32_t num_left_context;
     uint32_t num_right_context;
+    uint32_t new_num_conv_columns = 0;
     bool do_rotate_input;
     uint32_t num_rotate_rows = 0;
     uint32_t num_rotate_columns = 0;
@@ -380,7 +380,7 @@ private:
                                                     float input_scale_factor,
                                                     void *&ptr_inputs,
                                                     void *&ptr_outputs,
-                                                    intel_pwl_segment_t *ptr_segments,
+                                                    gna_pwl_segment_t *ptr_segments,
                                                     bool postInitMem);
 
     static void InitInterleaveComponentPrivate(intel_dnn_component_t &cmp,

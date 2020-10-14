@@ -22,7 +22,7 @@ typedef std::tuple<
 namespace LayerTestsDefinitions {
 
 class ConcatQuantization : public testing::WithParamInterface<concatQuantizationParams>,
-                        public LayerTestsUtils::LayerTestsCommon {
+                        virtual public LayerTestsUtils::LayerTestsCommon {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<concatQuantizationParams> obj);
 

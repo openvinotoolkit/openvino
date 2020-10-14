@@ -18,6 +18,7 @@
 #define INPUT_AXIS_INDEX (uint)indices[indices_idx]
 #define GET_DICTIONARY_INDEX(idx_order) INPUT0_GET_INDEX(idx_order)
 #define GET_INDICES_INDEX(idx_order) INPUT1_GET_INDEX(idx_order)
+#define GET_INDEX(prefix, num, idx_order) CAT(CAT(prefix, num), _GET_INDEX)(idx_order)
 
 KERNEL(gather_ref)(const __global INPUT0_TYPE* dictionary,
                    const __global INPUT1_TYPE* indices,
@@ -27,15 +28,32 @@ KERNEL(gather_ref)(const __global INPUT0_TYPE* dictionary,
 #endif
 )
 {
-    const uint b = get_global_id(0);
-    const uint f = get_global_id(1);
-    const uint yx = get_global_id(2);
-    const uint y = yx / OUTPUT_SIZE_X;
-    const uint x = yx % OUTPUT_SIZE_X;
+    #if OUTPUT_DIMS == 6
+        #define ORDER b,f,w,z,y,x
+        const uint x = (uint)get_global_id(0) % OUTPUT_SIZE_X;
+        const uint y = (uint)get_global_id(0) / OUTPUT_SIZE_X;
+        const uint z = (uint)get_global_id(1) % OUTPUT_SIZE_Z;
+        const uint w = (uint)get_global_id(1) / OUTPUT_SIZE_Z;
+        const uint f = (uint)get_global_id(2) % OUTPUT_FEATURE_NUM;
+        const uint b = (uint)get_global_id(2) / OUTPUT_FEATURE_NUM;
+    #elif OUTPUT_DIMS == 5
+        #define ORDER b,f,z,y,x
+        const uint x = (uint)get_global_id(0);
+        const uint y = (uint)get_global_id(1) % OUTPUT_SIZE_Y;
+        const uint z = (uint)get_global_id(1) / OUTPUT_SIZE_Y;
+        const uint f = (uint)get_global_id(2) % OUTPUT_FEATURE_NUM;
+        const uint b = (uint)get_global_id(2) / OUTPUT_FEATURE_NUM;
+    #elif OUTPUT_DIMS == 4
+        #define ORDER b,f,y,x
+        const uint x = (uint)get_global_id(0);
+        const uint y = (uint)get_global_id(1);
+        const uint f = (uint)get_global_id(2) % OUTPUT_FEATURE_NUM;
+        const uint b = (uint)get_global_id(2) / OUTPUT_FEATURE_NUM;
+    #endif
 
     const uint indices_idx = GET_INDICES_INDEX(INDICES_INDEX_ORDER);
     const uint dictionary_idx = GET_DICTIONARY_INDEX(DICTIONARY_INDEX_ORDER);
-    const uint output_idx = OUTPUT_GET_INDEX(b, f, y, x);
+    const uint output_idx = GET_INDEX(OUTPUT,,ORDER);
 
     INPUT0_TYPE val = dictionary[dictionary_idx];
 

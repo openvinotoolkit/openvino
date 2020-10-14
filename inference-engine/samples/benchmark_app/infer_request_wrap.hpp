@@ -15,7 +15,7 @@
 #include <algorithm>
 #include <functional>
 
-#include "inference_engine.hpp"
+#include <inference_engine.hpp>
 #include "statistics_report.hpp"
 
 typedef std::chrono::high_resolution_clock Time;

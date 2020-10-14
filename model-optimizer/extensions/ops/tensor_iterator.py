@@ -24,8 +24,9 @@ from mo.utils.error import Error
 
 
 class TensorIterator(Op):
-    ''' Loop layer that iterates over tensors and execute embedded sub-graph.
-    '''
+    """
+    Loop layer that iterates over tensors and execute embedded sub-graph.
+    """
 
     op = 'TensorIterator'
 
@@ -38,7 +39,7 @@ class TensorIterator(Op):
             'output_port_map': [],  # a list of dicts with such attrs as external_port_id, etc.
             'back_edges': [],  # a list of dicts with such attrs as from_layer, from_port, etc.
             'body': None,  # an Graph object with a body sub-graph
-            'sub_graphs': ['body'],  # built-in attribute with all sub-graphg
+            'sub_graphs': ['body'],  # built-in attribute with all sub-graph
             'infer': self.infer,
             'type_infer': self.ti_type_infer,
         }
@@ -92,7 +93,7 @@ class TensorIterator(Op):
 
         if direction == 'in':
             edges = node.in_edges()
-        if direction == 'out':
+        else:
             edges = node.out_edges()
 
         suitable_edges = {}
@@ -213,7 +214,7 @@ class TensorIterator(Op):
             internal_node = node_map[internal_node_id]
 
             if internal_node.soft_get('type') != 'Result':
-                # this output wont get out of the body, but it is still Result and needed on non first iterations of TI
+                # this output won't get out of the body, but it is still Result and needed on non first iterations of TI
                 assert 'from_port' in record
                 out_port = TensorIterator.special_port_to_real_port(internal_node, record['from_port'], 'out')
                 assert out_port in internal_node.out_ports() and not internal_node.out_port(out_port).disconnected()
@@ -223,8 +224,8 @@ class TensorIterator(Op):
                 for dst in internal_node.out_port(out_port).get_destinations():
                     possible_output_node = dst.node
                     if possible_output_node.soft_get('type') == 'Result':
-                        assert internal_output_node is None, 'Several Result operations on the same output port of {}'.format(
-                            internal_node)
+                        assert internal_output_node is None, 'Several Result operations on the same output port of {}' \
+                                                             ''.format(internal_node)
                         internal_output_node = possible_output_node
                 assert internal_output_node is not None
                 TensorIterator.update_back_edge_map(ti=ti, direction='from', old_layer_id=internal_node_id,
@@ -300,7 +301,7 @@ class TensorIterator(Op):
     def generate_port_map(node: Node, src_port_map):
         """ Extract port_map attributes from node and node.body attributes.
 
-            It iterates over src_port_map and substitude external_port_id, internal_port_id and
+            It iterates over src_port_map and substitute external_port_id, internal_port_id and
             internal_layer_id by real values queried from node ports and node.body attributes.
         """
         result_list = []

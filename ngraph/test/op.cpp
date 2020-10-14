@@ -26,6 +26,8 @@
 #include "ngraph/ngraph.hpp"
 #include "ngraph/variant.hpp"
 
+NGRAPH_SUPPRESS_DEPRECATED_START
+
 using namespace std;
 using namespace ngraph;
 
@@ -69,11 +71,6 @@ struct Ship
 
 namespace ngraph
 {
-    template <typename T>
-    VariantImpl<T>::~VariantImpl()
-    {
-    }
-
     template <>
     class VariantWrapper<Ship> : public VariantImpl<Ship>
     {

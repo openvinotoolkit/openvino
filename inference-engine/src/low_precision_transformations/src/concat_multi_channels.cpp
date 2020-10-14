@@ -8,15 +8,15 @@
 
 #include <algorithm>
 #include <blob_factory.hpp>
-#include <details/caseless.hpp>
+#include <caseless.hpp>
 #include <memory>
 #include <string>
 #include <unordered_map>
 #include <utility>
 #include <vector>
 
-#include "cnn_network_impl.hpp"
-#include "ie_util_internal.hpp"
+#include <legacy/cnn_network_impl.hpp>
+#include <legacy/ie_util_internal.hpp>
 
 #include "low_precision_transformations/common/ie_lpt_exception.hpp"
 #include "low_precision_transformations/network_helper.hpp"
@@ -106,8 +106,8 @@ void ConcatMultiChannelsTransformation::transform(TransformationContext& context
         dequantizationScalesLayers[fakeQuantizeLayer->name] = dequantizationScales;
         dequantizationShiftsLayers[fakeQuantizeLayer->name] = dequantizationShifts;
 
-        CNNNetworkHelper::updateBlobs(*fakeQuantizeLayer, 3, dataPrecision.min);
-        CNNNetworkHelper::updateBlobs(*fakeQuantizeLayer, 4, dataPrecision.max);
+        CNNNetworkHelper::updateBlobs(context, *fakeQuantizeLayer, 3, dataPrecision.min);
+        CNNNetworkHelper::updateBlobs(context, *fakeQuantizeLayer, 4, dataPrecision.max);
     }
 
     if (updatePrecisions) {

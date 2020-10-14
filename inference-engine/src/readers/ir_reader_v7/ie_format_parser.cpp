@@ -12,7 +12,6 @@
 
 #include "ie_blob_proxy.hpp"
 #include "ie_layer_parsers.h"
-#include "ie_profiling.hpp"
 #include "xml_parse_utils.h"
 
 using namespace InferenceEngine;
@@ -678,7 +677,6 @@ void FormatParser::ParsePreProcess(pugi::xml_node& root) {
 
     auto meanSegmentPrecision = GetPrecisionAttr(ppNode, "mean-precision", Precision::UNSPECIFIED);
 
-    ResponseDesc resp;
     InferenceEngine::PreProcessChannel::Ptr preProcessChannel;
 
     int lastChanNo = -1;

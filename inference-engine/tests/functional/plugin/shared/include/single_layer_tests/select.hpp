@@ -18,7 +18,7 @@ typedef std::tuple<
         ngraph::op::AutoBroadcastSpec,     // broadcast
         std::string> selectTestParams;     // device name
 
-class SelectLayerTest : public testing::WithParamInterface<selectTestParams>, public LayerTestsUtils::LayerTestsCommon {
+class SelectLayerTest : public testing::WithParamInterface<selectTestParams>, virtual public LayerTestsUtils::LayerTestsCommon {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo <selectTestParams> &obj);
 

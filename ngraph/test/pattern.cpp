@@ -44,9 +44,10 @@
 #include "ngraph/pattern/op/or.hpp"
 #include "ngraph/pattern/op/skip.hpp"
 #include "ngraph/pattern/op/true.hpp"
-#include "ngraph/serializer.hpp"
 #include "util/matcher.hpp"
 #include "util/test_tools.hpp"
+
+NGRAPH_SUPPRESS_DEPRECATED_START
 
 using namespace ngraph;
 using namespace std;
@@ -132,7 +133,9 @@ public:
         };
 
         auto m = make_shared<TestMatcher>(pattern * iconst1);
+        NGRAPH_SUPPRESS_DEPRECATED_START
         this->add_matcher(m, callback);
+        NGRAPH_SUPPRESS_DEPRECATED_END
     }
 
     void construct_add_zero()
@@ -180,7 +183,9 @@ public:
 
         auto add = pattern + iconst0;
         auto m = make_shared<TestMatcher>(add);
+        NGRAPH_SUPPRESS_DEPRECATED_START
         this->add_matcher(m, callback);
+        NGRAPH_SUPPRESS_DEPRECATED_END
     }
 
     TestGraphRewrite()
@@ -669,7 +674,9 @@ public:
 
         std::set<std::shared_ptr<pattern::op::Label>> empty_correlated_matches;
         auto rm = make_shared<pattern::RecurrentMatcher>(padd, rpattern, empty_correlated_matches);
+        NGRAPH_SUPPRESS_DEPRECATED_START
         this->add_matcher(rm, callback);
+        NGRAPH_SUPPRESS_DEPRECATED_END
     }
 
     TestRecurrentGraphRewrite()

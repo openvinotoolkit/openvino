@@ -26,9 +26,9 @@
 #include "ngraph/pass/manager.hpp"
 #include "ngraph/specialize_function.hpp"
 #include "ngraph/util.hpp"
-#include "opset0_downgrade.hpp"
-#include "opset1_downgrade.hpp"
 #include "pass/dyn_elimination.hpp"
+#include "pass/opset0_downgrade.hpp"
+#include "pass/opset1_downgrade.hpp"
 #include "pass/shape_relevance.hpp"
 
 using namespace std;
@@ -327,13 +327,6 @@ runtime::dynamic::DynamicTensor::DynamicTensor(
     , m_wrapped_tensor(nullptr)
     , m_wrapped_backend(wrapped_backend)
 {
-}
-
-Strides runtime::dynamic::DynamicTensor::get_strides() const
-{
-    NGRAPH_CHECK(m_wrapped_tensor != nullptr,
-                 "asked for strides of a dynamic tensor with no allocated storage");
-    return ngraph::row_major_strides(m_wrapped_tensor->get_shape());
 }
 
 size_t runtime::dynamic::DynamicTensor::get_size_in_bytes() const

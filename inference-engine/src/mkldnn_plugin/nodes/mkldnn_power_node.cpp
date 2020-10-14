@@ -3,7 +3,7 @@
 //
 
 #include "mkldnn_power_node.h"
-#include "ie_layers.h"
+#include <legacy/ie_layers.h>
 #include <string>
 #include <cmath>
 #include <mkldnn_types.h>

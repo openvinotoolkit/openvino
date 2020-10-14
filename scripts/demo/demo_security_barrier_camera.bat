@@ -108,7 +108,7 @@ for /F "tokens=1,2 usebackq" %%a in ("%ROOT_DIR%demo_security_barrier_camera.con
 echo.
 echo ###############^|^| Generate VS solution for Inference Engine demos using cmake ^|^|###############
 echo.
-timeout 3
+CALL :delay 3
 
 if "%PROCESSOR_ARCHITECTURE%" == "AMD64" (
    set "PLATFORM=x64"
@@ -180,24 +180,30 @@ if exist "%SOLUTION_DIR64%\CMakeCache.txt" del "%SOLUTION_DIR64%\CMakeCache.txt"
 cd "%INTEL_OPENVINO_DIR%\deployment_tools\inference_engine\demos" && cmake -E make_directory "%SOLUTION_DIR64%" && cd "%SOLUTION_DIR64%" && cmake -G "Visual Studio !MSBUILD_VERSION!" -A %PLATFORM% "%INTEL_OPENVINO_DIR%\deployment_tools\inference_engine\demos"
 if ERRORLEVEL 1 GOTO errorHandling
 
-timeout 7
+CALL :delay 7
 echo.
 echo ###############^|^| Build Inference Engine demos using MS Visual Studio (MSBuild.exe) ^|^|###############
 echo.
-timeout 3
+CALL :delay 3
 echo "!MSBUILD_BIN!" Demos.sln /p:Configuration=Release /t:security_barrier_camera_demo /clp:ErrorsOnly /m
 "!MSBUILD_BIN!" Demos.sln /p:Configuration=Release /t:security_barrier_camera_demo /clp:ErrorsOnly /m
 if ERRORLEVEL 1 GOTO errorHandling
 
-timeout 7
+CALL :delay 7
 
 :runSample
 echo.
 echo ###############^|^| Run Inference Engine security barrier camera demo ^|^|###############
 echo.
-timeout 3
+CALL :delay 3
 cd "%SOLUTION_DIR64%\intel64\Release"
-echo "%SOLUTION_DIR64%\intel64\Release\security_barrier_camera_demo.exe" -i "%target_image_path%" %model_args% -d !TARGET! -d_va !TARGET! -d_lpr !TARGET! !SAMPLE_OPTIONS!
+if not exist security_barrier_camera_demo.exe (
+   cd "%INTEL_OPENVINO_DIR%\inference_engine\demos\intel64\Release"
+   echo "%INTEL_OPENVINO_DIR%\inference_engine\demos\intel64\Release\security_barrier_camera_demo.exe" -i "%target_image_path%" %model_args% -d !TARGET! -d_va !TARGET! -d_lpr !TARGET! !SAMPLE_OPTIONS!
+)
+else (
+   echo "%SOLUTION_DIR64%\intel64\Release\security_barrier_camera_demo.exe" -i "%target_image_path%" %model_args% -d !TARGET! -d_va !TARGET! -d_lpr !TARGET! !SAMPLE_OPTIONS!
+)
 security_barrier_camera_demo.exe -i "%target_image_path%" %model_args% ^
                                  -d !TARGET! -d_va !TARGET! -d_lpr !TARGET! !SAMPLE_OPTIONS!
 if ERRORLEVEL 1 GOTO errorHandling
@@ -211,3 +217,7 @@ goto :eof
 :errorHandling
 echo Error
 cd "%ROOT_DIR%"
+
+:delay
+timeout %~1 2> nul
+EXIT /B 0

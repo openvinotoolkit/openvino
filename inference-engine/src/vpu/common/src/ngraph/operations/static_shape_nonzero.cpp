@@ -79,7 +79,7 @@ void evaluateStaticShapeNonZero(const Shape& inputShape,
 } // namespace
 
 bool StaticShapeNonZero::evaluate(const HostTensorVector& outputs,
-                                  const HostTensorVector& inputs) {
+                                  const HostTensorVector& inputs) const {
     const auto& input = inputs[0];
     const auto& outIndices = outputs[0];
     const auto& outShape = outputs[1];

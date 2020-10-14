@@ -9,5 +9,10 @@
 
 std::vector<std::string> disabledTestPatterns() {
     return {
+        ".*ExclusiveAsyncRequests.*",
+        ".*reusableCPUStreamsExecutor.*",
+        ".*registerPlugin.*",
+        ".*IEClassGetAvailableDevices.*",
+        R"(.*SplitLayerTest.*numSplits\=30.*)"
     };
 }

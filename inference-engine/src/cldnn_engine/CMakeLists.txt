@@ -11,10 +11,6 @@ if (LINUX)
     endif()
 endif()
 
-if(ENABLE_LTO)
-    ie_enable_lto()
-endif()
-
 file(GLOB MAIN_SRC ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp)
 file(GLOB LIBRARY_HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/*.h)
 
@@ -25,7 +21,7 @@ ie_add_plugin(NAME ${TARGET_NAME}
               SOURCES ${MAIN_SRC} ${LIBRARY_HEADERS}
               VERSION_DEFINES_FOR cldnn_engine.cpp)
 
-target_link_libraries(${TARGET_NAME} PRIVATE ${INTEL_ITT_LIBS} inference_engine inference_engine_lp_transformations
+target_link_libraries(${TARGET_NAME} PRIVATE inference_engine inference_engine_lp_transformations
                                              clDNN_lib pugixml inference_engine_transformations)
 
 set (CLDNN_TOP_FOLDER ${IE_MAIN_SOURCE_DIR}/thirdparty/clDNN)
@@ -34,6 +30,8 @@ target_include_directories(${TARGET_NAME} PRIVATE
         $<TARGET_PROPERTY:inference_engine_transformations,INTERFACE_INCLUDE_DIRECTORIES>
         ${CLDNN__IOCL_ICD_INCDIRS}
         ${CLDNN_TOP_FOLDER})
+
+set_target_properties(${TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION ${ENABLE_LTO})
 
 # install
 

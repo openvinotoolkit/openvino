@@ -20,7 +20,7 @@
 
 #include "hetero_infer_request.hpp"
 #include "ie_icore.hpp"
-#include "cnn_network_impl.hpp"
+#include <legacy/cnn_network_impl.hpp>
 #include "hetero_async_infer_request.hpp"
 
 namespace HeteroPlugin {
@@ -53,11 +53,11 @@ public:
     InferenceEngine::InferRequestInternal::Ptr CreateInferRequestImpl(InferenceEngine::InputsDataMap networkInputs,
                                                                       InferenceEngine::OutputsDataMap networkOutputs) override;
 
-    void CreateInferRequest(InferenceEngine::IInferRequest::Ptr &asyncRequest) override;
+    InferenceEngine::IInferRequest::Ptr CreateInferRequest() override;
 
-    void GetConfig(const std::string &name, InferenceEngine::Parameter &result, InferenceEngine::ResponseDesc *resp) const override;
+    InferenceEngine::Parameter GetConfig(const std::string &name) const override;
 
-    void GetMetric(const std::string &name, InferenceEngine::Parameter &result, InferenceEngine::ResponseDesc *resp) const override;
+    InferenceEngine::Parameter GetMetric(const std::string &name) const override;
 
     void ExportImpl(std::ostream& modelFile) override;
 

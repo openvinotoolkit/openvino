@@ -31,13 +31,17 @@
 namespace LayerTestsDefinitions {
 typedef std::tuple<
     InferenceEngine::Precision,
+    InferenceEngine::Precision,    // Input precision
+    InferenceEngine::Precision,    // Output precision
+    InferenceEngine::Layout,       // Input layout
+    InferenceEngine::Layout,       // Output layout
     InferenceEngine::SizeVector,
     bool,
     std::string> ctcGreedyDecoderParams;
 
 class CTCGreedyDecoderLayerTest
     :  public testing::WithParamInterface<ctcGreedyDecoderParams>,
-       public LayerTestsUtils::LayerTestsCommon {
+       virtual public LayerTestsUtils::LayerTestsCommon {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<ctcGreedyDecoderParams>& obj);
 

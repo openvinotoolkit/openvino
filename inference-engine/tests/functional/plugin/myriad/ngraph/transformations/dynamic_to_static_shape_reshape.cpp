@@ -55,7 +55,7 @@ protected:
             ngraph::PartialShape::dynamic(outShapeDescriptorParam->get_output_partial_shape(0).rank()));
 
         const auto transformations = vpu::Transformations{{ngraph::op::v1::Reshape::type_info, vpu::dynamicToStaticShapeReshape}};
-        vpu::DynamicToStaticShape(transformations).transform(function);
+        vpu::DynamicToStaticShape(transformations).run_on_function(function);
         return function;
     }
 
@@ -114,7 +114,7 @@ std::shared_ptr<ngraph::op::Op> generateDynamicReshapePattern(std::shared_ptr<ng
         0);
 }
 
-INSTANTIATE_TEST_CASE_P(NGraph, DynamicToStaticShapeReshapeTests, testing::Combine(
+INSTANTIATE_TEST_CASE_P(smoke_NGraph, DynamicToStaticShapeReshapeTests, testing::Combine(
     testing::Values(
         DataShape{4, 1000},
         DataShape{3, 128, 256},

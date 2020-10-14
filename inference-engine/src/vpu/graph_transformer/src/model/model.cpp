@@ -9,7 +9,6 @@
 #include <vpu/utils/profiling.hpp>
 #include <vpu/model/data_contents/ie_blob_content.hpp>
 
-#include <details/caseless.hpp>
 #include "blob_factory.hpp"
 
 #include <cctype>
@@ -422,6 +421,13 @@ StageDependency ModelObj::addStageDependency(const Stage& stage, const Data& dat
     setStagesOrder(data->producerEdge()->producer(), stage);
 
     return edge;
+}
+
+StageTempBuffer ModelObj::addTempBuffer(
+        const Stage& stage,
+        size_t bufferSize) {
+    auto desc = DataDesc(DataType::U8, DimsOrder::C, {bufferSize});
+    return addTempBuffer(stage, desc);
 }
 
 StageTempBuffer ModelObj::addTempBuffer(

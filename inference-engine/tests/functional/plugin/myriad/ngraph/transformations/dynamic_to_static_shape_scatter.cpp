@@ -61,7 +61,7 @@ protected:
         node->set_output_type(0, dsr->get_input_element_type(0), ngraph::PartialShape::dynamic(outputShape.rank()));
 
         const auto transformations = vpu::Transformations{{scatter_setup.scatter_type_info, vpu::dynamicToStaticUnaryElementwise}};
-        vpu::DynamicToStaticShape(transformations).transform(function);
+        vpu::DynamicToStaticShape(transformations).run_on_function(function);
         return function;
     }
 
@@ -91,7 +91,7 @@ protected:
 TEST_P(DynamicToStaticShapeScatter, CompareFunctions) {
 }
 
-INSTANTIATE_TEST_CASE_P(NGraph, DynamicToStaticShapeScatter, testing::Combine(
+INSTANTIATE_TEST_CASE_P(smoke_NGraph, DynamicToStaticShapeScatter, testing::Combine(
     testing::Values(
         ngraph::element::f16,
         ngraph::element::f32,

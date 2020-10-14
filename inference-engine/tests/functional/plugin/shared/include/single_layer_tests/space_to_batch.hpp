@@ -19,10 +19,14 @@ using spaceToBatchParamsTuple = typename std::tuple<
         std::vector<size_t>,               // pads_end
         std::vector<size_t>,               // Input shapes
         InferenceEngine::Precision,        // Network precision
+        InferenceEngine::Precision,        // Input precision
+        InferenceEngine::Precision,        // Output precision
+        InferenceEngine::Layout,           // Input layout
+        InferenceEngine::Layout,           // Output layout
         std::string>;                      // Device name>;
 
 class SpaceToBatchLayerTest : public testing::WithParamInterface<spaceToBatchParamsTuple>,
-                              public LayerTestsUtils::LayerTestsCommon {
+                              virtual public LayerTestsUtils::LayerTestsCommon {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<spaceToBatchParamsTuple> &obj);
 

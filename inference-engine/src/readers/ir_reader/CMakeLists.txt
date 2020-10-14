@@ -4,34 +4,36 @@
 
 set(TARGET_NAME "inference_engine_ir_reader")
 
-if(ENABLE_LTO)
-    ie_enable_lto()
-endif()
-
-set(PUBLIC_HEADERS_DIR "${CMAKE_CURRENT_SOURCE_DIR}/")
-
-file(GLOB_RECURSE LIBRARY_SRC ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp)
-file(GLOB_RECURSE PUBLIC_HEADERS ${PUBLIC_HEADERS_DIR}/*.h ${PUBLIC_HEADERS_DIR}/*.hpp)
+file(GLOB_RECURSE LIBRARY_SRC ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp
+                              ${CMAKE_CURRENT_SOURCE_DIR}/*.hpp)
 
 # Create named folders for the sources within the .vcproj
 # Empty name lists them directly under the .vcproj
 
 source_group("src" FILES ${LIBRARY_SRC})
-source_group("include" FILES ${PUBLIC_HEADERS})
 
 # Create shared library
 
-add_library(${TARGET_NAME} SHARED ${LIBRARY_SRC} ${PUBLIC_HEADERS})
+add_library(${TARGET_NAME} SHARED ${LIBRARY_SRC})
 
-target_compile_definitions(${TARGET_NAME} PRIVATE IMPLEMENT_INFERENCE_ENGINE_API
-                                                  IMPLEMENT_INFERENCE_ENGINE_PLUGIN
+ie_faster_build(${TARGET_NAME}
+    UNITY
+)
+
+target_compile_definitions(${TARGET_NAME} PRIVATE IMPLEMENT_INFERENCE_ENGINE_PLUGIN
                                                   IR_READER_V10)
 
-target_include_directories(${TARGET_NAME} PUBLIC ${PUBLIC_HEADERS_DIR})
-target_include_directories(${TARGET_NAME} PRIVATE "${IE_MAIN_SOURCE_DIR}/src/inference_engine")
+target_include_directories(${TARGET_NAME} PRIVATE "${IE_MAIN_SOURCE_DIR}/src/inference_engine" # for CNNNetworkNgraphImpl
+                                                  "${CMAKE_CURRENT_SOURCE_DIR}")
 
-target_link_libraries(${TARGET_NAME} PUBLIC inference_engine_reader_api inference_engine_plugin_api ${NGRAPH_LIBRARIES} inference_engine)
-target_link_libraries(${TARGET_NAME} PRIVATE pugixml)
+target_link_libraries(${TARGET_NAME} PRIVATE ${NGRAPH_LIBRARIES}
+                                             inference_engine_reader_api
+                                             inference_engine_plugin_api
+                                             inference_engine
+                                             pugixml
+                                             openvino::itt)
+
+set_target_properties(${TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION ${ENABLE_LTO})
 
 # code style
 

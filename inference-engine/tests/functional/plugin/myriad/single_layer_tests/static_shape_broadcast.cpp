@@ -30,7 +30,7 @@ using StaticShapeBroadcastTestParam = std::tuple<
 namespace LayerTestsDefinitions {
 
 class StaticShapeBroadcastLayerTest : public testing::WithParamInterface<StaticShapeBroadcastTestParam>,
-                                      public LayerTestsUtils::LayerTestsCommon {
+                                      virtual public LayerTestsUtils::LayerTestsCommon {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<StaticShapeBroadcastTestParam>& obj) {
         StaticShapeBroadcastParam shapes;
@@ -56,7 +56,7 @@ public:
 protected:
     void SetUp() override {
         SetRefMode(LayerTestsUtils::RefMode::INTERPRETER);
-        configuration[VPU_CONFIG_KEY(DETECT_NETWORK_BATCH)] = CONFIG_VALUE(NO);
+        configuration[InferenceEngine::MYRIAD_DETECT_NETWORK_BATCH] = CONFIG_VALUE(NO);
 
         StaticShapeBroadcastParam shapes;
         std::tie(shapes, inPrc, targetDevice) = this->GetParam();
@@ -110,7 +110,7 @@ std::vector<InferenceEngine::Precision> broadcastPrecisions = {
         InferenceEngine::Precision::I32,
 };
 
-INSTANTIATE_TEST_CASE_P(accuracy, StaticShapeBroadcastLayerTest,
+INSTANTIATE_TEST_CASE_P(smoke_accuracy, StaticShapeBroadcastLayerTest,
                         ::testing::Combine(
                                 ::testing::ValuesIn(broadcastParam),
                                 ::testing::ValuesIn(broadcastPrecisions),

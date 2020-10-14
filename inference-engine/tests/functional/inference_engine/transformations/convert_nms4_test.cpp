@@ -9,8 +9,8 @@
 
 #include <ngraph/function.hpp>
 #include <ngraph/opsets/opset4.hpp>
-#include <ngraph_ops/nms_ie.hpp>
-#include <transformations/convert_opset1_to_legacy/convert_nms_4_to_legacy.hpp>
+#include <legacy/ngraph_ops/nms_ie.hpp>
+#include <legacy/transformations/convert_opset1_to_legacy/convert_nms_4_to_legacy.hpp>
 #include <transformations/init_node_info.hpp>
 #include <transformations/utils/utils.hpp>
 #include <ngraph/pass/manager.hpp>
@@ -54,10 +54,9 @@ TEST(TransformationTests, ConvertNMS4ToNMSIEStatic) {
                                                               std::make_shared<opset4::Unsqueeze>(score_threshold,
                                                                                                   opset4::Constant::create(element::i64, Shape{1}, {0})),
                                                               0, true);
-        auto convert = std::make_shared<ngraph::opset4::Convert>(nms, element::i64);
-        convert->set_friendly_name("nms");
+        nms->set_friendly_name("nms");
 
-        f_ref = std::make_shared<Function>(NodeVector{convert}, ParameterVector{boxes, scores});
+        f_ref = std::make_shared<Function>(NodeVector{nms}, ParameterVector{boxes, scores});
         ASSERT_TRUE(f_ref->get_output_partial_shape(0).is_static()) << "Shape " << f_ref->get_output_partial_shape(0) << " should be static";
     }
 

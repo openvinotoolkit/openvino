@@ -10,6 +10,7 @@
 #include <cassert>
 #include <algorithm>
 #include "ie_parallel.hpp"
+#include "common/cpu_memcpy.h"
 
 namespace InferenceEngine {
 namespace Extensions {
@@ -323,7 +324,7 @@ void StridedSliceImpl::strided_slice_vp(const float *src_data, float* dst_data) 
         }
 
         for (size_t iwork = start, dst_idx = start * dataLength, i = 1; iwork < end; ++iwork, dst_idx += dataLength) {
-            memcpy(&dst_data[dst_idx], &src_data[src_idx], sizeof(float) * dataLength);
+            cpu_memcpy(&dst_data[dst_idx], &src_data[src_idx], sizeof(float) * dataLength);
             for (int j = dims_size_1 - 1; j >= 0; j--) {
                 counters[j]++;
                 if (counters[j] < dst_dims[j]) {

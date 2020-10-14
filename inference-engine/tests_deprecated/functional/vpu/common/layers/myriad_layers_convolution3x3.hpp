@@ -151,8 +151,8 @@ TEST_P(myriadConvolution3x3LayerTests_smoke, Convolution3x3) {
     if(!customConfig.custom_config.empty() && !CheckMyriadX()) {
         GTEST_SKIP()<<"Custom layers for MYRIAD2 not supported";
     }
-    _config[VPU_CONFIG_KEY(HW_STAGES_OPTIMIZATION)] = HWConfigValue;
-    _config[VPU_CONFIG_KEY(CUSTOM_LAYERS)] = customConfig.custom_config;
+    _config[InferenceEngine::MYRIAD_ENABLE_HW_ACCELERATION] = HWConfigValue;
+    _config[InferenceEngine::MYRIAD_CUSTOM_LAYERS] = customConfig.custom_config;
 
     int IB = customConfig.src_dims[0];
     int IC = customConfig.src_dims[1];
@@ -201,7 +201,9 @@ TEST_P(myriadConvolution3x3LayerTests_smoke, Convolution3x3) {
     _outputsInfo["conv3x3"]->setLayout(NCHW);
 
     ASSERT_NO_THROW(st = _vpuPluginPtr->LoadNetwork(_exeNetwork, network,
-                                                    {{VPU_CONFIG_KEY(CUSTOM_LAYERS), customConfig.custom_config}, {VPU_CONFIG_KEY(HW_STAGES_OPTIMIZATION), HWConfigValue}}, &_resp));
+            {{InferenceEngine::MYRIAD_CUSTOM_LAYERS, customConfig.custom_config},
+             {InferenceEngine::MYRIAD_ENABLE_HW_ACCELERATION, HWConfigValue}},
+             &_resp));
     ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
     ASSERT_NE(_exeNetwork, nullptr) << _resp.msg;
 

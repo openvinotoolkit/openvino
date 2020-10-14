@@ -4,7 +4,7 @@
 
 #include "mkldnn_roi_pooling_node.h"
 #include "desc_iterator.hpp"
-#include <ie_layers.h>
+#include <legacy/ie_layers.h>
 #include <mkldnn.hpp>
 #include <string>
 #include <vector>
@@ -112,4 +112,4 @@ void MKLDNNROIPoolingNode::createDescriptor(const std::vector<InferenceEngine::T
                                           spatial_scale)));
     descs.push_back(desc);
 }
-REG_MKLDNN_PRIM_FOR(MKLDNNROIPoolingNode, RoiPooling);
+REG_MKLDNN_PRIM_FOR(MKLDNNROIPoolingNode, ROIPooling);

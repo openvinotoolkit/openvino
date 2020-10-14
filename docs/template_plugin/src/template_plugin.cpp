@@ -2,42 +2,82 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-
-#include <utility>
-#include <memory>
-#include <vector>
-#include <sstream>
-#include <regex>
-#include <string>
-#include <map>
-
 #include <ie_metric_helpers.hpp>
-#include <details/ie_cnn_network_tools.h>
 #include <ie_plugin_config.hpp>
-#include <ie_util_internal.hpp>
-#include <inference_engine.hpp>
-#include <file_utils.h>
-#include <cpp_interfaces/base/ie_plugin_base.hpp>
-#include <cpp_interfaces/interface/ie_internal_plugin_config.hpp>
-#include <threading/ie_executor_manager.hpp>
-#include <graph_tools.hpp>
-#include <ie_input_info.hpp>
-#include <ie_layouts.h>
-#include <hetero/hetero_plugin_config.hpp>
-#include <template/template_config.hpp>
 
+#include <hetero/hetero_plugin_config.hpp>
+#include <threading/ie_executor_manager.hpp>
+
+#include <ngraph/op/util/op_types.hpp>
+#include <ngraph/graph_util.hpp>
+#include <ngraph/pass/manager.hpp>
+#include <ngraph/opsets/opset.hpp>
+#include <transformations/common_optimizations/common_optimizations.hpp>
+#include <transformations/rt_info/fused_names_attribute.hpp>
+
+#include "template/template_config.hpp"
 #include "template_plugin.hpp"
 #include "template_executable_network.hpp"
 #include "template_infer_request.hpp"
+#include "template_pattern_transformation.hpp"
 
 using namespace TemplatePlugin;
 
 // ! [plugin:ctor]
 Plugin::Plugin() {
-    // TODO: fill with actual device name
+    // TODO: fill with actual device name, backend engine
     _pluginName = "TEMPLATE";
+
+    // create ngraph backend which performs inference using ngraph reference implementations
+    ngraph::runtime::Backend::set_backend_shared_library_search_directory("");
+    _backend = ngraph::runtime::Backend::create("INTERPRETER");
+
+    // create default stream executor with a given name
+    _waitExecutor = ExecutorManager::getInstance()->getIdleCPUStreamsExecutor({"TemplateWaitExecutor"});
 }
 // ! [plugin:ctor]
+
+// ! [plugin:dtor]
+Plugin::~Plugin() {
+    // Plugin should remove executors from executor cache to avoid threads number growth in the whole application
+    ExecutorManager::getInstance()->clear("TemplateStreamsExecutor");
+    ExecutorManager::getInstance()->clear("TemplateWaitExecutor");
+    // NOTE: Uncomment this if Inference Engine Executor cache is used to create callback executor
+    // ExecutorManager::getInstance()->clear("TemplateCallbackExecutor");
+}
+// ! [plugin:dtor]
+
+// ! [plugin:transform_network]
+
+std::shared_ptr<ngraph::Function> TransformNetwork(const std::shared_ptr<const ngraph::Function>& function) {
+    // 1. Copy ngraph::Function first to apply some transformations which modify original ngraph::Function
+    std::vector<::ngraph::element::Type> new_types;
+    std::vector<::ngraph::PartialShape> new_shapes;
+
+    for (const auto &parameter : function->get_parameters()) {
+        new_shapes.emplace_back(parameter->get_partial_shape());
+        new_types.emplace_back(parameter->get_element_type());
+    }
+
+    auto transformedNetwork = ngraph::clone_function(*function);
+
+    // 2. Perform common optimizations and device-specific transformations
+    ngraph::pass::Manager passManager;
+    // Example: register CommonOptimizations transformation from transformations library
+    passManager.register_pass<ngraph::pass::CommonOptimizations>();
+    // Example: register plugin specific transformation
+    passManager.register_pass<ngraph::pass::DecomposeDivideMatcher>();
+    passManager.register_pass<ngraph::pass::ReluReluFusionMatcher>();
+    // Register any other transformations
+    // ..
+
+    // After `run_passes`, we have the transformed function, where operations match device operations,
+    // and we can create device backend-dependent graph
+    passManager.run_passes(transformedNetwork);
+
+    return transformedNetwork;
+}
+// ! [plugin:transform_network]
 
 // ! [plugin:load_exe_network_impl]
 InferenceEngine::ExecutableNetworkInternal::Ptr Plugin::LoadExeNetworkImpl(const InferenceEngine::ICNNNetwork & network,
@@ -72,9 +112,12 @@ InferenceEngine::ExecutableNetworkInternal::Ptr Plugin::LoadExeNetworkImpl(const
         }
     }
 
-    auto clonedNetwork = cloneNet(network);
+    auto function = network.getFunction();
+    if (function == nullptr) {
+        THROW_IE_EXCEPTION << "TEMPLATE plugin can compile only IR v10 networks";
+    }
 
-    return std::make_shared<ExecutableNetwork>(*clonedNetwork, cfg);
+    return std::make_shared<ExecutableNetwork>(function, cfg, std::static_pointer_cast<Plugin>(shared_from_this()));
 }
 // ! [plugin:load_exe_network_impl]
 
@@ -88,39 +131,66 @@ InferenceEngine::ExecutableNetwork Plugin::ImportNetworkImpl(std::istream& model
     // ..
 
     auto cfg = Configuration(config, exportedCfg);
+    auto exec_network_impl = std::make_shared<ExecutableNetwork>(model, cfg, std::static_pointer_cast<Plugin>(shared_from_this()));
 
-    IExecutableNetwork::Ptr executableNetwork;
-    auto exec_network_impl = std::make_shared<ExecutableNetwork>(model, cfg);
-    executableNetwork.reset(new ExecutableNetworkBase<ExecutableNetworkInternal>(exec_network_impl),
-                            [](InferenceEngine::details::IRelease *p) {p->Release(); });
-
-    return InferenceEngine::ExecutableNetwork{ executableNetwork };
+    return make_executable_network(exec_network_impl);
 }
 // ! [plugin:import_network_impl]
 
 // ! [plugin:query_network]
-void Plugin::QueryNetwork(const ICNNNetwork &network, const ConfigMap& config, QueryNetworkResult &res) const {
+QueryNetworkResult Plugin::QueryNetwork(const ICNNNetwork &network, const ConfigMap& config) const {
+    QueryNetworkResult res;
     Configuration cfg{config, _cfg, false};
-    res.rc = StatusCode::OK;
 
-    if (std::shared_ptr<const ngraph::Function> ngraphFunction = network.getFunction()) {
-        auto ops = ngraphFunction->get_ordered_ops();
-        for (auto&& op : ops) {
-            // TODO: investigate if an op is actually supported by Template device
-            bool supported = true;
-            if (supported) {
-                res.supportedLayersMap.insert({ op->get_friendly_name(), GetName() });
+    auto function = network.getFunction();
+    if (function == nullptr) {
+         THROW_IE_EXCEPTION << "Template Plugin supports only ngraph cnn network representation";
+    }
+
+    // 1. First of all we should store initial input operation set
+    std::unordered_set<std::string> originalOps;
+    for (auto&& node : function->get_ops()) {
+        originalOps.emplace(node->get_friendly_name());
+    }
+
+    // 2. It is needed to apply all transformations as it is done in LoadExeNetworkImpl
+    auto transformedFunction = TransformNetwork(function);
+
+    // 3. The same input node can be transformed into supported and unsupported backend node
+    // So we need store as supported ether unsupported node sets
+    std::unordered_set<std::string> supported;
+    std::unordered_set<std::string> unsupported;
+    auto opset = ngraph::get_opset4();
+    for (auto&& node : transformedFunction->get_ops()) {
+        // Extract transformation history from transformed node as list of nodes
+        for (auto&& fusedLayerName : ngraph::getFusedNamesVector(node)) {
+            // Filter just nodes from original operation set
+            // TODO: fill with actual decision rules based on whether kernel is supported by backend
+            if (contains(originalOps, fusedLayerName)) {
+                if (opset.contains_type_insensitive(fusedLayerName)) {
+                    supported.emplace(fusedLayerName);
+                } else {
+                    unsupported.emplace(fusedLayerName);
+                }
             }
         }
-    } else {
-        THROW_IE_EXCEPTION << "TEMPLATE plugin can query only IR v10 networks";
     }
+
+    // 4. The result set should contains just nodes from supported set
+    for (auto&& layerName : supported) {
+        if (!contains(unsupported, layerName)) {
+            res.supportedLayersMap.emplace(layerName, GetName());
+        }
+    }
+
+    return res;
 }
 // ! [plugin:query_network]
 
 // ! [plugin:add_extension]
 void Plugin::AddExtension(InferenceEngine::IExtensionPtr /*extension*/) {
     // TODO: add extensions if plugin supports extensions
+    THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str;
 }
 // ! [plugin:add_extension]
 
@@ -148,10 +218,17 @@ InferenceEngine::Parameter Plugin::GetMetric(const std::string& name, const std:
             METRIC_KEY(RANGE_FOR_ASYNC_INFER_REQUESTS) };
         IE_SET_METRIC_RETURN(SUPPORTED_METRICS, supportedMetrics);
     } else if (METRIC_KEY(SUPPORTED_CONFIG_KEYS) == name) {
-        std::vector<std::string> confiKeys = {
+        std::vector<std::string> configKeys = {
             CONFIG_KEY(DEVICE_ID),
-            CONFIG_KEY(PERF_COUNT) };
-        IE_SET_METRIC_RETURN(SUPPORTED_CONFIG_KEYS, confiKeys);
+            CONFIG_KEY(PERF_COUNT),
+            TEMPLATE_CONFIG_KEY(THROUGHPUT_STREAMS)};
+        auto streamExecutorConfigKeys = IStreamsExecutor::Config{}.SupportedKeys();
+        for (auto&& configKey : streamExecutorConfigKeys) {
+            if (configKey != InferenceEngine::PluginConfigParams::KEY_CPU_THROUGHPUT_STREAMS) {
+                configKeys.emplace_back(configKey);
+            }
+        }
+        IE_SET_METRIC_RETURN(SUPPORTED_CONFIG_KEYS, configKeys);
     } else if (METRIC_KEY(AVAILABLE_DEVICES) == name) {
         // TODO: fill list of available devices
         std::vector<std::string> availableDevices = { "" };
@@ -161,7 +238,7 @@ InferenceEngine::Parameter Plugin::GetMetric(const std::string& name, const std:
         IE_SET_METRIC_RETURN(FULL_DEVICE_NAME, name);
     } else if (METRIC_KEY(OPTIMIZATION_CAPABILITIES) == name) {
         // TODO: fill actual list of supported capabilities: e.g. Template device supports only FP32
-        std::vector<std::string> capabilities = { METRIC_VALUE(FP32), TEMPLATE_METRIC_VALUE(HARDWARE_CONVOLUTION) };
+        std::vector<std::string> capabilities = { METRIC_VALUE(FP32) /*, TEMPLATE_METRIC_VALUE(HARDWARE_CONVOLUTION)*/ };
         IE_SET_METRIC_RETURN(OPTIMIZATION_CAPABILITIES, capabilities);
     } else if (METRIC_KEY(RANGE_FOR_ASYNC_INFER_REQUESTS) == name) {
         // TODO: fill with actual values
@@ -174,14 +251,6 @@ InferenceEngine::Parameter Plugin::GetMetric(const std::string& name, const std:
 // ! [plugin:get_metric]
 
 // ! [plugin:create_plugin_engine]
-INFERENCE_PLUGIN_API(StatusCode) CreatePluginEngine(IInferencePlugin *&plugin, ResponseDesc *resp) noexcept {
-    try {
-        plugin = make_ie_compatible_plugin({2, 1, CI_BUILD_NUMBER, "templatePlugin"},
-                                           std::make_shared<Plugin>());
-        return OK;
-    }
-    catch (std::exception &ex) {
-        return DescriptionBuffer(GENERAL_ERROR, resp) << ex.what();
-    }
-}
+static const Version version = {{2, 1}, CI_BUILD_NUMBER, "templatePlugin"};
+IE_DEFINE_PLUGIN_CREATE_FUNCTION(Plugin, version)
 // ! [plugin:create_plugin_engine]

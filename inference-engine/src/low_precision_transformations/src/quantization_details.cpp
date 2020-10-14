@@ -8,7 +8,6 @@
 #include <algorithm>
 #include <blob_factory.hpp>
 #include <cmath>
-#include <details/caseless.hpp>
 #include <limits>
 #include <map>
 #include <memory>
@@ -18,8 +17,8 @@
 #include <vector>
 
 #include <ie_common.h>
-#include "cnn_network_impl.hpp"
-#include "ie_util_internal.hpp"
+#include <legacy/cnn_network_impl.hpp>
+#include <legacy/ie_util_internal.hpp>
 #include "low_precision_transformations/common/ie_lpt_exception.hpp"
 #include "low_precision_transformations/network_helper.hpp"
 

@@ -12,29 +12,28 @@
 #include "common_test_utils/common_utils.hpp"
 #include "common_test_utils/test_common.hpp"
 #include "common_test_utils/test_constants.hpp"
+#include "common_test_utils/common_layers_params.hpp"
 #include "ie_core.hpp"
 
 namespace LayerTestsDefinitions {
-namespace EltwiseParams {
-enum class OpType {
-    SCALAR,
-    VECTOR
-};
-} // namespace EltwiseParams
 
 typedef std::tuple<
     std::vector<std::vector<size_t>>,             // input shapes
     ngraph::helpers::EltwiseTypes,                // eltwise op type
     ngraph::helpers::InputLayerType,              // secondary input type
-    EltwiseParams::OpType,                        // op type
+    CommonTestUtils::OpType,                      // op type
     InferenceEngine::Precision,                   // Net precision
+    InferenceEngine::Precision,                   // Input precision
+    InferenceEngine::Precision,                   // Output precision
+    InferenceEngine::Layout,                      // Input layout
     std::string,                                  // Device name
     std::map<std::string, std::string>            // Additional network configuration
 > EltwiseTestParams;
 
 class EltwiseLayerTest : public testing::WithParamInterface<EltwiseTestParams>,
-    public LayerTestsUtils::LayerTestsCommon {
+    virtual public LayerTestsUtils::LayerTestsCommon {
 protected:
+    InferenceEngine::Blob::Ptr GenerateInput(const InferenceEngine::InputInfo &info) const override;
     void SetUp() override;
 
 public:

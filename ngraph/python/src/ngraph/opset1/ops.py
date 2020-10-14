@@ -21,7 +21,7 @@ import numpy as np
 from functools import partial
 
 from ngraph.impl import Node, PartialShape, Shape
-from ngraph.impl.op import Constant, GetOutputElement, Parameter
+from ngraph.impl.op import Constant, Parameter
 from ngraph.opset_utils import _get_node_factory
 from ngraph.utils.decorators import binary_op, nameable_op, unary_op
 from ngraph.utils.input_validation import (
@@ -750,22 +750,22 @@ def detection_output(
     :return: Node representing DetectionOutput operation.
     """
     requirements = [
-        ("attrs.num_classes", True, np.integer, is_positive_value),
-        ("attrs.background_label_id", False, np.integer, None),
-        ("attrs.top_k", False, np.integer, None),
-        ("attrs.variance_encoded_in_target", False, np.bool_, None),
-        ("attrs.keep_top_k", True, np.integer, None),
-        ("attrs.code_type", False, np.str_, None),
-        ("attrs.share_location", False, np.bool_, None),
-        ("attrs.nms_threshold", True, np.floating, None),
-        ("attrs.confidence_threshold", False, np.floating, None),
-        ("attrs.clip_after_nms", False, np.bool_, None),
-        ("attrs.clip_before_nms", False, np.bool_, None),
-        ("attrs.decrease_label_id", False, np.bool_, None),
-        ("attrs.normalized", False, np.bool_, None),
-        ("attrs.input_height", False, np.integer, is_positive_value),
-        ("attrs.input_width", False, np.integer, is_positive_value),
-        ("attrs.objectness_score", False, np.floating, is_non_negative_value),
+        ("num_classes", True, np.integer, is_positive_value),
+        ("background_label_id", False, np.integer, None),
+        ("top_k", False, np.integer, None),
+        ("variance_encoded_in_target", False, np.bool_, None),
+        ("keep_top_k", True, np.integer, None),
+        ("code_type", False, np.str_, None),
+        ("share_location", False, np.bool_, None),
+        ("nms_threshold", True, np.floating, None),
+        ("confidence_threshold", False, np.floating, None),
+        ("clip_after_nms", False, np.bool_, None),
+        ("clip_before_nms", False, np.bool_, None),
+        ("decrease_label_id", False, np.bool_, None),
+        ("normalized", False, np.bool_, None),
+        ("input_height", False, np.integer, is_positive_value),
+        ("input_width", False, np.integer, is_positive_value),
+        ("objectness_score", False, np.floating, is_non_negative_value),
     ]
 
     check_valid_attributes("DetectionOutput", attrs, requirements)
@@ -1243,12 +1243,12 @@ def interpolate(
     :return: Node representing interpolation operation.
     """
     requirements = [
-        ("attrs.axes", True, np.integer, is_non_negative_value),
-        ("attrs.mode", True, np.str_, None),
-        ("attrs.align_corners", False, np.bool_, None),
-        ("attrs.antialias", False, np.bool_, None),
-        ("attrs.pads_begin", False, np.integer, is_non_negative_value),
-        ("attrs.pads_end", False, np.integer, is_non_negative_value),
+        ("axes", True, np.integer, is_non_negative_value),
+        ("mode", True, np.str_, None),
+        ("align_corners", False, np.bool_, None),
+        ("antialias", False, np.bool_, None),
+        ("pads_begin", False, np.integer, is_non_negative_value),
+        ("pads_end", False, np.integer, is_non_negative_value),
     ]
 
     check_valid_attributes("Interpolate", attrs, requirements)
@@ -1934,13 +1934,13 @@ def prior_box_clustered(
     :return: Node representing PriorBoxClustered operation.
     """
     requirements = [
-        ("attrs.widths", False, np.floating, is_positive_value),
-        ("attrs.heights", False, np.floating, is_positive_value),
-        ("attrs.clip", False, np.bool_, None),
-        ("attrs.step_widths", False, np.floating, is_positive_value),
-        ("attrs.step_heights", False, np.floating, is_positive_value),
-        ("attrs.offset", True, np.floating, is_positive_value),
-        ("attrs.variance", False, np.floating, is_positive_value),
+        ("widths", False, np.floating, is_positive_value),
+        ("heights", False, np.floating, is_positive_value),
+        ("clip", False, np.bool_, None),
+        ("step_widths", False, np.floating, is_positive_value),
+        ("step_heights", False, np.floating, is_positive_value),
+        ("offset", True, np.floating, is_positive_value),
+        ("variance", False, np.floating, is_positive_value),
     ]
 
     check_valid_attributes("PriorBoxClustered", attrs, requirements)
@@ -2046,18 +2046,18 @@ def prior_box(
     :return: Node representing prior box operation.
     """
     requirements = [
-        ("attrs.offset", True, np.floating, is_non_negative_value),
-        ("attrs.min_size", False, np.floating, is_positive_value),
-        ("attrs.max_size", False, np.floating, is_positive_value),
-        ("attrs.aspect_ratio", False, np.floating, is_positive_value),
-        ("attrs.flip", False, np.bool_, None),
-        ("attrs.clip", False, np.bool_, None),
-        ("attrs.step", False, np.floating, is_non_negative_value),
-        ("attrs.variance", False, np.floating, is_positive_value),
-        ("attrs.scale_all_sizes", False, np.bool_, None),
-        ("attrs.fixed_ratio", False, np.floating, is_positive_value),
-        ("attrs.fixed_size", False, np.floating, is_positive_value),
-        ("attrs.density", False, np.floating, is_positive_value),
+        ("offset", True, np.floating, is_non_negative_value),
+        ("min_size", False, np.floating, is_positive_value),
+        ("max_size", False, np.floating, is_positive_value),
+        ("aspect_ratio", False, np.floating, is_positive_value),
+        ("flip", False, np.bool_, None),
+        ("clip", False, np.bool_, None),
+        ("step", False, np.floating, is_non_negative_value),
+        ("variance", False, np.floating, is_positive_value),
+        ("scale_all_sizes", False, np.bool_, None),
+        ("fixed_ratio", False, np.floating, is_positive_value),
+        ("fixed_size", False, np.floating, is_positive_value),
+        ("density", False, np.floating, is_positive_value),
     ]
 
     check_valid_attributes("PriorBox", attrs, requirements)
@@ -2068,7 +2068,7 @@ def prior_box(
 @nameable_op
 def proposal(
     class_probs: Node,
-    box_logits: Node,
+    bbox_deltas: Node,
     image_shape: NodeInput,
     attrs: dict,
     name: Optional[str] = None,
@@ -2076,7 +2076,7 @@ def proposal(
     """Filter bounding boxes and outputs only those with the highest prediction confidence.
 
     :param  class_probs:        4D input floating point tensor with class prediction scores.
-    :param  box_logits:         4D input floating point tensor with box logits.
+    :param  bbox_deltas:         4D input floating point tensor with box logits.
     :param  image_shape:        The 1D input tensor with 3 or 4 elements describing image shape.
     :param  attrs:              The dictionary containing key, value pairs for attributes.
     :param  name:               Optional name for the output node.
@@ -2178,26 +2178,26 @@ def proposal(
     :return: Node representing Proposal operation.
     """
     requirements = [
-        ("attrs.base_size", True, np.unsignedinteger, is_positive_value),
-        ("attrs.pre_nms_topn", True, np.unsignedinteger, is_positive_value),
-        ("attrs.post_nms_topn", True, np.unsignedinteger, is_positive_value),
-        ("attrs.nms_thresh", True, np.floating, is_positive_value),
-        ("attrs.feat_stride", True, np.unsignedinteger, is_positive_value),
-        ("attrs.min_size", True, np.unsignedinteger, is_positive_value),
-        ("attrs.ratio", True, np.floating, None),
-        ("attrs.scale", True, np.floating, None),
-        ("attrs.clip_before_nms", False, np.bool_, None),
-        ("attrs.clip_after_nms", False, np.bool_, None),
-        ("attrs.normalize", False, np.bool_, None),
-        ("attrs.box_size_scale", False, np.floating, is_positive_value),
-        ("attrs.box_coordinate_scale", False, np.floating, is_positive_value),
-        ("attrs.framework", False, np.str_, None),
+        ("base_size", True, np.unsignedinteger, is_positive_value),
+        ("pre_nms_topn", True, np.unsignedinteger, is_positive_value),
+        ("post_nms_topn", True, np.unsignedinteger, is_positive_value),
+        ("nms_thresh", True, np.floating, is_positive_value),
+        ("feat_stride", True, np.unsignedinteger, is_positive_value),
+        ("min_size", True, np.unsignedinteger, is_positive_value),
+        ("ratio", True, np.floating, None),
+        ("scale", True, np.floating, None),
+        ("clip_before_nms", False, np.bool_, None),
+        ("clip_after_nms", False, np.bool_, None),
+        ("normalize", False, np.bool_, None),
+        ("box_size_scale", False, np.floating, is_positive_value),
+        ("box_coordinate_scale", False, np.floating, is_positive_value),
+        ("framework", False, np.str_, None),
     ]
 
     check_valid_attributes("Proposal", attrs, requirements)
 
     return _get_node_factory_opset1().create(
-        "Proposal", [class_probs, box_logits, as_node(image_shape)], attrs
+        "Proposal", [class_probs, bbox_deltas, as_node(image_shape)], attrs
     )
 
 

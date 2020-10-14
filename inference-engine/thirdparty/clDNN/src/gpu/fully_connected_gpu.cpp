@@ -100,8 +100,6 @@ attach_fully_connected_gpu::attach_fully_connected_gpu() {
         {std::make_tuple(engine_types::ocl, data_types::i8, format::bfyx), val_fw},
         {std::make_tuple(engine_types::ocl, data_types::u8, format::bfyx), val_fw},
         // MMAD
-        {std::make_tuple(engine_types::ocl, data_types::i8, format::byxf_af32), val_fw},
-        {std::make_tuple(engine_types::ocl, data_types::i8, format::fs_bs_yx_bsv4_fsv32), val_fw},
         {std::make_tuple(engine_types::ocl, data_types::i8, format::b_fs_yx_fsv32), val_fw},
         {std::make_tuple(engine_types::ocl, data_types::u8, format::b_fs_yx_fsv32), val_fw},
         // IMAD
@@ -110,7 +108,6 @@ attach_fully_connected_gpu::attach_fully_connected_gpu() {
         {std::make_tuple(engine_types::ocl, data_types::f32, format::b_fs_yx_fsv4), val_fw},
         {std::make_tuple(engine_types::ocl, data_types::i8, format::b_fs_yx_fsv16), val_fw},
         {std::make_tuple(engine_types::ocl, data_types::u8, format::b_fs_yx_fsv16), val_fw},
-        {std::make_tuple(engine_types::ocl, data_types::f32, format::bs_fs_yx_bsv16_fsv16), val_fw},
         {std::make_tuple(engine_types::ocl, data_types::i8, format::bs_fs_yx_bsv16_fsv16), val_fw},
         {std::make_tuple(engine_types::ocl, data_types::u8, format::bs_fs_yx_bsv16_fsv16), val_fw},
         // fs_b_yx_fsv32

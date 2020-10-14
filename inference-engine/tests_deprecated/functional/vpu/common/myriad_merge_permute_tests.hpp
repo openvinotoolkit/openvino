@@ -26,8 +26,8 @@ public:
         ResetGeneratedNet();
         ResetReferenceLayers();
 
-        _config[VPU_CONFIG_KEY(DETECT_NETWORK_BATCH)  ] = CONFIG_VALUE(NO);
-        _config[VPU_CONFIG_KEY(ENABLE_PERMUTE_MERGING)] = usePermuteMerging ? CONFIG_VALUE(YES) : CONFIG_VALUE(NO) ;
+        _config[InferenceEngine::MYRIAD_DETECT_NETWORK_BATCH  ] = CONFIG_VALUE(NO);
+        _config[InferenceEngine::MYRIAD_ENABLE_PERMUTE_MERGING] = usePermuteMerging ? CONFIG_VALUE(YES) : CONFIG_VALUE(NO) ;
 
         for (const auto& permutation_vector : permutation_vectors) {
             const auto num_dims = input_tensor_sizes.size();

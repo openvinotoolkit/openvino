@@ -20,7 +20,8 @@ function(STYLE_APPLY_FILE PATH)
 endfunction()
 
 set(DIRECTORIES_OF_INTEREST
-    src
+    frontend
+    core
     doc
     test
     python/pyngraph

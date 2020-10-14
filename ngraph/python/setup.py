@@ -28,6 +28,8 @@ PYNGRAPH_ROOT_DIR = os.path.abspath(os.path.dirname(__file__))
 PYNGRAPH_SRC_DIR = os.path.join(PYNGRAPH_ROOT_DIR, "src")
 NGRAPH_DEFAULT_INSTALL_DIR = os.environ.get("HOME")
 NGRAPH_PYTHON_DEBUG = os.environ.get("NGRAPH_PYTHON_DEBUG")
+# Change current working dircectory to ngraph/python
+os.chdir(PYNGRAPH_ROOT_DIR)
 
 
 def find_ngraph_dist_dir():
@@ -98,6 +100,34 @@ if len([fn for fn in os.listdir(NGRAPH_CPP_LIBRARY_DIR) if re.search("onnx_impor
     ONNX_IMPORTER_CPP_LIBRARY_NAME = "onnx_importerd"
 
 
+def _remove_compiler_flags(obj):
+    """Make pybind11 more verbose in debug builds."""
+    try:
+        # pybind11 is much more verbose without the NDEBUG define
+        if sys.platform == "win32":
+            obj.compiler.remove("/DNDEBUG")
+            obj.compiler.remove("/O2")
+        else:
+            obj.compiler.remove("-DNDEBUG")
+            obj.compiler.remove("-O2")
+    except (AttributeError, ValueError):
+        pass
+
+
+def _remove_compiler_so_flags(obj):
+    """Make pybind11 more verbose in debug builds."""
+    try:
+        # pybind11 is much more verbose without the NDEBUG define
+        if sys.platform == "win32":
+            obj.compiler_so.remove("/DNDEBUG")
+            obj.compiler_so.remove("/O2")
+        else:
+            obj.compiler_so.remove("-DNDEBUG")
+            obj.compiler_so.remove("-O2")
+    except (AttributeError, ValueError):
+        pass
+
+
 def parallelCCompile(
     self,
     sources,
@@ -122,14 +152,9 @@ def parallelCCompile(
     cc_args = self._get_cc_args(pp_opts, debug, extra_preargs)
 
     if NGRAPH_PYTHON_DEBUG in ["TRUE", "ON", True]:
-        try:
-            # pybind11 is much more verbose without -DNDEBUG
-            self.compiler.remove("-DNDEBUG")
-            self.compiler.remove("-O2")
-            self.compiler_so.remove("-DNDEBUG")
-            self.compiler_so.remove("-O2")
-        except (AttributeError, ValueError):
-            pass
+        _remove_compiler_flags(self)
+        _remove_compiler_so_flags(self)
+
     # parallel code
     import multiprocessing.pool
 
@@ -189,10 +214,7 @@ sources = [
     "pyngraph/node_output.cpp",
     "pyngraph/node_factory.cpp",
     "pyngraph/ops/constant.cpp",
-    "pyngraph/ops/get_output_element.cpp",
-    "pyngraph/ops/op.cpp",
     "pyngraph/ops/parameter.cpp",
-    "pyngraph/ops/regmodule_pyngraph_op.cpp",
     "pyngraph/ops/result.cpp",
     "pyngraph/ops/util/arithmetic_reduction.cpp",
     "pyngraph/ops/util/binary_elementwise_arithmetic.cpp",
@@ -206,13 +228,14 @@ sources = [
     "pyngraph/passes/regmodule_pyngraph_passes.cpp",
     "pyngraph/partial_shape.cpp",
     "pyngraph/pyngraph.cpp",
-    "pyngraph/serializer.cpp",
     "pyngraph/shape.cpp",
     "pyngraph/strides.cpp",
     "pyngraph/tensor_iterator_builder.cpp",
     "pyngraph/types/element_type.cpp",
     "pyngraph/types/regmodule_pyngraph_types.cpp",
     "pyngraph/util.cpp",
+    "pyngraph/variant.cpp",
+    "pyngraph/rt_map.cpp",
 ]
 
 packages = [
@@ -221,6 +244,7 @@ packages = [
     "ngraph.opset2",
     "ngraph.opset3",
     "ngraph.opset4",
+    "ngraph.opset5",
     "ngraph.utils",
     "ngraph.impl",
     "ngraph.impl.op",
@@ -330,9 +354,8 @@ class BuildExt(build_ext):
             # -Wstrict-prototypes is not a valid option for c++
             self.compiler.compiler_so.remove("-Wstrict-prototypes")
             if NGRAPH_PYTHON_DEBUG in ["TRUE", "ON", True]:
-                # pybind11 is much more verbose without -DNDEBUG
-                self.compiler.compiler_so.remove("-DNDEBUG")
-                self.compiler.compiler_so.remove("-O2")
+                _remove_compiler_so_flags(self)
+
         except (AttributeError, ValueError):
             pass
 

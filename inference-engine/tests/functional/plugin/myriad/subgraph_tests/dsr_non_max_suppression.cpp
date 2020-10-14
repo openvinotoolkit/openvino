@@ -25,7 +25,7 @@ using Parameters = std::tuple<
 >;
 
 class DSR_NonMaxSuppression : public testing::WithParamInterface<Parameters>,
-        public LayerTestsUtils::LayerTestsCommon {
+        virtual public LayerTestsUtils::LayerTestsCommon {
 protected:
     void SetUp() override {
         const auto& parameters = GetParam();
@@ -62,7 +62,8 @@ TEST_P(DSR_NonMaxSuppression, CompareWithReference) {
     Run();
 }
 
-INSTANTIATE_TEST_CASE_P(DISABLED_DynamicNonMaxSupression, DSR_NonMaxSuppression,
+// #-30919
+INSTANTIATE_TEST_CASE_P(DISABLED_smoke_DynamicNonMaxSupression, DSR_NonMaxSuppression,
     ::testing::Combine(
          ::testing::Values(
                     ngraph::element::f16,

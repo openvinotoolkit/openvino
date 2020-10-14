@@ -3,9 +3,9 @@
 //
 
 #include "mkldnn_graph_dumper.h"
-#include "cnn_network_impl.hpp"
-#include "ie_util_internal.hpp"
-#include "ie_ngraph_utils.hpp"
+#include <legacy/cnn_network_impl.hpp>
+#include <legacy/ie_util_internal.hpp>
+#include <legacy/ie_ngraph_utils.hpp>
 #include "exec_graph_info.hpp"
 #include "mkldnn_debug.h"
 #include "generic_ie.hpp"
@@ -41,11 +41,12 @@ CNNLayer::Ptr create_cnnlayer(const MKLDNNNodePtr &node) {
     return layer;
 }
 
-std::shared_ptr<ICNNNetwork> dump_graph_as_ie_ngraph_net(const MKLDNNGraph &graph) {
+InferenceEngine::CNNNetwork dump_graph_as_ie_ngraph_net(const MKLDNNGraph &graph) {
     std::map<MKLDNNNodePtr, std::shared_ptr<ngraph::Node> > node2layer;
 
     ngraph::ResultVector results;
     ngraph::ParameterVector params;
+    ngraph::NodeVector to_hold;
 
     auto get_inputs = [&] (const MKLDNNNodePtr & node) {
         auto pr_edges = node->getParentEdges();
@@ -67,7 +68,7 @@ std::shared_ptr<ICNNNetwork> dump_graph_as_ie_ngraph_net(const MKLDNNGraph &grap
     };
 
     auto create_ngraph_node = [&](const MKLDNNNodePtr &node) {
-        bool is_input = false, is_output = false;
+        bool is_input = false, is_output = false, should_be_hold = false;
         for (auto && kvp : graph.inputNodes) {
             if (kvp.second == node) {
                 is_input = true;
@@ -80,6 +81,12 @@ std::shared_ptr<ICNNNetwork> dump_graph_as_ie_ngraph_net(const MKLDNNGraph &grap
                 is_output = true;
                 break;
             }
+        }
+
+        if (!is_output && node->getChildEdges().empty()) {
+            // The node has no consumer and is not an output.
+            // Should be hold in other irregular way.
+            should_be_hold = true;
         }
 
         auto meta_data = extract_node_metadata(node);
@@ -106,6 +113,10 @@ std::shared_ptr<ICNNNetwork> dump_graph_as_ie_ngraph_net(const MKLDNNGraph &grap
             }
         }
 
+        if (should_be_hold) {
+            to_hold.push_back(return_node);
+        }
+
         for (auto && kvp : meta_data)
             return_node->get_rt_info()[kvp.first] = std::make_shared<::ngraph::VariantWrapper<std::string>>(kvp.second);
         return_node->set_friendly_name(node->getName());
@@ -120,13 +131,18 @@ std::shared_ptr<ICNNNetwork> dump_graph_as_ie_ngraph_net(const MKLDNNGraph &grap
         node2layer[node] = nodes.back();
     }
 
+    auto holder = results[0];
+    for (auto &node : to_hold) {
+        holder->add_control_dependency(node);
+    }
+
     ngraph::op::GenericIE::DisableReshape reshape(nodes);
     auto function = std::make_shared<ngraph::Function>(results, params, graph._name);
     InferenceEngine::CNNNetwork net(function);
     return net;
 }
 
-std::shared_ptr<ICNNNetwork> dump_graph_as_ie_net(const MKLDNNGraph &graph) {
+InferenceEngine::CNNNetwork dump_graph_as_ie_net(const MKLDNNGraph &graph) {
     auto net = std::make_shared<details::CNNNetworkImpl>();
 
     net->setName(graph._name);
@@ -175,14 +191,12 @@ std::shared_ptr<ICNNNetwork> dump_graph_as_ie_net(const MKLDNNGraph &graph) {
         net->setInputInfo(in_info);
     }
 
-    return net;
+    return InferenceEngine::CNNNetwork{net};
 }
 
 void dump_graph_as_dot(const MKLDNNGraph &graph, std::ostream &out) {
-    auto dump_net = dump_graph_as_ie_net(graph);
-    if (dump_net == nullptr)
-        THROW_IE_EXCEPTION << "Nullable net dump";
-    InferenceEngine::saveGraphToDot(*dump_net, out, drawer_callback);
+    InferenceEngine::CNNNetwork dump_net = dump_graph_as_ie_net(graph);
+    InferenceEngine::saveGraphToDot(dump_net, out, drawer_callback);
 }
 
 //**********************************

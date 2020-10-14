@@ -202,8 +202,8 @@ def test_binary_operators_with_scalar(operator, numpy_function):
 
 
 def test_multiply():
-    A = np.arange(48).reshape((8, 1, 6, 1))
-    B = np.arange(35).reshape((7, 1, 5))
+    A = np.arange(48, dtype=np.int32).reshape((8, 1, 6, 1))
+    B = np.arange(35, dtype=np.int32).reshape((7, 1, 5))
 
     expected = np.multiply(A, B)
     result = run_op_node([A, B], ng.multiply)

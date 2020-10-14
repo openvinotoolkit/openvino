@@ -4,29 +4,25 @@
 
 set(TARGET_NAME "inference_engine_onnx_reader")
 
-if(ENABLE_LTO)
-    ie_enable_lto()
-endif()
-
-set(PUBLIC_HEADERS_DIR "${CMAKE_CURRENT_SOURCE_DIR}/")
-
-file(GLOB_RECURSE LIBRARY_SRC ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp)
-file(GLOB_RECURSE PUBLIC_HEADERS ${PUBLIC_HEADERS_DIR}/*.h ${PUBLIC_HEADERS_DIR}/*.hpp)
+file(GLOB_RECURSE LIBRARY_SRC ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp
+                              ${CMAKE_CURRENT_SOURCE_DIR}/*.hpp)
 
 # Create named folders for the sources within the .vcproj
 # Empty name lists them directly under the .vcproj
 
 source_group("src" FILES ${LIBRARY_SRC})
-source_group("include" FILES ${PUBLIC_HEADERS})
 
 # Create shared library
 
-add_library(${TARGET_NAME} SHARED ${LIBRARY_SRC} ${PUBLIC_HEADERS})
+add_library(${TARGET_NAME} SHARED ${LIBRARY_SRC})
 
-target_include_directories(${TARGET_NAME} PUBLIC ${PUBLIC_HEADERS_DIR})
+target_include_directories(${TARGET_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 
 target_compile_definitions(${TARGET_NAME} PRIVATE IMPLEMENT_INFERENCE_ENGINE_PLUGIN)
+
 target_link_libraries(${TARGET_NAME} PRIVATE inference_engine_reader_api onnx_importer inference_engine)
+
+set_target_properties(${TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION ${ENABLE_LTO})
 
 # code style
 

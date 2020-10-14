@@ -4,7 +4,7 @@
 
 #include "mkldnn_softmax_node.h"
 #include "desc_iterator.hpp"
-#include <ie_layers.h>
+#include <legacy/ie_layers.h>
 #include <string>
 #include <mkldnn_types.h>
 #include <mkldnn_extension_utils.h>
@@ -123,4 +123,4 @@ void MKLDNNSoftMaxNode::createDescriptor(const std::vector<InferenceEngine::Tens
             new softmax_forward::desc(prop_kind::forward_scoring, in_candidate, axis)));
     descs.push_back(desc);
 }
-REG_MKLDNN_PRIM_FOR(MKLDNNSoftMaxNode, Softmax);
+REG_MKLDNN_PRIM_FOR(MKLDNNSoftMaxNode, SoftMax);

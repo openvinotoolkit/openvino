@@ -7,7 +7,6 @@
 #include <vector>
 #include <memory>
 
-#include <inference_engine.hpp>
 #include <ie_compound_blob.h>
 
 #include <cldnn/cldnn_config.hpp>
@@ -31,7 +30,7 @@ protected:
     }
 };
 
-TEST_F(RemoteBlob_Test, canInputUserBlob) {
+TEST_F(RemoteBlob_Test, smoke_canInputUserBlob) {
 #if defined(_WIN32) || defined(ANDROID)
     GTEST_SKIP();
 #endif
@@ -86,7 +85,7 @@ TEST_F(RemoteBlob_Test, canInputUserBlob) {
     }
 }
 
-TEST_F(RemoteBlob_Test, canInferOnUserContext) {
+TEST_F(RemoteBlob_Test, smoke_canInferOnUserContext) {
 #if defined _WIN32
     GTEST_SKIP();
 #endif
@@ -214,4 +213,4 @@ TEST_P(TwoNets_Test, canInferTwoExecNets) {
 
 const std::vector<size_t> num_strems{1, 2};
 
-INSTANTIATE_TEST_CASE_P(RemoteBlob, TwoNets_Test, ::testing::ValuesIn(num_strems), TwoNets_Test::getTestCaseName);
+INSTANTIATE_TEST_CASE_P(smoke_RemoteBlob, TwoNets_Test, ::testing::ValuesIn(num_strems), TwoNets_Test::getTestCaseName);

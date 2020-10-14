@@ -12,6 +12,7 @@
 #include <utility>
 
 #include "cpp_interfaces/exception2status.hpp"
+#include "cpp_interfaces/plugin_itt.hpp"
 #include "cpp_interfaces/interface/ie_iinfer_request_internal.hpp"
 #include "cpp_interfaces/interface/ie_iplugin_internal.hpp"
 #include "debug.h"
@@ -69,7 +70,7 @@ public:
      * precision and size.
      */
     void SetBlob(const char* name, const Blob::Ptr& data) override {
-        IE_PROFILING_AUTO_SCOPE(SetBlob)
+        OV_ITT_SCOPED_TASK(itt::domains::Plugin, "SetBlob");
         if (name == nullptr) {
             THROW_IE_EXCEPTION << NOT_FOUND_str + "Failed to set blob with empty name";
         }
@@ -138,7 +139,7 @@ public:
      * @note if ROI blob was previously set it is returned (without dimensions checks) instead of default blob.
      */
     void GetBlob(const char* name, Blob::Ptr& data) override {
-        IE_PROFILING_AUTO_SCOPE(GetBlob)
+        OV_ITT_SCOPED_TASK(itt::domains::Plugin, "GetBlob");
         InputInfo::Ptr foundInput;
         DataPtr foundOutput;
         const SizeVector oneVector = { 1 };
@@ -196,6 +197,11 @@ public:
         }
     }
 
+    void SetBatch(int batch) override {
+        (void)batch;
+        THROW_IE_EXCEPTION << "Dynamic batch is not supported";
+    };
+
     /**
      * @brief      Sets the pointer to executable network internal.
      * @note       Needed to correctly handle ownership between objects.
@@ -217,10 +223,19 @@ public:
         }
     }
 
-    void SetBatch(int batch) override {
-        (void)batch;
-        THROW_IE_EXCEPTION << "Dynamic batch is not supported";
-    };
+protected:
+    InferenceEngine::InputsDataMap _networkInputs;  //!< Holds information about network inputs info
+    InferenceEngine::OutputsDataMap _networkOutputs;  //!< Holds information about network outputs data
+    InferenceEngine::BlobMap _inputs;  //!< A map of network input blobs
+    InferenceEngine::BlobMap _outputs;  //!< A map of network output blobs
+    std::map<std::string, PreProcessDataPtr> _preProcData;  //!< A map of pre-process data per input
+    int m_curBatch;  //!< Current batch value used in dynamic batching
+
+    /**
+     * @brief A shared pointer to ExecutableNetworkInternal interface
+     * @note Needed to correctly handle ownership between objects.
+     */
+    std::shared_ptr<ExecutableNetworkInternal> _exeNetwork;
 
     /**
      * @brief Checks and executes input data pre-processing if needed.
@@ -238,20 +253,6 @@ public:
             }
         }
     }
-
-protected:
-    InferenceEngine::InputsDataMap _networkInputs;  //!< Holds information about network inputs info
-    InferenceEngine::OutputsDataMap _networkOutputs;  //!< Holds information about network outputs data
-    InferenceEngine::BlobMap _inputs;  //!< A map of network input blobs
-    InferenceEngine::BlobMap _outputs;  //!< A map of network output blobs
-    std::map<std::string, PreProcessDataPtr> _preProcData;  //!< A map of pre-process data per input
-    int m_curBatch;  //!< Current batch value used in dynamic batching
-
-    /**
-     * @brief A shared pointer to ExecutableNetworkInternal interface
-     * @note Needed to correctly handle ownership between objects.
-     */
-    std::shared_ptr<ExecutableNetworkInternal> _exeNetwork;
 
     /**
      * @brief Helper function to find input or output blob by name

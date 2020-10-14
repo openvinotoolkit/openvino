@@ -1,5 +1,5 @@
 /*
-// Copyright (c) 2018-2019 Intel Corporation
+// Copyright (c) 2018-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -142,9 +142,7 @@ std::pair<bool, bool> program_helpers::are_layouts_identical(layout const& l1, l
         return {false, false};
     if (l1.get_linear_size() != l2.get_linear_size())
         return {false, false};
-    if ((l1.format == format::bf8_xy16 && l2.format != format::bf8_xy16) ||
-        (l2.format == format::bf8_xy16 && l1.format != format::bf8_xy16) ||
-        (l1.format == format::b_fs_yx_fsv4 && l2.format != format::b_fs_yx_fsv4) ||
+    if ((l1.format == format::b_fs_yx_fsv4 && l2.format != format::b_fs_yx_fsv4) ||
         (l2.format == format::b_fs_yx_fsv4 && l1.format != format::b_fs_yx_fsv4) ||
         (l1.format == format::fs_b_yx_fsv32 && l2.format != format::fs_b_yx_fsv32) ||
         (l2.format == format::fs_b_yx_fsv32 && l1.format != format::fs_b_yx_fsv32) ||

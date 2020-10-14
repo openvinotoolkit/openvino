@@ -3,7 +3,7 @@
 //
 
 #include "mkldnn_reshape_node.h"
-#include <ie_layers.h>
+#include <legacy/ie_layers.h>
 #include <string>
 #include <mkldnn_types.h>
 #include <mkldnn_extension_utils.h>
@@ -69,3 +69,4 @@ bool MKLDNNReshapeNode::created() const {
     return getType() == Reshape || getType() == Flatten;
 }
 REG_MKLDNN_PRIM_FOR(MKLDNNReshapeNode, Reshape);
+REG_MKLDNN_PRIM_FOR(MKLDNNReshapeNode, Flatten);

@@ -30,6 +30,10 @@ typedef std::tuple<
 typedef std::tuple<
         poolSpecificParams,
         InferenceEngine::Precision,     // Net precision
+        InferenceEngine::Precision,     // Input precision
+        InferenceEngine::Precision,     // Output precision
+        InferenceEngine::Layout,        // Input layout
+        InferenceEngine::Layout,        // Output layout
         std::vector<size_t>,            // Input shape
         std::string                     // Device name
 > poolLayerTestParamsSet;
@@ -37,12 +41,16 @@ typedef std::tuple<
 typedef std::tuple<
         poolSpecificParams,
         InferenceEngine::Precision,     // Net precision
+        InferenceEngine::Precision,     // Input precision
+        InferenceEngine::Precision,     // Output precision
+        InferenceEngine::Layout,        // Input layout
+        InferenceEngine::Layout,        // Output layout
         size_t,                         // Channel number
         std::string                     // Device name
 > globalPoolLayerTestParamsSet;
 
 class PoolingLayerTest : public testing::WithParamInterface<poolLayerTestParamsSet>,
-                         public LayerTestsUtils::LayerTestsCommon {
+                         virtual public LayerTestsUtils::LayerTestsCommon {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<poolLayerTestParamsSet> obj);
 
@@ -51,7 +59,7 @@ protected:
 };
 
 class GlobalPoolingLayerTest : public testing::WithParamInterface<globalPoolLayerTestParamsSet>,
-                               public LayerTestsUtils::LayerTestsCommon {
+                               virtual public LayerTestsUtils::LayerTestsCommon {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<globalPoolLayerTestParamsSet> obj);
 

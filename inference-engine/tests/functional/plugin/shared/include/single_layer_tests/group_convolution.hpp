@@ -25,13 +25,17 @@ typedef std::tuple<
 typedef std::tuple<
         groupConvSpecificParams,
         InferenceEngine::Precision,
+        InferenceEngine::Precision,    // Input precision
+        InferenceEngine::Precision,    // Output precision
+        InferenceEngine::Layout,       // Input layout
+        InferenceEngine::Layout,       // Output layout
         InferenceEngine::SizeVector,
         LayerTestsUtils::TargetDevice> groupConvLayerTestParamsSet;
 
 namespace LayerTestsDefinitions {
 
 class GroupConvolutionLayerTest : public testing::WithParamInterface<groupConvLayerTestParamsSet>,
-                                  public LayerTestsUtils::LayerTestsCommon {
+                                  virtual public LayerTestsUtils::LayerTestsCommon {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<groupConvLayerTestParamsSet> obj);
 

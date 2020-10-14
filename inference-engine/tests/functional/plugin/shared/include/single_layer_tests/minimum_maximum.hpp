@@ -18,12 +18,16 @@ using MaxMinParamsTuple = typename std::tuple<
         std::vector<std::vector<size_t>>, // Input shapes
         ngraph::helpers::MinMaxOpType,    // OperationType
         InferenceEngine::Precision,       // Network precision
+        InferenceEngine::Precision,       // Input precision
+        InferenceEngine::Precision,       // Output precision
+        InferenceEngine::Layout,          // Input layout
+        InferenceEngine::Layout,          // Output layout
         ngraph::helpers::InputLayerType,  // Secondary input type
         std::string>;                     // Device name
 
 class MaxMinLayerTest:
         public testing::WithParamInterface<MaxMinParamsTuple>,
-        public LayerTestsUtils::LayerTestsCommon{
+        virtual public LayerTestsUtils::LayerTestsCommon{
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<MaxMinParamsTuple>& obj);
 protected:

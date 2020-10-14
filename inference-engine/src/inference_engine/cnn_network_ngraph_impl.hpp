@@ -11,16 +11,16 @@
 
 #include <algorithm>
 #include <functional>
-#include <ie_icnn_network.hpp>
 #include <map>
 #include <memory>
-#include <ngraph/attribute_visitor.hpp>
-#include <ngraph/function.hpp>
-#include <ngraph/node.hpp>
 #include <string>
 #include <vector>
 
-#include "cnn_network_impl.hpp"
+#include <ngraph/attribute_visitor.hpp>
+#include <ngraph/function.hpp>
+#include <ngraph/node.hpp>
+
+#include <ie_icnn_network.hpp>
 #include "description_buffer.hpp"
 #include "ie_api.h"
 #include "ie_blob.h"
@@ -28,13 +28,9 @@
 #include "ie_data.h"
 #include "ie_input_info.hpp"
 
+#include <legacy/cnn_network_impl.hpp>
+
 namespace InferenceEngine {
-namespace ShapeInfer {
-class Reshaper;
-
-using ReshaperPtr = std::shared_ptr<Reshaper>;
-}  // namespace ShapeInfer
-
 namespace details {
 
 /**
@@ -43,6 +39,7 @@ namespace details {
 class INFERENCE_ENGINE_API_CLASS(CNNNetworkNGraphImpl): public ICNNNetwork {
 public:
     CNNNetworkNGraphImpl(const std::shared_ptr<::ngraph::Function>& nGraph);
+    CNNNetworkNGraphImpl(const ICNNNetwork& nGraph);
     ~CNNNetworkNGraphImpl() override = default;
 
     void getOutputsInfo(std::map<std::string, DataPtr>& out) const noexcept override;
@@ -66,7 +63,7 @@ public:
 
     StatusCode addOutput(const std::string& layerName, size_t outputIndex, ResponseDesc* resp) noexcept override;
 
-    void addOutput(const std::string& dataName);
+    void addOutput(const ::ngraph::Output<::ngraph::Node> & dataName);
 
     void Release() noexcept override {
         delete this;
@@ -87,9 +84,8 @@ public:
     StatusCode serialize(const std::string& xmlPath, const std::string& binPath, ResponseDesc* resp) const
         noexcept override;
 
-    virtual std::shared_ptr<::ngraph::Function> cloneFunction(bool constFolding = false, const std::map<std::string,
-            std::vector<size_t>>& inputShapes = {}) const;
 protected:
+    virtual std::shared_ptr<::ngraph::Function> cloneFunction(bool constFolding = false) const;
     std::shared_ptr<::ngraph::Function> _ngraph_function;
 
 private:
@@ -122,13 +118,15 @@ private:
      * @brief Reshape on the same shape
      */
     void reshape();
+    void reshape(const std::map<std::string, std::vector<size_t>>& inputShapes);
 };
 
 class TINGraphBody : public CNNNetworkNGraphImpl {
 public:
     explicit TINGraphBody(const std::shared_ptr<::ngraph::Function>& func): CNNNetworkNGraphImpl(func) {}
 
-    std::shared_ptr<::ngraph::Function> cloneFunction(bool constFolding, const std::map<std::string, std::vector<size_t>>& inputShapes) const override {
+protected:
+    std::shared_ptr<::ngraph::Function> cloneFunction(bool constFolding) const override {
         return _ngraph_function;
     }
 };

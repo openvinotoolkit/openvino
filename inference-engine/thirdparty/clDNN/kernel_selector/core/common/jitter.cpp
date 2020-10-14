@@ -330,15 +330,16 @@ JitDefinitions DataTensorJitConstant::GetDefinitions() const {
                 raw_index_func_val = "GET_DATA_INDEX_RAW(" + _name + ", b, f, y, x)";
             } else if (layout == DataLayout::b_fs_yx_fsv16 ||
                        layout == DataLayout::b_fs_yx_fsv32 ||
-                       layout == DataLayout::byxf_af32 ||
-                       layout == DataLayout::fs_bs_yx_bsv4_fsv32 ||
                        layout == DataLayout::b_fs_yx_fsv4 ||
                        layout == DataLayout::fs_b_yx_fsv32 ||
                        layout == DataLayout::bs_fs_yx_bsv16_fsv16) {
                 auto layout_str = toString(layout);
                 index_func_val = "GET_DATA_" + layout_str + "_INDEX(" + _name + ", b, f, y, x)";
                 raw_index_func_val = "GET_DATA_" + layout_str + "_INDEX(" + _name + ", b, f, y, x)";
-                if (layout == DataLayout::b_fs_yx_fsv16 || layout == DataLayout::b_fs_yx_fsv32 || layout == DataLayout::bs_fs_yx_bsv16_fsv16)
+                if (layout == DataLayout::b_fs_yx_fsv16 ||
+                    layout == DataLayout::b_fs_yx_fsv32 ||
+                    layout == DataLayout::b_fs_yx_fsv4  ||
+                    layout == DataLayout::bs_fs_yx_bsv16_fsv16)
                     safe_index_func_val = "GET_DATA_" + layout_str + "_INDEX_SAFE(" + _name + ", b, f, y, x)";
                 else
                     safe_index_func_val = "GET_DATA_" + layout_str + "_INDEX(" + _name + ", b, f, y, x)";
@@ -445,8 +446,8 @@ JitDefinitions DataTensorJitConstant::GetDefinitions() const {
             definitions.push_back({ safe_index_func_name, safe_index_func_val });
             definitions.push_back({ index_func_name, index_func_val });
         } else {
-            definitions.push_back({ safe_index_func_name, "(f)" });
-            definitions.push_back({ index_func_name, "(f)" });
+            definitions.push_back({ safe_index_func_name, "(" + std::to_string(_tensor.Feature().pad.before) + " + (f))" });
+            definitions.push_back({ index_func_name, "(" + std::to_string(_tensor.Feature().pad.before) + " + (f))" });
         }
     } else {
         definitions.push_back({ safe_index_func_name, safe_index_func_val });
@@ -468,6 +469,220 @@ std::shared_ptr<JitConstant> MakeJitConstant(const std::string& name, const Data
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 class WeightTensorJitConstant : public TensorBaseTJitConstant<WeightsType, WeightsLayout> {
     const WeightsTensor _tensor;
+    struct WeightIndexFuncDesc {
+        std::string macroName;
+        std::string macroBody;
+        std::string calcFunction;
+
+        WeightIndexFuncDesc() = default;
+        WeightIndexFuncDesc(const WeightsLayout l) {
+            using args = std::initializer_list<std::string>;
+            if (l == WeightsLayout::oiyx || l == WeightsLayout::oizyx || l == WeightsLayout::goiyx ||
+                l == WeightsLayout::goizyx) {
+                args macroNameArgs = {"prefix", "g", "o", "i", "z", "y", "x"};
+                const auto name = toString(l);
+                this->calcFunction = FuncBody(name);
+                this->macroName = MacroName(name, macroNameArgs);
+                this->macroBody = R"V0G0N( \
+    CAT(prefix, _OFFSET) + \
+    (x)*CAT(prefix, _X_PITCH) + \
+    (y)*CAT(prefix, _Y_PITCH) + \
+    (z)*CAT(prefix, _Z_PITCH) + \
+    (i)*CAT(prefix, _IFM_PITCH) + \
+    (o)*CAT(prefix, _OFM_PITCH) + \
+    (g)*CAT(prefix, _GROUPS_PITCH)
+                )V0G0N";
+            } else if (l == WeightsLayout::os_is_yx_isv16_osv16 || l == WeightsLayout::os_is_zyx_isv16_osv16 ||
+                       l == WeightsLayout::g_os_is_yx_isv16_osv16 || l == WeightsLayout::g_os_is_zyx_isv16_osv16) {
+                args macroNameArgs = {"prefix", "g", "o", "i", "z", "y", "x", "sub_group_size"};
+                const auto name = toString(l);
+                this->calcFunction = FuncBody(name);
+                this->macroName = MacroName(name, macroNameArgs);
+                this->macroBody = R"V0G0N( \
+    CAT(prefix, _OFFSET) + \
+    (g)*CAT(prefix, _GROUPS_PITCH) + \
+    ((o) % (sub_group_size)) + \
+    (sub_group_size)*( \
+        (x)*(sub_group_size)*CAT(prefix, _X_PITCH) + \
+        (y)*(sub_group_size)*CAT(prefix, _Y_PITCH) + \
+        (z)*(sub_group_size)*CAT(prefix, _Z_PITCH) + \
+        ((i) % (sub_group_size)) + \
+        ((i) / (sub_group_size))*(sub_group_size)*CAT(prefix, _IFM_PITCH) + \
+        ((o) / (sub_group_size))*CAT(prefix, _OFM_PITCH) \
+    )
+                )V0G0N";
+            } else if (l == WeightsLayout::os_iyx_osv16 || l == WeightsLayout::os_iyx_osv32 ||
+                       l == WeightsLayout::os_iyx_osv32__ai32 || l == WeightsLayout::g_os_iyx_osv16 ||
+                       l == WeightsLayout::g_os_iyx_osv32) {
+                args macroNameArgs = {"prefix", "g", "o", "i", "y", "x", "sub_group_size"};
+                const auto name = toString(l);
+                this->calcFunction = FuncBody(name);
+                this->macroName = MacroName(name, macroNameArgs);
+                this->macroBody = R"V0G0N( \
+    CAT(prefix, _OFFSET) + \
+    (g * CAT(prefix, _GROUPS_PITCH)) + \
+    ((o) % (sub_group_size)) + \
+    (sub_group_size)*( \
+        (x)*CAT(prefix, _X_PITCH) + \
+        (y)*CAT(prefix, _Y_PITCH) +  \
+        (i)*CAT(prefix, _IFM_PITCH) + \
+        ((o) / (sub_group_size))*CAT(prefix, _OFM_PITCH) \
+    )
+                )V0G0N";
+            } else if (l == WeightsLayout::is_os_yx_isv16_osv16 || l == WeightsLayout::is_os_zyx_isv16_osv16 ||
+                       l == WeightsLayout::g_is_os_yx_isv16_osv16 || l == WeightsLayout::g_is_os_zyx_isv16_osv16) {
+                args macroNameArgs = {"prefix", "g", "o", "i", "z", "y", "x", "sub_group_size"};
+                const auto name = toString(l);
+                this->calcFunction = FuncBody(name);
+                this->macroName = MacroName(name, macroNameArgs);
+                this->macroBody = R"V0G0N( \
+    CAT(prefix, _OFFSET) + \
+    (g)*CAT(prefix, _GROUPS_PITCH) + \
+    ((o) % (sub_group_size)) + \
+    (sub_group_size)*( \
+        (x)*(sub_group_size)*CAT(prefix, _X_PITCH) + \
+        (y)*(sub_group_size)*CAT(prefix, _Y_PITCH) + \
+        (z)*(sub_group_size)*CAT(prefix, _Z_PITCH) + \
+        ((i) % (sub_group_size)) + \
+        ((o) / (sub_group_size))*(sub_group_size)*CAT(prefix, _OFM_PITCH) + \
+        ((i) / (sub_group_size))*CAT(prefix, _IFM_PITCH) \
+    )
+                )V0G0N";
+            } else if (l == WeightsLayout::os_is_yx_osv16_isv16 || l == WeightsLayout::os_is_zyx_osv32_isv16 ||
+                       l == WeightsLayout::os_is_zyx_osv64_isv16) {
+                args macroNameArgs = {"prefix", "o", "i", "z", "y", "x"};
+                args funcArgs = {"o", "i", "z", "y", "x", "x_size", "y_size", "z_size", "i_size", "o_size", "osv_size", "isv_size"};
+                const auto name = toString(l);
+                const auto body = R"V0G0N( \
+    const uint isv = i % isv_size; \
+    const uint osv = o % osv_size; \
+    const uint is = i / isv_size; \
+    const uint os = o / osv_size; \
+    const uint x_pitch = osv_size * isv_size; \
+    const uint y_pitch = x_pitch * x_size; \
+    const uint z_pitch = y_pitch * y_size; \
+    const uint is_pitch = z_pitch * z_size; \
+    const uint os_pitch = is_pitch * ((i_size + isv_size - 1) / isv_size); \
+    const uint output_offset = \
+        isv + \
+        osv * isv_size + \
+        x * x_pitch + \
+        y * y_pitch + \
+        z * z_pitch + \
+        is * is_pitch + \
+        os * os_pitch; \
+    return output_offset; \
+                )V0G0N";
+                this->macroName = MacroName(name, macroNameArgs);
+                this->calcFunction = FuncBody(name, funcArgs, body);
+                if (l == WeightsLayout::os_is_yx_osv16_isv16)
+                    this->macroBody = FuncCall(name, {"o", "i", "0", "y", "x", Cat("_SIZE_X"), Cat("_SIZE_Y"), "1", Cat("_IFM_NUM"), Cat("_OFM_NUM"), "16", "16"});
+                else if (l == WeightsLayout::os_is_zyx_osv32_isv16)
+                    this->macroBody = FuncCall(name, {"o", "i", "z", "y", "x", Cat("_SIZE_X"), Cat("_SIZE_Y"), Cat("_SIZE_Z"), Cat("_IFM_NUM"), Cat("_OFM_NUM"), "32", "16"});
+                else if (l == WeightsLayout::os_is_zyx_osv64_isv16)
+                    this->macroBody = FuncCall(name, {"o", "i", "z", "y", "x", Cat("_SIZE_X"), Cat("_SIZE_Y"), Cat("_SIZE_Z"), Cat("_IFM_NUM"), Cat("_OFM_NUM"), "64", "16"});
+            } else if (l == WeightsLayout::g_os_zyx_is_osv16_isv16 || l == WeightsLayout::g_os_zyx_is_osv16_isv32 ||
+                       l == WeightsLayout::g_os_zyx_is_osv32_isv16 || l == WeightsLayout::g_os_zyx_is_osv32_isv32) {
+                args macroNameArgs = {"prefix", "g", "o", "i", "z", "y", "x"};
+                args funcArgs = {"g", "o", "i", "z", "y", "x", "g_size", "o_size", "i_size", "z_size", "y_size", "x_size", "osv", "isv"};                
+                const auto name = toString(l);
+                const auto body = R"V0G0N( \
+    uint is_size = (i_size + isv - 1) / isv; \
+    uint os_size = (o_size + osv - 1) / osv; \
+    uint isv_index = i % isv; \
+    uint osv_index = o % osv; \
+    uint is_index = i / isv; \
+    uint os_index = o / osv; \
+    uint isv_pitch = 1; \
+    uint osv_pitch = isv_pitch * isv; \
+    uint is_pitch = osv_pitch * osv; \
+    uint x_pitch = is_pitch * is_size; \
+    uint y_pitch = x_pitch * x_size; \
+    uint z_pitch = y_pitch * y_size; \
+    uint os_pitch = z_pitch * z_size; \
+    uint g_pitch = os_pitch * os_size; \
+    uint index = 0; \
+    index += isv_index * isv_pitch; \
+    index += osv_index * osv_pitch; \
+    index += is_index * is_pitch; \
+    index += x * x_pitch; \
+    index += y * y_pitch; \
+    index += z * z_pitch; \
+    index += os_index * os_pitch; \
+    index += g * g_pitch; \
+    return index; \
+                )V0G0N";
+                this->macroName = MacroName(name, macroNameArgs);
+                this->calcFunction = FuncBody(name, funcArgs, body);
+                std::string osv = "16", isv = "16";
+                if (l == WeightsLayout::g_os_zyx_is_osv16_isv16) { 
+                    osv = "16"; isv = "16";
+                } else if (l == WeightsLayout::g_os_zyx_is_osv16_isv32) {
+                    osv = "16"; isv = "32";
+                } else if (l == WeightsLayout::g_os_zyx_is_osv32_isv16) {
+                    osv = "32"; isv = "16";
+                } else if (l == WeightsLayout::g_os_zyx_is_osv32_isv32) {
+                    osv = "32"; isv = "32";
+                }
+                this->macroBody = FuncCall(name, {"g", "o", "i", "z", "y", "x", Cat("_GROUPS_NUM"), Cat("_OFM_NUM"), Cat("_IFM_NUM"), Cat("_SIZE_Z"),
+                                                  Cat("_SIZE_Y"), Cat("_SIZE_X"), osv, isv});
+            } else if (l == WeightsLayout::os_is_yx_osv16_isv4 || l == WeightsLayout::os_is_yx_osv32_isv4) {
+                args macroNameArgs = {"prefix", "o", "i", "y", "x"};
+                args funcArgs = {"o", "i", "y", "x", "i_size", "o_size", "x_size", "otd"};
+                const auto name = toString(l);
+                const auto body = R"V0G0N( \
+    uint out_depth_tile = o / otd; \
+    uint od             = o - out_depth_tile * otd; \
+    const uint tile = 4; \
+    uint id_tile = i / tile; \
+    uint id      = i - id_tile * tile; \
+    uint idx = out_depth_tile * (o_size / tile) * otd * tile \
+            + id_tile               * i_size * otd * tile \
+            + y                     * x_size * otd * tile \
+            + x                              * otd * tile \
+            + od                                   * tile \
+            + id; \
+    return idx; \
+                )V0G0N";
+                this->macroName = MacroName(name, macroNameArgs);
+                this->calcFunction = FuncBody(name, funcArgs, body);
+                if (l == WeightsLayout::os_is_yx_osv16_isv4)
+                    this->macroBody = FuncCall(name, {"o", "i", "y", "x", Cat("_IFM_PITCH"), Cat("_OFM_PITCH"), Cat("_SIZE_X"), "16"});
+                else if (l == WeightsLayout::os_is_yx_osv32_isv4)
+                    this->macroBody = FuncCall(name, {"o", "i", "y", "x", Cat("_IFM_PITCH"), Cat("_OFM_PITCH"), Cat("_SIZE_X"), "32"});
+            } else {
+                // throw error?
+            }
+        }
+
+        static const std::string Cat(std::string name, std::string prefix = "prefix") {
+            return "CAT(" + prefix + ", " + name + ")";
+        }
+
+        static const std::string FuncCall(std::string name, std::initializer_list<std::string> args) {
+            std::string args_str = "";
+            size_t counter = 0;
+            for (auto& arg : args)
+                args_str += (++counter == args.size()) ? (arg) : (arg + ", ");
+            return "FUNC_CALL(" + name + ")(" + args_str + ")";
+        }
+
+        static const std::string MacroName(std::string name, std::initializer_list<std::string> args) {
+            std::string args_str = "";
+            size_t counter = 0;
+            for (auto& arg : args)
+                args_str += (++counter == args.size()) ? (arg) : (arg + ", ");
+            return "GET_WEIGHTS_" + name + "_INDEX(" + args_str + ")";
+        }
+
+        static const std::string FuncBody(std::string name, std::initializer_list<std::string> args = {}, std::string body = "return 0;") {
+            std::string args_str = "";
+            size_t counter = 0;
+            for (auto& arg : args)
+                args_str += (++counter == args.size()) ? (arg) : (arg + ", ");
+            return "inline uint FUNC(" + name + ")(" + args_str + "){" + body + "}";
+        }
+    };
 
 public:
     WeightTensorJitConstant(const std::string& name, const WeightsTensor& t) : TensorBaseTJitConstant(name), _tensor(t) {}
@@ -495,6 +710,130 @@ JitDefinitions WeightTensorJitConstant::GetDefinitions() const {
 
     definitions.insert(definitions.end(), baseDefinitions.begin(), baseDefinitions.end());
 
+    auto is_common_nd_layout = [](std::vector<Tensor::WeightsChannelName> common_channels, WeightsLayout l) -> bool {
+        for (size_t c = 0; c < static_cast<size_t>(Tensor::WeightsChannelName::COUNT); c++) {
+            auto channel = static_cast<Tensor::WeightsChannelName>(c);
+            if (WeightsTensor::Channelndex(l, channel) != -1) {
+                if (std::find(common_channels.begin(), common_channels.end(), channel) == common_channels.end()) {
+                    return false;
+                }
+            }
+        }
+        return true;
+    };
+
+    std::string index_func_name = _name + "_INDEX_FUNC";
+    std::string index_macro_name;
+    std::string index_func_val;
+
+    auto layout = _tensor.GetLayout();
+    WeightIndexFuncDesc indexFuncDesc {layout};
+    if (WeightsTensor::DoesGroupDimExist(layout)) {
+        if (WeightsTensor::ChannelsCount(layout) <= 5) {
+            std::vector<Tensor::WeightsChannelName> grouped_4d_channels = {
+                    Tensor::WeightsChannelName::G,
+                    Tensor::WeightsChannelName::OFM,
+                    Tensor::WeightsChannelName::IFM,
+                    Tensor::WeightsChannelName::Y,
+                    Tensor::WeightsChannelName::X,
+            };
+            bool is_grouped_4d_layout = is_common_nd_layout(grouped_4d_channels, layout);
+            if (is_grouped_4d_layout) {
+                index_macro_name = _name + "_GET_INDEX(g, o, i, y, x)";
+                auto layout_str = toString(layout);
+                if (layout == WeightsLayout::goiyx) 
+                    index_func_val = "GET_WEIGHTS_" + layout_str + "_INDEX(" + _name + ", g, o, i, 0, y, x)";
+                else if (layout == WeightsLayout::g_os_is_yx_isv16_osv16)
+                    index_func_val = "GET_WEIGHTS_" + layout_str + "_INDEX(" + _name + ", g, o, i, 0, y, x, 16)";
+                else if (layout == WeightsLayout::g_os_iyx_osv16)
+                    index_func_val = "GET_WEIGHTS_" + layout_str + "_INDEX(" + _name + ", g, o, i, y, x, 16)";
+                else if (layout == WeightsLayout::g_is_os_yx_isv16_osv16)
+                    index_func_val = "GET_WEIGHTS_" + layout_str + "_INDEX(" + _name + ", g, o, i, 0, y, x, 16)";
+            } else {
+                assert(0);
+            }
+        } else if (WeightsTensor::ChannelsCount(layout) == 6) {
+            std::vector<Tensor::WeightsChannelName> grouped_5d_channels = {
+                    Tensor::WeightsChannelName::G,
+                    Tensor::WeightsChannelName::OFM,
+                    Tensor::WeightsChannelName::IFM,
+                    Tensor::WeightsChannelName::Z,
+                    Tensor::WeightsChannelName::Y,
+                    Tensor::WeightsChannelName::X,
+            };
+            bool is_grouped_5d_layout = is_common_nd_layout(grouped_5d_channels, layout);
+            if (is_grouped_5d_layout) {
+                index_macro_name = _name + "_GET_INDEX(g, o, i, z, y, x)";
+                auto layout_str = toString(layout);
+                if (layout == WeightsLayout::goizyx) 
+                    index_func_val = "GET_WEIGHTS_" + layout_str + "_INDEX(" + _name + ", g, o, i, z, y, x)";
+                else if (layout == WeightsLayout::g_os_is_zyx_isv16_osv16)
+                    index_func_val = "GET_WEIGHTS_" + layout_str + "_INDEX(" + _name + ", g, o, i, z, y, x, 16)";
+                else if (layout == WeightsLayout::g_is_os_zyx_isv16_osv16)
+                    index_func_val = "GET_WEIGHTS_" + layout_str + "_INDEX(" + _name + ", g, o, i, z, y, x, 16)";
+            } else {
+                assert(0);
+            }
+        }
+    } else {
+        if (WeightsTensor::ChannelsCount(layout) <= 4) {
+            std::vector<Tensor::WeightsChannelName> base_4d_channels = {
+                    Tensor::WeightsChannelName::OFM,
+                    Tensor::WeightsChannelName::IFM,
+                    Tensor::WeightsChannelName::Y,
+                    Tensor::WeightsChannelName::X,
+            };
+            bool is_common_4d_layout = is_common_nd_layout(base_4d_channels, layout);
+            if (is_common_4d_layout) {
+                index_macro_name = _name + "_GET_INDEX(o, i, y, x)";
+                auto layout_str = toString(layout);
+                if (layout == WeightsLayout::oiyx) 
+                    index_func_val = "GET_WEIGHTS_" + layout_str + "_INDEX(" + _name + ", 0, o, i, 0, y, x)";
+                else if (layout == WeightsLayout::os_is_yx_isv16_osv16)
+                    index_func_val = "GET_WEIGHTS_" + layout_str + "_INDEX(" + _name + ", 0, o, i, 0, y, x, 16)";
+                else if (layout == WeightsLayout::os_iyx_osv16)
+                    index_func_val = "GET_WEIGHTS_" + layout_str + "_INDEX(" + _name + ", 0, o, i, y, x, 16)";
+                else if (layout == WeightsLayout::os_iyx_osv32 || layout == WeightsLayout::os_iyx_osv32__ai32)
+                    index_func_val = "GET_WEIGHTS_" + layout_str + "_INDEX(" + _name + ", 0, o, i, y, x, 32)";
+                else if (layout == WeightsLayout::is_os_yx_isv16_osv16)
+                    index_func_val = "GET_WEIGHTS_" + layout_str + "_INDEX(" + _name + ", 0, o, i, 0, y, x, 16)";
+                else if (layout == WeightsLayout::os_is_yx_osv16_isv16)
+                    index_func_val = "GET_WEIGHTS_" + layout_str + "_INDEX(" + _name + ", o, i, 0, y, x)";
+            } else {
+                assert(0);
+            }
+        } else if (WeightsTensor::ChannelsCount(layout) == 5) {
+            std::vector<Tensor::WeightsChannelName> base_5d_channels = {
+                    Tensor::WeightsChannelName::OFM,
+                    Tensor::WeightsChannelName::IFM,
+                    Tensor::WeightsChannelName::Z,
+                    Tensor::WeightsChannelName::Y,
+                    Tensor::WeightsChannelName::X,
+            };
+            bool is_common_5d_layout = is_common_nd_layout(base_5d_channels, layout);
+            if (is_common_5d_layout) {
+                index_macro_name = _name + "_GET_INDEX(o, i, z, y, x)";
+                auto layout_str = toString(layout);
+                if (layout == WeightsLayout::oizyx) 
+                    index_func_val = "GET_WEIGHTS_" + layout_str + "_INDEX(" + _name + ", 0, o, i, z, y, x)";
+                else if (layout == WeightsLayout::os_is_zyx_isv16_osv16)
+                    index_func_val = "GET_WEIGHTS_" + layout_str + "_INDEX(" + _name + ", 0, o, i, z, y, x, 16)";
+                else if (layout == WeightsLayout::is_os_zyx_isv16_osv16)
+                    index_func_val = "GET_WEIGHTS_" + layout_str + "_INDEX(" + _name + ", 0, o, i, z, y, x, 16)";
+                else if (layout == WeightsLayout::os_is_zyx_osv32_isv16 || layout == WeightsLayout::os_is_zyx_osv64_isv16)
+                    index_func_val = "GET_WEIGHTS_" + layout_str + "_INDEX(" + _name + ", o, i, z, y, x)";
+            } else {
+                assert(0);
+            }
+        }
+    }
+
+    if (!indexFuncDesc.macroName.empty()) {
+        definitions.push_back({ index_func_name, indexFuncDesc.calcFunction });
+        definitions.push_back({ "INIT_" + index_func_name + "_HERE", index_func_name });
+        definitions.push_back({ indexFuncDesc.macroName, indexFuncDesc.macroBody });
+        definitions.push_back({ index_macro_name, index_func_val });
+    }
     return definitions;
 }
 
@@ -715,6 +1054,15 @@ JitConstants MakeActivationJitConstants(ActivationFunction activation_function,
             jitConstants.AddConstant(MakeJitConstant(
                     macro_def,
                     (input / (one + exp(neg(input)))).str()));
+            break;
+        }
+        case ActivationFunction::HSWISH: {
+            std::string type_suffix = out_dt == Datatype::F32 ? "f" : "h";
+            const JitTerm three("3." + type_suffix);
+            const JitTerm six("6." + type_suffix);
+            jitConstants.AddConstant(MakeJitConstant(
+                    macro_def,
+                    (input * min_func(max_func(zero, input + three), six) / six).str()));
             break;
         }
         case ActivationFunction::MISH: {
@@ -1012,6 +1360,26 @@ JitConstants MakeLoopUnrollParamsJitConstants(uint32_t loopCount) {
     return jit;
 }
 
+JitConstants MakeConstantLoopUnrollJitConstants(uint32_t loopCount) {
+    JitConstants jit{
+        MakeJitConstant("CONST_LOOP_CALL(macro, idx)", "macro(idx)"),
+        MakeJitConstant("CONST_LOOP_1(macro)", "CONST_LOOP_CALL(macro, 0)")
+    };
+
+    for (uint32_t i = 2; i <= loopCount; ++i) {
+        jit.AddConstant(
+            MakeJitConstant("CONST_LOOP_" + toCodeString(i) + "(macro)",
+                            "CONST_LOOP_" + toCodeString(i - 1) + "(macro); CONST_LOOP_CALL(macro," + toCodeString(i - 1) + ")")
+        );
+    }
+
+    jit.AddConstant(
+        MakeJitConstant("CONST_LOOP(count, macro)", "CAT(CONST_LOOP_, count)(macro)")
+    );
+
+    return jit;
+}
+
 bool FusedOpsCodeGenerator::CanPreloadData(const FusedOpsConfiguration& conf) const {
     if (conf.loop_axes.empty())
         return true;
@@ -1134,16 +1502,65 @@ JitConstants FusedOpsCodeGenerator::MakeOpJitConstants(const FusedOpsConfigurati
 
     switch (desc.GetType()) {
         case KernelType::SCALE: {
-            op_decls += "\\\n\t" + GetOutputType(vec_size) + " " + out_var + " = " +
-                        in_vars_converted[0] + " * " + ConvertToOutputType(in_var, vec_size) + ";";
+            auto get_acc_t = [&]() -> Datatype {
+                std::vector<Datatype> tensor_types = {desc.output_tensor.GetDType()};
+                for (auto& in : desc.tensors) {
+                    tensor_types.push_back(in.GetDType());
+                }
+
+                std::vector<Datatype> types_prioritized = { Datatype::F32, Datatype::F16 };
+
+                for (auto& type : types_prioritized) {
+                    if (std::any_of(tensor_types.begin(), tensor_types.end(), [=](const Datatype& t) -> bool { return t == type; })) {
+                        return type;
+                    }
+                }
+
+                return Datatype::F32;
+            };
+
+            auto get_input = [&](size_t index) -> std::string {
+                auto in_name = index == 0 ? in_var : GetInputVarName(index - 1, is_shuffled, shuffle_var);
+                auto tensor_type = index == 0 ? in_type : desc.tensors[index - 1].GetDType();
+                auto acc_t = get_acc_t();
+
+                if (tensor_type != acc_t)
+                    return ConvertToType(in_name, acc_t, vec_size);
+                else
+                    return in_name;
+            };
+
+            auto tmp_var = out_var + "_tmp";
             if (desc.tensors.size() > 1) {
-                op_decls += "\\\n\t" + out_var + " += " + in_vars_converted[1] + ";";
+                op_decls += "\\\n\t" + GetType(get_acc_t(), vec_size) + " " + tmp_var + " = "
+                          + get_input(0) + " * " + get_input(1) + " + " + get_input(2) + ";";
+            } else {
+                op_decls += "\\\n\t" + GetType(get_acc_t(), vec_size) + " " + tmp_var + " = "
+                          + get_input(0) + " * " + get_input(1) + ";";
             }
+            op_decls += "\\\n\t" + GetOutputType(vec_size) + " " + out_var + " = " + ConvertToOutputType(tmp_var, vec_size) + ";";
             break;
         }
         case KernelType::ELTWISE: {
+            auto p = desc.GetOpParams<eltwise_fuse_params>();
+            if (!p)
+                throw std::runtime_error("[clDNN] Eltwise fuse params can't be nullptr");
+
+            std::string op = "";
+            switch (p->mode)
+            {
+            case kernel_selector::EltwiseMode::ADD:
+                op = "+";
+                break;
+            case kernel_selector::EltwiseMode::MUL:
+                op = "*";
+                break;
+            default:
+                throw std::runtime_error("[clDNN] Eltwise mode is not supported in fused ops codegen");
+            }
+
             op_decls += "\\\n\t" + GetOutputType(vec_size) + " " + out_var + " = " + in_vars_converted[0] +
-                        " + " + ConvertToOutputType(in_var, vec_size) + ";";
+                        op + ConvertToOutputType(in_var, vec_size) + ";";
             break;
         }
         case KernelType::QUANTIZE: {
@@ -1360,6 +1777,7 @@ std::string FusedOpsCodeGenerator::GetOutputVarName(std::string input_var) const
     std::replace(input_var.begin(), input_var.end(), '[', '_');
     std::replace(input_var.begin(), input_var.end(), ']', '_');
     std::replace(input_var.begin(), input_var.end(), ' ', '_');
+    std::replace(input_var.begin(), input_var.end(), '.', '_');
     return input_var + "_out";
 }
 

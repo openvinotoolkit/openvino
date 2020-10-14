@@ -1,6 +1,5 @@
-<?xml version="1.0"?>
 <attributes>
-<!--[ WARNING ] Use of attribute "processes" from config isn't implemented yet. It will be ignored.-->
+
     <processes>
         <value>1</value>
     </processes>
@@ -15,6 +14,6 @@
         <value>GPU</value>
     </devices>
     <models>
-        <value>public/mobilenet-ssd/FP32/mobilenet-ssd.xml</value>
+        <model name="mobilenet-ssd" source="omz" />
     </models>
 </attributes>

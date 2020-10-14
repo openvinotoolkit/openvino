@@ -58,6 +58,7 @@ enum class KernelType {
     ONE_HOT,
     DETECTION_OUTPUT,
     GATHER,
+    SCATTER_UPDATE,
     DEPTH_TO_SPACE,
     BATCH_TO_SPACE,
     SHUFFLE_CHANNELS,
@@ -150,6 +151,7 @@ enum class ActivationFunction {
     SOFTPLUS,
     SOFTSIGN,
     SWISH,
+    HSWISH,
     MISH,
     GELU
 };
@@ -376,6 +378,38 @@ enum class ResampleType {
     NEAREST_NEIGHBOR,
     BILINEAR_INTERP,
     CAFFE_BILINEAR_INTERP,
+    CUBIC,
+    LINEAR_ONNX,
+};
+
+enum class CoordinateTransformationMode {
+    HALF_PIXEL,
+    PYTORCH_HALF_PIXEL,
+    ASYMMETRIC,
+    TF_HALF_PIXEL_FOR_NN,
+    ALIGN_CORNERS,
+};
+
+enum class NearestMode {
+    ROUND_PREFER_FLOOR,
+    ROUND_PREFER_CEIL,
+    FLOOR,
+    CEIL,
+    SIMPLE,
+};
+
+enum class ShapeCalculationMode {
+    SIZES,
+    SCALES,
+};
+
+enum class InterpolateAxis {
+    X,
+    Y,
+    Z,
+    W,
+    FEATURE,
+    BATCH
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -480,6 +514,20 @@ enum class ContractMode {
 enum class GatherAxis {
     X,
     Y,
+    Z,
+    W,
+    FEATURE,
+    BATCH,
+};
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// ScatterUpdateAxis
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+enum class ScatterUpdateAxis {
+    X,
+    Y,
+    Z,
+    W,
     FEATURE,
     BATCH,
 };

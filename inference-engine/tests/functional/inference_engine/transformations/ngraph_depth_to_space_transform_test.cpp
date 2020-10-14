@@ -12,10 +12,10 @@
 #include <map>
 
 #include <ngraph/function.hpp>
-#include <ngraph/op/fused/depth_to_space.hpp>
-#include <ngraph/op/fused/space_to_depth.hpp>
-#include <transformations/convert_depth_to_space.hpp>
-#include <transformations/convert_space_to_depth.hpp>
+#include <ngraph/op/depth_to_space.hpp>
+#include <ngraph/op/space_to_depth.hpp>
+#include <transformations/op_conversions/convert_depth_to_space.hpp>
+#include <transformations/op_conversions/convert_space_to_depth.hpp>
 #include <transformations/init_node_info.hpp>
 #include <ngraph/pass/manager.hpp>
 #include "common_test_utils/ngraph_test_utils.hpp"

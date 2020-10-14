@@ -143,8 +143,6 @@ else()
                 else()
                     ext_message(WARNING "Inference Engine DEBUG binaries are missed")
                 endif()
-
-                target_link_libraries(IE::inference_engine${ie_library_suffix} INTERFACE ${CMAKE_DL_LIBS})
             else()
                 # Only Release binaries are distributed for Linux systems
                 set_target_properties(IE::inference_engine${ie_library_suffix} PROPERTIES
@@ -156,8 +154,11 @@ else()
                 else()
                     set_target_properties(IE::inference_engine${ie_library_suffix} PROPERTIES
                             INTERFACE_COMPILE_OPTIONS "-Wno-error=deprecated-declarations")
+                    if(CMAKE_CROSSCOMPILING AND NOT MSVC)
+                        set_property(TARGET IE::inference_engine${ie_library_suffix} PROPERTY
+                                     INTERFACE_LINK_OPTIONS "-Wl,--allow-shlib-undefined")
+                    endif()
                 endif()
-                target_link_libraries(IE::inference_engine${ie_library_suffix} INTERFACE ${CMAKE_DL_LIBS})
             endif()
         endforeach()
 

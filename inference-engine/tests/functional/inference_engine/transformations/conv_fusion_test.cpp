@@ -17,7 +17,7 @@
 #include <ngraph/pass/constant_folding.hpp>
 #include <transformations/utils/utils.hpp>
 #include <transformations/init_node_info.hpp>
-#include <transformations/convert_opset1_to_legacy/conv_bias_fusion.hpp>
+#include <transformations/common_optimizations/conv_bias_fusion.hpp>
 #include <ngraph/pass/visualize_tree.hpp>
 
 #include "common_test_utils/ngraph_test_utils.hpp"
@@ -48,6 +48,7 @@ public:
             f_ref = get_initial_function(input_shape, weights_shape, eltwise_type, eltwise_shape);
         } else {
             f_ref = get_reference_function(input_shape, weights_shape, eltwise_type, eltwise_shape);
+            ngraph::pass::ConstantFolding().run_on_function(f_ref);
         }
     }
 
@@ -111,6 +112,7 @@ private:
 TEST_P(ConvFusionTests, CompareFunctions) {
     ngraph::pass::InitNodeInfo().run_on_function(f);
     ngraph::pass::ConvFusion().run_on_function(f);
+    ngraph::pass::ConstantFolding().run_on_function(f);
     f->validate_nodes_and_infer_types();
     // ASSERT_NO_THROW(check_rt_info(f));
     auto res = compare_functions(f, f_ref);

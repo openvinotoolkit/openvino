@@ -28,12 +28,16 @@ struct StridedSliceSpecificParams {
 using StridedSliceParams = std::tuple<
         StridedSliceSpecificParams,
         InferenceEngine::Precision,        // Net precision
+        InferenceEngine::Precision,        // Input precision
+        InferenceEngine::Precision,        // Output precision
+        InferenceEngine::Layout,           // Input layout
+        InferenceEngine::Layout,           // Output layout
         std::string,                       // Device name
         std::map<std::string, std::string> // Additional network configuration
 >;
 
 class StridedSliceLayerTest : public testing::WithParamInterface<StridedSliceParams>,
-                              public LayerTestsUtils::LayerTestsCommon {
+                              virtual public LayerTestsUtils::LayerTestsCommon {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<StridedSliceParams> &obj);
 

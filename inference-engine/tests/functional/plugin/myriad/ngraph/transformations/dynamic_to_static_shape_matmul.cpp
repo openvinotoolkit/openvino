@@ -133,7 +133,7 @@ protected:
         node->set_output_type(0, node->get_output_element_type(0), ngraph::PartialShape::dynamic(node->get_output_partial_shape(0).rank()));
 
         const auto transformations = vpu::Transformations{{ngraph::opset3::MatMul::type_info, vpu::dynamicToStaticShapeMatMul}};
-        vpu::DynamicToStaticShape(transformations).transform(function);
+        vpu::DynamicToStaticShape(transformations).run_on_function(function);
         return function;
     }
 
@@ -204,6 +204,6 @@ protected:
 
 TEST_P(DynamicToStaticShapeMatMul, CompareFunctions) {
 }
-INSTANTIATE_TEST_CASE_P(MatMul, DynamicToStaticShapeMatMul, combinations);
+INSTANTIATE_TEST_CASE_P(smoke_MatMul, DynamicToStaticShapeMatMul, combinations);
 
 }  // namespace

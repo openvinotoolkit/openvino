@@ -18,10 +18,12 @@
 #include <cinttypes>
 #include <cmath>
 #include <cstdlib>
+#include <numeric>
 #include <random>
 #include <string>
 
 #include "gtest/gtest.h"
+#include "ngraph/builder/reshape.hpp"
 #include "ngraph/ngraph.hpp"
 #include "ngraph/runtime/tensor.hpp"
 #include "runtime/backend.hpp"
@@ -32,6 +34,8 @@
 #include "util/test_case.hpp"
 #include "util/test_control.hpp"
 #include "util/test_tools.hpp"
+
+NGRAPH_SUPPRESS_DEPRECATED_START
 
 using namespace std;
 using namespace ngraph;

@@ -20,6 +20,9 @@
 
 #include "gna_plugin.hpp"
 #include "gna_model_serial.hpp"
+#include "serial/headers/latest/gna_model_header.hpp"
+
+using namespace GNAPluginNS;
 
 inline void writeNBytes(const void *ptr, uint32_t size, std::ostream & os) {
     os.write(static_cast<const char*>(ptr), size);
@@ -69,11 +72,25 @@ bool is_little_endian() {
 
 const int gna_header_magic = is_little_endian() ?  0x4d414e47 : 0x474e414d;
 
-ModelHeader GNAModelSerial::ReadHeader(std::istream &is) {
+GNAPluginNS::HeaderLatest::ModelHeader GNAModelSerial::ReadHeader(std::istream &is) {
     is.exceptions(std::istream::failbit);
+    is.seekg(0, is.end);
+    auto stream_len = is.tellg();
+    if (stream_len == -1) {
+        THROW_GNA_EXCEPTION << "Can't open file to import";
+    }
+    is.seekg(0, is.beg);
 
-    ModelHeader header;
-    readBits(header, is);
+    HeaderLatest::ModelHeader header;
+    header.version.major = 0u;
+    header.version.minor = 0u;
+    auto size_of_headers_header = sizeof(HeaderLatest::ModelHeader::gnam) + sizeof(HeaderLatest::ModelHeader::headerSize)
+                                + sizeof(HeaderLatest::ModelHeader::Version);
+    if (stream_len > size_of_headers_header) {
+        readNBytes(&header, size_of_headers_header, is);
+    } else {
+        readNBytes(&header, stream_len, is);
+    }
     if (*reinterpret_cast<int*>(header.gnam) != gna_header_magic) {
         THROW_GNA_EXCEPTION << "Imported file unsupported: magic number should be GNAM(0x474e414d), but was 0x"
                            << std::setfill('0') <<
@@ -82,12 +99,27 @@ ModelHeader GNAModelSerial::ReadHeader(std::istream &is) {
                            std::hex << std::setw(2) << static_cast<short>(header.gnam[2]) <<
                            std::hex << std::setw(2) << static_cast<short>(header.gnam[3]);
     }
-    if (header.version.major != HEADER_MAJOR) {
-        THROW_GNA_EXCEPTION << "Imported file unsupported: major version should be == " << HEADER_MAJOR;
+
+    is.seekg(0, is.beg);
+    Header2dot1::ModelHeader tempHeader2dot1;
+    switch (header.version.major) {
+        case 2:
+            switch (header.version.minor) {
+                case 1:
+                    readBits(tempHeader2dot1, is);
+                    header = Header2dot2::ModelHeader(tempHeader2dot1);
+                    break;
+                case 2:
+                    readBits(header, is);
+                    break;
+                default:
+                    THROW_GNA_EXCEPTION << "Imported file unsupported. minor version should be equal to 1 or 2 and is: " << header.version.minor;
+            }
+            break;
+        default:
+            THROW_GNA_EXCEPTION << "Imported file unsupported. Import for files with major version equal to: " << header.version.major << " is not implemented";
     }
-    if (header.headerSize < sizeof(header)) {
-        THROW_GNA_EXCEPTION << "Unsupported header size minimal value is : " << sizeof (header) << ", but read: " << header.headerSize;
-    }
+
     /*
      * extra data need to be added into new header and modify check as appropriate
      */
@@ -141,6 +173,7 @@ void GNAModelSerial::Import(void *basePointer,
         readNBits<32>(operation->Type, is);
         readBits(operation->NumberOfOperands, is);
         operation->Operands = static_cast<Gna2Tensor const **>(gnaUserAllocator(sizeof(Gna2Tensor*) * operation->NumberOfOperands));
+        IE_ASSERT(operation->Operands != nullptr);
         for (uint32_t i = 0; i < operation->NumberOfOperands; i++) {
             Gna2Tensor t{};
             readBits(t, is);
@@ -172,7 +205,9 @@ void GNAModelSerial::Import(void *basePointer,
         for (uint32_t i = 0; i < operation->NumberOfParameters; i++) {
             uint32_t paramSize = 0;
             readBits(paramSize, is);
+            IE_ASSERT(operation->Parameters != nullptr);
             if (paramSize == 0) {
+                IE_ASSERT(operation->Parameters != nullptr);
                 operation->Parameters[i] = nullptr;
                 continue;
             }
@@ -246,8 +281,8 @@ void GNAModelSerial::Export(void * basePointer, size_t gnaGraphSize, std::ostrea
         return out;
     };
 
-    auto convert_to_serial = [getOffsetFromBase](const GNAModelSerial::RuntimeEndPoint& ep) {
-        RuntimeEndPoint out;
+    auto convert_to_serial = [getOffsetFromBase](const HeaderLatest::RuntimeEndPoint& ep) {
+        HeaderLatest::RuntimeEndPoint out;
         out.elements_count = ep.elements_count;
         out.descriptor_offset = offsetFromBase(ep.descriptor_ptr);
         out.scaleFactor = ep.scaleFactor;
@@ -258,14 +293,12 @@ void GNAModelSerial::Export(void * basePointer, size_t gnaGraphSize, std::ostrea
     /**
      * writing header
      */
-    ModelHeader header;
+    HeaderLatest::ModelHeader header;
     header.gnam[0] = 'G';
     header.gnam[1] = 'N';
     header.gnam[2] = 'A';
     header.gnam[3] = 'M';
-    header.headerSize = sizeof(ModelHeader);
-    header.version.major = HEADER_MAJOR;
-    header.version.minor = HEADER_MINOR;
+    header.headerSize = sizeof(HeaderLatest::ModelHeader);
     header.gnaMemSize = gnaGraphSize;
     header.layersCount = layers.size();
     header.nGroup = guessGrouping(*gna2Model);
@@ -273,6 +306,7 @@ void GNAModelSerial::Export(void * basePointer, size_t gnaGraphSize, std::ostrea
     header.nOutputs = outputs.size();
     header.nRotateRows = nRotateRows;
     header.nRotateColumns = nRotateColumns;
+    header.doRotateInput = doRotateInput;
 
 
     writeBits(header, os);
@@ -492,8 +526,8 @@ void GNAModelSerial::Export(void * basePointer, size_t gnaGraphSize, std::ostrea
         }
     };
 
-    auto convert_to_serial = [getOffsetFromBase](const GNAModelSerial::RuntimeEndPoint& ep){
-        RuntimeEndPoint out;
+    auto convert_to_serial = [getOffsetFromBase](const HeaderLatest::RuntimeEndPoint& ep){
+        HeaderLatest::RuntimeEndPoint out;
         out.elements_count = ep.elements_count;
         out.element_size = ep.element_size;
         out.descriptor_offset = offsetFromBase(ep.descriptor_ptr);
@@ -504,19 +538,19 @@ void GNAModelSerial::Export(void * basePointer, size_t gnaGraphSize, std::ostrea
     /**
      * writing header
      */
-    ModelHeader header;
+    HeaderLatest::ModelHeader header;
     header.gnam[0] = 'G';
     header.gnam[1] = 'N';
     header.gnam[2] = 'A';
     header.gnam[3] = 'M';
-    header.version.major = HEADER_MAJOR;
-    header.version.minor = HEADER_MINOR;
+    header.version.major = 1u;
+    header.version.minor = 1u;
     header.gnaMemSize = gnaGraphSize;
     header.layersCount = layers.size();
     header.nGroup = ptr_nnet->nGroup;
     header.nInputs = 1;
     header.nOutputs = 1;
-    header.headerSize = sizeof(ModelHeader);
+    header.headerSize = sizeof(HeaderLatest::ModelHeader);
     header.nRotateRows = nRotateRows;
     header.nRotateColumns = nRotateColumns;
 
@@ -603,16 +637,16 @@ void GNAModelSerial::Export(void * basePointer, size_t gnaGraphSize, std::ostrea
 
 #endif
 
-std::vector<GNAModelSerial::RuntimeEndPoint> GNAModelSerial::serializeOutputs(const InferenceEngine::OutputsDataMap& outputsDataMap,
+std::vector<HeaderLatest::RuntimeEndPoint> GNAModelSerial::serializeOutputs(const InferenceEngine::OutputsDataMap& outputsDataMap,
         const std::vector<GNAPluginNS::OutputDesc>& outputsDesc) {
-    std::vector<GNAModelSerial::RuntimeEndPoint> endPoints;
+    std::vector<HeaderLatest::RuntimeEndPoint> endPoints;
     std::size_t outputIndex = 0;
     for (auto const &output : outputsDataMap) {
         auto outputName = output.first;
         auto inputDims = output.second->getTensorDesc().getDims();
         uint32_t elementsCount = static_cast<uint32_t>(InferenceEngine::details::product(inputDims.begin(), inputDims.end()));
 
-        GNAModelSerial::RuntimeEndPoint endPoint(outputsDesc[outputIndex].scale_factor,
+        HeaderLatest::RuntimeEndPoint endPoint(outputsDesc[outputIndex].scale_factor,
                                                  outputsDesc[outputIndex].ptrs[0],
                                                  outputsDesc[outputIndex].num_bytes_per_element,
                                                  elementsCount,
@@ -623,9 +657,9 @@ std::vector<GNAModelSerial::RuntimeEndPoint> GNAModelSerial::serializeOutputs(co
     return endPoints;
 }
 
-std::vector<GNAModelSerial::RuntimeEndPoint> GNAModelSerial::serializeInputs(const InferenceEngine::InputsDataMap& inputsDataMap,
+std::vector<HeaderLatest::RuntimeEndPoint> GNAModelSerial::serializeInputs(const InferenceEngine::InputsDataMap& inputsDataMap,
                                                                              std::shared_ptr<GNAPluginNS::InputDesc> inputDesc) {
-    std::vector<GNAModelSerial::RuntimeEndPoint> endPoints;
+    std::vector<HeaderLatest::RuntimeEndPoint> endPoints;
 
     std::size_t inputIndex = 0;
     for (auto const& input : inputsDataMap) {
@@ -639,7 +673,7 @@ std::vector<GNAModelSerial::RuntimeEndPoint> GNAModelSerial::serializeInputs(con
         uint32_t elementsCount = static_cast<uint32_t>(InferenceEngine::details::product(inputDims.begin(), inputDims.end()));
         intel_dnn_orientation_t orientation = inputDesc->getOrientation(inputName);
 
-        GNAModelSerial::RuntimeEndPoint endPoint(scaleFactor,
+        HeaderLatest::RuntimeEndPoint endPoint(scaleFactor,
                                                  descriptor_ptr[0],
                                                  element_size,
                                                  elementsCount,
@@ -658,10 +692,11 @@ void GNAModelSerial::ImportInputs(std::istream &is,
 
     for (auto inputIndex = 0; inputIndex < modelHeader.nInputs; inputIndex++) {
         std::string name = "input" + std::to_string(inputIndex);
-        RuntimeEndPoint input;
+        HeaderLatest::RuntimeEndPoint input;
         is.read(reinterpret_cast<char *>(&input), sizeof(input));
         inputsDesc->getPtrInputsGlobal(name).push_back(reinterpret_cast<float*>(reinterpret_cast<uint8_t *> (basePtr) + input.descriptor_offset));
         inputsDesc->orientation_in[name] = input.orientation;
+        inputsDesc->bytes_allocated_for_input[name] = input.element_size * input.elements_count;
 
         auto inputDims = InferenceEngine::SizeVector({modelHeader.nGroup, input.elements_count / modelHeader.nGroup});
 
@@ -685,9 +720,9 @@ void GNAModelSerial::ImportOutputs(std::istream &is,
 
     for (auto outputIndex = 0; outputIndex < modelHeader.nOutputs; outputIndex++) {
         std::string name = "output" + std::to_string(outputIndex);
-        RuntimeEndPoint output;
+        HeaderLatest::RuntimeEndPoint output;
         is.read(reinterpret_cast<char *>(&output), sizeof(output));
-        GNAPluginNS::OutputDesc description;
+        OutputDesc description;
         description.ptrs.push_back(reinterpret_cast<float*>(reinterpret_cast<uint8_t *> (basePtr) + output.descriptor_offset));
         description.orientation = kDnnInterleavedOrientation;
         description.orientation = output.orientation;
@@ -704,6 +739,6 @@ void GNAModelSerial::ImportOutputs(std::istream &is,
     }
 }
 
-void GNAModelSerial::setHeader(ModelHeader header) {
+void GNAModelSerial::setHeader(HeaderLatest::ModelHeader header) {
     modelHeader = header;
 }

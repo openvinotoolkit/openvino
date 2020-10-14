@@ -4,10 +4,11 @@
 
 #include <vector>
 #include <gtest/gtest.h>
-#include <layer_transform.hpp>
+#include <legacy/layer_transform.hpp>
 #include <frontend/model_quantizer.hpp>
 #include "frontend/layer_quantizer.hpp"
 #include "gna_matcher.hpp"
+#include <ie_core.hpp>
 
 using namespace InferenceEngine;
 using namespace GNAPluginNS;

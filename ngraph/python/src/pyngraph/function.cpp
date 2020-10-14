@@ -45,8 +45,8 @@ void regclass_pyngraph_Function(py::module m)
     function.def("get_parameters", &ngraph::Function::get_parameters);
     function.def("get_results", &ngraph::Function::get_results);
     function.def("get_result", &ngraph::Function::get_result);
-    function.def("get_unique_name", &ngraph::Function::get_name);
-    function.def("get_name", &ngraph::Function::get_friendly_name);
+    function.def("get_name", &ngraph::Function::get_name);
+    function.def("get_friendly_name", &ngraph::Function::get_friendly_name);
     function.def("set_friendly_name", &ngraph::Function::set_friendly_name);
     function.def("is_dynamic", &ngraph::Function::is_dynamic);
     function.def("__repr__", [](const ngraph::Function& self) {
@@ -99,4 +99,9 @@ void regclass_pyngraph_Function(py::module m)
 
         return pybind_capsule;
     });
+
+    function.def_property_readonly("name", &ngraph::Function::get_name);
+    function.def_property("friendly_name",
+                          &ngraph::Function::get_friendly_name,
+                          &ngraph::Function::set_friendly_name);
 }

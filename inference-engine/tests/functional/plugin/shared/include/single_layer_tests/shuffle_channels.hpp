@@ -18,6 +18,10 @@ typedef std::tuple<
 typedef std::tuple<
         shuffleChannelsSpecificParams,
         InferenceEngine::Precision,     // Net precision
+        InferenceEngine::Precision,     // Input precision
+        InferenceEngine::Precision,     // Output precision
+        InferenceEngine::Layout,        // Input layout
+        InferenceEngine::Layout,        // Output layout
         InferenceEngine::SizeVector,    // Input shapes
         LayerTestsUtils::TargetDevice   // Device name
 > shuffleChannelsLayerTestParamsSet;
@@ -25,7 +29,7 @@ namespace LayerTestsDefinitions {
 
 
 class ShuffleChannelsLayerTest : public testing::WithParamInterface<shuffleChannelsLayerTestParamsSet>,
-                                 public LayerTestsUtils::LayerTestsCommon {
+                                 virtual public LayerTestsUtils::LayerTestsCommon {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<shuffleChannelsLayerTestParamsSet> obj);
 

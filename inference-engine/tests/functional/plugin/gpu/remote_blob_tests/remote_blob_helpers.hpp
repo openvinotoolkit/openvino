@@ -7,6 +7,9 @@
 #include <vector>
 #include <memory>
 
+#ifndef NOMINMAX
+# define NOMINMAX
+#endif
 
 #ifdef _WIN32
 # include <gpu/gpu_context_api_dx.hpp>

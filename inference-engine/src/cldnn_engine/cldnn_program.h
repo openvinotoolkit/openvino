@@ -13,7 +13,7 @@
 #include <algorithm>
 
 #include <cpp/ie_cnn_network.h>
-#include <ie_layers.h>
+#include <legacy/ie_layers.h>
 #include <cpp_interfaces/exception2status.hpp>
 #include <ie_blob.h>
 
@@ -163,6 +163,7 @@ public:
         Copy,
         Resample,
         Interp,
+        Interpolate,
         RegionYolo,
         ReorgYolo,
         ConstantBlob,
@@ -202,6 +203,7 @@ public:
         SoftPlus,
         SoftSign,
         Swish,
+        HSwish,
         Mish,
         Gelu,
         Sin,
@@ -345,6 +347,7 @@ private:
     void CreateCopyPrimitive(cldnn::topology& topology, InferenceEngine::CNNLayerPtr &layer);
     void CreateResamplePrimitive(cldnn::topology& topology, InferenceEngine::CNNLayerPtr &layer);
     void CreateInterpPrimitive(cldnn::topology& topology, InferenceEngine::CNNLayerPtr &layer);
+    void CreateInterpolatePrimitive(cldnn::topology& topology, InferenceEngine::CNNLayerPtr &layer);
     void CreateYOLO2RegionPrimitive(cldnn::topology& topology, InferenceEngine::CNNLayerPtr &layer);
     void CreateYOLO2ReorgPrimitive(cldnn::topology& topology, InferenceEngine::CNNLayerPtr &layer);
     void CreateArgMaxMinPrimitive(cldnn::topology& topology, InferenceEngine::CNNLayerPtr &layer, const LayerType type);

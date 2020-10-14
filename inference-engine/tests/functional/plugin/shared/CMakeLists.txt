@@ -21,10 +21,15 @@ addIeTarget(
         ADD_CPPLINT
         DEVELOPER_PACKAGE
         DEPENDENCIES
+            mock_engine
             HeteroPlugin
             MultiDevicePlugin
         EXPORT_DEPENDENCIES
             ${EXPORT_DEPENDENCIES}
+)
+
+ie_faster_build(${TARGET_NAME}
+    PCH PRIVATE "src/precomp.hpp"
 )
 
 if (TARGET MKLDNNPlugin)

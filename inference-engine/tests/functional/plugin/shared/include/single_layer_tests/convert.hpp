@@ -19,10 +19,12 @@ using ConvertParamsTuple = typename std::tuple<
         std::vector<std::vector<size_t>>,  // Input shapes
         InferenceEngine::Precision,        // Source precision
         InferenceEngine::Precision,        // Target precision
+        InferenceEngine::Layout,           // Input layout
+        InferenceEngine::Layout,           // Output layout
         std::string>;                      // Device name
 
 class ConvertLayerTest : public testing::WithParamInterface<ConvertParamsTuple>,
-                        public LayerTestsUtils::LayerTestsCommon {
+                        virtual public LayerTestsUtils::LayerTestsCommon {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<ConvertParamsTuple> &obj);
 

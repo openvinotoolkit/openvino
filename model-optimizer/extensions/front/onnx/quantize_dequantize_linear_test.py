@@ -72,7 +72,6 @@ class TestQuantizeDeQuantize2FakeQuantize(unittest.TestCase):
                              'scale_param_dq': {'shape': np.array([1]), 'value': np.float32(1.0 / 255)},
                              'zerop_param_dq': {'shape': np.array([1]), 'value': np.uint8(0)},
                              }, nodes_with_edges_only=True)
-        graph.graph['cmd_params'] = Namespace(keep_shape_ops=True)
 
         graph_ref = build_graph(nodes_ref_attributes,
                                 [('input', 'fq', {'in': 0}),
@@ -108,7 +107,6 @@ class TestQuantizeDeQuantize2FakeQuantize(unittest.TestCase):
                             {'scale_param': {'shape': np.array([1]), 'value': np.float32(1.0 / 255)},
                              'zerop_param': {'shape': np.array([1]), 'value': np.int8(0)},
                              }, nodes_with_edges_only=True)
-        graph.graph['cmd_params'] = Namespace(keep_shape_ops=True)
 
         graph_ref = build_graph(nodes_ref_attributes,
                                 [('input', 'fq', {'in': 0}),

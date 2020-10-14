@@ -13,7 +13,6 @@
 #include <map>
 
 #include <cpp_interfaces/exception2status.hpp>
-#include <details/caseless.hpp>
 #include <ie_plugin_config.hpp>
 
 namespace vpu {

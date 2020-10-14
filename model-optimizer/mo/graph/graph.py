@@ -105,12 +105,12 @@ class Node:
         # no handling of control flow edges -- TODO
         control_flow = False
         if not skip_if_absent and idx not in self.in_ports(control_flow=control_flow):
-            raise Error("Input port with index {} does't exist in node {}.".format(idx, self.soft_get('name')))
+            raise Error("Input port with index {} doesn't exist in node {}.".format(idx, self.soft_get('name')))
         if not self.in_port(idx).disconnected():
             self.in_port(idx).disconnect()
         del self._in_ports[idx]
         # update in_ports_count for consistency but it is unlikely have any effect somewhere in the code
-        self.in_ports_count = len(self._in_ports)
+        self['in_ports_count'] = len(self._in_ports)
 
     def add_output_port(self, idx, skip_if_exist=False, **kwargs):
         if not self.has_valid('_out_ports'):
@@ -975,10 +975,7 @@ class Graph(nx.MultiDiGraph):
         if undead_node_types is None:
             undead_node_types = []
 
-        if 'fw' in self.graph and self.graph['fw'] == 'tf':
-            undead_node_types.append('TFCustomSubgraphCall')
-
-        if 'cmd_params' in self.graph and getattr(self.graph['cmd_params'], 'keep_shape_ops'):
+        if not getattr(self.graph['cmd_params'], 'static_shape', False):
             undead_node_types.extend(['ShapeOf', 'Shape', 'slice_like'])
 
         mark_output_reachable_nodes(self)

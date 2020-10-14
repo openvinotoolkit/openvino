@@ -19,16 +19,17 @@ using InputShapesTuple = std::pair<std::vector<size_t>, std::vector<size_t>>;
 
 typedef std::tuple<
     ComparisonParams::InputShapesTuple, // Input shapes tuple
-    InferenceEngine::Precision,         // Inputs precision
+    InferenceEngine::Precision,         // NG Inputs precision
     ngraph::helpers::ComparisonTypes,   // Comparison op type
     ngraph::helpers::InputLayerType,    // Second input type
-    InferenceEngine::Precision,         // Net precision
+    InferenceEngine::Precision,         // IE in precision
+    InferenceEngine::Precision,         // IE out precision
     std::string,                        // Device name
     std::map<std::string, std::string>  // Additional network configuration
 > ComparisonTestParams;
 
 class ComparisonLayerTest : public testing::WithParamInterface<ComparisonTestParams>,
-    public LayerTestsUtils::LayerTestsCommon {
+    virtual public LayerTestsUtils::LayerTestsCommon {
 protected:
     void SetUp() override;
 

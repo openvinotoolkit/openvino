@@ -8,13 +8,10 @@
 #include <memory>
 #include <vector>
 #include <string>
-#include <map>
 #include <cassert>
 #include <algorithm>
+#include <caseless.hpp>
 #include <ie_common.h>
-#include <ie_profiling.hpp>
-#include <ie_layers_property.hpp>
-#include "details/caseless.hpp"
 #include "mkldnn_dims.h"
 #include "mkldnn_memory.h"
 #include "mkldnn_edge.h"
@@ -24,17 +21,12 @@
 #include "mkldnn_primitive.h"
 #include "mkldnn_weights_cache.hpp"
 #include "mkldnn.hpp"
+#include <openvino/itt.hpp>
 
 namespace MKLDNNPlugin {
 
 using MKLDNNNodePtr = std::shared_ptr<MKLDNNNode>;
 using MKLDNNNodeWeakPtr = std::weak_ptr<MKLDNNNode>;
-
-using CreatorByLayerFunction = std::function<MKLDNNNode *(const InferenceEngine::CNNLayerPtr& layer,
-        const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &w_cache)>;
-struct MKLDNNNodesHolder {
-    std::map<std::string, CreatorByLayerFunction> nodes;
-};
 
 enum Type {
     Unknown,
@@ -78,7 +70,20 @@ enum Type {
     Normalize,
     ScatterUpdate,
     ScatterElementsUpdate,
-    ScatterNDUpdate
+    ScatterNDUpdate,
+    Interpolate,
+    ReduceAnd,
+    ReduceL1,
+    ReduceL2,
+    ReduceLogSum,
+    ReduceLogSumExp,
+    ReduceMax,
+    ReduceMean,
+    ReduceMin,
+    ReduceOr,
+    ReduceProd,
+    ReduceSum,
+    ReduceSumSquare
 };
 
 Type TypeFromName(const std::string type);
@@ -167,6 +172,32 @@ static std::string NameFromType(Type type) {
             return "ScatterElementsUpdate";
         case ScatterNDUpdate:
             return "ScatterNDUpdate";
+        case Interpolate:
+            return "Interpolate";
+        case ReduceAnd:
+            return "ReduceAnd";
+        case ReduceL1:
+            return "ReduceL1";
+        case ReduceL2:
+            return "ReduceL2";
+        case ReduceLogSum:
+            return "ReduceLogSum";
+        case ReduceLogSumExp:
+            return "ReduceLogSumExp";
+        case ReduceMax:
+            return "ReduceMax";
+        case ReduceMean:
+            return "ReduceMean";
+        case ReduceMin:
+            return "ReduceMin";
+        case ReduceOr:
+            return "ReduceOr";
+        case ReduceProd:
+            return "ReduceProd";
+        case ReduceSum:
+            return "ReduceSum";
+        case ReduceSumSquare:
+            return "ReduceSumSquare";
         default:
             return "Unknown";
     }
@@ -229,11 +260,11 @@ private:
 
 class MKLDNNNode : public InferenceEngine::details::no_copy {
 public:
-    static void AddNode(const std::string& name, CreatorByLayerFunction factory);
-    static std::shared_ptr<MKLDNNNodesHolder> GetNodesHolder();
+    class Factory;
+    template<typename To>
+    class Registrar;
 
-    static MKLDNNNode* CreateNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng,
-                                  const MKLDNNExtensionManager::Ptr& extMgr, MKLDNNWeightsSharing::Ptr &w_cache);
+    static Factory & factory();
 
     ~MKLDNNNode() override = default;
 
@@ -446,20 +477,6 @@ public:
         return desc.outputNumbers();
     }
 
-    template<typename To>
-    class Register {
-    public:
-        explicit Register(const std::string& type) {
-            MKLDNNNode::AddNode(type,
-                    [](const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng,
-                            MKLDNNWeightsSharing::Ptr &w_cache)
-                    -> MKLDNNNode* {
-                        return new To(layer, eng, w_cache);
-                    });
-        }
-    };
-
-
 protected:
     // TODO: It is necessary only in order to avoid modifications of cnnLayers and original topology
     std::vector<MKLDNNDims> outDims;
@@ -549,7 +566,7 @@ private:
     std::string typeToStr(Type type);
 
     PerfCount perfCounter;
-    InferenceEngine::ProfilingTask profilingTask;
+    openvino::itt::handle_t profilingTask;
 
     bool isEdgesEmpty(const std::vector<MKLDNNEdgeWeakPtr>& edges) const;
 
@@ -573,8 +590,39 @@ private:
     ConstantType checkConstant(LOOK look, std::vector<MKLDNNNodePtr>& checkNodes);
 };
 
+class MKLDNNNode::Factory : InferenceEngine::details::no_copy {
+public:
+    using builder_t = std::function<MKLDNNNode *(const InferenceEngine::CNNLayerPtr& layer,
+        const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &w_cache)>;
+
+    MKLDNNNode* create(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng,
+                       const MKLDNNExtensionManager::Ptr& extMgr, MKLDNNWeightsSharing::Ptr &w_cache);
+
+    void registerNode(Type type, builder_t builder);
+
+private:
+    using map_t = std::unordered_map<Type, builder_t,
+        std::hash<std::underlying_type<MKLDNNPlugin::Type>::type>>;
+    map_t builders;
+};
+
+template<typename To>
+class MKLDNNNode::Registrar {
+public:
+    explicit Registrar(Type type) {
+        MKLDNNNode::factory().registerNode(type,
+                [type](const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng,
+                    MKLDNNWeightsSharing::Ptr &w_cache) -> MKLDNNNode* {
+                    MKLDNNNode *node = new To(layer, eng, w_cache);
+                    return node;
+                });
+    }
+};
+
+#define REG_MKLDNN_CONCAT2(X, Y) X ## Y
+#define REG_MKLDNN_CONCAT(X, Y) REG_MKLDNN_CONCAT2(X, Y)
 #define REG_MKLDNN_PRIM_FOR(__prim, __type) \
-static MKLDNNNode::Register<__prim> __reg__##__type(#__type)
+static MKLDNNNode::Registrar<__prim> REG_MKLDNN_CONCAT(_reg_, __LINE__)(__type)
 
 template <typename T, typename U>
 inline T div_up(const T a, const U b) {
