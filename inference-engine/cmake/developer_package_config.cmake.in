@@ -20,7 +20,7 @@ endforeach()
 message(STATUS "The following CMake options are exported from Inference Engine Developer package")
 message("")
 foreach(option IN LISTS ie_options)
-	message("    ${option}: ${${option}}")
+    message("    ${option}: ${${option}}")
 endforeach()
 message("")
 
@@ -50,7 +50,7 @@ list(APPEND CMAKE_MODULE_PATH "${OpenVINO_MAIN_SOURCE_DIR}/cmake")
 list(APPEND CMAKE_MODULE_PATH "${IE_MAIN_SOURCE_DIR}/cmake")
 
 # generic stuff from developer package
-include(developer_package)
+include(developer_package NO_POLICY_SCOPE)
 include(developer_package_ie)
 
 # Don't threat deprecated API warnings as errors in 3rd party apps

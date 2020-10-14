@@ -4,16 +4,8 @@
 
 set (TARGET_NAME "HeteroPlugin")
 
-if(ENABLE_LTO)
-    ie_enable_lto()
-endif()
-
-file(GLOB SOURCES
-    ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp
-)
-
-file(GLOB_RECURSE HEADERS
-        ${CMAKE_CURRENT_SOURCE_DIR}/*.hpp)
+file(GLOB SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp)
+file(GLOB_RECURSE HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/*.hpp)
 
 ie_add_plugin(NAME ${TARGET_NAME}
               DEVICE_NAME "HETERO"
@@ -25,3 +17,5 @@ ie_faster_build(${TARGET_NAME}
 )
 
 target_link_libraries(${TARGET_NAME} PRIVATE inference_engine ade pugixml ${NGRAPH_LIBRARIES} inference_engine_transformations)
+
+set_target_properties(${TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION ${ENABLE_LTO})

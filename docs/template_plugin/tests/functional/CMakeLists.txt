@@ -3,10 +3,6 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-if(ENABLE_LTO AND CMAKE_COMPILER_IS_GNUCC AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER 9.0)
-    ie_enable_lto()
-endif()
-
 # [cmake:functional_tests]
 set(TARGET_NAME templateFuncTests)
 

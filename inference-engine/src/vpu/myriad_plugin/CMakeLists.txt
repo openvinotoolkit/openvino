@@ -2,10 +2,6 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-if(ENABLE_LTO)
-    ie_enable_lto()
-endif()
-
 set(TARGET_NAME "myriadPlugin")
 
 file(GLOB_RECURSE SOURCES *.cpp *.hpp *.h)
@@ -44,6 +40,10 @@ endif()
 target_link_libraries(${TARGET_NAME}
     PRIVATE
         mvnc inference_engine vpu_graph_transformer)
+
+# LTO
+
+set_target_properties(${TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION ${ENABLE_LTO})
 
 # install
 

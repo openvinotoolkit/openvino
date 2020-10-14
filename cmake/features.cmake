@@ -21,7 +21,7 @@ ie_dependent_option (ENABLE_CLDNN "clDnn based plugin for inference engine" ON "
 
 # FIXME: there are compiler failures with LTO and Cross-Compile toolchains. Disabling for now, but
 #        this must be addressed in a proper way
-ie_dependent_option (ENABLE_LTO "Enable Link Time Optimization" OFF "LINUX OR WIN32;NOT CMAKE_CROSSCOMPILING" OFF)
+ie_dependent_option (ENABLE_LTO "Enable Link Time Optimization" OFF "LINUX OR WIN32;NOT CMAKE_CROSSCOMPILING; CMAKE_CXX_COMPILER_VERSION VERSION_GREATER 4.9" OFF)
 
 ie_option (OS_FOLDER "create OS dedicated folder in output" OFF)
 

@@ -2,6 +2,8 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
+cmake_minimum_required(VERSION 3.13)
+
 list(APPEND CMAKE_MODULE_PATH
         "${OpenVINO_MAIN_SOURCE_DIR}/cmake/download"
         "${OpenVINO_MAIN_SOURCE_DIR}/cmake/cross_compile"
@@ -213,6 +215,22 @@ endif()
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 
 set(CMAKE_POLICY_DEFAULT_CMP0054 NEW)
+
+# LTO
+
+set(CMAKE_POLICY_DEFAULT_CMP0069 NEW)
+include(CheckIPOSupported)
+
+check_ipo_supported(RESULT IPO_SUPPORTED
+                    OUTPUT OUTPUT_MESSAGE
+                    LANGUAGES C CXX)
+
+if(NOT IPO_SUPPORTED)
+    set(ENABLE_LTO "OFF" CACHE STRING "Enable Link Time Optmization" FORCE)
+    message(WARNING "IPO / LTO is not supported: ${OUTPUT_MESSAGE}")
+endif()
+
+# General flags
 
 include(sdl)
 include(os_flags)

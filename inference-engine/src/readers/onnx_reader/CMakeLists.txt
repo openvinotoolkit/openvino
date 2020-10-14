@@ -4,10 +4,6 @@
 
 set(TARGET_NAME "inference_engine_onnx_reader")
 
-if(ENABLE_LTO)
-    ie_enable_lto()
-endif()
-
 file(GLOB_RECURSE LIBRARY_SRC ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp
                               ${CMAKE_CURRENT_SOURCE_DIR}/*.hpp)
 
@@ -25,6 +21,8 @@ target_include_directories(${TARGET_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 target_compile_definitions(${TARGET_NAME} PRIVATE IMPLEMENT_INFERENCE_ENGINE_PLUGIN)
 
 target_link_libraries(${TARGET_NAME} PRIVATE inference_engine_reader_api onnx_importer inference_engine)
+
+set_target_properties(${TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION ${ENABLE_LTO})
 
 # code style
 

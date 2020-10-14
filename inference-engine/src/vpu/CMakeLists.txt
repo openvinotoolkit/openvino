@@ -14,9 +14,9 @@ if(ENABLE_MYRIAD)
             "${IE_MAIN_SOURCE_DIR}/thirdparty/movidius"
             "${CMAKE_CURRENT_BINARY_DIR}/thirdparty/movidius")
 
-	#
-	# Build plugins
-	#
+    #
+    # Build plugins
+    #
 
     add_subdirectory(myriad_plugin)
 
