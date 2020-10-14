@@ -49,7 +49,7 @@ if(ENABLE_PROFILING_ITT)
             EXCLUDE_FROM_ALL TRUE
             BUILD_BYPRODUCTS ${ITTNOTIFY_LIBRARY})
         add_library(ittnotify INTERFACE)
-        add_dependencies(ittnotify ittapi_external)
+        add_dependencies(ittnotify ext_ittapi)
         target_link_libraries(ittnotify INTERFACE ${ITTNOTIFY_LIBRARY})
         target_include_directories(ittnotify INTERFACE ${ITTAPI_SOURCE_DIR}/include)
         openvino_developer_export_targets(ittnotify)
