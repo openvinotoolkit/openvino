@@ -414,6 +414,41 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
         return res;
     });
 
+    addSpecificCreator({"DeconvolutionIE"},
+                       [](const std::shared_ptr<::ngraph::Node> &node, const std::map<std::string, std::string> &params) -> CNNLayerPtr {
+        LayerParams attrs = {node->get_friendly_name(), "Deconvolution",
+                             details::convertPrecision(node->get_output_element_type(0))};
+        auto res = std::make_shared<DeconvolutionLayer>(attrs);
+
+        res->params = params;
+        const auto& shape = node->get_input_shape(1);
+        res->params["output"] = Builder::asString(shape[1]);
+        std::string kernel_value;
+        for (size_t i = 2; i < shape.size(); i++) {
+            if (!kernel_value.empty()) kernel_value += ",";
+            kernel_value += Builder::asString(shape[i]);
+        }
+        res->params["kernel"] = kernel_value;
+
+        Builder::NodeConverter<ngraph::op::Constant> converter;
+        const auto weightsNode = node->input_value(1).get_node_shared_ptr();
+        if (converter.canCreate(weightsNode)) {
+            const auto& weights = converter.createLayer(weightsNode);
+            res->blobs["weights"] = weights->blobs["custom"];
+            res->_weights = weights->blobs["custom"];
+
+            if (node->inputs().size() == 3) {
+                const auto biasNode = node->input_value(2).get_node_shared_ptr();
+                if (converter.canCreate(biasNode)) {
+                    const auto& bias = converter.createLayer(biasNode);
+                    res->blobs["biases"] = bias->blobs["custom"];
+                    res->_biases = bias->blobs["custom"];
+                }
+            }
+        }
+        return res;
+    });
+
     addSpecificCreator({"LSTMCellIE"}, [](const std::shared_ptr<::ngraph::Node>& node,
                                          const std::map<std::string, std::string> params) -> CNNLayerPtr {
         LayerParams attrs = {node->get_friendly_name(), "LSTMCell",
@@ -652,7 +687,6 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
     REQUIRED_IE_CONVERSION_CREATOR("Interpolate", "Interp");
     REQUIRED_IE_CONVERSION_CREATOR("NormalizeL2", "NormalizeIE");
     REQUIRED_IE_CONVERSION_CREATOR("GroupConvolution", "ConvolutionIE");
-    REQUIRED_IE_CONVERSION_CREATOR("ConvolutionBackpropData", "DeconvolutionIE");
     REQUIRED_IE_CONVERSION_CREATOR("GroupConvolutionBackpropData", "DeconvolutionIE");
 
     addSpecificCreator({ "Convolution", "Gather", "GatherTree", "GRUCell", "GRUSequence", "HardSigmoid",
