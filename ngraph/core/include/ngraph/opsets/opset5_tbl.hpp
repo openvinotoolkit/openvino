@@ -164,9 +164,10 @@ NGRAPH_OP(Swish, ngraph::op::v4)
 
 // New operations added in opset5
 NGRAPH_OP(GatherND, ngraph::op::v5)
+NGRAPH_OP(GRUSequence, ngraph::op::v5)
+NGRAPH_OP(HSigmoid, ngraph::op::v5)
 NGRAPH_OP(LogSoftmax, ngraph::op::v5)
 NGRAPH_OP(LSTMSequence, ngraph::op::v5)
 NGRAPH_OP(NonMaxSuppression, ngraph::op::v5)
-NGRAPH_OP(GRUSequence, ngraph::op::v5)
 NGRAPH_OP(RNNSequence, ngraph::op::v5)
 NGRAPH_OP(Round, ngraph::op::v5)
