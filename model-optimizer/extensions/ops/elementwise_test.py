@@ -22,6 +22,26 @@ from extensions.ops.elementwise import Round
 from mo.graph.graph import Node
 from mo.utils.unittest.graph import build_graph
 
+def round_test_graph(nodes_attributes, value, mode: str):
+    graph = build_graph(nodes_attributes,
+                        [
+                            ('node_1', 'elementwise_node'),
+                            ('elementwise_node', 'node_3')
+                        ],
+                        {
+                            'node_1': {
+                                'value': value
+                            },
+                            'elementwise_node': {
+                                'op': 'Round',
+                                'mode': mode,
+                            },
+                            'node_3': {
+                                'value': None
+                            }
+                        })
+    return graph
+
 
 class TestElementwiseOp(unittest.TestCase):
     nodes_attributes = {
@@ -42,24 +62,8 @@ class TestElementwiseOp(unittest.TestCase):
     value = np.array([-23.5, -22.5, -2.5, -1.5, -0.5, 0.5, 0.9, 1.5, 2.3, 2.5, 3.5, 22.5, 23.5])
 
     def test_elementwise_round_even_infer(self):
-        graph = build_graph(self.nodes_attributes,
-                            [
-                                ('node_1', 'elementwise_node'),
-                                ('elementwise_node', 'node_3')
-                            ],
-                            {
-                                'node_1': {
-                                    'value': self.value
-                                },
-                                'elementwise_node': {
-                                    'op': 'Round',
-                                    # 'operation': Round.operation,
-                                    'mode': 'half_to_even',
-                                },
-                                'node_3': {
-                                    'value': None
-                                }
-                            })
+        graph = round_test_graph(self.nodes_attributes, self.value, 'half_to_even')
+
         graph.graph['layout'] = 'NCHW'
         elementwise_node = Node(graph, 'elementwise_node')
         Round.infer(elementwise_node)
@@ -73,24 +77,8 @@ class TestElementwiseOp(unittest.TestCase):
             self.assertAlmostEqual(res_value[i], value)
 
     def test_elementwise_round_away_infer(self):
-        graph = build_graph(self.nodes_attributes,
-                            [
-                                ('node_1', 'elementwise_node'),
-                                ('elementwise_node', 'node_3')
-                            ],
-                            {
-                                'node_1': {
-                                    'value': self.value
-                                },
-                                'elementwise_node': {
-                                    'op': 'Round',
-                                    # 'operation': Round.operation,
-                                    'mode': 'half_away_from_zero',
-                                },
-                                'node_3': {
-                                    'value': None
-                                }
-                            })
+        graph = round_test_graph(self.nodes_attributes, self.value, 'half_away_from_zero')
+
         graph.graph['layout'] = 'NCHW'
         elementwise_node = Node(graph, 'elementwise_node')
         Round.infer(elementwise_node)
