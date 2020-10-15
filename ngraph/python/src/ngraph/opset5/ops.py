@@ -115,7 +115,6 @@ def log_softmax(data: NodeInput, axis: int, name: Optional[str] = None) -> Node:
     :param axis: An axis along which LogSoftmax should be calculated
     :return: The new node with LogSoftmax operation applied on each element.
     """
-
     return _get_node_factory_opset5().create("LogSoftmax", [as_node(data)], {"axis": axis})
 
 
@@ -136,6 +135,7 @@ def round(data: NodeInput, mode: str = "half_to_even", name: Optional[str] = Non
 @nameable_op
 def hsigmoid(data: NodeInput, name: Optional[str] = None,) -> Node:
     """Return a node which performs HSigmoid.
+
     :param data: Tensor with input data floating point type.
     :return: The new node which performs HSigmoid
     """
