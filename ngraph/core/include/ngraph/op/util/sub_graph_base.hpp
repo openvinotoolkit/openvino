@@ -302,11 +302,12 @@ namespace ngraph
                 /// \param      body_value  The value
                 /// \param      iteration   The iteration that supplies the value. Negative values
                 ///                         are from the last iteration.
+                ///                         Default value -1 (the last iteration).
                 ///
                 /// \return     The iterator value.
                 ///
                 virtual Output<Node> get_iter_value(const Output<Node>& body_value,
-                                                    int64_t iteration);
+                                                    int64_t iteration = -1);
                 ///
                 /// \brief      Concatenates slices from all iterations
                 ///
