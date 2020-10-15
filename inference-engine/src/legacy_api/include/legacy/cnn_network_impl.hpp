@@ -128,11 +128,6 @@ public:
         noexcept override;
 
 protected:
-    void setWeightsBlobPtr(const Blob::CPtr& weights) noexcept override {
-        _weights = weights;
-    }
-
-protected:
     std::map<std::string, DataPtr> _data;
     std::map<std::string, CNNLayerPtr> _layers;
     InferenceEngine::InputsDataMap _inputData;

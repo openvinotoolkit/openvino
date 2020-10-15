@@ -85,13 +85,8 @@ public:
         noexcept override;
 
 protected:
-    void setWeightsBlobPtr(const Blob::CPtr& weights) noexcept override {
-        _weights = weights;
-    }
-
     virtual std::shared_ptr<::ngraph::Function> cloneFunction(bool constFolding = false) const;
     std::shared_ptr<::ngraph::Function> _ngraph_function;
-    Blob::CPtr _weights;
 
 private:
     std::map<std::string, DataPtr> _data;

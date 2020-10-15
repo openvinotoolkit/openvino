@@ -44,7 +44,8 @@ public:
      *
      * @param network Pointer to the network object
      */
-    explicit CNNNetwork(std::shared_ptr<ICNNNetwork> network): network(network) {
+    explicit CNNNetwork(std::shared_ptr<ICNNNetwork> network)
+        : network(network) {
         actual = network.get();
         if (actual == nullptr) THROW_IE_EXCEPTION << "CNNNetwork was not initialized.";
     }
@@ -249,7 +250,7 @@ protected:
      */
     void setWeightsBlobPtr(const Blob::CPtr& weights) {
         if (actual == nullptr) THROW_IE_EXCEPTION << "CNNNetwork was not initialized.";
-        actual->setWeightsBlobPtr(weights);
+        _weights = weights;
     }
 
 protected:
@@ -266,6 +267,8 @@ protected:
      * @brief A pointer to output data
      */
     DataPtr output;
+
+    Blob::CPtr _weights;
 
     friend class V10Parser;
 };
