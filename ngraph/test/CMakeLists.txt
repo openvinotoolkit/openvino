@@ -157,6 +157,7 @@ set(SRC
     type_prop/read_value.cpp
     type_prop/reduce_l1.cpp
     type_prop/reduce_l2.cpp
+    type_prop/reorg_yolo.cpp
     type_prop/replace_slice.cpp
     type_prop/reshape.cpp
     type_prop/reverse.cpp
@@ -325,6 +326,7 @@ set(MULTI_TEST_SRC
     backend/reduce_prod.in.cpp
     backend/reduce_sum.in.cpp
     backend/relu.in.cpp
+    backend/reorg_yolo.in.cpp
     backend/replace_slice.in.cpp
     backend/reshape.in.cpp
     backend/reverse_sequence.in.cpp
