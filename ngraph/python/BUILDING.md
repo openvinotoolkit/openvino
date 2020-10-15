@@ -13,9 +13,8 @@ On Ubuntu 20.04 LTS you can use the following instructions to install the requir
 
     apt install git wget build-essential cmake
     apt install python3 python3-dev python3-pip python3-virtualenv python-is-python3
-    pip3 install cython
 
-You can see a full working example od an Ubuntu environment used in our continuous environment in this 
+You can see a full working example on an Ubuntu environment used in our continuous environment in this 
 [Dockerfile](https://github.com/openvinotoolkit/openvino/blob/master/.ci/openvino-onnx/Dockerfile).
 
 On MacOS you can use [Homebrew](https://brew.sh) to install required packages:
@@ -23,6 +22,11 @@ On MacOS you can use [Homebrew](https://brew.sh) to install required packages:
     brew install cmake
     brew install automake
     brew install libtool
+    brew install python3
+
+Install Cython in the Python installation, or virtualenv which you are planning to use:
+
+    pip3 install cython
 
 ### Configure, build and install OpenVINO
 
@@ -51,6 +55,14 @@ set the mentioned flags to `ON`. Note the `CMAKE_INSTALL_PREFIX`, which defaults
     
     make -j 4
     make install
+
+If you would like to use a specific version of Python, or use a virtual environment you can set the `PYTHON_EXECUTABLE` 
+variable. Examples: 
+
+```
+-DPYTHON_EXECUTABLE=/path/to/venv/bin/python
+-DPYTHON_EXECUTABLE=$(which python3.8)
+```
 
 ### Build nGraph Python wheel
 
