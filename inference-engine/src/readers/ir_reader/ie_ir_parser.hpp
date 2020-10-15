@@ -232,6 +232,12 @@ private:
                 std::vector<size_t> axes;
                 if (!getParameters<size_t>(node.child("data"), name, axes)) return;
                 static_cast<ngraph::AxisSet&>(*a) = ngraph::AxisSet(axes);
+            } else if (auto a = ngraph::as_type<ngraph::AttributeAdapter<ngraph::op::TopKSortType>>(&adapter)) {
+                if (!getStrAttribute(node.child("data"), name, val)) return;
+                static_cast<ngraph::op::TopKSortType&>(*a) = ngraph::as_enum<ngraph::op::TopKSortType>(val);
+            } else if (auto a = ngraph::as_type<ngraph::AttributeAdapter<ngraph::op::TopKMode>>(&adapter)) {
+                if (!getStrAttribute(node.child("data"), name, val)) return;
+                static_cast<ngraph::op::TopKMode&>(*a) = ngraph::as_enum<ngraph::op::TopKMode>(val);
             }  else {
                 THROW_IE_EXCEPTION << "Error IR reading. Attribute adapter can not be found for " << name
                                    << " parameter";
