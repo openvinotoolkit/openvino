@@ -103,4 +103,4 @@ def round(data: NodeInput, mode: str = "half_to_even", name: Optional[str] = Non
     :param name: An optional name of the output node.
     :return: The new node with Round operation applied on each element.
     """
-    return _get_node_factory_opset5().create("Round", as_nodes(data), {"mode": mode})
+    return _get_node_factory_opset5().create("Round", as_nodes(data), {"mode": mode.upper()})
