@@ -24,7 +24,7 @@ from mo.front.common.partial_infer.utils import int64_array
 from mo.ops.reshape import Reshape
 from mo.utils.ir_engine.compare_graphs import compare_graphs
 from mo.utils.unittest.graph import build_graph, result, regular_op_with_shaped_data, regular_op_with_empty_data, \
-    valued_const_with_data, const_with_data, connect
+    valued_const_with_data, connect
 
 
 def graph_template(weights_initial_shape, new_reshape_shape, limits_initial_shape, limits_new_shape=None):
@@ -40,7 +40,7 @@ def graph_template(weights_initial_shape, new_reshape_shape, limits_initial_shap
 
         **valued_const_with_data('weights', np.ones(weights_shape)),
 
-        **const_with_data('dim', int64_array(reshape_shape)),
+        **valued_const_with_data('dim', int64_array(reshape_shape)),
         **regular_op_with_shaped_data('reshape', reshape_shape, {'type': 'Reshape', 'infer': Reshape.infer, 'op': 'Reshape'}),
 
         **valued_const_with_data('il', np.ones(limit_shape)),
@@ -118,7 +118,7 @@ class TestV7ConvolutionWithGroupsResolver(unittest.TestCase):
 
             **valued_const_with_data('weights', np.ones([3, 8, 7, 7])),
 
-            **const_with_data('dim', int64_array([24, -1, 7, 7])),
+            **valued_const_with_data('dim', int64_array([24, -1, 7, 7])),
             **regular_op_with_empty_data('reshape', {'type': 'Reshape'}),
 
             **regular_op_with_shaped_data('convolution', None, {'type': 'Convolution', 'group': 3, 'output': 24}),
@@ -169,7 +169,7 @@ class TestV10ConvolutionWithGroupsResolver(unittest.TestCase):
 
             **valued_const_with_data('weights', np.ones([3, 8, 7, 7])),
 
-            **const_with_data('dim', int64_array([3, 8, 1, 7, 7])),
+            **valued_const_with_data('dim', int64_array([3, 8, 1, 7, 7])),
             **regular_op_with_empty_data('reshape', {'type': 'Reshape'}),
 
             **regular_op_with_shaped_data('convolution', None, {'type': 'Convolution', 'group': 3, 'output': 24}),

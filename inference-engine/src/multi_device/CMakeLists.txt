@@ -4,17 +4,8 @@
 
 set (TARGET_NAME "MultiDevicePlugin")
 
-if(ENABLE_LTO)
-    ie_enable_lto()
-endif()
-
-file(GLOB SOURCES
-    ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp
-)
-
-file(GLOB HEADERS
-    ${CMAKE_CURRENT_SOURCE_DIR}/*.hpp
-)
+file(GLOB SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp)
+file(GLOB HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/*.hpp)
 
 ie_add_plugin(NAME ${TARGET_NAME}
               DEVICE_NAME "MULTI"
@@ -24,3 +15,5 @@ ie_add_plugin(NAME ${TARGET_NAME}
 target_link_libraries(${TARGET_NAME} PRIVATE inference_engine)
 
 set_ie_threading_interface_for(${TARGET_NAME})
+
+set_target_properties(${TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION ${ENABLE_LTO})

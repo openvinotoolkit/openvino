@@ -53,8 +53,8 @@ as a part of [Intel® Distribution of OpenVINO™].
 
 The software was validated on:
 - Ubuntu\* 18.04 (64-bit) with default GCC\* 7.5.0
-- Ubuntu\* 16.04 (64-bit) with default GCC\* 5.4.0
-- CentOS\* 7.4 (64-bit) with default GCC\* 4.8.5
+- Ubuntu\* 20.04 (64-bit) with default GCC\* 9.3.0
+- CentOS\* 7.6 (64-bit) with default GCC\* 4.8.5
 
 ### Software Requirements
 - [CMake]\* 3.13 or higher
@@ -332,12 +332,11 @@ You can use the following additional build options:
 ## Build on Windows* Systems
 
 The software was validated on:
-- Microsoft\* Windows\* 10 (64-bit) with Visual Studio 2017 and Intel® C++
-  Compiler 2018 Update 3
+- Microsoft\* Windows\* 10 (64-bit) with Visual Studio 2019
 
 ### Software Requirements
 - [CMake]\*3.13 or higher
-- Microsoft\* Visual Studio 2017, 2019 or [Intel® C++ Compiler] 18.0
+- Microsoft\* Visual Studio 2017, 2019
 - (Optional) Intel® Graphics Driver for Windows* (26.20) [driver package].
 - Python 3.6 or higher for Inference Engine Python API wrapper
 > **NOTE**: Building samples and demos from the Intel® Distribution of OpenVINO™ toolkit package requires CMake\* 3.10 or higher. 
@@ -369,13 +368,6 @@ cmake -G "Visual Studio 15 2017 Win64" -DCMAKE_BUILD_TYPE=Release ..
    For Microsoft\* Visual Studio 2019:
 ```sh
 cmake -G "Visual Studio 16 2019" -A x64 -DCMAKE_BUILD_TYPE=Release ..
-```
-
-   For Intel® C++ Compiler 18:
-```sh
-cmake -G "Visual Studio 15 2017 Win64" -T "Intel C++ Compiler 18.0" ^
-    -DCMAKE_BUILD_TYPE=Release ^
-    -DICCLIB="C:\Program Files (x86)\IntelSWTools\compilers_and_libraries_2018\windows\compiler\lib" ..
 ```
 
 5. Build generated solution in Visual Studio or run
@@ -699,5 +691,4 @@ This target collects all dependencies, prepares the nGraph package and copies it
 [build instructions]:https://docs.opencv.org/master/df/d65/tutorial_table_of_content_introduction.html
 [driver package]:https://downloadcenter.intel.com/download/29335/Intel-Graphics-Windows-10-DCH-Drivers
 [Intel® Neural Compute Stick 2 Get Started]:https://software.intel.com/en-us/neural-compute-stick/get-started
-[Intel® C++ Compiler]:https://software.intel.com/en-us/intel-parallel-studio-xe
 [OpenBLAS]:https://sourceforge.net/projects/openblas/files/v0.2.14/OpenBLAS-v0.2.14-Win64-int64.zip/download

@@ -29,6 +29,8 @@ INSTANTIATE_TEST_CASE_P(smoke_LrnCheck, LrnLayerTest,
                                            ::testing::Values(size),
                                            ::testing::ValuesIn(axes),
                                            ::testing::ValuesIn(netPrecisions),
+                                           ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                           ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                                            ::testing::Values(std::vector<size_t>({10, 10, 3, 2})),
                                            ::testing::Values(CommonTestUtils::DEVICE_GPU)),
                         LrnLayerTest::getTestCaseName);

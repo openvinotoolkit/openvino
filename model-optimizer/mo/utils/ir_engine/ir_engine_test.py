@@ -49,7 +49,7 @@ class TestFunction(unittest.TestCase):
         test_data = test_data
         self.assertEqual(IREngine._IREngine__isfloat(test_data), result,
                          "Function __isfloat is not working with value: {}".format(test_data))
-        log.info('Test for function __is_float passed wit value: {}, expected result: {}'.format(test_data, result))
+        log.info('Test for function __is_float passed with value: {}, expected result: {}'.format(test_data, result))
 
     # TODO add comparison not for type IREngine
     def test_compare(self):
@@ -63,7 +63,7 @@ class TestFunction(unittest.TestCase):
         # Check function:
         flag, msg = self.IR.compare(self.IR_negative)
         self.assertFalse(flag, 'Comparing flag failed, test compare function failed')
-        self.assertEqual('\n'.join(msg), reference_msg, 'Comparing message failes, test compare negative failed')
+        self.assertEqual('\n'.join(msg), reference_msg, 'Comparing message failed, test compare negative failed')
 
         log.info('Test for function compare passed')
 
@@ -125,7 +125,7 @@ class TestFunction(unittest.TestCase):
         ti_nodes = IR.graph.get_op_nodes(type='TensorIterator')
         for ti in ti_nodes:
             if not ti.has_valid('body'):
-                log.error('TensorIterator has not body attrubite for node: {}'.format(ti.name))
+                log.error("TensorIterator doesn't have body attribute for node: {}".format(ti.name))
             else:
                 const_ti_nodes = ti.body.graph.get_op_nodes(type='Const')
                 for node in const_ti_nodes:
