@@ -46,8 +46,7 @@ NGRAPH_TEST(${BACKEND_NAME}, lrn_across_channel)
     float beta = 0.5;
     float bias = 1;
     int size = 3;
-    auto axes = op::Constant::create(element::i64, Shape{1}, {1});
-    auto lrn = make_shared<op::LRN>(A, axes, alpha, beta, bias, size);
+    auto lrn = make_shared<op::LRN>(A, alpha, beta, bias, size);
     auto f = make_shared<Function>(lrn, ParameterVector{A});
 
     std::vector<float> a{0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f, 9.0f, 10.0f, 11.0f};
