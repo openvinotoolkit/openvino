@@ -16,41 +16,38 @@
 
 #pragma once
 
+#include "ngraph/node.hpp"
 #include "ngraph/op/op.hpp"
+#include "ngraph/op/util/unary_elementwise_arithmetic.hpp"
 
 namespace ngraph
 {
     namespace op
     {
-        namespace v0
+        namespace v5
         {
-            class NGRAPH_API ReorgYolo : public Op
+            /// \brief A HSigmoid Activation Function
+            /// f(x) = min(max(x + 3, 0), 6) / 6 or
+            /// f(x) = min(ReLU(x + 3), 6) / 6
+            ///
+            class NGRAPH_API HSigmoid : public ngraph::op::util::UnaryElementwiseArithmetic
             {
             public:
-                static constexpr NodeTypeInfo type_info{"ReorgYolo", 0};
-                const NodeTypeInfo& get_type_info() const override { return type_info; }
-                ReorgYolo() = default;
-                /// \brief Constructs a ReorgYolo operation
+                NGRAPH_RTTI_DECLARATION;
+                HSigmoid() = default;
+
+                /// \brief Constructs a HSigmoid (hard version of Swish) operation.
                 ///
-                /// \param input          Input
-                /// \param stride         Stride to reorganize input by
-                ReorgYolo(const Output<Node>& input, const size_t stride);
+                /// \param data Input tensor
+                HSigmoid(const Output<Node>& arg);
 
-                // Constructor with `strides` for backward compatibility
-                ReorgYolo(const Output<Node>& input, const Strides& strides);
-
-                void validate_and_infer_types() override;
-
-                virtual bool visit_attributes(AttributeVisitor& visitor) override;
+                bool visit_attributes(AttributeVisitor& visitor) override;
 
                 virtual std::shared_ptr<Node>
                     clone_with_new_inputs(const OutputVector& new_args) const override;
-
-                Strides get_strides() const { return m_strides; }
-            private:
-                Strides m_strides;
+                bool evaluate(const HostTensorVector& outputs,
+                              const HostTensorVector& inputs) const override;
             };
         }
-        using v0::ReorgYolo;
     }
 }

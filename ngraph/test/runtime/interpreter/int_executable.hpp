@@ -28,6 +28,7 @@
 #include "int_backend_visibility.hpp"
 #include "ngraph/ops.hpp"
 #include "ngraph/runtime/aligned_buffer.hpp"
+#include "ngraph/runtime/reference/reorg_yolo.hpp"
 #include "ngraph/runtime/tensor.hpp"
 #include "op/avg_pool.hpp"
 
