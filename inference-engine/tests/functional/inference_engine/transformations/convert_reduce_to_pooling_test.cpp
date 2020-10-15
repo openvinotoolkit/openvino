@@ -17,7 +17,7 @@
 #include <ngraph/opsets/opset1.hpp>
 #include <transformations/init_node_info.hpp>
 #include <transformations/utils/utils.hpp>
-#include <transformations/convert_reduce_to_pooling.hpp>
+#include <transformations/op_conversions/convert_reduce_to_pooling.hpp>
 
 #include "common_test_utils/ngraph_test_utils.hpp"
 

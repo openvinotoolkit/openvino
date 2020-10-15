@@ -105,7 +105,7 @@ shared_ptr<Node> op::Unsqueeze::clone_with_new_inputs(const OutputVector& new_ar
     return make_shared<Unsqueeze>(new_args.at(0), new_args.at(1));
 }
 
-namespace
+namespace unsqueeze
 {
     template <element::Type_t ET>
     bool evaluate(const HostTensorPtr& arg0, const HostTensorPtr& out)
@@ -171,5 +171,5 @@ bool op::v0::Unsqueeze::evaluate(const HostTensorVector& outputs,
                                  const HostTensorVector& inputs) const
 {
     OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v0::Unsqueeze::evaluate");
-    return evaluate_unsqueeze(inputs[0], inputs[1], outputs[0]);
+    return unsqueeze::evaluate_unsqueeze(inputs[0], inputs[1], outputs[0]);
 }
