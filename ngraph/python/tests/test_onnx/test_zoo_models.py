@@ -81,6 +81,7 @@ tolerance_map = {
     "rain-princess-9": {"atol": 0.001, "rtol": 0.001},
     "udnie-8": {"atol": 0.001, "rtol": 0.001},
     "udnie-9": {"atol": 0.001, "rtol": 0.001},
+    "test_shufflenetv2": {"atol": 1e-05, "rtol": 0.001},
 }
 
 zoo_models = []
