@@ -18,6 +18,7 @@
 #include <transformations/common_optimizations/common_optimizations.hpp>
 #include <legacy/transformations/convert_opset1_to_legacy/convert_opset1_to_legacy.hpp>
 #include <legacy/transformations/convert_opset1_to_legacy/convert_prior_to_ie_prior.hpp>
+#include <legacy/ngraph_ops/fully_connected.hpp>
 #include <transformations/opset_conversions/convert_opset2_to_opset1.hpp>
 #include <transformations/opset_conversions/convert_opset3_to_opset2.hpp>
 #include <transformations/init_node_info.hpp>
@@ -25,7 +26,6 @@
 #include <ngraph/opsets/opset2.hpp>
 #include <ngraph/opsets/opset3.hpp>
 #include <ngraph/opsets/opset4.hpp>
-#include "ngraph_ops/fully_connected.hpp"
 #include <ngraph/op/gelu.hpp>
 #include <ngraph/pass/manager.hpp>
 #include "ngraph_functions/pass/convert_prc.hpp"
