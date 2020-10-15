@@ -258,6 +258,7 @@ extensions/front/onnx/expand_ext.py
 extensions/front/onnx/flatten_ext.py
 extensions/front/onnx/flattenONNX_to_reshape.py
 extensions/front/onnx/gather_ext.py
+extensions/front/onnx/gathernd_ext.py
 extensions/front/onnx/gemm_ext.py
 extensions/front/onnx/group_norm_ext.py
 extensions/front/onnx/gru_ext.py
@@ -382,6 +383,7 @@ extensions/front/tf/FlattenToReshape.py
 extensions/front/tf/floor_div_decomposition.py
 extensions/front/tf/floor_ext.py
 extensions/front/tf/gather_ext.py
+extensions/front/tf/gathernd_ext.py
 extensions/front/tf/GatherTree_ext.py
 extensions/front/tf/GNMT_DynamicSequenceLengths.py
 extensions/front/tf/identity_ext.py
@@ -617,7 +619,7 @@ extensions/ops/ExtractImagePatches.py
 extensions/ops/fake_output.py
 extensions/ops/fakequantize.py
 extensions/ops/gather.py
-extensions/ops/GatherNd.py
+extensions/ops/gathernd.py
 extensions/ops/GatherTree.py
 extensions/ops/gelu.py
 extensions/ops/grn.py

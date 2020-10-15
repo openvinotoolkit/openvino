@@ -158,7 +158,7 @@ Standard TensorFlow\* operations:
 | FloorDiv | No |
 | FusedBatchNorm | No |
 | Gather | No |
-| GatherNd | Supported if it can be replaced with Gather |
+| GatherNd | No |
 | GatherV2 | No |
 | Greater | No |
 | GreaterEqual | No |
@@ -337,6 +337,7 @@ Standard ONNX\* operators:
 | Floor | No |
 | GRU | No |
 | Gather | No |
+| GatherND | No |
 | GatherTree | No |
 | Gemm | No |
 | GlobalAveragePool | No |
