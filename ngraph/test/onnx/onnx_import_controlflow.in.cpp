@@ -283,3 +283,25 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_controlflow_loop_slice_add_execution)
     test_case.add_expected_output<float>(Shape{5}, {-1.f, 1.f, 4.f, 8.f, 13.f});
     test_case.run();
 }
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_controlflow_loop_infinite_execution)
+{
+    const auto function = onnx_import::import_onnx_model(
+        file_util::path_join(SERIALIZED_ZOO, "onnx/loop/loop_infinite.prototxt"));
+
+    auto test_case = test::TestCase<TestEngine>(function);
+    // trip_count
+    test_case.add_input<int64_t>({std::numeric_limits<int64_t>::max()});
+    // init condition
+    test_case.add_input<bool>({true});
+    // fake
+    test_case.add_input<float>({0.f});
+    // outer_scope
+    test_case.add_input<float>({3.f});
+
+    // final value not changed
+    test_case.add_expected_output<float>(Shape{1}, {0.f});
+    // outer_scope passed as scan output
+    test_case.add_expected_output<float>(Shape{1}, {3.f});
+    test_case.run();
+}

@@ -147,10 +147,10 @@ namespace ngraph
                                      ")");
 
                     CHECK_VALID_NODE(node,
-                                     body_outputs.size() > loop_carried_dependencies.size() + 1,
+                                     body_outputs.size() >= loop_carried_dependencies.size() + 1,
                                      "The provided loop body graph outputs size (",
                                      body_outputs.size(),
-                                     ") has to small number of outpus. Required at least: ",
+                                     ") is not greater than number of outpus. Required at least: ",
                                      loop_carried_dependencies.size() + 1);
 
                     const auto body = std::make_shared<ngraph::Function>(body_outputs, body_inputs);
