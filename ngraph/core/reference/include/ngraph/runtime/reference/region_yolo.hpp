@@ -134,7 +134,7 @@ namespace ngraph
                         std::transform(output + index,
                                        output + index + 2 * width * height,
                                        output + index,
-                                       [](T elem) -> T { return sigmoid<T>(elem); });
+                                       [](T elem) { return sigmoid<T>(elem); });
 
                         index = entry_index(width,
                                             height,
@@ -147,7 +147,7 @@ namespace ngraph
                         std::transform(output + index,
                                        output + index + end_index,
                                        output + index,
-                                       [](T elem) -> T { return sigmoid<T>(elem); });
+                                       [](T elem) { return sigmoid<T>(elem); });
                     }
                 }
 

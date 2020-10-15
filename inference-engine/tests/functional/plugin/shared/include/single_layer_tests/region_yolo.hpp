@@ -14,7 +14,7 @@
 
 namespace LayerTestsDefinitions {
 
-using regionYoloParamsTuple = typename std::tuple<
+using regionYoloParamsTuple = std::tuple<
         ngraph::Shape,                  // Input Shape
         size_t,                         // classes
         size_t,                         // coordinates
