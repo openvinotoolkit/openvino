@@ -1097,6 +1097,7 @@ TEST(CNNNGraphImplTests, multipleResultsFromDisjointSubgraphs) {
         add1ConstantNode->set_friendly_name("Add1Const");
         std::shared_ptr<ngraph::Node> add1Node = std::make_shared<ngraph::op::v1::Add>(
             add1ConstantNode->output(0), paramNode1->output(0));
+        add1Node->set_friendly_name("Add1");
 
         std::shared_ptr<ngraph::Node> add2ConstantNode = std::make_shared<ngraph::op::Constant>(
             ngraph::element::Type_t::f32, ngraph::Shape(std::vector<size_t>{{1, 1, 1, 1}}),
@@ -1104,6 +1105,7 @@ TEST(CNNNGraphImplTests, multipleResultsFromDisjointSubgraphs) {
         add2ConstantNode->set_friendly_name("Add2Const");
         std::shared_ptr<ngraph::Node> add2Node = std::make_shared<ngraph::op::v1::Add>(
             add2ConstantNode->output(0), paramNode2->output(0));
+        add2Node->set_friendly_name("Add2");
 
         auto result1 = std::make_shared<ngraph::op::Result>(add1Node->output(0));
         auto result2 = std::make_shared<ngraph::op::Result>(add2Node->output(0));
@@ -1115,13 +1117,15 @@ TEST(CNNNGraphImplTests, multipleResultsFromDisjointSubgraphs) {
 
     CNNNetwork cnnNetwork(ngraph);
     try {
-        InferenceEngine::Core ie;
-        ExecutableNetwork exe_network = ie.LoadNetwork(cnnNetwork, "CPU");
-        auto outputs = exe_network.GetOutputsInfo();
-        ASSERT_EQ(outputs.size(), 2);
+        auto convertedNetwork = std::make_shared<InferenceEngine::details::CNNNetworkImpl>(cnnNetwork);
+        auto net = InferenceEngine::CNNNetwork(convertedNetwork);
+        // iterate and find ALL output layers
+        InferenceEngine::CNNLayerPtr layerAdd1 = CommonTestUtils::getLayerByName(net, "Add1");
+        InferenceEngine::CNNLayerPtr layerAdd2 = CommonTestUtils::getLayerByName(net, "Add2");
+        ASSERT_EQ(true, true);
     } catch (const std::exception & ex) {
         std::cerr << ex.what() << std::endl;
-        ASSERT_EQ(1, 2);
+        ASSERT_EQ(false, true);
     }
 }
 IE_SUPPRESS_DEPRECATED_END
