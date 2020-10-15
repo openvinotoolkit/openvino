@@ -23,25 +23,25 @@
 using namespace std;
 using namespace ngraph;
 
-constexpr NodeTypeInfo op::v5::Loop::type_info;
+NGRAPH_RTTI_DEFINITION(op::v5::Loop, "Loop", 5);
 
 op::v5::Loop::Loop()
 {
     // default trip_count, execution_condition
     auto trip_count =
         std::make_shared<ngraph::op::Constant>(ngraph::element::i64, ngraph::Shape{1}, -1);
-    auto exec_condition =
+    auto execution_condition =
         std::make_shared<ngraph::op::Constant>(ngraph::element::boolean, ngraph::Shape{1}, true);
     set_argument(0, Output<Node>(trip_count));
-    set_argument(1, Output<Node>(exec_condition));
+    set_argument(1, Output<Node>(execution_condition));
 }
 
 op::v5::Loop::Loop(const Output<Node>& trip_count,
                    const Output<Node>& execution_condition,
-                   const OutputVector& values)
+                   const OutputVector& args)
     : op::util::SubGraphOp({trip_count, execution_condition})
 {
-    set_arguments(values);
+    set_arguments(args);
 }
 
 bool op::v5::Loop::visit_attributes(AttributeVisitor& visitor)
@@ -237,7 +237,6 @@ void op::v5::Loop::validate_and_infer_types()
             if (body_value_partial_shape.is_static())
             {
                 auto body_value_shape = body_value_partial_shape.to_shape();
-                auto part_size = concat_output_description->m_part_size;
                 auto axis = concat_output_description->m_axis;
 
                 Shape out_shape{body_value_shape};
@@ -255,8 +254,7 @@ void op::v5::Loop::validate_and_infer_types()
 
                 if (m_num_iterations != -1)
                 {
-                    // for simple RNN case where stride is the same as part_size
-                    out_shape[axis] = m_num_iterations * part_size;
+                    out_shape[axis] = m_num_iterations * body_value_shape[axis];
                     if (zero_number_of_iter)
                     {
                         out_shape.at(0) = 0;
@@ -289,7 +287,7 @@ void op::v5::Loop::validate_and_infer_types()
 std::shared_ptr<Node> op::v5::Loop::clone_with_new_inputs(const OutputVector& new_args) const
 {
     // 0 - trip_count, 1 - execution condition, these inputs are not connected to the body params
-    const OutputVector body_params_args(new_args.begin() + 2, new_args.end());
+    OutputVector body_params_args(new_args.begin() + 2, new_args.end());
     auto op = make_shared<op::v5::Loop>(new_args[0], new_args[1], body_params_args);
     NGRAPH_CHECK(op.get(),
                  op != nullptr,
@@ -316,6 +314,18 @@ std::shared_ptr<Node> op::v5::Loop::clone_with_new_inputs(const OutputVector& ne
         }
     }
 
+    if (m_special_body_ports.current_iteration_input_idx >= 0)
+    {
+        const auto& cur_iterations_param =
+            m_body->get_parameters()[m_special_body_ports.current_iteration_input_idx];
+        body_params_args.insert(
+            body_params_args.begin() + m_special_body_ports.current_iteration_input_idx,
+            m_body->get_parameters()[m_special_body_ports.current_iteration_input_idx]);
+        new_shapes[m_special_body_ports.current_iteration_input_idx] =
+            cur_iterations_param->get_partial_shape();
+        types[m_special_body_ports.current_iteration_input_idx] =
+            cur_iterations_param->get_element_type();
+    }
     op->m_num_iterations = m_num_iterations;
     op->m_special_body_ports = m_special_body_ports;
     auto func = std::make_shared<Function>(m_body->get_results(), m_body->get_parameters());
@@ -332,4 +342,31 @@ std::shared_ptr<Node> op::v5::Loop::clone_with_new_inputs(const OutputVector& ne
         op->m_output_descriptions.push_back(output_description->copy());
     }
     return move(op);
+}
+
+Output<Node> op::v5::Loop::get_concatenated_slices(const Output<Node>& value,
+                                                   int64_t start,
+                                                   int64_t stride,
+                                                   int64_t part_size,
+                                                   int64_t end,
+                                                   int64_t axis)
+{
+    NGRAPH_CHECK(start == 0 && stride == 1 && part_size == 1 && end == -1,
+                 "Invalid start, stride, part_size, or end attribute values in Loop op. "
+                 "Supported values for start {0}, for stride and part_size {1}, for end "
+                 "{-1}");
+    return SubGraphOp::get_concatenated_slices(value, start, stride, part_size, end, axis);
+}
+
+void op::v5::Loop::set_sliced_input(const shared_ptr<Parameter>& parameter,
+                                    const Output<Node>& value,
+                                    int64_t start,
+                                    int64_t stride,
+                                    int64_t part_size,
+                                    int64_t end,
+                                    int64_t axis)
+{
+    NGRAPH_CHECK(false,
+                 "Incorrect type of input. Implicit slicing is not supported in "
+                 "Loop operation.");
 }

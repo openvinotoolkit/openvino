@@ -35,14 +35,15 @@ namespace ngraph
             class NGRAPH_API Loop : public op::util::SubGraphOp
             {
             public:
+                /// \brief  Allows to define the purpose of inputs/outputs in the body
                 struct SpecialBodyPorts
                 {
                     SpecialBodyPorts() = default;
                     SpecialBodyPorts(int64_t in_current_iteration_input_idx,
                                      int64_t in_body_condition_output_idx)
+                        : current_iteration_input_idx(in_current_iteration_input_idx)
+                        , body_condition_output_idx(in_body_condition_output_idx)
                     {
-                        current_iteration_input_idx = in_current_iteration_input_idx;
-                        body_condition_output_idx = in_body_condition_output_idx;
                     }
                     // -1 means the input is not provided, this input is optional
                     int64_t current_iteration_input_idx = -1;
@@ -51,35 +52,41 @@ namespace ngraph
                     int64_t body_condition_output_idx = -1;
                 };
 
-                static constexpr NodeTypeInfo type_info{"Loop", 5};
-                const NodeTypeInfo& get_type_info() const override { return type_info; }
-                bool visit_attributes(AttributeVisitor& visitor) override;
+                NGRAPH_RTTI_DECLARATION;
 
+                /// \brief Constructs a Loop operation.
                 Loop();
+
+                /// \brief Constructs a Loop operation.
+                ///
+                /// \param trip_count Node specifies the maximum number of iterations.
+                /// \param execution_condition Node determines whether to execute the first
+                /// iteration or not.
+                /// \param args Nodes produce input tensors for a Loop operation.
                 Loop(const Output<Node>& trip_count,
                      const Output<Node>& execution_condition,
-                     const OutputVector& values);
+                     const OutputVector& args);
 
-                std::shared_ptr<Node>
-                    clone_with_new_inputs(const OutputVector& new_args) const override;
                 /// \return the body of the iteration
                 std::shared_ptr<Function> get_body() const { return m_body; }
                 /// \param body set the body of the iteration
                 void set_body(const std::shared_ptr<Function>& body) { m_body = body; }
-                /// \return a reference to the input descriptions.
-
-                void validate_and_infer_types() override;
-
                 int64_t get_num_iterations() const { return m_num_iterations; }
                 void set_num_iterations(int64_t num_iterations)
                 {
                     m_num_iterations = num_iterations;
                 }
 
-                void set_trip_count_input(const Output<Node>& value) { set_argument(0, value); }
-                void set_execution_condition_input(const Output<Node>& value)
+                /// \param trip_count set the maximum number of iterations
+                void set_trip_count_input(const Output<Node>& trip_count)
                 {
-                    set_argument(1, value);
+                    set_argument(0, trip_count);
+                }
+                /// \param execution_condition set the condition that determines whether to execute
+                /// the first iteration or not
+                void set_execution_condition_input(const Output<Node>& execution_condition)
+                {
+                    set_argument(1, execution_condition);
                 }
 
                 void set_sliced_input(const std::shared_ptr<Parameter>& parameter,
@@ -88,28 +95,14 @@ namespace ngraph
                                       int64_t stride,
                                       int64_t part_size,
                                       int64_t end,
-                                      int64_t axis) override
-                {
-                    NGRAPH_CHECK(false,
-                                 "Incorrect type of input. Implicit slicing is not supported in "
-                                 "Loop operation.");
-                }
+                                      int64_t axis) override;
 
                 Output<Node> get_concatenated_slices(const Output<Node>& value,
                                                      int64_t start,
                                                      int64_t stride,
                                                      int64_t part_size,
                                                      int64_t end,
-                                                     int64_t axis) override
-                {
-                    NGRAPH_CHECK(
-                        start == 0 && stride == 1 && part_size == 1 && end == -1,
-                        "Invalid start, stride, part_size, or end attribute values in Loop op. "
-                        "Supported values for start {0}, for stride and part_size {1}, for end "
-                        "{-1}");
-                    return SubGraphOp::get_concatenated_slices(
-                        value, start, stride, part_size, end, axis);
-                }
+                                                     int64_t axis) override;
 
                 void set_special_body_ports(const SpecialBodyPorts& special_body_ports)
                 {
@@ -117,6 +110,11 @@ namespace ngraph
                 }
 
                 SpecialBodyPorts get_special_body_ports() const { return m_special_body_ports; }
+                void validate_and_infer_types() override;
+                bool visit_attributes(AttributeVisitor& visitor) override;
+                std::shared_ptr<Node>
+                    clone_with_new_inputs(const OutputVector& new_args) const override;
+
             private:
                 SpecialBodyPorts m_special_body_ports;
                 int64_t m_num_iterations = -1;
