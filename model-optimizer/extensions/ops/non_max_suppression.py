@@ -37,7 +37,6 @@ class NonMaxSuppression(Op):
             'center_point_box': 0,
             'box_encoding': 'corner',
             'sort_result_descending': 1,
-            'out_ports_count': 3,
             'force_precision_in_ports': {
                 2: 'int64'},
             'type_infer': self.type_infer,
