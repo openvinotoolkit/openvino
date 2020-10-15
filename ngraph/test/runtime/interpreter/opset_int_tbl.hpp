@@ -21,6 +21,7 @@
 #define ID_SUFFIX(NAME) NAME##_v0
 NGRAPH_OP(CTCGreedyDecoder, ngraph::op::v0)
 NGRAPH_OP(DetectionOutput, op::v0)
+NGRAPH_OP(ReorgYolo, op::v0)
 NGRAPH_OP(RNNCell, op::v0)
 #undef ID_SUFFIX
 
