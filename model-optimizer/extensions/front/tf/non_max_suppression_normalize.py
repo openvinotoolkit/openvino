@@ -45,6 +45,10 @@ class TFNonMaxSuppressionNormalize(FrontReplacementSubgraph):
     """
     enabled = True
 
+    def run_after(self):
+        from extensions.front.non_max_suppression_normalize import NonMaxSuppressionNormalize
+        return [NonMaxSuppressionNormalize]
+
     def find_and_replace_pattern(self, graph: Graph):
         for nms in graph.get_op_nodes(op='NonMaxSuppression'):
             # prepare inputs to the NonMaximumSuppression Node
@@ -81,9 +85,9 @@ class TFNonMaxSuppressionNormalize(FrontReplacementSubgraph):
                                                                      {'name': crop_score_indices_name + '/Squeeze'})
             crop_score_indices.out_port(0).get_connection().insert_node(squeeze_output_scores)
 
-            # make inputs 2 to 6 to have shape [1] instead of [0] (convert 0D to 1D)
-            for port_id in range(2, 6):
-                if port_id in nms.in_ports() and not nms.in_port(port_id).disconnected():
-                    reshape_1d = create_op_node_with_second_input(graph, Reshape, int64_array([1]),
-                                                                  {'name': nms_name + '/Reshape_1D_{}'.format(port_id)})
-                    nms.in_port(port_id).get_connection().insert_node(reshape_1d)
+            # # make inputs 2 to 6 to have shape [1] instead of [0] (convert 0D to 1D)
+            # for port_id in range(2, 6):
+            #     if port_id in nms.in_ports() and not nms.in_port(port_id).disconnected():
+            #         reshape_1d = create_op_node_with_second_input(graph, Reshape, int64_array([1]),
+            #                                                       {'name': nms_name + '/Reshape_1D_{}'.format(port_id)})
+            #         nms.in_port(port_id).get_connection().insert_node(reshape_1d)
