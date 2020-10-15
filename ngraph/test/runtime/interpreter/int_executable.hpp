@@ -78,6 +78,7 @@
 #include "ngraph/runtime/reference/product.hpp"
 #include "ngraph/runtime/reference/quantize.hpp"
 #include "ngraph/runtime/reference/relu.hpp"
+#include "ngraph/runtime/reference/reorg_yolo.hpp"
 #include "ngraph/runtime/reference/replace_slice.hpp"
 #include "ngraph/runtime/reference/reshape.hpp"
 #include "ngraph/runtime/reference/result.hpp"
@@ -930,6 +931,16 @@ protected:
                                              out[0]->get_data_ptr<float>(),
                                              out[0]->get_shape(),
                                              pbox->get_attrs());
+            break;
+        }
+        case OP_TYPEID::ReorgYolo_v0:
+        {
+            const op::v0::ReorgYolo* reorg_yolo = static_cast<const op::v0::ReorgYolo*>(&node);
+            runtime::reference::reorg_yolo(args[0]->get_data_ptr<char>(),
+                                           out[0]->get_data_ptr<char>(),
+                                           args[0]->get_shape(),
+                                           reorg_yolo->get_strides().at(0),
+                                           args[0]->get_element_type().size());
             break;
         }
         case OP_TYPEID::Quantize:
