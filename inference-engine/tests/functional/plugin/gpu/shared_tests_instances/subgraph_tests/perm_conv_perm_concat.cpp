@@ -21,7 +21,7 @@ std::vector<size_t> output_channels {
 
 std::vector<InferenceEngine::Precision> netPrecisions = {
     InferenceEngine::Precision::FP32,
-    InferenceEngine::Precision::FP16,
+//    InferenceEngine::Precision::FP16,
 };
 
 std::map<std::string, std::string> additional_config = {
