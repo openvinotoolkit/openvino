@@ -78,7 +78,7 @@ fn classification() {
     infer_request.set_blob(input_name, blob).unwrap();
     infer_request.infer().unwrap();
     let mut results = infer_request.get_blob(output_name).unwrap();
-    let buffer = results.buffer::<f32>().unwrap().to_vec();
+    let buffer = unsafe { results.buffer_mut_as_type::<f32>().unwrap().to_vec() };
 
     // Sort results.
     let mut results: Results = buffer

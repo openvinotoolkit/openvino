@@ -28,7 +28,7 @@ impl Blob {
         );
 
         // Copy the incoming data into the buffer.
-        let buffer = blob.buffer()?;
+        let buffer = blob.buffer_mut()?;
         buffer.copy_from_slice(data);
 
         Ok(blob)
@@ -77,11 +77,35 @@ impl Blob {
         Ok(usize::try_from(size).unwrap())
     }
 
-    /// Retrieve the [Blob]'s data as a mutable slice.
-    pub fn buffer<T>(&mut self) -> Result<&mut [T]> {
+    /// Retrieve the [Blob]'s data as an immutable slice of bytes.
+    pub fn buffer(&mut self) -> Result<&[u8]> {
         let mut buffer = Blob::empty_buffer();
         try_unsafe!(ie_blob_get_buffer(self.instance, &mut buffer as *mut _))?;
+        let size = self.byte_len()?;
+        let slice = unsafe {
+            std::slice::from_raw_parts(buffer.__bindgen_anon_1.buffer as *const u8, size)
+        };
+        Ok(slice)
+    }
 
+    /// Retrieve the [Blob]'s data as a mutable slice of bytes.
+    pub fn buffer_mut(&mut self) -> Result<&mut [u8]> {
+        let mut buffer = Blob::empty_buffer();
+        try_unsafe!(ie_blob_get_buffer(self.instance, &mut buffer as *mut _))?;
+        let size = self.byte_len()?;
+        let slice = unsafe {
+            std::slice::from_raw_parts_mut(buffer.__bindgen_anon_1.buffer as *mut u8, size)
+        };
+        Ok(slice)
+    }
+
+    /// Retrieve the [Blob]'s data as a mutable slice of type `T`. This is `unsafe`, since the
+    /// values of `T` may not have been properly initialized; however, this functionality
+    /// is provided as an equivalent of what C/C++ users of OpenVINO currently do to access [Blob]s
+    /// with, e.g., floating point values: `results.buffer_mut_as_type::<f32>()`.
+    pub unsafe fn buffer_mut_as_type<T>(&mut self) -> Result<&mut [T]> {
+        let mut buffer = Blob::empty_buffer();
+        try_unsafe!(ie_blob_get_buffer(self.instance, &mut buffer as *mut _))?;
         // This is very unsafe, but very convenient: by allowing users to specify T, they can
         // retrieve the buffer in whatever shape they prefer. But we must ensure that they cannot
         // read too many bytes, so we manually calculate the resulting slice `size`.
@@ -89,7 +113,6 @@ impl Blob {
         let slice = unsafe {
             std::slice::from_raw_parts_mut(buffer.__bindgen_anon_1.buffer as *mut T, size)
         };
-
         Ok(slice)
     }
 
@@ -134,12 +157,12 @@ mod tests {
             "we should have twice as many bytes (u16 = u8 * 2)"
         );
         assert_eq!(
-            blob.buffer::<u8>().unwrap().len(),
+            blob.buffer().unwrap().len(),
             LEN * 2,
             "we should have twice as many items (u16 = u8 * 2)"
         );
         assert_eq!(
-            blob.buffer::<f32>().unwrap().len(),
+            unsafe { blob.buffer_mut_as_type::<f32>() }.unwrap().len(),
             LEN / 2,
             "we should have half as many items (u16 = f32 / 2)"
         );
