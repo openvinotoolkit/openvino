@@ -33,7 +33,7 @@ namespace ngraph
                     const OutputVector ng_inputs{node.get_ng_inputs()};
                     const auto data = ng_inputs.at(0);
                     const auto indices = ng_inputs.at(1);
-                    const int batch_dims = node.get_attribute_value<int>("batch_dims", 0);
+                    const auto batch_dims = node.get_attribute_value<int64_t>("batch_dims", 0);
 
                     return {std::make_shared<default_opset::GatherND>(data, indices, batch_dims)};
                 }
