@@ -70,6 +70,7 @@ set(SRC
     node_input_output.cpp
     op.cpp
     op_eval/floor_mod.cpp
+    op_eval/hsigmoid.cpp
     op_eval/hswish.cpp
     op_eval/interpolate.cpp
     op_eval/matmul.cpp

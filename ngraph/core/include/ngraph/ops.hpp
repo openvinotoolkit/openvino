@@ -76,6 +76,7 @@
 #include "ngraph/op/gru_cell.hpp"
 #include "ngraph/op/gru_sequence.hpp"
 #include "ngraph/op/hard_sigmoid.hpp"
+#include "ngraph/op/hsigmoid.hpp"
 #include "ngraph/op/hswish.hpp"
 #include "ngraph/op/interpolate.hpp"
 #include "ngraph/op/less.hpp"
