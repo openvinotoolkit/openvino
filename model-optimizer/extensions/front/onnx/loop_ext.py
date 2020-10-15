@@ -14,9 +14,9 @@
  limitations under the License.
 """
 
+from extensions.ops.loop import Loop
 from mo.front.extractor import FrontExtractorOp
 from mo.front.onnx.extractors.utils import onnx_attr
-from mo.ops.op import Op
 
 
 class LoopExtractor(FrontExtractorOp):
@@ -25,6 +25,5 @@ class LoopExtractor(FrontExtractorOp):
 
     @classmethod
     def extract(cls, node):
-
-        Op.update_node_stat(node, {'body_proto': onnx_attr(node, 'body', 'g', None)})
+        Loop.update_node_stat(node, {'body_proto': onnx_attr(node, 'body', 'g', None)})
         return cls.enabled

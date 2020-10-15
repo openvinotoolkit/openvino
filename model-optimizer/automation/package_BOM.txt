@@ -265,6 +265,8 @@ extensions/front/onnx/hard_sigmoid_ext.py
 extensions/front/onnx/image_scaler_ext.py
 extensions/front/onnx/instance_normalization_ext.py
 extensions/front/onnx/logsoftmaxONNX_to_logsoftmax.py
+extensions/front/onnx/loop_body_parser.py
+extensions/front/onnx/loop_ext.py
 extensions/front/onnx/lp_normalization_ext.py
 extensions/front/onnx/lrn_ext.py
 extensions/front/onnx/lstm_ext.py
@@ -628,6 +630,7 @@ extensions/ops/identity.py
 extensions/ops/instance_normalization.py
 extensions/ops/interp.py
 extensions/ops/interpolate.py
+extensions/ops/loop.py
 extensions/ops/LSTM.py
 extensions/ops/lstm_cell.py
 extensions/ops/lstm_sequence.py

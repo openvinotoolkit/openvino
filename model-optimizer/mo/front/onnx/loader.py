@@ -81,8 +81,9 @@ def protobuf2nx(graph, graph_pb):
         # add to a tensors map
         assert not name in data_nodes_map, 'Inconsistency between data_nodes_map and graph.nodes'
         data_nodes_map[name] = (name, 0)
+
     output_ids = []
-    for outp in pb.graph.output:
+    for outp in graph_pb.output:
         name = str(outp.name)
         if graph.has_node(name):
             log.error('Name {} of output node already exists in graph. Ignoring this output. If the output is required,'

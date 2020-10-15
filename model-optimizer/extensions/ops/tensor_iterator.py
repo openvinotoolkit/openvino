@@ -366,36 +366,41 @@ class TensorIterator(Op):
         ti_graph.remove_nodes_from([node.id for node in fake_input_const_nodes])
 
     @staticmethod
-    def add_input(ti_input_port: Port, internal_parameter: Node, external_node_out_port: Port, axis: [int, None]=None,
-                  start: [int, None]=None, end: [int, None]=None, stride: [int, None]=None, part_size: [int, None]=None):
+    def connect_body_input(ti_input_port: Port, internal_parameter: Node, external_node_out_port: Port=None, axis: [int, None]=None,
+                           start: [int, None]=None, end: [int, None]=None, stride: [int, None]=None, part_size: [int, None]=None):
         ti_node = ti_input_port.node
-        assert ti_node.soft_get('op') == 'TensorIterator'
+        assert ti_node.soft_get('op') in ['TensorIterator', 'Loop']
         assert ti_input_port.type == 'in'
         assert internal_parameter.soft_get('op') == 'Parameter'
         assert internal_parameter.id in ti_node.body
-        assert external_node_out_port.node.id not in ti_node.body
-        assert ti_input_port.disconnected()
 
-        ti_input_port.connect(external_node_out_port)
+        # TODO probably this is not needed
+        if external_node_out_port is not None:
+            assert ti_input_port.disconnected()
+            assert external_node_out_port.node.id not in ti_node.body
+            ti_input_port.connect(external_node_out_port)
+
         ti_node.input_port_map.append({'axis': axis, 'stride': stride, 'part_size': part_size, 'start': start,
                                        'end': end, 'external_port_id': ti_input_port.idx,
                                        'internal_layer_id': internal_parameter['internal_layer_id']})
 
     @staticmethod
-    def add_output(ti_output_port: Port, internal_result: Node, external_node_input_ports: list, axis: [int, None]=None,
-                   start: [int, None] = None, end: [int, None] = None, stride: [int, None] = None,
-                   part_size: [int, None] = None):
+    def connect_body_output(ti_output_port: Port, internal_result: Node, external_node_input_ports: list=None,
+                            axis: [int, None] = None, start: [int, None] = None, end: [int, None] = None,
+                            stride: [int, None] = None, part_size: [int, None] = None):
         ti_node = ti_output_port.node
-        assert ti_node.soft_get('op') == 'TensorIterator'
+        assert ti_node.soft_get('op') in ['TensorIterator', 'Loop']
         assert ti_output_port.type == 'out'
         assert internal_result.soft_get('op') == 'Result'
         assert internal_result.id in ti_node.body
-        assert all([port.node.id not in ti_node.body for port in external_node_input_ports])
-        assert ti_output_port.disconnected()
 
-        for port in external_node_input_ports:
-            port.disconnect()
-            ti_output_port.connect(port)
+        # TODO probably this is not needed
+        if external_node_input_ports is not None:
+            assert ti_output_port.disconnected()
+            assert all([port.node.id not in ti_node.body for port in external_node_input_ports])
+            for port in external_node_input_ports:
+                port.disconnect()
+                ti_output_port.connect(port)
         ti_node.output_port_map.append({'axis': axis, 'stride': stride, 'part_size': part_size, 'start': start,
                                         'end': end, 'external_port_id': ti_output_port.idx,
                                         'internal_layer_id': internal_result['internal_layer_id']})
