@@ -81,12 +81,15 @@ namespace ngraph
                      const AxisSet& axes,
                      T* out,
                      const Shape& arg_shape,
-                     float alpha,
-                     float beta,
-                     float bias,
-                     int size)
+                     double dalpha,
+                     double dbeta,
+                     double dbias,
+                     size_t size)
             {
-                float scale = alpha / std::pow(size, axes.size());
+                T alpha = static_cast<T>(dalpha);
+                T beta = static_cast<T>(dbeta);
+                T bias = static_cast<T>(dbias);
+                T scale = alpha / std::pow(size, axes.size());
 
                 std::vector<size_t> begin_area(arg_shape.size());
                 Shape area_shape(arg_shape.size(), 1);
