@@ -202,7 +202,7 @@ shared_ptr<Node> op::v1::Gather::clone_with_new_inputs(const OutputVector& new_a
     return make_shared<v1::Gather>(new_args.at(PARAMS), new_args.at(INDICES), new_args.at(AXIS));
 }
 
-namespace
+namespace gather
 {
     template <element::Type_t ET>
     bool evaluate(const HostTensorPtr& arg0,
@@ -290,7 +290,7 @@ namespace
 bool op::v0::Gather::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
     OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v0::Gather::evaluate");
-    return evaluate_gather(inputs[0], inputs[1], outputs[0], get_axis());
+    return gather::evaluate_gather(inputs[0], inputs[1], outputs[0], get_axis());
 }
 
 bool op::v1::Gather::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
@@ -318,5 +318,5 @@ bool op::v1::Gather::evaluate(const HostTensorVector& outputs, const HostTensorV
             axis += input_rank.get_length();
         }
     }
-    return evaluate_gather(inputs[0], inputs[1], outputs[0], axis);
+    return gather::evaluate_gather(inputs[0], inputs[1], outputs[0], axis);
 }

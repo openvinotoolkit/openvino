@@ -677,7 +677,6 @@ void FormatParser::ParsePreProcess(pugi::xml_node& root) {
 
     auto meanSegmentPrecision = GetPrecisionAttr(ppNode, "mean-precision", Precision::UNSPECIFIED);
 
-    ResponseDesc resp;
     InferenceEngine::PreProcessChannel::Ptr preProcessChannel;
 
     int lastChanNo = -1;

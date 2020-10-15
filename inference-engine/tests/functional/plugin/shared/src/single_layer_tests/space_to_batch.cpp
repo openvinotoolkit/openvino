@@ -23,15 +23,21 @@ namespace LayerTestsDefinitions {
 std::string SpaceToBatchLayerTest::getTestCaseName(const testing::TestParamInfo<spaceToBatchParamsTuple> &obj) {
     std::vector<size_t> inShapes, blockShape, padsBegin, padsEnd;
     InferenceEngine::Precision netPrc;
+    InferenceEngine::Precision inPrc, outPrc;
+    InferenceEngine::Layout inLayout, outLayout;
     std::string targetName;
-    std::tie(blockShape, padsBegin, padsEnd, inShapes, netPrc, targetName) = obj.param;
+    std::tie(blockShape, padsBegin, padsEnd, inShapes, netPrc, inPrc, outPrc, inLayout, outLayout, targetName) = obj.param;
     std::ostringstream result;
     result << "IS=" << CommonTestUtils::vec2str(inShapes) << "_";
     result << "netPRC=" << netPrc.name() << "_";
+    result << "inPRC=" << inPrc.name() << "_";
+    result << "outPRC=" << outPrc.name() << "_";
+    result << "inL=" << inLayout << "_";
+    result << "outL=" << outLayout << "_";
     result << "BS=" << CommonTestUtils::vec2str(blockShape) << "_";
     result << "PB=" << CommonTestUtils::vec2str(padsBegin) << "_";
     result << "PE=" << CommonTestUtils::vec2str(padsEnd) << "_";
-    result << "targetDevice=" << targetName << "_";
+    result << "trgDev=" << targetName << "_";
     return result.str();
 }
 
@@ -39,7 +45,7 @@ void SpaceToBatchLayerTest::SetUp() {
     SetRefMode(LayerTestsUtils::RefMode::INTERPRETER_TRANSFORMATIONS);
     std::vector<size_t> inputShape, blockShape, padsBegin, padsEnd;
     InferenceEngine::Precision inputPrecision, netPrecision;
-    std::tie(blockShape, padsBegin, padsEnd, inputShape, netPrecision, targetDevice) = this->GetParam();
+    std::tie(blockShape, padsBegin, padsEnd, inputShape, netPrecision, inPrc, outPrc, inLayout, outLayout, targetDevice) = this->GetParam();
 
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
     auto params = ngraph::builder::makeParams(ngPrc, {inputShape});
