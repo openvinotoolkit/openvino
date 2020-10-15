@@ -232,9 +232,11 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
     addSpecificCreator({"Concat"}, [](const std::shared_ptr<::ngraph::Node>& node,
                                       const std::map<std::string, std::string>& params) -> CNNLayerPtr {
         LayerParams attrs = {node->get_friendly_name(), node->description(),
-            details::convertPrecision(node->get_output_element_type(0))};
+                             details::convertPrecision(node->get_output_element_type(0))};
         auto res = std::make_shared<ConcatLayer>(attrs);
         res->params = params;
+        auto axis = std::stoi(res->params["axis"]);
+        res->params["axis"] = Builder::asString(axis < 0 ? axis + node->get_input_shape(0).size() : axis);
         return res;
     });
     addSpecificCreator({"AvgPool", "MaxPool"}, [](const std::shared_ptr<::ngraph::Node>& node,
@@ -772,6 +774,7 @@ void convertFunctionToICNNNetwork(const std::shared_ptr<const ::ngraph::Function
                 std::make_shared<Builder::NodeConverter<::ngraph::op::v1::AvgPool>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::Clamp>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::Constant>>(),
+                //std::make_shared<Builder::NodeConverter<::ngraph::op::Concat>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::ConvolutionIE>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::CropIE>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::Convert>>(),
