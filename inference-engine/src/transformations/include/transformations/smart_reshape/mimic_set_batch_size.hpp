@@ -4,8 +4,15 @@
 
 #pragma once
 
-#include <memory>
 #include <functional>
+#include <memory>
+#include <numeric>
+
+#include <ngraph/ngraph.hpp>
+#include <ngraph/opsets/opset5.hpp>
+#include <ngraph/pattern/matcher.hpp>
+#include <ngraph/pattern/op/wrap_type.hpp>
+#include <ngraph/rt_info.hpp>
 
 #include <transformations_visibility.hpp>
 #include <ngraph/pass/graph_rewrite.hpp>
@@ -13,12 +20,25 @@
 namespace ngraph {
 namespace pass {
 
-class MimicSetBatchSize;
+class TRANSFORMATIONS_API MimicSetBatchSize;
 
 }  // namespace pass
 }  // namespace ngraph
 
+/**
+ * @ingroup ie_transformation_common_api
+ * @brief MimicSetBatchSize transformation relaxes hard-coded output batch dimension of Reshape operation.
+ * For Reshape with input shape [in_batch, ...] and pattern value [out_batch, ...] it generates a sub-graph
+ * which basically keeps ratio of input and output batch size and performs the following calculation:
+ *
+ * scale = float(out_batch) / float(in_batch)
+ * modified_batch_dim = int(ceil(float(shape(input)[0]) * scale))
+ *
+ * This transformation should be executed only while setBatchSize method call
+ */
+
 class ngraph::pass::MimicSetBatchSize: public ngraph::pass::MatcherPass {
 public:
+    NGRAPH_RTTI_DECLARATION;
     MimicSetBatchSize();
 };
