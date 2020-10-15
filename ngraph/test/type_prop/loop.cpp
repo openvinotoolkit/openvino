@@ -53,7 +53,7 @@ TEST(type_prop, loop_operation_for_mode_10_iter_static_shapes)
                                               ParameterVector{current_iteration, Xi, Yi, M_body});
 
     auto loop = make_shared<opset5::Loop>();
-    loop->set_body(body);
+    loop->set_function(body);
     loop->set_special_body_ports(ngraph::opset5::Loop::SpecialBodyPorts{-1, 0});
     loop->set_trip_count_input(trip_count);
     loop->set_execution_condition_input(exec_condition);
@@ -160,7 +160,7 @@ TEST(type_prop, loop_operation_dowhile_mode_1_iter_static_shapes)
                                               ParameterVector{current_iteration, Xi, Yi, M_body});
 
     auto loop = make_shared<opset5::Loop>();
-    loop->set_body(body);
+    loop->set_function(body);
     loop->set_special_body_ports(ngraph::opset5::Loop::SpecialBodyPorts{-1, 0});
     loop->set_trip_count_input(trip_count);
     loop->set_execution_condition_input(exec_condition);
@@ -268,7 +268,7 @@ TEST(type_prop, loop_operation_for_and_condition_mode_dynamic_iter_static_shapes
                                               ParameterVector{Xi, Yi, M_body});
 
     auto loop = make_shared<opset5::Loop>();
-    loop->set_body(body);
+    loop->set_function(body);
     loop->set_special_body_ports(ngraph::opset5::Loop::SpecialBodyPorts{-1, 0});
     loop->set_trip_count_input(trip_count);
     loop->set_execution_condition_input(exec_condition);
@@ -369,7 +369,7 @@ TEST(type_prop, loop_operation_for_and_condition_mode_dynamic_iter_dynamic_shape
                                               ParameterVector{current_iteration, Xi, Yi, M_body});
 
     auto loop = make_shared<opset5::Loop>();
-    loop->set_body(body);
+    loop->set_function(body);
     loop->set_special_body_ports(ngraph::opset5::Loop::SpecialBodyPorts{-1, 0});
     loop->set_trip_count_input(trip_count);
     loop->set_execution_condition_input(exec_condition);
@@ -474,7 +474,7 @@ TEST(type_prop, loop_operation_infinite_loop_mode_dynamic_iter_dynamic_shapes)
                                               ParameterVector{current_iteration, Xi, Yi, M_body});
 
     auto loop = make_shared<opset5::Loop>();
-    loop->set_body(body);
+    loop->set_function(body);
     loop->set_special_body_ports(ngraph::opset5::Loop::SpecialBodyPorts{-1, 0});
     loop->set_trip_count_input(trip_count);
     loop->set_execution_condition_input(exec_condition);
@@ -573,7 +573,7 @@ TEST(type_prop, loop_operation_infinite_loop_mode_dynamic_iter_dynamic_shapes_de
                                               ParameterVector{current_iteration, Xi, Yi, M_body});
 
     auto loop = make_shared<opset5::Loop>();
-    loop->set_body(body);
+    loop->set_function(body);
     loop->set_special_body_ports(ngraph::opset5::Loop::SpecialBodyPorts{-1, 0});
     loop->set_special_body_ports(ngraph::opset5::Loop::SpecialBodyPorts{-1, 0});
     loop->set_invariant_input(Xi, X);
@@ -679,7 +679,7 @@ TEST(type_prop, loop_operation_for_mode_10_iter_static_shapes_special_body_ports
                                               ParameterVector{Xi, current_iteration, Yi, M_body});
 
     auto loop = make_shared<opset5::Loop>();
-    loop->set_body(body);
+    loop->set_function(body);
     loop->set_special_body_ports(ngraph::opset5::Loop::SpecialBodyPorts{1, 1});
     loop->set_trip_count_input(trip_count);
     loop->set_execution_condition_input(exec_condition);
@@ -787,7 +787,7 @@ TEST(type_prop, loop_operation_for_mode_10_iter_static_shapes_special_body_ports
                                               ParameterVector{Xi, current_iteration, Yi, M_body});
 
     auto loop = make_shared<opset5::Loop>();
-    loop->set_body(body);
+    loop->set_function(body);
     loop->set_special_body_ports(ngraph::opset5::Loop::SpecialBodyPorts{1, 1});
     loop->set_trip_count_input(trip_count);
     loop->set_execution_condition_input(exec_condition);

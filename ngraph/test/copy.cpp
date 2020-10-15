@@ -397,7 +397,7 @@ TEST(copy, loop)
                                               ParameterVector{Xi, current_iteration, Yi, M_body});
 
     auto loop = make_shared<opset5::Loop>();
-    loop->set_body(body);
+    loop->set_function(body);
     loop->set_special_body_ports(ngraph::opset5::Loop::SpecialBodyPorts{1, 1});
     loop->set_trip_count_input(trip_count);
     loop->set_execution_condition_input(exec_condition);
