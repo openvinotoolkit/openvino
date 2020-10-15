@@ -73,7 +73,8 @@ std::pair<bool, std::string> compare_functions(
     const std::shared_ptr<ngraph::Function>& f2,
     const bool compareConstValues,
     const bool compareNames,
-    const bool compareRuntimeKeys) {
+    const bool compareRuntimeKeys,
+    const bool comparePrecisions) {
     /*
      * This function compares two nGraph functions and requires them to have exactly one output
      * + Check nodes types
@@ -142,10 +143,12 @@ std::pair<bool, std::string> compare_functions(
                 }
             }
 
-            if (node1->input(i).get_element_type() != node2->input(i).get_element_type()) {
-                err_log << "Different element type detected" << std::endl
+            if (comparePrecisions) {
+                if (node1->input(i).get_element_type() != node2->input(i).get_element_type()) {
+                    err_log << "Different element type detected" << std::endl
                         << node1->get_friendly_name() << " Input(" << i << ") " << node1->input(i).get_element_type() << " and "
                         << node2->get_friendly_name() << " Input(" << i << ") " << node2->input(i).get_element_type() << std::endl;
+                }
             }
 
             if (!node1->input(i).get_partial_shape().same_scheme(node2->input(i).get_partial_shape())) {

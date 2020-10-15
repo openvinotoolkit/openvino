@@ -126,7 +126,7 @@ TEST(TransformationTests, ConvertTopK3I64Output0) {
 }
 
 // check that the second output from the TopK-3 with I64 output indices is equal to the TopK-1 second output converted to I64
-TEST(TransformationTests, DISABLED_ConvertTopK3I64Output1) {
+TEST(TransformationTests, ConvertTopK3I64Output1) {
     std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
     {
         auto input = std::make_shared<ngraph::opset3::Parameter>(ngraph::element::f32, ngraph::Shape{15, 20, 3});
@@ -153,7 +153,7 @@ TEST(TransformationTests, DISABLED_ConvertTopK3I64Output1) {
         f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{convert}, ngraph::ParameterVector{input});
     }
 
-    auto res = compare_functions(f, f_ref);
+    auto res = compare_functions(f, f_ref, false, false, false, false);
     ASSERT_TRUE(res.first) << res.second;
 
     auto result_node_of_converted_f = f->get_output_op(0);
