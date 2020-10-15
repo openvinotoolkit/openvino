@@ -460,7 +460,6 @@ std::shared_ptr<ngraph::Node> V10Parser::createNode(const std::vector<ngraph::Ou
         std::make_shared<LayerCreator<ngraph::op::RegionYolo>>("RegionYolo"),
         std::make_shared<LayerCreator<ngraph::op::Result>>("Result"),
         std::make_shared<LayerCreator<ngraph::op::ROIPooling>>("ROIPooling"),
-        std::make_shared<LayerCreator<ngraph::op::v5::Round>>("Round"),
         std::make_shared<LayerCreator<ngraph::op::PSROIPooling>>("PSROIPooling"),
         std::make_shared<LayerCreator<ngraph::op::ShapeOf>>("ShapeOf"),
         std::make_shared<LayerCreator<ngraph::op::v0::Selu>>("Selu"),
@@ -2224,30 +2223,6 @@ std::shared_ptr<ngraph::Node> V10Parser::LayerCreator<ngraph::op::v1::NonMaxSupp
         new_inputs.push_back(ngraph::op::Constant::create(ngraph::element::f32, ngraph::Shape{}, {.0f}));
     return std::make_shared<ngraph::op::v1::NonMaxSuppression>(new_inputs[0], new_inputs[1], new_inputs[2], new_inputs[3], new_inputs[4],
             box_enc_type, sort_flag);
-}
-
-// Round layer
-template <>
-std::shared_ptr<ngraph::Node> V10Parser::LayerCreator<ngraph::op::v5::Round>::createLayer(
-        const ngraph::OutputVector& inputs, const pugi::xml_node& node, std::istream& binStream,
-        const GenericLayerParams& layerParsePrms) {
-    pugi::xml_node dn = node.child("data");
-
-    if (dn.empty())
-        THROW_IE_EXCEPTION << "Cannot read parameter for " << getType() << " layer with name: " << layerParsePrms.name;
-
-    auto mode = GetStrAttr(dn, "mode");
-    ngraph::op::v5::Round::RoundMode round_mode;
-    if (mode == "half_to_even") {
-        round_mode = ngraph::op::v5::Round::RoundMode::HALF_TO_EVEN;
-    } else if (mode == "half_away_from_zero") {
-        round_mode = ngraph::op::v5::Round::RoundMode::HALF_AWAY_FROM_ZERO;
-    } else {
-        THROW_IE_EXCEPTION << "Unsupported round mode " << mode << " for " << getType() <<
-                           " layer with name: " << layerParsePrms.name;
-    }
-
-    return std::make_shared<ngraph::op::v5::Round>(inputs[0], round_mode);
 }
 
 }  // namespace InferenceEngine
