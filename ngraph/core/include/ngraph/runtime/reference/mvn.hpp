@@ -41,18 +41,17 @@ namespace ngraph
                      double eps)
             {
                 auto reduced_shape = reduce(in_shape, reduction_axes, true);
-                std::vector<T> mean_val(shape_size(reduced_shape));
-                mean(arg, mean_val.data(), in_shape, reduction_axes, true);
-                subtract(arg, mean_val.data(), out, in_shape, reduced_shape, op::AutoBroadcastSpec::NUMPY);
+                std::vector<T> tmp_buffer(shape_size(reduced_shape));
+                mean(arg, tmp_buffer.data(), in_shape, reduction_axes, true);
+                subtract(arg, tmp_buffer.data(), out, in_shape, reduced_shape, op::AutoBroadcastSpec::NUMPY);
 
                 if (normalize_variance)
                 {
                     std::vector<T> multiply_val(shape_size(in_shape));
                     multiply(out, out, multiply_val.data(), shape_size(in_shape));
-                    std::vector<T> sum_val(shape_size(reduced_shape));
-                    sum(multiply_val.data(), sum_val.data(), in_shape, reduction_axes, true);
+                    sum(multiply_val.data(), tmp_buffer.data(), in_shape, reduction_axes, true);
                     std::vector<T> broadcast_sum(shape_size(in_shape));
-                    broadcast(sum_val.data(),
+                    broadcast(tmp_buffer.data(),
                               broadcast_sum.data(),
                               reduced_shape,
                               in_shape,
