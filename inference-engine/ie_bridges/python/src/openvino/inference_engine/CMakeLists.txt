@@ -3,8 +3,6 @@
 
 set(TARGET_NAME "ie_api")
 
-set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-error=deprecated-declarations")
-
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${PYTHON_BRIDGE_OUTPUT_DIRECTORY}/inference_engine)
 
 file(GLOB SOURCE
@@ -34,7 +32,7 @@ endforeach()
 
 function(python_disable_deprecated_warnings)
     disable_deprecated_warnings()
-    set(pyx_file "${CMAKE_CURRENT_BINARY_DIR}/ie_api.cxx")
+    set(pyx_file "${CMAKE_CURRENT_BINARY_DIR}/ie_api.cxx", "${CMAKE_CURRENT_BINARY_DIR}/constants.cxx")
     set_source_files_properties(${pyx_file} PROPERTIES COMPILE_FLAGS ${ie_c_cxx_deprecated})
 endfunction()
 
