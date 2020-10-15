@@ -35,11 +35,26 @@ CNNNetworkIterator {
     std::list<CNNLayerPtr> nextLayersToVisit;
     InferenceEngine::CNNLayerPtr currentLayer;
     ICNNNetwork* network = nullptr;
+    bool oldApproach = false;
 
     void init(const ICNNNetwork* network) {
         if (network == nullptr) THROW_IE_EXCEPTION << "ICNNNetwork object is nullptr";
         OutputsDataMap outputs;
         network->getOutputsInfo(outputs);
+        if (outputs.empty()) {
+            oldApproach = true;
+            InputsDataMap inputs;
+            network->getInputsInfo(inputs);
+            if (!inputs.empty()) {
+                auto& nextLayers = getInputTo(inputs.begin()->second->getInputData());
+                if (!nextLayers.empty()) {
+                    currentLayer = nextLayers.begin()->second;
+                    nextLayersToVisit.push_back(currentLayer);
+                    visited.insert(currentLayer.get());
+                }
+            }
+            return;
+        }
         std::list<CNNLayerPtr> layersQueue;
 
         for (const auto& output : outputs) {
@@ -154,6 +169,30 @@ public:
     }
 
 private:
+    void oldNext() {
+        auto nextLayer = nextLayersToVisit.front();
+        nextLayersToVisit.pop_front();
+
+        // visit child that not visited
+        for (auto&& output : nextLayer->outData) {
+            for (auto&& child : getInputTo(output)) {
+                if (visited.find(child.second.get()) == visited.end()) {
+                    nextLayersToVisit.push_back(child.second);
+                    visited.insert(child.second.get());
+                }
+            }
+        }
+
+        // visit parents
+        for (auto&& parent : nextLayer->insData) {
+            auto parentLayer = getCreatorLayer(parent.lock()).lock();
+            if (parentLayer && visited.find(parentLayer.get()) == visited.end()) {
+                nextLayersToVisit.push_back(parentLayer);
+                visited.insert(parentLayer.get());
+            }
+        }
+    }
+
     /**
      * @brief implementation based on BFS
      */
@@ -162,7 +201,10 @@ private:
             return nullptr;
         }
 
-        nextLayersToVisit.pop_front();
+        if (oldApproach)
+            oldNext();
+        else
+            nextLayersToVisit.pop_front();
 
         return nextLayersToVisit.empty() ? nullptr : nextLayersToVisit.front();
     }
