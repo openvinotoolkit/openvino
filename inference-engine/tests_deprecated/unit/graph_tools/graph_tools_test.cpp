@@ -262,12 +262,12 @@ TEST_F(GraphToolsTest, canIterateOverCNNNetwork) {
     }
 
     ASSERT_EQ(resultedOrder.size(), 8);
-    ASSERT_STREQ(resultedOrder[0]->name.c_str(), "2");
-    ASSERT_STREQ(resultedOrder[1]->name.c_str(), "6");
-    ASSERT_STREQ(resultedOrder[2]->name.c_str(), "1");
-    ASSERT_STREQ(resultedOrder[3]->name.c_str(), "7");
-    ASSERT_STREQ(resultedOrder[4]->name.c_str(), "4");
-    ASSERT_STREQ(resultedOrder[5]->name.c_str(), "3");
+    ASSERT_STREQ(resultedOrder[0]->name.c_str(), "1");
+    ASSERT_STREQ(resultedOrder[1]->name.c_str(), "3");
+    ASSERT_STREQ(resultedOrder[2]->name.c_str(), "4");
+    ASSERT_STREQ(resultedOrder[3]->name.c_str(), "2");
+    ASSERT_STREQ(resultedOrder[4]->name.c_str(), "6");
+    ASSERT_STREQ(resultedOrder[5]->name.c_str(), "7");
     ASSERT_STREQ(resultedOrder[6]->name.c_str(), "8");
     ASSERT_STREQ(resultedOrder[7]->name.c_str(), "5");
 }
