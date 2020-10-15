@@ -56,8 +56,8 @@ Local response normalization in OpenVino is based on Caffe's variation ([Caffe L
 Here is an example for 4D `data` input tensor and `axes` = `[1]`:
 
     sqr_sum[a, b, c, d] =
-        sum(input[a, max(0, b - size / 2) : min(input.shape[1], b + size / 2 + 1), c, d] ** 2)
-    output = input / ((bias + (alpha / (size ** len(axes))) * sqr_sum) ** beta)
+        sum(data[a, max(0, b - size / 2) : min(data.shape[1], b + size / 2 + 1), c, d] ** 2)
+    output = data / (bias + (alpha / size ** len(axes)) * sqr_sum) ** beta
 
 
 **Example**
