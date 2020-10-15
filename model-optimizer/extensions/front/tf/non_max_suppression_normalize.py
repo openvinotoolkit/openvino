@@ -45,57 +45,45 @@ class TFNonMaxSuppressionNormalize(FrontReplacementSubgraph):
     """
     enabled = True
 
-    @staticmethod
-    def pattern(**kwargs):
-        return dict(
-            nodes=[
-                ('nms', dict(op='NonMaxSuppression')),
-            ],
-            edges=[
-            ]
-        )
+    def find_and_replace_pattern(self, graph: Graph):
+        for nms in graph.get_op_nodes(op='NonMaxSuppression'):
+            # prepare inputs to the NonMaximumSuppression Node
+            unsqueeze_boxes = create_op_node_with_second_input(graph, Unsqueeze, int64_array([0]),
+                                                               {'name': nms.soft_get('name') + '/Unsqueeze_0'})
+            nms.in_port(0).get_connection().insert_node(unsqueeze_boxes)
 
-    @staticmethod
-    def replace_sub_graph(graph: Graph, match: dict, **kwargs):
-        nms = match['nms']
+            unsqueeze_box_scores = create_op_node_with_second_input(graph, Reshape, int64_array([1, 1, -1]),
+                                                                    {'name': nms.soft_get('name') + '/Unsqueeze_1'})
+            nms.in_port(1).get_connection().insert_node(unsqueeze_box_scores)
 
-        # prepare inputs to the NonMaximumSuppression Node
-        unsqueeze_boxes = create_op_node_with_second_input(graph, Unsqueeze, int64_array([0]),
-                                                           {'name': nms.soft_get('name') + '/Unsqueeze_0'})
-        nms.in_port(0).get_connection().insert_node(unsqueeze_boxes)
+            nms_name = nms.soft_get('name', nms.id)
 
-        unsqueeze_box_scores = create_op_node_with_second_input(graph, Reshape, int64_array([1, 1, -1]),
-                                                                {'name': nms.soft_get('name') + '/Unsqueeze_1'})
-        nms.in_port(1).get_connection().insert_node(unsqueeze_box_scores)
+            # prepare output #0
+            crop_box_indices_name = nms_name + '/Crop_boxes_'
+            crop_box_indices = Crop(graph, {'name': crop_box_indices_name, 'axis': int64_array([1]),
+                                            'offset': int64_array([2]), 'dim': int64_array([1])}).create_node()
+            nms.out_port(0).get_connection().insert_node(crop_box_indices)
+            squeeze_output_boxes = create_op_node_with_second_input(graph, Squeeze, int64_array([1]),
+                                                                    {'name': crop_box_indices_name + '/Squeeze'})
+            crop_box_indices.out_port(0).get_connection().insert_node(squeeze_output_boxes)
 
-        nms_name = nms.soft_get('name', nms.id)
+            num_of_outputs = len([port for port in nms.out_ports().values() if not port.disconnected()])
 
-        # prepare output #0
-        crop_box_indices_name = nms_name + '/Crop_boxes_'
-        crop_box_indices = Crop(graph, {'name': crop_box_indices_name, 'axis': int64_array([1]),
-                                        'offset': int64_array([2]), 'dim': int64_array([1])}).create_node()
-        nms.out_port(0).get_connection().insert_node(crop_box_indices)
-        squeeze_output_boxes = create_op_node_with_second_input(graph, Squeeze, int64_array([1]),
-                                                                {'name': crop_box_indices_name + '/Squeeze'})
-        crop_box_indices.out_port(0).get_connection().insert_node(squeeze_output_boxes)
+            if num_of_outputs == 1:
+                return
 
-        num_of_outputs = len([port for port in nms.out_ports().values() if not port.disconnected()])
+            # prepare output #1
+            crop_score_indices_name = nms_name + '/Crop_scores_'
+            crop_score_indices = Crop(graph, {'name': crop_score_indices_name, 'axis': int64_array([1]),
+                                              'offset': int64_array([2]), 'dim': int64_array([1])}).create_node()
+            nms.out_port(1).get_connection().insert_node(crop_score_indices)
+            squeeze_output_scores = create_op_node_with_second_input(graph, Squeeze, int64_array([1]),
+                                                                     {'name': crop_score_indices_name + '/Squeeze'})
+            crop_score_indices.out_port(0).get_connection().insert_node(squeeze_output_scores)
 
-        if num_of_outputs == 1:
-            return
-
-        # prepare output #1
-        crop_score_indices_name = nms_name + '/Crop_scores_'
-        crop_score_indices = Crop(graph, {'name': crop_score_indices_name, 'axis': int64_array([1]),
-                                          'offset': int64_array([2]), 'dim': int64_array([1])}).create_node()
-        nms.out_port(1).get_connection().insert_node(crop_score_indices)
-        squeeze_output_scores = create_op_node_with_second_input(graph, Squeeze, int64_array([1]),
-                                                                 {'name': crop_score_indices_name + '/Squeeze'})
-        crop_score_indices.out_port(0).get_connection().insert_node(squeeze_output_scores)
-
-        # make inputs 2 to 6 to have shape [1] instead of [0] (convert 0D to 1D)
-        for port_id in range(2, 6):
-            if port_id in nms.in_ports() and not nms.in_port(port_id).disconnected():
-                reshape_1d = create_op_node_with_second_input(graph, Reshape, int64_array([1]),
-                                                              {'name': nms_name + '/Reshape_1D_{}'.format(port_id)})
-                nms.in_port(port_id).get_connection().insert_node(reshape_1d)
+            # make inputs 2 to 6 to have shape [1] instead of [0] (convert 0D to 1D)
+            for port_id in range(2, 6):
+                if port_id in nms.in_ports() and not nms.in_port(port_id).disconnected():
+                    reshape_1d = create_op_node_with_second_input(graph, Reshape, int64_array([1]),
+                                                                  {'name': nms_name + '/Reshape_1D_{}'.format(port_id)})
+                    nms.in_port(port_id).get_connection().insert_node(reshape_1d)
