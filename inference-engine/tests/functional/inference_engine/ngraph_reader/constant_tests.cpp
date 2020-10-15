@@ -49,9 +49,7 @@ TEST_F(NGraphReaderTests, ReadConstantNetwork) {
 
         auto network = ie.ReadNetwork(model, weights);
         auto clonedNetwork = cloneNetwork(network);
-        auto convertedNetwork = std::make_shared<InferenceEngine::details::CNNNetworkImpl>(network);
-        auto clonedNet = cloneNet(*convertedNetwork);
-
+        auto clonedNet = cloneNet(network);
 
         IE_SUPPRESS_DEPRECATED_END
 }
