@@ -10,7 +10,7 @@
 
 #include <ngraph/function.hpp>
 #include <ngraph/opsets/opset1.hpp>
-#include <transformations/convert_quantize_dequantize.hpp>
+#include <transformations/common_optimizations/convert_quantize_dequantize.hpp>
 #include <transformations/init_node_info.hpp>
 #include <transformations/utils/utils.hpp>
 #include <ngraph/pass/manager.hpp>
