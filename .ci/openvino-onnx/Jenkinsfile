@@ -69,7 +69,7 @@ def buildDockerImage() {
 def runTests() {
     sh """
         docker run --name ${DOCKER_CONTAINER_NAME} \
-        --volume ${HOME}/ONNX_CI/onnx-models/.onnx:/root/.onnx ${DOCKER_IMAGE_TAG}
+        --volume ${HOME}/ONNX_CI/onnx-models-15-Oct/.onnx:/root/.onnx ${DOCKER_IMAGE_TAG}
     """
 }
 
