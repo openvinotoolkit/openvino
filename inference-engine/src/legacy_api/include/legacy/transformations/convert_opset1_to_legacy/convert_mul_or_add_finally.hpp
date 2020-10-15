@@ -66,55 +66,6 @@ bool convert_to_eltwise(std::shared_ptr<T> & node,
     return true;
 }
 
-bool checkElementwise(const std::shared_ptr<ngraph::Node>& elementwise) {
-    const ngraph::PartialShape partialShape = elementwise->get_input_partial_shape(0);
-    if (partialShape.is_dynamic()) {
-        return false;
-    }
-
-    std::shared_ptr<ngraph::opset1::Constant> constant = ngraph::as_type_ptr<ngraph::opset1::Constant>(elementwise->get_input_node_shared_ptr(1));
-    if (constant == nullptr) {
-        constant = ngraph::as_type_ptr<ngraph::opset1::Constant>(elementwise->get_input_node_shared_ptr(0));
-    }
-    if (constant == nullptr) {
-        return false;
-    }
-
-    const ngraph::Shape constShape = constant->get_output_shape(0);
-    if ((constShape.size() > 5ul)) {
-        return false;
-    }
-
-    if ((constShape.size() <= 1ul) || (std::all_of(constShape.begin(), constShape.end(), [](const size_t value) { return value == 1ul; }))) {
-        return true;
-    }
-
-    const ngraph::Shape shape = partialShape.to_shape();
-    if (constShape.size() == shape.size()) {
-        if ((constShape[0] != 1ul) || (constShape[1] != shape[1])) {
-            return false;
-        }
-        for (size_t i = 2ul; i < constShape.size(); ++i) {
-            if (constShape[i] != 1ul) {
-                return false;
-            }
-        }
-    } else if (constShape.size() == (shape.size() - 1)) {
-        if (constShape[0] != shape[1]) {
-            return false;
-        }
-        for (size_t i = 1ul; i < constShape.size(); ++i) {
-            if (constShape[i] != 1ul) {
-                return false;
-            }
-        }
-    } else {
-        return false;
-    }
-
-    return true;
-}
-
 template <typename T>
 ngraph::graph_rewrite_callback get_callback() {
     ngraph::graph_rewrite_callback callback = [](ngraph::pattern::Matcher& m) {
@@ -201,6 +152,55 @@ ngraph::graph_rewrite_callback get_callback() {
         }
 
         auto res = check_constant(const_node, data_node.get_partial_shape());
+
+        auto checkElementwise = [](const std::shared_ptr<ngraph::Node>& elementwise) -> bool {
+            const ngraph::PartialShape partialShape = elementwise->get_input_partial_shape(0);
+            if (partialShape.is_dynamic()) {
+                return false;
+            }
+
+            std::shared_ptr<ngraph::opset1::Constant> constant = ngraph::as_type_ptr<ngraph::opset1::Constant>(elementwise->get_input_node_shared_ptr(1));
+            if (constant == nullptr) {
+                constant = ngraph::as_type_ptr<ngraph::opset1::Constant>(elementwise->get_input_node_shared_ptr(0));
+            }
+            if (constant == nullptr) {
+                return false;
+            }
+
+            const ngraph::Shape constShape = constant->get_output_shape(0);
+            if ((constShape.size() > 5ul)) {
+                return false;
+            }
+
+            if ((constShape.size() <= 1ul) || (std::all_of(constShape.begin(), constShape.end(), [](const size_t value) { return value == 1ul; }))) {
+                return true;
+            }
+
+            const ngraph::Shape shape = partialShape.to_shape();
+            if (constShape.size() == shape.size()) {
+                if ((constShape[0] != 1ul) || (constShape[1] != shape[1])) {
+                    return false;
+                }
+                for (size_t i = 2ul; i < constShape.size(); ++i) {
+                    if (constShape[i] != 1ul) {
+                        return false;
+                    }
+                }
+            } else if (constShape.size() == (shape.size() - 1)) {
+                if (constShape[0] != shape[1]) {
+                    return false;
+                }
+                for (size_t i = 1ul; i < constShape.size(); ++i) {
+                    if (constShape[i] != 1ul) {
+                        return false;
+                    }
+                }
+            } else {
+                return false;
+            }
+
+            return true;
+        };
 
         bool is_dequantization = (lin_op->get_rt_info().count("DEQUANTIZATION") != 0) && checkElementwise(lin_op);
 
