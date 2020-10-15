@@ -294,10 +294,8 @@ public:
 
     QueryNetworkResult QueryNetwork(const ICNNNetwork& network, const std::string& deviceName,
                                     const std::map<std::string, std::string>& config) const override {
-        QueryNetworkResult res;
         auto parsed = parseDeviceNameIntoConfig(deviceName, config);
-        GetCPPPluginByName(parsed._deviceName).QueryNetwork(network, parsed._config, res);
-        return res;
+        return GetCPPPluginByName(parsed._deviceName).QueryNetwork(network, parsed._config);
     }
 
     Parameter GetMetric(const std::string& deviceName, const std::string& name) const override {
