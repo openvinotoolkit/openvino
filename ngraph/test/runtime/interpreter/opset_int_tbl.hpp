@@ -44,6 +44,7 @@ NGRAPH_OP(RNNCell, op::v0)
 NGRAPH_OP(Selu, op::v0)
 NGRAPH_OP(Sign, op::v0)
 NGRAPH_OP(SquaredDifference, op::v0)
+NGRAPH_OP(ReorgYolo, op::v0)
 
 NGRAPH_OP(AvgPool, op::v1)
 NGRAPH_OP(Convolution, ngraph::op::v1)
