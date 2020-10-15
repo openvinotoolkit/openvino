@@ -161,6 +161,7 @@ protected:
         }
 
         std::vector<event_impl::ptr> tmp_events(events);
+        std::vector<event_impl::ptr> all_events;
 
         // TODO - split should be handle in kernel selector by providing multiple kernels.
         auto split = get_split();
@@ -181,6 +182,7 @@ protected:
 
                 auto event = _kernels[k].run(net_id, _kernel_data.kernels[k], tmp_events);
                 new_events.push_back(event);
+                all_events.push_back(event);
             }
 
             tmp_events = new_events;

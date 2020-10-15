@@ -79,27 +79,25 @@ struct base_events : virtual public ocl_base_event {
 public:
     base_events(std::shared_ptr<gpu_toolkit> ctx, std::vector<event_impl::ptr> const& ev)
         : ocl_base_event(0, true), _ctx(ctx) {
-        for (auto it = ev.rbegin(); it != ev.rend(); ++it) {
-            auto multiple_events = dynamic_cast<base_events*>(it->get());
+        for (size_t i = 0; i < ev.size(); i++) {
+            auto multiple_events = dynamic_cast<base_events*>(ev[i].get());
             if (multiple_events) {
-                for (auto it2 = multiple_events->_events.rbegin(); it2 != multiple_events->_events.rend(); ++it2)
-                {
-                    if (_last_ocl_event.get() == nullptr) {
-                        if (auto base_ev = dynamic_cast<base_event*>(it2->get())) {
-                             _queue_stamp = base_ev->get_queue_stamp();
+                for (size_t j = 0; j < multiple_events->_events.size(); j++) {
+                    if (auto base_ev = dynamic_cast<base_event*>(multiple_events->_events[j].get())) {
+                        auto current_ev_queue_stamp = base_ev->get_queue_stamp();
+                        if (current_ev_queue_stamp > _queue_stamp) {
+                            _queue_stamp = current_ev_queue_stamp;
                             _last_ocl_event = base_ev->get();
                         }
                     }
-                    _events.push_back(*it2);
+                    _events.push_back(multiple_events->_events[j]);
                 }
             } else {
-                if (auto base_ev = dynamic_cast<base_event*>(it->get())) {
-                    if (_last_ocl_event.get() == nullptr) {
-                         _queue_stamp = base_ev->get_queue_stamp();
-                        _last_ocl_event = base_ev->get();
-                    }
-                    _events.push_back(*it);
+                if (auto base_ev = dynamic_cast<base_event*>(ev[i].get())) {
+                    _queue_stamp = base_ev->get_queue_stamp();
+                    _last_ocl_event = base_ev->get();
                 }
+                _events.push_back(ev[i]);
             }
         }
     }
@@ -109,27 +107,28 @@ public:
     void attach_events(const std::vector<event_impl::ptr>& ev) {
         if (_attached)
             throw std::runtime_error("Trying to attach events to valid event object.");
-        for (auto it = ev.rbegin(); it != ev.rend(); ++it) {
-            auto multiple_events = dynamic_cast<base_events*>(it->get());
+        for (size_t i = 0; i < ev.size(); i++) {
+            auto multiple_events = dynamic_cast<base_events*>(ev[i].get());
             if (multiple_events) {
-                for (auto it2 = multiple_events->_events.rbegin(); it2 != multiple_events->_events.rend(); ++it2)
-                {
-                    if (_last_ocl_event.get() == nullptr) {
-                        if (auto base_ev = dynamic_cast<base_event*>(it2->get())) {
-                            _queue_stamp = base_ev->get_queue_stamp();
+                for (size_t j = 0; j < multiple_events->_events.size(); j++) {
+                    if (auto base_ev = dynamic_cast<base_event*>(multiple_events->_events[j].get())) {
+                        auto current_ev_queue_stamp = base_ev->get_queue_stamp();
+                        if (current_ev_queue_stamp > _queue_stamp) {
+                            _queue_stamp = current_ev_queue_stamp;
                             _last_ocl_event = base_ev->get();
                         }
                     }
-                    _events.push_back(*it2);
+                    _events.push_back(multiple_events->_events[j]);
                 }
             } else {
-                if (auto base_ev = dynamic_cast<base_event*>(it->get())) {
-                    if (_last_ocl_event.get() == nullptr) {
-                        _queue_stamp = base_ev->get_queue_stamp();
+                if (auto base_ev = dynamic_cast<base_event*>(ev[i].get())) {
+                    auto current_ev_queue_stamp = base_ev->get_queue_stamp();
+                    if (current_ev_queue_stamp > _queue_stamp) {
+                        _queue_stamp = current_ev_queue_stamp;
                         _last_ocl_event = base_ev->get();
                     }
-                    _events.push_back(*it);
                 }
+                _events.push_back(ev[i]);
             }
         }
         _attached = true;
@@ -144,7 +143,6 @@ private:
 
     bool get_profiling_info_impl(std::list<instrumentation::profiling_interval>& info) override;
 
-    base_event::ptr _last_event;
     cl::Event _last_ocl_event;
     std::shared_ptr<gpu_toolkit> _ctx;
     std::vector<event_impl::ptr> _events;

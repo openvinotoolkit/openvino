@@ -118,7 +118,6 @@ event_impl::ptr gpu_queue::enqueue_marker(std::vector<event_impl::ptr> const& de
             for (auto& dep : deps) {
                 if (auto ocl_base_ev = dynamic_cast<ocl_base_event*>(dep.get()))
                     dep_events.push_back(ocl_base_ev->get());
-                }
             }
 
             try {
