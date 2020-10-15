@@ -24,9 +24,9 @@ ngraph::pass::ProposalScales::ProposalScales() {
 
         const auto & parameter_pshape = parameter->get_output_partial_shape(0);
 
-        if (parameter_pshape.rank().is_static() && parameter_pshape.rank().get_length() != 2)
+        if (parameter_pshape.rank().is_dynamic() || parameter_pshape.rank().get_length() != 2)
             return false;
-        if (reshape->get_output_partial_shape(0).rank().is_static() && reshape->get_output_partial_shape(0).rank() != 1)
+        if (reshape->get_output_partial_shape(0).rank().is_dynamic() || reshape->get_output_partial_shape(0).rank() != 1)
             return false;
         if (parameter_pshape[1].is_dynamic() || (parameter_pshape[1].get_length() != 3 && parameter_pshape[1].get_length() != 4))
             return false;
@@ -34,8 +34,8 @@ ngraph::pass::ProposalScales::ProposalScales() {
         auto begin  = ngraph::opset5::Constant::create(ngraph::element::i64, ngraph::Shape{1}, {0});
         auto end    = ngraph::opset5::Constant::create(ngraph::element::i64, ngraph::Shape{1}, {parameter_pshape[1].get_length()});
         auto stride = ngraph::opset5::Constant::create(ngraph::element::i64, ngraph::Shape{1}, {1});
-        auto ss_data = std::make_shared<ngraph::opset5::StridedSlice>(proposal->input_value(2), begin, end, stride,
-                                                                      std::vector<int64_t>{0}, std::vector<int64_t>{0});
+        auto ss_data = std::make_shared<ngraph::opset5::StridedSlice>(
+                proposal->input_value(2), begin, end, stride, std::vector<int64_t>{0}, std::vector<int64_t>{0});
 
         proposal->input(2).replace_source_output(ss_data->output(0));
         return true;

@@ -20,12 +20,11 @@ ngraph::pass::MimicSetBatchSize::MimicSetBatchSize() {
 
         const auto & reshape = std::dynamic_pointer_cast<opset5::Reshape>(pattern_to_output.at(reshape_label).get_node_shared_ptr());
         auto pattern = std::dynamic_pointer_cast<opset5::Constant>(reshape->get_input_node_shared_ptr(1));
-        const auto & input_pshape =  reshape->get_input_partial_shape(0);
-        const auto & output_pshape =  reshape->get_output_partial_shape(0);
-
         if (!reshape || !pattern)
             return false;
 
+        const auto & input_pshape =  reshape->get_input_partial_shape(0);
+        const auto & output_pshape =  reshape->get_output_partial_shape(0);
         const auto & pattern_vector = pattern->cast_vector<int64_t>();
         if (input_pshape.rank().is_dynamic() || input_pshape.rank().get_length() < 2 || input_pshape[0].is_dynamic() ||
             output_pshape.rank().is_dynamic() || output_pshape.rank().get_length() < 2 || pattern_vector.empty() || pattern_vector[0] < 1)
