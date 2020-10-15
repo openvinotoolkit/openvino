@@ -43,28 +43,20 @@ CNNNetworkIterator {
         network->getOutputsInfo(outputs);
         if (outputs.empty()) {
             oldApproach = true;
-            InputsDataMap inputs;
-            network->getInputsInfo(inputs);
-            if (!inputs.empty()) {
-                auto& nextLayers = getInputTo(inputs.begin()->second->getInputData());
-                if (!nextLayers.empty()) {
-                    currentLayer = nextLayers.begin()->second;
-                    nextLayersToVisit.push_back(currentLayer);
-                    visited.insert(currentLayer.get());
-                }
-            }
-            return;
         }
         std::list<CNNLayerPtr> layersQueue;
 
         for (const auto& output : outputs) {
+            std::cout << oldApproach << " " << output.first << std::endl;
             auto layer = getCreatorLayer(output.second).lock();
             if (layer) {
+                if (layer->type == "Memory")
+                    oldApproach = true;
                 layersQueue.push_back(layer);
             }
         }
 
-        while (!layersQueue.empty()) {
+        while (!layersQueue.empty() && !oldApproach) {
             auto layer = layersQueue.front();
             layersQueue.pop_front();
             if (visited.find(layer.get()) != visited.end())
@@ -76,13 +68,30 @@ CNNNetworkIterator {
                 if (inData) {
                     auto prevLayer = getCreatorLayer(inData).lock();
                     if (prevLayer) {
+                        if (prevLayer->type == "Memory")
+                            oldApproach = true;
                         layersQueue.push_back(prevLayer);
                     }
                 }
             }
         }
 
-        currentLayer = nextLayersToVisit.front();
+        if (oldApproach) {
+            visited.clear();
+            nextLayersToVisit.clear();
+            InputsDataMap inputs;
+            network->getInputsInfo(inputs);
+            if (!inputs.empty()) {
+                auto& nextLayers = getInputTo(inputs.begin()->second->getInputData());
+                if (!nextLayers.empty()) {
+                    currentLayer = nextLayers.begin()->second;
+                    nextLayersToVisit.push_back(currentLayer);
+                    visited.insert(currentLayer.get());
+                }
+            }
+        } else {
+            currentLayer = nextLayersToVisit.front();
+        }
     }
 
 
@@ -206,6 +215,8 @@ private:
         else
             nextLayersToVisit.pop_front();
 
+        if (!nextLayersToVisit.empty())
+            std::cout << nextLayersToVisit.front()->type << " " << nextLayersToVisit.front()->name << std::endl;
         return nextLayersToVisit.empty() ? nullptr : nextLayersToVisit.front();
     }
 
