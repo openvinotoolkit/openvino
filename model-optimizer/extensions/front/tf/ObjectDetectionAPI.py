@@ -1206,3 +1206,101 @@ class ObjectDetectionAPIConstValueOverride(FrontReplacementFromConfigFileGeneral
                 continue
             node.value = np.array(pipeline_config.get_param(pipeline_config_name))
             node.value = node.value.reshape(node.shape)
+
+
+class EfficientDet(FrontReplacementFromConfigFileGeneral):
+    replacement_id = 'EfficientDet'
+
+    class AnchorGenerator:
+        def __init__(self, min_level, aspect_ratios, num_scales, anchor_scale):
+            self.min_level = min_level
+            self.aspect_ratios = aspect_ratios
+            self.anchor_scale = anchor_scale
+            self.scales = [2**(float(s) / num_scales) for s in range(num_scales)]
+
+        def get(self, layer_id):
+            widths = []
+            heights = []
+            for s in self.scales:
+                for a in self.aspect_ratios:
+                    base_anchor_size = 2**(self.min_level + layer_id) * self.anchor_scale
+                    heights.append(base_anchor_size * s * a[1])
+                    widths.append(base_anchor_size * s * a[0])
+            return widths, heights
+
+    def transform_graph(self, graph: Graph, replacement_descriptions: dict):
+        scopesToKeep = ('image_arrays', 'efficientnet', 'resample_p6', 'resample_p7',
+                        'fpn_cells', 'class_net', 'box_net', 'Reshape', 'concat')
+        nodesToKeep = ('truediv')
+
+        # Remove all nodes we are not going to work with
+        nodes_to_remove = []
+        for name, node  in graph.nodes.items():
+            op = node['op']
+            if not (op == 'Const' or name in nodesToKeep or name.startswith(scopesToKeep)):
+                nodes_to_remove.append(name)
+
+        for node in nodes_to_remove:
+            graph.remove_node(node)
+
+        # Attach unconnected preprocessing
+        truediv = Node(graph, 'truediv')
+        graph.create_edge(Node(graph, 'image_arrays'), truediv, out_port=0, in_port=0)
+
+        # Find first not Const node after "truediv" and connect to "truediv"
+        for name, node in graph.nodes.items():
+            if node['op'] != 'Const' and name != 'truediv':
+                node = Node(graph, name)  # TODO: can we simplify it?
+                graph.create_edge(truediv, node, out_port=0, in_port=0)
+                break
+
+        # Create prior boxes (anchors) generator
+        aspect_ratios=[1.0, 1.0, 1.4, 0.7, 0.7, 1.4]
+        assert(len(aspect_ratios) % 2 == 0)
+        aspect_ratios = list(zip(aspect_ratios[::2], aspect_ratios[1::2]))
+        priors_generator = self.AnchorGenerator(min_level=3,
+                                                aspect_ratios=aspect_ratios,
+                                                num_scales=3,
+                                                anchor_scale=4.0)
+        prior_boxes = []
+        for i in range(5):
+            widths, heights = priors_generator.get(i)
+            prior_box_op = PriorBoxClusteredOp(graph, {'width': np.array(widths),
+                                                       'height': np.array(heights),
+                                                       'clip': 0, 'flip': 0,
+                                                       'variance': [1.0, 1.0, 1.0, 1.0],
+                                                       'offset': 0.5})
+            inp_name = 'box_net/box-predict{}/BiasAdd'.format('_%d' % i if i else '')
+            prior_boxes.append(prior_box_op.create_node([Node(graph, inp_name),
+                                                         Node(graph, 'image_arrays')]))
+
+        # Concatenate prior box layers
+        concat_prior_boxes_op = Concat(graph, {'axis': -1}).create_node(prior_boxes)
+
+        conf = Sigmoid(graph, dict(name='concat/sigmoid')).create_node([Node(graph, 'concat')])
+
+        reshape_size_node = Const(graph, {'value': int64_array([0, -1])}).create_node([])
+        logits = Reshape(graph, dict(name=conf.name + '/Flatten')).create_node([conf, reshape_size_node])
+        deltas = Reshape(graph, dict(name='concat_1/Flatten')).create_node([Node(graph, 'concat_1'), reshape_size_node])
+
+        # Revert convolution boxes prediction convolutions weights from yxYX to xyXY
+        # (there are 5 convolutions but all have shared weights and bias)
+        weights = Node(graph, 'box_net/box-predict/pointwise_kernel')
+        weights.value = weights.value.reshape(-1, 4)[:, [1, 0, 3, 2]].reshape(weights.shape)
+        bias = Node(graph, 'box_net/box-predict/bias')
+        bias.value = bias.value.reshape(-1, 4)[:, [1, 0, 3, 2]].reshape(bias.shape)
+
+        detection_output_node = DetectionOutput(graph, dict(
+            name='detection_output',
+            num_classes=90,
+            share_location=1,
+            background_label_id=91,
+            nms_threshold=0.6,
+            confidence_threshold=0.2,
+            top_k=100,
+            keep_top_k=100,
+            code_type='caffe.PriorBoxParameter.CENTER_SIZE',
+        )).create_node([deltas, logits, concat_prior_boxes_op])
+
+        output_op = Result(graph, dict(name='output'))
+        output_op.create_node([detection_output_node])

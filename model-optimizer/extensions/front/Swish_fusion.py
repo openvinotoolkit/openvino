@@ -24,7 +24,7 @@ class SwishWithSigmoidWithoutBeta(FrontReplacementSubgraph):
     """
     The transformation looks for the pattern with Sigmoid defining the Swish function: Swish(x) = x * Sigmoid(x)
     """
-    enabled = True
+    enabled = False
 
     def pattern(self):
         return dict(
