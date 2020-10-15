@@ -60,6 +60,12 @@ bool ngraph::op::v0::RegionYolo::visit_attributes(AttributeVisitor& visitor)
 void op::RegionYolo::validate_and_infer_types()
 {
     auto input_et = get_input_element_type(0);
+
+    NODE_VALIDATION_CHECK(this,
+                          input_et.is_real(),
+                          "Type of input is expected to be a floating point type. Got: ",
+                          input_et);
+
     if (get_input_partial_shape(0).is_static())
     {
         Shape input_shape = get_input_partial_shape(0).to_shape();

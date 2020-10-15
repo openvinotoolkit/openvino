@@ -325,6 +325,7 @@ set(MULTI_TEST_SRC
     backend/reduce_min.in.cpp
     backend/reduce_prod.in.cpp
     backend/reduce_sum.in.cpp
+    backend/region_yolo.in.cpp
     backend/relu.in.cpp
     backend/reorg_yolo.in.cpp
     backend/replace_slice.in.cpp

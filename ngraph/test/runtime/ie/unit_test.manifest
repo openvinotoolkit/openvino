@@ -1466,6 +1466,8 @@ IE_GPU.matmul_2x2_2x2
 IE_GPU.matmul_2x3_3x3
 IE_GPU.matmul_3x2_3x3_transpose
 IE_GPU.matmul_3x2_2x3_transpose
+IE_GPU.region_yolo_v2_caffe
+IE_GPU.region_yolo_v3_mxnet
 
 # Unsupported collapse op with dynamic shape
 IE_GPU.builder_opset1_collapse_dyn_shape
