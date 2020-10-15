@@ -4,10 +4,6 @@
 
 set (TARGET_NAME "inference_engine_preproc")
 
-if(ENABLE_LTO)
-    ie_enable_lto()
-endif()
-
 file(GLOB LIBRARY_SRC ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp)
 file(GLOB LIBRARY_HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/*.hpp)
 
@@ -128,6 +124,10 @@ add_library(${TARGET_NAME}_obj OBJECT
             ${LIBRARY_SRC}
             ${LIBRARY_HEADERS})
 
+ie_faster_build(${TARGET_NAME}_obj
+    UNITY
+)
+
 target_compile_definitions(${TARGET_NAME}_obj PRIVATE IMPLEMENT_PREPROC_PLUGIN
                                                       $<TARGET_PROPERTY:inference_engine,INTERFACE_COMPILE_DEFINITIONS>
                                                       $<TARGET_PROPERTY:fluid,INTERFACE_COMPILE_DEFINITIONS>)
@@ -182,6 +182,11 @@ target_link_libraries(${TARGET_NAME}_s PRIVATE fluid openvino::itt
                                        INTERFACE inference_engine_s)
 
 target_compile_definitions(${TARGET_NAME}_s INTERFACE USE_STATIC_IE)
+
+# LTO
+
+set_target_properties(${TARGET_NAME} ${TARGET_NAME}_obj ${TARGET_NAME}_s
+                      PROPERTIES INTERPROCEDURAL_OPTIMIZATION ${ENABLE_LTO})
 
 # developer package
 
