@@ -708,8 +708,7 @@ void op::v5::NonMaxSuppression::validate()
 
     const auto iou_threshold_ps = get_input_partial_shape(3);
     NODE_VALIDATION_CHECK(this,
-                          iou_threshold_ps.is_dynamic() ||
-                              is_scalar(iou_threshold_ps.to_shape()),
+                          iou_threshold_ps.is_dynamic() || is_scalar(iou_threshold_ps.to_shape()),
                           "Expected a scalar for the 'iou_threshold' input. Got: ",
                           iou_threshold_ps);
 
