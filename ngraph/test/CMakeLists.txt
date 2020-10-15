@@ -70,6 +70,7 @@ set(SRC
     node_input_output.cpp
     op.cpp
     op_eval/floor_mod.cpp
+    op_eval/hsigmoid.cpp
     op_eval/hswish.cpp
     op_eval/interpolate.cpp
     op_eval/matmul.cpp
@@ -287,6 +288,7 @@ set(MULTI_TEST_SRC
     backend/function_name.in.cpp
     backend/fused_op.in.cpp
     backend/gather.in.cpp
+    backend/gather_nd.in.cpp
     backend/gelu.in.cpp
     backend/group_convolution.in.cpp
     backend/interpolate.in.cpp

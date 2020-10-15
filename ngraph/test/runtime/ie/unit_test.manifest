@@ -787,6 +787,9 @@ gather_nd_batch_1d_from_2d
 gather_nd_batch_scalar_from_3d
 gather_nd_batch_1d_from_3d
 gather_nd_batch_2d_from_3d
+gather_nd_batch_dims1
+gather_nd_batch_dims2
+gather_nd_batch_dims2_lead_dims
 
 # Cannot cast ngraph node Stack to CNNLayer!
 stack_matrix_rowise
