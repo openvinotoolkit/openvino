@@ -31,7 +31,6 @@
 #include "legacy/ngraph_ops/selu_ie.hpp"
 #include "legacy/ngraph_ops/scaleshift.hpp"
 #include "legacy/ngraph_ops/tile_ie.hpp"
-#include "legacy/ngraph_ops/topk_ie.hpp"
 #include "legacy/ngraph_ops/rnn_cell_ie.hpp"
 #include "legacy/ngraph_ops/hard_sigmoid_ie.hpp"
 #include "generic_ie.hpp"
@@ -1521,36 +1520,6 @@ CNNLayer::Ptr NodeConverter<ngraph::op::PowerIE>::createLayer(const std::shared_
     res->params["power"] = asString(castedLayer->power);
     res->params["scale"] = asString(castedLayer->scale);
     res->params["shift"] = asString(castedLayer->shift);
-
-    return res;
-}
-
-template <>
-CNNLayer::Ptr NodeConverter<ngraph::op::v1::TopK>::createLayer(const std::shared_ptr<ngraph::Node>& layer) const {
-    LayerParams params = {layer->get_friendly_name(), "TopK",
-                          details::convertPrecision(layer->get_output_element_type(0))};
-    auto res = std::make_shared<InferenceEngine::TopKLayer>(params);
-    auto castedLayer = ngraph::as_type_ptr<ngraph::op::v1::TopK>(layer);
-    if (castedLayer == nullptr) THROW_IE_EXCEPTION << "Cannot get " << params.type << " layer " << params.name;
-
-    res->params["mode"] = ngraph::as_string<ngraph::op::v1::TopK::Mode>(castedLayer->get_mode());;
-    res->params["sort"] = ngraph::as_string<ngraph::op::v1::TopK::SortType>(castedLayer->get_sort_type());
-    res->params["axis"] = asString(castedLayer->get_axis());
-
-    return res;
-}
-
-template <>
-CNNLayer::Ptr NodeConverter<ngraph::op::TopKIE>::createLayer(const std::shared_ptr<ngraph::Node>& layer) const {
-    LayerParams params = {layer->get_friendly_name(), "TopK",
-                          details::convertPrecision(layer->get_output_element_type(0))};
-    auto res = std::make_shared<InferenceEngine::TopKLayer>(params);
-    auto castedLayer = ngraph::as_type_ptr<ngraph::op::TopKIE>(layer);
-    if (castedLayer == nullptr) THROW_IE_EXCEPTION << "Cannot get " << params.type << " layer " << params.name;
-
-    res->params["mode"] = ngraph::as_string<ngraph::op::v1::TopK::Mode>(castedLayer->get_mode());;
-    res->params["sort"] = ngraph::as_string<ngraph::op::v1::TopK::SortType>(castedLayer->get_sort_type());
-    res->params["axis"] = asString(castedLayer->get_axis());
 
     return res;
 }

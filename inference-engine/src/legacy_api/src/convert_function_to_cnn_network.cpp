@@ -558,6 +558,15 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
         return res;
     });
 
+    addSpecificCreator({"TopK","TopKIE"}, [](const std::shared_ptr<::ngraph::Node>& node,
+        const std::map<std::string, std::string>& params) -> CNNLayerPtr {
+        LayerParams attrs = {node->get_friendly_name(), "TopK",
+                          details::convertPrecision(node->get_output_element_type(0))};
+        auto res = std::make_shared<InferenceEngine::TopKLayer>(attrs);
+        res->params = params;
+        return res;
+    });
+
     addSpecificCreator({"Transpose"}, [](const std::shared_ptr<::ngraph::Node>& node,
         const std::map<std::string, std::string>& params) -> CNNLayerPtr {
         LayerParams attrs = {node->get_friendly_name(), "Permute",
@@ -702,7 +711,7 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
 
     addSpecificCreator({ "Convolution", "Gather", "GatherTree", "GRUCell", "GRUSequence", "HardSigmoid",
                       "LRN", "LSTMCell", "LSTMSequence", "NonMaxSuppression", "RNNCell", "RNNSequence", "OneHot",
-                      "Pad", "PriorBoxClustered", "PriorBox", "Proposal", "Selu", "Swish", "Tile", "TopK"},
+                      "Pad", "PriorBoxClustered", "PriorBox", "Proposal", "Selu", "Swish", "Tile"},
             [](const std::shared_ptr<::ngraph::Node>& node, const std::map<std::string, std::string>& params)
             -> CNNLayerPtr {
         const std::string& type_name = node->get_type_name();
@@ -774,7 +783,6 @@ void convertFunctionToICNNNetwork(const std::shared_ptr<const ::ngraph::Function
                 std::make_shared<Builder::NodeConverter<::ngraph::op::v1::AvgPool>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::Clamp>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::Constant>>(),
-                //std::make_shared<Builder::NodeConverter<::ngraph::op::Concat>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::ConvolutionIE>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::CropIE>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::Convert>>(),
