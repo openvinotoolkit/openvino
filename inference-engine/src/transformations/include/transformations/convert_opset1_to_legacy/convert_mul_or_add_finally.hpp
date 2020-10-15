@@ -182,12 +182,13 @@ ngraph::graph_rewrite_callback get_callback() {
                 }
                 scaleshift = std::make_shared<ngraph::op::ScaleShiftIE>(data_node, weights_in, biases_in);
             } else if (std::is_same<T, ngraph::opset1::Subtract>()) {
-                auto new_const_node = std::make_shared<ngraph::opset1::Multiply>(ngraph::op::util::normalize_constant(const_node, output_shape),
+                std::shared_ptr<ngraph::Node> new_const_node = std::make_shared<ngraph::opset1::Multiply>(
+                    ngraph::op::util::normalize_constant(const_node, output_shape),
                     ngraph::opset1::Constant::create(weights_et, ngraph::Shape{ 1 }, { -1 }));
 
                 auto weights = ngraph::opset1::Constant::create(weights_et, weights_shape, {1});
                 auto weights_in = ngraph::op::util::normalize_constant(weights, output_shape);
-                auto biases_in = ngraph::op::util::normalize_constant(const_node, output_shape);
+                auto biases_in = new_const_node;
                 if (is_dequantization) {
                     const ngraph::Shape data_shape = data_node.get_shape();
                     ngraph::Shape broadcasted_shape = std::vector<size_t>(data_shape.size(), 1ul);
