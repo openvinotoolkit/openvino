@@ -4,6 +4,7 @@
 
 #include "network_serializer.hpp"
 
+#include <array>
 #include <deque>
 #include <map>
 #include <string>
