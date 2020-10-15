@@ -129,7 +129,9 @@ def non_max_suppression(
     if soft_nms_sigma is None:
         soft_nms_sigma = make_constant_node(0, np.float32)
 
-    inputs = as_nodes(boxes, scores, max_output_boxes_per_class, iou_threshold, score_threshold, soft_nms_sigma)
+    inputs = as_nodes(
+        boxes, scores, max_output_boxes_per_class, iou_threshold, score_threshold, soft_nms_sigma
+    )
     attributes = {
         "box_encoding": box_encoding,
         "sort_result_descending": sort_result_descending,
