@@ -39,7 +39,7 @@ public:
     program_node& scale_in() const { return get_dependency(1); }
     program_node& bias() const { return get_dependency(2); }
 
-    bool bias_term() const { return !get_primitive()->bias.empty(); }
+    bool bias_term() const { return get_primitive()->bias.length() != 0; }
 
     std::shared_ptr<kernel_selector::fuse_params> get_fuse_params() const override {
         return std::make_shared<kernel_selector::scale_fuse_params>();

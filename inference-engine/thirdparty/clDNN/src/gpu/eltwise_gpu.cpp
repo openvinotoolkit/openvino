@@ -104,16 +104,6 @@ public:
             ew_params.broadcast = true;
         }
 
-        // If there's fused node with extra non-unit inputs, then we need to enforce layout based impl
-        // to avoid using CheckInputsOutputNoPitchSameDims branch in eltwise kernel
-        for (auto& fused_op : ew_params.fused_ops) {
-            for (auto& t : fused_op.tensors) {
-                if (t.LogicalSize() > 1) {
-                    ew_params.layoutBased = true;
-                }
-            }
-        }
-
         // TODO [LOW PRECISION]: check if this parameter's really needed. Maybe data types are enough
         bool quantization = true;
         for (size_t i = 0; i < arg.inputs_count(); i++) {

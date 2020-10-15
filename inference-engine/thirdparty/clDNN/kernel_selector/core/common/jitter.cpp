@@ -1620,7 +1620,7 @@ JitConstants FusedOpsCodeGenerator::MakeOpJitConstants(const FusedOpsConfigurati
         case KernelType::ACTIVATION: {
             auto p = desc.GetOpParams<activation_fuse_params>();
             base_activation_params activation_p = p->param;
-            op_decls += "\\\n\t" + GetOutputType(vec_size) + " " + out_var + " = " + in_var + ";";
+            op_decls += "\\\n\t" + GetOutputType(vec_size) + " " + out_var + " = " + ConvertToOutputType(in_var, vec_size) + ";";
             if (activation_p.function != ActivationFunction::NONE) {
                 auto suffix = "_FUSED_OP"+std::to_string(desc.op_id) + conf.suffix;
                 std::string nl_m = std::to_string(activation_p.m);

@@ -6568,12 +6568,12 @@ TEST_P(eltwise_no_pitches_same_dims_quantize, quantize_f32_output) {
 INSTANTIATE_TEST_CASE_P(fusings_gpu,
                         eltwise_no_pitches_same_dims_quantize,
                         ::testing::ValuesIn(std::vector<eltwise_test_params>{
-                            eltwise_test_params{CASE_ELTWISE_FP16_1},
-                            eltwise_test_params{CASE_ELTWISE_FP16_2},
-                            eltwise_test_params{CASE_ELTWISE_FP16_3},
-                            eltwise_test_params{CASE_ELTWISE_FP32_1},
-                            eltwise_test_params{CASE_ELTWISE_FP32_2},
-                            eltwise_test_params{CASE_ELTWISE_FP32_3},
+                            eltwise_test_params{CASE_ELTWISE_FP16_1, 3, 4},
+                            eltwise_test_params{CASE_ELTWISE_FP16_2, 3, 4},
+                            eltwise_test_params{CASE_ELTWISE_FP16_3, 3, 4},
+                            eltwise_test_params{CASE_ELTWISE_FP32_1, 3, 4},
+                            eltwise_test_params{CASE_ELTWISE_FP32_2, 3, 4},
+                            eltwise_test_params{CASE_ELTWISE_FP32_3, 3, 4},
                         }), );
 
 class eltwise_activation : public EltwiseFusingTest {};
@@ -6604,18 +6604,18 @@ TEST_P(eltwise_activation, fp16_out) {
 INSTANTIATE_TEST_CASE_P(fusings_gpu,
                         eltwise_activation,
                         ::testing::ValuesIn(std::vector<eltwise_test_params>{
-                            eltwise_test_params{CASE_ELTWISE_FP16_1},
-                            eltwise_test_params{CASE_ELTWISE_FP16_2},
-                            eltwise_test_params{CASE_ELTWISE_FP16_3},
-                            eltwise_test_params{CASE_ELTWISE_FP32_1},
-                            eltwise_test_params{CASE_ELTWISE_FP32_2},
-                            eltwise_test_params{CASE_ELTWISE_FP32_3},
-                            eltwise_test_params{CASE_ELTWISE_FP32_FP16_1},
-                            eltwise_test_params{CASE_ELTWISE_FP32_FP16_2},
-                            eltwise_test_params{CASE_ELTWISE_FP32_FP16_3},
-                            eltwise_test_params{CASE_ELTWISE_FP16_FP32_1},
-                            eltwise_test_params{CASE_ELTWISE_FP16_FP32_2},
-                            eltwise_test_params{CASE_ELTWISE_FP16_FP32_3}
+                            eltwise_test_params{CASE_ELTWISE_FP16_1, 3, 4},
+                            eltwise_test_params{CASE_ELTWISE_FP16_2, 3, 4},
+                            eltwise_test_params{CASE_ELTWISE_FP16_3, 3, 4},
+                            eltwise_test_params{CASE_ELTWISE_FP32_1, 3, 4},
+                            eltwise_test_params{CASE_ELTWISE_FP32_2, 3, 4},
+                            eltwise_test_params{CASE_ELTWISE_FP32_3, 3, 4},
+                            eltwise_test_params{CASE_ELTWISE_FP32_FP16_1, 3, 4},
+                            eltwise_test_params{CASE_ELTWISE_FP32_FP16_2, 3, 4},
+                            eltwise_test_params{CASE_ELTWISE_FP32_FP16_3, 3, 4},
+                            eltwise_test_params{CASE_ELTWISE_FP16_FP32_1, 3, 4},
+                            eltwise_test_params{CASE_ELTWISE_FP16_FP32_2, 3, 4},
+                            eltwise_test_params{CASE_ELTWISE_FP16_FP32_3, 3, 4}
                         }), );
 
 /* ----------------------------------------------------------------------------------------------------- */
