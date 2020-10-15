@@ -41,6 +41,11 @@ Blob::Ptr CLDNNInferRequest::createInputBlob(const TensorDesc& desc, uint8_t* me
             return make_shared_blob<int16_t>(desc, reinterpret_cast<int16_t*>(mem_ptr));
         else
             return make_shared_blob<int16_t>(desc);
+    case Precision::U16:
+        if (mem_ptr != nullptr)
+            return make_shared_blob<uint16_t>(desc, reinterpret_cast<uint16_t*>(mem_ptr));
+        else
+            return make_shared_blob<uint16_t>(desc);
     case Precision::I32:
         if (mem_ptr != nullptr)
             return make_shared_blob<int32_t>(desc, reinterpret_cast<int32_t*>(mem_ptr));
@@ -586,7 +591,7 @@ void CLDNNInferRequest::AllocateInputs() {
             cldnn::pointer<uint8_t> mem_ptr = inputsMemory.at(name).pointer<uint8_t>();
             _inputs[name] = createInputBlob(desc, mem_ptr.data());
 
-            if (desc.getPrecision() == Precision::I16) {
+            if (desc.getPrecision() == Precision::I16 || desc.getPrecision() == Precision::U16) {
                 cldnn::layout layout_fp32 = layout;
                 layout_fp32.data_type = cldnn::data_types::f32;
                 input_alloc(name + fp32_suffix, layout_fp32);
@@ -609,7 +614,7 @@ void CLDNNInferRequest::AllocateInputsDyn() {
         }
 
         Blob::Ptr inputBlob = createInputBlob(desc);
-        if (desc.getPrecision() == Precision::I16) {
+        if (desc.getPrecision() == Precision::I16 || desc.getPrecision() == Precision::U16) {
             desc.setPrecision(Precision::FP32);
             auto fp32inputBlob = InferenceEngine::make_shared_blob<float>(desc);
             fp32inputBlob->allocate();
@@ -910,11 +915,16 @@ void CLDNNInferRequest::PrepareInput(const cldnn::primitive_id &inputName, const
     if (inputBlob.is<gpu::ClBlob>()) {
         // no need to check for reuse
         _nw_ptr->set_input_data(internalName, memory);
-    } else if (prec == Precision::I16) {
+    } else if (prec == Precision::I16 || prec == Precision::U16) {
         // clDNN doesn't support I16 input precision, so we always have to convert input data to fp32 precision
         const cldnn::memory& fp32_mem = inputsMemory.at(inputName+fp32_suffix);
         cldnn::pointer<float> ptr = fp32_mem.pointer<float>();
-        copyToFloat<int16_t>(ptr.data(), &inputBlob);
+        if (prec == Precision::I16) {
+            copyToFloat<int16_t>(ptr.data(), &inputBlob);
+        } else {
+            copyToFloat<uint16_t>(ptr.data(), &inputBlob);
+        }
+
         _nw_ptr->set_input_data(internalName, fp32_mem);
     } else if (is_same_buffer(inputBlob, memory)) {
         // If input memory was allocated by cldnn engine and wasn't overwritten by user set_input_data method won't copy input data.
