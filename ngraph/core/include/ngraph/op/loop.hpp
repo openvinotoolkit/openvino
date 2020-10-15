@@ -67,16 +67,7 @@ namespace ngraph
                      const Output<Node>& execution_condition,
                      const OutputVector& args);
 
-                /// \return the body of the iteration
-                std::shared_ptr<Function> get_body() const { return m_body; }
-                /// \param body set the body of the iteration
-                void set_body(const std::shared_ptr<Function>& body) { m_body = body; }
                 int64_t get_num_iterations() const { return m_num_iterations; }
-                void set_num_iterations(int64_t num_iterations)
-                {
-                    m_num_iterations = num_iterations;
-                }
-
                 /// \param trip_count set the maximum number of iterations
                 void set_trip_count_input(const Output<Node>& trip_count)
                 {
@@ -95,7 +86,12 @@ namespace ngraph
                                       int64_t stride,
                                       int64_t part_size,
                                       int64_t end,
-                                      int64_t axis) override;
+                                      int64_t axis) override
+                {
+                    NGRAPH_CHECK(false,
+                                 "Incorrect type of input. Implicit slicing is not supported in "
+                                 "Loop operation.");
+                }
 
                 Output<Node> get_concatenated_slices(const Output<Node>& value,
                                                      int64_t start,
@@ -117,9 +113,8 @@ namespace ngraph
 
             private:
                 SpecialBodyPorts m_special_body_ports;
-                int64_t m_num_iterations = -1;
+                int64_t m_num_iterations = -1; // -1 means infinity
             };
         }
-        using v5::Loop;
     }
 }

@@ -312,8 +312,7 @@ std::vector<std::shared_ptr<ngraph::Node>>
             // There is a friendly name for this node so copy it
             cloned_node->set_friendly_name(node->get_friendly_name());
             //  TODO: workaround for shape inference, delete it after fix
-            if (ngraph::as_type_ptr<ngraph::op::TensorIterator>(cloned_node) ||
-                ngraph::as_type_ptr<ngraph::opset5::Loop>(cloned_node))
+            if (ngraph::as_type_ptr<ngraph::op::util::SubGraphOp>(cloned_node))
             {
                 cloned_node->validate_and_infer_types();
             }
@@ -381,7 +380,7 @@ std::list<std::shared_ptr<ngraph::Node>>
                 // There is a friendly name for this node so copy it
                 cloned_node->set_friendly_name(node->get_friendly_name());
                 //  TODO: workaround for shape inference, delete it after fix
-                if (ngraph::as_type_ptr<ngraph::op::TensorIterator>(cloned_node))
+                if (ngraph::as_type_ptr<ngraph::op::util::SubGraphOp>(cloned_node))
                 {
                     cloned_node->validate_and_infer_types();
                 }

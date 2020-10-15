@@ -41,7 +41,10 @@ op::v5::Loop::Loop(const Output<Node>& trip_count,
                    const OutputVector& args)
     : op::util::SubGraphOp({trip_count, execution_condition})
 {
-    set_arguments(args);
+    for (int idx = 2; idx < args.size(); ++idx)
+    {
+        set_argument(idx, args[idx]);
+    }
 }
 
 bool op::v5::Loop::visit_attributes(AttributeVisitor& visitor)
@@ -57,10 +60,10 @@ void op::v5::Loop::validate_and_infer_types()
 {
     if (m_special_body_ports.current_iteration_input_idx >= 0)
     {
-        const auto& cur_iter_rank =
-            m_body->get_parameters()[m_special_body_ports.current_iteration_input_idx]
-                ->get_partial_shape()
-                .rank();
+        const auto& cur_iter_rank = m_body->get_parameters()
+                                        .at(m_special_body_ports.current_iteration_input_idx)
+                                        ->get_partial_shape()
+                                        .rank();
         if (cur_iter_rank.is_static())
         {
             NODE_VALIDATION_CHECK(this,
@@ -98,7 +101,7 @@ void op::v5::Loop::validate_and_infer_types()
                           "Condition body output is not provided. "
                           "Condition is a mandatory output of the body in Loop op.");
     const auto& body_execution_condition =
-        m_body->get_results()[m_special_body_ports.body_condition_output_idx]->input_value(0);
+        m_body->get_results().at(m_special_body_ports.body_condition_output_idx)->input_value(0);
     const auto& body_condition_rank = body_execution_condition.get_partial_shape().rank();
     if (body_condition_rank.is_static())
     {
@@ -165,15 +168,15 @@ void op::v5::Loop::validate_and_infer_types()
         if (auto merged_input_description = as_type_ptr<MergedInputDescription>(input_description))
         {
             auto body_value =
-                m_body->get_results().at(merged_input_description->m_body_value_index)->input(0);
-            ends.push_back(body_value.get_node()->shared_from_this());
+                m_body->get_results().at(merged_input_description->m_body_value_index);
+            ends.push_back(body_value);
 
-            const auto& body_value_partial_shape = body_value.get_partial_shape();
+            const auto& body_value_partial_shape = body_value->get_input_partial_shape(0);
             auto body_parameter =
                 m_body->get_parameters().at(merged_input_description->m_body_parameter_index);
 
             auto body_param_partial_shape = body_parameter->get_partial_shape();
-            auto input_partial_shape = inputs().at(index).get_source_output().get_partial_shape();
+            auto input_partial_shape = input(index).get_partial_shape();
             NODE_VALIDATION_CHECK(this,
                                   body_value_partial_shape.compatible(body_param_partial_shape),
                                   "Iterator successive value is not compatible with body param");
@@ -198,7 +201,7 @@ void op::v5::Loop::validate_and_infer_types()
                 m_body->get_parameters().at(invariant_input_description->m_body_parameter_index);
 
             auto body_param_partial_shape = body_parameter->get_partial_shape();
-            auto input_partial_shape = inputs().at(index).get_source_output().get_partial_shape();
+            auto input_partial_shape = input(index).get_partial_shape();
             NODE_VALIDATION_CHECK(this,
                                   input_partial_shape.compatible(body_param_partial_shape),
                                   "Iterator initial value is not compatible with body param");
@@ -317,13 +320,13 @@ std::shared_ptr<Node> op::v5::Loop::clone_with_new_inputs(const OutputVector& ne
     if (m_special_body_ports.current_iteration_input_idx >= 0)
     {
         const auto& cur_iterations_param =
-            m_body->get_parameters()[m_special_body_ports.current_iteration_input_idx];
-        body_params_args.insert(
-            body_params_args.begin() + m_special_body_ports.current_iteration_input_idx,
-            m_body->get_parameters()[m_special_body_ports.current_iteration_input_idx]);
-        new_shapes[m_special_body_ports.current_iteration_input_idx] =
+            m_body->get_parameters().at(m_special_body_ports.current_iteration_input_idx);
+        body_params_args.insert(body_params_args.begin() +
+                                    m_special_body_ports.current_iteration_input_idx,
+                                cur_iterations_param);
+        new_shapes.at(m_special_body_ports.current_iteration_input_idx) =
             cur_iterations_param->get_partial_shape();
-        types[m_special_body_ports.current_iteration_input_idx] =
+        types.at(m_special_body_ports.current_iteration_input_idx) =
             cur_iterations_param->get_element_type();
     }
     op->m_num_iterations = m_num_iterations;
@@ -356,17 +359,4 @@ Output<Node> op::v5::Loop::get_concatenated_slices(const Output<Node>& value,
                  "Supported values for start {0}, for stride and part_size {1}, for end "
                  "{-1}");
     return SubGraphOp::get_concatenated_slices(value, start, stride, part_size, end, axis);
-}
-
-void op::v5::Loop::set_sliced_input(const shared_ptr<Parameter>& parameter,
-                                    const Output<Node>& value,
-                                    int64_t start,
-                                    int64_t stride,
-                                    int64_t part_size,
-                                    int64_t end,
-                                    int64_t axis)
-{
-    NGRAPH_CHECK(false,
-                 "Incorrect type of input. Implicit slicing is not supported in "
-                 "Loop operation.");
 }
