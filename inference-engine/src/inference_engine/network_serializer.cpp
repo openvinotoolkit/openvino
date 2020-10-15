@@ -148,9 +148,11 @@ ConstantAtributes dump_constant_data(std::vector<uint8_t>& bin,
 }
 
 std::string get_opset_name(ngraph::Node* n) {
-    // return the oldest opset name where node type is present
-    auto opsets = ngraph::get_opsets_ordered();
+    auto opsets = std::array<std::reference_wrapper<const ngraph::OpSet>, 5>{
+        ngraph::get_opset1(), ngraph::get_opset2(), ngraph::get_opset3(),
+        ngraph::get_opset4(), ngraph::get_opset5()};
 
+    // return the oldest opset name where node type is present
     for (int idx = 0; idx < opsets.size(); idx++) {
         int number = idx + 1;
         if (opsets[idx].get().contains_op_type(n)) {

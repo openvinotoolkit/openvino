@@ -16,7 +16,6 @@
 
 #pragma once
 
-#include <array>
 #include <locale>
 #include <map>
 #include <mutex>
@@ -134,14 +133,4 @@ namespace ngraph
     const NGRAPH_API OpSet& get_opset3();
     const NGRAPH_API OpSet& get_opset4();
     const NGRAPH_API OpSet& get_opset5();
-
-    inline const NGRAPH_API std::array<std::reference_wrapper<const ngraph::OpSet>, 5>
-        get_opsets_ordered() // ordered from oldest to the newest
-    {
-        return {ngraph::get_opset1(),
-                ngraph::get_opset2(),
-                ngraph::get_opset3(),
-                ngraph::get_opset4(),
-                ngraph::get_opset5()};
-    };
 }
