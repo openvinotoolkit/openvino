@@ -1323,14 +1323,26 @@ TEST(attributes, mvn_op)
     EXPECT_EQ(g_op->get_eps(), op->get_eps());
 }
 
-TEST(attributes, reorg_yolo_op)
+TEST(attributes, reorg_yolo_op_stride)
 {
     FactoryRegistry<Node>::get().register_factory<opset3::ReorgYolo>();
-    const auto data = make_shared<op::Parameter>(element::i32, Shape{2, 3, 4, 5});
+    const auto data = make_shared<op::Parameter>(element::i32, Shape{1, 64, 26, 26});
 
-    const auto op = make_shared<opset3::ReorgYolo>(data, Strides{2});
+    const auto op = make_shared<op::v0::ReorgYolo>(data, 2);
     NodeBuilder builder(op);
-    const auto g_op = as_type_ptr<opset3::ReorgYolo>(builder.create());
+    const auto g_op = as_type_ptr<op::v0::ReorgYolo>(builder.create());
+
+    EXPECT_EQ(g_op->get_strides(), op->get_strides());
+}
+
+TEST(attributes, reorg_yolo_op_strides)
+{
+    FactoryRegistry<Node>::get().register_factory<opset3::ReorgYolo>();
+    const auto data = make_shared<op::Parameter>(element::i32, Shape{1, 64, 26, 26});
+
+    const auto op = make_shared<op::v0::ReorgYolo>(data, Strides{2});
+    NodeBuilder builder(op);
+    const auto g_op = as_type_ptr<op::v0::ReorgYolo>(builder.create());
 
     EXPECT_EQ(g_op->get_strides(), op->get_strides());
 }

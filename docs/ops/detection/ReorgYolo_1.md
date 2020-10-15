@@ -22,7 +22,7 @@
 
 **Inputs**:
 
-*   **1**: 4D input tensor of any type and shape `[N, C, H, W]`. `H` and `W` should be divisible by `stride`. Required.
+*   **1**: 4D input tensor of any type and shape `[N, C, H, W]`. `H` and `W` should be divisible by `stride` and `C >= (stride*stride)`. **Required.**
 
 **Outputs**:
 
@@ -31,7 +31,7 @@
 **Example**
 
 ```xml
-<layer id="89" name="ExtractImagePatches" type="ReorgYolo">
+<layer id="89" name="reorg" type="ReorgYolo">
     <data stride="2"/>
     <input>
         <port id="0">
