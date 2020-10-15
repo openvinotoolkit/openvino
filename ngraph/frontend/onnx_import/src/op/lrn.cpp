@@ -35,8 +35,7 @@ namespace ngraph
                     float bias = node.get_attribute_value<float>("bias", 1);
                     int size = static_cast<int>(node.get_attribute_value<size_t>("size"));
 
-                    return {
-                        std::make_shared<default_opset::LRN>(data, alpha, beta, bias, size)};
+                    return {std::make_shared<default_opset::LRN>(data, alpha, beta, bias, size)};
                 }
 
             } // namespace set_1
