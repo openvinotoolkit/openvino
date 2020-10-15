@@ -3,6 +3,8 @@
 
 set(TARGET_NAME "ie_api")
 
+set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-error=deprecated-declarations")
+
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${PYTHON_BRIDGE_OUTPUT_DIRECTORY}/inference_engine)
 
 file(GLOB SOURCE
