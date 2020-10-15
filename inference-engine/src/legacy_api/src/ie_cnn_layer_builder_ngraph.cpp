@@ -2131,13 +2131,5 @@ CNNLayer::Ptr NodeConverter<ngraph::op::GRN>::createLayer(const std::shared_ptr<
     return res;
 }
 
-template <>
-CNNLayer::Ptr NodeConverter<ngraph::op::v1::LogicalNot>::createLayer(const std::shared_ptr<ngraph::Node>& layer) const {
-    LayerParams params = {layer->get_friendly_name(), "Activation", details::convertPrecision(layer->get_output_element_type(0))};
-    auto res = std::make_shared<InferenceEngine::CNNLayer>(params);
-    res->params["type"] = "not";
-    return res;
-}
-
 }  // namespace Builder
 }  // namespace InferenceEngine
