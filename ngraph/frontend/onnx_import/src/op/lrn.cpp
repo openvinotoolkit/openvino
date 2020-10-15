@@ -30,9 +30,9 @@ namespace ngraph
                 OutputVector lrn(const Node& node)
                 {
                     auto data = node.get_ng_inputs().at(0);
-                    double alpha = node.get_attribute_value<float>("alpha", 1e-4);
-                    double beta = node.get_attribute_value<float>("beta", 0.75);
-                    double bias = node.get_attribute_value<float>("bias", 1);
+                    double alpha = node.get_attribute_value<double>("alpha", 1e-4);
+                    double beta = node.get_attribute_value<double>("beta", 0.75);
+                    double bias = node.get_attribute_value<double>("bias", 1);
                     size_t size = node.get_attribute_value<size_t>("size");
 
                     return {std::make_shared<default_opset::LRN>(data, alpha, beta, bias, size)};

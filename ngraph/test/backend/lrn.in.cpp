@@ -42,10 +42,10 @@ NGRAPH_TEST(${BACKEND_NAME}, lrn_across_channel)
 {
     Shape shape{2, 3, 2, 1};
     auto A = make_shared<op::Parameter>(element::f32, shape);
-    float alpha = 3;
-    float beta = 0.5;
-    float bias = 1;
-    int size = 3;
+    double alpha = 3;
+    double beta = 0.5;
+    double bias = 1;
+    size_t size = 3;
     auto lrn = make_shared<op::LRN>(A, alpha, beta, bias, size);
     auto f = make_shared<Function>(lrn, ParameterVector{A});
 
@@ -75,10 +75,10 @@ NGRAPH_TEST(${BACKEND_NAME}, lrn_across_h)
     Shape shape{2, 3, 2, 1};
     auto A = make_shared<op::Parameter>(element::f32, shape);
     auto axes = make_shared<op::Constant>(element::i64, Shape{1}, vector<int64_t>{2});
-    float alpha = 3;
-    float beta = 0.5;
-    float bias = 1;
-    int size = 3;
+    double alpha = 3;
+    double beta = 0.5;
+    double bias = 1;
+    size_t size = 3;
     auto lrn = make_shared<op::LRN>(A, axes, alpha, beta, bias, size);
     auto f = make_shared<Function>(lrn, ParameterVector{A});
 
@@ -108,10 +108,10 @@ NGRAPH_TEST(${BACKEND_NAME}, lrn_across_hw)
     Shape shape{2, 3, 2, 1};
     auto A = make_shared<op::Parameter>(element::f32, shape);
     auto axes = make_shared<op::Constant>(element::i64, Shape{2}, vector<int64_t>{2, 3});
-    float alpha = 3;
-    float beta = 0.5;
-    float bias = 1;
-    int size = 3;
+    double alpha = 3;
+    double beta = 0.5;
+    double bias = 1;
+    size_t size = 3;
     auto lrn = make_shared<op::LRN>(A, axes, alpha, beta, bias, size);
     auto f = make_shared<Function>(lrn, ParameterVector{A});
 
@@ -141,10 +141,10 @@ NGRAPH_TEST(${BACKEND_NAME}, lrn_across_all_dims)
     Shape shape{2, 3, 2, 1};
     auto A = make_shared<op::Parameter>(element::f32, shape);
     auto axes = make_shared<op::Constant>(element::i64, Shape{4}, vector<int64_t>{0, 1, 2, 3});
-    float alpha = 3;
-    float beta = 0.5;
-    float bias = 1;
-    int size = 3;
+    double alpha = 3;
+    double beta = 0.5;
+    double bias = 1;
+    size_t size = 3;
     auto lrn = make_shared<op::LRN>(A, axes, alpha, beta, bias, size);
     auto f = make_shared<Function>(lrn, ParameterVector{A});
 
@@ -174,10 +174,10 @@ NGRAPH_TEST(${BACKEND_NAME}, lrn_across_nw)
     Shape shape{2, 3, 2, 1};
     auto A = make_shared<op::Parameter>(element::f32, shape);
     auto axes = make_shared<op::Constant>(element::i64, Shape{2}, vector<int64_t>{0, 3});
-    float alpha = 3;
-    float beta = 0.5;
-    float bias = 1;
-    int size = 3;
+    double alpha = 3;
+    double beta = 0.5;
+    double bias = 1;
+    size_t size = 3;
     auto lrn = make_shared<op::LRN>(A, axes, alpha, beta, bias, size);
     auto f = make_shared<Function>(lrn, ParameterVector{A});
 
@@ -207,10 +207,10 @@ NGRAPH_TEST(${BACKEND_NAME}, lrn_across_empty)
     Shape shape{2, 3, 2, 1};
     auto A = make_shared<op::Parameter>(element::f32, shape);
     auto axes = make_shared<op::Constant>(element::i64, Shape{0}, vector<int64_t>{});
-    float alpha = 3;
-    float beta = 0.5;
-    float bias = 1;
-    int size = 3;
+    double alpha = 3;
+    double beta = 0.5;
+    double bias = 1;
+    size_t size = 3;
     auto lrn = make_shared<op::LRN>(A, axes, alpha, beta, bias, size);
     auto f = make_shared<Function>(lrn, ParameterVector{A});
 
@@ -240,10 +240,10 @@ NGRAPH_TEST(${BACKEND_NAME}, lrn_6D_across_2_axes)
     Shape shape{2, 3, 2, 2, 1, 1};
     auto A = make_shared<op::Parameter>(element::f32, shape);
     auto axes = make_shared<op::Constant>(element::i64, Shape{2}, vector<int64_t>{2, 3});
-    float alpha = 3;
-    float beta = 0.5;
-    float bias = 1;
-    int size = 3;
+    double alpha = 3;
+    double beta = 0.5;
+    double bias = 1;
+    size_t size = 3;
     auto lrn = make_shared<op::LRN>(A, axes, alpha, beta, bias, size);
     auto f = make_shared<Function>(lrn, ParameterVector{A});
 
@@ -266,10 +266,10 @@ NGRAPH_TEST(${BACKEND_NAME}, lrn_2d_across_empty)
     Shape shape{12};
     auto A = make_shared<op::Parameter>(element::f32, shape);
     auto axes = make_shared<op::Constant>(element::i64, Shape{0}, vector<int64_t>{});
-    float alpha = 3;
-    float beta = 0.5;
-    float bias = 1;
-    int size = 3;
+    double alpha = 3;
+    double beta = 0.5;
+    double bias = 1;
+    size_t size = 3;
     auto lrn = make_shared<op::LRN>(A, axes, alpha, beta, bias, size);
     auto f = make_shared<Function>(lrn, ParameterVector{A});
 
@@ -298,10 +298,10 @@ NGRAPH_TEST(${BACKEND_NAME}, lrn_2d_across_outermost_axis)
     Shape shape{6, 2};
     auto A = make_shared<op::Parameter>(element::f32, shape);
     auto axes = make_shared<op::Constant>(element::i64, Shape{1}, vector<int64_t>{0});
-    float alpha = 0.0002;
-    float beta = 0.5;
-    float bias = 2.0;
-    int size = 3;
+    double alpha = 0.0002;
+    double beta = 0.5;
+    double bias = 2.0;
+    size_t size = 3;
     auto lrn = make_shared<op::LRN>(A, axes, alpha, beta, bias, size);
     auto f = make_shared<Function>(lrn, ParameterVector{A});
 
