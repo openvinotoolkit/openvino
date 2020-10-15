@@ -48,7 +48,7 @@ protected:
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
 
         auto params = ngraph::builder::makeParams(ngPrc, { {1, 67000} });
-        auto const_mult2 = ngraph::builder::makeConstant<float>(ngPrc, {1, 67000}, {-1.0f});
+        auto const_mult2 = ngraph::builder::makeConstant<float>(ngPrc, {}, {-1.0f});
 
         auto sum = ngraph::builder::makeEltwise(params[0], const_mult2, ngraph::helpers::EltwiseTypes::MULTIPLY);
         function = std::make_shared<ngraph::Function>(sum, params, "RemovePermutationPass");
@@ -67,7 +67,8 @@ const std::vector<InferenceEngine::Precision> netPrecisions = {
 const std::vector<std::map<std::string, std::string>> configs = {
         {
                 {"GNA_DEVICE_MODE", "GNA_SW_EXACT"},
-                {"GNA_COMPACT_MODE", "NO"}
+                {"GNA_COMPACT_MODE", "NO"},
+                {"GNA_SCALE_FACTOR_0", "2048"}
         }
 };
 
