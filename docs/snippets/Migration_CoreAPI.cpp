@@ -1,8 +1,6 @@
 #include <inference_engine.hpp>
-#include <ie_cnn_network.h>
 
 int main() {
-using namespace InferenceEngine;
 std::string deviceName = "Device name";
 //! [part0]
 InferenceEngine::InferencePlugin plugin = InferenceEngine::PluginDispatcher({ FLAGS_pp }).getPluginByDevice(FLAGS_d);
@@ -13,18 +11,18 @@ InferenceEngine::Core core;
 //! [part1]
 
 //! [part2]
-CNNNetReader network_reader;
+InferenceEngine::CNNNetReader network_reader;
 network_reader.ReadNetwork(fileNameToString(input_model));
 network_reader.ReadWeights(fileNameToString(input_model).substr(0, input_model.size() - 4) + ".bin");
-CNNNetwork network = network_reader.getNetwork();
+InferenceEngine::CNNNetwork network = network_reader.getNetwork();
 //! [part2]
 
 //! [part3]
-CNNNetwork network = core.ReadNetwork(input_model);
+InferenceEngine::CNNNetwork network = core.ReadNetwork(input_model);
 //! [part3]
 
 //! [part4]
-CNNNetwork network = core.ReadNetwork("model.onnx");
+InferenceEngine::CNNNetwork network = core.ReadNetwork("model.onnx");
 //! [part4]
 
 //! [part5]

@@ -175,6 +175,7 @@
                         <tab type="user" title="LogicalOr-1" url="@ref openvino_docs_ops_logical_LogicalOr_1"/>
                         <tab type="user" title="LogicalXor-1" url="@ref openvino_docs_ops_logical_LogicalXor_1"/>
                         <tab type="user" title="LogSoftmax-5" url="@ref openvino_docs_ops_activation_LogSoftmax_5"/>
+                        <tab type="user" title="Loop-5" url="@ref openvino_docs_ops_infrastructure_Loop_5"/>
                         <tab type="user" title="MVN-1" url="@ref openvino_docs_ops_normalization_MVN_1"/>
                         <tab type="user" title="MatMul-1" url="@ref openvino_docs_ops_matrix_MatMul_1"/>
                         <tab type="user" title="MaxPool-1" url="@ref openvino_docs_ops_pooling_MaxPool_1"/>
@@ -272,6 +273,7 @@
                         <tab type="user" title="GPU Kernels Extensibility" url="@ref openvino_docs_IE_DG_Extensibility_DG_GPU_Kernel"/>
                         <tab type="user" title="VPU Kernels Extensibility" url="@ref openvino_docs_IE_DG_Extensibility_DG_VPU_Kernel"/>
                         <tab type="user" title="Build Extension Library Using CMake" url="@ref openvino_docs_IE_DG_Extensibility_DG_Building"/>
+                        <tab type="user" title="Custom ONNX operators" url="@ref openvino_docs_IE_DG_Extensibility_DG_Custom_ONNX_Ops"/>
                     </tab>
                     <tab type="user" title="Integrate the Inference Engine with Your Application" url="@ref openvino_docs_IE_DG_Integrate_with_customer_application_new_API"/>
                     <tab type="user" title="[DEPRECATED] Migration from Inference Engine Plugin API to Core API" url="@ref openvino_docs_IE_DG_Migration_CoreAPI"/>

@@ -18,15 +18,15 @@ import onnx
 import pytest
 
 from tests.test_onnx.utils import run_node
-from tests import xfail_issue_35914, xfail_issue_35915
+from tests import xfail_issue_35915
 
 
 @pytest.mark.parametrize(
     "onnx_op, numpy_func, data_type",
     [
-        pytest.param("And", np.logical_and, np.bool, marks=xfail_issue_35914),
-        pytest.param("Or", np.logical_or, np.bool, marks=xfail_issue_35914),
-        pytest.param("Xor", np.logical_xor, np.bool, marks=xfail_issue_35914),
+        pytest.param("And", np.logical_and, np.bool),
+        pytest.param("Or", np.logical_or, np.bool),
+        pytest.param("Xor", np.logical_xor, np.bool),
         pytest.param("Equal", np.equal, np.int32, marks=xfail_issue_35915),
         pytest.param("Greater", np.greater, np.int32, marks=xfail_issue_35915),
         pytest.param("Less", np.less, np.int32, marks=xfail_issue_35915),
