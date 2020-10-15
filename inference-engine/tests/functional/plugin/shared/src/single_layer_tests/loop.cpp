@@ -125,11 +125,9 @@ namespace LayerTestsDefinitions {
         auto body = std::make_shared<ngraph::Function>(ngraph::OutputVector{body_condition_const, Zo},
                                                   body_params);
 
-        auto loop = std::make_shared<ngraph::opset5::Loop>();
-        loop->set_body(body);
+        auto loop = std::make_shared<ngraph::opset5::Loop>(trip_count_const, exec_condition);
+        loop->set_function(body);
         loop->set_special_body_ports(ngraph::opset5::Loop::SpecialBodyPorts{-1, 0});
-        loop->set_trip_count_input(trip_count_const);
-        loop->set_execution_condition_input(exec_condition);
 
         for (int i = 0; i < body_params.size(); ++i) {
             if (types_separate[i] == LOOP_IN_TYPE::INVARIANT) {

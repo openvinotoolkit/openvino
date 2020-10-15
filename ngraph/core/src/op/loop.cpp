@@ -25,26 +25,10 @@ using namespace ngraph;
 
 NGRAPH_RTTI_DEFINITION(op::v5::Loop, "Loop", 5);
 
-op::v5::Loop::Loop()
+op::v5::Loop::Loop(const Output<Node>& trip_count, const Output<Node>& execution_condition)
 {
-    // default trip_count, execution_condition
-    auto trip_count =
-        std::make_shared<ngraph::op::Constant>(ngraph::element::i64, ngraph::Shape{1}, -1);
-    auto execution_condition =
-        std::make_shared<ngraph::op::Constant>(ngraph::element::boolean, ngraph::Shape{1}, true);
-    set_argument(0, Output<Node>(trip_count));
-    set_argument(1, Output<Node>(execution_condition));
-}
-
-op::v5::Loop::Loop(const Output<Node>& trip_count,
-                   const Output<Node>& execution_condition,
-                   const OutputVector& args)
-    : op::util::SubGraphOp({trip_count, execution_condition})
-{
-    for (int idx = 2; idx < args.size(); ++idx)
-    {
-        set_argument(idx, args[idx]);
-    }
+    set_argument(0, trip_count);
+    set_argument(1, execution_condition);
 }
 
 bool op::v5::Loop::visit_attributes(AttributeVisitor& visitor)
@@ -291,7 +275,11 @@ std::shared_ptr<Node> op::v5::Loop::clone_with_new_inputs(const OutputVector& ne
 {
     // 0 - trip_count, 1 - execution condition, these inputs are not connected to the body params
     OutputVector body_params_args(new_args.begin() + 2, new_args.end());
-    auto op = make_shared<op::v5::Loop>(new_args[0], new_args[1], body_params_args);
+    auto op = make_shared<op::v5::Loop>(new_args[0], new_args[1]);
+    for (int idx = 2; idx < new_args.size(); ++idx)
+    {
+        op->set_argument(idx, new_args[idx]);
+    }
     NGRAPH_CHECK(op.get(),
                  op != nullptr,
                  "Cannot clone ",

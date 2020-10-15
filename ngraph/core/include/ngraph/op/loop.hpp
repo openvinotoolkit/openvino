@@ -55,31 +55,16 @@ namespace ngraph
                 NGRAPH_RTTI_DECLARATION;
 
                 /// \brief Constructs a Loop operation.
-                Loop();
+                Loop() = default;
 
                 /// \brief Constructs a Loop operation.
                 ///
                 /// \param trip_count Node specifies the maximum number of iterations.
                 /// \param execution_condition Node determines whether to execute the first
                 /// iteration or not.
-                /// \param args Nodes produce input tensors for a Loop operation.
-                Loop(const Output<Node>& trip_count,
-                     const Output<Node>& execution_condition,
-                     const OutputVector& args);
+                Loop(const Output<Node>& trip_count, const Output<Node>& execution_condition);
 
                 int64_t get_num_iterations() const { return m_num_iterations; }
-                /// \param trip_count set the maximum number of iterations
-                void set_trip_count_input(const Output<Node>& trip_count)
-                {
-                    set_argument(0, trip_count);
-                }
-                /// \param execution_condition set the condition that determines whether to execute
-                /// the first iteration or not
-                void set_execution_condition_input(const Output<Node>& execution_condition)
-                {
-                    set_argument(1, execution_condition);
-                }
-
                 void set_sliced_input(const std::shared_ptr<Parameter>& parameter,
                                       const Output<Node>& value,
                                       int64_t start,
