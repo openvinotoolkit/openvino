@@ -1186,6 +1186,29 @@ void EltwiseSplitOverChannelsPass::run() {
                 getInputTo(data)[concat->name] = concat;
                 concat->insData.push_back(data);
             }
+        } else if (LayerInfo(l).isScaleShift()) {
+            auto masterScaleShift = std::dynamic_pointer_cast<ScaleShiftLayer>(l);
+            for (size_t k = 0; k != totalSplits; k++) {
+                auto scaleShiftRaw = std::make_shared<ScaleShiftLayer>(
+                        LayerParams{l->name + "/scaleShift/" + std::to_string(k), "ScaleShift", Precision::FP32});
+                IE_ASSERT(scaleShiftRaw != nullptr);
+                scaleShiftRaw->_broadcast = masterScaleShift->_broadcast;
+
+                auto scaleShift = quantized ? InferenceEngine::injectData<QuantizedLayerParams>(scaleShiftRaw) : scaleShiftRaw;
+
+
+                scaleShift->insData.push_back(splitLayers[0]->outData[k]);
+                getInputTo(splitLayers[0]->outData[k])[scaleShift->name] = scaleShift;
+
+                SizeVector newDims = splitLayers[0]->outData[k]->getDims();
+                auto newDesc = TensorDesc(splitLayers[0]->outData[k]->getPrecision(), newDims,
+                                          splitLayers[0]->outData[k]->getLayout());
+                auto data = std::make_shared<Data>(l->name + "/scaleShift/out/" + std::to_string(k), newDesc);
+                getCreatorLayer(data) = scaleShift;
+                scaleShift->outData.push_back(data);
+                getInputTo(data)[concat->name] = concat;
+                concat->insData.push_back(data);
+            }
         }
     }
 }
