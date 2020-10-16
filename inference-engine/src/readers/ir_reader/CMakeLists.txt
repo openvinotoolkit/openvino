@@ -33,6 +33,8 @@ target_link_libraries(${TARGET_NAME} PRIVATE ${NGRAPH_LIBRARIES}
                                              pugixml
                                              openvino::itt)
 
+ie_add_api_validator_post_build_step(TARGET ${TARGET_NAME})
+
 set_target_properties(${TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION ${ENABLE_LTO})
 
 # code style
