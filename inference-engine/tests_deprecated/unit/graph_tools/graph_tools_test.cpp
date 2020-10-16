@@ -312,7 +312,7 @@ TEST_F(GraphToolsTest, canCompareCNNNetworkIterators) {
     ASSERT_EQ(i, i2);
 }
 
-TEST_F(GraphToolsTest, canIterateOverEmptyNetwork) {
+TEST_F(GraphToolsTest, DISABLED_canIterateOverEmptyNetwork) {
     CONNECT(1, 2);
     CONNECT(2, 1);
 
