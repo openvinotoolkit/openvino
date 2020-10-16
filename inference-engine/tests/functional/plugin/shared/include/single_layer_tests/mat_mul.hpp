@@ -12,8 +12,7 @@
 #include "functional_test_utils/layer_test_utils.hpp"
 
 struct ShapeRelatedParams {
-    InferenceEngine::SizeVector firstInputShape, secondInputShape;
-    bool transposeA, transposeB;
+    std::pair<InferenceEngine::SizeVector, bool> input1, input2;
 };
 
 typedef std::tuple<

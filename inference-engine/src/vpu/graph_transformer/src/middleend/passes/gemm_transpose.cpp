@@ -56,8 +56,8 @@ void PassImpl::run(const Model& model) {
 
         const auto inputDimsA = inputA->desc().dims();
 
-        VPU_THROW_UNLESS(inputDimsA.size() >= 2,
-            "Processing layer {} with type {} failed: first input ({} with usage {}) should have at least 2 dimensions, but it actually has {}",
+        VPU_THROW_UNLESS(inputDimsA.size() >= 2 && inputDimsA.size() <= 4,
+            "Processing layer {} with type {} failed: first inputs' ({} with usage {}) dimensions number should be in range [2, 4], but it actually has {}",
             stage->name(), stage->type(), inputA->name(), inputA->usage(), inputDimsA.size());
 
         const auto perm = DimsOrder::fromNumDims(inputDimsA.size()).toPermutation();

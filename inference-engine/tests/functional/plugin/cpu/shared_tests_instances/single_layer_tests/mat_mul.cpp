@@ -15,7 +15,7 @@ const std::vector<InferenceEngine::Precision> inputPrecisions = {
 };
 
 const std::vector<ShapeRelatedParams> shapeRelatedParams = {
-        { {1, 4, 5, 6}, {1, 4, 6, 4}, false, false }
+        { { {1, 4, 5, 6}, false }, { {1, 4, 6, 4}, false } }
 };
 
 std::vector<ngraph::helpers::InputLayerType> secondaryInputTypes = {
