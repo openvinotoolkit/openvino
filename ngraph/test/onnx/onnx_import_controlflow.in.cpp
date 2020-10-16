@@ -248,7 +248,6 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_controlflow_loop_add_value_the_same_node_from_
 
 // ~~~~~~~~STATIC/DYNAMIC/CONSTANT INPUTS TESTS:~~~~~~~~
 
-/*
 NGRAPH_TEST(${BACKEND_NAME}, onnx_controlflow_loop_scalars)
 {
     const auto function = onnx_import::import_onnx_model(
@@ -270,7 +269,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_controlflow_loop_scalars)
     EXPECT_TRUE(function->get_output_partial_shape(1).is_static());
     EXPECT_EQ(function->get_output_shape(1), (Shape{3}));
 }
-*/
+
 NGRAPH_TEST(${BACKEND_NAME}, onnx_controlflow_loop_2d_add_const_cond)
 {
     const auto function = onnx_import::import_onnx_model(
