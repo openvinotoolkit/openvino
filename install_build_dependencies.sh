@@ -32,7 +32,6 @@ if [ -f /etc/lsb-release ]; then
     sudo -E apt update
     sudo -E apt-get install -y \
             build-essential \
-            cmake \
             curl \
             wget \
             libssl-dev \
@@ -46,6 +45,8 @@ if [ -f /etc/lsb-release ]; then
             automake \
             libtool \
             autoconf \
+            shellcheck \
+            python \
             libcairo2-dev \
             libpango1.0-dev \
             libglib2.0-dev \
@@ -101,13 +102,6 @@ elif [ -f /etc/redhat-release ]; then
     sudo -E yum install -y rh-python36
     source scl_source enable rh-python36
 
-    wget https://cmake.org/files/v3.12/cmake-3.12.3.tar.gz
-    tar xf cmake-3.12.3.tar.gz
-    cd cmake-3.12.3
-    ./configure
-    make -j16
-    sudo -E make install
-
     echo
     echo "FFmpeg is required for processing audio and video streams with OpenCV. Please select your preferred method for installing FFmpeg:"
     echo
@@ -135,7 +129,6 @@ elif [ -f /etc/os-release ] && grep -q "raspbian" /etc/os-release; then
     sudo -E apt update
     sudo -E apt-get install -y \
             build-essential \
-            cmake \
             curl \
             wget \
             libssl-dev \
@@ -166,4 +159,14 @@ elif [ -f /etc/os-release ] && grep -q "raspbian" /etc/os-release; then
     fi
 else
     echo "Unknown OS, please install build dependencies manually"
+fi
+
+# cmake 3.13 or higher is required to build OpenVINO
+current_cmake_version=$(cmake --version | sed -ne 's/[^0-9]*\(\([0-9]\.\)\{0,4\}[0-9][^.]\).*/\1/p')
+required_cmake_ver=3.13
+if [ ! "$(printf '%s\n' "$required_cmake_ver" "$current_cmake_version" | sort -V | head -n1)" = "$required_cmake_ver" ]; then
+    wget "https://github.com/Kitware/CMake/releases/download/v3.18.4/cmake-3.18.4.tar.gz"
+    tar xf cmake-3.18.4.tar.gz
+    (cd cmake-3.18.4 && ./bootstrap --parallel="$(nproc --all)" && make --jobs="$(nproc --all)" && sudo make install)
+    rm -rf cmake-3.18.4 cmake-3.18.4.tar.gz
 fi
