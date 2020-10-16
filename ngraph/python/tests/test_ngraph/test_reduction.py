@@ -105,7 +105,6 @@ def test_non_max_suppression():
 
     boxes_shape = [1, 1000, 4]
     scores_shape = [1, 1, 1000]
-    expected_shape = [0, 3]
     boxes_parameter = ng.parameter(boxes_shape, name="Boxes", dtype=np.float32)
     scores_parameter = ng.parameter(scores_shape, name="Scores", dtype=np.float32)
 
@@ -113,7 +112,9 @@ def test_non_max_suppression():
 
     assert node.get_type_name() == "NonMaxSuppression"
     assert node.get_output_size() == 3
-    assert list(node.get_output_shape(0)) == expected_shape
+    assert node.get_output_partial_shape(0).same_scheme(PartialShape([-1, 3]))
+    assert node.get_output_partial_shape(1).same_scheme(PartialShape([-1, 3]))
+    assert list(node.get_output_shape(2)) == [1]
 
 
 def test_non_zero():
