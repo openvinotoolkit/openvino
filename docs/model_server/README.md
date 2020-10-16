@@ -19,9 +19,9 @@ A few key features:
 - Support for multiple frameworks. Serve models trained in popular formats such as Caffe*, TensorFlow*, MXNet* and ONNX*.
 - Deploy new [model versions](/docs/docker_container.md) without changing client code.
 - Support for AI accelerators including [Intel Movidius Myriad VPUs](@ref openvino_docs_IE_DG_supported_plugins_VPU), 
-[GPU](@ref docs_IE_DG_supported_plugins_CL_DNN) and [HDDL](@ref docs_IE_DG_supported_plugins_HDDL.html). 
+[GPU](@ref docs_IE_DG_supported_plugins_CL_DNN) and [HDDL](@ref docs_IE_DG_supported_plugins_HDDL). 
 - The server can be enabled both on [Bare Metal Hosts](docs/host.md) or in
-[Docker containers](/docs/docker_container.md).
+[Docker containers](https://github.com/openvinotoolkit/model_server/blob/main/docs/docker_container.md).
 - [Kubernetes deployments](https://github.com/openvinotoolkit/model_server/blob/main/deploy). The server can be deployed in a Kubernetes cluster allowing the inference service to scale horizontally and ensure high availability.  
 - [Model reshaping](https://github.com/openvinotoolkit/model_server/blob/main/docs/docker_container.md#model-reshaping). The server supports reshaping models in runtime. 
 - [Model ensemble](docs/ensemble_scheduler.md) (preview). Connect multiple models to deploy complex processing solutions and reduce overhead of sending data back and forth.
@@ -51,19 +51,20 @@ For debugging, the command also generates an image with a suffix `-build`, namel
 
 ## Run OpenVINO Model Server
 
-Find a detailed description of how to use the OpenVINO Model Server in [OVMS Quickstart](/docs/ovms_quickstart.md).
+Find a detailed description of how to use the OpenVINO Model Server in [OVMS Quickstart](https://github.com/openvinotoolkit/model_server/blob/main/docs/ovms_quickstart.md).
+
 
 For more detailed guides on using the Model Server in various scenarios, visit the links below:
 
-* [Models repository configuration](/docs/models_repository.md)
+* [Models repository configuration](https://github.com/openvinotoolkit/model_server/blob/main/docs/models_repository.md)
 
-* [Using a Docker container](/docs/docker_container.md)
+* [Using a Docker container](https://github.com/openvinotoolkit/model_server/blob/main/docs/docker_container.md)
 
-* [Landing on bare metal or virtual machine](/docs/host.md)
+* [Landing on bare metal or virtual machine](https://github.com/openvinotoolkit/model_server/blob/main/docs/host.md)
 
-* [Performance tuning](/docs/performance_tuning.md)
+* [Performance tuning](https://github.com/openvinotoolkit/model_server/blob/main/docs/performance_tuning.md)
 
-* [Model Ensemble Scheduler](/docs/ensemble_scheduler.md)
+* [Model Ensemble Scheduler](https://github.com/openvinotoolkit/model_server/blob/main/docs/ensemble_scheduler.md)
 
 
 ## API Documentation
