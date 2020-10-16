@@ -25,7 +25,8 @@ namespace ngraph
     namespace runtime
     {
         class AlignedBuffer;
-        class AlignedBufferPtr;
+        template<typename T>
+        class PreallocatedBuffer;
     }
 }
 
@@ -75,25 +76,29 @@ private:
     char* m_aligned_buffer;
     size_t m_byte_size;
 
-    friend class AlignedBufferPtr;
+    template<typename T> friend class PreallocatedBuffer;
 };
 
-class NGRAPH_API ngraph::runtime::AlignedBufferPtr : public ngraph::runtime::AlignedBuffer
+template<typename T>
+class NGRAPH_API ngraph::runtime::PreallocatedBuffer : public ngraph::runtime::AlignedBuffer
 {
 public:
-    AlignedBufferPtr(char* data, size_t size)
+    PreallocatedBuffer(char* data, size_t size, T& object) : _object(object)
     {
         m_allocated_buffer = data;
         m_aligned_buffer = data;
         m_byte_size = size;
     }
 
-    virtual ~AlignedBufferPtr()
+    virtual ~PreallocatedBuffer()
     {
         m_aligned_buffer = nullptr;
         m_allocated_buffer = nullptr;
         m_byte_size = 0;
     }
+
+private:
+    T _object;
 };
 
 namespace ngraph

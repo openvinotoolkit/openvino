@@ -244,17 +244,6 @@ public:
 
 protected:
     /**
-     * @brief Sets weights blob pointer
-     *
-     * @param weights blob pointer
-     */
-    void setWeightsBlobPtr(const Blob::CPtr& weights) {
-        if (actual == nullptr) THROW_IE_EXCEPTION << "CNNNetwork was not initialized.";
-        _weights = weights;
-    }
-
-protected:
-    /**
      * @brief Network extra interface, might be nullptr
      */
     std::shared_ptr<ICNNNetwork> network;
@@ -267,10 +256,6 @@ protected:
      * @brief A pointer to output data
      */
     DataPtr output;
-
-    Blob::CPtr _weights;
-
-    friend class V10Parser;
 };
 
 }  // namespace InferenceEngine

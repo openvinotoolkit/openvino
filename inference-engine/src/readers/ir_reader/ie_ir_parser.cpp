@@ -195,7 +195,6 @@ std::shared_ptr<ICNNNetwork> V10Parser::parse(const pugi::xml_node& root, const 
         }
     }
     CNNNetwork net(function);
-    net.setWeightsBlobPtr(weights);
     parsePreProcess(net, root, weights);
     return net;
 }
@@ -1486,7 +1485,10 @@ std::shared_ptr<ngraph::Node> V10Parser::LayerCreator<ngraph::op::Constant>::cre
         THROW_IE_EXCEPTION << "Cannot create Constant op " << layerParsePrms.name << " size attribute and shape size are inconsistent!";
 
     char* data = weights->cbuffer().as<char*>() + offset;
-    std::shared_ptr<ngraph::runtime::AlignedBufferPtr> buffer = std::make_shared<ngraph::runtime::AlignedBufferPtr>(data, size);
+
+    using PreallocatedBuffer = ngraph::runtime::PreallocatedBuffer<const Blob::CPtr>;
+
+    auto buffer = std::make_shared<PreallocatedBuffer>(data, size, weights);
     auto constant = std::make_shared<ngraph::op::Constant>(port.precision, shape, buffer);
 
     return constant;
