@@ -22,6 +22,7 @@
 #include "ngraph/runtime/reference/non_max_suppression.hpp"
 #include "ngraph/type/bfloat16.hpp"
 #include "ngraph/type/float16.hpp"
+#include "ngraph/util.hpp"
 
 using namespace std;
 using namespace ngraph;
@@ -805,7 +806,7 @@ namespace
             memcpy(result.data(), p, input_size * sizeof(float));
         }
         break;
-        default:;
+        default: throw std::runtime_error("Unsupported data type in op NonMaxSuppression-5"); break;
         }
 
         return result;
