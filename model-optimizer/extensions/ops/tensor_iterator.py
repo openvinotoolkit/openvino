@@ -413,10 +413,10 @@ class TensorIterator(Op):
         assert internal_result.id in ti_node.body
         assert internal_result.soft_get('op') == 'Result'
 
-        ti_node['back_edges'].append({'from_layer': internal_result['internal_layer_id'],
-                                      'to_layer': internal_parameter['internal_layer_id'],
-                                      'from_port': 0,
-                                      'to_port': 0})
+        ti_node.back_edges.append({'from_layer': internal_result['internal_layer_id'],
+                                   'to_layer': internal_parameter['internal_layer_id'],
+                                   'from_port': 0,
+                                   'to_port': 0})
 
 
 def get_internal_node_by_layer_id(ti, internal_layer_id):
