@@ -20,7 +20,7 @@ TEST_F(NGraphReaderTests, ReadTileNetwork) {
             </output>
         </layer>
         <layer id="1" name="const1" type="Const" version="opset1">
-            <data offset="0" size="32"/>
+            <data element_type="i64" offset="0" shape="4" size="32"/>
             <output>
                 <port id="1" precision="I64">
                     <dim>4</dim>
@@ -130,7 +130,7 @@ TEST_F(NGraphReaderTests, ReadTileNetwork2) {
             </output>
         </layer>
         <layer id="1" name="const1" type="Const" version="opset1">
-            <data offset="0" size="32"/>
+            <data element_type="i64" offset="0" shape="4" size="32"/>
             <output>
                 <port id="1" precision="I64">
                     <dim>4</dim>

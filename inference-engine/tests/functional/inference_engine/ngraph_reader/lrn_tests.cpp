@@ -15,7 +15,7 @@ TEST_F(NGraphReaderTests, ReadLrnNetwork) {
             .getLayer();
 
     auto data_layer = ir_builder_v10
-            .AddLayer("data1", "Const", {{"size", "16"}})
+            .AddLayer("data1", "Const", {{"element_type", "i64"}, {"offset", "0"}, {"size", "16"}, {"shape", "2"}})
             .AddOutPort(Precision::ePrecision::I64, {2})
             .getLayer();
 
@@ -75,7 +75,7 @@ TEST_F(NGraphReaderTests, ReadLrnNetwork2) {
             .getLayer();
 
     auto data_layer = ir_builder_v10
-            .AddLayer("data1", "Const", {{"size", "8"}})
+            .AddLayer("data1", "Const", {{"element_type", "i64"}, {"offset", "0"}, {"size", "8"}, {"shape", "1"}})
             .AddOutPort(Precision::ePrecision::I64, {1})
             .getLayer();
 

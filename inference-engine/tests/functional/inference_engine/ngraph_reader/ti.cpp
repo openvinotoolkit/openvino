@@ -82,7 +82,7 @@ TEST_F(NGraphReaderTests, ReadTensorIteratorNetwork_opset1) {
                             </output>
                         </layer>
                         <layer id="1" name="25_const" type="Const" version="opset1">
-                            <data offset="0" size="16"/>
+                            <data element_type="i64" offset="0" shape="2" size="16"/>
                             <output>
                                 <port id="1" precision="I64">
                                     <dim>2</dim>
@@ -127,7 +127,7 @@ TEST_F(NGraphReaderTests, ReadTensorIteratorNetwork_opset1) {
                             </output>
                         </layer>
                         <layer id="5" name="concat/LSTMCell/Split256_const" type="Const" version="opset1">
-                            <data offset="16" size="2097152"/>
+                            <data element_type="f32" offset="16" shape="1024,512" size="2097152"/>
                             <output>
                                 <port id="1" precision="FP32">
                                     <dim>1024</dim>
@@ -136,7 +136,7 @@ TEST_F(NGraphReaderTests, ReadTensorIteratorNetwork_opset1) {
                             </output>
                         </layer>
                         <layer id="6" name="LSTMCell/Split257_const" type="Const" version="opset1">
-                            <data offset="2097168" size="1048576"/>
+                            <data element_type="f32" offset="2097168" shape="1024,256" size="1048576"/>
                             <output>
                                 <port id="1" precision="FP32">
                                     <dim>1024</dim>
@@ -145,7 +145,7 @@ TEST_F(NGraphReaderTests, ReadTensorIteratorNetwork_opset1) {
                             </output>
                         </layer>
                         <layer id="7" name="Output_0/Data__const" type="Const" version="opset1">
-                            <data offset="3145744" size="4096"/>
+                            <data element_type="f32" offset="3145744" shape="1024" size="4096"/>
                             <output>
                                 <port id="1" precision="FP32">
                                     <dim>1024</dim>
@@ -207,7 +207,7 @@ TEST_F(NGraphReaderTests, ReadTensorIteratorNetwork_opset1) {
                             </input>
                         </layer>
                         <layer id="11" name="28_const" type="Const" version="opset1">
-                            <data offset="3149840" size="24"/>
+                            <data element_type="i64" offset="3149840" shape="3" size="24"/>
                             <output>
                                 <port id="1" precision="I64">
                                     <dim>3</dim>
@@ -545,7 +545,7 @@ TEST_F(NGraphReaderTests, ReadTensorIteratorNetwork_resnet_opset1) {
                             </output>
                         </layer>
                         <layer id="1" name="7_const" type="Const" version="opset1">
-                            <data offset="0" size="16"/>
+                            <data element_type="i64" offset="0" shape="2" size="16"/>
                             <output>
                                 <port id="1" precision="I64">
                                     <dim>2</dim>
@@ -590,7 +590,7 @@ TEST_F(NGraphReaderTests, ReadTensorIteratorNetwork_resnet_opset1) {
                             </output>
                         </layer>
                         <layer id="5" name="471/LSTMCell/Split149_const" type="Const" version="opset1">
-                            <data offset="16" size="4194304"/>
+                            <data element_type="f32" offset="16" shape="2048,512" size="4194304"/>
                             <output>
                                 <port id="1" precision="FP32">
                                     <dim>2048</dim>
@@ -599,7 +599,7 @@ TEST_F(NGraphReaderTests, ReadTensorIteratorNetwork_resnet_opset1) {
                             </output>
                         </layer>
                         <layer id="6" name="471/LSTMCell/Split150_const" type="Const" version="opset1">
-                            <data offset="4194320" size="4194304"/>
+                            <data element_type="f32" offset="4194320" shape="2048,512" size="4194304"/>
                             <output>
                                 <port id="1" precision="FP32">
                                     <dim>2048</dim>
@@ -608,7 +608,7 @@ TEST_F(NGraphReaderTests, ReadTensorIteratorNetwork_resnet_opset1) {
                             </output>
                         </layer>
                         <layer id="7" name="471/inport/2_const" type="Const" version="opset1">
-                            <data offset="8388624" size="8192"/>
+                            <data element_type="f32" offset="8388624" shape="2048" size="8192"/>
                             <output>
                                 <port id="1" precision="FP32">
                                     <dim>2048</dim>
@@ -670,7 +670,7 @@ TEST_F(NGraphReaderTests, ReadTensorIteratorNetwork_resnet_opset1) {
                             </input>
                         </layer>
                         <layer id="11" name="15_const" type="Const" version="opset1">
-                            <data offset="8396816" size="24"/>
+                            <data element_type="i64" offset="8396816" shape="3" size="24"/>
                             <output>
                                 <port id="1" precision="I64">
                                     <dim>3</dim>
@@ -1026,7 +1026,7 @@ TEST_F(NGraphReaderTests, ReadTensorIteratorNetwork_negative_stride_opset1) {
                             </output>
                         </layer>
                         <layer id="1" name="25_const" type="Const" version="opset1">
-                            <data offset="0" size="16"/>
+                            <data element_type="i64" offset="0" shape="2" size="16"/>
                             <output>
                                 <port id="1" precision="I64">
                                     <dim>2</dim>
@@ -1071,7 +1071,7 @@ TEST_F(NGraphReaderTests, ReadTensorIteratorNetwork_negative_stride_opset1) {
                             </output>
                         </layer>
                         <layer id="5" name="shadow/LSTMLayers/stack_bidirectional_rnn/cell_1/bidirectional_rnn/bw/bw/while/bw/basic_lstm_cell/concat/LSTMCell/Split269_const" type="Const" version="opset1">
-                            <data offset="16" size="2097152"/>
+                            <data element_type="f32" offset="16" shape="1024,512" size="2097152"/>
                             <output>
                                 <port id="1" precision="FP32">
                                     <dim>1024</dim>
@@ -1080,7 +1080,7 @@ TEST_F(NGraphReaderTests, ReadTensorIteratorNetwork_negative_stride_opset1) {
                             </output>
                         </layer>
                         <layer id="6" name="shadow/LSTMLayers/stack_bidirectional_rnn/cell_1/bidirectional_rnn/bw/bw/while/bw/basic_lstm_cell/concat/LSTMCell/Split270_const" type="Const" version="opset1">
-                            <data offset="2097168" size="1048576"/>
+                            <data element_type="f32" offset="2097168" shape="1024,256" size="1048576"/>
                             <output>
                                 <port id="1" precision="FP32">
                                     <dim>1024</dim>
@@ -1089,7 +1089,7 @@ TEST_F(NGraphReaderTests, ReadTensorIteratorNetwork_negative_stride_opset1) {
                             </output>
                         </layer>
                         <layer id="7" name="shadow/LSTMLayers/stack_bidirectional_rnn/cell_1/bidirectional_rnn/bw/bw/while/bw/basic_lstm_cell/BiasAdd/Enter/Output_0/Data__const" type="Const" version="opset1">
-                            <data offset="3145744" size="4096"/>
+                            <data element_type="f32" offset="3145744" shape="1024" size="4096"/>
                             <output>
                                 <port id="1" precision="FP32">
                                     <dim>1024</dim>
@@ -1151,7 +1151,7 @@ TEST_F(NGraphReaderTests, ReadTensorIteratorNetwork_negative_stride_opset1) {
                             </input>
                         </layer>
                         <layer id="11" name="28_const" type="Const" version="opset1">
-                            <data offset="3149840" size="24"/>
+                            <data element_type="i64" offset="3149840" shape="3" size="24"/>
                             <output>
                                 <port id="1" precision="I64">
                                     <dim>3</dim>
@@ -1479,7 +1479,7 @@ TEST_F(NGraphReaderTests, ReadTensorIteratorNetwork_opset4) {
                             </output>
                         </layer>
                         <layer id="1" name="25_const" type="Const" version="opset1">
-                            <data offset="0" size="16"/>
+                            <data element_type="i64" offset="0" shape="2" size="16"/>
                             <output>
                                 <port id="1" precision="I64">
                                     <dim>2</dim>
@@ -1524,7 +1524,7 @@ TEST_F(NGraphReaderTests, ReadTensorIteratorNetwork_opset4) {
                             </output>
                         </layer>
                         <layer id="5" name="concat/LSTMCell/Split256_const" type="Const" version="opset1">
-                            <data offset="16" size="2097152"/>
+                            <data element_type="f32" offset="16" shape="1024,512" size="2097152"/>
                             <output>
                                 <port id="1" precision="FP32">
                                     <dim>1024</dim>
@@ -1533,7 +1533,7 @@ TEST_F(NGraphReaderTests, ReadTensorIteratorNetwork_opset4) {
                             </output>
                         </layer>
                         <layer id="6" name="LSTMCell/Split257_const" type="Const" version="opset1">
-                            <data offset="2097168" size="1048576"/>
+                            <data element_type="f32" offset="2097168" shape="1024,256" size="1048576"/>
                             <output>
                                 <port id="1" precision="FP32">
                                     <dim>1024</dim>
@@ -1542,7 +1542,7 @@ TEST_F(NGraphReaderTests, ReadTensorIteratorNetwork_opset4) {
                             </output>
                         </layer>
                         <layer id="7" name="Output_0/Data__const" type="Const" version="opset1">
-                            <data offset="3145744" size="4096"/>
+                            <data element_type="f32" offset="3145744" shape="1024" size="4096"/>
                             <output>
                                 <port id="1" precision="FP32">
                                     <dim>1024</dim>
@@ -1604,7 +1604,7 @@ TEST_F(NGraphReaderTests, ReadTensorIteratorNetwork_opset4) {
                             </input>
                         </layer>
                         <layer id="11" name="28_const" type="Const" version="opset1">
-                            <data offset="3149840" size="24"/>
+                            <data element_type="i64" offset="3149840" shape="3" size="24"/>
                             <output>
                                 <port id="1" precision="I64">
                                     <dim>3</dim>
@@ -1942,7 +1942,7 @@ TEST_F(NGraphReaderTests, ReadTensorIteratorNetwork_resnet_opset4) {
                             </output>
                         </layer>
                         <layer id="1" name="7_const" type="Const" version="opset1">
-                            <data offset="0" size="16"/>
+                            <data element_type="i64" offset="0" shape="2" size="16"/>
                             <output>
                                 <port id="1" precision="I64">
                                     <dim>2</dim>
@@ -1987,7 +1987,7 @@ TEST_F(NGraphReaderTests, ReadTensorIteratorNetwork_resnet_opset4) {
                             </output>
                         </layer>
                         <layer id="5" name="471/LSTMCell/Split149_const" type="Const" version="opset1">
-                            <data offset="16" size="4194304"/>
+                            <data element_type="f32" offset="16" shape="2048,512" size="4194304"/>
                             <output>
                                 <port id="1" precision="FP32">
                                     <dim>2048</dim>
@@ -1996,7 +1996,7 @@ TEST_F(NGraphReaderTests, ReadTensorIteratorNetwork_resnet_opset4) {
                             </output>
                         </layer>
                         <layer id="6" name="471/LSTMCell/Split150_const" type="Const" version="opset1">
-                            <data offset="4194320" size="4194304"/>
+                            <data element_type="f32" offset="4194320" shape="2048,512" size="4194304"/>
                             <output>
                                 <port id="1" precision="FP32">
                                     <dim>2048</dim>
@@ -2005,7 +2005,7 @@ TEST_F(NGraphReaderTests, ReadTensorIteratorNetwork_resnet_opset4) {
                             </output>
                         </layer>
                         <layer id="7" name="471/inport/2_const" type="Const" version="opset1">
-                            <data offset="8388624" size="8192"/>
+                            <data element_type="f32" offset="8388624" shape="2048" size="8192"/>
                             <output>
                                 <port id="1" precision="FP32">
                                     <dim>2048</dim>
@@ -2067,7 +2067,7 @@ TEST_F(NGraphReaderTests, ReadTensorIteratorNetwork_resnet_opset4) {
                             </input>
                         </layer>
                         <layer id="11" name="15_const" type="Const" version="opset1">
-                            <data offset="8396816" size="24"/>
+                            <data element_type="i64" offset="8396816" shape="3" size="24"/>
                             <output>
                                 <port id="1" precision="I64">
                                     <dim>3</dim>
@@ -2423,7 +2423,7 @@ TEST_F(NGraphReaderTests, ReadTensorIteratorNetwork_negative_stride_opset4) {
                             </output>
                         </layer>
                         <layer id="1" name="25_const" type="Const" version="opset1">
-                            <data offset="0" size="16"/>
+                            <data element_type="i64" offset="0" shape="2" size="16"/>
                             <output>
                                 <port id="1" precision="I64">
                                     <dim>2</dim>
@@ -2468,7 +2468,7 @@ TEST_F(NGraphReaderTests, ReadTensorIteratorNetwork_negative_stride_opset4) {
                             </output>
                         </layer>
                         <layer id="5" name="shadow/LSTMLayers/stack_bidirectional_rnn/cell_1/bidirectional_rnn/bw/bw/while/bw/basic_lstm_cell/concat/LSTMCell/Split269_const" type="Const" version="opset1">
-                            <data offset="16" size="2097152"/>
+                            <data element_type="f32" offset="16" shape="1024,512" size="2097152"/>
                             <output>
                                 <port id="1" precision="FP32">
                                     <dim>1024</dim>
@@ -2477,7 +2477,7 @@ TEST_F(NGraphReaderTests, ReadTensorIteratorNetwork_negative_stride_opset4) {
                             </output>
                         </layer>
                         <layer id="6" name="shadow/LSTMLayers/stack_bidirectional_rnn/cell_1/bidirectional_rnn/bw/bw/while/bw/basic_lstm_cell/concat/LSTMCell/Split270_const" type="Const" version="opset1">
-                            <data offset="2097168" size="1048576"/>
+                            <data element_type="f32" offset="2097168" shape="1024,256" size="1048576"/>
                             <output>
                                 <port id="1" precision="FP32">
                                     <dim>1024</dim>
@@ -2486,7 +2486,7 @@ TEST_F(NGraphReaderTests, ReadTensorIteratorNetwork_negative_stride_opset4) {
                             </output>
                         </layer>
                         <layer id="7" name="shadow/LSTMLayers/stack_bidirectional_rnn/cell_1/bidirectional_rnn/bw/bw/while/bw/basic_lstm_cell/BiasAdd/Enter/Output_0/Data__const" type="Const" version="opset1">
-                            <data offset="3145744" size="4096"/>
+                            <data element_type="f32" offset="3145744" shape="1024" size="4096"/>
                             <output>
                                 <port id="1" precision="FP32">
                                     <dim>1024</dim>
@@ -2548,7 +2548,7 @@ TEST_F(NGraphReaderTests, ReadTensorIteratorNetwork_negative_stride_opset4) {
                             </input>
                         </layer>
                         <layer id="11" name="28_const" type="Const" version="opset1">
-                            <data offset="3149840" size="24"/>
+                            <data element_type="i64" offset="3149840" shape="3" size="24"/>
                             <output>
                                 <port id="1" precision="I64">
                                     <dim>3</dim>

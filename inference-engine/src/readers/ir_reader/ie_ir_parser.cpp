@@ -396,7 +396,6 @@ std::shared_ptr<ngraph::Node> V10Parser::createNode(const std::vector<ngraph::Ou
         std::make_shared<LayerCreator<ngraph::op::Ceiling>>("Ceiling"),
         std::make_shared<LayerCreator<ngraph::op::Clamp>>("Clamp"),
         std::make_shared<LayerCreator<ngraph::op::Concat>>("Concat"),
-        std::make_shared<LayerCreator<ngraph::op::Constant>>("Const"),
         std::make_shared<LayerCreator<ngraph::op::Convert>>("Convert"),
         std::make_shared<LayerCreator<ngraph::op::CTCGreedyDecoder>>("CTCGreedyDecoder"),
         std::make_shared<LayerCreator<ngraph::op::ReverseSequence>>("ReverseSequence"),
@@ -1461,42 +1460,6 @@ std::shared_ptr<ngraph::Node> V10Parser::LayerCreator<ngraph::op::v1::Broadcast>
         return std::make_shared<ngraph::op::v1::Broadcast>(inputs[0], inputs[1], inputs[2]);
     }
     THROW_IE_EXCEPTION << "Invalid number of inputs: " << layerParsePrms.inputPorts.size();
-}
-
-// Constant layer
-template <>
-std::shared_ptr<ngraph::Node> V10Parser::LayerCreator<ngraph::op::Constant>::createLayer(
-    const ngraph::OutputVector& inputs, const pugi::xml_node& node, std::istream& binStream,
-    const GenericLayerParams& layerParsePrms) {
-    checkParameters(inputs, layerParsePrms, 0);
-    pugi::xml_node dn = node.child("data");
-
-    if (dn.empty())
-        THROW_IE_EXCEPTION << "Cannot read parameter for " << getType() << " layer with name: " << layerParsePrms.name;
-
-    size_t offset = GetUInt64Attr(dn, "offset");
-    size_t size = GetUInt64Attr(dn, "size");
-
-    binStream.seekg(0, std::ios::end);
-    std::streampos length = binStream.tellg();
-    if (!length)
-        THROW_IE_EXCEPTION << "Cannot read network! The model requires weights data! "
-            << "Bin file cannot be found! Please specify the path to bin file.";
-    if (length < offset + size)
-        THROW_IE_EXCEPTION << "Cannot create " << getType() << " layer with name: " << layerParsePrms.name
-                           << ". Layer has incorrect weights!";
-
-    auto port = layerParsePrms.outputPorts[0];
-    ngraph::Shape shape(port.dims);
-    ngraph::element::Type el_type(port.precision);
-    if (size < std::ceil(ngraph::shape_size(shape) * el_type.bitwidth() / 8.f))
-        THROW_IE_EXCEPTION << "Cannot create Constant op " << layerParsePrms.name << " size attribute and shape size are inconsistent!";
-
-    auto constant = std::make_shared<ngraph::op::Constant>(port.precision, shape);
-    char* data = const_cast<char*>(reinterpret_cast<const char*>(constant->get_data_ptr()));
-    binStream.seekg(offset, std::ios::beg);
-    binStream.read(data, size);
-    return constant;
 }
 
 // Power layer

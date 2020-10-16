@@ -20,7 +20,7 @@ TEST_F(NGraphReaderTests, ReadSeluNetwork) {
             </output>
         </layer>
         <layer id="1" name="const1" type="Const" version="opset1">
-            <data offset="0" size="4"/>
+            <data element_type="f32" offset="0" shape="1" size="4"/>
             <output>
                 <port id="0" precision="FP32">
                     <dim>1</dim>
@@ -28,7 +28,7 @@ TEST_F(NGraphReaderTests, ReadSeluNetwork) {
             </output>
         </layer>
         <layer id="2" name="const2" type="Const" version="opset1">
-            <data offset="4" size="4"/>
+            <data element_type="f32" offset="4" shape="1" size="4"/>
             <output>
                 <port id="0" precision="FP32">
                     <dim>1</dim>

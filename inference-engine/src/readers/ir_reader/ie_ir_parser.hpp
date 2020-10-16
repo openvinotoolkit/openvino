@@ -257,34 +257,39 @@ private:
             adapter.set(value);
         }
         void on_adapter(const std::string& name, ngraph::ValueAccessor<void*>& adapter) override  {
+            std::vector<std::string> value;
             std::vector<int64_t> shape;
             std::string el_type_str;
-            size_t offset;
-            size_t size;
+            std::vector<size_t> offset;
+            std::vector<size_t> size;
             pugi::xml_node dn = node.child("data");
 
             if (dn.empty())
                 THROW_IE_EXCEPTION << "No attrtibutes defined for Const op!";
-            offset = XMLParseUtils::GetUInt64Attr(dn, "offset");
-            size = XMLParseUtils::GetUInt64Attr(dn, "size");
 
-            if (!getStrAttribute(dn, "element_type", el_type_str)) return;
-            if (!getParameters<int64_t>(dn, "shape", shape)) return;
+            if (getParameters<std::string>(dn, name, value)) {
+                auto data = const_cast<char*>(reinterpret_cast<const char*>(adapter.get_ptr()));
+                size_t length = value[0].length() > adapter.size() ? adapter.size() : value[0].length();
+                value[0].copy(data, length);
+            } else if (getParameters<size_t>(dn, "offset", offset) && getParameters<size_t>(dn, "size", size)) {
+                if (!getStrAttribute(dn, "element_type", el_type_str)) return;
+                if (!getParameters<int64_t>(dn, "shape", shape)) return;
 
-            ngraph::element::Type el_type = details::convertPrecision(el_type_str);
+                ngraph::element::Type el_type = details::convertPrecision(el_type_str);
 
-            binData.seekg(0, std::ios::end);
-            std::streampos length = binData.tellg();
-            if (!length)
-                THROW_IE_EXCEPTION << "Empty weights data in bin file or bin file cannot be found!";
-            if (length < offset + size)
-                THROW_IE_EXCEPTION << "Incorrect weights in bin file!";
-            if (size < std::ceil(ngraph::shape_size(shape) * el_type.bitwidth() / 8.f))
-                THROW_IE_EXCEPTION << "Attribute and shape size are inconsistent for Const op!";
+                binData.seekg(0, std::ios::end);
+                std::streampos length = binData.tellg();
+                if (!length)
+                    THROW_IE_EXCEPTION << "Empty weights data in bin file or bin file cannot be found!";
+                if (length < offset.at(0) + size.at(0))
+                    THROW_IE_EXCEPTION << "Incorrect weights in bin file!";
+                if (size.at(0) < std::ceil(ngraph::shape_size(shape) * el_type.bitwidth() / 8.f))
+                    THROW_IE_EXCEPTION << "Attribute and shape size are inconsistent for Const op!";
 
-            char* data = const_cast<char*>(reinterpret_cast<const char*>(adapter.get_ptr()));
-            binData.seekg(offset, std::ios::beg);
-            binData.read(data, size);
+                char* data = const_cast<char*>(reinterpret_cast<const char*>(adapter.get_ptr()));
+                binData.seekg(offset.at(0), std::ios::beg);
+                binData.read(data, size.at(0));
+            }
         }
         void on_adapter(const std::string& name, ngraph::ValueAccessor<int64_t>& adapter) override {
             std::string val;

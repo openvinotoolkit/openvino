@@ -126,7 +126,6 @@ public:
     void on_adapter(const std::string& name, ::ngraph::ValueAccessor<void>& adapter) override;
 
     void on_adapter(const std::string& name, ::ngraph::ValueAccessor<void*>& adapter) override {
-        //auto data = const_cast<char*>(reinterpret_cast<const char*>(adapter.get_ptr()));
         auto data = reinterpret_cast<char*>(adapter.get_ptr());
         std::vector<char> dataBuff(data, data + adapter.size());
         std::stringstream ss;
@@ -138,6 +137,32 @@ private:
     std::shared_ptr<::ngraph::Node> node;
     std::map<std::string, std::string> params;
     std::map<std::string, CreatorFor> creators;
+
+    class ConstAllocatorWrapper : public IAllocator {
+    public:
+        explicit ConstAllocatorWrapper(std::shared_ptr<ngraph::op::Constant> constOp): _constOp(std::move(constOp)) {}
+
+        void Release() noexcept override {
+            delete this;
+        }
+
+        void* lock(void* handle, LockOp) noexcept override {
+            return handle;
+        }
+
+        void unlock(void*) noexcept override {}  // NOLINT
+
+        void* alloc(size_t) noexcept override {
+            return const_cast<void*>(_constOp->get_data_ptr());
+        }
+
+        bool free(void*) noexcept override {  // NOLINT
+            return true;
+        }
+
+    private:
+        std::shared_ptr<ngraph::op::Constant> _constOp;
+    };    
 };
 
 void InferenceEngine::details::CNNLayerCreator::on_adapter(const std::string& name,
@@ -721,8 +746,8 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
         }
 
         TensorDesc td(dataPrecision, {shapeSize}, Layout::C);
-
-        auto blob = make_blob_with_precision(td);
+        auto castedLayer = ngraph::as_type_ptr<ngraph::op::Constant>(node);
+        auto blob = make_blob_with_precision(td, std::make_shared<ConstAllocatorWrapper>(castedLayer));
         blob->allocate();
         res->blobs["custom"] = blob;
 
@@ -764,7 +789,6 @@ void convertFunctionToICNNNetwork(const std::shared_ptr<const ::ngraph::Function
                 std::make_shared<Builder::NodeConverter<::ngraph::op::BatchNormInference>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::Clamp>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::Concat>>(),
-                std::make_shared<Builder::NodeConverter<::ngraph::op::Constant>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::ConvolutionIE>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::DeconvolutionIE>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::Cos>>(),
