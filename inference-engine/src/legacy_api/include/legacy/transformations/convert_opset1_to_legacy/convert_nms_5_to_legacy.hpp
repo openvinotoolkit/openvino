@@ -14,7 +14,7 @@
 namespace ngraph {
 namespace pass {
 
-    class INFERENCE_ENGINE_API_CLASS(ConvertNMS5ToLegacyMatcher);
+class INFERENCE_ENGINE_API_CLASS(ConvertNMS5ToLegacyMatcher);
 
 }  // namespace pass
 }  // namespace ngraph
