@@ -638,7 +638,7 @@ std::shared_ptr<Node>
                                                            new_args.at(1),
                                                            m_box_encoding,
                                                            m_sort_result_descending,
-                                                           m_output_type)
+                                                           m_output_type);
         break;
     case 3:
         return std::make_shared<op::v5::NonMaxSuppression>(new_args.at(0),
@@ -646,7 +646,7 @@ std::shared_ptr<Node>
                                                            new_args.at(2),
                                                            m_box_encoding,
                                                            m_sort_result_descending,
-                                                           m_output_type)
+                                                           m_output_type);
         break;
     case 4:
         return std::make_shared<op::v5::NonMaxSuppression>(new_args.at(0),
@@ -655,7 +655,7 @@ std::shared_ptr<Node>
                                                            new_args.at(3),
                                                            m_box_encoding,
                                                            m_sort_result_descending,
-                                                           m_output_type)
+                                                           m_output_type);
         break;
     case 5:
         return std::make_shared<op::v5::NonMaxSuppression>(new_args.at(0),
@@ -665,7 +665,7 @@ std::shared_ptr<Node>
                                                            new_args.at(4),
                                                            m_box_encoding,
                                                            m_sort_result_descending,
-                                                           m_output_type)
+                                                           m_output_type);
         break;
     default:
         return std::make_shared<op::v5::NonMaxSuppression>(new_args.at(0),
@@ -676,7 +676,7 @@ std::shared_ptr<Node>
                                                            new_args.at(5),
                                                            m_box_encoding,
                                                            m_sort_result_descending,
-                                                           m_output_type)
+                                                           m_output_type);
         break;
     }
 }
