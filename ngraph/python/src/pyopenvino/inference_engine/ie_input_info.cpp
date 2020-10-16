@@ -19,23 +19,29 @@
 
 #include "pyopenvino/inference_engine/ie_input_info.hpp"
 #include "../../../pybind11/include/pybind11/pybind11.h"
+#include "common.hpp"
 
 namespace py = pybind11;
 
 void regclass_InputInfo(py::module m) {
     py::class_<InferenceEngine::InputInfo, std::shared_ptr<InferenceEngine::InputInfo>> cls(m, "InputInfoPtr");
 
-//    cls.def_property("input_data", &InferenceEngine::InputInfo::getInputData,
-//                     &InferenceEngine::CNNNetwork::setInputData);
+    cls.def_property("input_data", &InferenceEngine::InputInfo::getInputData,
+                     &InferenceEngine::InputInfo::setInputData);
 
-    // преобразовать layout?
-//    cls.def_property("layout", &InferenceEngine::InputInfo::getLayout,
-//                     &InferenceEngine::CNNNetwork::setLayout);
-//
-//    cls.def_property("precision", &InferenceEngine::InputInfo::getPrecision,
-//                     &InferenceEngine::CNNNetwork::setPrecision);
-//
-//    cls.def_property_readonly("tensor_desc", &InferenceEngine::InputInfo::getTensorDesc);
+    cls.def_property("layout", [](InferenceEngine::InputInfo& self) {
+            return Common::get_layout_from_enum(self.getLayout());
+        }, [](InferenceEngine::InputInfo& self, const std::string& layout) {
+            self.setLayout(Common::get_layout_from_string(layout));
+    });
+
+    cls.def_property("precision", [](InferenceEngine::InputInfo& self) {
+        return self.getPrecision().name();
+        }, [](InferenceEngine::InputInfo& self, const std::string& precision) {
+        self.setPrecision(InferenceEngine::Precision::FromStr(precision));
+    });
+
+    cls.def_property_readonly("tensor_desc", &InferenceEngine::InputInfo::getTensorDesc);
 
     cls.def_property_readonly("name", &InferenceEngine::InputInfo::name);
 }

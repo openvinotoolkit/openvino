@@ -11,10 +11,10 @@
 # limitations under the License.
 # ******************************************************************************
 
-from openvino.inference_engine import IECore, IENetwork, ExecutableNetwork
+from openvino.inference_engine import IECore, IENetwork, ExecutableNetwork, InputInfoPtr, DataPtr, TensorDesc
 
 import os
-
+import pytest
 
 def model_path(is_myriad=False):
     path_to_repo = os.environ["MODELS_PATH"]
@@ -52,12 +52,6 @@ def test_input_data_setter():
     assert input_info.input_data.name == "fc_out"
 
 
-def test_incorrect_input_info_setter():
-    with pytest.raises(TypeError) as e:
-        get_input_info().input_data = "dfds"
-    assert "Argument 'input_ptr' has incorrect type" in str(e.value)
-
-
 def test_name():
     assert get_input_info().name == "data"
 
@@ -72,12 +66,6 @@ def test_precision_setter():
     assert input_info.precision == "I8", "Incorrect precision"
 
 
-def test_incorrect_precision_setter():
-    with pytest.raises(ValueError) as e:
-        get_input_info().precision = "123"
-    assert "Unsupported precision 123! List of supported precisions:" in str(e.value)
-
-
 def test_layout():
     assert get_input_info().layout == "NCHW"
 
@@ -86,12 +74,6 @@ def test_layout_setter():
     input_info = get_input_info()
     input_info.layout = "NHWC"
     assert input_info.layout == "NHWC", "Incorrect layout"
-
-
-def test_incorrect_layout_setter():
-    with pytest.raises(ValueError) as e:
-        get_input_info().layout = "123"
-    assert "Unsupported layout 123! List of supported layouts:" in str(e.value)
 
 
 def test_tensor_desc():

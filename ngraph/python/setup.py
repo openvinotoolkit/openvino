@@ -251,6 +251,7 @@ pyopenvino_sources = [
     "pyopenvino/inference_engine/ie_parameter.cpp",
     "pyopenvino/inference_engine/ie_data.cpp",
     "pyopenvino/inference_engine/ie_input_info.cpp",
+    "pyopenvino/inference_engine/common.cpp",
 ]
 pyopenvino_sources = [PYNGRAPH_SRC_DIR + "/" + source for source in pyopenvino_sources]
 
