@@ -890,15 +890,6 @@ namespace
             memcpy(result.data(), p, input_size * sizeof(float));
         }
         break;
-        case element::Type_t::f64:
-        {
-            double* p = input->get_data_ptr<double>();
-            for (size_t i = 0; i < input_size; ++i)
-            {
-                result[i] = float(p[i]);
-            }
-        }
-        break;
         default:;
         }
 
