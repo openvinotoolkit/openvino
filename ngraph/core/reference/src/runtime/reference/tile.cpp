@@ -26,7 +26,7 @@ using namespace ngraph;
 
 namespace
 {
-    bool Increase(const Shape& shape, std::vector<int64_t>& indices, size_t& axis, bool& run)
+    bool is_axis_upper_bound(const Shape& shape, std::vector<int64_t>& indices, size_t& axis, bool& run)
     {
         if (axis-- == 0)
         {
@@ -44,7 +44,7 @@ namespace
         return true;
     }
 
-    std::vector<int64_t> createPitches(const Shape& dims)
+    std::vector<int64_t> create_pitches(const Shape& dims)
     {
         std::vector<int64_t> pitch;
         pitch.resize(dims.size());
