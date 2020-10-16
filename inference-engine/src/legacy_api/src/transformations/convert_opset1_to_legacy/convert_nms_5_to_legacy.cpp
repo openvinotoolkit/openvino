@@ -75,17 +75,17 @@ ngraph::pass::ConvertNMS5ToLegacyMatcher::ConvertNMS5ToLegacyMatcher() {
         }
         auto new_iou_threshold = arg3;
         if (iou_threshold_rank.get_length() == 0) {
-            new_iou_threshold = std::make_shared<ngraph::op::Unsqueeze>(arg3, opset1::Constant::create(element::f32, Shape{1}, {0.0f}));
+            new_iou_threshold = std::make_shared<ngraph::op::Unsqueeze>(arg3, opset1::Constant::create(element::i64, Shape{1}, {0}));
             new_ops.push_back(new_iou_threshold.get_node_shared_ptr());
         }
         auto new_score_threshold = arg4;
         if (score_threshold_rank.get_length() == 0) {
-            new_score_threshold = std::make_shared<ngraph::op::Unsqueeze>(arg4, opset1::Constant::create(element::f32, Shape{1}, {0.0f}));
+            new_score_threshold = std::make_shared<ngraph::op::Unsqueeze>(arg4, opset1::Constant::create(element::i64, Shape{1}, {0}));
             new_ops.push_back(new_score_threshold.get_node_shared_ptr());
         }
         auto new_soft_nms_sigma = arg5;
         if (soft_nms_sigma_rank.get_length() == 0) {
-            new_soft_nms_sigma = std::make_shared<ngraph::op::Unsqueeze>(arg5, opset1::Constant::create(element::f32, Shape{1}, {0.0f}));
+            new_soft_nms_sigma = std::make_shared<ngraph::op::Unsqueeze>(arg5, opset1::Constant::create(element::i64, Shape{1}, {0}));
             new_ops.push_back(new_soft_nms_sigma.get_node_shared_ptr());
         }
         int center_point_box = 0;
