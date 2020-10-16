@@ -69,6 +69,8 @@ class NonMaxSuppression(Op):
         assert len(boxes_shape) == 3, 'Length of tensors with boxes must be equal to 3'
         assert len(scores_shape) == 3, 'Length of tensors with scores must be equal to 3'
 
+        # According to the specification of the operation NonMaxSuppression,
+        # the input 'max_output_boxes_per_class' (port 2) is optional, with default value 0.
         if num_of_inputs >= 3:
             max_output_boxes_per_class = node.in_port(2).data.get_value()
         else:
