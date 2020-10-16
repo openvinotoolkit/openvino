@@ -69,13 +69,13 @@ The software was validated on:
     cd openvino
     git submodule update --init --recursive
     ```
-2. Install build dependencies using the `install_dependencies.sh` script in the
+2. Install build dependencies using the `install_build_dependencies.sh` script in the
    project root folder.
    ```sh
-   chmod +x install_dependencies.sh
+   chmod +x install_build_dependencies.sh
    ```
    ```sh
-   ./install_dependencies.sh
+   ./install_build_dependencies.sh
    ```
 3. By default, the build enables the Inference Engine GPU plugin to infer models
    on your Intel® Processor Graphics. This requires you to
