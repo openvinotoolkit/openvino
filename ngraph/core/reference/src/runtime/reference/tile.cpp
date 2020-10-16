@@ -26,7 +26,10 @@ using namespace ngraph;
 
 namespace
 {
-    bool is_axis_upper_bound(const Shape& shape, std::vector<int64_t>& indices, size_t& axis, bool& run)
+    bool is_axis_upper_bound(const Shape& shape,
+                             std::vector<int64_t>& indices,
+                             size_t& axis,
+                             bool& run)
     {
         if (axis-- == 0)
         {
