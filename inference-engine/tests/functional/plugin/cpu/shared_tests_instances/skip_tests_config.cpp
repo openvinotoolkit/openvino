@@ -36,6 +36,7 @@ std::vector<std::string> disabledTestPatterns() {
 #if (defined(_WIN32) || defined(_WIN64))
         R"(.*(CoreThreadingTestsWithIterations).*(smoke_LoadNetworkAccuracy).*)",
 #endif
+        // Inputs cannot be found
         R"(.*(ConstantResultSubgraphTest).*)",
         // TODO: Issue: 34348
         R"(.*IEClassGetAvailableDevices.*)",
