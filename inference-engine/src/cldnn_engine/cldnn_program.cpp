@@ -3487,6 +3487,10 @@ void Program::CreateInterpolatePrimitive(cldnn::topology& topology, InferenceEng
             auto data = constantBlob->buffer().as<float*>();
             for (size_t i = 0; i < constantBlob->size(); ++i)
                 scales.push_back(data[i]);
+        } else if (axesPrecision == InferenceEngine::Precision::FP16) {
+            auto data = static_cast<const uint16_t *>(constantBlob->buffer());
+            for (size_t i = 0; i < constantBlob->size(); ++i)
+                scales.push_back(cldnn::half_to_float(data[i]));
         } else {
             THROW_IE_EXCEPTION << layer->name << " Incorrect scales input precision";
         }
