@@ -77,6 +77,7 @@
 #include "ngraph/runtime/reference/prior_box.hpp"
 #include "ngraph/runtime/reference/product.hpp"
 #include "ngraph/runtime/reference/quantize.hpp"
+#include "ngraph/runtime/reference/region_yolo.hpp"
 #include "ngraph/runtime/reference/relu.hpp"
 #include "ngraph/runtime/reference/reorg_yolo.hpp"
 #include "ngraph/runtime/reference/replace_slice.hpp"
@@ -1185,6 +1186,19 @@ protected:
                 throw std::runtime_error(ss.str());
             }
 
+            break;
+        }
+        case OP_TYPEID::RegionYolo_v0:
+        {
+            const op::RegionYolo* region_yolo = static_cast<const op::RegionYolo*>(&node);
+            reference::region_yolo<T>(args[0]->get_data_ptr<const T>(),
+                                      out[0]->get_data_ptr<T>(),
+                                      args[0]->get_shape(),
+                                      region_yolo->get_num_coords(),
+                                      region_yolo->get_num_classes(),
+                                      region_yolo->get_num_regions(),
+                                      region_yolo->get_do_softmax(),
+                                      region_yolo->get_mask());
             break;
         }
         case OP_TYPEID::Relu:
