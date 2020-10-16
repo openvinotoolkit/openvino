@@ -172,6 +172,16 @@ std::string get_opset_name(ngraph::Node* n) {
                        << n->get_version();
 }
 
+std::string get_type_name(ngraph::Node* n) {
+    const std::map<std::string, std::string> translations = {
+        {"Constant", "Const"}};
+    std::string name = n->get_type_name();
+    if (translations.count(name) > 0) {
+        name = translations.at(name);
+    }
+    return name;
+}
+
 void ngfunction_2_irv10(pugi::xml_document& doc, std::vector<uint8_t>& bin,
                         const ngraph::Function& f) {
     pugi::xml_node netXml = doc.append_child("net");
@@ -186,7 +196,7 @@ void ngfunction_2_irv10(pugi::xml_document& doc, std::vector<uint8_t>& bin,
         layer.append_attribute("id").set_value(layer_ids[node.get()]);
         layer.append_attribute("name").set_value(
             node->get_friendly_name().c_str());
-        layer.append_attribute("type").set_value(node->get_type_name());
+        layer.append_attribute("type").set_value(get_type_name(node.get()).c_str());
         layer.append_attribute("version").set_value(
             get_opset_name(node.get()).c_str());
 
@@ -222,7 +232,8 @@ void ngfunction_2_irv10(pugi::xml_document& doc, std::vector<uint8_t>& bin,
             }
         }
         // <layers/output>
-        if (node->get_output_size() > 0) {
+        if ((node->get_output_size() > 0) &&
+            !dynamic_cast<ngraph::op::Result*>(node.get())) {
             pugi::xml_node output = layer.append_child("output");
             for (auto o : node->outputs()) {
                 pugi::xml_node port = output.append_child("port");
