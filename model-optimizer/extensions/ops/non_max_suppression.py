@@ -92,7 +92,7 @@ class NonMaxSuppression(Op):
         if num_of_outputs >= 2:
             node.out_port(1).data.set_shape(int64_array([max_number_of_boxes, 3]))
         if num_of_outputs >= 3:
-            node.out_port(2).data.set_shape(np.array(1).astype(np.int64))
+            node.out_port(2).data.set_shape(int64_array(1))
 
     @staticmethod
     def type_infer(node):
