@@ -85,17 +85,4 @@ protected:
 
     static void perform_nan_check(const std::vector<std::shared_ptr<HostTensor>>&,
                                   const Node* op = nullptr);
-            break;
-        }
-        case OP_TYPEID::RegionYolo_v0:
-        {
-            const op::RegionYolo* region_yolo = static_cast<const op::RegionYolo*>(&node);
-            reference::region_yolo<T>(args[0]->get_data_ptr<const T>(),
-                                      out[0]->get_data_ptr<T>(),
-                                      args[0]->get_shape(),
-                                      region_yolo->get_num_coords(),
-                                      region_yolo->get_num_classes(),
-                                      region_yolo->get_num_regions(),
-                                      region_yolo->get_do_softmax(),
-                                      region_yolo->get_mask());
 };

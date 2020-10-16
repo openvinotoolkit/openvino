@@ -27,6 +27,7 @@
 #include <ngraph/runtime/reference/one_hot.hpp>
 #include <ngraph/runtime/reference/pad.hpp>
 #include <ngraph/runtime/reference/prior_box.hpp>
+#include <ngraph/runtime/reference/region_yolo.hpp>
 #include <ngraph/runtime/reference/reorg_yolo.hpp>
 #include <ngraph/runtime/reference/reverse_sequence.hpp>
 #include <ngraph/runtime/reference/rnn_cell.hpp>
@@ -915,6 +916,23 @@ namespace
                                        inputs[0]->get_shape(),
                                        op->get_strides().at(0),
                                        inputs[0]->get_element_type().size());
+        return true;
+    }
+
+    template <element::Type_t ET>
+    bool evaluate(const shared_ptr<op::v0::RegionYolo>& op,
+                  const HostTensorVector& outputs,
+                  const HostTensorVector& inputs)
+    {
+        using T = typename element_type_traits<ET>::value_type;
+        runtime::reference::region_yolo<T>(inputs[0]->get_data_ptr<const T>(),
+                                           outputs[0]->get_data_ptr<T>(),
+                                           inputs[0]->get_shape(),
+                                           op->get_num_coords(),
+                                           op->get_num_classes(),
+                                           op->get_num_regions(),
+                                           op->get_do_softmax(),
+                                           op->get_mask());
         return true;
     }
 
