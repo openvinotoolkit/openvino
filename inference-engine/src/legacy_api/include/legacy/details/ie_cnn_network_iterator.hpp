@@ -35,10 +35,11 @@ CNNNetworkIterator {
     std::unordered_set<CNNLayer*> visited;
     std::list<CNNLayerPtr> nextLayersToVisit;
     InferenceEngine::CNNLayerPtr currentLayer;
-    ICNNNetwork* network = nullptr;
+    const ICNNNetwork* network = nullptr;
     bool oldApproach = false;
 
-    void init(const ICNNNetwork* network) {
+    void init(const ICNNNetwork* net) {
+        network = net;
         if (network == nullptr) THROW_IE_EXCEPTION << "ICNNNetwork object is nullptr";
 
         OutputsDataMap outputs;
