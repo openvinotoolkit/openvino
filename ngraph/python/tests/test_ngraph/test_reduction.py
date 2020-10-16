@@ -15,6 +15,7 @@
 # ******************************************************************************
 import numpy as np
 import pytest
+from _pyngraph import PartialShape
 
 import ngraph as ng
 from tests.runtime import get_runtime
