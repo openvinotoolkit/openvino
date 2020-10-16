@@ -36,9 +36,9 @@ namespace {
     };
 
     std::map<std::string, std::string> additional_config = {
-            {"GNA_SCALE_FACTOR_0", "1"},
-            {"GNA_SCALE_FACTOR_1", "1"},
-            {"GNA_SCALE_FACTOR_2", "1"}
+            {"GNA_SCALE_FACTOR_0", "2048"},
+            {"GNA_SCALE_FACTOR_1", "2048"},
+            {"GNA_SCALE_FACTOR_2", "2048"}
     };
 
     INSTANTIATE_TEST_CASE_P(smoke_cascade_concat, CascadeConcat,

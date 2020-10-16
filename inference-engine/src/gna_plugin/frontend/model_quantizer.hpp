@@ -80,7 +80,7 @@ class ModelQuantizer {
                 THROW_GNA_EXCEPTION << "Scale factors are not set for some of the inputs";
             }
             IE_ASSERT(quantData != nullptr);
-            quantData->_src_quant.scale = scaleFactor[scaleIndex];
+            quantData->_src_quant.SetScale(scaleFactor[scaleIndex]);
             scaleIndex++;
         }
 

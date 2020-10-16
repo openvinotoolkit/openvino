@@ -135,6 +135,27 @@ class LayerInfo {
     bool isPower() const noexcept {
         return isOfType("power");
     }
+    bool isTanh() const noexcept {
+        return isOfType("tanh");
+    }
+    bool isExp() const noexcept {
+        return isOfType("exp");
+    }
+    bool isLog() const noexcept {
+        return isOfType("log");
+    }
+    bool isSigmoid() const noexcept {
+        return isOfType("sigmoid");
+    }
+    bool isNegLog() const noexcept {
+        return isOfType("neglog");
+    }
+    bool isNegHalfLog() const noexcept {
+        return isOfType("neghalflog");
+    }
+    bool isClamp() const noexcept {
+        return isOfType("clamp");
+    }
     bool has32BInput() const noexcept {
         IS_VALID();
         return isActivation() || isPooling();

@@ -9,6 +9,10 @@
 using namespace LayerTestsDefinitions;
 
 namespace {
+    const std::vector<InferenceEngine::Precision> netPrecisions = {
+        InferenceEngine::Precision::FP32,
+        InferenceEngine::Precision::FP16,
+    };
 
     std::vector<std::vector<std::vector<size_t>>> inShapes = {
             {{1, 8}},
@@ -27,11 +31,12 @@ namespace {
             {1.0f},
             {1.1f},
             {1.5f},
-            {2.0f},
     };
 
-    std::vector<InferenceEngine::Precision> netPrecisions = {InferenceEngine::Precision::FP32,
-                                                             InferenceEngine::Precision::FP16,
+    std::map<std::string, std::string> additional_config = {
+            {"GNA_DEVICE_MODE", "GNA_SW_EXACT"},
+            {"GNA_COMPACT_MODE", "NO"},
+            {"GNA_PRECISION", "I16"},
     };
 
     INSTANTIATE_TEST_CASE_P(smoke_power, PowerLayerTest,
@@ -43,6 +48,7 @@ namespace {
                                     ::testing::Values(InferenceEngine::Layout::ANY),
                                     ::testing::Values(InferenceEngine::Layout::ANY),
                                     ::testing::Values(CommonTestUtils::DEVICE_GNA),
-                                    ::testing::ValuesIn(Power)),
+                                    ::testing::ValuesIn(Power),
+                                    ::testing::Values(additional_config)),
                             PowerLayerTest::getTestCaseName);
 }  // namespace

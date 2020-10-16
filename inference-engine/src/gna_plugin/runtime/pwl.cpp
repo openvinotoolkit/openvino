@@ -30,6 +30,7 @@
 #include "backend/dnn_types.h"
 #include "gna_slope_scale.h"
 #include "round_float_define.hpp"
+#include "frontend/quantization.h"
 
 double first_deriv_tanh(const double x) { return(1.0 - tanh(x) * tanh(x)); }
 double first_deriv_exp(const double x) { return(exp(x)); }
@@ -367,16 +368,19 @@ std::vector<pwl_t> pwl_search(const DnnActivation& activation_type,
             pwl[1].beta = std::numeric_limits<float>::infinity();
 
         } else if (activation_type == kActKaldiLstmClipping) {
+            float min_value = activation_type.args.clamp.min_value;
+            float max_value = activation_type.args.clamp.max_value;
+
             pwl.resize(4);
             pwl[0].alpha = pwl[0].t = pwl[0].beta = -std::numeric_limits<float>::infinity();
             pwl[0].m = 0.0;
-            pwl[0].b = pwl[0].beta = KALDI_LSTM_CLIP_LOWER;
-            pwl[1].alpha = pwl[0].t = pwl[1].beta = KALDI_LSTM_CLIP_LOWER;
+            pwl[0].b = pwl[0].beta = min_value;
+            pwl[1].alpha = pwl[0].t = pwl[1].beta = min_value;
             pwl[1].m = 1.0;
             pwl[1].b = 0.0;
-            pwl[2].alpha = pwl[0].t = pwl[1].beta = KALDI_LSTM_CLIP_UPPER;
+            pwl[2].alpha = pwl[0].t = pwl[1].beta = max_value;
             pwl[2].m = 0.0;
-            pwl[2].b = KALDI_LSTM_CLIP_UPPER;
+            pwl[2].b = max_value;
             pwl[3].alpha = pwl[3].beta = std::numeric_limits<float>::infinity();
 
         } else if (activation_type == kActSign) {
@@ -499,82 +503,96 @@ std::vector<pwl_t> pwl_search(const DnnActivation& activation_type,
 
 void PwlDesignOpt16(const DnnActivation activation_type,
                     std::vector<gna_pwl_segment_t> &ptr_segment,
-                    const float scale_in,
-                    const float scale_out) {
+                    GNAPluginNS::QuantizedLayerParams const* quantParams) {
+    float scale_in = 1.0f;
+    float scale_out = 1.0f;
+    float x_max = INT32_MAX;
+    float x_min = INT32_MIN;
+    if (quantParams) {
+        scale_in = quantParams->_src_quant.GetScale();
+        scale_out = quantParams->_dst_quant.GetScale();
+        if (!quantParams->_src_quant.IsMaxValueSet()) {
+            THROW_GNA_EXCEPTION << "Maximum value is not set";
+        }
+        x_max = quantParams->_src_quant.GetMaxValue();
+        x_min = -x_max;
+    }
+
     std::vector<pwl_t> pwl;
     double err_pct = 0.0;
     switch (activation_type) {
         case kActSigmoid:
-            pwl = pwl_search(activation_type, -SIGMOID_DOMAIN, SIGMOID_DOMAIN, PWL_DESIGN_THRESHOLD, PWL_MAX_ERR_PERCENT, PWL_DESIGN_SAMPLES, err_pct);
-            make_gna_pwl(activation_type, pwl, -SIGMOID_DOMAIN, SIGMOID_DOMAIN, scale_in, scale_out, ptr_segment);
+            x_min = x_min < -SIGMOID_DOMAIN ? -SIGMOID_DOMAIN : x_min;
+            x_max = x_max > SIGMOID_DOMAIN ? SIGMOID_DOMAIN : x_max;
+            pwl = pwl_search(activation_type, x_min, x_max, PWL_DESIGN_THRESHOLD, PWL_MAX_ERR_PERCENT, PWL_DESIGN_SAMPLES, err_pct);
+            make_gna_pwl(activation_type, pwl, x_min, x_max, scale_in, scale_out, ptr_segment);
             break;
         case kActTanh:
-            pwl = pwl_search(activation_type, -TANH_DOMAIN, TANH_DOMAIN, PWL_DESIGN_THRESHOLD, PWL_MAX_ERR_PERCENT, PWL_DESIGN_SAMPLES, err_pct);
-            make_gna_pwl(activation_type, pwl, -TANH_DOMAIN, TANH_DOMAIN, scale_in, scale_out, ptr_segment);
+            x_min = x_min < -TANH_DOMAIN ? -TANH_DOMAIN : x_min;
+            x_max = x_max > TANH_DOMAIN ? TANH_DOMAIN : x_max;
+            pwl = pwl_search(activation_type, x_min, x_max, PWL_DESIGN_THRESHOLD, PWL_MAX_ERR_PERCENT, PWL_DESIGN_SAMPLES, err_pct);
+            make_gna_pwl(activation_type, pwl, x_min, x_max, scale_in, scale_out, ptr_segment);
             break;
         case kActSoftSign:
-            pwl = pwl_search(activation_type, -SOFTSIGN_DOMAIN, SOFTSIGN_DOMAIN, PWL_DESIGN_THRESHOLD, PWL_MAX_ERR_PERCENT, PWL_DESIGN_SAMPLES, err_pct);
-            make_gna_pwl(activation_type, pwl, -SOFTSIGN_DOMAIN, SOFTSIGN_DOMAIN, scale_in, scale_out, ptr_segment);
+            x_min = x_min < -SOFTSIGN_DOMAIN ? -SOFTSIGN_DOMAIN : x_min;
+            x_max = x_max > SOFTSIGN_DOMAIN ? SOFTSIGN_DOMAIN : x_max;
+            pwl = pwl_search(activation_type, x_min, x_max, PWL_DESIGN_THRESHOLD, PWL_MAX_ERR_PERCENT, PWL_DESIGN_SAMPLES, err_pct);
+            make_gna_pwl(activation_type, pwl, x_min, x_max, scale_in, scale_out, ptr_segment);
             break;
         case kActRelu:
-            make_gna_pwl(activation_type, pwl, -1.0, 1.0, scale_in, scale_out, ptr_segment);
+            make_gna_pwl(activation_type, pwl, x_min, x_max, scale_in, scale_out, ptr_segment);
             break;
         case kActLeakyRelu:
-            make_gna_pwl(activation_type, pwl, -1.0, 1.0, scale_in, scale_out, ptr_segment);
+            make_gna_pwl(activation_type, pwl, x_min, x_max, scale_in, scale_out, ptr_segment);
             break;
         case kActIdentity:
-            make_gna_pwl(activation_type, pwl, -1.0, 1.0, scale_in, scale_out, ptr_segment);
+            make_gna_pwl(activation_type, pwl, x_min, x_max, scale_in, scale_out, ptr_segment);
             break;
         case kActKaldiLstmClipping:
-            make_gna_pwl(activation_type, pwl, KALDI_LSTM_CLIP_LOWER, KALDI_LSTM_CLIP_UPPER, scale_in, scale_out, ptr_segment);
+            make_gna_pwl(activation_type, pwl, activation_type.args.clamp.min_value, activation_type.args.clamp.max_value,
+                scale_in, scale_out, ptr_segment);
             break;
         case kActLog: {
             double x_min = (1 + ~XBASEMASK) / scale_in;
-            double x_max = ((INT32_MAX / scale_in) < LOG_DOMAIN) ? (INT32_MAX / scale_in) : LOG_DOMAIN;
             pwl = pwl_search(activation_type, x_min, x_max, PWL_DESIGN_THRESHOLD, 0.066*PWL_MAX_ERR_PERCENT, PWL_DESIGN_SAMPLES, err_pct);
             make_gna_pwl(activation_type, pwl, x_min, x_max, scale_in, scale_out, ptr_segment);
             break;
         }
         case kActNegLog: {
             double x_min = (1 + ~XBASEMASK) / scale_in;
-            double x_max = ((INT32_MAX / scale_in) < LOG_DOMAIN) ? (INT32_MAX / scale_in) : LOG_DOMAIN;
             pwl = pwl_search(activation_type, x_min, x_max, PWL_DESIGN_THRESHOLD, 0.066*PWL_MAX_ERR_PERCENT, PWL_DESIGN_SAMPLES, err_pct);
             make_gna_pwl(activation_type, pwl, x_min, x_max, scale_in, scale_out, ptr_segment);
             break;
         }
         case kActNegHalfLog: {
             double x_min = (1 + ~XBASEMASK) / scale_in;
-            double x_max = ((INT32_MAX / scale_in) < LOG_DOMAIN) ? (INT32_MAX / scale_in) : LOG_DOMAIN;
             pwl = pwl_search(activation_type, x_min, x_max, PWL_DESIGN_THRESHOLD, 0.066*PWL_MAX_ERR_PERCENT, PWL_DESIGN_SAMPLES, err_pct);
             make_gna_pwl(activation_type, pwl, x_min, x_max, scale_in, scale_out, ptr_segment);
             break;
         }
         case kActExp: {
-            double x_min = -log(scale_out);
-            double x_max = x_min + log(INT16_MAX);
-            pwl = pwl_search(activation_type, x_min, x_max, PWL_DESIGN_THRESHOLD, 0.5*PWL_MAX_ERR_PERCENT, PWL_DESIGN_SAMPLES, err_pct);
+            pwl = pwl_search(activation_type, x_min, x_max, PWL_DESIGN_THRESHOLD, 0.1*PWL_MAX_ERR_PERCENT, PWL_DESIGN_SAMPLES, err_pct);
             make_gna_pwl(activation_type, pwl, x_min, x_max, scale_in, scale_out, ptr_segment);
             break;
         }
         case kActSign:
-            make_gna_pwl(activation_type, pwl, -1.0, 1.0, scale_in, scale_out, ptr_segment);
+            make_gna_pwl(activation_type, pwl, x_min, x_max, scale_in, scale_out, ptr_segment);
             break;
         case kActAbs:
-            make_gna_pwl(activation_type, pwl, -1.0, 1.0, scale_in, scale_out, ptr_segment);
+            make_gna_pwl(activation_type, pwl, x_min, x_max, scale_in, scale_out, ptr_segment);
             break;
         case kActPow: {
+            const float MAX_INPUT_VALUE = MAX_VAL_2B_FEAT;
+
             auto fp32eq = [](float p1, float p2) -> bool {
                 return (std::abs(p1 - p2) <= 0.00001f * std::min(std::abs(p1), std::abs(p2)));
             };
 
-            auto input_min_value = static_cast<double>(std::numeric_limits<int32_t>::min());
-            auto input_max_value = static_cast<double>(std::numeric_limits<int32_t>::max());
+            auto max_out_value = MAX_INPUT_VALUE / scale_out;
+            auto input_max_value = activation_type.args.pow.exponent != 0.0f?
+                pow(max_out_value, 1 / activation_type.args.pow.exponent): max_out_value;
 
-            auto x_min = fp32eq(fmod(activation_type.args.pow.exponent, 1.0), 0.0f) ? input_min_value / scale_in: 0;
-            x_min = std::max(x_min, -POW_DOMAIN);
-
-            auto x_max = input_max_value / scale_in;
-            x_max = std::min(x_max, POW_DOMAIN);
+            x_min = fp32eq(fmod(activation_type.args.pow.exponent, 1.0f), 0.0f) ? x_min: 0.0f;
 
             if (activation_type.args.pow.exponent != 0.0f && activation_type.args.pow.exponent != 1.0f) {
                 pwl = pwl_search(activation_type, x_min, x_max, PWL_DESIGN_THRESHOLD, 0.015 * PWL_MAX_ERR_PERCENT, PWL_DESIGN_SAMPLES, err_pct);
@@ -591,16 +609,31 @@ void PwlDesignOpt16(const DnnActivation activation_type,
 void PwlDesign16(const DnnActivation activation_type,
                  gna_pwl_segment_t *ptr_segment,
                  const uint32_t num_segments,
-                 const float scale_in,
-                 const float scale_out) {
+                 GNAPluginNS::QuantizedLayerParams const* quantParams) {
+    float scale_in = 1.0f;
+    float scale_out = 1.0f;
+    float input_max_value = INT32_MAX;
+    float input_min_value = INT32_MIN;
+    if (quantParams) {
+        scale_in = quantParams->_src_quant.GetScale();
+        scale_out = quantParams->_dst_quant.GetScale();
+        if (!quantParams->_src_quant.IsMaxValueSet()) {
+            THROW_GNA_EXCEPTION << "Maximum value is not set";
+        }
+        input_max_value = quantParams->_src_quant.GetMaxValue();
+        input_min_value = -input_min_value;
+    }
+
     switch (activation_type) {
         case kActSigmoid:
            {
                 gnalog() <<  "=========================== Sigmoid Segments===========================\n";
+                auto x_max = input_max_value > SIGMOID_DOMAIN ? SIGMOID_DOMAIN : input_max_value;
+
                 uint32_t num_segment_size = 0;
                 int32_t offset = 0;
                 ptr_segment[0].xBase = static_cast<int32_t>(INT32_MIN & XBASEMASK);  // zero out the 2 lsb
-                num_segment_size = static_cast<int32_t>(SIGMOID_DOMAIN * scale_in / ((num_segments-2) / 2) + 0.5);
+                num_segment_size = static_cast<int32_t>(x_max * scale_in / ((num_segments-2) / 2) + 0.5);
                 offset = -static_cast<int32_t>(num_segment_size * (num_segments-2) / 2);
                 for (uint32_t i = 1; i < num_segments; i++) {
                     ptr_segment[i].xBase = static_cast<int32_t>(offset & XBASEMASK);  // zero out the 2 lsb
@@ -644,10 +677,12 @@ void PwlDesign16(const DnnActivation activation_type,
         case kActTanh:
             {
                 gnalog() <<  "=========================== Tanh Segments===========================\n";
+                auto x_max = input_max_value > TANH_DOMAIN ? TANH_DOMAIN : input_max_value;
+
                 uint32_t num_segment_size = 0;
                 int32_t offset = 0;
                 ptr_segment[0].xBase = static_cast<int32_t>(INT32_MIN & XBASEMASK);  // zero out the 2 lsb
-                num_segment_size = static_cast<int32_t>(TANH_DOMAIN * scale_in / ((num_segments-2) / 2) + 0.5);
+                num_segment_size = static_cast<int32_t>(x_max * scale_in / ((num_segments-2) / 2) + 0.5);
                 offset = -static_cast<int32_t>(num_segment_size * (num_segments-2) / 2);
                 for (uint32_t i = 1; i < num_segments; i++) {
                     ptr_segment[i].xBase = static_cast<int32_t>(offset & XBASEMASK);  // zero out the 2 lsb
@@ -691,10 +726,12 @@ void PwlDesign16(const DnnActivation activation_type,
         case kActSoftSign:
             {
                 gnalog() << "=========================== SoftSign Segments===========================\n";
+                auto x_max = input_max_value > SOFTSIGN_DOMAIN ? SOFTSIGN_DOMAIN : input_max_value;
+
                 uint32_t num_segment_size = 0;
                 int32_t offset = 0;
                 ptr_segment[0].xBase = static_cast<int32_t>(INT32_MIN & XBASEMASK);  // zero out the 2 lsb
-                num_segment_size = static_cast<int32_t>(SOFTSIGN_DOMAIN * scale_in / ((num_segments - 2) / 2) + 0.5);
+                num_segment_size = static_cast<int32_t>(x_max * scale_in / ((num_segments - 2) / 2) + 0.5);
                 offset = -static_cast<int32_t>(num_segment_size * (num_segments - 2) / 2);
                 for (uint32_t i = 1; i < num_segments; i++) {
                     ptr_segment[i].xBase = static_cast<int32_t>(offset & XBASEMASK);  // zero out the 2 lsb
@@ -802,13 +839,8 @@ void PwlDesign16(const DnnActivation activation_type,
                                                             activation_type.args.pow.scale,
                                                             activation_type.args.pow.offset };
 
-            auto input_min_value = static_cast<double>(std::numeric_limits<int32_t>::min());
-            auto input_max_value = static_cast<double>(std::numeric_limits<int32_t>::max());
             double x_min = fp32eq(fmod(activation_type.args.pow.exponent, 1.0), 0.0f)? input_min_value / scale_in: 0.0;
-            x_min = std::max(x_min, -POW_DOMAIN);
-
             double x_max = input_max_value / scale_in;
-            x_max = std::min(x_max, POW_DOMAIN);
 
             double pow_domain = x_max - x_min;
             ptr_segment[0].xBase = static_cast<int32_t>(INT32_MIN & XBASEMASK);  // zero out the 2 lsb
@@ -979,20 +1011,25 @@ void PwlApply32(intel_dnn_component_t *component,
                 }
             }
             break;
-        case kActKaldiLstmClipping:
+        case kActKaldiLstmClipping: {
+            float min_value = transform->func_id.args.clamp.min_value;
+            float max_value = transform->func_id.args.clamp.max_value;
             for (uint32_t i = num_row_start; i <= num_row_end; i++) {
                 for (uint32_t j = num_col_start; j <= num_col_end; j++) {
                     float val = ptr_in[i * num_columns + j];
-                    if (val > KALDI_LSTM_CLIP_UPPER) {
-                        ptr_out[i * num_columns + j] = KALDI_LSTM_CLIP_UPPER;
-                    } else if (val < KALDI_LSTM_CLIP_LOWER) {
-                        ptr_out[i * num_columns + j] = KALDI_LSTM_CLIP_LOWER;
-                    } else {
+                    if (val > max_value) {
+                        ptr_out[i * num_columns + j] = max_value;
+                    }
+                    else if (val < min_value) {
+                        ptr_out[i * num_columns + j] = min_value;
+                    }
+                    else {
                         ptr_out[i * num_columns + j] = val;
                     }
                 }
             }
             break;
+        }
         case kActExp:
             for (uint32_t i = num_row_start; i <= num_row_end; i++) {
                 for (uint32_t j = num_col_start; j <= num_col_end; j++) {

@@ -164,7 +164,6 @@ class ImportNetworkTest : public testing::WithParamInterface<exportImportNetwork
     const std::vector<std::map<std::string, std::string>> exportConfigs = {
         {
             {"GNA_DEVICE_MODE", "GNA_SW_EXACT"},
-            {"GNA_SCALE_FACTOR_0", "327.67"}
         }
     };
 

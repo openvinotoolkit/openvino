@@ -9,6 +9,7 @@
 
 #include "backend/dnn_types.h"
 #include "backend/gna_types.h"
+#include "frontend/quantized_layer_params.hpp"
 
 #define SIGMOID_NUM_SEGMENTS 65
 #define SIGMOID_DOMAIN 10.0f  // portion of input to be approximated (-10,10)
@@ -46,6 +47,8 @@ typedef struct {
 } pwl_t;
 
 double first_deriv_tanh(const double x);
+double neglog(const double x);
+double neghalflog(const double x);
 double sigmoid(const double x);
 double first_deriv_sigmoid(const double x);
 double softsign(const double x);
@@ -98,9 +101,7 @@ void PwlApply32(intel_dnn_component_t *component,
 void PwlDesign16(const DnnActivation activation_type,
                  gna_pwl_segment_t *ptr_segment,
                  const uint32_t num_segments,
-                 const float scale_in,
-                 const float scale_out);
+                 GNAPluginNS::QuantizedLayerParams const* quantParams);
 void PwlDesignOpt16(const DnnActivation activation_type,
                 std::vector<gna_pwl_segment_t> &ptr_segment,
-                const float scale_in,
-                const float scale_out);
+                GNAPluginNS::QuantizedLayerParams const* quantParams);

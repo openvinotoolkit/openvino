@@ -51,6 +51,10 @@ struct DnnActivation {
             float output_high;
         } fakeQuantize;
         struct {
+            float min_value;
+            float max_value;
+        } clamp;
+        struct {
             float reserved[5];
         };
     } args;

@@ -32,7 +32,7 @@ std::vector<std::string> disabledTestPatterns() {
         // TODO: FIX BUG 31661
         ".*Behavior.*CallbackThrowException.*",
         // TODO: FIX BUG 32210
-        R"(.*(Sigmoid|Tanh|Exp|Log).*)",
+        R"(.*(Activation_Basic).*(Sigmoid|Tanh|Exp|Log).*)",
         // TODO: Issue 32542
         R"(.*(EltwiseLayerTest).*eltwiseOpType=(Sum|Sub).*opType=SCALAR.*)",
         R"(.*(EltwiseLayerTest).*eltwiseOpType=Prod.*secondaryInputType=PARAMETER.*opType=SCALAR.*)",
@@ -42,5 +42,7 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*IEClassHeteroExecutableNetworkGetMetricTest_TARGET_FALLBACK.*)",
         // TODO: Issue 39358
         R"(.*unaligned.*MultipleConcatTest.*)",
+        // TODO: Issue 40309
+        R"(.*ConcatMultiInput.CompareWithRefConstOnly.*IS=\(1.16\)\(1.32\).*)",
     };
 }

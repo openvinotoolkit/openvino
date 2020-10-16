@@ -432,7 +432,7 @@ void GNAPlugin::LoadNetwork(ICNNNetwork & _network) {
             return;
         }
         printed_properties.emplace_back(
-            "scale factor", std::to_string(quantized->_dst_quant.scale));
+            "scale factor", std::to_string(quantized->_dst_quant.GetScale()));
     });
 #endif
 
@@ -526,7 +526,7 @@ void GNAPlugin::LoadNetwork(ICNNNetwork & _network) {
         desc.ptrs.resize(gnaFlags->gna_lib_async_threads_num);
         desc.orientation = component.orientation_out;
         desc.num_bytes_per_element = component.num_bytes_per_output;
-        desc.scale_factor = quantized != nullptr ? quantized->_dst_quant.scale : 1.0f;
+        desc.scale_factor = quantized != nullptr ? quantized->_dst_quant.GetScale() : 1.0f;
         // TODO: this need to be fixed
         desc.num_elements = component.num_rows_out;
 
@@ -585,7 +585,7 @@ void GNAPlugin::LoadNetwork(ICNNNetwork & _network) {
                     // TODO: what is orientation for concat
                     desc.orientation = kDnnInterleavedOrientation;
                     desc.num_bytes_per_element = layer->outData.front()->getPrecision().size();
-                    desc.scale_factor = quantized != nullptr ? quantized->_dst_quant.scale : 1.0f;
+                    desc.scale_factor = quantized != nullptr ? quantized->_dst_quant.GetScale() : 1.0f;
                     desc.num_elements = concatConnection->second.reserved_size / desc.num_bytes_per_element;
 
                     // binding ptr for first infer request - then others will be setup during relocation
