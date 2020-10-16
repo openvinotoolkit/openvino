@@ -132,7 +132,8 @@ void FrontEnd::parseExpGenerateProposals(
 
     stage->attrs().set("params", params);
 
-    //This structure is required for sizeof to work
+    //This structure is needed to compute sizeProposalBuf.
+    //Since its outside the scope of the file, we write structure here
     typedef struct {
         int32_t idx;
         fp16_t x0;
@@ -142,16 +143,15 @@ void FrontEnd::parseExpGenerateProposals(
         fp16_t score;
     } t_ExpGenerateProposalsProposal;
 
-    //Counting memory for tmpBuffer
     const int ALIGN_VALUE = 64;
-    const int numProposals = sizeof(t_ExpGenerateProposalsProposal) *
+    const int sizeProposalsBuf = sizeof(t_ExpGenerateProposalsProposal) *
                              inputScores->desc().dim(Dim::H) *
                              inputScores->desc().dim(Dim::W) *
                              inputScores->desc().dim(Dim::C) + ALIGN_VALUE;
-    const int sizeAuxBuff = sizeof(int8_t) * params.pre_nms_topn + ALIGN_VALUE;
+    const int sizeAuxBuf = sizeof(int8_t) * params.pre_nms_topn + ALIGN_VALUE;
     const int sizeRoiIndicesBuf = sizeof(int32_t) * params.post_nms_topn + ALIGN_VALUE;
 
-    int buffer_size = 2 * numProposals + sizeAuxBuff + sizeRoiIndicesBuf;
+    int buffer_size = 2 * sizeProposalsBuf + sizeAuxBuf + sizeRoiIndicesBuf;
 
     model->addTempBuffer(stage, buffer_size);
 }
