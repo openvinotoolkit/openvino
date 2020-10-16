@@ -26,3 +26,4 @@ class SwishExtractor(FrontExtractorOp):
     def extract(cls, node: Node):
         Swish.update_node_stat(node, {})
         return cls.enabled
+

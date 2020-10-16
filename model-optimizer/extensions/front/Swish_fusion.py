@@ -24,7 +24,7 @@ class SwishWithSigmoidWithoutBeta(FrontReplacementSubgraph):
     """
     The transformation looks for the pattern with Sigmoid defining the Swish function: Swish(x) = x * Sigmoid(x)
     """
-    enabled = False
+    enabled = True
 
     def pattern(self):
         return dict(
@@ -48,11 +48,9 @@ class SwishWithSigmoidWithoutBeta(FrontReplacementSubgraph):
         if mul.in_port(mul_input_port_idx).get_source() != sigmoid.in_port(0).get_source():
             return
 
-        swish = Swish(graph, {}).create_node()
+        swish = Swish(graph, dict(name=mul.name)).create_node()
         swish.in_port(0).connect(sigmoid.in_port(0).get_source())
         mul.out_port(0).get_connection().set_source(swish.out_port(0))
-
-        rename_nodes([(mul, mul_name + '/TBR'), (swish, mul_name)])
 
 
 class SwishWithSigmoidWithBeta(FrontReplacementSubgraph):
