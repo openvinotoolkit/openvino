@@ -21,10 +21,8 @@
 NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertLSTMCellMatcher, "ConvertLSTMCellMatcher", 0);
 
 ngraph::pass::ConvertLSTMCellMatcher::ConvertLSTMCellMatcher() {
-    auto is_supported_lstm_cell = [](const std::shared_ptr<Node>& n) {
-        return pattern::has_class<ngraph::opset1::LSTMCell>()(n) || pattern::has_class<ngraph::opset4::LSTMCell>()(n);
-    };
-    auto any_lstm = std::make_shared<pattern::op::Label>(element::f32, Shape{}, is_supported_lstm_cell);
+    auto lstm = pattern::wrap_type<opset1::LSTMCell, opset4::LSTMCell>();
+
     ngraph::matcher_pass_callback callback = [](pattern::Matcher& m) {
         auto lstm_cell = std::dynamic_pointer_cast<ngraph::op::util::RNNCellBase>(m.get_match_root());
         if (!lstm_cell) {
@@ -58,7 +56,7 @@ ngraph::pass::ConvertLSTMCellMatcher::ConvertLSTMCellMatcher() {
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(any_lstm, "ConvertLSTMCellToLSTMCellIE");
+    auto m = std::make_shared<ngraph::pattern::Matcher>(lstm, "ConvertLSTMCellToLSTMCellIE");
     this->register_matcher(m, callback);
 }
 

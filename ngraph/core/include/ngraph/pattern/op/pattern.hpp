@@ -19,6 +19,7 @@
 #include <functional>
 
 #include "ngraph/node.hpp"
+#include "ngraph/op/constant.hpp"
 
 namespace ngraph
 {
@@ -30,7 +31,6 @@ namespace ngraph
         }
 
         class Matcher;
-        class MatchState;
 
         using RPatternValueMap = std::map<std::shared_ptr<Node>, OutputVector>;
         using PatternValueMap = std::map<std::shared_ptr<Node>, Output<Node>>;
@@ -40,35 +40,6 @@ namespace ngraph
 
         PatternMap as_pattern_map(const PatternValueMap& pattern_value_map);
         PatternValueMap as_pattern_value_map(const PatternMap& pattern_map);
-
-        template <typename T>
-        std::function<bool(std::shared_ptr<Node>)> has_class()
-        {
-            auto pred = [](std::shared_ptr<Node> node) -> bool { return is_type<T>(node); };
-
-            return pred;
-        }
-
-        NGRAPH_API
-        std::function<bool(Output<Node>)> consumers_count(size_t n);
-
-        NGRAPH_API
-        std::function<bool(Output<Node>)> has_static_dim(size_t pos);
-
-        NGRAPH_API
-        std::function<bool(Output<Node>)> has_static_dims(const std::vector<size_t>& dims);
-
-        NGRAPH_API
-        std::function<bool(Output<Node>)> has_static_shape();
-
-        NGRAPH_API
-        std::function<bool(Output<Node>)> has_static_rank();
-
-        NGRAPH_API
-        std::function<bool(Output<Node>)> type_matches(const element::Type& type);
-
-        NGRAPH_API
-        std::function<bool(Output<Node>)> type_matches_any(const std::vector<element::Type>& types);
 
         namespace op
         {
@@ -108,6 +79,73 @@ namespace ngraph
 
             protected:
                 ValuePredicate m_predicate;
+            };
+        }
+
+        template <typename T>
+        std::function<bool(std::shared_ptr<Node>)> has_class()
+        {
+            auto pred = [](std::shared_ptr<Node> node) -> bool { return is_type<T>(node); };
+
+            return pred;
+        }
+
+        NGRAPH_API
+        op::ValuePredicate consumers_count(size_t n);
+
+        NGRAPH_API
+        op::ValuePredicate has_static_dim(size_t pos);
+
+        NGRAPH_API
+        op::ValuePredicate has_static_dims(const std::vector<size_t>& dims);
+
+        NGRAPH_API
+        op::ValuePredicate has_static_shape();
+
+        NGRAPH_API
+        op::ValuePredicate rank_is_equal_to(size_t len);
+
+        NGRAPH_API
+        op::ValuePredicate dim_is_equal_to(size_t pos, size_t len);
+
+        NGRAPH_API
+        op::ValuePredicate type_matches(const element::Type& type);
+
+        NGRAPH_API
+        op::ValuePredicate type_matches_any(const std::vector<element::Type>& types);
+
+        // TODO: implement
+        template <typename T>
+        op::ValuePredicate value_is_equal_to(const std::vector<T>& ref_value)
+        {
+            return [=](Output<Node> output) -> bool { return true; };
+        }
+
+        template <typename... Args>
+        op::ValuePredicate all_of(Args... args)
+        {
+            std::array<op::ValuePredicate, sizeof...(args)> predicates{args...};
+            return [=](Output<Node> output) -> bool {
+                for (const auto& pred : predicates)
+                {
+                    if (!pred(output))
+                        return false;
+                }
+                return true;
+            };
+        }
+
+        template <typename... Args>
+        op::ValuePredicate any_of(Args... args)
+        {
+            std::array<op::ValuePredicate, sizeof...(args)> predicates{args...};
+            return [=](Output<Node> output) -> bool {
+                for (const auto& pred : predicates)
+                {
+                    if (pred(output))
+                        return true;
+                }
+                return false;
             };
         }
     }

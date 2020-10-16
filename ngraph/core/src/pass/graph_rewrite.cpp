@@ -109,12 +109,12 @@ bool pass::GraphRewrite::run_on_function(shared_ptr<Function> f)
         // it's type
         // and use it in unordered_map as key for fast MatcherPass search. Otherwise type is unknown
         // and default algorithm is used.
-        NodeTypeInfo root_type_info = root->get_type_info();
         if (auto p = dynamic_pointer_cast<pattern::op::Pattern>(root))
         {
             if (auto any_type = dynamic_pointer_cast<pattern::op::WrapType>(p))
             {
-                root_type_info = any_type->get_wrapped_type();
+                for (const auto & root_type_info : any_type->get_wrapped_types())
+                    type_to_matcher[root_type_info].push_back(matcher_index);
             }
             else
             {
@@ -122,7 +122,10 @@ bool pass::GraphRewrite::run_on_function(shared_ptr<Function> f)
                 break;
             }
         }
-        type_to_matcher[root_type_info].push_back(matcher_index);
+        else
+        {
+            type_to_matcher[root->get_type_info()].push_back(matcher_index);
+        }
 
         // TODO: traverse parents for root_type_info in order to register complete list of matchers
         // including ones triggered by parent type info.
