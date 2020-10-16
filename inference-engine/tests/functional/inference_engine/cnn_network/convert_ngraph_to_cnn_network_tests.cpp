@@ -80,7 +80,6 @@ TEST(ConvertFunctionToCNNNetworkTests, OpsShouldBeConvertedToIERepresentation) {
     ngraph::NodeVector should_converted_to_ie = {
             std::make_shared<ngraph::opset4::Broadcast>(),
             std::make_shared<ngraph::opset4::Convolution>(),
-            std::make_shared<ngraph::opset4::ConvolutionBackpropData>(),
             std::make_shared<ngraph::opset4::Gather>(),
             std::make_shared<ngraph::opset4::GatherTree>(),
             std::make_shared<ngraph::opset4::GroupConvolution>(),
@@ -103,7 +102,6 @@ TEST(ConvertFunctionToCNNNetworkTests, OpsShouldBeConvertedToIERepresentation) {
             std::make_shared<ngraph::opset4::Selu>(),
             std::make_shared<ngraph::opset4::Swish>(),
             std::make_shared<ngraph::opset4::Tile>(),
-            std::make_shared<ngraph::opset4::TopK>(),
     };
 
     // create simple ngraph function Parameter -> Result
