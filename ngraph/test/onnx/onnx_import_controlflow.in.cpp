@@ -33,13 +33,19 @@ static std::string s_manifest = "${MANIFEST}";
 
 using TestEngine = test::ENGINE_CLASS_NAME(${BACKEND_NAME});
 
-// SHAPE INFERENCE AND PASSING PARAMS TESTS
+// ~~~~~~~~TERMINATION CONDITION/TRIP COUNT COMBINATIONS TESTS:~~~~~~~~
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_controlflow_loop_2d_add_check_model)
+// input (trip_count, "") // Note this is analogous to a for loop
+//     int trip_count = ...
+//     for (int i=0; i < trip_count; ++i) {
+//       cond = ...; // ignored
+//     }
+NGRAPH_TEST(${BACKEND_NAME}, onnx_controlflow_loop_2d_add)
 {
     const auto function = onnx_import::import_onnx_model(
         file_util::path_join(SERIALIZED_ZOO, "onnx/loop/loop_2d_add.prototxt"));
 
+    // Shape inference tests
     const auto& parameters = function->get_parameters();
     EXPECT_EQ(parameters.size(), 1);
     EXPECT_EQ(parameters.at(0)->get_element_type(), ngraph::element::f32);
@@ -54,33 +60,93 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_controlflow_loop_2d_add_check_model)
     EXPECT_EQ(function->get_output_element_type(1), ngraph::element::f32);
     EXPECT_TRUE(function->get_output_partial_shape(1).is_static());
     EXPECT_EQ(function->get_output_shape(1), (Shape{3, 2}));
+
+    auto test_case = test::TestCase<TestEngine>(function);
+    // a_init
+    test_case.add_input<float>({0.f, 0.f});
+
+    test_case.add_expected_output<float>(Shape{1, 2}, {3.f, 3.f});
+    test_case.add_expected_output<float>(Shape{3, 2}, {1.f, 1.f, 2.f, 2.f, 3.f, 3.f});
+    test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_controlflow_loop_scalars_check_model)
-{
-    const auto function = onnx_import::import_onnx_model(
-        file_util::path_join(SERIALIZED_ZOO, "onnx/loop/loop_scalars_add.prototxt"));
-
-    const auto& parameters = function->get_parameters();
-    EXPECT_EQ(parameters.size(), 1);
-    EXPECT_EQ(parameters.at(0)->get_element_type(), ngraph::element::f32);
-    EXPECT_TRUE(parameters.at(0)->get_partial_shape().is_static());
-    EXPECT_EQ(parameters.at(0)->get_partial_shape().to_shape(), (Shape{}));
-
-    const auto& results = function->get_results();
-    EXPECT_EQ(results.size(), 2);
-    EXPECT_EQ(function->get_output_element_type(0), ngraph::element::f32);
-    EXPECT_TRUE(function->get_output_partial_shape(0).is_static());
-    EXPECT_EQ(function->get_output_shape(0), (Shape{}));
-    EXPECT_EQ(function->get_output_element_type(1), ngraph::element::f32);
-    EXPECT_TRUE(function->get_output_partial_shape(1).is_static());
-    EXPECT_EQ(function->get_output_shape(1), (Shape{3}));
-}
-
-NGRAPH_TEST(${BACKEND_NAME}, onnx_controlflow_loop_add_initializer_from_parent_scope)
+// input ("", cond) // Note this is analogous to a while loop
+//     bool cond = ...;
+//     for (int i=0; cond; ++i) {
+//       cond = ...;
+//     }
+NGRAPH_TEST(${BACKEND_NAME}, onnx_controlflow_loop_2d_no_identity_termination_cond)
 {
     const auto function = onnx_import::import_onnx_model(file_util::path_join(
-        SERIALIZED_ZOO, "onnx/loop/loop_2d_add_initializer_from_parent_scope.prototxt"));
+        SERIALIZED_ZOO, "onnx/loop/loop_2d_add_no_identity_termination_cond.prototxt"));
+
+    auto test_case = test::TestCase<TestEngine>(function);
+    // termination condition
+    test_case.add_input<bool>({true});
+    // a_init
+    test_case.add_input<float>({0.f, 0.f});
+
+    test_case.add_expected_output<float>(Shape{1, 2}, {5.f, 5.f});
+    test_case.add_expected_output<float>(Shape{5, 2},
+                                         {1.f, 1.f, 2.f, 2.f, 3.f, 3.f, 4.f, 4.f, 5.f, 5.f});
+    test_case.run();
+}
+
+//  input ("", 1) // Note this is analogous to a do-while loop
+//      bool cond = true
+//      for (int i=0; cond; ++i) {
+//        cond = ...;
+//      }
+NGRAPH_TEST(${BACKEND_NAME}, onnx_controlflow_loop_2d_const_no_identity_termination_cond)
+{
+    const auto function = onnx_import::import_onnx_model(file_util::path_join(
+        SERIALIZED_ZOO, "onnx/loop/loop_2d_add_const_no_identity_termination_cond.prototxt"));
+
+    auto test_case = test::TestCase<TestEngine>(function);
+    // termination condition
+    test_case.add_input<bool>({true});
+    // a_init
+    test_case.add_input<float>({0.f, 0.f});
+
+    test_case.add_expected_output<float>(Shape{1, 2}, {3.f, 3.f});
+    test_case.add_expected_output<float>(Shape{3, 1, 2},
+                                         {1.f, 1.f, 2.f, 2.f, 3.f, 3.f}); // TODO CONFIRM
+    test_case.run();
+}
+
+//  input (trip_count, cond)
+//      int trip_count = ...;
+//      bool cond = ...;
+//      for (int i=0; i < trip_count && cond; ++i) {
+//        cond = ...;
+//      }
+NGRAPH_TEST(${BACKEND_NAME}, onnx_controlflow_loop_2d_both_cond_and_trip_count_as_inputs)
+{
+    const auto function = onnx_import::import_onnx_model(file_util::path_join(
+        SERIALIZED_ZOO, "onnx/loop/loop_2d_add_cond_and_trip_count_as_inputs.prototxt"));
+
+    auto test_case = test::TestCase<TestEngine>(function);
+    // termination condition
+    test_case.add_input<bool>({true});
+    // trip count
+    test_case.add_input<int64_t>({10});
+    // a_init
+    test_case.add_input<float>({0.f, 0.f});
+
+    test_case.add_expected_output<float>(Shape{1, 2}, {5.f, 5.f});
+    test_case.add_expected_output<float>(Shape{5, 2},
+                                         {1.f, 1.f, 2.f, 2.f, 3.f, 3.f, 4.f, 4.f, 5.f, 5.f});
+    test_case.run();
+}
+
+// input ("", ""):
+//       for (int i=0; ; ++i) {
+//         cond = ... // Note this value is ignored, but is required in the body
+//       }
+NGRAPH_TEST(${BACKEND_NAME}, onnx_controlflow_loop_2d_trip_count_and_cond_skipped)
+{
+    const auto function = onnx_import::import_onnx_model(file_util::path_join(
+        SERIALIZED_ZOO, "onnx/loop/loop_2d_add_trip_count_and_cond_skipped.prototxt"));
 
     const auto& results = function->get_results();
     EXPECT_EQ(results.size(), 2);
@@ -88,8 +154,28 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_controlflow_loop_add_initializer_from_parent_s
     EXPECT_TRUE(function->get_output_partial_shape(0).is_static());
     EXPECT_EQ(function->get_output_shape(0), (Shape{1, 2}));
     EXPECT_EQ(function->get_output_element_type(1), ngraph::element::f32);
-    EXPECT_TRUE(function->get_output_partial_shape(1).is_static());
-    EXPECT_EQ(function->get_output_shape(1), (Shape{3, 2}));
+    // scan_outputs shape is not know if trip_count and termination condition is not determined
+    EXPECT_TRUE(function->get_output_partial_shape(1).rank().is_dynamic());
+
+    // EXECUTION DOES NOT WORK FOR INFINITIVE LOOP
+    // TODO: SHOULD WE DETECT SUCH PATTERN IN ONNX IMPORTER?
+}
+
+// ~~~~~~~~SCOPES VISIBILITY TESTS:~~~~~~~~
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_controlflow_loop_add_initializer_from_parent_scope)
+{
+    const auto function = onnx_import::import_onnx_model(file_util::path_join(
+        SERIALIZED_ZOO, "onnx/loop/loop_2d_add_initializer_from_parent_scope.prototxt"));
+
+    auto test_case = test::TestCase<TestEngine>(function);
+
+    // a_init
+    test_case.add_input<float>({0.f, 0.f});
+
+    test_case.add_expected_output<float>(Shape{1, 2}, {6.f, 6.f});
+    test_case.add_expected_output<float>(Shape{3, 2}, {2.f, 2.f, 4.f, 4.f, 6.f, 6.f});
+    test_case.run();
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_controlflow_loop_add_input_from_parent_scope)
@@ -97,6 +183,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_controlflow_loop_add_input_from_parent_scope)
     const auto function = onnx_import::import_onnx_model(file_util::path_join(
         SERIALIZED_ZOO, "onnx/loop/loop_2d_add_input_from_parent_scope.prototxt"));
 
+    // TODO CHANGE SHAPE INFERENCE TEST TO EXECUTION
     const auto& results = function->get_results();
     EXPECT_EQ(results.size(), 2);
     EXPECT_EQ(function->get_output_element_type(0), ngraph::element::f32);
@@ -104,7 +191,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_controlflow_loop_add_input_from_parent_scope)
     EXPECT_EQ(function->get_output_shape(0), (Shape{1, 2}));
     EXPECT_EQ(function->get_output_element_type(1), ngraph::element::f32);
     EXPECT_TRUE(function->get_output_partial_shape(1).is_static());
-    EXPECT_EQ(function->get_output_shape(1), (Shape{3, 2}));
+    EXPECT_EQ(function->get_output_shape(1), (Shape{3, 1, 2})); // TODO CONFIRM
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_controlflow_loop_add_node_from_parent_scope)
@@ -112,6 +199,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_controlflow_loop_add_node_from_parent_scope)
     const auto function = onnx_import::import_onnx_model(file_util::path_join(
         SERIALIZED_ZOO, "onnx/loop/loop_2d_add_node_from_parent_scope.prototxt"));
 
+    // TODO CHANGE SHAPE INFERENCE TEST TO EXECUTION
     const auto& results = function->get_results();
     EXPECT_EQ(results.size(), 3);
     EXPECT_EQ(function->get_output_element_type(0), ngraph::element::f32);
@@ -147,6 +235,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_controlflow_loop_add_value_the_same_node_from_
     const auto function = onnx_import::import_onnx_model(
         file_util::path_join(SERIALIZED_ZOO, "onnx/loop/loop_2d_add_the_same_name.prototxt"));
 
+    // TODO CHANGE SHAPE INFERENCE TEST TO EXECUTION
     const auto& results = function->get_results();
     EXPECT_EQ(results.size(), 2);
     EXPECT_EQ(function->get_output_element_type(0), ngraph::element::f32);
@@ -157,11 +246,37 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_controlflow_loop_add_value_the_same_node_from_
     EXPECT_EQ(function->get_output_shape(1), (Shape{3, 2}));
 }
 
+// ~~~~~~~~STATIC/DYNAMIC/CONSTANT INPUTS TESTS:~~~~~~~~
+
+/*
+NGRAPH_TEST(${BACKEND_NAME}, onnx_controlflow_loop_scalars)
+{
+    const auto function = onnx_import::import_onnx_model(
+        file_util::path_join(SERIALIZED_ZOO, "onnx/loop/loop_scalars_add.prototxt"));
+
+    // TODO CHANGE SHAPE INFERENCE TEST TO EXECUTION
+    const auto& parameters = function->get_parameters();
+    EXPECT_EQ(parameters.size(), 1);
+    EXPECT_EQ(parameters.at(0)->get_element_type(), ngraph::element::f32);
+    EXPECT_TRUE(parameters.at(0)->get_partial_shape().is_static());
+    EXPECT_EQ(parameters.at(0)->get_partial_shape().to_shape(), (Shape{}));
+
+    const auto& results = function->get_results();
+    EXPECT_EQ(results.size(), 2);
+    EXPECT_EQ(function->get_output_element_type(0), ngraph::element::f32);
+    EXPECT_TRUE(function->get_output_partial_shape(0).is_static());
+    EXPECT_EQ(function->get_output_shape(0), (Shape{}));
+    EXPECT_EQ(function->get_output_element_type(1), ngraph::element::f32);
+    EXPECT_TRUE(function->get_output_partial_shape(1).is_static());
+    EXPECT_EQ(function->get_output_shape(1), (Shape{3}));
+}
+*/
 NGRAPH_TEST(${BACKEND_NAME}, onnx_controlflow_loop_2d_add_const_cond)
 {
     const auto function = onnx_import::import_onnx_model(
         file_util::path_join(SERIALIZED_ZOO, "onnx/loop/loop_2d_add_const_cond.prototxt"));
 
+    // TODO CHANGE SHAPE INFERENCE TEST TO EXECUTION
     const auto& results = function->get_results();
     EXPECT_EQ(results.size(), 2);
     EXPECT_EQ(function->get_output_element_type(0), ngraph::element::f32);
@@ -169,22 +284,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_controlflow_loop_2d_add_const_cond)
     EXPECT_EQ(function->get_output_shape(0), (Shape{1, 2}));
     EXPECT_EQ(function->get_output_element_type(1), ngraph::element::f32);
     EXPECT_TRUE(function->get_output_partial_shape(1).is_static());
-    EXPECT_EQ(function->get_output_shape(1), (Shape{3, 2}));
-}
-
-NGRAPH_TEST(${BACKEND_NAME}, onnx_controlflow_loop_2d_trip_count_and_cond_skipped)
-{
-    const auto function = onnx_import::import_onnx_model(file_util::path_join(
-        SERIALIZED_ZOO, "onnx/loop/loop_2d_add_trip_count_and_cond_skipped.prototxt"));
-
-    const auto& results = function->get_results();
-    EXPECT_EQ(results.size(), 2);
-    EXPECT_EQ(function->get_output_element_type(0), ngraph::element::f32);
-    EXPECT_TRUE(function->get_output_partial_shape(0).is_static());
-    EXPECT_EQ(function->get_output_shape(0), (Shape{1, 2}));
-    EXPECT_EQ(function->get_output_element_type(1), ngraph::element::f32);
-    // scan_outputs shape is not know if trip_count and termination condition is not determined
-    EXPECT_TRUE(function->get_output_partial_shape(1).rank().is_dynamic());
+    EXPECT_EQ(function->get_output_shape(1), (Shape{3, 1, 2})); // TODO CONFIRM
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_controlflow_loop_2d_termination_cond_dynamic)
@@ -192,6 +292,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_controlflow_loop_2d_termination_cond_dynamic)
     const auto function = onnx_import::import_onnx_model(file_util::path_join(
         SERIALIZED_ZOO, "onnx/loop/loop_2d_add_dynamic_termination_cond.prototxt"));
 
+    // TODO CHANGE SHAPE INFERENCE TEST TO EXECUTION
     const auto& results = function->get_results();
     EXPECT_EQ(results.size(), 2);
     EXPECT_EQ(function->get_output_element_type(0), ngraph::element::f32);
@@ -202,26 +303,12 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_controlflow_loop_2d_termination_cond_dynamic)
     EXPECT_TRUE(function->get_output_partial_shape(1).rank().is_dynamic());
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_controlflow_loop_2d_no_identity_termination_cond)
-{
-    const auto function = onnx_import::import_onnx_model(file_util::path_join(
-        SERIALIZED_ZOO, "onnx/loop/loop_2d_add_const_no_identity_termination_cond.prototxt"));
-
-    const auto& results = function->get_results();
-    EXPECT_EQ(results.size(), 2);
-    EXPECT_EQ(function->get_output_element_type(0), ngraph::element::f32);
-    EXPECT_TRUE(function->get_output_partial_shape(0).is_static());
-    EXPECT_EQ(function->get_output_shape(0), (Shape{1, 2}));
-    EXPECT_EQ(function->get_output_element_type(1), ngraph::element::f32);
-    // scan_outputs shape is not know if terminadion condition is calculated during loop iterations
-    EXPECT_TRUE(function->get_output_partial_shape(1).rank().is_dynamic());
-}
-
 NGRAPH_TEST(${BACKEND_NAME}, onnx_controlflow_loop_2d_trip_count_dynamic)
 {
     const auto function = onnx_import::import_onnx_model(
         file_util::path_join(SERIALIZED_ZOO, "onnx/loop/loop_2d_add_trip_count_dynamic.prototxt"));
 
+    // TODO CHANGE SHAPE INFERENCE TEST TO EXECUTION
     const auto& results = function->get_results();
     EXPECT_EQ(results.size(), 2);
     EXPECT_EQ(function->get_output_element_type(0), ngraph::element::f32);
@@ -232,41 +319,9 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_controlflow_loop_2d_trip_count_dynamic)
     EXPECT_TRUE(function->get_output_partial_shape(1).rank().is_dynamic());
 }
 
-// EXECUTION TESTS
+// ~~~~~~~~ADDITIONAL TESTS:~~~~~~~~
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_controlflow_loop_2d_add_execution)
-{
-    // The model contains a loop which has statically set iterations count equal 3.
-    // In the loop body there is just simple add operation.
-    const auto function = onnx_import::import_onnx_model(
-        file_util::path_join(SERIALIZED_ZOO, "onnx/loop/loop_2d_add.prototxt"));
-
-    auto test_case = test::TestCase<TestEngine>(function);
-
-    // a_init
-    test_case.add_input<float>({0.f, 0.f});
-
-    test_case.add_expected_output<float>(Shape{1, 2}, {3.f, 3.f});
-    test_case.add_expected_output<float>(Shape{3, 2}, {1.f, 1.f, 2.f, 2.f, 3.f, 3.f});
-    test_case.run();
-}
-
-NGRAPH_TEST(${BACKEND_NAME}, onnx_controlflow_loop_add_initializer_from_parent_scope_execution)
-{
-    const auto function = onnx_import::import_onnx_model(file_util::path_join(
-        SERIALIZED_ZOO, "onnx/loop/loop_2d_add_initializer_from_parent_scope.prototxt"));
-
-    auto test_case = test::TestCase<TestEngine>(function);
-
-    // a_init
-    test_case.add_input<float>({0.f, 0.f});
-
-    test_case.add_expected_output<float>(Shape{1, 2}, {6.f, 6.f});
-    test_case.add_expected_output<float>(Shape{3, 2}, {2.f, 2.f, 4.f, 4.f, 6.f, 6.f});
-    test_case.run();
-}
-
-NGRAPH_TEST(${BACKEND_NAME}, onnx_controlflow_loop_slice_add_execution)
+NGRAPH_TEST(${BACKEND_NAME}, onnx_controlflow_loop_slice_add)
 {
     const auto function = onnx_import::import_onnx_model(
         file_util::path_join(SERIALIZED_ZOO, "onnx/loop/loop_slice_add.prototxt"));
@@ -284,7 +339,8 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_controlflow_loop_slice_add_execution)
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_controlflow_loop_infinite_execution)
+/* INFINITE LOOP: TO CHECK
+NGRAPH_TEST(${BACKEND_NAME}, onnx_controlflow_loop_infinite)
 {
     const auto function = onnx_import::import_onnx_model(
         file_util::path_join(SERIALIZED_ZOO, "onnx/loop/loop_infinite.prototxt"));
@@ -305,6 +361,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_controlflow_loop_infinite_execution)
     test_case.add_expected_output<float>(Shape{1}, {3.f});
     test_case.run();
 }
+*/
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_controlflow_loop_no_variadic_inputs_and_outputs)
 {
@@ -322,7 +379,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_controlflow_loop_no_variadic_inputs_and_output
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_controlflow_loop_power_calculation)
+NGRAPH_TEST(${BACKEND_NAME}, onnx_controlflow_loop_power)
 {
     const auto function = onnx_import::import_onnx_model(
         file_util::path_join(SERIALIZED_ZOO, "onnx/loop/loop_pow.prototxt"));

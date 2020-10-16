@@ -96,20 +96,34 @@ graph {
   initializer {
     dims: 1
     data_type: 7
-    int64_data: 10
-    name: "trip_count"
-  }
-  initializer {
-    dims: 1
-    data_type: 7
-    int64_data: 3
+    int64_data: 5
     name: "threshold"
   }
-  initializer {
-    dims: 1
-    data_type: 9
-    int32_data: 00000001
+  input {
+    name: "trip_count"
+    type {
+      tensor_type {
+        elem_type: 7
+        shape {
+          dim {
+            dim_value: 1
+          }
+        }
+      }
+    }
+  }
+  input {
     name: "cond_in"
+    type {
+      tensor_type {
+        elem_type: 9
+        shape {
+          dim {
+            dim_value: 1
+          }
+        }
+      }
+    }
   }
   input {
     name: "a_init"

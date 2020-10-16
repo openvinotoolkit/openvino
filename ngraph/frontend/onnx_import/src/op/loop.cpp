@@ -128,6 +128,22 @@ namespace ngraph
                     auto body_outputs = body_graph.get_ng_outputs();
                     const auto& body_inputs = body_graph.get_ng_parameters();
 
+                    const int64_t concat_axis = 0;
+                    const auto concat_axis_const =
+                        ngraph::op::Constant::create(ngraph::element::i64, {}, {concat_axis});
+                    // provide scalar handing for scan outputs
+                    for (int i = loop_carried_dependencies.size() + 1; i < body_outputs.size(); ++i)
+                    {
+                        auto body_output_shape = body_outputs[i].get_partial_shape();
+                        if (body_output_shape.is_dynamic() ||
+                            (body_output_shape.is_static() &&
+                             ngraph::is_scalar(body_output_shape.to_shape())))
+                        {
+                            body_outputs[i] = std::make_shared<default_opset::Unsqueeze>(
+                                body_outputs[i], concat_axis_const);
+                        }
+                    }
+
                     const auto& body_loop_cond = body_outputs.at(0).get_node_shared_ptr();
                     // optimization allow to improve nG Loop shape inference
                     if (is_termination_condition_always_true(termination_cond, body_loop_cond))
@@ -176,10 +192,9 @@ namespace ngraph
                     OutputVector scan_outputs;
                     for (; body_outputs_it != body_outputs.end(); body_outputs_it++)
                     {
-                        // TODO: does concatenating along 0 axis is right?
                         // start=0, stride=1, part_size=1, end=-1, axis=0
-                        scan_outputs.push_back(
-                            loop->get_concatenated_slices(*body_outputs_it, 0, 1, 1, -1, 0));
+                        scan_outputs.push_back(loop->get_concatenated_slices(
+                            *body_outputs_it, 0, 1, 1, -1, concat_axis));
                     }
 
                     OutputVector node_outputs;
