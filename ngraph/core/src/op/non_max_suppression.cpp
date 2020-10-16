@@ -545,12 +545,7 @@ op::v5::NonMaxSuppression::NonMaxSuppression(
     const op::v5::NonMaxSuppression::BoxEncodingType box_encoding,
     const bool sort_result_descending,
     const element::Type& output_type)
-    : Op({boxes,
-          scores,
-          op::Constant::create(element::i64, Shape{}, {0}),
-          op::Constant::create(element::f32, Shape{}, {.0f}),
-          op::Constant::create(element::f32, Shape{}, {.0f}),
-          op::Constant::create(element::f32, Shape{}, {.0f})})
+    : Op({boxes, scores})
     , m_box_encoding{box_encoding}
     , m_sort_result_descending{sort_result_descending}
     , m_output_type{output_type}
@@ -565,12 +560,7 @@ op::v5::NonMaxSuppression::NonMaxSuppression(
     const op::v5::NonMaxSuppression::BoxEncodingType box_encoding,
     const bool sort_result_descending,
     const element::Type& output_type)
-    : Op({boxes,
-          scores,
-          max_output_boxes_per_class,
-          op::Constant::create(element::f32, Shape{}, {.0f}),
-          op::Constant::create(element::f32, Shape{}, {.0f}),
-          op::Constant::create(element::f32, Shape{}, {.0f})})
+    : Op({boxes, scores, max_output_boxes_per_class})
     , m_box_encoding{box_encoding}
     , m_sort_result_descending{sort_result_descending}
     , m_output_type{output_type}
@@ -586,12 +576,7 @@ op::v5::NonMaxSuppression::NonMaxSuppression(
     const op::v5::NonMaxSuppression::BoxEncodingType box_encoding,
     const bool sort_result_descending,
     const element::Type& output_type)
-    : Op({boxes,
-          scores,
-          max_output_boxes_per_class,
-          iou_threshold,
-          op::Constant::create(element::f32, Shape{}, {.0f}),
-          op::Constant::create(element::f32, Shape{}, {.0f})})
+    : Op({boxes, scores, max_output_boxes_per_class, iou_threshold})
     , m_box_encoding{box_encoding}
     , m_sort_result_descending{sort_result_descending}
     , m_output_type{output_type}
@@ -608,12 +593,7 @@ op::v5::NonMaxSuppression::NonMaxSuppression(
     const op::v5::NonMaxSuppression::BoxEncodingType box_encoding,
     const bool sort_result_descending,
     const element::Type& output_type)
-    : Op({boxes,
-          scores,
-          max_output_boxes_per_class,
-          iou_threshold,
-          score_threshold,
-          op::Constant::create(element::f32, Shape{}, {.0f})})
+    : Op({boxes, scores, max_output_boxes_per_class, iou_threshold, score_threshold})
     , m_box_encoding{box_encoding}
     , m_sort_result_descending{sort_result_descending}
     , m_output_type{output_type}
@@ -631,8 +611,7 @@ op::v5::NonMaxSuppression::NonMaxSuppression(
     const op::v5::NonMaxSuppression::BoxEncodingType box_encoding,
     const bool sort_result_descending,
     const element::Type& output_type)
-    : Op({boxes,
-          scores,
+    : Op({boxes, scores,
           max_output_boxes_per_class,
           iou_threshold,
           score_threshold,
