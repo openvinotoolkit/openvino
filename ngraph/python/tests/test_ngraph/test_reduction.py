@@ -112,7 +112,7 @@ def test_non_max_suppression():
     node = ng.non_max_suppression(boxes_parameter, scores_parameter)
 
     assert node.get_type_name() == "NonMaxSuppression"
-    assert node.get_output_size() == 1
+    assert node.get_output_size() == 3
     assert list(node.get_output_shape(0)) == expected_shape
 
 
