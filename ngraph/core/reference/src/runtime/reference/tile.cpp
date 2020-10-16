@@ -47,6 +47,13 @@ namespace
         return true;
     }
 
+    /// \brief Returns a vector containing the results of multiplication of the remaining axes for
+    /// each axis
+    /// If dims has shape(2, 2, 3) then the output vector would be (2*3, 3, 1)
+    ///
+    /// \param[in] dims Shape of the output
+    ///
+    /// \return Vector containing calculated values for each axis.
     std::vector<int64_t> create_pitches(const Shape& dims)
     {
         std::vector<int64_t> pitch;
