@@ -12,7 +12,7 @@ the OpenVINO™ Toolkit on Linux\*. With this guide, you will learn how to:
 ## Prerequisites
 1. This guide assumes that you have already cloned the `openvino` repo and 
    successfully built the Inference Engine and Samples using the 
-   [build instructions](inference-engine/README.md). 
+   [build instructions](build-instruction.md). 
 2. The original structure of the repository directories remains unchanged.
 
 > **NOTE**: Below, the directory to which the `openvino` repository is cloned is 
@@ -188,7 +188,7 @@ Now you are ready to run the Image Classification Sample Application.
 ## Run the Image Classification Sample Application
 
 The Inference Engine sample applications are automatically compiled when you 
-built the Inference Engine using the [build instructions](inference-engine/README.md). 
+built the Inference Engine using the [build instructions](build-instruction.md). 
 The binary files are located in the `<OPENVINO_DIR>/inference-engine/bin/intel64/Release` 
 directory.
 
@@ -253,7 +253,7 @@ Throughput: 375.3339402 FPS
 ## Additional Resources
 
 * [OpenVINO™ Release Notes](https://software.intel.com/en-us/articles/OpenVINO-RelNotes)
-* [Inference Engine build instructions](inference-engine/README.md)
+* [Inference Engine build instructions](build-instruction.md)
 * [Introduction to Intel® Deep Learning Deployment Toolkit](https://docs.openvinotoolkit.org/latest/_docs_IE_DG_Introduction.html)
 * [Inference Engine Developer Guide](https://docs.openvinotoolkit.org/latest/_docs_IE_DG_Deep_Learning_Inference_Engine_DevGuide.html)
 * [Model Optimizer Developer Guide]
