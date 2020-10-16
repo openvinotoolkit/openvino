@@ -122,11 +122,21 @@ namespace ngraph
                     uint64_t m_body_value_index{0};
                 };
 
+                ///
+                /// \brief      Describes a body input initialized from a SubGraphOp input on
+                ///             the first iteration, and invariant thereafter.
+                ///
                 class NGRAPH_API InvariantInputDescription : public InputDescription
                 {
                 public:
                     static constexpr type_info_t type_info{"InvariantInputDescription", 0};
                     const type_info_t& get_type_info() const override { return type_info; }
+                    ///
+                    /// \brief      Constructs a new instance.
+                    ///
+                    /// \param      input_index           Position of the SubGraphOp input
+                    /// \param      body_parameter_index  Body parameter to receive input
+                    ///
                     InvariantInputDescription(uint64_t input_index, uint64_t body_parameter_index);
                     InvariantInputDescription() = default;
                     std::shared_ptr<InputDescription> copy() const override;
@@ -292,11 +302,12 @@ namespace ngraph
                 /// \param      body_value  The value
                 /// \param      iteration   The iteration that supplies the value. Negative values
                 ///                         are from the last iteration.
+                ///                         Default value -1 (the last iteration).
                 ///
                 /// \return     The iterator value.
                 ///
                 virtual Output<Node> get_iter_value(const Output<Node>& body_value,
-                                                    int64_t iteration);
+                                                    int64_t iteration = -1);
                 ///
                 /// \brief      Concatenates slices from all iterations
                 ///

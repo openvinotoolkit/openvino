@@ -23,14 +23,12 @@
 using namespace std;
 using namespace ngraph;
 
-constexpr NodeTypeInfo op::v5::Loop::type_info;
+NGRAPH_RTTI_DEFINITION(op::v5::Loop, "Loop", 5);
 
-op::v5::Loop::Loop(const Output<Node>& trip_count,
-                   const Output<Node>& condition,
-                   const OutputVector& values)
-    : op::util::SubGraphOp({trip_count, condition})
+op::v5::Loop::Loop(const Output<Node>& trip_count, const Output<Node>& execution_condition)
 {
-    set_arguments(values);
+    set_argument(0, trip_count);
+    set_argument(1, execution_condition);
 }
 
 bool op::v5::Loop::visit_attributes(AttributeVisitor& visitor)
@@ -44,10 +42,31 @@ bool op::v5::Loop::visit_attributes(AttributeVisitor& visitor)
 
 void op::v5::Loop::validate_and_infer_types()
 {
+    if (m_special_body_ports.current_iteration_input_idx >= 0)
+    {
+        const auto& cur_iter_rank = m_body->get_parameters()
+                                        .at(m_special_body_ports.current_iteration_input_idx)
+                                        ->get_partial_shape()
+                                        .rank();
+        if (cur_iter_rank.is_static())
+        {
+            NODE_VALIDATION_CHECK(this,
+                                  cur_iter_rank.compatible(1) || cur_iter_rank.compatible(0),
+                                  "Rank of CurrentIteration input must be equal to 0 or 1");
+        }
+    }
     bool zero_number_of_iter = false;
-    const auto& loop_condition = input_value(1);
+    const auto& loop_execution_condition = input_value(1);
+    const auto& loop_condition_rank = loop_execution_condition.get_partial_shape().rank();
+    if (loop_condition_rank.is_static())
+    {
+        NODE_VALIDATION_CHECK(this,
+                              loop_condition_rank.compatible(1) ||
+                                  loop_condition_rank.compatible(0),
+                              "Rank of ExecutionCondition input must be equal to 0 or 1");
+    }
     if (const auto& cond_value = std::dynamic_pointer_cast<const ngraph::opset5::Constant>(
-            loop_condition.get_node_shared_ptr()))
+            loop_execution_condition.get_node_shared_ptr()))
     {
         auto val = cond_value->cast_vector<bool>();
         NODE_VALIDATION_CHECK(this,
@@ -61,10 +80,22 @@ void op::v5::Loop::validate_and_infer_types()
     }
 
     bool condition_always_true = false;
-    const auto& body_condition =
-        m_body->get_results()[m_special_body_ports.body_condition_output_idx]->input_value(0);
+    NODE_VALIDATION_CHECK(this,
+                          m_special_body_ports.body_condition_output_idx >= 0,
+                          "Condition body output is not provided. "
+                          "Condition is a mandatory output of the body in Loop op.");
+    const auto& body_execution_condition =
+        m_body->get_results().at(m_special_body_ports.body_condition_output_idx)->input_value(0);
+    const auto& body_condition_rank = body_execution_condition.get_partial_shape().rank();
+    if (body_condition_rank.is_static())
+    {
+        NODE_VALIDATION_CHECK(this,
+                              body_condition_rank.compatible(0) ||
+                                  body_condition_rank.compatible(1),
+                              "Rank of BodyExecutionCondition output must be equal to 0 or 1");
+    }
     if (const auto& cond_value = std::dynamic_pointer_cast<const ngraph::opset5::Constant>(
-            body_condition.get_node_shared_ptr()))
+            body_execution_condition.get_node_shared_ptr()))
     {
         auto val = cond_value->cast_vector<bool>();
         NODE_VALIDATION_CHECK(this,
@@ -82,6 +113,13 @@ void op::v5::Loop::validate_and_infer_types()
     }
 
     const auto& trip_count = input_value(0);
+    const auto& trip_count_rank = trip_count.get_partial_shape().rank();
+    if (trip_count_rank.is_static())
+    {
+        NODE_VALIDATION_CHECK(this,
+                              trip_count_rank.compatible(1) || trip_count_rank.compatible(0),
+                              "Rank of TripCount input must be equal to 0 or 1");
+    }
     if (const auto& trip_count_val = std::dynamic_pointer_cast<const ngraph::opset5::Constant>(
             trip_count.get_node_shared_ptr()))
     {
@@ -114,15 +152,15 @@ void op::v5::Loop::validate_and_infer_types()
         if (auto merged_input_description = as_type_ptr<MergedInputDescription>(input_description))
         {
             auto body_value =
-                m_body->get_results().at(merged_input_description->m_body_value_index)->input(0);
-            ends.push_back(body_value.get_node()->shared_from_this());
+                m_body->get_results().at(merged_input_description->m_body_value_index);
+            ends.push_back(body_value);
 
-            const auto& body_value_partial_shape = body_value.get_partial_shape();
+            const auto& body_value_partial_shape = body_value->get_input_partial_shape(0);
             auto body_parameter =
                 m_body->get_parameters().at(merged_input_description->m_body_parameter_index);
 
             auto body_param_partial_shape = body_parameter->get_partial_shape();
-            auto input_partial_shape = inputs().at(index).get_source_output().get_partial_shape();
+            auto input_partial_shape = input(index).get_partial_shape();
             NODE_VALIDATION_CHECK(this,
                                   body_value_partial_shape.compatible(body_param_partial_shape),
                                   "Iterator successive value is not compatible with body param");
@@ -147,7 +185,7 @@ void op::v5::Loop::validate_and_infer_types()
                 m_body->get_parameters().at(invariant_input_description->m_body_parameter_index);
 
             auto body_param_partial_shape = body_parameter->get_partial_shape();
-            auto input_partial_shape = inputs().at(index).get_source_output().get_partial_shape();
+            auto input_partial_shape = input(index).get_partial_shape();
             NODE_VALIDATION_CHECK(this,
                                   input_partial_shape.compatible(body_param_partial_shape),
                                   "Iterator initial value is not compatible with body param");
@@ -186,7 +224,6 @@ void op::v5::Loop::validate_and_infer_types()
             if (body_value_partial_shape.is_static())
             {
                 auto body_value_shape = body_value_partial_shape.to_shape();
-                auto part_size = concat_output_description->m_part_size;
                 auto axis = concat_output_description->m_axis;
 
                 Shape out_shape{body_value_shape};
@@ -204,8 +241,7 @@ void op::v5::Loop::validate_and_infer_types()
 
                 if (m_num_iterations != -1)
                 {
-                    // for simple RNN case where stride is the same as part_size
-                    out_shape[axis] = m_num_iterations * part_size;
+                    out_shape[axis] = m_num_iterations * body_value_shape[axis];
                     if (zero_number_of_iter)
                     {
                         out_shape.at(0) = 0;
@@ -238,8 +274,12 @@ void op::v5::Loop::validate_and_infer_types()
 std::shared_ptr<Node> op::v5::Loop::clone_with_new_inputs(const OutputVector& new_args) const
 {
     // 0 - trip_count, 1 - execution condition, these inputs are not connected to the body params
-    const OutputVector body_params_args(new_args.begin() + 2, new_args.end());
-    auto op = make_shared<op::v5::Loop>(new_args[0], new_args[1], body_params_args);
+    OutputVector body_params_args(new_args.begin() + 2, new_args.end());
+    auto op = make_shared<op::v5::Loop>(new_args[0], new_args[1]);
+    for (int idx = 2; idx < new_args.size(); ++idx)
+    {
+        op->set_argument(idx, new_args[idx]);
+    }
     NGRAPH_CHECK(op.get(),
                  op != nullptr,
                  "Cannot clone ",
@@ -265,7 +305,20 @@ std::shared_ptr<Node> op::v5::Loop::clone_with_new_inputs(const OutputVector& ne
         }
     }
 
+    if (m_special_body_ports.current_iteration_input_idx >= 0)
+    {
+        const auto& cur_iterations_param =
+            m_body->get_parameters().at(m_special_body_ports.current_iteration_input_idx);
+        body_params_args.insert(body_params_args.begin() +
+                                    m_special_body_ports.current_iteration_input_idx,
+                                cur_iterations_param);
+        new_shapes.at(m_special_body_ports.current_iteration_input_idx) =
+            cur_iterations_param->get_partial_shape();
+        types.at(m_special_body_ports.current_iteration_input_idx) =
+            cur_iterations_param->get_element_type();
+    }
     op->m_num_iterations = m_num_iterations;
+    op->m_special_body_ports = m_special_body_ports;
     auto func = std::make_shared<Function>(m_body->get_results(), m_body->get_parameters());
     auto spec_func = specialize_function(
         func, types, new_shapes, std::vector<void*>(body_params_args.size(), nullptr));
@@ -280,4 +333,18 @@ std::shared_ptr<Node> op::v5::Loop::clone_with_new_inputs(const OutputVector& ne
         op->m_output_descriptions.push_back(output_description->copy());
     }
     return move(op);
+}
+
+Output<Node> op::v5::Loop::get_concatenated_slices(const Output<Node>& value,
+                                                   int64_t start,
+                                                   int64_t stride,
+                                                   int64_t part_size,
+                                                   int64_t end,
+                                                   int64_t axis)
+{
+    NGRAPH_CHECK(start == 0 && stride == 1 && part_size == 1 && end == -1,
+                 "Invalid start, stride, part_size, or end attribute values in Loop op. "
+                 "Supported values for start {0}, for stride and part_size {1}, for end "
+                 "{-1}");
+    return SubGraphOp::get_concatenated_slices(value, start, stride, part_size, end, axis);
 }

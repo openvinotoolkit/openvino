@@ -35,53 +35,36 @@ namespace ngraph
             class NGRAPH_API Loop : public op::util::SubGraphOp
             {
             public:
+                /// \brief  Allows to define the purpose of inputs/outputs in the body
                 struct SpecialBodyPorts
                 {
-                    int64_t current_iteration_input_idx =
-                        -1; // -1 means input is not provided, this input is optional
-                    int64_t body_condition_output_idx = 0; // default index, this output is required
+                    SpecialBodyPorts() = default;
+                    SpecialBodyPorts(int64_t in_current_iteration_input_idx,
+                                     int64_t in_body_condition_output_idx)
+                        : current_iteration_input_idx(in_current_iteration_input_idx)
+                        , body_condition_output_idx(in_body_condition_output_idx)
+                    {
+                    }
+                    // -1 means the input is not provided, this input is optional
+                    int64_t current_iteration_input_idx = -1;
+                    // -1 means the output is not provided,
+                    // this output is required, throw an exception if not provided
+                    int64_t body_condition_output_idx = -1;
                 };
 
-                static constexpr NodeTypeInfo type_info{"Loop", 5};
-                const NodeTypeInfo& get_type_info() const override { return type_info; }
-                bool visit_attributes(AttributeVisitor& visitor) override;
+                NGRAPH_RTTI_DECLARATION;
 
-                Loop()
-                {
-                    // default trip_count, execution_condition
-                    auto trip_count = std::make_shared<ngraph::op::Constant>(
-                        ngraph::element::i64, ngraph::Shape{1}, -1);
-                    auto exec_condition = std::make_shared<ngraph::op::Constant>(
-                        ngraph::element::boolean, ngraph::Shape{1}, true);
-                    set_argument(0, Output<Node>(trip_count));
-                    set_argument(1, Output<Node>(exec_condition));
-                };
-                Loop(const Output<Node>& trip_count,
-                     const Output<Node>& condition,
-                     const OutputVector& values);
+                /// \brief Constructs a Loop operation.
+                Loop() = default;
 
-                std::shared_ptr<Node>
-                    clone_with_new_inputs(const OutputVector& new_args) const override;
-                /// \return the body of the iteration
-                std::shared_ptr<Function> get_body() const { return m_body; }
-                /// \param body set the body of the iteration
-                void set_body(const std::shared_ptr<Function>& body) { m_body = body; }
-                /// \return a reference to the input descriptions.
-
-                void validate_and_infer_types() override;
+                /// \brief Constructs a Loop operation.
+                ///
+                /// \param trip_count Node specifies the maximum number of iterations.
+                /// \param execution_condition Node determines whether to execute the first
+                /// iteration or not.
+                Loop(const Output<Node>& trip_count, const Output<Node>& execution_condition);
 
                 int64_t get_num_iterations() const { return m_num_iterations; }
-                void set_num_iterations(int64_t num_iterations)
-                {
-                    m_num_iterations = num_iterations;
-                }
-
-                void set_trip_count_input(const Output<Node>& value) { set_argument(0, value); }
-                void set_execution_condition_input(const Output<Node>& value)
-                {
-                    set_argument(1, value);
-                }
-
                 void set_sliced_input(const std::shared_ptr<Parameter>& parameter,
                                       const Output<Node>& value,
                                       int64_t start,
@@ -95,17 +78,28 @@ namespace ngraph
                                  "Loop operation.");
                 }
 
+                Output<Node> get_concatenated_slices(const Output<Node>& value,
+                                                     int64_t start,
+                                                     int64_t stride,
+                                                     int64_t part_size,
+                                                     int64_t end,
+                                                     int64_t axis) override;
+
                 void set_special_body_ports(const SpecialBodyPorts& special_body_ports)
                 {
                     m_special_body_ports = special_body_ports;
                 }
 
                 SpecialBodyPorts get_special_body_ports() const { return m_special_body_ports; }
+                void validate_and_infer_types() override;
+                bool visit_attributes(AttributeVisitor& visitor) override;
+                std::shared_ptr<Node>
+                    clone_with_new_inputs(const OutputVector& new_args) const override;
+
             private:
                 SpecialBodyPorts m_special_body_ports;
-                int64_t m_num_iterations = -1;
+                int64_t m_num_iterations = -1; // -1 means infinity
             };
         }
-        using v5::Loop;
     }
 }

@@ -24,7 +24,7 @@ using LoopParams = typename std::tuple<
         bool,                                                              // BodyCondition is a constant?
         bool,                                                              // BodyCondition value, if it is a Const
         int64_t,                                                           // TripCount, -1 means infinity
-        std::vector<std::pair<std::vector<size_t>, LOOP_IN_TYPE>>,        // inputs
+        std::vector<std::pair<std::vector<size_t>, LOOP_IN_TYPE>>,         // inputs
         InferenceEngine::Precision,                                        // Network precision
         std::string>;                                                      // Device name
 
