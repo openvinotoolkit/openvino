@@ -3,7 +3,7 @@
 //
 
 #include <transformations/common_optimizations/optimize_strided_slice.hpp>
-#include <transformations/smart_reshape/strided_slice_squeeze.hpp>
+#include <transformations/smart_reshape/sr_strided_slice_squeeze.hpp>
 
 #include <ngraph/ngraph.hpp>
 #include <ngraph/opsets/opset5.hpp>
@@ -42,9 +42,9 @@ ngraph::pass::StridedSliceSqueeze::StridedSliceSqueeze() {
         auto strides_vec = strides->cast_vector<int64_t>();
         auto begin_mask = slice->get_begin_mask();
         auto end_mask = slice->get_end_mask();
-        auto new_axis_mask = slice->get_new_axis_mask();
-        auto shrink_axis_mask = slice->get_shrink_axis_mask();
-        auto ellipsis_mask = slice->get_ellipsis_mask();
+        auto new_axis_mask = slice->get_new_axis_mask().empty() ? std::vector<int64_t>(begin_mask.size(), 0) : slice->get_new_axis_mask();
+        auto shrink_axis_mask = slice->get_shrink_axis_mask().empty() ? std::vector<int64_t>(begin_mask.size(), 0) : slice->get_shrink_axis_mask();
+        auto ellipsis_mask = slice->get_ellipsis_mask().empty() ? std::vector<int64_t>(begin_mask.size(), 0) : slice->get_ellipsis_mask();
 
         for (const auto & axis : axes) {
             if ((slice_plan.ends[axis] - slice_plan.begins[axis]) != 1 && slice_plan.strides[axis] == 1)
@@ -65,7 +65,11 @@ ngraph::pass::StridedSliceSqueeze::StridedSliceSqueeze() {
                 opset5::Constant::create(element::i64, {end_vec.size()}, end_vec),
                 opset5::Constant::create(element::i64, {strides_vec.size()}, strides_vec),
                 begin_mask, end_mask, new_axis_mask, shrink_axis_mask, ellipsis_mask);
-        return replace_node_update_name(slice, new_slice);
+
+        replace_node(slice, new_slice);
+        new_slice->set_friendly_name(slice->get_friendly_name());
+        copy_runtime_info(slice, new_slice);
+        return true;
     };
     auto m = std::make_shared<ngraph::pattern::Matcher>(squeeze_label, "StridedSliceSqueeze");
     register_matcher(m, callback);

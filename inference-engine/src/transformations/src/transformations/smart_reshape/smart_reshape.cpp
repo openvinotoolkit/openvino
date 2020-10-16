@@ -12,7 +12,7 @@
 #include <transformations/smart_reshape/reshape_to_1D.hpp>
 #include <transformations/smart_reshape/reshape_with_hc_output.hpp>
 #include <transformations/smart_reshape/smart_reshape.hpp>
-#include <transformations/smart_reshape/strided_slice_squeeze.hpp>
+#include <transformations/smart_reshape/sr_strided_slice_squeeze.hpp>
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::SmartReshape, "SmartReshape", 0);
 
