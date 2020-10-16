@@ -150,3 +150,5 @@ def protobuf2nx(graph, graph_pb):
             if out in data_nodes_map:
                 log.debug("Detected reuse of blob {}.".format(out))
             data_nodes_map[out] = (id, src_port)
+
+    graph.graph['tensor_mapping'] = data_nodes_map  # save main graph tensor names mapping for Loop op parsing

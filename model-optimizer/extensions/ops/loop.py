@@ -149,6 +149,7 @@ class Loop(TensorIterator):
         Loop.updated_body_parameters_shape(node)
         partial_infer(node.body)
         Loop.updated_loop_output_ports_shape_and_value(node)
+        # TODO think about constant folding for scan outputs
 
     @staticmethod
     def type_infer(node: Node):

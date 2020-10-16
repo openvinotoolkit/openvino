@@ -94,7 +94,7 @@ class ONNXLoopBodyParser(FrontReplacementSubgraph):
 
         # Go through all nodes in the original model order (because data nodes are defined on-the-fly and order is
         # important)
-        external_edges = []
+        external_edges = []  # (src node, src port), dest node, dest port
         for pb_node in body_graph_proto.node:
             # create an NX node
             id = body_graph.unique_id(node_id(pb_node))
@@ -107,17 +107,13 @@ class ONNXLoopBodyParser(FrontReplacementSubgraph):
                     if inp == '':
                         # input is omitted; most likely it corresponds to an optional input for an operator
                         continue
-                    elif inp in main_graph:
+                    elif inp in main_graph.graph['tensor_mapping']:
                         log.debug('The edge between outer and inner graphs detected: {} -> {}'.format(inp, id))
-                        # TODO FIXME the 'inp' is a tensor name of the main graph which should be propelry converted to node_name and output port
-                        external_edges.append((inp, id, dst_port))  # (src node, src port),  dest node, dest port
+                        external_edges.append((main_graph.graph['tensor_mapping'][inp], id, dst_port))
                         continue
                     else:
-                        print(inp, pb_node)
-                        continue
-                        raise Error(
-                            'Reference to {} is not satisfied. A node refer not existing data tensor. ONNX model is not '
-                            'consistent. Protobuf fragment: {}', inp, pb_node)
+                        raise Error('Reference to "{}" is not satisfied. A node refer not existing data tensor. ONNX '
+                                    'model is not consistent. Protobuf fragment: {}', inp, pb_node)
                 src_id, src_port = data_nodes_map[inp]
 
                 assert (body_graph.has_node(src_id))
@@ -147,11 +143,9 @@ class ONNXLoopBodyParser(FrontReplacementSubgraph):
             body_results[-1]['order'] = result_index
             result_index += 1
 
-        # add 'internal_layer_id' attribute which is a must have attribute for TI body node
+        # add 'internal_layer_id' attribute which is a must have attribute for the loop body node
         for idx, body_node in enumerate(body_graph.get_op_nodes()):
             body_node['internal_layer_id'] = idx
-
-#        print(external_edges)
 
         loop_carried_dependencies_count = len(body_graph_proto.input) - 2
         scan_outputs_count = len(body_graph_proto.output) - 1 - loop_carried_dependencies_count
@@ -161,6 +155,7 @@ class ONNXLoopBodyParser(FrontReplacementSubgraph):
         body_graph.graph['fw'] = 'onnx'
         body_graph.graph['feature_dim'] = 1
         body_graph.graph['cmd_params'] = main_graph.graph['cmd_params']
+        body_graph.graph['fw_opset_version'] = main_graph.graph['fw_opset_version']
 
         loop_node.sub_graphs.append('body')
         loop_node['body'] = body_graph
@@ -224,5 +219,7 @@ class ONNXLoopBodyParser(FrontReplacementSubgraph):
 
         # TODO add Parameters and connect nodes from outer graph
         
-        # run function to parse body nodes attributes similar to the main graph
+        # run function to parse body nodes attributes similar to the main graph and create Ports
         extract_node_attrs(body_graph, lambda node: onnx_op_extractor(node, check_for_duplicates(onnx_op_extractors)))
+        RestorePorts().find_and_replace_pattern(body_graph)
+#        body_graph.dump_graph_for_graphviz(save_to_svg=True)
