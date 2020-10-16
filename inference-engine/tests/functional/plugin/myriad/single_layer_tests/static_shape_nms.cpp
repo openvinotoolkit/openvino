@@ -6,6 +6,7 @@
 #include <functional_test_utils/blob_utils.hpp>
 
 #include <ngraph/opsets/opset3.hpp>
+#include <ngraph/op/non_max_suppression.hpp>
 #include "vpu/ngraph/operations/static_shape_non_maximum_suppression.hpp"
 
 using TensorShape = InferenceEngine::SizeVector;
@@ -82,7 +83,7 @@ protected:
 
         const auto staticShapeNMS = std::make_shared<ngraph::vpu::op::StaticShapeNonMaxSuppression>(
                 inputBoxes, inputScores, maxOutputBoxesPerClassConst, iouThresholdConst, scoreThresholdConst,
-                ngraph::opset3::NonMaxSuppression::BoxEncodingType::CORNER, false, ngraph::element::i32);
+                ngraph::op::v5::NonMaxSuppression::BoxEncodingType::CORNER, false, ngraph::element::i32);
 
         ngraph::ResultVector results{std::make_shared<ngraph::opset3::Result>(staticShapeNMS->output(0)),
                                      std::make_shared<ngraph::opset3::Result>(staticShapeNMS->output(1))};
