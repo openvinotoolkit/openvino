@@ -21,17 +21,19 @@ from mo.graph.graph import Node, Graph
 from mo.ops.op import Op
 
 
-class LookupTableInsertV2(Op):
+class LookupTableInsert(Op):
     '''
-    Implementation of a shape inference for LookupTableInsertV2 here is also needed
-    if other nodes not being pruned have a conditional dependence on LookupTableInsertV2 node
+    In some models this operation has only output control flow edges and no output data edges.
+    And for these cases implementation of the shape inference is needed since the shape inference is executed
+    before control flow edges resolving. This operation has non-tensor output so the output shape is empty.
     '''
-    op = 'LookupTableInsertV2'
+    enabled = False
+    op = 'LookupTableInsert'
 
     def __init__(self, graph: Graph, attrs: dict):
         mandatory_props = {
-            'kind': 'op',
-            'op': __class__.op,
+            'type': None,
+            'op': self.op,
             'infer': self.infer,
             'in_ports_count': 3,
             'out_ports_count': 1,
@@ -54,3 +56,8 @@ class LookupTableInsertV2(Op):
         # set output shape that must be empty
         # since output is not a tensor
         node.out_port(0).data.set_shape(int64_array([]))
+
+
+class LookupTableInsertV2(LookupTableInsert):
+    enabled = False
+    op = 'LookupTableInsertV2'

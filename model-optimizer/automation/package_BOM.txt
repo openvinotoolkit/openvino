@@ -390,6 +390,7 @@ extensions/front/tf/identity_ext.py
 extensions/front/tf/identityN_to_identity.py
 extensions/front/tf/InterpolateTransposes.py
 extensions/front/tf/IteratorGetNext_ext.py
+extensions/front/tf/LookupTableInsert_ext.py
 extensions/front/tf/LoopCond_ext.py
 extensions/front/tf/lrn_ext.py
 extensions/front/tf/mask_rcnn_support.json
