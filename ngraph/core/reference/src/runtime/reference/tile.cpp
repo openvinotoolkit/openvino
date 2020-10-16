@@ -75,7 +75,7 @@ void runtime::reference::tile(const char* arg,
     size_t axis(indices.size());
     const int input_rank = in_shape_expanded.size();
     const int64_t last_dim = in_shape_expanded[input_rank - 1];
-    const std::vector<int64_t> pitches = createPitches(out_shape);
+    const std::vector<int64_t> pitches = create_pitches(out_shape);
     const char* copy = nullptr;
 
     while (run)
@@ -93,7 +93,7 @@ void runtime::reference::tile(const char* arg,
             out += block_size;
         }
 
-        while (Increase(in_shape_expanded, indices, axis, run))
+        while (is_axis_upper_bound(in_shape_expanded, indices, axis, run))
         {
             ptrdiff_t pitch = pitches[axis] * in_shape_expanded[axis];
             block_size = pitch * elem_size;
