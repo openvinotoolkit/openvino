@@ -18,7 +18,6 @@
 #include "pooling_kernel_gpu_byxf_opt.h"
 #include "pooling_kernel_gpu_bfyx_block_opt.h"
 #include "pooling_kernel_gpu_byxf_padding_opt.h"
-#include "pooling_kernel_gpu_byxf_af32.h"
 #include "pooling_kernel_gpu_int8_ref.h"
 #include "pooling_kernel_gpu_b_fs_yx_fsv4.h"
 #include "pooling_kernel_gpu_fs_b_yx_fsv32.h"
@@ -35,7 +34,6 @@ pooling_kernel_selector::pooling_kernel_selector() {
     Attach<PoolingKernelGPUBfyxBlockOpt>();
     Attach<PoolingKernelGPUByxfPaddingOpt>();
     Attach<PoolingKernelGPUInt8Ref>();
-    Attach<PoolingKerneGPU_byxf_af32>();
     Attach<PoolingKerneGPU_b_fs_yx_fsv4>();
     Attach<PoolingKerneGPU_fs_b_yx_fsv32>();
     Attach<PoolingKernel_b_fs_yx_fsv16>();

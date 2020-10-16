@@ -11,13 +11,35 @@
 
 namespace LayerTestsDefinitions {
 
+class PermuteTransformationTestValues {
+public:
+    class Actual {
+    public:
+        std::vector<float> fqInputLowIntervals;
+        std::vector<float> fqInputHighIntervals;
+        std::vector<float> fqOutputLowIntervals;
+        std::vector<float> fqOutputHighIntervals;
+    };
+
+    class Expected {
+    public:
+        InferenceEngine::Precision permutePrecision;
+        bool scales;
+        bool shifts;
+    };
+
+    InferenceEngine::details::LayerTransformation::Params params;
+    InferenceEngine::SizeVector inputShape;
+    std::vector<size_t> reshapeValue;
+    std::vector<size_t> permuteValue;
+    Actual actual;
+    Expected expected;
+};
+
 typedef std::tuple<
     InferenceEngine::Precision,
-    InferenceEngine::SizeVector,
     std::string,
-    InferenceEngine::details::LayerTransformation::Params,
-    bool,
-    bool> PermuteTransformationParams;
+    PermuteTransformationTestValues> PermuteTransformationParams;
 
 class PermuteTransformation :
     public testing::WithParamInterface<PermuteTransformationParams>,

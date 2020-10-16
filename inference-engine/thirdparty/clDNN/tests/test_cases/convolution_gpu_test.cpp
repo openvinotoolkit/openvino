@@ -130,16 +130,13 @@ VVVF<OutputT> reference_convolve(VVVVF<InputT> &input, VVVVF<WeightsT> &filter,
                                     weights_val = static_cast<AccT>(filter[f][zf][yf][xf]);
                                 } else if (grouped) {
                                     weights_val = static_cast<AccT>(filter[f - filter_begin][zf][yf][xf]);
-                                }
-                                else {
+                                } else {
                                     weights_val = static_cast<AccT>(filter[0][zf][yf][xf]);
                                 }
 
                                 if (asymm_weights) {
                                     weights_val = weights_val - static_cast<AccT>(weights_zp);
                                 }
-
-                                //std::cout << std::endl << "f=" << f << ", z=" << z << ", y=" << y << ", x=" << x << ", zf=" << zf << ", yf=" << yf << ", xf=" << xf << ": " << (int)input_val << " * " << (int)weights_val;
 
                                 values.push_back(input_val * weights_val);
                             }
@@ -4870,12 +4867,13 @@ using TestParamType_convolution_gpu = ::testing::tuple<int,   // 0 - Filter size
                                                        bool>; // 4 - With bias
 
 using TestParamType_convolution_gpu_block_layout = ::testing::tuple<int,   // 0 -Batch size
-        int,   // 1 - Input features
-        int,   // 2 - Output features
-        int,   // 3 - Filter size
-        int,   // 4 - Stride
-        int,   // 5 - Output padding
-        bool>; // 6 - With bias
+        int,  // 1 - Input features
+        int,  // 2 - Output features
+        int,  // 3 - Filter size
+        int,  // 4 - Stride
+        int,  // 5 - Output padding
+        bool, // 6 - With bias
+        int>; // 7 - Input X/Y size
 
 
 using TestParamType_convolution_depthwise_gpu = ::testing::tuple<int,   // 0 - Input XY size
@@ -4899,6 +4897,21 @@ using TestParamType_grouped_convolution_gpu = ::testing::tuple<  int,    // 0 - 
         int,            // 10  - Batch
         format,         // 11  - Input data format
         std::string>;   // 12 - Implementation name
+
+using TestParamType_general_convolution_gpu = ::testing::tuple<  int,    // 0 - Input X size
+        int,            // 1  - Input Y size
+        int,            // 2  - Input Z size
+        int,            // 3  - Input features
+        int,            // 4  - Output features
+        int,            // 5  - Kernel sizeX
+        int,            // 6  - Kernel sizeY
+        int,            // 7  - Kernel sizeZ
+        int,            // 8  - Groups number
+        int,            // 9  - Stride
+        int,            // 10 - Batch
+        format,         // 11 - Input data format
+        std::string,    // 12 - Implementation name
+        bool>;          // 13 - With bias
 
 struct convolution_gpu : public ::testing::TestWithParam<TestParamType_convolution_gpu>
 {
@@ -4984,6 +4997,32 @@ struct convolution_grouped_gpu : public ::testing::TestWithParam<TestParamType_g
             "_stride" + std::to_string(testing::get<9>(param_info.param)) +
             "_batch" + std::to_string(testing::get<10>(param_info.param)) +
             "_format" + std::to_string(testing::get<11>(param_info.param));
+
+        if (testing::get<12>(param_info.param) != "") {
+            res += "_impl_" + testing::get<12>(param_info.param);
+        }
+
+        return res;
+    }
+};
+
+struct convolution_general_gpu : public ::testing::TestWithParam<TestParamType_general_convolution_gpu> {
+    static std::string PrintToStringParamName(
+        testing::TestParamInfo<TestParamType_general_convolution_gpu> param_info) {
+        // construct a readable name
+        std::string res = "in" + std::to_string(testing::get<0>(param_info.param)) + "x" +
+                          std::to_string(testing::get<1>(param_info.param)) + "y" +
+                          std::to_string(testing::get<2>(param_info.param)) + "z" +
+                          std::to_string(testing::get<3>(param_info.param)) + "f" + "_output" +
+                          std::to_string(testing::get<4>(param_info.param)) + "f" + "_filter" +
+                          std::to_string(testing::get<5>(param_info.param)) + "x" +
+                          std::to_string(testing::get<6>(param_info.param)) + "y" +
+                          std::to_string(testing::get<7>(param_info.param)) + "z" + "_groups" +
+                          std::to_string(testing::get<8>(param_info.param)) + "_stride" +
+                          std::to_string(testing::get<9>(param_info.param)) + "_batch" +
+                          std::to_string(testing::get<10>(param_info.param)) + "_format" +
+                          std::to_string(testing::get<11>(param_info.param)) + "_wih_bias_" +
+                          std::to_string(testing::get<13>(param_info.param));
 
         if (testing::get<12>(param_info.param) != "") {
             res += "_impl_" + testing::get<12>(param_info.param);
@@ -5688,47 +5727,120 @@ TEST(convolution_gpu, bfyx_iyxo_5x5_fp16)
 
 }
 
-INSTANTIATE_TEST_CASE_P(convolution_gpu_block,
-                        convolution_gpu_block_layout,
+template<typename T>
+void blockedFormatZeroCheck(cldnn::memory out_mem) {
+    auto out_ptr = out_mem.pointer<T>();
+
+    bool batch_blocked = false;
+    if (out_mem.get_layout().format == format::bs_fs_zyx_bsv16_fsv16 ||
+        out_mem.get_layout().format == format::bs_fs_yx_bsv16_fsv16)
+        batch_blocked = true;
+    const int block_size = 16;
+
+    auto output_tensor = out_mem.get_layout().get_buffer_size();
+    const int b = output_tensor.batch[0];
+    const int f = output_tensor.feature[0];
+    const int spatials = std::accumulate(output_tensor.spatial.begin(), output_tensor.spatial.end(), 1, std::multiplies<int>());
+    const int f_mod = output_tensor.feature[0] % block_size;
+    const size_t batch_skip = batch_blocked ? b / block_size : b;
+    const size_t number_of_zeroes = f_mod == 0 ? 0 : (block_size - f_mod) * spatials * b;
+
+    size_t to_skip = (output_tensor.feature[0] / block_size) * block_size * spatials;
+    to_skip *= batch_blocked ? block_size : 1;
+    size_t zero_ind = to_skip + f_mod;
+
+    size_t i = 0;
+    while (i < number_of_zeroes) {
+        size_t f_tmp = f_mod;
+        while (f_tmp % 16 != 0) {
+            auto equal = are_equal(out_ptr[zero_ind], 0, 1e-2f);
+            EXPECT_TRUE(equal);
+            if (!equal) {
+                std::cout << "Should be zero idx: " << zero_ind << std::endl;
+                return;
+            }
+            f_tmp++;
+            zero_ind++;
+            i++;
+        }
+        // skip on new batch
+        if (i % (number_of_zeroes / batch_skip) == 0)
+            zero_ind += to_skip;
+        if (zero_ind >= (size_t)b*f*spatials)
+            return;
+
+        zero_ind += f_mod;
+    }
+}
+struct convolution_gpu_block_layout3D : public convolution_gpu_block_layout {};
+INSTANTIATE_TEST_CASE_P(convolution_gpu_block3D,
+                        convolution_gpu_block_layout3D,
                         ::testing::Values(
-                                TestParamType_convolution_gpu_block_layout(16, 64, 64, 1, 1, 0, false),
-                                TestParamType_convolution_gpu_block_layout(16, 16, 16, 3, 1, 0, false),
-                                TestParamType_convolution_gpu_block_layout(32, 16, 16, 3, 1, 0, false),
-                                TestParamType_convolution_gpu_block_layout(16, 32, 16, 3, 1, 0, false),
-                                TestParamType_convolution_gpu_block_layout(16, 16, 32, 3, 1, 0, false),
-                                TestParamType_convolution_gpu_block_layout(32, 16, 32, 3, 1, 0, false),
-                                TestParamType_convolution_gpu_block_layout(16, 32, 32, 3, 1, 0, false),
-                                TestParamType_convolution_gpu_block_layout(16, 64, 16, 3, 1, 0, false),
-                                TestParamType_convolution_gpu_block_layout(32, 32, 16, 3, 1, 0, false),
-                                TestParamType_convolution_gpu_block_layout(32, 32, 32, 3, 1, 0, false),
-                                TestParamType_convolution_gpu_block_layout(32, 32, 32, 1, 1, 0, false),
-                                TestParamType_convolution_gpu_block_layout(32, 64, 64, 1, 1, 0, false),
-                                TestParamType_convolution_gpu_block_layout(16, 64, 64, 1, 1, 0, true),
-                                TestParamType_convolution_gpu_block_layout(16, 16, 16, 3, 1, 0, true),
-                                TestParamType_convolution_gpu_block_layout(32, 16, 16, 3, 1, 0, true),
-                                TestParamType_convolution_gpu_block_layout(16, 32, 16, 3, 1, 0, true),
-                                TestParamType_convolution_gpu_block_layout(16, 16, 32, 3, 1, 0, true),
-                                TestParamType_convolution_gpu_block_layout(32, 16, 32, 3, 1, 0, true),
-                                TestParamType_convolution_gpu_block_layout(16, 32, 32, 3, 1, 0, true),
-                                TestParamType_convolution_gpu_block_layout(16, 64, 16, 3, 1, 0, true),
-                                TestParamType_convolution_gpu_block_layout(32, 32, 16, 3, 1, 0, true),
-                                TestParamType_convolution_gpu_block_layout(32, 32, 32, 3, 1, 0, true),
-                                TestParamType_convolution_gpu_block_layout(64, 64, 64, 3, 1, 0, true)),
+                                TestParamType_convolution_gpu_block_layout(1, 3, 10, 1, 1, 0, false, 16),
+                                TestParamType_convolution_gpu_block_layout(4, 4, 17, 3, 1, 0, false, 16),
+                                TestParamType_convolution_gpu_block_layout(15, 17, 15, 3, 1, 0, false, 4),
+                                TestParamType_convolution_gpu_block_layout(1, 17, 16, 1, 1, 0, false, 4),
+                                TestParamType_convolution_gpu_block_layout(1, 17, 20, 3, 1, 0, false, 9),
+                                TestParamType_convolution_gpu_block_layout(4, 15, 17, 1, 1, 0, false, 5),
+                                TestParamType_convolution_gpu_block_layout(1, 2, 15, 3, 1, 0, true, 16),
+                                TestParamType_convolution_gpu_block_layout(17, 2, 16, 3, 1, 0, true, 32),
+                                TestParamType_convolution_gpu_block_layout(30, 2, 5, 1, 1, 0, true, 8),
+                                TestParamType_convolution_gpu_block_layout(2, 1, 7, 3, 1, 0, true, 8),
+                                TestParamType_convolution_gpu_block_layout(5, 16, 1, 1, 1, 0, true, 5),
+
+                                TestParamType_convolution_gpu_block_layout(32, 4, 15, 1, 1, 0, false, 5),
+                                TestParamType_convolution_gpu_block_layout(32, 2, 16, 3, 1, 0, false, 8),
+                                TestParamType_convolution_gpu_block_layout(32, 4, 17, 3, 1, 0, false, 1),
+                                TestParamType_convolution_gpu_block_layout(32, 17, 15, 1, 1, 0, false, 16),
+                                TestParamType_convolution_gpu_block_layout(32, 15, 15, 1, 1, 0, true, 32),
+                                TestParamType_convolution_gpu_block_layout(32, 2, 1, 3, 3, 0, true, 10),
+                                TestParamType_convolution_gpu_block_layout(32, 17, 1, 1, 1, 0, true, 8),
+
+                                TestParamType_convolution_gpu_block_layout(16, 1, 17, 1, 1, 0, true, 10),
+                                TestParamType_convolution_gpu_block_layout(16, 3, 15, 1, 1, 0, false, 8),
+                                TestParamType_convolution_gpu_block_layout(16, 1, 17, 3, 1, 0, false, 1),
+                                TestParamType_convolution_gpu_block_layout(16, 15, 17, 1, 1, 0, false, 3),
+                                TestParamType_convolution_gpu_block_layout(16, 16, 17, 3, 1, 0, false, 16),
+                                TestParamType_convolution_gpu_block_layout(16, 17, 15, 3, 1, 0, false, 32),
+                                TestParamType_convolution_gpu_block_layout(16, 17, 16, 1, 1, 0, true, 17),
+                                TestParamType_convolution_gpu_block_layout(16, 3, 7, 3, 1, 0, true, 8),
+                                TestParamType_convolution_gpu_block_layout(16, 5, 10, 1, 1, 0, true, 8),
+                                TestParamType_convolution_gpu_block_layout(16, 17, 6, 3, 1, 0, true, 15),
+                                TestParamType_convolution_gpu_block_layout(16, 16, 1, 1, 1, 0, true, 2),
+
+                                TestParamType_convolution_gpu_block_layout(16, 32, 16, 3, 1, 0, false, 5),
+                                TestParamType_convolution_gpu_block_layout(16, 16, 32, 3, 1, 0, false, 3),
+                                TestParamType_convolution_gpu_block_layout(32, 16, 32, 3, 1, 0, false, 9),
+                                TestParamType_convolution_gpu_block_layout(16, 32, 32, 3, 1, 0, false, 8),
+                                TestParamType_convolution_gpu_block_layout(16, 64, 16, 3, 1, 0, false, 5),
+                                TestParamType_convolution_gpu_block_layout(32, 32, 16, 3, 1, 0, false, 5),
+                                TestParamType_convolution_gpu_block_layout(32, 32, 32, 3, 1, 0, false, 3),
+                                TestParamType_convolution_gpu_block_layout(32, 32, 32, 1, 1, 0, false, 2),
+                                TestParamType_convolution_gpu_block_layout(32, 16, 16, 3, 1, 0, true, 16),
+                                TestParamType_convolution_gpu_block_layout(16, 32, 16, 3, 1, 0, true, 5),
+                                TestParamType_convolution_gpu_block_layout(32, 16, 32, 3, 1, 0, true, 5),
+                                TestParamType_convolution_gpu_block_layout(16, 64, 16, 3, 1, 0, true, 3),
+                                TestParamType_convolution_gpu_block_layout(32, 32, 16, 3, 1, 0, true, 2),
+                                TestParamType_convolution_gpu_block_layout(32, 32, 32, 3, 1, 0, true, 2),
+                                TestParamType_convolution_gpu_block_layout(64, 64, 64, 3, 1, 0, true, 2)),
                         convolution_gpu_block_layout::PrintToStringParamName);
 
-TEST_P(convolution_gpu_block_layout, bfzyx_bsv16_fsv16_fp32)
+TEST_P(convolution_gpu_block_layout3D, bfzyx_bsv16_fsv16_fp32)
 {
     const auto& engine = get_test_engine();
 
     const int batch_num = testing::get<0>(GetParam());
-    const int input_xy = 5;
     const int input_f = testing::get<1>(GetParam());
     const int output_f = testing::get<2>(GetParam());
     const int filter_xy = testing::get<3>(GetParam());
     const int stride = testing::get<4>(GetParam());
     const int output_padding = testing::get<5>(GetParam());
     const bool with_bias = testing::get<6>(GetParam());
+    const int input_xy = testing::get<7>(GetParam());
     const int input_offset = -(filter_xy / 2);
+    format input_format = format::b_fs_zyx_fsv16;
+    if (batch_num % 16 == 0)
+        input_format = format::bs_fs_zyx_bsv16_fsv16;
 
     auto input_size = tensor(batch_num, input_f, input_xy, input_xy, 1);
     auto input_data = generate_random_4d<float>(batch_num, input_f, input_xy, input_xy, 1, 10);
@@ -5751,8 +5863,8 @@ TEST_P(convolution_gpu_block_layout, bfzyx_bsv16_fsv16_fp32)
             input_layout("input", input_mem.get_layout()),
             data("weights", weights_mem));
 
-    // Reorder input to bs_fs_yx_bsv16_fsv16
-    topology.add(reorder("input_bsv16_fsv16", "input", { data_types::f32, format::bs_fs_zyx_bsv16_fsv16, input_size }));
+    // Reorder input to correct format
+    topology.add(reorder("input_bsv16_fsv16", "input", { data_types::f32, input_format, input_size }));
 
     if (with_bias)
     {
@@ -5825,7 +5937,9 @@ TEST_P(convolution_gpu_block_layout, bfzyx_bsv16_fsv16_fp32)
     auto out_mem_bfyx = network.get_output("reorder_bfzyx").get_memory();
     auto out_ptr_bfyx = out_mem_bfyx.pointer<float>();
 
-    ASSERT_EQ(out_mem.get_layout().format, format::bs_fs_zyx_bsv16_fsv16);
+    blockedFormatZeroCheck<float>(out_mem);
+
+    ASSERT_EQ(out_mem.get_layout().format, input_format);
 
     auto flatten_ref = flatten_4d(format::bfyx, reference_result);
 
@@ -5838,9 +5952,10 @@ TEST_P(convolution_gpu_block_layout, bfzyx_bsv16_fsv16_fp32)
             return;
         }
     }
+
 }
 
-TEST_P(convolution_gpu_block_layout, bfzyx_bsv16_fsv16_fp16)
+TEST_P(convolution_gpu_block_layout3D, bfzyx_bsv16_fsv16_fp16)
 {
     const auto& engine = get_test_engine();
 
@@ -5852,21 +5967,17 @@ TEST_P(convolution_gpu_block_layout, bfzyx_bsv16_fsv16_fp16)
     }
 
     const int batch_num = testing::get<0>(GetParam());
-    const int input_xy = 5;
     const int input_f = testing::get<1>(GetParam());
     const int output_f = testing::get<2>(GetParam());
     const int filter_xy = testing::get<3>(GetParam());
     const int stride = testing::get<4>(GetParam());
     const int output_padding = testing::get<5>(GetParam());
     const bool with_bias = testing::get<6>(GetParam());
+    const int input_xy = testing::get<7>(GetParam());
     const int input_offset = -(filter_xy / 2);
-
-    if (batch_num % 32 != 0)
-    {
-        std::cout << "[ SKIPPED ] The test is skipped (for fp16 batch should be multiple of 32)." << std::endl;
-        EXPECT_EQ(1, 1);
-        return;
-    }
+    format input_format = format::b_fs_zyx_fsv16;
+    if (batch_num % 32 == 0)
+        input_format = format::bs_fs_zyx_bsv16_fsv16;
 
     auto input_size = tensor(batch_num, input_f, input_xy, input_xy, 1);
     auto input_data = generate_random_4d<FLOAT16>(batch_num, input_f, input_xy, input_xy, 0, 1);
@@ -5890,8 +6001,8 @@ TEST_P(convolution_gpu_block_layout, bfzyx_bsv16_fsv16_fp16)
             input_layout("input", input_mem.get_layout()),
             data("weights", weights_mem));
 
-    // Reorder input to bs_fs_zyx_bsv16_fsv16
-    topology.add(reorder("input_bsv16_fsv16", "input", { data_types::f16, format::bs_fs_zyx_bsv16_fsv16, input_size }));
+    // Reorder input to correct format
+    topology.add(reorder("input_bsv16_fsv16", "input", { data_types::f16, input_format, input_size }));
 
     if (with_bias)
     {
@@ -5964,7 +6075,9 @@ TEST_P(convolution_gpu_block_layout, bfzyx_bsv16_fsv16_fp16)
     auto out_mem_bfyx = network.get_output("reorder_bfzyx").get_memory();
     auto out_ptr_bfyx = out_mem_bfyx.pointer<FLOAT16>();
 
-    ASSERT_EQ(out_mem.get_layout().format, format::bs_fs_zyx_bsv16_fsv16);
+    blockedFormatZeroCheck<FLOAT16>(out_mem);
+
+    ASSERT_EQ(out_mem.get_layout().format, input_format);
 
     auto flatten_ref = flatten_4d(format::bfyx, reference_result);
 
@@ -5979,19 +6092,22 @@ TEST_P(convolution_gpu_block_layout, bfzyx_bsv16_fsv16_fp16)
     }
 }
 
-TEST_P(convolution_gpu_block_layout, bfzyx_bsv16_fsv16_fp32_fused_ops)
+TEST_P(convolution_gpu_block_layout3D, bfzyx_bsv16_fsv16_fp32_fused_ops)
 {
     const auto& engine = get_test_engine();
 
     const int batch_num = testing::get<0>(GetParam());
-    const int input_xy = 5;
     const int input_f = testing::get<1>(GetParam());
     const int output_f = testing::get<2>(GetParam());
     const int filter_xy = testing::get<3>(GetParam());
     const int stride = testing::get<4>(GetParam());
     const int output_padding = testing::get<5>(GetParam());
     const bool with_bias = testing::get<6>(GetParam());
+    const int input_xy = testing::get<7>(GetParam());
     const int input_offset = -(filter_xy / 2);
+    format input_format = format::b_fs_zyx_fsv16;
+    if (batch_num % 16 == 0)
+        input_format = format::bs_fs_zyx_bsv16_fsv16;
 
     auto input_size = tensor(batch_num, input_f, input_xy, input_xy, 1);
     auto input_data = generate_random_4d<float>(batch_num, input_f, input_xy, input_xy, 1, 10);
@@ -6014,8 +6130,8 @@ TEST_P(convolution_gpu_block_layout, bfzyx_bsv16_fsv16_fp32_fused_ops)
             input_layout("input", input_mem.get_layout()),
             data("weights", weights_mem));
 
-    // Reorder input to bs_fs_yx_bsv16_fsv16
-    topology.add(reorder("input_bsv16_fsv16", "input", { data_types::f32, format::bs_fs_zyx_bsv16_fsv16, input_size }));
+    // Reorder input to correct format
+    topology.add(reorder("input_bsv16_fsv16", "input", { data_types::f32, input_format, input_size }));
 
     if (with_bias)
     {
@@ -6095,7 +6211,9 @@ TEST_P(convolution_gpu_block_layout, bfzyx_bsv16_fsv16_fp32_fused_ops)
     auto out_mem_bfyx = network.get_output("reorder_bfzyx").get_memory();
     auto out_ptr_bfyx = out_mem_bfyx.pointer<float>();
 
-    ASSERT_EQ(out_mem.get_layout().format, format::bs_fs_zyx_bsv16_fsv16);
+    blockedFormatZeroCheck<float>(out_mem);
+
+    ASSERT_EQ(out_mem.get_layout().format, input_format);
 
     auto flatten_ref = flatten_4d(format::bfyx, reference_result);
 
@@ -6109,6 +6227,34 @@ TEST_P(convolution_gpu_block_layout, bfzyx_bsv16_fsv16_fp32_fused_ops)
         }
     }
 }
+
+INSTANTIATE_TEST_CASE_P(convolution_gpu_block,
+                        convolution_gpu_block_layout,
+                        ::testing::Values(
+                                TestParamType_convolution_gpu_block_layout(16, 64, 64, 1, 1, 0, false, 0),
+                                TestParamType_convolution_gpu_block_layout(16, 16, 16, 3, 1, 0, false, 0),
+                                TestParamType_convolution_gpu_block_layout(32, 16, 16, 3, 1, 0, false, 0),
+                                TestParamType_convolution_gpu_block_layout(16, 32, 16, 3, 1, 0, false, 0),
+                                TestParamType_convolution_gpu_block_layout(16, 16, 32, 3, 1, 0, false, 0),
+                                TestParamType_convolution_gpu_block_layout(32, 16, 32, 3, 1, 0, false, 0),
+                                TestParamType_convolution_gpu_block_layout(16, 32, 32, 3, 1, 0, false, 0),
+                                TestParamType_convolution_gpu_block_layout(16, 64, 16, 3, 1, 0, false, 0),
+                                TestParamType_convolution_gpu_block_layout(32, 32, 16, 3, 1, 0, false, 0),
+                                TestParamType_convolution_gpu_block_layout(32, 32, 32, 3, 1, 0, false, 0),
+                                TestParamType_convolution_gpu_block_layout(32, 32, 32, 1, 1, 0, false, 0),
+                                TestParamType_convolution_gpu_block_layout(32, 64, 64, 1, 1, 0, false, 0),
+                                TestParamType_convolution_gpu_block_layout(16, 64, 64, 1, 1, 0, true, 0),
+                                TestParamType_convolution_gpu_block_layout(16, 16, 16, 3, 1, 0, true, 0),
+                                TestParamType_convolution_gpu_block_layout(32, 16, 16, 3, 1, 0, true, 0),
+                                TestParamType_convolution_gpu_block_layout(16, 32, 16, 3, 1, 0, true, 0),
+                                TestParamType_convolution_gpu_block_layout(16, 16, 32, 3, 1, 0, true, 0),
+                                TestParamType_convolution_gpu_block_layout(32, 16, 32, 3, 1, 0, true, 0),
+                                TestParamType_convolution_gpu_block_layout(16, 32, 32, 3, 1, 0, true, 0),
+                                TestParamType_convolution_gpu_block_layout(16, 64, 16, 3, 1, 0, true, 0),
+                                TestParamType_convolution_gpu_block_layout(32, 32, 16, 3, 1, 0, true, 0),
+                                TestParamType_convolution_gpu_block_layout(32, 32, 32, 3, 1, 0, true, 0),
+                                TestParamType_convolution_gpu_block_layout(64, 64, 64, 3, 1, 0, true, 0)),
+                        convolution_gpu_block_layout::PrintToStringParamName);
 
 TEST_P(convolution_gpu_block_layout, bfyx_bsv16_fsv16_fp32)
 {
@@ -6873,7 +7019,7 @@ TEST(convolution_depthwise_gpu_fsv16, depthwise_conv_b_fs_yx_fsv16_in_feature_pa
     build_options options;
     options.set_option(build_option::optimize_data(true));
     implementation_desc conv_impl = { format::b_fs_yx_fsv16, "" };
-    options.set_option(build_option::force_implementations({ {"conv", conv_impl} }));  
+    options.set_option(build_option::force_implementations({ {"conv", conv_impl} }));
 
     network network(engine, topology, options);
     network.set_input_data("input", input);
@@ -6893,7 +7039,7 @@ TEST(convolution_depthwise_gpu_fsv16, depthwise_conv_b_fs_yx_fsv16_in_feature_pa
 
     EXPECT_EQ(output_layout.format, format::bfyx);
 
-    EXPECT_EQ(y_size, output_size.spatial[1]);    
+    EXPECT_EQ(y_size, output_size.spatial[1]);
     EXPECT_EQ(x_size, output_size.spatial[0]);
     EXPECT_EQ(f_size, output_size.feature[0]);
     EXPECT_EQ(b_size, output_size.batch[0]);
@@ -7060,6 +7206,15 @@ INSTANTIATE_TEST_CASE_P(convolution_grouped_fsv4_fsv16,
                             // Input X size, Input Y size, Input Z size, Input features, Output features,
                             // Kernel size X, Kernel size Y, Kernel size Z, Groups number, Stride, Batch,
                             // Input data format, Implementation name
+                            // Format: b_fs_yx_fsv16
+                            TestParamType_grouped_convolution_gpu(12, 12, 1, 96, 96, 3, 3, 1, 32, 1, 1, format::b_fs_yx_fsv16, ""),
+                            TestParamType_grouped_convolution_gpu(4, 4, 1, 8, 16, 3, 3, 1, 2, 1, 1, format::b_fs_yx_fsv16, ""),
+                            TestParamType_grouped_convolution_gpu(7, 7, 1, 8, 4, 3, 3, 1, 4, 1, 1, format::b_fs_yx_fsv16, ""),
+                            TestParamType_grouped_convolution_gpu(5, 5, 1, 34, 12, 3, 3, 1, 2, 1, 1, format::b_fs_yx_fsv16, ""),
+                            TestParamType_grouped_convolution_gpu(8, 8, 1, 34, 24, 3, 3, 1, 2, 1, 1, format::b_fs_yx_fsv16, ""),
+                            TestParamType_grouped_convolution_gpu(2, 2, 1, 12, 12, 3, 3, 1, 4, 1, 1, format::b_fs_yx_fsv16, ""),
+                            TestParamType_grouped_convolution_gpu(3, 3, 1, 8, 8, 3, 3, 1, 2, 1, 1, format::b_fs_yx_fsv16, ""),
+                            TestParamType_grouped_convolution_gpu(4, 4, 1, 8, 4, 2, 2, 1, 2, 2, 4, format::b_fs_yx_fsv16, ""),
 
                             // Format: b_fs_yx_fsv4
                             TestParamType_grouped_convolution_gpu(4, 4, 1, 16, 17, 3, 3, 1, 1, 1, 1, format::b_fs_yx_fsv4, ""),
@@ -7080,7 +7235,7 @@ INSTANTIATE_TEST_CASE_P(convolution_grouped_fsv4_fsv16,
                             TestParamType_grouped_convolution_gpu(16, 16, 1, 8, 48, 2, 2, 1, 2, 2, 1, format::b_fs_yx_fsv16, ""),
                             TestParamType_grouped_convolution_gpu(3, 3, 1, 48, 96, 2, 2, 1, 2, 8, 1, format::b_fs_yx_fsv16, ""),
                             TestParamType_grouped_convolution_gpu(6, 6, 1, 8, 26, 3, 3, 1, 2, 4, 1, format::b_fs_yx_fsv16, ""),
-                            
+
                             // Format: b_fs_zyx_fsv16
                             TestParamType_grouped_convolution_gpu(4, 4, 4, 16, 17, 3, 3, 3, 1, 1, 1, format::b_fs_zyx_fsv16, ""),
                             TestParamType_grouped_convolution_gpu(4, 4, 4, 16, 16, 3, 3, 3, 4, 1, 1, format::b_fs_zyx_fsv16, ""),
@@ -7097,7 +7252,9 @@ INSTANTIATE_TEST_CASE_P(convolution_grouped_fsv4_fsv16,
                             TestParamType_grouped_convolution_gpu(3, 1, 5, 196, 252, 3, 1, 3, 4, 1, 1, format::b_fs_zyx_fsv16, ""),
                             TestParamType_grouped_convolution_gpu(4, 1, 6, 256, 256, 2, 1, 2, 4, 1, 1, format::b_fs_zyx_fsv16, ""),
                             TestParamType_grouped_convolution_gpu(4, 1, 6, 256, 512, 2, 1, 3, 16, 1, 1, format::b_fs_zyx_fsv16, ""),
-                            TestParamType_grouped_convolution_gpu(1, 3, 1, 18, 2, 1, 3, 1, 2, 1, 1, format::b_fs_zyx_fsv16, "")
+                            TestParamType_grouped_convolution_gpu(1, 3, 1, 18, 2, 1, 3, 1, 2, 1, 1, format::b_fs_zyx_fsv16, ""),
+                            TestParamType_grouped_convolution_gpu(2, 3, 4, 3, 18, 3, 3, 3, 1, 1, 1, format::b_fs_zyx_fsv16, "convolution_gpu_mmad_bfyx_to_b_fs_yx_fsv32"),
+                            TestParamType_grouped_convolution_gpu(79, 224, 224, 3, 64, 3, 3, 3, 1, 2, 1, format::b_fs_zyx_fsv16, "convolution_gpu_mmad_bfyx_to_b_fs_yx_fsv32")
                         ),
                         convolution_grouped_gpu::PrintToStringParamName);
 
@@ -7235,6 +7392,173 @@ TEST_P(convolution_grouped_gpu, base) {
                         }
                         EXPECT_TRUE(equal);
                     }
+}
+
+INSTANTIATE_TEST_CASE_P(conv_fp16_cases,
+                        convolution_general_gpu,
+                        ::testing::Values(
+                            // Input X size, Input Y size, Input Z size, Input features, Output features,
+                            // Kernel size X, Kernel size Y, Kernel size Z, Groups number, Stride, Batch,
+                            // Input data format, Implementation name, WithBias
+                            TestParamType_general_convolution_gpu(8, 8, 1, 8, 16, 3, 3, 1, 1, 1, 16, format::fs_b_yx_fsv32, "convolution_gpu_fs_byx_fsv32", true),
+                            TestParamType_general_convolution_gpu(12, 12, 1, 4, 16, 3, 3, 1, 1, 1, 2, format::fs_b_yx_fsv32, "convolution_gpu_fs_byx_fsv32", false),
+                            TestParamType_general_convolution_gpu(11, 11, 1, 96, 48, 3, 3, 1, 1, 1, 2, format::fs_b_yx_fsv32, "convolution_gpu_fs_byx_fsv32", true),
+                            TestParamType_general_convolution_gpu(12, 12, 1, 32, 48, 3, 3, 1, 1, 1, 2, format::fs_b_yx_fsv32, "convolution_gpu_fs_byx_fsv32", false),
+                            TestParamType_general_convolution_gpu(7, 7, 1, 16, 16, 3, 3, 1, 1, 1, 16, format::fs_b_yx_fsv32, "convolution_gpu_fs_byx_fsv32", true),
+                            TestParamType_general_convolution_gpu(7, 8, 1, 20, 64, 4, 4, 1, 1, 1, 2, format::fs_b_yx_fsv32, "convolution_gpu_fs_byx_fsv32", false),
+                            TestParamType_general_convolution_gpu(5, 5, 1, 80, 64, 3, 3, 1, 1, 1, 2, format::fs_b_yx_fsv32, "convolution_gpu_fs_byx_fsv32", false),
+                            TestParamType_general_convolution_gpu(7, 7, 1, 32, 64, 4, 4, 1, 1, 1, 2, format::fs_b_yx_fsv32, "convolution_gpu_fs_byx_fsv32", true),
+                            TestParamType_general_convolution_gpu(5, 5, 1, 32, 64, 3, 3, 1, 1, 1, 2, format::fs_b_yx_fsv32, "convolution_gpu_fs_byx_fsv32", true),
+                            TestParamType_general_convolution_gpu(12, 10, 1, 32, 64, 5, 5, 1, 1, 1, 2, format::fs_b_yx_fsv32, "convolution_gpu_fs_byx_fsv32", false),
+                            TestParamType_general_convolution_gpu(5, 5, 1, 32, 64, 3, 3, 1, 1, 1, 2, format::fs_b_yx_fsv32, "convolution_gpu_fs_byx_fsv32", false),
+                            TestParamType_general_convolution_gpu(5, 5, 1, 64, 64, 3, 3, 1, 1, 2, 2, format::fs_b_yx_fsv32, "convolution_gpu_fs_byx_fsv32", true)
+                        ),
+                        convolution_general_gpu::PrintToStringParamName);
+
+TEST_P(convolution_general_gpu, conv_fp16_cases) {
+    const auto& engine = get_test_engine();
+
+    if (!engine.get_info().supports_fp16)
+    {
+        std::cout << "[ SKIPPED ] The test is skipped (cl_khr_fp16 is not supported)." << std::endl;
+        EXPECT_EQ(1, 1);
+        return;
+    }
+
+    const int input_x = testing::get<0>(GetParam()),
+              input_y = testing::get<1>(GetParam()),
+              input_z = testing::get<2>(GetParam()),
+              input_f = testing::get<3>(GetParam()),
+              output_f = testing::get<4>(GetParam()),
+              filter_x = testing::get<5>(GetParam()),
+              filter_y = testing::get<6>(GetParam()),
+              filter_z = testing::get<7>(GetParam()),
+              groups = testing::get<8>(GetParam()),
+              stride = testing::get<9>(GetParam()),
+              batch_num = testing::get<10>(GetParam()),
+              output_padding = 0,
+              input_offset_z = (filter_z - 1) / 2,
+              input_offset_y = (filter_y - 1) / 2,
+              input_offset_x = (filter_x - 1) / 2;
+    auto input_data_format = testing::get<11>(GetParam());
+    auto impl_name = testing::get<12>(GetParam());
+    auto with_bias = testing::get<13>(GetParam());
+
+    const int output_y = 1 + (input_y + 2 * (-input_offset_y) - filter_y) / stride + 2 * output_padding;
+    const int output_x = 1 + (input_x + 2 * (-input_offset_x) - filter_x) / stride + 2 * output_padding;
+
+    auto input_size = tensor(batch_num, input_f, input_x, input_y);
+    auto input_data = generate_random_4d<FLOAT16>(batch_num, input_f, input_y, input_x, -1, 1);
+    auto input_data_bfyx = flatten_4d(format::bfyx, input_data);
+    auto input_mem = memory::allocate(engine, { data_types::f16, format::bfyx, input_size });
+    set_values(input_mem, input_data_bfyx);
+
+    auto weights_size = tensor(output_f, input_f, filter_y, filter_x, 1);
+    auto weights_data = generate_random_4d<FLOAT16>(output_f, input_f, filter_y, filter_x, -1, 1);
+    auto weights_data_bfyx = flatten_4d(format::bfyx, weights_data);
+    auto weights_mem = memory::allocate(engine, {data_types::f16, format::bfyx, weights_size});
+    set_values(weights_mem, weights_data_bfyx);
+
+    // Will be used to store reference values calculated in branches depending on bias
+    auto expected_result = VVVVF<FLOAT16>(batch_num, VVVF<FLOAT16>(output_f));
+    topology topology;
+
+    // Calculate reference values
+    if (with_bias) {
+        auto biases_size = tensor(1, output_f, 1, 1);
+        auto biases_data = generate_random_1d<FLOAT16>(output_f, -1, 1);
+        auto biases_mem = memory::allocate(engine, {data_types::f16, format::bfyx, biases_size});
+        set_values(biases_mem, biases_data);
+
+        for (auto bi = 0; bi < batch_num; ++bi) {
+            for (auto ofi = 0; ofi < output_f; ++ofi) {
+                expected_result[bi][ofi] = reference_convolve(input_data[bi],                    // input
+                                                              weights_data[ofi],                 // weights
+                                                              stride, stride,                    // strides
+                                                              biases_data[ofi],                  // bias
+                                                              1, 1,                              // dilation
+                                                              -input_offset_y, -input_offset_x,  // input padding
+                                                              output_padding, output_padding);   // output_padding
+            }
+        }
+
+        topology.add(input_layout("input", input_mem.get_layout()),
+                     data("weights_fsv", weights_mem),
+                     data("bias", biases_mem),
+                     reorder("input_fsv", "input", {data_types::f16, input_data_format, input_size}));
+
+        auto conv_fsv = convolution("conv_fsv",
+                                    "input_fsv",
+                                    {"weights_fsv"},
+                                    {"bias"},
+                                    groups,
+                                    {1, 1, stride, stride},
+                                    {0, 0, input_offset_x, input_offset_y});
+        conv_fsv.output_padding = padding({0, 0, output_padding, output_padding}, 0.f);
+
+        topology.add(conv_fsv);
+    } else {
+        for (auto bi = 0; bi < batch_num; ++bi) {
+            for (auto ofi = 0; ofi < output_f; ++ofi) {
+                expected_result[bi][ofi] = reference_convolve(input_data[bi],                    // input
+                                                              weights_data[ofi],                 // weights
+                                                              stride, stride,                    // strides
+                                                              0,                                 // bias
+                                                              1, 1,                              // dilation
+                                                              -input_offset_y, -input_offset_x,  // input padding
+                                                              output_padding, output_padding);   // output_padding
+            }
+        }
+
+        topology.add(input_layout("input", input_mem.get_layout()),
+                     data("weights_fsv", weights_mem),
+                     reorder("input_fsv", "input", {data_types::f16, input_data_format, input_size}));
+
+        auto conv_fsv = convolution("conv_fsv",
+                                    "input_fsv",
+                                    {"weights_fsv"},
+                                    groups,
+                                    {1, 1, stride, stride},
+                                    {0, 0, input_offset_x, input_offset_y});
+        conv_fsv.output_padding = padding({0, 0, output_padding, output_padding}, 0.f);
+        topology.add(conv_fsv);
+    }
+    build_options options;
+    options.set_option(build_option::optimize_data(true));
+    implementation_desc conv_impl = {input_data_format, impl_name};
+    options.set_option(build_option::force_implementations({{"conv_fsv", conv_impl}}));
+    network network(engine, topology, options);
+
+    network.set_input_data("input", input_mem);
+    network.execute();
+
+    auto out_mem = network.get_output("conv_fsv").get_memory();
+    auto out_ptr = out_mem.pointer<FLOAT16>();
+    auto out_lay = out_mem.get_layout();
+
+    ASSERT_EQ(out_mem.get_layout().format, input_data_format);
+    ASSERT_EQ(out_lay.size.batch[0], expected_result.size());
+    ASSERT_EQ(out_lay.size.feature[0], expected_result[0].size());
+    ASSERT_EQ(out_lay.size.spatial[1], expected_result[0][0].size());
+    ASSERT_EQ(out_lay.size.spatial[0], expected_result[0][0][0].size());
+
+    for (int bi = 0; bi < out_lay.size.batch[0]; ++bi)
+        for (int ofi = 0; ofi < out_lay.size.feature[0]; ++ofi)
+            for (int yi = 0; yi < out_lay.size.spatial[1]; ++yi)
+                for (int xi = 0; xi < out_lay.size.spatial[0]; ++xi) {
+                    tensor coords = tensor(batch(bi), feature(ofi), spatial(xi, yi, 0, 0));
+                    auto offset = out_lay.get_linear_offset(coords);
+                    auto val = out_ptr[offset];
+                    auto val_ref = expected_result[bi][ofi][yi][xi];
+                    auto equal = are_equal(val_ref, val, 1);
+                    if (!equal) {
+                        std::cout << "Value at batch: " << bi << ", output_f: " << ofi
+                                    << ", y: " << yi << ", x: " << xi << " = " << static_cast<float>(val) << std::endl;
+                        std::cout << "Reference value at batch: " << bi << ", output_f: " << ofi << ", y: " << yi
+                                  << ", x: " << xi << " = " << static_cast<float>(val_ref) << std::endl;
+                    }
+                    EXPECT_TRUE(equal);
+                }
 }
 
 template <typename InputT, typename WeightsT, typename OutputT>
@@ -7945,8 +8269,6 @@ INSTANTIATE_TEST_CASE_P(
         .all_test_params(format::bfyx, false, true)
         .all_test_params(format::bfyx, true, false)
         .all_test_params(format::b_fs_yx_fsv4)
-        // byxf_af32 - depthwise broken for batch > 1
-        // .smoke_test_params(format::byxf_af32)
         .all_test_params(format::b_fs_yx_fsv32)
         .all_test_params(format::b_fs_yx_fsv32, true, true)
         .all_test_params(format::b_fs_yx_fsv32, false, true)

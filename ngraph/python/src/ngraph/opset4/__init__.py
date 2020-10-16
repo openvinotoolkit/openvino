@@ -82,7 +82,7 @@ from ngraph.opset1.ops import logical_not
 from ngraph.opset1.ops import logical_or
 from ngraph.opset1.ops import logical_xor
 from ngraph.opset1.ops import lrn
-from ngraph.opset1.ops import lstm_cell
+from ngraph.opset4.ops import lstm_cell
 from ngraph.opset1.ops import lstm_sequence
 from ngraph.opset1.ops import matmul
 from ngraph.opset1.ops import max_pool
@@ -137,6 +137,7 @@ from ngraph.opset1.ops import sign
 from ngraph.opset1.ops import sin
 from ngraph.opset1.ops import sinh
 from ngraph.opset1.ops import softmax
+from ngraph.opset4.ops import softplus
 from ngraph.opset2.ops import space_to_batch
 from ngraph.opset1.ops import space_to_depth
 from ngraph.opset1.ops import split

@@ -44,6 +44,7 @@
 #include "ngraph/runtime/reference/convolution.hpp"
 #include "ngraph/runtime/reference/cos.hpp"
 #include "ngraph/runtime/reference/cosh.hpp"
+#include "ngraph/runtime/reference/ctc_greedy_decoder.hpp"
 #include "ngraph/runtime/reference/ctc_loss.hpp"
 #include "ngraph/runtime/reference/cum_sum.hpp"
 #include "ngraph/runtime/reference/dequantize.hpp"
@@ -59,28 +60,36 @@
 #include "ngraph/runtime/reference/floor.hpp"
 #include "ngraph/runtime/reference/gather.hpp"
 #include "ngraph/runtime/reference/gather_nd.hpp"
+#include "ngraph/runtime/reference/gather_tree.hpp"
+#include "ngraph/runtime/reference/gru_cell.hpp"
 #include "ngraph/runtime/reference/log.hpp"
 #include "ngraph/runtime/reference/lrn.hpp"
+#include "ngraph/runtime/reference/lstm_cell.hpp"
 #include "ngraph/runtime/reference/matmul.hpp"
 #include "ngraph/runtime/reference/max.hpp"
 #include "ngraph/runtime/reference/max_pool.hpp"
 #include "ngraph/runtime/reference/min.hpp"
 #include "ngraph/runtime/reference/negate.hpp"
+#include "ngraph/runtime/reference/normalize_l2.hpp"
 #include "ngraph/runtime/reference/not.hpp"
 #include "ngraph/runtime/reference/one_hot.hpp"
 #include "ngraph/runtime/reference/pad.hpp"
+#include "ngraph/runtime/reference/prior_box.hpp"
 #include "ngraph/runtime/reference/product.hpp"
 #include "ngraph/runtime/reference/quantize.hpp"
+#include "ngraph/runtime/reference/region_yolo.hpp"
 #include "ngraph/runtime/reference/relu.hpp"
+#include "ngraph/runtime/reference/reorg_yolo.hpp"
 #include "ngraph/runtime/reference/replace_slice.hpp"
 #include "ngraph/runtime/reference/reshape.hpp"
 #include "ngraph/runtime/reference/result.hpp"
 #include "ngraph/runtime/reference/reverse.hpp"
 #include "ngraph/runtime/reference/reverse_sequence.hpp"
+#include "ngraph/runtime/reference/rnn_cell.hpp"
 #include "ngraph/runtime/reference/round.hpp"
 #include "ngraph/runtime/reference/scatter_nd_update.hpp"
-#include "ngraph/runtime/reference/scatter_update.hpp"
 #include "ngraph/runtime/reference/select.hpp"
+#include "ngraph/runtime/reference/sequences.hpp"
 #include "ngraph/runtime/reference/sigmoid.hpp"
 #include "ngraph/runtime/reference/sign.hpp"
 #include "ngraph/runtime/reference/sin.hpp"
@@ -391,6 +400,18 @@ protected:
                 args[0]->get_data_ptr<const T>(), out[0]->get_data_ptr<T>(), element_count);
             break;
         }
+        case OP_TYPEID::CTCGreedyDecoder_v0:
+        {
+            const auto ctc_greedy_dec = static_cast<const op::v0::CTCGreedyDecoder*>(&node);
+            reference::ctc_greedy_decoder<T>(args[0]->get_data_ptr<const T>(),
+                                             args[1]->get_data_ptr<const T>(),
+                                             out[0]->get_data_ptr<T>(),
+                                             args[0]->get_shape(),
+                                             args[1]->get_shape(),
+                                             out[0]->get_shape(),
+                                             ctc_greedy_dec->get_ctc_merge_repeated());
+            break;
+        }
         case OP_TYPEID::CTCLoss_v4:
         {
             const op::v4::CTCLoss* ctc_loss = static_cast<const op::v4::CTCLoss*>(&node);
@@ -693,6 +714,170 @@ protected:
             }
             break;
         }
+        case OP_TYPEID::GatherND_v5:
+        {
+            const op::v5::GatherND* gatherNDNode = static_cast<const op::v5::GatherND*>(&node);
+            if (node.get_input_element_type(1) == element::i64)
+            {
+                reference::gather_nd<T, int64_t>(args[0]->get_data_ptr<T>(),
+                                                 args[1]->get_data_ptr<int64_t>(),
+                                                 out[0]->get_data_ptr<T>(),
+                                                 node.get_input_shape(0),
+                                                 node.get_input_shape(1),
+                                                 node.get_output_shape(0),
+                                                 gatherNDNode->get_batch_dims());
+            }
+            else if (node.get_input_element_type(1) == element::i32)
+            {
+                reference::gather_nd<T, int32_t>(args[0]->get_data_ptr<T>(),
+                                                 args[1]->get_data_ptr<int32_t>(),
+                                                 out[0]->get_data_ptr<T>(),
+                                                 node.get_input_shape(0),
+                                                 node.get_input_shape(1),
+                                                 node.get_output_shape(0),
+                                                 gatherNDNode->get_batch_dims());
+            }
+            else
+            {
+                throw ngraph_error("Unexpected type");
+            }
+            break;
+        }
+        case OP_TYPEID::GRUCell_v3:
+        {
+            const op::v3::GRUCell* gru_cell = static_cast<const op::v3::GRUCell*>(&node);
+            runtime::reference::gru_cell(args[0]->get_data_ptr<T>(),
+                                         args[0]->get_shape(),
+                                         args[1]->get_data_ptr<T>(),
+                                         args[1]->get_shape(),
+                                         args[2]->get_data_ptr<T>(),
+                                         args[2]->get_shape(),
+                                         args[3]->get_data_ptr<T>(),
+                                         args[3]->get_shape(),
+                                         args[4]->get_data_ptr<T>(),
+                                         args[4]->get_shape(),
+                                         out[0]->get_data_ptr<T>(),
+                                         gru_cell->get_activations()[0],
+                                         gru_cell->get_activations()[1],
+                                         gru_cell->get_clip(),
+                                         gru_cell->get_linear_before_reset());
+            break;
+        }
+        case OP_TYPEID::LSTMCell_v4:
+        {
+            const op::v4::LSTMCell* lstm_cell = static_cast<const op::v4::LSTMCell*>(&node);
+            runtime::reference::lstm_cell(args[0]->get_data_ptr<T>(),
+                                          args[0]->get_shape(),
+                                          args[1]->get_data_ptr<T>(),
+                                          args[1]->get_shape(),
+                                          args[2]->get_data_ptr<T>(),
+                                          args[2]->get_shape(),
+                                          args[3]->get_data_ptr<T>(),
+                                          args[3]->get_shape(),
+                                          args[4]->get_data_ptr<T>(),
+                                          args[4]->get_shape(),
+                                          args[5]->get_data_ptr<T>(),
+                                          args[5]->get_shape(),
+                                          out[0]->get_data_ptr<T>(),
+                                          out[1]->get_data_ptr<T>(),
+                                          lstm_cell->get_activations()[0],
+                                          lstm_cell->get_activations()[1],
+                                          lstm_cell->get_activations()[2],
+                                          lstm_cell->get_clip());
+            break;
+        }
+        case OP_TYPEID::RNNCell_v0:
+        {
+            const op::v0::RNNCell* rnn_cell = static_cast<const op::v0::RNNCell*>(&node);
+            runtime::reference::rnn_cell(args[0]->get_data_ptr<T>(),
+                                         args[0]->get_shape(),
+                                         args[1]->get_data_ptr<T>(),
+                                         args[1]->get_shape(),
+                                         args[2]->get_data_ptr<T>(),
+                                         args[2]->get_shape(),
+                                         args[3]->get_data_ptr<T>(),
+                                         args[3]->get_shape(),
+                                         args[4]->get_data_ptr<T>(),
+                                         args[4]->get_shape(),
+                                         out[0]->get_data_ptr<T>(),
+                                         rnn_cell->get_activations()[0],
+                                         rnn_cell->get_clip());
+            break;
+        }
+        case OP_TYPEID::LSTMSequence:
+        case OP_TYPEID::LSTMSequence_v5:
+        {
+            auto lstm_seq = static_cast<const op::v5::LSTMSequence*>(&node);
+            runtime::reference::lstm_sequence<T>(args[0]->get_data_ptr<char>(),
+                                                 args[0]->get_shape(),
+                                                 args[1]->get_data_ptr<char>(),
+                                                 args[1]->get_shape(),
+                                                 args[2]->get_data_ptr<char>(),
+                                                 args[2]->get_shape(),
+                                                 args[3]->get_data_ptr<char>(),
+                                                 args[3]->get_shape(),
+                                                 args[4]->get_data_ptr<char>(),
+                                                 args[4]->get_shape(),
+                                                 args[5]->get_data_ptr<char>(),
+                                                 args[5]->get_shape(),
+                                                 args[6]->get_data_ptr<char>(),
+                                                 args[6]->get_shape(),
+                                                 out[0]->get_data_ptr<char>(),
+                                                 out[1]->get_data_ptr<char>(),
+                                                 out[2]->get_data_ptr<char>(),
+                                                 lstm_seq->get_activations()[0],
+                                                 lstm_seq->get_activations()[1],
+                                                 lstm_seq->get_activations()[2],
+                                                 lstm_seq->get_clip(),
+                                                 lstm_seq->get_direction());
+            break;
+        }
+        case OP_TYPEID::GRUSequence_v5:
+        {
+            auto gru_seq = static_cast<const op::v5::GRUSequence*>(&node);
+            runtime::reference::gru_sequence<T>(args[0]->get_data_ptr<char>(),
+                                                args[0]->get_shape(),
+                                                args[1]->get_data_ptr<char>(),
+                                                args[1]->get_shape(),
+                                                args[2]->get_data_ptr<char>(),
+                                                args[2]->get_shape(),
+                                                args[3]->get_data_ptr<char>(),
+                                                args[3]->get_shape(),
+                                                args[4]->get_data_ptr<char>(),
+                                                args[4]->get_shape(),
+                                                args[5]->get_data_ptr<char>(),
+                                                args[5]->get_shape(),
+                                                out[0]->get_data_ptr<char>(),
+                                                out[1]->get_data_ptr<char>(),
+                                                gru_seq->get_activations()[0],
+                                                gru_seq->get_activations()[1],
+                                                gru_seq->get_clip(),
+                                                gru_seq->get_direction(),
+                                                gru_seq->get_linear_before_reset());
+            break;
+        }
+        case OP_TYPEID::RNNSequence_v5:
+        {
+            auto rnn_seq = static_cast<const op::v5::RNNSequence*>(&node);
+            runtime::reference::rnn_sequence<T>(args[0]->get_data_ptr<char>(),
+                                                args[0]->get_shape(),
+                                                args[1]->get_data_ptr<char>(),
+                                                args[1]->get_shape(),
+                                                args[2]->get_data_ptr<char>(),
+                                                args[2]->get_shape(),
+                                                args[3]->get_data_ptr<char>(),
+                                                args[3]->get_shape(),
+                                                args[4]->get_data_ptr<char>(),
+                                                args[4]->get_shape(),
+                                                args[5]->get_data_ptr<char>(),
+                                                args[5]->get_shape(),
+                                                out[0]->get_data_ptr<char>(),
+                                                out[1]->get_data_ptr<char>(),
+                                                rnn_seq->get_activations()[0],
+                                                rnn_seq->get_clip(),
+                                                rnn_seq->get_direction());
+            break;
+        }
         case OP_TYPEID::Log:
         {
             size_t element_count = shape_size(node.get_output_shape(0));
@@ -739,6 +924,26 @@ protected:
             break;
         }
         case OP_TYPEID::Parameter: break;
+        case OP_TYPEID::PriorBox:
+        {
+            const op::PriorBox* pbox = static_cast<const op::PriorBox*>(&node);
+            runtime::reference::prior_box<T>(args[0]->get_data_ptr<T>(),
+                                             args[1]->get_data_ptr<T>(),
+                                             out[0]->get_data_ptr<float>(),
+                                             out[0]->get_shape(),
+                                             pbox->get_attrs());
+            break;
+        }
+        case OP_TYPEID::ReorgYolo_v0:
+        {
+            const op::v0::ReorgYolo* reorg_yolo = static_cast<const op::v0::ReorgYolo*>(&node);
+            runtime::reference::reorg_yolo(args[0]->get_data_ptr<char>(),
+                                           out[0]->get_data_ptr<char>(),
+                                           args[0]->get_shape(),
+                                           reorg_yolo->get_strides().at(0),
+                                           args[0]->get_element_type().size());
+            break;
+        }
         case OP_TYPEID::Quantize:
         {
             const op::Quantize* quantize = static_cast<const op::Quantize*>(&node);
@@ -983,6 +1188,19 @@ protected:
 
             break;
         }
+        case OP_TYPEID::RegionYolo_v0:
+        {
+            const op::RegionYolo* region_yolo = static_cast<const op::RegionYolo*>(&node);
+            reference::region_yolo<T>(args[0]->get_data_ptr<const T>(),
+                                      out[0]->get_data_ptr<T>(),
+                                      args[0]->get_shape(),
+                                      region_yolo->get_num_coords(),
+                                      region_yolo->get_num_classes(),
+                                      region_yolo->get_num_regions(),
+                                      region_yolo->get_do_softmax(),
+                                      region_yolo->get_mask());
+            break;
+        }
         case OP_TYPEID::Relu:
         {
             size_t element_count = shape_size(node.get_output_shape(0));
@@ -1195,46 +1413,29 @@ protected:
 
             break;
         }
-        case OP_TYPEID::ScatterUpdate_v3:
+        case OP_TYPEID::GatherTree_v1:
         {
-            const op::v3::ScatterUpdate* scatterUpd =
-                static_cast<const op::v3::ScatterUpdate*>(&node);
-
-            if (scatterUpd->get_input_element_type(3) != element::i64)
-                throw ngraph_error(
-                    "ScatterNDUpdate layer support only i64 'axis' input precision!");
-
-            auto idxType = scatterUpd->get_input_element_type(1);
-            if (idxType == element::i32)
-            {
-                reference::scatterUpdate<T, int32_t, int64_t>(
-                    args[0]->get_data_ptr<const T>(),
-                    args[1]->get_data_ptr<const int32_t>(),
-                    args[2]->get_data_ptr<const T>(),
-                    args[3]->get_data_ptr<const int64_t>(),
-                    out[0]->get_data_ptr<T>(),
-                    node.get_input_shape(0),
-                    node.get_input_shape(1),
-                    node.get_input_shape(2));
-            }
-            else if (idxType == element::i64)
-            {
-                reference::scatterUpdate<T, int64_t, int64_t>(
-                    args[0]->get_data_ptr<const T>(),
-                    args[1]->get_data_ptr<const int64_t>(),
-                    args[2]->get_data_ptr<const T>(),
-                    args[3]->get_data_ptr<const int64_t>(),
-                    out[0]->get_data_ptr<T>(),
-                    node.get_input_shape(0),
-                    node.get_input_shape(1),
-                    node.get_input_shape(2));
-            }
-            else
-            {
-                throw ngraph_error(
-                    "ScatterUpdate layer support only i32 and i64 'indices' input precision!");
-            }
-
+            reference::gather_tree(args[0]->get_data_ptr<const char>(),
+                                   args[1]->get_data_ptr<const char>(),
+                                   args[2]->get_data_ptr<const char>(),
+                                   args[3]->get_data_ptr<const char>(),
+                                   out[0]->get_data_ptr<char>(),
+                                   node.get_input_shape(0),
+                                   node.get_input_shape(1),
+                                   node.get_input_shape(2),
+                                   node.get_input_shape(3),
+                                   args[1]->get_element_type());
+            break;
+        }
+        case OP_TYPEID::NormalizeL2:
+        {
+            const op::NormalizeL2* norm = static_cast<const op::NormalizeL2*>(&node);
+            reference::normalize_l2<T>(args[0]->get_data_ptr<const T>(),
+                                       out[0]->get_data_ptr<T>(),
+                                       node.get_input_shape(0),
+                                       norm->get_reduction_axes(),
+                                       norm->get_eps(),
+                                       norm->get_eps_mode());
             break;
         }
 
@@ -1246,15 +1447,11 @@ protected:
         case OP_TYPEID::GRN:
         case OP_TYPEID::GroupConvolution:
         case OP_TYPEID::GroupConvolutionBackpropData:
-        case OP_TYPEID::GRUCell:
         case OP_TYPEID::HardSigmoid:
         case OP_TYPEID::Interpolate:
-        case OP_TYPEID::LSTMCell:
-        case OP_TYPEID::LSTMSequence:
         case OP_TYPEID::MVN:
-        case OP_TYPEID::NormalizeL2:
         case OP_TYPEID::PRelu:
-        case OP_TYPEID::RNNCell:
+        case OP_TYPEID::ScatterUpdate_v3:
         case OP_TYPEID::Selu:
         case OP_TYPEID::ShuffleChannels:
         case OP_TYPEID::SpaceToDepth:
@@ -1289,7 +1486,6 @@ protected:
         case OP_TYPEID::NonZero_v3:
         case OP_TYPEID::NotEqual:
         case OP_TYPEID::Or:
-        case OP_TYPEID::Pad:
         case OP_TYPEID::Power:
         case OP_TYPEID::Product:
         case OP_TYPEID::Range:

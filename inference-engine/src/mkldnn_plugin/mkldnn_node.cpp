@@ -5,12 +5,10 @@
 #include "mkldnn_node.h"
 #include "mkldnn_extension_mngr.h"
 
-#include "caseless.hpp"
 #include <vector>
 #include <string>
 #include <limits>
 #include <cstdint>
-#include <unordered_map>
 
 #include <nodes/mkldnn_batchnorm_node.h>
 #include <nodes/mkldnn_concat_node.h>
@@ -42,12 +40,14 @@
 #include <nodes/mkldnn_mvn_node.h>
 #include <nodes/mkldnn_resample_node.h>
 #include <nodes/mkldnn_normalize_node.h>
+#include <nodes/mkldnn_reduce_node.h>
 #include <nodes/mkldnn_tensoriterator_node.h>
 #include <nodes/mkldnn_scatter_update_node.h>
+#include <nodes/mkldnn_interpolate_node.h>
 #include <mkldnn_types.h>
 #include "mkldnn_extension_utils.h"
 
-#include "ie_memcpy.h"
+#include "nodes/common/cpu_memcpy.h"
 #include "mkldnn_debug.h"
 
 using namespace mkldnn;
@@ -75,6 +75,7 @@ static const InferenceEngine::details::caseless_unordered_map<std::string, Type>
         { "Activation", Activation },
         { "Clamp", Activation },
         { "Swish", Activation },
+        { "HSwish", Activation },
         { "Mish", Activation },
         { "ScaleShift", Depthwise },
         { "PReLU", Depthwise },
@@ -121,6 +122,19 @@ static const InferenceEngine::details::caseless_unordered_map<std::string, Type>
         { "ScatterUpdate", ScatterUpdate},
         { "ScatterElementsUpdate", ScatterElementsUpdate},
         { "ScatterNDUpdate", ScatterNDUpdate},
+        { "Interpolate", Interpolate},
+        { "ReduceAnd", ReduceAnd},
+        { "ReduceL1", ReduceL1},
+        { "ReduceL2", ReduceL2},
+        { "ReduceLogSum", ReduceLogSum},
+        { "ReduceLogSumExp", ReduceLogSumExp},
+        { "ReduceMax", ReduceMax},
+        { "ReduceMean", ReduceMean},
+        { "ReduceMin", ReduceMin},
+        { "ReduceOr", ReduceOr},
+        { "ReduceProd", ReduceProd},
+        { "ReduceSum", ReduceSum},
+        { "ReduceSumSquare", ReduceSumSquare},
 };
 
 Type TypeFromName(const std::string type) {
@@ -134,13 +148,9 @@ Type TypeFromName(const std::string type) {
 
 }  //  namespace MKLDNNPlugin
 
-std::shared_ptr<MKLDNNNodesHolder> MKLDNNNode::GetNodesHolder() {
-    static std::shared_ptr<MKLDNNNodesHolder> localHolder = std::make_shared<MKLDNNNodesHolder>();
-    return localHolder;
-}
-
-void MKLDNNNode::AddNode(const std::string& name, CreatorByLayerFunction factory) {
-    GetNodesHolder()->nodes[name] = factory;
+MKLDNNNode::Factory & MKLDNNNode::factory() {
+    static Factory factoryInstance;
+    return factoryInstance;
 }
 
 MKLDNNNode::MKLDNNNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng,
@@ -242,41 +252,6 @@ void MKLDNNNode::remove() {
     for (const auto &childEdge : child_edges) {
         removeEdge(childEdge);
     }
-}
-
-MKLDNNNode* MKLDNNNode::CreateNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng,
-                                   const MKLDNNExtensionManager::Ptr& extMgr, MKLDNNWeightsSharing::Ptr &w_cache) {
-    MKLDNNNode *newNode = nullptr;
-    auto nodesHolder = GetNodesHolder();
-
-    if (nodesHolder->nodes.find("Generic") != nodesHolder->nodes.end()) {
-        std::unique_ptr<MKLDNNNode> ol(nodesHolder->nodes["Generic"](layer, eng, w_cache));
-        if (ol != nullptr && ol->created(extMgr))
-            newNode = ol.release();
-    }
-    if (newNode == nullptr) {
-        for (auto maker : nodesHolder->nodes) {
-            std::unique_ptr<MKLDNNNode> ol(maker.second(layer, eng, w_cache));
-            if (ol != nullptr && ol->created(extMgr)) {
-                newNode = ol.release();
-                break;
-            }
-        }
-    }
-
-    //  WA-start : TI node requires all attributes to construct internal subgpath
-    //             including extManager, socket and mkldnn::eng.
-#if defined (COMPILED_CPU_MKLDNN_TENSORITERATOR_NODE)
-    MKLDNNTensorIteratorNode *ti = dynamic_cast<MKLDNNTensorIteratorNode*>(newNode);
-    if (ti != nullptr)
-        ti->setExtManager(extMgr);
-#endif
-    //  WA-end
-
-    if (!newNode)
-        THROW_IE_EXCEPTION << "Unsupported primitive of type: " << layer->type << " name: " << layer->name;
-
-    return newNode;
 }
 
 bool MKLDNNNode::isEdgesEmpty(const std::vector<MKLDNNEdgeWeakPtr>& edges) const {
@@ -697,7 +672,7 @@ InferenceEngine::Blob::Ptr MKLDNNNode::createInternalBlob(InferenceEngine::SizeV
     auto fillInternalBlob = [&](char *data, size_t intBuffSize) {
         size_t offset = blb->byteSize();
         checkSize(intBuffSize, offset);
-        ie_memcpy(data, intBuffSize, blb->buffer(), blb->byteSize());
+        cpu_memcpy_s(data, intBuffSize, blb->buffer(), blb->byteSize());
         data += blb->byteSize();
         for (const auto &merged : getMergeWith()) {
             wLayer = dynamic_cast<InferenceEngine::WeightableLayer*>(merged->getCnnLayer().get());
@@ -710,7 +685,7 @@ InferenceEngine::Blob::Ptr MKLDNNNode::createInternalBlob(InferenceEngine::SizeV
                 THROW_IE_EXCEPTION << "Cannot get internal blob layer for node " << getName() << ".";
             offset += blb->byteSize();
             checkSize(intBuffSize, offset);
-            ie_memcpy(data, intBuffSize, blb->buffer(), blb->byteSize());
+            cpu_memcpy_s(data, intBuffSize, blb->buffer(), blb->byteSize());
             data += blb->byteSize();
         }
     };
@@ -1140,4 +1115,45 @@ Layout MKLDNNNode::getWeightsLayoutByDims(SizeVector dims, bool isGrouped) {
 
 void MKLDNNNode::appendPostOps(mkldnn::post_ops& ops) {
     THROW_IE_EXCEPTION << "Fusing of " << this->getType() << " operation is not implemented";
+}
+
+MKLDNNNode* MKLDNNNode::Factory::create(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng,
+                                        const MKLDNNExtensionManager::Ptr& extMgr, MKLDNNWeightsSharing::Ptr &w_cache) {
+    MKLDNNNode *newNode = nullptr;
+
+    auto builder = builders.find(Generic);
+
+    if (builder != builders.end()) {
+        std::unique_ptr<MKLDNNNode> ol(builder->second(layer, eng, w_cache));
+        if (ol != nullptr && ol->created(extMgr))
+            newNode = ol.release();
+    }
+
+    if (newNode == nullptr) {
+        builder = builders.find(TypeFromName(layer->type));
+
+        if (builder != builders.end()) {
+            std::unique_ptr<MKLDNNNode> ol(builder->second(layer, eng, w_cache));
+            if (ol != nullptr && ol->created(extMgr))
+                newNode = ol.release();
+        }
+    }
+
+    //  WA-start : TI node requires all attributes to construct internal subgpath
+    //             including extManager, socket and mkldnn::eng.
+#if defined (COMPILED_CPU_MKLDNN_TENSORITERATOR_NODE)
+    MKLDNNTensorIteratorNode *ti = dynamic_cast<MKLDNNTensorIteratorNode*>(newNode);
+    if (ti != nullptr)
+        ti->setExtManager(extMgr);
+#endif
+    //  WA-end
+
+    if (!newNode)
+        THROW_IE_EXCEPTION << "Unsupported primitive of type: " << layer->type << " name: " << layer->name;
+
+    return newNode;
+}
+
+void MKLDNNNode::Factory::registerNode(Type type, builder_t builder) {
+    builders[type] = builder;
 }

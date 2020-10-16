@@ -97,7 +97,7 @@ MKLDNNExecNetwork::MKLDNNExecNetwork(const InferenceEngine::ICNNNetwork &network
 
     MKLDNNGraph::ApplyUnrollPasses(static_cast<ICNNNetwork&>(*_clonedNetwork));
 
-    if (_cfg.enableDynamicBatch) {
+    if (_cfg.batchLimit > 1) {
         // check topology for applicability
         if (!CanProcessDynBatch(*_clonedNetwork)) {
             THROW_IE_EXCEPTION << "MKLDNNGraph::CreateGraph: such topology cannot be compiled for dynamic batch!";
@@ -108,18 +108,9 @@ MKLDNNExecNetwork::MKLDNNExecNetwork(const InferenceEngine::ICNNNetwork &network
         // special case when all InferRequests are muxed into a single queue
         _taskExecutor = ExecutorManager::getInstance()->getExecutor("CPU");
     } else {
-        const int env_threads = parallel_get_env_threads();
-        const auto& numa_nodes = getAvailableNUMANodes();
-        const auto numa_nodes_num = numa_nodes.size();
-        auto streamExecutorConfig = cfg.streamExecutorConfig;
-        // use logical cores only for single-socket targets in throughput mode
-        const int hw_cores = streamExecutorConfig._streams > 1 && numa_nodes_num == 1 ? parallel_get_max_threads() : getNumberOfCPUCores();
-        const int threads = streamExecutorConfig._threads ? streamExecutorConfig._threads : (env_threads ? env_threads : hw_cores);
-        streamExecutorConfig._threadsPerStream = streamExecutorConfig._streams
-                                                ? std::max(1, threads/streamExecutorConfig._streams)
-                                                : threads;
-        streamExecutorConfig._name = "CPUStreamsExecutor";
-        _taskExecutor = ExecutorManager::getInstance()->getIdleCPUStreamsExecutor(streamExecutorConfig);
+        auto streamsExecutorConfig = InferenceEngine::IStreamsExecutor::Config::MakeDefaultMultiThreaded(_cfg.streamExecutorConfig);
+        streamsExecutorConfig._name = "CPUStreamsExecutor";
+        _taskExecutor = ExecutorManager::getInstance()->getIdleCPUStreamsExecutor(streamsExecutorConfig);
     }
     if (0 != cfg.streamExecutorConfig._streams) {
         _callbackExecutor = ExecutorManager::getInstance()->getIdleCPUStreamsExecutor(
@@ -179,62 +170,54 @@ void MKLDNNExecNetwork::setProperty(const std::map<std::string, std::string> &pr
     }
 }
 
-void MKLDNNExecNetwork::CreateInferRequest(InferenceEngine::IInferRequest::Ptr &asyncRequest) {
-    auto syncRequestImpl = CreateInferRequestImpl(_networkInputs, _networkOutputs);
-    syncRequestImpl->setPointerToExecutableNetworkInternal(shared_from_this());
-    auto asyncRequestImpl = std::make_shared<MKLDNNAsyncInferRequest>(syncRequestImpl, _taskExecutor, _callbackExecutor);
-    asyncRequest.reset(new InferRequestBase<MKLDNNAsyncInferRequest>(asyncRequestImpl),
-                       [](IInferRequest *p) { p->Release(); });
-
-    asyncRequestImpl->SetPointerToPublicInterface(asyncRequest);
+InferenceEngine::IInferRequest::Ptr MKLDNNExecNetwork::CreateInferRequest() {
+    return CreateAsyncInferRequestFromSync<MKLDNNAsyncInferRequest>();
 }
 
-void MKLDNNExecNetwork::GetExecGraphInfo(InferenceEngine::ICNNNetwork::Ptr &graphPtr) {
+InferenceEngine::CNNNetwork MKLDNNExecNetwork::GetExecGraphInfo() {
     if (_graphs.size() == 0)
         THROW_IE_EXCEPTION << "No graph was found";
 
-    graphPtr = _graphs.begin()->get()->dump();
+    return _graphs.begin()->get()->dump();
 }
 
-void MKLDNNExecNetwork::GetConfig(const std::string &name, Parameter &result, ResponseDesc *resp) const {
+Parameter MKLDNNExecNetwork::GetConfig(const std::string &name) const {
     if (_graphs.size() == 0)
         THROW_IE_EXCEPTION << "No graph was found";
     Config engConfig = _graphs.begin()->get()->getProperty();
-    auto option = engConfig._config.find(name);
-    if (option != engConfig._config.end()) {
-        result = option->second;
+    auto it = engConfig._config.find(name);
+    if (it != engConfig._config.end()) {
+        return it->second;
     } else {
         THROW_IE_EXCEPTION << "Unsupported ExecutableNetwork config key: " << name;
     }
 }
 
-void MKLDNNExecNetwork::GetMetric(const std::string &name, Parameter &result, ResponseDesc *resp) const {
+InferenceEngine::Parameter MKLDNNExecNetwork::GetMetric(const std::string &name) const {
     if (_graphs.size() == 0)
         THROW_IE_EXCEPTION << "No graph was found";
 
     if (name == METRIC_KEY(NETWORK_NAME)) {
-        if (_graphs.begin()->get()->dump() == nullptr)
-            THROW_IE_EXCEPTION << "Invalid graph dump";
-        result = IE_SET_METRIC(NETWORK_NAME, _graphs.begin()->get()->dump()->getName());
+        IE_SET_METRIC_RETURN(NETWORK_NAME, _graphs.begin()->get()->GetName());
     } else if (name == METRIC_KEY(SUPPORTED_METRICS)) {
         std::vector<std::string> metrics;
         metrics.push_back(METRIC_KEY(NETWORK_NAME));
         metrics.push_back(METRIC_KEY(SUPPORTED_METRICS));
         metrics.push_back(METRIC_KEY(SUPPORTED_CONFIG_KEYS));
         metrics.push_back(METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS));
-        result = IE_SET_METRIC(SUPPORTED_METRICS, metrics);
+        IE_SET_METRIC_RETURN(SUPPORTED_METRICS, metrics);
     } else if (name == METRIC_KEY(SUPPORTED_CONFIG_KEYS)) {
         std::vector<std::string> configKeys;
         for (auto && key : _graphs.begin()->get()->getProperty()._config) {
             configKeys.push_back(key.first);
         }
-        result = IE_SET_METRIC(SUPPORTED_CONFIG_KEYS, configKeys);
+        IE_SET_METRIC_RETURN(SUPPORTED_CONFIG_KEYS, configKeys);
     } else if (name == METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS)) {
         Config engConfig = _graphs.begin()->get()->getProperty();
         auto option = engConfig._config.find(CONFIG_KEY(CPU_THROUGHPUT_STREAMS));
         IE_ASSERT(option != engConfig._config.end());
         auto streams = std::stoi(option->second);
-        result = IE_SET_METRIC(OPTIMAL_NUMBER_OF_INFER_REQUESTS, static_cast<unsigned int>(
+        IE_SET_METRIC_RETURN(OPTIMAL_NUMBER_OF_INFER_REQUESTS, static_cast<unsigned int>(
             streams ? streams : 1));
     } else {
         THROW_IE_EXCEPTION << "Unsupported ExecutableNetwork metric: " << name;
@@ -288,8 +271,7 @@ bool MKLDNNExecNetwork::CanProcessDynBatch(const InferenceEngine::ICNNNetwork &n
             type != Eltwise &&
             type != Crop &&
             type != BatchNormalization &&
-            type != Copy &&
-            type != MVN) {
+            type != Copy) {
             check_result = false;
         }
     }, false);

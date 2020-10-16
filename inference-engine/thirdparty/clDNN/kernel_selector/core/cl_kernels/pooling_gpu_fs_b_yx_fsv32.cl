@@ -37,8 +37,11 @@
 
 #define INPUT0_SIZE_X_WITH_PADDING (INPUT0_PAD_BEFORE_SIZE_X + INPUT0_SIZE_X + INPUT0_PAD_AFTER_SIZE_X)
 #define INPUT0_SIZE_Y_WITH_PADDING (INPUT0_PAD_BEFORE_SIZE_Y + INPUT0_SIZE_Y + INPUT0_PAD_AFTER_SIZE_Y)
+#define INPUT0_SIZE_B_WITH_PADDING (INPUT0_PAD_BEFORE_BATCH_NUM + INPUT0_BATCH_NUM + INPUT0_PAD_AFTER_BATCH_NUM)
+
 #define OUTPUT_SIZE_X_WITH_PADDING (OUTPUT_PAD_BEFORE_SIZE_X + OUTPUT_SIZE_X + OUTPUT_PAD_AFTER_SIZE_X)
 #define OUTPUT_SIZE_Y_WITH_PADDING (OUTPUT_PAD_BEFORE_SIZE_Y + OUTPUT_SIZE_Y + OUTPUT_PAD_AFTER_SIZE_Y)
+#define OUTPUT_SIZE_B_WITH_PADDING (OUTPUT_PAD_BEFORE_BATCH_NUM + OUTPUT_BATCH_NUM + OUTPUT_PAD_AFTER_BATCH_NUM)
 
 // Kernel works only for sub_group size of 16 with 32 features slice size and process 2 features per WI
 #define REQD_SUB_GROUP_SIZE 16
@@ -79,14 +82,18 @@ KERNEL(pooling_gpu_fs_b_yx_fsv32)(
     const uint x_pitch = REQD_FEATURE_SLICE_SIZE;                        // difference in location between (x+1) and (x)
     const uint y_pitch = x_pitch * INPUT0_SIZE_X_WITH_PADDING;           // difference in location between (y+1) and (y)
     const uint b_pitch = y_pitch * INPUT0_SIZE_Y_WITH_PADDING;           // difference in location between (b+1) and (b)
-    const uint fs_pitch = b_pitch * INPUT0_BATCH_NUM;                    // difference in location between (fs+1) and (fs)
+    const uint fs_pitch = b_pitch * INPUT0_SIZE_B_WITH_PADDING;          // difference in location between (fs+1) and (fs)
 
     const int offset_x = (int)out_x*STRIDE_SIZE_X - PADDING_SIZE_X;
     const int offset_y = (int)out_y*STRIDE_SIZE_Y - PADDING_SIZE_Y;
 
-    const size_t padding_offset = INPUT0_PAD_BEFORE_SIZE_X * x_pitch + INPUT0_PAD_BEFORE_SIZE_Y * y_pitch;
+    const size_t padding_offset = INPUT0_PAD_BEFORE_SIZE_X * x_pitch +
+                                  INPUT0_PAD_BEFORE_SIZE_Y * y_pitch +
+                                  INPUT0_PAD_BEFORE_BATCH_NUM * b_pitch +
+                                  INPUT0_PAD_BEFORE_FEATURE_NUM / REQD_FEATURE_SLICE_SIZE * fs_pitch;
     const size_t fs_offset = fs * fs_pitch; // locate beginning of feature tile
     const size_t b_offset = b * b_pitch;   // locate beginning of batch
+
 #ifdef CHECK_BOUNDRY
     if (offset_x + POOL_SIZE_X < 0 || offset_x >= INPUT0_SIZE_X ||
         offset_y + POOL_SIZE_Y < 0 || offset_y >= INPUT0_SIZE_Y)
@@ -152,14 +159,13 @@ KERNEL(pooling_gpu_fs_b_yx_fsv32)(
     const size_t out_x_pitch = REQD_FEATURE_SLICE_SIZE;
     const size_t out_y_pitch = out_x_pitch * OUTPUT_SIZE_X_WITH_PADDING;
     const size_t out_b_pitch = out_y_pitch * OUTPUT_SIZE_Y_WITH_PADDING;
-    const size_t out_fs_pitch = out_b_pitch * OUTPUT_BATCH_NUM;
+    const size_t out_fs_pitch = out_b_pitch * OUTPUT_SIZE_B_WITH_PADDING;
 
     const size_t out_pad_before_fs = (OUTPUT_PAD_BEFORE_FEATURE_NUM / REQD_FEATURE_SLICE_SIZE);
     const size_t out_x_offset = (out_x + OUTPUT_PAD_BEFORE_SIZE_X) * out_x_pitch;
     const size_t out_y_offset = (out_y + OUTPUT_PAD_BEFORE_SIZE_Y) * out_y_pitch;
-    const size_t out_b_offset = b * out_b_pitch;
+    const size_t out_b_offset = (b + OUTPUT_PAD_BEFORE_BATCH_NUM) * out_b_pitch;
     const size_t out_fs_offset = (fs + out_pad_before_fs) * out_fs_pitch;
-
 
     const size_t output_offset = out_fs_offset + out_b_offset + out_y_offset + out_x_offset;
 
@@ -204,3 +210,15 @@ KERNEL(pooling_gpu_fs_b_yx_fsv32)(
 
 #undef OUTPUT_VEC2
 #undef TO_OUTPUT_VEC2
+
+#undef INPUT0_SIZE_X_WITH_PADDING
+#undef INPUT0_SIZE_Y_WITH_PADDING
+#undef INPUT0_SIZE_B_WITH_PADDING
+
+#undef OUTPUT_SIZE_X_WITH_PADDING
+#undef OUTPUT_SIZE_Y_WITH_PADDING
+#undef OUTPUT_SIZE_B_WITH_PADDING
+
+#undef REQD_SUB_GROUP_SIZE
+#undef REQD_FEATURE_SLICE_SIZE
+#undef REQD_FEATURES_PER_WORK_ITEM

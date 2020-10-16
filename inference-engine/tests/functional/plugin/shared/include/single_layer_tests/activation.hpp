@@ -69,11 +69,17 @@ static std::map<ngraph::helpers::ActivationTypes, std::string> activationNames =
         {ngraph::helpers::ActivationTypes::PReLu,       "PReLu"},
         {ngraph::helpers::ActivationTypes::Mish,        "Mish"},
         {ngraph::helpers::ActivationTypes::HSwish,      "HSwish"},
+        {ngraph::helpers::ActivationTypes::SoftPlus,    "SoftPlus"},
+        {ngraph::helpers::ActivationTypes::Swish,       "Swish"},
 };
 
 typedef std::tuple<
-        ngraph::helpers::ActivationTypes,
+        std::pair<ngraph::helpers::ActivationTypes, std::vector<float>>, // Activation type and constant value
         InferenceEngine::Precision,
+        InferenceEngine::Precision,    // Input precision
+        InferenceEngine::Precision,    // Output precision
+        InferenceEngine::Layout,       // Input layout
+        InferenceEngine::Layout,       // Output layout
         std::pair<std::vector<size_t>, std::vector<size_t>>,
         std::string> activationParams;
 
@@ -96,8 +102,12 @@ protected:
     void SetUp() override;
 
 private:
-    void generateActivationBlob();
-    ngraph::ParameterVector createActivationParams(ngraph::element::Type ngPrc, std::vector<size_t> inShape = {});
+    void generateActivationBlob(std::vector<float> constantsValue);
+    ngraph::ParameterVector createActivationParams(
+        ngraph::element::Type ngPrc, std::vector<size_t> inShape = {});
+
+private:
+    std::vector<float> constantsValue;
 };
 
 }  // namespace LayerTestsDefinitions

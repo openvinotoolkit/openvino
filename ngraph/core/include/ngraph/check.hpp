@@ -52,22 +52,7 @@ namespace ngraph
     private:
         static std::string make_what(const CheckLocInfo& check_loc_info,
                                      const std::string& context_info,
-                                     const std::string& explanation)
-        {
-            std::stringstream ss;
-            ss << "Check '" << check_loc_info.check_string << "' failed at " << check_loc_info.file
-               << ":" << check_loc_info.line;
-            if (!context_info.empty())
-            {
-                ss << ":" << std::endl << context_info;
-            }
-            if (!explanation.empty())
-            {
-                ss << ":" << std::endl << explanation;
-            }
-            ss << std::endl;
-            return ss.str();
-        }
+                                     const std::string& explanation);
     };
 }
 

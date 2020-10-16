@@ -192,6 +192,18 @@ TIMELINE_SIMILARITY = ('test_name', 'model', 'device', 'target_branch')
 def query_timeline(records, db_url, db_collection, max_items=20, similarity=TIMELINE_SIMILARITY):
     """ Query database for similar memcheck items committed previously
     """
+    def timeline_key(item):
+        """ Defines order for timeline report entries
+        """
+        if len(item['metrics']['vmhwm']) <= 1:
+            return 1
+        order = item['metrics']['vmhwm'][-1] - item['metrics']['vmhwm'][-2] + \
+            item['metrics']['vmrss'][-1] - item['metrics']['vmrss'][-2]
+        if not item['status']:
+            # ensure failed cases are always on top
+            order += sys.maxsize/2
+        return order
+
     client = MongoClient(db_url)
     collection = client[DATABASE][db_collection]
     result = []
@@ -213,7 +225,11 @@ def query_timeline(records, db_url, db_collection, max_items=20, similarity=TIME
             pass  # keep only the record if timeline failed to generate
         items += [record]
         timeline = _transpose_dicts(items, template=record)
+        timeline['status'] = bool(timeline['metrics']['vmrss'][-1] < timeline['ref_metrics']['vmrss'][-1] and
+                                  timeline['metrics']['vmhwm'][-1] < timeline['ref_metrics']['vmhwm'][-1])
         result += [timeline]
+
+    result.sort(key=timeline_key, reverse=True)
     return result
 
 

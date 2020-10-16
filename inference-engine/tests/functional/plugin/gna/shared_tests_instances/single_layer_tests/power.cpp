@@ -34,10 +34,14 @@ namespace {
                                                              InferenceEngine::Precision::FP16,
     };
 
-    INSTANTIATE_TEST_CASE_P(power, PowerLayerTest,
+    INSTANTIATE_TEST_CASE_P(smoke_power, PowerLayerTest,
                             ::testing::Combine(
                                     ::testing::ValuesIn(inShapes),
                                     ::testing::ValuesIn(netPrecisions),
+                                    ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                    ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                    ::testing::Values(InferenceEngine::Layout::ANY),
+                                    ::testing::Values(InferenceEngine::Layout::ANY),
                                     ::testing::Values(CommonTestUtils::DEVICE_GNA),
                                     ::testing::ValuesIn(Power)),
                             PowerLayerTest::getTestCaseName);

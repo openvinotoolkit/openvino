@@ -22,38 +22,39 @@ const std::vector<InferenceEngine::Precision> netPrecisions = {
         InferenceEngine::Precision::FP16
 };
 
-const std::vector<ActivationTypes> activationTypes = {
-        Sigmoid,
-        Tanh,
-        Relu,
-        Exp,
-        Log,
-        Sign,
-        Abs,
-        Clamp,
-        Negative,
-        Acos,
-        Asin,
-        Atan,
-        Cos,
-        Cosh,
-        Floor,
-        Sin,
-        Sinh,
-        Sqrt,
-        Tan,
-        Elu,
-        Erf,
-        HardSigmoid,
-        Selu,
-        Ceiling,
-        Mish,
-        HSwish
+const std::map<ActivationTypes, std::vector<std::vector<float>>> activationTypes = {
+        {Sigmoid,     {}},
+        {Tanh,        {}},
+        {Relu,        {}},
+        {Exp,         {}},
+        {Log,         {}},
+        {Sign,        {}},
+        {Abs,         {}},
+        {Clamp,       {{-2.0f, 2.0f}}},
+        {Negative,    {}},
+        {Acos,        {}},
+        {Asin,        {}},
+        {Atan,        {}},
+        {Cos,         {}},
+        {Cosh,        {}},
+        {Floor,       {}},
+        {Sin,         {}},
+        {Sinh,        {}},
+        {Sqrt,        {}},
+        {Tan,         {}},
+        {Elu,         {{0.1f}}},
+        {Erf,         {}},
+        {HardSigmoid, {{0.2f, 0.5f}}},
+        {Selu,        {{1.6732f, 1.0507f}}},
+        {Ceiling,     {}},
+        {Mish,        {}},
+        {HSwish,      {}},
+        {SoftPlus,    {}}
 };
 
-const std::vector<ActivationTypes> activationParamTypes = {
-        PReLu,
-        LeakyRelu,
+const std::map<ActivationTypes, std::vector<std::vector<float>>> activationParamTypes = {
+    {PReLu, {{-0.01f}}},
+    {LeakyRelu, {{0.01f}}}
 };
 
 std::map<std::vector<size_t>, std::vector<std::vector<size_t>>> basic = {
@@ -67,23 +68,31 @@ std::map<std::vector<size_t>, std::vector<std::vector<size_t>>> preluBasic = {
 };
 
 const auto basicCases = ::testing::Combine(
-        ::testing::ValuesIn(activationTypes),
+        ::testing::ValuesIn(CommonTestUtils::combineParams(activationTypes)),
         ::testing::ValuesIn(netPrecisions),
-        ::testing::ValuesIn(CommonTestUtils::combineShapes<size_t>(basic)),
+        ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+        ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+        ::testing::Values(InferenceEngine::Layout::ANY),
+        ::testing::Values(InferenceEngine::Layout::ANY),
+        ::testing::ValuesIn(CommonTestUtils::combineParams(basic)),
         ::testing::Values(CommonTestUtils::DEVICE_CPU)
 );
 
 const auto basicPreluCases = ::testing::Combine(
-        ::testing::ValuesIn(activationParamTypes),
+        ::testing::ValuesIn(CommonTestUtils::combineParams(activationParamTypes)),
         ::testing::ValuesIn(netPrecisions),
-        ::testing::ValuesIn(CommonTestUtils::combineShapes<size_t>(preluBasic)),
+        ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+        ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+        ::testing::Values(InferenceEngine::Layout::ANY),
+        ::testing::Values(InferenceEngine::Layout::ANY),
+        ::testing::ValuesIn(CommonTestUtils::combineParams(preluBasic)),
         ::testing::Values(CommonTestUtils::DEVICE_CPU)
 );
 
 
-INSTANTIATE_TEST_CASE_P(Activation_Basic, ActivationLayerTest, basicCases, ActivationLayerTest::getTestCaseName);
-INSTANTIATE_TEST_CASE_P(Activation_Basic_Prelu, ActivationLayerTest, basicPreluCases, ActivationLayerTest::getTestCaseName);
+INSTANTIATE_TEST_CASE_P(smoke_Activation_Basic, ActivationLayerTest, basicCases, ActivationLayerTest::getTestCaseName);
+INSTANTIATE_TEST_CASE_P(smoke_Activation_Basic_Prelu, ActivationLayerTest, basicPreluCases, ActivationLayerTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(Activation_Basic, ActivationParamLayerTest, basicPreluCases, ActivationLayerTest::getTestCaseName);
+INSTANTIATE_TEST_CASE_P(smoke_Activation_Basic, ActivationParamLayerTest, basicPreluCases, ActivationLayerTest::getTestCaseName);
 
 }  // namespace

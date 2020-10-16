@@ -7,10 +7,6 @@ graph {
     output: "C"
     op_type: "Conv"
     attribute {
-      name: "auto_pad"
-      type: STRING
-    }
-    attribute {
       name: "dilations"
       ints: 1
       ints: 1

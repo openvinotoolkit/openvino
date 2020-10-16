@@ -17,6 +17,10 @@
 #include <ie_parameter.hpp>
 #include <ie_core.hpp>
 #include <legacy/net_pass.h>
+#include <generic_ie.hpp>
+#include <legacy/convert_function_to_cnn_network.hpp>
+#include <legacy/transformations/convert_opset1_to_legacy/convert_opset1_to_legacy.hpp>
+#include <ngraph/pass/manager.hpp>
 
 #include <ngraph/opsets/opset3.hpp>
 #include <ngraph/function.hpp>
@@ -461,6 +465,100 @@ TEST(CNNNGraphImplTests, ReadFromCNNNetReader) {
     ASSERT_EQ(3, network.layerCount());
 }
 
+TEST(CNNNGraphImplTests, ReadMeanImageFromCNNNetReader) {
+    std::string model = R"V0G0N(
+<net name="Activation" version="10">
+    <pre-process mean-precision="FP32" reference-layer-name="data">
+        <channel id="0">
+            <mean offset="0" size="1936"/>
+        </channel>
+        <channel id="1">
+            <mean offset="1936" size="1936"/>
+        </channel>
+        <channel id="2">
+            <mean offset="3872" size="1936"/>
+        </channel>
+    </pre-process>
+    <layers>
+        <layer name="data" type="Parameter" id="0" version="opset1">
+            <data shape="1,3,22,22" element_type="f32"/>
+            <output>
+                <port id="0" precision="FP32">
+                    <dim>1</dim>
+                    <dim>3</dim>
+                    <dim>22</dim>
+                    <dim>22</dim>
+                </port>
+            </output>
+        </layer>
+        <layer name="activation" id="1" type="ReLU" version="opset1">
+            <input>
+                <port id="1" precision="FP32">
+                    <dim>1</dim>
+                    <dim>3</dim>
+                    <dim>22</dim>
+                    <dim>22</dim>
+                </port>
+            </input>
+            <output>
+                <port id="2" precision="FP32">
+                    <dim>1</dim>
+                    <dim>3</dim>
+                    <dim>22</dim>
+                    <dim>22</dim>
+                </port>
+            </output>
+        </layer>
+        <layer name="output" type="Result" id="2" version="opset1">
+            <input>
+                <port id="0" precision="FP32">
+                    <dim>1</dim>
+                    <dim>3</dim>
+                    <dim>22</dim>
+                    <dim>22</dim>
+                </port>
+            </input>
+        </layer>
+    </layers>
+    <edges>
+        <edge from-layer="0" from-port="0" to-layer="1" to-port="1"/>
+        <edge from-layer="1" from-port="2" to-layer="2" to-port="0"/>
+    </edges>
+</net>
+)V0G0N";
+    InferenceEngine::Core core;
+    size_t hwSize = 22*22;
+    size_t dataSize = hwSize*3;
+    Blob::Ptr data = make_shared_blob<float>(TensorDesc(Precision::FP32, {dataSize}, Layout::C));
+    data->allocate();
+    {
+        auto lockData = data->buffer();
+        float *dataPtr = lockData.as<float*>();
+
+        for (size_t i = 0; i < dataSize; ++i) {
+            dataPtr[i] = i;
+        }
+    }
+    CNNNetwork network = core.ReadNetwork(model, data);
+    ASSERT_EQ(3, network.layerCount());
+    auto inputInfo = network.getInputsInfo().begin()->second;
+    ASSERT_NE(inputInfo, nullptr);
+    auto preProc = inputInfo->getPreProcess();
+    ASSERT_EQ(3, preProc.getNumberOfChannels());
+    ASSERT_EQ(preProc.getMeanVariant(), MeanVariant::MEAN_IMAGE);
+
+    for (size_t i = 0; i < preProc.getNumberOfChannels(); i++) {
+        auto chMeanImg = preProc[i];
+        ASSERT_NE(chMeanImg, nullptr);
+        ASSERT_NE(chMeanImg->meanData, nullptr);
+        auto lockData = chMeanImg->meanData->cbuffer();
+        auto *dataPtr = lockData.as<const float*>();
+        for (size_t j = 0; j < hwSize; j++) {
+            ASSERT_EQ(dataPtr[j], hwSize*i + j);
+        }
+    }
+}
+
 TEST(CNNNGraphImplTests, CanChangeInputPrecision) {
     std::shared_ptr<ngraph::Function> ngraph;
     {
@@ -786,4 +884,201 @@ TEST(CNNNGraphImplTests, addOutputForParameter) {
     }
 }
 
+TEST(CNNNGraphImplTests, AddOutputToExperimentalOp) {
+    std::string model = R"V0G0N(
+<net name="Activation" version="10">
+    <layers>
+        <layer name="in1" type="Parameter" id="0" version="opset1">
+            <data shape="1,3,22,22" element_type="f32"/>
+            <output>
+                <port id="0" precision="FP32">
+                    <dim>1</dim>
+                    <dim>3</dim>
+                    <dim>22</dim>
+                    <dim>22</dim>
+                </port>
+            </output>
+        </layer>
+        <layer name="exp" id="1" type="ExperimentalDetectronROIFeatureExtractor" version="experimental">
+            <input>
+                <port id="1" precision="FP32">
+                    <dim>1</dim>
+                    <dim>3</dim>
+                    <dim>22</dim>
+                    <dim>22</dim>
+                </port>
+            </input>
+            <output>
+                <port id="2" precision="FP32">
+                    <dim>1</dim>
+                    <dim>3</dim>
+                    <dim>22</dim>
+                    <dim>22</dim>
+                </port>
+            </output>
+        </layer>
+        <layer name="activation" id="2" type="ReLU" version="opset1">
+            <input>
+                <port id="1" precision="FP32">
+                    <dim>1</dim>
+                    <dim>3</dim>
+                    <dim>22</dim>
+                    <dim>22</dim>
+                </port>
+            </input>
+            <output>
+                <port id="2" precision="FP32">
+                    <dim>1</dim>
+                    <dim>3</dim>
+                    <dim>22</dim>
+                    <dim>22</dim>
+                </port>
+            </output>
+        </layer>
+        <layer name="output" type="Result" id="3" version="opset1">
+            <input>
+                <port id="0" precision="FP32">
+                    <dim>1</dim>
+                    <dim>3</dim>
+                    <dim>22</dim>
+                    <dim>22</dim>
+                </port>
+            </input>
+        </layer>
+    </layers>
+    <edges>
+        <edge from-layer="0" from-port="0" to-layer="1" to-port="1"/>
+        <edge from-layer="1" from-port="2" to-layer="2" to-port="1"/>
+        <edge from-layer="2" from-port="2" to-layer="3" to-port="0"/>
+    </edges>
+</net>
+)V0G0N";
+    InferenceEngine::Core core;
+    CNNNetwork network = core.ReadNetwork(model, InferenceEngine::Blob::CPtr());
+    network.addOutput("exp");
+    auto outputs = network.getOutputsInfo();
+    ASSERT_NE(outputs.find("exp.0"), outputs.end());
+}
+
+TEST(CNNNGraphImplTests, SaveOriginalResultNameForMultiOutputOp) {
+    std::string model = R"V0G0N(
+<net name="Activation" version="10">
+    <layers>
+        <layer name="in1" type="Parameter" id="0" version="opset1">
+            <data shape="1,3,22,22" element_type="f32"/>
+            <output>
+                <port id="0" precision="FP32">
+                    <dim>1</dim>
+                    <dim>3</dim>
+                    <dim>22</dim>
+                    <dim>22</dim>
+                </port>
+            </output>
+        </layer>
+        <layer name="exp" id="1" type="ExperimentalDetectronROIFeatureExtractor" version="experimental">
+            <input>
+                <port id="1" precision="FP32">
+                    <dim>1</dim>
+                    <dim>3</dim>
+                    <dim>22</dim>
+                    <dim>22</dim>
+                </port>
+            </input>
+            <output>
+                <port id="2" precision="FP32">
+                    <dim>1</dim>
+                    <dim>3</dim>
+                    <dim>22</dim>
+                    <dim>22</dim>
+                </port>
+            </output>
+        </layer>
+        <layer id="2" name="fake_const" type="Const" version="opset1">
+            <data offset="0" size="4" shape="1,1,1,1" element_type="f32"/>
+            <output>
+                <port id="1" precision="FP32">
+                    <dim>1</dim>
+                    <dim>1</dim>
+                    <dim>1</dim>
+                    <dim>1</dim>
+                </port>
+            </output>
+        </layer>
+        <layer id="3" name="text_features" type="Add" version="opset1">
+            <input>
+                <port id="0">
+                    <dim>1</dim>
+                    <dim>3</dim>
+                    <dim>22</dim>
+                    <dim>22</dim>
+                </port>
+                <port id="1">
+                    <dim>1</dim>
+                    <dim>1</dim>
+                    <dim>1</dim>
+                    <dim>1</dim>
+                </port>
+            </input>
+            <output>
+                <port id="2" precision="FP32">
+                    <dim>1</dim>
+                    <dim>3</dim>
+                    <dim>22</dim>
+                    <dim>22</dim>
+                </port>
+            </output>
+        </layer>
+        <layer name="output" type="Result" id="4" version="opset1">
+            <input>
+                <port id="0" precision="FP32">
+                    <dim>1</dim>
+                    <dim>3</dim>
+                    <dim>22</dim>
+                    <dim>22</dim>
+                </port>
+            </input>
+        </layer>
+    </layers>
+    <edges>
+        <edge from-layer="0" from-port="0" to-layer="1" to-port="1"/>
+        <edge from-layer="1" from-port="2" to-layer="3" to-port="0"/>
+        <edge from-layer="2" from-port="1" to-layer="3" to-port="1"/>
+        <edge from-layer="3" from-port="2" to-layer="4" to-port="0"/>
+    </edges>
+</net>
+)V0G0N";
+    InferenceEngine::Core core;
+    Blob::Ptr data = make_shared_blob<float>(TensorDesc(Precision::FP32, {4}, Layout::C));
+    data->allocate();
+    {
+        auto lockData = data->buffer();
+        float *dataPtr = lockData.as<float*>();
+
+        for (size_t i = 0; i < 4; ++i) {
+            dataPtr[i] = 0;
+        }
+    }
+    CNNNetwork network = core.ReadNetwork(model, data);
+    {
+        auto outputs = network.getOutputsInfo();
+        ASSERT_NE(outputs.find("text_features"), outputs.end());
+    }
+
+    auto nGraphFunc = network.getFunction();
+    // Disable shape inference (WA for generic operations)
+    ngraph::op::GenericIE::DisableReshape noReshape(nGraphFunc);
+
+    ngraph::pass::Manager manager;
+
+    manager.register_pass<ngraph::pass::ConvertOpSet1ToLegacy>();
+
+    manager.run_passes(nGraphFunc);
+
+    auto clonedNetwork = InferenceEngine::details::convertFunctionToICNNNetwork(nGraphFunc, network);
+    {
+        OutputsDataMap outputs;
+        clonedNetwork->getOutputsInfo(outputs);
+        ASSERT_NE(outputs.find("text_features"), outputs.end());
+    }
+}
 IE_SUPPRESS_DEPRECATED_END

@@ -1,19 +1,17 @@
+import static org.junit.Assert.*;
+
+import org.intel.openvino.*;
+import org.junit.Test;
+
 import java.util.ArrayList;
 import java.util.Map;
 
-import org.intel.openvino.*;
-
 public class InputInfoTests extends IETest {
-    IECore core;
-    CNNNetwork net;
+    IECore core = new IECore();
 
-    @Override
-    protected void setUp() {
-        core = new IECore();
-    }
-
+    @Test
     public void testSetLayout() {
-        net = core.ReadNetwork(modelXml);
+        CNNNetwork net = core.ReadNetwork(modelXml);
         Map<String, InputInfo> inputsInfo = net.getInputsInfo();
 
         String inputName = new ArrayList<String>(inputsInfo.keySet()).get(0);
@@ -24,15 +22,15 @@ public class InputInfoTests extends IETest {
         assertEquals("setLayout", Layout.NHWC, inputInfo.getLayout());
     }
 
+    @Test
     public void testSetPrecision() {
-        net = core.ReadNetwork(modelXml);
+        CNNNetwork net = core.ReadNetwork(modelXml);
         Map<String, InputInfo> inputsInfo = net.getInputsInfo();
-        
+
         String inputName = new ArrayList<String>(inputsInfo.keySet()).get(0);
         InputInfo inputInfo = inputsInfo.get(inputName);
         inputInfo.setPrecision(Precision.U8);
 
         assertEquals("setPrecision", Precision.U8, inputInfo.getPrecision());
     }
-    
 }

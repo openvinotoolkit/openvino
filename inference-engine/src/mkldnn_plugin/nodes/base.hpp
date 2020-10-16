@@ -63,9 +63,13 @@ protected:
         DataConfigurator(ConfLayout l, bool constant, int inplace = -1):
             layout(l), constant(constant), inplace(inplace) {}
 
+        DataConfigurator(ConfLayout l, Precision::ePrecision prc):
+            layout(l), prc(prc) {}
+
         ConfLayout layout;
         bool constant = false;
         int inplace = -1;
+        Precision::ePrecision prc = Precision::UNSPECIFIED;     // by default use the layer precision
     };
 
     void addConfig(const CNNLayer* layer, std::vector<DataConfigurator> in_l,
@@ -102,7 +106,7 @@ protected:
             const bool isInt8 = (data->getPrecision() == Precision::I8 || data->getPrecision() == Precision::U8);
 
             if (conf.layout == ConfLayout::BLK8 || conf.layout == ConfLayout::BLK16) {
-                if (data_dims.size() < 4 && data_dims.size() > 5)
+                if (data_dims.size() < 4 || data_dims.size() > 5)
                     THROW_IE_EXCEPTION << "Inapplicable blocking layout."
                         << "Tensor should be 4D or 5D.";
 
@@ -128,7 +132,7 @@ protected:
             // fixing of BF16 precisions where they are - layers naturally support only FP32
             // if we see BF16, that means another floating point format which will be converted by reorder
             // added by current mkl-dnn cpu plugin when it figure out diff in data types on input and output of edges
-            InferenceEngine::Precision precision = data_desc.getPrecision();
+            InferenceEngine::Precision precision = (conf.prc == Precision::UNSPECIFIED) ? data_desc.getPrecision() : Precision(conf.prc);
             if (precision == Precision::BF16) {
                 precision = Precision::FP32;
             }

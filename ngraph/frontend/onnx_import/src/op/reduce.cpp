@@ -59,28 +59,24 @@ namespace ngraph
 
                 OutputVector reduce_l1(const Node& node)
                 {
-                    auto l1_norm_reduction = [](const Output<ngraph::Node>& node,
-                                                const ngraph::AxisSet& axis_set) {
-                        const auto axis_set_const = default_opset::Constant::create(
-                            element::i64, {axis_set.size()}, axis_set.to_vector());
-                        return ngraph::builder::opset1::l1_norm(node, axis_set_const, 0.f);
-                    };
-
                     return {reduction::make_ng_reduction_op(
-                        node, node.get_ng_inputs().at(0), l1_norm_reduction)};
+                        node,
+                        node.get_ng_inputs().at(0),
+                        std::make_shared<default_opset::ReduceL1,
+                                         const Output<ngraph::Node>&,
+                                         const Output<ngraph::Node>&,
+                                         bool>)};
                 }
 
                 OutputVector reduce_l2(const Node& node)
                 {
-                    auto l2_norm_reduction = [](const Output<ngraph::Node>& node,
-                                                const ngraph::AxisSet& axis_set) {
-                        const auto axis_set_const = default_opset::Constant::create(
-                            element::i64, {axis_set.size()}, axis_set.to_vector());
-                        return ngraph::builder::opset1::l2_norm(
-                            node, axis_set_const, 0.f, ngraph::builder::BiasMode::ADD, false);
-                    };
                     return {reduction::make_ng_reduction_op(
-                        node, node.get_ng_inputs().at(0), l2_norm_reduction)};
+                        node,
+                        node.get_ng_inputs().at(0),
+                        std::make_shared<default_opset::ReduceL2,
+                                         const Output<ngraph::Node>&,
+                                         const Output<ngraph::Node>&,
+                                         bool>)};
                 }
 
                 OutputVector reduce_max(const Node& node)

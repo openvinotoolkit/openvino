@@ -18,7 +18,7 @@ import numpy as np
 import ngraph as ng
 from tests.runtime import get_runtime
 from tests.test_ngraph.util import run_op_node
-from tests import xfail_issue_35926, xfail_issue_36478
+from tests import xfail_issue_36478, xfail_issue_35926
 
 
 def test_onehot():

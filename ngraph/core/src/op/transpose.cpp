@@ -50,7 +50,9 @@ void op::v1::Transpose::validate_and_infer_types()
 
     const auto& arg_shape = get_input_partial_shape(0);
     NODE_VALIDATION_CHECK(this,
-                          input_order_shape.compatible(PartialShape{arg_shape.rank()}),
+                          input_order_shape.compatible(PartialShape{arg_shape.rank()}) ||
+                              (input_order_shape.is_static() && input_order_shape.rank() == 1 &&
+                               input_order_shape[0] == 0),
                           "Input order must have shape [n], where n is the rank of arg.");
 
     set_input_is_relevant_to_shape(1);
@@ -58,6 +60,11 @@ void op::v1::Transpose::validate_and_infer_types()
     if (auto input_const = as_type_ptr<op::Constant>(input_value(1).get_node_shared_ptr()))
     {
         auto permutation = input_const->get_axis_vector_val();
+        if (permutation.empty())
+        {
+            for (int64_t i = 1; i <= arg_shape.rank().get_length(); ++i)
+                permutation.emplace_back(arg_shape.rank().get_length() - i);
+        }
         NODE_VALIDATION_CHECK(this,
                               is_valid_permutation(permutation, arg_shape.rank()),
                               "Permutation ",
@@ -79,7 +86,7 @@ shared_ptr<Node> op::v1::Transpose::clone_with_new_inputs(const OutputVector& ne
     return make_shared<v1::Transpose>(new_args[0], new_args[1]);
 }
 
-namespace
+namespace transpose
 {
     template <element::Type_t ET>
     std::vector<int64_t> get_vector(const HostTensorPtr& arg)
@@ -97,36 +104,27 @@ namespace
                             const HostTensorPtr& arg2,
                             const HostTensorPtr& out)
     {
-        element::Type_t axis_type = arg2->get_element_type();
+        NGRAPH_CHECK(arg2->get_element_type().is_integral_number(),
+                     "axis element type is not integral data type");
 
-        std::vector<int64_t> axis_order;
-        switch (axis_type)
-        {
-        case element::Type_t::i8: axis_order = get_vector<element::Type_t::i8>(arg2); break;
-
-        case element::Type_t::i16: axis_order = get_vector<element::Type_t::i16>(arg2); break;
-
-        case element::Type_t::i32: axis_order = get_vector<element::Type_t::i32>(arg2); break;
-
-        case element::Type_t::i64: axis_order = get_vector<element::Type_t::i64>(arg2); break;
-
-        case element::Type_t::u8: axis_order = get_vector<element::Type_t::u8>(arg2); break;
-
-        case element::Type_t::u16: axis_order = get_vector<element::Type_t::u16>(arg2); break;
-
-        case element::Type_t::u32: axis_order = get_vector<element::Type_t::u32>(arg2); break;
-
-        case element::Type_t::u64: axis_order = get_vector<element::Type_t::u64>(arg2); break;
-
-        default: throw ngraph_error("axis element type is not integral data type");
-        }
-        AxisVector in_axis_order(shape_size(arg2->get_shape()));
-        std::transform(axis_order.begin(),
-                       axis_order.end(),
-                       in_axis_order.begin(),
-                       [&](const int64_t& v) { return (v > 0) ? v : 0; });
+        std::vector<int64_t> axis_order = host_tensor_2_vector<int64_t>(arg2);
 
         Shape in_shape = arg1->get_shape();
+        AxisVector in_axis_order(shape_size(arg2->get_shape()));
+        if (in_axis_order.empty())
+        {
+            size_t rank = in_shape.size();
+            for (size_t i = 1; i <= rank; ++i)
+                in_axis_order.emplace_back(rank - i);
+        }
+        else
+        {
+            std::transform(axis_order.begin(),
+                           axis_order.end(),
+                           in_axis_order.begin(),
+                           [&](const int64_t& v) { return (v > 0) ? v : 0; });
+        }
+
         Shape out_shape(in_shape.size());
         std::transform(in_axis_order.begin(),
                        in_axis_order.end(),
@@ -147,5 +145,5 @@ bool op::v1::Transpose::evaluate(const HostTensorVector& output_values,
                                  const HostTensorVector& input_values) const
 {
     OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v1::Transpose::evaluate");
-    return evaluate_transpose(input_values[0], input_values[1], output_values[0]);
+    return transpose::evaluate_transpose(input_values[0], input_values[1], output_values[0]);
 }

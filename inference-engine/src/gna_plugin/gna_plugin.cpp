@@ -36,6 +36,7 @@
 #include "memory/gna_allocator.hpp"
 #include "memory/gna_memory_state.hpp"
 #include "gna_model_serial.hpp"
+#include "runtime/gna_float_runtime.hpp"
 
 #if GNA_LIB_VER == 2
 #include <gna2-model-api.h>
@@ -362,12 +363,15 @@ void GNAPlugin::LoadNetwork(ICNNNetwork & _network) {
         passes->registerPass<RemoveConstPass>();
         passes->registerPass<UnrollTIPass>();
         passes->registerPass<RemoveConstPass>();
+        passes->registerPass<InsertIdentityToLSTMCellPass>();
         passes->registerPass<UnrollLSTMCellPass>();
+        passes->registerPass<RemoveSingleInputConcatPass>();
 
         passes->registerPass<SubstitutePReluPass>();
         passes->registerPass<SubstituteSoftSignPass>();
 
         passes->registerPass<ReorderMaxPoolPass>();
+        passes->registerPass<EltwiseSplitOverChannelsPass>();
         passes->registerPass<InsertSplitAligningFilterPass>();
 
         passes->registerPass<InsertConcatAligningFilterPass>();
@@ -379,6 +383,7 @@ void GNAPlugin::LoadNetwork(ICNNNetwork & _network) {
             passes->registerPass<RemovePermutationsNHWCToNCHWPass>();
         }
         passes->registerPass<InsertIdentityLayerPass>();
+        passes->registerPass<BreakFusingOfOutputLayersPass>();
         passes->registerPass<InsertCopyLayerPass>();
         passes->registerPass<InsertDiagonalLayerPass>();
         passes->registerPass<HandleMultipleActivationsForTheLayerPass>();
@@ -555,15 +560,15 @@ void GNAPlugin::LoadNetwork(ICNNNetwork & _network) {
             auto irLayerAvatar = std::find_if(
                 graphCompiler.dnnComponents.components.begin(),
                 graphCompiler.dnnComponents.components.end(),
-                [&layer](std::pair<std::string, intel_dnn_component_t> & value) {
-                    return value.first == layer->name;
+                [&layer](const backend::DnnComponents::storage_type::value_type & value) {
+                    return value.name == layer->name;
             });
 
             gnalog() << "[UFS] from : "<< outPort.first <<" reached: " << layer->name << "\n";
 
             // probing gna_primitives
             if (irLayerAvatar != graphCompiler.dnnComponents.components.end()) {
-                initOutput(portId, irLayerAvatar->second, layer);
+                initOutput(portId, irLayerAvatar->dnnComponent, layer);
                 stopSearching = true;
             }
 
@@ -619,9 +624,8 @@ void GNAPlugin::LoadNetwork(ICNNNetwork & _network) {
              1);
 
     // TODO: this copy is unneeded; in fact, we can directly create gna structs from list
-    for (auto &element : graphCompiler.dnnComponents.components) {
-        dnn->component.push_back(element.second);
-    }
+    auto execOrder = graphCompiler.dnnComponents.getExecutionOrder();
+    dnn->component.insert(dnn->component.begin(), execOrder.begin(), execOrder.end());
 
     // in fp32 mode last PWL cannot be computed without that
     dnn->InitActiveList(NULL);
@@ -687,7 +691,7 @@ void GNAPlugin::LoadNetwork(ICNNNetwork & _network) {
     }
 
     // calculating input orientation without memory layers, since their orientation not changed during infer right now
-    std::unordered_map<string, string> skippedLayers;
+    std::unordered_map<string, std::vector<string>> skippedLayers;
 
     bool withConv = false;
     for (auto &layer : sortedNet) {
@@ -698,45 +702,35 @@ void GNAPlugin::LoadNetwork(ICNNNetwork & _network) {
         }
     }
     if (withConv) {
-        for (auto &layer : sortedNet) {
-            for (int i = 0; CNNNetHasPrevLayer(layer.get(), i); i++) {
-                auto prevLayer = CNNNetPrevLayer(layer.get(), i);
-                if (!skippedLayers.count(prevLayer->name)) {
-                    if (CNNNetHasPrevLayer(prevLayer.get())) {
-                        continue;
-                    }
+        for (auto &inputLayer : sortedNet) {
+            if (!LayerInfo(inputLayer).isInput()) {
+                continue;
+            }
+            auto doesntHaveGnaMapping = [this] (CNNLayerPtr l) {
+                auto dnnLayer = graphCompiler.dnnComponents.findComponent(l);
+                return dnnLayer == nullptr;
+            };
 
-                    // we are in the one of input layers
-                    if (LayerInfo(prevLayer).isMemory()) {
-                        continue;
-                    }
-                }
+            auto nextLayers = CNNNetGetAllNextLayersSkipCertain(inputLayer, -1, doesntHaveGnaMapping);
 
-                auto dnnLayer = graphCompiler.dnnComponents.findComponent(layer);
-                string inputName = prevLayer->name;
-                if (skippedLayers.count(prevLayer->name)) {
-                    inputName = skippedLayers[prevLayer->name];
-                }
-
+            for (auto &nextLayer : nextLayers) {
+                auto dnnLayer = graphCompiler.dnnComponents.findComponent(nextLayer);
                 // non functional layer - skipped by gna
                 if (nullptr == dnnLayer) {
-                    // storing input name for skipped layer
-                    skippedLayers[layer->name] = inputName;
-                    continue;
+                    THROW_GNA_LAYER_EXCEPTION(inputLayer) << " gna mapped layer search connection failed";
                 }
-
                 // input orientation might be already initialized, thus verify that it matches
-                if (!inputsDesc->orientation_in.count(inputName)) {
-                    inputsDesc->orientation_in[inputName] = dnnLayer->orientation_in;
+                if (!inputsDesc->orientation_in.count(inputLayer->name)) {
+                    inputsDesc->orientation_in[inputLayer->name] = dnnLayer->orientation_in;
                 } else {
-                    if (inputsDesc->orientation_in[inputName] != dnnLayer->orientation_in) {
-                        THROW_GNA_EXCEPTION << "orientation for input layer: " << inputName << "cannot be calculated";
+                    if (inputsDesc->orientation_in[inputLayer->name] != dnnLayer->orientation_in) {
+                        THROW_GNA_EXCEPTION << "orientation for input layer: " << inputLayer->name << "cannot be calculated";
                     }
                 }
             }
         }
     } else {
-        for (auto& inputLayer : inputLayers) {
+        for (auto &inputLayer : inputLayers) {
             inputsDesc->orientation_in[inputLayer->name] = kDnnInterleavedOrientation;
         }
     }
@@ -912,15 +906,28 @@ uint32_t GNAPlugin::QueueInference(const InferenceEngine::BlobMap &inputs, Infer
 
         auto dims = input.second->getTensorDesc().getDims();
 
+        auto  importedElements = is2D ? dims[dims.size() - 1] : dims[dims.size() - 1] * dims[dims.size() - 2] * dims[dims.size() - 3];
+        auto  importedFrames = dims[0];
+        auto  targetGroups = is2D ? dims[dims.size() - 2] : dims[0]; // TODO: no proper support for groups yet
+
+        auto  importedElementSizeBytes = gnaFlags->sw_fp32 ? 4 : 2;
+        auto  importedBytes = importedElements * importedFrames * importedElementSizeBytes;
+
+        if (inputsDesc->bytes_allocated_for_input[input.first] < importedBytes) {
+            THROW_GNA_EXCEPTION << "Cannot import input frames for :" << input.first
+                                  << ", allocated size: " << inputsDesc->bytes_allocated_for_input[input.first]
+                                  << ", but input blob size: " << importedBytes;
+        }
+
         ImportFrames(inputsDesc->getPtrInputsGlobal(input.first)[idx],
                      input.second->cbuffer().as<float *>(),
                      input.second->getTensorDesc().getPrecision(),
                      gnaFlags->sw_fp32 ? 1.0f : inputsDesc->getScaleFactor(inputNum),
                      inputsDesc->getOrientation(input.first),
-                     dims[0],
-                     is2D ? dims[dims.size() - 2] : dims[0],
-                     is2D ? dims[dims.size() - 1] : dims[dims.size() - 1] * dims[dims.size() - 2] * dims[dims.size() - 3],
-                     is2D ? dims[dims.size() - 1] : dims[dims.size() - 1] * dims[dims.size() - 2] * dims[dims.size() - 3]);
+                     importedFrames,
+                     targetGroups,
+                     importedElements,
+                     importedElements);
 
         bool isOneChannel = input.second->getTensorDesc().getDims()[1] == 1;
         if (do_rotate_input && ((inputLayout == Layout::NC || inputLayout == Layout::NCHW)
@@ -938,7 +945,8 @@ uint32_t GNAPlugin::QueueInference(const InferenceEngine::BlobMap &inputs, Infer
     }
 
     if (!gnadevice) {
-        dnn->Propagate();
+        auto runtime = runtime::FP(dnn);
+        runtime.infer();
         if (freeNnet != nnets.end()) {
             std::get<1>(*freeNnet) = 1;
         }
@@ -969,21 +977,26 @@ uint32_t GNAPlugin::QueueInference(const InferenceEngine::BlobMap &inputs, Infer
 }
 
 bool GNAPlugin::Wait(uint32_t request_idx) {
-    return WaitFor(request_idx, MAX_TIMEOUT);
+    return GNA_REQUEST_COMPLETED == WaitFor(request_idx, MAX_TIMEOUT);
 }
 
-bool GNAPlugin::WaitFor(uint32_t request_idx, int64_t millisTimeout) {
+GnaWaitStatus GNAPlugin::WaitFor(uint32_t request_idx, int64_t millisTimeout) {
 #if GNA_LIB_VER == 2
     auto& nnets = gnaRequestConfigToRequestIdMap;
 #endif
-    if (nnets.size() <= request_idx) return true;    // TODO: GNA2: check whether necessary
+    // TODO: GNA2: check whether necessary
+    if (nnets.size() <= request_idx) return GNA_REQUEST_COMPLETED;
     // already synced TODO: might be copy required ???
-    if (std::get<1>(nnets[request_idx]) == -1) return true;
+    if (std::get<1>(nnets[request_idx]) == -1) return GNA_REQUEST_COMPLETED;
 
     if (gnadevice) {
-        if (!gnadevice->wait(std::get<1>(nnets[request_idx]), millisTimeout)) {
+        const auto waitStatus = gnadevice->wait(std::get<1>(nnets[request_idx]), millisTimeout);
+        if (waitStatus == GNA_REQUEST_ABORTED) {
             std::get<1>(nnets[request_idx]) = -1;
-            return false;
+            return GNA_REQUEST_ABORTED;
+        }
+        if (waitStatus == GNA_REQUEST_PENDING) {
+            return GNA_REQUEST_PENDING;
         }
     }
 
@@ -1003,7 +1016,8 @@ bool GNAPlugin::WaitFor(uint32_t request_idx, int64_t millisTimeout) {
     for (auto && outputBlobIt : request) {
         auto & outputBlob = outputBlobIt.second;
         auto & outputDesc = outputsDesc[output_idx];
-        if (outputBlob->getTensorDesc().getLayout() == Layout::NC) {
+        if (outputBlob->getTensorDesc().getLayout() == Layout::NC || outputBlob->getTensorDesc().getLayout() == Layout::CN
+            || outputBlob->getTensorDesc().getLayout() == Layout::NCHW || outputBlob->getTensorDesc().getLayout() == Layout::NHWC) {
             // TODO: rotate can be incorporated with exporting - used only in unit tests so far
             // TODO: restore:
 //        if (orientation_out != kDnnInterleavedOrientation) {
@@ -1019,59 +1033,70 @@ bool GNAPlugin::WaitFor(uint32_t request_idx, int64_t millisTimeout) {
 //                           dims[0],
 //                           dims[dims.size() - 1]);
 //        }
+            auto is2D = outputBlob->getTensorDesc().getLayout() == Layout::NC || outputBlob->getTensorDesc().getLayout() == Layout::CN;
             auto& exportOutputDims = outputBlob->getTensorDesc().getDims();
+            auto batchSize = exportOutputDims[0];
+            auto elementsPerBatch = is2D ? exportOutputDims[exportOutputDims.size() - 1]
+                : exportOutputDims[exportOutputDims.size() - 1]
+                  * exportOutputDims[exportOutputDims.size() - 2]
+                  * exportOutputDims[exportOutputDims.size() - 3];
+
             ExportScores(outputBlob->buffer(),
                          outputDesc.ptrs[request_idx],
                          outputDesc.orientation,
-                         exportOutputDims[0],
-                         exportOutputDims[exportOutputDims.size() - 2],
-                         exportOutputDims[exportOutputDims.size() - 1],
-                         exportOutputDims[exportOutputDims.size() - 1],
-                         exportOutputDims[exportOutputDims.size() - 1],
+                         batchSize,
+                         batchSize,
+                         elementsPerBatch,
+                         elementsPerBatch,
+                         elementsPerBatch,
                          outputDesc.num_bytes_per_element,
                          sizeof(float));
+
+            if (gnadevice) {
+#ifdef PLOT
+                FILE* f = nullptr;
+                static int num_infers = 0;
+                {
+                    f = fopen("ex_scores.txt", "w");
+                }
+                num_infers++;
+                if (f) {
+                    auto dims = outputBlob->getTensorDesc().getDims();
+                    for (int i = 0; i < dims[dims.size() - 2]; i++) {
+                        for (int j = 0; j < dims[dims.size() - 1]; j++) {
+                            fprintf(f, "%d ", outputBlob->cbuffer().as<int32_t*>()[dims[dims.size() - 1] * i + j]);
+                        }
+                        fprintf(f, "\n");
+                    }
+                    fprintf(f, "\n\n");
+                }
+#endif
+                ConvertToFloat(outputBlob->buffer(),
+                    outputBlob->buffer(),
+                    elementsPerBatch,
+                    batchSize,
+                    outputDesc.scale_factor);
+#ifdef PLOT
+                if (f) {
+                    auto dims = outputBlob->getTensorDesc().getDims();
+                    for (int i = 0; i < dims[dims.size() - 2]; i++) {
+                        for (int j = 0; j < dims[dims.size() - 1]; j++) {
+                            fprintf(f, "%.2f ", outputBlob->cbuffer().as<float*>()[dims[dims.size() - 1] * i + j]);
+                        }
+                        fprintf(f, "\n");
+                    }
+                    fclose(f);
+                }
+#endif
+            }
+        } else {
+            THROW_GNA_EXCEPTION << "Expected output blob to have Layout::NC, Layout::CN, Layout::NCHW or Layout::NHWC. But was "
+                << outputBlob->getTensorDesc().getLayout();
         }
 
-        if (gnadevice) {
-#ifdef PLOT
-        FILE *f = nullptr;
-        static int num_infers = 0;
-        {
-            f = fopen("ex_scores.txt", "w");
-        }
-        num_infers++;
-        if (f) {
-            auto dims = outputBlob->getTensorDesc().getDims();
-            for (int i = 0; i < dims[dims.size() - 2]; i++) {
-                for (int j = 0; j < dims[dims.size() - 1]; j++) {
-                    fprintf(f, "%d ", outputBlob->cbuffer().as<int32_t *>()[dims[dims.size() - 1] * i + j]);
-                }
-                fprintf(f, "\n");
-                }
-                fprintf(f, "\n\n");
-            }
-#endif
-            ConvertToFloat(outputBlob->buffer(),
-                           outputBlob->buffer(),
-                           outputBlob->getTensorDesc().getDims()[outputBlob->getTensorDesc().getDims().size() - 1],
-                           outputBlob->getTensorDesc().getDims()[outputBlob->getTensorDesc().getDims().size() - 2],
-                           outputDesc.scale_factor);
-#ifdef PLOT
-        if (f) {
-            auto dims = outputBlob->getTensorDesc().getDims();
-            for (int i = 0; i < dims[dims.size() - 2]; i++) {
-                for (int j = 0; j < dims[dims.size() - 1]; j++) {
-                    fprintf(f, "%.2f ", outputBlob->cbuffer().as<float *>()[dims[dims.size() - 1] * i + j]);
-                }
-                fprintf(f, "\n");
-                }
-                fclose(f);
-            }
-#endif
-        }
         output_idx++;
     }
-    return true;
+    return GNA_REQUEST_COMPLETED;
 }
 
 void GNAPlugin::Reset() {
@@ -1134,17 +1159,7 @@ void GNAPlugin::SetName(const std::string & pluginName) noexcept {
     _pluginName = pluginName;
 }
 
-InferenceEngine::IExecutableNetwork::Ptr GNAPlugin::ImportNetwork(const std::string &modelFileName) {
-    // no need to return anything dueto weird design of internal base classes
-    std::fstream inputStream(modelFileName, ios_base::in | ios_base::binary);
-    if (inputStream.fail()) {
-        THROW_GNA_EXCEPTION << "Cannot open file to import model: " << modelFileName;
-    }
-
-    return ImportNetwork(inputStream);
-}
-
-InferenceEngine::IExecutableNetwork::Ptr GNAPlugin::ImportNetwork(std::istream& networkModel) {
+InferenceEngine::ExecutableNetwork GNAPlugin::ImportNetwork(std::istream& networkModel) {
     auto header = GNAModelSerial::ReadHeader(networkModel);
 
     InitGNADevice();
@@ -1165,6 +1180,12 @@ InferenceEngine::IExecutableNetwork::Ptr GNAPlugin::ImportNetwork(std::istream& 
 #else
     auto serial = GNAModelSerial(&std::get<0>(nnets.back())->obj, mt);
 #endif
+
+    if (!inputsDesc->inputScaleFactors.empty()) {
+        gnalog() << "[Import Network] Clearing input scale factors defined in configuration. "
+                 << "Scale factors provided in imported model will be used\n";
+        inputsDesc->inputScaleFactors.clear();
+    }
 
     serial.setHeader(header);
     serial.Import(basePtr,
@@ -1212,7 +1233,7 @@ InferenceEngine::IExecutableNetwork::Ptr GNAPlugin::ImportNetwork(std::istream& 
 #if GNA_LIB_VER == 2
     createRequestConfigsForGnaModels();
 #endif
-    return nullptr;
+    return {};
 }
 
 void GNAPlugin::Export(const std::string &fileName) {
@@ -1273,9 +1294,10 @@ void GNAPlugin::UpdateFieldsFromConfig() {
     *gnaFlags = config.gnaFlags;
 }
 
-void GNAPlugin::QueryNetwork(const InferenceEngine::ICNNNetwork& network,
-                             const std::map<std::string, std::string>& config,
-                             InferenceEngine::QueryNetworkResult& res) const {
+InferenceEngine::QueryNetworkResult GNAPlugin::QueryNetwork(const InferenceEngine::ICNNNetwork& network,
+                                                            const std::map<std::string, std::string>& config) const {
+    InferenceEngine::QueryNetworkResult res;
+
     if (network.getFunction()) {
         THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str << " ngraph::Function is not supported natively";
     }
@@ -1302,4 +1324,6 @@ void GNAPlugin::QueryNetwork(const InferenceEngine::ICNNNetwork& network,
                                                     res.supportedLayersMap.insert({ layer->name, GetName() });
                                                 }
                                             }, false);
+
+    return res;
 }

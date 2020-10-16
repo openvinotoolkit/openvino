@@ -20,17 +20,15 @@ file(GLOB_RECURSE LIBRARY_SRC ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp)
 file(GLOB_RECURSE PUBLIC_HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/include/*.hpp)
 
 # Remove disabled ops
-list(REMOVE_ITEM LIBRARY_SRC 
+list(REMOVE_ITEM LIBRARY_SRC
     ${CMAKE_CURRENT_SOURCE_DIR}/src/op/conv_integer.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/op/gather_nd.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/op/quant_conv.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/op/scatter_nd.cpp
     )
-list(REMOVE_ITEM PUBLIC_HEADERS 
+list(REMOVE_ITEM PUBLIC_HEADERS
     ${CMAKE_CURRENT_SOURCE_DIR}/include/onnx_import/op/conv_integer.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/onnx_import/op/gather_nd.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/onnx_import/op/quant_conv.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/include/onnx_import/op/scatter_nd.hpp
     )
 
 set(ONNX_IMPORT_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/include CACHE INTERNAL "")
@@ -43,8 +41,16 @@ source_group("include" FILES ${PUBLIC_HEADERS})
 
 # Create shared library
 add_library(onnx_importer SHARED ${LIBRARY_SRC} ${PUBLIC_HEADERS})
+add_library(ngraph::onnx_importer ALIAS onnx_importer)
 
-target_link_libraries(onnx_importer PRIVATE onnx onnx_proto ${Protobuf_LIBRARIES})
+if(COMMAND ie_faster_build)
+    ie_faster_build(onnx_importer
+        UNITY
+        PCH PRIVATE "src/precomp.hpp"
+    )
+endif()
+
+target_link_libraries(onnx_importer PRIVATE onnx onnx_proto ${Protobuf_LIBRARIES} ngraph::builder)
 target_link_libraries(onnx_importer PUBLIC ngraph)
 
 set_target_properties(onnx_importer PROPERTIES
@@ -52,11 +58,12 @@ set_target_properties(onnx_importer PROPERTIES
                       C_VISIBILITY_PRESET hidden
                       VISIBILITY_INLINES_HIDDEN ON
                       POSITION_INDEPENDENT_CODE ON)
+set(ONNX_INSTALL_INCLUDE "${NGRAPH_INSTALL_INCLUDE}/ngraph/frontend")
 target_include_directories(onnx_importer SYSTEM PUBLIC $<BUILD_INTERFACE:${ONNX_IMPORT_INCLUDE_DIR}>
-                                                       $<INSTALL_INTERFACE:include/ngraph/frontend/>)
+                                                       $<INSTALL_INTERFACE:${ONNX_INSTALL_INCLUDE}>)
 target_include_directories(onnx_importer SYSTEM PRIVATE ${NGRAPH_INCLUDE_PATH} ${NGRAPH_INCLUDE_PATH}/ngraph
         ${ONNX_INCLUDE_DIR} ${ONNX_PROTO_INCLUDE_DIR} ${Protobuf_INCLUDE_DIRS})
-target_include_directories(onnx_importer PRIVATE ${ONNX_IMPORT_INCLUDE_DIR}/onnx_import/core 
+target_include_directories(onnx_importer PRIVATE ${ONNX_IMPORT_INCLUDE_DIR}/onnx_import/core
                                                  ${ONNX_IMPORT_INCLUDE_DIR}/onnx_import/op
                                                  ${ONNX_IMPORT_INCLUDE_DIR}/onnx_import/utils)
 
@@ -79,10 +86,15 @@ install(TARGETS onnx_importer EXPORT ngraphTargets
         ARCHIVE DESTINATION ${NGRAPH_INSTALL_LIB} COMPONENT ngraph
         LIBRARY DESTINATION ${NGRAPH_INSTALL_LIB} COMPONENT ngraph)
 
-    install(DIRECTORY ${ONNX_IMPORT_INCLUDE_DIR}/onnx_import
-    DESTINATION ${NGRAPH_INSTALL_INCLUDE}/ngraph/frontend/
+install(DIRECTORY ${ONNX_IMPORT_INCLUDE_DIR}/onnx_import
+    DESTINATION ${ONNX_INSTALL_INCLUDE}
     COMPONENT ngraph
     FILES_MATCHING
         PATTERN "*.hpp"
         PATTERN "*.h"
 )
+
+
+if (NGRAPH_EXPORT_TARGETS_ENABLE)
+    export(TARGETS onnx_importer NAMESPACE ngraph:: APPEND FILE "${NGRAPH_TARGETS_FILE}")
+endif()

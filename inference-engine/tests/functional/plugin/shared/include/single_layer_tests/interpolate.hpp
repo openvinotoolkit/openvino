@@ -17,19 +17,25 @@
 namespace LayerTestsDefinitions {
 
 typedef std::tuple<
-        std::set<size_t>,                                      // Axes
-        ngraph::op::v3::Interpolate::InterpolateMode,          // InterpolateMode
-        ngraph::op::v3::Interpolate::CoordinateTransformMode,  // CoordinateTransformMode
-        ngraph::op::v3::Interpolate::NearestMode,              // NearestMode
+        ngraph::op::v4::Interpolate::InterpolateMode,          // InterpolateMode
+        ngraph::op::v4::Interpolate::ShapeCalcMode,            // ShapeCalculationMode
+        ngraph::op::v4::Interpolate::CoordinateTransformMode,  // CoordinateTransformMode
+        ngraph::op::v4::Interpolate::NearestMode,              // NearestMode
         bool,                                                  // AntiAlias
         std::vector<size_t>,                                   // PadBegin
         std::vector<size_t>,                                   // PadEnd
-        double                                                 // Cube coef
+        double,                                                // Cube coef
+        std::vector<int64_t>,                                  // Axes
+        std::vector<float>                                     // Scales
 > InterpolateSpecificParams;
 
 typedef std::tuple<
         InterpolateSpecificParams,
         InferenceEngine::Precision,     // Net precision
+        InferenceEngine::Precision,     // Input precision
+        InferenceEngine::Precision,     // Output precision
+        InferenceEngine::Layout,        // Input layout
+        InferenceEngine::Layout,        // Output layout
         InferenceEngine::SizeVector,    // Input shapes
         InferenceEngine::SizeVector,    // Target shapes
         LayerTestsUtils::TargetDevice   // Device name

@@ -63,7 +63,7 @@ class Eltwise4dBroadcast : public testing::WithParamInterface<eltwiseParams>,
             auto pattern1 = std::make_shared<ngraph::opset1::Constant>(ngraph::element::Type_t::i64, ngraph::Shape{ 4 }, outFormShapes1);
             auto reshape1 = std::make_shared<ngraph::opset1::Reshape>(params[0], pattern1, false);
 
-            auto constant1 = ngraph::builder::makeConstant(ngPrc, { 1, 1, 1, 12 }, {}, true);
+            auto constant1 = ngraph::builder::makeConstant<float>(ngPrc, { 1, 1, 1, 12 }, {}, true);
             auto eltwise = ngraph::builder::makeEltwise(reshape1, constant1, eltwiseType);
 
             std::vector<size_t> outFormShapes2 = { 1, 72 };
@@ -157,7 +157,7 @@ protected:
         ngraph::helpers::EltwiseTypes::ADD
     };
 
-    INSTANTIATE_TEST_CASE_P(Eltwise4d, Eltwise4dBroadcast,
+    INSTANTIATE_TEST_CASE_P(smoke_Eltwise4d, Eltwise4dBroadcast,
         ::testing::Combine(
             ::testing::ValuesIn(netPrecisions),
             ::testing::Values(CommonTestUtils::DEVICE_GNA),
@@ -165,7 +165,7 @@ protected:
             ::testing::ValuesIn(eltwiseOpTypes)),
         Eltwise4dBroadcast::getTestCaseName);
 
-    INSTANTIATE_TEST_CASE_P(Eltwise4d, Eltwise4dMultipleInput,
+    INSTANTIATE_TEST_CASE_P(smoke_Eltwise4d, Eltwise4dMultipleInput,
         ::testing::Combine(
             ::testing::ValuesIn(netPrecisions),
             ::testing::Values(CommonTestUtils::DEVICE_GNA),

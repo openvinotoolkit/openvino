@@ -154,7 +154,7 @@ static bool replace_transpose_with_reshape(shared_ptr<Node> transpose) {
     const auto input_shape_rank = input_shape.rank().get_length();
 
     auto order = as_type_ptr<opset3::Constant>(transpose->input_value(1).get_node_shared_ptr());
-    if (!order) {
+    if (!order || !ngraph::shape_size(order->get_shape())) {
         return false;
     }
 
@@ -244,9 +244,16 @@ bool pass::AlgebraicSimplification::run_on_function(shared_ptr<Function> f) {
             continue;
         }
 
+        // Recursively apply transformation for sub-graph based operations
+        if (auto sub_graph_node = std::dynamic_pointer_cast<op::util::SubGraphOp>(n)) {
+            if (auto sub_graph = sub_graph_node->get_function()) {
+                replaced |= run_on_function(sub_graph);
+            }
+        }
+
         auto eh = ops_to_simplifiers.find(n->get_type_info());
         if (eh != ops_to_simplifiers.end()) {
-            replaced = eh->second(n) || replaced;
+            replaced |= eh->second(n);
         }
     }
     return replaced;

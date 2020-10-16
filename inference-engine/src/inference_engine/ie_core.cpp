@@ -12,6 +12,9 @@
 #include <ie_core.hpp>
 #include <multi-device/multi_device_config.hpp>
 #include <ngraph/opsets/opset.hpp>
+#include <ngraph/ngraph.hpp>
+#include <ngraph/graph_util.hpp>
+#include <ngraph/pass/constant_folding.hpp>
 
 #include <cpp_interfaces/exception2status.hpp>
 #include "ie_plugin_cpp.hpp"
@@ -291,10 +294,8 @@ public:
 
     QueryNetworkResult QueryNetwork(const ICNNNetwork& network, const std::string& deviceName,
                                     const std::map<std::string, std::string>& config) const override {
-        QueryNetworkResult res;
         auto parsed = parseDeviceNameIntoConfig(deviceName, config);
-        GetCPPPluginByName(parsed._deviceName).QueryNetwork(network, parsed._config, res);
-        return res;
+        return GetCPPPluginByName(parsed._deviceName).QueryNetwork(network, parsed._config);
     }
 
     Parameter GetMetric(const std::string& deviceName, const std::string& name) const override {

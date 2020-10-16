@@ -94,5 +94,21 @@ namespace ngraph
             return
                 [=](Output<Node> output) -> bool { return output.get_partial_shape().is_static(); };
         }
+
+        std::function<bool(Output<Node>)> type_matches(const element::Type& type)
+        {
+            return [=](Output<Node> output) -> bool { return output.get_element_type() == type; };
+        }
+
+        std::function<bool(Output<Node>)>
+            type_matches_any(const std::vector<element::Type>& expected_types)
+        {
+            return [=](Output<Node> output) -> bool {
+                const auto& output_type = output.get_element_type();
+                return std::any_of(expected_types.begin(),
+                                   expected_types.end(),
+                                   [=](element::Type type) { return type == output_type; });
+            };
+        }
     }
 }

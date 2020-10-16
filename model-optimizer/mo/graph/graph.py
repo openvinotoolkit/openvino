@@ -105,12 +105,12 @@ class Node:
         # no handling of control flow edges -- TODO
         control_flow = False
         if not skip_if_absent and idx not in self.in_ports(control_flow=control_flow):
-            raise Error("Input port with index {} does't exist in node {}.".format(idx, self.soft_get('name')))
+            raise Error("Input port with index {} doesn't exist in node {}.".format(idx, self.soft_get('name')))
         if not self.in_port(idx).disconnected():
             self.in_port(idx).disconnect()
         del self._in_ports[idx]
         # update in_ports_count for consistency but it is unlikely have any effect somewhere in the code
-        self.in_ports_count = len(self._in_ports)
+        self['in_ports_count'] = len(self._in_ports)
 
     def add_output_port(self, idx, skip_if_exist=False, **kwargs):
         if not self.has_valid('_out_ports'):

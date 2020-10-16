@@ -127,7 +127,7 @@ void ref_math(
         for (i = 0; i < dst_size; i++) {
             dst_data[i] = sinhf(src_data[i]);
         }
-    } else if (math_function == "Softplus") {
+    } else if (math_function == "SoftPlus") {
         for (i = 0; i < dst_size; i++) {
             dst_data[i] = logf(expf(src_data[i]) + 1);
         }
@@ -313,7 +313,7 @@ INSTANTIATE_TEST_CASE_P(
                 math_test_params{ "Sign",{ 3 },{ -0.5f, 0.f, 0.5f },{},{},{},{-1, 0, 1} },
                 math_test_params{ "Sin",{ 3 },{ -1, 0, 1 },{},{},{},{ -0.841470957f, 0.0f, 0.841470957f } },
                 math_test_params{ "Sinh",{ 3 },{ -0.5f, 0.f, 0.5f },{},{},{},{ } },
-                math_test_params{ "Softplus",{ 3 },{ -1, 0, 1 },{},{},{},{ 0.31326166f, 0.69314718f, 1.31326163f } },
+                math_test_params{ "SoftPlus",{ 3 },{ -1, 0, 1 },{},{},{},{ 0.31326166f, 0.69314718f, 1.31326163f } },
                 math_test_params{ "Softsign",{ 3 },{ -1, 0, 1 },{},{},{},{ -0.5f, 0.f, 0.5f } },
                 math_test_params{ "Tan",{ 3 },{ -1, 0, 1 },{},{},{},{ -1.55740774f, 0.0f, 1.55740774f } }
             ));
