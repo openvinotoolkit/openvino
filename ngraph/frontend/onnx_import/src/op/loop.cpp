@@ -154,10 +154,9 @@ namespace ngraph
                                      loop_carried_dependencies.size() + 1);
 
                     const auto body = std::make_shared<ngraph::Function>(body_outputs, body_inputs);
-                    auto loop = std::make_shared<default_opset::Loop>();
-                    loop->set_trip_count_input(trip_count);
-                    loop->set_execution_condition_input(termination_cond);
-                    loop->set_body(body);
+                    auto loop = std::make_shared<default_opset::Loop>(trip_count, termination_cond);
+                    loop->set_function(body);
+                    loop->set_special_body_ports(ngraph::opset5::Loop::SpecialBodyPorts{-1, 0});
 
                     // Setting up other Loop body inputs.
                     // body_inputs[0] is iteration number, body_inputs[1] is termination condition
