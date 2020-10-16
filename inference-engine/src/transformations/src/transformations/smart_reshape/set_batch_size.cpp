@@ -10,6 +10,7 @@
 #include <transformations/itt.hpp>
 #include <transformations/smart_reshape/mimic_set_batch_size.hpp>
 #include <transformations/smart_reshape/set_batch_size.hpp>
+#include <transformations/smart_reshape/strided_slice_squeeze.hpp>
 #include <ngraph/pass/constant_folding.hpp>
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::SetBatchSize, "SetBatchSize", 0);
