@@ -22,7 +22,7 @@ std::vector<std::string> disabledTestPatterns() {
             // Expected behavior
             R"(.*EltwiseLayerTest.*eltwiseOpType=Pow.*netPRC=I64.*)",
             R"(.*EltwiseLayerTest.*IS=\(.*\..*\..*\..*\..*\).*eltwiseOpType=Pow.*secondaryInputType=CONSTANT.*)",
-            // No inputs detected
+            // TODO: Issue: 40958
             R"(.*(ConstantResultSubgraphTest).*)",
     };
 }

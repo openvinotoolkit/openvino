@@ -42,7 +42,7 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*IEClassHeteroExecutableNetworkGetMetricTest_TARGET_FALLBACK.*)",
         // TODO: Issue 39358
         R"(.*unaligned.*MultipleConcatTest.*)",
-        // AssertionFailed: !inputs.empty()
+        // TODO: Issue: 40960
         R"(.*(ConstantResultSubgraphTest).*)",
     };
 }
