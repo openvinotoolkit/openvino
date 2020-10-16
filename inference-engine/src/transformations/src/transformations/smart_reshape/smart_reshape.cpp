@@ -22,7 +22,8 @@ bool ngraph::pass::SmartReshape::run_on_function(std::shared_ptr<ngraph::Functio
     // This pass must be called first in pipeline
     static_manager.register_pass<ngraph::pass::InitNodeInfo>();
     static_manager.register_pass<ngraph::pass::ReshapeTo1D>();
-    static_manager.register_pass<ngraph::pass::ProposalScales>();
+    static_manager.register_pass<ngraph::pass::opset1_ProposalScales>();
+    static_manager.register_pass<ngraph::pass::opset4_ProposalScales>();
     static_manager.run_passes(f);
 
     ngraph::pass::Manager dynamic_manager;

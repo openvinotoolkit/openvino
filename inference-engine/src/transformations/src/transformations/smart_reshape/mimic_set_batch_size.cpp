@@ -7,13 +7,8 @@
 NGRAPH_RTTI_DEFINITION(ngraph::pass::MimicSetBatchSize, "MimicSetBatchSize", 0);
 
 ngraph::pass::MimicSetBatchSize::MimicSetBatchSize() {
-    auto reshape_label = ngraph::pattern::wrap_type<opset5::Reshape>({pattern::any_input(), ngraph::pattern::wrap_type<opset5::Constant>()},
-         [](const Output<Node> &output) {
-             const auto &input_pshape = output.get_node_shared_ptr()->get_input_partial_shape(0);
-             const auto &output_rank = output.get_partial_shape().rank();
-             return input_pshape.rank().is_static() && input_pshape.rank().get_length() > 1 && input_pshape[0].is_static() &&
-                    output_rank.is_static() && output_rank.get_length() > 1;
-         });
+    auto reshape_label = ngraph::pattern::wrap_type<opset5::Reshape>({pattern::any_input(pattern::has_static_dim(0)), ngraph::pattern::wrap_type<opset5::Constant>()},
+         [](const Output<Node> &output) { return output.get_partial_shape().rank().is_static() && output.get_partial_shape().rank().get_length() > 1; });
 
     matcher_pass_callback callback = [=](pattern::Matcher &m) -> bool {
         const auto & reshape = m.get_match_root();
