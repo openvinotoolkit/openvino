@@ -879,6 +879,18 @@ namespace
     {
         return t == element::f32 || t == element::f16 || t == element::bf16;
     }
+
+    inline bool is_scalar_or_1d_tensor_with_1_element(const PartialShape& p)
+    {
+        if (p.is_dynamic())
+        {
+            return false;
+        }
+
+        Shape shape = p.to_shape();
+
+        return is_scalar(shape) || is_vector(shape) && (shape[0] == 1);
+    }
 }
 
 void op::v5::NonMaxSuppression::validate()
@@ -917,8 +929,10 @@ void op::v5::NonMaxSuppression::validate()
     {
         const auto max_boxes_ps = get_input_partial_shape(2);
         NODE_VALIDATION_CHECK(this,
-                              max_boxes_ps.is_dynamic() || is_scalar(max_boxes_ps.to_shape()),
-                              "Expected a scalar for the 'max_output_boxes_per_class' input. Got: ",
+                              max_boxes_ps.is_dynamic() ||
+                                  is_scalar_or_1d_tensor_with_1_element(max_boxes_ps),
+                              "Expected 0D or 1D tensor for the 'max_output_boxes_per_class' input. "
+                              "Got: ",
                               max_boxes_ps);
     }
 
@@ -931,8 +945,8 @@ void op::v5::NonMaxSuppression::validate()
                               "'iou_threshold' input.");
         NODE_VALIDATION_CHECK(this,
                               iou_threshold_ps.is_dynamic() ||
-                                  is_scalar(iou_threshold_ps.to_shape()),
-                              "Expected a scalar for the 'iou_threshold' input. Got: ",
+                                  is_scalar_or_1d_tensor_with_1_element(iou_threshold_ps),
+                              "Expected 0D or 1D tensor for the 'iou_threshold' input. Got: ",
                               iou_threshold_ps);
     }
 
@@ -945,8 +959,8 @@ void op::v5::NonMaxSuppression::validate()
                               "'score_threshold_ps' input.");
         NODE_VALIDATION_CHECK(this,
                               score_threshold_ps.is_dynamic() ||
-                                  is_scalar(score_threshold_ps.to_shape()),
-                              "Expected a scalar for the 'score_threshold' input. Got: ",
+                                  is_scalar_or_1d_tensor_with_1_element(score_threshold_ps),
+                              "Expected 0D or 1D tensor for the 'score_threshold' input. Got: ",
                               score_threshold_ps);
     }
 
@@ -958,8 +972,9 @@ void op::v5::NonMaxSuppression::validate()
                               "Expected bf16, fp16 or fp32 as element type for the "
                               "'soft_nms_sigma' input.");
         NODE_VALIDATION_CHECK(this,
-                              soft_nms_sigma.is_dynamic() || is_scalar(soft_nms_sigma.to_shape()),
-                              "Expected a scalar for the 'soft_nms_sigma' input. Got: ",
+                              soft_nms_sigma.is_dynamic() ||
+                                is_scalar_or_1d_tensor_with_1_element(soft_nms_sigma),
+                              "Expected 0D or 1D tensor for the 'soft_nms_sigma' input. Got: ",
                               soft_nms_sigma);
     }
 
