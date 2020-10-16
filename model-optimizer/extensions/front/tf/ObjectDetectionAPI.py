@@ -1229,13 +1229,14 @@ class EfficientDet(FrontReplacementFromConfigFileGeneral):
             return widths, heights
 
     def transform_graph(self, graph: Graph, replacement_descriptions: dict):
-        scopesToKeep = ('image_arrays', 'efficientnet', 'resample_p6', 'resample_p7',
-                        'fpn_cells', 'class_net', 'box_net', 'Reshape', 'concat')
-        nodesToKeep = ('truediv')
+        scopesToKeep = ('efficientnet', 'resample_p6', 'resample_p7',
+                        'fpn_cells', 'class_net', 'box_net', 'Reshape', 'concat',
+                        'convert_image')
+        nodesToKeep = ('image_arrays', 'sub', 'truediv')
 
         # Remove all nodes we are not going to work with
         nodes_to_remove = []
-        for name, node  in graph.nodes.items():
+        for name, node in graph.nodes.items():
             op = node['op']
             if not (op == 'Const' or name in nodesToKeep or name.startswith(scopesToKeep)):
                 nodes_to_remove.append(name)
@@ -1245,11 +1246,17 @@ class EfficientDet(FrontReplacementFromConfigFileGeneral):
 
         # Attach unconnected preprocessing
         truediv = Node(graph, 'truediv')
-        graph.create_edge(Node(graph, 'image_arrays'), truediv, out_port=0, in_port=0)
+        graph.create_edge(Node(graph, 'image_arrays'),
+                          Node(graph, 'convert_image/Cast'),
+                          out_port=0, in_port=0)
 
         # Find first not Const node after "truediv" and connect to "truediv"
+        after_truediv = False
         for name, node in graph.nodes.items():
-            if node['op'] != 'Const' and name != 'truediv':
+            if name == 'truediv':
+                after_truediv = True
+                continue
+            if node['op'] != 'Const' and after_truediv:
                 node = Node(graph, name)  # TODO: can we simplify it?
                 graph.create_edge(truediv, node, out_port=0, in_port=0)
                 break

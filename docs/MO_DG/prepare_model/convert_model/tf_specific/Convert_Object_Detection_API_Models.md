@@ -35,6 +35,7 @@ To convert a TensorFlow\* Object Detection API model, go to the `<INSTALL_DIR>/d
     * `rfcn_support_api_v1.10.json` --- for the frozen RFCN topology from the models zoo frozen with TensorFlow\* version 1.10.0 up to 1.12.X inclusively
     * `rfcn_support_api_v1.13.json` --- for the frozen RFCN topology from the models zoo frozen with TensorFlow\* version 1.13.X.
     * `rfcn_support_api_v1.14.json` --- for the frozen RFCN topology from the models zoo frozen with TensorFlow\* version 1.14.0 or higher.
+    * `automl_efficientdet.json` --- for the frozen [AutoML EfficientDet](https://github.com/google/automl/tree/master/efficientdet) topology.
 * `--tensorflow_object_detection_api_pipeline_config <path_to_pipeline.config>` --- A special configuration file that describes the topology hyper-parameters and structure of the TensorFlow Object Detection API model. For the models downloaded from the TensorFlow\* Object Detection API zoo, the configuration file is named `pipeline.config`. If you plan to train a model yourself, you can find templates for these files in the [models repository](https://github.com/tensorflow/models/tree/master/research/object_detection/samples/configs).
 * `--input_shape` (optional) --- A custom input image shape. Refer to [Custom Input Shape](#tf_od_custom_input_shape) for more information how the `--input_shape` parameter is handled for the TensorFlow* Object Detection API models.
 
@@ -565,11 +566,11 @@ Lines 26-34: Parses the `pipeline.config` file and gets required parameters for 
 
 Lines 38-57: Performs the following manipulations with the tensor with class predictions. TensorFlow uses the NHWC layout, while the Inference Engine uses NCHW. Model Optimizer by default performs transformations with all nodes data in the inference graph to convert it to the NCHW layout. The size of 'C' dimension of the tensor with class predictions is equal to \f$base\_anchors\_count \cdot 2\f$, where 2 corresponds to a number of classes (background and foreground) and \f$base\_anchors\_count\f$ is equal to number of anchors that are applied to each position of 'H' and 'W' dimensions. Therefore, there are \f$H \cdot W \cdot base\_anchors\_count\f$ bounding boxes. Lines 44-45 apply the Softmax layer to this tensor to get class probabilities for each bounding box.
 
-Lines 59-81: Reads topology parameters related to variances and anchors generation. 
+Lines 59-81: Reads topology parameters related to variances and anchors generation.
 
 Lines 83-108: Adds the `Proposal` layer to the graph. This layer has one input (generated in lines 104-105) which should be filled with three values before inference: input image height, input image width, image scale factor.
 
-Lines 110-132: Swaps output values of the `Proposal` layer if the parameter `do_not_swap_proposals` is not set to `True` in the sub-graph replacement configuration file for the replacer. 
+Lines 110-132: Swaps output values of the `Proposal` layer if the parameter `do_not_swap_proposals` is not set to `True` in the sub-graph replacement configuration file for the replacer.
 
 Lines 134-144: Crops the output from the `Proposal` node to remove the batch indices (the Inference Engine implementation of the `Proposal` layer generates tensor with shape `[num_proposals, 5]`). The final tensor contains just box coordinates as in the TensorFlow implementation.
 
@@ -889,7 +890,7 @@ The main interest of the implementation of this replacer is the `generate_sub_gr
 
 Lines 12-15: Parses the `pipeline.config` file and gets required parameters for the `PSROIPooling` layer.
 Lines 17-21: Determines number of output channels for the `PSROIPooling` layer for box coordinates and classes predictions.
-Lines 23-46: Create `PSROIPooling` layer based on model parameters determined from the pipeline configuration file. 
+Lines 23-46: Create `PSROIPooling` layer based on model parameters determined from the pipeline configuration file.
 Lines 48-53: Add Reduce layer which is the output of the `while` loops being replaced.
 
 #### SecondStagePostprocessor block
