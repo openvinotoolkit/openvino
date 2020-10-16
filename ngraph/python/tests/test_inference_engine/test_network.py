@@ -11,7 +11,7 @@
 # limitations under the License.
 # ******************************************************************************
 
-from openvino.inference_engine import IECore, IENetwork, ExecutableNetwork
+from openvino.inference_engine import IECore, IENetwork, ExecutableNetwork, DataPtr
 
 import os
 
@@ -64,3 +64,56 @@ def test_batch_size_after_reshape():
     assert net.batch_size == 8
     assert net.input_info['data'].input_data.shape == [8, 3, 32, 32]
 
+def test_outputs():
+    ie = IECore()
+    net = ie.read_network(model=test_net_xml, weights=test_net_bin)
+    assert isinstance(net.outputs['fc_out'], DataPtr)
+    assert net.outputs['fc_out'].layout == "NC"
+    assert net.outputs['fc_out'].precision == "FP32"
+    assert net.outputs['fc_out'].shape == [1, 10]
+
+
+def test_output_precision_setter():
+    ie = IECore()
+    net = ie.read_network(model=test_net_xml, weights=test_net_bin)
+    assert net.outputs['fc_out'].precision == "FP32"
+    net.outputs['fc_out'].precision = "I8"
+    assert net.outputs['fc_out'].precision == "I8"
+
+
+def test_add_outputs():
+    ie = IECore()
+    net = ie.read_network(model=test_net_xml, weights=test_net_bin)
+    net.add_outputs('28/Reshape')
+    net.add_outputs(['29/WithoutBiases'])
+    assert sorted(net.outputs) == ['28/Reshape', '29/WithoutBiases', 'fc_out']
+
+
+def test_add_outputs_with_port():
+    ie = IECore()
+    net = ie.read_network(model=test_net_xml, weights=test_net_bin)
+    net.add_outputs(('28/Reshape', 0))
+    net.add_outputs([('29/WithoutBiases', 0)])
+    assert sorted(net.outputs) == ['28/Reshape', '29/WithoutBiases', 'fc_out']
+
+
+def test_add_outputs_with_and_without_port():
+    ie = IECore()
+    net = ie.read_network(model=test_net_xml, weights=test_net_bin)
+    net.add_outputs('28/Reshape')
+    net.add_outputs([('29/WithoutBiases', 0)])
+    assert sorted(net.outputs) == ['28/Reshape', '29/WithoutBiases', 'fc_out']
+
+
+def test_multi_out_data():
+    # Regression test CVS-23965
+    # Check that DataPtr for all output layers not copied between outputs map  items
+    ie = IECore()
+    net = ie.read_network(model=test_net_xml, weights=test_net_bin)
+    net.add_outputs(['28/Reshape'])
+    assert "28/Reshape" in net.outputs and "fc_out" in net.outputs
+    assert isinstance(net.outputs["28/Reshape"], DataPtr)
+    assert isinstance(net.outputs["fc_out"], DataPtr)
+    assert net.outputs["28/Reshape"].name == "28/Reshape" and net.outputs["28/Reshape"].shape == [1, 5184]
+    assert net.outputs["fc_out"].name == "fc_out" and net.outputs["fc_out"].shape == [1, 10]
+    pass

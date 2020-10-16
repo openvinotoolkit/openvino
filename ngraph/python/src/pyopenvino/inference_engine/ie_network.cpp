@@ -44,8 +44,10 @@ void regclass_IENetwork(py::module m) {
         self.reshape(input_shapes);
     });
 
-    // add_outputs
-    // outputs
+/*    cls.def("add_outputs", [](InferenceEngine::CNNNetwork& self, py::list input) {
+        self.addOutput(input_shapes);
+    });*/
+
     cls.def_property("batch_size", &InferenceEngine::CNNNetwork::getBatchSize,
                                    &InferenceEngine::CNNNetwork::setBatchSize);
 
@@ -56,6 +58,10 @@ void regclass_IENetwork(py::module m) {
             inputs[in.first] = in.second;
         }
         return inputs;
+    });
+
+    cls.def_property_readonly("outputs", [](InferenceEngine::CNNNetwork& self) {
+        return self.getOutputsInfo();
     });
 
     cls.def_property_readonly("name", &InferenceEngine::CNNNetwork::getName);
