@@ -192,7 +192,9 @@ public:
      * @return true if the given iterator is equal to this one, false - otherwise
      */
     bool operator==(const CNNNetworkIterator& that) const {
-        return network == that.network && currentLayer == that.currentLayer;
+        return currentLayer == that.currentLayer &&
+            (network == that.network ||
+             ((network == nullptr || that.network == nullptr) && currentLayer == nullptr));
     }
 
 private:
