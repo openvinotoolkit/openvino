@@ -24,7 +24,6 @@
 #include "ngraph/type/float16.hpp"
 #include "ngraph/util.hpp"
 
-using namespace std;
 using namespace ngraph;
 
 // ------------------------------ V1 ------------------------------
