@@ -187,6 +187,8 @@ target_compile_definitions(${TARGET_NAME} PRIVATE IMPLEMENT_INFERENCE_ENGINE_API
 ie_register_plugins(MAIN_TARGET ${TARGET_NAME}
                     POSSIBLE_PLUGINS MultiDevicePlugin HeteroPlugin clDNNPlugin GNAPlugin MKLDNNPlugin myriadPlugin)
 
+ie_add_api_validator_post_build_step(TARGET ${TARGET_NAME})
+
 # Static library used for unit tests which are always built
 
 add_library(${TARGET_NAME}_s STATIC

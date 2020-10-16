@@ -43,6 +43,10 @@ if(COMMAND ie_faster_build)
     )
 endif()
 
+if(COMMAND ie_add_api_validator_post_build_step)
+    ie_add_api_validator_post_build_step(TARGET ngraph)
+endif()
+
 set_target_properties(ngraph PROPERTIES
                       CXX_VISIBILITY_PRESET hidden
                       C_VISIBILITY_PRESET hidden

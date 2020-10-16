@@ -237,6 +237,7 @@ include(os_flags)
 include(sanitizer)
 include(cross_compiled_func)
 include(faster_build)
+include(api_validator)
 
 function(set_ci_build_number)
     set(OpenVINO_MAIN_SOURCE_DIR "${CMAKE_SOURCE_DIR}")
