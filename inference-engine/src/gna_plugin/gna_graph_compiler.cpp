@@ -1528,7 +1528,7 @@ void GNAGraphCompiler::PWLPrimitive(InferenceEngine::CNNLayerPtr layer) {
         uint32_t c_dim_in = FROM_IR_DIM(inputs, 3);
 
         num_columns = (w_dim_in == 1) ? h_dim_in * c_dim_in : w_dim_in * c_dim_in;
-        num_rows = 1;
+        num_rows = (w_dim_in == 1) ? w_dim_in : h_dim_in;
     } else {
         num_columns = FROM_IR_DIM(inputs, 2);
         num_rows = FROM_IR_DIM(inputs, 1);
