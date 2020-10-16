@@ -32,7 +32,7 @@ endforeach()
 
 function(python_disable_deprecated_warnings)
     disable_deprecated_warnings()
-    set(pyx_file "${CMAKE_CURRENT_BINARY_DIR}/ie_api.cxx")
+    set(pyx_file "${CMAKE_CURRENT_BINARY_DIR}/ie_api.cxx" "${CMAKE_CURRENT_BINARY_DIR}/constants.cxx")
     set_source_files_properties(${pyx_file} PROPERTIES COMPILE_FLAGS ${ie_c_cxx_deprecated})
 endfunction()
 
