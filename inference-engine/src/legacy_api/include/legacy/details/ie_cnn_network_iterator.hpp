@@ -193,7 +193,6 @@ public:
      * @return true if the given iterator is equal to this one, false - otherwise
      */
     bool operator==(const CNNNetworkIterator& that) const {
-        std::cout << " AAAAA "<< currentLayer << " " << that.currentLayer << " :: " << network << " " << that.network << std::endl;
         return currentLayer == that.currentLayer &&
             (network == that.network ||
              ((network == nullptr || that.network == nullptr) && currentLayer == nullptr));

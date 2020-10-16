@@ -321,7 +321,7 @@ TEST_F(GraphToolsTest, canIterateOverEmptyNetwork) {
     })));
 
     details::CNNNetworkIterator beg(wrap), end;
-    ASSERT_EQ(beg, end);
+    ASSERT_TRUE(beg == end);
 }
 
 TEST_F(GraphToolsTest, CNNNetSwapLayersThrowsForNullPointers) {
