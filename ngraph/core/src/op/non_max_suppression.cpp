@@ -687,6 +687,7 @@ namespace
 {
     constexpr size_t boxes_port = 0;
     constexpr size_t scores_port = 1;
+    constexpr size_t max_output_boxes_port = 2;
     constexpr size_t iou_threshold_port = 3;
     constexpr size_t score_threshold_port = 4;
     constexpr size_t soft_nms_sigma_port = 5;
@@ -1011,8 +1012,14 @@ int64_t op::v5::NonMaxSuppression::max_boxes_output_from_input() const
 {
     int64_t max_output_boxes{0};
 
+    size_t num_of_inputs = inputs().size();
+    if (num_of_inputs < 3)
+    {
+        return 0;
+    }
+
     const auto max_output_boxes_input =
-        as_type_ptr<op::Constant>(input_value(2).get_node_shared_ptr());
+        as_type_ptr<op::Constant>(input_value(max_output_boxes_port).get_node_shared_ptr());
     max_output_boxes = max_output_boxes_input->cast_vector<int64_t>().at(0);
 
     return max_output_boxes;
