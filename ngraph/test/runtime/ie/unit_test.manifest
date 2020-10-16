@@ -40,7 +40,7 @@ onnx_model_matmul_integer_4d_no_zero_point
 onnx_model_qlinear_matmul
 onnx_model_qlinear_matmul_3d
 
-# Not supported ONNX op: GatherND
+# The indices input type i64 is not supported by the CPU plugin
 onnx_model_gatherND_int32
 onnx_model_gatherND_float
 

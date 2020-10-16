@@ -17,7 +17,7 @@
 // Disabled in CMakeList
 // Update to higher opset required
 
-#include "ngraph/opsets/opset0.hpp"
+#include "onnx_import/default_opset.hpp"
 #include "onnx_import/utils/common.hpp"
 
 namespace ngraph
@@ -30,11 +30,12 @@ namespace ngraph
             {
                 OutputVector gather_nd(const Node& node)
                 {
-                    OutputVector ng_inputs{node.get_ng_inputs()};
-                    auto data = ng_inputs.at(0);
-                    auto indices = ng_inputs.at(1);
+                    const OutputVector ng_inputs{node.get_ng_inputs()};
+                    const auto data = ng_inputs.at(0);
+                    const auto indices = ng_inputs.at(1);
+                    const auto batch_dims = node.get_attribute_value<int64_t>("batch_dims", 0);
 
-                    return {std::make_shared<ngraph::opset0::GatherND>(data, indices)};
+                    return {std::make_shared<default_opset::GatherND>(data, indices, batch_dims)};
                 }
 
             } // namespace set_1
