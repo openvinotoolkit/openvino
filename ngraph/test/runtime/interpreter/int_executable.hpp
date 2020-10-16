@@ -1254,8 +1254,10 @@ protected:
         case OP_TYPEID::Round:
         {
             size_t element_count = shape_size(node.get_output_shape(0));
-            reference::round<T>(
-                args[0]->get_data_ptr<const T>(), out[0]->get_data_ptr<T>(), element_count);
+            reference::round<T>(args[0]->get_data_ptr<const T>(),
+                                out[0]->get_data_ptr<T>(),
+                                element_count,
+                                op::v5::Round::RoundMode::HALF_TO_EVEN);
             break;
         }
         case OP_TYPEID::Select:
@@ -1491,6 +1493,7 @@ protected:
         case OP_TYPEID::Range:
         case OP_TYPEID::Reshape:
         case OP_TYPEID::Result:
+        case OP_TYPEID::Round_v5:
         case OP_TYPEID::ShapeOf_v3:
         case OP_TYPEID::ShapeOf:
         case OP_TYPEID::Softmax:
