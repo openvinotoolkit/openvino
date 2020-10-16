@@ -24,6 +24,8 @@
 #include "inference_engine/tensor_description.hpp"
 #include "inference_engine/ie_version.hpp"
 #include "inference_engine/ie_parameter.hpp"
+#include "inference_engine/ie_input_info.hpp"
+#include "inference_engine/ie_data.hpp"
 
 namespace py = pybind11;
 
@@ -52,4 +54,6 @@ PYBIND11_MODULE(pyopenvino, m)
     regclass_TensorDecription(m);
     regclass_Version(m);
     regclass_Parameter(m);
+    regclass_Data(m);
+    regclass_InputInfo(m);
 }

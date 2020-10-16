@@ -17,13 +17,12 @@
 #include <cpp/ie_cnn_network.h>
 
 #include "pyopenvino/inference_engine/ie_network.hpp"
-//#include "../../../pybind11/include/pybind11/pybind11.h"
-
+#include "../../../pybind11/include/pybind11/pybind11.h"
+#include <pybind11/stl.h>
 
 namespace py = pybind11;
 
-void regclass_IENetwork(py::module m)
-{
+void regclass_IENetwork(py::module m) {
     py::class_<InferenceEngine::CNNNetwork, std::shared_ptr<InferenceEngine::CNNNetwork>> cls(m, "IENetwork");
     cls.def(py::init([](py::object* capsule) {
             // get the underlying PyObject* which is a PyCapsule pointer
@@ -39,4 +38,25 @@ void regclass_IENetwork(py::module m)
             InferenceEngine::CNNNetwork cnnNetwork(*function_sp);
             return std::make_shared<InferenceEngine::CNNNetwork>(cnnNetwork);
         }));
+
+    cls.def("reshape", [](InferenceEngine::CNNNetwork& self,
+                          std::map<std::string, std::vector<size_t>> &input_shapes) {
+        self.reshape(input_shapes);
+    });
+
+    // add_outputs
+    // outputs
+    cls.def_property("batch_size", &InferenceEngine::CNNNetwork::getBatchSize,
+                                   &InferenceEngine::CNNNetwork::setBatchSize);
+
+    cls.def_property_readonly("input_info", [](InferenceEngine::CNNNetwork& self) {
+        std::map <std::string, InferenceEngine::InputInfo::Ptr> inputs;
+        const InferenceEngine::InputsDataMap &inputsInfo = self.getInputsInfo();
+        for (auto &in : inputsInfo) {
+            inputs[in.first] = in.second;
+        }
+        return inputs;
+    });
+
+    cls.def_property_readonly("name", &InferenceEngine::CNNNetwork::getName);
 }
