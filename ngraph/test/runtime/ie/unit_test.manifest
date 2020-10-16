@@ -787,6 +787,9 @@ gather_nd_batch_1d_from_2d
 gather_nd_batch_scalar_from_3d
 gather_nd_batch_1d_from_3d
 gather_nd_batch_2d_from_3d
+gather_nd_batch_dims1
+gather_nd_batch_dims2
+gather_nd_batch_dims2_lead_dims
 
 # Cannot cast ngraph node Stack to CNNLayer!
 stack_matrix_rowise
@@ -1463,6 +1466,8 @@ IE_GPU.matmul_2x2_2x2
 IE_GPU.matmul_2x3_3x3
 IE_GPU.matmul_3x2_3x3_transpose
 IE_GPU.matmul_3x2_2x3_transpose
+IE_GPU.region_yolo_v2_caffe
+IE_GPU.region_yolo_v3_mxnet
 
 # Unsupported collapse op with dynamic shape
 IE_GPU.builder_opset1_collapse_dyn_shape

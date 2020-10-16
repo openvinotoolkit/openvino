@@ -4,10 +4,6 @@
 
 set(TARGET_NAME "MKLDNNPlugin")
 
-if(ENABLE_LTO)
-    ie_enable_lto()
-endif()
-
 if (WIN32)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DNOMINMAX")
 endif()
@@ -204,6 +200,11 @@ set_ie_threading_interface_for(${TARGET_NAME}_obj)
 
 target_compile_definitions(${TARGET_NAME}_obj PUBLIC -DMKLDNN_THR=${MKLDNN_THR}
                                               PRIVATE USE_STATIC_IE IMPLEMENT_INFERENCE_ENGINE_PLUGIN)
+
+# LTO
+
+set_target_properties(${TARGET_NAME} ${TARGET_NAME}_obj
+                      PROPERTIES INTERPROCEDURAL_OPTIMIZATION ${ENABLE_LTO})
 
 # install
 
