@@ -44,21 +44,32 @@
 
 * **1**: `data` - input tensor of any floating point type and arbitrary shape. Required.
 
-* **2**: `axes` - specifies indices of dimensions in `data` that define normalization slices. There are two sets of values supported: axes = {1} (that corresponds to across channel mode) and axes = {2, 3, ..., len(data.shape) - 1} (corresponds to within channel mode). Required.
+* **2**: `axes` - specifies indices of dimensions in `data` that define normalization slices. Required.
 
 **Outputs**
 
 * **1**: Output tensor of the same shape and type as the `data` input tensor.
 
 **Detailed description**:
-Local response normalization in OpenVino is based on Caffe's variation ([Caffe LRN](http://caffe.berkeleyvision.org/tutorial/layers/lrn.html)) of original definition ([Reference](http://papers.nips.cc/paper/4824-imagenet-classification-with-deep-convolutional-neural-networks.pdf) chapter 3.3).
+Local Response Normalization performs a normalization over local input regions.
+Each input value is divided by
+\f[ (bias + \frac{alpha}{{size}^{len(axes)}} \cdot \sum_{i} data_{i})^{beta} \f]
+The sum is taken over a region of a side length `size` and number of dimensions equal to number of axes.
+The region is centered at the input value that's being normalized (with zero padding added if needed).
 
-Here is an example for 4D `data` input tensor and `axes` = `[1]`:
+Here is an example for 4D `data` input tensor and `axes = [1]`:
+```
+sqr_sum[a, b, c, d] =
+    sum(data[a, max(0, b - size / 2) : min(data.shape[1], b + size / 2 + 1), c, d] ** 2)
+output = data / (bias + (alpha / size ** len(axes)) * sqr_sum) ** beta
+```
 
-    sqr_sum[a, b, c, d] =
-        sum(data[a, max(0, b - size / 2) : min(data.shape[1], b + size / 2 + 1), c, d] ** 2)
-    output = data / (bias + (alpha / size ** len(axes)) * sqr_sum) ** beta
-
+Example for 4D `data` input tensor and `axes = [2, 3]`:
+```
+sqr_sum[a, b, c, d] =
+    sum(data[a, b, max(0, c - size / 2) : min(data.shape[2], c + size / 2 + 1),  max(0, d - size / 2) : min(data.shape[3], d + size / 2 + 1)] ** 2)
+output = data / (bias + (alpha / size ** len(axes)) * sqr_sum) ** beta
+```
 
 **Example**
 
