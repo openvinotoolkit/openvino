@@ -10,6 +10,7 @@
 #include <transformations/itt.hpp>
 #include <transformations/smart_reshape/mimic_set_batch_size.hpp>
 #include <transformations/smart_reshape/set_batch_size.hpp>
+#include <ngraph/pass/constant_folding.hpp>
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::SetBatchSize, "SetBatchSize", 0);
 
@@ -19,6 +20,11 @@ bool ngraph::pass::SetBatchSize::run_on_function(std::shared_ptr<ngraph::Functio
     ngraph::pass::Manager manager;
     // This pass must be called first in pipeline
     manager.register_pass<ngraph::pass::InitNodeInfo>();
+
+    manager.register_pass<ngraph::pass::DisableCFForPriorBoxes>();
+    manager.register_pass<ngraph::pass::ConstantFolding>();
+    manager.register_pass<ngraph::pass::EnableCFForPriorBoxes>();
+
     manager.register_pass<ngraph::pass::MimicSetBatchSize>();
     manager.run_passes(f);
     return true;

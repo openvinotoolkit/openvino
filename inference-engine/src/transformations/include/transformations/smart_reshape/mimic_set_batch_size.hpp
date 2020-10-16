@@ -9,6 +9,8 @@
 #include <numeric>
 
 #include <ngraph/ngraph.hpp>
+#include <ngraph/opsets/opset1.hpp>
+#include <ngraph/opsets/opset3.hpp>
 #include <ngraph/opsets/opset5.hpp>
 #include <ngraph/pattern/matcher.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
@@ -21,6 +23,8 @@ namespace ngraph {
 namespace pass {
 
 class TRANSFORMATIONS_API MimicSetBatchSize;
+class TRANSFORMATIONS_API DisableCFForPriorBoxes;
+class TRANSFORMATIONS_API EnableCFForPriorBoxes;
 
 }  // namespace pass
 }  // namespace ngraph
@@ -41,4 +45,20 @@ class ngraph::pass::MimicSetBatchSize: public ngraph::pass::MatcherPass {
 public:
     NGRAPH_RTTI_DECLARATION;
     MimicSetBatchSize();
+};
+
+/**
+ * @ingroup ie_transformation_common_api
+ * @brief DisableCFForPriorBoxes and EnableCFForPriorBoxes transformations are needed to avoid unnecessary PriorBox folding
+ */
+class ngraph::pass::DisableCFForPriorBoxes: public ngraph::pass::FunctionPass {
+public:
+    NGRAPH_RTTI_DECLARATION;
+    bool run_on_function(std::shared_ptr<ngraph::Function> f) override;
+};
+
+class ngraph::pass::EnableCFForPriorBoxes: public ngraph::pass::FunctionPass {
+public:
+    NGRAPH_RTTI_DECLARATION;
+    bool run_on_function(std::shared_ptr<ngraph::Function> f) override;
 };

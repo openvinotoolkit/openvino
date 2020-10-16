@@ -7,7 +7,8 @@
 NGRAPH_RTTI_DEFINITION(ngraph::pass::MimicSetBatchSize, "MimicSetBatchSize", 0);
 
 ngraph::pass::MimicSetBatchSize::MimicSetBatchSize() {
-    auto reshape_label = ngraph::pattern::wrap_type<opset5::Reshape>({pattern::any_input(pattern::has_static_dim(0)), ngraph::pattern::wrap_type<opset5::Constant>()},
+    auto reshape_label = ngraph::pattern::wrap_type<opset5::Reshape>({pattern::any_input(pattern::has_static_dim(0)),
+                                                                      ngraph::pattern::wrap_type<opset5::Constant>()},
          [](const Output<Node> &output) { return output.get_partial_shape().rank().is_static() && output.get_partial_shape().rank().get_length() > 1; });
 
     matcher_pass_callback callback = [=](pattern::Matcher &m) -> bool {
@@ -58,3 +59,55 @@ ngraph::pass::MimicSetBatchSize::MimicSetBatchSize() {
     auto m = std::make_shared<ngraph::pattern::Matcher>(reshape_label, "MimicSetBatchSize");
     register_matcher(m, callback);
 }
+
+
+void set_folding_for_PriorBox(std::shared_ptr<ngraph::Node> prior_box, bool flag) {
+    std::string rt_info_disable_cf = "DISABLED_CONSTANT_FOLDING";
+    std::vector<ngraph::Node::type_info_t> allowed_to_skip = {
+            ngraph::opset1::Convert::type_info,
+            ngraph::opset1::StridedSlice::type_info,
+    };
+    std::vector<ngraph::Node::type_info_t> types_to_find = {
+            ngraph::opset1::ShapeOf::type_info,
+            ngraph::opset3::ShapeOf::type_info,
+    };
+
+    std::deque<std::shared_ptr<ngraph::Node>> nodes;
+    nodes.push_back(prior_box->get_input_node_shared_ptr(0));
+    nodes.push_back(prior_box->get_input_node_shared_ptr(1));
+
+    while (!nodes.empty()) {
+        auto curr_node = nodes.front();
+        nodes.pop_front();
+        if (count(allowed_to_skip.begin(), allowed_to_skip.end(), curr_node->get_type_info())) {
+            nodes.push_back(curr_node->get_input_node_shared_ptr(0));
+        } else if (count(types_to_find.begin(), types_to_find.end(), curr_node->get_type_info())) {
+            auto& rt_info = curr_node->get_rt_info();
+            if (flag && rt_info.count(rt_info_disable_cf))
+                rt_info.erase(rt_info_disable_cf);
+            if (!flag)
+                rt_info[rt_info_disable_cf];
+        }
+    }
+}
+
+NGRAPH_RTTI_DEFINITION(ngraph::pass::DisableCFForPriorBoxes, "DisableCFForPriorBoxes", 0);
+
+bool ngraph::pass::DisableCFForPriorBoxes::run_on_function(std::shared_ptr<ngraph::Function> f) {
+    for (const auto & node : f->get_ops())
+        if (ngraph::is_type<opset1::PriorBox>(node) || ngraph::is_type<opset1::PriorBoxClustered>(node))    {
+            set_folding_for_PriorBox(node, false);
+        }
+    return false;
+}
+
+NGRAPH_RTTI_DEFINITION(ngraph::pass::EnableCFForPriorBoxes, "EnableCFForPriorBoxes", 0);
+
+bool ngraph::pass::EnableCFForPriorBoxes::run_on_function(std::shared_ptr<ngraph::Function> f) {
+    for (const auto & node : f->get_ops())
+        if (ngraph::is_type<opset1::PriorBox>(node) || ngraph::is_type<opset1::PriorBoxClustered>(node)) {
+            set_folding_for_PriorBox(node, true);
+        }
+    return false;
+}
+
