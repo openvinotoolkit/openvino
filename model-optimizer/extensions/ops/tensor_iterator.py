@@ -248,7 +248,8 @@ class TensorIterator(Op):
             'start',
             'stride',
             'end',
-            'part_size'
+            'part_size',
+            'purpose',
         ]
 
         back_edges_attrs = [

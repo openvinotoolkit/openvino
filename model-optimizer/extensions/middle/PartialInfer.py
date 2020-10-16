@@ -20,6 +20,7 @@ from mo.middle.replacement import MiddleReplacementPattern
 
 class PartialInfer(MiddleReplacementPattern):
     enabled = True
+    run_not_recursively = True
 
     def run_after(self):
         from extensions.front.create_tensor_nodes import CreateTensorNodes
