@@ -36,7 +36,6 @@ CNNNetworkIterator {
     std::list<CNNLayerPtr> nextLayersToVisit;
     InferenceEngine::CNNLayerPtr currentLayer;
     const ICNNNetwork* network = nullptr;
-    bool oldApproach = false;
 
     void init(const ICNNNetwork* net) {
         network = net;
