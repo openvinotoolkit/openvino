@@ -61,7 +61,7 @@ op::v1::NonMaxSuppression::NonMaxSuppression(
     constructor_validate_and_infer_types();
 }
 
-shared_ptr<Node>
+std::shared_ptr<Node>
     op::v1::NonMaxSuppression::clone_with_new_inputs(const OutputVector& new_args) const
 {
     check_new_args_count(this, new_args);
@@ -259,7 +259,7 @@ op::v3::NonMaxSuppression::NonMaxSuppression(
     constructor_validate_and_infer_types();
 }
 
-shared_ptr<Node>
+std::shared_ptr<Node>
     op::v3::NonMaxSuppression::clone_with_new_inputs(const OutputVector& new_args) const
 {
     check_new_args_count(this, new_args);
@@ -478,7 +478,7 @@ op::v4::NonMaxSuppression::NonMaxSuppression(
     constructor_validate_and_infer_types();
 }
 
-shared_ptr<Node>
+std::shared_ptr<Node>
     op::v4::NonMaxSuppression::clone_with_new_inputs(const OutputVector& new_args) const
 {
     check_new_args_count(this, new_args);
@@ -644,7 +644,7 @@ op::v5::NonMaxSuppression::NonMaxSuppression(
     constructor_validate_and_infer_types();
 }
 
-shared_ptr<Node>
+std::shared_ptr<Node>
     op::v5::NonMaxSuppression::clone_with_new_inputs(const OutputVector& new_args) const
 {
     check_new_args_count(this, new_args);
