@@ -1,36 +1,44 @@
-ir_version: 7
+ir_version: 6
 producer_name: "nGraph ONNX Importer"
 graph {
+  name: "power calculation"
   node {
     input: "trip_count"
     input: "cond"
-    input: "fake"
-    output: "out_final"
-    name: "loop"
+    input: "pow_init"
+    output: "pow_final"
+    output: "pow_scans"
     op_type: "Loop"
     attribute {
       name: "body"
       g {
+        name: "pow calculation subgraph"
+        node {
+          input: "i"
+          input: "i"
+          output: "pow"
+          name: "power calc"
+          op_type: "Mul"
+        }
         node {
           input: "cond_in"
           output: "cond_out"
-          name: "cond_in_identity"
+          name: "cond_identity"
           op_type: "Identity"
         }
         node {
-          input: "outer_scope_var"
-          output: "loop_var_0_out"
-          name: "loop_var_out"
+          input: "pow"
+          output: "pow_scan"
+          name: "output_accumulator"
           op_type: "Identity"
         }
-        name: "Infinite Loop subgraph"
         input {
-          name: "iter_num_in"
+          name: "i"
           type {
             tensor_type {
               elem_type: 7
               shape {
-                dim {
+              dim {
                   dim_value: 1
                 }
               }
@@ -43,20 +51,21 @@ graph {
             tensor_type {
               elem_type: 9
               shape {
-                dim {
-                  dim_value: 1
+              dim {
+                dim_value: 1
                 }
               }
             }
           }
         }
         input {
-          name: "outer_scope_var"
+          name: "pow_in"
           type {
             tensor_type {
-              elem_type: 1
+              elem_type: 7
               shape {
                 dim {
+                  dim_value: 1
                 }
               }
             }
@@ -68,32 +77,34 @@ graph {
             tensor_type {
               elem_type: 9
               shape {
-                dim {
-                  dim_value: 1
+              dim {
+                dim_value: 1
                 }
               }
             }
           }
         }
         output {
-          name: "loop_var_0_out"
+          name: "pow"
           type {
             tensor_type {
-              elem_type: 1
+              elem_type: 7
               shape {
-                dim {
+              dim {
+                dim_value: 1
                 }
               }
             }
           }
         }
-        value_info {
-          name: "outer_scope_var"
+        output {
+          name: "pow_scan"
           type {
             tensor_type {
-              elem_type: 1
+              elem_type: 7
               shape {
-                dim {
+              dim {
+                dim_value: 1
                 }
               }
             }
@@ -102,33 +113,12 @@ graph {
       }
       type: GRAPH
     }
-    doc_string: "Loop node"
   }
-  node {
-    input: "outer_scope_var"
-    output: "outer_scope_var_out"
-    name: "cast"
-    op_type: "Cast"
-    attribute {
-      name: "to"
-      i: 7
-      type: INT
-    }
-  }
-  name: "test"
-  doc_string: ""
-  input {
-    name: "outer_scope_var"
-    type {
-      tensor_type {
-        elem_type: 1
-        shape {
-          dim {
-            dim_value: 1
-          }
-        }
-      }
-    }
+  initializer {
+    dims: 1
+    data_type: 9
+    int32_data: 00000001
+    name: "cond"
   }
   input {
     name: "trip_count"
@@ -136,7 +126,7 @@ graph {
       tensor_type {
         elem_type: 7
         shape {
-          dim {
+        dim {
             dim_value: 1
           }
         }
@@ -144,33 +134,7 @@ graph {
     }
   }
   input {
-    name: "cond"
-    type {
-      tensor_type {
-        elem_type: 9
-        shape {
-          dim {
-            dim_value: 1
-          }
-        }
-      }
-    }
-  }
-  input {
-    name: "fake"
-    type {
-      tensor_type {
-        elem_type: 1
-        shape {
-          dim {
-            dim_value: 1
-          }
-        }
-      }
-    }
-  }
-  output {
-    name: "outer_scope_var_out"
+    name: "pow_init"
     type {
       tensor_type {
         elem_type: 7
@@ -183,20 +147,29 @@ graph {
     }
   }
   output {
-    name: "out_final"
+    name: "pow_final"
     type {
       tensor_type {
-        elem_type: 1
+        elem_type: 7
         shape {
-          dim {
-            dim_value: 1
+        dim {
+          dim_value: 1
           }
+        }
+      }
+    }
+  }
+  output {
+    name: "pow_scans"
+    type {
+      tensor_type {
+        elem_type: 7
+        shape {
         }
       }
     }
   }
 }
 opset_import {
-  domain: ""
-  version: 8
+  version: 11
 }

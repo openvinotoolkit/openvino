@@ -305,3 +305,37 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_controlflow_loop_infinite_execution)
     test_case.add_expected_output<float>(Shape{1}, {3.f});
     test_case.run();
 }
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_controlflow_loop_no_variadic_inputs_and_outputs)
+{
+    const auto function = onnx_import::import_onnx_model(file_util::path_join(
+        SERIALIZED_ZOO, "onnx/loop/loop_no_variadic_inputs_and_outputs.prototxt"));
+
+    auto test_case = test::TestCase<TestEngine>(function);
+    // trip_count
+    test_case.add_input<int64_t>({1});
+    // init condition
+    test_case.add_input<bool>({true});
+
+    // loop_scan_out
+    test_case.add_expected_output<float>(Shape{1}, {1.f});
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_controlflow_loop_power_calculation)
+{
+    const auto function = onnx_import::import_onnx_model(
+        file_util::path_join(SERIALIZED_ZOO, "onnx/loop/loop_pow.prototxt"));
+
+    auto test_case = test::TestCase<TestEngine>(function);
+    // trip_count
+    test_case.add_input<int64_t>({5});
+    // pow init
+    test_case.add_input<int64_t>({5});
+
+    // pow_final
+    test_case.add_expected_output<int64_t>(Shape{1}, {16});
+    // pow_scans
+    test_case.add_expected_output<int64_t>(Shape{5}, {0, 1, 4, 9, 16});
+    test_case.run();
+}

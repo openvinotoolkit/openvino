@@ -1,12 +1,10 @@
 ir_version: 7
-producer_name: "nGraph ONNX Importer"
 graph {
   node {
     input: "trip_count"
     input: "cond"
-    input: "fake"
-    output: "out_final"
-    name: "loop"
+    output: "loop_scan_out"
+    name: "node1"
     op_type: "Loop"
     attribute {
       name: "body"
@@ -17,13 +15,12 @@ graph {
           name: "cond_in_identity"
           op_type: "Identity"
         }
-        node {
-          input: "outer_scope_var"
-          output: "loop_var_0_out"
-          name: "loop_var_out"
-          op_type: "Identity"
+        name: "Loop opset 11 op body graph"
+        initializer {
+          data_type: 1
+          float_data: 1
+          name: "constant_out"
         }
-        name: "Infinite Loop subgraph"
         input {
           name: "iter_num_in"
           type {
@@ -50,18 +47,6 @@ graph {
             }
           }
         }
-        input {
-          name: "outer_scope_var"
-          type {
-            tensor_type {
-              elem_type: 1
-              shape {
-                dim {
-                }
-              }
-            }
-          }
-        }
         output {
           name: "cond_out"
           type {
@@ -76,25 +61,11 @@ graph {
           }
         }
         output {
-          name: "loop_var_0_out"
+          name: "constant_out"
           type {
             tensor_type {
               elem_type: 1
               shape {
-                dim {
-                }
-              }
-            }
-          }
-        }
-        value_info {
-          name: "outer_scope_var"
-          type {
-            tensor_type {
-              elem_type: 1
-              shape {
-                dim {
-                }
               }
             }
           }
@@ -102,34 +73,10 @@ graph {
       }
       type: GRAPH
     }
-    doc_string: "Loop node"
-  }
-  node {
-    input: "outer_scope_var"
-    output: "outer_scope_var_out"
-    name: "cast"
-    op_type: "Cast"
-    attribute {
-      name: "to"
-      i: 7
-      type: INT
-    }
+    doc_string: "Loop"
   }
   name: "test"
   doc_string: ""
-  input {
-    name: "outer_scope_var"
-    type {
-      tensor_type {
-        elem_type: 1
-        shape {
-          dim {
-            dim_value: 1
-          }
-        }
-      }
-    }
-  }
   input {
     name: "trip_count"
     type {
@@ -156,34 +103,8 @@ graph {
       }
     }
   }
-  input {
-    name: "fake"
-    type {
-      tensor_type {
-        elem_type: 1
-        shape {
-          dim {
-            dim_value: 1
-          }
-        }
-      }
-    }
-  }
   output {
-    name: "outer_scope_var_out"
-    type {
-      tensor_type {
-        elem_type: 7
-        shape {
-          dim {
-            dim_value: 1
-          }
-        }
-      }
-    }
-  }
-  output {
-    name: "out_final"
+    name: "loop_scan_out"
     type {
       tensor_type {
         elem_type: 1
@@ -198,5 +119,5 @@ graph {
 }
 opset_import {
   domain: ""
-  version: 8
+  version: 11
 }
