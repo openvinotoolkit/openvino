@@ -100,6 +100,7 @@ void TestEnvironment::TearDown() {
     } else {
         root = doc.append_child("report");
         root.append_attribute("timestamp").set_value(timeNow);
+        root.append_child("results");
     }
 
     pugi::xml_node opsNode = root.append_child("ops_list");
@@ -110,7 +111,7 @@ void TestEnvironment::TearDown() {
         entry.append_attribute("version").set_value(op.version);
     }
 
-    pugi::xml_node resultsNode = root.append_child("results");
+    pugi::xml_node resultsNode = root.child("results");
     pugi::xml_node currentDeviceNode = resultsNode.append_child(s.deviceName.c_str());
     for (const auto &it : stats) {
         pugi::xml_node entry = currentDeviceNode.append_child("operation");
@@ -140,6 +141,12 @@ void LayerTestsCommon::Run() {
                 ngraph::is_type<ngraph::op::Constant>(op) ||
                 ngraph::is_type<ngraph::op::Result>(op)) {
                 continue;
+            } else if (ngraph::is_type<ngraph::op::TensorIterator>(op)) {
+                auto ti = ngraph::as_type_ptr<ngraph::op::TensorIterator>(op);
+                auto ti_body = ti->get_body();
+                for (const auto &ti_op : ti_body->get_ordered_ops()) {
+                    s.updateOPsStats(ti_op->get_type_info(), passed);
+                }
             } else {
                 s.updateOPsStats(op->get_type_info(), passed);
             }

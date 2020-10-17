@@ -7,7 +7,7 @@ namespace CommonTestUtils {
 
 const char DEVICE_CPU[] = "CPU";
 const char DEVICE_GNA[] = "GNA";
-const char DEVICE_GPU[] = "GPU";
+const char DEVICE_GPU[] = "CPU";
 const char DEVICE_HDDL[] = "HDDL";
 const char DEVICE_FPGA[] = "FPGA";
 const char DEVICE_MYRIAD[] = "MYRIAD";
