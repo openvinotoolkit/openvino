@@ -17,11 +17,6 @@ const std::vector<std::pair<ngraph::Shape, ngraph::Shape>> shapes = {
     {{1, 2, 48, 80}, {50, 60}},
 };
 
-const std::vector<LayerTestsUtils::LayerTransformation::LptVersion> versions = {
-    LayerTestsUtils::LayerTransformation::LptVersion::cnnNetwork,
-    LayerTestsUtils::LayerTransformation::LptVersion::nGraph
-};
-
 const std::vector<interpAttributes> interpAttrs = {
         interpAttributes(
             ngraph::AxisSet{2, 3},
@@ -50,9 +45,7 @@ const auto combineValues = ::testing::Combine(
     ::testing::ValuesIn(precisions),
     ::testing::ValuesIn(shapes),
     ::testing::Values(CommonTestUtils::DEVICE_CPU),
-    ::testing::ValuesIn(interpAttrs),
-    ::testing::ValuesIn(versions)
-);
+    ::testing::ValuesIn(interpAttrs));
 
 INSTANTIATE_TEST_CASE_P(LPT, InterpolateTransformation, combineValues, InterpolateTransformation::getTestCaseName);
 }  // namespace

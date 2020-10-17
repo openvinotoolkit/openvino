@@ -11,11 +11,6 @@ using namespace InferenceEngine::details;
 using namespace ngraph;
 
 namespace {
-
-    const std::vector<LayerTestsUtils::LayerTransformation::LptVersion> versions = {
-        LayerTestsUtils::LayerTransformation::LptVersion::nGraph
-    };
-
     const std::vector<FuseMultiplyToFakeQuantizeTransformationTestValues> testValues = {
         {
             Shape{1, 3, 16, 16},
@@ -35,10 +30,9 @@ namespace {
         },
     };
 
-    INSTANTIATE_TEST_CASE_P(LPT, FuseMultiplyToFakeQuantizeTransformation,
+    INSTANTIATE_TEST_CASE_P(smoke_LPT, FuseMultiplyToFakeQuantizeTransformation,
         ::testing::Combine(
             ::testing::Values(CommonTestUtils::DEVICE_GPU),
-            ::testing::ValuesIn(versions),
             ::testing::ValuesIn(testValues)),
         FuseMultiplyToFakeQuantizeTransformation::getTestCaseName);
 }  // namespace

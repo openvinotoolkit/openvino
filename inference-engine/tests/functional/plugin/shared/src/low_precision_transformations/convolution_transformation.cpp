@@ -25,12 +25,11 @@ std::string ConvolutionTransformation::getTestCaseName(testing::TestParamInfo<Co
     ngraph::Shape inputShape;
     std::string targetDevice;
     ngraph::pass::low_precision::LayerTransformation::Params params;
-    LayerTestsUtils::LayerTransformation::LptVersion version;
     ConvolutionTransformationParam param;
-    std::tie(netPrecision, inputShape, targetDevice, params, version, param) = obj.param;
+    std::tie(netPrecision, inputShape, targetDevice, params, param) = obj.param;
 
     std::ostringstream result;
-    result << getTestCaseNameByParams(netPrecision, inputShape, targetDevice, params, version) <<
+    result << getTestCaseNameByParams(netPrecision, inputShape, targetDevice, params) <<
         param.fakeQuantizeOnData <<
         param.fakeQuantizeOnWeights;
     return result.str();
@@ -42,11 +41,8 @@ void ConvolutionTransformation::SetUp() {
     ngraph::element::Type netPrecision;
     ngraph::Shape inputShape;
     ngraph::pass::low_precision::LayerTransformation::Params params;
-    LayerTestsUtils::LayerTransformation::LptVersion version;
     ConvolutionTransformationParam param;
-    std::tie(netPrecision, inputShape, targetDevice, params, version, param) = this->GetParam();
-
-    ConfigurePlugin(version);
+    std::tie(netPrecision, inputShape, targetDevice, params, param) = this->GetParam();
 
     function = ngraph::builder::subgraph::FakeQuantizeAndConvolutionFunction::getOriginal(
         netPrecision,
@@ -55,50 +51,7 @@ void ConvolutionTransformation::SetUp() {
         param.fakeQuantizeOnData,
         param.fakeQuantizeOnWeights);
 
-    if (version == LptVersion::cnnNetwork) {
-        validate();
-    } else {
-        validateNGraph();
-    }
-}
-
-void ConvolutionTransformation::validate() {
-    ngraph::element::Type netPrecision;
-    ngraph::Shape inputShape;
-    std::string targetDevice;
-    ngraph::pass::low_precision::LayerTransformation::Params params;
-    LayerTestsUtils::LayerTransformation::LptVersion version;
-    ConvolutionTransformationParam param;
-    std::tie(netPrecision, inputShape, targetDevice, params, version, param) = this->GetParam();
-
-    const auto precision = toCNNNetwork(netPrecision);
-    const InferenceEngine::CNNNetwork network = transform(toCNNNetwork(params));
-
-    IE_SUPPRESS_DEPRECATED_START
-
-    InferenceEngine::OutputsDataMap outputs = network.getOutputsInfo();
-    EXPECT_EQ(1, outputs.size());
-
-    std::map<std::string, InferenceEngine::DataPtr>::iterator it = outputs.begin();
-    const InferenceEngine::CNNLayerPtr outputLayer = getCreatorLayer(it->second).lock();
-    EXPECT_TRUE(outputLayer != nullptr);
-    EXPECT_EQ((!param.fakeQuantizeOnData.empty()) && (!param.fakeQuantizeOnWeights.empty()) ? "ScaleShift" : "Convolution", outputLayer->type);
-
-    if ((!param.fakeQuantizeOnData.empty()) && (!param.fakeQuantizeOnWeights.empty())) {
-        const InferenceEngine::CNNLayerPtr layer = InferenceEngine::details::CNNNetworkHelper::getParent(*outputLayer);
-        if (params.updatePrecisions) {
-            checkPrecisions(
-                *layer,
-                { { InferenceEngine::Precision::U8 }, { InferenceEngine::Precision::I8 } },
-                { getDeviceInternalPrecision(precision) },
-                param.asymmetricQuantizationOnData,
-                param.asymmetricQuantizationOnWeights);
-        } else {
-            checkPrecisions(*layer, precision);
-        }
-    }
-
-    IE_SUPPRESS_DEPRECATED_END
+    validateNGraph();
 }
 
 void ConvolutionTransformation::validateNGraph() {
@@ -106,9 +59,8 @@ void ConvolutionTransformation::validateNGraph() {
     ngraph::Shape inputShape;
     std::string targetDevice;
     ngraph::pass::low_precision::LayerTransformation::Params params;
-    LayerTestsUtils::LayerTransformation::LptVersion version;
     ConvolutionTransformationParam param;
-    std::tie(netPrecision, inputShape, targetDevice, params, version, param) = this->GetParam();
+    std::tie(netPrecision, inputShape, targetDevice, params, param) = this->GetParam();
 
     auto transformed = transformNGraph(params);
     EXPECT_EQ(1ul, transformed->get_output_size());

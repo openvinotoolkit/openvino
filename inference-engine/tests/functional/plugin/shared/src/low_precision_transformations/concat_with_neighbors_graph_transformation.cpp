@@ -21,10 +21,9 @@ std::string ConcatWithNeighborsGraphTransformation::getTestCaseName(testing::Tes
     ngraph::Shape inputShapes;
     std::string targetDevice;
     ngraph::pass::low_precision::LayerTransformation::Params params;
-    LayerTestsUtils::LayerTransformation::LptVersion version;
-    std::tie(precision, inputShapes, targetDevice, params, version) = obj.param;
+    std::tie(precision, inputShapes, targetDevice, params) = obj.param;
 
-    return getTestCaseNameByParams(precision, inputShapes, targetDevice, params, version);
+    return getTestCaseNameByParams(precision, inputShapes, targetDevice, params);
 }
 
 InferenceEngine::Blob::Ptr ConcatWithNeighborsGraphTransformation::GenerateInput(const InferenceEngine::InputInfo &info) const {
@@ -32,8 +31,7 @@ InferenceEngine::Blob::Ptr ConcatWithNeighborsGraphTransformation::GenerateInput
     ngraph::Shape inputShape;
     std::string targetDevice;
     ngraph::pass::low_precision::LayerTransformation::Params params;
-    LayerTestsUtils::LayerTransformation::LptVersion version;
-    std::tie(netPrecision, inputShape, targetDevice, params, version) = this->GetParam();
+    std::tie(netPrecision, inputShape, targetDevice, params) = this->GetParam();
 
     if ((info.name() != "input1") && (info.name() != "input2") && (info.name() != "input3")) {
         THROW_IE_EXCEPTION << "unexpected input name " << info.name();
@@ -47,10 +45,7 @@ void ConcatWithNeighborsGraphTransformation::SetUp() {
     ngraph::element::Type ngPrecision;
     ngraph::Shape inputShape;
     ngraph::pass::low_precision::LayerTransformation::Params params;
-    LayerTestsUtils::LayerTransformation::LptVersion version;
-    std::tie(ngPrecision, inputShape, targetDevice, params, version) = this->GetParam();
-
-    ConfigurePlugin(version);
+    std::tie(ngPrecision, inputShape, targetDevice, params) = this->GetParam();
 
     function = ngraph::builder::subgraph::ConcatFunction::getOriginalWithNeighbors(
         ngPrecision,
@@ -58,45 +53,6 @@ void ConcatWithNeighborsGraphTransformation::SetUp() {
         { 256ul, ngraph::Shape({}), {0.f}, {2.55f}, {0.f}, {2.55f} },
         { 256ul, ngraph::Shape({}), {0.f}, {2.55f}, {0.f}, {2.55f / 2.f} },
         { 256ul, ngraph::Shape({}), {0.f}, {2.55f}, {0.f}, {2.55f / 3.f} });
-
-    if (version == LptVersion::cnnNetwork) {
-        validate();
-    }
-}
-
-void ConcatWithNeighborsGraphTransformation::validate() {
-    ngraph::element::Type netPrecision;
-    ngraph::Shape inputShape;
-    ngraph::pass::low_precision::LayerTransformation::Params params;
-    LayerTestsUtils::LayerTransformation::LptVersion version;
-    std::tie(netPrecision, inputShape, targetDevice, params, version) = this->GetParam();
-
-    const InferenceEngine::CNNNetwork network = transform(toCNNNetwork(params));
-
-    IE_SUPPRESS_DEPRECATED_START
-
-    InferenceEngine::OutputsDataMap outputs = network.getOutputsInfo();
-    EXPECT_EQ(2, outputs.size());
-
-    for (const auto it : outputs) {
-        const InferenceEngine::CNNLayerPtr outputLayer = getCreatorLayer(it.second).lock();
-        EXPECT_TRUE(outputLayer != nullptr);
-        EXPECT_EQ("ScaleShift", outputLayer->type);
-
-        const InferenceEngine::CNNLayerPtr layer = InferenceEngine::details::CNNNetworkHelper::getParent(*outputLayer);
-        if (params.updatePrecisions) {
-            const auto interval = getQuantizationInterval(params.precisionsOnActivations[0]);
-            const InferenceEngine::Precision expectedPrecision = interval.first >= 0.f ? InferenceEngine::Precision::U8 : InferenceEngine::Precision::I8;
-
-            checkPrecisions(*layer, { { expectedPrecision }, { expectedPrecision } }, { { expectedPrecision } });
-        } else {
-            checkPrecisions(*layer, toCNNNetwork(netPrecision));
-        }
-    }
-
-    // check quantized FQ layers map: should includes all FQ
-
-    IE_SUPPRESS_DEPRECATED_END
 }
 
 TEST_P(ConcatWithNeighborsGraphTransformation, CompareWithRefImpl) {

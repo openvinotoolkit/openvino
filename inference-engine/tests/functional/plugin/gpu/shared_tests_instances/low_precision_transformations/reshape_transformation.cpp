@@ -21,11 +21,6 @@ const std::vector<ngraph::pass::low_precision::LayerTransformation::Params> tras
     LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8()
 };
 
-const std::vector<LayerTestsUtils::LayerTransformation::LptVersion> versions = {
-    LayerTestsUtils::LayerTransformation::LptVersion::cnnNetwork,
-    LayerTestsUtils::LayerTransformation::LptVersion::nGraph
-};
-
 const std::vector<ReshapeTransformationParam> params = {
     // 3D -> 4D
     {
@@ -52,7 +47,6 @@ INSTANTIATE_TEST_CASE_P(smoke_LPT, ReshapeTransformation,
         ::testing::ValuesIn(netPrecisions),
         ::testing::Values(CommonTestUtils::DEVICE_GPU),
         ::testing::ValuesIn(trasformationParamValues),
-        ::testing::ValuesIn(versions),
         ::testing::ValuesIn(params)),
     ReshapeTransformation::getTestCaseName);
 }  // namespace

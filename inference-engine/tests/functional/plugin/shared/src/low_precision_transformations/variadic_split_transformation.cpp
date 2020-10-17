@@ -20,12 +20,11 @@ std::string VariadicSplitTransformation::getTestCaseName(testing::TestParamInfo<
     ngraph::Shape  inputShapes;
     std::string targetDevice;
     ngraph::pass::low_precision::LayerTransformation::Params params;
-    LayerTestsUtils::LayerTransformation::LptVersion version;
     VariadicSplitTransformationParam param;
-    std::tie(netPrecision, inputShapes, targetDevice, params, version, param) = obj.param;
+    std::tie(netPrecision, inputShapes, targetDevice, params, param) = obj.param;
 
     std::ostringstream result;
-    result << getTestCaseNameByParams(netPrecision, inputShapes, targetDevice, params, version) << "_" <<
+    result << getTestCaseNameByParams(netPrecision, inputShapes, targetDevice, params) << "_" <<
         param.fakeQuantize << "_axis=" << param.splitedAxis << "_splitLengths={ ";
     for (size_t i = 0; i < param.splitLengths.size(); ++i) {
         result << param.splitLengths[i];
@@ -42,9 +41,8 @@ InferenceEngine::Blob::Ptr VariadicSplitTransformation::GenerateInput(const Infe
     ngraph::Shape inputShape;
     std::string targetDevice;
     ngraph::pass::low_precision::LayerTransformation::Params params;
-    LayerTestsUtils::LayerTransformation::LptVersion version;
     VariadicSplitTransformationParam param;
-    std::tie(precision, inputShape, targetDevice, params, version, param) = this->GetParam();
+    std::tie(precision, inputShape, targetDevice, params, param) = this->GetParam();
     const auto& fqOnData = param.fakeQuantize;
 
     return FuncTestUtils::createAndFillBlobConsistently(
@@ -58,11 +56,8 @@ void VariadicSplitTransformation::SetUp() {
     ngraph::element::Type precision;
     ngraph::Shape  inputShape;
     ngraph::pass::low_precision::LayerTransformation::Params params;
-    LayerTestsUtils::LayerTransformation::LptVersion version;
     VariadicSplitTransformationParam param;
-    std::tie(precision, inputShape, targetDevice, params, version, param) = this->GetParam();
-
-    ConfigurePlugin(version);
+    std::tie(precision, inputShape, targetDevice, params, param) = this->GetParam();
 
     function = ngraph::builder::subgraph::VariadicSplitFunction::getOriginal(
         precision,
@@ -71,9 +66,7 @@ void VariadicSplitTransformation::SetUp() {
         param.splitedAxis,
         param.splitLengths);
 
-    if (version == LptVersion::nGraph) {
-        validateNGraph();
-    }
+    validateNGraph();
 }
 
 void VariadicSplitTransformation::validateNGraph() {
@@ -81,9 +74,8 @@ void VariadicSplitTransformation::validateNGraph() {
     ngraph::Shape inputShape;
     std::string targetDevice;
     ngraph::pass::low_precision::LayerTransformation::Params params;
-    LayerTestsUtils::LayerTransformation::LptVersion version;
     VariadicSplitTransformationParam param;
-    std::tie(netPrecision, inputShape, targetDevice, params, version, param) = this->GetParam();
+    std::tie(netPrecision, inputShape, targetDevice, params, param) = this->GetParam();
 
     ngraph::pass::low_precision::LowPrecisionTransformations additionalTransformations;
     additionalTransformations.add<ngraph::pass::low_precision::VariadicSplitTransformation, ngraph::opset1::VariadicSplit>(params);

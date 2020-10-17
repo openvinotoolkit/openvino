@@ -20,24 +20,18 @@ const std::vector<ngraph::pass::low_precision::LayerTransformation::Params> tras
     LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8()
 };
 
-const std::vector<LayerTestsUtils::LayerTransformation::LptVersion> versionValues = {
-    LayerTestsUtils::LayerTransformation::LptVersion::cnnNetwork,
-    LayerTestsUtils::LayerTransformation::LptVersion::nGraph
-};
-
 const std::vector<ngraph::builder::subgraph::FakeQuantizeOnData> fakeQuantizes = {
     { 256ul, {}, { 0.f }, { 25.5f }, { 0.f }, { 25.5f } },
 };
 
 // FakeQuantizeOnData
 
-INSTANTIATE_TEST_CASE_P(LPT, FakeQuantizeAndAvgPoolTransformation,
+INSTANTIATE_TEST_CASE_P(smoke_LPT, FakeQuantizeAndAvgPoolTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(precisions),
         ::testing::Values(ngraph::Shape({ 1, 32, 72, 48 })),
         ::testing::Values(CommonTestUtils::DEVICE_CPU),
         ::testing::ValuesIn(trasformationParamValues),
-        ::testing::ValuesIn(versionValues),
         ::testing::ValuesIn(fakeQuantizes)),
     FakeQuantizeAndAvgPoolTransformation::getTestCaseName);
 }  // namespace

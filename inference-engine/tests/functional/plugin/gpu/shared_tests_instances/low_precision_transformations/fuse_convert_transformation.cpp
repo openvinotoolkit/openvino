@@ -16,11 +16,6 @@ const std::vector< ngraph::Shape > inputAndQuantizationShapes = {
         Shape{ 1, 4, 16, 16 },
 };
 
-const std::vector<LayerTestsUtils::LayerTransformation::LptVersion> versionValues = {
-        LayerTestsUtils::LayerTransformation::LptVersion::cnnNetwork,
-        LayerTestsUtils::LayerTransformation::LptVersion::nGraph
-};
-
 const std::vector<ngraph::builder::subgraph::DequantizationOperations> deqOperations = {
         {
                 { ngraph::element::f32 },
@@ -36,12 +31,11 @@ const std::vector<ngraph::builder::subgraph::DequantizationOperations> deqOperat
 
 const std::vector<bool> constInput = { true, false };
 
-INSTANTIATE_TEST_CASE_P(LPT, FuseConvertTransformation,
+INSTANTIATE_TEST_CASE_P(smoke_LPT, FuseConvertTransformation,
     ::testing::Combine(
             ::testing::ValuesIn(precisions),
             ::testing::ValuesIn(inputAndQuantizationShapes),
             ::testing::Values(CommonTestUtils::DEVICE_GPU),
-            ::testing::ValuesIn(versionValues),
             ::testing::ValuesIn(deqOperations),
             ::testing::ValuesIn(constInput)),
     FuseConvertTransformation::getTestCaseName);

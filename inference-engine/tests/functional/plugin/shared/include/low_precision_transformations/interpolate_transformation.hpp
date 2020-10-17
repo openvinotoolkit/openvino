@@ -39,8 +39,7 @@ typedef std::tuple<
     ngraph::element::Type,
     std::pair<ngraph::Shape, ngraph::Shape>,
     std::string,
-    interpAttributes,
-    LayerTestsUtils::LayerTransformation::LptVersion> InterpolateTransformationParams;
+    interpAttributes> InterpolateTransformationParams;
 
 class InterpolateTransformation :
     public testing::WithParamInterface<InterpolateTransformationParams>,
@@ -50,9 +49,6 @@ public:
 
 protected:
     void SetUp() override;
-
-private:
-    void validate();
 };
 
 }  // namespace LayerTestsDefinitions

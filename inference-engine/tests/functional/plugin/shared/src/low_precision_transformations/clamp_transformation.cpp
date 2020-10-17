@@ -17,12 +17,11 @@ std::string ClampTransformation::getTestCaseName(testing::TestParamInfo<ClampTra
     ngraph::Shape inputShape;
     std::string targetDevice;
     ngraph::pass::low_precision::LayerTransformation::Params params;
-    LayerTestsUtils::LayerTransformation::LptVersion version;
     ClampTransformationParam param;;
-    std::tie(netPrecision, inputShape, targetDevice, params, version, param) = obj.param;
+    std::tie(netPrecision, inputShape, targetDevice, params, param) = obj.param;
 
     std::ostringstream result;
-    result << getTestCaseNameByParams(netPrecision, inputShape, targetDevice, params, version) << "_" <<
+    result << getTestCaseNameByParams(netPrecision, inputShape, targetDevice, params) << "_" <<
         param.fakeQuantize << "_" <<
         "min=" << param.clampLowConst <<
         "max=" << param.clampHighConst;
@@ -33,11 +32,8 @@ void ClampTransformation::SetUp() {
     ngraph::element::Type netPrecision;
     ngraph::Shape inputShape;
     ngraph::pass::low_precision::LayerTransformation::Params params;
-    LayerTestsUtils::LayerTransformation::LptVersion version;
     ClampTransformationParam param;
-    std::tie(netPrecision, inputShape, targetDevice, params, version, param) = this->GetParam();
-
-    ConfigurePlugin(version);
+    std::tie(netPrecision, inputShape, targetDevice, params, param) = this->GetParam();
 
     function = ngraph::builder::subgraph::ClampFunction::getOriginal(
         netPrecision,
@@ -46,9 +42,7 @@ void ClampTransformation::SetUp() {
         param.clampLowConst,
         param.clampHighConst);
 
-    if (version == LptVersion::nGraph) {
-        validateNGraph();
-    }
+    validateNGraph();
 }
 
 void ClampTransformation::validateNGraph() {
@@ -56,9 +50,8 @@ void ClampTransformation::validateNGraph() {
     ngraph::Shape inputShape;
     std::string targetDevice;
     ngraph::pass::low_precision::LayerTransformation::Params params;
-    LayerTestsUtils::LayerTransformation::LptVersion version;
     ClampTransformationParam param;
-    std::tie(netPrecision, inputShape, targetDevice, params, version, param) = this->GetParam();
+    std::tie(netPrecision, inputShape, targetDevice, params, param) = this->GetParam();
 
     auto transformed = transformNGraph(params);
     EXPECT_EQ(1ul, transformed->get_output_size());

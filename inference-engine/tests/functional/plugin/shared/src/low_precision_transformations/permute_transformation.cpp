@@ -45,8 +45,6 @@ void PermuteTransformation::SetUp() {
     bool transposeChannelDim;
     std::tie(netPrecision, inputShape, targetDevice, params, perTensor, transposeChannelDim) = this->GetParam();
 
-    ConfigurePlugin(LptVersion::cnnNetwork);
-
     const auto precision = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
 
     const auto input1 = std::make_shared<ngraph::opset1::Parameter>(precision, ngraph::Shape(inputShape));
@@ -69,34 +67,6 @@ void PermuteTransformation::SetUp() {
 
     ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(transpose) };
     function = std::make_shared<ngraph::Function>(results, ngraph::ParameterVector{ input1, input2 }, "PermuteTransformation");
-
-    validate();
-}
-
-void PermuteTransformation::validate() {
-    InferenceEngine::SizeVector inputShape;
-    InferenceEngine::Precision netPrecision;
-    InferenceEngine::details::LayerTransformation::Params params;
-    bool perTensor;
-    bool transposeChannelDim;
-    std::tie(netPrecision, inputShape, targetDevice, params, perTensor, transposeChannelDim) = this->GetParam();
-
-    const InferenceEngine::CNNNetwork network = transform(params);
-
-    IE_SUPPRESS_DEPRECATED_START
-
-    InferenceEngine::OutputsDataMap outputs = network.getOutputsInfo();
-    EXPECT_EQ(1, outputs.size());
-
-    std::map<std::string, InferenceEngine::DataPtr>::iterator it = outputs.begin();
-    const InferenceEngine::CNNLayerPtr outputLayer = getCreatorLayer(it->second).lock();
-    EXPECT_TRUE(outputLayer != nullptr);
-    EXPECT_EQ("ScaleShift", outputLayer->type);
-
-    const InferenceEngine::CNNLayerPtr layer = InferenceEngine::details::CNNNetworkHelper::getParent(*outputLayer);
-    checkPrecisions(*layer, netPrecision);
-
-    IE_SUPPRESS_DEPRECATED_END
 }
 
 TEST_P(PermuteTransformation, CompareWithRefImpl) {

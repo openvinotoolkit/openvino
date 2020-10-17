@@ -16,24 +16,19 @@ namespace LayerTestsDefinitions {
 
 std::string FuseSubtractToFakeQuantizeTransformation::getTestCaseName(testing::TestParamInfo<FuseSubtractToFakeQuantizeTransformationParams> obj) {
     std::string targetDevice;
-    LayerTestsUtils::LayerTransformation::LptVersion version;
     FuseSubtractToFakeQuantizeTransformationTestValues testValues;
-    std::tie(targetDevice, version, testValues) = obj.param;
+    std::tie(targetDevice, testValues) = obj.param;
 
     std::ostringstream result;
     result << targetDevice << "_" <<
-        version << "_" <<
         testValues.actual.dequantization << "_" <<
         testValues.actual.fakeQuantizeOnData;
     return result.str();
 }
 
 void FuseSubtractToFakeQuantizeTransformation::SetUp() {
-    LayerTestsUtils::LayerTransformation::LptVersion version;
     FuseSubtractToFakeQuantizeTransformationTestValues testValues;
-    std::tie(targetDevice, version, testValues) = this->GetParam();
-
-    ConfigurePlugin(version);
+    std::tie(targetDevice, testValues) = this->GetParam();
 
     function = ngraph::builder::subgraph::FuseSubtractToFakeQuantizeFunction::get(
         testValues.inputShape,

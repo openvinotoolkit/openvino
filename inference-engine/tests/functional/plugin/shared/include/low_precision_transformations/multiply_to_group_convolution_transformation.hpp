@@ -19,7 +19,6 @@ typedef std::tuple <
     element::Type,
     Shape,
     std::string,
-    LayerTestsUtils::LayerTransformation::LptVersion,
     builder::subgraph::FakeQuantizeOnData> MultiplyToGroupConvolutionTransformationParams;
 
 class MultiplyToGroupConvolutionTransformation :
@@ -30,9 +29,6 @@ public:
 
 protected:
     void SetUp() override;
-
-private:
-    void validate();
 };
 
 }  // namespace LayerTestsDefinitions

@@ -26,7 +26,6 @@ typedef std::tuple<
     ngraph::element::Type,
     std::string,
     ngraph::pass::low_precision::LayerTransformation::Params,
-    LayerTestsUtils::LayerTransformation::LptVersion,
     GroupConvolutionTransformationParam
 > GroupConvolutionTransformationParams;
 
@@ -40,7 +39,6 @@ protected:
     void SetUp() override;
 
 private:
-    void validate();
     void validateNGraph();
 };
 

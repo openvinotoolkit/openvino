@@ -14,18 +14,11 @@
 
 namespace LayerTestsDefinitions {
 
-//class FakeQuantizeAndTwoOutputBranchesWithConvolutionTestValues {
-//public:
-//    ngraph::pass::low_precision::LayerTransformation::Params params;
-//    ngraph::builder::subgraph::FakeQuantizeAndTwoOutputBranchesWithConvolutionFunction::ActualValues
-//};
-
 typedef std::tuple<
     InferenceEngine::Precision,
     InferenceEngine::SizeVector,
     std::string,
     InferenceEngine::details::LayerTransformation::Params,
-    LayerTestsUtils::LayerTransformation::LptVersion,
     ngraph::builder::subgraph::FakeQuantizeAndTwoOutputBranchesWithConvolutionFunction::ActualValues
 > FakeQuantizeAndTwoOutputBranchesWithConvolutionParams;
 
@@ -37,9 +30,6 @@ public:
 
 protected:
     void SetUp() override;
-
-private:
-    void validate();
 };
 
 }  // namespace LayerTestsDefinitions

@@ -18,7 +18,6 @@ typedef std::tuple <
     element::Type,
     Shape,
     std::string,
-    LayerTestsUtils::LayerTransformation::LptVersion,
     AxisSet,
     bool> MVNTransformationParams;
 
@@ -30,9 +29,6 @@ public:
 
 protected:
     void SetUp() override;
-
-private:
-    void validate();
 };
 
 }  // namespace LayerTestsDefinitions

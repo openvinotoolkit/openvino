@@ -12,10 +12,6 @@ using namespace ngraph;
 
 namespace {
 
-const std::vector<LayerTestsUtils::LayerTransformation::LptVersion> versions = {
-    LayerTestsUtils::LayerTransformation::LptVersion::nGraph
-};
-
 const std::vector<FuseSubtractToFakeQuantizeTransformationTestValues> testValues = {
     {
         Shape{1, 3, 16, 16},
@@ -38,7 +34,6 @@ const std::vector<FuseSubtractToFakeQuantizeTransformationTestValues> testValues
 INSTANTIATE_TEST_CASE_P(LPT, FuseSubtractToFakeQuantizeTransformation,
     ::testing::Combine(
         ::testing::Values(CommonTestUtils::DEVICE_CPU),
-        ::testing::ValuesIn(versions),
         ::testing::ValuesIn(testValues)),
     FuseSubtractToFakeQuantizeTransformation::getTestCaseName);
 }  // namespace

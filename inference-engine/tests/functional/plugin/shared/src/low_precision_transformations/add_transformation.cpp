@@ -21,16 +21,15 @@ std::string AddTransformation::getTestCaseName(testing::TestParamInfo< AddTransf
     ngraph::Shape inputShapes;
     std::string targetDevice;
     auto params = LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8();
-    LayerTestsUtils::LayerTransformation::LptVersion version;
     AddTestValues param;
-    std::tie(netPrecision, inputShapes, targetDevice, version, param) = obj.param;
+    std::tie(netPrecision, inputShapes, targetDevice, param) = obj.param;
 
     if (!param.precisionOnActivations.empty()) {
         params.precisionsOnActivations = param.precisionOnActivations;
     }
 
     std::ostringstream result;
-    result << getTestCaseNameByParams(netPrecision, inputShapes, targetDevice, params, version) <<
+    result << getTestCaseNameByParams(netPrecision, inputShapes, targetDevice, params) <<
         (param.broadcast ? "_broadcast" : "");
     if (!param.fakeQuantize1.empty()) {
         result << "_on_branch1_" <<
@@ -52,11 +51,8 @@ std::string AddTransformation::getTestCaseName(testing::TestParamInfo< AddTransf
 void AddTransformation::SetUp() {
     ngraph::element::Type precision;
     ngraph::Shape inputShape1;
-    LayerTestsUtils::LayerTransformation::LptVersion version;
     AddTestValues param;
-    std::tie(precision, inputShape1, targetDevice, version, param) = this->GetParam();
-
-    ConfigurePlugin(version);
+    std::tie(precision, inputShape1, targetDevice, param) = this->GetParam();
 
     ngraph::Shape inputShape2 = inputShape1;
 
@@ -90,58 +86,6 @@ void AddTransformation::SetUp() {
     function = std::make_shared<ngraph::Function>(results, ngraph::ParameterVector{ input1, input2 }, "AddTransformation");
 
     ngraph::pass::InitNodeInfo().run_on_function(function);
-
-    if (version == LptVersion::cnnNetwork) {
-        validate();
-    }
-}
-
-void AddTransformation::validate() {
-    ngraph::element::Type netPrecision;
-    ngraph::Shape inputShape;
-    std::string targetDevice;
-    auto params = LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8();
-    LayerTestsUtils::LayerTransformation::LptVersion version;
-    AddTestValues param;
-    std::tie(netPrecision, inputShape, targetDevice, version, param) = this->GetParam();
-
-    if (!param.precisionOnActivations.empty()) {
-        params.precisionsOnActivations = param.precisionOnActivations;
-    }
-
-    const InferenceEngine::CNNNetwork network = transform(toCNNNetwork(params));
-
-    IE_SUPPRESS_DEPRECATED_START
-
-    InferenceEngine::OutputsDataMap outputs = network.getOutputsInfo();
-    EXPECT_EQ(1, outputs.size());
-    std::map<std::string, InferenceEngine::DataPtr>::iterator it = outputs.begin();
-    const InferenceEngine::CNNLayerPtr outputLayer = getCreatorLayer(it->second).lock();
-    EXPECT_TRUE(outputLayer != nullptr);
-
-    if (!((param.fakeQuantize1.empty()) && (param.fakeQuantize2.empty()))) {
-        EXPECT_EQ("ScaleShift", outputLayer->type);
-
-        EXPECT_EQ(1ul, outputLayer->insData.size());
-        const InferenceEngine::DataPtr insData = outputLayer->insData[0].lock();
-        EXPECT_TRUE(insData != nullptr);
-        const InferenceEngine::CNNLayerPtr layer = getCreatorLayer(insData).lock();
-        EXPECT_TRUE(layer != nullptr);
-        EXPECT_EQ("Eltwise", layer->type);
-
-        if (params.updatePrecisions) {
-            const InferenceEngine::Precision precision1 =
-                InferenceEngine::details::CNNNetworkHelper::getParents(*layer)[0]->outData[0]->getPrecision();
-            const InferenceEngine::Precision precision2 =
-                InferenceEngine::details::CNNNetworkHelper::getParents(*layer)[1]->outData[0]->getPrecision();
-
-            EXPECT_EQ(precision1, toCNNNetwork(param.expectedPrecisions[0]));
-            EXPECT_EQ(precision2, toCNNNetwork(param.expectedPrecisions[1]));
-        }
-    } else {
-        EXPECT_EQ("Eltwise", outputLayer->type);
-    }
-    IE_SUPPRESS_DEPRECATED_END
 }
 
 TEST_P(AddTransformation, CompareWithRefImpl) {

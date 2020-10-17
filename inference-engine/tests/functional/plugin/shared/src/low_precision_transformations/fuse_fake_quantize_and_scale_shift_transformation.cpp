@@ -18,25 +18,21 @@ std::string FuseFakeQuantizeAndScaleShiftTransformation::getTestCaseName(testing
     InferenceEngine::Precision netPrecision;
     InferenceEngine::SizeVector inputShapes;
     std::string targetDevice;
-    LayerTestsUtils::LayerTransformation::LptVersion version;
     InferenceEngine::details::LayerTransformation::Params params;
     ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantizeOnData;
-    std::tie(netPrecision, inputShapes, targetDevice, version, params, fakeQuantizeOnData) = obj.param;
+    std::tie(netPrecision, inputShapes, targetDevice, params, fakeQuantizeOnData) = obj.param;
 
     std::ostringstream result;
-    result << netPrecision << "_" << targetDevice << "_" << version << "_" << fakeQuantizeOnData;
+    result << netPrecision << "_" << targetDevice << "_" << fakeQuantizeOnData;
     return result.str();
 }
 
 void FuseFakeQuantizeAndScaleShiftTransformation::SetUp() {
     InferenceEngine::SizeVector inputShape;
     InferenceEngine::Precision netPrecision;
-    LayerTestsUtils::LayerTransformation::LptVersion version;
     InferenceEngine::details::LayerTransformation::Params params;
     ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantizeOnData;
-    std::tie(netPrecision, inputShape, targetDevice, version, params, fakeQuantizeOnData) = this->GetParam();
-
-    ConfigurePlugin(version);
+    std::tie(netPrecision, inputShape, targetDevice, params, fakeQuantizeOnData) = this->GetParam();
 
     function = ngraph::builder::subgraph::FuseFakeQuantizeAndScaleShiftFunction::getOriginal(
         FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision),
@@ -47,34 +43,6 @@ void FuseFakeQuantizeAndScaleShiftTransformation::SetUp() {
 
     EXPECT_EQ(1ul, function->get_output_size());
     EXPECT_EQ(1ul, function->get_output_op(0)->get_input_size());
-    const std::string referenceOutputLayerName = function->get_output_op(0)->get_input_node_ptr(0)->get_friendly_name();
-
-    validate(referenceOutputLayerName);
-}
-
-void FuseFakeQuantizeAndScaleShiftTransformation::validate(const std::string& referenceOutputLayerName) {
-    InferenceEngine::SizeVector inputShape;
-    InferenceEngine::Precision netPrecision;
-    LayerTestsUtils::LayerTransformation::LptVersion version;
-    InferenceEngine::details::LayerTransformation::Params params;
-    ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantizeOnData;
-    std::tie(netPrecision, inputShape, targetDevice, version, params, fakeQuantizeOnData) = this->GetParam();
-
-    auto transformations = getLowPrecisionTransformations(params);
-    const InferenceEngine::CNNNetwork network = transform(transformations);
-
-    IE_SUPPRESS_DEPRECATED_START
-
-    InferenceEngine::OutputsDataMap outputs = network.getOutputsInfo();
-    EXPECT_EQ(1, outputs.size());
-
-    std::map<std::string, InferenceEngine::DataPtr>::iterator it = outputs.begin();
-    const InferenceEngine::CNNLayerPtr outputLayer = getCreatorLayer(it->second).lock();
-    EXPECT_TRUE(outputLayer != nullptr);
-    EXPECT_EQ("FakeQuantize", outputLayer->type);
-    EXPECT_EQ(referenceOutputLayerName, outputLayer->name);
-
-    IE_SUPPRESS_DEPRECATED_END
 }
 
 TEST_P(FuseFakeQuantizeAndScaleShiftTransformation, CompareWithRefImpl) {

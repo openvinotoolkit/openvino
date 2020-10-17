@@ -96,7 +96,6 @@ INSTANTIATE_TEST_CASE_P(LPT, VariadicSplitTransformation,
         ::testing::Values(ngraph::Shape({ 1, 3, 16, 16 })),
         ::testing::Values(CommonTestUtils::DEVICE_CPU),
         ::testing::ValuesIn(trasformationParamValues),
-        ::testing::Values(LayerTestsUtils::LayerTransformation::LptVersion::nGraph),
         ::testing::ValuesIn(params)),
     VariadicSplitTransformation::getTestCaseName);
 

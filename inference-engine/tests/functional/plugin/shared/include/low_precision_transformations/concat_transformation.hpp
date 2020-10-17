@@ -22,8 +22,7 @@ typedef std::tuple<
     ngraph::element::Type,
     ngraph::Shape,
     std::string,
-    ConcatTransformationTestValues,
-    LayerTestsUtils::LayerTransformation::LptVersion> ConcatTransformationParams;
+    ConcatTransformationTestValues> ConcatTransformationParams;
 
 class ConcatTransformation :
     public testing::WithParamInterface<ConcatTransformationParams>,
@@ -34,9 +33,6 @@ public:
 
 protected:
     void SetUp() override;
-
-private:
-    void validate();
 };
 
 }  // namespace LayerTestsDefinitions

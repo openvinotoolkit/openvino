@@ -20,10 +20,6 @@ const std::vector<ngraph::pass::low_precision::LayerTransformation::Params> tras
     LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParams().setUpdatePrecisions(false),
 };
 
-const std::vector<LayerTestsUtils::LayerTransformation::LptVersion> versions = {
-    LayerTestsUtils::LayerTransformation::LptVersion::nGraph
-};
-
 const std::vector<LayerTestsDefinitions::GroupConvolutionTransformationParam> params = {
     // group convolution, tensor quantization
     {
@@ -78,7 +74,6 @@ INSTANTIATE_TEST_CASE_P(LPT, GroupConvolutionTransformation,
         ::testing::ValuesIn(netPrecisions),
         ::testing::Values(CommonTestUtils::DEVICE_CPU),
         ::testing::ValuesIn(trasformationParamValues),
-        ::testing::ValuesIn(versions),
         ::testing::ValuesIn(params)),
     GroupConvolutionTransformation::getTestCaseName);
 }  // namespace

@@ -15,11 +15,6 @@ const std::vector<ngraph::element::Type> precisions = {
     // ngraph::element::f16
 };
 
-const std::vector<LayerTestsUtils::LayerTransformation::LptVersion> versionValues = {
-    LayerTestsUtils::LayerTransformation::LptVersion::cnnNetwork,
-    LayerTestsUtils::LayerTransformation::LptVersion::nGraph
-};
-
 std::vector<MatMulTransformationTestValues> testValues = {
     {
         { 1, 4, 12, 2 },
@@ -35,12 +30,11 @@ std::vector<MatMulTransformationTestValues> testValues = {
     }
 };
 
-INSTANTIATE_TEST_CASE_P(LPT, MatMulTransformation,
+INSTANTIATE_TEST_CASE_P(smoke_LPT, MatMulTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(precisions),
         ::testing::Values(InferenceEngine::SizeVector({ 1, 384, 1024 })),
         ::testing::Values(CommonTestUtils::DEVICE_GPU),
-        ::testing::ValuesIn(versionValues),
         ::testing::ValuesIn(testValues)),
     MatMulTransformation::getTestCaseName);
 }  // namespace

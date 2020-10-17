@@ -21,21 +21,17 @@ std::string SubtractTransformation::getTestCaseName(testing::TestParamInfo<Layer
     InferenceEngine::SizeVector inputShapes;
     std::string targetDevice;
     InferenceEngine::details::LayerTransformation::Params params;
-    LayerTestsUtils::LayerTransformation::LptVersion version;
-    std::tie(netPrecision, inputShapes, targetDevice, params, version) = obj.param;
+    std::tie(netPrecision, inputShapes, targetDevice, params) = obj.param;
 
-    return getTestCaseNameByParams(netPrecision, inputShapes, targetDevice, params, version);
+    return getTestCaseNameByParams(netPrecision, inputShapes, targetDevice, params);
 }
 
 void SubtractTransformation::SetUp() {
     InferenceEngine::SizeVector inputShape;
     InferenceEngine::Precision netPrecision;
     InferenceEngine::details::LayerTransformation::Params params;
-    LayerTestsUtils::LayerTransformation::LptVersion version;
-    std::tie(netPrecision, inputShape, targetDevice, params, version) = this->GetParam();
+    std::tie(netPrecision, inputShape, targetDevice, params) = this->GetParam();
     const auto precision = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
-
-    ConfigurePlugin(version);
 
     const float k = 50.f;
 
@@ -59,42 +55,6 @@ void SubtractTransformation::SetUp() {
 
     ngraph::ResultVector results {std::make_shared<ngraph::opset1::Result>(convolution)};
     function = std::make_shared<ngraph::Function>(results, ngraph::ParameterVector { input }, "ReshapeTransformation");
-
-    if (version == LptVersion::cnnNetwork) {
-        validate();
-    }
-}
-
-void SubtractTransformation::validate() {
-    InferenceEngine::SizeVector inputShape;
-    InferenceEngine::Precision netPrecision;
-    InferenceEngine::details::LayerTransformation::Params params;
-    LayerTestsUtils::LayerTransformation::LptVersion version;
-    std::tie(netPrecision, inputShape, targetDevice, params, version) = this->GetParam();
-
-    const InferenceEngine::CNNNetwork network = transform(params);
-
-    IE_SUPPRESS_DEPRECATED_START
-
-    InferenceEngine::OutputsDataMap outputs = network.getOutputsInfo();
-    EXPECT_EQ(1, outputs.size());
-
-    std::map<std::string, InferenceEngine::DataPtr>::iterator it = outputs.begin();
-    const InferenceEngine::CNNLayerPtr outputLayer = getCreatorLayer(it->second).lock();
-    EXPECT_TRUE(outputLayer != nullptr);
-    EXPECT_EQ("ScaleShift", outputLayer->type);
-
-    const InferenceEngine::CNNLayerPtr layer = InferenceEngine::details::CNNNetworkHelper::getParent(*outputLayer);
-    if (params.updatePrecisions) {
-        checkPrecisions(
-            *layer,
-            { { InferenceEngine::Precision::U8 }, { InferenceEngine::Precision::I8 } },
-            { getDeviceInternalPrecision(netPrecision) });
-    } else {
-        checkPrecisions(*layer, netPrecision);
-    }
-
-    IE_SUPPRESS_DEPRECATED_END
 }
 
 TEST_P(SubtractTransformation, CompareWithRefImpl) {

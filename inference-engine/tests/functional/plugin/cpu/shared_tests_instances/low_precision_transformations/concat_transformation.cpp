@@ -16,11 +16,6 @@ const std::vector<ngraph::element::Type> precisions = {
     // ngraph::element::f16
 };
 
-const std::vector<LayerTestsUtils::LayerTransformation::LptVersion> versions = {
-    LayerTestsUtils::LayerTransformation::LptVersion::cnnNetwork,
-    LayerTestsUtils::LayerTransformation::LptVersion::nGraph
-};
-
 const std::vector<ConcatTransformationTestValues> testValues = {
     // U8
     {
@@ -54,7 +49,6 @@ INSTANTIATE_TEST_CASE_P(smoke_LPT, ConcatTransformation,
         ::testing::ValuesIn(precisions),
         ::testing::ValuesIn(shapes),
         ::testing::Values(CommonTestUtils::DEVICE_CPU),
-        ::testing::ValuesIn(testValues),
-        ::testing::ValuesIn(versions)),
+        ::testing::ValuesIn(testValues)),
     ConcatTransformation::getTestCaseName);
 }  // namespace

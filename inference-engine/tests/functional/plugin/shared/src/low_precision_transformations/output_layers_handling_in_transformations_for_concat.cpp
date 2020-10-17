@@ -26,10 +26,9 @@ std::string OutputLayersHandlingInTransformationsForConcat::getTestCaseName(test
     InferenceEngine::SizeVector inputShapes;
     std::string targetDevice;
     InferenceEngine::details::LayerTransformation::Params params;
-    LayerTestsUtils::LayerTransformation::LptVersion version;
-    std::tie(netPrecision, inputShapes, targetDevice, params, version) = obj.param;
+    std::tie(netPrecision, inputShapes, targetDevice, params) = obj.param;
 
-    return getTestCaseNameByParams(netPrecision, inputShapes, targetDevice, params, version);
+    return getTestCaseNameByParams(netPrecision, inputShapes, targetDevice, params);
 }
 
 InferenceEngine::Blob::Ptr OutputLayersHandlingInTransformationsForConcat::GenerateInput(const InferenceEngine::InputInfo &info) const {
@@ -37,8 +36,7 @@ InferenceEngine::Blob::Ptr OutputLayersHandlingInTransformationsForConcat::Gener
     InferenceEngine::Precision netPrecision;
     std::string targetDevice;
     InferenceEngine::details::LayerTransformation::Params params;
-    LayerTestsUtils::LayerTransformation::LptVersion version;
-    std::tie(netPrecision, inputShape, targetDevice, params, version) = this->GetParam();
+    std::tie(netPrecision, inputShape, targetDevice, params) = this->GetParam();
 
     if ((info.name() != "input1") && (info.name() != "input2")) {
         THROW_IE_EXCEPTION << "unexpected input name " << info.name();
@@ -69,10 +67,7 @@ void OutputLayersHandlingInTransformationsForConcat::SetUp() {
     InferenceEngine::SizeVector inputShape1;
     InferenceEngine::Precision netPrecision;
     InferenceEngine::details::LayerTransformation::Params params;
-    LayerTestsUtils::LayerTransformation::LptVersion version;
-    std::tie(netPrecision, inputShape1, targetDevice, params, version) = this->GetParam();
-
-    ConfigurePlugin(version);
+    std::tie(netPrecision, inputShape1, targetDevice, params) = this->GetParam();
 
     auto ngPrecision = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
 
@@ -127,48 +122,6 @@ void OutputLayersHandlingInTransformationsForConcat::SetUp() {
     };
 
     function = std::make_shared<ngraph::Function>(results, ngraph::ParameterVector { input1, input2 }, "OutputLayersHandling");
-
-    if (version == LptVersion::cnnNetwork) {
-        validate();
-    }
-}
-
-void OutputLayersHandlingInTransformationsForConcat::validate() {
-    InferenceEngine::Precision netPrecision;
-    InferenceEngine::SizeVector inputShapes;
-    std::string targetDevice;
-    InferenceEngine::details::LayerTransformation::Params params;
-    LayerTestsUtils::LayerTransformation::LptVersion version;
-    std::tie(netPrecision, inputShapes, targetDevice, params, version) = this->GetParam();
-
-    const InferenceEngine::CNNNetwork network = transform(params);
-
-    IE_SUPPRESS_DEPRECATED_START
-
-    InferenceEngine::OutputsDataMap outputs = network.getOutputsInfo();
-    EXPECT_EQ(3, outputs.size());
-
-    const auto concatIt = outputs.find("concat");
-    EXPECT_TRUE(concatIt != outputs.end());
-    const auto fakeQuantize2It = outputs.find("fakeQuantize2");
-    EXPECT_TRUE(fakeQuantize2It != outputs.end());
-    const auto convolutionIt = outputs.find("convolution");
-    EXPECT_TRUE(convolutionIt != outputs.end());
-
-    if (std::any_of(
-        params.precisionsOnActivations.begin(),
-        params.precisionsOnActivations.end(),
-        [](const float value) { return value == InferenceEngine::Precision::U8; })) {
-        EXPECT_EQ("ScaleShift", getCreatorLayer(concatIt->second).lock()->type);
-        EXPECT_EQ("ScaleShift", getCreatorLayer(fakeQuantize2It->second).lock()->type);
-        EXPECT_EQ("ScaleShift", getCreatorLayer(convolutionIt->second).lock()->type);
-    } else {
-        EXPECT_EQ("Concat", getCreatorLayer(concatIt->second).lock()->type);
-        EXPECT_EQ("FakeQuantize", getCreatorLayer(fakeQuantize2It->second).lock()->type);
-        EXPECT_EQ("Convolution", getCreatorLayer(convolutionIt->second).lock()->type);
-    }
-
-    IE_SUPPRESS_DEPRECATED_END
 }
 
 TEST_P(OutputLayersHandlingInTransformationsForConcat, CompareWithRefImpl) {

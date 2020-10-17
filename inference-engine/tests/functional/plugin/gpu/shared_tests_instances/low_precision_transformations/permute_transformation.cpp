@@ -22,7 +22,7 @@ const std::vector<bool> perTensorValues = { true, false };
 
 const std::vector<bool> transposeChannelDimValues = { true, false };
 
-INSTANTIATE_TEST_CASE_P(smoke_LPT, PermuteTransformation,
+INSTANTIATE_TEST_CASE_P(DISABLED_smoke_LPT, PermuteTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(netPrecisions),
         ::testing::Values(InferenceEngine::SizeVector({ 1, 3, 16, 16 })),

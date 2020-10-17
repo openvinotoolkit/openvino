@@ -24,7 +24,6 @@ public:
 typedef std::tuple<
     ngraph::element::Type,
     std::string,
-    LayerTestsUtils::LayerTransformation::LptVersion,
     TransposeTransformationTestValues> TransposeTransformationParams;
 
 class TransposeTransformation :

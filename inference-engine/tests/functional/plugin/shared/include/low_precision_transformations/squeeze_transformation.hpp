@@ -25,7 +25,6 @@ typedef std::tuple<
     InferenceEngine::Precision,
     std::string,
     InferenceEngine::details::LayerTransformation::Params,
-    LayerTestsUtils::LayerTransformation::LptVersion,
     SqueezeTransformationParam
 > SqueezeTransformationParams;
 
@@ -38,9 +37,6 @@ public:
 
 protected:
     void SetUp() override;
-
-private:
-    void validate();
 };
 
 }  // namespace LayerTestsDefinitions

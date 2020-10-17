@@ -147,8 +147,9 @@ static void Transformation(ICNNNetwork::Ptr& clonedNetwork, const Config& conf) 
 
     manager.run_passes(nGraphFunc);
 
+#ifndef USE_CNNNETWORK_LPT
     using namespace ngraph::pass::low_precision;
-    if ((conf.lptVersion == Config::LptVersion::nGraph) && (conf.lpTransformsMode == Config::LPTransformsMode::On)) {
+    if (conf.lpTransformsMode == Config::LPTransformsMode::On) {
         auto params = LayerTransformation::Params(
             true,  // updatePrecisions
             LayerTransformation::QuantizedTensorAlignment::UpdateLevel,  // quantizedTensorAlignmentOnActivations
@@ -164,6 +165,7 @@ static void Transformation(ICNNNetwork::Ptr& clonedNetwork, const Config& conf) 
 
         transformer.transform(nGraphFunc);
     }
+#endif
 
     ngraph::pass::Manager legacyManager;
     legacyManager.register_pass<ngraph::pass::ConvertOpSet1ToLegacy>();

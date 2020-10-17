@@ -19,7 +19,6 @@ typedef std::tuple <
     element::Type,
     Shape,
     std::string,
-    LayerTestsUtils::LayerTransformation::LptVersion,
     ngraph::builder::subgraph::DequantizationOperations,
     bool> FuseConvertTransformationParams;
 

@@ -22,11 +22,6 @@ namespace {
         LayerTestsUtils::LayerTransformationParamsFactory::createParamsI8I8().setUpdatePrecisions(true),
     };
 
-    const std::vector<LayerTestsUtils::LayerTransformation::LptVersion> versionValues = {
-        LayerTestsUtils::LayerTransformation::LptVersion::nGraph
-    };
-
-
     const std::vector<LayerTestsDefinitions::UnsqueezeTransformationParam> params = {
         {
             { 256ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 255.f }, { -128.f }, { 127.f } },
@@ -55,12 +50,11 @@ namespace {
         }
     };
 
-    INSTANTIATE_TEST_CASE_P(LPT, UnsqueezeTransformation,
+    INSTANTIATE_TEST_CASE_P(smoke_LPT, UnsqueezeTransformation,
         ::testing::Combine(
             ::testing::ValuesIn(precisions),
             ::testing::Values(CommonTestUtils::DEVICE_GPU),
             ::testing::ValuesIn(trasformationParamValues),
-            ::testing::ValuesIn(versionValues),
             ::testing::ValuesIn(params)),
         UnsqueezeTransformation::getTestCaseName);
 }  // namespace

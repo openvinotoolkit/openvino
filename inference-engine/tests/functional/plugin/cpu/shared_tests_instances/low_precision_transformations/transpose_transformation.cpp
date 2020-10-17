@@ -15,11 +15,6 @@ const std::vector<ngraph::element::Type> precisions = {
     // ngraph::element::f16
 };
 
-
-const std::vector<LayerTestsUtils::LayerTransformation::LptVersion> versions = {
-    LayerTestsUtils::LayerTransformation::LptVersion::nGraph
-};
-
 const std::vector<TransposeTransformationTestValues> testValues = {
     // U8: per-tensor quantization
     {
@@ -50,7 +45,6 @@ INSTANTIATE_TEST_CASE_P(LPT, TransposeTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(precisions),
         ::testing::Values(CommonTestUtils::DEVICE_CPU),
-        ::testing::ValuesIn(versions),
         ::testing::ValuesIn(testValues)),
     TransposeTransformation::getTestCaseName);
 }  // namespace

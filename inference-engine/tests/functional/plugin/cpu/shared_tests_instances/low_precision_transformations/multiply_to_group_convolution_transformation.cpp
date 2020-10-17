@@ -16,11 +16,6 @@ const std::vector< ngraph::Shape > inputShapes = {
     Shape{ 1ul, 4ul, 16ul, 16ul }, Shape{ 1ul, 4ul, 16ul, 16ul, 16ul }
 };
 
-const std::vector<LayerTestsUtils::LayerTransformation::LptVersion> versionValues = {
-    // LayerTestsUtils::LayerTransformation::LptVersion::cnnNetwork,
-    LayerTestsUtils::LayerTransformation::LptVersion::nGraph
-};
-
 const std::vector<builder::subgraph::FakeQuantizeOnData> fqOnData = {
     { 256ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 25.5f }, { 0.f }, { 25.5f } },
     { 256ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 25.5f }, { 10.f }, { 25.5f } },
@@ -32,7 +27,6 @@ INSTANTIATE_TEST_CASE_P(LPT, MultiplyToGroupConvolutionTransformation,
         ::testing::ValuesIn(precisions),
         ::testing::ValuesIn(inputShapes),
         ::testing::Values(CommonTestUtils::DEVICE_CPU),
-        ::testing::ValuesIn(versionValues),
         ::testing::ValuesIn(fqOnData)),
     MultiplyToGroupConvolutionTransformation::getTestCaseName);
 }  // namespace

@@ -20,12 +20,11 @@ std::string SplitTransformation::getTestCaseName(testing::TestParamInfo<SplitTra
     ngraph::Shape  inputShapes;
     std::string targetDevice;
     ngraph::pass::low_precision::LayerTransformation::Params params;
-    LayerTestsUtils::LayerTransformation::LptVersion version;
     SplitTransformationParam param;
-    std::tie(netPrecision, inputShapes, targetDevice, params, version, param) = obj.param;
+    std::tie(netPrecision, inputShapes, targetDevice, params, param) = obj.param;
 
     std::ostringstream result;
-    result << getTestCaseNameByParams(netPrecision, inputShapes, targetDevice, params, version) << "_" <<
+    result << getTestCaseNameByParams(netPrecision, inputShapes, targetDevice, params) << "_" <<
         param.fakeQuantize << "_axis=" << param.splitedAxis << "_n_splits=" << param.numSplit;
     return result.str();
 }
@@ -35,9 +34,8 @@ InferenceEngine::Blob::Ptr SplitTransformation::GenerateInput(const InferenceEng
     ngraph::Shape inputShape;
     std::string targetDevice;
     ngraph::pass::low_precision::LayerTransformation::Params params;
-    LayerTestsUtils::LayerTransformation::LptVersion version;
     SplitTransformationParam param;
-    std::tie(precision, inputShape, targetDevice, params, version, param) = this->GetParam();
+    std::tie(precision, inputShape, targetDevice, params, param) = this->GetParam();
     const auto& fqOnData = param.fakeQuantize;
 
     return FuncTestUtils::createAndFillBlobConsistently(
@@ -51,11 +49,8 @@ void SplitTransformation::SetUp() {
     ngraph::element::Type precision;
     ngraph::Shape  inputShape;
     ngraph::pass::low_precision::LayerTransformation::Params params;
-    LayerTestsUtils::LayerTransformation::LptVersion version;
     SplitTransformationParam param;
-    std::tie(precision, inputShape, targetDevice, params, version, param) = this->GetParam();
-
-    ConfigurePlugin(version);
+    std::tie(precision, inputShape, targetDevice, params, param) = this->GetParam();
 
     function = ngraph::builder::subgraph::SplitFunction::getOriginal(
         precision,
@@ -64,9 +59,7 @@ void SplitTransformation::SetUp() {
         param.splitedAxis,
         param.numSplit);
 
-    if (version == LptVersion::nGraph) {
-        validateNGraph();
-    }
+    validateNGraph();
 }
 
 void SplitTransformation::validateNGraph() {
@@ -74,9 +67,8 @@ void SplitTransformation::validateNGraph() {
     ngraph::Shape inputShape;
     std::string targetDevice;
     ngraph::pass::low_precision::LayerTransformation::Params params;
-    LayerTestsUtils::LayerTransformation::LptVersion version;
     SplitTransformationParam param;
-    std::tie(netPrecision, inputShape, targetDevice, params, version, param) = this->GetParam();
+    std::tie(netPrecision, inputShape, targetDevice, params, param) = this->GetParam();
 
     ngraph::pass::low_precision::LowPrecisionTransformations additionalTransformations;
     additionalTransformations.add<ngraph::pass::low_precision::SplitTransformation, ngraph::opset1::Split>(params);

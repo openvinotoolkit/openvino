@@ -15,7 +15,6 @@ typedef std::tuple<
     ngraph::element::Type,
     ngraph::Shape,
     std::string,
-    LayerTestsUtils::LayerTransformation::LptVersion,
     ngraph::builder::subgraph::FakeQuantizeOnData> ReluTransformationParams;
 
 class ReluTransformation :
@@ -27,9 +26,6 @@ public:
 
 protected:
     void SetUp() override;
-
-private:
-    void validate();
 };
 
 }  // namespace LayerTestsDefinitions

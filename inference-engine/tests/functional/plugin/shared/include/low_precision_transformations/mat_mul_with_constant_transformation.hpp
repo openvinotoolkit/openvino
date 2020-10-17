@@ -26,7 +26,6 @@ public:
 typedef std::tuple<
     ngraph::element::Type,
     std::string,
-    LayerTestsUtils::LayerTransformation::LptVersion,
     MatMulWithConstantTransformationTestValues> MatMulWithConstantTransformationParams;
 
 class MatMulWithConstantTransformation :
@@ -38,9 +37,6 @@ public:
 
 protected:
     void SetUp() override;
-
-private:
-    void validate();
 };
 
 }  // namespace LayerTestsDefinitions

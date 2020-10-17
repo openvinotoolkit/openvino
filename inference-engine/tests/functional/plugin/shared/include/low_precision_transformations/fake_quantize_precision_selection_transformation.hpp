@@ -53,7 +53,6 @@ typedef std::tuple<
     InferenceEngine::SizeVector,
     std::string,
     InferenceEngine::details::LayerTransformation::Params,
-    LayerTestsUtils::LayerTransformation::LptVersion,
     FakeQuantizePrecisionSelectionTransformationTestValues> FakeQuantizeTransformationParams;
 
 class FakeQuantizePrecisionSelectionTransformation :
@@ -64,9 +63,6 @@ public:
 
 protected:
     void SetUp() override;
-
-private:
-    void validate();
 };
 
 }  // namespace LayerTestsDefinitions

@@ -29,7 +29,6 @@ public:
 
 typedef std::tuple<
     std::string,
-    LayerTestsUtils::LayerTransformation::LptVersion,
     FuseMultiplyToFakeQuantizeTransformationTestValues> FuseMultiplyToFakeQuantizeTransformationParams;
 
 class FuseMultiplyToFakeQuantizeTransformation :

@@ -96,24 +96,6 @@ LayerTransformation::LayerTransformation() {
     threshold = 0.05;
 }
 
-void LayerTransformation::ConfigurePlugin(const LptVersion lptVersion) {
-    switch (lptVersion) {
-        case LptVersion::cnnNetwork: {
-            configuration[PluginConfigInternalParams::KEY_LP_TRANSFORMS_VERSION] = PluginConfigInternalParams::LP_TRANSFORMS_CNNNETWORK;
-            break;
-        }
-        case LptVersion::nGraph: {
-            configuration[PluginConfigInternalParams::KEY_LP_TRANSFORMS_VERSION] = PluginConfigInternalParams::LP_TRANSFORMS_NGRAPH;
-            break;
-        }
-        default: {
-            THROW_IE_EXCEPTION << "unexpected LPT version " << lptVersion;
-        }
-    }
-
-    configuration[PluginConfigInternalParams::KEY_LP_TRANSFORMS_MODE] = PluginConfigParams::YES;
-}
-
 InferenceEngine::Blob::Ptr LayerTransformation::GenerateInput(
     const ngraph::element::Type_t precision,
     const InferenceEngine::TensorDesc& tensorDesc,
@@ -244,10 +226,9 @@ std::string LayerTransformation::getTestCaseNameByParams(
     const InferenceEngine::Precision precision,
     const InferenceEngine::SizeVector& inputShapes,
     const std::string& targetDevice,
-    const InferenceEngine::details::LayerTransformation::Params& params,
-    const LayerTestsUtils::LayerTransformation::LptVersion version) {
+    const InferenceEngine::details::LayerTransformation::Params& params) {
     std::ostringstream result;
-    result << precision.name() << "_" << ngraph::Shape(inputShapes) << "_" << targetDevice << "_" << version << "_" << toString(params);
+    result << precision.name() << "_" << ngraph::Shape(inputShapes) << "_" << targetDevice << "_" << toString(params);
     return result.str();
 }
 
@@ -255,10 +236,9 @@ std::string LayerTransformation::getTestCaseNameByParams(
     const ngraph::element::Type precision,
     const ngraph::Shape& inputShapes,
     const std::string& targetDevice,
-    const ngraph::pass::low_precision::LayerTransformation::Params& params,
-    const LayerTestsUtils::LayerTransformation::LptVersion version) {
+    const ngraph::pass::low_precision::LayerTransformation::Params& params) {
     std::ostringstream result;
-    result << precision << "_" << inputShapes << "_" << targetDevice << "_" << version << "_" << toString(params);
+    result << precision << "_" << inputShapes << "_" << targetDevice << "_" << toString(params);
     return result.str();
 }
 

@@ -16,7 +16,6 @@ typedef std::tuple<
     ngraph::Shape,
     std::string, // target device: CPU, GPU
     ngraph::pass::low_precision::LayerTransformation::Params, // transformation parameters
-    LayerTestsUtils::LayerTransformation::LptVersion,
     bool, // transparent intermediate
     // multichannel
     bool> ConcatWithIntermediateTransformationParams;
@@ -30,7 +29,6 @@ public:
 
 protected:
     void SetUp() override;
-    void validate();
 };
 
 }  // namespace LayerTestsDefinitions

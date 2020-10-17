@@ -69,7 +69,7 @@ ngraph::pass::low_precision::LowPrecisionTransformations LayerTransformation::ge
         //    ngraph::pass::low_precision::LayerTransformation::Params(params).setSupportAsymmetricQuantization(false), "MatMul");
 }
 
-std::shared_ptr<InferenceEngine::ICNNNetwork> convert(std::shared_ptr<ngraph::Function> function, LayerTransformation::LptVersion lptVersion) {
+std::shared_ptr<InferenceEngine::ICNNNetwork> convert(std::shared_ptr<ngraph::Function> function) {
     auto net1 = InferenceEngine::CNNNetwork(function);
     std::shared_ptr<InferenceEngine::ICNNNetwork> clonedNetwork = InferenceEngine::cloneNetwork(net1);
     if (clonedNetwork->getFunction()) {
@@ -138,43 +138,17 @@ std::shared_ptr<InferenceEngine::ICNNNetwork> convert(std::shared_ptr<ngraph::Fu
         manager.register_pass<ngraph::pass::CommonOptimizations>();
         manager.register_pass<ngraph::pass::ConvertOpSet3ToOpSet2>();
         manager.register_pass<ngraph::pass::ConvertOpSet2ToOpSet1>();
-        if (lptVersion == LayerTransformation::LptVersion::cnnNetwork) {
-            manager.register_pass<ngraph::pass::ConvertOpSet1ToLegacy>();
-        }
-
         manager.set_callback(transformations_callback);
         manager.run_passes(nGraphFunc);
-
-        if (lptVersion == LayerTransformation::LptVersion::cnnNetwork) {
-            clonedNetwork = InferenceEngine::details::convertFunctionToICNNNetwork(nGraphFunc, *clonedNetwork);
-        }
     }
 
     return clonedNetwork;
 }
 
-InferenceEngine::CNNNetwork LayerTransformation::transform(const InferenceEngine::details::LayerTransformation::Params& params) {
-    std::shared_ptr<InferenceEngine::ICNNNetwork> clonedNetwork = convert(function, LayerTransformation::LptVersion::cnnNetwork);
-
-    auto implNetwork = std::dynamic_pointer_cast<InferenceEngine::details::CNNNetworkImpl>(clonedNetwork);
-    if (implNetwork) {
-        // valid for CNNNetworkImpl only, while there's no API in ICNNNetwork to change network
-        InferenceEngine::ConstTransformer transformator(implNetwork.get());
-        transformator.fullTrim();
-    }
-
-    InferenceEngine::NetPass::ConvertPrecision(*implNetwork, InferenceEngine::Precision::FP16, InferenceEngine::Precision::FP32);
-
-    auto transformer = getLowPrecisionTransformer(params);
-    transformer.transform(*implNetwork);
-
-    return InferenceEngine::CNNNetwork(implNetwork);
-}
-
 std::shared_ptr<ngraph::Function> LayerTransformation::transformNGraph(
     const ngraph::pass::low_precision::LayerTransformation::Params& params,
     const ngraph::pass::low_precision::LowPrecisionTransformations additionalTransformations) {
-    std::shared_ptr<InferenceEngine::ICNNNetwork> clonedNetwork = convert(function, LayerTransformation::LptVersion::nGraph);
+    std::shared_ptr<InferenceEngine::ICNNNetwork> clonedNetwork = convert(function);
 
     InferenceEngine::NetPass::ConvertPrecision(*clonedNetwork, InferenceEngine::Precision::FP16, InferenceEngine::Precision::FP32);
 

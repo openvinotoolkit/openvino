@@ -17,11 +17,6 @@ const std::vector<ngraph::element::Type> precisions = {
     // ngraph::element::f16
 };
 
-const std::vector<LayerTestsUtils::LayerTransformation::LptVersion> versions = {
-    LayerTestsUtils::LayerTransformation::LptVersion::cnnNetwork,
-    LayerTestsUtils::LayerTransformation::LptVersion::nGraph
-};
-
 const std::vector<DepthToSpace::DepthToSpaceMode> modes = {
         DepthToSpace::DepthToSpaceMode::BLOCKS_FIRST,
         DepthToSpace::DepthToSpaceMode::DEPTH_FIRST
@@ -36,8 +31,7 @@ const auto DepthToSpaceBS2 = ::testing::Combine(
     ::testing::ValuesIn(inputShapesBS2),
     ::testing::Values(CommonTestUtils::DEVICE_CPU),
     ::testing::ValuesIn(modes),
-    ::testing::Values(2),
-    ::testing::ValuesIn(versions)
+    ::testing::Values(2)
 );
 
 INSTANTIATE_TEST_CASE_P(LPT_BS2, DepthToSpaceTransformation, DepthToSpaceBS2, DepthToSpaceTransformation::getTestCaseName);
@@ -51,8 +45,7 @@ const auto DepthToSpaceBS3 = ::testing::Combine(
     ::testing::ValuesIn(inputShapesBS3),
     ::testing::Values(CommonTestUtils::DEVICE_CPU),
     ::testing::ValuesIn(modes),
-    ::testing::Values(3),
-    ::testing::ValuesIn(versions)
+    ::testing::Values(3)
 );
 
 INSTANTIATE_TEST_CASE_P(smoke_LPT_BS3, DepthToSpaceTransformation, DepthToSpaceBS3, DepthToSpaceTransformation::getTestCaseName);

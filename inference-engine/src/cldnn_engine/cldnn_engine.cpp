@@ -139,7 +139,9 @@ InferenceEngine::ICNNNetwork::Ptr clDNNEngine::CloneAndTransformNetwork(const In
         // Disable shape inference (WA for generic operations)
         ::ngraph::op::GenericIE::DisableReshape noReshape(nGraphFunc);
 
+#ifndef USE_CNNNETWORK_LPT
         bool enableInt8;
+#endif
 
         {
             // Note: instead of running all Conversion Transformations you can make up your own transformation pipeline
@@ -165,13 +167,13 @@ InferenceEngine::ICNNNetwork::Ptr clDNNEngine::CloneAndTransformNetwork(const In
 
             ngraph::pass::Manager conversion_manager;
 
-            enableInt8 = config.enableInt8 &&
-                (config.lptVersion == Config::LptVersion::nGraph) &&
-                ngraph::pass::low_precision::LowPrecisionTransformer::isFunctionQuantized(nGraphFunc);
+#ifndef USE_CNNNETWORK_LPT
+            enableInt8 = config.enableInt8 && ngraph::pass::low_precision::LowPrecisionTransformer::isFunctionQuantized(nGraphFunc);
             if (enableInt8) {
                 // [WA part1] Convert quantized FP16 model to FP32 to avoid possible overflow and mixed precision errors
                 conversion_manager.register_pass<ngraph::pass::ConvertPrecision>(ngraph::element::f16, ngraph::element::f32);
             }
+#endif
 
             conversion_manager.set_callback(fp16_callback);
             conversion_manager.run_passes(nGraphFunc);
@@ -183,6 +185,7 @@ InferenceEngine::ICNNNetwork::Ptr clDNNEngine::CloneAndTransformNetwork(const In
             ti_manager.run_passes(nGraphFunc);
         }
 
+#ifndef USE_CNNNETWORK_LPT
         using namespace ngraph::pass::low_precision;
         if (enableInt8) {
             auto params = LayerTransformation::Params(
@@ -195,6 +198,7 @@ InferenceEngine::ICNNNetwork::Ptr clDNNEngine::CloneAndTransformNetwork(const In
 
             transformer.transform(nGraphFunc);
         }
+#endif
 
         {
             ngraph::pass::Manager manager = ngraph::pass::Manager();

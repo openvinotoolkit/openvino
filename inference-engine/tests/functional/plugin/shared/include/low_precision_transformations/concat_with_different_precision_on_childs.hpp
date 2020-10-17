@@ -23,7 +23,6 @@ typedef std::tuple<
     std::string, // target device: CPU, GPU
     ConcatWithDifferentChildsTransformationParam,
     ngraph::pass::low_precision::LayerTransformation::Params, // transformation parameters
-    LayerTestsUtils::LayerTransformation::LptVersion,
     // multichannel
     bool> ConcatWithDifferentChildsTransformationParams;
 
@@ -36,7 +35,6 @@ public:
 
 protected:
     void SetUp() override;
-    void validate();
 };
 
 }  // namespace LayerTestsDefinitions

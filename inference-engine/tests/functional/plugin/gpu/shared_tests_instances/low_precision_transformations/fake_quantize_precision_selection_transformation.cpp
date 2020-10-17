@@ -21,11 +21,6 @@ const std::vector<LayerTransformation::Params> trasformationParamValues = {
     LayerTestsUtils::LayerTransformationParamsFactory::createParamsU8I8()
 };
 
-const std::vector<LayerTestsUtils::LayerTransformation::LptVersion> versionValues = {
-    LayerTestsUtils::LayerTransformation::LptVersion::cnnNetwork,
-    LayerTestsUtils::LayerTransformation::LptVersion::nGraph
-};
-
 const std::vector<FakeQuantizePrecisionSelectionTransformationTestValues> testValues = {
     {
         { ngraph::element::u8, ngraph::element::i8 },
@@ -68,7 +63,6 @@ INSTANTIATE_TEST_CASE_P(DISABLED_LPT, FakeQuantizePrecisionSelectionTransformati
         ::testing::Values(InferenceEngine::SizeVector({ 1, 32, 72, 48 })),
         ::testing::Values(CommonTestUtils::DEVICE_GPU),
         ::testing::ValuesIn(trasformationParamValues),
-        ::testing::ValuesIn(versionValues),
         ::testing::ValuesIn(testValues)),
     FakeQuantizePrecisionSelectionTransformation::getTestCaseName);
 }  // namespace

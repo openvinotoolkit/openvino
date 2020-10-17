@@ -16,10 +16,6 @@ const std::vector< ngraph::Shape > inputAndQuantizationShapes = {
         Shape{ 1, 4, 16, 16 },
 };
 
-const std::vector<LayerTestsUtils::LayerTransformation::LptVersion> versionValues = {
-        LayerTestsUtils::LayerTransformation::LptVersion::nGraph
-};
-
 const std::vector<ngraph::builder::subgraph::DequantizationOperations> deqOperations = {
         {
                 { ngraph::element::f32 },
@@ -40,7 +36,6 @@ INSTANTIATE_TEST_CASE_P(LPT, FuseConvertTransformation,
             ::testing::ValuesIn(precisions),
             ::testing::ValuesIn(inputAndQuantizationShapes),
             ::testing::Values(CommonTestUtils::DEVICE_CPU),
-            ::testing::ValuesIn(versionValues),
             ::testing::ValuesIn(deqOperations),
             ::testing::ValuesIn(constInput)),
     FuseConvertTransformation::getTestCaseName);

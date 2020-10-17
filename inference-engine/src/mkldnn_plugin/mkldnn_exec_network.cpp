@@ -52,7 +52,8 @@ MKLDNNExecNetwork::MKLDNNExecNetwork(const InferenceEngine::ICNNNetwork &network
     // we are cloning network if we have statistics and we can transform network.
     _clonedNetwork = cloneNet(network);
 
-    if ((cfg.lptVersion == Config::LptVersion::cnnNetwork) && (_cfg.lpTransformsMode == Config::LPTransformsMode::On)) {
+#ifdef USE_CNNNETWORK_LPT
+    if (_cfg.lpTransformsMode == Config::LPTransformsMode::On) {
         auto params = LayerTransformation::Params(true,  // updatePrecisions
                                                     true,  // quantizeOutputs
                                                     true,  // weightsToConst
@@ -95,6 +96,7 @@ MKLDNNExecNetwork::MKLDNNExecNetwork(const InferenceEngine::ICNNNetwork &network
             bf16Transformer.convertToFloat(cnnetwork);
         }
     }
+#endif
 
     MKLDNNGraph::ApplyUnrollPasses(static_cast<ICNNNetwork&>(*_clonedNetwork));
 

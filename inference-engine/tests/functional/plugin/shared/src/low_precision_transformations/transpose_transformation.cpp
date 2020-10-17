@@ -18,12 +18,11 @@ namespace LayerTestsDefinitions {
 std::string TransposeTransformation::getTestCaseName(testing::TestParamInfo<TransposeTransformationParams> obj) {
     ngraph::element::Type precision;
     std::string targetDevice;
-    LayerTestsUtils::LayerTransformation::LptVersion version;
     TransposeTransformationTestValues testValues;
-    std::tie(precision, targetDevice, version, testValues) = obj.param;
+    std::tie(precision, targetDevice, testValues) = obj.param;
 
     std::ostringstream result;
-    result << version << "_" <<
+    result <<
         precision << "_" <<
         targetDevice << "_" <<
         testValues.inputShape;
@@ -33,11 +32,8 @@ std::string TransposeTransformation::getTestCaseName(testing::TestParamInfo<Tran
 
 void TransposeTransformation::SetUp() {
     ngraph::element::Type precision;
-    LayerTestsUtils::LayerTransformation::LptVersion version;
     TransposeTransformationTestValues testValues;
-    std::tie(precision, targetDevice, version, testValues) = this->GetParam();
-
-    ConfigurePlugin(version);
+    std::tie(precision, targetDevice, testValues) = this->GetParam();
 
     function = ngraph::builder::subgraph::TransposeFunction::getOriginal(
         testValues.inputShape,

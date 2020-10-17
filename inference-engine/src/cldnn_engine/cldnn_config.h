@@ -19,11 +19,6 @@
 namespace CLDNNPlugin {
 
 struct Config {
-    enum LptVersion {
-        cnnNetwork,
-        nGraph
-    };
-
     Config() : throughput_streams(1),
                useProfiling(false),
                dumpCustomKernels(false),
@@ -54,7 +49,6 @@ struct Config {
     bool memory_pool_on;
     bool enableDynamicBatch;
     bool enableInt8;
-    LptVersion lptVersion = LptVersion::nGraph;
     bool nv12_two_inputs;
     bool enable_fp16_for_quantized_models;
     cldnn::priority_mode_types queuePriority;

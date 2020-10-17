@@ -17,7 +17,6 @@ typedef std::tuple<
     ngraph::Shape,
     std::string,
     ngraph::pass::low_precision::LayerTransformation::Params,
-    LayerTestsUtils::LayerTransformation::LptVersion,
     ngraph::builder::subgraph::FakeQuantizeOnData> FakeQuantizeAndMaxPoolTransformationParams;
 
 class FakeQuantizeAndMaxPoolTransformation :
@@ -28,9 +27,6 @@ public:
 
 protected:
     void SetUp() override;
-
-private:
-    void validate();
 };
 
 }  // namespace LayerTestsDefinitions

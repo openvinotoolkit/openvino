@@ -16,13 +16,11 @@ namespace LayerTestsDefinitions {
 
 std::string FuseFakeQuantizeTransformation::getTestCaseName(testing::TestParamInfo<FuseFakeQuantizeTransformationParams> obj) {
     std::string targetDevice;
-    LayerTestsUtils::LayerTransformation::LptVersion version;
     FuseFakeQuantizeTransformationTestValues testValues;
-    std::tie(targetDevice, version, testValues) = obj.param;
+    std::tie(targetDevice, testValues) = obj.param;
 
     std::ostringstream result;
     result << targetDevice << "_" <<
-        version << "_" <<
         testValues.actual.precisionBeforeAdd << "_" <<
         testValues.actual.add.values.size() << "_" <<
         testValues.actual.add.outPrecision << "_" <<
@@ -35,11 +33,8 @@ std::string FuseFakeQuantizeTransformation::getTestCaseName(testing::TestParamIn
 }
 
 void FuseFakeQuantizeTransformation::SetUp() {
-    LayerTestsUtils::LayerTransformation::LptVersion version;
     FuseFakeQuantizeTransformationTestValues testValues;
-    std::tie(targetDevice, version, testValues) = this->GetParam();
-
-    ConfigurePlugin(version);
+    std::tie(targetDevice, testValues) = this->GetParam();
 
     function = ngraph::builder::subgraph::FuseFakeQuantizeFunction::getOriginal(
         testValues.inputShape,

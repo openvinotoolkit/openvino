@@ -28,13 +28,11 @@ std::string MultiplyToGroupConvolutionTransformation::getTestCaseName(testing::T
     ngraph::element::Type precision;
     ngraph::Shape shape;
     auto params = LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8();
-    LayerTestsUtils::LayerTransformation::LptVersion version;
     builder::subgraph::FakeQuantizeOnData fqOnData;
-    std::tie(precision, shape, targetDevice, version, fqOnData) = obj.param;
+    std::tie(precision, shape, targetDevice, fqOnData) = obj.param;
 
     std::ostringstream result;
-    result << getTestCaseNameByParams(precision, shape, targetDevice, params, version) <<
-        "_" << fqOnData;
+    result << getTestCaseNameByParams(precision, shape, targetDevice, params) << "_" << fqOnData;
     return result.str();
 }
 
@@ -42,50 +40,13 @@ void MultiplyToGroupConvolutionTransformation::SetUp() {
     ngraph::Shape shape;
     ngraph::element::Type precision;
     auto params = LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8();
-    LayerTestsUtils::LayerTransformation::LptVersion version;
     builder::subgraph::FakeQuantizeOnData fqOnData;
-    std::tie(precision, shape, targetDevice, version, fqOnData) = this->GetParam();
-
-    ConfigurePlugin(version);
+    std::tie(precision, shape, targetDevice, fqOnData) = this->GetParam();
 
     function = ngraph::builder::subgraph::MultiplyToGroupConvolutionFunction::getOriginal(
         precision,
         shape,
         fqOnData);
-
-    if (version == LptVersion::cnnNetwork) {
-        validate();
-    }
-}
-
-void MultiplyToGroupConvolutionTransformation::validate() {
-    ngraph::Shape shape;
-    ngraph::element::Type precision;
-    auto params = LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8();
-    LayerTestsUtils::LayerTransformation::LptVersion version;
-    builder::subgraph::FakeQuantizeOnData fqOnData;
-    std::tie(precision, shape, targetDevice, version, fqOnData) = this->GetParam();
-
-    const InferenceEngine::CNNNetwork network = transform(toCNNNetwork(params));
-
-    IE_SUPPRESS_DEPRECATED_START
-
-    InferenceEngine::OutputsDataMap outputs = network.getOutputsInfo();
-    EXPECT_EQ(1, outputs.size());
-
-    std::map<std::string, InferenceEngine::DataPtr>::iterator it = outputs.begin();
-    const InferenceEngine::CNNLayerPtr outputLayer = getCreatorLayer(it->second).lock();
-    EXPECT_TRUE(outputLayer != nullptr);
-    EXPECT_EQ("ScaleShift", outputLayer->type);
-
-    EXPECT_EQ(1ul, outputLayer->insData.size());
-    const InferenceEngine::DataPtr insData = outputLayer->insData[0].lock();
-    EXPECT_TRUE(insData != nullptr);
-    const InferenceEngine::CNNLayerPtr conv = getCreatorLayer(insData).lock();
-    EXPECT_TRUE(conv != nullptr);
-    EXPECT_EQ("Convolution", conv->type);
-
-    IE_SUPPRESS_DEPRECATED_END
 }
 
 TEST_P(MultiplyToGroupConvolutionTransformation, CompareWithRefImpl) {

@@ -24,10 +24,6 @@ const std::vector<ngraph::pass::low_precision::LayerTransformation::Params> tras
      LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8()
 };
 
-const std::vector<LayerTestsUtils::LayerTransformation::LptVersion> versions = {
-    LayerTestsUtils::LayerTransformation::LptVersion::nGraph
-};
-
 const std::vector<LayerTestsDefinitions::ClampTransformationParam> params = {
     // tensor quantization
     {
@@ -80,13 +76,12 @@ const std::vector<LayerTestsDefinitions::ClampTransformationParam> params = {
     }
 };
 
-INSTANTIATE_TEST_CASE_P(LPT, ClampTransformation,
+INSTANTIATE_TEST_CASE_P(smoke_LPT, ClampTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(netPrecisions),
         ::testing::Values(ngraph::Shape({ 1, 3, 16, 16 })),
         ::testing::Values(CommonTestUtils::DEVICE_GPU),
         ::testing::ValuesIn(trasformationParamValues),
-        ::testing::ValuesIn(versions),
         ::testing::ValuesIn(params)),
     ClampTransformation::getTestCaseName);
 

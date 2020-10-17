@@ -20,11 +20,6 @@ const std::vector<LayerTransformation::Params> trasformationParamValues = {
     LayerTestsUtils::LayerTransformationParamsFactory::createParamsU8I8()
 };
 
-const std::vector<LayerTestsUtils::LayerTransformation::LptVersion> versionValues = {
-    LayerTestsUtils::LayerTransformation::LptVersion::cnnNetwork,
-    LayerTestsUtils::LayerTransformation::LptVersion::nGraph
-};
-
 const std::vector<ngraph::builder::subgraph::FakeQuantizeAndTwoOutputBranchesWithConvolutionFunction::ActualValues> testValues = {
     {
         { 256ul, {}, { 0.f }, { 25.5f }, { 0.f }, { 25.5f } },
@@ -34,13 +29,12 @@ const std::vector<ngraph::builder::subgraph::FakeQuantizeAndTwoOutputBranchesWit
 };
 
 // TODO: add something to avoid cleanup and enable
-INSTANTIATE_TEST_CASE_P(LPT, FakeQuantizeAndTwoOutputBranchesWithConvolutionTransformation,
+INSTANTIATE_TEST_CASE_P(smoke_LPT, FakeQuantizeAndTwoOutputBranchesWithConvolutionTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(netPrecisions),
         ::testing::Values(InferenceEngine::SizeVector({ 1, 32, 72, 48 })),
         ::testing::Values(CommonTestUtils::DEVICE_GPU),
         ::testing::ValuesIn(trasformationParamValues),
-        ::testing::ValuesIn(versionValues),
         ::testing::ValuesIn(testValues)),
     FakeQuantizeAndTwoOutputBranchesWithConvolutionTransformation::getTestCaseName);
 }  // namespace

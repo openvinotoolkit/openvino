@@ -25,20 +25,16 @@ std::string GemmTransformation::getTestCaseName(testing::TestParamInfo<LayerTest
     InferenceEngine::SizeVector inputShapes;
     std::string targetDevice;
     InferenceEngine::details::LayerTransformation::Params params;
-    LayerTestsUtils::LayerTransformation::LptVersion version;
-    std::tie(netPrecision, inputShapes, targetDevice, params, version) = obj.param;
+    std::tie(netPrecision, inputShapes, targetDevice, params) = obj.param;
 
-    return getTestCaseNameByParams(netPrecision, inputShapes, targetDevice, params, version);
+    return getTestCaseNameByParams(netPrecision, inputShapes, targetDevice, params);
 }
 
 void GemmTransformation::SetUp() {
     InferenceEngine::SizeVector inputShape;
     InferenceEngine::Precision netPrecision;
     InferenceEngine::details::LayerTransformation::Params params;
-    LayerTestsUtils::LayerTransformation::LptVersion version;
-    std::tie(netPrecision, inputShape, targetDevice, params, version) = this->GetParam();
-
-    ConfigurePlugin(version);
+    std::tie(netPrecision, inputShape, targetDevice, params) = this->GetParam();
 
     auto ngPrecision = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
 
@@ -66,45 +62,6 @@ void GemmTransformation::SetUp() {
 
     ngraph::ResultVector results {std::make_shared<ngraph::opset1::Result>(matMul)};
     function = std::make_shared<ngraph::Function>(results, ngraph::ParameterVector { input1, input2 }, "GemmTransformation");
-
-    if (version == LptVersion::cnnNetwork) {
-        validate();
-    }
-}
-
-void GemmTransformation::validate() {
-    InferenceEngine::SizeVector inputShape;
-    InferenceEngine::Precision netPrecision;
-    InferenceEngine::details::LayerTransformation::Params params;
-    LayerTestsUtils::LayerTransformation::LptVersion version;
-    std::tie(netPrecision, inputShape, targetDevice, params, version) = this->GetParam();
-
-    const InferenceEngine::CNNNetwork network = transform(params);
-
-    IE_SUPPRESS_DEPRECATED_START
-
-    InferenceEngine::OutputsDataMap outputs = network.getOutputsInfo();
-    EXPECT_EQ(1, outputs.size());
-
-    for (const auto it : outputs) {
-        const InferenceEngine::CNNLayerPtr outputLayer = getCreatorLayer(it.second).lock();
-        EXPECT_TRUE(outputLayer != nullptr);
-        EXPECT_EQ("ScaleShift", outputLayer->type);
-
-        const InferenceEngine::CNNLayerPtr layer = InferenceEngine::details::CNNNetworkHelper::getParent(*outputLayer);
-        for (const InferenceEngine::DataWeakPtr insDataWeak : layer->insData) {
-            const InferenceEngine::DataPtr insData = insDataWeak.lock();
-            EXPECT_TRUE(insData != nullptr) << "insert data is nullable";
-            const InferenceEngine::Precision precision = insData->getTensorDesc().getPrecision();
-            const std::unordered_set<uint8_t> expectedPrecisions = params.updatePrecisions ?
-                std::unordered_set<uint8_t>({ params.precisionsOnActivations[0] }) :
-                std::unordered_set<uint8_t>({ InferenceEngine::Precision::FP16, InferenceEngine::Precision::FP32 });
-            EXPECT_TRUE(expectedPrecisions.find(precision) != expectedPrecisions.end()) <<
-                " actual precision is " << precision;
-        }
-    }
-
-    IE_SUPPRESS_DEPRECATED_END
 }
 
 TEST_P(GemmTransformation, CompareWithRefImpl) {

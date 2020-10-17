@@ -17,7 +17,6 @@ typedef std::tuple<
     InferenceEngine::SizeVector,
     std::string,
     InferenceEngine::details::LayerTransformation::Params,
-    LayerTestsUtils::LayerTransformation::LptVersion,
     ngraph::builder::subgraph::FakeQuantizeOnData> FakeQuantizeTransformationParams;
 
 class FakeQuantizeTransformation :
@@ -28,9 +27,6 @@ public:
 
 protected:
     void SetUp() override;
-
-private:
-    void validate();
 };
 
 }  // namespace LayerTestsDefinitions

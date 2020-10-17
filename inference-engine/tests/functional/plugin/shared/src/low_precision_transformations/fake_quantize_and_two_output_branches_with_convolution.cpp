@@ -28,12 +28,11 @@ std::string FakeQuantizeAndTwoOutputBranchesWithConvolutionTransformation::getTe
     InferenceEngine::SizeVector inputShapes;
     std::string targetDevice;
     InferenceEngine::details::LayerTransformation::Params params;
-    LayerTestsUtils::LayerTransformation::LptVersion version;
     ngraph::builder::subgraph::FakeQuantizeAndTwoOutputBranchesWithConvolutionFunction::ActualValues testValues;
-    std::tie(netPrecision, inputShapes, targetDevice, params, version, testValues) = obj.param;
+    std::tie(netPrecision, inputShapes, targetDevice, params, testValues) = obj.param;
 
     std::ostringstream result;
-    result << netPrecision << "_" << targetDevice << "_" << version << "_" << testValues;
+    result << netPrecision << "_" << targetDevice << "_" << testValues;
     return result.str();
 }
 
@@ -43,57 +42,14 @@ void FakeQuantizeAndTwoOutputBranchesWithConvolutionTransformation::SetUp() {
     InferenceEngine::Precision netPrecision;
     InferenceEngine::SizeVector inputShape;
     InferenceEngine::details::LayerTransformation::Params params;
-    LayerTestsUtils::LayerTransformation::LptVersion version;
     ngraph::builder::subgraph::FakeQuantizeAndTwoOutputBranchesWithConvolutionFunction::ActualValues testValues;
-    std::tie(netPrecision, inputShape, targetDevice, params, version, testValues) = this->GetParam();
+    std::tie(netPrecision, inputShape, targetDevice, params, testValues) = this->GetParam();
     auto precision = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
-
-    ConfigurePlugin(version);
 
     function = ngraph::builder::subgraph::FakeQuantizeAndTwoOutputBranchesWithConvolutionFunction::getOriginal(
         precision,
         inputShape,
         testValues);
-
-    if (version == LptVersion::cnnNetwork) {
-        validate();
-    }
-}
-
-void FakeQuantizeAndTwoOutputBranchesWithConvolutionTransformation::validate() {
-    //InferenceEngine::Precision netPrecision;
-    //InferenceEngine::SizeVector inputShape;
-    //std::string targetDevice;
-    //InferenceEngine::details::LayerTransformation::Params params;
-    //LayerTestsUtils::LayerTransformation::LptVersion version;
-    //FakeQuantizeAndTwoOutputBranchesWithConvolutionTransformationParams param;
-    //std::tie(netPrecision, inputShape, targetDevice, params, version, param) = this->GetParam();
-
-    //const InferenceEngine::CNNNetwork network = transform(params);
-
-    //IE_SUPPRESS_DEPRECATED_START
-
-    //InferenceEngine::OutputsDataMap outputs = network.getOutputsInfo();
-    //EXPECT_EQ(1, outputs.size());
-
-    //std::map<std::string, InferenceEngine::DataPtr>::iterator it = outputs.begin();
-    //const InferenceEngine::CNNLayerPtr outputLayer = it->second->getCreatorLayer().lock();
-    //EXPECT_TRUE(outputLayer != nullptr);
-    //EXPECT_EQ((!param.fakeQuantizeOnData.empty()) && (!param.fakeQuantizeOnWeights.empty()) ? "ScaleShift" : "Convolution", outputLayer->type);
-
-    //if ((!param.fakeQuantizeOnData.empty()) && (!param.fakeQuantizeOnWeights.empty())) {
-    //    const InferenceEngine::CNNLayerPtr layer = InferenceEngine::details::CNNNetworkHelper::getParent(*outputLayer);
-    //    if (params.updatePrecisions) {
-    //        checkPrecisions(
-    //            *layer,
-    //            { { InferenceEngine::Precision::U8 }, { InferenceEngine::Precision::I8 } },
-    //            { getDeviceInternalPrecision(netPrecision) });
-    //    } else {
-    //        checkPrecisions(*layer, netPrecision);
-    //    }
-    //}
-
-    //IE_SUPPRESS_DEPRECATED_END
 }
 
 TEST_P(FakeQuantizeAndTwoOutputBranchesWithConvolutionTransformation, CompareWithRefImpl) {

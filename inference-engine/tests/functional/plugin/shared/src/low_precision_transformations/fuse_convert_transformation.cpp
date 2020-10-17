@@ -28,13 +28,12 @@ std::string FuseConvertTransformation::getTestCaseName(testing::TestParamInfo<Fu
     ngraph::Shape shape;
     ngraph::element::Type precision;
     auto params = LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8();
-    LayerTestsUtils::LayerTransformation::LptVersion version;
     ngraph::builder::subgraph::DequantizationOperations deqOperations;
     bool constInput;
-    std::tie(precision, shape, targetDevice, version, deqOperations, constInput) = obj.param;
+    std::tie(precision, shape, targetDevice, deqOperations, constInput) = obj.param;
 
     std::ostringstream result;
-    result << getTestCaseNameByParams(precision, shape, targetDevice, params, version) <<
+    result << getTestCaseNameByParams(precision, shape, targetDevice, params) <<
            "_" << deqOperations << "_" << constInput;
     return result.str();
 }
@@ -43,12 +42,9 @@ void FuseConvertTransformation::SetUp() {
     ngraph::Shape shape;
     ngraph::element::Type precision;
     auto params = LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8();
-    LayerTestsUtils::LayerTransformation::LptVersion version;
     ngraph::builder::subgraph::DequantizationOperations deqOperations;
     bool constInput;
-    std::tie(precision, shape, targetDevice, version, deqOperations, constInput) = this->GetParam();
-
-    ConfigurePlugin(version);
+    std::tie(precision, shape, targetDevice, deqOperations, constInput) = this->GetParam();
 
     function = ngraph::builder::subgraph::FuseConvertFunction::getWithFQ(
         shape,

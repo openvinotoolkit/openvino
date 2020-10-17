@@ -16,7 +16,6 @@ typedef std::tuple <
     ngraph::element::Type,
     std::pair<ngraph::Shape, ngraph::Shape>,
     std::string,
-    LayerTestsUtils::LayerTransformation::LptVersion,
     std::vector<uint64_t>,
     bool,
     bool> NormalizeL2TransformationParams;
@@ -29,9 +28,6 @@ public:
 
 protected:
     void SetUp() override;
-
-private:
-    void validate();
 };
 
 }  // namespace LayerTestsDefinitions

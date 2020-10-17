@@ -407,6 +407,7 @@ Program::Program(InferenceEngine::ICNNNetwork& network, std::shared_ptr<const cl
         baselineIsFP16 = true;
     }
 
+#ifdef USE_CNNNETWORK_LPT
     bool fqFound = false;
     bool allFQareSupported = true;
     if (config.enableInt8) {
@@ -429,7 +430,7 @@ Program::Program(InferenceEngine::ICNNNetwork& network, std::shared_ptr<const cl
         }
     }
 
-    if (config.enableInt8 && (config.lptVersion == Config::LptVersion::cnnNetwork)) {
+    if (config.enableInt8) {
         auto params = LayerTransformation::Params(true,  // updatePrecisions
                                                   true,  // quantizeOutputs
                                                   true,  // weightsToConst
@@ -522,6 +523,7 @@ Program::Program(InferenceEngine::ICNNNetwork& network, std::shared_ptr<const cl
             }
         }
     }
+#endif
 
     NetPass::CombineRNNSeq(network);
     for (int i = 0; i < 2; i++) {

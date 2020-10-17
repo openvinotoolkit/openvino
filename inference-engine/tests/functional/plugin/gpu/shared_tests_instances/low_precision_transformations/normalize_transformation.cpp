@@ -21,11 +21,6 @@ const std::vector<std::pair<ngraph::Shape, ngraph::Shape> > inputAndQuantization
     { ngraph::Shape({ 1ul, 4ul, 16ul, 16ul }), ngraph::Shape({ 1ul, 4ul, 1ul, 1ul }) },
 };
 
-const std::vector<LayerTestsUtils::LayerTransformation::LptVersion> versionValues = {
-    LayerTestsUtils::LayerTransformation::LptVersion::cnnNetwork,
-    LayerTestsUtils::LayerTransformation::LptVersion::nGraph
-};
-
 const std::vector<std::vector<uint64_t>> axes = {
     { 1 }, { 1, 2, 3 }
 };
@@ -39,7 +34,6 @@ INSTANTIATE_TEST_CASE_P(smoke_LPT, NormalizeL2Transformation,
         ::testing::ValuesIn(precisions),
         ::testing::ValuesIn(inputAndQuantizationShapes),
         ::testing::Values(CommonTestUtils::DEVICE_GPU),
-        ::testing::ValuesIn(versionValues),
         ::testing::ValuesIn(axes),
         ::testing::ValuesIn(fuseMultiplyValues),
         ::testing::ValuesIn(shiftValues)),

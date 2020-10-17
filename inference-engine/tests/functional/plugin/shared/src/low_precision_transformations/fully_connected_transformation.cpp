@@ -26,12 +26,11 @@ std::string FullyConnectedTransformation::getTestCaseName(testing::TestParamInfo
     MatMulShapes shapes;
     std::string targetDevice;
     ngraph::pass::low_precision::LayerTransformation::Params params;
-    LayerTestsUtils::LayerTransformation::LptVersion version;
-    std::tie(precision, shapes, targetDevice, params, version) = obj.param;
+    std::tie(precision, shapes, targetDevice, params) = obj.param;
 
     std::ostringstream result;
     result <<
-        getTestCaseNameByParams(precision, shapes.inputA, targetDevice, params, version) <<
+        getTestCaseNameByParams(precision, shapes.inputA, targetDevice, params) <<
         shapes.inputB << "_" <<
         shapes.transposeA << "_" <<
         shapes.transposeB;
@@ -43,10 +42,7 @@ void FullyConnectedTransformation::SetUp() {
     ngraph::element::Type precision;
     MatMulShapes shapes;
     ngraph::pass::low_precision::LayerTransformation::Params params;
-    LayerTestsUtils::LayerTransformation::LptVersion version;
-    std::tie(precision, shapes, targetDevice, params, version) = this->GetParam();
-
-    ConfigurePlugin(version);
+    std::tie(precision, shapes, targetDevice, params) = this->GetParam();
 
     InferenceEngine::SizeVector shapeOnActivations;
     InferenceEngine::SizeVector shapeOnWeights;
@@ -76,61 +72,6 @@ void FullyConnectedTransformation::SetUp() {
 
     ngraph::ResultVector results {std::make_shared<ngraph::opset1::Result>(fullyConnected)};
     function = std::make_shared<ngraph::Function>(results, ngraph::ParameterVector { paramNode }, "FullyConnectedTransformation");
-
-    validate();
-}
-
-void FullyConnectedTransformation::validate() {
-    ngraph::element::Type precision;
-    MatMulShapes shapes;
-    std::string targetDevice;
-    ngraph::pass::low_precision::LayerTransformation::Params params;
-    LayerTestsUtils::LayerTransformation::LptVersion version;
-    std::tie(precision, shapes, targetDevice, params, version) = this->GetParam();
-
-    const InferenceEngine::CNNNetwork network = transform(toCNNNetwork(params));
-
-    IE_SUPPRESS_DEPRECATED_START
-
-    const InferenceEngine::Precision netPrecision = toCNNNetwork(precision);
-    const auto netParams = toCNNNetwork(params);
-
-    const InferenceEngine::CNNLayerPtr fullyConnected = InferenceEngine::details::CNNNetworkHelper::getLayer(network, "fullyConnected_original");
-    EXPECT_NE(nullptr, fullyConnected) << "fullyConnected_original was not found, transformation was not handled";
-    EXPECT_EQ("FullyConnected", fullyConnected->type);
-
-    InferenceEngine::OutputsDataMap outputs = network.getOutputsInfo();
-    EXPECT_EQ(1, outputs.size());
-
-    for (const auto it : outputs) {
-        const InferenceEngine::CNNLayerPtr outputLayer = getCreatorLayer(it.second).lock();
-        EXPECT_TRUE(outputLayer != nullptr);
-        EXPECT_EQ("ScaleShift", outputLayer->type);
-
-        const InferenceEngine::CNNLayerPtr layer = InferenceEngine::details::CNNNetworkHelper::getParent(*outputLayer);
-        if (netParams.updatePrecisions) {
-            const bool asymmetricQuantizationOnData = std::all_of(
-                netParams.precisionsOnActivations.begin(),
-                netParams.precisionsOnActivations.end(),
-                [](const InferenceEngine::Precision precision) { return precision != InferenceEngine::Precision::U8; });
-
-            const bool asymmetricQuantizationOnWeights = std::all_of(
-                netParams.precisionsOnWeights.begin(),
-                netParams.precisionsOnWeights.end(),
-                [](const InferenceEngine::Precision precision) { return precision != InferenceEngine::Precision::I8; });
-
-            checkPrecisions(
-                *layer,
-                { { netParams.precisionsOnActivations[0] }, { netParams.precisionsOnWeights[0] }, { netPrecision } },
-                { getDeviceInternalPrecision(netPrecision) },
-                asymmetricQuantizationOnData,
-                asymmetricQuantizationOnWeights);
-        } else {
-            checkPrecisions(*layer, netPrecision);
-        }
-    }
-
-    IE_SUPPRESS_DEPRECATED_END
 }
 
 TEST_P(FullyConnectedTransformation, CompareWithRefImpl) {

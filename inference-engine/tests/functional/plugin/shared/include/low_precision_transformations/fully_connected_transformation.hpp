@@ -21,8 +21,7 @@ typedef std::tuple<
     ngraph::element::Type,
     MatMulShapes,
     std::string,
-    ngraph::pass::low_precision::LayerTransformation::Params,
-    LayerTestsUtils::LayerTransformation::LptVersion> FullyConnectedTransformationParams;
+    ngraph::pass::low_precision::LayerTransformation::Params> FullyConnectedTransformationParams;
 
 namespace LayerTestsDefinitions {
 
@@ -34,9 +33,6 @@ public:
 
 protected:
     void SetUp() override;
-
-private:
-    void validate();
 };
 
 }  // namespace LayerTestsDefinitions

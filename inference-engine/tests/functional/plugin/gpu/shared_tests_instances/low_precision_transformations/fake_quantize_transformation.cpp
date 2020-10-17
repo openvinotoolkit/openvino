@@ -25,12 +25,6 @@ const std::vector<LayerTransformation::Params> trasformationParamValues = {
     LayerTestsUtils::LayerTransformationParamsFactory::createParamsU8I8()
 };
 
-const std::vector<LayerTestsUtils::LayerTransformation::LptVersion> versionValues = {
-    // CNNNetwork output layer issue
-    // LayerTestsUtils::LayerTransformation::LptVersion::cnnNetwork,
-    LayerTestsUtils::LayerTransformation::LptVersion::nGraph
-};
-
 const std::vector<ngraph::builder::subgraph::FakeQuantizeOnData> fakeQuantizeOnDataValues = {
     { 256ul, {}, { 0.f }, { 2.55f }, { 0.f }, { 2.55f } },
     { 256ul, { 1ul }, { 0.f }, { 2.55f }, { 0.f }, { 2.55f } },
@@ -40,13 +34,12 @@ const std::vector<ngraph::builder::subgraph::FakeQuantizeOnData> fakeQuantizeOnD
 };
 
 // TODO: add something to avoid cleanup and enable
-INSTANTIATE_TEST_CASE_P(LPT, FakeQuantizeTransformation,
+INSTANTIATE_TEST_CASE_P(smoke_LPT, FakeQuantizeTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(netPrecisions),
         ::testing::Values(InferenceEngine::SizeVector({ 1, 32, 72, 48 })),
         ::testing::Values(CommonTestUtils::DEVICE_GPU),
         ::testing::ValuesIn(trasformationParamValues),
-        ::testing::ValuesIn(versionValues),
         ::testing::ValuesIn(fakeQuantizeOnDataValues)),
     FakeQuantizeTransformation::getTestCaseName);
 }  // namespace

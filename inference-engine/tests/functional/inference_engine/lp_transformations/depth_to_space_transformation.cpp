@@ -171,4 +171,4 @@ const std::vector<DepthToSpaceTransformationTestValues> testValues = {
     },
 };
 
-INSTANTIATE_TEST_CASE_P(LPT, DepthToSpaceTransformation, ::testing::ValuesIn(testValues), DepthToSpaceTransformation::getTestCaseName);
+INSTANTIATE_TEST_CASE_P(smoke_LPT, DepthToSpaceTransformation, ::testing::ValuesIn(testValues), DepthToSpaceTransformation::getTestCaseName);

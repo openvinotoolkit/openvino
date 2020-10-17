@@ -25,12 +25,11 @@ std::string ConvolutionWIthIncorrectWeightsTransformation::getTestCaseName(testi
     ngraph::Shape inputShape;
     std::string targetDevice;
     ngraph::pass::low_precision::LayerTransformation::Params params;
-    LayerTestsUtils::LayerTransformation::LptVersion version;
     ConvolutionWIthIncorrectWeightsParam param;
-    std::tie(netPrecision, inputShape, targetDevice, params, version, param) = obj.param;
+    std::tie(netPrecision, inputShape, targetDevice, params, param) = obj.param;
 
     std::ostringstream result;
-    result << getTestCaseNameByParams(netPrecision, inputShape, targetDevice, params, version) <<
+    result << getTestCaseNameByParams(netPrecision, inputShape, targetDevice, params) <<
         (param.isCorrect ? "_correct_weights" : "_incorrect_weights") <<
         (param.fakeQuantizeOnData.empty() ? "_noFqOnActivations" : "") <<
         (param.fakeQuantizeOnWeights.empty() ? "_noFqOnWeights" : "");
@@ -43,11 +42,8 @@ void ConvolutionWIthIncorrectWeightsTransformation::SetUp() {
     ngraph::element::Type netPrecision;
     ngraph::Shape inputShape;
     ngraph::pass::low_precision::LayerTransformation::Params params;
-    LayerTestsUtils::LayerTransformation::LptVersion version;
     ConvolutionWIthIncorrectWeightsParam param;
-    std::tie(netPrecision, inputShape, targetDevice, params, version, param) = this->GetParam();
-
-    ConfigurePlugin(version);
+    std::tie(netPrecision, inputShape, targetDevice, params, param) = this->GetParam();
 
     function = ngraph::builder::subgraph::ConvolutionFunction::getOriginalWithIncorrectWeights(
         inputShape,

@@ -36,19 +36,12 @@ IE_SUPPRESS_DEPRECATED_START
 
 class LayerTransformation : virtual public LayerTestsUtils::LayerTestsCommon {
 public:
-    enum LptVersion {
-        cnnNetwork,
-        nGraph
-    };
-
     static ngraph::pass::low_precision::LayerTransformation::Params toNGraph(const InferenceEngine::details::LayerTransformation::Params& params);
     static InferenceEngine::details::LayerTransformation::Params toCNNNetwork(const ngraph::pass::low_precision::LayerTransformation::Params& params);
     static InferenceEngine::Precision toCNNNetwork(const ngraph::element::Type_t precision);
 
 protected:
     LayerTransformation();
-
-    void ConfigurePlugin(const LptVersion lptVersion);
 
     static InferenceEngine::Blob::Ptr GenerateInput(
         const ngraph::element::Type_t precision,
@@ -66,8 +59,6 @@ protected:
 
     ngraph::pass::low_precision::LowPrecisionTransformer getLowPrecisionTransformerNGraph(
         const ngraph::pass::low_precision::LayerTransformation::Params& params) const;
-
-    InferenceEngine::CNNNetwork transform(const InferenceEngine::details::LayerTransformation::Params& params);
 
     std::shared_ptr<ngraph::Function> transformNGraph(
         const ngraph::pass::low_precision::LayerTransformation::Params& params,
@@ -96,15 +87,13 @@ protected:
         const InferenceEngine::Precision precision,
         const InferenceEngine::SizeVector& inputShapes,
         const std::string& targetDevice,
-        const InferenceEngine::details::LayerTransformation::Params& params,
-        const LayerTestsUtils::LayerTransformation::LptVersion version);
+        const InferenceEngine::details::LayerTransformation::Params& params);
 
     static std::string getTestCaseNameByParams(
         const ngraph::element::Type precision,
         const ngraph::Shape& inputShapes,
         const std::string& targetDevice,
-        const ngraph::pass::low_precision::LayerTransformation::Params& params,
-        const LayerTestsUtils::LayerTransformation::LptVersion version);
+        const ngraph::pass::low_precision::LayerTransformation::Params& params);
 
     static bool fakeQuantizeExists(const InferenceEngine::ICNNNetwork& network);
 };
@@ -116,16 +105,6 @@ typedef std::tuple<
     InferenceEngine::SizeVector,
     std::string,
     // TODO: refactor: CNNNetwork LPT is detected
-    InferenceEngine::details::LayerTransformation::Params,
-    LayerTestsUtils::LayerTransformation::LptVersion> LayerTransformationParams;
-
-inline std::ostream& operator << (std::ostream &os, const LayerTransformation::LptVersion& value) {
-    if ((value != LayerTransformation::LptVersion::cnnNetwork) && (value != LayerTransformation::LptVersion::nGraph)) {
-        THROW_IE_EXCEPTION << "unexpected LPT version value " << value;
-    }
-
-    os << (value == LayerTransformation::LptVersion::cnnNetwork ? "cnnNetwork" : "nGraph");
-    return os;
-}
+    InferenceEngine::details::LayerTransformation::Params> LayerTransformationParams;
 
 }  // namespace LayerTestsUtils

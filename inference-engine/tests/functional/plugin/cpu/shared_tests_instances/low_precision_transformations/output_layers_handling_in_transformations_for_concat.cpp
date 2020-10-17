@@ -22,17 +22,11 @@ const std::vector<LayerTransformation::Params> trasformationParamValues = {
     LayerTestsUtils::LayerTransformationParamsFactory::createParamsU8I8()
 };
 
-const std::vector<LayerTestsUtils::LayerTransformation::LptVersion> versions = {
-    LayerTestsUtils::LayerTransformation::LptVersion::cnnNetwork,
-    // LayerTestsUtils::LayerTransformation::LptVersion::nGraph
-};
-
-INSTANTIATE_TEST_CASE_P(smoke_LPT, OutputLayersHandlingInTransformationsForConcat,
+INSTANTIATE_TEST_CASE_P(DISABLED_smoke_LPT, OutputLayersHandlingInTransformationsForConcat,
     ::testing::Combine(
         ::testing::ValuesIn(netPrecisions),
         ::testing::Values(InferenceEngine::SizeVector({ 1, 3, 16, 16 })),
         ::testing::Values(CommonTestUtils::DEVICE_CPU),
-        ::testing::ValuesIn(trasformationParamValues),
-        ::testing::ValuesIn(versions)),
+        ::testing::ValuesIn(trasformationParamValues)),
     OutputLayersHandlingInTransformationsForConcat::getTestCaseName);
 }  // namespace

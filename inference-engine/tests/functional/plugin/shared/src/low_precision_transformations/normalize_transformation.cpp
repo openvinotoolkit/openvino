@@ -26,11 +26,10 @@ std::string NormalizeL2Transformation::getTestCaseName(testing::TestParamInfo<No
     std::pair<ngraph::Shape, ngraph::Shape> shapes;
     std::string targetDevice;
     auto params = LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8();
-    LayerTestsUtils::LayerTransformation::LptVersion version;
     std::vector<uint64_t> axes;
     bool fuseMultiply;
     bool shift;
-    std::tie(netPrecision, shapes, targetDevice, version, axes, fuseMultiply, shift) = obj.param;
+    std::tie(netPrecision, shapes, targetDevice, axes, fuseMultiply, shift) = obj.param;
 
     std::ostringstream result;
     result << netPrecision << "_" <<
@@ -38,7 +37,6 @@ std::string NormalizeL2Transformation::getTestCaseName(testing::TestParamInfo<No
         shapes.second << "_" <<
         targetDevice << "_" <<
         toString(params) << "_" <<
-        version <<
         "_axes" << axes.size() <<
         (fuseMultiply ? "_multiply" : "") <<
         (shift ? "_shift" : "");
@@ -50,13 +48,10 @@ void NormalizeL2Transformation::SetUp() {
     std::pair<ngraph::Shape, ngraph::Shape> shapes;
     ngraph::element::Type precision;
     auto params = LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8();
-    LayerTestsUtils::LayerTransformation::LptVersion version;
     std::vector<uint64_t> axes;
     bool fuseMultiply;
     bool shift;
-    std::tie(precision, shapes, targetDevice, version, axes, fuseMultiply, shift) = this->GetParam();
-
-    ConfigurePlugin(version);
+    std::tie(precision, shapes, targetDevice, axes, fuseMultiply, shift) = this->GetParam();
 
     function = ngraph::builder::subgraph::NormalizeL2Function::getOriginal(
         precision,
@@ -65,35 +60,6 @@ void NormalizeL2Transformation::SetUp() {
         axes,
         fuseMultiply,
         shift);
-
-    if (version == LptVersion::cnnNetwork) {
-        validate();
-    }
-}
-
-void NormalizeL2Transformation::validate() {
-    ngraph::element::Type netPrecision;
-    std::pair<ngraph::Shape, ngraph::Shape> shapes;
-    auto params = LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8();
-    LayerTestsUtils::LayerTransformation::LptVersion version;
-    std::vector<uint64_t> axes;
-    bool fuseMultiply;
-    bool shift;
-    std::tie(netPrecision, shapes, targetDevice, version, axes, fuseMultiply, shift) = this->GetParam();
-
-    const InferenceEngine::CNNNetwork network = transform(toCNNNetwork(params));
-
-    IE_SUPPRESS_DEPRECATED_START
-
-    InferenceEngine::OutputsDataMap outputs = network.getOutputsInfo();
-    EXPECT_EQ(1, outputs.size());
-
-    std::map<std::string, InferenceEngine::DataPtr>::iterator it = outputs.begin();
-    const InferenceEngine::CNNLayerPtr outputLayer = getCreatorLayer(it->second).lock();
-    EXPECT_TRUE(outputLayer != nullptr);
-    EXPECT_EQ(shift ? "Normalize" : "ScaleShift", outputLayer->type);
-
-    IE_SUPPRESS_DEPRECATED_END
 }
 
 TEST_P(NormalizeL2Transformation, CompareWithRefImpl) {

@@ -11,11 +11,6 @@ using namespace LayerTestsDefinitions;
 
 namespace {
 
-const std::vector<LayerTestsUtils::LayerTransformation::LptVersion> versionValues = {
-    LayerTestsUtils::LayerTransformation::LptVersion::cnnNetwork,
-    LayerTestsUtils::LayerTransformation::LptVersion::nGraph
-};
-
 const std::vector<SubtractMultiplyToMultiplyAddTransformationTestValues> testValues = {
     // U8: Multiply {} => Multiply (ScaleShift)
     {
@@ -67,7 +62,6 @@ const std::vector<SubtractMultiplyToMultiplyAddTransformationTestValues> testVal
 INSTANTIATE_TEST_CASE_P(LPT, SubtractMultiplyToMultiplyAddTransformation,
     ::testing::Combine(
         ::testing::Values(CommonTestUtils::DEVICE_CPU),
-        ::testing::ValuesIn(versionValues),
         ::testing::ValuesIn(testValues)),
     SubtractMultiplyToMultiplyAddTransformation::getTestCaseName);
 

@@ -20,12 +20,11 @@ std::string FakeQuantizePrecisionSelectionTransformation::getTestCaseName(testin
     InferenceEngine::SizeVector inputShapes;
     std::string targetDevice;
     InferenceEngine::details::LayerTransformation::Params params;
-    LayerTestsUtils::LayerTransformation::LptVersion version;
     FakeQuantizePrecisionSelectionTransformationTestValues testValues;
-    std::tie(netPrecision, inputShapes, targetDevice, params, version, testValues) = obj.param;
+    std::tie(netPrecision, inputShapes, targetDevice, params, testValues) = obj.param;
 
     std::ostringstream result;
-    result << getTestCaseNameByParams(netPrecision, inputShapes, targetDevice, params, version) << "_" << testValues;
+    result << getTestCaseNameByParams(netPrecision, inputShapes, targetDevice, params) << "_" << testValues;
     return result.str();
 }
 
@@ -33,11 +32,8 @@ void FakeQuantizePrecisionSelectionTransformation::SetUp() {
     InferenceEngine::SizeVector inputShape;
     InferenceEngine::Precision netPrecision;
     InferenceEngine::details::LayerTransformation::Params params;
-    LayerTestsUtils::LayerTransformation::LptVersion version;
     FakeQuantizePrecisionSelectionTransformationTestValues testValues;
-    std::tie(netPrecision, inputShape, targetDevice, params, version, testValues) = this->GetParam();
-
-    ConfigurePlugin(version);
+    std::tie(netPrecision, inputShape, targetDevice, params, testValues) = this->GetParam();
 
     function = ngraph::builder::subgraph::FakeQuantizePrecisionSelectionFunction::getOriginal(
         FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision),

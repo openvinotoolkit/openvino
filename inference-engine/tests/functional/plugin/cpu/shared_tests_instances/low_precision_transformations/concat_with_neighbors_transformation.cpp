@@ -23,22 +23,16 @@ const std::vector<ngraph::pass::low_precision::LayerTransformation::Params> tras
     LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8()
 };
 
-const std::vector<LayerTestsUtils::LayerTransformation::LptVersion> versions = {
-    LayerTestsUtils::LayerTransformation::LptVersion::cnnNetwork,
-    LayerTestsUtils::LayerTransformation::LptVersion::nGraph
-};
-
 const std::vector<ngraph::Shape> shapes = {
     { 1, 3, 16, 16 },
     { 4, 3, 16, 16 }
 };
 
-INSTANTIATE_TEST_CASE_P(LPT, ConcatWithNeighborsGraphTransformation,
+INSTANTIATE_TEST_CASE_P(smoke_LPT, ConcatWithNeighborsGraphTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(precisions),
         ::testing::ValuesIn(shapes),
         ::testing::Values(CommonTestUtils::DEVICE_CPU),
-        ::testing::ValuesIn(trasformationParamValues),
-        ::testing::ValuesIn(versions)),
+        ::testing::ValuesIn(trasformationParamValues)),
     ConcatWithNeighborsGraphTransformation::getTestCaseName);
 }  // namespace

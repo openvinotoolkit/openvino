@@ -22,8 +22,7 @@ typedef std::tuple<
     ngraph::Shape,
     std::string,
     ConcatWithSplitTransformationParam,
-    ngraph::pass::low_precision::LayerTransformation::Params,
-    LayerTestsUtils::LayerTransformation::LptVersion> ConcatWithSplitTransformationParams;
+    ngraph::pass::low_precision::LayerTransformation::Params> ConcatWithSplitTransformationParams;
 
 class ConcatWithSplitTransformation :
     public testing::WithParamInterface<ConcatWithSplitTransformationParams>,

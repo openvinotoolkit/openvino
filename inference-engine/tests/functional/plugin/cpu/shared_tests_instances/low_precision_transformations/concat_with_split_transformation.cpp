@@ -22,10 +22,6 @@ const std::vector<ngraph::pass::low_precision::LayerTransformation::Params> tras
     LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8()
 };
 
-const std::vector<LayerTestsUtils::LayerTransformation::LptVersion> versions = {
-    LayerTestsUtils::LayerTransformation::LptVersion::nGraph
-};
-
 const std::vector<ConcatWithSplitTransformationParam> testValues = {
     // U8
     {
@@ -49,13 +45,12 @@ const std::vector<ConcatWithSplitTransformationParam> testValues = {
     }
 };
 
-INSTANTIATE_TEST_CASE_P(LPT, ConcatWithSplitTransformation,
+INSTANTIATE_TEST_CASE_P(smoke_LPT, ConcatWithSplitTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(netPrecisions),
         ::testing::Values(ngraph::Shape({ 1, 6, 10, 10 })),
         ::testing::Values(CommonTestUtils::DEVICE_CPU),
         ::testing::ValuesIn(testValues),
-        ::testing::ValuesIn(trasformationParamValues),
-        ::testing::Values(LayerTestsUtils::LayerTransformation::LptVersion::nGraph)),
+        ::testing::ValuesIn(trasformationParamValues)),
     ConcatWithSplitTransformation::getTestCaseName);
 }  // namespace

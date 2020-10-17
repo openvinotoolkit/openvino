@@ -18,11 +18,6 @@ struct Config {
         On,
     };
 
-    enum LptVersion {
-        cnnNetwork,
-        nGraph
-    };
-
     bool collectPerfCounters = false;
     bool exclusiveAsyncRequests = false;
     bool enableDynamicBatch = false;
@@ -38,7 +33,6 @@ struct Config {
     bool enforceBF16 = false;
 #else
     LPTransformsMode lpTransformsMode = LPTransformsMode::On;
-    LptVersion lptVersion = LptVersion::nGraph;
     bool enforceBF16 = true;
 #endif
 

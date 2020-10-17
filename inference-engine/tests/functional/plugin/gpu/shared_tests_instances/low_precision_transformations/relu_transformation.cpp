@@ -16,11 +16,6 @@ const std::vector<ngraph::element::Type> precisions = {
     // ngraph::element::f16
 };
 
-const std::vector<LayerTestsUtils::LayerTransformation::LptVersion> versionValues = {
-    LayerTestsUtils::LayerTransformation::LptVersion::cnnNetwork,
-    LayerTestsUtils::LayerTransformation::LptVersion::nGraph
-};
-
 std::vector<ngraph::builder::subgraph::FakeQuantizeOnData> testValues = {
     {},
     { 256ul, ngraph::Shape({}), {0.f}, {25.5f}, {0.f}, {25.5f} },
@@ -29,12 +24,11 @@ std::vector<ngraph::builder::subgraph::FakeQuantizeOnData> testValues = {
     { 256ul, ngraph::Shape({}), {-12.8f / 2.f}, {12.7f}, {-12.8f / 2.f}, {12.7f} }
 };
 
-INSTANTIATE_TEST_CASE_P(LPT, ReluTransformation,
+INSTANTIATE_TEST_CASE_P(smoke_LPT, ReluTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(precisions),
         ::testing::Values(InferenceEngine::SizeVector({ 1, 3, 16, 16 })),
         ::testing::Values(CommonTestUtils::DEVICE_GPU),
-        ::testing::ValuesIn(versionValues),
         ::testing::ValuesIn(testValues)),
     ReluTransformation::getTestCaseName);
 }  // namespace

@@ -11,10 +11,6 @@ using namespace InferenceEngine::details;
 
 namespace {
 
-const std::vector<LayerTestsUtils::LayerTransformation::LptVersion> versions = {
-    LayerTestsUtils::LayerTransformation::LptVersion::nGraph
-};
-
 const std::vector<FuseFakeQuantizeTransformationTestValues> testValues = {
     // 1) Multiply
     {
@@ -73,7 +69,6 @@ const std::vector<FuseFakeQuantizeTransformationTestValues> testValues = {
 INSTANTIATE_TEST_CASE_P(LPT, FuseFakeQuantizeTransformation,
     ::testing::Combine(
         ::testing::Values(CommonTestUtils::DEVICE_CPU),
-        ::testing::ValuesIn(versions),
         ::testing::ValuesIn(testValues)),
     FuseFakeQuantizeTransformation::getTestCaseName);
 }  // namespace

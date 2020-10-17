@@ -16,8 +16,7 @@ typedef std::tuple<
     ngraph::Shape,
     std::string,
     ngraph::opset1::DepthToSpace::DepthToSpaceMode,
-    size_t,
-    LayerTestsUtils::LayerTransformation::LptVersion> DepthToSpaceTransformationParams;
+    size_t> DepthToSpaceTransformationParams;
 
 class DepthToSpaceTransformation :
     public testing::WithParamInterface<DepthToSpaceTransformationParams>,

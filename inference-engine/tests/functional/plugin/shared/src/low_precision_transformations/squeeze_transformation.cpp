@@ -34,11 +34,10 @@ inline std::ostream& operator<<(std::ostream& os, const std::vector<float>& valu
 InferenceEngine::Blob::Ptr SqueezeTransformation::GenerateInput(const InferenceEngine::InputInfo &info) const {
     InferenceEngine::Precision netPrecision;
     InferenceEngine::details::LayerTransformation::Params params;
-    LayerTestsUtils::LayerTransformation::LptVersion version;
     SqueezeTransformationParam squeezeParam;
     std::string targetDevice;
 
-    std::tie(netPrecision, targetDevice, params, version, squeezeParam) = this->GetParam();
+    std::tie(netPrecision, targetDevice, params, squeezeParam) = this->GetParam();
 
     const ngraph::builder::subgraph::FakeQuantizeOnData& fqOnData = squeezeParam.fakeQuantize;
 
@@ -52,13 +51,12 @@ InferenceEngine::Blob::Ptr SqueezeTransformation::GenerateInput(const InferenceE
 std::string SqueezeTransformation::getTestCaseName(testing::TestParamInfo<SqueezeTransformationParams> obj) {
     InferenceEngine::Precision netPrecision;
     InferenceEngine::details::LayerTransformation::Params params;
-    LayerTestsUtils::LayerTransformation::LptVersion version;
     std::string targetDevice;
     SqueezeTransformationParam squeezeParam;
-    std::tie(netPrecision, targetDevice, params, version, squeezeParam) = obj.param;
+    std::tie(netPrecision, targetDevice, params, squeezeParam) = obj.param;
 
     std::ostringstream result;
-    result << getTestCaseNameByParams(netPrecision, squeezeParam.shape, targetDevice, params, version) << "_" <<
+    result << getTestCaseNameByParams(netPrecision, squeezeParam.shape, targetDevice, params) << "_" <<
         squeezeParam.fakeQuantize << "_" <<
         squeezeParam.squeezeAxes << "_" <<
         params.updatePrecisions << "_" <<
@@ -69,13 +67,10 @@ std::string SqueezeTransformation::getTestCaseName(testing::TestParamInfo<Squeez
 void SqueezeTransformation::SetUp() {
     InferenceEngine::Precision netPrecision;
     InferenceEngine::details::LayerTransformation::Params params;
-    LayerTestsUtils::LayerTransformation::LptVersion version;
     SqueezeTransformationParam squeezeParam;
 
-    std::tie(netPrecision, targetDevice, params, version, squeezeParam) = this->GetParam();
+    std::tie(netPrecision, targetDevice, params, squeezeParam) = this->GetParam();
     ngraph::element::Type ngraphPrecision = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
-
-    ConfigurePlugin(version);
 
     function = ngraph::builder::subgraph::SqueezeFunction::getOriginal(
         ngraphPrecision,
@@ -84,43 +79,6 @@ void SqueezeTransformation::SetUp() {
         squeezeParam.squeezeAxes);
 
     ngraph::pass::InitNodeInfo().run_on_function(function);
-
-    if (version == LptVersion::cnnNetwork) {
-        validate();
-    }
-}
-
-void SqueezeTransformation::validate() {
-    ngraph::Shape inputShape;
-    InferenceEngine::Precision netPrecision;
-    InferenceEngine::details::LayerTransformation::Params params;
-    LayerTestsUtils::LayerTransformation::LptVersion version;
-    SqueezeTransformationParam squeezeParam;
-
-    std::tie(netPrecision, targetDevice, params, version, squeezeParam) = this->GetParam();
-
-    const InferenceEngine::CNNNetwork network = transform(params);
-
-    IE_SUPPRESS_DEPRECATED_START
-
-    InferenceEngine::OutputsDataMap outputs = network.getOutputsInfo();
-    EXPECT_EQ(1, outputs.size());
-    std::map<std::string, InferenceEngine::DataPtr>::iterator it = outputs.begin();
-    const InferenceEngine::CNNLayerPtr outputLayer = getCreatorLayer(it->second).lock();
-    EXPECT_TRUE(outputLayer != nullptr);
-    EXPECT_EQ("ScaleShift", outputLayer->type);
-
-    const InferenceEngine::CNNLayerPtr layer = InferenceEngine::details::CNNNetworkHelper::getParent(*outputLayer);
-    if (params.updatePrecisions) {
-        checkPrecisions(
-            *layer,
-            { { InferenceEngine::Precision::U8 }, { InferenceEngine::Precision::I8 } },
-            { getDeviceInternalPrecision(netPrecision) });
-    } else {
-        checkPrecisions(*layer, netPrecision);
-    }
-
-    IE_SUPPRESS_DEPRECATED_END
 }
 
 TEST_P(SqueezeTransformation, CompareWithRefImpl) {

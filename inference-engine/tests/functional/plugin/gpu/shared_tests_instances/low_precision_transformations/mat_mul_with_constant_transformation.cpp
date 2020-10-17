@@ -12,11 +12,6 @@ using namespace InferenceEngine::details;
 namespace {
 const std::vector<ngraph::element::Type> precisions = { ngraph::element::f32 };
 
-const std::vector<LayerTestsUtils::LayerTransformation::LptVersion> versionValues = {
-    LayerTestsUtils::LayerTransformation::LptVersion::cnnNetwork,
-    LayerTestsUtils::LayerTransformation::LptVersion::nGraph
-};
-
 std::vector<MatMulWithConstantTransformationTestValues> testValues = {
     {
         { 1, 32 },
@@ -27,11 +22,10 @@ std::vector<MatMulWithConstantTransformationTestValues> testValues = {
     }
 };
 
-INSTANTIATE_TEST_CASE_P(LPT, MatMulWithConstantTransformation,
+INSTANTIATE_TEST_CASE_P(smoke_LPT, MatMulWithConstantTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(precisions),
         ::testing::Values(CommonTestUtils::DEVICE_GPU),
-        ::testing::ValuesIn(versionValues),
         ::testing::ValuesIn(testValues)),
     MatMulWithConstantTransformation::getTestCaseName);
 }  // namespace
