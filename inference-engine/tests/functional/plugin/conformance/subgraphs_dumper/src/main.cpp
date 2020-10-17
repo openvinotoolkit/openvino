@@ -4,6 +4,8 @@
 
 #include <fstream>
 #include <regex>
+#include <chrono>
+#include <ctime>
 
 #include "inference_engine.hpp"
 
@@ -11,8 +13,33 @@
 
 #include "ops_cache.hpp"
 #include "gflag_config.hpp"
+#include <stdlib.h>
+#include <string.h>
 
-// TODO: Poor exceptions handling
+struct Model {
+    std::string xml;
+    std::string bin;
+    size_t size;
+
+    Model(std::string model) {
+        xml = model;
+        bin = CommonTestUtils::replaceExt(model, "bin");
+        if (CommonTestUtils::fileExists(bin)) {
+            size = CommonTestUtils::fileSize(bin);
+        } else {
+            size = 0;
+        }
+    }
+
+    bool operator<(const Model &m) const {
+        return size < m.size;
+    }
+
+    bool operator>(const Model &m) const {
+        return size > m.size;
+    }
+};
+
 int main(int argc, char *argv[]) {
     uint8_t ret_code = 0;
 
@@ -21,10 +48,25 @@ int main(int argc, char *argv[]) {
         showUsage();
         return 0;
     }
+    std::vector<std::string> input_folder_content;
     std::vector<std::string> dirs = CommonTestUtils::splitStringByDelimiter(FLAGS_input_folders);
-    std::vector<std::string> input_folder_content =
-            CommonTestUtils::getFileListByPatternRecursive(dirs, std::regex(R"(.*\.xml)"));
-
+    for (const auto &dir : dirs) {
+        if (!CommonTestUtils::directoryExists(dir)) {
+            std::string msg = "Input directory (" + dir + ") doesn't not exist!";
+            throw std::runtime_error(msg);
+        }
+        const auto content  = CommonTestUtils::getFileListByPatternRecursive(dirs, std::regex(R"(.*\.xml)"));
+        input_folder_content.insert(input_folder_content.end(), content.begin(), content.end());
+    }
+    std::vector<Model> models;
+    auto xml_regex = std::regex(R"(.*\.xml)");
+    for (const auto &file : input_folder_content) {
+        if (std::regex_match(file, xml_regex)) {
+            models.emplace_back(Model(file));
+        }
+    }
+    std::sort(models.begin(), models.end());
+    std::reverse(models.begin(), models.end());
     if (!CommonTestUtils::directoryExists(FLAGS_output_folder)) {
         std::string msg = "Output directory (" + FLAGS_output_folder + ") doesn't not exist!";
         throw std::runtime_error(msg);
@@ -33,26 +75,40 @@ int main(int argc, char *argv[]) {
     auto ie = InferenceEngine::Core();
     auto cache = SubgraphsDumper::OPCache::make_cache();
 
-    for (const auto &file : input_folder_content) {
-        try {
-            if (CommonTestUtils::fileExists(file)) {
-                std::cout << "Processing model: " << file << std::endl;
-                std::string bin_file = CommonTestUtils::replaceExt(file, "bin");
-                if (!CommonTestUtils::fileExists(bin_file)) {
-                    std::cerr << "Corresponding .bin file for the model " << file << " doesn't exist" << std::endl;
+    time_t rawtime;
+    struct tm *timeinfo;
+    char buffer[20];
+    size_t i = 1;
+    size_t all_models = models.size();
+    InferenceEngine::Blob::Ptr weights = InferenceEngine::make_shared_blob<uint8_t>(
+            {InferenceEngine::Precision::U8, {models[0].size}, InferenceEngine::Layout::C});
+    weights->allocate();
+    for (const auto &model : models) {
+        if (CommonTestUtils::fileExists(model.xml)) {
+            try {
+                time(&rawtime);
+                timeinfo = localtime(&rawtime);  // NOLINT no localtime_r in C++11
+
+                strftime(buffer, 20, "%H:%M:%S", timeinfo);
+                std::cout << "[" << std::string(buffer) << "][" << i << "/" << all_models << "]Processing model: "
+                          << model.xml << std::endl;
+                if (!CommonTestUtils::fileExists(model.bin)) {
+                    std::cerr << "Corresponding .bin file for the model " << model.bin << " doesn't exist" << std::endl;
                     continue;
                 }
-                InferenceEngine::CNNNetwork net = ie.ReadNetwork(file);
+
+                InferenceEngine::CNNNetwork net = ie.ReadNetwork(model.xml, model.bin);
                 auto function = net.getFunction();
-                cache->update_ops_cache(function, file);
+                cache->update_ops_cache(function, model.xml);
+                i++;
+            } catch (std::exception &e) {
+                std::cerr << "Model processing failed with exception:" << std::endl << e.what() << std::endl;
+                ret_code = 1;
+                i++;
+                continue;
             }
-        } catch (std::exception &e) {
-            std::cerr << "Model processing failed with exception:" << std::endl << e.what() << std::endl;
-            ret_code = 1;
-            continue;
         }
     }
-
     cache->serialize_cached_ops(FLAGS_output_folder);
 
     return ret_code;

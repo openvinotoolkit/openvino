@@ -9,12 +9,13 @@
 #include <memory>
 
 #include <ngraph/ngraph.hpp>
+#include "ops_cache.hpp"
 
 namespace SubgraphsDumper {
 
 struct ClonersMap {
-    using clone_fn =
-        std::function<const std::shared_ptr<ngraph::Node>(const std::shared_ptr<ngraph::Node>&)>;
+    using clone_fn = std::function<const std::shared_ptr<ngraph::Node>(const std::shared_ptr<ngraph::Node> &,
+                                                                       OPInfo &meta)>;
 
     using cloners_map_type = std::map<ngraph::NodeTypeInfo, clone_fn>;
 

@@ -10,6 +10,7 @@
 #include <memory>
 #include <ngraph/ngraph.hpp>
 #include "matchers/matchers_manager.hpp"
+#include "op_info.hpp"
 
 namespace SubgraphsDumper {
 
@@ -30,18 +31,13 @@ public:
 
     void set_num_neighbours_to_cache(size_t num) { num_neighbours_to_cache = num; }
 
+    void serialize_meta_info(const OPInfo &info, const std::string &path);
+
+    static OPInfo deserialize_meta_info(const std::string &path);
+
+    float get_size_of_cached_ops();
+
 protected:
-    struct OPInfo {
-        std::string source_model;
-        std::map<std::string, size_t> found_in_models;
-
-        OPInfo(const std::string &_source_model) : source_model(_source_model) {
-            found_in_models = {{_source_model, 1}};
-        }
-
-        OPInfo() = default;
-    };
-
     std::vector<std::pair<std::shared_ptr<ngraph::Node>, OPInfo>> m_ops_cache;
     MatchersManager manager;
     size_t num_neighbours_to_cache = 0;
