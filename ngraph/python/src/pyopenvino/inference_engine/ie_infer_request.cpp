@@ -53,5 +53,11 @@ void regclass_InferRequest(py::module m)
         }
     });
 
+//    async_infer()
+//    latency
+//            input_blobs
+//    get_perf_counts()
+
+
     //&InferenceEngine::InferRequest::SetOutput);
 }
