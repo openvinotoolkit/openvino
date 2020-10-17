@@ -440,7 +440,7 @@ def get_caffe_cli_parser(parser: argparse.ArgumentParser = None):
     caffe_group.add_argument('--caffe_parser_path',
                              help='Path to Python Caffe* parser generated from caffe.proto',
                              type=str,
-                             default=os.path.join(os.path.dirname(sys.argv[0]), 'mo', 'front', 'caffe', 'proto'),
+                             default=os.path.join(os.path.dirname(__file__), os.path.pardir, 'front', 'caffe', 'proto'),
                              action=CanonicalizePathCheckExistenceAction)
     caffe_group.add_argument('-k',
                              help='Path to CustomLayersMapping.xml to register custom layers',

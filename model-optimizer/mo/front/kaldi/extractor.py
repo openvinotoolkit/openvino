@@ -35,14 +35,14 @@ def common_kaldi_fields(node: Node) -> dict:
     }
 
 
-def kaldi_extractor(node: Node) -> (bool, dict):
+def kaldi_extractor(node: Node, lowered_keys_map: dict) -> (bool, dict):
     result = common_kaldi_fields(node)
-    layer_type = result['op']
-    if layer_type not in kaldi_type_extractors:
-        supported = False
-        return supported, result
+    node.graph.node[node.id].update(result)
 
-    result.update(kaldi_type_extractors[layer_type](node))
-    supported = True
+    supported = False
+    layer_type = result['op']
+    if layer_type in lowered_keys_map:
+        result.update(lowered_keys_map[layer_type](node))
+        supported = True
 
     return supported, result

@@ -17,6 +17,7 @@
 from extensions.load.loader import Loader
 from mo.front.caffe import custom_layers_mapping, loader
 from mo.front.caffe.extractor import caffe_type_extractors, caffe_extractor
+from mo.front.caffe.extractors.utils import dim_to_shape
 from mo.front.common.register_custom_ops import update_extractors_with_extensions, check_for_duplicates
 from mo.front.extractor import extract_node_attrs
 from mo.graph.graph import Graph
@@ -33,12 +34,6 @@ class CaffeLoader(Loader):
 
         proto, model = loader.load_caffe_proto_model(caffe_pb2, argv.input_proto, argv.input_model)
 
-        update_extractors_with_extensions(
-            caffe_type_extractors,
-            argv.disable_omitting_optional if hasattr(argv, 'disable_omitting_optional') else False,
-            argv.disable_flattening_optional_params if hasattr(argv, 'disable_flattening_optional_params') else False
-        )
-
         try:
             original_shapes = loader.caffe_pb_to_nx(graph, proto, model)
         except ValueError as e:
@@ -54,6 +49,24 @@ class CaffeLoader(Loader):
         graph.graph['original_shapes'] = original_shapes
         graph.graph['caffe_pb2'] = caffe_pb2
 
+
+class CaffeExtractor(Loader):
+    id = 'CaffeExtractor'
+    enabled = True
+
+    def run_after(self):
+        return [CaffeLoader]
+
+    def load(self, graph: Graph):
+        argv = graph.graph['cmd_params']
+
+        update_extractors_with_extensions(
+            caffe_type_extractors,
+            argv.disable_omitting_optional if hasattr(argv, 'disable_omitting_optional') else False,
+            argv.disable_flattening_optional_params if hasattr(argv, 'disable_flattening_optional_params') else False
+        )
+        update_extractors_with_extensions(caffe_type_extractors)
+
         custom_layers_map = custom_layers_mapping.load_layers_xml(argv.k)
         custom_layers_mapping.update_extractors(
             caffe_type_extractors,
@@ -62,3 +75,17 @@ class CaffeLoader(Loader):
             argv.enable_flattening_nested_params if hasattr(argv, 'enable_flattening_nested_params') else False
         )
         extract_node_attrs(graph, lambda node: caffe_extractor(node, check_for_duplicates(caffe_type_extractors)))
+
+
+class CaffePrivateExtractor(Loader):
+    id = 'CaffePrivateExtractor'
+    enabled = False
+
+    def run_after(self):
+        return [CaffeLoader]
+
+    def load(self, graph: Graph):
+        extract_node_attrs(graph, lambda node: caffe_extractor(node, {}))
+        for node in graph.get_op_nodes():
+            if node['op'].lower() in ['input']:
+                node['shape'] = dim_to_shape(node.pb.input_param.shape[0].dim)
