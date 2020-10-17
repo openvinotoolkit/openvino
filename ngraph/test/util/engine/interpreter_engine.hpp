@@ -72,6 +72,8 @@ namespace ngraph
                 ++m_output_index;
             }
 
+            void update_ops_stats(const PassRate::Statuses& status) override;
+
         private:
             struct DynamicBackendTag
             {
@@ -93,6 +95,11 @@ namespace ngraph
 
         template <>
         struct supports_dynamic<INTERPRETER_Engine>
+        {
+            static constexpr bool value = true;
+        };
+        template <>
+        struct supports_ops_stats_collection<INTERPRETER_Engine>
         {
             static constexpr bool value = true;
         };

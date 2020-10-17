@@ -142,6 +142,7 @@ namespace ngraph
                 ++m_allocated_expected_outputs;
             }
 
+            void update_ops_stats(const PassRate::Statuses& status) override {}
         private:
             const std::shared_ptr<Function> m_function;
             InferenceEngine::InputsDataMap m_network_inputs;
@@ -194,6 +195,17 @@ namespace ngraph
         struct supports_devices<IE_GPU_Engine>
         {
             static constexpr bool value = true;
+        };
+
+        template <>
+        struct supports_ops_stats_collection<IE_CPU_Engine>
+        {
+            static constexpr bool value = false;
+        };
+        template <>
+        struct supports_ops_stats_collection<IE_GPU_Engine>
+        {
+            static constexpr bool value = false;
         };
     }
 }

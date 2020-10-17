@@ -24,6 +24,9 @@
 #include "ngraph/ngraph.hpp"
 #include "test_tools.hpp"
 #include "util/engine/engine_factory.hpp"
+#include "util/engine/engine_traits.hpp"
+#include "util/engine/interpreter_engine.hpp"
+#include "util/test_environment.hpp"
 
 namespace ngraph
 {
@@ -169,6 +172,13 @@ namespace ngraph
             {
                 m_engine.infer();
                 const auto res = m_engine.compare_results(tolerance_bits);
+
+                if (supports_ops_stats_collection<Engine>::value)
+                {
+                    m_engine.update_ops_stats(res == testing::AssertionSuccess()
+                                                  ? PassRate::Statuses::PASSED
+                                                  : PassRate::Statuses::SKIPPED);
+                }
 
                 if (res != testing::AssertionSuccess())
                 {

@@ -287,3 +287,45 @@ void test::INTERPRETER_Engine::reset()
     m_expected_outputs.clear();
     m_input_tensors.clear();
 }
+
+void test::INTERPRETER_Engine::update_ops_stats(const PassRate::Statuses& status)
+{
+    auto& s = Summary::getInstance();
+    s.setDeviceName("INTERPRETER");
+    if (m_function)
+    {
+        for (const auto& op : m_function->get_ordered_ops())
+        {
+            if (ngraph::is_type<ngraph::op::Parameter>(op) ||
+                ngraph::is_type<ngraph::op::Constant>(op) ||
+                ngraph::is_type<ngraph::op::Result>(op))
+            {
+                continue;
+            }
+            else if (ngraph::is_type<ngraph::op::TensorIterator>(op))
+            {
+                s.updateOPsStats(op->get_type_info(), status);
+                auto ti = ngraph::as_type_ptr<ngraph::op::TensorIterator>(op);
+                auto ti_body = ti->get_function();
+                for (const auto& ti_op : ti_body->get_ordered_ops())
+                {
+                    s.updateOPsStats(ti_op->get_type_info(), status);
+                }
+            }
+            else if (ngraph::is_type<ngraph::op::v5::Loop>(op))
+            {
+                s.updateOPsStats(op->get_type_info(), status);
+                auto loop = ngraph::as_type_ptr<ngraph::op::v5::Loop>(op);
+                auto loop_body = loop->get_function();
+                for (const auto& loop_op : loop_body->get_ordered_ops())
+                {
+                    s.updateOPsStats(loop_op->get_type_info(), status);
+                }
+            }
+            else
+            {
+                s.updateOPsStats(op->get_type_info(), status);
+            }
+        }
+    }
+}
