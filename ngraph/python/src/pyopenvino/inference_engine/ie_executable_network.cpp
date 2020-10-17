@@ -27,4 +27,18 @@ void regclass_ExecutableNetwork(py::module m)
     py::class_<InferenceEngine::ExecutableNetwork, std::shared_ptr<InferenceEngine::ExecutableNetwork>> cls(m, "ExecutableNetwork");
 
     cls.def("create_infer_request", &InferenceEngine::ExecutableNetwork::CreateInferRequest);
+
+    cls.def("get_exec_graph_info", &InferenceEngine::ExecutableNetwork::GetExecGraphInfo);
+
+//    cls.def("get_idle_request_id", &InferenceEngine::ExecutableNetwork::CreateInferRequest);
+//
+//    cls.def("wait", &InferenceEngine::ExecutableNetwork::CreateInferRequest);
+
+    cls.def_property_readonly("input_info", [](InferenceEngine::ExecutableNetwork& self) {
+        return self.GetInputsInfo();
+    });
+
+    cls.def_property_readonly("outputs", &InferenceEngine::ExecutableNetwork::GetOutputsInfo);
+
+//    cls.def_property_readonly("requests", &InferenceEngine::ExecutableNetwork::name);
 }
