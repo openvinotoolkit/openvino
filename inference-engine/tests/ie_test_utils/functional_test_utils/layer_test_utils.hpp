@@ -30,6 +30,91 @@
 
 namespace LayerTestsUtils {
 
+class Summary;
+
+class SummaryDestroyer {
+private:
+    Summary *p_instance;
+public:
+    ~SummaryDestroyer();
+
+    void initialize(Summary *p);
+};
+
+class TestEnvironment;
+
+class LayerTestsCommon;
+
+struct PassRate;
+
+class Summary {
+private:
+    static Summary *p_instance;
+    static SummaryDestroyer destroyer;
+    std::map<ngraph::NodeTypeInfo, PassRate> opsStats = {};
+    std::string deviceName;
+
+protected:
+    Summary() = default;
+
+    Summary(const Summary &);
+
+    Summary &operator=(Summary &);
+
+    ~Summary() = default;
+
+    void updateOPsStats(ngraph::NodeTypeInfo op, bool passed);
+
+    std::map<ngraph::NodeTypeInfo, PassRate> getOPsStats() { return opsStats; }
+
+    std::string getDeviceName() const { return deviceName; }
+
+    void setDeviceName(std::string device) { deviceName = device; }
+
+    friend class SummaryDestroyer;
+
+    friend class TestEnvironment;
+
+    friend class LayerTestsCommon;
+
+public:
+    static Summary &getInstance();
+};
+
+struct PassRate {
+    uint passed;
+    uint failed;
+
+    PassRate() {
+        passed = 0;
+        failed = 0;
+    }
+
+    PassRate(uint p, uint f) {
+        passed = p;
+        failed = f;
+    }
+
+    float getPassrate() const {
+        if (passed == 0 && failed == 0) {
+            return 0.;
+        } else if (passed != 0 && failed == 0) {
+            return 100.;
+        } else {
+            return (passed / (passed + failed)) * 100.;
+        }
+    }
+};
+
+class TestEnvironment : public ::testing::Environment {
+public:
+    void TearDown() override;
+
+private:
+    uint opsetVersion = 5;
+    std::string reportFileName = "report.xml";
+};
+
 using TargetDevice = std::string;
 
 typedef std::tuple<
@@ -113,6 +198,7 @@ protected:
     virtual void Validate();
 
     virtual std::vector<std::vector<std::uint8_t>> CalculateRefs();
+
     std::vector<InferenceEngine::Blob::Ptr> GetOutputs();
 
     InferenceEngine::InferRequest inferRequest;
