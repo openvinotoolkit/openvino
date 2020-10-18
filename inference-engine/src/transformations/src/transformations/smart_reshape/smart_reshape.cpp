@@ -12,7 +12,8 @@
 #include <transformations/smart_reshape/reshape_to_1D.hpp>
 #include <transformations/smart_reshape/reshape_with_hc_output.hpp>
 #include <transformations/smart_reshape/smart_reshape.hpp>
-#include <transformations/smart_reshape/sr_strided_slice_squeeze.hpp>
+#include <transformations/smart_reshape/strided_slice_squeeze.hpp>
+#include <transformations/smart_reshape/mimic_set_batch_size.hpp>
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::SmartReshape, "SmartReshape", 0);
 
@@ -25,7 +26,10 @@ bool ngraph::pass::SmartReshape::run_on_function(std::shared_ptr<ngraph::Functio
     static_manager.register_pass<ngraph::pass::ReshapeTo1D>();
     static_manager.register_pass<ngraph::pass::opset1_ProposalScales>();
     static_manager.register_pass<ngraph::pass::opset4_ProposalScales>();
+    static_manager.register_pass<ngraph::pass::SharedSqueeze>();
+    static_manager.register_pass<ngraph::pass::SqueezeStridedSlice>();
     static_manager.register_pass<ngraph::pass::StridedSliceSqueeze>();
+    static_manager.register_pass<ngraph::pass::ReshapeTo1D>();
     static_manager.run_passes(f);
 
     ngraph::pass::Manager dynamic_manager;
