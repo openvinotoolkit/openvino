@@ -1486,9 +1486,9 @@ std::shared_ptr<ngraph::Node> V10Parser::LayerCreator<ngraph::op::Constant>::cre
 
     char* data = weights->cbuffer().as<char*>() + offset;
 
-    using PreallocatedBuffer = ngraph::runtime::PreallocatedBuffer<const Blob::CPtr>;
+    using SharedBuffer = ngraph::runtime::SharedBuffer<const Blob::CPtr>;
 
-    auto buffer = std::make_shared<PreallocatedBuffer>(data, size, weights);
+    auto buffer = std::make_shared<SharedBuffer>(data, size, weights);
     auto constant = std::make_shared<ngraph::op::Constant>(port.precision, shape, buffer);
 
     return constant;

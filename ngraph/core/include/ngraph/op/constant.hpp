@@ -23,6 +23,7 @@
 #include "ngraph/coordinate_diff.hpp"
 #include "ngraph/node.hpp"
 #include "ngraph/runtime/aligned_buffer.hpp"
+#include "ngraph/runtime/shared_buffer.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
 #include "ngraph/type/element_type.hpp"
 #include "ngraph/type/element_type_traits.hpp"
@@ -237,11 +238,11 @@ namespace ngraph
                 ///
                 /// \param type The element type of the tensor constant.
                 /// \param shape The shape of the tensor constant.
-                /// \param data A pointer to pre-allocated data.
+                /// \param data A pointer to pre-allocated shared data.
                 template <typename T>
                 Constant(const element::Type& type,
                          const Shape& shape,
-                         std::shared_ptr<runtime::PreallocatedBuffer<T>> data)
+                         std::shared_ptr<runtime::SharedBuffer<T>> data)
                     : Constant(type, shape)
                 {
                     m_data = data;
