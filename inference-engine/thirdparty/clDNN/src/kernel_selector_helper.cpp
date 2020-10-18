@@ -693,6 +693,8 @@ kernel_selector::activation_function get_kernel_selector_activation_param(activa
             return kernel_selector::activation_function::SOFTSIGN;
         case cldnn::activation_func::hard_sigmoid:
             return kernel_selector::activation_function::HARD_SIGMOID;
+        case cldnn::activation_func::hsigmoid:
+            return kernel_selector::activation_function::HSIGMOID;
         case cldnn::activation_func::swish:
             return kernel_selector::activation_function::SWISH;
         case cldnn::activation_func::hswish:

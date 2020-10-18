@@ -195,6 +195,7 @@ public:
         Ceiling,
         Erf,
         HardSigmoid,
+        HSigmoid,
         Log,
         Neg,
         Reciprocal,

@@ -145,6 +145,7 @@ enum class ActivationFunction {
     POW,
     ERF,
     HARD_SIGMOID,
+    HSIGMOID,
     RECIPROCAL,
     SELU,
     SIGN,

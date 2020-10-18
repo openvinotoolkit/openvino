@@ -71,6 +71,7 @@ static std::map<ngraph::helpers::ActivationTypes, std::string> activationNames =
         {ngraph::helpers::ActivationTypes::HSwish,      "HSwish"},
         {ngraph::helpers::ActivationTypes::SoftPlus,    "SoftPlus"},
         {ngraph::helpers::ActivationTypes::Swish,       "Swish"},
+        {ngraph::helpers::ActivationTypes::HSigmoid,    "HSigmoid"},
 };
 
 typedef std::tuple<

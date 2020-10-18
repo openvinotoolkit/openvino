@@ -44,7 +44,8 @@ const std::map<ActivationTypes, std::vector<std::vector<float>>> activationTypes
         {Ceiling,     {}},
         {Mish,        {}},
         {HSwish,      {}},
-        {SoftPlus,    {}}
+        {SoftPlus,    {}},
+        {HSigmoid,    {}}
 };
 
 std::map<std::vector<size_t>, std::vector<std::vector<size_t>>> basic = {
