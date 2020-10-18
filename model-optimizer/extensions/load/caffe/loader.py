@@ -65,7 +65,6 @@ class CaffeExtractor(Loader):
             argv.disable_omitting_optional if hasattr(argv, 'disable_omitting_optional') else False,
             argv.disable_flattening_optional_params if hasattr(argv, 'disable_flattening_optional_params') else False
         )
-        update_extractors_with_extensions(caffe_type_extractors)
 
         custom_layers_map = custom_layers_mapping.load_layers_xml(argv.k)
         custom_layers_mapping.update_extractors(

@@ -18,7 +18,6 @@ import ast
 import logging as log
 import os
 import re
-import sys
 from collections import OrderedDict
 from itertools import zip_longest
 
@@ -445,8 +444,8 @@ def get_caffe_cli_parser(parser: argparse.ArgumentParser = None):
     caffe_group.add_argument('-k',
                              help='Path to CustomLayersMapping.xml to register custom layers',
                              type=str,
-                             default=os.path.join(os.path.dirname(sys.argv[0]), 'extensions', 'front', 'caffe',
-                                                  'CustomLayersMapping.xml'),
+                             default=os.path.join(os.path.dirname(__file__), os.path.pardir, os.path.pardir,
+                                                  'extensions', 'front', 'caffe', 'CustomLayersMapping.xml'),
                              action=CanonicalizePathCheckExistenceAction)
     caffe_group.add_argument('--mean_file', '-mf',
                              help='Mean image to be used for the input. Should be a binaryproto file',

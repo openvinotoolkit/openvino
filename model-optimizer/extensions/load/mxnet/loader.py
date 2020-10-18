@@ -55,7 +55,6 @@ class MxNetLoader(Loader):
         if argv.nd_prefix_name and argv.pretrained_model_name and argv.save_params_from_nd:
             save_params_file(model_name, model_params._arg_params, model_params._aux_params, iteration_number)
 
-        update_extractors_with_extensions(mxnet_op_extractors)
         symbol2nx(graph, model_nodes, model_params, argv.input)
         graph.check_empty_graph('symbol2nx. It may happen due to problems with loaded model')
 
