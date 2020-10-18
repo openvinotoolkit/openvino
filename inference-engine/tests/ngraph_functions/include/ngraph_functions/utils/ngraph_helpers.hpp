@@ -111,7 +111,8 @@ enum ActivationTypes {
     Mish,
     HSwish,
     SoftPlus,
-    Swish
+    Swish,
+    HSigmoid
 };
 
 enum EltwiseTypes {
