@@ -16,7 +16,7 @@ typedef std::tuple<
     InferenceEngine::Precision,
     InferenceEngine::SizeVector,
     std::string,
-    InferenceEngine::details::LayerTransformation::Params,
+    ngraph::pass::low_precision::LayerTransformation::Params,
     ngraph::builder::subgraph::FakeQuantizeOnData> FakeQuantizeTransformationParams;
 
 class FakeQuantizeTransformation :

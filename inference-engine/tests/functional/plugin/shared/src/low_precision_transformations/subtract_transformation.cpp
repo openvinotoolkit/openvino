@@ -20,7 +20,7 @@ std::string SubtractTransformation::getTestCaseName(testing::TestParamInfo<Layer
     InferenceEngine::Precision netPrecision;
     InferenceEngine::SizeVector inputShapes;
     std::string targetDevice;
-    InferenceEngine::details::LayerTransformation::Params params;
+    ngraph::pass::low_precision::LayerTransformation::Params params;
     std::tie(netPrecision, inputShapes, targetDevice, params) = obj.param;
 
     return getTestCaseNameByParams(netPrecision, inputShapes, targetDevice, params);
@@ -29,7 +29,7 @@ std::string SubtractTransformation::getTestCaseName(testing::TestParamInfo<Layer
 void SubtractTransformation::SetUp() {
     InferenceEngine::SizeVector inputShape;
     InferenceEngine::Precision netPrecision;
-    InferenceEngine::details::LayerTransformation::Params params;
+    ngraph::pass::low_precision::LayerTransformation::Params params;
     std::tie(netPrecision, inputShape, targetDevice, params) = this->GetParam();
     const auto precision = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
 

@@ -8,7 +8,7 @@
 #include "common_test_utils/test_constants.hpp"
 
 using namespace LayerTestsDefinitions;
-using namespace InferenceEngine::details;
+using namespace ngraph::pass::low_precision;
 
 namespace {
     const std::vector<InferenceEngine::Precision> precisions = {
@@ -16,7 +16,7 @@ namespace {
     };
 
 
-    const std::vector<InferenceEngine::details::LayerTransformation::Params> trasformationParamValues = {
+    const std::vector<LayerTransformation::Params> trasformationParamValues = {
         LayerTestsUtils::LayerTransformationParamsFactory::createParamsU8I8(),
         LayerTestsUtils::LayerTransformationParamsFactory::createParamsI8I8().setUpdatePrecisions(false),
         LayerTestsUtils::LayerTransformationParamsFactory::createParamsI8I8().setUpdatePrecisions(true),

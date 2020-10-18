@@ -24,7 +24,7 @@ std::string stringifySqueezeArgs(const std::vector<float>& axes);
 typedef std::tuple<
     InferenceEngine::Precision,
     std::string,
-    InferenceEngine::details::LayerTransformation::Params,
+    ngraph::pass::low_precision::LayerTransformation::Params,
     SqueezeTransformationParam
 > SqueezeTransformationParams;
 

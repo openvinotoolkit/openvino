@@ -10,8 +10,6 @@
 #include <string>
 #include <ie_core.hpp>
 
-#include "low_precision_transformations/concat.hpp"
-
 #include <transformations/init_node_info.hpp>
 #include "ngraph_functions/builders.hpp"
 #include "ngraph_functions/low_precision_transformations/concat_function.hpp"

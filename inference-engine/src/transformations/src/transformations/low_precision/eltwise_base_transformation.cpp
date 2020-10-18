@@ -14,7 +14,7 @@ using namespace ngraph;
 using namespace ngraph::pass;
 using namespace ngraph::pass::low_precision;
 
-bool isBroadcasted(const Shape& shape) noexcept {
+bool EltwiseBaseTransformation::isBroadcasted(const Shape& shape) noexcept {
     const size_t spatialIndex = shape.size() == 1 ? 0ul : (shape.size() == 2ul ? 1ul : 2ul);
     for (size_t i = spatialIndex; i < shape.size(); ++i) {
         if (shape[i] != 1ul) {

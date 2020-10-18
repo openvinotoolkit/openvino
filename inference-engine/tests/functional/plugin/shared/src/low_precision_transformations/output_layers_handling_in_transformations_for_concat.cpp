@@ -25,7 +25,7 @@ std::string OutputLayersHandlingInTransformationsForConcat::getTestCaseName(test
     InferenceEngine::Precision netPrecision;
     InferenceEngine::SizeVector inputShapes;
     std::string targetDevice;
-    InferenceEngine::details::LayerTransformation::Params params;
+    ngraph::pass::low_precision::LayerTransformation::Params params;
     std::tie(netPrecision, inputShapes, targetDevice, params) = obj.param;
 
     return getTestCaseNameByParams(netPrecision, inputShapes, targetDevice, params);
@@ -35,7 +35,7 @@ InferenceEngine::Blob::Ptr OutputLayersHandlingInTransformationsForConcat::Gener
     InferenceEngine::SizeVector inputShape;
     InferenceEngine::Precision netPrecision;
     std::string targetDevice;
-    InferenceEngine::details::LayerTransformation::Params params;
+    ngraph::pass::low_precision::LayerTransformation::Params params;
     std::tie(netPrecision, inputShape, targetDevice, params) = this->GetParam();
 
     if ((info.name() != "input1") && (info.name() != "input2")) {
@@ -66,7 +66,7 @@ InferenceEngine::Blob::Ptr OutputLayersHandlingInTransformationsForConcat::Gener
 void OutputLayersHandlingInTransformationsForConcat::SetUp() {
     InferenceEngine::SizeVector inputShape1;
     InferenceEngine::Precision netPrecision;
-    InferenceEngine::details::LayerTransformation::Params params;
+    ngraph::pass::low_precision::LayerTransformation::Params params;
     std::tie(netPrecision, inputShape1, targetDevice, params) = this->GetParam();
 
     auto ngPrecision = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);

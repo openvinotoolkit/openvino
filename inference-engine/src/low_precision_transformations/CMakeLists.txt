@@ -2,6 +2,11 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
+if (NOT USE_CNNNETWORK_LPT)
+    add_library("inference_engine_lp_transformations" ALIAS "inference_engine_transformations")
+    return()
+endif()
+
 set (TARGET_NAME "inference_engine_lp_transformations")
 
 set(PUBLIC_HEADERS_DIR "${CMAKE_CURRENT_SOURCE_DIR}/include")
@@ -49,3 +54,5 @@ install(TARGETS ${TARGET_NAME}
         RUNTIME DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT core
         ARCHIVE DESTINATION ${IE_CPACK_ARCHIVE_PATH} COMPONENT core
         LIBRARY DESTINATION ${IE_CPACK_LIBRARY_PATH} COMPONENT core)
+
+target_compile_definitions(${TARGET_NAME} PUBLIC USE_CNNNETWORK_LPT)

@@ -31,7 +31,7 @@ inline std::ostream& operator<<(std::ostream& os, const std::vector<float>& valu
 
 InferenceEngine::Blob::Ptr UnsqueezeTransformation::GenerateInput(const InferenceEngine::InputInfo &info) const {
     InferenceEngine::Precision netPrecision;
-    InferenceEngine::details::LayerTransformation::Params params;
+    ngraph::pass::low_precision::LayerTransformation::Params params;
     UnsqueezeTransformationParam squeezeParam;
     std::string targetDevice;
 
@@ -48,7 +48,7 @@ InferenceEngine::Blob::Ptr UnsqueezeTransformation::GenerateInput(const Inferenc
 
 std::string UnsqueezeTransformation::getTestCaseName(testing::TestParamInfo<UnsqueezeTransformationParams> obj) {
     InferenceEngine::Precision netPrecision;
-    InferenceEngine::details::LayerTransformation::Params params;
+    ngraph::pass::low_precision::LayerTransformation::Params params;
     std::string targetDevice;
     UnsqueezeTransformationParam unsqueezeParam;
     std::tie(netPrecision, targetDevice, params, unsqueezeParam) = obj.param;
@@ -64,7 +64,7 @@ std::string UnsqueezeTransformation::getTestCaseName(testing::TestParamInfo<Unsq
 }
 void UnsqueezeTransformation::SetUp() {
     InferenceEngine::Precision netPrecision;
-    InferenceEngine::details::LayerTransformation::Params params;
+    ngraph::pass::low_precision::LayerTransformation::Params params;
     UnsqueezeTransformationParam unsqueezeParam;
 
     std::tie(netPrecision, targetDevice, params, unsqueezeParam) = this->GetParam();

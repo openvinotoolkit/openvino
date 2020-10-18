@@ -21,8 +21,8 @@
 
 namespace LayerTestsDefinitions {
 
-std::pair<float, float> outputLayersHandlingInTransformationsForConcatMultiChannelGetInterval(const std::vector<InferenceEngine::Precision>& precisions) {
-    const bool unsignedInterval = std::find(precisions.begin(), precisions.end(), InferenceEngine::Precision::U8) != precisions.end();
+std::pair<float, float> outputLayersHandlingInTransformationsForConcatMultiChannelGetInterval(const std::vector<ngraph::element::Type>& precisions) {
+    const bool unsignedInterval = std::find(precisions.begin(), precisions.end(), ngraph::element::u8) != precisions.end();
     const float low = unsignedInterval ? 0.f : -128.f;
     const float hight = unsignedInterval ? 255.f : 127.f;
     return std::make_pair(low, hight);
@@ -33,7 +33,7 @@ std::string OutputLayersHandlingInTransformationsForConcatMultiChannel::getTestC
     InferenceEngine::Precision netPrecision;
     InferenceEngine::SizeVector inputShapes;
     std::string targetDevice;
-    InferenceEngine::details::LayerTransformation::Params params;
+    ngraph::pass::low_precision::LayerTransformation::Params params;
     std::tie(netPrecision, inputShapes, targetDevice, params) = obj.param;
 
     return getTestCaseNameByParams(netPrecision, inputShapes, targetDevice, params);
@@ -43,7 +43,7 @@ InferenceEngine::Blob::Ptr OutputLayersHandlingInTransformationsForConcatMultiCh
     InferenceEngine::SizeVector inputShape;
     InferenceEngine::Precision netPrecision;
     std::string targetDevice;
-    InferenceEngine::details::LayerTransformation::Params params;
+    ngraph::pass::low_precision::LayerTransformation::Params params;
     std::tie(netPrecision, inputShape, targetDevice, params) = this->GetParam();
 
     if ((info.name() != "input1") && (info.name() != "input2")) {
@@ -78,7 +78,7 @@ void OutputLayersHandlingInTransformationsForConcatMultiChannel::SetUp() {
 
     InferenceEngine::SizeVector inputShape1;
     InferenceEngine::Precision netPrecision;
-    InferenceEngine::details::LayerTransformation::Params params;
+    ngraph::pass::low_precision::LayerTransformation::Params params;
     std::tie(netPrecision, inputShape1, targetDevice, params) = this->GetParam();
 
     auto ngPrecision = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);

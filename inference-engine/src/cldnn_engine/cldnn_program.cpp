@@ -88,9 +88,11 @@
 #include <sys/stat.h>
 #include <exec_graph_info.hpp>
 
+#ifdef USE_CNNNETWORK_LPT
 #include "low_precision_transformations/transformer.hpp"
 #include "low_precision_transformations/fully_connected.hpp"
 #include "low_precision_transformations/gemm.hpp"
+#endif
 
 #include <iostream>
 #include <iomanip>

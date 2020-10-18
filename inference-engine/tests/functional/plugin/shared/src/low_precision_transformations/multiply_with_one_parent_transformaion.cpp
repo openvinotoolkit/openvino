@@ -33,7 +33,7 @@ void MultiplyWithOneParentTransformation::SetUp() {
 
     InferenceEngine::Precision netPrecision;
     InferenceEngine::SizeVector inputShape;
-    InferenceEngine::details::LayerTransformation::Params params;
+    ngraph::pass::low_precision::LayerTransformation::Params params;
     MultiplyWithOneParentTransformationValues values;
     std::tie(netPrecision, inputShape, targetDevice, values) = this->GetParam();
     auto precision = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);

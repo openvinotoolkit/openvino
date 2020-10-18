@@ -52,7 +52,7 @@ typedef std::tuple<
     InferenceEngine::Precision,
     InferenceEngine::SizeVector,
     std::string,
-    InferenceEngine::details::LayerTransformation::Params,
+    ngraph::pass::low_precision::LayerTransformation::Params,
     FakeQuantizePrecisionSelectionTransformationTestValues> FakeQuantizeTransformationParams;
 
 class FakeQuantizePrecisionSelectionTransformation :

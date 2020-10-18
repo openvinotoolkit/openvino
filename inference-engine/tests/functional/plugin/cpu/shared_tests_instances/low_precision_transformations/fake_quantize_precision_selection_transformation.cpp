@@ -9,7 +9,7 @@
 #include "ngraph_functions/low_precision_transformations/fake_quantize_function.hpp"
 
 using namespace LayerTestsDefinitions;
-using namespace InferenceEngine::details;
+using namespace ngraph::pass::low_precision;
 
 namespace {
 const std::vector<InferenceEngine::Precision> netPrecisions = {

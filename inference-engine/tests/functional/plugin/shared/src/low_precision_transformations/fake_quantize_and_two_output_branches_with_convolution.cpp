@@ -27,7 +27,7 @@ std::string FakeQuantizeAndTwoOutputBranchesWithConvolutionTransformation::getTe
     InferenceEngine::Precision netPrecision;
     InferenceEngine::SizeVector inputShapes;
     std::string targetDevice;
-    InferenceEngine::details::LayerTransformation::Params params;
+    ngraph::pass::low_precision::LayerTransformation::Params params;
     ngraph::builder::subgraph::FakeQuantizeAndTwoOutputBranchesWithConvolutionFunction::ActualValues testValues;
     std::tie(netPrecision, inputShapes, targetDevice, params, testValues) = obj.param;
 
@@ -41,7 +41,7 @@ void FakeQuantizeAndTwoOutputBranchesWithConvolutionTransformation::SetUp() {
 
     InferenceEngine::Precision netPrecision;
     InferenceEngine::SizeVector inputShape;
-    InferenceEngine::details::LayerTransformation::Params params;
+    ngraph::pass::low_precision::LayerTransformation::Params params;
     ngraph::builder::subgraph::FakeQuantizeAndTwoOutputBranchesWithConvolutionFunction::ActualValues testValues;
     std::tie(netPrecision, inputShape, targetDevice, params, testValues) = this->GetParam();
     auto precision = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);

@@ -18,6 +18,7 @@ public:
     bool canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> layer) const override;
     bool isPrecisionPreserved(std::shared_ptr<Node> layer) const noexcept override;
 
+    static bool isBroadcasted(const Shape& shape) noexcept;
 protected:
     int getNotEmpty(const std::shared_ptr<Node>& eltwise) const;
     std::pair<int, int> getMultiplyConstBranch(const std::shared_ptr<Node>& eltwise) const;

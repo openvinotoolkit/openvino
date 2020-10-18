@@ -39,23 +39,10 @@
 #include "functional_test_utils/layer_test_utils.hpp"
 #include "functional_test_utils/low_precision_transformations/layer_transformation.hpp"
 
-#include "low_precision_transformations/convolution.hpp"
-#include "low_precision_transformations/scaleshift_to_convolution.hpp"
-
 #include <transformations/low_precision/transformer.hpp>
 #include <transformations/low_precision/convolution.hpp>
 
 namespace LayerTestsUtils {
-
-InferenceEngine::details::LowPrecisionTransformations LayerTransformation::getLowPrecisionTransformations(
-    const InferenceEngine::details::LayerTransformation::Params& params) const {
-    return InferenceEngine::details::LowPrecisionTransformer::getAllTransformations(params).
-        add<InferenceEngine::details::ConvolutionTransformation>(InferenceEngine::details::LayerTransformation::Params(params).
-            setPrecisionsOnActivations({ InferenceEngine::Precision::U8 }), "Convolution").
-        addCleanup<InferenceEngine::details::ScaleShiftToConvolutionTransformation>(
-            InferenceEngine::details::LayerTransformation::Params(params).setPrecisionsOnActivations({ InferenceEngine::Precision::U8 }),
-            "ScaleShift");
-}
 
 ngraph::pass::low_precision::LowPrecisionTransformations LayerTransformation::getLowPrecisionTransformationsNGraph(
     const ngraph::pass::low_precision::LayerTransformation::Params& params) const {
@@ -171,35 +158,6 @@ InferenceEngine::Precision LayerTransformation::getDeviceInternalPrecision(const
     }
 
     return precision;
-}
-
-InferenceEngine::CNNNetwork LayerTransformation::transform(const InferenceEngine::details::LowPrecisionTransformations& transformations) {
-    // convert to old representation
-    InferenceEngine::CNNNetwork ngraphNetwork(function);
-    auto cnnNetworkImp = std::make_shared<InferenceEngine::details::CNNNetworkImpl>(ngraphNetwork);
-
-    InferenceEngine::NetPass::ConvertPrecision(*cnnNetworkImp, InferenceEngine::Precision::I64, InferenceEngine::Precision::I32);
-    InferenceEngine::NetPass::ConvertPrecision(*cnnNetworkImp, InferenceEngine::Precision::U64, InferenceEngine::Precision::I32);
-    InferenceEngine::NetPass::ConvertPrecision(*cnnNetworkImp, InferenceEngine::Precision::U32, InferenceEngine::Precision::I32);
-    InferenceEngine::NetPass::ConvertPrecision(*cnnNetworkImp, InferenceEngine::Precision::FP16, InferenceEngine::Precision::FP32);
-    InferenceEngine::NetPass::ConvertPrecision(*cnnNetworkImp, InferenceEngine::Precision::BOOL, InferenceEngine::Precision::U8);
-
-    InferenceEngine::details::LowPrecisionTransformer transformer(transformations);
-    transformer.transform(*cnnNetworkImp);
-
-    return InferenceEngine::CNNNetwork(cnnNetworkImp);
-}
-
-InferenceEngine::details::LayerTransformation::Params LayerTransformationParamsFactory::createParams() {
-    return InferenceEngine::details::LayerTransformation::Params(
-        true,
-        true,
-        true,
-        InferenceEngine::details::LayerTransformation::QuantizedTensorAlignment::UpdateLevel,
-        InferenceEngine::details::LayerTransformation::QuantizedTensorAlignment::None,
-        true,
-        true,
-        true);
 }
 
 ngraph::pass::low_precision::LayerTransformation::Params LayerTransformationParamsNGraphFactory::createParams() {

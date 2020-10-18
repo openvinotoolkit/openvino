@@ -19,7 +19,7 @@ std::string FakeQuantizePrecisionSelectionTransformation::getTestCaseName(testin
     InferenceEngine::Precision netPrecision;
     InferenceEngine::SizeVector inputShapes;
     std::string targetDevice;
-    InferenceEngine::details::LayerTransformation::Params params;
+    ngraph::pass::low_precision::LayerTransformation::Params params;
     FakeQuantizePrecisionSelectionTransformationTestValues testValues;
     std::tie(netPrecision, inputShapes, targetDevice, params, testValues) = obj.param;
 
@@ -31,7 +31,7 @@ std::string FakeQuantizePrecisionSelectionTransformation::getTestCaseName(testin
 void FakeQuantizePrecisionSelectionTransformation::SetUp() {
     InferenceEngine::SizeVector inputShape;
     InferenceEngine::Precision netPrecision;
-    InferenceEngine::details::LayerTransformation::Params params;
+    ngraph::pass::low_precision::LayerTransformation::Params params;
     FakeQuantizePrecisionSelectionTransformationTestValues testValues;
     std::tie(netPrecision, inputShape, targetDevice, params, testValues) = this->GetParam();
 

@@ -25,7 +25,7 @@ std::string PermuteTransformation::getTestCaseName(testing::TestParamInfo<Permut
     InferenceEngine::Precision netPrecision;
     InferenceEngine::SizeVector inputShapes;
     std::string targetDevice;
-    InferenceEngine::details::LayerTransformation::Params params;
+    ngraph::pass::low_precision::LayerTransformation::Params params;
     bool perTensor;
     bool transposeChannelDim;
     std::tie(netPrecision, inputShapes, targetDevice, params, perTensor, transposeChannelDim) = obj.param;
@@ -40,7 +40,7 @@ std::string PermuteTransformation::getTestCaseName(testing::TestParamInfo<Permut
 void PermuteTransformation::SetUp() {
     InferenceEngine::SizeVector inputShape;
     InferenceEngine::Precision netPrecision;
-    InferenceEngine::details::LayerTransformation::Params params;
+    ngraph::pass::low_precision::LayerTransformation::Params params;
     bool perTensor;
     bool transposeChannelDim;
     std::tie(netPrecision, inputShape, targetDevice, params, perTensor, transposeChannelDim) = this->GetParam();

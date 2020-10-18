@@ -24,7 +24,7 @@ std::string GemmTransformation::getTestCaseName(testing::TestParamInfo<LayerTest
     InferenceEngine::Precision netPrecision;
     InferenceEngine::SizeVector inputShapes;
     std::string targetDevice;
-    InferenceEngine::details::LayerTransformation::Params params;
+    ngraph::pass::low_precision::LayerTransformation::Params params;
     std::tie(netPrecision, inputShapes, targetDevice, params) = obj.param;
 
     return getTestCaseNameByParams(netPrecision, inputShapes, targetDevice, params);
@@ -33,13 +33,13 @@ std::string GemmTransformation::getTestCaseName(testing::TestParamInfo<LayerTest
 void GemmTransformation::SetUp() {
     InferenceEngine::SizeVector inputShape;
     InferenceEngine::Precision netPrecision;
-    InferenceEngine::details::LayerTransformation::Params params;
+    ngraph::pass::low_precision::LayerTransformation::Params params;
     std::tie(netPrecision, inputShape, targetDevice, params) = this->GetParam();
 
     auto ngPrecision = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
 
-    const float low = params.precisionsOnActivations[0] == InferenceEngine::Precision::U8 ? 0.f : -128.f;
-    const float high = params.precisionsOnActivations[0] == InferenceEngine::Precision::U8 ? 255.f : 127.f;
+    const float low = params.precisionsOnActivations[0] == ngraph::element::u8 ? 0.f : -128.f;
+    const float high = params.precisionsOnActivations[0] == ngraph::element::u8 ? 255.f : 127.f;
 
     const auto input1 = std::make_shared<ngraph::opset1::Parameter>(ngPrecision, ngraph::Shape(inputShape));
     const auto fakeQuantize1 = ngraph::builder::makeFakeQuantize(

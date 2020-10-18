@@ -3,50 +3,50 @@
 //
 
 #include <gtest/gtest.h>
-#include "low_precision_transformations/transformer.hpp"
+#include "transformations/low_precision/transformer.hpp"
 
 using namespace ::testing;
-using namespace InferenceEngine;
-using namespace InferenceEngine::details;
+using namespace ngraph::pass::low_precision;
 
 class LowPrecisionTransformationsTests : public Test {};
 
 TEST_F(LowPrecisionTransformationsTests, remove) {
     LowPrecisionTransformations transformations = LowPrecisionTransformer::getAllTransformations(LayerTransformation::Params());
-    LayerTransformationPtr transformation = transformations.find("ScaleShift");
-    ASSERT_NE(nullptr, transformation);
+    auto transformation = transformations.find("Convolution");
+    ASSERT_NE(0, transformation.size());
 
-    transformations.remove("ScaleShift");
-    transformation = transformations.find("ScaleShift");
-    ASSERT_EQ(nullptr, transformation);
+    transformations.remove("Convolution");
+    transformation = transformations.find("Convolution");
+    ASSERT_EQ(0, transformation.size());
 }
 
 TEST_F(LowPrecisionTransformationsTests, removeBranchSpecificTransformations) {
     LowPrecisionTransformations transformations = LowPrecisionTransformer::getAllTransformations(LayerTransformation::Params());
-    LayerTransformationPtr transformation = transformations.find("Concat");
-    ASSERT_NE(nullptr, transformation);
+    auto transformation = transformations.find("Concat");
+    ASSERT_NE(0, transformation.size());
 
     transformations.removeBranchSpecificTransformations("Concat");
     transformation = transformations.find("Concat");
-    ASSERT_EQ(nullptr, transformation);
+    ASSERT_EQ(0, transformation.size());
 }
 
 TEST_F(LowPrecisionTransformationsTests, removeTransformations) {
     LowPrecisionTransformations transformations = LowPrecisionTransformer::getAllTransformations(LayerTransformation::Params());
-    LayerTransformationPtr transformation = transformations.find("FullyConnected");
-    ASSERT_NE(nullptr, transformation);
+    auto transformation = transformations.find("MatMul");
+    ASSERT_NE(0, transformation.size());
 
-    transformations.removeTransformations("FullyConnected");
-    transformation = transformations.find("FullyConnected");
-    ASSERT_EQ(nullptr, transformation);
+    transformations.removeTransformations("MatMul");
+    transformation = transformations.find("MatMul");
+    ASSERT_EQ(0, transformation.size());
 }
 
 TEST_F(LowPrecisionTransformationsTests, removeCleanupTransformations) {
     LowPrecisionTransformations transformations = LowPrecisionTransformer::getAllTransformations(LayerTransformation::Params());
-    LayerTransformationPtr transformation = transformations.find("ScaleShift");
-    ASSERT_NE(nullptr, transformation);
+    auto transformation = transformations.find("Multiply");
+    ASSERT_NE(0, transformation.size());
+    const size_t originalSize = transformation.size();
 
-    transformations.removeCleanupTransformations("ScaleShift");
-    transformation = transformations.find("ScaleShift");
-    ASSERT_EQ(nullptr, transformation);
+    transformations.removeCleanupTransformations("Multiply");
+    transformation = transformations.find("Multiply");
+    ASSERT_EQ(originalSize - 1, transformation.size());
 }

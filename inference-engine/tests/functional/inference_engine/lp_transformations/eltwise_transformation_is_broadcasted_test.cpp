@@ -3,46 +3,47 @@
 //
 
 #include <gtest/gtest.h>
-#include "low_precision_transformations/eltwise.hpp"
+#include "transformations/low_precision/eltwise_base_transformation.hpp"
 
 #include <ie_data.h>
 
 using namespace ::testing;
 using namespace std;
-using namespace InferenceEngine;
-using namespace InferenceEngine::details;
+
+using namespace ngraph;
+using namespace ngraph::pass::low_precision;
 
 class EltwiseTransformationIsBroadcastedTests : public ::testing::Test {
 protected:
-    const TensorDesc c1 = TensorDesc(Precision::FP32, { 1ul }, Layout::C);
-    const TensorDesc c1000 = TensorDesc(Precision::FP32, { 1000ul }, Layout::C);
-    const TensorDesc n1c1 = TensorDesc(Precision::FP32, { 1ul, 1ul }, Layout::NC);
-    const TensorDesc n1c256 = TensorDesc(Precision::FP32, { 1ul, 256ul }, Layout::NC);
-    const TensorDesc n1c1000h1w1 = TensorDesc(Precision::FP32, { 1ul, 1000ul, 1ul, 1ul }, Layout::NCHW);
-    const TensorDesc n1c32h144w144 = TensorDesc(Precision::FP32, { 1ul, 32ul, 144ul, 144ul }, Layout::NCHW);
+    const Shape c1 = Shape({ 1ul });
+    const Shape c1000 = Shape({ 1000ul });
+    const Shape n1c1 = Shape({ 1ul, 1ul });
+    const Shape n1c256 = Shape({ 1ul, 256ul });
+    const Shape n1c1000h1w1 = Shape({ 1ul, 1000ul, 1ul, 1ul });
+    const Shape n1c32h144w144 = Shape({ 1ul, 32ul, 144ul, 144ul });
 };
 
 TEST_F(EltwiseTransformationIsBroadcastedTests, c1) {
-    ASSERT_TRUE(EltwiseTransformation::isBroadcasted(c1));
+    ASSERT_TRUE(EltwiseBaseTransformation::isBroadcasted(c1));
 }
 
 TEST_F(EltwiseTransformationIsBroadcastedTests, c1000) {
-    ASSERT_FALSE(EltwiseTransformation::isBroadcasted(c1000));
+    ASSERT_FALSE(EltwiseBaseTransformation::isBroadcasted(c1000));
 }
 
 TEST_F(EltwiseTransformationIsBroadcastedTests, n1c1) {
-    ASSERT_TRUE(EltwiseTransformation::isBroadcasted(n1c1));
+    ASSERT_TRUE(EltwiseBaseTransformation::isBroadcasted(n1c1));
 }
 
 TEST_F(EltwiseTransformationIsBroadcastedTests, n1c256) {
-    ASSERT_FALSE(EltwiseTransformation::isBroadcasted(n1c256));
+    ASSERT_FALSE(EltwiseBaseTransformation::isBroadcasted(n1c256));
 }
 
 TEST_F(EltwiseTransformationIsBroadcastedTests, n1c1000h1w1) {
-    ASSERT_TRUE(EltwiseTransformation::isBroadcasted(n1c1000h1w1));
+    ASSERT_TRUE(EltwiseBaseTransformation::isBroadcasted(n1c1000h1w1));
 }
 
 TEST_F(EltwiseTransformationIsBroadcastedTests, n1c32h144w144) {
-    ASSERT_FALSE(EltwiseTransformation::isBroadcasted(n1c32h144w144));
+    ASSERT_FALSE(EltwiseBaseTransformation::isBroadcasted(n1c32h144w144));
 }
 

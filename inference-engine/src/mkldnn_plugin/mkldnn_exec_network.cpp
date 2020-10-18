@@ -16,11 +16,13 @@
 #include <legacy/ie_util_internal.hpp>
 #include <legacy/graph_tools.hpp>
 #include <threading/ie_executor_manager.hpp>
+
+#ifdef USE_CNNNETWORK_LPT
 #include "low_precision_transformations/convolution.hpp"
-#include "low_precision_transformations/eltwise.hpp"
-#include "low_precision_transformations/fully_connected.hpp"
 #include "low_precision_transformations/scaleshift_to_convolution.hpp"
 #include "low_precision_transformations/transformer.hpp"
+#endif
+
 #include <threading/ie_cpu_streams_executor.hpp>
 #include <ie_system_conf.h>
 #include <threading/ie_thread_affinity.hpp>

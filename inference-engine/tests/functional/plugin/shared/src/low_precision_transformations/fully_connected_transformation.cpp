@@ -16,7 +16,6 @@
 #include "functional_test_utils/layer_test_utils.hpp"
 #include "functional_test_utils/blob_utils.hpp"
 #include "ngraph_functions/pass/convert_prc.hpp"
-#include "low_precision_transformations/network_helper.hpp"
 #include "ngraph_functions/builders.hpp"
 
 namespace LayerTestsDefinitions {
