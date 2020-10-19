@@ -140,7 +140,6 @@ void FrontEnd::parseSplit(const Model& model, const ie::CNNLayerPtr& layer, cons
     const auto ieRevAxis = input->desc().numDims() - 1 - checked_cast<int>(split->_axis);
     const auto defPerm = DimsOrder::fromNumDims(input->desc().numDims()).toPermutation();
     const auto axis = defPerm.at(checked_cast<size_t>(ieRevAxis));
-
     _stageBuilder->addSplitStage(model, split->name, split, axis, input, outputs);
 }
 
@@ -153,14 +152,32 @@ Stage StageBuilder::addSplitStage(
         const DataVector& outputs) {
     std::vector<DimValues> offsets;
     offsets.reserve(outputs.size());
-
     DimValues curOffset({{axis, 0}});
-    for (const auto& output : outputs) {
+
+    auto numSplit = outputs.size();
+    auto inputAxisSize = input->desc().dim(axis);
+    std::vector<int> outAxisSizes {};
+    for (size_t i = 0; i < numSplit; ++i) {
+        const int begin = (i + 0) * inputAxisSize / numSplit;
+        const int end   = (i + 1) * inputAxisSize / numSplit;
+        const int outAxisSize = end - begin;
+        
+        outAxisSizes.push_back(outAxisSize);
+    }
+    
+    auto outputs_ = outputs;
+    auto it = outAxisSizes.begin();
+    for (int i = 0; i < outputs_.size() ; ++i) {
+        if (outputs_[i] == nullptr) {
+            curOffset.set(axis, curOffset[axis] + *it++);
+            outputs_.erase(outputs_.begin() + i--);
+            continue;
+        }
         offsets.emplace_back(curOffset);
-        curOffset.set(axis, curOffset[axis] + output->desc().dim(axis));
+        curOffset.set(axis, curOffset[axis] + *it++);
     }
 
-    auto stage = addSplitStage(model, name, layer, std::move(offsets), input, outputs);
+    auto stage = addSplitStage(model, name, layer, std::move(offsets), input, outputs_);
 
     stage->attrs().set("axis", axis);
 

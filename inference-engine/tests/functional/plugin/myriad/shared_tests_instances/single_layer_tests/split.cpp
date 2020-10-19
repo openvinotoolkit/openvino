@@ -16,7 +16,7 @@ const std::vector<InferenceEngine::Precision> netPrecisions = {
 
 INSTANTIATE_TEST_CASE_P(smoke_NumSplitsCheck, SplitLayerTest,
                         ::testing::Combine(
-                                ::testing::Values(1),
+                                ::testing::Values(3),
                                 // TODO: 0-axis excluded
                                 //  Check (status == ie::StatusCode::OK) failed: Failed to reshape Network:
                                 //  Failed to infer shapes for Split layer (Split_2) with error:
@@ -30,5 +30,24 @@ INSTANTIATE_TEST_CASE_P(smoke_NumSplitsCheck, SplitLayerTest,
                                 ::testing::Values(std::vector<size_t >({30, 30, 30, 30})),
                                 ::testing::Values(CommonTestUtils::DEVICE_MYRIAD)),
                         SplitLayerTest::getTestCaseName);
-
+                        
+INSTANTIATE_TEST_CASE_P(smoke_SplitWithDiffOutsCheck, splitWithDiffOutsTest,
+                        ::testing::Combine(
+                                ::testing::Values(5),
+                                // TODO: 0-axis excluded
+                                //  Check (status == ie::StatusCode::OK) failed: Failed to reshape Network:
+                                //  Failed to infer shapes for Split layer (Split_2) with error:
+                                //  The sum of the dimensions on the axis(0) is not equal out_sizes: [30]
+                                ::testing::Values(1, 2, 3),
+                                ::testing::ValuesIn(netPrecisions),
+                                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                ::testing::Values(InferenceEngine::Layout::ANY),
+                                ::testing::Values(InferenceEngine::Layout::ANY),
+                                ::testing::Values(std::vector<size_t >({30, 30, 30, 30})),
+                                ::testing::Values(std::vector<size_t >({0,2}),
+                                                  std::vector<size_t >({0,4}),
+                                                  std::vector<size_t >({2,3})),
+                                ::testing::Values(CommonTestUtils::DEVICE_MYRIAD)),
+                        splitWithDiffOutsTest::getTestCaseName);
 }  // namespace

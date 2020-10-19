@@ -35,4 +35,26 @@ protected:
     void SetUp() override;
 };
 
+typedef std::tuple<
+        size_t,                         // Num splits
+        size_t,                         // Axis
+        InferenceEngine::Precision,     // Net precision
+        InferenceEngine::Precision,     // Input precision
+        InferenceEngine::Precision,     // Output precision
+        InferenceEngine::Layout,        // Input layout
+        InferenceEngine::Layout,        // Output layout
+        std::vector<size_t>,            // Input shapes
+        std::vector<size_t>,             // Output vector
+        std::string                     // Target device name
+> splitWithDiffOutsParams;
+
+class splitWithDiffOutsTest : public testing::WithParamInterface<splitWithDiffOutsParams>,
+                       virtual public LayerTestsUtils::LayerTestsCommon {
+public:
+    static std::string getTestCaseName(testing::TestParamInfo<splitWithDiffOutsParams> obj);
+
+protected:
+    void SetUp() override;
+};
+
 }  // namespace LayerTestsDefinitions
