@@ -66,7 +66,7 @@ jobs:
   - script: echo Stop IncrediBuild_Agent && net stop IncrediBuild_Agent
     displayName: Stop IncrediBuild
     continueOnError: true
-  - script: dir $(REPO_DIR)\bin\ /s /b
+  - script: dir $(REPO_DIR)\bin\ /s /n
     displayName: 'List files'
   - script: |
       set PATH=$(REPO_DIR)\inference-engine\temp\tbb\bin;%PATH%
