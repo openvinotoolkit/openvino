@@ -24,6 +24,8 @@ struct NMSAttributes {
     bool is_supported_nms;
 };
 
+using namespace ngraph;
+
 namespace {
     std::shared_ptr<ngraph::opset4::NonMaxSuppression> nms4_pattern() {
         auto boxes = std::make_shared<pattern::op::Label>(element::f32, Shape{1, 1000, 4});
