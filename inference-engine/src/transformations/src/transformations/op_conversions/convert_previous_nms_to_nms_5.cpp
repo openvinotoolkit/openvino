@@ -15,10 +15,8 @@
 #include <ngraph/rt_info.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 
-namespace
-{
-    std::shared_ptr<ngraph::opset4::NonMaxSuppression> nms4_pattern()
-    {
+namespace {
+    std::shared_ptr<ngraph::opset4::NonMaxSuppression> nms4_pattern() {
         auto boxes = std::make_shared<pattern::op::Label>(element::f32, Shape{1, 1000, 4});
         auto scores = std::make_shared<pattern::op::Label>(element::f32, Shape{1, 1, 1000});
         auto max_output_boxes_per_class = ngraph::opset4::Constant::create(element::i64, Shape{}, {10});
@@ -29,8 +27,7 @@ namespace
         return nms;
     }
 
-    std::shared_ptr<ngraph::opset3::NonMaxSuppression> nms3_pattern()
-    {
+    std::shared_ptr<ngraph::opset3::NonMaxSuppression> nms3_pattern() {
         auto boxes = std::make_shared<pattern::op::Label>(element::f32, Shape{1, 1000, 4});
         auto scores = std::make_shared<pattern::op::Label>(element::f32, Shape{1, 1, 1000});
         auto max_output_boxes_per_class = ngraph::opset3::Constant::create(element::i64, Shape{}, {10});
@@ -41,8 +38,7 @@ namespace
         return nms;
     }
 
-    std::shared_ptr<ngraph::opset1::NonMaxSuppression> nms1_pattern()
-    {
+    std::shared_ptr<ngraph::opset1::NonMaxSuppression> nms1_pattern() {
         auto boxes = std::make_shared<pattern::op::Label>(element::f32, Shape{1, 1000, 4});
         auto scores = std::make_shared<pattern::op::Label>(element::f32, Shape{1, 1, 1000});
         auto max_output_boxes_per_class = ngraph::opset1::Constant::create(element::i64, Shape{}, {10});
@@ -55,16 +51,14 @@ namespace
 
     using NMS5BoxEncoding = ngraph::opset5::NonMaxSuppression::BoxEncodingType;
 
-    struct NMSAttributes
-    {
+    struct NMSAttributes {
         ngraph::element::Type output_type;
         NMS5BoxEncoding box_encoding;
         bool sort_result_descending;
         bool is_supported_nms;
     };
 
-    NMSAttributes get_nms4_attrs(const std::shared_ptr<ngraph::opset4::NonMaxSuppression>& nms4)
-    {
+    NMSAttributes get_nms4_attrs(const std::shared_ptr<ngraph::opset4::NonMaxSuppression>& nms4) {
         NMSAttributes attrs;
 
         attrs.box_encoding = ::ngraph::opset5::NonMaxSuppression::BoxEncodingType::CORNER;
@@ -90,8 +84,7 @@ namespace
         return attrs;
     }
 
-    NMSAttributes get_nms3_attrs(const std::shared_ptr<ngraph::opset3::NonMaxSuppression>& nms3)
-    {
+    NMSAttributes get_nms3_attrs(const std::shared_ptr<ngraph::opset3::NonMaxSuppression>& nms3) {
         NMSAttributes attrs;
 
         attrs.box_encoding = ::ngraph::opset5::NonMaxSuppression::BoxEncodingType::CORNER;
@@ -117,8 +110,7 @@ namespace
         return attrs;
     }
 
-    NMSAttributes get_nms1_attrs(const std::shared_ptr<ngraph::opset1::NonMaxSuppression>& nms1)
-    {
+    NMSAttributes get_nms1_attrs(const std::shared_ptr<ngraph::opset1::NonMaxSuppression>& nms1) {
         NMSAttributes attrs;
 
         attrs.box_encoding = ::ngraph::opset5::NonMaxSuppression::BoxEncodingType::CORNER;
@@ -143,8 +135,7 @@ namespace
         return attrs;
     }
 
-    NMSAttributes get_nms_attrs(const std::shared_ptr<ngraph::Node>& root)
-    {
+    NMSAttributes get_nms_attrs(const std::shared_ptr<ngraph::Node>& root) {
         NMSAttributes attrs;
         attrs.output_type = ::ngraph::element::i64;
         attrs.box_encoding = ::ngraph::opset5::NonMaxSuppression::BoxEncodingType::CORNER;
@@ -167,8 +158,7 @@ namespace
         return attrs;
     }
 
-    bool callback_func(pattern::Matcher &m)
-    {
+    bool callback_func(pattern::Matcher &m) {
         auto root = m.get_match_root();
 
         auto attrs = get_nms_attrs(root);
@@ -220,7 +210,7 @@ namespace
         root->output(0).replace(nms_5->output(0));
         return true;
     }
-}
+} // namespace
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertPreviousNMSToNMS5, "ConvertPreviousNMSToNMS5", 0);
 
