@@ -8,10 +8,10 @@ import time
 import re
 import logging
 import requests
-from src.ms_teams_communicator import MSTeamsCommunicator
-from src.jenkins_wrapper import JenkinsWrapper
+from watchdog.src.ms_teams_communicator import MSTeamsCommunicator
+from watchdog.src.jenkins_wrapper import JenkinsWrapper
 from jenkins import NotFoundException
-from src.git_wrapper import GitWrapper, GitWrapperError
+from watchdog.src.git_wrapper import GitWrapper, GitWrapperError
 import os
 import json
 
