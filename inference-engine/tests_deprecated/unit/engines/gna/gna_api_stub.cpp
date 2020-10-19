@@ -71,8 +71,8 @@ GNA2_API Gna2Status Gna2DeviceClose(
 
 GNA2_API Gna2Status Gna2DeviceGetCount(
     uint32_t * numberOfDevices) {
-    if (current != nullptr) {
-        return current->Gna2DeviceGetCount(numberOfDevices);
+    if (numberOfDevices != nullptr) {
+        *numberOfDevices = 1;
     }
     return Gna2StatusSuccess;
 }
