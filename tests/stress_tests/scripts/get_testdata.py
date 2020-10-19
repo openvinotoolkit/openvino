@@ -191,7 +191,7 @@ def main():
     # prepare models
     cmd = '{downloader_path} --list {models_list_path}' \
           ' --num_attempts {num_attempts}' \
-          ' --precision={PRECISION}' \
+          ' --precisions={PRECISION}' \
           ' --output_dir {models_dir}' \
           ' --cache_dir {cache_dir}' \
           ' --jobs {jobs_num}'.format(downloader_path=downloader_path, models_list_path=models_list_path,
@@ -224,10 +224,10 @@ def main():
 
     # convert models to IRs
     converter_path = omz_path / "tools" / "downloader" / "converter.py"
-    # NOTE: remove --precision if both precisions (FP32 & FP16) required
+    # NOTE: remove --precisions if both precisions (FP32 & FP16) required
     cmd = '{executable} {converter_path} --list {models_list_path}' \
           ' -p {executable}' \
-          ' --precision={PRECISION}' \
+          ' --precisions={PRECISION}' \
           ' --output_dir {irs_dir}' \
           ' --download_dir {models_dir}' \
           ' --mo {mo_tool} --jobs {workers_num}'.format(executable=python_executable, PRECISION=PRECISION,
