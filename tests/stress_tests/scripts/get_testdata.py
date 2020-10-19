@@ -191,10 +191,11 @@ def main():
     # prepare models
     cmd = '{downloader_path} --list {models_list_path}' \
           ' --num_attempts {num_attempts}' \
+          ' --precision={PRECISION}' \
           ' --output_dir {models_dir}' \
           ' --cache_dir {cache_dir}' \
           ' --jobs {jobs_num}'.format(downloader_path=downloader_path, models_list_path=models_list_path,
-                                      num_attempts=OMZ_NUM_ATTEMPTS,
+                                      num_attempts=OMZ_NUM_ATTEMPTS, PRECISION=PRECISION,
                                       models_dir=args.omz_models_out_dir,
                                       cache_dir=args.omz_cache_dir,
                                       jobs_num=DOWNLOADER_JOBS_NUM)
