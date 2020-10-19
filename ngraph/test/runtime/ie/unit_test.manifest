@@ -443,7 +443,7 @@ tile_3d_small_data_rank
 tile_3d_few_repeats
 
 # Error of validate layer: MatMul_683292 with type: Gemm. Gemm input shapes must have at least 2 dimensions
-#matmul_2_2
+matmul_2_2
 
 # Result mismatch
 sum_large_1d_to_scalar
