@@ -45,23 +45,14 @@ bool DepthToSpaceKernelBlock2Opt::Validate(const Params& p, const optional_param
 }
 
 CommonDispatchData DepthToSpaceKernelBlock2Opt::SetDefault(const depth_to_space_params& params) const {
-    CommonDispatchData runInfo;
+    CommonDispatchData dispatchData;
 
-    std::vector<size_t> global = { Align(params.inputs[0].X().v / 2, 16),
-                                   params.inputs[0].Y().v,
-                                   1};
+    dispatchData.gws = { Align(params.inputs[0].X().v / 2, 16),
+                         params.inputs[0].Y().v,
+                         1 };
+    dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo);
 
-    auto local = GetOptimalLocalWorkGroupSizes(global, params.engineInfo);
-
-    runInfo.gws0 = global[0];
-    runInfo.gws1 = global[1];
-    runInfo.gws2 = global[2];
-
-    runInfo.lws0 = local[0];
-    runInfo.lws1 = local[1];
-    runInfo.lws2 = local[2];
-
-    return runInfo;
+    return dispatchData;
 }
 
 JitConstants DepthToSpaceKernelBlock2Opt::GetJitConstants(const depth_to_space_params& params) const {

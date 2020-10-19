@@ -65,7 +65,7 @@ public:
 
 protected:
     bool Validate(const Params& p, const optional_params& o) const override;
-    virtual JitConstants GetJitConstants(const activation_params& params, DispatchData kd) const;
+    virtual JitConstants GetJitConstants(const activation_params& params, DispatchData dispatchData) const;
     virtual DispatchData SetDefault(const activation_params& arg) const;
     KernelsData GetCommonKernelsData(const Params& params, const optional_params& options) const;
 };

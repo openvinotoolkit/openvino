@@ -1,5 +1,5 @@
 /*
-// Copyright (c) 2018 Intel Corporation
+// Copyright (c) 2018-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -39,9 +39,8 @@ ParamsKey LRNKernelWithinChannelByxfOpt::GetSupportedKey() const {
     return k;
 }
 
-JitConstants LRNKernelWithinChannelByxfOpt::GetJitConstants(
-    const lrn_params& params,
-    const LRNKernelBase::DispatchData& kd) const {
+JitConstants LRNKernelWithinChannelByxfOpt::GetJitConstants(const lrn_params& params,
+                                                            const LRNKernelBase::DispatchData& dispatchData) const {
     const uint32_t round_norm_size = (params.localSize / 2) * 2 + 1;
     uint32_t numElement = round_norm_size * round_norm_size;
     const auto& input_dt = params.inputs[0].GetDType();
@@ -52,7 +51,7 @@ JitConstants LRNKernelWithinChannelByxfOpt::GetJitConstants(
 
     const float num_element_div = 1.f / static_cast<float>(numElement);
 
-    JitConstants jit = Parent::GetJitConstants(params, kd);
+    JitConstants jit = Parent::GetJitConstants(params, dispatchData);
     jit.AddConstants({
         MakeJitConstant("NUM_ELEMENTS_DIV", num_element_div),
         MakeJitConstant("GWS_BATCH", 2),
@@ -70,22 +69,14 @@ JitConstants LRNKernelWithinChannelByxfOpt::GetJitConstants(
 
 LRNKernelWithinChannelByxfOpt::Parent::DispatchData LRNKernelWithinChannelByxfOpt::SetDefault(
     const lrn_params& params) const {
-    DispatchData kd = Parent::SetDefault(params);
+    DispatchData dispatchData = Parent::SetDefault(params);
 
     const auto& out = params.output;
 
-    std::vector<size_t> global = {out.X().v * out.Y().v, CeilDiv(out.Feature().v, 8), out.Batch().v};
-    auto local = GetOptimalLocalWorkGroupSizes(global, params.engineInfo);
+    dispatchData.gws = { out.X().v * out.Y().v, CeilDiv(out.Feature().v, 8), out.Batch().v };
+    dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo);
 
-    kd.gws0 = global[0];
-    kd.gws1 = global[1];
-    kd.gws2 = global[2];
-
-    kd.lws0 = local[0];
-    kd.lws1 = local[1];
-    kd.lws2 = local[2];
-
-    return kd;
+    return dispatchData;
 }
 
 bool LRNKernelWithinChannelByxfOpt::Validate(const Params& p, const optional_params& o) const {

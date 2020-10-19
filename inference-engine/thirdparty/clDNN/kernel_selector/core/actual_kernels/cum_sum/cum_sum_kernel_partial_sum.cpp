@@ -25,15 +25,15 @@ namespace kernel_selector {
 static constexpr size_t simd = 16;
 static constexpr size_t BLOCK_SIZE = 16;
 
-JitConstants CumSumKernelPartialSum::GetJitConstants(const cum_sum_params& params, DispatchData kd) const {
-    auto jits = CumSumKernelBase::GetJitConstants(params, kd);
+JitConstants CumSumKernelPartialSum::GetJitConstants(const cum_sum_params& params, DispatchData dispatchData) const {
+    auto jits = CumSumKernelBase::GetJitConstants(params, dispatchData);
 
     auto activation_dt = GetActivationType(params);
     jits.Merge(MakeTypeJitConstants(activation_dt, "PARTIAL"));
     jits.AddConstant(MakeJitConstant("SIMD", simd));
-    jits.AddConstant(MakeJitConstant("LWS", kd.lws0));
+    jits.AddConstant(MakeJitConstant("LWS", dispatchData.lws[0]));
     jits.AddConstant(MakeJitConstant("BLOCK_SIZE", BLOCK_SIZE));
-    jits.AddConstant(MakeJitConstant("SUM_ITEMS_NUM", kd.sum_items_num));
+    jits.AddConstant(MakeJitConstant("SUM_ITEMS_NUM", dispatchData.sum_items_num));
 
     return jits;
 }
@@ -48,15 +48,15 @@ KernelsData CumSumKernelPartialSum::GetMultiStageKernelsData(const Params& param
     KernelData kd = KernelData::Default<cum_sum_params>(params, kernels_num);
     const cum_sum_params& newParams = *static_cast<cum_sum_params*>(kd.params.get());
 
-    auto runInfo = SetDefaultForMulti(newParams);
+    auto dispatchData = SetDefaultForMulti(newParams);
     {
         // partial sum
-        auto cldnn_jit = GetJitConstants(newParams, runInfo.stage_1);
+        auto cldnn_jit = GetJitConstants(newParams, dispatchData.stage_1);
         cldnn_jit.AddConstant(MakeJitConstant("CUM_SUM_PARTIAL_SUM", 1));
         auto entry_point = GetEntryPoint(kernelName, newParams.layerID, options);
         auto jit = CreateJit(kernelName, cldnn_jit, entry_point);
         auto& kernel = kd.kernels[0];
-        FillCLKernelData(kernel, runInfo.stage_1, params.engineInfo, kernelName, jit, entry_point);
+        FillCLKernelData(kernel, dispatchData.stage_1, params.engineInfo, kernelName, jit, entry_point);
         kernel.arguments.clear();  // Clear original output argument
         kernel.arguments.push_back({ArgumentDescriptor::Types::INPUT, 0});
         kernel.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 0});
@@ -65,12 +65,12 @@ KernelsData CumSumKernelPartialSum::GetMultiStageKernelsData(const Params& param
     {
         // Final
         auto entry_point = GetEntryPoint(kernelName, newParams.layerID, options);
-        auto cldnn_jit = GetJitConstants(newParams, runInfo.stage_final);
+        auto cldnn_jit = GetJitConstants(newParams, dispatchData.stage_final);
         std::string jit = CreateJit(kernelName, cldnn_jit, entry_point);
 
         auto& kernel = kd.kernels[1];
 
-        FillCLKernelData(kernel, runInfo.stage_final, params.engineInfo, kernelName, jit, entry_point);
+        FillCLKernelData(kernel, dispatchData.stage_final, params.engineInfo, kernelName, jit, entry_point);
 
         kernel.arguments.clear();  // Clear original output argument
         kernel.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 0});
@@ -83,7 +83,7 @@ KernelsData CumSumKernelPartialSum::GetMultiStageKernelsData(const Params& param
 }
 
 CumSumKernelPartialSum::MultiDispatchData CumSumKernelPartialSum::SetDefaultForMulti(const cum_sum_params& params) const {
-    MultiDispatchData md;
+    MultiDispatchData dispatchData;
     std::vector<size_t> dims = {params.output.Batch().v,
                                 params.output.Feature().v,
                                 params.output.W().v,
@@ -108,23 +108,19 @@ CumSumKernelPartialSum::MultiDispatchData CumSumKernelPartialSum::SetDefaultForM
         }
     }
 
-    md.stage_1.gws0 = Align(gws[0], BLOCK_SIZE);
-    md.stage_1.gws1 = gws[1];
-    md.stage_1.gws2 = gws[2];
-    md.stage_1.lws0 = BLOCK_SIZE;
-    md.stage_1.lws1 = 1;
-    md.stage_1.lws2 = 1;
-    md.stage_1.sum_items_num = items_num;
+    dispatchData.stage_1.gws[0] = Align(gws[0], BLOCK_SIZE);
+    dispatchData.stage_1.gws[1] = gws[1];
+    dispatchData.stage_1.gws[2] = gws[2];
+    dispatchData.stage_1.lws[0] = BLOCK_SIZE;
+    dispatchData.stage_1.lws[1] = 1;
+    dispatchData.stage_1.lws[2] = 1;
+    dispatchData.stage_1.sum_items_num = items_num;
 
-    md.stage_final.gws0 = gws[0];
-    md.stage_final.gws1 = gws[1];
-    md.stage_final.gws2 = gws[2];
-    md.stage_final.lws0 = 1;
-    md.stage_final.lws1 = 1;
-    md.stage_final.lws2 = 1;
-    md.stage_final.sum_items_num = Align(items_num, BLOCK_SIZE);
+    dispatchData.stage_final.gws = gws;
+    dispatchData.stage_final.lws = { 1, 1, 1 };
+    dispatchData.stage_final.sum_items_num = Align(items_num, BLOCK_SIZE);
 
-    return md;
+    return dispatchData;
 }
 
 KernelsData CumSumKernelPartialSum::GetKernelsData(const Params& params, const optional_params& options) const {

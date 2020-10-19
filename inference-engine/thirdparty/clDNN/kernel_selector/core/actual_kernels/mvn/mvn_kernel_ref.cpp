@@ -43,8 +43,8 @@ ParamsKey MVNKernelRef::GetSupportedKey() const {
     return k;
 }
 
-JitConstants MVNKernelRef::GetJitConstants(const mvn_params& params, DispatchData kd) const {
-    auto jits = Parent::GetJitConstants(params, kd);
+JitConstants MVNKernelRef::GetJitConstants(const mvn_params& params, DispatchData dispatchData) const {
+    auto jits = Parent::GetJitConstants(params, dispatchData);
 
     auto activation_dt = GetActivationType(params);
     jits.Merge(MakeTypeJitConstants(activation_dt, "ACTIVATION"));

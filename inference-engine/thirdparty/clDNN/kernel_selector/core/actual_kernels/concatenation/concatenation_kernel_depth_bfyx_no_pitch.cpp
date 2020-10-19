@@ -67,22 +67,21 @@ bool ConcatenationKernel_depth_bfyx_no_pitch::Validate(const Params& p, const op
     return true;
 }
 
-ConcatenationKernelBase::DispatchData ConcatenationKernel_depth_bfyx_no_pitch::SetDefault(
-    const concatenation_params& params) const {
-    DispatchData runInfo = ConcatenationKernelBase::SetDefault(params);
+ConcatenationKernelBase::DispatchData ConcatenationKernel_depth_bfyx_no_pitch::SetDefault(const concatenation_params& params) const {
+    DispatchData dispatchData = ConcatenationKernelBase::SetDefault(params);
     const auto& input = params.inputs[0];
     const auto batch = input.Batch().v;
-    runInfo.gws0 = batch;
-    runInfo.gws1 = Align(std::max((size_t)1, input.LogicalSize() / batch), 16 * 8) / 8;
-    runInfo.gws2 = 1;
+    dispatchData.gws[0] = batch;
+    dispatchData.gws[1] = Align(std::max((size_t)1, input.LogicalSize() / batch), 16 * 8) / 8;
+    dispatchData.gws[2] = 1;
 
-    runInfo.lws0 = 1;
-    runInfo.lws1 = 16;
-    runInfo.lws2 = 1;
+    dispatchData.lws[0] = 1;
+    dispatchData.lws[1] = 16;
+    dispatchData.lws[2] = 1;
 
-    runInfo.efficiency = FORCE_PRIORITY_9;
+    dispatchData.efficiency = FORCE_PRIORITY_9;
 
-    return runInfo;
+    return dispatchData;
 }
 
 KernelsData ConcatenationKernel_depth_bfyx_no_pitch::GetKernelsData(const Params& params,

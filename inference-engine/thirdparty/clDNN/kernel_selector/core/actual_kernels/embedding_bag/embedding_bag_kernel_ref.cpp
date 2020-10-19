@@ -43,23 +43,14 @@ JitConstants EmbeddingBagKernelRef::GetJitConstants(const embedding_bag_params& 
 }
 
 CommonDispatchData EmbeddingBagKernelRef::SetDefault(const embedding_bag_params& params) const {
-    CommonDispatchData runInfo;
+    CommonDispatchData dispatchData;
 
-    std::vector<size_t> global = { params.output.Batch().v,
-                                   params.output.Feature().v,
-                                   params.output.Y().v * params.output.X().v };
+    dispatchData.gws = { params.output.Batch().v,
+                         params.output.Feature().v,
+                         params.output.Y().v * params.output.X().v };
+    dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo);
 
-    auto local = GetOptimalLocalWorkGroupSizes(global, params.engineInfo);
-
-    runInfo.gws0 = global[0];
-    runInfo.gws1 = global[1];
-    runInfo.gws2 = global[2];
-
-    runInfo.lws0 = local[0];
-    runInfo.lws1 = local[1];
-    runInfo.lws2 = local[2];
-
-    return runInfo;
+    return dispatchData;
 }
 
 KernelsData EmbeddingBagKernelRef::GetKernelsData(const Params& params, const optional_params& options) const {
@@ -70,7 +61,7 @@ KernelsData EmbeddingBagKernelRef::GetKernelsData(const Params& params, const op
         return {};
     }
 
-    auto runInfo = SetDefault(newParams);
+    auto dispatchData = SetDefault(newParams);
     auto entry_point = GetEntryPoint(kernelName, newParams.layerID, options);
     auto cldnn_jit = GetJitConstants(newParams);
     std::string jit = CreateJit(kernelName, cldnn_jit, entry_point);
@@ -78,7 +69,7 @@ KernelsData EmbeddingBagKernelRef::GetKernelsData(const Params& params, const op
     auto& kernel = kd.kernels[0];
 
     FillCLKernelData(kernel,
-            runInfo,
+            dispatchData,
             params.engineInfo,
             kernelName,
             jit,

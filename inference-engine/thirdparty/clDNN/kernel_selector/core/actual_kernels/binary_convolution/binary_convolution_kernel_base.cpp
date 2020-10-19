@@ -43,9 +43,9 @@ bool BinaryConvolutionKernelBase::Validate(const Params& p, const optional_param
 }
 
 JitConstants BinaryConvolutionKernelBase::GetJitConstants(const binary_convolution_params& params,
-                                                          const DispatchData& kd) const {
+                                                          const DispatchData& dispatchData) const {
     JitConstants jit = WeightBiasKernelBase::GetJitConstants(params);
-    jit.Merge(GetFusedPrimitivesJitConstants(params, kd));
+    jit.Merge(GetFusedPrimitivesJitConstants(params, dispatchData));
 
     jit.AddConstants({
         MakeJitConstant("STRIDE", params.stride),
@@ -63,25 +63,25 @@ JitConstants BinaryConvolutionKernelBase::GetFusedPrimitivesJitConstants(const b
     return {};
 }
 
-bool BinaryConvolutionKernelBase::CheckWorkGroups(const BinaryConvolutionKernelBase::DispatchData& kd) {
-    if (kd.gws0 == 0 || kd.gws1 == 0 || kd.gws2 == 0 || kd.lws0 == 0 || kd.lws1 == 0 || kd.lws2 == 0) {
+bool BinaryConvolutionKernelBase::CheckWorkGroups(const BinaryConvolutionKernelBase::DispatchData& dispatchData) {
+    if (dispatchData.gws.size() != 3 || dispatchData.lws.size() != 3)
         return false;
-    }
 
-    if ((kd.gws0 % kd.lws0) != 0 || (kd.gws1 % kd.lws1) != 0 || (kd.gws2 % kd.lws2) != 0) {
-        return false;
+    for (size_t i = 0; i < dispatchData.gws.size(); i++) {
+        if (dispatchData.gws[i] == 0 || dispatchData.lws[i] == 0)
+            return false;
+        if ((dispatchData.gws[i] % dispatchData.lws[i]) != 0)
+            return false;
     }
 
     return true;
 }
 
-BinaryConvolutionKernelBase::DispatchData BinaryConvolutionKernelBase::SetDefault(
-    const binary_convolution_params& params,
-    int) const {
-    DispatchData kd;
+BinaryConvolutionKernelBase::DispatchData BinaryConvolutionKernelBase::SetDefault(const binary_convolution_params& params,
+                                                                                  int) const {
+    DispatchData dispatchData;
 
     const auto& out = params.output;
-    kd.fp16UnitUsed = out.GetDType() == Datatype::F16;
     std::vector<size_t> global;
     if (params.output.GetLayout() == DataLayout::bfyx || params.output.GetLayout() == DataLayout::byxf) {
         global = {out.X().v, out.Y().v, out.Feature().v * out.Batch().v};
@@ -91,28 +91,23 @@ BinaryConvolutionKernelBase::DispatchData BinaryConvolutionKernelBase::SetDefaul
 
     auto local = GetOptimalLocalWorkGroupSizes(global, params.engineInfo);
 
-    kd.gws0 = global[0];
-    kd.gws1 = global[1];
-    kd.gws2 = global[2];
+    dispatchData.gws = global;
+    dispatchData.lws = local;
 
-    kd.lws0 = local[0];
-    kd.lws1 = local[1];
-    kd.lws2 = local[2];
+    dispatchData.cldnnStyle.blockWidth = 1;
+    dispatchData.cldnnStyle.blockHeight = 1;
+    dispatchData.cldnnStyle.prefetch = 0;
+    dispatchData.cldnnStyle.inputBlockArraySize = 0;
+    dispatchData.cldnnStyle.inputBlockWidth = 0;
 
-    kd.cldnnStyle.blockWidth = 1;
-    kd.cldnnStyle.blockHeight = 1;
-    kd.cldnnStyle.prefetch = 0;
-    kd.cldnnStyle.inputBlockArraySize = 0;
-    kd.cldnnStyle.inputBlockWidth = 0;
-
-    kd.gemmStyle.globalWorkSizeDX = 1;
-    kd.gemmStyle.globalWorkSizeDY = 1;
-    kd.gemmStyle.globalWorkSizeDZ = 1;
-    kd.gemmStyle.subBlockDimK = 1;
-    kd.gemmStyle.subBlockDimM = 0;
-    kd.gemmStyle.subBlockDimN = 0;
-    kd.efficiency = DONT_USE_IF_HAVE_SOMETHING_ELSE;
-    return kd;
+    dispatchData.gemmStyle.globalWorkSizeDX = 1;
+    dispatchData.gemmStyle.globalWorkSizeDY = 1;
+    dispatchData.gemmStyle.globalWorkSizeDZ = 1;
+    dispatchData.gemmStyle.subBlockDimK = 1;
+    dispatchData.gemmStyle.subBlockDimM = 0;
+    dispatchData.gemmStyle.subBlockDimN = 0;
+    dispatchData.efficiency = DONT_USE_IF_HAVE_SOMETHING_ELSE;
+    return dispatchData;
 }
 
 KernelsData BinaryConvolutionKernelBase::GetCommonKernelsData(const Params& params,
@@ -129,9 +124,9 @@ KernelsData BinaryConvolutionKernelBase::GetCommonKernelsData(const Params& para
     if (NeedPaddedInput()) {
         kd.reorderInput = CovolutionBinaryUpdateInputParams(newParams);
     }
-    DispatchData runInfo = SetDefault(newParams, autoTuneIndex);
+    DispatchData dispatchData = SetDefault(newParams, autoTuneIndex);
 
-    if (!CheckWorkGroups(runInfo)) {
+    if (!CheckWorkGroups(dispatchData)) {
         // Internal Error - wrong calculation of global/local work group sizes
         return {};
     }
@@ -147,7 +142,7 @@ KernelsData BinaryConvolutionKernelBase::GetCommonKernelsData(const Params& para
     }
 
     auto finalKernelName = GetKernelName(newParams);
-    auto cldnnJit = GetJitConstants(newParams, runInfo);
+    auto cldnnJit = GetJitConstants(newParams, dispatchData);
     auto entryPoint = GetEntryPoint(finalKernelName, newParams.layerID, options);
     auto jit = CreateJit(finalKernelName, cldnnJit, entryPoint);
 
@@ -161,7 +156,7 @@ KernelsData BinaryConvolutionKernelBase::GetCommonKernelsData(const Params& para
     }
 
     FillCLKernelData(kernel,
-                     runInfo,
+                     dispatchData,
                      params.engineInfo,
                      finalKernelName,
                      jit,
@@ -173,7 +168,7 @@ KernelsData BinaryConvolutionKernelBase::GetCommonKernelsData(const Params& para
                      fused_deps_total);
     kernel.arguments.push_back({ArgumentDescriptor::Types::SPLIT, 0});
 
-    kd.estimatedTime = runInfo.efficiency;
+    kd.estimatedTime = dispatchData.efficiency;
     kd.autoTuneIndex = autoTuneIndex;
 
     return {kd};

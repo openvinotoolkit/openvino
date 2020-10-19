@@ -39,30 +39,22 @@ ParamsKey FullyConnected_bf_io_GEMM::GetSupportedKey() const {
 
 FullyConnected_bf_io_GEMM::DispatchData FullyConnected_bf_io_GEMM::SetDefault(const fully_connected_params& params,
                                                                               int autoTuneIndex) const {
-    auto runInfo = Parent::SetDefault(params, autoTuneIndex);
+    auto dispatchData = Parent::SetDefault(params, autoTuneIndex);
 
     const uint32_t localWorkSizeX = 64;
     const uint32_t globalWorkSizeX = localWorkSizeX;
 
-    std::vector<size_t> global = {globalWorkSizeX, params.output.Feature().v, params.output.Batch().v};
-    std::vector<size_t> local = {localWorkSizeX, 1, 1};
+    dispatchData.gws = { globalWorkSizeX, params.output.Feature().v, 1 };
+    dispatchData.lws = { localWorkSizeX, 1, 1 };
 
-    runInfo.gws0 = global[0];
-    runInfo.gws1 = global[1];
-    runInfo.gws2 = 1;
+    dispatchData.efficiency = FORCE_PRIORITY_6;
 
-    runInfo.lws0 = local[0];
-    runInfo.lws1 = local[1];
-    runInfo.lws2 = 1;
-
-    runInfo.efficiency = FORCE_PRIORITY_6;
-
-    return runInfo;
+    return dispatchData;
 }
 
 JitConstants FullyConnected_bf_io_GEMM::GetJitConstants(const fully_connected_params& params,
-                                                        const DispatchData& kd) const {
-    auto jit = Parent::GetJitConstants(params, kd);
+                                                        const DispatchData& dispatchData) const {
+    auto jit = Parent::GetJitConstants(params, dispatchData);
 
     if (params.inputs[0].GetDType() == Datatype::F16) {
         jit.AddConstant(MakeJitConstant("__fc_f16", ""));

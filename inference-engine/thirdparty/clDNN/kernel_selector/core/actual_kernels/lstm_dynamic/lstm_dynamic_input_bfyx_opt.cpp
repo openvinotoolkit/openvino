@@ -1,5 +1,5 @@
 /*
-// Copyright (c) 2019 Intel Corporation
+// Copyright (c) 2019-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -75,7 +75,7 @@ KernelsData LSTM_DynamicInputKernelBfyxOpt::GetKernelsData(const Params& params,
         return {};
     }
 
-    DispatchData run_info;
+    DispatchData dispatchData;
 
     KernelData kd = KernelData::Default<lstm_dynamic_input_params>(params);
     lstm_dynamic_input_params& dlstm_params = *static_cast<lstm_dynamic_input_params*>(kd.params.get());
@@ -83,18 +83,8 @@ KernelsData LSTM_DynamicInputKernelBfyxOpt::GetKernelsData(const Params& params,
     const auto& out = dlstm_params.output;
     auto hidden_size = out.X().v;
 
-    std::vector<size_t> global = { hidden_size / simd_size, out.Batch().v * out.Y().v, out.Feature().v };
-    const auto& local = GetOptimalLocalWorkGroupSizes(global, params.engineInfo);
-
-    run_info.gws0 = global[0];
-    run_info.gws1 = global[1];
-    run_info.gws2 = global[2];
-
-    run_info.lws0 = local[0];
-    run_info.lws1 = local[1];
-    run_info.lws2 = local[2];
-
-    run_info.fp16UnitUsed = dlstm_params.inputs[0].GetDType() == Datatype::F16;
+    dispatchData.gws = { hidden_size / simd_size, out.Batch().v * out.Y().v, out.Feature().v };
+    dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo);
 
     bool succeed = UpdateWeightsParams(dlstm_params,
         options,
@@ -111,8 +101,8 @@ KernelsData LSTM_DynamicInputKernelBfyxOpt::GetKernelsData(const Params& params,
     auto jit = CreateJit(kernelName, cldnn_jit, entry_point);
 
     auto& kernel = kd.kernels[0];
-    kernel.workGroups.global = { run_info.gws0, run_info.gws1, run_info.gws2 };
-    kernel.workGroups.local = { run_info.lws0, run_info.lws1, run_info.lws2 };
+    kernel.workGroups.global = dispatchData.gws;
+    kernel.workGroups.local = dispatchData.lws;
     kernel.kernelString = GetKernelString(kernelName, jit, entry_point, params.engineInfo);
     SetKernelArguments(dlstm_params, kernel);
 

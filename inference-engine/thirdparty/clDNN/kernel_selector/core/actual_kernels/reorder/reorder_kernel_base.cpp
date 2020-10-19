@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2016-2019 Intel Corporation
+﻿// Copyright (c) 2016-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -151,26 +151,16 @@ JitConstants ReorderKernelBase::GetJitConstants(const reorder_params& params) co
 ReorderKernelBase::DispatchData ReorderKernelBase::SetDefault(const reorder_weights_params& params) const {
     const auto& out = params.output;
 
-    DispatchData kd;
+    DispatchData dispatchData;
 
-    std::vector<size_t> global(3);
+    dispatchData.gws = { out.G().v * out.OFM().v, out.IFM().v, out.X().v * out.Y().v * out.Z().v };
+    dispatchData.lws= GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo);
 
-    global = {out.G().v * out.OFM().v, out.IFM().v, out.X().v * out.Y().v * out.Z().v};
-    auto local = GetOptimalLocalWorkGroupSizes(global, params.engineInfo);
-
-    kd.gws0 = global[0];
-    kd.gws1 = global[1];
-    kd.gws2 = global[2];
-
-    kd.lws0 = local[0];
-    kd.lws1 = local[1];
-    kd.lws2 = local[2];
-
-    return kd;
+    return dispatchData;
 }
 
 ReorderKernelBase::DispatchData ReorderKernelBase::SetDefault(const reorder_params& params) const {
-    DispatchData kd;
+    DispatchData dispatchData;
 
     auto& input = params.inputs[0];
     DataTensor input_tensor = input;
@@ -183,36 +173,28 @@ ReorderKernelBase::DispatchData ReorderKernelBase::SetDefault(const reorder_para
         input_tensor = DataTensor(input_sizes, input.GetDType(), DataLayout::image_2d_rgba);
     }
 
-    auto global = GetTensorFriendlyWorkGroups(input_tensor);
-    auto local = GetOptimalLocalWorkGroupSizes(global, params.engineInfo);
-
-    kd.gws0 = global[0];
-    kd.gws1 = global[1];
-    kd.gws2 = global[2];
-
-    kd.lws0 = local[0];
-    kd.lws1 = local[1];
-    kd.lws2 = local[2];
+    dispatchData.gws = GetTensorFriendlyWorkGroups(input_tensor);
+    dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo);
 
     if (params.inputs[0].GetLayout() == DataLayout::fs_b_yx_fsv32) {
         std::vector<size_t> sizes = { 32, 16, 8, 4 };
         for (auto& s : sizes) {
-            if (kd.gws2 % s == 0) {
-                kd.lws0 = 1;
-                kd.lws1 = 1;
-                kd.lws2 = s;
+            if (dispatchData.gws[2] % s == 0) {
+                dispatchData.lws[0] = 1;
+                dispatchData.lws[1] = 1;
+                dispatchData.lws[2] = s;
                 break;
             }
         }
     }
 
     if (params.output.GetLayout() == DataLayout::bs_fs_yx_bsv16_fsv16 && params.inputs[0].Feature().v % 16 == 0) {
-        kd.lws0 = 1;
-        kd.lws1 = 16;
-        kd.lws2 = 1;
+        dispatchData.lws[0] = 1;
+        dispatchData.lws[1] = 16;
+        dispatchData.lws[2] = 1;
     }
 
-    return kd;
+    return dispatchData;
 }
 
 KernelsData ReorderKernelBase::GetCommonKernelsData(const reorder_weights_params& params, const optional_params& options, float estimated_time) const {
@@ -223,9 +205,9 @@ KernelsData ReorderKernelBase::GetCommonKernelsData(const reorder_weights_params
     KernelData kd = KernelData::Default<reorder_weights_params>(params);
     reorder_weights_params& newParams = *static_cast<reorder_weights_params*>(kd.params.get());
 
-    DispatchData runInfo;
+    DispatchData dispatchData;
 
-    runInfo = SetDefault(newParams);
+    dispatchData = SetDefault(newParams);
 
     auto entry_point = GetEntryPoint(kernelName, newParams.layerID, options);
     auto cldnn_jit = GetJitConstants(newParams);
@@ -233,7 +215,7 @@ KernelsData ReorderKernelBase::GetCommonKernelsData(const reorder_weights_params
 
     auto& kernel = kd.kernels[0];
 
-    FillCLKernelData(kernel, runInfo, params.engineInfo, kernelName, jit, entry_point);
+    FillCLKernelData(kernel, dispatchData, params.engineInfo, kernelName, jit, entry_point);
 
     kernel.arguments = GetArgsDesc(1, false, false);
 
@@ -251,9 +233,7 @@ KernelsData ReorderKernelBase::GetCommonKernelsData(const reorder_params& params
     KernelData kd = KernelData::Default<reorder_params>(params);
     reorder_params& newParams = *static_cast<reorder_params*>(kd.params.get());
 
-    DispatchData runInfo;
-
-    runInfo = SetDefault(newParams);
+    DispatchData dispatchData = SetDefault(newParams);
 
     auto entry_point = GetEntryPoint(kernelName, newParams.layerID, options);
     auto cldnn_jit = GetJitConstants(newParams);
@@ -261,7 +241,7 @@ KernelsData ReorderKernelBase::GetCommonKernelsData(const reorder_params& params
 
     auto& kernel = kd.kernels[0];
 
-    FillCLKernelData(kernel, runInfo, params.engineInfo, kernelName, jit, entry_point);
+    FillCLKernelData(kernel, dispatchData, params.engineInfo, kernelName, jit, entry_point);
 
     kernel.arguments = GetArgsDesc(1, false, false);
     if (newParams.mode == MeanSubtractMode::IN_BUFFER) {

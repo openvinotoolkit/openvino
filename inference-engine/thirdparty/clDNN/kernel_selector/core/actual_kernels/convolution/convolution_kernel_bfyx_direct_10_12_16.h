@@ -34,7 +34,7 @@ protected:
         return (p.groups > 1) ? WeightsLayout::gi_yxs_os_yxsv2_osv16 : WeightsLayout::i_yxs_os_yxsv2_osv16;
     }
 
-    JitConstants GetJitConstants(const convolution_params& params, const DispatchData& kd) const override;
+    JitConstants GetJitConstants(const convolution_params& params, const DispatchData& dispatchData) const override;
     bool Validate(const Params& p, const optional_params& o) const override;
     bool NeedPaddedInput() const override { return true; }
     DispatchData SetDefault(const convolution_params& arg, int autoTuneIndex = -1) const override;

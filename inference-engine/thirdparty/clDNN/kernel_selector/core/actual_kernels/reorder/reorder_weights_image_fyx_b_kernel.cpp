@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2016 Intel Corporation
+﻿// Copyright (c) 2016-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -33,26 +33,15 @@ ParamsKey ReorderWeightsImage_fyx_b_Kernel::GetSupportedKey() const {
     return k;
 }
 
-ReorderWeightsImage_fyx_b_Kernel::DispatchData ReorderWeightsImage_fyx_b_Kernel::SetDefault(
-    const reorder_weights_params& params) const {
+ReorderWeightsImage_fyx_b_Kernel::DispatchData ReorderWeightsImage_fyx_b_Kernel::SetDefault(const reorder_weights_params& params) const {
     const auto& out = params.output;
 
-    DispatchData kd;
+    DispatchData dispatchData;
 
-    std::vector<size_t> global(3);
+    dispatchData.gws = { out.OFM().v, Align(out.X().v * out.Y().v * out.IFM().v, 4) / 4, 1 };
+    dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo);
 
-    global = {out.OFM().v, Align(out.X().v * out.Y().v * out.IFM().v, 4) / 4, 1};
-    auto local = GetOptimalLocalWorkGroupSizes(global, params.engineInfo);
-
-    kd.gws0 = global[0];
-    kd.gws1 = global[1];
-    kd.gws2 = global[2];
-
-    kd.lws0 = local[0];
-    kd.lws1 = local[1];
-    kd.lws2 = local[2];
-
-    return kd;
+    return dispatchData;
 }
 
 KernelsData ReorderWeightsImage_fyx_b_Kernel::GetKernelsData(const Params& params,

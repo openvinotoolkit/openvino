@@ -68,7 +68,7 @@ public:
 
 protected:
     bool Validate(const Params&, const optional_params&) const override;
-    virtual JitConstants GetJitConstants(const mvn_params& params, DispatchData kd) const;
+    virtual JitConstants GetJitConstants(const mvn_params& params, DispatchData dispatchData) const;
     virtual DispatchData SetDefault(const mvn_params& params) const;
     virtual std::string GetKernelName(const mvn_params&) const { return kernelName; }
     KernelsData GetCommonKernelsData(const Params& params, const optional_params&, float estimated_time) const;

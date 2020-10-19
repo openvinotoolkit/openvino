@@ -75,28 +75,20 @@ bool ConvolutionKernel_mmad_b_fs_yx_fsv32_dw::Validate(const Params& p, const op
 
 ConvolutionKernelBase::DispatchData ConvolutionKernel_mmad_b_fs_yx_fsv32_dw::SetDefault(const convolution_params& cp,
                                                                                         int /*autoTuneIndex*/) const {
-    DispatchData runInfo = ConvolutionKernelBase::SetDefault(cp);
+    DispatchData dispatchData = ConvolutionKernelBase::SetDefault(cp);
 
-    runInfo.efficiency = FORCE_PRIORITY_3;
+    dispatchData.efficiency = FORCE_PRIORITY_3;
 
-    std::vector<size_t> global = {cp.output.Feature().v, cp.output.X().v * cp.output.Y().v, cp.output.Batch().v};
+    dispatchData.gws = { cp.output.Feature().v, cp.output.X().v * cp.output.Y().v, cp.output.Batch().v };
+    dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, cp.engineInfo);
 
-    runInfo.gws0 = global[0];
-    runInfo.gws1 = global[1];
-    runInfo.gws2 = global[2];
-
-    auto local = GetOptimalLocalWorkGroupSizes(global, cp.engineInfo);
-    runInfo.lws0 = local[0];
-    runInfo.lws1 = local[1];
-    runInfo.lws2 = local[2];
-
-    return runInfo;
+    return dispatchData;
 }
 
 // TODO: optimize this kernel
 JitConstants ConvolutionKernel_mmad_b_fs_yx_fsv32_dw::GetJitConstants(const convolution_params& params,
-                                                                      const DispatchData& runInfo) const {
-    auto jit = Parent::GetJitConstants(params, runInfo);
+                                                                      const DispatchData& dispatchData) const {
+    auto jit = Parent::GetJitConstants(params, dispatchData);
 
     if (!params.fused_ops.empty()) {
         auto input_dt = GetActivationType(params);

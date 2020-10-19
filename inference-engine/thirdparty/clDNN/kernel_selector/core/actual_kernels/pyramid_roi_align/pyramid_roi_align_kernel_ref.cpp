@@ -1,4 +1,4 @@
-// Copyright (c) 2018 Intel Corporation
+// Copyright (c) 2018-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -42,24 +42,16 @@ ParamsKey PyramidROIAlignKernelRef::GetSupportedKey() const {
 }
 
 PyramidROIAlignKernelBase::DispatchData PyramidROIAlignKernelRef::SetDefault(const PyramidROIAlign_params& params) const {
-    auto dispatch = PyramidROIAlignKernelBase::SetDefault(params);
+    auto dispatchData = PyramidROIAlignKernelBase::SetDefault(params);
 
-    std::vector<size_t> global = {
+    dispatchData.gws = {
         params.output.X().v * params.output.Y().v,
         params.output.Feature().v,
         params.output.Batch().v };
 
-    auto local = GetOptimalLocalWorkGroupSizes(global, params.engineInfo);
+    dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo);
 
-    dispatch.gws0 = global[0];
-    dispatch.gws1 = global[1];
-    dispatch.gws2 = global[2];
-
-    dispatch.lws0 = local[0];
-    dispatch.lws1 = local[1];
-    dispatch.lws2 = local[2];
-
-    return dispatch;
+    return dispatchData;
 }
 
 KernelsData PyramidROIAlignKernelRef::GetKernelsData(const Params& params, const optional_params& options) const {

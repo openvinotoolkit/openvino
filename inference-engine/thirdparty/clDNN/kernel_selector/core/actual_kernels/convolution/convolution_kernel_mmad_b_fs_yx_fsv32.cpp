@@ -96,46 +96,46 @@ ConvolutionKernel_mmad_b_fs_yx_fsv32::AutoTuneOption ConvolutionKernel_mmad_b_fs
 
 ConvolutionKernelBase::DispatchData ConvolutionKernel_mmad_b_fs_yx_fsv32::SetDefault(const convolution_params& cp,
                                                                                      int autoTuneIndex) const {
-    DispatchData runInfo = ConvolutionKernelBase::SetDefault(cp);
+    DispatchData dispatchData = ConvolutionKernelBase::SetDefault(cp);
 
     auto tuneOptions = GetAutoTuneOptions(cp, autoTuneIndex);
-    runInfo.cldnnStyle.blockWidth = tuneOptions.blockWidth;
-    runInfo.cldnnStyle.blockHeight = tuneOptions.blockHeight;
-    runInfo.cldnnStyle.prefetch = tuneOptions.prefetch;
+    dispatchData.cldnnStyle.blockWidth = tuneOptions.blockWidth;
+    dispatchData.cldnnStyle.blockHeight = tuneOptions.blockHeight;
+    dispatchData.cldnnStyle.prefetch = tuneOptions.prefetch;
 
-    runInfo.efficiency = FORCE_PRIORITY_3;
+    dispatchData.efficiency = FORCE_PRIORITY_3;
 
     size_t ow_group = 8;
     while (ow_group > 1) {
-        if (CeilDiv(cp.output.X().v, runInfo.cldnnStyle.blockWidth) % ow_group == 0)
+        if (CeilDiv(cp.output.X().v, dispatchData.cldnnStyle.blockWidth) % ow_group == 0)
             break;
         ow_group--;
     }
 
-    runInfo.gws0 = Align(cp.output.Feature().v, 32) / 4;
-    runInfo.gws1 = Align(CeilDiv(cp.output.X().v, runInfo.cldnnStyle.blockWidth), ow_group) * cp.output.Y().v * cp.output.Z().v;
-    runInfo.gws2 = cp.output.Batch().v;
+    dispatchData.gws[0] = Align(cp.output.Feature().v, 32) / 4;
+    dispatchData.gws[1] = Align(CeilDiv(cp.output.X().v, dispatchData.cldnnStyle.blockWidth), ow_group) * cp.output.Y().v * cp.output.Z().v;
+    dispatchData.gws[2] = cp.output.Batch().v;
 
-    runInfo.lws0 = 8;
-    runInfo.lws1 = ow_group;
-    runInfo.lws2 = 1;
+    dispatchData.lws[0] = 8;
+    dispatchData.lws[1] = ow_group;
+    dispatchData.lws[2] = 1;
 
-    return runInfo;
+    return dispatchData;
 }
 
 JitConstants ConvolutionKernel_mmad_b_fs_yx_fsv32::GetJitConstants(const convolution_params& params,
-                                                                   const DispatchData& runInfo) const {
-    auto jit = Parent::GetJitConstants(params, runInfo);
+                                                                   const DispatchData& dispatchData) const {
+    auto jit = Parent::GetJitConstants(params, dispatchData);
 
-    jit.AddConstant(MakeJitConstant("OW_GROUP", runInfo.lws1));
-    jit.AddConstant(MakeJitConstant("SUB_GROUP_SIZE", runInfo.lws0));
+    jit.AddConstant(MakeJitConstant("OW_GROUP", dispatchData.lws[1]));
+    jit.AddConstant(MakeJitConstant("SUB_GROUP_SIZE", dispatchData.lws[0]));
     jit.AddConstant(MakeJitConstant("OSV_SIZE", 32));
     jit.AddConstant(MakeJitConstant("ISV_SIZE", 32));
-    jit.AddConstant(MakeJitConstant("X_BLOCK_SIZE", runInfo.cldnnStyle.blockWidth));
+    jit.AddConstant(MakeJitConstant("X_BLOCK_SIZE", dispatchData.cldnnStyle.blockWidth));
     jit.AddConstant(MakeJitConstant("IFM_BLOCKS", CeilDiv(params.inputs[0].Feature().v, 32)));
     auto input = params.inputs[0];
     auto output = params.output;
-    auto blockWidth = runInfo.cldnnStyle.blockWidth;
+    auto blockWidth = dispatchData.cldnnStyle.blockWidth;
     size_t input_line_size = params.stride.x * (blockWidth - 1) + (params.weights.X().v - 1)*params.dilation.x + 1;
 
     jit.AddConstant(MakeJitConstant("OUTPUT_X_BLOCK_SIZE", blockWidth));

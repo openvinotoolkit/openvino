@@ -30,7 +30,7 @@ public:
     ParamsKey GetSupportedKey() const override;
 
 protected:
-    JitConstants GetJitConstants(const mvn_params& params, DispatchData kd) const override;
+    JitConstants GetJitConstants(const mvn_params& params, DispatchData dispatchData) const override;
     std::vector<FusedOpType> GetSupportedFusedOps() const override {
         return {
             FusedOpType::ACTIVATION,

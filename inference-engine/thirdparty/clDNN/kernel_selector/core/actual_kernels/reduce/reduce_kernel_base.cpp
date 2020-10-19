@@ -235,7 +235,7 @@ KernelsData ReduceKernelBase::GetCommonKernelsData(const Params& p,
     }
 
     const reduce_params& params = static_cast<const reduce_params&>(p);
-    DispatchData runInfo = SetDefault(params, options);
+    DispatchData dispatchData = SetDefault(params, options);
 
     KernelData kd = KernelData::Default<reduce_params>(params);
 
@@ -245,7 +245,7 @@ KernelsData ReduceKernelBase::GetCommonKernelsData(const Params& p,
 
     auto& kernel = kd.kernels[0];
     FillCLKernelData(kernel,
-                     runInfo,
+                     dispatchData,
                      params.engineInfo,
                      kernelName,
                      jit,

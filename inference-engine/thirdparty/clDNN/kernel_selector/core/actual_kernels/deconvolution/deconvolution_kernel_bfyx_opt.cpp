@@ -40,19 +40,20 @@ ParamsKey DeconvolutionKernel_bfyx_opt::GetSupportedKey() const {
 }
 
 CommonDispatchData DeconvolutionKernel_bfyx_opt::SetDefault(const deconvolution_params& params) const {
-    DispatchData kd;
+    DispatchData dispatchData;
 
-    kd.fp16UnitUsed = params.inputs[0].GetDType() == Datatype::F16;
     auto wg_size = 16;
 
-    kd.gws0 = Align(params.output.X().v, wg_size * params.stride.x);
-    kd.gws1 = params.output.Y().v;
-    kd.gws2 = params.output.Batch().v * params.output.Feature().v;
-    kd.lws0 = wg_size;
-    kd.lws1 = 1;
-    kd.lws2 = 1;
-    kd.efficiency = FORCE_PRIORITY_6;
-    return kd;
+    dispatchData.gws[0] = Align(params.output.X().v, wg_size * params.stride.x);
+    dispatchData.gws[1] = params.output.Y().v;
+    dispatchData.gws[2] = params.output.Batch().v * params.output.Feature().v;
+
+    dispatchData.lws[0] = wg_size;
+    dispatchData.lws[1] = 1;
+    dispatchData.lws[2] = 1;
+
+    dispatchData.efficiency = FORCE_PRIORITY_6;
+    return dispatchData;
 }
 
 JitConstants DeconvolutionKernel_bfyx_opt::GetJitConstants(const deconvolution_params& params) const {

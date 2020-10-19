@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2016 Intel Corporation
+﻿// Copyright (c) 2016-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -51,12 +51,12 @@ size_t GetOfmPerWorkitem(size_t filter_ofm_num, size_t localWorkSize) {
 ConvolutionKernelBase::DispatchData ConvolutionKernel_yxfb_yxio_b1_block_mulitple_x::SetDefault(
     const convolution_params& arg,
     int autoTuneIndex) const {
-    DispatchData runInfo = ConvolutionKernelBase::SetDefault(arg, autoTuneIndex);
+    DispatchData dispatchData = ConvolutionKernelBase::SetDefault(arg, autoTuneIndex);
 
     const auto filter_ofm_num = arg.weights.OFM().v;
     const auto batch_size = arg.output.Batch().v;
 
-    runInfo.lws0 = local_work_size;
+    dispatchData.lws[0] = local_work_size;
 
     // We cannot return 8 because we are processing 4 spatial coordinates for batch1,
     // and if we use more than 4 ofm_per_work_item we downgrade simd16 to simd8 which would break this algorithm.
@@ -65,28 +65,28 @@ ConvolutionKernelBase::DispatchData ConvolutionKernel_yxfb_yxio_b1_block_mulitpl
     // TODO: experiment with SIMD8 version of algorithm and check if it could be faster
     /*if (output_feature_count % (lws * 8) == 0)
         {
-        run_info.ofm_per_work_item = 8;
-        run_info.gws1 = static_cast<size_t>(std::ceil(static_cast<float>(run_info.gws1) / 2.0f));
+        dispatchData.ofm_per_work_item = 8;
+        dispatchData.gws[1] = static_cast<size_t>(std::ceil(static_cast<float>(dispatchData.gws[1]) / 2.0f));
         }
         else*/
     const size_t ofmPerWorkItem = GetOfmPerWorkitem(filter_ofm_num, local_work_size);
     if (ofmPerWorkItem == 4) {
         // We compute multiple spatial coordinates "x" in a single workitem that's why we must divide
-        runInfo.gws1 = static_cast<size_t>(std::ceil(static_cast<float>(runInfo.gws1) / 4.0f));
+        dispatchData.gws[1] = static_cast<size_t>(std::ceil(static_cast<float>(dispatchData.gws[1]) / 4.0f));
     } else if (ofmPerWorkItem == 2) {
-        runInfo.gws1 = static_cast<size_t>(std::ceil(static_cast<float>(runInfo.gws1) / 8.0f));
+        dispatchData.gws[1] = static_cast<size_t>(std::ceil(static_cast<float>(dispatchData.gws[1]) / 8.0f));
     } else {
-        runInfo.gws1 = static_cast<size_t>(std::ceil(static_cast<float>(runInfo.gws1) / 8.0f));
+        dispatchData.gws[1] = static_cast<size_t>(std::ceil(static_cast<float>(dispatchData.gws[1]) / 8.0f));
     }
 
-    runInfo.gws0 = filter_ofm_num * batch_size / ofmPerWorkItem;
+    dispatchData.gws[0] = filter_ofm_num * batch_size / ofmPerWorkItem;
 
-    return runInfo;
+    return dispatchData;
 }
 
 JitConstants ConvolutionKernel_yxfb_yxio_b1_block_mulitple_x::GetJitConstants(const convolution_params& params,
-                                                                              const DispatchData& kd) const {
-    auto cldnn_jit = ConvolutionKernelBase::GetJitConstants(params, kd);
+                                                                              const DispatchData& dispatchData) const {
+    auto cldnn_jit = ConvolutionKernelBase::GetJitConstants(params, dispatchData);
 
     size_t ofmPerWorkItem = GetOfmPerWorkitem(params.weights.OFM().v, local_work_size);
     cldnn_jit.AddConstant(MakeJitConstant("USE_VECTOR", ofmPerWorkItem));
@@ -101,7 +101,7 @@ JitConstants ConvolutionKernel_yxfb_yxio_b1_block_mulitple_x::GetJitConstants(co
     cldnn_jit.AddConstant(MakeJitConstant(
         "OFM_PER_WORK_ITEM",
         ofmPerWorkItem));  // how many output feature maps for a single batch will a single work item produce
-    cldnn_jit.AddConstant(MakeJitConstant("LOCAL_WORK_GROUP_SIZE", kd.lws0));
+    cldnn_jit.AddConstant(MakeJitConstant("LOCAL_WORK_GROUP_SIZE", dispatchData.lws[0]));
     return cldnn_jit;
 }
 

@@ -83,22 +83,13 @@ JitConstants CumSumKernelBase::GetJitConstants(const cum_sum_params& params, Dis
 }
 
 CumSumKernelBase::DispatchData CumSumKernelBase::SetDefault(const cum_sum_params& params) const {
-    DispatchData runInfo;
-    std::vector<size_t> global = {params.output.Batch().v,
-                                  params.output.Feature().v * params.output.W().v,
-                                  params.output.Z().v * params.output.Y().v * params.output.X().v};
+    DispatchData dispatchData;
+    dispatchData.gws = { params.output.Batch().v,
+                         params.output.Feature().v * params.output.W().v,
+                         params.output.Z().v * params.output.Y().v * params.output.X().v };
+    dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo);
 
-    auto local = GetOptimalLocalWorkGroupSizes(global, params.engineInfo);
-
-    runInfo.gws0 = global[0];
-    runInfo.gws1 = global[1];
-    runInfo.gws2 = global[2];
-
-    runInfo.lws0 = local[0];
-    runInfo.lws1 = local[1];
-    runInfo.lws2 = local[2];
-
-    return runInfo;
+    return dispatchData;
 }
 
 KernelsData CumSumKernelBase::GetCommonKernelsData(const Params& params,
@@ -111,14 +102,14 @@ KernelsData CumSumKernelBase::GetCommonKernelsData(const Params& params,
         return {};
     }
 
-    auto runInfo = SetDefault(newParams);
+    auto dispatchData = SetDefault(newParams);
     auto entry_point = GetEntryPoint(kernelName, newParams.layerID, options);
-    auto cldnn_jit = GetJitConstants(newParams, runInfo);
+    auto cldnn_jit = GetJitConstants(newParams, dispatchData);
     std::string jit = CreateJit(kernelName, cldnn_jit, entry_point);
 
     auto& kernel = kd.kernels[0];
 
-    FillCLKernelData(kernel, runInfo, params.engineInfo, kernelName, jit, entry_point);
+    FillCLKernelData(kernel, dispatchData, params.engineInfo, kernelName, jit, entry_point);
 
     kd.estimatedTime = estimatedTime;
 

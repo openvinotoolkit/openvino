@@ -104,7 +104,7 @@ ParamsKey ConvolutionKernel_b_fs_zyx_fsv16::GetSupportedKey() const {
 
 ConvolutionKernelBase::DispatchData ConvolutionKernel_b_fs_zyx_fsv16::SetDefault(const convolution_params& params,
                                                                            int autoTuneIndex) const {
-    DispatchData kd = ConvolutionKernelBase::SetDefault(params, autoTuneIndex);
+    DispatchData dispatchData = ConvolutionKernelBase::SetDefault(params, autoTuneIndex);
 
     const auto& out = params.output;
     const auto& input = params.inputs[0];
@@ -130,36 +130,36 @@ ConvolutionKernelBase::DispatchData ConvolutionKernel_b_fs_zyx_fsv16::SetDefault
             else
                 break;
         }
-        kd.cldnnStyle.blockWidth = ow_block;
+        dispatchData.cldnnStyle.blockWidth = ow_block;
         if (out.GetDType() == Datatype::F16) {
-            kd.lws0 = sub_group_size;
-            kd.lws1 = 1;
-            kd.lws2 = 1;
+            dispatchData.lws[0] = sub_group_size;
+            dispatchData.lws[1] = 1;
+            dispatchData.lws[2] = 1;
 
-            kd.gws0 = (f / 2);
-            kd.gws1 = CeilDiv(y, oh_block) * CeilDiv(x, ow_block) * z;
-            kd.gws2 = b % 2 == 0 ? b / 2 : b;  // unroll mb by 2
+            dispatchData.gws[0] = (f / 2);
+            dispatchData.gws[1] = CeilDiv(y, oh_block) * CeilDiv(x, ow_block) * z;
+            dispatchData.gws[2] = b % 2 == 0 ? b / 2 : b;  // unroll mb by 2
         } else {
-            kd.lws0 = sub_group_size;
-            kd.lws1 = 1;
-            kd.lws2 = 1;
+            dispatchData.lws[0] = sub_group_size;
+            dispatchData.lws[1] = 1;
+            dispatchData.lws[2] = 1;
 
             auto ocb = (f % 32 == 0) ? 32 : 16;
-            kd.gws0 = 16;
-            kd.gws1 = CeilDiv(y, oh_block) * CeilDiv(x, ow_block) * z;
-            kd.gws2 = b * f / ocb;
+            dispatchData.gws[0] = 16;
+            dispatchData.gws[1] = CeilDiv(y, oh_block) * CeilDiv(x, ow_block) * z;
+            dispatchData.gws[2] = b * f / ocb;
         }
     } else if (ver_16mb16c) {
         f = (g > 1) ? f/g : Align(f, 16);
-        kd.lws0 = sub_group_size;
-        kd.lws1 = 1;
-        kd.lws2 = 1;
+        dispatchData.lws[0] = sub_group_size;
+        dispatchData.lws[1] = 1;
+        dispatchData.lws[2] = 1;
 
-        kd.gws0 = f;
-        kd.gws1 = x * y * z;
-        kd.gws2 = (out.GetDType() == Datatype::F16) ? b / 32 : b / 16;
+        dispatchData.gws[0] = f;
+        dispatchData.gws[1] = x * y * z;
+        dispatchData.gws[2] = (out.GetDType() == Datatype::F16) ? b / 32 : b / 16;
 
-        kd.cldnnStyle.blockWidth = 1;
+        dispatchData.cldnnStyle.blockWidth = 1;
     } else {
         auto oh_block = 1;
         f = Align(f / g, 16);
@@ -180,22 +180,22 @@ ConvolutionKernelBase::DispatchData ConvolutionKernel_b_fs_zyx_fsv16::SetDefault
                 ocb /= 2;
         }
 
-        kd.cldnnStyle.blockWidth = ow_block;
+        dispatchData.cldnnStyle.blockWidth = ow_block;
 
-        kd.gws0 = ocb;
-        kd.gws1 = CeilDiv(y, oh_block) * CeilDiv(x, ow_block) * z;
-        kd.gws2 = b * (f / ocb) * g;
+        dispatchData.gws[0] = ocb;
+        dispatchData.gws[1] = CeilDiv(y, oh_block) * CeilDiv(x, ow_block) * z;
+        dispatchData.gws[2] = b * (f / ocb) * g;
 
-        kd.lws0 = sub_group_size;
-        kd.lws1 = 1;
-        kd.lws2 = 1;
+        dispatchData.lws[0] = sub_group_size;
+        dispatchData.lws[1] = 1;
+        dispatchData.lws[2] = 1;
     }
     if (b == 1)
-        kd.efficiency = FORCE_PRIORITY_2;
+        dispatchData.efficiency = FORCE_PRIORITY_2;
     else
-        kd.efficiency = FORCE_PRIORITY_7;
+        dispatchData.efficiency = FORCE_PRIORITY_7;
 
-    return kd;
+    return dispatchData;
 }
 
 bool ConvolutionKernel_b_fs_zyx_fsv16::Validate(const Params& p, const optional_params& o) const {
@@ -231,10 +231,10 @@ bool ConvolutionKernel_b_fs_zyx_fsv16::Validate(const Params& p, const optional_
 }
 
 JitConstants ConvolutionKernel_b_fs_zyx_fsv16::GetJitConstants(const convolution_params& params,
-                                                         const DispatchData& runInfo) const {
+                                                               const DispatchData& dispatchData) const {
     auto input = params.inputs[0];
     auto output = params.output;
-    auto jit = Parent::GetJitConstants(params, runInfo);
+    auto jit = Parent::GetJitConstants(params, dispatchData);
 
     const bool is_1stconv = input.Feature().v == 3 && input.GetLayout() == DataLayout::bfzyx;
     const bool ver_16mb16c = !is_1stconv && ((output.GetDType() == Datatype::F16 && output.Batch().v % 32 == 0) ||
@@ -253,9 +253,9 @@ JitConstants ConvolutionKernel_b_fs_zyx_fsv16::GetJitConstants(const convolution
     else
         jit.AddConstant(MakeJitConstant("CASE_3D", 1));
 
-    jit.AddConstant(MakeJitConstant("LWS_0", runInfo.lws0));
-    jit.AddConstant(MakeJitConstant("LWS_1", runInfo.lws1));
-    jit.AddConstant(MakeJitConstant("LWS_2", runInfo.lws2));
+    jit.AddConstant(MakeJitConstant("LWS_0", dispatchData.lws[0]));
+    jit.AddConstant(MakeJitConstant("LWS_1", dispatchData.lws[1]));
+    jit.AddConstant(MakeJitConstant("LWS_2", dispatchData.lws[2]));
 
     if (is_1stconv) {
         if (output.GetDType() == Datatype::F16) {
@@ -267,11 +267,11 @@ JitConstants ConvolutionKernel_b_fs_zyx_fsv16::GetJitConstants(const convolution
     } else if (ver_16mb16c) {
         jit.AddConstant(MakeJitConstant("OCB", 1));
     } else {
-        jit.AddConstant(MakeJitConstant("OCB", runInfo.gws0));
+        jit.AddConstant(MakeJitConstant("OCB", dispatchData.gws[0]));
     }
     jit.AddConstant(MakeJitConstant("SUM_SCALE", 1));
 
-    auto blockWidth = runInfo.cldnnStyle.blockWidth;
+    auto blockWidth = dispatchData.cldnnStyle.blockWidth;
 
     if (ver_16mb16c) {
         jit.AddConstant(MakeJitConstant("MB_BLOCK", 16));

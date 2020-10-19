@@ -1,5 +1,5 @@
 /*
-// Copyright (c) 2016-2019 Intel Corporation
+// Copyright (c) 2016-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -67,8 +67,8 @@ KernelsData ConvolutionKernel_Ref::GetKernelsData(const Params& params, const op
     return GetTunedKernelsDataByIndex(params, options);
 }
 
-JitConstants ConvolutionKernel_Ref::GetJitConstants(const convolution_params& params, const DispatchData& kd) const {
-    JitConstants jit = ConvolutionKernelBase::GetJitConstants(params, kd);
+JitConstants ConvolutionKernel_Ref::GetJitConstants(const convolution_params& params, const DispatchData& dispatchData) const {
+    JitConstants jit = ConvolutionKernelBase::GetJitConstants(params, dispatchData);
 
     Datatype accumulator_dt;
     Datatype activation_dt;
@@ -100,7 +100,7 @@ JitConstants ConvolutionKernel_Ref::GetJitConstants(const convolution_params& pa
 
 ConvolutionKernelBase::DispatchData ConvolutionKernel_Ref::SetDefault(const convolution_params& params,
                                                                       int autoTuneIndex) const {
-    DispatchData kd = ConvolutionKernelBase::SetDefault(params, autoTuneIndex);
+    DispatchData dispatchData = ConvolutionKernelBase::SetDefault(params, autoTuneIndex);
 
     // FIXME: ConvolutionKernelBase::SetDefault should probably be pure and
     // not setting these at all as it's something specific to a concrete
@@ -111,18 +111,9 @@ ConvolutionKernelBase::DispatchData ConvolutionKernel_Ref::SetDefault(const conv
     // Just set the correct value for a particular implementation here,
     // until the whole hierarchy is re-written.
     const auto& out = params.output;
-    std::vector<size_t> global = {out.X().v, out.Y().v * out.Z().v, out.Feature().v * out.Batch().v};
-
-    auto local = GetOptimalLocalWorkGroupSizes(global, params.engineInfo);
-
-    kd.gws0 = global[0];
-    kd.gws1 = global[1];
-    kd.gws2 = global[2];
-
-    kd.lws0 = local[0];
-    kd.lws1 = local[1];
-    kd.lws2 = local[2];
-    return kd;
+    dispatchData.gws = {out.X().v, out.Y().v * out.Z().v, out.Feature().v * out.Batch().v};
+    dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo);
+    return dispatchData;
 }
 
 bool ConvolutionKernel_Ref::Validate(const Params& params, const optional_params& options) const {

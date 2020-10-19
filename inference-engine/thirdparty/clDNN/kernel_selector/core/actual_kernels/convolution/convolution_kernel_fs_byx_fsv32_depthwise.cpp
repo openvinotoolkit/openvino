@@ -109,26 +109,26 @@ ConvolutionKernel_fs_byx_fsv32_depthwise::AutoTuneOption ConvolutionKernel_fs_by
 }
 
 ConvolutionKernelBase::DispatchData ConvolutionKernel_fs_byx_fsv32_depthwise::SetDefault(const convolution_params& arg,
-                                                                               int autoTuneIndex) const {
-    DispatchData runInfo = ConvolutionKernelBase::SetDefault(arg);
+                                                                                         int autoTuneIndex) const {
+    DispatchData dispatchData = ConvolutionKernelBase::SetDefault(arg);
 
     AutoTuneOption option = GetAutoTuneOptions(arg, autoTuneIndex);
 
-    runInfo.efficiency = FORCE_PRIORITY_3;
+    dispatchData.efficiency = FORCE_PRIORITY_3;
 
-    runInfo.cldnnStyle.blockHeight = 1;
-    runInfo.cldnnStyle.blockWidth = option.blockWidth;
-    runInfo.cldnnStyle.inputBlockWidth = getInputWidth(arg, option.blockWidth);
+    dispatchData.cldnnStyle.blockHeight = 1;
+    dispatchData.cldnnStyle.blockWidth = option.blockWidth;
+    dispatchData.cldnnStyle.inputBlockWidth = getInputWidth(arg, option.blockWidth);
 
-    runInfo.lws0 = 1;
-    runInfo.lws1 = 1;
-    runInfo.lws2 = 16;
+    dispatchData.lws[0] = 1;
+    dispatchData.lws[1] = 1;
+    dispatchData.lws[2] = 16;
 
-    runInfo.gws0 = CeilDiv(arg.output.X().v, option.blockWidth);
-    runInfo.gws1 = arg.output.Y().v;
-    runInfo.gws2 = CeilDiv(arg.output.Feature().v, 32) * 16 * arg.output.Batch().v;
+    dispatchData.gws[0] = CeilDiv(arg.output.X().v, option.blockWidth);
+    dispatchData.gws[1] = arg.output.Y().v;
+    dispatchData.gws[2] = CeilDiv(arg.output.Feature().v, 32) * 16 * arg.output.Batch().v;
 
-    return runInfo;
+    return dispatchData;
 }
 
 bool ConvolutionKernel_fs_byx_fsv32_depthwise::Validate(const Params& p, const optional_params& o) const {
@@ -154,11 +154,11 @@ bool ConvolutionKernel_fs_byx_fsv32_depthwise::Validate(const Params& p, const o
 }
 
 JitConstants ConvolutionKernel_fs_byx_fsv32_depthwise::GetJitConstants(const convolution_params& params,
-                                                             const DispatchData& kd) const {
-    auto jit = ConvolutionKernelBase::GetJitConstants(params, kd);
+                                                                       const DispatchData& dispatchData) const {
+    auto jit = ConvolutionKernelBase::GetJitConstants(params, dispatchData);
 
-    jit.AddConstant(MakeJitConstant("INPUT_BLOCK_WIDTH", kd.cldnnStyle.inputBlockWidth));
-    jit.AddConstant(MakeJitConstant("OUTPUT_BLOCK_WIDTH", kd.cldnnStyle.blockWidth));
+    jit.AddConstant(MakeJitConstant("INPUT_BLOCK_WIDTH", dispatchData.cldnnStyle.inputBlockWidth));
+    jit.AddConstant(MakeJitConstant("OUTPUT_BLOCK_WIDTH", dispatchData.cldnnStyle.blockWidth));
     jit.AddConstant(MakeJitConstant("FSV", fsv));
     jit.AddConstant(MakeJitConstant("SUB_GROUP_SIZE", subGroupSize));
     jit.AddConstant(MakeJitConstant("FSV_PER_THREAD", fsvPerThread));
@@ -178,8 +178,8 @@ JitConstants ConvolutionKernel_fs_byx_fsv32_depthwise::GetJitConstants(const con
 }
 
 KernelsData ConvolutionKernel_fs_byx_fsv32_depthwise::GetTunedKernelsDataByIndex(const Params& params,
-                                                                       const optional_params& options,
-                                                                       const int autoTuneIndex) const {
+                                                                                 const optional_params& options,
+                                                                                 const int autoTuneIndex) const {
     auto tuneOptions = GetAutoTuneOptions(params, autoTuneIndex);
     return GetCommonKernelsData(params, options, tuneOptions.exeMode, autoTuneIndex);
 }
@@ -189,7 +189,7 @@ KernelsData ConvolutionKernel_fs_byx_fsv32_depthwise::GetKernelsData(const Param
 }
 
 KernelsData ConvolutionKernel_fs_byx_fsv32_depthwise::GetKernelsDataForAutoTune(const Params& params,
-                                                                      const optional_params& options) const {
+                                                                                const optional_params& options) const {
     if (!Validate(params, options)) {
         return {};
     }

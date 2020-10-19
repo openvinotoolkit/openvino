@@ -31,6 +31,6 @@ protected:
     std::vector<FusedOpType> GetSupportedFusedOps() const override {
         return { FusedOpType::ACTIVATION };
     }
-    JitConstants GetJitConstants(const fully_connected_params& params, const DispatchData& kd) const override;
+    JitConstants GetJitConstants(const fully_connected_params& params, const DispatchData& dispatchData) const override;
 };
 }  // namespace kernel_selector

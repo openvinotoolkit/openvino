@@ -38,32 +38,23 @@ ParamsKey LRNKernelAcrossChannelMultipleFeaturesFSV16::GetSupportedKey() const {
 }
 
 CommonDispatchData LRNKernelAcrossChannelMultipleFeaturesFSV16::SetDefault(const lrn_params& params) const {
-    CommonDispatchData runInfo = LRNKernelBase::SetDefault(params);
+    CommonDispatchData dispatchData = LRNKernelBase::SetDefault(params);
 
     const auto& out = params.output;
     const unsigned int alignment = 16;
 
-    std::vector<size_t> global = {Align(out.Feature().v, alignment),
-                                  out.X().v,
-                                  out.Y().v * out.Batch().v};
+    dispatchData.gws = { Align(out.Feature().v, alignment),
+                         out.X().v,
+                         out.Y().v * out.Batch().v };
+    dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo);
 
-    auto local = GetOptimalLocalWorkGroupSizes(global, params.engineInfo);
+    dispatchData.efficiency = FORCE_PRIORITY_6;
 
-    runInfo.gws0 = global[0];
-    runInfo.gws1 = global[1];
-    runInfo.gws2 = global[2];
-
-    runInfo.lws0 = local[0];
-    runInfo.lws1 = local[1];
-    runInfo.lws2 = local[2];
-
-    runInfo.efficiency = FORCE_PRIORITY_6;
-
-    return runInfo;
+    return dispatchData;
 }
 
-JitConstants LRNKernelAcrossChannelMultipleFeaturesFSV16::GetJitConstants(const lrn_params& params, const DispatchData& kd) const {
-    JitConstants jit = LRNKernelBase::GetJitConstants(params, kd);
+JitConstants LRNKernelAcrossChannelMultipleFeaturesFSV16::GetJitConstants(const lrn_params& params, const DispatchData& dispatchData) const {
+    JitConstants jit = LRNKernelBase::GetJitConstants(params, dispatchData);
     const auto& input_dt = params.inputs[0].GetDType();
 
     if (!params.fused_ops.empty()) {

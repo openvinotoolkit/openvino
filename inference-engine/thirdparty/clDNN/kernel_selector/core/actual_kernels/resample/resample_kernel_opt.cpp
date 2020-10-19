@@ -52,21 +52,20 @@ ParamsKey ResampleKernelOpt::GetSupportedKey() const {
 }
 
 ResampleKernelBase::DispatchData ResampleKernelOpt::SetDefault(const kernel_selector::resample_params &arg) const {
-    DispatchData runInfo;
+    DispatchData dispatchData;
     const auto& out = arg.output;
 
-    runInfo.gws0 = CeilDiv(out.X().v, GetOptimalBlockSize(arg)) * out.Y().v;
-    runInfo.gws1 = Align(out.Feature().v, sub_group_size);
-    runInfo.gws2 = arg.output.Batch().v;
+    dispatchData.gws[0] = CeilDiv(out.X().v, GetOptimalBlockSize(arg)) * out.Y().v;
+    dispatchData.gws[1] = Align(out.Feature().v, sub_group_size);
+    dispatchData.gws[2] = arg.output.Batch().v;
 
-    runInfo.lws0 = 1;
-    runInfo.lws1 = sub_group_size;
-    runInfo.lws2 = 1;
+    dispatchData.lws[0] = 1;
+    dispatchData.lws[1] = sub_group_size;
+    dispatchData.lws[2] = 1;
 
-    runInfo.efficiency = FORCE_PRIORITY_3;
-    runInfo.fp16UnitUsed = out.GetDType() == Datatype::F16;
+    dispatchData.efficiency = FORCE_PRIORITY_3;
 
-    return runInfo;
+    return dispatchData;
 }
 
 bool ResampleKernelOpt::Validate(const Params& p, const optional_params& o) const {

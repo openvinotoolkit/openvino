@@ -43,10 +43,9 @@ ParamsKey BinaryConvolutionKernelGeneric::GetSupportedKey() const {
     return k;
 }
 
-BinaryConvolutionKernelBase::DispatchData BinaryConvolutionKernelGeneric::SetDefault(
-    const binary_convolution_params& params,
-    int) const {
-    DispatchData kd = BinaryConvolutionKernelBase::SetDefault(params);
+BinaryConvolutionKernelBase::DispatchData BinaryConvolutionKernelGeneric::SetDefault(const binary_convolution_params& params,
+                                                                                     int) const {
+    DispatchData dispatchData = BinaryConvolutionKernelBase::SetDefault(params);
 
     const auto& out = params.output;
 
@@ -55,17 +54,17 @@ BinaryConvolutionKernelBase::DispatchData BinaryConvolutionKernelGeneric::SetDef
     auto f = out.Feature().v;
     auto b = out.Batch().v;
 
-    kd.gws0 = Align(x, sub_group_size) * y;
-    kd.gws1 = CeilDiv(f, 2 * sub_group_size);  // 1 WI calc 2 OC x 16 X
-    kd.gws2 = b;
+    dispatchData.gws[0] = Align(x, sub_group_size) * y;
+    dispatchData.gws[1] = CeilDiv(f, 2 * sub_group_size);  // 1 WI calc 2 OC x 16 X
+    dispatchData.gws[2] = b;
 
-    kd.lws0 = sub_group_size;
-    kd.lws1 = 1;
-    kd.lws2 = 1;
+    dispatchData.lws[0] = sub_group_size;
+    dispatchData.lws[1] = 1;
+    dispatchData.lws[2] = 1;
 
-    kd.efficiency = FORCE_PRIORITY_2;
+    dispatchData.efficiency = FORCE_PRIORITY_2;
 
-    return kd;
+    return dispatchData;
 }
 
 bool BinaryConvolutionKernelGeneric::Validate(const Params& p, const optional_params& o) const {
@@ -81,8 +80,8 @@ bool BinaryConvolutionKernelGeneric::Validate(const Params& p, const optional_pa
 }
 
 JitConstants BinaryConvolutionKernelGeneric::GetJitConstants(const binary_convolution_params& params,
-                                                             const DispatchData& runInfo) const {
-    auto jit = Parent::GetJitConstants(params, runInfo);
+                                                             const DispatchData& dispatchData) const {
+    auto jit = Parent::GetJitConstants(params, dispatchData);
 
     auto input = params.inputs[0];
     auto output = params.output;

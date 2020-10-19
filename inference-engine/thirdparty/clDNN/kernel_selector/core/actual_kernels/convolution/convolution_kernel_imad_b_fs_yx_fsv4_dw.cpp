@@ -273,8 +273,8 @@ ConvolutionKernel_imad_b_fs_yx_fsv4_dw::AutoTuneParams ConvolutionKernel_imad_b_
 }
 
 JitConstants ConvolutionKernel_imad_b_fs_yx_fsv4_dw::GetJitConstants(const convolution_params& params,
-                                                                     const DispatchData& kd) const {
-    auto mem_consts = Parent::GetJitConstants(params, kd);
+                                                                     const DispatchData& dispatchData) const {
+    auto mem_consts = Parent::GetJitConstants(params, dispatchData);
 
     size_t filter_block_size = 4;
     size_t min_blocked_leftovers = 4;
@@ -288,7 +288,7 @@ JitConstants ConvolutionKernel_imad_b_fs_yx_fsv4_dw::GetJitConstants(const convo
     }
     mem_consts.AddConstant(MakeJitConstant("FILTER_BLOCKED", filter_blocked));
 
-    auto& work_mode = kd.cldnnStyle.prefetch;
+    auto& work_mode = dispatchData.cldnnStyle.prefetch;
     bool tiled = (work_mode & mode::tiled) != 0;
     bool preload_input = (work_mode & mode::preload_input) != 0;
     bool preload_weights = (work_mode & mode::preload_weights) != 0;
@@ -300,21 +300,21 @@ JitConstants ConvolutionKernel_imad_b_fs_yx_fsv4_dw::GetJitConstants(const convo
 
     if (tiled) {
         preload_weights = true;
-        simd = kd.lws0;
-        tile_x = kd.cldnnStyle.blockWidth;
-        tile_y = kd.cldnnStyle.blockHeight;
+        simd = dispatchData.lws[0];
+        tile_x = dispatchData.cldnnStyle.blockWidth;
+        tile_y = dispatchData.cldnnStyle.blockHeight;
         input_line_size = 1;
         output_block_x = 1;
     } else if (preload_input) {
         tile_x = 1;
-        tile_y = kd.cldnnStyle.blockHeight;
-        output_block_x = kd.cldnnStyle.blockWidth;
+        tile_y = dispatchData.cldnnStyle.blockHeight;
+        output_block_x = dispatchData.cldnnStyle.blockWidth;
         input_line_size = (output_block_x - 1) * params.stride.x + (params.weights.X().v - 1) * params.dilation.x + 1;
     } else {
         tile_x = 1;
         tile_y = 1;
         input_line_size = 1;
-        output_block_x = kd.cldnnStyle.blockWidth;
+        output_block_x = dispatchData.cldnnStyle.blockWidth;
     }
 
     mem_consts.AddConstant(MakeJitConstant("TILED", tiled));
@@ -345,7 +345,7 @@ JitConstants ConvolutionKernel_imad_b_fs_yx_fsv4_dw::GetJitConstants(const convo
 
 ConvolutionKernelBase::DispatchData ConvolutionKernel_imad_b_fs_yx_fsv4_dw::SetDefault(const convolution_params& params,
                                                                                        int autoTuneIndex) const {
-    DispatchData kd;
+    DispatchData dispatchData;
     auto& out = params.output;
 
     auto autoTuneParam = GetAutoTuneParams(params, autoTuneIndex);
@@ -357,34 +357,26 @@ ConvolutionKernelBase::DispatchData ConvolutionKernel_imad_b_fs_yx_fsv4_dw::SetD
         global_x = global_x * autoTuneParam.tiled_simd;
     }
 
-    std::vector<size_t> global = { global_x, global_y, CeilDiv(out.Feature().v, fsv) * out.Batch().v };
-    std::vector<size_t> local = { 1, 1, 1 };
+    dispatchData.gws = { global_x, global_y, CeilDiv(out.Feature().v, fsv) * out.Batch().v };
+    dispatchData.lws = { 1, 1, 1 };
 
     if (autoTuneParam.tiled) {
-        local[0] = autoTuneParam.tiled_simd;
+        dispatchData.lws[0] = autoTuneParam.tiled_simd;
     } else {
-        local = GetOptimalLocalWorkGroupSizes(global, params.engineInfo);
+        dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo);
     }
 
-    kd.gws0 = global[0];
-    kd.gws1 = global[1];
-    kd.gws2 = global[2];
+    dispatchData.gemmStyle = { 0, 0, 0, 0, 0, 0 };
 
-    kd.lws0 = local[0];
-    kd.lws1 = local[1];
-    kd.lws2 = local[2];
+    dispatchData.cldnnStyle.blockWidth = autoTuneParam.block_x;
+    dispatchData.cldnnStyle.blockHeight = autoTuneParam.block_y;
+    dispatchData.cldnnStyle.prefetch = (static_cast<size_t>(autoTuneParam.tiled) * mode::tiled)
+                                     | (static_cast<size_t>(autoTuneParam.preload_input) * mode::preload_input)
+                                     | (static_cast<size_t>(autoTuneParam.preload_weights) * mode::preload_weights);
 
-    kd.gemmStyle = { 0, 0, 0, 0, 0, 0 };
+    dispatchData.efficiency = FORCE_PRIORITY_1;
 
-    kd.cldnnStyle.blockWidth = autoTuneParam.block_x;
-    kd.cldnnStyle.blockHeight = autoTuneParam.block_y;
-    kd.cldnnStyle.prefetch = (static_cast<size_t>(autoTuneParam.tiled) * mode::tiled)
-                           | (static_cast<size_t>(autoTuneParam.preload_input) * mode::preload_input)
-                           | (static_cast<size_t>(autoTuneParam.preload_weights) * mode::preload_weights);
-
-    kd.efficiency = FORCE_PRIORITY_1;
-
-    return kd;
+    return dispatchData;
 }  // SetDefault
 
 KernelsData ConvolutionKernel_imad_b_fs_yx_fsv4_dw::GetTunedKernelsDataByIndex(const Params& params,
@@ -400,7 +392,7 @@ KernelsData ConvolutionKernel_imad_b_fs_yx_fsv4_dw::GetKernelsData(const Params&
 }
 
 KernelsData ConvolutionKernel_imad_b_fs_yx_fsv4_dw::GetKernelsDataForAutoTune(const Params& params,
-                                                                               const optional_params& options) const {
+                                                                              const optional_params& options) const {
     if (!Validate(params, options)) {
         return {};
     }

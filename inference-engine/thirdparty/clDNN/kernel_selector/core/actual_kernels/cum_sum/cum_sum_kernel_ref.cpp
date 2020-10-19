@@ -20,8 +20,8 @@
 #include <vector>
 
 namespace kernel_selector {
-JitConstants CumSumKernelRef::GetJitConstants(const cum_sum_params& params, DispatchData kd) const {
-    auto jits = CumSumKernelBase::GetJitConstants(params, kd);
+JitConstants CumSumKernelRef::GetJitConstants(const cum_sum_params& params, DispatchData dispatchData) const {
+    auto jits = CumSumKernelBase::GetJitConstants(params, dispatchData);
 
     jits.AddConstant(MakeJitConstant("AXIS_LAYOUT_INDEX", GetCumSumAxisIndex(params)));
 

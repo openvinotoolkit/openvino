@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2016 Intel Corporation
+﻿// Copyright (c) 2016-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -35,18 +35,16 @@ JitConstants FullyConnectedKernelBase::GetJitConstants(const fully_connected_par
 FullyConnectedKernelBase::DispatchData FullyConnectedKernelBase::SetDefault(const fully_connected_params& params,
                                                                             int) const {
     DispatchData dispatchData;
-    dispatchData.fp16UnitUsed = params.inputs[0].GetDType() == Datatype::F16;
 
     // Determine global work sizes.
-    dispatchData.gws0 = params.output.LogicalSize();
-    dispatchData.gws1 = dispatchData.gws2 = 1;
+    dispatchData.gws = { params.output.LogicalSize(), 1, 1 };
 
     // Find largest positive local work size that is divider for global work size.
-    dispatchData.lws0 = std::min(std::max(dispatchData.gws0, static_cast<size_t>(1)), static_cast<size_t>(32));
-    while (dispatchData.gws0 % dispatchData.lws0 != 0) {
-        --dispatchData.lws0;
+    dispatchData.lws[0] = std::min(std::max(dispatchData.gws[0], static_cast<size_t>(1)), static_cast<size_t>(32));
+    while (dispatchData.gws[0] % dispatchData.lws[0] != 0) {
+        --dispatchData.lws[0];
     }
-    dispatchData.lws1 = dispatchData.lws2 = 1;
+    dispatchData.lws[1] = dispatchData.lws[2] = 1;
 
     return dispatchData;
 }
@@ -99,8 +97,8 @@ KernelsData FullyConnectedKernelBase::GetCommonKernelsData(const Params &params,
 
     auto entry_point = GetEntryPoint(kernelName, orgParams.layerID, options);
 
-    const DispatchData runInfo = SetDefault(newParams, autoTuneIndex);
-    auto cldnn_jit = GetJitConstants(newParams, runInfo);
+    const DispatchData dispatchData = SetDefault(newParams, autoTuneIndex);
+    auto cldnn_jit = GetJitConstants(newParams, dispatchData);
     std::string jit = CreateJit(kernelName, cldnn_jit, entry_point);
 
     uint32_t fused_deps_total = 0;
@@ -112,7 +110,7 @@ KernelsData FullyConnectedKernelBase::GetCommonKernelsData(const Params &params,
 
     auto& kernel = kd.kernels[0];
     FillCLKernelData(kernel,
-                     runInfo,
+                     dispatchData,
                      params.engineInfo,
                      kernelName,
                      jit,

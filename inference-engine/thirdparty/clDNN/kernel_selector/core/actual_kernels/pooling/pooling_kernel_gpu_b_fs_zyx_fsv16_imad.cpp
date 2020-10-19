@@ -45,7 +45,7 @@ ParamsKey PoolingKernelGPU_b_fs_zyx_fsv16_imad::GetSupportedKey() const {
 }
 
 PoolingKernelBase::DispatchData PoolingKernelGPU_b_fs_zyx_fsv16_imad::SetDefault(const pooling_params& params) const {
-    DispatchData runInfo = PoolingKernelBase::SetDefault(params);
+    DispatchData dispatchData = PoolingKernelBase::SetDefault(params);
 
     const auto& out = params.output;
     auto x = out.X().v;
@@ -54,22 +54,17 @@ PoolingKernelBase::DispatchData PoolingKernelGPU_b_fs_zyx_fsv16_imad::SetDefault
     auto f = out.Feature().v;
     auto b = out.Batch().v;
 
-    runInfo.gws0 = x;
-    runInfo.gws1 = y * z;
+    dispatchData.gws[0] = x;
+    dispatchData.gws[1] = y * z;
     // we got b_fs_yx_fsv16 format, we process 16 features per workitem
-    runInfo.gws2 = CeilDiv(f, FEATURE_SLICE_SIZE) * b;
+    dispatchData.gws[2] = CeilDiv(f, FEATURE_SLICE_SIZE) * b;
+    dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo);
 
-    auto local = GetOptimalLocalWorkGroupSizes({ runInfo.gws0, runInfo.gws1, runInfo.gws2 }, params.engineInfo);
-
-    runInfo.lws0 = local[0];
-    runInfo.lws1 = local[1];
-    runInfo.lws2 = local[2];
-
-    return runInfo;
+    return dispatchData;
 }
 
-JitConstants PoolingKernelGPU_b_fs_zyx_fsv16_imad::GetJitConstants(const pooling_params& params, DispatchData kd) const {
-    auto jit = PoolingKernelBase::GetJitConstants(params, kd);
+JitConstants PoolingKernelGPU_b_fs_zyx_fsv16_imad::GetJitConstants(const pooling_params& params, DispatchData dispatchData) const {
+    auto jit = PoolingKernelBase::GetJitConstants(params, dispatchData);
 
     const size_t in_x_pitch = FEATURE_SLICE_SIZE;
     const size_t in_y_pitch = FEATURE_SLICE_SIZE * params.inputs[0].X().LogicalDimPadded();

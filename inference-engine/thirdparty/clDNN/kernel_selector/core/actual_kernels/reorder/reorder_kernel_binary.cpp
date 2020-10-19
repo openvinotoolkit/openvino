@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2019 Intel Corporation
+﻿// Copyright (c) 2019-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -60,22 +60,14 @@ JitConstants ReorderKernelBinary::GetJitConstants(const reorder_params& params) 
 }
 
 ReorderKernelBinary::DispatchData ReorderKernelBinary::SetDefault(const reorder_params& params) const {
-    DispatchData kd;
+    DispatchData dispatchData;
 
     const auto& input = params.inputs[0];
 
-    std::vector<size_t> global{input.Batch().v, CeilDiv(input.Feature().v, 32), input.Y().v * input.X().v};
-    auto local = GetOptimalLocalWorkGroupSizes(global, params.engineInfo);
+    dispatchData.gws = { input.Batch().v, CeilDiv(input.Feature().v, 32), input.Y().v * input.X().v };
+    dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo);
 
-    kd.gws0 = global[0];
-    kd.gws1 = global[1];
-    kd.gws2 = global[2];
-
-    kd.lws0 = local[0];
-    kd.lws1 = local[1];
-    kd.lws2 = local[2];
-
-    return kd;
+    return dispatchData;
 }
 
 KernelsData ReorderKernelBinary::GetKernelsData(const Params& params, const optional_params& options) const {

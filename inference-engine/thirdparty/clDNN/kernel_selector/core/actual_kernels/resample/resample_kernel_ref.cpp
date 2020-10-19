@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2016-2019 Intel Corporation
+﻿// Copyright (c) 2016-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -123,25 +123,14 @@ JitConstants ResampleKernelRef::GetJitConstants(const resample_params& params) c
 }
 
 ResampleKernelBase::DispatchData ResampleKernelRef::SetDefault(const resample_params& arg) const {
-    auto dispatch = Parent::SetDefault(arg);
+    auto dispatchData = Parent::SetDefault(arg);
 
     if (use_packing(arg)) {
         auto pack = packing_factor(arg);
-        std::vector<size_t> global;
-        std::vector<size_t> local;
-
-        global = { arg.output.X().v, arg.output.Y().v * arg.output.Z().v, CeilDiv(arg.output.Feature().v, pack) * arg.output.Batch().v };
-        local = GetOptimalLocalWorkGroupSizes(global, arg.engineInfo);
-
-        dispatch.gws0 = global[0];
-        dispatch.gws1 = global[1];
-        dispatch.gws2 = global[2];
-
-        dispatch.lws0 = local[0];
-        dispatch.lws1 = local[1];
-        dispatch.lws2 = local[2];
+        dispatchData.gws = { arg.output.X().v, arg.output.Y().v * arg.output.Z().v, CeilDiv(arg.output.Feature().v, pack) * arg.output.Batch().v };
+        dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, arg.engineInfo);
     }
 
-    return dispatch;
+    return dispatchData;
 }
 }  // namespace kernel_selector

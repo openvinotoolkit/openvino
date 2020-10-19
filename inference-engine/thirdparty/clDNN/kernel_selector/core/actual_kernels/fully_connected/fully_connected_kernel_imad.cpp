@@ -55,17 +55,17 @@ FullyConnectedKernelIMAD::Parent::DispatchData FullyConnectedKernelIMAD::SetDefa
     int) const {
     const int simdSize = 16;
 
-    auto runInfo = Parent::SetDefault(params);
+    auto dispatchData = Parent::SetDefault(params);
 
-    runInfo.gws0 = RoundUp(params.output.Feature().v, simdSize);
-    runInfo.gws1 = params.output.Batch().v;
-    runInfo.gws2 = 1;
+    dispatchData.gws[0] = RoundUp(params.output.Feature().v, simdSize);
+    dispatchData.gws[1] = params.output.Batch().v;
+    dispatchData.gws[2] = 1;
 
-    runInfo.lws0 = simdSize;
-    runInfo.lws1 = 1;
-    runInfo.lws2 = 1;
+    dispatchData.lws[0] = simdSize;
+    dispatchData.lws[1] = 1;
+    dispatchData.lws[2] = 1;
 
-    return runInfo;
+    return dispatchData;
 }  // SetDefault
 
 bool FullyConnectedKernelIMAD::Validate(const Params& params, const optional_params& options) const {
@@ -95,8 +95,8 @@ bool FullyConnectedKernelIMAD::Validate(const Params& params, const optional_par
     return true;
 }  // Validate
 
-JitConstants FullyConnectedKernelIMAD::GetJitConstants(const fully_connected_params& params, const DispatchData& kd) const {
-    auto jit = Parent::GetJitConstants(params, kd);
+JitConstants FullyConnectedKernelIMAD::GetJitConstants(const fully_connected_params& params, const DispatchData& dispatchData) const {
+    auto jit = Parent::GetJitConstants(params, dispatchData);
 
     if (!params.fused_ops.empty()) {
         auto input_dt = GetActivationType(params);

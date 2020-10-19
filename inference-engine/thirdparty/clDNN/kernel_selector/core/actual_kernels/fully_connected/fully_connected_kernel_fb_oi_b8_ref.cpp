@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2016 Intel Corporation
+﻿// Copyright (c) 2016-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -33,15 +33,15 @@ ParamsKey FullyConnected_fb_oi_b8_ref::GetSupportedKey() const {
 
 FullyConnected_fb_oi_b8_ref::DispatchData FullyConnected_fb_oi_b8_ref::SetDefault(const fully_connected_params& arg,
                                                                                   int) const {
-    auto kd = FullyConnectedKernelBase::SetDefault(arg);
+    auto dispatchData = FullyConnectedKernelBase::SetDefault(arg);
 
     const auto& output = arg.output;
-    kd.gws0 = output.Batch().v;
-    kd.gws1 = output.LogicalSize() / kd.gws0;
-    kd.lws0 = 8;
-    kd.lws1 = 1;
+    dispatchData.gws[0] = output.Batch().v;
+    dispatchData.gws[1] = output.LogicalSize() / dispatchData.gws[0];
+    dispatchData.lws[0] = 8;
+    dispatchData.lws[1] = 1;
 
-    return kd;
+    return dispatchData;
 }
 
 bool FullyConnected_fb_oi_b8_ref::Validate(const Params& p, const optional_params& o) const {

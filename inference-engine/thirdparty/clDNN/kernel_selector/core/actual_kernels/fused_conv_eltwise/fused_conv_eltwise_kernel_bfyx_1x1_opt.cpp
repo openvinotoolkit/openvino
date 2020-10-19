@@ -132,29 +132,29 @@ WeightsLayout fused_conv_eltwise_kernel_bfyx_1x1_opt::GetPreferreddWeightsLayout
 fused_conv_eltwise_kernel_base::DispatchData fused_conv_eltwise_kernel_bfyx_1x1_opt::SetDefault(
     const fused_conv_eltwise_params& arg,
     int) const {
-    DispatchData runInfo = Parent::SetDefault(arg);
+    DispatchData dispatchData = Parent::SetDefault(arg);
 
     constexpr size_t sub_group_size = 8;
 
-    runInfo.efficiency = FORCE_PRIORITY_3;
+    dispatchData.efficiency = FORCE_PRIORITY_3;
 
     auto block = get_out_block_size(arg);
 
-    runInfo.gws0 = arg.output.X().v / block.out_width;
-    runInfo.gws1 = arg.output.Y().v / block.out_height;
-    runInfo.gws2 = 2 * (arg.output.Feature().v * arg.output.Batch().v) /
-                   block.out_depth;  // process 8 output channels per Workitem
+    dispatchData.gws[0] = arg.output.X().v / block.out_width;
+    dispatchData.gws[1] = arg.output.Y().v / block.out_height;
+    dispatchData.gws[2] = 2 * (arg.output.Feature().v * arg.output.Batch().v) /
+                          block.out_depth;  // process 8 output channels per Workitem
 
-    runInfo.lws0 = 1;
-    runInfo.lws1 = 1;
-    runInfo.lws2 = 2 * sub_group_size;
+    dispatchData.lws[0] = 1;
+    dispatchData.lws[1] = 1;
+    dispatchData.lws[2] = 2 * sub_group_size;
 
-    return runInfo;
+    return dispatchData;
 }
 
 JitConstants fused_conv_eltwise_kernel_bfyx_1x1_opt::GetJitConstants(const fused_conv_eltwise_params& params,
-                                                                     const DispatchData& runInfo) const {
-    auto jit = Parent::GetJitConstants(params, runInfo);
+                                                                     const DispatchData& dispatchData) const {
+    auto jit = Parent::GetJitConstants(params, dispatchData);
 
     auto block = get_out_block_size(params);
     jit.AddConstant(MakeJitConstant("OUT_BLOCK_WIDTH", block.out_width));

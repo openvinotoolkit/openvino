@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2018 Intel Corporation
+﻿// Copyright (c) 2018-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -59,7 +59,7 @@ ParamsKey TileKernelRef::GetSupportedKey() const {
 }
 
 CommonDispatchData TileKernelRef::SetDefault(const tile_params& params, const optional_params&) const {
-    CommonDispatchData runInfo;
+    CommonDispatchData dispatchData;
 
     auto in = params.inputs[0];
 
@@ -77,26 +77,24 @@ CommonDispatchData TileKernelRef::SetDefault(const tile_params& params, const op
     }
 
     if (inner_size > 1) {
-        runInfo.gws0 = outer_size;
-        runInfo.gws1 = inner_size;
-        runInfo.gws2 = 1;
+        dispatchData.gws[0] = outer_size;
+        dispatchData.gws[1] = inner_size;
+        dispatchData.gws[2] = 1;
 
-        runInfo.lws0 = 1;
-        runInfo.lws1 = 1;
-        runInfo.lws2 = 1;
+        dispatchData.lws[0] = 1;
+        dispatchData.lws[1] = 1;
+        dispatchData.lws[2] = 1;
     } else {
-        runInfo.gws0 = Align(outer_size, 16);
-        runInfo.gws1 = 1;
-        runInfo.gws2 = 1;
+        dispatchData.gws[0] = Align(outer_size, 16);
+        dispatchData.gws[1] = 1;
+        dispatchData.gws[2] = 1;
 
-        runInfo.lws0 = 16;
-        runInfo.lws1 = 1;
-        runInfo.lws2 = 1;
+        dispatchData.lws[0] = 16;
+        dispatchData.lws[1] = 1;
+        dispatchData.lws[2] = 1;
     }
 
-    runInfo.fp16UnitUsed = params.inputs[0].GetDType() == Datatype::F16;
-
-    return runInfo;
+    return dispatchData;
 }
 
 JitConstants TileKernelRef::GetJitConstants(const tile_params& params) const {
@@ -135,14 +133,14 @@ KernelsData TileKernelRef::GetKernelsData(const Params& params, const optional_p
     KernelData kd = KernelData::Default<tile_params>(params);
     tile_params& newParams = *static_cast<tile_params*>(kd.params.get());
 
-    auto runInfo = SetDefault(newParams, options);
+    auto dispatchData = SetDefault(newParams, options);
     auto entry_point = GetEntryPoint(kernelName, newParams.layerID, options);
     auto cldnn_jit = GetJitConstants(newParams);
     std::string jit = CreateJit(kernelName, cldnn_jit, entry_point);
 
     auto& kernel = kd.kernels[0];
 
-    FillCLKernelData(kernel, runInfo, params.engineInfo, kernelName, jit, entry_point);
+    FillCLKernelData(kernel, dispatchData, params.engineInfo, kernelName, jit, entry_point);
 
     kd.estimatedTime = DONT_USE_IF_HAVE_SOMETHING_ELSE;
 

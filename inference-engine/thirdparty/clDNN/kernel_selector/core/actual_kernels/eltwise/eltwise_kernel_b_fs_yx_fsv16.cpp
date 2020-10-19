@@ -200,23 +200,23 @@ bool EltwiseKernel_b_fs_yx_fsv16::Validate(const Params& params, const optional_
 }
 
 EltwiseKernelBase::DispatchData EltwiseKernel_b_fs_yx_fsv16::SetDefault(const eltwise_params& params) const {
-    DispatchData kd;
+    DispatchData dispatchData;
 
-    kd.gws0 = Align(params.output.Feature().v, 16);
-    kd.gws1 = CeilDiv(params.output.X().v, GetBlockSize(params)) * params.output.Y().v;
-    kd.gws2 = params.output.Batch().v;
+    dispatchData.gws[0] = Align(params.output.Feature().v, 16);
+    dispatchData.gws[1] = CeilDiv(params.output.X().v, GetBlockSize(params)) * params.output.Y().v;
+    dispatchData.gws[2] = params.output.Batch().v;
 
-    kd.lws0 = 16;
-    kd.lws1 = 16;
-    while (kd.lws1 > 1) {
-        if (kd.gws1 % kd.lws1 == 0)
+    dispatchData.lws[0] = 16;
+    dispatchData.lws[1] = 16;
+    while (dispatchData.lws[1] > 1) {
+        if (dispatchData.gws[1] % dispatchData.lws[1] == 0)
             break;
-        kd.lws1--;
+        dispatchData.lws[1]--;
     }
-    kd.lws2 = 1;
+    dispatchData.lws[2] = 1;
 
-    kd.efficiency = FORCE_PRIORITY_1;
-    return kd;
+    dispatchData.efficiency = FORCE_PRIORITY_1;
+    return dispatchData;
 }
 
 KernelsData EltwiseKernel_b_fs_yx_fsv16::GetKernelsData(const Params& params, const optional_params& options) const {
@@ -231,12 +231,12 @@ KernelsData EltwiseKernel_b_fs_yx_fsv16::GetKernelsData(const Params& params, co
     auto cldnn_jit = GetJitConstants(newParams);
     std::string jit = CreateJit(kernelName, cldnn_jit, entry_point);
 
-    DispatchData runInfo = SetDefault(newParams);
+    DispatchData dispatchData = SetDefault(newParams);
 
     auto& kernel = kd.kernels[0];
 
-    kernel.workGroups.global = {runInfo.gws0, runInfo.gws1, runInfo.gws2};
-    kernel.workGroups.local = {runInfo.lws0, runInfo.lws1, runInfo.lws2};
+    kernel.workGroups.global = dispatchData.gws;
+    kernel.workGroups.local = dispatchData.lws;
 
     kernel.kernelString = GetKernelString(kernelName, jit, entry_point, params.engineInfo, DEFAULT);
     kernel.arguments = GetArgsDesc((uint32_t)newParams.inputs.size(),
@@ -244,7 +244,7 @@ KernelsData EltwiseKernel_b_fs_yx_fsv16::GetKernelsData(const Params& params, co
                                    false,
                                    GetFusedPrimitiveInputsCount(params));
 
-    kd.estimatedTime = runInfo.efficiency;
+    kd.estimatedTime = dispatchData.efficiency;
 
     return {kd};
 }

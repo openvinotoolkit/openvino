@@ -29,6 +29,6 @@ public:
 
 protected:
     DispatchData SetDefault(const fully_connected_params& params, int autoTuneIndex = -1) const override;
-    JitConstants GetJitConstants(const fully_connected_params& params, const DispatchData& kd) const override;
+    JitConstants GetJitConstants(const fully_connected_params& params, const DispatchData& dispatchData) const override;
 };
 }  // namespace kernel_selector

@@ -65,7 +65,7 @@ public:
 
 protected:
     bool Validate(const Params&, const optional_params&) const override;
-    virtual JitConstants GetJitConstants(const pooling_params& params, DispatchData kd) const;
+    virtual JitConstants GetJitConstants(const pooling_params& params, DispatchData dispatchData) const;
     virtual DispatchData SetDefault(const pooling_params& params) const;
     KernelsData GetCommonKernelsData(const Params& params, const optional_params&, float estimatedTime) const;
     Datatype GetAccumulatorType(const pooling_params& p) const;

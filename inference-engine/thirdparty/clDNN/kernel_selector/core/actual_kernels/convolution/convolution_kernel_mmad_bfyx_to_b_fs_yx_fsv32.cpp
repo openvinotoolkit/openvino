@@ -84,7 +84,7 @@ bool ConvolutionKernel_mmad_bfyx_to_b_fs_yx_fsv32::Validate(const Params &p, con
 }
 
 ConvolutionKernel_mmad_bfyx_to_b_fs_yx_fsv32::AutoTuneOption ConvolutionKernel_mmad_bfyx_to_b_fs_yx_fsv32::GetAutoTuneOptions(const Params &p,
-                                                                                                                        int autoTuneIndex) const {
+                                                                                                                              int autoTuneIndex) const {
     if ((autoTuneIndex >= 0) && (autoTuneIndex < static_cast<int>(autoTuneOptions.size()))) {
         return autoTuneOptions[autoTuneIndex];
     }
@@ -150,50 +150,50 @@ static size_t get_lws(const convolution_params &cp, size_t blocks_count, size_t 
 
 ConvolutionKernelBase::DispatchData ConvolutionKernel_mmad_bfyx_to_b_fs_yx_fsv32::SetDefault(const convolution_params &cp,
                                                                                              int autoTuneIndex) const {
-    DispatchData runInfo = ConvolutionKernelBase::SetDefault(cp);
+    DispatchData dispatchData = ConvolutionKernelBase::SetDefault(cp);
 
     auto tuneOptions = GetAutoTuneOptions(cp, autoTuneIndex);
-    runInfo.cldnnStyle.blockWidth = tuneOptions.blockWidth;
-    runInfo.cldnnStyle.blockHeight = tuneOptions.blockHeight;
-    runInfo.cldnnStyle.prefetch = tuneOptions.prefetch;
+    dispatchData.cldnnStyle.blockWidth = tuneOptions.blockWidth;
+    dispatchData.cldnnStyle.blockHeight = tuneOptions.blockHeight;
+    dispatchData.cldnnStyle.prefetch = tuneOptions.prefetch;
 
-    runInfo.efficiency = FORCE_PRIORITY_3;
+    dispatchData.efficiency = FORCE_PRIORITY_3;
 
     const size_t max_lws = std::max((size_t)1, cp.engineInfo.maxWorkGroupSize / sub_group_size);
-    runInfo.gws0 = Align(cp.output.Feature().v, 32) / 2;
-    runInfo.gws1 = CeilDiv(cp.output.X().v, runInfo.cldnnStyle.blockWidth);
-    runInfo.gws2 = cp.output.Batch().v * cp.output.Y().v * cp.output.Z().v;
+    dispatchData.gws[0] = Align(cp.output.Feature().v, 32) / 2;
+    dispatchData.gws[1] = CeilDiv(cp.output.X().v, dispatchData.cldnnStyle.blockWidth);
+    dispatchData.gws[2] = cp.output.Batch().v * cp.output.Y().v * cp.output.Z().v;
 
-    runInfo.lws0 = sub_group_size;
-    runInfo.lws1 = get_lws(cp, runInfo.gws1, tuneOptions.blockWidth, max_lws);
-    runInfo.lws2 = 1;
+    dispatchData.lws[0] = sub_group_size;
+    dispatchData.lws[1] = get_lws(cp, dispatchData.gws[1], tuneOptions.blockWidth, max_lws);
+    dispatchData.lws[2] = 1;
 
-    return runInfo;
+    return dispatchData;
 }
 
 JitConstants ConvolutionKernel_mmad_bfyx_to_b_fs_yx_fsv32::GetJitConstants(const convolution_params &params,
-                                                                           const DispatchData &runInfo) const {
-    auto jit = Parent::GetJitConstants(params, runInfo);
+                                                                           const DispatchData &dispatchData) const {
+    auto jit = Parent::GetJitConstants(params, dispatchData);
 
-    jit.AddConstant(MakeJitConstant("SUB_GROUP_SIZE", runInfo.lws0));
-    jit.AddConstant(MakeJitConstant("LWS0", runInfo.lws0));
-    jit.AddConstant(MakeJitConstant("LWS1", runInfo.lws1));
-    jit.AddConstant(MakeJitConstant("LWS2", runInfo.lws2));
+    jit.AddConstant(MakeJitConstant("SUB_GROUP_SIZE", dispatchData.lws[0]));
+    jit.AddConstant(MakeJitConstant("LWS0", dispatchData.lws[0]));
+    jit.AddConstant(MakeJitConstant("LWS1", dispatchData.lws[1]));
+    jit.AddConstant(MakeJitConstant("LWS2", dispatchData.lws[2]));
     jit.AddConstant(MakeJitConstant("OSV", 32));
-    jit.AddConstant(MakeJitConstant("X_BLOCK_SIZE", runInfo.cldnnStyle.blockWidth));
+    jit.AddConstant(MakeJitConstant("X_BLOCK_SIZE", dispatchData.cldnnStyle.blockWidth));
     auto input = params.inputs[0];
     auto output = params.output;
-    auto blockWidth = runInfo.cldnnStyle.blockWidth;
-    size_t slm_line_size = params.stride.x * (runInfo.lws1 * blockWidth - 1) + (params.weights.X().v - 1) * params.dilation.x + 1;
-    size_t slm_chunk_size = slm_line_size / runInfo.lws1;
-    size_t slm_tail = slm_line_size % runInfo.lws1;
-    size_t slm_line_aligned = slm_chunk_size*runInfo.lws1 + Align(slm_tail, sub_group_size);
+    auto blockWidth = dispatchData.cldnnStyle.blockWidth;
+    size_t slm_line_size = params.stride.x * (dispatchData.lws[1] * blockWidth - 1) + (params.weights.X().v - 1) * params.dilation.x + 1;
+    size_t slm_chunk_size = slm_line_size / dispatchData.lws[1];
+    size_t slm_tail = slm_line_size % dispatchData.lws[1];
+    size_t slm_line_aligned = slm_chunk_size*dispatchData.lws[1] + Align(slm_tail, sub_group_size);
 
     size_t input_line_size = params.stride.x * (blockWidth - 1) + (params.weights.X().v - 1) * params.dilation.x + 1;
 
     jit.AddConstant(MakeJitConstant("INPUT_LINE_SIZE", input_line_size));
     jit.AddConstant(MakeJitConstant("OUTPUT_X_BLOCK_SIZE", blockWidth));
-    jit.AddConstant(MakeJitConstant("GROUP_SIZE", blockWidth * runInfo.lws1));
+    jit.AddConstant(MakeJitConstant("GROUP_SIZE", blockWidth * dispatchData.lws[1]));
     jit.AddConstant(MakeJitConstant("SLM_LINE_SIZE", slm_line_aligned));
     jit.AddConstant(MakeJitConstant("SLM_CHUNK_SIZE", slm_chunk_size));
     jit.AddConstant(MakeJitConstant("SLM_TAIL", slm_tail));

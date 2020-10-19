@@ -1,4 +1,4 @@
-// Copyright (c) 2019 Intel Corporation
+// Copyright (c) 2019-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -33,27 +33,15 @@ JitConstants OneHotKernelBase::GetJitConstants(const one_hot_params& params) con
 OneHotKernelBase::DispatchData OneHotKernelBase::SetDefault(const one_hot_params& params) {
     const auto& input = params.inputs[0];
 
-    DispatchData kd;
-
-    kd.fp16UnitUsed = input.GetDType() == Datatype::F16;
-
-    std::vector<size_t> global{input.Batch().v, input.Feature().v, input.Y().v * input.X().v};
+    DispatchData dispatchData;
     if (params.output.GetDims().size() == 5) {
-        global[0] = input.Batch().v;
-        global[1] = input.Feature().v * input.Z().v;
-        global[2] = input.Y().v * input.X().v;
+        dispatchData.gws = { input.Batch().v, input.Feature().v * input.Z().v, input.Y().v * input.X().v };
+    } else {
+        dispatchData.gws = { input.Batch().v, input.Feature().v, input.Y().v * input.X().v };
     }
-    const auto& local = GetOptimalLocalWorkGroupSizes(global, params.engineInfo);
+    dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo);
 
-    kd.gws0 = global[0];
-    kd.gws1 = global[1];
-    kd.gws2 = global[2];
-
-    kd.lws0 = local[0];
-    kd.lws1 = local[1];
-    kd.lws2 = local[2];
-
-    return kd;
+    return dispatchData;
 }
 
 KernelsData OneHotKernelBase::GetCommonKernelsData(const Params& params,
@@ -64,7 +52,7 @@ KernelsData OneHotKernelBase::GetCommonKernelsData(const Params& params,
     const auto& prim_params =
         static_cast<const one_hot_params&>(params);
 
-    auto run_info = SetDefault(prim_params);
+    auto dispatchData = SetDefault(prim_params);
     KernelData k_data = KernelData::Default<one_hot_params>(params);
 
     auto cldnn_jit = GetJitConstants(prim_params);
@@ -72,7 +60,7 @@ KernelsData OneHotKernelBase::GetCommonKernelsData(const Params& params,
     auto jit = CreateJit(kernelName, cldnn_jit, entry_point);
 
     auto& kernel = k_data.kernels[0];
-    FillCLKernelData(kernel, run_info, params.engineInfo, kernelName, jit, entry_point);
+    FillCLKernelData(kernel, dispatchData, params.engineInfo, kernelName, jit, entry_point);
     k_data.estimatedTime = estimated_time;
 
     return {k_data};

@@ -59,7 +59,7 @@ public:
 
 protected:
     virtual bool Validate(const Params&, const optional_params&) const;
-    virtual JitConstants GetJitConstants(const softmax_params& params, DispatchData kd) const;
+    virtual JitConstants GetJitConstants(const softmax_params& params, DispatchData dispatchData) const;
     virtual DispatchData SetDefault(const softmax_params& params, const optional_params& optParams) const;
     KernelsData GetCommonKernelsData(const Params& params, const optional_params& optParams) const;
 };
