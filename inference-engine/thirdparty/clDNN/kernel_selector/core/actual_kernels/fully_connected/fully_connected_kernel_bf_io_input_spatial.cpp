@@ -35,27 +35,28 @@ ParamsKey FullyConnected_bf_io_input_spatial::GetSupportedKey() const {
 FullyConnected_bf_io_input_spatial::DispatchData FullyConnected_bf_io_input_spatial::SetDefault(
     const fully_connected_params& arg,
     int) const {
-    auto kd = FullyConnectedKernelBase::SetDefault(arg);
+    auto dispatchData = FullyConnectedKernelBase::SetDefault(arg);
 
-    kd.gws0 = Align(arg.output.LogicalSize() / arg.inputs[0].Batch().v, 16);
-    kd.gws1 = arg.inputs[0].Batch().v;
-    kd.gws2 = 1;
-    kd.lws0 = 16;
-    kd.lws1 = 1;
-    kd.lws2 = 1;
+    dispatchData.gws[0] = Align(arg.output.LogicalSize() / arg.inputs[0].Batch().v, 16);
+    dispatchData.gws[1] = arg.inputs[0].Batch().v;
+    dispatchData.gws[2] = 1;
 
-    kd.efficiency = DONT_USE_IF_HAVE_SOMETHING_ELSE;
+    dispatchData.lws[0] = 16;
+    dispatchData.lws[1] = 1;
+    dispatchData.lws[2] = 1;
+
+    dispatchData.efficiency = DONT_USE_IF_HAVE_SOMETHING_ELSE;
 
     const auto& input = arg.inputs[0];
     const auto& output = arg.output;
 
     if (input.Batch().v == 1 && output.Batch().v == 1) {
         if ((input.LogicalSize() / output.Batch().v >= 4096) && (output.Feature().v >= 4096)) {
-            kd.efficiency = FORCE_PRIORITY_1;
+            dispatchData.efficiency = FORCE_PRIORITY_1;
         }
     }
 
-    return kd;
+    return dispatchData;
 }
 
 bool FullyConnected_bf_io_input_spatial::Validate(const Params& p, const optional_params& o) const {
