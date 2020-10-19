@@ -16,6 +16,7 @@ namespace pass {
 class TRANSFORMATIONS_API ConvertNMS1ToNMS5;
 class TRANSFORMATIONS_API ConvertNMS3ToNMS5;
 class TRANSFORMATIONS_API ConvertNMS4ToNMS5;
+class TRANSFORMATIONS_API ConvertPreviousNMSToNMS5;
 
 }  // namespace pass
 }  // namespace ngraph
@@ -36,4 +37,10 @@ class ngraph::pass::ConvertNMS4ToNMS5: public ngraph::pass::MatcherPass {
 public:
     NGRAPH_RTTI_DECLARATION;
     ConvertNMS4ToNMS5();
+};
+
+class ngraph::pass::ConvertPreviousNMSToNMS5: public ngraph::pass::MatcherPass {
+public:
+    NGRAPH_RTTI_DECLARATION;
+    ConvertPreviousNMSToNMS5();
 };

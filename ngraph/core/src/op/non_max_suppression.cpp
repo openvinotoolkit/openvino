@@ -894,7 +894,7 @@ namespace
 
         Shape shape = p.to_shape();
 
-        return is_scalar(shape) || is_vector(shape) && (shape[0] == 1);
+        return is_scalar(shape) || (is_vector(shape) && (shape[0] == 1));
     }
 
     float float_from_constant_node(const std::shared_ptr<op::Constant>& constant,
