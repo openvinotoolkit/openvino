@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2016 Intel Corporation
+﻿// Copyright (c) 2016-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -38,16 +38,16 @@ ParamsKey ConvolutionKernel_yxfb_yxio_b1_block::GetSupportedKey() const {
 
 ConvolutionKernelBase::DispatchData ConvolutionKernel_yxfb_yxio_b1_block::SetDefault(const convolution_params& arg,
                                                                                      int) const {
-    DispatchData runInfo = ConvolutionKernelBase::SetDefault(arg);
+    DispatchData dispatchData = ConvolutionKernelBase::SetDefault(arg);
     // TODO: fill the proper data here (I don't know where can I locate it).
-    return runInfo;
+    return dispatchData;
 }
 
 JitConstants ConvolutionKernel_yxfb_yxio_b1_block::GetJitConstants(const convolution_params& params,
-                                                                   const DispatchData& kd) const {
-    auto cldnn_jit = ConvolutionKernelBase::GetJitConstants(params, kd);
+                                                                   const DispatchData& dispatchData) const {
+    auto cldnn_jit = ConvolutionKernelBase::GetJitConstants(params, dispatchData);
 
-    cldnn_jit.AddConstant(MakeJitConstant("LOCAL_WORK_GROUP_SIZE", kd.lws0));
+    cldnn_jit.AddConstant(MakeJitConstant("LOCAL_WORK_GROUP_SIZE", dispatchData.lws[0]));
     return cldnn_jit;
 }
 

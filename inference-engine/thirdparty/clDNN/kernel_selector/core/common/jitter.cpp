@@ -475,14 +475,16 @@ class WeightTensorJitConstant : public TensorBaseTJitConstant<WeightsType, Weigh
         std::string calcFunction;
 
         WeightIndexFuncDesc() = default;
-        WeightIndexFuncDesc(const WeightsLayout l) {
+        WeightIndexFuncDesc(std::string tensor_name, const WeightsLayout l) {
+            const auto layout_name = toString(l);
             using args = std::initializer_list<std::string>;
-            if (l == WeightsLayout::oiyx || l == WeightsLayout::oizyx || l == WeightsLayout::goiyx ||
+            if (l == WeightsLayout::oiyx ||
+                l == WeightsLayout::oizyx ||
+                l == WeightsLayout::goiyx ||
                 l == WeightsLayout::goizyx) {
                 args macroNameArgs = {"prefix", "g", "o", "i", "z", "y", "x"};
-                const auto name = toString(l);
-                this->calcFunction = FuncBody(name);
-                this->macroName = MacroName(name, macroNameArgs);
+                this->calcFunction = FuncBody(layout_name);
+                this->macroName = MacroName(tensor_name, layout_name, macroNameArgs);
                 this->macroBody = R"V0G0N( \
     CAT(prefix, _OFFSET) + \
     (x)*CAT(prefix, _X_PITCH) + \
@@ -495,9 +497,8 @@ class WeightTensorJitConstant : public TensorBaseTJitConstant<WeightsType, Weigh
             } else if (l == WeightsLayout::os_is_yx_isv16_osv16 || l == WeightsLayout::os_is_zyx_isv16_osv16 ||
                        l == WeightsLayout::g_os_is_yx_isv16_osv16 || l == WeightsLayout::g_os_is_zyx_isv16_osv16) {
                 args macroNameArgs = {"prefix", "g", "o", "i", "z", "y", "x", "sub_group_size"};
-                const auto name = toString(l);
-                this->calcFunction = FuncBody(name);
-                this->macroName = MacroName(name, macroNameArgs);
+                this->calcFunction = FuncBody(layout_name);
+                this->macroName = MacroName(tensor_name, layout_name, macroNameArgs);
                 this->macroBody = R"V0G0N( \
     CAT(prefix, _OFFSET) + \
     (g)*CAT(prefix, _GROUPS_PITCH) + \
@@ -515,9 +516,8 @@ class WeightTensorJitConstant : public TensorBaseTJitConstant<WeightsType, Weigh
                        l == WeightsLayout::os_iyx_osv32__ai32 || l == WeightsLayout::g_os_iyx_osv16 ||
                        l == WeightsLayout::g_os_iyx_osv32) {
                 args macroNameArgs = {"prefix", "g", "o", "i", "y", "x", "sub_group_size"};
-                const auto name = toString(l);
-                this->calcFunction = FuncBody(name);
-                this->macroName = MacroName(name, macroNameArgs);
+                this->calcFunction = FuncBody(layout_name);
+                this->macroName = MacroName(tensor_name, layout_name, macroNameArgs);
                 this->macroBody = R"V0G0N( \
     CAT(prefix, _OFFSET) + \
     (g * CAT(prefix, _GROUPS_PITCH)) + \
@@ -532,9 +532,8 @@ class WeightTensorJitConstant : public TensorBaseTJitConstant<WeightsType, Weigh
             } else if (l == WeightsLayout::is_os_yx_isv16_osv16 || l == WeightsLayout::is_os_zyx_isv16_osv16 ||
                        l == WeightsLayout::g_is_os_yx_isv16_osv16 || l == WeightsLayout::g_is_os_zyx_isv16_osv16) {
                 args macroNameArgs = {"prefix", "g", "o", "i", "z", "y", "x", "sub_group_size"};
-                const auto name = toString(l);
-                this->calcFunction = FuncBody(name);
-                this->macroName = MacroName(name, macroNameArgs);
+                this->calcFunction = FuncBody(layout_name);
+                this->macroName = MacroName(tensor_name, layout_name, macroNameArgs);
                 this->macroBody = R"V0G0N( \
     CAT(prefix, _OFFSET) + \
     (g)*CAT(prefix, _GROUPS_PITCH) + \
@@ -552,7 +551,6 @@ class WeightTensorJitConstant : public TensorBaseTJitConstant<WeightsType, Weigh
                        l == WeightsLayout::os_is_zyx_osv64_isv16) {
                 args macroNameArgs = {"prefix", "o", "i", "z", "y", "x"};
                 args funcArgs = {"o", "i", "z", "y", "x", "x_size", "y_size", "z_size", "i_size", "o_size", "osv_size", "isv_size"};
-                const auto name = toString(l);
                 const auto body = R"V0G0N( \
     const uint isv = i % isv_size; \
     const uint osv = o % osv_size; \
@@ -573,19 +571,18 @@ class WeightTensorJitConstant : public TensorBaseTJitConstant<WeightsType, Weigh
         os * os_pitch; \
     return output_offset; \
                 )V0G0N";
-                this->macroName = MacroName(name, macroNameArgs);
-                this->calcFunction = FuncBody(name, funcArgs, body);
+                this->macroName = MacroName(tensor_name, layout_name, macroNameArgs);
+                this->calcFunction = FuncBody(layout_name, funcArgs, body);
                 if (l == WeightsLayout::os_is_yx_osv16_isv16)
-                    this->macroBody = FuncCall(name, {"o", "i", "0", "y", "x", Cat("_SIZE_X"), Cat("_SIZE_Y"), "1", Cat("_IFM_NUM"), Cat("_OFM_NUM"), "16", "16"});
+                    this->macroBody = FuncCall(layout_name, {"o", "i", "0", "y", "x", Cat("_SIZE_X"), Cat("_SIZE_Y"), "1", Cat("_IFM_NUM"), Cat("_OFM_NUM"), "16", "16"});
                 else if (l == WeightsLayout::os_is_zyx_osv32_isv16)
-                    this->macroBody = FuncCall(name, {"o", "i", "z", "y", "x", Cat("_SIZE_X"), Cat("_SIZE_Y"), Cat("_SIZE_Z"), Cat("_IFM_NUM"), Cat("_OFM_NUM"), "32", "16"});
+                    this->macroBody = FuncCall(layout_name, {"o", "i", "z", "y", "x", Cat("_SIZE_X"), Cat("_SIZE_Y"), Cat("_SIZE_Z"), Cat("_IFM_NUM"), Cat("_OFM_NUM"), "32", "16"});
                 else if (l == WeightsLayout::os_is_zyx_osv64_isv16)
-                    this->macroBody = FuncCall(name, {"o", "i", "z", "y", "x", Cat("_SIZE_X"), Cat("_SIZE_Y"), Cat("_SIZE_Z"), Cat("_IFM_NUM"), Cat("_OFM_NUM"), "64", "16"});
+                    this->macroBody = FuncCall(layout_name, {"o", "i", "z", "y", "x", Cat("_SIZE_X"), Cat("_SIZE_Y"), Cat("_SIZE_Z"), Cat("_IFM_NUM"), Cat("_OFM_NUM"), "64", "16"});
             } else if (l == WeightsLayout::g_os_zyx_is_osv16_isv16 || l == WeightsLayout::g_os_zyx_is_osv16_isv32 ||
                        l == WeightsLayout::g_os_zyx_is_osv32_isv16 || l == WeightsLayout::g_os_zyx_is_osv32_isv32) {
                 args macroNameArgs = {"prefix", "g", "o", "i", "z", "y", "x"};
                 args funcArgs = {"g", "o", "i", "z", "y", "x", "g_size", "o_size", "i_size", "z_size", "y_size", "x_size", "osv", "isv"};
-                const auto name = toString(l);
                 const auto body = R"V0G0N( \
     uint is_size = (i_size + isv - 1) / isv; \
     uint os_size = (o_size + osv - 1) / osv; \
@@ -612,8 +609,8 @@ class WeightTensorJitConstant : public TensorBaseTJitConstant<WeightsType, Weigh
     index += g * g_pitch; \
     return index; \
                 )V0G0N";
-                this->macroName = MacroName(name, macroNameArgs);
-                this->calcFunction = FuncBody(name, funcArgs, body);
+                this->macroName = MacroName(tensor_name, layout_name, macroNameArgs);
+                this->calcFunction = FuncBody(layout_name, funcArgs, body);
                 std::string osv = "16", isv = "16";
                 if (l == WeightsLayout::g_os_zyx_is_osv16_isv16) {
                     osv = "16"; isv = "16";
@@ -624,12 +621,11 @@ class WeightTensorJitConstant : public TensorBaseTJitConstant<WeightsType, Weigh
                 } else if (l == WeightsLayout::g_os_zyx_is_osv32_isv32) {
                     osv = "32"; isv = "32";
                 }
-                this->macroBody = FuncCall(name, {"g", "o", "i", "z", "y", "x", Cat("_GROUPS_NUM"), Cat("_OFM_NUM"), Cat("_IFM_NUM"), Cat("_SIZE_Z"),
-                                                  Cat("_SIZE_Y"), Cat("_SIZE_X"), osv, isv});
+                this->macroBody = FuncCall(layout_name, {"g", "o", "i", "z", "y", "x", Cat("_GROUPS_NUM"), Cat("_OFM_NUM"), Cat("_IFM_NUM"), Cat("_SIZE_Z"),
+                                                         Cat("_SIZE_Y"), Cat("_SIZE_X"), osv, isv});
             } else if (l == WeightsLayout::os_is_yx_osv16_isv4 || l == WeightsLayout::os_is_yx_osv32_isv4) {
                 args macroNameArgs = {"prefix", "o", "i", "y", "x"};
                 args funcArgs = {"o", "i", "y", "x", "i_size", "o_size", "x_size", "otd"};
-                const auto name = toString(l);
                 const auto body = R"V0G0N( \
     uint out_depth_tile = o / otd; \
     uint od             = o - out_depth_tile * otd; \
@@ -644,12 +640,12 @@ class WeightTensorJitConstant : public TensorBaseTJitConstant<WeightsType, Weigh
             + id; \
     return idx; \
                 )V0G0N";
-                this->macroName = MacroName(name, macroNameArgs);
-                this->calcFunction = FuncBody(name, funcArgs, body);
+                this->macroName = MacroName(tensor_name, layout_name, macroNameArgs);
+                this->calcFunction = FuncBody(layout_name, funcArgs, body);
                 if (l == WeightsLayout::os_is_yx_osv16_isv4)
-                    this->macroBody = FuncCall(name, {"o", "i", "y", "x", Cat("_IFM_PITCH"), Cat("_OFM_PITCH"), Cat("_SIZE_X"), "16"});
+                    this->macroBody = FuncCall(layout_name, {"o", "i", "y", "x", Cat("_IFM_PITCH"), Cat("_OFM_PITCH"), Cat("_SIZE_X"), "16"});
                 else if (l == WeightsLayout::os_is_yx_osv32_isv4)
-                    this->macroBody = FuncCall(name, {"o", "i", "y", "x", Cat("_IFM_PITCH"), Cat("_OFM_PITCH"), Cat("_SIZE_X"), "32"});
+                    this->macroBody = FuncCall(layout_name, {"o", "i", "y", "x", Cat("_IFM_PITCH"), Cat("_OFM_PITCH"), Cat("_SIZE_X"), "32"});
             } else {
                 // throw error?
             }
@@ -667,12 +663,12 @@ class WeightTensorJitConstant : public TensorBaseTJitConstant<WeightsType, Weigh
             return "FUNC_CALL(" + name + ")(" + args_str + ")";
         }
 
-        static const std::string MacroName(std::string name, std::initializer_list<std::string> args) {
+        static const std::string MacroName(std::string tensor_name, std::string layout_name, std::initializer_list<std::string> args) {
             std::string args_str = "";
             size_t counter = 0;
             for (auto& arg : args)
                 args_str += (++counter == args.size()) ? (arg) : (arg + ", ");
-            return "GET_WEIGHTS_" + name + "_INDEX(" + args_str + ")";
+            return "GET_" + tensor_name + "_" + layout_name + "_INDEX(" + args_str + ")";
         }
 
         static const std::string FuncBody(std::string name, std::initializer_list<std::string> args = {}, std::string body = "return 0;") {
@@ -727,7 +723,9 @@ JitDefinitions WeightTensorJitConstant::GetDefinitions() const {
     std::string index_func_val;
 
     auto layout = _tensor.GetLayout();
-    WeightIndexFuncDesc indexFuncDesc {layout};
+    auto layout_str = toString(layout);
+    WeightIndexFuncDesc indexFuncDesc{_name, layout};
+    std::string called_func_name = "GET_" + _name + "_" + layout_str + "_INDEX";
     if (WeightsTensor::DoesGroupDimExist(layout)) {
         if (WeightsTensor::ChannelsCount(layout) <= 5) {
             std::vector<Tensor::WeightsChannelName> grouped_4d_channels = {
@@ -740,15 +738,14 @@ JitDefinitions WeightTensorJitConstant::GetDefinitions() const {
             bool is_grouped_4d_layout = is_common_nd_layout(grouped_4d_channels, layout);
             if (is_grouped_4d_layout) {
                 index_macro_name = _name + "_GET_INDEX(g, o, i, y, x)";
-                auto layout_str = toString(layout);
                 if (layout == WeightsLayout::goiyx)
-                    index_func_val = "GET_WEIGHTS_" + layout_str + "_INDEX(" + _name + ", g, o, i, 0, y, x)";
+                    index_func_val = called_func_name + "(" + _name + ", g, o, i, 0, y, x)";
                 else if (layout == WeightsLayout::g_os_is_yx_isv16_osv16)
-                    index_func_val = "GET_WEIGHTS_" + layout_str + "_INDEX(" + _name + ", g, o, i, 0, y, x, 16)";
+                    index_func_val = called_func_name + "(" + _name + ", g, o, i, 0, y, x, 16)";
                 else if (layout == WeightsLayout::g_os_iyx_osv16)
-                    index_func_val = "GET_WEIGHTS_" + layout_str + "_INDEX(" + _name + ", g, o, i, y, x, 16)";
+                    index_func_val = called_func_name + "(" + _name + ", g, o, i, y, x, 16)";
                 else if (layout == WeightsLayout::g_is_os_yx_isv16_osv16)
-                    index_func_val = "GET_WEIGHTS_" + layout_str + "_INDEX(" + _name + ", g, o, i, 0, y, x, 16)";
+                    index_func_val = called_func_name + "(" + _name + ", g, o, i, 0, y, x, 16)";
             } else {
                 assert(0);
             }
@@ -764,13 +761,12 @@ JitDefinitions WeightTensorJitConstant::GetDefinitions() const {
             bool is_grouped_5d_layout = is_common_nd_layout(grouped_5d_channels, layout);
             if (is_grouped_5d_layout) {
                 index_macro_name = _name + "_GET_INDEX(g, o, i, z, y, x)";
-                auto layout_str = toString(layout);
                 if (layout == WeightsLayout::goizyx)
-                    index_func_val = "GET_WEIGHTS_" + layout_str + "_INDEX(" + _name + ", g, o, i, z, y, x)";
+                    index_func_val = called_func_name + "(" + _name + ", g, o, i, z, y, x)";
                 else if (layout == WeightsLayout::g_os_is_zyx_isv16_osv16)
-                    index_func_val = "GET_WEIGHTS_" + layout_str + "_INDEX(" + _name + ", g, o, i, z, y, x, 16)";
+                    index_func_val = called_func_name + "(" + _name + ", g, o, i, z, y, x, 16)";
                 else if (layout == WeightsLayout::g_is_os_zyx_isv16_osv16)
-                    index_func_val = "GET_WEIGHTS_" + layout_str + "_INDEX(" + _name + ", g, o, i, z, y, x, 16)";
+                    index_func_val = called_func_name + "(" + _name + ", g, o, i, z, y, x, 16)";
             } else {
                 assert(0);
             }
@@ -786,19 +782,18 @@ JitDefinitions WeightTensorJitConstant::GetDefinitions() const {
             bool is_common_4d_layout = is_common_nd_layout(base_4d_channels, layout);
             if (is_common_4d_layout) {
                 index_macro_name = _name + "_GET_INDEX(o, i, y, x)";
-                auto layout_str = toString(layout);
                 if (layout == WeightsLayout::oiyx)
-                    index_func_val = "GET_WEIGHTS_" + layout_str + "_INDEX(" + _name + ", 0, o, i, 0, y, x)";
+                    index_func_val = called_func_name + "(" + _name + ", 0, o, i, 0, y, x)";
                 else if (layout == WeightsLayout::os_is_yx_isv16_osv16)
-                    index_func_val = "GET_WEIGHTS_" + layout_str + "_INDEX(" + _name + ", 0, o, i, 0, y, x, 16)";
+                    index_func_val = called_func_name + "(" + _name + ", 0, o, i, 0, y, x, 16)";
                 else if (layout == WeightsLayout::os_iyx_osv16)
-                    index_func_val = "GET_WEIGHTS_" + layout_str + "_INDEX(" + _name + ", 0, o, i, y, x, 16)";
+                    index_func_val = called_func_name + "(" + _name + ", 0, o, i, y, x, 16)";
                 else if (layout == WeightsLayout::os_iyx_osv32 || layout == WeightsLayout::os_iyx_osv32__ai32)
-                    index_func_val = "GET_WEIGHTS_" + layout_str + "_INDEX(" + _name + ", 0, o, i, y, x, 32)";
+                    index_func_val = called_func_name + "(" + _name + ", 0, o, i, y, x, 32)";
                 else if (layout == WeightsLayout::is_os_yx_isv16_osv16)
-                    index_func_val = "GET_WEIGHTS_" + layout_str + "_INDEX(" + _name + ", 0, o, i, 0, y, x, 16)";
+                    index_func_val = called_func_name + "(" + _name + ", 0, o, i, 0, y, x, 16)";
                 else if (layout == WeightsLayout::os_is_yx_osv16_isv16)
-                    index_func_val = "GET_WEIGHTS_" + layout_str + "_INDEX(" + _name + ", o, i, 0, y, x)";
+                    index_func_val = called_func_name + "(" + _name + ", o, i, 0, y, x)";
             } else {
                 assert(0);
             }
@@ -813,15 +808,14 @@ JitDefinitions WeightTensorJitConstant::GetDefinitions() const {
             bool is_common_5d_layout = is_common_nd_layout(base_5d_channels, layout);
             if (is_common_5d_layout) {
                 index_macro_name = _name + "_GET_INDEX(o, i, z, y, x)";
-                auto layout_str = toString(layout);
                 if (layout == WeightsLayout::oizyx)
-                    index_func_val = "GET_WEIGHTS_" + layout_str + "_INDEX(" + _name + ", 0, o, i, z, y, x)";
+                    index_func_val = called_func_name + "(" + _name + ", 0, o, i, z, y, x)";
                 else if (layout == WeightsLayout::os_is_zyx_isv16_osv16)
-                    index_func_val = "GET_WEIGHTS_" + layout_str + "_INDEX(" + _name + ", 0, o, i, z, y, x, 16)";
+                    index_func_val = called_func_name + "(" + _name + ", 0, o, i, z, y, x, 16)";
                 else if (layout == WeightsLayout::is_os_zyx_isv16_osv16)
-                    index_func_val = "GET_WEIGHTS_" + layout_str + "_INDEX(" + _name + ", 0, o, i, z, y, x, 16)";
+                    index_func_val = called_func_name + "(" + _name + ", 0, o, i, z, y, x, 16)";
                 else if (layout == WeightsLayout::os_is_zyx_osv32_isv16 || layout == WeightsLayout::os_is_zyx_osv64_isv16)
-                    index_func_val = "GET_WEIGHTS_" + layout_str + "_INDEX(" + _name + ", o, i, z, y, x)";
+                    index_func_val = called_func_name + "(" + _name + ", o, i, z, y, x)";
             } else {
                 assert(0);
             }

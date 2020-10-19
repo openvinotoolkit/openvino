@@ -48,22 +48,22 @@ size_t GetOfmPerWorkitem(size_t filterOfmNum, size_t batchSize, size_t local_wor
 
 ConvolutionKernelBase::DispatchData ConvolutionKernel_yxfb_yxio_b8::SetDefault(const convolution_params& arg,
                                                                                int autoTuneIndex) const {
-    DispatchData runInfo = ConvolutionKernelBase::SetDefault(arg, autoTuneIndex);
+    DispatchData dispatchData = ConvolutionKernelBase::SetDefault(arg, autoTuneIndex);
 
     const auto filterOfmNum = arg.weights.OFM().v;
     const auto batchSize = arg.output.Batch().v;
 
-    runInfo.lws0 = batchSize == 8 ? 8 : 16;
-    runInfo.lws1 = 1;
-    runInfo.lws2 = 1;
+    dispatchData.lws[0] = batchSize == 8 ? 8 : 16;
+    dispatchData.lws[1] = 1;
+    dispatchData.lws[2] = 1;
 
-    size_t ofmPerWorkItem = GetOfmPerWorkitem(filterOfmNum, batchSize, runInfo.lws0);
+    size_t ofmPerWorkItem = GetOfmPerWorkitem(filterOfmNum, batchSize, dispatchData.lws[0]);
 
-    runInfo.gws0 = filterOfmNum * batchSize / ofmPerWorkItem;
+    dispatchData.gws[0] = filterOfmNum * batchSize / ofmPerWorkItem;
 
-    runInfo.efficiency = FORCE_PRIORITY_9;
+    dispatchData.efficiency = FORCE_PRIORITY_9;
 
-    return runInfo;
+    return dispatchData;
 }
 
 bool ConvolutionKernel_yxfb_yxio_b8::Validate(const Params& p, const optional_params& o) const {
@@ -99,13 +99,13 @@ bool ConvolutionKernel_yxfb_yxio_b8::Validate(const Params& p, const optional_pa
 }
 
 JitConstants ConvolutionKernel_yxfb_yxio_b8::GetJitConstants(const convolution_params& params,
-                                                             const DispatchData& kd) const {
-    JitConstants jits = ConvolutionKernelBase::GetJitConstants(params, kd);
+                                                             const DispatchData& dispatchData) const {
+    JitConstants jits = ConvolutionKernelBase::GetJitConstants(params, dispatchData);
 
-    size_t ofmPerWorkItem = GetOfmPerWorkitem(params.weights.OFM().v, params.output.Batch().v, kd.lws0);
+    size_t ofmPerWorkItem = GetOfmPerWorkitem(params.weights.OFM().v, params.output.Batch().v, dispatchData.lws[0]);
 
     jits.AddConstant(MakeJitConstant("OFM_PER_WORK_ITEM", ofmPerWorkItem));
-    jits.AddConstant(MakeJitConstant("LOCAL_WORK_GROUP_SIZE", kd.lws0));
+    jits.AddConstant(MakeJitConstant("LOCAL_WORK_GROUP_SIZE", dispatchData.lws[0]));
 
     return jits;
 }
