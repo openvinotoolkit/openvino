@@ -14,10 +14,8 @@
 // limitations under the License.
 //*****************************************************************************
 
-#pragma once
-
-#include "ngraph/axis_set.hpp"
-#include "ngraph/shape.hpp"
+#include "ngraph/runtime/reference/broadcast.hpp"
+#include "ngraph/runtime/reference/tile.hpp"
 
 namespace ngraph
 {
@@ -30,7 +28,24 @@ namespace ngraph
                            const Shape& in_shape,
                            const Shape& out_shape,
                            const AxisSet& broadcast_axes,
-                           size_t elem_size);
+                           size_t elem_size)
+            {
+                Shape adjusted_in_shape = in_shape;
+                for (const auto& axis : broadcast_axes)
+                {
+                    if (adjusted_in_shape.size() < out_shape.size())
+                    {
+                        adjusted_in_shape.insert(adjusted_in_shape.begin() + axis, 1);
+                    }
+                }
+                std::vector<int64_t> repeats(out_shape.size());
+                for (size_t i = 0; i < repeats.size(); ++i)
+                {
+                    repeats[i] = out_shape[i] / adjusted_in_shape[i];
+                }
+
+                return tile(arg, out, adjusted_in_shape, out_shape, elem_size, repeats);
+            }
         }
     }
 }

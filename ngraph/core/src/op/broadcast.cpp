@@ -374,20 +374,16 @@ shared_ptr<Node> op::v0::Broadcast::clone_with_new_inputs(const OutputVector& ne
 
 namespace
 {
-#define TYPE_CASE_v0(a)                                                                            \
-    case element::Type_t::a: rc = evaluate_v0<element::Type_t::a>
-
-    template <element::Type_t ET>
     inline bool evaluate_v0(const HostTensorPtr& arg0,
                             const HostTensorPtr& out,
                             const AxisSet& broadcast_axes)
     {
-        using T = typename element_type_traits<ET>::value_type;
-        runtime::reference::broadcast<T>((arg0->get_data_ptr<ET>()),
-                                         (out->get_data_ptr<ET>()),
-                                         arg0->get_shape(),
-                                         out->get_shape(),
-                                         broadcast_axes);
+        runtime::reference::broadcast(arg0->get_data_ptr<const char>(),
+                                      out->get_data_ptr<char>(),
+                                      arg0->get_shape(),
+                                      out->get_shape(),
+                                      broadcast_axes,
+                                      arg0->get_element_type().size());
         return true;
     }
 
@@ -396,41 +392,11 @@ namespace
                                const AxisSet broadcast_axes,
                                const Shape output_shape)
     {
-        bool rc = true;
         Shape in_shape = arg0->get_shape();
         out->set_shape(output_shape);
         out->set_element_type(arg0->get_element_type());
-        switch (arg0->get_element_type())
-        {
-            TYPE_CASE_v0(boolean)(arg0, out, broadcast_axes);
-            break;
-            TYPE_CASE_v0(i8)(arg0, out, broadcast_axes);
-            break;
-            TYPE_CASE_v0(i16)(arg0, out, broadcast_axes);
-            break;
-            TYPE_CASE_v0(i32)(arg0, out, broadcast_axes);
-            break;
-            TYPE_CASE_v0(i64)(arg0, out, broadcast_axes);
-            break;
-            TYPE_CASE_v0(u8)(arg0, out, broadcast_axes);
-            break;
-            TYPE_CASE_v0(u16)(arg0, out, broadcast_axes);
-            break;
-            TYPE_CASE_v0(u32)(arg0, out, broadcast_axes);
-            break;
-            TYPE_CASE_v0(u64)(arg0, out, broadcast_axes);
-            break;
-            TYPE_CASE_v0(bf16)(arg0, out, broadcast_axes);
-            break;
-            TYPE_CASE_v0(f16)(arg0, out, broadcast_axes);
-            break;
-            TYPE_CASE_v0(f32)(arg0, out, broadcast_axes);
-            break;
-            TYPE_CASE_v0(f64)(arg0, out, broadcast_axes);
-            break;
-        default: rc = false; break;
-        }
-        return rc;
+
+        return evaluate_v0(arg0, out, broadcast_axes);
     }
 }
 
