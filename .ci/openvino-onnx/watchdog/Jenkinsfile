@@ -6,7 +6,7 @@ timeout(30)
     node(LABEL) {
 
         BUILD_WORKSPACE = "$WORKSPACE/$BUILD_NUMBER"
-        WATCHDOG_ROOT = "$BUILD_WORKSPACE/.ci/openvino-onnx/watchdog"
+        WATCHDOG_ROOT = "$BUILD_WORKSPACE/.ci/openvino-onnx/watchdog/src"
         VENV_PATH = "${BUILD_WORKSPACE}/.wdvenv"
 
         try {
