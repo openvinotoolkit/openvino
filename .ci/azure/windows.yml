@@ -58,7 +58,7 @@ jobs:
     displayName: 'CMake'
   - script: |
       set PATH=$(WORK_DIR)\ninja-win;%PATH%
-      call "$(MSVS_VARS_PATH)" && "C:\Program Files (x86)\IncrediBuild\BuildConsole.exe" /COMMAND="ninja" /MaxCPUS=40 /Mon=$(BUILD_DIR)/build_ie.ib_mon
+      call "$(MSVS_VARS_PATH)" && "C:\Program Files (x86)\IncrediBuild\BuildConsole.exe" /COMMAND="ninja -v" /MaxCPUS=40 /Mon=$(BUILD_DIR)/build_ie.ib_mon
     workingDirectory: $(BUILD_DIR)
     displayName: 'Build Win'
   - publish: $(BUILD_DIR)/build_ie.ib_mon
