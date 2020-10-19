@@ -36,7 +36,7 @@ timeout(30)
                             sh """#!/bin/bash
                                 source ${VENV_PATH}/bin/activate
                                 export PYTHONHTTPSVERIFY=0
-                                python ${WATCHDOG_ROOT}/src/Main.py \
+                                python ${WATCHDOG_ROOT}/src/main.py \
                                     --msteams-url=${MSTEAMS_URL_FILE} \
                                     --github-credentials '${username}' '${password}' \
                                     --github-org=${GITHUB_ORG} \
