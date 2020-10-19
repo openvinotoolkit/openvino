@@ -8,6 +8,7 @@ Upon start-up, the application reads command-line parameters and loads a network
 
 ## Build
 Create an environment variable with Inference Engine installation path:
+```bash
 export IE_PATH=/path/to/openvino/bin/intel64/Release/lib
 ```
 

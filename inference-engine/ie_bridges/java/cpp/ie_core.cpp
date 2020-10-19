@@ -25,7 +25,7 @@ JNIEXPORT jlong JNICALL Java_org_intel_openvino_IECore_GetCore(JNIEnv *env, jobj
     return 0;
 }
 
-JNIEXPORT jlong JNICALL Java_org_intel_openvino_IECore_GetCore_1(JNIEnv *env, jobject obj, jstring xmlConfigFile)
+JNIEXPORT jlong JNICALL Java_org_intel_openvino_IECore_GetCore1(JNIEnv *env, jobject obj, jstring xmlConfigFile)
 {
     static const char method_name[] = "GetCore_1";
     try
