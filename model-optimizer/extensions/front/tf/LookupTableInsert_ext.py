@@ -14,7 +14,7 @@
  limitations under the License.
 """
 
-from extensions.ops.LookupTableInsert import LookupTableInsert, LookupTableInsertV2
+from extensions.ops.LookupTableInsert import LookupTableInsert
 from mo.front.extractor import FrontExtractorOp
 
 
@@ -34,5 +34,5 @@ class LookupTableInsertV2FrontExtractor(FrontExtractorOp):
 
     @classmethod
     def extract(cls, node):
-        LookupTableInsertV2.update_node_stat(node, {})
+        LookupTableInsert.update_node_stat(node, {})
         return cls.enabled

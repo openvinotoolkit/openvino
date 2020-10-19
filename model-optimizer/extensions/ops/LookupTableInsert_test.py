@@ -18,7 +18,7 @@ import unittest
 
 import numpy as np
 
-from extensions.ops.LookupTableInsert import LookupTableInsertV2
+from extensions.ops.LookupTableInsert import LookupTableInsert
 from mo.front.common.partial_infer.utils import int64_array
 from mo.graph.graph import Node
 from mo.utils.unittest.graph import build_graph
@@ -29,17 +29,17 @@ nodes_attributes = {'table': {'kind': 'op'},
                     'keys_data': {'shape': None, 'value': None, 'kind': 'data'},
                     'values': {'kind': 'op'},
                     'values_data': {'shape': None, 'value': None, 'kind': 'data'},
-                    'lookuptableinsertv2_node': {'op': 'LookupTableInsertV2', 'kind': 'op'},
+                    'lookuptableinsert_node': {'op': 'LookupTableInsert', 'kind': 'op'},
                     'output': {'shape': None, 'value': None, 'kind': 'data'}}
 
 # graph 1
 edges1 = [('table', 'table_data'),
           ('keys', 'keys_data'),
           ('values', 'values_data'),
-          ('table_data', 'lookuptableinsertv2_node', {'in': 0}),
-          ('keys_data', 'lookuptableinsertv2_node', {'in': 1}),
-          ('values_data', 'lookuptableinsertv2_node', {'in': 2}),
-          ('lookuptableinsertv2_node', 'output')]
+          ('table_data', 'lookuptableinsert_node', {'in': 0}),
+          ('keys_data', 'lookuptableinsert_node', {'in': 1}),
+          ('values_data', 'lookuptableinsert_node', {'in': 2}),
+          ('lookuptableinsert_node', 'output')]
 
 # valid test case
 inputs1 = {'table_data': {},
@@ -51,11 +51,11 @@ inputs2 = {'table_data': {},
            'keys_data': {'shape': int64_array([5, 2])},
            'values_data': {'shape': int64_array([4])}}
 
-class TestLookupTableInsertV2(unittest.TestCase):
+class TestLookupTableInsert(unittest.TestCase):
     def test_infer1(self):
         graph = build_graph(nodes_attributes, edges1, inputs1)
-        lookuptableinsertv2_node = Node(graph, 'lookuptableinsertv2_node')
-        LookupTableInsertV2.infer(lookuptableinsertv2_node)
+        lookuptableinsert_node = Node(graph, 'lookuptableinsert_node')
+        LookupTableInsert.infer(lookuptableinsert_node)
 
         # prepare reference results
         ref_output_shape = int64_array([])
@@ -68,5 +68,5 @@ class TestLookupTableInsertV2(unittest.TestCase):
 
     def test_infer_invalid1(self):
         graph = build_graph(nodes_attributes, edges1, inputs2)
-        lookuptableinsertv2_node = Node(graph, 'lookuptableinsertv2_node')
-        self.assertRaises(AssertionError, LookupTableInsertV2.infer, lookuptableinsertv2_node)
+        lookuptableinsert_node = Node(graph, 'lookuptableinsert_node')
+        self.assertRaises(AssertionError, LookupTableInsert.infer, lookuptableinsert_node)

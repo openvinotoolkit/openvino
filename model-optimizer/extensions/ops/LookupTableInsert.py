@@ -23,7 +23,7 @@ from mo.ops.op import Op
 
 class LookupTableInsert(Op):
     '''
-    In some models this operation has only output control flow edges and no output data edges.
+    This operation has only output control flow edges and no output data edges in some models.
     And for these cases implementation of the shape inference is needed since the shape inference is executed
     before control flow edges resolving. This operation has non-tensor output so the output shape is empty.
     '''
@@ -56,8 +56,3 @@ class LookupTableInsert(Op):
         # set output shape that must be empty
         # since output is not a tensor
         node.out_port(0).data.set_shape(int64_array([]))
-
-
-class LookupTableInsertV2(LookupTableInsert):
-    enabled = False
-    op = 'LookupTableInsertV2'
