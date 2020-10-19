@@ -29,38 +29,51 @@ namespace ngraph
     {
         namespace reference
         {
-            template <typename T>
-            void sum_region_across_axes(const T* arg,
-                                        size_t current_axis_index,
-                                        const std::vector<size_t>& axes,
-                                        Coordinate& sum_coord,
-                                        T& square_sum,
-                                        const std::vector<size_t>& begin_area,
-                                        const std::vector<size_t>& end_area,
-                                        const CoordinateTransform& input_transform)
+            static size_t point_to_flat_idx(const Shape& shape, const std::vector<size_t>& point)
             {
-                // all nested axes were visited
-                if (current_axis_index == axes.size())
+                size_t idx = point[0];
+                for (int i = 1; i < point.size(); i++)
                 {
-                    square_sum += arg[input_transform.index(sum_coord)] *
-                                  arg[input_transform.index(sum_coord)];
-                    return;
+                    idx *= shape[i];
+                    idx += point[i];
                 }
-                auto current_axis = axes[current_axis_index];
-                for (auto current_axis_coord = begin_area[current_axis];
-                     current_axis_coord < end_area[current_axis];
-                     ++current_axis_coord)
+                return idx;
+            }
+
+            static std::vector<size_t> slice_indices(const Shape& full_shape,
+                                                     const std::vector<size_t>& begin,
+                                                     const Shape& slice_shape)
+            {
+                size_t begin_idx = begin[0];
+                size_t slice_size = shape_size(slice_shape);
+                size_t rank = begin.size();
+                auto coord = begin;
+                std::vector<size_t> indices;
+                indices.reserve(slice_size);
+                indices.push_back(point_to_flat_idx(full_shape, coord));
+                for (int i = 0; i < slice_size - 1; i++)
                 {
-                    sum_coord.at(current_axis) = current_axis_coord;
-                    sum_region_across_axes(arg,
-                                           current_axis_index + 1,
-                                           axes,
-                                           sum_coord,
-                                           square_sum,
-                                           begin_area,
-                                           end_area,
-                                           input_transform);
+                    for (int r = rank - 1; r >= 0; r--)
+                    {
+                        coord[r]++;
+                        if (coord[r] < (begin[r] + slice_shape[r]))
+                            break;
+                        coord[r] = begin[r];
+                    }
+                    indices.push_back(point_to_flat_idx(full_shape, coord));
                 }
+                return indices;
+            }
+
+            template <typename T>
+            static T sum_region_across_axes(const T* arg, const std::vector<size_t>& indices)
+            {
+                T square_sum = 0;
+                for (auto index : indices)
+                {
+                    square_sum += arg[index] * arg[index];
+                }
+                return square_sum;
             }
 
             template <typename T>
@@ -76,39 +89,42 @@ namespace ngraph
                 T alpha = static_cast<T>(dalpha);
                 T beta = static_cast<T>(dbeta);
                 T bias = static_cast<T>(dbias);
+                T scale = alpha / std::pow(size, axes.size());
 
                 std::vector<size_t> begin_area(arg_shape.size());
-                std::vector<size_t> end_area(arg_shape.size());
+                Shape area_shape(arg_shape.size(), 1);
+                std::vector<bool> axes_map(arg_shape.size(), false);
+                for (const auto& axis_coord : axes)
+                {
+                    axes_map[axis_coord] = true;
+                }
 
                 CoordinateTransform input_transform(arg_shape);
                 for (const Coordinate& in_coord : input_transform)
                 {
                     // area determined by in_coord local neighborhood
-                    for (const auto& axis_coord : axes)
+                    for (size_t i = 0; i < axes_map.size(); i++)
                     {
-                        begin_area[axis_coord] =
-                            std::max<int>(0, in_coord.at(axis_coord) - (size - 1) / 2);
-                        end_area[axis_coord] = std::min<int>(
-                            arg_shape.at(axis_coord), in_coord.at(axis_coord) + (size - 1) / 2 + 1);
+                        if (axes_map[i])
+                        {
+                            begin_area[i] = std::max<int>(0, in_coord.at(i) - (size - 1) / 2);
+                            area_shape[i] = std::min<int>(arg_shape.at(i),
+                                                          in_coord.at(i) + (size - 1) / 2 + 1) -
+                                            begin_area[i];
+                        }
+                        else
+                        {
+                            begin_area[i] = in_coord.at(i);
+                        }
                     }
 
-                    T square_sum = 0;
-                    auto sum_coord = in_coord;
-                    auto axes_vec = std::vector<size_t>(axes.begin(), axes.end());
-                    sum_region_across_axes(arg,
-                                           0,
-                                           axes_vec,
-                                           sum_coord,
-                                           square_sum,
-                                           begin_area,
-                                           end_area,
-                                           input_transform);
-
-                    T x = arg[input_transform.index(in_coord)];
-                    out[input_transform.index(in_coord)] =
-                        x / (std::pow(bias + (alpha / size) * square_sum, beta));
+                    T square_sum = sum_region_across_axes(
+                        arg, slice_indices(arg_shape, begin_area, area_shape));
+                    auto index = input_transform.index(in_coord);
+                    T x = arg[index];
+                    out[index] = x / (std::pow(bias + scale * square_sum, beta));
                 }
             }
-        }
-    }
-}
+        } // namespace reference
+    }     // namespace runtime
+} // namespace ngraph
