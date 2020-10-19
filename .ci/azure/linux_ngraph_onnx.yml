@@ -45,7 +45,7 @@ jobs:
   - script: docker build --tag=openvino-onnx-ci-image --file=.ci/openvino-onnx/Dockerfile .
     displayName: 'Docker build'
 
-  - script: ngraph/python/tests/test_onnx/model_zoo_preprocess.sh -m models
+  - script: ngraph/python/tests/test_onnx/model_zoo_preprocess.sh -m models -c -e
     displayName: 'Clone models'
 
   - script: docker run --name openvino-onnx-ci-container --volume models/model_zoo:/root/.onnx/model_zoo --volume models/model_zoo/MSFT:/root/.onnx/model_zoo/MSFT openvino-onnx-ci-image
