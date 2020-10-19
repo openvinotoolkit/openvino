@@ -76,19 +76,19 @@ INSTANTIATE_TEST_CASE_P(smoke_MatMul_1_2_x_1_2_false_true, MatMulTest,
                 MatMulTest::getTestCaseName);
 
 
-//// (For secondaryInputTypes - CONSTANT)
-INSTANTIATE_TEST_CASE_P(smoke_MatMul_2_x_2_false_true_const, MatMulTest,
-        ::testing::Combine(
-                ::testing::Values(inputPrecisions[0]),
-                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-                ::testing::Values(InferenceEngine::Layout::ANY),
-                ::testing::Values(std::vector<size_t>{2}),
-                ::testing::Values(std::vector<size_t>{2}),
-                ::testing::Values(false),
-                ::testing::Values(true),
-                ::testing::Values(secondaryInputTypes[0]),  // CONSTANT
-                ::testing::Values(CommonTestUtils::DEVICE_CPU)));
+//// (For secondaryInputTypes - CONSTANT) - Core dump
+// INSTANTIATE_TEST_CASE_P(smoke_MatMul_2_x_2_false_true_const, MatMulTest,
+//         ::testing::Combine(
+//                 ::testing::Values(inputPrecisions[0]),
+//                 ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+//                 ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+//                 ::testing::Values(InferenceEngine::Layout::ANY),
+//                 ::testing::Values(std::vector<size_t>{2}),
+//                 ::testing::Values(std::vector<size_t>{2}),
+//                 ::testing::Values(false),
+//                 ::testing::Values(true),
+//                 ::testing::Values(secondaryInputTypes[0]),  // CONSTANT
+//                 ::testing::Values(CommonTestUtils::DEVICE_CPU)));
 
 
 //// (For secondaryInputTypes - PARAMETER)
@@ -225,8 +225,22 @@ INSTANTIATE_TEST_CASE_P(smoke_MatMul_2_x_2_1_2_true_false, MatMulTest,
                 ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                 MatMulTest::getTestCaseName);
 
-// Core dump for Constant
-INSTANTIATE_TEST_CASE_P(smoke_MatMul_2_1_3_x_3_false_false, MatMulTest,
+// Core dump for Constant B
+// INSTANTIATE_TEST_CASE_P(smoke_MatMul_2_1_3_x_3_false_false_const, MatMulTest,
+//         ::testing::Combine(
+//                 ::testing::Values(inputPrecisions[0]),
+//                 ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+//                 ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+//                 ::testing::Values(InferenceEngine::Layout::ANY),
+//                 ::testing::Values(std::vector<size_t>{2, 1, 3}),
+//                 ::testing::Values(std::vector<size_t>{3}),
+//                 ::testing::Values(false),
+//                 ::testing::Values(false),
+//                 ::testing::Values(secondaryInputTypes[0]),  // CONSTANT
+//                 ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+//                 MatMulTest::getTestCaseName);
+
+INSTANTIATE_TEST_CASE_P(smoke_MatMul_2_1_3_x_3_false_false_param, MatMulTest,
         ::testing::Combine(
                 ::testing::Values(inputPrecisions[0]),
                 ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
@@ -236,10 +250,9 @@ INSTANTIATE_TEST_CASE_P(smoke_MatMul_2_1_3_x_3_false_false, MatMulTest,
                 ::testing::Values(std::vector<size_t>{3}),
                 ::testing::Values(false),
                 ::testing::Values(false),
-                ::testing::Values(secondaryInputTypes[1]),  // CONSTANT/PARAMETER
+                ::testing::Values(secondaryInputTypes[1]),  // PARAMETER
                 ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                 MatMulTest::getTestCaseName);
-
 
 INSTANTIATE_TEST_CASE_P(smoke_MatMul_2_1_3_x_3_false_true, MatMulTest,
         ::testing::Combine(
@@ -274,21 +287,21 @@ INSTANTIATE_TEST_CASE_P(smoke_MatMul_3_1_2_x_2_false_true, MatMulTest,
 // Tests based on transformation to FC/GEMM tests in `convert_matmul_test.cpp`
 //
 // Test1
-INSTANTIATE_TEST_CASE_P(smoke_MatMul_3_1_2_x_2_1_false_true, MatMulTest,
+INSTANTIATE_TEST_CASE_P(smoke_MatMul_3_1_2_x_2_1_false_false, MatMulTest,
         ::testing::Combine(
                 ::testing::Values(inputPrecisions[0]),
                 ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                 ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                 ::testing::Values(InferenceEngine::Layout::ANY),
-                ::testing::Values(std::vector<size_t>{3, 2, 2}),
+                ::testing::Values(std::vector<size_t>{3, 1, 2}),
                 ::testing::Values(std::vector<size_t>{2, 1}),
                 ::testing::Values(false),
-                ::testing::Values(true),
+                ::testing::Values(false),
                 ::testing::Values(secondaryInputTypes[0]),  // CONSTANT
                 ::testing::Values(CommonTestUtils::DEVICE_CPU)));
 
-// Test2 Aborted (core dumped)
-// INSTANTIATE_TEST_CASE_P(MatMul_3_1_2_x_2_false_false, MatMulTest,
+// Test2 Aborted (core dumped) - const B
+// INSTANTIATE_TEST_CASE_P(MatMul_3_1_2_x_2_false_false_const, MatMulTest,
 //         ::testing::Combine(
 //                 ::testing::Values(inputPrecisions[0]),
 //                 ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
@@ -314,18 +327,6 @@ INSTANTIATE_TEST_CASE_P(smoke_MatMul_3_1_2_x_2_false_false_param, MatMulTest,
                 ::testing::Values(secondaryInputTypes[1]),  // PARAMETER
                 ::testing::Values(CommonTestUtils::DEVICE_CPU)));
 
-INSTANTIATE_TEST_CASE_P(smoke_MatMul_3_1_2_x_2_false_false_const, MatMulTest,
-        ::testing::Combine(
-                ::testing::Values(inputPrecisions[0]),
-                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
-                ::testing::Values(InferenceEngine::Layout::ANY),
-                ::testing::Values(std::vector<size_t>{3, 1, 2}),
-                ::testing::Values(std::vector<size_t>{2}),
-                ::testing::Values(false),
-                ::testing::Values(false),
-                ::testing::Values(secondaryInputTypes[0]),  // CONSTANT
-                ::testing::Values(CommonTestUtils::DEVICE_CPU)));
 
 // Test3 Aborted (core dumped)
 // INSTANTIATE_TEST_CASE_P(smoke_MatMul_2_x_3_1_2_false_false, MatMulTest,

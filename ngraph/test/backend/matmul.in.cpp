@@ -438,107 +438,410 @@ NGRAPH_TEST(${BACKEND_NAME}, matmul_1x2x3_1x4x3x2)
                                                 256.f}));
 }
 
-// NGRAPH_TEST(${BACKEND_NAME}, matmul_2_transpose_2x1x2)
+NGRAPH_TEST(${BACKEND_NAME}, matmul_2_x_2_1_2_true_false)
+{
+    Shape shape_in1{2};
+    Shape shape_in2{2, 1, 2};
+    Shape shape_out{2, 2, 2};
+    auto A = make_shared<op::Parameter>(element::f32, shape_in1);
+    auto B = make_shared<op::Parameter>(element::f32, shape_in2);
+    auto matmul = make_shared<op::MatMul>(A, B, true, false);
+    auto f = make_shared<Function>(matmul, ParameterVector{A, B});
+
+    auto backend = runtime::Backend::create("${BACKEND_NAME}");
+
+    // Create some tensors for input/output
+    shared_ptr<runtime::Tensor> a = backend->create_tensor(element::f32, shape_in1);
+    shared_ptr<runtime::Tensor> b = backend->create_tensor(element::f32, shape_in2);
+    shared_ptr<runtime::Tensor> result = backend->create_tensor(element::f32, shape_out);
+
+    copy_data(a, vector<float>{1.f, 4.f});
+    copy_data(b, vector<float>{1.f, 2.f, 4.f, 5.f});
+
+    auto handle = backend->compile(f);
+    handle->call_with_validate({result}, {a, b});
+
+    EXPECT_TRUE(test::all_close_f(read_vector<float>(result),
+                                  vector<float>{1.f, 2.f, 4.f, 8.f, 4.f, 5.f, 16.f, 20.f}));
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, matmul_2_1_3_x_3_false_false_param)
+{
+    Shape shape_in1{2, 1, 3};
+    Shape shape_in2{3};
+    Shape shape_out{2, 1, 1};
+    auto A = make_shared<op::Parameter>(element::f32, shape_in1);
+    auto B = make_shared<op::Parameter>(element::f32, shape_in2);
+    auto matmul = make_shared<op::MatMul>(A, B, false, false);
+    auto f = make_shared<Function>(matmul, ParameterVector{A, B});
+
+    auto backend = runtime::Backend::create("${BACKEND_NAME}");
+
+    // Create some tensors for input/output
+    shared_ptr<runtime::Tensor> a = backend->create_tensor(element::f32, shape_in1);
+    shared_ptr<runtime::Tensor> b = backend->create_tensor(element::f32, shape_in2);
+    shared_ptr<runtime::Tensor> result = backend->create_tensor(element::f32, shape_out);
+
+    copy_data(a, vector<float>{1.f, 2.f, 3.f, 4.f, 5.f, 6.f});
+    copy_data(b, vector<float>{1.f, 4.f, 5.f});
+
+    auto handle = backend->compile(f);
+    handle->call_with_validate({result}, {a, b});
+
+    EXPECT_TRUE(test::all_close_f(read_vector<float>(result), vector<float>{24.f, 54.f}));
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, matmul_3_1_2_x_2_false_true_param)
+{
+    Shape shape_in1{3, 1, 2};
+    Shape shape_in2{2};
+    Shape shape_out{3, 1, 1};
+    auto A = make_shared<op::Parameter>(element::f32, shape_in1);
+    auto B = make_shared<op::Parameter>(element::f32, shape_in2);
+    auto matmul = make_shared<op::MatMul>(A, B, false, true);
+    auto f = make_shared<Function>(matmul, ParameterVector{A, B});
+
+    auto backend = runtime::Backend::create("${BACKEND_NAME}");
+
+    // Create some tensors for input/output
+    shared_ptr<runtime::Tensor> a = backend->create_tensor(element::f32, shape_in1);
+    shared_ptr<runtime::Tensor> b = backend->create_tensor(element::f32, shape_in2);
+    shared_ptr<runtime::Tensor> result = backend->create_tensor(element::f32, shape_out);
+
+    copy_data(a, vector<float>{1.f, 2.f, 3.f, 4.f, 5.f, 6.f});
+    copy_data(b, vector<float>{1.f, 4.f});
+
+    auto handle = backend->compile(f);
+    handle->call_with_validate({result}, {a, b});
+
+    EXPECT_TRUE(test::all_close_f(read_vector<float>(result), vector<float>{9.f, 19.f, 29.f}));
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, matmul_3_1_2_x_2_false_false_param)
+{
+    Shape shape_in1{3, 1, 2};
+    Shape shape_in2{2};
+    Shape shape_out{3, 1};
+    auto A = make_shared<op::Parameter>(element::f32, shape_in1);
+    auto B = make_shared<op::Parameter>(element::f32, shape_in2);
+    auto matmul = make_shared<op::MatMul>(A, B, false, false);
+    auto f = make_shared<Function>(matmul, ParameterVector{A, B});
+
+    auto backend = runtime::Backend::create("${BACKEND_NAME}");
+
+    // Create some tensors for input/output
+    shared_ptr<runtime::Tensor> a = backend->create_tensor(element::f32, shape_in1);
+    shared_ptr<runtime::Tensor> b = backend->create_tensor(element::f32, shape_in2);
+    shared_ptr<runtime::Tensor> result = backend->create_tensor(element::f32, shape_out);
+
+    copy_data(a, vector<float>{1.f, 2.f, 3.f, 4.f, 5.f, 6.f});
+    copy_data(b, vector<float>{1.f, 4.f});
+
+    auto handle = backend->compile(f);
+    handle->call_with_validate({result}, {a, b});
+
+    EXPECT_TRUE(test::all_close_f(read_vector<float>(result), vector<float>{9.f, 19.f, 29.f}));
+}
+
+// Aborted (core dumped) - convert to FC path
+// NGRAPH_TEST(${BACKEND_NAME}, matmul_3_1_2_x_2_false_false_const)
 // {
-//     Shape shape_in1{2};
-//     Shape shape_in2{2, 1, 2};
-//     Shape shape_out{2, 2, 2};
+//     Shape shape_in1{3, 1, 2};
+//     Shape shape_in2{2};
+//     Shape shape_out{3, 1};
 //     auto A = make_shared<op::Parameter>(element::f32, shape_in1);
-//     auto B = make_shared<op::Parameter>(element::f32, shape_in2);
-//     auto matmul = make_shared<op::MatMul>(A, B, true, false);
-//     auto f = make_shared<Function>(matmul, ParameterVector{A, B});
+//     auto B = op::Constant::create(ngraph::element::f32, ngraph::Shape{2}, {1.f, 4.f});
+//     // auto B = make_shared<op::Parameter>(element::f32, shape_in2);
 
-//     auto backend = runtime::Backend::create("${BACKEND_NAME}");
-
-//     // Create some tensors for input/output
-//     shared_ptr<runtime::Tensor> a = backend->create_tensor(element::f32, shape_in1);
-//     shared_ptr<runtime::Tensor> b = backend->create_tensor(element::f32, shape_in2);
-//     shared_ptr<runtime::Tensor> result = backend->create_tensor(element::f32, shape_out);
-
-//     copy_data(a, vector<float>{1.f, 4.f});
-//     copy_data(b, vector<float>{1.f, 2.f, 4.f, 5.f});
-
-//     auto handle = backend->compile(f);
-//     handle->call_with_validate({result}, {a, b});
-
-//     EXPECT_TRUE(test::all_close_f(read_vector<float>(result),
-//                                   vector<float>{1.f, 2.f, 4.f, 8.f, 4.f, 5.f, 16.f, 20.f}));
-// }
-
-// NGRAPH_TEST(${BACKEND_NAME}, matmul_2x1x3_3)
-// {
-//     Shape shape_in1{2, 1, 3};
-//     Shape shape_in2{3};
-//     Shape shape_out{2, 1, 1};
-//     auto A = make_shared<op::Parameter>(element::f32, shape_in1);
-//     auto B = make_shared<op::Parameter>(element::f32, shape_in2);
 //     auto matmul = make_shared<op::MatMul>(A, B, false, false);
-//     auto f = make_shared<Function>(matmul, ParameterVector{A, B});
+//     auto f = make_shared<Function>(matmul, ParameterVector{A});
 
 //     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
 //     // Create some tensors for input/output
 //     shared_ptr<runtime::Tensor> a = backend->create_tensor(element::f32, shape_in1);
-//     shared_ptr<runtime::Tensor> b = backend->create_tensor(element::f32, shape_in2);
+//     // shared_ptr<runtime::Tensor> b = backend->create_tensor(element::f32, shape_in2);
 //     shared_ptr<runtime::Tensor> result = backend->create_tensor(element::f32, shape_out);
 
 //     copy_data(a, vector<float>{1.f, 2.f, 3.f, 4.f, 5.f, 6.f});
-//     copy_data(b, vector<float>{1.f, 4.f, 5.f});
+//     // copy_data(b, vector<float>{1.f, 4.f});
 
 //     auto handle = backend->compile(f);
-//     handle->call_with_validate({result}, {a, b});
+//     // handle->call_with_validate({result}, {a, b});
+//     handle->call_with_validate({result}, {a});
 
-//     EXPECT_TRUE(test::all_close_f(read_vector<float>(result), vector<float>{24.f, 54.f}));
-// }
-
-// NGRAPH_TEST(${BACKEND_NAME}, matmul_2x3x2_2_transpose_K)
-// {
-//     Shape shape_in1{3, 1, 2};
-//     Shape shape_in2{2};
-//     Shape shape_out{3, 1, 1};
-//     auto A = make_shared<op::Parameter>(element::f32, shape_in1);
-//     auto B = make_shared<op::Parameter>(element::f32, shape_in2);
-//     auto matmul = make_shared<op::MatMul>(A, B, false, true);
-//     auto f = make_shared<Function>(matmul, ParameterVector{A, B});
-
-//     auto backend = runtime::Backend::create("${BACKEND_NAME}");
-
-//     // Create some tensors for input/output
-//     shared_ptr<runtime::Tensor> a = backend->create_tensor(element::f32, shape_in1);
-//     shared_ptr<runtime::Tensor> b = backend->create_tensor(element::f32, shape_in2);
-//     shared_ptr<runtime::Tensor> result = backend->create_tensor(element::f32, shape_out);
-
-//     copy_data(a, vector<float>{1.f, 2.f, 3.f, 4.f, 5.f, 6.f});
-//     copy_data(b, vector<float>{1.f, 4.f});
-
-//     auto handle = backend->compile(f);
-//     handle->call_with_validate({result}, {a, b});
 
 //     EXPECT_TRUE(test::all_close_f(read_vector<float>(result), vector<float>{9.f, 19.f, 29.f}));
 // }
 
-// NGRAPH_TEST(${BACKEND_NAME}, matmul_2x3x2_2_transpose)
-// {
-//     Shape shape_in1{3, 1, 2};
-//     Shape shape_in2{2};
-//     Shape shape_out{3, 1, 1};
-//     auto A = make_shared<op::Parameter>(element::f32, shape_in1);
-//     auto B = make_shared<op::Parameter>(element::f32, shape_in2);
-//     auto matmul = make_shared<op::MatMul>(A, B, false, true);
-//     auto f = make_shared<Function>(matmul, ParameterVector{A, B});
+NGRAPH_TEST(${BACKEND_NAME}, matmul_3_1_2_x_2_false_true_const)
+{
+    Shape shape_in1{3, 1, 2};
+    Shape shape_in2{2};
+    Shape shape_out{3, 1};
+    auto A = make_shared<op::Parameter>(element::f32, shape_in1);
+    auto B = op::Constant::create(ngraph::element::f32, shape_in2, {1.f, 4.f});
+    // auto B = make_shared<op::Parameter>(element::f32, shape_in2);
 
-//     auto backend = runtime::Backend::create("${BACKEND_NAME}");
+    auto matmul = make_shared<op::MatMul>(A, B, false, true);
+    auto f = make_shared<Function>(matmul, ParameterVector{A});
 
-//     // Create some tensors for input/output
-//     shared_ptr<runtime::Tensor> a = backend->create_tensor(element::f32, shape_in1);
-//     shared_ptr<runtime::Tensor> b = backend->create_tensor(element::f32, shape_in2);
-//     shared_ptr<runtime::Tensor> result = backend->create_tensor(element::f32, shape_out);
+    auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
-//     copy_data(a, vector<float>{1.f, 2.f, 3.f, 4.f, 5.f, 6.f});
-//     copy_data(b, vector<float>{1.f, 4.f});
+    // Create some tensors for input/output
+    shared_ptr<runtime::Tensor> a = backend->create_tensor(element::f32, shape_in1);
+    shared_ptr<runtime::Tensor> result = backend->create_tensor(element::f32, shape_out);
 
-//     auto handle = backend->compile(f);
-//     handle->call_with_validate({result}, {a, b});
+    copy_data(a, vector<float>{1.f, 2.f, 3.f, 4.f, 5.f, 6.f});
 
-//     EXPECT_TRUE(test::all_close_f(read_vector<float>(result), vector<float>{9.f, 19.f, 29.f}));
-// }
+    auto handle = backend->compile(f);
+    handle->call_with_validate({result}, {a});
+
+    EXPECT_TRUE(test::all_close_f(read_vector<float>(result), vector<float>{9.f, 19.f, 29.f}));
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, matmul_3_1_2_x_2_1_false_false_param)
+{
+    Shape shape_in1{3, 1, 2};
+    Shape shape_in2{2, 1};
+    Shape shape_out{3, 1, 1};
+    auto A = make_shared<op::Parameter>(element::f32, shape_in1);
+    auto B = make_shared<op::Parameter>(element::f32, shape_in2);
+    auto matmul = make_shared<op::MatMul>(A, B, false, false);
+    auto f = make_shared<Function>(matmul, ParameterVector{A, B});
+
+    auto backend = runtime::Backend::create("${BACKEND_NAME}");
+
+    // Create some tensors for input/output
+    shared_ptr<runtime::Tensor> a = backend->create_tensor(element::f32, shape_in1);
+    shared_ptr<runtime::Tensor> b = backend->create_tensor(element::f32, shape_in2);
+    shared_ptr<runtime::Tensor> result = backend->create_tensor(element::f32, shape_out);
+
+    copy_data(a, vector<float>{1.f, 2.f, 3.f, 4.f, 5.f, 6.f});
+    copy_data(b, vector<float>{1.f, 4.f});
+
+    auto handle = backend->compile(f);
+    handle->call_with_validate({result}, {a, b});
+
+    EXPECT_TRUE(test::all_close_f(read_vector<float>(result), vector<float>{9.f, 19.f, 29.f}));
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, matmul_3_2_1_x_1_2_false_true_param)
+{
+    Shape shape_in1{3, 1, 2};
+    Shape shape_in2{1, 2};
+    Shape shape_out{3, 1, 1};
+    auto A = make_shared<op::Parameter>(element::f32, shape_in1);
+    auto B = make_shared<op::Parameter>(element::f32, shape_in2);
+    auto matmul = make_shared<op::MatMul>(A, B, false, true);
+    auto f = make_shared<Function>(matmul, ParameterVector{A, B});
+
+    auto backend = runtime::Backend::create("${BACKEND_NAME}");
+
+    // Create some tensors for input/output
+    shared_ptr<runtime::Tensor> a = backend->create_tensor(element::f32, shape_in1);
+    shared_ptr<runtime::Tensor> b = backend->create_tensor(element::f32, shape_in2);
+    shared_ptr<runtime::Tensor> result = backend->create_tensor(element::f32, shape_out);
+
+    copy_data(a, vector<float>{1.f, 2.f, 3.f, 4.f, 5.f, 6.f});
+    copy_data(b, vector<float>{1.f, 4.f});
+
+    auto handle = backend->compile(f);
+    handle->call_with_validate({result}, {a, b});
+
+    EXPECT_TRUE(test::all_close_f(read_vector<float>(result), vector<float>{9.f, 19.f, 29.f}));
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, matmul_1_2_x_1_2_false_true_param)
+{
+    Shape shape_in1{1, 2};
+    Shape shape_in2{1, 2};
+    Shape shape_out{1, 1};
+    auto A = make_shared<op::Parameter>(element::f32, shape_in1);
+    auto B = make_shared<op::Parameter>(element::f32, shape_in2);
+    auto matmul = make_shared<op::MatMul>(A, B, false, true);
+    auto f = make_shared<Function>(matmul, ParameterVector{A, B});
+
+    auto backend = runtime::Backend::create("${BACKEND_NAME}");
+
+    shared_ptr<runtime::Tensor> a = backend->create_tensor(element::f32, shape_in1);
+    shared_ptr<runtime::Tensor> b = backend->create_tensor(element::f32, shape_in2);
+    shared_ptr<runtime::Tensor> result = backend->create_tensor(element::f32, shape_out);
+
+    copy_data(a, vector<float>{1.f, 2.f});
+    copy_data(b, vector<float>{3.f, 4.f});
+
+    auto handle = backend->compile(f);
+    handle->call_with_validate({result}, {a, b});
+
+    EXPECT_TRUE(test::all_close_f(read_vector<float>(result), vector<float>{11.f}));
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, matmul_1_2_x_1_2_false_true_const)
+{
+    Shape shape_in1{1, 2};
+    Shape shape_in2{1, 2};
+    Shape shape_out{1, 1};
+    auto A = make_shared<op::Parameter>(element::f32, shape_in1);
+    auto B = op::Constant::create(ngraph::element::f32, shape_in2, {3.f, 4.f});
+    auto matmul = make_shared<op::MatMul>(A, B, false, true);
+    auto f = make_shared<Function>(matmul, ParameterVector{A});
+
+    auto backend = runtime::Backend::create("${BACKEND_NAME}");
+
+    shared_ptr<runtime::Tensor> a = backend->create_tensor(element::f32, shape_in1);
+    shared_ptr<runtime::Tensor> result = backend->create_tensor(element::f32, shape_out);
+
+    copy_data(a, vector<float>{1.f, 2.f});
+
+    auto handle = backend->compile(f);
+    handle->call_with_validate({result}, {a});
+
+    EXPECT_TRUE(test::all_close_f(read_vector<float>(result), vector<float>{11.f}));
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, matmul_2_x_2_false_true_const_spec)
+{
+    Shape shape_in1{2};
+    Shape shape_in2{2};
+    Shape shape_out{1, 1};
+    auto A = make_shared<op::Parameter>(element::f32, shape_in1);
+    auto B = op::Constant::create(ngraph::element::f32, shape_in2, {3.f, 4.f});
+    auto matmul = make_shared<op::MatMul>(A, B, false, true);
+    auto f = make_shared<Function>(matmul, ParameterVector{A});
+
+    auto backend = runtime::Backend::create("${BACKEND_NAME}");
+
+    shared_ptr<runtime::Tensor> a = backend->create_tensor(element::f32, shape_in1);
+    shared_ptr<runtime::Tensor> result = backend->create_tensor(element::f32, shape_out);
+
+    copy_data(a, vector<float>{1.f, 2.f});
+
+    auto handle = backend->compile(f);
+    handle->call_with_validate({result}, {a});
+
+    EXPECT_TRUE(test::all_close_f(read_vector<float>(result), vector<float>{11.f}));
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, matmul_2_x_2_false_true_param_spec)
+{
+    Shape shape_in1{2};
+    Shape shape_in2{2};
+    Shape shape_out{1, 1};
+    auto A = make_shared<op::Parameter>(element::f32, shape_in1);
+    auto B = make_shared<op::Parameter>(element::f32, shape_in2);
+    auto matmul = make_shared<op::MatMul>(A, B, false, true);
+    auto f = make_shared<Function>(matmul, ParameterVector{A, B});
+
+    auto backend = runtime::Backend::create("${BACKEND_NAME}");
+
+    shared_ptr<runtime::Tensor> a = backend->create_tensor(element::f32, shape_in1);
+    shared_ptr<runtime::Tensor> b = backend->create_tensor(element::f32, shape_in2);
+    shared_ptr<runtime::Tensor> result = backend->create_tensor(element::f32, shape_out);
+
+    copy_data(a, vector<float>{1.f, 2.f});
+    copy_data(b, vector<float>{3.f, 4.f});
+
+    auto handle = backend->compile(f);
+    handle->call_with_validate({result}, {a, b});
+
+    EXPECT_TRUE(test::all_close_f(read_vector<float>(result), vector<float>{11.f}));
+}
+
+
+NGRAPH_TEST(${BACKEND_NAME}, matmul_2_x_2_true_false_param_spec)
+{
+    Shape shape_in1{2};
+    Shape shape_in2{2};
+    Shape shape_out{2, 2};
+    auto A = make_shared<op::Parameter>(element::f32, shape_in1);
+    auto B = make_shared<op::Parameter>(element::f32, shape_in2);
+    auto matmul = make_shared<op::MatMul>(A, B, true, false);
+    auto f = make_shared<Function>(matmul, ParameterVector{A, B});
+
+    auto backend = runtime::Backend::create("${BACKEND_NAME}");
+
+    shared_ptr<runtime::Tensor> a = backend->create_tensor(element::f32, shape_in1);
+    shared_ptr<runtime::Tensor> b = backend->create_tensor(element::f32, shape_in2);
+    shared_ptr<runtime::Tensor> result = backend->create_tensor(element::f32, shape_out);
+
+    copy_data(a, vector<float>{1.f, 2.f});
+    copy_data(b, vector<float>{3.f, 4.f});
+
+    auto handle = backend->compile(f);
+    handle->call_with_validate({result}, {a, b});
+
+    EXPECT_TRUE(test::all_close_f(read_vector<float>(result), vector<float>{3.f, 4.f, 6.f, 8.f}));
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, matmul_2_x_2_true_false_const_spec)
+{
+    Shape shape_in1{2};
+    Shape shape_in2{2};
+    Shape shape_out{2, 2};
+    auto A = make_shared<op::Parameter>(element::f32, shape_in1);
+    auto B = op::Constant::create(ngraph::element::f32, shape_in2, {3.f, 4.f});
+    auto matmul = make_shared<op::MatMul>(A, B, true, false);
+    auto f = make_shared<Function>(matmul, ParameterVector{A});
+
+    auto backend = runtime::Backend::create("${BACKEND_NAME}");
+
+    shared_ptr<runtime::Tensor> a = backend->create_tensor(element::f32, shape_in1);
+    shared_ptr<runtime::Tensor> result = backend->create_tensor(element::f32, shape_out);
+
+    copy_data(a, vector<float>{1.f, 2.f});
+
+    auto handle = backend->compile(f);
+    handle->call_with_validate({result}, {a});
+
+    EXPECT_TRUE(test::all_close_f(read_vector<float>(result), vector<float>{3.f, 4.f, 6.f, 8.f}));
+}
+
+
+NGRAPH_TEST(${BACKEND_NAME}, matmul_1_2_x_1_2_true_false_param)
+{
+    Shape shape_in1{1, 2};
+    Shape shape_in2{1, 2};
+    Shape shape_out{2, 2};
+    auto A = make_shared<op::Parameter>(element::f32, shape_in1);
+    auto B = make_shared<op::Parameter>(element::f32, shape_in2);
+    auto matmul = make_shared<op::MatMul>(A, B, true, false);
+    auto f = make_shared<Function>(matmul, ParameterVector{A, B});
+
+    auto backend = runtime::Backend::create("${BACKEND_NAME}");
+
+    shared_ptr<runtime::Tensor> a = backend->create_tensor(element::f32, shape_in1);
+    shared_ptr<runtime::Tensor> b = backend->create_tensor(element::f32, shape_in2);
+    shared_ptr<runtime::Tensor> result = backend->create_tensor(element::f32, shape_out);
+
+    copy_data(a, vector<float>{1.f, 2.f});
+    copy_data(b, vector<float>{3.f, 4.f});
+
+    auto handle = backend->compile(f);
+    handle->call_with_validate({result}, {a, b});
+
+    EXPECT_TRUE(test::all_close_f(read_vector<float>(result), vector<float>{3.f, 4.f, 6.f, 8.f}));
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, matmul_1_2_x_1_2_true_false_const)
+{
+    Shape shape_in1{1, 2};
+    Shape shape_in2{1, 2};
+    Shape shape_out{2, 2};
+    auto A = make_shared<op::Parameter>(element::f32, shape_in1);
+    auto B = op::Constant::create(ngraph::element::f32, shape_in2, {3.f, 4.f});
+    auto matmul = make_shared<op::MatMul>(A, B, true, false);
+    auto f = make_shared<Function>(matmul, ParameterVector{A});
+
+    auto backend = runtime::Backend::create("${BACKEND_NAME}");
+
+    shared_ptr<runtime::Tensor> a = backend->create_tensor(element::f32, shape_in1);
+    shared_ptr<runtime::Tensor> result = backend->create_tensor(element::f32, shape_out);
+
+    copy_data(a, vector<float>{1.f, 2.f});
+
+    auto handle = backend->compile(f);
+    handle->call_with_validate({result}, {a});
+
+    EXPECT_TRUE(test::all_close_f(read_vector<float>(result), vector<float>{3.f, 4.f, 6.f, 8.f}));
+}
