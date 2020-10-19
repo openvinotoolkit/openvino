@@ -18,8 +18,11 @@
 
 #include <cmath>
 
+// TODO REMOVE INCLUDES
 #include "ngraph/coordinate_transform.hpp"
 #include "ngraph/shape_util.hpp"
+
+#include "tile.hpp"
 
 namespace ngraph
 {
@@ -34,34 +37,49 @@ namespace ngraph
                            const Shape& out_shape,
                            const AxisSet& broadcast_axes)
             {
-                // Remove all broadcast axes from in_shape
-                Shape adjusted_in_shape;
-                for (auto length : in_shape)
+                std::cout << "in_shape: ";
+                for (int i = 0; i < in_shape.size(); ++i)
                 {
-                    if (length != 1)
-                    {
-                        adjusted_in_shape.push_back(length);
-                    }
+                    std::cout << in_shape[i] << ", ";
                 }
-                // Remove 1s from out_shape
-                AxisSet adjusted_axes(broadcast_axes);
-                for (uint64_t axis = 0; axis < out_shape.size(); ++axis)
-                {
-                    auto length = out_shape.at(axis);
-                    if (length == 1)
-                    {
-                        adjusted_axes.insert(axis);
-                    }
-                }
-                CoordinateTransform input_transform(adjusted_in_shape);
-                CoordinateTransform output_transform(out_shape);
+                std::cout << "\n";
 
-                for (const Coordinate& output_coord : output_transform)
+                std::cout << "out_shape: ";
+                for (int i = 0; i < out_shape.size(); ++i)
                 {
-                    Coordinate input_coord = reduce(output_coord, adjusted_axes, false);
-                    out[output_transform.index(output_coord)] =
-                        arg[input_transform.index(input_coord)];
+                    std::cout << out_shape[i] << ", ";
                 }
+                std::cout << "\n";
+
+                std::cout << "broadcast_axes: ";
+                for (auto& axis : broadcast_axes)
+                {
+                    std::cout << axis << ", ";
+                }
+                std::cout << "\n";
+
+                // TODO CHECK
+                Shape adjusted_in_shape = in_shape;
+                for (const auto& axis : broadcast_axes)
+                {
+                    if (adjusted_in_shape.size() < out_shape.size())
+                    {
+                        adjusted_in_shape.insert(adjusted_in_shape.begin() + axis, 1);
+                    }
+                }
+                // TODO assert rank
+                std::vector<int64_t> repeats(out_shape.size());
+                for (size_t i = 0; i < repeats.size(); ++i)
+                {
+                    // TODO CHECK IF OUT OF RANGE
+                    repeats[i] = out_shape[i] / adjusted_in_shape[i]; // TODO CHECK ROUND
+                }
+                return tile(reinterpret_cast<const char*>(arg),
+                            reinterpret_cast<char*>(out),
+                            adjusted_in_shape,
+                            out_shape,
+                            sizeof(T),
+                            repeats);
             }
         }
     }
