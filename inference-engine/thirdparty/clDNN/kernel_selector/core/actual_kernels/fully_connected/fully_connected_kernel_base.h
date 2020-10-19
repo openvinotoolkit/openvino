@@ -63,7 +63,7 @@ public:
                                                    const int autoTuneIndex = -1) const;
 
 protected:
-    virtual JitConstants GetJitConstants(const fully_connected_params& params, const DispatchData& kd) const;
+    virtual JitConstants GetJitConstants(const fully_connected_params& params, const DispatchData& dispatchData) const;
     virtual DispatchData SetDefault(const fully_connected_params& params, int autoTuneIndex = -1) const;
     KernelsData GetCommonKernelsData(const Params &params,
                                      const optional_params &options,
@@ -74,7 +74,7 @@ protected:
                                      int autoTuneIndex = -1) const;
 
     // Fused ops
-    virtual JitConstants GetFusedPrimitivesJitConstants(const fully_connected_params& params, const DispatchData& kd) const;
+    virtual JitConstants GetFusedPrimitivesJitConstants(const fully_connected_params& params, const DispatchData& dispatchData) const;
     Datatype GetActivationType(const fully_connected_params& params) const;
     // --Fused ops
 

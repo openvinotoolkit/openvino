@@ -139,7 +139,9 @@ void pass::ConstantFolding::construct_constant_select()
             break;
         }
 
+        replacement->set_friendly_name(m.get_match_root()->get_friendly_name());
         replace_node(m.get_match_root(), replacement);
+        copy_runtime_info_to_target_inputs(m.get_match_root(), replacement);
         return true;
     };
 

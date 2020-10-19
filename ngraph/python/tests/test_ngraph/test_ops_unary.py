@@ -59,7 +59,6 @@ def test_unary_op_array(ng_api_fn, numpy_fn, range_start, range_end):
     assert np.allclose(result, expected, rtol=0.001)
 
 
-@pytest.mark.skip(reason="Segmentation fault")
 @pytest.mark.parametrize(
     "ng_api_fn, numpy_fn, input_data",
     [
