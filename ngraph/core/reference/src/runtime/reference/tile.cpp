@@ -58,7 +58,7 @@ namespace
     private:
         std::vector<int64_t> m_indices;
         size_t m_axis;
-        bool m_run;
+        bool m_run{true};
         Shape m_shape;
     };
 
@@ -93,7 +93,6 @@ void runtime::reference::tile(const char* arg,
     in_shape_expanded.insert(in_shape_expanded.begin(), out_shape.size() - in_shape.size(), 1);
     size_t block_size = 0;
     int64_t num_repeats = 0;
-    bool run = true;
     std::vector<int64_t> indices(in_shape_expanded.size() - 1, 0);
     size_t axis(indices.size());
     const int input_rank = in_shape_expanded.size();
