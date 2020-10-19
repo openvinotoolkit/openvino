@@ -41,7 +41,7 @@ TEST(type_prop, batch_norm_inference_partial_all_rank_dynamic)
     auto mean = make_shared<op::Parameter>(mean_et, mean_shape);
     auto variance = make_shared<op::Parameter>(variance_et, variance_shape);
 
-    auto bn = make_shared<op::BatchNormInference>(data_batch, gamma, beta, mean, variance, epsilon);
+    auto bn = make_shared<op::v5::BatchNormInference>(data_batch, gamma, beta, mean, variance, epsilon);
 
     ASSERT_EQ(bn->get_output_size(), 1);
     ASSERT_EQ(bn->get_output_element_type(0), data_batch_et);
@@ -69,7 +69,7 @@ TEST(type_prop, batch_norm_inference_partial_input_rank_static_dynamic_ok)
     auto mean = make_shared<op::Parameter>(mean_et, mean_shape);
     auto variance = make_shared<op::Parameter>(variance_et, variance_shape);
 
-    auto bn = make_shared<op::BatchNormInference>(data_batch, gamma, beta, mean, variance, epsilon);
+    auto bn = make_shared<op::v5::BatchNormInference>(data_batch, gamma, beta, mean, variance, epsilon);
 
     ASSERT_EQ(bn->get_output_size(), 1);
     ASSERT_EQ(bn->get_output_element_type(0), data_batch_et);
@@ -101,7 +101,7 @@ TEST(type_prop, batch_norm_inference_partial_input_rank_static_dynamic_zero_chan
     try
     {
         auto bn =
-            make_shared<op::BatchNormInference>(data_batch, gamma, beta, mean, variance, epsilon);
+            make_shared<op::v5::BatchNormInference>(data_batch, gamma, beta, mean, variance, epsilon);
         FAIL() << "Zero channel count not detected";
     }
     catch (const NodeValidationFailure& error)
@@ -134,7 +134,7 @@ TEST(type_prop, batch_norm_inference_partial_input_rank_dynamic_some_rank_static
     auto mean = make_shared<op::Parameter>(mean_et, mean_shape);
     auto variance = make_shared<op::Parameter>(variance_et, variance_shape);
 
-    auto bn = make_shared<op::BatchNormInference>(data_batch, gamma, beta, mean, variance, epsilon);
+    auto bn = make_shared<op::v5::BatchNormInference>(data_batch, gamma, beta, mean, variance, epsilon);
 
     ASSERT_EQ(bn->get_output_size(), 1);
     ASSERT_EQ(bn->get_output_element_type(0), data_batch_et);
@@ -164,7 +164,7 @@ TEST(type_prop, batch_norm_inference_partial_input_rank_dynamic_some_rank_static
     try
     {
         auto bn =
-            make_shared<op::BatchNormInference>(data_batch, gamma, beta, mean, variance, epsilon);
+            make_shared<op::v5::BatchNormInference>(data_batch, gamma, beta, mean, variance, epsilon);
         FAIL() << "Wrong gamma/beta/mean/variance shape not detected";
     }
     catch (const NodeValidationFailure& error)
@@ -203,7 +203,7 @@ TEST(type_prop,
     try
     {
         auto bn =
-            make_shared<op::BatchNormInference>(data_batch, gamma, beta, mean, variance, epsilon);
+            make_shared<op::v5::BatchNormInference>(data_batch, gamma, beta, mean, variance, epsilon);
         FAIL() << "Inconsistent gamma/beta/mean/variance shape not detected";
     }
     catch (const NodeValidationFailure& error)
@@ -241,7 +241,7 @@ TEST(type_prop,
     try
     {
         auto bn =
-            make_shared<op::BatchNormInference>(data_batch, gamma, beta, mean, variance, epsilon);
+            make_shared<op::v5::BatchNormInference>(data_batch, gamma, beta, mean, variance, epsilon);
         FAIL() << "Inconsistent gamma/beta/mean/variance channel count not detected";
     }
     catch (const NodeValidationFailure& error)
@@ -275,7 +275,7 @@ TEST(type_prop, batch_norm_inference_partial_input_rank_static_dynamic_some_stat
     auto mean = make_shared<op::Parameter>(mean_et, mean_shape);
     auto variance = make_shared<op::Parameter>(variance_et, variance_shape);
 
-    auto bn = make_shared<op::BatchNormInference>(data_batch, gamma, beta, mean, variance, epsilon);
+    auto bn = make_shared<op::v5::BatchNormInference>(data_batch, gamma, beta, mean, variance, epsilon);
 
     ASSERT_EQ(bn->get_output_size(), 1);
     ASSERT_EQ(bn->get_output_element_type(0), data_batch_et);
@@ -307,7 +307,7 @@ TEST(type_prop,
     try
     {
         auto bn =
-            make_shared<op::BatchNormInference>(data_batch, gamma, beta, mean, variance, epsilon);
+            make_shared<op::v5::BatchNormInference>(data_batch, gamma, beta, mean, variance, epsilon);
         FAIL() << "Inconsistent input/gamma/beta/mean/variance channel count not detected";
     }
     catch (const NodeValidationFailure& error)
