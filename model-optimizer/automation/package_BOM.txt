@@ -32,6 +32,7 @@ extensions/back/LeakyReLUMutation.py
 extensions/back/LRNToNorm.py
 extensions/back/MatMulNormalizer.py
 extensions/back/MaxPool.py
+extensions/back/NormalizeLoop.py
 extensions/back/NormalizeToNormalizeL2.py
 extensions/back/op_versioning.py
 extensions/back/OptimizeTransposeReshapeSequence.py
@@ -476,6 +477,7 @@ extensions/front/tf/yolo_v2_voc.json
 extensions/front/tf/yolo_v3.json
 extensions/front/tf/yolo_v3_tiny.json
 extensions/front/tf/yolo_v3_voc.json
+extensions/front/ThresholdedReluDecomposition.py
 extensions/front/TopKNormalize.py
 extensions/front/transformations_config.py
 extensions/front/TransposeOrderNormalizer.py
