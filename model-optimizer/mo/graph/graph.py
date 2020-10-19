@@ -112,6 +112,21 @@ class Node:
         # update in_ports_count for consistency but it is unlikely have any effect somewhere in the code
         self['in_ports_count'] = len(self._in_ports)
 
+    def delete_output_port(self, idx, skip_if_absent=False):
+        if not self.has_valid('_out_ports'):
+            raise Error(
+                'Cannot removed ports with indices {} from node {} because node doesn\'t '
+                'have _out_ports attribute'.format(idx, self.soft_get('name')))
+        # no handling of control flow edges -- TODO
+        control_flow = False
+        if not skip_if_absent and idx not in self.out_ports(control_flow=control_flow):
+            raise Error("Input port with index {} doesn't exist in node {}.".format(idx, self.soft_get('name')))
+        if not self.out_port(idx).disconnected():
+            self.out_port(idx).disconnect()
+        del self._out_ports[idx]
+        # update in_ports_count for consistency but it is unlikely have any effect somewhere in the code
+        self['out_ports_count'] = len(self._out_ports)
+
     def add_output_port(self, idx, skip_if_exist=False, **kwargs):
         if not self.has_valid('_out_ports'):
             Node(self.graph, self.id)['_out_ports'] = {}

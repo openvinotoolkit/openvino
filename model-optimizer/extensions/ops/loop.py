@@ -145,6 +145,30 @@ class Loop(TensorIterator):
                                           'internal_layer_id': body_result_node['internal_layer_id']})
 
     @staticmethod
+    def re_numerate_output_ports(loop_node: Node):
+        def update_port_map(port_map: dict, old_port_id: int, new_port_id: int):
+            for record in port_map:
+                if record['external_port_id'] == old_port_id:
+                    record['external_port_id'] = new_port_id
+
+        def re_number_output_port(loop_node: Node, old_port_id: int, new_port_id: int):
+            loop_node.add_output_port(new_port_id, skip_if_exist=True)
+            loop_node.out_port(old_port_id).get_connection().set_source(loop_node.out_port(new_port_id))
+            update_port_map(loop_node.output_port_map, old_port_id, new_port_id)
+
+        if len(loop_node.out_ports()) > 0:
+            max_port_id = sorted(loop_node.out_ports().keys())[-1]
+            new_port_id = 0
+            for port_id in range(max_port_id + 1):
+                if port_id in loop_node.out_ports():
+                    if port_id != new_port_id:
+                        re_number_output_port(loop_node, port_id, new_port_id)
+                    new_port_id += 1
+
+            for port_to_remove_id in reversed(range(new_port_id, max_port_id + 1)):
+                loop_node.delete_output_port(port_to_remove_id)
+
+    @staticmethod
     def infer(node: Node):
         Loop.updated_body_parameters_shape(node)
         partial_infer(node.body)

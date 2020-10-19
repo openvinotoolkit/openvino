@@ -48,3 +48,5 @@ class ONNXLoopNormalize(FrontReplacementSubgraph):
             if record['axis'] is not None:
                 unsqueeze = create_op_with_const_inputs(loop_node.body, Unsqueeze, {1: int64_array([0])})
                 body_node.in_port(0).get_connection().insert_node(unsqueeze)
+
+        Loop.re_numerate_output_ports(loop_node)
