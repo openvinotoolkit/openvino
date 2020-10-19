@@ -29,7 +29,7 @@ protected:
     }
 };
 
-TEST_F(SerializationTest, BasicModel) {
+TEST_F(SerializationTest, BasicModel_MO) {
     const std::string model = IR_SERIALIZATION_MODELS_PATH "add_abc.xml";
     const std::string weights = IR_SERIALIZATION_MODELS_PATH "add_abc.bin";
 
@@ -46,7 +46,24 @@ TEST_F(SerializationTest, BasicModel) {
     ASSERT_TRUE(success) << message;
 }
 
-TEST_F(SerializationTest, ModelWithMultipleOutputs) {
+// DISABLED: C++ exception with description "Invalid IR! Y name is not unique!
+TEST_F(SerializationTest, DISABLED_BasicModel_ONNXImporter) {
+    const std::string model = IR_SERIALIZATION_MODELS_PATH "add_abc.prototxt";
+
+    InferenceEngine::Core ie;
+    auto expected = ie.ReadNetwork(model);
+    expected.serialize(m_out_xml_path, m_out_bin_path);
+    auto result = ie.ReadNetwork(m_out_xml_path, m_out_bin_path);
+
+    bool success;
+    std::string message;
+    std::tie(success, message) =
+        compare_functions(result.getFunction(), expected.getFunction());
+
+    ASSERT_TRUE(success) << message;
+}
+
+TEST_F(SerializationTest, ModelWithMultipleOutputs_MO) {
     const std::string model =
         IR_SERIALIZATION_MODELS_PATH "split_equal_parts_2d.xml";
     const std::string weights =
@@ -71,7 +88,31 @@ TEST_F(SerializationTest, ModelWithMultipleOutputs) {
 #endif
 }
 
-TEST_F(SerializationTest, ModelWithMultipleLayers) {
+// DISABLED: C++ exception with description "Invalid IR! output_2 name is not unique!
+TEST_F(SerializationTest, DISABLED_ModelWithMultipleOutputs_ONNXImporter) {
+    const std::string model =
+        IR_SERIALIZATION_MODELS_PATH "split_equal_parts_2d.prototxt";
+
+    InferenceEngine::Core ie;
+    auto expected = ie.ReadNetwork(model);
+    expected.serialize(m_out_xml_path, m_out_bin_path);
+    auto result = ie.ReadNetwork(m_out_xml_path, m_out_bin_path);
+
+// Compare function does not support models with multiple outputs
+#ifdef NDEBUG
+    bool success;
+    std::string message;
+    std::tie(success, message) =
+        compare_functions(result.getFunction(), expected.getFunction());
+
+    ASSERT_TRUE(success) << message;
+#else
+    ASSERT_DEBUG_DEATH(
+        compare_functions(result.getFunction(), expected.getFunction()), "");
+#endif
+}
+
+TEST_F(SerializationTest, ModelWithMultipleLayers_MO) {
     const std::string model = IR_SERIALIZATION_MODELS_PATH "addmul_abc.xml";
     const std::string weights = IR_SERIALIZATION_MODELS_PATH "addmul_abc.bin";
 
@@ -88,7 +129,25 @@ TEST_F(SerializationTest, ModelWithMultipleLayers) {
     ASSERT_TRUE(success) << message;
 }
 
-TEST_F(SerializationTest, ModelWithConstants) {
+// DISABLED: C++ exception with description "Invalid IR! Y name is not unique!
+TEST_F(SerializationTest, DISABLED_ModelWithMultipleLayers_ONNXImporter) {
+    const std::string model =
+        IR_SERIALIZATION_MODELS_PATH "addmul_abc.prototxt";
+
+    InferenceEngine::Core ie;
+    auto expected = ie.ReadNetwork(model);
+    expected.serialize(m_out_xml_path, m_out_bin_path);
+    auto result = ie.ReadNetwork(m_out_xml_path, m_out_bin_path);
+
+    bool success;
+    std::string message;
+    std::tie(success, message) =
+        compare_functions(result.getFunction(), expected.getFunction());
+
+    ASSERT_TRUE(success) << message;
+}
+
+TEST_F(SerializationTest, ModelWithConstants_MO) {
     const std::string model =
         IR_SERIALIZATION_MODELS_PATH "add_abc_initializers.xml";
     const std::string weights =
@@ -96,6 +155,23 @@ TEST_F(SerializationTest, ModelWithConstants) {
 
     InferenceEngine::Core ie;
     auto expected = ie.ReadNetwork(model, weights);
+    expected.serialize(m_out_xml_path, m_out_bin_path);
+    auto result = ie.ReadNetwork(m_out_xml_path, m_out_bin_path);
+
+    bool success;
+    std::string message;
+    std::tie(success, message) =
+        compare_functions(result.getFunction(), expected.getFunction());
+
+    ASSERT_TRUE(success) << message;
+}
+
+TEST_F(SerializationTest, ModelWithConstants_ONNXImporter) {
+    const std::string model =
+        IR_SERIALIZATION_MODELS_PATH "add_abc_initializers.xml";
+
+    InferenceEngine::Core ie;
+    auto expected = ie.ReadNetwork(model);
     expected.serialize(m_out_xml_path, m_out_bin_path);
     auto result = ie.ReadNetwork(m_out_xml_path, m_out_bin_path);
 
