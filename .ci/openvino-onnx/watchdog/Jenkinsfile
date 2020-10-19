@@ -6,7 +6,7 @@ timeout(30)
     node(LABEL) {
 
         BUILD_WORKSPACE = "$WORKSPACE/$BUILD_NUMBER"
-        WATCHDOG_ROOT = "$BUILD_WORKSPACE/.ci/openvino-onnx/watchdog/src"
+        WATCHDOG_ROOT = "$BUILD_WORKSPACE/.ci/openvino-onnx/watchdog"
         VENV_PATH = "${BUILD_WORKSPACE}/.wdvenv"
 
         try {
@@ -36,7 +36,7 @@ timeout(30)
                             sh """#!/bin/bash
                                 source ${VENV_PATH}/bin/activate
                                 export PYTHONHTTPSVERIFY=0
-                                python ${WATCHDOG_ROOT}/Main.py \
+                                python ${WATCHDOG_ROOT}/src/Main.py \
                                     --msteams-url=${MSTEAMS_URL_FILE} \
                                     --github-credentials '${username}' '${password}' \
                                     --github-org=${GITHUB_ORG} \
