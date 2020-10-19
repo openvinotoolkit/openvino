@@ -7,7 +7,7 @@ graph {
     op_type: "Round"
     attribute {
       name: "mode"
-      i: 0
+      i: 1
       type: INT
     }
   }

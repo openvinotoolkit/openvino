@@ -44,9 +44,6 @@ onnx_model_qlinear_matmul_3d
 onnx_model_gatherND_int32
 onnx_model_gatherND_float
 
-# Round op doesn't support some specific cases of rounding
-onnx_model_round_half_nearest_even
-
 # Result mismatch
 onnx_model_split_equal_parts_default
 onnx_model_argmin_no_keepdims
@@ -852,6 +849,7 @@ gru_cell_activation_function
 onnx_model_quant_conv_linear
 onnx_model_quant_conv_linear_2d
 onnx_model_quant_conv_linear_3d
+IE_GPU.round_int64
 
 # Cannot cast ngraph node Dot to CNNLayer!
 dot_4d_5d_multi_axis
@@ -896,6 +894,11 @@ argmin_4D_axis_3
 
 # Unsupported primitive of type: ArgMin
 argmin_trivial_in_i32
+
+# Unsupported primitive of type: Round
+IE_CPU.onnx_model_round
+IE_CPU.onnx_model_round_half_nearest_even
+IE_CPU.onnx_model_round_half_away_from_zero
 
 # Error of validate layer: ArgMax with type: ArgMax. No such parameter name 'top_k' for layer ArgMax
 argmax_trivial
