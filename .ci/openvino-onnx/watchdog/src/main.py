@@ -5,7 +5,7 @@
 
 import argparse
 import sys
-from src.watchdog import Watchdog
+from watchdog.src.watchdog import Watchdog
 
 DEFAULT_MSTEAMS_URL_FILE = '/home/lab_nerval/tokens/msteams_url'
 DEFAULT_GITHUB_ORGANIZATION = 'openvinotoolkit'
