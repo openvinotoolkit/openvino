@@ -132,6 +132,14 @@ uint32_t GNADeviceHelper::createRequestConfig(const uint32_t model_id) {
     return reqConfId;
 }
 
+uint32_t GNADeviceHelper::getNumberOfGnaDevices() {
+    std::unique_lock<std::mutex> lockGnaCalls{ acrossPluginsSync };
+    uint32_t numberOfGnaDevices = 0;
+    auto status = Gna2DeviceGetCount(&numberOfGnaDevices);
+    checkGna2Status(status);
+    return numberOfGnaDevices;
+}
+
 void GNADeviceHelper::checkGna2Status(Gna2Status status, const Gna2Model& gnaModel) {
     if (!Gna2StatusIsSuccessful(status)) {
         std::vector<char> gna2StatusBuffer(1024);
