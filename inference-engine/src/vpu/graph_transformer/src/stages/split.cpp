@@ -162,10 +162,9 @@ Stage StageBuilder::addSplitStage(
         const int begin = (i + 0) * inputAxisSize / numSplit;
         const int end   = (i + 1) * inputAxisSize / numSplit;
         const int outAxisSize = end - begin;
-        
         outAxisSizes.push_back(outAxisSize);
     }
-    
+
     auto outputs_ = outputs;
     auto it = outAxisSizes.begin();
     for (int i = 0; i < outputs_.size() ; ++i) {

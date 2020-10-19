@@ -30,7 +30,7 @@ INSTANTIATE_TEST_CASE_P(smoke_NumSplitsCheck, SplitLayerTest,
                                 ::testing::Values(std::vector<size_t >({30, 30, 30, 30})),
                                 ::testing::Values(CommonTestUtils::DEVICE_MYRIAD)),
                         SplitLayerTest::getTestCaseName);
-                        
+
 INSTANTIATE_TEST_CASE_P(smoke_SplitWithDiffOutsCheck, splitWithDiffOutsTest,
                         ::testing::Combine(
                                 ::testing::Values(5),
