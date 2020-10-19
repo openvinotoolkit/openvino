@@ -224,7 +224,7 @@ NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertNMS4ToNMS5, "ConvertNMS4ToNMS5", 0);
 ngraph::pass::ConvertNMS4ToNMS5::ConvertNMS4ToNMS5() {
     auto nms = nms4_pattern();
 
-    ngraph::matcher_pass_callback = callback_func;
+    ngraph::matcher_pass_callback callback = callback_func;
 //     ngraph::matcher_pass_callback callback = [](pattern::Matcher &m) {
 //         auto nms_4 = std::dynamic_pointer_cast<ngraph::opset4::NonMaxSuppression>(m.get_match_root());
 //         if (!nms_4) {
