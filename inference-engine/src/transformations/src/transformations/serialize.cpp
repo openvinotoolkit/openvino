@@ -15,7 +15,7 @@ using namespace ngraph;
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::Serialize, "Serialize", 0);
 
-namespace {
+namespace {  // helpers
 template <typename T, typename A>
 std::string joinVec(std::vector<T, A> const& vec,
                     std::string const& glue = std::string(",")) {
@@ -27,7 +27,7 @@ std::string joinVec(std::vector<T, A> const& vec,
 }
 }  // namespace
 
-namespace {
+namespace {  // implementation details
 struct Edge {
     int from_layer = 0;
     int from_port = 0;
@@ -293,29 +293,32 @@ void ngfunction_2_irv10(pugi::xml_document& doc, std::vector<uint8_t>& bin,
     }
 }
 
-void SerializeV10(const std::string& xmlPath, const std::string& binPath,
-                  const ngraph::Function& function) {
-    // prepare data
-    pugi::xml_document irv10xml;
-    std::vector<uint8_t> irv10bin;
-    ngfunction_2_irv10(irv10xml, irv10bin, function);
-
-    // create xml file
-    std::ofstream xml_file(xmlPath, std::ios::out);
-    irv10xml.save(xml_file);
-
-    // create bin file
-    std::ofstream bin_file(binPath, std::ios::out | std::ios::binary);
-    bin_file.write(reinterpret_cast<const char*>(irv10bin.data()),
-                   irv10bin.size() * sizeof(irv10bin[0]));
-}
-
 }  // namespace
 
 // ! [function_pass:serialize_cpp]
 // serialize.cpp
 bool pass::Serialize::run_on_function(std::shared_ptr<ngraph::Function> f) {
-    SerializeV10(m_xmlPath, m_binPath, *f);
+    // prepare data
+    pugi::xml_document xml_doc;
+    std::vector<uint8_t> constants;
+    switch (m_version) {
+    case Version::IR_V10:
+        ngfunction_2_irv10(xml_doc, constants, *f);
+        break;
+    default:
+        NGRAPH_UNREACHABLE("");
+        break;
+    }
+
+    // create xml file
+    std::ofstream xml_file(m_xmlPath, std::ios::out);
+    xml_doc.save(xml_file);
+
+    // create bin file
+    std::ofstream bin_file(m_binPath, std::ios::out | std::ios::binary);
+    bin_file.write(reinterpret_cast<const char*>(constants.data()),
+                   constants.size() * sizeof(constants[0]));
+
     // Return false because we didn't change nGraph Function
     return false;
 }

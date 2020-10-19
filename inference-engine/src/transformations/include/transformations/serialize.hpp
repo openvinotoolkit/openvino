@@ -21,14 +21,17 @@ class TRANSFORMATIONS_API Serialize;
 // serialize.hpp
 class ngraph::pass::Serialize : public ngraph::pass::FunctionPass {
 public:
+    enum class Version { IR_V10 };
     NGRAPH_RTTI_DECLARATION;
     bool run_on_function(std::shared_ptr<ngraph::Function> f) override;
 
-    Serialize(const std::string& xmlPath, const std::string& binPath)
-        : m_xmlPath{xmlPath}, m_binPath{binPath} {}
+    Serialize(const std::string& xmlPath, const std::string& binPath,
+              Version version = Version::IR_V10)
+        : m_xmlPath{xmlPath}, m_binPath{binPath}, m_version{version} {}
 
 private:
     const std::string m_xmlPath;
     const std::string m_binPath;
+    const Version m_version;
 };
 // ! [function_pass:serialize_hpp]
