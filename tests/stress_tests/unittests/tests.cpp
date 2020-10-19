@@ -47,36 +47,6 @@ TEST_P(UnitTestSuite, infer_request_inference) {
 // tests_pipelines/tests_pipelines.cpp
 
 
-// tests_pipelines/tests_pipelines_full_pipeline.cpp
-TEST_P(UnitTestSuite, load_unload_plugin_full_pipeline) {
-    runTest(test_load_unload_plugin_full_pipeline, GetParam());
-}
-
-TEST_P(UnitTestSuite, read_network_full_pipeline) {
-    runTest(test_read_network_full_pipeline, GetParam());
-}
-
-TEST_P(UnitTestSuite, set_input_params_full_pipeline) {
-    runTest(test_set_input_params_full_pipeline, GetParam());
-}
-
-TEST_P(UnitTestSuite, cnnnetwork_reshape_batch_x2_full_pipeline) {
-    runTest(test_cnnnetwork_reshape_batch_x2_full_pipeline, GetParam());
-}
-
-TEST_P(UnitTestSuite, create_exenetwork_full_pipeline) {
-    runTest(test_create_exenetwork_full_pipeline, GetParam());
-}
-
-TEST_P(UnitTestSuite, create_infer_request_full_pipeline) {
-    runTest(test_create_infer_request_full_pipeline, GetParam());
-}
-
-TEST_P(UnitTestSuite, infer_request_inference_full_pipeline) {
-    runTest(test_infer_request_inference_full_pipeline, GetParam());
-}
-// tests_pipelines/tests_pipelines_full_pipeline.cpp
-
 INSTANTIATE_TEST_CASE_P(StressUnitTests, UnitTestSuiteNoModel,
                         ::testing::ValuesIn(generateTestsParams({"processes", "threads", "iterations", "devices"})),
                         getTestCaseName);
