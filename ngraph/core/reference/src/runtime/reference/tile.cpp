@@ -26,31 +26,47 @@ using namespace ngraph;
 
 namespace
 {
-    bool is_axis_upper_bound(const Shape& shape,
-                             std::vector<int64_t>& indices,
-                             size_t& axis,
-                             bool& run)
+    struct Counter
     {
-        if (axis-- == 0)
+        Counter(const Shape& shape)
+            : m_shape(shape)
         {
-            run = false;
-            return false;
+            m_indices.resize(m_shape.size() - 1, 0);
+            m_axis = m_indices.size();
         }
 
-        if (++indices[axis] != shape[axis])
+        size_t get_axis() { return m_axis; }
+        bool get_run() { return m_run; }
+        bool is_axis_upper_bound()
         {
-            axis = indices.size();
-            return false;
+            if (m_axis-- == 0)
+            {
+                m_run = false;
+                return false;
+            }
+
+            if (++m_indices[m_axis] != m_shape[m_axis])
+            {
+                m_axis = m_indices.size();
+                return false;
+            }
+
+            m_indices[m_axis] = 0;
+            return true;
         }
 
-        indices[axis] = 0;
-        return true;
-    }
+    private:
+        std::vector<int64_t> m_indices;
+        size_t m_axis;
+        bool m_run;
+        Shape m_shape;
+    };
 
-    /// \brief Returns a vector containing the results of multiplication of the remaining axes for
-    /// each axis
-    /// If dims has shape(2, 2, 3) then the output vector would be (2*3, 3, 1)
-    ///
+    /// \brief For each axis calculates the product of inner axes
+    /// If dims has shape (2, 3, 4) then for 2 (first axis) the inner axes would be (3, 4)
+    /// and for 3 (second axis) it would be (4)
+    /// If dims has shape(2, 3, 4) then the output vector would be (3 * 4, 4, 1)
+    /// The outermost axis is not used. For innermost axis it is always 1.
     /// \param[in] dims Shape of the output
     ///
     /// \return Vector containing calculated values for each axis.
@@ -84,8 +100,9 @@ void runtime::reference::tile(const char* arg,
     const int64_t last_dim = in_shape_expanded[input_rank - 1];
     const std::vector<int64_t> pitches = create_pitches(out_shape);
     const char* copy = nullptr;
+    Counter counter(in_shape_expanded);
 
-    while (run)
+    while (counter.get_run())
     {
         block_size = last_dim * elem_size;
         memcpy(out, arg, block_size);
@@ -100,12 +117,12 @@ void runtime::reference::tile(const char* arg,
             out += block_size;
         }
 
-        while (is_axis_upper_bound(in_shape_expanded, indices, axis, run))
+        while (counter.is_axis_upper_bound())
         {
-            ptrdiff_t pitch = pitches[axis] * in_shape_expanded[axis];
+            ptrdiff_t pitch = pitches[counter.get_axis()] * in_shape_expanded[counter.get_axis()];
             block_size = pitch * elem_size;
             copy = out - block_size;
-            num_repeats = repeats[axis] - 1;
+            num_repeats = repeats[counter.get_axis()] - 1;
             for (int64_t i = 0; i < num_repeats; i++)
             {
                 memcpy(out, copy, block_size);
