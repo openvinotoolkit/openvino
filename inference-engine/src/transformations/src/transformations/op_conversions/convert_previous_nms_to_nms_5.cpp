@@ -80,7 +80,7 @@ namespace {
                                    " has unsupported box encoding");
         }
 
-        attrs.sort_result_descending = nms4->get_sort_result_descending(),
+        attrs.sort_result_descending = nms4->get_sort_result_descending();
         attrs.output_type = nms4->get_output_type();
 
         return attrs;
@@ -106,7 +106,7 @@ namespace {
                                    " has unsupported box encoding");
         }
 
-        attrs.sort_result_descending = nms3->get_sort_result_descending(),
+        attrs.sort_result_descending = nms3->get_sort_result_descending();
         attrs.output_type = nms3->get_output_type();
 
         return attrs;
@@ -132,7 +132,7 @@ namespace {
                                    " has unsupported box encoding");
         }
 
-        attrs.sort_result_descending = nms1->get_sort_result_descending(),
+        attrs.sort_result_descending = nms1->get_sort_result_descending();
 
         return attrs;
     }
@@ -144,15 +144,15 @@ namespace {
         attrs.sort_result_descending = false;
         attrs.is_supported_nms = false;
 
-        auto nms_4 = std::dynamic_pointer_cast<ngraph::opset4::NonMaxSuppression>(m.get_match_root());
+        auto nms_4 = std::dynamic_pointer_cast<ngraph::opset4::NonMaxSuppression>(root);
         if (nms_4) {
             return get_nms4_attrs(nms_4);
         }
-        auto nms_3 = std::dynamic_pointer_cast<ngraph::opset3::NonMaxSuppression>(m.get_match_root());
+        auto nms_3 = std::dynamic_pointer_cast<ngraph::opset3::NonMaxSuppression>(root);
         if (nms_4) {
             return get_nms3_attrs(nms_3);
         }
-        auto nms_1 = std::dynamic_pointer_cast<ngraph::opset1::NonMaxSuppression>(m.get_match_root());
+        auto nms_1 = std::dynamic_pointer_cast<ngraph::opset1::NonMaxSuppression>(root);
         if (nms_1) {
             return get_nms1_attrs(nms_3);
         }
@@ -198,7 +198,7 @@ namespace {
                 arg3,
                 arg4,
                 arg5,
-                box_encoding,
+                attrs.box_encoding,
                 attrs.sort_result_descending,
                 attrs.output_type);
 
