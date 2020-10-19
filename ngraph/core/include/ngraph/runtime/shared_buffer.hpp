@@ -18,7 +18,7 @@
 
 #include <cstddef>
 
-#include "aligned_buffer.hpp"
+#include "ngraph/runtime/aligned_buffer.hpp"
 
 namespace ngraph
 {
