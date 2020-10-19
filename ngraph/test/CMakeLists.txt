@@ -70,6 +70,7 @@ set(SRC
     node_input_output.cpp
     op.cpp
     op_eval/floor_mod.cpp
+    op_eval/hsigmoid.cpp
     op_eval/hswish.cpp
     op_eval/interpolate.cpp
     op_eval/matmul.cpp
@@ -137,6 +138,7 @@ set(SRC
     type_prop/lrn.cpp
     type_prop/lstm_cell.cpp
     type_prop/lstm_sequence.cpp
+    type_prop/loop.cpp
     type_prop/matmul.cpp
     type_prop/max_pool.cpp
     type_prop/mish.cpp
@@ -156,6 +158,7 @@ set(SRC
     type_prop/read_value.cpp
     type_prop/reduce_l1.cpp
     type_prop/reduce_l2.cpp
+    type_prop/reorg_yolo.cpp
     type_prop/replace_slice.cpp
     type_prop/reshape.cpp
     type_prop/reverse.cpp
@@ -181,6 +184,7 @@ set(SRC
     type_prop/swish.cpp
     type_prop/reduce_prod.cpp
     type_prop/reduce_sum.cpp
+    type_prop/ti.cpp
     type_prop/tile.cpp
     type_prop/top_k.cpp
     type_prop/transpose.cpp
@@ -323,7 +327,9 @@ set(MULTI_TEST_SRC
     backend/reduce_min.in.cpp
     backend/reduce_prod.in.cpp
     backend/reduce_sum.in.cpp
+    backend/region_yolo.in.cpp
     backend/relu.in.cpp
+    backend/reorg_yolo.in.cpp
     backend/replace_slice.in.cpp
     backend/reshape.in.cpp
     backend/reverse_sequence.in.cpp
