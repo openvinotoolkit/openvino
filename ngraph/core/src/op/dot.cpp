@@ -51,19 +51,14 @@ void op::Dot::validate_and_infer_types()
 {
     element::Type result_et;
 
-    const element::Type inputElementType0 = get_input_element_type(0);
-    const element::Type inputElementType1 = get_input_element_type(1);
-    if ((inputElementType0 != element::u8) && (inputElementType1 != element::i8))
-    {
-        NODE_VALIDATION_CHECK(
-            this,
-            element::Type::merge(result_et, get_input_element_type(0), get_input_element_type(1)),
-            "Arguments do not have the same element type (arg0 element type: ",
-            get_input_element_type(0),
-            ", arg1 element type: ",
-            get_input_element_type(1),
-            ").");
-    }
+    NODE_VALIDATION_CHECK(
+        this,
+        element::Type::merge(result_et, get_input_element_type(0), get_input_element_type(1)),
+        "Arguments do not have the same element type (arg0 element type: ",
+        get_input_element_type(0),
+        ", arg1 element type: ",
+        get_input_element_type(1),
+        ").");
 
     const PartialShape& arg0_shape = get_input_partial_shape(0);
     const PartialShape& arg1_shape = get_input_partial_shape(1);

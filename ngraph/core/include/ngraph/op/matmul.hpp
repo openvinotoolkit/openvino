@@ -42,12 +42,6 @@ namespace ngraph
                 /// \param transpose_b If matrix B should be transposed.
                 MatMul(const Output<Node>& A,
                        const Output<Node>& B,
-                       const bool& transpose_a,
-                       const bool& transpose_b,
-                       const element::Type output_type);
-
-                MatMul(const Output<Node>& A,
-                       const Output<Node>& B,
                        const bool& transpose_a = 0,
                        const bool& transpose_b = 0);
 
@@ -64,11 +58,9 @@ namespace ngraph
 
                 bool get_transpose_a() const { return m_transpose_a; }
                 bool get_transpose_b() const { return m_transpose_b; }
-                element::Type get_output_type() const { return m_output_type; }
             private:
                 bool m_transpose_a;
                 bool m_transpose_b;
-                element::Type m_output_type;
             };
         }
         using v0::MatMul;
