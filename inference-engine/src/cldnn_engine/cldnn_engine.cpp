@@ -143,6 +143,8 @@ InferenceEngine::ICNNNetwork::Ptr clDNNEngine::CloneAndTransformNetwork(const In
         bool enableInt8;
 #endif
 
+        std::cout << "GPU: before common" << std::endl;
+
         {
             // Note: instead of running all Conversion Transformations you can make up your own transformation pipeline
             ngraph::pass::Manager manager;
@@ -185,6 +187,9 @@ InferenceEngine::ICNNNetwork::Ptr clDNNEngine::CloneAndTransformNetwork(const In
             ti_manager.run_passes(nGraphFunc);
         }
 
+        std::cout << "GPU: after common" << std::endl;
+        std::cout << "GPU: before LPT" << std::endl;
+
 #ifndef USE_CNNNETWORK_LPT
         using namespace ngraph::pass::low_precision;
         if (enableInt8) {
@@ -197,8 +202,12 @@ InferenceEngine::ICNNNetwork::Ptr clDNNEngine::CloneAndTransformNetwork(const In
                 .add<MatMulTransformation, ngraph::opset1::MatMul>(LayerTransformation::Params(params).setSupportAsymmetricQuantization(false)));
 
             transformer.transform(nGraphFunc);
+            std::cout << "GPU: nGraph LPT was done" << std::endl;
         }
 #endif
+
+        std::cout << "GPU: after LPT" << std::endl;
+        std::cout << "GPU: before legacy" << std::endl;
 
         {
             ngraph::pass::Manager manager = ngraph::pass::Manager();
@@ -212,6 +221,8 @@ InferenceEngine::ICNNNetwork::Ptr clDNNEngine::CloneAndTransformNetwork(const In
             // ti_manager.register_pass<ngraph::pass::UnrollTensorIterator>();
             ti_manager.run_passes(nGraphFunc);
         }
+
+        std::cout << "GPU: after legacy" << std::endl;
 
         clonedNetwork = InferenceEngine::details::convertFunctionToICNNNetwork(nGraphFunc, *clonedNetwork);
     }

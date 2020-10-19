@@ -164,8 +164,12 @@ static void Transformation(ICNNNetwork::Ptr& clonedNetwork, const Config& conf) 
                 LayerTransformation::Params(params).setPrecisionsOnActivations({ ngraph::element::u8 })));
 
         transformer.transform(nGraphFunc);
+
+        std::cout << "CPU: nGraph LPT was done" << std::endl;
     }
 #endif
+
+    std::cout << "CPU: inference" << std::endl;
 
     ngraph::pass::Manager legacyManager;
     legacyManager.register_pass<ngraph::pass::ConvertOpSet1ToLegacy>();
