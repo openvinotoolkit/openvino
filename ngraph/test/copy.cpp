@@ -20,6 +20,7 @@
 #include "gtest/gtest.h"
 
 #include "ngraph/ngraph.hpp"
+#include "ngraph/opsets/opset5.hpp"
 #include "util/ndarray.hpp"
 #include "util/test_tools.hpp"
 
@@ -367,4 +368,71 @@ TEST(copy, tan)
 TEST(copy, tanh)
 {
     ASSERT_TRUE(check_unary<op::Tanh>());
+}
+
+TEST(copy, loop)
+{
+    // That which we iterate over
+    auto X = make_shared<opset5::Parameter>(element::f32, Shape{32, 1, 10});
+    auto Y = make_shared<opset5::Parameter>(element::f32, Shape{32, 1, 10});
+    auto M = make_shared<opset5::Parameter>(element::f32, Shape{32, 1, 10});
+
+    // Set up the cell body, a function from (Xi, Yi) -> (Zo)
+    // Body parameters
+    auto current_iteration = make_shared<opset5::Parameter>(element::i64, Shape{});
+    auto Xi = make_shared<opset5::Parameter>(element::f32, PartialShape::dynamic());
+    auto Yi = make_shared<opset5::Parameter>(element::f32, PartialShape::dynamic());
+    auto M_body = make_shared<opset5::Parameter>(element::f32, PartialShape::dynamic());
+    auto body_condition =
+        std::make_shared<ngraph::opset5::Constant>(ngraph::element::boolean, ngraph::Shape{}, true);
+
+    auto trip_count =
+        std::make_shared<ngraph::opset5::Constant>(ngraph::element::i64, ngraph::Shape{}, 10);
+    auto exec_condition =
+        std::make_shared<ngraph::opset5::Constant>(ngraph::element::boolean, ngraph::Shape{}, true);
+    // Body
+    auto sum = make_shared<ngraph::opset5::Add>(Xi, Yi);
+    auto Zo = make_shared<ngraph::opset5::Multiply>(sum, M_body);
+    auto body = make_shared<ngraph::Function>(OutputVector{Zo, body_condition},
+                                              ParameterVector{Xi, current_iteration, Yi, M_body});
+
+    auto loop = make_shared<opset5::Loop>(trip_count, exec_condition);
+    loop->set_function(body);
+    loop->set_special_body_ports(ngraph::opset5::Loop::SpecialBodyPorts{1, 1});
+
+    loop->set_invariant_input(Xi, X);
+    loop->set_invariant_input(Yi, Y);
+    loop->set_merged_input(M_body, M, Zo);
+
+    // Output 0 is last Zo
+    auto out0 = loop->get_iter_value(body_condition, -1);
+    auto out1 = loop->get_iter_value(Zo, -1);
+    // Output 1 is concat of Zos
+    // start=0, stride=1, part_size=1, end=-1, axis=1
+    auto out2 = loop->get_concatenated_slices(Zo, 0, 1, 1, -1, 1);
+    loop->validate_and_infer_types();
+    // That which we iterate over
+    auto X_new = make_shared<opset5::Parameter>(element::f32, Shape{3, 2, 5});
+    auto Y_new = make_shared<opset5::Parameter>(element::f32, Shape{3, 2, 5});
+    auto M_new = make_shared<opset5::Parameter>(element::f32, Shape{3, 2, 5});
+    OutputVector new_args = {trip_count, exec_condition, X_new, Y_new, M_new};
+    auto loop_copy = loop->clone_with_new_inputs(new_args);
+
+    auto node_cast = std::dynamic_pointer_cast<opset5::Loop>(loop_copy);
+    ASSERT_NE(node_cast, nullptr);
+    ASSERT_TRUE(nullptr != loop_copy);
+    EXPECT_EQ(loop->get_num_iterations(), node_cast->get_num_iterations());
+    EXPECT_EQ(loop->get_special_body_ports().body_condition_output_idx,
+              node_cast->get_special_body_ports().body_condition_output_idx);
+    EXPECT_EQ(loop->get_special_body_ports().current_iteration_input_idx,
+              node_cast->get_special_body_ports().current_iteration_input_idx);
+    ASSERT_TRUE(new_args == loop_copy->input_values());
+
+    loop_copy->validate_and_infer_types();
+    Shape out0_shape{};
+    Shape out1_shape{3, 2, 5};
+    Shape out2_shape{3, 20, 5};
+    EXPECT_EQ(loop_copy->get_output_shape(0), out0_shape);
+    EXPECT_EQ(loop_copy->get_output_shape(1), out1_shape);
+    EXPECT_EQ(loop_copy->get_output_shape(2), out2_shape);
 }

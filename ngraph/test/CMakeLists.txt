@@ -138,6 +138,7 @@ set(SRC
     type_prop/lrn.cpp
     type_prop/lstm_cell.cpp
     type_prop/lstm_sequence.cpp
+    type_prop/loop.cpp
     type_prop/matmul.cpp
     type_prop/max_pool.cpp
     type_prop/mish.cpp
@@ -183,6 +184,7 @@ set(SRC
     type_prop/swish.cpp
     type_prop/reduce_prod.cpp
     type_prop/reduce_sum.cpp
+    type_prop/ti.cpp
     type_prop/tile.cpp
     type_prop/top_k.cpp
     type_prop/transpose.cpp

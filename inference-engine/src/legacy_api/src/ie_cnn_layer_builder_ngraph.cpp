@@ -43,6 +43,7 @@
 #include <cpp/ie_cnn_network.h>
 #include <ngraph/ngraph.hpp>
 #include <ngraph/variant.hpp>
+#include <ngraph/opsets/opset5.hpp>
 
 #include <legacy/convert_function_to_cnn_network.hpp>
 #include "legacy/graph_transformer.h"
@@ -114,8 +115,7 @@ CNNLayer::Ptr NodeConverter<ngraph::op::GenericIE>::createLayer(const std::share
     return res;
 }
 
-template <>
-CNNLayer::Ptr NodeConverter<ngraph::op::TensorIterator>::createLayer(const std::shared_ptr<ngraph::Node>& layer) const {
+CNNLayer::Ptr createSubGraphLayer(const std::shared_ptr<ngraph::Node>& layer) {
     auto find_input_idx = [](const CNNLayerPtr& where, const DataPtr& what) {
         auto it = std::find_if(where->insData.begin(), where->insData.end(), [&](const DataWeakPtr& wk_ptr) {
             auto layer_data = wk_ptr.lock();
@@ -129,7 +129,7 @@ CNNLayer::Ptr NodeConverter<ngraph::op::TensorIterator>::createLayer(const std::
         return it - where->insData.begin();
     };
 
-    auto tensor_iterator = ngraph::as_type_ptr<ngraph::op::TensorIterator>(layer);
+    auto tensor_iterator = std::dynamic_pointer_cast<ngraph::op::util::SubGraphOp>(layer);
     if (!tensor_iterator) {
         THROW_IE_EXCEPTION << "Cannot cast layer to TensorIterator.";
     }
@@ -142,8 +142,8 @@ CNNLayer::Ptr NodeConverter<ngraph::op::TensorIterator>::createLayer(const std::
     std::map<std::string, DataPtr> out_info_map;
 
     // inputs/outputs of TensorIterator (ngraph representation)
-    auto parameters = tensor_iterator->get_body()->get_parameters();
-    auto results = tensor_iterator->get_body()->get_results();
+    auto parameters = tensor_iterator->get_function()->get_parameters();
+    auto results = tensor_iterator->get_function()->get_results();
 
     // Convert body (ngraph representation) to CNNNetwork.
     // This network will contain nodes of type = "Input" and data nodes with wrong names.
@@ -155,7 +155,7 @@ CNNLayer::Ptr NodeConverter<ngraph::op::TensorIterator>::createLayer(const std::
     // This map will save information about data nodes
     std::map<std::string, std::vector<TensorDesc>> layer_name_to_tensor_desc;
     {
-        CNNNetwork body_net(tensor_iterator->get_body());
+        CNNNetwork body_net(tensor_iterator->get_function());
         CNNNetwork net(InferenceEngine::details::convertFunctionToICNNNetwork(body_net.getFunction(), body_net));
         // Paranoid check for cycles
         bool res = CNNNetForestDFS(
@@ -353,6 +353,20 @@ CNNLayer::Ptr NodeConverter<ngraph::op::TensorIterator>::createLayer(const std::
         }
     }
 
+    return res;
+}
+
+template<>
+CNNLayer::Ptr NodeConverter<ngraph::op::TensorIterator>::createLayer(const std::shared_ptr<ngraph::Node>& layer) const {
+    auto res = createSubGraphLayer(layer);
+    res->type = "TensorIterator";
+    return res;
+}
+
+template<>
+CNNLayer::Ptr NodeConverter<ngraph::opset5::Loop>::createLayer(const std::shared_ptr<ngraph::Node>& layer) const {
+    auto res = createSubGraphLayer(layer);
+    res->type = "Loop";
     return res;
 }
 

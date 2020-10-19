@@ -6,6 +6,7 @@
 
 #ifdef IR_READER_V10
 # include <ngraph/node.hpp>
+# include <ngraph/op/util/sub_graph_base.hpp>
 # include <legacy/ie_ngraph_utils.hpp>
 # include <cpp/ie_cnn_network.h>
 #endif  // IR_READER_V10
@@ -102,6 +103,10 @@ private:
         std::string type;
 
     protected:
+        static std::shared_ptr<ngraph::Node> fillSubGraphLayer(const ngraph::OutputVector& inputs, const pugi::xml_node& node,
+                                                        std::istream& binStream,
+                                                        const GenericLayerParams& layerParsePrms,
+                                                        std::shared_ptr<ngraph::op::util::SubGraphOp> sub_graph_node);
         explicit LayerBaseCreator(const std::string& type): type(type) {}
         std::string getType() {
             return type;
