@@ -4,10 +4,6 @@
 
 set (TARGET_NAME "inference_engine")
 
-if(ENABLE_LTO)
-    ie_enable_lto()
-endif()
-
 file (GLOB LIBRARY_SRC
         ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/threading/*.cpp
@@ -104,7 +100,6 @@ add_library(${TARGET_NAME}_plugin_api INTERFACE)
 target_include_directories(${TARGET_NAME}_plugin_api INTERFACE
     "${IE_MAIN_SOURCE_DIR}/src/plugin_api"
     "${IE_MAIN_SOURCE_DIR}/src/legacy_api/include"
-    "${IE_MAIN_SOURCE_DIR}/src/legacy_api/include/legacy" # for compatibility
     $<TARGET_PROPERTY:${TARGET_NAME}_preproc,INTERFACE_INCLUDE_DIRECTORIES>
     ${PUBLIC_HEADERS_DIR})
 
@@ -192,6 +187,8 @@ target_compile_definitions(${TARGET_NAME} PRIVATE IMPLEMENT_INFERENCE_ENGINE_API
 ie_register_plugins(MAIN_TARGET ${TARGET_NAME}
                     POSSIBLE_PLUGINS MultiDevicePlugin HeteroPlugin clDNNPlugin GNAPlugin MKLDNNPlugin myriadPlugin)
 
+ie_add_api_validator_post_build_step(TARGET ${TARGET_NAME})
+
 # Static library used for unit tests which are always built
 
 add_library(${TARGET_NAME}_s STATIC
@@ -215,6 +212,11 @@ target_link_libraries(${TARGET_NAME}_s PRIVATE ${CMAKE_DL_LIBS} ${NGRAPH_LIBRARI
                                        PUBLIC pugixml)
 
 target_compile_definitions(${TARGET_NAME}_s PUBLIC USE_STATIC_IE)
+
+# LTO
+
+set_target_properties(${TARGET_NAME} ${TARGET_NAME}_obj ${TARGET_NAME}_s ${TARGET_NAME}_common_obj
+                      PROPERTIES INTERPROCEDURAL_OPTIMIZATION ${ENABLE_LTO})
 
 # export targets
 

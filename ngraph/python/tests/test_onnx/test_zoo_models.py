@@ -81,6 +81,7 @@ tolerance_map = {
     "rain-princess-9": {"atol": 0.001, "rtol": 0.001},
     "udnie-8": {"atol": 0.001, "rtol": 0.001},
     "udnie-9": {"atol": 0.001, "rtol": 0.001},
+    "test_shufflenetv2": {"atol": 1e-05, "rtol": 0.001},
 }
 
 zoo_models = []
@@ -111,11 +112,9 @@ if len(zoo_models) > 0:
         import_xfail_list = [
             # ONNX Model Zoo
             (xfail_issue_38701, "test_onnx_model_zoo_text_machine_comprehension_bidirectional_attention_flow_model_bidaf_9_bidaf_bidaf_cpu"),
-            (xfail_issue_39682, "test_onnx_model_zoo_vision_classification_mnist_model_mnist_1_mnist_model_cpu"),
             (xfail_issue_37687, "test_onnx_model_zoo_vision_object_detection_segmentation_ssd_mobilenetv1_model_ssd_mobilenet_v1_10_ssd_mobilenet_v1_ssd_mobilenet_v1_cpu"),
             (xfail_issue_37687, "test_onnx_model_zoo_vision_object_detection_segmentation_yolov3_model_yolov3_10_yolov3_yolov3_cpu"),
             (xfail_issue_37687, "test_onnx_model_zoo_vision_object_detection_segmentation_tiny_yolov3_model_tiny_yolov3_11_yolov3_tiny_cpu"),
-            (xfail_issue_39683, "test_onnx_model_zoo_vision_object_detection_segmentation_tiny_yolov2_model_tinyyolov2_1_tiny_yolov2_model_cpu"),
             (xfail_issue_38726, "test_onnx_model_zoo_text_machine_comprehension_t5_model_t5_decoder_with_lm_head_12_t5_decoder_with_lm_head_cpu"),
 
             # Model MSFT
@@ -145,7 +144,6 @@ if len(zoo_models) > 0:
             (xfail_issue_35926, "test_onnx_model_zoo_text_machine_comprehension_roberta_model_roberta_base_11_roberta_base_11_roberta_base_11_cpu"),
             (xfail_issue_35926, "test_onnx_model_zoo_text_machine_comprehension_bert_squad_model_bertsquad_8_download_sample_8_bertsquad8_cpu"),
             (xfail_issue_35926, "test_onnx_model_zoo_text_machine_comprehension_gpt_2_model_gpt2_lm_head_10_GPT_2_LM_HEAD_model_cpu"),
-            (xfail_issue_36537, "test_onnx_model_zoo_vision_classification_shufflenet_model_shufflenet_v2_10_model_test_shufflenetv2_model_cpu"),
             (xfail_issue_36537, "test_onnx_model_zoo_vision_classification_efficientnet_lite4_model_efficientnet_lite4_11_efficientnet_lite4_efficientnet_lite4_cpu"),
             (xfail_issue_39685, "test_onnx_model_zoo_text_machine_comprehension_roberta_model_roberta_sequence_classification_9_roberta_sequence_classification_9_roberta_sequence_classification_9_cpu"),
             (xfail_issue_39669, "test_onnx_model_zoo_text_machine_comprehension_t5_model_t5_encoder_12_t5_encoder_cpu"),

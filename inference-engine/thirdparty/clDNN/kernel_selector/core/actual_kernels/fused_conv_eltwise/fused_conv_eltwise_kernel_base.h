@@ -111,7 +111,7 @@ protected:
     virtual std::string GetKernelName(const fused_conv_eltwise_params&) const { return kernelName; }
     virtual bool NeedPaddedInput() const { return false; }
     bool Validate(const Params& p, const optional_params& o) const override;
-    virtual JitConstants GetJitConstants(const fused_conv_eltwise_params& params, const DispatchData& kd) const;
+    virtual JitConstants GetJitConstants(const fused_conv_eltwise_params& params, const DispatchData& dispatchData) const;
     virtual DispatchData SetDefault(const fused_conv_eltwise_params& params, int autoTuneIndex = -1) const;
     static bool CheckWorkGroups(const DispatchData&);
     static bool CheckPitchForSplitOnly(const fused_conv_eltwise_params& params);

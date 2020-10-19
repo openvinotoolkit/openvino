@@ -51,12 +51,12 @@ ParamsKey ConvolutionKernel_bfyx_to_bfyx_bsv16_fsv16::GetSupportedKey() const {
 }
 
 ConvolutionKernelBase::DispatchData ConvolutionKernel_bfyx_to_bfyx_bsv16_fsv16::SetDefault(const convolution_params& params,
-                                                                                   int autoTuneIndex) const {
-    DispatchData kd = ConvolutionKernel_bfyx_to_bfyx_f16::SetDefault(params, autoTuneIndex);
+                                                                                           int autoTuneIndex) const {
+    DispatchData dispatchData = ConvolutionKernel_bfyx_to_bfyx_f16::SetDefault(params, autoTuneIndex);
 
-    kd.efficiency = FORCE_PRIORITY_2;
+    dispatchData.efficiency = FORCE_PRIORITY_2;
 
-    return kd;
+    return dispatchData;
 }
 
 bool ConvolutionKernel_bfyx_to_bfyx_bsv16_fsv16::Validate(const Params& p, const optional_params& o) const {

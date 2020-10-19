@@ -294,27 +294,8 @@ public:
 
     QueryNetworkResult QueryNetwork(const ICNNNetwork& network, const std::string& deviceName,
                                     const std::map<std::string, std::string>& config) const override {
-        QueryNetworkResult res;
         auto parsed = parseDeviceNameIntoConfig(deviceName, config);
-        GetCPPPluginByName(parsed._deviceName).QueryNetwork(network, parsed._config, res);
-        if (!network.getFunction())
-            return res;
-
-        // WA for constant folded operations (plugins should support all folded ops)
-        const auto& func = network.getFunction();
-        auto specialized_function = ngraph::clone_function(*func);
-
-        ngraph::pass::ConstantFolding().run_on_function(specialized_function);
-        std::unordered_set<std::string> operationNames;
-        for (const auto& op : specialized_function->get_ops())
-            operationNames.emplace(op->get_friendly_name());
-
-        for (const auto& op : func->get_ops()) {
-            if (operationNames.find(op->get_friendly_name()) != operationNames.end())
-                continue;
-            res.supportedLayersMap[op->get_friendly_name()] = deviceName;
-        }
-        return res;
+        return GetCPPPluginByName(parsed._deviceName).QueryNetwork(network, parsed._config);
     }
 
     Parameter GetMetric(const std::string& deviceName, const std::string& name) const override {
