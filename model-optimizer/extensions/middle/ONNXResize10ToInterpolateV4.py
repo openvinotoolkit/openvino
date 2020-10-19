@@ -124,7 +124,7 @@ def replace_resize(graph: Graph, resize: Node):
 
 class ONNXResize10ToInterpolate4(MiddleReplacementPattern):
     """
-    The transformation replaces ONNX Resize 11 with Interpolate-4.
+    The transformation replaces ONNX Resize 10 with Interpolate-4.
     """
     enabled = True
 

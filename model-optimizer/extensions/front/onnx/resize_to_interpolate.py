@@ -189,7 +189,7 @@ class ResizeToInterpolate3D(FrontReplacementSubgraph):
                                             coordinate_transformation_mode='half_pixel',
                                             nearest_mode='round_prefer_floor', cube_coeff=-0.75, version='opset4',
                                             name=resize_node_name + '/Interpolate', mode=resize_node.mode,
-                                            in_ports_count=3)).create_node()
+                                            in_ports_count=4)).create_node()
 
         depth_scale = match['mul_1'].in_node(1).value
         height_scale = match['mul_2'].in_node(1).value

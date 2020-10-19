@@ -29,7 +29,7 @@ def correct_pad(pad):
 
 class InterpolateV1ToInterpolateV4(FrontReplacementPattern):
     """
-    This transformation replaces the operation Interpolate-1 with the operation Interpolate-3.
+    This transformation replaces the operation Interpolate-1 with the operation Interpolate-4F.
     """
     enabled = True
 
