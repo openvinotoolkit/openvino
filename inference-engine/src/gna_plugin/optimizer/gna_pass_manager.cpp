@@ -1068,7 +1068,7 @@ void EltwiseSplitOverChannelsPass::run() {
     }
 
     for (auto & l : *pLayers) {
-        if (!LayerInfo(l).isEltwise() && !LayerInfo(l).isPower()) {
+        if (!LayerInfo(l).isEltwise() && !LayerInfo(l).isPower() && !LayerInfo(l).isRelu()) {
             continue;
         }
         auto masterLayer = std::dynamic_pointer_cast<CNNLayer>(l);
@@ -1091,7 +1091,7 @@ void EltwiseSplitOverChannelsPass::run() {
         pass_trace() << "transforming " << LAYER_NAME(l) << " by splitting it to multiple eltwise operations\n";
         auto quantized = InferenceEngine::getInjectedData<QuantizedLayerParams>(l);
 
-        std::vector<CNNLayerPtr> splitLayers(1);
+        std::vector<CNNLayerPtr> splitLayers(l->insData.size());
         for (size_t kThEltwiseInput = 0; kThEltwiseInput != l->insData.size(); kThEltwiseInput++) {
             // create split layer
             auto splitRaw = std::make_shared<SplitLayer>(
@@ -1102,26 +1102,42 @@ void EltwiseSplitOverChannelsPass::run() {
             split->insData.push_back(l->insData[kThEltwiseInput]);
             auto inputDesc = l->insData[kThEltwiseInput].lock()->getTensorDesc();
             // need to split this desc
-            if (inputDesc.getLayout() != Layout::NC) {
+            if (inputDesc.getLayout() == Layout::NC) {
+                // create split layer outputs
+                for (size_t i = 0;; i++) {
+                    auto elements_num = std::min(totalElementsForOutput - i * maxAffineElements,
+                                                 static_cast<size_t>(maxAffineElements));
+
+                    SizeVector newDims = {1, elements_num};
+                    auto newDesc = TensorDesc(inputDesc.getPrecision(), newDims, inputDesc.getLayout());
+                    auto data = std::make_shared<Data>(l->name + "/" + std::to_string(kThEltwiseInput) + "/1", newDesc);
+                    getCreatorLayer(data) = split;
+                    split->outData.push_back(data);
+
+                    if (elements_num != maxAffineElements) {
+                        break;
+                    }
+                }
+            } else if (inputDesc.getLayout() == Layout::CHW) {
+                for (size_t i = 0;; i++) {
+                    auto elements_num = std::min(totalElementsForOutput - i * maxAffineElements,
+                                                 static_cast<size_t>(maxAffineElements));
+                    auto channels = l->insData[kThEltwiseInput].lock()->getDims()[1];
+                    auto elements = elements_num / channels;
+                    SizeVector newDims = {1, channels, elements};
+                    auto newDesc = TensorDesc(inputDesc.getPrecision(), newDims, inputDesc.getLayout());
+                    auto data = std::make_shared<Data>(l->name + "/" + std::to_string(kThEltwiseInput) + "/1", newDesc);
+                    getCreatorLayer(data) = split;
+                    split->outData.push_back(data);
+
+                    if (elements_num != maxAffineElements) {
+                        break;
+                    }
+                }
+            } else {
                 THROW_GNA_LAYER_EXCEPTION(l)
                         << "cannot split over channel: input " << std::to_string(kThEltwiseInput)
-                        << " layout need to be NC";
-            }
-
-            // create split layer outputs
-            for (size_t i = 0;; i++) {
-                auto elements_num = std::min(totalElementsForOutput - i * maxAffineElements,
-                                             static_cast<size_t>(maxAffineElements));
-
-                SizeVector newDims = {1, elements_num};
-                auto newDesc = TensorDesc(inputDesc.getPrecision(), newDims, inputDesc.getLayout());
-                auto data = std::make_shared<Data>(l->name + "/" + std::to_string(kThEltwiseInput) + "/1", newDesc);
-                getCreatorLayer(data) = split;
-                split->outData.push_back(data);
-
-                if (elements_num != maxAffineElements) {
-                    break;
-                }
+                        << " layout need to be NC or CHW";
             }
             // replacing connection X->eltwise to X->split
             auto oData = CNNLayerFindOutData(l, kThEltwiseInput);
@@ -1186,26 +1202,26 @@ void EltwiseSplitOverChannelsPass::run() {
                 getInputTo(data)[concat->name] = concat;
                 concat->insData.push_back(data);
             }
-        } else if (LayerInfo(l).isScaleShift()) {
-            auto masterScaleShift = std::dynamic_pointer_cast<ScaleShiftLayer>(l);
+        } else if (LayerInfo(l).isRelu()) {
+            auto masterRelu = std::dynamic_pointer_cast<ReLULayer>(l);
             for (size_t k = 0; k != totalSplits; k++) {
-                auto scaleShiftRaw = std::make_shared<ScaleShiftLayer>(
-                        LayerParams{l->name + "/scaleShift/" + std::to_string(k), "ScaleShift", Precision::FP32});
-                IE_ASSERT(scaleShiftRaw != nullptr);
-                scaleShiftRaw->_broadcast = masterScaleShift->_broadcast;
+                auto reluRaw = std::make_shared<ReLULayer>(
+                        LayerParams{l->name + "/relu/" + std::to_string(k), "Relu", Precision::FP32});
+                IE_ASSERT(reluRaw != nullptr);
+                reluRaw->negative_slope = masterRelu->negative_slope;
 
-                auto scaleShift = quantized ? InferenceEngine::injectData<QuantizedLayerParams>(scaleShiftRaw) : scaleShiftRaw;
+                auto relu = quantized ? InferenceEngine::injectData<QuantizedLayerParams>(reluRaw) : reluRaw;
 
 
-                scaleShift->insData.push_back(splitLayers[0]->outData[k]);
-                getInputTo(splitLayers[0]->outData[k])[scaleShift->name] = scaleShift;
+                relu->insData.push_back(splitLayers[0]->outData[k]);
+                getInputTo(splitLayers[0]->outData[k])[relu->name] = relu;
 
                 SizeVector newDims = splitLayers[0]->outData[k]->getDims();
                 auto newDesc = TensorDesc(splitLayers[0]->outData[k]->getPrecision(), newDims,
                                           splitLayers[0]->outData[k]->getLayout());
-                auto data = std::make_shared<Data>(l->name + "/scaleShift/out/" + std::to_string(k), newDesc);
-                getCreatorLayer(data) = scaleShift;
-                scaleShift->outData.push_back(data);
+                auto data = std::make_shared<Data>(l->name + "/relu/out/" + std::to_string(k), newDesc);
+                getCreatorLayer(data) = relu;
+                relu->outData.push_back(data);
                 getInputTo(data)[concat->name] = concat;
                 concat->insData.push_back(data);
             }

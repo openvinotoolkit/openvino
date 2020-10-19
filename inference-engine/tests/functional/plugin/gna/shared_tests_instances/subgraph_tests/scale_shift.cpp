@@ -11,36 +11,35 @@ using namespace LayerTestsDefinitions;
 namespace {
 
     std::vector<std::vector<std::vector<size_t>>> inShapes = {
-//            {{1, 8}},
-//            {{2, 16}},
-//            {{3, 32}},
-//            {{4, 64}},
-//            {{5, 128}},
-//            {{6, 256}},
-//            {{7, 512}},
-//            {{8, 1024}},
-            {{1, 67000}}
+            {{1, 8}},
+            {{2, 16}},
+            {{3, 32}},
+            {{4, 64}},
+            {{5, 128}},
+            {{6, 256}},
+            {{7, 512}},
+            {{8, 1024}}
     };
 
     std::vector<std::vector<float >> Scales = {
-//            {2.0f},
-//            {3.0f},
-//            {-1.0f},
-//            {-2.0f},
+            {2.0f},
+            {3.0f},
+            {-1.0f},
+            {-2.0f},
             {-3.0f}
     };
 
     std::vector<std::vector<float >> Shifts = {
-//            {1.0f},
-//            {2.0f},
-//            {3.0f},
-//            {-1.0f},
-//            {-2.0f},
+            {1.0f},
+            {2.0f},
+            {3.0f},
+            {-1.0f},
+            {-2.0f},
             {-3.0f}
     };
 
     std::vector<InferenceEngine::Precision> netPrecisions = {InferenceEngine::Precision::FP32,
-//                                                             InferenceEngine::Precision::FP16,
+                                                             InferenceEngine::Precision::FP16,
     };
 
     INSTANTIATE_TEST_CASE_P(smoke_scale_shift, ScaleShiftLayerTest,
