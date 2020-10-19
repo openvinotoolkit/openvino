@@ -15,12 +15,12 @@
 namespace ngraph {
 namespace pass {
 
-class TRANSFORMATIONS_API SmartReshape;
+class TRANSFORMATIONS_API SetBatchSize;
 
 }  // namespace pass
 }  // namespace ngraph
 
-class ngraph::pass::SmartReshape: public ngraph::pass::FunctionPass {
+class ngraph::pass::SetBatchSize: public ngraph::pass::FunctionPass {
 public:
     NGRAPH_RTTI_DECLARATION;
     bool run_on_function(std::shared_ptr<ngraph::Function> f) override;

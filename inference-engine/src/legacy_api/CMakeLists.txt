@@ -35,7 +35,8 @@ set_ie_threading_interface_for(${TARGET_NAME}_obj)
 target_compile_definitions(${TARGET_NAME}_obj PRIVATE IMPLEMENT_INFERENCE_ENGINE_API)
 
 target_include_directories(${TARGET_NAME}_obj PRIVATE
-    ${PUBLIC_HEADERS_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/src
+    ${PUBLIC_HEADERS_DIR}
+    ${CMAKE_CURRENT_SOURCE_DIR}/src
     ${IE_MAIN_SOURCE_DIR}/src/inference_engine                                          # For CNNNetworkNGraphImpl
     $<TARGET_PROPERTY:inference_engine_transformations,INTERFACE_INCLUDE_DIRECTORIES>
     $<TARGET_PROPERTY:inference_engine_plugin_api,INTERFACE_INCLUDE_DIRECTORIES>
@@ -44,13 +45,16 @@ target_include_directories(${TARGET_NAME}_obj PRIVATE
 
 # Create shared library
 
-add_library(${TARGET_NAME} SHARED
-            $<TARGET_OBJECTS:${TARGET_NAME}_obj>
-            $<TARGET_OBJECTS:inference_engine_common_obj>)
+add_library(${TARGET_NAME} SHARED $<TARGET_OBJECTS:${TARGET_NAME}_obj>)
 
 set_ie_threading_interface_for(${TARGET_NAME})
 
-target_link_libraries(${TARGET_NAME} PRIVATE ${CMAKE_DL_LIBS} ${NGRAPH_LIBRARIES} inference_engine_transformations pugixml openvino::itt)
+target_link_libraries(${TARGET_NAME} PRIVATE ${NGRAPH_LIBRARIES} inference_engine
+                                             inference_engine_transformations pugixml openvino::itt)
+
+target_include_directories(${TARGET_NAME} INTERFACE ${PUBLIC_HEADERS_DIR}
+                                                    "${CMAKE_CURRENT_SOURCE_DIR}/include/legacy" # for compatibility
+                                                    $<TARGET_PROPERTY:inference_engine_plugin_api,INTERFACE_INCLUDE_DIRECTORIES>)
 
 add_cpplint_target(${TARGET_NAME}_cpplint FOR_TARGETS ${TARGET_NAME})
 

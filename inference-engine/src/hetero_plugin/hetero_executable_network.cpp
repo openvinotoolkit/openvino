@@ -23,7 +23,7 @@
 #include <array>
 #include <cstdint>
 
-#include "legacy/ie_ngraph_utils.hpp"
+#include "ie_ngraph_utils.hpp"
 #include "ie_plugin_config.hpp"
 #include "cpp_interfaces/interface/ie_internal_plugin_config.hpp"
 #include "hetero/hetero_plugin_config.hpp"

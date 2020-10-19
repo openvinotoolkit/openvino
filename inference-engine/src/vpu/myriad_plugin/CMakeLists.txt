@@ -39,7 +39,7 @@ endif()
 # "mvnc" must be the first library in the link list
 target_link_libraries(${TARGET_NAME}
     PRIVATE
-        mvnc inference_engine vpu_graph_transformer)
+        mvnc inference_engine inference_engine_legacy vpu_graph_transformer)
 
 # LTO
 

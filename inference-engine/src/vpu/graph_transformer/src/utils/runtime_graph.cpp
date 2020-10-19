@@ -7,7 +7,7 @@
 #include "generic_ie.hpp"
 
 #include <legacy/ie_util_internal.hpp>
-#include <legacy/ie_ngraph_utils.hpp>
+#include <ie_ngraph_utils.hpp>
 #include <exec_graph_info.hpp>
 #include <ngraph/variant.hpp>
 

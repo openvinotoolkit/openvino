@@ -28,7 +28,7 @@ ie_faster_build(${TARGET_NAME}
 
 target_compile_definitions(${TARGET_NAME} PRIVATE IMPLEMENT_INFERENCE_ENGINE_API)
 
-target_link_libraries(${TARGET_NAME} PRIVATE inference_engine openvino::itt)
+target_link_libraries(${TARGET_NAME} PRIVATE inference_engine inference_engine_legacy openvino::itt)
 
 target_include_directories(${TARGET_NAME} PUBLIC ${PUBLIC_HEADERS_DIR}
     $<TARGET_PROPERTY:inference_engine_plugin_api,INTERFACE_INCLUDE_DIRECTORIES>)
