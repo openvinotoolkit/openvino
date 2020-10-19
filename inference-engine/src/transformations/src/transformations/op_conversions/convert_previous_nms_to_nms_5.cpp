@@ -15,6 +15,15 @@
 #include <ngraph/rt_info.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 
+using NMS5BoxEncoding = ngraph::opset5::NonMaxSuppression::BoxEncodingType;
+
+struct NMSAttributes {
+    ngraph::element::Type output_type;
+    NMS5BoxEncoding box_encoding;
+    bool sort_result_descending;
+    bool is_supported_nms;
+};
+
 namespace {
     std::shared_ptr<ngraph::opset4::NonMaxSuppression> nms4_pattern() {
         auto boxes = std::make_shared<pattern::op::Label>(element::f32, Shape{1, 1000, 4});
@@ -48,15 +57,6 @@ namespace {
                                                                        iou_threshold, score_threshold);
         return nms;
     }
-
-    using NMS5BoxEncoding = ngraph::opset5::NonMaxSuppression::BoxEncodingType;
-
-    struct NMSAttributes {
-        ngraph::element::Type output_type;
-        NMS5BoxEncoding box_encoding;
-        bool sort_result_descending;
-        bool is_supported_nms;
-    };
 
     NMSAttributes get_nms4_attrs(const std::shared_ptr<ngraph::opset4::NonMaxSuppression>& nms4) {
         NMSAttributes attrs;

@@ -611,7 +611,8 @@ op::v5::NonMaxSuppression::NonMaxSuppression(
     const op::v5::NonMaxSuppression::BoxEncodingType box_encoding,
     const bool sort_result_descending,
     const element::Type& output_type)
-    : Op({boxes, scores,
+    : Op({boxes,
+          scores,
           max_output_boxes_per_class,
           iou_threshold,
           score_threshold,
@@ -909,9 +910,7 @@ namespace
         case element::Type_t::f16:
             result = static_cast<float>(constant->cast_vector<float16>().at(0));
             break;
-        case element::Type_t::f32:
-            result = constant->cast_vector<float>().at(0);
-            break;
+        case element::Type_t::f32: result = constant->cast_vector<float>().at(0); break;
         default: throw std::runtime_error("Unsupported data type in op NonMaxSuppression-5"); break;
         }
         return result;
@@ -953,12 +952,12 @@ void op::v5::NonMaxSuppression::validate()
     if (inputs().size() >= 3)
     {
         const auto max_boxes_ps = get_input_partial_shape(2);
-        NODE_VALIDATION_CHECK(this,
-                              max_boxes_ps.is_dynamic() ||
-                                  is_scalar_or_1d_tensor_with_1_element(max_boxes_ps),
-                              "Expected 0D or 1D tensor for the 'max_output_boxes_per_class' input. "
-                              "Got: ",
-                              max_boxes_ps);
+        NODE_VALIDATION_CHECK(
+            this,
+            max_boxes_ps.is_dynamic() || is_scalar_or_1d_tensor_with_1_element(max_boxes_ps),
+            "Expected 0D or 1D tensor for the 'max_output_boxes_per_class' input. "
+            "Got: ",
+            max_boxes_ps);
     }
 
     if (inputs().size() >= 4)
@@ -998,7 +997,7 @@ void op::v5::NonMaxSuppression::validate()
                               "'soft_nms_sigma' input.");
         NODE_VALIDATION_CHECK(this,
                               soft_nms_sigma.is_dynamic() ||
-                                is_scalar_or_1d_tensor_with_1_element(soft_nms_sigma),
+                                  is_scalar_or_1d_tensor_with_1_element(soft_nms_sigma),
                               "Expected 0D or 1D tensor for the 'soft_nms_sigma' input. Got: ",
                               soft_nms_sigma);
     }
@@ -1057,8 +1056,8 @@ float op::v5::NonMaxSuppression::iou_threshold_from_input() const
 
     const auto iou_threshold_input =
         as_type_ptr<op::Constant>(input_value(iou_threshold_port).get_node_shared_ptr());
-    iou_threshold = float_from_constant_node(iou_threshold_input,
-                                             get_input_element_type(iou_threshold_port));
+    iou_threshold =
+        float_from_constant_node(iou_threshold_input, get_input_element_type(iou_threshold_port));
 
     return iou_threshold;
 }
@@ -1093,8 +1092,8 @@ float op::v5::NonMaxSuppression::soft_nms_sigma_from_input() const
 
     const auto soft_nms_sigma_input =
         as_type_ptr<op::Constant>(input_value(soft_nms_sigma_port).get_node_shared_ptr());
-    soft_nms_sigma = float_from_constant_node(soft_nms_sigma_input,
-                                              get_input_element_type(soft_nms_sigma_port));
+    soft_nms_sigma =
+        float_from_constant_node(soft_nms_sigma_input, get_input_element_type(soft_nms_sigma_port));
 
     return soft_nms_sigma;
 }
