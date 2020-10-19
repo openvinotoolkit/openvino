@@ -571,7 +571,6 @@ std::shared_ptr<ngraph::Node> V10Parser::createNode(const std::vector<ngraph::Ou
                 if (length < offset + size)
                     THROW_IE_EXCEPTION << "Cannot create " << params.type << " layer with name: " << params.name
                                        << ". Layer has incorrect weights!";
-
                 uint8_t* data = weights->cbuffer().as<uint8_t*>() + offset;
                 Blob::Ptr wBlob = make_shared_blob<uint8_t>({Precision::U8, { size / precision.size() }, C }, data);
 
@@ -663,7 +662,7 @@ std::shared_ptr<ngraph::Node> V10Parser::LayerCreator<ngraph::op::DetectionOutpu
 // SubGraph layer
 std::shared_ptr<ngraph::Node>
 V10Parser::LayerBaseCreator::fillSubGraphLayer(const ngraph::OutputVector &inputs, const pugi::xml_node &node,
-                                               std::istream &binStream,
+                                               const Blob::CPtr& weights,
                                                const V10Parser::GenericLayerParams &layerParsePrms,
                                                std::shared_ptr<ngraph::op::util::SubGraphOp> tensor_iterator) {
     tensor_iterator->set_friendly_name(GetStrAttr(node, "name"));
@@ -810,19 +809,19 @@ V10Parser::LayerBaseCreator::fillSubGraphLayer(const ngraph::OutputVector &input
 // TensorIterator layer
 template <>
 std::shared_ptr<ngraph::Node> V10Parser::LayerCreator<ngraph::op::TensorIterator>::createLayer(
-        const ngraph::OutputVector& inputs, const pugi::xml_node& node, std::istream& binStream,
+        const ngraph::OutputVector& inputs, const pugi::xml_node& node, const Blob::CPtr& weights,
         const GenericLayerParams& layerParsePrms) {
     auto ti = std::make_shared<ngraph::op::TensorIterator>();
-    return fillSubGraphLayer(inputs, node, binStream, layerParsePrms, ti);
+    return fillSubGraphLayer(inputs, node, weights, layerParsePrms, ti);
     }
 
 // Loop layer
 template <>
 std::shared_ptr<ngraph::Node> V10Parser::LayerCreator<ngraph::opset5::Loop>::createLayer(
-        const ngraph::OutputVector& inputs, const pugi::xml_node& node, std::istream& binStream,
+        const ngraph::OutputVector& inputs, const pugi::xml_node& node, const Blob::CPtr& weights,
         const GenericLayerParams& layerParsePrms) {
     auto loop = std::make_shared<ngraph::opset5::Loop>();
-    return fillSubGraphLayer(inputs, node, binStream, layerParsePrms, loop);
+    return fillSubGraphLayer(inputs, node, weights, layerParsePrms, loop);
 }
 
 // PriorBoxClustered layer
