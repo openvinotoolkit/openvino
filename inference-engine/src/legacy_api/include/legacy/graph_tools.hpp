@@ -17,7 +17,7 @@
 #include <utility>
 #include <vector>
 
-#include "ie_algorithm.hpp"
+#include "ie_algorithm.hpp" // Plugin API
 #include "ie_icnn_network.hpp"
 
 #include <legacy/layer_transform.hpp>
