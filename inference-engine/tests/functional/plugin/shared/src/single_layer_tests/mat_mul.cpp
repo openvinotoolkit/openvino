@@ -13,6 +13,19 @@
 
 namespace LayerTestsDefinitions {
 
+std::vector<ShapeRelatedParams> MatMulTest::combineShapes(const std::vector<std::vector<size_t>>& firstInputShapes,
+                                                          const std::vector<std::vector<size_t>>& secondInputShapes,
+                                                          bool transposeA,
+                                                          bool transposeB) {
+    std::vector<ShapeRelatedParams> resVec;
+    for (const auto& firstInputShape : firstInputShapes) {
+        for (const auto& secondInputShape : secondInputShapes) {
+            resVec.push_back(ShapeRelatedParams{ {firstInputShape, transposeA}, {secondInputShape, transposeB } });
+        }
+    }
+    return resVec;
+}
+
 std::string MatMulTest::getTestCaseName(const testing::TestParamInfo<MatMulLayerTestParamsSet> &obj) {
     InferenceEngine::Precision netPrecision;
     InferenceEngine::Precision inPrc, outPrc;

@@ -31,6 +31,10 @@ namespace LayerTestsDefinitions {
 class MatMulTest : public testing::WithParamInterface<MatMulLayerTestParamsSet>, virtual public LayerTestsUtils::LayerTestsCommon {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<MatMulLayerTestParamsSet> &obj);
+    static std::vector<ShapeRelatedParams> combineShapes(const std::vector<std::vector<size_t>>& firstInputShapes,
+                                                         const std::vector<std::vector<size_t>>& secondInputShapes,
+                                                         bool transposeA,
+                                                         bool transposeB);
 
 protected:
     void SetUp() override;
