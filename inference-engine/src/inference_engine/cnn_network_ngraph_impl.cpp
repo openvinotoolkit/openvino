@@ -22,13 +22,13 @@
 
 #include <transformations/utils/utils.hpp>
 #include <transformations/smart_reshape/smart_reshape.hpp>
+#include "transformations/serialize.hpp"
 
 #include <legacy/transformations/convert_opset1_to_legacy/convert_one_hot_to_one_hot_ie.hpp>
 #include <legacy/ie_ngraph_utils.hpp>
 
 #include "exec_graph_info.hpp"
 #include "ie_itt.hpp"
-#include "network_serializer.hpp"
 #include "generic_ie.hpp"
 #include "shape_infer/ie_built_in_holder.hpp"
 
@@ -418,8 +418,9 @@ StatusCode CNNNetworkNGraphImpl::serialize(const std::string& xmlPath,
                                            const std::string& binPath,
                                            ResponseDesc* resp) const noexcept {
     try {
-        if (auto f = getFunction()) {
-            Serialization::SerializeV10(xmlPath, binPath, *f);
+        if (getFunction()) {
+            ngraph::pass::Serialize transform{xmlPath, binPath};
+            transform.run_on_function(_ngraph_function);
         } else {
 #ifdef ENABLE_V7_SERIALIZE
             auto network = std::make_shared<details::CNNNetworkImpl>(*this);

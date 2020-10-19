@@ -1,29 +1,33 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "network_serializer.hpp"
-
 #include <array>
-#include <deque>
+#include <fstream>
 #include <map>
-#include <string>
-#include <vector>
 
-#include <debug.h>
-#include <legacy/ie_ngraph_utils.hpp>
-#include <ngraph/function.hpp>
-#include <ngraph/ops.hpp>
-#include <ngraph/variant.hpp>
-#include "exec_graph_info.hpp"
+#include "ngraph/ops.hpp"
 #include "ngraph/opsets/opset.hpp"
-#include "xml_parse_utils.h"
+#include "pugixml.hpp"
+#include "transformations/serialize.hpp"
 
-namespace InferenceEngine {
-namespace Serialization {
+using namespace ngraph;
+
+NGRAPH_RTTI_DEFINITION(ngraph::pass::Serialize, "Serialize", 0);
 
 namespace {
+template <typename T, typename A>
+std::string joinVec(std::vector<T, A> const& vec,
+                    std::string const& glue = std::string(",")) {
+    if (vec.empty()) return "";
+    std::stringstream oss;
+    oss << vec[0];
+    for (size_t i = 1; i < vec.size(); i++) oss << glue << vec[i];
+    return oss.str();
+}
+}  // namespace
 
+namespace {
 struct Edge {
     int from_layer = 0;
     int from_port = 0;
@@ -43,7 +47,7 @@ struct ConstantAtributes {
 template <typename T>
 std::string create_atribute_list(
     ngraph::ValueAccessor<std::vector<T>>& adapter) {
-    return InferenceEngine::details::joinVec(adapter.get(), std::string(","));
+    return joinVec(adapter.get(), std::string(","));
 }
 
 class XmlVisitor : public ngraph::AttributeVisitor {
@@ -160,26 +164,54 @@ std::string get_opset_name(ngraph::Node* n) {
             return "opset" + std::to_string(number);
         }
     }
-
-    // ExecGraph nodes are not present in official opsets
-    auto rt_info = n->get_rt_info();
-    if (rt_info.find(ExecGraphInfoSerialization::PERF_COUNTER) !=
-        rt_info.end()) {
-        return "";
-    }
-
-    THROW_IE_EXCEPTION << "unknown opset: " << n->get_name() << " v"
-                       << n->get_version();
+    return "unknown";
 }
 
 std::string get_type_name(ngraph::Node* n) {
-    const std::map<std::string, std::string> translations = {
+    const std::map<std::string, std::string> translator = {
         {"Constant", "Const"}};
     std::string name = n->get_type_name();
-    if (translations.count(name) > 0) {
-        name = translations.at(name);
+    if (translator.count(name) > 0) {
+        name = translator.at(name);
     }
     return name;
+}
+
+std::string get_output_precision_name(ngraph::Output<Node>& o) {
+    auto elem_type = o.get_element_type();
+    switch (elem_type) {
+    case ::ngraph::element::Type_t::undefined:
+        return "UNSPECIFIED";
+    case ::ngraph::element::Type_t::f16:
+        return "FP16";
+    case ::ngraph::element::Type_t::f32:
+        return "FP32";
+    case ::ngraph::element::Type_t::bf16:
+        return "BF16";
+    case ::ngraph::element::Type_t::i8:
+        return "I8";
+    case ::ngraph::element::Type_t::i16:
+        return "I16";
+    case ::ngraph::element::Type_t::i32:
+        return "I32";
+    case ::ngraph::element::Type_t::i64:
+        return "I64";
+    case ::ngraph::element::Type_t::u8:
+        return "U8";
+    case ::ngraph::element::Type_t::u16:
+        return "U16";
+    case ::ngraph::element::Type_t::u32:
+        return "U32";
+    case ::ngraph::element::Type_t::u64:
+        return "U64";
+    case ::ngraph::element::Type_t::u1:
+        return "BIN";
+    case ::ngraph::element::Type_t::boolean:
+        return "BOOL";
+    default:
+        NGRAPH_CHECK(false, "Incorrect precision: ", elem_type.get_type_name());
+        return "";
+    }
 }
 
 void ngfunction_2_irv10(pugi::xml_document& doc, std::vector<uint8_t>& bin,
@@ -196,7 +228,8 @@ void ngfunction_2_irv10(pugi::xml_document& doc, std::vector<uint8_t>& bin,
         layer.append_attribute("id").set_value(layer_ids[node.get()]);
         layer.append_attribute("name").set_value(
             node->get_friendly_name().c_str());
-        layer.append_attribute("type").set_value(get_type_name(node.get()).c_str());
+        layer.append_attribute("type").set_value(
+            get_type_name(node.get()).c_str());
         layer.append_attribute("version").set_value(
             get_opset_name(node.get()).c_str());
 
@@ -207,7 +240,7 @@ void ngfunction_2_irv10(pugi::xml_document& doc, std::vector<uint8_t>& bin,
         XmlVisitor visitor{data};
 
         if (!node->visit_attributes(visitor)) {
-            THROW_IE_EXCEPTION << "cannot visit " << node->get_name();
+            NGRAPH_CHECK(false, "Cannot visit  ", node->get_name());
         }
 
         // <layers/data> constant atributes (special case)
@@ -239,8 +272,7 @@ void ngfunction_2_irv10(pugi::xml_document& doc, std::vector<uint8_t>& bin,
                 pugi::xml_node port = output.append_child("port");
                 port.append_attribute("id").set_value(port_id++);
                 port.append_attribute("precision")
-                    .set_value(
-                        details::convertPrecision(o.get_element_type()).name());
+                    .set_value(get_output_precision_name(o).c_str());
                 for (auto d : o.get_shape()) {
                     pugi::xml_node dim = port.append_child("dim");
                     dim.append_child(pugi::xml_node_type::node_pcdata)
@@ -261,8 +293,6 @@ void ngfunction_2_irv10(pugi::xml_document& doc, std::vector<uint8_t>& bin,
     }
 }
 
-}  // namespace
-
 void SerializeV10(const std::string& xmlPath, const std::string& binPath,
                   const ngraph::Function& function) {
     // prepare data
@@ -279,5 +309,14 @@ void SerializeV10(const std::string& xmlPath, const std::string& binPath,
     bin_file.write(reinterpret_cast<const char*>(irv10bin.data()),
                    irv10bin.size() * sizeof(irv10bin[0]));
 }
-}  //  namespace Serialization
-}  //  namespace InferenceEngine
+
+}  // namespace
+
+// ! [function_pass:serialize_cpp]
+// serialize.cpp
+bool pass::Serialize::run_on_function(std::shared_ptr<ngraph::Function> f) {
+    SerializeV10(m_xmlPath, m_binPath, *f);
+    // Return false because we didn't change nGraph Function
+    return false;
+}
+// ! [function_pass:serialize_cpp]

@@ -24,10 +24,8 @@ protected:
     std::string m_out_bin_path = test_name + ".bin";
 
     void TearDown() override {
-#if 0  // TODO: remove debug code
-    std::remove(m_out_xml_path.c_str());
-    std::remove(m_out_bin_path.c_str());
-#endif
+        std::remove(m_out_xml_path.c_str());
+        std::remove(m_out_bin_path.c_str());
     }
 };
 
