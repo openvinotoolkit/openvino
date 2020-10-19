@@ -44,7 +44,7 @@ typedef std::tuple<
         InferenceEngine::Layout,        // Input layout
         InferenceEngine::Layout,        // Output layout
         std::vector<size_t>,            // Input shapes
-        std::vector<size_t>,             // Output vector
+        std::vector<size_t>,            // Output indices
         std::string                     // Target device name
 > splitWithDiffOutsParams;
 

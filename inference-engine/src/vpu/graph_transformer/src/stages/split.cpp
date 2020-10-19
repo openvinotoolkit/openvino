@@ -140,6 +140,7 @@ void FrontEnd::parseSplit(const Model& model, const ie::CNNLayerPtr& layer, cons
     const auto ieRevAxis = input->desc().numDims() - 1 - checked_cast<int>(split->_axis);
     const auto defPerm = DimsOrder::fromNumDims(input->desc().numDims()).toPermutation();
     const auto axis = defPerm.at(checked_cast<size_t>(ieRevAxis));
+
     _stageBuilder->addSplitStage(model, split->name, split, axis, input, outputs);
 }
 

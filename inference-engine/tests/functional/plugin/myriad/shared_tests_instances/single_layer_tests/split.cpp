@@ -16,7 +16,7 @@ const std::vector<InferenceEngine::Precision> netPrecisions = {
 
 INSTANTIATE_TEST_CASE_P(smoke_NumSplitsCheck, SplitLayerTest,
                         ::testing::Combine(
-                                ::testing::Values(3),
+                                ::testing::Values(1),
                                 // TODO: 0-axis excluded
                                 //  Check (status == ie::StatusCode::OK) failed: Failed to reshape Network:
                                 //  Failed to infer shapes for Split layer (Split_2) with error:
