@@ -154,34 +154,55 @@ Stage StageBuilder::addSplitStage(
     std::vector<DimValues> offsets;
     offsets.reserve(outputs.size());
     DimValues curOffset({{axis, 0}});
-
-    auto numSplit = outputs.size();
-    auto inputAxisSize = input->desc().dim(axis);
-    std::vector<int> outAxisSizes {};
-    for (size_t i = 0; i < numSplit; ++i) {
-        const int begin = (i + 0) * inputAxisSize / numSplit;
-        const int end   = (i + 1) * inputAxisSize / numSplit;
-        const int outAxisSize = end - begin;
-        outAxisSizes.push_back(outAxisSize);
-    }
-
-    auto outputs_ = outputs;
-    auto it = outAxisSizes.begin();
-    for (int i = 0; i < outputs_.size() ; ++i) {
-        if (outputs_[i] == nullptr) {
-            curOffset.set(axis, curOffset[axis] + *it++);
-            outputs_.erase(outputs_.begin() + i--);
-            continue;
+    auto isAllOutputsHandled = [](const DataVector& outputs) {
+        for (int i = 0; i < outputs.size(); ++i) {
+            if (outputs[i] == nullptr) {
+                return false;
+            }
         }
-        offsets.emplace_back(curOffset);
-        curOffset.set(axis, curOffset[axis] + *it++);
+        return true;
+    };
+
+    if (!isAllOutputsHandled(outputs)) {
+        auto numSplit = outputs.size();
+        auto inputAxisSize = input->desc().dim(axis);
+        std::vector<int> outAxisSizes {};
+        for (size_t i = 0; i < numSplit; ++i) {
+            const int begin = (i + 0) * inputAxisSize / numSplit;
+            const int end   = (i + 1) * inputAxisSize / numSplit;
+            const int outAxisSize = end - begin;
+            outAxisSizes.push_back(outAxisSize);
+        }
+
+        auto outputs_ = outputs;
+        auto it = outAxisSizes.begin();
+        for (int i = 0; i < outputs_.size() ; ++i) {
+            if (outputs_[i] == nullptr) {
+                curOffset.set(axis, curOffset[axis] + *it++);
+                outputs_.erase(outputs_.begin() + i--);
+                continue;
+            }
+            offsets.emplace_back(curOffset);
+            curOffset.set(axis, curOffset[axis] + *it++);
+        }
+
+        auto stage = addSplitStage(model, name, layer, std::move(offsets), input, outputs_);
+
+        stage->attrs().set("axis", axis);
+
+        return stage;
+    } else {
+        for (const auto& output : outputs) {
+            offsets.emplace_back(curOffset);
+            curOffset.set(axis, curOffset[axis] + output->desc().dim(axis));
+        }
+
+        auto stage = addSplitStage(model, name, layer, std::move(offsets), input, outputs);
+
+        stage->attrs().set("axis", axis);
+
+        return stage;
     }
-
-    auto stage = addSplitStage(model, name, layer, std::move(offsets), input, outputs_);
-
-    stage->attrs().set("axis", axis);
-
-    return stage;
 }
 
 Stage StageBuilder::addSplitStage(
