@@ -154,7 +154,7 @@ namespace {
         }
         auto nms_1 = std::dynamic_pointer_cast<ngraph::opset1::NonMaxSuppression>(root);
         if (nms_1) {
-            return get_nms1_attrs(nms_3);
+            return get_nms1_attrs(nms_1);
         }
 
         return attrs;
