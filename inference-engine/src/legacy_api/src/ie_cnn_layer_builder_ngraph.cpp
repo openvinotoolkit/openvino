@@ -2012,55 +2012,6 @@ CNNLayer::Ptr NodeConverter<ngraph::op::Sqrt>::createLayer(const std::shared_ptr
 }
 
 template <>
-CNNLayer::Ptr NodeConverter<ngraph::op::v1::StridedSlice>::createLayer(
-        const std::shared_ptr<ngraph::Node>& layer) const {
-    LayerParams params = {layer->get_friendly_name(), "StridedSlice",
-                          details::convertPrecision(layer->get_output_element_type(0))};
-    auto res = std::make_shared<InferenceEngine::StridedSliceLayer>(params);
-    auto castedLayer = std::dynamic_pointer_cast<ngraph::op::v1::StridedSlice>(layer);
-    if (castedLayer == nullptr) THROW_IE_EXCEPTION << "Cannot get " << params.type << " layer " << params.name;
-
-    std::string value;
-    for (const auto& val : castedLayer->get_begin_mask()) {
-        if (!value.empty()) value += ",";
-        // plugins require reverse value of this mask.
-        value += asString((1-val));
-    }
-    res->params["begin_mask"] = value;
-
-    value.clear();
-    for (const auto& val : castedLayer->get_end_mask()) {
-        if (!value.empty()) value += ",";
-        // plugins require reverse value of this mask.
-        value += asString((1-val));
-    }
-    res->params["end_mask"] = value;
-
-    value.clear();
-    for (const auto& val : castedLayer->get_new_axis_mask()) {
-        if (!value.empty()) value += ",";
-        value += asString(val);
-    }
-    res->params["new_axis_mask"] = value;
-
-    value.clear();
-    for (const auto& val : castedLayer->get_shrink_axis_mask()) {
-        if (!value.empty()) value += ",";
-        value += asString(val);
-    }
-    res->params["shrink_axis_mask"] = value;
-
-    value.clear();
-    for (const auto& val : castedLayer->get_ellipsis_mask()) {
-        if (!value.empty()) value += ",";
-        value += asString(val);
-    }
-    res->params["ellipsis_mask"] = value;
-
-    return res;
-}
-
-template <>
 CNNLayer::Ptr NodeConverter<ngraph::op::OneHotIE>::createLayer(const std::shared_ptr<ngraph::Node>& layer) const {
     LayerParams params = {layer->get_friendly_name(), "OneHot", Precision::FP32};
 

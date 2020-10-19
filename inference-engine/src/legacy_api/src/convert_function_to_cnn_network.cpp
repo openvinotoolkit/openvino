@@ -6,6 +6,7 @@
 #include <memory>
 #include <vector>
 #include <unordered_set>
+#include <regex>
 
 #include <cnn_network_ngraph_impl.hpp>
 #include "ngraph_ops/convolution_ie.hpp"
@@ -555,6 +556,34 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
             details::convertPrecision(node->get_output_element_type(0))};
         auto res = std::make_shared<TopKLayer>(attrs);
         res->params = params;
+        return res;
+    });
+
+    addSpecificCreator({"StridedSlice"}, [](const std::shared_ptr<::ngraph::Node> &node,
+        const std::map<std::string, std::string> &params) -> CNNLayerPtr {
+        LayerParams attrs = {node->get_friendly_name(), "StridedSlice",
+            details::convertPrecision(node->get_output_element_type(0))};
+        auto res = std::make_shared<InferenceEngine::StridedSliceLayer>(attrs);
+        auto stridedSliceInvertMaskStr = [](const std::string& str) -> std::string {
+            std::regex reg(",+");
+            std::sregex_token_iterator iter(str.begin(), str.end(), reg, -1), end;
+
+            std::vector<std::string> found_numbers(iter, end);
+            std::string value;
+            for(const auto& val:found_numbers)
+            {
+                if (!value.empty())
+                    value += ",";
+                value += Builder::asString((1 - std::stoi(val)));
+            }
+            return value;
+        };
+
+        res->params = params;
+        // plugins require reversed value of begin_mask and end_mask
+        res->params["begin_mask"] = stridedSliceInvertMaskStr(res->params["begin_mask"]);
+        res->params["end_mask"] = stridedSliceInvertMaskStr(res->params["end_mask"]);
+
         return res;
     });
 
