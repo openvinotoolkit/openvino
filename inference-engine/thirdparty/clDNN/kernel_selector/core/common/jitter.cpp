@@ -584,7 +584,7 @@ class WeightTensorJitConstant : public TensorBaseTJitConstant<WeightsType, Weigh
             } else if (l == WeightsLayout::g_os_zyx_is_osv16_isv16 || l == WeightsLayout::g_os_zyx_is_osv16_isv32 ||
                        l == WeightsLayout::g_os_zyx_is_osv32_isv16 || l == WeightsLayout::g_os_zyx_is_osv32_isv32) {
                 args macroNameArgs = {"prefix", "g", "o", "i", "z", "y", "x"};
-                args funcArgs = {"g", "o", "i", "z", "y", "x", "g_size", "o_size", "i_size", "z_size", "y_size", "x_size", "osv", "isv"};                
+                args funcArgs = {"g", "o", "i", "z", "y", "x", "g_size", "o_size", "i_size", "z_size", "y_size", "x_size", "osv", "isv"};
                 const auto name = toString(l);
                 const auto body = R"V0G0N( \
     uint is_size = (i_size + isv - 1) / isv; \
@@ -615,7 +615,7 @@ class WeightTensorJitConstant : public TensorBaseTJitConstant<WeightsType, Weigh
                 this->macroName = MacroName(name, macroNameArgs);
                 this->calcFunction = FuncBody(name, funcArgs, body);
                 std::string osv = "16", isv = "16";
-                if (l == WeightsLayout::g_os_zyx_is_osv16_isv16) { 
+                if (l == WeightsLayout::g_os_zyx_is_osv16_isv16) {
                     osv = "16"; isv = "16";
                 } else if (l == WeightsLayout::g_os_zyx_is_osv16_isv32) {
                     osv = "16"; isv = "32";
@@ -741,7 +741,7 @@ JitDefinitions WeightTensorJitConstant::GetDefinitions() const {
             if (is_grouped_4d_layout) {
                 index_macro_name = _name + "_GET_INDEX(g, o, i, y, x)";
                 auto layout_str = toString(layout);
-                if (layout == WeightsLayout::goiyx) 
+                if (layout == WeightsLayout::goiyx)
                     index_func_val = "GET_WEIGHTS_" + layout_str + "_INDEX(" + _name + ", g, o, i, 0, y, x)";
                 else if (layout == WeightsLayout::g_os_is_yx_isv16_osv16)
                     index_func_val = "GET_WEIGHTS_" + layout_str + "_INDEX(" + _name + ", g, o, i, 0, y, x, 16)";
@@ -765,7 +765,7 @@ JitDefinitions WeightTensorJitConstant::GetDefinitions() const {
             if (is_grouped_5d_layout) {
                 index_macro_name = _name + "_GET_INDEX(g, o, i, z, y, x)";
                 auto layout_str = toString(layout);
-                if (layout == WeightsLayout::goizyx) 
+                if (layout == WeightsLayout::goizyx)
                     index_func_val = "GET_WEIGHTS_" + layout_str + "_INDEX(" + _name + ", g, o, i, z, y, x)";
                 else if (layout == WeightsLayout::g_os_is_zyx_isv16_osv16)
                     index_func_val = "GET_WEIGHTS_" + layout_str + "_INDEX(" + _name + ", g, o, i, z, y, x, 16)";
@@ -787,7 +787,7 @@ JitDefinitions WeightTensorJitConstant::GetDefinitions() const {
             if (is_common_4d_layout) {
                 index_macro_name = _name + "_GET_INDEX(o, i, y, x)";
                 auto layout_str = toString(layout);
-                if (layout == WeightsLayout::oiyx) 
+                if (layout == WeightsLayout::oiyx)
                     index_func_val = "GET_WEIGHTS_" + layout_str + "_INDEX(" + _name + ", 0, o, i, 0, y, x)";
                 else if (layout == WeightsLayout::os_is_yx_isv16_osv16)
                     index_func_val = "GET_WEIGHTS_" + layout_str + "_INDEX(" + _name + ", 0, o, i, 0, y, x, 16)";
@@ -814,7 +814,7 @@ JitDefinitions WeightTensorJitConstant::GetDefinitions() const {
             if (is_common_5d_layout) {
                 index_macro_name = _name + "_GET_INDEX(o, i, z, y, x)";
                 auto layout_str = toString(layout);
-                if (layout == WeightsLayout::oizyx) 
+                if (layout == WeightsLayout::oizyx)
                     index_func_val = "GET_WEIGHTS_" + layout_str + "_INDEX(" + _name + ", 0, o, i, z, y, x)";
                 else if (layout == WeightsLayout::os_is_zyx_isv16_osv16)
                     index_func_val = "GET_WEIGHTS_" + layout_str + "_INDEX(" + _name + ", 0, o, i, z, y, x, 16)";
@@ -1020,6 +1020,15 @@ JitConstants MakeActivationJitConstants(ActivationFunction activation_function,
             jitConstants.AddConstant(MakeJitConstant(
                     macro_def,
                     max_func(zero, min_func(one, (JitTerm)((alpha * input + beta).str()))).str()));
+            break;
+        }
+        case ActivationFunction::HSIGMOID: {
+            std::string type_suffix = out_dt == Datatype::F32 ? "f" : "h";
+            const JitTerm three("3." + type_suffix);
+            const JitTerm six("6." + type_suffix);
+            jitConstants.AddConstant(MakeJitConstant(
+                    macro_def,
+                    (min_func(max_func(zero, input + three), six) / six).str()));
             break;
         }
         case ActivationFunction::SIGN:
