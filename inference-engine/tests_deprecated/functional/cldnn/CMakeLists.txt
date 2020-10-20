@@ -17,18 +17,20 @@ file(GLOB CLDNN_TEST_SOURCES
         ${CMAKE_CURRENT_SOURCE_DIR}/shared_tests_instance/ie_class/*.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/shared_tests_instance/single_layer_tests/*.cpp)
 
-if (USE_CNNNETWORK_LPT)
-    list(APPEND ${CLDNN_TEST_SOURCES}
-	    ${CMAKE_CURRENT_SOURCE_DIR}/shared_tests_instance/transformations/*.cpp)
-endif()
-
 list(APPEND TEST_SRC ${CLDNN_TEST_SOURCES})
 
 list(APPEND CLDNN_LIBS
         IESharedTests
-        inference_engine_lp_transformations
-		inference_engine_legacy
+        inference_engine_legacy
         ${CLDNN__IOCL_ICD_LIBPATH})
+
+if (USE_CNNNETWORK_LPT)
+    list(APPEND ${CLDNN_TEST_SOURCES}
+	    ${CMAKE_CURRENT_SOURCE_DIR}/shared_tests_instance/transformations/*.cpp)
+
+    list(APPEND CLDNN_LIBS
+        inference_engine_lp_transformations)
+endif()
 
 # try to find VA libraries
 include(FindPkgConfig)
