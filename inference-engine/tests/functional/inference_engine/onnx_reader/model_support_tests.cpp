@@ -45,3 +45,9 @@ TEST(ONNXReader_ModelUnsupported, incorrect_onnx_field) {
     EXPECT_THROW(InferenceEngine::Core{}.ReadNetwork(model_path("unsupported/incorrect_onnx_field.onnx")),
                  InferenceEngine::details::InferenceEngineException);
 }
+
+TEST(ONNXReader_ModelUnsupported, unknown_wire_type) {
+    // in this model the graph key contains wire type 7 encoded in it - this value is incorrect
+    EXPECT_THROW(InferenceEngine::Core{}.ReadNetwork(model_path("unsupported/unknown_wire_type.onnx")),
+                 InferenceEngine::details::InferenceEngineException);
+}
