@@ -14,8 +14,7 @@ namespace {
 const std::vector<InferenceEngine::Precision> inputPrecisions = {
         InferenceEngine::Precision::FP32,
         InferenceEngine::Precision::I32,
-        //InferenceEngine::Precision::U8, TODO: not work for bidirectional
-        //InferenceEngine::Precision::BOOL
+        InferenceEngine::Precision::BOOL
 };
 
 // NUMPY MODE
