@@ -43,6 +43,13 @@ class NonMaxSuppression(Op):
             'type_infer': self.type_infer,
         }
         super().__init__(graph, mandatory_props, attrs)
+        version = self.get_opset()
+        if version in ['opset1', 'opset3', 'opset4']:
+            self.attrs['out_ports_count'] = 1
+        elif version == 'opset5':
+            self.attrs['out_ports_count'] = 3
+        else:
+            raise Error('Unsupported operation opset version "{}"'.format(version))
 
     def backend_attrs(self):
         version = self.get_opset()
@@ -91,21 +98,21 @@ class NonMaxSuppression(Op):
             max_number_of_boxes = min(num_input_boxes, boxes_shape[0] * max_output_boxes_per_class * num_classes)
         node.out_port(0).data.set_shape(int64_array([max_number_of_boxes, 3]))
 
-        num_of_outputs = len([port for port in node.out_ports().values() if not port.disconnected()])
-        if num_of_outputs >= 2:
-            node.out_port(1).data.set_shape(int64_array([max_number_of_boxes, 3]))
-        if num_of_outputs >= 3:
-            node.out_port(2).data.set_shape(int64_array(1))
+        if opset == 'opset5':
+            num_of_outputs = len([port for port in node.out_ports().values() if not port.disconnected()])
+            if num_of_outputs >= 2 and node.has_port('out', 1):
+                node.out_port(1).data.set_shape(int64_array([max_number_of_boxes, 3]))
+            if num_of_outputs >= 3 and node.has_port('out', 2):
+                node.out_port(2).data.set_shape(int64_array(1))
 
     @staticmethod
     def type_infer(node):
         opset = node.get_opset()
         if opset == 'opset5':
             node.out_port(0).set_data_type(node.output_type)
-            num_of_outputs = len([port for port in node.out_ports().values() if not port.disconnected()])
-            if num_of_outputs >= 2:
+            if node.has_port('out', 1):
                 node.out_port(1).set_data_type(np.float32)
-            if num_of_outputs >= 3:
+            if node.has_port('out', 2):
                 node.out_port(2).set_data_type(np.int64)
         elif opset in ['opset3', 'opset4']:
             node.out_port(0).set_data_type(node.output_type)
