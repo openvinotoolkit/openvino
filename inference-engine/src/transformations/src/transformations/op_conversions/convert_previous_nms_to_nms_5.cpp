@@ -27,39 +27,6 @@ struct NMSAttributes {
 using namespace ngraph;
 
 namespace {
-    std::shared_ptr<ngraph::opset4::NonMaxSuppression> nms4_pattern() {
-        auto boxes = std::make_shared<pattern::op::Label>(element::f32, Shape{1, 1000, 4});
-        auto scores = std::make_shared<pattern::op::Label>(element::f32, Shape{1, 1, 1000});
-        auto max_output_boxes_per_class = ngraph::opset4::Constant::create(element::i64, Shape{}, {10});
-        auto iou_threshold = ngraph::opset4::Constant::create(element::f32, Shape{}, {0.75});
-        auto score_threshold = ngraph::opset4::Constant::create(element::f32, Shape{}, {0.7});
-        auto nms = std::make_shared<ngraph::opset4::NonMaxSuppression>(boxes, scores, max_output_boxes_per_class,
-                                                                       iou_threshold, score_threshold);
-        return nms;
-    }
-
-    std::shared_ptr<ngraph::opset3::NonMaxSuppression> nms3_pattern() {
-        auto boxes = std::make_shared<pattern::op::Label>(element::f32, Shape{1, 1000, 4});
-        auto scores = std::make_shared<pattern::op::Label>(element::f32, Shape{1, 1, 1000});
-        auto max_output_boxes_per_class = ngraph::opset3::Constant::create(element::i64, Shape{}, {10});
-        auto iou_threshold = ngraph::opset3::Constant::create(element::f32, Shape{}, {0.75});
-        auto score_threshold = ngraph::opset3::Constant::create(element::f32, Shape{}, {0.7});
-        auto nms = std::make_shared<ngraph::opset3::NonMaxSuppression>(boxes, scores, max_output_boxes_per_class,
-                                                                       iou_threshold, score_threshold);
-        return nms;
-    }
-
-    std::shared_ptr<ngraph::opset1::NonMaxSuppression> nms1_pattern() {
-        auto boxes = std::make_shared<pattern::op::Label>(element::f32, Shape{1, 1000, 4});
-        auto scores = std::make_shared<pattern::op::Label>(element::f32, Shape{1, 1, 1000});
-        auto max_output_boxes_per_class = ngraph::opset1::Constant::create(element::i64, Shape{}, {10});
-        auto iou_threshold = ngraph::opset1::Constant::create(element::f32, Shape{}, {0.75});
-        auto score_threshold = ngraph::opset1::Constant::create(element::f32, Shape{}, {0.7});
-        auto nms = std::make_shared<ngraph::opset1::NonMaxSuppression>(boxes, scores, max_output_boxes_per_class,
-                                                                       iou_threshold, score_threshold);
-        return nms;
-    }
-
     NMSAttributes get_nms4_attrs(const std::shared_ptr<ngraph::opset4::NonMaxSuppression>& nms4) {
         NMSAttributes attrs;
 
@@ -149,7 +116,7 @@ namespace {
             return get_nms4_attrs(nms_4);
         }
         auto nms_3 = std::dynamic_pointer_cast<ngraph::opset3::NonMaxSuppression>(root);
-        if (nms_4) {
+        if (nms_3) {
             return get_nms3_attrs(nms_3);
         }
         auto nms_1 = std::dynamic_pointer_cast<ngraph::opset1::NonMaxSuppression>(root);
@@ -222,8 +189,7 @@ ngraph::pass::ConvertPreviousNMSToNMS5::ConvertPreviousNMSToNMS5() {
 NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertNMS4ToNMS5, "ConvertNMS4ToNMS5", 0);
 
 ngraph::pass::ConvertNMS4ToNMS5::ConvertNMS4ToNMS5() {
-    auto nms = nms4_pattern();
-
+    auto nms = ngraph::pattern::wrap_type<ngraph::opset4::NonMaxSuppression>();
     ngraph::matcher_pass_callback callback = callback_func;
 
     auto m = std::make_shared<ngraph::pattern::Matcher>(nms, "ConvertNMS4ToNMS5");
@@ -234,8 +200,7 @@ ngraph::pass::ConvertNMS4ToNMS5::ConvertNMS4ToNMS5() {
 NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertNMS3ToNMS5, "ConvertNMS3ToNMS5", 0);
 
 ngraph::pass::ConvertNMS3ToNMS5::ConvertNMS3ToNMS5() {
-    auto nms = nms3_pattern();
-
+    auto nms = ngraph::pattern::wrap_type<ngraph::opset3::NonMaxSuppression>();
     ngraph::matcher_pass_callback callback = callback_func;
 
     auto m = std::make_shared<ngraph::pattern::Matcher>(nms, "ConvertNMS3ToNMS5");
@@ -245,8 +210,7 @@ ngraph::pass::ConvertNMS3ToNMS5::ConvertNMS3ToNMS5() {
 NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertNMS1ToNMS5, "ConvertNMS1ToNMS5", 0);
 
 ngraph::pass::ConvertNMS1ToNMS5::ConvertNMS1ToNMS5() {
-    auto nms = nms1_pattern();
-
+    auto nms = ngraph::pattern::wrap_type<ngraph::opset1::NonMaxSuppression>();
     ngraph::matcher_pass_callback callback = callback_func;
 
     auto m = std::make_shared<ngraph::pattern::Matcher>(nms, "ConvertNMS1ToNMS5");
