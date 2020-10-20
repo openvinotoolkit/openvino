@@ -46,7 +46,9 @@ namespace LayerTestsDefinitions {
         result << "types=" << CommonTestUtils::vec2str(types_separate) << "_";
         result << "netPRC=" << netPrecision.name() << "_";
         result << "targetDevice=" << targetDevice << "_";
-        return result.str();
+        auto res_str = result.str();
+        std::replace(res_str.begin(), res_str.end(), '-', '_');
+        return res_str;
     }
 
     void LoopTest::SetUp() {
