@@ -39,8 +39,8 @@ ParamsKey ConvolutionKernel_Winograd_6x3_s1_fused::GetSupportedKey() const {
 }
 
 JitConstants ConvolutionKernel_Winograd_6x3_s1_fused::GetJitConstants(const convolution_params& params,
-                                                                      const DispatchData& runInfo) const {
-    JitConstants jit = Parent::GetJitConstants(params, runInfo);
+                                                                      const DispatchData& dispatchData) const {
+    JitConstants jit = Parent::GetJitConstants(params, dispatchData);
 
     const auto idepth = params.inputs[0].Feature().v;
     const auto input_pad_y = params.inputs[0].Y().pad.before + params.inputs[0].Y().pad.after;
@@ -95,7 +95,7 @@ WeightsLayout ConvolutionKernel_Winograd_6x3_s1_fused::GetPreferredWeightsLayout
 ConvolutionKernel_Winograd_6x3_s1_fused::Parent::DispatchData ConvolutionKernel_Winograd_6x3_s1_fused::SetDefault(
     const convolution_params& arg,
     int) const {
-    Parent::DispatchData runInfo = Parent::SetDefault(arg);
+    Parent::DispatchData dispatchData = Parent::SetDefault(arg);
 
     const auto odepth = arg.output.Feature().v;
     const auto input_pad_y = arg.inputs[0].Y().pad.before + arg.inputs[0].Y().pad.after;
@@ -115,17 +115,17 @@ ConvolutionKernel_Winograd_6x3_s1_fused::Parent::DispatchData ConvolutionKernel_
     uint32_t global_step[3] = {14, 6, 16 * 8};
     uint32_t local_size[3] = {16, 1, 8};
 
-    runInfo.gws0 = ((uint32_t)((Q + global_step[0] - 1)) / global_step[0]) * local_size[0];
-    runInfo.gws1 = ((uint32_t)((P + global_step[1] - 1)) / global_step[1]) * local_size[1];
-    runInfo.gws2 = ((uint32_t)((N * K * 8 + global_step[2] - 1)) / global_step[2]) * local_size[2];
+    dispatchData.gws[0] = ((uint32_t)((Q + global_step[0] - 1)) / global_step[0]) * local_size[0];
+    dispatchData.gws[1] = ((uint32_t)((P + global_step[1] - 1)) / global_step[1]) * local_size[1];
+    dispatchData.gws[2] = ((uint32_t)((N * K * 8 + global_step[2] - 1)) / global_step[2]) * local_size[2];
 
-    runInfo.lws0 = local_size[0];
-    runInfo.lws1 = local_size[1];
-    runInfo.lws2 = local_size[2];
+    dispatchData.lws[0] = local_size[0];
+    dispatchData.lws[1] = local_size[1];
+    dispatchData.lws[2] = local_size[2];
 
-    runInfo.efficiency = FORCE_PRIORITY_1;
+    dispatchData.efficiency = FORCE_PRIORITY_1;
 
-    return runInfo;
+    return dispatchData;
 }
 
 bool ConvolutionKernel_Winograd_6x3_s1_fused::Validate(const Params& p, const optional_params& o) const {

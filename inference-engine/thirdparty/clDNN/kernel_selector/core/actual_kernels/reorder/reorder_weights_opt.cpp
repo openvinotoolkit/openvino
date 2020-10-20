@@ -107,7 +107,7 @@ static inline size_t GetOptimalSize(size_t val, std::vector<size_t> optimal_size
 
 ReorderWeightsOpt::DispatchData ReorderWeightsOpt::SetDefault(
     const reorder_weights_params& params) const {
-    DispatchData kd;
+    DispatchData dispatchData;
 
     const auto& output = params.output;
     const auto output_layout = output.GetLayout();
@@ -123,22 +123,19 @@ ReorderWeightsOpt::DispatchData ReorderWeightsOpt::SetDefault(
     const auto ifm_block = (osv_first) ? ifm_block_supported ? GetOptimalSize(output.IFM().v, preferred_sizes) : 1
                                        : subgroup_size;
 
-    std::vector<size_t> global;
     if (osv_first) {
-        global = {output.G().v * (output.IFM().v / ifm_block), output.Z().v * output.Y().v * output.X().v, Align(output.OFM().v, ofm_block)};
+        dispatchData.gws = { output.G().v * (output.IFM().v / ifm_block),
+                             output.Z().v * output.Y().v * output.X().v,
+                             Align(output.OFM().v, ofm_block) };
     } else {
-        global = {output.G().v * (output.OFM().v / ofm_block), output.Z().v * output.Y().v * output.X().v, Align(output.IFM().v, ifm_block)};
+        dispatchData.gws = { output.G().v * (output.OFM().v / ofm_block),
+                             output.Z().v * output.Y().v * output.X().v,
+                             Align(output.IFM().v, ifm_block) };
     }
 
-    kd.gws0 = global[0];
-    kd.gws1 = global[1];
-    kd.gws2 = global[2];
+    dispatchData.lws = { 1, 1, 16 };
 
-    kd.lws0 = 1;
-    kd.lws1 = 1;
-    kd.lws2 = 16;
-
-    return kd;
+    return dispatchData;
 }
 
 JitConstants ReorderWeightsOpt::GetJitConstants(const reorder_weights_params& params) const {
@@ -174,7 +171,7 @@ bool ReorderWeightsOpt::Validate(const Params& params, const optional_params& /*
     const auto& p = static_cast<const reorder_weights_params&>(params);
     const auto& input = p.input;
     const auto& output = p.output;
-    
+
     if (input.GroupedLayout() != output.GroupedLayout()) {
         return false;
     }
