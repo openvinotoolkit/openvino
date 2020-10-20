@@ -122,6 +122,7 @@ namespace ngraph
 #endif
             }
 
+            transform::expand_onnx_functions(model_proto);
             transform::fixup_legacy_operators(model_proto.mutable_graph());
             transform::update_external_data_paths(model_proto, model_path);
 

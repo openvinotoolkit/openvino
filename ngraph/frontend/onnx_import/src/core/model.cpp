@@ -29,6 +29,20 @@ namespace ngraph
             return node_proto.has_domain() ? node_proto.domain() : "";
         }
 
+        std::int64_t get_opset_version(const ONNX_NAMESPACE::ModelProto& model_proto,
+                                       const std::string& domain)
+        {
+            for (const auto& opset_import : model_proto.opset_import())
+            {
+                if (domain == opset_import.domain())
+                {
+                    return opset_import.version();
+                }
+            }
+
+            throw ngraph_error("Couldn't find operator set's version for domain: " + domain + ".");
+        }
+
         Model::Model(const ONNX_NAMESPACE::ModelProto& model_proto)
             : m_model_proto{&model_proto}
         {

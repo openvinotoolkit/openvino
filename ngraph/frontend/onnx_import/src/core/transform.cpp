@@ -14,22 +14,45 @@
 // limitations under the License.
 //*****************************************************************************
 
+#include <onnx/defs/function.h>
+#include <onnx/defs/schema.h>
+
+#include "model.hpp"
 #include "transform.hpp"
 
 #include "ngraph/file_util.hpp"
 #include "onnx_import/ops_bridge.hpp"
 
-void ngraph::onnx_import::transform::fixup_legacy_operators(ONNX_NAMESPACE::GraphProto* graph_proto)
+void ngraph::onnx_import::transform::expand_onnx_functions(ONNX_NAMESPACE::ModelProto& model_proto)
 {
-    for (auto& node : *graph_proto->mutable_node())
+    auto graph_proto = model_proto.mutable_graph();
+
+    for (int i = 0; i < graph_proto->node().size(); ++i)
     {
-        auto it = std::find(legacy_ops_to_fixup.begin(), legacy_ops_to_fixup.end(), node.op_type());
-        if (it != legacy_ops_to_fixup.end())
+        auto node = graph_proto->node()[i];
+
+        // Check if node operation is one of the functions we want to expand
+        if (std::find(onnx_functions_to_expand.begin(),
+                      onnx_functions_to_expand.end(),
+                      node.op_type()) == onnx_functions_to_expand.end())
         {
-            if (!node.has_domain() || node.domain().empty() || node.domain() == "ai.onnx")
-            {
-                node.set_domain(OPENVINO_ONNX_DOMAIN);
-            }
+            continue;
+        }
+
+        // Retrieve the operation schema from ONNX library
+        int opset_version = static_cast<int>(get_opset_version(model_proto, node.domain()));
+        const auto* schema_registry = ONNX_NAMESPACE::OpSchemaRegistry::Instance();
+        const auto node_op_schema =
+            schema_registry->GetSchema(node.op_type(), opset_version, node.domain());
+
+        // Check if operation schema contains a function body and expand function
+        if (node_op_schema && node_op_schema->HasFunction())
+        {
+            const auto* proto_func = node_op_schema->GetFunction();
+            ONNX_NAMESPACE::FunctionExpandHelper(node, *proto_func, *graph_proto);
+
+            // Remove the original node which contained the function.
+            graph_proto->mutable_node()->erase(graph_proto->node().begin() + i);
         }
     }
 }
@@ -62,6 +85,21 @@ void ngraph::onnx_import::transform::update_external_data_paths(
             // Set full paths to the external file
             initializer_tensor.mutable_external_data(location_key_value_index)
                 ->set_value(external_data_full_path);
+        }
+    }
+}
+
+void ngraph::onnx_import::transform::fixup_legacy_operators(ONNX_NAMESPACE::GraphProto* graph_proto)
+{
+    for (auto& node : *graph_proto->mutable_node())
+    {
+        auto it = std::find(legacy_ops_to_fixup.begin(), legacy_ops_to_fixup.end(), node.op_type());
+        if (it != legacy_ops_to_fixup.end())
+        {
+            if (!node.has_domain() || node.domain().empty() || node.domain() == "ai.onnx")
+            {
+                node.set_domain(OPENVINO_ONNX_DOMAIN);
+            }
         }
     }
 }
