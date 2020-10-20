@@ -45,7 +45,7 @@ namespace
         return pitch;
     }
 
-    bool is_axis_upper_bound(std::vector<int64_t>& indices, int64_t& axis, const Shape& shape)
+    bool calculate_next_axis(std::vector<int64_t>& indices, int64_t& axis, const Shape& shape)
     {
         if (axis-- == 0)
         {
@@ -97,7 +97,7 @@ void runtime::reference::tile(const char* arg,
             out += block_size;
         }
 
-        while (is_axis_upper_bound(indices, axis, in_shape_expanded))
+        while (calculate_next_axis(indices, axis, in_shape_expanded))
         {
             ptrdiff_t pitch = pitches[axis] * in_shape_expanded[axis];
             block_size = pitch * elem_size;
