@@ -21,9 +21,9 @@ msg_fmt = 'It\'s been a while, check for a new version of ' + \
 
 
 def get_ov_update_message():
-    expected_update_date = datetime.date(year=2020, month=10, day=1)
+    expected_update_date = datetime.date(year=2021, month=4, day=1)
     current_date = datetime.date.today()
 
-    link = 'https://software.intel.com/en-us/openvino-toolkit/choose-download?cid=&source=upgrade&content=2020_3_LTS'
+    link = 'https://software.intel.com/content/www/us/en/develop/tools/openvino-toolkit/choose-download.html?cid=other&source=Prod&campid=ww_2021_bu_IOTG&content=upg_pro&medium=organic_uid_agjj'
 
     return msg_fmt.format(link) if current_date >= expected_update_date else None

@@ -48,7 +48,7 @@ ParamsKey DeformableConvolutionKernel_bfyx_conv::GetSupportedKey() const {
 
 DeformableConvolutionKernel_bfyx_conv::DispatchData DeformableConvolutionKernel_bfyx_conv::SetDefault(const convolution_params& params,
                                                                                                       int autoTuneIndex) const {
-    DispatchData kd = ConvolutionKernelBase::SetDefault(params, autoTuneIndex);
+    DispatchData dispatchData = ConvolutionKernelBase::SetDefault(params, autoTuneIndex);
 
     const auto& out = params.output;
 
@@ -57,21 +57,21 @@ DeformableConvolutionKernel_bfyx_conv::DispatchData DeformableConvolutionKernel_
     auto f = out.Feature().v;
     auto b = out.Batch().v;
 
-    kd.gws0 = CeilDiv(x * y, 16);
-    kd.gws1 = Align(f, 16);
-    kd.gws2 = b;
+    dispatchData.gws[0] = CeilDiv(x * y, 16);
+    dispatchData.gws[1] = Align(f, 16);
+    dispatchData.gws[2] = b;
 
-    kd.lws0 = 1;
-    kd.lws1 = 16;
-    kd.lws2 = 1;
+    dispatchData.lws[0] = 1;
+    dispatchData.lws[1] = 16;
+    dispatchData.lws[2] = 1;
 
-    kd.efficiency = FORCE_PRIORITY_2;
+    dispatchData.efficiency = FORCE_PRIORITY_2;
 
-    return kd;
+    return dispatchData;
 }
 
 JitConstants DeformableConvolutionKernel_bfyx_conv::GetJitConstants(const convolution_params& params,
-                                                                    const DispatchData& /*kd*/) const {
+                                                                    const DispatchData& /*dispatchData*/) const {
     JitConstants jit = WeightBiasKernelBase::GetJitConstants(params);
     jit.AddConstant(MakeJitConstant("X_BLOCK_SIZE", 16));
     jit.AddConstant(MakeJitConstant("INPUT_CHANNELS", params.inputs[0].Feature().v / params.weights.X().v / params.weights.Y().v));

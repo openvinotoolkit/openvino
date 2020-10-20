@@ -102,14 +102,6 @@ std::shared_ptr<ngraph::runtime::Tensor>
     throw std::invalid_argument("This backend does not support dynamic tensors");
 }
 
-std::shared_ptr<runtime::Executable>
-    runtime::Backend::compile(std::shared_ptr<Function> func,
-                              ngraph::pass::PassConfig& /* pass_config */,
-                              bool enable_performance_data)
-{
-    return compile(func, enable_performance_data);
-}
-
 bool runtime::Backend::is_supported(const Node& /* node */) const
 {
     // The default behavior is that a backend does not support any ops. If this is not the case

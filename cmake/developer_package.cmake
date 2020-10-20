@@ -2,6 +2,8 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
+cmake_minimum_required(VERSION 3.13)
+
 list(APPEND CMAKE_MODULE_PATH
         "${OpenVINO_MAIN_SOURCE_DIR}/cmake/download"
         "${OpenVINO_MAIN_SOURCE_DIR}/cmake/cross_compile"
@@ -108,6 +110,7 @@ function(set_temp_directory temp_variable source_tree_dir)
 endfunction()
 
 include(coverage/coverage)
+include(shellcheck/shellcheck)
 
 # External dependencies
 find_package(Threads)
@@ -129,13 +132,13 @@ elseif(X86)
 endif()
 
 if(OS_FOLDER)
-	message ("**** OS FOLDER IS: [${OS_FOLDER}]")
-	if("${OS_FOLDER}" STREQUAL "ON")
-		message ("**** USING OS FOLDER: [${CMAKE_SYSTEM_NAME}]")
-		set(BIN_FOLDER "bin/${CMAKE_SYSTEM_NAME}/${ARCH_FOLDER}")
-	else()
-		set(BIN_FOLDER "bin/${OS_FOLDER}/${ARCH_FOLDER}")
-	endif()
+    message ("**** OS FOLDER IS: [${OS_FOLDER}]")
+    if("${OS_FOLDER}" STREQUAL "ON")
+        message ("**** USING OS FOLDER: [${CMAKE_SYSTEM_NAME}]")
+        set(BIN_FOLDER "bin/${CMAKE_SYSTEM_NAME}/${ARCH_FOLDER}")
+    else()
+        set(BIN_FOLDER "bin/${OS_FOLDER}/${ARCH_FOLDER}")
+    endif()
 else()
     set(BIN_FOLDER "bin/${ARCH_FOLDER}")
 endif()
@@ -213,11 +216,28 @@ set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 
 set(CMAKE_POLICY_DEFAULT_CMP0054 NEW)
 
+# LTO
+
+set(CMAKE_POLICY_DEFAULT_CMP0069 NEW)
+include(CheckIPOSupported)
+
+check_ipo_supported(RESULT IPO_SUPPORTED
+                    OUTPUT OUTPUT_MESSAGE
+                    LANGUAGES C CXX)
+
+if(NOT IPO_SUPPORTED)
+    set(ENABLE_LTO "OFF" CACHE STRING "Enable Link Time Optmization" FORCE)
+    message(WARNING "IPO / LTO is not supported: ${OUTPUT_MESSAGE}")
+endif()
+
+# General flags
+
 include(sdl)
 include(os_flags)
 include(sanitizer)
 include(cross_compiled_func)
 include(faster_build)
+include(api_validator)
 
 function(set_ci_build_number)
     set(OpenVINO_MAIN_SOURCE_DIR "${CMAKE_SOURCE_DIR}")

@@ -41,7 +41,7 @@ shared_ptr<Node> op::Negative::clone_with_new_inputs(const OutputVector& new_arg
     return make_shared<Negative>(new_args.at(0));
 }
 
-namespace
+namespace negativeop
 {
     template <element::Type_t ET>
     inline bool evaluate(const HostTensorPtr& arg0, const HostTensorPtr& out, const size_t count)
@@ -81,7 +81,7 @@ namespace
 bool op::Negative::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
     OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::Negative::evaluate");
-    return evaluate_negative(inputs[0], outputs[0], shape_size(get_output_shape(0)));
+    return negativeop::evaluate_negative(inputs[0], outputs[0], shape_size(get_output_shape(0)));
 }
 
 shared_ptr<Node> ngraph::operator-(const Output<Node>& arg0)

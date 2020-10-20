@@ -226,7 +226,7 @@ shared_ptr<Node> op::v0::TopK::clone_with_new_inputs(const OutputVector& new_arg
                              m_sort);
 }
 
-namespace
+namespace topk
 {
     template <element::Type_t INPUT_ET, element::Type_t INDEX_ET>
     inline bool evaluate_execute(const HostTensorPtr& arg0,
@@ -396,7 +396,7 @@ bool op::v0::TopK::evaluate(const HostTensorVector& outputs, const HostTensorVec
     }
     else
     {
-        axis = read_top_k_axis_from_host_tensor(inputs[2]);
+        axis = topk::read_top_k_axis_from_host_tensor(inputs[2]);
         NGRAPH_CHECK(axis <= arg_shape.size(), "TopK axis is out of bounds");
     }
     bool compute_max = get_compute_max();
@@ -406,7 +406,7 @@ bool op::v0::TopK::evaluate(const HostTensorVector& outputs, const HostTensorVec
     size_t k = get_k();
     if (k == 0)
     {
-        k = read_k_from_host_tensor(inputs[1]);
+        k = topk::read_k_from_host_tensor(inputs[1]);
         if (k == 0)
         {
             // the kernel can't handle k = 0, but output_shape[axis] = arg_shape[axis]
@@ -418,15 +418,15 @@ bool op::v0::TopK::evaluate(const HostTensorVector& outputs, const HostTensorVec
     // 3. Compute output_shape
     auto output_shape = compute_output_shape(inputs[0]->get_shape(), k, axis);
 
-    return evaluate_topk(inputs[0],
-                         outputs[0],
-                         outputs[1],
-                         output_shape,
-                         axis,
-                         k,
-                         compute_max,
-                         sort_type,
-                         get_index_element_type());
+    return topk::evaluate_topk(inputs[0],
+                               outputs[0],
+                               outputs[1],
+                               output_shape,
+                               axis,
+                               k,
+                               compute_max,
+                               sort_type,
+                               get_index_element_type());
 }
 
 // v1 version starts
@@ -683,7 +683,7 @@ bool op::v1::TopK::evaluate(const HostTensorVector& outputs, const HostTensorVec
     }
     else
     {
-        k = read_k_from_host_tensor(inputs[1]);
+        k = topk::read_k_from_host_tensor(inputs[1]);
     }
 
     // 3. Compute output_shape
@@ -696,15 +696,15 @@ bool op::v1::TopK::evaluate(const HostTensorVector& outputs, const HostTensorVec
         k = arg_shape[axis];
     }
 
-    return evaluate_topk(inputs[0],
-                         outputs[1],
-                         outputs[0],
-                         output_shape,
-                         axis,
-                         k,
-                         compute_max,
-                         sort_type,
-                         get_index_element_type());
+    return topk::evaluate_topk(inputs[0],
+                               outputs[1],
+                               outputs[0],
+                               output_shape,
+                               axis,
+                               k,
+                               compute_max,
+                               sort_type,
+                               get_index_element_type());
 }
 
 // v3 version starts
