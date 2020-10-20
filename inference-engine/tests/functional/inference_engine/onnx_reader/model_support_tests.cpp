@@ -16,8 +16,13 @@ namespace {
     }
 }
 
-TEST(ONNXReader_ModelSupported, model1) {
+TEST(ONNXReader_ModelSupported, basic_model) {
     // this model is a basic ONNX model taken from ngraph's unit test (add_abc.onnx)
     // it contains the minimum number of fields required to accept this file as a valid model
     EXPECT_NO_THROW(InferenceEngine::Core{}.ReadNetwork(model_path("supported/basic.onnx")));
+}
+
+TEST(ONNXReader_ModelSupported, more_fields) {
+    // this model contains some optional fields (producer_name and doc_string) but 5 fields in total
+    EXPECT_NO_THROW(InferenceEngine::Core{}.ReadNetwork(model_path("supported/more_fields.onnx")));
 }
