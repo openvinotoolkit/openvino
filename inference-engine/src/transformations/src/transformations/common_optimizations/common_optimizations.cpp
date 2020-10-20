@@ -90,8 +90,9 @@ bool ngraph::pass::CommonOptimizations::run_on_function(std::shared_ptr<ngraph::
     decomp->add_matcher<ngraph::pass::ConvertNegative>();
     decomp->add_matcher<ngraph::pass::ConvertDepthToSpace>();
     decomp->add_matcher<ngraph::pass::ConvertSpaceToDepth>();
-    decomp->add_matcher<ngraph::pass::BatchNormDecomposition>();
     decomp->set_name("ngraph::pass::CommonDecompositions");
+
+    manager.register_pass<ngraph::pass::BatchNormDecomposition>();
 
     // CF is required after all decompositions
     manager.register_pass<ngraph::pass::ConstantFolding>();
