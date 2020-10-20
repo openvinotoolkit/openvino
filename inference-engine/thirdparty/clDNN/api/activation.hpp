@@ -63,6 +63,7 @@ enum class activation_func {
     reciprocal,           // (1/val)
     erf,                  // Gauss error function
     hard_sigmoid,         // max(0, min(1, a * val + b))       (a,b are additional params)
+    hsigmoid,             // min(max(val + 3, 0), 6) / 6
     selu,                 // for val <= 0: b * (a * e^val - a); for val > 0: b * val (a,b are additional params)
     sign,                 // val > 0: 1; val < 0: -1; val == 0: 0
     softplus,             // ln(exp(val) + 1)

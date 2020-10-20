@@ -102,6 +102,8 @@ std::shared_ptr<ngraph::Node> makeActivation(const ngraph::Output<Node> &in,
             auto beta = std::make_shared<ngraph::op::Constant>(type, inShape, constantsValue[0]);
             return std::make_shared<ngraph::op::v4::Swish>(in, beta);
         }
+        case ngraph::helpers::ActivationTypes::HSigmoid:
+            return std::make_shared<ngraph::op::v5::HSigmoid>(in);
         default:
             throw std::runtime_error("Can't create layer for this activation type");
     }

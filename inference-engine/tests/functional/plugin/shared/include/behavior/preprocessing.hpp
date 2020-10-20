@@ -27,6 +27,8 @@ namespace BehaviorTestsDefinitions {
 
 using  PreprocessingPrecisionConvertParams = std::tuple<
         InferenceEngine::Precision,         // Input precision
+        unsigned,                           // channels number
+        bool,                               // Use normal (i.e. SetInput() or unusal i.e. GetBlob()) inut method
         std::string,                        // Device name
         std::map<std::string, std::string>  // Config
 >;
@@ -37,11 +39,15 @@ struct PreprocessingPrecisionConvertTest :
 public:
     static std::string getTestCaseName(testing::TestParamInfo<PreprocessingPrecisionConvertParams> obj) {
         InferenceEngine::Precision  inPrc;
+        bool useSetInput;
+        unsigned channels;
         std::string targetDevice;
         std::map<std::string, std::string> configuration;
-        std::tie(inPrc, targetDevice, configuration) = obj.param;
+        std::tie(inPrc, channels, useSetInput, targetDevice, configuration) = obj.param;
         std::ostringstream result;
         result << "inPRC=" << inPrc.name() << "_";
+        result << channels << "Ch" << "_";
+        result << (useSetInput ? "SetInput" : "GetBlob") << "_";
         result << "targetDevice=" << targetDevice;
         if (!configuration.empty()) {
             for (auto& configItem : configuration) {
@@ -49,6 +55,32 @@ public:
             }
         }
         return result.str();
+    }
+
+    // Need to override Infer() due to usage of GetBlob() as input method.
+    // Mostly a copy of LayerTestsCommon::Infer()
+    void Infer() override {
+        inferRequest = executableNetwork.CreateInferRequest();
+        inputs.clear();
+
+        for (const auto &input : executableNetwork.GetInputsInfo()) {
+            const auto &info = input.second;
+            auto blob = GenerateInput(*info);
+            if (!use_set_input) {
+                InferenceEngine::Blob::Ptr input = inferRequest.GetBlob(info->name());
+                blob_copy(blob, input);
+            } else {
+                inferRequest.SetBlob(info->name(), blob);
+            }
+
+            inputs.push_back(blob);
+        }
+        if (configuration.count(InferenceEngine::PluginConfigParams::KEY_DYN_BATCH_ENABLED) &&
+            configuration.count(InferenceEngine::PluginConfigParams::YES)) {
+            auto batchSize = executableNetwork.GetInputsInfo().begin()->second->getTensorDesc().getDims()[0] / 2;
+            inferRequest.SetBatch(batchSize);
+        }
+        inferRequest.Infer();
     }
 
     void SetUp() override {
@@ -60,11 +92,11 @@ public:
 
         SetRefMode(LayerTestsUtils::RefMode::INTERPRETER);
 
-        std::tie(inPrc, targetDevice, configuration) = this->GetParam();
+        std::tie(inPrc, channels, use_set_input, targetDevice, configuration) = this->GetParam();
 
         bool specialZero = true;
 
-        std::vector<size_t> inputShape    {4, 4};
+        std::vector<size_t> inputShape(channels, 4);
 
         auto make_ngraph = [&](bool with_extra_conv) {
             auto in_prec = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(with_extra_conv ? inPrc : decltype(inPrc)(InferenceEngine::Precision::FP32));
@@ -95,6 +127,8 @@ public:
 public:
     std::shared_ptr<InferenceEngine::Core> ie = PluginCache::get().ie();
     std::shared_ptr<ngraph::Function> reference_function;
+    bool use_set_input = true;
+    unsigned channels = 0;
 };
 
 
