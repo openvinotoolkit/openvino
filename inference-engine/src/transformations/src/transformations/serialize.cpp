@@ -5,6 +5,7 @@
 #include <array>
 #include <fstream>
 #include <map>
+#include <unordered_set>
 
 #include "ngraph/ops.hpp"
 #include "ngraph/opsets/opset.hpp"
@@ -152,7 +153,7 @@ ConstantAtributes dump_constant_data(std::vector<uint8_t>& bin,
     return attr;
 }
 
-std::string get_opset_name(ngraph::Node* n) {
+std::string get_opset_name(const ngraph::Node* n) {
     auto opsets = std::array<std::reference_wrapper<const ngraph::OpSet>, 5>{
         ngraph::get_opset1(), ngraph::get_opset2(), ngraph::get_opset3(),
         ngraph::get_opset4(), ngraph::get_opset5()};
@@ -167,7 +168,7 @@ std::string get_opset_name(ngraph::Node* n) {
     return "unknown";
 }
 
-std::string get_type_name(ngraph::Node* n) {
+std::string get_type_name(const ngraph::Node* n) {
     const std::map<std::string, std::string> translator = {
         {"Constant", "Const"}};
     std::string name = n->get_type_name();
@@ -214,6 +215,29 @@ std::string get_output_precision_name(ngraph::Output<Node>& o) {
     }
 }
 
+std::string generate_unique_name(
+    const std::unordered_set<std::string>& unique_names, std::string name,
+    int suffix) {
+    std::string new_name = name + std::to_string(suffix);
+    if (unique_names.find(new_name) == unique_names.end()) {
+        return new_name;
+    } else {
+        suffix++;
+        return generate_unique_name(unique_names, name, suffix);
+    }
+}
+
+// TODO: remove when CNNNetwork will be suporting not-unique names
+std::string get_node_unique_name(std::unordered_set<std::string>& unique_names,
+                                 const ngraph::Node* n) {
+    std::string name = n->get_friendly_name();
+    if (unique_names.find(name) != unique_names.end()) {
+        name = generate_unique_name(unique_names, name, 0);
+    }
+    unique_names.insert(name);
+    return name;
+}
+
 void ngfunction_2_irv10(pugi::xml_document& doc, std::vector<uint8_t>& bin,
                         const ngraph::Function& f) {
     pugi::xml_node netXml = doc.append_child("net");
@@ -222,12 +246,14 @@ void ngfunction_2_irv10(pugi::xml_document& doc, std::vector<uint8_t>& bin,
     pugi::xml_node layers = netXml.append_child("layers");
 
     auto layer_ids = create_layer_ids(f);
+    std::unordered_set<std::string> unique_names;
+
     for (auto node : f.get_ordered_ops()) {
         // <layers>
         pugi::xml_node layer = layers.append_child("layer");
         layer.append_attribute("id").set_value(layer_ids[node.get()]);
         layer.append_attribute("name").set_value(
-            node->get_friendly_name().c_str());
+            get_node_unique_name(unique_names, node.get()).c_str());
         layer.append_attribute("type").set_value(
             get_type_name(node.get()).c_str());
         layer.append_attribute("version").set_value(

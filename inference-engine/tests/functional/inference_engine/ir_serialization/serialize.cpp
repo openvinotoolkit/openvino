@@ -46,8 +46,7 @@ TEST_F(SerializationTest, BasicModel_MO) {
     ASSERT_TRUE(success) << message;
 }
 
-// DISABLED: C++ exception with description "Invalid IR! Y name is not unique!
-TEST_F(SerializationTest, DISABLED_BasicModel_ONNXImporter) {
+TEST_F(SerializationTest, BasicModel_ONNXImporter) {
     const std::string model = IR_SERIALIZATION_MODELS_PATH "add_abc.prototxt";
 
     InferenceEngine::Core ie;
@@ -88,8 +87,7 @@ TEST_F(SerializationTest, ModelWithMultipleOutputs_MO) {
 #endif
 }
 
-// DISABLED: C++ exception with description "Invalid IR! output_2 name is not unique!
-TEST_F(SerializationTest, DISABLED_ModelWithMultipleOutputs_ONNXImporter) {
+TEST_F(SerializationTest, ModelWithMultipleOutputs_ONNXImporter) {
     const std::string model =
         IR_SERIALIZATION_MODELS_PATH "split_equal_parts_2d.prototxt";
 
@@ -129,8 +127,7 @@ TEST_F(SerializationTest, ModelWithMultipleLayers_MO) {
     ASSERT_TRUE(success) << message;
 }
 
-// DISABLED: C++ exception with description "Invalid IR! Y name is not unique!
-TEST_F(SerializationTest, DISABLED_ModelWithMultipleLayers_ONNXImporter) {
+TEST_F(SerializationTest, ModelWithMultipleLayers_ONNXImporter) {
     const std::string model =
         IR_SERIALIZATION_MODELS_PATH "addmul_abc.prototxt";
 
@@ -168,7 +165,7 @@ TEST_F(SerializationTest, ModelWithConstants_MO) {
 
 TEST_F(SerializationTest, ModelWithConstants_ONNXImporter) {
     const std::string model =
-        IR_SERIALIZATION_MODELS_PATH "add_abc_initializers.xml";
+        IR_SERIALIZATION_MODELS_PATH "add_abc_initializers.prototxt";
 
     InferenceEngine::Core ie;
     auto expected = ie.ReadNetwork(model);
