@@ -29,6 +29,8 @@ std::shared_ptr<ngraph::Node> makeEltwise(const ngraph::Output<Node> &in0,
             return std::make_shared<ngraph::opset3::Power>(in0, in1);
         case ngraph::helpers::EltwiseTypes::FLOOR_MOD:
             return std::make_shared<ngraph::opset3::FloorMod>(in0, in1);
+        case ngraph::helpers::EltwiseTypes::MOD:
+            return std::make_shared<ngraph::opset3::Mod>(in0, in1);
         default: {
             throw std::runtime_error("Incorrect type of Eltwise operation");
         }
