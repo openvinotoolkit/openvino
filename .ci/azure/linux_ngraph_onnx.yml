@@ -44,12 +44,12 @@ jobs:
       ls -alR /mnt/onnxtestdata/
     displayName: 'Make dir'
 
-  - script: docker build --tag=openvino-onnx-ci-image --file=.ci/openvino-onnx/Dockerfile .
-    displayName: 'Docker build'
-
   - script: ngraph/python/tests/test_onnx/model_zoo_preprocess.sh -m $(MODELS_DIR) -c -f
     displayName: 'Clone models'
     continueOnError: true
+
+  - script: docker build --tag=openvino-onnx-ci-image --file=.ci/openvino-onnx/Dockerfile .
+    displayName: 'Docker build'
 
   - script: docker run --name openvino-onnx-ci-container --volume $(MODELS_DIR)/model_zoo:/root/.onnx/model_zoo --volume $(MODELS_DIR)/model_zoo/MSFT:/root/.onnx/model_zoo/MSFT openvino-onnx-ci-image
     displayName: 'Docker run tests'
