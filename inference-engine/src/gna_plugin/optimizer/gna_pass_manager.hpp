@@ -180,6 +180,12 @@ DECL_PASS(FuseMultipleIdentities);
 */
 DECL_PASS(BroadcastConst);
 
+/**
+* @brief runs static quantisation on given floating weights and replaces fakeQuantize with constblobs
+*/
+DECL_PASS(FuseFQIntoWeights);
+
+
 struct PassManagerSettings {
     Policy policy;
     /// @brief whether to run passes before copy

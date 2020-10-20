@@ -367,6 +367,9 @@ void GNAPlugin::LoadNetwork(ICNNNetwork & _network) {
         passes->registerPass<UnrollLSTMCellPass>();
         passes->registerPass<RemoveSingleInputConcatPass>();
 
+        // fake quantisation aware passes
+        passes->registerPass<FuseFQIntoWeightsPass>();
+
         passes->registerPass<SubstitutePReluPass>();
         passes->registerPass<SubstituteSoftSignPass>();
 

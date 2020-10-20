@@ -25,9 +25,12 @@
 #include <legacy/net_pass.h>
 #include <layers/gna_copy_layer.hpp>
 
+#include "backend/dnn_types.h"
 #include "gna_plugin_log.hpp"
 #include "frontend/quantized_layer_params.hpp"
 #include <layers/gna_copy_layer.hpp>
+#include <layers/gna_fake_quantize_layer.hpp>
+#include <runtime/pwl.h>
 #include "gna_graph_tools.hpp"
 #include "gna_pass_manager.hpp"
 #include "layers/gna_layer_info.hpp"
@@ -38,7 +41,7 @@ using namespace InferenceEngine;
 using namespace InferenceEngine::details;
 using namespace GNAPluginNS;
 
-#define pass_trace() gnalog() << "[" << getName() << "]"
+#define pass_trace() gnalog() << "[" << getName() << "] "
 
 std::shared_ptr<IPassManager> BasePass::getPassManager() {
     auto sharedMgr = mgr.lock();
@@ -1442,6 +1445,90 @@ void FuseMultipleIdentitiesPass::run() {
     }
 }
 
+void FuseFQIntoWeightsPass::run() {
+    auto isNonFunctional = [](CNNLayerPtr ptr) {
+        return LayerInfo(ptr).isNonFunctional();
+    };
+
+    for (auto &l : *pLayers) {
+        if (!LayerInfo(l).isFakeQuantize()) {
+            continue;
+        }
+        // determine whether this FQ is actually ends into weigtable layer
+        auto fqLayer = l;
+        if (!CNNNetHasNextLayerSkipCertain(fqLayer, 0, 0, isNonFunctional)) {
+            continue;
+        }
+
+        auto weightableLayer = CNNNetGetNextLayerSkipCertain(fqLayer, 0, 0, isNonFunctional).first;
+        if (!LayerInfo(weightableLayer).isWeightable()) {
+            continue;
+        }
+        if (weightableLayer->insData.size() != 3) {
+            continue;
+        }
+
+        // check whether this FQ represents weights - it need to be at index 1 of weightable layer
+        auto prevLayerAt1 = CNNNetPrevLayerSkipCertain(weightableLayer, 1, isNonFunctional);
+
+        if (prevLayerAt1 != fqLayer) {
+            continue;
+        }
+
+        // now this FQ layer represents weights - lets apply it and fuse to given weightable layer.
+        pass_trace() << "found " << LAYER_NAME(fqLayer) << " that will be converted to weights of "
+            << LAYER_NAME(weightableLayer) << "\n";
+
+        auto biases = LayerUtils::getParamFromInputAsBlob(weightableLayer, 2);
+
+        // 1. broke existing connections - by detaching fq subgraph from rest of graph
+        auto prevData = weightableLayer->insData[1].lock();
+        auto prevLayer = getCreatorLayer(prevData).lock();
+        prevLayer->outData.clear();
+        weightableLayer->insData.resize(1);
+
+        // 2. running FQ function for given layer
+        auto weightDims = fqLayer->outData.front()->getDims();
+        if (weightDims.size() != 2) {
+            THROW_GNA_LAYER_EXCEPTION(fqLayer) << " layout of weigths not equal to NC not yet supported";
+        }
+        auto outputSize = details::product(weightDims.begin(), weightDims.end());
+
+        // depending on compute precision weights will be recreated
+        auto quantized = InferenceEngine::getInjectedData<QuantizedLayerParams>(fqLayer);
+        if (quantized) {
+            THROW_GNA_LAYER_EXCEPTION(fqLayer) << " not supported for non FP32 precision yet";
+        }
+
+        intel_dnn_component_t component;
+        GNAFakeQuantizeLayer gnaFakeQuantizeLayer(fqLayer);
+        component.num_columns_in = weightDims[1];
+        component.num_rows_in    = weightDims[0];
+
+        intel_piecewiselinear_t *transform = reinterpret_cast<intel_piecewiselinear_t *>(&component.op.pwl);
+        transform->func_id = gnaFakeQuantizeLayer.parseAsActivation();
+
+        auto inputData = gnaFakeQuantizeLayer.getConstInputData();
+        auto inputBuffer = inputData->buffer();
+        component.ptr_inputs = inputBuffer.as<float*>();
+
+        auto resultBlob = make_shared_blob<float>(TensorDesc(Precision::FP32, {outputSize}, Layout::C));
+        resultBlob->allocate();
+
+        auto resultBuffer = resultBlob->buffer();
+        component.ptr_outputs = resultBuffer.as<float*>();
+
+        PwlApply32(&component, 0, component.num_rows_in - 1, 0, component.num_columns_in - 1);
+
+        // 3. assign quantized const blob to weightable layer
+        auto weigtableLayerCasted = std::dynamic_pointer_cast<WeightableLayer>(weightableLayer);
+        weigtableLayerCasted->_weights = resultBlob;
+        weigtableLayerCasted->_biases  = biases;
+        weigtableLayerCasted->blobs["weights"] = resultBlob;
+        weigtableLayerCasted->blobs["biases"] = biases;
+    }
+}
+
 int PassManager::run(int index) {
 #ifdef PLOT
     auto dumpNetworkAfterPass = [&index, this] (std::shared_ptr<Pass> pass) {
@@ -1450,7 +1537,7 @@ int PassManager::run(int index) {
         saveGraphToDot(*network.get(), out, [](const CNNLayerPtr layer,
                                                ordered_properties &printed_properties,
                                                ordered_properties &node_properties) {});
-        network->serialize(name + ".xml", name + ".bin", nullptr);
+        network->serialize(name + ".xml", "", nullptr);
     };
 #else
     auto dumpNetworkAfterPass = [] (std::shared_ptr<Pass> ) {};

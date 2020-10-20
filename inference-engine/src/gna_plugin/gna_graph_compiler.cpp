@@ -31,6 +31,7 @@
 #include "layers/layers_builder.hpp"
 #include "layers/gna_concat_layer.hpp"
 #include "layers/gna_crop_layer.hpp"
+#include "layers/gna_fake_quantize_layer.hpp"
 #include "round_float_define.hpp"
 #include "gna_plugin_policy.hpp"
 
@@ -1512,8 +1513,9 @@ void GNAGraphCompiler::PWLPrimitive(InferenceEngine::CNNLayerPtr layer) {
         }
     } while (false);
 
-    IE_ASSERT(!layer->insData.empty());
-    IE_ASSERT(!layer->outData.empty());
+    GNA_LAYER_ASSERT(layer, !layer->insData.empty());
+    GNA_LAYER_ASSERT(layer, !layer->outData.empty());
+
     auto inputs = layer->insData.begin()->lock();
     auto outputs = *layer->outData.begin();
     auto quantized = InferenceEngine::getInjectedData<QuantizedLayerParams>(layer);
@@ -1583,39 +1585,7 @@ void GNAGraphCompiler::PWLPrimitive(InferenceEngine::CNNLayerPtr layer) {
     }
 
     if (it->second == kActFakeQuantize) {
-        // get params from const input
-        auto GetParamFromInputAsFloat = [](CNNLayerPtr input, size_t idx) {
-            if (input->insData.size() <= idx) {
-                THROW_GNA_LAYER_EXCEPTION(input) << "cannot get data from " << idx << "input";
-            }
-            auto iLayerData = input->insData[idx].lock();
-            if (!iLayerData) {
-                THROW_GNA_LAYER_EXCEPTION(input) << "cannot get data from " << idx << ", input: cannot dereference data weak-pointer";
-            }
-            auto iLayer = getCreatorLayer(iLayerData).lock();
-            if (!iLayer) {
-                THROW_GNA_LAYER_EXCEPTION(input) << "cannot get data from " << idx << ", input: cannot dereference creator layer weak-pointer";
-            }
-            if (!LayerInfo(iLayer).isConst()) {
-                THROW_GNA_LAYER_EXCEPTION(input) << "cannot get data from " << idx << ", input: expected to be of type const, but was: " << iLayer->type;
-            }
-
-            if (!iLayer->blobs.count("custom")) {
-                THROW_GNA_LAYER_EXCEPTION(iLayer) << "cannot get custom blob";
-            }
-            auto data = iLayer->blobs["custom"];
-            if (data->getTensorDesc().getPrecision() != Precision::FP32) {
-                THROW_GNA_LAYER_EXCEPTION(iLayer) << "cannot cast custom blob to type FP32, since it is of type: " << data->getTensorDesc().getPrecision();
-            }
-
-            return data->cbuffer().as<float*>()[0];
-        };
-
-        activation_type.args.fakeQuantize.levels = layer->GetParamAsInt("levels");
-        activation_type.args.fakeQuantize.input_low = GetParamFromInputAsFloat(layer, 1);
-        activation_type.args.fakeQuantize.input_high = GetParamFromInputAsFloat(layer, 2);
-        activation_type.args.fakeQuantize.output_low = GetParamFromInputAsFloat(layer, 3);
-        activation_type.args.fakeQuantize.output_high = GetParamFromInputAsFloat(layer, 4);
+        activation_type = GNAFakeQuantizeLayer(layer).parseAsActivation();
     }
 
     string actName = "unknown";
