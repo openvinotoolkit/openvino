@@ -14,12 +14,11 @@
 # limitations under the License.
 # ******************************************************************************
 import numpy as np
-import pytest
 
 import ngraph as ng
 from tests.runtime import get_runtime
 from tests.test_ngraph.util import run_op_node
-from tests import xfail_issue_36478
+from tests import xfail_issue_36478, xfail_issue_35926
 
 
 def test_onehot():
@@ -47,7 +46,7 @@ def test_one_hot():
     assert np.allclose(result, excepted)
 
 
-@pytest.mark.skip(reason="Segmentation fault")
+@xfail_issue_35926
 def test_range():
     start = 5
     stop = 35
