@@ -37,3 +37,11 @@ TEST(ONNXReader_ModelUnsupported, no_graph_field) {
     EXPECT_THROW(InferenceEngine::Core{}.ReadNetwork(model_path("unsupported/no_graph_field.onnx")),
                  InferenceEngine::details::InferenceEngineException);
 }
+
+TEST(ONNXReader_ModelUnsupported, incorrect_onnx_field) {
+    // in this model the second field's key is F8 (field number 31) which is doesn't exist in ONNX
+    // this  test will have to be changed if the number of fields in onnx.proto
+    // (ModelProto message definition) ever reaches 31 or more
+    EXPECT_THROW(InferenceEngine::Core{}.ReadNetwork(model_path("unsupported/incorrect_onnx_field.onnx")),
+                 InferenceEngine::details::InferenceEngineException);
+}

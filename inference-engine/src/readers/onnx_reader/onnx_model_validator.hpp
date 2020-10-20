@@ -25,7 +25,9 @@ namespace onnx {
         MODEL_VERSION = 5,
         DOC_STRING = 6,
         GRAPH = 7,
-        OPSET_IMPORT = 8
+        OPSET_IMPORT = 8,
+        METADATA_PROPS = 14,
+        TRAINING_INFO = 20
     };
 
     enum WireType {
@@ -57,7 +59,7 @@ namespace onnx {
         return std::any_of(std::begin(allowed_fields), std::end(allowed_fields), is_allowed);
     }
 
-    int32_t decode_varint(std::istream& model) {
+    uint32_t decode_varint(std::istream& model) {
         std::vector<char> bytes;
         bytes.reserve(4);
 
@@ -73,7 +75,7 @@ namespace onnx {
         // add the last byte - the one with MSB off
         bytes.push_back(key_component);
 
-        return (int32_t)bytes[0];
+        return (uint32_t)bytes[0];
     }
 
     PbKey decode_key(const char key) {
