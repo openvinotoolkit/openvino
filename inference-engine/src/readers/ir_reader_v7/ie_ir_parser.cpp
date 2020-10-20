@@ -53,11 +53,17 @@ std::shared_ptr<ICNNNetwork> CNNParser::parse(const pugi::xml_node& root, const 
     StatusCode ret = reader.ReadNetwork(root, &resp);
     if (ret != OK)
         THROW_IE_EXCEPTION << resp.msg;
+
+    TBlob<uint8_t>::Ptr weightsPtr;
+
     if (weights != nullptr) {
-        TBlob<uint8_t>::Ptr weightsPtr = TBlob<uint8_t>::Ptr(new WeightsHolderBlob(weights));
-        ret = reader.SetWeights(weightsPtr, &resp);
-        if (ret != OK)
-            THROW_IE_EXCEPTION << resp.msg;
+        weightsPtr = TBlob<uint8_t>::Ptr(new WeightsHolderBlob(weights));
+    } else {
+        weightsPtr = std::make_shared<TBlob<uint8_t>>(TensorDesc(Precision::U8, { 0 }, Layout::C));
+        weightsPtr->allocate();
     }
+    ret = reader.SetWeights(weightsPtr, &resp);
+    if (ret != OK)
+        THROW_IE_EXCEPTION << resp.msg;
     return reader.getNetwork();
 }
