@@ -34,24 +34,10 @@ NGRAPH_RTTI_DEFINITION(op::MatMul, "MatMul", 0);
 op::MatMul::MatMul(const Output<Node>& A,
                    const Output<Node>& B,
                    const bool& transpose_a,
-                   const bool& transpose_b,
-                   const element::Type output_type)
-    : FusedOp(OutputVector{A, B})
-    , m_transpose_a{transpose_a}
-    , m_transpose_b{transpose_b}
-    , m_output_type(output_type)
-{
-    constructor_validate_and_infer_types();
-}
-
-op::MatMul::MatMul(const Output<Node>& A,
-                   const Output<Node>& B,
-                   const bool& transpose_a,
                    const bool& transpose_b)
     : FusedOp(OutputVector{A, B})
     , m_transpose_a{transpose_a}
     , m_transpose_b{transpose_b}
-    , m_output_type(element::undefined)
 {
     constructor_validate_and_infer_types();
 }
@@ -66,21 +52,14 @@ bool ngraph::op::v0::MatMul::visit_attributes(AttributeVisitor& visitor)
 void op::MatMul::pre_validate_and_infer_types()
 {
     element::Type result_et;
-    if (m_output_type == element::undefined)
-    {
-        NODE_VALIDATION_CHECK(
-            this,
-            element::Type::merge(result_et, get_input_element_type(0), get_input_element_type(1)),
-            "Arguments do not have the same element type (arg0 element type: ",
-            get_input_element_type(0),
-            ", arg1 element type: ",
-            get_input_element_type(1),
-            ").");
-    }
-    else
-    {
-        result_et = m_output_type;
-    }
+    NODE_VALIDATION_CHECK(
+        this,
+        element::Type::merge(result_et, get_input_element_type(0), get_input_element_type(1)),
+        "Arguments do not have the same element type (arg0 element type: ",
+        get_input_element_type(0),
+        ", arg1 element type: ",
+        get_input_element_type(1),
+        ").");
 
     const Rank& A_rank = get_input_partial_shape(0).rank();
     const Rank& B_rank = get_input_partial_shape(1).rank();
@@ -129,8 +108,7 @@ OutputVector op::MatMul::decompose_op() const
 shared_ptr<Node> op::MatMul::clone_with_new_inputs(const OutputVector& new_args) const
 {
     check_new_args_count(this, new_args);
-    return make_shared<MatMul>(
-        new_args.at(0), new_args.at(1), m_transpose_a, m_transpose_b, m_output_type);
+    return make_shared<MatMul>(new_args.at(0), new_args.at(1), m_transpose_a, m_transpose_b);
 }
 
 namespace matmul
