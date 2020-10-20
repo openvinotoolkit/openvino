@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2016 Intel Corporation
+﻿// Copyright (c) 2016-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -36,17 +36,17 @@ ParamsKey FullyConnected_bs_f_bsv8_af8::GetSupportedKey() const {
 
 FullyConnected_bs_f_bsv8_af8::DispatchData FullyConnected_bs_f_bsv8_af8::SetDefault(const fully_connected_params& arg,
                                                                                     int) const {
-    auto kd = FullyConnectedBlockKernelBase::SetDefault(arg);
+    auto dispatchData = FullyConnectedBlockKernelBase::SetDefault(arg);
 
     size_t groups_per_batches = GetLocalGroupsSize(arg);
-    kd.gws0 =
+    dispatchData.gws[0] =
         Align(arg.output.LogicalSize() / (GetNeuronsPerWorkItem(arg) * GetBatchesPerWorkItem(arg) * groups_per_batches),
               8);
-    kd.gws1 = groups_per_batches;
-    kd.lws0 = 8;
-    kd.lws1 = 1;
+    dispatchData.gws[1] = groups_per_batches;
+    dispatchData.lws[0] = 8;
+    dispatchData.lws[1] = 1;
 
-    return kd;
+    return dispatchData;
 }
 
 static bool check_input_layout(const DataTensor& t) {
