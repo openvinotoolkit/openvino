@@ -96,6 +96,8 @@ namespace roundop
             break;
             TYPE_CASE(f32)(arg0, out, count, mode);
             break;
+            TYPE_CASE(bf16)(arg0, out, count, mode);
+            break;
         default: rc = false; break;
         }
         return rc;
