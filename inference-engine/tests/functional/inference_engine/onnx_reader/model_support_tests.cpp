@@ -26,3 +26,9 @@ TEST(ONNXReader_ModelSupported, more_fields) {
     // this model contains some optional fields (producer_name and doc_string) but 5 fields in total
     EXPECT_NO_THROW(InferenceEngine::Core{}.ReadNetwork(model_path("supported/more_fields.onnx")));
 }
+
+TEST(ONNXReader_ModelUnsupported, no_graph_field) {
+    // this model contains only 2 fields (it doesn't contain a graph in particular)
+    EXPECT_THROW(InferenceEngine::Core{}.ReadNetwork(model_path("unsupported/no_graph_field.onnx")),
+                 InferenceEngine::details::InferenceEngineException);
+}
