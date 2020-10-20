@@ -204,7 +204,7 @@ Convolution_kernel_b_fs_zyx_fsv16_imad::GetBlockParams(const convolution_params&
     size_t in_block_depth = 1;
 
     bool break_external_loop = false;
-    
+
     for (size_t d = 1; d < 16; ++d) {
         if (params.output.Z().v % d != 0)
             continue;
@@ -283,7 +283,7 @@ float Convolution_kernel_b_fs_zyx_fsv16_imad::EstimateOccupancy(const convolutio
 }
 
 float Convolution_kernel_b_fs_zyx_fsv16_imad::EstimateSLMUsage(const convolution_params& params, const BlockParams& block) const {
-    size_t slm_elements = block.output_block_width * block.output_block_height * block.output_block_depth * 
+    size_t slm_elements = block.output_block_width * block.output_block_height * block.output_block_depth *
                           block.output_block_features * (block.feature_slm_split - 1);
     size_t slm_bytes = slm_elements * BytesPerElement(GetAccumulatorType(params));
 
@@ -331,8 +331,8 @@ KernelsData Convolution_kernel_b_fs_zyx_fsv16_imad::GetKernelsData(const Params&
 }
 
 JitConstants Convolution_kernel_b_fs_zyx_fsv16_imad::GetJitConstants(const convolution_params& params,
-                                                                     const DispatchData& kd) const {
-    auto mem_consts = Parent::GetJitConstants(params, kd);
+                                                                     const DispatchData& dispatchData) const {
+    auto mem_consts = Parent::GetJitConstants(params, dispatchData);
 
     auto block_params = GetBlockParams(params);
 
@@ -369,7 +369,7 @@ JitConstants Convolution_kernel_b_fs_zyx_fsv16_imad::GetJitConstants(const convo
                 idx_order[idx_order.size() - 3] = "out_z";
             }
         }
-        
+
         if (block_params.output_block_height != 1) {
             loop_axes.push_back(Tensor::DataChannelName::Y);
         } else {
@@ -392,28 +392,28 @@ JitConstants Convolution_kernel_b_fs_zyx_fsv16_imad::GetJitConstants(const convo
 }  // GetJitConstants
 
 ConvolutionKernelBase::DispatchData Convolution_kernel_b_fs_zyx_fsv16_imad::SetDefault(const convolution_params& params,
-                                                                           int) const {
-    DispatchData kd;
+                                                                                       int) const {
+    DispatchData dispatchData;
     const auto& output = params.output;
     const auto& weights = params.weights;
     auto block_params = GetBlockParams(params);
 
-    kd.gws0 = CeilDiv(output.X().v, block_params.output_block_width);
-    kd.gws1 = CeilDiv(output.Y().v, block_params.output_block_height) * CeilDiv(output.Z().v, block_params.output_block_depth);
-    kd.gws2 = output.Batch().v * CeilDiv(weights.OFM().v, block_params.output_block_features) * params.groups * simd * block_params.feature_slm_split;
+    dispatchData.gws[0] = CeilDiv(output.X().v, block_params.output_block_width);
+    dispatchData.gws[1] = CeilDiv(output.Y().v, block_params.output_block_height) * CeilDiv(output.Z().v, block_params.output_block_depth);
+    dispatchData.gws[2] = output.Batch().v * CeilDiv(weights.OFM().v, block_params.output_block_features) * params.groups * simd * block_params.feature_slm_split;
 
-    kd.lws0 = 1;
-    kd.lws1 = 1;
-    kd.lws2 = simd * block_params.feature_slm_split;
+    dispatchData.lws[0] = 1;
+    dispatchData.lws[1] = 1;
+    dispatchData.lws[2] = simd * block_params.feature_slm_split;
 
-    kd.cldnnStyle = {0, 0, 0, 0, 0};
-    kd.gemmStyle = {0, 0, 0, 0, 0, 0};
+    dispatchData.cldnnStyle = {0, 0, 0, 0, 0};
+    dispatchData.gemmStyle = {0, 0, 0, 0, 0, 0};
 
-    kd.efficiency = FORCE_PRIORITY_2;
+    dispatchData.efficiency = FORCE_PRIORITY_2;
     if (static_cast<float>(params.weights.IFM().v) / static_cast<float>(Align(params.weights.IFM().v, fsv)) < 0.5f)
-        kd.efficiency = FORCE_PRIORITY_4;
+        dispatchData.efficiency = FORCE_PRIORITY_4;
 
-    return kd;
+    return dispatchData;
 }  // SetDefault
 
 bool Convolution_kernel_b_fs_zyx_fsv16_imad::Validate(const Params& params, const optional_params& options) const {
