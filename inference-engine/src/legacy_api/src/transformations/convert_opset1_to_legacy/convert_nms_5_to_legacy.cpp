@@ -10,6 +10,7 @@
 #include <ngraph/opsets/opset5.hpp>
 #include <legacy/ngraph_ops/nms_ie.hpp>
 #include <ngraph/rt_info.hpp>
+#include <ngraph/pattern/op/wrap_type.hpp>
 #include <transformations/utils/utils.hpp>
 
 #include "legacy/transformations/convert_opset1_to_legacy/convert_nms_5_to_legacy.hpp"
@@ -17,14 +18,7 @@
 NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertNMS5ToLegacyMatcher, "ConvertNMS5ToLegacyMatcher", 0);
 
 ngraph::pass::ConvertNMS5ToLegacyMatcher::ConvertNMS5ToLegacyMatcher() {
-    auto boxes = std::make_shared<pattern::op::Label>(element::f32, Shape{1, 1000, 4});
-    auto scores = std::make_shared<pattern::op::Label>(element::f32, Shape{1, 1, 1000});
-    auto max_output_boxes_per_class = ngraph::opset5::Constant::create(element::i64, Shape{}, {10});
-    auto iou_threshold = ngraph::opset5::Constant::create(element::f32, Shape{}, {0.75});
-    auto score_threshold = ngraph::opset5::Constant::create(element::f32, Shape{}, {0.7});
-    auto soft_nms_sigma = ngraph::opset5::Constant::create(element::f32, Shape{}, {0.25});
-    auto nms = std::make_shared<ngraph::opset5::NonMaxSuppression>(boxes, scores, max_output_boxes_per_class,
-                                                                   iou_threshold, score_threshold, soft_nms_sigma);
+    auto nms = ngraph::pattern::wrap_type<ngraph::opset5::NonMaxSuppression>();
 
     ngraph::matcher_pass_callback callback = [](pattern::Matcher &m) {
         auto nms_5 = std::dynamic_pointer_cast<ngraph::opset5::NonMaxSuppression>(m.get_match_root());
@@ -100,21 +94,21 @@ ngraph::pass::ConvertNMS5ToLegacyMatcher::ConvertNMS5ToLegacyMatcher() {
                 throw ngraph_error("NonMaxSuppression layer " + nms_5->get_friendly_name() +
                                    " has unsupported box encoding");
         }
-         const auto nms_legacy = std::make_shared<op::NonMaxSuppressionIE3>(
-                 new_args.at(0),
-                 new_args.at(1),
-                 new_max_per_class,
-                 new_iou_threshold,
-                 new_score_threshold,
-                 new_soft_nms_sigma,
-                 center_point_box,
-                 nms_5->get_sort_result_descending(),
-                 nms_5->get_output_type());
-         new_ops.push_back(nms_legacy);
+        const auto nms_legacy = std::make_shared<op::NonMaxSuppressionIE3>(
+                new_args.at(0),
+                new_args.at(1),
+                new_max_per_class,
+                new_iou_threshold,
+                new_score_threshold,
+                new_soft_nms_sigma,
+                center_point_box,
+                nms_5->get_sort_result_descending(),
+                nms_5->get_output_type());
+        new_ops.push_back(nms_legacy);
 
-         nms_legacy->set_friendly_name(nms_5->get_friendly_name());
-         ngraph::copy_runtime_info(nms_5, new_ops);
-         ngraph::replace_node(nms_5, nms_legacy);
+        nms_legacy->set_friendly_name(nms_5->get_friendly_name());
+        ngraph::copy_runtime_info(nms_5, new_ops);
+        ngraph::replace_node(nms_5, nms_legacy);
         return true;
     };
 
