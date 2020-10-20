@@ -40,11 +40,7 @@ namespace ngraph
                 "DynamicQuantizeLinear",
                 "GreaterOrEqual",
                 "LessOrEqual",
-                "LogSoftmax",
-                "MeanVarianceNormalization",
                 "NegativeLogLikelihoodLoss",
-                "Range",
-                "Softmax",
                 "SoftmaxCrossEntropyLoss"};
 
             /// \brief Replace nodes with expanded body of ONNX functions
