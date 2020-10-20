@@ -2,7 +2,7 @@ jobs:
 - job: nGraph_ONNX_Lin
 
   # About 150% of total time
-  timeoutInMinutes: 60
+  timeoutInMinutes: 600
 
   pool:
     name: LIN_VMSS_VENV_F8S_WU2
@@ -15,7 +15,7 @@ jobs:
     BUILD_TYPE: Release
     REPO_DIR: $(Build.Repository.LocalPath)
     WORK_DIR: $(Pipeline.Workspace)/_w
-    MODELS_DIR: /mnt/models
+    MODELS_DIR: /mnt/onnxtestdata/models
 
   steps:
   - checkout: self
@@ -35,6 +35,7 @@ jobs:
       env
       cat /proc/cpuinfo
       cat /proc/meminfo
+      cat /etc/fstab
       vmstat -s
       df
     displayName: 'System info'
@@ -44,7 +45,9 @@ jobs:
       ls -alR /mnt/onnxtestdata/
     displayName: 'Make dir'
 
-  - script: ngraph/python/tests/test_onnx/model_zoo_preprocess.sh -m $(MODELS_DIR) -c -f
+  - script: |
+      ngraph/python/tests/test_onnx/model_zoo_preprocess.sh -m $(MODELS_DIR) -e -f
+      ngraph/python/tests/test_onnx/model_zoo_preprocess.sh -m $(MODELS_DIR) -c
     displayName: 'Clone models'
     continueOnError: true
 
