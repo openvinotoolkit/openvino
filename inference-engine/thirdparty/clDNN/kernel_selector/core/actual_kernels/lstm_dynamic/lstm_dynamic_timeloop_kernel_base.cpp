@@ -1,5 +1,5 @@
 /*
-// Copyright (c) 2019 Intel Corporation
+// Copyright (c) 2019-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -86,24 +86,15 @@ JitConstants LSTM_DynamicTimeloopKernelBase::GetJitConstants(const lstm_dynamic_
 
 LSTM_DynamicTimeloopKernelBase::DispatchData LSTM_DynamicTimeloopKernelBase::SetDefault(
     const lstm_dynamic_timeloop_params& params) {
-    DispatchData kd;
+    DispatchData dispatchData;
     const auto& out = params.output;
-    kd.fp16UnitUsed = params.inputs[0].GetDType() == Datatype::F16;
 
     auto out_x_size = out.X().v;
     auto gws0 = out_x_size > 256 ? 256 : out_x_size;
-    std::vector<size_t> global = {gws0, out.Batch().v, static_cast<size_t>(params.direction)};
-    const auto& local = GetOptimalLocalWorkGroupSizes(global, params.engineInfo);
+    dispatchData.gws = { gws0, out.Batch().v, static_cast<size_t>(params.direction) };
+    dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo);
 
-    kd.gws0 = global[0];
-    kd.gws1 = global[1];
-    kd.gws2 = global[2];
-
-    kd.lws0 = local[0];
-    kd.lws1 = local[1];
-    kd.lws2 = local[2];
-
-    return kd;
+    return dispatchData;
 }
 
 void kernel_selector::LSTM_DynamicTimeloopKernelBase::SetKernelArguments(const lstm_dynamic_timeloop_params& params, clKernelData& kernel) const {
@@ -136,7 +127,7 @@ KernelsData LSTM_DynamicTimeloopKernelBase::GetCommonKernelsData(const Params& p
 
     const lstm_dynamic_timeloop_params& org_params = static_cast<const lstm_dynamic_timeloop_params&>(params);
 
-    auto run_info = SetDefault(org_params);
+    auto dispatchData = SetDefault(org_params);
     KernelData k_data = KernelData::Default<lstm_dynamic_timeloop_params>(params, 1);
 
     auto cldnn_jit = GetJitConstants(org_params);
@@ -144,8 +135,8 @@ KernelsData LSTM_DynamicTimeloopKernelBase::GetCommonKernelsData(const Params& p
     auto jit = CreateJit(kernelName, cldnn_jit, entry_point);
 
     auto& kernel = k_data.kernels[0];
-    kernel.workGroups.global = {run_info.gws0, run_info.gws1, run_info.gws2};
-    kernel.workGroups.local  = {run_info.lws0, run_info.lws1, run_info.lws2};
+    kernel.workGroups.global = dispatchData.gws;
+    kernel.workGroups.local  = dispatchData.lws;
     kernel.kernelString = GetKernelString(kernelName, jit, entry_point, params.engineInfo);
     SetKernelArguments(org_params, kernel);
     k_data.estimatedTime = estimated_time;
