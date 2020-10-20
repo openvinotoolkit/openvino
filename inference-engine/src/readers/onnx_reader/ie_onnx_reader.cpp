@@ -3,23 +3,11 @@
 //
 
 #include "ie_onnx_reader.hpp"
+#include "onnx_model_validator.hpp"
 #include <ie_api.h>
 #include <onnx_import/onnx.hpp>
 
 using namespace InferenceEngine;
-
-bool ONNXReader::supportModel(std::istream& model) const {
-    model.seekg(0, model.beg);
-    const int header_size = 128;
-    std::string header(header_size, ' ');
-    model.read(&header[0], header_size);
-    model.seekg(0, model.beg);
-    // find 'onnx' substring in the .onnx files
-    // find 'ir_version' and 'graph' for prototxt
-    // return (header.find("onnx") != std::string::npos) || (header.find("pytorch") != std::string::npos) ||
-    //     (header.find("ir_version") != std::string::npos && header.find("graph") != std::string::npos);
-    return !((header.find("<net ") != std::string::npos) || (header.find("<Net ") != std::string::npos));
-}
 
 namespace {
     std::string readPathFromStream(std::istream& stream) {
@@ -28,6 +16,16 @@ namespace {
         }
         // read saved path from extensible array
         return std::string{static_cast<char*>(stream.pword(0))};
+    }
+}
+
+bool ONNXReader::supportModel(std::istream& model) const {
+    model.seekg(0, model.beg);
+
+    if (readPathFromStream(model).find(".prototxt", 0) != std::string::npos) {
+        return is_valid_model(model, prototxt_format{});
+    } else {
+        return is_valid_model(model, onnx_format{});
     }
 }
 
