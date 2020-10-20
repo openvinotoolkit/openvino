@@ -131,6 +131,11 @@ public:
         SetBatch_ThreadUnsafe(batch);
     };
 
+    std::vector<IMemoryStateInternal::Ptr> QueryState() override {
+        // meaning base plugin reports as no state available - plugin owners need to create proper override of this
+        return {};
+    }
+
 protected:
     /**
      * @brief Starts an asynchronous pipeline thread unsafe.

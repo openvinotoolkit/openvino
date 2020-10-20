@@ -152,6 +152,10 @@ public:
         _publicInterface = std::shared_ptr<IInferRequest>(ptr.get(), [](IInferRequest*) {});
     }
 
+    std::vector<InferenceEngine::IMemoryStateInternal::Ptr> QueryState() {
+        return _syncRequest->QueryState();
+    }
+
 protected:
     /**
      * @brief Each pipeline stage is a @ref Task that is executed by specified ITaskExecutor implementation

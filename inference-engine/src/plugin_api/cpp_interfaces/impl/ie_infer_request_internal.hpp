@@ -254,6 +254,25 @@ protected:
         }
     }
 
+    std::vector<IMemoryStateInternal::Ptr> QueryState() override {
+        // meaning base plugin reports as no state available - plugin owners need to create proper override of this
+        return {};
+    }
+
+protected:
+    InferenceEngine::InputsDataMap _networkInputs;  //!< Holds information about network inputs info
+    InferenceEngine::OutputsDataMap _networkOutputs;  //!< Holds information about network outputs data
+    InferenceEngine::BlobMap _inputs;  //!< A map of network input blobs
+    InferenceEngine::BlobMap _outputs;  //!< A map of network output blobs
+    std::map<std::string, PreProcessDataPtr> _preProcData;  //!< A map of pre-process data per input
+    int m_curBatch;  //!< Current batch value used in dynamic batching
+
+    /**
+     * @brief A shared pointer to ExecutableNetworkInternal interface
+     * @note Needed to correctly handle ownership between objects.
+     */
+    std::shared_ptr<ExecutableNetworkInternal> _exeNetwork;
+
     /**
      * @brief Helper function to find input or output blob by name
      * @param name A name of input or output blob.
