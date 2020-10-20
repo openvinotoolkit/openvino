@@ -39,7 +39,7 @@ namespace onnx {
         BITS_32 = 5
     };
 
-    // A PB key consists of a field number and a type of data that follows this key
+    // A PB key consists of a field number (defined in onnx.proto) and a type of data that follows this key
     using PbKey = std::pair<char, char>;
 
     // This pair represents a key found in the encoded model and optional size of the payload
@@ -48,8 +48,8 @@ namespace onnx {
 
     bool is_correct_onnx_field(const char decoded_field) {
         const auto allowed_fields = std::vector<Field>{
-            IR_VERSION, PRODUCER_NAME, PRODUCER_VERSION,
-            DOMAIN, MODEL_VERSION, DOC_STRING, GRAPH, OPSET_IMPORT
+            IR_VERSION, PRODUCER_NAME, PRODUCER_VERSION, DOMAIN, MODEL_VERSION, DOC_STRING,
+            GRAPH, OPSET_IMPORT, METADATA_PROPS, TRAINING_INFO
         };
 
         const auto is_allowed = [&decoded_field](const Field field) {
@@ -57,6 +57,31 @@ namespace onnx {
         };
 
         return std::any_of(std::begin(allowed_fields), std::end(allowed_fields), is_allowed);
+    }
+
+    /**
+     * Only 7 bits in each component of a varint count in this algorithm. The components form
+     * a decoded number when they are concatenated bitwise in a reverse order. For example:
+     * bytes = [b1, b2, b3, b4]
+     * varint = b4 ++ b3 ++ b2 ++ b1  <== only 7 bits of each byte should be extracted before concat
+     *
+     *             b1         b2
+     * bytes = [00101100, 00000010]
+     *             b2         b1
+     * varint = 0000010 ++ 0101100 = 100101100 => decimal: 300
+     * Each consecutive varint byte needs to be left shifted "7 x its position in the vector"
+     * and bitwise added to the accumulator afterwards.
+     */
+    uint32_t varint_bytes_to_number(const std::vector<char>& bytes) {
+        uint32_t accumulator = 0u;
+
+        for (size_t i = 0; i < bytes.size(); ++i) {
+            uint32_t b = bytes[i];
+            b <<= 7 * i;
+            accumulator |= b;
+        }
+
+        return accumulator;
     }
 
     uint32_t decode_varint(std::istream& model) {
@@ -75,7 +100,7 @@ namespace onnx {
         // add the last byte - the one with MSB off
         bytes.push_back(key_component);
 
-        return (uint32_t)bytes[0];
+        return varint_bytes_to_number(bytes);
     }
 
     PbKey decode_key(const char key) {
@@ -105,6 +130,7 @@ namespace onnx {
                 return {onnx_field, 0};
             }
             case LENGTH_DELIMITED:
+                // the varint following the key determines the payload length
                 return {onnx_field, decode_varint(model)};
             case BITS_64:
                 return {onnx_field, 8};

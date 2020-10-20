@@ -32,6 +32,11 @@ TEST(ONNXReader_ModelSupported, more_fields) {
     EXPECT_NO_THROW(InferenceEngine::Core{}.ReadNetwork(model_path("supported/more_fields.onnx")));
 }
 
+TEST(ONNXReader_ModelSupported, varint_on_two_bytes) {
+    // the docstring's payload length is encoded as varint using 2 bytes which should be parsed correctly
+    EXPECT_NO_THROW(InferenceEngine::Core{}.ReadNetwork(model_path("supported/varint_on_two_bytes.onnx")));
+}
+
 TEST(ONNXReader_ModelUnsupported, no_graph_field) {
     // this model contains only 2 fields (it doesn't contain a graph in particular)
     EXPECT_THROW(InferenceEngine::Core{}.ReadNetwork(model_path("unsupported/no_graph_field.onnx")),
