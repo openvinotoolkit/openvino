@@ -89,8 +89,9 @@ void ngraph::onnx_import::transform::update_external_data_paths(
     }
 }
 
-void ngraph::onnx_import::transform::fixup_legacy_operators(ONNX_NAMESPACE::GraphProto* graph_proto)
+void ngraph::onnx_import::transform::fixup_legacy_operators(ONNX_NAMESPACE::ModelProto& model_proto)
 {
+    auto graph_proto = model_proto.mutable_graph();
     for (auto& node : *graph_proto->mutable_node())
     {
         auto it = std::find(legacy_ops_to_fixup.begin(), legacy_ops_to_fixup.end(), node.op_type());

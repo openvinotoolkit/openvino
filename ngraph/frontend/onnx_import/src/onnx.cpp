@@ -123,7 +123,7 @@ namespace ngraph
             }
 
             transform::expand_onnx_functions(model_proto);
-            transform::fixup_legacy_operators(model_proto.mutable_graph());
+            transform::fixup_legacy_operators(model_proto);
             transform::update_external_data_paths(model_proto, model_path);
 
             return detail::convert_to_ng_function(model_proto);

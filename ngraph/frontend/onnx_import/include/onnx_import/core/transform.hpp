@@ -68,8 +68,8 @@ namespace ngraph
             /// operations to use OPENVINO_ONNX_DOMAIN in order to process them correctly
             /// in the nGraph ONNX Importer.
             ///
-            /// \param graph_proto Protobuf message with ONNX graph to transform.
-            void fixup_legacy_operators(ONNX_NAMESPACE::GraphProto* graph_proto);
+            /// \param model_proto Protobuf message with ONNX model to transform.
+            void fixup_legacy_operators(ONNX_NAMESPACE::ModelProto& model_proto);
 
         } // namespace transform
 
