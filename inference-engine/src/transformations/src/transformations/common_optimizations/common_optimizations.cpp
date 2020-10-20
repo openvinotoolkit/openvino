@@ -106,9 +106,7 @@ bool ngraph::pass::CommonOptimizations::run_on_function(std::shared_ptr<ngraph::
     manager.register_pass<ngraph::pass::GroupConvolutionBackpropDataMultiplyFusion>();
     manager.register_pass<ngraph::pass::ConstantFolding>();
 
-    manager.register_pass<ngraph::pass::ConvertNMS1ToNMS5>();
-    manager.register_pass<ngraph::pass::ConvertNMS3ToNMS5>();
-    manager.register_pass<ngraph::pass::ConvertNMS4ToNMS5>();
+    manager.register_pass<ngraph::pass::ConvertPreviousNMSToNMS5>();
 
     auto fq_fusions = manager.register_pass<ngraph::pass::GraphRewrite>();
     fq_fusions->add_matcher<ngraph::pass::FakeQuantizeMulFusion>();

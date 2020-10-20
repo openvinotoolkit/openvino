@@ -39,8 +39,12 @@ public:
     ConvertNMS4ToNMS5();
 };
 
-class ngraph::pass::ConvertPreviousNMSToNMS5: public ngraph::pass::MatcherPass {
+class ngraph::pass::ConvertPreviousNMSToNMS5: public ngraph::pass::GraphRewrite {
 public:
     NGRAPH_RTTI_DECLARATION;
-    ConvertPreviousNMSToNMS5();
+    ConvertPreviousNMSToNMS5() {
+        add_matcher<ngraph::pass::ConvertNMS1ToNMS5>();
+        add_matcher<ngraph::pass::ConvertNMS3ToNMS5>();
+        add_matcher<ngraph::pass::ConvertNMS4ToNMS5>();
+    }
 };

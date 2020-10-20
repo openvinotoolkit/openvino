@@ -183,9 +183,6 @@ namespace {
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertPreviousNMSToNMS5, "ConvertPreviousNMSToNMS5", 0);
 
-ngraph::pass::ConvertPreviousNMSToNMS5::ConvertPreviousNMSToNMS5() {
-}
-
 NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertNMS4ToNMS5, "ConvertNMS4ToNMS5", 0);
 
 ngraph::pass::ConvertNMS4ToNMS5::ConvertNMS4ToNMS5() {
@@ -195,7 +192,6 @@ ngraph::pass::ConvertNMS4ToNMS5::ConvertNMS4ToNMS5() {
     auto m = std::make_shared<ngraph::pattern::Matcher>(nms, "ConvertNMS4ToNMS5");
     this->register_matcher(m, callback);
 }
-
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertNMS3ToNMS5, "ConvertNMS3ToNMS5", 0);
 
