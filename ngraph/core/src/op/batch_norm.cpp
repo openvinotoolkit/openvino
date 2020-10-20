@@ -26,11 +26,11 @@ using namespace ngraph;
 constexpr NodeTypeInfo op::v0::BatchNormInference::type_info;
 
 op::v0::BatchNormInference::BatchNormInference(const Output<Node>& input,
-                                           const Output<Node>& gamma,
-                                           const Output<Node>& beta,
-                                           const Output<Node>& mean,
-                                           const Output<Node>& variance,
-                                           double epsilon)
+                                               const Output<Node>& gamma,
+                                               const Output<Node>& beta,
+                                               const Output<Node>& mean,
+                                               const Output<Node>& variance,
+                                               double epsilon)
     : Op({gamma, beta, input, mean, variance})
     , m_epsilon(epsilon)
 {
@@ -77,11 +77,11 @@ std::shared_ptr<Node>
 constexpr NodeTypeInfo op::v5::BatchNormInference::type_info;
 
 op::v5::BatchNormInference::BatchNormInference(const Output<Node>& input,
-                                           const Output<Node>& gamma,
-                                           const Output<Node>& beta,
-                                           const Output<Node>& mean,
-                                           const Output<Node>& variance,
-                                           double epsilon)
+                                               const Output<Node>& gamma,
+                                               const Output<Node>& beta,
+                                               const Output<Node>& mean,
+                                               const Output<Node>& variance,
+                                               double epsilon)
     : Op({input, gamma, beta, mean, variance})
     , m_epsilon(epsilon)
 {

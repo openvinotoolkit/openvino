@@ -46,7 +46,8 @@ public:
         auto Beta = make_shared<op::Parameter>(etype, channel_shape);
         auto Mean = make_shared<op::Parameter>(etype, channel_shape);
         auto Variance = make_shared<op::Parameter>(etype, channel_shape);
-        auto BN = make_shared<op::v5::BatchNormInference>(Input, Gamma, Beta, Mean, Variance, epsilon);
+        auto BN =
+            make_shared<op::v5::BatchNormInference>(Input, Gamma, Beta, Mean, Variance, epsilon);
         m_function = make_shared<Function>(BN, ParameterVector{Input, Gamma, Beta, Mean, Variance});
 
         m_input = backend->create_tensor(etype, input_shape);
