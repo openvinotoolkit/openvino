@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2016 Intel Corporation
+﻿// Copyright (c) 2016-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -38,19 +38,19 @@ ParamsKey LRNKernelWithinChannelOpt::GetSupportedKey() const {
 }
 
 CommonDispatchData LRNKernelWithinChannelOpt::SetDefault(const lrn_params& params) const {
-    CommonDispatchData runInfo = LRNKernelBase::SetDefault(params);
+    CommonDispatchData dispatchData = LRNKernelBase::SetDefault(params);
     const auto totalSize = params.inputs[0].LogicalSize();
     const unsigned work_group_size = (totalSize < 128) ? 32 : 128;
 
-    runInfo.gws0 = Align(params.inputs[0].LogicalSize(), work_group_size);
-    runInfo.gws1 = 1;
-    runInfo.gws2 = 1;
+    dispatchData.gws[0] = Align(params.inputs[0].LogicalSize(), work_group_size);
+    dispatchData.gws[1] = 1;
+    dispatchData.gws[2] = 1;
 
-    runInfo.lws0 = work_group_size;
-    runInfo.lws1 = 1;
-    runInfo.lws2 = 1;
+    dispatchData.lws[0] = work_group_size;
+    dispatchData.lws[1] = 1;
+    dispatchData.lws[2] = 1;
 
-    return runInfo;
+    return dispatchData;
 }
 
 bool LRNKernelWithinChannelOpt::Validate(const Params& p, const optional_params& o) const {
@@ -60,9 +60,9 @@ bool LRNKernelWithinChannelOpt::Validate(const Params& p, const optional_params&
     return true;
 }
 
-JitConstants LRNKernelWithinChannelOpt::GetJitConstants(const lrn_params& params, const LRNKernelWithinChannelOpt::Parent::DispatchData& kd) const {
+JitConstants LRNKernelWithinChannelOpt::GetJitConstants(const lrn_params& params, const LRNKernelWithinChannelOpt::Parent::DispatchData& dispatchData) const {
     const auto& input_dt = params.inputs[0].GetDType();
-    JitConstants jit = Parent::GetJitConstants(params, kd);
+    JitConstants jit = Parent::GetJitConstants(params, dispatchData);
 
     if (!params.fused_ops.empty()) {
         FusedOpsConfiguration conf = {"", {"batch_id", "feature_id", "y", "x"}, "lrn_result", input_dt, 1};
