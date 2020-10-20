@@ -45,14 +45,15 @@ struct DnnActivation {
         } pow;
         struct {
             int32_t levels;
-            float input_low;
-            float input_high;
-            float output_low;
-            float output_high;
+            // if input is perchannel quantisation - input pointers contains per-channer ranges
+            int8_t  inputPerChannel;
+            float  *input_low;
+            float  *input_high;
+            // if output is perchannel quantisation - output pointers contains per-channer ranges
+            int8_t  outputPerChannel;
+            float  *output_low;
+            float  *output_high;
         } fakeQuantize;
-        struct {
-            float reserved[5];
-        };
     } args;
     operator DnnActivationType () const noexcept {
         return type;
