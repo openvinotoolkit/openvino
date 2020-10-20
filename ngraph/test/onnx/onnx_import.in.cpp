@@ -2769,5 +2769,5 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_logsoftmax13_2D)
                                           -2.4401896,
                                           -1.4401896,
                                           -0.44018966});
-    test_case.run();
+    test_case.run_with_tolerance_as_fp();
 }
