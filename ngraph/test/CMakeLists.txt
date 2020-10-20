@@ -96,7 +96,6 @@ set(SRC
     shape.cpp
     specialize_function.cpp
     tensor.cpp
-    type_prop/any.cpp
     type_prop/assign.cpp
     type_prop/avg_pool.cpp
     type_prop/batch_norm.cpp
@@ -260,7 +259,6 @@ set(MULTI_TEST_SRC
     backend/acosh.in.cpp
     backend/add.in.cpp
     backend/aliased_output.in.cpp
-    backend/any.in.cpp
     backend/api.in.cpp
     backend/asin.in.cpp
     backend/asinh.in.cpp
@@ -296,6 +294,7 @@ set(MULTI_TEST_SRC
     backend/group_convolution.in.cpp
     backend/interpolate.in.cpp
     backend/log.in.cpp
+    backend/log_softmax.in.cpp
     backend/logical_or.in.cpp
     backend/logical_xor.in.cpp
     backend/lrn.in.cpp
