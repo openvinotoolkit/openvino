@@ -154,10 +154,6 @@ xfail_issue_38715 = xfail_test(reason="RuntimeError: While validating ONNX node 
 xfail_issue_38717 = xfail_test(reason="RuntimeError: nGraph does not support the following ONNX operations:"
                                       "GreaterOrEqual")
 xfail_issue_38719 = xfail_test(reason="nGraph does not support the following ONNX operations: GatherND")
-xfail_issue_38721 = xfail_test(reason="RuntimeError: While validating ONNX node '<Node(Pow): z>': "
-                                      "While validating node 'v1::Power Power_<number>"
-                                      "(x[0]:f32{3}, y[0]:i64{3}) -> (dynamic?)' with friendly_name "
-                                      "'Power_<number>': Argument element types are inconsistent.")
 xfail_issue_38722 = xfail_test(reason="RuntimeError: While validating ONNX nodes MatMulInteger"
                                       "and QLinearMatMul"
                                       "Input0 scale and input0 zero point shape must be same and 1")

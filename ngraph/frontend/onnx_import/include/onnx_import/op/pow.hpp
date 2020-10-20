@@ -16,11 +16,7 @@
 
 #pragma once
 
-#include <memory>
-
-#include "ngraph/node.hpp"
 #include "onnx_import/core/node.hpp"
-#include "onnx_import/default_opset.hpp"
 
 namespace ngraph
 {
@@ -30,11 +26,7 @@ namespace ngraph
         {
             namespace set_1
             {
-                inline OutputVector pow(const Node& node)
-                {
-                    return {std::make_shared<default_opset::Power>(node.get_ng_inputs().at(0),
-                                                                   node.get_ng_inputs().at(1))};
-                }
+                OutputVector pow(const Node& node);
 
             } // namespace set_1
 
