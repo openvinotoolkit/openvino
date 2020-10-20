@@ -53,7 +53,6 @@
 NGRAPH_OP(Abs, ngraph::op)
 NGRAPH_OP(Acos, ngraph::op)
 NGRAPH_OP(Add, ngraph::op)
-NGRAPH_OP(Any, ngraph::op)
 NGRAPH_OP(Asin, ngraph::op)
 NGRAPH_OP(Atan, ngraph::op)
 NGRAPH_OP(AvgPool, ngraph::op::v0)
