@@ -295,7 +295,7 @@ int main(int argc, char *argv[]) {
                 if (supported(CONFIG_KEY(CPU_THROUGHPUT_STREAMS)) && isFlagSetInCommandLine("nstreams")) {
                     device_config[CONFIG_KEY(CPU_THROUGHPUT_STREAMS)] = FLAGS_nstreams;
                 }
-                if (supported(CONFIG_KEY(CPU_THROUGHPUT_STREAMS)) && isFlagSetInCommandLine("pin")) {
+                if (supported(CONFIG_KEY(CPU_BIND_THREAD)) && isFlagSetInCommandLine("pin")) {
                     device_config[CONFIG_KEY(CPU_BIND_THREAD)] = FLAGS_pin;
                 }
             }
