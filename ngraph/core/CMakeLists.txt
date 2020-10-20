@@ -38,8 +38,13 @@ add_library(ngraph SHARED ${LIBRARY_SRC} ${PUBLIC_HEADERS})
 
 if(COMMAND ie_faster_build)
     ie_faster_build(ngraph
+        UNITY
         PCH PRIVATE "src/precomp.hpp"
     )
+endif()
+
+if(COMMAND ie_add_api_validator_post_build_step)
+    ie_add_api_validator_post_build_step(TARGET ngraph)
 endif()
 
 set_target_properties(ngraph PROPERTIES

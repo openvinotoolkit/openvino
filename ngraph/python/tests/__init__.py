@@ -74,8 +74,6 @@ xfail_issue_35911 = xfail_test(reason="Assertion error: Pad model mismatch error
 xfail_issue_35912 = xfail_test(reason="RuntimeError: Error of validate layer: B with type: "
                                       "Pad. Cannot parse parameter pads_end  from IR for layer B. "
                                       "Value -1,0 cannot be casted to int.")
-xfail_issue_35914 = xfail_test(reason="IndexError: too many indices for array: "
-                                      "array is 0-dimensional, but 1 were indexed")
 xfail_issue_35915 = xfail_test(reason="RuntimeError: Eltwise node with unsupported combination "
                                       "of input and output types")
 xfail_issue_35916 = xfail_test(reason="RuntimeError: Unsupported input dims count for layer Z")
@@ -156,10 +154,6 @@ xfail_issue_38715 = xfail_test(reason="RuntimeError: While validating ONNX node 
 xfail_issue_38717 = xfail_test(reason="RuntimeError: nGraph does not support the following ONNX operations:"
                                       "GreaterOrEqual")
 xfail_issue_38719 = xfail_test(reason="nGraph does not support the following ONNX operations: GatherND")
-xfail_issue_38721 = xfail_test(reason="RuntimeError: While validating ONNX node '<Node(Pow): z>': "
-                                      "While validating node 'v1::Power Power_<number>"
-                                      "(x[0]:f32{3}, y[0]:i64{3}) -> (dynamic?)' with friendly_name "
-                                      "'Power_<number>': Argument element types are inconsistent.")
 xfail_issue_38722 = xfail_test(reason="RuntimeError: While validating ONNX nodes MatMulInteger"
                                       "and QLinearMatMul"
                                       "Input0 scale and input0 zero point shape must be same and 1")
