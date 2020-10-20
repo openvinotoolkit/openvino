@@ -16,7 +16,7 @@
 import numpy as np
 import onnx
 from onnx.mapping import NP_TYPE_TO_TENSOR_TYPE
-from openvino.inference_engine import IECore, IENetwork
+from openvino.inference_engine import IECore
 
 import ngraph as ng
 from ngraph.impl import Function

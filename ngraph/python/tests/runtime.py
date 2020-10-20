@@ -44,7 +44,7 @@ def convert_i64_to_i32(cnn_network: IENetwork) -> None:
         if cnn_network.input_info[cnn_input].precision == "I64":
             cnn_network.input_info[cnn_input].precision = "I32"
 
-            
+
 class Runtime(object):
     """Represents an nGraph runtime environment."""
 
