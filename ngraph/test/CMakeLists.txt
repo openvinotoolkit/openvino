@@ -79,6 +79,7 @@ set(SRC
     op_eval/reduce_l1.cpp
     op_eval/reduce_l2.cpp
     op_eval/roi_align.cpp
+    op_eval/round.cpp
     op_eval/softplus.cpp
     op_eval/split.cpp
     op_eval/swish.cpp
@@ -166,6 +167,7 @@ set(SRC
     type_prop/round.cpp
     type_prop/rnn_cell.cpp
     type_prop/rnn_sequence.cpp
+    type_prop/round.cpp
     type_prop/scatter_elements_update.cpp
     type_prop/scatter_nd_update.cpp
     type_prop/scatter_update.cpp
