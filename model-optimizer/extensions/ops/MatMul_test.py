@@ -46,6 +46,9 @@ class TestMatMul(unittest.TestCase):
     ]
 
     @generate(*[
+        ([2], [2], [1, 1], False, True),
+        ([2, 1], [2], [2, 2], False, False),
+        ([2, 1], [2], [1, 1], True, True),
         ([1024], [1024, 1000], [1, 1000], False, False),
         ([1, 1024], [1024, 1000], [1, 1000], False, False),
         ([1, 1024], [1000, 1024], [1, 1000], False, True),
