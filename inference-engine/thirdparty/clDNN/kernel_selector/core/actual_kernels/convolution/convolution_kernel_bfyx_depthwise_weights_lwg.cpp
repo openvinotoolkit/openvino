@@ -56,29 +56,22 @@ bool ConvolutionKernel_bfyx_depthwise_weights_lwg::Validate(const Params& p, con
     return true;
 }
 
-ConvolutionKernelBase::DispatchData ConvolutionKernel_bfyx_depthwise_weights_lwg::SetDefault(
-    const convolution_params& params,
-    int) const {
-    DispatchData runInfo = Parent::SetDefault(params);
+ConvolutionKernelBase::DispatchData ConvolutionKernel_bfyx_depthwise_weights_lwg::SetDefault(const convolution_params& params,
+                                                                                             int) const {
+    DispatchData dispatchData = Parent::SetDefault(params);
     const auto& out = params.output;
 
-    std::vector<size_t> global = {out.X().v * out.Y().v, out.Feature().v, out.Batch().v};
+    dispatchData.gws = { Align(out.X().v * out.Y().v, 16), out.Feature().v, out.Batch().v };
+    dispatchData.lws = { 16, 1, 1 };
 
-    runInfo.gws0 = Align(global[0], 16);
-    runInfo.gws1 = global[1];
-    runInfo.gws2 = global[2];
-    runInfo.lws0 = 16;
-    runInfo.lws1 = 1;
-    runInfo.lws2 = 1;
+    dispatchData.efficiency = FORCE_PRIORITY_2;
 
-    runInfo.efficiency = FORCE_PRIORITY_2;
-
-    return runInfo;
+    return dispatchData;
 }
 
 JitConstants ConvolutionKernel_bfyx_depthwise_weights_lwg::GetJitConstants(const convolution_params& params,
-                                                                           const DispatchData& kd) const {
-    auto mem_consts = ConvolutionKernelBase::GetJitConstants(params, kd);
+                                                                           const DispatchData& dispatchData) const {
+    auto mem_consts = ConvolutionKernelBase::GetJitConstants(params, dispatchData);
 
     if (params.padding.x != 0 || params.padding.y != 0)
         mem_consts.AddConstant(MakeJitConstant("BOUNDARY_CHECK", 1));

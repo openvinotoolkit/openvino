@@ -45,29 +45,16 @@ JitConstants MVNKernelBase::GetJitConstants(const mvn_params& params, MVNKernelB
 MVNKernelBase::DispatchData MVNKernelBase::SetDefault(const mvn_params& params) const {
     const auto& output = params.output;
 
-    DispatchData kd;
-
-    std::vector<size_t> global(3);
-
-    kd.fp16UnitUsed = params.inputs[0].GetDType() == Datatype::F16;
-
+    DispatchData dispatchData;
     if (params.mvnMode == MVNMode::WITHIN_CHANNELS) {
-        global = {output.Batch().v, output.Feature().v, 1};
+        dispatchData.gws = {output.Batch().v, output.Feature().v, 1};
     } else {
-        global = {output.Batch().v, 1, 1};
+        dispatchData.gws = {output.Batch().v, 1, 1};
     }
 
-    auto local = GetOptimalLocalWorkGroupSizes(global, params.engineInfo);
+    dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo);
 
-    kd.gws0 = global[0];
-    kd.gws1 = global[1];
-    kd.gws2 = global[2];
-
-    kd.lws0 = local[0];
-    kd.lws1 = local[1];
-    kd.lws2 = local[2];
-
-    return kd;
+    return dispatchData;
 }
 
 KernelsData MVNKernelBase::GetCommonKernelsData(const Params& params,
@@ -80,20 +67,18 @@ KernelsData MVNKernelBase::GetCommonKernelsData(const Params& params,
 
     const mvn_params& orgParams = static_cast<const mvn_params&>(params);
 
-    DispatchData runInfo;
-
-    runInfo = SetDefault(orgParams);
+    DispatchData dispatchData = SetDefault(orgParams);
 
     KernelData kd = KernelData::Default<mvn_params>(params);
 
     auto finalKernelName = GetKernelName(orgParams);
-    auto cldnn_jit = GetJitConstants(orgParams, runInfo);
+    auto cldnn_jit = GetJitConstants(orgParams, dispatchData);
     auto entry_point = GetEntryPoint(finalKernelName, orgParams.layerID, options);
     auto jit = CreateJit(finalKernelName, cldnn_jit, entry_point);
 
     auto& kernel = kd.kernels[0];
     FillCLKernelData(kernel,
-                     runInfo,
+                     dispatchData,
                      params.engineInfo,
                      finalKernelName,
                      jit,

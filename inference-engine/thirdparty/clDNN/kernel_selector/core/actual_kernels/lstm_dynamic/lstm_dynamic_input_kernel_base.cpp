@@ -1,5 +1,5 @@
 /*
-// Copyright (c) 2019 Intel Corporation
+// Copyright (c) 2019-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -37,23 +37,14 @@ JitConstants LSTM_DynamicInputKernelBase::GetJitConstants(const lstm_dynamic_inp
 
 LSTM_DynamicInputKernelBase::DispatchData LSTM_DynamicInputKernelBase::SetDefault(
     const lstm_dynamic_input_params& params) {
-    DispatchData kd;
+    DispatchData dispatchData;
     const auto& out = params.output;
-    kd.fp16UnitUsed = params.inputs[0].GetDType() == Datatype::F16;
 
     // 4 * hidden, batch * dir, seq_len
-    std::vector<size_t> global = {out.X().v, out.Batch().v * out.Y().v, out.Feature().v};
-    const auto& local = GetOptimalLocalWorkGroupSizes(global, params.engineInfo);
+    dispatchData.gws = { out.X().v, out.Batch().v * out.Y().v, out.Feature().v };
+    dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo);
 
-    kd.gws0 = global[0];
-    kd.gws1 = global[1];
-    kd.gws2 = global[2];
-
-    kd.lws0 = local[0];
-    kd.lws1 = local[1];
-    kd.lws2 = local[2];
-
-    return kd;
+    return dispatchData;
 }
 
 void kernel_selector::LSTM_DynamicInputKernelBase::SetKernelArguments(const lstm_dynamic_input_params& params, clKernelData& kernel) const {
@@ -75,7 +66,7 @@ KernelsData LSTM_DynamicInputKernelBase::GetCommonKernelsData(const Params& para
 
     const lstm_dynamic_input_params& orgParams = static_cast<const lstm_dynamic_input_params&>(params);
 
-    auto run_info = SetDefault(orgParams);
+    auto dispatchData = SetDefault(orgParams);
     KernelData k_data = KernelData::Default<lstm_dynamic_input_params>(params, 1);
 
     auto cldnn_jit = GetJitConstants(orgParams);
@@ -83,7 +74,7 @@ KernelsData LSTM_DynamicInputKernelBase::GetCommonKernelsData(const Params& para
     auto jit = CreateJit(kernelName, cldnn_jit, entry_point);
 
     auto& kernel = k_data.kernels[0];
-    kernel.workGroups.global = {run_info.gws0, run_info.gws1, run_info.gws2};
+    kernel.workGroups.global = dispatchData.gws;
     kernel.kernelString = GetKernelString(kernelName, jit, entry_point, params.engineInfo);
     SetKernelArguments(orgParams, kernel);
 

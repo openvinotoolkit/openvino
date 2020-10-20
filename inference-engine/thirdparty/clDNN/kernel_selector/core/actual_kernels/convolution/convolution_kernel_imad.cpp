@@ -103,8 +103,8 @@ KernelsData ConvolutionKernel_imad::GetKernelsData(const Params& params, const o
     return GetCommonKernelsData(params, options);
 }
 
-JitConstants ConvolutionKernel_imad::GetJitConstants(const convolution_params& params, const DispatchData& kd) const {
-    auto mem_consts = Parent::GetJitConstants(params, kd);
+JitConstants ConvolutionKernel_imad::GetJitConstants(const convolution_params& params, const DispatchData& dispatchData) const {
+    auto mem_consts = Parent::GetJitConstants(params, dispatchData);
 
     const auto& input = params.inputs[0];
     const auto& output = params.output;
@@ -150,7 +150,7 @@ JitConstants ConvolutionKernel_imad::GetJitConstants(const convolution_params& p
 
 ConvolutionKernelBase::DispatchData ConvolutionKernel_imad::SetDefault(const convolution_params& params,
                                                                        int) const {
-    DispatchData kd;
+    DispatchData dispatchData;
 
     const auto& output = params.output;
     const auto& weights = params.weights;
@@ -158,34 +158,26 @@ ConvolutionKernelBase::DispatchData ConvolutionKernel_imad::SetDefault(const con
     size_t otw, oth;
     getOutBlock_WH(output.X().v, params.stride.x, weights.X().v, params.dilation.x, otw, oth);
 
-    std::vector<size_t> global = {// number of tiles needed to cover output width
-                                  CeilDiv(output.X().v, otw),
+    dispatchData.gws = { // number of tiles needed to cover output width
+                         CeilDiv(output.X().v, otw),
 
-                                  // number of tiles needed to cover output height
-                                  CeilDiv(output.Y().v, oth),
+                         // number of tiles needed to cover output height
+                         CeilDiv(output.Y().v, oth),
 
-                                  // round depth range up
-                                  Align(weights.OFM().v, SIMD_SIZE) * params.groups * output.Batch().v};
+                         // round depth range up
+                         Align(weights.OFM().v, SIMD_SIZE) * params.groups * output.Batch().v };
 
-    std::vector<size_t> local = {1, 1, SIMD_SIZE};
+    dispatchData.lws = {1, 1, SIMD_SIZE};
 
-    kd.gws0 = global[0];
-    kd.gws1 = global[1];
-    kd.gws2 = global[2];
-
-    kd.lws0 = local[0];
-    kd.lws1 = local[1];
-    kd.lws2 = local[2];
-
-    kd.cldnnStyle = {0, 0, 0, 0, 0};
-    kd.gemmStyle = {0, 0, 0, 0, 0, 0};
+    dispatchData.cldnnStyle = {0, 0, 0, 0, 0};
+    dispatchData.gemmStyle = {0, 0, 0, 0, 0, 0};
 
     // This kernel is quite slow for 1x1 and KHx1 kernels
     // TODO: check if we need any optimized kernels in this layout
     // If yes, we need to implement some customization for these cases.
-    kd.efficiency = FORCE_PRIORITY_3;
+    dispatchData.efficiency = FORCE_PRIORITY_3;
 
-    return kd;
+    return dispatchData;
 }  // SetDefault
 
 bool ConvolutionKernel_imad::Validate(const Params& params, const optional_params& options) const {

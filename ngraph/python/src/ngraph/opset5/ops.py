@@ -59,6 +59,29 @@ _get_node_factory_opset5 = partial(_get_node_factory, "opset5")
 
 
 @nameable_op
+def gather_nd(
+    data: NodeInput,
+    indices: NodeInput,
+    batch_dims: Optional[int] = 0,
+    name: Optional[str] = None,
+) -> Node:
+    """Return a node which performs GatherND.
+
+    :param data:       N-D tensor with data for gathering
+    :param indices:    K-D tensor of tuples with indices by which data is gathered
+    :param batch_dims: Scalar value of batch dimensions
+    :return: The new node which performs GatherND
+    """
+    inputs = as_nodes(data, indices)
+
+    attributes = {
+        "batch_dims": batch_dims
+    }
+
+    return _get_node_factory_opset5().create("GatherND", inputs, attributes)
+
+
+@nameable_op
 def log_softmax(data: NodeInput, axis: int, name: Optional[str] = None) -> Node:
     """Apply LogSoftmax operation on each element of input tensor.
 

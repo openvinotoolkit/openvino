@@ -40,7 +40,7 @@ onnx_model_matmul_integer_4d_no_zero_point
 onnx_model_qlinear_matmul
 onnx_model_qlinear_matmul_3d
 
-# Not supported ONNX op: GatherND
+# The indices input type i64 is not supported by the CPU plugin
 onnx_model_gatherND_int32
 onnx_model_gatherND_float
 
@@ -452,7 +452,6 @@ max_pool_3d
 avg_pool_2d_2channel_2image_padded_only_above_include_in_computation
 avg_pool_3d_uneven_strided_padded
 multiple_result
-lrn_across_hw
 lrn_across_all_dims
 elu
 elu_negative_alpha
@@ -787,6 +786,9 @@ gather_nd_batch_1d_from_2d
 gather_nd_batch_scalar_from_3d
 gather_nd_batch_1d_from_3d
 gather_nd_batch_2d_from_3d
+gather_nd_batch_dims1
+gather_nd_batch_dims2
+gather_nd_batch_dims2_lead_dims
 
 # Cannot cast ngraph node Stack to CNNLayer!
 stack_matrix_rowise
@@ -1335,7 +1337,6 @@ IE_GPU.max_3d_to_matrix_least_sig
 IE_GPU.max_3d_to_vector
 IE_GPU.max_3d_to_scalar
 IE_GPU.max_3d_to_scalar_int32
-IE_GPU.lrn_across_channel
 IE_GPU.log
 IE_GPU.gather_4d_indices_no_axis_2d_input
 IE_GPU.gather_3d_indices_no_axis_2d_input
@@ -1470,6 +1471,8 @@ IE_GPU.matmul_2x2_2x2
 IE_GPU.matmul_2x3_3x3
 IE_GPU.matmul_3x2_3x3_transpose
 IE_GPU.matmul_3x2_2x3_transpose
+IE_GPU.region_yolo_v2_caffe
+IE_GPU.region_yolo_v3_mxnet
 
 # Unsupported collapse op with dynamic shape
 IE_GPU.builder_opset1_collapse_dyn_shape
