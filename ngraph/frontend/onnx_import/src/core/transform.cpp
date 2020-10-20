@@ -29,7 +29,7 @@ void ngraph::onnx_import::transform::expand_onnx_functions(ONNX_NAMESPACE::Model
 
     for (int i = 0; i < graph_proto->node().size(); ++i)
     {
-        auto node = graph_proto->node()[i];
+        auto node = graph_proto->node().Get(i);
 
         // Check if node operation is one of the functions we want to expand
         if (std::find(onnx_functions_to_expand.begin(),
