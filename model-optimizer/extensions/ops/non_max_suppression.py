@@ -36,6 +36,7 @@ class NonMaxSuppression(Op):
             'output_type': np.int64,
             'center_point_box': 0,
             'box_encoding': 'corner',
+            'in_ports_count': 5,
             'sort_result_descending': 1,
             'force_precision_in_ports': {
                 2: 'int64'},
