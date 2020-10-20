@@ -23,7 +23,7 @@
 using namespace std;
 using namespace ngraph;
 
-constexpr NodeTypeInfo op::v0::BatchNormInference::type_info;
+NGRAPH_RTTI_DEFINITION(op::v0::BatchNormInference, "batchNormInference", 0);
 
 op::v0::BatchNormInference::BatchNormInference(const Output<Node>& input,
                                                const Output<Node>& gamma,
@@ -74,7 +74,7 @@ std::shared_ptr<Node>
         new_args.at(2), new_args.at(0), new_args.at(1), new_args.at(3), new_args.at(4), m_epsilon);
 }
 
-constexpr NodeTypeInfo op::v5::BatchNormInference::type_info;
+NGRAPH_RTTI_DEFINITION(op::v5::BatchNormInference, "BatchNormInference", 5);
 
 op::v5::BatchNormInference::BatchNormInference(const Output<Node>& input,
                                                const Output<Node>& gamma,

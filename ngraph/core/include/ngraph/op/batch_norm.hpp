@@ -31,8 +31,7 @@ namespace ngraph
             class NGRAPH_API BatchNormInference : public Op
             {
             public:
-                static constexpr NodeTypeInfo type_info{"BatchNormInference", 0};
-                const NodeTypeInfo& get_type_info() const override { return type_info; }
+                NGRAPH_RTTI_DECLARATION;
                 BatchNormInference() = default;
                 /// \param input [., C, ...]
                 /// \param gamma gamma scaling for normalized value. [C]
@@ -71,8 +70,7 @@ namespace ngraph
             class NGRAPH_API BatchNormInference : public Op
             {
             public:
-                static constexpr NodeTypeInfo type_info{"BatchNormInference", 0};
-                const NodeTypeInfo& get_type_info() const override { return type_info; }
+                NGRAPH_RTTI_DECLARATION;
                 BatchNormInference() = default;
                 /// \param input [., C, ...]
                 /// \param gamma gamma scaling for normalized value. [C]
