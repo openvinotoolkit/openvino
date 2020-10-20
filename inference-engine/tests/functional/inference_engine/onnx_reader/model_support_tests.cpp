@@ -22,6 +22,11 @@ TEST(ONNXReader_ModelSupported, basic_model) {
     EXPECT_NO_THROW(InferenceEngine::Core{}.ReadNetwork(model_path("supported/basic.onnx")));
 }
 
+TEST(ONNXReader_ModelSupported, basic_reverse_fields_order) {
+    // this model contains the same fields as basic.onnx but serialized in reverse order
+    EXPECT_NO_THROW(InferenceEngine::Core{}.ReadNetwork(model_path("supported/basic_reverse_fields_order.onnx")));
+}
+
 TEST(ONNXReader_ModelSupported, more_fields) {
     // this model contains some optional fields (producer_name and doc_string) but 5 fields in total
     EXPECT_NO_THROW(InferenceEngine::Core{}.ReadNetwork(model_path("supported/more_fields.onnx")));
