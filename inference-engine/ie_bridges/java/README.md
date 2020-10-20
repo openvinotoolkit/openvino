@@ -11,7 +11,7 @@ sudo apt-get install -y openjdk-11-jdk
 
 * Ubuntu 16.04
 ```bash
-sudo apt-get install -y openjdk-9-jdk
+sudo apt-get install -y openjdk-8-jdk
 ```
 
 ## Building on Linux
