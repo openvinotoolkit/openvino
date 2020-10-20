@@ -26,42 +26,6 @@ using namespace ngraph;
 
 namespace
 {
-    struct Counter
-    {
-        Counter(const Shape& shape)
-            : m_shape(shape)
-        {
-            m_indices.resize(m_shape.size() - 1, 0);
-            m_axis = m_indices.size();
-        }
-
-        size_t get_axis() { return m_axis; }
-        bool get_run() { return m_run; }
-        bool is_axis_upper_bound()
-        {
-            if (m_axis-- == 0)
-            {
-                m_run = false;
-                return false;
-            }
-
-            if (++m_indices[m_axis] != m_shape[m_axis])
-            {
-                m_axis = m_indices.size();
-                return false;
-            }
-
-            m_indices[m_axis] = 0;
-            return true;
-        }
-
-    private:
-        std::vector<int64_t> m_indices;
-        size_t m_axis;
-        bool m_run{true};
-        Shape m_shape;
-    };
-
     /// \brief For each axis calculates the product of inner axes
     /// If dims has shape (2, 3, 4) then for 2 (first axis) the inner axes would be (3, 4)
     /// and for 3 (second axis) it would be (4)
@@ -80,6 +44,23 @@ namespace
         pitch.back() = 1;
         return pitch;
     }
+
+    bool is_axis_upper_bound(std::vector<int64_t>& indices, int64_t& axis, const Shape& shape)
+    {
+        if (axis-- == 0)
+        {
+            return false;
+        }
+
+        if (++indices[axis] != shape[axis])
+        {
+            axis = indices.size();
+            return false;
+        }
+
+        indices[axis] = 0;
+        return true;
+    }
 }
 
 void runtime::reference::tile(const char* arg,
@@ -93,15 +74,15 @@ void runtime::reference::tile(const char* arg,
     in_shape_expanded.insert(in_shape_expanded.begin(), out_shape.size() - in_shape.size(), 1);
     size_t block_size = 0;
     int64_t num_repeats = 0;
-    std::vector<int64_t> indices(in_shape_expanded.size() - 1, 0);
-    size_t axis(indices.size());
     const int input_rank = in_shape_expanded.size();
     const int64_t last_dim = in_shape_expanded[input_rank - 1];
     const std::vector<int64_t> pitches = create_pitches(out_shape);
     const char* copy = nullptr;
-    Counter counter(in_shape_expanded);
 
-    while (counter.get_run())
+    std::vector<int64_t> indices(in_shape_expanded.size() - 1, 0);
+    int64_t axis = indices.size();
+
+    while (axis >= 0)
     {
         block_size = last_dim * elem_size;
         memcpy(out, arg, block_size);
@@ -116,12 +97,12 @@ void runtime::reference::tile(const char* arg,
             out += block_size;
         }
 
-        while (counter.is_axis_upper_bound())
+        while (is_axis_upper_bound(indices, axis, in_shape_expanded))
         {
-            ptrdiff_t pitch = pitches[counter.get_axis()] * in_shape_expanded[counter.get_axis()];
+            ptrdiff_t pitch = pitches[axis] * in_shape_expanded[axis];
             block_size = pitch * elem_size;
             copy = out - block_size;
-            num_repeats = repeats[counter.get_axis()] - 1;
+            num_repeats = repeats[axis] - 1;
             for (int64_t i = 0; i < num_repeats; i++)
             {
                 memcpy(out, copy, block_size);
