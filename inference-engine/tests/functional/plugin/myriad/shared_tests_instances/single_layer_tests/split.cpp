@@ -45,9 +45,9 @@ INSTANTIATE_TEST_CASE_P(smoke_SplitWithDiffOutsCheck, splitWithDiffOutsTest,
                                 ::testing::Values(InferenceEngine::Layout::ANY),
                                 ::testing::Values(InferenceEngine::Layout::ANY),
                                 ::testing::Values(std::vector<size_t >({30, 30, 30, 30})),
-                                ::testing::Values(std::vector<size_t >({0,2}),
-                                                  std::vector<size_t >({0,4}),
-                                                  std::vector<size_t >({2,3})),
+                                ::testing::Values(std::vector<size_t >({0, 2}),
+                                                  std::vector<size_t >({0, 4}),
+                                                  std::vector<size_t >({2, 3})),
                                 ::testing::Values(CommonTestUtils::DEVICE_MYRIAD)),
                         splitWithDiffOutsTest::getTestCaseName);
 }  // namespace
