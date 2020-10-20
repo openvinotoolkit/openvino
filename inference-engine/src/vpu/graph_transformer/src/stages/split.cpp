@@ -154,14 +154,15 @@ Stage StageBuilder::addSplitStage(
     std::vector<DimValues> offsets;
     offsets.reserve(outputs.size());
     DimValues curOffset({{axis, 0}});
-    
+
     auto getOutAxisSizes = [&]() {
         auto inputDims = layer->input()->getDims();
         auto firstOutDims = layer->outData[0]->getDims();
         int idx = 0;
         for (; idx < inputDims.size(); ++idx) {
-            if (inputDims[idx] != firstOutDims[idx]) 
+            if (inputDims[idx] != firstOutDims[idx]) {
                 break;
+                }
         }
         std::vector<size_t> outAxisSizes;
         outAxisSizes.reserve(inputDims.size());
@@ -170,7 +171,7 @@ Stage StageBuilder::addSplitStage(
         }
         return outAxisSizes;
     };
-    
+
     auto outAxisSizes = getOutAxisSizes();
     auto outputs_ = outputs;
     auto it = outAxisSizes.begin();
