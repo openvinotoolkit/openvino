@@ -143,8 +143,13 @@ std::vector<Edge> create_edge_mapping(std::map<ngraph::Node*, int>& layer_ids,
     return edges;
 }
 
+// TODO: refactor to Vistor API when Constant will be supporting it
 ConstantAtributes dump_constant_data(std::vector<uint8_t>& bin,
                                      const ngraph::op::Constant& c) {
+    NGRAPH_CHECK(c.get_output_partial_shape(0.).is_static(),
+                 "Dynamic shape of ", c.get_name(), " (", c.get_type_name(),
+                 ") ", "is not supported.");
+
     ConstantAtributes attr;
     const uint8_t* p = reinterpret_cast<const uint8_t*>(c.get_data_ptr());
     attr.size = ngraph::shape_size(c.get_shape()) * c.get_element_type().size();
@@ -165,13 +170,16 @@ std::string get_opset_name(const ngraph::Node* n) {
             return "opset" + std::to_string(number);
         }
     }
-    return "unknown";
+    return "experimental";
 }
 
 std::string get_type_name(const ngraph::Node* n) {
+    std::string name = n->get_type_name();
+    NGRAPH_CHECK(name != "GenericIE", "Type of ", n->get_name(), " (",
+                 n->get_type_name(), ") ", "is not supported.");
+
     const std::map<std::string, std::string> translator = {
         {"Constant", "Const"}};
-    std::string name = n->get_type_name();
     if (translator.count(name) > 0) {
         name = translator.at(name);
     }
@@ -216,18 +224,18 @@ std::string get_output_precision_name(ngraph::Output<Node>& o) {
 }
 
 std::string generate_unique_name(
-    const std::unordered_set<std::string>& unique_names, std::string name,
+    const std::unordered_set<std::string>& unique_names, std::string base_name,
     int suffix) {
-    std::string new_name = name + std::to_string(suffix);
+    std::string new_name = base_name + std::to_string(suffix);
     if (unique_names.find(new_name) == unique_names.end()) {
         return new_name;
     } else {
         suffix++;
-        return generate_unique_name(unique_names, name, suffix);
+        return generate_unique_name(unique_names, base_name, suffix);
     }
 }
 
-// TODO: remove when CNNNetwork will be suporting not-unique names
+// TODO: remove when CNNNetwork will be supporting not-unique names
 std::string get_node_unique_name(std::unordered_set<std::string>& unique_names,
                                  const ngraph::Node* n) {
     std::string name = n->get_friendly_name();
@@ -264,10 +272,9 @@ void ngfunction_2_irv10(pugi::xml_document& doc, std::vector<uint8_t>& bin,
 
         // <layers/data> general atributes
         XmlVisitor visitor{data};
-
-        if (!node->visit_attributes(visitor)) {
-            NGRAPH_CHECK(false, "Cannot visit  ", node->get_name());
-        }
+        NGRAPH_CHECK(node->visit_attributes(visitor),
+                     "Visitor API is not supported in ", node->get_name(),
+                     "of type ", node->get_type_name());
 
         // <layers/data> constant atributes (special case)
         if (auto constant = dynamic_cast<ngraph::op::Constant*>(node.get())) {
@@ -281,6 +288,10 @@ void ngfunction_2_irv10(pugi::xml_document& doc, std::vector<uint8_t>& bin,
         if (node->get_input_size() > 0) {
             pugi::xml_node input = layer.append_child("input");
             for (auto i : node->inputs()) {
+                NGRAPH_CHECK(i.get_partial_shape().is_static(),
+                             "Dynamic shape of ", node->get_name(), " (",
+                             node->get_type_name(), ") ", "is not supported.");
+
                 pugi::xml_node port = input.append_child("port");
                 port.append_attribute("id").set_value(port_id++);
                 for (auto d : i.get_shape()) {
@@ -295,6 +306,10 @@ void ngfunction_2_irv10(pugi::xml_document& doc, std::vector<uint8_t>& bin,
             !dynamic_cast<ngraph::op::Result*>(node.get())) {
             pugi::xml_node output = layer.append_child("output");
             for (auto o : node->outputs()) {
+                NGRAPH_CHECK(o.get_partial_shape().is_static(),
+                             "Dynamic shape of ", node->get_name(), " (",
+                             node->get_type_name(), ") ", "is not supported.");
+
                 pugi::xml_node port = output.append_child("port");
                 port.append_attribute("id").set_value(port_id++);
                 port.append_attribute("precision")
