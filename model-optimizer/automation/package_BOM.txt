@@ -370,6 +370,7 @@ extensions/front/tf/BatchMatMul_ext.py
 extensions/front/tf/BatchToSpaceNDToUpsample.py
 extensions/front/tf/BlockLSTM.py
 extensions/front/tf/BlockLSTM_ext.py
+extensions/front/tf/broadcast_ext.py
 extensions/front/tf/bucketize.py
 extensions/front/tf/bucketize_ext.py
 extensions/front/tf/Cast_ext.py
