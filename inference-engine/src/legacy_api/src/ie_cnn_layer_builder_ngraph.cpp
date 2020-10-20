@@ -824,7 +824,7 @@ CNNLayer::Ptr NodeConverter<ngraph::op::DeconvolutionIE>::createLayer(
     res->params["group"] = asString(castedLayer->get_group());
 
     const auto weightsNode = castedLayer->input_value(1).get_node_shared_ptr();
-    if (InferenceEngine::details::addBlob(layer, res, InferenceEngine::details::weights)) {
+    if (InferenceEngine::details::addBlob(weightsNode, res, InferenceEngine::details::weights)) {
         if (castedLayer->inputs().size() == 3) {
             const auto biasNode = castedLayer->input_value(2).get_node_shared_ptr();
             InferenceEngine::details::addBlob(biasNode, res, InferenceEngine::details::biases);
