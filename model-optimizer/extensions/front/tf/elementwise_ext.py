@@ -14,7 +14,7 @@
  limitations under the License.
 """
 from extensions.ops.elementwise import Add, Mul, Sub, Div, Maximum, Minimum, Pow, LogicalAnd, LogicalOr, Equal, \
-    GreaterEqual, Greater, Less, LessEqual, NotEqual, FloorMod, BiasAdd, SquaredDifference
+    GreaterEqual, Greater, Less, LessEqual, NotEqual, FloorMod, BiasAdd, SquaredDifference, Round
 from mo.front.extractor import FrontExtractorOp
 from mo.front.tf.extractors.utils import tf_dtype_extractor
 from mo.ops.eltwise_n import EltwiseNAdd
@@ -270,4 +270,14 @@ class FloorModFrontExtractor(FrontExtractorOp):
     @classmethod
     def extract(cls, node):
         FloorMod.update_node_stat(node)
+        return cls.enabled
+
+
+class RoundExtractor(FrontExtractorOp):
+    op = 'Round'
+    enabled = True
+
+    @classmethod
+    def extract(cls, node):
+        Round.update_node_stat(node, {'mode': 'half_to_even'})
         return cls.enabled

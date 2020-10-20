@@ -70,6 +70,7 @@ Standard MXNet\* symbols:
 | repeat | No |
 | rnn | No |
 | rnn_param_concat | No |
+| round | No |
 | sigmoid | No |
 | slice | No |
 | slice_axis | No |
@@ -385,6 +386,7 @@ Standard ONNX\* operators:
 | Reshape | No |
 | Resize | Coordinate transformation mode `tf_crop_and_resize` is not supported, `nearest` mode is not supported for 5D+ inputs. |
 | ReverseSequence | No |
+| Round | No |
 | Scatter | Supported if fuse-able to ScatterUpdate. MYRIAD only |
 | ScatterND | No |
 | ScatterElements | Supported if fuse-able to ScatterUpdate. MYRIAD only |

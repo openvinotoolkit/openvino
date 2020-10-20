@@ -16,7 +16,7 @@
 import numpy as np
 
 from extensions.ops.elementwise import Add, Sub, Mul, Div, Pow, Less, Equal, Greater, \
-    LogicalAnd, LogicalOr, LogicalXor
+    LogicalAnd, LogicalOr, LogicalXor, Round
 from mo.front.extractor import FrontExtractorOp
 from mo.front.onnx.extractors.utils import onnx_attr
 from mo.graph.graph import Node
@@ -187,4 +187,14 @@ class XorExtractor(FrontExtractorOp):
     @classmethod
     def extract(cls, node):
         LogicalXor.update_node_stat(node)
+        return cls.enabled
+
+
+class RoundFrontExtractor(FrontExtractorOp):
+    op = 'Round'
+    enabled = True
+
+    @classmethod
+    def extract(cls, node: Node):
+        Round.update_node_stat(node, {'mode': 'half_to_even'})
         return cls.enabled
