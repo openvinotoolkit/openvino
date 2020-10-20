@@ -44,7 +44,7 @@ public:
     using DispatchData = CommonDispatchData;
 
 protected:
-    virtual JitConstants GetJitConstants(const ctc_greedy_decoder_params& params, DispatchData kd) const;
+    virtual JitConstants GetJitConstants(const ctc_greedy_decoder_params& params, DispatchData dispatchData) const;
     virtual DispatchData SetDefault(const ctc_greedy_decoder_params& params) const;
     KernelsData GetCommonKernelsData(const Params& params, const optional_params&, float estimated_time) const;
 };

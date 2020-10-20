@@ -24,7 +24,7 @@ ParamsKey SoftmaxKerneItemsClassOptimized::GetSupportedKey() const { return GetD
 SoftmaxKerneItemsClassOptimized::Parent::DispatchData SoftmaxKerneItemsClassOptimized::SetDefault(
     const softmax_params& params,
     const optional_params& optParams) const {
-    auto runInfo = Parent::SetDefault(params, optParams);
+    auto dispatchData = Parent::SetDefault(params, optParams);
 
     auto& input = params.inputs[0];
 
@@ -50,30 +50,27 @@ SoftmaxKerneItemsClassOptimized::Parent::DispatchData SoftmaxKerneItemsClassOpti
             break;
     }
 
-    runInfo.gws0 = global[0];
-    runInfo.gws1 =
-        global[1] * workitems_per_classes;  // we multiply it by workitems_per_classes because we split computations of
-                                            // one "full item classes output" into multiple workitems by "full item
-                                            // classes output" i mean N outputs where N is number of item classes.
-    runInfo.gws2 = global[2];
+    dispatchData.gws[0] = global[0];
+    dispatchData.gws[1] = global[1] * workitems_per_classes;  // we multiply it by workitems_per_classes because we split computations of
+                                                         // one "full item classes output" into multiple workitems by "full item
+                                                         // classes output" i mean N outputs where N is number of item classes.
+    dispatchData.gws[2] = global[2];
 
-    runInfo.lws0 = 1;
-    runInfo.lws1 = workitems_per_classes;
-    runInfo.lws2 = 1;
+    dispatchData.lws = { 1, workitems_per_classes, 1 };
 
-    runInfo.leftovers = item_class_count % workitems_per_classes;
+    dispatchData.leftovers = item_class_count % workitems_per_classes;
 
     if (item_class_count >= 32) {
-        runInfo.efficiency = FORCE_PRIORITY_7;
+        dispatchData.efficiency = FORCE_PRIORITY_7;
     } else {
-        runInfo.efficiency = DONT_USE_IF_HAVE_SOMETHING_ELSE;
+        dispatchData.efficiency = DONT_USE_IF_HAVE_SOMETHING_ELSE;
     }
 
-    return runInfo;
+    return dispatchData;
 }
 
-JitConstants SoftmaxKerneItemsClassOptimized::GetJitConstants(const softmax_params& params, DispatchData kd) const {
-    auto jit = SoftmaxItemsClassKernelBase::GetJitConstants(params, kd);
+JitConstants SoftmaxKerneItemsClassOptimized::GetJitConstants(const softmax_params& params, DispatchData dispatchData) const {
+    auto jit = SoftmaxItemsClassKernelBase::GetJitConstants(params, dispatchData);
 
     jit.AddConstant(MakeJitConstant("WORKITEMS_PER_CLASSES", workitems_per_classes));
     jit.AddConstant(MakeJitConstant("HAS_DRIVER_PROBLEMS", params.engineInfo.bIMADSupport));

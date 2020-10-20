@@ -82,28 +82,20 @@ FullyConnectedKernelMMAD::FullyConnectedTuningData FullyConnectedKernelMMAD::Set
 FullyConnectedKernelMMAD::DispatchData FullyConnectedKernelMMAD::SetDefault(const fully_connected_params& params,
                                                                             int) const {
     FullyConnectedTuningData tuning_data = SetTuningParams(params);
-    auto runInfo = Parent::SetDefault(params);
+    auto dispatchData = Parent::SetDefault(params);
     const auto& output = params.output;
 
-    std::vector<size_t> global = { Align(output.Feature().v, tuning_data.sub_group_size) * tuning_data.slm_div_factor, output.Batch().v, 1 };
-    std::vector<size_t> local = { tuning_data.work_group_size, 1, 1 };
+    dispatchData.gws = { Align(output.Feature().v, tuning_data.sub_group_size) * tuning_data.slm_div_factor, output.Batch().v, 1 };
+    dispatchData.lws = { tuning_data.work_group_size, 1, 1 };
 
-    runInfo.gws0 = global[0];
-    runInfo.gws1 = global[1];
-    runInfo.gws2 = global[2];
-
-    runInfo.lws0 = local[0];
-    runInfo.lws1 = local[1];
-    runInfo.lws2 = local[2];
-
-    return runInfo;
+    return dispatchData;
 }
 
 JitConstants FullyConnectedKernelMMAD::GetJitConstants(const fully_connected_params& params,
-                                                       const DispatchData& runInfo) const {
+                                                       const DispatchData& dispatchData) const {
     FullyConnectedTuningData tuning_data = SetTuningParams(params);
 
-    auto jit = Parent::GetJitConstants(params, runInfo);
+    auto jit = Parent::GetJitConstants(params, dispatchData);
 
     auto& input = params.inputs[0];
     auto& weights = params.weights;

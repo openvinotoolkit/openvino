@@ -30,7 +30,6 @@
 #include "ngraph/runtime/aligned_buffer.hpp"
 #include "ngraph/runtime/reference/abs.hpp"
 #include "ngraph/runtime/reference/acos.hpp"
-#include "ngraph/runtime/reference/any.hpp"
 #include "ngraph/runtime/reference/asin.hpp"
 #include "ngraph/runtime/reference/atan.hpp"
 #include "ngraph/runtime/reference/atan2.hpp"
@@ -63,6 +62,7 @@
 #include "ngraph/runtime/reference/gather_tree.hpp"
 #include "ngraph/runtime/reference/gru_cell.hpp"
 #include "ngraph/runtime/reference/log.hpp"
+#include "ngraph/runtime/reference/log_softmax.hpp"
 #include "ngraph/runtime/reference/lrn.hpp"
 #include "ngraph/runtime/reference/lstm_cell.hpp"
 #include "ngraph/runtime/reference/matmul.hpp"
@@ -77,6 +77,7 @@
 #include "ngraph/runtime/reference/prior_box.hpp"
 #include "ngraph/runtime/reference/product.hpp"
 #include "ngraph/runtime/reference/quantize.hpp"
+#include "ngraph/runtime/reference/region_yolo.hpp"
 #include "ngraph/runtime/reference/relu.hpp"
 #include "ngraph/runtime/reference/reorg_yolo.hpp"
 #include "ngraph/runtime/reference/replace_slice.hpp"
@@ -205,16 +206,6 @@ protected:
             size_t element_count = shape_size(node.get_output_shape(0));
             reference::acos<T>(
                 args[0]->get_data_ptr<const T>(), out[0]->get_data_ptr<T>(), element_count);
-            break;
-        }
-        case OP_TYPEID::Any:
-        {
-            const op::Any* any = static_cast<const op::Any*>(&node);
-            reference::any(args[0]->get_data_ptr<const char>(),
-                           out[0]->get_data_ptr<char>(),
-                           node.get_input_shape(0),
-                           any->get_reduction_axes(),
-                           false);
             break;
         }
         case OP_TYPEID::Asin:
@@ -884,6 +875,20 @@ protected:
                 args[0]->get_data_ptr<const T>(), out[0]->get_data_ptr<T>(), element_count);
             break;
         }
+        case OP_TYPEID::LogSoftmax_v5:
+        {
+            const op::v5::LogSoftmax* log_softmax = static_cast<const op::v5::LogSoftmax*>(&node);
+            int64_t i_axis = log_softmax->get_axis();
+            if (i_axis < 0)
+            {
+                i_axis += args[0]->get_partial_shape().rank().get_length();
+            }
+            reference::log_softmax<T>(args[0]->get_data_ptr<const T>(),
+                                      out[0]->get_data_ptr<T>(),
+                                      node.get_output_shape(0),
+                                      AxisSet{(size_t)i_axis});
+            break;
+        }
         case OP_TYPEID::LRN:
         {
             const op::LRN* lrn = static_cast<const op::LRN*>(&node);
@@ -1185,6 +1190,19 @@ protected:
                 throw std::runtime_error(ss.str());
             }
 
+            break;
+        }
+        case OP_TYPEID::RegionYolo_v0:
+        {
+            const op::RegionYolo* region_yolo = static_cast<const op::RegionYolo*>(&node);
+            reference::region_yolo<T>(args[0]->get_data_ptr<const T>(),
+                                      out[0]->get_data_ptr<T>(),
+                                      args[0]->get_shape(),
+                                      region_yolo->get_num_coords(),
+                                      region_yolo->get_num_classes(),
+                                      region_yolo->get_num_regions(),
+                                      region_yolo->get_do_softmax(),
+                                      region_yolo->get_mask());
             break;
         }
         case OP_TYPEID::Relu:
