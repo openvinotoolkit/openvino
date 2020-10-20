@@ -79,6 +79,7 @@ class Loop(TensorIterator):
 
     @staticmethod
     def updated_loop_output_ports_shape_and_value(loop_node: Node):
+        loop_name = loop_node.soft_get('name', loop_node.id)
         for record in loop_node.output_port_map:
             body_node = Loop.get_body_node_by_internal_id(loop_node, record['internal_layer_id'])
             assert body_node is not None
@@ -88,10 +89,34 @@ class Loop(TensorIterator):
             if loop_port_idx != -1:  # the id = -1 for execution condition output which is not connected anywhere
                 output_value = body_node.in_port(0).data.get_value()
                 output_shape = body_node.in_port(0).data.get_shape()
-                if output_value is not None:
+                concat_axis = record['axis']
+                if concat_axis is not None:
+                    assert output_shape[concat_axis] == 1, 'Dimension for concatenation is not equal to 1 for scan ' \
+                                                           'output for Loop node "{}" for loop output port "{}"'.\
+                        format(loop_name, loop_port_idx)
+                    output_shape[concat_axis] = Loop.iterations_count(loop_node)
+                    assert output_shape[concat_axis] is not None, 'Dynamic number of iterations for Loop node "{}"' \
+                                                                  ''.format(loop_name)
+                # MO does not support evaluation of Loop scan outputs with const values
+                if concat_axis is None and output_value is not None:
                     loop_node.out_port(loop_port_idx).data.set_value(output_value)
                 else:
                     loop_node.out_port(loop_port_idx).data.set_shape(output_shape)
+
+    @staticmethod
+    def iterations_count(loop_node: Node):
+        assert loop_node.soft_get('type') == 'Loop'
+
+        if loop_node.is_in_port_connected(1):
+            execution_condition = loop_node.in_port(1).data.get_value()
+            if execution_condition is None:  # dynamic execution condition
+                return None
+            if not execution_condition:  # 0 iterations
+                return 0
+        num_iterations = loop_node.in_port(0).data.get_value()
+        if num_iterations is not None:
+            num_iterations = num_iterations.item(0)
+        return num_iterations
 
     @staticmethod
     def updated_body_parameters_type(loop_node: Node):
