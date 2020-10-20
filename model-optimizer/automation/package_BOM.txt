@@ -150,7 +150,6 @@ extensions/front/kaldi/tanh_component_ext.py
 extensions/front/kaldi/tdnn_component_replacer.py
 extensions/front/LayerNorm.py
 extensions/front/Log1p.py
-extensions/front/LogSoftmax.py
 extensions/front/MatMul_normalizer.py
 extensions/front/Mish_fusion.py
 extensions/front/MoveEmbeddedInputsToInputs.py
@@ -390,6 +389,7 @@ extensions/front/tf/identity_ext.py
 extensions/front/tf/identityN_to_identity.py
 extensions/front/tf/InterpolateTransposes.py
 extensions/front/tf/IteratorGetNext_ext.py
+extensions/front/tf/log_softmax_ext.py
 extensions/front/tf/LookupTableInsert_ext.py
 extensions/front/tf/LoopCond_ext.py
 extensions/front/tf/lrn_ext.py
@@ -905,6 +905,7 @@ mo/ops/expand_dims.py
 mo/ops/fill.py
 mo/ops/flatten.py
 mo/ops/group_norm.py
+mo/ops/log_softmax.py
 mo/ops/lrn.py
 mo/ops/lstmnonlinearity.py
 mo/ops/memory.py
