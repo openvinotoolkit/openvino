@@ -210,6 +210,12 @@ DECL_PASS(FuseFQIntoWeights);
 DECL_PASS(MoveFakeQuantizeLayerIntoQuantParams);
 
 
+/**
+* @brief runs static quantisation on given floating weights and replaces fakeQuantize with constblobs
+*/
+DECL_PASS(FuseFQIntoWeights);
+
+
 struct PassManagerSettings {
     Policy policy;
     /// @brief whether to run passes before copy

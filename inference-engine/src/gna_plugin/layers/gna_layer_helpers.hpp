@@ -42,3 +42,4 @@ inline InferenceEngine::Blob::Ptr getParamFromInputAsBlob(InferenceEngine::CNNLa
 }
 }  // namespace LayerUtils
 }  // namespace GNAPluginNS
+
