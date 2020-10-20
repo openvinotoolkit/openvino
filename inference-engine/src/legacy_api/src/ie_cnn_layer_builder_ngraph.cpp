@@ -1315,43 +1315,6 @@ CNNLayer::Ptr NodeConverter<ngraph::op::ShuffleChannels>::createLayer(const std:
 }
 
 template <>
-CNNLayer::Ptr NodeConverter<ngraph::op::DetectionOutput>::createLayer(
-    const std::shared_ptr<ngraph::Node>& layer) const {
-    LayerParams params = {layer->get_friendly_name(), "DetectionOutput",
-                          details::convertPrecision(layer->get_output_element_type(0))};
-    auto res = std::make_shared<InferenceEngine::CNNLayer>(params);
-
-    auto castedLayer = ngraph::as_type_ptr<ngraph::op::DetectionOutput>(layer);
-    if (castedLayer == nullptr) THROW_IE_EXCEPTION << "Cannot get " << params.type << " layer " << params.name;
-
-    auto attr = castedLayer->get_attrs();
-    std::string param;
-
-    res->params["num_classes"] = asString(attr.num_classes);
-    res->params["background_label_id"] = asString(attr.background_label_id);
-    res->params["top_k"] = asString(attr.top_k);
-    res->params["variance_encoded_in_target"] = (attr.variance_encoded_in_target ? "1" : "0");
-    for (const auto& val : attr.keep_top_k) {
-        if (!param.empty()) param += ",";
-        param += asString(val);
-    }
-    res->params["keep_top_k"] = param;
-    res->params["code_type"] = attr.code_type;
-    res->params["share_location"] = (attr.share_location ? "1" : "0");
-    res->params["nms_threshold"] = asString(attr.nms_threshold);
-    res->params["confidence_threshold"] = asString(attr.confidence_threshold);
-    res->params["clip_after_nms"] = (attr.clip_after_nms ? "1" : "0");
-    res->params["clip_before_nms"] = (attr.clip_before_nms ? "1" : "0");
-    res->params["decrease_label_id"] = (attr.decrease_label_id ? "1" : "0");
-    res->params["normalized"] = (attr.normalized ? "1" : "0");
-    res->params["input_height"] = asString(attr.input_height);
-    res->params["input_width"] = asString(attr.input_width);
-    res->params["objectness_score"] = asString(attr.objectness_score);
-
-    return res;
-}
-
-template <>
 CNNLayer::Ptr NodeConverter<ngraph::op::ProposalIE>::createLayer(const std::shared_ptr<ngraph::Node>& layer) const {
     LayerParams params = {layer->get_friendly_name(), "Proposal",
                           details::convertPrecision(layer->get_output_element_type(0))};

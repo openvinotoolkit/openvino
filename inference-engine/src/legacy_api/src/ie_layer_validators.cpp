@@ -939,11 +939,11 @@ void DetectionOutputValidator::parseParams(CNNLayer* layer) {
         int _background_label_id = layer->GetParamAsUInt("background_label_id", -1);
     if (layer->CheckParamPresence("top_k")) int _top_k = layer->GetParamAsUInt("top_k", -1);
     if (layer->CheckParamPresence("variance_encoded_in_target"))
-        bool _variance_encoded_in_target = static_cast<bool>(layer->GetParamAsUInt("variance_encoded_in_target"));
+        bool _variance_encoded_in_target = static_cast<bool>(layer->GetParamAsUInt("variance_encoded_in_target", 0));
     if (layer->CheckParamPresence("num_orient_classes"))
         int _num_orient_classes = layer->GetParamAsUInt("num_orient_classes");
     if (layer->CheckParamPresence("share_location"))
-        bool _share_location = static_cast<bool>(layer->GetParamAsUInt("share_location"));
+        bool _share_location = static_cast<bool>(layer->GetParamAsUInt("share_location", 1));
     if (layer->CheckParamPresence("interpolate_orientation"))
         int _interpolate_orientation = layer->GetParamAsInt("interpolate_orientation");
     if (layer->CheckParamPresence("confidence_threshold")) {
@@ -955,7 +955,11 @@ void DetectionOutputValidator::parseParams(CNNLayer* layer) {
 
     if (layer->CheckParamPresence("code_type")) {
         std::string _code_type = layer->GetParamAsString("code_type");
-        std::vector<std::string> code_types = {"caffe.PriorBoxParameter.CENTER_SIZE", "caffe.PriorBoxParameter.CORNER"};
+        for (auto& c: _code_type)
+        {
+            c = std::tolower(c);
+        }
+        std::vector<std::string> code_types = {"caffe.priorboxparameter.center_size", "caffe.priorboxparameter.corner"};
         auto it = std::find(code_types.begin(), code_types.end(), _code_type);
         if (it == code_types.end()) {
             THROW_IE_EXCEPTION << "Parameter code_type of DetectionOutput layer ";

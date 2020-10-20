@@ -94,6 +94,11 @@ public:
         params[name] = data;
     }
 
+    void on_adapter(const std::string& name, ::ngraph::ValueAccessor<std::vector<int32_t>>& adapter) override {
+        auto shape = adapter.get();
+        params[name] = joinVec(shape);
+    }
+
     void on_adapter(const std::string& name, ::ngraph::ValueAccessor<std::vector<int64_t>>& adapter) override {
         auto shape = adapter.get();
         params[name] = joinVec(shape);
@@ -418,7 +423,8 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
     });
 
     addSpecificCreator({"DeconvolutionIE"},
-                       [](const std::shared_ptr<::ngraph::Node> &node, const std::map<std::string, std::string> &params) -> CNNLayerPtr {
+                       [](const std::shared_ptr<::ngraph::Node> &node,
+                          const std::map<std::string, std::string> &params) -> CNNLayerPtr {
         LayerParams attrs = {node->get_friendly_name(), "Deconvolution",
                              details::convertPrecision(node->get_output_element_type(0))};
         auto res = std::make_shared<DeconvolutionLayer>(attrs);
@@ -449,6 +455,24 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
                 }
             }
         }
+        return res;
+    });
+
+    addSpecificCreator({"DetectionOutput"},
+                       [](const std::shared_ptr<::ngraph::Node> &node,
+                          const std::map<std::string, std::string> &params) -> CNNLayerPtr {
+        LayerParams attrs = {node->get_friendly_name(), "DetectionOutput",
+                            details::convertPrecision(node->get_output_element_type(0))};
+        auto res = std::make_shared<InferenceEngine::CNNLayer>(attrs);
+
+        res->params = params;
+        if (res->params["code_type"] == "caffe.priorboxparameter.center_size"){
+            res->params["code_type"] = "caffe.PriorBoxParameter.CENTER_SIZE";
+        }
+        else{
+            res->params["code_type"] =  "caffe.PriorBoxParameter.CORNER";
+        }
+
         return res;
     });
 
@@ -565,12 +589,9 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
             details::convertPrecision(node->get_output_element_type(0))};
         auto res = std::make_shared<InferenceEngine::StridedSliceLayer>(attrs);
         auto stridedSliceInvertMaskStr = [](const std::string& str) -> std::string {
-            std::regex reg(",+");
-            std::sregex_token_iterator iter(str.begin(), str.end(), reg, -1), end;
-
-            std::vector<std::string> found_numbers(iter, end);
             std::string value;
-            for(const auto& val:found_numbers)
+            auto found_numbers = details::split(str,",");
+            for (const auto &val : found_numbers)
             {
                 if (!value.empty())
                     value += ",";
