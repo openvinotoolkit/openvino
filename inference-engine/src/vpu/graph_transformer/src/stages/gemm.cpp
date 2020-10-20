@@ -108,7 +108,7 @@ void FrontEnd::parseGEMM(const Model& model, const ie::CNNLayerPtr& _layer, cons
     VPU_THROW_UNLESS(input2->desc().numDims() >= 2 && input2->desc().numDims() <= 4,
         "Processing layer {} with type {} failed: second inputs' ({} with usage {}) dimensions number should be in range [2, 4], but it actually has {}",
         _layer->name, _layer->type, input2->name(), input2->usage(), input2->desc().numDims());
-    VPU_THROW_UNLESS(inputs.size() == 3 && inputs[2]->desc().numDims() >= 2 && inputs[2]->desc().numDims() <= 4,
+    VPU_THROW_UNLESS(inputs.size() < 3 || inputs[2]->desc().numDims() >= 2 && inputs[2]->desc().numDims() <= 4,
         "Processing layer {} with type {} failed: third inputs' ({} with usage {}) dimensions number should be in range [2, 4], but it actually has {}",
         _layer->name, _layer->type, inputs[2]->name(), inputs[2]->usage(), inputs[2]->desc().numDims());
 
