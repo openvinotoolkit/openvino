@@ -105,12 +105,11 @@ class Computation(object):
             cnn_network = IENetwork(capsule)
             if self.function.is_dynamic():
                 cnn_network.reshape(dict(zip(param_names, input_shapes)))
+            # Convert inputs of the network from I64 to I32
+            convert_i64_to_i32(cnn_network)
             self.network_cache[str(input_shapes)] = cnn_network
         else:
             cnn_network = self.network_cache[str(input_shapes)]
-
-        # Convert inputs of the network from I64 to I32
-        convert_i64_to_i32(cnn_network)
 
         executable_network = self.runtime.backend.load_network(cnn_network, self.runtime.backend_name)
 
