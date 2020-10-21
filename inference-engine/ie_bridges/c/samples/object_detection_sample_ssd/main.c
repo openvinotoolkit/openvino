@@ -363,7 +363,7 @@ int main(int argc, char **argv) {
     // 4. Read a model in OpenVINO Intermediate Representation (.xml and .bin files) or ONNX (.onnx file) format
     printf("%sLoading network files:\n", info);
     printf("\t%s\n", input_model);
-    
+
     if (getFileNameExt(input_model) == "xml") {
         //read .bin weights for IR format only
         input_weight = (char*)calloc(strlen(input_model) + 1, sizeof(char));
