@@ -9,7 +9,7 @@
 #include "ngraph/ngraph.hpp"
 #include "transformations/serialize.hpp"
 
-#ifndef IR_SERIALIZATION_MODELS_PATH
+#ifndef IR_SERIALIZATION_MODELS_PATH  // should be already defined by cmake
 #define IR_SERIALIZATION_MODELS_PATH ""
 #endif
 
@@ -34,7 +34,7 @@ protected:
     }
 };
 
-TEST_F(SerializationTransformationTest, Basic_DirectCall) {
+TEST_F(SerializationTransformationTest, DirectInstantiation) {
     ngraph::pass::Serialize transform{m_out_xml_path, m_out_bin_path};
     transform.run_on_function(m_function);
 
@@ -44,7 +44,7 @@ TEST_F(SerializationTransformationTest, Basic_DirectCall) {
     ASSERT_TRUE(bin.good());
 }
 
-TEST_F(SerializationTransformationTest, Basic_ViaManager) {
+TEST_F(SerializationTransformationTest, PassManagerInstantiation) {
     ngraph::pass::Manager manager;
     manager.register_pass<ngraph::pass::Serialize>(m_out_xml_path,
                                                    m_out_bin_path);

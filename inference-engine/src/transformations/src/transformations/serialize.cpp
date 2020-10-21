@@ -34,10 +34,6 @@ struct Edge {
     int from_port = 0;
     int to_layer = 0;
     int to_port = 0;
-
-    Edge() = default;
-    Edge(int a, int b, int c, int d)
-        : from_layer{a}, from_port{b}, to_layer{c}, to_port{d} {}
 };
 
 struct ConstantAtributes {
@@ -45,14 +41,14 @@ struct ConstantAtributes {
     int offset = 0;
 };
 
-template <typename T>
-std::string create_atribute_list(
-    ngraph::ValueAccessor<std::vector<T>>& adapter) {
-    return joinVec(adapter.get(), std::string(","));
-}
-
 class XmlVisitor : public ngraph::AttributeVisitor {
     pugi::xml_node m_data;
+
+    template <typename T>
+    std::string create_atribute_list(
+        ngraph::ValueAccessor<std::vector<T>>& adapter) {
+        return joinVec(adapter.get(), std::string(","));
+    }
 
 public:
     XmlVisitor(pugi::xml_node& data) : m_data(data) {}
@@ -105,7 +101,7 @@ public:
     }
 };
 
-std::map<ngraph::Node*, int> create_layer_ids(const ngraph::Function& f) {
+const std::map<ngraph::Node*, int> create_layer_ids(const ngraph::Function& f) {
     std::map<ngraph::Node*, int> layer_ids;
     int id = 0;
     for (auto node : f.get_ordered_ops()) {
@@ -114,8 +110,8 @@ std::map<ngraph::Node*, int> create_layer_ids(const ngraph::Function& f) {
     return layer_ids;
 }
 
-std::vector<Edge> create_edge_mapping(std::map<ngraph::Node*, int>& layer_ids,
-                                      const ngraph::Function& f) {
+const std::vector<Edge> create_edge_mapping(
+    const std::map<ngraph::Node*, int>& layer_ids, const ngraph::Function& f) {
     std::vector<Edge> edges;
     for (auto node : f.get_ordered_ops()) {
         if (dynamic_cast<ngraph::op::Parameter*>(node.get()) != nullptr) {
@@ -127,11 +123,16 @@ std::vector<Edge> create_edge_mapping(std::map<ngraph::Node*, int>& layer_ids,
             auto source_node = source_output.get_node();
             auto current_node = i.get_node();
 
+            NGRAPH_CHECK(layer_ids.find(source_node) != layer_ids.end(),
+                         "Internal error.");
+            NGRAPH_CHECK(layer_ids.find(current_node) != layer_ids.end(),
+                         "Internal error.");
+
             Edge e{};
-            e.from_layer = layer_ids[source_node];
+            e.from_layer = layer_ids.find(source_node)->second;
             e.from_port =
                 source_node->get_input_size() + source_output.get_index();
-            e.to_layer = layer_ids[current_node];
+            e.to_layer = layer_ids.find(current_node)->second;
             e.to_port = i.get_index();
             edges.push_back(e);
         }
@@ -253,19 +254,22 @@ void ngfunction_2_irv10(pugi::xml_document& doc, std::vector<uint8_t>& bin,
     netXml.append_attribute("version").set_value("10");
     pugi::xml_node layers = netXml.append_child("layers");
 
-    auto layer_ids = create_layer_ids(f);
+    const std::map<ngraph::Node*, int> layer_ids = create_layer_ids(f);
     std::unordered_set<std::string> unique_names;
 
-    for (auto node : f.get_ordered_ops()) {
+    for (auto n : f.get_ordered_ops()) {
+        ngraph::Node* node = n.get();
+
+        NGRAPH_CHECK(layer_ids.find(node) != layer_ids.end(),
+                     "Internal error.");
         // <layers>
         pugi::xml_node layer = layers.append_child("layer");
-        layer.append_attribute("id").set_value(layer_ids[node.get()]);
+        layer.append_attribute("id").set_value(layer_ids.find(node)->second);
         layer.append_attribute("name").set_value(
-            get_node_unique_name(unique_names, node.get()).c_str());
-        layer.append_attribute("type").set_value(
-            get_type_name(node.get()).c_str());
+            get_node_unique_name(unique_names, node).c_str());
+        layer.append_attribute("type").set_value(get_type_name(node).c_str());
         layer.append_attribute("version").set_value(
-            get_opset_name(node.get()).c_str());
+            get_opset_name(node).c_str());
 
         // <layers/data>
         pugi::xml_node data = layer.append_child("data");
@@ -277,7 +281,7 @@ void ngfunction_2_irv10(pugi::xml_document& doc, std::vector<uint8_t>& bin,
                      "of type ", node->get_type_name());
 
         // <layers/data> constant atributes (special case)
-        if (auto constant = dynamic_cast<ngraph::op::Constant*>(node.get())) {
+        if (auto constant = dynamic_cast<ngraph::op::Constant*>(node)) {
             ConstantAtributes attr = dump_constant_data(bin, *constant);
             data.append_attribute("offset").set_value(attr.offset);
             data.append_attribute("size").set_value(attr.size);
@@ -303,7 +307,7 @@ void ngfunction_2_irv10(pugi::xml_document& doc, std::vector<uint8_t>& bin,
         }
         // <layers/output>
         if ((node->get_output_size() > 0) &&
-            !dynamic_cast<ngraph::op::Result*>(node.get())) {
+            !dynamic_cast<ngraph::op::Result*>(node)) {
             pugi::xml_node output = layer.append_child("output");
             for (auto o : node->outputs()) {
                 NGRAPH_CHECK(o.get_partial_shape().is_static(),
@@ -323,7 +327,7 @@ void ngfunction_2_irv10(pugi::xml_document& doc, std::vector<uint8_t>& bin,
         }
     }
     // <edges>
-    std::vector<Edge> edge_mapping = create_edge_mapping(layer_ids, f);
+    const std::vector<Edge> edge_mapping = create_edge_mapping(layer_ids, f);
     pugi::xml_node edges = netXml.append_child("edges");
     for (auto e : edge_mapping) {
         pugi::xml_node edge = edges.append_child("edge");

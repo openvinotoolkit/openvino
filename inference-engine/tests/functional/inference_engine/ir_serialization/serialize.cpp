@@ -4,15 +4,11 @@
 
 #include <fstream>
 
-#include <gtest/gtest.h>
-
-#include <ie_core.hpp>
-#include <ngraph/ngraph.hpp>
 #include "common_test_utils/ngraph_test_utils.hpp"
-#include "ngraph/attribute_visitor.hpp"
-#include "pugixml.hpp"
+#include "gtest/gtest.h"
+#include "ie_core.hpp"
 
-#ifndef IR_SERIALIZATION_MODELS_PATH
+#ifndef IR_SERIALIZATION_MODELS_PATH  // should be already defined by cmake
 #define IR_SERIALIZATION_MODELS_PATH ""
 #endif
 

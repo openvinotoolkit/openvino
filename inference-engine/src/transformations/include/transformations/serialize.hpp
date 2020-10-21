@@ -1,13 +1,19 @@
 // Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
-//
+
+// ATTENTION :
+// - dynamic shapes are not supported
+// - GenericIE operation type (experimental opset) is not supported
+// - order of generated layers in xml file is ngraph specific (given by
+// get_ordered_ops()); MO generates file with different order, but they are
+// logically equivalent
 
 #pragma once
 
 #include <string>
 
-#include <ngraph/pass/pass.hpp>
-#include <transformations_visibility.hpp>
+#include "ngraph/pass/pass.hpp"
+#include "transformations_visibility.hpp"
 
 namespace ngraph {
 namespace pass {
