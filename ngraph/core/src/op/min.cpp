@@ -91,7 +91,10 @@ shared_ptr<Node> op::v0::Min::get_default_value() const
 namespace minop
 {
     template <element::Type_t ET>
-    bool evaluate(const HostTensorPtr& arg, const HostTensorPtr& out, const AxisSet& axes, bool keep_dims)
+    bool evaluate(const HostTensorPtr& arg,
+                  const HostTensorPtr& out,
+                  const AxisSet& axes,
+                  bool keep_dims)
     {
         out->set_shape(reduce(arg->get_shape(), axes, keep_dims));
         runtime::reference::min(
@@ -99,7 +102,10 @@ namespace minop
         return true;
     }
 
-    bool evaluate_min(const HostTensorPtr& arg, const HostTensorPtr& out, const AxisSet& axes, bool keep_dims)
+    bool evaluate_min(const HostTensorPtr& arg,
+                      const HostTensorPtr& out,
+                      const AxisSet& axes,
+                      bool keep_dims)
     {
         bool rc = true;
         switch (arg->get_element_type())
