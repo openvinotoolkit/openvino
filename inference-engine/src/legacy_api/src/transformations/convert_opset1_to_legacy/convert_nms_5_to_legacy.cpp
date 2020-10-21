@@ -38,24 +38,30 @@ ngraph::pass::ConvertNMS5ToLegacyMatcher::ConvertNMS5ToLegacyMatcher() {
         NodeVector new_ops;
 
         auto one_dim_shape = Shape{1};
-        auto new_max_per_class = std::make_shared<ngraph::op::Reshape>(arg2,
-                                                                       opset1::Constant::create(ngraph::element::i64, one_dim_shape,
-                                                                                                one_dim_shape), true);
+
+        auto new_max_per_class = arg2;
+        auto new_iou_threshold = arg3;
+        auto new_score_threshold = arg4;
+        auto new_soft_nms_sigma = arg5;
+
+        new_max_per_class = std::make_shared<ngraph::op::Reshape>(arg2,
+                                                                  opset1::Constant::create(ngraph::element::i64, one_dim_shape,
+                                                                                           one_dim_shape), true);
         new_ops.push_back(new_max_per_class.get_node_shared_ptr());
 
-        auto new_iou_threshold = std::make_shared<ngraph::op::Reshape>(arg3,
-                                                                       opset1::Constant::create(ngraph::element::i64, one_dim_shape,
-                                                                                                one_dim_shape), true);
+        new_iou_threshold = std::make_shared<ngraph::op::Reshape>(arg3,
+                                                                  opset1::Constant::create(ngraph::element::i64, one_dim_shape,
+                                                                                           one_dim_shape), true);
         new_ops.push_back(new_iou_threshold.get_node_shared_ptr());
 
-        auto new_score_threshold = std::make_shared<ngraph::op::Reshape>(arg4,
-                                                                         opset1::Constant::create(ngraph::element::i64, one_dim_shape,
-                                                                                                  one_dim_shape), true);
+        new_score_threshold = std::make_shared<ngraph::op::Reshape>(arg4,
+                                                                    opset1::Constant::create(ngraph::element::i64, one_dim_shape,
+                                                                                             one_dim_shape), true);
         new_ops.push_back(new_score_threshold.get_node_shared_ptr());
 
-        auto new_soft_nms_sigma = std::make_shared<ngraph::op::Reshape>(arg5,
-                                                                        opset1::Constant::create(ngraph::element::i64, one_dim_shape,
-                                                                                                 one_dim_shape), true);
+        new_soft_nms_sigma = std::make_shared<ngraph::op::Reshape>(arg5,
+                                                                   opset1::Constant::create(ngraph::element::i64, one_dim_shape,
+                                                                                            one_dim_shape), true);
         new_ops.push_back(new_soft_nms_sigma.get_node_shared_ptr());
 
         int center_point_box = 0;

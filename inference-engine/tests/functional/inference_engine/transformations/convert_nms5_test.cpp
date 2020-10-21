@@ -53,8 +53,8 @@ TEST(TransformationTests, ConvertNMS5ToNMSIEStatic) {
 
         auto one_dim_shape = Shape{1};
         auto new_max_per_class = std::make_shared<opset5::Reshape>(max_output_boxes_per_class,
-                                                                       opset5::Constant::create(ngraph::element::i64, one_dim_shape,
-                                                                                                one_dim_shape), true);
+                                                                   opset5::Constant::create(ngraph::element::i64, one_dim_shape,
+                                                                                            one_dim_shape), true);
         auto new_iou_threshold = std::make_shared<opset5::Reshape>(iou_threshold,
                                                                    opset5::Constant::create(ngraph::element::i64, one_dim_shape,
                                                                                             one_dim_shape), true);
