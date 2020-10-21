@@ -40,7 +40,7 @@ namespace onnx {
     using ONNXField = std::pair<Field, uint32_t>;
 
     bool is_correct_onnx_field(const char decoded_field) {
-        const auto allowed_fields = std::vector<Field>{
+        constexpr Field allowed_fields[] = {
             IR_VERSION, PRODUCER_NAME, PRODUCER_VERSION, DOMAIN, MODEL_VERSION, DOC_STRING,
             GRAPH, OPSET_IMPORT, METADATA_PROPS, TRAINING_INFO
         };
@@ -98,7 +98,7 @@ namespace onnx {
 
     PbKey decode_key(const char key) {
         // 3 least significant bits
-        const char wire_type = key & 3;
+        const char wire_type = key & 7;
         // remaining bits
         const char field_number = key >> 3;
         return {field_number, wire_type};
