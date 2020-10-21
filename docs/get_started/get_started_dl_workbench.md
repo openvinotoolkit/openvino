@@ -17,6 +17,8 @@ the Intermediate Representation (IR) format
  INT8 precision
 * [Accuracy Checker](@ref omz_tools_accuracy_checker_README) to determine the accuracy of a model
 
+![](./dl_workbench_img/problem_statement.png)
+
 DL Workbench supports the following scenarios:
 1. [Calibrate the model in INT8 precision](@ref workbench_docs_Workbench_DG_Int_8_Quantization)  
 2. [Find the best combination](@ref workbench_docs_Workbench_DG_View_Inference_Results) of inference parameters: [number of streams and batches](../optimization_guide/dldt_optimization_guide.md)
