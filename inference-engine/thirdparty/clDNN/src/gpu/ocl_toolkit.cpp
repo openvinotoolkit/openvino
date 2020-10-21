@@ -229,9 +229,10 @@ void gpu_toolkit::release_pending_memory(uint32_t queue_id) { get_command_queue(
 
 void gpu_toolkit::wait_for_events(std::vector<event_impl::ptr> const& events) {
     std::vector<cl::Event> clevents;
-    for (auto& ev : events)
-        if (auto ocl_ev = dynamic_cast<base_event*>(ev.get()))
-            clevents.push_back(ocl_ev->get());
+    for (auto& ev : events) {
+        if (auto ocl_base_ev = dynamic_cast<ocl_base_event*>(ev.get()))
+            clevents.push_back(ocl_base_ev->get());
+    }
 
     try {
         cl::WaitForEvents(clevents);
