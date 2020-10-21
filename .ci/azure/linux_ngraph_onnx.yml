@@ -46,15 +46,18 @@ jobs:
     displayName: 'Make dir'
 
   - script: |
-      ngraph/python/tests/test_onnx/model_zoo_preprocess.sh -m $(MODELS_DIR) -e -f
-      ngraph/python/tests/test_onnx/model_zoo_preprocess.sh -m $(MODELS_DIR) -c
+      #ngraph/python/tests/test_onnx/model_zoo_preprocess.sh -m $(MODELS_DIR) -e -f
+      wget https://github.com/onnx/models/archive/master.zip -O "$(MODELS_DIR)/onnx_model_zoo.zip"
+      unzip "$(MODELS_DIR)/msft.zip" -d "$(MODELS_DIR)/onnx_model_zoo" && rm "$(MODELS_DIR)/onnx.zip"
+      wget https://onnxruntimetestdata.blob.core.windows.net/models/20191107.zip -O "$(MODELS_DIR)/msft.zip"
+      unzip "$(MODELS_DIR)/msft.zip" -d "$(MODELS_DIR)/msft" && rm "$(MODELS_DIR)/msft.zip"
     displayName: 'Clone models'
     continueOnError: true
 
   - script: docker build --tag=openvino-onnx-ci-image --file=.ci/openvino-onnx/Dockerfile .
     displayName: 'Docker build'
 
-  - script: docker run --name openvino-onnx-ci-container --volume $(MODELS_DIR)/model_zoo:/root/.onnx/model_zoo --volume $(MODELS_DIR)/model_zoo/MSFT:/root/.onnx/model_zoo/MSFT openvino-onnx-ci-image
+  - script: docker run --name openvino-onnx-ci-container --volume $(MODELS_DIR):/root/.onnx/model_zoo --volume $(MODELS_DIR)/msft:/root/.onnx/model_zoo/MSFT openvino-onnx-ci-image
     displayName: 'Docker run tests'
     enabled: true
 
