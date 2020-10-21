@@ -530,8 +530,8 @@ protected:
             auto &output = outputs[resultIndex];
             output.resize(shape_size(result->get_shape()) * result->get_element_type().size());
             outputTensors[resultIndex]->read(output.data(), output.size());
-            if (convertType != element::Type_t::undefined)
-                output = convertOutputPrecision(output, result->get_element_type(), convertType, shape_size(result->get_shape()));
+            /*if (convertType != element::Type_t::undefined)
+                output = convertOutputPrecision(output, result->get_element_type(), convertType, shape_size(result->get_shape()));*/
         }
 
         return outputs;
@@ -1244,7 +1244,7 @@ protected:
             const auto& cur_iter_idx = special_body_ports.current_iteration_input_idx;
 
             // -2 due to trip_count and execution_condition inputs which aren't map to body inputs
-            std::vector<std::vector<std::uint8_t>> inputs_to_body(args.size() - 2);
+            std::vector<std::vector<std::uint8_t>> inputs_to_body(args.size() - 2 + (special_body_ports.current_iteration_input_idx >= 0));
             // param_idx, result_idx in the body
             std::vector<std::pair<uint64_t, uint64_t>> back_edges;
 
@@ -1261,6 +1261,7 @@ protected:
 
             if (cur_iter_idx >= 0 && inputs_to_body.at(cur_iter_idx).empty()) {
                 // todo issue?
+                inputs_to_body.at(cur_iter_idx).resize(sizeof(int64_t));
             }
 
             auto type = out[0]->get_element_type(); // todo: check this, not sure about
@@ -1279,26 +1280,35 @@ protected:
                 // todo issue, not supported type
             }
             if(exec_condition[0]) {
-                for (int64_t cur_iter = 0; cur_iter < trip_count; ++cur_iter) {
+                for (int64_t cur_iter = 0; cur_iter < (trip_count >= 0 ? trip_count : std::numeric_limits<int64_t>::max()); ++cur_iter) {
                     // evaluate body
+                    if (cur_iter_idx >= 0) {
+                        // todo issue?
+                        reinterpret_cast<int64_t*>(inputs_to_body.at(cur_iter_idx).data())[0] = cur_iter;
+                    }
                     outs = interpreterFunction(func, inputs_to_body, type);
-
                     // Port map: outputs
                     for (const auto &desc : loop.get_output_descriptions()) {
                         if (const auto &concat_desc = std::dynamic_pointer_cast<opset5::Loop::ConcatOutputDescription>(
                                 desc)) {
                             // if the output shape wasn't set during shape inference
                             if (out[concat_desc->m_output_index]->get_partial_shape().is_dynamic()) {
-                                auto cur_shape = out[concat_desc->m_output_index]->get_shape();
+                                auto cur_shape = loop.get_function()->get_results()[concat_desc->m_body_value_index]->get_shape();
+                                /*auto new_out = make_shared<HostTensor>(out[concat_desc->m_output_index]->get_element_type(), cur_shape, out[concat_desc->m_output_index]->get_name());
+                                out[concat_desc->m_output_index] = new_out;*/
                                 out[concat_desc->m_output_index]->set_shape(cur_shape);
                                 is_dynamic_shape = true;
                             } else if (is_dynamic_shape) {
                                 // increase the size of concat output
                                 auto cur_shape = out[concat_desc->m_output_index]->get_shape();
+                                auto el_size = out[concat_desc->m_output_index]->get_element_type().size();
+                                std::vector<uint8_t> tmp_buffer(ngraph::shape_size(cur_shape) * el_size);
+                                Shape old_shape = cur_shape;
+                                std::memcpy(tmp_buffer.data(), out[concat_desc->m_output_index]->get_data_ptr(), el_size * ngraph::shape_size(old_shape));
                                 cur_shape.at(concat_desc->m_axis) += 1;
                                 out[concat_desc->m_output_index]->set_shape(cur_shape);
+                                std::memcpy(out[concat_desc->m_output_index]->get_data_ptr(), tmp_buffer.data(), el_size * ngraph::shape_size(old_shape));
                             }
-
                             auto part_size = outs[concat_desc->m_body_value_index].size();
                             // copy the output from each iteration
                             std::memcpy(out[concat_desc->m_output_index]->get_data_ptr<uint8_t>() + cur_iter * part_size,

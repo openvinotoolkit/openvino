@@ -104,7 +104,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_controlflow_loop_2d_const_no_identity_terminat
 
     auto test_case = test::TestCase<TestEngine>(function);
     // termination condition
-    test_case.add_input<bool>({true});
+    //test_case.add_input<bool>({true}); todo delete?
     // a_init
     test_case.add_input<float>({0.f, 0.f});
 
@@ -126,10 +126,12 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_controlflow_loop_2d_both_cond_and_trip_count_a
         SERIALIZED_ZOO, "onnx/loop/loop_2d_add_cond_and_trip_count_as_inputs.prototxt"));
 
     auto test_case = test::TestCase<TestEngine>(function);
-    // termination condition
-    test_case.add_input<bool>({true});
     // trip count
     test_case.add_input<int64_t>({10});
+
+    // termination condition
+    test_case.add_input<bool>({true});
+
     // a_init
     test_case.add_input<float>({0.f, 0.f});
 

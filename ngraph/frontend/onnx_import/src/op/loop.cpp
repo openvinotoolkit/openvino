@@ -102,24 +102,28 @@ namespace ngraph
                     if (ngraph::op::is_null(ng_inputs.at(0))) // trip count skipped
                     {
                         // -1 means infinite Loop
-                        trip_count = ngraph::op::Constant::create(ngraph::element::i64, {}, {-1});
+                        trip_count = ngraph::op::Constant::create(ngraph::element::i64, {1}, {-1});
                     }
                     else
                     {
                         trip_count = ng_inputs.at(0);
                     }
 
+                    bool should_ignore = false;
                     Output<ngraph::Node> termination_cond;
+                    // todo: how to support the case  when we have false in this input
+                    termination_cond =
+                            ngraph::op::Constant::create(ngraph::element::boolean, {1}, {true});
                     if (ngraph::op::is_null(ng_inputs.at(1))) // termination condition skipped
                     {
                         // true means that first interation should be run
-                        termination_cond =
-                            ngraph::op::Constant::create(ngraph::element::boolean, {}, {true});
+
+                        should_ignore = true;
                     }
-                    else
+                    /*else
                     {
                         termination_cond = ng_inputs.at(1);
-                    }
+                    }*/
 
                     const OutputVector loop_carried_dependencies{std::next(ng_inputs.begin(), 2),
                                                                  ng_inputs.end()};
@@ -130,7 +134,7 @@ namespace ngraph
 
                     const int64_t concat_axis = 0;
                     const auto concat_axis_const =
-                        ngraph::op::Constant::create(ngraph::element::i64, {}, {concat_axis});
+                        ngraph::op::Constant::create(ngraph::element::i64, {1}, {concat_axis});
                     // provide scalar handing for scan outputs
                     for (int i = loop_carried_dependencies.size() + 1; i < body_outputs.size(); ++i)
                     {
@@ -149,7 +153,7 @@ namespace ngraph
                     if (is_termination_condition_always_true(termination_cond, body_loop_cond))
                     {
                         body_outputs[0] =
-                            ngraph::op::Constant::create(ngraph::element::boolean, {}, {true});
+                            ngraph::op::Constant::create(ngraph::element::boolean, {1}, {true});
                     }
 
                     CHECK_VALID_NODE(node,
@@ -168,11 +172,29 @@ namespace ngraph
                                      body_outputs.size(),
                                      ") is not greater than number of outpus. Required at least: ",
                                      loop_carried_dependencies.size() + 1);
+                    auto body_cond_in = ngraph::op::Constant::create(ngraph::element::boolean, {1}, {true});
+                    replace_node(body_inputs[1], body_cond_in);
+                    if (should_ignore) {
+                        auto body_cond_out = ngraph::op::Constant::create(ngraph::element::boolean, {1}, {true});
+                        body_outputs[0] = body_cond_out;
+                    }
+                    ParameterVector body_params(body_inputs.begin() + 2, body_inputs.end());
+                    ngraph::opset5::Loop::SpecialBodyPorts spec_ports;
+                    spec_ports.body_condition_output_idx = 0;
+                    if(!body_inputs[0]->output(0).get_target_inputs().empty()) {
+                        spec_ports.current_iteration_input_idx = 0;
+                        // in some tests cur_iteration input is dynamic (???)
+                        // workaround (i32 or i64)
+                        auto cur_iter = std::make_shared<ngraph::opset5::Parameter>(ngraph::element::i64, PartialShape{1});
+                        replace_node(body_inputs[0], cur_iter);
+                        body_params.emplace(body_params.begin(), cur_iter);
+                    }
 
-                    const auto body = std::make_shared<ngraph::Function>(body_outputs, body_inputs);
+                    const auto body = std::make_shared<ngraph::Function>(body_outputs, body_params);
                     auto loop = std::make_shared<default_opset::Loop>(trip_count, termination_cond);
                     loop->set_function(body);
-                    loop->set_special_body_ports(ngraph::opset5::Loop::SpecialBodyPorts{-1, 0});
+
+                    loop->set_special_body_ports(spec_ports);
 
                     // Setting up other Loop body inputs.
                     // body_inputs[0] is iteration number, body_inputs[1] is termination condition
