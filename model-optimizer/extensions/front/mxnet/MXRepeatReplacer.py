@@ -60,7 +60,7 @@ class MXRepeatReplacer(FrontReplacementPattern):
 
         axis = get_canonical_axis_index_node(input_rank, node.axis)
         unsqueeze_axis = create_op_node_with_second_input(
-            graph, Add, int64_array([1]), {'name': name + '/Unsqueeze/Axis'}, input_node=axis)
+            graph, Add, int64_array(1), {'name': name + '/Unsqueeze/Axis'}, input_node=axis)
 
         unsqueeze = Unsqueeze(graph, {'name': name + '/Unsqueeze'}).create_node()
         unsqueeze.in_port(1).connect(unsqueeze_axis.out_port(0))

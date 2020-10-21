@@ -17,6 +17,7 @@
 import numpy as np
 
 from mo.front.common.layout import get_features_dim, shape_for_layout
+from mo.front.tf.graph_utils import create_op_with_const_inputs
 from mo.graph.graph import Graph
 from mo.middle.replacement import MiddleReplacementPattern
 from mo.ops.const import Const
@@ -73,50 +74,38 @@ class EltwiseInputReshape(MiddleReplacementPattern):
         return [MiddleStart]
 
     def find_and_replace_pattern(self, graph: Graph):
-        for node in graph.get_data_nodes():
-            # Get all requested shapes for current node
-            # This mapping will contain pairs like {shape:[list of consumers nodes]}
-            mapping = {}
-            for consumer in node.out_nodes():
-                edge_attrs = graph.get_edge_data(node.id, consumer.id)[0]
-                if 'new_shape' in edge_attrs:
-                    if np.array_equal(edge_attrs['new_shape'], node.shape):
-                        continue
-                    new_shape = tuple([x for x in edge_attrs['new_shape']])
-                    if not new_shape in mapping:
-                        mapping.update({new_shape: [consumer]})
-                    else:
-                        mapping[new_shape].append(consumer)
+        for node in graph.get_op_nodes():
+            for out_port_idx in node.out_ports():
+                mapping = {}
+                output_port = node.out_port(out_port_idx)
+                for consumer_port in output_port.get_destinations():
+                    edge_attrs = consumer_port.get_in_edge_attrs()
+                    if 'new_shape' in edge_attrs:
+                        if np.array_equal(edge_attrs['new_shape'], output_port.data.get_shape()):
+                            continue
+                        new_shape = tuple([x for x in edge_attrs['new_shape']])
+                        if not new_shape in mapping:
+                            mapping.update({new_shape: [consumer_port]})
+                        else:
+                            mapping[new_shape].append(consumer_port)
 
-            if node.has_valid('value'):
-                # Check that requested shape are the same
-                # In case if they are different, we duplicate them
-                for shape_key in mapping.keys():
-                    shape = list(shape_key)
-                    new_value = np.reshape(node.value, shape)
-                    node_copy = Op.create_input_data_node(graph, node.id + '/copy', value=np.array(new_value))
-                    for consumer in mapping[shape_key]:
-                        edge_attrs = graph.get_edge_data(node.id, consumer.id)[0]
-                        del edge_attrs['new_shape']
-
-                        # Remove edge from previous data node and connect new data node with its consumer
-                        graph.remove_edge(node.id, consumer.id)
-                        graph.add_edge(node_copy.id, consumer.id, **edge_attrs)
-            else:
                 # Insert Reshape layer between data node and consumer
                 for shape_key in mapping.keys():
-                    shape = list(shape_key)
+                    new_shape = list(shape_key)
                     reshape_name = node.soft_get('name', node.id) + '/EltwiseReshape'
-                    reshape = Reshape(graph, attrs={'name': reshape_name})
-                    reshape_dim = Const(graph,
-                                        {'value': shape, 'name': reshape_name + '/Shape'}).create_node_with_data()
-                    reshape_data = reshape.create_node_with_data(inputs=[node, reshape_dim])
+                    reshape_node = create_op_with_const_inputs(graph, Reshape, {1: new_shape},
+                                                                {'name': reshape_name})
+                    reshape_node.in_port(0).connect(output_port)
 
                     # Iterate over consumers and reconnect them to Reshape layer output
-                    for consumer in mapping[shape_key]:
-                        edge_attrs = graph.get_edge_data(node.id, consumer.id)[0]
+                    for consumer_port in mapping[shape_key]:
+                        edge_attrs = consumer_port.get_in_edge_attrs()
                         del edge_attrs['new_shape']
+                        consumer_port.connect(reshape_node.out_port(0))
 
-                        # Reconnect edge from original data node to Reshape output datanode
-                        graph.remove_edge(node.id, consumer.id)
-                        graph.add_edge(reshape_data.id, consumer.id, **edge_attrs)
+                    # Adjust shape and value for Reshape output
+                    output_port_value = output_port.data.get_value()
+                    if output_port_value is not None:
+                        reshape_node.out_port(0).data.set_value(np.reshape(output_port_value, new_shape))
+                    else:
+                        reshape_node.out_port(0).data.set_shape(new_shape)
