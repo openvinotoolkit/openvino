@@ -155,7 +155,8 @@ bool MultiplyToGroupConvolutionTransformation::isQuantized(std::shared_ptr<Node>
         return false;
     }
 
-    return true;
+    const Shape shape = layer->output(0).get_shape();
+    return (shape.size() == 4ul) || (shape.size() == 5ul);
 }
 
 void MultiplyToGroupConvolutionTransformation::setGroupSize(const size_t groupSize) {

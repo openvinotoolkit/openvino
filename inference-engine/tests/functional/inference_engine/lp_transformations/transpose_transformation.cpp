@@ -114,6 +114,21 @@ const std::vector<TransposeTransformationTestValues> testValues = {
             {{ngraph::element::f32}, {128}, {0.1f}}
         }
     },
+    {
+        ngraph::Shape({ 1, 16, 512 }),
+        { 0, 2, 1 },
+        LayerTransformation::createParamsU8I8(),
+        {
+            ngraph::element::u8,
+            {{ngraph::element::f32}, {128}, {0.1f}}
+        },
+        {
+            ngraph::element::u8,
+            {{}, {}, {}},
+            ngraph::element::u8,
+            {{ngraph::element::f32}, {128}, {0.1f}}
+        }
+    },
     // U8: per-channel quantization
     {
         ngraph::Shape({ 1, 3, 1, 1}),
