@@ -31,9 +31,9 @@ ngraph::pass::BatchNormDecomposition::BatchNormDecomposition() {
             return false;
         }
 
-        auto m_input = m_bn->input_value(0);
-        auto m_gamma = m_bn->input_value(1);
-        auto m_beta = m_bn->input_value(2);
+        auto m_gamma = m_bn->input_value(0);
+        auto m_beta = m_bn->input_value(1);
+        auto m_input = m_bn->input_value(2);
         auto m_mean = m_bn->input_value(3);
         auto m_var = m_bn->input_value(4);
 
