@@ -28,9 +28,9 @@ NGRAPH_SUPPRESS_DEPRECATED_START
 using namespace std;
 using namespace ngraph;
 
-static const int PARAMS = 0;
-static const int INDICES = 1;
-static const int AXIS = 2;
+const int op::v0::Gather::PARAMS = 0;
+const int op::v0::Gather::INDICES = 1;
+const int op::v0::Gather::AXIS = 2;
 
 constexpr NodeTypeInfo op::v0::Gather::type_info;
 
@@ -99,6 +99,10 @@ void op::v0::Gather::validate_and_infer_types()
 
 constexpr NodeTypeInfo op::v1::Gather::type_info;
 const int64_t op::v1::Gather::AXIS_NOT_SET_VALUE;
+
+const int op::v1::Gather::PARAMS = 0;
+const int op::v1::Gather::INDICES = 1;
+const int op::v1::Gather::AXIS = 2;
 
 op::v1::Gather::Gather(const Output<Node>& params,
                        const Output<Node>& indices,
