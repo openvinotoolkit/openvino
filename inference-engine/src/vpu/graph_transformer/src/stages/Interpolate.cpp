@@ -15,31 +15,31 @@ using namespace vpu;
 using namespace InferenceEngine;
 
 enum class InterpolateMode {
-    nearest,
-    linear,
-    linear_onnx,
-    cubic
+    nearest     = 0,
+    linear      = 1,
+    linear_onnx = 2,
+    cubic       = 3
 };
 
 enum class InterpolateShapeCalcMode {
-    sizes,
-    scales
+    sizes  = 0,
+    scales = 1
 };
 
 enum class InterpolateCoordTransMode {
-    half_pixel,
-    pytorch_half_pixel,
-    asymmetric,
-    tf_half_pixel_for_nn,
-    align_corners
+    half_pixel           = 0,
+    pytorch_half_pixel   = 1,
+    asymmetric           = 2,
+    tf_half_pixel_for_nn = 3,
+    align_corners        = 4
 };
 
 enum class InterpolateNearestMode {
-    round_prefer_floor,
-    round_prefer_ceil,
-    floor,
-    ceil,
-    simple
+    round_prefer_floor = 0,
+    round_prefer_ceil  = 1,
+    floor              = 2,
+    ceil               = 3,
+    simple             = 4
 };
 
 class InterpolateStage final : public StageNode {
@@ -159,7 +159,8 @@ void FrontEnd::parseInterpolate(const Model& model, const ie::CNNLayerPtr& layer
     } else if (cmp(method, "linear")) {
         stage->attrs().set<InterpolateMode>("type", InterpolateMode::linear);
     } else if (cmp(method, "cubic")) {
-        stage->attrs().set<InterpolateMode>("type", InterpolateMode::cubic);
+        // stage->attrs().set<InterpolateMode>("type", InterpolateMode::cubic);
+        VPU_THROW_EXCEPTION << "Layer with name " << layer->name << " doesn't yet support this Interpolate type";
     } else {
         VPU_THROW_EXCEPTION << "Layer with name " << layer->name << " doesn't support this Interpolate type";
     }
