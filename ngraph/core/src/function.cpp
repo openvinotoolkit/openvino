@@ -367,9 +367,10 @@ void Function::delete_sink(const std::shared_ptr<op::Sink>& sink)
     m_sinks.erase(std::remove_if(m_sinks.begin(), 
                                  m_sinks.end(),
                                  [remove_name](std::shared_ptr<op::Sink>& s)
-                                 {
-                                     return s->get_name() == remove_name; 
-                                 }), m_sinks.end());
+                                 [remove_name](std::shared_ptr<op::Sink>& s) {
+                                     return s->get_name() == remove_name;
+                                 }),
+                  m_sinks.end());
 }
 
 void Function::add_results(const ResultVector& results)
@@ -385,7 +386,6 @@ void Function::delete_result(const std::shared_ptr<op::Result>& result)
                                        return s->get_name() == result->get_name();
                                    }),
                     m_results.end());
-     
 }
 
 constexpr DiscreteTypeInfo AttributeAdapter<shared_ptr<Function>>::type_info;
