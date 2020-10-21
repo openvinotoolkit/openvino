@@ -31,7 +31,7 @@ namespace ngraph
 
 /// \brief SharedBuffer class to store pointer to pre-acclocated buffer.
 template <typename T>
-class NGRAPH_API ngraph::runtime::SharedBuffer : public ngraph::runtime::AlignedBuffer
+class ngraph::runtime::SharedBuffer : public ngraph::runtime::AlignedBuffer
 {
 public:
     SharedBuffer(char* data, size_t size, T& shared_object)
