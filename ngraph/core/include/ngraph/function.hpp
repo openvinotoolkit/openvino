@@ -27,6 +27,7 @@
 #include "ngraph/node.hpp"
 #include "ngraph/op/parameter.hpp"
 #include "ngraph/op/result.hpp"
+#include "ngraph/op/sink.hpp"
 
 namespace ngraph
 {
@@ -138,6 +139,25 @@ namespace ngraph
         bool evaluate(const HostTensorVector& output_tensors,
                       const HostTensorVector& input_tensors) const;
 
+        /// Return a list of function's side outputs
+        const SinkVector& get_sinks(void) const {return m_sinks;}
+
+        /// \brief Add new sink nodes to the list to avoid removing
+        /// \param sinks new sink nodes 
+        void add_sinks(const SinkVector& sinks);
+
+        /// \brief Delete sink node from the list of sinks
+        /// \param sink Sink to delete
+        void delete_sink(const std::shared_ptr<op::Sink>& sink);
+
+        /// \brief Add new Result nodes to the list to avoid removing
+        /// \param sinks new Result nodes 
+        void add_results(const ResultVector& results);
+
+        /// \brief Delete Result node from the list of results
+        /// \param sink Result node to delete
+        void delete_result(const std::shared_ptr<op::Result>& result);
+
     private:
         Function(const Function&) = delete;
         Function(const Function&&) = delete;
@@ -150,6 +170,7 @@ namespace ngraph
         topological_sort_t m_topological_sorter;
 
         ResultVector m_results;
+        SinkVector m_sinks;
         ParameterVector m_parameters;
     };
 

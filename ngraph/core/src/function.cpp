@@ -106,6 +106,10 @@ std::vector<shared_ptr<Node>> Function::get_ordered_ops() const
     {
         nodes.push_back(r);
     }
+    for (auto& r : get_sinks())
+    {
+        nodes.push_back(r);
+    }
     for (auto& param : get_parameters())
     {
         nodes.push_back(param);
@@ -122,6 +126,11 @@ void Function::map_unordered_ops(std::function<void(Node*)> f) const
     {
         remaining_ops.push(r.get());
     }
+    for (auto& r : get_sinks())
+    {
+        remaining_ops.push(r.get());
+    }
+
     for (auto& param : get_parameters())
     {
         remaining_ops.push(param.get());
@@ -347,6 +356,29 @@ bool Function::visit_attributes(AttributeVisitor& visitor)
     return true;
 }
 
+void Function::add_sinks(const SinkVector& sinks)
+{
+    m_sinks.insert(m_sinks.begin(), sinks.begin(), sinks.end());
+}
+
+void Function::delete_sink(const std::shared_ptr<op::Sink>& sink)
+{
+	string remove_name = sink->get_name();
+	m_sinks.erase(std::remove_if(m_sinks.begin(), m_sinks.end(),
+		[remove_name](std::shared_ptr<op::Sink>& s) {return s->get_name() == remove_name; }), m_sinks.end());
+}
+
+void Function::add_results(const ResultVector& results)
+{
+    m_results.insert(m_results.begin(), results.begin(), results.end());
+}
+
+void Function::delete_result(const std::shared_ptr<op::Result>& result)
+{
+	m_results.erase(std::remove_if(m_results.begin(), m_results.end(),
+		[result](std::shared_ptr<op::v0::Result>& s) {return s->get_name() == result->get_name(); }), m_results.end());
+}
+
 constexpr DiscreteTypeInfo AttributeAdapter<shared_ptr<Function>>::type_info;
 
 AttributeAdapter<shared_ptr<Function>>::AttributeAdapter(shared_ptr<Function>& ref)
@@ -400,6 +432,10 @@ bool AttributeAdapter<shared_ptr<Function>>::visit_attributes(AttributeVisitor& 
             for (auto result : m_ref->get_results())
             {
                 results.push_back(result);
+            }
+            for (auto sink : m_ref->get_sinks())
+            {
+                results.push_back(sink);
             }
 
             int64_t i = 0;

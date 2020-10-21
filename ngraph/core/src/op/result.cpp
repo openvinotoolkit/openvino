@@ -29,7 +29,7 @@ using namespace ngraph;
 constexpr NodeTypeInfo op::Result::type_info;
 
 op::Result::Result(const Output<Node>& arg, bool needs_default_layout)
-    : Op({arg})
+    : Sink({arg})
     , m_needs_default_layout(needs_default_layout)
 {
     constructor_validate_and_infer_types();
