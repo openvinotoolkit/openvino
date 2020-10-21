@@ -86,7 +86,7 @@ void FrontEnd::parseResample(const Model& model, const ie::CNNLayerPtr& layer, c
     if (cmp(method, "caffe.ResampleParameter.NEAREST")) {
         stage->attrs().set<ResampleType>("type", ResampleType::Nearest);
     } else {
-        VPU_THROW_EXCEPTION << "Layer with name " << layer->name << " doesn't support this resample type";
+        VPU_THROW_EXCEPTION << "Layer with name " << layer->name << " supports only caffe.ResampleParameter.NEAREST resample type";
     }
 }
 
