@@ -18,48 +18,6 @@ VPU_DECLARE_ENUM(ResampleType,
     Cubic = 2
 )
 
-VPU_DECLARE_ENUM(ResampleCoordTransMode,
-    // the coordinate in the original tensor axis `x` is calculated as `((x_resized + 0.5) / scale[x]) - 0.5`
-    half_pixel = 0,
-    // the coordinate in the original tensor axis `x` is calculated by `(x_resized + 0.5) / scale[x] - 0.5 if output_shape[x] > 1 else 0.0`
-    pytorch_half_pixel = 1,
-    // the coordinate in the original tensor axis `x` is calculated according to the formula `x_resized / scale[x]`
-    asymmetric = 2,
-    // the coordinate in the original tensor axis `x` is `(x_resized + 0.5) / scale[x]`
-    tf_half_pixel_for_nn = 3,
-    // the coordinate in the original tensor axis `x` is calculated as `0 if output_shape[x] == 1 else x_resized * (input_shape[x] - 1) / (output_shape[x] - 1)`
-    align_corners = 4
-)
-
-VPU_DECLARE_ENUM(ResampleNearestMode,
-    // this mode is known as round half down
-    round_prefer_floor = 0,
-    // it is round half up mode
-    round_prefer_ceil = 1,
-    // this mode computes the largest integer value not greater than rounded value
-    floor = 2,
-    // this mode computes the smallest integer value not less than rounded value
-    ceil = 3,
-    // this mode behaves as `ceil` mode when `Interpolate` is downsample, and as dropping the fractional part otherwise
-    simple = 4
-)
-
-VPU_DECLARE_ENUM(ResampleShapeCalcMode,
-    // nearest neighbor 
-    sizes = 0,
-    // cubic interpolation
-    scales = 1
-)
-
-VPU_DECLARE_ENUM(ResampleAxis,
-    along_b = 0,
-    along_f = 1,
-    along_x = 2,
-    along_y = 3,
-    along_z = 4,
-    along_w = 5
-)
-
 namespace {
 
 class ResampleStage final : public StageNode {
@@ -93,8 +51,8 @@ private:
     }
 
     void serializeParamsImpl(BlobSerializer& serializer) const override {
-        auto factor = attrs().get<float>("factor");
         auto antialias = attrs().get<bool>("antialias");
+        auto factor = attrs().get<float>("factor");
         auto sampleType = attrs().get<ResampleType>("type");
 
         serializer.append(static_cast<int32_t>(antialias));
@@ -109,17 +67,6 @@ private:
         input->serializeBuffer(serializer);
         output->serializeBuffer(serializer);
     }
-    int32_t pad_begin;
-    int32_t antialias;
-    int32_t align_corners;
-
-    float cube_coeff;
-
-    ResampleType operation_type;
-    ResampleAxis axis;
-    ResampleNearestMode round_mode;
-    ResampleShapeCalcMode shape_calc_mode;
-    ResampleCoordTransMode coord_trans_mode;
 };
 
 }  // namespace
@@ -138,10 +85,6 @@ void FrontEnd::parseResample(const Model& model, const ie::CNNLayerPtr& layer, c
     auto method = layer->GetParamAsString("type", "caffe.ResampleParameter.NEAREST");
     if (cmp(method, "caffe.ResampleParameter.NEAREST")) {
         stage->attrs().set<ResampleType>("type", ResampleType::Nearest);
-    } else if (cmp(method, "caffe.ResampleParameter.LINEAR")) {
-        stage->attrs().set<ResampleType>("type", ResampleType::Linear);
-    } else if (cmp(method, "caffe.ResampleParameter.CUBIC")) {
-        stage->attrs().set<ResampleType>("type", ResampleType::Cubic);
     } else {
         VPU_THROW_EXCEPTION << "Layer with name " << layer->name << " doesn't support this resample type";
     }
