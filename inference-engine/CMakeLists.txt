@@ -10,8 +10,7 @@ include(features_ie)
 # include developer package
 include(developer_package_ie)
 
-# These options are shared with 3rdparty plugins
-# by means of developer package
+# These options are shared with 3rdparty plugins by means of developer package
 include(check_features_ie)
 
 # resolving dependencies for the project
@@ -209,7 +208,7 @@ if(ENABLE_COVERAGE)
 endif()
 
 #
-# Add plugins
+# Add extra modules
 #
 
 function(register_extra_modules)
@@ -237,10 +236,24 @@ function(register_extra_modules)
         list(APPEND local_extra_modules "${OpenVINO_MAIN_SOURCE_DIR}/docs/template_plugin")
     endif()
 
-    foreach(module_path IN LISTS IE_EXTRA_PLUGINS local_extra_modules)
-        get_filename_component(module_dir "${module_path}" NAME)
-        message(STATUS "Register ${module_dir} to be built in build-modules/${module_dir}")
-        add_subdirectory("${module_path}" "build-modules/${module_dir}")
+    # detect where IE_EXTRA_MODULES contains folders with CMakeLists.txt
+    # other folders are supposed to have sub-folders with CMakeLists.txt
+    foreach(module_path IN LISTS IE_EXTRA_MODULES)
+        if(EXISTS "${module_path}/CMakeLists.txt")
+            list(APPEND extra_modules "${module_path}")
+        elseif(module_path)
+            file(GLOB extra_modules ${extra_modules} "${module_path}/*")
+        endif()
+        message("${extra_modules}")
+    endforeach()
+
+    # add each extra module
+    foreach(module_path IN LISTS extra_modules local_extra_modules)
+        if(module_path)
+            get_filename_component(module_dir "${module_path}" NAME)
+            message(STATUS "Register ${module_dir} to be built in build-modules/${module_dir}")
+            add_subdirectory("${module_path}" "build-modules/${module_dir}")
+        endif()
     endforeach()
 endfunction()
 
