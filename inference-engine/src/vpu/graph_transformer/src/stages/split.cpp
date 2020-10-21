@@ -156,23 +156,23 @@ Stage StageBuilder::addSplitStage(
     DimValues curOffset({{axis, 0}});
 
     auto getOutAxisSizes = [&]() {
-        auto inputDims = layer->input()->getDims();
-        auto firstOutDims = layer->outData[0]->getDims();
+        const auto inputDims = layer->input()->getDims();
+        const auto firstOutDims = layer->outData[0]->getDims();
         int idx = 0;
-        for (; idx < inputDims.size(); ++idx) {
+        for ( ; idx < inputDims.size(); ++idx) {
             if (inputDims[idx] != firstOutDims[idx]) {
                 break;
                 }
         }
         std::vector<size_t> outAxisSizes;
         outAxisSizes.reserve(inputDims.size());
-        for (auto out :layer->outData) {
+        for (const auto out : layer->outData) {
             outAxisSizes.push_back(out->getDims()[idx]);
         }
         return outAxisSizes;
     };
 
-    auto outAxisSizes = getOutAxisSizes();
+    const auto outAxisSizes = getOutAxisSizes();
     auto outputs_ = outputs;
     auto it = outAxisSizes.begin();
     for (int i = 0; i < outputs_.size() ; ++i) {
