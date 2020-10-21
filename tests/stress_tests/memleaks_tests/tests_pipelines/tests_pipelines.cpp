@@ -13,9 +13,9 @@
 
 using namespace InferenceEngine;
 
-// Maximum values to compute an average for smoothing
-#define AVERAGE_NUM 5
-// Number of pipeline runs before it starts measuring. Real number will be aliquot to AVERAGE_NUM
+// Maximum values to compute a moving median for smoothing
+#define PAST_SIZE 5
+// Number of pipeline runs before it starts measuring. Real number will be aliquot to PAST_SIZE
 #define WARMUP_STEPS 30
 // Number memory peaks ignored. LibC memory manager can produce peaks with
 // overall flat consumption
@@ -43,8 +43,8 @@ void transform(const In1& in1, const In2& in2, Out& out, const Func& func) {
 }  // namespace util
 
 TestResult common_test_pipeline(const std::function<void()>& test_pipeline, const int& n) {
-    if (AVERAGE_NUM > n)
-        return TestResult(TestStatus::TEST_FAILED, "Test failed: number of iterations less than defined AVERAGE_NUM");
+    if (PAST_SIZE > n)
+        return TestResult(TestStatus::TEST_FAILED, "Test failed: number of iterations less than defined PAST_SIZE");
 
     int retry_count = 0;
     std::array<long, MeasureValueMax> cur {};               // measured for current iteration
@@ -54,41 +54,37 @@ TestResult common_test_pipeline(const std::function<void()>& test_pipeline, cons
     std::array<int, MeasureValueMax> outlier_count {};      // counter for how many times current does not fit threshold
     std::array<float, MeasureValueMax> threshold {};        // ref * THRESHOLD
     std::vector<std::array<long, MeasureValueMax>> past;    // past measures
-    std::array<long, MeasureValueMax> sliding_avg {};       // sliding average computed as avg of past AVERAGE_NUM values
+    std::array<long, MeasureValueMax> moving_median {};     // moving median computed as median of past PAST_SIZE values
     std::string progress_str;
 
     progress_str.reserve(LOG_LINE_RESERVE);
-    past.resize(AVERAGE_NUM);
+    past.resize(PAST_SIZE);
 
     log_info("Warming up for " << WARMUP_STEPS << " iterations");
     log_info("i\tVMRSS\tVMHWM\tVMSIZE\tVMPEAK\tTHREADS");
 
-    for (size_t iteration = 1, measure_count = n / AVERAGE_NUM; ; iteration++) {
+    for (size_t iteration = 1, measure_count = n / PAST_SIZE; ; iteration++) {
         // run test pipeline and collect metrics
         test_pipeline();
         getVmValues(cur[VMSIZE], cur[VMPEAK], cur[VMRSS], cur[VMHWM]);
         cur[THREADS] = getThreadsNum();
 
-        past[iteration % past.size()] = cur;
-        if (iteration % AVERAGE_NUM == 0) {
-            // compute sliding average
-            std::fill(sliding_avg.begin(), sliding_avg.end(), 0);
-
-            for (size_t i = 0; i < AVERAGE_NUM; i++) {
-                // sliding_avg = sliding_avg + past
-                util::transform(sliding_avg, past[i], sliding_avg,
-                                [](long sliding_avg_val, long past_val) -> long {
-                                    return sliding_avg_val + past_val;
-                                });
+        past[(iteration - 1) % PAST_SIZE] = cur;
+        if (iteration % PAST_SIZE == 0) {
+            // compute moving median
+            std::fill(moving_median.begin(), moving_median.end(), 0);
+            for (size_t i = 0; i < MeasureValueMax; i++) {
+               std::vector<long> temp(PAST_SIZE);
+               for (size_t j = 0; j < PAST_SIZE; j++)
+                   temp[j] = past[j][i];
+               int median_ind =  temp.size() / 2;
+               std::nth_element(temp.begin(), temp.begin() + median_ind, temp.end());
+               moving_median[i] = temp[median_ind];
             }
-            // sliding_avg = sliding_avg / AVERAGE_NUM
-            util::transform(sliding_avg, sliding_avg, [](long sliding_avg_val) -> float {
-                return sliding_avg_val / AVERAGE_NUM;
-            });
 
-            progress_str = std::to_string(iteration) + "\t" + std::to_string(sliding_avg[VMRSS]) + "\t" +
-                           std::to_string(sliding_avg[VMHWM]) + "\t" + std::to_string(sliding_avg[VMSIZE]) + "\t" +
-                           std::to_string(sliding_avg[VMPEAK]) + "\t" + std::to_string(sliding_avg[THREADS]);
+            progress_str = std::to_string(iteration) + "\t" + std::to_string(moving_median[VMRSS]) + "\t" +
+                           std::to_string(moving_median[VMHWM]) + "\t" + std::to_string(moving_median[VMSIZE]) + "\t" +
+                           std::to_string(moving_median[VMPEAK]) + "\t" + std::to_string(moving_median[THREADS]);
 
             // compute test info
             if (iteration >= WARMUP_STEPS) {
@@ -99,10 +95,10 @@ TestResult common_test_pipeline(const std::function<void()>& test_pipeline, cons
                     if (0 != retry_count) log_info("Retrying " << retry_count << " of " << MAX_RETRY);
 
                     retry_count++;
-                    measure_count = n / AVERAGE_NUM;
+                    measure_count = n / PAST_SIZE;
                     std::fill(outlier_count.begin(), outlier_count.end(), 0);
-                    // set reference as current `sliding_avg`
-                    ref = sliding_avg;
+                    // set reference as current `moving_median`
+                    ref = moving_median;
                     // threshold = THRESHOLD * ref
                     util::transform(ref, threshold, [](long ref_val) -> float {
                         return THRESHOLD * ref_val;
@@ -117,10 +113,10 @@ TestResult common_test_pipeline(const std::function<void()>& test_pipeline, cons
                 }
                 measure_count--;
 
-                // diff = sliding_avg - ref
-                util::transform(sliding_avg, ref, diff, [](long sliding_avg_val, long ref_val) -> long {
+                // diff = moving_median - ref
+                util::transform(moving_median, ref, diff, [](long moving_median_val, long ref_val) -> long {
                     // no labs() here - ignore cur smaller than ref
-                    return sliding_avg_val - ref_val;
+                    return moving_median_val - ref_val;
                 });
                 // outlier = diff > threshold
                 util::transform(diff, threshold, outlier, [](long diff_val, float threshold_val) -> bool {
