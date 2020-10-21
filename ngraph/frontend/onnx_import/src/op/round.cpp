@@ -33,8 +33,7 @@ namespace ngraph
                 OutputVector round(const Node& node)
                 {
                     return {std::make_shared<default_opset::Round>(
-                        node.get_ng_inputs().at(0),
-                        default_opset::Round::RoundMode::HALF_TO_EVEN)};
+                        node.get_ng_inputs().at(0), default_opset::Round::RoundMode::HALF_TO_EVEN)};
                 }
             } // namespace set_1
 
