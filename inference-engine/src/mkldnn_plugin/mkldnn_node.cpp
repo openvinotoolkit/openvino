@@ -112,6 +112,7 @@ static const InferenceEngine::details::caseless_unordered_map<std::string, Type>
         { "BinaryConvolution", BinaryConvolution },
         { "DeformableConvolution", DeformableConvolution },
         { "TensorIterator", TensorIterator },
+        { "Loop", TensorIterator },
         { "MemoryInput", MemoryInput},  // for construction from name ctor, arbitrary name is used
         { "Memory", MemoryOutput },  // for construction from layer ctor
         { "Convert", Convert },
