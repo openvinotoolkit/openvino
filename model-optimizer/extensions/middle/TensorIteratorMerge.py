@@ -148,13 +148,9 @@ class TensorIteratorMerge(MiddleReplacementPattern):
                     assert False
         condition = match['condition']
         tensor_sequence_length = condition.in_node(0)
-        graph.remove_nodes_from([condition.id, tensor_sequence_length.id])
-        if cond_data is not None:
-            graph.remove_nodes_from([condition.id, cond_data.id, tensor_sequence_length.id])
-        else:
-            graph.remove_nodes_from([condition.id, tensor_sequence_length.id])
-        if time_data is not None:
-            graph.remove_nodes_from([time_data.id])
+
+        nodes_to_remove = [n.id for n in (condition, cond_data, time_data, tensor_sequence_length) if n is not None]
+        graph.remove_nodes_from(nodes_to_remove)
 
         body_nodes, extra_inputs = get_body(graph, inputs, outputs)
 
