@@ -43,23 +43,6 @@ namespace
         pitch.push_back(1);
         return pitch;
     }
-
-    bool calculate_next_axis(std::vector<int64_t>& indices, size_t& axis, const Shape& shape)
-    {
-        if (axis-- == 0)
-        {
-            return false;
-        }
-
-        if (++indices[axis] != shape[axis])
-        {
-            axis = indices.size();
-            return false;
-        }
-
-        indices[axis] = 0;
-        return true;
-    }
 }
 
 void runtime::reference::tile(const char* arg,
@@ -96,8 +79,15 @@ void runtime::reference::tile(const char* arg,
             out += block_size;
         }
 
-        while (calculate_next_axis(indices, axis, in_shape_expanded))
+        while (axis-- != 0)
         {
+            if (++indices[axis] != in_shape_expanded[axis])
+            {
+                axis = indices.size();
+                break;
+            }
+            indices[axis] = 0;
+
             ptrdiff_t pitch = pitches[axis] * in_shape_expanded[axis];
             block_size = pitch * elem_size;
             copy = out - block_size;
