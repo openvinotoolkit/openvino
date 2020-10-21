@@ -13,18 +13,14 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 """
-from copy import copy, deepcopy
-import numpy as np
 import logging as log
-from extensions.ops.parameter import Parameter
-from mo.front.common.partial_infer.utils import int64_array
-from mo.graph.graph import Node, dict_includes, Graph
-from mo.graph.port import Port
-from mo.middle.passes.infer import partial_infer
-from mo.ops.const import Const
-from mo.ops.op import Op
-from mo.utils.error import Error
+
+import numpy as np
+
 from extensions.ops.tensor_iterator import TensorIterator
+from mo.front.common.partial_infer.utils import int64_array
+from mo.graph.graph import Node, Graph
+from mo.middle.passes.infer import partial_infer
 
 
 class Loop(TensorIterator):
@@ -34,7 +30,6 @@ class Loop(TensorIterator):
     has special input determining the execution condition and special output producing execution condition for the next
     iteration.
     """
-
     op = 'Loop'
 
     def __init__(self, graph: Graph, attrs: dict):
@@ -46,7 +41,7 @@ class Loop(TensorIterator):
             'output_port_map': [],  # a list of dicts with such attrs as external_port_id, etc.
             'back_edges': [],  # a list of dicts with such attrs as from_layer, from_port, etc.
             'body': None,  # an Graph object with a body sub-graph
-            'sub_graphs': [],  # built-in attribute with all sub-graphs
+            'sub_graphs': ['body'],  # built-in attribute with all sub-graphs
             'infer': self.infer,
             'type_infer': self.type_infer,
         }
@@ -127,10 +122,13 @@ class Loop(TensorIterator):
             if body_node is not None:
                 assert body_node.soft_get('type') == 'Parameter'
 
-                input_type = np.bool  # this is a current iteration number input shape
                 loop_port_idx = record['external_port_id']
                 if loop_port_idx != -1:
                     input_type = loop_node.in_port(loop_port_idx).get_data_type()
+                else:  # this is a current iteration number input type
+                    assert record['purpose'] == 'current_iteration'
+                    input_type = np.bool
+
                 body_node.data_type = input_type
                 log.debug('Updated data type for the body node with internal_id "{}" with value {}'
                           ''.format(record['internal_layer_id'], body_node.data_type))
@@ -198,7 +196,6 @@ class Loop(TensorIterator):
         Loop.updated_body_parameters_shape(node)
         partial_infer(node.body)
         Loop.updated_loop_output_ports_shape_and_value(node)
-        # TODO think about constant folding for scan outputs
 
     @staticmethod
     def type_infer(node: Node):

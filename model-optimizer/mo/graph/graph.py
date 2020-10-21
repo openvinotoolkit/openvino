@@ -595,21 +595,27 @@ class Graph(nx.MultiDiGraph):
             # Also check that all necessary ports are exists
             message = "Attempt to connect {} to {}.".format(u_for_edge, v_for_edge)
             if self.stage == 'front':
-                assert unode.kind == 'op' and vnode.kind == 'op', "{} Wrong add_adge usage! You can connect only two operations in front phase".format(message)
-                assert 'in' in attr and 'out' in attr, "Missing necessary attribute in or out when adding edge between {} and {}".format(u_for_edge, v_for_edge)
+                assert unode.kind == 'op' and vnode.kind == 'op', "{} Wrong add_adge usage! You can connect only two " \
+                                                                  "operations in front phase".format(message)
+                assert 'in' in attr and 'out' in attr, "Missing necessary attribute in or out when adding edge " \
+                                                       "between {} and {}".format(u_for_edge, v_for_edge)
                 is_control_flow = 'control_flow_edge' in attr and attr['control_flow_edge'] is True
                 in_port = 'control_flow_{}'.format(attr['in']) if is_control_flow else attr['in']
                 out_port = 'control_flow_{}'.format(attr['out']) if is_control_flow else attr['out']
-                assert unode.has_port('out', out_port, control_flow=is_control_flow), "{} Missing out port ({}) in {} node".format(message, out_port, unode.name)
-                assert vnode.has_port('in', in_port, control_flow=is_control_flow), "{} Missing in port ({}) in {} node".format(message, in_port, vnode.name)
+                assert unode.has_port('out', out_port, control_flow=is_control_flow), \
+                    "{} Missing out port ({}) in {} node".format(message, out_port, unode.soft_get('name', unode.id))
+                assert vnode.has_port('in', in_port, control_flow=is_control_flow), \
+                    "{} Missing in port ({}) in {} node".format(message, in_port, vnode.soft_get('name', vnode.id))
             elif self.stage in ['middle', 'back']:
                 assert (unode.kind == 'data' and vnode.kind == 'op') or (unode.kind == 'op' and vnode.kind == 'data')
                 if unode.kind == 'data' and vnode.kind == 'op':
                     assert 'in' in attr, "Attribute in is missing when adding edge to {}".format(v_for_edge)
-                    assert vnode.has_port('in', attr['in']), "{} Node {} has no in port ({})".format(message, vnode.name, attr['in'])
+                    assert vnode.has_port('in', attr['in']), "{} Node {} has no in port ({})" \
+                                                             "".format(message, vnode.name, attr['in'])
                 if unode.kind == 'op' and vnode.kind == 'data':
                     assert 'out' in attr, "Attribute out is missing when adding edge from {}".format(u_for_edge)
-                    assert unode.has_port('out', attr['out']), "{} Node {} has no out port ({})".format(message, unode.name, attr['out'])
+                    assert unode.has_port('out', attr['out']), "{} Node {} has no out port ({})" \
+                                                               "".format(message, unode.name, attr['out'])
 
         return super().add_edge(u_for_edge, v_for_edge, key=key, **attr)
 

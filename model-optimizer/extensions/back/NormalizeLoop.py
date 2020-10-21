@@ -34,34 +34,24 @@ class NormalizeLoop(BackReplacementPattern):
             self.update_edge_attrs(node)
 
     @staticmethod
+    def remove_unused_ops_from_port_map(loop_node: Node, portmap: dict, portmap_attr: str):
+        record_ids_to_remove = []
+        for record_id, record in enumerate(portmap):
+            if len(loop_node.body.get_op_nodes(internal_layer_id=record[portmap_attr])) == 0:
+                record_ids_to_remove.append(record_id)
+        for record_id_to_remove in reversed(record_ids_to_remove):
+            del portmap[record_id_to_remove]
+
+    @staticmethod
     def update_edge_attrs(loop_node: Node):
-        # remove inputs which are not used in the body
-        record_ids_to_remove = []
-        for record_id, record in enumerate(loop_node.input_port_map):
-            if len(loop_node.body.get_op_nodes(internal_layer_id=record['internal_layer_id'])) == 0:
-                record_ids_to_remove.append(record_id)
-        for record_id_to_remove in reversed(record_ids_to_remove):
-            del loop_node.input_port_map[record_id_to_remove]
+        # remove inputs, outputs, back edges from the port map which are not used in the body
+        NormalizeLoop.remove_unused_ops_from_port_map(loop_node, loop_node.input_port_map, 'internal_layer_id')
+        NormalizeLoop.remove_unused_ops_from_port_map(loop_node, loop_node.output_port_map, 'internal_layer_id')
+        NormalizeLoop.remove_unused_ops_from_port_map(loop_node, loop_node.back_edges, 'to_layer')
 
-        # # remove outputs which are not used is not used in the body
-        # record_ids_to_remove = []
-        # for record_id, record in enumerate(loop_node.output_port_map):
-        #     if len(loop_node.body.get_op_nodes(internal_layer_id=record['internal_layer_id'])) == 0:
-        #         record_ids_to_remove.append(record_id)
-        # for record_id_to_remove in reversed(record_ids_to_remove):
-        #     del loop_node.output_port_map[record_id_to_remove]
-
-        # remove unnecessary back edges
-        record_ids_to_remove = []
-        for record_id, record in enumerate(loop_node.back_edges):
-            #            if 'purpose' in record and record['purpose'] == 'current_iteration':
-            if len(loop_node.body.get_op_nodes(internal_layer_id=record['to_layer'])) == 0:
-                record_ids_to_remove.append(record_id)
-        for record_id_to_remove in reversed(record_ids_to_remove):
-            del loop_node.back_edges[record_id_to_remove]
-
-        # run to remove not connected output ports
+        # remove not connected output ports
         Loop.re_numerate_output_ports(loop_node)
+
         # to correctly generate port_map during IR generation
         for record in loop_node.output_port_map:
             pass

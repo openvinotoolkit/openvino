@@ -120,8 +120,7 @@ class TensorIterator(Op):
         for record in ti.back_edges:
             if record[layer_attr_name] != old_layer_id:
                 continue
-            if (port_attr_name in record and record[port_attr_name] == old_port_id) \
-                    or new_port_id is not None:
+            if (port_attr_name in record and record[port_attr_name] == old_port_id) or new_port_id is not None:
                 record[layer_attr_name] = new_layer_id
                 if new_port_id is None:
                     del record[port_attr_name]
@@ -370,15 +369,15 @@ class TensorIterator(Op):
         ti_graph.remove_nodes_from([node.id for node in fake_input_const_nodes])
 
     @staticmethod
-    def connect_body_input(ti_input_port: Port, internal_parameter: Node, external_node_out_port: Port=None, axis: [int, None]=None,
-                           start: [int, None]=None, end: [int, None]=None, stride: [int, None]=None, part_size: [int, None]=None):
+    def connect_body_input(ti_input_port: Port, internal_parameter: Node, external_node_out_port: Port = None,
+                           axis: [int, None] = None, start: [int, None] = None, end: [int, None] = None,
+                           stride: [int, None] = None, part_size: [int, None] = None):
         ti_node = ti_input_port.node
         assert ti_node.soft_get('op') in ['TensorIterator', 'Loop']
         assert ti_input_port.type == 'in'
         assert internal_parameter.soft_get('op') == 'Parameter'
         assert internal_parameter.id in ti_node.body
 
-        # TODO probably this is not needed
         if external_node_out_port is not None:
             assert ti_input_port.disconnected()
             assert external_node_out_port.node.id not in ti_node.body
@@ -389,7 +388,7 @@ class TensorIterator(Op):
                                        'internal_layer_id': internal_parameter['internal_layer_id']})
 
     @staticmethod
-    def connect_body_output(ti_output_port: Port, internal_result: Node, external_node_input_ports: list=None,
+    def connect_body_output(ti_output_port: Port, internal_result: Node, external_node_input_ports: list = None,
                             axis: [int, None] = None, start: [int, None] = None, end: [int, None] = None,
                             stride: [int, None] = None, part_size: [int, None] = None):
         ti_node = ti_output_port.node
@@ -398,7 +397,6 @@ class TensorIterator(Op):
         assert internal_result.soft_get('op') == 'Result'
         assert internal_result.id in ti_node.body
 
-        # TODO probably this is not needed
         if external_node_input_ports is not None:
             assert ti_output_port.disconnected()
             assert all([port.node.id not in ti_node.body for port in external_node_input_ports])

@@ -13,6 +13,7 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 """
+import numpy as np
 
 from extensions.front.pass_separator import FrontStart
 from extensions.front.restore_ports import RestorePorts
@@ -21,6 +22,7 @@ from mo.front.common.partial_infer.utils import int64_array
 from mo.front.common.replacement import FrontReplacementSubgraph
 from mo.front.tf.graph_utils import create_op_with_const_inputs
 from mo.graph.graph import Graph, Node
+from mo.ops.const import Const
 from mo.ops.unsqueeze import Unsqueeze
 
 
@@ -39,6 +41,19 @@ class ONNXLoopNormalize(FrontReplacementSubgraph):
 
     @staticmethod
     def normalize_body_graph(loop_node: Node):
+        loop_name = loop_node.soft_get('name', loop_node.id)
+        # connect "trip count" input if it is not connected with default value "Infinity" (-1)
+        if 0 not in loop_node.in_ports() or loop_node.in_port(0).disconnected():
+            loop_node.add_input_port(0, skip_if_exist=True)
+            Const(loop_node.graph, {'name': loop_name + '/trip_count', 'value': int64_array([-1])}).\
+                create_node().out_port(0).connect(loop_node.in_port(0))
+
+        # connect "execution condition" input if it is not connected with default value True
+        if 1 not in loop_node.in_ports() or loop_node.in_port(1).disconnected():
+            loop_node.add_input_port(1, skip_if_exist=True)
+            Const(loop_node.graph, {'name': loop_name + '/execution_cond', 'value': np.array([True], dtype=np.bool)}).\
+                create_node().out_port(0).connect(loop_node.in_port(0))
+
         # scan output need Unsqueeze over axis 0
         for record in loop_node.output_port_map:
             body_node = Loop.get_body_node_by_internal_id(loop_node, record['internal_layer_id'])
