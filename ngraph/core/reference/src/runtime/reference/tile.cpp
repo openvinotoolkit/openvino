@@ -37,15 +37,13 @@ namespace
     std::vector<int64_t> create_pitches(const Shape& dims)
     {
         std::vector<int64_t> pitch;
-        pitch.resize(dims.size());
-        std::partial_sum(dims.rbegin(), dims.rend() - 1, pitch.begin(), std::multiplies<int64_t>());
-        std::reverse(pitch.begin(), pitch.end() - 1);
-
-        pitch.back() = 1;
+        pitch.resize(dims.size() - 1);
+        std::partial_sum(dims.rbegin(), dims.rend() - 1, pitch.rbegin(), std::multiplies<int64_t>());
+        pitch.push_back(1);
         return pitch;
     }
 
-    bool calculate_next_axis(std::vector<int64_t>& indices, int64_t& axis, const Shape& shape)
+    bool calculate_next_axis(std::vector<int64_t>& indices, size_t& axis, const Shape& shape)
     {
         if (axis-- == 0)
         {
@@ -80,9 +78,9 @@ void runtime::reference::tile(const char* arg,
     const char* copy = nullptr;
 
     std::vector<int64_t> indices(in_shape_expanded.size() - 1, 0);
-    int64_t axis = indices.size();
+    size_t axis = indices.size();
 
-    while (axis >= 0)
+    while (axis <= indices.size())
     {
         block_size = last_dim * elem_size;
         memcpy(out, arg, block_size);
