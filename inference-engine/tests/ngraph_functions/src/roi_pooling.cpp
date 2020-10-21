@@ -16,11 +16,14 @@ std::shared_ptr<Node> makeROIPooling(const Output<Node>& input,
                                      const Shape& output_size,
                                      const float spatial_scale,
                                      const ngraph::helpers::ROIPoolingTypes& roi_pool_type) {
-    std::string roi_pool_method = (roi_pool_type == helpers::ROIPoolingTypes::ROI_MAX) ? "max" : "bilinear";
-
-    std::shared_ptr<ngraph::Node> roi_pooling;
-    roi_pooling = std::make_shared<ngraph::opset3::ROIPooling>(input, coords, output_size, spatial_scale, roi_pool_method);
-    return roi_pooling;
+    switch (roi_pool_type) {
+        case helpers::ROIPoolingTypes::ROI_MAX:
+            return std::make_shared<ngraph::opset3::ROIPooling>(input, coords, output_size, spatial_scale, "Max");
+        case helpers::ROIPoolingTypes::ROI_BILINEAR:
+            return std::make_shared<ngraph::opset3::ROIPooling>(input, coords, output_size, spatial_scale, "Bilinear");
+        default:
+            throw std::runtime_error("Incorrect type of ROIPooling operation");
+    }
 }
 
 }  // namespace builder
