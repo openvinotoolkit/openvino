@@ -117,11 +117,12 @@ test::INTERPRETER_Engine::INTERPRETER_Engine(const std::shared_ptr<Function> fun
     for (auto i = 0; i < m_function->get_output_size(); ++i)
     {
         Shape out_shape{};
-        if (m_function->get_results().at(i)->get_output_partial_shape(0).is_static()) {
+        if (m_function->get_results().at(i)->get_output_partial_shape(0).is_static())
+        {
             out_shape = m_function->get_output_shape(i);
         }
-        m_result_tensors.push_back(m_backend->create_tensor(m_function->get_output_element_type(i),
-                                                            out_shape));
+        m_result_tensors.push_back(
+            m_backend->create_tensor(m_function->get_output_element_type(i), out_shape));
     }
 }
 

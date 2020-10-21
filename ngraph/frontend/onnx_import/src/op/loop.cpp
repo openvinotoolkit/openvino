@@ -113,7 +113,7 @@ namespace ngraph
                     Output<ngraph::Node> termination_cond;
                     // todo: how to support the case  when we have false in this input
                     termination_cond =
-                            ngraph::op::Constant::create(ngraph::element::boolean, {1}, {true});
+                        ngraph::op::Constant::create(ngraph::element::boolean, {1}, {true});
                     if (ngraph::op::is_null(ng_inputs.at(1))) // termination condition skipped
                     {
                         // true means that first interation should be run
@@ -172,20 +172,25 @@ namespace ngraph
                                      body_outputs.size(),
                                      ") is not greater than number of outpus. Required at least: ",
                                      loop_carried_dependencies.size() + 1);
-                    auto body_cond_in = ngraph::op::Constant::create(ngraph::element::boolean, {1}, {true});
+                    auto body_cond_in =
+                        ngraph::op::Constant::create(ngraph::element::boolean, {1}, {true});
                     replace_node(body_inputs[1], body_cond_in);
-                    if (should_ignore) {
-                        auto body_cond_out = ngraph::op::Constant::create(ngraph::element::boolean, {1}, {true});
+                    if (should_ignore)
+                    {
+                        auto body_cond_out =
+                            ngraph::op::Constant::create(ngraph::element::boolean, {1}, {true});
                         body_outputs[0] = body_cond_out;
                     }
                     ParameterVector body_params(body_inputs.begin() + 2, body_inputs.end());
                     ngraph::opset5::Loop::SpecialBodyPorts spec_ports;
                     spec_ports.body_condition_output_idx = 0;
-                    if(!body_inputs[0]->output(0).get_target_inputs().empty()) {
+                    if (!body_inputs[0]->output(0).get_target_inputs().empty())
+                    {
                         spec_ports.current_iteration_input_idx = 0;
                         // in some tests cur_iteration input is dynamic (???)
                         // workaround (i32 or i64)
-                        auto cur_iter = std::make_shared<ngraph::opset5::Parameter>(ngraph::element::i64, PartialShape{1});
+                        auto cur_iter = std::make_shared<ngraph::opset5::Parameter>(
+                            ngraph::element::i64, PartialShape{1});
                         replace_node(body_inputs[0], cur_iter);
                         body_params.emplace(body_params.begin(), cur_iter);
                     }

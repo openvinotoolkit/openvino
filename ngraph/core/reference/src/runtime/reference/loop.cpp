@@ -114,366 +114,456 @@ namespace ngraph
                                         outs[body_desc->m_body_value_index].size());
                         }
                     }
-                }*//*
+                }*/ /*
 
-            }
-        }
+             }
+         }
 
-        template<typename fromPrec, typename toPrec>
-        std::vector<std::uint8_t>
-        convertPrecision(std::vector<std::uint8_t> &buffer, const size_t elementsCount, const size_t elementSize) {
-            std::vector<std::uint8_t> convertedData(elementsCount * elementSize);
-            const fromPrec *src = reinterpret_cast<const fromPrec *>(buffer.data());
-            toPrec *dst = reinterpret_cast<toPrec *>(convertedData.data());
-            for (size_t i = 0; i < elementsCount; i++)
-                dst[i] = static_cast<toPrec>(src[i]);
-            return convertedData;
-        }
+         template<typename fromPrec, typename toPrec>
+         std::vector<std::uint8_t>
+         convertPrecision(std::vector<std::uint8_t> &buffer, const size_t elementsCount, const
+ size_t elementSize) {
+             std::vector<std::uint8_t> convertedData(elementsCount * elementSize);
+             const fromPrec *src = reinterpret_cast<const fromPrec *>(buffer.data());
+             toPrec *dst = reinterpret_cast<toPrec *>(convertedData.data());
+             for (size_t i = 0; i < elementsCount; i++)
+                 dst[i] = static_cast<toPrec>(src[i]);
+             return convertedData;
+         }
 
-        std::vector<std::uint8_t>
-        convertOutputPrecision(std::vector<std::uint8_t> &output, const element::Type_t &fromPrecision,
-                               const element::Type_t &toPrecision, const size_t elementsCount) {
-            switch (fromPrecision) {
-                case element::Type_t::u8: {
-                    switch (toPrecision) {
-                        case element::Type_t::u8: {
-                            return convertPrecision<uint8_t, uint8_t>(output, elementsCount, element::Type(toPrecision).size());
-                        }
-                        case element::Type_t::u16: {
-                            return convertPrecision<uint8_t, uint16_t>(output, elementsCount, element::Type(toPrecision).size());
-                        }
-                        case element::Type_t::i8: {
-                            return convertPrecision<uint8_t, int8_t>(output, elementsCount, element::Type(toPrecision).size());
-                        }
-                        case element::Type_t::i16: {
-                            return convertPrecision<uint8_t, int16_t>(output, elementsCount, element::Type(toPrecision).size());
-                        }
-                        case element::Type_t::i32: {
-                            return convertPrecision<uint8_t, int32_t>(output, elementsCount, element::Type(toPrecision).size());
-                        }
-                        case element::Type_t::i64: {
-                            return convertPrecision<uint8_t, int64_t>(output, elementsCount, element::Type(toPrecision).size());
-                        }
-                        case element::Type_t::f32: {
-                            return convertPrecision<uint8_t, float>(output, elementsCount, element::Type(toPrecision).size());
-                        }
-                        case element::Type_t::u64: {
-                            return convertPrecision<uint8_t, uint64_t>(output, elementsCount, element::Type(toPrecision).size());
-                        }
-                        default:
-                            throw std::runtime_error("convertOutputPrecision can't convert from: " + element::Type(fromPrecision).get_type_name() + " to: " +
-                                                     element::Type(toPrecision).get_type_name());
-                    }
-                }
-                case element::Type_t::u16: {
-                    switch (toPrecision) {
-                        case element::Type_t::u8: {
-                            return convertPrecision<uint16_t, uint8_t>(output, elementsCount, element::Type(toPrecision).size());
-                        }
-                        case element::Type_t::u16: {
-                            return convertPrecision<uint16_t, uint16_t>(output, elementsCount, element::Type(toPrecision).size());
-                        }
-                        case element::Type_t::i8: {
-                            return convertPrecision<uint16_t, int8_t>(output, elementsCount, element::Type(toPrecision).size());
-                        }
-                        case element::Type_t::i16: {
-                            return convertPrecision<uint16_t, int16_t>(output, elementsCount, element::Type(toPrecision).size());
-                        }
-                        case element::Type_t::i32: {
-                            return convertPrecision<uint16_t, int32_t>(output, elementsCount, element::Type(toPrecision).size());
-                        }
-                        case element::Type_t::i64: {
-                            return convertPrecision<uint16_t, int64_t>(output, elementsCount, element::Type(toPrecision).size());
-                        }
-                        case element::Type_t::f32: {
-                            return convertPrecision<uint16_t, float>(output, elementsCount, element::Type(toPrecision).size());
-                        }
-                        case element::Type_t::u64: {
-                            return convertPrecision<uint16_t, uint64_t>(output, elementsCount, element::Type(toPrecision).size());
-                        }
-                        default:
-                            throw std::runtime_error("convertOutputPrecision can't convert from: " + element::Type(fromPrecision).get_type_name() + " to: " +
-                                                     element::Type(toPrecision).get_type_name());
-                    }
-                }
-                case element::Type_t::i8: {
-                    switch (toPrecision) {
-                        case element::Type_t::u8: {
-                            return convertPrecision<int8_t, uint8_t>(output, elementsCount, element::Type(toPrecision).size());
-                        }
-                        case element::Type_t::u16: {
-                            return convertPrecision<int8_t, uint16_t>(output, elementsCount, element::Type(toPrecision).size());
-                        }
-                        case element::Type_t::i8: {
-                            return convertPrecision<int8_t, int8_t>(output, elementsCount, element::Type(toPrecision).size());
-                        }
-                        case element::Type_t::i16: {
-                            return convertPrecision<int8_t, int16_t>(output, elementsCount, element::Type(toPrecision).size());
-                        }
-                        case element::Type_t::i32: {
-                            return convertPrecision<int8_t, int32_t>(output, elementsCount, element::Type(toPrecision).size());
-                        }
-                        case element::Type_t::i64: {
-                            return convertPrecision<int8_t, int64_t>(output, elementsCount, element::Type(toPrecision).size());
-                        }
-                        case element::Type_t::f32: {
-                            return convertPrecision<int8_t, float>(output, elementsCount, element::Type(toPrecision).size());
-                        }
-                        case element::Type_t::u64: {
-                            return convertPrecision<int8_t, uint64_t>(output, elementsCount, element::Type(toPrecision).size());
-                        }
-                        default:
-                            throw std::runtime_error("convertOutputPrecision can't convert from: " + element::Type(fromPrecision).get_type_name() + " to: " +
-                                                     element::Type(toPrecision).get_type_name());
-                    }
-                }
-                case element::Type_t::i16: {
-                    switch (toPrecision) {
-                        case element::Type_t::u8: {
-                            return convertPrecision<int16_t, uint8_t>(output, elementsCount, element::Type(toPrecision).size());
-                        }
-                        case element::Type_t::u16: {
-                            return convertPrecision<int16_t, uint16_t>(output, elementsCount, element::Type(toPrecision).size());
-                        }
-                        case element::Type_t::i8: {
-                            return convertPrecision<int16_t, int8_t>(output, elementsCount, element::Type(toPrecision).size());
-                        }
-                        case element::Type_t::i16: {
-                            return convertPrecision<int16_t, int16_t>(output, elementsCount, element::Type(toPrecision).size());
-                        }
-                        case element::Type_t::i32: {
-                            return convertPrecision<int16_t, int32_t>(output, elementsCount, element::Type(toPrecision).size());
-                        }
-                        case element::Type_t::i64: {
-                            return convertPrecision<int16_t, int64_t>(output, elementsCount, element::Type(toPrecision).size());
-                        }
-                        case element::Type_t::f32: {
-                            return convertPrecision<int16_t, float>(output, elementsCount, element::Type(toPrecision).size());
-                        }
-                        case element::Type_t::u64: {
-                            return convertPrecision<int16_t, uint64_t>(output, elementsCount, element::Type(toPrecision).size());
-                        }
-                        default:
-                            throw std::runtime_error("convertOutputPrecision can't convert from: " + element::Type(fromPrecision).get_type_name() + " to: " +
-                                                     element::Type(toPrecision).get_type_name());
-                    }
-                }
-                case element::Type_t::i32: {
-                    switch (toPrecision) {
-                        case element::Type_t::u8: {
-                            return convertPrecision<int32_t, uint8_t>(output, elementsCount, element::Type(toPrecision).size());
-                        }
-                        case element::Type_t::u16: {
-                            return convertPrecision<int32_t, uint16_t>(output, elementsCount, element::Type(toPrecision).size());
-                        }
-                        case element::Type_t::i8: {
-                            return convertPrecision<int32_t, int8_t>(output, elementsCount, element::Type(toPrecision).size());
-                        }
-                        case element::Type_t::i16: {
-                            return convertPrecision<int32_t, int16_t>(output, elementsCount, element::Type(toPrecision).size());
-                        }
-                        case element::Type_t::i32: {
-                            return convertPrecision<int32_t, int32_t>(output, elementsCount, element::Type(toPrecision).size());
-                        }
-                        case element::Type_t::i64: {
-                            return convertPrecision<int32_t, int64_t>(output, elementsCount, element::Type(toPrecision).size());
-                        }
-                        case element::Type_t::f32: {
-                            return convertPrecision<int32_t, float>(output, elementsCount, element::Type(toPrecision).size());
-                        }
-                        case element::Type_t::u64: {
-                            return convertPrecision<int32_t, uint64_t>(output, elementsCount, element::Type(toPrecision).size());
-                        }
-                        default:
-                            throw std::runtime_error("convertOutputPrecision can't convert from: " + element::Type(fromPrecision).get_type_name() + " to: " +
-                                                     element::Type(toPrecision).get_type_name());
-                    }
-                }
-                case element::Type_t::i64: {
-                    switch (toPrecision) {
-                        case element::Type_t::u8: {
-                            return convertPrecision<int64_t, uint8_t>(output, elementsCount, element::Type(toPrecision).size());
-                        }
-                        case element::Type_t::u16: {
-                            return convertPrecision<int64_t, uint16_t>(output, elementsCount, element::Type(toPrecision).size());
-                        }
-                        case element::Type_t::i8: {
-                            return convertPrecision<int64_t, int8_t>(output, elementsCount, element::Type(toPrecision).size());
-                        }
-                        case element::Type_t::i16: {
-                            return convertPrecision<int64_t, int16_t>(output, elementsCount, element::Type(toPrecision).size());
-                        }
-                        case element::Type_t::i32: {
-                            return convertPrecision<int64_t, int32_t>(output, elementsCount, element::Type(toPrecision).size());
-                        }
-                        case element::Type_t::i64: {
-                            return convertPrecision<int64_t, int64_t>(output, elementsCount, element::Type(toPrecision).size());
-                        }
-                        case element::Type_t::f32: {
-                            return convertPrecision<int64_t, float>(output, elementsCount, element::Type(toPrecision).size());
-                        }
-                        case element::Type_t::u64: {
-                            return convertPrecision<int64_t, uint64_t>(output, elementsCount, element::Type(toPrecision).size());
-                        }
-                        default:
-                            throw std::runtime_error("convertOutputPrecision can't convert from: " + element::Type(fromPrecision).get_type_name() + " to: " +
-                                                     element::Type(toPrecision).get_type_name());
-                    }
-                }
-                case element::Type_t::u64: {
-                    switch (toPrecision) {
-                        case element::Type_t::u8: {
-                            return convertPrecision<uint64_t, uint8_t>(output, elementsCount, element::Type(toPrecision).size());
-                        }
-                        case element::Type_t::u16: {
-                            return convertPrecision<uint64_t, uint16_t>(output, elementsCount, element::Type(toPrecision).size());
-                        }
-                        case element::Type_t::i8: {
-                            return convertPrecision<uint64_t, int8_t>(output, elementsCount, element::Type(toPrecision).size());
-                        }
-                        case element::Type_t::i16: {
-                            return convertPrecision<uint64_t, int16_t>(output, elementsCount, element::Type(toPrecision).size());
-                        }
-                        case element::Type_t::i32: {
-                            return convertPrecision<uint64_t, int32_t>(output, elementsCount, element::Type(toPrecision).size());
-                        }
-                        case element::Type_t::i64: {
-                            return convertPrecision<uint64_t, int64_t>(output, elementsCount, element::Type(toPrecision).size());
-                        }
-                        case element::Type_t::f32: {
-                            return convertPrecision<uint64_t, float>(output, elementsCount, element::Type(toPrecision).size());
-                        }
-                        case element::Type_t::u64: {
-                            return convertPrecision<uint64_t, uint64_t>(output, elementsCount, element::Type(toPrecision).size());
-                        }
-                        default:
-                            throw std::runtime_error("convertOutputPrecision can't convert from: " + element::Type(fromPrecision).get_type_name() + " to: " +
-                                                     element::Type(toPrecision).get_type_name());
-                    }
-                }
-                case element::Type_t::f32: {
-                    switch (toPrecision) {
-                        case element::Type_t::u8: {
-                            return convertPrecision<float, uint8_t>(output, elementsCount, element::Type(toPrecision).size());
-                        }
-                        case element::Type_t::u16: {
-                            return convertPrecision<float, uint16_t>(output, elementsCount, element::Type(toPrecision).size());
-                        }
-                        case element::Type_t::i8: {
-                            return convertPrecision<float, int8_t>(output, elementsCount, element::Type(toPrecision).size());
-                        }
-                        case element::Type_t::i16: {
-                            return convertPrecision<float, int16_t>(output, elementsCount, element::Type(toPrecision).size());
-                        }
-                        case element::Type_t::i32: {
-                            return convertPrecision<float, int32_t>(output, elementsCount, element::Type(toPrecision).size());
-                        }
-                        case element::Type_t::i64: {
-                            return convertPrecision<float, int64_t>(output, elementsCount, element::Type(toPrecision).size());
-                        }
-                        case element::Type_t::f32: {
-                            return convertPrecision<float, float>(output, elementsCount, element::Type(toPrecision).size());
-                        }
-                        case element::Type_t::f16: {
-                            // ngraph float16 has single ctor from float
-                            return convertPrecision<float, ngraph::float16>(output, elementsCount, element::Type(toPrecision).size());
-                        }
-                        case element::Type_t::u64: {
-                            return convertPrecision<float, uint64_t>(output, elementsCount, element::Type(toPrecision).size());
-                        }
-                        default:
-                            throw std::runtime_error("convertOutputPrecision can't convert from: " + element::Type(fromPrecision).get_type_name() + " to: " +
-                                                     element::Type(toPrecision).get_type_name());
-                    }
-                }
-                case element::Type_t::boolean: {
-                    switch (toPrecision) {
-                        case element::Type_t::u8: {
-                            return convertPrecision<bool, uint8_t>(output, elementsCount, element::Type(toPrecision).size());
-                        }
-                        case element::Type_t::u16: {
-                            return convertPrecision<bool, uint16_t>(output, elementsCount, element::Type(toPrecision).size());
-                        }
-                        case element::Type_t::i8: {
-                            return convertPrecision<bool, int8_t>(output, elementsCount, element::Type(toPrecision).size());
-                        }
-                        case element::Type_t::i16: {
-                            return convertPrecision<bool, int16_t>(output, elementsCount, element::Type(toPrecision).size());
-                        }
-                        case element::Type_t::i32: {
-                            return convertPrecision<bool, int32_t>(output, elementsCount, element::Type(toPrecision).size());
-                        }
-                        case element::Type_t::i64: {
-                            return convertPrecision<bool, int64_t>(output, elementsCount, element::Type(toPrecision).size());
-                        }
-                        case element::Type_t::f32: {
-                            return convertPrecision<bool, float>(output, elementsCount, element::Type(toPrecision).size());
-                        }
-                        case element::Type_t::u64: {
-                            return convertPrecision<bool, uint64_t>(output, elementsCount, element::Type(toPrecision).size());
-                        }
-                        default:
-                            throw std::runtime_error("convertOutputPrecision can't convert from: " + element::Type(fromPrecision).get_type_name() + " to: " +
-                                                     element::Type(toPrecision).get_type_name());
-                    }
-                }
-                default:
-                    throw std::runtime_error("convertOutputPrecision can't convert from: " + element::Type(fromPrecision).get_type_name() + " precision");
-            }
-        }
+         std::vector<std::uint8_t>
+         convertOutputPrecision(std::vector<std::uint8_t> &output, const element::Type_t
+ &fromPrecision,
+                                const element::Type_t &toPrecision, const size_t elementsCount) {
+             switch (fromPrecision) {
+                 case element::Type_t::u8: {
+                     switch (toPrecision) {
+                         case element::Type_t::u8: {
+                             return convertPrecision<uint8_t, uint8_t>(output, elementsCount,
+ element::Type(toPrecision).size());
+                         }
+                         case element::Type_t::u16: {
+                             return convertPrecision<uint8_t, uint16_t>(output, elementsCount,
+ element::Type(toPrecision).size());
+                         }
+                         case element::Type_t::i8: {
+                             return convertPrecision<uint8_t, int8_t>(output, elementsCount,
+ element::Type(toPrecision).size());
+                         }
+                         case element::Type_t::i16: {
+                             return convertPrecision<uint8_t, int16_t>(output, elementsCount,
+ element::Type(toPrecision).size());
+                         }
+                         case element::Type_t::i32: {
+                             return convertPrecision<uint8_t, int32_t>(output, elementsCount,
+ element::Type(toPrecision).size());
+                         }
+                         case element::Type_t::i64: {
+                             return convertPrecision<uint8_t, int64_t>(output, elementsCount,
+ element::Type(toPrecision).size());
+                         }
+                         case element::Type_t::f32: {
+                             return convertPrecision<uint8_t, float>(output, elementsCount,
+ element::Type(toPrecision).size());
+                         }
+                         case element::Type_t::u64: {
+                             return convertPrecision<uint8_t, uint64_t>(output, elementsCount,
+ element::Type(toPrecision).size());
+                         }
+                         default:
+                             throw std::runtime_error("convertOutputPrecision can't convert from: "
+ + element::Type(fromPrecision).get_type_name() + " to: " +
+                                                      element::Type(toPrecision).get_type_name());
+                     }
+                 }
+                 case element::Type_t::u16: {
+                     switch (toPrecision) {
+                         case element::Type_t::u8: {
+                             return convertPrecision<uint16_t, uint8_t>(output, elementsCount,
+ element::Type(toPrecision).size());
+                         }
+                         case element::Type_t::u16: {
+                             return convertPrecision<uint16_t, uint16_t>(output, elementsCount,
+ element::Type(toPrecision).size());
+                         }
+                         case element::Type_t::i8: {
+                             return convertPrecision<uint16_t, int8_t>(output, elementsCount,
+ element::Type(toPrecision).size());
+                         }
+                         case element::Type_t::i16: {
+                             return convertPrecision<uint16_t, int16_t>(output, elementsCount,
+ element::Type(toPrecision).size());
+                         }
+                         case element::Type_t::i32: {
+                             return convertPrecision<uint16_t, int32_t>(output, elementsCount,
+ element::Type(toPrecision).size());
+                         }
+                         case element::Type_t::i64: {
+                             return convertPrecision<uint16_t, int64_t>(output, elementsCount,
+ element::Type(toPrecision).size());
+                         }
+                         case element::Type_t::f32: {
+                             return convertPrecision<uint16_t, float>(output, elementsCount,
+ element::Type(toPrecision).size());
+                         }
+                         case element::Type_t::u64: {
+                             return convertPrecision<uint16_t, uint64_t>(output, elementsCount,
+ element::Type(toPrecision).size());
+                         }
+                         default:
+                             throw std::runtime_error("convertOutputPrecision can't convert from: "
+ + element::Type(fromPrecision).get_type_name() + " to: " +
+                                                      element::Type(toPrecision).get_type_name());
+                     }
+                 }
+                 case element::Type_t::i8: {
+                     switch (toPrecision) {
+                         case element::Type_t::u8: {
+                             return convertPrecision<int8_t, uint8_t>(output, elementsCount,
+ element::Type(toPrecision).size());
+                         }
+                         case element::Type_t::u16: {
+                             return convertPrecision<int8_t, uint16_t>(output, elementsCount,
+ element::Type(toPrecision).size());
+                         }
+                         case element::Type_t::i8: {
+                             return convertPrecision<int8_t, int8_t>(output, elementsCount,
+ element::Type(toPrecision).size());
+                         }
+                         case element::Type_t::i16: {
+                             return convertPrecision<int8_t, int16_t>(output, elementsCount,
+ element::Type(toPrecision).size());
+                         }
+                         case element::Type_t::i32: {
+                             return convertPrecision<int8_t, int32_t>(output, elementsCount,
+ element::Type(toPrecision).size());
+                         }
+                         case element::Type_t::i64: {
+                             return convertPrecision<int8_t, int64_t>(output, elementsCount,
+ element::Type(toPrecision).size());
+                         }
+                         case element::Type_t::f32: {
+                             return convertPrecision<int8_t, float>(output, elementsCount,
+ element::Type(toPrecision).size());
+                         }
+                         case element::Type_t::u64: {
+                             return convertPrecision<int8_t, uint64_t>(output, elementsCount,
+ element::Type(toPrecision).size());
+                         }
+                         default:
+                             throw std::runtime_error("convertOutputPrecision can't convert from: "
+ + element::Type(fromPrecision).get_type_name() + " to: " +
+                                                      element::Type(toPrecision).get_type_name());
+                     }
+                 }
+                 case element::Type_t::i16: {
+                     switch (toPrecision) {
+                         case element::Type_t::u8: {
+                             return convertPrecision<int16_t, uint8_t>(output, elementsCount,
+ element::Type(toPrecision).size());
+                         }
+                         case element::Type_t::u16: {
+                             return convertPrecision<int16_t, uint16_t>(output, elementsCount,
+ element::Type(toPrecision).size());
+                         }
+                         case element::Type_t::i8: {
+                             return convertPrecision<int16_t, int8_t>(output, elementsCount,
+ element::Type(toPrecision).size());
+                         }
+                         case element::Type_t::i16: {
+                             return convertPrecision<int16_t, int16_t>(output, elementsCount,
+ element::Type(toPrecision).size());
+                         }
+                         case element::Type_t::i32: {
+                             return convertPrecision<int16_t, int32_t>(output, elementsCount,
+ element::Type(toPrecision).size());
+                         }
+                         case element::Type_t::i64: {
+                             return convertPrecision<int16_t, int64_t>(output, elementsCount,
+ element::Type(toPrecision).size());
+                         }
+                         case element::Type_t::f32: {
+                             return convertPrecision<int16_t, float>(output, elementsCount,
+ element::Type(toPrecision).size());
+                         }
+                         case element::Type_t::u64: {
+                             return convertPrecision<int16_t, uint64_t>(output, elementsCount,
+ element::Type(toPrecision).size());
+                         }
+                         default:
+                             throw std::runtime_error("convertOutputPrecision can't convert from: "
+ + element::Type(fromPrecision).get_type_name() + " to: " +
+                                                      element::Type(toPrecision).get_type_name());
+                     }
+                 }
+                 case element::Type_t::i32: {
+                     switch (toPrecision) {
+                         case element::Type_t::u8: {
+                             return convertPrecision<int32_t, uint8_t>(output, elementsCount,
+ element::Type(toPrecision).size());
+                         }
+                         case element::Type_t::u16: {
+                             return convertPrecision<int32_t, uint16_t>(output, elementsCount,
+ element::Type(toPrecision).size());
+                         }
+                         case element::Type_t::i8: {
+                             return convertPrecision<int32_t, int8_t>(output, elementsCount,
+ element::Type(toPrecision).size());
+                         }
+                         case element::Type_t::i16: {
+                             return convertPrecision<int32_t, int16_t>(output, elementsCount,
+ element::Type(toPrecision).size());
+                         }
+                         case element::Type_t::i32: {
+                             return convertPrecision<int32_t, int32_t>(output, elementsCount,
+ element::Type(toPrecision).size());
+                         }
+                         case element::Type_t::i64: {
+                             return convertPrecision<int32_t, int64_t>(output, elementsCount,
+ element::Type(toPrecision).size());
+                         }
+                         case element::Type_t::f32: {
+                             return convertPrecision<int32_t, float>(output, elementsCount,
+ element::Type(toPrecision).size());
+                         }
+                         case element::Type_t::u64: {
+                             return convertPrecision<int32_t, uint64_t>(output, elementsCount,
+ element::Type(toPrecision).size());
+                         }
+                         default:
+                             throw std::runtime_error("convertOutputPrecision can't convert from: "
+ + element::Type(fromPrecision).get_type_name() + " to: " +
+                                                      element::Type(toPrecision).get_type_name());
+                     }
+                 }
+                 case element::Type_t::i64: {
+                     switch (toPrecision) {
+                         case element::Type_t::u8: {
+                             return convertPrecision<int64_t, uint8_t>(output, elementsCount,
+ element::Type(toPrecision).size());
+                         }
+                         case element::Type_t::u16: {
+                             return convertPrecision<int64_t, uint16_t>(output, elementsCount,
+ element::Type(toPrecision).size());
+                         }
+                         case element::Type_t::i8: {
+                             return convertPrecision<int64_t, int8_t>(output, elementsCount,
+ element::Type(toPrecision).size());
+                         }
+                         case element::Type_t::i16: {
+                             return convertPrecision<int64_t, int16_t>(output, elementsCount,
+ element::Type(toPrecision).size());
+                         }
+                         case element::Type_t::i32: {
+                             return convertPrecision<int64_t, int32_t>(output, elementsCount,
+ element::Type(toPrecision).size());
+                         }
+                         case element::Type_t::i64: {
+                             return convertPrecision<int64_t, int64_t>(output, elementsCount,
+ element::Type(toPrecision).size());
+                         }
+                         case element::Type_t::f32: {
+                             return convertPrecision<int64_t, float>(output, elementsCount,
+ element::Type(toPrecision).size());
+                         }
+                         case element::Type_t::u64: {
+                             return convertPrecision<int64_t, uint64_t>(output, elementsCount,
+ element::Type(toPrecision).size());
+                         }
+                         default:
+                             throw std::runtime_error("convertOutputPrecision can't convert from: "
+ + element::Type(fromPrecision).get_type_name() + " to: " +
+                                                      element::Type(toPrecision).get_type_name());
+                     }
+                 }
+                 case element::Type_t::u64: {
+                     switch (toPrecision) {
+                         case element::Type_t::u8: {
+                             return convertPrecision<uint64_t, uint8_t>(output, elementsCount,
+ element::Type(toPrecision).size());
+                         }
+                         case element::Type_t::u16: {
+                             return convertPrecision<uint64_t, uint16_t>(output, elementsCount,
+ element::Type(toPrecision).size());
+                         }
+                         case element::Type_t::i8: {
+                             return convertPrecision<uint64_t, int8_t>(output, elementsCount,
+ element::Type(toPrecision).size());
+                         }
+                         case element::Type_t::i16: {
+                             return convertPrecision<uint64_t, int16_t>(output, elementsCount,
+ element::Type(toPrecision).size());
+                         }
+                         case element::Type_t::i32: {
+                             return convertPrecision<uint64_t, int32_t>(output, elementsCount,
+ element::Type(toPrecision).size());
+                         }
+                         case element::Type_t::i64: {
+                             return convertPrecision<uint64_t, int64_t>(output, elementsCount,
+ element::Type(toPrecision).size());
+                         }
+                         case element::Type_t::f32: {
+                             return convertPrecision<uint64_t, float>(output, elementsCount,
+ element::Type(toPrecision).size());
+                         }
+                         case element::Type_t::u64: {
+                             return convertPrecision<uint64_t, uint64_t>(output, elementsCount,
+ element::Type(toPrecision).size());
+                         }
+                         default:
+                             throw std::runtime_error("convertOutputPrecision can't convert from: "
+ + element::Type(fromPrecision).get_type_name() + " to: " +
+                                                      element::Type(toPrecision).get_type_name());
+                     }
+                 }
+                 case element::Type_t::f32: {
+                     switch (toPrecision) {
+                         case element::Type_t::u8: {
+                             return convertPrecision<float, uint8_t>(output, elementsCount,
+ element::Type(toPrecision).size());
+                         }
+                         case element::Type_t::u16: {
+                             return convertPrecision<float, uint16_t>(output, elementsCount,
+ element::Type(toPrecision).size());
+                         }
+                         case element::Type_t::i8: {
+                             return convertPrecision<float, int8_t>(output, elementsCount,
+ element::Type(toPrecision).size());
+                         }
+                         case element::Type_t::i16: {
+                             return convertPrecision<float, int16_t>(output, elementsCount,
+ element::Type(toPrecision).size());
+                         }
+                         case element::Type_t::i32: {
+                             return convertPrecision<float, int32_t>(output, elementsCount,
+ element::Type(toPrecision).size());
+                         }
+                         case element::Type_t::i64: {
+                             return convertPrecision<float, int64_t>(output, elementsCount,
+ element::Type(toPrecision).size());
+                         }
+                         case element::Type_t::f32: {
+                             return convertPrecision<float, float>(output, elementsCount,
+ element::Type(toPrecision).size());
+                         }
+                         case element::Type_t::f16: {
+                             // ngraph float16 has single ctor from float
+                             return convertPrecision<float, ngraph::float16>(output, elementsCount,
+ element::Type(toPrecision).size());
+                         }
+                         case element::Type_t::u64: {
+                             return convertPrecision<float, uint64_t>(output, elementsCount,
+ element::Type(toPrecision).size());
+                         }
+                         default:
+                             throw std::runtime_error("convertOutputPrecision can't convert from: "
+ + element::Type(fromPrecision).get_type_name() + " to: " +
+                                                      element::Type(toPrecision).get_type_name());
+                     }
+                 }
+                 case element::Type_t::boolean: {
+                     switch (toPrecision) {
+                         case element::Type_t::u8: {
+                             return convertPrecision<bool, uint8_t>(output, elementsCount,
+ element::Type(toPrecision).size());
+                         }
+                         case element::Type_t::u16: {
+                             return convertPrecision<bool, uint16_t>(output, elementsCount,
+ element::Type(toPrecision).size());
+                         }
+                         case element::Type_t::i8: {
+                             return convertPrecision<bool, int8_t>(output, elementsCount,
+ element::Type(toPrecision).size());
+                         }
+                         case element::Type_t::i16: {
+                             return convertPrecision<bool, int16_t>(output, elementsCount,
+ element::Type(toPrecision).size());
+                         }
+                         case element::Type_t::i32: {
+                             return convertPrecision<bool, int32_t>(output, elementsCount,
+ element::Type(toPrecision).size());
+                         }
+                         case element::Type_t::i64: {
+                             return convertPrecision<bool, int64_t>(output, elementsCount,
+ element::Type(toPrecision).size());
+                         }
+                         case element::Type_t::f32: {
+                             return convertPrecision<bool, float>(output, elementsCount,
+ element::Type(toPrecision).size());
+                         }
+                         case element::Type_t::u64: {
+                             return convertPrecision<bool, uint64_t>(output, elementsCount,
+ element::Type(toPrecision).size());
+                         }
+                         default:
+                             throw std::runtime_error("convertOutputPrecision can't convert from: "
+ + element::Type(fromPrecision).get_type_name() + " to: " +
+                                                      element::Type(toPrecision).get_type_name());
+                     }
+                 }
+                 default:
+                     throw std::runtime_error("convertOutputPrecision can't convert from: " +
+ element::Type(fromPrecision).get_type_name() + " precision");
+             }
+         }
 
-        std::vector<std::vector<std::uint8_t>> interpreterFunction(const std::shared_ptr<Function> &function,
-                                                                   const std::vector<std::vector<std::uint8_t>> &inputs,
-                                                                   element::Type_t convertType) {
-            runtime::Backend::set_backend_shared_library_search_directory("");
-            auto backend = runtime::Backend::create("INTERPRETER");
+         std::vector<std::vector<std::uint8_t>> interpreterFunction(const std::shared_ptr<Function>
+ &function,
+                                                                    const
+ std::vector<std::vector<std::uint8_t>> &inputs,
+                                                                    element::Type_t convertType) {
+             runtime::Backend::set_backend_shared_library_search_directory("");
+             auto backend = runtime::Backend::create("INTERPRETER");
 
-            const auto &parameters = function->get_parameters();
-            const auto &parametersNumber = parameters.size();
-            const auto &inputsNumber = inputs.size();
-            NGRAPH_CHECK(parametersNumber == inputsNumber,
-                         "Got function (", function->get_friendly_name(), ") with ", parametersNumber, " parameters, but ",
-                         inputsNumber, " input blobs");
+             const auto &parameters = function->get_parameters();
+             const auto &parametersNumber = parameters.size();
+             const auto &inputsNumber = inputs.size();
+             NGRAPH_CHECK(parametersNumber == inputsNumber,
+                          "Got function (", function->get_friendly_name(), ") with ",
+ parametersNumber, " parameters, but ",
+                          inputsNumber, " input blobs");
 
-            auto inputTensors = std::vector<std::shared_ptr<runtime::Tensor>>{};
-            for (const auto &parameter : parameters) {
-                const auto &parameterIndex = function->get_parameter_index(parameter);
-                const auto &parameterShape = parameter->get_shape();
-                const auto &parameterType = parameter->get_element_type();
-                const auto &parameterSize = shape_size(parameterShape) * parameterType.size();
+             auto inputTensors = std::vector<std::shared_ptr<runtime::Tensor>>{};
+             for (const auto &parameter : parameters) {
+                 const auto &parameterIndex = function->get_parameter_index(parameter);
+                 const auto &parameterShape = parameter->get_shape();
+                 const auto &parameterType = parameter->get_element_type();
+                 const auto &parameterSize = shape_size(parameterShape) * parameterType.size();
 
-                const auto &input = inputs[parameterIndex];
-                const auto &inputSize = input.size();
-                NGRAPH_CHECK(parameterSize == inputSize,
-                             "Got parameter (", parameter->get_friendly_name(), ") of size ", parameterSize,
-                             " bytes, but corresponding input with index ", parameterIndex,
-                             " has ", inputSize, " bytes");
+                 const auto &input = inputs[parameterIndex];
+                 const auto &inputSize = input.size();
+                 NGRAPH_CHECK(parameterSize == inputSize,
+                              "Got parameter (", parameter->get_friendly_name(), ") of size ",
+ parameterSize,
+                              " bytes, but corresponding input with index ", parameterIndex,
+                              " has ", inputSize, " bytes");
 
-                auto tensor = backend->create_tensor(parameterType, parameterShape);
-                tensor->write(input.data(), parameterSize);
-                inputTensors.push_back(tensor);
-            }
+                 auto tensor = backend->create_tensor(parameterType, parameterShape);
+                 tensor->write(input.data(), parameterSize);
+                 inputTensors.push_back(tensor);
+             }
 
-            auto outputTensors = std::vector<std::shared_ptr<runtime::Tensor>>{};
-            const auto &results = function->get_results();
-            for (size_t i = 0; i <results.size(); ++i) {
-                outputTensors.push_back(std::make_shared<HostTensor>());
-            }
+             auto outputTensors = std::vector<std::shared_ptr<runtime::Tensor>>{};
+             const auto &results = function->get_results();
+             for (size_t i = 0; i <results.size(); ++i) {
+                 outputTensors.push_back(std::make_shared<HostTensor>());
+             }
 
-            auto handle = backend->compile(function);
-            handle->call_with_validate(outputTensors, inputTensors);
-            auto outputs = std::vector<std::vector<std::uint8_t>>(results.size());
-            for (const auto &result : results) {
-                const auto &resultIndex = function->get_result_index(result);
-                auto &output = outputs[resultIndex];
-                output.resize(shape_size(result->get_shape()) * result->get_element_type().size());
-                outputTensors[resultIndex]->read(output.data(), output.size());
-                if (convertType != element::Type_t::undefined)
-                    output = convertOutputPrecision(output, result->get_element_type(), convertType, shape_size(result->get_shape()));
-            }
+             auto handle = backend->compile(function);
+             handle->call_with_validate(outputTensors, inputTensors);
+             auto outputs = std::vector<std::vector<std::uint8_t>>(results.size());
+             for (const auto &result : results) {
+                 const auto &resultIndex = function->get_result_index(result);
+                 auto &output = outputs[resultIndex];
+                 output.resize(shape_size(result->get_shape()) * result->get_element_type().size());
+                 outputTensors[resultIndex]->read(output.data(), output.size());
+                 if (convertType != element::Type_t::undefined)
+                     output = convertOutputPrecision(output, result->get_element_type(),
+ convertType, shape_size(result->get_shape()));
+             }
 
-            return outputs;
-        }
-    }
-}
-*/
+             return outputs;
+         }
+     }
+ }
+ */

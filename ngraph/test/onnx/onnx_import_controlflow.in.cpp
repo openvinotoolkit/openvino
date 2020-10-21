@@ -104,7 +104,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_controlflow_loop_2d_const_no_identity_terminat
 
     auto test_case = test::TestCase<TestEngine>(function);
     // termination condition
-    //test_case.add_input<bool>({true}); todo delete?
+    // test_case.add_input<bool>({true}); todo delete?
     // a_init
     test_case.add_input<float>({0.f, 0.f});
 

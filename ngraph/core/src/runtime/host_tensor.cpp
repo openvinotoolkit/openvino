@@ -188,11 +188,11 @@ void runtime::HostTensor::set_element_type(const element::Type& element_type)
 
 void runtime::HostTensor::set_shape(const Shape& shape)
 {
-/*    NGRAPH_CHECK(PartialShape(shape).refines(get_partial_shape()),
-                 "Allocation shape ",
-                 shape,
-                 " must be compatible with the partial shape: ",
-                 get_partial_shape());*/
+    /*    NGRAPH_CHECK(PartialShape(shape).refines(get_partial_shape()),
+                     "Allocation shape ",
+                     shape,
+                     " must be compatible with the partial shape: ",
+                     get_partial_shape());*/
     m_descriptor->set_partial_shape(shape);
     if (m_allocated_buffer_pool != nullptr)
     {

@@ -20,7 +20,7 @@ graph {
           op_type: "Add"
         }
         node {
-          input: "i = 1"
+          input: "i"
           input: "threshold"
           output: "cond_out"
           name: "condition_calc"

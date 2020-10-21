@@ -18,28 +18,32 @@
 
 #include <cmath>
 /*#include <runtime/backend_manager.hpp>
-#include <runtime/backend.hpp>*/
 #include <ngraph/opsets/opset5.hpp>
+#include <runtime/backend.hpp>*/
 
 namespace ngraph
 {
     namespace runtime
     {
+        /*       template <typename fromPrec, typename toPrec>
+               std::vector<std::uint8_t> convertPrecision(std::vector<std::uint8_t> &buffer, const
+           size_t elementsCount, const size_t elementSize);
 
- /*       template <typename fromPrec, typename toPrec>
-        std::vector<std::uint8_t> convertPrecision(std::vector<std::uint8_t> &buffer, const size_t elementsCount, const size_t elementSize);
+               std::vector<std::uint8_t> convertOutputPrecision(std::vector<std::uint8_t> &output,
+           const element::Type_t &fromPrecision, const element::Type_t &toPrecision,
+                                                                const size_t elementsCount);
 
-        std::vector<std::uint8_t> convertOutputPrecision(std::vector<std::uint8_t> &output, const element::Type_t &fromPrecision, const element::Type_t &toPrecision,
-                                                         const size_t elementsCount);
+               std::vector<std::vector<std::uint8_t>> interpreterFunction(const
+           std::shared_ptr<Function> &function, const std::vector<std::vector<std::uint8_t>>
+           &inputs,
+                                                                          element::Type_t
+           convertType);
 
-        std::vector<std::vector<std::uint8_t>> interpreterFunction(const std::shared_ptr<Function> &function, const std::vector<std::vector<std::uint8_t>> &inputs,
-                                                                   element::Type_t convertType);
-
-        namespace reference
-        {
-            void loop(ngraph::opset5::Loop& loop,
-                      const std::vector<std::shared_ptr<HostTensor>>& out,
-                      const std::vector<std::shared_ptr<HostTensor>>& args);
-        }*/
+               namespace reference
+               {
+                   void loop(ngraph::opset5::Loop& loop,
+                             const std::vector<std::shared_ptr<HostTensor>>& out,
+                             const std::vector<std::shared_ptr<HostTensor>>& args);
+               }*/
     }
 }

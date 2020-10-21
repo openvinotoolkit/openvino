@@ -35,7 +35,7 @@ runtime::Executable::~Executable()
 bool runtime::Executable::call_with_validate(const vector<shared_ptr<runtime::Tensor>>& outputs,
                                              const vector<shared_ptr<runtime::Tensor>>& inputs)
 {
-    //validate(outputs, inputs);
+    // validate(outputs, inputs);
     return call(outputs, inputs);
 }
 
