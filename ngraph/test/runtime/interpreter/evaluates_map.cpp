@@ -1138,23 +1138,6 @@ namespace
         return true;
     }
 
-    template <element::Type_t ET>
-    bool evaluate(const shared_ptr<op::v0::RegionYolo>& op,
-                  const HostTensorVector& outputs,
-                  const HostTensorVector& inputs)
-    {
-        using T = typename element_type_traits<ET>::value_type;
-        runtime::reference::region_yolo<T>(inputs[0]->get_data_ptr<const T>(),
-                                           outputs[0]->get_data_ptr<T>(),
-                                           inputs[0]->get_shape(),
-                                           op->get_num_coords(),
-                                           op->get_num_classes(),
-                                           op->get_num_regions(),
-                                           op->get_do_softmax(),
-                                           op->get_mask());
-        return true;
-    }
-
     template <typename T>
     bool evaluate_node(std::shared_ptr<Node> node,
                        const HostTensorVector& outputs,
