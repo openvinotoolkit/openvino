@@ -16,7 +16,6 @@ class StaticShapeNonMaxSuppression : public ngraph::op::NonMaxSuppressionIE3 {
 public:
     static constexpr NodeTypeInfo type_info{"StaticShapeNonMaxSuppression", 0};
     const NodeTypeInfo& get_type_info() const override { return type_info; }
-    StaticShapeNonMaxSuppression() = default;
 
     StaticShapeNonMaxSuppression(const Output<Node>& boxes,
                                  const Output<Node>& scores,
