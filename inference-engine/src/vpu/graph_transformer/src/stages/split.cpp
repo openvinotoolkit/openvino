@@ -155,6 +155,15 @@ Stage StageBuilder::addSplitStage(
     offsets.reserve(outputs.size());
     DimValues curOffset({{axis, 0}});
 
+    auto isAllOutputsHandled = [](const DataVector& outputs) {
+        for (int i = 0; i < outputs.size(); ++i) {
+            if (outputs[i] == nullptr) {
+                return false;
+            }
+        }
+        return true;
+    };
+
     auto getOutAxisSizes = [&]() {
         const auto inputDims = layer->input()->getDims();
         const auto firstOutDims = layer->outData[0]->getDims();
@@ -172,24 +181,38 @@ Stage StageBuilder::addSplitStage(
         return outAxisSizes;
     };
 
-    const auto outAxisSizes = getOutAxisSizes();
-    auto outputs_ = outputs;
-    auto it = outAxisSizes.begin();
-    for (int i = 0; i < outputs_.size() ; ++i) {
-        if (outputs_[i] == nullptr) {
+
+    if (!isAllOutputsHandled(outputs)) {
+        const auto outAxisSizes = getOutAxisSizes();
+        auto outputs_ = outputs;
+        auto it = outAxisSizes.begin();
+        for (int i = 0; i < outputs_.size() ; ++i) {
+            if (outputs_[i] == nullptr) {
+                curOffset.set(axis, curOffset[axis] + *it++);
+                outputs_.erase(outputs_.begin() + i--);
+                continue;
+            }
+            offsets.emplace_back(curOffset);
             curOffset.set(axis, curOffset[axis] + *it++);
-            outputs_.erase(outputs_.begin() + i--);
-            continue;
         }
-        offsets.emplace_back(curOffset);
-        curOffset.set(axis, curOffset[axis] + *it++);
+
+        auto stage = addSplitStage(model, name, layer, std::move(offsets), input, outputs_);
+
+        stage->attrs().set("axis", axis);
+
+        return stage;
+    } else {
+        for (const auto& output : outputs) {
+            offsets.emplace_back(curOffset);
+            curOffset.set(axis, curOffset[axis] + output->desc().dim(axis));
+        }
+
+        auto stage = addSplitStage(model, name, layer, std::move(offsets), input, outputs);
+
+        stage->attrs().set("axis", axis);
+
+        return stage;
     }
-
-    auto stage = addSplitStage(model, name, layer, std::move(offsets), input, outputs_);
-
-    stage->attrs().set("axis", axis);
-
-    return stage;
 }
 
 Stage StageBuilder::addSplitStage(
