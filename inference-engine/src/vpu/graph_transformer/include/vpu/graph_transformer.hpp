@@ -110,7 +110,7 @@ struct CompilationConfig final {
     bool enableTensorIteratorUnrolling = false;
     bool forcePureTensorIterator = false;
     bool enableMemoryTypesAnnotation = false;
-    bool disableWeightsAnalysis = false;
+    bool enableWeightsAnalysis = true;
 
     //
     // Deprecated options

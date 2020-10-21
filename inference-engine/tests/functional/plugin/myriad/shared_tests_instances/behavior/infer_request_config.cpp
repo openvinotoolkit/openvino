@@ -47,8 +47,8 @@ namespace {
             {{InferenceEngine::MYRIAD_THROUGHPUT_STREAMS, "2"}},
             {{InferenceEngine::MYRIAD_THROUGHPUT_STREAMS, "3"}},
 
-            {{InferenceEngine::MYRIAD_DISABLE_WEIGHTS_ANALYSIS, CONFIG_VALUE(YES)}},
-            {{InferenceEngine::MYRIAD_DISABLE_WEIGHTS_ANALYSIS, CONFIG_VALUE(NO)}},
+            {{InferenceEngine::MYRIAD_ENABLE_WEIGHTS_ANALYSIS, CONFIG_VALUE(YES)}},
+            {{InferenceEngine::MYRIAD_ENABLE_WEIGHTS_ANALYSIS, CONFIG_VALUE(NO)}},
 
             // Deprecated
             {{VPU_MYRIAD_CONFIG_KEY(FORCE_RESET), CONFIG_VALUE(YES)}},

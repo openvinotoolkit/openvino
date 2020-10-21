@@ -39,9 +39,9 @@ DECLARE_VPU_CONFIG(MYRIAD_ENABLE_MEMORY_TYPES_ANNOTATION);
 
 /**
  * @brief Used to disable analyzeWeightableLayers pass in cases where
- * weights scaling leads to poor accuracy. Default = "NO"
+ * weights scaling leads to poor accuracy. Default = "YES"
  */
-DECLARE_VPU_CONFIG(MYRIAD_DISABLE_WEIGHTS_ANALYSIS);
+DECLARE_VPU_CONFIG(MYRIAD_ENABLE_WEIGHTS_ANALYSIS);
 
 //
 // Debug options
