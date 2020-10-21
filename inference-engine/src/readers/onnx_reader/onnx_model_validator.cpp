@@ -5,6 +5,7 @@
 #include "onnx_model_validator.hpp"
 
 #include <algorithm>
+#include <array>
 #include <exception>
 #include <vector>
 
@@ -98,7 +99,7 @@ namespace onnx {
 
     PbKey decode_key(const char key) {
         // 3 least significant bits
-        const char wire_type = key & 7;
+        const char wire_type = key & 0b111;
         // remaining bits
         const char field_number = key >> 3;
         return {field_number, wire_type};
@@ -142,12 +143,44 @@ namespace onnx {
         model.seekg(payload_size, std::ios::cur);
     }
 } // namespace onnx
+
+namespace prototxt {
+    bool contains_onnx_model_keys(const std::string& model, const size_t expected_keys_num) {
+        size_t keys_found = 0;
+
+        const std::vector<std::string> onnx_keys = {
+            "ir_version", "producer_name", "producer_version", "domain", "model_version",
+            "doc_string", "graph", "opset_import", "metadata_props", "training_info"
+        };
+
+        auto next_key_to_find = onnx_keys.begin();
+        size_t search_start_pos = 0;
+
+        while (keys_found < expected_keys_num) {
+            for (auto key_to_find = next_key_to_find; key_to_find != onnx_keys.end(); ++key_to_find) {
+                const auto key_pos = model.find(*key_to_find, search_start_pos);
+
+                if (key_pos != model.npos) {
+                    ++keys_found;
+                    // don't search for the same key twice
+                    ++next_key_to_find;
+                    // don't search from the beginning each time
+                    search_start_pos = key_pos + key_to_find->size();
+                    break;
+                }
+            }
+        }
+
+        return keys_found == expected_keys_num;
+    }
+} // namespace prototxt
 } // namespace detail
 
 namespace InferenceEngine {
     bool is_valid_model(std::istream& model, onnx_format) {
-        // the model should at least contain the ir_version, graph and opset_import fields
-        const unsigned int EXPECTED_FIELDS_FOUND = 3u;
+        // the model usually starts with a 0x08 byte indicating the ir_version value
+        // so this checker expects at least 2 valid ONNX keys to be found in the validated model
+        const unsigned int EXPECTED_FIELDS_FOUND = 2u;
         unsigned int valid_fields_found = 0u;
         try {
             while (!model.eof() && valid_fields_found < EXPECTED_FIELDS_FOUND) {
@@ -161,12 +194,20 @@ namespace InferenceEngine {
             }
 
             return valid_fields_found == EXPECTED_FIELDS_FOUND;
-        } catch (const std::exception& e) {
+        } catch (...) {
             return false;
         }
     }
 
     bool is_valid_model(std::istream& model, prototxt_format) {
-        return true;
+        std::array<char, 512> head_of_file;
+
+        model.seekg(0, model.beg);
+        model.read(head_of_file.data(), head_of_file.size());
+        model.clear();
+        model.seekg(0, model.beg);
+
+        return detail::prototxt::contains_onnx_model_keys(
+            std::string{std::begin(head_of_file), std::end(head_of_file)}, 2);
     }
 } // namespace InferenceEngine

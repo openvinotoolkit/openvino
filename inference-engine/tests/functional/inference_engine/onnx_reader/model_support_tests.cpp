@@ -37,6 +37,15 @@ TEST(ONNXReader_ModelSupported, varint_on_two_bytes) {
     EXPECT_NO_THROW(InferenceEngine::Core{}.ReadNetwork(model_path("supported/varint_on_two_bytes.onnx")));
 }
 
+TEST(ONNXReader_ModelSupported, prototxt_basic) {
+    EXPECT_NO_THROW(InferenceEngine::Core{}.ReadNetwork(model_path("supported/basic.prototxt")));
+}
+
+TEST(ONNXReader_ModelSupported, scrambled_keys) {
+    // same as the prototxt_basic but with a different order of keys
+    EXPECT_NO_THROW(InferenceEngine::Core{}.ReadNetwork(model_path("supported/scrambled_keys.prototxt")));
+}
+
 TEST(ONNXReader_ModelUnsupported, no_graph_field) {
     // this model contains only 2 fields (it doesn't contain a graph in particular)
     EXPECT_THROW(InferenceEngine::Core{}.ReadNetwork(model_path("unsupported/no_graph_field.onnx")),
@@ -54,5 +63,10 @@ TEST(ONNXReader_ModelUnsupported, incorrect_onnx_field) {
 TEST(ONNXReader_ModelUnsupported, unknown_wire_type) {
     // in this model the graph key contains wire type 7 encoded in it - this value is incorrect
     EXPECT_THROW(InferenceEngine::Core{}.ReadNetwork(model_path("unsupported/unknown_wire_type.onnx")),
+                 InferenceEngine::details::InferenceEngineException);
+}
+
+TEST(ONNXReader_ModelUnsupported, no_valid_keys) {
+    EXPECT_THROW(InferenceEngine::Core{}.ReadNetwork(model_path("supported/no_valid_keys.prototxt")),
                  InferenceEngine::details::InferenceEngineException);
 }
