@@ -74,6 +74,7 @@ bool ngraph::pass::CommonOptimizations::run_on_function(std::shared_ptr<ngraph::
     manager.register_pass<ngraph::pass::BidirectionalLSTMSequenceDecomposition>();
     manager.register_pass<ngraph::pass::BidirectionalRNNSequenceDecomposition>();
     manager.register_pass<ngraph::pass::BidirectionalGRUSequenceDecomposition>();
+    manager.register_pass<ngraph::pass::BatchNormDecomposition>();
 
     auto decomp = manager.register_pass<ngraph::pass::GraphRewrite>();
     decomp->add_matcher<ngraph::pass::ReduceL1Decomposition>();
@@ -93,8 +94,6 @@ bool ngraph::pass::CommonOptimizations::run_on_function(std::shared_ptr<ngraph::
     decomp->add_matcher<ngraph::pass::ConvertDepthToSpace>();
     decomp->add_matcher<ngraph::pass::ConvertSpaceToDepth>();
     decomp->set_name("ngraph::pass::CommonDecompositions");
-
-    manager.register_pass<ngraph::pass::BatchNormDecomposition>();
 
     // CF is required after all decompositions
     manager.register_pass<ngraph::pass::ConstantFolding>();
