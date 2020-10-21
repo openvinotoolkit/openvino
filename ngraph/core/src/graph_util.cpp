@@ -879,17 +879,17 @@ bool ngraph::check_for_cycles(const ngraph::Function* func,
         }
     }
 
-	for (auto res : func->get_sinks())
-	{
-		std::deque<std::shared_ptr<Node>> path;
-		// mirror of path stack for faster cycle check
-		std::unordered_set<std::shared_ptr<Node>> path_set;
-		if (check_for_cycles_bkwd(res, path, path_set, cycle_nodes))
-		{
-			is_bkwd_cycle = true;
-			return true;
-		}
-	}
+    for (auto res : func->get_sinks())
+    {
+        std::deque<std::shared_ptr<Node>> path;
+        // mirror of path stack for faster cycle check
+        std::unordered_set<std::shared_ptr<Node>> path_set;
+        if (check_for_cycles_bkwd(res, path, path_set, cycle_nodes))
+        {
+            is_bkwd_cycle = true;
+            return true;
+        }
+    }
 
     for (auto param : func->get_parameters())
     {
