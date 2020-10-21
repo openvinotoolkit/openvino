@@ -47,7 +47,8 @@ public:
 class ngraph::pass::ConvertReduceMeanToPooling: public ConvertReduceBase {
 public:
     ConvertReduceMeanToPooling() {
-        auto m = std::make_shared<ngraph::pattern::Matcher>(ngraph::pattern::wrap_type<opset1::ReduceMean>(), "ConvertReduceMean");
+        auto m = std::make_shared<ngraph::pattern::Matcher>(
+                ngraph::pattern::wrap_type<opset1::ReduceMean>(pattern::has_static_shape()), "ConvertReduceMean");
         register_matcher(m, convert_reduce_to_pooling<opset1::ReduceMean>());
     }
 };
@@ -55,7 +56,8 @@ public:
 class ngraph::pass::ConvertReduceMaxToPooling: public ConvertReduceBase {
 public:
     ConvertReduceMaxToPooling() {
-        auto m = std::make_shared<ngraph::pattern::Matcher>(ngraph::pattern::wrap_type<opset1::ReduceMax>(), "ConvertReduceMax");
+        auto m = std::make_shared<ngraph::pattern::Matcher>(
+                ngraph::pattern::wrap_type<opset1::ReduceMax>(pattern::has_static_shape()), "ConvertReduceMax");
         register_matcher(m, convert_reduce_to_pooling<opset1::ReduceMax>());
     }
 };
@@ -63,7 +65,8 @@ public:
 class ngraph::pass::ConvertReduceSumToPooling: public ConvertReduceBase {
 public:
     ConvertReduceSumToPooling() {
-        auto m = std::make_shared<ngraph::pattern::Matcher>(ngraph::pattern::wrap_type<opset1::ReduceSum>(), "ConvertReduceSum");
+        auto m = std::make_shared<ngraph::pattern::Matcher>(
+                ngraph::pattern::wrap_type<opset1::ReduceSum>(pattern::has_static_shape()), "ConvertReduceSum");
         register_matcher(m, convert_reduce_to_pooling<opset1::ReduceSum>());
     }
 };
@@ -99,10 +102,6 @@ ngraph::matcher_pass_callback ConvertReduceBase::convert_reduce_to_pooling() {
             return replace_output_update_name(reduce->output(0), input);
         }
 
-        // As this transformation requires static input shape we should guaranty it
-        if (input.get_partial_shape().is_dynamic()) {
-            return false;
-        }
         auto input_shape = input.get_shape();
 
         // If Reduce op reduces only 1 dims we replace it with Reshape
