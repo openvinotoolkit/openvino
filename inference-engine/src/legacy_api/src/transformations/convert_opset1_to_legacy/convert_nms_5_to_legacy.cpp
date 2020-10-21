@@ -27,61 +27,37 @@ ngraph::pass::ConvertNMS5ToLegacyMatcher::ConvertNMS5ToLegacyMatcher() {
         }
 
         const auto new_args = nms_5->input_values();
-        const auto& arg2 = new_args.size() > 2 ? new_args.at(2) : ngraph::opset5::Constant::create(element::i32, Shape{}, {0});
-        const auto& arg3 = new_args.size() > 3 ? new_args.at(3) : ngraph::opset5::Constant::create(element::f32, Shape{}, {.0f});
-        const auto& arg4 = new_args.size() > 4 ? new_args.at(4) : ngraph::opset5::Constant::create(element::f32, Shape{}, {.0f});
-        const auto& arg5 = new_args.size() > 5 ? new_args.at(5) : ngraph::opset5::Constant::create(element::f32, Shape{}, {.0f});
+        const std::size_t num_of_inputs = new_args.size();
 
-        const auto max_output_boxes_per_class_rank = arg2.get_partial_shape().rank();
-        const auto iou_threshold_rank = arg3.get_partial_shape().rank();
-        const auto score_threshold_rank = arg4.get_partial_shape().rank();
-        const auto soft_nms_sigma_rank = arg5.get_partial_shape().rank();
-
-        // Check that required ranks are not dynamic
-        if (max_output_boxes_per_class_rank.is_dynamic() ||
-            iou_threshold_rank.is_dynamic() ||
-            score_threshold_rank.is_dynamic() ||
-            soft_nms_sigma_rank.is_dynamic()) {
-            return false;
-        }
-
-        if (max_output_boxes_per_class_rank.get_length() == 1 &&
-            iou_threshold_rank.get_length() == 1 &&
-            score_threshold_rank.get_length() == 1 &&
-            soft_nms_sigma_rank.get_length() == 1) {
-            return false;
-        }
+        const auto& arg2 = num_of_inputs > 2 ? new_args.at(2) : ngraph::opset5::Constant::create(element::i32, Shape{}, {0});
+        const auto& arg3 = num_of_inputs > 3 ? new_args.at(3) : ngraph::opset5::Constant::create(element::f32, Shape{}, {.0f});
+        const auto& arg4 = num_of_inputs > 4 ? new_args.at(4) : ngraph::opset5::Constant::create(element::f32, Shape{}, {.0f});
+        const auto& arg5 = num_of_inputs > 5 ? new_args.at(5) : ngraph::opset5::Constant::create(element::f32, Shape{}, {.0f});
 
         // vector of new nGraph operations
         NodeVector new_ops;
 
-        auto new_max_per_class = arg2;
-        if (max_output_boxes_per_class_rank.get_length() == 0) {
-            // WA: we need to create Constant manually because it requires by NMS shape inference
-            //     otherwise we will get dynamic shape until first CF is executed. It can be resolved
-            //     if CF will be executed right after transformation and before Validate pass.
-            if (auto new_max_per_class_const = std::dynamic_pointer_cast<opset1::Constant>(new_max_per_class.get_node_shared_ptr())) {
-                new_max_per_class = opset1::Constant::create(element::i64, Shape{1}, new_max_per_class_const->cast_vector<int64_t>());
-            } else {
-                new_max_per_class = std::make_shared<ngraph::op::Unsqueeze>(arg2, opset1::Constant::create(element::i64, Shape{1}, {0}));
-                new_ops.push_back(new_max_per_class.get_node_shared_ptr());
-            }
-        }
-        auto new_iou_threshold = arg3;
-        if (iou_threshold_rank.get_length() == 0) {
-            new_iou_threshold = std::make_shared<ngraph::op::Unsqueeze>(arg3, opset1::Constant::create(element::i64, Shape{1}, {0}));
-            new_ops.push_back(new_iou_threshold.get_node_shared_ptr());
-        }
-        auto new_score_threshold = arg4;
-        if (score_threshold_rank.get_length() == 0) {
-            new_score_threshold = std::make_shared<ngraph::op::Unsqueeze>(arg4, opset1::Constant::create(element::i64, Shape{1}, {0}));
-            new_ops.push_back(new_score_threshold.get_node_shared_ptr());
-        }
-        auto new_soft_nms_sigma = arg5;
-        if (soft_nms_sigma_rank.get_length() == 0) {
-            new_soft_nms_sigma = std::make_shared<ngraph::op::Unsqueeze>(arg5, opset1::Constant::create(element::i64, Shape{1}, {0}));
-            new_ops.push_back(new_soft_nms_sigma.get_node_shared_ptr());
-        }
+        auto one_dim_shape = Shape{1};
+        auto new_max_per_class = std::make_shared<ngraph::op::Reshape>(arg2,
+                                                                       opset1::Constant::create(ngraph::element::i64, one_dim_shape,
+                                                                                                one_dim_shape), true);
+        new_ops.push_back(new_max_per_class.get_node_shared_ptr());
+
+        auto new_iou_threshold = std::make_shared<ngraph::op::Reshape>(arg3,
+                                                                       opset1::Constant::create(ngraph::element::i64, one_dim_shape,
+                                                                                                one_dim_shape), true);
+        new_ops.push_back(new_iou_threshold.get_node_shared_ptr());
+
+        auto new_score_threshold = std::make_shared<ngraph::op::Reshape>(arg4,
+                                                                         opset1::Constant::create(ngraph::element::i64, one_dim_shape,
+                                                                                                  one_dim_shape), true);
+        new_ops.push_back(new_score_threshold.get_node_shared_ptr());
+
+        auto new_soft_nms_sigma = std::make_shared<ngraph::op::Reshape>(arg5,
+                                                                        opset1::Constant::create(ngraph::element::i64, one_dim_shape,
+                                                                                                 one_dim_shape), true);
+        new_ops.push_back(new_soft_nms_sigma.get_node_shared_ptr());
+
         int center_point_box = 0;
         switch (nms_5->get_box_encoding()) {
             case ::ngraph::opset5::NonMaxSuppression::BoxEncodingType::CENTER:
