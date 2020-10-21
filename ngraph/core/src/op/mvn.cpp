@@ -92,7 +92,7 @@ OutputVector op::MVN::decompose_op() const
         // add epsilon
         auto eps_node = op::Constant::create(
             data.get_element_type(), Output<Node>(variance).get_shape(), vector<double>{m_eps});
-        variance = std::make_shared<op::Sqrt>(variance + eps_node);
+        variance = std::make_shared<op::Sqrt>(std::make_shared<op::v1::Add>(variance , eps_node));
         variance = std::make_shared<op::Broadcast>(variance, data_shape, m_reduction_axes);
 
         return OutputVector{std::make_shared<op::v1::Divide>(mean_normalization, variance)};

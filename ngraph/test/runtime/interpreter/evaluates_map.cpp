@@ -50,6 +50,8 @@
 #include "ngraph/runtime/reference/normalize_l2.hpp"
 #include "ngraph/runtime/reference/scatter_nd_update.hpp"
 #include "ngraph/runtime/reference/squared_difference.hpp"
+#include "ngraph/runtime/reference/log_softmax.hpp"
+#include "ngraph/runtime/reference/region_yolo.hpp"
 #include "reference/elu.hpp"
 #include "reference/gelu.hpp"
 #include "reference/grn.hpp"
@@ -1097,6 +1099,41 @@ namespace
         {
             throw ngraph_error("Unexpected indices type for GatherND operation");
         }
+        return true;
+    }
+
+    template <element::Type_t ET>
+    bool evaluate(const shared_ptr<op::v5::LogSoftmax>& op,
+                  const HostTensorVector& outputs,
+                  const HostTensorVector& inputs)
+    {
+        using T = typename element_type_traits<ET>::value_type;
+        int64_t i_axis = op->get_axis();
+        if (i_axis < 0)
+        {
+            i_axis += inputs[0]->get_partial_shape().rank().get_length();
+        }
+        runtime::reference::log_softmax<T>(inputs[0]->get_data_ptr<const T>(),
+                                           outputs[0]->get_data_ptr<T>(),
+                                           op->get_output_shape(0),
+                                           AxisSet{(size_t)i_axis});
+        return true;
+    }
+
+    template <element::Type_t ET>
+    bool evaluate(const shared_ptr<op::v0::RegionYolo>& op,
+                  const HostTensorVector& outputs,
+                  const HostTensorVector& inputs)
+    {
+        using T = typename element_type_traits<ET>::value_type;
+        runtime::reference::region_yolo<T>(inputs[0]->get_data_ptr<const T>(),
+                                           outputs[0]->get_data_ptr<T>(),
+                                           inputs[0]->get_shape(),
+                                           op->get_num_coords(),
+                                           op->get_num_classes(),
+                                           op->get_num_regions(),
+                                           op->get_do_softmax(),
+                                           op->get_mask());
         return true;
     }
 
