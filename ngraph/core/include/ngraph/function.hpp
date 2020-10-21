@@ -140,10 +140,10 @@ namespace ngraph
                       const HostTensorVector& input_tensors) const;
 
         /// Return a list of function's side outputs
-        const SinkVector& get_sinks(void) const {return m_sinks;}
+        const SinkVector& get_sinks(void) const { return m_sinks; }
 
         /// \brief Add new sink nodes to the list to avoid removing
-        /// \param sinks new sink nodes 
+        /// \param sinks new sink nodes
         void add_sinks(const SinkVector& sinks);
 
         /// \brief Delete sink node from the list of sinks
@@ -151,7 +151,7 @@ namespace ngraph
         void delete_sink(const std::shared_ptr<op::Sink>& sink);
 
         /// \brief Add new Result nodes to the list to avoid removing
-        /// \param sinks new Result nodes 
+        /// \param sinks new Result nodes
         void add_results(const ResultVector& results);
 
         /// \brief Delete Result node from the list of results
