@@ -1,4 +1,4 @@
-// Copyright (c) 2019 Intel Corporation
+// Copyright (c) 2019-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -41,23 +41,15 @@ ParamsKey ReverseSequenceKernelRef::GetSupportedKey() const {
 
 CommonDispatchData ReverseSequenceKernelRef::SetDefault(const reverse_sequence_params& params,
                                                         const optional_params&) const {
-    CommonDispatchData runInfo;
+    CommonDispatchData dispatchData;
 
-    std::vector<size_t> global = {params.output.Batch().v,
-                                  params.output.Feature().v,
-                                  params.output.Y().v * params.output.X().v};
+    dispatchData.gws = { params.output.Batch().v,
+                         params.output.Feature().v,
+                         params.output.Y().v * params.output.X().v };
 
-    auto local = GetOptimalLocalWorkGroupSizes(global, params.engineInfo);
+    dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo);
 
-    runInfo.gws0 = global[0];
-    runInfo.gws1 = global[1];
-    runInfo.gws2 = global[2];
-
-    runInfo.lws0 = local[0];
-    runInfo.lws1 = local[1];
-    runInfo.lws2 = local[2];
-
-    return runInfo;
+    return dispatchData;
 }
 
 JitConstants ReverseSequenceKernelRef::GetJitConstants(const reverse_sequence_params& params) const {
@@ -75,14 +67,14 @@ KernelsData ReverseSequenceKernelRef::GetKernelsData(const Params& params, const
 
     assert(params.GetType() == KernelType::REVERSE_SEQUENCE);
 
-    auto runInfo = SetDefault(newParams, options);
+    auto dispatchData = SetDefault(newParams, options);
     auto entry_point = GetEntryPoint(kernelName, newParams.layerID, options);
     auto cldnn_jit = GetJitConstants(newParams);
     std::string jit = CreateJit(kernelName, cldnn_jit, entry_point);
 
     auto& kernel = kd.kernels[0];
 
-    FillCLKernelData(kernel, runInfo, params.engineInfo, kernelName, jit, entry_point, "", false, false, 2);
+    FillCLKernelData(kernel, dispatchData, params.engineInfo, kernelName, jit, entry_point, "", false, false, 2);
 
     kd.estimatedTime = DONT_USE_IF_HAVE_SOMETHING_ELSE;
 

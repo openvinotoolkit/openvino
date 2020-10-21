@@ -163,3 +163,6 @@ INTERPRETER.ctc_greedy_decoder_f16
 # Issue 37473. Fails on ia32 platforms only
 onnx_model_softmax_axis_0
 onnx_model_reshape_negative_dim
+
+# LogSoftmax's reference implementation doesn't handle scalar input properly
+onnx_model_logsoftmax_0D

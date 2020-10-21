@@ -79,6 +79,7 @@ set(SRC
     op_eval/reduce_l1.cpp
     op_eval/reduce_l2.cpp
     op_eval/roi_align.cpp
+    op_eval/round.cpp
     op_eval/softplus.cpp
     op_eval/split.cpp
     op_eval/swish.cpp
@@ -95,7 +96,6 @@ set(SRC
     shape.cpp
     specialize_function.cpp
     tensor.cpp
-    type_prop/any.cpp
     type_prop/assign.cpp
     type_prop/avg_pool.cpp
     type_prop/batch_norm.cpp
@@ -137,6 +137,7 @@ set(SRC
     type_prop/lrn.cpp
     type_prop/lstm_cell.cpp
     type_prop/lstm_sequence.cpp
+    type_prop/loop.cpp
     type_prop/matmul.cpp
     type_prop/max_pool.cpp
     type_prop/mish.cpp
@@ -165,6 +166,7 @@ set(SRC
     type_prop/round.cpp
     type_prop/rnn_cell.cpp
     type_prop/rnn_sequence.cpp
+    type_prop/round.cpp
     type_prop/scatter_elements_update.cpp
     type_prop/scatter_nd_update.cpp
     type_prop/scatter_update.cpp
@@ -182,6 +184,7 @@ set(SRC
     type_prop/swish.cpp
     type_prop/reduce_prod.cpp
     type_prop/reduce_sum.cpp
+    type_prop/ti.cpp
     type_prop/tile.cpp
     type_prop/top_k.cpp
     type_prop/transpose.cpp
@@ -290,6 +293,7 @@ set(MULTI_TEST_SRC
     backend/group_convolution.in.cpp
     backend/interpolate.in.cpp
     backend/log.in.cpp
+    backend/log_softmax.in.cpp
     backend/logical_or.in.cpp
     backend/logical_xor.in.cpp
     backend/lrn.in.cpp
@@ -318,6 +322,7 @@ set(MULTI_TEST_SRC
     backend/reduce_min.in.cpp
     backend/reduce_prod.in.cpp
     backend/reduce_sum.in.cpp
+    backend/region_yolo.in.cpp
     backend/relu.in.cpp
     backend/reorg_yolo.in.cpp
     backend/reshape.in.cpp

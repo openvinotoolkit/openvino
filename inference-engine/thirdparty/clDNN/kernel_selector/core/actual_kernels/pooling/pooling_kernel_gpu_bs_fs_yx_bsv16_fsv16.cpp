@@ -50,22 +50,22 @@ ParamsKey Pooling_kernel_gpu_bs_fs_yx_bsv_16_fsv16::GetSupportedKey() const {
 }
 
 PoolingKernelBase::DispatchData Pooling_kernel_gpu_bs_fs_yx_bsv_16_fsv16::SetDefault(const pooling_params& params) const {
-    DispatchData runInfo = PoolingKernelBase::SetDefault(params);
+    DispatchData dispatchData = PoolingKernelBase::SetDefault(params);
 
-    runInfo.gws0 = params.output.Feature().v/16;
-    runInfo.gws1 = params.output.X().v * params.output.Y().v;
-    runInfo.gws2 = params.output.Batch().v;
+    dispatchData.gws[0] = params.output.Feature().v/16;
+    dispatchData.gws[1] = params.output.X().v * params.output.Y().v;
+    dispatchData.gws[2] = params.output.Batch().v;
 
-    runInfo.lws0 = 1;
-    runInfo.lws1 = 1;
-    runInfo.lws2 = SIMD_SIZE;
-    runInfo.efficiency = FORCE_PRIORITY_1;
+    dispatchData.lws[0] = 1;
+    dispatchData.lws[1] = 1;
+    dispatchData.lws[2] = SIMD_SIZE;
+    dispatchData.efficiency = FORCE_PRIORITY_1;
 
-    return runInfo;
+    return dispatchData;
 }
 
-JitConstants Pooling_kernel_gpu_bs_fs_yx_bsv_16_fsv16::GetJitConstants(const pooling_params& params, DispatchData kd) const {
-    auto jit = PoolingKernelBase::GetJitConstants(params, kd);
+JitConstants Pooling_kernel_gpu_bs_fs_yx_bsv_16_fsv16::GetJitConstants(const pooling_params& params, DispatchData dispatchData) const {
+    auto jit = PoolingKernelBase::GetJitConstants(params, dispatchData);
 
     if (!params.fused_ops.empty()) {
         auto input_dt = EnableRound(params) ? Datatype::INT32 : GetActivationType(params);

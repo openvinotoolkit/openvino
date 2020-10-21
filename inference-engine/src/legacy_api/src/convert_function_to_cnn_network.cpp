@@ -43,6 +43,7 @@
 #include "caseless.hpp"
 #include <debug.h>
 #include <ngraph/opsets/opset1.hpp>
+#include <ngraph/opsets/opset5.hpp>
 #include "transformations/utils/utils.hpp"
 #include "transformations/rt_info/fused_names_attribute.hpp"
 #include "transformations/rt_info/primitives_priority_attribute.hpp"
@@ -809,6 +810,7 @@ void convertFunctionToICNNNetwork(const std::shared_ptr<const ::ngraph::Function
                 std::make_shared<Builder::NodeConverter<::ngraph::op::TopKIE>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::Unsqueeze>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::TensorIterator>>(),
+                std::make_shared<Builder::NodeConverter<::ngraph::opset5::Loop>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::HardSigmoid_IE>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::v1::LogicalNot>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::ShuffleChannels>>(),
