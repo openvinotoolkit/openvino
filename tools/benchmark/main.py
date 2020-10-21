@@ -162,6 +162,14 @@ def run(args):
                         config[device]['GNA_PRECISION'] = 'I16'
                 if args.number_threads and is_flag_set_in_command_line("nthreads"):
                     config[device]['GNA_LIB_N_THREADS'] = str(args.number_threads)
+            else:
+                supported_config_keys = benchmark.ie.get_metric(device, 'SUPPORTED_CONFIG_KEYS')
+                if 'CPU_THREADS_NUM' in supported_config_keys and args.number_threads and is_flag_set_in_command_line("nthreads"):
+                    config[device]['CPU_THREADS_NUM'] = str(args.number_threads)
+                if 'CPU_THROUGHPUT_STREAMS' in supported_config_keys and args.number_streams and is_flag_set_in_command_line("streams"):
+                    config[device]['CPU_THROUGHPUT_STREAMS'] = args.number_streams
+                if 'CPU_BIND_THREAD' in supported_config_keys and args.infer_threads_pinning and is_flag_set_in_command_line("pin"):
+                    config[device]['CPU_BIND_THREAD'] = args.infer_threads_pinning
         perf_counts = perf_counts
 
         benchmark.set_config(config)
