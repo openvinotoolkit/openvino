@@ -38,24 +38,16 @@ ParamsKey ActivationKernelOpt::GetSupportedKey() const {
 }
 
 ActivationKernelOpt::Parent::DispatchData ActivationKernelOpt::SetDefault(const activation_params& params) const {
-    auto runInfo = Parent::SetDefault(params);
+    auto dispatchData = Parent::SetDefault(params);
 
     const auto totalSize = params.inputs[0].LogicalSize();
 
-    std::vector<size_t> global = {totalSize / NUM_COLS_WI};
-    std::vector<size_t> local = GetOptimalLocalWorkGroupSizes(global, params.engineInfo);
+    dispatchData.gws = { totalSize / NUM_COLS_WI, 1, 1 };
+    dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo);
 
-    runInfo.gws0 = global[0];
-    runInfo.gws1 = 1;
-    runInfo.gws2 = 1;
+    dispatchData.efficiency = FORCE_PRIORITY_6;
 
-    runInfo.lws0 = local[0];
-    runInfo.lws1 = 1;
-    runInfo.lws2 = 1;
-
-    runInfo.efficiency = FORCE_PRIORITY_6;
-
-    return runInfo;
+    return dispatchData;
 }
 
 bool ActivationKernelOpt::Validate(const Params& p, const optional_params& o) const {
@@ -87,8 +79,8 @@ bool ActivationKernelOpt::Validate(const Params& p, const optional_params& o) co
     return true;
 }
 
-JitConstants ActivationKernelOpt::GetJitConstants(const activation_params& params, DispatchData kd) const {
-    auto jit = ActivationKernelBase::GetJitConstants(params, kd);
+JitConstants ActivationKernelOpt::GetJitConstants(const activation_params& params, DispatchData dispatchData) const {
+    auto jit = ActivationKernelBase::GetJitConstants(params, dispatchData);
     auto input_dt = params.inputs[0].GetDType();
 
     jit.AddConstant(MakeJitConstant("NUM_COLS_WI", NUM_COLS_WI));

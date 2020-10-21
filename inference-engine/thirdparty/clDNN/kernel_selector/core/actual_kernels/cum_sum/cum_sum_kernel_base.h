@@ -56,7 +56,7 @@ protected:
     int32_t GetCumSumAxisIndex(const cum_sum_params& params) const;
     size_t GetRealAxisIndex(const cum_sum_params& params) const;
     ParamsKey GetSupportedKey() const override;
-    virtual JitConstants GetJitConstants(const cum_sum_params& params, DispatchData kd) const;
+    virtual JitConstants GetJitConstants(const cum_sum_params& params, DispatchData dispatchData) const;
     virtual DispatchData SetDefault(const cum_sum_params& params) const;
     KernelsData GetCommonKernelsData(const Params& params, const optional_params&, float estimatedTime) const;
     bool Validate(const Params&, const optional_params&) const override;

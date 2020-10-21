@@ -57,8 +57,8 @@ KernelsData Convolution_kernel_imad_bs_fs_yx_bsv16_fsv16_3x3::GetKernelsData(con
     return GetCommonKernelsData(params, options);
 }
 
-JitConstants Convolution_kernel_imad_bs_fs_yx_bsv16_fsv16_3x3::GetJitConstants(const convolution_params& params, const DispatchData& kd) const {
-    auto mem_consts = Parent::GetJitConstants(params, kd);
+JitConstants Convolution_kernel_imad_bs_fs_yx_bsv16_fsv16_3x3::GetJitConstants(const convolution_params& params, const DispatchData& dispatchData) const {
+    auto mem_consts = Parent::GetJitConstants(params, dispatchData);
 
     if (!params.fused_ops.empty()) {
         auto input_dt = GetActivationType(params);
@@ -77,26 +77,18 @@ JitConstants Convolution_kernel_imad_bs_fs_yx_bsv16_fsv16_3x3::GetJitConstants(c
 }  // GetJitConstants
 
 ConvolutionKernelBase::DispatchData Convolution_kernel_imad_bs_fs_yx_bsv16_fsv16_3x3::SetDefault(const convolution_params& params, int) const {
-    DispatchData kd;
+    DispatchData dispatchData;
     const auto& output = params.output;
 
-    std::vector<size_t> global = {output.X().v, output.Y().v, output.Feature().v / 16 * output.Batch().v};
-    std::vector<size_t> local = {1, 1, SIMD_SIZE};
+    dispatchData.gws = { output.X().v, output.Y().v, output.Feature().v / 16 * output.Batch().v };
+    dispatchData.lws = { 1, 1, SIMD_SIZE };
 
-    kd.gws0 = global[0];
-    kd.gws1 = global[1];
-    kd.gws2 = global[2];
+    dispatchData.cldnnStyle = {0, 0, 0, 0, 0};
+    dispatchData.gemmStyle = {0, 0, 0, 0, 0, 0};
 
-    kd.lws0 = local[0];
-    kd.lws1 = local[1];
-    kd.lws2 = local[2];
+    dispatchData.efficiency = FORCE_PRIORITY_2;
 
-    kd.cldnnStyle = {0, 0, 0, 0, 0};
-    kd.gemmStyle = {0, 0, 0, 0, 0, 0};
-
-    kd.efficiency = FORCE_PRIORITY_2;
-
-    return kd;
+    return dispatchData;
 }  // SetDefault
 
 bool Convolution_kernel_imad_bs_fs_yx_bsv16_fsv16_3x3::Validate(const Params& params, const optional_params& options) const {
