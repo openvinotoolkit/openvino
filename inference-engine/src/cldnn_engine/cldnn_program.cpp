@@ -399,18 +399,20 @@ Program::Program(InferenceEngine::ICNNNetwork& network, std::shared_ptr<const cl
     , p_currentOutputs({}) {
     InitFormat(network);
 
-    InputsDataMap inputsMap;
-    network.getInputsInfo(inputsMap);
-
-    auto input0 = getInputTo(inputsMap.begin()->second->getInputData());
+    bool fqFound = false;
 
     bool baselineIsFP16 = false;
-    if (input0.begin()->second->params.count("FP16") != 0) {
-        baselineIsFP16 = true;
+    InputsDataMap inputsMap;
+    network.getInputsInfo(inputsMap);
+    if (!inputsMap.empty()) {
+        auto input0 = getInputTo(inputsMap.begin()->second->getInputData());
+        if (!input0.empty() && (input0.begin()->second->params.count("lpt_back_to_fp16") != 0)) {
+            baselineIsFP16 = true;
+            fqFound = true;
+        }
     }
 
 #ifdef USE_CNNNETWORK_LPT
-    bool fqFound = false;
     bool allFQareSupported = true;
     if (config.enableInt8) {
         auto it = details::CNNNetworkIterator(&network);
@@ -456,6 +458,7 @@ Program::Program(InferenceEngine::ICNNNetwork& network, std::shared_ptr<const cl
         LowPrecisionTransformer transformer(transforms);
         transformer.transform(network);
     }
+#endif
 
     // [WA part2] Try to find non-quantized layers and convert them back to FP16
     if (config.enableInt8) {
@@ -525,7 +528,6 @@ Program::Program(InferenceEngine::ICNNNetwork& network, std::shared_ptr<const cl
             }
         }
     }
-#endif
 
     NetPass::CombineRNNSeq(network);
     for (int i = 0; i < 2; i++) {
