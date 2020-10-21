@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <array>
 #include <exception>
+#include <map>
 #include <vector>
 
 namespace detail {
@@ -51,6 +52,23 @@ namespace onnx {
         };
 
         return std::any_of(std::begin(allowed_fields), std::end(allowed_fields), is_allowed);
+    }
+
+    bool is_correct_wire_type_for_field(const PbKey& decoded_key) {
+        static const std::map<Field, WireType> combinations = {
+            {IR_VERSION, VARINT},
+            {PRODUCER_NAME, LENGTH_DELIMITED},
+            {PRODUCER_VERSION, LENGTH_DELIMITED},
+            {DOMAIN_, LENGTH_DELIMITED},
+            {MODEL_VERSION, VARINT},
+            {DOC_STRING, LENGTH_DELIMITED},
+            {GRAPH, LENGTH_DELIMITED},
+            {OPSET_IMPORT, LENGTH_DELIMITED},
+            {METADATA_PROPS, LENGTH_DELIMITED},
+            {TRAINING_INFO, LENGTH_DELIMITED},
+        };
+
+        return combinations.at(static_cast<Field>(decoded_key.first)) == static_cast<WireType>(decoded_key.second);
     }
 
     /**
@@ -112,6 +130,10 @@ namespace onnx {
         const auto decoded_key = decode_key(key);
 
         if (!is_correct_onnx_field(decoded_key.first)) {
+            throw std::runtime_error{"Incorrect field detected in the processed model"};
+        }
+
+        if (!is_correct_wire_type_for_field(decoded_key)) {
             throw std::runtime_error{"Incorrect field detected in the processed model"};
         }
 
