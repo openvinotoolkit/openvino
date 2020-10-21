@@ -90,3 +90,17 @@ def log_softmax(data: NodeInput, axis: int, name: Optional[str] = None) -> Node:
     :return: The new node with LogSoftmax operation applied on each element.
     """
     return _get_node_factory_opset5().create("LogSoftmax", [as_node(data)], {"axis": axis})
+
+
+@nameable_op
+def round(data: NodeInput, mode: str = "half_to_even", name: Optional[str] = None) -> Node:
+    """Apply Round operation on each element of input tensor.
+
+    :param data: The tensor providing input data.
+    :param mode: Rule to round halfway cases. If set to 'half_to_even' then halfs round to the nearest even
+        integer or rounding in such a way that the result heads away from zero if `mode` attribute is
+        'half_away_from_zero`.
+    :param name: An optional name of the output node.
+    :return: The new node with Round operation applied on each element.
+    """
+    return _get_node_factory_opset5().create("Round", as_nodes(data), {"mode": mode.upper()})
