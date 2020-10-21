@@ -15,6 +15,9 @@ struct Quantization {
 struct QuantizedLayerParams {
     Quantization _src_quant;
     Quantization _dst_quant;
+    // per channel weights quant data
+    std::vector<Quantization> _weights_quants;
+    // deprecate this
     Quantization _weights_quant;
     Quantization _bias_quant;
     float _o_shift = 0.0f;

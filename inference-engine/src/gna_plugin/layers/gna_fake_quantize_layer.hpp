@@ -16,17 +16,19 @@ class GNAFakeQuantizeLayer {
     InferenceEngine::CNNLayerPtr fqLayer;
  public :
     GNAFakeQuantizeLayer(InferenceEngine::CNNLayerPtr fqLayer)
-        : fqLayer(fqLayer) {}
+        : fqLayer(fqLayer) {
+        if (!LayerInfo(fqLayer).isFakeQuantize()) {
+            THROW_GNA_LAYER_EXCEPTION(fqLayer) << "cannot parse as fake quantize";
+        }
+    }
 
     /**
      * @brief convert FQ layer directly to gna-pwl activation layer
      */
     DnnActivation parseAsActivation() const {
         DnnActivation fqActivation;
-        if (!LayerInfo(fqLayer).isFakeQuantize()) {
-            THROW_GNA_LAYER_EXCEPTION(fqLayer) << "cannot parse as fake quantize";
-        }
-        fqActivation.args.fakeQuantize.levels      = fqLayer->GetParamAsInt("levels");
+
+        fqActivation.args.fakeQuantize.levels = fqLayer->GetParamAsInt("levels");
         auto inputShape  = getShapeForRange(fqLayer, 1);
         auto outputShape = getShapeForRange(fqLayer, 3);
 
@@ -52,7 +54,49 @@ class GNAFakeQuantizeLayer {
          return LayerUtils::getParamFromInputAsBlob(fqLayer, 0);
      }
 
+     /**
+      * fake quantize has 5 input layers, while 4 of them always constant layer, and 1 might be a tensor - connection
+      */
+    InferenceEngine::CNNLayerPtr getInputLayer() const {
+        return getInputLayerAt(fqLayer, 0);
+    }
+
+    int32_t getLevels() {
+        return fqLayer->GetParamAsInt("levels");
+    }
+
+    std::pair<std::vector<float>, std::vector<float>> getInputRange() {
+        return getRange(fqLayer, 1);
+    }
+
+    std::pair<std::vector<float>, std::vector<float>> getOutputRange() {
+        return getRange(fqLayer, 3);
+    }
+
+    operator InferenceEngine::CNNLayerPtr () const {
+        return fqLayer;
+    }
+
+    InferenceEngine::CNNLayerPtr operator -> () const {
+        return fqLayer;
+    }
+    InferenceEngine::CNNLayerPtr operator * () const {
+        return fqLayer;
+    }
  protected :
+
+    static std::pair<std::vector<float>, std::vector<float>> getRange(InferenceEngine::CNNLayerPtr input, size_t idx) {
+        auto shape     = getShapeForRange(input, idx);
+        auto rangeSize = InferenceEngine::details::product(shape.begin(), shape.end());
+
+        auto minPtr = getParamFromInputAsFloats(input, idx);
+        std::vector<float> minValues(minPtr, minPtr + rangeSize);
+
+        auto maxPtr = getParamFromInputAsFloats(input, idx + 1);
+        std::vector<float> maxValues(maxPtr, maxPtr + rangeSize);
+
+        return {minValues, maxValues};
+    }
 
     static float*  getParamFromInputAsFloats(InferenceEngine::CNNLayerPtr input, size_t idx) {
         auto data = LayerUtils::getParamFromInputAsBlob(input, idx);
@@ -62,6 +106,23 @@ class GNAFakeQuantizeLayer {
     static InferenceEngine::SizeVector  getShapeFromInput(InferenceEngine::CNNLayerPtr input, size_t idx) {
         auto data = LayerUtils::getParamFromInputAsBlob(input, idx);
         return data->getTensorDesc().getDims();
+    }
+
+    static InferenceEngine::CNNLayerPtr  getInputLayerAt(InferenceEngine::CNNLayerPtr input, size_t idx) {
+        if (input->insData.size() <= idx) {
+            THROW_GNA_LAYER_EXCEPTION(input) << "cannot get data from " << idx << "input";
+        }
+        auto iLayerData = input->insData[idx].lock();
+        if (!iLayerData) {
+            THROW_GNA_LAYER_EXCEPTION(input) << "cannot get data from " << idx
+                                             << ", input: cannot dereference data weak-pointer";
+        }
+        auto iLayer = getCreatorLayer(iLayerData).lock();
+        if (!iLayer) {
+            THROW_GNA_LAYER_EXCEPTION(input) << "cannot get data from " << idx
+                                             << ", input: cannot dereference creator layer weak-pointer";
+        }
+        return iLayer;
     }
 
     static InferenceEngine::SizeVector getShapeForRange(InferenceEngine::CNNLayerPtr input, size_t idx) {
