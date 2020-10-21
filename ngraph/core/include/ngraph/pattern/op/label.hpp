@@ -143,10 +143,15 @@ namespace ngraph
             };
         }
 
-        NGRAPH_API
-        std::shared_ptr<Node> any_input();
+        template <int value = -1>
+        std::shared_ptr<pattern::op::Label> pattern::any_input()
+        {
+            return std::make_shared<pattern::op::Label>();
+        }
 
-        NGRAPH_API
-        std::shared_ptr<Node> any_input(const pattern::op::ValuePredicate& pred);
-    }
+        template <int value = -1>
+        std::shared_ptr<pattern::op::Label> pattern::any_input(const pattern::op::ValuePredicate& pred)
+        {
+            return std::make_shared<pattern::op::Label>(element::dynamic, PartialShape::dynamic(), pred);
+        }
 }

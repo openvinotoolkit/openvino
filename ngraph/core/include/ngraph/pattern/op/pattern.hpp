@@ -77,8 +77,16 @@ namespace ngraph
 
                 ValuePredicate get_predicate() const;
 
+                // May be we can skip adding Labels inputs by default
+                std::shared_ptr<Node> skip_value_map()
+                {
+                    m_skip_value_map = true;
+                    return this->shared_from_this();
+                }
+
             protected:
                 ValuePredicate m_predicate;
+                bool m_skip_value_map = false;
             };
         }
 

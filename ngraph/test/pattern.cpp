@@ -875,4 +875,19 @@ TEST(patter, predicates)
         ASSERT_NO_THROW(pred_any_of(param));
         ASSERT_TRUE(pred_any_of(param));
     }
+
+    {
+        // pattern with optional input
+        auto m_op  = pattern::wrap_type<op::v1::Multiply>({pattern::any_input<1>(pattern::has_static_shape())->skip_value_map()});
+
+        auto m_op2 = pattern::wrap_type<op::v1::Multiply>({{1 : pattern::any_input(pattern::has_static_shape())->skip_value_map()}});
+
+        // graph node to match
+        auto param1 = make_shared<op::Parameter>(element::f32, PartialShape{Dimension::dynamic()});
+        auto param2 = make_shared<op::Parameter>(element::f32, PartialShape{Dimension::dynamic()});
+        auto op = make_shared<op::v1::Multiply>(param1, param2);
+
+        pattern::Matcher matcher;
+        matcher.match_value(op, m_op);
+    }
 }
