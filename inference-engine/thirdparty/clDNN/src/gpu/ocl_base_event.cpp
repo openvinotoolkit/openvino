@@ -102,20 +102,17 @@ bool base_event::get_profiling_info_impl(std::list<instrumentation::profiling_in
 }
 
 void base_events::wait_impl() {
-    if (!_events.empty()) {
-        for (size_t i = 0; i < _events.size(); i++) {
-            _events[i]->wait();
+    if (_last_ocl_event.get() != nullptr) {
+        _last_ocl_event.wait();
+        if (get_context()->logging_enabled()) {
+            get_context()->log(0, "Wait for event: " + std::to_string(_queue_stamp));
         }
     }
 }
 
 bool base_events::is_set_impl() {
-    if (!_events.empty()) {
-        for (size_t i = 0; i < _events.size(); i++) {
-            if (!_events[i]->is_set())
-                return false;
-        }
-        return true;
+    if (_last_ocl_event.get() != nullptr) {
+        return _last_ocl_event.getInfo<CL_EVENT_COMMAND_EXECUTION_STATUS>() == CL_COMPLETE;
     }
     return true;
 }
@@ -189,5 +186,6 @@ bool base_events::get_profiling_info_impl(std::list<instrumentation::profiling_i
         }
         info.push_back(get_profiling_interval(period.name, 0, sum));
     }
+
     return true;
 }

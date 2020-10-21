@@ -28,21 +28,11 @@ JitConstants GRNKernelBase::GetJitConstants(const grn_params& params, GRNKernelB
 GRNKernelBase::DispatchData GRNKernelBase::SetDefault(const grn_params& params) const {
     const auto& output = params.output;
 
-    DispatchData kd;
-    kd.fp16UnitUsed = params.inputs[0].GetDType() == Datatype::F16;
+    DispatchData dispatchData;
+    dispatchData.gws = { output.Batch().v, output.Y().v, output.X().v };
+    dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo);
 
-    std::vector<size_t> global = { output.Batch().v, output.Y().v, output.X().v };
-    auto local = GetOptimalLocalWorkGroupSizes(global, params.engineInfo);
-
-    kd.gws0 = global[0];
-    kd.gws1 = global[1];
-    kd.gws2 = global[2];
-
-    kd.lws0 = local[0];
-    kd.lws1 = local[1];
-    kd.lws2 = local[2];
-
-    return kd;
+    return dispatchData;
 }
 
 KernelsData GRNKernelBase::GetCommonKernelsData(const Params& params,
@@ -55,19 +45,17 @@ KernelsData GRNKernelBase::GetCommonKernelsData(const Params& params,
 
     const grn_params& orgParams = static_cast<const grn_params&>(params);
 
-    DispatchData runInfo;
-
-    runInfo = SetDefault(orgParams);
+    DispatchData dispatchData = SetDefault(orgParams);
 
     KernelData kd = KernelData::Default<grn_params>(params);
 
-    auto cldnn_jit = GetJitConstants(orgParams, runInfo);
+    auto cldnn_jit = GetJitConstants(orgParams, dispatchData);
     auto entry_point = GetEntryPoint(kernelName, orgParams.layerID, options);
     auto jit = CreateJit(kernelName, cldnn_jit, entry_point);
 
     auto& kernel = kd.kernels[0];
     FillCLKernelData(kernel,
-                     runInfo,
+                     dispatchData,
                      params.engineInfo,
                      kernelName,
                      jit,

@@ -71,9 +71,8 @@ bool ConvolutionKernel_bfyx_3x3_dw_opt::Validate(const Params& p, const optional
     return true;
 }
 
-ConvolutionKernel_bfyx_3x3_dw_opt::AutoTuneOption ConvolutionKernel_bfyx_3x3_dw_opt::GetAutoTuneOptions(
-    const Params&,
-    int autoTuneIndex) const {
+ConvolutionKernel_bfyx_3x3_dw_opt::AutoTuneOption ConvolutionKernel_bfyx_3x3_dw_opt::GetAutoTuneOptions(const Params&,
+                                                                                                        int autoTuneIndex) const {
     if ((autoTuneIndex >= 0) && (autoTuneIndex < static_cast<int>(autoTuneOptions.size()))) {
         return autoTuneOptions[autoTuneIndex];
     }
@@ -87,7 +86,7 @@ ConvolutionKernelBase::DispatchData ConvolutionKernel_bfyx_3x3_dw_opt::SetDefaul
                                                                                   int autoTuneIndex) const {
     constexpr int simdSize = 16;
 
-    DispatchData runInfo = Parent::SetDefault(params);
+    DispatchData dispatchData = Parent::SetDefault(params);
 
     auto options = GetAutoTuneOptions(params, autoTuneIndex);
 
@@ -96,28 +95,28 @@ ConvolutionKernelBase::DispatchData ConvolutionKernel_bfyx_3x3_dw_opt::SetDefaul
     const int numTilesY = static_cast<int>(
         std::ceil(static_cast<float>(params.inputs[0].Y().v) / static_cast<float>(options.tileDims.y)));
 
-    runInfo.cldnnStyle.blockWidth = options.tileDims.x;
-    runInfo.cldnnStyle.blockHeight = options.tileDims.y;
-    runInfo.gws0 = numTilesX * simdSize;
-    runInfo.gws1 = numTilesY;
-    runInfo.gws2 = params.inputs[0].Feature().v * params.inputs[0].Batch().v;
-    runInfo.lws0 = simdSize;
-    runInfo.lws1 = 1;
-    runInfo.lws2 = 1;
+    dispatchData.cldnnStyle.blockWidth = options.tileDims.x;
+    dispatchData.cldnnStyle.blockHeight = options.tileDims.y;
+    dispatchData.gws[0] = numTilesX * simdSize;
+    dispatchData.gws[1] = numTilesY;
+    dispatchData.gws[2] = params.inputs[0].Feature().v * params.inputs[0].Batch().v;
+    dispatchData.lws[0] = simdSize;
+    dispatchData.lws[1] = 1;
+    dispatchData.lws[2] = 1;
 
-    runInfo.efficiency = FORCE_PRIORITY_5;
+    dispatchData.efficiency = FORCE_PRIORITY_5;
 
-    return runInfo;
+    return dispatchData;
 }
 
 JitConstants ConvolutionKernel_bfyx_3x3_dw_opt::GetJitConstants(const convolution_params& params,
-                                                                const DispatchData& kd) const {
-    stSize tileDims = {kd.cldnnStyle.blockWidth, kd.cldnnStyle.blockHeight};
-    auto mem_consts = ConvolutionKernelBase::GetJitConstants(params, kd);
+                                                                const DispatchData& dispatchData) const {
+    stSize tileDims = {dispatchData.cldnnStyle.blockWidth, dispatchData.cldnnStyle.blockHeight};
+    auto mem_consts = ConvolutionKernelBase::GetJitConstants(params, dispatchData);
 
     if (tileDims.y != 0 && tileDims.x != 0) {
-        mem_consts.AddConstant(MakeJitConstant("UNIT_BYTE_SIZE", kd.fp16UnitUsed ? sizeof(short) : sizeof(float)));
-        mem_consts.AddConstant(MakeJitConstant("SUB_GROUP_SIZE", kd.lws0));
+        mem_consts.AddConstant(MakeJitConstant("UNIT_BYTE_SIZE", BytesPerElement(params.output.GetDType())));
+        mem_consts.AddConstant(MakeJitConstant("SUB_GROUP_SIZE", dispatchData.lws[0]));
         mem_consts.AddConstant(MakeJitConstant("TILE_HEIGHT", tileDims.y));
         mem_consts.AddConstant(MakeJitConstant("TILE_WIDTH", tileDims.x));
     }
@@ -132,9 +131,9 @@ KernelsData ConvolutionKernel_bfyx_3x3_dw_opt::GetTunedKernelsDataByIndex(const 
 
     KernelData kd = KernelData::Default<convolution_params>(params);
     convolution_params& convParams = *static_cast<convolution_params*>(kd.params.get());
-    DispatchData runInfo = SetDefault(convParams, autoTuneIndex);
+    DispatchData dispatchData = SetDefault(convParams, autoTuneIndex);
 
-    if (static_cast<int>(static_cast<int>(runInfo.gws0 - 1) / simdSize) * runInfo.cldnnStyle.blockWidth + simdSize >
+    if (static_cast<int>(static_cast<int>(dispatchData.gws[0] - 1) / simdSize) * dispatchData.cldnnStyle.blockWidth + simdSize >
         convParams.inputs[0].Y().pitch) {
         // Internal Error - requested tile size is not supported for y pitch
         return {};

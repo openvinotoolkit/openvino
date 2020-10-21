@@ -24,7 +24,7 @@ from extensions.ops.MatMul import MatMul
 from mo.front.common.partial_infer.utils import int64_array
 from mo.ops.reshape import Reshape
 from mo.utils.ir_engine.compare_graphs import compare_graphs
-from mo.utils.unittest.graph import build_graph, regular_op_with_shaped_data, const_with_data, \
+from mo.utils.unittest.graph import build_graph, regular_op_with_shaped_data, valued_const_with_data, \
     result, connect
 from mo.utils.unittest.graph import regular_op_with_empty_data as op_with_empty_data
 
@@ -44,7 +44,7 @@ class SmartReshape_HC_Reshape_MatMulTest(unittest.TestCase):
         nodes = {
             **regular_op_with_shaped_data('in_1', in1_shape, dict(type='Parameter', op='Parameter')),
             **regular_op_with_shaped_data('in_2', in2_shape, dict(type='Parameter', op='Parameter')),
-            **const_with_data('dim', int64_array(reshape_pattern)),
+            **valued_const_with_data('dim', int64_array(reshape_pattern)),
             **op_with_empty_data('reshape',
                                  dict(type='Reshape', op='Reshape', infer=Reshape.infer, need_shape_inference=True)),
             **op_with_empty_data('matmul',
@@ -82,7 +82,7 @@ class SmartReshape_HC_Reshape_MatMulTest(unittest.TestCase):
         nodes = {
             **regular_op_with_shaped_data('in_1', in1_shape, dict(type='Parameter', op='Parameter')),
             **regular_op_with_shaped_data('in_2', in2_shape, dict(type='Parameter', op='Parameter')),
-            **const_with_data('dim', int64_array(reshape_pattern)),
+            **valued_const_with_data('dim', int64_array(reshape_pattern)),
             **op_with_empty_data('reshape',
                                  dict(type='Reshape', op='Reshape', infer=Reshape.infer, need_shape_inference=True)),
             **op_with_empty_data('matmul',
