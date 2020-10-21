@@ -2,10 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <vpu/stages/nms.hpp>
 #include <vpu/frontend/frontend.hpp>
 
-#include <ngraph/op/non_max_suppression.hpp>
 #include <precision_utils.h>
 
 #include <memory>
@@ -15,10 +13,36 @@ namespace vpu {
 
 namespace {
 
-class StaticShapeNMS final : public NonMaxSuppression {
+class StaticShapeNMS final : public StageNode {
 private:
     StagePtr cloneImpl() const override {
         return std::make_shared<StaticShapeNMS>(*this);
+    }
+
+    void propagateDataOrderImpl(StageDataInfo<DimsOrder>& orderInfo) override {
+    }
+
+    void getDataStridesRequirementsImpl(StageDataInfo<StridesRequirement>& stridesInfo) override {
+    }
+
+    void finalizeDataLayoutImpl() override {
+    }
+
+    void getBatchSupportInfoImpl(StageDataInfo<BatchSupport>& batchInfo) override {
+    }
+
+    StageSHAVEsRequirements getSHAVEsRequirementsImpl() const override {
+        // Current NMS implementation doesn't allow calculation of `> boxesThreshold` boxes using one SHAVE
+        constexpr int boxesThreshold = 3650;
+
+        const auto& inDesc = input(0)->desc();
+        const auto& maxBoxesNum = inDesc.dim(Dim::H);
+
+        if (maxBoxesNum > boxesThreshold) {
+            return StageSHAVEsRequirements::NeedMax;
+        } else {
+            return StageSHAVEsRequirements::OnlyOne;
+        }
     }
 
     void initialCheckImpl() const override {
@@ -30,6 +54,12 @@ private:
                                   {DataType::FP16}},
                                  {{DataType::S32},
                                   {DataType::S32}});
+    }
+
+    void serializeParamsImpl(BlobSerializer& serializer) const override {
+        bool center_point_box = attrs().get<bool>("center_point_box");
+
+        serializer.append(static_cast<int32_t>(center_point_box));
     }
 
     void serializeDataImpl(BlobSerializer& serializer) const override {

@@ -104,7 +104,6 @@ FrontEnd::FrontEnd(StageBuilder::Ptr stageBuilder, const ie::ICore* core)
         {"Select",                                             LAYER_PARSER(parseSelect)},
         {"Erf",                                                LAYER_PARSER(parseErf)},
         {"ExperimentalDetectronDetectionOutput",               LAYER_PARSER(parseExpDetectionOutput)},
-        {"NonMaxSuppression",                                  LAYER_PARSER(parseNonMaxSuppression)},
         {"ExperimentalDetectronROIFeatureExtractor",           LAYER_PARSER(parseROIFeatureExtractor)},
         {"Convert",                                            LAYER_PARSER(parseConvert)},
         {"ReduceMax",                                          LAYER_PARSER(parseReduce)},
