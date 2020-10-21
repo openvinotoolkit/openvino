@@ -141,7 +141,6 @@ namespace ngraph
 
         /// Return a list of function's side outputs
         const SinkVector& get_sinks(void) const { return m_sinks; }
-
         /// \brief Add new sink nodes to the list to avoid removing
         /// \param sinks new sink nodes
         void add_sinks(const SinkVector& sinks);
