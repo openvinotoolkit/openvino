@@ -101,6 +101,7 @@ public:
     void CreateInferRequest(InferenceEngine::IInferRequest::Ptr& asyncRequest) override;
     InferenceEngine::InferRequestInternal::Ptr CreateInferRequestImpl(InferenceEngine::InputsDataMap networkInputs,
                                                                       InferenceEngine::OutputsDataMap networkOutputs) override;
+    void GetContext(InferenceEngine::RemoteContext::Ptr& pContext, InferenceEngine::ResponseDesc* resp) const override;
     ~MultiDeviceExecutableNetwork() override;
 
     void ScheduleToWorkerInferRequest();
@@ -112,7 +113,10 @@ public:
     DeviceMap<InferenceEngine::ExecutableNetwork>               _networksPerDevice;
     ThreadSafeQueue<Task>                                       _inferPipelineTasks;
     DeviceMap<NotBusyWorkerRequests>                            _idleWorkerRequests;
+
     DeviceMap<std::vector<WorkerInferRequest>>                  _workerRequests;
+    DeviceMap<size_t>                                           _workerRequestsInitialNum;
+
     std::unordered_map<std::string, InferenceEngine::Parameter> _config;
     bool                                                        _needPerfCounters = false;
     MultiDeviceSchedulingModes _schedulingMode = MultiDeviceSchedulingModes::eRespectDataAffinity;

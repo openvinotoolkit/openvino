@@ -193,6 +193,7 @@ MultiDeviceExecutableNetwork::MultiDeviceExecutableNetwork(const DeviceMap<Infer
         auto& workerRequests = _workerRequests[device];
         auto& idleWorkerRequests = _idleWorkerRequests[device];
         workerRequests.resize(numRequests);
+        _workerRequestsInitialNum[device] = numRequests;
         auto* idleWorkerRequestsPtr = &(idleWorkerRequests);
         for (auto&& workerRequest : workerRequests) {
             workerRequest._inferRequest = network.CreateInferRequest();
@@ -225,6 +226,19 @@ MultiDeviceExecutableNetwork::MultiDeviceExecutableNetwork(const DeviceMap<Infer
                 }
         }
     }
+}
+
+void MultiDeviceExecutableNetwork::GetContext(RemoteContext::Ptr& pContext, ResponseDesc* resp) const {
+    for (auto& n : _networksPerDevice) {
+        try {
+            pContext = n.second.GetContext();
+            return;
+        } catch (InferenceEngineException& e) {
+            if (e.getStatus() != NOT_IMPLEMENTED)
+                throw;
+        }
+    }
+    THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str;
 }
 
 void MultiDeviceExecutableNetwork::ScheduleToWorkerInferRequest() {
@@ -269,14 +283,34 @@ MultiDeviceExecutableNetwork::~MultiDeviceExecutableNetwork() {
 
 InferenceEngine::InferRequestInternal::Ptr MultiDeviceExecutableNetwork::CreateInferRequestImpl(InferenceEngine::InputsDataMap networkInputs,
                                                                                                 InferenceEngine::OutputsDataMap networkOutputs) {
+    // TODO: mutex
     auto num = _numRequestsCreated++;
     size_t sum = 0;
-    for (auto&& requests : _workerRequests) {
-        sum += requests.second.size();
+    MultiDeviceExecutableNetwork::WorkerInferRequest* request_to_share_blobs_with = nullptr;
+    // borrowing device-specific blobs from the underlying requests for the device-agnostic, user-facing requests
+    for (auto&& _workers : _workerRequests) {
+        const auto& dev_name  = _workers.first;
+        auto&& dev_requests = _workers.second;
+        sum += _workerRequestsInitialNum[dev_name];
         if (num < sum)
-            return std::make_shared<MultiDeviceInferRequest>(networkInputs, networkOutputs, &requests.second.at(sum-num-1));
+            request_to_share_blobs_with = &dev_requests.at(sum - num - 1);
     }
-    return std::make_shared<MultiDeviceInferRequest>(networkInputs, networkOutputs);
+    // data-affinity path assumes that any request can run on any device (the choice is actually on the RemoteBlob's origin)
+    // so padding the initial pool of the (per-device) workers requests for each user-facing request accordingly
+    for (auto&& _workers : _workerRequests) {
+        const auto& dev_name  = _workers.first;
+        auto&& dev_requests = _workers.second;
+        auto old_size = dev_requests.size();
+        if (old_size < num) {
+            for (size_t i = old_size; i < num; i++) {
+                dev_requests[i]._inferRequest = _networksPerDevice[dev_name].CreateInferRequest();
+                // if original devices' requests are over, let's  borrow request/blobs from the first device in the list
+                if (!request_to_share_blobs_with)
+                    request_to_share_blobs_with = &dev_requests[i];
+            }
+        }
+    }
+    return std::make_shared<MultiDeviceInferRequest>(networkInputs, networkOutputs, request_to_share_blobs_with);
 }
 
 void MultiDeviceExecutableNetwork::CreateInferRequest(IInferRequest::Ptr& asyncRequest) {
