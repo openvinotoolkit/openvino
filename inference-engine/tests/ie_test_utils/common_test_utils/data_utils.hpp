@@ -72,6 +72,14 @@ InferenceEngine::Blob::Ptr make_reshape_view(const InferenceEngine::Blob::Ptr &b
  */
 void fill_data_const(InferenceEngine::Blob::Ptr& blob, float val);
 
+
+/**
+ * Calculate size of buffer required for provided tensor descriptor.
+ * @param tdesc provided tensor descriptor
+ * @return size in bytes
+ */
+size_t byte_size(const InferenceEngine::TensorDesc &tdesc);
+
 static void fill_data_bbox(float *data, size_t size, int height, int width, float omega) {
     float center_h = (height - 1.0f) / 2;
     float center_w = (width - 1.0f) / 2;
