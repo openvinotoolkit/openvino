@@ -2719,3 +2719,55 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_group_norm)
     test_case.add_expected_output<float>(shape, output);
     test_case.run();
 }
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_model_logsoftmax_0D)
+{
+    auto function = onnx_import::import_onnx_model(
+        file_util::path_join(SERIALIZED_ZOO, "onnx/softmax_0D.prototxt"));
+
+    auto test_case = test::TestCase<TestEngine>(function);
+    test_case.add_input<float>({3.141592});
+    test_case.add_expected_output<float>({0.0});
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_model_logsoftmax_1D)
+{
+    const auto function = onnx_import::import_onnx_model(
+        file_util::path_join(SERIALIZED_ZOO, "onnx/logsoftmax_1D.prototxt"));
+    auto test_case = test::TestCase<TestEngine>(function);
+
+    test_case.add_input<float>({-1.0f, 0.0f, 1.0f});
+    test_case.add_expected_output<float>(Shape{3}, {-2.4076061, -1.407606, -0.407606});
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_model_logsoftmax13_1D)
+{
+    const auto function = onnx_import::import_onnx_model(
+        file_util::path_join(SERIALIZED_ZOO, "onnx/logsoftmax13_1D.prototxt"));
+    auto test_case = test::TestCase<TestEngine>(function);
+
+    test_case.add_input<float>({-1.0f, 0.0f, 1.0f});
+    test_case.add_expected_output<float>(Shape{3}, {-2.4076061, -1.407606, -0.407606});
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_model_logsoftmax13_2D)
+{
+    const auto function = onnx_import::import_onnx_model(
+        file_util::path_join(SERIALIZED_ZOO, "onnx/logsoftmax13_2D.prototxt"));
+    auto test_case = test::TestCase<TestEngine>(function);
+
+    test_case.add_input<float>({0.0f, 1.0f, 2.0f, 3.0f, 10000, 10001, 10002, 10003});
+    test_case.add_expected_output<float>(Shape{2, 4},
+                                         {-3.4401896,
+                                          -2.4401896,
+                                          -1.4401896,
+                                          -0.44018966,
+                                          -3.4401896,
+                                          -2.4401896,
+                                          -1.4401896,
+                                          -0.44018966});
+    test_case.run_with_tolerance_as_fp();
+}

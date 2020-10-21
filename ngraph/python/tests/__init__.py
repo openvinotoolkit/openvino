@@ -91,7 +91,6 @@ xfail_issue_35927 = xfail_test(reason="RuntimeError: B has zero dimension that i
 xfail_issue_35929 = xfail_test(reason="RuntimeError: Incorrect precision f64!")
 xfail_issue_35930 = xfail_test(reason="onnx.onnx_cpp2py_export.checker.ValidationError: "
                                       "Required attribute 'to' is missing.")
-xfail_issue_35932 = xfail_test(reason="Assertion error - logsoftmax results mismatch")
 xfail_issue_36437 = xfail_test(reason="RuntimeError: Cannot find blob with name: <value>")
 xfail_issue_36476 = xfail_test(reason="RuntimeError: [NOT_IMPLEMENTED] Input image format U32 is "
                                "not supported yet...")

@@ -24,8 +24,7 @@ from tests.runtime import get_runtime
 from tests.test_onnx.utils import get_node_model, import_onnx_model, run_model, run_node
 from tests import (xfail_issue_35929,
                    xfail_issue_34323,
-                   xfail_issue_35930,
-                   xfail_issue_35932)
+                   xfail_issue_35930)
 
 
 @pytest.mark.parametrize(
@@ -285,7 +284,6 @@ def test_softmax():
         ng_results = run_node(node, [data])
 
 
-@xfail_issue_35932
 def test_logsoftmax():
     def logsoftmax_2d(x):
         max_x = np.max(x, axis=1).reshape((-1, 1))
