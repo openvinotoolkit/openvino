@@ -9,20 +9,13 @@
 #include <cpp_interfaces/exception2status.hpp>
 #include <api/layout.hpp>
 
+#include "ngraph/type/element_type.hpp"
+
 using namespace InferenceEngine;
 using namespace InferenceEngine::details;
 
 namespace CLDNNPlugin {
 
-#ifndef NDEBUG
-#define THROW_CLDNN_EXCEPTION(desc)\
-do { \
-InferenceEngineException ex(__FILE__, __LINE__);\
-std::cout << desc << "\n---\nException detected at " << __FILE__ << ":" << \
-__LINE__ << " (" << __FUNCTION__ << ")\n---\n" << std::endl; THROW_IE_EXCEPTION << desc; } while (0);
-#else
-#define THROW_CLDNN_EXCEPTION(desc) THROW_IE_EXCEPTION << desc;
-#endif  // NDEBUG
 #define TensorValue(val) static_cast<cldnn::tensor::value_type>(val)
 
 const auto CldnnTensorFromIEDims = [](const InferenceEngine::SizeVector& dims, int def = 1) {
@@ -34,7 +27,7 @@ const auto CldnnTensorFromIEDims = [](const InferenceEngine::SizeVector& dims, i
     case 4: return cldnn::tensor(cldnn::batch(dims[0]), cldnn::feature(dims[1]), cldnn::spatial(dims[3], dims[2]));
     case 5: return cldnn::tensor(cldnn::batch(dims[0]), cldnn::feature(dims[1]), cldnn::spatial(dims[4], dims[3], dims[2]));
     case 6: return cldnn::tensor(cldnn::batch(dims[0]), cldnn::feature(dims[1]), cldnn::spatial(dims[5], dims[4], dims[3], dims[2]));
-    default: THROW_CLDNN_EXCEPTION("Invalid dimensions size(" << dims.size() << ") for clDNN tensor");
+    default: THROW_IE_EXCEPTION << "Invalid dimensions size(" << dims.size() << ") for clDNN tensor";
     }
 };
 
@@ -60,6 +53,32 @@ inline cldnn::data_types DataTypeFromPrecision(InferenceEngine::Precision p) {
         return cldnn::data_types::i8;
     default:
         THROW_IE_EXCEPTION << PARAMETER_MISMATCH_str << "The plugin does not support " << p.name() << " precision";
+        break;
+    }
+}
+
+inline cldnn::data_types DataTypeFromPrecision(ngraph::element::Type t) {
+    switch (t) {
+    case ngraph::element::Type_t::i16:
+    case ngraph::element::Type_t::u16:
+    case ngraph::element::Type_t::f32:
+        return cldnn::data_types::f32;
+    case ngraph::element::Type_t::f16:
+        return cldnn::data_types::f16;
+    case ngraph::element::Type_t::u8:
+        return cldnn::data_types::u8;
+    case ngraph::element::Type_t::i8:
+        return cldnn::data_types::i8;
+    case ngraph::element::Type_t::i32:
+        return cldnn::data_types::i32;
+    case ngraph::element::Type_t::i64:
+        return cldnn::data_types::i64;
+    case ngraph::element::Type_t::boolean:
+        return cldnn::data_types::i8;
+    case ngraph::element::Type_t::u1:
+        return cldnn::data_types::bin;
+    default:
+        THROW_IE_EXCEPTION << PARAMETER_MISMATCH_str << "The plugin does not support " << t.get_type_name()<< " precision";
         break;
     }
 }
@@ -129,7 +148,7 @@ inline cldnn::format ImageFormatFromLayout(InferenceEngine::Layout l) {
 }
 
 
-inline cldnn::format defaultFormatForDims(size_t dimensions) {
+inline cldnn::format DefaultFormatForDims(size_t dimensions) {
     switch (dimensions) {
     case 0:
     case 1:
@@ -142,7 +161,7 @@ inline cldnn::format defaultFormatForDims(size_t dimensions) {
     case 6:
         return cldnn::format::bfwzyx;
     default:
-        THROW_CLDNN_EXCEPTION("Unsupported number of dimensions: " << dimensions);
+        THROW_IE_EXCEPTION << "Unsupported number of dimensions: " << dimensions;
     }
 
     return cldnn::format::bfyx;  // Should not get here

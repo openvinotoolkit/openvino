@@ -6,11 +6,6 @@
 
 #include <map>
 #include <string>
-#include <vector>
-
-#include "ie_blob.h"
-#include "cpp/ie_cnn_network.h"
-#include "debug_options.h"
 
 #include "cldnn_custom_layer.h"
 
