@@ -35,23 +35,24 @@ namespace ngraph
             template <typename T, typename U>
             void transpose(const T* arg, T* out, Shape arg_size, const U* axes_order = nullptr)
             {
+                std::vector<size_t> range_vector;
                 if (axes_order == nullptr)
                 {
-                    std::vector<size_t> range_vector(arg_size.size());
-                    size_t n = arg_size.size() - 1;
-                    std::generate(range_vector.begin(), range_vector.end(), [&n]() { return n--; });
+                    range_vector.resize(arg_size.size());
+                    std::iota(range_vector.begin(), range_vector.end(), 0);
+                    std::reverse(range_vector.begin(), range_vector.end());
                     axes_order = range_vector.data();
                 }
                 size_t cnt = 0;
                 for (size_t i = 0; i < arg_size.size(); ++i)
                 {
-                    size_t axe = axes_order[i];
+                    size_t axes = axes_order[i];
                     size_t start = 0;
-                    for (size_t j = 0; j < axe; ++j)
+                    for (size_t j = 0; j < axes; ++j)
                     {
                         start += shape_size(arg_size[j]);
                     }
-                    for (size_t j = start; j < start + shape_size(arg_size[axe]); ++j)
+                    for (size_t j = start; j < start + shape_size(arg_size[axes]); ++j)
                     {
                         out[cnt++] = arg[j];
                     }

@@ -312,7 +312,7 @@ namespace ngraph
                 size_t filter_in_channel_axis = 0;
 
                 // Compute backward pad out pad bellow
-                size_t spatial_dim_count = static_cast<size_t>(in_shape.size()) - 2;
+                size_t spatial_dim_count = in_shape.size() - 2;
 
                 CoordinateDiff backward_delta_out_pad_below;
                 backward_delta_out_pad_below.resize(spatial_dim_count);

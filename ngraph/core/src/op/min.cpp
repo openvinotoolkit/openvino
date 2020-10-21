@@ -91,29 +91,30 @@ shared_ptr<Node> op::v0::Min::get_default_value() const
 namespace minop
 {
     template <element::Type_t ET>
-    bool evaluate(const HostTensorPtr& arg, const HostTensorPtr& out, const AxisSet& axes)
+    bool evaluate(const HostTensorPtr& arg, const HostTensorPtr& out, const AxisSet& axes, bool keep_dims)
     {
+        out->set_shape(reduce(arg->get_shape(), axes, keep_dims));
         runtime::reference::min(
             arg->get_data_ptr<ET>(), out->get_data_ptr<ET>(), arg->get_shape(), axes);
         return true;
     }
 
-    bool evaluate_min(const HostTensorPtr& arg, const HostTensorPtr& out, const AxisSet& axes)
+    bool evaluate_min(const HostTensorPtr& arg, const HostTensorPtr& out, const AxisSet& axes, bool keep_dims)
     {
         bool rc = true;
         switch (arg->get_element_type())
         {
-            TYPE_CASE(i32)(arg, out, axes);
+            TYPE_CASE(i32)(arg, out, axes, keep_dims);
             break;
-            TYPE_CASE(i64)(arg, out, axes);
+            TYPE_CASE(i64)(arg, out, axes, keep_dims);
             break;
-            TYPE_CASE(u32)(arg, out, axes);
+            TYPE_CASE(u32)(arg, out, axes, keep_dims);
             break;
-            TYPE_CASE(u64)(arg, out, axes);
+            TYPE_CASE(u64)(arg, out, axes, keep_dims);
             break;
-            TYPE_CASE(f16)(arg, out, axes);
+            TYPE_CASE(f16)(arg, out, axes, keep_dims);
             break;
-            TYPE_CASE(f32)(arg, out, axes);
+            TYPE_CASE(f32)(arg, out, axes, keep_dims);
             break;
         default: rc = false; break;
         }
@@ -124,7 +125,7 @@ namespace minop
 bool op::v0::Min::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
     OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v0::Min::evaluate");
-    return minop::evaluate_min(inputs[0], outputs[0], get_reduction_axes());
+    return minop::evaluate_min(inputs[0], outputs[0], get_reduction_axes(), false);
 }
 
 constexpr NodeTypeInfo op::v1::ReduceMin::type_info;
@@ -147,5 +148,5 @@ bool op::v1::ReduceMin::evaluate(const HostTensorVector& outputs,
                                  const HostTensorVector& inputs) const
 {
     OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v1::ReduceMin::evaluate");
-    return minop::evaluate_min(inputs[0], outputs[0], get_reduction_axes());
+    return minop::evaluate_min(inputs[0], outputs[0], get_reduction_axes(), get_keep_dims());
 }

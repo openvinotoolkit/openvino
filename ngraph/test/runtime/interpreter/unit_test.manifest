@@ -80,13 +80,13 @@ INTERPRETER.auto_bcast_binary_elementwise
 INTERPRETER.auto_bcast_binary_elementwise_pdpd
 
 # Revise reference implementation
-INTERPRETER.onnx_dyn_model_hardmax
-INTERPRETER.onnx_model_one_hot_with_axis
-INTERPRETER.onnx_model_one_hot_with_axis
-INTERPRETER.onnx_model_quantize_linear_const_scale_const_zero_p
-INTERPRETER.onnx_model_quantize_linear
-INTERPRETER.onnx_model_quantize_linear_axis_zero
-INTERPRETER.onnx_model_quantize_linear_axis_negative
+onnx_dyn_model_hardmax
+onnx_model_one_hot_with_axis
+onnx_model_one_hot_with_axis
+onnx_model_quantize_linear_const_scale_const_zero_p
+onnx_model_quantize_linear
+onnx_model_quantize_linear_axis_zero
+onnx_model_quantize_linear_axis_negative
 
 # Backward conv
 INTERPRETER.convolution_2d_1item
@@ -161,5 +161,5 @@ dyn_convolution_backprop_data
 INTERPRETER.ctc_greedy_decoder_f16
 
 # Issue 37473. Fails on ia32 platforms only
-INTERPRETER.onnx_model_softmax_axis_0
-INTERPRETER.onnx_model_reshape_negative_dim
+onnx_model_softmax_axis_0
+onnx_model_reshape_negative_dim

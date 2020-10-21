@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -184,8 +184,8 @@ namespace ngraph
                     else
                     {
                         size_t index_offset = calc_full_broadcast_offset(current_dim, offsets);
-                        idx -= index_offset;
-                        NGRAPH_CHECK(idx >= 0 && index_offset < shape_size(offsets),
+
+                        NGRAPH_CHECK(idx >= index_offset && index_offset < shape_size(offsets),
                                      "Incorrect index offset value!");
                         val = data[idx - index_offset];
                     }

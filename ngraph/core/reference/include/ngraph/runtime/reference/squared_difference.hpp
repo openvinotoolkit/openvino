@@ -38,7 +38,7 @@ namespace ngraph
             {
                 autobroadcast_binop(
                     arg0, arg1, out, arg0_shape, arg1_shape, broadcast_spec, [](T x, T y) -> T {
-                        return std::pow(x - y, 2);
+                        return (x - y) * (x - y);
                     });
             }
         }

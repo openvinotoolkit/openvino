@@ -96,6 +96,7 @@ namespace maxop
                   const AxisSet& axes,
                   bool keep_dims)
     {
+        out->set_shape(reduce(arg->get_shape(), axes, keep_dims));
         runtime::reference::max(
             arg->get_data_ptr<ET>(), out->get_data_ptr<ET>(), arg->get_shape(), axes, keep_dims);
         return true;

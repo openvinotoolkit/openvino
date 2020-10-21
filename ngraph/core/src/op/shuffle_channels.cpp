@@ -175,7 +175,6 @@ bool op::ShuffleChannels::evaluate(const HostTensorVector& outputs,
         transposed_shape[i] = data_shape.at(transpose_axes_order.at(i));
     }
     auto axis_vector = AxisVector{begin(transpose_axes_order), end(transpose_axes_order)};
-    std::vector<char> transposed(data_size);
     runtime::opt_kernel::reshape(
         arg, out, reshaped_out_shape, axis_vector, transposed_shape, elem_size);
 

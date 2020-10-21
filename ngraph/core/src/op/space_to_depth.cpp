@@ -82,10 +82,10 @@ void ngraph::op::v0::SpaceToDepth::validate_and_infer_types()
             data_shape.size(),
             ")");
 
-        auto divider = std::pow(m_blocksize, data_shape.size() - 2);
+        auto multiplier = std::pow(m_blocksize, data_shape.size() - 2);
 
         auto out_shape = data_shape;
-        out_shape[1] *= divider;
+        out_shape[1] *= multiplier;
         for (size_t i = 2; i < out_shape.size(); i++)
         {
             NODE_VALIDATION_CHECK(this,
