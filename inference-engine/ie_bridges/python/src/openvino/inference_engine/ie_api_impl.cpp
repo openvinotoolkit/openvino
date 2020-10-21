@@ -5,8 +5,6 @@
 #include "ie_api_impl.hpp"
 #include "hetero/hetero_plugin_config.hpp"
 #include "ie_iinfer_request.hpp"
-#include <legacy/details/ie_cnn_network_tools.h>
-#include <legacy/cnn_network_impl.hpp>
 
 const std::string EXPORTED_NETWORK_NAME = "undefined";
 std::map <std::string, InferenceEngine::Precision> precision_map = {{"FP32", InferenceEngine::Precision::FP32},
@@ -207,14 +205,6 @@ InferenceEnginePython::IENetwork::load_from_buffer(const char *xml, size_t xml_s
 
 void InferenceEnginePython::IENetwork::serialize(const std::string &path_to_xml, const std::string &path_to_bin) {
     actual->serialize(path_to_xml, path_to_bin);
-}
-
-void InferenceEnginePython::IENetwork::convertToOldRepresentation() {
-    if (actual->getFunction()) {
-        // convert to old representation
-        auto convertedNetwork = std::make_shared<InferenceEngine::details::CNNNetworkImpl>(*actual);
-        actual = std::make_shared<InferenceEngine::CNNNetwork>(convertedNetwork);
-    }
 }
 
 

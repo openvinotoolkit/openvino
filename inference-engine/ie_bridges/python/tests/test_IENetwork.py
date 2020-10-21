@@ -180,18 +180,12 @@ def test_batch_size_after_reshape():
     assert net.input_info['data'].input_data.shape == [8, 3, 32, 32]
 
 
-@pytest.mark.skip(reason="Test is failed due-to ngraph conversion")
-def test_serialize(recwarn):
-    warnings.simplefilter("always")
-    ie = IECore()
-    net = ie.read_network(model=test_net_xml, weights=test_net_bin)
-    net.serialize("./serialized_net.xml", "./serialized_net.bin")
-    serialized_net = ie.read_network(model="./serialized_net.xml", weights="./serialized_net.bin")
-    assert net.layers.keys() == serialized_net.layers.keys()
-    os.remove("./serialized_net.xml")
-    os.remove("./serialized_net.bin")
-    assert len(recwarn) == 2
-    assert recwarn.pop(DeprecationWarning)
+def test_serialize():
+    with pytest.raises(RuntimeError) as excinfo:
+        ie = IECore()
+        net = ie.read_network(model=test_net_xml, weights=test_net_bin)
+        net.serialize("./serialized_net.xml", "./serialized_net.bin")
+    assert "The serialize for IR v10 is not implemented" in str(excinfo.value)
 
 
 def test_reshape():
@@ -215,18 +209,34 @@ def test_read_net_from_buffer_deprecated():
 
 
 def test_net_from_buffer_valid_deprecated():
-    with warnings.catch_warnings(record=True) as w:
-        with open(test_net_bin, 'rb') as f:
-            bin = f.read()
-        with open(test_net_xml, 'rb') as f:
-            xml = f.read()
-        net = IENetwork(model=xml, weights=bin, init_from_buffer=True)
-        net2 = IENetwork(model=test_net_xml, weights=test_net_bin)
-        for name, l in net.layers.items():
-            for blob, data in l.blobs.items():
-                assert np.allclose(data, net2.layers[name].blobs[blob]), \
-                    "Incorrect weights for layer {} and blob {}".format(name, blob)
-        assert len(w) == 11
+    import ngraph as ng
+    ie = IECore()
+    with open(test_net_bin, 'rb') as f:
+        bin = f.read()
+    with open(model_path()[0], 'rb') as f:
+        xml = f.read()
+    net = ie.read_network(model=xml, weights=bin, init_from_buffer=True)
+    ref_net = ie.read_network(model=test_net_xml, weights=test_net_bin)
+    assert net.name == ref_net.name
+    assert net.batch_size == ref_net.batch_size
+    ii_net = net.input_info
+    ii_net2 = ref_net.input_info
+    o_net = net.outputs
+    o_net2 = ref_net.outputs
+    assert ii_net.keys() == ii_net2.keys()
+    assert o_net.keys() == o_net2.keys()
+    func_net = ng.function_from_cnn(net)
+    ops_net = func_net.get_ordered_ops()
+    ops_net_names = [op.friendly_name for op in ops_net]
+    func_ref_net = ng.function_from_cnn(ref_net)
+    ops_ref_net = func_ref_net.get_ordered_ops()
+    ops_ref_net_names = [op.friendly_name for op in ops_ref_net]
+    # assert ops_net_names == ops_ref_net_names
+    ref_net1 = ie.read_network(model=test_net_xml, weights=test_net_bin)
+    func_ref_net1 = ng.function_from_cnn(ref_net1)
+    ops_ref_net1 = func_ref_net1.get_ordered_ops()
+    ops_ref_net_names1 = [op.friendly_name for op in ops_ref_net1]
+    assert ops_ref_net_names1 == ops_ref_net_names
 
 
 def test_multi_out_data():
