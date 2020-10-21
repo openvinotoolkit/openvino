@@ -1,17 +1,12 @@
 ## Software Requirements 
-- openjdk 11
+- openjdk (version depends on target OS)
 
 ### Linux
 To install openjdk: 
 
-* Ubuntu 18.04
+* Ubuntu systems:
 ```bash
-sudo apt-get install -y openjdk-11-jdk
-```
-
-* Ubuntu 16.04
-```bash
-sudo apt-get install -y openjdk-8-jdk
+sudo apt-get install -y default-jdk
 ```
 
 ## Building on Linux
