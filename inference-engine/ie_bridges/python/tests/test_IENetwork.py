@@ -3,8 +3,7 @@ import pytest
 import warnings
 import numpy as np
 
-from openvino.inference_engine import IECore, IENetwork, IENetLayer, DataPtr, \
-    InputInfoPtr, PreProcessInfo
+from openvino.inference_engine import IECore, IENetwork, DataPtr, InputInfoPtr, PreProcessInfo
 from conftest import model_path
 
 
@@ -179,18 +178,6 @@ def test_batch_size_after_reshape():
     net.reshape({'data': [8, 3, 32, 32]})
     assert net.batch_size == 8
     assert net.input_info['data'].input_data.shape == [8, 3, 32, 32]
-
-
-def test_layers(recwarn):
-    warnings.simplefilter("always")
-    ie = IECore()
-    net = ie.read_network(model=test_net_xml, weights=test_net_bin)
-    layers_name = [key for key in net.layers]
-    assert sorted(layers_name) == ['19/Fused_Add_', '21', '22', '23', '24/Fused_Add_',
-                                   '26', '27', '29', 'data', 'fc_out']
-    assert isinstance(net.layers['19/Fused_Add_'], IENetLayer)
-    assert len(recwarn) == 2
-    assert recwarn.pop(DeprecationWarning)
 
 
 @pytest.mark.skip(reason="Test is failed due-to ngraph conversion")
