@@ -34,7 +34,7 @@ TEST(TransformationTests, HSigmoidFusionWithReluDivF16) {
 
         ngraph::pass::Manager manager;
         manager.register_pass<ngraph::pass::InitNodeInfo>();
-        manager.register_pass<ngraph::pass::HSigmoidFusionWithReluDiv>();
+        manager.register_pass<ngraph::pass::HSigmoidFusion>();
         manager.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
     }
@@ -66,7 +66,7 @@ TEST(TransformationTests, HSigmoidFusionWithReluDivF32) {
 
         ngraph::pass::Manager manager;
         manager.register_pass<ngraph::pass::InitNodeInfo>();
-        manager.register_pass<ngraph::pass::HSigmoidFusionWithReluDiv>();
+        manager.register_pass<ngraph::pass::HSigmoidFusion>();
         manager.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
     }
@@ -98,7 +98,7 @@ TEST(TransformationTests, HSigmoidFusionWithReluMul) {
 
         ngraph::pass::Manager manager;
         manager.register_pass<ngraph::pass::InitNodeInfo>();
-        manager.register_pass<ngraph::pass::HSigmoidFusionWithReluMul>();
+        manager.register_pass<ngraph::pass::HSigmoidFusion>();
         manager.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
     }
@@ -131,7 +131,7 @@ TEST(TransformationTests, HSigmoidFusionWithoutRelu) {
 
         ngraph::pass::Manager manager;
         manager.register_pass<ngraph::pass::InitNodeInfo>();
-        manager.register_pass<ngraph::pass::HSigmoidFusionWithoutRelu>();
+        manager.register_pass<ngraph::pass::HSigmoidFusion>();
         manager.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
     }
@@ -161,7 +161,7 @@ TEST(TransformationTests, HSigmoidFusionWithClamp) {
 
         ngraph::pass::Manager manager;
         manager.register_pass<ngraph::pass::InitNodeInfo>();
-        manager.register_pass<ngraph::pass::HSigmoidFusionWithClamp>();
+        manager.register_pass<ngraph::pass::HSigmoidFusion>();
         manager.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
     }
@@ -193,7 +193,7 @@ TEST(TransformationTests, HSigmoidFusionWithReluMulWrongConstValue) {
 
         ngraph::pass::Manager manager;
         manager.register_pass<ngraph::pass::InitNodeInfo>();
-        manager.register_pass<ngraph::pass::HSigmoidFusionWithReluMul>();
+        manager.register_pass<ngraph::pass::HSigmoidFusion>();
         manager.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
     }
@@ -231,7 +231,7 @@ TEST(TransformationTests, HSigmoidFusionWithReluDivWrongConstValue) {
 
         ngraph::pass::Manager manager;
         manager.register_pass<ngraph::pass::InitNodeInfo>();
-        manager.register_pass<ngraph::pass::HSigmoidFusionWithReluDiv>();
+        manager.register_pass<ngraph::pass::HSigmoidFusion>();
         manager.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
     }
@@ -270,7 +270,7 @@ TEST(TransformationTests, HSigmoidFusionWithoutReluWrongConstValue) {
 
         ngraph::pass::Manager manager;
         manager.register_pass<ngraph::pass::InitNodeInfo>();
-        manager.register_pass<ngraph::pass::HSigmoidFusionWithoutRelu>();
+        manager.register_pass<ngraph::pass::HSigmoidFusion>();
         manager.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
     }
@@ -307,7 +307,7 @@ TEST(TransformationTests, HSigmoidFusionWithClampWrongConstValue) {
 
         ngraph::pass::Manager manager;
         manager.register_pass<ngraph::pass::InitNodeInfo>();
-        manager.register_pass<ngraph::pass::HSigmoidFusionWithoutRelu>();
+        manager.register_pass<ngraph::pass::HSigmoidFusion>();
         manager.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
     }
