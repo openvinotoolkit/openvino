@@ -40,6 +40,7 @@
 
 #if GNA_LIB_VER == 2
 #include <gna2-model-api.h>
+#include <layers/gna_fake_quantize_layer.hpp>
 
 uint32_t ToByteSize(const Gna2DataType type) {
     switch (type) {
@@ -339,6 +340,77 @@ void GNAPlugin::InitGNADevice() {
     graphCompiler.setGNAMemoryPtr(gnamem);
 }
 
+void GNAPlugin::UpdateGnaQuantModeFromNetwork(InferenceEngine::ICNNNetwork & network) {
+    // fp32 emulation mode dont need any modifications to configuration
+    if (config.gnaFlags.sw_fp32) return;
+
+    // search for FQ layers
+    // only supports cases of int16 or int8
+    auto it = details::CNNNetworkIterator(&network);
+    auto end = details::CNNNetworkIterator();
+    for (; it != end; it++) {
+        if (!LayerInfo(*it).isFakeQuantize()) {
+            continue;
+        }
+
+        GNAFakeQuantizeLayer fqLayer(*it);
+        auto inputLayer = fqLayer.getInputLayer();
+
+        // this fake quantize represents data quantization - not weights
+        if (!LayerInfo(inputLayer).isConst()) {
+            continue;
+        }
+        // checking weight precision - they already quantized - so we need to adjust type of quantisation we have so far
+        const auto int8Levels = 255;
+        const auto int16Levels = 65535;
+        if (fqLayer.getLevels() != int8Levels && fqLayer.getLevels() != int16Levels) {
+            THROW_GNA_LAYER_EXCEPTION(*it)
+                << "unsupported quantisation scheme: number of levels is " << fqLayer.getLevels() << " while only: "
+                << int8Levels << " or " << int16Levels << " supported";
+        }
+        // also in mixed mode i8 should be stated as target precision
+        if (fqLayer.getLevels() == int8Levels) {
+            config.gnaPrecision = InferenceEngine::Precision::I8;
+        }
+    }
+}
+
+void GNAPlugin::UpdateInputScaleFromNetwork(InferenceEngine::ICNNNetwork & network) {
+    // fp32 emulation mode dont need any modifications to configuration
+    if (config.gnaFlags.sw_fp32) return;
+
+    // search for FQ layers
+    // only supports cases of int16 or int8
+    InputsDataMap  inputs;
+    network.getInputsInfo(inputs);
+    for (auto && input : inputs) {
+        auto data = input.second->getInputData();
+        size_t inputIdx = 0;
+        for (auto && nextToInputLayer : getInputTo(data)) {
+            if (!LayerInfo(nextToInputLayer.second).isFakeQuantize()) {
+                inputIdx++;
+                continue;
+            }
+            // replacing scale factor from this fq layer
+            GNAFakeQuantizeLayer fqLayer(nextToInputLayer.second);
+            auto inputRange = fqLayer.getInputRange();
+            auto outputRange = fqLayer.getOutputRange();
+            if (inputRange.second.size() != 1 || inputRange.second.size() != 1 ||
+                outputRange.second.size() != 1 || outputRange.second.size() != 1) {
+                THROW_GNA_LAYER_EXCEPTION(nextToInputLayer.second)
+                    << "unsupported,per-channel quantisation for input layer : " << input.second->name();
+            }
+            float scaleInput = (inputRange.second[0] - inputRange.first[0]) / (fqLayer.getLevels() - 1);
+            float scaleOutputs = (outputRange.second[0] - outputRange.first[0]) / (fqLayer.getLevels() - 1);
+
+            // TODO: proper mapping into scale factors
+            config.inputScaleFactors[inputIdx] = 1 / scaleInput;
+
+            inputIdx++;
+        }
+    }
+}
+
 void GNAPlugin::LoadNetwork(ICNNNetwork & _network) {
     std::shared_ptr<InferenceEngine::details::CNNNetworkImpl> convertedNetwork;
     if (_network.getFunction()) {
@@ -356,6 +428,10 @@ void GNAPlugin::LoadNetwork(ICNNNetwork & _network) {
         THROW_GNA_EXCEPTION << error.c_str();
     }
 
+    // FQ networks now replaces certain flags in the plugin - flags will'be owerritten
+    UpdateGnaQuantModeFromNetwork(network);
+    UpdateInputScaleFromNetwork(network);
+
     // network optimisation phases
     int passIdx = 0;
     auto run_passes = [&] (const CNNNetPtr& network, bool runBeforeCopy) {
@@ -369,6 +445,7 @@ void GNAPlugin::LoadNetwork(ICNNNetwork & _network) {
 
         // fake quantisation aware passes
         passes->registerPass<FuseFQIntoWeightsPass>();
+        passes->registerPass<MoveFakeQuantizeLayerIntoQuantParamsPass>();
 
         passes->registerPass<SubstitutePReluPass>();
         passes->registerPass<SubstituteSoftSignPass>();

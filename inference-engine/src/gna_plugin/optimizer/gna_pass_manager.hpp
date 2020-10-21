@@ -185,6 +185,11 @@ DECL_PASS(BroadcastConst);
 */
 DECL_PASS(FuseFQIntoWeights);
 
+/**
+* @brief remove all fake quantize layers while moving it's settings into QuantParams for certain layer
+*/
+DECL_PASS(MoveFakeQuantizeLayerIntoQuantParams);
+
 
 struct PassManagerSettings {
     Policy policy;
