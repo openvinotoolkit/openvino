@@ -42,7 +42,7 @@ namespace onnx {
 
     bool is_correct_onnx_field(const char decoded_field) {
         constexpr Field allowed_fields[] = {
-            IR_VERSION, PRODUCER_NAME, PRODUCER_VERSION, DOMAIN, MODEL_VERSION, DOC_STRING,
+            IR_VERSION, PRODUCER_NAME, PRODUCER_VERSION, DOMAIN_, MODEL_VERSION, DOC_STRING,
             GRAPH, OPSET_IMPORT, METADATA_PROPS, TRAINING_INFO
         };
 
