@@ -62,7 +62,6 @@ void ngraph::traverse_nodes(const Function* p, std::function<void(std::shared_pt
         nodes.push_back(s);
     }
 
-
     for (auto param : p->get_parameters())
     {
         nodes.push_back(param);
