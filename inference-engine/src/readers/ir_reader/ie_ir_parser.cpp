@@ -390,7 +390,6 @@ std::shared_ptr<ngraph::Node> V10Parser::createNode(const std::vector<ngraph::Ou
     static std::vector<std::shared_ptr<LayerBaseCreator>> creators = {
         std::make_shared<LayerCreator<ngraph::op::Abs>>("Abs"),
         std::make_shared<LayerCreator<ngraph::op::Acos>>("Acos"),
-        std::make_shared<LayerCreator<ngraph::op::v1::Add>>("Add"),
         std::make_shared<LayerCreator<ngraph::op::Asin>>("Asin"),
         std::make_shared<LayerCreator<ngraph::op::Atan>>("Atan"),
         std::make_shared<LayerCreator<ngraph::op::v1::AvgPool>>("AvgPool"),
@@ -1414,15 +1413,6 @@ std::shared_ptr<ngraph::Node> V10Parser::LayerCreator<ngraph::op::Abs>::createLa
     const GenericLayerParams& layerParsePrms) {
     checkParameters(inputs, layerParsePrms, 1);
     return std::make_shared<ngraph::op::Abs>(inputs[0]);
-}
-
-// Add layer
-template <>
-std::shared_ptr<ngraph::Node> V10Parser::LayerCreator<ngraph::op::v1::Add>::createLayer(
-    const ngraph::OutputVector& inputs, const pugi::xml_node& node, std::istream& binStream,
-    const GenericLayerParams& layerParsePrms) {
-    checkParameters(inputs, layerParsePrms, 2);
-    return std::make_shared<ngraph::op::v1::Add>(inputs[0], inputs[1]);
 }
 
 // Minimum layer
