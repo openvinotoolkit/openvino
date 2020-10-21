@@ -16,7 +16,7 @@
 
 #pragma once
 
-#include "ngraph/op/op.hpp"
+#include "ngraph/op/sink.hpp"
 #include "ngraph/op/util/variable.hpp"
 
 namespace ngraph
@@ -26,7 +26,7 @@ namespace ngraph
         namespace v3
         {
             /// \brief Assign operation sets an input value to the variable with `variable_id`
-            class NGRAPH_API Assign : public Op
+            class NGRAPH_API Assign : public Sink
             {
             public:
                 static constexpr NodeTypeInfo type_info{"Assign", 3};
