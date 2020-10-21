@@ -57,7 +57,7 @@ void FrontEnd::parseStaticShapeNMS(const Model& model, const ie::CNNLayerPtr& la
     VPU_THROW_UNLESS(inputs.size() == 6,
         "StaticShapeNMS with name {} parsing failed, expected number of inputs: 6, but {} provided",
         layer->name, inputs.size());
-    VPU_THROW_UNLESS(outputs.size() == 4,
+    VPU_THROW_UNLESS(outputs.size() == 3,
         "StaticShapeNMS with name {} parsing failed, expected number of outputs: 4, but {} provided",
         layer->name, outputs.size());
 
@@ -79,27 +79,20 @@ void FrontEnd::parseStaticShapeNMS(const Model& model, const ie::CNNLayerPtr& la
 
     const auto& outIndices = outputs[0];
     const auto& outScores = outputs[1];
-    const auto& validOutputs = outputs[2];
-    const auto& outShape = outputs[3];
+    const auto& outShape = outputs[2];
 
     VPU_THROW_UNLESS(outScores == nullptr,
         "StaticShapeNMS with name {} parsing failed: selected_scores output is not supported {}",
         layer->name);
-    VPU_THROW_UNLESS(validOutputs == nullptr,
-        "StaticShapeNMS with name {} parsing failed: valid_outputs output is not supported {}",
-        layer->name);
 
     const auto sortResultDescending = layer->GetParamAsBool("sort_result_descending");
-    const auto boxEncoding = layer->GetParamAsString("box_encoding");
+    const auto centerPointBox = layer->GetParamAsBool("center_point_box");
 
     VPU_THROW_UNLESS(sortResultDescending == false,
         "StaticShapeNMS with name {}: parameter sortResultDescending=true is not supported on VPU", layer->name);
-    VPU_THROW_UNLESS(boxEncoding == "corner" || boxEncoding == "center",
-        "StaticShapeNMS with name {}: boxEncoding currently supports only two values: \"corner\" and \"center\" "
-        "while {} was provided", layer->name, boxEncoding);
 
     auto stage = model->addNewStage<StaticShapeNMS>(layer->name, StageType::StaticShapeNMS, layer, usedInputs, DataVector{outIndices, outShape});
-    stage->attrs().set<bool>("center_point_box", boxEncoding == "center");
+    stage->attrs().set<bool>("center_point_box", centerPointBox);
 }
 
 }  // namespace vpu

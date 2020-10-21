@@ -32,7 +32,7 @@ enum class CheckType {
 
 struct NonMaxSuppressionTestCase {
     int64_t numBatches, numBoxes, numClasses, maxOutputBoxesPerClass;
-    float iouThreshold, scoreThreshold;
+    float iouThreshold, scoreThreshold, softNMSSigma;
 };
 
 class DynamicToStaticShapeNonMaxSuppression : public CommonTestUtils::TestsCommon,
@@ -63,12 +63,13 @@ protected:
         const auto maxOutputBoxesPerClass = ngraph::opset3::Constant::create(integerType, {}, std::vector<int64_t>{nmsSetup.maxOutputBoxesPerClass});
         const auto iouThreshold = ngraph::opset3::Constant::create(floatType, ngraph::Shape{}, std::vector<float>{nmsSetup.iouThreshold});
         const auto scoreThreshold = ngraph::opset3::Constant::create(floatType, ngraph::Shape{}, std::vector<float>{nmsSetup.scoreThreshold});
+        const auto softNMSSigma = ngraph::opset3::Constant::create(floatType, ngraph::Shape{}, std::vector<float>{nmsSetup.softNMSSigma});
 
         const auto dims = std::make_shared<ngraph::opset3::Parameter>(ngraph::element::i64, ngraph::Shape{3});
         const auto dsr = std::make_shared<ngraph::vpu::op::DynamicShapeResolver>(scores, dims);
 
         const auto node = std::make_shared<ngraph::op::v5::NonMaxSuppression>(
-                boxes, dsr, maxOutputBoxesPerClass, iouThreshold, scoreThreshold);
+                boxes, dsr, maxOutputBoxesPerClass, iouThreshold, scoreThreshold, softNMSSigma);
 
         const auto function = std::make_shared<ngraph::Function>(
                 ngraph::NodeVector{node->output(static_cast<size_t>(checkType)).get_node_shared_ptr()},
@@ -93,14 +94,15 @@ protected:
         const auto maxOutputBoxesPerClass = ngraph::opset3::Constant::create(integerType, {}, std::vector<int64_t>{nmsSetup.maxOutputBoxesPerClass});
         const auto iouThreshold = ngraph::opset3::Constant::create(floatType, {}, std::vector<float>{nmsSetup.iouThreshold});
         const auto scoreThreshold = ngraph::opset3::Constant::create(floatType, {}, std::vector<float>{nmsSetup.scoreThreshold});
+        const auto softNMSSigma = ngraph::opset3::Constant::create(floatType, ngraph::Shape{}, std::vector<float>{nmsSetup.softNMSSigma});
 
         const auto dims = std::make_shared<ngraph::opset3::Parameter>(ngraph::element::i64, ngraph::Shape{3});
         const auto dsrInput = std::make_shared<ngraph::vpu::op::DynamicShapeResolver>(scores, dims);
 
         const auto node = std::make_shared<ngraph::vpu::op::StaticShapeNonMaxSuppression>(
-                boxes, dsrInput, maxOutputBoxesPerClass, iouThreshold, scoreThreshold);
+                boxes, dsrInput, maxOutputBoxesPerClass, iouThreshold, scoreThreshold, softNMSSigma);
 
-        const auto dsr = std::make_shared<ngraph::vpu::op::DynamicShapeResolver>(node->output(static_cast<size_t>(checkType)), node->output(3));
+        const auto dsr = std::make_shared<ngraph::vpu::op::DynamicShapeResolver>(node->output(static_cast<size_t>(checkType)), node->output(2));
 
         return std::make_shared<ngraph::Function>(
                 ngraph::NodeVector{dsr},
@@ -121,11 +123,11 @@ INSTANTIATE_TEST_CASE_P(smoke_NGraph, DynamicToStaticShapeNonMaxSuppression, tes
         ngraph::element::i64,
         ngraph::element::u8),
     testing::Values(
-        // numBatches, numBoxes, numClasses, maxOutputBoxesPerClass, iouThreshold, scoreThreshold
-        NonMaxSuppressionTestCase{1, 10, 5, 10, 0., 0.},
-        NonMaxSuppressionTestCase{2, 100, 5, 10, 0., 0.},
-        NonMaxSuppressionTestCase{3, 10, 5, 2, 0.5, 0.},
-        NonMaxSuppressionTestCase{1, 1000, 1, 2000, 0.5, 0.}),
+        // numBatches, numBoxes, numClasses, maxOutputBoxesPerClass, iouThreshold, scoreThreshold, softNMSSigma
+        NonMaxSuppressionTestCase{1, 10, 5, 10, 0., 0., 0.},
+        NonMaxSuppressionTestCase{2, 100, 5, 10, 0., 0., 0.},
+        NonMaxSuppressionTestCase{3, 10, 5, 2, 0.5, 0., 0.},
+        NonMaxSuppressionTestCase{1, 1000, 1, 2000, 0.5, 0., 0.}),
     testing::ValuesIn({CheckType::CHECK_DYNAMIC_INDICES, CheckType::CHECK_DYNAMIC_SCORES})));
 
 }  // namespace
