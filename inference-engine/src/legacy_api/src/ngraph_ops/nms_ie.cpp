@@ -140,7 +140,7 @@ int64_t op::NonMaxSuppressionIE3::max_boxes_output_from_input() const {
     int64_t max_output_boxes{0};
 
     const auto max_output_boxes_input =
-        as_type_ptr<op::Constant>(input_value(2).get_node_shared_ptr());
+        as_type_ptr<op::Constant>(input_value(max_output_boxes_per_class_port).get_node_shared_ptr());
     max_output_boxes = max_output_boxes_input->cast_vector<int64_t>().at(0);
 
     return max_output_boxes;
