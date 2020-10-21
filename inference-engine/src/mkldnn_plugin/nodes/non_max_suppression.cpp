@@ -67,14 +67,16 @@ public:
                     THROW_IE_EXCEPTION << layer->name << " 'score_threshold' should be scalar";
             }
 
-            if (layer->outData[0]->getTensorDesc().getPrecision() != Precision::I32)
-                THROW_IE_EXCEPTION << layer->name << " Incorrect 'selected_indices' input precision. Only I32 is supported!";
+            if (layer->outData[0]->getTensorDesc().getPrecision() != Precision::I32 && layer->outData[0]->getTensorDesc().getPrecision() != Precision::I64)
+                THROW_IE_EXCEPTION << layer->name << " Incorrect 'selected_indices' input precision. Only I32 and I64 are supported!";
             SizeVector selected_indices_dims = layer->outData[0]->getTensorDesc().getDims();
             if (selected_indices_dims.size() != 2 || selected_indices_dims[1] != 3)
                 THROW_IE_EXCEPTION << layer->name << " 'selected_indices' should be with shape [num_selected_indices, 3]";
 
             center_point_box = layer->GetParamAsBool("center_point_box", false);
             sort_result_descending = layer->GetParamAsBool("sort_result_descending", true);
+            output_type = layer->GetParamAsString("output_type", "i64");
+            output_prec = layer->outData[0]->getTensorDesc().getPrecision();
 
             if (layer->insData.size() == 2) {
                 addConfig(layer, { DataConfigurator(ConfLayout::PLN), DataConfigurator(ConfLayout::PLN) }, { DataConfigurator(ConfLayout::PLN) });
@@ -158,9 +160,6 @@ public:
         if (inputs.size() > 4)
             score_threshold = (inputs[NMS_SCORETHRESHOLD]->cbuffer().as<float *>() +
                 inputs[NMS_SCORETHRESHOLD]->getTensorDesc().getBlockingDesc().getOffsetPadding())[0];
-        int* selected_indices = outputs[0]->cbuffer().as<int *>() +
-            outputs[0]->getTensorDesc().getBlockingDesc().getOffsetPadding();
-        SizeVector selected_indices_dims = outputs[0]->getTensorDesc().getDims();
 
         SizeVector boxesStrides = inputs[NMS_BOXES]->getTensorDesc().getBlockingDesc().getStrides();
         SizeVector scoresStrides = inputs[NMS_SCORES]->getTensorDesc().getBlockingDesc().getStrides();
@@ -213,19 +212,36 @@ public:
         }
 
         int selected_indicesStride = outputs[0]->getTensorDesc().getBlockingDesc().getStrides()[0];
-        int* selected_indicesPtr = selected_indices;
+        SizeVector selected_indices_dims = outputs[0]->getTensorDesc().getDims();
         size_t idx;
-        for (idx = 0; idx < (std::min)(selected_indices_dims[0], fb.size()); idx++) {
-            selected_indicesPtr[0] = fb[idx].batch_index;
-            selected_indicesPtr[1] = fb[idx].class_index;
-            selected_indicesPtr[2] = fb[idx].box_index;
-            selected_indicesPtr += selected_indicesStride;
-        }
-        for (; idx < selected_indices_dims[0]; idx++) {
-            selected_indicesPtr[0] = -1;
-            selected_indicesPtr[1] = -1;
-            selected_indicesPtr[2] = -1;
-            selected_indicesPtr += selected_indicesStride;
+        if (output_prec == Precision::I32) {
+            int* selected_indicesPtr = outputs[0]->cbuffer().as<int *>() + outputs[0]->getTensorDesc().getBlockingDesc().getOffsetPadding();
+            for (idx = 0; idx < (std::min)(selected_indices_dims[0], fb.size()); idx++) {
+                selected_indicesPtr[0] = fb[idx].batch_index;
+                selected_indicesPtr[1] = fb[idx].class_index;
+                selected_indicesPtr[2] = fb[idx].box_index;
+                selected_indicesPtr += selected_indicesStride;
+            }
+            for (; idx < selected_indices_dims[0]; idx++) {
+                selected_indicesPtr[0] = -1;
+                selected_indicesPtr[1] = -1;
+                selected_indicesPtr[2] = -1;
+                selected_indicesPtr += selected_indicesStride;
+            }
+        } else {
+            int64_t* selected_indicesPtr = outputs[0]->cbuffer().as<int64_t *>() + outputs[0]->getTensorDesc().getBlockingDesc().getOffsetPadding();
+            for (idx = 0; idx < (std::min)(selected_indices_dims[0], fb.size()); idx++) {
+                selected_indicesPtr[0] = static_cast<int64_t>(fb[idx].batch_index);
+                selected_indicesPtr[1] = static_cast<int64_t>(fb[idx].class_index);
+                selected_indicesPtr[2] = static_cast<int64_t>(fb[idx].box_index);
+                selected_indicesPtr += selected_indicesStride;
+            }
+            for (; idx < selected_indices_dims[0]; idx++) {
+                selected_indicesPtr[0] = static_cast<int64_t>(-1);
+                selected_indicesPtr[1] = static_cast<int64_t>(-1);
+                selected_indicesPtr[2] = static_cast<int64_t>(-1);
+                selected_indicesPtr += selected_indicesStride;
+            }
         }
 
         return OK;
@@ -239,6 +255,8 @@ private:
     const size_t NMS_SCORETHRESHOLD = 4;
     bool center_point_box = false;
     bool sort_result_descending = true;
+    std::string output_type;
+    Precision output_prec;
 };
 
 REG_FACTORY_FOR(NonMaxSuppressionImpl, NonMaxSuppression);
