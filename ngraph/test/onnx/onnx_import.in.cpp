@@ -273,6 +273,40 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_custom_op)
     test_case.run();
 }
 
+NGRAPH_TEST(${BACKEND_NAME}, onnx_model_custom_op_register_unregister)
+{
+    onnx_import::register_operator(
+        "AddQ", 1, "com.intel.ai", [](const onnx_import::Node& node) -> OutputVector {
+            OutputVector ng_inputs{node.get_ng_inputs()};
+            return {std::make_shared<ngraph::op::Add>(ng_inputs.at(0), ng_inputs.at(1))};
+        });
+
+    auto function = onnx_import::import_onnx_model(
+        file_util::path_join(SERIALIZED_ZOO, "onnx/custom_operator.prototxt"));
+
+    auto test_case = test::TestCase<TestEngine>(function);
+    test_case.add_input<float>({1.f, 2.f, 3.f, 4.f});
+    test_case.add_expected_output<float>({3.f, 6.f, 9.f, 12.f});
+    test_case.run();
+
+    onnx_import::unregister_operator("AddQ", 1, "com.intel.ai");
+    try
+    {
+        auto function = onnx_import::import_onnx_model(
+            file_util::path_join(SERIALIZED_ZOO, "onnx/custom_operator.prototxt"));
+        FAIL() << "Expected ngraph::ngraph_error";
+    }
+    catch (ngraph::ngraph_error const& err)
+    {
+        std::string what{err.what()};
+        EXPECT_NE(what.find("Check 'unknown_operators.empty()' failed"), std::string::npos);
+    }
+    catch (...)
+    {
+        FAIL() << "Expected ngraph::ngraph_error";
+    }
+}
+
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_custom_op_default_domain)
 {
     onnx_import::register_operator(
@@ -2266,6 +2300,48 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_pad_constant)
     test_case.run();
 }
 
+NGRAPH_TEST(${BACKEND_NAME}, onnx_model_pow_float32_float32)
+{
+    const auto function = onnx_import::import_onnx_model(
+        file_util::path_join(SERIALIZED_ZOO, "onnx/pow_float32_float32.prototxt"));
+    auto test_case = test::TestCase<TestEngine>(function);
+
+    test_case.add_input<float>({1.f, 2.f, 3.f, 4.f}); // base
+    test_case.add_input<float>({3.5f});               // exponent
+
+    test_case.add_expected_output<float>(Shape{1, 4}, {1.f, 11.313708f, 46.765373f, 128.f});
+
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_model_pow_float32_int32)
+{
+    const auto function = onnx_import::import_onnx_model(
+        file_util::path_join(SERIALIZED_ZOO, "onnx/pow_float32_int32.prototxt"));
+    auto test_case = test::TestCase<TestEngine>(function);
+
+    test_case.add_input<float>({1.f, 2.f, 3.f, 4.f}); // base
+    test_case.add_input<int>({3});                    // exponent
+
+    test_case.add_expected_output<float>(Shape{1, 4}, {1.f, 8.f, 27.f, 64.f});
+
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_model_pow_int32_float32)
+{
+    const auto function = onnx_import::import_onnx_model(
+        file_util::path_join(SERIALIZED_ZOO, "onnx/pow_int32_float32.prototxt"));
+    auto test_case = test::TestCase<TestEngine>(function);
+
+    test_case.add_input<int>({1, 2, 3, 4}); // base
+    test_case.add_input<float>({3.5f});     // exponent
+
+    test_case.add_expected_output<int>(Shape{1, 4}, {1, 11, 46, 128});
+
+    test_case.run();
+}
+
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_reciprocal)
 {
     const auto function = onnx_import::import_onnx_model(
@@ -2616,5 +2692,30 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_normalize)
     };
     test_case.add_input<float>(data);
     test_case.add_expected_output<float>(Shape{1, 3, 2, 2}, output);
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_group_norm)
+{
+    const auto function = onnx_import::import_onnx_model(
+        file_util::path_join(SERIALIZED_ZOO, "onnx/group_norm.prototxt"));
+    auto test_case = test::TestCase<TestEngine>(function);
+    Shape shape{2, 8, 2, 2};
+    int size = shape_size(shape);
+    std::vector<float> data(size);
+    std::iota(data.begin(), data.end(), 0);
+    std::vector<float> output = {
+        -0.52752507, -0.09108937, 0.3453464, 0.78178215, 2.4364357, 3.309307,  4.1821785, 5.05505,
+        -1.5825753,  -0.27326822, 1.0360391, 2.3453465,  4.8728714, 6.618614,  8.364357,  10.1101,
+        -2.6376252,  -0.45544672, 1.726732,  3.9089108,  7.309307,  9.927921,  12.546536, 15.165151,
+        -3.6926756,  -0.6376257,  2.4174247, 5.472475,   9.745743,  13.237228, 16.728714, 20.2202,
+        -0.52752507, -0.09108937, 0.3453464, 0.78178215, 2.4364357, 3.309307,  4.1821785, 5.05505,
+        -1.5825753,  -0.27326822, 1.0360391, 2.3453465,  4.8728714, 6.618614,  8.364357,  10.1101,
+        -2.6376252,  -0.45544672, 1.726732,  3.9089108,  7.309307,  9.927921,  12.546536, 15.165151,
+        -3.6926756,  -0.6376257,  2.4174247, 5.472475,   9.745743,  13.237228, 16.728714, 20.2202,
+    };
+
+    test_case.add_input<float>(data);
+    test_case.add_expected_output<float>(shape, output);
     test_case.run();
 }

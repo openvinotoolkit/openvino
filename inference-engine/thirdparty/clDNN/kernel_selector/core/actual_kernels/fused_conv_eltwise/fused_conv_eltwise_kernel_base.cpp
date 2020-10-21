@@ -109,7 +109,7 @@ bool fused_conv_eltwise_kernel_base::Validate(const Params& p, const optional_pa
 }
 
 JitConstants fused_conv_eltwise_kernel_base::GetJitConstants(const fused_conv_eltwise_params& params,
-                                                             const DispatchData& kd) const {
+                                                             const DispatchData& dispatchData) const {
     JitConstants mem_consts = WeightBiasKernelBase::GetJitConstants(params);
     const auto& padding = params.conv.padding;
     const auto& input = params.inputs[0];
@@ -151,12 +151,12 @@ JitConstants fused_conv_eltwise_kernel_base::GetJitConstants(const fused_conv_el
     std::vector<uint32_t> unrollLoopParams{params.conv.filterSize.x,
                                            params.conv.filterSize.y,
                                            params.conv.filterSize.z,
-                                           (uint32_t)kd.gemmStyle.globalWorkSizeDX,
-                                           (uint32_t)kd.gemmStyle.globalWorkSizeDY,
-                                           (uint32_t)kd.gemmStyle.globalWorkSizeDZ,
-                                           (uint32_t)kd.gemmStyle.subBlockDimM,
-                                           (uint32_t)kd.gemmStyle.subBlockDimK,
-                                           (uint32_t)kd.gemmStyle.subBlockDimN};
+                                           (uint32_t)dispatchData.gemmStyle.globalWorkSizeDX,
+                                           (uint32_t)dispatchData.gemmStyle.globalWorkSizeDY,
+                                           (uint32_t)dispatchData.gemmStyle.globalWorkSizeDZ,
+                                           (uint32_t)dispatchData.gemmStyle.subBlockDimM,
+                                           (uint32_t)dispatchData.gemmStyle.subBlockDimK,
+                                           (uint32_t)dispatchData.gemmStyle.subBlockDimN};
 
     auto loopCount = *std::max_element(unrollLoopParams.begin(), unrollLoopParams.end());
 
@@ -166,13 +166,15 @@ JitConstants fused_conv_eltwise_kernel_base::GetJitConstants(const fused_conv_el
     return mem_consts;
 }
 
-bool fused_conv_eltwise_kernel_base::CheckWorkGroups(const fused_conv_eltwise_kernel_base::DispatchData& kd) {
-    if (kd.gws0 == 0 || kd.gws1 == 0 || kd.gws2 == 0 || kd.lws0 == 0 || kd.lws1 == 0 || kd.lws2 == 0) {
+bool fused_conv_eltwise_kernel_base::CheckWorkGroups(const fused_conv_eltwise_kernel_base::DispatchData& dispatchData) {
+    if (dispatchData.gws.size() != 3 || dispatchData.lws.size() != 3)
         return false;
-    }
 
-    if ((kd.gws0 % kd.lws0) != 0 || (kd.gws1 % kd.lws1) != 0 || (kd.gws2 % kd.lws2) != 0) {
-        return false;
+    for (size_t i = 0; i < dispatchData.gws.size(); i++) {
+        if (dispatchData.gws[i] == 0 || dispatchData.lws[i] == 0)
+            return false;
+        if ((dispatchData.gws[i] % dispatchData.lws[i]) != 0)
+            return false;
     }
 
     return true;
@@ -216,43 +218,34 @@ bool fused_conv_eltwise_kernel_base::CheckPitchForSplitOnly(const fused_conv_elt
 fused_conv_eltwise_kernel_base::DispatchData fused_conv_eltwise_kernel_base::SetDefault(
     const fused_conv_eltwise_params& params,
     int) const {
-    DispatchData kd;
+    DispatchData dispatchData;
 
     const auto& out = params.output;
-    kd.fp16UnitUsed = out.GetDType() == Datatype::F16;
-    std::vector<size_t> global;
+
     if (params.output.GetLayout() == DataLayout::bfyx || params.output.GetLayout() == DataLayout::byxf ||
         params.output.GetLayout() == DataLayout::bfzyx || params.output.GetLayout() == DataLayout::b_fs_zyx_fsv16 ||
         params.output.GetLayout() == DataLayout::bs_fs_zyx_bsv16_fsv16) {
-        global = {out.X().v, out.Y().v * out.Z().v, out.Feature().v * out.Batch().v};
+        dispatchData.gws = {out.X().v, out.Y().v * out.Z().v, out.Feature().v * out.Batch().v};
     } else {
-        global = {out.Feature().v * out.Batch().v, out.X().v, out.Y().v * out.Z().v };
+        dispatchData.gws = {out.Feature().v * out.Batch().v, out.X().v, out.Y().v * out.Z().v };
     }
 
-    auto local = GetOptimalLocalWorkGroupSizes(global, params.engineInfo);
+    dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo);
 
-    kd.gws0 = global[0];
-    kd.gws1 = global[1];
-    kd.gws2 = global[2];
+    dispatchData.cldnnStyle.blockWidth = 1;
+    dispatchData.cldnnStyle.blockHeight = 1;
+    dispatchData.cldnnStyle.prefetch = 0;
+    dispatchData.cldnnStyle.inputBlockArraySize = 0;
+    dispatchData.cldnnStyle.inputBlockWidth = 0;
 
-    kd.lws0 = local[0];
-    kd.lws1 = local[1];
-    kd.lws2 = local[2];
-
-    kd.cldnnStyle.blockWidth = 1;
-    kd.cldnnStyle.blockHeight = 1;
-    kd.cldnnStyle.prefetch = 0;
-    kd.cldnnStyle.inputBlockArraySize = 0;
-    kd.cldnnStyle.inputBlockWidth = 0;
-
-    kd.gemmStyle.globalWorkSizeDX = 1;
-    kd.gemmStyle.globalWorkSizeDY = 1;
-    kd.gemmStyle.globalWorkSizeDZ = 1;
-    kd.gemmStyle.subBlockDimK = 1;
-    kd.gemmStyle.subBlockDimM = 0;
-    kd.gemmStyle.subBlockDimN = 0;
-    kd.efficiency = DONT_USE_IF_HAVE_SOMETHING_ELSE;
-    return kd;
+    dispatchData.gemmStyle.globalWorkSizeDX = 1;
+    dispatchData.gemmStyle.globalWorkSizeDY = 1;
+    dispatchData.gemmStyle.globalWorkSizeDZ = 1;
+    dispatchData.gemmStyle.subBlockDimK = 1;
+    dispatchData.gemmStyle.subBlockDimM = 0;
+    dispatchData.gemmStyle.subBlockDimN = 0;
+    dispatchData.efficiency = DONT_USE_IF_HAVE_SOMETHING_ELSE;
+    return dispatchData;
 }
 
 KernelsData fused_conv_eltwise_kernel_base::GetCommonKernelsData(const Params& params,
@@ -269,9 +262,9 @@ KernelsData fused_conv_eltwise_kernel_base::GetCommonKernelsData(const Params& p
     if (NeedPaddedInput()) {
         kd.reorderInput = CovolutionUpdateInputParams(newParams);
     }
-    DispatchData runInfo = SetDefault(newParams, autoTuneIndex);
+    DispatchData dispatchData = SetDefault(newParams, autoTuneIndex);
 
-    if (!CheckWorkGroups(runInfo)) {
+    if (!CheckWorkGroups(dispatchData)) {
         // Internal Error - wrong calculation of global/local work group sizes
         return {};
     }
@@ -287,13 +280,13 @@ KernelsData fused_conv_eltwise_kernel_base::GetCommonKernelsData(const Params& p
     }
 
     auto finalKernelName = GetKernelName(newParams);
-    auto cldnnJit = GetJitConstants(newParams, runInfo);
+    auto cldnnJit = GetJitConstants(newParams, dispatchData);
     auto entryPoint = GetEntryPoint(finalKernelName, newParams.layerID, options);
     auto jit = CreateJit(finalKernelName, cldnnJit, entryPoint);
 
     auto& kernel = kd.kernels[0];
     FillCLKernelData(kernel,
-                     runInfo,
+                     dispatchData,
                      params.engineInfo,
                      finalKernelName,
                      jit,
@@ -310,7 +303,7 @@ KernelsData fused_conv_eltwise_kernel_base::GetCommonKernelsData(const Params& p
         kernel.arguments.push_back({ArgumentDescriptor::Types::INPUT, 1});
     }
 
-    kd.estimatedTime = runInfo.efficiency;
+    kd.estimatedTime = dispatchData.efficiency;
     kd.autoTuneIndex = autoTuneIndex;
 
     return {kd};

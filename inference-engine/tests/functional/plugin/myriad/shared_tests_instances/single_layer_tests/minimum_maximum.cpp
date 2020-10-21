@@ -33,11 +33,15 @@ const std::vector<ngraph::helpers::InputLayerType> inputType = {
         ngraph::helpers::InputLayerType::PARAMETER,
 };
 
-INSTANTIATE_TEST_CASE_P(maximum, MaxMinLayerTest,
+INSTANTIATE_TEST_CASE_P(smoke_maximum, MaxMinLayerTest,
                         ::testing::Combine(
                                 ::testing::ValuesIn(inShapes),
                                 ::testing::ValuesIn(opType),
                                 ::testing::ValuesIn(netPrecisions),
+                                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                ::testing::Values(InferenceEngine::Layout::ANY),
+                                ::testing::Values(InferenceEngine::Layout::ANY),
                                 ::testing::ValuesIn(inputType),
                                 ::testing::Values(CommonTestUtils::DEVICE_MYRIAD)),
                         MaxMinLayerTest::getTestCaseName);

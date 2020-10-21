@@ -71,7 +71,7 @@ const std::vector<std::map<std::string, std::string>> configs = {
         }
 };
 
-INSTANTIATE_TEST_CASE_P(EltwiseSplitOverChennels, EltwiseSplitOverChannelsPassTest,
+INSTANTIATE_TEST_CASE_P(smoke_EltwiseSplitOverChennels, EltwiseSplitOverChannelsPassTest,
                         ::testing::Combine(
                                 ::testing::ValuesIn(netPrecisions),
                                 ::testing::Values(CommonTestUtils::DEVICE_GNA),

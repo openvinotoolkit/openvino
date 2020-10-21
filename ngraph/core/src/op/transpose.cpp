@@ -86,7 +86,7 @@ shared_ptr<Node> op::v1::Transpose::clone_with_new_inputs(const OutputVector& ne
     return make_shared<v1::Transpose>(new_args[0], new_args[1]);
 }
 
-namespace
+namespace transpose
 {
     template <element::Type_t ET>
     std::vector<int64_t> get_vector(const HostTensorPtr& arg)
@@ -104,29 +104,10 @@ namespace
                             const HostTensorPtr& arg2,
                             const HostTensorPtr& out)
     {
-        element::Type_t axis_type = arg2->get_element_type();
+        NGRAPH_CHECK(arg2->get_element_type().is_integral_number(),
+                     "axis element type is not integral data type");
 
-        std::vector<int64_t> axis_order;
-        switch (axis_type)
-        {
-        case element::Type_t::i8: axis_order = get_vector<element::Type_t::i8>(arg2); break;
-
-        case element::Type_t::i16: axis_order = get_vector<element::Type_t::i16>(arg2); break;
-
-        case element::Type_t::i32: axis_order = get_vector<element::Type_t::i32>(arg2); break;
-
-        case element::Type_t::i64: axis_order = get_vector<element::Type_t::i64>(arg2); break;
-
-        case element::Type_t::u8: axis_order = get_vector<element::Type_t::u8>(arg2); break;
-
-        case element::Type_t::u16: axis_order = get_vector<element::Type_t::u16>(arg2); break;
-
-        case element::Type_t::u32: axis_order = get_vector<element::Type_t::u32>(arg2); break;
-
-        case element::Type_t::u64: axis_order = get_vector<element::Type_t::u64>(arg2); break;
-
-        default: throw ngraph_error("axis element type is not integral data type");
-        }
+        std::vector<int64_t> axis_order = host_tensor_2_vector<int64_t>(arg2);
 
         Shape in_shape = arg1->get_shape();
         AxisVector in_axis_order(shape_size(arg2->get_shape()));
@@ -164,5 +145,5 @@ bool op::v1::Transpose::evaluate(const HostTensorVector& output_values,
                                  const HostTensorVector& input_values) const
 {
     OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v1::Transpose::evaluate");
-    return evaluate_transpose(input_values[0], input_values[1], output_values[0]);
+    return transpose::evaluate_transpose(input_values[0], input_values[1], output_values[0]);
 }

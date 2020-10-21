@@ -86,7 +86,7 @@ def mark_undead_nodes(graph, undead_types: list):
     undead_types_with_result = undead_types + ['Result']
     undead_nodes = []
     for node in graph.get_op_nodes():
-        node_type = node.soft_get('type', node.op)
+        node_type = node.soft_get('type', node.soft_get('op'))
         if node_type in undead_types_with_result:
             undead_nodes.append(node.id)
 

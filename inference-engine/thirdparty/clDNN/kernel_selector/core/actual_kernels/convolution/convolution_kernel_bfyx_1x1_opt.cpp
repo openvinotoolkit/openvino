@@ -76,24 +76,24 @@ static block_params get_out_block_size(const convolution_params& p) {
 
 ConvolutionKernelBase::DispatchData convolution_kernel_bfyx_1x1_opt::SetDefault(const convolution_params& cp,
                                                                                 int) const {
-    DispatchData runInfo = ConvolutionKernelBase::SetDefault(cp);
+    DispatchData dispatchData = ConvolutionKernelBase::SetDefault(cp);
 
     constexpr size_t sub_group_size = 8;
 
-    runInfo.efficiency = FORCE_PRIORITY_3;
+    dispatchData.efficiency = FORCE_PRIORITY_3;
 
     auto block = get_out_block_size(cp);
 
-    runInfo.gws0 = cp.output.X().v / block.out_width;
-    runInfo.gws1 = cp.output.Y().v / block.out_height;
-    runInfo.gws2 =
-        2 * (cp.output.Feature().v * cp.output.Batch().v) / block.out_depth;  // process 8 output channels per Workitem
+    dispatchData.gws[0] = cp.output.X().v / block.out_width;
+    dispatchData.gws[1] = cp.output.Y().v / block.out_height;
+    // process 8 output channels per Workitem
+    dispatchData.gws[2] = 2 * (cp.output.Feature().v * cp.output.Batch().v) / block.out_depth;
 
-    runInfo.lws0 = 1;
-    runInfo.lws1 = 1;
-    runInfo.lws2 = 2 * sub_group_size;
+    dispatchData.lws[0] = 1;
+    dispatchData.lws[1] = 1;
+    dispatchData.lws[2] = 2 * sub_group_size;
 
-    return runInfo;
+    return dispatchData;
 }
 
 bool convolution_kernel_bfyx_1x1_opt::Validate(const Params& p, const optional_params& o) const {
@@ -128,8 +128,8 @@ bool convolution_kernel_bfyx_1x1_opt::Validate(const Params& p, const optional_p
 }
 
 JitConstants convolution_kernel_bfyx_1x1_opt::GetJitConstants(const convolution_params& params,
-                                                              const DispatchData& runInfo) const {
-    auto jit = Parent::GetJitConstants(params, runInfo);
+                                                              const DispatchData& dispatchData) const {
+    auto jit = Parent::GetJitConstants(params, dispatchData);
 
     auto block = get_out_block_size(params);
     jit.AddConstant(MakeJitConstant("OUT_BLOCK_WIDTH", block.out_width));

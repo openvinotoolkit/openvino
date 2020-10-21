@@ -53,27 +53,27 @@ const auto conv2DParams_AutoPadValid = ::testing::Combine(
 );
 
 // TODO: Issue:  26417
-INSTANTIATE_TEST_CASE_P(DISABLED_Convolution2D_ExplicitPadding, ConvolutionLayerTest,
+INSTANTIATE_TEST_CASE_P(DISABLED_smoke_Convolution2D_ExplicitPadding, ConvolutionLayerTest,
                         ::testing::Combine(
                                 conv2DParams_ExplicitPadding,
                                 ::testing::ValuesIn(netPrecisions),
                                 ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                                 ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                ::testing::Values(InferenceEngine::Layout::ANY),
+                                ::testing::Values(InferenceEngine::Layout::ANY),
                                 ::testing::Values(std::vector<size_t >({1, 3, 30, 1})),
-                                ::testing::Values(InferenceEngine::Layout::ANY),
-                                ::testing::Values(InferenceEngine::Layout::ANY),
                                 ::testing::Values(CommonTestUtils::DEVICE_GNA)),
                         ConvolutionLayerTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(DISABLED_Convolution2D_AutoPadValid, ConvolutionLayerTest,
+INSTANTIATE_TEST_CASE_P(DISABLED_smoke_Convolution2D_AutoPadValid, ConvolutionLayerTest,
                         ::testing::Combine(
                                 conv2DParams_AutoPadValid,
                                 ::testing::ValuesIn(netPrecisions),
                                 ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                                 ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                ::testing::Values(InferenceEngine::Layout::ANY),
+                                ::testing::Values(InferenceEngine::Layout::ANY),
                                 ::testing::Values(std::vector<size_t >({1, 3, 30, 1})),
-                                ::testing::Values(InferenceEngine::Layout::ANY),
-                                ::testing::Values(InferenceEngine::Layout::ANY),
                                 ::testing::Values(CommonTestUtils::DEVICE_GNA)),
                         ConvolutionLayerTest::getTestCaseName);
 }  // namespace

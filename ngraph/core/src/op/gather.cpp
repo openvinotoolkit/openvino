@@ -28,9 +28,9 @@ NGRAPH_SUPPRESS_DEPRECATED_START
 using namespace std;
 using namespace ngraph;
 
-static const int PARAMS = 0;
-static const int INDICES = 1;
-static const int AXIS = 2;
+const int op::v0::Gather::PARAMS = 0;
+const int op::v0::Gather::INDICES = 1;
+const int op::v0::Gather::AXIS = 2;
 
 constexpr NodeTypeInfo op::v0::Gather::type_info;
 
@@ -99,6 +99,10 @@ void op::v0::Gather::validate_and_infer_types()
 
 constexpr NodeTypeInfo op::v1::Gather::type_info;
 const int64_t op::v1::Gather::AXIS_NOT_SET_VALUE;
+
+const int op::v1::Gather::PARAMS = 0;
+const int op::v1::Gather::INDICES = 1;
+const int op::v1::Gather::AXIS = 2;
 
 op::v1::Gather::Gather(const Output<Node>& params,
                        const Output<Node>& indices,
@@ -202,7 +206,7 @@ shared_ptr<Node> op::v1::Gather::clone_with_new_inputs(const OutputVector& new_a
     return make_shared<v1::Gather>(new_args.at(PARAMS), new_args.at(INDICES), new_args.at(AXIS));
 }
 
-namespace
+namespace gather
 {
     template <element::Type_t ET>
     bool evaluate(const HostTensorPtr& arg0,
@@ -290,7 +294,7 @@ namespace
 bool op::v0::Gather::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
     OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v0::Gather::evaluate");
-    return evaluate_gather(inputs[0], inputs[1], outputs[0], get_axis());
+    return gather::evaluate_gather(inputs[0], inputs[1], outputs[0], get_axis());
 }
 
 bool op::v1::Gather::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
@@ -318,5 +322,5 @@ bool op::v1::Gather::evaluate(const HostTensorVector& outputs, const HostTensorV
             axis += input_rank.get_length();
         }
     }
-    return evaluate_gather(inputs[0], inputs[1], outputs[0], axis);
+    return gather::evaluate_gather(inputs[0], inputs[1], outputs[0], axis);
 }
