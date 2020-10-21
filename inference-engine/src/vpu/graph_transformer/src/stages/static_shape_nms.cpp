@@ -100,7 +100,7 @@ void FrontEnd::parseStaticShapeNMS(const Model& model, const ie::CNNLayerPtr& la
         layer->type, softNMSSigmaData->desc().totalDimSize());
     const auto softNMSSigma = InferenceEngine::PrecisionUtils::f16tof32(softNMSSigmaData->content()->get<InferenceEngine::ie_fp16>()[0]);
     VPU_THROW_UNLESS(softNMSSigma == 0,
-        "StaticShapeNMS with name {} parsing failed: the only supported value for softNMSSigma is 0, while it actually equal to  {}",
+        "StaticShapeNMS with name {} parsing failed: the only supported value for softNMSSigma is 0, while it actually equal to {}",
         layer->name, softNMSSigma);
 
     auto usedInputs = inputs;
