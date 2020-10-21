@@ -41,7 +41,6 @@
 #include "transformations/op_conversions/reduce_l1_decomposition.hpp"
 #include "transformations/op_conversions/reduce_l2_decomposition.hpp"
 #include "transformations/op_conversions/hswish_decomposition.hpp"
-#include "transformations/op_conversions/log_softmax_decomposition.hpp"
 
 #include <ngraph/pass/manager.hpp>
 #include <ngraph/pass/constant_folding.hpp>
@@ -74,13 +73,11 @@ bool ngraph::pass::CommonOptimizations::run_on_function(std::shared_ptr<ngraph::
     manager.register_pass<ngraph::pass::BidirectionalLSTMSequenceDecomposition>();
     manager.register_pass<ngraph::pass::BidirectionalRNNSequenceDecomposition>();
     manager.register_pass<ngraph::pass::BidirectionalGRUSequenceDecomposition>();
-    manager.register_pass<ngraph::pass::BatchNormDecomposition>();
 
     auto decomp = manager.register_pass<ngraph::pass::GraphRewrite>();
     decomp->add_matcher<ngraph::pass::ReduceL1Decomposition>();
     decomp->add_matcher<ngraph::pass::ReduceL2Decomposition>();
     decomp->add_matcher<ngraph::pass::HSwishDecomposition>();
-    decomp->add_matcher<ngraph::pass::LogSoftmaxDecomposition>();
     decomp->add_matcher<ngraph::pass::ConvertReduceMeanToPooling>();
     decomp->add_matcher<ngraph::pass::ConvertReduceMaxToPooling>();
     decomp->add_matcher<ngraph::pass::ConvertReduceSumToPooling>();
@@ -93,6 +90,8 @@ bool ngraph::pass::CommonOptimizations::run_on_function(std::shared_ptr<ngraph::
     decomp->add_matcher<ngraph::pass::ConvertNegative>();
     decomp->add_matcher<ngraph::pass::ConvertDepthToSpace>();
     decomp->add_matcher<ngraph::pass::ConvertSpaceToDepth>();
+    decomp->add_matcher<ngraph::pass::BatchNormDecomposition>();
+    decomp->add_matcher<ngraph::pass::BatchNormV5Decomposition>();
     decomp->set_name("ngraph::pass::CommonDecompositions");
 
     // CF is required after all decompositions
