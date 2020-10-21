@@ -359,19 +359,18 @@ bool Function::visit_attributes(AttributeVisitor& visitor)
 void Function::add_sinks(const SinkVector& sinks)
 {
     m_sinks.insert(m_sinks.begin(), sinks.begin(), sinks.end());
-	validate_nodes_and_infer_types();
+    validate_nodes_and_infer_types();
 }
 
 void Function::delete_sink(const std::shared_ptr<op::Sink>& sink)
 {
     string remove_name = sink->get_name();
-    m_sinks.erase(
-        std::remove_if(m_sinks.begin(),
-                       m_sinks.end(),
-                       [remove_name](std::shared_ptr<op::Sink> & s) {
-                           return s->get_name() == remove_name;
-	                   }),
-        m_sinks.end());
+    m_sinks.erase(std::remove_if(m_sinks.begin(),
+                                 m_sinks.end(),
+                                 [remove_name](std::shared_ptr<op::Sink>& s) {
+                                     return s->get_name() == remove_name;
+                                 }),
+                  m_sinks.end());
 }
 
 void Function::add_results(const ResultVector& results)
