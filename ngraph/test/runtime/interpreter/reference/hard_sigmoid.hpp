@@ -46,8 +46,7 @@ namespace ngraph
                 {
                     out[i] = std::max(
                         T(0),
-                        std::min(T(1),
-                                 T(alpha[i % size_alpha] * arg[i] + beta[i % size_beta])));
+                        std::min(T(1), T(alpha[i % size_alpha] * arg[i] + beta[i % size_beta])));
                 }
             }
         }
