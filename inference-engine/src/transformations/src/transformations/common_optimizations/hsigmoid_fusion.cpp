@@ -13,7 +13,12 @@
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::HSigmoidFusion, "HSigmoidFusion", 0);
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::HSigmoidFusionWithReluDiv, "HSigmoidFusionWithReluDiv", 0);
+ngraph::pass::HSigmoidFusion::HSigmoidFusion() {
+    add_matcher<ngraph::pass::HSigmoidFusionWithReluDiv>();
+    add_matcher<ngraph::pass::HSigmoidFusionWithReluMul>();
+    add_matcher<ngraph::pass::HSigmoidFusionWithoutRelu>();
+    add_matcher<ngraph::pass::HSigmoidFusionWithClamp>();
+}
 
 ngraph::pass::HSigmoidFusionWithReluDiv::HSigmoidFusionWithReluDiv() {
     // Replaces a sub-graph ((min(Relu(x + 3), 6)) / 6 with a HSigmoid op.
@@ -62,8 +67,6 @@ ngraph::pass::HSigmoidFusionWithReluDiv::HSigmoidFusionWithReluDiv() {
     register_matcher(m, callback);
 }
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::HSigmoidFusionWithReluMul, "HSigmoidFusionWithReluMul", 0);
-
 ngraph::pass::HSigmoidFusionWithReluMul::HSigmoidFusionWithReluMul() {
     // Replaces a sub-graph ((min(Relu(x + 3), 6)) * const(1/6) with a HSigmoid op.
     auto input = ngraph::pattern::any_input();
@@ -111,8 +114,6 @@ ngraph::pass::HSigmoidFusionWithReluMul::HSigmoidFusionWithReluMul() {
     auto m = std::make_shared<ngraph::pattern::Matcher>(mul_second, "HSigmoidWithReluMulFusion");
     register_matcher(m, callback);
 }
-
-NGRAPH_RTTI_DEFINITION(ngraph::pass::HSigmoidFusionWithoutRelu, "HSigmoidFusionWithoutRelu", 0);
 
 ngraph::pass::HSigmoidFusionWithoutRelu::HSigmoidFusionWithoutRelu() {
     // Replaces a sub-graph (min(max(x + 3, 0), 6) / 6) with a HSigmoid op.
@@ -165,8 +166,6 @@ ngraph::pass::HSigmoidFusionWithoutRelu::HSigmoidFusionWithoutRelu() {
     auto m = std::make_shared<ngraph::pattern::Matcher>(div, "HSigmoidWithoutReluFusion");
     register_matcher(m, callback);
 }
-
-NGRAPH_RTTI_DEFINITION(ngraph::pass::HSigmoidFusionWithClamp, "HSigmoidFusionWithClamp", 0);
 
 ngraph::pass::HSigmoidFusionWithClamp::HSigmoidFusionWithClamp() {
     // Replaces a sub-graph (Clamp(x + 3, 0, 6) * const(1/6)) with a HSigmoid op.

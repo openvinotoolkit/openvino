@@ -30,12 +30,7 @@ class TRANSFORMATIONS_API HSigmoidFusionWithClamp;
 class ngraph::pass::HSigmoidFusion: public ngraph::pass::GraphRewrite {
 public:
     NGRAPH_RTTI_DECLARATION;
-    HSigmoidFusion() {
-        add_matcher<ngraph::pass::HSigmoidFusionWithReluDiv>();
-        add_matcher<ngraph::pass::HSigmoidFusionWithReluMul>();
-        add_matcher<ngraph::pass::HSigmoidFusionWithoutRelu>();
-        add_matcher<ngraph::pass::HSigmoidFusionWithClamp>();
-    }
+    HSigmoidFusion();
 };
 
 /**
