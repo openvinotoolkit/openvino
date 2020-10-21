@@ -28,9 +28,9 @@ bool crop_scales_for_proposal(const ngraph::pattern::PatternValueMap & pattern_t
     return true;
 }
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::opset1_ProposalScales, "opset1_ProposalScales", 0);
+NGRAPH_RTTI_DEFINITION(ngraph::pass::Proposal1Scales, "Proposal1Scales", 0);
 
-ngraph::pass::opset1_ProposalScales::opset1_ProposalScales() {
+ngraph::pass::Proposal1Scales::Proposal1Scales() {
     auto parameter_label = ngraph::pattern::wrap_type<opset5::Parameter>([](const Output<Node> &output) {
         const auto & shape = output.get_partial_shape();
         return shape.rank().is_static() && shape.rank().get_length() == 2 && shape[1].is_static() && (shape[1].get_length() == 3 || shape[1].get_length() == 4);
@@ -42,13 +42,13 @@ ngraph::pass::opset1_ProposalScales::opset1_ProposalScales() {
     matcher_pass_callback callback = [parameter_label, proposal_label](pattern::Matcher &m) -> bool {
         return crop_scales_for_proposal(m.get_pattern_value_map(), parameter_label, proposal_label);
     };
-    auto m = std::make_shared<ngraph::pattern::Matcher>(proposal_label, "opset1_ProposalScales");
+    auto m = std::make_shared<ngraph::pattern::Matcher>(proposal_label, "Proposal1Scales");
     register_matcher(m, callback);
 }
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::opset4_ProposalScales, "opset4_ProposalScales", 0);
+NGRAPH_RTTI_DEFINITION(ngraph::pass::Proposal4Scales, "Proposal4Scales", 0);
 
-ngraph::pass::opset4_ProposalScales::opset4_ProposalScales() {
+ngraph::pass::Proposal4Scales::Proposal4Scales() {
     auto parameter_label = ngraph::pattern::wrap_type<opset5::Parameter>([](const Output<Node> &output) {
         const auto & shape = output.get_partial_shape();
         return shape.rank().is_static() && shape.rank().get_length() == 2 && shape[1].is_static() && (shape[1].get_length() == 3 || shape[1].get_length() == 4);
@@ -60,6 +60,6 @@ ngraph::pass::opset4_ProposalScales::opset4_ProposalScales() {
     matcher_pass_callback callback = [parameter_label, proposal_label](pattern::Matcher &m) -> bool {
         return crop_scales_for_proposal(m.get_pattern_value_map(), parameter_label, proposal_label);
     };
-    auto m = std::make_shared<ngraph::pattern::Matcher>(proposal_label, "opset4_ProposalScales");
+    auto m = std::make_shared<ngraph::pattern::Matcher>(proposal_label, "Proposal4Scales");
     register_matcher(m, callback);
 }

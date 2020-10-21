@@ -63,11 +63,11 @@ ngraph::pass::MimicSetBatchSize::MimicSetBatchSize() {
 
 void set_folding_for_PriorBox(std::shared_ptr<ngraph::Node> prior_box, bool flag) {
     std::string rt_info_disable_cf = "DISABLED_CONSTANT_FOLDING";
-    std::vector<ngraph::Node::type_info_t> allowed_to_skip = {
+    static std::unordered_set<ngraph::NodeTypeInfo> allowed_to_skip = {
             ngraph::opset1::Convert::type_info,
             ngraph::opset1::StridedSlice::type_info,
     };
-    std::vector<ngraph::Node::type_info_t> types_to_find = {
+    static std::unordered_set<ngraph::NodeTypeInfo> types_to_find = {
             ngraph::opset1::ShapeOf::type_info,
             ngraph::opset3::ShapeOf::type_info,
     };
@@ -79,9 +79,9 @@ void set_folding_for_PriorBox(std::shared_ptr<ngraph::Node> prior_box, bool flag
     while (!nodes.empty()) {
         auto curr_node = nodes.front();
         nodes.pop_front();
-        if (count(allowed_to_skip.begin(), allowed_to_skip.end(), curr_node->get_type_info())) {
+        if (allowed_to_skip.count(curr_node->get_type_info())) {
             nodes.push_back(curr_node->get_input_node_shared_ptr(0));
-        } else if (count(types_to_find.begin(), types_to_find.end(), curr_node->get_type_info())) {
+        } else if (types_to_find.count(curr_node->get_type_info())) {
             auto& rt_info = curr_node->get_rt_info();
             if (flag && rt_info.count(rt_info_disable_cf))
                 rt_info.erase(rt_info_disable_cf);

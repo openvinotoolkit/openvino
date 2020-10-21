@@ -14,8 +14,8 @@
 namespace ngraph {
 namespace pass {
 
-class TRANSFORMATIONS_API opset1_ProposalScales;
-class TRANSFORMATIONS_API opset4_ProposalScales;
+class TRANSFORMATIONS_API Proposal1Scales;
+class TRANSFORMATIONS_API Proposal4Scales;
 
 }  // namespace pass
 }  // namespace ngraph
@@ -35,14 +35,14 @@ class TRANSFORMATIONS_API opset4_ProposalScales;
  *      Parameter [batch, 3 or 4] -> Reshape [-1] -> StridedSlice[0: 3 or 4] -(in: 3)-> PriorBox
  */
 
-class ngraph::pass::opset1_ProposalScales : public ngraph::pass::MatcherPass {
+class ngraph::pass::Proposal1Scales : public ngraph::pass::MatcherPass {
 public:
     NGRAPH_RTTI_DECLARATION;
-    opset1_ProposalScales();
+    Proposal1Scales();
 };
 
-class ngraph::pass::opset4_ProposalScales : public ngraph::pass::MatcherPass {
+class ngraph::pass::Proposal4Scales : public ngraph::pass::MatcherPass {
 public:
     NGRAPH_RTTI_DECLARATION;
-    opset4_ProposalScales();
+    Proposal4Scales();
 };

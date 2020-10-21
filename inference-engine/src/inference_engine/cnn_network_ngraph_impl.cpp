@@ -491,7 +491,7 @@ StatusCode CNNNetworkNGraphImpl::setBatchSize(size_t size, ResponseDesc* respons
             if (rank == 0) return DescriptionBuffer(PARAMETER_MISMATCH, responseDesc) <<
                 "Cannot set batch! Function contains 0D/1D/3D parameter with unknown batch dimension placement." << ss.str();
             auto shape = parameter->get_shape();
-            shape[0] = {size};
+            shape[0] = {static_cast<size_t>(std::ceil(size * static_cast<float>(shape[0]) / static_cast<float>(getBatchSize())))};
             inShapes[parameter->get_friendly_name()] = shape;
         }
         ngraph::pass::Manager ssr_manager;
