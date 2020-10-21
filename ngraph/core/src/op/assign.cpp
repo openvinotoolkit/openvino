@@ -24,7 +24,7 @@ using namespace ngraph;
 constexpr NodeTypeInfo op::v3::Assign::type_info;
 
 op::v3::Assign::Assign(const Output<Node>& new_value, const std::string& variable_id)
-    : Op({new_value})
+    : Sink({new_value})
     , m_variable_id(variable_id)
 {
     constructor_validate_and_infer_types();
