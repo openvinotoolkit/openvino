@@ -106,33 +106,19 @@ namespace ngraph
                     }
                     auto data_reshaped = std::make_shared<default_opset::Reshape>(
                         data, detail::create_group_norm_shape(data, num_groups), true);
-                    const auto reduction_axes =
-                        common::get_monotonic_range_along_node_rank(data_reshaped, 2);
-                    auto mean = std::make_shared<default_opset::ReduceMean>(
-                        data_reshaped, reduction_axes, true);
-                    auto diff = std::make_shared<default_opset::Subtract>(data_reshaped, mean);
-                    auto variance = std::make_shared<default_opset::ReduceMean>(
-                        std::make_shared<default_opset::Power>(
-                            diff, default_opset::Constant::create(element::f32, Shape{}, {2})),
-                        reduction_axes,
-                        true);
 
-                    const std::shared_ptr<ngraph::Node> eps_node =
-                        std::make_shared<default_opset::Constant>(element::f32, Shape{}, eps);
-                    const auto sqrt = std::make_shared<default_opset::Sqrt>(
-                        std::make_shared<default_opset::Add>(variance, eps_node));
+                    auto mvn =
+                        std::make_shared<default_opset::MVN>(data_reshaped, false, true, eps);
+                    std::shared_ptr<ngraph::Node> result =
+                        std::make_shared<default_opset::Reshape>(mvn, data_shape_node, true);
 
                     const auto& rank = data.get_partial_shape().rank();
                     NGRAPH_CHECK(rank.is_static());
                     auto data_rank_size = rank.get_length();
 
-                    std::shared_ptr<ngraph::Node> result =
-                        std::make_shared<default_opset::Divide>(diff, sqrt);
-                    result =
-                        std::make_shared<default_opset::Reshape>(result, data_shape_node, true);
                     result = std::make_shared<default_opset::Multiply>(
-                        reshape::reshape_channel_shaped_node_to_nchw(scale, data_rank_size),
-                        result);
+                        result,
+                        reshape::reshape_channel_shaped_node_to_nchw(scale, data_rank_size));
                     result = std::make_shared<default_opset::Add>(
                         result, reshape::reshape_channel_shaped_node_to_nchw(bias, data_rank_size));
 
