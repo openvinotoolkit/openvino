@@ -12,7 +12,6 @@
 #include "functional_test_utils/skip_tests_config.hpp"
 #include "functional_test_utils/layer_test_utils.hpp"
 
-
 #include "single_layer_tests/roi_pooling.hpp"
 
 namespace LayerTestsDefinitions {
