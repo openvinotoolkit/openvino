@@ -43,19 +43,19 @@ ParamsKey PoolingKerneGPU_fs_b_yx_fsv32::GetSupportedKey() const {
 }
 
 PoolingKernelBase::DispatchData PoolingKerneGPU_fs_b_yx_fsv32::SetDefault(const pooling_params& params) const {
-    DispatchData runInfo = PoolingKernelBase::SetDefault(params);
+    DispatchData dispatchData = PoolingKernelBase::SetDefault(params);
 
-    runInfo.gws0 = params.output.X().v;  // X output blocks
-    runInfo.gws1 = params.output.Y().v;  // Y output clocks
+    dispatchData.gws[0] = params.output.X().v;  // X output blocks
+    dispatchData.gws[1] = params.output.Y().v;  // Y output clocks
     // in fs_b_yx_fsv32 format we will process 2 features per work item, so reads/writes are done in full writes for
     // fp16
-    runInfo.gws2 = RoundUp(params.output.Feature().v, 32) * params.output.Batch().v / 2;
+    dispatchData.gws[2] = RoundUp(params.output.Feature().v, 32) * params.output.Batch().v / 2;
 
-    runInfo.lws0 = 1;
-    runInfo.lws1 = 1;
-    runInfo.lws2 = 16;
+    dispatchData.lws[0] = 1;
+    dispatchData.lws[1] = 1;
+    dispatchData.lws[2] = 16;
 
-    return runInfo;
+    return dispatchData;
 }
 
 bool PoolingKerneGPU_fs_b_yx_fsv32::Validate(const Params& p, const optional_params& o) const {
@@ -74,8 +74,8 @@ bool PoolingKerneGPU_fs_b_yx_fsv32::Validate(const Params& p, const optional_par
     return true;
 }
 
-JitConstants PoolingKerneGPU_fs_b_yx_fsv32::GetJitConstants(const pooling_params& params, DispatchData kd) const {
-    auto jit = PoolingKernelBase::GetJitConstants(params, kd);
+JitConstants PoolingKerneGPU_fs_b_yx_fsv32::GetJitConstants(const pooling_params& params, DispatchData dispatchData) const {
+    auto jit = PoolingKernelBase::GetJitConstants(params, dispatchData);
     auto pp = static_cast<const pooling_params&>(params);
 
     // Heurestic needed for very big pool size.

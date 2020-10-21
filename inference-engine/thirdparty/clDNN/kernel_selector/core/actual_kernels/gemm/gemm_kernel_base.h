@@ -60,7 +60,7 @@ protected:
     virtual DispatchData SetDefault(const gemm_params& params) const;
     KernelsData GetCommonKernelsData(const Params& params, const optional_params&, float estimated_time) const;
     // Fused ops
-    virtual JitConstants GetFusedPrimitivesJitConstants(const gemm_params& params, const DispatchData& kd) const;
+    virtual JitConstants GetFusedPrimitivesJitConstants(const gemm_params& params, const DispatchData& dispatchData) const;
     Datatype GetActivationType(const gemm_params& params) const;
     // --Fused ops
 
