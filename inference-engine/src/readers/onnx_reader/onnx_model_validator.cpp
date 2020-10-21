@@ -15,7 +15,7 @@ namespace onnx {
         IR_VERSION = 1,
         PRODUCER_NAME = 2,
         PRODUCER_VERSION = 3,
-        DOMAIN = 4,
+        DOMAIN_ = 4, // DOMAIN collides with some existing symbol in MSVC thus - underscore
         MODEL_VERSION = 5,
         DOC_STRING = 6,
         GRAPH = 7,
