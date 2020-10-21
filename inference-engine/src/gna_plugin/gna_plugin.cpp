@@ -53,6 +53,7 @@
 
 #if GNA_LIB_VER == 2
 #include <gna2-model-api.h>
+#include <layers/gna_fake_quantize_layer.hpp>
 
 uint32_t ToByteSize(const Gna2DataType type) {
     switch (type) {
