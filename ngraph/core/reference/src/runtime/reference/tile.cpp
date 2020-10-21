@@ -38,7 +38,8 @@ namespace
     {
         std::vector<int64_t> pitch;
         pitch.resize(dims.size() - 1);
-        std::partial_sum(dims.rbegin(), dims.rend() - 1, pitch.rbegin(), std::multiplies<int64_t>());
+        std::partial_sum(
+            dims.rbegin(), dims.rend() - 1, pitch.rbegin(), std::multiplies<int64_t>());
         pitch.push_back(1);
         return pitch;
     }
