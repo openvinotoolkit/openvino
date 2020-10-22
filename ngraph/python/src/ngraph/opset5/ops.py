@@ -140,6 +140,7 @@ def non_max_suppression(
 
     return _get_node_factory_opset5().create("NonMaxSuppression", inputs, attributes)
 
+
 @nameable_op
 def round(data: NodeInput, mode: str = "half_to_even", name: Optional[str] = None) -> Node:
     """Apply Round operation on each element of input tensor.
