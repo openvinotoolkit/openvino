@@ -175,19 +175,15 @@ namespace prototxt {
             "doc_string", "graph", "opset_import", "metadata_props", "training_info"
         };
 
-        auto next_key_to_find = onnx_keys.begin();
         size_t search_start_pos = 0;
 
         while (keys_found < expected_keys_num) {
-            for (auto key_to_find = next_key_to_find; key_to_find != onnx_keys.end(); ++key_to_find) {
-                const auto key_pos = model.find(*key_to_find, search_start_pos);
-
+            for (const auto& key : onnx_keys) {
+                const auto key_pos = model.find(key, search_start_pos);
                 if (key_pos != model.npos) {
                     ++keys_found;
-                    // don't search for the same key twice
-                    ++next_key_to_find;
                     // don't search from the beginning each time
-                    search_start_pos = key_pos + key_to_find->size();
+                    search_start_pos = key_pos + key.size();
                     break;
                 }
             }
