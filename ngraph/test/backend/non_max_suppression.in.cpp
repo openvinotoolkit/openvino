@@ -94,7 +94,7 @@ NGRAPH_TEST(${BACKEND_NAME}, nonmaxsuppression_center_point_box_format_backend)
 
     auto selected_indeces_value = read_vector<int64_t>(selected_indeces);
     auto selected_scores_value = read_vector<float>(selected_scores);
-    int64_t valid_outputs_value = read_vector<int64_t>(valid_outputs);
+    auto valid_outputs_value = read_vector<int64_t>(valid_outputs);
 
     std::vector<int64_t> expected_selected_indices = {0, 0, 3, 0, 0, 0, 0, 0, 5};
     std::vector<float> expected_selected_scores = {0.0, 0.0, 0.95, 0.0, 0.0, 0.9, 0.0, 0.0, 0.3};
