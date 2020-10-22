@@ -7,6 +7,7 @@
 #include <unordered_map>
 #include <unordered_set>
 
+#include "generic_ie.hpp"
 #include "ngraph/ops.hpp"
 #include "ngraph/opsets/opset.hpp"
 #include "pugixml.hpp"
@@ -180,12 +181,16 @@ std::string get_opset_name(const ngraph::Node* n) {
 // discrepancies discoverd, translations needs to be added here.
 std::string get_type_name(const ngraph::Node* n) {
     std::string name = n->get_type_name();
-    NGRAPH_CHECK(name != "GenericIE", "Unsupported type in ", n);
-
-    const std::unordered_map<std::string, std::string> translator = {
-        {"Constant", "Const"}};
-    if (translator.count(name) > 0) {
-        name = translator.at(name);
+    if (name == "GenericIE") {
+        auto generic_ie = dynamic_cast<const ngraph::op::GenericIE*>(n);
+        NGRAPH_CHECK(generic_ie != nullptr, "Internal error.");
+        name = generic_ie->getType();
+    } else {
+        const std::unordered_map<std::string, std::string> translator = {
+            {"Constant", "Const"}};
+        if (translator.count(name) > 0) {
+            name = translator.at(name);
+        }
     }
     return name;
 }
