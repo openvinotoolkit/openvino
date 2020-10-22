@@ -4894,9 +4894,11 @@ using TestParamType_grouped_convolution_gpu = ::testing::tuple<  int,    // 0 - 
         int,            // 7  - Kernel sizeZ
         int,            // 8  - Groups number
         int,            // 9  - Stride
-        int,            // 10  - Batch
-        format,         // 11  - Input data format
-        std::string>;   // 12 - Implementation name
+        int,            // 10 - Batch
+        bool,           // 11 - Zero points for activations
+        bool,           // 12 - Zero points for weights
+        format,         // 13 - Input data format
+        std::string>;   // 14 - Implementation name
 
 using TestParamType_general_convolution_gpu = ::testing::tuple<  int,    // 0 - Input X size
         int,            // 1  - Input Y size
@@ -4996,10 +4998,12 @@ struct convolution_grouped_gpu : public ::testing::TestWithParam<TestParamType_g
             "_groups" + std::to_string(testing::get<8>(param_info.param)) +
             "_stride" + std::to_string(testing::get<9>(param_info.param)) +
             "_batch" + std::to_string(testing::get<10>(param_info.param)) +
-            "_format" + std::to_string(testing::get<11>(param_info.param));
+            "_data_zp" + std::to_string(testing::get<11>(param_info.param)) +
+            "_weights_zp" + std::to_string(testing::get<12>(param_info.param)) +
+            "_format" + std::to_string(testing::get<13>(param_info.param));
 
-        if (testing::get<12>(param_info.param) != "") {
-            res += "_impl_" + testing::get<12>(param_info.param);
+        if (testing::get<14>(param_info.param) != "") {
+            res += "_impl_" + testing::get<14>(param_info.param);
         }
 
         return res;
@@ -7205,57 +7209,57 @@ INSTANTIATE_TEST_CASE_P(convolution_grouped_fsv4_fsv16,
                         ::testing::Values(
                             // Input X size, Input Y size, Input Z size, Input features, Output features,
                             // Kernel size X, Kernel size Y, Kernel size Z, Groups number, Stride, Batch,
-                            // Input data format, Implementation name
+                            // Activation zero points, Weights zero points, Input data format, Implementation name
 
                             // Format: b_fs_yx_fsv4
-                            TestParamType_grouped_convolution_gpu(4, 4, 1, 16, 17, 3, 3, 1, 1, 1, 1, format::b_fs_yx_fsv4, ""),
-                            TestParamType_grouped_convolution_gpu(4, 4, 1, 16, 16, 3, 3, 1, 4, 1, 1, format::b_fs_yx_fsv4, ""),
-                            TestParamType_grouped_convolution_gpu(4, 4, 1, 8, 4, 2, 2, 1, 2, 1, 4, format::b_fs_yx_fsv4, ""),
-                            TestParamType_grouped_convolution_gpu(8, 8, 1, 16, 16, 4, 4, 1, 4, 1, 1, format::b_fs_yx_fsv4, ""),
-                            TestParamType_grouped_convolution_gpu(17, 17, 1, 32, 96, 3, 3, 1, 2, 2, 2, format::b_fs_yx_fsv4, ""),
-                            TestParamType_grouped_convolution_gpu(16, 16, 1, 8, 48, 2, 2, 1, 2, 2, 1, format::b_fs_yx_fsv4, ""),
-                            TestParamType_grouped_convolution_gpu(3, 3, 1, 48, 96, 2, 2, 1, 2, 8, 1, format::b_fs_yx_fsv4, ""),
-                            TestParamType_grouped_convolution_gpu(6, 6, 1, 8, 26, 3, 3, 1, 2, 4, 1, format::b_fs_yx_fsv4, ""),
+                            TestParamType_grouped_convolution_gpu(4, 4, 1, 16, 17, 3, 3, 1, 1, 1, 1, false, false, format::b_fs_yx_fsv4, ""),
+                            TestParamType_grouped_convolution_gpu(4, 4, 1, 16, 16, 3, 3, 1, 4, 1, 1, false, false, format::b_fs_yx_fsv4, ""),
+                            TestParamType_grouped_convolution_gpu(4, 4, 1, 8, 4, 2, 2, 1, 2, 1, 4, false, false, format::b_fs_yx_fsv4, ""),
+                            TestParamType_grouped_convolution_gpu(8, 8, 1, 16, 16, 4, 4, 1, 4, 1, 1, false, false, format::b_fs_yx_fsv4, ""),
+                            TestParamType_grouped_convolution_gpu(17, 17, 1, 32, 96, 3, 3, 1, 2, 2, 2, false, false, format::b_fs_yx_fsv4, ""),
+                            TestParamType_grouped_convolution_gpu(16, 16, 1, 8, 48, 2, 2, 1, 2, 2, 1, false, false, format::b_fs_yx_fsv4, ""),
+                            TestParamType_grouped_convolution_gpu(3, 3, 1, 48, 96, 2, 2, 1, 2, 8, 1, false, false, format::b_fs_yx_fsv4, ""),
+                            TestParamType_grouped_convolution_gpu(6, 6, 1, 8, 26, 3, 3, 1, 2, 4, 1, false, false, format::b_fs_yx_fsv4, ""),
 
                             // Format: b_fs_yx_fsv16
-                            TestParamType_grouped_convolution_gpu(12, 12, 1, 96, 96, 3, 3, 1, 32, 1, 1, format::b_fs_yx_fsv16, ""),
-                            TestParamType_grouped_convolution_gpu(4, 4, 1, 8, 16, 3, 3, 1, 2, 1, 1, format::b_fs_yx_fsv16, ""),
-                            TestParamType_grouped_convolution_gpu(7, 7, 1, 8, 4, 3, 3, 1, 4, 1, 1, format::b_fs_yx_fsv16, ""),
-                            TestParamType_grouped_convolution_gpu(5, 5, 1, 34, 12, 3, 3, 1, 2, 1, 1, format::b_fs_yx_fsv16, ""),
-                            TestParamType_grouped_convolution_gpu(8, 8, 1, 34, 24, 3, 3, 1, 2, 1, 1, format::b_fs_yx_fsv16, ""),
-                            TestParamType_grouped_convolution_gpu(2, 2, 1, 12, 12, 3, 3, 1, 4, 1, 1, format::b_fs_yx_fsv16, ""),
-                            TestParamType_grouped_convolution_gpu(3, 3, 1, 8, 8, 3, 3, 1, 2, 1, 1, format::b_fs_yx_fsv16, ""),
-                            TestParamType_grouped_convolution_gpu(4, 4, 1, 8, 4, 2, 2, 1, 2, 2, 4, format::b_fs_yx_fsv16, ""),
-                            TestParamType_grouped_convolution_gpu(4, 4, 1, 16, 17, 3, 3, 1, 1, 1, 1, format::b_fs_yx_fsv16, ""),
-                            TestParamType_grouped_convolution_gpu(4, 4, 1, 16, 16, 3, 3, 1, 4, 1, 1, format::b_fs_yx_fsv16, ""),
-                            TestParamType_grouped_convolution_gpu(4, 4, 1, 8, 4, 2, 2, 1, 2, 1, 4, format::b_fs_yx_fsv16, ""),
-                            TestParamType_grouped_convolution_gpu(8, 8, 1, 16, 16, 4, 4, 1, 4, 1, 1, format::b_fs_yx_fsv16, ""),
-                            TestParamType_grouped_convolution_gpu(17, 17, 1, 32, 96, 3, 3, 1, 2, 2, 2, format::b_fs_yx_fsv16, ""),
-                            TestParamType_grouped_convolution_gpu(16, 16, 1, 8, 48, 2, 2, 1, 2, 2, 1, format::b_fs_yx_fsv16, ""),
-                            TestParamType_grouped_convolution_gpu(3, 3, 1, 48, 96, 2, 2, 1, 2, 8, 1, format::b_fs_yx_fsv16, ""),
-                            TestParamType_grouped_convolution_gpu(6, 6, 1, 8, 26, 3, 3, 1, 2, 4, 1, format::b_fs_yx_fsv16, ""),
+                            TestParamType_grouped_convolution_gpu(12, 12, 1, 96, 96, 3, 3, 1, 32, 1, 1, true, true, format::b_fs_yx_fsv16, ""),
+                            TestParamType_grouped_convolution_gpu(4, 4, 1, 8, 16, 3, 3, 1, 2, 1, 1, true, true, format::b_fs_yx_fsv16, ""),
+                            TestParamType_grouped_convolution_gpu(7, 7, 1, 8, 4, 3, 3, 1, 4, 1, 1, true, true, format::b_fs_yx_fsv16, ""),
+                            TestParamType_grouped_convolution_gpu(5, 5, 1, 34, 12, 3, 3, 1, 2, 1, 1, true, true, format::b_fs_yx_fsv16, ""),
+                            TestParamType_grouped_convolution_gpu(8, 8, 1, 34, 24, 3, 3, 1, 2, 1, 1, true, true, format::b_fs_yx_fsv16, ""),
+                            TestParamType_grouped_convolution_gpu(2, 2, 1, 12, 12, 3, 3, 1, 4, 1, 1, true, true, format::b_fs_yx_fsv16, ""),
+                            TestParamType_grouped_convolution_gpu(3, 3, 1, 8, 8, 3, 3, 1, 2, 1, 1, true, true, format::b_fs_yx_fsv16, ""),
+                            TestParamType_grouped_convolution_gpu(4, 4, 1, 8, 4, 2, 2, 1, 2, 2, 4, true, true, format::b_fs_yx_fsv16, ""),
+                            TestParamType_grouped_convolution_gpu(4, 4, 1, 16, 17, 3, 3, 1, 1, 1, 1, true, true, format::b_fs_yx_fsv16, ""),
+                            TestParamType_grouped_convolution_gpu(4, 4, 1, 16, 16, 3, 3, 1, 4, 1, 1, true, true, format::b_fs_yx_fsv16, ""),
+                            TestParamType_grouped_convolution_gpu(4, 4, 1, 8, 4, 2, 2, 1, 2, 1, 4, true, true, format::b_fs_yx_fsv16, ""),
+                            TestParamType_grouped_convolution_gpu(8, 8, 1, 16, 16, 4, 4, 1, 4, 1, 1, true, true, format::b_fs_yx_fsv16, ""),
+                            TestParamType_grouped_convolution_gpu(17, 17, 1, 32, 96, 3, 3, 1, 2, 2, 2, true, true, format::b_fs_yx_fsv16, ""),
+                            TestParamType_grouped_convolution_gpu(16, 16, 1, 8, 48, 2, 2, 1, 2, 2, 1, true, true, format::b_fs_yx_fsv16, ""),
+                            TestParamType_grouped_convolution_gpu(3, 3, 1, 48, 96, 2, 2, 1, 2, 8, 1, true, true, format::b_fs_yx_fsv16, ""),
+                            TestParamType_grouped_convolution_gpu(6, 6, 1, 8, 26, 3, 3, 1, 2, 4, 1, true, true, format::b_fs_yx_fsv16, ""),
 
                             // Format: b_fs_zyx_fsv16
-                            TestParamType_grouped_convolution_gpu(4, 4, 4, 16, 17, 3, 3, 3, 1, 1, 1, format::b_fs_zyx_fsv16, ""),
-                            TestParamType_grouped_convolution_gpu(4, 4, 4, 16, 16, 3, 3, 3, 4, 1, 1, format::b_fs_zyx_fsv16, ""),
-                            TestParamType_grouped_convolution_gpu(4, 4, 4, 8, 4, 2, 2, 2, 2, 1, 4, format::b_fs_zyx_fsv16, ""),
-                            TestParamType_grouped_convolution_gpu(8, 8, 8, 16, 16, 4, 4, 4, 4, 1, 1, format::b_fs_zyx_fsv16, ""),
-                            TestParamType_grouped_convolution_gpu(17, 17, 17, 32, 96, 3, 3, 3, 2, 2, 2, format::b_fs_zyx_fsv16, ""),
-                            TestParamType_grouped_convolution_gpu(16, 16, 16, 8, 48, 2, 2, 2, 2, 2, 1, format::b_fs_zyx_fsv16, ""),
-                            TestParamType_grouped_convolution_gpu(3, 3, 3, 48, 96, 2, 2, 2, 2, 8, 1, format::b_fs_zyx_fsv16, ""),
-                            TestParamType_grouped_convolution_gpu(6, 6, 6, 8, 26, 3, 3, 3, 2, 4, 1, format::b_fs_zyx_fsv16, ""),
-                            TestParamType_grouped_convolution_gpu(7, 5, 3, 51, 99, 3, 3, 3, 3, 1, 1, format::b_fs_zyx_fsv16, ""),
-                            TestParamType_grouped_convolution_gpu(8, 6, 4, 32, 64, 2, 2, 2, 2, 1, 1, format::b_fs_zyx_fsv16, ""),
-                            TestParamType_grouped_convolution_gpu(33, 6, 4, 16, 32, 4, 3, 2, 2, 1, 1, format::b_fs_zyx_fsv16, ""),
-                            TestParamType_grouped_convolution_gpu(33, 1, 1, 30, 62, 1, 1, 1, 2, 1, 1, format::b_fs_zyx_fsv16, ""),
-                            TestParamType_grouped_convolution_gpu(80, 1, 1, 48, 96, 33, 1, 1, 2, 8, 1, format::b_fs_zyx_fsv16, ""),
-                            TestParamType_grouped_convolution_gpu(2, 1, 1, 18, 32, 3, 1, 1, 2, 2, 1, format::b_fs_zyx_fsv16, ""),
-                            TestParamType_grouped_convolution_gpu(3, 1, 5, 196, 252, 3, 1, 3, 4, 1, 1, format::b_fs_zyx_fsv16, ""),
-                            TestParamType_grouped_convolution_gpu(4, 1, 6, 256, 256, 2, 1, 2, 4, 1, 1, format::b_fs_zyx_fsv16, ""),
-                            TestParamType_grouped_convolution_gpu(4, 1, 6, 256, 512, 2, 1, 3, 16, 1, 1, format::b_fs_zyx_fsv16, ""),
-                            TestParamType_grouped_convolution_gpu(1, 3, 1, 18, 2, 1, 3, 1, 2, 1, 1, format::b_fs_zyx_fsv16, ""),
-                            TestParamType_grouped_convolution_gpu(2, 3, 4, 3, 18, 3, 3, 3, 1, 1, 1, format::b_fs_zyx_fsv16, "convolution_gpu_mmad_bfyx_to_b_fs_yx_fsv32"),
-                            TestParamType_grouped_convolution_gpu(79, 224, 224, 3, 64, 3, 3, 3, 1, 2, 1, format::b_fs_zyx_fsv16, "convolution_gpu_mmad_bfyx_to_b_fs_yx_fsv32")
+                            TestParamType_grouped_convolution_gpu(4, 4, 4, 16, 17, 3, 3, 3, 1, 1, 1, true, true, format::b_fs_zyx_fsv16, ""),
+                            TestParamType_grouped_convolution_gpu(4, 4, 4, 16, 16, 3, 3, 3, 4, 1, 1, true, true, format::b_fs_zyx_fsv16, ""),
+                            TestParamType_grouped_convolution_gpu(4, 4, 4, 8, 4, 2, 2, 2, 2, 1, 4, true, true, format::b_fs_zyx_fsv16, ""),
+                            TestParamType_grouped_convolution_gpu(8, 8, 8, 16, 16, 4, 4, 4, 4, 1, 1, true, true, format::b_fs_zyx_fsv16, ""),
+                            TestParamType_grouped_convolution_gpu(17, 17, 17, 32, 96, 3, 3, 3, 2, 2, 2, true, true, format::b_fs_zyx_fsv16, ""),
+                            TestParamType_grouped_convolution_gpu(16, 16, 16, 8, 48, 2, 2, 2, 2, 2, 1, true, true, format::b_fs_zyx_fsv16, ""),
+                            TestParamType_grouped_convolution_gpu(3, 3, 3, 48, 96, 2, 2, 2, 2, 8, 1, true, true, format::b_fs_zyx_fsv16, ""),
+                            TestParamType_grouped_convolution_gpu(6, 6, 6, 8, 26, 3, 3, 3, 2, 4, 1, true, true, format::b_fs_zyx_fsv16, ""),
+                            TestParamType_grouped_convolution_gpu(7, 5, 3, 51, 99, 3, 3, 3, 3, 1, 1, true, true, format::b_fs_zyx_fsv16, ""),
+                            TestParamType_grouped_convolution_gpu(8, 6, 4, 32, 64, 2, 2, 2, 2, 1, 1, true, true, format::b_fs_zyx_fsv16, ""),
+                            TestParamType_grouped_convolution_gpu(33, 6, 4, 16, 32, 4, 3, 2, 2, 1, 1, true, true, format::b_fs_zyx_fsv16, ""),
+                            TestParamType_grouped_convolution_gpu(33, 1, 1, 30, 62, 1, 1, 1, 2, 1, 1, true, true, format::b_fs_zyx_fsv16, ""),
+                            TestParamType_grouped_convolution_gpu(80, 1, 1, 48, 96, 33, 1, 1, 2, 8, 1, true, true, format::b_fs_zyx_fsv16, ""),
+                            TestParamType_grouped_convolution_gpu(2, 1, 1, 18, 32, 3, 1, 1, 2, 2, 1, true, true, format::b_fs_zyx_fsv16, ""),
+                            TestParamType_grouped_convolution_gpu(3, 1, 5, 196, 252, 3, 1, 3, 4, 1, 1, true, true, format::b_fs_zyx_fsv16, ""),
+                            TestParamType_grouped_convolution_gpu(4, 1, 6, 256, 256, 2, 1, 2, 4, 1, 1, true, true, format::b_fs_zyx_fsv16, ""),
+                            TestParamType_grouped_convolution_gpu(4, 1, 6, 256, 512, 2, 1, 3, 16, 1, 1, true, true, format::b_fs_zyx_fsv16, ""),
+                            TestParamType_grouped_convolution_gpu(1, 3, 1, 18, 2, 1, 3, 1, 2, 1, 1, true, true, format::b_fs_zyx_fsv16, ""),
+                            TestParamType_grouped_convolution_gpu(2, 3, 4, 3, 18, 3, 3, 3, 1, 1, 1, false, false, format::b_fs_zyx_fsv16, "convolution_gpu_mmad_bfyx_to_b_fs_yx_fsv32"),
+                            TestParamType_grouped_convolution_gpu(79, 224, 224, 3, 64, 3, 3, 3, 1, 2, 1, false, false, format::b_fs_zyx_fsv16, "convolution_gpu_mmad_bfyx_to_b_fs_yx_fsv32")
                         ),
                         convolution_grouped_gpu::PrintToStringParamName);
 
@@ -7273,23 +7277,24 @@ TEST_P(convolution_grouped_gpu, base) {
               groups = testing::get<8>(GetParam()),
               stride = testing::get<9>(GetParam()),
               batch_num = testing::get<10>(GetParam()),
-              output_padding = 0,
               input_offset_z = (filter_z - 1) / 2,
               input_offset_y = (filter_y - 1) / 2,
               input_offset_x = (filter_x - 1) / 2;
-    auto input_data_format = testing::get<11>(GetParam());
-    auto impl_name = testing::get<12>(GetParam());
+    const auto has_input_zp = testing::get<11>(GetParam());
+    const auto has_weights_zp = testing::get<12>(GetParam());
+    const auto input_data_format = testing::get<13>(GetParam());
+    const auto impl_name = testing::get<14>(GetParam());
 
     auto num_in_spatial_dims = input_data_format.spatial_num();
 
     auto input_size = tensor(batch(batch_num), feature(input_f), spatial(input_x, input_y, input_z));
-    auto input_rnd = generate_random_5d<uint8_t>(batch_num, input_f, input_z, input_y, input_x, 0, 255);
+    auto input_rnd = generate_random_5d<int8_t>(batch_num, input_f, input_z, input_y, input_x, -127, 127);
 
-    auto input_lay = layout(data_types::u8, format::bfzyx, input_size);
+    auto input_lay = layout(data_types::i8, format::bfzyx, input_size);
     if (num_in_spatial_dims == 2) {
-        input_lay = layout(data_types::u8, format::bfyx, input_size);
+        input_lay = layout(data_types::i8, format::bfyx, input_size);
     }
-    std::vector<uint8_t> input_flat(input_lay.get_linear_size());
+    std::vector<int8_t> input_flat(input_lay.get_linear_size());
     for (int b = 0; b < batch_num; b++)
         for (int f = 0; f < input_f; f++)
             for (int z = 0; z < input_z; z++)
@@ -7301,6 +7306,16 @@ TEST_P(convolution_grouped_gpu, base) {
                     }
     auto input = memory::allocate(engine, input_lay);
     set_values(input, input_flat);
+
+    auto input_zp_rnd = std::vector<int8_t>(input_f);
+    auto input_zp_prim_name = std::vector<primitive_id>(0);
+    if (has_input_zp) {
+        input_zp_rnd = generate_random_1d<int8_t>(input_f, -127, 127);
+        input_zp_prim_name = { "input_zp" };
+    }
+    auto input_zp_lay = layout(data_types::i8, format::bfyx, tensor(feature(input_f)));
+    auto input_zp = memory::allocate(engine, input_zp_lay);
+    set_values(input_zp, input_zp_rnd);
 
     auto weights_size = tensor(group(groups), batch(output_f / groups), feature(input_f / groups), spatial(filter_x, filter_y, filter_z));
 
@@ -7323,6 +7338,16 @@ TEST_P(convolution_grouped_gpu, base) {
     auto weights = memory::allocate(engine, weights_lay);
     set_values(weights, weights_flat);
 
+    auto weights_zp_rnd = std::vector<int8_t>(output_f);
+    auto weights_zp_prim_name = std::vector<primitive_id>(0);
+    if (has_weights_zp) {
+        weights_zp_rnd = generate_random_1d<int8_t>(output_f, -127, 127);
+        weights_zp_prim_name = { "weights_zp" };
+    }
+    auto weights_zp_lay = layout(data_types::i8, format::bfyx, tensor(batch(output_f)));
+    auto weights_zp = memory::allocate(engine, weights_zp_lay);
+    set_values(weights_zp, weights_zp_rnd);
+
     VVVVVF<float> expected_result(batch_num, VVVVF<float>(output_f));
 
     // Calculate reference values without bias
@@ -7333,36 +7358,60 @@ TEST_P(convolution_grouped_gpu, base) {
                 int f_begin = gi * input_f / groups;
                 int f_end = gi * input_f / groups + input_f / groups;
 
-                expected_result[bi][ofi + gi * output_f / groups] = reference_convolve<uint8_t, float, int8_t>(
-                    input_rnd[bi], weights_rnd[gi][ofi],            // input, weights
-                    stride, stride, stride,                         // strides
-                    0,                                              // bias
-                    1, 1, 1,                                        // dilation
-                    input_offset_z, input_offset_y, input_offset_x, // input padding
-                    0, 0, 0,                                        // output_padding
-                    f_begin, f_end,                                 // f_begin, f_end
-                    false,                                          // depthwise
-                    grouped);                                       // grouped
+                expected_result[bi][ofi + gi * output_f / groups] = reference_convolve<int8_t, float, int8_t>(
+                    input_rnd[bi], weights_rnd[gi][ofi],                    // input, weights
+                    stride, stride, stride,                                 // strides
+                    0,                                                      // bias
+                    1, 1, 1,                                                // dilation
+                    input_offset_z, input_offset_y, input_offset_x,         // input padding
+                    0, 0, 0,                                                // output_padding
+                    f_begin, f_end,                                         // f_begin, f_end
+                    false,                                                  // depthwise
+                    grouped,                                                // grouped
+                    input_zp_rnd,                                           // input zero points
+                    weights_zp_rnd[gi * (int)weights_rnd[0].size() + ofi]); // weights zero points
             }
+
+    auto ref_conv_out_size = tensor(batch(expected_result.size()),
+                                    feature(expected_result[0].size()),
+                                    spatial(expected_result[0][0][0][0].size(),
+                                            expected_result[0][0][0].size(),
+                                            expected_result[0][0].size()));
+
+    auto stride_tensor = tensor(batch(1), feature(1), spatial(stride, stride, stride, 1));
+    if (num_in_spatial_dims == 2) {
+        stride_tensor = tensor(batch(1), feature(1), spatial(stride, stride, 1, 1));
+    }
 
     topology topology(input_layout("input", input.get_layout()),
                       data("weights", weights),
-                      reorder("input_fsv", "input", {data_types::u8, input_data_format, input_size}),
+                      reorder("input_fsv", "input", {data_types::i8, input_data_format, input_size}),
                       convolution("conv",
                                   "input_fsv",
                                   {"weights"},
+                                  std::vector<primitive_id>(0),
+                                  weights_zp_prim_name,
+                                  input_zp_prim_name,
                                   groups,
-                                  tensor(batch(1), feature(1), spatial(stride, stride, stride, 1)),
+                                  data_types::f32,
+                                  stride_tensor,
                                   tensor(batch(0), feature(0), spatial(-input_offset_x, -input_offset_y, -input_offset_z, 0)),
                                   tensor(batch(1), feature(1), spatial(1, 1, 1, 1)),
-                                  padding({0, 0, output_padding, output_padding, output_padding}, 0.f)));
+                                  ref_conv_out_size),
+                      reorder("out", "conv", {data_types::f32, format::bfzyx, ref_conv_out_size}));
+
+    if (has_input_zp)
+        topology.add(data(input_zp_prim_name[0], input_zp));
+
+    if (has_weights_zp)
+        topology.add(data(weights_zp_prim_name[0], weights_zp));
 
     build_options options;
     options.set_option(build_option::optimize_data(true));
     implementation_desc conv_impl = {input_data_format, impl_name};
     options.set_option(build_option::force_implementations({{"conv", conv_impl}}));
 
-    network network(engine, topology, options);
+    cldnn::network network(engine, topology, options);
     network.set_input_data("input", input);
     network.execute();
 

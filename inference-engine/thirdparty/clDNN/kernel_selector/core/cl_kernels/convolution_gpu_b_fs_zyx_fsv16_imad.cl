@@ -18,9 +18,20 @@
 #include "include/mmad.cl"
 #include "include/data_types.cl"
 
+#define TYPE_N_(type, n) type##n
+#define TYPE_N(type, n) TYPE_N_(type, n)
 #define AS_TYPE_N_(type, n, x) as_##type##n(x)
 #define AS_TYPE_N(type, n, x) AS_TYPE_N_(type, n, x)
+#define INPUT0_TYPE_4 TYPE_N(INPUT0_TYPE, 4)
 #define AS_INPUT0_TYPE_4(x) AS_TYPE_N(INPUT0_TYPE, 4, x)
+
+#if ASYMMETRIC_DATA_QUANTIZATION && ASYMMETRIC_WEIGHTS_QUANTIZATION
+#define ACCUMULATOR_TYPE_4 TYPE_N(ACCUMULATOR_TYPE, 4)
+#endif
+
+#if ASYMMETRIC_WEIGHTS_QUANTIZATION
+#define FILTER_TYPE_16 TYPE_N(FILTER_TYPE, 16)
+#endif
 
 #define AS_FILTER_TYPE_4(x) AS_TYPE_N(FILTER_TYPE, 4, x)
 
@@ -29,6 +40,10 @@
 
 #define SIMD 16
 #define FSV 16
+
+#if INPUT0_PAD_BEFORE_SIZE_X != 0 || INPUT0_PAD_BEFORE_SIZE_Y != 0 || INPUT0_PAD_BEFORE_SIZE_Z != 0
+#define NON_ZERO_INPUT0_PAD_BEFORE
+#endif
 
 // int8 conv_input and weights data is packed to int32 "batches",
 // int/uint pointers here instead of INPUT0_TYPE/FILTER_TYPE for convenience
@@ -40,6 +55,12 @@ KERNEL(convolution_gpu_b_fs_zyx_fsv16_imad)(
     const __global FILTER_TYPE *weights,
 #if BIAS_TERM
     const __global BIAS_TYPE *biases,
+#endif
+    #if ASYMMETRIC_WEIGHTS_QUANTIZATION
+    const __global WEIGHTS_ZERO_POINTS_TYPE *weights_zp,
+#endif
+#if ASYMMETRIC_DATA_QUANTIZATION
+    const __global ACTIVATIONS_ZERO_POINTS_TYPE *activations_zp,
 #endif
 #if HAS_FUSED_OPS_DECLS
     FUSED_OPS_DECLS,
@@ -92,8 +113,64 @@ KERNEL(convolution_gpu_b_fs_zyx_fsv16_imad)(
 
     uint4 input_val[IN_BLOCK_DEPTH][IN_BLOCK_HEIGHT][CEIL_DIV(IN_BLOCK_WIDTH, SIMD)];
 
+#if ASYMMETRIC_DATA_QUANTIZATION
+    uint data_zp_idx = g * FILTER_IFM_NUM + in_f_start;
+    uint4 data_zp_val;
+#endif
+#if ASYMMETRIC_WEIGHTS_QUANTIZATION
+    uint4 weights_zp_val[OFM_BLOCKS_PER_SIMD];
+    __attribute__((opencl_unroll_hint))
+    for (uint ofb = 0; ofb < OFM_BLOCKS_PER_SIMD; ++ofb) {
+        weights_zp_val[ofb] = as_uint4((FILTER_TYPE_16)weights_zp[out_f + ofb * FSV]);
+    }
+    #if FILTER_IFM_NUM % FSV != 0
+        uint4 weights_zp_vec_partial[OFM_BLOCKS_PER_SIMD];
+        __attribute__((opencl_unroll_hint))
+        for (uint ofb = 0; ofb < OFM_BLOCKS_PER_SIMD; ++ofb) {
+            weights_zp_vec_partial[ofb] = weights_zp_val[ofb];
+            FILTER_TYPE* wzp_p = (FILTER_TYPE*)&weights_zp_vec_partial[ofb];
+            __attribute__((opencl_unroll_hint))
+            for (uint f = FILTER_IFM_NUM % FSV; f < FSV; f++) {
+                wzp_p[f] = 0;
+            }
+        }
+    #endif
+#endif
+
     __attribute__((opencl_unroll_hint(1)))
     for (uint k = 0; k < CEIL_DIV(FILTER_IFM_NUM, FSV) / FEATURE_SLM_SPLIT; k++) {
+        #if ASYMMETRIC_WEIGHTS_QUANTIZATION && FILTER_IFM_NUM % FSV != 0
+            if (in_f_start + (k + 1) * FSV >= ALIGN(FILTER_IFM_NUM, FSV)) {
+                __attribute__((opencl_unroll_hint))
+                for (uint ofb = 0; ofb < OFM_BLOCKS_PER_SIMD; ++ofb) {
+                    weights_zp_val[ofb] = weights_zp_vec_partial[ofb];
+                }
+            }
+        #endif
+
+        #if ASYMMETRIC_DATA_QUANTIZATION
+            #if ((FILTER_GROUPS_NUM > 1) && (FILTER_IFM_NUM % FSV != 0))
+                data_zp_val = as_uint4(vload16(0, activations_zp + data_zp_idx));
+            #else
+                data_zp_val = vload4(0, (__global uint *)(activations_zp + data_zp_idx));
+            #endif
+        #endif
+
+        #if ASYMMETRIC_DATA_QUANTIZATION && ASYMMETRIC_WEIGHTS_QUANTIZATION
+            ACCUMULATOR_TYPE_4 dotProdAZPxWZP[OFM_BLOCKS_PER_SIMD];
+            __attribute__((opencl_unroll_hint))
+            for (uint ofb = 0; ofb < OFM_BLOCKS_PER_SIMD; ++ofb) {
+                dotProdAZPxWZP[ofb] = 0;
+                __attribute__((opencl_unroll_hint))
+                for (uint ive = 0; ive < 4; ive++) {
+                    dotProdAZPxWZP[ofb][ive] = TO_ACCUMULATOR_TYPE(
+                    IMAD(dotProdAZPxWZP[ofb][ive],
+                    AS_INPUT0_TYPE_4(data_zp_val[ive]),
+                    AS_FILTER_TYPE_4(weights_zp_val[ofb][ive])));
+                }
+            }
+        #endif
+
         __attribute__((opencl_unroll_hint(1)))
         for (uint fzn = 0; fzn < FILTER_SIZE_Z / FILTER_SIZE_Z_UNROLL; fzn++) {
             __attribute__((opencl_unroll_hint(1)))
@@ -173,6 +250,14 @@ KERNEL(convolution_gpu_b_fs_zyx_fsv16_imad)(
                             for (uint ive = 0; ive < 4; ive++) {
                                 __attribute__((opencl_unroll_hint))
                                 for (uint ofb = 0; ofb < OFM_BLOCKS_PER_SIMD; ++ofb) {
+                                    #if ASYMMETRIC_DATA_QUANTIZATION
+                                        ACCUMULATOR_TYPE dotProdAZPxW = 0;
+                                        dotProdAZPxW = TO_ACCUMULATOR_TYPE(
+                                        IMAD(dotProdAZPxW,
+                                        AS_INPUT0_TYPE_4(data_zp_val[ive]),
+                                        AS_FILTER_TYPE_4(weights_val[ofb][ive])));
+                                    #endif
+
                                     __attribute__((opencl_unroll_hint(OUT_BLOCK_DEPTH)))
                                     for (uint od = 0; od < OUT_BLOCK_DEPTH; ++od) {
                                     __attribute__((opencl_unroll_hint(OUT_BLOCK_HEIGHT)))
@@ -185,11 +270,44 @@ KERNEL(convolution_gpu_b_fs_zyx_fsv16_imad)(
                                                 const uint shuffle_wi = x_block_idx % SIMD;
                                                 const uint shuffle_idx = x_block_idx / SIMD;
 
+                                                INPUT0_TYPE_4 inputs = AS_INPUT0_TYPE_4(intel_sub_group_shuffle(input_val[z_block_idx][y_block_idx][shuffle_idx][ive],
+                                                    shuffle_wi));
+
                                                 dotProd[ofb][od][oh][ow] = TO_ACCUMULATOR_TYPE(
                                                     IMAD(dotProd[ofb][od][oh][ow],
-                                                    AS_INPUT0_TYPE_4(intel_sub_group_shuffle(input_val[z_block_idx][y_block_idx][shuffle_idx][ive], 
-                                                                                             shuffle_wi)),
+                                                    inputs,
                                                     AS_FILTER_TYPE_4(weights_val[ofb][ive])));
+
+                                                #if ASYMMETRIC_WEIGHTS_QUANTIZATION
+                                                    ACCUMULATOR_TYPE dotProdAxWZP = 0;
+                                                    dotProdAxWZP = TO_ACCUMULATOR_TYPE(
+                                                    IMAD(dotProdAxWZP,
+                                                    inputs,
+                                                    AS_FILTER_TYPE_4(weights_zp_val[ofb][ive])));
+                                                #endif
+
+                                                #if ASYMMETRIC_DATA_QUANTIZATION || ASYMMETRIC_WEIGHTS_QUANTIZATION
+                                                    #ifdef NON_ZERO_INPUT0_PAD_BEFORE
+                                                        const uint idx_z = od * STRIDE_SIZE_Z + (fzn * FILTER_SIZE_Z_UNROLL + fzu) * DILATION_SIZE_Z;
+                                                        const uint idx_y = oh * STRIDE_SIZE_Y + (fyn * FILTER_SIZE_Y_UNROLL + fyu) * DILATION_SIZE_Y;
+                                                        const uint idx_x = x_block_idx;
+                                                        if (((idx_z + input_z >= 0) && (idx_z + input_z < INPUT0_SIZE_Z)) &&
+                                                            ((idx_y + input_y >= 0) && (idx_y + input_y < INPUT0_SIZE_Y)) &&
+                                                            ((idx_x + input_x >= 0) && (idx_x + input_x < INPUT0_SIZE_X))) {
+                                                    #endif
+                                                            #if ASYMMETRIC_DATA_QUANTIZATION
+                                                                dotProd[ofb][od][oh][ow] -= dotProdAZPxW;
+                                                            #endif
+                                                            #if ASYMMETRIC_WEIGHTS_QUANTIZATION
+                                                                dotProd[ofb][od][oh][ow] -= dotProdAxWZP;
+                                                            #endif
+                                                            #if ASYMMETRIC_DATA_QUANTIZATION && ASYMMETRIC_WEIGHTS_QUANTIZATION
+                                                                dotProd[ofb][od][oh][ow] += dotProdAZPxWZP[ofb][ive];
+                                                            #endif
+                                                    #ifdef NON_ZERO_INPUT0_PAD_BEFORE
+                                                        }
+                                                    #endif
+                                                #endif
                                             }
                                         }
                                     }
@@ -197,6 +315,10 @@ KERNEL(convolution_gpu_b_fs_zyx_fsv16_imad)(
                             }
 
                             filter_idx += FSV * FSV;
+
+                            #if ASYMMETRIC_DATA_QUANTIZATION
+                                data_zp_idx += FSV;
+                            #endif
                         }
                     }
                 }
@@ -498,9 +620,22 @@ KERNEL(convolution_gpu_b_fs_zyx_fsv16_imad)(
 #endif
 }
 
-#undef AS_INPUT0_TYPE_4
+#undef TYPE_N_
+#undef TYPE_N
 #undef AS_TYPE_N
 #undef AS_TYPE_N_
+
+#undef INPUT0_TYPE_4
+#undef AS_INPUT0_TYPE_4
+
+#if ASYMMETRIC_DATA_QUANTIZATION && ASYMMETRIC_WEIGHTS_QUANTIZATION
+#undef ACCUMULATOR_TYPE_4
+#endif
+
+#if ASYMMETRIC_WEIGHTS_QUANTIZATION
+#undef FILTER_TYPE_16
+#endif
+
 #undef AS_FILTER_TYPE_4
 
 #undef CEIL_DIV
@@ -509,3 +644,7 @@ KERNEL(convolution_gpu_b_fs_zyx_fsv16_imad)(
 #undef SIMD
 #undef FSV
 #undef OFM_VALUES_PER_WI
+
+#if INPUT0_PAD_BEFORE_SIZE_X != 0 || INPUT0_PAD_BEFORE_SIZE_Y != 0 || INPUT0_PAD_BEFORE_SIZE_Z != 0
+#undef NON_ZERO_INPUT0_PAD_BEFORE
+#endif
