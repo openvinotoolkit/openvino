@@ -14,7 +14,7 @@
 #include "ngraph_functions/utils/ngraph_helpers.hpp"
 
 typedef std::tuple<
-        size_t,              // levels
+        std::vector<size_t>, // levels
         std::vector<size_t>, // const inputs shape
         std::vector<float>,  // fake quantize inputLow, inputHigh, outputLow, outputHigh or empty for random
         std::vector<float>   // input generator data: low, high, resolution
@@ -28,8 +28,8 @@ typedef std::tuple<
         InferenceEngine::Layout,           // Output layout
         InferenceEngine::SizeVector,       // Input shapes
         LayerTestsUtils::TargetDevice,     // Device name
-
-        std::pair<std::string, std::map<std::string, std::string>> // Additional backend configuration and alis name to it
+        std::pair<std::string, std::map<std::string, std::string>>, // Additional backend configuration and alis name to it
+        bool
 > fqSubgraphTestParamsSet;
 namespace LayerTestsDefinitions {
 
