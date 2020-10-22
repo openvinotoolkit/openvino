@@ -156,9 +156,10 @@ Stage StageBuilder::addSplitStage(
     DimValues curOffset({{axis, 0}});
 
     const auto haveUnusedOutput = [](const DataVector& outputs) {
-        return std::any_of(outputs.begin(), outputs.end(), [](const vpu::Data& out) {
-            return out != nullptr;
-        });
+        auto predicate = [](const vpu::Data& out) {
+            return out == nullptr;
+        };
+        return std::any_of(outputs.begin(), outputs.end(), predicate);
     };
 
     const auto getOutAxisSizes = [](const ie::CNNLayerPtr& layer, const Dim axis) {
