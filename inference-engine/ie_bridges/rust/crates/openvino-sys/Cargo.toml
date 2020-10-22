@@ -8,14 +8,17 @@ repository = "https://github.com/openvinotoolkit/openvino"
 homepage = "https://github.com/openvinotoolkit/openvino/tree/master/inference-engine/ie_bridges/rust"
 documentation = "https://docs.rs/openvino-sys"
 edition = "2018"
-exclude = [
-    "upstream/bin",
-    "upstream/build",
-    "upstream/inference-engine/temp",
-    "upstream/ngraph/test/models/tensorflow", # This directory contains unused models with names too long for Cargo to package.
+include = [
+    "/Cargo.toml",
+    "/README.md",
+    "/build.rs",
+    "/src",
+    # Since it is quite difficult to fit OpenVINO into the 10MB crate limit, this crate is published with only the
+    # sources necessary for bindgen to build the Rust bindings. This means that the crate can only be either:
+    # - built from OpenVINO sources when built as the primary crate (unlikely usage)
+    # - built from an OpenVINO installation when used as a dependency
+    "/upstream/inference-engine/ie_bridges/c/include",
 ]
-# Note: OpenVINO downloads dependencies during its CMake build which change files outside of OUT_DIR; this means the
-# crate must be published with --no-verify. See https://github.com/openvinotoolkit/openvino/issues/2316.
 
 [build-dependencies]
 bindgen = "0.55.1"
