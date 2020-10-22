@@ -60,7 +60,7 @@ namespace ngraph
                         auto mask_index = seq_masks_transform.index({seq_ind, batch_ind});
 
                         // first 0 marks the end of a sequence
-                        if (seq_ind && sequence_masks[mask_index] == static_cast<T>(0))
+                        if (seq_ind && sequence_masks[mask_index] == T{0})
                         {
                             break;
                         }
