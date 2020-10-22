@@ -174,6 +174,10 @@ std::string get_opset_name(const ngraph::Node* n) {
     return "experimental";
 }
 
+// Here operation type names are translated from ngraph convention to IR
+// convention. Most of them are the same, but there are exceptions, e.g
+// Constant (ngraph name) and Const (IR name). If there will be more
+// discrepancies discoverd, translations needs to be added here.
 std::string get_type_name(const ngraph::Node* n) {
     std::string name = n->get_type_name();
     NGRAPH_CHECK(name != "GenericIE", "Type of ", n->get_name(), " (",
