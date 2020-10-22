@@ -83,6 +83,10 @@ struct QuantI8  : public QuantDescTmpl<P_TYPE(I16), P_TYPE(I32), P_TYPE(I8), gna
     }
 };
 
+// for support proper trait instantiation for quantization function callback
+struct FakeQuantI16 : public QuantI16 {};
+struct FakeQuantI8 : public QuantI8 {};
+
 template <class A, class B>
 struct QuantPair {
     using MandatoryType = A;
@@ -115,9 +119,6 @@ inline bool shouldAlwaysAllocate<gna_compound_bias_t>() {
  */
 template <class T>
 class Quant {
- public:
-    template<class ...Args>
-    void operator()(Args && ... args) const { }
 };
 
 template<>
@@ -125,7 +126,9 @@ class Quant<QuantI16> {
  public:
     template<class ...Args>
     void operator()(Args && ... args) const {
-        QuantizeAffine16(std::forward<Args>(args)...);
+        QuantizationCallback<int16_t, int32_t> {
+            std::forward<Args>(args)...
+        }.runQuantize();
     }
 };
 
@@ -134,9 +137,34 @@ class Quant<QuantI8> {
  public:
     template<class ...Args>
     void operator()(Args && ... args) const {
-        QuantizeAffine8(std::forward<Args>(args)...);
+        QuantizationCallback<int8_t, gna_compound_bias_t> {
+            std::forward<Args>(args)...
+        }.runQuantize();
     }
 };
+
+template<>
+class Quant<FakeQuantI16> {
+ public:
+    template<class ...Args>
+    void operator()(Args && ... args) const {
+        QuantizationCallback<int16_t, int32_t> {
+            std::forward<Args>(args)...
+        }.runFakeQuantize();
+    }
+};
+
+template<>
+class Quant<FakeQuantI8> {
+ public:
+    template<class ...Args>
+    void operator()(Args && ... args) const {
+        QuantizationCallback<int8_t, gna_compound_bias_t>{
+            std::forward<Args>(args)...
+        }.runFakeQuantize();
+    }
+};
+
 
 template <typename T>
 inline InferenceEngine::Blob::Ptr fp32_to_precision_blob(InferenceEngine::Blob::Ptr fp32_blob, InferenceEngine::Precision precision, float scale_factor) {
@@ -273,6 +301,14 @@ inline void quantizeWeightsBiases(const QuantDesc & quantDesc,
 
     auto quantData = InferenceEngine::getInjectedData<QuantizedLayerParams>(*wl);
     {
+        float *ptr_per_channel_weights_quants_min = nullptr;
+        float *ptr_per_channel_weights_quants_max = nullptr;
+
+        if (!quantData->_weights_quants_min.empty()) {
+            ptr_per_channel_weights_quants_min = &quantData->_weights_quants_min.front();
+            ptr_per_channel_weights_quants_max = &quantData->_weights_quants_max.front();
+        }
+
         fnc(wl->_weights->buffer().as<float *>(),
             wl->_biases ? wl->_biases->buffer().as<float *>() : nullptr,
             intWeights->buffer(),
@@ -283,7 +319,12 @@ inline void quantizeWeightsBiases(const QuantDesc & quantDesc,
             num_rows,
             num_columns,
             num_rows_padded,
-            num_columns_padded);
+            num_columns_padded,
+            quantData->levels,
+            nullptr,
+            nullptr,
+            ptr_per_channel_weights_quants_min,
+            ptr_per_channel_weights_quants_max);
     }
     wl->_weights = intWeights;
     wl->_biases = intBiases;
@@ -562,5 +603,10 @@ class LayersQuantizer : public frontend::DataQuantizerBase {
 
 using QuantI16 = frontend::QuantPair<frontend::QuantI16, frontend::QuantI16>;
 using QuantI8 = frontend::QuantPair<frontend::QuantI8, frontend::QuantI16>;
+
+
+using FakeQuantI16 = frontend::QuantPair<frontend::FakeQuantI16, frontend::FakeQuantI16>;
+using FakeQuantI8 = frontend::QuantPair<frontend::FakeQuantI8, frontend::FakeQuantI16>;
+
 
 }  // namespace GNAPluginNS

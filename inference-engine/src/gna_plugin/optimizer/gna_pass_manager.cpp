@@ -35,6 +35,7 @@
 #include "gna_pass_manager.hpp"
 #include "layers/gna_layer_info.hpp"
 #include "gna_upstream_iterator.hpp"
+#include "frontend/quantization.h"
 
 
 using namespace InferenceEngine;
@@ -1510,12 +1511,31 @@ void FuseFQIntoWeightsPass::run() {
 
         // depending on compute precision weights will be recreated
         // for integer mode - weights might be simply copied - to avoid furter quantisations overhead
-        auto quantized = InferenceEngine::getInjectedData<QuantizedLayerParams>(fqLayer);
+        auto quantized = InferenceEngine::getInjectedData<QuantizedLayerParams>(weightableLayer);
         if (quantized) {
             // assign already quantized Weights
             assignWeightsAndBiases(weightableLayer, quantizedWeights, biases);
-            // modify scale factors for quantized component
 
+            // modify scale factors for quantized component
+            auto outputRange = gnaFakeQuantizeLayer.getOutputRange();
+            quantized->_weights_quants_min.insert(
+                quantized->_weights_quants_max.end(), outputRange.first.begin(), outputRange.first.end());
+
+            quantized->_weights_quants_max.insert(
+                quantized->_weights_quants_max.end(), outputRange.second.begin(), outputRange.second.end());
+
+            quantized->levels = gnaFakeQuantizeLayer.getLevels();
+            auto inputRange = gnaFakeQuantizeLayer.getInputRange();
+
+            // if channel scale cannot be encoded in int8 - lets absorb remained scale factor in output scale
+            float max_channel_scale = 0.0;
+            for (uint32_t i = 0; i < quantized->_weights_quants_min.size(); i++) {
+                auto channel_scale
+                    = (quantized->levels - 1) / (quantized->_weights_quants_max[i] - quantized->_weights_quants_min[i]);
+                max_channel_scale = std::max(max_channel_scale, channel_scale);
+            }
+
+            quantized->_weights_quant.scale = max_channel_scale;
             continue;
         }
 
