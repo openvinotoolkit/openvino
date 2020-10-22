@@ -27,11 +27,11 @@ INSTANTIATE_TEST_CASE_P(smoke_NumSplitsCheck, SplitLayerTest,
                                 ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                                 ::testing::Values(InferenceEngine::Layout::ANY),
                                 ::testing::Values(InferenceEngine::Layout::ANY),
-                                ::testing::Values(std::vector<size_t >({30, 30, 30, 30})),
+                                ::testing::Values(std::vector<size_t>({30, 30, 30, 30})),
                                 ::testing::Values(CommonTestUtils::DEVICE_MYRIAD)),
                         SplitLayerTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(smoke_SplitWithDiffOutsCheck, splitWithDiffOutsTest,
+INSTANTIATE_TEST_CASE_P(smoke_SplitWithDiffOutsCheck, splitWithUnusedOutputsTest,
                         ::testing::Combine(
                                 ::testing::Values(5),
                                 // TODO: 0-axis excluded
@@ -44,10 +44,10 @@ INSTANTIATE_TEST_CASE_P(smoke_SplitWithDiffOutsCheck, splitWithDiffOutsTest,
                                 ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                                 ::testing::Values(InferenceEngine::Layout::ANY),
                                 ::testing::Values(InferenceEngine::Layout::ANY),
-                                ::testing::Values(std::vector<size_t >({30, 30, 30, 30})),
-                                ::testing::Values(std::vector<size_t >({0, 2}),
-                                                  std::vector<size_t >({0, 4}),
-                                                  std::vector<size_t >({2, 3})),
+                                ::testing::Values(std::vector<size_t>({30, 30, 30, 30})),
+                                ::testing::Values(std::vector<size_t>({0, 2}),
+                                                  std::vector<size_t>({0, 4}),
+                                                  std::vector<size_t>({2, 3})),
                                 ::testing::Values(CommonTestUtils::DEVICE_MYRIAD)),
-                        splitWithDiffOutsTest::getTestCaseName);
+                        splitWithUnusedOutputsTest::getTestCaseName);
 }  // namespace

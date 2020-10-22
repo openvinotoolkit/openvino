@@ -66,7 +66,7 @@ TEST_P(SplitLayerTest, CompareWithRefs) {
     Run();
 };
 
-std::string splitWithDiffOutsTest::getTestCaseName(testing::TestParamInfo<splitWithDiffOutsParams> obj) {
+std::string splitWithUnusedOutputsTest::getTestCaseName(testing::TestParamInfo<splitWithUnusedOutputsParams> obj) {
     size_t numSplits, axis;
     InferenceEngine::Precision netPrecision;
     InferenceEngine::Precision inPrc, outPrc;
@@ -90,7 +90,7 @@ std::string splitWithDiffOutsTest::getTestCaseName(testing::TestParamInfo<splitW
     return result.str();
 }
 
-void splitWithDiffOutsTest::SetUp() {
+void splitWithUnusedOutputsTest::SetUp() {
     SetRefMode(LayerTestsUtils::RefMode::CONSTANT_FOLDING);
     size_t axis, numSplits;
     std::vector<size_t> inputShape;
@@ -101,16 +101,16 @@ void splitWithDiffOutsTest::SetUp() {
     auto params = ngraph::builder::makeParams(ngPrc, {inputShape});
     auto paramOuts = ngraph::helpers::convert2OutputVector(
             ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
-    auto split = std::dynamic_pointer_cast<ngraph::opset1::Split>(ngraph::builder::makeSplit(paramOuts[0],
+    auto split = std::dynamic_pointer_cast<ngraph::opset5::Split>(ngraph::builder::makeSplit(paramOuts[0],
                                                                                              ngPrc, numSplits, axis));
     ngraph::ResultVector results;
     for (int i = 0; i < outIndices.size(); i++) {
-        results.push_back(std::make_shared<ngraph::opset1::Result>(split->output(outIndices[i])));
+        results.push_back(std::make_shared<ngraph::opset5::Result>(split->output(outIndices[i])));
     }
     function = std::make_shared<ngraph::Function>(results, params, "split");
 }
 
-TEST_P(splitWithDiffOutsTest, CompareWithRefs) {
+TEST_P(splitWithUnusedOutputsTest, CompareWithRefs) {
     Run();
 };
 

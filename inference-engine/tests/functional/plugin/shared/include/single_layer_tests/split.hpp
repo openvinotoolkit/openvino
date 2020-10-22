@@ -44,14 +44,14 @@ typedef std::tuple<
         InferenceEngine::Layout,        // Input layout
         InferenceEngine::Layout,        // Output layout
         std::vector<size_t>,            // Input shapes
-        std::vector<size_t>,            // Output indices
+        std::vector<size_t>,            // Used outputs indices
         std::string                     // Target device name
-> splitWithDiffOutsParams;
+> splitWithUnusedOutputsParams;
 
-class splitWithDiffOutsTest : public testing::WithParamInterface<splitWithDiffOutsParams>,
+class splitWithUnusedOutputsTest : public testing::WithParamInterface<splitWithUnusedOutputsParams>,
                        virtual public LayerTestsUtils::LayerTestsCommon {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<splitWithDiffOutsParams> obj);
+    static std::string getTestCaseName(testing::TestParamInfo<splitWithUnusedOutputsParams> obj);
 
 protected:
     void SetUp() override;
