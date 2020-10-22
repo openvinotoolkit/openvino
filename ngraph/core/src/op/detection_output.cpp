@@ -87,12 +87,10 @@ bool op::DetectionOutput::visit_attributes(AttributeVisitor& visitor)
     visitor.on_attribute("num_classes", m_attrs.num_classes);
     visitor.on_attribute("background_label_id", m_attrs.background_label_id);
     visitor.on_attribute("top_k", m_attrs.top_k);
-    uint val = m_attrs.variance_encoded_in_target ? 1 : 0;
-    visitor.on_attribute("variance_encoded_in_target", val);
+    visitor.on_attribute("variance_encoded_in_target", m_attrs.variance_encoded_in_target);
     visitor.on_attribute("keep_top_k", m_attrs.keep_top_k);
     visitor.on_attribute("code_type", m_attrs.code_type);
-    val = m_attrs.share_location ? 1 : 0;
-    visitor.on_attribute("share_location", val);
+    visitor.on_attribute("share_location", m_attrs.share_location);
     visitor.on_attribute("nms_threshold", m_attrs.nms_threshold);
     visitor.on_attribute("confidence_threshold", m_attrs.confidence_threshold);
     visitor.on_attribute("clip_after_nms", m_attrs.clip_after_nms);
