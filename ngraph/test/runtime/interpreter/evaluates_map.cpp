@@ -128,115 +128,148 @@ namespace
         return true;
     }
 
+    namespace com_sum_v0 {
+    template <element::Type_t t1, element::Type_t t2>
+    inline void evaluate(const shared_ptr<op::v0::CumSum>& op,
+                         const HostTensorVector& outputs,
+                         const HostTensorVector& inputs)
+    {
+        using T1 = typename element_type_traits<t1>::value_type;
+        using T2 = typename element_type_traits<t2>::value_type;
+        runtime::reference::cumsum<T1, T2>(inputs[0]->get_data_ptr<T1>(),
+                                           inputs[1]->get_data_ptr<T2>(),
+                                           outputs[0]->get_data_ptr<T1>(),
+                                           inputs[0]->get_shape(),
+                                           op->is_exclusive(),
+                                           op->is_reverse());
+    }
+    }  // namespace com_sum_v0
+
     template <element::Type_t ET>
     bool evaluate(const shared_ptr<op::v0::CumSum>& op,
                   const HostTensorVector& outputs,
                   const HostTensorVector& inputs)
     {
-        using T = typename element_type_traits<ET>::value_type;
-
-#define REF_CALL(U)                                                                                \
-    runtime::reference::cumsum<T, typename element_type_traits<U>::value_type>(                    \
-        inputs[0]->get_data_ptr<ET>(),                                                             \
-        inputs[1]->get_data_ptr<U>(),                                                              \
-        outputs[0]->get_data_ptr<ET>(),                                                            \
-        inputs[0]->get_shape(),                                                                    \
-        op->is_exclusive(),                                                                        \
-        op->is_reverse());                                                                         \
-    break;
-
         switch (inputs[1]->get_element_type())
         {
-        case element::Type_t::i64: { REF_CALL(element::Type_t::i64);
+        case element::Type_t::i64:
+            com_sum_v0::evaluate<ET, element::Type_t::i64>(op, outputs, inputs);
+            break;
+        default:
+            com_sum_v0::evaluate<ET, element::Type_t::i32>(op, outputs, inputs);
+            break;
         }
-        default: REF_CALL(element::Type_t::i32);
-        }
-#undef REF_CALL
         return true;
     }
+
+    namespace embedding_offsets_sum_v3 {
+    template <element::Type_t t1, element::Type_t t2>
+    inline void evaluate(const shared_ptr<op::v3::EmbeddingSegmentsSum>& op,
+                  const HostTensorVector& outputs,
+                  const HostTensorVector& inputs)
+    {
+        using T1 = typename element_type_traits<t1>::value_type;
+        using T2 = typename element_type_traits<t2>::value_type;
+        runtime::reference::embeddingSegmentsSum<T1, T2>(inputs[0]->get_data_ptr<T1>(),
+                                                         inputs[1]->get_data_ptr<T2>(),
+                                                         inputs[2]->get_data_ptr<T2>(),
+                                                         inputs.size() > 4 ? inputs[4]->get_data_ptr<T2>() : nullptr,
+                                                         inputs.size() > 5 ? inputs[5]->get_data_ptr<T1>() : nullptr,
+                                                         outputs[0]->get_data_ptr<T1>(),
+                                                         inputs[0]->get_shape(),
+                                                         inputs[1]->get_shape(),
+                                                         outputs[0]->get_shape());
+    }
+    }  // namespace embedding_offsets_sum_v3
 
     template <element::Type_t ET>
     bool evaluate(const shared_ptr<op::v3::EmbeddingSegmentsSum>& op,
                   const HostTensorVector& outputs,
                   const HostTensorVector& inputs)
     {
-        using T = typename element_type_traits<ET>::value_type;
-#define REF_CALL(elType)                                                                           \
-    runtime::reference::embeddingSegmentsSum<T, typename element_type_traits<elType>::value_type>( \
-        inputs[0]->get_data_ptr<ET>(),                                                             \
-        inputs[1]->get_data_ptr<elType>(),                                                         \
-        inputs[2]->get_data_ptr<elType>(),                                                         \
-        inputs.size() > 4 ? inputs[4]->get_data_ptr<elType>() : nullptr,                           \
-        inputs.size() > 5 ? inputs[5]->get_data_ptr<ET>() : nullptr,                               \
-        outputs[0]->get_data_ptr<ET>(),                                                            \
-        inputs[0]->get_shape(),                                                                    \
-        inputs[1]->get_shape(),                                                                    \
-        outputs[0]->get_shape());                                                                  \
-    break;
-
         switch (inputs[1]->get_element_type())
         {
-        case element::Type_t::i32: REF_CALL(element::Type_t::i32);
-        case element::Type_t::i64: REF_CALL(element::Type_t::i64);
+        case element::Type_t::i32:
+            embedding_offsets_sum_v3::evaluate<ET, element::Type_t::i32>(op, outputs, inputs);
+            break;
+        case element::Type_t::i64:
+            embedding_offsets_sum_v3::evaluate<ET, element::Type_t::i64>(op, outputs, inputs);
+            break;
         default: return false;
         }
-#undef REF_CALL
         return true;
     }
+
+    namespace embedding_bag_offsets_sum_v3 {
+    template <element::Type_t t1, element::Type_t t2>
+    inline void evaluate(const shared_ptr<op::v3::EmbeddingBagOffsetsSum>& op,
+                         const HostTensorVector& outputs,
+                         const HostTensorVector& inputs)
+    {
+        using T1 = typename element_type_traits<t1>::value_type;
+        using T2 = typename element_type_traits<t2>::value_type;
+        runtime::reference::embeddingBagOffsetsSum<T1, T2>(inputs[0]->get_data_ptr<T1>(),
+                                                           inputs[1]->get_data_ptr<T2>(),
+                                                           inputs[2]->get_data_ptr<T2>(),
+                                                           inputs.size() > 3 ? inputs[3]->get_data_ptr<T2>() : nullptr,
+                                                           inputs.size() > 4 ? inputs[4]->get_data_ptr<T1>() : nullptr,
+                                                           outputs[0]->get_data_ptr<T1>(),
+                                                           shape_size(inputs[1]->get_shape()),
+                                                           outputs[0]->get_shape());
+    }
+    }  // namespace embedding_bag_offsets_sum_v3
 
     template <element::Type_t ET>
     bool evaluate(const shared_ptr<op::v3::EmbeddingBagOffsetsSum>& op,
                   const HostTensorVector& outputs,
                   const HostTensorVector& inputs)
     {
-        using T = typename element_type_traits<ET>::value_type;
-#define REF_CALL(elType)                                                                           \
-    runtime::reference::embeddingBagOffsetsSum<T,                                                  \
-                                               typename element_type_traits<elType>::value_type>(  \
-        inputs[0]->get_data_ptr<ET>(),                                                             \
-        inputs[1]->get_data_ptr<elType>(),                                                         \
-        inputs[2]->get_data_ptr<elType>(),                                                         \
-        inputs.size() > 3 ? inputs[3]->get_data_ptr<elType>() : nullptr,                           \
-        inputs.size() > 4 ? inputs[4]->get_data_ptr<ET>() : nullptr,                               \
-        outputs[0]->get_data_ptr<ET>(),                                                            \
-        shape_size(inputs[1]->get_shape()),                                                        \
-        outputs[0]->get_shape());                                                                  \
-    break;
-
         switch (inputs[1]->get_element_type())
         {
-        case element::Type_t::i32: REF_CALL(element::Type_t::i32);
-        case element::Type_t::i64: REF_CALL(element::Type_t::i64);
+        case element::Type_t::i32:
+            embedding_bag_offsets_sum_v3::evaluate<ET, element::Type_t::i32>(op, outputs, inputs);
+            break;
+        case element::Type_t::i64:
+            embedding_bag_offsets_sum_v3::evaluate<ET, element::Type_t::i64>(op, outputs, inputs);
+            break;
         default: return false;
         }
-#undef REF_CALL
         return true;
     }
+
+    namespace embedding_bag_packed_sum_v3 {
+    template <element::Type_t t1, element::Type_t t2>
+    inline void evaluate(const shared_ptr<op::v3::EmbeddingBagPackedSum>& op,
+                         const HostTensorVector& outputs,
+                         const HostTensorVector& inputs)
+    {
+        using T1 = typename element_type_traits<t1>::value_type;
+        using T2 = typename element_type_traits<t2>::value_type;
+        runtime::reference::embeddingBagPackedSum<T1, T2>(inputs[0]->get_data_ptr<T1>(),
+                                                          inputs[1]->get_data_ptr<T2>(),
+                                                          inputs.size() > 2 ? inputs[2]->get_data_ptr<T1>() : nullptr,
+                                                          outputs[0]->get_data_ptr<T1>(),
+                                                          inputs[1]->get_shape(),
+                                                          outputs[0]->get_shape());
+    }
+    }  // namespace embedding_bag_packed_sum_v3
 
     template <element::Type_t ET>
     bool evaluate(const shared_ptr<op::v3::EmbeddingBagPackedSum>& op,
                   const HostTensorVector& outputs,
                   const HostTensorVector& inputs)
     {
-        using T = typename element_type_traits<ET>::value_type;
-#define REF_CALL(elType)                                                                           \
-    runtime::reference::embeddingBagPackedSum<T,                                                   \
-                                              typename element_type_traits<elType>::value_type>(   \
-        inputs[0]->get_data_ptr<ET>(),                                                             \
-        inputs[1]->get_data_ptr<elType>(),                                                         \
-        inputs.size() > 2 ? inputs[2]->get_data_ptr<ET>() : nullptr,                               \
-        outputs[0]->get_data_ptr<ET>(),                                                            \
-        inputs[1]->get_shape(),                                                                    \
-        outputs[0]->get_shape());                                                                  \
-    break;
-
         switch (inputs[1]->get_element_type())
         {
-        case element::Type_t::i32: REF_CALL(element::Type_t::i32);
-        case element::Type_t::i64: REF_CALL(element::Type_t::i64);
+        case element::Type_t::i32:
+            embedding_bag_packed_sum_v3::evaluate<ET, element::Type_t::i32>(op, outputs, inputs);
+            break;
+        case element::Type_t::i64:
+            embedding_bag_packed_sum_v3::evaluate<ET, element::Type_t::i64>(op, outputs, inputs);
+            break;
         default: return false;
         }
-#undef REF_CALL
+
         return true;
     }
 
@@ -288,27 +321,27 @@ namespace
     template <element::Type_t ET>
     bool evaluate(const shared_ptr<op::v0::DetectionOutput>& op,
                   const HostTensorVector& outputs,
-                  const HostTensorVector& input)
+                  const HostTensorVector& inputs)
     {
         using T = typename element_type_traits<ET>::value_type;
         runtime::reference::referenceDetectionOutput<T> refDetOut(
             op->get_attrs(), op->get_input_shape(0), op->get_input_shape(2));
         if (op->get_input_size() == 3)
         {
-            refDetOut.run(input[0]->get_data_ptr<const T>(),
-                          input[1]->get_data_ptr<const T>(),
-                          input[2]->get_data_ptr<const T>(),
+            refDetOut.run(inputs[0]->get_data_ptr<const T>(),
+                          inputs[1]->get_data_ptr<const T>(),
+                          inputs[2]->get_data_ptr<const T>(),
                           nullptr,
                           nullptr,
                           outputs[0]->get_data_ptr<T>());
         }
         else if (op->get_input_size() == 5)
         {
-            refDetOut.run(input[0]->get_data_ptr<const T>(),
-                          input[1]->get_data_ptr<const T>(),
-                          input[2]->get_data_ptr<const T>(),
-                          input[3]->get_data_ptr<const T>(),
-                          input[4]->get_data_ptr<const T>(),
+            refDetOut.run(inputs[0]->get_data_ptr<const T>(),
+                          inputs[1]->get_data_ptr<const T>(),
+                          inputs[2]->get_data_ptr<const T>(),
+                          inputs[3]->get_data_ptr<const T>(),
+                          inputs[4]->get_data_ptr<const T>(),
                           outputs[0]->get_data_ptr<T>());
         }
         else
@@ -321,15 +354,15 @@ namespace
     template <element::Type_t ET>
     bool evaluate(const shared_ptr<op::v3::ScatterNDUpdate>& op,
                   const HostTensorVector& outputs,
-                  const HostTensorVector& input)
+                  const HostTensorVector& inputs)
     {
         using T = typename element_type_traits<ET>::value_type;
         auto idxType = op->get_input_element_type(1);
         if (idxType == element::i32)
         {
-            runtime::reference::scatterNdUpdate<T, int32_t>(input[0]->get_data_ptr<const T>(),
-                                                            input[1]->get_data_ptr<const int32_t>(),
-                                                            input[2]->get_data_ptr<const T>(),
+            runtime::reference::scatterNdUpdate<T, int32_t>(inputs[0]->get_data_ptr<const T>(),
+                                                            inputs[1]->get_data_ptr<const int32_t>(),
+                                                            inputs[2]->get_data_ptr<const T>(),
                                                             outputs[0]->get_data_ptr<T>(),
                                                             op->get_input_shape(0),
                                                             op->get_input_shape(1),
@@ -337,9 +370,9 @@ namespace
         }
         else if (idxType == element::i64)
         {
-            runtime::reference::scatterNdUpdate<T, int64_t>(input[0]->get_data_ptr<const T>(),
-                                                            input[1]->get_data_ptr<const int64_t>(),
-                                                            input[2]->get_data_ptr<const T>(),
+            runtime::reference::scatterNdUpdate<T, int64_t>(inputs[0]->get_data_ptr<const T>(),
+                                                            inputs[1]->get_data_ptr<const int64_t>(),
+                                                            inputs[2]->get_data_ptr<const T>(),
                                                             outputs[0]->get_data_ptr<T>(),
                                                             op->get_input_shape(0),
                                                             op->get_input_shape(1),
@@ -356,13 +389,13 @@ namespace
     template <element::Type_t ET>
     bool evaluate(const shared_ptr<op::v1::Select>& op,
                   const HostTensorVector& outputs,
-                  const HostTensorVector& input)
+                  const HostTensorVector& inputs)
     {
         using T = typename element_type_traits<ET>::value_type;
 
-        runtime::reference::select<T>(input[0]->get_data_ptr<const char>(),
-                                      input[1]->get_data_ptr<const T>(),
-                                      input[2]->get_data_ptr<const T>(),
+        runtime::reference::select<T>(inputs[0]->get_data_ptr<const char>(),
+                                      inputs[1]->get_data_ptr<const T>(),
+                                      inputs[2]->get_data_ptr<const T>(),
                                       outputs[0]->get_data_ptr<T>(),
                                       op->get_input_shape(0),
                                       op->get_input_shape(1),
@@ -374,12 +407,12 @@ namespace
     template <element::Type_t ET>
     bool evaluate(const shared_ptr<op::v1::AvgPool>& op,
                   const HostTensorVector& outputs,
-                  const HostTensorVector& input)
+                  const HostTensorVector& inputs)
     {
         using T = typename element_type_traits<ET>::value_type;
-        runtime::reference::avg_pool<T>(input[0]->get_data_ptr<T>(),
+        runtime::reference::avg_pool<T>(inputs[0]->get_data_ptr<T>(),
                                         outputs[0]->get_data_ptr<T>(),
-                                        input[0]->get_shape(),
+                                        inputs[0]->get_shape(),
                                         op->get_output_shape(0),
                                         op->get_kernel(),
                                         op->get_strides(),
@@ -392,28 +425,28 @@ namespace
     template <element::Type_t ET>
     bool evaluate(const shared_ptr<op::v0::HardSigmoid>& op,
                   const HostTensorVector& outputs,
-                  const HostTensorVector& input)
+                  const HostTensorVector& inputs)
     {
         using T = typename element_type_traits<ET>::value_type;
-        runtime::reference::hard_sigmoid<T>(input[0]->get_data_ptr<T>(),
-                                            input[1]->get_data_ptr<T>(),
-                                            input[2]->get_data_ptr<T>(),
+        runtime::reference::hard_sigmoid<T>(inputs[0]->get_data_ptr<T>(),
+                                            inputs[1]->get_data_ptr<T>(),
+                                            inputs[2]->get_data_ptr<T>(),
                                             outputs[0]->get_data_ptr<T>(),
-                                            shape_size(input[0]->get_shape()),
-                                            shape_size(input[1]->get_shape()),
-                                            shape_size(input[2]->get_shape()));
+                                            shape_size(inputs[0]->get_shape()),
+                                            shape_size(inputs[1]->get_shape()),
+                                            shape_size(inputs[2]->get_shape()));
         return true;
     }
 
     template <element::Type_t ET>
     bool evaluate(const shared_ptr<op::v0::Elu>& op,
                   const HostTensorVector& outputs,
-                  const HostTensorVector& input)
+                  const HostTensorVector& inputs)
     {
         using T = typename element_type_traits<ET>::value_type;
-        runtime::reference::elu<T>(input[0]->get_data_ptr<T>(),
+        runtime::reference::elu<T>(inputs[0]->get_data_ptr<T>(),
                                    outputs[0]->get_data_ptr<T>(),
-                                   shape_size(input[0]->get_shape()),
+                                   shape_size(inputs[0]->get_shape()),
                                    op->get_alpha());
         return true;
     }
@@ -421,11 +454,11 @@ namespace
     template <element::Type_t ET>
     bool evaluate(const shared_ptr<op::v0::PriorBox>& op,
                   const HostTensorVector& outputs,
-                  const HostTensorVector& input)
+                  const HostTensorVector& inputs)
     {
         using T = typename element_type_traits<ET>::value_type;
-        runtime::reference::prior_box<T>(input[0]->get_data_ptr<T>(),
-                                         input[1]->get_data_ptr<T>(),
+        runtime::reference::prior_box<T>(inputs[0]->get_data_ptr<T>(),
+                                         inputs[1]->get_data_ptr<T>(),
                                          outputs[0]->get_data_ptr<float>(),
                                          outputs[0]->get_shape(),
                                          op->get_attrs());
@@ -435,13 +468,13 @@ namespace
     template <element::Type_t ET>
     bool evaluate(const shared_ptr<op::v1::Mod>& op,
                   const HostTensorVector& outputs,
-                  const HostTensorVector& input)
+                  const HostTensorVector& inputs)
     {
         using T = typename element_type_traits<ET>::value_type;
-        runtime::reference::mod<T>(input[0]->get_data_ptr<T>(),
-                                   input[1]->get_data_ptr<T>(),
+        runtime::reference::mod<T>(inputs[0]->get_data_ptr<T>(),
+                                   inputs[1]->get_data_ptr<T>(),
                                    outputs[0]->get_data_ptr<T>(),
-                                   input[0]->get_shape(),
+                                   inputs[0]->get_shape(),
                                    op->get_auto_broadcast());
         return true;
     }
@@ -449,157 +482,195 @@ namespace
     template <element::Type_t ET>
     bool evaluate(const shared_ptr<op::v0::Selu>& op,
                   const HostTensorVector& outputs,
-                  const HostTensorVector& input)
+                  const HostTensorVector& inputs)
     {
         using T = typename element_type_traits<ET>::value_type;
-        runtime::reference::selu<T>(input[0]->get_data_ptr<T>(),
-                                    input[1]->get_data_ptr<T>(),
-                                    input[2]->get_data_ptr<T>(),
+        runtime::reference::selu<T>(inputs[0]->get_data_ptr<T>(),
+                                    inputs[1]->get_data_ptr<T>(),
+                                    inputs[2]->get_data_ptr<T>(),
                                     outputs[0]->get_data_ptr<T>(),
-                                    shape_size(input[0]->get_shape()),
-                                    shape_size(input[1]->get_shape()),
-                                    shape_size(input[2]->get_shape()));
+                                    shape_size(inputs[0]->get_shape()),
+                                    shape_size(inputs[1]->get_shape()),
+                                    shape_size(inputs[2]->get_shape()));
         return true;
     }
 
     template <element::Type_t ET>
     bool evaluate(const shared_ptr<op::v0::Ceiling>& op,
                   const HostTensorVector& outputs,
-                  const HostTensorVector& input)
+                  const HostTensorVector& inputs)
     {
         using T = typename element_type_traits<ET>::value_type;
-        runtime::reference::ceiling<T>(input[0]->get_data_ptr<T>(),
+        runtime::reference::ceiling<T>(inputs[0]->get_data_ptr<T>(),
                                        outputs[0]->get_data_ptr<T>(),
-                                       shape_size(input[0]->get_shape()));
+                                       shape_size(inputs[0]->get_shape()));
         return true;
     }
 
     template <element::Type_t ET>
     bool evaluate(const shared_ptr<op::v0::Gelu>& op,
                   const HostTensorVector& outputs,
-                  const HostTensorVector& input)
+                  const HostTensorVector& inputs)
     {
         using T = typename element_type_traits<ET>::value_type;
-        runtime::reference::gelu<T>(input[0]->get_data_ptr<T>(),
+        runtime::reference::gelu<T>(inputs[0]->get_data_ptr<T>(),
                                     outputs[0]->get_data_ptr<T>(),
-                                    shape_size(input[0]->get_shape()));
+                                    shape_size(inputs[0]->get_shape()));
         return true;
     }
 
     template <element::Type_t ET>
     bool evaluate(const shared_ptr<op::v0::Relu>& op,
                   const HostTensorVector& outputs,
-                  const HostTensorVector& input)
+                  const HostTensorVector& inputs)
     {
         using T = typename element_type_traits<ET>::value_type;
-        runtime::reference::relu<T>(input[0]->get_data_ptr<T>(),
+        runtime::reference::relu<T>(inputs[0]->get_data_ptr<T>(),
                                     outputs[0]->get_data_ptr<T>(),
-                                    shape_size(input[0]->get_shape()));
+                                    shape_size(inputs[0]->get_shape()));
         return true;
     }
 
     template <element::Type_t ET>
     bool evaluate(const shared_ptr<op::v0::Sign>& op,
                   const HostTensorVector& outputs,
-                  const HostTensorVector& input)
+                  const HostTensorVector& inputs)
     {
         using T = typename element_type_traits<ET>::value_type;
-        runtime::reference::sign<T>(input[0]->get_data_ptr<T>(),
+        runtime::reference::sign<T>(inputs[0]->get_data_ptr<T>(),
                                     outputs[0]->get_data_ptr<T>(),
-                                    shape_size(input[0]->get_shape()));
+                                    shape_size(inputs[0]->get_shape()));
         return true;
     }
 
     template <element::Type_t ET>
     bool evaluate(const shared_ptr<op::v0::Abs>& op,
                   const HostTensorVector& outputs,
-                  const HostTensorVector& input)
+                  const HostTensorVector& inputs)
     {
         using T = typename element_type_traits<ET>::value_type;
-        runtime::reference::abs<T>(input[0]->get_data_ptr<T>(),
+        runtime::reference::abs<T>(inputs[0]->get_data_ptr<T>(),
                                    outputs[0]->get_data_ptr<T>(),
-                                   shape_size(input[0]->get_shape()));
+                                   shape_size(inputs[0]->get_shape()));
         return true;
     }
+
+    namespace ctc_loss_v4 {
+    template <element::Type_t t1, element::Type_t t2>
+    inline void evaluate(const shared_ptr<op::v4::CTCLoss>& op,
+                         const HostTensorVector& outputs,
+                         const HostTensorVector& inputs)
+    {
+        using T1 = typename element_type_traits<t1>::value_type;
+        using T2 = typename element_type_traits<t2>::value_type;
+        runtime::reference::CTCLoss<T1, T2>(inputs[0]->get_data_ptr<T1>(),
+                                            inputs[0]->get_shape(),
+                                            inputs[1]->get_data_ptr<T2>(),
+                                            inputs[2]->get_data_ptr<T2>(),
+                                            inputs[3]->get_data_ptr<T2>(),
+                                            inputs[4]->get_data_ptr<T2>(),
+                                            op->get_preprocess_collapse_repeated(),
+                                            op->get_ctc_merge_repeated(),
+                                            op->get_unique(),
+                                            outputs[0]->get_data_ptr<T1>());
+    }
+    }  // namespace ctc_loss_v4
 
     template <element::Type_t ET>
     bool evaluate(const shared_ptr<op::v4::CTCLoss>& op,
                   const HostTensorVector& outputs,
-                  const HostTensorVector& input)
+                  const HostTensorVector& inputs)
     {
-        using T = typename element_type_traits<ET>::value_type;
-#define REF_CALL(elType)                                                                           \
-    runtime::reference::CTCLoss<T, typename element_type_traits<elType>::value_type>(              \
-        input[0]->get_data_ptr<T>(),                                                               \
-        input[0]->get_shape(),                                                                     \
-        input[1]->get_data_ptr<elType>(),                                                          \
-        input[2]->get_data_ptr<elType>(),                                                          \
-        input[3]->get_data_ptr<elType>(),                                                          \
-        input[4]->get_data_ptr<elType>(),                                                          \
-        op->get_preprocess_collapse_repeated(),                                                    \
-        op->get_ctc_merge_repeated(),                                                              \
-        op->get_unique(),                                                                          \
-        outputs[0]->get_data_ptr<T>());                                                            \
-    break;
-
-        switch (input[1]->get_element_type())
+        switch (inputs[1]->get_element_type())
         {
-        case element::Type_t::i32: REF_CALL(element::Type_t::i32);
-        case element::Type_t::i64: REF_CALL(element::Type_t::i64);
+        case element::Type_t::i32:
+            ctc_loss_v4::evaluate<ET, element::Type_t::i32>(op, outputs, inputs);
+            break;
+        case element::Type_t::i64:
+            ctc_loss_v4::evaluate<ET, element::Type_t::i64>(op, outputs, inputs);
+            break;
         default: return false;
         }
-#undef REF_CALL
         return true;
     }
 
     template <element::Type_t ET>
     bool evaluate(const shared_ptr<op::v0::BatchNormInference>& op,
                   const HostTensorVector& outputs,
-                  const HostTensorVector& input)
+                  const HostTensorVector& inputs)
     {
         using T = typename element_type_traits<ET>::value_type;
         runtime::reference::batch_norm_inference<T>(op->get_eps_value(),
-                                                    input[0]->get_data_ptr<T>(),
-                                                    input[1]->get_data_ptr<T>(),
-                                                    input[2]->get_data_ptr<T>(),
-                                                    input[3]->get_data_ptr<T>(),
-                                                    input[4]->get_data_ptr<T>(),
+                                                    inputs[0]->get_data_ptr<T>(),
+                                                    inputs[1]->get_data_ptr<T>(),
+                                                    inputs[2]->get_data_ptr<T>(),
+                                                    inputs[3]->get_data_ptr<T>(),
+                                                    inputs[4]->get_data_ptr<T>(),
                                                     outputs[0]->get_data_ptr<T>(),
-                                                    input[2]->get_shape());
+                                                    inputs[2]->get_shape());
         return true;
     }
+
+    namespace reverse_sequence_v0 {
+    template <element::Type_t t1, element::Type_t t2>
+    inline void evaluate(const shared_ptr<op::v0::ReverseSequence>& op,
+                         const HostTensorVector& outputs,
+                         const HostTensorVector& inputs)
+    {
+        using T1 = typename element_type_traits<t1>::value_type;
+        using T2 = typename element_type_traits<t2>::value_type;
+        runtime::reference::reverse_sequence<T1, T2>(inputs[0]->get_data_ptr<T1>(),
+                                                     outputs[0]->get_data_ptr<T1>(),
+                                                     inputs[0]->get_shape(),
+                                                     op->get_batch_axis(),
+                                                     op->get_sequence_axis(),
+                                                     inputs[1]->get_data_ptr<T2>());
+    }
+    }  // namespace reverse_sequence_v0
 
     template <element::Type_t ET>
     bool evaluate(const shared_ptr<op::v0::ReverseSequence>& op,
                   const HostTensorVector& outputs,
-                  const HostTensorVector& input)
+                  const HostTensorVector& inputs)
     {
-        using T = typename element_type_traits<ET>::value_type;
-
-#define REF_CALL(U)                                                                                \
-    runtime::reference::reverse_sequence<T, typename element_type_traits<U>::value_type>(          \
-        input[0]->get_data_ptr<T>(),                                                               \
-        outputs[0]->get_data_ptr<T>(),                                                             \
-        input[0]->get_shape(),                                                                     \
-        op->get_batch_axis(),                                                                      \
-        op->get_sequence_axis(),                                                                   \
-        input[1]->get_data_ptr<U>());                                                              \
-    break;
-
-        switch (input[1]->get_element_type())
+        switch (inputs[1]->get_element_type())
         {
-        case element::Type_t::boolean: REF_CALL(element::Type_t::boolean)
-        case element::Type_t::i8: REF_CALL(element::Type_t::i8);
-        case element::Type_t::i16: REF_CALL(element::Type_t::i16);
-        case element::Type_t::i32: REF_CALL(element::Type_t::i32);
-        case element::Type_t::i64: REF_CALL(element::Type_t::i64);
-        case element::Type_t::u8: REF_CALL(element::Type_t::u8);
-        case element::Type_t::u16: REF_CALL(element::Type_t::u16);
-        case element::Type_t::u32: REF_CALL(element::Type_t::u32);
-        case element::Type_t::u64: REF_CALL(element::Type_t::u64);
-        case element::Type_t::f16: REF_CALL(element::Type_t::f16);
-        case element::Type_t::f32: REF_CALL(element::Type_t::f32);
-        case element::Type_t::f64: REF_CALL(element::Type_t::f64);
+            case element::Type_t::boolean:
+                reverse_sequence_v0::evaluate<ET, element::Type_t::boolean>(op, outputs, inputs);
+                break;
+            case element::Type_t::i8:
+                reverse_sequence_v0::evaluate<ET, element::Type_t::i8>(op, outputs, inputs);
+                break;
+            case element::Type_t::i16:
+                reverse_sequence_v0::evaluate<ET, element::Type_t::i16>(op, outputs, inputs);
+                break;
+            case element::Type_t::i32:
+                reverse_sequence_v0::evaluate<ET, element::Type_t::i32>(op, outputs, inputs);
+                break;
+            case element::Type_t::i64:
+                reverse_sequence_v0::evaluate<ET, element::Type_t::i64>(op, outputs, inputs);
+                break;
+            case element::Type_t::u8:
+                reverse_sequence_v0::evaluate<ET, element::Type_t::u8>(op, outputs, inputs);
+                break;
+            case element::Type_t::u16:
+                reverse_sequence_v0::evaluate<ET, element::Type_t::u16>(op, outputs, inputs);
+                break;
+            case element::Type_t::u32:
+                reverse_sequence_v0::evaluate<ET, element::Type_t::u32>(op, outputs, inputs);
+                break;
+            case element::Type_t::u64:
+                reverse_sequence_v0::evaluate<ET, element::Type_t::u64>(op, outputs, inputs);
+                break;
+            case element::Type_t::f16:
+                reverse_sequence_v0::evaluate<ET, element::Type_t::f16>(op, outputs, inputs);
+                break;
+            case element::Type_t::f32:
+                reverse_sequence_v0::evaluate<ET, element::Type_t::f32>(op, outputs, inputs);
+                break;
+            case element::Type_t::f64:
+                reverse_sequence_v0::evaluate<ET, element::Type_t::f64>(op, outputs, inputs);
+                break;
         default: return false;
         }
 #undef REF_CALL
@@ -609,75 +680,131 @@ namespace
     template <element::Type_t ET>
     bool evaluate(const shared_ptr<op::v3::ExtractImagePatches>& op,
                   const HostTensorVector& outputs,
-                  const HostTensorVector& input)
+                  const HostTensorVector& inputs)
     {
         using T = typename element_type_traits<ET>::value_type;
         runtime::reference::extract_image_patches<T>(op,
-                                                     input[0]->get_data_ptr<T>(),
+                                                     inputs[0]->get_data_ptr<T>(),
                                                      outputs[0]->get_data_ptr<T>(),
-                                                     input[0]->get_shape(),
+                                                     inputs[0]->get_shape(),
                                                      outputs[0]->get_shape());
         return true;
     }
 
+    namespace convert_v0 {
+    template <element::Type_t ET>
+    inline void evaluate_bool(const shared_ptr<op::v0::Convert>& op,
+                  const HostTensorVector& outputs,
+                  const HostTensorVector& inputs) {
+        using T = typename element_type_traits<ET>::value_type;
+        runtime::reference::convert_to_bool<T>(inputs[0]->get_data_ptr<T>(),
+                                               outputs[0]->get_data_ptr<char>(),
+                                               shape_size(inputs[0]->get_shape()));
+
+    }
+    template <element::Type_t ti, element::Type_t to>
+    inline void evaluate(const shared_ptr<op::v0::Convert>& op,
+                              const HostTensorVector& outputs,
+                              const HostTensorVector& inputs) {
+        using TI = typename element_type_traits<ti>::value_type;
+        using TO = typename element_type_traits<to>::value_type;
+        runtime::reference::convert<TI, TO>(inputs[0]->get_data_ptr<TI>(),
+                                            outputs[0]->get_data_ptr<TO>(),
+                                            shape_size(inputs[0]->get_shape()));
+
+    }
+    }  // namespace convert_v0
+
     template <element::Type_t OUT_ET>
     bool evaluate(const shared_ptr<op::v0::Convert>& op,
                   const HostTensorVector& outputs,
-                  const HostTensorVector& input)
+                  const HostTensorVector& inputs)
     {
-        using TO = typename element_type_traits<OUT_ET>::value_type;
         if (OUT_ET == element::Type_t::boolean)
         {
-#define REF_CALL_BOOL(TI)                                                                          \
-    runtime::reference::convert_to_bool<typename element_type_traits<TI>::value_type>(             \
-        input[0]->get_data_ptr<TI>(),                                                              \
-        outputs[0]->get_data_ptr<char>(),                                                          \
-        shape_size(input[0]->get_shape()));                                                        \
-    break;
-            switch (input[0]->get_element_type())
+            switch (inputs[0]->get_element_type())
             {
-            case element::Type_t::boolean: REF_CALL_BOOL(element::Type_t::boolean);
-            case element::Type_t::i8: REF_CALL_BOOL(element::Type_t::i8);
-            case element::Type_t::i16: REF_CALL_BOOL(element::Type_t::i16);
-            case element::Type_t::i32: REF_CALL_BOOL(element::Type_t::i32);
-            case element::Type_t::i64: REF_CALL_BOOL(element::Type_t::i64);
-            case element::Type_t::u8: REF_CALL_BOOL(element::Type_t::u8);
-            case element::Type_t::u16: REF_CALL_BOOL(element::Type_t::u16);
-            case element::Type_t::u32: REF_CALL_BOOL(element::Type_t::u32);
-            case element::Type_t::u64: REF_CALL_BOOL(element::Type_t::u64);
-            case element::Type_t::f16: REF_CALL_BOOL(element::Type_t::f16);
-            case element::Type_t::f32: REF_CALL_BOOL(element::Type_t::f32);
-            case element::Type_t::f64: REF_CALL_BOOL(element::Type_t::f64);
+            case element::Type_t::boolean:
+                convert_v0::evaluate_bool<element::Type_t::boolean>(op, outputs, inputs);
+                break;
+            case element::Type_t::i8:
+                convert_v0::evaluate_bool<element::Type_t::i8>(op, outputs, inputs);
+                break;
+            case element::Type_t::i16:
+                convert_v0::evaluate_bool<element::Type_t::i16>(op, outputs, inputs);
+                break;
+            case element::Type_t::i32:
+                convert_v0::evaluate_bool<element::Type_t::i32>(op, outputs, inputs);
+                break;
+            case element::Type_t::i64:
+                convert_v0::evaluate_bool<element::Type_t::i64>(op, outputs, inputs);
+                break;
+            case element::Type_t::u8:
+                convert_v0::evaluate_bool<element::Type_t::u8>(op, outputs, inputs);
+                break;
+            case element::Type_t::u16:
+                convert_v0::evaluate_bool<element::Type_t::u16>(op, outputs, inputs);
+                break;
+            case element::Type_t::u32:
+                convert_v0::evaluate_bool<element::Type_t::u32>(op, outputs, inputs);
+                break;
+            case element::Type_t::u64:
+                convert_v0::evaluate_bool<element::Type_t::u64>(op, outputs, inputs);
+                break;
+            case element::Type_t::f16:
+                convert_v0::evaluate_bool<element::Type_t::f16>(op, outputs, inputs);
+                break;
+            case element::Type_t::f32:
+                convert_v0::evaluate_bool<element::Type_t::f32>(op, outputs, inputs);
+                break;
+            case element::Type_t::f64:
+                convert_v0::evaluate_bool<element::Type_t::f64>(op, outputs, inputs);
+                break;
             default: return false;
             }
-#undef REF_CALL_BOOL
         }
         else
         {
-#define REF_CALL(TI)                                                                               \
-    runtime::reference::convert<typename element_type_traits<TI>::value_type, TO>(                 \
-        input[0]->get_data_ptr<TI>(),                                                              \
-        outputs[0]->get_data_ptr<TO>(),                                                            \
-        shape_size(input[0]->get_shape()));                                                        \
-    break;
-
-            switch (input[0]->get_element_type())
+            switch (inputs[0]->get_element_type())
             {
-            case element::Type_t::boolean: REF_CALL(element::Type_t::boolean);
-            case element::Type_t::i8: REF_CALL(element::Type_t::i8);
-            case element::Type_t::i16: REF_CALL(element::Type_t::i16);
-            case element::Type_t::i32: REF_CALL(element::Type_t::i32);
-            case element::Type_t::i64: REF_CALL(element::Type_t::i64);
-            case element::Type_t::u8: REF_CALL(element::Type_t::u8);
-            case element::Type_t::u16: REF_CALL(element::Type_t::u16);
-            case element::Type_t::u32: REF_CALL(element::Type_t::u32);
-            case element::Type_t::u64: REF_CALL(element::Type_t::u64);
-            case element::Type_t::f16: REF_CALL(element::Type_t::f16);
-            case element::Type_t::f32: REF_CALL(element::Type_t::f32);
-            case element::Type_t::f64: REF_CALL(element::Type_t::f64);
+                case element::Type_t::boolean:
+                    convert_v0::evaluate<element::Type_t::boolean, OUT_ET>(op, outputs, inputs);
+                    break;
+                case element::Type_t::i8:
+                    convert_v0::evaluate<element::Type_t::i8, OUT_ET>(op, outputs, inputs);
+                    break;
+                case element::Type_t::i16:
+                    convert_v0::evaluate<element::Type_t::i16, OUT_ET>(op, outputs, inputs);
+                    break;
+                case element::Type_t::i32:
+                    convert_v0::evaluate<element::Type_t::i32, OUT_ET>(op, outputs, inputs);
+                    break;
+                case element::Type_t::i64:
+                    convert_v0::evaluate<element::Type_t::i64, OUT_ET>(op, outputs, inputs);
+                    break;
+                case element::Type_t::u8:
+                    convert_v0::evaluate<element::Type_t::u8, OUT_ET>(op, outputs, inputs);
+                    break;
+                case element::Type_t::u16:
+                    convert_v0::evaluate<element::Type_t::u16, OUT_ET>(op, outputs, inputs);
+                    break;
+                case element::Type_t::u32:
+                    convert_v0::evaluate<element::Type_t::u32, OUT_ET>(op, outputs, inputs);
+                    break;
+                case element::Type_t::u64:
+                    convert_v0::evaluate<element::Type_t::u64, OUT_ET>(op, outputs, inputs);
+                    break;
+                case element::Type_t::f16:
+                    convert_v0::evaluate<element::Type_t::f16, OUT_ET>(op, outputs, inputs);
+                    break;
+                case element::Type_t::f32:
+                    convert_v0::evaluate<element::Type_t::f32, OUT_ET>(op, outputs, inputs);
+                    break;
+                case element::Type_t::f64:
+                    convert_v0::evaluate<element::Type_t::f64, OUT_ET>(op, outputs, inputs);
+                    break;
             default: return false;
             }
-#undef REF_CALL
         }
         return true;
     }
@@ -976,46 +1103,69 @@ namespace
     }
 
     NGRAPH_SUPPRESS_DEPRECATED_START
+    namespace gathernd_v0 {
+    template <element::Type_t t1, element::Type_t t2>
+    inline void evaluate(const shared_ptr<op::v0::GatherND>& op,
+                         const HostTensorVector& outputs,
+                         const HostTensorVector& inputs)
+    {
+        using T1 = typename element_type_traits<t1>::value_type;
+        using T2 = typename element_type_traits<t2>::value_type;
+        runtime::reference::gather_nd<T1, T2>(inputs[0]->get_data_ptr<T1>(),
+                                              inputs[1]->get_data_ptr<T2>(),
+                                              outputs[0]->get_data_ptr<T1>(),
+                                              op->get_input_shape(0),
+                                              op->get_input_shape(1),
+                                              op->get_output_shape(0));
+    }
+    } // namespace gathernd_v0
+
     template <element::Type_t ET>
     bool evaluate(const shared_ptr<op::v0::GatherND>& op,
                   const HostTensorVector& outputs,
                   const HostTensorVector& inputs)
 
     {
-        using T = typename element_type_traits<ET>::value_type;
-        runtime::reference::gather_nd(inputs[0]->get_data_ptr<T>(),
-                                      inputs[1]->get_data_ptr<T>(),
-                                      outputs[0]->get_data_ptr<T>(),
-                                      op->get_input_shape(0),
-                                      op->get_input_shape(1),
-                                      op->get_output_shape(0));
-#define REF_CALL(U)                                                                                \
-    runtime::reference::gather_nd<T, typename element_type_traits<U>::value_type>(                 \
-        inputs[0]->get_data_ptr<T>(),                                                              \
-        inputs[1]->get_data_ptr<U>(),                                                              \
-        outputs[0]->get_data_ptr<T>(),                                                             \
-        op->get_input_shape(0),                                                                    \
-        op->get_input_shape(1),                                                                    \
-        op->get_output_shape(0));                                                                  \
-    break;
-
         switch (inputs[1]->get_element_type())
         {
-        case element::Type_t::boolean: REF_CALL(element::Type_t::boolean);
-        case element::Type_t::i8: REF_CALL(element::Type_t::i8);
-        case element::Type_t::i16: REF_CALL(element::Type_t::i16);
-        case element::Type_t::i32: REF_CALL(element::Type_t::i32);
-        case element::Type_t::i64: REF_CALL(element::Type_t::i64);
-        case element::Type_t::u8: REF_CALL(element::Type_t::u8);
-        case element::Type_t::u16: REF_CALL(element::Type_t::u16);
-        case element::Type_t::u32: REF_CALL(element::Type_t::u32);
-        case element::Type_t::u64: REF_CALL(element::Type_t::u64);
-        case element::Type_t::f16: REF_CALL(element::Type_t::f16);
-        case element::Type_t::f32: REF_CALL(element::Type_t::f32);
-        case element::Type_t::f64: REF_CALL(element::Type_t::f64);
+        case element::Type_t::boolean:
+            gathernd_v0::evaluate<ET, element::Type_t::boolean>(op, outputs, inputs);
+            break;
+        case element::Type_t::i8:
+            gathernd_v0::evaluate<ET, element::Type_t::i8>(op, outputs, inputs);
+            break;
+        case element::Type_t::i16:
+            gathernd_v0::evaluate<ET, element::Type_t::i16>(op, outputs, inputs);
+            break;
+        case element::Type_t::i32:
+            gathernd_v0::evaluate<ET, element::Type_t::i32>(op, outputs, inputs);
+            break;
+        case element::Type_t::i64:
+            gathernd_v0::evaluate<ET, element::Type_t::i64>(op, outputs, inputs);
+            break;
+        case element::Type_t::u8:
+            gathernd_v0::evaluate<ET, element::Type_t::u8>(op, outputs, inputs);
+            break;
+        case element::Type_t::u16:
+            gathernd_v0::evaluate<ET, element::Type_t::u16>(op, outputs, inputs);
+            break;
+        case element::Type_t::u32:
+            gathernd_v0::evaluate<ET, element::Type_t::u32>(op, outputs, inputs);
+            break;
+        case element::Type_t::u64:
+            gathernd_v0::evaluate<ET, element::Type_t::u64>(op, outputs, inputs);
+            break;
+        case element::Type_t::f16:
+            gathernd_v0::evaluate<ET, element::Type_t::f16>(op, outputs, inputs);
+            break;
+        case element::Type_t::f32:
+            gathernd_v0::evaluate<ET, element::Type_t::f32>(op, outputs, inputs);
+            break;
+        case element::Type_t::f64:
+            gathernd_v0::evaluate<ET, element::Type_t::f64>(op, outputs, inputs);
+            break;
         default: return false;
         }
-#undef REF_CALL
         return true;
     }
     NGRAPH_SUPPRESS_DEPRECATED_END
