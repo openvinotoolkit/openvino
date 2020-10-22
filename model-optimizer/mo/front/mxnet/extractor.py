@@ -57,7 +57,9 @@ def mxnet_op_extractor(node: Node, lowered_keys_map: dict):
     supported = False
     op = result['op'].lower()
     if op in lowered_keys_map:
-        result_attr = lowered_keys_map[op](node)
+        op = lowered_keys_map[op]
+        assert op in mxnet_op_extractors
+        result_attr = mxnet_op_extractors[op](node)
         if result_attr is not None:
             result.update(result_attr)
             supported = True
