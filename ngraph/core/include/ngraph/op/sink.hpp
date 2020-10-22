@@ -27,6 +27,8 @@ namespace ngraph
         /// Root of nodes that can be sink nodes
         class NGRAPH_API Sink : public Op
         {
+        public:
+            virtual ~Sink() = default;
         protected:
             Sink()
                 : Op()
