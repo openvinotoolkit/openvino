@@ -125,7 +125,7 @@ std::string testModel = R"V0G0N(
     <edge from-layer="2" from-port="0" to-layer="4" to-port="2"/>
     <edge from-layer="3" from-port="0" to-layer="4" to-port="3"/>
     </net>
-    )V0G0N"
+    )V0G0N";
 
 typedef myriadLayerTestBaseWithParam<std::tuple<SizeVector, Factor, Antialias, nearestMode, shapeCalcMode, coordTransMode, InterpolateAxis, InterpolateScales, HwOptimization, CustomConfig>>
 	myriadInterpolateLayerTests_nightly;
@@ -209,8 +209,7 @@ int changeCoord(int length, int pos) {
     return std::max(static_cast<int>(0), std::min(pos, length - 1));
 }
 
-static inline float triangleCoeff(float x)
-{
+static inline float triangleCoeff(float x) {
     return (1.0f - fabsf(x));
 }
 
@@ -357,15 +356,9 @@ TEST_P(myriadInterpolateLayerTests_nightly, Interpolate) {
     const SizeVector inputDims = std::get<0>(GetParam());
     const float factor = std::get<1>(GetParam());
     const bool antialias = std::get<2>(GetParam());
-    // const float cubic_coeff = std::get<3>(GetParam());
-    // const int batch = std::get<4>(GetParam());
-    // const int sampleType = std::get<5>(GetParam());
     const int sampleNearestMode = std::get<3>(GetParam());
     const int sampleShapeCalcMode = std::get<4>(GetParam());
     const int sampleCoordTransMode = std::get<5>(GetParam());
-    // const float pads_begin = std::get<9>(GetParam());
-    // const float pads_end = std::get<10>(GetParam());
-    // const int sizes = std::get<11>(GetParam());
     const int axis = std::get<6>(GetParam());
     const bool scales = std::get<7>(GetParam());
     const bool hwOptimization = std::get<8>(GetParam());
@@ -395,11 +388,16 @@ TEST_P(myriadInterpolateLayerTests_nightly, Interpolate) {
     std::map<std::string, std::string> params;
     params["antialias"] = std::to_string((int)antialias);
     params["factor"] = std::to_string(factor);
+    params["sampleNearestMode"] = std::to_string(sampleNearestMode);
+    params["sampleShapeCalcMode"] = std::to_string(sampleShapeCalcMode);
+    params["sampleCoordTransMode"] = std::to_string(sampleCoordTransMode);
+    // params["axis"] = std::to_string(axis);
+    // params["scales"] = std::to_string(scales);
 
     ASSERT_NO_FATAL_FAILURE(makeSingleLayerNetwork(LayerInitParams("Interpolate").params(params),
                                                    NetworkInitParams()
-                                                        .useHWOpt(hwOptimization)
-                                                        .lockLayout(true)));
+                                                   .useHWOpt(hwOptimization)
+                                                   .lockLayout(true)));
 
     ASSERT_TRUE(Infer());
     if (sample == 0) {

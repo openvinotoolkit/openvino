@@ -157,9 +157,9 @@ Stage StageBuilder::addInterpolateStage(
 }
 
 void FrontEnd::parseInterpolate(const Model& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs) const {
-    IE_ASSERT(inputs.size() == 1);
-    IE_ASSERT(outputs.size() == 1);
-
+    printf("PARSE\n");
+    // IE_ASSERT(inputs.size() == 1);
+    // IE_ASSERT(outputs.size() == 1);
     ie::details::CaselessEq<std::string> cmp;
 
     _stageBuilder->addInterpolateStage(model, layer->name, layer, inputs[0], outputs[0], "parseInterpolate");
@@ -207,11 +207,11 @@ void FrontEnd::parseInterpolate(const Model& model, const ie::CNNLayerPtr& layer
     auto coordTransMode = layer->GetParamAsString("coordTransMode", "half_pixel");
     if (cmp(coordTransMode, "half_pixel")) {
         stage->attrs().set<InterpolateCoordTransMode>("coordTransMode", InterpolateCoordTransMode::half_pixel);
+    } else if (cmp(coordTransMode, "asymmetric")) {
+        stage->attrs().set<InterpolateCoordTransMode>("coordTransMode", InterpolateCoordTransMode::asymmetric);
     } else if (cmp(coordTransMode, "pytorch_half_pixel")) {
         stage->attrs().set<InterpolateCoordTransMode>("coordTransMode", InterpolateCoordTransMode::pytorch_half_pixel);
-    } else if (cmp(coordTransMode, "pytorch_half_pixel")) {
-        stage->attrs().set<InterpolateCoordTransMode>("coordTransMode", InterpolateCoordTransMode::pytorch_half_pixel);
-    } else if (cmp(coordTransMode, "tf_half_pixel_for_nn")) {
+    } else if (cmp(coordTransMode, "half_pixel_for_nn")) {
         stage->attrs().set<InterpolateCoordTransMode>("coordTransMode", InterpolateCoordTransMode::tf_half_pixel_for_nn);
     } else if (cmp(coordTransMode, "align_corners")) {
         stage->attrs().set<InterpolateCoordTransMode>("coordTransMode", InterpolateCoordTransMode::align_corners);
