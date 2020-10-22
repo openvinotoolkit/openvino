@@ -13,53 +13,70 @@
 
 namespace LayerTestsDefinitions {
 
+std::vector<ShapeRelatedParams> MatMulTest::combineShapes(const std::vector<std::vector<size_t>>& firstInputShapes,
+                                                          const std::vector<std::vector<size_t>>& secondInputShapes,
+                                                          bool transposeA,
+                                                          bool transposeB) {
+    std::vector<ShapeRelatedParams> resVec;
+    for (const auto& firstInputShape : firstInputShapes) {
+        for (const auto& secondInputShape : secondInputShapes) {
+            resVec.push_back(ShapeRelatedParams{ {firstInputShape, transposeA}, {secondInputShape, transposeB } });
+        }
+    }
+    return resVec;
+}
+
 std::string MatMulTest::getTestCaseName(const testing::TestParamInfo<MatMulLayerTestParamsSet> &obj) {
     InferenceEngine::Precision netPrecision;
     InferenceEngine::Precision inPrc, outPrc;
     InferenceEngine::Layout inLayout;
-    InferenceEngine::SizeVector inputShape0;
-    InferenceEngine::SizeVector inputShape1;
-    bool transpose_a;
-    bool transpose_b;
+    ShapeRelatedParams shapeRelatedParams;
     ngraph::helpers::InputLayerType secondaryInputType;
     std::string targetDevice;
-    std::tie(netPrecision, inPrc, outPrc, inLayout, inputShape0, inputShape1, transpose_a, transpose_b, secondaryInputType, targetDevice) =
+    std::map<std::string, std::string> additionalConfig;
+    std::tie(shapeRelatedParams, netPrecision, inPrc, outPrc, inLayout, secondaryInputType, targetDevice, additionalConfig) =
         obj.param;
 
     std::ostringstream result;
-    result << "IS0=" << CommonTestUtils::vec2str(inputShape0) << "_";
-    result << "IS1=" << CommonTestUtils::vec2str(inputShape1) << "_";
-    result << "transpose_a=" << transpose_a << "_";
-    result << "transpose_b=" << transpose_b << "_";
+    result << "IS0=" << CommonTestUtils::vec2str(shapeRelatedParams.input1.first) << "_";
+    result << "IS1=" << CommonTestUtils::vec2str(shapeRelatedParams.input2.first) << "_";
+    result << "transpose_a=" << shapeRelatedParams.input1.second << "_";
+    result << "transpose_b=" << shapeRelatedParams.input2.second << "_";
     result << "secondaryInputType=" << secondaryInputType << "_";
     result << "netPRC=" << netPrecision.name() << "_";
     result << "inPRC=" << inPrc.name() << "_";
     result << "outPRC=" << outPrc.name() << "_";
     result << "inL=" << inLayout << "_";
     result << "trgDev=" << targetDevice;
+    result << "config=(";
+    for (const auto configEntry : additionalConfig) {
+        result << configEntry.first << ", " << configEntry.second << ":";
+    }
+    result << ")";
     return result.str();
 }
 
 void MatMulTest::SetUp() {
-    InferenceEngine::SizeVector inputShape0;
-    InferenceEngine::SizeVector inputShape1;
-    bool transpose_a;
-    bool transpose_b;
+    ShapeRelatedParams shapeRelatedParams;
     ngraph::helpers::InputLayerType secondaryInputType;
     auto netPrecision = InferenceEngine::Precision::UNSPECIFIED;
-    std::tie(netPrecision, inPrc, outPrc, inLayout, inputShape0, inputShape1, transpose_a, transpose_b, secondaryInputType, targetDevice) =
+    std::map<std::string, std::string> additionalConfig;
+    std::tie(shapeRelatedParams, netPrecision, inPrc, outPrc, inLayout, secondaryInputType, targetDevice, additionalConfig) =
         this->GetParam();
-    auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
-    auto params = ngraph::builder::makeParams(ngPrc, {inputShape0});
 
-    auto secondaryInput = ngraph::builder::makeInputLayer(ngPrc, secondaryInputType, inputShape1);
+    configuration.insert(additionalConfig.begin(), additionalConfig.end());
+
+    auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
+    auto params = ngraph::builder::makeParams(ngPrc, {shapeRelatedParams.input1.first});
+
+    auto secondaryInput = ngraph::builder::makeInputLayer(ngPrc, secondaryInputType, shapeRelatedParams.input2.first);
     if (secondaryInputType == ngraph::helpers::InputLayerType::PARAMETER) {
         params.push_back(std::dynamic_pointer_cast<ngraph::opset3::Parameter>(secondaryInput));
     }
     auto paramOuts = ngraph::helpers::convert2OutputVector(
             ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
     auto MatMul = std::dynamic_pointer_cast<ngraph::opset3::MatMul>(
-            ngraph::builder::makeMatMul(paramOuts[0], secondaryInput, transpose_a, transpose_b));
+            ngraph::builder::makeMatMul(paramOuts[0], secondaryInput, shapeRelatedParams.input1.second, shapeRelatedParams.input2.second));
     ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(MatMul)};
     function = std::make_shared<ngraph::Function>(results, params, "MatMul");
 }
