@@ -15,7 +15,7 @@
 
 #pragma once
 
-#include "common_kernel_base.h"
+#include "kernel_base_opencl.h"
 #include "kernel_selector_params.h"
 #include <string>
 
@@ -52,9 +52,9 @@ struct mvn_optional_params : optional_params {
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // MVNKernelBase
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-class MVNKernelBase : public common_kernel_base {
+class MVNKernelBase : public KernelBaseOpenCL {
 public:
-    using common_kernel_base::common_kernel_base;
+    using KernelBaseOpenCL::KernelBaseOpenCL;
     virtual ~MVNKernelBase() {}
 
     struct DispatchData : public CommonDispatchData {
