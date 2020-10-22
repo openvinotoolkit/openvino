@@ -20,6 +20,10 @@ ngraph::pass::HSigmoidDecomposition::HSigmoidDecomposition() {
         auto &pattern_to_output = m.get_pattern_value_map();
         auto hsigmoid_node = pattern_to_output.at(hsigmoid).get_node_shared_ptr();
 
+        if (m_transformation_callback(hsigmoid_node)) {
+            return false;
+        }
+
         auto input_type = hsigmoid_node->input_value(0).get_element_type();
         auto add_constant = ngraph::opset5::Constant::create(input_type, ngraph::Shape{}, {3.0});
         auto add = std::make_shared<ngraph::opset5::Add>(hsigmoid_node->input_value(0), add_constant);
