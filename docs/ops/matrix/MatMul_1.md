@@ -12,13 +12,15 @@
 
 Before matrix multiplication, there is an implicit shape alignment for input arguments. It consists of the following steps:
 
-1. If rank of an input less than 2 it is unsqueezed to 2D tensor by adding axes with size 1 to the left of the shape. For example, if input has shape `[S]` it will be reshaped to `[1, S]`. It is applied for each input independently.
+1. One-dimensional tensors unsqueezing. It is applied for each input independently. The axes inserted in this step will be removed from the output shape.
+    * If rank of the **first** input is less than 2, it is unsqueezed to 2D tensor by adding axes with size 1 to the **left** of the shape. For example `[S]` will be reshaped to `[1, S]`.
+    * If rank of the **second** input is less than 2, it is unsqueezed to 2D tensor by adding axes with size 1 to the **right** of the shape. For example `[S]` will be reshaped to `[S, 1]`.
 
 2. Applied transpositions specified by optional `transpose_a` and `transpose_b` attributes.
 
 3. If ranks of input arguments are different after steps 1 and 2, each is unsqueezed from the left side of the shape by necessary number of axes to make both shapes of the same rank.
 
-3. Usual rules of the broadcasting are applied for batch dimensions.
+4. Usual rules of the broadcasting are applied for batch dimensions.
 
 Two attributes, transpose_a and transpose_b specifies embedded transposition for two right-most dimension for the first and the second input tensors correspondingly. It implies swapping of ROW_INDEX_DIM and COL_INDEX_DIM in the corresponding input tensor. Batch dimensions are not affected by these attributes.
 
@@ -65,7 +67,6 @@ Two attributes, transpose_a and transpose_b specifies embedded transposition for
     </input>
     <output>
         <port id="2">
-            <dim>1</dim>
             <dim>1000</dim>
         </port>
     </output>
