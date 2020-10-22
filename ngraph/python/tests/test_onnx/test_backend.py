@@ -83,7 +83,6 @@ from tests import (BACKEND_NAME,
                    xfail_issue_33644,
                    xfail_issue_33515,
                    xfail_issue_38732,
-                   xfail_issue_38733,
                    xfail_issue_38734,
                    xfail_issue_38735)
 
@@ -654,8 +653,6 @@ tests_expected_to_fail = [
     (xfail_issue_38732,
         "OnnxBackendNodeModelTest.test_convinteger_with_padding_cpu",
         "OnnxBackendNodeModelTest.test_basic_convinteger_cpu"),
-    (xfail_issue_38733,
-        "OnnxBackendNodeModelTest.test_celu_cpu"),
     (xfail_issue_38734,
         "OnnxBackendNodeModelTest.test_adam_multiple_cpu",
         "OnnxBackendNodeModelTest.test_adam_cpu"),
