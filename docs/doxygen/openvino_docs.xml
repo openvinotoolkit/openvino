@@ -17,7 +17,6 @@
                 </tab>
                 <tab type="user" title="macOS" url="@ref openvino_docs_install_guides_installing_openvino_macos"/>
                 <tab type="user" title="Raspbian OS" url="@ref openvino_docs_install_guides_installing_openvino_raspbian"/>
-                <tab type="user" title="Get Started with OpenVINO via DL Workbench" url="@ref openvino_docs_get_started_get_started_dl_workbench"/>
             </tab> 
             <!-- Install From Images and Repositories -->  
             <tab type="usergroup" title="Install From Images and Repositories" url="@ref openvino_docs_install_guides_installing_openvino_images">
