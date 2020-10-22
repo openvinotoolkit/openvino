@@ -14,7 +14,7 @@
 
 #pragma once
 
-#include "common_kernel_base.h"
+#include "kernel_base_opencl.h"
 #include "kernel_selector_params.h"
 
 namespace kernel_selector {
@@ -47,9 +47,9 @@ struct normalize_optional_params : optional_params {
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // NormalizeKernelBase
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-class NormalizeKernelBase : public common_kernel_base {
+class NormalizeKernelBase : public KernelBaseOpenCL {
 public:
-    using common_kernel_base::common_kernel_base;
+    using KernelBaseOpenCL::KernelBaseOpenCL;
     virtual ~NormalizeKernelBase() {}
 
     using DispatchData = CommonDispatchData;
