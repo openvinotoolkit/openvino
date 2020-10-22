@@ -95,7 +95,8 @@ TEST_P(PreprocessTest, SetMeanImagePreProcess) {
         auto lockedMem = preProcess[i]->meanData->buffer();
         auto* data = lockedMem.as<float *>();
         for (size_t j = 0; j < 100; j++) {
-            data[j] = i * -100 - j;
+            data[j] = 0;
+            data[j] -= i * 100 + j;
         }
     }
     preProcess.setVariant(InferenceEngine::MEAN_IMAGE);
