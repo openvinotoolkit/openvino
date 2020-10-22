@@ -22,7 +22,20 @@ namespace {
 bool ONNXReader::supportModel(std::istream& model) const {
     model.seekg(0, model.beg);
 
-    if (readPathFromStream(model).find(".prototxt", 0) != std::string::npos) {
+    const auto model_path = readPathFromStream(model);
+
+    // this might mean that the model is loaded from a string in memory
+    // let's try to figure out if it's any of the supported formats
+    if (model_path.empty()) {
+        if (!is_valid_model(model, onnx_format{})) {
+            model.seekg(0, model.beg);
+            return is_valid_model(model, prototxt_format{});
+        } else {
+            return true;
+        }
+    }
+
+    if (model_path.find(".prototxt", 0) != std::string::npos) {
         return is_valid_model(model, prototxt_format{});
     } else {
         return is_valid_model(model, onnx_format{});
