@@ -65,7 +65,7 @@ For details and more installation options, visit the links below:
 The simplified OpenVINO™ DL Workbench workflow is:
 1. **Get a trained model** for your inference task. Example inference tasks: pedestrian detection, face detection, vehicle detection, license plate recognition, head pose.
 2. **Run the trained model through the Model Optimizer** to convert the model to an Intermediate Representation, which consists of a pair of `.xml` and `.bin` files that are used as the input for Inference Engine.
-3. **Run inference against the Intermediate Representation*** (optimized model) and output inference results.
+3. **Run inference against the Intermediate Representation** (optimized model) and output inference results.
 
 ## Run Baseline Inference
 
@@ -105,7 +105,7 @@ The **Autogenerate Dataset** page opens. Click **Generate**.
 You are directed back to the **Create Project** page where you can see the status of the dataset.
 ![](./dl_workbench_img/dataset_loading.png)
 
-### Step 5. Create a Project and Run a Baseline Inference
+### Step 5. Create the Project and Run a Baseline Inference
 
 On the **Create Project** page, select the imported model, CPU target, and the generated dataset. Click **Create**.
 ![](./dl_workbench_img/selected.png)
@@ -116,13 +116,15 @@ The inference starts and you cannot proceed until it is done.
 Once the inference is complete, the **Projects** page opens automatically. Find your inference job in the **Projects Settings** table indicating all jobs.
 ![](./dl_workbench_img/inference_complete.png)
 
-Congratulations, you have performed your first inference in the OpenVINO DL Workbench. Now you can proceed to [select the inference](@ref workbench_docs_Workbench_DG_Run_Single_Inference), 
-[visualize statistics](@ref workbench_docs_Workbench_DG_Visualize_Model), [experiment with model optimization](@ref workbench_docs_Workbench_DG_Int_8_Quantization)
-and inference options to profile the configuration.
+Congratulations, you have performed your first inference in the OpenVINO DL Workbench. Now you can proceed to:
+* [Select the inference](@ref workbench_docs_Workbench_DG_Run_Single_Inference) 
+* [Visualize statistics](@ref workbench_docs_Workbench_DG_Visualize_Model)
+* [Experiment with model optimization](@ref workbench_docs_Workbench_DG_Int_8_Quantization)
+and inference options to profile the configuration
 
-To create a new project, see detailed instructions: 
+For detailed instructions to create a new project, visit the links below: 
 * [Select a model](@ref workbench_docs_Workbench_DG_Select_Model)
-* [Select a dataset](@ref workbench_docs_Workbench_DG_Select_Datasets).
+* [Select a dataset](@ref workbench_docs_Workbench_DG_Select_Datasets)
 * [Select a target and an environment](@ref workbench_docs_Workbench_DG_Select_Environment). This can be your local workstation or a remote target. If you use a remote target, [register the remote machine](@ref workbench_docs_Workbench_DG_Add_Remote_Target) first. 
 
 ## Additional Resources
