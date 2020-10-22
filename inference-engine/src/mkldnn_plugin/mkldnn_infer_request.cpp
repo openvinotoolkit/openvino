@@ -144,6 +144,7 @@ void MKLDNNPlugin::MKLDNNInferRequest::InferImpl() {
 
     PushInputData();
 
+    hw_execution_timestamp = std::chrono::high_resolution_clock::now();
     graph->Infer(m_curBatch);
 
     graph->PullOutputData(_outputs);

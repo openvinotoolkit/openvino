@@ -156,6 +156,9 @@ public:
         return _syncRequest->QueryState();
     }
 
+    virtual std::chrono::high_resolution_clock::time_point GetHardwareTimeStamp() {
+        return _syncRequest->GetHardwareTimeStamp();
+    }
 protected:
     /**
      * @brief Each pipeline stage is a @ref Task that is executed by specified ITaskExecutor implementation

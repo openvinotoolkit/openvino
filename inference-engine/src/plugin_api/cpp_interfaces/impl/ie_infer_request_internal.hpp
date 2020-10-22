@@ -223,6 +223,10 @@ public:
         }
     }
 
+    virtual std::chrono::high_resolution_clock::time_point GetHardwareTimeStamp() {
+        return hw_execution_timestamp;
+    }
+
     std::vector<IVariableStateInternal::Ptr> QueryState() override {
         // meaning base plugin reports as no state available - plugin owners need to create proper override of this
         THROW_IE_EXCEPTION << "Plugin doesn't override QueryState";
@@ -236,6 +240,7 @@ protected:
     InferenceEngine::BlobMap _outputs;  //!< A map of network output blobs
     std::map<std::string, PreProcessDataPtr> _preProcData;  //!< A map of pre-process data per input
     int m_curBatch;  //!< Current batch value used in dynamic batching
+    std::chrono::high_resolution_clock::time_point hw_execution_timestamp;
 
     /**
      * @brief A shared pointer to ExecutableNetworkInternal interface

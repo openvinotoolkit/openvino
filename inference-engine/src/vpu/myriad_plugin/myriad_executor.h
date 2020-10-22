@@ -101,7 +101,7 @@ public:
     void deallocateGraph(DevicePtr &device, GraphDesc &graphDesc);
 
     void queueInference(GraphDesc &graphDesc, void *input_data, size_t input_bytes,
-                        void *result_data, size_t result_bytes);
+                        void *result_data, size_t result_bytes, std::chrono::high_resolution_clock::time_point& hw_time);
 
     void getResult(GraphDesc &graphDesc, void *result_data, unsigned int result_bytes);
 
