@@ -22,6 +22,7 @@
 #include "ngraph/except.hpp"
 #include "ngraph/node.hpp"
 #include "ngraph/op/broadcast.hpp"
+#include "ngraph/op/constant.hpp"
 
 namespace ngraph
 {
@@ -202,9 +203,9 @@ namespace ngraph
         ///
         /// \return The indices of added axes.
         NGRAPH_DEPRECATED("This builder was deprecated.")
-        AxisSet calculate_broadcast_axes(const Shape& output_shape,
-                                         const Shape& input_shape,
-                                         std::size_t start_match_axis);
+        std::shared_ptr<Node> calculate_broadcast_axes(const Shape& output_shape,
+                                                       const Shape& input_shape,
+                                                       std::size_t start_match_axis);
 
         ///
         /// \brief      Calculate the output shape of numpy-style broadcast operation for all input
@@ -241,7 +242,8 @@ namespace ngraph
         ///
         /// \return             The indices of added axes.
         NGRAPH_DEPRECATED("This builder was deprecated.")
-        inline AxisSet calculate_broadcast_axes(const Shape& output_shape, const Shape& input_shape)
+        inline std::shared_ptr<Node> calculate_broadcast_axes(const Shape& output_shape,
+                                                              const Shape& input_shape)
         {
             NGRAPH_SUPPRESS_DEPRECATED_START
             return calculate_broadcast_axes(
@@ -254,8 +256,10 @@ namespace ngraph
                                                          Shape new_shape)
         {
             NGRAPH_SUPPRESS_DEPRECATED_START
-            return std::make_shared<op::Broadcast>(
-                output, new_shape, calculate_broadcast_axes(new_shape, output.get_shape()));
+            auto shape_const =
+                op::Constant::create(element::u64, Shape{new_shape.size()}, new_shape);
+            return std::make_shared<op::v1::Broadcast>(
+                output, shape_const, calculate_broadcast_axes(new_shape, output.get_shape()));
             NGRAPH_SUPPRESS_DEPRECATED_END
         }
 
@@ -265,9 +269,11 @@ namespace ngraph
                                                          std::size_t start_match_axis)
         {
             NGRAPH_SUPPRESS_DEPRECATED_START
-            return std::make_shared<op::Broadcast>(
+            auto shape_const =
+                op::Constant::create(element::u64, Shape{new_shape.size()}, new_shape);
+            return std::make_shared<op::v1::Broadcast>(
                 value,
-                new_shape,
+                shape_const,
                 calculate_broadcast_axes(new_shape, value.get_shape(), start_match_axis));
             NGRAPH_SUPPRESS_DEPRECATED_END
         }
