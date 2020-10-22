@@ -12,7 +12,7 @@
 
 Before matrix multiplication, there is an implicit shape alignment for input arguments. It consists of the following steps:
 
-1. One-dimensional tensors unsqueezing. It is applied for each input independently. The axes inserted in this step will be removed from the output shape.
+1. One-dimensional tensors unsqueezing is applied for each input independently. The axes inserted in this step will be removed from the output shape.
     * If rank of the **first** input is less than 2, it is unsqueezed to 2D tensor by adding axes with size 1 to the **left** of the shape. For example `[S]` will be reshaped to `[1, S]`.
     * If rank of the **second** input is less than 2, it is unsqueezed to 2D tensor by adding axes with size 1 to the **right** of the shape. For example `[S]` will be reshaped to `[S, 1]`.
 
