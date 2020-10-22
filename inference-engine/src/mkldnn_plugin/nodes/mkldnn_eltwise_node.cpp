@@ -413,7 +413,7 @@ private:
             } else {
                 auto quantizeNode = dynamic_cast<MKLDNNQuantizeNode*>(eltwiseNode.getFusedWith()[i].get());
 
-                bool do_dequantization = quantizeNode->getAlgorithm() == mkldnn::quantization_quantize_dequantize;
+                bool do_dequantization = quantizeNode->getOpType() == QuantizeOpType::FakeQuantization;
                 bool do_rounding = do_dequantization || jep_.dst_prc == Precision::FP32 || i != eltwiseNode.getFusedWith().size() - 1;
                 int s_idx = vmm_dst.getIdx();
 
