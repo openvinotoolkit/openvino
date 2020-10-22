@@ -66,6 +66,7 @@ bool_const_op
 onnx_model_tile
 onnx_model_tile_static
 onnx_model_softmax_0D
+onnx_model_logsoftmax_0D
 builder_opset1_collapse_none
 
 # nGraph function's output number 0 was not found in the CNNNetwork built from it.
@@ -997,6 +998,7 @@ batch_norm_training_0eps_f64
 
 # Function inputs number differ from number of given inputs
 batch_norm_inference_parameters_duplication
+batch_norm_inference_parameters_duplication_v5
 
 backwards_abs
 backwards_acos
