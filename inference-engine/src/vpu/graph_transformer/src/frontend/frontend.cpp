@@ -21,20 +21,23 @@
 
 #include <legacy/convert_function_to_cnn_network.hpp>
 #include <generic_ie.hpp>
+#include <ngraph/pass/manager.hpp>
 #include <ngraph/opsets/opset3.hpp>
 #include <ngraph/opsets/opset4.hpp>
-#include <transformations/tensor_iterator_transformations/apply_transformations_to_ti_body.hpp>
-#include <transformations/convert_opset3_to_opset2/convert_opset3_to_opset2.hpp>
-#include <transformations/convert_opset2_to_opset1/convert_opset2_to_opset1.hpp>
-#include <transformations/convert_opset1_to_legacy/convert_opset1_to_legacy.hpp>
+#include <ngraph/opsets/opset5.hpp>
+#include <transformations/opset_conversions/convert_opset3_to_opset2.hpp>
+#include <transformations/opset_conversions/convert_opset2_to_opset1.hpp>
+#include <legacy/transformations/convert_opset1_to_legacy/convert_opset1_to_legacy.hpp>
+#include <legacy/transformations/convert_opset1_to_legacy/convert_prior_to_ie_prior.hpp>
+#include <transformations/common_optimizations/common_optimizations.hpp>
+#include <transformations/init_node_info.hpp>
 #include <vpu/ngraph/transformations/merge_subsequent_dsr_operations.hpp>
+#include <vpu/ngraph/transformations/convert_nms_4_to_nms_dynamic.hpp>
+#include "vpu/ngraph/transformations/dynamic_to_static_shape.hpp"
+#include "vpu/ngraph/transformations/eliminate_shapeof_after_dsr.hpp"
 #include <vpu/ngraph/operations/dynamic_shape_resolver.hpp>
 
 namespace vpu {
-
-#define LAYER_PARSER(functor_name)                                                                                \
-    [this](const Model& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs) \
-        { functor_name(model, layer, inputs, outputs); }
 
 FrontEnd::FrontEnd(StageBuilder::Ptr stageBuilder, const ie::ICore* core)
     : _stageBuilder(std::move(stageBuilder)),
@@ -126,6 +129,7 @@ FrontEnd::FrontEnd(StageBuilder::Ptr stageBuilder, const ie::ICore* core)
         {"Gelu",                                               LAYER_PARSER(parseGelu)},
         {"SoftPlus",                                           LAYER_PARSER(parseSoftPlus)},
         {"Swish",                                              LAYER_PARSER(parseSwish)},
+        {"Activation",                                         LAYER_PARSER(parseActivation)},
     }} {
         VPU_THROW_UNLESS(_core != nullptr, "Argument core is null");
     }
@@ -145,39 +149,44 @@ bool FrontEnd::isLayerSupported(const std::string& type) {
 }
 
 ie::ICNNNetwork::Ptr FrontEnd::convertNetwork(ie::ICNNNetwork& network) {
-        std::shared_ptr<ie::ICNNNetwork> convertedNetwork;
-        // disable transformations for some cases
-        const auto transformationsPredicate = [](const std::shared_ptr<const ngraph::Node> &node) -> bool {
-            const bool casesWithDynamicOrStaticUsage = std::dynamic_pointer_cast<const ngraph::opset3::Gelu>(node) ||
-                                                        std::dynamic_pointer_cast<const ngraph::opset4::SoftPlus>(node);
+    std::shared_ptr<ie::ICNNNetwork> convertedNetwork;
+    // disable transformations for some cases
+    const auto transformationsPredicate = [](const std::shared_ptr<const ngraph::Node>& node) -> bool {
+        const bool casesWithDynamicOrStaticUsage =
+            std::dynamic_pointer_cast<const ngraph::opset3::Gelu>(node) ||
+            std::dynamic_pointer_cast<const ngraph::opset4::SoftPlus>(node) ||
+            std::dynamic_pointer_cast<const ngraph::opset5::Minimum>(node);
 
-            const bool casesWithOnlyDynamicUsage = (std::dynamic_pointer_cast<const ngraph::opset3::MatMul>(node) ||
-                                                    std::dynamic_pointer_cast<const ngraph::opset3::StridedSlice>(node)) &&
-                    std::dynamic_pointer_cast<const ngraph::vpu::op::DynamicShapeResolver>(node->input_value(0).get_node_shared_ptr());
+        const bool casesWithOnlyDynamicUsage =
+            (std::dynamic_pointer_cast<const ngraph::opset3::MatMul>(node) ||
+             std::dynamic_pointer_cast<const ngraph::opset3::StridedSlice>(node)) &&
+            std::dynamic_pointer_cast<const ngraph::vpu::op::DynamicShapeResolver>(node->input_value(0).get_node_shared_ptr());
 
-            return casesWithDynamicOrStaticUsage || casesWithOnlyDynamicUsage;
-        };
+        return casesWithDynamicOrStaticUsage || casesWithOnlyDynamicUsage;
+    };
 
-        auto nGraphFunc = network.getFunction();
-        // Disable shape inference (WA for generic operations)
-        ngraph::op::GenericIE::DisableReshape noReshape(nGraphFunc);
+    auto nGraphFunc = network.getFunction();
+    // Disable shape inference (WA for generic operations)
+    ngraph::op::GenericIE::DisableReshape noReshape(nGraphFunc);
 
-        ngraph::pass::Manager manager;
+    ngraph::pass::Manager manager;
+    manager.register_pass<::ngraph::pass::InitNodeInfo>();
+    // WA: ConvertPriorBox must be executed before the 1st ConstantFolding pass
+    manager.register_pass<::ngraph::pass::ConvertPriorBox>();
+    manager.register_pass<vpu::UpgradeNMS4ToNMSDynamic>();
+    manager.register_pass<ngraph::pass::CommonOptimizations>();
+    manager.register_pass<vpu::DynamicToStaticShape>();
+    manager.register_pass<vpu::EliminateShapeOfAfterDSR>();
+    manager.register_pass<ngraph::pass::ConvertOpSet3ToOpSet2>();
+    manager.register_pass<ngraph::pass::ConvertOpSet2ToOpSet1>();
+    manager.register_pass<ngraph::pass::ConvertOpSet1ToLegacy>();
+    manager.set_callback(transformationsPredicate);
+    manager.run_passes(nGraphFunc);
 
-        manager.register_pass<ngraph::pass::ConvertOpSet3ToOpSet2>();
-        manager.register_pass<ngraph::pass::ConvertOpSet2ToOpSet1>();
-        manager.register_pass<ngraph::pass::ConvertOpSet1ToLegacy>();
-        manager.set_callback(transformationsPredicate);
-        manager.run_passes(nGraphFunc);
+    vpu::MergeSubsequentDSROperations().run_on_function(nGraphFunc);
 
-        ngraph::pass::Manager ti_manager;
-        ti_manager.register_pass<ngraph::pass::ApplyTransformationsToTIBody>(manager);
-        ti_manager.run_passes(nGraphFunc);
-
-        vpu::MergeSubsequentDSROperations().run_on_function(nGraphFunc);
-
-        convertedNetwork = InferenceEngine::details::convertFunctionToICNNNetwork(nGraphFunc, network);
-        return convertedNetwork;
+    convertedNetwork = InferenceEngine::details::convertFunctionToICNNNetwork(nGraphFunc, network);
+    return convertedNetwork;
 }
 
 std::set<std::string> FrontEnd::checkSupportedLayers(ie::ICNNNetwork& network) {

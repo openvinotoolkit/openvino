@@ -26,12 +26,13 @@
 #include <ngraph/opsets/opset4.hpp>
 #include <ngraph/pass/manager.hpp>
 #include <generic_ie.hpp>
-#include <transformations/tensor_iterator_transformations/apply_transformations_to_ti_body.hpp>
-#include <transformations/tensor_iterator_transformations/unroll_tensor_iterator.hpp>
+#include <transformations/control_flow/unroll_tensor_iterator.hpp>
 #include <transformations/common_optimizations/common_optimizations.hpp>
-#include <transformations/convert_opset1_to_legacy/convert_opset1_to_legacy.hpp>
-#include <transformations/convert_opset2_to_opset1/convert_opset2_to_opset1.hpp>
-#include <transformations/convert_opset3_to_opset2/convert_opset3_to_opset2.hpp>
+#include <legacy/transformations/convert_opset1_to_legacy/convert_opset1_to_legacy.hpp>
+#include <legacy/transformations/convert_opset1_to_legacy/convert_prior_to_ie_prior.hpp>
+#include <transformations/opset_conversions/convert_opset2_to_opset1.hpp>
+#include <transformations/opset_conversions/convert_opset3_to_opset2.hpp>
+#include <transformations/init_node_info.hpp>
 #include <transformations/rt_info/fused_names_attribute.hpp>
 #include <legacy/convert_function_to_cnn_network.hpp>
 #include <legacy/ie_util_internal.hpp>
@@ -127,6 +128,9 @@ InferenceEngine::ICNNNetwork::Ptr clDNNEngine::CloneAndTransformNetwork(const In
 
         // Note: instead of running all Conversion Transformations you can make up your own transformation pipeline
         ngraph::pass::Manager manager;
+        manager.register_pass<ngraph::pass::InitNodeInfo>();
+        // WA: ConvertPriorBox must be executed before the 1st ConstantFolding pass
+        manager.register_pass<ngraph::pass::ConvertPriorBox>();
         manager.register_pass<ngraph::pass::CommonOptimizations>();
         manager.register_pass<ngraph::pass::ConvertOpSet3ToOpSet2>();
         manager.register_pass<ngraph::pass::ConvertOpSet2ToOpSet1>();
@@ -136,8 +140,6 @@ InferenceEngine::ICNNNetwork::Ptr clDNNEngine::CloneAndTransformNetwork(const In
         manager.run_passes(nGraphFunc);
 
         ngraph::pass::Manager ti_manager;
-        // Apply all transformations to TensorIterator body
-        ti_manager.register_pass<ngraph::pass::ApplyTransformationsToTIBody>(manager);
         // Unroll will be called after all conversions
         // temporarily switch back to plugin unroller from NGraph unroller until TI output names are corrected
         // ti_manager.register_pass<ngraph::pass::UnrollTensorIterator>();
@@ -194,10 +196,15 @@ clDNNEngine::clDNNEngine() : m_defaultContext(nullptr) {
 auto check_inputs = [](InferenceEngine::InputsDataMap _networkInputs) {
     for (auto ii : _networkInputs) {
         auto input_precision = ii.second->getTensorDesc().getPrecision();
-        if (input_precision != InferenceEngine::Precision::FP16 && input_precision != InferenceEngine::Precision::I16
-            && input_precision != InferenceEngine::Precision::FP32 && input_precision != InferenceEngine::Precision::U8
-            && input_precision != InferenceEngine::Precision::I32 && input_precision != InferenceEngine::Precision::I64
-            && input_precision != InferenceEngine::Precision::I8 && input_precision != InferenceEngine::Precision::BOOL) {
+        if (input_precision != InferenceEngine::Precision::FP16 &&
+            input_precision != InferenceEngine::Precision::FP32 &&
+            input_precision != InferenceEngine::Precision::U8 &&
+            input_precision != InferenceEngine::Precision::I8 &&
+            input_precision != InferenceEngine::Precision::I16 &&
+            input_precision != InferenceEngine::Precision::U16 &&
+            input_precision != InferenceEngine::Precision::I32 &&
+            input_precision != InferenceEngine::Precision::I64 &&
+            input_precision != InferenceEngine::Precision::BOOL) {
             THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str
                 << "Input image format " << input_precision << " is not supported yet...";
         }
@@ -307,10 +314,9 @@ void clDNNEngine::SetConfig(const std::map<std::string, std::string> &config) {
     _impl->m_config.UpdateFromMap(config);
 }
 
-void clDNNEngine::QueryNetwork(const ICNNNetwork& network,
-                               const std::map<std::string,
-                               std::string>& config,
-                               QueryNetworkResult& res) const {
+QueryNetworkResult clDNNEngine::QueryNetwork(const ICNNNetwork& network,
+                                             const std::map<std::string, std::string>& config) const {
+    QueryNetworkResult res;
     GetDeviceInfo(config);      // Verify device id
     auto function = network.getFunction();
     if (function != nullptr) {
@@ -523,6 +529,8 @@ void clDNNEngine::QueryNetwork(const ICNNNetwork& network,
             }
         }
     }
+
+    return res;
 }
 
 Parameter clDNNEngine::GetConfig(const std::string& name, const std::map<std::string, Parameter>& /*options*/) const {

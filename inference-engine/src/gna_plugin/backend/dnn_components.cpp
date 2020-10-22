@@ -8,7 +8,7 @@
 #include <ie_common.h>
 #include <legacy/ie_layers.h>
 #include <iomanip>
-#include <details/caseless.hpp>
+#include <caseless.hpp>
 #include <layers/gna_copy_layer.hpp>
 #include "backend/dnn_types.h"
 
@@ -23,9 +23,9 @@ intel_dnn_component_t & DnnComponents::addComponent(const std::string layerName,
     components.emplace_back(DnnComponentExtra{layerName, {}, isDelayed});
     auto &currentComponent = components.back().dnnComponent;
 #ifdef PLOT
-    currentComponent.original_layer_name = components.back().name.c_str();
     std::cout << "IR layer : " << std::left << std::setw(20) << layerName << " " << layerMetaType << "_" << components.size() - 1 << std::endl;
 #endif
+    currentComponent.original_layer_name = components.back().name.c_str();
     int execOrder = 0;
     if (!isDelayed) {
         execOrder = static_cast<int>(components.size() - 1 - delayedOperations);
@@ -35,7 +35,6 @@ intel_dnn_component_t & DnnComponents::addComponent(const std::string layerName,
     }
 
     gnalog() << "IR layer : " << std::left << std::setw(20) << layerName << " " << layerMetaType << "_" << execOrder << std::endl;
-    return currentComponent;
     return currentComponent;
 }
 
@@ -52,7 +51,6 @@ intel_dnn_component_t * DnnComponents::findComponent(InferenceEngine::CNNLayerPt
 
     return nullptr;
 }
-
 
 std::vector<intel_dnn_component_t> DnnComponents::getExecutionOrder() {
     std::vector<intel_dnn_component_t> result(components.size());

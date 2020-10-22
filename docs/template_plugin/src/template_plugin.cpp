@@ -138,8 +138,10 @@ InferenceEngine::ExecutableNetwork Plugin::ImportNetworkImpl(std::istream& model
 // ! [plugin:import_network_impl]
 
 // ! [plugin:query_network]
-void Plugin::QueryNetwork(const ICNNNetwork &network, const ConfigMap& config, QueryNetworkResult &res) const {
+QueryNetworkResult Plugin::QueryNetwork(const ICNNNetwork &network, const ConfigMap& config) const {
+    QueryNetworkResult res;
     Configuration cfg{config, _cfg, false};
+
     auto function = network.getFunction();
     if (function == nullptr) {
          THROW_IE_EXCEPTION << "Template Plugin supports only ngraph cnn network representation";
@@ -180,6 +182,8 @@ void Plugin::QueryNetwork(const ICNNNetwork &network, const ConfigMap& config, Q
             res.supportedLayersMap.emplace(layerName, GetName());
         }
     }
+
+    return res;
 }
 // ! [plugin:query_network]
 

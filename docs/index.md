@@ -41,7 +41,7 @@ Useful documents for model optimization:
 ### Running and Tuning Inference
 The other core component of OpenVINO™ is the [Inference Engine](IE_DG/Deep_Learning_Inference_Engine_DevGuide.md), which manages the loading and compiling of the optimized neural network model, runs inference operations on input data, and outputs the results. Inference Engine can execute synchronously or asynchronously, and its plugin architecture manages the appropriate compilations for execution on multiple Intel® devices, including both workhorse CPUs and specialized graphics and video processing platforms (see below, Packaging and Deployment).
 
-You can use OpenVINO™ Tuning Utilities with the Inference Engine to trial and test inference on your model. The Benchmark utility uses an input model to run iterative tests for throughput or latency measures, and the Cross Check utility compares performance of differently configured inferences. The [Post-Training Optimization Tool](@ref pot_README) integrates a suite of quantization- and calibration-based tools to further streamline performance.
+You can use OpenVINO™ Tuning Utilities with the Inference Engine to trial and test inference on your model. The Benchmark utility uses an input model to run iterative tests for throughput or latency measures, and the [Cross Check Utility](../inference-engine/tools/cross_check_tool/README.md) compares performance of differently configured inferences. The [Post-Training Optimization Tool](@ref pot_README) integrates a suite of quantization- and calibration-based tools to further streamline performance.
 
 For a full browser-based studio integrating these other key tuning utilities, try the [Deep Learning Workbench](@ref workbench_docs_Workbench_DG_Introduction).
 ![](img/OV-diagram-step3.png)
@@ -82,15 +82,15 @@ The Inference Engine's plug-in architecture can be extended to meet other specia
 Intel® Distribution of OpenVINO™ toolkit includes the following components:
 
 - [Deep Learning Model Optimizer](MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md) - A cross-platform command-line tool for importing models and preparing them for optimal execution with the Inference Engine. The Model Optimizer imports, converts, and optimizes models, which were trained in popular frameworks, such as Caffe*, TensorFlow*, MXNet*, Kaldi*, and ONNX*.
-- [Deep Learning Inference Engine](IE_DG/inference_engine_intro.md) - A unified API to allow high performance inference on many hardware types including Intel® CPU, Intel® Integrated Graphics, Intel® Neural Compute Stick 2, Intel® Vision Accelerator Design with Intel® Movidius™ vision processing unit (VPU)
-- [Inference Engine Samples](IE_DG/Samples_Overview.md) - A set of simple console applications demonstrating how to use the Inference Engine in your applications
-- Additional Tools - A set of tools to work with your models including [Accuracy Checker utility](@ref omz_tools_accuracy_checker_README), [Post-Training Optimization Tool Guide](@ref pot_README), [Model Downloader](@ref omz_tools_downloader_README) and other
+- [Deep Learning Inference Engine](IE_DG/inference_engine_intro.md) - A unified API to allow high performance inference on many hardware types including Intel® CPU, Intel® Integrated Graphics, Intel® Neural Compute Stick 2, Intel® Vision Accelerator Design with Intel® Movidius™ vision processing unit (VPU).
+- [Inference Engine Samples](IE_DG/Samples_Overview.md) - A set of simple console applications demonstrating how to use the Inference Engine in your applications.
+- [Deep Learning Workbench](@ref workbench_docs_Workbench_DG_Introduction) -  A web-based graphical environment that allows you to easily use various sophisticated OpenVINO™ toolkit components.
+- [Post-Training Optimization tool](@ref pot_README) - A tool to calibrate a model and then execute it in the INT8 precision.
+- Additional Tools - A set of tools to work with your models including [Benchmark App](../inference-engine/tools/benchmark_tool/README.md), [Cross Check Tool](../inference-engine/tools/cross_check_tool/README.md), [Compile tool](../inference-engine/tools/compile_tool/README.md).
 - [Open Model Zoo](@ref omz_models_intel_index)     
-    - [Demos](@ref omz_demos_README) - Console applications that demonstrate how you can use the Inference Engine in your applications to solve specific use cases
-    - Additional Tools - A set of tools to work with your models including [Accuracy Checker utility](@ref omz_tools_accuracy_checker_README), [Post-Training Optimization Tool Guide](@ref pot_README), [Model Downloader](@ref omz_tools_downloader_README) and other
-    - [Documentation for Pretrained Models](@ref omz_models_intel_index) - Documentation for pretrained models that are available in the [Open Model Zoo repository](https://github.com/opencv/open_model_zoo)
-- [Post-Training Optimization tool](@ref pot_README) - A tool to calibrate a model and then execute it in the INT8 precision
-- [Deep Learning Workbench](@ref workbench_docs_Workbench_DG_Introduction) -  A web-based graphical environment that allows you to easily use various sophisticated OpenVINO™ toolkit components
+    - [Demos](@ref omz_demos_README) - Console applications that provide robust application templates to help you implement specific deep learning scenarios.
+    - Additional Tools - A set of tools to work with your models including [Accuracy Checker Utility](@ref omz_tools_accuracy_checker_README) and [Model Downloader](@ref omz_tools_downloader_README).
+    - [Documentation for Pretrained Models](@ref omz_models_intel_index) - Documentation for pretrained models that are available in the [Open Model Zoo repository](https://github.com/opencv/open_model_zoo).
 - Deep Learning Streamer (DL Streamer) – Streaming analytics framework, based on GStreamer, for constructing graphs of media analytics components. DL Streamer can be installed by the Intel® Distribution of OpenVINO™ toolkit installer. Its open source version is available on [GitHub](https://github.com/opencv/gst-video-analytics). For the DL Streamer documentation, see:
     - [DL Streamer Samples](@ref gst_samples_README)
     - [API Reference](https://openvinotoolkit.github.io/dlstreamer_gst/)

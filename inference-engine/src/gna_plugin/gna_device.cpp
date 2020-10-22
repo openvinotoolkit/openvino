@@ -7,6 +7,7 @@
 #include <map>
 #include <string>
 #include <cstring>
+#include <mutex>
 #include <vector>
 
 #if GNA_LIB_VER == 2
@@ -23,6 +24,8 @@
 
 #include "details/ie_exception.hpp"
 #include "gna_plugin_log.hpp"
+
+std::mutex GNADeviceHelper::acrossPluginsSync{};
 
 uint8_t* GNADeviceHelper::alloc(uint32_t size_requested, uint32_t *size_granted) {
     void * memPtr = nullptr;
@@ -62,6 +65,7 @@ uint32_t GNADeviceHelper::propagate(const intel_nnet_type_t *pNeuralNetwork,
     return reqId;
 }
 #else
+
 void GNADeviceHelper::setUpActiveList(const uint32_t requestConfigId, uint32_t layerIndex, uint32_t* ptr_active_indices, uint32_t num_active_indices) {
     const auto status = Gna2RequestConfigEnableActiveList(requestConfigId, layerIndex, num_active_indices, ptr_active_indices);
     checkGna2Status(status);
@@ -80,6 +84,9 @@ uint32_t GNADeviceHelper::propagate(const uint32_t requestConfigId, Gna2Accelera
     checkGna2Status(status1);
     const auto status2 = Gna2RequestEnqueue(requestConfigId, &reqId);
     checkGna2Status(status2);
+
+    unwaitedRequestIds.push_back(reqId);
+
     return reqId;
 }
 
@@ -269,13 +276,17 @@ const std::map <const std::pair<Gna2OperationType, int32_t>, const std::string> 
 };
 #endif
 
-bool GNADeviceHelper::wait(uint32_t reqId, int64_t millisTimeout) {
+GnaWaitStatus GNADeviceHelper::wait(uint32_t reqId, int64_t millisTimeout) {
 #if GNA_LIB_VER == 2
     const auto status = Gna2RequestWait(reqId, millisTimeout);
     if (status == Gna2StatusDriverQoSTimeoutExceeded) {
-        return false;
+        return GNA_REQUEST_ABORTED;
+    }
+    if (status == Gna2StatusWarningDeviceBusy) {
+        return GNA_REQUEST_PENDING;
     }
     checkGna2Status(status);
+    unwaitedRequestIds.erase(std::remove(unwaitedRequestIds.begin(), unwaitedRequestIds.end(), reqId));
 #else
     if (isPerformanceMeasuring) {
         nGNAStatus = GNAWaitPerfRes(nGNAHandle, millisTimeout, reqId, &nGNAPerfResults);
@@ -285,7 +296,7 @@ bool GNADeviceHelper::wait(uint32_t reqId, int64_t millisTimeout) {
     checkStatus();
 #endif
     updateGnaPerfCounters();
-    return true;
+    return GNA_REQUEST_COMPLETED;
 }
 
 #if GNA_LIB_VER == 1
@@ -356,6 +367,7 @@ void GNADeviceHelper::checkStatus() const {
 #endif
 
 void GNADeviceHelper::open(uint8_t n_threads) {
+    std::unique_lock<std::mutex> lockGnaCalls{ acrossPluginsSync };
 #if GNA_LIB_VER == 1
     nGNAHandle = GNADeviceOpenSetThreads(&nGNAStatus, n_threads);
     checkStatus();
@@ -372,10 +384,19 @@ void GNADeviceHelper::open(uint8_t n_threads) {
 }
 
 void GNADeviceHelper::close() {
+    std::unique_lock<std::mutex> lockGnaCalls{ acrossPluginsSync };
 #if GNA_LIB_VER == 1
     GNADeviceClose(nGNAHandle);
     nGNAHandle = 0;
 #else
+    auto requestsToClose = unwaitedRequestIds;
+    for (auto requestId : requestsToClose) {
+        try {
+            wait(requestId);
+        } catch (...) {
+            gnawarn() << "Request with Id " << requestId << " was not awaited successfully";
+        }
+    }
     const auto status = Gna2DeviceClose(nGnaDeviceIndex);
     checkGna2Status(status);
 #endif
@@ -383,6 +404,7 @@ void GNADeviceHelper::close() {
 }
 
 void GNADeviceHelper::setOMPThreads(uint8_t const n_threads) {
+    std::unique_lock<std::mutex> lockGnaCalls{ acrossPluginsSync };
 #if GNA_LIB_VER == 1
     gmmSetThreads(n_threads);
 #else

@@ -200,7 +200,7 @@ Each demo and code sample is a separate application, but they use the same behav
 * [Demo Applications](@ref omz_demos_README) - Console applications that provide robust application templates to support developers in implementing specific deep learning scenarios. They may also involve more complex processing pipelines that gather analysis from several models that run inference simultaneously. For example concurrently detecting a person in a video stream and detecting attributes such as age, gender and/or emotions.
  
 Inputs you'll need to specify:
-- **A compiled OpenVINO™ code sample or demo application** that runs inferencing against a model that has been run through the Model Optimizer, resuiting in an IR, using the other inputs you provide.
+- **A compiled OpenVINO™ code sample or demo application** that runs inferencing against a model that has been run through the Model Optimizer, resulting in an IR, using the other inputs you provide.
 - **One or more models** in the Intermediate Representation format. Each model is trained for a specific task. Examples include pedestrian detection, face detection, vehicle detection, license plate recognition, head pose, and others. Different models are used for different applications. Models can be chained together to provide multiple features; for example vehicle + make/model + license plate recognition.
 - **One or more media files**. The media is typically a video file, but can be a still photo.
 - **One or more target device** on which you run inference. The target device can be the CPU, GPU, or VPU accelerator.

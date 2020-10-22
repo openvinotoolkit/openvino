@@ -111,13 +111,19 @@ enum ActivationTypes {
     Mish,
     HSwish,
     SoftPlus,
-    Swish
+    Swish,
+    HSigmoid
 };
 
 enum EltwiseTypes {
     ADD,
     MULTIPLY,
-    SUBTRACT
+    SUBTRACT,
+    DIVIDE,
+    SQUARED_DIFF,
+    POWER,
+    FLOOR_MOD,
+    MOD
 };
 
 enum ComparisonTypes {
@@ -247,6 +253,8 @@ std::ostream& operator<<(std::ostream & os, ngraph::op::v4::Interpolate::Interpo
 std::ostream& operator<<(std::ostream & os, ngraph::op::v4::Interpolate::CoordinateTransformMode type);
 
 std::ostream& operator<<(std::ostream & os, ngraph::op::v4::Interpolate::NearestMode type);
+
+std::ostream& operator<<(std::ostream & os, ngraph::op::v4::Interpolate::ShapeCalcMode type);
 
 }  // namespace helpers
 }  // namespace ngraph

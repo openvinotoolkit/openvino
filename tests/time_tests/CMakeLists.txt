@@ -11,4 +11,4 @@ endif()
 
 find_package(InferenceEngineDeveloperPackage REQUIRED)
 
-add_subdirectory(common)
+add_subdirectory(src)

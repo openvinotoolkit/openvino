@@ -7,7 +7,7 @@
 #include <string>
 #include <memory>
 #include <vector>
-#include "ie_layers.h"
+#include <legacy/ie_layers.h>
 #include "caseless.hpp"
 #include "ie_algorithm.hpp"
 #include "backend/gna_types.h"
@@ -49,6 +49,10 @@ class LayerInfo {
     }
     explicit LayerInfo(InferenceEngine::CNNLayer * layer)
         : layer(layer) {
+    }
+    bool hasMultipleInputs() const noexcept {
+        IS_VALID();
+        return layer->insData.size() > 1;
     }
     bool has16BOutput() const noexcept {
         IS_VALID();
@@ -200,6 +204,9 @@ class LayerInfo {
     }
     bool isConcat() const noexcept {
         return isOfType("concat");
+    }
+    bool isFakeQnatize() const noexcept {
+        return isOfType("FakeQnatize");
     }
     bool isNonFunctional() const noexcept {
         return isOfType("reshape") || isOfType("squeeze") || isOfType("unsqueeze") || isTrivialPermute();

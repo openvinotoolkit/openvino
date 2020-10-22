@@ -15,16 +15,16 @@ std::shared_ptr<ngraph::Node> makeBatchNormInference(const ngraph::Output<Node>&
     size_t C   = data.get_shape().at(1);
     bool random = true;
     std::vector<float> values(C);
-    auto gamma = ngraph::builder::makeConstant(ngPrc, ngraph::Shape{C}, values, random);
-    auto beta  = ngraph::builder::makeConstant(ngPrc, ngraph::Shape{C}, values, random);
-    auto mean  = ngraph::builder::makeConstant(ngPrc, ngraph::Shape{C}, values, random);
+    auto gamma = ngraph::builder::makeConstant(ngPrc, ngraph::Shape{C}, values, random, 1, 0);
+    auto beta  = ngraph::builder::makeConstant(ngPrc, ngraph::Shape{C}, values, random, 1, 0);
+    auto mean  = ngraph::builder::makeConstant(ngPrc, ngraph::Shape{C}, values, random, 1, 0);
 
     // Fill the vector for variance with positive values
     std::default_random_engine gen;
     std::uniform_real_distribution<float> dis(0.0, 10.0);
     std::generate(values.begin(), values.end(), [&dis, &gen]() { return dis(gen); });
     auto variance = ngraph::builder::makeConstant(ngPrc, ngraph::Shape{C}, values, !random);
-    return std::make_shared<ngraph::opset4::BatchNormInference>(data, gamma, beta, mean, variance, epsilon);
+    return std::make_shared<ngraph::opset5::BatchNormInference>(data, gamma, beta, mean, variance, epsilon);
 }
 }  // namespace builder
 }  // namespace ngraph

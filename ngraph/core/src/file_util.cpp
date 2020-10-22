@@ -23,6 +23,7 @@
 #include <sys/time.h>
 #include <unistd.h>
 #endif
+#include <algorithm>
 #include <fcntl.h>
 #include <fstream>
 #include <iostream>
@@ -43,6 +44,10 @@
 #else
 #define RMDIR(a) rmdir(a)
 #define RMFILE(a) remove(a)
+#ifdef ENABLE_UNICODE_PATH_SUPPORT
+#include <codecvt>
+#include <locale>
+#endif
 #endif
 
 using namespace std;
@@ -77,10 +82,19 @@ string file_util::get_file_ext(const string& s)
 string file_util::get_directory(const string& s)
 {
     string rc = s;
+    // Linux-style separator
     auto pos = s.find_last_of('/');
     if (pos != string::npos)
     {
         rc = s.substr(0, pos);
+        return rc;
+    }
+    // Windows-style separator
+    pos = s.find_last_of('\\');
+    if (pos != string::npos)
+    {
+        rc = s.substr(0, pos);
+        return rc;
     }
     return rc;
 }
@@ -187,9 +201,9 @@ void file_util::iterate_files(const string& path,
     vector<string> files;
     vector<string> dirs;
 #ifdef _WIN32
-    string file_match = path_join(path, "*");
-    WIN32_FIND_DATA data;
-    HANDLE hFind = FindFirstFile(file_match.c_str(), &data);
+    std::string file_match = path_join(path, "*");
+    WIN32_FIND_DATAA data;
+    HANDLE hFind = FindFirstFileA(file_match.c_str(), &data);
     if (hFind != INVALID_HANDLE_VALUE)
     {
         do
@@ -212,7 +226,7 @@ void file_util::iterate_files(const string& path,
                 string file_name = path_join(path, data.cFileName);
                 func(file_name, false);
             }
-        } while (FindNextFile(hFind, &data));
+        } while (FindNextFileA(hFind, &data));
         FindClose(hFind);
     }
 #else
@@ -240,3 +254,42 @@ void file_util::iterate_files(const string& path,
         func(f, true);
     }
 }
+
+NGRAPH_API void file_util::convert_path_win_style(std::string& path)
+{
+    std::replace(path.begin(), path.end(), '/', '\\');
+}
+
+#ifdef ENABLE_UNICODE_PATH_SUPPORT
+
+std::string file_util::wstring_to_string(const std::wstring& wstr)
+{
+#ifdef _WIN32
+    int size_needed =
+        WideCharToMultiByte(CP_UTF8, 0, &wstr[0], (int)wstr.size(), NULL, 0, NULL, NULL); // NOLINT
+    std::string strTo(size_needed, 0);
+    WideCharToMultiByte(
+        CP_UTF8, 0, &wstr[0], (int)wstr.size(), &strTo[0], size_needed, NULL, NULL); // NOLINT
+    return strTo;
+#else
+    std::wstring_convert<std::codecvt_utf8<wchar_t>> wstring_decoder;
+    return wstring_decoder.to_bytes(wstr);
+#endif
+}
+
+std::wstring file_util::multi_byte_char_to_wstring(const char* str)
+{
+#ifdef _WIN32
+    int strSize = static_cast<int>(std::strlen(str));
+    int size_needed = MultiByteToWideChar(CP_UTF8, 0, str, strSize, NULL, 0);
+    std::wstring wstrTo(size_needed, 0);
+    MultiByteToWideChar(CP_UTF8, 0, str, strSize, &wstrTo[0], size_needed);
+    return wstrTo;
+#else
+    std::wstring_convert<std::codecvt_utf8<wchar_t>> wstring_encoder;
+    std::wstring result = wstring_encoder.from_bytes(str);
+    return result;
+#endif
+}
+
+#endif // ENABLE_UNICODE_PATH_SUPPORT

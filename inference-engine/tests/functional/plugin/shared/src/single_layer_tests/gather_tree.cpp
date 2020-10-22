@@ -17,16 +17,22 @@ namespace LayerTestsDefinitions {
 std::string GatherTreeLayerTest::getTestCaseName(const testing::TestParamInfo<GatherTreeParamsTuple> &obj) {
     std::vector<size_t> inputShape;
     InferenceEngine::Precision netPrecision;
+    InferenceEngine::Precision inPrc, outPrc;
+    InferenceEngine::Layout inLayout, outLayout;
     ngraph::helpers::InputLayerType secondaryInputType;
     std::string targetName;
 
-    std::tie(inputShape, secondaryInputType, netPrecision, targetName) = obj.param;
+    std::tie(inputShape, secondaryInputType, netPrecision, inPrc, outPrc, inLayout, outLayout, targetName) = obj.param;
 
     std::ostringstream result;
     result << "IS=" << CommonTestUtils::vec2str(inputShape) << "_";
     result << "secondaryInputType=" << secondaryInputType << "_";
     result << "netPRC=" << netPrecision.name() << "_";
-    result << "targetDevice=" << targetName;
+    result << "inPRC=" << inPrc.name() << "_";
+    result << "outPRC=" << outPrc.name() << "_";
+    result << "inL=" << inLayout << "_";
+    result << "outL=" << outLayout << "_";
+    result << "trgDev=" << targetName;
     return result.str();
 }
 
@@ -35,7 +41,7 @@ void GatherTreeLayerTest::SetUp() {
     InferenceEngine::Precision netPrecision;
     ngraph::helpers::InputLayerType secondaryInputType;
 
-    std::tie(inputShape, secondaryInputType, netPrecision, targetDevice) = GetParam();
+    std::tie(inputShape, secondaryInputType, netPrecision, inPrc, outPrc, inLayout, outLayout, targetDevice) = GetParam();
 
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
 

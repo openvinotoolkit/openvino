@@ -46,8 +46,7 @@ graph = ops.relu(parameter_x + parameter_b, name="y")
 You can combine a graph together with its input parameters into an nGraph function object. An nGraph function can be passed to other parts of OpenVINO to perform analysis and inference.
 
 ```python
->>> function = ng.impl.Function(graph, [parameter_x, parameter_b], "TestFunction")
->>> function
+>>> function = ng.Function(graph, [parameter_x, parameter_b], "TestFunction")
 <Function: 'TestFunction' ({2,2})>
 ```
 
@@ -56,9 +55,9 @@ You can combine a graph together with its input parameters into an nGraph functi
 In order to run inference on an nGraph function, convert it to an Inference Engine network and call its `infer` method.
 
 ```python
->>> from openvino.inference_engine import IECore, IENetwork
+>>> from openvino.inference_engine import IECore
 >>> 
->>> ie_network = IENetwork(ng.impl.Function.to_capsule(function))
+>>> ie_network = ng.function_to_cnn(function)
 >>> 
 >>> ie = IECore()
 >>> executable_network = ie.load_network(ie_network, 'CPU')
@@ -110,13 +109,13 @@ Each `Node` has a unique `name` property, assigned at creation time. User-provid
 
 ```python
 >>> for node in function.get_ordered_ops():
->>>     print('Node name: {:15} Friendly name: {:10} Op: {:10}'.format(
->>>         node.name, node.get_friendly_name(), node.get_type_name()))
-Node name: Parameter_1     Friendly name: b          Op: Parameter
-Node name: Parameter_0     Friendly name: x          Op: Parameter
-Node name: Add_2           Friendly name: Add_2      Op: Add
-Node name: Relu_3          Friendly name: y          Op: Relu
-Node name: Result_4        Friendly name: Result_4   Op: Result
+>>>     print('Node name: {:15} Friendly name: {:10} Op: {:10} {}'.format(
+>>>         node.name, node.get_friendly_name(), node.get_type_name(), node.shape))
+Node name: Parameter_1     Friendly name: b          Op: Parameter  Shape{2, 2}
+Node name: Parameter_0     Friendly name: x          Op: Parameter  Shape{2, 2}
+Node name: Add_2           Friendly name: Add_2      Op: Add        Shape{2, 2}
+Node name: Relu_3          Friendly name: y          Op: Relu       Shape{2, 2}
+Node name: Result_4        Friendly name: Result_4   Op: Result     Shape{2, 2}
 ```
 
 ### Node relationships

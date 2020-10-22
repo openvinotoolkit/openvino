@@ -17,5 +17,12 @@ std::vector<std::string> disabledTestPatterns() {
             R"(.*(ComparisonLayerTest).*)",
             // TODO: Issue: 39014
             R"(.*CoreThreadingTestsWithIterations.*smoke_LoadNetwork.*)",
+            // TODO: Issue: 39612
+            R"(.*Interpolate.*cubic.*tf_half_pixel_for_nn.*FP16.*)",
+            // Expected behavior
+            R"(.*EltwiseLayerTest.*eltwiseOpType=Pow.*netPRC=I64.*)",
+            R"(.*EltwiseLayerTest.*IS=\(.*\..*\..*\..*\..*\).*eltwiseOpType=Pow.*secondaryInputType=CONSTANT.*)",
+            // TODO: Issue: 40958
+            R"(.*(ConstantResultSubgraphTest).*)",
     };
 }

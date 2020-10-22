@@ -22,8 +22,7 @@ include(features)
 # include developer package
 include(developer_package)
 
-# These options are shared with 3rdparty plugins
-# by means of developer package
+# These options are shared with 3rdparty plugins by means of developer package
 include(check_features)
 include(dependencies)
 
@@ -39,6 +38,10 @@ message (STATUS "CMAKE_BUILD_TYPE ...................... " ${CMAKE_BUILD_TYPE})
 # remove file with exported developer targets to force its regeneration
 file(REMOVE "${CMAKE_BINARY_DIR}/targets_developer.cmake")
 file(REMOVE "${CMAKE_BINARY_DIR}/targets.cmake")
+
+#
+# Build
+#
 
 function(build_ngraph)
     function(ngraph_set option value)
@@ -63,7 +66,7 @@ function(build_ngraph)
         ngraph_set(NGRAPH_UNIT_TEST_ENABLE FALSE)
     endif()
 
-    if(NOT ANDROID)
+    if(NOT (ANDROID OR WINDOWS_STORE))
         ngraph_set(NGRAPH_ONNX_IMPORT_ENABLE TRUE)
     else()
         ngraph_set(NGRAPH_ONNX_IMPORT_ENABLE FALSE)
@@ -86,15 +89,8 @@ function(build_ngraph)
         set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /wd4308 /wd4146 /wd4703 /wd4244 /wd4819")
     endif()
     
-    # Preserve the original flags for further use
-    set(CMAKE_ORIGINAL_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE}")
-    set(CMAKE_ORIGINAL_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE}")
-    set(CMAKE_ORIGINAL_EXE_LINKER_FLAGS_RELEASE "${CMAKE_EXE_LINKER_FLAGS_RELEASE}")
-    set(CMAKE_ORIGINAL_SHARED_LINKER_FLAGS_RELEASE "${CMAKE_SHARED_LINKER_FLAGS_RELEASE}")
-    set(CMAKE_ORIGINAL_MODULE_LINKER_FLAGS_RELEASE "${CMAKE_MODULE_LINKER_FLAGS_RELEASE}")
-
     if(ENABLE_LTO)
-        ie_enable_lto()
+        set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE ON)
     endif()
 
     ie_cpack_add_component(ngraph)
@@ -130,7 +126,6 @@ function(openvino_developer_export_targets)
         "Paths to extra Inference Engine plugins" FORCE)
 endfunction()
 
-
 add_subdirectory(openvino)
 
 build_ngraph()
@@ -139,7 +134,26 @@ add_subdirectory(inference-engine)
 
 add_subdirectory(docs)
 
+#
+# Shellcheck
+#
+
+ie_shellcheck_process(DIRECTORY "${OpenVINO_MAIN_SOURCE_DIR}"
+                      SKIP "${OpenVINO_MAIN_SOURCE_DIR}/bin"
+                           "${OpenVINO_MAIN_SOURCE_DIR}/build"
+                           "${IE_MAIN_SOURCE_DIR}/tests/ie_test_utils/common_test_utils/gtest"
+                           "${IE_MAIN_SOURCE_DIR}/samples/thirdparty"
+                           "${IE_MAIN_SOURCE_DIR}/thirdparty"
+                           "${IE_MAIN_SOURCE_DIR}/temp"
+                           # TODO fix and enable back:
+                           "${OpenVINO_MAIN_SOURCE_DIR}/scripts/install_dependencies"
+                           "${OpenVINO_MAIN_SOURCE_DIR}/scripts/demo"
+                           "${OpenVINO_MAIN_SOURCE_DIR}/ngraph"
+                           "${IE_MAIN_SOURCE_DIR}/scripts")
+
+#
 # cpack
+#
 
 # install setupvars
 

@@ -72,9 +72,9 @@ def process(docs_folder):
         md_folder = os.path.dirname(md_file)
         with open(md_file, 'r', encoding='utf-8') as f:
             content = f.read()
-        inline_links = set(re.findall(r'!?\[.*?\]\(([\w\/\-\.]+\.(md|png|jpg|gif|svg))\)', content, flags=re.IGNORECASE))
+        inline_links = set(re.findall(r'!?\[.*?\]\(([\w\/\-\.]+\.(md|png|jpg|gif))\)', content, flags=re.IGNORECASE))
         github_md_links = set(re.findall(r'(\[(.+?)\]\((https:[\w\.\/-]+?\.md)\))', content, flags=re.IGNORECASE))
-        reference_links = set(re.findall(r'\[.+\]\:\s*?([\w\/\-\.]+\.(md|png|jpg|gif|svg))', content, flags=re.IGNORECASE))
+        reference_links = set(re.findall(r'\[.+\]\:\s*?([\w\/\-\.]+\.(md|png|jpg|gif))', content, flags=re.IGNORECASE))
         content = replace_links(content, inline_links, md_folder, labels, docs_folder)
         content = replace_links(content, reference_links, md_folder, labels, docs_folder)
         content = process_github_md_links(content, github_md_links)

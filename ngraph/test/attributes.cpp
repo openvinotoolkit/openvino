@@ -21,6 +21,7 @@
 #include "ngraph/opsets/opset1.hpp"
 #include "ngraph/opsets/opset3.hpp"
 #include "ngraph/opsets/opset4.hpp"
+#include "ngraph/opsets/opset5.hpp"
 
 #include "util/visitor.hpp"
 
@@ -786,7 +787,7 @@ TEST(attributes, reduce_sum_op)
 TEST(attributes, region_yolo_op)
 {
     FactoryRegistry<Node>::get().register_factory<opset1::RegionYolo>();
-    auto data = make_shared<op::Parameter>(element::i64, Shape{1, 255, 26, 26});
+    auto data = make_shared<op::Parameter>(element::f32, Shape{1, 255, 26, 26});
 
     size_t num_coords = 4;
     size_t num_classes = 1;
@@ -1099,7 +1100,7 @@ TEST(attributes, lstm_cell_op)
 
 TEST(attributes, lstm_sequence_op)
 {
-    FactoryRegistry<Node>::get().register_factory<op::v5::LSTMSequence>();
+    FactoryRegistry<Node>::get().register_factory<opset5::LSTMSequence>();
 
     const size_t batch_size = 4;
     const size_t num_directions = 2;
@@ -1126,7 +1127,7 @@ TEST(attributes, lstm_sequence_op)
     const std::vector<std::string> activations = {"tanh", "sigmoid", "tanh"};
     const float clip_threshold = 0.5f;
 
-    const auto lstm_sequence = make_shared<op::v5::LSTMSequence>(X,
+    const auto lstm_sequence = make_shared<opset5::LSTMSequence>(X,
                                                                  initial_hidden_state,
                                                                  initial_cell_state,
                                                                  sequence_lengths,
@@ -1140,7 +1141,7 @@ TEST(attributes, lstm_sequence_op)
                                                                  activations,
                                                                  clip_threshold);
     NodeBuilder builder(lstm_sequence);
-    auto g_lstm_sequence = as_type_ptr<op::v5::LSTMSequence>(builder.create());
+    auto g_lstm_sequence = as_type_ptr<opset5::LSTMSequence>(builder.create());
 
     EXPECT_EQ(g_lstm_sequence->get_hidden_size(), lstm_sequence->get_hidden_size());
     EXPECT_EQ(g_lstm_sequence->get_activations(), lstm_sequence->get_activations());
@@ -1322,14 +1323,26 @@ TEST(attributes, mvn_op)
     EXPECT_EQ(g_op->get_eps(), op->get_eps());
 }
 
-TEST(attributes, reorg_yolo_op)
+TEST(attributes, reorg_yolo_op_stride)
 {
     FactoryRegistry<Node>::get().register_factory<opset3::ReorgYolo>();
-    const auto data = make_shared<op::Parameter>(element::i32, Shape{2, 3, 4, 5});
+    const auto data = make_shared<op::Parameter>(element::i32, Shape{1, 64, 26, 26});
 
-    const auto op = make_shared<opset3::ReorgYolo>(data, Strides{2});
+    const auto op = make_shared<op::v0::ReorgYolo>(data, 2);
     NodeBuilder builder(op);
-    const auto g_op = as_type_ptr<opset3::ReorgYolo>(builder.create());
+    const auto g_op = as_type_ptr<op::v0::ReorgYolo>(builder.create());
+
+    EXPECT_EQ(g_op->get_strides(), op->get_strides());
+}
+
+TEST(attributes, reorg_yolo_op_strides)
+{
+    FactoryRegistry<Node>::get().register_factory<opset3::ReorgYolo>();
+    const auto data = make_shared<op::Parameter>(element::i32, Shape{1, 64, 26, 26});
+
+    const auto op = make_shared<op::v0::ReorgYolo>(data, Strides{2});
+    NodeBuilder builder(op);
+    const auto g_op = as_type_ptr<op::v0::ReorgYolo>(builder.create());
 
     EXPECT_EQ(g_op->get_strides(), op->get_strides());
 }

@@ -17,15 +17,11 @@
 #include <vpu/frontend/frontend.hpp>
 #include <vpu/utils/profiling.hpp>
 #include <vpu/utils/error.hpp>
-#include <transformations/tensor_iterator_transformations/apply_transformations_to_ti_body.hpp>
 #include <transformations/common_optimizations/common_optimizations.hpp>
 #include <transformations/rt_info/fused_names_attribute.hpp>
-#include <vpu/ngraph/transformations/convert_nms_4_to_nms_dynamic.hpp>
 #include <ngraph/op/util/op_types.hpp>
 #include <ngraph/opsets/opset3.hpp>
-
-#include "vpu/ngraph/transformations/dynamic_to_static_shape.hpp"
-#include "vpu/ngraph/transformations/eliminate_shapeof_after_dsr.hpp"
+#include <ngraph/pass/manager.hpp>
 
 #include "generic_ie.hpp"
 
@@ -54,22 +50,14 @@ void transformNGraphFunction(const std::shared_ptr<ngraph::Function>& function) 
 
 }  // namespace
 
-ExecutableNetworkInternal::Ptr Engine::LoadExeNetworkImpl(
-        const ICNNNetwork& network,
-        const std::map<std::string, std::string>& config) {
+ExecutableNetworkInternal::Ptr Engine::LoadExeNetworkImpl(const ICNNNetwork& network, const std::map<std::string, std::string>& config) {
     VPU_PROFILE(LoadExeNetworkImpl);
 
     auto parsedConfigCopy = _parsedConfig;
     parsedConfigCopy.update(config);
 
     auto clonedNetwork = cloneNetwork(network);
-    if (auto function = clonedNetwork->getFunction()) {
-        transformNGraphFunction(function);
-    }
-
-    return std::make_shared<ExecutableNetwork>(*clonedNetwork,
-        _mvnc, _devicePool,
-        parsedConfigCopy, GetCore());
+    return std::make_shared<ExecutableNetwork>(*clonedNetwork, _mvnc, _devicePool, parsedConfigCopy, GetCore());
 }
 
 void Engine::SetConfig(const std::map<std::string, std::string> &config) {
@@ -95,11 +83,11 @@ Parameter Engine::GetConfig(const std::string& name, const std::map<std::string,
     return result;
 }
 
-void Engine::QueryNetwork(
+QueryNetworkResult Engine::QueryNetwork(
         const ICNNNetwork& network,
-        const std::map<std::string, std::string>& config,
-        QueryNetworkResult& res) const {
+        const std::map<std::string, std::string>& config) const {
     VPU_PROFILE(QueryNetwork);
+    QueryNetworkResult res;
 
     auto parsedConfigCopy = _parsedConfig;
     parsedConfigCopy.update(config);
@@ -268,6 +256,8 @@ void Engine::QueryNetwork(
             res.supportedLayersMap.insert({ layerName, GetName() });
         }
     }
+
+    return res;
 }
 
 Engine::Engine(std::shared_ptr<IMvnc> mvnc) :
@@ -315,7 +305,7 @@ InferenceEngine::ExecutableNetwork Engine::ImportNetwork(
     return make_executable_network(executableNetwork);
 }
 
-IExecutableNetwork::Ptr Engine::ImportNetwork(
+InferenceEngine::ExecutableNetwork Engine::ImportNetwork(
         const std::string& modelFileName,
         const std::map<std::string, std::string>& config) {
     VPU_PROFILE(ImportNetwork);

@@ -36,6 +36,7 @@
 #include "memory/gna_allocator.hpp"
 #include "memory/gna_memory_state.hpp"
 #include "gna_model_serial.hpp"
+#include "runtime/gna_float_runtime.hpp"
 
 #if GNA_LIB_VER == 2
 #include <gna2-model-api.h>
@@ -382,6 +383,7 @@ void GNAPlugin::LoadNetwork(ICNNNetwork & _network) {
             passes->registerPass<RemovePermutationsNHWCToNCHWPass>();
         }
         passes->registerPass<InsertIdentityLayerPass>();
+        passes->registerPass<BreakFusingOfOutputLayersPass>();
         passes->registerPass<InsertCopyLayerPass>();
         passes->registerPass<InsertDiagonalLayerPass>();
         passes->registerPass<HandleMultipleActivationsForTheLayerPass>();
@@ -904,15 +906,28 @@ uint32_t GNAPlugin::QueueInference(const InferenceEngine::BlobMap &inputs, Infer
 
         auto dims = input.second->getTensorDesc().getDims();
 
+        auto  importedElements = is2D ? dims[dims.size() - 1] : dims[dims.size() - 1] * dims[dims.size() - 2] * dims[dims.size() - 3];
+        auto  importedFrames = dims[0];
+        auto  targetGroups = is2D ? dims[dims.size() - 2] : dims[0]; // TODO: no proper support for groups yet
+
+        auto  importedElementSizeBytes = gnaFlags->sw_fp32 ? 4 : 2;
+        auto  importedBytes = importedElements * importedFrames * importedElementSizeBytes;
+
+        if (inputsDesc->bytes_allocated_for_input[input.first] < importedBytes) {
+            THROW_GNA_EXCEPTION << "Cannot import input frames for :" << input.first
+                                  << ", allocated size: " << inputsDesc->bytes_allocated_for_input[input.first]
+                                  << ", but input blob size: " << importedBytes;
+        }
+
         ImportFrames(inputsDesc->getPtrInputsGlobal(input.first)[idx],
                      input.second->cbuffer().as<float *>(),
                      input.second->getTensorDesc().getPrecision(),
                      gnaFlags->sw_fp32 ? 1.0f : inputsDesc->getScaleFactor(inputNum),
                      inputsDesc->getOrientation(input.first),
-                     dims[0],
-                     is2D ? dims[dims.size() - 2] : dims[0],
-                     is2D ? dims[dims.size() - 1] : dims[dims.size() - 1] * dims[dims.size() - 2] * dims[dims.size() - 3],
-                     is2D ? dims[dims.size() - 1] : dims[dims.size() - 1] * dims[dims.size() - 2] * dims[dims.size() - 3]);
+                     importedFrames,
+                     targetGroups,
+                     importedElements,
+                     importedElements);
 
         bool isOneChannel = input.second->getTensorDesc().getDims()[1] == 1;
         if (do_rotate_input && ((inputLayout == Layout::NC || inputLayout == Layout::NCHW)
@@ -930,7 +945,8 @@ uint32_t GNAPlugin::QueueInference(const InferenceEngine::BlobMap &inputs, Infer
     }
 
     if (!gnadevice) {
-        dnn->Propagate();
+        auto runtime = runtime::FP(dnn);
+        runtime.infer();
         if (freeNnet != nnets.end()) {
             std::get<1>(*freeNnet) = 1;
         }
@@ -961,21 +977,26 @@ uint32_t GNAPlugin::QueueInference(const InferenceEngine::BlobMap &inputs, Infer
 }
 
 bool GNAPlugin::Wait(uint32_t request_idx) {
-    return WaitFor(request_idx, MAX_TIMEOUT);
+    return GNA_REQUEST_COMPLETED == WaitFor(request_idx, MAX_TIMEOUT);
 }
 
-bool GNAPlugin::WaitFor(uint32_t request_idx, int64_t millisTimeout) {
+GnaWaitStatus GNAPlugin::WaitFor(uint32_t request_idx, int64_t millisTimeout) {
 #if GNA_LIB_VER == 2
     auto& nnets = gnaRequestConfigToRequestIdMap;
 #endif
-    if (nnets.size() <= request_idx) return true;    // TODO: GNA2: check whether necessary
+    // TODO: GNA2: check whether necessary
+    if (nnets.size() <= request_idx) return GNA_REQUEST_COMPLETED;
     // already synced TODO: might be copy required ???
-    if (std::get<1>(nnets[request_idx]) == -1) return true;
+    if (std::get<1>(nnets[request_idx]) == -1) return GNA_REQUEST_COMPLETED;
 
     if (gnadevice) {
-        if (!gnadevice->wait(std::get<1>(nnets[request_idx]), millisTimeout)) {
+        const auto waitStatus = gnadevice->wait(std::get<1>(nnets[request_idx]), millisTimeout);
+        if (waitStatus == GNA_REQUEST_ABORTED) {
             std::get<1>(nnets[request_idx]) = -1;
-            return false;
+            return GNA_REQUEST_ABORTED;
+        }
+        if (waitStatus == GNA_REQUEST_PENDING) {
+            return GNA_REQUEST_PENDING;
         }
     }
 
@@ -1075,7 +1096,7 @@ bool GNAPlugin::WaitFor(uint32_t request_idx, int64_t millisTimeout) {
 
         output_idx++;
     }
-    return true;
+    return GNA_REQUEST_COMPLETED;
 }
 
 void GNAPlugin::Reset() {
@@ -1138,7 +1159,7 @@ void GNAPlugin::SetName(const std::string & pluginName) noexcept {
     _pluginName = pluginName;
 }
 
-InferenceEngine::IExecutableNetwork::Ptr GNAPlugin::ImportNetwork(std::istream& networkModel) {
+InferenceEngine::ExecutableNetwork GNAPlugin::ImportNetwork(std::istream& networkModel) {
     auto header = GNAModelSerial::ReadHeader(networkModel);
 
     InitGNADevice();
@@ -1159,6 +1180,12 @@ InferenceEngine::IExecutableNetwork::Ptr GNAPlugin::ImportNetwork(std::istream& 
 #else
     auto serial = GNAModelSerial(&std::get<0>(nnets.back())->obj, mt);
 #endif
+
+    if (!inputsDesc->inputScaleFactors.empty()) {
+        gnalog() << "[Import Network] Clearing input scale factors defined in configuration. "
+                 << "Scale factors provided in imported model will be used\n";
+        inputsDesc->inputScaleFactors.clear();
+    }
 
     serial.setHeader(header);
     serial.Import(basePtr,
@@ -1206,7 +1233,7 @@ InferenceEngine::IExecutableNetwork::Ptr GNAPlugin::ImportNetwork(std::istream& 
 #if GNA_LIB_VER == 2
     createRequestConfigsForGnaModels();
 #endif
-    return nullptr;
+    return {};
 }
 
 void GNAPlugin::Export(const std::string &fileName) {
@@ -1267,9 +1294,10 @@ void GNAPlugin::UpdateFieldsFromConfig() {
     *gnaFlags = config.gnaFlags;
 }
 
-void GNAPlugin::QueryNetwork(const InferenceEngine::ICNNNetwork& network,
-                             const std::map<std::string, std::string>& config,
-                             InferenceEngine::QueryNetworkResult& res) const {
+InferenceEngine::QueryNetworkResult GNAPlugin::QueryNetwork(const InferenceEngine::ICNNNetwork& network,
+                                                            const std::map<std::string, std::string>& config) const {
+    InferenceEngine::QueryNetworkResult res;
+
     if (network.getFunction()) {
         THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str << " ngraph::Function is not supported natively";
     }
@@ -1296,4 +1324,6 @@ void GNAPlugin::QueryNetwork(const InferenceEngine::ICNNNetwork& network,
                                                     res.supportedLayersMap.insert({ layer->name, GetName() });
                                                 }
                                             }, false);
+
+    return res;
 }

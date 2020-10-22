@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-params=$@
+params=$1
 
 yes_or_no() {
     if [ "$params" == "-y" ]; then
@@ -23,7 +23,7 @@ yes_or_no() {
 if [ -f /etc/lsb-release ]; then
     # Ubuntu
     host_cpu=$(uname -m)
-    if [ $host_cpu = x86_64 ]; then
+    if [ "$host_cpu" = "x86_64" ]; then
         x86_64_specific_packages="gcc-multilib g++-multilib"
     else
         x86_64_specific_packages=""

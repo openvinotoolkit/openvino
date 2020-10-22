@@ -18,7 +18,7 @@
 #include "ngraph_functions/utils/ngraph_helpers.hpp"
 #include "ngraph_functions/builders.hpp"
 
-#include <transformations/lstm_cell_decomposition.hpp>
+#include <transformations/op_conversions/lstm_cell_decomposition.hpp>
 #include "subgraph_tests/memory_LSTMCell.hpp"
 
 namespace SubgraphTestsDefinitions {
@@ -197,7 +197,6 @@ namespace SubgraphTestsDefinitions {
     void MemoryLSTMCellTest::Run() {
         SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
-        ConfigurePlugin();
         LoadNetwork();
         auto states = executableNetwork.QueryState();
         for (auto& state : states) {

@@ -97,7 +97,7 @@ def broadcast(
     if broadcast_spec.upper() == "EXPLICIT":
         inputs.append(as_node(axes_mapping))
     return _get_node_factory_opset3().create(
-        "Broadcast", inputs, {"broadcast_spec": broadcast_spec.upper()}
+        "Broadcast", inputs, {"mode": broadcast_spec.upper()}
     )
 
 

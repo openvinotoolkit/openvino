@@ -31,12 +31,6 @@
 #include <legacy/cnn_network_impl.hpp>
 
 namespace InferenceEngine {
-namespace ShapeInfer {
-class Reshaper;
-
-using ReshaperPtr = std::shared_ptr<Reshaper>;
-}  // namespace ShapeInfer
-
 namespace details {
 
 /**
@@ -124,6 +118,7 @@ private:
      * @brief Reshape on the same shape
      */
     void reshape();
+    void reshape(const std::map<std::string, std::vector<size_t>>& inputShapes);
 };
 
 class TINGraphBody : public CNNNetworkNGraphImpl {

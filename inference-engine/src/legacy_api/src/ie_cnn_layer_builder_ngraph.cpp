@@ -8,33 +8,33 @@
 #include <sstream>
 #include <utility>
 
-#include "ngraph_ops/crop_ie.hpp"
+#include "legacy/ngraph_ops/crop_ie.hpp"
 #include "ngraph_ops/convolution_ie.hpp"
 #include "ngraph_ops/deconvolution_ie.hpp"
-#include "ngraph_ops/eltwise.hpp"
-#include "ngraph_ops/fully_connected.hpp"
-#include "ngraph_ops/gather_ie.hpp"
-#include "ngraph_ops/gather_tree_ie.hpp"
-#include "ngraph_ops/gru_cell_ie.hpp"
-#include "ngraph_ops/interp.hpp"
-#include "ngraph_ops/lrn_ie.hpp"
-#include <ngraph_ops/lstm_cell_ie.hpp>
+#include "legacy/ngraph_ops/eltwise.hpp"
+#include "legacy/ngraph_ops/fully_connected.hpp"
+#include "legacy/ngraph_ops/gather_ie.hpp"
+#include "legacy/ngraph_ops/gather_tree_ie.hpp"
+#include "legacy/ngraph_ops/gru_cell_ie.hpp"
+#include "legacy/ngraph_ops/interp.hpp"
+#include "legacy/ngraph_ops/lrn_ie.hpp"
+#include "legacy/ngraph_ops/lstm_cell_ie.hpp"
 #include <transformations/rt_info/primitives_priority_attribute.hpp>
-#include "ngraph_ops/normalize_ie.hpp"
-#include "ngraph_ops/nms_ie.hpp"
-#include "ngraph_ops/onehot_ie.hpp"
-#include "ngraph_ops/pad_ie.hpp"
-#include "ngraph_ops/power.hpp"
-#include "ngraph_ops/prior_box_clustered_ie.hpp"
-#include "ngraph_ops/prior_box_ie.hpp"
-#include "ngraph_ops/proposal_ie.hpp"
-#include "ngraph_ops/relu_ie.hpp"
-#include "ngraph_ops/selu_ie.hpp"
-#include "ngraph_ops/scaleshift.hpp"
-#include "ngraph_ops/tile_ie.hpp"
-#include "ngraph_ops/topk_ie.hpp"
-#include "ngraph_ops/rnn_cell_ie.hpp"
-#include "ngraph_ops/hard_sigmoid_ie.hpp"
+#include "legacy/ngraph_ops/normalize_ie.hpp"
+#include "legacy/ngraph_ops/nms_ie.hpp"
+#include "legacy/ngraph_ops/onehot_ie.hpp"
+#include "legacy/ngraph_ops/pad_ie.hpp"
+#include "legacy/ngraph_ops/power.hpp"
+#include "legacy/ngraph_ops/prior_box_clustered_ie.hpp"
+#include "legacy/ngraph_ops/prior_box_ie.hpp"
+#include "legacy/ngraph_ops/proposal_ie.hpp"
+#include "legacy/ngraph_ops/relu_ie.hpp"
+#include "legacy/ngraph_ops/selu_ie.hpp"
+#include "legacy/ngraph_ops/scaleshift.hpp"
+#include "legacy/ngraph_ops/tile_ie.hpp"
+#include "legacy/ngraph_ops/topk_ie.hpp"
+#include "legacy/ngraph_ops/rnn_cell_ie.hpp"
+#include "legacy/ngraph_ops/hard_sigmoid_ie.hpp"
 #include "generic_ie.hpp"
 #include "exec_graph_info.hpp"
 
@@ -43,6 +43,7 @@
 #include <cpp/ie_cnn_network.h>
 #include <ngraph/ngraph.hpp>
 #include <ngraph/variant.hpp>
+#include <ngraph/opsets/opset5.hpp>
 
 #include <legacy/convert_function_to_cnn_network.hpp>
 #include "legacy/graph_transformer.h"
@@ -114,8 +115,7 @@ CNNLayer::Ptr NodeConverter<ngraph::op::GenericIE>::createLayer(const std::share
     return res;
 }
 
-template <>
-CNNLayer::Ptr NodeConverter<ngraph::op::TensorIterator>::createLayer(const std::shared_ptr<ngraph::Node>& layer) const {
+CNNLayer::Ptr createSubGraphLayer(const std::shared_ptr<ngraph::Node>& layer) {
     auto find_input_idx = [](const CNNLayerPtr& where, const DataPtr& what) {
         auto it = std::find_if(where->insData.begin(), where->insData.end(), [&](const DataWeakPtr& wk_ptr) {
             auto layer_data = wk_ptr.lock();
@@ -129,7 +129,7 @@ CNNLayer::Ptr NodeConverter<ngraph::op::TensorIterator>::createLayer(const std::
         return it - where->insData.begin();
     };
 
-    auto tensor_iterator = ngraph::as_type_ptr<ngraph::op::TensorIterator>(layer);
+    auto tensor_iterator = std::dynamic_pointer_cast<ngraph::op::util::SubGraphOp>(layer);
     if (!tensor_iterator) {
         THROW_IE_EXCEPTION << "Cannot cast layer to TensorIterator.";
     }
@@ -142,8 +142,8 @@ CNNLayer::Ptr NodeConverter<ngraph::op::TensorIterator>::createLayer(const std::
     std::map<std::string, DataPtr> out_info_map;
 
     // inputs/outputs of TensorIterator (ngraph representation)
-    auto parameters = tensor_iterator->get_body()->get_parameters();
-    auto results = tensor_iterator->get_body()->get_results();
+    auto parameters = tensor_iterator->get_function()->get_parameters();
+    auto results = tensor_iterator->get_function()->get_results();
 
     // Convert body (ngraph representation) to CNNNetwork.
     // This network will contain nodes of type = "Input" and data nodes with wrong names.
@@ -155,7 +155,7 @@ CNNLayer::Ptr NodeConverter<ngraph::op::TensorIterator>::createLayer(const std::
     // This map will save information about data nodes
     std::map<std::string, std::vector<TensorDesc>> layer_name_to_tensor_desc;
     {
-        CNNNetwork body_net(tensor_iterator->get_body());
+        CNNNetwork body_net(tensor_iterator->get_function());
         CNNNetwork net(InferenceEngine::details::convertFunctionToICNNNetwork(body_net.getFunction(), body_net));
         // Paranoid check for cycles
         bool res = CNNNetForestDFS(
@@ -353,6 +353,20 @@ CNNLayer::Ptr NodeConverter<ngraph::op::TensorIterator>::createLayer(const std::
         }
     }
 
+    return res;
+}
+
+template<>
+CNNLayer::Ptr NodeConverter<ngraph::op::TensorIterator>::createLayer(const std::shared_ptr<ngraph::Node>& layer) const {
+    auto res = createSubGraphLayer(layer);
+    res->type = "TensorIterator";
+    return res;
+}
+
+template<>
+CNNLayer::Ptr NodeConverter<ngraph::opset5::Loop>::createLayer(const std::shared_ptr<ngraph::Node>& layer) const {
+    auto res = createSubGraphLayer(layer);
+    res->type = "Loop";
     return res;
 }
 
@@ -619,7 +633,11 @@ CNNLayer::Ptr NodeConverter<ngraph::op::v1::Maximum>::createLayer(const std::sha
 
 template <>
 CNNLayer::Ptr NodeConverter<ngraph::op::v1::Minimum>::createLayer(const std::shared_ptr<ngraph::Node>& layer) const {
-    THROW_IE_EXCEPTION << "Minimum operation should be decomposed";
+    LayerParams params = {layer->get_friendly_name(), "Eltwise",
+                          details::convertPrecision(layer->get_output_element_type(0))};
+    auto res = std::make_shared<InferenceEngine::EltwiseLayer>(params);
+    res->params["operation"] = "min";
+    return res;
 }
 
 template <>
@@ -647,12 +665,6 @@ CNNLayer::Ptr NodeConverter<ngraph::op::v1::Add>::createLayer(const std::shared_
     auto res = std::make_shared<InferenceEngine::EltwiseLayer>(params);
     res->params["operation"] = "sum";
     return res;
-}
-
-template <>
-CNNLayer::Ptr NodeConverter<ngraph::op::BatchNormInference>::createLayer(
-    const std::shared_ptr<ngraph::Node>& layer) const {
-    THROW_IE_EXCEPTION << "BatchNormInference operation should be fused or decomposed";
 }
 
 template <>

@@ -70,6 +70,7 @@ Standard MXNet\* symbols:
 | repeat | No |
 | rnn | No |
 | rnn_param_concat | No |
+| round | No |
 | sigmoid | No |
 | slice | No |
 | slice_axis | No |
@@ -151,12 +152,14 @@ Standard TensorFlow\* operations:
 | ExperimentalSparseWeightedSum | CPU only |
 | ExtractImagePatches | No |
 | EuclideanNorm | No |
+| FakeQuantWithMinMaxVars | No |
+| FakeQuantWithMinMaxVarsPerChannel | No |
 | Fill | No |
 | Floor | No |
 | FloorDiv | No |
 | FusedBatchNorm | No |
 | Gather | No |
-| GatherNd | Supported if it can be replaced with Gather |
+| GatherNd | No |
 | GatherV2 | No |
 | Greater | No |
 | GreaterEqual | No |
@@ -262,6 +265,9 @@ Standard Kaldi\* Layers:
 | Crop | No |
 | elementwiseproductcomponent | No |
 | fixedaffinecomponent | No |
+| fixedbiascomponent | No |
+| fixedscalecomponent | No |
+| generaldropoutcomponent| Not needed for inference |
 | linearcomponent | No |
 | logsoftmaxcomponent | No |
 | lstmnonlinearitycomponent | No |
@@ -277,12 +283,13 @@ Standard Kaldi\* Layers:
 | rectifiedlinearcomponent | No |
 | rescale | No |
 | sigmoid | No |
-| slice | No |
 | softmax | No |
 | softmaxComponent | No |
 | softsign | No |
+| specaugmenttimemaskcomponent | Not needed for inference |
 | splicecomponent | No |
 | tanhcomponent | No |
+| tdnncomponent | No |
 
 
 ## ONNX\* Supported Operators
@@ -331,6 +338,7 @@ Standard ONNX\* operators:
 | Floor | No |
 | GRU | No |
 | Gather | No |
+| GatherND | No |
 | GatherTree | No |
 | Gemm | No |
 | GlobalAveragePool | No |
@@ -376,8 +384,9 @@ Standard ONNX\* operators:
 | ReduceSum | No |
 | Relu | No |
 | Reshape | No |
-| Resize |  transformation mode `tf_crop_and_resize` is not supported, mode `nearest` is not supported for 5D+ inputs. |
+| Resize | Coordinate transformation mode `tf_crop_and_resize` is not supported, `nearest` mode is not supported for 5D+ inputs. |
 | ReverseSequence | No |
+| Round | No |
 | Scatter | Supported if fuse-able to ScatterUpdate. MYRIAD only |
 | ScatterND | No |
 | ScatterElements | Supported if fuse-able to ScatterUpdate. MYRIAD only |

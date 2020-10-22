@@ -63,6 +63,7 @@
         <!-- Intermediate Representation and Operations Sets -->
         <tab id="intermediate_representaton_and_operations_sets" type="usergroup" title="Intermediate Representation and Operations Sets" url="@ref openvino_docs_MO_DG_IR_and_opsets">
             <tab type="usergroup" title="Available Operations Sets" url="@ref openvino_docs_ops_opset">
+                <tab type="user" title="opset5 Specification" url="@ref openvino_docs_ops_opset5"/>
                 <tab type="user" title="opset4 Specification" url="@ref openvino_docs_ops_opset4"/>
                 <tab type="user" title="opset3 Specification" url="@ref openvino_docs_ops_opset3"/>
                 <tab type="user" title="opset2 Specification" url="@ref openvino_docs_ops_opset2"/>
@@ -79,7 +80,7 @@
                 <tab type="user" title="Atan-1" url="@ref openvino_docs_ops_arithmetic_Atan_1"/>
                 <tab type="user" title="Atanh-3" url="@ref openvino_docs_ops_arithmetic_Atanh_3"/>
                 <tab type="user" title="AvgPool-1" url="@ref openvino_docs_ops_pooling_AvgPool_1"/>
-                <tab type="user" title="BatchNormInference-1" url="@ref openvino_docs_ops_normalization_BatchNormInference_1"/>
+                <tab type="user" title="BatchNormInference-5" url="@ref openvino_docs_ops_normalization_BatchNormInference_5"/>
                 <tab type="user" title="BatchToSpace-2" url="@ref openvino_docs_ops_movement_BatchToSpace_2"/>
                 <tab type="user" title="BinaryConvolution-1" url="@ref openvino_docs_ops_convolution_BinaryConvolution_1"/>
                 <tab type="user" title="Broadcast-1" url="@ref openvino_docs_ops_movement_Broadcast_1"/>
@@ -116,14 +117,17 @@
                 <tab type="user" title="Floor_1" url="@ref openvino_docs_ops_arithmetic_Floor_1"/>
                 <tab type="user" title="GRN-1" url="@ref openvino_docs_ops_normalization_GRN_1"/>
                 <tab type="user" title="GRUCell-3" url="@ref openvino_docs_ops_sequence_GRUCell_3"/>
+                <tab type="user" title="GRUSequence-5" url="@ref openvino_docs_ops_sequence_GRUSequence_5"/>
                 <tab type="user" title="GatherTree-1" url="@ref openvino_docs_ops_movement_GatherTree_1"/>
                 <tab type="user" title="Gather-1" url="@ref openvino_docs_ops_movement_Gather_1"/>
+                <tab type="user" title="GatherND-5" url="@ref openvino_docs_ops_movement_GatherND_5"/>
                 <tab type="user" title="Gelu-2" url="@ref openvino_docs_ops_activation_GELU_2"/>
                 <tab type="user" title="GreaterEqual-1" url="@ref openvino_docs_ops_comparison_GreaterEqual_1"/>
                 <tab type="user" title="Greater-1" url="@ref openvino_docs_ops_comparison_Greater_1"/>
                 <tab type="user" title="GroupConvolutionBackpropData-1" url="@ref openvino_docs_ops_convolution_GroupConvolutionBackpropData_1"/>
                 <tab type="user" title="GroupConvolution-1" url="@ref openvino_docs_ops_convolution_GroupConvolution_1"/>
                 <tab type="user" title="HardSigmoid-1" url="@ref openvino_docs_ops_activation_HardSigmoid_1"/>
+                <tab type="user" title="HSigmoid-5" url="@ref openvino_docs_ops_activation_HSigmoid_5"/>
                 <tab type="user" title="HSwish-4" url="@ref openvino_docs_ops_activation_HSwish_4"/>
                 <tab type="user" title="Interpolate-1" url="@ref openvino_docs_ops_image_Interpolate_1"/>
                 <tab type="user" title="Interpolate-4" url="@ref openvino_docs_ops_image_Interpolate_4"/>
@@ -137,6 +141,8 @@
                 <tab type="user" title="LogicalNot-1" url="@ref openvino_docs_ops_logical_LogicalNot_1"/>
                 <tab type="user" title="LogicalOr-1" url="@ref openvino_docs_ops_logical_LogicalOr_1"/>
                 <tab type="user" title="LogicalXor-1" url="@ref openvino_docs_ops_logical_LogicalXor_1"/>
+                <tab type="user" title="LogSoftmax-5" url="@ref openvino_docs_ops_activation_LogSoftmax_5"/>
+                <tab type="user" title="Loop-5" url="@ref openvino_docs_ops_infrastructure_Loop_5"/>
                 <tab type="user" title="MVN-1" url="@ref openvino_docs_ops_normalization_MVN_1"/>
                 <tab type="user" title="MatMul-1" url="@ref openvino_docs_ops_matrix_MatMul_1"/>
                 <tab type="user" title="MaxPool-1" url="@ref openvino_docs_ops_pooling_MaxPool_1"/>
@@ -149,6 +155,7 @@
                 <tab type="user" title="NonMaxSuppression-1" url="@ref openvino_docs_ops_sort_NonMaxSuppression_1"/>
                 <tab type="user" title="NonMaxSuppression-3" url="@ref openvino_docs_ops_sort_NonMaxSuppression_3"/>
                 <tab type="user" title="NonMaxSuppression-4" url="@ref openvino_docs_ops_sort_NonMaxSuppression_4"/>
+                <tab type="user" title="NonMaxSuppression-5" url="@ref openvino_docs_ops_sort_NonMaxSuppression_5"/>
                 <tab type="user" title="NonZero-3" url="@ref openvino_docs_ops_condition_NonZero_3"/>
                 <tab type="user" title="NormalizeL2-1" url="@ref openvino_docs_ops_normalization_NormalizeL2_1"/>
                 <tab type="user" title="NotEqual-1" url="@ref openvino_docs_ops_comparison_NotEqual_1"/>
@@ -182,8 +189,10 @@
                 <tab type="user" title="Reverse" url="@ref openvino_docs_ops_movement_Reverse_1"/>
                 <tab type="user" title="ReverseSequence-1" url="@ref openvino_docs_ops_movement_ReverseSequence_1"/>
                 <tab type="user" title="RNNCell-3" url="@ref openvino_docs_ops_sequence_RNNCell_3"/>
+                <tab type="user" title="RNNSequence-5" url="@ref openvino_docs_ops_sequence_RNNSequence_5"/>
                 <tab type="user" title="ROIAlign-3" url="@ref openvino_docs_ops_detection_ROIAlign_3"/>
                 <tab type="user" title="ROIPooling-1" url="@ref openvino_docs_ops_detection_ROIPooling_1"/>
+                <tab type="user" title="Round-5" url="@ref openvino_docs_ops_arithmetic_Round_5"/>
                 <tab type="user" title="ScatterElementsUpdate-3" url="@ref openvino_docs_ops_movement_ScatterElementsUpdate_3"/>
                 <tab type="user" title="ScatterNDUpdate" url="@ref openvino_docs_ops_movement_ScatterNDUpdate_3"/>
                 <tab type="user" title="ScatterUpdate-3" url="@ref openvino_docs_ops_movement_ScatterUpdate_3"/>
@@ -233,6 +242,7 @@
                     <tab type="user" title="GPU Kernels Extensibility" url="@ref openvino_docs_IE_DG_Extensibility_DG_GPU_Kernel"/>
                     <tab type="user" title="VPU Kernels Extensibility" url="@ref openvino_docs_IE_DG_Extensibility_DG_VPU_Kernel"/>
                     <tab type="user" title="Build Extension Library Using CMake" url="@ref openvino_docs_IE_DG_Extensibility_DG_Building"/>
+                    <tab type="user" title="Custom ONNX operators" url="@ref openvino_docs_IE_DG_Extensibility_DG_Custom_ONNX_Ops"/>
                 </tab>
                 <tab type="user" title="Integrate the Inference Engine with Your Application" url="@ref openvino_docs_IE_DG_Integrate_with_customer_application_new_API"/>
                 <tab type="user" title="[DEPRECATED] Migration from Inference Engine Plugin API to Core API" url="@ref openvino_docs_IE_DG_Migration_CoreAPI"/>
