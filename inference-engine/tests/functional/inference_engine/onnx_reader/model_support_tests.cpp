@@ -67,6 +67,6 @@ TEST(ONNXReader_ModelUnsupported, unknown_wire_type) {
 }
 
 TEST(ONNXReader_ModelUnsupported, no_valid_keys) {
-    EXPECT_THROW(InferenceEngine::Core{}.ReadNetwork(model_path("supported/no_valid_keys.prototxt")),
+    EXPECT_THROW(InferenceEngine::Core{}.ReadNetwork(model_path("unsupported/no_valid_keys.prototxt")),
                  InferenceEngine::details::InferenceEngineException);
 }

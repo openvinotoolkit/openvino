@@ -9,7 +9,7 @@
 #include <exception>
 #include <map>
 #include <vector>
-
+#include <iostream>
 namespace detail {
 namespace onnx {
     enum Field {
@@ -103,6 +103,7 @@ namespace onnx {
         char key_component = 0;
         model.get(key_component);
 
+        // keep reading all bytes from the stream which have the MSB on
         while (key_component & 0x80) {
             // drop the most significant bit
             const char component = key_component & ~0x80;
@@ -178,14 +179,22 @@ namespace prototxt {
         size_t search_start_pos = 0;
 
         while (keys_found < expected_keys_num) {
-            for (const auto& key : onnx_keys) {
+            const auto key_finder = [&search_start_pos, &model](const std::string& key) {
                 const auto key_pos = model.find(key, search_start_pos);
                 if (key_pos != model.npos) {
-                    ++keys_found;
                     // don't search from the beginning each time
                     search_start_pos = key_pos + key.size();
-                    break;
+                    return true;
+                } else {
+                    return false;
                 }
+            };
+
+            const auto found = std::any_of(std::begin(onnx_keys), std::end(onnx_keys), key_finder);
+            if (!found) {
+                break;
+            } else {
+                ++keys_found;
             }
         }
 
