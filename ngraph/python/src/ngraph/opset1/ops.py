@@ -806,7 +806,7 @@ def elu(data: NodeInput, alpha: NumericType, name: Optional[str] = None) -> Node
     Computes exponential linear: alpha * (exp(data) - 1) if < 0, data otherwise.
 
     For more information refer to:
-    [Fast and Accurate Deep Network Learning by Exponential Linear Units (ELUs)](http://arxiv.org/abs/1511.07289)
+    [Fast and Accurate Deep Network Learning by Exponential Linear Units](http://arxiv.org/abs/1511.07289)
 
     @param data: Input tensor. One of: input node, array or scalar.
     @param alpha: Scalar multiplier for negative values.
@@ -2642,7 +2642,11 @@ def sqrt(node: NodeInput, name: Optional[str] = None) -> Node:
 def squared_difference(
     x1: NodeInput, x2: NodeInput, auto_broadcast: str = "NUMPY", name: Optional[str] = None
 ) -> Node:
+<<<<<<< HEAD
     """! Perform an element-wise squared difference between two tensors.
+=======
+    r"""! Perform an element-wise squared difference between two tensors.
+>>>>>>> releases/2021/1
 
     \f[ y[i] = (x_1[i] - x_2[i])^2 \f]
 
@@ -2784,8 +2788,12 @@ def tensor_iterator(
     concat_output_desc: List[TensorIteratorConcatOutputDesc],
     name: Optional[str] = None,
 ) -> Node:
+<<<<<<< HEAD
     """!
     Perform recurrent execution of the network described in the body, iterating through the data.
+=======
+    """! Perform recurrent execution of the network described in the body, iterating through the data.
+>>>>>>> releases/2021/1
 
     @param      inputs:                The provided to TensorIterator operator.
     @param      graph_body:            The graph representing the body we execute.
