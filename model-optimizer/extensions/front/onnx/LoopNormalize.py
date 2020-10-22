@@ -52,7 +52,7 @@ class ONNXLoopNormalize(FrontReplacementSubgraph):
         if 1 not in loop_node.in_ports() or loop_node.in_port(1).disconnected():
             loop_node.add_input_port(1, skip_if_exist=True)
             Const(loop_node.graph, {'name': loop_name + '/execution_cond', 'value': np.array([True], dtype=np.bool)}).\
-                create_node().out_port(0).connect(loop_node.in_port(0))
+                create_node().out_port(0).connect(loop_node.in_port(1))
 
         # scan output need Unsqueeze over axis 0
         for record in loop_node.output_port_map:

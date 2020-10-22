@@ -303,15 +303,16 @@ class TensorIterator(Op):
             result = dict(map_item)
             assert result is not map_item
             # do not update ids for not-connected output which is used in the Loop operation only
-            if node.type == 'Loop':
+            type = node.soft_get('type')
+            if type == 'Loop':
                 if result['external_port_id'] != -1:
                     if dir == 'out':  # increase the output port id by the number of input ports
                         result['external_port_id'] += len(node.in_ports())
-            elif node.type == 'TensorIterator':
+            elif type == 'TensorIterator':
                 result['external_port_id'] = __class__.find_port_id(node, result['external_port_id'],
                                                                     'external_port_id', dir)
             else:
-                assert False, 'Unsupported operation type "{}" for node "{}"'.format(node.type, node.soft_get('name'))
+                assert False, 'Unsupported operation type "{}" for node "{}"'.format(type, node.soft_get('name'))
             result['internal_layer_id'] = __class__.find_internal_layer_id(node.body, result['internal_layer_id'])
             result_list.append(result)
         return result_list
