@@ -45,6 +45,8 @@ xfail_issue_33535 = xfail_test(reason="nGraph does not support the following ONN
                                       "DynamicQuantizeLinear")
 xfail_issue_33538 = xfail_test(reason="RuntimeError: nGraph does not support the following ONNX operations:"
                                       "Scan")
+skip_issue_38084 = pytest.mark.skip(reason="Aborted (core dumped) Assertion "
+                                           "`(layer->get_output_partial_shape(i).is_static())' failed.")
 xfail_issue_33540 = xfail_test(reason="RuntimeError: GRUCell operation has a form that is not supported "
                                       "GRUCell_<number> should be converted to GRUCellIE operation")
 xfail_issue_33589 = xfail_test(reason="nGraph does not support the following ONNX operations:"
@@ -85,8 +87,6 @@ xfail_issue_35921 = xfail_test(reason="ValueError - shapes mismatch in gemm")
 xfail_issue_35923 = xfail_test(reason="RuntimeError: PReLU without weights is not supported")
 xfail_issue_35924 = xfail_test(reason="Assertion error - elu results mismatch")
 xfail_issue_35925 = xfail_test(reason="Assertion error - reduction ops results mismatch")
-xfail_issue_35926 = xfail_test(reason="RuntimeError: [NOT_IMPLEMENTED] Input image format I64 is "
-                                      "not supported yet...")
 xfail_issue_35927 = xfail_test(reason="RuntimeError: B has zero dimension that is not allowable")
 xfail_issue_35929 = xfail_test(reason="RuntimeError: Incorrect precision f64!")
 xfail_issue_35930 = xfail_test(reason="onnx.onnx_cpp2py_export.checker.ValidationError: "
@@ -200,3 +200,23 @@ xfail_issue_37957 = xfail_test(reason="RuntimeError: nGraph does not support the
                                       "com.microsoft.CropAndResize, com.microsoft.GatherND,"
                                       "com.microsoft.Pad, com.microsoft.Range")
 xfail_issue_39669 = xfail_test(reason="AssertionError: This model has no test data")
+xfail_issue_36534 = xfail_test(reason="RuntimeError: node input index is out of range")
+xfail_issue_36535 = xfail_test(reason="RuntimeError: get_shape was called on a descriptor::Tensor "
+                                      "with dynamic shape")
+xfail_issue_36536 = xfail_test(reason="RuntimeError: can't protect")
+xfail_issue_36537 = xfail_test(reason="ngraph.exceptions.UserInputError: (Provided tensor's shape: "
+                                      "<value> does not match the expected: <value>")
+xfail_issue_36538 = xfail_test(reason="RuntimeError: Check 'PartialShape::broadcast_merge_into( pshape, "
+                                      "node->get_input_partial_shape(i), autob)' failed at "
+                                      "/openvino/ngraph/src/ngraph/op/util/elementwise_args.cpp:48:")
+xfail_issue_39656 = xfail_test(reason="RuntimeError: Reshape reshaped has dynamic second input!")
+xfail_issue_39658 = xfail_test(reason="RuntimeError: Tile operation has a form that is not supported."
+                                      " z should be converted to TileIE operation.")
+xfail_issue_39659 = xfail_test(reason="RuntimeError: Broadcast operation has a form that is not supported."
+                                      " y should be converted to Tile operation.")
+xfail_issue_39661 = xfail_test(reason="RuntimeError: NonMaxSuppression operation has a form that is not "
+                                      "supported. selected_indices should be converted to "
+                                      "NonMaxSuppressionIE operation.")
+xfail_issue_39662 = xfail_test(reason="RuntimeError: 'ScatterElementsUpdate' layer with name 'y' have "
+                                      "indices value that points to non-existing output tensor element")
+xfail_issue_39663 = xfail_test(reason="RuntimeError: Unsupported primitive of type: ROIAlign name: Y")
