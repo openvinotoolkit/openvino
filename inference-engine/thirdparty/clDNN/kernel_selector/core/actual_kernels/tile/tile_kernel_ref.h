@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2018 Intel Corporation
+﻿// Copyright (c) 2018-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,7 +14,7 @@
 
 #pragma once
 
-#include "common_kernel_base.h"
+#include "kernel_base_opencl.h"
 
 namespace kernel_selector {
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -36,9 +36,9 @@ struct tile_optional_params : optional_params {
     tile_optional_params() : optional_params(KernelType::TILE) {}
 };
 
-class TileKernelRef : public common_kernel_base {
+class TileKernelRef : public KernelBaseOpenCL {
 public:
-    TileKernelRef() : common_kernel_base("tile_ref") {}
+    TileKernelRef() : KernelBaseOpenCL("tile_ref") {}
     virtual ~TileKernelRef() {}
 
     virtual JitConstants GetJitConstants(const tile_params& params) const;
