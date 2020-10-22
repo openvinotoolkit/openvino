@@ -34,11 +34,11 @@ TEST(TransformationTests, HSigmoidDecompositionTest) {
     }
 
     {
-        auto input = std::make_shared<ngraph::opset5::Parameter>(ngraph::element::f16, ngraph::PartialShape::dynamic(1));
-        auto add_constant = ngraph::opset5::Constant::create(ngraph::element::f16, ngraph::Shape{}, {3.0});
+        auto input = std::make_shared<ngraph::opset5::Parameter>(ngraph::element::f32, ngraph::PartialShape::dynamic(1));
+        auto add_constant = ngraph::opset5::Constant::create(ngraph::element::f32, ngraph::Shape{}, {3.0});
         auto add = std::make_shared<ngraph::opset5::Add>(input, add_constant);
         auto relu = std::make_shared<ngraph::opset5::Relu>(add);
-        auto min_constant = ngraph::opset5::Constant::create(ngraph::element::f16, ngraph::Shape{}, {6.0});
+        auto min_constant = ngraph::opset5::Constant::create(ngraph::element::f32, ngraph::Shape{}, {6.0});
         auto min = std::make_shared<ngraph::opset5::Minimum>(relu, min_constant);
         auto mul = std::make_shared<ngraph::opset5::Multiply>(input, min);
 

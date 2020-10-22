@@ -45,15 +45,6 @@ ngraph::pass::HSigmoidFusionWithReluDiv::HSigmoidFusionWithReluDiv() {
         auto hsigmoid = std::make_shared<ngraph::opset5::HSigmoid>(x_output);
 
         hsigmoid->set_friendly_name(m.get_match_root()->get_friendly_name());
-        ngraph::copy_runtime_info({ pattern_to_output.at(add_constant).get_node_shared_ptr(),
-                                    pattern_to_output.at(add).get_node_shared_ptr(),
-                                    pattern_to_output.at(relu).get_node_shared_ptr(),
-                                    pattern_to_output.at(min_constant).get_node_shared_ptr(),
-                                    pattern_to_output.at(min).get_node_shared_ptr(),
-                                    pattern_to_output.at(div_constant).get_node_shared_ptr(),
-                                    pattern_to_output.at(div).get_node_shared_ptr(),
-                                   },
-                                  hsigmoid);
         ngraph::replace_node(m.get_match_root(), hsigmoid);
         return true;
     };
@@ -95,15 +86,6 @@ ngraph::pass::HSigmoidFusionWithReluMul::HSigmoidFusionWithReluMul() {
         auto hsigmoid = std::make_shared<ngraph::opset5::HSigmoid>(x_output);
 
         hsigmoid->set_friendly_name(m.get_match_root()->get_friendly_name());
-        ngraph::copy_runtime_info({ pattern_to_output.at(add_constant).get_node_shared_ptr(),
-                                    pattern_to_output.at(add).get_node_shared_ptr(),
-                                    pattern_to_output.at(relu).get_node_shared_ptr(),
-                                    pattern_to_output.at(min_constant).get_node_shared_ptr(),
-                                    pattern_to_output.at(min).get_node_shared_ptr(),
-                                    pattern_to_output.at(mul_constant).get_node_shared_ptr(),
-                                    pattern_to_output.at(mul_second).get_node_shared_ptr()
-                                   },
-                                  hsigmoid);
         ngraph::replace_node(m.get_match_root(), hsigmoid);
         return true;
     };
