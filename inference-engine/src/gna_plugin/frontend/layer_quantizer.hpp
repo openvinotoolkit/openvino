@@ -120,8 +120,6 @@ inline bool shouldAlwaysAllocate<gna_compound_bias_t>() {
 template <class T>
 class Quant {
 public:
-    template<class ...Args>
-    void operator()(Args && ... args) const { }
 };
 
 template<>
@@ -304,9 +302,14 @@ inline void quantizeWeightsBiases(const QuantDesc & quantDesc,
 
     auto quantData = InferenceEngine::getInjectedData<QuantizedLayerParams>(*wl);
     {
-        auto per_channel_weights = !quantData->_weights_quant.GetMinValues().empty();
-        auto weightsScale = quantData->_weights_quant.GetScale();
-        auto dstScale = quantData->_dst_quant.GetScale();
+        float *ptr_per_channel_weights_quants_min = nullptr;
+        float *ptr_per_channel_weights_quants_max = nullptr;
+
+        if (!quantData->_weights_quants_min.empty()) {
+            ptr_per_channel_weights_quants_min = &quantData->_weights_quants_min.front();
+            ptr_per_channel_weights_quants_max = &quantData->_weights_quants_max.front();
+        }
+
         fnc(wl->_weights->buffer().as<float *>(),
             wl->_biases ? wl->_biases->buffer().as<float *>() : nullptr,
             intWeights->buffer(),
@@ -318,11 +321,11 @@ inline void quantizeWeightsBiases(const QuantDesc & quantDesc,
             num_columns,
             num_rows_padded,
             num_columns_padded,
-            quantData->_weights_quant.GetLevels(),
+            quantData->levels,
             nullptr,
             nullptr,
-            per_channel_weights ? &quantData->_weights_quant.GetMinValues().front(): nullptr,
-            per_channel_weights ? &quantData->_weights_quant.GetMaxValues().front(): nullptr,
+            ptr_per_channel_weights_quants_min,
+            ptr_per_channel_weights_quants_max);
             &quantData->_weights_quantized);
     }
     wl->_weights = intWeights;
