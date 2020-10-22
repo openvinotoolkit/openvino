@@ -85,7 +85,7 @@ Loop operation description in the IR also has several special sections: `body`, 
     * **Port map attributes**:
 
         * *external_port_id*
-            * **Description**: *external_port_id* is a port ID of the `Loop` operation.
+            * **Description**: *external_port_id* is a port ID of the `Loop` operation. The value `-1` means that the body node is not connected to the `Loop` operation.
             * **Range of values**: IDs of the *Loop* outputs
             * **Type**: `int`
             * **Default value**: None
