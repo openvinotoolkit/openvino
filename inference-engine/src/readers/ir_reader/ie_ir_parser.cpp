@@ -394,7 +394,6 @@ std::shared_ptr<ngraph::Node> V10Parser::createNode(const std::vector<ngraph::Ou
         std::make_shared<LayerCreator<ngraph::op::Asin>>("Asin"),
         std::make_shared<LayerCreator<ngraph::op::Atan>>("Atan"),
         std::make_shared<LayerCreator<ngraph::op::v1::AvgPool>>("AvgPool"),
-        std::make_shared<LayerCreator<ngraph::op::BatchNormInference>>("BatchNormInference"),
         std::make_shared<LayerCreator<ngraph::op::Ceiling>>("Ceiling"),
         std::make_shared<LayerCreator<ngraph::op::Clamp>>("Clamp"),
         std::make_shared<LayerCreator<ngraph::op::Concat>>("Concat"),
@@ -949,20 +948,6 @@ std::shared_ptr<ngraph::Node> V10Parser::LayerCreator<ngraph::op::v0::LSTMCell>:
     return std::make_shared<ngraph::op::v0::LSTMCell>(inputs[0], inputs[1], inputs[2], inputs[3], inputs[4], inputs[5],
                                                   GetUInt64Attr(dn, "hidden_size"), ngraph::op::LSTMWeightsFormat::IFCO,
                                                   activations, activations_alpha, activations_beta, clip);
-}
-
-// BatchNormInference layer
-template <>
-std::shared_ptr<ngraph::Node> V10Parser::LayerCreator<ngraph::op::BatchNormInference>::createLayer(
-    const ngraph::OutputVector& inputs, const pugi::xml_node& node, std::istream& binStream,
-    const GenericLayerParams& layerParsePrms) {
-    checkParameters(inputs, layerParsePrms, 5);
-    pugi::xml_node dn = node.child("data");
-    if (dn.empty())
-        THROW_IE_EXCEPTION << "Cannot read parameter for " << getType() << " layer with name: " << layerParsePrms.name;
-
-    float eps = GetFloatAttr(dn, "eps");
-    return std::make_shared<ngraph::op::BatchNormInference>(inputs[0], inputs[1], inputs[2], inputs[3], inputs[4], eps);
 }
 
 // CTCGreedyDecoder layer

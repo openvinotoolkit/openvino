@@ -250,8 +250,8 @@ protected:
         }
         case OP_TYPEID::BatchNormInference:
         {
-            const ngraph::op::BatchNormInference* bn =
-                static_cast<const ngraph::op::BatchNormInference*>(&node);
+            const ngraph::op::v0::BatchNormInference* bn =
+                static_cast<const ngraph::op::v0::BatchNormInference*>(&node);
             reference::batch_norm_inference<T>(bn->get_eps_value(),
                                                args[0]->get_data_ptr<const T>(),
                                                args[1]->get_data_ptr<const T>(),
@@ -260,6 +260,20 @@ protected:
                                                args[4]->get_data_ptr<const T>(),
                                                out[0]->get_data_ptr<T>(),
                                                node.get_input_shape(2));
+            break;
+        }
+        case OP_TYPEID::BatchNormInference_v5:
+        {
+            const ngraph::op::v5::BatchNormInference* bn =
+                static_cast<const ngraph::op::v5::BatchNormInference*>(&node);
+            reference::batch_norm_inference<T>(bn->get_eps_value(),
+                                               args[1]->get_data_ptr<const T>(),
+                                               args[2]->get_data_ptr<const T>(),
+                                               args[0]->get_data_ptr<const T>(),
+                                               args[3]->get_data_ptr<const T>(),
+                                               args[4]->get_data_ptr<const T>(),
+                                               out[0]->get_data_ptr<T>(),
+                                               node.get_input_shape(0));
             break;
         }
         case OP_TYPEID::BroadcastLike: break;

@@ -24,7 +24,7 @@ std::shared_ptr<ngraph::Node> makeBatchNormInference(const ngraph::Output<Node>&
     std::uniform_real_distribution<float> dis(0.0, 10.0);
     std::generate(values.begin(), values.end(), [&dis, &gen]() { return dis(gen); });
     auto variance = ngraph::builder::makeConstant(ngPrc, ngraph::Shape{C}, values, !random);
-    return std::make_shared<ngraph::opset4::BatchNormInference>(data, gamma, beta, mean, variance, epsilon);
+    return std::make_shared<ngraph::opset5::BatchNormInference>(data, gamma, beta, mean, variance, epsilon);
 }
 }  // namespace builder
 }  // namespace ngraph

@@ -19,7 +19,7 @@ declared in `namespace opset5`.
 * [Atan](arithmetic/Atan_1.md)
 * [Atanh](arithmetic/Atanh_3.md)
 * [AvgPool](pooling/AvgPool_1.md)
-* [BatchNormInference](normalization/BatchNormInference_1.md)
+* [BatchNormInference](normalization/BatchNormInference_5.md)
 * [BatchToSpace](movement/BatchToSpace_2.md)
 * [BinaryConvolution](convolution/BinaryConvolution_1.md)
 * [Broadcast](movement/Broadcast_3.md)

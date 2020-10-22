@@ -85,7 +85,7 @@ namespace
 
     void op_is_BatchNormInference()
     {
-        op::BatchNormInference node;
+        op::v0::BatchNormInference node;
         EXPECT_FALSE(op::is_unary_elementwise_arithmetic(&node));
         EXPECT_FALSE(op::is_binary_elementwise_arithmetic(&node));
         EXPECT_FALSE(op::is_binary_elementwise_comparison(&node));
