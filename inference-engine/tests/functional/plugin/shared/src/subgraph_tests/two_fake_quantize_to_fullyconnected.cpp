@@ -39,8 +39,9 @@ namespace LayerTestsDefinitions {
         InferenceEngine::SizeVector inputShapes;
         std::string targetDevice;
         std::pair<std::string, std::map<std::string, std::string>> config;
-        std::tie(fqParams, netPrecision, inPrc, outPrc, inLayout, outLayout, inputShapes, targetDevice, config) = obj.param;
-        size_t levels;
+        bool biases = false;
+        std::tie(fqParams, netPrecision, inPrc, outPrc, inLayout, outLayout, inputShapes, targetDevice, config, biases) = obj.param;
+        std::vector<size_t> levels;
         std::vector<size_t> constShape;
         std::vector<float> fqDirectArgs;
         std::vector<float> inputArg;
@@ -49,12 +50,13 @@ namespace LayerTestsDefinitions {
         std::ostringstream result;
         result << "IS=" << CommonTestUtils::vec2str(inputShapes) << "_";
         result << "CS=" << CommonTestUtils::vec2str(constShape) << "_";
-        result << "LEVELS=" << levels << "_";
+        result << "LEVELS=" << CommonTestUtils::vec2str(levels) << "_";
         result << "netPRC=" << netPrecision.name() << "_";
         result << "inPRC=" << inPrc.name() << "_";
         result << "outPRC=" << outPrc.name() << "_";
         result << "inL=" << inLayout << "_";
         result << "outL=" << outLayout << "_";
+        result << "biases=" << biases << "_";
         result << "trgDev=" << targetDevice;
         if (!config.first.empty()) {
             result << "_targetConfig=" << config.first;
@@ -73,9 +75,10 @@ namespace LayerTestsDefinitions {
         std::vector<size_t> inputShape;
         std::pair<std::string, std::map<std::string, std::string>> config;
         auto netPrecision = InferenceEngine::Precision::UNSPECIFIED;
-        std::tie(fqParams, netPrecision, inPrc, outPrc, inLayout, outLayout, inputShape, targetDevice, config) = this->GetParam();
+        bool biases = false;
+        std::tie(fqParams, netPrecision, inPrc, outPrc, inLayout, outLayout, inputShape, targetDevice, config, biases) = this->GetParam();
         InferenceEngine::SizeVector kernel, stride, dilation;
-        size_t levels;
+        std::vector<size_t> levels;
         std::vector<size_t> constShape;
         std::vector<float> fqDirectArg;
         std::vector<float> inputArg;
@@ -92,6 +95,7 @@ namespace LayerTestsDefinitions {
         UpdateSeed();
 
         std::shared_ptr<ngraph::Node> fakeQNode;
+        std::shared_ptr<ngraph::Node> fakeQNode2;
         if (fqDirectArg.empty()) {
             int32_t ngraphSeed = seed;
             if (NGRAPH_SEED != USE_CLOCK_TIME) {
@@ -99,25 +103,44 @@ namespace LayerTestsDefinitions {
             }
             std::cout << "\033[0;32m" << "[          ] " << "\033[0;0m"
                       << "ngraphSeed = " << ngraphSeed << std::endl;
-            fakeQNode = ngraph::builder::makeFakeQuantize(paramOuts[0], ngPrc, levels, constShape, ngraphSeed);
+            fakeQNode = ngraph::builder::makeFakeQuantize(paramOuts[0], ngPrc, levels[0], constShape, ngraphSeed);
+            auto const_param = ngraph::builder::makeConstant(ngPrc, {2048, inputShape[1]}, std::vector<float>{-1.0f});
+            fakeQNode2 = ngraph::builder::makeFakeQuantize(const_param, ngPrc, levels[1], constShape, ngraphSeed);
         } else {
             fakeQNode = ngraph::builder::makeFakeQuantize(
                     paramOuts[0],
                     ngPrc,
-                    levels,
+                    levels[0],
                     constShape,
                     {fqDirectArg[0]},
                     {fqDirectArg[1]},
                     {fqDirectArg[2]},
                     {fqDirectArg[3]});
+            auto const_param = ngraph::builder::makeConstant(ngPrc, {2048, inputShape[1]}, std::vector<float>{-1.0f}, false);
+            auto inputLowNode = ngraph::builder::makeConstant(ngPrc, constShape, std::vector<float>{fqDirectArg[2]}, false);
+            auto inputHighNode = ngraph::builder::makeConstant(ngPrc, constShape, std::vector<float>{fqDirectArg[3]}, false);
+            auto outputLowNode = ngraph::builder::makeConstant(ngPrc, {2048, 1}, std::vector<float>{fqDirectArg[2]}, false);
+            auto outputHighNode = ngraph::builder::makeConstant(ngPrc, {2048, 1}, std::vector<float>{fqDirectArg[3]}, false);
+
+            fakeQNode2 = std::make_shared<ngraph::opset1::FakeQuantize>(const_param, inputLowNode, inputHighNode, outputLowNode, outputHighNode, levels[1]);
         }
 
 
         auto fq = std::dynamic_pointer_cast<ngraph::opset1::FakeQuantize>(fakeQNode);
+        auto fq2 = std::dynamic_pointer_cast<ngraph::opset1::FakeQuantize>(fakeQNode2);
 
-        auto fullyconnected = ngraph::builder::makeFullyConnected(fq, ngPrc, 2048, false);
-        ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(fq)};
-        function = std::make_shared<ngraph::Function>(results, params, "fakeQuantize");
+        auto matmul = std::make_shared<ngraph::opset1::MatMul>(fq, fq2, false, true);
+        std::shared_ptr<ngraph::Node> biases_node;
+        if (biases) {
+            auto const_bias = ngraph::builder::makeConstant(ngPrc, {1, 2048}, std::vector<float>{-1.0f});
+            biases_node = std::make_shared<ngraph::opset1::Add>(matmul, const_bias);
+        } else {
+            biases_node = matmul;
+        }
+
+        auto sigmoid = std::make_shared<ngraph::opset1::Sigmoid>(biases_node);
+        ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(sigmoid)};
+        function = std::make_shared<ngraph::Function>(results, params, "fakeQuantizeSubgraph");
 
         configuration = config.second;
     }
