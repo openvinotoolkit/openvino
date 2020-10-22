@@ -315,10 +315,6 @@ KERNEL(convolution_gpu_b_fs_zyx_fsv16_imad)(
                             }
 
                             filter_idx += FSV * FSV;
-
-                            #if ASYMMETRIC_DATA_QUANTIZATION
-                                data_zp_idx += FSV;
-                            #endif
                         }
                     }
                 }
@@ -329,6 +325,10 @@ KERNEL(convolution_gpu_b_fs_zyx_fsv16_imad)(
         input_start_idx += INPUT0_FEATURE_PITCH * FSV * FEATURE_SLM_SPLIT - (FILTER_SIZE_Z / FILTER_SIZE_Z_UNROLL) * DILATION_SIZE_Z * INPUT0_Z_PITCH * FSV;
 
         filter_idx += FSV * FSV * FILTER_SIZE_X * FILTER_SIZE_Y * FILTER_SIZE_Z * (FEATURE_SLM_SPLIT - 1);
+
+        #if ASYMMETRIC_DATA_QUANTIZATION
+            data_zp_idx += FSV;
+        #endif
     }
 
 #if FEATURE_SLM_SPLIT != 1
