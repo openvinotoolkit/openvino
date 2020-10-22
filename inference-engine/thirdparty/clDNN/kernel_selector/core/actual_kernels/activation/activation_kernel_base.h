@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2016 Intel Corporation
+﻿// Copyright (c) 2016-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -15,7 +15,7 @@
 
 #pragma once
 
-#include "common_kernel_base.h"
+#include "kernel_base_opencl.h"
 
 namespace kernel_selector {
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -56,10 +56,10 @@ struct activation_fuse_params : fuse_params {
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // ActivationKernelBase
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-class ActivationKernelBase : public common_kernel_base {
+class ActivationKernelBase : public KernelBaseOpenCL {
 public:
     using DispatchData = CommonDispatchData;
-    using common_kernel_base::common_kernel_base;
+    using KernelBaseOpenCL::KernelBaseOpenCL;
 
     virtual ~ActivationKernelBase() {}
 

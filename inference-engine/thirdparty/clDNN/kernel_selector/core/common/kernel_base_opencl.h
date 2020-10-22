@@ -22,10 +22,10 @@
 
 namespace kernel_selector {
 
-class common_kernel_base : public KernelBase {
+class KernelBaseOpenCL : public KernelBase {
 public:
     using KernelBase::KernelBase;
-    virtual ~common_kernel_base() {}
+    virtual ~KernelBaseOpenCL() {}
 
 protected:
     virtual bool Validate(const Params&, const optional_params&) const { return true; }

@@ -16,7 +16,7 @@
 
 #pragma once
 
-#include "common_kernel_base.h"
+#include "kernel_base_opencl.h"
 
 namespace kernel_selector {
 
@@ -40,9 +40,9 @@ struct cum_sum_optional_params : optional_params {
     cum_sum_optional_params() : optional_params(KernelType::CUM_SUM) {}
 };
 
-class CumSumKernelBase : public common_kernel_base {
+class CumSumKernelBase : public KernelBaseOpenCL {
 public:
-    using common_kernel_base::common_kernel_base;
+    using KernelBaseOpenCL::KernelBaseOpenCL;
     virtual ~CumSumKernelBase() = default;
 
     struct DispatchData : public CommonDispatchData {

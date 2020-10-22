@@ -15,7 +15,7 @@
 
 #pragma once
 
-#include "common_kernel_base.h"
+#include "kernel_base_opencl.h"
 #include "kernel_selector_params.h"
 #include <vector>
 
@@ -94,9 +94,9 @@ struct reorder_weights_params : public Params {
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // ReorderKernelBase
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-class ReorderKernelBase : public common_kernel_base {
+class ReorderKernelBase : public KernelBaseOpenCL {
 public:
-    using common_kernel_base::common_kernel_base;
+    using KernelBaseOpenCL::KernelBaseOpenCL;
     virtual ~ReorderKernelBase() {}
 
     using DispatchData = CommonDispatchData;

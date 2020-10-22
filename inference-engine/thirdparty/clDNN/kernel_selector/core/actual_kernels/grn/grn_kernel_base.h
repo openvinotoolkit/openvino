@@ -13,7 +13,7 @@
 // limitations under the License.
 #pragma once
 
-#include "common_kernel_base.h"
+#include "kernel_base_opencl.h"
 #include "kernel_selector_params.h"
 #include <string>
 
@@ -37,9 +37,9 @@ struct grn_optional_params : optional_params {
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // GRNKernelBase
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-class GRNKernelBase : public common_kernel_base {
+class GRNKernelBase : public KernelBaseOpenCL {
 public:
-    using common_kernel_base::common_kernel_base;
+    using KernelBaseOpenCL::KernelBaseOpenCL;
     virtual ~GRNKernelBase() {}
     using DispatchData = CommonDispatchData;
 

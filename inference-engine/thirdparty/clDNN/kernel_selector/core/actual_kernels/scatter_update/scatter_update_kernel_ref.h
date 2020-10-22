@@ -16,7 +16,7 @@
 
 #pragma once
 
-#include "common_kernel_base.h"
+#include "kernel_base_opencl.h"
 
 namespace kernel_selector {
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -37,9 +37,9 @@ struct scatter_update_optional_params : optional_params {
     scatter_update_optional_params() : optional_params(KernelType::SCATTER_UPDATE) {}
 };
 
-class ScatterUpdateKernelRef : public common_kernel_base {
+class ScatterUpdateKernelRef : public KernelBaseOpenCL {
 public:
-    ScatterUpdateKernelRef() : common_kernel_base("scatter_update_ref") {}
+    ScatterUpdateKernelRef() : KernelBaseOpenCL("scatter_update_ref") {}
     virtual ~ScatterUpdateKernelRef() {}
     virtual JitConstants GetJitConstants(const scatter_update_params& params) const;
     virtual CommonDispatchData SetDefault(const scatter_update_params& params, const optional_params&, bool is_second) const;

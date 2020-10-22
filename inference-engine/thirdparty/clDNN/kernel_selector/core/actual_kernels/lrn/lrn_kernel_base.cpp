@@ -18,7 +18,7 @@
 
 namespace kernel_selector {
 bool LRNKernelBase::Validate(const Params& p, const optional_params& o) const {
-    if (!common_kernel_base::Validate(p, o) || p.GetType() != KernelType::LRN || o.GetType() != KernelType::LRN) {
+    if (!KernelBaseOpenCL::Validate(p, o) || p.GetType() != KernelType::LRN || o.GetType() != KernelType::LRN) {
         return false;
     }
 

@@ -14,7 +14,7 @@
 
 #pragma once
 
-#include "common_kernel_base.h"
+#include "kernel_base_opencl.h"
 #include <vector>
 
 namespace kernel_selector {
@@ -41,9 +41,9 @@ struct strided_slice_optional_params : optional_params {
     strided_slice_optional_params() : optional_params(KernelType::STRIDED_SLICE) {}
 };
 
-class StridedSliceKernelRef : public common_kernel_base {
+class StridedSliceKernelRef : public KernelBaseOpenCL {
 public:
-    StridedSliceKernelRef() : common_kernel_base("strided_slice_ref") {}
+    StridedSliceKernelRef() : KernelBaseOpenCL("strided_slice_ref") {}
     virtual ~StridedSliceKernelRef() {}
     virtual JitConstants GetJitConstants(const strided_slice_params& params) const;
     virtual CommonDispatchData SetDefault(const strided_slice_params& params, const optional_params&) const;

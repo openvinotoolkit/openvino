@@ -14,7 +14,7 @@
 
 #pragma once
 
-#include "common_kernel_base.h"
+#include "kernel_base_opencl.h"
 #include "kernel_selector_params.h"
 
 #include <vector>
@@ -41,9 +41,9 @@ struct extract_image_patches_optional_params : optional_params {
     extract_image_patches_optional_params() : optional_params(KernelType::EXTRACT_IMAGE_PATCHES) {}
 };
 
-class ExtractImagePatchesKernelBase : public common_kernel_base {
+class ExtractImagePatchesKernelBase : public KernelBaseOpenCL {
 public:
-    using common_kernel_base::common_kernel_base;
+    using KernelBaseOpenCL::KernelBaseOpenCL;
     using DispatchData = CommonDispatchData;
     virtual ~ExtractImagePatchesKernelBase() {}
 

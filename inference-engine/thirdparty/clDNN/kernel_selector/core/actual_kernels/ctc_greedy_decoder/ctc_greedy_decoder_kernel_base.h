@@ -13,7 +13,7 @@
 // limitations under the License.
 #pragma once
 
-#include "common_kernel_base.h"
+#include "kernel_base_opencl.h"
 #include "kernel_selector_params.h"
 #include <string>
 
@@ -37,9 +37,9 @@ struct ctc_greedy_decoder_optional_params : optional_params {
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // CTCGreedyDecoderKernelBase
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-class CTCGreedyDecoderKernelBase : public common_kernel_base {
+class CTCGreedyDecoderKernelBase : public KernelBaseOpenCL {
 public:
-    using common_kernel_base::common_kernel_base;
+    using KernelBaseOpenCL::KernelBaseOpenCL;
     virtual ~CTCGreedyDecoderKernelBase() {}
     using DispatchData = CommonDispatchData;
 
