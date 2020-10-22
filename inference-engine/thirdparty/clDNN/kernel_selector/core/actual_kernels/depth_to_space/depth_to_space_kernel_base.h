@@ -16,7 +16,7 @@
 
 #pragma once
 
-#include "common_kernel_base.h"
+#include "kernel_base_opencl.h"
 #include "kernel_selector_params.h"
 
 namespace kernel_selector {
@@ -48,9 +48,9 @@ struct depth_to_space_fuse_params : fuse_params {
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // DepthToSpaceKernelBase
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-class DepthToSpaceKernelBase : public common_kernel_base {
+class DepthToSpaceKernelBase : public KernelBaseOpenCL {
 public:
-    using common_kernel_base::common_kernel_base;
+    using KernelBaseOpenCL::KernelBaseOpenCL;
     virtual ~DepthToSpaceKernelBase() {}
 
     struct DispatchData : public CommonDispatchData {
