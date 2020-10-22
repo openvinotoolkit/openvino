@@ -20,21 +20,22 @@ from extensions.ops.activation_ops import HSigmoid
 from mo.front.common.replacement import FrontReplacementSubgraph
 from mo.front.subgraph_matcher import SubgraphMatch
 from mo.graph.graph import Graph, rename_nodes
+from mo.utils.graph import Node
 
 
-def replace_with_hsigmoid(graph: Graph, match: [dict, SubgraphMatch]):
-    add = match['add']
-    mul_2 = match['mul_2']
+def replace_with_hsigmoid(graph: Graph, first_node: Node, last_node):
+    first = first_node
+    last = last_node
 
-    # determine the input port of Add and Mul which gets the 'input' node output
-    add_input_port_idx = int(add.in_port(0).get_connection().get_source().node.soft_get('op') == 'Const')
-    mul_2_name = mul_2.soft_get('name', mul_2.id)
+    # determine the input port of first and last nodes which gets the 'input' node output
+    add_input_port_idx = int(first.in_port(0).get_connection().get_source().node.soft_get('op') == 'Const')
+    last_node_name = last.soft_get('name', last.id)
 
     hsigmoid = HSigmoid(graph, {}).create_node()
-    hsigmoid.in_port(0).connect(add.in_port(add_input_port_idx).get_source())
-    mul_2.out_port(0).get_connection().set_source(hsigmoid.out_port(0))
+    hsigmoid.in_port(0).connect(first.in_port(add_input_port_idx).get_source())
+    last.out_port(0).get_connection().set_source(hsigmoid.out_port(0))
 
-    rename_nodes([(mul_2, mul_2_name + '/TBR'), (hsigmoid, mul_2_name)])
+    rename_nodes([(last, last_node_name + '/TBR'), (hsigmoid, last_node_name)])
 
 
 class HSigmoidWithClamp(FrontReplacementSubgraph):
@@ -70,7 +71,7 @@ class HSigmoidWithClamp(FrontReplacementSubgraph):
             ])
 
     def replace_sub_graph(self, graph: Graph, match: [dict, SubgraphMatch]):
-        replace_with_hsigmoid(graph, match)
+        replace_with_hsigmoid(graph, match['add'], match['mul_2'])
 
 
 class HSigmoidWithMinMax(FrontReplacementSubgraph):
@@ -108,4 +109,76 @@ class HSigmoidWithMinMax(FrontReplacementSubgraph):
             ])
 
     def replace_sub_graph(self, graph: Graph, match: [dict, SubgraphMatch]):
-        replace_with_hsigmoid(graph, match)
+        replace_with_hsigmoid(graph, match['add'], match['mul_2'])
+
+
+class HSigmoidWithReluDiv(FrontReplacementSubgraph):
+    """
+    The transformation looks for the pattern with Relu/Div defining the HSigmoid function:
+    HSigmoid(x) = Min(Relu(x + 3.0), 6.0) / 6.0
+    """
+    enabled = True
+
+    def run_after(self):
+        return [AttributedClampNormalizer]
+
+    def pattern(self):
+        return dict(
+            nodes=[
+                ('input', dict()),
+                ('add_const', dict(op='Const', value=lambda v: v is not None and np.allclose(v, 3.0, atol=1e-6))),
+                ('add', dict(op='Add')),
+                ('relu', dict(op='ReLU')),
+                ('min_const', dict(op='Const', value=lambda v: v is not None and np.allclose(v, 6.0, atol=1e-6))),
+                ('min', dict(op='Minimum')),
+                ('div_const', dict(op='Const', value=lambda v: v is not None and np.allclose(v, 6.0, atol=1e-6))),
+                ('div', dict(op='Div')),
+            ],
+            edges=[
+                ('input', 'add', {'out': 0}),
+                ('add_const', 'add', {}),
+                ('add', 'relu', {}),
+                ('relu', 'min', {}),
+                ('min_const', 'min', {}),
+                ('min', 'div', {}),
+                ('div_const', 'div', {}),
+            ])
+
+    def replace_sub_graph(self, graph: Graph, match: [dict, SubgraphMatch]):
+        replace_with_hsigmoid(graph, match['add'], match['div'])
+
+
+class HSigmoidWithReluMul(FrontReplacementSubgraph):
+    """
+    The transformation looks for the pattern with Relu/Mul defining the HSigmoid function:
+    HSigmoid(x) = Min(Relu(x + 3.0), 6.0) * 1.0/6.0
+    """
+    enabled = True
+
+    def run_after(self):
+        return [AttributedClampNormalizer]
+
+    def pattern(self):
+        return dict(
+            nodes=[
+                ('input', dict()),
+                ('add_const', dict(op='Const', value=lambda v: v is not None and np.allclose(v, 3.0, atol=1e-6))),
+                ('add', dict(op='Add')),
+                ('relu', dict(op='ReLU')),
+                ('min_const', dict(op='Const', value=lambda v: v is not None and np.allclose(v, 6.0, atol=1e-6))),
+                ('min', dict(op='Minimum')),
+                ('mul_const', dict(op='Const', value=lambda v: v is not None and np.allclose(v, 1.0/6.0, atol=1e-6))),
+                ('mul', dict(op='Mul')),
+            ],
+            edges=[
+                ('input', 'add', {'out': 0}),
+                ('add_const', 'add', {}),
+                ('add', 'relu', {}),
+                ('relu', 'min', {}),
+                ('min_const', 'min', {}),
+                ('min', 'mul', {}),
+                ('mul_const', 'mul', {}),
+            ])
+
+    def replace_sub_graph(self, graph: Graph, match: [dict, SubgraphMatch]):
+        replace_with_hsigmoid(graph, match['add'], match['mul'])
