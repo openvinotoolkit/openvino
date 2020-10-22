@@ -57,6 +57,7 @@ _get_node_factory_opset5 = partial(_get_node_factory, "opset5")
 
 # -------------------------------------------- ops ------------------------------------------------
 
+
 @nameable_op
 def batch_norm_inference(
     data: NodeInput,
@@ -81,6 +82,7 @@ def batch_norm_inference(
     """
     inputs = as_nodes(data, gamma, beta, mean, variance)
     return _get_node_factory_opset5().create("BatchNormInference", inputs, {"epsilon": epsilon})
+
 
 @nameable_op
 def gather_nd(
