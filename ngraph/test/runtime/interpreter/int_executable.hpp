@@ -129,6 +129,11 @@ namespace ngraph
 #undef NGRAPH_OP
                 UnknownOp
             };
+
+            void run_nms5(const op::v5::NonMaxSuppression* nms5,
+                          const std::vector<std::shared_ptr<HostTensor>>& out,
+                          const std::vector<std::shared_ptr<HostTensor>>& args);
+
         } // namespace interpreter
     }     // namespace runtime
 } // namespace ngraph
@@ -1447,14 +1452,10 @@ protected:
         }
         case OP_TYPEID::NonMaxSuppression_v5:
         {
-            const op::NonMaxSuppression* nms =
+            const op::v5::NonMaxSuppression* nms =
                 static_cast<const op::v5::NonMaxSuppression*>(&node);
 
-            int64_t max_output_boxes_per_class = nms->max_boxes_output_from_input();
-            float iou_threshold = nms->iou_threshold_from_input();
-            float score_threshold = nms->score_threshold_from_input();
-            float soft_nms_sigma = nms->soft_nms_sigma_from_input();
-
+            run_nms5(nms, out, args);
             break;
         }
 
