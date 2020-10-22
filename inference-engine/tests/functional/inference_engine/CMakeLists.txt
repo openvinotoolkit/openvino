@@ -44,12 +44,15 @@ addIeTargetTest(
 )
 
 ie_faster_build(${TARGET_NAME}
+    UNITY
     PCH PRIVATE "precomp.hpp"
 )
 
 if(TARGET inference_engine_onnx_reader)
     add_dependencies(${TARGET_NAME} inference_engine_onnx_reader)
 endif()
+
+target_compile_definitions(${TARGET_NAME} PRIVATE ONNX_TEST_MODELS="${CMAKE_CURRENT_SOURCE_DIR}/onnx_reader/models/")
 
 include(CMakeParseArguments)
 

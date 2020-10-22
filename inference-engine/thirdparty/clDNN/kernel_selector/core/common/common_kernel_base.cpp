@@ -160,30 +160,6 @@ std::shared_ptr<KernelString> common_kernel_base::GetKernelString(const std::str
     return kernel_string;
 }
 
-static void Check_RunInfoData(const std::string& kernelName, const kernel_selector::CommonDispatchData& runInfo) {
-    if (runInfo.lws0 * runInfo.lws1 * runInfo.lws2 > 256) {
-        std::cout << "ERROR: dispatch data for kernel: " << kernelName << " LWS cannot be greater than 256!\n"
-                  << std::endl;
-    }
-    if (runInfo.gws0 == 0 || runInfo.gws1 == 0 || runInfo.gws2 == 0 || runInfo.lws0 == 0 || runInfo.lws1 == 0 ||
-        runInfo.lws2 == 0) {
-        std::cout << "ERROR: dispatch data for kernel: " << kernelName << " dispatch data cannot contain zeros!"
-                  << std::endl;
-    }
-    if (runInfo.gws0 % runInfo.lws0 != 0) {
-        std::cout << "ERROR: dispatch data for kernel: " << kernelName << " is incorrect: GWS0: " << runInfo.gws0
-                  << " LWS0: " << runInfo.lws0 << std::endl;
-    }
-    if (runInfo.gws1 % runInfo.lws1 != 0) {
-        std::cout << "ERROR: dispatch data for kernel: " << kernelName << " is incorrect: GWS1: " << runInfo.gws1
-                  << " LWS1: " << runInfo.lws1 << std::endl;
-    }
-    if (runInfo.gws2 % runInfo.lws2 != 0) {
-        std::cout << "ERROR: dispatch data for kernel: " << kernelName << " is incorrect: GWS2: " << runInfo.gws2
-                  << " LWS2: " << runInfo.lws2 << std::endl;
-    }
-}
-
 uint32_t common_kernel_base::GetFusedPrimitiveInputsCount(const Params &params) const {
     auto p = dynamic_cast<const base_params&>(params);
     uint32_t fused_deps_total = 0;
@@ -195,7 +171,7 @@ uint32_t common_kernel_base::GetFusedPrimitiveInputsCount(const Params &params) 
 }
 
 void common_kernel_base::FillCLKernelData(clKernelData& kernel,
-                                          const CommonDispatchData& runInfo,
+                                          const CommonDispatchData& dispatchData,
                                           const EngineInfo& engine_info,
                                           const std::string& kernelMapName,
                                           const std::string& jit,
@@ -205,11 +181,10 @@ void common_kernel_base::FillCLKernelData(clKernelData& kernel,
                                           bool bias,
                                           int number_of_inputs,
                                           uint32_t number_of_inputs_for_fused_prims) const {
-    Check_RunInfoData(kernelMapName, runInfo);
-    kernel.workGroups.global = {runInfo.gws0, runInfo.gws1, runInfo.gws2};
-    kernel.workGroups.local = {runInfo.lws0, runInfo.lws1, runInfo.lws2};
+    CheckDispatchData(kernelMapName, dispatchData);
+    kernel.workGroups.global = dispatchData.gws;
+    kernel.workGroups.local = dispatchData.lws;
     kernel.kernelString = GetKernelString(kernelMapName, jit, entryPoint, engine_info, exeMode);
-    kernel.arguments =
-        GetArgsDesc(number_of_inputs, weights, bias, number_of_inputs_for_fused_prims);
+    kernel.arguments = GetArgsDesc(number_of_inputs, weights, bias, number_of_inputs_for_fused_prims);
 }
 }  // namespace kernel_selector

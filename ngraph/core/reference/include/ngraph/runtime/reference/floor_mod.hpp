@@ -16,6 +16,7 @@
 
 #pragma once
 
+#include <cmath>
 #include <cstddef>
 
 #include "ngraph/runtime/reference/autobroadcast_binop.hpp"
@@ -37,7 +38,7 @@ namespace ngraph
             {
                 autobroadcast_binop(
                     arg0, arg1, out, arg0_shape, arg1_shape, broadcast_spec, [](T x, T y) -> T {
-                        return x - y * floor(x / y);
+                        return x - y * std::floor(x / y);
                     });
             }
         }

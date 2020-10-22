@@ -62,7 +62,7 @@ shared_ptr<Node> op::v3::ShapeOf::clone_with_new_inputs(const OutputVector& new_
     return new_shape_of;
 }
 
-namespace
+namespace shape_of
 {
     template <element::Type_t ET>
     inline bool evaluate(const Shape& shape, const HostTensorPtr& output_value)
@@ -160,13 +160,13 @@ bool op::v3::ShapeOf::evaluate(const HostTensorVector& output_values,
                                const HostTensorVector& input_values) const
 {
     OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v3::ShapeOf::evaluate");
-    return evaluate_shape_of(output_values[0], input_values[0]);
+    return shape_of::evaluate_shape_of(output_values[0], input_values[0]);
 }
 
 bool op::v3::ShapeOf::constant_fold(OutputVector& output_values, const OutputVector& input_values)
 {
     OV_ITT_SCOPED_TASK(itt::domains::nGraph, "op::v3::ShapeOf::constant_fold");
-    return constant_fold_shape_of(this, output_values[0], input_values[0], m_is_foldable);
+    return shape_of::constant_fold_shape_of(this, output_values[0], input_values[0], m_is_foldable);
 }
 
 // op::v0::ShapeOf
@@ -207,11 +207,11 @@ bool op::v0::ShapeOf::evaluate(const HostTensorVector& output_values,
                                const HostTensorVector& input_values) const
 {
     OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v0::ShapeOf::evaluate");
-    return evaluate_shape_of(output_values[0], input_values[0]);
+    return shape_of::evaluate_shape_of(output_values[0], input_values[0]);
 }
 
 bool op::v0::ShapeOf::constant_fold(OutputVector& output_values, const OutputVector& input_values)
 {
     OV_ITT_SCOPED_TASK(itt::domains::nGraph, "op::v0::ShapeOf::constant_fold");
-    return constant_fold_shape_of(this, output_values[0], input_values[0], m_is_foldable);
+    return shape_of::constant_fold_shape_of(this, output_values[0], input_values[0], m_is_foldable);
 }
