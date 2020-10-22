@@ -15,6 +15,8 @@
 //*****************************************************************************
 
 #include "int_executable.hpp"
+#include <algorithm>
+#include <cstring>
 #include "backend_manager.hpp"
 #include "ngraph/chrome_trace.hpp"
 #include "ngraph/except.hpp"
@@ -29,8 +31,6 @@
 #include "pass/liveness.hpp"
 #include "pass/opset0_downgrade.hpp"
 #include "pass/opset1_downgrade.hpp"
-#include <algorithm>
-#include <cstring>
 
 using namespace std;
 using namespace ngraph;
@@ -70,9 +70,9 @@ namespace
     constexpr size_t score_threshold_port = 4;
     constexpr size_t soft_nms_sigma_port = 5;
 
-    PartialShape infer_selected_indices_shape(
-        const std::vector<std::shared_ptr<HostTensor>>& inputs,
-        int64_t max_output_boxes_per_class)
+    PartialShape
+        infer_selected_indices_shape(const std::vector<std::shared_ptr<HostTensor>>& inputs,
+                                     int64_t max_output_boxes_per_class)
     {
         const auto boxes_ps = inputs[boxes_port]->get_partial_shape();
         const auto scores_ps = inputs[scores_port]->get_partial_shape();
@@ -290,18 +290,16 @@ namespace
     }
 }
 
-void runtime::interpreter::run_nms5(
-    const op::v5::NonMaxSuppression* nms5,
-    const std::vector<std::shared_ptr<HostTensor>>& outputs,
-    const std::vector<std::shared_ptr<HostTensor>>& inputs)
+void runtime::interpreter::run_nms5(const op::v5::NonMaxSuppression* nms5,
+                                    const std::vector<std::shared_ptr<HostTensor>>& outputs,
+                                    const std::vector<std::shared_ptr<HostTensor>>& inputs)
 {
     int64_t max_output_boxes_per_class = nms5->max_boxes_output_from_input();
     float iou_threshold = nms5->iou_threshold_from_input();
     float score_threshold = nms5->score_threshold_from_input();
     float soft_nms_sigma = nms5->soft_nms_sigma_from_input();
 
-    auto selected_indices_shape = infer_selected_indices_shape(inputs,
-                                                               max_output_boxes_per_class);
+    auto selected_indices_shape = infer_selected_indices_shape(inputs, max_output_boxes_per_class);
     Shape out_shape = selected_indices_shape.to_shape();
 
     Shape boxes_shape = inputs[boxes_port]->get_shape();

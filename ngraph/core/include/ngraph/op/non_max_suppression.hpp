@@ -380,6 +380,7 @@ namespace ngraph
                 float iou_threshold_from_input() const;
                 float score_threshold_from_input() const;
                 float soft_nms_sigma_from_input() const;
+
             protected:
                 BoxEncodingType m_box_encoding = BoxEncodingType::CORNER;
                 bool m_sort_result_descending = true;
