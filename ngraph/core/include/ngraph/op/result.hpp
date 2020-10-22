@@ -18,7 +18,7 @@
 
 #include <memory>
 
-#include "ngraph/op/sink.hpp"
+#include "ngraph/op/op.hpp"
 
 namespace ngraph
 {
@@ -26,7 +26,7 @@ namespace ngraph
     {
         namespace v0
         {
-            class NGRAPH_API Result : public Sink
+            class NGRAPH_API Result : public Op
             {
             public:
                 static constexpr NodeTypeInfo type_info{"Result", 0};

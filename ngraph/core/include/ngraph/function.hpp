@@ -53,6 +53,11 @@ namespace ngraph
                  const ParameterVector& parameters,
                  const std::string& name = "");
 
+        Function(const ResultVector& results,
+                 const SinkVector& sinks,
+                 const ParameterVector& parameters,
+                 const std::string& name = "");
+
         virtual ~Function() {}
         /// Return the number of outputs for this function.
         size_t get_output_size() const;
@@ -139,23 +144,23 @@ namespace ngraph
         bool evaluate(const HostTensorVector& output_tensors,
                       const HostTensorVector& input_tensors) const;
 
-        /// Return a list of function's side outputs
+        /// Return a list of function's sinks.
         const SinkVector& get_sinks(void) const { return m_sinks; }
-        /// \brief Add new sink nodes to the list to avoid removing
+        /// \brief Add new sink nodes to the list to avoid removing. 
         /// \param sinks new sink nodes
         void add_sinks(const SinkVector& sinks);
 
-        /// \brief Delete sink node from the list of sinks
+        /// \brief Delete sink node from the list of sinks. Method doesn't delete node from graph.
         /// \param sink Sink to delete
-        void delete_sink(const std::shared_ptr<op::Sink>& sink);
+        void remove_sink(const std::shared_ptr<op::Sink>& sink);
 
         /// \brief Add new Result nodes to the list to avoid removing
-        /// \param sinks new Result nodes
+        /// \param results new Result nodes
         void add_results(const ResultVector& results);
 
-        /// \brief Delete Result node from the list of results
-        /// \param sink Result node to delete
-        void delete_result(const std::shared_ptr<op::Result>& result);
+        /// \brief Delete Result node from the list of results. Method will not delete node from graph.
+        /// \param result Result node to delete
+        void remove_result(const std::shared_ptr<op::Result>& result);
 
     private:
         Function(const Function&) = delete;
@@ -169,6 +174,8 @@ namespace ngraph
         topological_sort_t m_topological_sorter;
 
         ResultVector m_results;
+        // List of the nodes with side effect in graph. 
+        // These nodes are not outputs of graph but should not be removed even if have no children.
         SinkVector m_sinks;
         ParameterVector m_parameters;
     };

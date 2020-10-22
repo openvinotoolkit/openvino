@@ -77,6 +77,20 @@ Function::Function(const std::shared_ptr<Node>& result,
 {
 }
 
+Function::Function(const ResultVector& results,
+                   const SinkVector& sinks,
+                   const ParameterVector& parameters,
+                   const std::string& name)
+    : m_results(results)
+    , m_sinks(sinks)
+    , m_parameters(parameters)
+    , m_name(name)
+    , m_unique_name("Function_" + to_string(m_next_instance_id.fetch_add(1)))
+    , m_topological_sorter(topological_sort<std::vector<std::shared_ptr<Node>>>)
+{
+    validate_nodes_and_infer_types();
+}
+
 void Function::validate_nodes_and_infer_types()
 {
     OV_ITT_SCOPED_TASK(itt::domains::nGraph, "Function::validate_nodes_and_infer_types");
@@ -362,7 +376,7 @@ void Function::add_sinks(const SinkVector& sinks)
     validate_nodes_and_infer_types();
 }
 
-void Function::delete_sink(const std::shared_ptr<op::Sink>& sink)
+void Function::remove_sink(const std::shared_ptr<op::Sink>& sink)
 {
     string remove_name = sink->get_name();
     m_sinks.erase(std::remove_if(m_sinks.begin(),
@@ -378,7 +392,7 @@ void Function::add_results(const ResultVector& results)
     m_results.insert(m_results.begin(), results.begin(), results.end());
 }
 
-void Function::delete_result(const std::shared_ptr<op::Result>& result)
+void Function::remove_result(const std::shared_ptr<op::Result>& result)
 {
     m_results.erase(std::remove_if(m_results.begin(),
                                    m_results.end(),
