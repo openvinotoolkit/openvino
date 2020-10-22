@@ -45,8 +45,14 @@ void ngraph::onnx_import::transform::expand_onnx_functions(ONNX_NAMESPACE::Model
         const auto node_op_schema =
             schema_registry->GetSchema(node.op_type(), opset_version, node.domain());
 
+        // Check if operation schema found
+        if (!node_op_schema)
+        {
+            continue;
+        }
+
         // Check if operation schema contains a function body and expand function
-        if (node_op_schema && node_op_schema->HasFunction())
+        if (node_op_schema->HasFunction())
         {
             const auto* proto_func = node_op_schema->GetFunction();
             ONNX_NAMESPACE::FunctionExpandHelper(node, *proto_func, *graph_proto);
@@ -54,7 +60,20 @@ void ngraph::onnx_import::transform::expand_onnx_functions(ONNX_NAMESPACE::Model
             // Remove the original node which contained the function.
             graph_proto->mutable_node()->erase(graph_proto->node().begin() + i);
         }
+
+        else if (node_op_schema->HasContextDependentFunction())
+        {
+            ONNX_NAMESPACE::FunctionBodyBuildContextImpl ctx(node);
+            ONNX_NAMESPACE::FunctionProto func_proto;
+            node_op_schema->BuildContextDependentFunction(ctx, func_proto);
+            ONNX_NAMESPACE::FunctionExpandHelper(node, func_proto, *graph_proto);
+
+            // Remove the original node which contained the function.
+            graph_proto->mutable_node()->erase(graph_proto->node().begin() + i);
+        }
+
     }
+
 }
 
 void ngraph::onnx_import::transform::update_external_data_paths(
