@@ -38,6 +38,16 @@ TEST_P(CoreThreadingTestsWithIterations, smoke_LoadNetwork_RemoteContext) {
     networks.emplace_back(InferenceEngine::CNNNetwork(ngraph::builder::subgraph::makeSplitConvConcat()));
     networks.emplace_back(InferenceEngine::CNNNetwork(ngraph::builder::subgraph::makeSplitMultiConvConcat()));
 
+    // [WA] old IR is not supported anymore. Removing all v7 networks from the list
+    auto it = networks.begin();
+    while (it != networks.end()) {
+        if (!it->getFunction()) {
+            it = networks.erase(it);
+        } else {
+            it++;
+        }
+    }
+
     auto ocl_instance = std::make_shared<OpenCL>();
     ie.SetConfig(config, deviceName);
     runParallel([&] () {
