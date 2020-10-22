@@ -5,20 +5,25 @@
 #include <cstring>
 #include <iostream>
 #include <details/ie_exception.hpp>
+#include <gna_plugin_log.hpp>
+#include <limits>
 #include "backend/gna_types.h"
 #include "quantization.h"
 
-void QuantizeAffine16(float *ptr_float_weights,
-                      float *ptr_float_biases,
-                      int16_t *ptr_int_weights,
-                      int32_t *ptr_int_biases,
-                      float input_scale_factor,
-                      float *ptr_weight_scale_factor,
-                      float *ptr_output_scale_factor,
-                      uint32_t num_rows,
-                      uint32_t num_columns,
-                      uint32_t num_rows_padded,
-                      uint32_t num_columns_padded) {
+#ifdef DEBUG
+#define QUANTWARNING(...) (fprintf(stderr, __VA_ARGS__))
+#else
+#define QUANTWARNING(...)
+#endif
+
+
+template<>
+void QuantizationCallback<int16_t, int32_t>::runFakeQuantize() const {
+    THROW_GNA_EXCEPTION << "int16 fake quantized models not yet supported";
+}
+
+template<>
+void QuantizationCallback<int16_t, int32_t>::runQuantize() const {
     uint32_t num_saturate = 0;
 
     if (*ptr_weight_scale_factor == 1.0) {
@@ -149,11 +154,64 @@ void QuantizeVector16(float *ptr_float_memory, int16_t *ptr_int_memory, uint32_t
     }
 }
 
-void QuantizeAffine8(float *ptr_float_weights, float *ptr_float_biases,
-                     int8_t *ptr_int_weights, gna_compound_bias_t *ptr_int_biases,
-                     float input_scale_factor, float *ptr_weight_scale_factor,
-                     float *ptr_output_scale_factor, uint32_t num_rows, uint32_t num_columns,
-                     uint32_t num_rows_padded, uint32_t num_columns_padded) {
+template<>
+void QuantizationCallback<int8_t, gna_compound_bias_t>::runFakeQuantize() const {
+    const float zeroPoint = MAX_VAL_1B_WEIGHT;
+    uint32_t num_saturate = 0;
+    // find max per-channel scale factor
+
+    if (fq_ptr_output_high == nullptr || fq_ptr_output_low == nullptr) {
+        THROW_GNA_EXCEPTION << "Fake quantized output range not set";
+    }
+    if (fq_levels == 0 || fq_levels == 1) {
+        THROW_GNA_EXCEPTION << "Fake quantized levels not set";
+    }
+
+    float common_channel_scale = *ptr_weight_scale_factor / MAX_OUT_MULTIPLIER;
+
+    for (uint32_t i = 0; i < num_rows; i++) {
+        for (uint32_t j = 0; j < num_columns; j++) {
+            auto offset = i * num_columns + j;
+            auto normalizedWeight = ptr_float_weights[offset] - zeroPoint;
+            // range checking
+            if (normalizedWeight > MAX_VAL_1B_WEIGHT || normalizedWeight < -MAX_VAL_1B_WEIGHT) {
+                THROW_GNA_EXCEPTION << "unsupported weights range for I8 quantisation: " << ptr_float_weights[offset];
+            }
+            ptr_int_weights[offset] = static_cast<int8_t>(normalizedWeight);
+        }
+        if (fq_ptr_output_high == nullptr || fq_ptr_output_low == nullptr) {
+            THROW_GNA_EXCEPTION << "Fake quantized output range not set";
+        }
+        if (fq_levels == 0 || fq_levels == 1) {
+            THROW_GNA_EXCEPTION << "Fake quantized levels not set";
+        }
+        auto channel_scale = (fq_levels - 1) / (fq_ptr_output_high[i] - fq_ptr_output_low[i]);
+        channel_scale /= common_channel_scale;
+        ptr_int_biases[i].multiplier = static_cast<uint8_t> (channel_scale);
+    }
+
+    // bias value of the bas will be only used when input bias provided
+    if (ptr_float_biases != nullptr) {
+        for (uint32_t j = 0; j < num_rows; j++) {
+            float rounding_value = (ptr_float_biases[j] > 0) ? 0.5f : -0.5f;
+            float value = ptr_float_biases[j] * *ptr_output_scale_factor + rounding_value;
+            if (value > 2147483647.0) {
+                ptr_int_biases[j].bias = 2147483647L;
+                num_saturate++;
+            } else if (value < -2147483648.0) {
+                ptr_int_biases[j].bias = -2147483648LL;
+                num_saturate++;
+            } else {
+                ptr_int_biases[j].bias = (int32_t) value;
+            }
+        }
+    }
+    if (num_saturate > 0) {
+        QUANTWARNING("Warning:  %d / %d saturations in QuantizeAffine8()\n", num_saturate, num_rows * num_columns + num_rows);
+    }
+}
+template<>
+void QuantizationCallback<int8_t, gna_compound_bias_t>::runQuantize() const {
     if (ptr_int_biases == nullptr) {
         THROW_IE_EXCEPTION << "Int biases are empty";
     }

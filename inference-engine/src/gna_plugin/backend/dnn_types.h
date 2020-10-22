@@ -45,11 +45,11 @@ struct DnnActivation {
         } pow;
         struct {
             int32_t levels;
-            // if input is perchannel quantisation - input pointers contains per-channer ranges
+            // if input is per-channel quantization - input pointers contains per-channel ranges
             int8_t  inputPerChannel;
             float  *input_low;
             float  *input_high;
-            // if output is perchannel quantisation - output pointers contains per-channer ranges
+            // if output is per-channel quantization - output pointers contains per-channel ranges
             int8_t  outputPerChannel;
             float  *output_low;
             float  *output_high;

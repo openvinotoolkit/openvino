@@ -384,6 +384,8 @@ void GNAPlugin::UpdateGnaQuantModeFromNetwork(InferenceEngine::ICNNNetwork & net
         if (fqLayer.getLevels() == int8Levels) {
             config.gnaPrecision = InferenceEngine::Precision::I8;
         }
+        gnaFlags->fake_quantized = true;
+        config.gnaFlags.fake_quantized = true;
     }
 }
 
@@ -417,6 +419,7 @@ void GNAPlugin::UpdateInputScaleFromNetwork(InferenceEngine::ICNNNetwork & netwo
 
             // TODO: proper mapping into scale factors
             config.inputScaleFactors[inputIdx] = 1 / scaleInput;
+            inputsDesc->inputScaleFactors[inputIdx] = 1 / scaleInput;
 
             inputIdx++;
         }
@@ -521,6 +524,19 @@ void GNAPlugin::LoadNetwork(ICNNNetwork & _network) {
         // to run all passes need to have two calls to pass manager
         run_passes(newNet, true);
         run_passes(newNet, false);
+    } else if (gnaFlags->fake_quantized) {
+        switch (config.gnaPrecision) {
+            case Precision::I16:
+                ModelQuantizer<FakeQuantI16> q16;
+                newNet = q16.quantize(network, run_passes, inputsDesc->inputScaleFactors);
+                break;
+            case Precision::I8:
+                ModelQuantizer<FakeQuantI8> q8;
+                newNet = q8.quantize(network, run_passes, inputsDesc->inputScaleFactors);
+                break;
+            default:
+                THROW_GNA_EXCEPTION << "unsupported GNA precision for quantisation: " << config.gnaPrecision;
+        }
     } else {
         switch (config.gnaPrecision) {
             case Precision::I16:
@@ -532,8 +548,7 @@ void GNAPlugin::LoadNetwork(ICNNNetwork & _network) {
                 newNet = q8.quantize(network, run_passes, inputsDesc->inputScaleFactors);
                 break;
             default:
-                THROW_GNA_EXCEPTION << "no mans land for GNA precision";
-                break;
+                THROW_GNA_EXCEPTION << "unsupported GNA precision for quantisation: " << config.gnaPrecision;
         }
     }
 
@@ -1091,7 +1106,7 @@ uint32_t GNAPlugin::QueueInference(const InferenceEngine::BlobMap &inputs, Infer
 #ifdef PLOT
     dnn->BeginNewWrite(dnn_dump_write_index);
     if (dnn->num_components() != 0) {
-        dnn->WriteDnnText("Net_.txt", kDnnFloat);
+        dnn->WriteDnnText("Net_.txt", kDnnInt);
     }
     dnn_dump_write_index++;
 #endif
