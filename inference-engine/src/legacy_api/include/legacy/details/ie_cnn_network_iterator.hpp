@@ -4,12 +4,13 @@
 
 /**
  * @brief A header file for the CNNNetworkIterator class
- * 
+ *
  * @file ie_cnn_network_iterator.hpp
  */
 #pragma once
 #include <iterator>
 #include <list>
+#include <deque>
 #include <unordered_set>
 #include <utility>
 
@@ -32,24 +33,85 @@ CNNNetworkIterator {
     IE_SUPPRESS_DEPRECATED_START
 
     std::unordered_set<CNNLayer*> visited;
-    std::list<CNNLayerPtr> nextLayersTovisit;
+    std::list<CNNLayerPtr> nextLayersToVisit;
     InferenceEngine::CNNLayerPtr currentLayer;
-    ICNNNetwork* network = nullptr;
+    const ICNNNetwork* network = nullptr;
 
-    void init(const ICNNNetwork* network) {
+    void init(const ICNNNetwork* net) {
+        network = net;
         if (network == nullptr) THROW_IE_EXCEPTION << "ICNNNetwork object is nullptr";
-        // IE_ASSERT(dynamic_cast<const details::CNNNetworkImpl*>(network) != nullptr);
+
+        OutputsDataMap outputs;
+        network->getOutputsInfo(outputs);
+
         InputsDataMap inputs;
         network->getInputsInfo(inputs);
-        if (!inputs.empty()) {
-            auto& nextLayers = getInputTo(inputs.begin()->second->getInputData());
-            if (!nextLayers.empty()) {
-                currentLayer = nextLayers.begin()->second;
-                nextLayersTovisit.push_back(currentLayer);
-                visited.insert(currentLayer.get());
+
+        auto get_consumers = [](const CNNLayerPtr& node) -> std::vector<CNNLayerPtr> {
+            std::vector<CNNLayerPtr> consumers;
+            for (const auto & output : node->outData) {
+                for (const auto &consumer : getInputTo(output)) {
+                    consumers.push_back(consumer.second);
+                }
             }
+            return consumers;
+        };
+        auto bfs = [&](const CNNLayerPtr& start_node, bool traverse_via_outputs = false) {
+            if (!start_node || visited.count(start_node.get())) return;
+            std::deque<CNNLayerPtr> q;
+            q.push_front(start_node);
+            while (!q.empty()) {
+                auto node = q.front();
+                q.pop_front();
+                if (visited.insert(node.get()).second) {
+                    nextLayersToVisit.push_front(node);
+                }
+
+                // Traverse via inputs
+                for (const auto & input : node->insData) {
+                    auto locked_input = input.lock();
+                    if (!locked_input) {
+                        THROW_IE_EXCEPTION << "insData for " << node->name << " is not valid.";
+                    }
+                    if (auto next_node = getCreatorLayer(locked_input).lock()) {
+                        if (!visited.count(next_node.get())) {
+                            // Check that all consumers were visited
+                            bool all_consumers_used(true);
+                            for (const auto & consumer : get_consumers(next_node)) {
+                                if (!visited.count(consumer.get())) all_consumers_used = false;
+                            }
+                            if (all_consumers_used) {
+                                q.push_front(next_node);
+                            }
+                        }
+                    }
+                }
+
+                // Traverse via outputs
+                if (traverse_via_outputs) {
+                    for (const auto &consumer : get_consumers(node)) {
+                        if (!visited.count(consumer.get())) {
+                            q.push_front(consumer);
+                        }
+                    }
+                }
+            }
+        };
+
+        // First we run bfs starting from outputs that provides deterministic graph traverse
+        for (const auto & output : outputs) {
+            bfs(getCreatorLayer(output.second).lock());
         }
+
+        // For cases when graph has no outputs we start bfs from inputs to ensure topological sort
+        for (const auto & input : inputs) {
+            const auto data_ptr = input.second->getInputData();
+            for (const auto & consumer : getInputTo(data_ptr))
+                bfs(consumer.second, true);
+        }
+        currentLayer = nextLayersToVisit.front();
     }
+
 
 public:
     /**
@@ -130,41 +192,24 @@ public:
      * @return true if the given iterator is equal to this one, false - otherwise
      */
     bool operator==(const CNNNetworkIterator& that) const {
-        return network == that.network && currentLayer == that.currentLayer;
+        return currentLayer == that.currentLayer &&
+            (network == that.network ||
+             ((network == nullptr || that.network == nullptr) && currentLayer == nullptr));
     }
 
 private:
+
     /**
      * @brief implementation based on BFS
      */
     CNNLayerPtr next() {
-        if (nextLayersTovisit.empty()) {
+        if (nextLayersToVisit.empty()) {
             return nullptr;
         }
 
-        auto nextLayer = nextLayersTovisit.front();
-        nextLayersTovisit.pop_front();
+        nextLayersToVisit.pop_front();
 
-        // visit child that not visited
-        for (auto&& output : nextLayer->outData) {
-            for (auto&& child : getInputTo(output)) {
-                if (visited.find(child.second.get()) == visited.end()) {
-                    nextLayersTovisit.push_back(child.second);
-                    visited.insert(child.second.get());
-                }
-            }
-        }
-
-        // visit parents
-        for (auto&& parent : nextLayer->insData) {
-            auto parentLayer = getCreatorLayer(parent.lock()).lock();
-            if (parentLayer && visited.find(parentLayer.get()) == visited.end()) {
-                nextLayersTovisit.push_back(parentLayer);
-                visited.insert(parentLayer.get());
-            }
-        }
-
-        return nextLayersTovisit.empty() ? nullptr : nextLayersTovisit.front();
+        return nextLayersToVisit.empty() ? nullptr : nextLayersToVisit.front();
     }
 
     IE_SUPPRESS_DEPRECATED_END

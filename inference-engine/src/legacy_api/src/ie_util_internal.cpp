@@ -17,6 +17,7 @@
 #include "cnn_network_ngraph_impl.hpp"
 
 #include "legacy/ie_util_internal.hpp"
+#include "legacy/cnn_network_impl.hpp"
 #include "legacy/details/ie_cnn_network_tools.h"
 #include "legacy/graph_tools.hpp"
 #include "legacy/net_pass.h"
@@ -160,8 +161,9 @@ details::CNNNetworkImplPtr cloneNet(const ICNNNetwork& origin_network) {
     OV_ITT_SCOPED_TASK(itt::domains::IELegacy, "cloneNet(ICNNNetwork)");
     std::shared_ptr<ICNNNetwork> clonedNetwork;
     // Call conversion only on the copy of nGraph function
-    if (auto func = origin_network.getFunction()) {
-        clonedNetwork = cloneNetwork(origin_network);
+    if (origin_network.getFunction()) {
+        // Copy and call conversion
+        clonedNetwork = std::make_shared<InferenceEngine::details::CNNNetworkImpl>(*cloneNetwork(origin_network));
     }
     const ICNNNetwork& network = (clonedNetwork) ? *clonedNetwork : origin_network;
 
