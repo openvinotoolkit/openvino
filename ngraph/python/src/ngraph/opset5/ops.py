@@ -59,6 +59,32 @@ _get_node_factory_opset5 = partial(_get_node_factory, "opset5")
 
 
 @nameable_op
+def batch_norm_inference(
+    data: NodeInput,
+    gamma: NodeInput,
+    beta: NodeInput,
+    mean: NodeInput,
+    variance: NodeInput,
+    epsilon: float,
+    name: Optional[str] = None,
+) -> Node:
+    """Perform layer normalizes a input tensor by mean and variance with appling scale and offset.
+
+    :param data: The input tensor with data for normalization.
+    :param gamma: The scalar scaling for normalized value.
+    :param beta: The bias added to the scaled normalized value.
+    :param mean: The value for mean normalization.
+    :param variance: The value for variance normalization.
+    :param epsilon: The  number to be added to the variance to avoid division
+                    by zero when normalizing a value.
+    :param name: The optional name of the output node.
+    :return: The new node which performs BatchNormInference.
+    """
+    inputs = as_nodes(data, gamma, beta, mean, variance)
+    return _get_node_factory_opset5().create("BatchNormInference", inputs, {"epsilon": epsilon})
+
+
+@nameable_op
 def gather_nd(
     data: NodeInput,
     indices: NodeInput,
