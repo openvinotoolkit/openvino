@@ -51,11 +51,7 @@ namespace LayerTestsDefinitions {
 
     void LoopTest::SetUp() {
         SKIP_IF_CURRENT_TEST_IS_DISABLED()
-<<<<<<< HEAD
         SetRefMode(LayerTestsUtils::IE);
-=======
-        SetRefMode(LayerTestsUtils::INTERPRETER);
->>>>>>> itikhono/references/loop
         bool execute_first_iteration;
         bool is_body_condition_const;
         bool body_condition; // works only if is_body_condition_const ==

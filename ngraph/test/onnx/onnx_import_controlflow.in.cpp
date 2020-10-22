@@ -92,6 +92,22 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_controlflow_loop_2d_no_identity_termination_co
     test_case.run();
 }
 
+// cond = false
+// input ("", cond) // Note this is analogous to a while loop
+NGRAPH_TEST(${BACKEND_NAME}, onnx_controlflow_loop_2d_no_identity_termination_cond_false)
+{
+    const auto function = onnx_import::import_onnx_model(file_util::path_join(
+        SERIALIZED_ZOO, "onnx/loop/loop_2d_add_no_identity_termination_cond_false.prototxt"));
+
+    auto test_case = test::TestCase<TestEngine>(function);
+    // a_init
+    test_case.add_input<float>({3.f, 4.f});
+
+    test_case.add_expected_output<float>(Shape{1, 2}, {3.f, 4.f});
+    test_case.add_expected_output<float>(Shape{1, 2}, {3.f, 4.f});
+    test_case.run();
+}
+
 //  input ("", 1) // Note this is analogous to a do-while loop
 //      bool cond = true
 //      for (int i=0; cond; ++i) {
