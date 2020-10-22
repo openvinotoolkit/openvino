@@ -161,10 +161,10 @@ Stage StageBuilder::addSplitStage(
         });
     };
 
-    const auto getOutAxisSizes = [](const ie::CNNLayerPtr& layer,const Dim axis) {
+    const auto getOutAxisSizes = [](const ie::CNNLayerPtr& layer, const Dim axis) {
         const auto outDimsSize = layer->outData[0]->getDims().size();
         const int idx = dimToIeInd(axis, outDimsSize);
-        
+
         std::vector<size_t> outAxisSizes;
         outAxisSizes.reserve(outDimsSize);
         for (const auto& out : layer->outData) {
