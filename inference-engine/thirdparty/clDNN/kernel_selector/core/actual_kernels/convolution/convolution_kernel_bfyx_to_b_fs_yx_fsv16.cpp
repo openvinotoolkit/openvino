@@ -72,32 +72,32 @@ ParamsKey ConvolutionKernel_bfyx_to_bfyx_f16::GetSupportedKey() const {
 
 ConvolutionKernelBase::DispatchData ConvolutionKernel_bfyx_to_bfyx_f16::SetDefault(const convolution_params& params,
                                                                                    int autoTuneIndex) const {
-    DispatchData kd = ConvolutionKernelBase::SetDefault(params);
+    DispatchData dispatchData = ConvolutionKernelBase::SetDefault(params);
 
     const auto& out = params.output;
 
     auto autoTune = GetAutoTuneOptions(params, autoTuneIndex);
-    kd.cldnnStyle.blockWidth = autoTune.blockWidth;
+    dispatchData.cldnnStyle.blockWidth = autoTune.blockWidth;
 
     auto x = out.X().v;
     auto y = out.Y().v;
     auto f = out.Feature().v;
     auto b = out.Batch().v;
 
-    kd.gws0 = CeilDiv(x, autoTune.blockWidth) * y;
-    kd.gws1 = Align(f, sub_group_size);
-    kd.gws2 = b;
+    dispatchData.gws[0] = CeilDiv(x, autoTune.blockWidth) * y;
+    dispatchData.gws[1] = Align(f, sub_group_size);
+    dispatchData.gws[2] = b;
 
-    kd.lws0 = 1;
-    kd.lws1 = sub_group_size;
-    kd.lws2 = 1;
+    dispatchData.lws[0] = 1;
+    dispatchData.lws[1] = sub_group_size;
+    dispatchData.lws[2] = 1;
 
     if (b == 1)
-        kd.efficiency = FORCE_PRIORITY_2;
+        dispatchData.efficiency = FORCE_PRIORITY_2;
     else
-        kd.efficiency = FORCE_PRIORITY_7;
+        dispatchData.efficiency = FORCE_PRIORITY_7;
 
-    return kd;
+    return dispatchData;
 }
 
 bool ConvolutionKernel_bfyx_to_bfyx_f16::Validate(const Params& p, const optional_params& o) const {
@@ -124,12 +124,12 @@ bool ConvolutionKernel_bfyx_to_bfyx_f16::Validate(const Params& p, const optiona
 }
 
 JitConstants ConvolutionKernel_bfyx_to_bfyx_f16::GetJitConstants(const convolution_params& params,
-                                                                 const DispatchData& runInfo) const {
+                                                                 const DispatchData& dispatchData) const {
     auto input = params.inputs[0];
     auto output = params.output;
-    auto jit = Parent::GetJitConstants(params, runInfo);
+    auto jit = Parent::GetJitConstants(params, dispatchData);
 
-    auto blockWidth = runInfo.cldnnStyle.blockWidth;
+    auto blockWidth = dispatchData.cldnnStyle.blockWidth;
 
     if (!params.fused_ops.empty()) {
         auto input_dt = GetUnitType(params);

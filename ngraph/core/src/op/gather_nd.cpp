@@ -162,8 +162,8 @@ shared_ptr<Node> op::v5::GatherND::clone_with_new_inputs(const OutputVector& new
 
 NGRAPH_SUPPRESS_DEPRECATED_START
 
-static int PARAMS = 0;
-static int INDICES = 1;
+const int op::GatherND::PARAMS = 0;
+const int op::GatherND::INDICES = 1;
 
 constexpr NodeTypeInfo op::GatherND::type_info;
 

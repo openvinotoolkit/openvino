@@ -15,9 +15,50 @@
 
 #include "kernel_base.h"
 
+#include <sstream>
+
 namespace kernel_selector {
 const primitive_db KernelBase::db;
 thread_local size_t KernelBase::counter = 0;
+
+std::string toString(const kernel_selector::CommonDispatchData& dispatchData) {
+    auto gws = dispatchData.gws;
+    auto lws = dispatchData.lws;
+    std::stringstream os;
+    os << "GWS(" << gws.size() << "): ";
+    for (auto e : gws) {
+        os << e << " ";
+    }
+    os << "LWS(" << lws.size() << "): ";
+    for (auto e : lws) {
+        os << e << " ";
+    }
+    return os.str();
+}
+
+void KernelBase::CheckDispatchData(const std::string& kernelName, const kernel_selector::CommonDispatchData& dispatchData) {
+    if (dispatchData.gws.size() != 3 || dispatchData.lws.size() != 3)
+        throw std::runtime_error("ERROR: Invalid dispatch data for kernel: " + kernelName + ": " +
+                                 ": LWS and GWS size is expected to be equal to 3. Actual: " +
+                                 toString(dispatchData));
+
+    if (dispatchData.lws[0] * dispatchData.lws[1] * dispatchData.lws[2] > 256) {
+        throw std::runtime_error("ERROR: Invalid dispatch data for kernel: " + kernelName +
+                                 ": LWS cannot be greater than 256. Actual: " +
+                                 toString(dispatchData));
+    }
+    for (size_t i = 0; i < dispatchData.gws.size(); i++) {
+        if (dispatchData.gws[i] == 0 || dispatchData.lws[i] == 0)
+            throw std::runtime_error("ERROR: Invalid dispatch data for kernel: " + kernelName +
+                                     ": Dispatch data cannot contain zeros. Actual: " +
+                                     toString(dispatchData));
+
+        if (dispatchData.gws[i] % dispatchData.lws[i] != 0)
+            throw std::runtime_error("ERROR: Invalid dispatch data for kernel: " + kernelName +
+                                     ": GWS must be divisible by corresponding LWS. Actual: " +
+                                     toString(dispatchData));
+    }
+}
 
 static bool IsTypeUsedIn(Datatype type, const base_params& params) {
     return params.output.GetDType() == type ||

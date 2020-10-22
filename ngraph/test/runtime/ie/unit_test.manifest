@@ -69,6 +69,7 @@ bool_const_op
 onnx_model_tile
 onnx_model_tile_static
 onnx_model_softmax_0D
+onnx_model_logsoftmax_0D
 builder_opset1_collapse_none
 
 # nGraph function's output number 0 was not found in the CNNNetwork built from it.
@@ -452,7 +453,6 @@ max_pool_3d
 avg_pool_2d_2channel_2image_padded_only_above_include_in_computation
 avg_pool_3d_uneven_strided_padded
 multiple_result
-lrn_across_hw
 lrn_across_all_dims
 elu
 elu_negative_alpha
@@ -1131,6 +1131,13 @@ IE_CPU.onnx_resize11_scales_nearest_asymmetric_floor_dynamic_sizes
 # Input data precision not supported. Expected float.
 ctc_greedy_decoder_f16
 
+# Wrong output when axis 0
+IE_CPU.log_softmax_1d_single_value
+IE_CPU.log_softmax_2d_axis0
+IE_CPU.log_softmax_2d_axis_neg2
+IE_CPU.log_softmax_3d_axis_0
+IE_CPU.log_softmax_3d_axis_neg3
+
 #-------------------------------------------------------------------------------
 #
 #       Inference Engine GPU plugin excludes
@@ -1331,7 +1338,6 @@ IE_GPU.max_3d_to_matrix_least_sig
 IE_GPU.max_3d_to_vector
 IE_GPU.max_3d_to_scalar
 IE_GPU.max_3d_to_scalar_int32
-IE_GPU.lrn_across_channel
 IE_GPU.log
 IE_GPU.gather_4d_indices_no_axis_2d_input
 IE_GPU.gather_3d_indices_no_axis_2d_input
