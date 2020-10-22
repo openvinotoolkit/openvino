@@ -21,6 +21,7 @@
 #include <ngraph/opsets/opset.hpp>
 #include <ngraph/opsets/opset2.hpp>
 #include <ngraph/opsets/opset3.hpp>
+#include <ngraph/opsets/opset5.hpp>
 #include <ngraph/variant.hpp>
 
 #include <cpp/ie_cnn_network.h>
@@ -393,7 +394,6 @@ std::shared_ptr<ngraph::Node> V10Parser::createNode(const std::vector<ngraph::Ou
         std::make_shared<LayerCreator<ngraph::op::Asin>>("Asin"),
         std::make_shared<LayerCreator<ngraph::op::Atan>>("Atan"),
         std::make_shared<LayerCreator<ngraph::op::v1::AvgPool>>("AvgPool"),
-        std::make_shared<LayerCreator<ngraph::op::BatchNormInference>>("BatchNormInference"),
         std::make_shared<LayerCreator<ngraph::op::Ceiling>>("Ceiling"),
         std::make_shared<LayerCreator<ngraph::op::Clamp>>("Clamp"),
         std::make_shared<LayerCreator<ngraph::op::Concat>>("Concat"),
@@ -477,6 +477,7 @@ std::shared_ptr<ngraph::Node> V10Parser::createNode(const std::vector<ngraph::Ou
         std::make_shared<LayerCreator<ngraph::op::v0::Tile>>("Tile"),
         std::make_shared<LayerCreator<ngraph::op::v1::TopK>>("TopK"),
         std::make_shared<LayerCreator<ngraph::op::TensorIterator>>("TensorIterator"),
+        std::make_shared<LayerCreator<ngraph::opset5::Loop>>("Loop"),
         std::make_shared<LayerCreator<ngraph::op::Transpose>>("Transpose"),
         std::make_shared<LayerCreator<ngraph::op::Unsqueeze>>("Unsqueeze"),
         std::make_shared<LayerCreator<ngraph::op::v1::LogicalAnd>>("LogicalAnd"),
@@ -662,12 +663,12 @@ std::shared_ptr<ngraph::Node> V10Parser::LayerCreator<ngraph::op::DetectionOutpu
     }
 }
 
-// TensorIterator layer
-template <>
-std::shared_ptr<ngraph::Node> V10Parser::LayerCreator<ngraph::op::TensorIterator>::createLayer(
-    const ngraph::OutputVector& inputs, const pugi::xml_node& node, std::istream& binStream,
-    const GenericLayerParams& layerParsePrms) {
-    auto tensor_iterator = std::make_shared<ngraph::op::TensorIterator>();
+// SubGraph layer
+std::shared_ptr<ngraph::Node>
+V10Parser::LayerBaseCreator::fillSubGraphLayer(const ngraph::OutputVector &inputs, const pugi::xml_node &node,
+                                               std::istream &binStream,
+                                               const V10Parser::GenericLayerParams &layerParsePrms,
+                                               std::shared_ptr<ngraph::op::util::SubGraphOp> tensor_iterator) {
     tensor_iterator->set_friendly_name(GetStrAttr(node, "name"));
     auto body_node = node.child("body");
 
@@ -695,7 +696,7 @@ std::shared_ptr<ngraph::Node> V10Parser::LayerCreator<ngraph::op::TensorIterator
     // Disabled reshape for generic operations in the TI body
     ::ngraph::op::GenericIE::DisableReshape noReshape(ngraph_function);
     auto body = std::make_shared<ngraph::Function>(result_nodes, parameter_nodes);
-    tensor_iterator->set_body(body);
+    tensor_iterator->set_function(body);
 
     // Parse PortMap: inputs
     std::map<uint64_t, pugi::xml_node> input_map;
@@ -795,7 +796,8 @@ std::shared_ptr<ngraph::Node> V10Parser::LayerCreator<ngraph::op::TensorIterator
             tensor_iterator->get_concatenated_slices(*body_result, start, stride, part_size, end, axis);
 
             if (!is_sliced_input_exists) {
-                tensor_iterator->set_num_iterations((std::abs(end - start)) / part_size);
+                if (auto ti = std::dynamic_pointer_cast<ngraph::op::TensorIterator>(tensor_iterator))
+                    ti->set_num_iterations((std::abs(end - start)) / part_size);
             }
         } else {
             // otherwise create ngraph::TensorIterator::BodyOutput. -1 means last iteration.
@@ -805,6 +807,25 @@ std::shared_ptr<ngraph::Node> V10Parser::LayerCreator<ngraph::op::TensorIterator
 
     tensor_iterator->validate_and_infer_types();
     return tensor_iterator;
+}
+
+
+// TensorIterator layer
+template <>
+std::shared_ptr<ngraph::Node> V10Parser::LayerCreator<ngraph::op::TensorIterator>::createLayer(
+        const ngraph::OutputVector& inputs, const pugi::xml_node& node, std::istream& binStream,
+        const GenericLayerParams& layerParsePrms) {
+    auto ti = std::make_shared<ngraph::op::TensorIterator>();
+    return fillSubGraphLayer(inputs, node, binStream, layerParsePrms, ti);
+    }
+
+// Loop layer
+template <>
+std::shared_ptr<ngraph::Node> V10Parser::LayerCreator<ngraph::opset5::Loop>::createLayer(
+        const ngraph::OutputVector& inputs, const pugi::xml_node& node, std::istream& binStream,
+        const GenericLayerParams& layerParsePrms) {
+    auto loop = std::make_shared<ngraph::opset5::Loop>();
+    return fillSubGraphLayer(inputs, node, binStream, layerParsePrms, loop);
 }
 
 // PriorBoxClustered layer
@@ -927,20 +948,6 @@ std::shared_ptr<ngraph::Node> V10Parser::LayerCreator<ngraph::op::v0::LSTMCell>:
     return std::make_shared<ngraph::op::v0::LSTMCell>(inputs[0], inputs[1], inputs[2], inputs[3], inputs[4], inputs[5],
                                                   GetUInt64Attr(dn, "hidden_size"), ngraph::op::LSTMWeightsFormat::IFCO,
                                                   activations, activations_alpha, activations_beta, clip);
-}
-
-// BatchNormInference layer
-template <>
-std::shared_ptr<ngraph::Node> V10Parser::LayerCreator<ngraph::op::BatchNormInference>::createLayer(
-    const ngraph::OutputVector& inputs, const pugi::xml_node& node, std::istream& binStream,
-    const GenericLayerParams& layerParsePrms) {
-    checkParameters(inputs, layerParsePrms, 5);
-    pugi::xml_node dn = node.child("data");
-    if (dn.empty())
-        THROW_IE_EXCEPTION << "Cannot read parameter for " << getType() << " layer with name: " << layerParsePrms.name;
-
-    float eps = GetFloatAttr(dn, "eps");
-    return std::make_shared<ngraph::op::BatchNormInference>(inputs[0], inputs[1], inputs[2], inputs[3], inputs[4], eps);
 }
 
 // CTCGreedyDecoder layer
