@@ -295,10 +295,10 @@ void runtime::interpreter::run_nms5(
     const std::vector<std::shared_ptr<HostTensor>>& outputs,
     const std::vector<std::shared_ptr<HostTensor>>& inputs)
 {
-    int64_t max_output_boxes_per_class = nms->max_boxes_output_from_input();
-    float iou_threshold = nms->iou_threshold_from_input();
-    float score_threshold = nms->score_threshold_from_input();
-    float soft_nms_sigma = nms->soft_nms_sigma_from_input();
+    int64_t max_output_boxes_per_class = nms5->max_boxes_output_from_input();
+    float iou_threshold = nms5->iou_threshold_from_input();
+    float score_threshold = nms5->score_threshold_from_input();
+    float soft_nms_sigma = nms5->soft_nms_sigma_from_input();
 
     auto selected_indices_shape = infer_selected_indices_shape(inputs,
                                                                max_output_boxes_per_class);
@@ -335,8 +335,6 @@ void runtime::interpreter::run_nms5(
 
     outputs[0]->set_element_type(output_type);
     outputs[0]->set_shape(Shape{static_cast<size_t>(valid_outputs), 3});
-
-    size_t num_of_outputs = outputs.size();
 
     size_t num_of_outputs = outputs.size();
 
