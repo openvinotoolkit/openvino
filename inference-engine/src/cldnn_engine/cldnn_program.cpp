@@ -830,6 +830,7 @@ Program::LayerType Program::LayerTypeFromStr(const std::string &str) {
         { "Ceiling" , Ceiling },
         { "Erf" , Erf },
         { "HardSigmoid" , HardSigmoid },
+        { "HSigmoid", HSigmoid },
         { "Log" , Log },
         { "Neg" , Neg },
         { "Reciprocal" , Reciprocal },
@@ -1399,6 +1400,7 @@ void Program::CreateSingleLayerPrimitive(cldnn::topology& topology, InferenceEng
         case Ceiling:
         case Erf:
         case HardSigmoid:
+        case HSigmoid:
         case Log:
         case Neg:
         case Reciprocal:
@@ -3078,6 +3080,8 @@ void Program::CreateActivationPrimitive(cldnn::topology& topology, InferenceEngi
             activationType = Exp;
         } else if (activation_type == "not")  {
             activationType = Not;
+        } else if (activation_type == "hsigmoid")  {
+            activationType = HSigmoid;
         } else {
             THROW_CLDNN_EXCEPTION("Unsupported activation type (" + activation_type +
                                   ") in layer " + layer->name);
@@ -3197,6 +3201,11 @@ void Program::CreateActivationPrimitive(cldnn::topology& topology, InferenceEngi
         func = cldnn::activation_func::hard_sigmoid;
         params.a = layer->GetParamAsFloat("alpha", 0.2f);
         params.b = layer->GetParamAsFloat("beta", 0.5f);
+        break;
+    }
+    case HSigmoid:
+    {
+        func = cldnn::activation_func::hsigmoid;
         break;
     }
     case Log:
@@ -3487,6 +3496,10 @@ void Program::CreateInterpolatePrimitive(cldnn::topology& topology, InferenceEng
             auto data = constantBlob->buffer().as<float*>();
             for (size_t i = 0; i < constantBlob->size(); ++i)
                 scales.push_back(data[i]);
+        } else if (axesPrecision == InferenceEngine::Precision::FP16) {
+            auto data = static_cast<const uint16_t *>(constantBlob->buffer());
+            for (size_t i = 0; i < constantBlob->size(); ++i)
+                scales.push_back(cldnn::half_to_float(data[i]));
         } else {
             THROW_IE_EXCEPTION << layer->name << " Incorrect scales input precision";
         }

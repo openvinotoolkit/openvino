@@ -63,7 +63,7 @@ size_t PoolingKernel_b_fs_yx_fsv16::GetSimdSize(const pooling_params& params) co
 }
 
 PoolingKernelBase::DispatchData PoolingKernel_b_fs_yx_fsv16::SetDefault(const pooling_params& params) const {
-    DispatchData kd = PoolingKernelBase::SetDefault(params);
+    DispatchData dispatchData = PoolingKernelBase::SetDefault(params);
 
     const auto& out = params.output;
     const size_t alignment = GetSimdSize(params);
@@ -73,25 +73,25 @@ PoolingKernelBase::DispatchData PoolingKernel_b_fs_yx_fsv16::SetDefault(const po
     auto f = out.Feature().v;
     auto b = out.Batch().v;
 
-    kd.gws0 = CeilDiv(x, x_block_size) * y;
-    kd.gws1 = Align(f, alignment);
-    kd.gws2 = b;
+    dispatchData.gws[0] = CeilDiv(x, x_block_size) * y;
+    dispatchData.gws[1] = Align(f, alignment);
+    dispatchData.gws[2] = b;
 
-    kd.lws0 = 1;
-    kd.lws1 = alignment;
-    kd.lws2 = 1;
+    dispatchData.lws[0] = 1;
+    dispatchData.lws[1] = alignment;
+    dispatchData.lws[2] = 1;
 
-    kd.efficiency = FORCE_PRIORITY_2;
+    dispatchData.efficiency = FORCE_PRIORITY_2;
 
-    return kd;
+    return dispatchData;
 }
 
-JitConstants PoolingKernel_b_fs_yx_fsv16::GetJitConstants(const pooling_params& params, DispatchData runInfo) const {
+JitConstants PoolingKernel_b_fs_yx_fsv16::GetJitConstants(const pooling_params& params, DispatchData dispatchData) const {
     const size_t alignment = GetSimdSize(params);
     size_t x_block_size = GetBlockSize(params);
     auto input = params.inputs[0];
     auto output = params.output;
-    auto jit = PoolingKernelBase::GetJitConstants(params, runInfo);
+    auto jit = PoolingKernelBase::GetJitConstants(params, dispatchData);
 
     size_t input_line_size = params.poolStride.x * (x_block_size - 1) + params.poolSize.x;
 

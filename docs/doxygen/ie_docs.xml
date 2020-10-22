@@ -113,7 +113,7 @@
                         <tab type="user" title="Atan-1" url="@ref openvino_docs_ops_arithmetic_Atan_1"/>
                         <tab type="user" title="Atanh-3" url="@ref openvino_docs_ops_arithmetic_Atanh_3"/>
                         <tab type="user" title="AvgPool-1" url="@ref openvino_docs_ops_pooling_AvgPool_1"/>
-                        <tab type="user" title="BatchNormInference-1" url="@ref openvino_docs_ops_normalization_BatchNormInference_1"/>
+                        <tab type="user" title="BatchNormInference-5" url="@ref openvino_docs_ops_normalization_BatchNormInference_5"/>
                         <tab type="user" title="BatchToSpace-2" url="@ref openvino_docs_ops_movement_BatchToSpace_2"/>
                         <tab type="user" title="BinaryConvolution-1" url="@ref openvino_docs_ops_convolution_BinaryConvolution_1"/>
                         <tab type="user" title="Broadcast-1" url="@ref openvino_docs_ops_movement_Broadcast_1"/>
