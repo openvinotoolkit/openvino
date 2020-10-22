@@ -37,7 +37,7 @@ is generated automatically and displayed in the console output when you run the 
 ![](./dl_workbench_img/Get_Started_Page-b.png)
 
 For details and more installation options, visit the links below:
-* [Install DL Workbench from Docker Hub* on Linux* OS](Install_from_DockerHub_Linux.md)
+* [Install DL Workbench from Docker Hub* on Linux* OS]((@ref workbench_docs_Workbench_DG_Install_from_DockerHub_Linux)
 * [Install DL Workbench from Docker Hub on Windows*](@ref workbench_docs_Workbench_DG_Install_from_Docker_Hub_Win)
 * [Install DL Workbench from Docker Hub on macOS*](@ref workbench_docs_Workbench_DG_Install_from_Docker_Hub_mac)
 * [Install DL Workbench from the OpenVINO toolkit package on Linux](@ref workbench_docs_Workbench_DG_Install_from_Package)
@@ -68,7 +68,7 @@ Once you log in to the DL Workbench, create a project, which is a combination of
 10. Once the inference is complete, the **Projects** page opens automatically. Find your inference job in the **Projects Settings** table indicating all jobs.
 
 Congratulations, you have performed your first inference in the OpenVINO DL Workbench. Now you can proceed to [select the inference](@ref workbench_docs_Workbench_DG_Run_Single_Inference), 
-[visualize statistics](@ref workbench_docs_Workbench_DG_Visualize_Model), [experiment with model optimization](@ref workbench_docs_Workbench_DG_Int-8_Quantization)
+[visualize statistics](@ref workbench_docs_Workbench_DG_Visualize_Model), [experiment with model optimization](@ref workbench_docs_Workbench_DG_Int_8_Quantization)
 and inference options to profile the configuration.
 
 To create a new project, see the links below: 
