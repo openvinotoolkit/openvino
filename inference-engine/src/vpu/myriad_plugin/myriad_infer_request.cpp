@@ -135,9 +135,8 @@ void MyriadInferRequest::InferAsync() {
             MEMCPY(&inputBuffer[offset], blob->buffer().as<uint8_t*>(), byteSize);
         }
     }
-
     _executor->queueInference(_graphDesc, inputBuffer.data(),
-                              _inputInfo.totalSize, nullptr, 0);
+                              _inputInfo.totalSize, nullptr, 0, hw_execution_timestamp);
 }
 
 static void copyBlobAccordingUpperBound(

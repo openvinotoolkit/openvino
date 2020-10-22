@@ -393,7 +393,7 @@ void MyriadExecutor::allocateGraph(DevicePtr &device, GraphDesc &graphDesc,
 }
 
 void MyriadExecutor::queueInference(GraphDesc &graphDesc, void *input_data, size_t input_bytes,
-                    void *result_data, size_t result_bytes) {
+                    void *result_data, size_t result_bytes, std::chrono::high_resolution_clock::time_point& hw_time) {
     VPU_PROFILE(queueInference);
 #ifndef NDEBUG
     if (auto dumpFileName = std::getenv("IE_VPU_DUMP_INPUT_FILE_NAME")) {
@@ -416,6 +416,7 @@ void MyriadExecutor::queueInference(GraphDesc &graphDesc, void *input_data, size
     if (status != NC_OK) {
         THROW_IE_EXCEPTION << "Failed to queue inference: " << ncStatusToStr(graphDesc._graphHandle, status);
     }
+    hw_time = std::chrono::high_resolution_clock::now();
 
     if (result_data != nullptr && result_bytes != 0) {
         getResult(graphDesc, result_data, result_bytes);

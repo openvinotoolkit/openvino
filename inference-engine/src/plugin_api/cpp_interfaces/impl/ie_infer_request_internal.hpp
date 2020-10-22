@@ -223,6 +223,10 @@ public:
         }
     }
 
+    virtual std::chrono::high_resolution_clock::time_point GetHardwareTimeStamp() {
+        return hw_execution_timestamp;
+    }
+
 protected:
     InferenceEngine::InputsDataMap _networkInputs;  //!< Holds information about network inputs info
     InferenceEngine::OutputsDataMap _networkOutputs;  //!< Holds information about network outputs data
@@ -230,6 +234,7 @@ protected:
     InferenceEngine::BlobMap _outputs;  //!< A map of network output blobs
     std::map<std::string, PreProcessDataPtr> _preProcData;  //!< A map of pre-process data per input
     int m_curBatch;  //!< Current batch value used in dynamic batching
+    std::chrono::high_resolution_clock::time_point hw_execution_timestamp;
 
     /**
      * @brief A shared pointer to ExecutableNetworkInternal interface

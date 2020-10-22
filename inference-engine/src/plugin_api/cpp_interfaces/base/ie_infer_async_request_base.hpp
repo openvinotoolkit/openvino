@@ -7,6 +7,7 @@
 #include <map>
 #include <memory>
 #include <string>
+#include <chrono>
 
 #include "cpp_interfaces/exception2status.hpp"
 #include "cpp_interfaces/plugin_itt.hpp"
@@ -39,7 +40,26 @@ public:
 
     StatusCode GetPerformanceCounts(std::map<std::string, InferenceEngineProfileInfo>& perfMap,
                                     ResponseDesc* resp) const noexcept override {
-        TO_STATUS(_impl->GetPerformanceCounts(perfMap));
+        auto execTime = std::chrono::duration_cast<std::chrono::microseconds>(
+                _impl->GetHardwareTimeStamp() - start_async_timestamp).count();
+        InferenceEngineProfileInfo i;
+        i.execution_index = 0;
+        i.realTime_uSec = i.cpu_uSec = execTime;
+        i.status = InferenceEngineProfileInfo::LayerStatus::EXECUTED;
+        snprintf( i.exec_type, sizeof(i.exec_type), "HOST");
+        snprintf( i.layer_type, sizeof(i.exec_type), "N/A");
+        std::map<std::string, InferenceEngineProfileInfo> _perfMap, stub;
+        TO_STATUS((
+                    _impl->GetPerformanceCounts(_perfMap),
+                    std::for_each(_perfMap.begin(), _perfMap.end(),
+                            [](std::map<std::string, InferenceEngineProfileInfo>::value_type& n){
+                                // increment all indices in the map, before inserting the "QUEUE" step as number 0
+                              n.second.execution_index++;
+                          }),
+                          _perfMap["<QUEUE>"] = i,
+                            // do not insert the queue counter, if the plugin didn't produce the counters
+                            // (so the hw timestamp was invalid)
+                          perfMap = _perfMap.size() != 1 ? _perfMap : stub ));
     }
 
     StatusCode SetBlob(const char* name, const Blob::Ptr& data, ResponseDesc* resp) noexcept override {
@@ -60,6 +80,7 @@ public:
 
     StatusCode StartAsync(ResponseDesc* resp) noexcept override {
         OV_ITT_SCOPED_TASK(itt::domains::Plugin, "StartAsync");
+        start_async_timestamp = std::chrono::high_resolution_clock::now();
         TO_STATUS(_impl->StartAsync());
     }
 
@@ -89,6 +110,7 @@ public:
     }
 
 private:
+    std::chrono::high_resolution_clock::time_point start_async_timestamp;
     ~InferRequestBase() = default;
 };
 

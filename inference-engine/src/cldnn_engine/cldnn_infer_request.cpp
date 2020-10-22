@@ -850,7 +850,7 @@ void CLDNNInferRequest::InferImpl() {
             }
         }
     }
-
+    hw_execution_timestamp = std::chrono::high_resolution_clock::now();
     // The actual inference
     if (m_graph->GetMaxDynamicBatchSize() > 1) {
         execAndParseDyn();
