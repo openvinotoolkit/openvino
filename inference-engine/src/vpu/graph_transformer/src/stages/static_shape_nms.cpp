@@ -38,11 +38,7 @@ private:
         const auto& inDesc = input(0)->desc();
         const auto& maxBoxesNum = inDesc.dim(Dim::H);
 
-        if (maxBoxesNum > boxesThreshold) {
-            return StageSHAVEsRequirements::NeedMax;
-        } else {
-            return StageSHAVEsRequirements::OnlyOne;
-        }
+        return maxBoxesNum <= boxesThreshold ? StageSHAVEsRequirements::OnlyOne : StageSHAVEsRequirements::NeedMax;
     }
 
     void initialCheckImpl() const override {
@@ -57,7 +53,7 @@ private:
     }
 
     void serializeParamsImpl(BlobSerializer& serializer) const override {
-        bool center_point_box = attrs().get<bool>("center_point_box");
+        const auto center_point_box = attrs().get<bool>("center_point_box");
 
         serializer.append(static_cast<int32_t>(center_point_box));
     }

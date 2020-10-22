@@ -24,37 +24,29 @@ namespace {
 using DataType = ngraph::element::Type_t;
 using DataDims = ngraph::Shape;
 
-// tests are not capable to validate the functions with multiple outputs
-enum class CheckType {
-    CHECK_DYNAMIC_INDICES = 0,
-    CHECK_DYNAMIC_SCORES = 1,
-};
-
 struct NonMaxSuppressionTestCase {
     int64_t numBatches, numBoxes, numClasses, maxOutputBoxesPerClass;
     float iouThreshold, scoreThreshold, softNMSSigma;
 };
 
 class DynamicToStaticShapeNonMaxSuppression : public CommonTestUtils::TestsCommon,
-        public testing::WithParamInterface<std::tuple<DataType, DataType, NonMaxSuppressionTestCase, CheckType>> {
+        public testing::WithParamInterface<std::tuple<DataType, DataType, NonMaxSuppressionTestCase>> {
 public:
     void SetUp() override {
         const auto& parameters = GetParam();
         const auto& floatType = std::get<0>(parameters);
         const auto& integerType = std::get<1>(parameters);
         const auto& nmsSetup = std::get<2>(parameters);
-        const auto& checkType = std::get<3>(parameters);
 
-        ngraph::helpers::CompareFunctions(*transform(floatType, integerType, nmsSetup, checkType),
-                *reference(floatType, integerType, nmsSetup, checkType));
+        ngraph::helpers::CompareFunctions(*transform(floatType, integerType, nmsSetup),
+                *reference(floatType, integerType, nmsSetup));
     }
 
 protected:
     std::shared_ptr<const ngraph::Function> transform(
             const ngraph::element::Type_t& floatType,
             const ngraph::element::Type_t& integerType,
-            const NonMaxSuppressionTestCase& nmsSetup,
-            const CheckType checkType) const {
+            const NonMaxSuppressionTestCase& nmsSetup) const {
         const auto boxes = std::make_shared<ngraph::opset3::Parameter>(
                 floatType, ngraph::PartialShape{nmsSetup.numBatches, nmsSetup.numBoxes, 4});
         const auto scores = std::make_shared<ngraph::opset3::Parameter>(
@@ -72,7 +64,9 @@ protected:
                 boxes, dsr, maxOutputBoxesPerClass, iouThreshold, scoreThreshold, softNMSSigma);
 
         const auto function = std::make_shared<ngraph::Function>(
-                ngraph::NodeVector{node->output(static_cast<size_t>(checkType)).get_node_shared_ptr()},
+                ngraph::NodeVector{node->output(0).get_node_shared_ptr(),
+                                   node->output(1).get_node_shared_ptr(),
+                                   node->output(2).get_node_shared_ptr()},
                 ngraph::ParameterVector{boxes, scores, dims},
                 "Actual");
 
@@ -84,8 +78,7 @@ protected:
     std::shared_ptr<const ngraph::Function> reference(
             const ngraph::element::Type_t& floatType,
             const ngraph::element::Type_t& integerType,
-            const NonMaxSuppressionTestCase& nmsSetup,
-            const CheckType checkType) const {
+            const NonMaxSuppressionTestCase& nmsSetup) const {
         const auto boxes = std::make_shared<ngraph::opset3::Parameter>(
                 floatType, ngraph::PartialShape{nmsSetup.numBatches, nmsSetup.numBoxes, 4});
         const auto scores = std::make_shared<ngraph::opset3::Parameter>(
@@ -102,10 +95,16 @@ protected:
         const auto node = std::make_shared<ngraph::vpu::op::StaticShapeNonMaxSuppression>(
                 boxes, dsrInput, maxOutputBoxesPerClass, iouThreshold, scoreThreshold, softNMSSigma);
 
-        const auto dsr = std::make_shared<ngraph::vpu::op::DynamicShapeResolver>(node->output(static_cast<size_t>(checkType)), node->output(2));
+        const auto validOutputs = std::make_shared<ngraph::opset5::Gather>(
+                node->output(2),
+                ngraph::opset5::Constant::create(dims->get_element_type(), ngraph::Shape{1}, {0}),
+                ngraph::opset5::Constant::create(dims->get_element_type(), ngraph::Shape{1}, {0}));
+
+        const auto dsrIndices = std::make_shared<ngraph::vpu::op::DynamicShapeResolver>(node->output(0), node->output(2));
+        const auto dsrScores = std::make_shared<ngraph::vpu::op::DynamicShapeResolver>(node->output(1), node->output(2));
 
         return std::make_shared<ngraph::Function>(
-                ngraph::NodeVector{dsr},
+                ngraph::NodeVector{dsrIndices, dsrScores, validOutputs},
                 ngraph::ParameterVector{boxes, scores, dims},
                 "Expected");
     }
@@ -127,7 +126,6 @@ INSTANTIATE_TEST_CASE_P(smoke_NGraph, DynamicToStaticShapeNonMaxSuppression, tes
         NonMaxSuppressionTestCase{1, 10, 5, 10, 0., 0., 0.},
         NonMaxSuppressionTestCase{2, 100, 5, 10, 0., 0., 0.},
         NonMaxSuppressionTestCase{3, 10, 5, 2, 0.5, 0., 0.},
-        NonMaxSuppressionTestCase{1, 1000, 1, 2000, 0.5, 0., 0.}),
-    testing::ValuesIn({CheckType::CHECK_DYNAMIC_INDICES, CheckType::CHECK_DYNAMIC_SCORES})));
+        NonMaxSuppressionTestCase{1, 1000, 1, 2000, 0.5, 0., 0.})));
 
 }  // namespace

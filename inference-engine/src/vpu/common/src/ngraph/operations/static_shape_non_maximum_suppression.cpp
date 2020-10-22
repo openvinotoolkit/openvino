@@ -31,9 +31,9 @@ StaticShapeNonMaxSuppression::StaticShapeNonMaxSuppression(
 std::shared_ptr<Node>
 StaticShapeNonMaxSuppression::clone_with_new_inputs(const OutputVector& new_args) const {
     check_new_args_count(this, new_args);
-    return std::make_shared<NonMaxSuppressionIE3>(new_args.at(0), new_args.at(1), new_args.at(2), new_args.at(3),
-                                                  new_args.at(4), new_args.at(5), m_center_point_box, m_sort_result_descending,
-                                                  m_output_type);
+    return std::make_shared<StaticShapeNonMaxSuppression>(new_args.at(0), new_args.at(1), new_args.at(2), new_args.at(3),
+                                                          new_args.at(4), new_args.at(5), m_center_point_box, m_sort_result_descending,
+                                                          m_output_type);
 }
 
 void StaticShapeNonMaxSuppression::validate_and_infer_types() {
