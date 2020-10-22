@@ -32,7 +32,10 @@ namespace ngraph
                 : Op()
             {
             }
-            Sink(const OutputVector& arguments);
+            Sink(const OutputVector& arguments) 
+               : Op(arguments) 
+            {
+            }
         };
     }
     using SinkVector = std::vector<std::shared_ptr<op::Sink>>;
