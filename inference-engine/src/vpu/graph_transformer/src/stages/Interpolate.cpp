@@ -75,19 +75,35 @@ private:
     void serializeParamsImpl(BlobSerializer& serializer) const override {
         auto factor = attrs().get<float>("factor");
         auto antialias = attrs().get<bool>("antialias");
-        auto axis = attrs().get<std::vector<int>>("InterpolateAxis");
-        auto scales = attrs().get<std::vector<float>>("InterpolateScales");
-        auto sampleType = attrs().get<InterpolateMode>("type");
+        // auto cube_coeff = attrs().get<float>("cube_coeff");
+        // auto batch = attrs().get<int>("batch");
+
+        // auto sampleType = attrs().get<InterpolateMode>("type");
         auto sampleNearestMode = attrs().get<InterpolateNearestMode>("nearestMode");
         auto sampleShapeCalcMode = attrs().get<InterpolateShapeCalcMode>("shapeCalcMode");
         auto sampleCoordTransMode = attrs().get<InterpolateCoordTransMode>("coordTransMode");
 
-        serializer.append(static_cast<int32_t>(antialias));
+        // auto pads_begin = attrs().get<std::vector<int>>("pads_begin");
+        // auto pads_end = attrs().get<std::vector<int>>("pads_end");
+        // auto sizes = attrs().get<std::vector<int>>("sizes");
+        auto axis = attrs().get<std::vector<int>>("InterpolateAxis");
+        auto scales = attrs().get<std::vector<float>>("InterpolateScales");
+        
         serializer.append(static_cast<float>(factor));
-        serializer.append(static_cast<uint32_t>(sampleType));
+        serializer.append(static_cast<int32_t>(antialias));
+        // serializer.append(static_cast<float>(cube_coeff));
+        // serializer.append(static_cast<uint32_t>(batch));
+
+        // serializer.append(static_cast<uint32_t>(sampleType));
         serializer.append(static_cast<uint32_t>(sampleNearestMode));
         serializer.append(static_cast<uint32_t>(sampleShapeCalcMode));
         serializer.append(static_cast<uint32_t>(sampleCoordTransMode));
+
+        // serializer.append(static_cast<std::vector<int>>(pads_begin));
+        // serializer.append(static_cast<std::vector<int>>(pads_end));
+        // serializer.append(static_cast<std::vector<int>>(sizes));
+        serializer.append(static_cast<std::vector<int>>(axis));
+        serializer.append(static_cast<std::vector<float>>(scales));
     }
 
     void serializeDataImpl(BlobSerializer& serializer) const override {
@@ -150,8 +166,8 @@ void FrontEnd::parseInterpolate(const Model& model, const ie::CNNLayerPtr& layer
 
     auto stage = model->addNewStage<InterpolateStage>(layer->name, StageType::Interpolate, layer, inputs, outputs);
 
-    stage->attrs().set<bool>("antialias", layer->GetParamAsInt("antialias", 0));
     stage->attrs().set<float>("factor", layer->GetParamAsInt("factor", -1.0f));
+    stage->attrs().set<bool>("antialias", layer->GetParamAsInt("antialias", 0));
 
     auto method = layer->GetParamAsString("type", "nearest");
     if (cmp(method, "nearest")) {
@@ -159,7 +175,6 @@ void FrontEnd::parseInterpolate(const Model& model, const ie::CNNLayerPtr& layer
     } else if (cmp(method, "linear")) {
         stage->attrs().set<InterpolateMode>("type", InterpolateMode::linear);
     } else if (cmp(method, "cubic")) {
-        // stage->attrs().set<InterpolateMode>("type", InterpolateMode::cubic);
         VPU_THROW_EXCEPTION << "Layer with name " << layer->name << " doesn't yet support this Interpolate type";
     } else {
         VPU_THROW_EXCEPTION << "Layer with name " << layer->name << " doesn't support this Interpolate type";
