@@ -423,6 +423,10 @@ void prepare_primitive_fusing::fuse_simple_primitives(program_impl &p) {
 
             should_fuse |= input_data.is_type<reduce>() && reduce_supports_fusings(input_data.as<reduce>());
 
+            should_fuse |= input_data.is_type<scale>();
+
+            should_fuse |= input_data.is_type<eltwise>();
+
             if (!should_fuse)
                 return;
 
@@ -477,6 +481,10 @@ void prepare_primitive_fusing::fuse_simple_primitives(program_impl &p) {
             should_fuse |= input_data.is_type<space_to_batch>();
 
             should_fuse |= input_data.is_type<reduce>() && reduce_supports_fusings(input_data.as<reduce>());
+
+            should_fuse |= input_data.is_type<scale>();
+
+            should_fuse |= input_data.is_type<eltwise>();
 
             if (!should_fuse)
                 return;
@@ -562,11 +570,13 @@ void prepare_primitive_fusing::fuse_simple_primitives(program_impl &p) {
 
             should_fuse |= input_data.is_type<space_to_batch>() && quantize_node.get_scale_shift_opt();
 
-            should_fuse |= input_data.is_type<eltwise>() && quantize_node.get_scale_shift_opt();
-
             should_fuse |= input_data.is_type<reduce>() &&
                            reduce_supports_fusings(input_data.as<reduce>())
                            && quantize_node.get_scale_shift_opt();
+
+            should_fuse |= input_data.is_type<eltwise>() && quantize_node.get_scale_shift_opt();
+
+            should_fuse |= input_data.is_type<scale>() && quantize_node.get_scale_shift_opt();
 
             if (!should_fuse)
                 return;
@@ -589,30 +599,25 @@ void prepare_primitive_fusing::fuse_simple_primitives(program_impl &p) {
             std::vector<cldnn::program_node*> parents = node.get_dependencies();
             std::list<cldnn::program_node*> users = node.get_users();
 
+            std::vector<bool> can_fuse_parents = { false, false };
+
+            for (size_t i = 0; i < parents.size(); i++) {
+                can_fuse_parents[i] = (parents[i]->is_type<convolution>() && conv_supports_fusings(parents[i]->as<convolution>())) ||
+                                      (parents[i]->is_type<mvn>() && mvn_supports_fusings(parents[i]->as<mvn>())) ||
+                                      (parents[i]->is_type<deconvolution>()) ||
+                                      (parents[i]->is_type<permute>()) ||
+                                      (parents[i]->is_type<space_to_depth>()) ||
+                                      (parents[i]->is_type<gemm>() && gemm_supports_fusings(parents[i]->as<gemm>())) ||
+                                      (parents[i]->is_type<batch_to_space>()) ||
+                                      (parents[i]->is_type<space_to_batch>()) ||
+                                      (parents[i]->is_type<eltwise>()) ||
+                                      (parents[i]->is_type<scale>()) ||
+                                      (parents[i]->is_type<depth_to_space>() && dts_supports_fusings(parents[i]->as<depth_to_space>())) ||
+                                      (parents[i]->is_type<reduce>() && reduce_supports_fusings(parents[i]->as<reduce>()));
+            }
+
             auto parent1 = parents[0];
             auto parent2 = parents[1];
-
-            bool can_fuse_parent1 = (parent1->is_type<convolution>() && conv_supports_fusings(parent1->as<convolution>())) ||
-                                    (parent1->is_type<mvn>() && mvn_supports_fusings(parent1->as<mvn>())) ||
-                                    (parent1->is_type<deconvolution>()) || (parent1->is_type<permute>()) ||
-                                    (parent1->is_type<space_to_depth>()) ||
-                                    (parent1->is_type<gemm>() && gemm_supports_fusings(parent1->as<gemm>())) ||
-                                    (parent1->is_type<batch_to_space>()) || (parent1->is_type<space_to_batch>()) ||
-                                    (parent1->is_type<depth_to_space>() && dts_supports_fusings(parent1->as<depth_to_space>())) ||
-                                    (parent1->is_type<batch_to_space>()) || (parent1->is_type<space_to_batch>()) ||
-                                    (parent1->is_type<reduce>() && reduce_supports_fusings(parent1->as<reduce>()));
-
-            bool can_fuse_parent2 = (parent2->is_type<convolution>() && conv_supports_fusings(parent2->as<convolution>())) ||
-                                    (parent2->is_type<mvn>() && mvn_supports_fusings(parent2->as<mvn>())) ||
-                                    (parent2->is_type<deconvolution>()) || (parent2->is_type<permute>()) ||
-                                    (parent2->is_type<space_to_depth>()) ||
-                                    (parent2->is_type<gemm>() && gemm_supports_fusings(parent2->as<gemm>())) ||
-                                    (parent2->is_type<batch_to_space>()) || (parent2->is_type<space_to_batch>()) ||
-                                    (parent2->is_type<depth_to_space>() && dts_supports_fusings(parent2->as<depth_to_space>())) ||
-                                    (parent2->is_type<batch_to_space>()) || (parent2->is_type<space_to_batch>()) ||
-                                    (parent2->is_type<reduce>() && reduce_supports_fusings(parent2->as<reduce>()));
-
-            std::vector<bool> can_fuse_parents = { can_fuse_parent1, can_fuse_parent2 };
 
             auto p1_raw_size = parent1->get_output_layout().size.sizes();
             auto p2_raw_size = parent2->get_output_layout().size.sizes();

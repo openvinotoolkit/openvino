@@ -57,10 +57,10 @@ KERNEL(eltwise)(
     #else
         const uint d1 = get_global_id(0);
         const uint d2 = (uint)get_global_id(1) % OUTPUT_SIZES[1];
-        const uint d3 = (uint)get_global_id(1) / OUTPUT_SIZES[1] % OUTPUT_SIZE[2];
-        const uint d4 = (uint)get_global_id(1) / OUTPUT_SIZES[1] / OUTPUT_SIZE[2];
-        const uint d5 = (uint)get_global_id(2) % OUTPUT_SIZES[3];
-        const uint d6 = (uint)get_global_id(2) / OUTPUT_SIZES[3];
+        const uint d3 = (uint)get_global_id(1) / OUTPUT_SIZES[1] % OUTPUT_SIZES[2];
+        const uint d4 = (uint)get_global_id(1) / OUTPUT_SIZES[1] / OUTPUT_SIZES[2];
+        const uint d5 = (uint)get_global_id(2) % OUTPUT_SIZES[4];
+        const uint d6 = (uint)get_global_id(2) / OUTPUT_SIZES[4];
 
         uint output_offset = OUTPUT_GET_INDEX(d6, d5, d4, d3, d2, d1);
     #endif
@@ -117,13 +117,8 @@ KERNEL(eltwise)(
     DO_ELTWISE;
 
 #if HAS_FUSED_OPS
-    #if ELTWISE_NO_PITCH_SAME_DIMS
-        FUSED_OPS_LINEAR;
-        OUTPUT_TYPE out = FUSED_OPS_RESULT_LINEAR;
-    #else
-        FUSED_OPS_TENSOR;
-        OUTPUT_TYPE out = FUSED_OPS_RESULT_TENSOR;
-    #endif
+    FUSED_OPS;
+    OUTPUT_TYPE out = FUSED_OPS_RESULT;
 #else
     #define out res
 #endif
