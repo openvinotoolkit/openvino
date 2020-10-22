@@ -87,8 +87,8 @@ TEST_F(NGraphReaderTests, ReadBatchNormInferenceNetwork) {
                 </port>
             </output>
         </layer>
-        <layer name="bn" id="5" type="BatchNormInference" version="opset1">
-            <data eps="0.1" />
+        <layer name="bn" id="5" type="BatchNormInference" version="opset5">
+            <data epsilon="0.1" />
             <input>
                 <port id="1" precision="FP32">
                     <dim>1</dim>
