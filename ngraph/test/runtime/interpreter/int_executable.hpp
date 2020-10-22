@@ -70,6 +70,7 @@
 #include "ngraph/runtime/reference/max_pool.hpp"
 #include "ngraph/runtime/reference/min.hpp"
 #include "ngraph/runtime/reference/negate.hpp"
+#include "ngraph/runtime/reference/non_max_suppression.hpp"
 #include "ngraph/runtime/reference/normalize_l2.hpp"
 #include "ngraph/runtime/reference/not.hpp"
 #include "ngraph/runtime/reference/one_hot.hpp"
@@ -1442,6 +1443,18 @@ protected:
                                        norm->get_reduction_axes(),
                                        norm->get_eps(),
                                        norm->get_eps_mode());
+            break;
+        }
+        case OP_TYPEID::NonMaxSuppression_v5:
+        {
+            const op::NonMaxSuppression* nms =
+                static_cast<const op::v5::NonMaxSuppression*>(&node);
+
+            int64_t max_output_boxes_per_class = nms->max_boxes_output_from_input();
+            float iou_threshold = nms->iou_threshold_from_input();
+            float score_threshold = nms->score_threshold_from_input();
+            float soft_nms_sigma = nms->soft_nms_sigma_from_input();
+
             break;
         }
 
