@@ -154,9 +154,7 @@ NGRAPH_RTTI_DEFINITION(ngraph::pass::Reshape1DOps, "Reshape1DOps", 0);
 NGRAPH_RTTI_DEFINITION(ngraph::pass::Reshape1DConvolution, "Reshape1DConvolution", 0);
 
 ngraph::pass::Reshape1DConvolution::Reshape1DConvolution() {
-    auto conv = ngraph::pattern::wrap_type<op::ConvolutionIE>({pattern::any_input(pattern::has_static_shape()),
-                                                               pattern::any_input()},
-                                                               pattern::has_static_shape());
+    auto conv = ngraph::pattern::wrap_type<op::ConvolutionIE>(pattern::has_static_shape());
     auto m = std::make_shared<ngraph::pattern::Matcher>(conv, "Reshape1DConvolution");
     this->register_matcher(m, get_callback());
 }
