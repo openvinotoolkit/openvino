@@ -40,10 +40,10 @@ void dynamicToStaticNonMaxSuppression(std::shared_ptr<ngraph::Node> node) {
     dsrScores->set_friendly_name(nms->output(1).get_node_shared_ptr()->get_friendly_name());
 
     const auto gatherValidOutputs = std::make_shared<ngraph::opset5::Gather>(
-            nms->output(2),
-            ngraph::opset5::Constant::create(nms->output(2).get_element_type(), ngraph::Shape{1}, {0}),
-            ngraph::opset5::Constant::create(nms->output(2).get_element_type(), ngraph::Shape{1}, {0}));
-    gatherValidOutputs->set_friendly_name(nms->output(1).get_node_shared_ptr()->get_friendly_name());
+            staticShapeNMS->output(2),
+            ngraph::opset5::Constant::create(staticShapeNMS->output(2).get_element_type(), ngraph::Shape{1}, {0}),
+            ngraph::opset5::Constant::create(staticShapeNMS->output(2).get_element_type(), ngraph::Shape{1}, {0}));
+    gatherValidOutputs->set_friendly_name(nms->output(2).get_node_shared_ptr()->get_friendly_name());
 
     nms->output(0).replace(dsrIndices);
     nms->output(1).replace(dsrScores);

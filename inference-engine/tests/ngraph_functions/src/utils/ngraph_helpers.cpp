@@ -193,13 +193,18 @@ void CompareNodes(const Node& actual, const Node& expected) {
     const auto& numActualInputs = actual.inputs().size();
     const auto& numExpectedInputs = expected.inputs().size();
     NGRAPH_CHECK(numActualInputs == numExpectedInputs, "Functions compare: numbers of inputs are different: ", numActualInputs, " and ", numExpectedInputs);
+
+    const auto& numActualOutputs = actual.outputs().size();
+    const auto& numExpectedOutputs = expected.outputs().size();
+    NGRAPH_CHECK(numActualOutputs == numExpectedOutputs, "Functions compare: numbers of outputs are different: ",
+                 numActualOutputs, " and ", numExpectedOutputs);
 }
 
 }  // namespace
 
 void CompareFunctions(const Function& actual, const Function& expected) {
     const auto& actualOrderedOps = actual.get_ordered_ops();
-    const auto& expectedOrderedOps = actual.get_ordered_ops();
+    const auto& expectedOrderedOps = expected.get_ordered_ops();
 
     NGRAPH_CHECK(expectedOrderedOps.size() == actualOrderedOps.size(),
                  "Functions compare: expected and actual ops number should be equal "
@@ -210,6 +215,12 @@ void CompareFunctions(const Function& actual, const Function& expected) {
         const auto& actualOp = actualOrderedOps[i];
 
         CompareNodes(*actualOp, *expectedOp);
+        for (std::size_t i = 0; i < actualOp->inputs().size(); ++i) {
+            const auto& actualShape = actualOp->input(i).get_partial_shape();
+            const auto& expectedShape = expectedOp->input(i).get_partial_shape();
+            CompareShapes(actualShape, expectedShape);
+        }
+
         for (std::size_t i = 0; i < actualOp->outputs().size(); ++i) {
             const auto& actualShape = actualOp->output(i).get_partial_shape();
             const auto& expectedShape = expectedOp->output(i).get_partial_shape();
