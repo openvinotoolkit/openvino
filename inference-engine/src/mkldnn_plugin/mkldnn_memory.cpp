@@ -181,6 +181,8 @@ bool MKLDNNMemory::isConsistant(memory::dims dims, memory::format format) {
         case f::Ohwi8o:
         case f::Ohwi16o:
         case f::OhIw16o4i:
+        case f::OhIw8o32i:
+        case f::OhIw16o32i:
         case f::OIhw4i16o4i:
         case f::OhIw8o4i:
         case f::IOhw16o16i:
@@ -413,6 +415,8 @@ std::string MKLDNNMemory::formatToString(memory::format fmt) {
         case memory::Ohwi16o: return "Ohwi16o";
         case memory::OhIw8o4i: return "OhIw8o4i";
         case memory::OhIw16o4i: return "OhIw16o4i";
+        case memory::OhIw8o32i: return "OhIw8o32i";
+        case memory::OhIw16o32i: return "OhIw16o32i";
         case memory::OIhw4i16o4i: return "OIhw4i16o4i";
         case memory::IOhw16o16i: return "IOhw16o16i";
 
@@ -853,6 +857,24 @@ MKLDNNMemoryDesc::operator InferenceEngine::TensorDesc() const {
             blkDims.push_back(4);
             layout = Layout::BLOCKED;
             break;
+        case memory::OhIw8o32i:
+            order = {0, 2, 1, 3, 0, 1};
+            blkDims = dims;
+            blkDims[0] = blkDims[0] / 8 + (blkDims[0] % 8 ? 1 : 0);
+            blkDims[1] = blkDims[1] / 32 + (blkDims[1] % 32 ? 1 : 0);
+            blkDims.push_back(8);
+            blkDims.push_back(32);
+            layout = Layout::BLOCKED;
+            break;
+        case memory::OhIw16o32i:
+            order = {0, 2, 1, 3, 0, 1};
+            blkDims = dims;
+            blkDims[0] = blkDims[0] / 16 + (blkDims[0] % 16 ? 1 : 0);
+            blkDims[1] = blkDims[1] / 32 + (blkDims[1] % 32 ? 1 : 0);
+            blkDims.push_back(16);
+            blkDims.push_back(32);
+            layout = Layout::BLOCKED;
+            break;
         case memory::OIhw4i16o4i:
             order = {0, 1, 2, 3, 1, 0, 1};
             blkDims = dims;
@@ -1146,6 +1168,10 @@ MKLDNNMemoryDesc::MKLDNNMemoryDesc(const TensorDesc& tDesc):
                 } else if (order.size() == 6 && order[0] == 0 && order[1] == 2 && order[2] == 1 && order[3] == 3 && order[4] == 0 && order[5] == 1) {
                     if (blkdDims[4] == 8 && blkdDims[5] == 4) {
                         mkldnnFormat = memory::format::OhIw8o4i;
+                    } else if (blkdDims[4] == 8 && blkdDims[5] == 32) {
+                        mkldnnFormat = memory::format::OhIw8o32i;
+                    } else if (blkdDims[4] == 16 && blkdDims[5] == 32) {
+                        mkldnnFormat = memory::format::OhIw16o32i;
                     }
                 } else if (order.size() == 6 && order[0] == 0 && order[1] == 1 && order[2] == 2 && order[3] == 3 && order[4] == 1 && order[5] == 0) {
                     if (blkdDims[4] == 8 && blkdDims[5] == 8) {

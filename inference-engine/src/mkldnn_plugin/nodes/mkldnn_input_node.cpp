@@ -7,6 +7,7 @@
 #include <string>
 #include <tuple>
 #include <algorithm>
+#include <ie_precision.hpp>
 #include "caseless.hpp"
 #include "common/cpu_memcpy.h"
 
@@ -145,17 +146,28 @@ void MKLDNNInputNode::execute(mkldnn::stream strm) {
         return;
     auto dstBlob = getChildEdgeAt(0)->getBlob();
 
-    if (constBlob->size() != dstBlob->size()) {
-        THROW_IE_EXCEPTION << "Incorrect blob sizes for node " << getName();
-    }
-
     if (constBlob->getTensorDesc() == dstBlob->getTensorDesc()
         || isCompatibleTensors(constBlob->getTensorDesc(), dstBlob->getTensorDesc())) {
         const int8_t *srcData = constBlob->cbuffer().as<int8_t *>();
         int8_t *dstData = dstBlob->buffer();
 
         cpu_memcpy_s(dstData, dstBlob->byteSize(), srcData, constBlob->byteSize());
+    } else if (constBlob->getTensorDesc().getPrecision() == InferenceEngine::Precision::BIN ||
+               dstBlob->getTensorDesc().getPrecision() == InferenceEngine::Precision::BIN) {
+        size_t dstSize = dstBlob->size() / 8;
+        if (constBlob->size() != dstSize) {
+            THROW_IE_EXCEPTION << "Incorrect blob sizes for node " << getName();
+        }
+
+        const int8_t *srcData = constBlob->cbuffer().as<int8_t *>();
+        int8_t *dstData = dstBlob->buffer();
+
+        cpu_memcpy_s(dstData, dstSize, srcData, constBlob->byteSize());
     } else {
+        if (constBlob->size() != dstBlob->size()) {
+            THROW_IE_EXCEPTION << "Incorrect blob sizes for node " << getName();
+        }
+
         switch (precision.size()) {
             case 1: {
                 const int8_t *srcData = constBlob->cbuffer().as<int8_t *>();
@@ -194,7 +206,7 @@ void MKLDNNInputNode::execute(mkldnn::stream strm) {
                 break;
             }
             default:
-                THROW_IE_EXCEPTION << "Unsupported precision for node " << getName();
+                THROW_IE_EXCEPTION << "Unsupported precision `" << precision << "' for node " << getName();
         }
     }
 }

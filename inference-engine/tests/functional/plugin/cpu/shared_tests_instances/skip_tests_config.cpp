@@ -20,8 +20,6 @@ std::vector<std::string> disabledTestPatterns() {
         // TODO: Issue 33886
         R"(.*(QuantGroupConv2D).*)",
         R"(.*(QuantGroupConv3D).*)",
-        // TODO: Issue 31845
-        R"(.*(FakeQuantizeLayerTest).*)",
         // TODO: failed to downgrade to opset v0 in interpreter backend
         R"(.*Gather.*axis=-1.*)",
         // TODO: Issue 33151
