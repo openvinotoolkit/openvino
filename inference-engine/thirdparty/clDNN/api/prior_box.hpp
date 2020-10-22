@@ -124,8 +124,9 @@ struct prior_box : public primitive_base<prior_box> {
               const float offset,
               const std::vector<float>& widths,
               const std::vector<float>& heights,
+              data_types output_dt,
               const padding& output_padding = padding())
-        : primitive_base(id, {input}, output_padding),
+        : primitive_base(id, {input}, output_padding, optional_data_type{output_dt}),
           img_size(img_size),
           flip(false),
           clip(clip),

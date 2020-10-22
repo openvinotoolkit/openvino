@@ -73,7 +73,6 @@ using softmax_dim = kernel_selector::SoftmaxDim;
 using mean_subtruct_mode = kernel_selector::MeanSubtractMode;
 using mean_op = kernel_selector::MeanOp;
 using concat_axis = kernel_selector::ConcatAxis;
-using tile_axis = kernel_selector::TileAxis;
 using tuning_mode = kernel_selector::TuningMode;
 using sample_type = kernel_selector::ResampleType;
 using coordinate_transformation_mode = kernel_selector::CoordinateTransformationMode;

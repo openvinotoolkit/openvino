@@ -368,7 +368,7 @@ void network_impl::set_input_data(const primitive_id& id, memory_impl& data) {
     primitive_inst = find_primitive(id);
 
     if (primitive_inst == nullptr)
-        throw std::runtime_error("topology doesn't contain prmitive:" + id);
+        throw std::runtime_error("topology doesn't contain primitive:" + id);
 
     if (primitive_inst->type() != input_layout::type_id()) {
         CLDNN_ERROR_MESSAGE(id, "primitive " + id + " is not an input");
