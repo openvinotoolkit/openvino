@@ -62,6 +62,7 @@ class HSigmoidWithClampTest(unittest.TestCase):
         self.assertTrue(flag, resp)
         self.assertTrue(len(graph.get_op_nodes(name='final_mul')) == 1 and
                         graph.get_op_nodes(name='final_mul')[0].op == 'HSigmoid')
+        self.assertTrue(graph.get_op_nodes(name='final_mul')[0].out_nodes()[0].node == 'result')
 
     def test_hsigmoid_with_clamp_wrong_constant(self):
         graph = build_graph_with_edge_attrs(self.nodes, self.edges, {'const_0': {'value': float_array([0.00001])}})
@@ -143,6 +144,7 @@ class HSigmoidWithMinMaxTest(unittest.TestCase):
         self.assertTrue(flag, resp)
         self.assertTrue(len(graph.get_op_nodes(name='final_mul')) == 1 and
                         graph.get_op_nodes(name='final_mul')[0].op == 'HSigmoid')
+        self.assertTrue(graph.get_op_nodes(name='final_mul')[0].out_nodes()[0].node == 'result')
 
     def test_hsigmoid_with_min_max_wrong_constant(self):
         graph = build_graph_with_edge_attrs(self.nodes, self.edges, {'const_0': {'value': float_array([0.00001])}})

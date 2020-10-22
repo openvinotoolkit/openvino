@@ -40,7 +40,7 @@ def replace_with_hsigmoid(graph: Graph, match: [dict, SubgraphMatch]):
 class HSigmoidWithClamp(FrontReplacementSubgraph):
     """
     The transformation looks for the pattern with ReLU6 (Clamp) defining the HSigmoid function:
-    HSigmoid(x) = Relu6(x + 3) / 6.0.
+    HSigmoid(x) = Relu6(x + 3.0) / 6.0.
     """
     enabled = True
 
@@ -55,7 +55,7 @@ class HSigmoidWithClamp(FrontReplacementSubgraph):
                 ('const_0', dict(op='Const', value=lambda v: v is not None and np.allclose(v, 0.0, atol=1e-6))),
                 ('const_3', dict(op='Const', value=lambda v: v is not None and np.allclose(v, 3.0, atol=1e-6))),
                 ('const_6', dict(op='Const', value=lambda v: v is not None and np.allclose(v, 6.0, atol=1e-6))),
-                ('const_1_6', dict(op='Const', value=lambda v: v is not None and np.allclose(v, 1 / 6.0, atol=1e-6))),
+                ('const_1_6', dict(op='Const', value=lambda v: v is not None and np.allclose(v, 1.0 / 6.0, atol=1e-6))),
                 ('clamp', dict(op='Clamp')),
                 ('mul_2', dict(op='Mul')),
             ],
@@ -76,7 +76,7 @@ class HSigmoidWithClamp(FrontReplacementSubgraph):
 class HSigmoidWithMinMax(FrontReplacementSubgraph):
     """
     The transformation looks for the pattern with Min/Max defining the HSigmoid function:
-    HSigmoid(x) = Min(Max(x + 3, 0), 6) / 6.0.
+    HSigmoid(x) = Min(Max(x + 3.0, 0), 6.0) / 6.0.
     """
     enabled = True
 
@@ -91,7 +91,7 @@ class HSigmoidWithMinMax(FrontReplacementSubgraph):
                 ('const_0', dict(op='Const', value=lambda v: v is not None and np.allclose(v, 0.0, atol=1e-6))),
                 ('const_3', dict(op='Const', value=lambda v: v is not None and np.allclose(v, 3.0, atol=1e-6))),
                 ('const_6', dict(op='Const', value=lambda v: v is not None and np.allclose(v, 6.0, atol=1e-6))),
-                ('const_1_6', dict(op='Const', value=lambda v: v is not None and np.allclose(v, 1 / 6.0, atol=1e-6))),
+                ('const_1_6', dict(op='Const', value=lambda v: v is not None and np.allclose(v, 1.0 / 6.0, atol=1e-6))),
                 ('max', dict(op='Maximum')),
                 ('min', dict(op='Minimum')),
                 ('mul_2', dict(op='Mul')),
