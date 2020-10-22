@@ -16,7 +16,7 @@ NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertBroadcastToTiles, "ConvertBroadcastT
 ngraph::pass::ConvertBroadcastToTiles::ConvertBroadcastToTiles() {
     auto broadcast = ngraph::pattern::wrap_type<ngraph::opset1::Broadcast>();
 
-    ngraph::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
+    ngraph::matcher_pass_callback callback = [this](pattern::Matcher& m) {
         auto broadcast = std::dynamic_pointer_cast<ngraph::opset1::Broadcast>(m.get_match_root());
 
         if (!broadcast) {

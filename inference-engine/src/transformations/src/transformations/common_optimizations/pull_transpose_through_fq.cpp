@@ -27,7 +27,7 @@ ngraph::pass::PullTransposeThroughFQUp::PullTransposeThroughFQUp() {
         auto transpose = pattern_map[m_transpose].get_node_shared_ptr();
         auto fq = pattern_map[m_fq].get_node_shared_ptr();
 
-        auto input_shape = fq->input(0).get_partial_shape().rank().get_length();
+        auto input_rank = fq->input(0).get_partial_shape().rank().get_length();
 
         ngraph::NodeVector new_ops;
         ngraph::OutputVector fq_inputs;
@@ -35,7 +35,7 @@ ngraph::pass::PullTransposeThroughFQUp::PullTransposeThroughFQUp() {
             auto fq_input = fq->input_value(i);
             auto fq_input_rank = fq_input.get_partial_shape().rank().get_length();
             std::vector<int64_t> unsqueeze_axes;
-            for (size_t j = 0; j < input_shape - fq_input_rank; ++j) {
+            for (size_t j = 0; j < input_rank - fq_input_rank; ++j) {
                 unsqueeze_axes.push_back(j);
             }
             if (!unsqueeze_axes.empty()) {
