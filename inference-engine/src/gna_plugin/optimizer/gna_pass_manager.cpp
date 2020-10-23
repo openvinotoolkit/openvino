@@ -319,24 +319,53 @@ void SubstituteSoftSignPass::run() {
         }
         if (cont) continue;
         if (!hasNChildren(abs, 1)) continue;
-        auto power = getNthChild(abs, 0);
+        auto addition = getNthChild(abs, 0);
+        InferenceEngine::CNNLayerPtr power = nullptr;
 
-        if (!LayerInfo(power).isPower()) continue;
-        auto powerLayer = LayerInfo(power).as<PowerLayer*>();
-        if (powerLayer->power != -1) continue;
-        if (powerLayer->offset != 1) continue;
-        if (powerLayer->scale != 1) continue;
+        if (!LayerInfo(addition).isPower()) continue;
+        auto powerLayer = LayerInfo(addition).as<PowerLayer*>();
+        if (powerLayer->power != -1) {
+            //if first one is power equals 1, then it still can be a softsign
+            //with two power operations, one for add and one for power
+            if (powerLayer->power != 1)
+                continue;
+            else {
+                if (powerLayer->offset != 1) continue;
+                if (powerLayer->scale != 1) continue;
+
+                power = getNthChild(addition, 0);
+                if (!LayerInfo(power).isPower()) continue;
+                auto powerLayer_1 = LayerInfo(power).as<PowerLayer*>();
+                if (powerLayer_1->power != -1) continue;
+                if (powerLayer_1->offset != 0) continue;
+                if (powerLayer_1->scale != 1) continue;
+            }
+        } else {
+            if (powerLayer->offset != 1) continue;
+            if (powerLayer->scale != 1) continue;
+
+            power = addition;
+            addition = nullptr;
+        }
 
         if (!hasNChildren(power, 1)) continue;
         auto mulSame = getNthChild(power, 0);
         if (mulSame != mul) continue;
 
         // pattern matched - lets substitute
-        gnalog() << "SoftSign subgraph found consits of: \n"
-                 << "\t" << abs->name << "\n"
-                 << "\t" << power->name << "\n"
-                 << "\t" << mul->name << "\n"
-                 << std::endl;
+        if (addition == nullptr)
+            gnalog() << "SoftSign subgraph found consits of: \n"
+                     << "\t" << abs->name << "\n"
+                     << "\t" << power->name << "\n"
+                     << "\t" << mul->name << "\n"
+                     << std::endl;
+        else
+            gnalog() << "SoftSign subgraph found consits of: \n"
+                     << "\t" << abs->name << "\n"
+                     << "\t" << addition->name << "\n"
+                     << "\t" << power->name << "\n"
+                     << "\t" << mul->name << "\n"
+                     << std::endl;
 
         // creating softsign layer
         auto quantized = InferenceEngine::getInjectedData<QuantizedLayerParams>(l);
