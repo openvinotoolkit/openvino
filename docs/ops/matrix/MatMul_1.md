@@ -12,7 +12,7 @@
 
 Before matrix multiplication, there is an implicit shape alignment for input arguments. It consists of the following steps:
 
-1. One-dimensional tensors unsqueezing is applied for each input independently. The axes inserted in this step will be removed from the output shape.
+1. One-dimensional tensors unsqueezing is applied for each input independently. The axes inserted in this step are not included in the output shape.
     * If rank of the **first** input is less than 2, it is unsqueezed to 2D tensor by adding axes with size 1 to the **left** of the shape. For example `[S]` will be reshaped to `[1, S]`.
     * If rank of the **second** input is less than 2, it is unsqueezed to 2D tensor by adding axes with size 1 to the **right** of the shape. For example `[S]` will be reshaped to `[S, 1]`.
 
@@ -22,13 +22,25 @@ Before matrix multiplication, there is an implicit shape alignment for input arg
 
 4. Usual rules of the broadcasting are applied for batch dimensions.
 
+
+Output shape inference logic (ND here means bigger than 1D):
+
+* 1D x 1D: `[X] x [Y] -> [1, X] x [Y, 1] -> [1, 1] => [ ]` (scalar)
+
+* 1D x ND: `[X] x [B, ..., X, Y] -> [1, X] x [B, ..., X, Y] -> [B, ..., 1, Y] => [B, ..., Y]`
+
+* ND x 1D: `[B, ..., X, Y] x [Y] -> [B, ..., X, Y] x [Y, 1] -> [B, ..., X, 1] => [B, ..., X]`
+
+* ND x ND: `[B, ..., X, Y] x [B, ..., Y, Z] => [B, ..., X, Z]`
+
+
 Two attributes, transpose_a and transpose_b specifies embedded transposition for two right-most dimension for the first and the second input tensors correspondingly. It implies swapping of ROW_INDEX_DIM and COL_INDEX_DIM in the corresponding input tensor. Batch dimensions are not affected by these attributes.
 
 **Attributes**
 
 * *transpose_a*
 
-  * **Description**: transposes dimensions ROW_INDEX_DIM and COL_INDEX_DIM of the 1st input; 0 means no transpose, 1 means transpose
+  * **Description**: transposes dimensions ROW_INDEX_DIM and COL_INDEX_DIM of the 1st input; **False** means no transpose, **True** means transpose
   * **Range of values**: False or True
   * **Type**: boolean
   * **Default value**: False
@@ -36,7 +48,7 @@ Two attributes, transpose_a and transpose_b specifies embedded transposition for
 
 * *transpose_b*
 
-  * **Description**: transposes dimensions ROW_INDEX_DIM and COL_INDEX_DIM of the 2nd input; 0 means no transpose, 1 means transpose
+  * **Description**: transposes dimensions ROW_INDEX_DIM and COL_INDEX_DIM of the 2nd input; **False** means no transpose, **True** means transpose
   * **Range of values**: False or True
   * **Type**: boolean
   * **Default value**: False
