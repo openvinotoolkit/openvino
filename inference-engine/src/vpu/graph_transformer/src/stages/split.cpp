@@ -192,7 +192,7 @@ Stage StageBuilder::addSplitStage(
         stage->attrs().set("axis", axis);
 
         return stage;
-    } else {
+    } else {    //  This branch handles cases when cnnLayer == nullptr
         for (const auto& output : outputs) {
             offsets.emplace_back(curOffset);
             curOffset.set(axis, curOffset[axis] + output->desc().dim(axis));
