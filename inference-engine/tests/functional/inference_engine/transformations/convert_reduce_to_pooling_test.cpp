@@ -54,8 +54,7 @@ public:
         f_ref = get_reference_function(input_shape, reduce_type, reference_params);
     }
 
-private:
-    std::shared_ptr<ngraph::Function> get_initial_function(const ngraph::PartialShape & input_shape,
+    static std::shared_ptr<ngraph::Function> get_initial_function(const ngraph::PartialShape & input_shape,
                                                            const std::vector<int64_t> & axes,
                                                            const ReduceType & reduce_type,
                                                            const bool keep_dims) {
@@ -72,7 +71,7 @@ private:
         return std::make_shared<ngraph::Function>(ngraph::NodeVector{reduce}, ngraph::ParameterVector{input});
     }
 
-    std::shared_ptr<ngraph::Function> get_reference_function(const ngraph::PartialShape & input_shape,
+    static std::shared_ptr<ngraph::Function> get_reference_function(const ngraph::PartialShape & input_shape,
                                                              const ReduceType & reduce,
                                                              const ReduceToPoolParams & params) {
         auto param = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, input_shape);
@@ -137,6 +136,10 @@ INSTANTIATE_TEST_CASE_P(ReduceToReshapePoolReshape, ConvertReduceToPoolingTests,
                         std::make_tuple(MAX, InputShape{2, 9},       ReduceAxes{-1},      KeepDims{true},  ReduceToPoolParams({1, 1, 9, 1}, {9, 1}, {1, 1})),
                         std::make_tuple(MAX, InputShape{2, 3, 4, 1}, ReduceAxes{1, 3, 2}, KeepDims{false}, ReduceToPoolParams({1, 1, 12, 1}, {12, 1}, {1}))));
 
+TEST(ConvertReduceToPooling, Negative) {
+    auto f = ConvertReduceToPoolingTests::get_initial_function(
+            ngraph::PartialShape::dynamic(), {3}, MAX, true);
+    ASSERT_NO_THROW(ngraph::pass::ConvertReduceToPooling().run_on_function(f));
+}
+
 #undef MAX
-
-

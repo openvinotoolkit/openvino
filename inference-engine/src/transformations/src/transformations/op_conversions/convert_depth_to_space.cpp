@@ -14,7 +14,7 @@
 NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertDepthToSpace, "ConvertDepthToSpace", 0);
 
 ngraph::pass::ConvertDepthToSpace::ConvertDepthToSpace() {
-    auto dts_node = ngraph::pattern::wrap_type<ngraph::opset1::DepthToSpace>();
+    auto dts_node = ngraph::pattern::wrap_type<ngraph::opset1::DepthToSpace>({pattern::any_input(pattern::has_static_shape())});
 
     ngraph::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
         auto dts_node = std::dynamic_pointer_cast<ngraph::opset1::DepthToSpace> (m.get_match_root());
@@ -22,7 +22,7 @@ ngraph::pass::ConvertDepthToSpace::ConvertDepthToSpace() {
             return false;
         }
 
-        auto input = dts_node->input(0).get_source_output().get_node_shared_ptr();
+        auto input = dts_node->input_value(0);
 
         /*
          * In this transformation we decompose DepthToSpace operation to the next sequence of ops:
