@@ -78,9 +78,9 @@ NGRAPH_TEST(${BACKEND_NAME}, nonmaxsuppression_center_point_box_format_backend)
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
-    auto selected_indeces = backend->create_tensor();
-    auto selected_scores = backend->create_tensor();
-    auto valid_outputs = backend->create_tensor();
+    auto selected_indeces = backend->create_tensor(element::i64, Shape{3, 3});
+    auto selected_scores = backend->create_tensor(element::f32, Shape{3, 3});
+    auto valid_outputs = backend->create_tensor(element::i64, Shape{1});
 
     auto backend_boxes = backend->create_tensor(element::f32, boxes_shape);
     auto backend_scores = backend->create_tensor(element::f32, scores_shape);
@@ -141,9 +141,9 @@ NGRAPH_TEST(${BACKEND_NAME}, nonmaxsuppression_flipped_coordinates_backend)
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
-    auto selected_indeces = backend->create_tensor();
-    auto selected_scores = backend->create_tensor();
-    auto valid_outputs = backend->create_tensor();
+    auto selected_indeces = backend->create_tensor(element::i64, Shape{3, 3});
+    auto selected_scores = backend->create_tensor(element::f32, Shape{3, 3});
+    auto valid_outputs = backend->create_tensor(element::i64, Shape{1});
 
     auto backend_boxes = backend->create_tensor(element::f32, boxes_shape);
     auto backend_scores = backend->create_tensor(element::f32, scores_shape);
@@ -205,9 +205,9 @@ NGRAPH_TEST(${BACKEND_NAME}, nonmaxsuppression_identical_boxes_backend)
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
-    auto selected_indeces = backend->create_tensor();
-    auto selected_scores = backend->create_tensor();
-    auto valid_outputs = backend->create_tensor();
+    auto selected_indeces = backend->create_tensor(element::i64, Shape{1, 3});
+    auto selected_scores = backend->create_tensor(element::f32, Shape{1, 3});
+    auto valid_outputs = backend->create_tensor(element::i64, Shape{1});
 
     auto backend_boxes = backend->create_tensor(element::f32, boxes_shape);
     auto backend_scores = backend->create_tensor(element::f32, scores_shape);
@@ -268,9 +268,9 @@ NGRAPH_TEST(${BACKEND_NAME}, nonmaxsuppression_limit_output_size_backend)
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
-    auto selected_indeces = backend->create_tensor();
-    auto selected_scores = backend->create_tensor();
-    auto valid_outputs = backend->create_tensor();
+    auto selected_indeces = backend->create_tensor(element::i64, Shape{2, 3});
+    auto selected_scores = backend->create_tensor(element::f32, Shape{2, 3});
+    auto valid_outputs = backend->create_tensor(element::i64, Shape{1});
 
     auto backend_boxes = backend->create_tensor(element::f32, boxes_shape);
     auto backend_scores = backend->create_tensor(element::f32, scores_shape);
@@ -329,9 +329,9 @@ NGRAPH_TEST(${BACKEND_NAME}, nonmaxsuppression_single_box_backend)
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
-    auto selected_indeces = backend->create_tensor();
-    auto selected_scores = backend->create_tensor();
-    auto valid_outputs = backend->create_tensor();
+    auto selected_indeces = backend->create_tensor(element::i64, Shape{1, 3});
+    auto selected_scores = backend->create_tensor(element::f32, Shape{1, 3});
+    auto valid_outputs = backend->create_tensor(element::i64, Shape{1});
 
     auto backend_boxes = backend->create_tensor(element::f32, boxes_shape);
     auto backend_scores = backend->create_tensor(element::f32, scores_shape);
@@ -392,9 +392,9 @@ NGRAPH_TEST(${BACKEND_NAME}, nonmaxsuppression_suppress_by_IOU_backend)
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
-    auto selected_indeces = backend->create_tensor();
-    auto selected_scores = backend->create_tensor();
-    auto valid_outputs = backend->create_tensor();
+    auto selected_indeces = backend->create_tensor(element::i64, Shape{3, 3});
+    auto selected_scores = backend->create_tensor(element::f32, Shape{3, 3});
+    auto valid_outputs = backend->create_tensor(element::i64, Shape{1});
 
     auto backend_boxes = backend->create_tensor(element::f32, boxes_shape);
     auto backend_scores = backend->create_tensor(element::f32, scores_shape);
@@ -455,9 +455,9 @@ NGRAPH_TEST(${BACKEND_NAME}, nonmaxsuppression_suppress_by_IOU_and_scores_backen
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
-    auto selected_indeces = backend->create_tensor();
-    auto selected_scores = backend->create_tensor();
-    auto valid_outputs = backend->create_tensor();
+    auto selected_indeces = backend->create_tensor(element::i64, Shape{2, 3});
+    auto selected_scores = backend->create_tensor(element::f32, Shape{2, 3});
+    auto valid_outputs = backend->create_tensor(element::i64, Shape{1});
 
     auto backend_boxes = backend->create_tensor(element::f32, boxes_shape);
     auto backend_scores = backend->create_tensor(element::f32, scores_shape);
@@ -520,9 +520,9 @@ NGRAPH_TEST(${BACKEND_NAME}, nonmaxsuppression_two_batches_backend)
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
-    auto selected_indeces = backend->create_tensor();
-    auto selected_scores = backend->create_tensor();
-    auto valid_outputs = backend->create_tensor();
+    auto selected_indeces = backend->create_tensor(element::i64, Shape{4, 3});
+    auto selected_scores = backend->create_tensor(element::f32, Shape{4, 3});
+    auto valid_outputs = backend->create_tensor(element::i64, Shape{1});
 
     auto backend_boxes = backend->create_tensor(element::f32, boxes_shape);
     auto backend_scores = backend->create_tensor(element::f32, scores_shape);
@@ -585,8 +585,8 @@ NGRAPH_TEST(${BACKEND_NAME}, nonmaxsuppression_two_classes_backend)
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
 
-    auto selected_indeces = backend->create_tensor(element::i64, Shape{3, 3});
-    auto selected_scores = backend->create_tensor(element::f32, Shape{3, 3});
+    auto selected_indeces = backend->create_tensor(element::i64, Shape{4, 3});
+    auto selected_scores = backend->create_tensor(element::f32, Shape{4, 3});
     auto valid_outputs = backend->create_tensor(element::i64, Shape{1});
 
     auto backend_boxes = backend->create_tensor(element::f32, boxes_shape);

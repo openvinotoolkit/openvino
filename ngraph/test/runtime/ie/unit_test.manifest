@@ -1141,14 +1141,14 @@ IE_CPU.log_softmax_3d_axis_neg3
 
 # Unsupported NMS-5
 # IE_CPU.nonmaxsuppression_center_point_box_format_backend
-IE_CPU.nonmaxsuppression_flipped_coordinates_backend
-IE_CPU.nonmaxsuppression_identical_boxes_backend
-IE_CPU.nonmaxsuppression_limit_output_size_backend
-IE_CPU.nonmaxsuppression_single_box_backend
-IE_CPU.nonmaxsuppression_suppress_by_IOU_backend
-IE_CPU.nonmaxsuppression_suppress_by_IOU_and_scores_backend
-IE_CPU.nonmaxsuppression_two_batches_backend
-IE_CPU.nonmaxsuppression_two_classes_backend
+# IE_CPU.nonmaxsuppression_flipped_coordinates_backend
+# IE_CPU.nonmaxsuppression_identical_boxes_backend
+# IE_CPU.nonmaxsuppression_limit_output_size_backend
+# IE_CPU.nonmaxsuppression_single_box_backend
+# IE_CPU.nonmaxsuppression_suppress_by_IOU_backend
+# IE_CPU.nonmaxsuppression_suppress_by_IOU_and_scores_backend
+# IE_CPU.nonmaxsuppression_two_batches_backend
+# IE_CPU.nonmaxsuppression_two_classes_backend
 
 #-------------------------------------------------------------------------------
 #
