@@ -11,9 +11,9 @@
 #include <set>
 #include <string>
 
-using namespace vpu;
 using namespace InferenceEngine;
 
+namespace vpu {
 enum class InterpolateMode {
     nearest     = 0,
     linear      = 1,
@@ -42,6 +42,7 @@ enum class InterpolateNearestMode {
     simple             = 4
 };
 
+namespace {
 class InterpolateStage final : public StageNode {
 public:
     using StageNode::StageNode;
@@ -73,37 +74,39 @@ private:
     }
 
     void serializeParamsImpl(BlobSerializer& serializer) const override {
-        auto factor = attrs().get<float>("factor");
+        auto input = inputEdge(0)->input();
+
+        auto perm = input->desc().dimsOrder().toPermutation();
+        IE_ASSERT(perm.size() <= 4);
+
         auto antialias = attrs().get<bool>("antialias");
-        // auto cube_coeff = attrs().get<float>("cube_coeff");
-        // auto batch = attrs().get<int>("batch");
-
-        // auto sampleType = attrs().get<InterpolateMode>("type");
-        auto sampleNearestMode = attrs().get<InterpolateNearestMode>("nearestMode");
-        auto sampleShapeCalcMode = attrs().get<InterpolateShapeCalcMode>("shapeCalcMode");
-        auto sampleCoordTransMode = attrs().get<InterpolateCoordTransMode>("coordTransMode");
-
-        // auto pads_begin = attrs().get<std::vector<int>>("pads_begin");
-        // auto pads_end = attrs().get<std::vector<int>>("pads_end");
-        // auto sizes = attrs().get<std::vector<int>>("sizes");
-        auto axis = attrs().get<std::vector<int>>("InterpolateAxis");
-        auto scales = attrs().get<std::vector<float>>("InterpolateScales");
+        auto cube_coeff = attrs().get<float>("cube_coeff");
+        auto batch = attrs().get<int>("batch");
+        auto sampleType = attrs().get<int>("type");
+        auto sampleNearestMode = attrs().get<int>("nearestMode");
+        auto sampleShapeCalcMode = attrs().get<int>("shapeCalcMode");
+        auto sampleCoordTransMode = attrs().get<int>("coordTransMode");
+        auto& pads_begin = attrs().get<DimValues>("pads_begin");
+        auto& pads_end = attrs().get<DimValues>("pads_end");
+        auto& sizes = attrs().get<DimValues>("sizes");
+        auto& axis = attrs().get<DimValues>("InterpolateAxis");
+        auto& scales = attrs().get<DimValues>("InterpolateScales");
         
-        serializer.append(static_cast<float>(factor));
-        serializer.append(static_cast<int32_t>(antialias));
-        // serializer.append(static_cast<float>(cube_coeff));
-        // serializer.append(static_cast<uint32_t>(batch));
+        serializer.append(static_cast<int>(antialias));
+        serializer.append(static_cast<float>(cube_coeff));
+        serializer.append(static_cast<int>(batch));
+        serializer.append(static_cast<int>(sampleType));
+        serializer.append(static_cast<int>(sampleNearestMode));
+        serializer.append(static_cast<int>(sampleShapeCalcMode));
+        serializer.append(static_cast<int>(sampleCoordTransMode));
 
-        // serializer.append(static_cast<uint32_t>(sampleType));
-        serializer.append(static_cast<uint32_t>(sampleNearestMode));
-        serializer.append(static_cast<uint32_t>(sampleShapeCalcMode));
-        serializer.append(static_cast<uint32_t>(sampleCoordTransMode));
-
-        // serializer.append(static_cast<std::vector<int>>(pads_begin));
-        // serializer.append(static_cast<std::vector<int>>(pads_end));
-        // serializer.append(static_cast<std::vector<int>>(sizes));
-        serializer.append(static_cast<std::vector<int>>(axis));
-        serializer.append(static_cast<std::vector<float>>(scales));
+        for (int i = 0; i < perm.size(); ++i) {
+            serializer.append(static_cast<int>(pads_begin.get(perm[i], 0)));
+            serializer.append(static_cast<int>(pads_end.get(perm[i], 0)));
+            serializer.append(static_cast<int>(sizes.get(perm[i], 0)));
+            serializer.append(static_cast<int>(axis.get(perm[i], 0)));
+            serializer.append(static_cast<float>(scales.get(perm[i], 0)));
+        }
     }
 
     void serializeDataImpl(BlobSerializer& serializer) const override {
@@ -113,29 +116,9 @@ private:
         input->serializeBuffer(serializer);
         output->serializeBuffer(serializer);
     }
-
-    InterpolateMode mode = InterpolateMode::nearest;
-    InterpolateShapeCalcMode shape_calc_mode = InterpolateShapeCalcMode::sizes;
-    InterpolateCoordTransMode coordTransMode = InterpolateCoordTransMode::half_pixel;
-    InterpolateNearestMode nearestMode       = InterpolateNearestMode::round_prefer_floor;
-
-    bool antialias  = false;
-    bool hasPad     = false;
-    bool hasSpecifiedAxis = false;
-    float cubeCoeff = -0.75;
-
-    std::vector<int> padBegin;
-    std::vector<int> padEnd;
-    std::vector<int> axes = {0, 1, 2, 3};
-    std::vector<float> scales = {1.f, 1.f, 2.f, 2.f};
-
-    SizeVector dstDim;
-    SizeVector srcDim;
-    SizeVector srcPad;
-
-    InferenceEngine::Precision inputPrecision, outputPrecision;
-    size_t srcDataSize, dstDataSize;
 };
+
+}  // namespace
 
 Stage StageBuilder::addInterpolateStage(
         const Model& model,
@@ -156,66 +139,62 @@ Stage StageBuilder::addInterpolateStage(
     return interpolateStage;
 }
 
-void FrontEnd::parseInterpolate(const Model& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs) const {
+void FrontEnd::parseInterpolate(const Model& model, const ie::CNNLayerPtr& _layer, const DataVector& inputs, const DataVector& outputs) const {
     printf("PARSE\n");
-    // IE_ASSERT(inputs.size() == 1);
-    // IE_ASSERT(outputs.size() == 1);
-    ie::details::CaselessEq<std::string> cmp;
+    IE_ASSERT(inputs.size() == 1);
+    IE_ASSERT(outputs.size() == 1);
 
-    _stageBuilder->addInterpolateStage(model, layer->name, layer, inputs[0], outputs[0], "parseInterpolate");
+    auto layer = std::dynamic_pointer_cast<ie::InterpolateLayer>(_layer);
+    IE_ASSERT(layer != nullptr);
 
-    auto stage = model->addNewStage<InterpolateStage>(layer->name, StageType::Interpolate, layer, inputs, outputs);
+    DimValues pads_begin;
+    pads_begin.set(Dim::W, layer->pads_begin[3]);
+    pads_begin.set(Dim::H, layer->pads_begin[2]);
+    pads_begin.set(Dim::C, layer->pads_begin[1]);
+    pads_begin.set(Dim::N, layer->pads_begin[0]);
 
-    stage->attrs().set<float>("factor", layer->GetParamAsInt("factor", -1.0f));
+    DimValues pads_end;
+    pads_end.set(Dim::W, layer->pads_end[3]);
+    pads_end.set(Dim::H, layer->pads_end[2]);
+    pads_end.set(Dim::C, layer->pads_end[1]);
+    pads_end.set(Dim::N, layer->pads_end[0]);
+
+    DimValues sizes;
+    sizes.set(Dim::W, layer->sizes[3]);
+    sizes.set(Dim::H, layer->sizes[2]);
+    sizes.set(Dim::C, layer->sizes[1]);
+    sizes.set(Dim::N, layer->sizes[0]);
+
+    DimValues scales;
+    scales.set(Dim::W, layer->scales[3]);
+    scales.set(Dim::H, layer->scales[2]);
+    scales.set(Dim::C, layer->scales[1]);
+    scales.set(Dim::N, layer->scales[0]);
+
+    DimValues axes;
+    axes.set(Dim::W, layer->axes[3]);
+    axes.set(Dim::H, layer->axes[2]);
+    axes.set(Dim::C, layer->axes[1]);
+    axes.set(Dim::N, layer->axes[0]);
+
+    auto stage = model->addNewStage<InterpolateStage>(_layer->name, StageType::Interpolate, _layer, inputs, outputs);
+
     stage->attrs().set<bool>("antialias", layer->GetParamAsInt("antialias", 0));
+    stage->attrs().set<float>("cube_coeff", layer->GetParamAsFloat("cube_coeff", 0));
+    stage->attrs().set<int>("batch", layer->GetParamAsInt("batch", 1));
+    stage->attrs().set<int>("type", layer->GetParamAsInt("type", 0));
 
-    auto method = layer->GetParamAsString("type", "nearest");
-    if (cmp(method, "nearest")) {
-        stage->attrs().set<InterpolateMode>("type", InterpolateMode::nearest);
-    } else if (cmp(method, "linear")) {
-        stage->attrs().set<InterpolateMode>("type", InterpolateMode::linear);
-    } else if (cmp(method, "cubic")) {
-        VPU_THROW_EXCEPTION << "Layer with name " << layer->name << " doesn't yet support this Interpolate type";
-    } else {
-        VPU_THROW_EXCEPTION << "Layer with name " << layer->name << " doesn't support this Interpolate type";
-    }
+    stage->attrs().set<DimValues>("pads_begin", pads_begin);
+    stage->attrs().set<DimValues>("pads_end", pads_end);
+    stage->attrs().set<DimValues>("sizes", sizes);
 
-    auto nnMode = layer->GetParamAsString("nearestMode", "round_prefer_floor");
-    if (cmp(nnMode, "round_prefer_floor")) {
-        stage->attrs().set<InterpolateNearestMode>("nearestMode", InterpolateNearestMode::round_prefer_floor);
-    } else if (cmp(nnMode, "round_prefer_ceil")) {
-        stage->attrs().set<InterpolateNearestMode>("nearestMode", InterpolateNearestMode::round_prefer_ceil);
-    } else if (cmp(nnMode, "floor")) {
-        stage->attrs().set<InterpolateNearestMode>("nearestMode", InterpolateNearestMode::floor);
-    } else if (cmp(nnMode, "ceil")) {
-        stage->attrs().set<InterpolateNearestMode>("nearestMode", InterpolateNearestMode::ceil);
-    } else if (cmp(nnMode, "simple")) {
-        stage->attrs().set<InterpolateNearestMode>("nearestMode", InterpolateNearestMode::simple);
-    } else {
-        VPU_THROW_EXCEPTION << "Layer with name " << layer->name << " doesn't support this Interpolate nearest mode variant";
-    }
+    stage->attrs().set<int>("nearestMode", layer->GetParamAsInt("nearestMode", 0));
+    stage->attrs().set<int>("shapeCalcMode", layer->GetParamAsInt("shapeCalcMode", 0));
+    stage->attrs().set<int>("coordTransMode", layer->GetParamAsInt("coordTransMode", 0));
+    stage->attrs().set<DimValues>("InterpolateAxis", axes);
+    stage->attrs().set<DimValues>("InterpolateScales", scales);
 
-    auto shapeCalcMode = layer->GetParamAsString("shapeCalcMode", "sizes");
-    if (cmp(shapeCalcMode, "sizes")) {
-        stage->attrs().set<InterpolateShapeCalcMode>("shapeCalcMode", InterpolateShapeCalcMode::sizes);
-    } else if (cmp(shapeCalcMode, "scales")) {
-        stage->attrs().set<InterpolateShapeCalcMode>("shapeCalcMode", InterpolateShapeCalcMode::scales);
-    } else {
-        VPU_THROW_EXCEPTION << "Layer with name " << layer->name << " doesn't support this Interpolate shape calculation mode";
-    }
-
-    auto coordTransMode = layer->GetParamAsString("coordTransMode", "half_pixel");
-    if (cmp(coordTransMode, "half_pixel")) {
-        stage->attrs().set<InterpolateCoordTransMode>("coordTransMode", InterpolateCoordTransMode::half_pixel);
-    } else if (cmp(coordTransMode, "asymmetric")) {
-        stage->attrs().set<InterpolateCoordTransMode>("coordTransMode", InterpolateCoordTransMode::asymmetric);
-    } else if (cmp(coordTransMode, "pytorch_half_pixel")) {
-        stage->attrs().set<InterpolateCoordTransMode>("coordTransMode", InterpolateCoordTransMode::pytorch_half_pixel);
-    } else if (cmp(coordTransMode, "half_pixel_for_nn")) {
-        stage->attrs().set<InterpolateCoordTransMode>("coordTransMode", InterpolateCoordTransMode::tf_half_pixel_for_nn);
-    } else if (cmp(coordTransMode, "align_corners")) {
-        stage->attrs().set<InterpolateCoordTransMode>("coordTransMode", InterpolateCoordTransMode::align_corners);
-    } else {
-        VPU_THROW_EXCEPTION << "Layer with name " << layer->name << " doesn't support this Interpolate coordinate transform mode";
-    }
+    printf("PARSE end\n");
 }
+
+}  // namespace vpu

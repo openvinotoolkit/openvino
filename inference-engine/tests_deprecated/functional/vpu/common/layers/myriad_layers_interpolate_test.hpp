@@ -9,7 +9,7 @@ using namespace InferenceEngine;
 
 #define ERROR_BOUND 1e-3
 
-PRETTY_PARAM(Factor, float)
+// PRETTY_PARAM(Factor, float)
 PRETTY_PARAM(Antialias, int)
 // PRETTY_PARAM(cube_coeff, float)
 // PRETTY_PARAM(batch, int)
@@ -22,9 +22,9 @@ PRETTY_PARAM(coordTransMode, int)
 // PRETTY_PARAM(sizes, int)
 PRETTY_PARAM(InterpolateAxis, int)
 PRETTY_PARAM(InterpolateScales, float)
-
-PRETTY_PARAM(HwOptimization, bool);
-PRETTY_PARAM(CustomConfig, std::string);
+PRETTY_PARAM(HwOptimization, bool)
+PRETTY_PARAM(layoutPreference, vpu::LayoutPreference)
+PRETTY_PARAM(CustomConfig, std::string)
 
 enum class InterpolateMode {
     nearest     = 0,
@@ -127,8 +127,8 @@ std::string testModel = R"V0G0N(
     </net>
     )V0G0N";
 
-typedef myriadLayerTestBaseWithParam<std::tuple<SizeVector, Factor, Antialias, nearestMode, shapeCalcMode, coordTransMode, InterpolateAxis, InterpolateScales, HwOptimization, CustomConfig>>
-	myriadInterpolateLayerTests_nightly;
+typedef myriadLayerTestBaseWithParam<std::tuple<SizeVector, Antialias, nearestMode, shapeCalcMode, coordTransMode, InterpolateAxis, InterpolateScales, HwOptimization, layoutPreference, CustomConfig>>
+	myriadInterpolateLayerTests_smoke;
 
 float getOriginalCoordinate(float x_resized, float x_scale, int length_resized, int length_original, int mode) {
     switch(mode) {
@@ -270,7 +270,7 @@ void refNearestInterpolate(const Blob::Ptr src, Blob::Ptr dst, int antialias) {
             for (int oh = 0; oh < OH; oh++) {
                 for (int ow = 0; ow < OW; ow++) {
                     out_ptr[oh * OW + ow] = in_ptr[index_h[oh] * IW + index_w[ow]];
-                    std::cout << "out_ptr[oh * OW + ow] = " << out_ptr[oh * OW + ow] << "\n";
+                    // std::cout << "out_ptr[oh * OW + ow] = " << out_ptr[oh * OW + ow] << "\n";
                 }
             }
         }
@@ -352,20 +352,20 @@ void refLinearInterpolate(const Blob::Ptr src, Blob::Ptr dst, int antialias) {
     }
 }
 
-TEST_P(myriadInterpolateLayerTests_nightly, Interpolate) {
+TEST_P(myriadInterpolateLayerTests_smoke, Interpolate) {
     const SizeVector inputDims = std::get<0>(GetParam());
-    const float factor = std::get<1>(GetParam());
-    const bool antialias = std::get<2>(GetParam());
-    const int sampleNearestMode = std::get<3>(GetParam());
-    const int sampleShapeCalcMode = std::get<4>(GetParam());
-    const int sampleCoordTransMode = std::get<5>(GetParam());
-    const int axis = std::get<6>(GetParam());
-    const bool scales = std::get<7>(GetParam());
-    const bool hwOptimization = std::get<8>(GetParam());
+    const bool antialias = std::get<1>(GetParam());
+    const int sampleNearestMode = std::get<2>(GetParam());
+    const int sampleShapeCalcMode = std::get<3>(GetParam());
+    const int sampleCoordTransMode = std::get<4>(GetParam());
+    const int axis = std::get<5>(GetParam());
+    const float scales = std::get<6>(GetParam());
+    const bool hwOptimization = std::get<7>(GetParam());
+    auto layoutPreference = std::get<8>(GetParam());
     const std::string customConfig = std::get<9>(GetParam());
     int sample = 0;
-
-    ASSERT_GT(factor, 0);
+    printf("TEST_P\n");
+    ASSERT_GT(scales, 0);
 
     if (customConfig.empty() && antialias) {
         GTEST_SKIP() << "Native Interpolate with antialiasing is not supported";
@@ -379,40 +379,46 @@ TEST_P(myriadInterpolateLayerTests_nightly, Interpolate) {
 
     const auto outputDims = SizeVector{inputDims[0],
                                        inputDims[1],
-                                       (size_t)(inputDims[2] * factor),
-                                       (size_t)(inputDims[3] * factor)};
+                                       (size_t)(inputDims[2] * scales),
+                                       (size_t)(inputDims[3] * scales)};
 
     SetInputTensors({inputDims});
     SetOutputTensors({outputDims});
 
     std::map<std::string, std::string> params;
     params["antialias"] = std::to_string((int)antialias);
-    params["factor"] = std::to_string(factor);
     params["sampleNearestMode"] = std::to_string(sampleNearestMode);
     params["sampleShapeCalcMode"] = std::to_string(sampleShapeCalcMode);
     params["sampleCoordTransMode"] = std::to_string(sampleCoordTransMode);
-    // params["axis"] = std::to_string(axis);
-    // params["scales"] = std::to_string(scales);
+    params["axis"] = std::to_string(axis);
+    params["scales"] = std::to_string(scales);
 
-    ASSERT_NO_FATAL_FAILURE(makeSingleLayerNetwork(LayerInitParams("Interpolate").params(params),
-                                                   NetworkInitParams()
-                                                   .useHWOpt(hwOptimization)
-                                                   .lockLayout(true)));
+    // ASSERT_NO_FATAL_FAILURE(makeSingleLayerNetwork(LayerInitParams("Interpolate").params(params),
+    //                                                NetworkInitParams()
+    //                                                     .useHWOpt(hwOptimization)
+    //                                                     .lockLayout(true)));
 
+    makeSingleLayerNetwork(LayerInitParams("Interpolate").params(params));
+    // makeSingleLayerNetwork(LayerInitParams("Interpolate").params(params), NetworkInitParams().layoutPreference(layoutPreference));
+
+    SetFirstInputToRange(-0.9f, 0.9f);
+    printf("TEST_P before Infer\n");
     ASSERT_TRUE(Infer());
+
     if (sample == 0) {
         ASSERT_NO_FATAL_FAILURE(refNearestInterpolate(_inputMap.begin()->second, _refBlob, antialias));
     } else {
         ASSERT_NO_FATAL_FAILURE(refLinearInterpolate(_inputMap.begin()->second, _refBlob, antialias));
     }
+    printf("TEST_P before compare\n");
 
     CompareCommonAbsolute(_outputMap.begin()->second, _refBlob, ERROR_BOUND);
 }
 
 static std::vector<SizeVector> s_InterpolateInput = {
-        {128, 64, 256, 128, 1},
-        // {6,    6, 64, 32, 1},
-        // {128, 64, 512, 256, 1}
+        {1, 1, 1, 1},
+        {1, 1, 52, 52},
+        {1, 1, 14, 14},
 };
 
 static std::vector<CustomConfig> s_CustomConfig = {

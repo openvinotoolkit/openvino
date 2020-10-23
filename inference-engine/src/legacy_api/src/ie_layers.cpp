@@ -355,6 +355,7 @@ PowerLayer::~PowerLayer() {}
 BatchNormalizationLayer::~BatchNormalizationLayer() {}
 GemmLayer::~GemmLayer() {}
 PadLayer::~PadLayer() {}
+InterpolateLayer::~InterpolateLayer() {}
 GatherLayer::~GatherLayer() {}
 StridedSliceLayer::~StridedSliceLayer() {}
 ShuffleChannelsLayer::~ShuffleChannelsLayer() {}

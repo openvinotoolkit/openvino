@@ -1538,6 +1538,76 @@ public:
 
 /**
  * @deprecated Migrate to IR v10 and work with ngraph::Function directly. The method will be removed in 2021.1
+ * @brief This class represents a standard Pad layer
+ *
+ * Adds paddings to input tensor
+ */
+class INFERENCE_ENGINE_INTERNAL_CNNLAYER_CLASS(InterpolateLayer): public CNNLayer {
+public:
+    /**
+     * @enum ePadMode
+     * @brief Defines possible modes of pad operation
+     */
+
+    /**
+     * @brief Size of padding in the beginning of each axis
+     */
+    PropertyVector<unsigned int> pads_begin;
+    /**
+     * @brief Size of padding in the end of each axis
+     */
+    PropertyVector<unsigned int> pads_end;
+    /**
+     * @brief 
+     */
+    PropertyVector<unsigned int> sizes;
+    /**
+     * @brief 
+     */
+    PropertyVector<float> scales;
+    /**
+     * @brief 
+     */
+    PropertyVector<float> axes;
+    /**
+     * @brief 
+     */
+    bool antialias;
+    /**
+     * @brief 
+     */
+    int batch;
+    /**
+     * @brief 
+     */
+    int type;
+    /**
+     * @brief 
+     */
+    /**
+     * @brief 
+     */
+    float cubic_coeffs;
+    /**
+     * @brief 
+     */
+    int sampleCoordTransMode;
+    /**
+     * @brief 
+     */
+    int sampleShapeCalcMode;
+    /**
+     * @brief 
+     */
+    int sampleNearestMode;
+
+    using CNNLayer::CNNLayer;
+
+    ~InterpolateLayer() override;
+};
+
+/**
+ * @deprecated Migrate to IR v10 and work with ngraph::Function directly. The method will be removed in 2021.1
  * @brief This class represents a standard Gather layer
  *
  * Gather slices from Dictionary according to Indexes
