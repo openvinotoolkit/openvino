@@ -288,12 +288,12 @@ KERNEL(convolution_gpu_b_fs_zyx_fsv16_imad)(
 
                                                 #if ASYMMETRIC_DATA_QUANTIZATION || ASYMMETRIC_WEIGHTS_QUANTIZATION
                                                     #ifdef NON_ZERO_INPUT0_PAD_BEFORE
-                                                        const uint idx_z = od * STRIDE_SIZE_Z + (fzn * FILTER_SIZE_Z_UNROLL + fzu) * DILATION_SIZE_Z;
-                                                        const uint idx_y = oh * STRIDE_SIZE_Y + (fyn * FILTER_SIZE_Y_UNROLL + fyu) * DILATION_SIZE_Y;
-                                                        const uint idx_x = x_block_idx;
-                                                        if (((idx_z + input_z >= 0) && (idx_z + input_z < INPUT0_SIZE_Z)) &&
-                                                            ((idx_y + input_y >= 0) && (idx_y + input_y < INPUT0_SIZE_Y)) &&
-                                                            ((idx_x + input_x >= 0) && (idx_x + input_x < INPUT0_SIZE_X))) {
+                                                        const uint idx_z = od * STRIDE_SIZE_Z + (fzn * FILTER_SIZE_Z_UNROLL + fzu) * DILATION_SIZE_Z + input_z;
+                                                        const uint idx_y = oh * STRIDE_SIZE_Y + (fyn * FILTER_SIZE_Y_UNROLL + fyu) * DILATION_SIZE_Y + input_y;
+                                                        const uint idx_x = x_block_idx + input_x;
+                                                        if (((idx_z >= 0) && (idx_z < INPUT0_SIZE_Z)) &&
+                                                            ((idx_y >= 0) && (idx_y < INPUT0_SIZE_Y)) &&
+                                                            ((idx_x >= 0) && (idx_x < INPUT0_SIZE_X))) {
                                                     #endif
                                                             #if ASYMMETRIC_DATA_QUANTIZATION
                                                                 dotProd[ofb][od][oh][ow] -= dotProdAZPxW;
