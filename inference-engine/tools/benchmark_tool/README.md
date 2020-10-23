@@ -35,6 +35,8 @@ The infer requests are executed asynchronously. Callback is used to wait for pre
 
 ## Run the Tool
 
+> **NOTE**: Benchmark Tool is also available inside the web-based graphical environment of the [OpenVINO™ Deep Learning Workbench](@ref openvino_docs_get_started_get_started_dl_workbench).
+
 Before running the Benchmark tool, install the requirements:
 ```sh
 pip install -r  requirements.txt
