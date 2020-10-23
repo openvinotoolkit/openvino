@@ -209,7 +209,7 @@ public:
      *
      * Wraps IExecutableNetwork::GetConfig
      * @param name - config key, can be found in ie_plugin_config.hpp
-     * @return Configuration paramater value
+     * @return Configuration parameter value
      */
     Parameter GetConfig(const std::string& name) const {
         Parameter configValue;
@@ -222,7 +222,7 @@ public:
      *
      * Wraps IExecutableNetwork::GetMetric
      * @param name  - metric name to request
-     * @return Metric paramater value
+     * @return Metric parameter value
      */
     Parameter GetMetric(const std::string& name) const {
         Parameter metricValue;
