@@ -1,5 +1,3 @@
-tile_3d_small_data_rank
-tile_3d_few_repeats
 fake_quantize_pdpd
 convert_float32_bf16
 convert_bf16_float32
