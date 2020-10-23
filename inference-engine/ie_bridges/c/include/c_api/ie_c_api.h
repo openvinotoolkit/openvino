@@ -352,7 +352,7 @@ INFERENCE_ENGINE_C_API(void) ie_core_free(ie_core_t **core);
  * @brief Gets version information of the device specified. Use the ie_core_versions_free() method to free memory.
  * @ingroup Core
  * @param core A pointer to ie_core_t instance.
- * @param device_name Name to indentify device.
+ * @param device_name Name to identify device.
  * @param versions A pointer to versions corresponding to device_name.
  * @return Status code of the operation: OK(0) for success.
  */
@@ -409,7 +409,7 @@ INFERENCE_ENGINE_C_API(IE_NODISCARD IEStatusCode) ie_core_load_network(ie_core_t
  * @ingroup Core
  * @param core A pointer to ie_core_t instance.
  * @param ie_core_config Device configuration.
- * @param device_name An optinal name of a device. If device name is not specified,
+ * @param device_name An optional name of a device. If device name is not specified,
  * the config is set for all the registered devices.
  * @return Status code of the operation: OK(0) for success.
  */
@@ -537,7 +537,7 @@ INFERENCE_ENGINE_C_API(IE_NODISCARD IEStatusCode) ie_exec_network_get_metric(con
 
 /**
  * @brief Sets configuration for current executable network. Currently, the method can be used
- * when the network run on the Multi device and the configuration paramter is only can be "MULTI_DEVICE_PRIORITIES"
+ * when the network run on the Multi device and the configuration parameter is only can be "MULTI_DEVICE_PRIORITIES"
  * @ingroup ExecutableNetwork
  * @param ie_exec_network A pointer to ie_executable_network_t instance.
  * @param param_config A pointer to device configuration..
@@ -551,7 +551,7 @@ INFERENCE_ENGINE_C_API(IE_NODISCARD IEStatusCode) ie_exec_network_set_config(ie_
  * @ingroup ExecutableNetwork
  * @param ie_exec_network A pointer to ie_executable_network_t instance.
  * @param metric_config A configuration parameter name to request.
- * @param param_result A configuration value corresponding to a configuration paramter name.
+ * @param param_result A configuration value corresponding to a configuration parameter name.
  * @return Status code of the operation: OK(0) for success.
  */
 INFERENCE_ENGINE_C_API(IE_NODISCARD IEStatusCode) ie_exec_network_get_config(const ie_executable_network_t *ie_exec_network, \
@@ -653,7 +653,7 @@ INFERENCE_ENGINE_C_API(IE_NODISCARD IEStatusCode) ie_infer_request_set_batch(ie_
  */
 
 /**
- * @brief When netowrk is loaded into the Infernece Engine, it is not required anymore and should be released
+ * @brief When network is loaded into the Infernece Engine, it is not required anymore and should be released
  * @ingroup Network
  * @param network The pointer to the instance of the ie_network_t to free.
  */
@@ -765,7 +765,7 @@ INFERENCE_ENGINE_C_API(IE_NODISCARD IEStatusCode) ie_network_set_input_resize_al
  * @param network A pointer to ie_network_t instance.
  * @param input_name Name of input data.
  * @param colformat_result The pointer to the color format used for input blob creation.
- * @reutrn Status code of the operation: OK(0) for success.
+ * @return Status code of the operation: OK(0) for success.
  */
 INFERENCE_ENGINE_C_API(IE_NODISCARD IEStatusCode) ie_network_get_color_format(const ie_network_t *network, const char *input_name, colorformat_e *colformat_result);
 
@@ -775,7 +775,7 @@ INFERENCE_ENGINE_C_API(IE_NODISCARD IEStatusCode) ie_network_get_color_format(co
  * @param network A pointer to ie_network_t instance.
  * @param input_name Name of input data.
  * @param color_format Color format of the input data.
- * @reutrn Status code of the operation: OK(0) for success.
+ * @return Status code of the operation: OK(0) for success.
  */
 INFERENCE_ENGINE_C_API(IE_NODISCARD IEStatusCode) ie_network_set_color_format(ie_network_t *network, const char *input_name, const colorformat_e color_format);
 
@@ -801,7 +801,7 @@ INFERENCE_ENGINE_C_API(IE_NODISCARD IEStatusCode) ie_network_reshape(ie_network_
 /**
  * @brief Gets number of output for the network.
  * @ingroup Network
- * @param network A pointer to the instance of the ie_network_t to get number of ouput information.
+ * @param network A pointer to the instance of the ie_network_t to get number of output information.
  * @param size_result A number of the network's output information.
  * @return Status code of the operation: OK(0) for success.
  */

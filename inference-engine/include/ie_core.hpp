@@ -44,7 +44,7 @@ public:
     /**
      * @brief Returns plugins version information
      *
-     * @param deviceName Device name to indentify plugin
+     * @param deviceName Device name to identify plugin
      * @return A vector of versions
      */
     std::map<std::string, Version> GetVersions(const std::string& deviceName) const;
@@ -184,7 +184,7 @@ public:
     /**
      * @brief Sets configuration for device, acceptable keys can be found in ie_plugin_config.hpp
      *
-     * @param deviceName An optinal name of a device. If device name is not specified, the config is set for all the
+     * @param deviceName An optional name of a device. If device name is not specified, the config is set for all the
      * registered devices.
      *
      * @param config Map of pairs: (config parameter name, config parameter value)

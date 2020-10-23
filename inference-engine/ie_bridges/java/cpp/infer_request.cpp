@@ -172,8 +172,8 @@ JNIEXPORT jobject JNICALL Java_org_intel_openvino_InferRequest_GetPerformanceCou
     try
     {
         InferRequest *infer_request = (InferRequest *)addr;
-        std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> perfomance;
-        perfomance = infer_request->GetPerformanceCounts();
+        std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> performance;
+        performance = infer_request->GetPerformanceCounts();
 
         jclass hashMap_class = env->FindClass("java/util/LinkedHashMap");
         jmethodID init_method_id = env->GetMethodID(hashMap_class, "<init>", "()V");
@@ -188,7 +188,7 @@ JNIEXPORT jobject JNICALL Java_org_intel_openvino_InferRequest_GetPerformanceCou
         jclass layerStatus_enum = env->FindClass("org/intel/openvino/InferenceEngineProfileInfo$LayerStatus");
         jmethodID valueOf_method_id = env->GetStaticMethodID(layerStatus_enum,"valueOf","(I)Lorg/intel/openvino/InferenceEngineProfileInfo$LayerStatus;");
 
-        for (const auto& itr : perfomance) { 
+        for (const auto& itr : performance) {
             InferenceEngine::InferenceEngineProfileInfo ie_prof_info = itr.second;
             auto it = layer_status_map.find(ie_prof_info.status);
 

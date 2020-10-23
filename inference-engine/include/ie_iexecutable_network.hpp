@@ -160,7 +160,7 @@ public:
     /**
      * @brief Gets shared context used to create an executable network.
      *
-     * @param pContext Refernce to a pointer that will receive resulting shared context object ptr
+     * @param pContext Reference to a pointer that will receive resulting shared context object ptr
      * @param resp Pointer to the response message that holds a description of an error if any occurred
      * @return code of the operation. InferenceEngine::OK if succeeded
      */

@@ -55,7 +55,7 @@ DECLARE_GNA_CONFIG_KEY(PRECISION);
 DECLARE_GNA_CONFIG_KEY(FIRMWARE_MODEL_IMAGE);
 
 /**
-* @brief inforamtion on GNA generation chosen for firmware model dump, can be overriden by GNA3
+* @brief information on GNA generation chosen for firmware model dump, can be overridden by GNA3
 */
 DECLARE_GNA_CONFIG_KEY(FIRMWARE_MODEL_IMAGE_GENERATION);
 

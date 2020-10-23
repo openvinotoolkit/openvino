@@ -404,7 +404,7 @@ public:
      *
      * The memory been addressed in the MemoryBlob in general case can be allocated on remote device.
      * This function copies remote memory to the memory in the virtual process space and after
-     * destruction of the LockedMemory it will not upload host memory back, bacause it is expected that
+     * destruction of the LockedMemory it will not upload host memory back, because it is expected that
      * content is not changed.
      *
      * To have an ability change content, you can use rwmap() and wmap() functions.
@@ -428,10 +428,10 @@ public:
      *
      * The memory been addressed in the MemoryBlob in general case can be allocated on remote device.
      * This function does not copy of the content from the device to the memory in the virtual process
-     * space, the content of the memory just after calling of this functin is not specified. After
+     * space, the content of the memory just after calling of this function is not specified. After
      * destruction of the LockedMemory, content will be upload host memory.
      * In the same time there is no abilities to restrict reading from the memory, you need to care of
-     * reading from memory got by wmap(), it might have sence in some cases like filling of content and
+     * reading from memory got by wmap(), it might have sense in some cases like filling of content and
      * before uploading to device
      *
      * To access data stored in the blob, you can use rwmap() and rmap() functions.
