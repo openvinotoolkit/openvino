@@ -169,7 +169,7 @@ Stage StageBuilder::addSplitStage(
             const int idx = dimToIeInd(axis, outDimsSize);
             outAxisSizes.reserve(outDimsSize);
             for (const auto& out : layer->outData) {
-                VPU_THROW_UNLESS(idx <= out->getDims().size(), "index cannot be larger than the output's dimension");
+                VPU_THROW_UNLESS(idx <= out->getDims().size(), "Index can't be larger than output's dimension");
                 outAxisSizes.push_back(out->getDims()[idx]);
             }
         } else {
