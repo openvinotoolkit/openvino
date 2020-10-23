@@ -40,8 +40,6 @@ TEST(TransformationTests, ConvertNMS5ToNMSIEStaticSixInputs) {
         manager.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
         ASSERT_TRUE(f->get_output_partial_shape(0).same_scheme(PartialShape{Dimension::dynamic(), 3}));
-        ASSERT_TRUE(f->get_output_partial_shape(1).same_scheme(PartialShape{Dimension::dynamic(), 3}));
-        EXPECT_EQ(f->get_output_shape(2), (Shape{1}));
     }
 
     {
@@ -71,8 +69,6 @@ TEST(TransformationTests, ConvertNMS5ToNMSIEStaticSixInputs) {
 
         f_ref = std::make_shared<Function>(NodeVector{nms}, ParameterVector{boxes, scores});
         ASSERT_TRUE(f_ref->get_output_partial_shape(0).same_scheme(PartialShape{Dimension::dynamic(), 3}));
-        ASSERT_TRUE(f_ref->get_output_partial_shape(1).same_scheme(PartialShape{Dimension::dynamic(), 3}));
-        EXPECT_EQ(f_ref->get_output_shape(2), (Shape{1}));
     }
 
     auto res = compare_functions(f, f_ref);
@@ -98,8 +94,6 @@ TEST(TransformationTests, ConvertNMS5ToNMSIEStaticFiveInputs) {
         manager.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
         ASSERT_TRUE(f->get_output_partial_shape(0).same_scheme(PartialShape{Dimension::dynamic(), 3}));
-        ASSERT_TRUE(f->get_output_partial_shape(1).same_scheme(PartialShape{Dimension::dynamic(), 3}));
-        EXPECT_EQ(f->get_output_shape(2), (Shape{1}));
     }
 
     {
@@ -129,8 +123,6 @@ TEST(TransformationTests, ConvertNMS5ToNMSIEStaticFiveInputs) {
 
         f_ref = std::make_shared<Function>(NodeVector{nms}, ParameterVector{boxes, scores});
         ASSERT_TRUE(f_ref->get_output_partial_shape(0).same_scheme(PartialShape{Dimension::dynamic(), 3}));
-        ASSERT_TRUE(f_ref->get_output_partial_shape(1).same_scheme(PartialShape{Dimension::dynamic(), 3}));
-        EXPECT_EQ(f_ref->get_output_shape(2), (Shape{1}));
     }
 
     auto res = compare_functions(f, f_ref);
@@ -155,8 +147,6 @@ TEST(TransformationTests, ConvertNMS5ToNMSIEStaticFourInputs) {
         manager.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
         ASSERT_TRUE(f->get_output_partial_shape(0).same_scheme(PartialShape{Dimension::dynamic(), 3}));
-        ASSERT_TRUE(f->get_output_partial_shape(1).same_scheme(PartialShape{Dimension::dynamic(), 3}));
-        EXPECT_EQ(f->get_output_shape(2), (Shape{1}));
     }
 
     {
@@ -186,8 +176,6 @@ TEST(TransformationTests, ConvertNMS5ToNMSIEStaticFourInputs) {
 
         f_ref = std::make_shared<Function>(NodeVector{nms}, ParameterVector{boxes, scores});
         ASSERT_TRUE(f_ref->get_output_partial_shape(0).same_scheme(PartialShape{Dimension::dynamic(), 3}));
-        ASSERT_TRUE(f_ref->get_output_partial_shape(1).same_scheme(PartialShape{Dimension::dynamic(), 3}));
-        EXPECT_EQ(f_ref->get_output_shape(2), (Shape{1}));
     }
 
     auto res = compare_functions(f, f_ref);
@@ -211,8 +199,6 @@ TEST(TransformationTests, ConvertNMS5ToNMSIEStaticThreeInputs) {
         manager.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
         ASSERT_TRUE(f->get_output_partial_shape(0).same_scheme(PartialShape{Dimension::dynamic(), 3}));
-        ASSERT_TRUE(f->get_output_partial_shape(1).same_scheme(PartialShape{Dimension::dynamic(), 3}));
-        EXPECT_EQ(f->get_output_shape(2), (Shape{1}));
     }
 
     {
@@ -242,8 +228,6 @@ TEST(TransformationTests, ConvertNMS5ToNMSIEStaticThreeInputs) {
 
         f_ref = std::make_shared<Function>(NodeVector{nms}, ParameterVector{boxes, scores});
         ASSERT_TRUE(f_ref->get_output_partial_shape(0).same_scheme(PartialShape{Dimension::dynamic(), 3}));
-        ASSERT_TRUE(f_ref->get_output_partial_shape(1).same_scheme(PartialShape{Dimension::dynamic(), 3}));
-        EXPECT_EQ(f_ref->get_output_shape(2), (Shape{1}));
     }
 
     auto res = compare_functions(f, f_ref);
@@ -266,8 +250,6 @@ TEST(TransformationTests, ConvertNMS5ToNMSIEStaticTwoInputs) {
         manager.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
         ASSERT_TRUE(f->get_output_partial_shape(0).same_scheme(PartialShape{Dimension::dynamic(), 3}));
-        ASSERT_TRUE(f->get_output_partial_shape(1).same_scheme(PartialShape{Dimension::dynamic(), 3}));
-        EXPECT_EQ(f->get_output_shape(2), (Shape{1}));
     }
 
     {
@@ -297,8 +279,6 @@ TEST(TransformationTests, ConvertNMS5ToNMSIEStaticTwoInputs) {
 
         f_ref = std::make_shared<Function>(NodeVector{nms}, ParameterVector{boxes, scores});
         ASSERT_TRUE(f_ref->get_output_partial_shape(0).same_scheme(PartialShape{Dimension::dynamic(), 3}));
-        ASSERT_TRUE(f_ref->get_output_partial_shape(1).same_scheme(PartialShape{Dimension::dynamic(), 3}));
-        EXPECT_EQ(f_ref->get_output_shape(2), (Shape{1}));
     }
 
     auto res = compare_functions(f, f_ref);
