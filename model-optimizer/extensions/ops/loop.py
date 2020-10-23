@@ -89,9 +89,12 @@ class Loop(TensorIterator):
                     assert output_shape[concat_axis] == 1, 'Dimension for concatenation is not equal to 1 for scan ' \
                                                            'output for Loop node "{}" for loop output port "{}"'.\
                         format(loop_name, loop_port_idx)
-                    output_shape[concat_axis] = Loop.iterations_count(loop_node)
-                    assert output_shape[concat_axis] is not None, 'Dynamic number of iterations for Loop node "{}"' \
-                                                                  ''.format(loop_name)
+                    num_iters = Loop.iterations_count(loop_node)
+                    if num_iters is None:
+                        log.error('Dynamic number of iterations for Loop node "{}". Consider number to be 1 to be able'
+                                  ' to generate the IR.'.format(loop_name), extra={'is_warning': True})
+                        num_iters = 1
+                    output_shape[concat_axis] = num_iters
                 # MO does not support evaluation of Loop scan outputs with const values
                 if concat_axis is None and output_value is not None:
                     loop_node.out_port(loop_port_idx).data.set_value(output_value)
@@ -100,12 +103,19 @@ class Loop(TensorIterator):
 
     @staticmethod
     def iterations_count(loop_node: Node):
+        """
+        Try to determine the number of loop iterations. If we detect that the number is dynamic then return 1 since MO
+        cannot generate the IR with undefined dimension.
+        :param loop_node: Loop operation node
+        :return: number of iterations or 1 if the number depends on runtime values.
+        """
         assert loop_node.soft_get('type') == 'Loop'
 
         if loop_node.is_in_port_connected(1):
             execution_condition = loop_node.in_port(1).data.get_value()
             if execution_condition is None:  # dynamic execution condition
                 return None
+            execution_condition = execution_condition.item()
             if not execution_condition:  # 0 iterations
                 return 0
         num_iterations = loop_node.in_port(0).data.get_value()
@@ -169,15 +179,10 @@ class Loop(TensorIterator):
 
     @staticmethod
     def re_numerate_output_ports(loop_node: Node):
-        def update_port_map(port_map: dict, old_port_id: int, new_port_id: int):
-            for record in port_map:
-                if record['external_port_id'] == old_port_id:
-                    record['external_port_id'] = new_port_id
-
         def re_number_output_port(loop_node: Node, old_port_id: int, new_port_id: int):
             loop_node.add_output_port(new_port_id, skip_if_exist=True)
             loop_node.out_port(old_port_id).get_connection().set_source(loop_node.out_port(new_port_id))
-            update_port_map(loop_node.output_port_map, old_port_id, new_port_id)
+            Loop.update_port_map_value(loop_node, loop_node.output_port_map, 'external_port_id', old_port_id, new_port_id)
 
         if len(loop_node.out_ports()) > 0:
             max_port_id = sorted(loop_node.out_ports().keys())[-1]
@@ -188,8 +193,8 @@ class Loop(TensorIterator):
                         re_number_output_port(loop_node, port_id, new_port_id)
                     new_port_id += 1
 
-            for port_to_remove_id in reversed(range(new_port_id, max_port_id + 1)):
-                loop_node.delete_output_port(port_to_remove_id)
+            for port_idx_to_remove in reversed(range(new_port_id, max_port_id + 1)):
+                loop_node.delete_output_port(port_idx_to_remove)
 
     @staticmethod
     def infer(node: Node):
