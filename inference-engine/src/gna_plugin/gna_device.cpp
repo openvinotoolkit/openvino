@@ -140,6 +140,14 @@ uint32_t GNADeviceHelper::getNumberOfGnaDevices() {
     return numberOfGnaDevices;
 }
 
+uint32_t GNADeviceHelper::selectGnaDevice() {
+    const auto deviceCount = getNumberOfGnaDevices();
+    if (deviceCount != 1) {
+        THROW_GNA_EXCEPTION << "Unsupported number of GNA devices detected = " << deviceCount;
+    }
+    return 0;
+}
+
 void GNADeviceHelper::checkGna2Status(Gna2Status status, const Gna2Model& gnaModel) {
     if (!Gna2StatusIsSuccessful(status)) {
         std::vector<char> gna2StatusBuffer(1024);
