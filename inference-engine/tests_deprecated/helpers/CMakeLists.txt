@@ -24,6 +24,8 @@ function(add_helpers target_name)
                                                      $<TARGET_PROPERTY:inference_engine_lp_transformations,INTERFACE_INCLUDE_DIRECTORIES>
                                                      $<TARGET_PROPERTY:pugixml,INTERFACE_INCLUDE_DIRECTORIES>
                                                      "${IE_MAIN_SOURCE_DIR}/src/vpu/"
+                                                     "${IE_MAIN_SOURCE_DIR}/src/plugin_api"
+                                                     "${IE_MAIN_SOURCE_DIR}/src/legacy_api/include"
                                              PRIVATE "${CMAKE_CURRENT_BINARY_DIR}")
 
     # TODO: eliminate dependency on samples
