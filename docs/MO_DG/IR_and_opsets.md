@@ -245,8 +245,6 @@ It is not guaranteed that new operations will be named according to that rule, t
 ---
 ## See Also
 
-* [Converting Faster R-CNN models created with TensorFlow Object Detection API](TensorFlow_Faster_RCNN_ObjectDetection_API.md)
-* [Convert TensorFlow* Object Detection API Models](Convert_Object_Detection_API_Models.md)
 * [Cut Off Parts of a Model](Cutting_Model.md)
 * [Introduction to nGraph Flow in Inference Engine](../IE_DG/nGraph_Flow.md)
 
