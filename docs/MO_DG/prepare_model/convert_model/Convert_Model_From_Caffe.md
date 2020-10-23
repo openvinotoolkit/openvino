@@ -149,7 +149,8 @@ In this document, you learned:
 ## See Also
 
 * [Converting a TensorFlow* Model](Convert_Model_From_TensorFlow.md)
-* [Converting YOLO* Models to the Intermediate Representation (IR)](../tf_specific/Convert_YOLO_From_Tensorflow.md)
-* [Converting a MXNet* Model](Convert_Model_From_MxNet.md)
+* [Converting an MXNet* Model](Convert_Model_From_MxNet.md)
+* [Converting a Kaldi* Model](Convert_Model_From_Kaldi.md)
+* [Converting an ONNX* Model](Convert_Model_From_ONNX.md)
 * [Converting a Model Using General Conversion Parameters](Converting_Model_General.md)
 * [Custom Layers in the Model Optimizer ](../customize_model_optimizer/Customize_Model_Optimizer.md)
