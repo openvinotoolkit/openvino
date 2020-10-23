@@ -124,9 +124,9 @@ const std::vector<Edge> create_edge_mapping(
             auto current_node = i.get_node();
 
             NGRAPH_CHECK(layer_ids.find(source_node) != layer_ids.end(),
-                         "Internal error.");
+                         "Internal error");
             NGRAPH_CHECK(layer_ids.find(current_node) != layer_ids.end(),
-                         "Internal error.");
+                         "Internal error");
 
             Edge e{};
             e.from_layer = layer_ids.find(source_node)->second;
@@ -148,8 +148,7 @@ const std::vector<Edge> create_edge_mapping(
 ConstantAtributes dump_constant_data(std::vector<uint8_t>& bin,
                                      const ngraph::op::Constant& c) {
     NGRAPH_CHECK(c.get_output_partial_shape(0.).is_static(),
-                 "Dynamic shape of ", c.get_name(), " (", c.get_type_name(),
-                 ") ", "is not supported.");
+                 "Unsupported dynamic output shape in ", c);
 
     ConstantAtributes attr;
     const uint8_t* p = reinterpret_cast<const uint8_t*>(c.get_data_ptr());
@@ -180,8 +179,7 @@ std::string get_opset_name(const ngraph::Node* n) {
 // discrepancies discoverd, translations needs to be added here.
 std::string get_type_name(const ngraph::Node* n) {
     std::string name = n->get_type_name();
-    NGRAPH_CHECK(name != "GenericIE", "Type of ", n->get_name(), " (",
-                 n->get_type_name(), ") ", "is not supported.");
+    NGRAPH_CHECK(name != "GenericIE", "Unsupported type in ", n);
 
     const std::map<std::string, std::string> translator = {
         {"Constant", "Const"}};
@@ -223,7 +221,7 @@ std::string get_output_precision_name(ngraph::Output<Node>& o) {
     case ::ngraph::element::Type_t::boolean:
         return "BOOL";
     default:
-        NGRAPH_CHECK(false, "Incorrect precision: ", elem_type.get_type_name());
+        NGRAPH_CHECK(false, "Unsupported precision in ", o);
         return "";
     }
 }
@@ -265,7 +263,7 @@ void ngfunction_2_irv10(pugi::xml_document& doc, std::vector<uint8_t>& bin,
         ngraph::Node* node = n.get();
 
         NGRAPH_CHECK(layer_ids.find(node) != layer_ids.end(),
-                     "Internal error.");
+                     "Internal error");
         // <layers>
         pugi::xml_node layer = layers.append_child("layer");
         layer.append_attribute("id").set_value(layer_ids.find(node)->second);
@@ -281,8 +279,7 @@ void ngfunction_2_irv10(pugi::xml_document& doc, std::vector<uint8_t>& bin,
         // <layers/data> general atributes
         XmlVisitor visitor{data};
         NGRAPH_CHECK(node->visit_attributes(visitor),
-                     "Visitor API is not supported in ", node->get_name(),
-                     "of type ", node->get_type_name());
+                     "Visitor API is not supported in ", node);
 
         // <layers/data> constant atributes (special case)
         if (auto constant = dynamic_cast<ngraph::op::Constant*>(node)) {
@@ -297,8 +294,7 @@ void ngfunction_2_irv10(pugi::xml_document& doc, std::vector<uint8_t>& bin,
             pugi::xml_node input = layer.append_child("input");
             for (auto i : node->inputs()) {
                 NGRAPH_CHECK(i.get_partial_shape().is_static(),
-                             "Dynamic shape of ", node->get_name(), " (",
-                             node->get_type_name(), ") ", "is not supported.");
+                             "Unsupported dynamic input shape in ", node);
 
                 pugi::xml_node port = input.append_child("port");
                 port.append_attribute("id").set_value(port_id++);
@@ -315,8 +311,7 @@ void ngfunction_2_irv10(pugi::xml_document& doc, std::vector<uint8_t>& bin,
             pugi::xml_node output = layer.append_child("output");
             for (auto o : node->outputs()) {
                 NGRAPH_CHECK(o.get_partial_shape().is_static(),
-                             "Dynamic shape of ", node->get_name(), " (",
-                             node->get_type_name(), ") ", "is not supported.");
+                             "Unsupported dynamic output shape in ", node);
 
                 pugi::xml_node port = output.append_child("port");
                 port.append_attribute("id").set_value(port_id++);
@@ -355,7 +350,7 @@ bool pass::Serialize::run_on_function(std::shared_ptr<ngraph::Function> f) {
         ngfunction_2_irv10(xml_doc, constants, *f);
         break;
     default:
-        NGRAPH_UNREACHABLE("");
+        NGRAPH_UNREACHABLE("Unsupported version");
         break;
     }
 
