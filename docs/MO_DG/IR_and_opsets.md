@@ -246,5 +246,4 @@ It is not guaranteed that new operations will be named according to that rule, t
 ## See Also
 
 * [Cut Off Parts of a Model](prepare_model/convert_model/Cutting_Model.md)
-* [Introduction to nGraph Flow in Inference Engine](../IE_DG/nGraph_Flow.md)
 
