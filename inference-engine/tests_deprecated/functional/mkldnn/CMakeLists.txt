@@ -23,14 +23,21 @@ file(GLOB MKL_DNN_TEST_SOURCES
         ${CMAKE_CURRENT_SOURCE_DIR}/shared_tests_instance/common_single_layer_tests/*.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/shared_tests_instance/ie_class/*.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/shared_tests_instance/single_layer_tests/*.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/shared_tests_instance/network_tests/*.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/shared_tests_instance/transformations/*.cpp
         )
 
 list(APPEND MKL_DNN_LIBS
         IESharedTests
-        inference_engine_lp_transformations
+        inference_engine_legacy
         ${Boost_REGEX_LIBRARY})
+
+if (USE_CNNNETWORK_LPT)
+    list(APPEND ${MKL_DNN_TEST_SOURCES}
+        ${CMAKE_CURRENT_SOURCE_DIR}/shared_tests_instance/network_tests/*.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/shared_tests_instance/transformations/*.cpp)
+
+    list(APPEND MKL_DNN_LIBS
+        inference_engine_lp_transformations)
+endif()
 
 list(APPEND TEST_SRC ${MKL_DNN_TEST_SOURCES})
 list(APPEND LIBRARIES ${MKL_DNN_LIBS})

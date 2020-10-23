@@ -47,6 +47,6 @@ TEST(TransformationTests, LogSoftmaxDecomposition) {
         f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{sub_end}, ngraph::ParameterVector{input0});
     }
 
-    auto res = compare_functions(f, f_ref);
+    auto res = compare_functions(f, f_ref, false, false, false, false);
     ASSERT_TRUE(res.first) << res.second;
 }

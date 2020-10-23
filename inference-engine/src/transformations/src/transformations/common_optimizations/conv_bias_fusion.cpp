@@ -37,6 +37,32 @@ std::pair<std::shared_ptr<A>, std::shared_ptr<B>> parse_eltwise_inputs(std::shar
 }
 
 template <class Conv>
+bool IsConvInLowPrecision(const std::shared_ptr<Conv>& conv) {
+    if (!ngraph::is_type<ngraph::op::ConvolutionIE>(conv)) {
+        return false;
+    }
+
+    auto isLowPrecision = [](const std::shared_ptr<ngraph::Node>& node, const size_t index) {
+        const ngraph::element::Type inputType = node->get_input_element_type(index);
+        return (inputType == ngraph::element::i8) || (inputType == ngraph::element::u8);
+    };
+
+    // Convolution operation has to be executed in INT8 if ...
+    if (isLowPrecision(conv, 0) && isLowPrecision(conv, 1)) {
+        // ... INT8 on activations && INT8 on weights
+        return true;
+    }
+
+    const std::shared_ptr<ngraph::opset1::Subtract> subtract = ngraph::as_type_ptr<ngraph::opset1::Subtract>(conv->get_input_node_shared_ptr(0));
+    if (subtract == nullptr) {
+        return false;
+    }
+
+    // ... INT8 on activations with asymmetric quantization && INT8 on weights
+    return isLowPrecision(subtract, 0) && isLowPrecision(subtract, 1) && isLowPrecision(conv, 1);
+}
+
+template <class Conv>
 ngraph::graph_rewrite_callback get_callback() {
     ngraph::graph_rewrite_callback callback = [](ngraph::pattern::Matcher &m) {
         auto eltwise = m.get_match_root();
@@ -95,7 +121,8 @@ ngraph::graph_rewrite_callback get_callback() {
                 new_bias = std::make_shared<ngraph::opset1::Add>(final_const, m_conv->input_value(2));
             }
             new_conv = m_conv->clone_with_new_inputs({m_conv->input_value(0), m_conv->input_value(1), new_bias});
-        } else if (std::is_same<Conv, ngraph::op::ConvolutionIE>() && std::dynamic_pointer_cast<ngraph::opset1::Multiply>(eltwise)) {
+        } else if (std::is_same<Conv, ngraph::op::ConvolutionIE>() && std::dynamic_pointer_cast<ngraph::opset1::Multiply>(eltwise) &&
+                !IsConvInLowPrecision(m_conv)) {
             // Fuse: ConvolutionIE->Mul
             auto weights_shape = m_conv->input(1).get_shape();
 

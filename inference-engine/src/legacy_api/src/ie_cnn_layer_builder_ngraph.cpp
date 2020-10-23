@@ -1637,6 +1637,9 @@ CNNLayer::Ptr NodeConverter<ngraph::op::Eltwise>::createLayer(const std::shared_
     case ELTWISE_TYPE::Sum:
         type = "sum";
         break;
+    case ELTWISE_TYPE::Sub:
+        type = "sub";
+        break;
     case ELTWISE_TYPE::Prod:
         type = "prod";
         break;

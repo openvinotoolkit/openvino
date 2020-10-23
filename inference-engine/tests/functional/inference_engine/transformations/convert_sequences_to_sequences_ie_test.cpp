@@ -200,8 +200,9 @@ TEST(TransformationTests, LSTMSequenceConversionTest) {
         const auto B = std::make_shared<ngraph::opset5::Constant>(ngraph::element::f32,
                                                                   ngraph::Shape{num_directions,
                                                                                 gates_count * hidden_size});
-        const auto seq_len = std::make_shared<ngraph::opset5::Constant>(ngraph::element::i32, ngraph::Shape{batch_size});
-        sequence = std::make_shared<ngraph::opset5::LSTMSequence>(X, H_t, C_t, seq_len, W, R, B, hidden_size,
+
+        const auto seq_len = std::make_shared<ngraph::opset4::Constant>(ngraph::element::f32, ngraph::Shape{batch_size});
+        sequence = std::make_shared<ngraph::op::v5::LSTMSequence>(X, H_t, C_t, seq_len, W, R, B, hidden_size,
                                                                   ngraph::op::RecurrentSequenceDirection::FORWARD);
         sequence->set_friendly_name("test_sequence");
 

@@ -27,7 +27,7 @@
 using namespace std;
 using namespace ngraph;
 
-constexpr NodeTypeInfo op::v1::VariadicSplit::type_info;
+NGRAPH_RTTI_DEFINITION(op::v1::VariadicSplit, "VariadicSplit", 1);
 
 op::v1::VariadicSplit::VariadicSplit(const Output<Node>& data,
                                      const Output<Node>& axis,

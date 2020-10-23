@@ -25,7 +25,7 @@ std::string MatMulWithOptimizedConstantFakeQuantizeTransformation::getTestCaseNa
     InferenceEngine::Precision netPrecision;
     std::pair<InferenceEngine::SizeVector, InferenceEngine::SizeVector> shapes;
     std::string targetDevice;
-    InferenceEngine::details::LayerTransformation::Params params;
+    ngraph::pass::low_precision::LayerTransformation::Params params;
     MatMulWithOptimizedConstantFakeQuantizeTransformationTestValues param;
 
     std::tie(netPrecision, shapes, targetDevice, param) = obj.param;
@@ -44,7 +44,7 @@ void MatMulWithOptimizedConstantFakeQuantizeTransformation::SetUp() {
 
     InferenceEngine::Precision netPrecision;
     std::pair<InferenceEngine::SizeVector, InferenceEngine::SizeVector> shapes;
-    InferenceEngine::details::LayerTransformation::Params params;
+    ngraph::pass::low_precision::LayerTransformation::Params params;
     MatMulWithOptimizedConstantFakeQuantizeTransformationTestValues param;
     std::tie(netPrecision, shapes, targetDevice, param) = this->GetParam();
     auto precision = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);

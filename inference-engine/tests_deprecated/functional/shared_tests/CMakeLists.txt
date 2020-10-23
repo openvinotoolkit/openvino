@@ -13,7 +13,8 @@ list(APPEND SHARED_LIBRARIES
         ngraphFunctions
         )
 
-file(GLOB SHARED_TESTS_SRC
+if (USE_CNNNETWORK_LPT)
+    file(GLOB SHARED_TESTS_SRC
         ${CMAKE_CURRENT_SOURCE_DIR}/common_single_layer_tests/*.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/lstm/*.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/network_tests/*.cpp
@@ -22,6 +23,13 @@ file(GLOB SHARED_TESTS_SRC
         ${CMAKE_CURRENT_SOURCE_DIR}/transformations/*.hpp
         ${CMAKE_CURRENT_SOURCE_DIR}/transformations/common/*.cpp
         )
+else()
+    file(GLOB SHARED_TESTS_SRC
+        ${CMAKE_CURRENT_SOURCE_DIR}/common_single_layer_tests/*.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/lstm/*.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/graph_tools/*.cpp
+        )
+endif()
 
 add_library(${TARGET_NAME} STATIC ${SHARED_TESTS_SRC})
 add_dependencies(${TARGET_NAME} inference_engine_preproc MultiDevicePlugin mock_engine)
@@ -69,3 +77,7 @@ add_dependencies(${TARGET_NAME} HeteroPlugin)
 # developer package
 
 ie_developer_export_targets(${TARGET_NAME})
+
+if (USE_CNNNETWORK_LPT)
+    target_compile_definitions(${TARGET_NAME} PUBLIC USE_CNNNETWORK_LPT)
+endif()

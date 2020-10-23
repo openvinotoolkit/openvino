@@ -52,7 +52,8 @@ ngraph::pass::ReshapeFullyConnected::ReshapeFullyConnected() {
         auto fc_new = std::make_shared<op::FullyConnected>(reshape,
                                                            fc->input_value(1),
                                                            fc->input_value(2),
-                                                           output_shape_new);
+                                                           output_shape_new,
+                                                           fc->get_output_type());
         new_ops.push_back(fc_new);
 
         if (output_shape != output_shape_new) {

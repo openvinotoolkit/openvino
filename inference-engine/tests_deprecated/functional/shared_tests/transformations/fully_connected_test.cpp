@@ -37,9 +37,7 @@ bool FullyConnectedTestModel::transform(CNNNetwork& network, LayerTransformation
             LayerTransformation::Params(params).setPrecisionsOnActivations({ Precision::U8 }),
             "ScaleShift"));
 
-    // network.serialize("c:\\Projects\\temp\\fully_connected.original.xml", "c:\\Projects\\temp\\fully_connected.original.bin");
     transformer.transform(network);
-    // network.serialize("c:\\Projects\\temp\\fully_connected.transformed.xml", "c:\\Projects\\temp\\fully_connected.transformed.bin");
 
     if (params.quantizeOutputs) {
         const CNNLayerPtr dequantizationLayer = getLayer(network, "fullyConnected");

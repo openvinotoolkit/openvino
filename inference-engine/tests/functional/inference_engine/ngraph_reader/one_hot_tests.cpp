@@ -124,7 +124,7 @@ TEST_F(NGraphReaderTests, ReadOneHotFP32) {
     });
 }
 
-TEST_F(NGraphReaderTests, ReadOneHotINT16) {
+TEST_F(NGraphReaderTests, DISABLED_ReadOneHotINT16) {
     std::string model = R"V0G0N(
 <net name="Network" version="10">
     <layers>

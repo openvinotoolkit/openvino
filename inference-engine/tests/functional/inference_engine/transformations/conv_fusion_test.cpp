@@ -61,7 +61,7 @@ private:
         auto input = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, input_shape);
         auto weights = ngraph::opset1::Constant::create(ngraph::element::f32, weights_shape, {1});
         auto conv = std::make_shared<ngraph::op::ConvolutionIE>(input, weights, ngraph::Strides(spatial_dims, 1), ngraph::Strides(spatial_dims, 1),
-                ngraph::CoordinateDiff(spatial_dims, 0), ngraph::CoordinateDiff(spatial_dims, 0));
+                ngraph::CoordinateDiff(spatial_dims, 0), ngraph::CoordinateDiff(spatial_dims, 0), ngraph::element::f32);
 
         auto const_node = ngraph::opset1::Constant::create(ngraph::element::f32, eltwise_shape, {1.1});
         ngraph::Output<ngraph::Node> eltwise;
@@ -84,7 +84,8 @@ private:
         auto input = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, input_shape);
         ngraph::Output<ngraph::Node> weights = ngraph::opset1::Constant::create(ngraph::element::f32, weights_shape, {1});
         ngraph::Output<ngraph::Node> conv = std::make_shared<ngraph::op::ConvolutionIE>(input, weights, ngraph::Strides(spatial_dims, 1),
-                ngraph::Strides(spatial_dims, 1), ngraph::CoordinateDiff(spatial_dims, 0), ngraph::CoordinateDiff(spatial_dims, 0));
+                ngraph::Strides(spatial_dims, 1), ngraph::CoordinateDiff(spatial_dims, 0), ngraph::CoordinateDiff(spatial_dims, 0),
+                ngraph::element::f32);
 
         ngraph::Output<ngraph::Node> const_node;
         const_node = ngraph::opset1::Constant::create(ngraph::element::f32, eltwise_shape, {1.1});
@@ -145,7 +146,7 @@ INSTANTIATE_TEST_CASE_P(DISABLED_ConvAddFusionNegative, ConvFusionTests,
                         std::make_tuple(InputShape{DYN, 3, 64, 64, 64}, WeightsShape{8, 3, 1, 2, 3}, add::type_info, EltwiseShape{8, 1, 1}, true),
                         std::make_tuple(InputShape{2, DYN, 64, 64, 64}, WeightsShape{9, 3, 2, 3, 1}, add::type_info, EltwiseShape{9, 1, 1, 1, 1}, true)));
 
-INSTANTIATE_TEST_CASE_P(ConvMulFusion, ConvFusionTests,
+INSTANTIATE_TEST_CASE_P(DISABLED_ConvMulFusion, ConvFusionTests,
         testing::Values(std::make_tuple(InputShape{DYN, DYN, DYN, DYN, DYN}, WeightsShape{8, 3, 1, 2, 3}, mul::type_info, EltwiseShape{8, 1, 1, 1}, false),
                         std::make_tuple(InputShape{DYN, 3, 64, 64, 64}, WeightsShape{8, 3, 1, 2, 3}, mul::type_info, EltwiseShape{8, 1, 1, 1}, false),
                         std::make_tuple(InputShape{2, DYN, 64, 64, 64}, WeightsShape{9, 3, 2, 3, 1}, mul::type_info, EltwiseShape{9, 1, 1, 1}, false),

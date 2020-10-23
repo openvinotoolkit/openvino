@@ -30,7 +30,7 @@ using namespace ngraph;
 
 NGRAPH_SUPPRESS_DEPRECATED_START
 
-constexpr NodeTypeInfo op::Unsqueeze::type_info;
+NGRAPH_RTTI_DEFINITION(op::v0::Unsqueeze, "Unsqueeze", 0);
 
 op::Unsqueeze::Unsqueeze(const Output<Node>& data, const Output<Node>& axes)
     : FusedOp({data, axes})

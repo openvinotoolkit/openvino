@@ -120,7 +120,7 @@ shared_ptr<Node> op::v0::Split::clone_with_new_inputs(const OutputVector& new_ar
     return make_shared<Split>(new_args.at(0), new_args.at(1), m_splits);
 }
 
-constexpr NodeTypeInfo op::v1::Split::type_info;
+NGRAPH_RTTI_DEFINITION(op::v1::Split, "Split", 1);
 
 op::v1::Split::Split(const Output<Node>& data, const Output<Node>& axis, const size_t num_splits)
     : Op({data, axis})

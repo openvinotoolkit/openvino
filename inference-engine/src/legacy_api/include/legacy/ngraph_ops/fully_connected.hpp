@@ -29,17 +29,21 @@ public:
     FullyConnected(const Output<Node> & A,
                    const Output<Node> & B,
                    const Output<Node> & C,
-                   const Shape & output_shape);
+                   const Shape & output_shape,
+                   const element::Type output_type = element::undefined);
 
     void validate_and_infer_types() override;
 
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
 
-    size_t get_out_size() { return m_output_size; }
+    size_t get_out_size() const { return m_output_size; }
+
+    element::Type get_output_type() const { return m_output_type; }
 
 private:
     size_t m_output_size = 0;
     Shape m_output_shape = {};
+    element::Type m_output_type;
 };
 
 }  // namespace op

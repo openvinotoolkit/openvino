@@ -256,6 +256,10 @@ void MKLDNNGraphOptimizer::FuseConvolutionAndZeroPoints(MKLDNNGraph &graph) {
                 if (arg0->getCnnLayer()->outData[0]->getPrecision() != Precision::U8)
                     return false;
 
+                if (parent0->getParentEdgesAtPort(1)[0]->getDims().size() < 2) {
+                    return false;
+                }
+
                 if (parent0->getParentEdgesAtPort(1)[0]->getDims()[1] != 1 &&
                     parent0->getParentEdgesAtPort(1)[0]->getDims()[1] != IC)
                     return false;
@@ -495,6 +499,9 @@ void MKLDNNGraphOptimizer::MergeTwoEqualScaleShifts(MKLDNNGraph& graph) {
     };
 
     auto isEqualScaleShiftNodes = [](MKLDNNNodePtr node1, MKLDNNNodePtr node2) {
+        if (node1->getParentEdgeAt(0) != node2->getParentEdgeAt(0))
+            return false;
+
         auto *depthwiseNode1 = dynamic_cast<MKLDNNDepthwiseNode *>(node1.get());
         auto *depthwiseNode2 = dynamic_cast<MKLDNNDepthwiseNode *>(node2.get());
 

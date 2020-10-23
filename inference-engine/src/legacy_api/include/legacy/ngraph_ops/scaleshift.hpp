@@ -20,11 +20,15 @@ public:
 
     ScaleShiftIE(const Output<Node>& data_batch,
                  const Output<Node>& weights,
-                 const Output<Node>& bias);
+                 const Output<Node>& bias,
+                 const element::Type output_type = element::undefined);
 
     void validate_and_infer_types() override;
 
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
+
+private:
+    element::Type output_type;
 };
 
 }  // namespace op

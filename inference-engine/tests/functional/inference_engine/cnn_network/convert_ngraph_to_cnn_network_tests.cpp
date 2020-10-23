@@ -58,7 +58,8 @@ TEST(ConvertFunctionToCNNNetworkTests, ConvertConvolutionNetwork) {
                                                                   ngraph::Strides{1, 1},
                                                                   ngraph::Strides{1, 1},
                                                                   ngraph::CoordinateDiff{0, 0},
-                                                                  ngraph::CoordinateDiff{0, 0});
+                                                                  ngraph::CoordinateDiff{0, 0},
+                                                                  ngraph::element::f32);
         convolution->set_friendly_name("convolution");
         auto result = std::make_shared<ngraph::op::Result>(convolution);
 

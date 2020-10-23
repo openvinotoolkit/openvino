@@ -9,9 +9,7 @@ namespace ngraph {
 namespace builder {
 namespace subgraph {
 
-FakeQuantizeOnData::FakeQuantizeOnData() {
-    quantizationLevel = 0ul;
-}
+FakeQuantizeOnData::FakeQuantizeOnData() : quantizationLevel(0) {}
 
 FakeQuantizeOnData::FakeQuantizeOnData(
     const size_t quantizationLevel,
@@ -19,13 +17,15 @@ FakeQuantizeOnData::FakeQuantizeOnData(
     const std::vector<float>& inputLowValues,
     const std::vector<float>& inputHighValues,
     const std::vector<float>& outputLowValues,
-    const std::vector<float>& outputHighValues) :
+    const std::vector<float>& outputHighValues,
+    const ngraph::element::Type outputPrecision) :
     quantizationLevel(quantizationLevel),
     constantShape(constantShape),
     inputLowValues(inputLowValues),
     inputHighValues(inputHighValues),
     outputLowValues(outputLowValues),
-    outputHighValues(outputHighValues)
+    outputHighValues(outputHighValues),
+    outputPrecision(outputPrecision)
 {}
 
 FakeQuantizeOnData::~FakeQuantizeOnData() {}

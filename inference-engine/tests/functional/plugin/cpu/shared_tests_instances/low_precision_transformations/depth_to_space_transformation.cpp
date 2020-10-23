@@ -9,24 +9,44 @@
 
 using namespace LayerTestsDefinitions;
 using namespace InferenceEngine::details;
+using namespace ngraph::opset1;
 
 namespace {
-const std::vector<InferenceEngine::Precision> netPrecisions = {
-        InferenceEngine::Precision::FP32,
-        InferenceEngine::Precision::FP16
+const std::vector<ngraph::element::Type> precisions = {
+    ngraph::element::f32,
+    // ngraph::element::f16
 };
 
-const std::vector<LayerTransformation::Params> trasformationParamValues = {
-    LayerTestsUtils::LayerTransformationParamsFactory::createParams(),
-    LayerTestsUtils::LayerTransformationParamsFactory::createParamsI8I8(),
-    LayerTestsUtils::LayerTransformationParamsFactory::createParamsU8I8()
+const std::vector<DepthToSpace::DepthToSpaceMode> modes = {
+        DepthToSpace::DepthToSpaceMode::BLOCKS_FIRST,
+        DepthToSpace::DepthToSpaceMode::DEPTH_FIRST
 };
 
-INSTANTIATE_TEST_CASE_P(smoke_LPT, DepthToSpaceTransformation,
-    ::testing::Combine(
-        ::testing::ValuesIn(netPrecisions),
-        ::testing::Values(InferenceEngine::SizeVector({ 1, 32, 72, 48 })),
-        ::testing::Values(CommonTestUtils::DEVICE_CPU),
-        ::testing::ValuesIn(trasformationParamValues)),
-    DepthToSpaceTransformation::getTestCaseName);
+const std::vector<ngraph::Shape> inputShapesBS2 = {
+        {1, 4, 3, 3}, {2, 16, 5, 4}
+};
+
+const auto DepthToSpaceBS2 = ::testing::Combine(
+    ::testing::ValuesIn(precisions),
+    ::testing::ValuesIn(inputShapesBS2),
+    ::testing::Values(CommonTestUtils::DEVICE_CPU),
+    ::testing::ValuesIn(modes),
+    ::testing::Values(2)
+);
+
+INSTANTIATE_TEST_CASE_P(LPT_BS2, DepthToSpaceTransformation, DepthToSpaceBS2, DepthToSpaceTransformation::getTestCaseName);
+
+const std::vector<ngraph::Shape> inputShapesBS3 = {
+        {1, 9, 3, 3}, {2, 27, 5, 4}
+ };
+
+const auto DepthToSpaceBS3 = ::testing::Combine(
+    ::testing::ValuesIn(precisions),
+    ::testing::ValuesIn(inputShapesBS3),
+    ::testing::Values(CommonTestUtils::DEVICE_CPU),
+    ::testing::ValuesIn(modes),
+    ::testing::Values(3)
+);
+
+INSTANTIATE_TEST_CASE_P(smoke_LPT_BS3, DepthToSpaceTransformation, DepthToSpaceBS3, DepthToSpaceTransformation::getTestCaseName);
 }  // namespace

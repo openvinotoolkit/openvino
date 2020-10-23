@@ -65,7 +65,8 @@ ngraph::pass::FullyConnectedBiasFusion::FullyConnectedBiasFusion() {
         auto new_fc = std::make_shared<op::FullyConnected>(m_fc->input(0).get_source_output(),
                                                            m_fc->input(1).get_source_output(),
                                                            final_bias,
-                                                           m_fc->get_shape());
+                                                           m_fc->get_shape(),
+                                                           m_fc->get_output_type());
         new_ops.push_back(new_fc);
 
         new_fc->set_friendly_name(add->get_friendly_name());

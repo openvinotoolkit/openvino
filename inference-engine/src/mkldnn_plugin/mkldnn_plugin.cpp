@@ -53,6 +53,12 @@
 #include <ngraph/op/util/op_types.hpp>
 #include <ngraph/pass/manager.hpp>
 
+#include <transformations/common_optimizations/lin_op_sequence_fusion.hpp>
+#include <transformations/low_precision/transformer.hpp>
+#include <transformations/low_precision/convolution.hpp>
+#include <transformations/low_precision/group_convolution.hpp>
+#include <transformations/low_precision/multiply_to_group_convolution.hpp>
+
 #if !defined(__arm__) && !defined(_M_ARM) && !defined(__aarch64__) && !defined(_M_ARM64)
 #if defined(_WIN32) || defined(WIN32)
 #include <intrin.h>
@@ -76,7 +82,7 @@ Engine::~Engine() {
     ExecutorManager::getInstance()->clear("CPUCallbackExecutor");
 }
 
-static void Transformation(ICNNNetwork::Ptr& clonedNetwork) {
+static void Transformation(ICNNNetwork::Ptr& clonedNetwork, const Config& conf) {
     OV_ITT_SCOPED_TASK(MKLDNNPlugin::itt::domains::MKLDNNPlugin, "Transformation");
 
     auto nGraphFunc = clonedNetwork->getFunction();
@@ -103,9 +109,6 @@ static void Transformation(ICNNNetwork::Ptr& clonedNetwork) {
     for (auto & precision : convert_precision_list) {
         manager.register_pass<ngraph::pass::ConvertPrecision>(precision.first, precision.second);
     }
-
-    manager.register_pass<ngraph::pass::ConvertOpSet1ToLegacy>();
-    manager.register_pass<ngraph::pass::ConvertPrecision>(ngraph::element::i64, ngraph::element::i32);
 
     auto pass_config = manager.get_pass_config();
 
@@ -143,6 +146,47 @@ static void Transformation(ICNNNetwork::Ptr& clonedNetwork) {
     pass_config->enable<ngraph::pass::ConvertPadToGroupConvolution>();
 
     manager.run_passes(nGraphFunc);
+
+#ifndef USE_CNNNETWORK_LPT
+    using namespace ngraph::pass::low_precision;
+    if (conf.lpTransformsMode == Config::LPTransformsMode::On) {
+        auto params = LayerTransformation::Params(
+            true,  // updatePrecisions
+            LayerTransformation::QuantizedTensorAlignment::UpdateLevel,  // quantizedTensorAlignmentOnActivations
+            LayerTransformation::QuantizedTensorAlignment::None,  // quantizedTensorAlignmentOnWeights
+            true);  // supportAsymmetricQuantization
+        LowPrecisionTransformer transformer(LowPrecisionTransformer::getAllTransformations(params)
+            .add<ConvolutionTransformation, ngraph::opset1::Convolution>(
+                LayerTransformation::Params(params).setPrecisionsOnActivations({ngraph::element::u8}).setSupportAsymmetricQuantization(true))
+            .add<GroupConvolutionTransformation, ngraph::opset1::GroupConvolution>(
+                LayerTransformation::Params(params).setPrecisionsOnActivations({ ngraph::element::u8 }).setSupportAsymmetricQuantization(true))
+            .addStandaloneCleanup<MultiplyToGroupConvolutionTransformation, ngraph::opset1::Multiply>(
+                LayerTransformation::Params(params).setPrecisionsOnActivations({ ngraph::element::u8 })));
+
+        transformer.transform(nGraphFunc);
+    }
+#endif
+
+    ngraph::pass::Manager legacyManager;
+    legacyManager.register_pass<ngraph::pass::ConvertOpSet1ToLegacy>();
+    legacyManager.register_pass<ngraph::pass::ConvertPrecision>(ngraph::element::i64, ngraph::element::i32);
+
+    auto legacyPassConfig = manager.get_pass_config();
+    legacyPassConfig->set_callback<ngraph::pass::AddMultiplyFusion>([](const_node_ptr &node) -> bool {
+        if (auto mul_op = std::dynamic_pointer_cast<const ngraph::opset1::Multiply>(node)) {
+            auto add_op = std::dynamic_pointer_cast<const ngraph::opset1::Add>(mul_op->get_input_node_shared_ptr(0));
+            auto constant = std::dynamic_pointer_cast<const ngraph::opset1::Constant>(mul_op->get_input_node_shared_ptr(1));
+            bool is_dequantization = mul_op->get_rt_info().count("DEQUANTIZATION") != 0;
+            if (add_op && constant && is_dequantization) {
+                return ngraph::is_type<ngraph::opset1::Convolution>(add_op->get_input_node_shared_ptr(0)) ||
+                    ngraph::is_type<ngraph::opset1::GroupConvolution>(add_op->get_input_node_shared_ptr(0)) ||
+                    ngraph::is_type<ngraph::opset1::MatMul>(add_op->get_input_node_shared_ptr(0));
+            }
+        }
+        return false;
+    });
+
+    legacyManager.run_passes(nGraphFunc);
 
     clonedNetwork = InferenceEngine::details::convertFunctionToICNNNetwork(nGraphFunc, *clonedNetwork);
 
@@ -187,7 +231,7 @@ Engine::LoadExeNetworkImpl(const InferenceEngine::ICNNNetwork &network, const st
     std::shared_ptr<ICNNNetwork> clonedNetwork = cloneNetwork(network);
     bool is_transformed = false;
     if (clonedNetwork->getFunction()) {
-        Transformation(clonedNetwork);
+        Transformation(clonedNetwork, conf);
         is_transformed = true;
     }
     auto implNetwork = std::dynamic_pointer_cast<details::CNNNetworkImpl>(clonedNetwork);
@@ -312,8 +356,17 @@ QueryNetworkResult Engine::QueryNetwork(const ICNNNetwork& network, const std::m
         for (auto&& node : function->get_ops()) {
             originalOps.emplace(node->get_friendly_name());
         }
+
+        // TODO: Clarify the behavior of SetConfig method. Skip eng_config or not?
+        Config conf = engConfig;
+        conf.readProperties(config);
+
+        if (conf.enableDynamicBatch) {
+            conf.batchLimit = static_cast<int>(network.getBatchSize());
+        }
+
         auto clonedNetwork = cloneNetwork(network);
-        Transformation(clonedNetwork);
+        Transformation(clonedNetwork, conf);
         std::unordered_set<std::string> supported;
         std::unordered_set<std::string> unsupported;
         for (details::CNNNetworkIterator itLayer{clonedNetwork.get()}; itLayer != details::CNNNetworkIterator(); itLayer++) {

@@ -21,8 +21,8 @@
 
 namespace LayerTestsDefinitions {
 
-std::pair<float, float> outputLayersHandlingInTransformationsForConcatMultiChannelGetInterval(const std::vector<InferenceEngine::Precision>& precisions) {
-    const bool unsignedInterval = std::find(precisions.begin(), precisions.end(), InferenceEngine::Precision::U8) != precisions.end();
+std::pair<float, float> outputLayersHandlingInTransformationsForConcatMultiChannelGetInterval(const std::vector<ngraph::element::Type>& precisions) {
+    const bool unsignedInterval = std::find(precisions.begin(), precisions.end(), ngraph::element::u8) != precisions.end();
     const float low = unsignedInterval ? 0.f : -128.f;
     const float hight = unsignedInterval ? 255.f : 127.f;
     return std::make_pair(low, hight);
@@ -33,19 +33,17 @@ std::string OutputLayersHandlingInTransformationsForConcatMultiChannel::getTestC
     InferenceEngine::Precision netPrecision;
     InferenceEngine::SizeVector inputShapes;
     std::string targetDevice;
-    InferenceEngine::details::LayerTransformation::Params params;
+    ngraph::pass::low_precision::LayerTransformation::Params params;
     std::tie(netPrecision, inputShapes, targetDevice, params) = obj.param;
 
-    std::ostringstream result;
-    result << netPrecision.name() << "_" << targetDevice << "_" << toString(params);
-    return result.str();
+    return getTestCaseNameByParams(netPrecision, inputShapes, targetDevice, params);
 }
 
 InferenceEngine::Blob::Ptr OutputLayersHandlingInTransformationsForConcatMultiChannel::GenerateInput(const InferenceEngine::InputInfo &info) const {
     InferenceEngine::SizeVector inputShape;
     InferenceEngine::Precision netPrecision;
     std::string targetDevice;
-    InferenceEngine::details::LayerTransformation::Params params;
+    ngraph::pass::low_precision::LayerTransformation::Params params;
     std::tie(netPrecision, inputShape, targetDevice, params) = this->GetParam();
 
     if ((info.name() != "input1") && (info.name() != "input2")) {
@@ -80,8 +78,9 @@ void OutputLayersHandlingInTransformationsForConcatMultiChannel::SetUp() {
 
     InferenceEngine::SizeVector inputShape1;
     InferenceEngine::Precision netPrecision;
-    InferenceEngine::details::LayerTransformation::Params params;
+    ngraph::pass::low_precision::LayerTransformation::Params params;
     std::tie(netPrecision, inputShape1, targetDevice, params) = this->GetParam();
+
     auto ngPrecision = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
 
     const auto input1 = std::make_shared<ngraph::opset1::Parameter>(ngPrecision, ngraph::Shape(inputShape1));
@@ -113,38 +112,6 @@ void OutputLayersHandlingInTransformationsForConcatMultiChannel::SetUp() {
     };
 
     function = std::make_shared<ngraph::Function>(results, ngraph::ParameterVector { input1, input2 }, "OutputLayersHandling");
-
-    // TODO: move to some another place
-    validate();
-}
-
-void OutputLayersHandlingInTransformationsForConcatMultiChannel::validate() {
-    InferenceEngine::Precision netPrecision;
-    InferenceEngine::SizeVector inputShapes;
-    std::string targetDevice;
-    InferenceEngine::details::LayerTransformation::Params params;
-    std::tie(netPrecision, inputShapes, targetDevice, params) = this->GetParam();
-
-    const InferenceEngine::CNNNetwork network = transform(params);
-
-    IE_SUPPRESS_DEPRECATED_START
-
-    InferenceEngine::OutputsDataMap outputs = network.getOutputsInfo();
-    EXPECT_EQ(3, outputs.size());
-
-    const auto concatIt = outputs.find("concat");
-    EXPECT_TRUE(concatIt != outputs.end());
-    EXPECT_EQ("ScaleShift", getCreatorLayer(concatIt->second).lock()->type);
-
-    const auto fakeQuantize2It = outputs.find("fakeQuantize2");
-    EXPECT_TRUE(fakeQuantize2It != outputs.end());
-    EXPECT_EQ("ScaleShift", getCreatorLayer(fakeQuantize2It->second).lock()->type);
-
-    const auto convolutionIt = outputs.find("convolution");
-    EXPECT_TRUE(convolutionIt != outputs.end());
-    EXPECT_EQ("ScaleShift", getCreatorLayer(convolutionIt->second).lock()->type);
-
-    IE_SUPPRESS_DEPRECATED_END
 }
 
 TEST_P(OutputLayersHandlingInTransformationsForConcatMultiChannel, CompareWithRefImpl) {

@@ -233,10 +233,7 @@ INSTANTIATE_TEST_CASE_P(AddToPower, MulOrAddConversionTests, testing::Combine(
 
 
 INSTANTIATE_TEST_CASE_P(MulAddNegative, MulAddConversionTests, testing::Combine(
-        testing::Values(std::make_tuple(InputShape{DYN, 3, 64},
-                                        CONST(ngraph::Shape({1, 3, 1}), 0.5),
-                                        CONST(ngraph::Shape({1, 3, 1}), 0.5)/*ScaleShift must always be 4D*/),
-                        std::make_tuple(InputShape{DYN, 3, DYN},
+        testing::Values(std::make_tuple(InputShape{DYN, 3, DYN},
                                         CONST(ngraph::Shape({1, 1, 3, 1}), 0.5),
                                         CONST(ngraph::Shape({3, 1}), 0.5)/*detect broadcast case*/),
                         std::make_tuple(InputShape{DYN, 3, DYN},

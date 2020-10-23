@@ -22,13 +22,17 @@ public:
 
     Eltwise(const Output<Node>& data1,
             const Output<Node>& data2,
-            const ELTWISE_TYPE eltwise_type);
+            const ELTWISE_TYPE eltwise_type,
+            const element::Type output_type = element::undefined);
 
     void validate_and_infer_types() override;
 
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
 
     ELTWISE_TYPE eltwise_type;
+
+private:
+    element::Type m_output_type;
 };
 
 }  // namespace op

@@ -87,6 +87,10 @@ void ngraph::pass::ConvertMulAddToScaleShiftOrPower::convert_mul_add_to_scaleshi
             const_bias_node = ngraph::as_type_ptr<ngraph::opset1::Constant>(add_input_0);
         }
 
+        if (const_bias_node->output(0).get_element_type() != add_node->output(0).get_element_type()) {
+            return false;
+        }
+
         auto mul_input_0 = mul_node->input(0).get_source_output().get_node_shared_ptr();
         auto mul_input_1 = mul_node->input(1).get_source_output().get_node_shared_ptr();
 
@@ -95,6 +99,10 @@ void ngraph::pass::ConvertMulAddToScaleShiftOrPower::convert_mul_add_to_scaleshi
         if (!const_weights_node) {
             data_node = mul_node->input(1).get_source_output();
             const_weights_node = ngraph::as_type_ptr<ngraph::opset1::Constant>(mul_input_0);
+        }
+
+        if (const_weights_node->output(0).get_element_type() != mul_node->output(0).get_element_type()) {
+            return false;
         }
 
         if (add_node->get_output_partial_shape(0).rank().is_dynamic() ||
@@ -137,13 +145,16 @@ void ngraph::pass::ConvertMulAddToScaleShiftOrPower::convert_mul_add_to_scaleshi
         const auto output_shape = add_node->get_output_partial_shape(0);
         const auto output_shape_rank = output_shape.rank().get_length();
 
+        bool is_dequantization =
+                (add_node->get_rt_info().count("DEQUANTIZATION") != 0 || mul_node->get_rt_info().count("DEQUANTIZATION") != 0);
+
         if (res1 == CONVERSION_RESULT::NONE || res2 == CONVERSION_RESULT::NONE ||
-            ((res1 == CONVERSION_RESULT::SCALE_SHIFT || res2 == CONVERSION_RESULT::SCALE_SHIFT) && output_shape_rank < 4)) {
+            ((res1 == CONVERSION_RESULT::SCALE_SHIFT || res2 == CONVERSION_RESULT::SCALE_SHIFT) && !is_dequantization && output_shape_rank < 4)) {
             return false;
         }
 
         // TODO: in case if scale and shift constants has equal values the best way is to convert them to Power
-        if (res1 == CONVERSION_RESULT::SCALE_SHIFT || res2 == CONVERSION_RESULT::SCALE_SHIFT) {
+        if (res1 == CONVERSION_RESULT::SCALE_SHIFT || res2 == CONVERSION_RESULT::SCALE_SHIFT || is_dequantization) {
             NodeVector new_ops;
 
             auto weights_in = ngraph::op::util::normalize_constant(const_weights_node, output_shape);
@@ -151,16 +162,29 @@ void ngraph::pass::ConvertMulAddToScaleShiftOrPower::convert_mul_add_to_scaleshi
             new_ops.push_back(weights_in);
             new_ops.push_back(biases_in);
 
-            if (res1 == CONVERSION_RESULT::POWER) {
+            if (is_dequantization) {
+                const Shape data_shape = data_node.get_shape();
+                Shape broadcasted_shape = std::vector<size_t>(data_shape.size(), 1ul);
+                broadcasted_shape[1] = data_shape[1];
+
+                weights_in = ngraph::op::util::broadcastTo(weights_in, broadcasted_shape);
+                new_ops.push_back(weights_in);
+
+                biases_in = ngraph::op::util::broadcastTo(biases_in, broadcasted_shape);
+                new_ops.push_back(biases_in);
+            }
+
+            if (res1 == CONVERSION_RESULT::POWER && !is_dequantization) {
                 weights_in = ngraph::op::util::broadcastTo(weights_in, biases_in->get_shape());
                 new_ops.push_back(weights_in);
             }
-            if (res2 == CONVERSION_RESULT::POWER) {
+            if (res2 == CONVERSION_RESULT::POWER && !is_dequantization) {
                 biases_in = ngraph::op::util::broadcastTo(biases_in, weights_in->get_shape());
                 new_ops.push_back(biases_in);
             }
 
-            auto scaleshift = std::make_shared<ngraph::op::ScaleShiftIE>(data_node, weights_in, biases_in);
+            auto output_type = m.get_match_root()->get_output_element_type(0);
+            auto scaleshift = std::make_shared<ngraph::op::ScaleShiftIE>(data_node, weights_in, biases_in, output_type);
             new_ops.push_back(scaleshift);
 
             scaleshift->set_friendly_name(add_node->get_friendly_name());
@@ -175,7 +199,8 @@ void ngraph::pass::ConvertMulAddToScaleShiftOrPower::convert_mul_add_to_scaleshi
                 return false;
             }
 
-            auto power = std::make_shared<ngraph::op::PowerIE>(data_node, 1., scale, shift);
+            auto output_type = m.get_match_root()->get_output_element_type(0);
+            auto power = std::make_shared<ngraph::op::PowerIE>(data_node, 1., scale, shift, output_type);
             power->set_friendly_name(add_node->get_friendly_name());
             ngraph::copy_runtime_info({mul_node, add_node}, power);
             ngraph::replace_node(m.get_match_root(), power);
