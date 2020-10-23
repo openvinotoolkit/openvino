@@ -101,24 +101,26 @@ public:
     }
 };
 
-const std::unordered_map<ngraph::Node*, int> create_layer_ids(const ngraph::Function& f) {
+const std::unordered_map<ngraph::Node*, int> create_layer_ids(
+    const ngraph::Function& f) {
     std::unordered_map<ngraph::Node*, int> layer_ids;
     int id = 0;
-    for (const auto &node : f.get_ordered_ops()) {
+    for (const auto& node : f.get_ordered_ops()) {
         layer_ids[node.get()] = id++;
     }
     return layer_ids;
 }
 
 const std::vector<Edge> create_edge_mapping(
-    const std::unordered_map<ngraph::Node*, int>& layer_ids, const ngraph::Function& f) {
+    const std::unordered_map<ngraph::Node*, int>& layer_ids,
+    const ngraph::Function& f) {
     std::vector<Edge> edges;
-    for (const auto &node : f.get_ordered_ops()) {
+    for (const auto& node : f.get_ordered_ops()) {
         if (dynamic_cast<ngraph::op::Parameter*>(node.get()) != nullptr) {
             continue;
         }
 
-        for (const auto &i : node->inputs()) {
+        for (const auto& i : node->inputs()) {
             auto source_output = i.get_source_output();
             auto source_node = source_output.get_node();
             auto current_node = i.get_node();
@@ -256,14 +258,14 @@ void ngfunction_2_irv10(pugi::xml_document& doc, std::vector<uint8_t>& bin,
     netXml.append_attribute("version").set_value("10");
     pugi::xml_node layers = netXml.append_child("layers");
 
-    const std::unordered_map<ngraph::Node*, int> layer_ids = create_layer_ids(f);
+    const std::unordered_map<ngraph::Node*, int> layer_ids =
+        create_layer_ids(f);
     std::unordered_set<std::string> unique_names;
 
     for (const auto& n : f.get_ordered_ops()) {
         ngraph::Node* node = n.get();
 
-        NGRAPH_CHECK(layer_ids.find(node) != layer_ids.end(),
-                     "Internal error");
+        NGRAPH_CHECK(layer_ids.find(node) != layer_ids.end(), "Internal error");
         // <layers>
         pugi::xml_node layer = layers.append_child("layer");
         layer.append_attribute("id").set_value(layer_ids.find(node)->second);
