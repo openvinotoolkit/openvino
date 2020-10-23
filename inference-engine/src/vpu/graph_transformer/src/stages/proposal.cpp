@@ -125,11 +125,12 @@ private:
 void FrontEnd::parseProposal(const Model& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs) const {
     ie::details::CaselessEq<std::string> cmp;
 
-    IE_ASSERT(inputs.size() == 3);
-
-    // TODO: implement 2nd output, see:
-    // #-37327: Several models Failed to compile layer "proposals"
-    IE_ASSERT(outputs.size() == 1 || outputs.size() == 2);
+    VPU_THROW_UNLESS((inputs.size() == 3),
+                     "Proposal stage with name %s must have 3 inputs, "
+                     "actually provided %d", layer->name, inputs.size());
+    VPU_THROW_UNLESS((outputs.size() == 1) || (outputs.size() == 2),
+                     "Proposal stage with name %s must have only 1 or 2 outputs, "
+                     "actually provided %d", layer->name, outputs.size());
 
     DataVector tempOutputs(2);
     tempOutputs[0] = outputs[0];
