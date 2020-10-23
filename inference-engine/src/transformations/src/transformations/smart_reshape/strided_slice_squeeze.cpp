@@ -26,12 +26,6 @@ ngraph::pass::StridedSliceSqueeze::StridedSliceSqueeze() {
         if (!const_axes || !slice)
             return false;
 
-        const auto & slice_plan = get_slice_plan(slice);
-        if (slice_plan.begins.empty() || slice_plan.reshape_in_shape != slice_plan.reshape_out_shape || !slice_plan.reverse_axes.empty())
-            return false;
-
-        const auto & axes = normalize_axes(squeeze->description(), const_axes->cast_vector<int64_t>(), squeeze->get_input_partial_shape(0).rank());
-
         auto begin = std::dynamic_pointer_cast<ngraph::opset5::Constant>(slice->input_value(1).get_node_shared_ptr());
         auto end = std::dynamic_pointer_cast<ngraph::opset5::Constant>(slice->input_value(2).get_node_shared_ptr());
         auto strides = std::dynamic_pointer_cast<ngraph::opset5::Constant>(slice->input_value(3).get_node_shared_ptr());
@@ -47,17 +41,21 @@ ngraph::pass::StridedSliceSqueeze::StridedSliceSqueeze() {
         auto shrink_axis_mask = slice->get_shrink_axis_mask().empty() ? std::vector<int64_t>(begin_mask.size(), 0) : slice->get_shrink_axis_mask();
         auto ellipsis_mask = slice->get_ellipsis_mask().empty() ? std::vector<int64_t>(begin_mask.size(), 0) : slice->get_ellipsis_mask();
 
+        auto is_zero_vec = [](const std::vector<int64_t> & mask){ return std::all_of(mask.begin(), mask.end(), [](const int64_t& i){ return i == 0; }); };
+        if (!is_zero_vec(new_axis_mask) || !is_zero_vec(shrink_axis_mask) || !is_zero_vec(ellipsis_mask))
+            return false;
+        if (!std::all_of(strides_vec.begin(), strides_vec.end(), [](const int64_t& i){ return i == 1; }))
+            return false;
+
+        const auto & axes = normalize_axes(squeeze->description(), const_axes->cast_vector<int64_t>(), squeeze->get_input_partial_shape(0).rank());
         for (const auto & axis : axes) {
-            if ((slice_plan.ends[axis] - slice_plan.begins[axis]) != 1 && slice_plan.strides[axis] == 1)
-                return false;
-            begin_vec[axis] = slice_plan.begins[axis];
-            end_vec[axis] = slice_plan.ends[axis];
-            strides_vec[axis] = 1;
+            begin_vec[axis] = 0;
+            end_vec[axis] = 1;
+
             begin_mask[axis] = 0;
             end_mask[axis] = 0;
-            new_axis_mask[axis] = 0;
+
             shrink_axis_mask[axis] = 1;
-            ellipsis_mask[axis] = 0;
         }
 
         auto new_slice = std::make_shared<opset5::StridedSlice>(
@@ -89,12 +87,6 @@ ngraph::pass::SqueezeStridedSlice::SqueezeStridedSlice() {
         if (!const_axes || !slice)
             return false;
 
-        const auto & slice_plan = get_slice_plan(slice);
-        if (slice_plan.begins.empty() || slice_plan.reshape_in_shape != slice_plan.reshape_out_shape || !slice_plan.reverse_axes.empty())
-            return false;
-
-        auto axes = normalize_axes(squeeze->description(), const_axes->cast_vector<int64_t>(), squeeze->get_input_partial_shape(0).rank());
-        std::sort(axes.begin(), axes.end());
         auto begin = std::dynamic_pointer_cast<ngraph::opset5::Constant>(slice->input_value(1).get_node_shared_ptr());
         auto end = std::dynamic_pointer_cast<ngraph::opset5::Constant>(slice->input_value(2).get_node_shared_ptr());
         auto strides = std::dynamic_pointer_cast<ngraph::opset5::Constant>(slice->input_value(3).get_node_shared_ptr());
@@ -110,6 +102,14 @@ ngraph::pass::SqueezeStridedSlice::SqueezeStridedSlice() {
         auto shrink_axis_mask = slice->get_shrink_axis_mask().empty() ? std::vector<int64_t>(begin_mask.size(), 0) : slice->get_shrink_axis_mask();
         auto ellipsis_mask = slice->get_ellipsis_mask().empty() ? std::vector<int64_t>(begin_mask.size(), 0) : slice->get_ellipsis_mask();
 
+        auto is_zero_vec = [](const std::vector<int64_t> & mask){ return std::all_of(mask.begin(), mask.end(), [](const int64_t& i){ return i == 0; }); };
+        if (!is_zero_vec(new_axis_mask) || !is_zero_vec(shrink_axis_mask) || !is_zero_vec(ellipsis_mask))
+            return false;
+        if (!std::all_of(strides_vec.begin(), strides_vec.end(), [](const int64_t& i){ return i == 1; }))
+            return false;
+
+        auto axes = normalize_axes(squeeze->description(), const_axes->cast_vector<int64_t>(), squeeze->get_input_partial_shape(0).rank());
+        std::sort(axes.begin(), axes.end());
         for (const auto & axis : axes) {
             begin_vec.insert(begin_vec.begin() + axis, 0);
             end_vec.insert(end_vec.begin() + axis, 1);
