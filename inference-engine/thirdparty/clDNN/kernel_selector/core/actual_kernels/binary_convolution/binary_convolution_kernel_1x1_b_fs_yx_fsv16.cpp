@@ -59,7 +59,7 @@ BinaryConvolutionKernelBase::DispatchData BinaryConvolutionKernel1x1_b_fs_yx_fsv
     dispatchData.gws[1] = CeilDiv(f, sub_group_size);  // 1 WI calcs 16 OC
     dispatchData.gws[2] = b;
 
-    dispatchData.lws = { sub_group_size, 1, 1 };
+    dispatchData.lws = { static_cast<size_t>(sub_group_size), 1, 1 };
 
     dispatchData.efficiency = FORCE_PRIORITY_1;
 

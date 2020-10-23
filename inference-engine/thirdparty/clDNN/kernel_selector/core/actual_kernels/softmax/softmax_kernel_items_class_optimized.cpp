@@ -56,7 +56,7 @@ SoftmaxKerneItemsClassOptimized::Parent::DispatchData SoftmaxKerneItemsClassOpti
                                                          // classes output" i mean N outputs where N is number of item classes.
     dispatchData.gws[2] = global[2];
 
-    dispatchData.lws = { 1, workitems_per_classes, 1 };
+    dispatchData.lws = { 1, static_cast<size_t>(workitems_per_classes), 1 };
 
     dispatchData.leftovers = item_class_count % workitems_per_classes;
 
