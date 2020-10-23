@@ -24,7 +24,7 @@ bool FuseFakeQuantizeTransformation::transform(TransformationContext& context, n
     return true;
 }
 
-std::shared_ptr<Node> updateShape(std::shared_ptr<Node> op, const Shape& targetShape) {
+std::shared_ptr<Node> FuseFakeQuantizeTransformation::updateShape(std::shared_ptr<Node> op, const Shape& targetShape) {
     const Shape shape = op->get_output_shape(0);
     if ((shape.size() < targetShape.size()) && (shape.size() > 1ul)) {
         op = fold<opset1::Unsqueeze>(
@@ -34,7 +34,7 @@ std::shared_ptr<Node> updateShape(std::shared_ptr<Node> op, const Shape& targetS
     return op;
 }
 
-std::shared_ptr<Node> getData(const std::shared_ptr<Node>& eltwise) {
+std::shared_ptr<Node> FuseFakeQuantizeTransformation::getData(const std::shared_ptr<Node>& eltwise) {
     if (!is_type<opset1::Constant>(eltwise->get_input_node_shared_ptr(0))) {
         return eltwise->get_input_node_shared_ptr(0);
     }
@@ -46,7 +46,7 @@ std::shared_ptr<Node> getData(const std::shared_ptr<Node>& eltwise) {
     return nullptr;
 }
 
-std::shared_ptr<opset1::Constant> getConstant(const std::shared_ptr<Node>& eltwise) {
+std::shared_ptr<opset1::Constant> FuseFakeQuantizeTransformation::getConstant(const std::shared_ptr<Node>& eltwise) {
     if (eltwise->get_input_size() != 2) {
         return nullptr;
     }
@@ -59,7 +59,7 @@ std::shared_ptr<opset1::Constant> getConstant(const std::shared_ptr<Node>& eltwi
     return as_type_ptr<opset1::Constant>(eltwise->get_input_node_shared_ptr(0));
 }
 
-bool eltwiseWithConstant(const std::shared_ptr<Node>& eltwise) {
+bool FuseFakeQuantizeTransformation::eltwiseWithConstant(const std::shared_ptr<Node>& eltwise) {
     std::shared_ptr<opset1::Constant> constant = getConstant(eltwise);
     if (constant == nullptr) {
         return false;

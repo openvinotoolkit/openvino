@@ -24,6 +24,11 @@ private:
     std::shared_ptr<opset1::FakeQuantize> handle(
         TransformationContext& context,
         const std::shared_ptr<opset1::FakeQuantize>& fakeQuantize) const;
+
+    static std::shared_ptr<Node> updateShape(std::shared_ptr<Node> op, const Shape& targetShape);
+    static std::shared_ptr<Node> getData(const std::shared_ptr<Node>& eltwise);
+    static std::shared_ptr<opset1::Constant> getConstant(const std::shared_ptr<Node>& eltwise);
+    static bool eltwiseWithConstant(const std::shared_ptr<Node>& eltwise);
 };
 
 } // namespace low_precision

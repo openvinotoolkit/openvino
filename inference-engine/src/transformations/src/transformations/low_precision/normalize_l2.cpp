@@ -17,23 +17,6 @@ using namespace ngraph;
 using namespace ngraph::pass;
 using namespace ngraph::pass::low_precision;
 
-namespace {
-
-template<typename T>
-std::shared_ptr<ngraph::op::Constant> createNewScalesConst(const ngraph::op::Constant& originalConst) {
-    std::vector<T> source = originalConst.cast_vector<T>();
-
-    std::vector<T> newData(source.size());
-    for (size_t i = 0; i < source.size(); ++i) {
-        newData[i] = source[i] < 0 ? -1 : 1;
-    }
-
-    const ngraph::element::Type type = originalConst.get_output_element_type(0);
-    return ngraph::op::Constant::create(type, originalConst.get_shape(), newData);
-}
-
-} // namespace
-
 bool NormalizeL2Transformation::canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> operation) const {
     if (!LayerTransformation::canBeTransformed(context, operation)) {
         return false;
@@ -106,11 +89,11 @@ bool NormalizeL2Transformation::transform(TransformationContext &context, ngraph
     const auto type = scalesConst->get_output_element_type(0);
     switch (type) {
         case ngraph::element::Type_t::f16: {
-            newScalesConst = createNewScalesConst<ngraph::element_type_traits<ngraph::element::Type_t::f16>::value_type>(*scalesConst);
+            newScalesConst = NetworkHelper::createSignConstant<ngraph::element_type_traits<ngraph::element::Type_t::f16>::value_type>(*scalesConst);
             break;
         }
         case ngraph::element::Type_t::f32: {
-            newScalesConst = createNewScalesConst<ngraph::element_type_traits<ngraph::element::Type_t::f32>::value_type>(*scalesConst);
+            newScalesConst = NetworkHelper::createSignConstant<ngraph::element_type_traits<ngraph::element::Type_t::f32>::value_type>(*scalesConst);
             break;
         }
         default: {

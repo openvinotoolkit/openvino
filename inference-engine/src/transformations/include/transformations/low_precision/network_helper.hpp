@@ -160,6 +160,19 @@ public:
     // handles only specific case: Constant -> [dequantization operations] -> [node]
     static void foldDequantization(std::shared_ptr<Node>& node, const size_t branchIndex, const bool inPlace = false);
 
+    template<typename T>
+    static std::shared_ptr<ngraph::op::Constant> createSignConstant(const ngraph::op::Constant& originalConst) {
+        std::vector<T> source = originalConst.cast_vector<T>();
+
+        std::vector<T> newData(source.size());
+        for (size_t i = 0; i < source.size(); ++i) {
+            newData[i] = source[i] < 0 ? -1 : 1;
+        }
+
+        const ngraph::element::Type type = originalConst.get_output_element_type(0);
+        return ngraph::op::Constant::create(type, originalConst.get_shape(), newData);
+    }
+
 private:
     static std::shared_ptr<Node> foldFakeQuantize(const std::shared_ptr<opset1::FakeQuantize>& fq, const bool roundValues, const bool roundValuesWasSet);
 
