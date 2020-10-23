@@ -255,7 +255,7 @@ TEST(TransformationTests, ConvertNMS5ToNMSIEStaticTwoInputs) {
     {
         auto boxes = std::make_shared<opset5::Parameter>(element::f32, Shape{1, 1000, 4});
         auto scores = std::make_shared<opset5::Parameter>(element::f32, Shape{1, 1, 1000});
-        auto max_output_boxes_per_class = opset5::Constant::create(element::i64, Shape{}, {0});
+        auto max_output_boxes_per_class = opset5::Constant::create(element::i32, Shape{}, {0});
         auto iou_threshold = opset5::Constant::create(element::f32, Shape{}, {0.0f});
         auto score_threshold = opset5::Constant::create(element::f32, Shape{}, {0.0f});
         auto soft_nms_sigma = ngraph::opset5::Constant::create(element::f32, Shape{}, {0.0f});
@@ -521,7 +521,7 @@ TEST(TransformationTests, ConvertNMS5ToNMSIEDynamic1TwoInputs) {
     {
         auto boxes = std::make_shared<opset5::Parameter>(element::f32, PartialShape::dynamic());
         auto scores = std::make_shared<opset5::Parameter>(element::f32, PartialShape::dynamic());
-        auto max_output_boxes_per_class = opset5::Constant::create(element::i64, Shape{}, {0});
+        auto max_output_boxes_per_class = opset5::Constant::create(element::i32, Shape{}, {0});
         auto iou_threshold = opset5::Constant::create(element::f32, Shape{}, {0.0f});
         auto score_threshold = opset5::Constant::create(element::f32, Shape{}, {0.0f});
         auto soft_nms_sigma = ngraph::opset5::Constant::create(element::f32, Shape{}, {0.0f});
@@ -781,7 +781,7 @@ TEST(TransformationTests, ConvertNMS5ToNMSIEDynamic2TwoInputs) {
     {
         auto boxes = std::make_shared<opset5::Parameter>(element::f32, PartialShape{DYN, 1000, 4});
         auto scores = std::make_shared<opset5::Parameter>(element::f32, PartialShape{DYN, 1, 1000});
-        auto max_output_boxes_per_class = opset5::Constant::create(element::i64, Shape{}, {0});
+        auto max_output_boxes_per_class = opset5::Constant::create(element::i32, Shape{}, {0});
         auto iou_threshold = opset5::Constant::create(element::f32, Shape{}, {0.0f});
         auto score_threshold = opset5::Constant::create(element::f32, Shape{}, {0.0f});
         auto soft_nms_sigma = ngraph::opset5::Constant::create(element::f32, Shape{}, {0.0f});
