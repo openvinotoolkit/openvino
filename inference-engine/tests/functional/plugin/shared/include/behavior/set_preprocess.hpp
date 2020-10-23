@@ -157,9 +157,9 @@ TEST_P(PreprocessTest, SetMeanValuePreProcess) {
     preProcess[0]->meanValue = -5;
     preProcess[1]->meanValue = -5;
     preProcess[2]->meanValue = -5;
-    preProcess[0]->stdScale = 0;
-    preProcess[1]->stdScale = 0;
-    preProcess[2]->stdScale = 0;
+    preProcess[0]->stdScale = 1;
+    preProcess[1]->stdScale = 1;
+    preProcess[2]->stdScale = 1;
     preProcess.setVariant(InferenceEngine::MEAN_VALUE);
     // Load CNNNetwork to target plugins
     auto execNet = ie->LoadNetwork(cnnNet, targetDevice, configuration);

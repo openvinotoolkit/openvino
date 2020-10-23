@@ -24,5 +24,7 @@ std::vector<std::string> disabledTestPatterns() {
             R"(.*EltwiseLayerTest.*IS=\(.*\..*\..*\..*\..*\).*eltwiseOpType=Pow.*secondaryInputType=CONSTANT.*)",
             // TODO: Issue: 40958
             R"(.*(ConstantResultSubgraphTest).*)",
+            // TODO: Fix scale pre processing
+            R"(.*(PreprocessTest).*(SetScalePreProcess).*)",
     };
 }
