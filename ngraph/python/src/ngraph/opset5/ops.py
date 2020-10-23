@@ -236,3 +236,21 @@ def rnn_sequence(
     }
 
     return _get_node_factory_opset5().create("RNNSequence", inputs, attributes)
+
+
+@nameable_op
+def loop(
+    trip_count: NodeInput,
+    execution_condition: NodeInput,
+    name: Optional[str] = None,
+) -> Node:
+    """Return a node which performs Loop.
+
+    :param trip_count:
+    :param execution_condition:
+    :return: The new node which performs Loop
+    """
+
+    inputs = as_nodes(trip_count, execution_condition)
+
+    return _get_node_factory_opset5().create("Loop", inputs)
