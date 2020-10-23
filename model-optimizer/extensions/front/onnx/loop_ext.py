@@ -75,6 +75,7 @@ class LoopExtractor(FrontExtractorOp):
 
         # maps a tensor name to a node produced it and the node port: str -> (node_id, node_port)
         data_nodes_map = {}
+        body_graph.graph['tensor_mapping'] = data_nodes_map  # save mapping for possible Loop inside the Loop
 
         body_parameters = add_initializers_and_inputs_to_graph(body_graph, body_graph_proto, data_nodes_map)
 
@@ -167,8 +168,9 @@ class LoopExtractor(FrontExtractorOp):
         #   loop_carried_dependencies_count + 1 .. - scan outputs
 
         body_graph.stage = 'front'
+        # some of the inputs/outputs may not be connected but the normalization transformation will take care of it
         # connection Loop body nodes with external input edges
-        next_loop_input_port_idx = len(loop_node.in_nodes())
+        next_loop_input_port_idx = sorted(loop_node.in_edges().keys())[-1] + 1
         for (src_node, src_port), body_node in external_edges:
             main_graph.add_edge(src_node, loop_node.id, **{'out': src_port,
                                                            'in': next_loop_input_port_idx,
@@ -199,8 +201,7 @@ class LoopExtractor(FrontExtractorOp):
             TensorIterator.add_back_edge(loop_node, body_parameters[idx + 2], body_results[idx + 1])
         # connect final value for "loop carried" dependencies variables
         for idx in range(loop_carried_dependencies_count):
-            if idx in loop_node.out_ports():
-                connect_body_output(loop_node, idx, body_results[idx + 1])
+            connect_body_output(loop_node, idx, body_results[idx + 1])
 
         # connect "scan outputs" and mark axis for concatenation
         for idx in range(loop_carried_dependencies_count, loop_carried_dependencies_count + scan_outputs_count):
