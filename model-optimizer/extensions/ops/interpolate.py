@@ -60,7 +60,6 @@ def infer_for_opset4(node: Node):
         for i, axis in enumerate(axes):
             output_shape[axis] = math.floor(scales[i] * output_shape[axis] + 1.0e-5)
 
-    # PermuteInputs().set_input_permutation(node.in_node(3), node, 'output:0', 'shape')
     PermuteInputs().set_input_permutation(node.in_node(3), node, 'input:0', 'axis')
 
     node.out_port(0).data.set_shape(output_shape)
