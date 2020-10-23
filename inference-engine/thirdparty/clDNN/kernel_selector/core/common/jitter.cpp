@@ -1395,6 +1395,7 @@ bool FusedOpsCodeGenerator::CanPreloadData(const FusedOpsConfiguration& conf) co
             switch (d) {
                 case Tensor::DataChannelName::BATCH:   can_preload &= idx.b == "0"; break;
                 case Tensor::DataChannelName::FEATURE: can_preload &= idx.f == "0"; break;
+                case Tensor::DataChannelName::W:       can_preload &= idx.w == "0"; break;
                 case Tensor::DataChannelName::Z:       can_preload &= idx.z == "0"; break;
                 case Tensor::DataChannelName::Y:       can_preload &= idx.y == "0"; break;
                 case Tensor::DataChannelName::X:       can_preload &= idx.x == "0"; break;
@@ -1619,7 +1620,7 @@ JitConstants FusedOpsCodeGenerator::MakeOpJitConstants(const FusedOpsConfigurati
         case KernelType::ACTIVATION: {
             auto p = desc.GetOpParams<activation_fuse_params>();
             base_activation_params activation_p = p->param;
-            op_decls += "\\\n\t" + GetOutputType(vec_size) + " " + out_var + " = " + in_var + ";";
+            op_decls += "\\\n\t" + GetOutputType(vec_size) + " " + out_var + " = " + ConvertToOutputType(in_var, vec_size) + ";";
             if (activation_p.function != ActivationFunction::NONE) {
                 auto suffix = "_FUSED_OP"+std::to_string(desc.op_id) + conf.suffix;
                 std::string nl_m = std::to_string(activation_p.m);
@@ -1678,6 +1679,8 @@ std::string FusedOpsCodeGenerator::GetIdx(size_t input_id, idx_desc idx, bool sh
         idx_order = idx.b + "," + idx.f + "," + idx.y + "," + idx.x;
     } else if (DataTensor::ChannelsCount(desc.tensors[input_id].GetLayout()) == 5) {
         idx_order = idx.b + "," + idx.f + "," + idx.z + "," + idx.y + "," + idx.x;
+    } else if (DataTensor::ChannelsCount(desc.tensors[input_id].GetLayout()) == 6) {
+        idx_order = idx.b + "," + idx.f + "," + idx.w + "," + idx.z + "," + idx.y + "," + idx.x;
     }
 
     if (should_be_safe) {

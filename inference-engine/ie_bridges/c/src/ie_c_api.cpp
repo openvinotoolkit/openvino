@@ -145,7 +145,7 @@ std::map<std::string, IE::Parameter> config2ParamMap(const ie_config_t *config) 
 }
 
 /**
- *@brief convert the paramter.
+ *@brief convert the parameter.
  */
 void parameter2IEparam(const IE::Parameter param, ie_param_t *ie_param) {
     if (param.is<std::string>()) {
