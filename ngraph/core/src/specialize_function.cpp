@@ -120,6 +120,11 @@ std::shared_ptr<Function>
         new_results[i] = std::static_pointer_cast<op::Result>(m[new_results[i].get()]);
         new_results[i]->set_friendly_name(name);
     }
+    SinkVector new_sinks = f->get_sinks();
+    for (size_t i = 0; i < new_sinks.size(); i++)
+    {
+        new_sinks[i] = std::static_pointer_cast<op::Sink>(m[new_sinks[i].get()]);
+    }
 
-    return std::make_shared<Function>(new_results, new_parameters);
+    return std::make_shared<Function>(new_results, new_sinks, new_parameters);
 }

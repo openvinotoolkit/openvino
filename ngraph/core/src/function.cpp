@@ -372,32 +372,31 @@ bool Function::visit_attributes(AttributeVisitor& visitor)
 
 void Function::add_sinks(const SinkVector& sinks)
 {
-    m_sinks.insert(m_sinks.begin(), sinks.begin(), sinks.end());
+    m_sinks.insert(m_sinks.end(), sinks.begin(), sinks.end());
     validate_nodes_and_infer_types();
 }
 
 void Function::remove_sink(const std::shared_ptr<op::Sink>& sink)
 {
-    string remove_name = sink->get_name();
     m_sinks.erase(std::remove_if(m_sinks.begin(),
                                  m_sinks.end(),
-                                 [remove_name](std::shared_ptr<op::Sink>& s) {
-                                     return s->get_name() == remove_name;
+                                 [sink](std::shared_ptr<op::Sink>& s) {
+                                     return s == sink;
                                  }),
                   m_sinks.end());
 }
 
 void Function::add_results(const ResultVector& results)
 {
-    m_results.insert(m_results.begin(), results.begin(), results.end());
+    m_results.insert(m_results.end(), results.begin(), results.end());
 }
 
 void Function::remove_result(const std::shared_ptr<op::Result>& result)
 {
     m_results.erase(std::remove_if(m_results.begin(),
                                    m_results.end(),
-                                   [result](std::shared_ptr<op::v0::Result>& s) {
-                                       return s->get_name() == result->get_name();
+                                   [result](std::shared_ptr<op::v0::Result>& r) {
+                                       return r == result;
                                    }),
                     m_results.end());
 }
