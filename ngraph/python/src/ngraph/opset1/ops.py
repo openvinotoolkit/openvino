@@ -1501,9 +1501,9 @@ def lstm_sequence(
     :param W: Tensor with weights for matrix multiplication operation with input portion of data.
               Shape: [num_directions, 4*hidden_size, input_size].
     :param R: The tensor with weights for matrix multiplication operation with hidden state.
-              Shape: [num_directions, 4*hidden_size, input_size].
-    :param B: The tensor with biases.
               Shape: [num_directions, 4*hidden_size, hidden_size].
+    :param B: The tensor with biases.
+              Shape: [num_directions, 4*hidden_size].
     :param hidden_size: Specifies hidden state size.
     :param direction: Specifies if the RNN is forward, reverse, or bidirectional.
     :param activations: The list of three activation functions for gates.

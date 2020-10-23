@@ -43,6 +43,7 @@
 #include <transformations/op_conversions/softplus_decomposition.hpp>
 #include <transformations/op_conversions/convert_space_to_batch.hpp>
 #include <transformations/op_conversions/convert_batch_to_space.hpp>
+#include <transformations/op_conversions/convert_sequences_to_tensor_iterator.hpp>
 #include <transformations/convert_precision.hpp>
 #include <transformations/init_node_info.hpp>
 #include <transformations/rt_info/fused_names_attribute.hpp>
@@ -88,6 +89,9 @@ static void Transformation(ICNNNetwork::Ptr& clonedNetwork) {
     // WA: ConvertPriorBox must be executed before the 1st ConstantFolding pass
     manager.register_pass<ngraph::pass::ConvertPriorBox>();
     manager.register_pass<ngraph::pass::CommonOptimizations>();
+    manager.register_pass<ngraph::pass::ConvertRNNSequenceToTensorIterator>();
+    manager.register_pass<ngraph::pass::ConvertGRUSequenceToTensorIterator>();
+    manager.register_pass<ngraph::pass::ConvertLSTMSequenceToTensorIterator>();
     manager.register_pass<ngraph::pass::ConvertOpSet3ToOpSet2>();
     manager.register_pass<ngraph::pass::ConvertOpSet2ToOpSet1>();
 

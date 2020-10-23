@@ -181,8 +181,8 @@ bool runtime::HostTensor::get_is_allocated() const
 
 void runtime::HostTensor::set_element_type(const element::Type& element_type)
 {
-    NGRAPH_CHECK(get_element_type().is_dynamic() || get_element_type() == element_type,
-                 "Can not change a static element type");
+    /*    NGRAPH_CHECK(get_element_type().is_dynamic() || get_element_type() == element_type,
+                     "Can not change a static element type");*/
     m_descriptor->set_element_type(element_type);
 }
 

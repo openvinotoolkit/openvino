@@ -30,7 +30,7 @@ std::shared_ptr<ngraph::Node> makeGRU(const OutputVector& in,
                                                          linear_before_reset);
     } else {
         std::vector<float> lenghts(in[0].get_shape()[0], in[0].get_shape()[1]);
-        auto seq_lenghts = ngraph::builder::makeConstant(in[0].get_element_type(), constants[3], lenghts, false);
+        auto seq_lenghts = ngraph::builder::makeConstant(element::i64, constants[3], lenghts, false);
         return std::make_shared<ngraph::opset5::GRUSequence>(in[0], in[1], seq_lenghts, W, R, B, hidden_size, direction,
                                                              activations, activations_alpha, activations_beta, clip, linear_before_reset);
     }

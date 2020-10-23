@@ -130,3 +130,188 @@ def round(data: NodeInput, mode: str = "half_to_even", name: Optional[str] = Non
     :return: The new node with Round operation applied on each element.
     """
     return _get_node_factory_opset5().create("Round", as_nodes(data), {"mode": mode.upper()})
+
+
+@nameable_op
+def lstm_sequence(
+        X: NodeInput,
+        initial_hidden_state: NodeInput,
+        initial_cell_state: NodeInput,
+        sequence_lengths: NodeInput,
+        W: NodeInput,
+        R: NodeInput,
+        B: NodeInput,
+        hidden_size: int,
+        direction: str,
+        activations: List[str] = None,
+        activations_alpha: List[float] = None,
+        activations_beta: List[float] = None,
+        clip: float = 0.0,
+        name: Optional[str] = None,
+) -> Node:
+    """Return a node which performs LSTMSequence operation.
+
+    :param X: The input tensor. Shape: [batch_size, seq_length, input_size].
+    :param initial_hidden_state:    The hidden state tensor.
+                                    Shape: [batch_size, num_directions, hidden_size].
+    :param initial_cell_state:      The cell state tensor.
+                                    Shape: [batch_size, num_directions, hidden_size].
+    :param sequence_lengths:        Specifies real sequence lengths for each batch element.
+                                    Shape: [batch_size]. Integer type.
+    :param W: Tensor with weights for matrix multiplication operation with input portion of data. Expected format: fico
+              Shape: [num_directions, 4*hidden_size, input_size].
+    :param R: The tensor with weights for matrix multiplication operation with hidden state. Expected format: fico
+              Shape: [num_directions, 4*hidden_size, hidden_size].
+    :param B: The sum of biases (weight and recurrence). Expected format: fico
+              Shape: [num_directions, 4*hidden_size].
+    :param hidden_size: Specifies hidden state size.
+    :param direction: Specifies if the RNN is forward, reverse, or bidirectional.
+    :param activations: The list of three activation functions for gates.
+    :param activations_alpha: The list of alpha parameters for activation functions.
+    :param activations_beta: The list of beta parameters for activation functions.
+    :param clip: Specifies bound values [-C, C] for tensor clipping performed before activations.
+    :param name: An optional name of the output node.
+
+    :return: The new node represents LSTMSequence. Node outputs count: 3.
+    """
+    if activations is None:
+        activations = ["sigmoid", "tanh", "tanh"]
+    if activations_alpha is None:
+        activations_alpha = []
+    if activations_beta is None:
+        activations_beta = []
+
+    node_inputs = as_nodes(X, initial_hidden_state, initial_cell_state, sequence_lengths, W, R, B)
+
+    attributes = {
+        "hidden_size": hidden_size,
+        "direction": direction.lower(),
+        "activations": activations,
+        "activations_alpha": activations_alpha,
+        "activations_beta": activations_beta,
+        "clip": clip,
+    }
+    return _get_node_factory_opset5().create("LSTMSequence", node_inputs, attributes)
+
+
+@nameable_op
+def gru_sequence(
+        X: NodeInput,
+        initial_hidden_state: NodeInput,
+        sequence_lengths: NodeInput,
+        W: NodeInput,
+        R: NodeInput,
+        B: NodeInput,
+        hidden_size: int,
+        direction: str,
+        activations: List[str] = None,
+        activations_alpha: List[float] = None,
+        activations_beta: List[float] = None,
+        clip: float = 0.0,
+        linear_before_reset: bool = False,
+        name: Optional[str] = None,
+) -> Node:
+    """Return a node which performs GRUSequence operation.
+
+    :param X: The input tensor. Shape: [batch_size, seq_length, input_size].
+    :param initial_hidden_state:    The hidden state tensor.
+                                    Shape: [batch_size, num_directions, hidden_size].
+    :param sequence_lengths:        Specifies real sequence lengths for each batch element.
+                                    Shape: [batch_size]. Integer type.
+    :param W: Tensor with weights for matrix multiplication operation with input portion of data.
+              Shape: [num_directions, 3*hidden_size, input_size].
+    :param R: The tensor with weights for matrix multiplication operation with hidden state.
+              Shape: [num_directions, 3*hidden_size, hidden_size].
+    :param B: The sum of biases (weight and recurrence).
+              For linear_before_reset set True the shape is [num_directions, 4*hidden_size].
+              Otherwise the shape is [num_directions, 3*hidden_size].
+    :param hidden_size: Specifies hidden state size.
+    :param direction: Specifies if the RNN is forward, reverse, or bidirectional.
+    :param activations: The list of three activation functions for gates.
+    :param activations_alpha: The list of alpha parameters for activation functions.
+    :param activations_beta: The list of beta parameters for activation functions.
+    :param clip: Specifies bound values [-C, C] for tensor clipping performed before activations.
+    :param linear_before_reset: Flag denotes if the layer behaves according to the modification
+                                of GRU described in the formula in the ONNX documentation.
+    :param name: An optional name of the output node.
+
+    :return: The new node represents GRUSequence. Node outputs count: 2.
+    """
+    if activations is None:
+        activations = ["sigmoid", "tanh"]
+    if activations_alpha is None:
+        activations_alpha = []
+    if activations_beta is None:
+        activations_beta = []
+
+    node_inputs = as_nodes(X, initial_hidden_state, sequence_lengths, W, R, B)
+
+    attributes = {
+        "hidden_size": hidden_size,
+        "direction": direction.lower(),
+        "activations": activations,
+        "activations_alpha": activations_alpha,
+        "activations_beta": activations_beta,
+        "linear_before_reset": linear_before_reset,
+        "clip": clip,
+    }
+    return _get_node_factory_opset5().create("GRUSequence", node_inputs, attributes)
+
+
+@nameable_op
+def rnn_sequence(
+        X: NodeInput,
+        initial_hidden_state: NodeInput,
+        sequence_lengths: NodeInput,
+        W: NodeInput,
+        R: NodeInput,
+        B: NodeInput,
+        hidden_size: int,
+        direction: str,
+        activations: List[str] = None,
+        activations_alpha: List[float] = None,
+        activations_beta: List[float] = None,
+        clip: float = 0.0,
+        name: Optional[str] = None,
+) -> Node:
+    """Return a node which performs RNNSequence operation.
+
+    :param X: The input tensor. Shape: [batch_size, seq_length, input_size].
+    :param initial_hidden_state:    The hidden state tensor.
+                                    Shape: [batch_size, num_directions, hidden_size].
+    :param sequence_lengths:        Specifies real sequence lengths for each batch element.
+                                    Shape: [batch_size]. Integer type.
+    :param W: Tensor with weights for matrix multiplication operation with input portion of data.
+              Shape: [num_directions, hidden_size, input_size].
+    :param R: The tensor with weights for matrix multiplication operation with hidden state.
+              Shape: [num_directions, hidden_size, hidden_size].
+    :param B: The sum of biases (weight and recurrence).
+              Shape: [num_directions, hidden_size].
+    :param hidden_size: Specifies hidden state size.
+    :param direction: Specifies if the RNN is forward, reverse, or bidirectional.
+    :param activations: The list of three activation functions for gates.
+    :param activations_alpha: The list of alpha parameters for activation functions.
+    :param activations_beta: The list of beta parameters for activation functions.
+    :param clip: Specifies bound values [-C, C] for tensor clipping performed before activations.
+    :param name: An optional name of the output node.
+
+    :return: The new node represents RNNSequence. Node outputs count: 2.
+    """
+    if activations is None:
+        activations = ["tanh"]
+    if activations_alpha is None:
+        activations_alpha = []
+    if activations_beta is None:
+        activations_beta = []
+
+    node_inputs = as_nodes(X, initial_hidden_state, sequence_lengths, W, R, B)
+
+    attributes = {
+        "hidden_size": hidden_size,
+        "direction": direction.lower(),
+        "activations": activations,
+        "activations_alpha": activations_alpha,
+        "activations_beta": activations_beta,
+        "clip": clip,
+    }
+    return _get_node_factory_opset5().create("RNNSequence", node_inputs, attributes)
