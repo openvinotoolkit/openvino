@@ -30,7 +30,7 @@ using namespace ngraph;
 
 NGRAPH_SUPPRESS_DEPRECATED_START
 
-constexpr NodeTypeInfo op::Squeeze::type_info;
+NGRAPH_RTTI_DEFINITION(op::v0::Squeeze, "Squeeze", 0);
 
 op::Squeeze::Squeeze(const Output<Node>& data, const Output<Node>& axes)
     : FusedOp({data, axes})
