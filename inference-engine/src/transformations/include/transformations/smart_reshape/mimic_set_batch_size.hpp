@@ -23,8 +23,6 @@ namespace ngraph {
 namespace pass {
 
 class TRANSFORMATIONS_API MimicSetBatchSize;
-class TRANSFORMATIONS_API DisableCFForPriorBoxes;
-class TRANSFORMATIONS_API EnableCFForPriorBoxes;
 
 }  // namespace pass
 }  // namespace ngraph
@@ -41,23 +39,7 @@ class TRANSFORMATIONS_API EnableCFForPriorBoxes;
  * This transformation should be executed only while setBatchSize method call
  */
 
-class ngraph::pass::MimicSetBatchSize: public ngraph::pass::MatcherPass {
-public:
-    NGRAPH_RTTI_DECLARATION;
-    MimicSetBatchSize();
-};
-
-/**
- * @ingroup ie_transformation_common_api
- * @brief DisableCFForPriorBoxes and EnableCFForPriorBoxes transformations are needed to avoid unnecessary PriorBox folding
- */
-class ngraph::pass::DisableCFForPriorBoxes: public ngraph::pass::FunctionPass {
-public:
-    NGRAPH_RTTI_DECLARATION;
-    bool run_on_function(std::shared_ptr<ngraph::Function> f) override;
-};
-
-class ngraph::pass::EnableCFForPriorBoxes: public ngraph::pass::FunctionPass {
+class ngraph::pass::MimicSetBatchSize : public ngraph::pass::FunctionPass {
 public:
     NGRAPH_RTTI_DECLARATION;
     bool run_on_function(std::shared_ptr<ngraph::Function> f) override;
