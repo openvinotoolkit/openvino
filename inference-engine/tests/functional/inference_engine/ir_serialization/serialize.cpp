@@ -70,9 +70,12 @@ TEST_F(SerializationTest, ModelWithMultipleOutputs_MO) {
     auto result = ie.ReadNetwork(m_out_xml_path, m_out_bin_path);
 
     // Compare function does not support models with multiple outputs
-    ASSERT_THROW(
-        compare_functions(result.getFunction(), expected.getFunction()),
-        ngraph::CheckFailure);
+    bool success;
+    std::string message;
+    std::tie(success, message) =
+        compare_functions(result.getFunction(), expected.getFunction());
+
+    ASSERT_FALSE(success) << message;
 }
 
 TEST_F(SerializationTest, ModelWithMultipleOutputs_ONNXImporter) {
@@ -85,9 +88,12 @@ TEST_F(SerializationTest, ModelWithMultipleOutputs_ONNXImporter) {
     auto result = ie.ReadNetwork(m_out_xml_path, m_out_bin_path);
 
     // Compare function does not support models with multiple outputs
-    ASSERT_THROW(
-        compare_functions(result.getFunction(), expected.getFunction()),
-        ngraph::CheckFailure);
+    bool success;
+    std::string message;
+    std::tie(success, message) =
+        compare_functions(result.getFunction(), expected.getFunction());
+
+    ASSERT_FALSE(success) << message;
 }
 
 TEST_F(SerializationTest, ModelWithMultipleLayers_MO) {
