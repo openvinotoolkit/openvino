@@ -26,7 +26,6 @@ extensions/back/FuseTransposesSequence.py
 extensions/back/GatherNormalizer.py
 extensions/back/GroupedConvWeightsNormalize.py
 extensions/back/insert_compatibility_l2normalization.py
-extensions/back/InterpolateAxesCorrection.py
 extensions/back/InterpolateReshape.py
 extensions/back/kaldi_remove_memory_output.py
 extensions/back/LeakyReLUMutation.py
