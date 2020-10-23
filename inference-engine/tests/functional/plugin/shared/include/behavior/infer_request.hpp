@@ -623,4 +623,35 @@ TEST_P(InferRequestTests, returnDeviceBusyOnGetPerformanceCountAfterAsyncInfer) 
         std::cout << "Exception" << e.what() << std::endl;
     }
 }
+
+TEST_P(InferRequestTests, ReturnResultNotReadyFromWaitInAsyncModeForTooSmallTimeout) {
+    // Skip test according to plugin specific disabledTestPatterns() (if any)
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    // Create CNNNetwork from ngrpah::Function
+    InferenceEngine::CNNNetwork cnnNet(function);
+    // Load CNNNetwork to target plugins
+    auto execNet = ie->LoadNetwork(cnnNet, targetDevice, configuration);
+    // Create InferRequest
+    InferenceEngine::InferRequest req;
+    ASSERT_NO_THROW(req = execNet.CreateInferRequest());
+    InferenceEngine::ResponseDesc response;
+    InferenceEngine::StatusCode sts;
+    auto testSuccesfull = false;
+    const auto maxAttempts = 1000;
+    const auto tooSmallTimeoutToComplete = 1; // 1ms
+    // we try to get RESULT_NOT_READY up to 1000 times
+    // as might happen that the result will be OK after waiting 1ms
+    // in some circumstances as thread scheduling, OS specifics etc
+    // TODO: consider to increase the model's computational complexity
+    for (int tries = 0; tries < maxAttempts && !testSuccesfull; ++tries) {
+        req.StartAsync();
+        ASSERT_NO_THROW(sts = req.Wait(tooSmallTimeoutToComplete));
+        if (sts == InferenceEngine::StatusCode::RESULT_NOT_READY) {
+            testSuccesfull = true;
+            ASSERT_NO_THROW(sts = req.Wait(InferenceEngine::IInferRequest::WaitMode::RESULT_READY));
+        }
+        ASSERT_TRUE(sts == InferenceEngine::StatusCode::OK);
+    }
+    ASSERT_TRUE(testSuccesfull);
+}
 }  // namespace BehaviorTestsDefinitions
