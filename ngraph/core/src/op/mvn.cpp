@@ -60,7 +60,6 @@ void op::MVN::validate_and_infer_types()
     if (m_reduction_axes.empty() && input_value(0).get_partial_shape().rank().is_static())
     {
         AxisSet reduction_axes;
-        reduction_axes.insert(0);
         size_t start_axis = m_across_channels ? 1 : 2;
         for (size_t i = start_axis; i < input_value(0).get_partial_shape().rank().get_length(); ++i)
         {
@@ -90,11 +89,10 @@ OutputVector op::MVN::decompose_op() const
     {
         // calculate variance
         auto variance = builder::opset1::variance(data, m_reduction_axes);
-        variance = make_shared<op::Sqrt>(variance);
         // add epsilon
         auto eps_node = op::Constant::create(
             data.get_element_type(), Output<Node>(variance).get_shape(), vector<double>{m_eps});
-        variance = variance + eps_node;
+        variance = std::make_shared<op::Sqrt>(variance + eps_node);
         variance = std::make_shared<op::Broadcast>(variance, data_shape, m_reduction_axes);
 
         return OutputVector{mean_normalization / variance};
