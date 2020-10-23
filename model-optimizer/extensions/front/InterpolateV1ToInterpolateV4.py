@@ -38,7 +38,7 @@ class InterpolateV1ToInterpolateV4(FrontReplacementPattern):
         return [InterpolateNormalizer]
 
     def find_and_replace_pattern(self, graph: Graph):
-        for node in graph.get_op_nodes(op='Interpolate', opset='opset1'):
+        for node in graph.get_op_nodes(op='Interpolate', version='opset1'):
             transformation_mode = 'align_corners' if int(node.soft_get('align_corners', 0)) else 'half_pixel'
             input_node = node.in_port(0).get_source().node
             sizes = node.in_port(1).get_source().node
