@@ -26,6 +26,9 @@ include(developer_package)
 include(check_features)
 include(dependencies)
 
+# These options are used to set OneCore compliance
+include(one_core_compliance)
+
 # resolving dependencies for the project
 message (STATUS "PROJECT ............................... " ${PROJECT_NAME})
 message (STATUS "CMAKE_BINARY_DIR ...................... " ${CMAKE_BINARY_DIR})
