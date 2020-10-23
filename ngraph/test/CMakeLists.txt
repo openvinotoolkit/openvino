@@ -75,7 +75,6 @@ set(SRC
     op_eval/interpolate.cpp
     op_eval/matmul.cpp
     op_eval/mish.cpp
-    op_eval/non_max_suppression_5.cpp
     op_eval/non_zero.cpp
     op_eval/reduce_l1.cpp
     op_eval/reduce_l2.cpp
