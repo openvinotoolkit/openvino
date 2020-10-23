@@ -4,7 +4,7 @@
 
 #include <array>
 #include <fstream>
-#include <map>
+#include <unordered_map>
 #include <unordered_set>
 
 #include "ngraph/ops.hpp"
@@ -101,24 +101,24 @@ public:
     }
 };
 
-const std::map<ngraph::Node*, int> create_layer_ids(const ngraph::Function& f) {
-    std::map<ngraph::Node*, int> layer_ids;
+const std::unordered_map<ngraph::Node*, int> create_layer_ids(const ngraph::Function& f) {
+    std::unordered_map<ngraph::Node*, int> layer_ids;
     int id = 0;
-    for (auto node : f.get_ordered_ops()) {
+    for (const auto &node : f.get_ordered_ops()) {
         layer_ids[node.get()] = id++;
     }
     return layer_ids;
 }
 
 const std::vector<Edge> create_edge_mapping(
-    const std::map<ngraph::Node*, int>& layer_ids, const ngraph::Function& f) {
+    const std::unordered_map<ngraph::Node*, int>& layer_ids, const ngraph::Function& f) {
     std::vector<Edge> edges;
-    for (auto node : f.get_ordered_ops()) {
+    for (const auto &node : f.get_ordered_ops()) {
         if (dynamic_cast<ngraph::op::Parameter*>(node.get()) != nullptr) {
             continue;
         }
 
-        for (auto i : node->inputs()) {
+        for (const auto &i : node->inputs()) {
             auto source_output = i.get_source_output();
             auto source_node = source_output.get_node();
             auto current_node = i.get_node();
@@ -181,7 +181,7 @@ std::string get_type_name(const ngraph::Node* n) {
     std::string name = n->get_type_name();
     NGRAPH_CHECK(name != "GenericIE", "Unsupported type in ", n);
 
-    const std::map<std::string, std::string> translator = {
+    const std::unordered_map<std::string, std::string> translator = {
         {"Constant", "Const"}};
     if (translator.count(name) > 0) {
         name = translator.at(name);
@@ -256,10 +256,10 @@ void ngfunction_2_irv10(pugi::xml_document& doc, std::vector<uint8_t>& bin,
     netXml.append_attribute("version").set_value("10");
     pugi::xml_node layers = netXml.append_child("layers");
 
-    const std::map<ngraph::Node*, int> layer_ids = create_layer_ids(f);
+    const std::unordered_map<ngraph::Node*, int> layer_ids = create_layer_ids(f);
     std::unordered_set<std::string> unique_names;
 
-    for (auto n : f.get_ordered_ops()) {
+    for (const auto& n : f.get_ordered_ops()) {
         ngraph::Node* node = n.get();
 
         NGRAPH_CHECK(layer_ids.find(node) != layer_ids.end(),
