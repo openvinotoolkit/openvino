@@ -203,6 +203,7 @@ KERNEL(reduce_fsv16)(
     const uint input_y_pitch = input_x_pitch * (INPUT0_PAD_BEFORE_SIZE_X + INPUT0_SIZE_X + INPUT0_PAD_AFTER_SIZE_X);
     const uint input_fs_pitch = input_y_pitch * (INPUT0_PAD_BEFORE_SIZE_Y + INPUT0_SIZE_Y + INPUT0_PAD_AFTER_SIZE_Y);
     const uint input_batch_pitch = input_fs_pitch * ((INPUT0_PAD_BEFORE_FEATURE_NUM + INPUT0_FEATURE_NUM + INPUT0_PAD_AFTER_FEATURE_NUM + FSV - 1) / FSV);
+    const uint padding_pitch = INPUT0_GET_INDEX(0, 0, 0, 0);
 
     const uint output_x_pitch = FSV;
     const uint output_y_pitch = FSV * (OUTPUT_PAD_BEFORE_SIZE_X + OUTPUT_SIZE_X + OUTPUT_PAD_AFTER_SIZE_X);
@@ -243,7 +244,7 @@ KERNEL(reduce_fsv16)(
     const uint x_leftover_end = x_max_val;
 #endif
 
-uint offset = batch_out * input_batch_pitch + ((feature_out + FSV - 1) / FSV) * input_fs_pitch + y_out * input_y_pitch + x_out * input_x_pitch;
+uint offset = batch_out * input_batch_pitch + ((feature_out + FSV - 1) / FSV) * input_fs_pitch + y_out * input_y_pitch + x_out * input_x_pitch + padding_pitch;
 
 #if REDUCE_X
     ACCUMULATOR_TYPE acc = INIT_VAL;
