@@ -23,8 +23,10 @@
 #include <cstddef>
 #include <functional>
 #include <map>
+#include <ngraph/runtime/host_tensor.hpp>
 #include "ngraph/coordinate_transform.hpp"
 #include "ngraph/op/util/op_types.hpp"
+#include "ngraph/ops.hpp"
 #include "ngraph/shape_util.hpp"
 
 namespace ngraph
@@ -33,20 +35,9 @@ namespace ngraph
     {
         namespace reference
         {
-            void non_max_suppression(const float* boxes_data,
-                                     const Shape& boxes_data_shape,
-                                     const float* scores_data,
-                                     const Shape& scores_data_shape,
-                                     int64_t max_output_boxes_per_class,
-                                     float iou_threshold,
-                                     float score_threshold,
-                                     float soft_nms_sigma,
-                                     int64_t* selected_indices,
-                                     const Shape& selected_indices_shape,
-                                     float* selected_scores,
-                                     const Shape& selected_scores_shape,
-                                     int64_t* valid_outputs,
-                                     const bool sort_result_descending);
+            void non_max_suppression(const op::v5::NonMaxSuppression* nms5,
+                                     const std::vector<std::shared_ptr<HostTensor>>& out,
+                                     const std::vector<std::shared_ptr<HostTensor>>& args);
         }
     }
 }

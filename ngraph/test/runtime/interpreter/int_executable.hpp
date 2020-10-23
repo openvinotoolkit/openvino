@@ -1434,7 +1434,7 @@ protected:
             const op::v5::NonMaxSuppression* nms =
                 static_cast<const op::v5::NonMaxSuppression*>(&node);
 
-            run_nms5(nms, out, args);
+            reference::non_max_suppression(nms, out, args);
             break;
         }
 

@@ -42,7 +42,7 @@ using namespace ngraph;
 
 static string s_manifest = "${MANIFEST}";
 
-NGRAPH_TEST(${BACKEND_NAME}, nonmaxsuppression_center_point_box_format_backend)
+NGRAPH_TEST(${BACKEND_NAME}, nonmaxsuppression_center_point_box_format)
 {
     std::vector<float> boxes_data = {0.5, 0.5,  1.0, 1.0, 0.5, 0.6,   1.0, 1.0,
                                      0.5, 0.4,  1.0, 1.0, 0.5, 10.5,  1.0, 1.0,
@@ -105,7 +105,7 @@ NGRAPH_TEST(${BACKEND_NAME}, nonmaxsuppression_center_point_box_format_backend)
     EXPECT_EQ(expected_valid_outputs, valid_outputs_value);
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, nonmaxsuppression_flipped_coordinates_backend)
+NGRAPH_TEST(${BACKEND_NAME}, nonmaxsuppression_flipped_coordinates)
 {
     std::vector<float> boxes_data = {1.0, 1.0,  0.0, 0.0,  0.0, 0.1,   1.0, 1.1,
                                      0.0, 0.9,  1.0, -0.1, 0.0, 10.0,  1.0, 11.0,
@@ -168,7 +168,7 @@ NGRAPH_TEST(${BACKEND_NAME}, nonmaxsuppression_flipped_coordinates_backend)
     EXPECT_EQ(expected_valid_outputs, valid_outputs_value);
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, nonmaxsuppression_identical_boxes_backend)
+NGRAPH_TEST(${BACKEND_NAME}, nonmaxsuppression_identical_boxes)
 {
     std::vector<float> boxes_data = {0.0, 0.0, 1.0, 1.0, 0.0, 0.0, 1.0, 1.0, 0.0, 0.0,
                                      1.0, 1.0, 0.0, 0.0, 1.0, 1.0, 0.0, 0.0, 1.0, 1.0,
@@ -232,7 +232,7 @@ NGRAPH_TEST(${BACKEND_NAME}, nonmaxsuppression_identical_boxes_backend)
     EXPECT_EQ(expected_valid_outputs, valid_outputs_value);
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, nonmaxsuppression_limit_output_size_backend)
+NGRAPH_TEST(${BACKEND_NAME}, nonmaxsuppression_limit_output_size)
 {
     std::vector<float> boxes_data = {0.0, 0.0,  1.0, 1.0,  0.0, 0.1,   1.0, 1.1,
                                      0.0, -0.1, 1.0, 0.9,  0.0, 10.0,  1.0, 11.0,
@@ -295,7 +295,7 @@ NGRAPH_TEST(${BACKEND_NAME}, nonmaxsuppression_limit_output_size_backend)
     EXPECT_EQ(expected_valid_outputs, valid_outputs_value);
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, nonmaxsuppression_single_box_backend)
+NGRAPH_TEST(${BACKEND_NAME}, nonmaxsuppression_single_box)
 {
     std::vector<float> boxes_data = {0.0, 0.0, 1.0, 1.0};
 
@@ -356,7 +356,7 @@ NGRAPH_TEST(${BACKEND_NAME}, nonmaxsuppression_single_box_backend)
     EXPECT_EQ(expected_valid_outputs, valid_outputs_value);
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, nonmaxsuppression_suppress_by_IOU_backend)
+NGRAPH_TEST(${BACKEND_NAME}, nonmaxsuppression_suppress_by_IOU)
 {
     std::vector<float> boxes_data = {0.0, 0.0,  1.0, 1.0,  0.0, 0.1,   1.0, 1.1,
                                      0.0, -0.1, 1.0, 0.9,  0.0, 10.0,  1.0, 11.0,
@@ -419,7 +419,7 @@ NGRAPH_TEST(${BACKEND_NAME}, nonmaxsuppression_suppress_by_IOU_backend)
     EXPECT_EQ(expected_valid_outputs, valid_outputs_value);
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, nonmaxsuppression_suppress_by_IOU_and_scores_backend)
+NGRAPH_TEST(${BACKEND_NAME}, nonmaxsuppression_suppress_by_IOU_and_scores)
 {
     std::vector<float> boxes_data = {0.0, 0.0,  1.0, 1.0,  0.0, 0.1,   1.0, 1.1,
                                      0.0, -0.1, 1.0, 0.9,  0.0, 10.0,  1.0, 11.0,
@@ -482,7 +482,7 @@ NGRAPH_TEST(${BACKEND_NAME}, nonmaxsuppression_suppress_by_IOU_and_scores_backen
     EXPECT_EQ(expected_valid_outputs, valid_outputs_value);
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, nonmaxsuppression_two_batches_backend)
+NGRAPH_TEST(${BACKEND_NAME}, nonmaxsuppression_two_batches)
 {
     std::vector<float> boxes_data = {
         0.0, 0.0,  1.0, 1.0,  0.0, 0.1,   1.0, 1.1,   0.0, -0.1, 1.0, 0.9,  0.0, 10.0,  1.0, 11.0,
@@ -548,7 +548,7 @@ NGRAPH_TEST(${BACKEND_NAME}, nonmaxsuppression_two_batches_backend)
     EXPECT_EQ(expected_valid_outputs, valid_outputs_value);
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, nonmaxsuppression_two_classes_backend)
+NGRAPH_TEST(${BACKEND_NAME}, nonmaxsuppression_two_classes)
 {
     std::vector<float> boxes_data = {0.0, 0.0,  1.0, 1.0,  0.0, 0.1,   1.0, 1.1,
                                      0.0, -0.1, 1.0, 0.9,  0.0, 10.0,  1.0, 11.0,
