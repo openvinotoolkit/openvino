@@ -32,7 +32,7 @@ TEST(TransformationTests, ConvReshapeTest1) {
         ngraph::Strides strides{1}, dilations{1};
         ngraph::CoordinateDiff pads_begin{0}, pads_end{0};
         ngraph::Shape output_shape{1, 6, 62};
-        auto conv = std::make_shared<ngraph::op::ConvolutionIE>(input, w, strides, dilations, pads_begin, pads_end, 1);
+        auto conv = std::make_shared<ngraph::op::ConvolutionIE>(input, w, strides, dilations, pads_begin, pads_end, ngraph::element::f32, 1);
 
         f = std::make_shared<ngraph::Function>(ngraph::NodeVector{conv}, ngraph::ParameterVector{});
         ngraph::pass::InitNodeInfo().run_on_function(f);
@@ -65,7 +65,7 @@ TEST(TransformationTests, ConvBiasReshapeTest1) {
         ngraph::Strides strides{1}, dilations{1};
         ngraph::CoordinateDiff pads_begin{0}, pads_end{0};
         ngraph::Shape output_shape{1, 6, 62};
-        auto conv = std::make_shared<ngraph::op::ConvolutionIE>(input, w, b, strides, dilations, pads_begin, pads_end, 1);
+        auto conv = std::make_shared<ngraph::op::ConvolutionIE>(input, w, b, strides, dilations, pads_begin, pads_end, ngraph::element::f32, 1);
 
         f = std::make_shared<ngraph::Function>(ngraph::NodeVector{conv}, ngraph::ParameterVector{});
         ngraph::pass::InitNodeInfo().run_on_function(f);

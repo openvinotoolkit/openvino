@@ -33,48 +33,12 @@ void MultiplyWithOneParentTransformation::SetUp() {
 
     InferenceEngine::Precision netPrecision;
     InferenceEngine::SizeVector inputShape;
-    InferenceEngine::details::LayerTransformation::Params params;
+    ngraph::pass::low_precision::LayerTransformation::Params params;
     MultiplyWithOneParentTransformationValues values;
     std::tie(netPrecision, inputShape, targetDevice, values) = this->GetParam();
     auto precision = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
 
     function = ngraph::builder::subgraph::MultiplyWithOneParentFunction::getOriginal(precision, inputShape, values.fakeQuantize);
-
-    validate();
-}
-
-void MultiplyWithOneParentTransformation::validate() {
-    InferenceEngine::Precision netPrecision;
-    InferenceEngine::SizeVector inputShape;
-    std::string targetDevice;
-    InferenceEngine::details::LayerTransformation::Params params = LayerTestsUtils::LayerTransformationParamsFactory::createParams();
-    MultiplyWithOneParentTransformationValues values;
-    std::tie(netPrecision, inputShape, targetDevice, values) = this->GetParam();
-
-    const InferenceEngine::CNNNetwork network = transform(params);
-
-    IE_SUPPRESS_DEPRECATED_START
-
-    InferenceEngine::OutputsDataMap outputs = network.getOutputsInfo();
-    EXPECT_EQ(1, outputs.size());
-
-    std::map<std::string, InferenceEngine::DataPtr>::iterator it = outputs.begin();
-    const InferenceEngine::CNNLayerPtr outputLayer = getCreatorLayer(it->second).lock();
-    EXPECT_TRUE(outputLayer != nullptr);
-    EXPECT_EQ("Eltwise", outputLayer->type);
-
-    // check #1: successful transformation execution
-    EXPECT_EQ(2ul, outputLayer->insData.size());
-    const auto parents = InferenceEngine::details::CNNNetworkHelper::getParents(*outputLayer);
-    EXPECT_EQ(2ul, parents.size());
-    EXPECT_EQ("ScaleShift", parents[0]->type);
-
-    // check #2: successful graph handling
-    EXPECT_EQ("FakeQuantize", parents[1]->type);
-    EXPECT_EQ(1ul, InferenceEngine::details::CNNNetworkHelper::getParents(*parents[0]).size());
-    EXPECT_EQ("FakeQuantize", InferenceEngine::details::CNNNetworkHelper::getParents(*parents[0])[0]->type);
-
-    IE_SUPPRESS_DEPRECATED_END
 }
 
 TEST_P(MultiplyWithOneParentTransformation, CompareWithRefImpl) {

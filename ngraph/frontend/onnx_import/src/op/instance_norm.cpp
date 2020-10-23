@@ -93,21 +93,7 @@ namespace ngraph
                     const auto reduction_axes =
                         common::get_monotonic_range_along_node_rank(data, 2);
 
-                    const std::shared_ptr<ngraph::Node> eps_node =
-                        std::make_shared<default_opset::Constant>(
-                            data.get_element_type(), Shape{}, epsilon);
-
-                    auto mean =
-                        std::make_shared<default_opset::ReduceMean>(data, reduction_axes, true);
-                    auto diff = std::make_shared<default_opset::Subtract>(data, mean);
-                    auto variance = std::make_shared<default_opset::ReduceMean>(
-                        std::make_shared<default_opset::Power>(
-                            diff,
-                            default_opset::Constant::create(data.get_element_type(), Shape{}, {2})),
-                        reduction_axes,
-                        true);
-                    const auto sqrt = std::make_shared<default_opset::Sqrt>(
-                        std::make_shared<default_opset::Add>(variance, eps_node));
+                    auto mvn = std::make_shared<default_opset::MVN>(data, false, true, epsilon);
 
                     std::shared_ptr<ngraph::Node> data_shape_node;
                     if (data_pshape.is_static())
@@ -132,10 +118,9 @@ namespace ngraph
                         data_shape_node,
                         std::make_shared<default_opset::Constant>(element::i64, Shape{1}, 1));
 
-                    // scale * (data - mean) / sqrt + bias
+                    // scale * mvn + bias
                     std::shared_ptr<ngraph::Node> result =
-                        std::make_shared<default_opset::Divide>(scale, sqrt);
-                    result = std::make_shared<default_opset::Multiply>(diff, result);
+                        std::make_shared<default_opset::Multiply>(mvn, scale);
                     result = std::make_shared<default_opset::Add>(result, bias);
 
                     return {result};

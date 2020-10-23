@@ -24,23 +24,22 @@ std::string GemmTransformation::getTestCaseName(testing::TestParamInfo<LayerTest
     InferenceEngine::Precision netPrecision;
     InferenceEngine::SizeVector inputShapes;
     std::string targetDevice;
-    InferenceEngine::details::LayerTransformation::Params params;
+    ngraph::pass::low_precision::LayerTransformation::Params params;
     std::tie(netPrecision, inputShapes, targetDevice, params) = obj.param;
 
-    std::ostringstream result;
-    result << inputShapes.size() << "D_" << netPrecision.name() << "_" << targetDevice << "_" << toString(params);
-    return result.str();
+    return getTestCaseNameByParams(netPrecision, inputShapes, targetDevice, params);
 }
 
 void GemmTransformation::SetUp() {
     InferenceEngine::SizeVector inputShape;
     InferenceEngine::Precision netPrecision;
-    InferenceEngine::details::LayerTransformation::Params params;
+    ngraph::pass::low_precision::LayerTransformation::Params params;
     std::tie(netPrecision, inputShape, targetDevice, params) = this->GetParam();
+
     auto ngPrecision = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
 
-    const float low = params.precisionsOnActivations[0] == InferenceEngine::Precision::U8 ? 0.f : -128.f;
-    const float high = params.precisionsOnActivations[0] == InferenceEngine::Precision::U8 ? 255.f : 127.f;
+    const float low = params.precisionsOnActivations[0] == ngraph::element::u8 ? 0.f : -128.f;
+    const float high = params.precisionsOnActivations[0] == ngraph::element::u8 ? 255.f : 127.f;
 
     const auto input1 = std::make_shared<ngraph::opset1::Parameter>(ngPrecision, ngraph::Shape(inputShape));
     const auto fakeQuantize1 = ngraph::builder::makeFakeQuantize(
@@ -63,43 +62,6 @@ void GemmTransformation::SetUp() {
 
     ngraph::ResultVector results {std::make_shared<ngraph::opset1::Result>(matMul)};
     function = std::make_shared<ngraph::Function>(results, ngraph::ParameterVector { input1, input2 }, "GemmTransformation");
-
-    // TODO: move to some another place
-    validate();
-}
-
-void GemmTransformation::validate() {
-    InferenceEngine::SizeVector inputShape;
-    InferenceEngine::Precision netPrecision;
-    InferenceEngine::details::LayerTransformation::Params params;
-    std::tie(netPrecision, inputShape, targetDevice, params) = this->GetParam();
-
-    const InferenceEngine::CNNNetwork network = transform(params);
-
-    IE_SUPPRESS_DEPRECATED_START
-
-    InferenceEngine::OutputsDataMap outputs = network.getOutputsInfo();
-    EXPECT_EQ(1, outputs.size());
-
-    for (const auto it : outputs) {
-        const InferenceEngine::CNNLayerPtr outputLayer = getCreatorLayer(it.second).lock();
-        EXPECT_TRUE(outputLayer != nullptr);
-        EXPECT_EQ("ScaleShift", outputLayer->type);
-
-        const InferenceEngine::CNNLayerPtr layer = InferenceEngine::details::CNNNetworkHelper::getParent(*outputLayer);
-        for (const InferenceEngine::DataWeakPtr insDataWeak : layer->insData) {
-            const InferenceEngine::DataPtr insData = insDataWeak.lock();
-            EXPECT_TRUE(insData != nullptr) << "insert data is nullable";
-            const InferenceEngine::Precision precision = insData->getTensorDesc().getPrecision();
-            const std::unordered_set<uint8_t> expectedPrecisions = params.updatePrecisions ?
-                std::unordered_set<uint8_t>({ params.precisionsOnActivations[0] }) :
-                std::unordered_set<uint8_t>({ InferenceEngine::Precision::FP16, InferenceEngine::Precision::FP32 });
-            EXPECT_TRUE(expectedPrecisions.find(precision) != expectedPrecisions.end()) <<
-                " actual precision is " << precision;
-        }
-    }
-
-    IE_SUPPRESS_DEPRECATED_END
 }
 
 TEST_P(GemmTransformation, CompareWithRefImpl) {
