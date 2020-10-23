@@ -110,7 +110,7 @@ public:
     void propagateSync(const uint32_t requestConfigId, Gna2AccelerationMode gna2AccelerationMode);
     uint32_t propagate(const uint32_t requestConfigId, Gna2AccelerationMode gna2AccelerationMode);
 #if GNA_LIB_VER == 2
-    uint32_t createModel(const Gna2Model& gnaModel) const;
+    uint32_t createModel(Gna2Model& gnaModel) const;
 #else
     uint32_t createModel(const intel_nnet_type_t& intel_nnet_type);
 #endif
@@ -118,6 +118,9 @@ public:
     uint32_t createRequestConfig(const uint32_t model_id);
     bool hasGnaHw() const {
         return Gna2DeviceVersionSoftwareEmulation != detectedGnaDevVersion;
+    }
+    bool isUpTo20GnaDevice() const {
+        return detectedGnaDevVersion <= Gna2DeviceVersion2_0;
     }
     static void checkGna2Status(Gna2Status status);
     static void checkGna2Status(Gna2Status status, const Gna2Model& gnaModel);
@@ -166,6 +169,8 @@ public:
     static const std::map <Gna2ErrorType, const std::string> errorReasons;
     static const std::map <Gna2OperationType, const std::string> operationTypes;
     static const std::map <const std::pair<Gna2OperationType, int32_t>, const std::string > operandTypes;
+
+    static void enforceLegacyCnns(Gna2Model& gnaModel);
 #endif
     void setOMPThreads(uint8_t const n_threads);
 
