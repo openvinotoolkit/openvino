@@ -50,5 +50,3 @@ libprotoc 2.6.1.
 ## See Also
 
 * [Known Issues and Limitations in the Inference Engine](../IE_DG/Known_Issues_Limitations.md)
-* [Optimization Guide](../optimization_guide/dldt_optimization_guide.md)
-* [Object Detection SSD C++ Demo, Async API Performance Showcase](@ref omz_demos_object_detection_demo_ssd_async_README)
