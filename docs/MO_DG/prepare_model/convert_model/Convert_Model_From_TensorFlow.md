@@ -381,4 +381,6 @@ In this document, you learned:
 
 * [Converting a Caffe* Model](Convert_Model_From_Caffe.md)
 * [Converting an MXNet* Model](Convert_Model_From_MxNet.md)
+* [Converting a Kaldi* Model](Convert_Model_From_Kaldi.md)
+* [Converting an ONNX* Model](Convert_Model_From_ONNX.md)
 * [Converting a Model Using General Conversion Parameters](Converting_Model_General.md)
