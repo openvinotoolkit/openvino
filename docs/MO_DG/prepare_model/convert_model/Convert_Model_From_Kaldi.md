@@ -114,4 +114,4 @@ Refer to [Supported Framework Layers ](../Supported_Frameworks_Layers.md) for th
 * [Converting an MXNet* Model](Convert_Model_From_MxNet.md)
 * [Converting a Caffe* Model](Convert_Model_From_Caffe.md)
 * [Converting an ONNX* Model](Convert_Model_From_ONNX.md)
-* [Custom Layers Guide](../../HOWTO/Custom_Layers_Guide.md)
+* [Custom Layers Guide](../../../HOWTO/Custom_Layers_Guide.md)

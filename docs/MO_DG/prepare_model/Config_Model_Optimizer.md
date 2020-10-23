@@ -262,9 +262,8 @@ set PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION=cpp
 
 ---
 ## See Also
-\openvino\docs\MO_DG\prepare_model\**Config_Model_Optimizer**.md
-\openvino\docs\install_guides
-* [Converting a Model to Intermediate Representation (IR)](/convert_model/Converting_Model.md)
+
+* [Converting a Model to Intermediate Representation (IR)](convert_model/Converting_Model.md)
 * [Install OpenVINO™ toolkit for Raspbian* OS](../../install_guides/installing_openvino_raspbian.md)
 * [Install Intel® Distribution of OpenVINO™ toolkit for Windows* 10](../../install_guides/installing_openvino_windows.md)
 * [Install Intel® Distribution of OpenVINO™ toolkit for Windows* with FPGA Support](../../install_guides/installing_openvino_windows_fpga.md)

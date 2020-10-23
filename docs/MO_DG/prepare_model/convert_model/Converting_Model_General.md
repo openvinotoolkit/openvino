@@ -242,4 +242,4 @@ python3 mo.py --input_model FaceNet.pb --input "placeholder_layer_name->[0.1 1.2
 * [Converting an MXNet* Model](Convert_Model_From_MxNet.md)
 * [Converting an ONNX* Model](Convert_Model_From_ONNX.md)
 * [Converting a Kaldi* Model](Convert_Model_From_Kaldi.md)
-* [Using Shape Inference](../../IE_DG/ShapeInference.md)
+* [Using Shape Inference](../../../IE_DG/ShapeInference.md)
