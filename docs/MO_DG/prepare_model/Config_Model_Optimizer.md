@@ -269,5 +269,3 @@ set PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION=cpp
 * [Install Intel® Distribution of OpenVINO™ toolkit for Windows* with FPGA Support](../install_guides/installing_openvino_windows_fpga.md)
 * [Install Intel® Distribution of OpenVINO™ toolkit for macOS*](../install_guides/installing_openvino_macos.md)
 * [Configuration Guide for the Intel® Distribution of OpenVINO™ toolkit 2020.4 and the Intel® Vision Accelerator Design with an Intel® Arria® 10 FPGA SG2 (IEI's Mustang-F100-A10) on Linux* ](../install_guides/VisionAcceleratorFPGA_Configure.md)
-
-
