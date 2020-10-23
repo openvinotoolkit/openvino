@@ -156,54 +156,46 @@ Stage StageBuilder::addSplitStage(
     DimValues curOffset({{axis, 0}});
 
     const auto haveUnusedOutput = [](const DataVector& outputs) {
-        auto predicate = [](const vpu::Data& out) {
+        return std::any_of(outputs.begin(), outputs.end(), [](const vpu::Data& out) {
             return out == nullptr;
-        };
-        return std::any_of(outputs.begin(), outputs.end(), predicate);
+        });
     };
 
-    const auto getOutAxisSizes = [](const ie::CNNLayerPtr& layer, const Dim axis) {
-        const auto outDimsSize = layer->outData[0]->getDims().size();
-        const int idx = dimToIeInd(axis, outDimsSize);
-
+    const auto getOutAxisSizes = [&]() {
         std::vector<size_t> outAxisSizes;
-        outAxisSizes.reserve(outDimsSize);
-        for (const auto& out : layer->outData) {
-            IE_ASSERT(idx <= out->getDims().size());
-            outAxisSizes.push_back(out->getDims()[idx]);
+        if (haveUnusedOutput(outputs)) {
+            VPU_THROW_UNLESS(layer != nullptr, "Can't build Split stage with unused outputs when layer == nullptr");
+            const auto outDimsSize = layer->outData[0]->getDims().size();
+            const int idx = dimToIeInd(axis, outDimsSize);
+            outAxisSizes.reserve(outDimsSize);
+            for (const auto& out : layer->outData) {
+                VPU_THROW_UNLESS(idx <= out->getDims().size(), "wrong index size");
+                outAxisSizes.push_back(out->getDims()[idx]);
+            }
+        } else {
+            outAxisSizes.reserve(outputs.size());
+            for (const auto& output : outputs) {
+                outAxisSizes.push_back(output->desc().dim(axis));
+            }
         }
         return outAxisSizes;
     };
 
-    if (haveUnusedOutput(outputs)) {
-        IE_ASSERT(layer != nullptr);
-        const auto outAxisSizes = getOutAxisSizes(layer, axis);
-        vpu::DataVector usedOutputs;
-        for (int i = 0; i < outputs.size(); ++i) {
-            if (outputs[i] != nullptr) {
-                offsets.emplace_back(curOffset);
-                usedOutputs.push_back(outputs[i]);
-            }
-            curOffset.set(axis, curOffset[axis] + outAxisSizes[i]);
-        }
-
-        auto stage = addSplitStage(model, name, layer, std::move(offsets), input, usedOutputs);
-
-        stage->attrs().set("axis", axis);
-
-        return stage;
-    } else {    //  This branch handles cases when cnnLayer == nullptr
-        for (const auto& output : outputs) {
+    const auto outAxisSizes = getOutAxisSizes();
+    vpu::DataVector usedOutputs;
+    for (int i = 0; i < outputs.size(); ++i) {
+        if (outputs[i] != nullptr) {
             offsets.emplace_back(curOffset);
-            curOffset.set(axis, curOffset[axis] + output->desc().dim(axis));
+            usedOutputs.push_back(outputs[i]);
         }
-
-        auto stage = addSplitStage(model, name, layer, std::move(offsets), input, outputs);
-
-        stage->attrs().set("axis", axis);
-
-        return stage;
+        curOffset.set(axis, curOffset[axis] + outAxisSizes[i]);
     }
+
+    auto stage = addSplitStage(model, name, layer, std::move(offsets), input, usedOutputs);
+
+    stage->attrs().set("axis", axis);
+
+    return stage;
 }
 
 Stage StageBuilder::addSplitStage(
