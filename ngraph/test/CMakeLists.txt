@@ -132,6 +132,7 @@ set(SRC
     type_prop/gru_cell.cpp
     type_prop/gru_sequence.cpp
     type_prop/hard_sigmoid.cpp
+    type_prop/hsigmoid.cpp
     type_prop/hswish.cpp
     type_prop/interpolate.cpp
     type_prop/lrn.cpp
