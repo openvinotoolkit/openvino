@@ -219,6 +219,7 @@ TEST(ConvertFunctionToCNNNetworkTests, UnsupportedDynamicOps) {
         auto non_zero = std::make_shared<ngraph::opset4::NonZero>(relu);
         non_zero->set_friendly_name("non_zero");
         auto result = std::make_shared<ngraph::op::Result>(non_zero->output(0));
+        result->set_friendly_name("result");
 
         f = std::make_shared<ngraph::Function>(ngraph::ResultVector{result},
                                                ngraph::ParameterVector{param});
@@ -233,6 +234,6 @@ TEST(ConvertFunctionToCNNNetworkTests, UnsupportedDynamicOps) {
                                                              "v0::Parameter param () -> (f32?)\n"
                                                              "v0::Relu relu (param[0]:f32?) -> (f32?)\n"
                                                              "v3::NonZero non_zero (relu[0]:f32?) -> (i64{?,?})\n"
-                                                             "v0::Result Result_12 (non_zero[0]:i64{?,?}) -> (i64{?,?})")));
+                                                             "v0::Result result (non_zero[0]:i64{?,?}) -> (i64{?,?})")));
     }
 }
