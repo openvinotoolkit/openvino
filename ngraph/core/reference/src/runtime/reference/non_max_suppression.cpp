@@ -390,10 +390,8 @@ namespace
         int64_t num_classes = static_cast<int64_t>(scores_data_shape[1]);
         int64_t num_boxes = static_cast<int64_t>(boxes_data_shape[1]);
 
-        SelectedIndex* selected_indices_ptr =
-            reinterpret_cast<SelectedIndex*>(selected_indices);
-        SelectedScore* selected_scores_ptr =
-            reinterpret_cast<SelectedScore*>(selected_scores);
+        SelectedIndex* selected_indices_ptr = reinterpret_cast<SelectedIndex*>(selected_indices);
+        SelectedScore* selected_scores_ptr = reinterpret_cast<SelectedScore*>(selected_scores);
 
         size_t boxes_per_class = static_cast<size_t>(max_output_boxes_per_class);
 
@@ -443,8 +441,7 @@ namespace
                          j >= next_candidate.suppress_begin_index;
                          --j)
                     {
-                        float iou =
-                            intersectionOverUnion(next_candidate.box, selected[j].box);
+                        float iou = intersectionOverUnion(next_candidate.box, selected[j].box);
                         next_candidate.score *= func(iou);
 
                         if (iou >= iou_threshold)
@@ -524,7 +521,6 @@ namespace ngraph
     {
         namespace reference
         {
-
             void non_max_suppression(const op::v5::NonMaxSuppression* nms5,
                                      const std::vector<std::shared_ptr<HostTensor>>& outputs,
                                      const std::vector<std::shared_ptr<HostTensor>>& inputs)
@@ -589,11 +585,11 @@ namespace ngraph
                 }
 
                 nms_postprocessing(outputs,
-                                output_type,
-                                selected_indices,
-                                selected_scores,
-                                valid_outputs,
-                                selected_scores_type);
+                                   output_type,
+                                   selected_indices,
+                                   selected_scores,
+                                   valid_outputs,
+                                   selected_scores_type);
             }
         }
     }
