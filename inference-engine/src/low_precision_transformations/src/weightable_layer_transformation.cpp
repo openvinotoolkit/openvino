@@ -329,7 +329,7 @@ void WeightableLayerTransformation::updateToSupportAsymmetricQuantization(
     const PrecisionsInfo& weightsPrecisionsInfo,
     std::vector<float>& weightsShifts) const {
     const CNNLayerPtr parentOnData = CNNNetworkHelper::getParent(layer, 0ul);
-    if (parentOnData->type == "ScaleShift") {
+    if (parentOnData->type == "ScaleShift") {   // FIXME: it is always true
         const std::shared_ptr<float> dataConvertedInBlob = CNNNetworkHelper::convertFloatData(
             dataShifts.data(),
             dataShifts.size(),
