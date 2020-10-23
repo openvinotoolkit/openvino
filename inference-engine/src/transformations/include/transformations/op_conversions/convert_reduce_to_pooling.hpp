@@ -48,7 +48,9 @@ class ngraph::pass::ConvertReduceMeanToPooling: public ConvertReduceBase {
 public:
     ConvertReduceMeanToPooling() {
         auto m = std::make_shared<ngraph::pattern::Matcher>(
-                ngraph::pattern::wrap_type<opset1::ReduceMean>(pattern::has_static_shape()), "ConvertReduceMean");
+                ngraph::pattern::wrap_type<opset1::ReduceMean>({pattern::any_input(pattern::has_static_shape()),
+                                                                pattern::wrap_type<opset1::Constant>()},
+                                                                pattern::has_static_shape()), "ConvertReduceMean");
         register_matcher(m, convert_reduce_to_pooling<opset1::ReduceMean>());
     }
 };
@@ -57,7 +59,9 @@ class ngraph::pass::ConvertReduceMaxToPooling: public ConvertReduceBase {
 public:
     ConvertReduceMaxToPooling() {
         auto m = std::make_shared<ngraph::pattern::Matcher>(
-                ngraph::pattern::wrap_type<opset1::ReduceMax>(pattern::has_static_shape()), "ConvertReduceMax");
+                ngraph::pattern::wrap_type<opset1::ReduceMax>({pattern::any_input(pattern::has_static_shape()),
+                                                               pattern::wrap_type<opset1::Constant>()},
+                                                               pattern::has_static_shape()), "ConvertReduceMax");
         register_matcher(m, convert_reduce_to_pooling<opset1::ReduceMax>());
     }
 };
@@ -66,7 +70,9 @@ class ngraph::pass::ConvertReduceSumToPooling: public ConvertReduceBase {
 public:
     ConvertReduceSumToPooling() {
         auto m = std::make_shared<ngraph::pattern::Matcher>(
-                ngraph::pattern::wrap_type<opset1::ReduceSum>(pattern::has_static_shape()), "ConvertReduceSum");
+                ngraph::pattern::wrap_type<opset1::ReduceSum>({pattern::any_input(pattern::has_static_shape()),
+                                                               pattern::wrap_type<opset1::Constant>()},
+                                                               pattern::has_static_shape()), "ConvertReduceSum");
         register_matcher(m, convert_reduce_to_pooling<opset1::ReduceSum>());
     }
 };
@@ -82,12 +88,12 @@ ngraph::matcher_pass_callback ConvertReduceBase::convert_reduce_to_pooling() {
 
         auto input = reduce->input_value(0);
 
-        auto axes_node = reduce->input_value(1).get_node_shared_ptr();
-        if (!ngraph::op::is_constant(axes_node)) {
+        auto axes_node = std::dynamic_pointer_cast<ngraph::opset1::Constant>(reduce->input_value(1).get_node_shared_ptr());
+        if (!axes_node) {
             return false;
         }
 
-        auto axes_vector = std::dynamic_pointer_cast<ngraph::opset1::Constant>(axes_node)->template cast_vector<int64_t>();
+        auto axes_vector = axes_node->template cast_vector<int64_t>();
         const auto input_rank = input.get_partial_shape().rank().get_length();
         // Transform negative axes into non-negative ones
         for (size_t i = 0; i < axes_vector.size(); ++i) {
