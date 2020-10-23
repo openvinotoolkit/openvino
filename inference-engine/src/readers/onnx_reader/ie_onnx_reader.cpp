@@ -27,7 +27,7 @@ std::string readPathFromStream(std::istream& stream) {
  * model validation).
  */
 struct StreamRewinder {
-    StreamRewinder(std::istream& stream) : m_stream{stream} {
+    StreamRewinder(std::istream& stream) : m_stream(stream) {
         m_stream.seekg(0, m_stream.beg);
     }
     ~StreamRewinder() {
