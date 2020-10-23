@@ -21,6 +21,7 @@ from extensions.ops.tensor_iterator import TensorIterator
 from mo.front.common.partial_infer.utils import int64_array
 from mo.graph.graph import Node, Graph
 from mo.middle.passes.infer import partial_infer
+from mo.ops.const import Const
 
 
 class Loop(TensorIterator):
@@ -176,6 +177,59 @@ class Loop(TensorIterator):
         loop_node.output_port_map.append({'axis': None, 'stride': None, 'part_size': None, 'start': None, 'end': None,
                                           'external_port_id': -1, 'purpose': 'execution_condition',
                                           'internal_layer_id': body_result_node['internal_layer_id']})
+
+    @staticmethod
+    def external_port_id_to_body_node(loop_node: Node, external_port_id: int, port_map: dict):
+        assert loop_node.soft_get('type') == 'Loop'
+        body_graph = loop_node.body
+        result_nodes = []
+        for record in port_map:
+            if record['external_port_id'] == external_port_id:
+                result_nodes.extend(body_graph.get_op_nodes(internal_layer_id=record['internal_layer_id']))
+        assert len(result_nodes) == 1, 'There should be just one body node for external port "{}", but there "{}"' \
+                                       ''.format(external_port_id, len(result_nodes))
+        return result_nodes[0]
+
+    @staticmethod
+    def pull_constant_inputs_into_body(loop_node: Node):
+        for port_idx, in_port in reversed(loop_node.in_ports().items()):
+            if not in_port.disconnected() and in_port.get_source().node.soft_get('type') == 'Const':
+                original_const_node = in_port.get_source().node
+                new_const_node = Const(loop_node.body, original_const_node.attrs()).create_node()
+
+                body_parameter = Loop.external_port_id_to_body_node(loop_node, port_idx, loop_node.input_port_map)
+                body_parameter.out_port(0).get_connection().set_source(new_const_node.out_port(0))
+                loop_node.body.remove_nodes_from([body_parameter.id])
+                loop_node.delete_input_port(port_idx)
+
+    @staticmethod
+    def update_port_map_value(loop_node: Node, port_map: dict, attr: str, original_value: int, new_value: int):
+        matched = 0
+        for record in port_map:
+            if record[attr] == original_value:
+                record[attr] = new_value
+                matched += 1
+        assert matched == 1, 'More than one record in the portmap for attr "{}" wil original value "{}"' \
+                             ''.format(attr, original_value)
+
+    @staticmethod
+    def re_numerate_input_ports(loop_node: Node):
+        def re_number_input_port(loop_node: Node, old_port_id: int, new_port_id: int):
+            loop_node.add_input_port(new_port_id, skip_if_exist=True)
+            loop_node.in_port(old_port_id).get_connection().set_destination(loop_node.in_port(new_port_id))
+            Loop.update_port_map_value(loop_node, loop_node.input_port_map, 'external_port_id', old_port_id, new_port_id)
+
+        if len(loop_node.in_ports()) > 0:
+            max_port_id = sorted(loop_node.in_ports().keys())[-1]
+            new_port_id = 0
+            for port_id in range(max_port_id + 1):
+                if port_id in loop_node.in_ports():
+                    if port_id != new_port_id:
+                        re_number_input_port(loop_node, port_id, new_port_id)
+                    new_port_id += 1
+
+            for port_idx_to_remove in reversed(range(new_port_id, max_port_id + 1)):
+                loop_node.delete_input_port(port_idx_to_remove)
 
     @staticmethod
     def re_numerate_output_ports(loop_node: Node):
