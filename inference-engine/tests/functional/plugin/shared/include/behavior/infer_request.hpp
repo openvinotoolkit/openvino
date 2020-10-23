@@ -637,7 +637,7 @@ TEST_P(InferRequestTestsResultNotReady, ReturnResultNotReadyFromWaitInAsyncModeF
     InferenceEngine::InferRequest req;
     ASSERT_NO_THROW(req = execNet.CreateInferRequest());
     InferenceEngine::ResponseDesc response;
-    InferenceEngine::StatusCode sts;
+    InferenceEngine::StatusCode sts = InferenceEngine::StatusCode::OK;
     auto testSuccesfull = false;
     const auto maxAttempts = 1000;
     const auto tooSmallTimeoutToComplete = 1; // 1ms
@@ -647,7 +647,7 @@ TEST_P(InferRequestTestsResultNotReady, ReturnResultNotReadyFromWaitInAsyncModeF
     // TODO: consider to increase the model's computational complexity
     for (int tries = 0; tries < maxAttempts && !testSuccesfull; ++tries) {
         req.StartAsync();
-        ASSERT_NO_THROW(sts = req.Wait(tooSmallTimeoutToComplete));
+        sts = req.Wait(tooSmallTimeoutToComplete);
         if (sts == InferenceEngine::StatusCode::RESULT_NOT_READY) {
             testSuccesfull = true;
             ASSERT_NO_THROW(sts = req.Wait(InferenceEngine::IInferRequest::WaitMode::RESULT_READY));
