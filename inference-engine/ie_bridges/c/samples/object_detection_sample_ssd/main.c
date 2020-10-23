@@ -271,22 +271,6 @@ void int2str(char *str, int num) {
     }
 }
 
-/**
-* @brief Extract filename extention;
-* @param char A constant pointer to the filename string.
-* @return A constant pointer to the filename extention string
-*/
-const char* getFileNameExt(const char* filename) {
-    const char* fileExtention = "";
-
-    const char* dot = strrchr(filename, '.');
-    if (dot && dot != filename) {
-        fileExtention = dot + 1;
-    }
-
-    return fileExtention;
-}
-
 int main(int argc, char **argv) {
     /** This sample covers certain topology and cannot be generalized for any object detection one **/
     ie_version_t version = ie_c_api_version();
@@ -361,18 +345,9 @@ int main(int argc, char **argv) {
     // -----------------------------------------------------------------------------------------------------
 
     // 4. Read a model in OpenVINO Intermediate Representation (.xml and .bin files) or ONNX (.onnx file) format
-    printf("%sLoading network files:\n", info);
+    printf("%sLoading network:\n", info);
     printf("\t%s\n", input_model);
-
-    if (getFileNameExt(input_model) == "xml") {
-        //read .bin weights for IR format only
-        input_weight = (char*)calloc(strlen(input_model) + 1, sizeof(char));
-        memcpy(input_weight, input_model, strlen(input_model) - 4);
-        memcpy(input_weight + strlen(input_model) - 4, ".bin", strlen(".bin") + 1);
-        printf("\t%s\n", input_weight);
-    }
-
-    status = ie_core_read_network(core, input_model, input_weight, &network);
+    status = ie_core_read_network(core, input_model, NULL, &network);
     if (status != OK)
         goto err;
     // -----------------------------------------------------------------------------------------------------
