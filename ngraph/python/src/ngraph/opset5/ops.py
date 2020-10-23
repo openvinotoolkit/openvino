@@ -140,3 +140,52 @@ def hsigmoid(data: NodeInput, name: Optional[str] = None,) -> Node:
     :return: The new node which performs HSigmoid
     """
     return _get_node_factory_opset5().create("HSigmoid", as_nodes(data), {})
+
+
+@nameable_op
+def gru_sequence(
+    X: NodeInput,
+    H_t: NodeInput,
+    sequence_lengths: NodeInput,
+    W: NodeInput,
+    R: NodeInput,
+    B: NodeInput,
+    hidden_size: int,
+    direction: str,
+    activations: List[str] = ["sigmoid", "tanh"],
+    activations_alpha: List[float] = [],
+    activations_beta: List[float] = [],
+    clip: float = 0.0,
+    linear_before_reset: bool = False,
+    name: Optional[str] = None,
+) -> Node:
+    """Return a node which performs GRUSequence.
+
+    :param X:
+    :param H_t:
+    :param sequence_lengths:
+    :param W:
+    :param R:
+    :param B:
+    :param hidden_size:
+    :param direction:
+    :param activations:
+    :param activations_alpha:
+    :param activations_beta:
+    :param clip:
+    :param linear_before_reset:
+    :return: The new node which performs GRUSequence
+    """
+
+    inputs = as_nodes(X, H_t, sequence_lengths, W, R, B)
+
+    attributes = {
+        "hidden_size": hidden_size,
+        "activations": activations,
+        "activations_alpha": activations_alpha,
+        "activations_beta": activations_alpha,
+        "clip": clip,
+        "linear_before_reset": linear_before_reset,
+    }
+
+    return _get_node_factory_opset5().create("GRUSequence", inputs, attributes)
