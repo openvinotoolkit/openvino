@@ -29,8 +29,7 @@ namespace ngraph
             class NGRAPH_API Assign : public Sink
             {
             public:
-                static constexpr NodeTypeInfo type_info{"Assign", 3};
-                const NodeTypeInfo& get_type_info() const override { return type_info; }
+                NGRAPH_RTTI_DECLARATION;
                 Assign() = default;
 
                 /// \brief Constructs an Assign operation.
