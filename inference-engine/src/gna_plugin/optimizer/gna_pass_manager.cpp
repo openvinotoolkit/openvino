@@ -327,9 +327,9 @@ void SubstituteSoftSignPass::run() {
         if (powerLayer->power != -1) {
             //if first one is power equals 1, then it still can be a softsign
             //with two power operations, one for add and one for power
-            if (powerLayer->power != 1)
+            if (powerLayer->power != 1) {
                 continue;
-            else {
+            } else {
                 if (powerLayer->offset != 1) continue;
                 if (powerLayer->scale != 1) continue;
 
