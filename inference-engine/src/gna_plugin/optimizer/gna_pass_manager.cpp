@@ -128,7 +128,7 @@ static std::vector<CNNLayerPtr> getCandidatesForIdentityInsertion(const CNNLayer
     auto PrevFunctionalLayer = [](CNNLayerPtr l, int idx = 0) {
         auto prevLayer = CNNNetPrevLayerSkipCertain(l, idx, [](CNNLayerPtr ptr) {
             return LayerInfo(ptr).isNonFunctional();
-            });
+        });
         gnalog() << "CNNNetPrevLayerSkipCertain for :: " << l->name << "returned: " << prevLayer->name << std::endl;
         return prevLayer;
     };
@@ -152,35 +152,35 @@ static std::vector<CNNLayerPtr> getCandidatesForIdentityInsertion(const CNNLayer
         auto prev1 = PrevFunctionalLayer(l, 1);
 
         switch (eltwise->_operation) {
-        case EltwiseLayer::Sub:
-        case EltwiseLayer::Sum:
-            if (!LayerInfo(prev0).has32BOutput() || !LayerInfo(prev1).has32BOutput()) {
-                return prevLayers;
-            }
-            // TODO: whether there are possibility to select after what layer identity gets inserted
-            prevLayers.push_back(CNNNetPrevLayer(l, 0));
-            break;
-        case EltwiseLayer::Prod: {
-            if (LayerInfo(prev0).has16BOutput() && LayerInfo(prev1).has16BOutput()) {
-                return prevLayers;
-            }
-
-            if (LayerInfo(prev0).has32BOutput()) {
+            case EltwiseLayer::Sub:
+            case EltwiseLayer::Sum:
+                if (!LayerInfo(prev0).has32BOutput() || !LayerInfo(prev1).has32BOutput()) {
+                    return prevLayers;
+                }
+                // TODO: whether there are possibility to select after what layer identity gets inserted
                 prevLayers.push_back(CNNNetPrevLayer(l, 0));
+                break;
+            case EltwiseLayer::Prod: {
+                if (LayerInfo(prev0).has16BOutput() && LayerInfo(prev1).has16BOutput()) {
+                    return prevLayers;
+                }
+
+                if (LayerInfo(prev0).has32BOutput()) {
+                    prevLayers.push_back(CNNNetPrevLayer(l, 0));
+                }
+
+                // if layers of outdata are different
+                auto prevData0 = l->insData[0].lock();
+                auto prevData1 = l->insData[1].lock();
+
+                if ((prev0 != prev1 || prevData0 != prevData1) && LayerInfo(prev1).has32BOutput()) {
+                        prevLayers.push_back(CNNNetPrevLayer(l, 1));
+                }
+
+                break;
             }
-
-            // if layers of outdata are different
-            auto prevData0 = l->insData[0].lock();
-            auto prevData1 = l->insData[1].lock();
-
-            if ((prev0 != prev1 || prevData0 != prevData1) && LayerInfo(prev1).has32BOutput()) {
-                prevLayers.push_back(CNNNetPrevLayer(l, 1));
-            }
-
-            break;
-        }
-        default :
-            THROW_GNA_EXCEPTION << "Eltwise Layer of type: " << eltwise->_operation << " not supported";
+            default :
+                THROW_GNA_EXCEPTION << "Eltwise Layer of type: " << eltwise->_operation << " not supported";
         }
     } else if (concat != nullptr) {
         for (int i = 0; CNNNetHasPrevLayer(l.get(), i); ++i) {

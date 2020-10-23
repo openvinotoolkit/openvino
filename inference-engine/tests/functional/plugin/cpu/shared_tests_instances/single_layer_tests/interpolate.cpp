@@ -60,7 +60,7 @@ const std::vector<ngraph::op::v4::Interpolate::NearestMode> defaultNearestMode =
 };
 
 const std::vector<std::vector<size_t>> pads = {
-        // {0, 0, 1, 1},
+        {0, 0, 1, 1},
         {0, 0, 0, 0},
 };
 

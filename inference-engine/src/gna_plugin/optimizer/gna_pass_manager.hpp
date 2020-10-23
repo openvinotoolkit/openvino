@@ -144,8 +144,6 @@ DECL_PASS(InsertConcatAligningFilter);
  */
 DECL_PASS(ReorderConcatInputs);
 
-DECL_PASS_BEFORE_COPY(InsertIdentityToLSTMCell);
-
 /**
 * @brief in cases that network output layer is connected to only one layer which is activation additional identity is inserted
 * so the operation is not fused with the activation allowing to get te results from said layer

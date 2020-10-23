@@ -119,6 +119,7 @@ if [ -f /etc/lsb-release ]; then
                 libfaac0
                 libfdk-aac1
                 python3-gi                
+
         )
     fi
     apt update
