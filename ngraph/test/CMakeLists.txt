@@ -114,7 +114,6 @@ set(SRC
     type_prop/deformable_convolution.cpp
     type_prop/deformable_psroi_pooling.cpp
     type_prop/depth_to_space.cpp
-    type_prop/dequantize.cpp
     type_prop/dot.cpp
     type_prop/dyn_reshape.cpp
     type_prop/strided_slice.cpp
@@ -133,6 +132,7 @@ set(SRC
     type_prop/gru_cell.cpp
     type_prop/gru_sequence.cpp
     type_prop/hard_sigmoid.cpp
+    type_prop/hsigmoid.cpp
     type_prop/hswish.cpp
     type_prop/interpolate.cpp
     type_prop/lrn.cpp
