@@ -36,7 +36,7 @@ namespace ngraph
                 NGRAPH_RTTI_DECLARATION;
                 HSigmoid() = default;
 
-                /// \brief Constructs a HSigmoid (hard version of Swish) operation.
+                /// \brief Constructs a HSigmoid operation.
                 ///
                 /// \param data Input tensor
                 HSigmoid(const Output<Node>& arg);

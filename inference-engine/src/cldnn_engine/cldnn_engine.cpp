@@ -24,6 +24,7 @@
 #include <ngraph/opsets/opset2.hpp>
 #include <ngraph/opsets/opset3.hpp>
 #include <ngraph/opsets/opset4.hpp>
+#include <ngraph/opsets/opset5.hpp>
 #include <ngraph/pass/manager.hpp>
 #include <generic_ie.hpp>
 #include <transformations/control_flow/unroll_tensor_iterator.hpp>
@@ -117,6 +118,7 @@ InferenceEngine::ICNNNetwork::Ptr clDNNEngine::CloneAndTransformNetwork(const In
                    std::dynamic_pointer_cast<const ::ngraph::opset2::BatchToSpace>(node) ||
                    std::dynamic_pointer_cast<const ::ngraph::opset2::SpaceToBatch>(node) ||
                    std::dynamic_pointer_cast<const ::ngraph::opset3::ExtractImagePatches>(node) ||
+                   std::dynamic_pointer_cast<const ::ngraph::opset5::HSigmoid>(node) ||
                    std::dynamic_pointer_cast<const ::ngraph::opset4::HSwish>(node) ||
                    std::dynamic_pointer_cast<const ::ngraph::opset4::ReduceL1>(node) ||
                    std::dynamic_pointer_cast<const ::ngraph::opset4::ReduceL2>(node) ||

@@ -130,3 +130,13 @@ def round(data: NodeInput, mode: str = "half_to_even", name: Optional[str] = Non
     :return: The new node with Round operation applied on each element.
     """
     return _get_node_factory_opset5().create("Round", as_nodes(data), {"mode": mode.upper()})
+
+
+@nameable_op
+def hsigmoid(data: NodeInput, name: Optional[str] = None,) -> Node:
+    """Return a node which performs HSigmoid.
+
+    :param data: Tensor with input data floating point type.
+    :return: The new node which performs HSigmoid
+    """
+    return _get_node_factory_opset5().create("HSigmoid", as_nodes(data), {})
