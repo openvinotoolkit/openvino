@@ -237,8 +237,6 @@ python3 mo.py --input_model FaceNet.pb --input "placeholder_layer_name->[0.1 1.2
 ---
 ## See Also
 
-* [Converting a Model to Intermediate Representation (IR)](Convert_Model_From_Caffe.md)
-* [Converting YOLO* Models to the Intermediate Representation (IR)](../tf_specific/Convert_YOLO_From_Tensorflow.md)
+* [Converting a Cafee* Model](Convert_Model_From_Caffe.md)
 * [Converting a TensorFlow* Model](Convert_Model_From_TensorFlow.md)
 * [Using Shape Inference](../IE_DG/ShapeInference.md)
-* [Convert TensorFlow* DeepSpeech Model to the Intermediate Representation ](../tf_specific/Convert_DeepSpeech_From_Tensorflow.md)
