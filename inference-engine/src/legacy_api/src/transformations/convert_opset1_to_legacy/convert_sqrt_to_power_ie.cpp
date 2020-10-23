@@ -25,7 +25,11 @@ ngraph::pass::ConvertSqrtToPowerIEMatcher::ConvertSqrtToPowerIEMatcher() {
         if (!sqrt) {
             return false;
         }
+<<<<<<< HEAD
         auto power_ie = std::make_shared<ngraph::op::PowerIE>(sqrt->input(0).get_source_output(), 0.5f, 1, 0, sqrt->output(0).get_element_type());
+=======
+        auto power_ie = std::make_shared<ngraph::op::PowerIE>(sqrt->input(0).get_source_output(), 0.5f, 1.0f, 0.0f);
+>>>>>>> 18da58446... Fix MSVC build warnings in transformations library
         power_ie->set_friendly_name(sqrt->get_friendly_name());
         ngraph::copy_runtime_info(sqrt, power_ie);
         ngraph::replace_node(sqrt, power_ie);

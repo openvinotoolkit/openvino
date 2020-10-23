@@ -199,8 +199,12 @@ void ngraph::pass::ConvertMulAddToScaleShiftOrPower::convert_mul_add_to_scaleshi
                 return false;
             }
 
+<<<<<<< HEAD
             auto output_type = m.get_match_root()->get_output_element_type(0);
             auto power = std::make_shared<ngraph::op::PowerIE>(data_node, 1., scale, shift, output_type);
+=======
+            auto power = std::make_shared<ngraph::op::PowerIE>(data_node, 1.0f, scale, shift);
+>>>>>>> 18da58446... Fix MSVC build warnings in transformations library
             power->set_friendly_name(add_node->get_friendly_name());
             ngraph::copy_runtime_info({mul_node, add_node}, power);
             ngraph::replace_node(m.get_match_root(), power);

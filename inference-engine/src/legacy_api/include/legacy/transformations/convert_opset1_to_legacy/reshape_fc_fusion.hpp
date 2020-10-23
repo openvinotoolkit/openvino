@@ -73,7 +73,7 @@ private:
 
             // Check that Weights[O, C*H*W] consistent with Input[N, C, H, W]
             auto shape_w = fc->input_value(1).get_shape();
-            if (shape_in[0] != shape_out[0] || std::accumulate(shape_in.begin() + 1, shape_in.end(), 1UL, std::multiplies<size_t>()) != shape_w[1]) {
+            if (shape_in[0] != shape_out[0] || std::accumulate(shape_in.begin() + 1, shape_in.end(), size_t{1}, std::multiplies<size_t>()) != shape_w[1]) {
                 return false;
             }
 
