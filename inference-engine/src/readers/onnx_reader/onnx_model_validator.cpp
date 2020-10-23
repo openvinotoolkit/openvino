@@ -41,21 +41,8 @@ namespace onnx {
     // that follows the key (in bytes). They payload should be skipped for the fast check purposes.
     using ONNXField = std::pair<Field, uint32_t>;
 
-    bool is_correct_onnx_field(const char decoded_field) {
-        constexpr Field allowed_fields[] = {
-            IR_VERSION, PRODUCER_NAME, PRODUCER_VERSION, DOMAIN_, MODEL_VERSION, DOC_STRING,
-            GRAPH, OPSET_IMPORT, METADATA_PROPS, TRAINING_INFO
-        };
-
-        const auto is_allowed = [&decoded_field](const Field field) {
-            return field == static_cast<Field>(decoded_field);
-        };
-
-        return std::any_of(std::begin(allowed_fields), std::end(allowed_fields), is_allowed);
-    }
-
-    bool is_correct_wire_type_for_field(const PbKey& decoded_key) {
-        static const std::map<Field, WireType> combinations = {
+    bool is_correct_onnx_field(const PbKey& decoded_key) {
+        static const std::map<Field, WireType> onnx_fields = {
             {IR_VERSION, VARINT},
             {PRODUCER_NAME, LENGTH_DELIMITED},
             {PRODUCER_VERSION, LENGTH_DELIMITED},
@@ -68,7 +55,11 @@ namespace onnx {
             {TRAINING_INFO, LENGTH_DELIMITED},
         };
 
-        return combinations.at(static_cast<Field>(decoded_key.first)) == static_cast<WireType>(decoded_key.second);
+        if (!onnx_fields.count(static_cast<Field>(decoded_key.first))) {
+            return false;
+        }
+
+        return onnx_fields.at(static_cast<Field>(decoded_key.first)) == static_cast<WireType>(decoded_key.second);
     }
 
     /**
@@ -130,11 +121,7 @@ namespace onnx {
 
         const auto decoded_key = decode_key(key);
 
-        if (!is_correct_onnx_field(decoded_key.first)) {
-            throw std::runtime_error{"Incorrect field detected in the processed model"};
-        }
-
-        if (!is_correct_wire_type_for_field(decoded_key)) {
+        if (!is_correct_onnx_field(decoded_key)) {
             throw std::runtime_error{"Incorrect field detected in the processed model"};
         }
 
