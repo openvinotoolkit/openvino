@@ -379,8 +379,6 @@ In this document, you learned:
 ---
 ## See Also
 
-* [Converting YOLO* Models to the Intermediate Representation (IR)](../tf_specific/Convert_YOLO_From_Tensorflow.md)
 * [Converting a Caffe* Model](Convert_Model_From_Caffe.md)
 * [Converting an MXNet* Model](Convert_Model_From_MxNet.md)
 * [Converting a Model Using General Conversion Parameters](Converting_Model_General.md)
-* [Object Detection Faster R-CNN C++ Demo](@ref omz_demos_object_detection_demo_faster_rcnn_README)
