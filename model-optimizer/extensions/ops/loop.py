@@ -125,7 +125,7 @@ class Loop(TensorIterator):
         return num_iterations
 
     @staticmethod
-    def updated_body_parameters_type(loop_node: Node):
+    def update_body_parameters_type(loop_node: Node):
         for record in loop_node.input_port_map:
             body_node = Loop.get_body_node_by_internal_id(loop_node, record['internal_layer_id'])
             # the Parameter may be removed because it was not used in the body, for example, the current iteration
@@ -145,7 +145,7 @@ class Loop(TensorIterator):
                           ''.format(record['internal_layer_id'], body_node.data_type))
 
     @staticmethod
-    def updated_loop_output_ports_type(loop_node: Node):
+    def update_loop_output_ports_type(loop_node: Node):
         for record in loop_node.output_port_map:
             body_node = Loop.get_body_node_by_internal_id(loop_node, record['internal_layer_id'])
             assert body_node is not None
@@ -193,6 +193,7 @@ class Loop(TensorIterator):
     @staticmethod
     def pull_constant_inputs_into_body(loop_node: Node):
         for port_idx, in_port in reversed(loop_node.in_ports().items()):
+            # TODO add a check that the input does not correspond to execution_condition
             if not in_port.disconnected() and in_port.get_source().node.soft_get('type') == 'Const':
                 original_const_node = in_port.get_source().node
                 new_const_node = Const(loop_node.body, original_const_node.attrs()).create_node()
@@ -251,14 +252,14 @@ class Loop(TensorIterator):
                 loop_node.delete_output_port(port_idx_to_remove)
 
     @staticmethod
-    def infer(node: Node):
-        Loop.updated_body_parameters_shape(node)
-        partial_infer(node.body)
-        Loop.updated_loop_output_ports_shape_and_value(node)
+    def infer(loop_node: Node):
+        Loop.updated_body_parameters_shape(loop_node)
+        partial_infer(loop_node.body)
+        Loop.updated_loop_output_ports_shape_and_value(loop_node)
 
     @staticmethod
-    def type_infer(node: Node):
+    def type_infer(loop_node: Node):
         from mo.middle.passes.infer import type_infer
-        Loop.updated_body_parameters_type(node)
-        type_infer(node.body)
-        Loop.updated_loop_output_ports_type(node)
+        Loop.update_body_parameters_type(loop_node)
+        type_infer(loop_node.body)
+        Loop.update_loop_output_ports_type(loop_node)
