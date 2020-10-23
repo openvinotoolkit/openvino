@@ -40,6 +40,6 @@ Both Model Optimizer and Post-Training Optimization tool generate a compressed I
 ## See Also
 
 * [Quantization](@ref pot_compression_algorithms_quantization_README)
-* [Optimization Guide](../optimization_guide/dldt_optimization_guide.md)
+* [Optimization Guide](../../optimization_guide/dldt_optimization_guide.md)
 * [Low Precision Optimization Guide](@ref pot_docs_LowPrecisionOptimizationGuide)
-* [Introduction to nGraph Flow in Inference Engine](../IE_DG/nGraph_Flow.md)
+* [Introduction to nGraph Flow in Inference Engine](../../IE_DG/nGraph_Flow.md)
