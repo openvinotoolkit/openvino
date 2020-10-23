@@ -43,4 +43,3 @@ Both Model Optimizer and Post-Training Optimization tool generate a compressed I
 * [Optimization Guide](../optimization_guide/dldt_optimization_guide.md)
 * [Low Precision Optimization Guide](@ref pot_docs_LowPrecisionOptimizationGuide)
 * [Introduction to nGraph Flow in Inference Engine](../IE_DG/nGraph_Flow.md)
-* [Convert GNMT* Model to the Intermediate Representation (IR)](../tf_specific/Convert_GNMT_From_Tensorflow.md)
