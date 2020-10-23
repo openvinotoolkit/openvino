@@ -5,7 +5,7 @@
 #include <functional_test_utils/layer_test_utils.hpp>
 #include <ngraph_functions/builders.hpp>
 #include <vpu/ngraph/operations/dynamic_shape_resolver.hpp>
-#include <vpu/ngraph/operations/dynamic_non_max_suppression.hpp>
+#include <ngraph/op/non_max_suppression.hpp>
 
 namespace {
 
@@ -49,7 +49,7 @@ protected:
         const auto dims = std::make_shared<ngraph::opset3::Parameter>(ngraph::element::i64, ngraph::Shape{3});
         const auto dsr = std::make_shared<ngraph::vpu::op::DynamicShapeResolver>(scores, dims);
 
-        const auto node = std::make_shared<ngraph::vpu::op::DynamicNonMaxSuppression>(
+        const auto node = std::make_shared<ngraph::op::v5::NonMaxSuppression>(
                 boxes, dsr, max_output_boxes_per_class, iou_threshold, score_threshold);
 
         const auto result = std::make_shared<ngraph::opset3::Result>(node);

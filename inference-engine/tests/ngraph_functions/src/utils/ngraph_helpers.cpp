@@ -177,8 +177,6 @@ std::vector<std::vector<std::uint8_t>> getConstData(const std::shared_ptr<Functi
 
 namespace {
 
-using ComparingNodesPair = std::pair<std::shared_ptr<ngraph::Node>, std::shared_ptr<ngraph::Node>>;
-
 std::string toString(const NodeTypeInfo& typeInfo) {
     return std::string(typeInfo.name) + " ver. " + std::to_string(typeInfo.version);
 }
@@ -195,34 +193,38 @@ void CompareNodes(const Node& actual, const Node& expected) {
     const auto& numActualInputs = actual.inputs().size();
     const auto& numExpectedInputs = expected.inputs().size();
     NGRAPH_CHECK(numActualInputs == numExpectedInputs, "Functions compare: numbers of inputs are different: ", numActualInputs, " and ", numExpectedInputs);
+
+    const auto& numActualOutputs = actual.outputs().size();
+    const auto& numExpectedOutputs = expected.outputs().size();
+    NGRAPH_CHECK(numActualOutputs == numExpectedOutputs, "Functions compare: numbers of outputs are different: ",
+                 numActualOutputs, " and ", numExpectedOutputs);
 }
 
 }  // namespace
 
 void CompareFunctions(const Function& actual, const Function& expected) {
-    const auto& actualResults = actual.get_results();
-    NGRAPH_CHECK(actualResults.size() == 1, "Got ", actualResults.size(), " outputs for function, but only single output functions are supported");
-    const auto& actualResult = actualResults.front();
+    const auto& actualOrderedOps = actual.get_ordered_ops();
+    const auto& expectedOrderedOps = expected.get_ordered_ops();
 
-    const auto& expectedResults = expected.get_results();
-    NGRAPH_CHECK(expectedResults.size() == 1, "Got ", expectedResults.size(), " outputs for function, but only single output functions are supported");
-    const auto& expectedResult = expectedResults.front();
+    NGRAPH_CHECK(expectedOrderedOps.size() == actualOrderedOps.size(),
+                 "Functions compare: expected and actual ops number should be equal "
+                 "but got ", expectedOrderedOps.size(), " and ", actualOrderedOps.size(), " respectively");
 
-    std::queue<ComparingNodesPair> nodes;
-    nodes.emplace(actualResult, expectedResult);
-    while (!nodes.empty()) {
-        const auto actualNode   = nodes.front().first;
-        const auto expectedNode = nodes.front().second;
-        nodes.pop();
+    for (std::size_t i = 0; i < expectedOrderedOps.size(); i++) {
+        const auto& expectedOp = expectedOrderedOps[i];
+        const auto& actualOp = actualOrderedOps[i];
 
-        CompareNodes(*actualNode, *expectedNode);
-
-        for (std::size_t i = 0; i < actualNode->inputs().size(); ++i) {
-            const auto& actualShape = actualNode->input(i).get_partial_shape();
-            const auto& expectedShape = expectedNode->input(i).get_partial_shape();
+        CompareNodes(*actualOp, *expectedOp);
+        for (std::size_t i = 0; i < actualOp->inputs().size(); ++i) {
+            const auto& actualShape = actualOp->input(i).get_partial_shape();
+            const auto& expectedShape = expectedOp->input(i).get_partial_shape();
             CompareShapes(actualShape, expectedShape);
+        }
 
-            nodes.emplace(actualNode->input_value(i).get_node_shared_ptr(), expectedNode->input_value(i).get_node_shared_ptr());
+        for (std::size_t i = 0; i < actualOp->outputs().size(); ++i) {
+            const auto& actualShape = actualOp->output(i).get_partial_shape();
+            const auto& expectedShape = expectedOp->output(i).get_partial_shape();
+            CompareShapes(actualShape, expectedShape);
         }
     }
 }
