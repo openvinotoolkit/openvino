@@ -624,7 +624,9 @@ TEST_P(InferRequestTests, returnDeviceBusyOnGetPerformanceCountAfterAsyncInfer) 
     }
 }
 
-TEST_P(InferRequestTests, ReturnResultNotReadyFromWaitInAsyncModeForTooSmallTimeout) {
+class InferRequestTestsResultNotReady : public InferRequestTests {
+};
+TEST_P(InferRequestTestsResultNotReady, ReturnResultNotReadyFromWaitInAsyncModeForTooSmallTimeout) {
     // Skip test according to plugin specific disabledTestPatterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     // Create CNNNetwork from ngrpah::Function
