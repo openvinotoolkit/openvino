@@ -419,8 +419,9 @@ StatusCode CNNNetworkNGraphImpl::serialize(const std::string& xmlPath,
                                            ResponseDesc* resp) const noexcept {
     try {
         if (getFunction()) {
-            ngraph::pass::Serialize transform{xmlPath, binPath};
-            transform.run_on_function(_ngraph_function);
+            ngraph::pass::Manager manager;
+            manager.register_pass<ngraph::pass::Serialize>(xmlPath, binPath);
+            manager.run_passes(_ngraph_function);
         } else {
 #ifdef ENABLE_V7_SERIALIZE
             auto network = std::make_shared<details::CNNNetworkImpl>(*this);
