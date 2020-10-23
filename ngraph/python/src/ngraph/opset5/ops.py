@@ -189,3 +189,50 @@ def gru_sequence(
     }
 
     return _get_node_factory_opset5().create("GRUSequence", inputs, attributes)
+
+
+@nameable_op
+def rnn_sequence(
+    X: NodeInput,
+    H_t: NodeInput,
+    sequence_lengths: NodeInput,
+    W: NodeInput,
+    R: NodeInput,
+    B: NodeInput,
+    hidden_size: int,
+    direction: str,
+    activations: List[str] = ["tanh"],
+    activations_alpha: List[float] = [],
+    activations_beta: List[float] = [],
+    clip: float = 0.0,
+    name: Optional[str] = None,
+) -> Node:
+    """Return a node which performs RNNSequence.
+
+    :param X:
+    :param H_t:
+    :param sequence_lengths:
+    :param W:
+    :param R:
+    :param B:
+    :param hidden_size:
+    :param direction:
+    :param activations:
+    :param activations_alpha:
+    :param activations_beta:
+    :param clip:
+    :param linear_before_reset:
+    :return: The new node which performs RNNSequence
+    """
+
+    inputs = as_nodes(X, H_t, sequence_lengths, W, R, B)
+
+    attributes = {
+        "hidden_size": hidden_size,
+        "activations": activations,
+        "activations_alpha": activations_alpha,
+        "activations_beta": activations_alpha,
+        "clip": clip,
+    }
+
+    return _get_node_factory_opset5().create("RNNSequence", inputs, attributes)
