@@ -619,6 +619,23 @@ namespace
         return true;
     }
 
+    template <element::Type_t ET>
+    bool evaluate(const shared_ptr<op::v5::BatchNormInference>& op,
+                  const HostTensorVector& outputs,
+                  const HostTensorVector& inputs)
+    {
+        using T = typename element_type_traits<ET>::value_type;
+        runtime::reference::batch_norm_inference<T>(op->get_eps_value(),
+                                                    inputs[1]->get_data_ptr<const T>(),
+                                                    inputs[2]->get_data_ptr<const T>(),
+                                                    inputs[0]->get_data_ptr<const T>(),
+                                                    inputs[3]->get_data_ptr<const T>(),
+                                                    inputs[4]->get_data_ptr<const T>(),
+                                                    outputs[0]->get_data_ptr<T>(),
+                                                    op->get_input_shape(0));
+        return true;
+    }
+
     namespace reverse_sequence_v0
     {
         template <element::Type_t t1, element::Type_t t2>

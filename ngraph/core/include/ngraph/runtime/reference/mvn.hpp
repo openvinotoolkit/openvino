@@ -68,7 +68,7 @@ namespace ngraph
                     }
                     for (size_t i = 0; i < shape_size(in_shape); ++i)
                     {
-                        out[i] /= std::sqrt(broadcast_sum[i] / n) + eps;
+                        out[i] /= std::sqrt(broadcast_sum[i] / n + eps);
                     }
                 }
             }
