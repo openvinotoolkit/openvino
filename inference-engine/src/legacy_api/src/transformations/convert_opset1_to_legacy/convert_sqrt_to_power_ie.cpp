@@ -25,7 +25,7 @@ ngraph::pass::ConvertSqrtToPowerIEMatcher::ConvertSqrtToPowerIEMatcher() {
         if (!sqrt) {
             return false;
         }
-        auto power_ie = std::make_shared<ngraph::op::PowerIE>(sqrt->input(0).get_source_output(), 0.5f, 1, 0);
+        auto power_ie = std::make_shared<ngraph::op::PowerIE>(sqrt->input(0).get_source_output(), 0.5f, 1, 0, sqrt->output(0).get_element_type());
         power_ie->set_friendly_name(sqrt->get_friendly_name());
         ngraph::copy_runtime_info(sqrt, power_ie);
         ngraph::replace_node(sqrt, power_ie);
