@@ -46,7 +46,6 @@
 #include "ngraph/runtime/reference/ctc_greedy_decoder.hpp"
 #include "ngraph/runtime/reference/ctc_loss.hpp"
 #include "ngraph/runtime/reference/cum_sum.hpp"
-#include "ngraph/runtime/reference/dequantize.hpp"
 #include "ngraph/runtime/reference/detection_output.hpp"
 #include "ngraph/runtime/reference/dot.hpp"
 #include "ngraph/runtime/reference/elu.hpp"
@@ -472,40 +471,6 @@ protected:
                                               cumsum->is_exclusive(),
                                               cumsum->is_reverse());
             }
-            break;
-        }
-        case OP_TYPEID::Dequantize:
-        {
-            const op::Dequantize* dequantize = static_cast<const op::Dequantize*>(&node);
-            auto type = dequantize->get_element_type();
-
-            if (type == element::f32)
-            {
-                reference::dequantize<T>(args[0]->get_data_ptr<const T>(),
-                                         args[1]->get_data_ptr<const float>(),
-                                         args[2]->get_data_ptr<const T>(),
-                                         out[0]->get_data_ptr<float>(),
-                                         node.get_input_shape(0),
-                                         node.get_input_shape(1),
-                                         dequantize->get_axes());
-            }
-            else if (type == element::f64)
-            {
-                reference::dequantize<T>(args[0]->get_data_ptr<const T>(),
-                                         args[1]->get_data_ptr<const double>(),
-                                         args[2]->get_data_ptr<const T>(),
-                                         out[0]->get_data_ptr<double>(),
-                                         node.get_input_shape(0),
-                                         node.get_input_shape(1),
-                                         dequantize->get_axes());
-            }
-            else
-            {
-                std::stringstream ss;
-                ss << "unsupported element type " << type << " op Dequantize";
-                throw std::runtime_error(ss.str());
-            }
-
             break;
         }
         case OP_TYPEID::Dot:
