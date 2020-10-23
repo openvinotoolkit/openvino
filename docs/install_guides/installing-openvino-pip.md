@@ -38,7 +38,7 @@ export LD_LIBRARY_PATH=<library_dir>:${LD_LIBRARY_PATH}
 ```sh
 set PATH=<library_dir>;%PATH%
 ```
-To find `library_dir`:
+To find `library_dir`:   
 **Ubuntu, macOS**:
 - Standard user:
 ```sh
