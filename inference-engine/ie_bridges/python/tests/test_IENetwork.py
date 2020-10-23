@@ -225,18 +225,6 @@ def test_net_from_buffer_valid_deprecated():
     o_net2 = ref_net.outputs
     assert ii_net.keys() == ii_net2.keys()
     assert o_net.keys() == o_net2.keys()
-    func_net = ng.function_from_cnn(net)
-    ops_net = func_net.get_ordered_ops()
-    ops_net_names = [op.friendly_name for op in ops_net]
-    func_ref_net = ng.function_from_cnn(ref_net)
-    ops_ref_net = func_ref_net.get_ordered_ops()
-    ops_ref_net_names = [op.friendly_name for op in ops_ref_net]
-    # assert ops_net_names == ops_ref_net_names
-    ref_net1 = ie.read_network(model=test_net_xml, weights=test_net_bin)
-    func_ref_net1 = ng.function_from_cnn(ref_net1)
-    ops_ref_net1 = func_ref_net1.get_ordered_ops()
-    ops_ref_net_names1 = [op.friendly_name for op in ops_ref_net1]
-    assert ops_ref_net_names1 == ops_ref_net_names
 
 
 def test_multi_out_data():
