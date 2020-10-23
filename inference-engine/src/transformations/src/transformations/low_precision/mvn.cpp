@@ -18,7 +18,7 @@ using namespace ngraph;
 using namespace ngraph::pass;
 using namespace ngraph::pass::low_precision;
 
-namespace {
+namespace mvn {
 
 template<typename T>
 std::shared_ptr<ngraph::op::Constant> createNewScalesConst(const ngraph::op::Constant& originalConst) {
@@ -33,7 +33,7 @@ std::shared_ptr<ngraph::op::Constant> createNewScalesConst(const ngraph::op::Con
     return ngraph::op::Constant::create(type, originalConst.get_shape(), newData);
 }
 
-} // namespace
+} // namespace mvn
 
 bool MVNTransformation::canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> operation) const {
     if (!LayerTransformation::canBeTransformed(context, operation)) {
@@ -93,11 +93,11 @@ bool MVNTransformation::transform(TransformationContext &context, ngraph::patter
     if (normalizeVariance) {
         switch (type) {
             case ngraph::element::Type_t::f16: {
-                newScalesConst = createNewScalesConst<ngraph::element_type_traits<ngraph::element::Type_t::f16>::value_type>(*scalesConst);
+                newScalesConst = mvn::createNewScalesConst<ngraph::element_type_traits<ngraph::element::Type_t::f16>::value_type>(*scalesConst);
                 break;
             }
             case ngraph::element::Type_t::f32: {
-                newScalesConst = createNewScalesConst<ngraph::element_type_traits<ngraph::element::Type_t::f32>::value_type>(*scalesConst);
+                newScalesConst = mvn::createNewScalesConst<ngraph::element_type_traits<ngraph::element::Type_t::f32>::value_type>(*scalesConst);
                 break;
             }
             default: {
