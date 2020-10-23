@@ -171,6 +171,24 @@ def transpose(op_node: Node, port_info: str, input_port: int):
     op_node.in_port(input_port).get_connection().insert_node(transpose)
 
 
+def transpose_nchw_to_nhwc(op_node: Node, port_info: str, input_port: int):
+    graph = op_node.graph
+    permutation_data_node = get_node_with_permutation(op_node, port_info)
+    rank = len(permutation_data_node.shape)
+    assert rank in [4, 5], 'Rank is not 4D or 5D for HCHW to HHWC permutation on node {}.'.format(op_node.id)
+
+    if rank == 4:
+        perm = int64_array([0, 2, 3, 1])
+    else:
+        perm = int64_array([0, 2, 3, 4, 1])
+
+    transpose_name = op_node.soft_get('name', op_node.id) + '/Transpose'
+    from mo.front.tf.graph_utils import create_op_with_const_inputs  # avoiding recursive imports
+    transpose = create_op_with_const_inputs(
+        graph, Transpose, {1: perm}, {'name': transpose_name, 'override_output_shape': True})
+    op_node.in_port(input_port).get_connection().insert_node(transpose)
+
+
 class PermuteInputs:
     common_inv_permutation = lambda node, port_info, input_port: axis(node, port_info, input_port)
 
@@ -179,6 +197,8 @@ class PermuteInputs:
         'order': lambda node, port_info, input_port: order(node, port_info, input_port),
         'shape': lambda node, port_info, input_port: shape(node, port_info, input_port),
         'transpose': lambda node, port_info, input_port: transpose(node, port_info, input_port),
+        'transpose_nchw_to_nhwc': lambda node, port_info, input_port: transpose_nchw_to_nhwc(node, port_info,
+                                                                                             input_port),
     }
 
     def set_input_permutation(self, node1: Node, node2: Node, port_info: str, permutation_rule: str):
