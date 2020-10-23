@@ -54,8 +54,7 @@ function(_ie_add_api_validator_post_build_step)
     set(UWP_API_VALIDATOR_APIS "${PROGRAMFILES}/Windows Kits/10/build/universalDDIs/x64/UniversalDDIs.xml")
     set(UWP_API_VALIDATOR_EXCLUSION "${UWP_SDK_PATH}/BinaryExclusionlist.xml")
 
-    if(NOT UWP_API_VALIDATOR OR
-       NOT EXISTS "${UWP_API_VALIDATOR_APIS}")
+    if((NOT UWP_API_VALIDATOR) OR (WINDOWS_STORE OR WINDOWS_PHONE))
         return()
     endif()
 

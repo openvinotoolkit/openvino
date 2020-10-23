@@ -14,6 +14,10 @@ endforeach()
 
 # create command
 
+if(NOT EXISTS "${UWP_API_VALIDATOR_APIS}")
+    message(FATAL_ERROR "${UWP_API_VALIDATOR_APIS} does not exist")
+endif()
+
 set(command "${UWP_API_VALIDATOR}"
         -SupportedApiXmlFiles:${UWP_API_VALIDATOR_APIS}
         -DriverPackagePath:${UWP_API_VALIDATOR_TARGET})
