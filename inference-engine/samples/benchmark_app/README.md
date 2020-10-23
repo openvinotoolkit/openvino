@@ -43,6 +43,9 @@ The application also saves executable graph information serialized to an XML fil
 
 
 ## Run the Tool
+
+> **NOTE**: Benchmark Tool is also available inside the web-based graphical environment of the [OpenVINO™ Deep Learning Workbench](@ref openvino_docs_get_started_get_started_dl_workbench).
+
 Note that the benchmark_app usually produces optimal performance for any device out of the box.
 
 **So in most cases you don't need to play the app options explicitly and the plain device name is enough**, for example, for CPU:
