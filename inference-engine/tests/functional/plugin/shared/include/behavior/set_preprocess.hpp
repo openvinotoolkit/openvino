@@ -190,6 +190,69 @@ TEST_P(PreprocessTest, SetMeanValuePreProcess) {
     }
 }
 
+TEST_P(PreprocessTest, ReverseInputChannelsPreProcess) {
+    // Skip test according to plugin specific disabledTestPatterns() (if any)
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    std::shared_ptr<ngraph::Function> ngraph;
+    {
+        ngraph::PartialShape shape({1, 3, 10, 10});
+        ngraph::element::Type type(ngraph::element::Type_t::f32);
+        auto param = std::make_shared<ngraph::op::Parameter>(type, shape);
+        param->set_friendly_name("param");
+        auto relu = std::make_shared<ngraph::op::Relu>(param);
+        relu->set_friendly_name("relu");
+        auto result = std::make_shared<ngraph::op::Result>(relu);
+        result->set_friendly_name("result");
+
+        ngraph::ParameterVector params = {param};
+        ngraph::ResultVector results = {result};
+
+        ngraph = std::make_shared<ngraph::Function>(results, params);
+    }
+
+    // Create CNNNetwork from ngrpah::Function
+    InferenceEngine::CNNNetwork cnnNet(ngraph);
+
+    auto &preProcess = cnnNet.getInputsInfo().begin()->second->getPreProcess();
+    preProcess.setColorFormat(InferenceEngine::ColorFormat::RGB);
+    // Load CNNNetwork to target plugins
+    auto execNet = ie->LoadNetwork(cnnNet, targetDevice, configuration);
+    // Create InferRequest
+    auto req = execNet.CreateInferRequest();
+    auto inBlob = req.GetBlob("param");
+
+    // Fill input
+    {
+        auto locketMem = inBlob->buffer();
+        auto *inData = locketMem.as<float*>();
+        for (size_t i = 0; i < inBlob->size(); i++)
+            inData[i] = i;
+    }
+
+    req.Infer();
+
+    // Check output
+    auto outBlob = req.GetBlob(cnnNet.getOutputsInfo().begin()->first);
+    {
+        auto inMem = inBlob->cbuffer();
+        const auto* inData = inMem.as<const float*>();
+        auto outMem = outBlob->cbuffer();
+        const auto* outData = outMem.as<const float*>();
+        ASSERT_EQ(inBlob->size(), outBlob->size());
+        for (size_t i = 0; i < 3; i++)
+            for (size_t j = 0; j < 100; j++) {
+                // BGR to RGB
+                if (!i) {
+                    ASSERT_EQ(inData[j], outData[200 + j]);
+                } else if (i == j) {
+                    ASSERT_EQ(inData[100 + j], outData[100 + j]);
+                } else {
+                    ASSERT_EQ(inData[200 + j], outData[j]);
+                }
+            }
+    }
+}
+
 TEST_P(PreprocessTest, SetScalePreProcess) {
     // Skip test according to plugin specific disabledTestPatterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()

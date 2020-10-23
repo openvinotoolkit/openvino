@@ -38,6 +38,7 @@ std::vector<std::string> disabledTestPatterns() {
 #endif
         // TODO: Fix scale pre processing
         R"(.*(PreprocessTest).*(SetScalePreProcess).*)",
+        R"(.*(PreprocessTest).*(ReverseInputChannelsPreProcess).*)",
         // TODO: Issue: 40957
         R"(.*(ConstantResultSubgraphTest).*)",
         // TODO: Issue: 34348
