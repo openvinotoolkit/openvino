@@ -87,7 +87,7 @@ int calcOutputSize(
         int padBefore, int padAfter,
         bool useCeil) {
     if (useCeil) {
-        return std::ceil(static_cast<double>(inputSize - kernelSize + padBefore + padAfter) / kernelStride + 1);
+        return static_cast<int>(std::ceil(static_cast<double>(inputSize - kernelSize + padBefore + padAfter) / kernelStride + 1));
     } else {
         return (inputSize - kernelSize + padBefore + padAfter) / kernelStride + 1;
     }
