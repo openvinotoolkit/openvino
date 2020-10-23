@@ -111,7 +111,5 @@ Refer to [Supported Framework Layers ](../Supported_Frameworks_Layers.md) for th
 ## See Also
 
 * [Converting a TensorFlow* Model](Convert_Model_From_TensorFlow.md)
-* [Post-Training Optimization Toolkit API](@ref pot_compression_api_README)
-* [Converting YOLO* Models to the Intermediate Representation (IR)](../tf_specific/Convert_YOLO_From_Tensorflow.md)
 * [Convert ONNX* Mask R-CNN Model to the Intermediate Representation](../onnx_specific/Convert_Mask_RCNN.md)
 * [Custom Layers Guide](../HOWTO/Custom_Layers_Guide.md)
