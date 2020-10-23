@@ -29,7 +29,7 @@ void ngraph::onnx_import::transform::expand_onnx_functions(ONNX_NAMESPACE::Model
 
     for (int i = 0; i < graph_proto->node().size(); ++i)
     {
-        auto node = graph_proto->node().Get(i);
+        ONNX_NAMESPACE::NodeProto node = graph_proto->node().Get(i);
 
         // Check if node operation is one of the functions we want to expand
         if (std::find(onnx_functions_to_expand.begin(),
@@ -58,7 +58,7 @@ void ngraph::onnx_import::transform::expand_onnx_functions(ONNX_NAMESPACE::Model
             ONNX_NAMESPACE::FunctionExpandHelper(node, *func_proto, *graph_proto);
 
             // Remove the original node which contained the function.
-            graph_proto->mutable_node()->erase(graph_proto->node().begin() + i);
+            graph_proto->mutable_node()->erase(graph_proto->mutable_node()->begin() + i);
         }
 
         else if (node_op_schema->HasContextDependentFunction())
@@ -69,7 +69,7 @@ void ngraph::onnx_import::transform::expand_onnx_functions(ONNX_NAMESPACE::Model
             ONNX_NAMESPACE::FunctionExpandHelper(node, func_proto, *graph_proto);
 
             // Remove the original node which contained the function.
-            graph_proto->mutable_node()->erase(graph_proto->node().begin() + i);
+            graph_proto->mutable_node()->erase(graph_proto->mutable_node()->begin() + i);
         }
     }
 }
