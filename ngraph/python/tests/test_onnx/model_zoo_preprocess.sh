@@ -88,6 +88,6 @@ if [ "$ENABLE_MSFT" = true ] ; then
         rm -rf "$MSFT_MODELS_DIR"
     fi
     mkdir -p "$MSFT_MODELS_DIR"
-    wget -O "$MSFT_MODELS_DIR/20191107.zip https://onnxruntimetestdata.blob.core.windows.net/models/20191107.zip"
+    wget -O "$MSFT_MODELS_DIR/20191107.zip" https://onnxruntimetestdata.blob.core.windows.net/models/20191107.zip
     unzip "$MSFT_MODELS_DIR/20191107.zip" -d "$MSFT_MODELS_DIR/20191107" && rm "$MSFT_MODELS_DIR/20191107.zip"
 fi
