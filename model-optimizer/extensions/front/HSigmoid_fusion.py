@@ -29,7 +29,7 @@ def replace_with_hsigmoid(graph: Graph, first_node: Node, last_node: Node):
     last_node_name = last_node.soft_get('name', last_node.id)
 
     hsigmoid = HSigmoid(graph, {}).create_node()
-    first_node.in_port(add_input_port_idx).get_connection().set_destination(hsigmoid.in_port(0))
+    hsigmoid.in_port(0).connect(first_node.in_port(add_input_port_idx).get_source())
     last_node.out_port(0).get_connection().set_source(hsigmoid.out_port(0))
 
     rename_nodes([(last_node, last_node_name + '/TBR'), (hsigmoid, last_node_name)])
