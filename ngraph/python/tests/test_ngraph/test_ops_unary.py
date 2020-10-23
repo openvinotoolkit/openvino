@@ -179,3 +179,14 @@ def test_round_away():
 
     # result = run_op_node([input_tensor], ng.round, "HALF_AWAY_FROM_ZERO")
     # assert np.allclose(result, expected)
+
+
+def test_hsigmoid():
+    float_dtype = np.float32
+    data = ng.parameter(Shape([3, 10]), dtype=float_dtype, name="data")
+
+    node = ng.hsigmoid(data)
+    assert node.get_type_name() == "HSigmoid"
+    assert node.get_output_size() == 1
+    assert list(node.get_output_shape(0)) == [3, 10]
+    assert node.get_output_element_type(0) == Type.f32
