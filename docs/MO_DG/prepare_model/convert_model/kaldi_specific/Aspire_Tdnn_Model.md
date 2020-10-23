@@ -114,8 +114,4 @@ in [the Speech Recognition Sample description](../../../../../inference-engine/s
 ---
 ## See Also
 
-* [Converting a Style Transfer Model from MXNet*](../mxnet_specific/Convert_Style_Transfer_From_MXNet.md)
-* [Configuration Guide for the Intel® Distribution of OpenVINO™ toolkit 2020.4 and the Intel® Vision Accelerator Design with an Intel® Arria® 10 FPGA SG2 (IEI's Mustang-F100-A10) on Linux* ](../install_guides/VisionAcceleratorFPGA_Configure.md)
-* [Handwritten Japanese Recognition Demo](@ref omz_demos_python_demos_handwritten_japanese_recognition_demo_README)
-* [Configuration Guide for Intel® Distribution of OpenVINO™ toolkit 2020.4 and the Intel® Programmable Acceleration Card with Intel® Arria® 10 GX FPGA on CentOS or Ubuntu*](../install_guides/PAC_Configure.md)
-* [nGraph Function C++ Sample](../inference_engine/samples/ngraph_function_creation_sample/README.md)
+* [Converting a Kaldi Model](../Convert_Model_From_Kaldi.md)
