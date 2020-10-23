@@ -21,7 +21,7 @@
 using namespace std;
 using namespace ngraph;
 
-constexpr NodeTypeInfo op::v3::Assign::type_info;
+NGRAPH_RTTI_DEFINITION(op::v3::Assign, "Assign", 3, op::Sink);
 
 op::v3::Assign::Assign(const Output<Node>& new_value, const std::string& variable_id)
     : Sink({new_value})

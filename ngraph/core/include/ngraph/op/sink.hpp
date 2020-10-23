@@ -28,7 +28,8 @@ namespace ngraph
         class NGRAPH_API Sink : public Op
         {
         public:
-            virtual ~Sink() = default;
+            NGRAPH_RTTI_DECLARATION;
+            virtual ~Sink() = 0;
         protected:
             Sink()
                 : Op()
