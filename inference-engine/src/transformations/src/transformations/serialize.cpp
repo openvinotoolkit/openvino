@@ -116,7 +116,7 @@ const std::vector<Edge> create_edge_mapping(
     const ngraph::Function& f) {
     std::vector<Edge> edges;
     for (const auto& node : f.get_ordered_ops()) {
-        if (dynamic_cast<ngraph::op::Parameter*>(node.get()) != nullptr) {
+        if (ngraph::op::is_parameter(node)) {
             continue;
         }
 
@@ -167,9 +167,8 @@ std::string get_opset_name(const ngraph::Node* n) {
 
     // return the oldest opset name where node type is present
     for (int idx = 0; idx < opsets.size(); idx++) {
-        int number = idx + 1;
         if (opsets[idx].get().contains_op_type(n)) {
-            return "opset" + std::to_string(number);
+            return "opset" + std::to_string(idx + 1);
         }
     }
     return "experimental";
@@ -308,8 +307,7 @@ void ngfunction_2_irv10(pugi::xml_document& doc, std::vector<uint8_t>& bin,
             }
         }
         // <layers/output>
-        if ((node->get_output_size() > 0) &&
-            !dynamic_cast<ngraph::op::Result*>(node)) {
+        if ((node->get_output_size() > 0) && !ngraph::op::is_output(node)) {
             pugi::xml_node output = layer.append_child("output");
             for (auto o : node->outputs()) {
                 NGRAPH_CHECK(o.get_partial_shape().is_static(),
