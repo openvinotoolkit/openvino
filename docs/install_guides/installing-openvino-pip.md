@@ -30,7 +30,7 @@ Run the command below:
 ### Step 3. Add PATH to environment variables
 
 Run a command for your operating system:
-- Ubuntu* 18.04 and macOS*:
+- Ubuntu 18.04 and macOS:
 ```sh
 export LD_LIBRARY_PATH=<library_dir>:${LD_LIBRARY_PATH}
 ```
@@ -39,28 +39,28 @@ export LD_LIBRARY_PATH=<library_dir>:${LD_LIBRARY_PATH}
 set PATH=<library_dir>;%PATH%
 ```
 To find `library_dir`:
-- Ubuntu\*, macOS\*:
-  - Standard user:
-    ```sh
-    echo $(python3 -m site --user-base)/lib
-    ```
-  - Root or sudo user:
-    ```sh
-    /usr/local/lib
-    ```
-  - Virtual environments or custom Python installations (from sources or tarball):
-    ```sh
-    echo $(which python3)/../../lib
-    ```
-- Windows\*:
-  - Standard Python:
-    ```sh
-    python -c "import os, sys; print((os.path.dirname(sys.executable))+'\Library\\bin')"
-    ```
-  - Virtual environments or custom Python installations (from sources or tarball):
-    ```sh
-    python -c "import os, sys; print((os.path.dirname(sys.executable))+'\..\Library\\bin')"
-    ```
+**Ubuntu, macOS**:
+- Standard user:
+```sh
+echo $(python3 -m site --user-base)/lib
+```
+- Root or sudo user:
+```sh
+/usr/local/lib
+```
+- Virtual environments or custom Python installations (from sources or tarball):
+```sh
+echo $(which python3)/../../lib
+```
+**Windows**:
+- Standard Python:
+```sh
+python -c "import os, sys; print((os.path.dirname(sys.executable))+'\Library\\bin')"
+```
+- Virtual environments or custom Python installations (from sources or tarball):
+```sh
+python -c "import os, sys; print((os.path.dirname(sys.executable))+'\..\Library\\bin')"
+```
 
 ### Step 4. Verify that the package is installed
 
