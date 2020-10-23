@@ -394,7 +394,6 @@ python3 mo.py --input_model=inception_v1.pb --input=0:InceptionV1/InceptionV1/Co
 ---
 ## See Also
 
-* [Converting TensorFlow* Object Detection API Models](../tf_specific/Convert_Object_Detection_API_Models.md)
 * [Sub-Graph Replacement in the Model Optimizer](../customize_model_optimizer/Subgraph_Replacement_Model_Optimizer.md)
 * [Extending the Model Optimizer with New Primitives](../customize_model_optimizer/Extending_Model_Optimizer_with_New_Primitives.md)
 * [Converting a Model Using General Conversion Parameters](Converting_Model_General.md)
