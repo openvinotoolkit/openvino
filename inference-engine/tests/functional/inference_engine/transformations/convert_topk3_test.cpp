@@ -153,7 +153,7 @@ TEST(TransformationTests, ConvertTopK3I64Output1) {
         f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{convert}, ngraph::ParameterVector{input});
     }
 
-    auto res = compare_functions(f, f_ref);
+    auto res = compare_functions(f, f_ref, false, false, false, false);
     ASSERT_TRUE(res.first) << res.second;
 
     auto result_node_of_converted_f = f->get_output_op(0);

@@ -80,7 +80,8 @@ private:
             auto new_fc = std::make_shared<op::FullyConnected>(reshape->input_value(0),
                                                                fc->input_value(1),
                                                                fc->input_value(2),
-                                                               fc->get_shape());
+                                                               fc->get_shape(),
+                                                               fc->output(0).get_element_type());
 
             new_fc->set_friendly_name(fc->get_friendly_name());
             ngraph::copy_runtime_info({reshape, fc}, new_fc);

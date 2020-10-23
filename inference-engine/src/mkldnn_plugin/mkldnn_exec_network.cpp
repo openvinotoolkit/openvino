@@ -16,17 +16,20 @@
 #include <legacy/ie_util_internal.hpp>
 #include <legacy/graph_tools.hpp>
 #include <threading/ie_executor_manager.hpp>
+
+#ifdef USE_CNNNETWORK_LPT
 #include "low_precision_transformations/convolution.hpp"
-#include "low_precision_transformations/eltwise.hpp"
-#include "low_precision_transformations/fully_connected.hpp"
 #include "low_precision_transformations/scaleshift_to_convolution.hpp"
 #include "low_precision_transformations/transformer.hpp"
+#endif
+
 #include <threading/ie_cpu_streams_executor.hpp>
 #include <ie_system_conf.h>
 #include <threading/ie_thread_affinity.hpp>
 #include <algorithm>
 #include <unordered_set>
 #include <utility>
+#include <cstring>
 
 using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
@@ -51,6 +54,7 @@ MKLDNNExecNetwork::MKLDNNExecNetwork(const InferenceEngine::ICNNNetwork &network
     // we are cloning network if we have statistics and we can transform network.
     _clonedNetwork = cloneNet(network);
 
+#ifdef USE_CNNNETWORK_LPT
     if (_cfg.lpTransformsMode == Config::LPTransformsMode::On) {
         auto params = LayerTransformation::Params(true,  // updatePrecisions
                                                     true,  // quantizeOutputs
@@ -94,6 +98,7 @@ MKLDNNExecNetwork::MKLDNNExecNetwork(const InferenceEngine::ICNNNetwork &network
             bf16Transformer.convertToFloat(cnnetwork);
         }
     }
+#endif
 
     MKLDNNGraph::ApplyUnrollPasses(static_cast<ICNNNetwork&>(*_clonedNetwork));
 
