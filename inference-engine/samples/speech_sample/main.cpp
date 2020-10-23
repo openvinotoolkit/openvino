@@ -702,7 +702,7 @@ int main(int argc, char *argv[]) {
                 outputs.push_back(outBlobName.substr(0, pos_layer));
                 try {
                     ports.push_back(std::stoi(outBlobName.substr(pos_layer + 1)));
-                } catch (std::exception) {
+                } catch (const std::exception &) {
                     throw std::logic_error("Ports should have integer type");
                 }
             }

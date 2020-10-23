@@ -126,6 +126,28 @@ function(ie_avx512_optimization_flags flags)
     endif()
 endfunction()
 
+function(ie_arm_neon_optimization_flags flags)
+    if(WIN32 OR CMAKE_CXX_COMPILER_ID STREQUAL "Intel")
+        message(WARNING "Unsupported CXX compiler ${CMAKE_CXX_COMPILER_ID}")
+    elseif(ANDROID)
+        if(ANDROID_ABI STREQUAL "arm64-v8a")
+            set(${flags} "-mfpu=neon" PARENT_SCOPE)
+        elseif(ANDROID_ABI STREQUAL "armeabi-v7a-hard with NEON")
+            set(${flags} "-march=armv7-a -mfloat-abi=hard -mhard-float -D_NDK_MATH_NO_SOFTFP=1 -mfpu=neon" PARENT_SCOPE)
+        elseif((ANDROID_ABI STREQUAL "armeabi-v7a with NEON") OR
+               (ANDROID_ABI STREQUAL "armeabi-v7a" AND
+                DEFINED CMAKE_ANDROID_ARM_NEON AND CMAKE_ANDROID_ARM_NEON))
+            set(${flags} "-march=armv7-a -mfloat-abi=softfp -mfpu=neon" PARENT_SCOPE)
+        endif()
+    else()
+        if(AARCH64)
+            set(${flags} "-O2 -ftree-vectorize" PARENT_SCOPE)
+        elseif(ARM)
+            set(${flags} "-mfpu=neon" PARENT_SCOPE)
+        endif()
+    endif()
+endfunction()
+
 #
 # Enables Link Time Optimization compilation
 #
