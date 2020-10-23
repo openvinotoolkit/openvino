@@ -59,6 +59,32 @@ _get_node_factory_opset5 = partial(_get_node_factory, "opset5")
 
 
 @nameable_op
+def batch_norm_inference(
+    data: NodeInput,
+    gamma: NodeInput,
+    beta: NodeInput,
+    mean: NodeInput,
+    variance: NodeInput,
+    epsilon: float,
+    name: Optional[str] = None,
+) -> Node:
+    """Perform layer normalizes a input tensor by mean and variance with appling scale and offset.
+
+    :param data: The input tensor with data for normalization.
+    :param gamma: The scalar scaling for normalized value.
+    :param beta: The bias added to the scaled normalized value.
+    :param mean: The value for mean normalization.
+    :param variance: The value for variance normalization.
+    :param epsilon: The  number to be added to the variance to avoid division
+                    by zero when normalizing a value.
+    :param name: The optional name of the output node.
+    :return: The new node which performs BatchNormInference.
+    """
+    inputs = as_nodes(data, gamma, beta, mean, variance)
+    return _get_node_factory_opset5().create("BatchNormInference", inputs, {"epsilon": epsilon})
+
+
+@nameable_op
 def gather_nd(
     data: NodeInput,
     indices: NodeInput,
@@ -90,3 +116,17 @@ def log_softmax(data: NodeInput, axis: int, name: Optional[str] = None) -> Node:
     :return: The new node with LogSoftmax operation applied on each element.
     """
     return _get_node_factory_opset5().create("LogSoftmax", [as_node(data)], {"axis": axis})
+
+
+@nameable_op
+def round(data: NodeInput, mode: str = "half_to_even", name: Optional[str] = None) -> Node:
+    """Apply Round operation on each element of input tensor.
+
+    :param data: The tensor providing input data.
+    :param mode: Rule to round halfway cases. If set to 'half_to_even' then halfs round to the nearest even
+        integer or rounding in such a way that the result heads away from zero if `mode` attribute is
+        'half_away_from_zero`.
+    :param name: An optional name of the output node.
+    :return: The new node with Round operation applied on each element.
+    """
+    return _get_node_factory_opset5().create("Round", as_nodes(data), {"mode": mode.upper()})

@@ -21,21 +21,11 @@
 #include <vector>
 
 namespace kernel_selector {
-struct CommonDispatchData {
-    // TODO: change it to std::vector<size_t>
-    size_t gws0, gws1, gws2;
-    size_t lws0, lws1, lws2;
-    bool
-        fp16UnitUsed;  ///< Value indicating that FP16 half precision floating point type will be used (instead of single precision).
-    float efficiency;
 
-    CommonDispatchData() : gws0(0), gws1(0), gws2(0), lws0(0), lws1(0), lws2(0), fp16UnitUsed(false), efficiency(0.0f){}
-};
-
-class common_kernel_base : public KernelBase {
+class KernelBaseOpenCL : public KernelBase {
 public:
     using KernelBase::KernelBase;
-    virtual ~common_kernel_base() {}
+    virtual ~KernelBaseOpenCL() {}
 
 protected:
     virtual bool Validate(const Params&, const optional_params&) const { return true; }
@@ -58,7 +48,7 @@ protected:
     uint32_t GetFusedPrimitiveInputsCount(const Params &params) const;
 
     void FillCLKernelData(clKernelData& kernel,
-                          const CommonDispatchData& runInfo,
+                          const CommonDispatchData& dispatchData,
                           const EngineInfo& engine_info,
                           const std::string& kernel_map_name,
                           const std::string& jit,

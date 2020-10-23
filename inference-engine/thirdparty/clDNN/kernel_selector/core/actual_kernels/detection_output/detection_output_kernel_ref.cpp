@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2018 Intel Corporation
+﻿// Copyright (c) 2018-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -35,7 +35,7 @@ ParamsKey DetectionOutputKernel::GetSupportedKey() const {
 }
 
 CommonDispatchData DetectionOutputKernel::SetDefault(const detection_output_params& params) const {
-    CommonDispatchData runInfo = DetectionOutputKernelBase::SetDefault(params);
+    CommonDispatchData dispatchData = DetectionOutputKernelBase::SetDefault(params);
 
     // Number of all work items is set to total number of bounding boxes -
     // one bounding box is procerssed by one work item
@@ -54,15 +54,15 @@ CommonDispatchData DetectionOutputKernel::SetDefault(const detection_output_para
 
     bboxesNum = work_group_size * params.inputs[0].Batch().v;
 
-    runInfo.gws0 = Align(bboxesNum, work_group_size);
-    runInfo.gws1 = 1;
-    runInfo.gws2 = 1;
+    dispatchData.gws[0] = Align(bboxesNum, work_group_size);
+    dispatchData.gws[1] = 1;
+    dispatchData.gws[2] = 1;
 
-    runInfo.lws0 = work_group_size;
-    runInfo.lws1 = 1;
-    runInfo.lws2 = 1;
+    dispatchData.lws[0] = work_group_size;
+    dispatchData.lws[1] = 1;
+    dispatchData.lws[2] = 1;
 
-    return runInfo;
+    return dispatchData;
 }
 
 KernelsData DetectionOutputKernel::GetKernelsData(const Params& params, const optional_params& options) const {
@@ -70,14 +70,14 @@ KernelsData DetectionOutputKernel::GetKernelsData(const Params& params, const op
 
     KernelData kd = KernelData::Default<detection_output_params>(params);
     const detection_output_params& detectOutParams = static_cast<const detection_output_params&>(params);
-    DispatchData runInfo = SetDefault(detectOutParams);
+    DispatchData dispatchData = SetDefault(detectOutParams);
 
     auto cldnnJit = GetJitConstants(detectOutParams);
     auto entryPoint = GetEntryPoint(kernelName, detectOutParams.layerID, options);
     auto jit = CreateJit(kernelName, cldnnJit, entryPoint);
 
     auto& kernel = kd.kernels[0];
-    FillCLKernelData(kernel, runInfo, params.engineInfo, kernelName, jit, entryPoint);
+    FillCLKernelData(kernel, dispatchData, params.engineInfo, kernelName, jit, entryPoint);
     kernel.arguments.push_back({ArgumentDescriptor::Types::INPUT, 1});
     kernel.arguments.push_back({ArgumentDescriptor::Types::INPUT, 2});
 

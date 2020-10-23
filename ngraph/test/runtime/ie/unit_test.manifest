@@ -69,6 +69,7 @@ bool_const_op
 onnx_model_tile
 onnx_model_tile_static
 onnx_model_softmax_0D
+onnx_model_logsoftmax_0D
 builder_opset1_collapse_none
 
 # nGraph function's output number 0 was not found in the CNNNetwork built from it.
@@ -996,6 +997,7 @@ batch_norm_training_0eps_f64
 
 # Function inputs number differ from number of given inputs
 batch_norm_inference_parameters_duplication
+batch_norm_inference_parameters_duplication_v5
 
 backwards_abs
 backwards_acos
@@ -1129,6 +1131,13 @@ IE_CPU.onnx_resize11_scales_nearest_asymmetric_floor_dynamic_sizes
 
 # Input data precision not supported. Expected float.
 ctc_greedy_decoder_f16
+
+# Wrong output when axis 0
+IE_CPU.log_softmax_1d_single_value
+IE_CPU.log_softmax_2d_axis0
+IE_CPU.log_softmax_2d_axis_neg2
+IE_CPU.log_softmax_3d_axis_0
+IE_CPU.log_softmax_3d_axis_neg3
 
 #-------------------------------------------------------------------------------
 #

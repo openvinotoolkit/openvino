@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2016-2019 Intel Corporation
+﻿// Copyright (c) 2016-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "common_kernel_base.h"
+#include "kernel_base_opencl.h"
 #include <iostream>
 #include <string>
 #include <vector>
@@ -72,7 +72,7 @@ public:
 };
 }  // namespace
 
-std::string common_kernel_base::GetEntryPoint(const std::string& templateName,
+std::string KernelBaseOpenCL::GetEntryPoint(const std::string& templateName,
                                               const std::string& layerID,
                                               const optional_params& options) const {
     std::string kernelID = layerID;
@@ -89,7 +89,7 @@ std::string common_kernel_base::GetEntryPoint(const std::string& templateName,
     return kernelID;
 }
 
-std::string common_kernel_base::CreateJit(const std::string& template_name,
+std::string KernelBaseOpenCL::CreateJit(const std::string& template_name,
                                           const JitConstants& constants,
                                           const std::string& kernel_id) const {
     class CodeBuilder code;
@@ -109,7 +109,7 @@ std::string common_kernel_base::CreateJit(const std::string& template_name,
     return jit;
 }
 
-Arguments common_kernel_base::GetArgsDesc(uint32_t num_of_input,
+Arguments KernelBaseOpenCL::GetArgsDesc(uint32_t num_of_input,
                                           bool use_weights,
                                           bool use_bias,
                                           uint32_t number_of_inputs_for_fused_prim) const {
@@ -136,7 +136,7 @@ Arguments common_kernel_base::GetArgsDesc(uint32_t num_of_input,
     return args;
 }
 
-std::shared_ptr<KernelString> common_kernel_base::GetKernelString(const std::string& name,
+std::shared_ptr<KernelString> KernelBaseOpenCL::GetKernelString(const std::string& name,
                                                                   const std::string& jit,
                                                                   const std::string& entry_point,
                                                                   const EngineInfo& engine_info,
@@ -160,31 +160,7 @@ std::shared_ptr<KernelString> common_kernel_base::GetKernelString(const std::str
     return kernel_string;
 }
 
-static void Check_RunInfoData(const std::string& kernelName, const kernel_selector::CommonDispatchData& runInfo) {
-    if (runInfo.lws0 * runInfo.lws1 * runInfo.lws2 > 256) {
-        std::cout << "ERROR: dispatch data for kernel: " << kernelName << " LWS cannot be greater than 256!\n"
-                  << std::endl;
-    }
-    if (runInfo.gws0 == 0 || runInfo.gws1 == 0 || runInfo.gws2 == 0 || runInfo.lws0 == 0 || runInfo.lws1 == 0 ||
-        runInfo.lws2 == 0) {
-        std::cout << "ERROR: dispatch data for kernel: " << kernelName << " dispatch data cannot contain zeros!"
-                  << std::endl;
-    }
-    if (runInfo.gws0 % runInfo.lws0 != 0) {
-        std::cout << "ERROR: dispatch data for kernel: " << kernelName << " is incorrect: GWS0: " << runInfo.gws0
-                  << " LWS0: " << runInfo.lws0 << std::endl;
-    }
-    if (runInfo.gws1 % runInfo.lws1 != 0) {
-        std::cout << "ERROR: dispatch data for kernel: " << kernelName << " is incorrect: GWS1: " << runInfo.gws1
-                  << " LWS1: " << runInfo.lws1 << std::endl;
-    }
-    if (runInfo.gws2 % runInfo.lws2 != 0) {
-        std::cout << "ERROR: dispatch data for kernel: " << kernelName << " is incorrect: GWS2: " << runInfo.gws2
-                  << " LWS2: " << runInfo.lws2 << std::endl;
-    }
-}
-
-uint32_t common_kernel_base::GetFusedPrimitiveInputsCount(const Params &params) const {
+uint32_t KernelBaseOpenCL::GetFusedPrimitiveInputsCount(const Params &params) const {
     auto p = dynamic_cast<const base_params&>(params);
     uint32_t fused_deps_total = 0;
     for (auto fused_op : p.fused_ops) {
@@ -194,22 +170,21 @@ uint32_t common_kernel_base::GetFusedPrimitiveInputsCount(const Params &params) 
     return fused_deps_total;
 }
 
-void common_kernel_base::FillCLKernelData(clKernelData& kernel,
-                                          const CommonDispatchData& runInfo,
-                                          const EngineInfo& engine_info,
-                                          const std::string& kernelMapName,
-                                          const std::string& jit,
-                                          const std::string& entryPoint,
-                                          const std::string& exeMode,
-                                          bool weights,
-                                          bool bias,
-                                          int number_of_inputs,
-                                          uint32_t number_of_inputs_for_fused_prims) const {
-    Check_RunInfoData(kernelMapName, runInfo);
-    kernel.workGroups.global = {runInfo.gws0, runInfo.gws1, runInfo.gws2};
-    kernel.workGroups.local = {runInfo.lws0, runInfo.lws1, runInfo.lws2};
+void KernelBaseOpenCL::FillCLKernelData(clKernelData& kernel,
+                                        const CommonDispatchData& dispatchData,
+                                        const EngineInfo& engine_info,
+                                        const std::string& kernelMapName,
+                                        const std::string& jit,
+                                        const std::string& entryPoint,
+                                        const std::string& exeMode,
+                                        bool weights,
+                                        bool bias,
+                                        int number_of_inputs,
+                                        uint32_t number_of_inputs_for_fused_prims) const {
+    KernelBase::CheckDispatchData(kernelMapName, dispatchData);
+    kernel.workGroups.global = dispatchData.gws;
+    kernel.workGroups.local = dispatchData.lws;
     kernel.kernelString = GetKernelString(kernelMapName, jit, entryPoint, engine_info, exeMode);
-    kernel.arguments =
-        GetArgsDesc(number_of_inputs, weights, bias, number_of_inputs_for_fused_prims);
+    kernel.arguments = GetArgsDesc(number_of_inputs, weights, bias, number_of_inputs_for_fused_prims);
 }
 }  // namespace kernel_selector
