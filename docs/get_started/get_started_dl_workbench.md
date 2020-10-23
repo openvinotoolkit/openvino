@@ -16,6 +16,7 @@ the Intermediate Representation (IR) format
 * [Post-Training Optimization toolkit](@ref pot_README) to calibrate a model and then execute it in the
  INT8 precision
 * [Accuracy Checker](@ref omz_tools_accuracy_checker_README) to determine the accuracy of a model
+* [Benchmark Tool](@ref openvino_inference_engine_samples_benchmark_app_README) to estimate inference performance on supported devices
 
 ![](./dl_workbench_img/problem_statement.png)
 
