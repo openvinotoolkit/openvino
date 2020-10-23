@@ -308,6 +308,8 @@ class TensorIterator(Op):
                 if result['external_port_id'] != -1:
                     if dir == 'out':  # increase the output port id by the number of input ports
                         result['external_port_id'] += len(node.in_ports())
+                        # update the port id for proper generation of a "ports" section
+                        map_item['external_port_id'] = result['external_port_id']
             elif type == 'TensorIterator':
                 result['external_port_id'] = __class__.find_port_id(node, result['external_port_id'],
                                                                     'external_port_id', dir)
