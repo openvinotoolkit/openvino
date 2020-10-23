@@ -23,7 +23,7 @@
 using namespace std;
 using namespace ngraph;
 
-constexpr NodeTypeInfo op::Convert::type_info;
+NGRAPH_RTTI_DEFINITION(op::v0::Convert, "Convert", 0);
 
 op::Convert::Convert(const Output<Node>& arg, const element::Type& destination_type)
     : Op({arg})
@@ -105,9 +105,12 @@ namespace convert
     bool evaluate_convert(const HostTensorPtr& arg, const HostTensorPtr& out)
     {
         bool rc = true;
-
         switch (arg->get_element_type())
         {
+            TYPE_CASE(u8)(arg, out);
+            break;
+            TYPE_CASE(i8)(arg, out);
+            break;
             TYPE_CASE(i32)(arg, out);
             break;
             TYPE_CASE(i64)(arg, out);
