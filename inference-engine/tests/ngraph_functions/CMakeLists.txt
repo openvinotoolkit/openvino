@@ -18,6 +18,10 @@ addIeTarget(
         ROOT ${PUBLIC_HEADERS_DIR}
         ADDITIONAL_SOURCE_DIRS
             ${CMAKE_CURRENT_SOURCE_DIR}/src
+        LINK_LIBRARIES
+            funcTestUtils
+            # this import as result of including nGraph function building for tests
+            inference_engine_transformations
         ADD_CPPLINT
         DEVELOPER_PACKAGE
         EXPORT_DEPENDENCIES
