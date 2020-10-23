@@ -512,42 +512,6 @@ TEST(constant_folding, constant_unary_binary)
     ASSERT_NO_THROW(pass_manager.run_passes(func_error));
 }
 
-TEST(constant_folding, const_dequantize)
-{
-    Shape input_shape{12};
-    Shape scale_offset_shape;
-    AxisSet quantization_axes;
-
-    auto quant_type = element::u8;
-    auto output_type = element::f32;
-    typedef float output_c_type;
-
-    vector<uint8_t> values_in{1, 2, 2, 3, 3, 4, 4, 5, 5, 6, 6, 7};
-    auto constant = op::Constant::create(quant_type, input_shape, values_in);
-    auto scale = op::Constant::create(output_type, scale_offset_shape, {2});
-    auto offset = op::Constant::create(quant_type, scale_offset_shape, {1});
-    auto dequantize =
-        make_shared<op::Dequantize>(constant, scale, offset, output_type, quantization_axes);
-    dequantize->set_friendly_name("test");
-    auto f = make_shared<Function>(dequantize, ParameterVector{});
-
-    pass::Manager pass_manager;
-    pass_manager.register_pass<pass::ConstantFolding>();
-    pass_manager.run_passes(f);
-
-    ASSERT_EQ(count_ops_of_type<op::Dequantize>(f), 0);
-    ASSERT_EQ(count_ops_of_type<op::Constant>(f), 1);
-
-    auto new_const =
-        as_type_ptr<op::Constant>(f->get_results().at(0)->input_value(0).get_node_shared_ptr());
-    ASSERT_TRUE(new_const);
-    ASSERT_EQ(new_const->get_friendly_name(), "test");
-    auto values_out = new_const->get_vector<output_c_type>();
-
-    vector<output_c_type> values_dequantize{0, 2, 2, 4, 4, 6, 6, 8, 8, 10, 10, 12};
-    ASSERT_EQ(values_dequantize, values_out);
-}
-
 TEST(constant_folding, const_quantize)
 {
     Shape input_shape{12};
@@ -1440,34 +1404,6 @@ TEST(constant_folding, const_reduce_logical_and__keepdims_3d)
     const auto values_out = new_const->get_vector<char>();
 
     const vector<char> values_expected{0, 0};
-
-    ASSERT_EQ(values_expected, values_out);
-}
-
-TEST(constant_folding, const_any)
-{
-    Shape input_shape{3, 3};
-
-    vector<char> values_in{1, 0, 0, 1, 0, 1, 0, 0, 0};
-    auto constant = op::Constant::create(element::boolean, input_shape, values_in);
-    auto convert = make_shared<op::Any>(constant, AxisSet{1});
-    convert->set_friendly_name("test");
-    auto f = make_shared<Function>(convert, ParameterVector{});
-
-    pass::Manager pass_manager;
-    pass_manager.register_pass<pass::ConstantFolding>();
-    pass_manager.run_passes(f);
-
-    ASSERT_EQ(count_ops_of_type<op::Any>(f), 0);
-    ASSERT_EQ(count_ops_of_type<op::Constant>(f), 1);
-
-    auto new_const =
-        as_type_ptr<op::Constant>(f->get_results().at(0)->input_value(0).get_node_shared_ptr());
-    ASSERT_TRUE(new_const);
-    ASSERT_EQ(new_const->get_friendly_name(), "test");
-    auto values_out = new_const->get_vector<char>();
-
-    vector<char> values_expected{1, 1, 0};
 
     ASSERT_EQ(values_expected, values_out);
 }

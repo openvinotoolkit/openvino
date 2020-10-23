@@ -1453,12 +1453,6 @@ void GNAPluginNS::backend::AMIntelDNN::InitGNAStruct(intel_nnet_type_t *ptr_nnet
                                 comp.op.conv1D.num_feature_maps * comp.op.conv1D.num_feature_map_columns),
                         nullptr);
 
-                // TODO: GNA2: We have to explicitly enforce to use Legacy CNN
-                snprintf(
-                        const_cast<char*>(gnaOperation->Operands[1]->Layout),
-                        sizeof(gnaOperation->Operands[1]->Layout) / sizeof(char),
-                        "GNA1");
-
                 AdvanceCnnOperationIfAllApplied(component, i, gnaOperation);
 #else
                 pLayer->nInputRows = component[i].num_rows_in;

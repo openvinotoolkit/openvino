@@ -22,9 +22,7 @@ std::vector<std::string> disabledTestPatterns() {
             // Expected behavior
             R"(.*EltwiseLayerTest.*eltwiseOpType=Pow.*netPRC=I64.*)",
             R"(.*EltwiseLayerTest.*IS=\(.*\..*\..*\..*\..*\).*eltwiseOpType=Pow.*secondaryInputType=CONSTANT.*)",
-            // TODO: Issue: 40736
-            R"(.*ReverseSequenceLayerTest.*)",
-            // TODO: Issue: 40741
-            R"(.*GatherTreeLayerTest.*)",
+            // TODO: Issue: 40958
+            R"(.*(ConstantResultSubgraphTest).*)",
     };
 }

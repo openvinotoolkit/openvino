@@ -150,7 +150,6 @@ extensions/front/kaldi/tanh_component_ext.py
 extensions/front/kaldi/tdnn_component_replacer.py
 extensions/front/LayerNorm.py
 extensions/front/Log1p.py
-extensions/front/LogSoftmax.py
 extensions/front/MatMul_normalizer.py
 extensions/front/Mish_fusion.py
 extensions/front/MoveEmbeddedInputsToInputs.py
@@ -258,6 +257,7 @@ extensions/front/onnx/expand_ext.py
 extensions/front/onnx/flatten_ext.py
 extensions/front/onnx/flattenONNX_to_reshape.py
 extensions/front/onnx/gather_ext.py
+extensions/front/onnx/gathernd_ext.py
 extensions/front/onnx/gemm_ext.py
 extensions/front/onnx/group_norm_ext.py
 extensions/front/onnx/gru_ext.py
@@ -382,12 +382,15 @@ extensions/front/tf/FlattenToReshape.py
 extensions/front/tf/floor_div_decomposition.py
 extensions/front/tf/floor_ext.py
 extensions/front/tf/gather_ext.py
+extensions/front/tf/gathernd_ext.py
 extensions/front/tf/GatherTree_ext.py
 extensions/front/tf/GNMT_DynamicSequenceLengths.py
 extensions/front/tf/identity_ext.py
 extensions/front/tf/identityN_to_identity.py
 extensions/front/tf/InterpolateTransposes.py
 extensions/front/tf/IteratorGetNext_ext.py
+extensions/front/tf/log_softmax_ext.py
+extensions/front/tf/LookupTableInsert_ext.py
 extensions/front/tf/LoopCond_ext.py
 extensions/front/tf/lrn_ext.py
 extensions/front/tf/mask_rcnn_support.json
@@ -617,7 +620,7 @@ extensions/ops/ExtractImagePatches.py
 extensions/ops/fake_output.py
 extensions/ops/fakequantize.py
 extensions/ops/gather.py
-extensions/ops/GatherNd.py
+extensions/ops/gathernd.py
 extensions/ops/GatherTree.py
 extensions/ops/gelu.py
 extensions/ops/grn.py
@@ -628,6 +631,7 @@ extensions/ops/identity.py
 extensions/ops/instance_normalization.py
 extensions/ops/interp.py
 extensions/ops/interpolate.py
+extensions/ops/LookupTableInsert.py
 extensions/ops/LSTM.py
 extensions/ops/lstm_cell.py
 extensions/ops/lstm_sequence.py
@@ -879,7 +883,6 @@ mo/middle/passes/fusing/helpers.py
 mo/middle/passes/fusing/mark_unfused_nodes.py
 mo/middle/passes/fusing/resnet_optimization.py
 mo/middle/passes/infer.py
-mo/middle/passes/leaky_relu.py
 mo/middle/passes/tensor_names.py
 mo/middle/pattern_match.py
 mo/middle/replacement.py
@@ -902,6 +905,7 @@ mo/ops/expand_dims.py
 mo/ops/fill.py
 mo/ops/flatten.py
 mo/ops/group_norm.py
+mo/ops/log_softmax.py
 mo/ops/lrn.py
 mo/ops/lstmnonlinearity.py
 mo/ops/memory.py
