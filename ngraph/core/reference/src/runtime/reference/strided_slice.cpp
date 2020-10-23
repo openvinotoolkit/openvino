@@ -36,18 +36,30 @@ void runtime::reference::strided_slice(
           sp.reshape_in_shape,
           elem_type);
 
-    runtime::AlignedBuffer reshape_out_buffer(shape_size(sp.reshape_out_shape) * elem_type);
-    opt_kernel::reshape(slice_out_buffer.get_ptr<char>(),
-                        reshape_out_buffer.get_ptr<char>(),
-                        sp.reshape_in_shape,
-                        get_default_order(sp.reshape_in_shape.size()),
-                        sp.reshape_out_shape,
-                        elem_type);
+    if (sp.reverse_axes.empty())
+    {
+        opt_kernel::reshape(slice_out_buffer.get_ptr<char>(),
+                            out,
+                            sp.reshape_in_shape,
+                            get_default_order(sp.reshape_in_shape.size()),
+                            sp.reshape_out_shape,
+                            elem_type);
+    }
+    else
+    {
+        runtime::AlignedBuffer reshape_out_buffer(shape_size(sp.reshape_out_shape) * elem_type);
+        opt_kernel::reshape(slice_out_buffer.get_ptr<char>(),
+                            reshape_out_buffer.get_ptr<char>(),
+                            sp.reshape_in_shape,
+                            get_default_order(sp.reshape_in_shape.size()),
+                            sp.reshape_out_shape,
+                            elem_type);
 
-    reverse(reshape_out_buffer.get_ptr<char>(),
-            out,
-            sp.reshape_out_shape,
-            sp.reshape_out_shape,
-            sp.reverse_axes,
-            elem_type);
+        reverse(reshape_out_buffer.get_ptr<char>(),
+                out,
+                sp.reshape_out_shape,
+                sp.reshape_out_shape,
+                sp.reverse_axes,
+                elem_type);
+    }
 }
