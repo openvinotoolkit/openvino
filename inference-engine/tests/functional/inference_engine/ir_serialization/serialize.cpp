@@ -69,18 +69,10 @@ TEST_F(SerializationTest, ModelWithMultipleOutputs_MO) {
     expected.serialize(m_out_xml_path, m_out_bin_path);
     auto result = ie.ReadNetwork(m_out_xml_path, m_out_bin_path);
 
-// Compare function does not support models with multiple outputs
-#ifdef NDEBUG
-    bool success;
-    std::string message;
-    std::tie(success, message) =
-        compare_functions(result.getFunction(), expected.getFunction());
-
-    ASSERT_TRUE(success) << message;
-#else
-    ASSERT_DEBUG_DEATH(
-        compare_functions(result.getFunction(), expected.getFunction()), "");
-#endif
+    // Compare function does not support models with multiple outputs
+    ASSERT_THROW(
+        compare_functions(result.getFunction(), expected.getFunction()),
+        ngraph::CheckFailure);
 }
 
 TEST_F(SerializationTest, ModelWithMultipleOutputs_ONNXImporter) {
@@ -92,18 +84,10 @@ TEST_F(SerializationTest, ModelWithMultipleOutputs_ONNXImporter) {
     expected.serialize(m_out_xml_path, m_out_bin_path);
     auto result = ie.ReadNetwork(m_out_xml_path, m_out_bin_path);
 
-// Compare function does not support models with multiple outputs
-#ifdef NDEBUG
-    bool success;
-    std::string message;
-    std::tie(success, message) =
-        compare_functions(result.getFunction(), expected.getFunction());
-
-    ASSERT_TRUE(success) << message;
-#else
-    ASSERT_DEBUG_DEATH(
-        compare_functions(result.getFunction(), expected.getFunction()), "");
-#endif
+    // Compare function does not support models with multiple outputs
+    ASSERT_THROW(
+        compare_functions(result.getFunction(), expected.getFunction()),
+        ngraph::CheckFailure);
 }
 
 TEST_F(SerializationTest, ModelWithMultipleLayers_MO) {

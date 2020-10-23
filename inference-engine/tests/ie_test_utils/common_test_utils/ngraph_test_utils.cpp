@@ -23,8 +23,8 @@ std::pair<bool, std::string> compare_functions(const std::shared_ptr<ngraph::Fun
     auto f1_results = f1->get_results();
     auto f2_results = f2->get_results();
 
-    assert(f1_results.size() == 1);
-    assert(f2_results.size() == 1);
+    NGRAPH_CHECK(f1_results.size() == 1, "Comparing functions with multiple outpus is not supported");
+    NGRAPH_CHECK(f2_results.size() == 1, "Comparing functions with multiple outpus is not supported");
 
     auto typeInfoToStr = [](const ngraph::Node::type_info_t & typeInfo) {
         return std::string(typeInfo.name) + "/" + std::to_string(typeInfo.version);
