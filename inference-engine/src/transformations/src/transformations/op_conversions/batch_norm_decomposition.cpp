@@ -45,7 +45,7 @@ ngraph::pass::BatchNormDecomposition::BatchNormDecomposition() {
         // Divide `gamma` by `sqrt(variance + eps)`
         auto gamma_div_scale = std::make_shared<opset5::Divide>(m_gamma, scale);
 
-        size_t dims_to_add = m_input.get_partial_shape().rank().get_length() - 2;
+        int64_t dims_to_add = m_input.get_partial_shape().rank().get_length() - 2;
 
         // TODO: instead of getting full shape we can concatenate sequence of ones with ShapeOf
         Shape input_aligned_shape = m_gamma.get_shape();
