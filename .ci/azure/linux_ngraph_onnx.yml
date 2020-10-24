@@ -55,10 +55,9 @@ jobs:
     enabled: false
 
   - script: |
-      git clone --depth=1 https://github.com/onnx/models.git "$(TMP_DIR)/onnx_model_zoo"
-      #wget https://github.com/onnx/models/archive/master.zip -O "$(MODELS_DIR)/onnx_model_zoo.zip" --quiet
-      #unzip "$(MODELS_DIR)/onnx_model_zoo.zip" -d "$(MODELS_DIR)/onnx_model_zoo"
-      #rm "$(MODELS_DIR)/onnx_model_zoo.zip"
+      #git clone --depth=1 https://github.com/onnx/models.git "$(TMP_DIR)/onnx_model_zoo"
+      ngraph/python/tests/test_onnx/model_zoo_preprocess.sh -m $(TMP_DIR) -c -f
+      ls -alR $(TMP_DIR)
     displayName: 'Clone ONNX models'
     enabled: true
 
