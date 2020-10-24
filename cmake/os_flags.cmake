@@ -155,6 +155,15 @@ macro(ie_enable_lto)
     set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE ON)
 endmacro()
 
+if(ENABLE_LTO AND CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND
+   CMAKE_C_COMPILER_VERSION VERSION_LESS 4.9)
+    set(CMAKE_C_COMPILER_AR gcc-ar)
+    set(CMAKE_CXX_COMPILER_AR gcc-ar)
+
+    set(CMAKE_C_COMPILER_RANLIB gcc-ranlib)
+    set(CMAKE_CXX_COMPILER_RANLIB gcc-ranlib)
+endif()
+
 #
 # Adds compiler flags to C / C++ sources
 #
