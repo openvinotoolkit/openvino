@@ -26,6 +26,7 @@ using concatParamsTuple = typename std::tuple<
         InferenceEngine::Layout,           // Output layout
         std::string>;                      // Device name
 
+// Multichannel
 class ConcatLayerTest : public testing::WithParamInterface<concatParamsTuple>,
                         virtual public LayerTestsUtils::LayerTestsCommon {
 public:

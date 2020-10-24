@@ -1,0 +1,65 @@
+// Copyright (C) 2018-2020 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+
+timeout(30)
+{
+    node(LABEL) {
+
+        BUILD_WORKSPACE = "$WORKSPACE/$BUILD_NUMBER"
+        WATCHDOG_ROOT = "$BUILD_WORKSPACE/.ci/openvino-onnx/watchdog"
+        VENV_PATH = "${BUILD_WORKSPACE}/.wdvenv"
+
+        try {
+                stage("Clone repository") {
+                    dir ("$BUILD_WORKSPACE") {
+                        checkout([$class: 'GitSCM', branches: [[name: "*/$BRANCH"]],
+                                doGenerateSubmoduleConfigurations: false, extensions: [[$class: 'CloneOption', timeout: 30]],  submoduleCfg: [],
+                                userRemoteConfigs: [[credentialsId: "${GITHUB_KEY}", url: 'git@github.com:rblaczkowski/openvino.git']]])
+                    }
+                }
+                stage("Prepare environment") {
+                    sh """#!/bin/bash
+                        if [ ! -d ${VENV_PATH} ]; then
+                            python3 -m venv ${VENV_PATH}
+                            source ${VENV_PATH}/bin/activate
+                            pip install -r ${WATCHDOG_ROOT}/requirements.txt
+                        fi
+                    """
+                }
+                stage("Run script") {
+                    withCredentials([
+                        usernamePassword(credentialsId: '7157091e-bc04-42f0-99fd-dc4da2922a55',
+                        usernameVariable: 'username',
+                        passwordVariable: 'password')])
+                    {
+                        dir ("$BUILD_WORKSPACE") {
+                            sh """#!/bin/bash
+                                source ${VENV_PATH}/bin/activate
+                                export PYTHONHTTPSVERIFY=0
+                                python ${WATCHDOG_ROOT}/src/main.py \
+                                    --msteams-url=${MSTEAMS_URL_FILE} \
+                                    --github-credentials '${username}' '${password}' \
+                                    --github-org=${GITHUB_ORG} \
+                                    --github-project=${GITHUB_PROJECT} \
+                                    --jenkins-token=${JENKINS_TOKEN_FILE} \
+                                    --jenkins-server=${JENKINS_SERVER} \
+                                    --jenkins-user=${JENKINS_USER} \
+                                    --ci-job=${CI_JOB_NAME} \
+                                    --watchdog-job=${WATCHDOG_JOB_NAME}
+                            """
+                        }
+                    }
+                }
+        } catch (e) {
+            echo "$e"
+            currentBuild.result = "FAILURE"
+        } finally {
+            stage("Cleanup") {
+                sh """
+                    cd $BUILD_WORKSPACE
+                    rm -rf ..?* .[!.]* *
+                """
+            }
+        }
+    }
+}
