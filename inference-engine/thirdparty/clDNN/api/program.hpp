@@ -1,5 +1,5 @@
 /*
-// Copyright (c) 2016 Intel Corporation
+// Copyright (c) 2016-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -45,9 +45,6 @@ enum class build_option_type {
 
     /// @brief Enable implicit static input reordering for user inputs (default: false).
     allow_static_input_reorder,
-
-    /// @brief Enable running detection output layer always on gpu, regardless performance
-    detection_output_gpu,
 
     /// @brief Enable debug mode (default: false).
     /// @details This option enforce all program primitives to be accessible as outputs.
@@ -129,9 +126,6 @@ struct build_option {
 
     /// @brief Enable implicit reordering for static user inputs (default: false).
     static std::shared_ptr<const build_option> allow_static_input_reorder(bool enable = false);
-
-    /// @brief Enable running detection output layer always on GPU, regardless performance (default: false).
-    static std::shared_ptr<const build_option> detection_output_gpu(bool enable = false);
 
     /// @brief Enable debug mode (default: false).
     /// @details This option enforce all program primitives to be accessible as outputs.
@@ -323,11 +317,6 @@ struct build_option_traits<build_option_type::allow_static_input_reorder> {
     static std::shared_ptr<const build_option> make_default() { return build_option::allow_static_input_reorder(); }
 };
 template <>
-struct build_option_traits<build_option_type::detection_output_gpu> {
-    typedef build_option_bool<build_option_type::detection_output_gpu> object_type;
-    static std::shared_ptr<const build_option> make_default() { return build_option::detection_output_gpu(); }
-};
-template <>
 struct build_option_traits<build_option_type::debug> {
     typedef build_option_bool<build_option_type::debug> object_type;
     static std::shared_ptr<const build_option> make_default() { return build_option::debug(); }
@@ -382,10 +371,6 @@ inline std::shared_ptr<const build_option> build_option::optimize_data(bool enab
 
 inline std::shared_ptr<const build_option> build_option::allow_static_input_reorder(bool enable) {
     return std::make_shared<build_option_bool<build_option_type::allow_static_input_reorder>>(enable);
-}
-
-inline std::shared_ptr<const build_option> build_option::detection_output_gpu(bool enable) {
-    return std::make_shared<build_option_bool<build_option_type::detection_output_gpu>>(enable);
 }
 
 inline std::shared_ptr<const build_option> build_option::debug(bool enable) {

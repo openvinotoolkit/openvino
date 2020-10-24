@@ -1,5 +1,5 @@
 /*
-// Copyright (c) 2016 Intel Corporation
+// Copyright (c) 2016-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -19,6 +19,7 @@
 #include "network_impl.h"
 #include "implementation_map.h"
 #include "math_utils.h"
+#include "register_gpu.hpp"
 #include "cpu_impl_helpers.hpp"
 
 #include <algorithm>
@@ -636,7 +637,14 @@ struct detection_output_cpu : typed_primitive_impl<detection_output> {
     static primitive_impl* create(const detection_output_node& arg) { return new detection_output_cpu(arg); }
 };
 
-primitive_impl* runDetectOutCpu(const detection_output_node& arg) { return new detection_output_cpu(arg); }
+namespace detail {
+
+attach_detection_output_gpu::attach_detection_output_gpu() {
+    implementation_map<detection_output>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::bfyx), detection_output_cpu::create);
+    implementation_map<detection_output>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::bfyx), detection_output_cpu::create);
+}
+
+}  // namespace detail
 
 }  // namespace gpu
 }  // namespace cldnn

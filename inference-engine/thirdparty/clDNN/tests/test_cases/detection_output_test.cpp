@@ -1,5 +1,5 @@
 /*
-// Copyright (c) 2016 Intel Corporation
+// Copyright (c) 2016-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -24,8 +24,7 @@
 #include <api/engine.hpp>
 #include "test_utils/test_utils.h"
 
-namespace cldnn
-{
+namespace cldnn {
     template<> struct type_to_data_type<FLOAT16> { static const data_types value = data_types::f16; };
 }
 
@@ -33,18 +32,15 @@ using namespace cldnn;
 using namespace tests;
 
 template <typename T>
-class detection_output_test : public ::testing::Test
-{
+class detection_output_test : public ::testing::Test {
 
 public:
     detection_output_test() :
-        nms_threshold(0.1f)
-    {}
+        nms_threshold(0.1f) {}
 
     void init_buffers(cldnn::memory prior_memory, cldnn::memory confidence_memory, cldnn::memory location_memory,
                       bool share_location, bool variance_encoded_in_target = false,
-                      int prior_info_size = 4, int prior_coordinates_offset = 0, bool prior_is_normalized = true)
-    {
+                      int prior_info_size = 4, int prior_coordinates_offset = 0, bool prior_is_normalized = true) {
         auto location_ptr = location_memory.pointer<T>();
         auto confidence_ptr = confidence_memory.pointer<T>();
         auto prior_box_ptr = prior_memory.pointer<T>();
@@ -59,11 +55,9 @@ public:
         const float prior_multiplier = prior_is_normalized ? 1.0f : static_cast<float>(this->img_size);
         const float variance = 0.1f;
         int idx = 0;
-        for (int h = 0; h < 2; ++h)
-        {
+        for (int h = 0; h < 2; ++h) {
             float center_y = (h + 0.5f) * step;
-            for (int w = 0; w < 2; ++w) 
-            {
+            for (int w = 0; w < 2; ++w) {
                 float center_x = (w + 0.5f) * step;
                 prior_data[idx+prior_coordinates_offset+0] = (center_x - box_size / 2) * prior_multiplier;
                 prior_data[idx+prior_coordinates_offset+1] = (center_y - box_size / 2) * prior_multiplier;
@@ -73,28 +67,20 @@ public:
                 idx += prior_info_size;
             }
         }
-        if (!variance_encoded_in_target)
-        {
-            for (int i = 0; i < idx; ++i)
-            {
+        if (!variance_encoded_in_target) {
+            for (int i = 0; i < idx; ++i) {
                 prior_data[idx + i] = variance;
             }
         }
 
         // Fill confidences.
         idx = 0;
-        for (int i = 0; i < num_of_images; ++i) 
-        {
-            for (int j = 0; j < num_priors; ++j) 
-            {
-                for (int c = 0; c < num_classes; ++c) 
-                {
-                    if (i % 2 == c % 2) 
-                    {
+        for (int i = 0; i < num_of_images; ++i) {
+            for (int j = 0; j < num_priors; ++j) {
+                for (int c = 0; c < num_classes; ++c) {
+                    if (i % 2 == c % 2) {
                         confidence_data[idx++] = j * 0.2f;
-                    }
-                    else 
-                    {
+                    } else {
                         confidence_data[idx++] = 1 - j * 0.2f;
                     }
                 }
@@ -105,14 +91,10 @@ public:
         const int num_loc_classes = share_location ? 1 : num_classes;
         const float loc_multiplier = variance_encoded_in_target ? variance : 1.0f;
         idx = 0;
-        for (int i = 0; i < num_of_images; ++i) 
-        {
-            for (int h = 0; h < 2; ++h) 
-            {
-                for (int w = 0; w < 2; ++w) 
-                {
-                    for (int c = 0; c < num_loc_classes; ++c) 
-                    {
+        for (int i = 0; i < num_of_images; ++i) {
+            for (int h = 0; h < 2; ++h) {
+                for (int w = 0; w < 2; ++w) {
+                    for (int c = 0; c < num_loc_classes; ++c) {
                         location_data[idx++] = (w % 2 ? -1 : 1) * (i * 1 + c / 2.f + 0.5f) * loc_multiplier;
                         location_data[idx++] = (h % 2 ? -1 : 1) * (i * 1 + c / 2.f + 0.5f) * loc_multiplier;
                         location_data[idx++] = (w % 2 ? -1 : 1) * (i * 1 + c / 2.f + 0.5f) * loc_multiplier;
@@ -123,8 +105,7 @@ public:
         }
     }
 
-    void init_buffer_sort(cldnn::memory input_buff)
-    {
+    void init_buffer_sort(cldnn::memory input_buff) {
         auto input_data_ptr = input_buff.pointer<T>();
 
         EXPECT_EQ((int)input_buff.count(), 128);
@@ -150,8 +131,7 @@ public:
         input_data[121] = -1; input_data[122] = 0; input_data[123] = 0; input_data[124] = 0; input_data[125] = 0; input_data[126] = 0; input_data[127] = 0;
     }
 
-    void check_results(const memory& output, const int num, const std::string values)
-    {
+    void check_results(const memory& output, const int num, const std::string values) {
         assert(num < output.get_layout().size.spatial[1]);
 
         // Split values to vector of items.
@@ -163,18 +143,15 @@ public:
         // Check data.
         auto out_ptr = output.pointer<T>();
         const T* data = out_ptr.data();
-        for (int i = 0; i < 2; ++i)
-        {
+        for (int i = 0; i < 2; ++i) {
             EXPECT_EQ(static_cast<int>((float)data[num * output.get_layout().size.spatial[0] + i]), atoi(items[i].c_str()));
         }
-        for (int i = 2; i < 7; ++i) 
-        {
+        for (int i = 2; i < 7; ++i) {
             EXPECT_TRUE(floating_point_equal(data[num * output.get_layout().size.spatial[0] + i], (T)(float)atof(items[i].c_str())));
         }
     }
 
-    void setup_basic(bool runOnGPU)
-    {
+    void setup_basic() {
         const bool share_location = true;
         const int num_loc_classes = share_location ? 1 : this->num_classes;
         const int keep_top_k = 150;
@@ -192,11 +169,6 @@ public:
         topology.add(detection_output("detection_output", "input_location", "input_confidence", "input_prior_box", this->num_classes, keep_top_k));
 
         build_options opts;
-        if (runOnGPU)
-        {
-            opts.set_option(build_option::detection_output_gpu(true));
-        }
-
         network network(engine, topology, opts);
         network.set_input_data("input_location", input_location);
         network.set_input_data("input_confidence", input_confidence);
@@ -213,8 +185,7 @@ public:
         EXPECT_EQ(outputs.begin()->second.get_memory().get_layout().size.spatial[0], 7);
     }
 
-    void setup_two_layers(bool runOnGPU)
-    {
+    void setup_two_layers() {
         const bool share_location = true;
         const int num_loc_classes = share_location ? 1 : this->num_classes;
         const int keep_top_k = 150;
@@ -233,11 +204,6 @@ public:
         topology.add(detection_output("detection_output_2", "input_location", "input_confidence", "input_prior_box", this->num_classes, keep_top_k));
 
         build_options opts;
-        if (runOnGPU)
-        {
-            opts.set_option(build_option::detection_output_gpu(true));
-        }
-
         network network(engine, topology, opts);
         network.set_input_data("input_location", input_location);
         network.set_input_data("input_confidence", input_confidence);
@@ -247,8 +213,7 @@ public:
 
         EXPECT_EQ(outputs.size(), size_t(2));
         unsigned i = 1;
-        for (auto it = outputs.begin(); it != outputs.begin(); it++)
-        {
+        for (auto it = outputs.begin(); it != outputs.begin(); it++) {
 
             EXPECT_EQ(it->first, "detection_output_" + std::to_string(i));
 
@@ -260,8 +225,7 @@ public:
         }
     }
 
-    void forward_share_location(bool runOnGPU)
-    {
+    void forward_share_location() {
         const bool share_location = true;
         const int num_loc_classes = share_location ? 1 : this->num_classes;
         const int keep_top_k = 4;
@@ -282,11 +246,6 @@ public:
         topology.add(detection_output("detection_output", "input_location", "input_confidence", "input_prior_box", this->num_classes, keep_top_k, share_location, background_label_id, this->nms_threshold));
 
         build_options opts;
-        if (runOnGPU)
-        {
-            opts.set_option(build_option::detection_output_gpu(true));
-        }
-
         network network(engine, topology, opts);
         network.set_input_data("input_location", input_location);
         network.set_input_data("input_confidence", input_confidence);
@@ -314,8 +273,7 @@ public:
         check_results(output_prim, 7, "-1 0 0 0 0 0 0");
     }
 
-    void forward_num_detections_greater_than_keep_top_k(bool runOnGPU)
-    {
+    void forward_num_detections_greater_than_keep_top_k() {
         const bool share_location = true;
         const int num_loc_classes = share_location ? 1 : this->num_classes;
         const int keep_top_k = 1;
@@ -336,11 +294,6 @@ public:
         topology.add(detection_output("detection_output", "input_location", "input_confidence", "input_prior_box", this->num_classes, keep_top_k, share_location, background_label_id, this->nms_threshold));
 
         build_options opts;
-        if (runOnGPU)
-        {
-            opts.set_option(build_option::detection_output_gpu(true));
-        }
-
         network network(engine, topology, opts);
         network.set_input_data("input_location", input_location);
         network.set_input_data("input_confidence", input_confidence);
@@ -362,8 +315,7 @@ public:
         check_results(output_prim, 1, "1 1 0.6 0.45 0.45 0.75 0.75");
     }
 
-    void forward_num_detections_smaller_than_keep_top_k(bool runOnGPU)
-    {
+    void forward_num_detections_smaller_than_keep_top_k() {
         const bool share_location = true;
         const int num_loc_classes = share_location ? 1 : this->num_classes;
         const int keep_top_k = 6;
@@ -384,11 +336,6 @@ public:
         topology.add(detection_output("detection_output", "input_location", "input_confidence", "input_prior_box", this->num_classes, keep_top_k, share_location, background_label_id, this->nms_threshold));
 
         build_options opts;
-        if (runOnGPU)
-        {
-            opts.set_option(build_option::detection_output_gpu(true));
-        }
-
         network network(engine, topology, opts);
         network.set_input_data("input_location", input_location);
         network.set_input_data("input_confidence", input_confidence);
@@ -420,8 +367,7 @@ public:
         check_results(output_prim, 11, "-1 0 0 0 0 0 0");
     }
 
-    void test_forward_share_location_top_k(bool runOnGPU)
-    {
+    void test_forward_share_location_top_k() {
         const bool share_location = true;
         const int num_loc_classes = share_location ? 1 : this->num_classes;
         const int keep_top_k = 2;
@@ -443,11 +389,6 @@ public:
         topology.add(detection_output("detection_output", "input_location", "input_confidence", "input_prior_box", this->num_classes, keep_top_k, share_location, background_label_id, this->nms_threshold, top_k));
 
         build_options opts;
-        if (runOnGPU)
-        {
-            opts.set_option(build_option::detection_output_gpu(true));
-        }
-
         network network(engine, topology, opts);
         network.set_input_data("input_location", input_location);
         network.set_input_data("input_confidence", input_confidence);
@@ -471,8 +412,7 @@ public:
         check_results(output_prim, 3, "-1 0 0 0 0 0 0");
     }
 
-    void forward_no_share_location(bool runOnGPU)
-    {
+    void forward_no_share_location() {
         const bool share_location = false;
         const int num_loc_classes = share_location ? 1 : this->num_classes;
         const int keep_top_k = 10;
@@ -493,11 +433,6 @@ public:
         topology.add(detection_output("detection_output", "input_location", "input_confidence", "input_prior_box", this->num_classes, keep_top_k, share_location, background_label_id, this->nms_threshold));
 
         build_options opts;
-        if (runOnGPU)
-        {
-            opts.set_option(build_option::detection_output_gpu(true));
-        }
-
         network network(engine, topology, opts);
         network.set_input_data("input_location", input_location);
         network.set_input_data("input_confidence", input_confidence);
@@ -537,8 +472,7 @@ public:
         check_results(output_prim, 19, "-1 0 0 0 0 0 0");
     }
 
-    void forward_no_share_location_top_k(bool runOnGPU)
-    {
+    void forward_no_share_location_top_k() {
         const bool share_location = false;
         const int num_loc_classes = share_location ? 1 : this->num_classes;
         const int keep_top_k = 4;
@@ -560,11 +494,6 @@ public:
         topology.add(detection_output("detection_output", "input_location", "input_confidence", "input_prior_box", this->num_classes, keep_top_k, share_location, background_label_id, this->nms_threshold, top_k));
 
         build_options opts;
-        if (runOnGPU)
-        {
-            opts.set_option(build_option::detection_output_gpu(true));
-        }
-
         network network(engine, topology, opts);
         network.set_input_data("input_location", input_location);
         network.set_input_data("input_confidence", input_confidence);
@@ -592,8 +521,7 @@ public:
         check_results(output_prim, 7, "-1 0 0 0 0 0 0");
     }
 
-    void forward_no_share_location_neg_0(bool runOnGPU)
-    {
+    void forward_no_share_location_neg_0() {
         const bool share_location = false;
         const int num_loc_classes = share_location ? 1 : this->num_classes;
         const int keep_top_k = 5;
@@ -614,11 +542,6 @@ public:
         topology.add(detection_output("detection_output", "input_location", "input_confidence", "input_prior_box", this->num_classes, keep_top_k, share_location, background_label_id, this->nms_threshold));
 
         build_options opts;
-        if (runOnGPU)
-        {
-            opts.set_option(build_option::detection_output_gpu(true));
-        }
-
         network network(engine, topology, opts);
         network.set_input_data("input_location", input_location);
         network.set_input_data("input_confidence", input_confidence);
@@ -648,8 +571,7 @@ public:
         check_results(output_prim, 9, "-1 0 0 0 0 0 0");
     }
 
-    void forward_no_share_location_neg_0_top_k(bool runOnGPU)
-    {
+    void forward_no_share_location_neg_0_top_k() {
         const bool share_location = false;
         const int num_loc_classes = share_location ? 1 : this->num_classes;
         const int keep_top_k = 2;
@@ -671,11 +593,6 @@ public:
         topology.add(detection_output("detection_output", "input_location", "input_confidence", "input_prior_box", this->num_classes, keep_top_k, share_location, background_label_id, this->nms_threshold, top_k));
 
         build_options opts;
-        if (runOnGPU)
-        {
-            opts.set_option(build_option::detection_output_gpu(true));
-        }
-
         network network(engine, topology, opts);
         network.set_input_data("input_location", input_location);
         network.set_input_data("input_confidence", input_confidence);
@@ -699,8 +616,7 @@ public:
         check_results(output_prim, 3, "-1 0 0 0 0 0 0");
     }
 
-    void forward_no_share_location_top_k_input_padding(bool runOnGPU)
-    {
+    void forward_no_share_location_top_k_input_padding() {
         const bool share_location = false;
         const int num_loc_classes = share_location ? 1 : this->num_classes;
         const int keep_top_k = 4;
@@ -723,11 +639,6 @@ public:
         topology.add(detection_output("detection_output", "input_location_padded", "input_confidence_padded", "input_prior_box", this->num_classes, keep_top_k, share_location, background_label_id, this->nms_threshold, top_k));
 
         build_options opts;
-        if (runOnGPU)
-        {
-            opts.set_option(build_option::detection_output_gpu(true));
-        }
-
         network network(engine, topology, opts);
         network.set_input_data("input_location", input_location);
         network.set_input_data("input_confidence", input_confidence);
@@ -755,8 +666,7 @@ public:
         check_results(output_prim, 7, "-1 0 0 0 0 0 0");
     }
 
-    void test_forward_no_share_location_top_k_faster_rcnn_case(bool runOnGPU)
-    {
+    void test_forward_no_share_location_top_k_faster_rcnn_case() {
         const bool share_location = false;
         const int num_loc_classes = share_location ? 1 : this->num_classes;
         const int keep_top_k = 4;
@@ -792,11 +702,6 @@ public:
         ));
 
         build_options opts;
-        if (runOnGPU)
-        {
-            opts.set_option(build_option::detection_output_gpu(true));
-        }
-
         network network(engine, topology, opts);
         network.set_input_data("input_location", input_location);
         network.set_input_data("input_confidence", input_confidence);
@@ -834,181 +739,50 @@ public:
 typedef ::testing::Types<float, FLOAT16> detection_output_test_types;
 TYPED_TEST_CASE(detection_output_test, detection_output_test_types);
 
-TYPED_TEST(detection_output_test, test_setup_basic)
-{
-    this->setup_basic(false);
+TYPED_TEST(detection_output_test, test_setup_basic) {
+    this->setup_basic();
 }
 
-TYPED_TEST(detection_output_test, test_setup_basic_gpu)
-{
-    this->setup_basic(true);
+TYPED_TEST(detection_output_test, test_setup_two_layers) {
+    this->setup_two_layers();
 }
 
-TYPED_TEST(detection_output_test, test_setup_two_layers)
-{
-    this->setup_two_layers(false);
+TYPED_TEST(detection_output_test, test_forward_share_location) {
+    this->forward_share_location();
 }
 
-TYPED_TEST(detection_output_test, test_setup_two_layers_gpu)
-{
-    this->setup_two_layers(true);
+TYPED_TEST(detection_output_test, test_forward_num_detections_greater_than_keep_top_k) {
+    this->forward_num_detections_greater_than_keep_top_k();
 }
 
-TYPED_TEST(detection_output_test, test_forward_share_location)
-{
-    this->forward_share_location(false);
+TYPED_TEST(detection_output_test, test_forward_num_detections_smaller_than_keep_top_k) {
+    this->forward_num_detections_smaller_than_keep_top_k();
 }
 
-TYPED_TEST(detection_output_test, DISABLED_test_forward_share_location_gpu)
-{
-    this->forward_share_location(true);
+TYPED_TEST(detection_output_test, test_forward_share_location_top_k) {
+    this->test_forward_share_location_top_k();
 }
 
-TYPED_TEST(detection_output_test, test_forward_num_detections_greater_than_keep_top_k)
-{
-    this->forward_num_detections_greater_than_keep_top_k(false);
+TYPED_TEST(detection_output_test, test_forward_no_share_location) {
+    this->forward_no_share_location();
 }
 
-TYPED_TEST(detection_output_test, test_forward_num_detections_greater_than_keep_top_k_gpu)
-{
-    this->forward_num_detections_greater_than_keep_top_k(true);
+TYPED_TEST(detection_output_test, test_forward_no_share_location_top_k) {
+    this->forward_no_share_location_top_k();
 }
 
-TYPED_TEST(detection_output_test, test_forward_num_detections_smaller_than_keep_top_k)
-{
-    this->forward_num_detections_smaller_than_keep_top_k(false);
+TYPED_TEST(detection_output_test, test_forward_no_share_location_neg_0) {
+    this->forward_no_share_location_neg_0();
 }
 
-TYPED_TEST(detection_output_test, DISABLED_test_forward_num_detections_smaller_than_keep_top_k_gpu)
-{
-    this->forward_num_detections_smaller_than_keep_top_k(true);
+TYPED_TEST(detection_output_test, test_forward_no_share_location_neg_0_top_k) {
+    this->forward_no_share_location_neg_0_top_k();
 }
 
-TYPED_TEST(detection_output_test, test_forward_share_location_top_k)
-{
-    this->test_forward_share_location_top_k(false);
+TYPED_TEST(detection_output_test, test_forward_no_share_location_top_k_input_padding) {
+    this->forward_no_share_location_top_k_input_padding();
 }
 
-TYPED_TEST(detection_output_test, test_forward_share_location_top_k_gpu)
-{
-    this->test_forward_share_location_top_k(true);
+TYPED_TEST(detection_output_test, test_forward_no_share_location_top_k_faster_rcnn_case) {
+    this->test_forward_no_share_location_top_k_faster_rcnn_case();
 }
-
-TYPED_TEST(detection_output_test, test_forward_no_share_location)
-{
-    this->forward_no_share_location(false);
-}
-
-TYPED_TEST(detection_output_test, test_forward_no_share_location_gpu)
-{
-    this->forward_no_share_location(true);
-}
-
-TYPED_TEST(detection_output_test, test_forward_no_share_location_top_k)
-{
-    this->forward_no_share_location_top_k(false);
-}
-
-TYPED_TEST(detection_output_test, test_forward_no_share_location_top_k_gpu)
-{
-    this->forward_no_share_location_top_k(true);
-}
-
-TYPED_TEST(detection_output_test, test_forward_no_share_location_neg_0)
-{
-    this->forward_no_share_location_neg_0(false);
-}
-
-TYPED_TEST(detection_output_test, test_forward_no_share_location_neg_0_gpu)
-{
-    this->forward_no_share_location_neg_0(true);
-}
-
-TYPED_TEST(detection_output_test, test_forward_no_share_location_neg_0_top_k)
-{
-    this->forward_no_share_location_neg_0_top_k(false);
-}
-
-TYPED_TEST(detection_output_test, test_forward_no_share_location_neg_0_top_k_gpu)
-{
-    this->forward_no_share_location_neg_0_top_k(true);
-}
-
-TYPED_TEST(detection_output_test, test_forward_no_share_location_top_k_input_padding)
-{
-    this->forward_no_share_location_top_k_input_padding(false);
-}
-
-TYPED_TEST(detection_output_test, test_forward_no_share_location_top_k_input_padding_gpu)
-{
-    this->forward_no_share_location_top_k_input_padding(true);
-}
-
-TYPED_TEST(detection_output_test, test_forward_no_share_location_top_k_faster_rcnn_case)
-{
-    this->test_forward_no_share_location_top_k_faster_rcnn_case(false);
-}
-
-TYPED_TEST(detection_output_test, test_forward_no_share_location_top_k_faster_rcnn_case_gpu)
-{
-    this->test_forward_no_share_location_top_k_faster_rcnn_case(true);
-}
-
-TYPED_TEST(detection_output_test, test_detection_output_sort_gpu)
-{
-    const bool share_location = false;
-    const int num_loc_classes = share_location ? 1 : this->num_classes;
-    const int keep_top_k = 10;
-    const int background_label_id = -1;
-    const int top_k = -1;
-
-    const unsigned out_row_size = 7;
-    const unsigned score_space = ((this->num_of_images + 15) / 16) * 16;
-    int input_size = this->num_of_images * num_loc_classes * this->num_priors * out_row_size + score_space;
-
-    const auto& engine = get_test_engine();
-    cldnn::memory input_buff = memory::allocate(engine, { type_to_data_type<TypeParam>::value, format::bfyx,{ 1, 1, 1, input_size } });
-
-    this->init_buffer_sort(input_buff);
-
-    topology topology;
-    topology.add(input_layout("input_location", input_buff.get_layout()));
-
-    topology.add(detection_output_sort("detection_output_sort", "input_location", this->num_of_images, this->num_classes, keep_top_k, share_location, top_k, background_label_id));
-    network network(engine, topology);
-    network.set_input_data("input_location", input_buff);
-
-    auto outputs = network.execute();
-
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "detection_output_sort");
-
-    EXPECT_EQ(outputs.begin()->second.get_memory().get_layout().size.batch[0], 1);
-    EXPECT_EQ(outputs.begin()->second.get_memory().get_layout().size.feature[0], 1);
-    EXPECT_EQ(outputs.begin()->second.get_memory().get_layout().size.spatial[1], keep_top_k * this->num_of_images);
-    EXPECT_EQ(outputs.begin()->second.get_memory().get_layout().size.spatial[0], 7);
-
-    auto output_prim = outputs.begin()->second.get_memory();
-
-    this->check_results(output_prim, 0, "0 0 0.6 0.55 0.55 0.85 0.85");
-    this->check_results(output_prim, 1, "0 0 0.4 0.15 0.55 0.45 0.85");
-    this->check_results(output_prim, 2, "0 0 0.2 0.55 0.15 0.85 0.45");
-    this->check_results(output_prim, 3, "0 0 0.0 0.15 0.15 0.45 0.45");
-    this->check_results(output_prim, 4, "0 1 1.0 0.20 0.20 0.50 0.50");
-    this->check_results(output_prim, 5, "0 1 0.8 0.50 0.20 0.80 0.50");
-    this->check_results(output_prim, 6, "0 1 0.6 0.20 0.50 0.50 0.80");
-    this->check_results(output_prim, 7, "0 1 0.4 0.50 0.50 0.80 0.80");
-    this->check_results(output_prim, 8, "1 0 1.0 0.25 0.25 0.55 0.55");
-    this->check_results(output_prim, 9, "1 0 0.4 0.45 0.45 0.75 0.75");
-    this->check_results(output_prim, 10, "1 1 0.6 0.40 0.40 0.70 0.70");
-    this->check_results(output_prim, 11, "-1 0 0 0 0 0 0");
-    this->check_results(output_prim, 12, "-1 0 0 0 0 0 0");
-    this->check_results(output_prim, 13, "-1 0 0 0 0 0 0");
-    this->check_results(output_prim, 14, "-1 0 0 0 0 0 0");
-    this->check_results(output_prim, 15, "-1 0 0 0 0 0 0");
-    this->check_results(output_prim, 16, "-1 0 0 0 0 0 0");
-    this->check_results(output_prim, 17, "-1 0 0 0 0 0 0");
-    this->check_results(output_prim, 18, "-1 0 0 0 0 0 0");
-    this->check_results(output_prim, 19, "-1 0 0 0 0 0 0");
-}
-

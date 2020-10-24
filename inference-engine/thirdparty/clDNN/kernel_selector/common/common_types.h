@@ -56,7 +56,6 @@ enum class KernelType {
     PYRAMID_ROI_ALIGN,
     CONTRACT,
     ONE_HOT,
-    DETECTION_OUTPUT,
     GATHER,
     SCATTER_UPDATE,
     DEPTH_TO_SPACE,
