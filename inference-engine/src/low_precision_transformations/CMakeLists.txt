@@ -35,6 +35,8 @@ target_include_directories(${TARGET_NAME} PUBLIC ${PUBLIC_HEADERS_DIR}
 
 add_cpplint_target(${TARGET_NAME}_cpplint FOR_TARGETS ${TARGET_NAME})
 
+ie_add_api_validator_post_build_step(TARGET ${TARGET_NAME})
+
 # LTO
 
 set_target_properties(${TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION ${ENABLE_LTO})
@@ -49,3 +51,7 @@ install(TARGETS ${TARGET_NAME}
         RUNTIME DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT core
         ARCHIVE DESTINATION ${IE_CPACK_ARCHIVE_PATH} COMPONENT core
         LIBRARY DESTINATION ${IE_CPACK_LIBRARY_PATH} COMPONENT core)
+
+if (USE_CNNNETWORK_LPT)
+        target_compile_definitions(${TARGET_NAME} PUBLIC USE_CNNNETWORK_LPT)
+endif()

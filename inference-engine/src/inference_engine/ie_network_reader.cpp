@@ -183,6 +183,7 @@ CNNNetwork details::ReadNetwork(const std::string& modelPath, const std::string&
         auto reader = it->second;
         // Check that reader supports the model
         if (reader->supportModel(modelStream)) {
+            modelStream.seekg(0, modelStream.beg);
             // Find weights
             std::string bPath = binPath;
             if (bPath.empty()) {
@@ -235,6 +236,7 @@ CNNNetwork details::ReadNetwork(const std::string& model, const Blob::CPtr& weig
     for (auto it = readers.begin(); it != readers.end(); it++) {
         auto reader = it->second;
         if (reader->supportModel(modelStream)) {
+            modelStream.seekg(0, modelStream.beg);
             if (weights)
                 return reader->read(modelStream, binStream, exts);
             return reader->read(modelStream, exts);

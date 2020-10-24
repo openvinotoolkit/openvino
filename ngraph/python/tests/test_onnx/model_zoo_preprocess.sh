@@ -87,6 +87,7 @@ if [ "$ENABLE_MSFT" = true ] ; then
     if [ "$CLEAN_DIR" = true ] ; then
         rm -rf "$MODEL_ZOO_DIR/MSFT"
     fi
-    wget https://onnxruntimetestdata.blob.core.windows.net/models/20191107.zip -O "$MODEL_ZOO_DIR/MSFT.zip"
-    unzip "$MODEL_ZOO_DIR/MSFT.zip" -d "$MODEL_ZOO_DIR" && rm "$MODEL_ZOO_DIR/MSFT.zip"
+    mkdir -p "$MSFT_MODELS_DIR"
+    wget -O "$MSFT_MODELS_DIR/20191107.zip" https://onnxruntimetestdata.blob.core.windows.net/models/20191107.zip
+    unzip "$MSFT_MODELS_DIR/20191107.zip" -d "$MSFT_MODELS_DIR/20191107" && rm "$MSFT_MODELS_DIR/20191107.zip"
 fi
