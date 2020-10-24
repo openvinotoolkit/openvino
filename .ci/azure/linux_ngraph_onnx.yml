@@ -60,7 +60,7 @@ jobs:
       #unzip "$(MODELS_DIR)/onnx_model_zoo.zip" -d "$(MODELS_DIR)/onnx_model_zoo"
       #rm "$(MODELS_DIR)/onnx_model_zoo.zip"
     displayName: 'Clone ONNX models'
-    enabled: false
+    enabled: true
 
   - script: |
       #wget https://onnxruntimetestdata.blob.core.windows.net/models/20191107.zip -O "$(MODELS_DIR)/msft.zip" --quiet
