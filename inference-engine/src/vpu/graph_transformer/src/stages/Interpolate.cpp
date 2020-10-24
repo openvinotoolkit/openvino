@@ -91,7 +91,7 @@ private:
         auto& sizes = attrs().get<DimValues>("sizes");
         auto& axis = attrs().get<DimValues>("InterpolateAxis");
         auto& scales = attrs().get<DimValues>("InterpolateScales");
-        
+
         serializer.append(static_cast<int>(antialias));
         serializer.append(static_cast<float>(cube_coeff));
         serializer.append(static_cast<int>(batch));
@@ -127,7 +127,6 @@ Stage StageBuilder::addInterpolateStage(
         const Data& input,
         const Data& output,
         const std::string& origin) {
-    std::cout<<"\naddInterpolateStage\n";
     Stage interpolateStage = model->addNewStage<InterpolateStage>(
         name,
         StageType::Interpolate,
@@ -140,7 +139,6 @@ Stage StageBuilder::addInterpolateStage(
 }
 
 void FrontEnd::parseInterpolate(const Model& model, const ie::CNNLayerPtr& _layer, const DataVector& inputs, const DataVector& outputs) const {
-    printf("PARSE\n");
     IE_ASSERT(inputs.size() == 1);
     IE_ASSERT(outputs.size() == 1);
 
@@ -179,22 +177,20 @@ void FrontEnd::parseInterpolate(const Model& model, const ie::CNNLayerPtr& _laye
 
     auto stage = model->addNewStage<InterpolateStage>(_layer->name, StageType::Interpolate, _layer, inputs, outputs);
 
-    stage->attrs().set<bool>("antialias", layer->GetParamAsInt("antialias", 0));
-    stage->attrs().set<float>("cube_coeff", layer->GetParamAsFloat("cube_coeff", 0));
-    stage->attrs().set<int>("batch", layer->GetParamAsInt("batch", 1));
-    stage->attrs().set<int>("type", layer->GetParamAsInt("type", 0));
+    stage->attrs().set<bool>("antialias", _layer->GetParamAsInt("antialias", 0));
+    stage->attrs().set<float>("cube_coeff", _layer->GetParamAsFloat("cube_coeff", 0));
+    stage->attrs().set<int>("batch", _layer->GetParamAsInt("batch", 1));
+    stage->attrs().set<int>("type", _layer->GetParamAsInt("type", 0));
 
     stage->attrs().set<DimValues>("pads_begin", pads_begin);
     stage->attrs().set<DimValues>("pads_end", pads_end);
     stage->attrs().set<DimValues>("sizes", sizes);
 
-    stage->attrs().set<int>("nearestMode", layer->GetParamAsInt("nearestMode", 0));
-    stage->attrs().set<int>("shapeCalcMode", layer->GetParamAsInt("shapeCalcMode", 0));
-    stage->attrs().set<int>("coordTransMode", layer->GetParamAsInt("coordTransMode", 0));
+    stage->attrs().set<int>("nearestMode", _layer->GetParamAsInt("nearestMode", 0));
+    stage->attrs().set<int>("shapeCalcMode", _layer->GetParamAsInt("shapeCalcMode", 0));
+    stage->attrs().set<int>("coordTransMode", _layer->GetParamAsInt("coordTransMode", 0));
     stage->attrs().set<DimValues>("InterpolateAxis", axes);
     stage->attrs().set<DimValues>("InterpolateScales", scales);
-
-    printf("PARSE end\n");
 }
 
 }  // namespace vpu
