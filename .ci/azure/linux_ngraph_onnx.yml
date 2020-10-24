@@ -38,6 +38,7 @@ jobs:
       cat /etc/fstab
       vmstat -s
       df
+      lsblk -o NAME,HCTL,SIZE,MOUNTPOINT | grep -i "sd"
     displayName: 'System info'
 
   - script: |
@@ -52,9 +53,10 @@ jobs:
 
   - script: |
       #wget https://github.com/onnx/models/archive/master.zip -O "$(MODELS_DIR)/onnx_model_zoo.zip" --quiet
-      unzip "$(MODELS_DIR)/onnx_model_zoo.zip" -d "$(MODELS_DIR)/onnx_model_zoo"
+      #unzip "$(MODELS_DIR)/onnx_model_zoo.zip" -d "$(MODELS_DIR)/onnx_model_zoo"
       #rm "$(MODELS_DIR)/onnx_model_zoo.zip"
     displayName: 'Clone ONNX models'
+    enabled: false
 
   - script: |
       #wget https://onnxruntimetestdata.blob.core.windows.net/models/20191107.zip -O "$(MODELS_DIR)/msft.zip" --quiet
@@ -68,5 +70,5 @@ jobs:
 
   - script: docker run --name openvino-onnx-ci-container --volume $(MODELS_DIR):/root/.onnx/model_zoo --volume $(MODELS_DIR)/msft:/root/.onnx/model_zoo/MSFT openvino-onnx-ci-image
     displayName: 'Docker run tests'
-    enabled: true
+    enabled: false
 
