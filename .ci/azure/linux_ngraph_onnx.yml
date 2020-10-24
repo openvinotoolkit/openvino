@@ -16,6 +16,7 @@ jobs:
     REPO_DIR: $(Build.Repository.LocalPath)
     WORK_DIR: $(Pipeline.Workspace)/_w
     MODELS_DIR: /mnt/onnxtestdata/models
+    TMP_DIR: /mnt/tmp
 
   steps:
   - checkout: self
@@ -43,8 +44,9 @@ jobs:
 
   - script: |
       rm -rf $(WORK_DIR) ; mkdir $(WORK_DIR)
+      sudo rm -rf $(TMP_DIR) ; sudo mkdir $(TMP_DIR) ; sudo chmod 777 -R $(TMP_DIR)
       ls -alR /mnt/
-      ls -alR /mnt/onnxtestdata/
+      #ls -alR /mnt/onnxtestdata/
     displayName: 'Make dir'
 
   - script: |
@@ -53,6 +55,7 @@ jobs:
     enabled: false
 
   - script: |
+      git clone --depth=1 https://github.com/onnx/models.git "$(TMP_DIR)/onnx_model_zoo"
       #wget https://github.com/onnx/models/archive/master.zip -O "$(MODELS_DIR)/onnx_model_zoo.zip" --quiet
       #unzip "$(MODELS_DIR)/onnx_model_zoo.zip" -d "$(MODELS_DIR)/onnx_model_zoo"
       #rm "$(MODELS_DIR)/onnx_model_zoo.zip"
