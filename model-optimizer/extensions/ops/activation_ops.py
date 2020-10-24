@@ -248,6 +248,12 @@ class HSwish(Activation):
     operation = staticmethod(lambda x: x * np.minimum(np.maximum(x + 3.0, 0.0), 6.0) / 6.0)
 
 
+class HSigmoid(Activation):
+    op = 'HSigmoid'
+    version = 'opset5'
+    operation = staticmethod(lambda x: np.minimum(np.maximum(x + 3.0, 0.0), 6.0) / 6.0)
+
+
 class Swish(Op):
     op = 'Swish'
 
