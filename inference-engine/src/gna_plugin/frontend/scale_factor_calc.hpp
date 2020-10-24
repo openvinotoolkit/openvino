@@ -605,7 +605,8 @@ class ScaleFactorPerLayer<InferenceEngine::WeightableLayer*> {
                                                                       MAX_VAL_4B_BIAS,
                                                                       wl->_biases->size());
                 if (quant->_bias_quant.scale != -1.0f) {
-                    quant->_bias_quant.scale = std::min(quant->_weights_quant.scale * quant->_src_quant.scale, quant->_bias_quant.scale);
+                    quant->_bias_quant.scale =
+                        std::min(quant->_weights_quant.scale * quant->_src_quant.scale, quant->_bias_quant.scale);
                     quant->_weights_quant.scale = quant->_bias_quant.scale / quant->_src_quant.scale;
                 }
             }
@@ -616,7 +617,7 @@ class ScaleFactorPerLayer<InferenceEngine::WeightableLayer*> {
             }
 
             double weights_reducer = 1.0;
-            auto conv = dynamic_cast<InferenceEngine::ConvolutionLayer*>(wl);
+            auto conv = dynamic_cast<InferenceEngine::ConvolutionLayer *>(wl);
             if (conv) {
                 auto dims = conv->insData.front().lock()->getDims();
 
@@ -624,36 +625,35 @@ class ScaleFactorPerLayer<InferenceEngine::WeightableLayer*> {
                 weights_reducer = std::max(1.0, weights_reducer);
             }
             quant->_weights_quant.scale /= weights_reducer;
-        }
 
+            double tmp_dst_quant_scale = quant->_weights_quant.scale * quant->_src_quant.scale;
 
-        double tmp_dst_quant_scale = quant->_weights_quant.scale * quantDataForInputLayer->_dst_quant.scale;
-
-        if (weightsSize == 1 &&
-            static_cast<uint64_t>(tmp_dst_quant_scale * quant->_src_quant.scale) >
-                                                    static_cast<uint64_t>(std::numeric_limits<int32_t>::max()-1) * _scale_change_req_threshold) {
-            gnawarn() << "Output scale for " << wl->name
-                                            << " too large and are being reduced. Else saturations likely will happen \n";
-            // reduce weight scale according experimental heuristic
-            if (quant->_dst_quant.scale * quant->_src_quant.scale /
+            if (weightsSize == 1 &&
+                static_cast<uint64_t>(tmp_dst_quant_scale * quant->_src_quant.scale) >
+                    static_cast<uint64_t>(std::numeric_limits<int32_t>::max() - 1) * _scale_change_req_threshold) {
+                gnawarn() << "Output scale for " << wl->name
+                          << " too large and are being reduced. Else saturations likely will happen \n";
+                // reduce weight scale according experimental heuristic
+                if (quant->_dst_quant.scale * quant->_src_quant.scale /
                     static_cast<float>(std::numeric_limits<int32_t>::max()) < _scale_change_threshold_100) {
-                quant->_weights_quant.scale *= _scale_reduction_50;
-                tmp_dst_quant_scale *= _scale_reduction_50;
-            } else if (quant->_dst_quant.scale * quant->_src_quant.scale /
+                    quant->_weights_quant.scale *= _scale_reduction_50;
+                    tmp_dst_quant_scale *= _scale_reduction_50;
+                } else if (quant->_dst_quant.scale * quant->_src_quant.scale /
                     static_cast<float>(std::numeric_limits<int32_t>::max()) < _scale_change_threshold_150) {
-                quant->_weights_quant.scale *= _scale_reduction_45;
-                tmp_dst_quant_scale *= _scale_reduction_45;
-            } else if (quant->_dst_quant.scale * quant->_src_quant.scale /
+                    quant->_weights_quant.scale *= _scale_reduction_45;
+                    tmp_dst_quant_scale *= _scale_reduction_45;
+                } else if (quant->_dst_quant.scale * quant->_src_quant.scale /
                     static_cast<float>(std::numeric_limits<int32_t>::max()) < _scale_change_threshold_200) {
-                quant->_weights_quant.scale *= _scale_reduction_40;
-                tmp_dst_quant_scale *= _scale_reduction_40;
-            } else {
-                quant->_weights_quant.scale *= _scale_reduction_35;
-                tmp_dst_quant_scale *= _scale_reduction_35;
+                    quant->_weights_quant.scale *= _scale_reduction_40;
+                    tmp_dst_quant_scale *= _scale_reduction_40;
+                } else {
+                    quant->_weights_quant.scale *= _scale_reduction_35;
+                    tmp_dst_quant_scale *= _scale_reduction_35;
+                }
             }
         }
 
-        quant->_dst_quant.scale = tmp_dst_quant_scale;
+        quant->_dst_quant.scale = quant->_weights_quant.scale * quant->_src_quant.scale;
 
         return true;
     }

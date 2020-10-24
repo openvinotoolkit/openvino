@@ -156,9 +156,9 @@ void QuantizeVector16(float *ptr_float_memory, int16_t *ptr_int_memory, uint32_t
 
 template<>
 void QuantizationCallback<int8_t, gna_compound_bias_t>::runFakeQuantize() const {
+    // TODO: possible remove this zero point
     const float zeroPoint = MAX_VAL_1B_WEIGHT;
     uint32_t num_saturate = 0;
-    // find max per-channel scale factor
 
     if (fq_ptr_output_high == nullptr || fq_ptr_output_low == nullptr) {
         THROW_GNA_EXCEPTION << "Fake quantized output range not set";
@@ -166,8 +166,6 @@ void QuantizationCallback<int8_t, gna_compound_bias_t>::runFakeQuantize() const 
     if (fq_levels == 0 || fq_levels == 1) {
         THROW_GNA_EXCEPTION << "Fake quantized levels not set";
     }
-
-    float common_channel_scale = *ptr_weight_scale_factor / MAX_OUT_MULTIPLIER;
 
     for (uint32_t i = 0; i < num_rows; i++) {
         for (uint32_t j = 0; j < num_columns; j++) {
@@ -186,11 +184,11 @@ void QuantizationCallback<int8_t, gna_compound_bias_t>::runFakeQuantize() const 
             THROW_GNA_EXCEPTION << "Fake quantized levels not set";
         }
         auto channel_scale = (fq_levels - 1) / (fq_ptr_output_high[i] - fq_ptr_output_low[i]);
-        channel_scale /= common_channel_scale;
-        ptr_int_biases[i].multiplier = static_cast<uint8_t> (channel_scale);
+        auto channel_scale_multiplier = *ptr_weight_scale_factor / channel_scale;
+
+        ptr_int_biases[i].multiplier = static_cast<uint8_t> (channel_scale_multiplier);
     }
 
-    // bias value of the bas will be only used when input bias provided
     if (ptr_float_biases != nullptr) {
         for (uint32_t j = 0; j < num_rows; j++) {
             float rounding_value = (ptr_float_biases[j] > 0) ? 0.5f : -0.5f;

@@ -1527,15 +1527,19 @@ void FuseFQIntoWeightsPass::run() {
             quantized->levels = gnaFakeQuantizeLayer.getLevels();
             auto inputRange = gnaFakeQuantizeLayer.getInputRange();
 
-            // if channel scale cannot be encoded in int8 - lets absorb remained scale factor in output scale
-            float max_channel_scale = 0.0;
-            for (uint32_t i = 0; i < quantized->_weights_quants_min.size(); i++) {
-                auto channel_scale
-                    = (quantized->levels - 1) / (quantized->_weights_quants_max[i] - quantized->_weights_quants_min[i]);
-                max_channel_scale = std::max(max_channel_scale, channel_scale);
+            // lets find out minimum scale factor among channels
+            if (quantized->_weights_quants_min.empty()) {
+                THROW_GNA_LAYER_EXCEPTION(fqLayer) << " per channel weigts scales missed";
             }
-
-            quantized->_weights_quant.scale = max_channel_scale;
+            auto getScale = [&quantized](uint32_t i) {
+                return (quantized->levels - 1) / (quantized->_weights_quants_max[i] - quantized->_weights_quants_min[i]);
+            };
+            float min_channel_scale = getScale(0);
+            for (uint32_t i = 1; i < quantized->_weights_quants_min.size(); i++) {
+                min_channel_scale = std::min(min_channel_scale, getScale(i));
+            }
+            // common scale calculation
+            quantized->_weights_quant.scale = min_channel_scale * MAX_OUT_MULTIPLIER;
             continue;
         }
 
