@@ -47,20 +47,20 @@ ParamsKey ConvolutionKernel_b_fs_yx_fsv4_int8::GetSupportedKey() const {
 }
 
 ConvolutionKernelBase::DispatchData ConvolutionKernel_b_fs_yx_fsv4_int8::SetDefault(const convolution_params& cp, int) const {
-    DispatchData runInfo = ConvolutionKernelBase::SetDefault(cp);
+    DispatchData dispatchData = ConvolutionKernelBase::SetDefault(cp);
 
-    runInfo.efficiency = FORCE_PRIORITY_9;
+    dispatchData.efficiency = FORCE_PRIORITY_9;
     if (cp.output.X().v > 512 && cp.filterSize.x == 5 && cp.filterSize.y == 5)
-        runInfo.efficiency = FORCE_PRIORITY_2;
-    runInfo.gws0 = CeilDiv(cp.output.X().v, sub_group_size) / 2;
-    runInfo.gws1 = cp.output.Y().v;
-    runInfo.gws2 = sub_group_size;
+        dispatchData.efficiency = FORCE_PRIORITY_2;
+    dispatchData.gws[0] = CeilDiv(cp.output.X().v, sub_group_size) / 2;
+    dispatchData.gws[1] = cp.output.Y().v;
+    dispatchData.gws[2] = sub_group_size;
 
-    runInfo.lws0 = 1;
-    runInfo.lws1 = 1;
-    runInfo.lws2 = sub_group_size;
+    dispatchData.lws[0] = 1;
+    dispatchData.lws[1] = 1;
+    dispatchData.lws[2] = sub_group_size;
 
-    return runInfo;
+    return dispatchData;
 }
 
 bool ConvolutionKernel_b_fs_yx_fsv4_int8::Validate(const Params& p, const optional_params& o) const {
@@ -85,10 +85,10 @@ bool ConvolutionKernel_b_fs_yx_fsv4_int8::Validate(const Params& p, const option
     return true;
 }
 
-JitConstants ConvolutionKernel_b_fs_yx_fsv4_int8::GetJitConstants(const convolution_params& params, const DispatchData& runInfo) const {
-    auto jit = Parent::GetJitConstants(params, runInfo);
+JitConstants ConvolutionKernel_b_fs_yx_fsv4_int8::GetJitConstants(const convolution_params& params, const DispatchData& dispatchData) const {
+    auto jit = Parent::GetJitConstants(params, dispatchData);
 
-    jit.AddConstant(MakeJitConstant("SUB_GROUP_SIZE", runInfo.lws2));
+    jit.AddConstant(MakeJitConstant("SUB_GROUP_SIZE", dispatchData.lws[2]));
 
     jit.Merge(MakeTypeJitConstants(GetAccumulatorType(params), "ACCUMULATOR"));
     jit.Merge(MakeTypeJitConstants(GetActivationType(params), "ACTIVATION"));
