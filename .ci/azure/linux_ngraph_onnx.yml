@@ -45,20 +45,20 @@ jobs:
   - script: |
       rm -rf $(WORK_DIR) ; mkdir $(WORK_DIR)
       sudo rm -rf $(TMP_DIR) ; sudo mkdir $(TMP_DIR) ; sudo chmod 777 -R $(TMP_DIR)
-      ls -alR $(TMP_DIR)
-      #ls -alR /mnt/onnxtestdata/
     displayName: 'Make dir'
 
-  - script: |
-      #ngraph/python/tests/test_onnx/model_zoo_preprocess.sh -m $(MODELS_DIR) -e -f
-    displayName: 'model_zoo_preprocess'
-    enabled: false
+  - script: ngraph/python/tests/test_onnx/model_zoo_preprocess.sh -m $(TMP_DIR) -c -f
+    displayName: 'Clone ONNX models'
+    enabled: true
+
+  - script: ls -alR $(TMP_DIR)
+    displayName: 'List $(TMP_DIR)'
+    enabled: true
 
   - script: |
-      #git clone --depth=1 https://github.com/onnx/models.git "$(TMP_DIR)/onnx_model_zoo"
-      ngraph/python/tests/test_onnx/model_zoo_preprocess.sh -m $(TMP_DIR) -c -f
-      ls -alR $(TMP_DIR)
-    displayName: 'Clone ONNX models'
+      rm -rf $(MODELS_DIR)/onnx_model_zoo
+      cp -rf $(TMP_DIR)/model_zoo/onnx_model_zoo/ $(MODELS_DIR)/onnx_model_zoo/
+    displayName: 'Copy ONNX models'
     enabled: true
 
   - script: |
@@ -67,6 +67,10 @@ jobs:
       #rm "$(MODELS_DIR)/msft.zip"
     displayName: 'Clone MSFT models'
     enabled: false
+
+  - script: ls -alR $(MODELS_DIR)
+    displayName: 'List $(MODELS_DIR)'
+    enabled: true
 
   - script: docker build --tag=openvino-onnx-ci-image --file=.ci/openvino-onnx/Dockerfile .
     displayName: 'Docker build'
