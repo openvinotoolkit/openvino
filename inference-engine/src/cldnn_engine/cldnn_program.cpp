@@ -1844,8 +1844,18 @@ void Program::CreatePermutePrimitive(cldnn::topology& topology, InferenceEngine:
     for (auto& a : permuteLayer->GetParamAsInts("order"))
         ie_order.push_back(static_cast<uint16_t>(a));
 
+    auto outDesc = layer->outData[0]->getTensorDesc();
+    auto outDims = outDesc.getDims();
+
+    int rank = std::max(4, static_cast<int>(outDims.size()));
+    if (ie_order.empty()) {
+        // if order size is empty - we need to set inversed axes order
+        for (int o = rank - 1; o >= 0; o--)
+            ie_order.push_back((uint16_t)o);
+    }
+
     // if order size is less than 4 - fill the rest with just copy
-    for (auto o = ie_order.size(); o < 4; o++)
+    for (auto o = ie_order.size(); o < rank; o++)
         ie_order.push_back((uint16_t)o);
 
     /*
@@ -3910,36 +3920,11 @@ void Program::CreateTilePrimitive(cldnn::topology& topology, InferenceEngine::CN
     auto inputPrimitives = GetPrevLayersPrimitives(layer);
     auto tileLayer = as<InferenceEngine::GenericLayer*> (layer);
 
-    int axis = tileLayer->GetParamAsInt("axis", 1);
-    int tiles = tileLayer->GetParamAsInt("tiles");
-
-    auto sz = tileLayer->input().get()->getTensorDesc().getDims().size();
-
-    auto cldnnAxisFromIE = [&](int axis) {
-        switch (axis) {
-            case 0: return cldnn::tile::tile_axis::along_b;
-            case 1: return cldnn::tile::tile_axis::along_f;
-            case 2:
-                if (sz > 4)
-                    return cldnn::tile::tile_axis::along_z;
-                else
-                    return cldnn::tile::tile_axis::along_y;
-            case 3:
-                if (sz > 4)
-                    return cldnn::tile::tile_axis::along_y;
-                else
-                    return cldnn::tile::tile_axis::along_x;
-            case 4: return cldnn::tile::tile_axis::along_x;
-            default: THROW_CLDNN_EXCEPTION("Unsupported tile axis: " << axis);
-        }
-    };
-
     std::string tileLayerName = layer_type_name_ID(layer);
     auto tilePrim = cldnn::tile(
         tileLayerName,
         inputPrimitives[0],
-        cldnnAxisFromIE(axis),
-        tiles);
+        CldnnTensorFromIEDims(tileLayer->outData[0]->getTensorDesc().getDims()));
 
     topology.add(tilePrim);
     AddPrimitiveToProfiler(tileLayerName, layer);
@@ -5321,6 +5306,8 @@ void Program::CreatePriorBoxClusteredPrimitive(cldnn::topology& topology, Infere
         step_h = static_cast<float>(img_h) / inp_dims.at(img_dims.size() - 2);
     }
 
+    auto output_dt = DataTypeFromPrecision(layer->outData[0]->getTensorDesc().getPrecision());
+
     std::vector<cldnn::primitive_id> inputPrimitives = GetPrevLayersPrimitives(layer);
     // second input isn't used by value - only dimensions taken from the layer input
     std::string priorBoxLayerName = layer_type_name_ID(layer);
@@ -5334,7 +5321,8 @@ void Program::CreatePriorBoxClusteredPrimitive(cldnn::topology& topology, Infere
         step_h,
         offset,
         width,
-        height);
+        height,
+        output_dt);
 
     topology.add(priorBoxPrim);
     AddPrimitiveToProfiler(priorBoxLayerName, layer);
