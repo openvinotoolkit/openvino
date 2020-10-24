@@ -2,7 +2,7 @@ jobs:
 - job: nGraph_ONNX_Lin
 
   # About 150% of total time
-  timeoutInMinutes: 600
+  timeoutInMinutes: 60
 
   pool:
     name: LIN_VMSS_VENV_F8S_WU2
@@ -62,20 +62,20 @@ jobs:
     enabled: false
 
   - script: |
-      wget -O "$(TMP_DIR)/msft.zip" --quiet https://onnxruntimetestdata.blob.core.windows.net/models/20191107.zip
+      wget -O "$(TMP_DIR)/msft.zip" https://onnxruntimetestdata.blob.core.windows.net/models/20191107.zip
       unzip "$(TMP_DIR)/msft.zip" -d "$(TMP_DIR)/msft"
     displayName: 'Get MSFT models'
-    enabled: true
+    enabled: false
 
   - script: |
       rm -rf $(MODELS_DIR)/msft
       cp -rf $(TMP_DIR)/msft/ $(MODELS_DIR)/msft/20191107/
     displayName: 'Copy MSFT models'
-    enabled: true
+    enabled: false
 
   - script: ls -alR $(MODELS_DIR)
     displayName: 'List $(MODELS_DIR)'
-    enabled: true
+    enabled: false
 
   - script: docker build --tag=openvino-onnx-ci-image --file=.ci/openvino-onnx/Dockerfile .
     displayName: 'Docker build'
