@@ -14,32 +14,12 @@
 // limitations under the License.
 //*****************************************************************************
 
-#pragma once
+#include "ngraph/op/sink.hpp"
 
-#include <vector>
+using namespace ngraph;
 
-#include "ngraph/op/op.hpp"
+NGRAPH_RTTI_DEFINITION(op::Sink, "Sink", 0);
 
-namespace ngraph
+op::Sink::~Sink()
 {
-    namespace op
-    {
-        /// Root of nodes that can be sink nodes
-        class NGRAPH_API Sink : public Op
-        {
-        public:
-            virtual ~Sink() = 0;
-            NGRAPH_RTTI_DECLARATION;
-        protected:
-            Sink()
-                : Op()
-            {
-            }
-            Sink(const OutputVector& arguments) 
-               : Op(arguments) 
-            {
-            }
-        };
-    }
-    using SinkVector = std::vector<std::shared_ptr<op::Sink>>;
 }
