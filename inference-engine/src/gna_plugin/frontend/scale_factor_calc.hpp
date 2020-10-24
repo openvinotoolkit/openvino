@@ -648,15 +648,13 @@ class ScaleFactorPerLayer<InferenceEngine::WeightableLayer*> {
                 weights_reducer = std::max(1.0, weights_reducer);
             }
             quant->_weights_quant.SetScale(quant->_weights_quant.GetScale() / weights_reducer);
-        }
-
         double tmp_dst_quant_scale = quant->_weights_quant.GetScale() * quant->_src_quant.GetScale();
-        if (weightsSize == 1 &&
+            if (weightsSize == 1 &&
             static_cast<uint64_t>(tmp_dst_quant_scale * quant->_src_quant.GetScale()) >
             static_cast<uint64_t>(std::numeric_limits<int32_t>::max() - 1) * _scale_change_req_threshold) {
-            gnawarn() << "Output scale for " << wl->name
+                gnawarn() << "Output scale for " << wl->name
                 << " too large and are being reduced. Else saturations likely will happen \n";
-            // reduce weight scale according experimental heuristic
+                // reduce weight scale according experimental heuristic
             if (quant->_dst_quant.GetScale() * quant->_src_quant.GetScale() /
                 static_cast<float>(std::numeric_limits<int32_t>::max()) < _scale_change_threshold_100) {
                 quant->_weights_quant.SetScale(quant->_weights_quant.GetScale() * _scale_reduction_50);
@@ -666,8 +664,9 @@ class ScaleFactorPerLayer<InferenceEngine::WeightableLayer*> {
             } else if (quant->_dst_quant.GetScale() * quant->_src_quant.GetScale() /
                 static_cast<float>(std::numeric_limits<int32_t>::max()) < _scale_change_threshold_200) {
                 quant->_weights_quant.SetScale(quant->_weights_quant.GetScale() * _scale_reduction_40);
-            } else {
+                } else {
                 quant->_weights_quant.SetScale(quant->_weights_quant.GetScale() * _scale_reduction_35);
+                }
             }
         }
 

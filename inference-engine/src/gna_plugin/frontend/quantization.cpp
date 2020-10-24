@@ -222,6 +222,7 @@ void QuantizeVector16(float *ptr_float_memory, int16_t *ptr_int_memory, uint32_t
 
 template<>
 void QuantizationCallback<int8_t, gna_compound_bias_t>::runFakeQuantize() const {
+    // TODO: possible remove this zero point
     uint32_t num_saturate = 0;
 
     if (fq_ptr_output_high == nullptr || fq_ptr_output_low == nullptr) {
