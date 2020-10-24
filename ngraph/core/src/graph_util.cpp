@@ -423,7 +423,7 @@ std::shared_ptr<ngraph::Function> ngraph::clone_function(const ngraph::Function&
     // clone function operations
     clone_nodes(func.get_ops(), node_map);
 
-    // get cloned function resultsand sinks and parameters
+    // get cloned function results and sinks and parameters
     ResultVector cloned_results;
     for (shared_ptr<Node> node : func.get_results())
     {
