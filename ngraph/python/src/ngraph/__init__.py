@@ -86,6 +86,7 @@ from ngraph.opset5 import group_convolution
 from ngraph.opset5 import group_convolution_backprop_data
 from ngraph.opset5 import gru_cell
 from ngraph.opset5 import hard_sigmoid
+from ngraph.opset5 import hsigmoid
 from ngraph.opset5 import hswish
 from ngraph.opset5 import interpolate
 from ngraph.opset5 import less
@@ -141,6 +142,7 @@ from ngraph.opset5 import reverse_sequence
 from ngraph.opset5 import rnn_cell
 from ngraph.opset5 import roi_align
 from ngraph.opset5 import roi_pooling
+from ngraph.opset5 import round
 from ngraph.opset5 import scatter_elements_update
 from ngraph.opset5 import scatter_update
 from ngraph.opset5 import select

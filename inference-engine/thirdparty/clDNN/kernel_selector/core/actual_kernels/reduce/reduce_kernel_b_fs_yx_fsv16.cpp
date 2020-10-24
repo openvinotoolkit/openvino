@@ -72,22 +72,15 @@ ParamsKey ReduceKernel_b_fs_yx_fsv16::GetSupportedKey() const {
 }
 
 CommonDispatchData ReduceKernel_b_fs_yx_fsv16::SetDefault(const reduce_params& params, const optional_params&) const {
-    CommonDispatchData runInfo;
+    CommonDispatchData dispatchData;
 
     auto in_dims = calc_in_dims(params);
-    std::vector<size_t> global = {16,
-                                  CeilDiv(in_dims[3].v, calc_read_offset(params)) * in_dims[2].v,  // X, Y
-                                  CeilDiv(in_dims[1].v, SIMD) * in_dims[0].v};                     // F, B
+    dispatchData.gws = { 16,
+                         CeilDiv(in_dims[3].v, calc_read_offset(params)) * in_dims[2].v,  // X, Y
+                         CeilDiv(in_dims[1].v, SIMD) * in_dims[0].v };                    // F, B
+    dispatchData.lws = { SIMD, 1, 1 };
 
-    runInfo.gws0 = global[0];
-    runInfo.gws1 = global[1];
-    runInfo.gws2 = global[2];
-
-    runInfo.lws0 = SIMD;
-    runInfo.lws1 = 1;
-    runInfo.lws2 = 1;
-
-    return runInfo;
+    return dispatchData;
 }
 
 JitConstants ReduceKernel_b_fs_yx_fsv16::GetJitConstants(const reduce_params& params) const {
