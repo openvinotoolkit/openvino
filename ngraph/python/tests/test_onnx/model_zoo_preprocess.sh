@@ -47,8 +47,8 @@ if [ "$MODELS_DIR" = false ] ; then
     exit 170
 fi
 
-MODEL_ZOO_DIR="$MODELS_DIR/model_zoo"
 ONNX_MODELS_DIR="$MODELS_DIR/model_zoo/onnx_model_zoo"
+MSFT_MODELS_DIR="$MODELS_DIR/model_zoo/MSFT"
 
 if [ "$CLONE" = true ] ; then
     if [ "$CLEAN_DIR" = true ] ; then
@@ -85,8 +85,9 @@ mv *.pb test_data_set_0/
 # Prepare MSFT models
 if [ "$ENABLE_MSFT" = true ] ; then
     if [ "$CLEAN_DIR" = true ] ; then
-        rm -rf "$MODEL_ZOO_DIR/MSFT"
+        rm -rf "$MSFT_MODELS_DIR"
     fi
-    wget https://onnxruntimetestdata.blob.core.windows.net/models/20191107.zip -O "$MODEL_ZOO_DIR/MSFT.zip"
-    unzip "$MODEL_ZOO_DIR/MSFT.zip" -d "$MODEL_ZOO_DIR" && rm "$MODEL_ZOO_DIR/MSFT.zip"
+    mkdir -p "$MSFT_MODELS_DIR"
+    wget -O "$MSFT_MODELS_DIR/20191107.zip" https://onnxruntimetestdata.blob.core.windows.net/models/20191107.zip
+    unzip "$MSFT_MODELS_DIR/20191107.zip" -d "$MSFT_MODELS_DIR/20191107" && rm "$MSFT_MODELS_DIR/20191107.zip"
 fi
