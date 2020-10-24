@@ -138,7 +138,7 @@ class Loop(TensorIterator):
                     input_type = loop_node.in_port(loop_port_idx).get_data_type()
                 else:  # this is a current iteration number input type
                     assert record['purpose'] == 'current_iteration'
-                    input_type = np.bool
+                    input_type = np.int64
 
                 body_node.data_type = input_type
                 log.debug('Updated data type for the body node with internal_id "{}" with value {}'
