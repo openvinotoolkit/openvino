@@ -247,7 +247,6 @@ std::string toString(NormalizeMode mode);
 std::string toString(MVNMode mode);
 std::string toString(WeightsLayout layout);
 std::string toString(ConcatAxis a);
-std::string toString(TileAxis a);
 std::string toString(GatherAxis a);
 std::string toString(ScatterUpdateAxis a);
 std::string toString(ResampleType type);
