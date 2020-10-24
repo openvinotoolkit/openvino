@@ -535,6 +535,15 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
 
     });
 
+    addSpecificCreator({"NonMaxSuppressionIE3"}, [](const std::shared_ptr<::ngraph::Node>& node,
+        const std::map<std::string, std::string>& params) -> CNNLayerPtr {
+        LayerParams attrs = {node->get_friendly_name(), "NonMaxSuppressionIE3",
+            details::convertPrecision(node->get_output_element_type(0))};
+        auto res = std::make_shared<InferenceEngine::CNNLayer>(attrs);
+        res->params = params;
+        return res;
+    });
+
     addSpecificCreator({"NonMaxSuppressionIE"}, [](const std::shared_ptr<::ngraph::Node>& node,
                                                  const std::map<std::string, std::string>& params) -> CNNLayerPtr {
         LayerParams attrs = {node->get_friendly_name(), "NonMaxSuppression", details::convertPrecision(node->get_output_element_type(0))};
@@ -814,6 +823,7 @@ void convertFunctionToICNNNetwork(const std::shared_ptr<const ::ngraph::Function
                 std::make_shared<Builder::NodeConverter<::ngraph::op::v1::LogicalNot>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::ShuffleChannels>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::v4::Interpolate>>(),
+                std::make_shared<Builder::NodeConverter<::ngraph::op::v5::NonMaxSuppression>>(),
                 std::make_shared<Builder::NodeConverter<::ExecGraphInfoSerialization::ExecutionNode>>(),
         };
         CNNLayerPtr result;
