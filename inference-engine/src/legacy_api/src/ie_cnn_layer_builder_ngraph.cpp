@@ -1727,6 +1727,48 @@ CNNLayer::Ptr NodeConverter<ngraph::op::v0::Interpolate>::createLayer(const std:
 }
 
 template <>
+CNNLayer::Ptr NodeConverter<ngraph::op::v5::NonMaxSuppression>::createLayer(const std::shared_ptr<ngraph::Node>& layer) const {
+    LayerParams params = {layer->get_friendly_name(), "NonMaxSuppressionIE3",
+                          details::convertPrecision(layer->get_output_element_type(0))};
+    auto castedLayer = ngraph::as_type_ptr<ngraph::op::v5::NonMaxSuppression>(layer);
+    if (castedLayer == nullptr) THROW_IE_EXCEPTION << "Cannot get " << params.type << " layer " << params.name;
+
+    auto box_encoding = castedLayer->get_box_encoding();
+
+    auto res = std::make_shared<InferenceEngine::CNNLayer>(params);
+
+    switch (box_encoding) {
+        case ngraph::op::v5::NonMaxSuppression::BoxEncodingType::CORNER:
+            res->params["box_encoding"] = "corner";
+            break;
+        case ngraph::op::v5::NonMaxSuppression::BoxEncodingType::CENTER:
+            res->params["box_encoding"] = "center";
+            break;
+        default:
+            THROW_IE_EXCEPTION << "Unsupported box encoding for NonMaxSuppression op";
+            break;
+    }
+
+    auto output_type = details::convertPrecision(castedLayer->get_output_type());
+    std::string output_type_str;
+    switch (output_type) {
+    case Precision::I32:
+        output_type_str = "I32";
+        break;
+    case Precision::I64:
+        output_type_str = "I64";
+        break;
+    default:
+        THROW_IE_EXCEPTION << "Unsupported output type";
+    }
+    res->params["output_type"] = output_type_str;
+
+    bool sort_result_descending = castedLayer->get_sort_result_descending();
+    res->params["sort_result_descending"] = sort_result_descending ? "1" : "0";
+    return res;
+}
+
+template <>
 CNNLayer::Ptr NodeConverter<ngraph::op::v4::Interpolate>::createLayer(const std::shared_ptr<ngraph::Node>& layer) const {
     LayerParams params = {layer->get_friendly_name(), "Interpolate",
                           details::convertPrecision(layer->get_output_element_type(0))};
