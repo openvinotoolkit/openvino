@@ -734,6 +734,7 @@ void prepare_primitive_fusing::fuse_simple_primitives(program_impl &p) {
                                       (parents[i]->is_type<space_to_batch>()) ||
                                       (parents[i]->is_type<eltwise>() && eltwise_supports_fusings(parents[i]->as<eltwise>())) ||
                                       (parents[i]->is_type<scale>()) ||
+                                      (parents[i]->is_type<pooling>() && pooling_supports_fusings(parents[i]->as<pooling>())) ||
                                       (parents[i]->is_type<depth_to_space>() && dts_supports_fusings(parents[i]->as<depth_to_space>())) ||
                                       (parents[i]->is_type<reduce>() && reduce_supports_fusings(parents[i]->as<reduce>()));
             }
