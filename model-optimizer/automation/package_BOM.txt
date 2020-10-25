@@ -32,7 +32,6 @@ extensions/back/LeakyReLUMutation.py
 extensions/back/LRNToNorm.py
 extensions/back/MatMulNormalizer.py
 extensions/back/MaxPool.py
-extensions/back/NormalizeLoop.py
 extensions/back/NormalizeToNormalizeL2.py
 extensions/back/op_versioning.py
 extensions/back/OptimizeTransposeReshapeSequence.py

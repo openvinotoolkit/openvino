@@ -45,13 +45,13 @@ class ONNXLoopNormalize(FrontReplacementSubgraph):
         # connect "trip count" input if it is not connected with default value "Infinity" (-1)
         if 0 not in loop_node.in_ports() or loop_node.in_port(0).disconnected():
             loop_node.add_input_port(0, skip_if_exist=True)
-            Const(loop_node.graph, {'name': loop_name + '/trip_count', 'value': int64_array([-1])}).\
+            Const(loop_node.graph, {'name': loop_name + '/trip_count', 'value': int64_array(-1)}).\
                 create_node().out_port(0).connect(loop_node.in_port(0))
 
         # connect "execution condition" input if it is not connected with default value True
         if 1 not in loop_node.in_ports() or loop_node.in_port(1).disconnected():
             loop_node.add_input_port(1, skip_if_exist=True)
-            Const(loop_node.graph, {'name': loop_name + '/execution_cond', 'value': np.array([True], dtype=np.bool)}).\
+            Const(loop_node.graph, {'name': loop_name + '/execution_cond', 'value': np.array(True, dtype=np.bool)}).\
                 create_node().out_port(0).connect(loop_node.in_port(1))
 
         # scan output need Unsqueeze over axis 0
@@ -64,4 +64,4 @@ class ONNXLoopNormalize(FrontReplacementSubgraph):
                 unsqueeze = create_op_with_const_inputs(loop_node.body, Unsqueeze, {1: int64_array([0])})
                 body_node.in_port(0).get_connection().insert_node(unsqueeze)
 
-        Loop.re_numerate_output_ports(loop_node)
+        Loop.normalize_input_output_ports(loop_node)

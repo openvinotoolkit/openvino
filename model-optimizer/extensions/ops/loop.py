@@ -58,6 +58,14 @@ class Loop(TensorIterator):
 
     @staticmethod
     def updated_body_parameters_shape(loop_node: Node):
+        """
+        Update shape for Loop body parameters.
+        The input shape of the "current_iteration" number input is handled separately because it is not connected with
+        the Loop operation.
+
+        :param loop_node: The Loop node
+        :return: None
+        """
         for record in loop_node.input_port_map:
             body_node = Loop.get_body_node_by_internal_id(loop_node, record['internal_layer_id'])
             # the Parameter may be removed because it was not used in the body, for example, the current iteration
@@ -75,6 +83,14 @@ class Loop(TensorIterator):
 
     @staticmethod
     def updated_loop_output_ports_shape_and_value(loop_node: Node):
+        """
+        Update shape and values for Loop output ports. If the number of iterations is dynamic then the corresponding
+        dimension for the scan outputs (having "axis" attribute) are set to 1 because MO cannot generate IR with
+        undefined dimensions.
+
+        :param loop_node: The Loop node
+        :return: None
+        """
         loop_name = loop_node.soft_get('name', loop_node.id)
         for record in loop_node.output_port_map:
             body_node = Loop.get_body_node_by_internal_id(loop_node, record['internal_layer_id'])
@@ -107,6 +123,7 @@ class Loop(TensorIterator):
         """
         Try to determine the number of loop iterations. If we detect that the number is dynamic then return 1 since MO
         cannot generate the IR with undefined dimension.
+
         :param loop_node: Loop operation node
         :return: number of iterations or 1 if the number depends on runtime values.
         """
@@ -126,6 +143,14 @@ class Loop(TensorIterator):
 
     @staticmethod
     def update_body_parameters_type(loop_node: Node):
+        """
+        Update the data type for Loop body Parameter nodes based on data type of the outer graph nodes producing data
+        for them.
+
+        :param loop_node: The Loop node
+        :return: None
+        """
+        assert loop_node.soft_get('type') == 'Loop'
         for record in loop_node.input_port_map:
             body_node = Loop.get_body_node_by_internal_id(loop_node, record['internal_layer_id'])
             # the Parameter may be removed because it was not used in the body, for example, the current iteration
@@ -136,7 +161,7 @@ class Loop(TensorIterator):
                 loop_port_idx = record['external_port_id']
                 if loop_port_idx != -1:
                     input_type = loop_node.in_port(loop_port_idx).get_data_type()
-                else:  # this is a current iteration number input type
+                else:  # this is a current iteration number input node which is not connected to the Loop node
                     assert record['purpose'] == 'current_iteration'
                     input_type = np.int64
 
@@ -146,6 +171,13 @@ class Loop(TensorIterator):
 
     @staticmethod
     def update_loop_output_ports_type(loop_node: Node):
+        """
+        Update the data type for Loop output ports.
+
+        :param loop_node: The Loop node
+        :return: None
+        """
+        assert loop_node.soft_get('type') == 'Loop'
         for record in loop_node.output_port_map:
             body_node = Loop.get_body_node_by_internal_id(loop_node, record['internal_layer_id'])
             assert body_node is not None
@@ -180,6 +212,14 @@ class Loop(TensorIterator):
 
     @staticmethod
     def external_port_id_to_body_node(loop_node: Node, external_port_id: int, port_map: dict):
+        """
+        Return the body Node connected to the Loop port with number "external_port_id".
+
+        :param loop_node: the Loop node
+        :param external_port_id: the Loop node port idx
+        :param port_map: the port_map value to look for external_port_id
+        :return: the corresponding body Node
+        """
         assert loop_node.soft_get('type') == 'Loop'
         body_graph = loop_node.body
         result_nodes = []
@@ -204,7 +244,7 @@ class Loop(TensorIterator):
                 loop_node.delete_input_port(port_idx)
 
     @staticmethod
-    def update_port_map_value(loop_node: Node, port_map: dict, attr: str, original_value: int, new_value: int):
+    def update_port_map_value(port_map: dict, attr: str, original_value: int, new_value: int):
         matched = 0
         for record in port_map:
             if record[attr] == original_value:
@@ -215,10 +255,17 @@ class Loop(TensorIterator):
 
     @staticmethod
     def re_numerate_input_ports(loop_node: Node):
+        """
+        Update input ports ids to be consecutive from 0 to num_input_ports - 1 and update the port_map values of the
+        Loop node.
+
+        :param loop_node: the Loop node
+        :return: None
+        """
         def re_number_input_port(loop_node: Node, old_port_id: int, new_port_id: int):
             loop_node.add_input_port(new_port_id, skip_if_exist=True)
             loop_node.in_port(old_port_id).get_connection().set_destination(loop_node.in_port(new_port_id))
-            Loop.update_port_map_value(loop_node, loop_node.input_port_map, 'external_port_id', old_port_id, new_port_id)
+            Loop.update_port_map_value(loop_node.input_port_map, 'external_port_id', old_port_id, new_port_id)
 
         if len(loop_node.in_ports()) > 0:
             max_port_id = sorted(loop_node.in_ports().keys())[-1]
@@ -234,10 +281,19 @@ class Loop(TensorIterator):
 
     @staticmethod
     def re_numerate_output_ports(loop_node: Node):
+        """
+        Update output ports ids to be consecutive from 0 to num_output_ports - 1 and update the port_map values of the
+        Loop node.
+
+        :param loop_node: the Loop node
+        :return: None
+        """
+        assert loop_node.soft_get('type') == 'Loop'
+
         def re_number_output_port(loop_node: Node, old_port_id: int, new_port_id: int):
             loop_node.add_output_port(new_port_id, skip_if_exist=True)
             loop_node.out_port(old_port_id).get_connection().set_source(loop_node.out_port(new_port_id))
-            Loop.update_port_map_value(loop_node, loop_node.output_port_map, 'external_port_id', old_port_id, new_port_id)
+            Loop.update_port_map_value(loop_node.output_port_map, 'external_port_id', old_port_id, new_port_id)
 
         if len(loop_node.out_ports()) > 0:
             max_port_id = sorted(loop_node.out_ports().keys())[-1]
@@ -250,6 +306,55 @@ class Loop(TensorIterator):
 
             for port_idx_to_remove in reversed(range(new_port_id, max_port_id + 1)):
                 loop_node.delete_output_port(port_idx_to_remove)
+
+    @staticmethod
+    def remove_unused_ops_from_port_map(loop_node: Node, port_map: dict, port_map_attr: str, dir: [None, str] = None):
+        """
+        Find unused operations in the Loop body referenced in the port_map and removes Loop ports connected to it.
+        Loop input port with index 0 and 1 are mandatory so cannot be removed.
+        Output ports of the Loop may not be connected so check for that case also and remove such an ops from the
+        port_map. The only exception is the "execution_condition" output which is a mandatory.
+
+        :param loop_node: the Loop node to update
+        :param port_map: the port_map (input, output or back edges)
+        :param port_map_attr: the port_map attribute containing the `internal_layer_id`
+        :param dir: the direction of the port_map meaning 'in' or 'out' port of the Loop
+        :return:
+        """
+        record_ids_to_remove = []
+        for record_id, record in enumerate(port_map):
+            if len(loop_node.body.get_op_nodes(internal_layer_id=record[port_map_attr])) == 0 or \
+                    (dir == 'out' and record.get('purpose', "") != 'execution_condition' and
+                     record['external_port_id'] not in loop_node.out_ports()):
+                record_ids_to_remove.append(record_id)
+        for record_id_to_remove in reversed(record_ids_to_remove):
+            if dir in ['in', 'out']:
+                port_to_remove = port_map[record_id_to_remove]['external_port_id']
+                if port_to_remove != -1:
+                    if dir == 'in':
+                        if port_to_remove not in [0, 1]:  # input port 0 and 1 are mandatory for the Loop node
+                            loop_node.delete_input_port(port_to_remove)
+                    elif dir == 'out' and port_to_remove in loop_node.out_ports():
+                        loop_node.delete_output_port(port_to_remove)
+            del port_map[record_id_to_remove]
+
+    @staticmethod
+    def normalize_input_output_ports(loop_node: Node):
+        """
+        Remove inputs, outputs, back edges from the port map which are not used in the body and were removed by a
+        graph clean up, for example, in case of not used current_iteration body Parameter. Then renumber input/output
+        ports.
+
+        :param loop_node: the Loop node to normalize
+        :return: None
+        """
+        Loop.remove_unused_ops_from_port_map(loop_node, loop_node.input_port_map, 'internal_layer_id', 'in')
+        Loop.remove_unused_ops_from_port_map(loop_node, loop_node.output_port_map, 'internal_layer_id', 'out')
+        Loop.remove_unused_ops_from_port_map(loop_node, loop_node.back_edges, 'to_layer')
+
+        # remove not connected input/output ports
+        Loop.re_numerate_input_ports(loop_node)
+        Loop.re_numerate_output_ports(loop_node)
 
     @staticmethod
     def infer(loop_node: Node):
