@@ -17,7 +17,7 @@ using namespace ngraph;
 using namespace ngraph::pass;
 using namespace ngraph::pass::low_precision;
 
-namespace {
+namespace normalize_l2 {
 
 template<typename T>
 std::shared_ptr<ngraph::op::Constant> createNewScalesConst(const ngraph::op::Constant& originalConst) {
@@ -32,7 +32,7 @@ std::shared_ptr<ngraph::op::Constant> createNewScalesConst(const ngraph::op::Con
     return ngraph::op::Constant::create(type, originalConst.get_shape(), newData);
 }
 
-} // namespace
+} // namespace normalize_l2
 
 bool NormalizeL2Transformation::canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> operation) const {
     if (!LayerTransformation::canBeTransformed(context, operation)) {
@@ -106,11 +106,11 @@ bool NormalizeL2Transformation::transform(TransformationContext &context, ngraph
     const auto type = scalesConst->get_output_element_type(0);
     switch (type) {
         case ngraph::element::Type_t::f16: {
-            newScalesConst = createNewScalesConst<ngraph::element_type_traits<ngraph::element::Type_t::f16>::value_type>(*scalesConst);
+            newScalesConst = normalize_l2::createNewScalesConst<ngraph::element_type_traits<ngraph::element::Type_t::f16>::value_type>(*scalesConst);
             break;
         }
         case ngraph::element::Type_t::f32: {
-            newScalesConst = createNewScalesConst<ngraph::element_type_traits<ngraph::element::Type_t::f32>::value_type>(*scalesConst);
+            newScalesConst = normalize_l2::createNewScalesConst<ngraph::element_type_traits<ngraph::element::Type_t::f32>::value_type>(*scalesConst);
             break;
         }
         default: {
