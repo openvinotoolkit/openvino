@@ -49,12 +49,20 @@ ngraph::pass::StridedSliceSqueeze::StridedSliceSqueeze() {
 
         const auto & axes = normalize_axes(squeeze->description(), const_axes->cast_vector<int64_t>(), squeeze->get_input_partial_shape(0).rank());
         for (const auto & axis : axes) {
-            begin_vec[axis] = 0;
-            end_vec[axis] = 1;
+            if (begin_mask[axis]) { // we skip begin, meaning start from 0
+                begin_vec[axis] = 0;
+                end_vec[axis] = 1;
 
-            begin_mask[axis] = 0;
-            end_mask[axis] = 0;
-
+                begin_mask[axis] = 0;
+                end_mask[axis] = 0;
+            } else { // we do not skip begin, meaning starting from
+                if (begin_vec[axis] > 0) {
+                    end_vec[axis] = begin_vec[axis];
+                    end_mask[axis] = 0;
+                } else {
+                    return false; // we can not calculate end value gracefully for all negative begin cases
+                }
+            }
             shrink_axis_mask[axis] = 1;
         }
 
