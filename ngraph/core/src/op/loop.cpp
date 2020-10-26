@@ -111,6 +111,36 @@ void op::v5::Loop::validate_and_infer_types()
             m_num_iterations = 1; // condition_always_false, do_while mode
         }
     }
+    else if (const auto& cond_param = std::dynamic_pointer_cast<const ngraph::opset5::Parameter>(
+                 body_execution_condition.get_node_shared_ptr()))
+    {
+        // Const(true or false) -> Loop (body: Parameter -> execution_condition output)
+        for (const auto& desc : get_input_descriptions())
+        {
+            if (m_body->get_parameters().at(desc->m_body_parameter_index) == cond_param)
+            {
+                if (const auto& cond_value =
+                        std::dynamic_pointer_cast<const ngraph::opset5::Constant>(
+                            input_value(desc->m_input_index).get_node_shared_ptr()))
+                {
+                    auto val = cond_value->cast_vector<bool>();
+                    NODE_VALIDATION_CHECK(
+                        this,
+                        val.size() == 1,
+                        "The number of values in the Condition constant is greater than 1");
+
+                    if (val[0])
+                    {
+                        condition_always_true = true;
+                    }
+                    else
+                    {
+                        m_num_iterations = 1; // condition_always_false, do_while mode
+                    }
+                }
+            }
+        }
+    }
 
     const auto& trip_count = input_value(0);
     const auto& trip_count_rank = trip_count.get_partial_shape().rank();
