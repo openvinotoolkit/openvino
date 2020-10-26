@@ -272,7 +272,8 @@ int main(int argc, char* argv[]) {
         }
 
         /** Setting batch size using image count **/
-        size_t batchSize = 1;
+        network.setBatchSize(imagesData.size());
+        size_t batchSize = network.getBatchSize();
         slog::info << "Batch size is " << std::to_string(batchSize) << slog::endl;
 
         // --------------------------- Prepare output blobs -----------------------------------------------------
@@ -383,8 +384,6 @@ int main(int argc, char* argv[]) {
                 labels.push_back(strLine);
             }
             inputFile.close();
-        } else {
-            throw std::logic_error("Cannot read label file");
         }
 
         ClassificationResult classificationResult(outputBlob, images, batchSize, FLAGS_nt, labels);

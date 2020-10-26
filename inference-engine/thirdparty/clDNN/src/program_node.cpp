@@ -1,5 +1,5 @@
 /*
-// Copyright (c) 2017 Intel Corporation
+// Copyright (c) 2017-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -82,7 +82,7 @@ std::unique_ptr<json_composite> program_node::desc_to_json() const {
     std::unique_ptr<json_composite> node_info = std::unique_ptr<json_composite>(new json_composite());
     node_info->add("ptr", "node_" + std::to_string(reinterpret_cast<uintptr_t>(this)));
     node_info->add("id", id());
-    node_info->add("type", get_extr_type(typeid(*this).name()));
+    node_info->add("type", desc->type_string());
     node_info->add("internal", bool_to_str(this->is_type<internal_primitive>()));
     node_info->add("valid output layout", bool_to_str(valid_output_layout));
 
