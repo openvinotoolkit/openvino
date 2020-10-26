@@ -702,7 +702,7 @@ V10Parser::LayerBaseCreator::fillSubGraphLayer(const ngraph::OutputVector &input
     // Parse PortMap: inputs
     std::map<uint64_t, pugi::xml_node> input_map;
     FOREACH_CHILD(_input, node.child("port_map"), "input") {
-        int64_t ext_port_id = GetUIntAttr(_input, "external_port_id");
+        int64_t ext_port_id = GetInt64Attr(_input, "external_port_id");
         input_map[ext_port_id] = _input;
     }
 
@@ -723,7 +723,8 @@ V10Parser::LayerBaseCreator::fillSubGraphLayer(const ngraph::OutputVector &input
             THROW_IE_EXCEPTION << "PortMap input parsing error. Body parameter with id = " << body_parameter_index
                                << " not found.";
         }
-        if (ti_input_index >= inputs.size())
+
+        if (ti_input_index >=  static_cast<int64_t>(inputs.size()))
             THROW_IE_EXCEPTION << "TensorIterator " << layerParsePrms.name << " has incorrect number of inputs!";
 
         // if axis is set, then slicing is enabled. Create ngraph::TensorIterator::SlicedInput.
@@ -760,8 +761,10 @@ V10Parser::LayerBaseCreator::fillSubGraphLayer(const ngraph::OutputVector &input
                 }
             }
 
-            if (!is_back_edge_exist) {
-                subgraph_op->set_invariant_input(*body_param, inputs[ti_input_index]);
+            // ti_input_index = -1 means that Parameter of the body is not connected to inputs of TensorIterator
+            // and is used only for internal needs.
+            if (!is_back_edge_exist && ti_input_index >= 0) {
+                subgraph_op->set_invariant_input(*body_param, inputs.at(ti_input_index));
             }
 
             if (purpose == "current_iteration") {
