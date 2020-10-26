@@ -90,13 +90,13 @@ public:
         TO_STATUS(_impl->SetBatch(batch_size));
     }
 
-    StatusCode QueryState(IMemoryState::Ptr& pState, size_t idx, ResponseDesc* resp) noexcept override {
+    StatusCode QueryState(IVariableState::Ptr& pState, size_t idx, ResponseDesc* resp) noexcept override {
         try {
             auto v = _impl->QueryState();
             if (idx >= v.size()) {
                 return OUT_OF_BOUNDS;
             }
-            pState = std::make_shared<MemoryStateBase<IMemoryStateInternal>>(v[idx]);
+            pState = std::make_shared<VariableStateBase<IVariableStateInternal>>(v[idx]);
             return OK;
         } catch (const std::exception& ex) {
             return InferenceEngine::DescriptionBuffer(GENERAL_ERROR, resp) << ex.what();

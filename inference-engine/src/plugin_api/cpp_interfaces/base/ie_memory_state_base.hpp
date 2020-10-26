@@ -49,8 +49,4 @@ public:
     }
 };
 
-/*
- * @brief For compatibility reasons.
- */
-using MemoryStateBase = VariableStateBase;
 }  // namespace InferenceEngine

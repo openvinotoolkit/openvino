@@ -153,7 +153,7 @@ public:
     }
 
     std::vector<InferenceEngine::IMemoryStateInternal::Ptr> QueryState() {
-        return QueryState_ThreadUnsafe();
+        return _syncRequest->QueryState();
     }
 
 protected:
@@ -298,10 +298,6 @@ protected:
 
     void SetBatch_ThreadUnsafe(int batch) override {
         _syncRequest->SetBatch(batch);
-    }
-
-    std::vector<InferenceEngine::IMemoryStateInternal::Ptr> QueryState_ThreadUnsafe() {
-        return _syncRequest->QueryState();
     }
 
 private:

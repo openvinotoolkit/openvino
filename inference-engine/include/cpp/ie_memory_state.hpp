@@ -53,9 +53,9 @@ public:
     }
 
     /**
-     * @copybrief IVariableState::GetLastState
+     * @copybrief IVariableState::GetState
      *
-     * Wraps IVariableState::GetLastState
+     * Wraps IVariableState::GetState
      * @return A blob representing a last state 
      */
     Blob::CPtr GetState() const {
