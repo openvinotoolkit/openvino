@@ -40,8 +40,8 @@ namespace ngraph
             class NGRAPH_API DepthToSpace : public ngraph::op::util::FusedOp
             {
             public:
-                static constexpr NodeTypeInfo type_info{"DepthToSpace", 0};
-                const NodeTypeInfo& get_type_info() const override { return type_info; }
+                NGRAPH_RTTI_DECLARATION;
+
                 enum class DepthToSpaceMode
                 {
                     // The input depth is divided to [block_size, ..., block_size, new_depth]

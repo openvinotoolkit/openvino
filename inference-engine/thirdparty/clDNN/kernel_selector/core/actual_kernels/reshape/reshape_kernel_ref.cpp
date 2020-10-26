@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2016-2019 Intel Corporation
+﻿// Copyright (c) 2016-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -22,12 +22,16 @@ ParamsKey ReshapeKernelRef::GetSupportedKey() const {
     k.EnableInputDataType(Datatype::F16);
     k.EnableInputDataType(Datatype::F32);
     k.EnableInputDataType(Datatype::INT8);
+    k.EnableInputDataType(Datatype::UINT8);
     k.EnableInputDataType(Datatype::INT32);
+    k.EnableInputDataType(Datatype::UINT32);
     k.EnableInputDataType(Datatype::INT64);
     k.EnableOutputDataType(Datatype::F16);
     k.EnableOutputDataType(Datatype::F32);
+    k.EnableOutputDataType(Datatype::UINT8);
     k.EnableOutputDataType(Datatype::INT8);
     k.EnableOutputDataType(Datatype::INT32);
+    k.EnableOutputDataType(Datatype::UINT32);
     k.EnableOutputDataType(Datatype::INT64);
     k.EnableAllInputLayout();
     k.EnableAllOutputLayout();
@@ -73,7 +77,7 @@ KernelsData ReshapeKernelRef::GetKernelsData(const Params& params, const optiona
 }
 
 bool ReshapeKernelRef::Validate(const Params& p, const optional_params& op) const {
-    if (!common_kernel_base::Validate(p, op))
+    if (!KernelBaseOpenCL::Validate(p, op))
         return false;
 
     const auto& rp = static_cast<const reshape_params&>(p);

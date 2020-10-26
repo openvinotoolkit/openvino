@@ -10,21 +10,44 @@
 using namespace LayerTestsDefinitions;
 
 namespace {
-const std::vector<InferenceEngine::Precision> netPrecisions = {
-        InferenceEngine::Precision::FP32
+const std::vector<ngraph::element::Type> netPrecisions = {
+    ngraph::element::f32
+    // ngraph::element::f16
 };
 
-const std::vector<InferenceEngine::details::LayerTransformation::Params> trasformationParamValues = {
-    LayerTestsUtils::LayerTransformationParamsFactory::createParams()
+const std::vector<ngraph::pass::low_precision::LayerTransformation::Params> trasformationParamValues = {
+    LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParams().setUpdatePrecisions(true),
+    LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParams().setUpdatePrecisions(false),
+    LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8()
 };
 
+const std::vector<ReshapeTransformationParam> params = {
+    // 3D -> 4D
+    {
+        ngraph::Shape{ 1, 3, 32 },
+        { 1, 3, 4, 8 },
+        { 256ul, ngraph::Shape{ 1, 1, 1, 1 }, { 0.f }, { 255.f }, { 0.f }, { 25.5f } },
+    },
+    // 4D -> 3D
+    {
+        ngraph::Shape{ 1, 3, 16, 16 },
+        { 1, 3, 256 },
+        { 256ul, ngraph::Shape{ 1, 1, 1, 1 }, { 0.f }, { 255.f }, { 0.f }, { 25.5f } },
+    },
+    // 4D -> 2D
+    {
+        ngraph::Shape{ 1, 3, 4, 8 },
+        { 1, -1 },
+        { 256ul, ngraph::Shape{ 1, 1, 1, 1 }, { 0.f }, { 255.f }, { 0.f }, { 25.5f } },
+    },
+};
 
 INSTANTIATE_TEST_CASE_P(smoke_LPT, ReshapeTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(netPrecisions),
-        ::testing::Values(InferenceEngine::SizeVector({ 1, 3, 16, 16 })),
         ::testing::Values(CommonTestUtils::DEVICE_GPU),
-        ::testing::ValuesIn(trasformationParamValues)),
+        ::testing::ValuesIn(trasformationParamValues),
+        ::testing::ValuesIn(params)),
     ReshapeTransformation::getTestCaseName);
 }  // namespace
 

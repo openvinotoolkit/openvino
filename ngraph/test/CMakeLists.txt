@@ -79,6 +79,7 @@ set(SRC
     op_eval/reduce_l1.cpp
     op_eval/reduce_l2.cpp
     op_eval/roi_align.cpp
+    op_eval/round.cpp
     op_eval/softplus.cpp
     op_eval/split.cpp
     op_eval/swish.cpp
@@ -113,7 +114,6 @@ set(SRC
     type_prop/deformable_convolution.cpp
     type_prop/deformable_psroi_pooling.cpp
     type_prop/depth_to_space.cpp
-    type_prop/dequantize.cpp
     type_prop/dot.cpp
     type_prop/dyn_reshape.cpp
     type_prop/strided_slice.cpp
@@ -132,6 +132,7 @@ set(SRC
     type_prop/gru_cell.cpp
     type_prop/gru_sequence.cpp
     type_prop/hard_sigmoid.cpp
+    type_prop/hsigmoid.cpp
     type_prop/hswish.cpp
     type_prop/interpolate.cpp
     type_prop/lrn.cpp
@@ -166,6 +167,7 @@ set(SRC
     type_prop/round.cpp
     type_prop/rnn_cell.cpp
     type_prop/rnn_sequence.cpp
+    type_prop/round.cpp
     type_prop/scatter_elements_update.cpp
     type_prop/scatter_nd_update.cpp
     type_prop/scatter_update.cpp
@@ -363,13 +365,13 @@ if (NGRAPH_ONNX_IMPORT_ENABLE AND NOT NGRAPH_USE_PROTOBUF_LITE)
             onnx/onnx_import_convpool.in.cpp
             onnx/onnx_import_dyn_shapes.in.cpp
             onnx/onnx_import_external_data.in.cpp
-            onnx/onnx_import_library.in.cpp
             onnx/onnx_import_provenance.in.cpp
             onnx/onnx_import_reshape.in.cpp
             onnx/onnx_import_rnn.in.cpp
             onnx/onnx_import_quant.in.cpp)
     list(APPEND SRC
-            onnx/onnx_import_exceptions.cpp)
+            onnx/onnx_import_exceptions.cpp
+            onnx/onnx_import_library.cpp)
 endif()
 
 foreach(BACKEND_NAME ${ACTIVE_BACKEND_LIST})
