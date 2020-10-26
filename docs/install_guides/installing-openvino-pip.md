@@ -13,54 +13,63 @@ This guide provides installation steps for the Intel® distribution of OpenVINO�
 
 ## Install the Runtime Package Using the PyPI Repository
 
-1. Set up and update pip to the highest version:
-   ```sh
-   python3 -m pip install --upgrade pip
-   ```
-2. Install the Intel® distribution of OpenVINO™ toolkit:
+### Step 1. Set up and update pip to the highest version
+
+Run the command below:
+```sh
+python3 -m pip install --upgrade pip
+```
+
+### Step 2. Install the Intel® distribution of OpenVINO™ toolkit
+
+Run the command below:
    ```sh
    pip install openvino-python
    ```
 
-3. Add PATH to environment variables.
-   - Ubuntu* 18.04 and macOS*:
-   ```sh
-   export LD_LIBRARY_PATH=<library_dir>:${LD_LIBRARY_PATH}
-   ```
-   - Windows* 10:
-   ```sh
-   set PATH=<library_dir>;%PATH%
-   ```
-  How to find `library_dir`:
- - Ubuntu\*, macOS\*:
-   - Standard user:
-     ```sh
-     echo $(python3 -m site --user-base)/lib
-     ```
-   - Root or sudo user:
-     ```sh
-     /usr/local/lib
-     ```
-   - Virtual environments or custom Python installations (from sources or tarball):
-     ```sh
-     echo $(which python3)/../../lib
-     ```
- - Windows\*:
-   - Standard Python:
-     ```sh
-      python -c "import os, sys; print((os.path.dirname(sys.executable))+'\Library\\bin')"
-     ```
-   - Virtual environments or custom Python installations (from sources or tarball):
-     ```sh
-      python -c "import os, sys; print((os.path.dirname(sys.executable))+'\..\Library\\bin')"
-     ```
-4. Verify that the package is installed:
-   ```sh
-   python3 -c "import openvino"
-   ```
+### Step 3. Add PATH to environment variables
+
+Run a command for your operating system:
+- Ubuntu 18.04 and macOS:
+```sh
+export LD_LIBRARY_PATH=<library_dir>:${LD_LIBRARY_PATH}
+```
+- Windows* 10:
+```sh
+set PATH=<library_dir>;%PATH%
+```
+To find `library_dir`:   
+**Ubuntu, macOS**:
+- Standard user:
+```sh
+echo $(python3 -m site --user-base)/lib
+```
+- Root or sudo user:
+```sh
+/usr/local/lib
+```
+- Virtual environments or custom Python installations (from sources or tarball):
+```sh
+echo $(which python3)/../../lib
+```
+**Windows**:
+- Standard Python:
+```sh
+python -c "import os, sys; print((os.path.dirname(sys.executable))+'\Library\\bin')"
+```
+- Virtual environments or custom Python installations (from sources or tarball):
+```sh
+python -c "import os, sys; print((os.path.dirname(sys.executable))+'\..\Library\\bin')"
+```
+
+### Step 4. Verify that the package is installed
+
+Run the command below:
+```sh
+python3 -c "import openvino"
+```
    
 Now you are ready to develop and run your application.
-
 
 ## Additional Resources
 
