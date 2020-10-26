@@ -1,5 +1,5 @@
 /*
-// Copyright (c) 2018 Intel Corporation
+// Copyright (c) 2018-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -34,14 +34,7 @@ layout tile_inst::calc_output_layout(tile_node const& node) {
 
     auto input_layout = node.input().get_output_layout();
     auto input_format = input_layout.format;
-    auto result_sizes = input_layout.size.sizes();
-
-    auto axis_index = node.get_primitive()->axis;
-    auto tiles = node.get_primitive()->tiles;
-
-    // calculate sum of features from all inputs
-    result_sizes[axis_index] *= tiles;
-    return layout{input_layout.data_type, input_format, (tensor) result_sizes};
+    return layout{input_layout.data_type, input_format, desc->out_shape};
 }
 
 std::string tile_inst::to_string(tile_node const& node) {
@@ -53,9 +46,6 @@ std::string tile_inst::to_string(tile_node const& node) {
 
     json_composite tile_info;
     tile_info.add("input id", input.id());
-    tile_info.add("axis", desc->axis);
-    tile_info.add("tiles", desc->tiles);
-
     node_info->add("tile info", tile_info);
     node_info->dump(primitive_description);
 
