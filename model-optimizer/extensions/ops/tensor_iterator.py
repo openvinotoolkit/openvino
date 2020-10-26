@@ -322,6 +322,7 @@ class TensorIterator(Op):
 
     @staticmethod
     def infer(node: Node):
+        return
         raise Error('TensorIterator.infer is not implemented. '
                     'Do not insert TensorIterator before middle-end in Model Optimizer')
 
