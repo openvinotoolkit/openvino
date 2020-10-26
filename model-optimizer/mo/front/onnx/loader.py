@@ -54,17 +54,20 @@ def node_id(pb):
         return 'NoNamed'
 
 
-def protobuf2nx(graph: Graph, graph_pb):
-    '''Convert proto message with ONNX model to equivalent NX representation.
-    All nodes and edges are restored here as ONNX model has op/data representation,
-    that means that nodes are connected via tensor names. Name of tensors are defined
-    on demand in nodes, so we have a code similar to Caffe here. '''
-    # graph = fill_graph_with_nodes(graph, pb.graph.node, get_id=node_id, get_attrs=protobuf_attrs)
-    # convert initializers to a NX graph for easier control of model consistency and to use it as a dictionary later
+def protobuf2nx(graph: Graph, pb):
+    """
+    Convert proto message with ONNX model to equivalent NX representation. All nodes and edges are restored here as
+    ONNX model has op/data representation, that means that nodes are connected via tensor names. Name of tensors are
+    defined on demand in nodes, so we have a code similar to Caffe here.
 
+    :param graph: the Graph object to load the graph into
+    :param pb: the ONNX file protobuf message
+    :return: None
+    """
     # maps a tensor name to a node produced it and the node port: str -> (node_id, node_port)
     data_nodes_map = {}
 
+    graph_pb = pb.graph
     add_initializers_and_inputs_to_graph(graph, graph_pb, data_nodes_map)
 
     output_ids = []

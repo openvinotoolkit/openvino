@@ -48,7 +48,7 @@ class ONNXLoader(Loader):
         update_extractors_with_extensions(onnx_op_extractors)
 
         try:
-            protobuf2nx(graph, model_graph)
+            protobuf2nx(graph, model_proto)
         except Exception as e:
             raise Error(
                 'Cannot pre-process ONNX graph after reading from model file "{}". ' \
