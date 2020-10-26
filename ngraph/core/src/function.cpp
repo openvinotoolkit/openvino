@@ -92,9 +92,9 @@ Function::Function(const ResultVector& results,
 }
 
 Function::Function(const OutputVector& results,
-    const SinkVector& sinks,
-    const ParameterVector& parameters,
-    const std::string& name)
+                   const SinkVector& sinks,
+                   const ParameterVector& parameters,
+                   const std::string& name)
     : m_results(as_result_vector(results))
     , m_sinks(sinks)
     , m_parameters(parameters)
@@ -394,9 +394,7 @@ void Function::remove_sink(const std::shared_ptr<op::Sink>& sink)
 {
     m_sinks.erase(std::remove_if(m_sinks.begin(),
                                  m_sinks.end(),
-                                 [&sink](std::shared_ptr<op::Sink>& s) {
-                                     return s == sink;
-                                 }),
+                                 [&sink](std::shared_ptr<op::Sink>& s) { return s == sink; }),
                   m_sinks.end());
     validate_nodes_and_infer_types();
 }
@@ -409,12 +407,11 @@ void Function::add_results(const ResultVector& results)
 
 void Function::remove_result(const std::shared_ptr<op::Result>& result)
 {
-    m_results.erase(std::remove_if(m_results.begin(),
-                                   m_results.end(),
-                                   [&result](std::shared_ptr<op::v0::Result>& r) {
-                                       return r == result;
-                                   }),
-                    m_results.end());
+    m_results.erase(
+        std::remove_if(m_results.begin(),
+                       m_results.end(),
+                       [&result](std::shared_ptr<op::v0::Result>& r) { return r == result; }),
+        m_results.end());
     validate_nodes_and_infer_types();
 }
 
