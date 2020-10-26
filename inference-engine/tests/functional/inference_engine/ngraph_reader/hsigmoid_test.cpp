@@ -3,8 +3,10 @@
 //
 
 #include <string>
+
 #include "ngraph_reader_tests.hpp"
-TEST_F(NGraphReaderTests, ReadHardSigmoidNetwork) {
+
+TEST_F(NGraphReaderTests, ReadHSigmoidNetwork) {
     std::string model = R"V0G0N(
 <net name="Network" version="10">
     <layers>
@@ -29,9 +31,9 @@ TEST_F(NGraphReaderTests, ReadHardSigmoidNetwork) {
                 </port>
             </input>
             <output>
-                <port id="4" precision="FP32">
+                <port id="2" precision="FP32">
                     <dim>1</dim>
-                    <dim>2</dim>
+                    <dim>3</dim>
                     <dim>22</dim>
                     <dim>22</dim>
                 </port>
@@ -41,7 +43,7 @@ TEST_F(NGraphReaderTests, ReadHardSigmoidNetwork) {
             <input>
                 <port id="0" precision="FP32">
                     <dim>1</dim>
-                    <dim>2</dim>
+                    <dim>3</dim>
                     <dim>22</dim>
                     <dim>22</dim>
                 </port>
@@ -50,9 +52,7 @@ TEST_F(NGraphReaderTests, ReadHardSigmoidNetwork) {
     </layers>
     <edges>
         <edge from-layer="0" from-port="0" to-layer="1" to-port="1"/>
-        <edge from-layer="3" from-port="1" to-layer="1" to-port="2"/>
-        <edge from-layer="4" from-port="1" to-layer="1" to-port="3"/>
-        <edge from-layer="1" from-port="4" to-layer="2" to-port="0"/>
+        <edge from-layer="1" from-port="2" to-layer="2" to-port="0"/>
     </edges>
 </net>
 )V0G0N";
@@ -60,6 +60,7 @@ TEST_F(NGraphReaderTests, ReadHardSigmoidNetwork) {
 <net name="Network" version="5" precision="FP32" batch="1">
     <layers>
         <layer name="in1" type="Input" precision="FP32" id="0">
+            <data originalLayersNames="in1"/>
             <output>
                 <port id="0">
                     <dim>1</dim>
@@ -69,7 +70,8 @@ TEST_F(NGraphReaderTests, ReadHardSigmoidNetwork) {
                 </port>
             </output>
         </layer>
-        <layer name="activation" id="1" type="HSigmoid" precision="FP32">
+        <layer name="HSigmoid" id="1" type="HSigmoid" precision="FP32">
+            <data originalLayersNames="HSigmoid"/>
             <input>
                 <port id="1">
                     <dim>1</dim>
@@ -94,5 +96,5 @@ TEST_F(NGraphReaderTests, ReadHardSigmoidNetwork) {
 </net>
 )V0G0N";
 
-    compareIRs(model, modelV5, 8);
+    compareIRs(model, modelV5, 0);
 }
