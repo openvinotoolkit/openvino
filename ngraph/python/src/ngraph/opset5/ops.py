@@ -161,18 +161,21 @@ def gru_sequence(
 ) -> Node:
     """Return a node which performs GRUSequence.
 
-    :param X:
-    :param H_t:
-    :param sequence_lengths:
-    :param W:
-    :param R:
-    :param B:
-    :param hidden_size:
-    :param direction:
-    :param activations:
-    :param activations_alpha:
-    :param activations_beta:
-    :param clip:
+    :param X: 3D tensor, input data.
+    :param H_t: 3D tensor, input hidden state data.
+    :param sequence_lengths: 1D tensor, specifies sequence lenghts 
+        for each batch element.
+    :param W: 3D tensor, weights matrix.
+    :param R: 3D tensor, recurrence weights matrix.
+    :param B: 2D tensor, sum of biases.
+    :param hidden_size: Size of the hidden state.
+    :param direction: Specify if the RNN is forward, reverse, or bidirectional.
+    :param activations: Activation functions for gates.
+    :param activations_alpha: Attributes of function; applicability and meaning 
+        of these attributes depends on choosen activation function.
+    :param activations_beta: Attributes of function; applicability and meaning 
+        of these attributes depends on choosen activation function.
+    :param clip: Specifies bound values *[-clip, clip]* for tensor clipping.
     :param linear_before_reset: During the computation of the output of 
         the hidden gate, apply the linear transformation.
     :return: The new node which performs GRUSequence
@@ -215,8 +218,8 @@ def rnn_sequence(
     :param sequence_lengths: 1D tensor, specifies sequence lenghts 
         for each batch element.
     :param W: 3D tensor, weights matrix.
-    :param R: 3D tensor, thre recurrence weights matrix.
-    :param B: 2D tensor, the sum of biases.
+    :param R: 3D tensor, recurrence weights matrix.
+    :param B: 2D tensor, sum of biases.
     :param hidden_size: Size of the hidden state.
     :param direction: Specify if the RNN is forward, reverse, or bidirectional.
     :param activations: Activation functions for gates.
