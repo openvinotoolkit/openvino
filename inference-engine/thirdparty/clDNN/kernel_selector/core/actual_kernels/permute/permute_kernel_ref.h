@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2016-2019 Intel Corporation
+﻿// Copyright (c) 2016-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -15,7 +15,7 @@
 
 #pragma once
 
-#include "common_kernel_base.h"
+#include "kernel_base_opencl.h"
 #include <vector>
 
 namespace kernel_selector {
@@ -40,9 +40,9 @@ struct permute_optional_params : optional_params {
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // PermuteKernelRef
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-class PermuteKernelRef : public common_kernel_base {
+class PermuteKernelRef : public KernelBaseOpenCL {
 public:
-    PermuteKernelRef() : common_kernel_base("permute_ref") {}
+    PermuteKernelRef() : KernelBaseOpenCL("permute_ref") {}
     virtual ~PermuteKernelRef() {}
 
     JitConstants GetJitConstants(const permute_params& params) const;

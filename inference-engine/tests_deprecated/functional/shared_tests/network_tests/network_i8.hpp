@@ -393,6 +393,7 @@ protected:
         }
 
         std::map<std::string, std::string> config;
+        // config[PluginConfigInternalParams::KEY_LP_TRANSFORMS_VERSION] = PluginConfigInternalParams::LP_TRANSFORMS_NGRAPH;
         if (!transformationsParams.transformationsInPluginEnabled) {
             config.emplace(PluginConfigInternalParams::KEY_LP_TRANSFORMS_MODE, PluginConfigParams::NO);
         }

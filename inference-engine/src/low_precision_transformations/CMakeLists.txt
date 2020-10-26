@@ -7,7 +7,7 @@ set (TARGET_NAME "inference_engine_lp_transformations")
 set(PUBLIC_HEADERS_DIR "${CMAKE_CURRENT_SOURCE_DIR}/include")
 
 file(GLOB_RECURSE LIBRARY_SRC ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp)
-file(GLOB_RECURSE PUBLIC_HEADERS ${PUBLIC_HEADERS_DIR}/low_precision_transformations/*.hpp)
+file(GLOB_RECURSE PUBLIC_HEADERS ${PUBLIC_HEADERS_DIR}/low_precision/*.hpp)
 
 # Create named folders for the sources within the .vcproj
 # Empty name lists them directly under the .vcproj
@@ -26,14 +26,16 @@ ie_faster_build(${TARGET_NAME}
     PCH PRIVATE "src/precomp.hpp"
 )
 
-target_compile_definitions(${TARGET_NAME} PRIVATE IMPLEMENT_INFERENCE_ENGINE_API)
+target_compile_definitions(${TARGET_NAME} PRIVATE inference_engine_transformations_EXPORTS)
 
-target_link_libraries(${TARGET_NAME} PRIVATE inference_engine openvino::itt)
+target_link_libraries(${TARGET_NAME} PUBLIC inference_engine_transformations
+                                     PRIVATE openvino::itt)
 
-target_include_directories(${TARGET_NAME} PUBLIC ${PUBLIC_HEADERS_DIR}
-    $<TARGET_PROPERTY:inference_engine_plugin_api,INTERFACE_INCLUDE_DIRECTORIES>)
+target_include_directories(${TARGET_NAME} PUBLIC ${PUBLIC_HEADERS_DIR})
 
 add_cpplint_target(${TARGET_NAME}_cpplint FOR_TARGETS ${TARGET_NAME})
+
+ie_add_api_validator_post_build_step(TARGET ${TARGET_NAME})
 
 # LTO
 

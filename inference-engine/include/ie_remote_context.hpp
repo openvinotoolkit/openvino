@@ -194,7 +194,7 @@ public:
  * @brief A wrapper of CreateBlob method of RemoteContext to keep consistency with
  * plugin-specific wrappers.
  * @param desc Defines the layout and dims of the blob
- * @param ctx Poniter to the plugin object derived from RemoteContext.
+ * @param ctx Pointer to the plugin object derived from RemoteContext.
  * @return A pointer to plugin object that implements RemoteBlob interface.
  */
 inline RemoteBlob::Ptr make_shared_blob(const TensorDesc& desc, RemoteContext::Ptr ctx) {

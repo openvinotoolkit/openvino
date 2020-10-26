@@ -22,9 +22,17 @@ std::vector<std::string> disabledTestPatterns() {
             // Expected behavior
             R"(.*EltwiseLayerTest.*eltwiseOpType=Pow.*netPRC=I64.*)",
             R"(.*EltwiseLayerTest.*IS=\(.*\..*\..*\..*\..*\).*eltwiseOpType=Pow.*secondaryInputType=CONSTANT.*)",
-            // TODO: Issue: 40736
-            R"(.*ReverseSequenceLayerTest.*)",
-            // TODO: Issue: 40741
-            R"(.*GatherTreeLayerTest.*)",
+            // TODO: Issue: 40958
+            R"(.*(ConstantResultSubgraphTest).*)",
+
+            // TODO: Issue: 41467 -- "unsupported element type f16 op Convert"
+            R"(.*(ConvertLayerTest).*targetPRC=FP16.*)",
+            // TODO: Issue: 41466 -- "Unsupported op 'ConvertLike'"
+            R"(.*(ConvertLikeLayerTest).*)",
+            // TODO: Issue: 41462
+            R"(.*(SoftMaxLayerTest).*axis=0.*)",
+            // TODO: Issue: 41461
+            R"(.*TopKLayerTest.*k=10.*mode=min.*sort=index.*)",
+            R"(.*TopKLayerTest.*k=5.*sort=(none|index).*)",
     };
 }

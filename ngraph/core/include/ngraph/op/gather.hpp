@@ -50,6 +50,11 @@ namespace ngraph
 
             protected:
                 size_t m_axis;
+
+            private:
+                static const int PARAMS;
+                static const int INDICES;
+                static const int AXIS;
                 NGRAPH_SUPPRESS_DEPRECATED_END
             };
         }
@@ -81,6 +86,11 @@ namespace ngraph
 
                 bool evaluate(const HostTensorVector& outputs,
                               const HostTensorVector& inputs) const override;
+
+            private:
+                static const int PARAMS;
+                static const int INDICES;
+                static const int AXIS;
             };
         }
 

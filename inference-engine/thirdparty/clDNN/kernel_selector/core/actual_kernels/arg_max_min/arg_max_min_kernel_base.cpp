@@ -1,5 +1,5 @@
 /*
-// Copyright (c) 2018 Intel Corporation
+// Copyright (c) 2018-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -37,20 +37,12 @@ JitConstants ArgMaxMinKernelBase::GetJitConstants(const arg_max_min_params& para
 }
 
 ArgMaxMinKernelBase::DispatchData ArgMaxMinKernelBase::SetDefault(const arg_max_min_params& params) const {
-    DispatchData kd;
+    DispatchData dispatchData;
 
-    kd.fp16UnitUsed = params.inputs[0].GetDType() == Datatype::F16;
+    dispatchData.gws = { 128, params.inputs[0].Batch().v, 1 };
+    dispatchData.lws = { 128, 1, 1 };
 
-    // Determine global work sizes.
-    kd.gws0 = 128;
-    kd.gws1 = params.inputs[0].Batch().v;
-    kd.gws2 = 1;
-
-    kd.lws0 = 128;
-    kd.lws1 = 1;
-    kd.lws2 = 1;
-
-    return kd;
+    return dispatchData;
 }
 
 KernelsData ArgMaxMinKernelBase::GetCommonKernelsData(const Params& params, const optional_params& options, float estimatedTime) const {
@@ -60,7 +52,7 @@ KernelsData ArgMaxMinKernelBase::GetCommonKernelsData(const Params& params, cons
 
     const arg_max_min_params& orgParams = static_cast<const arg_max_min_params&>(params);
 
-    DispatchData runInfo = SetDefault(orgParams);
+    DispatchData dispatchData = SetDefault(orgParams);
 
     KernelData kd = KernelData::Default<arg_max_min_params>(params);
 
@@ -69,7 +61,7 @@ KernelsData ArgMaxMinKernelBase::GetCommonKernelsData(const Params& params, cons
     auto jit = CreateJit(kernelName, cldnn_jit, entry_point);
 
     auto& kernel = kd.kernels[0];
-    FillCLKernelData(kernel, runInfo, params.engineInfo, kernelName, jit, entry_point);
+    FillCLKernelData(kernel, dispatchData, params.engineInfo, kernelName, jit, entry_point);
 
     kd.estimatedTime = estimatedTime;
 
