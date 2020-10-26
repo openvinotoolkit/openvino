@@ -632,8 +632,7 @@ std::tuple<std::shared_ptr<Node>, std::shared_ptr<Node>> NetworkHelper::decompos
             fq->get_levels(),
             fq->get_auto_broadcast()),
         true);
-    // TODO: for debuging only - remove later
-    newFQ->set_friendly_name(fq->get_friendly_name() + "_original");
+    newFQ->set_friendly_name(fq->get_friendly_name());
 
     std::shared_ptr<ngraph::Node> convert2;
     if (updatePrecision) {
