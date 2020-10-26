@@ -3,7 +3,7 @@ Introduction to Inference Engine {#openvino_docs_IE_DG_inference_engine_intro}
 
 After you have used the Model Optimizer to create an Intermediate Representation (IR), use the Inference Engine to infer the result for a given input data.
 
-Inference Engine is a set of C++ libraries providing a common API to deliver inference solutions on the platform of your choice: CPU, GPU, VPU, or FPGA. Use the Inference Engine API to read the Intermediate Representation, set the input and output formats, and execute the model on devices. While the C++ libraries is the primary implementation, C libraries and Python bindings are also available.
+Inference Engine is a set of C++ libraries providing a common API to deliver inference solutions on the platform of your choice: CPU, GPU, or VPU. Use the Inference Engine API to read the Intermediate Representation, set the input and output formats, and execute the model on devices. While the C++ libraries is the primary implementation, C libraries and Python bindings are also available.
 
 For Intel® Distribution of OpenVINO™ toolkit, Inference Engine binaries are delivered within release packages. 
 
@@ -13,7 +13,7 @@ To learn about how to use the Inference Engine API for your application, see the
 
 For complete API Reference, see the [API Reference](usergroup29.html) section.
 
-Inference Engine uses a plugin architecture. Inference Engine plugin is a software component that contains complete implementation for inference on a certain Intel&reg; hardware device: CPU, GPU, VPU, FPGA, etc. Each plugin implements the unified API and provides additional hardware-specific APIs.
+Inference Engine uses a plugin architecture. Inference Engine plugin is a software component that contains complete implementation for inference on a certain Intel&reg; hardware device: CPU, GPU, VPU, etc. Each plugin implements the unified API and provides additional hardware-specific APIs.
 
 Modules in the Inference Engine component
 ---------------------------------------
@@ -53,7 +53,6 @@ For each supported target device, Inference Engine provides a plugin — a DLL/s
 | ------------- | ------------- |
 |CPU|	Intel® Xeon® with Intel® AVX2 and AVX512, Intel® Core™ Processors with Intel® AVX2, Intel® Atom® Processors with Intel® SSE |
 |GPU| Intel® Processor Graphics, including Intel® HD Graphics and Intel® Iris® Graphics
-|FPGA|	Intel® Programmable Acceleration Card with Intel® Arria® 10 GX FPGA, Intel® Vision Accelerator Design with an Intel® Arria 10 FPGA (Speed Grade 2) |
 |MYRIAD|	Intel® Neural Compute Stick 2 powered by the Intel® Movidius™ Myriad™ X|
 |GNA|	Intel&reg; Speech Enabling Developer Kit, Amazon Alexa* Premium Far-Field Developer Kit, Intel&reg; Pentium&reg; Silver J5005 Processor, Intel&reg; Pentium&reg; Silver N5000 Processor, Intel&reg; Celeron&reg; J4005 Processor, Intel&reg; Celeron&reg; J4105 Processor, Intel&reg; Celeron&reg; Processor N4100, Intel&reg; Celeron&reg; Processor N4000, Intel&reg; Core&trade; i3-8121U Processor, Intel&reg; Core&trade; i7-1065G7 Processor, Intel&reg; Core&trade; i7-1060G7 Processor, Intel&reg; Core&trade; i5-1035G4 Processor, Intel&reg; Core&trade; i5-1035G7 Processor, Intel&reg; Core&trade; i5-1035G1 Processor, Intel&reg; Core&trade; i5-1030G7 Processor, Intel&reg; Core&trade; i5-1030G4 Processor, Intel&reg; Core&trade; i3-1005G1 Processor, Intel&reg; Core&trade; i3-1000G1 Processor, Intel&reg; Core&trade; i3-1000G4 Processor
 |HETERO|Automatic splitting of a network inference between several devices (for example if a device doesn't support certain layers|
@@ -65,7 +64,6 @@ The table below shows the plugin libraries and additional dependencies for Linux
 |--------|------------------------|-------------------------------------------------|--------------------------|--------------------------------------------------------------------------------------------------------|
 | CPU    | `libMKLDNNPlugin.so`   | `libinference_engine_lp_transformations.so` | `MKLDNNPlugin.dll`       | `inference_engine_lp_transformations.dll`    |
 | GPU    | `libclDNNPlugin.so`    | `libinference_engine_lp_transformations.so`, `libOpenCL.so`                                  | `clDNNPlugin.dll`        | `OpenCL.dll`, `inference_engine_lp_transformations.dll`                                                                                           |
-| FPGA   | `libdliaPlugin.so`     | `libdla_compiler_core.so`, `libdla_runtime_core.so`, `libcrypto.so`, `libalteracl.so`, `liblpsolve5525.so`, `libprotobuf.so`, `libacl_emulator_kernel_rt.so` | `dliaPlugin.dll`         | `dla_compiler_core.dll`, `dla_runtime_core.dll`, `crypto.dll`, `alteracl.dll`, `lpsolve5525.dll`, `protobuf.dll`, `acl_emulator_kernel_rt.dll`
 | MYRIAD | `libmyriadPlugin.so`   | `libusb.so`, `libinference_engine_lp_transformations.so`                                 | `myriadPlugin.dll`       | `usb.dll`, `inference_engine_lp_transformations.dll`                                                                                        |
 | HDDL   | `libHDDLPlugin.so`     | `libbsl.so`, `libhddlapi.so`, `libmvnc-hddl.so`, `libinference_engine_lp_transformations.so`| `HDDLPlugin.dll`         | `bsl.dll`, `hddlapi.dll`, `json-c.dll`, `libcrypto-1_1-x64.dll`, `libssl-1_1-x64.dll`, `mvnc-hddl.dll`, `inference_engine_lp_transformations.dll` |
 | GNA    | `libGNAPlugin.so`      | `libgna.so`, `libinference_engine_lp_transformations.so`                                 | `GNAPlugin.dll`          | `gna.dll`, `inference_engine_lp_transformations.dll`                                                                                              |

@@ -14,8 +14,8 @@ OpenVINO™ toolkit is officially supported and validated on the following platf
 
 | Host              | OS (64-bit)                              |
 | :---              | :---                                     |
-| Development       | Ubuntu* 16.04/CentOS* 7.4/MS Windows* 10 |
-| Target            | Ubuntu* 16.04/CentOS* 7.4/MS Windows* 10 |
+| Development       | Ubuntu* 18.04, CentOS* 7.5, MS Windows* 10 |
+| Target            | Ubuntu* 18.04, CentOS* 7.5, MS Windows* 10 |
 
 The CPU Plugin supports inference on Intel® Xeon® with Intel® Advanced Vector Extensions 2 (Intel® AVX2), Intel® Advanced Vector Extensions 512 (Intel® AVX-512), and AVX512_BF16, Intel® Core™
 Processors with Intel® AVX2, Intel Atom® Processors with Intel® Streaming SIMD Extensions (Intel® SSE).

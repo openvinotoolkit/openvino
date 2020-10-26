@@ -1,7 +1,7 @@
 # Create a Yocto* Image with OpenVINO™ toolkit {#openvino_docs_install_guides_installing_openvino_yocto}
 This document provides instructions for creating a Yocto* image with OpenVINO™ toolkit.
 
-Instructions were validated and tested for [Yocto OpenVINO 2020.3 release](http://git.yoctoproject.org/cgit/cgit.cgi/meta-intel).
+Instructions were validated and tested for [Yocto OpenVINO 2020.4 release](http://git.yoctoproject.org/cgit/cgit.cgi/meta-intel).
 
 ## System Requirements
 Use the [Yocto Project* official documentation](https://www.yoctoproject.org/docs/latest/mega-manual/mega-manual.html#brief-compatible-distro) to set up and configure your host machine to be compatible with BitBake*.
@@ -60,9 +60,6 @@ CORE_IMAGE_EXTRA_INSTALL_append = " openvino-inference-engine-samples"
 # Include inference engine python API package in the target image.
 CORE_IMAGE_EXTRA_INSTALL_append = " openvino-inference-engine-python3"
 
-# This adds inference engine unit tests in the target image.
-CORE_IMAGE_EXTRA_INSTALL_append = " openvino-inference-engine-ptest"
-
 # Enable MYRIAD plugin
 CORE_IMAGE_EXTRA_INSTALL_append = " openvino-inference-engine-vpu-firmware"
 
@@ -90,7 +87,6 @@ Verify that it returns the list of packages below:
 openvino-inference-engine
 openvino-inference-engine-dbg
 openvino-inference-engine-dev
-openvino-inference-engine-ptest
 openvino-inference-engine-python3
 openvino-inference-engine-samples
 openvino-inference-engine-src

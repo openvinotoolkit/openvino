@@ -3,12 +3,10 @@
   <!-- Navigation index tabs for HTML output -->
   <navindex>
     <tab type="mainpage" title="OpenVINO Home" url="../index.html"/>
-    <tab type="user" title="GETTING STARTED" url="../index.html"/>
-    <tab type="user" title="HOW TOs" url="../openvino_docs_how_tos_how_to_links.html"/>
-    <tab type="user" title="GUIDES" url="../openvino_docs_IE_DG_Introduction.html"/>
-    <tab type="user" title="RESOURCES" url="../openvino_docs_resources_introduction.html"/>
-    <tab type="user" title="PERFORMANCE BENCHMARKS" url="../openvino_docs_performance_benchmarks.html"/>
-    <tab type="usergroup" title="API REFERENCES" url="../usergroup14.html">
+    <tab type="user" title="Get Started" url="../index.html"/>
+    <tab type="user" title="Documentation" url="../documentation.html"/>
+    <tab type="user" title="Examples" url="../examples.html"/>
+    <tab type="usergroup" title="API REFERENCES" url="../api_references.html">
       <!-- OpenVX -->
       <tab type="user" title="OpenVX Developer Guide" url="https://khronos.org/openvx"/>
       <!-- OpenCV -->
@@ -31,6 +29,10 @@
       <tab type="user" title="Inference Engine Python API Reference" url="../ie_python_api/annotated.html"/>
       <!-- DL Streamer -->
       <tab type="user" title="DL Streamer API Reference" url="https://openvinotoolkit.github.io/dlstreamer_gst/"/>
+      <!-- nGraph C++ API -->
+      <tab type="user" title="nGraph C++ API Reference" url="../ngraph_cpp_api/annotated.html"/>
+      <!-- nGraph Python API -->
+      <tab type="user" title="nGraph Python API Reference" url="../ngraph_python_api/files.html"/>
     </tab>
     <!-- Chinese docs -->
     <tab type="user" title="中文文件" url="https://docs.openvinotoolkit.org/cn/index.html"/>

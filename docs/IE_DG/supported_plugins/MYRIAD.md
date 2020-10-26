@@ -6,11 +6,12 @@ The Inference Engine MYRIAD plugin is developed for inference of neural networks
 
 ## Installation on Linux* OS
 
-For installation instructions, refer to the [Installation Guide for Linux*](../../../inference-engine/samples/benchmark_app/README.md).
+For installation instructions, refer to the [Installation Guide for Linux*](../../install_guides/installing-openvino-linux.md).
+
 
 ## Installation on Windows* OS
 
-For installation instructions, refer to the [Installation Guide for Windows*](../../../inference-engine/samples/benchmark_app/README.md).
+For installation instructions, refer to the [Installation Guide for Windows*](../../install_guides/installing-openvino-windows.md).
 
 ## Supported networks
 

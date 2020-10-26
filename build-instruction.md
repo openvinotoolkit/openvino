@@ -46,9 +46,6 @@ The open source version of Inference Engine includes the following plugins:
 | MYRIAD plugin        | Intel® Movidius™ Neural Compute Stick powered by the Intel® Movidius™ Myriad™ 2, Intel® Neural Compute Stick 2 powered by the Intel® Movidius™ Myriad™ X |
 | Heterogeneous plugin | Heterogeneous plugin enables computing for inference on one network on several Intel® devices. |
 
-Inference Engine plugin for Intel® FPGA is distributed only in a binary form,
-as a part of [Intel® Distribution of OpenVINO™].
-
 ## Build on Linux\* Systems
 
 The software was validated on:
