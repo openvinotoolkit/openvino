@@ -49,7 +49,8 @@ const std::map<ActivationTypes, std::vector<std::vector<float>>> activationTypes
         {Ceiling,     {}},
         {Mish,        {}},
         {HSwish,      {}},
-        {SoftPlus,    {}}
+        {SoftPlus,    {}},
+        {HSigmoid,    {}}
 };
 
 const std::map<ActivationTypes, std::vector<std::vector<float>>> activationParamTypes = {

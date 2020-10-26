@@ -77,6 +77,7 @@ static const InferenceEngine::details::caseless_unordered_map<std::string, Type>
         { "Swish", Activation },
         { "HSwish", Activation },
         { "Mish", Activation },
+        { "HSigmoid", Activation },
         { "ScaleShift", Depthwise },
         { "PReLU", Depthwise },
         { "Norm", Lrn },

@@ -2183,8 +2183,8 @@ bool MKLDNNInterpolateNode::canFuse(const MKLDNNNodePtr& node) const {
         if (activationNode == nullptr)
             THROW_IE_EXCEPTION << "Cannot get activation layer " << node->getName();
         return isOneOf(activationNode->getAlgorithm(), {eltwise_relu, eltwise_gelu, eltwise_elu, eltwise_logistic,
-            eltwise_bounded_relu, eltwise_clamp, eltwise_tanh, eltwise_swish, eltwise_hswish, eltwise_mish, eltwise_linear,
-            eltwise_abs, eltwise_square, eltwise_sqrt});
+            eltwise_bounded_relu, eltwise_clamp, eltwise_tanh, eltwise_swish, eltwise_hswish, eltwise_mish, eltwise_hsigmoid,
+            eltwise_linear, eltwise_abs, eltwise_square, eltwise_sqrt});
     }
     return false;
 }
