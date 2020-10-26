@@ -21,6 +21,7 @@
 #include <string>
 
 #include <transformations/utils/utils.hpp>
+#include <transformations/smart_reshape/set_batch_size.hpp>
 #include <transformations/smart_reshape/smart_reshape.hpp>
 
 #include <legacy/transformations/convert_opset1_to_legacy/convert_one_hot_to_one_hot_ie.hpp>
@@ -126,10 +127,6 @@ CNNNetworkNGraphImpl::CNNNetworkNGraphImpl(const std::shared_ptr<Function>& nGra
 
     // Add shape infer method for old operations which are not included to opset1, opset2 and opset3
     ::ngraph::op::GenericIE::addExtension(_ngraph_function, std::make_shared<ShapeInfer::BuiltInShapeInferHolder>());
-
-    ngraph::pass::Manager ssr_manager;
-    ssr_manager.register_pass<ngraph::pass::SmartReshape>();
-    ssr_manager.run_passes(_ngraph_function);
 
     reshape();
     for (const auto& layer : _ngraph_function->get_parameters()) {
@@ -282,12 +279,14 @@ size_t CNNNetworkNGraphImpl::getBatchSize() const noexcept {
     }
     auto params = _ngraph_function->get_parameters();
     for (const auto& param : params) {
-        if (param->get_partial_shape().is_dynamic())
+        if (param->get_partial_shape().rank().is_dynamic())
             continue;
-        auto shape = param->get_shape();
+        auto pshape = param->get_partial_shape();
+        auto rank = pshape.rank().get_length();
         // WA: for speech recognition and scalar layouts (copy-past from CNNNetwork)
-        if (!shape.empty() && shape.size() != 3 && shape.size() != 1)
-            return shape[0];
+        if ((rank == 2 || rank > 3) && pshape[0].is_static()) {
+            return pshape[0].get_length();
+        }
     }
     return 1;
 }
@@ -322,8 +321,13 @@ CNNNetworkNGraphImpl::reshape(const std::map<std::string, std::vector<size_t>>& 
             if (param->get_partial_shape().is_dynamic() || param->get_shape() != it->second)
                 needReshape = true;
         }
-        if (needReshape)
+        if (needReshape) {
+            ngraph::pass::Manager ssr_manager;
+            ssr_manager.register_pass<ngraph::pass::SmartReshape>();
+            ssr_manager.run_passes(_ngraph_function);
+
             reshape(inputShapes);
+        }
     } catch (std::exception& ex) {
         return DescriptionBuffer(GENERAL_ERROR, responseDesc) << ex.what();
     }
@@ -454,46 +458,47 @@ StatusCode CNNNetworkNGraphImpl::serialize(const std::string& xmlPath, const std
 }
 
 StatusCode CNNNetworkNGraphImpl::setBatchSize(size_t size, ResponseDesc* responseDesc) noexcept {
-    try {
-        if (size == getBatchSize())
-            return OK;
-        if (!cnnNetwork)
-            convertToCNNNetworkImpl();
-        return cnnNetwork->setBatchSize(size, responseDesc);
-    } catch (std::exception& ex) {
-        return DescriptionBuffer(GENERAL_ERROR, responseDesc) << ex.what();
-    }
-}
-
-StatusCode CNNNetworkNGraphImpl::setBatchSizeReshape(size_t size, ResponseDesc* responseDesc) noexcept {
     if (cnnNetwork)
-        return cnnNetwork->setBatchSizeReshape(size, responseDesc);
+        return cnnNetwork->setBatchSize(size, responseDesc);
     try {
+        if (getBatchSize() == size) return OK;
         auto original_parameters = _ngraph_function->get_parameters();
+        if (original_parameters.empty()) return DescriptionBuffer(GENERAL_ERROR, responseDesc) << "Cannot set batch! Function doesn't contain parameters!";
 
-        std::map<std::string, std::vector<size_t>> origShapes;
+        stringstream ss;
+        ss << " Please use reshape method instead. Original parameter shapes are: ";
+        for (size_t i = 0; i < original_parameters.size(); ++i) {
+            if (i) ss << ", ";
+            ss << "\"" << original_parameters[i]->get_friendly_name() << "\": " << original_parameters[i]->get_partial_shape();
+        }
+
+        // ill-formed logic from the past setBatchSize (we keep it for backward-compatibility)
+        const auto first_parameter = *std::min_element(original_parameters.begin(), original_parameters.end(),
+            [](std::shared_ptr<ngraph::Node> lhs, std::shared_ptr<ngraph::Node> rhs){return lhs->get_friendly_name() < rhs->get_friendly_name();});
+        const auto first_parameter_pshape = first_parameter->get_partial_shape();
+        if (first_parameter_pshape.is_dynamic()) return DescriptionBuffer(PARAMETER_MISMATCH, responseDesc) <<
+            "Cannot set batch! Function contains parameter with partially defined shape!" << ss.str();
+        const auto first_parameter_rank = first_parameter_pshape.rank().get_length();
+        if (first_parameter_rank == 0 || first_parameter_rank == 1 || first_parameter_rank == 3) return DescriptionBuffer(PARAMETER_MISMATCH, responseDesc) <<
+            "Cannot set batch! Function contains 0D/1D/3D parameter with unknown batch dimension placement." << ss.str();
+
         std::map<std::string, std::vector<size_t>> inShapes;
         for (const auto &parameter : original_parameters) {
-            if (parameter->get_partial_shape().is_dynamic())
-                THROW_IE_EXCEPTION << "Cannot setBatch! Network contains inputs with dynamic shapes!";
-            std::vector<size_t> shape = parameter->get_shape();
-            origShapes[parameter->get_friendly_name()] = shape;
-            shape[0] = size;
+            const auto & pshape = parameter->get_partial_shape();
+            if (pshape.is_dynamic()) return DescriptionBuffer(PARAMETER_MISMATCH, responseDesc) <<
+                "Cannot set batch! Function contains parameter with partially defined shape!" << ss.str();
+            const auto & rank = pshape.rank().get_length();
+            if (rank == 0) return DescriptionBuffer(PARAMETER_MISMATCH, responseDesc) <<
+                "Cannot set batch! Function contains 0D/1D/3D parameter with unknown batch dimension placement." << ss.str();
+            auto shape = parameter->get_shape();
+            shape[0] = {static_cast<size_t>(std::ceil(size * static_cast<float>(shape[0]) / static_cast<float>(getBatchSize())))};
             inShapes[parameter->get_friendly_name()] = shape;
         }
-        auto sts = reshape(inShapes, responseDesc);
-        if (sts == OK) return OK;
-        for (size_t i = 0; i < original_parameters.size(); i++) {
-            const auto& param = original_parameters[i];
-            if (origShapes.find(param->get_friendly_name()) == origShapes.end())
-                continue;
-            ::ngraph::PartialShape shape(origShapes.at(param->get_friendly_name()));
-            auto newParam = std::make_shared<::ngraph::op::Parameter>(param->get_element_type(), shape);
-            newParam->set_friendly_name(param->get_friendly_name());
-            _ngraph_function->replace_parameter(i, newParam);
-        }
-        convertToCNNNetworkImpl();
-        return cnnNetwork->setBatchSize(size, responseDesc);
+        ngraph::pass::Manager ssr_manager;
+        ssr_manager.register_pass<ngraph::pass::SetBatchSize>();
+        ssr_manager.run_passes(_ngraph_function);
+
+        return reshape(inShapes, responseDesc);
     } catch (std::exception& ex) {
         return DescriptionBuffer(GENERAL_ERROR, responseDesc) << ex.what();
     }
