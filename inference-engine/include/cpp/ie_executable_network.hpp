@@ -175,7 +175,9 @@ public:
      * Wraps IExecutableNetwork::QueryState
      * @return A vector of Memory State objects
      */
+    INFERENCE_ENGINE_DEPRECATED("Use InferRequest::QueryState instead")
     std::vector<MemoryState> QueryState() {
+        IE_SUPPRESS_DEPRECATED_START
         if (actual == nullptr) THROW_IE_EXCEPTION << "ExecutableNetwork was not initialized.";
         IMemoryState::Ptr pState = nullptr;
         auto res = OK;
@@ -191,6 +193,7 @@ public:
             }
         }
 
+        IE_SUPPRESS_DEPRECATED_END
         return controller;
     }
 

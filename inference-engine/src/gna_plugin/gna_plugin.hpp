@@ -159,7 +159,8 @@ class GNAPlugin : public InferenceEngine::IInferencePlugin {
      * QueryState API
      * @return
      */
-     std::vector<InferenceEngine::IMemoryStateInternal::Ptr>  QueryState();
+    INFERENCE_ENGINE_DEPRECATED("Use InferRequest::QueryState instead")
+    std::vector<InferenceEngine::IMemoryStateInternal::Ptr>  QueryState();
 
      /**
       * test-wise API

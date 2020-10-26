@@ -58,10 +58,15 @@ public:
      * Wraps IMemoryState::GetLastState
      * @return A blob representing a last state 
      */
-    Blob::CPtr GetLastState() const {
+    Blob::CPtr GetState() const {
         Blob::CPtr stateBlob;
-        CALL_STATUS_FNC(GetLastState, stateBlob);
+        CALL_STATUS_FNC(GetState, stateBlob);
         return stateBlob;
+    }
+
+    INFERENCE_ENGINE_DEPRECATED("Use GetState function instead")
+    Blob::CPtr GetLastState() const {
+        return GetState();
     }
 
     /**
@@ -75,4 +80,5 @@ public:
     }
 };
 
+using VariableState = MemoryState;
 }  // namespace InferenceEngine

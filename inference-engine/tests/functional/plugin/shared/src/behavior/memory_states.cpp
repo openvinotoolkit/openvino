@@ -29,6 +29,7 @@ InferenceEngine::ExecutableNetwork MemoryStateTest::PrepareNetwork() {
 }
 
 TEST_P(MemoryStateTest, smoke_MemoryState_QueryState) {
+    IE_SUPPRESS_DEPRECATED_START
     auto executableNet = PrepareNetwork();
 
     auto states = executableNet.QueryState();
@@ -39,14 +40,16 @@ TEST_P(MemoryStateTest, smoke_MemoryState_QueryState) {
         ASSERT_TRUE(std::find(statesToQuery.begin(), statesToQuery.end(), name) != statesToQuery.end())
             << "State " << name << "expected to be in memory states but it is not!";
     }
+    IE_SUPPRESS_DEPRECATED_END
 }
 
 TEST_P(MemoryStateTest, smoke_MemoryState_SetState) {
+    IE_SUPPRESS_DEPRECATED_START
     auto executableNet = PrepareNetwork();
     const float new_state_val = 13.0f;
     for (auto&& state : executableNet.QueryState()) {
         state.Reset();
-        auto element_count = state.GetLastState()->size();
+        auto element_count = state.GetState()->size();
 
         std::vector<float> new_state_data(element_count, new_state_val);
         auto stateBlob = InferenceEngine::make_shared_blob<float>(
@@ -57,7 +60,7 @@ TEST_P(MemoryStateTest, smoke_MemoryState_SetState) {
     }
 
     for (auto&& state : executableNet.QueryState()) {
-        auto lastState = state.GetLastState();
+        auto lastState = state.GetState();
         auto last_state_size = lastState->size();
         auto last_state_data = lastState->cbuffer().as<float*>();
         ASSERT_TRUE(last_state_size != 0) << "State size should not be 0";
@@ -66,14 +69,16 @@ TEST_P(MemoryStateTest, smoke_MemoryState_SetState) {
             EXPECT_NEAR(new_state_val, last_state_data[i], 1e-5);
         }
     }
+    IE_SUPPRESS_DEPRECATED_END
 }
 
 TEST_P(MemoryStateTest, smoke_MemoryState_Reset) {
+    IE_SUPPRESS_DEPRECATED_START
     auto executableNet = PrepareNetwork();
     const float new_state_val = 13.0f;
     for (auto&& state : executableNet.QueryState()) {
         state.Reset();
-        auto element_count = state.GetLastState()->size();
+        auto element_count = state.GetState()->size();
 
         std::vector<float> new_state_data(element_count, new_state_val);
         auto stateBlob = InferenceEngine::make_shared_blob<float>(
@@ -87,7 +92,90 @@ TEST_P(MemoryStateTest, smoke_MemoryState_Reset) {
 
     auto states = executableNet.QueryState();
     for (int i = 0; i < states.size(); ++i) {
-        auto lastState = states[i].GetLastState();
+        auto lastState = states[i].GetState();
+        auto last_state_size = lastState->size();
+        auto last_state_data = lastState->cbuffer().as<float*>();
+
+        ASSERT_TRUE(last_state_size != 0) << "State size should not be 0";
+
+        if (i == 0) {
+            for (int j = 0; j < last_state_size; ++j) {
+                EXPECT_NEAR(0, last_state_data[j], 1e-5);
+            }
+        } else {
+            for (int j = 0; j < last_state_size; ++j) {
+                EXPECT_NEAR(13.0f, last_state_data[j], 1e-5);
+            }
+        }
+    }
+    IE_SUPPRESS_DEPRECATED_END
+}
+
+TEST_P(MemoryStateTest, smoke_MemoryState_QueryState) {
+    auto executableNet = PrepareNetwork();
+    auto inferReq = executableNet.CreateInferRequest();
+
+    auto states = inferReq.QueryState();
+    ASSERT_TRUE(states.size() == 2) << "Incorrect number of MemoryStates";
+
+    for (auto&& state : states) {
+        auto name = state.GetName();
+        ASSERT_TRUE(std::find(statesToQuery.begin(), statesToQuery.end(), name) != statesToQuery.end())
+            << "State " << name << "expected to be in memory states but it is not!";
+    }
+}
+
+TEST_P(MemoryStateTest, smoke_MemoryState_SetState) {
+    auto executableNet = PrepareNetwork();
+    auto inferReq = executableNet.CreateInferRequest();
+
+    const float new_state_val = 13.0f;
+    for (auto&& state : inferReq.QueryState()) {
+        state.Reset();
+        auto element_count = state.GetState()->size();
+
+        std::vector<float> new_state_data(element_count, new_state_val);
+        auto stateBlob = InferenceEngine::make_shared_blob<float>(
+            { InferenceEngine::Precision::FP32, {element_count}, InferenceEngine::C },
+            new_state_data.data(), new_state_data.size());
+
+        state.SetState(stateBlob);
+    }
+
+    for (auto&& state : inferReq.QueryState()) {
+        auto lastState = state.GetState();
+        auto last_state_size = lastState->size();
+        auto last_state_data = lastState->cbuffer().as<float*>();
+        ASSERT_TRUE(last_state_size != 0) << "State size should not be 0";
+
+        for (int i = 0; i < last_state_size; i++) {
+            EXPECT_NEAR(new_state_val, last_state_data[i], 1e-5);
+        }
+    }
+}
+
+TEST_P(MemoryStateTest, smoke_MemoryState_Reset) {
+    auto executableNet = PrepareNetwork();
+    auto inferReq = executableNet.CreateInferRequest();
+
+    const float new_state_val = 13.0f;
+    for (auto&& state : inferReq.QueryState()) {
+        state.Reset();
+        auto element_count = state.GetState()->size();
+
+        std::vector<float> new_state_data(element_count, new_state_val);
+        auto stateBlob = InferenceEngine::make_shared_blob<float>(
+            { InferenceEngine::Precision::FP32, {element_count}, InferenceEngine::C },
+            new_state_data.data(), new_state_data.size());
+
+        state.SetState(stateBlob);
+    }
+
+    inferReq.QueryState().front().Reset();
+
+    auto states = inferReq.QueryState();
+    for (int i = 0; i < states.size(); ++i) {
+        auto lastState = states[i].GetState();
         auto last_state_size = lastState->size();
         auto last_state_data = lastState->cbuffer().as<float*>();
 

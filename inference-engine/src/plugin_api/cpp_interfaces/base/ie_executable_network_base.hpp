@@ -66,6 +66,7 @@ public:
         TO_STATUS(graphPtr = _impl->GetExecGraphInfo());
     }
 
+    INFERENCE_ENGINE_DEPRECATED("Use InferRequest::QueryState instead")
     StatusCode QueryState(IMemoryState::Ptr& pState, size_t idx, ResponseDesc* resp) noexcept override {
         try {
             auto v = _impl->QueryState();

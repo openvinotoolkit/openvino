@@ -25,7 +25,7 @@ public:
     void SetState(Blob::Ptr newState) override {
         state = newState;
     }
-    Blob::CPtr GetLastState() const override {
+    Blob::CPtr GetState() const override {
         return state;
     }
 };

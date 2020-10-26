@@ -44,8 +44,8 @@ public:
         TO_STATUS(impl->SetState(newState));
     }
 
-    StatusCode GetLastState(Blob::CPtr& lastState, ResponseDesc* resp) const noexcept override {
-        TO_STATUS(lastState = impl->GetLastState());
+    StatusCode GetState(Blob::CPtr& state, ResponseDesc* resp) const noexcept override {
+        TO_STATUS(state = impl->GetState());
     }
 };
 

@@ -18,7 +18,7 @@ class GNAMemoryState : public InferenceEngine::IMemoryStateInternal {
 
     void Reset() override;
     void SetState(InferenceEngine::Blob::Ptr newState) override;
-    InferenceEngine::Blob::CPtr GetLastState() const override;
+    InferenceEngine::Blob::CPtr GetState() const override;
     std::string GetName() const override;
 
 private:

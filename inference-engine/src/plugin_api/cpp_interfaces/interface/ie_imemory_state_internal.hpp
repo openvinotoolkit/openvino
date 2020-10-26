@@ -23,7 +23,9 @@ public:
     virtual std::string GetName() const = 0;
     virtual void Reset() = 0;
     virtual void SetState(Blob::Ptr newState) = 0;
-    virtual Blob::CPtr GetLastState() const = 0;
+    virtual Blob::CPtr GetState() const = 0; 
+    INFERENCE_ENGINE_DEPRECATED("Use GetState function instead")
+    virtual Blob::CPtr GetLastState() const {return GetState();}
 };
 
 }  // namespace InferenceEngine

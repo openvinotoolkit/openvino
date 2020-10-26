@@ -27,8 +27,8 @@ void  MKLDNNMemoryState::SetState(Blob::Ptr newState) {
     storage->SetData(data_type, data_layout, data_ptr, data_size);
 }
 
-InferenceEngine::Blob::CPtr MKLDNNMemoryState::GetLastState() const {
-    THROW_IE_EXCEPTION << "GetLastState method is not implemented for MemoryState";
+InferenceEngine::Blob::CPtr MKLDNNMemoryState::GetState() const {
+    THROW_IE_EXCEPTION << "GetState method is not implemented for MemoryState";
     return nullptr;
 }
 

@@ -19,7 +19,7 @@ public:
     std::string GetName() const override;
     void Reset() override;
     void SetState(InferenceEngine::Blob::Ptr newState) override;
-    InferenceEngine::Blob::CPtr GetLastState() const override;
+    InferenceEngine::Blob::CPtr GetState() const override;
 
 private:
     std::string name;

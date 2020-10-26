@@ -314,6 +314,8 @@ bool MKLDNNExecNetwork::CanProcessDynBatch(const InferenceEngine::ICNNNetwork &n
     return check_result;
 }
 
+IE_SUPPRESS_DEPRECATED_START
 std::vector<IMemoryStateInternal::Ptr> MKLDNNExecNetwork::QueryState() {
     return memoryStates;
 }
+IE_SUPPRESS_DEPRECATED_END

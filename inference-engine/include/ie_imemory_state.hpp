@@ -67,7 +67,10 @@ public:
      * @param  resp Optional: pointer to an already allocated object to contain information in case of failure
      * @return Status code of the operation: InferenceEngine::OK (0) for success
      * */
-    virtual StatusCode GetLastState(Blob::CPtr& lastState, ResponseDesc* resp) const noexcept = 0;
+    INFERENCE_ENGINE_DEPRECATED("Use GetState function instead")
+    virtual StatusCode GetLastState(Blob::CPtr& state, ResponseDesc* resp) const noexcept {return GetState(state, resp);}
+    virtual StatusCode GetState(Blob::CPtr& state, ResponseDesc* resp) const noexcept = 0;
 };
 
+using IVariableState = IMemoryState;
 }  // namespace InferenceEngine

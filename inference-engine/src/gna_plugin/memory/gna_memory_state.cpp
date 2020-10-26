@@ -91,7 +91,7 @@ namespace memory {
         }
     }
 
-    InferenceEngine::Blob::CPtr GNAMemoryState::GetLastState() const {
+    InferenceEngine::Blob::CPtr GNAMemoryState::GetState() const {
         auto elements = state->reserved_size / state->elementSizeBytes();
         InferenceEngine::Precision state_precision = getPrecision();
 

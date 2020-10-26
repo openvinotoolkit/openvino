@@ -59,8 +59,7 @@ class GNAExecutableNetwork : public InferenceEngine::ExecutableNetworkThreadSafe
         return std::make_shared<GNAInferRequest>(plg, networkInputs, networkOutputs);
     }
 
-
-
+    INFERENCE_ENGINE_DEPRECATED("Use InferRequest::QueryState instead")
     std::vector<InferenceEngine::IMemoryStateInternal::Ptr>  QueryState() override {
         auto pluginStates = plg->QueryState();
         std::vector<InferenceEngine::IMemoryStateInternal::Ptr> state(pluginStates.begin(), pluginStates.end());

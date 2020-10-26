@@ -42,6 +42,7 @@ public:
 
     InferenceEngine::CNNNetwork GetExecGraphInfo() override;
 
+    INFERENCE_ENGINE_DEPRECATED("Use InferRequest::QueryState instead")
     std::vector<InferenceEngine::IMemoryStateInternal::Ptr> QueryState() override;
 
     InferenceEngine::ThreadLocal<MKLDNNGraph::Ptr>  _graphs;
