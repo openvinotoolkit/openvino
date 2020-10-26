@@ -35,37 +35,37 @@ ParamsKey SoftmaxKernel_bf::GetSupportedKey() const {
 
 SoftmaxKernel_bf::Parent::DispatchData SoftmaxKernel_bf::SetDefault(const softmax_params& params,
                                                                     const optional_params& optParams) const {
-    auto kd = Parent::SetDefault(params, optParams);
+    auto dispatchData = Parent::SetDefault(params, optParams);
 
     // start with 1 thread per data set
-    kd.gws0 = 1;
-    kd.gws1 = kd.dataSetsCount;
-    kd.itemsNum = kd.dataSetSize;
+    dispatchData.gws[0] = 1;
+    dispatchData.gws[1] = dispatchData.dataSetsCount;
+    dispatchData.itemsNum = dispatchData.dataSetSize;
 
-    kd.normIndex = 0;
+    dispatchData.normIndex = 0;
 
     // We have two units of data per work item in current implementation.
-    auto local_mem_per_wi = 2 * (kd.fp16UnitUsed ? sizeof(short) : sizeof(float));
+    auto local_mem_per_wi = 2 * BytesPerElement(params.inputs[0].GetDType());
     // Combining device execution and local memory restrictions to compute maximum possible LWS.
     auto max_lws = std::min(params.engineInfo.maxWorkGroupSize, params.engineInfo.maxLocalMemSize / local_mem_per_wi);
 
-    kd.lws0 = 1;
+    dispatchData.lws[0] = 1;
     // Compute maximum possible LWS that does not exceed device capabilities and optimizes number of global memory
     // reads.
-    while ((kd.itemsNum > 32 || kd.lws0 < kd.itemsNum) && (2 * kd.lws0 <= max_lws)) {
-        kd.lws0 *= 2;
-        kd.itemsNum /= 2;
+    while ((dispatchData.itemsNum > 32 || dispatchData.lws[0] < dispatchData.itemsNum) && (2 * dispatchData.lws[0] <= max_lws)) {
+        dispatchData.lws[0] *= 2;
+        dispatchData.itemsNum /= 2;
     }
 
-    assert((kd.itemsNum + 1) * kd.lws0 >= kd.dataSetSize && "More than 'lws0' items per batch remains! Lws too small?");
+    assert((dispatchData.itemsNum + 1) * dispatchData.lws[0] >= dispatchData.dataSetSize && "More than 'lws[0]' items per batch remains! Lws too small?");
 
-    kd.gws0 = kd.lws0;
-    kd.leftovers = kd.dataSetSize % kd.lws0;
+    dispatchData.gws[0] = dispatchData.lws[0];
+    dispatchData.leftovers = dispatchData.dataSetSize % dispatchData.lws[0];
 
-    assert(kd.itemsNum > 0 && kd.lws0 && kd.gws0 > 0);
+    assert(dispatchData.itemsNum > 0 && dispatchData.lws[0] && dispatchData.gws[0] > 0);
 
-    kd.efficiency = FORCE_PRIORITY_6;
-    return kd;
+    dispatchData.efficiency = FORCE_PRIORITY_6;
+    return dispatchData;
 }
 
 KernelsData SoftmaxKernel_bf::GetKernelsData(const Params& params, const optional_params& optionalParams) const {
