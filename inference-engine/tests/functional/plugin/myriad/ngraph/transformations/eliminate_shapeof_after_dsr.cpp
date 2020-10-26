@@ -54,11 +54,12 @@ protected:
     std::shared_ptr<const ngraph::Function> reference(
             const TensorType& dataType,
             const TensorShape& dataShape) const {
+        const auto data = std::make_shared<ngraph::opset3::Parameter>(dataType, dataShape);
         const auto shape = std::make_shared<ngraph::opset3::Parameter>(ngraph::element::i64, ngraph::Shape{dataShape.size()});
 
         return std::make_shared<ngraph::Function>(
                 ngraph::NodeVector{shape},
-                ngraph::ParameterVector{shape},
+                ngraph::ParameterVector{data, shape},
                 "Expected");
     }
 };
@@ -115,13 +116,14 @@ protected:
     std::shared_ptr<const ngraph::Function> reference(
             const TensorType& dataType,
             const TensorShape& dataShape) const {
+        const auto data = std::make_shared<ngraph::opset3::Parameter>(dataType, dataShape);
         const auto shape = std::make_shared<ngraph::opset3::Parameter>(ngraph::element::i64, ngraph::Shape{dataShape.size()});
 
         const auto shapeRelu = std::make_shared<ngraph::opset3::Relu>(shape);
 
         return std::make_shared<ngraph::Function>(
                 ngraph::NodeVector{shapeRelu},
-                ngraph::ParameterVector{shape},
+                ngraph::ParameterVector{data, shape},
                 "Expected");
     }
 };

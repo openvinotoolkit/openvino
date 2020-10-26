@@ -731,15 +731,18 @@ TEST(pattern, label_on_skip)
         std::make_shared<pattern::op::Label>(iconst, ngraph::is_zero, NodeVector{iconst});
 
     auto bcst_pred = [](std::shared_ptr<Node> n) {
-        return as_type_ptr<op::Broadcast>(n) != nullptr;
+        return as_type_ptr<op::v1::Broadcast>(n) != nullptr;
     };
 
-    auto bcst = std::make_shared<pattern::op::Skip>(const_label, bcst_pred);
+    auto shape_const = op::Constant::create(element::u64, Shape{shape.size()}, shape);
+    auto axes_const = op::Constant::create(element::u8, Shape{}, {0});
+    auto bcst = std::make_shared<pattern::op::Skip>(
+        OutputVector{const_label, shape_const, axes_const}, bcst_pred);
     auto bcst_label = std::make_shared<pattern::op::Label>(bcst, nullptr, NodeVector{bcst});
     auto matcher = std::make_shared<pattern::Matcher>(
         std::make_shared<op::Multiply>(label, bcst_label), "label_on_skip");
 
-    auto const_broadcast = make_shared<op::Broadcast>(iconst, shape, AxisSet{0, 1});
+    auto const_broadcast = make_shared<op::v1::Broadcast>(iconst, shape_const);
     auto mul = a * const_broadcast;
     auto mul_scalar = b * iconst;
     ASSERT_TRUE(matcher->match(mul));
