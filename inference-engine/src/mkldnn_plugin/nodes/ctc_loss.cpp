@@ -78,6 +78,23 @@ public:
         const size_t maxTime = logitsShape[1];
         const size_t classesNum = logitsShape[2];
 
+/*std::cout << "logits: ";
+for (int i = 0; i < inputs[0]->size(); i++)
+    std::cout << logits[i] << ";";
+std::cout << std::endl;
+std::cout << "logLen: ";
+for (int i = 0; i < inputs[1]->size(); i++)
+    std::cout << logitsLength[i] << ";";
+std::cout << std::endl;
+std::cout << "labels: ";
+for (int i = 0; i < inputs[2]->size(); i++)
+    std::cout << labels[i] << ";";
+std::cout << std::endl;
+std::cout << "labLen: ";
+for (int i = 0; i < inputs[3]->size(); i++)
+    std::cout << labelsLength[i] << ";";
+std::cout << std::endl;*/
+
         int blankIndex = classesNum - 1;
         if (inputs.size() > 4) {
             blankIndex = inputs[4]->cbuffer().as<const int*>()[0];
@@ -87,6 +104,8 @@ public:
         std::vector<std::vector<int>> targetDB(batchNum);
         std::vector<std::vector<std::vector<float>>> logProbabilitiesB(batchNum);
         std::vector<std::string> errorMsgB(parallel_get_max_threads());
+
+        size_t workAmount2 = 0lu;
 
         auto threadBody_1 = [&](const int ithr, const int nthr) {
             size_t start(0lu), end(0lu);
@@ -151,10 +170,11 @@ public:
                 for (size_t ll = 0; ll < actualLogitLen; ll++) {
                     logProbabilities[ll].resize(decodedTargetLen);
                 }
+                workAmount2 += actualLogitLen;
             } // for batch
         }; // threadBody_1
-
         parallel_nt(0, threadBody_1);
+printf("workAmount2: %lu\n", workAmount2);
         if (returnCode != OK) {
             std::string resErr("");
             for (auto& err : errorMsgB) {
@@ -166,11 +186,6 @@ public:
         }
 
         const size_t TC = maxTime * classesNum;
-
-        size_t workAmount2 = 0lu;
-        for (size_t b = 0; b < batchNum; b++) {
-            workAmount2 += logitsLength[b];
-        }
 
         auto threadBody_2 = [&](const int ithr, const int nthr) {
             size_t start(0lu), end(0lu);
@@ -280,6 +295,11 @@ public:
 
         parallel_nt(0, threadBody_3);
 
+/*
+std::cout << "out: ";
+for (int i = 0; i < outputs[0]->size(); i++)
+    std::cout << dstData[i] << ";";
+std::cout << std::endl;*/
         return returnCode;
     } // execute
 
