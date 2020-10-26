@@ -118,19 +118,6 @@ graph {
   name: "test"
   doc_string: ""
   input {
-    name: "outer_scope_var"
-    type {
-      tensor_type {
-        elem_type: 1
-        shape {
-          dim {
-            dim_value: 1
-          }
-        }
-      }
-    }
-  }
-  input {
     name: "trip_count"
     type {
       tensor_type {
@@ -159,6 +146,19 @@ graph {
   input {
     name: "fake"
     type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 1
+          }
+        }
+      }
+    }
+  }
+  input {
+   name: "outer_scope_var"
+   type {
       tensor_type {
         elem_type: 1
         shape {

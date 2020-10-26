@@ -12,6 +12,7 @@ graph {
     attribute {
       name: "body"
       g {
+        name: "simple add"
         node {
           input: "a_in"
           input: "b"
@@ -30,15 +31,6 @@ graph {
           output: "a_out"
           name: "output_accumulator"
           op_type: "Identity"
-        }
-        name: "simple add"
-        initializer {
-          dims: 1
-          dims: 2
-          data_type: 1
-          float_data: 1
-          float_data: 1
-          name: "b"
         }
         input {
           name: "i"
@@ -101,6 +93,14 @@ graph {
             }
           }
         }
+        initializer {
+          dims: 1
+          dims: 2
+          data_type: 1
+          float_data: 1
+          float_data: 1
+          name: "b"
+        }
       }
       type: GRAPH
     }
@@ -113,11 +113,10 @@ graph {
   }
   initializer {
   dims: 1
-  dims: 3
+  dims: 2
   data_type: 1
-  float_data: 1
-  float_data: 1
-  float_data: 1
+  float_data: 2
+  float_data: 2
   name: "b"
   }
   input {

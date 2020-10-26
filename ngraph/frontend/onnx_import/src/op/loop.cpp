@@ -167,9 +167,8 @@ namespace ngraph
                     for (int i = loop_carried_dependencies.size() + 1; i < body_outputs.size(); ++i)
                     {
                         auto body_output_shape = body_outputs[i].get_partial_shape();
-                        if (body_output_shape.is_dynamic() ||
-                            (body_output_shape.is_static() &&
-                             ngraph::is_scalar(body_output_shape.to_shape())))
+                        if (body_output_shape.is_static() &&
+                            ngraph::is_scalar(body_output_shape.to_shape()))
                         {
                             body_outputs[i] = std::make_shared<default_opset::Unsqueeze>(
                                 body_outputs[i], concat_axis_const);
@@ -189,6 +188,7 @@ namespace ngraph
                                          false,
                                          "No identity or constant termination condition output "
                                          "body is not supported in current version");
+                        // TODO: It should be removed after introduction fix to nG Loop
                     }
 
                     CHECK_VALID_NODE(node,

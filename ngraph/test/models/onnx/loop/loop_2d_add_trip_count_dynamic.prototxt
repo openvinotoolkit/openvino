@@ -99,6 +99,19 @@ graph {
     name: "cond_in"
   }
   input {
+    name: "trip_count"
+    type {
+      tensor_type {
+        elem_type: 7
+        shape {
+          dim {
+            dim_value: 1
+          }
+        }
+      }
+    }
+  }
+  input {
     name: "a_init"
     type {
       tensor_type {
@@ -109,19 +122,6 @@ graph {
           }
           dim {
             dim_value: 2
-          }
-        }
-      }
-    }
-  }
-  input {
-    name: "trip_count"
-    type {
-      tensor_type {
-        elem_type: 7
-        shape {
-          dim {
-            dim_value: 1
           }
         }
       }

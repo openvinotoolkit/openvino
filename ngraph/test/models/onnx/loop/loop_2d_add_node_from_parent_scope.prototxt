@@ -3,7 +3,7 @@ producer_name: "nGraph ONNX Importer"
 graph {
   name: "basic loop"
   node {
-    input: "a_init"
+    input: "scale"
     input: "scale"
     name: "mul_node"
     op_type: "Mul"
@@ -22,7 +22,7 @@ graph {
         name: "simple add"
         node {
           input: "b"
-          input: "a_init"
+          input: "a_in"
           output: "current_a"
           name: "loop_body_add"
           op_type: "Add"
@@ -135,14 +135,6 @@ graph {
   }
   output {
     name: "a_values"
-    type {
-      tensor_type {
-        elem_type: 1
-      }
-    }
-  }
- output {
-    name: "b"
     type {
       tensor_type {
         elem_type: 1
