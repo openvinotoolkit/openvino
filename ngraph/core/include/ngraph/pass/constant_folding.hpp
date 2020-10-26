@@ -39,7 +39,6 @@ public:
         m_enable_shape_inference = true;
         construct_constant_quantize();
         construct_constant_convert();
-        construct_constant_arithmetic_reduction();
         construct_constant_logical_reduction();
         construct_constant_gather_with_subgraph();
         construct_constant_scatter_elements_update();
@@ -51,7 +50,6 @@ public:
 private:
     void construct_constant_quantize();
     void construct_constant_convert();
-    void construct_constant_arithmetic_reduction();
     void construct_constant_logical_reduction();
     void construct_constant_gather_with_subgraph();
     void construct_constant_scatter_elements_update();
