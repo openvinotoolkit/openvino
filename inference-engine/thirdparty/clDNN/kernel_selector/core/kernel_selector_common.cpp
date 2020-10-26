@@ -393,16 +393,6 @@ std::string toString(ConcatAxis a) {
     }
 }
 
-std::string toString(TileAxis a) {
-    switch (a) {
-        case TileAxis::X:       return "X";
-        case TileAxis::Y:       return "Y";
-        case TileAxis::FEATURE: return "FEATURE";
-        case TileAxis::BATCH:   return "BATCH";
-        default: return "";
-    }
-}
-
 std::string toString(GatherAxis a) {
     switch (a) {
         case GatherAxis::X:       return "X";
