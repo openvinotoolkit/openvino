@@ -49,9 +49,11 @@ You can download the [pre-trained models](@ref omz_models_intel_index) using the
 
 The officially supported Linux* build environment is the following:
 
-* Ubuntu* 16.04 LTS 64-bit or CentOS* 7.4 64-bit
-* GCC* 5.4.0 (for Ubuntu* 16.04) or GCC* 4.8.5 (for CentOS* 7.4)
-* CMake* version 2.8.12 or higher
+* Ubuntu* 18.04 LTS 64-bit or CentOS* 7.6 64-bit
+* GCC* 7.5.0 (for Ubuntu* 18.04) or GCC* 4.8.5 (for CentOS* 7.6)
+* CMake* version 3.10 or higher
+
+> **NOTE**: For building samples from the open-source version of OpenVINO™ toolkit, see the [build instructions on GitHub](https://github.com/openvinotoolkit/openvino/blob/master/build-instruction.md).
 
 To build the C or C++ sample applications for Linux, go to the `<INSTALL_DIR>/inference_engine/samples/c` or `<INSTALL_DIR>/inference_engine/samples/cpp` directory, respectively, and run the `build_samples.sh` script:
 ```sh
@@ -99,7 +101,7 @@ for the debug configuration — in `<path_to_build_directory>/intel64/Debug/`.
 The recommended Windows* build environment is the following:
 * Microsoft Windows* 10
 * Microsoft Visual Studio* 2017, or 2019
-* CMake* version 2.8.12 or higher
+* CMake* version 3.10 or higher
 
 > **NOTE**: If you want to use Microsoft Visual Studio 2019, you are required to install CMake 3.14.
 
@@ -181,4 +183,4 @@ sample, read the sample documentation by clicking the sample name in the samples
 list above.
 
 ## See Also
-* [Introduction to Intel's Deep Learning Inference Engine](Introduction.md)
+* [Introduction to Inference Engine](inference_engine_intro.md)
