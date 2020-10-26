@@ -11,25 +11,31 @@ using namespace LayerTestsDefinitions;
 using namespace InferenceEngine::details;
 
 namespace {
-const std::vector<InferenceEngine::Precision> netPrecisions = {
-        InferenceEngine::Precision::FP32
+const std::vector<ngraph::element::Type> precisions = {
+    ngraph::element::f32,
+    //ngraph::element::f16
 };
 
-const std::vector<LayerTransformation::Params> trasformationParamValues = {
-    LayerTestsUtils::LayerTransformationParamsFactory::createParams()
+const std::vector<std::pair<ngraph::Shape, ngraph::Shape> > inputAndQuantizationShapes = {
+    { ngraph::Shape({ 1ul, 4ul, 16ul, 16ul }), ngraph::Shape({ 1ul }) },
+    { ngraph::Shape({ 1ul, 4ul, 16ul, 16ul }), ngraph::Shape({ 1ul, 4ul, 1ul, 1ul }) },
+};
+
+const std::vector<std::vector<uint64_t>> axes = {
+    { 1 }, { 1, 2, 3 }
 };
 
 const std::vector<bool> fuseMultiplyValues = { true, false };
 
 const std::vector<bool> shiftValues = { true, false };
 
-INSTANTIATE_TEST_CASE_P(smoke_LPT, NormalizeTransformation,
+INSTANTIATE_TEST_CASE_P(smoke_LPT, NormalizeL2Transformation,
     ::testing::Combine(
-        ::testing::ValuesIn(netPrecisions),
-        ::testing::Values(InferenceEngine::SizeVector({ 1, 16, 8, 8 })),
+        ::testing::ValuesIn(precisions),
+        ::testing::ValuesIn(inputAndQuantizationShapes),
         ::testing::Values(CommonTestUtils::DEVICE_GPU),
-        ::testing::ValuesIn(trasformationParamValues),
+        ::testing::ValuesIn(axes),
         ::testing::ValuesIn(fuseMultiplyValues),
         ::testing::ValuesIn(shiftValues)),
-    NormalizeTransformation::getTestCaseName);
+    NormalizeL2Transformation::getTestCaseName);
 }  // namespace

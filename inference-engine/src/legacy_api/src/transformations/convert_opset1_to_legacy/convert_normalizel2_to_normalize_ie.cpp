@@ -62,7 +62,8 @@ ngraph::pass::ConvertNormalizeL2WithMulToNormalizeIE::ConvertNormalizeL2WithMulT
                                                                        constant->output(0),
                                                                        normalize->get_eps(),
                                                                        across_spatial,
-                                                                       channel_shared);
+                                                                       channel_shared,
+                                                                       normalize->get_element_type());
 
         normalize_ie->set_friendly_name(mul->get_friendly_name());
         ngraph::copy_runtime_info({normalize, mul}, normalize_ie);
@@ -93,13 +94,14 @@ ngraph::pass::ConvertNormalizeL2ToLegacyMatcher::ConvertNormalizeL2ToLegacyMatch
         bool across_channels = !(axis.size() == 1 && axis[0] == 1);
         bool channel_shared = true;
 
-        auto scale = std::make_shared<ngraph::opset1::Constant>(normalize->get_input_element_type(0), Shape{1}, std::vector<float>{1.0});
+        auto scale = std::make_shared<ngraph::opset1::Constant>(normalize->output(0).get_element_type(), Shape{1}, std::vector<float>{1.0});
 
         auto normalize_ie = std::make_shared<ngraph::op::NormalizeIE> (normalize->input(0).get_source_output(),
                                                                        scale->output(0),
                                                                        normalize->get_eps(),
                                                                        across_channels,
-                                                                       channel_shared);
+                                                                       channel_shared,
+                                                                       normalize->get_element_type());
 
         normalize_ie->set_friendly_name(normalize->get_friendly_name());
         ngraph::copy_runtime_info(normalize, normalize_ie);

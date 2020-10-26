@@ -28,7 +28,6 @@ from tests.runtime import get_runtime
 from tests.test_ngraph.util import run_op_node
 from tests import (xfail_issue_34323,
                    xfail_issue_35929,
-                   xfail_issue_35926,
                    xfail_issue_36476,
                    xfail_issue_36478,
                    xfail_issue_36479,
@@ -69,7 +68,7 @@ def test_ngraph_function_api():
         pytest.param(np.int8, marks=xfail_issue_36479),
         np.int16,
         np.int32,
-        pytest.param(np.int64, marks=xfail_issue_35926),
+        np.int64,
         pytest.param(np.uint8, marks=xfail_issue_36479),
         np.uint16,
         pytest.param(np.uint32, marks=xfail_issue_36476),
