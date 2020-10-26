@@ -548,7 +548,7 @@ def test_gru_sequence():
     seq_lengths = [seq_len] * batch_size
     num_directions = 1
     direction = "FORWARD"
-    
+
     X_shape = [batch_size, seq_len, input_size]
     H_t_shape = [batch_size, num_directions, hidden_size]
     W_shape = [num_directions, 3 * hidden_size, input_size]
@@ -620,7 +620,7 @@ def test_rnn_sequence():
     seq_lengths = [seq_len] * batch_size
     num_directions = 1
     direction = "FORWARD"
-    
+
     X_shape = [batch_size, seq_len, input_size]
     H_t_shape = [batch_size, num_directions, hidden_size]
     W_shape = [num_directions, hidden_size, input_size]
