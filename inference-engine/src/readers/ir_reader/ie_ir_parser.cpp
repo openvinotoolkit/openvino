@@ -133,7 +133,7 @@ std::shared_ptr<ICNNNetwork> V10Parser::parse(const pugi::xml_node& root, std::i
     ngraph::ParameterVector parameter_nodes;
     ngraph::ResultVector result_nodes;
     ngraph::NodeVector allNodes;
-    std::vector<std::shared_ptr<ngraph::op::Assign>> assign_nodes;
+    ngraph::SinkVector assign_nodes;
     std::map<std::string, std::shared_ptr<ngraph::Node>> variable_id_to_read_value;
 
     //  Following topological order create nGraph operations
@@ -189,7 +189,8 @@ std::shared_ptr<ICNNNetwork> V10Parser::parse(const pugi::xml_node& root, std::i
     ::ngraph::op::GenericIE::DisableReshape noReshape(allNodes);
     auto function = std::make_shared<ngraph::Function>(result_nodes, assign_nodes, parameter_nodes, GetStrAttr(root, "name", ""));
     for (const auto& assign : assign_nodes) {
-        assign->add_control_dependency(variable_id_to_read_value.at(assign->get_variable_id()));
+        assign->add_control_dependency(
+            variable_id_to_read_value.at(std::dynamic_pointer_cast<ngraph::op::Assign>(assign)->get_variable_id()));
     }
 
     CNNNetwork net(function);
