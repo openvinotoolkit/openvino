@@ -154,9 +154,10 @@ namespace ngraph
                     }
                     else
                     {
-                        throw std::runtime_error(
-                            "not supported not constant termination condition");
-                        // TODO: HOW TO HANDLE TERMINATION CONDITION PROVIDED/NOT CONSTANT
+                        // It is temporary solution caused by not supported termination_cond==false
+                        // (for not consant case) by nG Loop
+                        termination_cond =
+                            ngraph::op::Constant::create(ngraph::element::boolean, {1}, {true});
                     }
 
                     const int64_t concat_axis = 0;
@@ -181,6 +182,13 @@ namespace ngraph
                     {
                         body_outputs[0] =
                             ngraph::op::Constant::create(ngraph::element::boolean, {1}, {true});
+                    }
+                    else
+                    {
+                        CHECK_VALID_NODE(node,
+                                         false,
+                                         "No identity or constant termination condition output "
+                                         "body is not supported in current version");
                     }
 
                     CHECK_VALID_NODE(node,
