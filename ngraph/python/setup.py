@@ -105,79 +105,18 @@ def _remove_compiler_flags(obj):
     try:
         # pybind11 is much more verbose without the NDEBUG define
         if sys.platform == "win32":
-            obj.compiler.remove("/DNDEBUG")
-            obj.compiler.remove("/O2")
+            obj.compiler.compile_options.remove("/DNDEBUG")
+            obj.compiler.compile_options.remove("/O2")
         if sys.platform == "darwin":
-            obj.compiler.remove("-DNDEBUG")
-            obj.compiler.remove("-O3")
+            obj.compiler.compiler_so.remove("-DNDEBUG")
+            obj.compiler.compiler_so.remove("-O3")
+            obj.compiler.compiler.remove("-DNDEBUG")
+            obj.compiler.compiler.remove("-O3")
         else:
-            obj.compiler.remove("-DNDEBUG")
-            obj.compiler.remove("-O2")
+            obj.compiler.compile_options.remove("-DNDEBUG")
+            obj.compiler.compile_options.remove("-O2")
     except (AttributeError, ValueError):
         pass
-
-
-def _remove_compiler_so_flags(obj):
-    """Make pybind11 more verbose in debug builds."""
-    try:
-        # pybind11 is much more verbose without the NDEBUG define
-        if sys.platform == "win32":
-            obj.compiler_so.remove("/DNDEBUG")
-            obj.compiler_so.remove("/O2")
-        if sys.platform == "darwin":
-            obj.compiler_so.remove("-DNDEBUG")
-            obj.compiler_so.remove("-O3")
-        else:
-            obj.compiler_so.remove("-DNDEBUG")
-            obj.compiler_so.remove("-O2")
-    except (AttributeError, ValueError):
-        pass
-
-
-def parallelCCompile(
-    self,
-    sources,
-    output_dir=None,
-    macros=None,
-    include_dirs=None,
-    debug=0,
-    extra_preargs=None,
-    extra_postargs=None,
-    depends=None,
-):
-    """Build sources in parallel.
-
-    Reference link:
-    http://stackoverflow.com/questions/11013851/speeding-up-build-process-with-distutils
-    Monkey-patch for parallel compilation.
-    """
-    # those lines are copied from distutils.ccompiler.CCompiler directly
-    macros, objects, extra_postargs, pp_opts, build = self._setup_compile(
-        output_dir, macros, include_dirs, sources, depends, extra_postargs
-    )
-    cc_args = self._get_cc_args(pp_opts, debug, extra_preargs)
-
-    if NGRAPH_PYTHON_DEBUG in ["TRUE", "ON", True]:
-        _remove_compiler_flags(self)
-        _remove_compiler_so_flags(self)
-
-    # parallel code
-    import multiprocessing.pool
-
-    def _single_compile(obj):
-        try:
-            src, ext = build[obj]
-        except KeyError:
-            return
-        self._compile(obj, src, ext, cc_args, extra_postargs, pp_opts)
-
-    # convert to list, imap is evaluated on-demand
-    pool = multiprocessing.pool.ThreadPool()
-    list(pool.imap(_single_compile, objects))
-    return objects
-
-
-distutils.ccompiler.CCompiler.compile = parallelCCompile
 
 
 def has_flag(compiler, flagname):
@@ -359,8 +298,6 @@ class BuildExt(build_ext):
         try:
             # -Wstrict-prototypes is not a valid option for c++
             self.compiler.compiler_so.remove("-Wstrict-prototypes")
-            if NGRAPH_PYTHON_DEBUG in ["TRUE", "ON", True]:
-                _remove_compiler_so_flags(self)
 
         except (AttributeError, ValueError):
             pass
@@ -382,7 +319,7 @@ class BuildExt(build_ext):
 
             if sys.platform == "darwin":
                 ext.extra_compile_args += ["-stdlib=libc++"]
-
+        _remove_compiler_flags(self)
         build_ext.build_extensions(self)
 
 
