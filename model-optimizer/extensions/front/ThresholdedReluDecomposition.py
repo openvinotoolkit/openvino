@@ -22,7 +22,7 @@ from mo.graph.graph import Graph, rename_nodes
 from mo.middle.passes.convert_data_type import data_type_str_to_np
 
 
-class ThreshholdedReluDecomposition(FrontReplacementPattern):
+class ThresholdedReluDecomposition(FrontReplacementPattern):
     """
     ThresholdedRelu(x, alpha) = x ? x > alpha : 0
 
@@ -38,10 +38,10 @@ class ThreshholdedReluDecomposition(FrontReplacementPattern):
 
             greater = create_op_with_const_inputs(graph, Greater, {1: node.alpha})
             greater.in_port(0).connect(node.in_port(0).get_source())
-            float_greater = Cast(graph, {'dst_type': data_type_str_to_np(graph.graph['cmd_params'].data_type)}).create_node()
+            float_greater = Cast(graph,
+                                 {'dst_type': data_type_str_to_np(graph.graph['cmd_params'].data_type)}).create_node()
             greater.out_port(0).connect(float_greater.in_port(0))
 
-            node.in_port(0).get_source().connect(greater.in_port(0))
             mul = Mul(graph, {}).create_node()
             node.out_port(0).get_connection().set_source(mul.out_port(0))
             mul.in_port(0).connect(node.in_port(0).get_source())
