@@ -75,13 +75,13 @@ jobs:
 
   - script: ls -alR $(MODELS_DIR)
     displayName: 'List $(MODELS_DIR)'
-    enabled: true
+    enabled: false
 
   - script: docker build --tag=openvino-onnx-ci-image --file=.ci/openvino-onnx/Dockerfile .
     displayName: 'Docker build'
-    enabled: false
+    enabled: true
 
   - script: docker run --name openvino-onnx-ci-container --volume $(MODELS_DIR):/root/.onnx/model_zoo --volume $(MODELS_DIR)/msft:/root/.onnx/model_zoo/MSFT openvino-onnx-ci-image
-    displayName: 'Docker run tests'
-    enabled: false
+    displayName: 'Docker run'
+    enabled: true
 
