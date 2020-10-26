@@ -12,11 +12,11 @@
 
 #include <transformations/utils/utils.hpp>
 #include <transformations/init_node_info.hpp>
-#include <transformations/low_precision/transformer.hpp>
-#include <transformations/low_precision/concat.hpp>
-#include <transformations/low_precision/concat_multi_channels.hpp>
-#include <transformations/low_precision/max_pool.hpp>
-#include <transformations/low_precision/clamp.hpp>
+#include <low_precision/transformer.hpp>
+#include <low_precision/concat.hpp>
+#include <low_precision/concat_multi_channels.hpp>
+#include <low_precision/max_pool.hpp>
+#include <low_precision/clamp.hpp>
 
 #include "common_test_utils/ngraph_test_utils.hpp"
 #include "ngraph_functions/low_precision_transformations/concat_function.hpp"

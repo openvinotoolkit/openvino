@@ -7,7 +7,7 @@
 #include <memory>
 #include <ngraph/ngraph.hpp>
 #include "common/fake_quantize_on_data.hpp"
-#include "transformations/low_precision/layer_transformation.hpp"
+#include "low_precision/layer_transformation.hpp"
 
 namespace ngraph {
 namespace builder {
