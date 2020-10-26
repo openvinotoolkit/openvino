@@ -11,8 +11,8 @@
 #include <gtest/gtest.h>
 
 #include <transformations/init_node_info.hpp>
-#include <transformations/low_precision/transformer.hpp>
-#include <transformations/low_precision/mat_mul.hpp>
+#include <low_precision/transformer.hpp>
+#include <low_precision/mat_mul.hpp>
 
 #include "common_test_utils/ngraph_test_utils.hpp"
 #include "ngraph_functions/low_precision_transformations/mat_mul_function.hpp"
