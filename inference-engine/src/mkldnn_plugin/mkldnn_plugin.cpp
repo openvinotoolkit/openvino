@@ -53,10 +53,13 @@
 #include <ngraph/pass/manager.hpp>
 
 #include <transformations/common_optimizations/lin_op_sequence_fusion.hpp>
-#include <transformations/low_precision/transformer.hpp>
-#include <transformations/low_precision/convolution.hpp>
-#include <transformations/low_precision/group_convolution.hpp>
-#include <transformations/low_precision/multiply_to_group_convolution.hpp>
+
+#ifndef USE_CNNNETWORK_LPT
+# include <low_precision/transformer.hpp>
+# include <low_precision/convolution.hpp>
+# include <low_precision/group_convolution.hpp>
+# include <low_precision/multiply_to_group_convolution.hpp>
+#endif
 
 #if !defined(__arm__) && !defined(_M_ARM) && !defined(__aarch64__) && !defined(_M_ARM64)
 #if defined(_WIN32) || defined(WIN32)

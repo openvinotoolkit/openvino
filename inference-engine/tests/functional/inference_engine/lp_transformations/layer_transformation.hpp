@@ -5,9 +5,9 @@
 #pragma once
 
 #include "common_test_utils/test_common.hpp"
-#include "transformations/low_precision/layer_transformation.hpp"
-#include "transformations/low_precision/transformation_context.hpp"
-#include "transformations/low_precision/transformer.hpp"
+#include "low_precision/layer_transformation.hpp"
+#include "low_precision/transformation_context.hpp"
+#include "low_precision/transformer.hpp"
 
 typedef std::tuple<
     ngraph::element::Type,

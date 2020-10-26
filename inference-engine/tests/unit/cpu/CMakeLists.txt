@@ -21,6 +21,12 @@ addIeTargetTest(
             CPU
 )
 
+if(USE_CNNNETWORK_LPT)
+    target_link_libraries(${TARGET_NAME} PRIVATE inference_engine_lp_transformations_legacy)
+else()
+    target_link_libraries(${TARGET_NAME} PRIVATE inference_engine_lp_transformations)
+endif()
+
 ie_faster_build(${TARGET_NAME}
     UNITY
 )

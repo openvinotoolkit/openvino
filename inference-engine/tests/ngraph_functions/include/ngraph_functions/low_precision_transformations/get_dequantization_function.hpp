@@ -8,7 +8,7 @@
 #include <vector>
 #include <ngraph/ngraph.hpp>
 #include "ngraph_functions/subgraph_builders.hpp"
-#include <transformations/low_precision/common/fake_quantize_dequantization.hpp>
+#include <low_precision/common/fake_quantize_dequantization.hpp>
 
 namespace ngraph {
 namespace builder {

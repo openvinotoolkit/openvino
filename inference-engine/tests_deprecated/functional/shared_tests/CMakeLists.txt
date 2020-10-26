@@ -13,16 +13,18 @@ list(APPEND SHARED_LIBRARIES
         ngraphFunctions
         )
 
-if (USE_CNNNETWORK_LPT)
+if(USE_CNNNETWORK_LPT)
     file(GLOB SHARED_TESTS_SRC
         ${CMAKE_CURRENT_SOURCE_DIR}/common_single_layer_tests/*.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/lstm/*.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/network_tests/*.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/graph_tools/*.cpp
+        # requires legacy LPT
+        ${CMAKE_CURRENT_SOURCE_DIR}/network_tests/*.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/transformations/*.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/transformations/*.hpp
         ${CMAKE_CURRENT_SOURCE_DIR}/transformations/common/*.cpp
         )
+    list(APPEND SHARED_LIBRARIES inference_engine_lp_transformations_legacy)
 else()
     file(GLOB SHARED_TESTS_SRC
         ${CMAKE_CURRENT_SOURCE_DIR}/common_single_layer_tests/*.cpp
@@ -77,7 +79,3 @@ add_dependencies(${TARGET_NAME} HeteroPlugin)
 # developer package
 
 ie_developer_export_targets(${TARGET_NAME})
-
-if (USE_CNNNETWORK_LPT)
-    target_compile_definitions(${TARGET_NAME} PUBLIC USE_CNNNETWORK_LPT)
-endif()

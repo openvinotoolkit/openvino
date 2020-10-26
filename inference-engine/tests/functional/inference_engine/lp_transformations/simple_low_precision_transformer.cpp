@@ -6,8 +6,8 @@
 
 #include <string>
 #include <ngraph/ngraph.hpp>
-#include <transformations/low_precision/transformation_context.hpp>
-#include <transformations/low_precision/transformer.hpp>
+#include <low_precision/transformation_context.hpp>
+#include <low_precision/transformer.hpp>
 
 using namespace testing;
 using namespace ngraph::pass;

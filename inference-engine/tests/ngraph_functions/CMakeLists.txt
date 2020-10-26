@@ -8,6 +8,7 @@ list(APPEND EXPORT_DEPENDENCIES
         ${NGRAPH_LIBRARIES}
         ngraph_backend
         interpreter_backend
+        inference_engine_lp_transformations
         )
 
 set(PUBLIC_HEADERS_DIR "${CMAKE_CURRENT_SOURCE_DIR}/include")
@@ -20,8 +21,6 @@ addIeTarget(
             ${CMAKE_CURRENT_SOURCE_DIR}/src
         LINK_LIBRARIES
             funcTestUtils
-            # this import as result of including nGraph function building for tests
-            inference_engine_transformations
         ADD_CPPLINT
         DEVELOPER_PACKAGE
         EXPORT_DEPENDENCIES

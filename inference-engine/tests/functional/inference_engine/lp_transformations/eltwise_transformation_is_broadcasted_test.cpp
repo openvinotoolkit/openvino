@@ -3,7 +3,7 @@
 //
 
 #include <gtest/gtest.h>
-#include "transformations/low_precision/eltwise_base_transformation.hpp"
+#include "low_precision/eltwise_base_transformation.hpp"
 
 #include <ie_data.h>
 

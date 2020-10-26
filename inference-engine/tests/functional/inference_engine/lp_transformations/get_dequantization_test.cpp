@@ -13,7 +13,7 @@
 
 #include "common_test_utils/ngraph_test_utils.hpp"
 #include "ngraph_functions/low_precision_transformations/common/dequantization_operations.hpp"
-#include "transformations/low_precision/network_helper.hpp"
+#include "low_precision/network_helper.hpp"
 
 
 namespace {

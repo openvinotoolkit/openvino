@@ -3,7 +3,7 @@
 //
 
 #include "ngraph_functions/low_precision_transformations/add_function.hpp"
-#include "transformations/low_precision/network_helper.hpp"
+#include "low_precision/network_helper.hpp"
 
 #include <ngraph/opsets/opset1.hpp>
 #include "ngraph_functions/builders.hpp"

@@ -21,7 +21,7 @@ function(add_helpers target_name)
 
     target_include_directories(${target_name} PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}"
                                                      "${IE_MAIN_SOURCE_DIR}/src/inference_engine"
-                                                     $<TARGET_PROPERTY:inference_engine_lp_transformations,INTERFACE_INCLUDE_DIRECTORIES>
+                                                     $<TARGET_PROPERTY:inference_engine_lp_transformations_legacy,INTERFACE_INCLUDE_DIRECTORIES>
                                                      $<TARGET_PROPERTY:pugixml,INTERFACE_INCLUDE_DIRECTORIES>
                                                      "${IE_MAIN_SOURCE_DIR}/src/vpu/"
                                                      "${IE_MAIN_SOURCE_DIR}/src/plugin_api"

@@ -11,10 +11,6 @@ list(APPEND EXPORT_DEPENDENCIES
         inference_engine_s
         gmock)
 
-if (USE_CNNNETWORK_LPT)
-        list(APPEND EXPORT_DEPENDENCIES inference_engine_lp_transformations)
-endif()
-
 addIeTarget(
         NAME ${TARGET_NAME}
         TYPE STATIC

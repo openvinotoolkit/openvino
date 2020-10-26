@@ -6,9 +6,7 @@ set(TARGET_NAME funcTestUtils)
 
 list(APPEND EXPORT_DEPENDENCIES commonTestUtils inference_engine inference_engine_legacy)
 
-if (USE_CNNNETWORK_LPT)
-    list(APPEND EXPORT_DEPENDENCIES inference_engine_lp_transformations)
-endif()
+list(APPEND EXPORT_DEPENDENCIES inference_engine_lp_transformations)
 
 addIeTarget(
     NAME ${TARGET_NAME}
@@ -25,8 +23,6 @@ ie_faster_build(${TARGET_NAME}
 )
 
 target_include_directories(${TARGET_NAME} PUBLIC
-    $<TARGET_PROPERTY:inference_engine_plugin_api,INTERFACE_INCLUDE_DIRECTORIES>
-    $<TARGET_PROPERTY:inference_engine_transformations,INTERFACE_INCLUDE_DIRECTORIES>
-    )
+    $<TARGET_PROPERTY:inference_engine_plugin_api,INTERFACE_INCLUDE_DIRECTORIES>)
 
 target_link_libraries(${TARGET_NAME} PUBLIC ${EXPORT_DEPENDENCIES} inference_engine_transformations)

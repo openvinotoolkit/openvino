@@ -6,7 +6,7 @@
 
 #include <ngraph/opsets/opset1.hpp>
 #include "ngraph_functions/subgraph_builders.hpp"
-#include "transformations/low_precision/network_helper.hpp"
+#include "low_precision/network_helper.hpp"
 
 #include "ngraph_functions/low_precision_transformations/common/fake_quantize_on_weights.hpp"
 #include "ngraph_functions/low_precision_transformations/common/builders.hpp"

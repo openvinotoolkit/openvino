@@ -4,8 +4,8 @@
 
 #include <gtest/gtest.h>
 #include <gmock/gmock-spec-builders.h>
-#include "transformations/low_precision/layer_transformation.hpp"
-#include "transformations/low_precision/fake_quantize.hpp"
+#include "low_precision/layer_transformation.hpp"
+#include "low_precision/fake_quantize.hpp"
 
 #include <ie_data.h>
 

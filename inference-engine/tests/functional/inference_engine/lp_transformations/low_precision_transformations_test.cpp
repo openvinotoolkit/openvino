@@ -3,7 +3,7 @@
 //
 
 #include <gtest/gtest.h>
-#include "transformations/low_precision/transformer.hpp"
+#include "low_precision/transformer.hpp"
 
 using namespace ::testing;
 using namespace ngraph::pass::low_precision;

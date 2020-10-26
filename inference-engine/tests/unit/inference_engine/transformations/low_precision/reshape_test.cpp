@@ -4,7 +4,7 @@
 
 #include <ie_blob.h>
 #include <gtest/gtest.h>
-#include "transformations/low_precision/reshape.hpp"
+#include "low_precision/reshape.hpp"
 
 using LPT_ReshapeTransformation = ::testing::Test;
 

@@ -8,7 +8,8 @@
 #include <ngraph/ngraph.hpp>
 #include "ngraph_ops/type_relaxed.hpp"
 
-#include "transformations/low_precision/network_helper.hpp"
+#include "low_precision/network_helper.hpp"
+#include "low_precision/common/dequantization_op.hpp"
 
 #include "ngraph_functions/low_precision_transformations/common/add.hpp"
 #include "ngraph_functions/low_precision_transformations/common/fake_quantize_on_data.hpp"

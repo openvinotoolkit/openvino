@@ -7,7 +7,7 @@
 #include <ngraph/ngraph.hpp>
 #include <ngraph/opsets/opset1.hpp>
 #include "ngraph_functions/low_precision_transformations/common/builders.hpp"
-#include "transformations/low_precision/common/dequantization_op.hpp"
+#include "low_precision/common/dequantization_op.hpp"
 
 using namespace ngraph::pass::low_precision;
 

@@ -29,14 +29,14 @@
 #include <generic_ie.hpp>
 #include <transformations/control_flow/unroll_tensor_iterator.hpp>
 #include <transformations/common_optimizations/common_optimizations.hpp>
-#include <legacy/transformations/convert_opset1_to_legacy/convert_opset1_to_legacy.hpp>
-#include <legacy/transformations/convert_opset1_to_legacy/convert_prior_to_ie_prior.hpp>
 #include <transformations/opset_conversions/convert_opset2_to_opset1.hpp>
 #include <transformations/opset_conversions/convert_opset3_to_opset2.hpp>
 #include <transformations/init_node_info.hpp>
 #include <transformations/convert_precision.hpp>
 #include <transformations/rt_info/fused_names_attribute.hpp>
 
+#include <legacy/transformations/convert_opset1_to_legacy/convert_opset1_to_legacy.hpp>
+#include <legacy/transformations/convert_opset1_to_legacy/convert_prior_to_ie_prior.hpp>
 #include <legacy/convert_function_to_cnn_network.hpp>
 #include <legacy/ie_util_internal.hpp>
 #include <legacy/graph_transformer.h>
@@ -45,11 +45,13 @@
 #include "cldnn_executable_network.h"
 #include "cldnn_custom_layer.h"
 
-#include <transformations/low_precision/transformer.hpp>
-#include <transformations/low_precision/mat_mul.hpp>
+#ifndef USE_CNNNETWORK_LPT
+# include <low_precision/transformer.hpp>
+# include <low_precision/mat_mul.hpp>
+#endif
 
 #ifdef __linux__
-#include <dlfcn.h>
+# include <dlfcn.h>
 #endif
 
 using InferenceEngine::DescriptionBuffer;
