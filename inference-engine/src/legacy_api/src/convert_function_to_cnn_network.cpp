@@ -464,15 +464,30 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
         LayerParams attrs = {node->get_friendly_name(), "DetectionOutput",
                             details::convertPrecision(node->get_output_element_type(0))};
         auto res = std::make_shared<InferenceEngine::CNNLayer>(attrs);
-
         res->params = params;
+        auto parseBoolStrToIntStr = [](const std::string &param) -> const std::string {
+            if (param == "true")
+            {
+                return "1";
+            }
+            else if (param == "false")
+            {
+                return "0";
+            }
+            return param;
+        };
         if (res->params["code_type"] == "caffe.priorboxparameter.center_size"){
             res->params["code_type"] = "caffe.PriorBoxParameter.CENTER_SIZE";
         }
         else{
             res->params["code_type"] =  "caffe.PriorBoxParameter.CORNER";
         }
-
+        res->params["variance_encoded_in_target"] = parseBoolStrToIntStr(res->params["variance_encoded_in_target"]);
+        res->params["share_location"] = parseBoolStrToIntStr(res->params["share_location"]);
+        res->params["clip_after_nms"] = parseBoolStrToIntStr(res->params["clip_after_nms"]);
+        res->params["clip_before_nms"] = parseBoolStrToIntStr(res->params["clip_before_nms"]);
+        res->params["decrease_label_id"] = parseBoolStrToIntStr(res->params["decrease_label_id"]);
+        res->params["normalized"] = parseBoolStrToIntStr(res->params["normalized"]);
         return res;
     });
 
