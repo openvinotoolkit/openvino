@@ -35,9 +35,10 @@ namespace ngraph
                                     const Shape& out_shape,
                                     const bool ctc_merge_repeated)
             {
-                auto max_seq_len = data_shape[0];
-                auto batch_size = data_shape[1];
-                auto class_count = data_shape[2];
+                const auto max_seq_len = data_shape[0];
+                const auto batch_size = data_shape[1];
+                const auto class_count = data_shape[2];
+                const auto blank_index = class_count - 1;
 
                 CoordinateTransform out_transform = CoordinateTransform(out_shape);
                 CoordinateTransform data_transform = CoordinateTransform(data_shape);
@@ -59,18 +60,17 @@ namespace ngraph
                         auto mask_index = seq_masks_transform.index({seq_ind, batch_ind});
 
                         // first 0 marks the end of a sequence
-                        if (std::abs(static_cast<double>(sequence_masks[mask_index] -
-                                                         static_cast<T>(1))) >
-                            std::numeric_limits<double>::epsilon())
+                        if (seq_ind && sequence_masks[mask_index] == T{0})
                         {
-                            continue;
+                            break;
                         }
 
                         auto class_index = data + data_index;
                         auto class_max_element =
                             std::max_element(class_index, class_index + class_count);
                         unsigned int max_class_ind = std::distance(class_index, class_max_element);
-                        if (!(previous_class_index == max_class_ind && ctc_merge_repeated))
+                        if (!(previous_class_index == max_class_ind && ctc_merge_repeated) &&
+                            max_class_ind < blank_index)
                         {
                             tmp_out[out_index++] = max_class_ind;
                         }

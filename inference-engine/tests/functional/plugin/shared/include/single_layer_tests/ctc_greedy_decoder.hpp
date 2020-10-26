@@ -50,7 +50,6 @@ protected:
     InferenceEngine::SizeVector sequenceLengths;
     bool mergeRepeated;
 
-    std::vector<std::vector<std::uint8_t>> CalculateRefs() override;
     void SetUp() override;
 };
 
