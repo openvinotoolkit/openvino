@@ -69,7 +69,7 @@ A single cell in the sequence is implemented in the same way as in <a href="#RNN
 
 **Outputs**
 
-* **1**: `Y`  3D tensor of type *T1* `[batch_size, num_directions, seq_len, hidden_size]`, concatenation of all the intermediate output values of the hidden.
+* **1**: `Y` - 4D tensor of type *T1* `[batch_size, num_directions, seq_len, hidden_size]`, concatenation of all the intermediate output values of the hidden.
 
 * **2**: `Ho` - 3D tensor of type *T1* `[batch_size, num_directions, hidden_size]`, the last output value of hidden state.
 
