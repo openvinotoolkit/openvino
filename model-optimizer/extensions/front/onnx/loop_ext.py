@@ -18,22 +18,20 @@ import logging as log
 
 from extensions.ops.loop import Loop
 from extensions.ops.parameter import Parameter
-from extensions.ops.tensor_iterator import TensorIterator
 from mo.front.common.register_custom_ops import check_for_duplicates
 from mo.front.extractor import FrontExtractorOp
 from mo.front.extractor import extract_node_attrs
 from mo.front.onnx.extractor import onnx_op_extractor, onnx_op_extractors
 from mo.front.onnx.extractors.utils import onnx_attr
-from mo.front.onnx.loader import protobuf_attrs, node_id, add_initializers_and_inputs_to_graph
-from mo.graph.graph import Graph, Node, fill_graph_with_nodes, add_opoutput
+from mo.front.onnx.loader import node_id, add_initializers_and_inputs_to_graph
+from mo.graph.graph import Graph, Node, add_opoutput
 from mo.utils.error import Error
 
 
-def connect_body_output(loop_node: Node, loop_output_port_idx: int, internal_result: Node,
-                        external_node_input_ports: list = None,
-                        axis: [int, None] = None, start: [int, None] = None, end: [int, None] = None,
-                        stride: [int, None] = None, part_size: [int, None] = None):
-    assert loop_node.soft_get('op') in ['TensorIterator', 'Loop']
+def connect_body_output(loop_node: Node, loop_output_port_idx: int, internal_result: Node, axis: [int, None] = None,
+                        start: [int, None] = None, end: [int, None] = None, stride: [int, None] = None,
+                        part_size: [int, None] = None):
+    assert loop_node.soft_get('op') == 'Loop'
     assert internal_result.soft_get('op') == 'Result'
     assert internal_result.id in loop_node.body
 
@@ -43,10 +41,9 @@ def connect_body_output(loop_node: Node, loop_output_port_idx: int, internal_res
 
 
 def connect_body_input(loop_node: Node, loop_input_port_idx: int, body_parameter: Node,
-                       external_node_out_port: [int, None] = None, axis: [int, None] = None,
-                       start: [int, None] = None, end: [int, None] = None, stride: [int, None] = None,
-                       part_size: [int, None] = None):
-    assert loop_node.soft_get('op') in ['TensorIterator', 'Loop']
+                       axis: [int, None] = None, start: [int, None] = None, end: [int, None] = None,
+                       stride: [int, None] = None, part_size: [int, None] = None):
+    assert loop_node.soft_get('op') == 'Loop'
     assert body_parameter.soft_get('op') == 'Parameter'
     assert body_parameter.id in loop_node.body
 
@@ -189,7 +186,7 @@ class LoopExtractor(FrontExtractorOp):
         # connect initial value for "execution condition" input of the loop
         connect_body_input(loop_node, 1, body_parameters[1])
         # add back edge with "execution condition"
-        TensorIterator.add_back_edge(loop_node, body_parameters[1], body_results[0])
+        Loop.add_back_edge(loop_node, body_parameters[1], body_results[0])
         # mark "execution condition" Result node
         Loop.mark_execution_condition_result_node(loop_node, body_results[0])
 
@@ -198,7 +195,7 @@ class LoopExtractor(FrontExtractorOp):
             connect_body_input(loop_node, idx + 2, body_parameters[idx + 2])
         # add back edge for "loop carried" dependencies variables
         for idx in range(loop_carried_dependencies_count):
-            TensorIterator.add_back_edge(loop_node, body_parameters[idx + 2], body_results[idx + 1])
+            Loop.add_back_edge(loop_node, body_parameters[idx + 2], body_results[idx + 1])
         # connect final value for "loop carried" dependencies variables
         for idx in range(loop_carried_dependencies_count):
             connect_body_output(loop_node, idx, body_results[idx + 1])

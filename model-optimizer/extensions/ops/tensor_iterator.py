@@ -17,7 +17,6 @@ from copy import copy, deepcopy
 
 from extensions.ops.parameter import Parameter
 from mo.graph.graph import Node, dict_includes, Graph
-from mo.graph.port import Port
 from mo.ops.const import Const
 from mo.ops.op import Op
 from mo.utils.error import Error
@@ -233,13 +232,8 @@ class TensorIterator(Op):
 
         TensorIterator.validate_maps(ti)
 
-    def substitute_ie_attrs(self, new_attrs: dict):
-        """
-        Replace standard list of attribute in layer/data by attributes
-        delivered by backend_attrs
-        """
-
-        port_map_attrs = [
+    def port_map_attrs(self):
+        return [
             'external_port_id',
             'internal_layer_id',
             'internal_port_id',
@@ -248,8 +242,15 @@ class TensorIterator(Op):
             'stride',
             'end',
             'part_size',
-            'purpose',
         ]
+
+    def substitute_ie_attrs(self, new_attrs: dict):
+        """
+        Replace standard list of attribute in layer/data by attributes
+        delivered by backend_attrs
+        """
+
+        port_map_attrs = self.port_map_attrs()
 
         back_edges_attrs = [
             ('from-layer', 'from_layer'),
@@ -279,10 +280,10 @@ class TensorIterator(Op):
         })
 
     @staticmethod
-    def find_port_id(node: Node, virtual_id, attr, dir: str):
+    def find_port_id(node: Node, virtual_id: str, attr: str):
         attrs = node.edge({attr: virtual_id})[2]
-        assert dir in ['in', 'out']
-        return attrs[dir]
+        assert bool('in' in attrs) != bool('out' in attrs), attrs
+        return attrs['in' if 'in' in attrs else 'out']
 
     @staticmethod
     def find_internal_layer_id(graph: Graph, virtual_id):
@@ -302,19 +303,7 @@ class TensorIterator(Op):
         for map_item in src_port_map:
             result = dict(map_item)
             assert result is not map_item
-            # do not update ids for not-connected output which is used in the Loop operation only
-            type = node.soft_get('type')
-            if type == 'Loop':
-                if result['external_port_id'] != -1:
-                    if dir == 'out':  # increase the output port id by the number of input ports
-                        result['external_port_id'] += len(node.in_ports())
-                        # update the port id for proper generation of a "ports" section
-                        map_item['external_port_id'] = result['external_port_id']
-            elif type == 'TensorIterator':
-                result['external_port_id'] = __class__.find_port_id(node, result['external_port_id'],
-                                                                    'external_port_id', dir)
-            else:
-                assert False, 'Unsupported operation type "{}" for node "{}"'.format(type, node.soft_get('name'))
+            result['external_port_id'] = __class__.find_port_id(node, result['external_port_id'], 'external_port_id')
             result['internal_layer_id'] = __class__.find_internal_layer_id(node.body, result['internal_layer_id'])
             result_list.append(result)
         return result_list
@@ -333,7 +322,6 @@ class TensorIterator(Op):
 
     @staticmethod
     def infer(node: Node):
-        return
         raise Error('TensorIterator.infer is not implemented. '
                     'Do not insert TensorIterator before middle-end in Model Optimizer')
 
@@ -370,57 +358,6 @@ class TensorIterator(Op):
             node.out_port(real_external_port_idx).set_data_type(internal_data_type)
 
         ti_graph.remove_nodes_from([node.id for node in fake_input_const_nodes])
-
-    @staticmethod
-    def connect_body_input(ti_input_port: Port, internal_parameter: Node, external_node_out_port: Port = None,
-                           axis: [int, None] = None, start: [int, None] = None, end: [int, None] = None,
-                           stride: [int, None] = None, part_size: [int, None] = None):
-        ti_node = ti_input_port.node
-        assert ti_node.soft_get('op') in ['TensorIterator', 'Loop']
-        assert ti_input_port.type == 'in'
-        assert internal_parameter.soft_get('op') == 'Parameter'
-        assert internal_parameter.id in ti_node.body
-
-        if external_node_out_port is not None:
-            assert ti_input_port.disconnected()
-            assert external_node_out_port.node.id not in ti_node.body
-            ti_input_port.connect(external_node_out_port)
-
-        ti_node.input_port_map.append({'axis': axis, 'stride': stride, 'part_size': part_size, 'start': start,
-                                       'end': end, 'external_port_id': ti_input_port.idx,
-                                       'internal_layer_id': internal_parameter['internal_layer_id']})
-
-    @staticmethod
-    def connect_body_output(ti_output_port: Port, internal_result: Node, external_node_input_ports: list = None,
-                            axis: [int, None] = None, start: [int, None] = None, end: [int, None] = None,
-                            stride: [int, None] = None, part_size: [int, None] = None):
-        ti_node = ti_output_port.node
-        assert ti_node.soft_get('op') in ['TensorIterator', 'Loop']
-        assert ti_output_port.type == 'out'
-        assert internal_result.soft_get('op') == 'Result'
-        assert internal_result.id in ti_node.body
-
-        if external_node_input_ports is not None:
-            assert ti_output_port.disconnected()
-            assert all([port.node.id not in ti_node.body for port in external_node_input_ports])
-            for port in external_node_input_ports:
-                port.disconnect()
-                ti_output_port.connect(port)
-        ti_node.output_port_map.append({'axis': axis, 'stride': stride, 'part_size': part_size, 'start': start,
-                                        'end': end, 'external_port_id': ti_output_port.idx,
-                                        'internal_layer_id': internal_result['internal_layer_id']})
-
-    @staticmethod
-    def add_back_edge(ti_node: Node, internal_parameter: Node, internal_result: Node):
-        assert internal_parameter.id in ti_node.body
-        assert internal_parameter.soft_get('op') == 'Parameter'
-        assert internal_result.id in ti_node.body
-        assert internal_result.soft_get('op') == 'Result'
-
-        ti_node.back_edges.append({'from_layer': internal_result['internal_layer_id'],
-                                   'to_layer': internal_parameter['internal_layer_id'],
-                                   'from_port': 0,
-                                   'to_port': 0})
 
 
 def get_internal_node_by_layer_id(ti, internal_layer_id):

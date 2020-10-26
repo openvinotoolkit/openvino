@@ -20,6 +20,7 @@ import numpy as np
 from extensions.ops.tensor_iterator import TensorIterator
 from mo.front.common.partial_infer.utils import int64_array
 from mo.graph.graph import Node, Graph
+from mo.graph.port import Port
 from mo.middle.passes.infer import partial_infer
 from mo.ops.const import Const
 
@@ -48,6 +49,22 @@ class Loop(TensorIterator):
         }
         base_attrs.update(attrs)
         super().__init__(graph, base_attrs)
+
+    def port_map_attrs(self):
+        return super().port_map_attrs() + ['purpose']
+
+    @staticmethod
+    def generate_port_map(node: Node, src_port_map, dir: str):
+        result_list = []
+        for record in src_port_map:
+            # do not update ids for not-connected output which is used in the Loop operation only
+            if record['external_port_id'] != -1:
+                if dir == 'out':  # increase the output port id by the number of input ports
+                    # update the port id for proper generation of a "ports" section
+                    record['external_port_id'] += len(node.in_ports())
+            record['internal_layer_id'] = TensorIterator.find_internal_layer_id(node.body, record['internal_layer_id'])
+            result_list.append(record)
+        return result_list
 
     @staticmethod
     def get_body_node_by_internal_id(loop_node: Node, internal_id: int):
@@ -229,6 +246,57 @@ class Loop(TensorIterator):
         assert len(result_nodes) == 1, 'There should be just one body node for external port "{}", but there "{}"' \
                                        ''.format(external_port_id, len(result_nodes))
         return result_nodes[0]
+
+    @staticmethod
+    def connect_body_input(loop_input_port: Port, internal_parameter: Node, external_node_out_port: Port = None,
+                           axis: [int, None] = None, start: [int, None] = None, end: [int, None] = None,
+                           stride: [int, None] = None, part_size: [int, None] = None):
+        loop_node = loop_input_port.node
+        assert loop_node.soft_get('op') == 'Loop'
+        assert loop_input_port.type == 'in'
+        assert internal_parameter.soft_get('op') == 'Parameter'
+        assert internal_parameter.id in loop_node.body
+
+        if external_node_out_port is not None:
+            assert loop_input_port.disconnected()
+            assert external_node_out_port.node.id not in loop_node.body
+            loop_input_port.connect(external_node_out_port)
+
+        loop_node.input_port_map.append({'axis': axis, 'stride': stride, 'part_size': part_size, 'start': start,
+                                         'end': end, 'external_port_id': loop_input_port.idx,
+                                         'internal_layer_id': internal_parameter['internal_layer_id']})
+
+    @staticmethod
+    def connect_body_output(loop_output_port: Port, internal_result: Node, external_node_input_ports: list = None,
+                            axis: [int, None] = None, start: [int, None] = None, end: [int, None] = None,
+                            stride: [int, None] = None, part_size: [int, None] = None):
+        loop_node = loop_output_port.node
+        assert loop_node.soft_get('op') == 'Loop'
+        assert loop_output_port.type == 'out'
+        assert internal_result.soft_get('op') == 'Result'
+        assert internal_result.id in loop_node.body
+
+        if external_node_input_ports is not None:
+            assert loop_output_port.disconnected()
+            assert all([port.node.id not in loop_node.body for port in external_node_input_ports])
+            for port in external_node_input_ports:
+                port.disconnect()
+                loop_output_port.connect(port)
+        loop_node.output_port_map.append({'axis': axis, 'stride': stride, 'part_size': part_size, 'start': start,
+                                          'end': end, 'external_port_id': loop_output_port.idx,
+                                          'internal_layer_id': internal_result['internal_layer_id']})
+
+    @staticmethod
+    def add_back_edge(loop_node: Node, internal_parameter: Node, internal_result: Node):
+        assert internal_parameter.id in loop_node.body
+        assert internal_parameter.soft_get('op') == 'Parameter'
+        assert internal_result.id in loop_node.body
+        assert internal_result.soft_get('op') == 'Result'
+
+        loop_node.back_edges.append({'from_layer': internal_result['internal_layer_id'],
+                                     'to_layer': internal_parameter['internal_layer_id'],
+                                     'from_port': 0,
+                                     'to_port': 0})
 
     @staticmethod
     def pull_constant_inputs_into_body(loop_node: Node):
