@@ -226,6 +226,27 @@ TEST(build_graph, build_graph_with_sink)
     EXPECT_EQ(nodes.size(), 8);
 }
 
+TEST(build_graph, build_graph_with_sink_output_ctor)
+{
+    auto arg = make_shared<op::Parameter>(element::f32, Shape{ 2, 4 });
+    auto init_const = op::Constant::create(element::f32, Shape{ 2, 2 }, { 0, 0, 0, 0 });
+    auto read = make_shared<op::ReadValue>(init_const, "v0");
+    std::vector<shared_ptr<Node>> args = { arg, read };
+    auto pattern = make_shared<op::Concat>(args, 1);
+    auto res = make_shared<op::Result>(pattern);
+    const auto axis = op::Constant::create(element::i64, Shape{}, { 1 });
+    auto crop = make_shared<op::Split>(pattern, axis, 3);
+    auto assign = make_shared<op::Assign>(crop, "v0");
+
+    auto f = make_shared<Function>(OutputVector({ pattern->output(0) }), SinkVector({ assign }), ParameterVector{ arg });
+
+    SinkVector sinks = f->get_sinks();
+    EXPECT_EQ(sinks.size(), 1);
+    EXPECT_EQ(sinks[0], assign);
+    NodeVector nodes = f->get_ops();
+    EXPECT_EQ(nodes.size(), 8);
+}
+
 TEST(build_graph, build_graph_with_add_sink)
 {
     auto arg = make_shared<op::Parameter>(element::f32, Shape{ 2, 4 });

@@ -58,6 +58,11 @@ namespace ngraph
                  const ParameterVector& parameters,
                  const std::string& name = "");
 
+        Function(const OutputVector& results,
+                 const SinkVector& sinks,
+                 const ParameterVector& parameters,
+                 const std::string& name = "");
+
         virtual ~Function() {}
         /// Return the number of outputs for this function.
         size_t get_output_size() const;
