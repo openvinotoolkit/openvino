@@ -27,7 +27,7 @@ std::shared_ptr<ngraph::Node> makeRNN(const OutputVector& in,
         return std::make_shared<ngraph::opset4::RNNCell>(in[0], in[1], W, R, B, hidden_size, activations,
                                                          activations_alpha, activations_beta, clip);
     } else {
-        std::vector<float> lengths(in[0].get_shape()[0], in[0].get_shape()[1]);
+        std::vector<float> lengths(in[0].get_shape()[0], in[0].get_shape()[1] - 1);
         auto seq_lenghts = ngraph::builder::makeConstant(ngraph::element::i32, constants[3], lengths, false);
         return std::make_shared<ngraph::opset5::RNNSequence>(in[0], in[1], seq_lenghts, W, R, B, hidden_size, direction,
                                                              activations, activations_alpha, activations_beta, clip);

@@ -20,6 +20,7 @@
 #include <memory>
 
 #include "itt.hpp"
+#include "ngraph/opsets/opset5.hpp"
 #include "ngraph/env_util.hpp"
 #include "ngraph/function.hpp"
 #include "ngraph/graph_util.hpp"
@@ -35,7 +36,7 @@ using namespace std;
 using namespace ngraph;
 
 pass::Manager::Manager()
-    : m_visualize(getenv_bool("NGRAPH_ENABLE_VISUALIZE_TRACING"))
+    : m_visualize(true)
     , m_pass_config(std::make_shared<PassConfig>())
 {
 }
@@ -48,7 +49,7 @@ void pass::Manager::run_passes(shared_ptr<Function> func)
 {
     OV_ITT_SCOPED_TASK(itt::domains::nGraph, "pass::Manager::run_passes");
 
-    static bool profile_enabled = getenv_bool("NGRAPH_PROFILE_PASS_ENABLE");
+    static bool profile_enabled = false;
 
     size_t index = 0;
     stopwatch pass_timer;
@@ -121,7 +122,7 @@ void pass::Manager::run_passes(shared_ptr<Function> func)
         }
         NGRAPH_SUPPRESS_DEPRECATED_END
 
-        if (m_visualize)
+        if (m_visualize && (pass->get_name() == "ConvertRNNSequenceToTensorIterator" || pass->get_name() == "UnrollTensorIterator"))
         {
             // visualizations and serializations will be named after the outermost function
             const size_t num_digits_in_pass_index = 3;
@@ -136,6 +137,12 @@ void pass::Manager::run_passes(shared_ptr<Function> func)
                 auto file_ext = format.empty() ? "svg" : format;
                 pass::VisualizeTree vt(base_filename + std::string(".") + file_ext);
                 vt.run_on_function(func);
+                pass::VisualizeTree vt_body(base_filename + "_body" + std::string(".") + file_ext);
+                for (const auto& node : func->get_ops()) {
+                    if (const auto& ti = std::dynamic_pointer_cast<ngraph::opset5::TensorIterator>(node)) {
+                        vt_body.run_on_function(ti->get_function());
+                    }
+                }
             }
         }
         index++;

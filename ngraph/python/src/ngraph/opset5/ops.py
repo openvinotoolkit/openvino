@@ -158,9 +158,11 @@ def lstm_sequence(
                                     Shape: [batch_size, num_directions, hidden_size].
     :param sequence_lengths:        Specifies real sequence lengths for each batch element.
                                     Shape: [batch_size]. Integer type.
-    :param W: Tensor with weights for matrix multiplication operation with input portion of data. Expected format: fico
+    :param W: Tensor with weights for matrix multiplication operation with input portion of data.
+              Expected format: fico
               Shape: [num_directions, 4*hidden_size, input_size].
-    :param R: The tensor with weights for matrix multiplication operation with hidden state. Expected format: fico
+    :param R: The tensor with weights for matrix multiplication operation with hidden state.
+              Expected format: fico
               Shape: [num_directions, 4*hidden_size, hidden_size].
     :param B: The sum of biases (weight and recurrence). Expected format: fico
               Shape: [num_directions, 4*hidden_size].
