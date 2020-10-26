@@ -57,7 +57,8 @@ static shared_ptr<op::Constant>
         runtime::reference::min<T>(constant->get_data_ptr<T>(),
                                    data_ptr,
                                    constant->get_output_shape(0),
-                                   reduce_min->get_reduction_axes());
+                                   reduce_min->get_reduction_axes(),
+                                   reduce_min->get_keep_dims());
     }
     else if (auto reduce_prod = as_type_ptr<op::v1::ReduceProd>(reduction_node))
     {
@@ -152,11 +153,7 @@ void pass::ConstantFolding::construct_constant_arithmetic_reduction()
     auto constant_axes_label =
         make_shared<pattern::op::Label>(element::i64, Shape{2}, pattern::has_class<op::Constant>());
     auto is_supported_reduction = [](std::shared_ptr<Node> n) {
-        return (pattern::has_class<op::v1::ReduceMax>()(n) ||
-                pattern::has_class<op::v1::ReduceMin>()(n) ||
-                pattern::has_class<op::v1::ReduceProd>()(n) ||
-                pattern::has_class<op::v1::ReduceSum>()(n) ||
-                pattern::has_class<op::v1::ReduceMean>()(n));
+        return false;
     };
     auto reduction =
         std::make_shared<pattern::op::Any>(element::i32,
