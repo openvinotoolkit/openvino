@@ -21,6 +21,8 @@ import ngraph as ng
 import ngraph.opset1 as ng_opset1
 from ngraph.impl import Type
 
+from tests import skip_segfault
+
 np_types = [np.float32, np.int32]
 integral_np_types = [
     np.int8,
@@ -674,6 +676,16 @@ def test_rnn_sequence():
     assert node_param.get_output_size() == 2
     assert list(node_param.get_output_shape(0)) == expected_shape_y
     assert list(node_param.get_output_shape(1)) == expected_shape_h
+
+
+@skip_segfault
+def test_loop():
+    trip_count = 8
+    condition = True
+
+    node_default = ng.loop(trip_count, condition)
+
+    assert node_default.get_type_name() == "Loop"
 
 
 def test_roi_pooling():
