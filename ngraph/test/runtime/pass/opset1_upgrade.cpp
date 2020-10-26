@@ -54,15 +54,6 @@ namespace opset1_upgrade
         return op_cast_binary_elementwise_node<op::v0::Add, op::v1::Add>(node);
     }
 
-    shared_ptr<Node> op_cast(shared_ptr<op::Broadcast> node)
-    {
-        auto replacement_node = ngraph::builder::opset1::make_broadcast(
-            node->input_value(0), node->get_broadcast_shape(), node->get_broadcast_axes());
-        replace_node(node, replacement_node.get_node_shared_ptr());
-        return replacement_node.get_node_shared_ptr();
-    }
-
-    shared_ptr<Node> op_cast(shared_ptr<op::BroadcastLike> node) { return nullptr; }
     shared_ptr<Node> op_cast(shared_ptr<op::v0::Convolution> node)
     {
         auto strides = node->get_window_movement_strides();

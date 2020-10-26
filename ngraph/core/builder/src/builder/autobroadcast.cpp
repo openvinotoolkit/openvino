@@ -24,7 +24,6 @@
 #include "ngraph/axis_vector.hpp"
 #include "ngraph/check.hpp"
 #include "ngraph/op/broadcast.hpp"
-#include "ngraph/op/constant.hpp"
 #include "ngraph/op/reshape.hpp"
 #include "ngraph/util.hpp"
 
@@ -178,8 +177,12 @@ namespace ngraph
 
             if (!broadcast_axes.empty())
             {
-                broadcasted_node =
-                    make_shared<op::Broadcast>(broadcasted_node, output_shape, broadcast_axes);
+                auto shape_const =
+                    op::Constant::create(element::u64, Shape{output_shape.size()}, output_shape);
+                broadcasted_node = make_shared<op::v1::Broadcast>(
+                    broadcasted_node,
+                    shape_const,
+                    opset1::get_axes_mapping_output(output_shape, broadcast_axes));
             }
 
             return broadcasted_node;
@@ -234,7 +237,10 @@ namespace ngraph
                     value, get_default_order(value_shape), trimmed_value_shape);
             }
 
-            auto value_bcast = make_shared<op::Broadcast>(trimmed_value, output_shape, axes);
+            auto shape_const =
+                op::Constant::create(element::u64, Shape{output_shape.size()}, output_shape);
+            auto value_bcast = make_shared<op::v1::Broadcast>(
+                trimmed_value, shape_const, opset1::get_axes_mapping_output(output_shape, axes));
 
             return move(value_bcast);
         }
@@ -337,19 +343,19 @@ namespace ngraph
             return broadcasted_inputs;
         }
 
-        AxisSet calculate_broadcast_axes(const Shape& output_shape,
-                                         const Shape& input_shape,
-                                         size_t start_match_axis)
+        std::shared_ptr<Node> calculate_broadcast_axes(const Shape& output_shape,
+                                                       const Shape& input_shape,
+                                                       size_t start_match_axis)
         {
-            vector<size_t> result(output_shape.size() - input_shape.size());
-            // Populate the result vector with monotonic increasing series from 0 until
+            vector<size_t> axes(output_shape.size() - input_shape.size());
+            // Populate the axes vector with monotonic increasing series from 0 until
             // output_shape_size, excluding values in range:
             // [start_match_axis, start_match_axis + input_shape.size()]
-            iota(begin(result), begin(result) + start_match_axis, 0);
-            iota(begin(result) + start_match_axis,
-                 end(result),
-                 start_match_axis + input_shape.size());
-            return result;
+            iota(begin(axes), begin(axes) + start_match_axis, 0);
+            iota(begin(axes) + start_match_axis, end(axes), start_match_axis + input_shape.size());
+
+            auto axes_mapping = opset1::get_axes_mapping(output_shape, axes);
+            return op::Constant::create(element::i64, Shape{axes_mapping.size()}, axes_mapping);
         }
 
         namespace opset1

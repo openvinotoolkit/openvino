@@ -275,7 +275,6 @@ protected:
                                                node.get_input_shape(0));
             break;
         }
-        case OP_TYPEID::BroadcastLike: break;
         case OP_TYPEID::Ceiling:
         {
             size_t element_count = shape_size(node.get_output_shape(0));

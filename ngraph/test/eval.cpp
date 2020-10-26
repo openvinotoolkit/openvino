@@ -593,24 +593,6 @@ TEST(eval, evaluate_broadcast_v3_explicit_dyn)
     ASSERT_EQ(result_val, expec);
 }
 
-TEST(eval, evaluate_broadcast_v0)
-{
-    Shape shape_a{2, 4};
-    auto A = make_shared<op::Parameter>(element::f32, shape_a);
-    Shape target_shape = Shape{2, 3, 4};
-    auto bcast_v0 = make_shared<op::v0::Broadcast>(A, target_shape, AxisSet{1});
-    auto fun = make_shared<Function>(OutputVector{bcast_v0}, ParameterVector{A});
-
-    auto result = make_shared<HostTensor>();
-    ASSERT_TRUE(fun->evaluate(
-        {result}, {make_host_tensor<element::Type_t::f32>(Shape{2, 4}, {1, 2, 3, 4, 1, 2, 3, 4})}));
-    EXPECT_EQ(result->get_element_type(), element::f32);
-    EXPECT_EQ(result->get_partial_shape(), (PartialShape{2, 3, 4}));
-    auto result_val = read_vector<float>(result);
-    vector<float> expec{1, 2, 3, 4, 1, 2, 3, 4, 1, 2, 3, 4, 1, 2, 3, 4, 1, 2, 3, 4, 1, 2, 3, 4};
-    ASSERT_EQ(result_val, expec);
-}
-
 TEST(eval, test_op_multi_out)
 {
     auto p = make_shared<op::Parameter>(element::f32, PartialShape{2, 3});

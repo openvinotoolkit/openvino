@@ -571,15 +571,11 @@ void ngraph::insert_new_node_between(const shared_ptr<Node>& src_node,
 
 std::shared_ptr<Node> ngraph::make_zero(const element::Type& element_type, const Shape& shape)
 {
-    std::shared_ptr<Node> zero = op::Constant::create(element_type, Shape{}, {0.0});
+    auto zero = op::Constant::create(element_type, Shape{}, {0.0});
     if (shape.size() > 0)
     {
-        AxisSet axes;
-        for (size_t i = 0; i < shape.size(); i++)
-        {
-            axes.insert(i);
-        }
-        zero = std::make_shared<op::Broadcast>(zero, shape, axes);
+        return std::make_shared<op::v1::Broadcast>(
+            zero, op::Constant::create(element::u64, Shape{shape.size()}, shape));
     }
     return zero;
 }

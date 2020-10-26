@@ -16,6 +16,7 @@
 #include <algorithm>
 
 #include "mvn.hpp"
+#include "ngraph/builder/autobroadcast.hpp"
 #include "ngraph/builder/reduce_ops.hpp"
 #include "ngraph/op/add.hpp"
 #include "ngraph/op/broadcast.hpp"
@@ -78,8 +79,8 @@ OutputVector op::MVN::decompose_op() const
 
     // calculate mean normalization
     auto mean = builder::opset1::mean(data, m_reduction_axes);
-    mean = std::make_shared<op::Broadcast>(mean, data_shape, m_reduction_axes);
-    auto mean_normalization = data - mean;
+    auto mean_normalization =
+        data - builder::opset1::make_broadcast(mean, data_shape, m_reduction_axes);
 
     if (!m_normalize_variance)
     {
@@ -93,9 +94,9 @@ OutputVector op::MVN::decompose_op() const
         auto eps_node = op::Constant::create(
             data.get_element_type(), Output<Node>(variance).get_shape(), vector<double>{m_eps});
         variance = std::make_shared<op::Sqrt>(variance + eps_node);
-        variance = std::make_shared<op::Broadcast>(variance, data_shape, m_reduction_axes);
 
-        return OutputVector{mean_normalization / variance};
+        return OutputVector{mean_normalization / builder::opset1::make_broadcast(
+                                                     variance, data_shape, m_reduction_axes)};
     }
 }
 
