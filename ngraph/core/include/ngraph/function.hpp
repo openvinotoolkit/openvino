@@ -163,7 +163,8 @@ namespace ngraph
         /// \param results new Result nodes
         void add_results(const ResultVector& results);
 
-        /// \brief Delete Result node from the list of results. Method will not delete node from graph.
+        /// \brief Delete Result node from the list of results. Method will not delete node from
+        /// graph.
         /// \param result Result node to delete
         void remove_result(const std::shared_ptr<op::Result>& result);
 
@@ -179,7 +180,7 @@ namespace ngraph
         topological_sort_t m_topological_sorter;
 
         ResultVector m_results;
-        // List of the nodes with side effect in graph. 
+        // List of the nodes with side effect in graph.
         // These nodes are not outputs of graph but should not be removed even if have no children.
         SinkVector m_sinks;
         ParameterVector m_parameters;

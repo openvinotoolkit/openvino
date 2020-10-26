@@ -30,13 +30,14 @@ namespace ngraph
         public:
             virtual ~Sink() = 0;
             NGRAPH_RTTI_DECLARATION;
+
         protected:
             Sink()
                 : Op()
             {
             }
-            Sink(const OutputVector& arguments) 
-               : Op(arguments) 
+            Sink(const OutputVector& arguments)
+                : Op(arguments)
             {
             }
         };
