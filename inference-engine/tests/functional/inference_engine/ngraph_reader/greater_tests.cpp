@@ -4,7 +4,7 @@
 
 #include <string>
 #include "ngraph_reader_tests.hpp"
-TEST_F(NGraphReaderTests, ReadGreaterNetwork) {
+TEST_F(NGraphReaderTests, DISABLED_ReadGreaterNetwork) {
     std::string model = R"V0G0N(
 <net name="Network" version="10">
     <layers>
@@ -133,7 +133,7 @@ TEST_F(NGraphReaderTests, ReadGreaterNetwork) {
     compareIRs(model, modelV5, 3211264);
 }
 
-TEST_F(NGraphReaderTests, ReadGreaterEqualNetwork) {
+TEST_F(NGraphReaderTests, DISABLED_ReadGreaterEqualNetwork) {
     std::string model = R"V0G0N(
 <net name="Network" version="10">
     <layers>

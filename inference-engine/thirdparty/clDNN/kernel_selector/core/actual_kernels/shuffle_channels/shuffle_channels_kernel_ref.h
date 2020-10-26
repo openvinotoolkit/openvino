@@ -1,5 +1,5 @@
 /*
-// Copyright (c) 2019 Intel Corporation
+// Copyright (c) 2019-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -16,7 +16,7 @@
 
 #pragma once
 
-#include "common_kernel_base.h"
+#include "kernel_base_opencl.h"
 
 namespace kernel_selector {
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -38,9 +38,9 @@ struct shuffle_channels_optional_params : optional_params {
     shuffle_channels_optional_params() : optional_params(KernelType::SHUFFLE_CHANNELS) {}
 };
 
-class ShuffleChannelsKernelRef : public common_kernel_base {
+class ShuffleChannelsKernelRef : public KernelBaseOpenCL {
 public:
-    ShuffleChannelsKernelRef() : common_kernel_base("shuffle_channels_ref") {}
+    ShuffleChannelsKernelRef() : KernelBaseOpenCL("shuffle_channels_ref") {}
     virtual ~ShuffleChannelsKernelRef() {}
     KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
     ParamsKey GetSupportedKey() const override;

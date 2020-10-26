@@ -49,6 +49,10 @@ layout scale_inst::calc_output_layout(scale_node const& node) {
     if (desc->output_data_type)
         result.data_type = *desc->output_data_type;
 
+    if (node.has_fused_primitives()) {
+        result.data_type = node.get_fused_output_layout().data_type;
+    }
+
     if (scale_x_size != 1) {
         CLDNN_ERROR_NOT_EQUAL(node.id(), "Scale x size", scale_x_size, "input x size", input_x_size, "");
     }
