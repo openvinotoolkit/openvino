@@ -28,7 +28,7 @@ from mo.ops.const import Const
 class Loop(TensorIterator):
     """
     Loop layer that iterates over tensors and execute embedded sub-graph. The main difference from the TensorIterator is
-    that Loop operation performs implicit slicing of data using special input called "current_iteration". Also the Loop
+    that Loop operation performs explicit slicing of data using special input called "current_iteration". Also the Loop
     has special input determining the execution condition and special output producing execution condition for the next
     iteration.
     """

@@ -43,13 +43,13 @@ class ONNXLoopNormalize(FrontReplacementSubgraph):
     def normalize_body_graph(loop_node: Node):
         loop_name = loop_node.soft_get('name', loop_node.id)
         # connect "trip count" input if it is not connected with default value "Infinity" (-1)
-        if 0 not in loop_node.in_ports() or loop_node.in_port(0).disconnected():
+        if not loop_node.is_in_port_connected(0):
             loop_node.add_input_port(0, skip_if_exist=True)
             Const(loop_node.graph, {'name': loop_name + '/trip_count', 'value': int64_array(-1)}).\
                 create_node().out_port(0).connect(loop_node.in_port(0))
 
         # connect "execution condition" input if it is not connected with default value True
-        if 1 not in loop_node.in_ports() or loop_node.in_port(1).disconnected():
+        if not loop_node.is_in_port_connected(1):
             loop_node.add_input_port(1, skip_if_exist=True)
             Const(loop_node.graph, {'name': loop_name + '/execution_cond', 'value': np.array(True, dtype=np.bool)}).\
                 create_node().out_port(0).connect(loop_node.in_port(1))
