@@ -18,7 +18,7 @@ public:
     static constexpr NodeTypeInfo type_info{"ReLUIE", 1};
     const NodeTypeInfo& get_type_info() const override { return type_info; }
 
-    ReLUIE(const Output<Node> & data, const float & negative_slope);
+    ReLUIE(const Output<Node> & data, const float & negative_slope, const element::Type output_type);
 
     void validate_and_infer_types() override;
 
@@ -26,8 +26,11 @@ public:
 
     float get_slope() { return m_negative_slope; }
 
+    element::Type get_output_type() const { return m_output_type; }
+
 private:
     float m_negative_slope;
+    element::Type m_output_type;
 };
 
 }  // namespace op

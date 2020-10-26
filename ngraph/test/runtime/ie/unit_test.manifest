@@ -997,6 +997,7 @@ batch_norm_training_0eps_f64
 
 # Function inputs number differ from number of given inputs
 batch_norm_inference_parameters_duplication
+batch_norm_inference_parameters_duplication_v5
 
 backwards_abs
 backwards_acos

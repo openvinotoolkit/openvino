@@ -24,7 +24,7 @@
 using namespace std;
 using namespace ngraph;
 
-constexpr NodeTypeInfo op::v1::Transpose::type_info;
+NGRAPH_RTTI_DEFINITION(op::v1::Transpose, "Transpose", 1);
 
 op::v1::Transpose::Transpose(const Output<Node>& arg, const Output<Node>& input_order)
     : Op({arg, input_order})
