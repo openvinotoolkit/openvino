@@ -1125,11 +1125,10 @@ void MKLDNNMVNNode::mvn_blk(const in_data_t* src_data, out_data_t* dst_data, con
                 for (int i = 0; i < mean_buffer.size(); i++)
                     mean_buffer[i] = 0.f;
 
-                parallel_for2d(D, H, [&](size_t d, size_t h) {
+                parallel_for2d(D, H, [&](size_t thr_idx, size_t d, size_t h) {
                     for (size_t cb = 0; cb < CB; cb++) {
                         size_t src_off = is_nhwc ? ccb + d * H * W * C + h * W * C + cb * blk_size
                                                  : ccb + d * H * W * blk_size + h * W * blk_size + cb * D * H * W * blk_size;
-                        auto thr_idx = mkldnn_get_thread_num();
                         auto mean_buffer_ptr = &mean_buffer[blk_size * cb + aux_buffer_size * thr_idx];
 
                         auto arg = jit_mvn_call_args();
@@ -1179,11 +1178,10 @@ void MKLDNNMVNNode::mvn_blk(const in_data_t* src_data, out_data_t* dst_data, con
                     for (int i = 0; i < variance_buffer.size(); i++)
                         variance_buffer[i] = 0.f;
 
-                    parallel_for2d(D, H, [&](size_t d, size_t h) {
+                    parallel_for2d(D, H, [&](size_t thr_idx, size_t d, size_t h) {
                         for (size_t cb = 0; cb < CB; cb++) {
                             size_t src_off = is_nhwc ? ccb + d * H * W * C + h * W * C + cb * blk_size
                                                      : ccb + d * H * W * blk_size + h * W * blk_size + cb * D * H * W * blk_size;
-                            auto thr_idx = mkldnn_get_thread_num();
                             auto mean_buffer_ptr = &mean_buffer[blk_size * cb];
                             auto variance_buffer_ptr = &variance_buffer[blk_size * cb + aux_buffer_size * thr_idx];
 
