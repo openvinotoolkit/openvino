@@ -14,7 +14,7 @@
 # limitations under the License.
 # ******************************************************************************
 
-"""Factory functions for all ngraph ops."""
+"""! Factory functions for all ngraph ops."""
 from typing import Callable, Iterable, List, Optional, Set, Union
 
 import numpy as np
@@ -70,17 +70,17 @@ def ctc_loss(
     unique: bool = False,
     name: Optional[str] = None,
 ) -> Node:
-    """Return a node which performs CTCLoss.
+    """! Return a node which performs CTCLoss.
 
-    :param logits:                        3-D tensor of logits.
-    :param logit_length:                  1-D tensor of lengths for each object from a batch.
-    :param labels:                        2-D tensor of labels for which likelihood is estimated using logits.
-    :param label_length:                  1-D tensor of length for each label sequence.
-    :param blank_index:                   Scalar used to mark a blank index.
-    :param preprocess_collapse_repeated:  Flag for preprocessing labels before loss calculation.
-    :param ctc_merge_repeated:            Flag for merging repeated characters in a potential alignment.
-    :param unique:                        Flag to find unique elements in a target.
-    :return: The new node which performs CTCLoss
+    @param logits:                        3-D tensor of logits.
+    @param logit_length:                  1-D tensor of lengths for each object from a batch.
+    @param labels:                        2-D tensor of labels for which likelihood is estimated using logits.
+    @param label_length:                  1-D tensor of length for each label sequence.
+    @param blank_index:                   Scalar used to mark a blank index.
+    @param preprocess_collapse_repeated:  Flag for preprocessing labels before loss calculation.
+    @param ctc_merge_repeated:            Flag for merging repeated characters in a potential alignment.
+    @param unique:                        Flag to find unique elements in a target.
+    @return The new node which performs CTCLoss
     """
     if blank_index is not None:
         inputs = as_nodes(logits, logit_length, labels, label_length, blank_index)
@@ -108,19 +108,19 @@ def non_max_suppression(
     output_type: str = "i64",
     name: Optional[str] = None,
 ) -> Node:
-    """Return a node which performs NonMaxSuppression.
+    """! Return a node which performs NonMaxSuppression.
 
-    :param boxes: Tensor with box coordinates.
-    :param scores: Tensor with box scores.
-    :param max_output_boxes_per_class: Tensor Specifying maximum number of boxes
+    @param boxes: Tensor with box coordinates.
+    @param scores: Tensor with box scores.
+    @param max_output_boxes_per_class: Tensor Specifying maximum number of boxes
                                         to be selected per class.
-    :param iou_threshold: Tensor specifying intersection over union threshold
-    :param score_threshold: Tensor specifying minimum score to consider box for the processing.
-    :param box_encoding: Format of boxes data encoding.
-    :param sort_result_descending: Flag that specifies whenever it is necessary to sort selected
+    @param iou_threshold: Tensor specifying intersection over union threshold
+    @param score_threshold: Tensor specifying minimum score to consider box for the processing.
+    @param box_encoding: Format of boxes data encoding.
+    @param sort_result_descending: Flag that specifies whenever it is necessary to sort selected
                                    boxes across batches or not.
-    :param output_type: Output element type.
-    :return: The new node which performs NonMaxSuppression
+    @param output_type: Output element type.
+    @return The new node which performs NonMaxSuppression
     """
     if max_output_boxes_per_class is None:
         max_output_boxes_per_class = make_constant_node(0, np.int64)
@@ -141,30 +141,30 @@ def non_max_suppression(
 
 @nameable_op
 def softplus(data: NodeInput, name: Optional[str] = None) -> Node:
-    """Apply SoftPlus operation on each element of input tensor.
+    """! Apply SoftPlus operation on each element of input tensor.
 
-    :param data: The tensor providing input data.
-    :return: The new node with SoftPlus operation applied on each element.
+    @param data: The tensor providing input data.
+    @return The new node with SoftPlus operation applied on each element.
     """
     return _get_node_factory_opset4().create("SoftPlus", as_nodes(data), {})
 
 
 @nameable_op
 def mish(data: NodeInput, name: Optional[str] = None,) -> Node:
-    """Return a node which performs Mish.
+    """! Return a node which performs Mish.
 
-    :param data: Tensor with input data floating point type.
-    :return: The new node which performs Mish
+    @param data: Tensor with input data floating point type.
+    @return The new node which performs Mish
     """
     return _get_node_factory_opset4().create("Mish", as_nodes(data), {})
 
 
 @nameable_op
 def hswish(data: NodeInput, name: Optional[str] = None,) -> Node:
-    """Return a node which performs HSwish (hard version of Swish).
+    """! Return a node which performs HSwish (hard version of Swish).
 
-    :param data: Tensor with input data floating point type.
-    :return: The new node which performs HSwish
+    @param data: Tensor with input data floating point type.
+    @return The new node which performs HSwish
     """
     return _get_node_factory_opset4().create("HSwish", as_nodes(data), {})
 
@@ -175,10 +175,10 @@ def swish(
     beta: Optional[NodeInput] = None,
     name: Optional[str] = None,
 ) -> Node:
-    """Return a node which performing Swish activation function Swish(x, beta=1.0) = x * sigmoid(x * beta)).
+    """! Return a node which performing Swish activation function Swish(x, beta=1.0) = x * sigmoid(x * beta)).
 
-    :param data: Tensor with input data floating point type.
-    :return: The new node which performs Swish
+    @param data: Tensor with input data floating point type.
+    @return The new node which performs Swish
     """
     if beta is None:
         beta = make_constant_node(1.0, np.float32)
@@ -187,33 +187,33 @@ def swish(
 
 @nameable_op
 def acosh(node: NodeInput, name: Optional[str] = None) -> Node:
-    """Apply hyperbolic inverse cosine function on the input node element-wise.
+    """! Apply hyperbolic inverse cosine function on the input node element-wise.
 
-    :param node: One of: input node, array or scalar.
-    :param name: Optional new name for output node.
-    :return: New node with arccosh operation applied on it.
+    @param node: One of: input node, array or scalar.
+    @param name: Optional new name for output node.
+    @return New node with arccosh operation applied on it.
     """
     return _get_node_factory_opset4().create("Acosh", [node])
 
 
 @nameable_op
 def asinh(node: NodeInput, name: Optional[str] = None) -> Node:
-    """Apply hyperbolic inverse sinus function on the input node element-wise.
+    """! Apply hyperbolic inverse sinus function on the input node element-wise.
 
-    :param node: One of: input node, array or scalar.
-    :param name: Optional new name for output node.
-    :return: New node with arcsinh operation applied on it.
+    @param node: One of: input node, array or scalar.
+    @param name: Optional new name for output node.
+    @return New node with arcsinh operation applied on it.
     """
     return _get_node_factory_opset4().create("Asinh", [node])
 
 
 @nameable_op
 def atanh(node: NodeInput, name: Optional[str] = None) -> Node:
-    """Apply hyperbolic inverse tangent function on the input node element-wise.
+    """! Apply hyperbolic inverse tangent function on the input node element-wise.
 
-    :param node: One of: input node, array or scalar.
-    :param name: Optional new name for output node.
-    :return: New node with arctanh operation applied on it.
+    @param node: One of: input node, array or scalar.
+    @param name: Optional new name for output node.
+    @return New node with arctanh operation applied on it.
     """
     return _get_node_factory_opset4().create("Atanh", [node])
 
@@ -226,13 +226,13 @@ def proposal(
         attrs: dict,
         name: Optional[str] = None,
 ) -> Node:
-    """Filter bounding boxes and outputs only those with the highest prediction confidence.
+    """! Filter bounding boxes and outputs only those with the highest prediction confidence.
 
-    :param  class_probs:        4D input floating point tensor with class prediction scores.
-    :param  bbox_deltas:        4D input floating point tensor with corrected predictions of bounding boxes
-    :param  image_shape:        The 1D input tensor with 3 or 4 elements describing image shape.
-    :param  attrs:              The dictionary containing key, value pairs for attributes.
-    :param  name:               Optional name for the output node.
+    @param  class_probs:        4D input floating point tensor with class prediction scores.
+    @param  bbox_deltas:        4D input floating point tensor with corrected predictions of bounding boxes
+    @param  image_shape:        The 1D input tensor with 3 or 4 elements describing image shape.
+    @param  attrs:              The dictionary containing key, value pairs for attributes.
+    @param  name:               Optional name for the output node.
     * base_size     The size of the anchor to which scale and ratio attributes are applied.
                     Range of values: a positive unsigned integer number
                     Default value: None
@@ -296,7 +296,7 @@ def proposal(
                     Default value: "" (empty string)
                     Required: no
     Example of attribute dictionary:
-    .. code-block:: python
+    ~~~~~~~~~~~~~~~~~~~~~~~~{.py}
         # just required ones
         attrs = {
             'base_size': 85,
@@ -308,8 +308,9 @@ def proposal(
             'ratio': [0.1, 1.5, 2.0, 2.5],
             'scale': [2, 3, 3, 4],
         }
+    ~~~~~~~~~~~~~~~~~~~~~~~~
     Optional attributes which are absent from dictionary will be set with corresponding default.
-    :return: Node representing Proposal operation.
+    @return Node representing Proposal operation.
     """
     requirements = [
         ("base_size", True, np.unsignedinteger, is_positive_value),
@@ -339,13 +340,13 @@ def proposal(
 def reduce_l1(
     node: NodeInput, reduction_axes: NodeInput, keep_dims: bool = False, name: Optional[str] = None
 ) -> Node:
-    """L1-reduction operation on input tensor, eliminating the specified reduction axes.
+    """! L1-reduction operation on input tensor, eliminating the specified reduction axes.
 
-    :param node:           The tensor we want to mean-reduce.
-    :param reduction_axes: The axes to eliminate through mean operation.
-    :param keep_dims:      If set to True it holds axes that are used for reduction
-    :param name:           Optional name for output node.
-    :return: The new node performing mean-reduction operation.
+    @param node:           The tensor we want to mean-reduce.
+    @param reduction_axes: The axes to eliminate through mean operation.
+    @param keep_dims:      If set to True it holds axes that are used for reduction
+    @param name:           Optional name for output node.
+    @return The new node performing mean-reduction operation.
     """
     return _get_node_factory_opset4().create(
         "ReduceL1", as_nodes(node, reduction_axes), {"keep_dims": keep_dims}
@@ -356,13 +357,13 @@ def reduce_l1(
 def reduce_l2(
     node: NodeInput, reduction_axes: NodeInput, keep_dims: bool = False, name: Optional[str] = None
 ) -> Node:
-    """L2-reduction operation on input tensor, eliminating the specified reduction axes.
+    """! L2-reduction operation on input tensor, eliminating the specified reduction axes.
 
-    :param node:           The tensor we want to mean-reduce.
-    :param reduction_axes: The axes to eliminate through mean operation.
-    :param keep_dims:      If set to True it holds axes that are used for reduction
-    :param name:           Optional name for output node.
-    :return: The new node performing mean-reduction operation.
+    @param node:           The tensor we want to mean-reduce.
+    @param reduction_axes: The axes to eliminate through mean operation.
+    @param keep_dims:      If set to True it holds axes that are used for reduction
+    @param name:           Optional name for output node.
+    @return The new node performing mean-reduction operation.
     """
     return _get_node_factory_opset4().create(
         "ReduceL2", as_nodes(node, reduction_axes), {"keep_dims": keep_dims}
@@ -384,22 +385,22 @@ def lstm_cell(
     clip: float = 0.0,
     name: Optional[str] = None,
 ) -> Node:
-    """Return a node which performs LSTMCell operation.
+    """! Return a node which performs LSTMCell operation.
 
-    :param X: The input tensor with shape: [batch_size, input_size].
-    :param initial_hidden_state: The hidden state tensor with shape: [batch_size, hidden_size].
-    :param initial_cell_state: The cell state tensor with shape: [batch_size, hidden_size].
-    :param W: The weight tensor with shape: [4*hidden_size, input_size].
-    :param R: The recurrence weight tensor with shape: [4*hidden_size, hidden_size].
-    :param B: The bias tensor for gates with shape: [4*hidden_size].
-    :param hidden_size: Specifies hidden state size.
-    :param activations: The list of three activation functions for gates.
-    :param activations_alpha: The list of alpha parameters for activation functions.
-    :param activations_beta: The list of beta parameters for activation functions.
-    :param clip: Specifies bound values [-C, C] for tensor clipping performed before activations.
-    :param name: An optional name of the output node.
+    @param X: The input tensor with shape: [batch_size, input_size].
+    @param initial_hidden_state: The hidden state tensor with shape: [batch_size, hidden_size].
+    @param initial_cell_state: The cell state tensor with shape: [batch_size, hidden_size].
+    @param W: The weight tensor with shape: [4*hidden_size, input_size].
+    @param R: The recurrence weight tensor with shape: [4*hidden_size, hidden_size].
+    @param B: The bias tensor for gates with shape: [4*hidden_size].
+    @param hidden_size: Specifies hidden state size.
+    @param activations: The list of three activation functions for gates.
+    @param activations_alpha: The list of alpha parameters for activation functions.
+    @param activations_beta: The list of beta parameters for activation functions.
+    @param clip: Specifies bound values [-C, C] for tensor clipping performed before activations.
+    @param name: An optional name of the output node.
 
-    :return: The new node represents LSTMCell. Node outputs count: 2.
+    @return The new node represents LSTMCell. Node outputs count: 2.
     """
     if activations is None:
         activations = ["sigmoid", "tanh", "tanh"]

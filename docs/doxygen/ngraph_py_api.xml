@@ -12,25 +12,17 @@
       <!-- OpenCV -->
       <tab type="user" title="OpenCV Developer Guide" url="https://docs.opencv.org/master/"/>
       <!-- IE C -->
-      <tab type="usergroup" title="Inference Engine C API Reference" url="../ie_c_api/modules.html"/>
-      <!-- IE C++-->
+      <tab type="usergroup" title="Inference Engine C API Reference" url="../ie_c_api/groups.html"/>
       <tab type="user" title="Inference Engine С++ API Reference" url="../annotated.html"/>
-      <!-- IE Python -->
-      <tab type="classes" visible="yes" title="Inference Engine Python API Reference">
-        <tab type="classlist" visible="yes" title=""/>
-        <tab type="hierarchy" visible="yes" title=""/>
-        <tab type="namespacemembers" visible="yes" title="" intro=""/>
-        <tab type="pages" visible="no"/>
-        <tab type="files" visible="no"/>
-        <tab type="filelist" visible="no"/>
-        <tab type="globals" visible="no"/>
-      </tab>
+      <tab type="user" title="Inference Engine Python API Reference" url="../ie_python_api/annotated.html"/>
       <!-- DL Streamer -->
       <tab type="user" title="DL Streamer API Reference" url="https://openvinotoolkit.github.io/dlstreamer_gst/"/>
-      <!-- nGraph C++ API -->
-      <tab type="user" title="nGraph C++ API Reference" url="../ngraph_cpp_api/annotated.html"/>
-      <!-- nGraph Python API -->
-      <tab type="user" title="nGraph Python API Reference" url="../ngraph_python_api/files.html"/>
+      <tab type="user" title="nGraph С++ API Reference" url="../ngraph_cpp_api/annotated.html"/>
+      <!-- nGraph Python API Reference -->
+      <tab type="files" visible="yes" title="nGraph Python API Reference">
+        <tab type="filelist" visible="yes" title="nGraph Python API Reference" intro=""/>
+        <tab type="globals" visible="yes" title="" intro=""/>
+      </tab>
     </tab>
     <!-- Chinese docs -->
     <tab type="user" title="中文文件" url="https://docs.openvinotoolkit.org/cn/index.html"/>
