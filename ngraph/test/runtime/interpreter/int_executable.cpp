@@ -15,7 +15,6 @@
 //*****************************************************************************
 
 #include "int_executable.hpp"
-#include <algorithm>
 #include <cstring>
 #include "backend_manager.hpp"
 #include "ngraph/chrome_trace.hpp"

@@ -128,11 +128,6 @@ namespace ngraph
 #undef NGRAPH_OP
                 UnknownOp
             };
-
-            void run_nms5(const op::v5::NonMaxSuppression* nms5,
-                          const std::vector<std::shared_ptr<HostTensor>>& out,
-                          const std::vector<std::shared_ptr<HostTensor>>& args);
-
         } // namespace interpreter
     }     // namespace runtime
 } // namespace ngraph

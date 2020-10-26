@@ -76,6 +76,13 @@ TEST_F(NGraphReaderTests, ReadNonMaxSuppression5) {
                     <dim>15130</dim>
                     <dim>3</dim>
                 </port>
+                <port id="7" precision="FP32">
+                    <dim>15130</dim>
+                    <dim>3</dim>
+                </port>
+                <port id="8" precision="I64">
+                    <dim>1</dim>
+                </port>
             </output>
         </layer>
         <layer id="7" name="mul" type="Multiply" version="opset1">
@@ -119,12 +126,11 @@ TEST_F(NGraphReaderTests, ReadNonMaxSuppression5) {
 </net>
 )V0G0N";
     std::string modelV5 = R"V0G0N(
-<net name="Network" version="5">
+<net name="Network" version="7">
     <layers>
         <layer id="0" name="in1" precision="FP32" type="Input" >
-            <data precision="I32"/>
             <output>
-                <port id="0">
+                <port id="0" precision="FP32">
                     <dim>1</dim>
                     <dim>15130</dim>
                     <dim>4</dim>
@@ -132,9 +138,8 @@ TEST_F(NGraphReaderTests, ReadNonMaxSuppression5) {
             </output>
         </layer>
         <layer id="1" name="in2" precision="FP32" type="Input" >
-            <data precision="I32"/>
             <output>
-                <port id="0">
+                <port id="0" precision="FP32">
                     <dim>1</dim>
                     <dim>80</dim>
                     <dim>15130</dim>
@@ -143,42 +148,42 @@ TEST_F(NGraphReaderTests, ReadNonMaxSuppression5) {
         </layer>
         <layer id="2" name="max_output_boxes_per_class" precision="I64" type="Const">
             <output>
-                <port id="0">
+                <port id="0" precision="I64">
                     <dim>1</dim>
                 </port>
             </output>
             <blobs>
-                <custom offset="0" size="8"/>
+                <custom offset="0" precision="I64" size="8"/>
             </blobs>
         </layer>
         <layer id="3" name="iou_threshold" precision="FP32" type="Const">
             <output>
-                <port id="0">
+                <port id="0" precision="FP32">
                     <dim>1</dim>
                 </port>
             </output>
             <blobs>
-                <custom offset="8" size="4"/>
+                <custom offset="8" precision="FP32" size="4"/>
             </blobs>
         </layer>
         <layer id="4" name="score_threshold" precision="FP32" type="Const">
             <output>
-                <port id="0">
+                <port id="0" precision="FP32">
                     <dim>1</dim>
                 </port>
             </output>
             <blobs>
-                <custom offset="12" size="4"/>
+                <custom offset="12" precision="FP32" size="4"/>
             </blobs>
         </layer>
         <layer id="5" name="soft_nms_sigma" precision="FP32" type="Const">
             <output>
-                <port id="0">
+                <port id="0" precision="FP32">
                     <dim>1</dim>
                 </port>
             </output>
             <blobs>
-                <custom offset="16" size="4"/>
+                <custom offset="16" precision="FP32" size="4"/>
             </blobs>
         </layer>
         <layer id="6" name="nms" type="NonMaxSuppressionIE3" precision="I64">
@@ -208,20 +213,20 @@ TEST_F(NGraphReaderTests, ReadNonMaxSuppression5) {
                 </port>
             </input>
             <output>
-                <port id="6">
+                <port id="6" precision="I64">
                     <dim>16000</dim>
                     <dim>3</dim>
                 </port>
-                <port id="7">
+                <port id="7" precision="FP32">
                     <dim>16000</dim>
                     <dim>3</dim>
                 </port>
-                <port id="8">
+                <port id="8" precision="I64">
                     <dim>1</dim>
                 </port>
             </output>
         </layer>
-        <layer id="7" name="mul" type="Multiply" precision="I32">
+        <layer id="7" name="mul" type="Multiply" precision="I64">
             <input>
                 <port id="0">
                     <dim>16000</dim>
@@ -233,7 +238,7 @@ TEST_F(NGraphReaderTests, ReadNonMaxSuppression5) {
                 </port>
             </input>
             <output>
-                <port id="2">
+                <port id="2" precision="I64">
                     <dim>16000</dim>
                     <dim>3</dim>
                 </port>
