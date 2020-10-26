@@ -55,7 +55,6 @@ MKLDNNPlugin::MKLDNNInferRequest::MKLDNNInferRequest(InferenceEngine::InputsData
             memoryStates.emplace_back(new MKLDNNMemoryState(state_name, state_store));
         }
     }
-
 }
 
 MKLDNNPlugin::MKLDNNInferRequest::~MKLDNNInferRequest() {
