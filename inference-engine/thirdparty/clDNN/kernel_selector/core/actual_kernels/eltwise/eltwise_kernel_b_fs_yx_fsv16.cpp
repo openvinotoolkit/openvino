@@ -143,7 +143,7 @@ JitConstants EltwiseKernel_b_fs_yx_fsv16::GetJitConstants(const eltwise_params& 
     if (!params.fused_ops.empty()) {
         kernel_selector::Datatype input_dt = GetAccumulatorType(params);
 
-        FusedOpsConfiguration conf = {"", {"b", "f_block", "y", "x"}, "res", input_dt, blockSize};
+        FusedOpsConfiguration conf = {"", {"b", "f_block*16", "y", "x"}, "res", input_dt, blockSize};
         conf.load_type = FusedOpsConfiguration::LoadType::LT_ALIGNED_READ;
         conf.vec_axis = Tensor::DataChannelName::X;
 
