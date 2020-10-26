@@ -16,6 +16,7 @@
 
 from extensions.ops.Cast import Cast
 from extensions.ops.elementwise import Greater, Mul
+from mo.front.common.partial_infer.utils import float_array
 from mo.front.common.replacement import FrontReplacementPattern
 from mo.front.tf.graph_utils import create_op_with_const_inputs
 from mo.graph.graph import Graph, rename_nodes
@@ -36,7 +37,7 @@ class ThresholdedReluDecomposition(FrontReplacementPattern):
         for node in graph.get_op_nodes(op='ThresholdedRelu'):
             name = node.soft_get('name', node.id)
 
-            greater = create_op_with_const_inputs(graph, Greater, {1: node.alpha})
+            greater = create_op_with_const_inputs(graph, Greater, {1: float_array([node.alpha])})
             greater.in_port(0).connect(node.in_port(0).get_source())
             float_greater = Cast(graph,
                                  {'dst_type': data_type_str_to_np(graph.graph['cmd_params'].data_type)}).create_node()

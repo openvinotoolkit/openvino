@@ -29,7 +29,7 @@ nodes_attributes = {
     'greater': {'type': 'Greater', 'kind': 'op', 'op': 'Greater'},
     'mul': {'type': 'Multiply', 'kind': 'op', 'op': 'Mul', 'name': 'my_trelu'},
     'squeeze2': {'type': 'Squeeze', 'kind': 'op', 'op': 'Squeeze'},
-    **const('alpha', float_array(0.75)),
+    **const('alpha', float_array([0.75])),
 }
 
 
