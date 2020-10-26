@@ -659,12 +659,6 @@ CNNLayer::Ptr NodeConverter<ngraph::op::v1::Multiply>::createLayer(const std::sh
 }
 
 template <>
-CNNLayer::Ptr NodeConverter<ngraph::op::BatchNormInference>::createLayer(
-    const std::shared_ptr<ngraph::Node>& layer) const {
-    THROW_IE_EXCEPTION << "BatchNormInference operation should be fused or decomposed";
-}
-
-template <>
 CNNLayer::Ptr NodeConverter<ngraph::op::Squeeze>::createLayer(const std::shared_ptr<ngraph::Node>& layer) const {
     LayerParams params = {layer->get_friendly_name(), "Squeeze",
                           details::convertPrecision(layer->get_output_element_type(0))};
