@@ -39,8 +39,8 @@
 #include "functional_test_utils/layer_test_utils.hpp"
 #include "functional_test_utils/low_precision_transformations/layer_transformation.hpp"
 
-#include <transformations/low_precision/transformer.hpp>
-#include <transformations/low_precision/convolution.hpp>
+#include <low_precision/transformer.hpp>
+#include <low_precision/convolution.hpp>
 
 namespace LayerTestsUtils {
 
