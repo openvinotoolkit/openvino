@@ -347,8 +347,8 @@ bool pass::NopElimination::run_on_function(std::shared_ptr<Function> function) {
                    {TI(opset3::Reshape), &eliminate_reshape_v1},
                    {TI(opset3::Concat), &eliminate_concat},
                    {TI(opset3::Squeeze), &eliminate_squeeze},
-                   {TI(opset3::Unsqueeze), &eliminate_unsqueeze},
-                   {TI(op::v0::Broadcast), &eliminate_nop}};
+                   {TI(op::v1::Broadcast), &eliminate_nop},
+                   {TI(opset3::Unsqueeze), &eliminate_unsqueeze}};
 
     bool clobbered = false;
 
