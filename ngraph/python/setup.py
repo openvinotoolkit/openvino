@@ -319,7 +319,8 @@ class BuildExt(build_ext):
 
             if sys.platform == "darwin":
                 ext.extra_compile_args += ["-stdlib=libc++"]
-        _remove_compiler_flags(self)
+        if NGRAPH_PYTHON_DEBUG in ["TRUE", "ON", True]:
+            _remove_compiler_flags(self)
         build_ext.build_extensions(self)
 
 
