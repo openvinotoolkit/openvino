@@ -285,10 +285,11 @@ namespace ngraph
                 ///        Repeated values are allowed.
                 AxisSet get_axis_set_val() const;
 
-                /// \brief Update Constant shape. New shape size must equal to the data elements count
+                /// \brief Update Constant shape. New shape size must equal to the data elements
+                /// count
                 ///
                 /// \param shape The shape of the tensor constant.
-                void set_data_shape(const Shape & shape);
+                void set_data_shape(const Shape& shape);
 
                 /// \brief Wrapper around constructing a shared_ptr of a Constant
                 ///

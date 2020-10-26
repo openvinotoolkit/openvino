@@ -540,7 +540,7 @@ AxisSet op::Constant::get_axis_set_val() const
     return output_axis_set;
 }
 
-void op::Constant::set_data_shape(const Shape & shape)
+void op::Constant::set_data_shape(const Shape& shape)
 {
     NGRAPH_CHECK(shape_size(shape) == shape_size(m_shape));
     m_shape = shape;
