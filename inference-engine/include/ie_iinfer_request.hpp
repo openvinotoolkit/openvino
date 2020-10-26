@@ -180,7 +180,7 @@ public:
     virtual InferenceEngine::StatusCode SetBatch(int batch_size, ResponseDesc* resp) noexcept = 0;
 
     /**
-    * @brief Gets state control interface for given executable network.
+    * @brief Gets state control interface for given infer request.
     *
     * State control essential for recurrent networks
     *

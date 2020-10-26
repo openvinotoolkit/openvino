@@ -3,7 +3,7 @@
 //
 
 /**
- * @brief a header file for IMemoryState interface
+ * @brief a header file for IVariableState interface
  *
  * @file ie_imemory_state.hpp
  */
@@ -19,15 +19,15 @@
 namespace InferenceEngine {
 
 /**
- * @interface IMemoryState
+ * @interface IVariableState
  * @brief manages data for reset operations
  */
-class IMemoryState : public details::no_copy {
+class IVariableState : public details::no_copy {
 public:
     /**
-     * @brief A shared pointer to the IMemoryState interface
+     * @brief A shared pointer to the IVariableState interface
      */
-    using Ptr = std::shared_ptr<IMemoryState>;
+    using Ptr = std::shared_ptr<IVariableState>;
 
     /**
      * @brief Gets name of current memory state, if length of array is not enough name is truncated by len, null
@@ -72,5 +72,8 @@ public:
     virtual StatusCode GetState(Blob::CPtr& state, ResponseDesc* resp) const noexcept = 0;
 };
 
-using IVariableState = IMemoryState;
+/*
+ * @brief For compatibility reasons.
+ */
+using IMemoryState = IVariableState;
 }  // namespace InferenceEngine

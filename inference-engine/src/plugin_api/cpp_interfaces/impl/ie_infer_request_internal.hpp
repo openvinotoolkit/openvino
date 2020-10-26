@@ -256,6 +256,7 @@ protected:
 
     std::vector<IMemoryStateInternal::Ptr> QueryState() override {
         // meaning base plugin reports as no state available - plugin owners need to create proper override of this
+        THROW_IE_EXCEPTION << "Plugin doesn't override QueryState";
         return {};
     }
 

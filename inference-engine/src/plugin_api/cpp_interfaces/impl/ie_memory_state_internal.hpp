@@ -13,12 +13,12 @@ namespace InferenceEngine {
  * @brief minimal interface for memory state implementation
  * @ingroup ie_dev_api_mem_state_api
  */
-class MemoryStateInternal : public IMemoryStateInternal {
+class VariableStateInternal : public IVariableStateInternal {
     std::string name;
     Blob::Ptr state;
 
 public:
-    explicit MemoryStateInternal(std::string name): name(name) {}
+    explicit VariableStateInternal(std::string name): name(name) {}
     std::string GetName() const override {
         return name;
     }
@@ -30,4 +30,8 @@ public:
     }
 };
 
+/*
+ * @brief For compatibility reasons.
+ */
+using MemoryStateInternal = VariableStateInternal;
 }  // namespace InferenceEngine

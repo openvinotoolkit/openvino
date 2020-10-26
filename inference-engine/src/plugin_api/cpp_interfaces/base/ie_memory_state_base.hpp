@@ -12,18 +12,18 @@
 namespace InferenceEngine {
 
 /**
- * @brief default implementation for IMemoryState
+ * @brief default implementation for IVariableState
  * @ingroup ie_dev_api_mem_state_api
  */
 template <class T>
-class MemoryStateBase : public IMemoryState {
+class VariableStateBase : public IVariableState {
 protected:
     std::shared_ptr<T> impl;
 
 public:
-    explicit MemoryStateBase(std::shared_ptr<T> impl): impl(impl) {
+    explicit VariableStateBase(std::shared_ptr<T> impl): impl(impl) {
         if (impl == nullptr) {
-            THROW_IE_EXCEPTION << "MemoryStateBase implementation not defined";
+            THROW_IE_EXCEPTION << "VariableStateBase implementation not defined";
         }
     }
 
@@ -49,4 +49,8 @@ public:
     }
 };
 
+/*
+ * @brief For compatibility reasons.
+ */
+using MemoryStateBase = VariableStateBase;
 }  // namespace InferenceEngine
