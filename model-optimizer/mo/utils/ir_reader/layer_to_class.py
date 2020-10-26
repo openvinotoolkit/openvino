@@ -25,6 +25,7 @@ from extensions.ops.ReduceOps import ReduceOp
 from extensions.ops.activation_ops import Activation
 from extensions.ops.elementwise import Elementwise, UnaryElementwise, LogicalElementwise, BiasAdd, Div, Mul, Pow, Sub
 from extensions.ops.embedding_bag import EmbeddingBagBase
+from extensions.ops.loop import Loop
 from extensions.ops.psroipooling import DeformablePSROIPoolingOp
 from extensions.ops.scatter import Scatter
 from extensions.ops.scatternd import ScatterNDBase
@@ -51,6 +52,7 @@ custom_ops = {
     'Divide': Div,
     'GroupConvolution': Convolution,
     'GroupConvolutionBackpropData': Deconvolution,
+    'Loop': Loop,
     'MaxPool': Pooling,
     'Multiply': Mul,
     'Power': Pow,
