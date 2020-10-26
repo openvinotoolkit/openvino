@@ -29,5 +29,6 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*(ConstantResultSubgraphTest).*)",
         // TODO: Fix scale pre processing
         R"(.*(PreprocessTest).*(SetMeanValuePreProcess).*)",
+        R"(.*(PreprocessTest).*(ReverseInputChannelsPreProcess).*)",
     };
 }
