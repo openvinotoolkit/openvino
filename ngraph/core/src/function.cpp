@@ -91,6 +91,20 @@ Function::Function(const ResultVector& results,
     validate_nodes_and_infer_types();
 }
 
+Function::Function(const OutputVector& results,
+    const SinkVector& sinks,
+    const ParameterVector& parameters,
+    const std::string& name)
+    : m_results(as_result_vector(results))
+    , m_sinks(sinks)
+    , m_parameters(parameters)
+    , m_name(name)
+    , m_unique_name("Function_" + to_string(m_next_instance_id.fetch_add(1)))
+    , m_topological_sorter(topological_sort<std::vector<std::shared_ptr<Node>>>)
+{
+    validate_nodes_and_infer_types();
+}
+
 void Function::validate_nodes_and_infer_types()
 {
     OV_ITT_SCOPED_TASK(itt::domains::nGraph, "Function::validate_nodes_and_infer_types");
