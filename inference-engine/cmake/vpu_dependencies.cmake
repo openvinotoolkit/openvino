@@ -13,7 +13,7 @@ endif()
 
 include(dependency_solver)
 
-set(VPU_SUPPORTED_FIRMWARES usb-ma2450 usb-ma2x8x pcie-ma248x)
+set(VPU_SUPPORTED_FIRMWARES usb-ma2x8x pcie-ma248x)
 
 #
 # Default packages
