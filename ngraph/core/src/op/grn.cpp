@@ -19,6 +19,7 @@
 #include "grn.hpp"
 #include "ngraph/attribute_visitor.hpp"
 #include "ngraph/axis_set.hpp"
+#include "ngraph/builder/autobroadcast.hpp"
 #include "ngraph/builder/norm.hpp"
 #include "ngraph/builder/reshape.hpp"
 #include "ngraph/op/broadcast.hpp"
@@ -81,8 +82,8 @@ OutputVector op::GRN::decompose_op() const
     // Calculate l2 norm across channels.
     shared_ptr<Node> norm = builder::opset1::l2_norm(data, axis_set_const, m_bias);
     // Get back reduced axis.
-    norm = std::make_shared<Broadcast>(norm, data.get_shape(), AxisSet{1});
-    data = data / norm;
+    data = std::make_shared<op::v1::Divide>(
+        data, builder::opset1::make_broadcast(norm, data.get_shape(), AxisSet{1}));
 
     // get back original input tensor rank
     if (input_shape.size() != 4)
