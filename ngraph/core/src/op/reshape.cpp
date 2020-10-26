@@ -471,6 +471,7 @@ bool op::v1::Reshape::constant_fold(OutputVector& output_values, const OutputVec
         if (data_const->output(0).get_target_inputs().size() == 1)
         {
             data_const->set_data_shape(shape);
+            data_const->validate_and_infer_types();
             output_values[0] = data_const;
         }
         else
@@ -478,6 +479,7 @@ bool op::v1::Reshape::constant_fold(OutputVector& output_values, const OutputVec
             output_values[0] = std::make_shared<op::Constant>(
                 data_const->get_element_type(), shape, data_const->get_data_ptr());
         }
+        return true;
     }
-    return true;
+    return false;
 }
