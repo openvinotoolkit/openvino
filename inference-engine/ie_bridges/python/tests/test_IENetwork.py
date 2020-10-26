@@ -209,7 +209,6 @@ def test_read_net_from_buffer_deprecated():
 
 
 def test_net_from_buffer_valid_deprecated():
-    import ngraph as ng
     ie = IECore()
     with open(test_net_bin, 'rb') as f:
         bin = f.read()
