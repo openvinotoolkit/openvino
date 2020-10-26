@@ -265,6 +265,12 @@ private:
             adapter.set(value);
         }
 
+        void on_adapter(const std::string& name, ngraph::ValueAccessor<std::vector<int32_t>>& adapter) override {
+            std::vector<int32_t> value;
+            if (!getParameters<int32_t>(node.child("data"), name, value)) return;
+            adapter.set(value);
+        }
+
         void on_adapter(const std::string& name, ngraph::ValueAccessor<std::vector<float>>& adapter) override {
             std::vector<float> value;
             if (!getParameters<float>(node.child("data"), name, value)) return;
