@@ -360,7 +360,7 @@ private:
     }
 
     static void append_pv(BlobSerializer& serializer, const PV& pv) {
-        int ndims = pv.size();
+        int ndims = static_cast<int>(pv.size());
         append_i(serializer, ndims);
         for (int i = 0; i < ndims; i++) {
             append_i(serializer, pv[i]);
@@ -387,7 +387,7 @@ void parsePoolND(const     Model      & model,
     VPU_THROW_UNLESS(poolLayer != nullptr, "failed dynamic cast to PoolingLayer");
 
     auto kernel_shape = poolLayer->_kernel;
-    int kernel_ndims = kernel_shape.size();
+    int kernel_ndims = static_cast<int>(kernel_shape.size());
     // Yet, only 3D kernel supported (NCDHW)
     // Later, if support 4D, 5D, etc, please
     // check if (kernelNDims >= 3), so that

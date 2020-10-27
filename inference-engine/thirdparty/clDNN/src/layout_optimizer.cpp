@@ -178,7 +178,8 @@ bool layout_optimizer::can_fuse_reorder(program_node& prev, program_node& next, 
     if (next.is_type<convolution>() && fmt_prev == format::b_fs_yx_fsv16 && fmt_next == format::b_fs_yx_fsv4 && is_input_idx(0))
         return true;
 
-    if (next.is_type<quantize>() && fmt_prev == format::bfyx && prev.is_input() && prev_dt == data_types::u8)
+    if (next.is_type<quantize>() && (fmt_prev == format::bfyx || fmt_prev == format::bfzyx) &&
+        prev.is_input() && (prev_dt == data_types::u8 || prev_dt == data_types::i8))
         return true;
 
     if (next.is_type<convolution>() &&
@@ -202,8 +203,9 @@ bool layout_optimizer::can_fuse_reorder(program_node& prev, program_node& next, 
         (prev_output_layout.size.feature[0] == 3 || (prev_output_layout.size.feature[0] == 4 && (prev_dt == data_types::u8 || prev_dt == data_types::i8))))))
         return true;
 
-    if (next.is_type<quantize>() && fmt_prev == format::bfyx && (fmt_next == format::b_fs_yx_fsv16 ||
-        fmt_next == format::bs_fs_yx_bsv16_fsv16 || fmt_next == format::b_fs_yx_fsv4))
+    if (next.is_type<quantize>() && (fmt_prev == format::bfyx || fmt_prev == format::bfzyx) &&
+        (fmt_next == format::b_fs_yx_fsv16 || fmt_next == format::b_fs_zyx_fsv16 ||
+         fmt_next == format::bs_fs_yx_bsv16_fsv16 || fmt_next == format::b_fs_yx_fsv4))
         return true;
 
     if (next.is_type<convolution>() &&
@@ -230,7 +232,7 @@ bool layout_optimizer::can_fuse_reorder_to_prev(program_node& prev, program_node
 
     if (prev.is_type<quantize>() &&
         (fmt_next == format::b_fs_yx_fsv4 || fmt_next == format::b_fs_yx_fsv32 || fmt_next == format::b_fs_zyx_fsv32 ||
-         fmt_next == format::b_fs_yx_fsv16 || fmt_next == format::bs_fs_yx_bsv16_fsv16))
+         fmt_next == format::b_fs_yx_fsv16 || fmt_next == format::b_fs_zyx_fsv16 || fmt_next == format::bs_fs_yx_bsv16_fsv16))
         return true;
 
     return false;
@@ -801,6 +803,8 @@ format layout_optimizer::get_preferred_format(program_node& node) {
             } else {
                 expected = format::b_fs_yx_fsv4;
             }
+        } else if (layout.format.spatial_num() == 3 && (layout.data_type == data_types::i8 || layout.data_type == data_types::u8)) {
+            expected = format::b_fs_zyx_fsv16;
         }
     } else if (node.is_type<reorder>() || node.is_type<input_layout>()) {
         expected = node.get_output_layout().format;

@@ -38,7 +38,7 @@ void op::CropIE::validate_and_infer_types() {
 
     ngraph::Shape output_shape(input_shape);
     for (int i = 0; i < axes.size(); ++i) {
-        NODE_VALIDATION_CHECK(this, axes[i] >= 0 && axes[i] < output_shape.size(),
+        NODE_VALIDATION_CHECK(this, axes[i] >= 0 && axes[i] < static_cast<int64_t>(output_shape.size()),
                               "axes should be positive and less than number of input dims");
         output_shape[axes[i]] = dim[i];
     }

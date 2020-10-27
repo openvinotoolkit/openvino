@@ -59,10 +59,6 @@ target_compile_definitions(${TARGET_NAME}_test_static
 
 target_link_libraries(${TARGET_NAME}_test_static PUBLIC inference_engine_preproc_s libGNA::API)
 
-if (USE_CNNNETWORK_LPT)
-        target_link_libraries(${TARGET_NAME}_test_static PUBLIC inference_engine_lp_transformations)
-endif()
-
 target_include_directories(${TARGET_NAME}_test_static PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 set_target_properties(${TARGET_NAME}_test_static PROPERTIES COMPILE_PDB_NAME ${TARGET_NAME}_test_static)
 
