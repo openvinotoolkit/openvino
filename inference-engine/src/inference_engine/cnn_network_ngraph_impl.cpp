@@ -23,13 +23,13 @@
 #include <transformations/utils/utils.hpp>
 #include <transformations/smart_reshape/set_batch_size.hpp>
 #include <transformations/smart_reshape/smart_reshape.hpp>
+#include "transformations/serialize.hpp"
 
 #include <legacy/transformations/convert_opset1_to_legacy/convert_one_hot_to_one_hot_ie.hpp>
 #include <legacy/ie_ngraph_utils.hpp>
 
 #include "exec_graph_info.hpp"
 #include "ie_itt.hpp"
-#include "network_serializer.hpp"
 #include "generic_ie.hpp"
 #include "shape_infer/ie_built_in_holder.hpp"
 
@@ -418,43 +418,31 @@ CNNNetworkNGraphImpl::reshape(const std::map<std::string, std::vector<size_t>>& 
     }
 }
 
-StatusCode CNNNetworkNGraphImpl::serialize(const std::string& xmlPath, const std::string& binPath,
+StatusCode CNNNetworkNGraphImpl::serialize(const std::string& xmlPath,
+                                           const std::string& binPath,
                                            ResponseDesc* resp) const noexcept {
-    auto network = cnnNetwork;
-    if (!network) {
-        // TODO: once Serialization::SerializeV10 supports true IR v10
-        // remove this conversion and WA for execution graph
-        try {
-            bool isExecutionGraph = true;
-            for (const auto & op : _ngraph_function->get_ops()) {
-                auto & rtInfo = op->get_rt_info();
-                if (rtInfo.find(ExecGraphInfoSerialization::PERF_COUNTER) == rtInfo.end()) {
-                    isExecutionGraph = false;
-                    break;
-                }
-            }
-            if (isExecutionGraph) {
-                Serialization::SerializeV10(xmlPath, binPath, (InferenceEngine::ICNNNetwork&)*this);
-                return OK;
-            }
-
+    try {
+        if (getFunction()) {
+            ngraph::pass::Manager manager;
+            manager.register_pass<ngraph::pass::Serialize>(xmlPath, binPath);
+            manager.run_passes(_ngraph_function);
+        } else {
 #ifdef ENABLE_V7_SERIALIZE
-            network = std::make_shared<details::CNNNetworkImpl>(*this);
-#endif
-        } catch (const InferenceEngineException& e) {
-            return DescriptionBuffer(GENERAL_ERROR, resp) << e.what();
-        } catch (const std::exception& e) {
-            return DescriptionBuffer(UNEXPECTED, resp) << e.what();
-        } catch (...) {
-            return DescriptionBuffer(UNEXPECTED, resp);
-        }
-    }
-
-#ifdef ENABLE_V7_SERIALIZE
-    return network->serialize(xmlPath, binPath, resp);
+            auto network = std::make_shared<details::CNNNetworkImpl>(*this);
+            return network->serialize(xmlPath, binPath, resp);
 #else
-    return DescriptionBuffer(NOT_IMPLEMENTED, resp) << "The serialize for IR v10 is not implemented";
+            return DescriptionBuffer(NOT_IMPLEMENTED, resp)
+                   << "The serialization of legacy IR is not implemented";
 #endif
+        }
+    } catch (const InferenceEngineException& e) {
+        return DescriptionBuffer(GENERAL_ERROR, resp) << e.what();
+    } catch (const std::exception& e) {
+        return DescriptionBuffer(UNEXPECTED, resp) << e.what();
+    } catch (...) {
+        return DescriptionBuffer(UNEXPECTED, resp);
+    }
+    return OK;
 }
 
 StatusCode CNNNetworkNGraphImpl::setBatchSize(size_t size, ResponseDesc* responseDesc) noexcept {
