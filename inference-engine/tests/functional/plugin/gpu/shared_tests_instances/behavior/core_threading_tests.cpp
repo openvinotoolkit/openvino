@@ -4,6 +4,7 @@
 
 #include <behavior/core_threading_tests.hpp>
 #include <remote_blob_tests/remote_blob_helpers.hpp>
+#include <cldnn/cldnn_config.hpp>
 
 using namespace InferenceEngine;
 using namespace InferenceEngine::gpu;
@@ -13,6 +14,7 @@ namespace {
 Params params[] = {
     std::tuple<Device, Config>{ CommonTestUtils::DEVICE_GPU, { { CONFIG_KEY(PERF_COUNT), CONFIG_VALUE(YES) }}},
     std::tuple<Device, Config>{ CommonTestUtils::DEVICE_GPU, { { CONFIG_KEY(PERF_COUNT), CONFIG_VALUE(NO) }}},
+    std::tuple<Device, Config>{ CommonTestUtils::DEVICE_GPU, { { CLDNN_CONFIG_KEY(KERNELS_CACHE_DIR), "cache" }}},
 };
 
 }  // namespace
