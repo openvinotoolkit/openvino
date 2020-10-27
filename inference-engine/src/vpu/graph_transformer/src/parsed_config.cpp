@@ -67,6 +67,7 @@ IE_SUPPRESS_DEPRECATED_START
         ie::MYRIAD_ENABLE_TENSOR_ITERATOR_UNROLLING,
         ie::MYRIAD_FORCE_PURE_TENSOR_ITERATOR,
         ie::MYRIAD_DISABLE_CONVERT_STAGES,
+        ie::MYRIAD_ENABLE_WEIGHTS_ANALYSIS,
 
         //
         // Debug options
@@ -182,6 +183,7 @@ void ParsedConfig::parse(const std::map<std::string, std::string>& config) {
     setOption(_compileConfig.enableTensorIteratorUnrolling,  switches, config, ie::MYRIAD_ENABLE_TENSOR_ITERATOR_UNROLLING);
     setOption(_compileConfig.forcePureTensorIterator,        switches, config, ie::MYRIAD_FORCE_PURE_TENSOR_ITERATOR);
     setOption(_compileConfig.disableConvertStages,           switches, config, ie::MYRIAD_DISABLE_CONVERT_STAGES);
+    setOption(_compileConfig.enableWeightsAnalysis,         switches, config, ie::MYRIAD_ENABLE_WEIGHTS_ANALYSIS);
 
     setOption(_compileConfig.irWithVpuScalesDir,                       config, ie::MYRIAD_IR_WITH_SCALES_DIRECTORY);
     setOption(_compileConfig.noneLayers,                               config, ie::MYRIAD_NONE_LAYERS, parseStringSet);
