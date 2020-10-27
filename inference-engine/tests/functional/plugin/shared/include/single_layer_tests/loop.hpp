@@ -79,4 +79,66 @@ protected:
     void SetUp() override;
 };
 
+
+class TrivialLoopTest : public testing::WithParamInterface<LayerTestsUtils::basicParams>,
+                        virtual public LayerTestsUtils::LayerTestsCommon {
+protected:
+    using RefBlobGenerator = std::function<InferenceEngine::Blob::Ptr (const InferenceEngine::TensorDesc &info)>;
+    std::map<std::string, RefBlobGenerator> inputGens, outputGens;
+
+    InferenceEngine::Blob::Ptr GenerateInput(const InferenceEngine::InputInfo &info) const override {
+        auto found = inputGens.find(info.name());
+        if (found != inputGens.end()) {
+            return found->second(info.getTensorDesc());
+        }
+
+        found = inputGens.find("");
+        if (found != inputGens.end()) {
+            return found->second(info.getTensorDesc());
+        }
+
+        return LayerTestsCommon::GenerateInput(info);
+    }
+
+    std::vector<std::vector<std::uint8_t>> CalculateRefs() override {
+        if (outputGens.empty())
+            return LayerTestsCommon::CalculateRefs();
+
+        const auto results = function->get_results();
+        const auto outs_info = cnnNetwork.getOutputsInfo();
+        const auto num_out_blob = results.size();
+
+        std::vector<std::vector<std::uint8_t>> res_collection(num_out_blob);
+
+        for (int i = 0; i < num_out_blob; i++) {
+            // TODO: name of original NG result doesn't match with outs after conversion.
+            //       Expected : auto name = results[i]->get_friendly_name();
+            auto name = results[i]->get_input_node_ptr(0)->get_friendly_name();
+            auto data = outs_info.at(name);
+            IE_ASSERT(data != nullptr);
+
+            RefBlobGenerator generator;
+            auto found = outputGens.find(name);
+            if (found != outputGens.end()) {
+                generator = found->second;
+            } else {
+                found = outputGens.find("");
+                if (found != outputGens.end()) {
+                    generator = found->second;
+                }
+            }
+
+            IE_ASSERT(generator != nullptr) << "Test output generator is not specified";
+            auto blob = generator(data->getTensorDesc());
+            auto blob_size = blob->byteSize();
+            auto blob_ptr = blob->buffer().as<uint8_t*>();
+
+            auto &res = res_collection[i];
+            res.resize(blob_size);
+            std::copy(blob_ptr, blob_ptr + blob_size, res.begin());
+        }
+        return res_collection;
+    }
+};
+
 }  // namespace LayerTestsDefinitions
