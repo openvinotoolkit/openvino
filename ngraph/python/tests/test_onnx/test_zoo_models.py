@@ -42,7 +42,7 @@ from tests import (
     xfail_issue_39669,
     xfail_issue_38726)
 
-MODELS_ROOT_DIR = tests.MODEL_ZOO_DIR
+MODELS_ROOT_DIR = "/shared/"
 
 tolerance_map = {
     "arcface_lresnet100e_opset8": {"atol": 0.001, "rtol": 0.001},
