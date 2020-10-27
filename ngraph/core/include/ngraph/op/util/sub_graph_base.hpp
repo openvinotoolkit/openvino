@@ -387,7 +387,6 @@ namespace ngraph
     FactoryRegistry<op::util::SubGraphOp::OutputDescription>&
         FactoryRegistry<op::util::SubGraphOp::OutputDescription>::get();
 
-
     template <>
     class NGRAPH_API AttributeAdapter<std::shared_ptr<op::util::SubGraphOp::OutputDescription>>
         : public FactoryAttributeAdapter<op::util::SubGraphOp::OutputDescription>
