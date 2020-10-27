@@ -43,7 +43,7 @@ INSTANTIATE_TEST_CASE_P(smoke_Set1, CTCLossLayerTest,
                             ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                         CTCLossLayerTest::getTestCaseName);
 
-const auto ctcLossArgsSubset2 = ::testing::Combine(
+/*const auto ctcLossArgsSubset2 = ::testing::Combine(
         ::testing::Values(std::vector<size_t>({3, 6, 8})),                          // logits shape
         ::testing::ValuesIn(std::vector<std::vector<int>>({{6, 5, 6}, {5, 5, 5}})), // logits length
         ::testing::ValuesIn(std::vector<std::vector<std::vector<int>>>(
@@ -62,5 +62,5 @@ INSTANTIATE_TEST_CASE_P(smoke_Set2, CTCLossLayerTest,
                             ::testing::ValuesIn(fPrecisions),
                             ::testing::ValuesIn(iPrecisions),
                             ::testing::Values(CommonTestUtils::DEVICE_CPU)),
-                        CTCLossLayerTest::getTestCaseName);
+                        CTCLossLayerTest::getTestCaseName);*/
 }  // namespace
