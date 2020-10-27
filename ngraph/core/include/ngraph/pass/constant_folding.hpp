@@ -37,7 +37,6 @@ public:
     {
         m_cfmap = cfmap;
         m_enable_shape_inference = true;
-        construct_constant_quantize();
         construct_constant_convert();
         construct_constant_logical_reduction();
         construct_constant_gather_with_subgraph();
@@ -48,7 +47,6 @@ public:
     }
 
 private:
-    void construct_constant_quantize();
     void construct_constant_convert();
     void construct_constant_logical_reduction();
     void construct_constant_gather_with_subgraph();

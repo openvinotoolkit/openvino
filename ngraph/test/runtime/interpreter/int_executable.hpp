@@ -900,53 +900,6 @@ protected:
                                            args[0]->get_element_type().size());
             break;
         }
-        case OP_TYPEID::Quantize:
-        {
-            const op::Quantize* quantize = static_cast<const op::Quantize*>(&node);
-            auto type = quantize->get_element_type();
-
-            if (type == element::u8)
-            {
-                reference::quantize<T>(args[0]->get_data_ptr<const T>(),
-                                       args[1]->get_data_ptr<const T>(),
-                                       args[2]->get_data_ptr<const uint8_t>(),
-                                       out[0]->get_data_ptr<uint8_t>(),
-                                       node.get_input_shape(0),
-                                       node.get_input_shape(1),
-                                       quantize->get_axes(),
-                                       quantize->get_round_mode());
-            }
-            else if (type == element::i8)
-            {
-                reference::quantize<T>(args[0]->get_data_ptr<const T>(),
-                                       args[1]->get_data_ptr<const T>(),
-                                       args[2]->get_data_ptr<const int8_t>(),
-                                       out[0]->get_data_ptr<int8_t>(),
-                                       node.get_input_shape(0),
-                                       node.get_input_shape(1),
-                                       quantize->get_axes(),
-                                       quantize->get_round_mode());
-            }
-            else if (type == element::i32)
-            {
-                reference::quantize<T>(args[0]->get_data_ptr<const T>(),
-                                       args[1]->get_data_ptr<const T>(),
-                                       args[2]->get_data_ptr<const int32_t>(),
-                                       out[0]->get_data_ptr<int32_t>(),
-                                       node.get_input_shape(0),
-                                       node.get_input_shape(1),
-                                       quantize->get_axes(),
-                                       quantize->get_round_mode());
-            }
-            else
-            {
-                std::stringstream ss;
-                ss << "unsupported element type " << type << " op Quantize";
-                throw std::runtime_error(ss.str());
-            }
-
-            break;
-        }
 
         case OP_TYPEID::QuantizedConvolution:
         {
@@ -1446,6 +1399,7 @@ protected:
         case OP_TYPEID::Or:
         case OP_TYPEID::Power:
         case OP_TYPEID::Product:
+        case OP_TYPEID::Quantize:
         case OP_TYPEID::Range:
         case OP_TYPEID::Reshape:
         case OP_TYPEID::Result:
