@@ -38,12 +38,12 @@ std::shared_ptr<ngraph::Node> calculate_output_shape(
 
     VPU_THROW_UNLESS(begin.size() == end.size() && begin.size() == strides.size(),
         "Begin, end and strides inputs must be of the same size, but {}, {} and {} given accordingly", begin.size(), end.size(), strides.size());
-    const auto inputShapeRank = input_shape.get_partial_shape()[0].get_length();
+    const auto inputShapeRank = static_cast<size_t>(input_shape.get_partial_shape()[0].get_length());
     VPU_THROW_UNLESS(inputShapeRank >= begin.size(),
         "Input shape rank must not be less than begin/end/strides size, but {} and {} given accordingly", inputShapeRank, begin.size());
 
     ngraph::OutputVector output_dimensions;
-    for (int64_t axis = 0; axis < begin.size(); ++axis) {
+    for (size_t axis = 0; axis < begin.size(); ++axis) {
         auto lb = begin[axis], ub = end[axis], stride = strides[axis];
 
         ngraph::Output<ngraph::Node> lower_bound = ngraph::opset3::Constant::create(shape_type, {1}, {lb});

@@ -80,7 +80,7 @@ void FrontEnd::parseResample(const Model& model, const ie::CNNLayerPtr& layer, c
     auto stage = model->addNewStage<ResampleStage>(layer->name, StageType::Resample, layer, inputs, outputs);
 
     stage->attrs().set<bool>("antialias", layer->GetParamAsInt("antialias", 0));
-    stage->attrs().set<float>("factor", layer->GetParamAsInt("factor", -1.0f));
+    stage->attrs().set<float>("factor", layer->GetParamAsFloat("factor", -1.0f));
 
     auto method = layer->GetParamAsString("type", "caffe.ResampleParameter.NEAREST");
     if (cmp(method, "caffe.ResampleParameter.NEAREST")) {
