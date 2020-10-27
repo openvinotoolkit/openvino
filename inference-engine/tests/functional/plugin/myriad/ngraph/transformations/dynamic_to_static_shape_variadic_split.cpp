@@ -76,7 +76,7 @@ protected:
 
         auto outputShape = node->get_output_partial_shape(0);
         const auto function = std::make_shared<ngraph::Function>(
-            ngraph::OutputVector{node->outputs()},
+            node->outputs(),
             ngraph::ParameterVector{data, dims},
             "Actual");
         node->set_output_type(0, dsr->get_input_element_type(0), ngraph::PartialShape::dynamic(variadic_split_setup.data_shape.size()));
