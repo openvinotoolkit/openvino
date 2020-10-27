@@ -152,9 +152,9 @@ def gru_sequence(
     B: NodeInput,
     hidden_size: int,
     direction: str,
-    activations: List[str] = ["sigmoid", "tanh"],
-    activations_alpha: List[float] = [],
-    activations_beta: List[float] = [],
+    activations: List[str] = None,
+    activations_alpha: List[float] = None,
+    activations_beta: List[float] = None,
     clip: float = 0.0,
     linear_before_reset: bool = False,
     name: Optional[str] = None,
@@ -163,7 +163,7 @@ def gru_sequence(
 
     :param X: 3D tensor, input data.
     :param H_t: 3D tensor, input hidden state data.
-    :param sequence_lengths: 1D tensor, specifies sequence lenghts 
+    :param sequence_lengths: 1D tensor, specifies sequence lenghts
         for each batch element.
     :param W: 3D tensor, weights matrix.
     :param R: 3D tensor, recurrence weights matrix.
@@ -171,15 +171,21 @@ def gru_sequence(
     :param hidden_size: Size of the hidden state.
     :param direction: Specify if the RNN is forward, reverse, or bidirectional.
     :param activations: Activation functions for gates.
-    :param activations_alpha: Attributes of function; applicability and meaning 
+    :param activations_alpha: Attributes of function; applicability and meaning
         of these attributes depends on choosen activation function.
-    :param activations_beta: Attributes of function; applicability and meaning 
+    :param activations_beta: Attributes of function; applicability and meaning
         of these attributes depends on choosen activation function.
     :param clip: Specifies bound values *[-clip, clip]* for tensor clipping.
-    :param linear_before_reset: During the computation of the output of 
+    :param linear_before_reset: During the computation of the output of
         the hidden gate, apply the linear transformation.
     :return: The new node which performs GRUSequence
     """
+    if activations is None:
+        activations = ["sigmoid", "tanh"]
+    if activations_alpha is None:
+        activations_alpha = []
+    if activations_beta is None:
+        activations_beta = []
 
     inputs = as_nodes(X, H_t, sequence_lengths, W, R, B)
 
@@ -205,9 +211,9 @@ def rnn_sequence(
     B: NodeInput,
     hidden_size: int,
     direction: str,
-    activations: List[str] = ["tanh"],
-    activations_alpha: List[float] = [],
-    activations_beta: List[float] = [],
+    activations: List[str] = None,
+    activations_alpha: List[float] = None,
+    activations_beta: List[float] = None,
     clip: float = 0.0,
     name: Optional[str] = None,
 ) -> Node:
@@ -215,7 +221,7 @@ def rnn_sequence(
 
     :param X: 3D tensor, input data.
     :param H_t: 3D tensor, input hidden state data.
-    :param sequence_lengths: 1D tensor, specifies sequence lenghts 
+    :param sequence_lengths: 1D tensor, specifies sequence lenghts
         for each batch element.
     :param W: 3D tensor, weights matrix.
     :param R: 3D tensor, recurrence weights matrix.
@@ -223,13 +229,19 @@ def rnn_sequence(
     :param hidden_size: Size of the hidden state.
     :param direction: Specify if the RNN is forward, reverse, or bidirectional.
     :param activations: Activation functions for gates.
-    :param activations_alpha: Attributes of function; applicability and meaning 
+    :param activations_alpha: Attributes of function; applicability and meaning
         of these attributes depends on choosen activation function.
-    :param activations_beta: Attributes of function; applicability and meaning 
+    :param activations_beta: Attributes of function; applicability and meaning
         of these attributes depends on choosen activation function.
     :param clip: Specifies bound values *[-clip, clip]* for tensor clipping.
     :return: The new node which performs RNNSequence
     """
+    if activations is None:
+        activations = ["tanh"]
+    if activations_alpha is None:
+        activations_alpha = []
+    if activations_beta is None:
+        activations_beta = []
 
     inputs = as_nodes(X, H_t, sequence_lengths, W, R, B)
 
@@ -252,13 +264,12 @@ def loop(
 ) -> Node:
     """Return a node which performs Loop.
 
-    :param trip_count: A scalar or 1D tensor with 1 element specifying 
+    :param trip_count: A scalar or 1D tensor with 1 element specifying
         maximum number of iterations.
-    :param execution_condition: A scalar or 1D tensor with 1 element 
+    :param execution_condition: A scalar or 1D tensor with 1 element
         specifying whether to execute the first iteration or not.
     :return: The new node which performs Loop.
     """
-
     inputs = as_nodes(trip_count, execution_condition)
 
     return _get_node_factory_opset5().create("Loop", inputs)
