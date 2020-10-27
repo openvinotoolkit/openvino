@@ -154,7 +154,7 @@ const auto Mvn3D = ::testing::Combine(
         ::testing::ValuesIn(inpOutPrc),
         ::testing::ValuesIn(inpOutPrc));
 
-INSTANTIATE_TEST_CASE_P(CompareWithRefs_3D, MvnLayerCPUTest, Mvn3D, MvnLayerCPUTest::getTestCaseName);
+INSTANTIATE_TEST_CASE_P(smoke_CompareWithRefs_3D, MvnLayerCPUTest, Mvn3D, MvnLayerCPUTest::getTestCaseName);
 
 const auto Mvn4D = ::testing::Combine(
         ::testing::Combine(
@@ -168,7 +168,37 @@ const auto Mvn4D = ::testing::Combine(
         ::testing::ValuesIn(inpOutPrc),
         ::testing::ValuesIn(inpOutPrc));
 
-INSTANTIATE_TEST_CASE_P(CompareWithRefs_4D, MvnLayerCPUTest, Mvn4D, MvnLayerCPUTest::getTestCaseName);
+INSTANTIATE_TEST_CASE_P(smoke_CompareWithRefs_4D, MvnLayerCPUTest, Mvn4D, MvnLayerCPUTest::getTestCaseName);
+
+
+const auto MvnNHWC = ::testing::Combine(
+        ::testing::Combine(
+                ::testing::ValuesIn(inputShapes_4D),
+                ::testing::Values(InferenceEngine::Precision::FP32),
+                ::testing::Values(false),
+                ::testing::Values(true),
+                ::testing::ValuesIn(epsilon),
+                ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+        ::testing::Values(CPUSpecificParams({nhwc}, {nhwc}, {}, {})),
+        ::testing::ValuesIn(inpOutPrc),
+        ::testing::ValuesIn(inpOutPrc));
+
+INSTANTIATE_TEST_CASE_P(smoke_CompareWithRefs_4D_NHWC, MvnLayerCPUTest, MvnNHWC, MvnLayerCPUTest::getTestCaseName);
+
+const auto MvnNDHWC = ::testing::Combine(
+        ::testing::Combine(
+                ::testing::ValuesIn(inputShapes_5D),
+                ::testing::Values(InferenceEngine::Precision::FP32),
+                ::testing::Values(false),
+                ::testing::Values(true),
+                ::testing::ValuesIn(epsilon),
+                ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+        ::testing::Values(CPUSpecificParams({ndhwc}, {ndhwc}, {}, {})),
+        ::testing::ValuesIn(inpOutPrc),
+        ::testing::ValuesIn(inpOutPrc));
+
+INSTANTIATE_TEST_CASE_P(smoke_CompareWithRefs_5D_NDHWC, MvnLayerCPUTest, MvnNDHWC, MvnLayerCPUTest::getTestCaseName);
+
 
 const auto Mvn5D = ::testing::Combine(
         ::testing::Combine(
@@ -182,7 +212,8 @@ const auto Mvn5D = ::testing::Combine(
         ::testing::ValuesIn(inpOutPrc),
         ::testing::ValuesIn(inpOutPrc));
 
-INSTANTIATE_TEST_CASE_P(CompareWithRefs_5D, MvnLayerCPUTest, Mvn5D, MvnLayerCPUTest::getTestCaseName);
+
+INSTANTIATE_TEST_CASE_P(smoke_CompareWithRefs_5D, MvnLayerCPUTest, Mvn5D, MvnLayerCPUTest::getTestCaseName);
 
 
 } // namespace

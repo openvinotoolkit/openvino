@@ -144,21 +144,30 @@ std::vector<std::vector<std::uint8_t>> interpreterFunction(const std::shared_ptr
 }
 
 std::shared_ptr<Function> foldFunction(const std::shared_ptr<Function> &function,
-                                       const std::vector<std::vector<std::uint8_t>> &inputs) {
+                                       const std::vector<std::vector<std::uint8_t>> &inputs, element::Type_t inpType) {
     std::vector<element::Type> paramElementTypes;
     std::vector<PartialShape> paramShapes;
+    std::vector<std::vector<std::uint8_t>> vecTmpConvertedInputs;
+    vecTmpConvertedInputs.reserve(inputs.size());
+
+    std::vector<void *> inBuffers;
+    inBuffers.reserve(inputs.size());
+
     for (const auto &param : function->get_parameters()) {
         paramElementTypes.emplace_back(param->get_element_type());
         paramShapes.emplace_back(param->get_shape());
-    }
+        auto parameterIndex = function->get_parameter_index(param);
+        auto& input = inputs[parameterIndex];
 
-    auto inBuffers = std::vector<void *>(inputs.size());
-    std::transform(inputs.cbegin(), inputs.cend(), inBuffers.begin(),
-                   [](const std::vector<std::uint8_t> &input) {
-                       // const_cast added to satisfy specialize_function interface
-                       // which requires inputs as std::vector<void *>
-                       return const_cast<std::uint8_t *>(input.data());
-                   });
+        if (inpType != element::undefined && inpType != paramElementTypes.back()) {
+            vecTmpConvertedInputs.emplace_back(convertOutputPrecision(input, inpType, param->get_element_type(), shape_size(param->get_shape())));
+            inBuffers.push_back(vecTmpConvertedInputs.back().data());
+        } else {
+            // const_cast added to satisfy specialize_function interface
+            // which requires inputs as std::vector<void *>
+            inBuffers.push_back(const_cast<std::uint8_t *>(input.data()));
+        }
+    }
 
     const auto &foldedFunc = specialize_function(function, paramElementTypes, paramShapes, inBuffers);
     ngraph::pass::ConstantFolding().run_on_function(foldedFunc);

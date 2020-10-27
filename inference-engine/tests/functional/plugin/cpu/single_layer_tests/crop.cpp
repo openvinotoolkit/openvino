@@ -112,7 +112,7 @@ const auto CropParamsPlain2D = ::testing::Combine(
         ::testing::Values(additional_config),
         ::testing::Values(emptyCPUSpec));
 
-INSTANTIATE_TEST_CASE_P(CompareWithRefs_Plain_2D, CropLayerCPUTest, CropParamsPlain2D, CropLayerCPUTest::getTestCaseName);
+INSTANTIATE_TEST_CASE_P(smoke_CompareWithRefs_Plain_2D, CropLayerCPUTest, CropParamsPlain2D, CropLayerCPUTest::getTestCaseName);
 
 std::vector<testCaseParams> testCasesPlain4D = {testCaseParams{{1, 5, 32, 32}, {1, 2, 23, 23}, {0, 2, 5, 4}},
                                                 testCaseParams{{1, 5, 32, 32}, {1, 5, 5, 5}, {0, 0, 20, 20}},
@@ -131,7 +131,7 @@ const auto CropParamsPlain4D = ::testing::Combine(
                 ::testing::Values(additional_config),
                 ::testing::Values(cpuParams_4D.at(1)));
 
-INSTANTIATE_TEST_CASE_P(CompareWithRefs_Plain_4D, CropLayerCPUTest, CropParamsPlain4D, CropLayerCPUTest::getTestCaseName);
+INSTANTIATE_TEST_CASE_P(smoke_CompareWithRefs_Plain_4D, CropLayerCPUTest, CropParamsPlain4D, CropLayerCPUTest::getTestCaseName);
 
 std::vector<testCaseParams> testCasesBlocked4D = {testCaseParams{{1, 16, 32, 32}, {1, 16, 5, 5}, {0, 0, 20, 20}},
                                                   testCaseParams{{1, 32, 32, 32}, {1, 16, 32, 10}, {0, 0, 0, 20}}};
@@ -143,7 +143,7 @@ const auto CropParamsBlocked4D = ::testing::Combine(
         ::testing::Values(additional_config),
         ::testing::Values(filterCPUSpecificParams(cpuParams_4D).front()));
 
-INSTANTIATE_TEST_CASE_P(CompareWithRefs_Blocked_4D, CropLayerCPUTest, CropParamsBlocked4D, CropLayerCPUTest::getTestCaseName);
+INSTANTIATE_TEST_CASE_P(smoke_CompareWithRefs_Blocked_4D, CropLayerCPUTest, CropParamsBlocked4D, CropLayerCPUTest::getTestCaseName);
 
 std::vector<testCaseParams> testCasesPlain4DynBatch = {testCaseParams{{10, 5, 32, 32}, {1, 2, 23, 23}, {0, 2, 5, 4}},
                                                        testCaseParams{{10, 5, 32, 32}, {1, 5, 5, 5}, {0, 0, 20, 20}},
@@ -160,7 +160,7 @@ const auto CropParamsPlain4DynBatch = ::testing::Combine(
         ::testing::Values(additional_config_dyn_batch),
         ::testing::Values(cpuParams_4D.at(1)));
 
-INSTANTIATE_TEST_CASE_P(CompareWithRefs_Blocked_4DynBatch, CropLayerCPUTest, CropParamsPlain4DynBatch, CropLayerCPUTest::getTestCaseName);
+INSTANTIATE_TEST_CASE_P(smoke_CompareWithRefs_Blocked_4DynBatch, CropLayerCPUTest, CropParamsPlain4DynBatch, CropLayerCPUTest::getTestCaseName);
 
 std::vector<testCaseParams> testCasesPlain5D = {testCaseParams{{1, 5, 32, 20, 14}, {1, 5, 30, 10, 8}, {0, 0, 2, 10, 6}},
                                                 testCaseParams{{5, 9, 32, 20, 14}, {2, 5, 30, 10, 8}, {3, 4, 2, 10, 6}}};
@@ -177,7 +177,7 @@ const auto CropParamsPlain5D = ::testing::Combine(
         ::testing::Values(additional_config),
         ::testing::Values(cpuParams_5D.at(1)));
 
-INSTANTIATE_TEST_CASE_P(CompareWithRefs_Plain_5D, CropLayerCPUTest, CropParamsPlain5D, CropLayerCPUTest::getTestCaseName);
+INSTANTIATE_TEST_CASE_P(smoke_CompareWithRefs_Plain_5D, CropLayerCPUTest, CropParamsPlain5D, CropLayerCPUTest::getTestCaseName);
 
 std::vector<testCaseParams> testCasesBlocked5D = {testCaseParams{{1, 32, 32, 20, 14}, {1, 16, 30, 10, 8}, {0, 0, 2, 10, 6}},
                                                   testCaseParams{{5, 32, 32, 20, 14}, {2, 32, 30, 10, 8}, {3, 0, 2, 10, 6}}};
@@ -189,7 +189,7 @@ const auto CropParamsBlocked5D = ::testing::Combine(
         ::testing::Values(additional_config),
         ::testing::Values(cpuParams_5D.at(0)));
 
-INSTANTIATE_TEST_CASE_P(CompareWithRefs_Blocked_5D, CropLayerCPUTest, CropParamsBlocked5D, CropLayerCPUTest::getTestCaseName);
+INSTANTIATE_TEST_CASE_P(smoke_CompareWithRefs_Blocked_5D, CropLayerCPUTest, CropParamsBlocked5D, CropLayerCPUTest::getTestCaseName);
 
 } // namespace
 } // namespace CPULayerTestsDefinitions

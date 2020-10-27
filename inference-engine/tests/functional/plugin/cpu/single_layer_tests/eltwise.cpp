@@ -142,7 +142,7 @@ std::vector<ngraph::helpers::EltwiseTypes> eltwiseOpTypesBinInp = {
 
 std::vector<ngraph::helpers::EltwiseTypes> eltwiseOpTypesDiffInp = { // Different number of input nodes depending on optimizations
         ngraph::helpers::EltwiseTypes::POWER,
-        ngraph::helpers::EltwiseTypes::MOD
+        // ngraph::helpers::EltwiseTypes::MOD // Does not execute because of transformations
 };
 // Withing the test scope we don't need any implicit bf16 optimisations, so let's run the network as is.
 std::map<std::string, std::string> additional_config = {{PluginConfigParams::KEY_ENFORCE_BF16, PluginConfigParams::NO}};
@@ -177,23 +177,7 @@ const auto params_4D_FP32 = ::testing::Combine(
             ::testing::Values(additional_config)),
         ::testing::ValuesIn(filterCPUSpecificParams(cpuParams_4D)));
 
-INSTANTIATE_TEST_CASE_P(CompareWithRefs_4D_FP32_MemOrder, EltwiseLayerCPUTest, params_4D_FP32, EltwiseLayerCPUTest::getTestCaseName);
-
-const auto params_4D_FP32_emptyCPUSpec = ::testing::Combine(
-        ::testing::Combine(
-                ::testing::ValuesIn(inShapes_4D),
-                ::testing::ValuesIn(eltwiseOpTypesDiffInp),
-                ::testing::ValuesIn(secondaryInputTypes),
-                ::testing::ValuesIn(opTypes),
-                ::testing::Values(InferenceEngine::Precision::FP32),
-                ::testing::Values(InferenceEngine::Precision::FP32),
-                ::testing::Values(InferenceEngine::Precision::FP32),
-                ::testing::Values(InferenceEngine::Layout::ANY),
-                ::testing::Values(CommonTestUtils::DEVICE_CPU),
-                ::testing::Values(additional_config)),
-        ::testing::Values(emptyCPUSpec));
-
-INSTANTIATE_TEST_CASE_P(CompareWithRefs_4D_FP32, EltwiseLayerCPUTest, params_4D_FP32_emptyCPUSpec, EltwiseLayerCPUTest::getTestCaseName);
+INSTANTIATE_TEST_CASE_P(smoke_CompareWithRefs_4D_FP32_MemOrder, EltwiseLayerCPUTest, params_4D_FP32, EltwiseLayerCPUTest::getTestCaseName);
 
 const auto params_4D_BF16 = ::testing::Combine(
         ::testing::Combine(
@@ -209,7 +193,7 @@ const auto params_4D_BF16 = ::testing::Combine(
                 ::testing::Values(additional_config)),
         ::testing::Values(emptyCPUSpec));
 
-INSTANTIATE_TEST_CASE_P(CompareWithRefs_4D_BF16_MemOrder, EltwiseLayerCPUTest, params_4D_BF16, EltwiseLayerCPUTest::getTestCaseName);
+INSTANTIATE_TEST_CASE_P(smoke_CompareWithRefs_4D_BF16_MemOrder, EltwiseLayerCPUTest, params_4D_BF16, EltwiseLayerCPUTest::getTestCaseName);
 
 const auto params_4D_BF16_emptyCPUSpec = ::testing::Combine(
         ::testing::Combine(
@@ -225,7 +209,7 @@ const auto params_4D_BF16_emptyCPUSpec = ::testing::Combine(
                 ::testing::Values(additional_config)),
         ::testing::Values(emptyCPUSpec));
 
-INSTANTIATE_TEST_CASE_P(CompareWithRefs_4D_BF16, EltwiseLayerCPUTest, params_4D_BF16_emptyCPUSpec, EltwiseLayerCPUTest::getTestCaseName);
+INSTANTIATE_TEST_CASE_P(smoke_CompareWithRefs_4D_BF16, EltwiseLayerCPUTest, params_4D_BF16_emptyCPUSpec, EltwiseLayerCPUTest::getTestCaseName);
 
 std::vector<std::vector<std::vector<size_t>>> inShapes_5D = {
         {{2, 4, 3, 4, 1}},
@@ -254,7 +238,7 @@ const auto params_5D_FP32 = ::testing::Combine(
             ::testing::Values(additional_config)),
         ::testing::ValuesIn(filterCPUSpecificParams(cpuParams_5D)));
 
-INSTANTIATE_TEST_CASE_P(CompareWithRefs_5D_FP32_MemOrder, EltwiseLayerCPUTest, params_5D_FP32, EltwiseLayerCPUTest::getTestCaseName);
+INSTANTIATE_TEST_CASE_P(smoke_CompareWithRefs_5D_FP32_MemOrder, EltwiseLayerCPUTest, params_5D_FP32, EltwiseLayerCPUTest::getTestCaseName);
 
 const auto params_5D_BF16 = ::testing::Combine(
         ::testing::Combine(
@@ -270,23 +254,7 @@ const auto params_5D_BF16 = ::testing::Combine(
                 ::testing::Values(additional_config)),
         ::testing::ValuesIn(filterCPUSpecificParams(cpuParams_5D)));
 
-INSTANTIATE_TEST_CASE_P(CompareWithRefs_5D_BF16_MemOrder, EltwiseLayerCPUTest, params_5D_BF16, EltwiseLayerCPUTest::getTestCaseName);
-
-const auto params_5D_FP32_emptyCPUSpec = ::testing::Combine(
-        ::testing::Combine(
-                ::testing::ValuesIn(inShapes_5D),
-                ::testing::ValuesIn(eltwiseOpTypesDiffInp),
-                ::testing::ValuesIn(secondaryInputTypes),
-                ::testing::ValuesIn(opTypes),
-                ::testing::Values(InferenceEngine::Precision::FP32),
-                ::testing::Values(InferenceEngine::Precision::FP32),
-                ::testing::Values(InferenceEngine::Precision::FP32),
-                ::testing::Values(InferenceEngine::Layout::ANY),
-                ::testing::Values(CommonTestUtils::DEVICE_CPU),
-                ::testing::Values(additional_config)),
-        ::testing::Values(emptyCPUSpec));
-
-INSTANTIATE_TEST_CASE_P(CompareWithRefs_5D_FP32, EltwiseLayerCPUTest, params_5D_FP32_emptyCPUSpec, EltwiseLayerCPUTest::getTestCaseName);
+INSTANTIATE_TEST_CASE_P(smoke_CompareWithRefs_5D_BF16_MemOrder, EltwiseLayerCPUTest, params_5D_BF16, EltwiseLayerCPUTest::getTestCaseName);
 
 const auto params_5D_BF16_emptyCPUSpec = ::testing::Combine(
         ::testing::Combine(
@@ -302,7 +270,7 @@ const auto params_5D_BF16_emptyCPUSpec = ::testing::Combine(
                 ::testing::Values(additional_config)),
         ::testing::Values(emptyCPUSpec));
 
-INSTANTIATE_TEST_CASE_P(CompareWithRefs_5D_BF16, EltwiseLayerCPUTest, params_5D_BF16_emptyCPUSpec, EltwiseLayerCPUTest::getTestCaseName);
+INSTANTIATE_TEST_CASE_P(smoke_CompareWithRefs_5D_BF16, EltwiseLayerCPUTest, params_5D_BF16_emptyCPUSpec, EltwiseLayerCPUTest::getTestCaseName);
 
 std::vector<std::vector<std::vector<size_t>>> inShapes_4D_Blocked_Planar = {
         {{2, 17, 31, 3}, {2, 1, 31, 3}},
@@ -327,7 +295,7 @@ const auto params_4D_FP32_Blocked_Planar = ::testing::Combine(
             ::testing::Values(additional_config)),
         ::testing::ValuesIn(filterCPUSpecificParams(cpuParams_4D_Blocked_Planar)));
 
-INSTANTIATE_TEST_CASE_P(CompareWithRefs_4D_FP32_Blocked_Planar, EltwiseLayerCPUTest, params_4D_FP32_Blocked_Planar, EltwiseLayerCPUTest::getTestCaseName);
+INSTANTIATE_TEST_CASE_P(smoke_CompareWithRefs_4D_FP32_Blocked_Planar, EltwiseLayerCPUTest, params_4D_FP32_Blocked_Planar, EltwiseLayerCPUTest::getTestCaseName);
 
 
 std::vector<std::vector<std::vector<size_t>>> inShapes_4D_Planar_Blocked = {
@@ -353,7 +321,7 @@ const auto params_4D_FP32_Planar_Blocked = ::testing::Combine(
             ::testing::Values(additional_config)),
         ::testing::ValuesIn(filterCPUSpecificParams(cpuParams_4D_Planar_Blocked)));
 
-INSTANTIATE_TEST_CASE_P(CompareWithRefs_4D_FP32_Planar_Blocked, EltwiseLayerCPUTest, params_4D_FP32_Planar_Blocked, EltwiseLayerCPUTest::getTestCaseName);
+INSTANTIATE_TEST_CASE_P(smoke_CompareWithRefs_4D_FP32_Planar_Blocked, EltwiseLayerCPUTest, params_4D_FP32_Planar_Blocked, EltwiseLayerCPUTest::getTestCaseName);
 
 
 std::vector<std::vector<std::vector<size_t>>> inShapes_5D_Blocked_Planar = {
@@ -379,7 +347,7 @@ const auto params_5D_FP32_Blocked_Planar = ::testing::Combine(
             ::testing::Values(additional_config)),
         ::testing::ValuesIn(filterCPUSpecificParams(cpuParams_5D_Blocked_Planar)));
 
-INSTANTIATE_TEST_CASE_P(CompareWithRefs_5D_FP32_Blocked_Planar, EltwiseLayerCPUTest, params_5D_FP32_Blocked_Planar, EltwiseLayerCPUTest::getTestCaseName);
+INSTANTIATE_TEST_CASE_P(smoke_CompareWithRefs_5D_FP32_Blocked_Planar, EltwiseLayerCPUTest, params_5D_FP32_Blocked_Planar, EltwiseLayerCPUTest::getTestCaseName);
 
 
 std::vector<std::vector<std::vector<size_t>>> inShapes_5D_Planar_Blocked = {
@@ -405,7 +373,7 @@ const auto params_5D_FP32_Planar_Blocked = ::testing::Combine(
                 ::testing::Values(additional_config)),
         ::testing::ValuesIn(filterCPUSpecificParams(cpuParams_5D_Planar_Blocked)));
 
-INSTANTIATE_TEST_CASE_P(CompareWithRefs_5D_FP32_Planar_Blocked, EltwiseLayerCPUTest, params_5D_FP32_Planar_Blocked, EltwiseLayerCPUTest::getTestCaseName);
+INSTANTIATE_TEST_CASE_P(smoke_CompareWithRefs_5D_FP32_Planar_Blocked, EltwiseLayerCPUTest, params_5D_FP32_Planar_Blocked, EltwiseLayerCPUTest::getTestCaseName);
 
 } // namespace
 } // namespace CPULayerTestsDefinitions

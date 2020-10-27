@@ -246,7 +246,8 @@ void CompareFunctions(const Function &actual, const Function &expected);
 
 
 std::shared_ptr<Function> foldFunction(const std::shared_ptr<Function> &function,
-                                       const std::vector<std::vector<std::uint8_t>> &inputs);
+                                       const std::vector<std::vector<std::uint8_t>> &inputs,
+                                       element::Type_t inpType = element::Type_t::undefined);
 
 std::vector<std::vector<std::uint8_t>> getConstData(const std::shared_ptr<Function> &function,
                                                     std::vector<ngraph::element::Type_t> convertType = {});

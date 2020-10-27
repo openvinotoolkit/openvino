@@ -360,7 +360,7 @@ std::vector<std::vector<std::uint8_t>> LayerTestsCommon::CalculateRefs() {
             break;
         }
         case CONSTANT_FOLDING: {
-            const auto &foldedFunc = ngraph::helpers::foldFunction(function, referenceInputs);
+            const auto &foldedFunc = ngraph::helpers::foldFunction(function, referenceInputs, inType);
             expectedOutputs = ngraph::helpers::getConstData(foldedFunc, convertType);
             break;
         }

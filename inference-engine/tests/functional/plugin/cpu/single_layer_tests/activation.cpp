@@ -148,8 +148,8 @@ const auto basicPreluCases = ::testing::Combine(
         ::testing::Values(emptyCPUSpec)
 );
 
-INSTANTIATE_TEST_CASE_P(Activation_Eltwise_CPU_BF16, ActivationLayerCPUTest, basicCases, ActivationLayerCPUTest::getTestCaseName);
-INSTANTIATE_TEST_CASE_P(Activation_Eltwise_Prelu_CPU_BF16, ActivationLayerCPUTest, basicPreluCases, ActivationLayerCPUTest::getTestCaseName);
+INSTANTIATE_TEST_CASE_P(smoke_Activation_Eltwise_CPU_BF16, ActivationLayerCPUTest, basicCases, ActivationLayerCPUTest::getTestCaseName);
+INSTANTIATE_TEST_CASE_P(smoke_Activation_Eltwise_Prelu_CPU_BF16, ActivationLayerCPUTest, basicPreluCases, ActivationLayerCPUTest::getTestCaseName);
 } // namespace
 
 } // namespace CPULayerTestsDefinitions
