@@ -37,49 +37,27 @@ namespace ngraph
                 namespace
                 {
                     /// \brief      Check if termination condition is true during all Loop
-                    /// iterations.
+                    ///             iterations.
                     ///             It allows to replace termination condition body output with
                     ///             Constant.
-                    ///             As a result ngraph Loop shape iference is able to handle more
+                    ///             As a result ngraph Loop shape inference is able to handle more
                     ///             cases.
                     ///
-                    /// \param[in]  loop_cond       Termination loop condition input of Loop
-                    ///                             operator (initial value).
-                    /// \param[in]  body_cond       Termination loop condition input of the body of
+                    /// \param[in]  body_out_cond   Termination loop condition input of the body of
                     ///                             the Loop (value updated during Loop iterations).
                     ///
                     /// \return true if termination condition is true and it cannot be changed
                     ///         during Loop iterations, false otherwise.
-                    bool is_termination_condition_always_true(const Output<ngraph::Node>& loop_cond,
-                                                              const Output<ngraph::Node>& body_cond)
+                    bool is_termination_condition_always_true(
+                        const Output<ngraph::Node>& body_out_cond)
                     {
-                        // TODO: check if checking loop_cond == true is not provided earlier
-                        bool loop_cond_value = false;
-                        if (ngraph::op::is_constant(loop_cond.get_node()) &&
-                            loop_cond.get_element_type() == element::boolean)
-                        {
-                            loop_cond_value = as_type_ptr<default_opset::Constant>(
-                                                  loop_cond.get_node_shared_ptr())
-                                                  ->cast_vector<bool>()
-                                                  .at(0);
-                        }
-                        // According to ONNX skipped cond input (is_null) means
-                        // that is has true value
-                        bool is_loop_cond_true =
-                            ngraph::op::is_null(loop_cond) || loop_cond_value == true;
-
-                        if (!is_loop_cond_true)
-                        {
-                            return false;
-                        }
-
                         // If body termination condition input matches Indentity op pattern the has
                         // value of loop_cond - true
                         // Identity op for boolean value is represented by LogicalOr op whose second
                         // input is always false
-                        if (is_type<default_opset::LogicalOr>(body_cond.get_node_shared_ptr()))
+                        if (is_type<default_opset::LogicalOr>(body_out_cond.get_node_shared_ptr()))
                         {
-                            const auto second_input = body_cond.get_node_shared_ptr()
+                            const auto second_input = body_out_cond.get_node_shared_ptr()
                                                           ->input_value(1)
                                                           .get_node_shared_ptr();
                             if (ngraph::op::is_constant(second_input) &&
@@ -175,9 +153,9 @@ namespace ngraph
                         }
                     }
 
-                    const auto& body_loop_cond = body_outputs.at(0).get_node_shared_ptr();
+                    const auto& body_loop_out_cond = body_outputs.at(0).get_node_shared_ptr();
                     // optimization allow to improve nG Loop shape inference
-                    if (is_termination_condition_always_true(termination_cond, body_loop_cond))
+                    if (is_termination_condition_always_true(body_loop_out_cond))
                     {
                         body_outputs[0] =
                             ngraph::op::Constant::create(ngraph::element::boolean, {1}, {true});
