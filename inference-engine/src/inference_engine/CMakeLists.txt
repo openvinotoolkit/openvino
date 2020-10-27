@@ -26,8 +26,6 @@ set(IE_BASE_SOURCE_FILES
       ${CMAKE_CURRENT_SOURCE_DIR}/ie_rtti.cpp
       ${CMAKE_CURRENT_SOURCE_DIR}/precision_utils.cpp
       ${CMAKE_CURRENT_SOURCE_DIR}/shape_infer/ie_built_in_holder.cpp
-      ${CMAKE_CURRENT_SOURCE_DIR}/network_serializer.cpp
-      ${CMAKE_CURRENT_SOURCE_DIR}/network_serializer.hpp
       ${CMAKE_CURRENT_SOURCE_DIR}/system_allocator.cpp
       ${CMAKE_CURRENT_SOURCE_DIR}/system_allocator.hpp)
 

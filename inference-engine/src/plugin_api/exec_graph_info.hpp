@@ -128,6 +128,10 @@ public:
 
         return cloned;
     }
+
+    bool visit_attributes(ngraph::AttributeVisitor&) override {
+        return true;
+    }
 };
 
 }  // namespace ExecGraphInfoSerialization
