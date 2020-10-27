@@ -127,6 +127,7 @@ TEST_F(ExecutableNetworkTests, OperatorAmpersand) {
     ASSERT_EQ(exeNet_p, mockIExeNet_p);
 }
 
+IE_SUPPRESS_DEPRECATED_START
 TEST_F(ExecutableNetworkTests, QueryStateThrowsIfReturnErr) {
     EXPECT_CALL(*mockIExeNet_p.get(), QueryState(_, _, _))
             .Times(1)
@@ -153,6 +154,7 @@ TEST_F(ExecutableNetworkTests, QueryState) {
     EXPECT_NO_THROW(MemState_v = exeNetwork->QueryState());
     EXPECT_EQ(MemState_v.size(), 1);
 }
+IE_SUPPRESS_DEPRECATED_END
 
 class ExecutableNetworkWithIInferReqTests : public ExecutableNetworkTests {
 protected:

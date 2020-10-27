@@ -7,7 +7,7 @@
 #include <cpp/ie_executable_network.hpp>
 
 #include <cpp_interfaces/base/ie_executable_network_base.hpp>
-#include <cpp_interfaces/base/ie_infer_request_base.hpp>
+#include <cpp_interfaces/base/ie_infer_async_request_base.hpp>
 #include <cpp_interfaces/impl/ie_memory_state_internal.hpp>
 
 #include "unit_test_utils/mocks/cpp_interfaces/interface/mock_imemory_state_internal.hpp"
