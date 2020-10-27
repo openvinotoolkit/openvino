@@ -86,6 +86,8 @@ function(_ie_add_api_validator_post_build_step)
 
     # apply check
 
+    message("Validate targets ")
+
     macro(api_validator_get_target_name)
         get_target_property(IS_IMPORTED ${target} IMPORTED)
         if(IS_IMPORTED)
@@ -97,6 +99,7 @@ function(_ie_add_api_validator_post_build_step)
     endmacro()
 
     foreach(target IN LISTS API_VALIDATOR_TARGETS)
+        message("--- ${target}")
         api_validator_get_target_name()
         set(output_file "${CMAKE_BINARY_DIR}/api_validator/${target_name}.txt")
 
