@@ -111,8 +111,6 @@ INTERPRETER.onnx_model_conv_integer_pads
 INTERPRETER.onnx_model_gatherND_int32
 INTERPRETER.onnx_model_gatherND_float
 
-# Round op doesn't support some specific cases of rounding
-onnx_model_round_half_nearest_even
  
 # GRU/RNN/LSTM Sequence: Output values mismatch - seq_lengths not supported
 onnx_model_lstm_fwd_mixed_seq_const
