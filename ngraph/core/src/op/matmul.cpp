@@ -64,6 +64,8 @@ namespace matmul
         // Temporary Dimension vectors to calculate output shape
         std::vector<Dimension> arg0_shape_tmp(arg0_shape);
         std::vector<Dimension> arg1_shape_tmp(arg1_shape);
+
+        // Result of merging compatible dimensions
         auto merged_dimension = Dimension::dynamic();
 
         // 1D tensor cases. Transpose attributes are ignored.
@@ -124,13 +126,8 @@ namespace matmul
             {
                 size_t delta_rank = big_size_matrix.size() - low_size_matrix.size();
 
-                // resize low_size_matrix (with 1) to have the same dimension as
-                // big_size_matrix
-                low_size_matrix.resize(low_size_matrix.size() + delta_rank, 1);
-                // move added 1 values to the beginning
-                std::rotate(low_size_matrix.begin(),
-                            low_size_matrix.end() - delta_rank,
-                            low_size_matrix.end());
+                // expand low_size_matrix (with 1) to have the same rank as big_size_matrix
+                low_size_matrix.insert(low_size_matrix.begin(), delta_rank, 1);
             }
 
             // get max value for all batches (max_rank - 2), COL_INDEX_DIM and ROW_INDEX_DIM are
