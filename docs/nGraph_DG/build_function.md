@@ -22,6 +22,10 @@ Below you can find examples on to how build `ngraph::Function` from the `opset3`
 
 @snippet example_ngraph_utils.cpp ngraph_utils:advanced_function
 
+To wrap it into a CNNNetwork, use: 
+```cpp
+CNNNetwork net (ng_function);
+```
 ## See Also
 
 * [Available Operation Sets](../ops/opset.md)
