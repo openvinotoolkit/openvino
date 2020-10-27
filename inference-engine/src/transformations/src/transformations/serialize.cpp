@@ -7,7 +7,6 @@
 #include <unordered_map>
 #include <unordered_set>
 
-#include "generic_ie.hpp"
 #include "ngraph/ops.hpp"
 #include "ngraph/opsets/opset.hpp"
 #include "pugixml.hpp"
@@ -19,8 +18,8 @@ NGRAPH_RTTI_DEFINITION(ngraph::pass::Serialize, "Serialize", 0);
 
 namespace {  // helpers
 template <typename T, typename A>
-std::string joinVec(std::vector<T, A> const& vec,
-                    std::string const& glue = std::string(",")) {
+std::string joinVec(const std::vector<T, A>& vec,
+                    const std::string& glue = std::string(",")) {
     if (vec.empty()) return "";
     std::stringstream oss;
     oss << vec[0];
@@ -52,6 +51,8 @@ class XmlVisitor : public ngraph::AttributeVisitor {
     }
 
 public:
+    std::string ie_generic_type_name = "";
+
     XmlVisitor(pugi::xml_node& data) : m_data(data) {}
 
     void on_adapter(const std::string& name,
@@ -66,7 +67,12 @@ public:
     }
     void on_adapter(const std::string& name,
                     ngraph::ValueAccessor<std::string>& adapter) override {
-        m_data.append_attribute(name.c_str()).set_value(adapter.get().c_str());
+        if (name == "__generic_ie_type__") {
+            ie_generic_type_name = adapter.get();
+        } else {
+            m_data.append_attribute(name.c_str())
+                .set_value(adapter.get().c_str());
+        }
     }
     void on_adapter(const std::string& name,
                     ngraph::ValueAccessor<int64_t>& adapter) override {
@@ -181,16 +187,10 @@ std::string get_opset_name(const ngraph::Node* n) {
 // discrepancies discoverd, translations needs to be added here.
 std::string get_type_name(const ngraph::Node* n) {
     std::string name = n->get_type_name();
-    if (name == "GenericIE") {
-        auto generic_ie = dynamic_cast<const ngraph::op::GenericIE*>(n);
-        NGRAPH_CHECK(generic_ie != nullptr, "Internal error.");
-        name = generic_ie->getType();
-    } else {
-        const std::unordered_map<std::string, std::string> translator = {
-            {"Constant", "Const"}};
-        if (translator.count(name) > 0) {
-            name = translator.at(name);
-        }
+    const std::unordered_map<std::string, std::string> translator = {
+        {"Constant", "Const"}};
+    if (translator.count(name) > 0) {
+        name = translator.at(name);
     }
     return name;
 }
@@ -275,7 +275,7 @@ void ngfunction_2_irv10(pugi::xml_document& doc, std::vector<uint8_t>& bin,
         layer.append_attribute("id").set_value(layer_ids.find(node)->second);
         layer.append_attribute("name").set_value(
             get_node_unique_name(unique_names, node).c_str());
-        layer.append_attribute("type").set_value(get_type_name(node).c_str());
+        auto layer_type_attribute = layer.append_attribute("type");
         layer.append_attribute("version").set_value(
             get_opset_name(node).c_str());
 
@@ -286,7 +286,12 @@ void ngfunction_2_irv10(pugi::xml_document& doc, std::vector<uint8_t>& bin,
         XmlVisitor visitor{data};
         NGRAPH_CHECK(node->visit_attributes(visitor),
                      "Visitor API is not supported in ", node);
-
+        if (node->get_type_name() == "GenericIE") {
+            layer_type_attribute.set_value(
+                visitor.ie_generic_type_name.c_str());
+        } else {
+            layer_type_attribute.set_value(get_type_name(node).c_str());
+        }
         // <layers/data> constant atributes (special case)
         if (auto constant = dynamic_cast<ngraph::op::Constant*>(node)) {
             ConstantAtributes attr = dump_constant_data(bin, *constant);
