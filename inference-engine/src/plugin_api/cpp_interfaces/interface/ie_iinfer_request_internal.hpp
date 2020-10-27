@@ -90,7 +90,6 @@ public:
      * @return Returns memory states
      */
     virtual std::vector<IMemoryStateInternal::Ptr> QueryState() = 0;
-
 };
 
 }  // namespace InferenceEngine
