@@ -63,11 +63,11 @@ INTERPRETER.max_3d_to_scalar_double
 INTERPRETER.gelu_f64
 INTERPRETER.gelu_backprop_factor_f64
 INTERPRETER.backwards_gelu_f64
-INTERPRETER.gather_4d_indices_no_axis_uint8
-INTERPRETER.gather_no_axis_int8
-INTERPRETER.gather_no_axis_int16
-INTERPRETER.gather_no_axis_uint8
-INTERPRETER.gather_no_axis_uint16
+INTERPRETER.gather_4d_indices_axis_0_uint8
+INTERPRETER.gather_axis_0_int8
+INTERPRETER.gather_axis_0_int16
+INTERPRETER.gather_axis_0_uint8
+INTERPRETER.gather_axis_0_uint16
 INTERPRETER.fused_clamp_double
 INTERPRETER.fused_clamp_int8
 INTERPRETER.fused_clamp_int16
@@ -111,8 +111,6 @@ INTERPRETER.onnx_model_conv_integer_pads
 INTERPRETER.onnx_model_gatherND_int32
 INTERPRETER.onnx_model_gatherND_float
 
-# Round op doesn't support some specific cases of rounding
-onnx_model_round_half_nearest_even
  
 # GRU/RNN/LSTM Sequence: Output values mismatch - seq_lengths not supported
 onnx_model_lstm_fwd_mixed_seq_const

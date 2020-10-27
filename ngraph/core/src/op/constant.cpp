@@ -540,6 +540,12 @@ AxisSet op::Constant::get_axis_set_val() const
     return output_axis_set;
 }
 
+void op::Constant::set_data_shape(const Shape& shape)
+{
+    NGRAPH_CHECK(shape_size(shape) == shape_size(m_shape));
+    m_shape = shape;
+}
+
 shared_ptr<Node> op::Constant::clone_with_new_inputs(const OutputVector& new_args) const
 {
     check_new_args_count(this, new_args);

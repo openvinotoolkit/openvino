@@ -64,7 +64,7 @@ private:
         auto beta = attrs().get<float>("beta");
 
         serializer.append(static_cast<uint32_t>(size));
-        serializer.append(ie::PrecisionUtils::f32tof16(k));
+        serializer.append(ie::PrecisionUtils::f32tof16(static_cast<float>(k))); // why float?
         serializer.append(ie::PrecisionUtils::f32tof16(alpha));
         serializer.append(ie::PrecisionUtils::f32tof16(beta));
         serializer.append(ie::PrecisionUtils::f32tof16(0));  // for alignment

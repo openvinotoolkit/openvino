@@ -50,9 +50,9 @@ Paddings getPaddingsInternal(const Layer& layer) {
                 if (shape_size < 4 || shape_size > 5) THROW_IE_EXCEPTION << "input shape must be 4D or 5D";
 
                 std::vector<int> shapes;
-                shapes.push_back(shape[shape_size - 1]);
-                shapes.push_back(shape[shape_size - 2]);
-                if (shape_size > 4) shapes.push_back(shape[shape_size - 3]);
+                shapes.push_back(static_cast<int>(shape[shape_size - 1]));
+                shapes.push_back(static_cast<int>(shape[shape_size - 2]));
+                if (shape_size > 4) shapes.push_back(static_cast<int>(shape[shape_size - 3]));
 
                 PropertyVector<unsigned int> pad_begin, pad_end;
 
@@ -134,8 +134,8 @@ int getNumIteration(const TensorIterator& tensorIterator) {
                                << rule.axis  << ", dimensions number = " << dimensions.size() << " (out of range)";
         }
         const auto space = dimensions[axis];
-        const int start = (rule.start < 0 ? (space + 1) : 0) + rule.start;
-        const int end   = (rule.end   < 0 ? (space + 1) : 0) + rule.end;
+        const int start = static_cast<int>((rule.start < 0 ? (space + 1) : 0) + rule.start);
+        const int end   = static_cast<int>((rule.end   < 0 ? (space + 1) : 0) + rule.end);
 
         const auto stride = rule.stride;
         if (stride == 0) {

@@ -7,14 +7,14 @@
 #include <ngraph/opsets/opset1.hpp>
 #include <ngraph_ops/type_relaxed.hpp>
 #include "ngraph_functions/subgraph_builders.hpp"
-#include "transformations/low_precision/network_helper.hpp"
+#include "low_precision/network_helper.hpp"
 
 #include "ngraph_functions/low_precision_transformations/common/fake_quantize_on_weights.hpp"
 #include "ngraph_functions/low_precision_transformations/common/fake_quantize_on_data.hpp"
 #include "ngraph_functions/low_precision_transformations/common/dequantization_operations.hpp"
 #include "ngraph_functions/low_precision_transformations/common/builders.hpp"
-#include "transformations/low_precision/common/dequantization_op.hpp"
-#include "transformations/low_precision/network_helper.hpp"
+#include "low_precision/common/dequantization_op.hpp"
+#include "low_precision/network_helper.hpp"
 
 using namespace ngraph::pass::low_precision;
 

@@ -37,7 +37,7 @@ std::streampos InferenceEngine::details::BlobStream::BlobBuffer::seekoff(std::st
         setg(eback(), eback() + off, egptr());
         break;
     case std::ios_base::cur:
-        gbump(off);
+        gbump(static_cast<int>(off));
         break;
     case std::ios_base::end:
         setg(eback(), egptr() + off, egptr());
