@@ -228,5 +228,5 @@ xfail_issue_39661 = xfail_test(reason="RuntimeError: NonMaxSuppression operation
 xfail_issue_39662 = xfail_test(reason="RuntimeError: 'ScatterElementsUpdate' layer with name 'y' have "
                                       "indices value that points to non-existing output tensor element")
 xfail_issue_39663 = xfail_test(reason="RuntimeError: Unsupported primitive of type: ROIAlign name: Y")
-xfail_issue_41815 = xfail_test(reason="Unsupported dynamic ops: v5::NonMaxSuppression casted "
+xfail_issue_41815 = xfail_test(reason="RuntimeError: Unsupported dynamic ops: v5::NonMaxSuppression casted "
                                       "(yolo_evaluation_layer_1/concat_6:0_btc[0]:f32{1,2535,4},")
