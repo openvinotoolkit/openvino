@@ -16,6 +16,7 @@
 #include "functional_test_utils/layer_test_utils.hpp"
 
 #include "single_layer_tests/activation.hpp"
+using namespace InferenceEngine;
 
 namespace LayerTestsDefinitions {
 
@@ -208,6 +209,98 @@ TEST_P(ActivationLayerTest, CompareWithRefs) {
 
 TEST_P(ActivationParamLayerTest, CompareWithRefs) {
     Run();
+}
+
+TEST_P(ActivationLayerTest, TestRefNormalizeIE) {
+    std::vector<float> inp1(2 * 3 * 4 * 4);
+    std::vector<float> weight(1 * 3 * 1 * 1);
+    std::vector<float> out_gpu(2 * 3 * 4 * 4);
+    std::vector<float> out_cpu(2 * 3 * 4 * 4);
+
+
+    std::default_random_engine generator(10);
+    std::uniform_real_distribution<float> distribution(-1.0, 1.0);
+    auto gen_data = [&distribution, &generator]() { return distribution(generator); };
+    std::generate(inp1.begin(), inp1.end(), gen_data);
+    std::generate(weight.begin(), weight.end(), gen_data);
+
+
+    std::cout << "build number: " << GetInferenceEngineVersion()->buildNumber << '\n';
+
+
+    auto inp = std::make_shared<ngraph::op::Parameter>(ngraph::element::f32, ngraph::Shape{2, 3, 4, 4});
+
+
+    auto ave_pool = std::make_shared<ngraph::op::v1::AvgPool>(inp, ngraph::Strides{1, 1},
+                                     ngraph::Shape{0, 0}, ngraph::Shape{0, 0}, ngraph::Shape{1, 1},
+                                     true, ngraph::op::RoundingType::CEIL, ngraph::op::PadType::SAME_UPPER);
+
+
+    float epsilon = 1e-10;
+    auto axes = std::make_shared<ngraph::op::Constant>(ngraph::element::i64, ngraph::Shape{1}, std::vector<int64_t>{1});
+    auto norm = std::make_shared<ngraph::op::NormalizeL2>(ave_pool, axes, epsilon, ngraph::op::EpsMode::ADD);
+
+
+    std::vector<size_t> shape{1, 3, 1, 1};
+    auto weight_node = std::make_shared<ngraph::op::Constant>(ngraph::element::f32, ngraph::Shape(shape), weight.data());
+    auto mul = std::make_shared<ngraph::op::v1::Multiply>(norm, weight_node, ngraph::op::AutoBroadcastType::NUMPY);
+
+
+
+    axes = std::make_shared<ngraph::op::Constant>(ngraph::element::i64, ngraph::Shape{4}, std::vector<int64_t>{0, 1, 2, 3});
+    norm = std::make_shared<ngraph::op::NormalizeL2>(mul, axes, epsilon, ngraph::op::EpsMode::ADD);
+    mul = std::make_shared<ngraph::op::v1::Multiply>(norm, weight_node, ngraph::op::AutoBroadcastType::NUMPY);
+
+
+    auto output = std::make_shared<ngraph::op::Result>(mul);
+    auto ngraph_function = std::make_shared<ngraph::Function>(ngraph::ResultVector{output},
+                           ngraph::ParameterVector{inp});
+
+
+
+    auto cnn = InferenceEngine::CNNNetwork(ngraph_function);
+
+
+    std::vector<std::string> input_names;
+    std::vector<std::string> out_names;
+    for (const auto& it : cnn.getInputsInfo()) {
+        input_names.push_back(it.first);
+    }
+
+
+    for (const auto& it : cnn.getOutputsInfo()) {
+        out_names.push_back(it.first);
+    }
+
+
+    std::vector<size_t> inpSize1 = {2, 3, 4, 4};
+    std::vector<size_t> outSize  = {2, 3, 4, 4};
+
+
+    BlobMap inputBlobs;
+    BlobMap outputBlobs;
+    TensorDesc tensorDescInp1(Precision::FP32, inpSize1, Layout::NCHW);
+    TensorDesc tensorDescOut(Precision::FP32, outSize, Layout::ANY);
+
+
+    inputBlobs[input_names[0]] = make_shared_blob<float>(tensorDescInp1, inp1.data());
+    outputBlobs[out_names[0]]  = make_shared_blob<float>(tensorDescOut, out_cpu.data());
+
+
+    Core ie;
+    ExecutableNetwork executable_network = ie.LoadNetwork(cnn, targetDevice);
+
+
+    InferRequest infer_request = executable_network.CreateInferRequest();
+    infer_request.SetInput(inputBlobs);
+    infer_request.SetOutput(outputBlobs);
+    infer_request.Infer();
+
+
+    for (float elem : out_cpu) {
+       std::cout << elem << std::endl;
+    }
+    std::cout  << '\n';
 }
 
 }  // namespace LayerTestsDefinitions
