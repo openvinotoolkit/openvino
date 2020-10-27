@@ -50,6 +50,7 @@ protected:
     friend class MKLDNNInferRequest;
     MKLDNNExtensionManager::Ptr extensionManager;
     std::vector<InferenceEngine::IMemoryStateInternal::Ptr> memoryStates;
+    InferenceEngine::details::CNNNetworkImplPtr _clonedNetwork;
     std::mutex                                  _cfgMutex;
     Config                                      _cfg;
     std::atomic_int                             _numRequests = {0};
