@@ -144,15 +144,16 @@ xfail_issue_38714 = xfail_test(reason="RuntimeError: While validating ONNX node 
                                       "While validating node 'v1::<name> (sizes[0]:i64{4},"
                                       "Convert_29306[0]:f32{4}) -> (dynamic?)' with friendly_name '<name>':"
                                       "Argument element types are inconsistent.")
-xfail_issue_12345 = xfail_test(reason="RuntimeError: While validating ONNX node"
+xfail_issue_41813 = xfail_test(reason="RuntimeError: While validating ONNX node"
                                       " '<Node(Loop): generic_loop_Loop__69>'"
                                       "While validating ONNX node '<Node(Resize): Resize__143>':"
                                       "vector::_M_range_check: __n (which is 2) >= this->size() (which is 2")
-xfail_issue_12347 = xfail_test(reason="RuntimeError: Check '(false)' failed at "
-                                      "ngraph/frontend/onnx_import/src/op/loop.cpp:{3}:"
-                                      "While validating ONNX node '<Node(Loop): generic_loop_Loop__147>':"
-                                      "No identity or constant termination condition output body "
-                                      "is not supported in current version")
+xfail_issue_41814 = xfail_test(reason="RuntimeError: While validating ONNX node '<Node(Loop):"
+                                      " generic_loop_Loop__121>':"
+                                      "While validating ONNX node '<Node(TopK):"
+                                      " map_1/while/select_bboxes/sort_bboxes_10/TopKV2>':"
+                                      "Check 'tensor_rank.is_static()' failed at"
+                                      " ngraph/core/src/validation_util.cpp:882:")
 xfail_issue_38715 = xfail_test(reason="RuntimeError: While validating ONNX node '<Node(OneHot): y>':"
                                       "While validating node 'v1::OneHot OneHot_<number>"
                                       "(Convert_13525[0]:i64{3}, depth[0]:f32{},"
@@ -227,5 +228,5 @@ xfail_issue_39661 = xfail_test(reason="RuntimeError: NonMaxSuppression operation
 xfail_issue_39662 = xfail_test(reason="RuntimeError: 'ScatterElementsUpdate' layer with name 'y' have "
                                       "indices value that points to non-existing output tensor element")
 xfail_issue_39663 = xfail_test(reason="RuntimeError: Unsupported primitive of type: ROIAlign name: Y")
-xfail_issue_12346 = xfail_test(reason="RuntimeError: v5::NonMaxSuppression casted"
+xfail_issue_41815 = xfail_test(reason="Unsupported dynamic ops: v5::NonMaxSuppression casted"
                                       " (yolo_evaluation_layer_1/concat_6:0_btc[0]:f32{1,2535,4}, ")
