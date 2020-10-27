@@ -265,7 +265,7 @@ TEST(copy, parameter)
 
 TEST(copy, power)
 {
-    ASSERT_TRUE(check_binary<op::Power>());
+    ASSERT_TRUE(check_binary<op::v1::Power>());
 }
 
 TEST(copy, reshape)

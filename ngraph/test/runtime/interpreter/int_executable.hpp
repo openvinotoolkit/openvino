@@ -1444,7 +1444,7 @@ protected:
         case OP_TYPEID::NonZero_v3:
         case OP_TYPEID::NotEqual:
         case OP_TYPEID::Or:
-        case OP_TYPEID::Power:
+        case OP_TYPEID::Power_v1:
         case OP_TYPEID::Product:
         case OP_TYPEID::Range:
         case OP_TYPEID::Reshape:
