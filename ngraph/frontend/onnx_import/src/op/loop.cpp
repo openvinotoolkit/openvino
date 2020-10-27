@@ -19,6 +19,7 @@
 #include <memory>
 
 #include "ngraph/function.hpp"
+#include "ngraph/log.hpp"
 #include "ngraph/op/util/op_types.hpp"
 #include "onnx_import/core/graph.hpp"
 #include "onnx_import/core/null_node.hpp"
@@ -162,10 +163,9 @@ namespace ngraph
                     }
                     else
                     {
-                        CHECK_VALID_NODE(node,
-                                         false,
-                                         "No identity or constant termination condition output "
-                                         "body is not supported in current version");
+                        NGRAPH_WARN
+                            << "ONNX Loop: No identity or constant termination condition output "
+                            << "body is not supported in current version\n";
                         // TODO: It should be removed after introduction fix to nG Loop
                     }
 
@@ -183,7 +183,7 @@ namespace ngraph
                                      body_outputs.size() >= loop_carried_dependencies.size() + 1,
                                      "The provided loop body graph outputs size (",
                                      body_outputs.size(),
-                                     ") is not greater than number of outpus. Required at least: ",
+                                     ") is not greater than number of outputs. Required at least: ",
                                      loop_carried_dependencies.size() + 1);
 
                     ParameterVector body_params(body_inputs.begin() + 2, body_inputs.end());
