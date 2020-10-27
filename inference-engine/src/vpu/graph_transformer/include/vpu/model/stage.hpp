@@ -261,7 +261,8 @@ VPU_DECLARE_ENUM(ConcatInferRequirement,
 // Modes for Broadcast operation according to specification
 VPU_DECLARE_ENUM(BroadcastMode,
     NUMPY = 0,
-    EXPLICIT = 1)
+    EXPLICIT = 1,
+    BIDIRECTIONAL = 2)
 
 //
 // StageDataInfo
