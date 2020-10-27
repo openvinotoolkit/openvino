@@ -299,7 +299,8 @@ void ngfunction_2_irv10(
         XmlVisitor visitor{data};
         NGRAPH_CHECK(node->visit_attributes(visitor),
                      "Visitor API is not supported in ", node);
-        if (node->get_type_name() == "GenericIE") {
+        std::string node_type_name {node->get_type_name()};
+        if (node_type_name == "GenericIE") {
             layer_type_attribute.set_value(
                 visitor.ie_generic_type_name.c_str());
         } else {
