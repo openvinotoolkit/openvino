@@ -36,10 +36,10 @@
 #include <transformations/op_conversions/convert_space_to_depth.hpp>
 #include <transformations/op_conversions/convert_gelu.hpp>
 #include <transformations/op_conversions/hswish_decomposition.hpp>
+#include <transformations/op_conversions/hsigmoid_decomposition.hpp>
 #include <transformations/op_conversions/reduce_l1_decomposition.hpp>
 #include <transformations/op_conversions/reduce_l2_decomposition.hpp>
 #include <transformations/op_conversions/convert_pad_to_group_conv.hpp>
-#include <transformations/op_conversions/convert_extract_image_patches_to_reorg_yolo.hpp>
 #include <transformations/op_conversions/softplus_decomposition.hpp>
 #include <transformations/op_conversions/convert_space_to_batch.hpp>
 #include <transformations/op_conversions/convert_batch_to_space.hpp>
@@ -54,10 +54,13 @@
 #include <ngraph/pass/manager.hpp>
 
 #include <transformations/common_optimizations/lin_op_sequence_fusion.hpp>
-#include <transformations/low_precision/transformer.hpp>
-#include <transformations/low_precision/convolution.hpp>
-#include <transformations/low_precision/group_convolution.hpp>
-#include <transformations/low_precision/multiply_to_group_convolution.hpp>
+
+#ifndef USE_CNNNETWORK_LPT
+# include <low_precision/transformer.hpp>
+# include <low_precision/convolution.hpp>
+# include <low_precision/group_convolution.hpp>
+# include <low_precision/multiply_to_group_convolution.hpp>
+#endif
 
 #if !defined(__arm__) && !defined(_M_ARM) && !defined(__aarch64__) && !defined(_M_ARM64)
 #if defined(_WIN32) || defined(WIN32)
@@ -137,11 +140,11 @@ static void Transformation(ICNNNetwork::Ptr& clonedNetwork, const Config& conf) 
 
     // List of enabled/disabled transformations
     pass_config->disable<ngraph::pass::ConvertGELU>();
-    pass_config->disable<ngraph::pass::ConvertExtractImagePatchesToReorgYolo>();
     pass_config->disable<ngraph::pass::HSwishDecomposition>();
     pass_config->disable<ngraph::pass::ReduceL1Decomposition>();
     pass_config->disable<ngraph::pass::ReduceL2Decomposition>();
     pass_config->disable<ngraph::pass::SoftPlusDecomposition>();
+    pass_config->disable<ngraph::pass::HSigmoidDecomposition>();
 
     pass_config->enable<ngraph::pass::ConvertPadToGroupConvolution>();
 

@@ -11,7 +11,7 @@
 #include <legacy/ie_util_internal.hpp>
 
 #include "functional_test_utils/layer_test_utils.hpp"
-#include <transformations/low_precision/transformer.hpp>
+#include <low_precision/transformer.hpp>
 
 namespace LayerTestsUtils {
 

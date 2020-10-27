@@ -907,6 +907,30 @@ void convertFunctionToICNNNetwork(const std::shared_ptr<const ::ngraph::Function
         network->setInputInfo(info);
     };
 
+    // Check if some of function nodes has dynamic input or output shape
+    // we collect this nodes and then throw an exception with the list
+    // of dynamic nodes.
+    std::stringstream err_log;
+    for (const auto & node : graph->get_ordered_ops()) {
+        bool is_dynamic = false;
+        for (const auto & input : node->inputs()) {
+            if (input.get_partial_shape().is_dynamic()) {
+                is_dynamic = true;
+                break;
+            }
+        }
+        for (const auto & output : node->outputs()) {
+            if (output.get_partial_shape().is_dynamic()) {
+                is_dynamic = true;
+                break;
+            }
+        }
+        if (is_dynamic) err_log << node << std::endl;
+    }
+    if (!err_log.str().empty()) {
+        THROW_IE_EXCEPTION << "\nUnsupported dynamic ops: \n" << err_log.str();
+    }
+
     const CNNNetworkNGraphImpl* nGraphImpl = dynamic_cast<const CNNNetworkNGraphImpl*>(&network);
 
     InputsDataMap thisInputDataMap;

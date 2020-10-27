@@ -64,7 +64,7 @@ Glossary of terms used in the Inference Engine
 | :---                        | :---                |
 | Batch | Number of images to analyze during one call of infer. Maximum batch size is a property of the network and it is set before loading of the network to the plugin. In NHWC, NCHW and NCDHW image data layout representation, the N refers to the number of images in the batch |
 | Blob | Memory container used for storing inputs, outputs of the network, weights and biases of the layers |
-| Device (Affinitity) | A preferred Intel(R) hardware device to run the inference (CPU, GPU, FPGA, etc.) |
+| Device (Affinitity) | A preferred Intel(R) hardware device to run the inference (CPU, GPU, etc.) |
 | Extensibility mechanism, Custom layers | The mechanism that provides you with capabilities to extend the Inference Engine and Model Optimizer so that they can work with topologies containing layers that are not yet supported |
 | <code>ICNNNetwork</code> | An Interface of the Convolutional Neural Network that Inference Engine reads from IR. Consists of topology, weights and biases |
 | <code>IExecutableNetwork</code> | An instance of the loaded network which allows the Inference Engine to request (several) infer requests and perform inference synchronously or asynchronously |

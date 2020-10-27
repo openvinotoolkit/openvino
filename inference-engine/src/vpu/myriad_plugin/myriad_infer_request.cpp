@@ -208,12 +208,12 @@ void MyriadInferRequest::GetResult() {
         const auto& blob = (*it).second;
 
         if (blob->getTensorDesc().getLayout() == getVpuLayout(name)) {
-            _executor->getResult(_graphDesc, blob->buffer(), blob->byteSize());
+            _executor->getResult(_graphDesc, blob->buffer(), static_cast<unsigned>(blob->byteSize()));
             return;
         }
     }
 
-    _executor->getResult(_graphDesc, resultBuffer.data(), resultBuffer.size());
+    _executor->getResult(_graphDesc, resultBuffer.data(), static_cast<unsigned>(resultBuffer.size()));
 
     for (const auto& output : _outputs) {
         const auto& ieBlobName = output.first;
@@ -291,6 +291,6 @@ void MyriadInferRequest::GetPerformanceCounts(std::map<std::string, InferenceEng
 
     perfMap = vpu::parsePerformanceReport(
         _stagesMetaData,
-        perfInfo.data(), perfInfo.size(),
+        perfInfo.data(), static_cast<int>(perfInfo.size()),
         _config.perfReport(), _config.printReceiveTensorTime());
 }

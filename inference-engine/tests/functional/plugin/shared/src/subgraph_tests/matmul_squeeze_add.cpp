@@ -75,7 +75,7 @@ void MatmulSqueezeAddTest::SetUp() {
 
     auto constant_2 = ngraph::builder::makeConstant<float>(ngPrc, { 1, inputShape[0], outputSize },
         generateFloatNumbers(0, 1, inputShape[0] * outputSize), false);
-    auto add_0 = std::make_shared<ngraph::op::Add>(unsqueeze_0, constant_2);
+    auto add_0 = std::make_shared<ngraph::op::v1::Add>(unsqueeze_0, constant_2);
 
     auto constant_3 = std::make_shared<ngraph::op::Constant>(ngraph::element::Type_t::i64, ngraph::Shape{ 1 }, std::vector<size_t>{0});
     auto squeeze_0 = std::make_shared<ngraph::op::Squeeze>(add_0, constant_3);

@@ -106,7 +106,7 @@ private:
         static std::shared_ptr<ngraph::Node> fillSubGraphLayer(const ngraph::OutputVector& inputs, const pugi::xml_node& node,
                                                         std::istream& binStream,
                                                         const GenericLayerParams& layerParsePrms,
-                                                        std::shared_ptr<ngraph::op::util::SubGraphOp> sub_graph_node);
+                                                        std::shared_ptr<ngraph::op::util::SubGraphOp> subgraph_op);
         explicit LayerBaseCreator(const std::string& type): type(type) {}
         std::string getType() {
             return type;
