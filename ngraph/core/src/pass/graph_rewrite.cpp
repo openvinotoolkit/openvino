@@ -72,6 +72,7 @@ bool pass::GraphRewrite::run_on_function(shared_ptr<Function> f)
     OV_ITT_SCOPED_TASK(itt::domains::nGraph, "pass::GraphRewrite::run_on_function");
 
     bool rewritten = false;
+    const auto& pass_config = get_pass_config();
 
     // Initialize execution queue with nodes in topological order
     deque<std::shared_ptr<Node>> nodes_to_run;
@@ -85,6 +86,10 @@ bool pass::GraphRewrite::run_on_function(shared_ptr<Function> f)
     std::unordered_map<NodeTypeInfo, std::vector<size_t>> type_to_matcher;
     for (size_t matcher_index = 0; matcher_index < m_matchers.size(); ++matcher_index)
     {
+        // Skip passes that are disabled
+        if (pass_config->is_disabled(m_matchers[matcher_index]->get_type_info()))
+            continue;
+
         auto matcher = m_matchers[matcher_index]->get_matcher();
         if (!matcher)
         {
@@ -137,11 +142,6 @@ bool pass::GraphRewrite::run_on_function(shared_ptr<Function> f)
                             "optimization till the shapes are fully "
                             "materialized";
             return false;
-        }
-
-        if (!m_has_default_callback)
-        {
-            m_pass->set_callback(m_transformation_callback);
         }
 
         // Apply MatcherPass. In case if it returns true no other MatcherPasses will apply
@@ -224,6 +224,10 @@ bool pass::GraphRewrite::run_on_function(shared_ptr<Function> f)
         {
             for (auto& m_pass : m_matchers)
             {
+                // Skip passes that are disabled
+                if (pass_config->is_disabled(m_pass->get_type_info()))
+                    continue;
+
                 if (run_matcher_pass(m_pass, node))
                 {
                     rewritten = true;

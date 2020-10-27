@@ -31,14 +31,13 @@ public:
             const ie::ICNNNetwork& network,
             const std::map<std::string, std::string>& config) override;
 
-    void QueryNetwork(
+    ie::QueryNetworkResult QueryNetwork(
             const ie::ICNNNetwork& network,
-            const std::map<std::string, std::string>& config,
-            ie::QueryNetworkResult& res) const override;
+            const std::map<std::string, std::string>& config) const override;
 
     using ie::InferencePluginInternal::ImportNetwork;
 
-    ie::IExecutableNetwork::Ptr ImportNetwork(
+    ie::ExecutableNetwork ImportNetwork(
             const std::string& modelFileName,
             const std::map<std::string, std::string>& config) override;
 

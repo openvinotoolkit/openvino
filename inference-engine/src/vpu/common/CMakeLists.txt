@@ -2,14 +2,14 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-if(ENABLE_LTO)
-    ie_enable_lto()
-endif()
-
 file(GLOB_RECURSE SOURCES *.cpp *.hpp *.h)
 
 function(add_common_target TARGET_NAME STATIC_IE)
     add_library(${TARGET_NAME} STATIC ${SOURCES})
+
+    ie_faster_build(${TARGET_NAME}
+        UNITY
+    )
 
     set_ie_threading_interface_for(${TARGET_NAME})
 
@@ -46,6 +46,8 @@ function(add_common_target TARGET_NAME STATIC_IE)
     if(NOT STATIC_IE)
         add_cpplint_target(${TARGET_NAME}_cpplint FOR_TARGETS ${TARGET_NAME} CUSTOM_FILTERS "+runtime/explicit")
     endif()
+
+    set_target_properties(${TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION ${ENABLE_LTO})
 
     ie_developer_export_targets(${TARGET_NAME})
 

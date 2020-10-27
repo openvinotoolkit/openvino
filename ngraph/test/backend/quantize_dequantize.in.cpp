@@ -61,37 +61,6 @@ NGRAPH_TEST(${BACKEND_NAME}, quantize)
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, dequantize)
-{
-    Shape input_shape{4, 3};
-    Shape scale_offset_shape;
-    AxisSet quantization_axes;
-
-    auto input_type = element::u8;
-    auto output_type = element::f32;
-
-    typedef uint8_t input_c_type;
-    typedef float output_c_type;
-
-    auto X = make_shared<op::Parameter>(input_type, input_shape);
-    auto scale = op::Constant::create(output_type, scale_offset_shape, {2});
-    auto offset = op::Constant::create(input_type, scale_offset_shape, {1});
-    auto dequantize = make_shared<op::Dequantize>(X, scale, offset, output_type, quantization_axes);
-    auto f = make_shared<Function>(dequantize, ParameterVector{X});
-
-    std::vector<input_c_type> x{{1, 1, 2, 3, 3, 3, 4, 5, 5, 5, 6, 7}};
-    // minus offset                   1  1  1  1  1  1  1  1  1  1  1  1
-    // eqauls                         0  0  1  2  2  2  3  4  4  4  5  6
-    // multiplied by scale            2  2  2  2  2  2  2  2  2  2  2  2
-    // equals                         0  0  2  4  4  4  6  8  8  8 10 12
-
-    auto test_case = test::TestCase<TestEngine>(f);
-    test_case.add_input<input_c_type>({x});
-    test_case.add_expected_output<output_c_type>(input_shape,
-                                                 {0, 0, 2, 4, 4, 4, 6, 8, 8, 8, 10, 12});
-    test_case.run(MIN_FLOAT_TOLERANCE_BITS);
-}
-
 NGRAPH_TEST(${BACKEND_NAME}, quantize_zero_offset)
 {
     Shape input_shape{4, 3};
@@ -123,37 +92,6 @@ NGRAPH_TEST(${BACKEND_NAME}, quantize_zero_offset)
     test_case.add_input<input_c_type>({x});
     test_case.add_expected_output<output_c_type>(input_shape, {0, 0, 1, 2, 2, 2, 3, 4, 4, 4, 5, 6});
     test_case.run();
-}
-
-NGRAPH_TEST(${BACKEND_NAME}, dequantize_zero_offset)
-{
-    Shape input_shape{4, 3};
-    Shape scale_offset_shape;
-    AxisSet quantization_axes;
-
-    auto input_type = element::u8;
-    auto output_type = element::f32;
-
-    typedef uint8_t input_c_type;
-    typedef float output_c_type;
-
-    auto X = make_shared<op::Parameter>(input_type, input_shape);
-    auto scale = op::Constant::create(output_type, scale_offset_shape, {2});
-    auto offset = op::Constant::create(input_type, scale_offset_shape, {0});
-    auto dequantize = make_shared<op::Dequantize>(X, scale, offset, output_type, quantization_axes);
-    auto f = make_shared<Function>(dequantize, ParameterVector{X});
-
-    std::vector<input_c_type> x{0, 0, 1, 2, 2, 2, 3, 4, 4, 4, 5, 6};
-    // minus offset                   0  0  0  0  0  0  0  0  0  0  0  0
-    // equals                         0  0  1  2  2  2  3  4  4  4  5  6
-    // multiplied by scale            2  2  2  2  2  2  2  2  2  2  2  2
-    // equals                         0  0  2  4  4  4  6  8  8  8 10 12
-
-    auto test_case = test::TestCase<TestEngine>(f);
-    test_case.add_input<input_c_type>({x});
-    test_case.add_expected_output<output_c_type>(input_shape,
-                                                 {0, 0, 2, 4, 4, 4, 6, 8, 8, 8, 10, 12});
-    test_case.run(MIN_FLOAT_TOLERANCE_BITS);
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, quantize_axes)
@@ -190,37 +128,6 @@ NGRAPH_TEST(${BACKEND_NAME}, quantize_axes)
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, dequantize_axes)
-{
-    Shape input_shape{4, 3};
-    Shape scale_offset_shape{4};
-    AxisSet quantization_axes{0};
-
-    auto input_type = element::u8;
-    auto output_type = element::f32;
-
-    typedef uint8_t input_c_type;
-    typedef float output_c_type;
-
-    auto X = make_shared<op::Parameter>(input_type, input_shape);
-    auto scale = op::Constant::create(output_type, scale_offset_shape, {2, 3, 4, 5});
-    auto offset = op::Constant::create(input_type, scale_offset_shape, {10, 20, 30, 40});
-    auto dequantize = make_shared<op::Dequantize>(X, scale, offset, output_type, quantization_axes);
-    auto f = make_shared<Function>(dequantize, ParameterVector{X});
-
-    std::vector<input_c_type> x{10, 11, 11, 21, 21, 22, 32, 32, 32, 42, 42, 42};
-    // minus offset                   10  10  10  20  20  20  30  30  30  40  40  40
-    // equals                          0   1   1   1   1   2   2   2   2   2   2   2
-    // multiplied by scale             2   2   2   3   3   3   4   4   4   5   5   5
-    // equals                          0   2   2   3   3   6   8   8   8  10  10  10
-
-    auto test_case = test::TestCase<TestEngine>(f);
-    test_case.add_input<input_c_type>({x});
-    test_case.add_expected_output<output_c_type>(input_shape,
-                                                 {0, 2, 2, 3, 3, 6, 8, 8, 8, 10, 10, 10});
-    test_case.run(MIN_FLOAT_TOLERANCE_BITS);
-}
-
 NGRAPH_TEST(${BACKEND_NAME}, quantize_int8)
 {
     Shape input_shape{4, 3};
@@ -253,37 +160,6 @@ NGRAPH_TEST(${BACKEND_NAME}, quantize_int8)
     test_case.add_expected_output<output_c_type>(input_shape,
                                                  {1, 1, 2, -1, 3, -1, 4, -3, 5, -3, 6, -5});
     test_case.run();
-}
-
-NGRAPH_TEST(${BACKEND_NAME}, dequantize_int8)
-{
-    Shape input_shape{4, 3};
-    Shape scale_offset_shape;
-    AxisSet quantization_axes;
-
-    auto input_type = element::i8;
-    auto output_type = element::f32;
-
-    typedef int8_t input_c_type;
-    typedef float output_c_type;
-
-    auto X = make_shared<op::Parameter>(input_type, input_shape);
-    auto scale = op::Constant::create(output_type, scale_offset_shape, {2});
-    auto offset = op::Constant::create(input_type, scale_offset_shape, {1});
-    auto dequantize = make_shared<op::Dequantize>(X, scale, offset, output_type, quantization_axes);
-    auto f = make_shared<Function>(dequantize, ParameterVector{X});
-
-    std::vector<input_c_type> x{1, 1, 2, -1, 3, -1, 4, -3, 5, -3, 6, -5};
-    // minus offset                   1  1  1   1  1   1  1   1  1   1  1   1
-    // equals                         0  0  1  -2  2  -2  3  -4  4  -4  5  -6
-    // multiplied by scale            2  2  2   2  2   2  2   2  2   2  2   2
-    // equals                         0  0  2  -4  4  -4  6  -8  8  -8 10 -12
-
-    auto test_case = test::TestCase<TestEngine>(f);
-    test_case.add_input<input_c_type>({x});
-    test_case.add_expected_output<output_c_type>(input_shape,
-                                                 {0, 0, 2, -4, 4, -4, 6, -8, 8, -8, 10, -12});
-    test_case.run(MIN_FLOAT_TOLERANCE_BITS);
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, quantize_int8_zero_offset)
@@ -320,37 +196,6 @@ NGRAPH_TEST(${BACKEND_NAME}, quantize_int8_zero_offset)
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, dequantize_int8_zero_offset)
-{
-    Shape input_shape{4, 3};
-    Shape scale_offset_shape;
-    AxisSet quantization_axes;
-
-    auto input_type = element::i8;
-    auto output_type = element::f32;
-
-    typedef int8_t input_c_type;
-    typedef float output_c_type;
-
-    auto X = make_shared<op::Parameter>(input_type, input_shape);
-    auto scale = op::Constant::create(output_type, scale_offset_shape, {2});
-    auto offset = op::Constant::create(input_type, scale_offset_shape, {0});
-    auto dequantize = make_shared<op::Dequantize>(X, scale, offset, output_type, quantization_axes);
-    auto f = make_shared<Function>(dequantize, ParameterVector{X});
-
-    std::vector<input_c_type> x{0, 0, 1, -2, 2, -2, 3, -4, 4, -4, 5, -6};
-    // minus offset                   0  0  0   0  0   0  0   0  0   0  0   0
-    // equals                         0  0  1  -2  2  -2  3  -4  4  -4  5  -6
-    // multiplied by scale            2  2  2   2  2   2  2   2  2   2  2   2
-    // equals                         0  0  2  -4  4  -4  6  -8  8  -8 10 -12
-
-    auto test_case = test::TestCase<TestEngine>(f);
-    test_case.add_input<input_c_type>({x});
-    test_case.add_expected_output<output_c_type>(input_shape,
-                                                 {0, 0, 2, -4, 4, -4, 6, -8, 8, -8, 10, -12});
-    test_case.run(MIN_FLOAT_TOLERANCE_BITS);
-}
-
 NGRAPH_TEST(${BACKEND_NAME}, quantize_int32)
 {
     Shape input_shape{4, 3};
@@ -385,37 +230,6 @@ NGRAPH_TEST(${BACKEND_NAME}, quantize_int32)
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, dequantize_int32)
-{
-    Shape input_shape{4, 3};
-    Shape scale_offset_shape;
-    AxisSet quantization_axes;
-
-    auto input_type = element::i32;
-    auto output_type = element::f32;
-
-    typedef int32_t input_c_type;
-    typedef float output_c_type;
-
-    auto X = make_shared<op::Parameter>(input_type, input_shape);
-    auto scale = op::Constant::create(output_type, scale_offset_shape, {2});
-    auto offset = op::Constant::create(input_type, scale_offset_shape, {1});
-    auto dequantize = make_shared<op::Dequantize>(X, scale, offset, output_type, quantization_axes);
-    auto f = make_shared<Function>(dequantize, ParameterVector{X});
-
-    std::vector<input_c_type> x{1, 1, 2, -1, 3, -1, 4, -3, 5, -3, 6, -5};
-    // minus offset                   1  1  1   1  1   1  1   1  1   1  1   1
-    // equals                         0  0  1  -2  2  -2  3  -4  4  -4  5  -6
-    // multiplied by scale            2  2  2   2  2   2  2   2  2   2  2   2
-    // equals                         0  0  2  -4  4  -4  6  -8  8  -8 10 -12
-
-    auto test_case = test::TestCase<TestEngine>(f);
-    test_case.add_input<input_c_type>({x});
-    test_case.add_expected_output<output_c_type>(input_shape,
-                                                 {0, 0, 2, -4, 4, -4, 6, -8, 8, -8, 10, -12});
-    test_case.run(MIN_FLOAT_TOLERANCE_BITS);
-}
-
 NGRAPH_TEST(${BACKEND_NAME}, quantize_int32_zero_offset)
 {
     Shape input_shape{4, 3};
@@ -448,37 +262,6 @@ NGRAPH_TEST(${BACKEND_NAME}, quantize_int32_zero_offset)
     test_case.add_expected_output<output_c_type>(input_shape,
                                                  {0, 0, 1, -2, 2, -2, 3, -4, 4, -4, 5, -6});
     test_case.run();
-}
-
-NGRAPH_TEST(${BACKEND_NAME}, dequantize_int32_zero_offset)
-{
-    Shape input_shape{4, 3};
-    Shape scale_offset_shape;
-    AxisSet quantization_axes;
-
-    auto input_type = element::i32;
-    auto output_type = element::f32;
-
-    typedef int32_t input_c_type;
-    typedef float output_c_type;
-
-    auto X = make_shared<op::Parameter>(input_type, input_shape);
-    auto scale = op::Constant::create(output_type, scale_offset_shape, {2});
-    auto offset = op::Constant::create(input_type, scale_offset_shape, {0});
-    auto dequantize = make_shared<op::Dequantize>(X, scale, offset, output_type, quantization_axes);
-    auto f = make_shared<Function>(dequantize, ParameterVector{X});
-
-    std::vector<input_c_type> x{0, 0, 1, -2, 2, -2, 3, -4, 4, -4, 5, -6};
-    // minus offset                   0  0  0   0  0   0  0   0  0   0  0   0
-    // equals                         0  0  1  -2  2  -2  3  -4  4  -4  5  -6
-    // multiplied by scale            2  2  2   2  2   2  2   2  2   2  2   2
-    // equals                         0  0  2  -4  4  -4  6  -8  8  -8 10 -12
-
-    auto test_case = test::TestCase<TestEngine>(f);
-    test_case.add_input<input_c_type>({x});
-    test_case.add_expected_output<output_c_type>(input_shape,
-                                                 {0, 0, 2, -4, 4, -4, 6, -8, 8, -8, 10, -12});
-    test_case.run(MIN_FLOAT_TOLERANCE_BITS);
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, quantize_clamp_uint8)
@@ -876,37 +659,6 @@ NGRAPH_TEST(${BACKEND_NAME}, quantize_ROUND_DOWN)
     test_case.add_expected_output<output_c_type>(input_shape,
                                                  {2, 2, 2, -3, -3, -3, 3, 3, 3, -4, -4, -4});
     test_case.run();
-}
-
-NGRAPH_TEST(${BACKEND_NAME}, dequantize_dynamic_offset)
-{
-    Shape input_shape{4};
-    Shape scale_offset_shape = {};
-    AxisSet quantization_axes;
-
-    auto input_type = element::u8;
-    auto output_type = element::f32;
-
-    typedef uint8_t input_c_type;
-    typedef float output_c_type;
-
-    auto X = make_shared<op::Parameter>(input_type, input_shape);
-    auto scale = make_shared<op::Parameter>(output_type, scale_offset_shape);
-    auto offset = make_shared<op::Parameter>(input_type, scale_offset_shape);
-    auto dequantize = make_shared<op::Dequantize>(X, scale, offset, output_type, quantization_axes);
-    auto f = make_shared<Function>(dequantize, ParameterVector{X, scale, offset});
-
-    std::vector<input_c_type> x{0, 3, 128, 255};
-    std::vector<output_c_type> Scale{2};
-    std::vector<input_c_type> Offset{128};
-
-    auto test_case = test::TestCase<TestEngine>(f);
-    test_case.add_input<input_c_type>({x});
-    test_case.add_input<output_c_type>({Scale});
-    test_case.add_input<input_c_type>({Offset});
-
-    test_case.add_expected_output<output_c_type>(input_shape, {-256.0f, -250.0f, 0.0f, 254.0f});
-    test_case.run(MIN_FLOAT_TOLERANCE_BITS);
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, quantize_dynamic_offset)

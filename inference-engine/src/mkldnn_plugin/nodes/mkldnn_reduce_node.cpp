@@ -7,13 +7,12 @@
 #include "mkldnn_quantize_node.h"
 #include "mkldnn_depthwise_node.h"
 #include "mkldnn_activation_node.h"
-#include <ie_layers.h>
+#include <legacy/ie_layers.h>
 #include <mkldnn.hpp>
 #include <string>
 #include <vector>
 #include <mkldnn_types.h>
 #include <mkldnn_extension_utils.h>
-#include <ie_layers_internal.hpp>
 #include "ie_parallel.hpp"
 #include <algorithm>
 

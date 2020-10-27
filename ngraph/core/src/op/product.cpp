@@ -51,7 +51,7 @@ shared_ptr<Node> op::v0::Product::get_default_value() const
     return ngraph::make_constant_from_string("1", get_element_type(), get_shape());
 }
 
-namespace
+namespace product
 {
     template <element::Type_t ET>
     bool evaluate(const HostTensorPtr& arg,
@@ -95,5 +95,5 @@ bool op::v0::Product::evaluate(const HostTensorVector& outputs,
                                const HostTensorVector& inputs) const
 {
     OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v0::Product::evaluate");
-    return evaluate_product(inputs[0], outputs[0], get_reduction_axes(), false);
+    return product::evaluate_product(inputs[0], outputs[0], get_reduction_axes(), false);
 }

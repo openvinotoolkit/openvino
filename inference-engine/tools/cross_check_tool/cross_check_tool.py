@@ -75,8 +75,15 @@ def get_exec_net(core, net, device):
 @error_handling('output \'{output}\' addition for network from model \'{model}\'')
 def get_net_copy_with_output(model: str, output: str, core: IECore):
     net_copy = get_net(model=model, core=core)
+    func = ng.function_from_cnn(net_copy)
     if output not in ['None', None]:
-        net_copy.add_outputs(output)
+        # output with port_id in name is absent in ops list
+        founded_op = [op for op in func.get_ops() if op.friendly_name == output]
+        if founded_op:
+            net_copy.add_outputs(output)
+        else:
+            splitted = output.rsplit(".", 1)
+            net_copy.add_outputs((splitted[0], int(splitted[1])))
     return net_copy
 
 

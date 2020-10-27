@@ -15,8 +15,8 @@
 #include <ngraph/op/constant.hpp>
 #include <ngraph/op/reshape.hpp>
 #include <ngraph/pass/constant_folding.hpp>
-#include <ngraph_ops/fully_connected.hpp>
-#include <transformations/convert_opset1_to_legacy/reshape_fc_fusion.hpp>
+#include <legacy/ngraph_ops/fully_connected.hpp>
+#include <legacy/transformations/convert_opset1_to_legacy/reshape_fc_fusion.hpp>
 #include <transformations/init_node_info.hpp>
 #include "common_test_utils/ngraph_test_utils.hpp"
 

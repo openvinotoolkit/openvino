@@ -16,7 +16,7 @@
 #include "functional_test_utils/plugin_cache.hpp"
 #include "functional_test_utils/skip_tests_config.hpp"
 
-#include <transformations/lstm_cell_decomposition.hpp>
+#include <transformations/op_conversions/lstm_cell_decomposition.hpp>
 #include "single_layer_tests/lstm_cell.hpp"
 
 namespace LayerTestsDefinitions {

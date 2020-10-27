@@ -244,7 +244,7 @@ cdef class IECore:
             versions[device].major = ver.apiVersion.major
         return versions
 
-    ## Reads a network from the Intermediate Representation (IR) and creates an `IENetwork`.
+    ## Reads a network from Intermediate Representation (IR) or ONNX formats and creates an `IENetwork`.
     #  @param model: A `.xml`, `.onnx`or `.prototxt` model file or string with IR.
     #  @param weights: A `.bin` file of the IR. Depending on `init_from_buffer` value, can be a string path or
     #                  bytes with file content.
@@ -1614,6 +1614,8 @@ cdef class BlobBuffer:
         cdef SizeVector shape
         if len(representation_shape) == 0:
             shape = desc.getDims()
+            if layout_int_to_str_map[desc.getLayout()] == 'SCALAR':
+                shape = [1]
         else:
             shape = representation_shape
         cdef Py_ssize_t itemsize = deref(ptr).element_size()

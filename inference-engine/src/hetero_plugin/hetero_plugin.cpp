@@ -157,8 +157,7 @@ void HeteroLayerColorer::operator()(const CNNLayerPtr layer,
 }
 
 void Engine::SetAffinity(InferenceEngine::ICNNNetwork &network, const Configs &config) {
-    QueryNetworkResult qr;
-    QueryNetwork(network, config, qr);
+    QueryNetworkResult qr = QueryNetwork(network, config);
 
     details::CNNNetworkIterator i(&network);
     while (i != details::CNNNetworkIterator()) {
@@ -194,7 +193,9 @@ void Engine::SetAffinity(InferenceEngine::ICNNNetwork &network, const Configs &c
     }
 }
 
-void Engine::QueryNetwork(const ICNNNetwork &network, const Configs& config, QueryNetworkResult &qr) const {
+QueryNetworkResult Engine::QueryNetwork(const ICNNNetwork &network, const Configs& config) const {
+    QueryNetworkResult qr;
+
     if (GetCore() == nullptr) {
         THROW_IE_EXCEPTION << "Please, work with HETERO device via InferencEngine::Core object";
     }
@@ -257,6 +258,8 @@ void Engine::QueryNetwork(const ICNNNetwork &network, const Configs& config, Que
 
     // set OK status
     qr.rc = StatusCode::OK;
+
+    return qr;
 }
 
 Parameter Engine::GetMetric(const std::string& name, const std::map<std::string, Parameter> & /*options*/) const {

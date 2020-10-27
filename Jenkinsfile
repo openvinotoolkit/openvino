@@ -6,5 +6,4 @@ properties([
                      name: 'failFast')
     ])
 ])
-
 dldtPipelineEntrypoint(this)

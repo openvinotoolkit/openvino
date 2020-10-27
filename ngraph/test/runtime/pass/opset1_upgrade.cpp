@@ -35,7 +35,7 @@ NGRAPH_SUPPRESS_DEPRECATED_START
 using namespace std;
 using namespace ngraph;
 
-namespace
+namespace opset1_upgrade
 {
     template <typename OpV0, typename OpV1>
     shared_ptr<Node> op_cast_binary_elementwise_node(const shared_ptr<OpV0>& node)
@@ -54,15 +54,6 @@ namespace
         return op_cast_binary_elementwise_node<op::v0::Add, op::v1::Add>(node);
     }
 
-    shared_ptr<Node> op_cast(shared_ptr<op::Broadcast> node)
-    {
-        auto replacement_node = ngraph::builder::opset1::make_broadcast(
-            node->input_value(0), node->get_broadcast_shape(), node->get_broadcast_axes());
-        replace_node(node, replacement_node.get_node_shared_ptr());
-        return replacement_node.get_node_shared_ptr();
-    }
-
-    shared_ptr<Node> op_cast(shared_ptr<op::BroadcastLike> node) { return nullptr; }
     shared_ptr<Node> op_cast(shared_ptr<op::v0::Convolution> node)
     {
         auto strides = node->get_window_movement_strides();
@@ -147,17 +138,6 @@ namespace
     shared_ptr<Node> op_cast(shared_ptr<op::Equal> node)
     {
         return op_cast_binary_elementwise_node<op::v0::Equal, op::v1::Equal>(node);
-    }
-
-    shared_ptr<Node> op_cast(shared_ptr<op::Gather> node)
-    {
-        int64_t axis = node->get_axis();
-
-        auto axis_node = make_shared<op::Constant>(element::i64, Shape{}, vector<int64_t>{axis});
-        auto replacement_node =
-            make_shared<op::v1::Gather>(node->input_value(0), node->input_value(1), axis_node);
-        replace_node(node, replacement_node);
-        return replacement_node;
     }
 
     shared_ptr<Node> op_cast(shared_ptr<op::Greater> node)
@@ -547,12 +527,12 @@ namespace
         return dispatch_map;
         NGRAPH_SUPPRESS_DEPRECATED_END
     }
-} // namespace
+} // namespace opset1_upgrade
 
 bool pass::Opset1Upgrade::run_on_node(shared_ptr<Node> node)
 {
     bool modified = false;
-    auto& dispatch_map = get_dispatch_map();
+    auto& dispatch_map = opset1_upgrade::get_dispatch_map();
     auto it = dispatch_map.find(node->get_type_info());
     if (it != dispatch_map.end())
     {

@@ -213,7 +213,7 @@ class TensorIterator(Op):
             internal_node = node_map[internal_node_id]
 
             if internal_node.soft_get('type') != 'Result':
-                # this output wont get out of the body, but it is still Result and needed on non first iterations of TI
+                # this output won't get out of the body, but it is still Result and needed on non first iterations of TI
                 assert 'from_port' in record
                 out_port = TensorIterator.special_port_to_real_port(internal_node, record['from_port'], 'out')
                 assert out_port in internal_node.out_ports() and not internal_node.out_port(out_port).disconnected()
@@ -300,7 +300,7 @@ class TensorIterator(Op):
     def generate_port_map(node: Node, src_port_map):
         """ Extract port_map attributes from node and node.body attributes.
 
-            It iterates over src_port_map and substitude external_port_id, internal_port_id and
+            It iterates over src_port_map and substitute external_port_id, internal_port_id and
             internal_layer_id by real values queried from node ports and node.body attributes.
         """
         result_list = []

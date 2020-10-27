@@ -16,15 +16,19 @@ This plugin adds the following command-line options:
 """
 
 # pylint:disable=import-error
+import os
 import sys
 import pytest
 from pathlib import Path
 import yaml
 import hashlib
-from copy import deepcopy
+import shutil
+import logging
+import tempfile
 
 from test_runner.utils import upload_timetest_data, \
     DATABASE, DB_COLLECTIONS
+from scripts.run_timetest import check_positive_int
 
 
 # -------------------- CLI options --------------------
@@ -48,7 +52,7 @@ def pytest_addoption(parser):
     )
     test_args_parser.addoption(
         "--niter",
-        type=int,
+        type=check_positive_int,
         help="number of iterations to run executable and aggregate results",
         default=3
     )
@@ -104,6 +108,70 @@ def niter(request):
 # -------------------- CLI options --------------------
 
 
+@pytest.fixture(scope="function")
+def temp_dir(pytestconfig):
+    """Create temporary directory for test purposes.
+    It will be cleaned up after every test run.
+    """
+    temp_dir = tempfile.TemporaryDirectory()
+    yield Path(temp_dir.name)
+    temp_dir.cleanup()
+
+
+@pytest.fixture(scope="function")
+def cl_cache_dir(pytestconfig):
+    """Generate directory to save OpenCL cache before test run and clean up after run.
+
+    Folder `cl_cache` should be created in a directory where tests were run. In this case
+    cache will be saved correctly. This behaviour is OS independent.
+    More: https://github.com/intel/compute-runtime/blob/master/opencl/doc/FAQ.md#how-can-cl_cache-be-enabled
+    """
+    cl_cache_dir = pytestconfig.invocation_dir / "cl_cache"
+    # if cl_cache generation to a local `cl_cache` folder doesn't work, specify
+    # `cl_cache_dir` environment variable in an attempt to fix it (Linux specific)
+    os.environ["cl_cache_dir"] = str(cl_cache_dir)
+    if cl_cache_dir.exists():
+        shutil.rmtree(cl_cache_dir)
+    cl_cache_dir.mkdir()
+    yield cl_cache_dir
+    shutil.rmtree(cl_cache_dir)
+
+
+@pytest.fixture(scope="function")
+def test_info(request, pytestconfig):
+    """Fixture for collecting timetests information.
+
+    Current fixture fills in `request` and `pytestconfig` global
+    fixtures with timetests information which will be used for
+    internal purposes.
+    """
+    setattr(request.node._request, "test_info", {"orig_instance": request.node.funcargs["instance"],
+                                                 "results": {}})
+    if not hasattr(pytestconfig, "session_info"):
+        setattr(pytestconfig, "session_info", [])
+
+    yield request.node._request.test_info
+
+    pytestconfig.session_info.append(request.node._request.test_info)
+
+
+@pytest.fixture(scope="session", autouse=True)
+def prepare_tconf_with_refs(pytestconfig):
+    """Fixture for preparing test config based on original test config
+    with timetests results saved as references.
+    """
+    yield
+    new_tconf_path = pytestconfig.getoption('dump_refs')
+    if new_tconf_path:
+        logging.info("Save new test config with test results as references to {}".format(new_tconf_path))
+        upd_cases = pytestconfig.orig_cases.copy()
+        for record in pytestconfig.session_info:
+            rec_i = upd_cases.index(record["orig_instance"])
+            upd_cases[rec_i]["references"] = record["results"]
+        with open(new_tconf_path, "w") as tconf:
+            yaml.safe_dump(upd_cases, tconf)
+
+
 def pytest_generate_tests(metafunc):
     """Pytest hook for test generation.
 
@@ -112,9 +180,9 @@ def pytest_generate_tests(metafunc):
     """
     with open(metafunc.config.getoption('test_conf'), "r") as file:
         test_cases = yaml.safe_load(file)
-        TestConfDumper.fill(test_cases)
     if test_cases:
         metafunc.parametrize("instance", test_cases)
+        setattr(metafunc.config, "orig_cases", test_cases)
 
 
 def pytest_make_parametrize_id(config, val, argname):
@@ -155,14 +223,14 @@ def pytest_runtest_makereport(item, call):
 
     data = item.funcargs.copy()
     data["timetest"] = data.pop("executable").stem
-    data.update({key: val for key, val in data["instance"].items()})
+    data.update(data["instance"])
 
     data['run_id'] = run_id
     data['_id'] = hashlib.sha256(
         ''.join([str(data[key]) for key in FIELDS_FOR_ID]).encode()).hexdigest()
 
     data["test_name"] = item.name
-    data["results"] = {}
+    data["results"] = item._request.test_info["results"]
     data["status"] = "not_finished"
     data["error_msg"] = ""
 
@@ -176,42 +244,5 @@ def pytest_runtest_makereport(item, call):
                 data["error_msg"] = report.longrepr.reprcrash.message
             else:
                 data["status"] = "passed"
+        logging.info("Upload data to {}/{}.{}. Data: {}".format(db_url, DATABASE, db_collection, data))
         upload_timetest_data(data, db_url, db_collection)
-
-
-class TestConfDumper:
-    """Class for preparing and dumping new test config with
-    tests' results saved as references
-
-    While run, every test case is patched with it's execution results.
-     To dump new test config, need to add these results to original records
-     as references."""
-    orig_cases = []
-    patched_cases = []
-
-    @classmethod
-    def fill(cls, test_cases: list):
-        """Fill internal fields"""
-        cls.orig_cases = deepcopy(test_cases)
-        cls.patched_cases = test_cases    # don't deepcopy() to allow cases' patching while test run
-
-    @classmethod
-    def dump(cls, path):
-        """Dump tests' cases with new references to a file"""
-        assert len(cls.orig_cases) == len(cls.patched_cases), \
-            "Number of patched cases ('{}') isn't equal to original number ('{}')"\
-                .format(len(cls.patched_cases), len(cls.orig_cases))
-        for orig_rec, patched_rec in zip(cls.orig_cases, cls.patched_cases):
-            assert all([orig_rec[key] == patched_rec[key] for key in orig_rec]), \
-                "Can't map original record to a patched record." \
-                " Dump of test config with updated references is skipped"
-            orig_rec["references"] = patched_rec.get("results", {})
-        with open(path, "w") as tconf:
-            yaml.safe_dump(cls.orig_cases, tconf)
-
-
-def pytest_sessionfinish(session):
-    """Pytest hook for session finish."""
-    new_tconf_path = session.config.getoption('dump_refs')
-    if new_tconf_path:
-        TestConfDumper.dump(new_tconf_path)

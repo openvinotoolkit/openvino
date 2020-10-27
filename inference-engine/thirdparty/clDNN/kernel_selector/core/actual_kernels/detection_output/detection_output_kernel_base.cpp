@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2018 Intel Corporation
+﻿// Copyright (c) 2018-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -48,17 +48,17 @@ JitConstants DetectionOutputKernelBase::GetJitConstants(const detection_output_p
     return jit;
 }
 
-DetectionOutputKernelBase::DispatchData DetectionOutputKernelBase::SetDefault(
-    const detection_output_params& params) const {
-    DispatchData kd;
+DetectionOutputKernelBase::DispatchData DetectionOutputKernelBase::SetDefault(const detection_output_params& /*params*/) const {
+    DispatchData dispatchData;
 
-    kd.fp16UnitUsed = params.inputs[0].GetDType() == Datatype::F16;
-    kd.gws0 = 0;
-    kd.gws1 = 0;
-    kd.gws2 = 0;
-    kd.lws0 = 0;
-    kd.lws1 = 0;
-    kd.lws2 = 0;
-    return kd;
+    dispatchData.gws[0] = 0;
+    dispatchData.gws[1] = 0;
+    dispatchData.gws[2] = 0;
+
+    dispatchData.lws[0] = 0;
+    dispatchData.lws[1] = 0;
+    dispatchData.lws[2] = 0;
+
+    return dispatchData;
 }
 }  // namespace kernel_selector

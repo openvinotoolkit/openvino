@@ -65,8 +65,8 @@ std::vector<size_t> SoftmaxItemsClassKernelBase::GetSoftmaxDimGlobalSizes(Softma
     }
 }
 
-JitConstants SoftmaxItemsClassKernelBase::GetJitConstants(const softmax_params& params, DispatchData kd) const {
-    auto jit = SoftmaxKernelBase::GetJitConstants(params, kd);
+JitConstants SoftmaxItemsClassKernelBase::GetJitConstants(const softmax_params& params, DispatchData dispatchData) const {
+    auto jit = SoftmaxKernelBase::GetJitConstants(params, dispatchData);
 
     switch (params.dim) {
         case SoftmaxDim::X:

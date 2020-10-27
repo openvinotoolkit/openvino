@@ -10,39 +10,40 @@
 #include <cnn_network_ngraph_impl.hpp>
 #include "ngraph_ops/convolution_ie.hpp"
 #include "ngraph_ops/deconvolution_ie.hpp"
-#include "ngraph_ops/eltwise.hpp"
-#include "ngraph_ops/fully_connected.hpp"
-#include "ngraph_ops/gather_ie.hpp"
-#include "ngraph_ops/gather_tree_ie.hpp"
-#include "ngraph_ops/gru_cell_ie.hpp"
-#include "ngraph_ops/interp.hpp"
-#include "ngraph_ops/lrn_ie.hpp"
-#include "ngraph_ops/lstm_cell_ie.hpp"
-#include "ngraph_ops/normalize_ie.hpp"
-#include "ngraph_ops/pad_ie.hpp"
-#include "ngraph_ops/onehot_ie.hpp"
-#include "ngraph_ops/power.hpp"
-#include "ngraph_ops/prior_box_clustered_ie.hpp"
-#include "ngraph_ops/prior_box_ie.hpp"
-#include "ngraph_ops/proposal_ie.hpp"
-#include "ngraph_ops/relu_ie.hpp"
-#include "ngraph_ops/scaleshift.hpp"
-#include "ngraph_ops/tile_ie.hpp"
-#include "ngraph_ops/hard_sigmoid_ie.hpp"
-#include "ngraph_ops/nms_ie.hpp"
-#include "ngraph_ops/crop_ie.hpp"
-#include "ngraph_ops/selu_ie.hpp"
-#include "ngraph_ops/rnn_cell_ie.hpp"
-#include "ngraph_ops/topk_ie.hpp"
-#include "ngraph_ops/rnn_sequence_ie.hpp"
-#include "ngraph_ops/lstm_sequence_ie.hpp"
-#include "ngraph_ops/gru_sequence_ie.hpp"
+#include "legacy/ngraph_ops/eltwise.hpp"
+#include "legacy/ngraph_ops/fully_connected.hpp"
+#include "legacy/ngraph_ops/gather_ie.hpp"
+#include "legacy/ngraph_ops/gather_tree_ie.hpp"
+#include "legacy/ngraph_ops/gru_cell_ie.hpp"
+#include "legacy/ngraph_ops/interp.hpp"
+#include "legacy/ngraph_ops/lrn_ie.hpp"
+#include "legacy/ngraph_ops/lstm_cell_ie.hpp"
+#include "legacy/ngraph_ops/normalize_ie.hpp"
+#include "legacy/ngraph_ops/pad_ie.hpp"
+#include "legacy/ngraph_ops/onehot_ie.hpp"
+#include "legacy/ngraph_ops/power.hpp"
+#include "legacy/ngraph_ops/prior_box_clustered_ie.hpp"
+#include "legacy/ngraph_ops/prior_box_ie.hpp"
+#include "legacy/ngraph_ops/proposal_ie.hpp"
+#include "legacy/ngraph_ops/relu_ie.hpp"
+#include "legacy/ngraph_ops/scaleshift.hpp"
+#include "legacy/ngraph_ops/tile_ie.hpp"
+#include "legacy/ngraph_ops/hard_sigmoid_ie.hpp"
+#include "legacy/ngraph_ops/nms_ie.hpp"
+#include "legacy/ngraph_ops/crop_ie.hpp"
+#include "legacy/ngraph_ops/selu_ie.hpp"
+#include "legacy/ngraph_ops/rnn_cell_ie.hpp"
+#include "legacy/ngraph_ops/topk_ie.hpp"
+#include "legacy/ngraph_ops/rnn_sequence_ie.hpp"
+#include "legacy/ngraph_ops/lstm_sequence_ie.hpp"
+#include "legacy/ngraph_ops/gru_sequence_ie.hpp"
 #include "generic_ie.hpp"
 #include "exec_graph_info.hpp"
 
 #include "caseless.hpp"
 #include <debug.h>
 #include <ngraph/opsets/opset1.hpp>
+#include <ngraph/opsets/opset5.hpp>
 #include "transformations/utils/utils.hpp"
 #include "transformations/rt_info/fused_names_attribute.hpp"
 #include "transformations/rt_info/primitives_priority_attribute.hpp"
@@ -731,7 +732,6 @@ void convertFunctionToICNNNetwork(const std::shared_ptr<const ::ngraph::Function
                 std::make_shared<Builder::NodeConverter<::ngraph::op::Asin>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::Atan>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::v1::AvgPool>>(),
-                std::make_shared<Builder::NodeConverter<::ngraph::op::BatchNormInference>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::Clamp>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::Concat>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::Constant>>(),
@@ -809,6 +809,7 @@ void convertFunctionToICNNNetwork(const std::shared_ptr<const ::ngraph::Function
                 std::make_shared<Builder::NodeConverter<::ngraph::op::TopKIE>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::Unsqueeze>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::TensorIterator>>(),
+                std::make_shared<Builder::NodeConverter<::ngraph::opset5::Loop>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::HardSigmoid_IE>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::v1::LogicalNot>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::ShuffleChannels>>(),
@@ -905,6 +906,30 @@ void convertFunctionToICNNNetwork(const std::shared_ptr<const ::ngraph::Function
         info->setInputData(inData);
         network->setInputInfo(info);
     };
+
+    // Check if some of function nodes has dynamic input or output shape
+    // we collect this nodes and then throw an exception with the list
+    // of dynamic nodes.
+    std::stringstream err_log;
+    for (const auto & node : graph->get_ordered_ops()) {
+        bool is_dynamic = false;
+        for (const auto & input : node->inputs()) {
+            if (input.get_partial_shape().is_dynamic()) {
+                is_dynamic = true;
+                break;
+            }
+        }
+        for (const auto & output : node->outputs()) {
+            if (output.get_partial_shape().is_dynamic()) {
+                is_dynamic = true;
+                break;
+            }
+        }
+        if (is_dynamic) err_log << node << std::endl;
+    }
+    if (!err_log.str().empty()) {
+        THROW_IE_EXCEPTION << "\nUnsupported dynamic ops: \n" << err_log.str();
+    }
 
     const CNNNetworkNGraphImpl* nGraphImpl = dynamic_cast<const CNNNetworkNGraphImpl*>(&network);
 

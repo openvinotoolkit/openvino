@@ -49,7 +49,8 @@ const std::map<ActivationTypes, std::vector<std::vector<float>>> activationTypes
         {Ceiling,     {}},
         {Mish,        {}},
         {HSwish,      {}},
-        {SoftPlus,    {}}
+        {SoftPlus,    {}},
+        {HSigmoid,    {}}
 };
 
 const std::map<ActivationTypes, std::vector<std::vector<float>>> activationParamTypes = {
@@ -70,6 +71,10 @@ std::map<std::vector<size_t>, std::vector<std::vector<size_t>>> preluBasic = {
 const auto basicCases = ::testing::Combine(
         ::testing::ValuesIn(CommonTestUtils::combineParams(activationTypes)),
         ::testing::ValuesIn(netPrecisions),
+        ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+        ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+        ::testing::Values(InferenceEngine::Layout::ANY),
+        ::testing::Values(InferenceEngine::Layout::ANY),
         ::testing::ValuesIn(CommonTestUtils::combineParams(basic)),
         ::testing::Values(CommonTestUtils::DEVICE_CPU)
 );
@@ -77,6 +82,10 @@ const auto basicCases = ::testing::Combine(
 const auto basicPreluCases = ::testing::Combine(
         ::testing::ValuesIn(CommonTestUtils::combineParams(activationParamTypes)),
         ::testing::ValuesIn(netPrecisions),
+        ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+        ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+        ::testing::Values(InferenceEngine::Layout::ANY),
+        ::testing::Values(InferenceEngine::Layout::ANY),
         ::testing::ValuesIn(CommonTestUtils::combineParams(preluBasic)),
         ::testing::Values(CommonTestUtils::DEVICE_CPU)
 );

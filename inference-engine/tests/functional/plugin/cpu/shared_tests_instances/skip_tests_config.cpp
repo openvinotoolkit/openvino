@@ -36,6 +36,8 @@ std::vector<std::string> disabledTestPatterns() {
 #if (defined(_WIN32) || defined(_WIN64))
         R"(.*(CoreThreadingTestsWithIterations).*(smoke_LoadNetworkAccuracy).*)",
 #endif
+        // TODO: Issue: 40957
+        R"(.*(ConstantResultSubgraphTest).*)",
         // TODO: Issue: 34348
         R"(.*IEClassGetAvailableDevices.*)",
         // TODO: Issue: 25533
@@ -53,6 +55,9 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*ReverseSequenceLayerTest.*netPRC=(I8|U8).*)",
         // TODO: Issue: 38841
         R"(.*TopKLayerTest.*k=10.*mode=min.*sort=index.*)",
-        R"(.*TopKLayerTest.*k=5.*sort=(none|index).*)"
+        R"(.*TopKLayerTest.*k=5.*sort=(none|index).*)",
+
+        // TODO: not supported yet, ticket 37690
+        R"(.*Loop.*)"
     };
 }

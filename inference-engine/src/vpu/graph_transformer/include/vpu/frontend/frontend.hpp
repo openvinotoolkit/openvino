@@ -136,7 +136,6 @@ public:
     void parseTopK(const Model& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs) const;
     void parseSelect(const Model& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs) const;
     void parseExpDetectionOutput(const Model& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs) const;
-    void parseNonMaxSuppression(const Model& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs) const;
     void parseROIFeatureExtractor(const Model& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs) const;
     void parseConvert(const Model& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs) const;
     void parseErf(const Model& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs) const;
@@ -155,6 +154,8 @@ public:
     void parseGelu(const Model& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs) const;
     void parseSoftPlus(const Model& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs) const;
     void parseSwish(const Model& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs) const;
+    void parseActivation(const Model& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs) const;
+    void parseLogicalNot(const Model& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs) const;
 
     //
     // Special layers
@@ -210,6 +211,10 @@ private:
     IeParsedNetwork _ieParsedNetwork;
     std::unordered_set<ie::DataPtr> _unbatchedOutputs;
     ie::details::caseless_map<std::string, std::vector<CustomLayer::Ptr>> _customLayers;
+
+#define LAYER_PARSER(functor_name)                                                                                \
+    [this](const Model& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs) \
+        { functor_name(model, layer, inputs, outputs); }
 
     using LayerParser = std::function<void(const Model&, const ie::CNNLayerPtr&, const DataVector&, const DataVector&)>;
     const ie::details::caseless_map<std::string, LayerParser> parsers;

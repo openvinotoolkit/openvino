@@ -75,24 +75,15 @@ GemmKernelBase::DispatchData GemmKernelMMADint8::SetDefault(const gemm_params& p
     const auto& output = params.output;
     auto total_batches = output.LogicalSize() / (output.X().v * output.Y().v);
 
-    DispatchData kd;
+    DispatchData dispatchData;
     GemmTuningData td = SetTuningParams(params);
 
-    std::vector<size_t> global = { Align(output.X().v, td.simd_size),
-                                   Align(output.Y().v, td.simd_size * td.tile_num) / (td.simd_size * td.tile_num),
-                                   total_batches };
+    dispatchData.gws = { Align(output.X().v, td.simd_size),
+                         Align(output.Y().v, td.simd_size * td.tile_num) / (td.simd_size * td.tile_num),
+                         total_batches };
+    dispatchData.lws = { td.simd_size, 1, 1 };
 
-    std::vector<size_t> local = { td.simd_size, 1, 1 };
-
-    kd.gws0 = global[0];
-    kd.gws1 = global[1];
-    kd.gws2 = global[2];
-
-    kd.lws0 = local[0];
-    kd.lws1 = local[1];
-    kd.lws2 = local[2];
-
-    return kd;
+    return dispatchData;
 }
 
 GemmKernelMMADint8::GemmTuningData GemmKernelMMADint8::InitGemmTuningData(const gemm_params& params) const {
@@ -154,7 +145,7 @@ KernelsData GemmKernelMMADint8::GetKernelsData(const Params& params, const optio
 
     const auto& prim_params = static_cast<const gemm_params&>(params);
 
-    auto run_info = GemmKernelMMADint8::SetDefault(prim_params);
+    auto dispatchData = GemmKernelMMADint8::SetDefault(prim_params);
     KernelData k_data = KernelData::Default<gemm_params>(params);
 
     auto cldnn_jit = GetJitConstants(prim_params);
@@ -163,7 +154,7 @@ KernelsData GemmKernelMMADint8::GetKernelsData(const Params& params, const optio
 
     auto& kernel = k_data.kernels[0];
     FillCLKernelData(kernel,
-                     run_info,
+                     dispatchData,
                      params.engineInfo,
                      kernelName,
                      jit,

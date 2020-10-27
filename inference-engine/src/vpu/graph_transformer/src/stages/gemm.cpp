@@ -99,6 +99,19 @@ void FrontEnd::parseGEMM(const Model& model, const ie::CNNLayerPtr& _layer, cons
     IE_ASSERT(inputs.size() == 2 || inputs.size() == 3);
     IE_ASSERT(outputs.size() == 1);
 
+    const auto input1 = inputs[0];
+    const auto input2 = inputs[1];
+
+    VPU_THROW_UNLESS(input1->desc().numDims() >= 2 && input1->desc().numDims() <= 4,
+        "Processing layer {} with type {} failed: first inputs' ({} with usage {}) dimensions number should be in range [2, 4], but it actually has {}",
+        _layer->name, _layer->type, input1->name(), input1->usage(), input1->desc().numDims());
+    VPU_THROW_UNLESS(input2->desc().numDims() >= 2 && input2->desc().numDims() <= 4,
+        "Processing layer {} with type {} failed: second inputs' ({} with usage {}) dimensions number should be in range [2, 4], but it actually has {}",
+        _layer->name, _layer->type, input2->name(), input2->usage(), input2->desc().numDims());
+    VPU_THROW_UNLESS(inputs.size() < 3 || inputs[2]->desc().numDims() >= 2 && inputs[2]->desc().numDims() <= 4,
+        "Processing layer {} with type {} failed: third inputs' ({} with usage {}) dimensions number should be in range [2, 4], but it actually has {}",
+        _layer->name, _layer->type, inputs[2]->name(), inputs[2]->usage(), inputs[2]->desc().numDims());
+
     auto layer = std::dynamic_pointer_cast<ie::GemmLayer>(_layer);
     IE_ASSERT(layer != nullptr);
 

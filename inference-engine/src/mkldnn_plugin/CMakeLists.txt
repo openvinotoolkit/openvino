@@ -4,10 +4,6 @@
 
 set(TARGET_NAME "MKLDNNPlugin")
 
-if(ENABLE_LTO)
-    ie_enable_lto()
-endif()
-
 if (WIN32)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DNOMINMAX")
 endif()
@@ -171,8 +167,14 @@ ie_add_plugin(NAME ${TARGET_NAME}
 set_ie_threading_interface_for(${TARGET_NAME})
 
 target_compile_definitions(${TARGET_NAME} PUBLIC -DMKLDNN_THR=${MKLDNN_THR})
-target_link_libraries(${TARGET_NAME} PRIVATE inference_engine inference_engine_lp_transformations
-                      inference_engine_transformations mkldnn)
+
+target_link_libraries(${TARGET_NAME} PRIVATE inference_engine inference_engine_transformations mkldnn)
+
+if(USE_CNNNETWORK_LPT)
+    target_link_libraries(${TARGET_NAME} PRIVATE inference_engine_lp_transformations_legacy)
+else()
+    target_link_libraries(${TARGET_NAME} PRIVATE inference_engine_lp_transformations)
+endif()
 
 # Cross compiled function
 # TODO: The same for proposal, proposalONNX, topk
@@ -191,21 +193,35 @@ cross_compiled_file(${TARGET_NAME}
         NAMESPACE   InferenceEngine::Extensions::Cpu::XARCH
 )
 
+ie_add_api_validator_post_build_step(TARGET ${TARGET_NAME})
+
 #  add test object library
 
 add_library(${TARGET_NAME}_obj OBJECT ${SOURCES} ${HEADERS})
 
 target_include_directories(${TARGET_NAME}_obj PRIVATE $<TARGET_PROPERTY:inference_engine_preproc_s,INTERFACE_INCLUDE_DIRECTORIES>
-                                                      $<TARGET_PROPERTY:inference_engine_lp_transformations,INTERFACE_INCLUDE_DIRECTORIES>
                                                       $<TARGET_PROPERTY:inference_engine_transformations,INTERFACE_INCLUDE_DIRECTORIES>
                                                       $<TARGET_PROPERTY:openvino::itt,INTERFACE_INCLUDE_DIRECTORIES>)
+
+if(USE_CNNNETWORK_LPT)
+    target_include_directories(${TARGET_NAME}_obj PRIVATE
+        $<TARGET_PROPERTY:inference_engine_lp_transformations_legacy,INTERFACE_INCLUDE_DIRECTORIES>)
+    target_compile_definitions(${TARGET_NAME}_obj PRIVATE
+        $<TARGET_PROPERTY:inference_engine_lp_transformations_legacy,INTERFACE_COMPILE_DEFINITIONS>)
+else()
+    target_include_directories(${TARGET_NAME}_obj PRIVATE
+        $<TARGET_PROPERTY:inference_engine_lp_transformations,INTERFACE_INCLUDE_DIRECTORIES>)
+endif()
 
 set_ie_threading_interface_for(${TARGET_NAME}_obj)
 
 target_compile_definitions(${TARGET_NAME}_obj PUBLIC -DMKLDNN_THR=${MKLDNN_THR}
                                               PRIVATE USE_STATIC_IE IMPLEMENT_INFERENCE_ENGINE_PLUGIN)
 
-set(mkldnn_plugin_object_libraries "${TARGET_NAME}_obj" CACHE INTERNAL "" FORCE)
+# LTO
+
+set_target_properties(${TARGET_NAME} ${TARGET_NAME}_obj
+                      PROPERTIES INTERPROCEDURAL_OPTIMIZATION ${ENABLE_LTO})
 
 # install
 

@@ -45,6 +45,10 @@ INSTANTIATE_TEST_CASE_P(DISABLED_smoke_MaxPool_ExplicitPad_FloorRpunding, Poolin
                         ::testing::Combine(
                                 maxPool_ExplicitPad_FloorRounding_Params,
                                 ::testing::ValuesIn(netPrecisions),
+                                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                ::testing::Values(InferenceEngine::Layout::ANY),
+                                ::testing::Values(InferenceEngine::Layout::ANY),
                                 ::testing::Values(std::vector<size_t>({1, 3, 30, 30})),
                                 ::testing::Values(CommonTestUtils::DEVICE_GNA)),
                         PoolingLayerTest::getTestCaseName);
@@ -66,6 +70,10 @@ INSTANTIATE_TEST_CASE_P(DISABLED_smoke_MaxPool_ExplicitPad_CeilRpunding, Pooling
                         ::testing::Combine(
                                 maxPool_ExplicitPad_CeilRounding_Params,
                                 ::testing::ValuesIn(netPrecisions),
+                                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                ::testing::Values(InferenceEngine::Layout::ANY),
+                                ::testing::Values(InferenceEngine::Layout::ANY),
                                 ::testing::Values(std::vector<size_t>({1, 3, 30, 30})),
                                 ::testing::Values(CommonTestUtils::DEVICE_GNA)),
                         PoolingLayerTest::getTestCaseName);
@@ -90,6 +98,10 @@ INSTANTIATE_TEST_CASE_P(DISABLED_smoke_AvgPool_ExplicitPad_CeilRounding, Pooling
                         ::testing::Combine(
                                 avgPoolExplicitPadCeilRoundingParams,
                                 ::testing::ValuesIn(netPrecisions),
+                                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                ::testing::Values(InferenceEngine::Layout::ANY),
+                                ::testing::Values(InferenceEngine::Layout::ANY),
                                 ::testing::Values(std::vector<size_t>({1, 3, 30, 30})),
                                 ::testing::Values(CommonTestUtils::DEVICE_GNA)),
                         PoolingLayerTest::getTestCaseName);
@@ -111,6 +123,10 @@ INSTANTIATE_TEST_CASE_P(DISABLED_smoke_AvgPool_ExplicitPad_FloorRounding, Poolin
                         ::testing::Combine(
                                 avgPoolExplicitPadFloorRoundingParams,
                                 ::testing::ValuesIn(netPrecisions),
+                                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                ::testing::Values(InferenceEngine::Layout::ANY),
+                                ::testing::Values(InferenceEngine::Layout::ANY),
                                 ::testing::Values(std::vector<size_t>({1, 3, 30, 30})),
                                 ::testing::Values(CommonTestUtils::DEVICE_GNA)),
                         PoolingLayerTest::getTestCaseName);
@@ -133,6 +149,10 @@ INSTANTIATE_TEST_CASE_P(DISABLED_smoke_MAX_and_AVGPool_ValidPad, PoolingLayerTes
                         ::testing::Combine(
                                 allPools_ValidPad_Params,
                                 ::testing::ValuesIn(netPrecisions),
+                                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                ::testing::Values(InferenceEngine::Layout::ANY),
+                                ::testing::Values(InferenceEngine::Layout::ANY),
                                 ::testing::Values(std::vector<size_t>({1, 3, 30, 30})),
                                 ::testing::Values(CommonTestUtils::DEVICE_GNA)),
                         PoolingLayerTest::getTestCaseName);

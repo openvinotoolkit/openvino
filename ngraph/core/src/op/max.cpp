@@ -88,7 +88,7 @@ shared_ptr<Node> op::v0::Max::get_default_value() const
     }
 }
 
-namespace
+namespace maxop
 {
     template <element::Type_t ET>
     bool evaluate(const HostTensorPtr& arg,
@@ -131,7 +131,7 @@ namespace
 bool op::v0::Max::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
     OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v0::Max::evaluate");
-    return evaluate_max(inputs[0], outputs[0], get_reduction_axes(), false);
+    return maxop::evaluate_max(inputs[0], outputs[0], get_reduction_axes(), false);
 }
 
 constexpr NodeTypeInfo op::v1::ReduceMax::type_info;
@@ -154,5 +154,5 @@ bool op::v1::ReduceMax::evaluate(const HostTensorVector& outputs,
                                  const HostTensorVector& inputs) const
 {
     OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v1::ReduceMax::evaluate");
-    return evaluate_max(inputs[0], outputs[0], get_reduction_axes(), get_keep_dims());
+    return maxop::evaluate_max(inputs[0], outputs[0], get_reduction_axes(), get_keep_dims());
 }

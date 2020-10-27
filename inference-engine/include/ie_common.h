@@ -79,7 +79,7 @@ enum Layout : uint8_t {
     SCALAR = 95,  //!< A scalar layout
 
     // bias layouts
-    C = 96,  //!< A bias layout for opearation
+    C = 96,  //!< A bias layout for operation
 
     // Single image layouts
     CHW = 128,  //!< A single image layout (e.g. for mean image)
@@ -166,7 +166,7 @@ struct InferenceEngineProfileInfo {
      * @brief Defines the general status of the layer
      */
     enum LayerStatus {
-        NOT_RUN,  //!< A layer is not exectued
+        NOT_RUN,  //!< A layer is not executed
         OPTIMIZED_OUT,  //!< A layer is optimized out during graph optimization phase
         EXECUTED  //!< A layer is executed
     };
@@ -237,7 +237,7 @@ struct ResponseDesc {
 
 
 /**
- * @brief Responce structure encapsulating information about supported layer
+ * @brief Response structure encapsulating information about supported layer
  */
 struct QueryNetworkResult {
     /**
