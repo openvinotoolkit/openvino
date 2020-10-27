@@ -23,7 +23,7 @@ public:
             if (layer->insData.size() < 2 || layer->insData.size() > 5)
                 THROW_IE_EXCEPTION << layer->name << " Incorrect number of input edges!";
 
-            if (layer->outData.size() != 1)
+            if (layer->outData.size() > 3)
                 THROW_IE_EXCEPTION << layer->name << " Incorrect number of output edges!";
 
             if (layer->insData[NMS_BOXES].lock()->getTensorDesc().getPrecision() != Precision::FP32)
