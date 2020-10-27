@@ -94,8 +94,8 @@ ngraph::pass::ConvertStridedSliceToCropMatcher::ConvertStridedSliceToCropMatcher
                 }
 
                 // -1 because it's a position of ellipses
-                unsigned long num_input_axis_after_ellipses = (begin.size() - axis - num_new_axis_after_ellipses - 1);
-                unsigned long num_of_hidden_dims = input_shape.size() - num_input_axis_after_ellipses
+                size_t num_input_axis_after_ellipses = (begin.size() - axis - num_new_axis_after_ellipses - 1);
+                size_t num_of_hidden_dims = input_shape.size() - num_input_axis_after_ellipses
                                                    - num_input_axis_before_ellipses;
                 for (size_t i = 0; i < num_of_hidden_dims; ++i) {
                     axes.emplace_back(uniq_id);

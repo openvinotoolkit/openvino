@@ -119,7 +119,14 @@ namespace ngraph
                         template <typename T, typename Container>
                         inline std::vector<T> __get_data(const Container& container)
                         {
+#if defined(_MSC_VER)
+#pragma warning(push)
+#pragma warning(disable : 4267)
+#endif
                             return std::vector<T>(std::begin(container), std::end(container));
+#if defined(_MSC_VER)
+#pragma warning(pop)
+#endif
                         }
 
                         /// Returns the size if bytes of an ONNX data type.

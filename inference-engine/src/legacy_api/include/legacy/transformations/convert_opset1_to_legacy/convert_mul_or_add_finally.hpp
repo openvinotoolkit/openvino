@@ -109,7 +109,7 @@ ngraph::graph_rewrite_callback get_callback() {
                 3. data_shape{64, 64} and const_shape{1, 1, 1} - constant broadcasts data_shape with additional dimension
         */
         auto constant_broadcast_output = [](const ngraph::PartialShape & data_pshape, const ngraph::Shape & const_shape) -> bool {
-            if (data_pshape.rank().is_dynamic() || const_shape.size() > data_pshape.rank().get_length()) {
+            if (data_pshape.rank().is_dynamic() || const_shape.size() > static_cast<size_t>(data_pshape.rank().get_length())) {
                 return true;
             }
 
@@ -276,11 +276,11 @@ ngraph::graph_rewrite_callback get_callback() {
             // In case Add we create fake scale equal to 1, in case of Multiply we create fake shift equal to 0
             std::shared_ptr<ngraph::op::PowerIE> power;
             if (std::is_same<T, ngraph::opset1::Add>()) {
-                power = std::make_shared<ngraph::op::PowerIE>(data_node, 1., 1., value, lin_op->get_output_element_type(0));
+                power = std::make_shared<ngraph::op::PowerIE>(data_node, 1.0f, 1.0f, value, lin_op->get_output_element_type(0));
             } else if (std::is_same<T, ngraph::opset1::Multiply>()) {
-                power = std::make_shared<ngraph::op::PowerIE>(data_node, 1., value, 0., lin_op->get_output_element_type(0));
+                power = std::make_shared<ngraph::op::PowerIE>(data_node, 1.0f, value, 0.0f, lin_op->get_output_element_type(0));
             } else if (std::is_same<T, ngraph::opset1::Subtract>()) {
-                power = std::make_shared<ngraph::op::PowerIE>(data_node, 1., 1., -value, lin_op->get_output_element_type(0));
+                power = std::make_shared<ngraph::op::PowerIE>(data_node, 1.0f, 1.0f, -value, lin_op->get_output_element_type(0));
             } else {
                 return false;
             }

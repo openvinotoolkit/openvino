@@ -149,7 +149,7 @@ StatusCode CNNNetReaderImpl::ReadNetwork(const pugi::xml_node& const_root, Respo
             _parser = parserCreator->create(_version);
             InferenceEngine::details::CNNNetworkImplPtr local_network = _parser->Parse(root);
             name = local_network->getName();
-            local_network->validate(_version);
+            local_network->validate(static_cast<int>(_version));
             network = local_network;
             parseSuccess = true;
         } else {

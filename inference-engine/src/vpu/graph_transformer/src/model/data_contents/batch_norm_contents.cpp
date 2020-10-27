@@ -31,7 +31,7 @@ void BatchNormalizationWeightsContent::fillTempBuf(void* tempBuf) const {
     auto srcPtr = _origContent->get<fp16_t>();
     auto dstPtr = static_cast<fp16_t*>(tempBuf);
 
-    ie::parallel_for(_origContent->byteSize() / sizeof(fp16_t), [this, srcPtr, dstPtr](int i) {
+    ie::parallel_for(_origContent->byteSize() / sizeof(fp16_t), [this, srcPtr, dstPtr](size_t i) {
         float val = ie::PrecisionUtils::f16tof32(srcPtr[i]) + _epsilon;
         val = 1.0f / std::sqrt(val);
         dstPtr[i] = ie::PrecisionUtils::f32tof16(val);
@@ -58,7 +58,7 @@ void BatchNormalizationBiasesContent::fillTempBuf(void* tempBuf) const {
 
     auto dstPtr = static_cast<fp16_t*>(tempBuf);
 
-    ie::parallel_for(_origContent->byteSize() / sizeof(fp16_t), [origPtr, weightsPtr, dstPtr](int i) {
+    ie::parallel_for(_origContent->byteSize() / sizeof(fp16_t), [origPtr, weightsPtr, dstPtr](size_t i) {
         // TODO : need to be extracted from IE layer.
         float beta = 0.0f;
 

@@ -132,14 +132,14 @@ ncStatus_t MyriadExecutor::bootNextDevice(std::vector<DevicePtr> &devicePool,
         configDevName.copy(in_deviceDesc.name, NC_MAX_NAME_SIZE - 1);
     }
 
-    statusOpen = ncSetDeviceConnectTimeout(config.deviceConnectTimeout().count());
+    statusOpen = ncSetDeviceConnectTimeout(static_cast<int>(config.deviceConnectTimeout().count()));
     if (statusOpen) {
         return statusOpen;
     }
 
     ncDeviceOpenParams_t deviceOpenParams = {};
     deviceOpenParams.watchdogHndl = _mvnc->watchdogHndl();
-    deviceOpenParams.watchdogInterval = config.watchdogInterval().count();
+    deviceOpenParams.watchdogInterval = static_cast<int>(config.watchdogInterval().count());
     deviceOpenParams.memoryType = checked_cast<char>(config.memoryType());
     deviceOpenParams.customFirmwareDirectory = dirName.c_str();
 
@@ -308,7 +308,7 @@ void MyriadExecutor::allocateGraph(DevicePtr &device, GraphDesc &graphDesc,
                                    const std::pair<const char*, size_t> &graphHeaderDesc,
                                    size_t numStages, const std::string & networkName, int executors) {
     VPU_PROFILE(allocateGraph);
-    _numStages = numStages;
+    _numStages = static_cast<int>(numStages);
     graphDesc._name = networkName;
     if (device->_deviceHandle == nullptr) {
         THROW_IE_EXCEPTION << "Failed to allocate graph: MYRIAD device is not opened.";
@@ -331,7 +331,7 @@ void MyriadExecutor::allocateGraph(DevicePtr &device, GraphDesc &graphDesc,
                              graphFileContent.data(),
                              static_cast<unsigned int>(graphFileContent.size()),
                              graphHeaderDesc.first,
-                             graphHeaderDesc.second);
+                             static_cast<unsigned>(graphHeaderDesc.second));
     if (status != NC_OK) {
         THROW_IE_EXCEPTION << "Failed to allocate graph: " << ncStatusToStr(nullptr, status);
     }
@@ -418,7 +418,7 @@ void MyriadExecutor::queueInference(GraphDesc &graphDesc, void *input_data, size
     }
 
     if (result_data != nullptr && result_bytes != 0) {
-        getResult(graphDesc, result_data, result_bytes);
+        getResult(graphDesc, result_data, static_cast<unsigned>(result_bytes));
     }
 }
 

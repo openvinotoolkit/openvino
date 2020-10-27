@@ -137,7 +137,7 @@ void PassImpl::run(const Model& model) {
                 if (stage->type() == StageType::StubDeconv) {
                     deconvolutionRelayout(
                         origWeights, weights->desc().totalDimSize(),
-                        newWeightsPtr, newWeightsSize,
+                        newWeightsPtr, static_cast<int>(newWeightsSize),
                         kernelSizeX, kernelSizeY,
                         input->desc().dim(Dim::C),
                         output->desc().dim(Dim::C),

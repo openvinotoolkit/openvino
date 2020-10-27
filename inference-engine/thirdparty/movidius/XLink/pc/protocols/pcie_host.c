@@ -158,7 +158,7 @@ int pcie_write(HANDLE fd, void * buf, size_t bufSize)
 
     Overlapped.hEvent = Event;
     ResetEvent(Overlapped.hEvent);
-    OutputCode = WriteFile(dev, buf, bufSize, NULL, &Overlapped);
+    OutputCode = WriteFile(dev, buf, (DWORD)bufSize, NULL, &Overlapped);
 
     if (OutputCode == FALSE) {
         if (GetLastError() == ERROR_IO_PENDING) {
@@ -235,7 +235,7 @@ int pcie_read(HANDLE fd, void * buf, size_t bufSize)
 
     Overlapped.hEvent = Event;
     ResetEvent(Overlapped.hEvent);
-    OutputCode = ReadFile(dev, buf, bufSize, NULL, &Overlapped);
+    OutputCode = ReadFile(dev, buf, (DWORD)bufSize, NULL, &Overlapped);
 
     if (OutputCode == FALSE) {
        if (GetLastError() == ERROR_IO_PENDING) {
@@ -583,7 +583,7 @@ pcieHostError_t pcie_boot_device(HANDLE fd, const char  *buffer, size_t length)
 
     bResult = DeviceIoControl(fd,                    // device to be queried
                               MXLK_BOOT_DEV,                 // operation to perform
-                              (void*)buffer, length,
+                              (void*)buffer, (DWORD)length,
                               &output_buffer, sizeof(output_buffer), // output buffer
                               &junk,                         // # bytes returned
                               (LPOVERLAPPED) NULL);          // synchronous I/O

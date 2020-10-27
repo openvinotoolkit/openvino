@@ -66,14 +66,14 @@ void evaluateStaticShapeNonZero(const Shape& inputShape,
     const auto inputRank = nonZeroOutput->get_partial_shape()[0].get_length();
     const auto nonZeroCount = nonZeroOutput->get_partial_shape()[1].get_length();
 
-    for (size_t i = 0; i < inputRank; ++i) {
-        for (size_t j = 0; j < nonZeroCount; j++) {
+    for (int64_t i = 0; i < inputRank; ++i) {
+        for (int64_t j = 0; j < nonZeroCount; j++) {
             outIndicesBuffer[i * totalInputSize + j] = nonZeroOutputBuffer[i * nonZeroCount + j];
         }
     }
 
-    outShapeBuffer[0] = inputRank;
-    outShapeBuffer[1] = nonZeroCount;
+    outShapeBuffer[0] = static_cast<typename ngraph::element_type_traits<OutType>::value_type>(inputRank);
+    outShapeBuffer[1] = static_cast<typename ngraph::element_type_traits<OutType>::value_type>(nonZeroCount);
 }
 
 } // namespace

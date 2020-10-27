@@ -78,7 +78,7 @@ void resize_bilinear(const Blob::Ptr inBlob, Blob::Ptr outBlob, uint8_t* buffer)
 
     for (int dx = dst_go_x; dx < dst_go_x + dwidth; dx++) {
         auto fx = static_cast<float>((dx + 0.5) * scale_x - 0.5);
-        int32_t sx = floor(fx);
+        int32_t sx = static_cast<int32_t>(floor(fx));
         fx -= sx;
 
         int32_t sx0 = sx;
@@ -98,7 +98,7 @@ void resize_bilinear(const Blob::Ptr inBlob, Blob::Ptr outBlob, uint8_t* buffer)
 
     for (int dy = dst_go_y; dy < dst_go_y + dheight; dy++) {
         auto fy = static_cast<float>((dy + 0.5) * scale_y - 0.5);
-        int32_t sy = floor(fy);
+        int32_t sy = static_cast<int32_t>(floor(fy));
         fy -= sy;
 
         int32_t sy0 = sy;
@@ -124,8 +124,8 @@ void resize_bilinear(const Blob::Ptr inBlob, Blob::Ptr outBlob, uint8_t* buffer)
         for (int x = 0; x < swidth; x++) {
             bool use_constant0 = yofs[y] + 0 < 0 || yofs[y] + 0 >= src_full_height;
             bool use_constant1 = yofs[y] + 1 < 0 || yofs[y] + 1 >= src_full_height;
-            float val0 = use_constant0 ? border.value : sptr_[(yofs[y] + 0) * sstep + x];
-            float val1 = use_constant1 ? border.value : sptr_[(yofs[y] + 1) * sstep + x];
+            float val0 = static_cast<float>(use_constant0 ? border.value : sptr_[(yofs[y] + 0) * sstep + x]);
+            float val1 = static_cast<float>(use_constant1 ? border.value : sptr_[(yofs[y] + 1) * sstep + x]);
 
             float res = val0 + beta[y] * (val1 - val0);
             tptr_[x] = res;
@@ -159,8 +159,8 @@ int getResizeAreaTabSize(int dst_go, int ssize, int dsize, float scale) {
         float fsx1 = col * scale;
         float fsx2 = fsx1 + scale;
 
-        int sx1 = ceil(fsx1);
-        int sx2 = floor(fsx2);
+        int sx1 = static_cast<int>(ceil(fsx1));
+        int sx2 = static_cast<int>(floor(fsx2));
 
         sx2 = (std::min)(sx2, ssize - 1);
         sx1 = (std::min)(sx1, sx2);
@@ -194,8 +194,8 @@ void computeResizeAreaTab(int src_go, int dst_go, int ssize, int dsize, float sc
         float fsx2 = fsx1 + scale;
         float cellWidth = (std::min)(scale, ssize - fsx1);
 
-        int sx1 = ceil(fsx1);
-        int sx2 = floor(fsx2);
+        int sx1 = static_cast<int>(ceil(fsx1));
+        int sx2 = static_cast<int>(floor(fsx2));
 
         sx2 = (std::min)(sx2, ssize - 1);
         sx1 = (std::min)(sx1, sx2);
@@ -263,8 +263,8 @@ int computeResizeAreaTabFP32(int src_go, int dst_go, int ssize, int dsize, float
         float fsx2 = fsx1 + scale;
         float cellWidth = (std::min)(scale, ssize - fsx1);
 
-        int sx1 = ceil(fsx1);
-        int sx2 = floor(fsx2);
+        int sx1 = static_cast<int>(ceil(fsx1));
+        int sx2 = static_cast<int>(floor(fsx2));
 
         sx2 = (std::min)(sx2, ssize - 1);
         sx1 = (std::min)(sx1, sx2);
@@ -447,7 +447,7 @@ void VResizeLinear(float** src, data_t* dst, const float* beta, int width) {
 
     if (sizeof(data_t) == 4) {
         for (int x = 0; x < width; x++)
-            dst[x] = (S0[x] * b0 + S1[x] * b1);
+            dst[x] = static_cast<data_t>(S0[x] * b0 + S1[x] * b1);
     } else {
         for (int x = 0; x < width; x++)
             dst[x] = saturateU32toU8(static_cast<uint32_t>(S0[x] * b0 + S1[x] * b1));
@@ -499,7 +499,7 @@ static void resize_area_upscale(const Blob::Ptr inBlob, Blob::Ptr outBlob, uint8
     float cbuf[2] = {0};
 
     for (int dx = 0; dx < dwidth; dx++) {
-        int sx = floor(dx*scale_x);
+        int sx = static_cast<int>(floor(dx*scale_x));
         float fx = (dx+1) - (sx+1)*inv_scale_x;
         fx = fx <= 0 ? 0.f : fx - floor(fx);
 
@@ -525,7 +525,7 @@ static void resize_area_upscale(const Blob::Ptr inBlob, Blob::Ptr outBlob, uint8
     }
 
     for (int dy = 0; dy < dheight; dy++) {
-        int sy = floor(dy*scale_y);
+        int sy = static_cast<int>(floor(dy*scale_y));
         float fy = (dy+1) - (sy+1)*inv_scale_y;
         fy = fy <= 0 ? 0.f : fy - floor(fy);
 
@@ -592,10 +592,10 @@ size_t resize_get_buffer_size(Blob::Ptr inBlob, Blob::Ptr outBlob, const ResizeA
     size_t origW = strides[2];
     size_t origH = strides[1] / strides[2];
 
-    const int src_full_width = origW;
-    const int src_full_height = origH;
-    const int dst_full_width = dstDims[3];
-    const int dst_full_height = dstDims[2];
+    const int src_full_width = static_cast<int>(origW);
+    const int src_full_height = static_cast<int>(origH);
+    const int dst_full_width = static_cast<int>(dstDims[3]);
+    const int dst_full_height = static_cast<int>(dstDims[2]);
 
     float scale_x = static_cast<float>(dstDims[3]) / srcDims[3];
     float scale_y = static_cast<float>(dstDims[2]) / srcDims[2];
@@ -619,9 +619,9 @@ size_t resize_get_buffer_size(Blob::Ptr inBlob, Blob::Ptr outBlob, const ResizeA
     };
 
     auto resize_area_u8_downscale_sse_buffer_size = [&]() {
-        const int dwidth = dstDims[3];
-        const int dheight = dstDims[2];
-        const int swidth = srcDims[3];
+        const int dwidth = static_cast<int>(dstDims[3]);
+        const int dheight = static_cast<int>(dstDims[2]);
+        const int swidth = static_cast<int>(srcDims[3]);
 
         const int dst_go_x = 0;
         const int dst_go_y = 0;
@@ -780,7 +780,7 @@ public:
     void isApplicable(const Blob::Ptr &src, const Blob::Ptr &dst) override;
 };
 
-StatusCode CreatePreProcessData(IPreProcessData *& data, ResponseDesc */*resp*/) noexcept {
+StatusCode CreatePreProcessData(IPreProcessData *& data, ResponseDesc * /*resp*/) noexcept {
     data = new PreProcessData();
     return StatusCode::OK;
 }

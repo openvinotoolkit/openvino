@@ -64,7 +64,7 @@ void reshapeDequantizationConstant(const std::shared_ptr<opset1::Reshape>& resha
                 // update Reshape constant
                 const std::vector<int> reshapeConstValues = as_type_ptr<opset1::Constant>(reshape->get_input_node_shared_ptr(1))->cast_vector<int>();
                 std::vector<int> newReshapeConstValues(reshapeConstValues);
-                for (int i = newReshapeConstValues.size() - 1; i >= 0; --i) {
+                for (int i = static_cast<int>(newReshapeConstValues.size() - 1); i >= 0; --i) {
                     if (newOperationConstantShape.size() <= i) {
                         newReshapeConstValues[i] = 1;
                     } else if (newOperationConstantShape[i] == 1ul) {
@@ -116,7 +116,7 @@ bool ReshapeTransformation::isPrecisionPreserved(std::shared_ptr<Node> op) const
 }
 
 size_t getLastNotBroadcastedChannel(const Shape& shape) {
-    for (int i = shape.size() - 1; i >= 0; --i) {
+    for (int i = static_cast<int>(shape.size()) - 1; i >= 0; --i) {
         if (shape[i] != 1ul) {
             return i;
         }

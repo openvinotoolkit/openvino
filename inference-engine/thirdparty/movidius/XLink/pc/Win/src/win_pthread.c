@@ -110,7 +110,7 @@ int pthread_create(pthread_t *thread, pthread_attr_t *attr,
     if (attr)
     {
         thread->pthread_state = attr->pthread_state;
-        stack_size = attr->stack_size;
+        stack_size = (unsigned)attr->stack_size;
     }
 
     thread->handle = (HANDLE)_beginthreadex((void *)NULL, stack_size, _pthread_start_routine, thread, 0, NULL);

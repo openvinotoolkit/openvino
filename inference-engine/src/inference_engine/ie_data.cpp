@@ -44,7 +44,8 @@ Blob::Ptr Blob::CreateFromData(const DataPtr& data) {
     }
 }
 
-struct Data::Impl {
+class Data::Impl {
+public:
     /**
      * @brief A pointer to the layer that creates this data element, null for input data elements
      */

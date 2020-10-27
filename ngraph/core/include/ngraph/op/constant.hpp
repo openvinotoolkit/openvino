@@ -342,6 +342,11 @@ namespace ngraph
                 {
                     auto source_type = get_element_type();
                     std::vector<T> rc;
+
+#if defined(_MSC_VER)
+#pragma warning(push)
+#pragma warning(disable : 4244)
+#endif
                     switch (source_type)
                     {
                     case element::Type_t::boolean:
@@ -424,6 +429,9 @@ namespace ngraph
                     }
                     default: throw std::runtime_error("unsupported type");
                     }
+#if defined(_MSC_VER)
+#pragma warning(pop)
+#endif
                     return rc;
                 }
 

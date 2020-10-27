@@ -113,7 +113,7 @@ SmallVector<std::string> deduceKernelParameters(const md_parser_t& parser, int k
 
     auto arguments = SmallVector<std::string>{};
     arguments.reserve(argCount);
-    for (size_t i = 0; i < argCount; i++) {
+    for (uint32_t i = 0; i < argCount; i++) {
         const auto arg = parser.get_argument(kernelDesc, i);
         VPU_THROW_UNLESS(arg, "Error while parsing custom layer elf file.");
 
@@ -243,7 +243,7 @@ CustomKernel::CustomKernel(const pugi::xml_node& kernel, std::string configDir):
                param.type == CustomParamType::Data;
     };
 
-    _inputDataCount = std::count_if(begin(_kernelParams), end(_kernelParams), isInputData);
+    _inputDataCount = static_cast<int>(std::count_if(begin(_kernelParams), end(_kernelParams), isInputData));
 }
 
 std::pair<CustomDimSource, int> parseDimSource(const std::string& dims) {

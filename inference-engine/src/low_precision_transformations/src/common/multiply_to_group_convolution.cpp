@@ -49,7 +49,7 @@ bool MultiplyToGroupConvolutionTransformation::transform(TransformationContext& 
             }
         }
     } else {
-        const float channelsInGroup = outputChannelsCount / group;
+        const size_t channelsInGroup = outputChannelsCount / group;
         for (size_t outputChannel = 0ul; outputChannel < outputChannelsCount; ++outputChannel) {
             const size_t groupIndex = outputChannel / channelsInGroup;
             for (size_t kernel = 0ul; kernel < kernelsCount; ++kernel) {

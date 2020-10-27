@@ -165,7 +165,7 @@ static bool replace_squeeze_unsqueeze(const std::shared_ptr<Node>& node) {
 static std::vector<int64_t> get_unsqueeze_axes(const PartialShape& data_shape,
                                                const PartialShape& out_shape) {
     std::vector<int64_t> axes;
-    size_t i = 0;
+    int64_t i = 0;
     for (auto o = 0; o < out_shape.rank().get_length(); o++) {
         if (i < data_shape.rank().get_length() && data_shape[i].same_scheme(out_shape[o])) {
             i += 1;
@@ -181,7 +181,7 @@ static std::vector<int64_t> get_unsqueeze_axes(const PartialShape& data_shape,
 static std::vector<int64_t> get_squeeze_axes(const PartialShape& data_shape,
                                              const PartialShape& out_shape) {
     std::vector<int64_t> axes;
-    size_t out_i = 0;
+    int64_t out_i = 0;
     for (auto i = 0; i < data_shape.rank().get_length(); i++) {
         if (out_i < out_shape.rank().get_length() && data_shape[i].same_scheme(out_shape[out_i])) {
             out_i += 1;

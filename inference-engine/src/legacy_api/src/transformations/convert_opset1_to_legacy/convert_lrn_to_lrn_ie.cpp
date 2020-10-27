@@ -38,7 +38,7 @@ ngraph::pass::ConvertLRNToLegacyMatcher::ConvertLRNToLegacyMatcher() {
         } else {
             std::vector<bool> norm(lrn->get_shape().size(), false);
             for (auto & axis : axis_value) {
-                if (axis < 0 || axis >= norm.size()) {
+                if (axis < 0 || static_cast<size_t>(axis) >= norm.size()) {
                     return false;
                 }
                 norm[axis] = true;

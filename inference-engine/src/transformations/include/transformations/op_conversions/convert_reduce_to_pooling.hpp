@@ -158,7 +158,7 @@ ngraph::matcher_pass_callback ConvertReduceBase::convert_reduce_to_pooling() {
             // In case if reduction applies not to spatial dimensions
             // we have to fit it into 4D Pooling
             size_t dims_prod = 1, dims_begin = 1, dims_end = 1;
-            for (size_t i = 0; i < input_shape.size(); ++i) {
+            for (int64_t i = 0; static_cast<size_t>(i) < input_shape.size(); ++i) {
                 if (i < *axes_vector.begin()) {
                     dims_begin *= input_shape[i];
                 } else if (i >= axes_vector.front() && i <= axes_vector.back()) {

@@ -672,13 +672,13 @@ void GemmValidator::checkShapes(const CNNLayer* layer, const vector<SizeVector>&
         THROW_IE_EXCEPTION << "Gemm input shapes must have at least 2 dimensions";
     }
 
-    unsigned long xAxis0 = dims0.size() - 1;
-    unsigned long yAxis0 = dims0.size() - 2;
+    unsigned long xAxis0 = static_cast<unsigned long>(dims0.size() - 1);
+    unsigned long yAxis0 = static_cast<unsigned long>(dims0.size() - 2);
 
     if (casted->transpose_a) std::swap(xAxis0, yAxis0);
 
-    unsigned long xAxis1 = dims1.size() - 1;
-    unsigned long yAxis1 = dims1.size() - 2;
+    unsigned long xAxis1 = static_cast<unsigned long>(dims1.size() - 1);
+    unsigned long yAxis1 = static_cast<unsigned long>(dims1.size() - 2);
 
     if (casted->transpose_b) std::swap(xAxis1, yAxis1);
 
@@ -692,8 +692,8 @@ void GemmValidator::checkShapes(const CNNLayer* layer, const vector<SizeVector>&
             THROW_IE_EXCEPTION << "Gemm input shapes must have at least 2 dimensions";
         }
 
-        unsigned long xAxis2 = dims2.size() - 1;
-        unsigned long yAxis2 = dims2.size() - 2;
+        unsigned long xAxis2 = static_cast<unsigned long>(dims2.size() - 1);
+        unsigned long yAxis2 = static_cast<unsigned long>(dims2.size() - 2);
 
         if (dims2[xAxis2] != dims1[xAxis1])
             THROW_IE_EXCEPTION << "Gemm input2 x dimension must be equal to input1 x dimension (" << dims2[xAxis2]
@@ -820,7 +820,7 @@ void ShuffleChannelsValidator::checkShapes(const CNNLayer* layer, const vector<S
                            << " and axis number " << casted->axis;
 
     int axis = casted->axis;
-    if (axis < 0) axis += inShapes[0].size();
+    if (axis < 0) axis += static_cast<int>(inShapes[0].size());
 
     if (inShapes[0][axis] % casted->group)
         THROW_IE_EXCEPTION << layer->name << " Group parameter must evenly divide the channel dimension!";
@@ -1200,7 +1200,7 @@ void ReverseSequenceValidator::checkShapes(const CNNLayer* layer, const vector<S
                            << " and batch_axis number " << casted->batch_axis;
 
     int batch_axis = casted->batch_axis;
-    if (batch_axis < 0) batch_axis += inShapes[0].size();
+    if (batch_axis < 0) batch_axis += static_cast<int>(inShapes[0].size());
     if (inShapes[1][0] != inShapes[0][batch_axis])
         THROW_IE_EXCEPTION << layer->name << " Incorrect 'seq_lengths_dims' parameter dimensions!";
 }
@@ -1368,7 +1368,7 @@ void RNNBaseValidator::checkParams(const InferenceEngine::CNNLayer* layer) {
         if (!one_of(act, "sigmoid", "tanh", "relu"))
             THROW_IE_EXCEPTION << "Unsupported activation function (" << act << ") for RNN layer.";
 
-    int act_num_required = def_acts.size();
+    int act_num_required = static_cast<int>(def_acts.size());
     if (rnn->activations.size() != act_num_required)
         THROW_IE_EXCEPTION << "Expected " << act_num_required << " activations, but provided "
                            << rnn->activations.size();

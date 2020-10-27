@@ -35,7 +35,7 @@ ngraph::pass::PullTransposeThroughFQUp::PullTransposeThroughFQUp() {
             auto fq_input = fq->input_value(i);
             auto fq_input_rank = fq_input.get_partial_shape().rank().get_length();
             std::vector<int64_t> unsqueeze_axes;
-            for (size_t j = 0; j < input_rank - fq_input_rank; ++j) {
+            for (int64_t j = 0; j < input_rank - fq_input_rank; ++j) {
                 unsqueeze_axes.push_back(j);
             }
             if (!unsqueeze_axes.empty()) {

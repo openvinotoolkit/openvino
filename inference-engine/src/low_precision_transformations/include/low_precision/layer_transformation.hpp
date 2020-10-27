@@ -113,24 +113,24 @@ public:
 
     static float getMin(const size_t quantizationLevels, const bool signedInterval) {
         if (quantizationLevels == 255) {
-            return signedInterval  ? -127.0 : 0.0;
+            return signedInterval  ? -127.0f : 0.0f;
         } else if (quantizationLevels == 256) {
-            return signedInterval ? -128.0 : 0.0;
+            return signedInterval ? -128.0f : 0.0f;
         } else {
             // THROW_TRANSFORMATION_EXCEPTION << "quantization level " << quantizationLevels << " is not supported";
             // FIXME: not completed
-            return signedInterval ? -128.0 : 0.0;
+            return signedInterval ? -128.0f : 0.0f;
         }
     }
 
     static float getMax(const size_t quantizationLevels, const bool signedInterval) {
         if ((quantizationLevels == 255) || (quantizationLevels == 256)) {
-            return signedInterval ? 127.0 : 255.0;
+            return signedInterval ? 127.0f : 255.0f;
         } else {
             // THROW_TRANSFORMATION_EXCEPTION << "quantization level " << quantizationLevels << " is not supported";
             // FIXME: not completed
             // return quantizationLevels - 1.0;
-            return signedInterval ? 127.0 : 255.0;
+            return signedInterval ? 127.0f : 255.0f;
         }
     }
 };

@@ -74,10 +74,10 @@ ngraph::pass::ConvertInterpolateToInterpOrResampleMatcher::ConvertInterpolateToI
 
         if (num_of_spatial_vars == 2 && interpolate_axes.size() == 2 && std::set<std::string>{"nearest", "cubic", "area"}.count(interpolate_mode) == 0) {
             auto attrs = ngraph::op::InterpolateIEAttrs();
-            attrs.pad_beg = interpolate_attrs.pads_begin[0];
-            attrs.pad_end = interpolate_attrs.pads_end[0];
-            attrs.height = out_spatial_shape[0];
-            attrs.width = out_spatial_shape[1];
+            attrs.pad_beg = static_cast<int>(interpolate_attrs.pads_begin[0]);
+            attrs.pad_end = static_cast<int>(interpolate_attrs.pads_end[0]);
+            attrs.height = static_cast<int>(out_spatial_shape[0]);
+            attrs.width = static_cast<int>(out_spatial_shape[1]);
             attrs.align_corners = interpolate_attrs.align_corners;
             attrs.mode = interpolate_mode;
             attrs.antialias = interpolate_attrs.antialias;

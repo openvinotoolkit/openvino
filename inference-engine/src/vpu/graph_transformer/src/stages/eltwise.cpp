@@ -286,14 +286,14 @@ void FrontEnd::parseEltwise(const Model& model, const ie::CNNLayerPtr& _layer, c
             if (type == DataType::FP16) {
                 stage->attrs().set<float>("coeff1", layer->coeff[0]);
             } else {
-                stage->attrs().set<std::int32_t>("coeff1", layer->coeff[0]);
+                stage->attrs().set<std::int32_t>("coeff1", static_cast<int32_t>(layer->coeff[0]));
             }
         }
         if (layer->coeff.size() > 1 || subCoefficient != 1) {
             if (type == DataType::FP16) {
                 stage->attrs().set<float>("coeff2", subCoefficient * (layer->coeff.size() > 1 ? layer->coeff[1] : 1.0f));
             } else {
-                stage->attrs().set<std::int32_t>("coeff2", subCoefficient * (layer->coeff.size() > 1 ? layer->coeff[1] : 1));
+                stage->attrs().set<std::int32_t>("coeff2", subCoefficient * (layer->coeff.size() > 1 ? static_cast<int32_t>(layer->coeff[1]) : 1));
             }
         }
     }

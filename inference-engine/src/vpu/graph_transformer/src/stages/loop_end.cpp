@@ -28,8 +28,8 @@ protected:
     void propagateDataOrderImpl(StageDataInfo<DimsOrder>& orderInfo) override {
         const auto& endCopies = attrs().getOrDefault<IterationComponents>("end-iteration-components", {});
         for (const auto& iteration : endCopies) {
-            const auto& dstIdx = iteration.first.first;
-            const auto& srcIdx = iteration.second;
+            const auto& dstIdx = static_cast<int>(iteration.first.first);
+            const auto& srcIdx = static_cast<int>(iteration.second);
             orderInfo.setOutput(outputEdge(dstIdx), inputEdge(srcIdx)->input()->desc().dimsOrder());
         }
 
@@ -71,7 +71,7 @@ protected:
         for (const auto& component : endCopies) {
             const auto& rule = component.first.second;
             auto axis = rule.axis;
-            auto axisInd = static_cast<int32_t>(output(component.first.first)->desc().dimsOrder().dimInd(axis));
+            auto axisInd = static_cast<int32_t>(output(static_cast<int>(component.first.first))->desc().dimsOrder().dimInd(axis));
 
             serializer.append(axisInd);
             serializer.append(rule.start);
@@ -89,8 +89,8 @@ protected:
         }
 
         for (const auto& iteration : endCopies) {
-            output(iteration.first.first)->serializeBuffer(serializer);
-            input(iteration.second)->serializeBuffer(serializer);
+            output(static_cast<int>(iteration.first.first))->serializeBuffer(serializer);
+            input(static_cast<int>(iteration.second))->serializeBuffer(serializer);
         }
     }
 };

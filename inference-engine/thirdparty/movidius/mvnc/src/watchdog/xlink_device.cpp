@@ -68,7 +68,7 @@ void XLinkDevice::keepAlive(const time_point &current_time) noexcept {
 
     m_lastPingTime = current_time;
 
-    int diff = duration_cast<milliseconds>(current_time - m_lastPongTime).count();
+    int diff = (int)duration_cast<milliseconds>(current_time - m_lastPongTime).count();
 
     if (bPong) {
         m_lastPongTime = current_time;
