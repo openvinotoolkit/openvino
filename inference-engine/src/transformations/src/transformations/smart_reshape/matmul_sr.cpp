@@ -82,6 +82,7 @@ ngraph::pass::ReshapeBMatMul::ReshapeBMatMul() {
     register_matcher(m, callback);
 }
 
+NGRAPH_RTTI_DEFINITION(ngraph::pass::TransposeMatMul, "TransposeMatMul", 0);
 
 ngraph::pass::TransposeMatMul::TransposeMatMul() {
     auto matmul_label = ngraph::pattern::wrap_type<opset4::MatMul>();
@@ -135,6 +136,6 @@ ngraph::pass::TransposeMatMul::TransposeMatMul() {
         }
         return false;
     };
-    auto m = std::make_shared<ngraph::pattern::Matcher>(matmul_label, "Transpose->MatMul fusion");
+    auto m = std::make_shared<ngraph::pattern::Matcher>(matmul_label, "TransposeMatMul");
     register_matcher(m, callback);
 }
