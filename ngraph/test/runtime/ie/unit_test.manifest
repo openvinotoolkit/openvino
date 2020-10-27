@@ -44,9 +44,6 @@ onnx_model_qlinear_matmul_3d
 onnx_model_gatherND_int32
 onnx_model_gatherND_float
 
-# Round op doesn't support some specific cases of rounding
-onnx_model_round_half_nearest_even
-
 # Result mismatch
 onnx_model_split_equal_parts_default
 onnx_model_argmin_no_keepdims
@@ -586,6 +583,10 @@ greater_int64
 broadcast_vector_rowwise_int64
 broadcast_scalar_to_matrix_int64
 abc_int64
+
+# Unsupported primitive of type: Round
+IE_CPU.onnx_model_round
+IE_CPU.onnx_model_round_half_nearest_even
 
 # Unsupported primitive of type: SigmoidBackprop
 sigmoid_bprop_n1c1h4
@@ -1475,6 +1476,9 @@ IE_GPU.matmul_3x2_3x3_transpose
 IE_GPU.matmul_3x2_2x3_transpose
 IE_GPU.region_yolo_v2_caffe
 IE_GPU.region_yolo_v3_mxnet
+
+# Detected op not belonging to opset1!
+IE_GPU.round_int64
 
 # Unsupported collapse op with dynamic shape
 IE_GPU.builder_opset1_collapse_dyn_shape
