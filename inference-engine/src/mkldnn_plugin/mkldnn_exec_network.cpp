@@ -49,7 +49,7 @@ MKLDNNExecNetwork::MKLDNNExecNetwork(const InferenceEngine::ICNNNetwork &network
     OV_ITT_SCOPED_TASK(itt::domains::MKLDNNPlugin, "MKLDNNExecNetwork::MKLDNNExecNetwork");
 
     // we are cloning network if we have statistics and we can transform network.
-    _clonedNetwork = cloneNet(network);
+    InferenceEngine::details::CNNNetworkImplPtr clonedNetwork = cloneNet(network);
 
     if (_cfg.lpTransformsMode == Config::LPTransformsMode::On) {
         auto params = LayerTransformation::Params(true,  // updatePrecisions
@@ -65,7 +65,7 @@ MKLDNNExecNetwork::MKLDNNExecNetwork(const InferenceEngine::ICNNNetwork &network
             addCleanup<ScaleShiftToConvolutionTransformation>(
                 LayerTransformation::Params(params).setPrecisionsOnActivations({ Precision::U8 }),
                 "ScaleShift"));
-        transformer.transform(*_clonedNetwork);
+        transformer.transform(*clonedNetwork);
 
         // Check if network is INT8 or Binary.
         // BF16 transformations were disabled since CPU plug-in doesn't support mixed precision execution:
@@ -82,7 +82,7 @@ MKLDNNExecNetwork::MKLDNNExecNetwork(const InferenceEngine::ICNNNetwork &network
 
         if (with_cpu_x86_bfloat16() && isFloatModel) {
             BF16Transformer bf16Transformer;
-            CNNNetwork cnnetwork(_clonedNetwork);
+            CNNNetwork cnnetwork(clonedNetwork);
             // If enforceBF16 flag was set, BF16 transformation applies for all layers supported by CPU plugin.
             // Overwise, only layers marked as BF16 in 'cnnetwork' will be performed in bfloat16 mode.
             // CPU plugin throws an exception, if marked as BF16 layers have not supported by CPU plugin.
@@ -90,16 +90,16 @@ MKLDNNExecNetwork::MKLDNNExecNetwork(const InferenceEngine::ICNNNetwork &network
                 bf16Transformer.convertToBFloat16(cnnetwork);
         } else {
             BF16Transformer bf16Transformer;
-            CNNNetwork cnnetwork(_clonedNetwork);
+            CNNNetwork cnnetwork(clonedNetwork);
             bf16Transformer.convertToFloat(cnnetwork);
         }
     }
 
-    MKLDNNGraph::ApplyUnrollPasses(static_cast<ICNNNetwork&>(*_clonedNetwork));
+    MKLDNNGraph::ApplyUnrollPasses(static_cast<ICNNNetwork&>(*clonedNetwork));
 
     if (_cfg.batchLimit > 1) {
         // check topology for applicability
-        if (!CanProcessDynBatch(*_clonedNetwork)) {
+        if (!CanProcessDynBatch(*clonedNetwork)) {
             THROW_IE_EXCEPTION << "MKLDNNGraph::CreateGraph: such topology cannot be compiled for dynamic batch!";
         }
     }
@@ -122,7 +122,7 @@ MKLDNNExecNetwork::MKLDNNExecNetwork(const InferenceEngine::ICNNNetwork &network
     _graphs = decltype(_graphs){[&] {
         // TODO: Remove `cloneNet` to `localNetwork` when `MKLDNNGraph::CreateGraph`
         //       is fixed and does not change content of network passed (CVS-26420)
-        auto localNetwork = cloneNet(static_cast<ICNNNetwork&>(*_clonedNetwork));
+        auto localNetwork = cloneNet(static_cast<ICNNNetwork&>(*clonedNetwork));
         auto graph = std::make_shared<MKLDNNGraph>();
         {
             std::unique_lock<std::mutex> lock{_cfgMutex};
