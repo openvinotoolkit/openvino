@@ -265,35 +265,6 @@ TEST(constant_folding, DISABLED_constant_reshape_permute)
     ASSERT_TRUE(test::all_close_f(values_permute, values_out, MIN_FLOAT_TOLERANCE_BITS));
 }
 
-TEST(constant_folding, constant_broadcast)
-{
-    Shape shape_in{2};
-    Shape shape_out{2, 4};
-
-    vector<int> values_in{0, 1};
-    auto constant = make_shared<op::Constant>(element::i32, shape_in, values_in);
-    auto broadcast = make_shared<op::Broadcast>(constant, shape_out, AxisSet{1});
-    broadcast->set_friendly_name("test");
-    auto f = make_shared<Function>(broadcast, ParameterVector{});
-
-    pass::Manager pass_manager;
-    pass_manager.register_pass<pass::ConstantFolding>();
-    pass_manager.run_passes(f);
-
-    ASSERT_EQ(count_ops_of_type<op::Broadcast>(f), 0);
-    ASSERT_EQ(count_ops_of_type<op::Constant>(f), 1);
-
-    auto new_const =
-        as_type_ptr<op::Constant>(f->get_results().at(0)->input_value(0).get_node_shared_ptr());
-    ASSERT_TRUE(new_const);
-    ASSERT_EQ(new_const->get_friendly_name(), "test");
-
-    auto values_out = new_const->get_vector<int>();
-
-    vector<int> values_expected{0, 0, 0, 0, 1, 1, 1, 1};
-    ASSERT_EQ(values_expected, values_out);
-}
-
 TEST(constant_folding, constant_broadcast_v1)
 {
     vector<int32_t> values_in{0, 1};
@@ -510,42 +481,6 @@ TEST(constant_folding, constant_unary_binary)
     ASSERT_EQ(get_result_constant<char>(func, 23), logical_or_autob_numpy_expected);
     ASSERT_EQ(get_result_constant<char>(func, 24), logical_xor_autob_numpy_expected);
     ASSERT_NO_THROW(pass_manager.run_passes(func_error));
-}
-
-TEST(constant_folding, const_dequantize)
-{
-    Shape input_shape{12};
-    Shape scale_offset_shape;
-    AxisSet quantization_axes;
-
-    auto quant_type = element::u8;
-    auto output_type = element::f32;
-    typedef float output_c_type;
-
-    vector<uint8_t> values_in{1, 2, 2, 3, 3, 4, 4, 5, 5, 6, 6, 7};
-    auto constant = op::Constant::create(quant_type, input_shape, values_in);
-    auto scale = op::Constant::create(output_type, scale_offset_shape, {2});
-    auto offset = op::Constant::create(quant_type, scale_offset_shape, {1});
-    auto dequantize =
-        make_shared<op::Dequantize>(constant, scale, offset, output_type, quantization_axes);
-    dequantize->set_friendly_name("test");
-    auto f = make_shared<Function>(dequantize, ParameterVector{});
-
-    pass::Manager pass_manager;
-    pass_manager.register_pass<pass::ConstantFolding>();
-    pass_manager.run_passes(f);
-
-    ASSERT_EQ(count_ops_of_type<op::Dequantize>(f), 0);
-    ASSERT_EQ(count_ops_of_type<op::Constant>(f), 1);
-
-    auto new_const =
-        as_type_ptr<op::Constant>(f->get_results().at(0)->input_value(0).get_node_shared_ptr());
-    ASSERT_TRUE(new_const);
-    ASSERT_EQ(new_const->get_friendly_name(), "test");
-    auto values_out = new_const->get_vector<output_c_type>();
-
-    vector<output_c_type> values_dequantize{0, 2, 2, 4, 4, 6, 6, 8, 8, 10, 10, 12};
-    ASSERT_EQ(values_dequantize, values_out);
 }
 
 TEST(constant_folding, const_quantize)
@@ -1890,37 +1825,6 @@ TEST(constant_folding, const_floor)
     auto values_out = new_const->get_vector<float>();
 
     vector<float> values_expected{0.0f, 0.0f, -1.0f, -3.0f, 2.0f, 3.0f};
-
-    ASSERT_TRUE(test::all_close_f(values_out, values_expected, MIN_FLOAT_TOLERANCE_BITS));
-}
-
-TEST(constant_folding, const_gather)
-{
-    auto constant_data = op::Constant::create(
-        element::f32,
-        Shape{2, 5},
-        vector<float>{1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f, 9.0f, 10.0f});
-    auto constant_indices =
-        op::Constant::create(element::i64, Shape{4}, vector<int64_t>{0, 3, 2, 2});
-    size_t gather_axis = 1;
-    auto gather = make_shared<op::v0::Gather>(constant_data, constant_indices, gather_axis);
-    gather->set_friendly_name("test");
-    auto f = make_shared<Function>(gather, ParameterVector{});
-
-    pass::Manager pass_manager;
-    pass_manager.register_pass<pass::ConstantFolding>();
-    pass_manager.run_passes(f);
-
-    ASSERT_EQ(count_ops_of_type<op::v0::Gather>(f), 0);
-    ASSERT_EQ(count_ops_of_type<op::Constant>(f), 1);
-
-    auto new_const =
-        as_type_ptr<op::Constant>(f->get_results().at(0)->input_value(0).get_node_shared_ptr());
-    ASSERT_TRUE(new_const);
-    ASSERT_EQ(new_const->get_friendly_name(), "test");
-    auto values_out = new_const->get_vector<float>();
-
-    vector<float> values_expected{1.0f, 4.0f, 3.0f, 3.0f, 6.0f, 9.0f, 8.0f, 8.0f};
 
     ASSERT_TRUE(test::all_close_f(values_out, values_expected, MIN_FLOAT_TOLERANCE_BITS));
 }

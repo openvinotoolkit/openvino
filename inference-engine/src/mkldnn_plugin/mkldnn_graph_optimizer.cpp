@@ -256,6 +256,10 @@ void MKLDNNGraphOptimizer::FuseConvolutionAndZeroPoints(MKLDNNGraph &graph) {
                 if (arg0->getCnnLayer()->outData[0]->getPrecision() != Precision::U8)
                     return false;
 
+                if (parent0->getParentEdgesAtPort(1)[0]->getDims().size() < 2) {
+                    return false;
+                }
+
                 if (parent0->getParentEdgesAtPort(1)[0]->getDims()[1] != 1 &&
                     parent0->getParentEdgesAtPort(1)[0]->getDims()[1] != IC)
                     return false;
@@ -495,6 +499,9 @@ void MKLDNNGraphOptimizer::MergeTwoEqualScaleShifts(MKLDNNGraph& graph) {
     };
 
     auto isEqualScaleShiftNodes = [](MKLDNNNodePtr node1, MKLDNNNodePtr node2) {
+        if (node1->getParentEdgeAt(0) != node2->getParentEdgeAt(0))
+            return false;
+
         auto *depthwiseNode1 = dynamic_cast<MKLDNNDepthwiseNode *>(node1.get());
         auto *depthwiseNode2 = dynamic_cast<MKLDNNDepthwiseNode *>(node2.get());
 
@@ -709,7 +716,7 @@ void MKLDNNGraphOptimizer::FuseConvolutionAndActivation(MKLDNNGraph &graph) {
             (activationNode->getAlgorithm() == eltwise_relu ||
             (conv->getCnnLayer()->precision == Precision::FP32 &&
              isOneOf(activationNode->getAlgorithm(), {eltwise_elu, eltwise_logistic, eltwise_bounded_relu, eltwise_clamp,
-                                                      eltwise_swish, eltwise_hswish, eltwise_mish})));
+                                                      eltwise_swish, eltwise_hswish, eltwise_mish, eltwise_hsigmoid})));
     };
 
     for (int i = 0; i < graphNodes.size(); i++) {
@@ -847,7 +854,9 @@ void MKLDNNGraphOptimizer::FuseFullyConnectedAndSimpleOperation(MKLDNNGraph &gra
             if (activationNode == nullptr)
                 THROW_IE_EXCEPTION << "Cannot get activation layer " << childNode->getName();
 
-            return isOneOf(activationNode->getAlgorithm(), {eltwise_relu, eltwise_gelu, eltwise_elu, eltwise_logistic, eltwise_bounded_relu, eltwise_clamp});
+            return isOneOf(activationNode->getAlgorithm(), {eltwise_relu, eltwise_gelu, eltwise_elu, eltwise_logistic,
+                                                            eltwise_bounded_relu, eltwise_clamp, eltwise_swish, eltwise_hswish,
+                                                            eltwise_mish, eltwise_hsigmoid});
         }
 
         return false;
@@ -1192,7 +1201,8 @@ void MKLDNNGraphOptimizer::FuseConvolutionAndSimpleOperation(MKLDNNGraph &graph)
                 THROW_IE_EXCEPTION << "Cannot get activation layer " << node->getName();
 
             return isOneOf(activationNode->getAlgorithm(), {eltwise_relu, eltwise_elu, eltwise_logistic, eltwise_bounded_relu,
-                                                            eltwise_clamp, eltwise_swish, eltwise_hswish, eltwise_mish});
+                                                            eltwise_clamp, eltwise_swish, eltwise_hswish, eltwise_mish,
+                                                            eltwise_hsigmoid});
         }
 
         return false;
@@ -1437,7 +1447,7 @@ void MKLDNNGraphOptimizer::FuseConvolutionSumAndConvolutionSumActivation(MKLDNNG
             (activationNode->getAlgorithm() == eltwise_relu ||
             (conv->getCnnLayer()->precision == Precision::FP32 &&
              isOneOf(activationNode->getAlgorithm(), {eltwise_elu, eltwise_logistic, eltwise_bounded_relu, eltwise_clamp,
-                                                      eltwise_swish, eltwise_hswish, eltwise_mish})));
+                                                      eltwise_swish, eltwise_hswish, eltwise_mish, eltwise_hsigmoid})));
 #else
         return false;
 #endif
@@ -1855,8 +1865,8 @@ void MKLDNNGraphOptimizer::FuseNormalizeAndSimpleOperation(MKLDNNGraph &graph) {
             if (activationNode == nullptr)
                 THROW_IE_EXCEPTION << "Cannot get activation layer " << node->getName();
             return isOneOf(activationNode->getAlgorithm(), {eltwise_relu, eltwise_gelu, eltwise_elu, eltwise_logistic,
-                eltwise_bounded_relu, eltwise_clamp, eltwise_tanh, eltwise_swish, eltwise_hswish, eltwise_mish, eltwise_linear,
-                eltwise_abs, eltwise_square, eltwise_sqrt});
+                eltwise_bounded_relu, eltwise_clamp, eltwise_tanh, eltwise_swish, eltwise_hswish, eltwise_mish,
+                eltwise_hsigmoid, eltwise_linear, eltwise_abs, eltwise_square, eltwise_sqrt});
         }
         return false;
     };
@@ -1967,7 +1977,8 @@ void MKLDNNGraphOptimizer::FuseEltwiseAndSimple(MKLDNNGraph &graph) {
             if (activationNode == nullptr)
                 THROW_IE_EXCEPTION << "Cannot get activation layer " << node->getName();
             return isOneOf(activationNode->getAlgorithm(), {eltwise_relu, eltwise_elu, eltwise_logistic, eltwise_bounded_relu,
-                                                            eltwise_clamp, eltwise_swish, eltwise_hswish, eltwise_mish});
+                                                            eltwise_clamp, eltwise_swish, eltwise_hswish, eltwise_mish,
+                                                            eltwise_hsigmoid});
         }
 
         return false;
