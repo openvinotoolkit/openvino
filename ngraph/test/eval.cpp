@@ -1207,12 +1207,14 @@ TEST(eval, evaluate_dynamic_gather)
 {
     auto arg1 = make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
     auto arg2 = make_shared<op::Parameter>(element::i32, PartialShape::dynamic());
-    auto gather = make_shared<op::v0::Gather>(arg1, arg2);
-    auto fun = make_shared<Function>(OutputVector{gather}, ParameterVector{arg1, arg2});
+    auto arg3 = make_shared<op::Parameter>(element::i32, PartialShape::dynamic());
+    auto gather = make_shared<op::v1::Gather>(arg1, arg2, arg3);
+    auto fun = make_shared<Function>(OutputVector{gather}, ParameterVector{arg1, arg2, arg3});
     auto result_tensor = make_shared<HostTensor>();
     ASSERT_TRUE(fun->evaluate({result_tensor},
                               {make_host_tensor<element::Type_t::f32>({3}, {1.0f, 2.0f, 3.0f}),
-                               make_host_tensor<element::Type_t::i32>({2}, {1, 0})}));
+                               make_host_tensor<element::Type_t::i32>({2}, {1, 0}),
+                               make_host_tensor<element::Type_t::i32>({1}, {0})}));
     EXPECT_EQ(result_tensor->get_element_type(), element::f32);
     EXPECT_EQ(result_tensor->get_partial_shape(), (PartialShape{2}));
     auto cval = read_vector<float>(result_tensor);

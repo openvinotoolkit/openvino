@@ -477,7 +477,7 @@ max_to_scalar_int8
 onnx_dyn_shapes_model_tile_static
 
 # Segfault
-gather_4d_indices_no_axis_uint8
+gather_4d_indices_axis_0_uint8
 tensor_constant_with_op
 constant_equality_bool
 reduce_product_matrix_rows
@@ -577,10 +577,10 @@ group_conv_data_dilation
 # [NOT_IMPLEMENTED] Input image format I64 is not supported yet...
 slice_3d_strided_different_strides_int64
 maximum_int64
-gather_no_axis_int16
-gather_no_axis_int64
-gather_no_axis_uint16
-gather_no_axis_uint64
+gather_axis_0_int16
+gather_axis_0_int64
+gather_axis_0_uint16
+gather_axis_0_uint64
 concat_matrix_int64
 greater_int64
 broadcast_vector_rowwise_int64
@@ -599,7 +599,7 @@ not
 logical_xor
 logical_or
 logical_and
-gather_no_axis_bool
+gather_axis_0_bool
 lesseq_bool
 auto_bcast_binary_elementwise
 auto_bcast_binary_elementwise_pdpd
@@ -921,10 +921,10 @@ broadcast_algo_matrix_stride_2
 broadcast_algo_matrix_stride_3
 
 # Failing from new reason after unblocking more Blob types
-gather_2d_negative_and_positive_indices_no_axis_2d_input
-gather_no_axis_int8
-gather_no_axis_uint8
-gather_no_axis_uint32
+gather_2d_negative_and_positive_indices_axis_0_2d_input
+gather_axis_0_int8
+gather_axis_0_uint8
+gather_axis_0_uint32
 split_3_equal_parts
 split_var_len_parts
 floor_int32
@@ -1346,7 +1346,7 @@ IE_GPU.gather_2d_indices_no_axis_2d_input
 IE_GPU.gather_1d_indices_no_axis_1d_input
 IE_GPU.gather_2d_indices_axis_1_2d_input
 IE_GPU.gather_1d_indices_axis_2_4d_input
-IE_GPU.gather_no_axis_int32
+IE_GPU.gather_axis_0_int32
 IE_GPU.hardsigmoid
 IE_GPU.space_to_depth_block_first
 IE_GPU.space_to_depth_depth_first

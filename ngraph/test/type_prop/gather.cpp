@@ -23,75 +23,32 @@ NGRAPH_SUPPRESS_DEPRECATED_START
 using namespace std;
 using namespace ngraph;
 
-TEST(type_prop, gather_no_axis)
+TEST(type_prop, gather_axis_0)
 {
     Shape params_shape{3, 2};
     Shape indices_shape{2, 2};
     Shape out_shape{2, 2, 2};
     auto P = make_shared<op::Parameter>(element::f32, params_shape);
     auto I = make_shared<op::Parameter>(element::i32, indices_shape);
-    auto G = make_shared<op::Gather>(P, I);
+    auto A = op::Constant::create(element::i64, Shape{}, {0});
+    auto G = make_shared<op::v1::Gather>(P, I, A);
     ASSERT_EQ(G->get_element_type(), element::f32);
     ASSERT_EQ(G->get_shape(), out_shape);
+    ASSERT_EQ(G->get_axis(), 0);
 }
 
-TEST(type_prop, gather)
+TEST(type_prop, gather_axis_1)
 {
     Shape params_shape{3, 3};
     Shape indices_shape{1, 2};
     Shape out_shape{3, 1, 2};
     auto P = make_shared<op::Parameter>(element::f32, params_shape);
     auto I = make_shared<op::Parameter>(element::i32, indices_shape);
-    auto G = make_shared<op::Gather>(P, I, 1);
+    auto A = op::Constant::create(element::i64, Shape{}, {1});
+    auto G = make_shared<op::v1::Gather>(P, I, A);
     ASSERT_EQ(G->get_element_type(), element::f32);
     ASSERT_EQ(G->get_shape(), out_shape);
-}
-
-TEST(type_prop, gather_fail_params_rank)
-{
-    Shape params_shape{3, 3};
-    Shape indices_shape{1, 2};
-    Shape out_shape{3, 1, 2};
-    auto P = make_shared<op::Parameter>(element::f32, params_shape);
-    auto I = make_shared<op::Parameter>(element::i32, indices_shape);
-    try
-    {
-        auto G = make_shared<op::Gather>(P, I, 2);
-        // Should have thrown, so fail if it didn't
-        FAIL() << "Incorrect params rank";
-    }
-    catch (const NodeValidationFailure& error)
-    {
-        EXPECT_HAS_SUBSTRING(error.what(),
-                             std::string("params rank is expected to be at least axis + 1"));
-    }
-    catch (...)
-    {
-        FAIL() << "Deduced type check failed for unexpected reason";
-    }
-}
-
-TEST(type_prop, gather_fail_indices_element_type)
-{
-    Shape params_shape{3, 3};
-    Shape indices_shape{1, 2};
-    Shape out_shape{3, 1, 2};
-    auto P = make_shared<op::Parameter>(element::f32, params_shape);
-    auto I = make_shared<op::Parameter>(element::i16, indices_shape);
-    try
-    {
-        auto G = make_shared<op::Gather>(P, I, 1);
-        // Should have thrown, so fail if it didn't
-        FAIL() << "Incorrect indices element type";
-    }
-    catch (const NodeValidationFailure& error)
-    {
-        EXPECT_HAS_SUBSTRING(error.what(), std::string("Indices element type must be i64 or i32"));
-    }
-    catch (...)
-    {
-        FAIL() << "Deduced type check failed for unexpected reason";
-    }
+    ASSERT_EQ(G->get_axis(), 1);
 }
 
 TEST(type_prop, gather_v1_incorrect_axis_shape)

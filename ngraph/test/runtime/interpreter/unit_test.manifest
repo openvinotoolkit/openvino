@@ -63,11 +63,11 @@ INTERPRETER.max_3d_to_scalar_double
 INTERPRETER.gelu_f64
 INTERPRETER.gelu_backprop_factor_f64
 INTERPRETER.backwards_gelu_f64
-INTERPRETER.gather_4d_indices_no_axis_uint8
-INTERPRETER.gather_no_axis_int8
-INTERPRETER.gather_no_axis_int16
-INTERPRETER.gather_no_axis_uint8
-INTERPRETER.gather_no_axis_uint16
+INTERPRETER.gather_4d_indices_axis_0_uint8
+INTERPRETER.gather_axis_0_int8
+INTERPRETER.gather_axis_0_int16
+INTERPRETER.gather_axis_0_uint8
+INTERPRETER.gather_axis_0_uint16
 INTERPRETER.fused_clamp_double
 INTERPRETER.fused_clamp_int8
 INTERPRETER.fused_clamp_int16

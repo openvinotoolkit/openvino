@@ -140,17 +140,6 @@ namespace opset1_upgrade
         return op_cast_binary_elementwise_node<op::v0::Equal, op::v1::Equal>(node);
     }
 
-    shared_ptr<Node> op_cast(shared_ptr<op::Gather> node)
-    {
-        int64_t axis = node->get_axis();
-
-        auto axis_node = make_shared<op::Constant>(element::i64, Shape{}, vector<int64_t>{axis});
-        auto replacement_node =
-            make_shared<op::v1::Gather>(node->input_value(0), node->input_value(1), axis_node);
-        replace_node(node, replacement_node);
-        return replacement_node;
-    }
-
     shared_ptr<Node> op_cast(shared_ptr<op::Greater> node)
     {
         return op_cast_binary_elementwise_node<op::v0::Greater, op::v1::Greater>(node);

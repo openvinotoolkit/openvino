@@ -28,75 +28,6 @@ NGRAPH_SUPPRESS_DEPRECATED_START
 using namespace std;
 using namespace ngraph;
 
-const int op::v0::Gather::PARAMS = 0;
-const int op::v0::Gather::INDICES = 1;
-const int op::v0::Gather::AXIS = 2;
-
-constexpr NodeTypeInfo op::v0::Gather::type_info;
-
-op::v0::Gather::Gather(const Output<Node>& params, const Output<Node>& indices, size_t axis)
-    : Op({params, indices})
-    , m_axis(axis)
-{
-    constructor_validate_and_infer_types();
-}
-
-shared_ptr<Node> op::v0::Gather::clone_with_new_inputs(const OutputVector& new_args) const
-{
-    check_new_args_count(this, new_args);
-    return make_shared<v0::Gather>(new_args.at(PARAMS), new_args.at(INDICES), m_axis);
-}
-
-void op::v0::Gather::validate_and_infer_types()
-{
-    element::Type result_et = get_input_element_type(PARAMS);
-    element::Type indices_et = get_input_element_type(INDICES);
-
-    const PartialShape& params_shape = get_input_partial_shape(PARAMS);
-    const PartialShape& indices_shape = get_input_partial_shape(INDICES);
-
-    NODE_VALIDATION_CHECK(this,
-                          indices_et == element::i32 || indices_et == element::i64,
-                          "Indices element type must be i64 or i32");
-
-    // params rank must be at least (axis + 1)
-    // indices value must be in range [0, params.shape[axis]).
-    // output rank is rank(params) + rank(indices) - 1
-    NODE_VALIDATION_CHECK(this,
-                          params_shape.rank().is_dynamic() ||
-                              params_shape.rank().get_length() > static_cast<size_t>(m_axis),
-                          "params rank is expected to be at least axis + 1");
-
-    PartialShape result_shape;
-    if (params_shape.rank().is_static() && indices_shape.rank().is_static())
-    {
-        std::vector<Dimension> result_dims(params_shape.rank().get_length() +
-                                           indices_shape.rank().get_length() - 1);
-        size_t i = 0;
-        for (; i < static_cast<size_t>(m_axis); i++)
-        {
-            result_dims[i] = params_shape[i];
-        }
-        for (size_t j = 0; j < indices_shape.rank().get_length(); i++, j++)
-        {
-            result_dims[i] = indices_shape[j];
-        }
-        for (size_t j = static_cast<size_t>(m_axis) + 1; j < params_shape.rank().get_length();
-             i++, j++)
-        {
-            result_dims[i] = params_shape[j];
-        }
-
-        result_shape = PartialShape(result_dims);
-    }
-    else
-    {
-        result_shape = PartialShape::dynamic();
-    }
-
-    set_output_type(0, result_et, result_shape);
-}
-
 constexpr NodeTypeInfo op::v1::Gather::type_info;
 const int64_t op::v1::Gather::AXIS_NOT_SET_VALUE;
 
@@ -289,12 +220,6 @@ namespace gather
         }
         return rc;
     }
-}
-
-bool op::v0::Gather::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
-{
-    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v0::Gather::evaluate");
-    return gather::evaluate_gather(inputs[0], inputs[1], outputs[0], get_axis());
 }
 
 bool op::v1::Gather::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
