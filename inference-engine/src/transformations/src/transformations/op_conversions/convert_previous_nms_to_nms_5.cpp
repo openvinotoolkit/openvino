@@ -142,12 +142,10 @@ namespace {
         const auto& arg2 = num_of_args > 2 ? new_args.at(2) : ngraph::opset5::Constant::create(element::i64, Shape{}, {0});
         const auto& arg3 = num_of_args > 3 ? new_args.at(3) : ngraph::opset5::Constant::create(element::f32, Shape{}, {.0f});
         const auto& arg4 = num_of_args > 4 ? new_args.at(4) : ngraph::opset5::Constant::create(element::f32, Shape{}, {.0f});
-        const auto& arg5 = ngraph::opset5::Constant::create(element::f32, Shape{}, {.0f});
 
         // list of new nGraph operations
         std::list<std::shared_ptr<::ngraph::Node>> new_ops_list;
 
-        new_ops_list.push_front(arg5);
         if (num_of_args <= 4) {
             new_ops_list.push_front(arg4.get_node_shared_ptr());
         }
@@ -164,7 +162,6 @@ namespace {
                 arg2,
                 arg3,
                 arg4,
-                arg5,
                 attrs.box_encoding,
                 attrs.sort_result_descending,
                 attrs.output_type);

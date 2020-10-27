@@ -67,6 +67,15 @@ public:
                          const Output<Node>& max_output_boxes_per_class,
                          const Output<Node>& iou_threshold,
                          const Output<Node>& score_threshold,
+                         int center_point_box,
+                         bool sort_result_descending,
+                         const ngraph::element::Type& output_type = ngraph::element::i64);
+
+    NonMaxSuppressionIE3(const Output<Node>& boxes,
+                         const Output<Node>& scores,
+                         const Output<Node>& max_output_boxes_per_class,
+                         const Output<Node>& iou_threshold,
+                         const Output<Node>& score_threshold,
                          const Output<Node>& soft_nms_sigma,
                          int center_point_box,
                          bool sort_result_descending,
