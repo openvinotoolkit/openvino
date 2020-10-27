@@ -49,7 +49,7 @@ ngraph::pass::BatchNormDecomposition::BatchNormDecomposition() {
 
         // TODO: instead of getting full shape we can concatenate sequence of ones with ShapeOf
         Shape input_aligned_shape = m_gamma.get_shape();
-        for (size_t i = 0; i < dims_to_add; ++i)
+        for (int64_t i = 0; i < dims_to_add; ++i)
             input_aligned_shape.push_back(1);
         auto new_shape = opset5::Constant::create(element::i64, Shape{input_aligned_shape.size()}, input_aligned_shape);
 
@@ -113,7 +113,7 @@ ngraph::pass::BatchNormV5Decomposition::BatchNormV5Decomposition() {
 
         // TODO: instead of getting full shape we can concatenate sequence of ones with ShapeOf
         Shape input_aligned_shape = m_gamma.get_shape();
-        for (size_t i = 0; i < dims_to_add; ++i)
+        for (int64_t i = 0; i < dims_to_add; ++i)
             input_aligned_shape.push_back(1);
         auto new_shape = opset5::Constant::create(element::i64, Shape{input_aligned_shape.size()}, input_aligned_shape);
 

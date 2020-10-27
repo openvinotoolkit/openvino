@@ -218,7 +218,7 @@ shared_ptr<Node> builder::opset1::collapse(const Output<Node>& value,
         // Multiply all alements of shape from start_axis to end_axis inclusive
         size_t collapsed_axis_size = accumulate(next(begin(shape), start_axis),
                                                 next(begin(shape), end_axis + 1),
-                                                1UL,
+                                                size_t{1},
                                                 multiplies<size_t>());
         Shape output_shape{};
         output_shape.insert(begin(output_shape), begin(shape), next(begin(shape), start_axis));

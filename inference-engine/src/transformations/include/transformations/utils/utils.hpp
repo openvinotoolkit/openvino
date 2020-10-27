@@ -26,7 +26,7 @@ bool normalize_single_value(std::vector<T> vec, float & value) {
         if (val != *vec.begin()) return false;
     }
 
-    float ref_val = *vec.begin();
+    float ref_val = static_cast<float>(*vec.begin());
 
     if (ref_val < std::numeric_limits<float>::lowest() || ref_val > std::numeric_limits<float>::max()) {
         return false;
