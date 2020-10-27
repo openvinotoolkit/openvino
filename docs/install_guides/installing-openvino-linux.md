@@ -31,10 +31,8 @@ The Intel® Distribution of OpenVINO™ toolkit for Linux\*:
 | [Documentation for Pre-Trained Models ](@ref omz_models_intel_index)                                   | Documentation for the pre-trained models available in the [Open Model Zoo repo](https://github.com/opencv/open_model_zoo).  |
 | Deep Learning Streamer (DL Streamer)   | Streaming analytics framework, based on GStreamer, for constructing graphs of media analytics components. For the DL Streamer documentation, see [DL Streamer Samples](@ref gst_samples_README), [API Reference](https://openvinotoolkit.github.io/dlstreamer_gst/), [Elements](https://github.com/opencv/gst-video-analytics/wiki/Elements), [Tutorial](https://github.com/opencv/gst-video-analytics/wiki/DL%20Streamer%20Tutorial). |
 
-> **TIP**: Instead of installing the toolkit on your system, you can work with OpenVINO™ components inside the web-based graphical environment of the [OpenVINO™ Deep Learning Workbench](@ref openvino_docs_get_started_get_started_dl_workbench) after a [fast installation from Docker](@ref workbench_docs_Workbench_DG_Docker_Container).
-> DL Workbench enables you to visualize, fine-tune, and compare performance of deep learning models on various Intel® architecture configurations, such as CPU,
-> Intel® Processor Graphics (GPU), Intel® Movidius™ Neural Compute Stick 2 (NCS 2), and Intel® Vision Accelerator Design with Intel® Movidius™ VPUs. 
-> The intuitive web-based interface of the DL Workbench enables you to easily use various sophisticated
+> **TIP**: Instead of installing the toolkit on your system, you can work with OpenVINO™ components inside the web-based graphical environment of the [OpenVINO™ Deep Learning Workbench](@ref openvino_docs_get_started_get_started_dl_workbench) after a [fast installation from Docker](@ref workbench_docs_Workbench_DG_Docker_Container). <br>
+> DL Workbench enables you to visualize, fine-tune, and compare performance of deep learning models on various Intel® architecture configurations using sophisticated
 > OpenVINO™ toolkit components: [Model Downloader](@ref omz_tools_downloader_README), [Intel® Open Model Zoo](@ref omz_models_intel_index), 
 > [Model Optimizer](../MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md), [Post-Training Optimization tool](@ref pot_README),
 > [Accuracy Checker](@ref omz_tools_accuracy_checker_README), and [Benchmark Tool](@ref openvino_inference_engine_samples_benchmark_app_README).
