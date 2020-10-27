@@ -28,18 +28,23 @@ class EltwiseN(Op):
 
     def __init__(self, graph: Graph, attrs: dict):
         super().__init__(graph, {
-            'op': __class__.op,
+            'op': self.op,
             'type': None,  # type is None because this operation should not appear in IR
             'infer': None,
             'out_ports_count': 1,
         }, attrs)
         if 'operation' not in self.attrs:
-            raise Error('"operation" attribute is not set for operation "{}".'.format(__class__.op))
+            raise Error('"operation" attribute is not set for operation "{}".'.format(self.op))
 
 
 class EltwiseNMul(EltwiseN):
     def __init__(self, graph: Graph, attrs: dict):
         super().__init__(graph, {'operation': 'mul'})
+
+
+class EltwiseNMin(EltwiseN):
+    def __init__(self, graph: Graph, attrs: dict):
+        super().__init__(graph, {'operation': 'min'})
 
 
 class EltwiseNMax(EltwiseN):

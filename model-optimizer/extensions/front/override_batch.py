@@ -20,6 +20,7 @@ from mo.middle.passes.infer import override_batch
 
 class OverrideBatch(FrontReplacementPattern):
     enabled = True
+    run_not_recursively = True
 
     def find_and_replace_pattern(self, graph: Graph):
         override_batch(graph, graph.graph['cmd_params'].batch)

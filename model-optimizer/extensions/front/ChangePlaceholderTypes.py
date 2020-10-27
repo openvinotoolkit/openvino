@@ -24,6 +24,7 @@ from mo.graph.graph import Graph, Node
 
 class ChangePlaceholderTypes(FrontReplacementPattern):
     enabled = True
+    run_not_recursively = True
 
     @staticmethod
     def is_node_casts_to_float_or_shapeof(node: Node):

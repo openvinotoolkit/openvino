@@ -159,6 +159,17 @@ class FloorExtractor(FrontExtractorOp):
         return cls.enabled
 
 
+class ThresholdedReluExtractor(FrontExtractorOp):
+    op = 'ThresholdedRelu'
+    enabled = True
+
+    @classmethod
+    def extract(cls, node):
+        alpha = onnx_attr(node, 'alpha', 'f', default=1.0)
+        ThresholdedRelu.update_node_stat(node, {'alpha': alpha})
+        return cls.enabled
+
+
 class LeakyReLUExtractor(FrontExtractorOp):
     op = 'LeakyRelu'
     enabled = True

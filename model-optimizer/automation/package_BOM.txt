@@ -266,6 +266,8 @@ extensions/front/onnx/hard_sigmoid_ext.py
 extensions/front/onnx/image_scaler_ext.py
 extensions/front/onnx/instance_normalization_ext.py
 extensions/front/onnx/logsoftmaxONNX_to_logsoftmax.py
+extensions/front/onnx/loop_ext.py
+extensions/front/onnx/LoopNormalize.py
 extensions/front/onnx/lp_normalization_ext.py
 extensions/front/onnx/lrn_ext.py
 extensions/front/onnx/lstm_ext.py
@@ -476,6 +478,7 @@ extensions/front/tf/yolo_v2_voc.json
 extensions/front/tf/yolo_v3.json
 extensions/front/tf/yolo_v3_tiny.json
 extensions/front/tf/yolo_v3_voc.json
+extensions/front/ThresholdedReluDecomposition.py
 extensions/front/TopKNormalize.py
 extensions/front/transformations_config.py
 extensions/front/TransposeOrderNormalizer.py
@@ -633,6 +636,7 @@ extensions/ops/instance_normalization.py
 extensions/ops/interp.py
 extensions/ops/interpolate.py
 extensions/ops/LookupTableInsert.py
+extensions/ops/loop.py
 extensions/ops/LSTM.py
 extensions/ops/lstm_cell.py
 extensions/ops/lstm_sequence.py
