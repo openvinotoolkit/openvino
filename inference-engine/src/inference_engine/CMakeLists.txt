@@ -127,7 +127,7 @@ add_library(${TARGET_NAME} SHARED
 
 set_ie_threading_interface_for(${TARGET_NAME})
 
-target_link_libraries(${TARGET_NAME} PRIVATE ${CMAKE_DL_LIBS} Threads::Threads pugixml openvino::itt
+target_link_libraries(${TARGET_NAME} PRIVATE pugixml openvino::itt ${CMAKE_DL_LIBS} Threads::Threads
                                              ${NGRAPH_LIBRARIES} inference_engine_transformations)
 
 target_include_directories(${TARGET_NAME} INTERFACE ${PUBLIC_HEADERS_DIR}
@@ -161,8 +161,8 @@ if(WIN32)
     set_target_properties(${TARGET_NAME}_s PROPERTIES COMPILE_PDB_NAME ${TARGET_NAME}_s)
 endif()
 
-target_link_libraries(${TARGET_NAME}_s PRIVATE ${CMAKE_DL_LIBS} ${NGRAPH_LIBRARIES}
-                                               inference_engine_transformations openvino::itt
+target_link_libraries(${TARGET_NAME}_s PRIVATE openvino::itt ${CMAKE_DL_LIBS} ${NGRAPH_LIBRARIES}
+                                               inference_engine_transformations
                                        PUBLIC pugixml)
 
 target_compile_definitions(${TARGET_NAME}_s PUBLIC USE_STATIC_IE)

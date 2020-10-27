@@ -329,19 +329,8 @@ CNNNetworkNGraphImpl::reshape(const std::map<std::string, std::vector<size_t>>& 
     _ngraph_function->validate_nodes_and_infer_types();
 
     {
-        auto specialized_ngraph_function = cloneFunction(true);
-        // Call this transformation because OneHot IE and nGraph have different output precisions
-        {
-            // OV_ITT_SCOPED_TASK(itt::domains::IE, "CNNNetworkNGraphImpl::ConvertOneHot");
-            // ::ngraph::pass::Manager manager;
-            // manager.register_pass<::ngraph::pass::ConvertOneHotToOneHotIEMatcher>()->detect_output_type(
-            //         specialized_ngraph_function);
-            // manager.run_passes(specialized_ngraph_function);
-        }
-        specialized_ngraph_function->validate_nodes_and_infer_types();
-
 #if 0
-        for (const auto &op : specialized_ngraph_function->get_ordered_ops()) {
+        for (const auto &op : _ngraph_function->get_ordered_ops()) {
             cout << "[ " <<  op->description() << " ] " << op->get_friendly_name() << endl;
             cout << "    Inputs: ";
             for (const auto &in : op->inputs()) {
@@ -379,11 +368,11 @@ CNNNetworkNGraphImpl::reshape(const std::map<std::string, std::vector<size_t>>& 
         }
 #endif
         std::unordered_set<std::string> opName;
-        for (const auto &result : specialized_ngraph_function->get_results()) {
+        for (const auto &result : _ngraph_function->get_results()) {
             addOutput(result->input_value(0));
         }
 
-        for (const auto &parameter : specialized_ngraph_function->get_parameters()) {
+        for (const auto &parameter : _ngraph_function->get_parameters()) {
             const auto &outName = parameter->get_friendly_name();
             if (opName.find(outName) != opName.end()) {
                 THROW_IE_EXCEPTION << "All operations in nGraph function should have unique friendly names!";

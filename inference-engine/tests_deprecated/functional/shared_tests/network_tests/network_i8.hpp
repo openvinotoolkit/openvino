@@ -341,13 +341,8 @@ protected:
             network = ie.ReadNetwork(p.model(), p.weights());
         }
 
-        if (batch_size != 1) {
-            if (network.getFunction()) {
-                auto cnnNetworkImpl = std::make_shared<details::CNNNetworkImpl>(network);
-                network = CNNNetwork(cnnNetworkImpl);
-            }
+        if (batch_size != 1)
             network.setBatchSize(batch_size);
-        }
 
         ie.SetConfig(p.config);
 

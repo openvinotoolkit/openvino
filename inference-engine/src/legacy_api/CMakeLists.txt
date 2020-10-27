@@ -52,9 +52,7 @@ set_ie_threading_interface_for(${TARGET_NAME})
 target_link_libraries(${TARGET_NAME} PRIVATE ${NGRAPH_LIBRARIES} inference_engine
                                              inference_engine_transformations pugixml openvino::itt)
 
-target_include_directories(${TARGET_NAME} INTERFACE ${PUBLIC_HEADERS_DIR}
-                                                    # for compatibility
-                                                    "${CMAKE_CURRENT_SOURCE_DIR}/include/legacy")
+target_include_directories(${TARGET_NAME} INTERFACE ${PUBLIC_HEADERS_DIR})
 
 add_cpplint_target(${TARGET_NAME}_cpplint FOR_TARGETS ${TARGET_NAME})
 
