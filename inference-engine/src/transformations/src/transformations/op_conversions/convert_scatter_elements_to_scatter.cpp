@@ -87,8 +87,8 @@ void ngraph::pass::ConvertScatterElementsToScatter::convert_scatter_elements_to_
         auto compare_shapes_ranges = [](const PartialShape & lhsShape, const PartialShape & rhsShape, const Range & lhsRange, const Range & rhsRange) -> bool {
             // Check that ranges are equal and suits to Shapes sizes
             if (lhsRange != rhsRange ||
-                lhsRange.r > lhsShape.rank().get_length() ||
-                rhsRange.r > rhsShape.rank().get_length()) {
+                lhsRange.r > static_cast<uint64_t>(lhsShape.rank().get_length()) ||
+                rhsRange.r > static_cast<uint64_t>(rhsShape.rank().get_length())) {
                 return false;
             }
 

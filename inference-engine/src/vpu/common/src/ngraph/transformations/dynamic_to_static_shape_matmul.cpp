@@ -18,7 +18,7 @@ namespace vpu {
 
 void get_normalized_shape(ngraph::Output<ngraph::Node>& shape, size_t actual_rank_value, size_t max_rank_value, bool transpose,
                           const ngraph::element::Type& elementType) {
-    if (const unsigned rank_diff = max_rank_value - actual_rank_value) {
+    if (const size_t rank_diff = max_rank_value - actual_rank_value) {
         ngraph::OutputVector extended_shape_parts =
                 {ngraph::opset3::Constant::create(elementType, {rank_diff}, std::vector<int64_t>(rank_diff, 1)), shape};
         shape = std::make_shared<ngraph::opset3::Concat>(extended_shape_parts, 0);

@@ -199,7 +199,7 @@ inline bool is_full_ranged(const TensorIterator::PortMap& rule, const DataPtr& d
     if (rule.axis == -1 || !one_of(rule.stride, 1, -1)) return false;
 
     auto& shape = data->getDims();
-    int size = shape[rule.axis];
+    int size = static_cast<int>(shape[rule.axis]);
 
     int begin = rule.start >= 0 ? rule.start : size + rule.start + 1;
     int end = rule.end >= 0 ? rule.end : size + rule.end + 1;
@@ -406,7 +406,7 @@ bool convertToRNNSeq(CNNLayerPtr cur, const N& net) {
 
     // Check port mapping
     auto _indx_in = [&](const std::vector<DataPtr>& scope, const DataPtr& data) {
-        int indx = std::find(scope.begin(), scope.end(), data) - scope.begin();
+        int indx = static_cast<int>(std::find(scope.begin(), scope.end(), data) - scope.begin());
         return indx == scope.size() ? -1 : indx;
     };
 
@@ -670,7 +670,7 @@ static CNNLayerPtr _fc(std::string name, Precision prc, SizeVector dims, Blob::P
 
     res->_weights = W;
     res->_biases = B;
-    res->_out_num = dims[1];
+    res->_out_num = static_cast<unsigned>(dims[1]);
     res->blobs["weights"] = W;
     res->blobs["biases"] = B;
     res->params["out-size"] = std::to_string(dims[1]);
@@ -945,7 +945,7 @@ static bool unrollLSTMCellBody(CNNLayerPtr cur) {
 
     // operations
     auto concat = _concat(name + ":concat", prc, {N, D + S}, 2);
-    auto split = _split(name + ":split", prc, {N, S}, G);
+    auto split = _split(name + ":split", prc, {N, S}, static_cast<int>(G));
     auto fc = _fc(name + ":fc", prc, {N, S * G}, cell->_weights, cell->_biases);
 
     const std::string _f = cell->activations[0], _g = cell->activations[1], _h = cell->activations[2];
