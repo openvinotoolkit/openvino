@@ -11,8 +11,8 @@
 
 #include <gtest/gtest.h>
 
-#include <transformations/low_precision/convolution.hpp>
-#include <transformations/low_precision/fake_quantize.hpp>
+#include <low_precision/convolution.hpp>
+#include <low_precision/fake_quantize.hpp>
 
 #include "common_test_utils/ngraph_test_utils.hpp"
 

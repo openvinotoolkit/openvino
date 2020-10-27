@@ -14,12 +14,10 @@
 
 #include "common/low_precision_tests_utils.hpp"
 
-#ifdef USE_CNNNETWORK_LPT
 #include "low_precision_transformations/transformer.hpp"
 #include "low_precision_transformations/convolution.hpp"
 #include "low_precision_transformations/network_helper.hpp"
 #include "low_precision_transformations/eltwise.hpp"
-#endif
 
 #include "tests_common.hpp"
 #include "ir_gen_helper.hpp"

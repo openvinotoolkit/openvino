@@ -10,17 +10,36 @@
 using namespace InferenceEngine;
 
 namespace {
-    std::string readPathFromStream(std::istream& stream) {
-        if (stream.pword(0) == nullptr) {
-            return {};
-        }
-        // read saved path from extensible array
-        return std::string{static_cast<char*>(stream.pword(0))};
+std::string readPathFromStream(std::istream& stream) {
+    if (stream.pword(0) == nullptr) {
+        return {};
     }
+    // read saved path from extensible array
+    return std::string{static_cast<char*>(stream.pword(0))};
 }
 
+/**
+ * This helper struct uses RAII to rewind/reset the stream so that it points to the beginning
+ * of the underlying resource (string, file, ...). It works similarily to std::lock_guard
+ * which releases a mutex upon destruction.
+ *
+ * This makes sure that the stream is always reset (exception, successful and unsuccessful
+ * model validation).
+ */
+struct StreamRewinder {
+    StreamRewinder(std::istream& stream) : m_stream(stream) {
+        m_stream.seekg(0, m_stream.beg);
+    }
+    ~StreamRewinder() {
+        m_stream.seekg(0, m_stream.beg);
+    }
+private:
+    std::istream& m_stream;
+};
+} // namespace
+
 bool ONNXReader::supportModel(std::istream& model) const {
-    model.seekg(0, model.beg);
+    StreamRewinder rwd{model};
 
     const auto model_path = readPathFromStream(model);
 

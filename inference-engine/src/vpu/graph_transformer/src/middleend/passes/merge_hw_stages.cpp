@@ -157,7 +157,7 @@ void PassImpl::run(const Model& model) {
                         stage->attrs().set<float>("reluScale", 1.0f);
                     } else  {
                         stage->attrs().set<uint32_t>("a0", 1);
-                        stage->attrs().set<uint32_t>("a1", 1.0f / negativeSlope);
+                        stage->attrs().set<uint32_t>("a1", static_cast<uint32_t>(1.0f / negativeSlope));
                         stage->attrs().set<float>("reluScale", negativeSlope);
                     }
                 }

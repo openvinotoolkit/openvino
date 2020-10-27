@@ -76,6 +76,13 @@ TEST_F(NGraphReaderTests, ReadNonMaxSuppression5) {
                     <dim>15130</dim>
                     <dim>3</dim>
                 </port>
+                <port id="7" precision="FP32">
+                    <dim>15130</dim>
+                    <dim>3</dim>
+                </port>
+                <port id="8" precision="I64">
+                    <dim>1</dim>
+                </port>
             </output>
         </layer>
         <layer id="7" name="mul" type="Multiply" version="opset1">
@@ -104,6 +111,28 @@ TEST_F(NGraphReaderTests, ReadNonMaxSuppression5) {
                 </port>
             </input>
         </layer>
+        <layer id="9" name="mul2" type="Multiply" version="opset1">
+            <input>
+                <port id="0" precision="I64">
+                    <dim>1</dim>
+                </port>
+                <port id="1" precision="I64">
+                    <dim>1</dim>
+                </port>
+            </input>
+            <output>
+                <port id="2" precision="I64">
+                    <dim>1</dim>
+                </port>
+            </output>
+        </layer>
+        <layer id="10" name="output2" type="Result" version="opset1">
+            <input>
+                <port id="0" precision="I64">
+                    <dim>1</dim>
+                </port>
+            </input>
+        </layer>
     </layers>
     <edges>
         <edge from-layer="0" from-port="0" to-layer="6" to-port="0"/>
@@ -114,17 +143,19 @@ TEST_F(NGraphReaderTests, ReadNonMaxSuppression5) {
         <edge from-layer="5" from-port="0" to-layer="6" to-port="5"/>
         <edge from-layer="6" from-port="6" to-layer="7" to-port="0"/>
         <edge from-layer="6" from-port="6" to-layer="7" to-port="1"/>
+        <edge from-layer="6" from-port="8" to-layer="9" to-port="0"/>
+        <edge from-layer="6" from-port="8" to-layer="9" to-port="1"/>
         <edge from-layer="7" from-port="2" to-layer="8" to-port="0"/>
+        <edge from-layer="9" from-port="2" to-layer="10" to-port="0"/>
     </edges>
 </net>
 )V0G0N";
     std::string modelV5 = R"V0G0N(
-<net name="Network" version="5">
+<net name="Network" version="7">
     <layers>
         <layer id="0" name="in1" precision="FP32" type="Input" >
-            <data precision="I32"/>
             <output>
-                <port id="0">
+                <port id="0" precision="FP32">
                     <dim>1</dim>
                     <dim>15130</dim>
                     <dim>4</dim>
@@ -132,9 +163,8 @@ TEST_F(NGraphReaderTests, ReadNonMaxSuppression5) {
             </output>
         </layer>
         <layer id="1" name="in2" precision="FP32" type="Input" >
-            <data precision="I32"/>
             <output>
-                <port id="0">
+                <port id="0" precision="FP32">
                     <dim>1</dim>
                     <dim>80</dim>
                     <dim>15130</dim>
@@ -143,46 +173,46 @@ TEST_F(NGraphReaderTests, ReadNonMaxSuppression5) {
         </layer>
         <layer id="2" name="max_output_boxes_per_class" precision="I64" type="Const">
             <output>
-                <port id="0">
+                <port id="0" precision="I64">
                     <dim>1</dim>
                 </port>
             </output>
             <blobs>
-                <custom offset="0" size="8"/>
+                <custom offset="0" precision="I64" size="8"/>
             </blobs>
         </layer>
         <layer id="3" name="iou_threshold" precision="FP32" type="Const">
             <output>
-                <port id="0">
+                <port id="0" precision="FP32">
                     <dim>1</dim>
                 </port>
             </output>
             <blobs>
-                <custom offset="8" size="4"/>
+                <custom offset="8" precision="FP32" size="4"/>
             </blobs>
         </layer>
         <layer id="4" name="score_threshold" precision="FP32" type="Const">
             <output>
-                <port id="0">
+                <port id="0" precision="FP32">
                     <dim>1</dim>
                 </port>
             </output>
             <blobs>
-                <custom offset="12" size="4"/>
+                <custom offset="12" precision="FP32" size="4"/>
             </blobs>
         </layer>
         <layer id="5" name="soft_nms_sigma" precision="FP32" type="Const">
             <output>
-                <port id="0">
+                <port id="0" precision="FP32">
                     <dim>1</dim>
                 </port>
             </output>
             <blobs>
-                <custom offset="16" size="4"/>
+                <custom offset="16" precision="FP32" size="4"/>
             </blobs>
         </layer>
-        <layer id="6" name="nms" type="NonMaxSuppressionIE3" precision="I64">
-            <data box_encoding="corner" sort_result_descending="0"/>
+        <layer id="6" name="nms" type="NonMaxSuppression" precision="I64">
+            <data center_point_box="0" output_type="i64" sort_result_descending="false"/>
             <input>
                 <port id="0">
                     <dim>1</dim>
@@ -208,20 +238,21 @@ TEST_F(NGraphReaderTests, ReadNonMaxSuppression5) {
                 </port>
             </input>
             <output>
-                <port id="6">
+                <port id="6" precision="I64">
                     <dim>16000</dim>
                     <dim>3</dim>
                 </port>
-                <port id="7">
+                <port id="7" precision="FP32">
                     <dim>16000</dim>
                     <dim>3</dim>
                 </port>
-                <port id="8">
+                <port id="8" precision="I64">
                     <dim>1</dim>
                 </port>
             </output>
         </layer>
-        <layer id="7" name="mul" type="Multiply" precision="I32">
+        <layer id="7" name="mul" type="Eltwise" precision="I64">
+            <data operation="prod"/>
             <input>
                 <port id="0">
                     <dim>16000</dim>
@@ -233,9 +264,25 @@ TEST_F(NGraphReaderTests, ReadNonMaxSuppression5) {
                 </port>
             </input>
             <output>
-                <port id="2">
+                <port id="2" precision="I64">
                     <dim>16000</dim>
                     <dim>3</dim>
+                </port>
+            </output>
+        </layer>
+        <layer id="8" name="mul2" type="Eltwise" precision="I64">
+            <data operation="prod"/>
+            <input>
+                <port id="0">
+                    <dim>1</dim>
+                </port>
+                <port id="1">
+                    <dim>1</dim>
+                </port>
+            </input>
+            <output>
+                <port id="2" precision="I64">
+                    <dim>1</dim>
                 </port>
             </output>
         </layer>
@@ -249,6 +296,8 @@ TEST_F(NGraphReaderTests, ReadNonMaxSuppression5) {
         <edge from-layer="5" from-port="0" to-layer="6" to-port="5"/>
         <edge from-layer="6" from-port="6" to-layer="7" to-port="0"/>
         <edge from-layer="6" from-port="6" to-layer="7" to-port="1"/>
+        <edge from-layer="6" from-port="8" to-layer="8" to-port="0"/>
+        <edge from-layer="6" from-port="8" to-layer="8" to-port="1"/>
     </edges>
 </net>
 )V0G0N";

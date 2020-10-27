@@ -15,7 +15,6 @@
 //*****************************************************************************
 
 #include "int_executable.hpp"
-#include <algorithm>
 #include <cstring>
 #include "backend_manager.hpp"
 #include "ngraph/chrome_trace.hpp"
@@ -27,7 +26,6 @@
 #include "ngraph/type/float16.hpp"
 #include "ngraph/util.hpp"
 #include "pass/fused_op_decomposition.hpp"
-#include "pass/like_replacement.hpp"
 #include "pass/liveness.hpp"
 #include "pass/opset0_downgrade.hpp"
 #include "pass/opset1_downgrade.hpp"
@@ -80,7 +78,6 @@ runtime::interpreter::INTExecutable::INTExecutable(const shared_ptr<Function>& f
         return retval;
     };
     pass::Manager pass_manager;
-    pass_manager.register_pass<pass::LikeReplacement>();
     pass_manager.register_pass<pass::FusedOpDecomposition>(is_supported);
     pass_manager.register_pass<pass::Opset1Downgrade>();
     pass_manager.register_pass<pass::Opset0Downgrade>();

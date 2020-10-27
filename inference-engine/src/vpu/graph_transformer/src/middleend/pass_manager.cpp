@@ -131,7 +131,7 @@ PassSet::Ptr PassManager::buildMiddleEnd() {
     // To overcome fp16 limitations
     //
 
-    if (env.config.hwOptimization) {
+    if (env.config.hwOptimization && env.config.enableWeightsAnalysis) {
         ADD_PASS(analyzeWeightableLayers);
         ADD_DUMP_PASS("analyzeWeightableLayers");
     }

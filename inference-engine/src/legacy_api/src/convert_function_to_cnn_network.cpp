@@ -537,9 +537,9 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
 
     addSpecificCreator({"NonMaxSuppressionIE3"}, [](const std::shared_ptr<::ngraph::Node>& node,
         const std::map<std::string, std::string>& params) -> CNNLayerPtr {
-        LayerParams attrs = {node->get_friendly_name(), "NonMaxSuppressionIE3",
+        LayerParams attrs = {node->get_friendly_name(), "NonMaxSuppression",
             details::convertPrecision(node->get_output_element_type(0))};
-        auto res = std::make_shared<InferenceEngine::CNNLayer>(attrs);
+        auto res = std::make_shared<InferenceEngine::NonMaxSuppressionLayer>(attrs);
         res->params = params;
         return res;
     });
