@@ -302,27 +302,6 @@ namespace opset1_upgrade
         return op_cast_binary_elementwise_node<op::v0::NotEqual, op::v1::NotEqual>(node);
     }
 
-    shared_ptr<Node> op_cast(shared_ptr<op::OneHot> node)
-    {
-        const auto indices = node->input_value(0).get_node_shared_ptr();
-        const auto one_hot_axis = node->get_one_hot_axis();
-
-        const auto output_pshape = node->get_output_partial_shape(0);
-        NGRAPH_CHECK(output_pshape[one_hot_axis].is_static(),
-                     "OneHot:v0 one hot axis dimension must be static ",
-                     *node);
-        const auto depth = output_pshape[one_hot_axis].get_length();
-        const auto depth_node = op::Constant::create(element::i64, Shape{}, {depth});
-
-        const auto on_value = op::Constant::create(element::i64, Shape{}, {1});
-        const auto off_value = op::Constant::create(element::i64, Shape{}, {0});
-
-        auto replacement_node =
-            make_shared<op::v1::OneHot>(indices, depth_node, on_value, off_value, one_hot_axis);
-        replace_node(node, replacement_node);
-        return replacement_node;
-    }
-
     shared_ptr<Node> op_cast(shared_ptr<op::Or> node)
     {
         return op_cast_binary_elementwise_node<op::v0::Or, op::v1::LogicalOr>(node);
