@@ -191,7 +191,5 @@ public:
     * given index
     */
     virtual StatusCode QueryState(IMemoryState::Ptr& pState, size_t idx, ResponseDesc* resp) noexcept = 0;
-
 };
-
 }  // namespace InferenceEngine
