@@ -17,7 +17,7 @@ NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertInterpolate1ToInterpolate4, "Convert
 ngraph::pass::ConvertInterpolate1ToInterpolate4::ConvertInterpolate1ToInterpolate4() {
     auto interpolate1 = ngraph::pattern::wrap_type<ngraph::opset1::Interpolate>();
 
-    ngraph::matcher_pass_callback callback = [](pattern::Matcher& m) {
+    ngraph::matcher_pass_callback callback = [this](pattern::Matcher& m) {
         auto interpolate1 = std::dynamic_pointer_cast<ngraph::opset1::Interpolate>(m.get_match_root());
         if (!interpolate1)
             return false;
@@ -44,19 +44,21 @@ ngraph::pass::ConvertInterpolate1ToInterpolate4::ConvertInterpolate1ToInterpolat
         } else {
             return false;
         }
-        auto nearest_mode_v4 = ngraph::op::v4::Interpolate::NearestMode::round_prefer_floor;
+        auto nearest_mode_v4 = ngraph::op::v4::Interpolate::NearestMode::floor;
         auto shape_calculation_mode_v4 = ngraph::op::v4::Interpolate::ShapeCalcMode::sizes;
         auto coordinate_transformation_mode_v4 = interpolate_attrs.align_corners ? ngraph::op::v4::Interpolate::CoordinateTransformMode::align_corners :
-                                                ngraph::op::v4::Interpolate::CoordinateTransformMode::half_pixel;
+                                                ngraph::op::v4::Interpolate::CoordinateTransformMode::asymmetric;
         auto interpolate4_attr = ngraph::op::v4::Interpolate::InterpolateAttrs(mode_v4, shape_calculation_mode_v4,
             interpolate_attrs.pads_begin, interpolate_attrs.pads_end,
             coordinate_transformation_mode_v4, nearest_mode_v4, interpolate_attrs.antialias, -0.75);
 
         // input
-        auto scales_node = ngraph::opset4::Constant::create(ngraph::element::f32, Shape{}, {0});
         auto axes = interpolate_attrs.axes.to_vector();
         auto axes_const = ngraph::opset4::Constant(ngraph::element::Type_t::i64, {axes.size()}, axes);
         auto axes_node = std::make_shared<ngraph::opset4::Constant>(axes_const);
+        auto default_scales = std::vector<float>(axes.size(), 1.f);
+        auto scales = ngraph::opset4::Constant(ngraph::element::Type_t::f32, {axes.size()}, default_scales);
+        auto scales_node = std::make_shared<ngraph::opset4::Constant>(scales);
 
         auto interpolate4 = std::make_shared<ngraph::opset4::Interpolate>(data_node, out_shape_node, scales_node, axes_node, interpolate4_attr);
 
