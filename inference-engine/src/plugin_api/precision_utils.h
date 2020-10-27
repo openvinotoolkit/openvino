@@ -129,6 +129,11 @@ f16tof32Arrays(float* dst, const ie_fp16* src, size_t nelem, float scale = 1.f, 
 INFERENCE_ENGINE_API_CPP(void)
 f32tof16Arrays(ie_fp16* dst, const float* src, size_t nelem, float scale = 1.f, float bias = 0.f);
 
+#if defined(_MSC_VER)
+#pragma warning(push)
+#pragma warning(disable : 4018)
+#endif
+
 /**
  * @brief      Converts one integral type to another saturating the result if the source value doesn't fit
  *             into destination type range
@@ -152,7 +157,7 @@ inline OutT saturate_cast(const InT& value) {
     const InT min = std::numeric_limits<OutT>::min() > std::numeric_limits<InT>::min() ? std::numeric_limits<OutT>::min() :
                     std::numeric_limits<InT>::min();
 
-    return std::min(std::max(value, min), max);
+    return static_cast<OutT>(std::min(std::max(value, min), max));
 }
 
 /**
@@ -175,8 +180,12 @@ inline OutT saturate_cast(const InT& value) {
     const InT max = std::numeric_limits<OutT>::max() < std::numeric_limits<InT>::max() ? std::numeric_limits<OutT>::max() :
                     std::numeric_limits<InT>::max();
 
-    return std::min(value, max);
+    return static_cast<OutT>(std::min(value, max));
 }
+
+#if defined(_MSC_VER)
+#pragma warning(pop)
+#endif
 
 /**
  * @brief      Converts one integral type to another saturating the result if the source value doesn't fit

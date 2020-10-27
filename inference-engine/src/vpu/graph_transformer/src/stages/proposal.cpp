@@ -178,7 +178,7 @@ void FrontEnd::parseProposal(const Model& model, const ie::CNNLayerPtr& layer, c
     stage->attrs().set("scales", scales);
     stage->attrs().set("ratios", ratios);
 
-    int number_of_anchors = ratios.size() * scales.size();
+    int number_of_anchors = static_cast<int>(ratios.size() * scales.size());
 
     // Allocate slightly larger buffer than needed for handling remnant in distribution among SHAVEs
     int buffer_size = (inputs[0]->desc().dim(Dim::H) + 16) * inputs[0]->desc().dim(Dim::W) * number_of_anchors * 5 * sizeof(float);
@@ -189,8 +189,8 @@ void FrontEnd::parseProposal(const Model& model, const ie::CNNLayerPtr& layer, c
     };
     const int num_proposals = number_of_anchors * inputs[0]->desc().dim(Dim::H) * inputs[0]->desc().dim(Dim::W);
     const int pre_nms_topn = std::min(num_proposals, stage->attrs().get<int>("pre_nms_topn"));
-    const int required_cmx_size_per_shave = std::max(2 * (1 + pre_nms_topn) * sizeof(SortItem),
-                                                     (1 + pre_nms_topn) * sizeof(SortItem) + number_of_anchors * sizeof(float));
+    const int required_cmx_size_per_shave = static_cast<int>(std::max(2 * (1 + pre_nms_topn) * sizeof(SortItem),
+                                                     (1 + pre_nms_topn) * sizeof(SortItem) + number_of_anchors * sizeof(float)));
     const auto& env = CompileEnv::get();
     const int required_cmx_buffer_size = env.resources.numSHAVEs * required_cmx_size_per_shave;
 
