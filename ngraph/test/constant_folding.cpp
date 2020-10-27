@@ -392,7 +392,8 @@ TEST(constant_folding, constant_unary_binary)
     auto greater_eq_autob_numpy = make_shared<op::GreaterEq>(a, g, op::AutoBroadcastType::NUMPY);
     auto less_autob_numpy = make_shared<op::Less>(a, g, op::AutoBroadcastType::NUMPY);
     auto less_eq_autob_numpy = make_shared<op::LessEq>(a, g, op::AutoBroadcastType::NUMPY);
-    auto logical_or_autob_numpy = make_shared<op::v1::LogicalOr>(h, i, op::AutoBroadcastType::NUMPY);
+    auto logical_or_autob_numpy =
+        make_shared<op::v1::LogicalOr>(h, i, op::AutoBroadcastType::NUMPY);
     auto logical_xor_autob_numpy = make_shared<op::Xor>(h, i, op::AutoBroadcastType::NUMPY);
 
     auto neg_sqrt = make_shared<op::Sqrt>(c);

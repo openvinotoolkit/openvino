@@ -92,4 +92,3 @@ bool op::v1::LogicalOr::evaluate(const HostTensorVector& outputs,
     OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v1::LogicalOr::evaluate");
     return logor::evaluate_logor(inputs[0], inputs[1], outputs[0], get_autob());
 }
-
