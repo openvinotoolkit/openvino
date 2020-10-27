@@ -27,7 +27,7 @@ std::shared_ptr<ngraph::op::Constant> createNewScalesConst(const ngraph::op::Con
 
     std::vector<T> newData(source.size());
     for (size_t i = 0; i < source.size(); ++i) {
-        newData[i] = source[i] < 0 ? -1 : 1;
+        newData[i] = source[i] < 0 ? T{-1} : T{1};
     }
 
     const ngraph::element::Type type = originalConst.get_output_element_type(0);
