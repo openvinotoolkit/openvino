@@ -58,7 +58,7 @@ TEST_F(MemoryStateTests, ExecutableNetworkCanConvertZeroMemoryStateFromCppToAPI)
 }
 
 TEST_F(MemoryStateTests, ExecutableNetworkCanConvert2MemoryStatesFromCPPtoAPI) {
-    IE_SUPPRESS_DEPRECATED_START    
+    IE_SUPPRESS_DEPRECATED_START
     auto net = make_executable_network(mockExeNetworkInternal);
     std::vector<IMemoryStateInternal::Ptr> toReturn;
     toReturn.push_back(mockMemoryStateInternal);
@@ -132,7 +132,7 @@ TEST_F(MemoryStateTests, MemoryStatePropagatesGetNameWithZeroLen) {
 
 
 TEST_F(MemoryStateTests, MemoryStatePropagatesGetNameWithLenOfOne) {
-    IE_SUPPRESS_DEPRECATED_START  
+    IE_SUPPRESS_DEPRECATED_START
     auto net = make_executable_network(mockExeNetworkInternal);
     std::vector<IMemoryStateInternal::Ptr> toReturn;
     toReturn.push_back(mockMemoryStateInternal);
