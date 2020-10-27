@@ -141,7 +141,7 @@ class Loop(TensorIterator):
         Try to determine the number of loop iterations. If we detect that the number is dynamic then return None.
 
         :param loop_node: Loop operation node
-        :return: number of iterations or Тщту if the number depends on runtime values.
+        :return: number of iterations or None if the number depends on runtime values.
         """
         assert loop_node.soft_get('type') == 'Loop'
 
