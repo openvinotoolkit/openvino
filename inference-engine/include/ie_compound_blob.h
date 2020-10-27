@@ -39,14 +39,14 @@ public:
      *
      * @param blobs A vector of blobs that is copied to this object
      */
-    explicit CompoundBlob(const std::vector<Blob::Ptr>& blobs, const TensorDesc& tensorDesc = {});
+    explicit CompoundBlob(const std::vector<Blob::Ptr>& blobs);
 
     /**
      * @brief Constructs a compound blob from a vector of blobs
      *
      * @param blobs A vector of blobs that is moved to this object
      */
-    explicit CompoundBlob(std::vector<Blob::Ptr>&& blobs, const TensorDesc& tensorDesc = {});
+    explicit CompoundBlob(std::vector<Blob::Ptr>&& blobs);
 
     /**
      * @brief Always returns 0
@@ -95,6 +95,13 @@ public:
     Blob::Ptr createROI(const ROI& roi) const override;
 
 protected:
+    /**
+     * @brief Constructs a compound blob with specified descriptor
+     *
+     * @param tensorDesc A tensor descriptor for the compound blob
+     */
+    explicit CompoundBlob(const TensorDesc& tensorDesc);
+
     /**
      * @brief Compound blob container for underlying blobs
      */
@@ -296,30 +303,8 @@ class INFERENCE_ENGINE_API_CLASS(BatchedBlob) : public CompoundBlob {
      * Resulting blob's tensor descriptor is constructed using tensor descriptors
      * of passed blobs by setting batch dimension to blobs.size()
      *
-     * @param blobs A vector of blobs that is copied to this object
+     * @param blobs A vector of blobs that is moved to this object
      */
     explicit BatchedBlob(std::vector<Blob::Ptr>&& blobs);
-
-    /**
-     * @brief Constructs a batched blob from a vector of blobs with specified
-     * tensor descriptor
-     * @details It is caller's responsibility to validate the correctness of sub-blobs
-     * and tensor descriptor
-     *
-     * @param tensorDesc Defines the layout and dims of the blob
-     * @param blobs A vector of blobs that is copied to this object
-     */
-    BatchedBlob(const std::vector<Blob::Ptr>& blobs, const TensorDesc& tensorDesc);
-
-    /**
-     * @brief Constructs a batched blob from a vector of blobs with specified
-     * tensor descriptor
-     * @details It is caller's responsibility to validate the correctness of sub-blobs
-     * and tensor descriptor
-     *
-     * @param tensorDesc Defines the layout and dims of the blob
-     * @param blobs A vector of blobs that is copied to this object
-     */
-    BatchedBlob(std::vector<Blob::Ptr>&& blobs, const TensorDesc& tensorDesc);
 };
 }  // namespace InferenceEngine
