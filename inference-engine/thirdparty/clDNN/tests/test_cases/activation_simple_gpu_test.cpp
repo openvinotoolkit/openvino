@@ -484,42 +484,6 @@ TEST(activation_f16_fw_gpu, pow_basic_yxfb) {
     }
 }
 
-TEST(activation_f16_fw_gpu, linear_basic_yxfb) {
-    const auto& engine = get_test_engine();
-
-    auto input = memory::allocate(engine, {data_types::f16, format::yxfb, {1, 1, 2, 2}});
-    set_values(input,
-               {FLOAT16(1.0f), FLOAT16(2.0f), FLOAT16(3.0f), FLOAT16(4.5f)});
-    VF<FLOAT16> output_vec = {FLOAT16(5.0f), FLOAT16(8.0f), FLOAT16(11.0f), FLOAT16(15.5f)};
-
-    topology topology(
-        input_layout("input", input.get_layout()),
-        activation("linear", "input", activation_func::linear, {FLOAT16(3.0f), FLOAT16(2.0f)}));
-    network network(engine, topology);
-    network.set_input_data("input", input);
-    auto outputs = network.execute();
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "linear");
-
-    auto output_memory = outputs.at("linear").get_memory();
-    auto output_layout = output_memory.get_layout();
-    auto output_ptr = output_memory.pointer<FLOAT16>();
-
-    int y_size = output_layout.size.spatial[1];
-    int x_size = output_layout.size.spatial[0];
-    int f_size = output_layout.size.feature[0];
-    int b_size = output_layout.size.batch[0];
-    EXPECT_EQ(output_layout.format, format::yxfb);
-    EXPECT_EQ(y_size, 2);
-    EXPECT_EQ(x_size, 2);
-    EXPECT_EQ(f_size, 1);
-    EXPECT_EQ(b_size, 1);
-
-    for (size_t i = 0; i < output_vec.size(); ++i) {
-        EXPECT_FLOAT_EQ(output_vec[i], output_ptr[i]);
-    }
-}
-
 TEST(activation_f32_fw_gpu, relu_basic_yxfb) {
     //  Input:
     //  1 -2 -3  4  5
@@ -652,126 +616,6 @@ TEST(activation_f32_fw_gpu, relu_basic_bfzyx) {
 
     for (size_t i = 0; i < output_vec.size(); ++i) {
         EXPECT_FLOAT_EQ(output_vec[i], output_ptr[i]);
-    }
-}
-
-TEST(activation_f16_fw_gpu, basic_yxfb_mish) {
-    const auto& engine = get_test_engine();
-
-    auto input = memory::allocate(engine, { data_types::f16, format::yxfb, { 1, 1, 5, 4 } });
-    set_values(input,
-    { FLOAT16(0.0f), FLOAT16(-2.0f), FLOAT16(-3.0f), FLOAT16(4.0f), FLOAT16(5.0f),
-      FLOAT16(2.0f), FLOAT16(2.0f), FLOAT16(3.0f), FLOAT16(4.0f), FLOAT16(-6.0f),
-      FLOAT16(3.0f), FLOAT16(-3.0f), FLOAT16(3.0f), FLOAT16(5.0f), FLOAT16(1.0f),
-      FLOAT16(1.0f), FLOAT16(1.0f), FLOAT16(1.0f), FLOAT16(-1.0f), FLOAT16(1.0f) });
-
-    topology topology(
-        input_layout("input", input.get_layout()),
-        activation("mish", "input", activation_func::mish));
-    network network(engine, topology);
-    network.set_input_data("input", input);
-    auto outputs = network.execute();
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "mish");
-
-    auto output_memory = outputs.at("mish").get_memory();
-    auto output_layout = output_memory.get_layout();
-    auto output_ptr = output_memory.pointer<FLOAT16>();
-    auto input_ptr = input.pointer<FLOAT16>();
-
-    int y_size = output_layout.size.spatial[1];
-    int x_size = output_layout.size.spatial[0];
-    int f_size = output_layout.size.feature[0];
-    int b_size = output_layout.size.batch[0];
-    EXPECT_EQ(output_layout.format, format::yxfb);
-    EXPECT_EQ(y_size, 4);
-    EXPECT_EQ(x_size, 5);
-    EXPECT_EQ(f_size, 1);
-    EXPECT_EQ(b_size, 1);
-
-    for (size_t i = 0; i < output_layout.get_linear_size(); ++i) {
-        EXPECT_NEAR((FLOAT16)((float)input_ptr[i] * std::tanh(std::log(1.f + std::exp((float)input_ptr[i])))),
-                    output_ptr[i], 1e-2f);
-    }
-}
-
-TEST(activation_f16_fw_gpu, basic_yxfb_hswish) {
-    const auto& engine = get_test_engine();
-
-    auto input = memory::allocate(engine, { data_types::f16, format::yxfb, { 1, 2, 5, 2 } });
-    set_values(input,
-    { FLOAT16(0.0f), FLOAT16(-2.0f), FLOAT16(-3.0f), FLOAT16(4.0f), FLOAT16(5.0f),
-      FLOAT16(2.0f), FLOAT16(2.0f), FLOAT16(3.0f), FLOAT16(4.0f), FLOAT16(-6.0f),
-      FLOAT16(3.0f), FLOAT16(-3.0f), FLOAT16(3.0f), FLOAT16(5.0f), FLOAT16(1.0f),
-      FLOAT16(1.0f), FLOAT16(1.0f), FLOAT16(1.0f), FLOAT16(-1.0f), FLOAT16(1.0f) });
-
-    topology topology(
-        input_layout("input", input.get_layout()),
-        activation("hswish", "input", activation_func::hswish));
-    network network(engine, topology);
-    network.set_input_data("input", input);
-    auto outputs = network.execute();
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "hswish");
-
-    auto output_memory = outputs.at("hswish").get_memory();
-    auto output_layout = output_memory.get_layout();
-    auto output_ptr = output_memory.pointer<FLOAT16>();
-    auto input_ptr = input.pointer<FLOAT16>();
-
-    int y_size = output_layout.size.spatial[1];
-    int x_size = output_layout.size.spatial[0];
-    int f_size = output_layout.size.feature[0];
-    int b_size = output_layout.size.batch[0];
-    EXPECT_EQ(output_layout.format, format::yxfb);
-    EXPECT_EQ(y_size, 2);
-    EXPECT_EQ(x_size, 5);
-    EXPECT_EQ(f_size, 2);
-    EXPECT_EQ(b_size, 1);
-
-    for (size_t i = 0; i < output_layout.get_linear_size(); ++i) {
-        EXPECT_NEAR((FLOAT16)((float)input_ptr[i] * std::fmin(std::fmax(0.f, (float)input_ptr[i] + 3.f), 6.f) / 6.f),
-                    output_ptr[i], 1e-3f);
-    }
-}
-
-TEST(activation_f16_fw_gpu, basic_yxfb_hsigmoid) {
-    const auto& engine = get_test_engine();
-
-    auto input = memory::allocate(engine, { data_types::f16, format::yxfb, { 1, 2, 5, 2 } });
-    set_values(input,
-    { FLOAT16(0.0f), FLOAT16(-2.0f), FLOAT16(-3.0f), FLOAT16(4.0f), FLOAT16(5.0f),
-      FLOAT16(2.0f), FLOAT16(2.0f), FLOAT16(3.0f), FLOAT16(4.0f), FLOAT16(-6.0f),
-      FLOAT16(3.0f), FLOAT16(-3.0f), FLOAT16(3.0f), FLOAT16(5.0f), FLOAT16(1.0f),
-      FLOAT16(1.0f), FLOAT16(1.0f), FLOAT16(1.0f), FLOAT16(-1.0f), FLOAT16(1.0f) });
-
-    topology topology(
-        input_layout("input", input.get_layout()),
-        activation("hsigmoid", "input", activation_func::hsigmoid));
-    network network(engine, topology);
-    network.set_input_data("input", input);
-    auto outputs = network.execute();
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "hsigmoid");
-
-    auto output_memory = outputs.at("hsigmoid").get_memory();
-    auto output_layout = output_memory.get_layout();
-    auto output_ptr = output_memory.pointer<FLOAT16>();
-    auto input_ptr = input.pointer<FLOAT16>();
-
-    int y_size = output_layout.size.spatial[1];
-    int x_size = output_layout.size.spatial[0];
-    int f_size = output_layout.size.feature[0];
-    int b_size = output_layout.size.batch[0];
-    EXPECT_EQ(output_layout.format, format::yxfb);
-    EXPECT_EQ(y_size, 2);
-    EXPECT_EQ(x_size, 5);
-    EXPECT_EQ(f_size, 2);
-    EXPECT_EQ(b_size, 1);
-
-    for (size_t i = 0; i < output_layout.get_linear_size(); ++i) {
-        EXPECT_NEAR((FLOAT16)(std::fmin(std::fmax(0.f, (float)input_ptr[i] + 3.f), 6.f) / 6.f),
-                    output_ptr[i], 1e-3f);
     }
 }
 
@@ -953,6 +797,94 @@ TEST(activation_f32_fw_gpu, basic_yxfb_all_functions)
                     break;
                 case activation_func::hsigmoid:
                     EXPECT_FLOAT_EQ(std::fmin(std::fmax(0.f, (float)input_ptr[i] + 3.f), 6.f) / 6.f, output_ptr[i]);
+                    break;
+                default:
+                    break;
+                }
+            }
+        }
+    }
+}
+
+TEST(activation_f16_fw_gpu, basic_bfyx_all_functions)
+{
+    const auto& engine = get_test_engine();
+
+    auto input = memory::allocate(engine, { data_types::f16, format::bfyx, { 1, 1, 2, 4 } });
+    auto input_params = memory::allocate(engine, { data_types::f16, format::bfyx, { 1, 2, 1, 1 } });
+
+    set_values(input, { FLOAT16(-4.5f), FLOAT16(-2.5f), FLOAT16(-1.5f), FLOAT16(0.5f),
+                        FLOAT16(0.9f),  FLOAT16(1.5f),  FLOAT16(2.0f),  FLOAT16(2.5f) });
+
+    std::vector<activation_func> funcs = {
+        activation_func::linear,
+        activation_func::mish,
+        activation_func::hswish,
+        activation_func::hsigmoid,
+        activation_func::round_half_to_even,
+        activation_func::round_half_away_from_zero
+    };
+
+    activation_additional_params params = { 3.f, 2.f };
+    set_values(input_params, { FLOAT16(params.a), FLOAT16(params.b) });
+
+    for (uint8_t i = 0 ; i < 2 ; i++) {
+        for (auto func : funcs) {
+            topology topology(input_layout("input", input.get_layout()));
+
+            if (i == 0) {
+                topology.add(activation("activation", "input", func, params));
+            } else {
+                topology.add(data("input_params", input_params));
+                topology.add(activation("activation", "input", "input_params", func));
+            }
+
+            network network(engine, topology);
+            network.set_input_data("input", input);
+            auto outputs = network.execute();
+            EXPECT_EQ(outputs.size(), size_t(1));
+            EXPECT_EQ(outputs.begin()->first, "activation");
+
+            auto output_memory = outputs.at("activation").get_memory();
+            auto output_layout = output_memory.get_layout();
+            auto output_ptr = output_memory.pointer<FLOAT16>();
+            auto input_ptr = input.pointer<FLOAT16>();
+
+            int y_size = output_layout.size.spatial[1];
+            int x_size = output_layout.size.spatial[0];
+            int f_size = output_layout.size.feature[0];
+            int b_size = output_layout.size.batch[0];
+            EXPECT_EQ(output_layout.format, format::bfyx);
+            EXPECT_EQ(y_size, 4);
+            EXPECT_EQ(x_size, 2);
+            EXPECT_EQ(f_size, 1);
+            EXPECT_EQ(b_size, 1);
+
+            for (size_t i = 0; i < output_layout.get_linear_size(); ++i) {
+                switch (func) {
+                case activation_func::linear: {
+                    VF<FLOAT16> output_vec = {FLOAT16(-11.5f), FLOAT16(-5.5f), FLOAT16(-2.5f), FLOAT16(3.5f),
+                                              FLOAT16(4.7f), FLOAT16(6.5f), FLOAT16(8.0f), FLOAT16(9.5f)};
+                    EXPECT_FLOAT_EQ(output_vec[i], output_ptr[i]);
+                    break;
+                }
+                case activation_func::mish:
+                    EXPECT_NEAR((FLOAT16)((float)input_ptr[i] * std::tanh(std::log(1.f + std::exp((float)input_ptr[i])))),
+                        output_ptr[i], 1e-2f);
+                    break;
+                case activation_func::hswish:
+                    EXPECT_NEAR((FLOAT16)((float)input_ptr[i] * std::fmin(std::fmax(0.f, (float)input_ptr[i] + 3.f), 6.f) / 6.f),
+                        output_ptr[i], 1e-3f);
+                    break;
+                case activation_func::hard_sigmoid:
+                    EXPECT_NEAR((FLOAT16)(std::fmin(std::fmax(0.f, (float)input_ptr[i] + 3.f), 6.f) / 6.f),
+                        output_ptr[i], 1e-3f);
+                    break;
+                case activation_func::round_half_to_even:
+                    EXPECT_FLOAT_EQ((FLOAT16)std::rint((float)input_ptr[i]), output_ptr[i]);
+                    break;
+                case activation_func::round_half_away_from_zero:
+                    EXPECT_FLOAT_EQ((FLOAT16)std::round((float)input_ptr[i]), output_ptr[i]);
                     break;
                 default:
                     break;

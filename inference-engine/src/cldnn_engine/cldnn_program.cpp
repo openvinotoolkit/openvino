@@ -869,6 +869,7 @@ Program::LayerType Program::LayerTypeFromStr(const std::string &str) {
         { "CTCGreedyDecoder", CTCGreedyDecoder },
         { "PriorBoxClustered", PriorBoxClustered },
         { "CumSum", CumSum },
+        { "Round", Round },
         { "EmbeddingBagPackedSum", EmbeddingBagPackedSum },
         { "EmbeddingBagOffsetsSum", EmbeddingBagOffsetsSum },
         { "EmbeddingSegmentsSum", EmbeddingSegmentsSum },
@@ -1562,6 +1563,8 @@ void Program::CreateSingleLayerPrimitive(cldnn::topology& topology, InferenceEng
         case PriorBoxClustered: CreatePriorBoxClusteredPrimitive(topology, layer);
             break;
         case CumSum: CreateCumSumPrimitive(topology, layer);
+            break;
+        case Round: CreateRoundPrimitive(topology, layer);
             break;
         case EmbeddingBagPackedSum: CreateEmbeddingBagPackedSumPrimitive(topology, layer);
             break;
@@ -5268,6 +5271,28 @@ void Program::CreateCumSumPrimitive(cldnn::topology& topology, InferenceEngine::
             CumSumAxisFromIEAxis(axis, dimNumber),
             exclusive,
             reverse);
+
+    topology.add(primitive);
+    AddPrimitiveToProfiler(layerName, layer);
+}
+
+void Program::CreateRoundPrimitive(cldnn::topology& topology, InferenceEngine::CNNLayerPtr& layer) {
+    ValidateLayer(layer, 1);
+    auto inputPrimitives = GetPrevLayersPrimitives(layer);
+    auto layerName = layer_type_name_ID(layer);
+
+    std::string mode = layer->GetParamAsString("mode", "half_to_even");
+
+    if ((mode != "half_to_even") && (mode != "half_away_from_zero")) {
+        THROW_CLDNN_EXCEPTION("Unsupported mode (" + mode + ") in layer " + layerName);
+    }
+
+    auto func = mode == "half_to_even" ? cldnn::activation_func::round_half_to_even : cldnn::activation_func::round_half_away_from_zero;
+
+    auto primitive = cldnn::activation(
+            layerName,
+            inputPrimitives[0],
+            func);
 
     topology.add(primitive);
     AddPrimitiveToProfiler(layerName, layer);

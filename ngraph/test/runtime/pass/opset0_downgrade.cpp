@@ -217,27 +217,6 @@ namespace opset0_downgrade
         return op_cast_binary_elementwise_node<op::v0::Equal, op::v1::Equal>(node);
     }
 
-    shared_ptr<Node> op_cast(shared_ptr<op::v1::Gather> node)
-    {
-        auto axis_node = as_type_ptr<op::Constant>(node->input_value(2).get_node_shared_ptr());
-
-        NGRAPH_CHECK(axis_node,
-                     "Unable to convert Gather:v1 to Gather:v0 if axis is not constant. Node: ",
-                     *node);
-
-        NGRAPH_CHECK(
-            axis_node->get_element_type() == element::i64,
-            "Unable to convert Gather:v1 to Gather:v0 with axis other type than int64. Node: ",
-            *node);
-
-        int64_t axis = axis_node->get_vector<int64_t>()[0];
-
-        auto replacement_node =
-            make_shared<op::v0::Gather>(node->input_value(0), node->input_value(1), axis);
-        replace_node(node, replacement_node);
-        return replacement_node;
-    }
-
     shared_ptr<Node> op_cast(shared_ptr<op::v1::Greater> node)
     {
         return op_cast_binary_elementwise_node<op::v0::Greater, op::v1::Greater>(node);

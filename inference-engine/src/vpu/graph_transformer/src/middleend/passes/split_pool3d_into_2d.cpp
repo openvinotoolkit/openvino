@@ -76,7 +76,7 @@ void PassImpl::run(const Model& model) {
 
         const auto try_hw = stage->attrs().get<int>("try_hw");
 
-        int kernelNDims = kernel_shape.size();
+        auto kernelNDims = kernel_shape.size();
         if (kernelNDims != 3) {
             continue;
         }

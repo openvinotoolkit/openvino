@@ -1829,37 +1829,6 @@ TEST(constant_folding, const_floor)
     ASSERT_TRUE(test::all_close_f(values_out, values_expected, MIN_FLOAT_TOLERANCE_BITS));
 }
 
-TEST(constant_folding, const_gather)
-{
-    auto constant_data = op::Constant::create(
-        element::f32,
-        Shape{2, 5},
-        vector<float>{1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f, 9.0f, 10.0f});
-    auto constant_indices =
-        op::Constant::create(element::i64, Shape{4}, vector<int64_t>{0, 3, 2, 2});
-    size_t gather_axis = 1;
-    auto gather = make_shared<op::v0::Gather>(constant_data, constant_indices, gather_axis);
-    gather->set_friendly_name("test");
-    auto f = make_shared<Function>(gather, ParameterVector{});
-
-    pass::Manager pass_manager;
-    pass_manager.register_pass<pass::ConstantFolding>();
-    pass_manager.run_passes(f);
-
-    ASSERT_EQ(count_ops_of_type<op::v0::Gather>(f), 0);
-    ASSERT_EQ(count_ops_of_type<op::Constant>(f), 1);
-
-    auto new_const =
-        as_type_ptr<op::Constant>(f->get_results().at(0)->input_value(0).get_node_shared_ptr());
-    ASSERT_TRUE(new_const);
-    ASSERT_EQ(new_const->get_friendly_name(), "test");
-    auto values_out = new_const->get_vector<float>();
-
-    vector<float> values_expected{1.0f, 4.0f, 3.0f, 3.0f, 6.0f, 9.0f, 8.0f, 8.0f};
-
-    ASSERT_TRUE(test::all_close_f(values_out, values_expected, MIN_FLOAT_TOLERANCE_BITS));
-}
-
 TEST(constant_folding, const_gather_v1)
 {
     auto constant_data = op::Constant::create(

@@ -656,32 +656,6 @@ protected:
                 args[0]->get_data_ptr<const T>(), out[0]->get_data_ptr<T>(), element_count);
             break;
         }
-        case OP_TYPEID::GatherND:
-        {
-            if (node.get_input_element_type(1) == element::i64)
-            {
-                reference::gather_nd<T, int64_t>(args[0]->get_data_ptr<T>(),
-                                                 args[1]->get_data_ptr<int64_t>(),
-                                                 out[0]->get_data_ptr<T>(),
-                                                 node.get_input_shape(0),
-                                                 node.get_input_shape(1),
-                                                 node.get_output_shape(0));
-            }
-            else if (node.get_input_element_type(1) == element::i32)
-            {
-                reference::gather_nd<T, int32_t>(args[0]->get_data_ptr<T>(),
-                                                 args[1]->get_data_ptr<int32_t>(),
-                                                 out[0]->get_data_ptr<T>(),
-                                                 node.get_input_shape(0),
-                                                 node.get_input_shape(1),
-                                                 node.get_output_shape(0));
-            }
-            else
-            {
-                throw ngraph_error("Unexpected type");
-            }
-            break;
-        }
         case OP_TYPEID::GatherND_v5:
         {
             const op::v5::GatherND* gatherNDNode = static_cast<const op::v5::GatherND*>(&node);
