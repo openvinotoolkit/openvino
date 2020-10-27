@@ -773,7 +773,6 @@ void convertFunctionToICNNNetwork(const std::shared_ptr<const ::ngraph::Function
                 std::make_shared<Builder::NodeConverter<::ngraph::op::OneHotIE>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::PRelu>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::PadIE>>(),
-                std::make_shared<Builder::NodeConverter<::ngraph::op::v1::Power>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::PowerIE>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::PriorBoxClusteredIE>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::PriorBoxIE>>(),

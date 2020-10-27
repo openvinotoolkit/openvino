@@ -452,7 +452,6 @@ std::shared_ptr<ngraph::Node> V10Parser::createNode(const std::vector<ngraph::Ou
         std::make_shared<LayerCreator<ngraph::op::PRelu>>("PReLU"),
         std::make_shared<LayerCreator<ngraph::op::Relu>>("ReLU"),
         std::make_shared<LayerCreator<ngraph::op::v1::Pad>>("Pad"),
-        std::make_shared<LayerCreator<ngraph::op::v1::Power>>("Power"),
         std::make_shared<LayerCreator<ngraph::op::Range>>("Range"),
         std::make_shared<LayerCreator<ngraph::op::PriorBox>>("PriorBox"),
         std::make_shared<LayerCreator<ngraph::op::PriorBoxClustered>>("PriorBoxClustered"),
@@ -1529,15 +1528,6 @@ std::shared_ptr<ngraph::Node> V10Parser::LayerCreator<ngraph::op::Constant>::cre
     binStream.seekg(offset, std::ios::beg);
     binStream.read(data, size);
     return constant;
-}
-
-// Power layer
-template <>
-std::shared_ptr<ngraph::Node> V10Parser::LayerCreator<ngraph::op::v1::Power>::createLayer(
-    const ngraph::OutputVector& inputs, const pugi::xml_node& node, std::istream& binStream,
-    const GenericLayerParams& layerParsePrms) {
-    checkParameters(inputs, layerParsePrms, 2);
-    return std::make_shared<ngraph::op::v1::Power>(inputs[0], inputs[1]);
 }
 
 // MatMul layer
