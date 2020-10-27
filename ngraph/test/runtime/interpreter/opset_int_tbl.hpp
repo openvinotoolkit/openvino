@@ -21,6 +21,8 @@
 #define ID_SUFFIX(NAME) NAME##_v0
 NGRAPH_OP(CTCGreedyDecoder, ngraph::op::v0)
 NGRAPH_OP(DetectionOutput, op::v0)
+NGRAPH_OP(RegionYolo, op::v0)
+NGRAPH_OP(ReorgYolo, op::v0)
 NGRAPH_OP(RNNCell, op::v0)
 #undef ID_SUFFIX
 
@@ -55,4 +57,7 @@ NGRAPH_OP(GatherND, op::v5)
 NGRAPH_OP(LSTMSequence, op::v5)
 NGRAPH_OP(GRUSequence, op::v5)
 NGRAPH_OP(RNNSequence, op::v5)
+NGRAPH_OP(BatchNormInference, op::v5)
+NGRAPH_OP(Round, op::v5)
+NGRAPH_OP(LogSoftmax, op::v5)
 #undef ID_SUFFIX

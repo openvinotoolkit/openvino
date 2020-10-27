@@ -31,6 +31,7 @@
 #include "ngraph/op/result.hpp"
 #include "ngraph/op/tensor_iterator.hpp"
 #include "ngraph/op/util/op_types.hpp"
+#include "ngraph/opsets/opset5.hpp"
 #include "ngraph/pass/manager.hpp"
 #include "ngraph/pass/visualize_tree.hpp"
 #include "ngraph/provenance.hpp"
@@ -311,7 +312,7 @@ std::vector<std::shared_ptr<ngraph::Node>>
             // There is a friendly name for this node so copy it
             cloned_node->set_friendly_name(node->get_friendly_name());
             //  TODO: workaround for shape inference, delete it after fix
-            if (ngraph::as_type_ptr<ngraph::op::TensorIterator>(cloned_node))
+            if (std::dynamic_pointer_cast<ngraph::op::util::SubGraphOp>(cloned_node))
             {
                 cloned_node->validate_and_infer_types();
             }
@@ -379,7 +380,7 @@ std::list<std::shared_ptr<ngraph::Node>>
                 // There is a friendly name for this node so copy it
                 cloned_node->set_friendly_name(node->get_friendly_name());
                 //  TODO: workaround for shape inference, delete it after fix
-                if (ngraph::as_type_ptr<ngraph::op::TensorIterator>(cloned_node))
+                if (std::dynamic_pointer_cast<ngraph::op::util::SubGraphOp>(cloned_node))
                 {
                     cloned_node->validate_and_infer_types();
                 }
@@ -570,15 +571,11 @@ void ngraph::insert_new_node_between(const shared_ptr<Node>& src_node,
 
 std::shared_ptr<Node> ngraph::make_zero(const element::Type& element_type, const Shape& shape)
 {
-    std::shared_ptr<Node> zero = op::Constant::create(element_type, Shape{}, {0.0});
+    auto zero = op::Constant::create(element_type, Shape{}, {0.0});
     if (shape.size() > 0)
     {
-        AxisSet axes;
-        for (size_t i = 0; i < shape.size(); i++)
-        {
-            axes.insert(i);
-        }
-        zero = std::make_shared<op::Broadcast>(zero, shape, axes);
+        return std::make_shared<op::v1::Broadcast>(
+            zero, op::Constant::create(element::u64, Shape{shape.size()}, shape));
     }
     return zero;
 }

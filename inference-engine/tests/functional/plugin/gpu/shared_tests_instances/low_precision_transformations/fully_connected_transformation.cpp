@@ -1,4 +1,4 @@
-// Copyright (C) 2020 Intel Corporation
+// Copyright (C) 2019-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,27 +11,41 @@ using namespace LayerTestsDefinitions;
 using namespace InferenceEngine::details;
 
 namespace {
-const std::vector<InferenceEngine::Precision> netPrecisions = {
-    InferenceEngine::Precision::FP32
+const std::vector<ngraph::element::Type> netPrecisions = {
+        ngraph::element::f32,
+        // ngraph::element::f16
 };
 
-const std::vector<InferenceEngine::SizeVector> dimensions = {
-    InferenceEngine::SizeVector({ 1, 16 })
+const std::vector<MatMulShapes> shapes = {
+    {
+        ngraph::Shape{ 1, 16 },
+        ngraph::Shape{ 16, 8 },
+        false,
+        false
+    },
+    {
+        ngraph::Shape{ 1, 16 },
+        ngraph::Shape{ 8, 16 },
+        false,
+        true
+    },
+    {
+        ngraph::Shape{ 16, 1 },
+        ngraph::Shape{ 16, 8 },
+        true,
+        false
+    },
 };
 
-const std::vector<LayerTransformation::Params> trasformationParamValues = {
-    LayerTestsUtils::LayerTransformationParamsFactory::createParams()
+const std::vector<ngraph::pass::low_precision::LayerTransformation::Params> trasformationParamValues = {
+    LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParams()
 };
 
 INSTANTIATE_TEST_CASE_P(smoke_LPT, FullyConnectedTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(netPrecisions),
-        ::testing::ValuesIn(dimensions),
+        ::testing::ValuesIn(shapes),
         ::testing::Values(CommonTestUtils::DEVICE_GPU),
         ::testing::ValuesIn(trasformationParamValues)),
     FullyConnectedTransformation::getTestCaseName);
 }  // namespace
-
-
-
-

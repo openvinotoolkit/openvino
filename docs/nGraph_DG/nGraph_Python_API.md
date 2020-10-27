@@ -1,4 +1,4 @@
-# Using nGraph's Python API
+# Using nGraph's Python API {#openvino_docs_nGraph_DG_PythonAPI}
 
 nGraph is the OpenVINO&trade; graph manipulation library, used to represent neural network models in the form of a computational graph. With nGraph Python APIs, you can create, inspect, and modify computational graphs.
 

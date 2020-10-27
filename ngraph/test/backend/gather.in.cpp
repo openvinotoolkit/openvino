@@ -35,15 +35,16 @@ using namespace ngraph;
 static string s_manifest = "${MANIFEST}";
 using TestEngine = test::ENGINE_CLASS_NAME(${BACKEND_NAME});
 
-NGRAPH_TEST(${BACKEND_NAME}, gather_4d_indices_no_axis_uint8)
+NGRAPH_TEST(${BACKEND_NAME}, gather_4d_indices_axis_0_uint8)
 {
     Shape data_shape{3, 2};
     Shape indices_shape{2, 2, 3, 4};
     Shape out_shape{2, 2, 3, 4, 2};
-    auto D = make_shared<op::Parameter>(element::u8, data_shape);
+    auto P = make_shared<op::Parameter>(element::u8, data_shape);
     auto I = make_shared<op::Parameter>(element::i32, indices_shape);
-    auto G = make_shared<op::Gather>(D, I);
-    auto f = make_shared<Function>(G, ParameterVector{D, I});
+    auto A = op::Constant::create(element::i64, Shape{}, {0});
+    auto G = make_shared<op::v1::Gather>(P, I, A);
+    auto f = make_shared<Function>(G, ParameterVector{P, I});
 
     auto test_case = test::TestCase<TestEngine>(f);
     test_case.add_input<uint8_t>({10, 11, 20, 21, 30, 31});
@@ -59,15 +60,16 @@ NGRAPH_TEST(${BACKEND_NAME}, gather_4d_indices_no_axis_uint8)
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, gather_4d_indices_no_axis_2d_input)
+NGRAPH_TEST(${BACKEND_NAME}, gather_4d_indices_axis_0_2d_input)
 {
     Shape data_shape{3, 2};
     Shape indices_shape{2, 2, 3, 4};
     Shape out_shape{2, 2, 3, 4, 2};
-    auto D = make_shared<op::Parameter>(element::f32, data_shape);
+    auto P = make_shared<op::Parameter>(element::f32, data_shape);
     auto I = make_shared<op::Parameter>(element::i32, indices_shape);
-    auto G = make_shared<op::Gather>(D, I);
-    auto f = make_shared<Function>(G, ParameterVector{D, I});
+    auto A = op::Constant::create(element::i64, Shape{}, {0});
+    auto G = make_shared<op::v1::Gather>(P, I, A);
+    auto f = make_shared<Function>(G, ParameterVector{P, I});
 
     auto test_case = test::TestCase<TestEngine>(f);
     test_case.add_input<float>({1.0f, 1.1f, 2.0f, 2.1f, 3.0f, 3.1f});
@@ -86,15 +88,16 @@ NGRAPH_TEST(${BACKEND_NAME}, gather_4d_indices_no_axis_2d_input)
     test_case.run(MIN_FLOAT_TOLERANCE_BITS);
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, gather_3d_indices_no_axis_2d_input)
+NGRAPH_TEST(${BACKEND_NAME}, gather_3d_indices_axis_0_2d_input)
 {
     Shape data_shape{3, 2};
     Shape indices_shape{2, 3, 4};
     Shape out_shape{2, 3, 4, 2};
-    auto D = make_shared<op::Parameter>(element::f32, data_shape);
+    auto P = make_shared<op::Parameter>(element::f32, data_shape);
     auto I = make_shared<op::Parameter>(element::i32, indices_shape);
-    auto G = make_shared<op::Gather>(D, I);
-    auto f = make_shared<Function>(G, ParameterVector{D, I});
+    auto A = op::Constant::create(element::i64, Shape{}, {0});
+    auto G = make_shared<op::v1::Gather>(P, I, A);
+    auto f = make_shared<Function>(G, ParameterVector{P, I});
 
     auto test_case = test::TestCase<TestEngine>(f);
     test_case.add_input<float>({1.0f, 1.1f, 2.0f, 2.1f, 3.0f, 3.1f});
@@ -108,15 +111,16 @@ NGRAPH_TEST(${BACKEND_NAME}, gather_3d_indices_no_axis_2d_input)
     test_case.run(MIN_FLOAT_TOLERANCE_BITS);
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, gather_2d_indices_no_axis_2d_input)
+NGRAPH_TEST(${BACKEND_NAME}, gather_2d_indices_axis_0_2d_input)
 {
     Shape data_shape{3, 2};
     Shape indices_shape{2, 2};
     Shape out_shape{2, 2, 2};
-    auto D = make_shared<op::Parameter>(element::f32, data_shape);
+    auto P = make_shared<op::Parameter>(element::f32, data_shape);
     auto I = make_shared<op::Parameter>(element::i32, indices_shape);
-    auto G = make_shared<op::Gather>(D, I);
-    auto f = make_shared<Function>(G, ParameterVector{D, I});
+    auto A = op::Constant::create(element::i64, Shape{}, {0});
+    auto G = make_shared<op::v1::Gather>(P, I, A);
+    auto f = make_shared<Function>(G, ParameterVector{P, I});
 
     auto test_case = test::TestCase<TestEngine>(f);
     test_case.add_input<float>({1.0f, 1.1f, 2.0f, 2.1f, 3.0f, 3.1f});
@@ -126,15 +130,16 @@ NGRAPH_TEST(${BACKEND_NAME}, gather_2d_indices_no_axis_2d_input)
     test_case.run(MIN_FLOAT_TOLERANCE_BITS);
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, gather_2d_negative_and_positive_indices_no_axis_2d_input)
+NGRAPH_TEST(${BACKEND_NAME}, gather_2d_negative_and_positive_indices_axis_0_2d_input)
 {
     Shape data_shape{3, 2};
     Shape indices_shape{2, 2};
     Shape out_shape{2, 2, 2};
-    auto D = make_shared<op::Parameter>(element::f32, data_shape);
+    auto P = make_shared<op::Parameter>(element::f32, data_shape);
     auto I = make_shared<op::Parameter>(element::i32, indices_shape);
-    auto G = make_shared<op::Gather>(D, I);
-    auto f = make_shared<Function>(G, ParameterVector{D, I});
+    auto A = op::Constant::create(element::i64, Shape{}, {0});
+    auto G = make_shared<op::v1::Gather>(P, I, A);
+    auto f = make_shared<Function>(G, ParameterVector{P, I});
 
     auto test_case = test::TestCase<TestEngine>(f);
     test_case.add_input<float>({1.0f, 1.1f, 2.0f, 2.1f, 3.0f, 3.1f});
@@ -144,15 +149,16 @@ NGRAPH_TEST(${BACKEND_NAME}, gather_2d_negative_and_positive_indices_no_axis_2d_
     test_case.run(MIN_FLOAT_TOLERANCE_BITS);
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, gather_1d_indices_no_axis_1d_input)
+NGRAPH_TEST(${BACKEND_NAME}, gather_1d_indices_axis_0_1d_input)
 {
     Shape data_shape{3};
     Shape indices_shape{2};
     Shape out_shape{2};
-    auto D = make_shared<op::Parameter>(element::f32, data_shape);
+    auto P = make_shared<op::Parameter>(element::f32, data_shape);
     auto I = make_shared<op::Parameter>(element::i32, indices_shape);
-    auto G = make_shared<op::Gather>(D, I);
-    auto f = make_shared<Function>(G, ParameterVector{D, I});
+    auto A = op::Constant::create(element::i64, Shape{}, {0});
+    auto G = make_shared<op::v1::Gather>(P, I, A);
+    auto f = make_shared<Function>(G, ParameterVector{P, I});
 
     auto test_case = test::TestCase<TestEngine>(f);
     test_case.add_input<float>({1.0f, 2.0f, 3.0f});
@@ -161,15 +167,16 @@ NGRAPH_TEST(${BACKEND_NAME}, gather_1d_indices_no_axis_1d_input)
     test_case.run(MIN_FLOAT_TOLERANCE_BITS);
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, gather_scalar_indices_no_axis_2d_input)
+NGRAPH_TEST(${BACKEND_NAME}, gather_scalar_indices_axis_0_2d_input)
 {
     Shape data_shape{3, 2};
     Shape indices_shape{};
     Shape out_shape{2};
-    auto D = make_shared<op::Parameter>(element::f32, data_shape);
+    auto P = make_shared<op::Parameter>(element::f32, data_shape);
     auto I = make_shared<op::Parameter>(element::i32, indices_shape);
-    auto G = make_shared<op::Gather>(D, I);
-    auto f = make_shared<Function>(G, ParameterVector{D, I});
+    auto A = op::Constant::create(element::i64, Shape{}, {0});
+    auto G = make_shared<op::v1::Gather>(P, I, A);
+    auto f = make_shared<Function>(G, ParameterVector{P, I});
 
     auto test_case = test::TestCase<TestEngine>(f);
     test_case.add_input<float>({1.0f, 1.1f, 2.0f, 2.1f, 3.0f, 3.1f});
@@ -183,10 +190,11 @@ NGRAPH_TEST(${BACKEND_NAME}, gather_2d_indices_axis_1_2d_input)
     Shape data_shape{3, 3};
     Shape indices_shape{1, 2};
     Shape out_shape{3, 1, 2};
-    auto D = make_shared<op::Parameter>(element::f32, data_shape);
+    auto P = make_shared<op::Parameter>(element::f32, data_shape);
     auto I = make_shared<op::Parameter>(element::i32, indices_shape);
-    auto G = make_shared<op::Gather>(D, I, 1);
-    auto f = make_shared<Function>(G, ParameterVector{D, I});
+    auto A = op::Constant::create(element::i64, Shape{}, {1});
+    auto G = make_shared<op::v1::Gather>(P, I, A);
+    auto f = make_shared<Function>(G, ParameterVector{P, I});
 
     auto test_case = test::TestCase<TestEngine>(f);
     test_case.add_input<float>({1.0f, 1.1f, 1.2f, 2.0f, 2.1f, 2.2f, 3.0f, 3.1f, 3.2f});
@@ -200,10 +208,11 @@ NGRAPH_TEST(${BACKEND_NAME}, gather_1d_indices_axis_2_4d_input)
     Shape data_shape{2, 2, 3, 3};
     Shape indices_shape{2};
     Shape out_shape{2, 2, 2, 3};
-    auto D = make_shared<op::Parameter>(element::f32, data_shape);
+    auto P = make_shared<op::Parameter>(element::f32, data_shape);
     auto I = make_shared<op::Parameter>(element::i32, indices_shape);
-    auto G = make_shared<op::Gather>(D, I, 2);
-    auto f = make_shared<Function>(G, ParameterVector{D, I});
+    auto A = op::Constant::create(element::i64, Shape{}, {2});
+    auto G = make_shared<op::v1::Gather>(P, I, A);
+    auto f = make_shared<Function>(G, ParameterVector{P, I});
 
     auto test_case = test::TestCase<TestEngine>(f);
     test_case.add_input<float>({1.0f, 1.1f, 1.2f, 2.0f, 2.1f, 2.2f, 3.0f, 3.1f, 3.2f,
@@ -222,10 +231,11 @@ NGRAPH_TEST(${BACKEND_NAME}, gather_scalar_indices_axis_1_2d_input)
     Shape data_shape{3, 3};
     Shape indices_shape{};
     Shape out_shape{3};
-    auto D = make_shared<op::Parameter>(element::f32, data_shape);
+    auto P = make_shared<op::Parameter>(element::f32, data_shape);
     auto I = make_shared<op::Parameter>(element::i32, indices_shape);
-    auto G = make_shared<op::Gather>(D, I, 1);
-    auto f = make_shared<Function>(G, ParameterVector{D, I});
+    auto A = op::Constant::create(element::i64, Shape{}, {1});
+    auto G = make_shared<op::v1::Gather>(P, I, A);
+    auto f = make_shared<Function>(G, ParameterVector{P, I});
 
     auto test_case = test::TestCase<TestEngine>(f);
     test_case.add_input<float>({1.0f, 1.1f, 1.2f, 2.0f, 2.1f, 2.2f, 3.0f, 3.1f, 3.2f});
@@ -234,15 +244,16 @@ NGRAPH_TEST(${BACKEND_NAME}, gather_scalar_indices_axis_1_2d_input)
     test_case.run(MIN_FLOAT_TOLERANCE_BITS);
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, gather_no_axis_int8)
+NGRAPH_TEST(${BACKEND_NAME}, gather_axis_0_int8)
 {
     Shape data_shape{3, 2};
     Shape indices_shape{2, 2};
     Shape out_shape{2, 2, 2};
-    auto D = make_shared<op::Parameter>(element::i8, data_shape);
+    auto P = make_shared<op::Parameter>(element::i8, data_shape);
     auto I = make_shared<op::Parameter>(element::i32, indices_shape);
-    auto G = make_shared<op::Gather>(D, I);
-    auto f = make_shared<Function>(G, ParameterVector{D, I});
+    auto A = op::Constant::create(element::i64, Shape{}, {0});
+    auto G = make_shared<op::v1::Gather>(P, I, A);
+    auto f = make_shared<Function>(G, ParameterVector{P, I});
 
     auto test_case = test::TestCase<TestEngine>(f);
     test_case.add_input<int8_t>({10, 11, 20, 21, 30, 31});
@@ -251,15 +262,16 @@ NGRAPH_TEST(${BACKEND_NAME}, gather_no_axis_int8)
     test_case.run(MIN_FLOAT_TOLERANCE_BITS);
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, gather_no_axis_int16)
+NGRAPH_TEST(${BACKEND_NAME}, gather_axis_0_int16)
 {
     Shape data_shape{3, 2};
     Shape indices_shape{2, 2};
     Shape out_shape{2, 2, 2};
-    auto D = make_shared<op::Parameter>(element::i16, data_shape);
+    auto P = make_shared<op::Parameter>(element::i16, data_shape);
     auto I = make_shared<op::Parameter>(element::i64, indices_shape);
-    auto G = make_shared<op::Gather>(D, I);
-    auto f = make_shared<Function>(G, ParameterVector{D, I});
+    auto A = op::Constant::create(element::i64, Shape{}, {0});
+    auto G = make_shared<op::v1::Gather>(P, I, A);
+    auto f = make_shared<Function>(G, ParameterVector{P, I});
 
     auto test_case = test::TestCase<TestEngine>(f);
     test_case.add_input<int16_t>({10, 11, 20, 21, 30, 31});
@@ -268,15 +280,16 @@ NGRAPH_TEST(${BACKEND_NAME}, gather_no_axis_int16)
     test_case.run(MIN_FLOAT_TOLERANCE_BITS);
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, gather_no_axis_int32)
+NGRAPH_TEST(${BACKEND_NAME}, gather_axis_0_int32)
 {
     Shape data_shape{3, 2};
     Shape indices_shape{2, 2};
     Shape out_shape{2, 2, 2};
-    auto D = make_shared<op::Parameter>(element::i32, data_shape);
+    auto P = make_shared<op::Parameter>(element::i32, data_shape);
     auto I = make_shared<op::Parameter>(element::i32, indices_shape);
-    auto G = make_shared<op::Gather>(D, I);
-    auto f = make_shared<Function>(G, ParameterVector{D, I});
+    auto A = op::Constant::create(element::i64, Shape{}, {0});
+    auto G = make_shared<op::v1::Gather>(P, I, A);
+    auto f = make_shared<Function>(G, ParameterVector{P, I});
 
     auto test_case = test::TestCase<TestEngine>(f);
     test_case.add_input<int32_t>({10, 11, 20, 21, 30, 31});
@@ -285,15 +298,16 @@ NGRAPH_TEST(${BACKEND_NAME}, gather_no_axis_int32)
     test_case.run(MIN_FLOAT_TOLERANCE_BITS);
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, gather_no_axis_int64)
+NGRAPH_TEST(${BACKEND_NAME}, gather_axis_0_int64)
 {
     Shape data_shape{3, 2};
     Shape indices_shape{2, 2};
     Shape out_shape{2, 2, 2};
-    auto D = make_shared<op::Parameter>(element::i64, data_shape);
+    auto P = make_shared<op::Parameter>(element::i64, data_shape);
     auto I = make_shared<op::Parameter>(element::i64, indices_shape);
-    auto G = make_shared<op::Gather>(D, I);
-    auto f = make_shared<Function>(G, ParameterVector{D, I});
+    auto A = op::Constant::create(element::i64, Shape{}, {0});
+    auto G = make_shared<op::v1::Gather>(P, I, A);
+    auto f = make_shared<Function>(G, ParameterVector{P, I});
 
     auto test_case = test::TestCase<TestEngine>(f);
     test_case.add_input<int64_t>({10, 11, 20, 21, 30, 31});
@@ -302,15 +316,16 @@ NGRAPH_TEST(${BACKEND_NAME}, gather_no_axis_int64)
     test_case.run(MIN_FLOAT_TOLERANCE_BITS);
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, gather_no_axis_uint8)
+NGRAPH_TEST(${BACKEND_NAME}, gather_axis_0_uint8)
 {
     Shape data_shape{3, 2};
     Shape indices_shape{2, 2};
     Shape out_shape{2, 2, 2};
-    auto D = make_shared<op::Parameter>(element::u8, data_shape);
+    auto P = make_shared<op::Parameter>(element::u8, data_shape);
     auto I = make_shared<op::Parameter>(element::i32, indices_shape);
-    auto G = make_shared<op::Gather>(D, I);
-    auto f = make_shared<Function>(G, ParameterVector{D, I});
+    auto A = op::Constant::create(element::i64, Shape{}, {0});
+    auto G = make_shared<op::v1::Gather>(P, I, A);
+    auto f = make_shared<Function>(G, ParameterVector{P, I});
 
     auto test_case = test::TestCase<TestEngine>(f);
     test_case.add_input<uint8_t>({10, 11, 20, 21, 30, 31});
@@ -319,15 +334,16 @@ NGRAPH_TEST(${BACKEND_NAME}, gather_no_axis_uint8)
     test_case.run(MIN_FLOAT_TOLERANCE_BITS);
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, gather_no_axis_uint16)
+NGRAPH_TEST(${BACKEND_NAME}, gather_axis_0_uint16)
 {
     Shape data_shape{3, 2};
     Shape indices_shape{2, 2};
     Shape out_shape{2, 2, 2};
-    auto D = make_shared<op::Parameter>(element::u16, data_shape);
+    auto P = make_shared<op::Parameter>(element::u16, data_shape);
     auto I = make_shared<op::Parameter>(element::i64, indices_shape);
-    auto G = make_shared<op::Gather>(D, I);
-    auto f = make_shared<Function>(G, ParameterVector{D, I});
+    auto A = op::Constant::create(element::i64, Shape{}, {0});
+    auto G = make_shared<op::v1::Gather>(P, I, A);
+    auto f = make_shared<Function>(G, ParameterVector{P, I});
 
     auto test_case = test::TestCase<TestEngine>(f);
     test_case.add_input<uint16_t>({10, 11, 20, 21, 30, 31});
@@ -336,15 +352,16 @@ NGRAPH_TEST(${BACKEND_NAME}, gather_no_axis_uint16)
     test_case.run(MIN_FLOAT_TOLERANCE_BITS);
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, gather_no_axis_uint32)
+NGRAPH_TEST(${BACKEND_NAME}, gather_axis_0_uint32)
 {
     Shape data_shape{3, 2};
     Shape indices_shape{2, 2};
     Shape out_shape{2, 2, 2};
-    auto D = make_shared<op::Parameter>(element::u32, data_shape);
+    auto P = make_shared<op::Parameter>(element::u32, data_shape);
     auto I = make_shared<op::Parameter>(element::i32, indices_shape);
-    auto G = make_shared<op::Gather>(D, I);
-    auto f = make_shared<Function>(G, ParameterVector{D, I});
+    auto A = op::Constant::create(element::i64, Shape{}, {0});
+    auto G = make_shared<op::v1::Gather>(P, I, A);
+    auto f = make_shared<Function>(G, ParameterVector{P, I});
 
     auto test_case = test::TestCase<TestEngine>(f);
     test_case.add_input<uint32_t>({10, 11, 20, 21, 30, 31});
@@ -353,15 +370,16 @@ NGRAPH_TEST(${BACKEND_NAME}, gather_no_axis_uint32)
     test_case.run(MIN_FLOAT_TOLERANCE_BITS);
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, gather_no_axis_uint64)
+NGRAPH_TEST(${BACKEND_NAME}, gather_axis_0_uint64)
 {
     Shape data_shape{3, 2};
     Shape indices_shape{2, 2};
     Shape out_shape{2, 2, 2};
-    auto D = make_shared<op::Parameter>(element::u64, data_shape);
+    auto P = make_shared<op::Parameter>(element::u64, data_shape);
     auto I = make_shared<op::Parameter>(element::i64, indices_shape);
-    auto G = make_shared<op::Gather>(D, I);
-    auto f = make_shared<Function>(G, ParameterVector{D, I});
+    auto A = op::Constant::create(element::i64, Shape{}, {0});
+    auto G = make_shared<op::v1::Gather>(P, I, A);
+    auto f = make_shared<Function>(G, ParameterVector{P, I});
 
     auto test_case = test::TestCase<TestEngine>(f);
     test_case.add_input<uint64_t>({10, 11, 20, 21, 30, 31});
@@ -370,15 +388,16 @@ NGRAPH_TEST(${BACKEND_NAME}, gather_no_axis_uint64)
     test_case.run(MIN_FLOAT_TOLERANCE_BITS);
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, gather_no_axis_bool)
+NGRAPH_TEST(${BACKEND_NAME}, gather_axis_0_bool)
 {
     Shape data_shape{3, 2};
     Shape indices_shape{2, 2};
     Shape out_shape{2, 2, 2};
-    auto D = make_shared<op::Parameter>(element::boolean, data_shape);
+    auto P = make_shared<op::Parameter>(element::boolean, data_shape);
     auto I = make_shared<op::Parameter>(element::i64, indices_shape);
-    auto G = make_shared<op::Gather>(D, I);
-    auto f = make_shared<Function>(G, ParameterVector{D, I});
+    auto A = op::Constant::create(element::i64, Shape{}, {0});
+    auto G = make_shared<op::v1::Gather>(P, I, A);
+    auto f = make_shared<Function>(G, ParameterVector{P, I});
 
     auto test_case = test::TestCase<TestEngine>(f);
     test_case.add_input<char>({1, 1, 1, 0, 0, 1});

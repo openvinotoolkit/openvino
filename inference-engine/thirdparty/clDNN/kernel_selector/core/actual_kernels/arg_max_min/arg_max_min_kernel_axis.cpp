@@ -86,22 +86,11 @@ KernelsData ArgMaxMinKernelAxis::GetKernelsData(const Params& params, const opti
     }
     const arg_max_min_params& orgParams = static_cast<const arg_max_min_params&>(params);
 
-    DispatchData runInfo;
-    runInfo.fp16UnitUsed = orgParams.inputs[0].GetDType() == Datatype::F16;
-
     size_t sort_size = orgParams.argMaxMinSortType == ArgMaxMinSortType::VALUE ? getSortSize(orgParams) : 1;
 
-    std::vector<size_t> local, global;
-    global = { Align(getOperationNumber(orgParams), 32), sort_size, 1 };
-    local = GetOptimalLocalWorkGroupSizes(global, params.engineInfo);
-
-    runInfo.gws0 = global[0];
-    runInfo.gws1 = global[1];
-    runInfo.gws2 = global[2];
-
-    runInfo.lws0 = local[0];
-    runInfo.lws1 = local[1];
-    runInfo.lws2 = local[2];
+    DispatchData dispatchData;
+    dispatchData.gws = { Align(getOperationNumber(orgParams), 32), sort_size, 1 };
+    dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo);
 
     KernelData kd = KernelData::Default<arg_max_min_params>(params);
 
@@ -110,7 +99,7 @@ KernelsData ArgMaxMinKernelAxis::GetKernelsData(const Params& params, const opti
     auto jit = CreateJit(kernelName, cldnn_jit, entry_point);
 
     auto& kernel = kd.kernels[0];
-    FillCLKernelData(kernel, runInfo, params.engineInfo, kernelName, jit, entry_point);
+    FillCLKernelData(kernel, dispatchData, params.engineInfo, kernelName, jit, entry_point);
 
     if (orgParams.outputs_num == 2) {
         kernel.arguments.push_back({ArgumentDescriptor::Types::INPUT, 1});

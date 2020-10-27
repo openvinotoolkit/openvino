@@ -54,6 +54,8 @@ target_link_libraries(${TARGET_NAME} PRIVATE ${CMAKE_DL_LIBS} ${NGRAPH_LIBRARIES
 
 add_cpplint_target(${TARGET_NAME}_cpplint FOR_TARGETS ${TARGET_NAME})
 
+ie_add_api_validator_post_build_step(TARGET ${TARGET_NAME})
+
 # LTO
 
 set_target_properties(${TARGET_NAME} ${TARGET_NAME}_obj

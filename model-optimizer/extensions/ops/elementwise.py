@@ -49,12 +49,13 @@ class Elementwise(Op):
     operation = None
     op = None
     op_type = None
+    version = 'opset1'
 
     def __init__(self, graph: Graph, attrs: dict):
         super().__init__(graph, {
             'op': self.op,
             'type': self.op_type,
-            'version': 'opset1',
+            'version': self.version,
             'infer': lambda node: eltwise_infer(node, self.operation),
             'type_infer': self.type_infer,
             'can_be_bias': True,
@@ -71,8 +72,18 @@ class Elementwise(Op):
         node.out_port(0).set_data_type(node.in_port(0).get_data_type())
 
 
+class UnaryElementwise(Elementwise):
+    def __init__(self, graph: Graph, attrs: dict):
+        super().__init__(graph, {**{
+            'in_ports_count': 1,
+        }, **attrs})
+
+    @staticmethod
+    def type_infer(node):
+        copy_type_infer(node)
+
+
 class Add(Elementwise):
-    enabled = False
     op = 'Add'
     op_type = 'Add'
     operation = staticmethod(lambda a, b: a + b)
@@ -87,14 +98,12 @@ class BiasAdd(Add):
 
 
 class Sub(Elementwise):
-    enabled = False
     op = 'Sub'
     op_type = 'Subtract'
     operation = staticmethod(lambda a, b: a - b)
 
 
 class Mul(Elementwise):
-    enabled = False
     op = 'Mul'
     op_type = 'Multiply'
     operation = staticmethod(lambda a, b: a * b)
@@ -105,21 +114,18 @@ def both_types_are_integer(a, b):
 
 
 class Div(Elementwise):
-    enabled = False
     op = 'Div'
     op_type = 'Divide'
     operation = staticmethod(lambda a, b: a // b if both_types_are_integer(a, b) else a / b)
 
 
 class SquaredDifference(Elementwise):
-    enabled = False
     op = 'SquaredDifference'
     op_type = 'SquaredDifference'
     operation = staticmethod(lambda a, b: (a - b) * (a - b))
 
 
 class Pow(Elementwise):
-    enabled = False
     op = 'Pow'
     op_type = 'Power'
 
@@ -147,103 +153,112 @@ class LogicalElementwise(Elementwise):
 
 
 class Greater(LogicalElementwise):
-    enabled = False
     op = 'Greater'
     op_type = 'Greater'
     operation = staticmethod(lambda a, b: a > b)
 
 
 class GreaterEqual(LogicalElementwise):
-    enabled = False
     op = 'GreaterEqual'
     op_type = 'GreaterEqual'
     operation = staticmethod(lambda a, b: a >= b)
 
 
 class Less(LogicalElementwise):
-    enabled = False
     op = 'Less'
     op_type = 'Less'
     operation = staticmethod(lambda a, b: a < b)
 
 
 class LessEqual(LogicalElementwise):
-    enabled = False
     op = 'LessEqual'
     op_type = 'LessEqual'
     operation = staticmethod(lambda a, b: a <= b)
 
 
 class Equal(LogicalElementwise):
-    enabled = False
     op = 'Equal'
     op_type = 'Equal'
     operation = staticmethod(lambda a, b: a == b)
 
 
 class NotEqual(LogicalElementwise):
-    enabled = False
     op = 'NotEqual'
     op_type = 'NotEqual'
     operation = staticmethod(lambda a, b: a != b)
 
 
 class Maximum(Elementwise):
-    enabled = False
     op = 'Maximum'
     op_type = 'Maximum'
     operation = staticmethod(lambda a, b: np.maximum(a, b))
 
 
 class Minimum(Elementwise):
-    enabled = False
     op = 'Minimum'
     op_type = 'Minimum'
     operation = staticmethod(lambda a, b: np.minimum(a, b))
 
 
-class Round(Elementwise):
-    enabled = False
+class Round(UnaryElementwise):
     op = 'Round'
-    op_type = None
-    version = 'extension'
-    operation = staticmethod(lambda a: np.round(a))
+    op_type = 'Round'
+    version = 'opset5'
+
+    def __init__(self, graph: Graph, attrs):
+        round_attrs = {'mode': 'half_to_even',
+                       'infer': self.infer
+                       }
+        round_attrs.update(attrs)
+        super().__init__(graph, round_attrs)
+
+    def backend_attrs(self):
+        return ['mode']
+
+    @classmethod
+    def infer(cls, node: Node):
+        node.out_port(0).data.set_shape(node.in_port(0).data.get_shape())
+
+        a = node.in_port(0).data.get_value()
+        if a is not None:
+            assert node.soft_get('mode') in ['half_to_even', 'half_away_from_zero'], \
+                'Round node {} has unsupported "mode" attribute value: {}'.format(node.soft_get('name', node.id),
+                                                                                  node.soft_get('mode'))
+            if node.mode == 'half_away_from_zero':
+                mask = (a >= 0)
+                out = np.empty_like(a)
+                out[mask] = np.floor(a[mask] + 0.5)
+                out[~mask] = np.ceil(a[~mask] - 0.5)
+            else:
+                out = np.round(a)
+            node.out_port(0).data.set_value(out)
 
 
 class LogicalOr(LogicalElementwise):
-    enabled = False
     op = 'LogicalOr'
     op_type = 'LogicalOr'
     operation = staticmethod(lambda a, b: np.logical_or(a, b))
 
 
 class LogicalXor(Elementwise):
-    enabled = False
     op = 'LogicalXor'
     op_type = 'LogicalXor'
     operation = staticmethod(lambda a, b: np.logical_xor(a, b))
 
 
 class LogicalAnd(LogicalElementwise):
-    enabled = False
     op = 'LogicalAnd'
     op_type = 'LogicalAnd'
     operation = staticmethod(lambda a, b: np.logical_and(a, b))
 
 
 class FloorMod(Elementwise):
-    enabled = False
     op = 'FloorMod'
     op_type = 'FloorMod'
     operation = staticmethod(lambda a, b: a % b)
 
 
-class Negative(Elementwise):
-    enabled = False
+class Negative(UnaryElementwise):
     op = 'Negative'
     op_type = 'Negative'
     operation = staticmethod(lambda a: -a)
-
-    @staticmethod
-    def type_infer(node):
-        copy_type_infer(node)

@@ -27,6 +27,10 @@ std::string BatchNormLayerTest::getTestCaseName(const testing::TestParamInfo<Bat
     return result.str();
 }
 
+InferenceEngine::Blob::Ptr BatchNormLayerTest::GenerateInput(const InferenceEngine::InputInfo &info) const {
+    return FuncTestUtils::createAndFillBlobConsistently(info.getTensorDesc(), 3, 0, 1);
+}
+
 void BatchNormLayerTest::SetUp() {
     InferenceEngine::Precision netPrecision;
     InferenceEngine::SizeVector inputShapes;

@@ -32,7 +32,6 @@
 
 #include "precision_utils.h"
 #include <ie_plugin_config.hpp>
-#include "low_precision_transformations/transformer.hpp"
 
 #include "utils/blob_dump.h"
 
