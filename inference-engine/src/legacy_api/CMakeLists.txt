@@ -49,8 +49,9 @@ add_library(${TARGET_NAME} SHARED $<TARGET_OBJECTS:${TARGET_NAME}_obj>)
 
 set_ie_threading_interface_for(${TARGET_NAME})
 
-target_link_libraries(${TARGET_NAME} PRIVATE ${NGRAPH_LIBRARIES} inference_engine
-                                             inference_engine_transformations pugixml openvino::itt)
+target_link_libraries(${TARGET_NAME} PUBLIC inference_engine
+                                     PRIVATE pugixml openvino::itt
+                                             ${NGRAPH_LIBRARIES} inference_engine_transformations)
 
 target_include_directories(${TARGET_NAME} INTERFACE ${PUBLIC_HEADERS_DIR})
 
