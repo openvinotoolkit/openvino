@@ -547,6 +547,10 @@ std::shared_ptr<ngraph::Node> V10Parser::createNode(const std::vector<ngraph::Ou
         if (pr_data) {
             rtInfo["PrimitivesPriority"] = std::make_shared<::ngraph::VariantWrapper<std::string> >(pr_data.value());
         }
+        const auto cr_data = dn.attribute("ConvReshape");
+        if (cr_data) {
+            rtInfo["ConvReshape"] = std::make_shared<::ngraph::VariantWrapper<std::string> >(cr_data.value());
+        }
     }
 
     ngraphNode->set_friendly_name(params.name);
