@@ -291,6 +291,21 @@ void ReorderMaxPoolPass::run() {
 }
 
 void SubstituteSoftSignPass::run() {
+    //detecting following pattern
+    // irv7 model:          irv10 model:
+    // a layer                  a layer
+    // |  \                     |  \
+    // abs  \                   abs  \
+    // |     |                  |     |
+    // |     |                  add   |
+    // |     |                  |     |
+    // power |                  power |
+    //  \   /                    \   /
+    //    mul                      mul
+    auto fp32eq = [](float p1, float p2) {
+        return (std::abs(p1 - p2) <= 0.00001f * std::min(std::abs(p1), std::abs(p2)));
+    };
+
     auto hasNChildren = [](CNNLayerPtr l, int N){
         if (l->outData.size() != 1) return false;
         if (getInputTo(l->outData.front()).size() != N) return false;
@@ -324,28 +339,27 @@ void SubstituteSoftSignPass::run() {
 
         if (!LayerInfo(addition).isPower()) continue;
         auto powerLayer = LayerInfo(addition).as<PowerLayer*>();
-        if (powerLayer->power != -1) {
+
+        if (!fp32eq(powerLayer->power, -1.0f)) {
             //if first one is power equals 1, then it still can be a softsign
             //with two power operations, one for add and one for power
-            if (powerLayer->power != 1) {
+            if (!fp32eq(powerLayer->power, 1.0f) ||
+                !fp32eq(powerLayer->offset, 1.0f) ||
+                !fp32eq(powerLayer->scale, 1.0f)) {
                 continue;
             } else {
-                if (powerLayer->offset != 1) continue;
-                if (powerLayer->scale != 1) continue;
-
                 power = getNthChild(addition, 0);
                 if (!LayerInfo(power).isPower()) continue;
                 auto powerLayer_1 = LayerInfo(power).as<PowerLayer*>();
-                if (powerLayer_1->power != -1) continue;
-                if (powerLayer_1->offset != 0) continue;
-                if (powerLayer_1->scale != 1) continue;
+                if (!fp32eq(powerLayer_1->power, -1.0f) ||
+                    !fp32eq(powerLayer_1->offset, 0.0f) ||
+                        !fp32eq(powerLayer_1->scale, 1.0f)) continue;
             }
         } else {
-            if (powerLayer->offset != 1) continue;
-            if (powerLayer->scale != 1) continue;
+            if (!fp32eq(powerLayer->offset, 1) ||
+                !fp32eq(powerLayer->scale, 1)) continue;
 
-            power = addition;
-            addition = nullptr;
+            std::swap(addition, power);
         }
 
         if (!hasNChildren(power, 1)) continue;

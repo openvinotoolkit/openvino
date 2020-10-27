@@ -44,5 +44,7 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*unaligned.*MultipleConcatTest.*)",
         // TODO: Issue: 40960
         R"(.*(ConstantResultSubgraphTest).*)",
+        // TODO: Issue: 41676
+        R"(.*(SoftsignTest).*IS=\(1\.1\.64\).*)",
     };
 }

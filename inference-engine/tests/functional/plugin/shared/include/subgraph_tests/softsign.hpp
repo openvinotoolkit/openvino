@@ -31,7 +31,9 @@ public:
 
 protected:
     void SetUp() override;
-    std::vector<std::vector<std::uint8_t>> CalculateRefs() override;
+
+private:
+    std::shared_ptr<ngraph::Function> GenerateNgraphFriendlySoftSign();
 };
 
 }  // namespace LayerTestsDefinitions
