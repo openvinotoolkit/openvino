@@ -189,7 +189,7 @@ int MathExpression::evaluate() const {
         VPU_THROW_EXCEPTION << "Illegal expression: not enough operators";
     }
 
-    return values.top().toFloat();
+    return values.top().toInt();
 }
 
 }  // namespace vpu

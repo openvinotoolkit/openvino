@@ -56,7 +56,8 @@ using CNNLayerWeakPtr = std::weak_ptr<CNNLayer>;
 
 }  // namespace InferenceEngine
 
-struct Data::Impl {
+class Data::Impl {
+public:
     /**
      * @brief A pointer to the layer that creates this data element, null for input data elements
      */

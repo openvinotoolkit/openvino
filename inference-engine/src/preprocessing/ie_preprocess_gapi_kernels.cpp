@@ -1252,7 +1252,7 @@ struct Mapper {
     typedef MapperUnit<short, short> Unit;
 
     static inline Unit map(double ratio, int start, int max, int outCoord) {
-        float f = ((outCoord + 0.5f) * ratio - 0.5f);
+        float f = static_cast<float>((outCoord + 0.5) * ratio - 0.5);
         int s = cvFloor(f);
         f -= s;
 
@@ -1278,7 +1278,7 @@ struct Mapper {
     typedef MapperUnit<float, int> Unit;
 
     static inline Unit map(double ratio, int start, int max, int outCoord) {
-        float f = ((outCoord + 0.5f) * ratio - 0.5f);
+        float f = static_cast<float>((outCoord + 0.5) * ratio - 0.5);
         int s = cvFloor(f);
         f -= s;
 
@@ -1687,8 +1687,8 @@ static int getResizeAreaTabSize(int dst_go, int ssize, int dsize, float scale) {
         float fsx1 = col * scale;
         float fsx2 = fsx1 + scale;
 
-        int sx1 = ceil(fsx1);
-        int sx2 = floor(fsx2);
+        int sx1 = static_cast<int>(ceil(fsx1));
+        int sx2 = static_cast<int>(floor(fsx2));
 
         sx2 = (std::min)(sx2, ssize - 1);
         sx1 = (std::min)(sx1, sx2);
@@ -1723,8 +1723,8 @@ static void computeResizeAreaTab(int src_go, int dst_go, int ssize, int dsize, f
         float fsx2 = fsx1 + scale;
         float cellWidth = (std::min)(scale, ssize - fsx1);
 
-        int sx1 = ceil(fsx1);
-        int sx2 = floor(fsx2);
+        int sx1 = static_cast<int>(ceil(fsx1));
+        int sx2 = static_cast<int>(floor(fsx2));
 
         sx2 = (std::min)(sx2, ssize - 1);
         sx1 = (std::min)(sx1, sx2);
