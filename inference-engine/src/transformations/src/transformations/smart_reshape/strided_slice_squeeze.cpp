@@ -174,11 +174,11 @@ bool ngraph::pass::SharedSqueeze::run_on_function(std::shared_ptr<ngraph::Functi
         }
     }
 
-    for (auto& pair : source_to_squeeze) {
-        if (pair.second.size() < 2)
+    for (auto& item : source_to_squeeze) {
+        if (item.second.size() < 2)
             continue;
-        auto root_squeeze = pair.second[0];
-        for (auto& child_squeeze : pair.second) {
+        auto root_squeeze = item.second[0];
+        for (auto& child_squeeze : item.second) {
             if (root_squeeze->get_instance_id() != child_squeeze->get_instance_id() && squeezes_perform_the_same(root_squeeze, child_squeeze)) {
                 graph_rewritten |= replace_output_update_name(child_squeeze->output(0), root_squeeze->output(0));
             }

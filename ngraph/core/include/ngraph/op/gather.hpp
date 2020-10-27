@@ -22,38 +22,6 @@ namespace ngraph
 {
     namespace op
     {
-        namespace v0
-        {
-            /// \brief Gather slices from axis of params according to indices
-            class NGRAPH_DEPRECATED(
-                "This operation is deprecated and will be removed soon. "
-                "Use v1::Gather instead of it.") NGRAPH_API Gather : public Op
-            {
-                NGRAPH_SUPPRESS_DEPRECATED_START
-            public:
-                static constexpr NodeTypeInfo type_info{"Gather", 0};
-                const NodeTypeInfo& get_type_info() const override { return type_info; }
-                Gather() = default;
-                /// \param params The tensor from which slices are gathered
-                /// \param indices Index tensor: Data type must be `element::i32` or `element::i64`
-                /// \param axis Axis in params to gather
-                Gather(const Output<Node>& params, const Output<Node>& indices, size_t axis = 0);
-
-                void validate_and_infer_types() override;
-
-                size_t get_axis() const { return m_axis; }
-                void set_axis(size_t axis) { m_axis = axis; }
-                virtual std::shared_ptr<Node>
-                    clone_with_new_inputs(const OutputVector& new_args) const override;
-                bool evaluate(const HostTensorVector& outputs,
-                              const HostTensorVector& inputs) const override;
-
-            protected:
-                size_t m_axis;
-                NGRAPH_SUPPRESS_DEPRECATED_END
-            };
-        }
-
         namespace v1
         {
             /// \brief Gather slices from axis of params according to indices
@@ -81,12 +49,12 @@ namespace ngraph
 
                 bool evaluate(const HostTensorVector& outputs,
                               const HostTensorVector& inputs) const override;
+
+            private:
+                static const int PARAMS;
+                static const int INDICES;
+                static const int AXIS;
             };
         }
-
-        // latest stable opset version
-        NGRAPH_SUPPRESS_DEPRECATED_START
-        using v0::Gather;
-        NGRAPH_SUPPRESS_DEPRECATED_END
     }
 }

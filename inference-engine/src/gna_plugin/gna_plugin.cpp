@@ -756,7 +756,7 @@ void GNAPlugin::createRequestConfigsForGnaModels() {
         return;
     }
     for (auto& model : gnaModels) {
-        const auto& gnaNnet = std::get<0>(model).get()->obj;
+        auto& gnaNnet = std::get<0>(model).get()->obj;
         const auto modelId = gnadevice->createModel(gnaNnet);
         const auto requestConfigId = gnadevice->createRequestConfig(modelId);
         gnaRequestConfigToRequestIdMap.push_back(std::make_tuple(requestConfigId, -1, InferenceEngine::BlobMap()));

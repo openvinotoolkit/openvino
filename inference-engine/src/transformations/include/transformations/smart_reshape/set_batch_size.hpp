@@ -20,6 +20,11 @@ class TRANSFORMATIONS_API SetBatchSize;
 }  // namespace pass
 }  // namespace ngraph
 
+/**
+ * @ingroup ie_transformation_common_api
+ * @brief Generic caller for all the transformations responsible to make model reshape-able by batch dimension
+ */
+
 class ngraph::pass::SetBatchSize: public ngraph::pass::FunctionPass {
 public:
     NGRAPH_RTTI_DECLARATION;

@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2016-2019 Intel Corporation
+﻿// Copyright (c) 2016-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -62,20 +62,20 @@ ParamsKey DeconvolutionKernelRef::GetSupportedKey() const {
 }
 
 CommonDispatchData DeconvolutionKernelRef::SetDefault(const deconvolution_params& params) const {
-    CommonDispatchData runInfo = DeconvolutionKernelBase::SetDefault(params);
+    CommonDispatchData dispatchData = DeconvolutionKernelBase::SetDefault(params);
 
     if (params.output.Feature().v * params.output.Batch().v <= 16) {
         const auto& out = params.output;
-        runInfo.gws0 = Align(out.X().v, 32);
-        runInfo.gws1 = out.Y().v * out.Z().v;
-        runInfo.gws2 = out.Feature().v * out.Batch().v;
+        dispatchData.gws[0] = Align(out.X().v, 32);
+        dispatchData.gws[1] = out.Y().v * out.Z().v;
+        dispatchData.gws[2] = out.Feature().v * out.Batch().v;
 
-        runInfo.lws0 = 32;
-        runInfo.lws1 = 1;
-        runInfo.lws2 = 1;
+        dispatchData.lws[0] = 32;
+        dispatchData.lws[1] = 1;
+        dispatchData.lws[2] = 1;
     }
 
-    return runInfo;
+    return dispatchData;
 }
 
 JitConstants DeconvolutionKernelRef::GetJitConstants(const deconvolution_params& params) const {
