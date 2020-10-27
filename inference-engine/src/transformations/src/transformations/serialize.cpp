@@ -167,7 +167,9 @@ ConstantAtributes dump_constant_data(std::vector<uint8_t>& bin,
     return attr;
 }
 
-std::string get_opset_name(const ngraph::Node* n) {
+std::string get_opset_name(
+    const ngraph::Node* n,
+    const std::map<std::string, ngraph::OpSet>& custom_opsets) {
     auto opsets = std::array<std::reference_wrapper<const ngraph::OpSet>, 5>{
         ngraph::get_opset1(), ngraph::get_opset2(), ngraph::get_opset3(),
         ngraph::get_opset4(), ngraph::get_opset5()};
@@ -178,6 +180,15 @@ std::string get_opset_name(const ngraph::Node* n) {
             return "opset" + std::to_string(idx + 1);
         }
     }
+
+    for (const auto& custom_opset : custom_opsets) {
+        std::string name = custom_opset.first;
+        ngraph::OpSet opset = custom_opset.second;
+        if (opset.contains_op_type(n)) {
+            return name;
+        }
+    }
+
     return "experimental";
 }
 
@@ -255,8 +266,10 @@ std::string get_node_unique_name(std::unordered_set<std::string>& unique_names,
     return name;
 }
 
-void ngfunction_2_irv10(pugi::xml_document& doc, std::vector<uint8_t>& bin,
-                        const ngraph::Function& f) {
+void ngfunction_2_irv10(
+    pugi::xml_document& doc, std::vector<uint8_t>& bin,
+    const ngraph::Function& f,
+    const std::map<std::string, ngraph::OpSet>& custom_opsets) {
     pugi::xml_node netXml = doc.append_child("net");
     netXml.append_attribute("name").set_value(f.get_friendly_name().c_str());
     netXml.append_attribute("version").set_value("10");
@@ -277,7 +290,7 @@ void ngfunction_2_irv10(pugi::xml_document& doc, std::vector<uint8_t>& bin,
             get_node_unique_name(unique_names, node).c_str());
         auto layer_type_attribute = layer.append_attribute("type");
         layer.append_attribute("version").set_value(
-            get_opset_name(node).c_str());
+            get_opset_name(node, custom_opsets).c_str());
 
         // <layers/data>
         pugi::xml_node data = layer.append_child("data");
@@ -357,7 +370,7 @@ bool pass::Serialize::run_on_function(std::shared_ptr<ngraph::Function> f) {
     std::vector<uint8_t> constants;
     switch (m_version) {
     case Version::IR_V10:
-        ngfunction_2_irv10(xml_doc, constants, *f);
+        ngfunction_2_irv10(xml_doc, constants, *f, m_custom_opsets);
         break;
     default:
         NGRAPH_UNREACHABLE("Unsupported version");
