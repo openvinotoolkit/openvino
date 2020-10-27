@@ -284,7 +284,7 @@ namespace LayerTestsDefinitions {
         if (auto_concat_out)
             fill_data_with_broadcast(out, axis, vals);
         else
-            fill_data_with_broadcast(out, 0, {val});
+            fill_data_with_broadcast(out, 0, {val});  // broadcast scalar data
 
         return {res};
     }
@@ -292,4 +292,49 @@ namespace LayerTestsDefinitions {
     TEST_P(StaticShapeLoopTest, CompareWithRefs) {
         Run();
     }
+
+    TEST_P(TrivialLoopTest, CheckLoad) {
+        SKIP_IF_CURRENT_TEST_IS_DISABLED()
+        InferenceEngine::Precision iePrc;
+        InferenceEngine::SizeVector ieShape;
+        std::tie(iePrc, ieShape, targetDevice) = GetParam();
+
+        const auto prc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(iePrc);
+        const auto shape = ngraph::Shape{ieShape};
+        const auto scalarShape = ngraph::Shape{};
+
+        auto start = std::make_shared<ngraph::op::Parameter>(prc, shape);
+        auto count = std::make_shared<ngraph::op::Constant>(ngraph::element::i64, scalarShape, 5);
+        auto icond = std::make_shared<ngraph::op::Constant>(ngraph::element::boolean, scalarShape, true);
+
+        // Loop body
+        auto b_data = std::make_shared<ngraph::op::Parameter>(prc, shape);
+        auto b_cond = std::make_shared<ngraph::op::Parameter>(ngraph::element::boolean, scalarShape);
+
+        auto body = std::make_shared<ngraph::Function>(
+                ngraph::OutputVector    {b_cond, b_data},   // | passthrough body, no data changes
+                ngraph::ParameterVector {b_cond, b_data});  // | input -> output
+
+        auto loop = std::make_shared<ngraph::opset5::Loop>(count, icond);
+        loop->set_function(body);
+        loop->set_special_body_ports({-1, 0});
+        loop->set_invariant_input(b_cond, icond);
+        loop->set_invariant_input(b_data, start);
+        loop->get_iter_value(b_data, -1);
+
+        function = std::make_shared<ngraph::Function>(
+                ngraph::OutputVector    {loop},
+                ngraph::ParameterVector {start});
+
+        // Precalculated ref blobs
+        auto blob = make_blob_with_precision({iePrc, ieShape, InferenceEngine::TensorDesc::getLayoutByDims(ieShape)});
+        blob->allocate();
+        CommonTestUtils::fill_data_with_broadcast(blob, 0, {10});
+
+        inputGens[""] = [&] (InferenceEngine::TensorDesc tdesc) { return blob; };
+        outputGens[""] = [&] (InferenceEngine::TensorDesc tdesc) { return blob; };
+
+        Run();
+    }
+
 }  // namespace LayerTestsDefinitions
