@@ -102,7 +102,7 @@ namespace
             return it->second();
         }
 
-        const ngraph::OpSet& m_opset{ngraph::get_opset4()};
+        const ngraph::OpSet& m_opset{ngraph::get_opset5()};
     };
 }
 

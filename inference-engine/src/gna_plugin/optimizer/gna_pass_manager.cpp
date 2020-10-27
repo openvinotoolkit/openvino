@@ -653,7 +653,7 @@ void InsertIdentityLayerPass::run() {
                 THROW_GNA_EXCEPTION << "cannot insert identity layer after" << prev->name << " and before " << l->name;
             }
 
-            auto inputData = l->insData[0].lock();
+            auto inputData = l->insData[insDataIdx].lock();
 
             auto dataPtr = std::make_shared<Data>("identity_data_" + std::to_string(numOfIdentityLayers), inputData->getTensorDesc());
             auto activationLayerWithQuant = quantized ?

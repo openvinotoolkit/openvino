@@ -60,27 +60,26 @@ protected:
         VPU_THROW_UNLESS(numOutputs() == 1,
                          "{} stage with name {} must have only 1 output, actually provided {} outputs",
                          type(), name(), numOutputs());
-        if (mode == BroadcastMode::NUMPY) {
-            VPU_THROW_UNLESS(numInputs() == 2,
-                             "{} stage with name {} and numpy mode must have 2 inputs, actually "
-                             "provided {} inputs", type(), name(), numInputs());
-            assertInputsOutputsTypes(this,
-                                     {{dataPrecision}, {DataType::S32}},
-                                     {{dataPrecision}});
-
-        } else {
+        if (mode == BroadcastMode::EXPLICIT) {
             VPU_THROW_UNLESS(numInputs() == 3,
                              "{} stage with name {} and explicit mode must have 3 inputs, actually "
                              "provided {} inputs", type(), name(), numInputs());
             assertInputsOutputsTypes(this,
                                      {{dataPrecision}, {DataType::S32}, {DataType::S32}},
                                      {{dataPrecision}});
+        } else {
+            VPU_THROW_UNLESS(numInputs() == 2,
+                             "{} stage with name {} and numpy or bidirectional mode must have 2 inputs, actually "
+                             "provided {} inputs", type(), name(), numInputs());
+            assertInputsOutputsTypes(this,
+                                     {{dataPrecision}, {DataType::S32}},
+                                     {{dataPrecision}});
         }
     }
 
     void serializeParamsImpl(BlobSerializer& serializer) const override {
         const auto mode = attrs().getOrDefault<BroadcastMode>("mode", BroadcastMode::NUMPY);
-        serializer.append(static_cast<uint32_t>(mode == BroadcastMode::NUMPY ? 0 : 1));
+        serializer.append(mode);
     }
 
     void serializeDataImpl(BlobSerializer& serializer) const override {
@@ -104,18 +103,26 @@ void FrontEnd::parseBroadcast(
         const DataVector& outputs) const {
     VPU_THROW_UNLESS(layer != nullptr,
                      "parseBroadcast expects valid CNNLayerPtr, got nullptr");
-
     VPU_THROW_UNLESS(outputs.size() == 1,
                      "{} layer with name {} must have only 1 output, actually provided {} outputs",
                      layer->type, layer->name, outputs.size());
     const auto output = outputs[0];
-
     const auto modeString = layer->GetParamAsString("mode", "numpy");
-    if (modeString == "numpy") {
+    const std::map<std::string, BroadcastMode> modeFromString = {
+        {"numpy", BroadcastMode::NUMPY},
+        {"explicit", BroadcastMode::EXPLICIT},
+        {"bidirectional", BroadcastMode::BIDIRECTIONAL}
+    };
+    const auto& modeFind = modeFromString.find(modeString);
+    VPU_THROW_UNLESS(modeFind != modeFromString.end(),
+                     "{} layer with name {}: Graph Transformer doesn't support {} mode",
+                     layer->type, layer->name, modeString);
+    const auto mode = modeFind->second;
+    if (mode == BroadcastMode::NUMPY || mode == BroadcastMode::BIDIRECTIONAL) {
         VPU_THROW_UNLESS(inputs.size() == 2,
-                         "{} layer with name {} and numpy mode must have 2 inputs, actually "
-                         "provided {} inputs", layer->type, layer->name, inputs.size());
-    } else if (modeString == "explicit") {
+                         "{} layer with name {} and {} mode must have 2 inputs, actually "
+                         "provided {} inputs", layer->type, layer->name, modeString, inputs.size());
+    } else if (mode == BroadcastMode::EXPLICIT) {
         VPU_THROW_UNLESS(inputs.size() == 3,
                          "{} layer with name {} and explicit mode must have 3 inputs, actually "
                          "provided {} inputs", layer->type, layer->name, inputs.size());
@@ -143,12 +150,10 @@ void FrontEnd::parseBroadcast(
                      "{} layer with name {} and explicit mode must have 1D target shape tensor, "
                      "actually provided {}D tensor",
                      layer->type, layer->name, shapeDesc.numDims());
-    VPU_THROW_UNLESS(shapeDim == output->desc().numDims(),
+    VPU_THROW_UNLESS(shapeDim == output->desc().numDims() || mode != BroadcastMode::EXPLICIT,
                      "{} layer with name {} and explicit mode must have target shape tensor with "
                      "size equals to number of output dims, expected [{}], provided [{}]",
                      layer->type, layer->name, output->desc().numDims(), shapeDim);
-
-    const auto mode = modeString == "numpy" ? BroadcastMode::NUMPY : BroadcastMode::EXPLICIT;
 
     auto stage = model->addNewStage<BroadcastStage>(
             layer->name,

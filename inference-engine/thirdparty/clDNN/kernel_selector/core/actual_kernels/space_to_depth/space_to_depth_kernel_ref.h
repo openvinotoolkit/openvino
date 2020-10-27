@@ -16,7 +16,7 @@
 
 #pragma once
 
-#include "common_kernel_base.h"
+#include "kernel_base_opencl.h"
 
 namespace kernel_selector {
 
@@ -40,9 +40,9 @@ struct space_to_depth_optional_params : optional_params {
     space_to_depth_optional_params() : optional_params(KernelType::SPACE_TO_DEPTH) {}
 };
 
-class SpaceToDepthKernelRef : public common_kernel_base {
+class SpaceToDepthKernelRef : public KernelBaseOpenCL {
 public:
-    SpaceToDepthKernelRef() : common_kernel_base("space_to_depth_ref") {}
+    SpaceToDepthKernelRef() : KernelBaseOpenCL("space_to_depth_ref") {}
     virtual ~SpaceToDepthKernelRef() = default;
     KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
     ParamsKey GetSupportedKey() const override;

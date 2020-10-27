@@ -14,12 +14,8 @@ const std::vector<InferenceEngine::Precision> inputPrecisions = {
         InferenceEngine::Precision::FP32
 };
 
-const std::vector<std::vector<size_t>> shapesA = {
-        {1, 4, 5, 6}
-};
-
-const std::vector<std::vector<size_t>> shapesB = {
-        {1, 4, 6, 4}
+const std::vector<ShapeRelatedParams> shapeRelatedParams = {
+        { { {1, 4, 5, 6}, false }, { {1, 4, 6, 4}, false } }
 };
 
 std::vector<ngraph::helpers::InputLayerType> secondaryInputTypes = {
@@ -27,18 +23,18 @@ std::vector<ngraph::helpers::InputLayerType> secondaryInputTypes = {
         ngraph::helpers::InputLayerType::PARAMETER,
 };
 
+std::map<std::string, std::string> additional_config = {};
+
 INSTANTIATE_TEST_CASE_P(smoke_MatMul, MatMulTest,
         ::testing::Combine(
+                ::testing::ValuesIn(shapeRelatedParams),
                 ::testing::ValuesIn(inputPrecisions),
                 ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                 ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                 ::testing::Values(InferenceEngine::Layout::ANY),
-                ::testing::ValuesIn(shapesA),
-                ::testing::ValuesIn(shapesB),
-                ::testing::Values(false),
-                ::testing::Values(false),
                 ::testing::ValuesIn(secondaryInputTypes),
-                ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                ::testing::Values(CommonTestUtils::DEVICE_CPU),
+                ::testing::Values(additional_config)),
         MatMulTest::getTestCaseName);
 
 } // namespace

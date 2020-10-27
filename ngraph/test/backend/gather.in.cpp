@@ -40,14 +40,15 @@ using namespace ngraph;
 
 static string s_manifest = "${MANIFEST}";
 
-NGRAPH_TEST(${BACKEND_NAME}, gather_4d_indices_no_axis_uint8)
+NGRAPH_TEST(${BACKEND_NAME}, gather_4d_indices_axis_0_uint8)
 {
     Shape params_shape{3, 2};
     Shape indices_shape{2, 2, 3, 4};
     Shape out_shape{2, 2, 3, 4, 2};
     auto P = make_shared<op::Parameter>(element::u8, params_shape);
     auto I = make_shared<op::Parameter>(element::i32, indices_shape);
-    auto G = make_shared<op::Gather>(P, I);
+    auto A = op::Constant::create(element::i64, Shape{}, {0});
+    auto G = make_shared<op::v1::Gather>(P, I, A);
     auto f = make_shared<Function>(G, ParameterVector{P, I});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
@@ -73,14 +74,15 @@ NGRAPH_TEST(${BACKEND_NAME}, gather_4d_indices_no_axis_uint8)
         read_vector<uint8_t>(result)));
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, gather_4d_indices_no_axis_2d_input)
+NGRAPH_TEST(${BACKEND_NAME}, gather_4d_indices_axis_0_2d_input)
 {
     Shape params_shape{3, 2};
     Shape indices_shape{2, 2, 3, 4};
     Shape out_shape{2, 2, 3, 4, 2};
     auto P = make_shared<op::Parameter>(element::f32, params_shape);
     auto I = make_shared<op::Parameter>(element::i32, indices_shape);
-    auto G = make_shared<op::Gather>(P, I);
+    auto A = op::Constant::create(element::i64, Shape{}, {0});
+    auto G = make_shared<op::v1::Gather>(P, I, A);
     auto f = make_shared<Function>(G, ParameterVector{P, I});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
@@ -109,14 +111,15 @@ NGRAPH_TEST(${BACKEND_NAME}, gather_4d_indices_no_axis_2d_input)
         MIN_FLOAT_TOLERANCE_BITS));
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, gather_3d_indices_no_axis_2d_input)
+NGRAPH_TEST(${BACKEND_NAME}, gather_3d_indices_axis_0_2d_input)
 {
     Shape params_shape{3, 2};
     Shape indices_shape{2, 3, 4};
     Shape out_shape{2, 3, 4, 2};
     auto P = make_shared<op::Parameter>(element::f32, params_shape);
     auto I = make_shared<op::Parameter>(element::i32, indices_shape);
-    auto G = make_shared<op::Gather>(P, I);
+    auto A = op::Constant::create(element::i64, Shape{}, {0});
+    auto G = make_shared<op::v1::Gather>(P, I, A);
     auto f = make_shared<Function>(G, ParameterVector{P, I});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
@@ -140,14 +143,15 @@ NGRAPH_TEST(${BACKEND_NAME}, gather_3d_indices_no_axis_2d_input)
         MIN_FLOAT_TOLERANCE_BITS));
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, gather_2d_indices_no_axis_2d_input)
+NGRAPH_TEST(${BACKEND_NAME}, gather_2d_indices_axis_0_2d_input)
 {
     Shape params_shape{3, 2};
     Shape indices_shape{2, 2};
     Shape out_shape{2, 2, 2};
     auto P = make_shared<op::Parameter>(element::f32, params_shape);
     auto I = make_shared<op::Parameter>(element::i32, indices_shape);
-    auto G = make_shared<op::Gather>(P, I);
+    auto A = op::Constant::create(element::i64, Shape{}, {0});
+    auto G = make_shared<op::v1::Gather>(P, I, A);
     auto f = make_shared<Function>(G, ParameterVector{P, I});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
@@ -166,14 +170,15 @@ NGRAPH_TEST(${BACKEND_NAME}, gather_2d_indices_no_axis_2d_input)
                                   MIN_FLOAT_TOLERANCE_BITS));
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, gather_2d_negative_and_positive_indices_no_axis_2d_input)
+NGRAPH_TEST(${BACKEND_NAME}, gather_2d_negative_and_positive_indices_axis_0_2d_input)
 {
     Shape params_shape{3, 2};
     Shape indices_shape{2, 2};
     Shape out_shape{2, 2, 2};
     auto P = make_shared<op::Parameter>(element::f32, params_shape);
     auto I = make_shared<op::Parameter>(element::i32, indices_shape);
-    auto G = make_shared<op::Gather>(P, I);
+    auto A = op::Constant::create(element::i64, Shape{}, {0});
+    auto G = make_shared<op::v1::Gather>(P, I, A);
     auto f = make_shared<Function>(G, ParameterVector{P, I});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
@@ -192,14 +197,15 @@ NGRAPH_TEST(${BACKEND_NAME}, gather_2d_negative_and_positive_indices_no_axis_2d_
                                   MIN_FLOAT_TOLERANCE_BITS));
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, gather_1d_indices_no_axis_1d_input)
+NGRAPH_TEST(${BACKEND_NAME}, gather_1d_indices_axis_0_1d_input)
 {
     Shape params_shape{3};
     Shape indices_shape{2};
     Shape out_shape{2};
     auto P = make_shared<op::Parameter>(element::f32, params_shape);
     auto I = make_shared<op::Parameter>(element::i32, indices_shape);
-    auto G = make_shared<op::Gather>(P, I);
+    auto A = op::Constant::create(element::i64, Shape{}, {0});
+    auto G = make_shared<op::v1::Gather>(P, I, A);
     auto f = make_shared<Function>(G, ParameterVector{P, I});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
@@ -217,14 +223,15 @@ NGRAPH_TEST(${BACKEND_NAME}, gather_1d_indices_no_axis_1d_input)
         (vector<float>{2.0f, 1.0f}), read_vector<float>(result), MIN_FLOAT_TOLERANCE_BITS));
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, gather_scalar_indices_no_axis_2d_input)
+NGRAPH_TEST(${BACKEND_NAME}, gather_scalar_indices_axis_0_2d_input)
 {
     Shape params_shape{3, 2};
     Shape indices_shape{};
     Shape out_shape{2};
     auto P = make_shared<op::Parameter>(element::f32, params_shape);
     auto I = make_shared<op::Parameter>(element::i32, indices_shape);
-    auto G = make_shared<op::Gather>(P, I);
+    auto A = op::Constant::create(element::i64, Shape{}, {0});
+    auto G = make_shared<op::v1::Gather>(P, I, A);
     auto f = make_shared<Function>(G, ParameterVector{P, I});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
@@ -249,7 +256,8 @@ NGRAPH_TEST(${BACKEND_NAME}, gather_2d_indices_axis_1_2d_input)
     Shape out_shape{3, 1, 2};
     auto P = make_shared<op::Parameter>(element::f32, params_shape);
     auto I = make_shared<op::Parameter>(element::i32, indices_shape);
-    auto G = make_shared<op::Gather>(P, I, 1);
+    auto A = op::Constant::create(element::i64, Shape{}, {1});
+    auto G = make_shared<op::v1::Gather>(P, I, A);
     auto f = make_shared<Function>(G, ParameterVector{P, I});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
@@ -275,7 +283,8 @@ NGRAPH_TEST(${BACKEND_NAME}, gather_1d_indices_axis_2_4d_input)
     Shape out_shape{2, 2, 2, 3};
     auto P = make_shared<op::Parameter>(element::f32, params_shape);
     auto I = make_shared<op::Parameter>(element::i32, indices_shape);
-    auto G = make_shared<op::Gather>(P, I, 2);
+    auto A = op::Constant::create(element::i64, Shape{}, {2});
+    auto G = make_shared<op::v1::Gather>(P, I, A);
     auto f = make_shared<Function>(G, ParameterVector{P, I});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
@@ -306,7 +315,8 @@ NGRAPH_TEST(${BACKEND_NAME}, gather_scalar_indices_axis_1_2d_input)
     Shape out_shape{3};
     auto P = make_shared<op::Parameter>(element::f32, params_shape);
     auto I = make_shared<op::Parameter>(element::i32, indices_shape);
-    auto G = make_shared<op::Gather>(P, I, 1);
+    auto A = op::Constant::create(element::i64, Shape{}, {1});
+    auto G = make_shared<op::v1::Gather>(P, I, A);
     auto f = make_shared<Function>(G, ParameterVector{P, I});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
@@ -324,296 +334,15 @@ NGRAPH_TEST(${BACKEND_NAME}, gather_scalar_indices_axis_1_2d_input)
         (vector<float>{1.0f, 2.0f, 3.0f}), read_vector<float>(result), MIN_FLOAT_TOLERANCE_BITS));
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, gather_nd_single_indices)
-{
-    Shape params_shape{3, 3};
-    Shape indices_shape{2};
-    Shape out_shape{};
-    auto P = make_shared<op::Parameter>(element::f32, params_shape);
-    auto I = make_shared<op::Parameter>(element::i32, indices_shape);
-    auto G = make_shared<op::GatherND>(P, I);
-    auto f = make_shared<Function>(G, ParameterVector{P, I});
-
-    auto backend = runtime::Backend::create("${BACKEND_NAME}");
-
-    // Create some tensors for input/output
-    auto p = backend->create_tensor(element::f32, params_shape);
-    copy_data(p, vector<float>{1.0f, 1.1f, 1.2f, 1.3f, 1.4f, 1.5f, 1.6f, 1.7f, 1.8f});
-    auto i = backend->create_tensor(element::i32, indices_shape);
-    copy_data(i, vector<int32_t>{1, 2});
-    auto result = backend->create_tensor(element::f32, out_shape);
-
-    auto c = backend->compile(f);
-    c->call_with_validate({result}, {p, i});
-    EXPECT_TRUE(test::all_close_f(
-        (vector<float>{1.5f}), read_vector<float>(result), MIN_FLOAT_TOLERANCE_BITS));
-}
-
-NGRAPH_TEST(${BACKEND_NAME}, gather_nd_scalar_from_2d)
-{
-    Shape params_shape{2, 2};
-    Shape indices_shape{2, 2};
-    Shape out_shape{2};
-    auto P = make_shared<op::Parameter>(element::f32, params_shape);
-    auto I = make_shared<op::Parameter>(element::i32, indices_shape);
-    auto G = make_shared<op::GatherND>(P, I);
-    auto f = make_shared<Function>(G, ParameterVector{P, I});
-
-    auto backend = runtime::Backend::create("${BACKEND_NAME}");
-
-    // Create some tensors for input/output
-    auto p = backend->create_tensor(element::f32, params_shape);
-    copy_data(p, vector<float>{1.0f, 1.1f, 1.2f, 1.3f});
-    auto i = backend->create_tensor(element::i32, indices_shape);
-    copy_data(i, vector<int32_t>{0, 0, 1, 1});
-    auto result = backend->create_tensor(element::f32, out_shape);
-
-    auto c = backend->compile(f);
-    c->call_with_validate({result}, {p, i});
-    EXPECT_TRUE(test::all_close_f(
-        (vector<float>{1.0f, 1.3f}), read_vector<float>(result), MIN_FLOAT_TOLERANCE_BITS));
-}
-
-NGRAPH_TEST(${BACKEND_NAME}, gather_nd_1d_from_2d)
-{
-    Shape params_shape{2, 2};
-    Shape indices_shape{2, 1};
-    Shape out_shape{2, 2};
-    auto P = make_shared<op::Parameter>(element::f32, params_shape);
-    auto I = make_shared<op::Parameter>(element::i32, indices_shape);
-    auto G = make_shared<op::GatherND>(P, I);
-    auto f = make_shared<Function>(G, ParameterVector{P, I});
-
-    auto backend = runtime::Backend::create("${BACKEND_NAME}");
-
-    // Create some tensors for input/output
-    auto p = backend->create_tensor(element::f32, params_shape);
-    copy_data(p, vector<float>{1.0f, 1.1f, 1.2f, 1.3f});
-    auto i = backend->create_tensor(element::i32, indices_shape);
-    copy_data(i, vector<int32_t>{1, 0});
-    auto result = backend->create_tensor(element::f32, out_shape);
-
-    auto c = backend->compile(f);
-    c->call_with_validate({result}, {p, i});
-    EXPECT_TRUE(test::all_close_f((vector<float>{1.2f, 1.3f, 1.0f, 1.1f}),
-                                  read_vector<float>(result),
-                                  MIN_FLOAT_TOLERANCE_BITS));
-}
-
-NGRAPH_TEST(${BACKEND_NAME}, gather_nd_scalar_from_3d)
-{
-    Shape params_shape{2, 2, 2};
-    Shape indices_shape{2, 3};
-    Shape out_shape{2};
-    auto P = make_shared<op::Parameter>(element::f32, params_shape);
-    auto I = make_shared<op::Parameter>(element::i32, indices_shape);
-    auto G = make_shared<op::GatherND>(P, I);
-    auto f = make_shared<Function>(G, ParameterVector{P, I});
-
-    auto backend = runtime::Backend::create("${BACKEND_NAME}");
-
-    // Create some tensors for input/output
-    auto p = backend->create_tensor(element::f32, params_shape);
-    copy_data(p, vector<float>{1.0f, 1.1f, 1.2f, 1.3f, 2.0f, 2.1f, 2.2f, 2.3f});
-    auto i = backend->create_tensor(element::i32, indices_shape);
-    copy_data(i, vector<int32_t>{0, 0, 1, 1, 0, 1});
-    auto result = backend->create_tensor(element::f32, out_shape);
-
-    auto c = backend->compile(f);
-    c->call_with_validate({result}, {p, i});
-    EXPECT_TRUE(test::all_close_f(
-        (vector<float>{1.1f, 2.1f}), read_vector<float>(result), MIN_FLOAT_TOLERANCE_BITS));
-}
-
-NGRAPH_TEST(${BACKEND_NAME}, gather_nd_1d_from_3d)
-{
-    Shape params_shape{2, 2, 2};
-    Shape indices_shape{2, 2};
-    Shape out_shape{2, 2};
-    auto P = make_shared<op::Parameter>(element::f32, params_shape);
-    auto I = make_shared<op::Parameter>(element::i32, indices_shape);
-    auto G = make_shared<op::GatherND>(P, I);
-    auto f = make_shared<Function>(G, ParameterVector{P, I});
-
-    auto backend = runtime::Backend::create("${BACKEND_NAME}");
-
-    // Create some tensors for input/output
-    auto p = backend->create_tensor(element::f32, params_shape);
-    copy_data(p, vector<float>{1.0f, 1.1f, 1.2f, 1.3f, 2.0f, 2.1f, 2.2f, 2.3f});
-    auto i = backend->create_tensor(element::i32, indices_shape);
-    copy_data(i, vector<int32_t>{0, 1, 1, 0});
-    auto result = backend->create_tensor(element::f32, out_shape);
-
-    auto c = backend->compile(f);
-    c->call_with_validate({result}, {p, i});
-    EXPECT_TRUE(test::all_close_f((vector<float>{1.2f, 1.3f, 2.0f, 2.1f}),
-                                  read_vector<float>(result),
-                                  MIN_FLOAT_TOLERANCE_BITS));
-}
-
-NGRAPH_TEST(${BACKEND_NAME}, gather_nd_2d_from_3d)
-{
-    Shape params_shape{2, 2, 2};
-    Shape indices_shape{1, 1};
-    Shape out_shape{1, 2, 2};
-    auto P = make_shared<op::Parameter>(element::f32, params_shape);
-    auto I = make_shared<op::Parameter>(element::i32, indices_shape);
-    auto G = make_shared<op::GatherND>(P, I);
-    auto f = make_shared<Function>(G, ParameterVector{P, I});
-
-    auto backend = runtime::Backend::create("${BACKEND_NAME}");
-
-    // Create some tensors for input/output
-    auto p = backend->create_tensor(element::f32, params_shape);
-    copy_data(p, vector<float>{1.0f, 1.1f, 1.2f, 1.3f, 2.0f, 2.1f, 2.2f, 2.3f});
-    auto i = backend->create_tensor(element::i32, indices_shape);
-    copy_data(i, vector<int32_t>{1});
-    auto result = backend->create_tensor(element::f32, out_shape);
-
-    auto c = backend->compile(f);
-    c->call_with_validate({result}, {p, i});
-    EXPECT_TRUE(test::all_close_f((vector<float>{2.0f, 2.1f, 2.2f, 2.3f}),
-                                  read_vector<float>(result),
-                                  MIN_FLOAT_TOLERANCE_BITS));
-}
-
-NGRAPH_TEST(${BACKEND_NAME}, gather_nd_batch_scalar_from_2d)
-{
-    Shape params_shape{2, 2};
-    Shape indices_shape{2, 1, 2};
-    Shape out_shape{2, 1};
-    auto P = make_shared<op::Parameter>(element::f32, params_shape);
-    auto I = make_shared<op::Parameter>(element::i32, indices_shape);
-    auto G = make_shared<op::GatherND>(P, I);
-    auto f = make_shared<Function>(G, ParameterVector{P, I});
-
-    auto backend = runtime::Backend::create("${BACKEND_NAME}");
-
-    // Create some tensors for input/output
-    auto p = backend->create_tensor(element::f32, params_shape);
-    copy_data(p, vector<float>{1.0f, 1.1f, 1.2f, 1.3f});
-    auto i = backend->create_tensor(element::i32, indices_shape);
-    copy_data(i, vector<int32_t>{0, 0, 0, 1});
-    auto result = backend->create_tensor(element::f32, out_shape);
-
-    auto c = backend->compile(f);
-    c->call_with_validate({result}, {p, i});
-    EXPECT_TRUE(test::all_close_f(
-        (vector<float>{1.0f, 1.1f}), read_vector<float>(result), MIN_FLOAT_TOLERANCE_BITS));
-}
-
-NGRAPH_TEST(${BACKEND_NAME}, gather_nd_batch_1d_from_2d)
-{
-    Shape params_shape{2, 2};
-    Shape indices_shape{2, 1, 1};
-    Shape out_shape{2, 1, 2};
-    auto P = make_shared<op::Parameter>(element::f32, params_shape);
-    auto I = make_shared<op::Parameter>(element::i32, indices_shape);
-    auto G = make_shared<op::GatherND>(P, I);
-    auto f = make_shared<Function>(G, ParameterVector{P, I});
-
-    auto backend = runtime::Backend::create("${BACKEND_NAME}");
-
-    // Create some tensors for input/output
-    auto p = backend->create_tensor(element::f32, params_shape);
-    copy_data(p, vector<float>{1.0f, 1.1f, 1.2f, 1.3f});
-    auto i = backend->create_tensor(element::i32, indices_shape);
-    copy_data(i, vector<int32_t>{1, 0});
-    auto result = backend->create_tensor(element::f32, out_shape);
-
-    auto c = backend->compile(f);
-    c->call_with_validate({result}, {p, i});
-    EXPECT_TRUE(test::all_close_f((vector<float>{1.2f, 1.3f, 1.0f, 1.1f}),
-                                  read_vector<float>(result),
-                                  MIN_FLOAT_TOLERANCE_BITS));
-}
-
-NGRAPH_TEST(${BACKEND_NAME}, gather_nd_batch_scalar_from_3d)
-{
-    Shape params_shape{2, 2, 2};
-    Shape indices_shape{2, 2, 3};
-    Shape out_shape{2, 2};
-    auto P = make_shared<op::Parameter>(element::f32, params_shape);
-    auto I = make_shared<op::Parameter>(element::i32, indices_shape);
-    auto G = make_shared<op::GatherND>(P, I);
-    auto f = make_shared<Function>(G, ParameterVector{P, I});
-
-    auto backend = runtime::Backend::create("${BACKEND_NAME}");
-
-    // Create some tensors for input/output
-    auto p = backend->create_tensor(element::f32, params_shape);
-    copy_data(p, vector<float>{1.0f, 1.1f, 1.2f, 1.3f, 2.0f, 2.1f, 2.2f, 2.3f});
-    auto i = backend->create_tensor(element::i32, indices_shape);
-    copy_data(i, vector<int32_t>{0, 0, 1, 1, 0, 1, 0, 1, 1, 1, 1, 0});
-    auto result = backend->create_tensor(element::f32, out_shape);
-
-    auto c = backend->compile(f);
-    c->call_with_validate({result}, {p, i});
-    EXPECT_TRUE(test::all_close_f((vector<float>{1.1f, 2.1f, 1.3f, 2.2f}),
-                                  read_vector<float>(result),
-                                  MIN_FLOAT_TOLERANCE_BITS));
-}
-
-NGRAPH_TEST(${BACKEND_NAME}, gather_nd_batch_1d_from_3d)
-{
-    Shape params_shape{2, 2, 2};
-    Shape indices_shape{2, 2, 2};
-    Shape out_shape{2, 2, 2};
-    auto P = make_shared<op::Parameter>(element::f32, params_shape);
-    auto I = make_shared<op::Parameter>(element::i32, indices_shape);
-    auto G = make_shared<op::GatherND>(P, I);
-    auto f = make_shared<Function>(G, ParameterVector{P, I});
-
-    auto backend = runtime::Backend::create("${BACKEND_NAME}");
-
-    // Create some tensors for input/output
-    auto p = backend->create_tensor(element::f32, params_shape);
-    copy_data(p, vector<float>{1.0f, 1.1f, 1.2f, 1.3f, 2.0f, 2.1f, 2.2f, 2.3f});
-    auto i = backend->create_tensor(element::i32, indices_shape);
-    copy_data(i, vector<int32_t>{0, 1, 1, 0, 0, 0, 1, 1});
-    auto result = backend->create_tensor(element::f32, out_shape);
-
-    auto c = backend->compile(f);
-    c->call_with_validate({result}, {p, i});
-    EXPECT_TRUE(test::all_close_f((vector<float>{1.2f, 1.3f, 2.0f, 2.1f, 1.0f, 1.1f, 2.2f, 2.3f}),
-                                  read_vector<float>(result),
-                                  MIN_FLOAT_TOLERANCE_BITS));
-}
-
-NGRAPH_TEST(${BACKEND_NAME}, gather_nd_batch_2d_from_3d)
-{
-    Shape params_shape{2, 2, 2};
-    Shape indices_shape{2, 1, 1};
-    Shape out_shape{2, 1, 2, 2};
-    auto P = make_shared<op::Parameter>(element::f32, params_shape);
-    auto I = make_shared<op::Parameter>(element::i32, indices_shape);
-    auto G = make_shared<op::GatherND>(P, I);
-    auto f = make_shared<Function>(G, ParameterVector{P, I});
-
-    auto backend = runtime::Backend::create("${BACKEND_NAME}");
-
-    // Create some tensors for input/output
-    auto p = backend->create_tensor(element::f32, params_shape);
-    copy_data(p, vector<float>{1.0f, 1.1f, 1.2f, 1.3f, 2.0f, 2.1f, 2.2f, 2.3f});
-    auto i = backend->create_tensor(element::i32, indices_shape);
-    copy_data(i, vector<int32_t>{1, 0});
-    auto result = backend->create_tensor(element::f32, out_shape);
-
-    auto c = backend->compile(f);
-    c->call_with_validate({result}, {p, i});
-    EXPECT_TRUE(test::all_close_f((vector<float>{2.0f, 2.1f, 2.2f, 2.3f, 1.0f, 1.1f, 1.2f, 1.3f}),
-                                  read_vector<float>(result),
-                                  MIN_FLOAT_TOLERANCE_BITS));
-}
-
-NGRAPH_TEST(${BACKEND_NAME}, gather_no_axis_int8)
+NGRAPH_TEST(${BACKEND_NAME}, gather_axis_0_int8)
 {
     Shape params_shape{3, 2};
     Shape indices_shape{2, 2};
     Shape out_shape{2, 2, 2};
     auto P = make_shared<op::Parameter>(element::i8, params_shape);
     auto I = make_shared<op::Parameter>(element::i32, indices_shape);
-    auto G = make_shared<op::Gather>(P, I);
+    auto A = op::Constant::create(element::i64, Shape{}, {0});
+    auto G = make_shared<op::v1::Gather>(P, I, A);
     auto f = make_shared<Function>(G, ParameterVector{P, I});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
@@ -631,14 +360,15 @@ NGRAPH_TEST(${BACKEND_NAME}, gather_no_axis_int8)
                                 read_vector<int8_t>(result)));
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, gather_no_axis_int16)
+NGRAPH_TEST(${BACKEND_NAME}, gather_axis_0_int16)
 {
     Shape params_shape{3, 2};
     Shape indices_shape{2, 2};
     Shape out_shape{2, 2, 2};
     auto P = make_shared<op::Parameter>(element::i16, params_shape);
     auto I = make_shared<op::Parameter>(element::i64, indices_shape);
-    auto G = make_shared<op::Gather>(P, I);
+    auto A = op::Constant::create(element::i64, Shape{}, {0});
+    auto G = make_shared<op::v1::Gather>(P, I, A);
     auto f = make_shared<Function>(G, ParameterVector{P, I});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
@@ -656,14 +386,15 @@ NGRAPH_TEST(${BACKEND_NAME}, gather_no_axis_int16)
                                 read_vector<int16_t>(result)));
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, gather_no_axis_int32)
+NGRAPH_TEST(${BACKEND_NAME}, gather_axis_0_int32)
 {
     Shape params_shape{3, 2};
     Shape indices_shape{2, 2};
     Shape out_shape{2, 2, 2};
     auto P = make_shared<op::Parameter>(element::i32, params_shape);
     auto I = make_shared<op::Parameter>(element::i32, indices_shape);
-    auto G = make_shared<op::Gather>(P, I);
+    auto A = op::Constant::create(element::i64, Shape{}, {0});
+    auto G = make_shared<op::v1::Gather>(P, I, A);
     auto f = make_shared<Function>(G, ParameterVector{P, I});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
@@ -681,14 +412,15 @@ NGRAPH_TEST(${BACKEND_NAME}, gather_no_axis_int32)
                                 read_vector<int32_t>(result)));
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, gather_no_axis_int64)
+NGRAPH_TEST(${BACKEND_NAME}, gather_axis_0_int64)
 {
     Shape params_shape{3, 2};
     Shape indices_shape{2, 2};
     Shape out_shape{2, 2, 2};
     auto P = make_shared<op::Parameter>(element::i64, params_shape);
     auto I = make_shared<op::Parameter>(element::i64, indices_shape);
-    auto G = make_shared<op::Gather>(P, I);
+    auto A = op::Constant::create(element::i64, Shape{}, {0});
+    auto G = make_shared<op::v1::Gather>(P, I, A);
     auto f = make_shared<Function>(G, ParameterVector{P, I});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
@@ -706,14 +438,15 @@ NGRAPH_TEST(${BACKEND_NAME}, gather_no_axis_int64)
                                 read_vector<int64_t>(result)));
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, gather_no_axis_uint8)
+NGRAPH_TEST(${BACKEND_NAME}, gather_axis_0_uint8)
 {
     Shape params_shape{3, 2};
     Shape indices_shape{2, 2};
     Shape out_shape{2, 2, 2};
     auto P = make_shared<op::Parameter>(element::u8, params_shape);
     auto I = make_shared<op::Parameter>(element::i32, indices_shape);
-    auto G = make_shared<op::Gather>(P, I);
+    auto A = op::Constant::create(element::i64, Shape{}, {0});
+    auto G = make_shared<op::v1::Gather>(P, I, A);
     auto f = make_shared<Function>(G, ParameterVector{P, I});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
@@ -731,14 +464,15 @@ NGRAPH_TEST(${BACKEND_NAME}, gather_no_axis_uint8)
                                 read_vector<uint8_t>(result)));
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, gather_no_axis_uint16)
+NGRAPH_TEST(${BACKEND_NAME}, gather_axis_0_uint16)
 {
     Shape params_shape{3, 2};
     Shape indices_shape{2, 2};
     Shape out_shape{2, 2, 2};
     auto P = make_shared<op::Parameter>(element::u16, params_shape);
     auto I = make_shared<op::Parameter>(element::i64, indices_shape);
-    auto G = make_shared<op::Gather>(P, I);
+    auto A = op::Constant::create(element::i64, Shape{}, {0});
+    auto G = make_shared<op::v1::Gather>(P, I, A);
     auto f = make_shared<Function>(G, ParameterVector{P, I});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
@@ -756,14 +490,15 @@ NGRAPH_TEST(${BACKEND_NAME}, gather_no_axis_uint16)
                                 read_vector<uint16_t>(result)));
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, gather_no_axis_uint32)
+NGRAPH_TEST(${BACKEND_NAME}, gather_axis_0_uint32)
 {
     Shape params_shape{3, 2};
     Shape indices_shape{2, 2};
     Shape out_shape{2, 2, 2};
     auto P = make_shared<op::Parameter>(element::u32, params_shape);
     auto I = make_shared<op::Parameter>(element::i32, indices_shape);
-    auto G = make_shared<op::Gather>(P, I);
+    auto A = op::Constant::create(element::i64, Shape{}, {0});
+    auto G = make_shared<op::v1::Gather>(P, I, A);
     auto f = make_shared<Function>(G, ParameterVector{P, I});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
@@ -781,14 +516,15 @@ NGRAPH_TEST(${BACKEND_NAME}, gather_no_axis_uint32)
                                 read_vector<uint32_t>(result)));
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, gather_no_axis_uint64)
+NGRAPH_TEST(${BACKEND_NAME}, gather_axis_0_uint64)
 {
     Shape params_shape{3, 2};
     Shape indices_shape{2, 2};
     Shape out_shape{2, 2, 2};
     auto P = make_shared<op::Parameter>(element::u64, params_shape);
     auto I = make_shared<op::Parameter>(element::i64, indices_shape);
-    auto G = make_shared<op::Gather>(P, I);
+    auto A = op::Constant::create(element::i64, Shape{}, {0});
+    auto G = make_shared<op::v1::Gather>(P, I, A);
     auto f = make_shared<Function>(G, ParameterVector{P, I});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
@@ -806,14 +542,15 @@ NGRAPH_TEST(${BACKEND_NAME}, gather_no_axis_uint64)
                                 read_vector<uint64_t>(result)));
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, gather_no_axis_bool)
+NGRAPH_TEST(${BACKEND_NAME}, gather_axis_0_bool)
 {
     Shape params_shape{3, 2};
     Shape indices_shape{2, 2};
     Shape out_shape{2, 2, 2};
     auto P = make_shared<op::Parameter>(element::boolean, params_shape);
     auto I = make_shared<op::Parameter>(element::i64, indices_shape);
-    auto G = make_shared<op::Gather>(P, I);
+    auto A = op::Constant::create(element::i64, Shape{}, {0});
+    auto G = make_shared<op::v1::Gather>(P, I, A);
     auto f = make_shared<Function>(G, ParameterVector{P, I});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");

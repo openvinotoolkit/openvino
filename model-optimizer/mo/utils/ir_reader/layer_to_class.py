@@ -23,7 +23,7 @@ from extensions.back.TopKNormalizer import TopKNormalizer
 from extensions.ops.Cast import Cast
 from extensions.ops.ReduceOps import ReduceOp
 from extensions.ops.activation_ops import Activation
-from extensions.ops.elementwise import Elementwise, LogicalElementwise, BiasAdd, Div, Mul, Pow, Sub
+from extensions.ops.elementwise import Elementwise, UnaryElementwise, LogicalElementwise, BiasAdd, Div, Mul, Pow, Sub
 from extensions.ops.embedding_bag import EmbeddingBagBase
 from extensions.ops.psroipooling import DeformablePSROIPoolingOp
 from extensions.ops.scatter import Scatter
@@ -69,8 +69,8 @@ def collect_ops(path: str):
     """
     import_by_path(os.path.join(path, 'mo', 'ops'), ['mo', 'ops'])
     import_by_path(os.path.join(path, 'extensions', 'ops'), ['extensions', 'ops'])
-    update_registration(classes=[Op, Activation, Elementwise, EmbeddingBagBase,
-                                 LogicalElementwise, ReduceOp, Scatter, ScatterNDBase],
+    update_registration(classes=[Op, Activation, Elementwise, UnaryElementwise, LogicalElementwise,
+                                 EmbeddingBagBase, ReduceOp, Scatter, ScatterNDBase],
                         enabled_transforms=[], disabled_transforms=[])
 
 

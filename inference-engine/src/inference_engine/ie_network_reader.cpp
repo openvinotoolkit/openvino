@@ -168,6 +168,10 @@ CNNNetwork details::ReadNetwork(const std::string& modelPath, const std::string&
 #endif
     // Try to open model file
     std::ifstream modelStream(model_path, std::ios::binary);
+    // save path in extensible array of stream
+    // notice: lifetime of path pointed by pword(0) is limited by current scope
+    const std::string path_to_save_in_stream = modelPath;
+    modelStream.pword(0) = const_cast<char*>(path_to_save_in_stream.c_str());
     if (!modelStream.is_open())
         THROW_IE_EXCEPTION << "Model file " << modelPath << " cannot be opened!";
 
