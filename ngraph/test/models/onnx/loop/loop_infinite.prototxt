@@ -1,56 +1,31 @@
-ir_version: 6
+ir_version: 7
 producer_name: "nGraph ONNX Importer"
 graph {
-  name: "basic loop"
   node {
     input: "trip_count"
-    input: ""
-    input: "from_body_scope"
-    input: "a_init"
-    output: "a_final"
-    output: "a_values"
+    input: "cond"
+    input: "fake"
+    output: "out_final"
+    name: "loop"
     op_type: "Loop"
     attribute {
       name: "body"
       g {
         node {
-          input: "a_in"
-          input: "b"
-          output: "current_a"
-          name: "loop_body_add"
-          op_type: "Add"
-        }
-        node {
-          input: "cond"
+          input: "cond_in"
           output: "cond_out"
-          name: "cond_identity"
+          name: "cond_in_identity"
           op_type: "Identity"
         }
         node {
-          input: "current_a"
-          output: "a_out"
-          name: "output_accumulator"
+          input: "outer_scope_var"
+          output: "loop_var_0_out"
+          name: "loop_var_out"
           op_type: "Identity"
         }
-        name: "simple add"
-        initializer {
-          dims: 1
-          dims: 2
-          data_type: 1
-          float_data: 1
-          float_data: 1
-          name: "b"
-        }
-        initializer {
-          dims: 1
-          dims: 2
-          data_type: 1
-          float_data: 1
-          float_data: 1
-          name: "from_body_scope"
-        }
+        name: "Infinite Loop subgraph"
         input {
-          name: "i"
+          name: "iter_num_in"
           type {
             tensor_type {
               elem_type: 7
@@ -63,26 +38,25 @@ graph {
           }
         }
         input {
-          name: "cond"
+          name: "cond_in"
           type {
             tensor_type {
               elem_type: 9
               shape {
+                dim {
+                  dim_value: 1
+                }
               }
             }
           }
         }
         input {
-          name: "a_in"
+          name: "outer_scope_var"
           type {
             tensor_type {
               elem_type: 1
               shape {
                 dim {
-                  dim_value: 1
-                }
-                dim {
-                  dim_value: 2
                 }
               }
             }
@@ -94,37 +68,32 @@ graph {
             tensor_type {
               elem_type: 9
               shape {
-              }
-            }
-          }
-        }
-        output {
-          name: "current_a"
-          type {
-            tensor_type {
-              elem_type: 1
-              shape {
                 dim {
                   dim_value: 1
-                }
-                dim {
-                  dim_value: 2
                 }
               }
             }
           }
         }
         output {
-          name: "a_out"
+          name: "loop_var_0_out"
           type {
             tensor_type {
               elem_type: 1
               shape {
                 dim {
-                  dim_value: 1
                 }
+              }
+            }
+          }
+        }
+        value_info {
+          name: "outer_scope_var"
+          type {
+            tensor_type {
+              elem_type: 1
+              shape {
                 dim {
-                  dim_value: 2
                 }
               }
             }
@@ -133,15 +102,49 @@ graph {
       }
       type: GRAPH
     }
+    doc_string: "Loop node"
   }
-  initializer {
-    dims: 1
-    data_type: 7
-    int64_data: 3
+  node {
+    input: "outer_scope_var"
+    output: "outer_scope_var_out"
+    name: "cast"
+    op_type: "Cast"
+    attribute {
+      name: "to"
+      i: 7
+      type: INT
+    }
+  }
+  name: "test"
+  doc_string: ""
+  input {
     name: "trip_count"
+    type {
+      tensor_type {
+        elem_type: 7
+        shape {
+          dim {
+            dim_value: 1
+          }
+        }
+      }
+    }
   }
   input {
-    name: "a_init"
+    name: "cond"
+    type {
+      tensor_type {
+        elem_type: 9
+        shape {
+          dim {
+            dim_value: 1
+          }
+        }
+      }
+    }
+  }
+  input {
+    name: "fake"
     type {
       tensor_type {
         elem_type: 1
@@ -149,40 +152,44 @@ graph {
           dim {
             dim_value: 1
           }
-          dim {
-            dim_value: 2
-          }
         }
       }
     }
   }
-  output {
-    name: "a_final"
-    type {
+  input {
+   name: "outer_scope_var"
+   type {
       tensor_type {
         elem_type: 1
         shape {
           dim {
             dim_value: 1
           }
+        }
+      }
+    }
+  }
+  output {
+    name: "outer_scope_var_out"
+    type {
+      tensor_type {
+        elem_type: 7
+        shape {
           dim {
-            dim_value: 2
+            dim_value: 1
           }
         }
       }
     }
   }
   output {
-    name: "a_values"
+    name: "out_final"
     type {
       tensor_type {
         elem_type: 1
         shape {
           dim {
-            dim_value: 3
-          }
-          dim {
-            dim_value: 2
+            dim_value: 1
           }
         }
       }
@@ -190,5 +197,6 @@ graph {
   }
 }
 opset_import {
-  version: 11
+  domain: ""
+  version: 8
 }
