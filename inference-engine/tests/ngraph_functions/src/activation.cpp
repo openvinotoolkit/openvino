@@ -104,6 +104,10 @@ std::shared_ptr<ngraph::Node> makeActivation(const ngraph::Output<Node> &in,
         }
         case ngraph::helpers::ActivationTypes::HSigmoid:
             return std::make_shared<ngraph::op::v5::HSigmoid>(in);
+        case ngraph::helpers::ActivationTypes::RoundHalfToEven:
+            return std::make_shared<ngraph::op::v5::Round>(in, ngraph::op::v5::Round::RoundMode::HALF_TO_EVEN);
+        case ngraph::helpers::ActivationTypes::RoundHalfAwayFromZero:
+            return std::make_shared<ngraph::op::v5::Round>(in, ngraph::op::v5::Round::RoundMode::HALF_AWAY_FROM_ZERO);
         default:
             throw std::runtime_error("Can't create layer for this activation type");
     }

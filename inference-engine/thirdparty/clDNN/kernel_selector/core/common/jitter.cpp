@@ -1095,6 +1095,12 @@ JitConstants MakeActivationJitConstants(ActivationFunction activation_function,
                 ternary(input.eq(zero), one, zero)
                     .str()));  // the workaround for OpenCL's vector type result (!input)
             break;
+        case ActivationFunction::ROUND_HALF_TO_EVEN:
+            jitConstants.AddConstant(MakeJitConstant( macro_def, "rint(input)"));
+            break;
+        case ActivationFunction::ROUND_HALF_AWAY_FROM_ZERO:
+            jitConstants.AddConstant(MakeJitConstant(macro_def, "(round(input))"));
+            break;
         case ActivationFunction::NONE:
         default:
             jitConstants.AddConstant(MakeJitConstant(macro_def, "input"));
