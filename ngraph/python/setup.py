@@ -31,6 +31,10 @@ NGRAPH_PYTHON_DEBUG = os.environ.get("NGRAPH_PYTHON_DEBUG")
 # Change current working dircectory to ngraph/python
 os.chdir(PYNGRAPH_ROOT_DIR)
 
+debug_optimization_flags = [
+    "O1", "O2", "O3", "O4", "Ofast", "Os", "Oz", "Og", "O", "DNDEBUG"
+]
+
 
 def find_ngraph_dist_dir():
     """Return location of compiled ngraph library home."""
@@ -102,21 +106,57 @@ if len([fn for fn in os.listdir(NGRAPH_CPP_LIBRARY_DIR) if re.search("onnx_impor
 
 def _remove_compiler_flags(obj):
     """Make pybind11 more verbose in debug builds."""
-    try:
-        # pybind11 is much more verbose without the NDEBUG define
-        if sys.platform == "win32":
-            obj.compiler.compile_options.remove("/DNDEBUG")
-            obj.compiler.compile_options.remove("/O2")
-        if sys.platform == "darwin":
-            obj.compiler.compiler_so.remove("-DNDEBUG")
-            obj.compiler.compiler_so.remove("-O3")
-            obj.compiler.compiler.remove("-DNDEBUG")
-            obj.compiler.compiler.remove("-O3")
-        else:
-            obj.compiler.compile_options.remove("-DNDEBUG")
-            obj.compiler.compile_options.remove("-O2")
-    except (AttributeError, ValueError):
-        pass
+    for flag in debug_optimization_flags:
+        try:
+            if sys.platform == "win32":
+                obj.compiler.compile_options.remove("/{}".format(flag))
+            else:
+                obj.compiler.compiler_so.remove("-{}".format(flag))
+                obj.compiler.compiler.remove("-{}".format(flag))
+        except (AttributeError, ValueError):
+            pass
+
+
+def parallelCCompile(
+    self,
+    sources,
+    output_dir=None,
+    macros=None,
+    include_dirs=None,
+    debug=0,
+    extra_preargs=None,
+    extra_postargs=None,
+    depends=None,
+):
+    """Build sources in parallel.
+
+    Reference link:
+    http://stackoverflow.com/questions/11013851/speeding-up-build-process-with-distutils
+    Monkey-patch for parallel compilation.
+    """
+    # those lines are copied from distutils.ccompiler.CCompiler directly
+    macros, objects, extra_postargs, pp_opts, build = self._setup_compile(
+        output_dir, macros, include_dirs, sources, depends, extra_postargs
+    )
+    cc_args = self._get_cc_args(pp_opts, debug, extra_preargs)
+
+    # parallel code
+    import multiprocessing.pool
+
+    def _single_compile(obj):
+        try:
+            src, ext = build[obj]
+        except KeyError:
+            return
+        self._compile(obj, src, ext, cc_args, extra_postargs, pp_opts)
+
+    # convert to list, imap is evaluated on-demand
+    pool = multiprocessing.pool.ThreadPool()
+    list(pool.imap(_single_compile, objects))
+    return objects
+
+
+distutils.ccompiler.CCompiler.compile = parallelCCompile
 
 
 def has_flag(compiler, flagname):
@@ -305,6 +345,7 @@ class BuildExt(build_ext):
     def build_extensions(self):
         """Build extension providing extra compiler flags."""
         self._customize_compiler_flags()
+
         for ext in self.extensions:
             ext.extra_compile_args += [cpp_flag(self.compiler)]
 
@@ -319,8 +360,10 @@ class BuildExt(build_ext):
 
             if sys.platform == "darwin":
                 ext.extra_compile_args += ["-stdlib=libc++"]
+
         if NGRAPH_PYTHON_DEBUG in ["TRUE", "ON", True]:
             _remove_compiler_flags(self)
+
         build_ext.build_extensions(self)
 
 
