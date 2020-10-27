@@ -196,7 +196,7 @@ private:
                         IE_ASSERT(origData != nullptr);
 
                         auto dims = origData->getDims();
-                        int ndims = dims.size();
+                        auto ndims = dims.size();
 
                         if (ndims > 4) {
                             VPU_THROW_UNLESS(dim.length() == 1,
@@ -477,7 +477,7 @@ void FrontEnd::parseCustom(const Model& model, const ie::CNNLayerPtr& layer, con
         stage->attrs().set("inputOrders", std::move(inputOrders));
         stage->attrs().set("outputOrders", std::move(outputOrders));
 
-        int buffer_size = kernel.kernelBinary().length() + 1024;
+        auto buffer_size = kernel.kernelBinary().length() + 1024;
         model->addTempBuffer(stage, buffer_size);
     }
 }
