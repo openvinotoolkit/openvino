@@ -194,27 +194,6 @@ NGRAPH_TEST(${BACKEND_NAME}, zero_sized_negative)
     make_unary_empty_test<op::Negative>("${BACKEND_NAME}");
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, zero_sized_not)
-{
-    Shape shape{0};
-    auto A = make_shared<op::Parameter>(element::from<char>(), shape);
-    auto f = make_shared<Function>(make_shared<op::Not>(A), ParameterVector{A});
-
-    auto backend = runtime::Backend::create("${BACKEND_NAME}");
-
-    auto a = backend->create_tensor(element::from<char>(), shape);
-    auto result = backend->create_tensor(element::from<char>(), shape);
-
-    auto handle = backend->compile(f);
-    handle->call_with_validate({result}, {a});
-
-    auto in_vec = read_vector<char>(a);
-    auto out_vec = read_vector<char>(result);
-
-    EXPECT_EQ(in_vec.size(), 0);
-    EXPECT_EQ(out_vec.size(), 0);
-}
-
 NGRAPH_TEST(${BACKEND_NAME}, zero_sized_sign)
 {
     make_unary_empty_test<op::Sign>("${BACKEND_NAME}");

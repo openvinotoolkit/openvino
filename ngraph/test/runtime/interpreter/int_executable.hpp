@@ -862,7 +862,6 @@ protected:
             break;
         }
         case OP_TYPEID::LogicalNot_v1:
-        case OP_TYPEID::Not:
         {
             size_t element_count = shape_size(node.get_output_shape(0));
             reference::logical_not(
