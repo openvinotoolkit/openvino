@@ -12,7 +12,7 @@
 #include <set>
 #include <mkldnn_types.h>
 #include <mkldnn_extension_utils.h>
-#include "ngraph/type/bfloat16.hpp"
+#include "utils/bfloat16.hpp"
 #include "ie_parallel.hpp"
 #include <algorithm>
 
@@ -1786,8 +1786,8 @@ inline void MKLDNNReduceNode::init_dst_data(uint8_t *out_ptr, size_t dst_size) {
                 auto out_p = reinterpret_cast<int32_t *>(out_ptr);
                 parallel_for(dst_size / dst_data_size, [&](size_t i) { out_p[i] = static_cast<int32_t>(1); });
             } else if (output_prec == Precision::BF16) {
-                auto out_p = reinterpret_cast<ngraph::bfloat16*>(out_ptr);
-                parallel_for(dst_size / dst_data_size, [&](size_t i) { out_p[i] = static_cast<ngraph::bfloat16>(1); });
+                auto out_p = reinterpret_cast<bfloat16*>(out_ptr);
+                parallel_for(dst_size / dst_data_size, [&](size_t i) { out_p[i] = static_cast<bfloat16>(1); });
             } else if (output_prec == Precision::U8) {
                 auto out_p = reinterpret_cast<uint8_t *>(out_ptr);
                 parallel_for(dst_size / dst_data_size, [&](size_t i) { out_p[i] = static_cast<uint8_t>(1); });
@@ -1804,8 +1804,8 @@ inline void MKLDNNReduceNode::init_dst_data(uint8_t *out_ptr, size_t dst_size) {
                 auto out_p = reinterpret_cast<int32_t *>(out_ptr);
                 parallel_for(dst_size / dst_data_size, [&](size_t i) { out_p[i] = std::numeric_limits<int32_t>::min(); });
             } else if (output_prec == Precision::BF16) {
-                auto out_p = reinterpret_cast<ngraph::bfloat16*>(out_ptr);
-                parallel_for(dst_size / dst_data_size, [&](size_t i) { out_p[i] = std::numeric_limits<ngraph::bfloat16>::min(); });
+                auto out_p = reinterpret_cast<bfloat16*>(out_ptr);
+                parallel_for(dst_size / dst_data_size, [&](size_t i) { out_p[i] = std::numeric_limits<bfloat16>::min(); });
             } else if (output_prec == Precision::U8) {
                 auto out_p = reinterpret_cast<uint8_t *>(out_ptr);
                 parallel_for(dst_size / dst_data_size, [&](size_t i) { out_p[i] = std::numeric_limits<uint8_t>::min(); });
@@ -1822,8 +1822,8 @@ inline void MKLDNNReduceNode::init_dst_data(uint8_t *out_ptr, size_t dst_size) {
                 auto out_p = reinterpret_cast<int32_t *>(out_ptr);
                 parallel_for(dst_size / dst_data_size, [&](size_t i) { out_p[i] = std::numeric_limits<int32_t>::max(); });
             } else if (output_prec == Precision::BF16) {
-                auto out_p = reinterpret_cast<ngraph::bfloat16*>(out_ptr);
-                parallel_for(dst_size / dst_data_size, [&](size_t i) { out_p[i] = std::numeric_limits<ngraph::bfloat16>::max(); });
+                auto out_p = reinterpret_cast<bfloat16*>(out_ptr);
+                parallel_for(dst_size / dst_data_size, [&](size_t i) { out_p[i] = std::numeric_limits<bfloat16>::max(); });
             } else if (output_prec == Precision::U8) {
                 auto out_p = reinterpret_cast<uint8_t *>(out_ptr);
                 parallel_for(dst_size / dst_data_size, [&](size_t i) { out_p[i] = std::numeric_limits<uint8_t>::max(); });
