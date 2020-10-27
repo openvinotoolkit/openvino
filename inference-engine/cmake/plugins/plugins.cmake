@@ -56,11 +56,9 @@ function(ie_add_plugin)
     target_compile_definitions(${IE_PLUGIN_NAME} PRIVATE IMPLEMENT_INFERENCE_ENGINE_PLUGIN)
 
     if(TARGET IE::inference_engine_plugin_api)
-        target_link_libraries(${IE_PLUGIN_NAME} PRIVATE IE::inference_engine_plugin_api
-                                                        IE::inference_engine_legacy)
+        target_link_libraries(${IE_PLUGIN_NAME} PRIVATE IE::inference_engine_plugin_api)
     else()
-        target_link_libraries(${IE_PLUGIN_NAME} PRIVATE inference_engine_plugin_api
-                                                        inference_engine_legacy)
+        target_link_libraries(${IE_PLUGIN_NAME} PRIVATE inference_engine_plugin_api)
     endif()
 
     if(WIN32)
