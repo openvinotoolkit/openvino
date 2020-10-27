@@ -178,6 +178,7 @@ public:
     int getStatus() override {
         return value;
     }
+private:
     int value;
 };
 
@@ -196,25 +197,19 @@ void MKLDNNTensorIteratorNode::getSupportedDescriptors() {
     sub_graph.CreateGraph(ti->body, ext_mng, weightCache);
 
     // Try to detect inputs and outputs by indexes
-    std::map<std::string, MKLDNNNodePtr> in_map, out_map;
-    for (auto node : sub_graph.GetNodes())
-        if (node->getType() == Input)  // filter by type Input
-            in_map[node->getName().substr(3)] = node;  // remove "in_" prefix
-
-    for (auto node : sub_graph.GetOutputNodes())
-        out_map[node->getName().substr(4)] = node;  // remove "out_" prefix
-
+    const auto &in_map = sub_graph.GetInputNodes();
     for (const auto &in_data : ti->body.inputs) {
         if (in_data->getName() == "const_holder") continue;
 
-        auto &in_node = in_map[in_data->getName()];
+        auto &in_node = in_map.at(in_data->getName());
         auto in_mem = in_node->getChildEdgeAt(0)->getMemoryPtr();
         input_mem.push_back(in_mem);
     }
 
-    for (const auto &out_data : ti->body.outputs) {
-        auto &out_node = out_map[out_data->getName()];
-        auto out_mem = out_node->getParentEdgeAt(0)->getMemoryPtr();
+    // Assume that order of outputs in original TI and produces sub_graph is same
+    const auto &out_vec = sub_graph.GetOutputNodes();
+    for (size_t i = 0; i < out_vec.size(); i++) {
+        auto out_mem = out_vec[i]->getParentEdgeAt(0)->getMemoryPtr();
         output_mem.push_back(out_mem);
     }
 }

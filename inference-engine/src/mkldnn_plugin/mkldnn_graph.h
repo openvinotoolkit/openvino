@@ -76,6 +76,11 @@ public:
         return outputNodes;
     }
 
+    std::map<std::string, MKLDNNNodePtr>& GetInputNodes() {
+        return inputNodes;
+    }
+
+
     mkldnn::engine getEngine() const {
         return eng;
     }
