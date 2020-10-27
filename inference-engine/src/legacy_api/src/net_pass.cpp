@@ -163,9 +163,17 @@ TensorIterator::Body CopyTIBody(const TensorIterator::Body& body, std::string su
     }
 
     TensorIterator::Body res;
-    for (auto& in : body.inputs) res.inputs.emplace_back(old2new_d[in.get()]);
+    for (auto& in : body.inputs) {
+        auto found = old2new_d.find(in.get());
+        IE_ASSERT(found != old2new_d.end());
+        res.inputs.emplace_back(found->second);
+    }
 
-    for (auto& out : body.outputs) res.outputs.emplace_back(old2new_d[out.get()]);
+    for (auto& out : body.outputs) {
+        auto found = old2new_d.find(out.get());
+        IE_ASSERT(found != old2new_d.end());
+        res.outputs.emplace_back(found->second);
+    }
 
     // Fake holder.
     // The graph itself is a shared_ptr set where parent holds child.
