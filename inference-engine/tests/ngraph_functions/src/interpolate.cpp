@@ -10,7 +10,7 @@
 namespace ngraph {
 namespace builder {
 
-std::shared_ptr<ngraph::Node> makeInterpolate(const std::vector<ngraph::Output<Node>>& in, 
+std::shared_ptr<ngraph::Node> makeInterpolate(const std::vector<ngraph::Output<Node>>& in,
                                               bool antialias,
                                               const std::vector<int64_t>& axes,
                                               const std::vector<float>& scales,
