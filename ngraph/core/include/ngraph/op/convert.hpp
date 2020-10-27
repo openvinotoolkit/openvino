@@ -29,8 +29,8 @@ namespace ngraph
             class NGRAPH_API Convert : public Op
             {
             public:
-                static constexpr NodeTypeInfo type_info{"Convert", 0};
-                const NodeTypeInfo& get_type_info() const override { return type_info; }
+                NGRAPH_RTTI_DECLARATION;
+
                 /// \brief Constructs a conversion operation.
                 Convert() = default;
                 /// \brief Constructs a conversion operation.

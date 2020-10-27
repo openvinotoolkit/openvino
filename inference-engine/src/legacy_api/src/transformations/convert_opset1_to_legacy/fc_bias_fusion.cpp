@@ -47,7 +47,7 @@ ngraph::pass::FullyConnectedBiasFusion::FullyConnectedBiasFusion() {
         }
 
         Shape output_shape(m_fc->get_shape());
-        size_t bias_size = std::accumulate(bias_shape.begin(), bias_shape.end(), 1, std::multiplies<int64_t>());
+        size_t bias_size = std::accumulate(bias_shape.begin(), bias_shape.end(), size_t{1}, std::multiplies<int64_t>());
         if (bias_shape.empty() || bias_shape.back() != output_shape.back() || bias_shape.back() != bias_size) {
             return false;
         }
@@ -65,7 +65,8 @@ ngraph::pass::FullyConnectedBiasFusion::FullyConnectedBiasFusion() {
         auto new_fc = std::make_shared<op::FullyConnected>(m_fc->input(0).get_source_output(),
                                                            m_fc->input(1).get_source_output(),
                                                            final_bias,
-                                                           m_fc->get_shape());
+                                                           m_fc->get_shape(),
+                                                           m_fc->get_output_type());
         new_ops.push_back(new_fc);
 
         new_fc->set_friendly_name(add->get_friendly_name());

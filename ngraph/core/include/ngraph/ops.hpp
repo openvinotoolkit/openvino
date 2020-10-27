@@ -49,7 +49,6 @@
 #include "ngraph/op/deformable_convolution.hpp"
 #include "ngraph/op/deformable_psroi_pooling.hpp"
 #include "ngraph/op/depth_to_space.hpp"
-#include "ngraph/op/dequantize.hpp"
 #include "ngraph/op/detection_output.hpp"
 #include "ngraph/op/divide.hpp"
 #include "ngraph/op/dot.hpp"

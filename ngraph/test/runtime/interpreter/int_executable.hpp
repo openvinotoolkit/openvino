@@ -46,7 +46,6 @@
 #include "ngraph/runtime/reference/ctc_greedy_decoder.hpp"
 #include "ngraph/runtime/reference/ctc_loss.hpp"
 #include "ngraph/runtime/reference/cum_sum.hpp"
-#include "ngraph/runtime/reference/dequantize.hpp"
 #include "ngraph/runtime/reference/detection_output.hpp"
 #include "ngraph/runtime/reference/dot.hpp"
 #include "ngraph/runtime/reference/elu.hpp"
@@ -276,7 +275,6 @@ protected:
                                                node.get_input_shape(0));
             break;
         }
-        case OP_TYPEID::BroadcastLike: break;
         case OP_TYPEID::Ceiling:
         {
             size_t element_count = shape_size(node.get_output_shape(0));
@@ -474,40 +472,6 @@ protected:
             }
             break;
         }
-        case OP_TYPEID::Dequantize:
-        {
-            const op::Dequantize* dequantize = static_cast<const op::Dequantize*>(&node);
-            auto type = dequantize->get_element_type();
-
-            if (type == element::f32)
-            {
-                reference::dequantize<T>(args[0]->get_data_ptr<const T>(),
-                                         args[1]->get_data_ptr<const float>(),
-                                         args[2]->get_data_ptr<const T>(),
-                                         out[0]->get_data_ptr<float>(),
-                                         node.get_input_shape(0),
-                                         node.get_input_shape(1),
-                                         dequantize->get_axes());
-            }
-            else if (type == element::f64)
-            {
-                reference::dequantize<T>(args[0]->get_data_ptr<const T>(),
-                                         args[1]->get_data_ptr<const double>(),
-                                         args[2]->get_data_ptr<const T>(),
-                                         out[0]->get_data_ptr<double>(),
-                                         node.get_input_shape(0),
-                                         node.get_input_shape(1),
-                                         dequantize->get_axes());
-            }
-            else
-            {
-                std::stringstream ss;
-                ss << "unsupported element type " << type << " op Dequantize";
-                throw std::runtime_error(ss.str());
-            }
-
-            break;
-        }
         case OP_TYPEID::Dot:
         {
             const op::Dot* dot = static_cast<const op::Dot*>(&node);
@@ -690,32 +654,6 @@ protected:
             size_t element_count = shape_size(node.get_output_shape(0));
             reference::floor<T>(
                 args[0]->get_data_ptr<const T>(), out[0]->get_data_ptr<T>(), element_count);
-            break;
-        }
-        case OP_TYPEID::GatherND:
-        {
-            if (node.get_input_element_type(1) == element::i64)
-            {
-                reference::gather_nd<T, int64_t>(args[0]->get_data_ptr<T>(),
-                                                 args[1]->get_data_ptr<int64_t>(),
-                                                 out[0]->get_data_ptr<T>(),
-                                                 node.get_input_shape(0),
-                                                 node.get_input_shape(1),
-                                                 node.get_output_shape(0));
-            }
-            else if (node.get_input_element_type(1) == element::i32)
-            {
-                reference::gather_nd<T, int32_t>(args[0]->get_data_ptr<T>(),
-                                                 args[1]->get_data_ptr<int32_t>(),
-                                                 out[0]->get_data_ptr<T>(),
-                                                 node.get_input_shape(0),
-                                                 node.get_input_shape(1),
-                                                 node.get_output_shape(0));
-            }
-            else
-            {
-                throw ngraph_error("Unexpected type");
-            }
             break;
         }
         case OP_TYPEID::GatherND_v5:
