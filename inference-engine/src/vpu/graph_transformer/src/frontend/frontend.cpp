@@ -30,7 +30,6 @@
 #include <legacy/transformations/convert_opset1_to_legacy/convert_opset1_to_legacy.hpp>
 #include <legacy/transformations/convert_opset1_to_legacy/convert_prior_to_ie_prior.hpp>
 #include <transformations/common_optimizations/common_optimizations.hpp>
-#include <transformations/op_conversions/hswish_decomposition.hpp>
 #include <transformations/init_node_info.hpp>
 #include <vpu/ngraph/transformations/merge_subsequent_dsr_operations.hpp>
 #include "vpu/ngraph/transformations/dynamic_to_static_shape.hpp"
@@ -155,7 +154,8 @@ ie::ICNNNetwork::Ptr FrontEnd::convertNetwork(ie::ICNNNetwork& network) {
         const bool casesWithDynamicOrStaticUsage =
             std::dynamic_pointer_cast<const ngraph::opset3::Gelu>(node) ||
             std::dynamic_pointer_cast<const ngraph::opset4::SoftPlus>(node) ||
-            std::dynamic_pointer_cast<const ngraph::opset5::Minimum>(node);
+            std::dynamic_pointer_cast<const ngraph::opset5::Minimum>(node) ||
+            std::dynamic_pointer_cast<const ngraph::opset5::HSwish>(node);
 
         const bool casesWithOnlyDynamicUsage =
             (std::dynamic_pointer_cast<const ngraph::opset3::MatMul>(node) ||
@@ -179,8 +179,6 @@ ie::ICNNNetwork::Ptr FrontEnd::convertNetwork(ie::ICNNNetwork& network) {
     manager.register_pass<ngraph::pass::ConvertOpSet3ToOpSet2>();
     manager.register_pass<ngraph::pass::ConvertOpSet2ToOpSet1>();
     manager.register_pass<ngraph::pass::ConvertOpSet1ToLegacy>();
-
-    manager.get_pass_config()->disable<ngraph::pass::HSwishDecomposition>();
 
     manager.set_callback(transformationsPredicate);
     manager.run_passes(nGraphFunc);
