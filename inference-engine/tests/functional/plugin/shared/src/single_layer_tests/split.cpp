@@ -114,5 +114,4 @@ TEST_P(splitWithUnusedOutputsTest, CompareWithRefs) {
     Run();
 };
 
-
 }  // namespace LayerTestsDefinitions

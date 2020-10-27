@@ -161,32 +161,26 @@ Stage StageBuilder::addSplitStage(
         });
     };
 
-    const auto getOutAxisSizes = [&]() {
-        std::vector<size_t> outAxisSizes;
-        if (haveUnusedOutput(outputs)) {
-            VPU_THROW_UNLESS(layer != nullptr,
-                "Can't build split stage whith name {} with unused outputs when layer == nullptr", name);
-
-            const auto outDimsSize = layer->outData[0]->getDims().size();
-            const int idx = dimToIeInd(axis, outDimsSize);
-            outAxisSizes.reserve(outDimsSize);
-            for (const auto& out : layer->outData) {
-                VPU_THROW_UNLESS(idx <= out->getDims().size(),
-                    "Split stage with name {} and type {} can't have idx = {} when out dimensions size = {}",
-                    layer->name, layer->type, idx, out->getDims().size());
-
-                outAxisSizes.push_back(out->getDims()[idx]);
-            }
-        } else {
-            outAxisSizes.reserve(outputs.size());
-            for (const auto& output : outputs) {
-                outAxisSizes.push_back(output->desc().dim(axis));
-            }
+    std::vector<size_t> outAxisSizes;
+    if (haveUnusedOutput(outputs)) {
+        VPU_THROW_UNLESS(layer != nullptr,
+            "Can't build split stage whith name {} with unused outputs when layer == nullptr", name);
+        const auto outDimsSize = layer->outData[0]->getDims().size();
+        const int idx = dimToIeInd(axis, outDimsSize);
+        outAxisSizes.reserve(outDimsSize);
+        for (const auto& out : layer->outData) {
+            VPU_THROW_UNLESS(idx <= out->getDims().size(),
+                "Split stage with name {} and type {} can't have idx = {} when out dimensions size = {}",
+                layer->name, layer->type, idx, out->getDims().size());
+            outAxisSizes.push_back(out->getDims()[idx]);
         }
-        return outAxisSizes;
-    };
+    } else {
+        outAxisSizes.reserve(outputs.size());
+        for (const auto& output : outputs) {
+            outAxisSizes.push_back(output->desc().dim(axis));
+        }
+    }
 
-    const auto outAxisSizes = getOutAxisSizes();
     vpu::DataVector usedOutputs;
     for (int i = 0; i < outputs.size(); ++i) {
         if (outputs[i] != nullptr) {
