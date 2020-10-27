@@ -25,7 +25,7 @@ Inference Engine sample applications include the following:
 - **Image Classification Sample Async** – Inference of image classification networks like AlexNet and GoogLeNet using Asynchronous Inference Request API (the sample supports only images as inputs). 
    - [Image Classification C++ Sample Async](../../inference-engine/samples/classification_sample_async/README.md)
    - [Image Classification Python* Sample Async](../../inference-engine/ie_bridges/python/sample/classification_sample_async/README.md)
-- **[Image Classification Python* Sample](../../inference-engine/ie_bridges/python/sample/classification_sample/README.md)** – Inference of image classification networks like AlexNet and GoogLeNet using Synchronous Inference Request API (the sample supports only images as inputs).
+- **[Image Classification Python* Sample](../../inference-engine/ie_bridges/python/sample/hello_classification/README.md)** – Inference of image classification networks like AlexNet and GoogLeNet using Synchronous Inference Request API (the sample supports only images as inputs).
 - **Neural Style Transfer Sample** – Style Transfer sample (the sample supports only images as inputs).
    - [Neural Style Transfer C++ Sample](../../inference-engine/samples/style_transfer_sample/README.md)
    - [Neural Style Transfer Python* Sample](../../inference-engine/ie_bridges/python/sample/style_transfer_sample/README.md)
