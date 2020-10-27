@@ -20,7 +20,7 @@ using ngraph::helpers::operator<<;
 namespace LayerTestsDefinitions {
 
 std::string InterpolateLayerTest::getTestCaseName(testing::TestParamInfo<InterpolateLayerTestParams> obj) {
-    InterpolateSpecificParams interpolateParams;
+    InterpolateSpecificParamsForTests interpolateParams;
     InferenceEngine::Precision netPrecision;
     InferenceEngine::Precision inPrc, outPrc;
     InferenceEngine::Layout inLayout, outLayout;
@@ -30,13 +30,14 @@ std::string InterpolateLayerTest::getTestCaseName(testing::TestParamInfo<Interpo
     std::vector<size_t> padBegin, padEnd;
     std::vector<int64_t> axes;
     std::vector<float> scales;
-    bool antialias;
-    ngraph::op::v4::Interpolate::InterpolateMode mode;
-    ngraph::op::v4::Interpolate::ShapeCalcMode shapeCalcMode;
-    ngraph::op::v4::Interpolate::CoordinateTransformMode coordinateTransformMode;
-    ngraph::op::v4::Interpolate::NearestMode nearestMode;
-    double cubeCoef;
-    std:tie(mode, shapeCalcMode, coordinateTransformMode, nearestMode, antialias, padBegin, padEnd, cubeCoef, axes, scales) = interpolateParams;
+    bool antialias = false;
+    ngraph::op::v4::Interpolate::InterpolateMode mode = ngraph::op::v4::Interpolate::InterpolateMode::nearest;
+    ngraph::op::v4::Interpolate::ShapeCalcMode shapeCalcMode = ngraph::op::v4::Interpolate::ShapeCalcMode::scales;
+    ngraph::op::v4::Interpolate::CoordinateTransformMode coordinateTransformMode = ngraph::op::v4::Interpolate::CoordinateTransformMode::half_pixel;
+    ngraph::op::v4::Interpolate::NearestMode nearestMode = ngraph::op::v4::Interpolate::NearestMode::round_prefer_floor;
+    double cubeCoef = -0.75;
+    // std:tie(mode, shapeCalcMode, coordinateTransformMode, nearestMode, antialias, padBegin, padEnd, cubeCoef, axes, scales) = interpolateParams;
+    std:tie(axes, scales) = interpolateParams;
     std::ostringstream result;
     result << "IS=" << CommonTestUtils::vec2str(inputShapes) << "_";
     result << "TS=" << CommonTestUtils::vec2str(targetShapes) << "_";
@@ -60,22 +61,23 @@ std::string InterpolateLayerTest::getTestCaseName(testing::TestParamInfo<Interpo
 }
 
 void InterpolateLayerTest::SetUp() {
-    InterpolateSpecificParams interpolateParams;
+    InterpolateSpecificParamsForTests interpolateParams;
     std::vector<size_t> inputShape, targetShape;
     auto netPrecision = InferenceEngine::Precision::UNSPECIFIED;
 
     std::tie(interpolateParams, netPrecision, inPrc, outPrc, inLayout, outLayout, inputShape, targetShape, targetDevice) = this->GetParam();
-    std::vector<size_t> padBegin, padEnd;
+    std::vector<size_t> padBegin = std::vector<size_t>(1, 0), padEnd = std::vector<size_t>(1, 0);
     std::vector<int64_t> axes;
     std::vector<float> scales;
-    bool antialias;
-    ngraph::op::v4::Interpolate::InterpolateMode mode;
-    ngraph::op::v4::Interpolate::ShapeCalcMode shapeCalcMode;
-    ngraph::op::v4::Interpolate::CoordinateTransformMode coordinateTransformMode;
-    ngraph::op::v4::Interpolate::NearestMode nearestMode;
+    bool antialias = false;
+    ngraph::op::v4::Interpolate::InterpolateMode mode = ngraph::op::v4::Interpolate::InterpolateMode::nearest;
+    ngraph::op::v4::Interpolate::ShapeCalcMode shapeCalcMode = ngraph::op::v4::Interpolate::ShapeCalcMode::scales;
+    ngraph::op::v4::Interpolate::CoordinateTransformMode coordinateTransformMode = ngraph::op::v4::Interpolate::CoordinateTransformMode::half_pixel;
+    ngraph::op::v4::Interpolate::NearestMode nearestMode = ngraph::op::v4::Interpolate::NearestMode::round_prefer_floor;
 
-    double cubeCoef;
-    std:tie(mode, shapeCalcMode, coordinateTransformMode, nearestMode, antialias, padBegin, padEnd, cubeCoef, axes, scales) = interpolateParams;
+    double cubeCoef = -0.75;
+    // std:tie(mode, shapeCalcMode, coordinateTransformMode, nearestMode, antialias, padBegin, padEnd, cubeCoef, axes, scales) = interpolateParams;
+    std:tie(axes, scales) = interpolateParams;
 
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
     auto params = ngraph::builder::makeParams(ngPrc, {inputShape});

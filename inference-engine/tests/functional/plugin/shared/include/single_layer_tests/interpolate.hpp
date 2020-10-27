@@ -30,7 +30,12 @@ typedef std::tuple<
 > InterpolateSpecificParams;
 
 typedef std::tuple<
-        InterpolateSpecificParams,
+        std::vector<int64_t>,                                  // Axes
+        std::vector<float>                                     // Scales
+> InterpolateSpecificParamsForTests;
+
+typedef std::tuple<
+        InterpolateSpecificParamsForTests,
         InferenceEngine::Precision,     // Net precision
         InferenceEngine::Precision,     // Input precision
         InferenceEngine::Precision,     // Output precision
@@ -40,6 +45,18 @@ typedef std::tuple<
         InferenceEngine::SizeVector,    // Target shapes
         LayerTestsUtils::TargetDevice   // Device name
 > InterpolateLayerTestParams;
+
+typedef std::tuple<
+        InterpolateSpecificParams,
+        InferenceEngine::Precision,     // Net precision
+        InferenceEngine::Precision,     // Input precision
+        InferenceEngine::Precision,     // Output precision
+        InferenceEngine::Layout,        // Input layout
+        InferenceEngine::Layout,        // Output layout
+        InferenceEngine::SizeVector,    // Input shapes
+        InferenceEngine::SizeVector,    // Target shapes
+        LayerTestsUtils::TargetDevice   // Device name
+> InterpolateLayerParams;
 
 class InterpolateLayerTest : public testing::WithParamInterface<InterpolateLayerTestParams>,
                              virtual public LayerTestsUtils::LayerTestsCommon {
