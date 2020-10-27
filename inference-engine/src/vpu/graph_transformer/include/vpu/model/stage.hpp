@@ -144,7 +144,6 @@ VPU_DECLARE_ENUM(StageType,
     ScatterUpdate = 103,
     ReduceMin = 105,
     ExpDetectionOutput = 106,  // ExperimentalDetectronDetectionOutput
-    NonMaxSuppression = 107,
     ROIFeatureExtractor = 108,
     SCRelu = 109,
     Erf = 110,
@@ -262,7 +261,8 @@ VPU_DECLARE_ENUM(ConcatInferRequirement,
 // Modes for Broadcast operation according to specification
 VPU_DECLARE_ENUM(BroadcastMode,
     NUMPY = 0,
-    EXPLICIT = 1)
+    EXPLICIT = 1,
+    BIDIRECTIONAL = 2)
 
 //
 // StageDataInfo

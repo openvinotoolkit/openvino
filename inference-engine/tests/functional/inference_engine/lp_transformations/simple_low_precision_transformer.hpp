@@ -9,11 +9,11 @@
 #include <ngraph/ngraph.hpp>
 
 #include "common_test_utils/test_common.hpp"
-#include "transformations/low_precision/layer_transformation.hpp"
-#include "transformations/low_precision/transformation_context.hpp"
-#include <transformations/low_precision/transformer.hpp>
-#include <transformations/low_precision/iparams_manager.hpp>
-#include <transformations/low_precision/ilayer_transformations_manager.hpp>
+#include "low_precision/layer_transformation.hpp"
+#include "low_precision/transformation_context.hpp"
+#include <low_precision/transformer.hpp>
+#include <low_precision/iparams_manager.hpp>
+#include <low_precision/ilayer_transformations_manager.hpp>
 
 class SimpleLowPrecisionTransformer : public
     ngraph::pass::IParamsManager,
