@@ -395,7 +395,7 @@ std::shared_ptr<ngraph::Node> V10Parser::createNode(const std::vector<ngraph::Ou
         std::make_shared<LayerCreator<ngraph::op::Atan>>("Atan"),
         std::make_shared<LayerCreator<ngraph::op::v1::AvgPool>>("AvgPool"),
         std::make_shared<LayerCreator<ngraph::op::Ceiling>>("Ceiling"),
-        std::make_shared<LayerCreator<ngraph::op::Clamp>>("Clamp"),
+        //std::make_shared<LayerCreator<ngraph::op::Clamp>>("Clamp"),
         std::make_shared<LayerCreator<ngraph::op::Concat>>("Concat"),
         std::make_shared<LayerCreator<ngraph::op::Constant>>("Const"),
         std::make_shared<LayerCreator<ngraph::op::Convert>>("Convert"),
@@ -414,7 +414,7 @@ std::shared_ptr<ngraph::Node> V10Parser::createNode(const std::vector<ngraph::Ou
         std::make_shared<LayerCreator<ngraph::op::v1::Broadcast>>("Broadcast"),
         std::make_shared<LayerCreator<ngraph::op::v1::Reshape>>("Reshape"),
         std::make_shared<LayerCreator<ngraph::op::v1::StridedSlice>>("StridedSlice"),
-        std::make_shared<LayerCreator<ngraph::op::Elu>>("ELU"),
+        //std::make_shared<LayerCreator<ngraph::op::Elu>>("ELU"),
         std::make_shared<LayerCreator<ngraph::op::Exp>>("Exp"),
         std::make_shared<LayerCreator<ngraph::op::Erf>>("Erf"),
         std::make_shared<LayerCreator<ngraph::op::FakeQuantize>>("FakeQuantize"),
@@ -529,12 +529,16 @@ std::shared_ptr<ngraph::Node> V10Parser::createNode(const std::vector<ngraph::Ou
     // Try to create operation from loaded opsets
     if (!ngraphNode && opsets.count(params.version)) {
         auto opset = opsets.at(params.version);
+        std::string type = params.type;
 
         if (!opset.contains_type(params.type)) {
-            THROW_IE_EXCEPTION << "Opset " << params.version << " doesn't contain the operation with type: " << params.type;
+            std::transform(type.begin() + 1, type.end(), type.begin() + 1, ::tolower);
+            if (!opset.contains_type(type)) {
+                THROW_IE_EXCEPTION << "Opset " << params.version << " doesn't contain the operation with type: " << params.type;
+            }
         }
 
-        ngraphNode = std::shared_ptr<ngraph::Node>(opset.create(params.type));
+        ngraphNode = std::shared_ptr<ngraph::Node>(opset.create(type));
         ngraphNode->set_arguments(inputs);
         XmlDeserializer visitor(node);
         if (ngraphNode->visit_attributes(visitor))
@@ -1164,7 +1168,7 @@ std::shared_ptr<ngraph::Node> V10Parser::LayerCreator<ngraph::op::LRN>::createLa
 }
 
 // Clamp layer
-template <>
+/*template <>
 std::shared_ptr<ngraph::Node> V10Parser::LayerCreator<ngraph::op::Clamp>::createLayer(
     const ngraph::OutputVector& inputs, const pugi::xml_node& node, std::istream& binStream,
     const GenericLayerParams& layerParsePrms) {
@@ -1177,7 +1181,7 @@ std::shared_ptr<ngraph::Node> V10Parser::LayerCreator<ngraph::op::Clamp>::create
     double maxVal = GetFloatAttr(dn, "max");
     double minVal = GetFloatAttr(dn, "min");
     return std::make_shared<ngraph::op::Clamp>(inputs[0], minVal, maxVal);
-}
+}*/
 
 // VariadicSplit layer
 template <>
@@ -1213,7 +1217,7 @@ std::shared_ptr<ngraph::Node> V10Parser::LayerCreator<ngraph::op::Sigmoid>::crea
 }
 
 // ELU layer
-template <>
+/*template <>
 std::shared_ptr<ngraph::Node> V10Parser::LayerCreator<ngraph::op::Elu>::createLayer(
     const ngraph::OutputVector& inputs, const pugi::xml_node& node, std::istream& binStream,
     const GenericLayerParams& layerParsePrms) {
@@ -1224,7 +1228,7 @@ std::shared_ptr<ngraph::Node> V10Parser::LayerCreator<ngraph::op::Elu>::createLa
         THROW_IE_EXCEPTION << "Cannot read parameter for " << getType() << " layer with name: " << layerParsePrms.name;
 
     return std::make_shared<ngraph::op::Elu>(inputs[0], GetFloatAttr(dn, "alpha"));
-}
+}*/
 
 // SpaceToDepth layer
 template <>

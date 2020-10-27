@@ -699,6 +699,22 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
         res->params["keep_dims"] = reduce_node->get_keep_dims() ? "True" : "False";
         return res;
     });
+
+    addSpecificCreator({"Clamp"}, [](const std::shared_ptr<::ngraph::Node>& node,
+                                                 const std::map<std::string, std::string>& params) -> CNNLayerPtr {
+        LayerParams attrs = {node->get_friendly_name(), "Clamp", details::convertPrecision(node->get_output_element_type(0))};
+        auto res = std::make_shared<InferenceEngine::ClampLayer>(attrs);
+        res->params = params;
+        return res;
+    });
+
+    addSpecificCreator({"Elu"}, [](const std::shared_ptr<::ngraph::Node>& node,
+                                                 const std::map<std::string, std::string>& params) -> CNNLayerPtr {
+        LayerParams attrs = {node->get_friendly_name(), "elu", details::convertPrecision(node->get_output_element_type(0))};
+        auto res = std::make_shared<InferenceEngine::CNNLayer>(attrs);
+        res->params = params;
+        return res;
+    });
 }
 
 CNNLayerPtr InferenceEngine::details::CNNLayerCreator::create() {
@@ -732,7 +748,7 @@ void convertFunctionToICNNNetwork(const std::shared_ptr<const ::ngraph::Function
                 std::make_shared<Builder::NodeConverter<::ngraph::op::Asin>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::Atan>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::v1::AvgPool>>(),
-                std::make_shared<Builder::NodeConverter<::ngraph::op::Clamp>>(),
+                //std::make_shared<Builder::NodeConverter<::ngraph::op::Clamp>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::Concat>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::Constant>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::ConvolutionIE>>(),
@@ -748,7 +764,7 @@ void convertFunctionToICNNNetwork(const std::shared_ptr<const ::ngraph::Function
                 std::make_shared<Builder::NodeConverter<::ngraph::op::v1::Divide>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::v1::Reshape>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::Eltwise>>(),
-                std::make_shared<Builder::NodeConverter<::ngraph::op::Elu>>(),
+                //std::make_shared<Builder::NodeConverter<::ngraph::op::Elu>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::Erf>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::Exp>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::FakeQuantize>>(),

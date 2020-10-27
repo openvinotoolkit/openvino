@@ -579,7 +579,7 @@ CNNLayer::Ptr NodeConverter<ngraph::op::CropIE>::createLayer(const std::shared_p
     return res;
 }
 
-template <>
+/*template <>
 CNNLayer::Ptr NodeConverter<ngraph::op::Clamp>::createLayer(const std::shared_ptr<ngraph::Node>& layer) const {
     LayerParams params = {layer->get_friendly_name(), "Clamp",
                           details::convertPrecision(layer->get_output_element_type(0))};
@@ -590,7 +590,7 @@ CNNLayer::Ptr NodeConverter<ngraph::op::Clamp>::createLayer(const std::shared_pt
     res->params["min"] = asString(castedLayer->get_min());
     res->params["max"] = asString(castedLayer->get_max());
     return res;
-}
+}*/
 
 template <>
 CNNLayer::Ptr NodeConverter<ngraph::op::v1::Softmax>::createLayer(const std::shared_ptr<ngraph::Node>& layer) const {
@@ -1348,7 +1348,7 @@ CNNLayer::Ptr NodeConverter<ngraph::op::ScaleShiftIE>::createLayer(const std::sh
     return res;
 }
 
-template <>
+/*template <>
 CNNLayer::Ptr NodeConverter<ngraph::op::Elu>::createLayer(const std::shared_ptr<ngraph::Node>& layer) const {
     LayerParams params = {layer->get_friendly_name(), "elu",
                           details::convertPrecision(layer->get_output_element_type(0))};
@@ -1359,7 +1359,7 @@ CNNLayer::Ptr NodeConverter<ngraph::op::Elu>::createLayer(const std::shared_ptr<
     res->params["alpha"] = asString(castedLayer->get_alpha());
 
     return res;
-}
+}*/
 
 template <>
 CNNLayer::Ptr NodeConverter<ngraph::op::SquaredDifference>::createLayer(const std::shared_ptr<ngraph::Node>& layer) const {
