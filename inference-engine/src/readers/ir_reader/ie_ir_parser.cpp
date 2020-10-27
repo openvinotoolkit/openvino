@@ -847,7 +847,7 @@ std::shared_ptr<ngraph::Node> V10Parser::LayerCreator<ngraph::opset5::Loop>::cre
         const ngraph::OutputVector& inputs, const pugi::xml_node& node, const Blob::CPtr& weights,
         const GenericLayerParams& layerParsePrms) {
     auto loop = std::make_shared<ngraph::opset5::Loop>(inputs[0], inputs[1]);
-    return fillSubGraphLayer(inputs, node, binStream, layerParsePrms, loop);
+    return fillSubGraphLayer(inputs, node, weights, layerParsePrms, loop);
 }
 
 // PriorBoxClustered layer
