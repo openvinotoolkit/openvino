@@ -1113,35 +1113,6 @@ CNNLayer::Ptr NodeConverter<ngraph::op::v1::DeformablePSROIPooling>::createLayer
 }
 
 template <>
-CNNLayer::Ptr NodeConverter<ngraph::op::PRelu>::createLayer(const std::shared_ptr<ngraph::Node>& layer) const {
-    LayerParams params = {layer->get_friendly_name(), "PReLU",
-                          details::convertPrecision(layer->get_output_element_type(0))};
-    auto res = std::make_shared<InferenceEngine::PReLULayer>(params);
-    auto castedLayer = ngraph::as_type_ptr<ngraph::op::PRelu>(layer);
-    if (castedLayer == nullptr) THROW_IE_EXCEPTION << "Cannot get " << params.type << " layer " << params.name;
-
-    const auto weightsNode = castedLayer->input_value(1).get_node_shared_ptr();
-    if (auto const_weights = ngraph::as_type_ptr<ngraph::op::Constant>(weightsNode)) {
-        SizeVector dataShape = const_weights->get_shape();
-        if (dataShape.size() >= 2 && ngraph::shape_size(dataShape) == dataShape[1]) {
-            dataShape = {dataShape[1]};
-        }
-
-        Blob::Ptr dataBlb = shareWeights(const_weights);
-
-        res->blobs["weights"] = dataBlb;
-        res->_weights = dataBlb;
-    }
-
-    auto const_shape = castedLayer->input(1).get_shape(), tensor_shape = castedLayer->input(0).get_shape();
-    if (const_shape.size() == 1 && const_shape[0] == 1) {
-        res->params["channel_shared"] = "true";
-    }
-
-    return res;
-}
-
-template <>
 CNNLayer::Ptr NodeConverter<ngraph::op::v1::Split>::createLayer(const std::shared_ptr<ngraph::Node>& layer) const {
     LayerParams params = {layer->get_friendly_name(), "Split",
                           details::convertPrecision(layer->get_output_element_type(0))};

@@ -449,7 +449,6 @@ std::shared_ptr<ngraph::Node> V10Parser::createNode(const std::vector<ngraph::Ou
         std::make_shared<LayerCreator<ngraph::op::v1::NonMaxSuppression>>("NonMaxSuppression"),
         std::make_shared<LayerCreator<ngraph::op::NormalizeL2>>("NormalizeL2"),
         std::make_shared<LayerCreator<ngraph::op::v1::OneHot>>("OneHot"),
-        std::make_shared<LayerCreator<ngraph::op::PRelu>>("PReLU"),
         std::make_shared<LayerCreator<ngraph::op::Relu>>("ReLU"),
         std::make_shared<LayerCreator<ngraph::op::v1::Pad>>("Pad"),
         std::make_shared<LayerCreator<ngraph::op::Range>>("Range"),
@@ -529,11 +528,11 @@ std::shared_ptr<ngraph::Node> V10Parser::createNode(const std::vector<ngraph::Ou
     if (!ngraphNode && opsets.count(params.version)) {
         auto opset = opsets.at(params.version);
 
-        if (!opset.contains_type(params.type)) {
+        if (!opset.contains_type_insensitive(params.type)) {
             THROW_IE_EXCEPTION << "Opset " << params.version << " doesn't contain the operation with type: " << params.type;
         }
 
-        ngraphNode = std::shared_ptr<ngraph::Node>(opset.create(params.type));
+        ngraphNode = std::shared_ptr<ngraph::Node>(opset.create_insensitive(params.type));
         ngraphNode->set_arguments(inputs);
         XmlDeserializer visitor(node);
         if (ngraphNode->visit_attributes(visitor))
@@ -1287,15 +1286,6 @@ std::shared_ptr<ngraph::Node> V10Parser::LayerCreator<ngraph::op::v0::Selu>::cre
         const GenericLayerParams& layerParsePrms) {
     checkParameters(inputs, layerParsePrms, 3);
     return std::make_shared<ngraph::op::v0::Selu>(inputs[0], inputs[1], inputs[2]);
-}
-
-// PReLU layer
-template <>
-std::shared_ptr<ngraph::Node> V10Parser::LayerCreator<ngraph::op::PRelu>::createLayer(
-    const ngraph::OutputVector& inputs, const pugi::xml_node& node, std::istream& binStream,
-    const GenericLayerParams& layerParsePrms) {
-    checkParameters(inputs, layerParsePrms, 2);
-    return std::make_shared<ngraph::op::PRelu>(inputs[0], inputs[1]);
 }
 
 // Exp layer

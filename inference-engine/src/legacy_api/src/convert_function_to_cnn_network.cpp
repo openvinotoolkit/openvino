@@ -485,6 +485,23 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
         return res;
     });
 
+    addSpecificCreator({"PRelu"}, [](const std::shared_ptr<::ngraph::Node>& node,
+                                         const std::map<std::string, std::string>& params) -> CNNLayerPtr {
+        LayerParams attrs = {node->get_friendly_name(), "PReLU",
+                             details::convertPrecision(node->get_output_element_type(0))};
+        auto res = std::make_shared<PReLULayer>(attrs);
+        res->params = params;
+
+        Builder::NodeConverter<ngraph::op::Constant> converter;
+        const auto weightsNode = node->input_value(1).get_node_shared_ptr();
+        if (converter.canCreate(weightsNode)) {
+            const auto& weights = converter.createLayer(weightsNode);
+            res->blobs["weights"] = weights->blobs["custom"];
+            res->_weights = weights->blobs["custom"];
+        }
+        return res;
+    });
+
     addSpecificCreator({"ScatterElementsUpdate"}, [](const std::shared_ptr<::ngraph::Node>& node,
         const std::map<std::string, std::string>& params) -> CNNLayerPtr {
         LayerParams attrs = {node->get_friendly_name(), node->description(),
@@ -771,7 +788,6 @@ void convertFunctionToICNNNetwork(const std::shared_ptr<const ::ngraph::Function
                 std::make_shared<Builder::NodeConverter<::ngraph::op::v1::Multiply>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::NormalizeIE>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::OneHotIE>>(),
-                std::make_shared<Builder::NodeConverter<::ngraph::op::PRelu>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::PadIE>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::PowerIE>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::PriorBoxClusteredIE>>(),
