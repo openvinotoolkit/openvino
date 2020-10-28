@@ -1,7 +1,7 @@
 # Inference Engine development configuration document {#openvino_docs_Inference_Engine_Development_Procedure_CONTRIBUTING}
 
 To create MakeFiles use following process or run build-after-clone.sh script located in the root
-folder if you use Ubuntu 16.04.
+folder if you use Ubuntu 18.04.
 To create Visual Studio project run create_vs_proj_x64.cmd from scripts folder. 
 
 ## Setting up the environment for development

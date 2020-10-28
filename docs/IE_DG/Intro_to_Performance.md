@@ -27,7 +27,7 @@ latency penalty. So, for more real-time oriented usages, lower batch sizes (as l
 Refer to the [Benchmark App](../../inference-engine/samples/benchmark_app/README.md) sample, which allows latency vs. throughput measuring.
 
 ## Using Async API
-To gain better performance on accelerators, such as VPU or FPGA, the Inference Engine uses the asynchronous approach (see
+To gain better performance on accelerators, such as VPU, the Inference Engine uses the asynchronous approach (see
 [Integrating Inference Engine in Your Application (current API)](Integrate_with_customer_application_new_API.md)).
 The point is amortizing the costs of data transfers, by pipe-lining, see [Async API explained](@ref omz_demos_object_detection_demo_ssd_async_README).
 Since the pipe-lining relies on the availability of the parallel slack, running multiple inference requests in parallel is essential.

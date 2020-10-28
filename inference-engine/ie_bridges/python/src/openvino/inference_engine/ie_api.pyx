@@ -244,7 +244,7 @@ cdef class IECore:
             versions[device].major = ver.apiVersion.major
         return versions
 
-    ## Reads a network from the Intermediate Representation (IR) and creates an `IENetwork`.
+    ## Reads a network from Intermediate Representation (IR) or ONNX formats and creates an `IENetwork`.
     #  @param model: A `.xml`, `.onnx`or `.prototxt` model file or string with IR.
     #  @param weights: A `.bin` file of the IR. Depending on `init_from_buffer` value, can be a string path or
     #                  bytes with file content.

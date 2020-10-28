@@ -60,7 +60,7 @@
 #include "onnx_import/op/flatten.hpp"
 #include "onnx_import/op/floor.hpp"
 #include "onnx_import/op/gather.hpp"
-// #include "onnx_import/op/gather_nd.hpp"
+#include "onnx_import/op/gather_nd.hpp"
 #include "onnx_import/op/gemm.hpp"
 #include "onnx_import/op/global_average_pool.hpp"
 #include "onnx_import/op/global_max_pool.hpp"
@@ -343,7 +343,7 @@ namespace ngraph
             REGISTER_OPERATOR("Flatten", 1, flatten);
             REGISTER_OPERATOR("Floor", 1, floor);
             REGISTER_OPERATOR("Gather", 1, gather);
-            // REGISTER_OPERATOR("GatherND", 1, gather_nd);
+            REGISTER_OPERATOR("GatherND", 1, gather_nd);
             REGISTER_OPERATOR("Gemm", 1, gemm);
             REGISTER_OPERATOR("Gemm", 6, gemm);
             REGISTER_OPERATOR("GlobalAveragePool", 1, global_average_pool);
@@ -360,6 +360,7 @@ namespace ngraph
             REGISTER_OPERATOR("Less", 1, less);
             REGISTER_OPERATOR("Log", 1, log);
             REGISTER_OPERATOR("LogSoftmax", 1, log_softmax);
+            REGISTER_OPERATOR("LogSoftmax", 13, log_softmax);
             // REGISTER_OPERATOR("Loop", 1, loop); // Loop operator disabled for the 2021.1 release
             REGISTER_OPERATOR("LpNormalization", 1, lp_norm);
             REGISTER_OPERATOR("LRN", 1, lrn);

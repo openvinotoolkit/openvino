@@ -111,7 +111,10 @@ enum ActivationTypes {
     Mish,
     HSwish,
     SoftPlus,
-    Swish
+    Swish,
+    HSigmoid,
+    RoundHalfToEven,
+    RoundHalfAwayFromZero
 };
 
 enum EltwiseTypes {
@@ -121,7 +124,8 @@ enum EltwiseTypes {
     DIVIDE,
     SQUARED_DIFF,
     POWER,
-    FLOOR_MOD
+    FLOOR_MOD,
+    MOD
 };
 
 enum ComparisonTypes {

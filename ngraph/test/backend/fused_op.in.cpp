@@ -1380,6 +1380,52 @@ NGRAPH_TEST(${BACKEND_NAME}, mvn_mean_variance_normalization_split_channels)
     test_case.run();
 }
 
+NGRAPH_TEST(${BACKEND_NAME}, mvn_mean_variance_normalization_shared_across_channel_batch_size_2)
+{
+    Shape data_shape{2, 2, 5};
+    auto data = make_shared<op::Parameter>(element::f32, data_shape);
+
+    auto mvn_func = make_shared<op::MVN>(data, true);
+    auto function = make_shared<Function>(NodeVector{mvn_func}, ParameterVector{data});
+    auto test_case = test::TestCase<TestEngine>(function);
+    // data
+    vector<float> data_vector(shape_size(data_shape));
+    iota(begin(data_vector), end(data_vector), 0);
+    test_case.add_input<float>(data_vector);
+
+    // expected result
+    test_case.add_expected_output<float>(
+        data_shape,
+        {-1.5666989f, -1.2185436f, -0.8703883f, -0.5222329f, -0.1740777f, 0.1740777f,  0.5222329f,
+         0.8703883f,  1.2185436f,  1.5666989f,  -1.5666989f, -1.2185436f, -0.8703883f, -0.5222329f,
+         -0.1740777f, 0.1740777f,  0.5222329f,  0.8703883f,  1.2185436f,  1.5666989f});
+
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, mvn_mean_variance_normalization_not_shared_across_channel_batch_size_2)
+{
+    Shape data_shape{2, 2, 5};
+    auto data = make_shared<op::Parameter>(element::f32, data_shape);
+
+    auto mvn_func = make_shared<op::MVN>(data, false);
+    auto function = make_shared<Function>(NodeVector{mvn_func}, ParameterVector{data});
+    auto test_case = test::TestCase<TestEngine>(function);
+    // data
+    vector<float> data_vector(shape_size(data_shape));
+    iota(begin(data_vector), end(data_vector), 0);
+    test_case.add_input<float>(data_vector);
+
+    // expected result
+    test_case.add_expected_output<float>(
+        data_shape,
+        {-1.4142135f, -0.7071068f, 0.0000000f,  0.7071068f,  1.4142135f,  -1.4142135f, -0.7071068f,
+         0.0000000f,  0.7071068f,  1.4142135f,  -1.4142135f, -0.7071068f, 0.0000000f,  0.7071068f,
+         1.4142135f,  -1.4142135f, -0.7071068f, 0.0000000f,  0.7071068f,  1.4142135f});
+
+    test_case.run();
+}
+
 NGRAPH_TEST(${BACKEND_NAME}, grn_4d)
 {
     const Shape data_shape{1, 2, 3, 4};

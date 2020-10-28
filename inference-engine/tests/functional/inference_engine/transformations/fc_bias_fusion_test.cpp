@@ -94,3 +94,18 @@ TEST(TransformationTests, FullyConnectedBiasFusionTest2D) {
     auto res = compare_functions(f, f_ref);
     ASSERT_TRUE(res.first) << res.second;
 }
+
+TEST(TransformationTests, FullyConnectedBiasFusionDynamic) {
+    auto input1 = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::PartialShape::dynamic());
+    auto weights = ngraph::opset1::Constant::create(ngraph::element::f32, ngraph::Shape{786, 128}, {1});
+    auto empty_bias = ngraph::opset1::Constant::create(ngraph::element::f32, ngraph::Shape{786}, {0});
+    auto fc = std::make_shared<ngraph::op::FullyConnected>(input1, weights, empty_bias, ngraph::Shape{1, 786});
+
+    auto const_bias = ngraph::opset1::Constant::create(ngraph::element::f32, ngraph::Shape{1, 786}, {1});
+    auto add = std::make_shared<ngraph::opset1::Add>(fc, const_bias);
+
+    auto f = std::make_shared<ngraph::Function>(ngraph::NodeVector{add}, ngraph::ParameterVector{input1});
+    ngraph::pass::Manager manager;
+    manager.register_pass<ngraph::pass::FullyConnectedBiasFusion>();
+    ASSERT_NO_THROW(manager.run_passes(f));
+}

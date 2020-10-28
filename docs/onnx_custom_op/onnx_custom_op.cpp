@@ -11,8 +11,9 @@
 
 
 std::string custom_relu_model() {
+    return
 //! [onnx_custom_op:model]
-    return R"ONNX(
+R"ONNX(
 ir_version: 3
 producer_name: "nGraph ONNX Importer"
 graph {
