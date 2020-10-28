@@ -40,8 +40,9 @@ file(WRITE "${UWP_API_VALIDATOR_OUTPUT}" "${output_message}\n\n\n${error_message
 
 # post-process output
 
+get_filename_component(name "${UWP_API_VALIDATOR_TARGET}" NAME)
+
 if(NOT UWP_HAS_BINARY_EXCLUSION)
-    get_filename_component(name "${UWP_API_VALIDATOR_TARGET}" NAME)
     set(exclusion_dlls "msvcp140.dll" "vcruntime140.dll")
 
     # remove exclusions from error_message
@@ -65,4 +66,4 @@ if(UWP_HAS_BINARY_EXCLUSION AND NOT exit_code EQUAL 0)
     message(FATAL_ERROR "${error_message}")
 endif()
 
-message("ApiValidator: ${UWP_API_VALIDATOR_TARGET} has passed the OneCore compliance")
+message("ApiValidator: ${name} has passed the OneCore compliance")
