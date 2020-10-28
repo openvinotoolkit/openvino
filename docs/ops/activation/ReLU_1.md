@@ -2,7 +2,7 @@
 
 **Versioned name**: *ReLU-1*
 
-**Category**: *Activation*
+**Category**: *Activation function*
 
 **Short description**: [Reference](http://caffe.berkeleyvision.org/tutorial/layers/relu.html)
 
