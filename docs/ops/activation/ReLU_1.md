@@ -12,9 +12,11 @@
 
 **Mathematical Formulation**
 
-\f[
-Y_{i}^{( l )} = max(0, Y_{i}^{( l - 1 )})
-\f]
+For each element from the input tensor calculates corresponding
+ element in the output tensor with the following formula:
+ \f[
+ Y_{i}^{( l )} = max(0, Y_{i}^{( l - 1 )})
+ \f]
 
 **Inputs**:
 
