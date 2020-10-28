@@ -78,3 +78,18 @@ TEST(TransformationTests, ReshapeFCFusiuonTest3) {
     }
     ASSERT_EQ(f->get_ops().size(), 7);
 }
+
+TEST(TransformationTests, ReshapeFCFusiuonDynamic) {
+    auto input = ngraph::op::Constant::create(ngraph::element::f32, ngraph::Shape{1, 3, 64, 64}, {1});
+    auto reshape_shape = ngraph::op::Constant::create(ngraph::element::i64, ngraph::Shape{4}, {1, 3, 64, 64});
+    auto fc_weights = ngraph::op::Constant::create(ngraph::element::f32, ngraph::Shape{6, 3 * 64 * 64}, {1});
+    auto fc_biases = ngraph::op::Constant::create(ngraph::element::f32, ngraph::Shape{6}, {1});
+
+    auto reshape = std::make_shared<ngraph::op::v1::Reshape>(input, reshape_shape, true);
+    auto fc = std::make_shared<ngraph::op::FullyConnected>(reshape, fc_weights, fc_biases, ngraph::Shape{1, 6});
+
+    auto f = std::make_shared<ngraph::Function>(ngraph::NodeVector{fc}, ngraph::ParameterVector{});
+    ngraph::pass::Manager manager;
+    manager.register_pass<ngraph::pass::ReshapeFullyConnectedFusion>();
+    ASSERT_NO_THROW(manager.run_passes(f));
+}

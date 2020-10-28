@@ -18,6 +18,7 @@
 #include <legacy/transformations/convert_opset1_to_legacy/reshape_1d_ops.hpp>
 #include <transformations/init_node_info.hpp>
 #include <ngraph/opsets/opset1.hpp>
+#include <ngraph/pass/manager.hpp>
 #include "common_test_utils/ngraph_test_utils.hpp"
 
 using namespace testing;
@@ -152,4 +153,47 @@ TEST(TransformationTests, AvgPoolReshapeTest1) {
 
     auto res = compare_functions(f, f_ref);
     ASSERT_TRUE(res.first) << res.second;
+}
+
+TEST(TransformationTests, ReshapeDynamicTest1) {
+    {
+        auto input = std::make_shared<opset1::Parameter>(ngraph::element::f32, ngraph::PartialShape::dynamic());
+
+        ngraph::Strides strides{1};
+        ngraph::Shape pads_begin{0}, pads_end{0}, kernel{3};
+        auto pool = std::make_shared<ngraph::opset1::AvgPool>(input, strides, pads_begin, pads_end, kernel, false, ngraph::op::RoundingType::FLOOR);
+
+        auto f = std::make_shared<ngraph::Function>(ngraph::NodeVector{pool}, ngraph::ParameterVector{input});
+        pass::Manager manager;
+        manager.register_pass<ngraph::pass::Reshape1DOps>();
+        ASSERT_NO_THROW(manager.run_passes(f));
+    }
+
+    {
+        auto input = std::make_shared<opset1::Parameter>(ngraph::element::f32, ngraph::Shape{1, 3, 64});
+
+        ngraph::Strides strides{1};
+        ngraph::Shape pads_begin{0}, pads_end{0}, kernel{3};
+        auto pool = std::make_shared<ngraph::opset1::MaxPool>(input, strides, pads_begin, pads_end, kernel, ngraph::op::RoundingType::FLOOR);
+
+        auto f = std::make_shared<ngraph::Function>(ngraph::NodeVector{pool}, ngraph::ParameterVector{input});
+        pass::Manager manager;
+        manager.register_pass<ngraph::pass::Reshape1DOps>();
+        ASSERT_NO_THROW(manager.run_passes(f));
+    }
+
+    {
+        auto input = ngraph::op::Constant::create(ngraph::element::f32, ngraph::Shape{1, 3, 64}, {1});
+        auto w = ngraph::op::Constant::create(ngraph::element::f32, ngraph::Shape{6, 3, 3/*OIW*/}, {1});
+        auto b = ngraph::op::Constant::create(ngraph::element::f32, ngraph::Shape{6}, {1});
+        ngraph::Strides strides{1}, dilations{1};
+        ngraph::CoordinateDiff pads_begin{0}, pads_end{0};
+        ngraph::Shape output_shape{1, 6, 62};
+        auto conv = std::make_shared<ngraph::op::ConvolutionIE>(input, w, b, strides, dilations, pads_begin, pads_end, 1);
+
+        auto f = std::make_shared<ngraph::Function>(ngraph::NodeVector{conv}, ngraph::ParameterVector{});
+        pass::Manager manager;
+        manager.register_pass<ngraph::pass::Reshape1DOps>();
+        ASSERT_NO_THROW(manager.run_passes(f));
+    }
 }

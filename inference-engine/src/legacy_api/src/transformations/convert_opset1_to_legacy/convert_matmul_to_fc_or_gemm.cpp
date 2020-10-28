@@ -13,6 +13,7 @@
 
 #include <ngraph/opsets/opset1.hpp>
 #include <ngraph/rt_info.hpp>
+#include <ngraph/pattern/op/wrap_type.hpp>
 
 #include <legacy/ngraph_ops/fully_connected.hpp>
 #include <transformations/utils/utils.hpp>
@@ -20,9 +21,9 @@
 NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertMatMulToFC, "ConvertMatMulToFC", 0);
 
 ngraph::pass::ConvertMatMulToFC::ConvertMatMulToFC() {
-    auto input_0 = std::make_shared<pattern::op::Label>(element::f32, Shape {1, 1});
-    auto input_1 = std::make_shared<pattern::op::Label>(element::f32, Shape {1, 1});
-    auto matmul = std::make_shared<ngraph::opset1::MatMul>(input_0, input_1);
+    auto matmul = pattern::wrap_type<opset1::MatMul>({pattern::any_input(pattern::has_static_shape()),
+                                                      pattern::any_input(pattern::has_static_shape())},
+                                                      pattern::has_static_shape());
 
     ngraph::matcher_pass_callback callback = [this](pattern::Matcher& m) {
         auto matmul = std::dynamic_pointer_cast<ngraph::opset1::MatMul>(m.get_match_root());
@@ -163,9 +164,9 @@ ngraph::pass::ConvertMatMulToFC::ConvertMatMulToFC() {
 NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertMatMulToGemm, "ConvertMatMulToGemm", 0);
 
 ngraph::pass::ConvertMatMulToGemm::ConvertMatMulToGemm() {
-    auto input_0 = std::make_shared<pattern::op::Label>(element::f32, Shape {1, 1});
-    auto input_1 = std::make_shared<pattern::op::Label>(element::f32, Shape {1, 1});
-    auto matmul = std::make_shared<ngraph::opset1::MatMul>(input_0, input_1);
+    auto matmul = pattern::wrap_type<opset1::MatMul>({pattern::any_input(pattern::has_static_shape()),
+                                                      pattern::any_input(pattern::has_static_shape())},
+                                                      pattern::has_static_shape());
 
     ngraph::matcher_pass_callback callback = [this](pattern::Matcher& m) {
         auto matmul = std::dynamic_pointer_cast<ngraph::opset1::MatMul>(m.get_match_root());

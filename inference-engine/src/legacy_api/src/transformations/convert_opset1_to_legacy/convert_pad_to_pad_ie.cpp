@@ -14,7 +14,7 @@
 NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertPadToLegacyMatcher, "ConvertPadToLegacyMatcher", 0);
 
 ngraph::pass::ConvertPadToLegacyMatcher::ConvertPadToLegacyMatcher() {
-    auto m_pad = ngraph::pattern::wrap_type<ngraph::opset1::Pad>();
+    auto m_pad = ngraph::pattern::wrap_type<ngraph::opset1::Pad>(pattern::has_static_shape());
 
     ngraph::matcher_pass_callback callback = [](pattern::Matcher& m) {
         auto pad = std::dynamic_pointer_cast<ngraph::opset1::Pad> (m.get_match_root());

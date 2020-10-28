@@ -10,15 +10,16 @@
 
 #include <ngraph/opsets/opset1.hpp>
 #include <ngraph/rt_info.hpp>
+#include <ngraph/pattern/op/wrap_type.hpp>
 
 #include <legacy/ngraph_ops/lrn_ie.hpp>
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertLRNToLegacyMatcher, "ConvertLRNToLegacyMatcher", 0);
 
 ngraph::pass::ConvertLRNToLegacyMatcher::ConvertLRNToLegacyMatcher() {
-    auto input_0 = std::make_shared<pattern::op::Label>(element::f32, Shape{1, 1, 1, 1});
-    auto input_1 = std::make_shared<pattern::op::Label>(element::i64, Shape{1});
-    auto lrn = std::make_shared<ngraph::opset1::LRN>(input_0, input_1, 1, 1, 1, 1);
+    auto lrn = pattern::wrap_type<opset1::LRN>({pattern::any_input(),
+                                                pattern::wrap_type<opset1::Constant>()},
+                                                pattern::has_static_rank());
 
     ngraph::matcher_pass_callback callback = [](pattern::Matcher& m) {
         auto lrn = std::dynamic_pointer_cast<ngraph::opset1::LRN> (m.get_match_root());
@@ -36,7 +37,7 @@ ngraph::pass::ConvertLRNToLegacyMatcher::ConvertLRNToLegacyMatcher() {
         if (axis_value.size() == 1 && axis_value[0] == 1) {
             region = "across";
         } else {
-            std::vector<bool> norm(lrn->get_shape().size(), false);
+            std::vector<bool> norm(lrn->get_output_partial_shape(0).rank().get_length(), false);
             for (auto & axis : axis_value) {
                 if (axis < 0 || static_cast<size_t>(axis) >= norm.size()) {
                     return false;
