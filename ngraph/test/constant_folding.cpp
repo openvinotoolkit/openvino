@@ -2244,37 +2244,6 @@ TEST(constant_folding, constant_range)
     range_test<float>(12, 4, -2, {12, 10, 8, 6});
 }
 
-TEST(constant_folding, constant_select)
-{
-    Shape shape{2, 4};
-    vector<char> values_selection{0, 1, 1, 0, 1, 0, 0, 1};
-    vector<int64_t> values_t{2, 4, 6, 8, 10, 12, 14, 16};
-    vector<int64_t> values_f{1, 3, 5, 7, 9, 11, 13, 15};
-
-    auto constant_selection = make_shared<op::Constant>(element::boolean, shape, values_selection);
-    auto constant_t = make_shared<op::Constant>(element::i64, shape, values_t);
-    auto constant_f = make_shared<op::Constant>(element::i64, shape, values_f);
-    auto select = make_shared<op::Select>(constant_selection, constant_t, constant_f);
-    select->set_friendly_name("test");
-    auto f = make_shared<Function>(select, ParameterVector{});
-
-    pass::Manager pass_manager;
-    pass_manager.register_pass<pass::ConstantFolding>();
-    pass_manager.run_passes(f);
-
-    ASSERT_EQ(count_ops_of_type<op::Select>(f), 0);
-    ASSERT_EQ(count_ops_of_type<op::Constant>(f), 1);
-
-    auto new_const =
-        as_type_ptr<op::Constant>(f->get_results().at(0)->input_value(0).get_node_shared_ptr());
-    ASSERT_TRUE(new_const);
-    ASSERT_EQ(new_const->get_friendly_name(), "test");
-    auto values_out = new_const->get_vector<int64_t>();
-
-    vector<int64_t> values_expected{1, 4, 6, 7, 10, 11, 13, 16};
-    ASSERT_EQ(values_expected, values_out);
-}
-
 TEST(constant_folding, constant_v1_select)
 {
     Shape shape{2, 4};
