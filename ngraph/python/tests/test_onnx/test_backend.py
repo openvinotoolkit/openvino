@@ -230,8 +230,6 @@ tests_expected_to_fail = [
         "OnnxBackendNodeModelTest.test_training_dropout_zero_ratio_cpu",
         "OnnxBackendNodeModelTest.test_training_dropout_cpu"),
     (xfail_issue_35915,
-        "OnnxBackendNodeModelTest.test_equal_bcast_cpu",
-        "OnnxBackendNodeModelTest.test_equal_cpu",
         "OnnxBackendNodeModelTest.test_min_int16_cpu",
         "OnnxBackendNodeModelTest.test_min_uint8_cpu"),
     (xfail_issue_34310,
