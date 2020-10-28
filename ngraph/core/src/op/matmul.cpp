@@ -71,16 +71,27 @@ namespace matmul
         // Result of merging compatible dimensions for validation usage
         auto merged_dimension = Dimension::dynamic();
 
-        // 1D tensor cases. Transpose attributes are ignored.
+        // Transpose attributes are ignored for 1D tensors.
         if (arg0_rank == 1 && arg1_rank == 1)
         {
             NGRAPH_CHECK(Dimension::merge(merged_dimension, arg0_shape_tmp[0], arg1_shape_tmp[0]),
                          "Incompatible matrix dimensions.");
             return PartialShape(Shape{});
         }
-        else if (arg0_rank == 1)
+
+        if (transpose_a && arg0_rank > 1)
         {
-            // i.e., arg0 shape {3}, arg1 shape{2, 3, 2}, output shape {2, 2}
+            swap(arg0_shape_tmp[arg0_rank - 2], arg0_shape_tmp[arg0_rank - 1]);
+        }
+
+        if (transpose_b && arg1_rank > 1)
+        {
+            swap(arg1_shape_tmp[arg1_rank - 2], arg1_shape_tmp[arg1_rank - 1]);
+        }
+
+        if (arg0_rank == 1)
+        {
+            // i.e. arg0 shape {3}, arg1 shape{2, 3, 2}, output shape {2, 2}
             NGRAPH_CHECK(Dimension::merge(merged_dimension,
                                           arg0_shape_tmp[0],
                                           arg1_shape_tmp[arg1_shape_tmp.size() - 2]),
@@ -90,7 +101,7 @@ namespace matmul
         }
         else if (arg1_rank == 1)
         {
-            // i.e., arg0 shape {2, 2, 3}, arg1 shape{3}, output shape {2, 2}
+            // i.e. arg0 shape {2, 2, 3}, arg1 shape{3}, output shape {2, 2}
             NGRAPH_CHECK(Dimension::merge(
                              merged_dimension, arg1_shape_tmp[0], arg0_shape_tmp[arg0_rank - 1]),
                          "Incompatible matrix dimensions.");
@@ -99,16 +110,6 @@ namespace matmul
         }
 
         // 2D and bigger tensors cases.
-        if (transpose_a)
-        {
-            swap(arg0_shape_tmp[arg0_rank - 2], arg0_shape_tmp[arg0_rank - 1]);
-        }
-
-        if (transpose_b)
-        {
-            swap(arg1_shape_tmp[arg1_rank - 2], arg1_shape_tmp[arg1_rank - 1]);
-        }
-
         NGRAPH_CHECK(Dimension::merge(merged_dimension,
                                       arg0_shape_tmp[arg0_rank - 1],
                                       arg1_shape_tmp[arg1_rank - 2]),
@@ -127,18 +128,18 @@ namespace matmul
 
             if (arg0_rank != arg1_rank)
             {
-                // expand low_size_matrix (with 1) to have the same rank as big_size_matrix
+                // Expand low_size_matrix (with 1) to have the same rank as big_size_matrix
                 size_t delta_rank = big_size_matrix.size() - low_size_matrix.size();
                 low_size_matrix.insert(low_size_matrix.begin(), delta_rank, 1);
             }
 
-            // get max value for all batches (max_rank - 2), COL_INDEX_DIM and ROW_INDEX_DIM are
+            // Get max value for all batches (max_rank - 2), COL_INDEX_DIM and ROW_INDEX_DIM are
             // updated at the end
             for (auto i = 0; i < max_rank - 2; i++)
             {
                 if (low_size_matrix[i].is_dynamic() || big_size_matrix[i].is_dynamic())
                 {
-                    // static value is assigned to output when it is > 1, otherwise
+                    // Static value is assigned to output when it is > 1, otherwise
                     // dynamic dimension is forwarded to output
                     Dimension::merge(merged_dimension, low_size_matrix[i], big_size_matrix[i]);
                     if (merged_dimension.is_static() && merged_dimension.get_length() > 1)
@@ -152,6 +153,13 @@ namespace matmul
                 }
                 else
                 {
+                    // Check if batch dimension broadcast is possible
+                    NGRAPH_CHECK(
+                        (low_size_matrix[i].get_length() == big_size_matrix[i].get_length()) ||
+                            (std::min(low_size_matrix[i].get_length(),
+                                      big_size_matrix[i].get_length()) == 1),
+                        "Incompatible batch dimensions.");
+
                     output_shape[i] =
                         std::max(low_size_matrix[i].get_length(), big_size_matrix[i].get_length());
                 }

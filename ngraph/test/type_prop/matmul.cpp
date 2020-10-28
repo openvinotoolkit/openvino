@@ -158,6 +158,7 @@ TEST(type_prop, matmul_dynamic_1D_3D)
 }
 
 // Transpose attributes are ignored for 1D
+// 1D x 1D
 TEST(type_prop, matmul_1D_x_1D_false_false)
 {
     auto A = make_shared<op::Parameter>(element::f32, Shape{1});
@@ -202,6 +203,7 @@ TEST(type_prop, matmul_1D_x_1D_true_true)
     ASSERT_EQ(matmul->get_shape(), (Shape{}));
 }
 
+// 2D x 1D
 TEST(type_prop, matmul_2D_x_1D_false_false)
 {
     auto A = make_shared<op::Parameter>(element::f32, Shape{1, 2});
@@ -228,10 +230,21 @@ TEST(type_prop, matmul_2D_x_1D_true_false)
 {
     auto A = make_shared<op::Parameter>(element::f32, Shape{1, 2});
     auto B = make_shared<op::Parameter>(element::f32, Shape{2});
-    auto matmul = make_shared<op::MatMul>(A, B, true, false);
 
-    ASSERT_EQ(matmul->get_element_type(), element::f32);
-    ASSERT_EQ(matmul->get_shape(), (Shape{1}));
+    try
+    {
+        auto matmul = make_shared<op::MatMul>(A, B, true, false);
+        // Should have thrown, so fail if it didn't
+        FAIL() << "Incompatible matrix dimensions not detected. ";
+    }
+    catch (const ngraph_error& error)
+    {
+        EXPECT_HAS_SUBSTRING(error.what(), std::string("Incompatible matrix dimensions"));
+    }
+    catch (...)
+    {
+        FAIL() << "Deduced type check failed for unexpected reason";
+    }
 }
 
 TEST(type_prop, matmul_2D_x_1D_true_true)
@@ -239,12 +252,23 @@ TEST(type_prop, matmul_2D_x_1D_true_true)
     auto A = make_shared<op::Parameter>(element::f32, Shape{1, 2});
     auto B = make_shared<op::Parameter>(element::f32, Shape{2});
 
-    auto matmul = make_shared<op::MatMul>(A, B, true, true);
-
-    ASSERT_EQ(matmul->get_element_type(), element::f32);
-    ASSERT_EQ(matmul->get_shape(), (Shape{1}));
+    try
+    {
+        auto matmul = make_shared<op::MatMul>(A, B, true, true);
+        // Should have thrown, so fail if it didn't
+        FAIL() << "Incompatible matrix dimensions not detected. ";
+    }
+    catch (const ngraph_error& error)
+    {
+        EXPECT_HAS_SUBSTRING(error.what(), std::string("Incompatible matrix dimensions"));
+    }
+    catch (...)
+    {
+        FAIL() << "Deduced type check failed for unexpected reason";
+    }
 }
 
+// 1D x 2D
 TEST(type_prop, matmul_1D_x_2D_false_false)
 {
     auto A = make_shared<op::Parameter>(element::f32, Shape{2});
@@ -261,10 +285,20 @@ TEST(type_prop, matmul_1D_x_2D_false_true)
     auto A = make_shared<op::Parameter>(element::f32, Shape{2});
     auto B = make_shared<op::Parameter>(element::f32, Shape{2, 1});
 
-    auto matmul = make_shared<op::MatMul>(A, B, false, true);
-
-    ASSERT_EQ(matmul->get_element_type(), element::f32);
-    ASSERT_EQ(matmul->get_shape(), (Shape{1}));
+    try
+    {
+        auto matmul = make_shared<op::MatMul>(A, B, false, true);
+        // Should have thrown, so fail if it didn't
+        FAIL() << "Incompatible matrix dimensions not detected. ";
+    }
+    catch (const ngraph_error& error)
+    {
+        EXPECT_HAS_SUBSTRING(error.what(), std::string("Incompatible matrix dimensions"));
+    }
+    catch (...)
+    {
+        FAIL() << "Deduced type check failed for unexpected reason";
+    }
 }
 
 TEST(type_prop, matmul_1D_x_2D_true_false)
@@ -282,8 +316,73 @@ TEST(type_prop, matmul_1D_x_2D_true_true)
     auto A = make_shared<op::Parameter>(element::f32, Shape{2});
     auto B = make_shared<op::Parameter>(element::f32, Shape{2, 1});
 
-    auto matmul = make_shared<op::MatMul>(A, B, true, true);
+    try
+    {
+        auto matmul = make_shared<op::MatMul>(A, B, true, true);
+        // Should have thrown, so fail if it didn't
+        FAIL() << "Incompatible matrix dimensions not detected. ";
+    }
+    catch (const ngraph_error& error)
+    {
+        EXPECT_HAS_SUBSTRING(error.what(), std::string("Incompatible matrix dimensions"));
+    }
+    catch (...)
+    {
+        FAIL() << "Deduced type check failed for unexpected reason";
+    }
+}
+
+// Batch broadcast
+TEST(type_prop, matmul_batch_broadcast)
+{
+    auto A = make_shared<op::Parameter>(element::f32, Shape{5, 1, 1, 4, 3});
+    auto B = make_shared<op::Parameter>(element::f32, Shape{1, 1, 6, 3, 2});
+
+    auto matmul = make_shared<op::MatMul>(A, B, false, false);
 
     ASSERT_EQ(matmul->get_element_type(), element::f32);
-    ASSERT_EQ(matmul->get_shape(), (Shape{1}));
+    ASSERT_EQ(matmul->get_shape(), (Shape{5, 1, 6, 4, 2}));
+}
+
+TEST(type_prop, matmul_batch_broadcast_expand_to_A)
+{
+    auto A = make_shared<op::Parameter>(element::f32, Shape{1, 4, 3});
+    auto B = make_shared<op::Parameter>(element::f32, Shape{7, 8, 5, 3, 2});
+
+    auto matmul = make_shared<op::MatMul>(A, B, false, false);
+
+    ASSERT_EQ(matmul->get_element_type(), element::f32);
+    ASSERT_EQ(matmul->get_shape(), (Shape{7, 8, 5, 4, 2}));
+}
+
+TEST(type_prop, matmul_batch_broadcast_expand_to_B)
+{
+    auto A = make_shared<op::Parameter>(element::f32, Shape{8, 7, 6, 1, 4, 3});
+    auto B = make_shared<op::Parameter>(element::f32, Shape{1, 5, 3, 2});
+
+    auto matmul = make_shared<op::MatMul>(A, B, false, false);
+
+    ASSERT_EQ(matmul->get_element_type(), element::f32);
+    ASSERT_EQ(matmul->get_shape(), (Shape{8, 7, 6, 5, 4, 2}));
+}
+
+TEST(type_prop, matmul_incompatible_batch_dims)
+{
+    auto A = make_shared<op::Parameter>(element::f32, Shape{7, 4, 3});
+    auto B = make_shared<op::Parameter>(element::f32, Shape{6, 3, 2});
+
+    try
+    {
+        auto matmul = make_shared<op::MatMul>(A, B);
+        // Should have thrown, so fail if it didn't
+        FAIL() << "Incompatible matrix dimensions not detected. ";
+    }
+    catch (const ngraph_error& error)
+    {
+        EXPECT_HAS_SUBSTRING(error.what(), std::string("Incompatible batch dimensions"));
+    }
+    catch (...)
+    {
+        FAIL() << "Deduced type check failed for unexpected reason";
+    }
 }
