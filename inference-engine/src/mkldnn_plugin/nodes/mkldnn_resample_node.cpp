@@ -5,9 +5,8 @@
 #include "mkldnn_resample_node.h"
 #include "desc_iterator.hpp"
 #include "mkldnn_quantize_node.h"
-#include "mkldnn_depthwise_node.h"
-#include "mkldnn_activation_node.h"
 #include <legacy/ie_layers.h>
+#include "mkldnn_eltwise_node.h"
 #include <mkldnn.hpp>
 #include <string>
 #include <vector>
@@ -438,64 +437,9 @@ void MKLDNNResampleNode::setPostOps(mkldnn::primitive_attr &attr, bool initWeigh
             continue;
         }
 
-        auto* depthwiseNode = dynamic_cast<MKLDNNDepthwiseNode *>(node.get());
-        if (depthwiseNode) {
-            if (initWeights) {
-                auto* depthwiseLayer = reinterpret_cast<WeightableLayer*>(depthwiseNode->getCnnLayer().get());
-                MKLDNNDims depthwiseDims({static_cast<ptrdiff_t>(rnd_up(getChildEdgeAt(0)->getDims()[1], 16))});
-
-                PostOpsIntBlobMemory.push_back(MKLDNNMemoryPtr(new MKLDNNMemory(getEngine())));
-                PostOpsIntBlobMemory[blob_idx]->Create(depthwiseDims, memory::data_type::f32, memory::format::x);
-                PostOpsIntBlobMemory[blob_idx]->FillZero();
-
-                PostOpsIntBlobMemory[blob_idx]->SetData(memory::data_type::f32, memory::x,
-                                                        depthwiseLayer->_weights->buffer(),
-                                                        depthwiseLayer->_weights->size() *
-                                                        MKLDNNExtensionUtils::sizeOfDataType(memory::data_type::f32));
-
-                if (depthwiseNode->isBroadcast()) {
-                    float broadcastValue = static_cast<float *>(PostOpsIntBlobMemory[blob_idx]->GetData())[0];
-                    for (int i = 1; i < PostOpsIntBlobMemory[blob_idx]->GetPrimitiveDescriptor().desc().data.dims[0]; i++) {
-                        static_cast<float *>(PostOpsIntBlobMemory[blob_idx]->GetData())[i] = broadcastValue;
-                    }
-                }
-
-                if (depthwiseNode->getAlgorithm() == depthwise_scale_shift) {
-                    PostOpsIntBlobMemory.push_back(MKLDNNMemoryPtr(new MKLDNNMemory(getEngine())));
-                    PostOpsIntBlobMemory[blob_idx + 1]->Create(depthwiseDims, memory::data_type::f32,
-                                                               memory::format::x);
-                    PostOpsIntBlobMemory[blob_idx + 1]->FillZero();
-                    PostOpsIntBlobMemory[blob_idx + 1]->SetData(memory::data_type::f32, memory::x,
-                                                                depthwiseLayer->_biases->buffer(),
-                                                                depthwiseLayer->_biases->size() *
-                                                                MKLDNNExtensionUtils::sizeOfDataType(memory::data_type::f32));
-
-                    if (depthwiseNode->isBroadcast()) {
-                        float broadcastValue = static_cast<float *>(PostOpsIntBlobMemory[blob_idx + 1]->GetData())[0];
-                        for (int i = 1; i < PostOpsIntBlobMemory[blob_idx + 1]->GetPrimitiveDescriptor().desc().data.dims[0]; i++) {
-                            static_cast<float *>(PostOpsIntBlobMemory[blob_idx + 1]->GetData())[i] = broadcastValue;
-                        }
-                    }
-
-                    ops.append_depthwise(depthwiseNode->getAlgorithm(),
-                                         (const float *) PostOpsIntBlobMemory[blob_idx]->GetData(),
-                                         (const float *) PostOpsIntBlobMemory[blob_idx + 1]->GetData());
-
-                    blob_idx += 2;
-                }
-            } else {
-                ops.append_depthwise(depthwiseNode->getAlgorithm(),
-                                     nullptr,
-                                     nullptr);
-            }
-
-            continue;
-        }
-
-        auto* activationNode = dynamic_cast<MKLDNNActivationNode *>(node.get());
-        if (activationNode) {
-            ops.append_eltwise(1.0, activationNode->getAlgorithm(), activationNode->getAlpha(), activationNode->getBeta());
-
+        auto* eltwiseNode = dynamic_cast<MKLDNNEltwiseNode *>(node.get());
+        if (eltwiseNode) {
+            eltwiseNode->appendPostOps(ops);
             continue;
         }
 
