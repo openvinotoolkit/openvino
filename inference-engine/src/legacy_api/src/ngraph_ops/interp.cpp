@@ -44,8 +44,9 @@ void op::Interp::validate_and_infer_types() {
                     scale /= m_attrs.shrink_factor;
                 }
             }
-            output_shape[2] = input_shape[2] * scale;
-            output_shape[3] = input_shape[3] * scale;
+
+            output_shape[2] = static_cast<Shape::value_type>(input_shape[2] * scale);
+            output_shape[3] = static_cast<Shape::value_type>(input_shape[3] * scale);
         }
 
         if (m_attrs.height > 0) {

@@ -9,6 +9,7 @@
 
 #include <transformations_visibility.hpp>
 
+#include <ngraph/opsets/opset1.hpp>
 #include <ngraph/pass/graph_rewrite.hpp>
 #include <ngraph/slice_plan.hpp>
 #include <ngraph/util.hpp>
@@ -75,3 +76,5 @@ public:
         return rewritten;
     }
 };
+
+ngraph::SlicePlan get_slice_plan(std::shared_ptr<ngraph::opset1::StridedSlice> slice);

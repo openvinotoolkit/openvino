@@ -129,7 +129,7 @@ int EltwiseBaseTransformation::getNotEmpty(const std::shared_ptr<Node>& eltwise)
         const std::shared_ptr<Node>& data = dataNodes[i];
         if ((allBranchesAreEqual && isBroadcasted(data->get_output_shape(0))) ||
             (!allBranchesAreEqual && isBranchWithTargetType(as_type_ptr<opset1::FakeQuantize>(data)))) {
-            return i;
+            return static_cast<int>(i);
         }
     }
 

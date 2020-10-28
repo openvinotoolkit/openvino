@@ -32,6 +32,7 @@ from mo.utils.utils import refer_to_faq_msg
 
 class ONNXLoader(Loader):
     enabled = True
+    run_not_recursively = True
 
     def load(self, graph: Graph):
         argv = graph.graph['cmd_params']
