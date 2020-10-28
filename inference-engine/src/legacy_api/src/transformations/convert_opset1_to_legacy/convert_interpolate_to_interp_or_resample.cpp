@@ -12,15 +12,15 @@
 
 #include <ngraph/opsets/opset1.hpp>
 #include <ngraph/rt_info.hpp>
+#include <ngraph/pattern/op/wrap_type.hpp>
 
 #include <legacy/ngraph_ops/interp.hpp>
 
 NGRAPH_RTTI_DEFINITION(ngraph::pass::ConvertInterpolateToInterpOrResampleMatcher, "ConvertInterpolateToInterpOrResampleMatcher", 0);
 
 ngraph::pass::ConvertInterpolateToInterpOrResampleMatcher::ConvertInterpolateToInterpOrResampleMatcher() {
-    auto data = std::make_shared<pattern::op::Label>(element::f32, Shape{1, 1, 1, 1});
-    auto shp = std::make_shared<pattern::op::Label>(element::i64, Shape{2});
-    auto interpolate = std::make_shared<ngraph::opset1::Interpolate>(data, shp, ngraph::op::v0::InterpolateAttrs());
+    auto interpolate = pattern::wrap_type<opset1::Interpolate>({pattern::any_input(pattern::has_static_shape()),
+                                                                pattern::wrap_type<opset1::Constant>()});
 
     ngraph::matcher_pass_callback callback = [](pattern::Matcher& m) {
         auto interpolate = std::dynamic_pointer_cast<ngraph::opset1::Interpolate> (m.get_match_root());
