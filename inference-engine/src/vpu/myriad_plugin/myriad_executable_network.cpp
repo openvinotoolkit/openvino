@@ -51,7 +51,7 @@ ExecutableNetwork::ExecutableNetwork(
 }
 
 ExecutableNetwork::ExecutableNetwork(
-        ICNNNetwork& network,
+        const ICNNNetwork& network,
         std::shared_ptr<IMvnc> mvnc,
         std::vector<DevicePtr>& devicePool,
         const MyriadConfig& config,
@@ -84,7 +84,7 @@ ExecutableNetwork::ExecutableNetwork(
         return;
     }
 
-    auto networkName = network.getName();
+    const auto& networkName = network.getName();
     _executor->allocateGraph(_device, _graphDesc, _graphBlob, compiledGraph->blobHeader, compiledGraph->numActiveStages, networkName, _actualNumExecutors);
     if (_config.exclusiveAsyncRequests()) {
         ExecutorManager *executorManager = ExecutorManager::getInstance();
