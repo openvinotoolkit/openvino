@@ -434,10 +434,10 @@ void PassImpl::splitHwConv(
         const auto tileInfo = tileInfos[i];
         const auto tile = tileInfo.tile;
 
-        const std::string postfix = getPostfix(postfixDescription, i+1, tileInfos.size());
+        const std::string postfix = getPostfix(postfixDescription, i+1, static_cast<int>(tileInfos.size()));
 
         const auto startChannel = tileInfo.slice.start;
-        const auto numChannels = tileInfo.slice.size;
+        const auto numChannels = static_cast<int>(tileInfo.slice.size);
 
         const auto newWeights = splitWeights(model, weights, postfix, startChannel, numChannels);
         const auto newBiases = splitBiases(model, biases, postfix, startChannel, numChannels);
@@ -610,7 +610,7 @@ std::vector<HwConvTileInfo> PassImpl::splitHwConvInMultipleOutChannelsTiles(
             tileInfo.cost = descCost;
 
             bestSol.clear();
-            for (int i = 0; i < numDescr; ++i) {
+            for (uint32_t i = 0; i < numDescr; ++i) {
                 if (i == numDescr-1)
                     tileInfo.lastOutChans = (remOutChans > 0) ? remOutChans : outChansPerDescr;
 

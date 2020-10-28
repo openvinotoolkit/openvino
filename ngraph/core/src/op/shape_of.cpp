@@ -166,6 +166,8 @@ bool op::v3::ShapeOf::evaluate(const HostTensorVector& output_values,
 bool op::v3::ShapeOf::constant_fold(OutputVector& output_values, const OutputVector& input_values)
 {
     OV_ITT_SCOPED_TASK(itt::domains::nGraph, "op::v3::ShapeOf::constant_fold");
+    if (get_rt_info().count("DISABLED_CONSTANT_FOLDING"))
+        return false;
     return shape_of::constant_fold_shape_of(this, output_values[0], input_values[0], m_is_foldable);
 }
 
@@ -213,5 +215,7 @@ bool op::v0::ShapeOf::evaluate(const HostTensorVector& output_values,
 bool op::v0::ShapeOf::constant_fold(OutputVector& output_values, const OutputVector& input_values)
 {
     OV_ITT_SCOPED_TASK(itt::domains::nGraph, "op::v0::ShapeOf::constant_fold");
+    if (get_rt_info().count("DISABLED_CONSTANT_FOLDING"))
+        return false;
     return shape_of::constant_fold_shape_of(this, output_values[0], input_values[0], m_is_foldable);
 }
