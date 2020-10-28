@@ -243,7 +243,8 @@ namespace ngraph
                 Constant(const element::Type& type,
                          const Shape& shape,
                          std::shared_ptr<runtime::SharedBuffer<T>> data)
-                    : m_element_type(type), m_shape(shape)
+                    : m_element_type(type)
+                    , m_shape(shape)
                 {
                     m_data = data;
                     constructor_validate_and_infer_types();
