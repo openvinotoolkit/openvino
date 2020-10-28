@@ -37,10 +37,10 @@ namespace
     std::vector<int64_t> create_pitches(const Shape& dims)
     {
         std::vector<int64_t> pitch;
-        pitch.resize(dims.size() - 1);
+        pitch.resize(dims.size());
         std::partial_sum(
-            dims.rbegin(), dims.rend() - 1, pitch.rbegin(), std::multiplies<int64_t>());
-        pitch.push_back(1);
+            dims.rbegin(), dims.rend() - 1, pitch.rbegin() + 1, std::multiplies<int64_t>());
+        pitch.back() = 1;
         return pitch;
     }
 }
