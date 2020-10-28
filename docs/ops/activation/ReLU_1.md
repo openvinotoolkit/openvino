@@ -18,11 +18,11 @@ Y_{i}^{( l )} = max(0, Y_{i}^{( l - 1 )})
 
 **Inputs**:
 
-*   **1**: Multidimensional input tensor of any supported numeric type. Required.
+*   **1**: Multidimensional input tensor *x* of any supported numeric type. Required.
 
 **Outputs**:
 
-*   **1**: Result of ReLU function applied to the input tensor x. Tensor with shape and type matching the input tensor. Required.
+*   **1**: Result of ReLU function applied to the input tensor *x*. Tensor with shape and type matching the input tensor. Required.
 
 **Example**
 
