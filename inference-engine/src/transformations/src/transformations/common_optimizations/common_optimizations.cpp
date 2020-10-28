@@ -61,8 +61,8 @@ bool ngraph::pass::CommonOptimizations::run_on_function(std::shared_ptr<ngraph::
     manager.register_pass<ngraph::pass::ConvertQuantizeDequantize>();
     manager.register_pass<ngraph::pass::ConstantFolding>();
     manager.register_pass<ngraph::pass::StridedSliceOptimization>(); // depends on CF
-    manager.register_pass<ngraph::pass::NopElimination>(); // may introduce fake dynamism
     manager.register_pass<ngraph::pass::AlgebraicSimplification>(); // may introduce fake dynamism
+    manager.register_pass<ngraph::pass::NopElimination>(); // may introduce fake dynamism
     manager.register_pass<ngraph::pass::ConstantFolding>();
     manager.register_pass<ngraph::pass::ConvertScatterElementsToScatter>(); // partially depends on CF
     manager.register_pass<ngraph::pass::DepthToSpaceFusion>();
