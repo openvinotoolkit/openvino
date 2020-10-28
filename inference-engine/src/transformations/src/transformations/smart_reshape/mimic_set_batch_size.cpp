@@ -12,7 +12,7 @@ bool ngraph::pass::MimicSetBatchSize::run_on_function(std::shared_ptr<ngraph::Fu
     auto specialized_function = ngraph::clone_function(*f);
     ngraph::pass::Manager manager;
     manager.register_pass<ngraph::pass::ConstantFolding>();
-    manager.run_passes(f);
+    manager.run_passes(specialized_function);
 
     std::map<std::string, float> scale;
     for (const auto & node : specialized_function->get_ops()) {
