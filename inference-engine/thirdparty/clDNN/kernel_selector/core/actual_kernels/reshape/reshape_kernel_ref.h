@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2016-2019 Intel Corporation
+﻿// Copyright (c) 2016-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,7 +14,7 @@
 
 #pragma once
 
-#include "common_kernel_base.h"
+#include "kernel_base_opencl.h"
 
 namespace kernel_selector {
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -33,9 +33,9 @@ struct reshape_optional_params : optional_params {
     reshape_optional_params() : optional_params(KernelType::RESHAPE) {}
 };
 
-class ReshapeKernelRef : public common_kernel_base {
+class ReshapeKernelRef : public KernelBaseOpenCL {
 public:
-    ReshapeKernelRef() : common_kernel_base("reshape_ref") {}
+    ReshapeKernelRef() : KernelBaseOpenCL("reshape_ref") {}
     virtual ~ReshapeKernelRef() {}
 
     KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;

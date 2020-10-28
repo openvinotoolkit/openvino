@@ -668,12 +668,6 @@ CNNLayer::Ptr NodeConverter<ngraph::op::v1::Add>::createLayer(const std::shared_
 }
 
 template <>
-CNNLayer::Ptr NodeConverter<ngraph::op::BatchNormInference>::createLayer(
-    const std::shared_ptr<ngraph::Node>& layer) const {
-    THROW_IE_EXCEPTION << "BatchNormInference operation should be fused or decomposed";
-}
-
-template <>
 CNNLayer::Ptr NodeConverter<ngraph::op::Squeeze>::createLayer(const std::shared_ptr<ngraph::Node>& layer) const {
     LayerParams params = {layer->get_friendly_name(), "Squeeze",
                           details::convertPrecision(layer->get_output_element_type(0))};
@@ -1538,7 +1532,7 @@ CNNLayer::Ptr NodeConverter<ngraph::op::PriorBoxIE>::createLayer(const std::shar
         auto img_H = img_shape[2];
         auto data_H = data_shape[2];
         if (attr.step == -1)
-            attr.step = 1. * img_H / data_H;
+            attr.step = static_cast<float>(1. * img_H / data_H);
         else
             attr.step *= img_H;
         for (auto& size : attr.min_size)
@@ -1642,6 +1636,9 @@ CNNLayer::Ptr NodeConverter<ngraph::op::Eltwise>::createLayer(const std::shared_
     switch (castedLayer->eltwise_type) {
     case ELTWISE_TYPE::Sum:
         type = "sum";
+        break;
+    case ELTWISE_TYPE::Sub:
+        type = "sub";
         break;
     case ELTWISE_TYPE::Prod:
         type = "prod";

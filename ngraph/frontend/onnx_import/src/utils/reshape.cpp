@@ -74,12 +74,12 @@ namespace ngraph
                     std::size_t input_shape_product =
                         std::accumulate(std::begin(input_shape),
                                         std::end(input_shape),
-                                        1UL,
+                                        size_t{1},
                                         std::multiplies<std::size_t>());
                     std::size_t output_shape_product =
                         std::accumulate(std::begin(inferred_dims),
                                         std::end(inferred_dims),
-                                        1UL,
+                                        size_t{1},
                                         std::multiplies<std::size_t>());
                     *neg_value_it = input_shape_product / output_shape_product;
                 }

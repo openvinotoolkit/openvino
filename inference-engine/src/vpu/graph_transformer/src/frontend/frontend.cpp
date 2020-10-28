@@ -32,7 +32,6 @@
 #include <transformations/common_optimizations/common_optimizations.hpp>
 #include <transformations/init_node_info.hpp>
 #include <vpu/ngraph/transformations/merge_subsequent_dsr_operations.hpp>
-#include <vpu/ngraph/transformations/convert_nms_4_to_nms_dynamic.hpp>
 #include "vpu/ngraph/transformations/dynamic_to_static_shape.hpp"
 #include "vpu/ngraph/transformations/eliminate_shapeof_after_dsr.hpp"
 #include <vpu/ngraph/operations/dynamic_shape_resolver.hpp>
@@ -105,7 +104,6 @@ FrontEnd::FrontEnd(StageBuilder::Ptr stageBuilder, const ie::ICore* core)
         {"Select",                                             LAYER_PARSER(parseSelect)},
         {"Erf",                                                LAYER_PARSER(parseErf)},
         {"ExperimentalDetectronDetectionOutput",               LAYER_PARSER(parseExpDetectionOutput)},
-        {"NonMaxSuppression",                                  LAYER_PARSER(parseNonMaxSuppression)},
         {"ExperimentalDetectronROIFeatureExtractor",           LAYER_PARSER(parseROIFeatureExtractor)},
         {"Convert",                                            LAYER_PARSER(parseConvert)},
         {"ReduceMax",                                          LAYER_PARSER(parseReduce)},
@@ -130,6 +128,7 @@ FrontEnd::FrontEnd(StageBuilder::Ptr stageBuilder, const ie::ICore* core)
         {"SoftPlus",                                           LAYER_PARSER(parseSoftPlus)},
         {"Swish",                                              LAYER_PARSER(parseSwish)},
         {"Activation",                                         LAYER_PARSER(parseActivation)},
+        {"HSwish",                                             LAYER_PARSER(parseHSwish)},
     }} {
         VPU_THROW_UNLESS(_core != nullptr, "Argument core is null");
     }
@@ -155,7 +154,8 @@ ie::ICNNNetwork::Ptr FrontEnd::convertNetwork(ie::ICNNNetwork& network) {
         const bool casesWithDynamicOrStaticUsage =
             std::dynamic_pointer_cast<const ngraph::opset3::Gelu>(node) ||
             std::dynamic_pointer_cast<const ngraph::opset4::SoftPlus>(node) ||
-            std::dynamic_pointer_cast<const ngraph::opset5::Minimum>(node);
+            std::dynamic_pointer_cast<const ngraph::opset5::Minimum>(node) ||
+            std::dynamic_pointer_cast<const ngraph::opset5::HSwish>(node);
 
         const bool casesWithOnlyDynamicUsage =
             (std::dynamic_pointer_cast<const ngraph::opset3::MatMul>(node) ||
@@ -173,13 +173,13 @@ ie::ICNNNetwork::Ptr FrontEnd::convertNetwork(ie::ICNNNetwork& network) {
     manager.register_pass<::ngraph::pass::InitNodeInfo>();
     // WA: ConvertPriorBox must be executed before the 1st ConstantFolding pass
     manager.register_pass<::ngraph::pass::ConvertPriorBox>();
-    manager.register_pass<vpu::UpgradeNMS4ToNMSDynamic>();
     manager.register_pass<ngraph::pass::CommonOptimizations>();
     manager.register_pass<vpu::DynamicToStaticShape>();
     manager.register_pass<vpu::EliminateShapeOfAfterDSR>();
     manager.register_pass<ngraph::pass::ConvertOpSet3ToOpSet2>();
     manager.register_pass<ngraph::pass::ConvertOpSet2ToOpSet1>();
     manager.register_pass<ngraph::pass::ConvertOpSet1ToLegacy>();
+
     manager.set_callback(transformationsPredicate);
     manager.run_passes(nGraphFunc);
 
