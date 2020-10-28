@@ -128,6 +128,7 @@ FrontEnd::FrontEnd(StageBuilder::Ptr stageBuilder, const ie::ICore* core)
         {"SoftPlus",                                           LAYER_PARSER(parseSoftPlus)},
         {"Swish",                                              LAYER_PARSER(parseSwish)},
         {"Activation",                                         LAYER_PARSER(parseActivation)},
+        {"HSwish",                                             LAYER_PARSER(parseHSwish)},
     }} {
         VPU_THROW_UNLESS(_core != nullptr, "Argument core is null");
     }
@@ -153,7 +154,8 @@ ie::ICNNNetwork::Ptr FrontEnd::convertNetwork(ie::ICNNNetwork& network) {
         const bool casesWithDynamicOrStaticUsage =
             std::dynamic_pointer_cast<const ngraph::opset3::Gelu>(node) ||
             std::dynamic_pointer_cast<const ngraph::opset4::SoftPlus>(node) ||
-            std::dynamic_pointer_cast<const ngraph::opset5::Minimum>(node);
+            std::dynamic_pointer_cast<const ngraph::opset5::Minimum>(node) ||
+            std::dynamic_pointer_cast<const ngraph::opset5::HSwish>(node);
 
         const bool casesWithOnlyDynamicUsage =
             (std::dynamic_pointer_cast<const ngraph::opset3::MatMul>(node) ||
@@ -177,6 +179,7 @@ ie::ICNNNetwork::Ptr FrontEnd::convertNetwork(ie::ICNNNetwork& network) {
     manager.register_pass<ngraph::pass::ConvertOpSet3ToOpSet2>();
     manager.register_pass<ngraph::pass::ConvertOpSet2ToOpSet1>();
     manager.register_pass<ngraph::pass::ConvertOpSet1ToLegacy>();
+
     manager.set_callback(transformationsPredicate);
     manager.run_passes(nGraphFunc);
 
