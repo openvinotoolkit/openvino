@@ -305,7 +305,7 @@ public:
     const_reverse_iterator crend() const noexcept { return _base.crend(); }
 
     bool empty() const noexcept { return _base.empty(); }
-#if ENABLE_MYRIAD
+#ifdef ENABLE_MYRIAD
     int size() const noexcept { return static_cast<int>(_base.size()); }
 #else
     size_t size() const noexcept { return _base.size(); }
