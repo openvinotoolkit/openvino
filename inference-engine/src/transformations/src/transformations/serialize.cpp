@@ -67,6 +67,9 @@ public:
     }
     void on_adapter(const std::string& name,
                     ngraph::ValueAccessor<std::string>& adapter) override {
+        // __generic_ie_type__ should not be serialized as a <data> attribute
+        // it is a WA to retrieve layer type name without introducing dependency on
+        // plugi_api library on transformations library
         if (name == "__generic_ie_type__") {
             ie_generic_type_name = adapter.get();
         } else {
