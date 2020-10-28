@@ -58,21 +58,21 @@ if errorlevel 1 (
 
 :: Check Python version
 for /F "tokens=* USEBACKQ" %%F IN (`python --version 2^>^&1`) DO (
-   set version=%%F
+   set pyversion=%%F
 )
 
-for /F "tokens=1,2,3 delims=. " %%a in ("%version%") do (
-   set Major=%%b
-   set Minor=%%c
+for /F "tokens=1,2,3 delims=. " %%a in ("%pyversion%") do (
+   set pyversion_major=%%b
+   set pyversion_minor=%%c
 )
 
-if "%Major%" geq "3" (
-   if "%Minor%" geq "6" (
-      set python_ver=okay
+if "%pyversion_major%" geq "3" (
+   if "%pyversion_minor%" geq "6" (
+      set check_pyversion=okay
    )
 )
 
-if not "%python_ver%"=="okay" (
+if not "%check_pyversion%"=="okay" (
    echo Unsupported Python version. Please install one of Python 3.6 - 3.8 ^(64-bit^) from https://www.python.org/downloads/
    exit /B 1
 )
