@@ -20,6 +20,7 @@
 #include "mkldnn_conv_node.h"
 #include "mkldnn_quantize_node.h"
 #include "mkldnn_pooling_node.h"
+#include "mkldnn_eltwise_node.h"
 #include <limits>
 #include "common/cpu_memcpy.h"
 
@@ -93,12 +94,9 @@ void MKLDNNConcatNode::initSupportedPrimitiveDescriptors() {
     MKLDNNDims dstDims = getChildEdgeAt(0)->getDims();
     InferenceEngine::LayerConfig config;
     config.dynBatchSupport = true;
-    bool hasEltwise = false;
 
     for (size_t i = 0; i < getParentEdges().size(); i++) {
         auto parentEdge = getParentEdgeAt(i);
-        if (parentEdge->getParent()->getType() == Eltwise)
-            hasEltwise = true;
 
         InferenceEngine::DataConfig dataConfig;
         dataConfig.inPlace = -1;
@@ -117,7 +115,7 @@ void MKLDNNConcatNode::initSupportedPrimitiveDescriptors() {
     config.outConfs.resize(1);
     config.outConfs[0].inPlace = -1;
     config.outConfs[0].constant = false;
-    if ((!isMixedPrecision && outputPrecision != Precision::U8 && outputPrecision != Precision::I8) || axis != 1 || hasEltwise) {
+    if ((!isMixedPrecision && outputPrecision != Precision::U8 && outputPrecision != Precision::I8) || axis != 1) {
         auto fmt = (inputPrecision == Precision::U8 || inputPrecision == Precision::I8) ? dims.ndims() == 2 ? memory::format::nc :
                                                                                           dims.ndims() == 4 ? memory::format::nhwc :
                                                                                                               memory::format::ndhwc
@@ -155,7 +153,7 @@ void MKLDNNConcatNode::initSupportedPrimitiveDescriptors() {
         }
     }
 
-    if (axis != 1 || hasEltwise)
+    if (axis != 1)
         return;
 
     auto numOfDim = static_cast<size_t>(dstDims.ndims());
