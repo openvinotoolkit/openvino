@@ -38,9 +38,15 @@ execute_process(COMMAND ${command}
 
 file(WRITE "${UWP_API_VALIDATOR_OUTPUT}" "${output_message}\n\n\n${error_message}")
 
+set(content "${output_message}\n\n\n${error_message}")
+string(REPLACE "Error" "" content "${content}")
+
+message("apiValidator")
+message("${content}")
+
 # post-process output
 
-if(ON OR NOT UWP_HAS_BINARY_EXCLUSION)
+if(NOT UWP_HAS_BINARY_EXCLUSION)
     get_filename_component(name "${UWP_API_VALIDATOR_TARGET}" NAME)
     set(exclusion_dlls "msvcp140.dll" "vcruntime140.dll")
 
