@@ -49,9 +49,8 @@ TEST(TransformationTests, ConvertNMS4FiveInputsToNMS5) {
         auto max_output_boxes_per_class = opset5::Constant::create(element::i64, Shape{}, {10});
         auto iou_threshold = opset5::Constant::create(element::f32, Shape{}, {0.75});
         auto score_threshold = opset5::Constant::create(element::f32, Shape{}, {0.7});
-        auto soft_nms_sigma = opset5::Constant::create(element::f32, Shape{}, {.0f});
         auto nms = std::make_shared<opset5::NonMaxSuppression>(boxes, scores, max_output_boxes_per_class,  iou_threshold, score_threshold,
-                                                               soft_nms_sigma, opset5::NonMaxSuppression::BoxEncodingType::CORNER, true);
+                                                               opset5::NonMaxSuppression::BoxEncodingType::CORNER, true);
 
         f_ref = std::make_shared<Function>(NodeVector{nms}, ParameterVector{boxes, scores});
     }
@@ -82,9 +81,8 @@ TEST(TransformationTests, ConvertNMS4TwoInputsToNMS5) {
         auto max_output_boxes_per_class = opset5::Constant::create(element::i64, Shape{}, {0});
         auto iou_threshold = opset5::Constant::create(element::f32, Shape{}, {0.0f});
         auto score_threshold = opset5::Constant::create(element::f32, Shape{}, {0.0f});
-        auto soft_nms_sigma = opset5::Constant::create(element::f32, Shape{}, {0.0f});
         auto nms = std::make_shared<opset5::NonMaxSuppression>(boxes, scores, max_output_boxes_per_class,  iou_threshold, score_threshold,
-                                                               soft_nms_sigma, opset5::NonMaxSuppression::BoxEncodingType::CORNER, true);
+                                                               opset5::NonMaxSuppression::BoxEncodingType::CORNER, true);
 
         f_ref = std::make_shared<Function>(NodeVector{nms}, ParameterVector{boxes, scores});
     }
@@ -119,9 +117,8 @@ TEST(TransformationTests, ConvertNMS3FiveInputsToNMS5) {
         auto max_output_boxes_per_class = opset5::Constant::create(element::i64, Shape{}, {10});
         auto iou_threshold = opset5::Constant::create(element::f32, Shape{}, {0.75});
         auto score_threshold = opset5::Constant::create(element::f32, Shape{}, {0.7});
-        auto soft_nms_sigma = opset5::Constant::create(element::f32, Shape{}, {.0f});
         auto nms = std::make_shared<opset5::NonMaxSuppression>(boxes, scores, max_output_boxes_per_class,  iou_threshold, score_threshold,
-                                                               soft_nms_sigma, opset5::NonMaxSuppression::BoxEncodingType::CORNER, true);
+                                                               opset5::NonMaxSuppression::BoxEncodingType::CORNER, true);
 
         f_ref = std::make_shared<Function>(NodeVector{nms}, ParameterVector{boxes, scores});
     }
@@ -152,9 +149,8 @@ TEST(TransformationTests, ConvertNMS3TwoInputsToNMS5) {
         auto max_output_boxes_per_class = opset5::Constant::create(element::i64, Shape{}, {0});
         auto iou_threshold = opset5::Constant::create(element::f32, Shape{}, {0.0f});
         auto score_threshold = opset5::Constant::create(element::f32, Shape{}, {0.0f});
-        auto soft_nms_sigma = opset5::Constant::create(element::f32, Shape{}, {0.0f});
         auto nms = std::make_shared<opset5::NonMaxSuppression>(boxes, scores, max_output_boxes_per_class,  iou_threshold, score_threshold,
-                                                               soft_nms_sigma, opset5::NonMaxSuppression::BoxEncodingType::CORNER, true);
+                                                               opset5::NonMaxSuppression::BoxEncodingType::CORNER, true);
 
         f_ref = std::make_shared<Function>(NodeVector{nms}, ParameterVector{boxes, scores});
     }
@@ -189,9 +185,8 @@ TEST(TransformationTests, ConvertNMS1FiveInputsToNMS5) {
         auto max_output_boxes_per_class = opset5::Constant::create(element::i64, Shape{}, {10});
         auto iou_threshold = opset5::Constant::create(element::f32, Shape{}, {0.75});
         auto score_threshold = opset5::Constant::create(element::f32, Shape{}, {0.7});
-        auto soft_nms_sigma = opset5::Constant::create(element::f32, Shape{}, {.0f});
         auto nms = std::make_shared<opset5::NonMaxSuppression>(boxes, scores, max_output_boxes_per_class,  iou_threshold, score_threshold,
-                                                               soft_nms_sigma, opset5::NonMaxSuppression::BoxEncodingType::CORNER, true);
+                                                               opset5::NonMaxSuppression::BoxEncodingType::CORNER, true);
 
         f_ref = std::make_shared<Function>(NodeVector{nms}, ParameterVector{boxes, scores});
     }
@@ -222,9 +217,8 @@ TEST(TransformationTests, ConvertNMS1TwoInputsToNMS5) {
         auto max_output_boxes_per_class = opset5::Constant::create(element::i64, Shape{}, {0});
         auto iou_threshold = opset5::Constant::create(element::f32, Shape{}, {0.0f});
         auto score_threshold = opset5::Constant::create(element::f32, Shape{}, {0.0f});
-        auto soft_nms_sigma = opset5::Constant::create(element::f32, Shape{}, {0.0f});
         auto nms = std::make_shared<opset5::NonMaxSuppression>(boxes, scores, max_output_boxes_per_class,  iou_threshold, score_threshold,
-                                                               soft_nms_sigma, opset5::NonMaxSuppression::BoxEncodingType::CORNER, true);
+                                                               opset5::NonMaxSuppression::BoxEncodingType::CORNER, true);
 
         f_ref = std::make_shared<Function>(NodeVector{nms}, ParameterVector{boxes, scores});
     }
