@@ -22,7 +22,6 @@ from tests import (xfail_issue_34323,
                    skip_segfault,
                    xfail_issue_34327,
                    xfail_issue_36485,
-                   xfail_issue_35923,
                    xfail_issue_36486,
                    xfail_issue_34314,
                    xfail_issue_36487)
@@ -418,7 +417,6 @@ def test_grn_operator():
     assert np.allclose(result, expected)
 
 
-@xfail_issue_35923
 def test_prelu_operator():
     runtime = get_runtime()
 

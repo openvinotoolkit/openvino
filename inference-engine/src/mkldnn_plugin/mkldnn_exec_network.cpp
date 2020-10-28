@@ -30,6 +30,7 @@
 #include <unordered_set>
 #include <utility>
 #include <cstring>
+#include <legacy/details/ie_cnn_network_tools.h>
 
 using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
@@ -57,18 +58,17 @@ MKLDNNExecNetwork::MKLDNNExecNetwork(const InferenceEngine::ICNNNetwork &network
     if (_cfg.lpTransformsMode == Config::LPTransformsMode::On) {
 #ifdef USE_CNNNETWORK_LPT
         auto params = LayerTransformation::Params(true,  // updatePrecisions
-                                                    true,  // quantizeOutputs
-                                                    true,  // weightsToConst
-                                                    LayerTransformation::QuantizedTensorAlignment::UpdateLevel,  // quantizedTensorAlignmentOnActivations
-                                                    LayerTransformation::QuantizedTensorAlignment::None,  // quantizedTensorAlignmentOnWeights
-                                                    true,  // roundQuantizedValues
-                                                    true,  // updateBiases
-                                                    true);  // supportAsymmetricQuantization
+                                                  true,  // quantizeOutputs
+                                                  true,  // weightsToConst
+                                                  LayerTransformation::QuantizedTensorAlignment::UpdateLevel,  // quantizedTensorAlignmentOnActivations
+                                                  LayerTransformation::QuantizedTensorAlignment::None,  // quantizedTensorAlignmentOnWeights
+                                                  true,  // roundQuantizedValues
+                                                  true,  // updateBiases
+                                                  true);  // supportAsymmetricQuantization
         LowPrecisionTransformer transformer(LowPrecisionTransformer::getAllTransformations(params).
             add<ConvolutionTransformation>(LayerTransformation::Params(params).setPrecisionsOnActivations({ Precision::U8 }), "Convolution").
-            addCleanup<ScaleShiftToConvolutionTransformation>(
-                LayerTransformation::Params(params).setPrecisionsOnActivations({ Precision::U8 }),
-                "ScaleShift"));
+            remove("ScaleShift").
+            remove("Power"));
         transformer.transform(*_clonedNetwork);
 #endif
 
@@ -101,6 +101,59 @@ MKLDNNExecNetwork::MKLDNNExecNetwork(const InferenceEngine::ICNNNetwork &network
     }
 
     MKLDNNGraph::ApplyUnrollPasses(static_cast<ICNNNetwork&>(*_clonedNetwork));
+
+    auto createConstInputTo = [&](CNNLayerPtr layer, Blob::Ptr blob, std::string name) {
+        LayerParams attrs = {layer.get()->name + "_const_" + name, "Const", blob->getTensorDesc().getPrecision()};
+        auto constLayer = std::make_shared<InferenceEngine::CNNLayer>(attrs);
+        constLayer->blobs["custom"] = blob;
+
+        std::vector<size_t> constDims(layer->insData[0].lock()->getDims().size(), 1);
+        if (constDims.size() > 1)
+            constDims[1] = blob.get()->size();
+        else
+            constDims[0] = blob.get()->size();
+        const TensorDesc& td = {blob->getTensorDesc().getPrecision(), constDims, TensorDesc::getLayoutByDims(constDims)};
+
+        DataPtr newEdgeAfterLayer(new Data(constLayer->name, td));
+        newEdgeAfterLayer->setName(constLayer->name);
+        getCreatorLayer(newEdgeAfterLayer) = constLayer;
+        getInputTo(newEdgeAfterLayer).clear();
+
+        _clonedNetwork->addData(constLayer->name.c_str(), newEdgeAfterLayer);
+        IE_SUPPRESS_DEPRECATED_START
+        _clonedNetwork->addLayer(constLayer);
+        IE_SUPPRESS_DEPRECATED_END
+
+        constLayer->outData.push_back(newEdgeAfterLayer);
+        getInputTo(newEdgeAfterLayer)[layer->name] = layer;
+        layer->insData.push_back(newEdgeAfterLayer);
+    };
+
+    auto all_layers = details::CNNNetSortTopologically(*_clonedNetwork);
+    for (auto &layer : all_layers) {
+        if (layer->type == "ScaleShift" && layer->insData.size() == 1) {
+            Blob::Ptr scalesBlob = layer->blobs["weights"];
+            if (scalesBlob != nullptr)
+                createConstInputTo(layer, scalesBlob, "weights");
+
+            Blob::Ptr shiftBlob = layer->blobs["biases"];
+            if (shiftBlob != nullptr) {
+                createConstInputTo(layer, shiftBlob, "biases");
+            } else if (scalesBlob != nullptr) {
+                Blob::Ptr biases = make_shared_blob<float>(scalesBlob->getTensorDesc());
+                biases->allocate();
+                auto biasesPtr = biases->buffer().as<float*>();
+                for (size_t i = 0; i < biases->size(); i++)
+                    biasesPtr[i] = 0;
+
+                createConstInputTo(layer, biases, "biases");
+            }
+        } else if (layer->type == "PReLU" && layer->insData.size() == 1) {
+            Blob::Ptr scalesBlob = layer->blobs["weights"];
+            if (scalesBlob != nullptr)
+                createConstInputTo(layer, scalesBlob, "weights");
+        }
+    }
 
     if (_cfg.batchLimit > 1) {
         // check topology for applicability
@@ -272,7 +325,6 @@ bool MKLDNNExecNetwork::CanProcessDynBatch(const InferenceEngine::ICNNNetwork &n
             type != SoftMax &&
             type != Split &&
             type != Concatenation &&
-            type != Power &&
             type != Eltwise &&
             type != Crop &&
             type != BatchNormalization &&
