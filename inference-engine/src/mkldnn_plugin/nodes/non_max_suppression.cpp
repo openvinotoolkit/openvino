@@ -20,11 +20,10 @@ class NonMaxSuppressionImpl: public ExtLayerBase {
 public:
     explicit NonMaxSuppressionImpl(const CNNLayer* layer) {
         try {
-            if (layer->insData.size() < 2 || layer->insData.size() > 5)
-                THROW_IE_EXCEPTION << layer->name << " Incorrect number of input edges!";
-
-            if (layer->outData.size() > 3)
-                THROW_IE_EXCEPTION << layer->name << " Incorrect number of output edges!";
+            if (layer->insData.size() < 2 || layer->insData.size() > 6)
+                THROW_IE_EXCEPTION << "NMS" << "has incorrect number of input edges: " << layer->insData.size();
+            if (layer->outData.size() < 1 || layer->outData.size() > 3)
+                THROW_IE_EXCEPTION << "NMS" << "has incorrect number of output edges: " << layer->outData.size();
 
             if (layer->insData[NMS_BOXES].lock()->getTensorDesc().getPrecision() != Precision::FP32)
                 THROW_IE_EXCEPTION << layer->name << " Incorrect 'boxes' input precision. Only FP32 is supported!";
@@ -73,21 +72,28 @@ public:
             if (selected_indices_dims.size() != 2 || selected_indices_dims[1] != 3)
                 THROW_IE_EXCEPTION << layer->name << " 'selected_indices' should be with shape [num_selected_indices, 3]";
 
-            center_point_box = layer->GetParamAsBool("center_point_box", false);
-            sort_result_descending = layer->GetParamAsBool("sort_result_descending", true);
-
-            if (layer->insData.size() == 2) {
-                addConfig(layer, { DataConfigurator(ConfLayout::PLN), DataConfigurator(ConfLayout::PLN) }, { DataConfigurator(ConfLayout::PLN) });
-            } else if (layer->insData.size() == 3) {
-                addConfig(layer, { DataConfigurator(ConfLayout::PLN), DataConfigurator(ConfLayout::PLN), DataConfigurator(ConfLayout::PLN) },
-                    { DataConfigurator(ConfLayout::PLN) });
-            } else if (layer->insData.size() == 4) {
-                addConfig(layer, { DataConfigurator(ConfLayout::PLN), DataConfigurator(ConfLayout::PLN), DataConfigurator(ConfLayout::PLN),
-                    DataConfigurator(ConfLayout::PLN) }, { DataConfigurator(ConfLayout::PLN) });
-            } else {
-                addConfig(layer, { DataConfigurator(ConfLayout::PLN), DataConfigurator(ConfLayout::PLN), DataConfigurator(ConfLayout::PLN),
-                    DataConfigurator(ConfLayout::PLN), DataConfigurator(ConfLayout::PLN) }, { DataConfigurator(ConfLayout::PLN) });
+            LayerConfig config;
+            for (size_t i = 0; i < layer->insData.size(); i++) {
+                DataConfig inConfig;
+                Precision inPrecision = Precision::FP32;
+                if (i == NMS_MAXOUTPUTBOXESPERCLASS)
+                    inPrecision = Precision::I32;
+                const SizeVector& inDims = layer->insData[i].lock()->getTensorDesc().getDims();
+                inConfig.desc = TensorDesc(inPrecision, inDims, InferenceEngine::TensorDesc::getLayoutByDims(inDims));
+                config.inConfs.push_back(inConfig);
             }
+            for (size_t i = 0; i < layer->outData.size(); i++) {
+                DataConfig outConfig;
+                Precision outPrecision = Precision::I32;
+                if (i == 1)
+                    outPrecision = Precision::FP32;
+                const SizeVector& outDims = layer->outData[i]->getTensorDesc().getDims();
+                outConfig.desc = TensorDesc(outPrecision, outDims, InferenceEngine::TensorDesc::getLayoutByDims(outDims));
+                config.outConfs.push_back(outConfig);
+            }
+
+            config.dynBatchSupport = false;
+            confs.push_back(config);
         } catch (InferenceEngine::details::InferenceEngineException &ex) {
             errorMsg = ex.what();
         }
