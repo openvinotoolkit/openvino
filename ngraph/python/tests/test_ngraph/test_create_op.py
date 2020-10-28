@@ -21,6 +21,8 @@ import ngraph as ng
 import ngraph.opset1 as ng_opset1
 from ngraph.impl import Type
 
+from tests import skip_segfault
+
 np_types = [np.float32, np.int32]
 integral_np_types = [
     np.int8,
@@ -536,6 +538,154 @@ def test_gru_cell_operator():
     assert node_param.get_type_name() == "GRUCell"
     assert node_param.get_output_size() == 1
     assert list(node_param.get_output_shape(0)) == expected_shape
+
+
+def test_gru_sequence():
+    batch_size = 2
+    input_size = 16
+    hidden_size = 32
+    seq_len = 8
+    seq_lengths = [seq_len] * batch_size
+    num_directions = 1
+    direction = "FORWARD"
+
+    X_shape = [batch_size, seq_len, input_size]
+    H_t_shape = [batch_size, num_directions, hidden_size]
+    W_shape = [num_directions, 3 * hidden_size, input_size]
+    R_shape = [num_directions, 3 * hidden_size, hidden_size]
+    B_shape = [num_directions, 3 * hidden_size]
+
+    parameter_X = ng.parameter(X_shape, name="X", dtype=np.float32)
+    parameter_H_t = ng.parameter(H_t_shape, name="H_t", dtype=np.float32)
+    parameter_W = ng.parameter(W_shape, name="W", dtype=np.float32)
+    parameter_R = ng.parameter(R_shape, name="R", dtype=np.float32)
+    parameter_B = ng.parameter(B_shape, name="B", dtype=np.float32)
+
+    expected_shape_y = [batch_size, num_directions, seq_len, hidden_size]
+    expected_shape_h = [batch_size, num_directions, hidden_size]
+
+    node_default = ng.gru_sequence(
+        parameter_X,
+        parameter_H_t,
+        seq_lengths,
+        parameter_W,
+        parameter_R,
+        parameter_B,
+        hidden_size,
+        direction,
+    )
+
+    assert node_default.get_type_name() == "GRUSequence"
+    assert node_default.get_output_size() == 2
+    assert list(node_default.get_output_shape(0)) == expected_shape_y
+    assert list(node_default.get_output_shape(1)) == expected_shape_h
+
+    activations = ["tanh", "relu"]
+    activations_alpha = [1.0, 2.0]
+    activations_beta = [1.0, 2.0]
+    clip = 0.5
+    linear_before_reset = True
+
+    # If *linear_before_reset* is set True, then B tensor shape must be [4 * hidden_size]
+    B_shape = [num_directions, 4 * hidden_size]
+    parameter_B = ng.parameter(B_shape, name="B", dtype=np.float32)
+
+    node_param = ng.gru_sequence(
+        parameter_X,
+        parameter_H_t,
+        seq_lengths,
+        parameter_W,
+        parameter_R,
+        parameter_B,
+        hidden_size,
+        direction,
+        activations,
+        activations_alpha,
+        activations_beta,
+        clip,
+        linear_before_reset,
+    )
+
+    assert node_param.get_type_name() == "GRUSequence"
+    assert node_param.get_output_size() == 2
+    assert list(node_param.get_output_shape(0)) == expected_shape_y
+    assert list(node_param.get_output_shape(1)) == expected_shape_h
+
+
+def test_rnn_sequence():
+    batch_size = 2
+    input_size = 16
+    hidden_size = 32
+    seq_len = 8
+    seq_lengths = [seq_len] * batch_size
+    num_directions = 1
+    direction = "FORWARD"
+
+    X_shape = [batch_size, seq_len, input_size]
+    H_t_shape = [batch_size, num_directions, hidden_size]
+    W_shape = [num_directions, hidden_size, input_size]
+    R_shape = [num_directions, hidden_size, hidden_size]
+    B_shape = [num_directions, hidden_size]
+
+    parameter_X = ng.parameter(X_shape, name="X", dtype=np.float32)
+    parameter_H_t = ng.parameter(H_t_shape, name="H_t", dtype=np.float32)
+    parameter_W = ng.parameter(W_shape, name="W", dtype=np.float32)
+    parameter_R = ng.parameter(R_shape, name="R", dtype=np.float32)
+    parameter_B = ng.parameter(B_shape, name="B", dtype=np.float32)
+
+    expected_shape_y = [batch_size, num_directions, seq_len, hidden_size]
+    expected_shape_h = [batch_size, num_directions, hidden_size]
+
+    node_default = ng.rnn_sequence(
+        parameter_X,
+        parameter_H_t,
+        seq_lengths,
+        parameter_W,
+        parameter_R,
+        parameter_B,
+        hidden_size,
+        direction,
+    )
+
+    assert node_default.get_type_name() == "RNNSequence"
+    assert node_default.get_output_size() == 2
+    assert list(node_default.get_output_shape(0)) == expected_shape_y
+    assert list(node_default.get_output_shape(1)) == expected_shape_h
+
+    activations = ["relu"]
+    activations_alpha = [2.0]
+    activations_beta = [1.0]
+    clip = 0.5
+
+    node_param = ng.rnn_sequence(
+        parameter_X,
+        parameter_H_t,
+        seq_lengths,
+        parameter_W,
+        parameter_R,
+        parameter_B,
+        hidden_size,
+        direction,
+        activations,
+        activations_alpha,
+        activations_beta,
+        clip,
+    )
+
+    assert node_param.get_type_name() == "RNNSequence"
+    assert node_param.get_output_size() == 2
+    assert list(node_param.get_output_shape(0)) == expected_shape_y
+    assert list(node_param.get_output_shape(1)) == expected_shape_h
+
+
+@skip_segfault
+def test_loop():
+    trip_count = 8
+    condition = True
+
+    node_default = ng.loop(trip_count, condition)
+
+    assert node_default.get_type_name() == "Loop"
 
 
 def test_roi_pooling():
