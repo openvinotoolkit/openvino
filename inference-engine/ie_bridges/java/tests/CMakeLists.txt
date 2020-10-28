@@ -11,3 +11,5 @@ add_jar(ie_java_api_tests_jar
         OUTPUT_NAME ie_java_api_tests 
         OUTPUT_DIR ${CMAKE_LIBRARY_OUTPUT_DIRECTORY} 
         INCLUDE_JARS ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/*)
+
+add_dependencies(ie_java_api_tests_jar inference_engine_jar)

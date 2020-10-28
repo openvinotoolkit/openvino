@@ -23,7 +23,7 @@ target_include_directories(${PROJECT_NAME} PRIVATE ${JNI_INCLUDE_DIRS})
 # Build java part
 
 file(GLOB_RECURSE java_source ${CMAKE_CURRENT_SOURCE_DIR}/org/intel/openvino/*.java)
-add_jar(inference_engine_jar ${java_source} 
+add_jar(inference_engine_jar ${java_source}
         OUTPUT_NAME ${PROJECT_NAME} 
         OUTPUT_DIR ${CMAKE_LIBRARY_OUTPUT_DIRECTORY})
 
