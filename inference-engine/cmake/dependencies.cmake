@@ -236,7 +236,7 @@ if (ENABLE_OPENCV)
             elseif (LINUX_OS_NAME STREQUAL "Ubuntu 20.04")
                 set(OPENCV_SUFFIX "ubuntu20")
             else()
-                message(FATAL_ERROR "OpenCV is not available on current platform")
+                message(FATAL_ERROR "OpenCV is not available on current platform (${LINUX_OS_NAME})")
             endif()
             RESOLVE_DEPENDENCY(OPENCV
                     ARCHIVE_LIN "opencv/opencv_${OPENCV_VERSION}-${OPENCV_BUILD}_${OPENCV_SUFFIX}.txz"
