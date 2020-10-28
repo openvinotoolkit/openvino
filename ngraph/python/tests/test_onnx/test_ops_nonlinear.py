@@ -18,7 +18,7 @@ import onnx
 import pytest
 
 from tests.test_onnx.utils import run_node
-from tests import xfail_issue_35918, xfail_issue_35923, xfail_issue_35924
+from tests import xfail_issue_35918, xfail_issue_35924
 
 
 def import_and_compute(op_type, input_data, **node_attrs):
@@ -71,7 +71,6 @@ def test_leaky_relu():
     assert_onnx_import_equals_callable("LeakyRelu", leaky_relu, [[-3, -2, -1], [1, 2, 3]])
 
 
-@xfail_issue_35923
 @pytest.mark.parametrize(
     "x, slope",
     [
