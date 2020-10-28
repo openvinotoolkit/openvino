@@ -60,6 +60,7 @@ public:
 
 private:
     std::map<std::string, ngraph::OpSet> opsets;
+    const std::vector<IExtensionPtr> _exts;
 
     struct GenericLayerParams {
         struct LayerPortData {

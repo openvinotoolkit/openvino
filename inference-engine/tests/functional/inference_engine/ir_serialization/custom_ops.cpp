@@ -98,9 +98,7 @@ protected:
     }
 };
 
-// TODO: need to pass extension opsets to transformation in
-// CNNetwork->Serialize()
-TEST_F(CustomOpsSerializationTest, DISABLED_CustomOpUser) {
+TEST_F(CustomOpsSerializationTest, CustomOpUser) {
     const std::string model = IR_SERIALIZATION_MODELS_PATH "custom_op.xml";
 
     InferenceEngine::Core ie;
