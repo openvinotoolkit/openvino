@@ -39,8 +39,7 @@ ExecutableNetworkInternal::Ptr Engine::LoadExeNetworkImpl(const ICNNNetwork& net
     auto parsedConfigCopy = _parsedConfig;
     parsedConfigCopy.update(config);
 
-    auto clonedNetwork = cloneNetwork(network);
-    return std::make_shared<ExecutableNetwork>(*clonedNetwork, _mvnc, _devicePool, parsedConfigCopy, GetCore());
+    return std::make_shared<ExecutableNetwork>(network, _mvnc, _devicePool, parsedConfigCopy, GetCore());
 }
 
 void Engine::SetConfig(const std::map<std::string, std::string> &config) {
