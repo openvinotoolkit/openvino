@@ -65,12 +65,12 @@ TEST(type_prop, matmul_4D)
     ASSERT_EQ(matmul->get_shape(), (Shape{2, 2, 3, 4}));
 }
 
-TEST(type_prop, matmul_5D_x_3D)
+TEST(type_prop, matmul_5D_x_3D_transpose_a_transpose_b)
 {
-    auto A = make_shared<op::Parameter>(element::f32, Shape{2, 1, 3, 6});
-    auto B = make_shared<op::Parameter>(element::f32, Shape{7, 1, 5, 6, 4});
+    auto A = make_shared<op::Parameter>(element::f32, Shape{2, 1, 6, 3});
+    auto B = make_shared<op::Parameter>(element::f32, Shape{7, 1, 5, 4, 6});
 
-    auto matmul = make_shared<op::MatMul>(A, B);
+    auto matmul = make_shared<op::MatMul>(A, B, true, true);
 
     ASSERT_EQ(matmul->get_element_type(), element::f32);
     ASSERT_EQ(matmul->get_shape(), (Shape{7, 2, 5, 3, 4}));
@@ -203,6 +203,27 @@ TEST(type_prop, matmul_1D_x_1D_true_true)
     ASSERT_EQ(matmul->get_shape(), (Shape{}));
 }
 
+TEST(type_prop, matmul_1D_x_1D_incompatible)
+{
+    auto A = make_shared<op::Parameter>(element::f32, Shape{3});
+    auto B = make_shared<op::Parameter>(element::f32, Shape{4});
+
+    try
+    {
+        auto matmul = make_shared<op::MatMul>(A, B);
+        // Should have thrown, so fail if it didn't
+        FAIL() << "Incompatible matrix dimensions not detected. ";
+    }
+    catch (const ngraph_error& error)
+    {
+        EXPECT_HAS_SUBSTRING(error.what(), std::string("Incompatible matrix dimensions"));
+    }
+    catch (...)
+    {
+        FAIL() << "MatMul shape validation failed for unexpected reason";
+    }
+}
+
 // 2D x 1D
 TEST(type_prop, matmul_2D_x_1D_false_false)
 {
@@ -243,7 +264,7 @@ TEST(type_prop, matmul_2D_x_1D_true_false)
     }
     catch (...)
     {
-        FAIL() << "Deduced type check failed for unexpected reason";
+        FAIL() << "MatMul shape validation failed for unexpected reason";
     }
 }
 
@@ -264,7 +285,7 @@ TEST(type_prop, matmul_2D_x_1D_true_true)
     }
     catch (...)
     {
-        FAIL() << "Deduced type check failed for unexpected reason";
+        FAIL() << "MatMul shape validation failed for unexpected reason";
     }
 }
 
@@ -297,7 +318,7 @@ TEST(type_prop, matmul_1D_x_2D_false_true)
     }
     catch (...)
     {
-        FAIL() << "Deduced type check failed for unexpected reason";
+        FAIL() << "MatMul shape validation failed for unexpected reason";
     }
 }
 
@@ -328,7 +349,7 @@ TEST(type_prop, matmul_1D_x_2D_true_true)
     }
     catch (...)
     {
-        FAIL() << "Deduced type check failed for unexpected reason";
+        FAIL() << "MatMul shape validation failed for unexpected reason";
     }
 }
 
@@ -383,6 +404,6 @@ TEST(type_prop, matmul_incompatible_batch_dims)
     }
     catch (...)
     {
-        FAIL() << "Deduced type check failed for unexpected reason";
+        FAIL() << "MatMul shape validation failed for unexpected reason";
     }
 }

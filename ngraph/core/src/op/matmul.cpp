@@ -62,7 +62,7 @@ namespace matmul
         auto arg1_rank = arg1_shape.rank().get_length();
 
         NGRAPH_CHECK((arg0_rank != 0 && arg1_rank != 0),
-                     "Scalars are not supported as MatMul input.");
+                     "Scalars are not supported as MatMul inputs.");
 
         // Temporary Dimension vectors to calculate output shape
         std::vector<Dimension> arg0_shape_tmp(arg0_shape);
