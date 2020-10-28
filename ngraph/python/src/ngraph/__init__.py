@@ -85,6 +85,7 @@ from ngraph.opset5 import grn
 from ngraph.opset5 import group_convolution
 from ngraph.opset5 import group_convolution_backprop_data
 from ngraph.opset5 import gru_cell
+from ngraph.opset5 import gru_sequence
 from ngraph.opset5 import hard_sigmoid
 from ngraph.opset5 import hsigmoid
 from ngraph.opset5 import hswish
@@ -97,6 +98,7 @@ from ngraph.opset5 import logical_not
 from ngraph.opset5 import logical_or
 from ngraph.opset5 import logical_xor
 from ngraph.opset5 import log_softmax
+from ngraph.opset5 import loop
 from ngraph.opset5 import lrn
 from ngraph.opset5 import lstm_cell
 from ngraph.opset5 import lstm_sequence
@@ -140,6 +142,7 @@ from ngraph.opset5 import reshape
 from ngraph.opset5 import result
 from ngraph.opset5 import reverse_sequence
 from ngraph.opset5 import rnn_cell
+from ngraph.opset5 import rnn_sequence
 from ngraph.opset5 import roi_align
 from ngraph.opset5 import roi_pooling
 from ngraph.opset5 import round
