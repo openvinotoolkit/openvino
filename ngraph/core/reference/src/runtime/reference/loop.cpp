@@ -34,12 +34,11 @@ void loop(ngraph::opset5::Loop &loop,
 
         // Port map : inputs and back edges
         for (const auto &desc : loop.get_input_descriptions()) {
-            auto *data_ptr = args[desc->m_input_index]->get_data_ptr<uint8_t>();
-            auto size_bytes = args[desc->m_input_index]->get_size_in_bytes();
+            const uint8_t* data_ptr = args[desc->m_input_index]->get_data_ptr<uint8_t>();
+            const auto size_bytes = args[desc->m_input_index]->get_size_in_bytes();
             inputs_to_body[desc->m_body_parameter_index].resize(size_bytes);
             std::memcpy(inputs_to_body[desc->m_body_parameter_index].data(), data_ptr, size_bytes);
-            if (const auto &merged_desc = std::dynamic_pointer_cast<opset5::Loop::MergedInputDescription>(
-                    desc)) {
+            if (const auto &merged_desc = std::dynamic_pointer_cast<opset5::Loop::MergedInputDescription>(desc)) {
                 back_edges.emplace_back(merged_desc->m_body_parameter_index, merged_desc->m_body_value_index);
             }
         }
@@ -66,7 +65,7 @@ void loop(ngraph::opset5::Loop &loop,
         if (exec_condition[0]) {
             for (int64_t cur_iter = 0; cur_iter < trip_count; ++cur_iter) {
                 // evaluate body
-                outs = reference::function(func, inputs_to_body, type);
+                outs = reference::function(func, inputs_to_body);
 
                 // Port map: outputs
                 for (const auto &desc : loop.get_output_descriptions()) {

@@ -130,7 +130,7 @@ namespace ngraph
                 return std::make_shared<runtime::HostTensor>(type, shape);
             }
 
-            std::vector<std::vector<std::uint8_t>> function (const std::shared_ptr<ngraph::Function> &function, const std::vector<std::vector<std::uint8_t>> &inputs) {
+            std::vector<std::vector<std::uint8_t>> function(const std::shared_ptr<ngraph::Function> &function, const std::vector<std::vector<std::uint8_t>> &inputs) {
                 const auto &parameters = function->get_parameters();
                 const auto &parametersNumber = parameters.size();
                 const auto &inputsNumber = inputs.size();
