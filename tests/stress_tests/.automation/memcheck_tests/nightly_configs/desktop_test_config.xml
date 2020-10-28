@@ -18,21 +18,13 @@
         <model name="googlenet-v3" source="omz" />
         <model name="ssd_mobilenet_v2_coco" source="omz" />
         <model name="alexnet" source="omz" />
-        <model name="octave-resnet-26-0.25" source="omz" />
         <model name="googlenet-v4-tf" source="omz" />
         <model name="ssd300" source="omz" />
-        <model name="rfcn-resnet101-coco-tf" source="omz" />
         <model name="vgg19" source="omz" />
         <model name="ctdet_coco_dlav0_384" source="omz" />
-        <model name="efficientnet-b0_auto_aug" source="omz" />
         <model name="googlenet-v1" source="omz" />
-        <model name="faster_rcnn_inception_v2_coco" source="omz" />
-        <model name="mask_rcnn_inception_v2_coco" source="omz" />
-        <model name="inception-resnet-v2-tf" source="omz" />
-        <model name="deeplabv3" source="omz" />
         <model name="yolo-v3-tf" source="omz" />
         <model name="mtcnn-o" source="omz" />
-        <model name="octave-se-resnet-50-0.125" source="omz" />
         <model name="yolo-v1-tiny-tf" source="omz" />
         <model name="googlenet-v1-tf" source="omz" />
         <model name="yolo-v2-tiny-tf" source="omz" />
@@ -41,26 +33,15 @@
         <model name="brain-tumor-segmentation-0002" source="omz" />
         <model name="Sphereface" source="omz" />
         <model name="googlenet-v2" source="omz" />
-        <model name="face-recognition-resnet100-arcface" source="omz" />
         <model name="ctdet_coco_dlav0_512" source="omz" />
-        <model name="facenet-20180408-102900" source="omz" />
         <model name="ctpn" source="omz" />
-        <model name="ssdlite_mobilenet_v2" source="omz" />
         <model name="i3d-rgb-tf" source="omz" />
         <model name="mobilenet-v2" source="omz" />
         <model name="mobilenet-ssd" source="omz" />
         <model name="se-resnext-50" source="omz" />
         <model name="caffenet" source="omz" />
         <model name="mtcnn-r" source="omz" />
-        <model name="faster_rcnn_resnet50_coco" source="omz" />
         <model name="se-resnet-50" source="omz" />
-        <model name="mask_rcnn_resnet50_atrous_coco" source="omz" />
-        <model name="octave-resnet-50-0.125" source="omz" />
-        <model name="densenet-121-tf" source="omz" />
-        <model name="mobilenet-v1-0.50-160" source="omz" />
         <model name="densenet-121" source="omz" />
-        <model name="faster_rcnn_resnet101_coco" source="omz" />
-        <model name="octave-densenet-121-0.125" source="omz" />
-        <model name="colorization-v2" source="omz" />
     </models>
 </attributes>
