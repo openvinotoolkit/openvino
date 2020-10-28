@@ -32,9 +32,9 @@ public:
 
     explicit FrontEnd(StageBuilder::Ptr stageBuilder, const ie::ICore* core);
 
-    ModelPtr buildInitialModel(ie::ICNNNetwork& network);
+    ModelPtr buildInitialModel(const ie::ICNNNetwork& network);
 
-    std::set<std::string> checkSupportedLayers(ie::ICNNNetwork& network);
+    std::set<std::string> checkSupportedLayers(const ie::ICNNNetwork& network);
 
     const std::vector<ie::CNNLayerPtr>& origLayers() const {
         return _ieParsedNetwork.orderedLayers;
@@ -45,11 +45,11 @@ public:
 //
 
 private:
+    ModelPtr runCommonPasses(const ie::ICNNNetwork& network);
+
     using SupportedLayerCallback = std::function<void(const ie::CNNLayerPtr&)>;
     using UnsupportedLayerCallback = std::function<void(const Model&, const ie::CNNLayerPtr&, const DataVector&, const DataVector&, const std::string&)>;
-
-    ModelPtr runCommonPasses(ie::ICNNNetwork& network);
-    ModelPtr runCommonPasses(ie::ICNNNetwork& network, const UnsupportedLayerCallback& unsupportedLayer,
+    ModelPtr runCommonPasses(ie::ICNNNetwork::Ptr network, const UnsupportedLayerCallback& unsupportedLayer,
                              const SupportedLayerCallback& supportedLayer = nullptr);
 
     //

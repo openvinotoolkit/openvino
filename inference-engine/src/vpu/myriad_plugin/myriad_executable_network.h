@@ -32,7 +32,7 @@ class ExecutableNetwork : public InferenceEngine::ExecutableNetworkThreadSafeDef
 public:
     typedef std::shared_ptr<ExecutableNetwork> Ptr;
 
-    explicit ExecutableNetwork(InferenceEngine::ICNNNetwork &network,
+    explicit ExecutableNetwork(const InferenceEngine::ICNNNetwork& network,
                                std::shared_ptr<IMvnc> mvnc,
                                std::vector<DevicePtr> &devicePool,
                                const MyriadConfig& config,
