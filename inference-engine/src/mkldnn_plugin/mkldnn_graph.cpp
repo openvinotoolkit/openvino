@@ -132,6 +132,10 @@ void MKLDNNGraph::Replicate(const TensorIterator::Body &subgraph, const MKLDNNEx
 
         graphNodes.push_back(node);
         inputNodes[input->getName()] = node;
+
+        if (getInputTo(input).empty()) {
+            unused_data.insert(input);
+        }
     }
 
     // Step 2. Replicate all internal nodes.
