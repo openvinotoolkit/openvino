@@ -25,12 +25,33 @@
 #define INPUT0_TYPE_4 TYPE_N(INPUT0_TYPE, 4)
 #define AS_INPUT0_TYPE_4(x) AS_TYPE_N(INPUT0_TYPE, 4, x)
 
-#if ASYMMETRIC_DATA_QUANTIZATION && ASYMMETRIC_WEIGHTS_QUANTIZATION
-#define ACCUMULATOR_TYPE_4 TYPE_N(ACCUMULATOR_TYPE, 4)
+#if INPUT0_PAD_BEFORE_SIZE_X != 0 || \
+    INPUT0_PAD_BEFORE_SIZE_Y != 0 || \
+    INPUT0_PAD_BEFORE_SIZE_Z != 0
+    #define NON_ZERO_INPUT0_PAD_BEFORE
 #endif
 
-#if ASYMMETRIC_WEIGHTS_QUANTIZATION
-#define FILTER_TYPE_16 TYPE_N(FILTER_TYPE, 16)
+#if !defined COMPENSATION_TERM || \
+    (defined COMPENSATION_TERM && defined NON_ZERO_INPUT0_PAD_BEFORE)
+    #define SHOULD_BALANCE_COMPENSATION
+#endif
+
+#if defined ASYMMETRIC_DATA_QUANTIZATION && defined SHOULD_BALANCE_COMPENSATION
+    #define SHOULD_USE_DATA_ZP
+#endif
+
+#if defined ASYMMETRIC_DATA_QUANTIZATION && \
+    defined ASYMMETRIC_WEIGHTS_QUANTIZATION && \
+    defined SHOULD_BALANCE_COMPENSATION
+    #define SHOULD_USE_DATA_AND_WEIGHTS_ZP
+#endif
+
+#ifdef SHOULD_USE_DATA_AND_WEIGHTS_ZP
+    #define ACCUMULATOR_TYPE_4 TYPE_N(ACCUMULATOR_TYPE, 4)
+#endif
+
+#ifdef ASYMMETRIC_WEIGHTS_QUANTIZATION
+    #define FILTER_TYPE_16 TYPE_N(FILTER_TYPE, 16)
 #endif
 
 #define AS_FILTER_TYPE_4(x) AS_TYPE_N(FILTER_TYPE, 4, x)
@@ -40,10 +61,6 @@
 
 #define SIMD 16
 #define FSV 16
-
-#if INPUT0_PAD_BEFORE_SIZE_X != 0 || INPUT0_PAD_BEFORE_SIZE_Y != 0 || INPUT0_PAD_BEFORE_SIZE_Z != 0
-#define NON_ZERO_INPUT0_PAD_BEFORE
-#endif
 
 // int8 conv_input and weights data is packed to int32 "batches",
 // int/uint pointers here instead of INPUT0_TYPE/FILTER_TYPE for convenience
@@ -56,11 +73,14 @@ KERNEL(convolution_gpu_b_fs_zyx_fsv16_imad)(
 #if BIAS_TERM
     const __global BIAS_TYPE *biases,
 #endif
-    #if ASYMMETRIC_WEIGHTS_QUANTIZATION
+#ifdef ASYMMETRIC_WEIGHTS_QUANTIZATION
     const __global WEIGHTS_ZERO_POINTS_TYPE *weights_zp,
 #endif
-#if ASYMMETRIC_DATA_QUANTIZATION
+#ifdef ASYMMETRIC_DATA_QUANTIZATION
     const __global ACTIVATIONS_ZERO_POINTS_TYPE *activations_zp,
+#endif
+#ifdef COMPENSATION_TERM
+    const __global COMPENSATION_TYPE *compensation,
 #endif
 #if HAS_FUSED_OPS_DECLS
     FUSED_OPS_DECLS,
@@ -113,11 +133,12 @@ KERNEL(convolution_gpu_b_fs_zyx_fsv16_imad)(
 
     uint4 input_val[IN_BLOCK_DEPTH][IN_BLOCK_HEIGHT][CEIL_DIV(IN_BLOCK_WIDTH, SIMD)];
 
-#if ASYMMETRIC_DATA_QUANTIZATION
+#ifdef SHOULD_USE_DATA_ZP
     uint data_zp_idx = g * FILTER_IFM_NUM + in_f_start;
     uint4 data_zp_val;
 #endif
-#if ASYMMETRIC_WEIGHTS_QUANTIZATION
+
+#ifdef ASYMMETRIC_WEIGHTS_QUANTIZATION
     uint4 weights_zp_val[OFM_BLOCKS_PER_SIMD];
     __attribute__((opencl_unroll_hint))
     for (uint ofb = 0; ofb < OFM_BLOCKS_PER_SIMD; ++ofb) {
@@ -139,16 +160,18 @@ KERNEL(convolution_gpu_b_fs_zyx_fsv16_imad)(
 
     __attribute__((opencl_unroll_hint(1)))
     for (uint k = 0; k < CEIL_DIV(FILTER_IFM_NUM, FSV) / FEATURE_SLM_SPLIT; k++) {
-        #if ASYMMETRIC_WEIGHTS_QUANTIZATION && FILTER_IFM_NUM % FSV != 0
-            if (in_f_start + (k + 1) * FSV >= ALIGN(FILTER_IFM_NUM, FSV)) {
-                __attribute__((opencl_unroll_hint))
-                for (uint ofb = 0; ofb < OFM_BLOCKS_PER_SIMD; ++ofb) {
-                    weights_zp_val[ofb] = weights_zp_vec_partial[ofb];
+        #ifdef ASYMMETRIC_WEIGHTS_QUANTIZATION
+            #if FILTER_IFM_NUM % FSV != 0
+                if (in_f_start + (k + 1) * FSV >= ALIGN(FILTER_IFM_NUM, FSV)) {
+                    __attribute__((opencl_unroll_hint))
+                    for (uint ofb = 0; ofb < OFM_BLOCKS_PER_SIMD; ++ofb) {
+                        weights_zp_val[ofb] = weights_zp_vec_partial[ofb];
+                    }
                 }
-            }
+            #endif
         #endif
 
-        #if ASYMMETRIC_DATA_QUANTIZATION
+        #ifdef SHOULD_USE_DATA_ZP
             #if ((FILTER_GROUPS_NUM > 1) && (FILTER_IFM_NUM % FSV != 0))
                 data_zp_val = as_uint4(vload16(0, activations_zp + data_zp_idx));
             #else
@@ -156,7 +179,7 @@ KERNEL(convolution_gpu_b_fs_zyx_fsv16_imad)(
             #endif
         #endif
 
-        #if ASYMMETRIC_DATA_QUANTIZATION && ASYMMETRIC_WEIGHTS_QUANTIZATION
+        #ifdef SHOULD_USE_DATA_AND_WEIGHTS_ZP
             ACCUMULATOR_TYPE_4 dotProdAZPxWZP[OFM_BLOCKS_PER_SIMD];
             __attribute__((opencl_unroll_hint))
             for (uint ofb = 0; ofb < OFM_BLOCKS_PER_SIMD; ++ofb) {
@@ -250,7 +273,7 @@ KERNEL(convolution_gpu_b_fs_zyx_fsv16_imad)(
                             for (uint ive = 0; ive < 4; ive++) {
                                 __attribute__((opencl_unroll_hint))
                                 for (uint ofb = 0; ofb < OFM_BLOCKS_PER_SIMD; ++ofb) {
-                                    #if ASYMMETRIC_DATA_QUANTIZATION
+                                    #ifdef SHOULD_USE_DATA_ZP
                                         ACCUMULATOR_TYPE dotProdAZPxW = 0;
                                         dotProdAZPxW = TO_ACCUMULATOR_TYPE(
                                         IMAD(dotProdAZPxW,
@@ -278,7 +301,7 @@ KERNEL(convolution_gpu_b_fs_zyx_fsv16_imad)(
                                                     inputs,
                                                     AS_FILTER_TYPE_4(weights_val[ofb][ive])));
 
-                                                #if ASYMMETRIC_WEIGHTS_QUANTIZATION
+                                                #ifdef ASYMMETRIC_WEIGHTS_QUANTIZATION
                                                     ACCUMULATOR_TYPE dotProdAxWZP = 0;
                                                     dotProdAxWZP = TO_ACCUMULATOR_TYPE(
                                                     IMAD(dotProdAxWZP,
@@ -286,7 +309,7 @@ KERNEL(convolution_gpu_b_fs_zyx_fsv16_imad)(
                                                     AS_FILTER_TYPE_4(weights_zp_val[ofb][ive])));
                                                 #endif
 
-                                                #if ASYMMETRIC_DATA_QUANTIZATION || ASYMMETRIC_WEIGHTS_QUANTIZATION
+                                                #if defined ASYMMETRIC_DATA_QUANTIZATION || defined ASYMMETRIC_WEIGHTS_QUANTIZATION
                                                     #ifdef NON_ZERO_INPUT0_PAD_BEFORE
                                                         const uint idx_z = od * STRIDE_SIZE_Z + (fzn * FILTER_SIZE_Z_UNROLL + fzu) * DILATION_SIZE_Z + input_z;
                                                         const uint idx_y = oh * STRIDE_SIZE_Y + (fyn * FILTER_SIZE_Y_UNROLL + fyu) * DILATION_SIZE_Y + input_y;
@@ -295,17 +318,33 @@ KERNEL(convolution_gpu_b_fs_zyx_fsv16_imad)(
                                                             ((idx_y >= 0) && (idx_y < INPUT0_SIZE_Y)) &&
                                                             ((idx_x >= 0) && (idx_x < INPUT0_SIZE_X))) {
                                                     #endif
-                                                            #if ASYMMETRIC_DATA_QUANTIZATION
-                                                                dotProd[ofb][od][oh][ow] -= dotProdAZPxW;
-                                                            #endif
-                                                            #if ASYMMETRIC_WEIGHTS_QUANTIZATION
+                                                            #ifdef ASYMMETRIC_WEIGHTS_QUANTIZATION
                                                                 dotProd[ofb][od][oh][ow] -= dotProdAxWZP;
                                                             #endif
-                                                            #if ASYMMETRIC_DATA_QUANTIZATION && ASYMMETRIC_WEIGHTS_QUANTIZATION
+
+                                                            #if !defined COMPENSATION_TERM && defined ASYMMETRIC_DATA_QUANTIZATION
+                                                                dotProd[ofb][od][oh][ow] -= dotProdAZPxW;
+                                                            #endif
+
+                                                            #if (!defined COMPENSATION_TERM && \
+                                                                 defined ASYMMETRIC_DATA_QUANTIZATION && \
+                                                                 defined ASYMMETRIC_WEIGHTS_QUANTIZATION)
                                                                 dotProd[ofb][od][oh][ow] += dotProdAZPxWZP[ofb][ive];
                                                             #endif
                                                     #ifdef NON_ZERO_INPUT0_PAD_BEFORE
                                                         }
+                                                        #ifdef COMPENSATION_TERM
+                                                        else
+                                                        {
+                                                            #ifdef ASYMMETRIC_DATA_QUANTIZATION
+                                                                dotProd[ofb][od][oh][ow] += dotProdAZPxW;
+                                                            #endif
+
+                                                            #if defined ASYMMETRIC_DATA_QUANTIZATION && defined ASYMMETRIC_WEIGHTS_QUANTIZATION
+                                                                dotProd[ofb][od][oh][ow] -= dotProdAZPxWZP[ofb][ive];
+                                                            #endif
+                                                        }
+                                                        #endif
                                                     #endif
                                                 #endif
                                             }
@@ -326,7 +365,7 @@ KERNEL(convolution_gpu_b_fs_zyx_fsv16_imad)(
 
         filter_idx += FSV * FSV * FILTER_SIZE_X * FILTER_SIZE_Y * FILTER_SIZE_Z * (FEATURE_SLM_SPLIT - 1);
 
-        #if ASYMMETRIC_DATA_QUANTIZATION
+        #ifdef SHOULD_USE_DATA_ZP
             data_zp_idx += FSV;
         #endif
     }
@@ -461,6 +500,14 @@ KERNEL(convolution_gpu_b_fs_zyx_fsv16_imad)(
     }
 #endif
 
+#ifdef COMPENSATION_TERM
+    COMPENSATION_TYPE comp[OFM_VALUES_PER_WI];
+    __attribute__((opencl_unroll_hint))
+    for (uint ofb = 0; ofb < OFM_VALUES_PER_WI; ++ofb) {
+        comp[ofb] = compensation[out_f + ofb * SIMD];
+    }
+#endif
+
     ACTIVATION_TYPE dequantized[OFM_VALUES_PER_WI][OUT_BLOCK_DEPTH][OUT_BLOCK_HEIGHT][OUT_BLOCK_WIDTH];
     __attribute__((opencl_unroll_hint))
     for (uint ofb = 0; ofb < OFM_VALUES_PER_WI; ++ofb) {
@@ -473,6 +520,9 @@ KERNEL(convolution_gpu_b_fs_zyx_fsv16_imad)(
                     dequantized[ofb][od][oh][ow] = TO_ACTIVATION_TYPE(dotProd[ofb][od][oh][ow]);
 #if BIAS_TERM
                     dequantized[ofb][od][oh][ow] += bias[ofb];
+#endif
+#ifdef COMPENSATION_TERM
+                    dequantized[ofb][od][oh][ow] += comp[ofb];
 #endif
                 }
             }
@@ -628,11 +678,27 @@ KERNEL(convolution_gpu_b_fs_zyx_fsv16_imad)(
 #undef INPUT0_TYPE_4
 #undef AS_INPUT0_TYPE_4
 
-#if ASYMMETRIC_DATA_QUANTIZATION && ASYMMETRIC_WEIGHTS_QUANTIZATION
+#ifdef NON_ZERO_INPUT0_PAD_BEFORE
+    #undef NON_ZERO_INPUT0_PAD_BEFORE
+#endif
+
+#ifdef SHOULD_BALANCE_COMPENSATION
+    #undef SHOULD_BALANCE_COMPENSATION
+#endif
+
+#ifdef SHOULD_USE_DATA_ZP
+    #undef SHOULD_USE_DATA_ZP
+#endif
+
+#ifdef SHOULD_USE_DATA_AND_WEIGHTS_ZP
+    #undef SHOULD_USE_DATA_AND_WEIGHTS_ZP
+#endif
+
+#ifdef ACCUMULATOR_TYPE_4
 #undef ACCUMULATOR_TYPE_4
 #endif
 
-#if ASYMMETRIC_WEIGHTS_QUANTIZATION
+#ifdef FILTER_TYPE_16
 #undef FILTER_TYPE_16
 #endif
 
@@ -644,7 +710,3 @@ KERNEL(convolution_gpu_b_fs_zyx_fsv16_imad)(
 #undef SIMD
 #undef FSV
 #undef OFM_VALUES_PER_WI
-
-#if INPUT0_PAD_BEFORE_SIZE_X != 0 || INPUT0_PAD_BEFORE_SIZE_Y != 0 || INPUT0_PAD_BEFORE_SIZE_Z != 0
-#undef NON_ZERO_INPUT0_PAD_BEFORE
-#endif
