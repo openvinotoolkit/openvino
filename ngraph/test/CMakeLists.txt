@@ -317,7 +317,6 @@ set(MULTI_TEST_SRC
     backend/pad.in.cpp
     backend/parameter_as_output.in.cpp
     backend/power.in.cpp
-    backend/product.in.cpp
     backend/quantize_dequantize.in.cpp
     backend/quantized_convolution.in.cpp
     backend/quantized_dot.in.cpp
