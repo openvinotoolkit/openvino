@@ -182,6 +182,34 @@ enum class PadMode {
     SYMMETRIC,
 };
 
+enum class InterpolateMode {
+    nearest,
+    linear,
+    linear_onnx,
+    cubic,
+};
+
+enum class InterpolateShapeCalcMode {
+    sizes,
+    scales,
+};
+
+enum class InterpolateCoordTransMode {
+    half_pixel,
+    pytorch_half_pixel,
+    asymmetric,
+    tf_half_pixel_for_nn,
+    align_corners,
+};
+
+enum class InterpolateNearestMode {
+    round_prefer_floor,
+    round_prefer_ceil,
+    floor,
+    ceil,
+    simple,
+};
+
 std::ostream &operator<<(std::ostream &os, const ReductionType &m);
 std::ostream &operator<<(std::ostream &os, const PadMode &m);
 

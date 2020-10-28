@@ -15,18 +15,15 @@
 #include "ngraph_functions/builders.hpp"
 #include "ngraph_functions/utils/ngraph_helpers.hpp"
 
-using ngraph::helpers::operator<<;
-
 namespace LayerTestsDefinitions {
 
 std::string InterpolateLayerTest::getTestCaseName(testing::TestParamInfo<InterpolateLayerTestParams> obj) {
     InterpolateSpecificParamsForTests interpolateParams;
     InferenceEngine::Precision netPrecision;
-    InferenceEngine::Precision inPrc, outPrc;
     InferenceEngine::Layout inLayout, outLayout;
     InferenceEngine::SizeVector inputShapes, targetShapes;
     std::string targetDevice;
-    std::tie(interpolateParams, netPrecision, inPrc, outPrc, inLayout, outLayout, inputShapes, targetShapes, targetDevice) = obj.param;
+    std::tie(interpolateParams, netPrecision, inLayout, outLayout, inputShapes, targetShapes, targetDevice) = obj.param;
     std::vector<size_t> padBegin, padEnd;
     std::vector<int64_t> axes;
     std::vector<float> scales;
@@ -41,10 +38,10 @@ std::string InterpolateLayerTest::getTestCaseName(testing::TestParamInfo<Interpo
     std::ostringstream result;
     result << "IS=" << CommonTestUtils::vec2str(inputShapes) << "_";
     result << "TS=" << CommonTestUtils::vec2str(targetShapes) << "_";
-    result << "InterpolateMode=" << mode << "_";
-    result << "ShapeCalcMode=" << shapeCalcMode << "_";
-    result << "CoordinateTransformMode=" << coordinateTransformMode << "_";
-    result << "NearestMode=" << nearestMode << "_";
+    result << "InterpolateMode=" << int(mode) << "_";
+    result << "ShapeCalcMode=" << int(shapeCalcMode) << "_";
+    result << "CoordinateTransformMode=" << int(coordinateTransformMode) << "_";
+    result << "NearestMode=" << int(nearestMode) << "_";
     result << "CubeCoef=" << cubeCoef << "_";
     result << "Antialias=" << antialias << "_";
     result << "PB=" << CommonTestUtils::vec2str(padBegin) << "_";
@@ -52,8 +49,6 @@ std::string InterpolateLayerTest::getTestCaseName(testing::TestParamInfo<Interpo
     result << "Axes=" << CommonTestUtils::vec2str(axes) << "_";
     result << "Scales=" << CommonTestUtils::vec2str(scales) << "_";
     result << "netPRC=" << netPrecision.name() << "_";
-    result << "inPRC=" << inPrc.name() << "_";
-    result << "outPRC=" << outPrc.name() << "_";
     result << "inL=" << inLayout << "_";
     result << "outL=" << outLayout << "_";
     result << "trgDev=" << targetDevice;
@@ -65,7 +60,7 @@ void InterpolateLayerTest::SetUp() {
     std::vector<size_t> inputShape, targetShape;
     auto netPrecision = InferenceEngine::Precision::UNSPECIFIED;
 
-    std::tie(interpolateParams, netPrecision, inPrc, outPrc, inLayout, outLayout, inputShape, targetShape, targetDevice) = this->GetParam();
+    std::tie(interpolateParams, netPrecision, inLayout, outLayout, inputShape, targetShape, targetDevice) = this->GetParam();
     std::vector<size_t> padBegin = std::vector<size_t>(1, 0), padEnd = std::vector<size_t>(1, 0);
     std::vector<int64_t> axes;
     std::vector<float> scales;
