@@ -14,6 +14,7 @@
 #include <legacy/ie_layers.h>
 #include "descriptions/gna_input_desc.hpp"
 #include "descriptions/gna_flags.hpp"
+#include "descriptions/gna_offset_desc.hpp"
 #include "connection_details.hpp"
 #include "backend/dnn.hpp"
 #include "memory/polymorph_allocator.hpp"
@@ -89,7 +90,7 @@ public:
     GNAPluginNS::ConnectionDetails connectInput(InferenceEngine::CNNLayerPtr layer,
                                                 void *pVoid,
                                                 size_t num_data_bytes_in,
-                                                int32_t offset = 0,
+                                                OffsetDesc offset = {},
                                                 int idx = 0);
 
     /**

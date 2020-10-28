@@ -13,6 +13,8 @@ namespace {
 
 std::vector<std::vector<std::vector<size_t>>> inShapes = {
         {{1, 1288}},
+        {{1, 56}},
+        {{1, 6456}}
 };
 
 const std::vector<InferenceEngine::Precision> netPrecisions = {
@@ -23,7 +25,6 @@ const std::vector<InferenceEngine::Precision> netPrecisions = {
 std::map<std::string, std::string> additional_config = {
         {"GNA_DEVICE_MODE", "GNA_SW_EXACT"},
         {"GNA_COMPACT_MODE", "NO"},
-        {"GNA_SCALE_FACTOR_0", "2048"},
 };
 
 INSTANTIATE_TEST_CASE_P(smoke_concat_first_input, ConcatFirstInputTest,
