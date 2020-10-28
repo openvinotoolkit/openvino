@@ -1529,7 +1529,7 @@ protected:
         case OP_TYPEID::Or:
         case OP_TYPEID::Power:
         case OP_TYPEID::Range:
-        case OP_TYPEID::Reshape:
+        case OP_TYPEID::Reshape_v1:
         case OP_TYPEID::Result:
         case OP_TYPEID::Round_v5:
         case OP_TYPEID::ShapeOf_v3:

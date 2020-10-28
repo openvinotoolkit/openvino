@@ -679,7 +679,7 @@ namespace
 
     void op_is_Reshape()
     {
-        op::Reshape node;
+        op::v1::Reshape node;
         EXPECT_FALSE(op::is_unary_elementwise_arithmetic(&node));
         EXPECT_FALSE(op::is_binary_elementwise_arithmetic(&node));
         EXPECT_FALSE(op::is_binary_elementwise_comparison(&node));

@@ -127,14 +127,6 @@ namespace opset1_upgrade
         return replacement_node;
     }
 
-    shared_ptr<Node> op_cast(shared_ptr<op::Reshape> node)
-    {
-        shared_ptr<Node> replacement_node =
-            builder::opset1::reshape(node->input_value(0), node->get_reshape_output_shape());
-        replace_node(node, replacement_node);
-        return replacement_node;
-    }
-
     shared_ptr<Node> op_cast(shared_ptr<op::Equal> node)
     {
         return op_cast_binary_elementwise_node<op::v0::Equal, op::v1::Equal>(node);
