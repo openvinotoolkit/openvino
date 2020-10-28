@@ -417,13 +417,6 @@ namespace opset0_downgrade
         return replacement_node;
     }
 
-    shared_ptr<Node> op_cast(shared_ptr<op::v1::ReduceProd> node)
-    {
-        auto replacement_node = op_cast_reduction_node<op::v0::Product, op::v1::ReduceProd>(node);
-        replace_node(node, replacement_node);
-        return replacement_node;
-    }
-
     shared_ptr<Node> op_cast(shared_ptr<op::v1::ReduceSum> node)
     {
         auto replacement_node = op_cast_reduction_node<op::v0::Sum, op::v1::ReduceSum>(node);

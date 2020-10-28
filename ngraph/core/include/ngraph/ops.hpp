@@ -109,7 +109,6 @@
 #include "ngraph/op/prelu.hpp"
 #include "ngraph/op/prior_box.hpp"
 #include "ngraph/op/prior_box_clustered.hpp"
-#include "ngraph/op/product.hpp"
 #include "ngraph/op/proposal.hpp"
 #include "ngraph/op/psroi_pooling.hpp"
 #include "ngraph/op/quantize.hpp"
