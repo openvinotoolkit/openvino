@@ -32,18 +32,17 @@ std::vector<std::vector<size_t>> layerParamsOut = {
     {256, 512, 12, 1}
 };
 
-INSTANTIATE_TEST_CASE_P(
-    smoke_interpolate,
-    InterpolateLayerTest,
-    ::testing::Combine(
-        ::testing::ValuesIn(axes),
-        ::testing::ValuesIn(scales),
-        ::testing::ValuesIn(netPrecisions),
-        ::testing::Values(InferenceEngine::Layout::ANY),
-        ::testing::Values(InferenceEngine::Layout::ANY),
-        ::testing::ValuesIn(layerParams),
-        ::testing::ValuesIn(layerParamsOut),
-        ::testing::Values(CommonTestUtils::DEVICE_MYRIAD)),
-    InterpolateLayerTest::getTestCaseName);
+// INSTANTIATE_TEST_CASE_P(smoke_interpolate,
+//                         InterpolateLayerTest,
+//                         ::testing::Combine(
+//                             ::testing::ValuesIn(axes),
+//                             ::testing::ValuesIn(scales),
+//                             ::testing::ValuesIn(netPrecisions),
+//                             ::testing::Values(InferenceEngine::Layout::ANY),
+//                             ::testing::Values(InferenceEngine::Layout::ANY),
+//                             ::testing::ValuesIn(layerParams),
+//                             ::testing::ValuesIn(layerParamsOut),
+//                             ::testing::Values(CommonTestUtils::DEVICE_MYRIAD)),
+//                         InterpolateLayerTest::getTestCaseName);
 
 }  // namespace
