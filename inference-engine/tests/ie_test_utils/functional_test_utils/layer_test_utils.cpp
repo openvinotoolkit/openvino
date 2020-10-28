@@ -6,6 +6,7 @@
 #include <transformations/op_conversions/convert_space_to_batch.hpp>
 
 #include "layer_test_utils.hpp"
+#include "plugin_config.hpp"
 
 namespace LayerTestsUtils {
 
@@ -98,6 +99,7 @@ void LayerTestsCommon::ConfigureNetwork() const {
 
 void LayerTestsCommon::LoadNetwork() {
     cnnNetwork = InferenceEngine::CNNNetwork{function};
+    PreparePluginConfiguration(this);
     ConfigureNetwork();
     executableNetwork = core->LoadNetwork(cnnNetwork, targetDevice, configuration);
 }
@@ -211,5 +213,13 @@ void LayerTestsCommon::Validate() {
 
 void LayerTestsCommon::SetRefMode(RefMode mode) {
     refMode = mode;
+}
+
+std::shared_ptr<ngraph::Function> LayerTestsCommon::GetFunction() {
+    return function;
+}
+
+std::map<std::string, std::string>& LayerTestsCommon::GetConfiguration() {
+    return configuration;
 }
 }  // namespace LayerTestsUtils
