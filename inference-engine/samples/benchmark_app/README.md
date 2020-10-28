@@ -47,7 +47,7 @@ The application also saves executable graph information serialized to an XML fil
 > **NOTE**: Benchmark Tool is also available inside the web-based graphical environment of the [OpenVINO™ Deep Learning Workbench](@ref workbench_docs_Workbench_DG_Introduction). 
 > DL Workbench enables you to visualize, fine-tune, and compare performance of deep learning models on various Intel® architecture configurations using sophisticated
 > OpenVINO™ toolkit components: [Model Downloader](@ref omz_tools_downloader_README), [Intel® Open Model Zoo](@ref omz_models_intel_index), 
-> [Model Optimizer](../MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md), [Post-Training Optimization tool](@ref pot_README),
+> [Model Optimizer](../../../docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md), [Post-Training Optimization tool](@ref pot_README),
 > [Accuracy Checker](@ref omz_tools_accuracy_checker_README), and Benchmark Tool.
 
 Note that the benchmark_app usually produces optimal performance for any device out of the box.
