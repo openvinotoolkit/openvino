@@ -112,7 +112,9 @@ enum ActivationTypes {
     HSwish,
     SoftPlus,
     Swish,
-    HSigmoid
+    HSigmoid,
+    RoundHalfToEven,
+    RoundHalfAwayFromZero
 };
 
 enum EltwiseTypes {

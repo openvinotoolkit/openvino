@@ -357,9 +357,11 @@ Standard ONNX\* operators:
 | LogicalAnd | No |
 | LogicalOr | No |
 | LogSoftmax | No |
+| Loop | No |
 | MatMul | No |
 | MaxPool | No |
 | MeanVarianceNormalization | Reduction over the batch dimension is not supported, reduction over all dimensions except batch and channel ones is obligatory |
+| Min | No |
 | Mul | No |
 | Neg | No |
 | NonMaxSuppression | No |
@@ -406,6 +408,7 @@ Standard ONNX\* operators:
 | Sum | No |
 | Tan | No |
 | Tanh | No |
+| ThresholdedRelu | No |
 | TopK | No |
 | Transpose | No |
 | Unsqueeze | No |
