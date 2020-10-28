@@ -869,14 +869,97 @@ protected:
                 args[0]->get_data_ptr<const T>(), out[0]->get_data_ptr<T>(), element_count);
             break;
         }
-        case OP_TYPEID::OneHot:
+        case OP_TYPEID::OneHot_v1:
         {
-            const op::OneHot* oh = static_cast<const op::OneHot*>(&node);
-            reference::one_hot<T>(args[0]->get_data_ptr<const T>(),
-                                  out[0]->get_data_ptr<T>(),
-                                  node.get_input_shape(0),
-                                  node.get_output_shape(0),
-                                  oh->get_one_hot_axis());
+            const op::v1::OneHot* oh = static_cast<const op::v1::OneHot*>(&node);
+            T on_value = args[2]->get_data_ptr<T>()[0];
+            T off_value = args[3]->get_data_ptr<T>()[0];
+
+            switch (args[0]->get_element_type())
+            {
+            case element::Type_t::i8:
+                reference::one_hot(args[0]->get_data_ptr<const int8_t>(),
+                                   out[0]->get_data_ptr<T>(),
+                                   node.get_input_shape(0),
+                                   node.get_output_shape(0),
+                                   oh->get_axis(),
+                                   on_value,
+                                   off_value);
+                break;
+            case element::Type_t::i16:
+                reference::one_hot(args[0]->get_data_ptr<const int16_t>(),
+                                   out[0]->get_data_ptr<T>(),
+                                   node.get_input_shape(0),
+                                   node.get_output_shape(0),
+                                   oh->get_axis(),
+                                   on_value,
+                                   off_value);
+                break;
+            case element::Type_t::i32:
+                reference::one_hot(args[0]->get_data_ptr<const int32_t>(),
+                                   out[0]->get_data_ptr<T>(),
+                                   node.get_input_shape(0),
+                                   node.get_output_shape(0),
+                                   oh->get_axis(),
+                                   on_value,
+                                   off_value);
+                break;
+            case element::Type_t::i64:
+                reference::one_hot(args[0]->get_data_ptr<const int64_t>(),
+                                   out[0]->get_data_ptr<T>(),
+                                   node.get_input_shape(0),
+                                   node.get_output_shape(0),
+                                   oh->get_axis(),
+                                   on_value,
+                                   off_value);
+                break;
+            case element::Type_t::u8:
+                reference::one_hot(args[0]->get_data_ptr<const uint8_t>(),
+                                   out[0]->get_data_ptr<T>(),
+                                   node.get_input_shape(0),
+                                   node.get_output_shape(0),
+                                   oh->get_axis(),
+                                   on_value,
+                                   off_value);
+                break;
+            case element::Type_t::u16:
+                reference::one_hot(args[0]->get_data_ptr<const uint16_t>(),
+                                   out[0]->get_data_ptr<T>(),
+                                   node.get_input_shape(0),
+                                   node.get_output_shape(0),
+                                   oh->get_axis(),
+                                   on_value,
+                                   off_value);
+                break;
+            case element::Type_t::u32:
+                reference::one_hot(args[0]->get_data_ptr<const uint32_t>(),
+                                   out[0]->get_data_ptr<T>(),
+                                   node.get_input_shape(0),
+                                   node.get_output_shape(0),
+                                   oh->get_axis(),
+                                   on_value,
+                                   off_value);
+                break;
+            case element::Type_t::u64:
+                reference::one_hot(args[0]->get_data_ptr<const uint64_t>(),
+                                   out[0]->get_data_ptr<T>(),
+                                   node.get_input_shape(0),
+                                   node.get_output_shape(0),
+                                   oh->get_axis(),
+                                   on_value,
+                                   off_value);
+                break;
+            case element::Type_t::undefined:
+            case element::Type_t::dynamic:
+            case element::Type_t::u1:
+            case element::Type_t::boolean:
+            case element::Type_t::bf16:
+            case element::Type_t::f16:
+            case element::Type_t::f32:
+            case element::Type_t::f64:
+            default: NGRAPH_CHECK(false, "Indices input element type must be integer");
+            }
+
             break;
         }
         case OP_TYPEID::Parameter: break;
