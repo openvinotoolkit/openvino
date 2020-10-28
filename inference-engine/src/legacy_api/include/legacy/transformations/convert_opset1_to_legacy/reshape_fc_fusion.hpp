@@ -17,6 +17,7 @@
 #include <ngraph/ngraph.hpp>
 #include <ngraph/opsets/opset1.hpp>
 #include <ngraph/rt_info.hpp>
+#include <ngraph/pattern/op/wrap_type.hpp>
 
 #include <ngraph/pass/graph_rewrite.hpp>
 #include <transformations/utils/utils.hpp>
@@ -44,25 +45,15 @@ public:
 
 private:
     void construct_reshape_fc() {
-        auto input = std::make_shared<pattern::op::Label>(element::f32, Shape{2, 4});
+        auto m_reshape = pattern::wrap_type<opset1::Reshape>(pattern::has_static_shape());
+        auto m_fc = pattern::wrap_type<op::FullyConnected>({m_reshape,
+                                                            pattern::any_input(),
+                                                            pattern::any_input()});
 
-        auto reshape_shape = std::make_shared<pattern::op::Label>(element::i64, Shape{4});
-        auto reshape = std::make_shared<ngraph::opset1::Reshape>(input, reshape_shape, true);
-
-        auto weights = std::make_shared<pattern::op::Label>(element::f32, Shape{2, 4});
-        auto biases = std::make_shared<pattern::op::Label>(element::f32, Shape{2});
-        auto fc = std::make_shared<ngraph::op::FullyConnected>(reshape, weights, biases, Shape{1, 2});
-
-        ngraph::graph_rewrite_callback callback = [](pattern::Matcher &m) {
-            auto fc = std::dynamic_pointer_cast<ngraph::op::FullyConnected>(m.get_match_root());
-            if (!fc) {
-                return false;
-            }
-
-            auto reshape = std::dynamic_pointer_cast<ngraph::opset1::Reshape>(fc->input_value(0).get_node_shared_ptr());
-            if (!reshape) {
-                return false;
-            }
+        ngraph::graph_rewrite_callback callback = [=](pattern::Matcher &m) {
+            auto & pattern_to_output = m.get_pattern_value_map();
+            auto fc = pattern_to_output[m_fc].get_node_shared_ptr();
+            auto reshape = pattern_to_output[m_reshape].get_node_shared_ptr();
 
             // Check that Reshape reshapes 4D tensor to 2D or input shape = output shape
             auto shape_in = reshape->input_value(0).get_shape();
@@ -89,7 +80,7 @@ private:
             return true;
         };
 
-        auto m = std::make_shared<ngraph::pattern::Matcher>(fc, "ReshapeFullyConnectedFusion");
+        auto m = std::make_shared<ngraph::pattern::Matcher>(m_fc, "ReshapeFullyConnectedFusion");
         this->add_matcher(m, callback, PassProperty::CHANGE_DYNAMIC_STATE);
     }
 };
