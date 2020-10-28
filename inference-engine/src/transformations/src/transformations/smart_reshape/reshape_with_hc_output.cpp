@@ -46,6 +46,8 @@ bool relax_hc_reshape_followed_by_matmul(const ngraph::pattern::PatternValueMap 
     return true;
 }
 
+NGRAPH_RTTI_DEFINITION(ngraph::pass::ReshapeAMatMul, "ReshapeAMatMul", 0);
+
 ngraph::pass::ReshapeAMatMul::ReshapeAMatMul() {
     auto other_input_label = pattern::any_input();
     auto reshape_input_label = pattern::any_input();
@@ -61,6 +63,8 @@ ngraph::pass::ReshapeAMatMul::ReshapeAMatMul() {
     auto m = std::make_shared<ngraph::pattern::Matcher>(matmul_label, "ReshapeMatMul_A");
     register_matcher(m, callback);
 }
+
+NGRAPH_RTTI_DEFINITION(ngraph::pass::ReshapeBMatMul, "ReshapeBMatMul", 0);
 
 ngraph::pass::ReshapeBMatMul::ReshapeBMatMul() {
     auto other_input_label = pattern::any_input();

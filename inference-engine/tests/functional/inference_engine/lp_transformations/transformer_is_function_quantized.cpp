@@ -12,8 +12,8 @@
 #include <gtest/gtest.h>
 
 #include <ngraph/pass/visualize_tree.hpp>
-#include <transformations/low_precision/fake_quantize.hpp>
-#include <transformations/low_precision/transformer.hpp>
+#include <low_precision/fake_quantize.hpp>
+#include <low_precision/transformer.hpp>
 
 #include "common_test_utils/ngraph_test_utils.hpp"
 #include "ngraph_functions/low_precision_transformations/common/fake_quantize_on_data.hpp"
