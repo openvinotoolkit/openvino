@@ -466,12 +466,10 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
         auto res = std::make_shared<InferenceEngine::CNNLayer>(attrs);
         res->params = params;
         auto parseBoolStrToIntStr = [](const std::string &param) -> const std::string {
-            if (param == "true")
-            {
+            if (param == "true") {
                 return "1";
             }
-            else if (param == "false")
-            {
+            else if (param == "false") {
                 return "0";
             }
             return param;
