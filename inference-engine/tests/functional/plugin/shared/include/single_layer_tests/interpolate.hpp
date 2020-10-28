@@ -35,12 +35,11 @@ typedef std::tuple<
 > InterpolateSpecificParamsForTests;
 
 typedef std::tuple<
-        InterpolateSpecificParamsForTests,
         InferenceEngine::Precision,         // Net precision
         InferenceEngine::Layout,            // Input layout
         InferenceEngine::Layout,            // Output layout
-        InferenceEngine::SizeVector,        // Input shapes
-        InferenceEngine::SizeVector,        // Target shapes
+        std::vector<size_t>,                // Input shapes
+        std::vector<size_t>,                // Target shapes
         LayerTestsUtils::TargetDevice       // Device name
 > InterpolateLayerTestParams;
 

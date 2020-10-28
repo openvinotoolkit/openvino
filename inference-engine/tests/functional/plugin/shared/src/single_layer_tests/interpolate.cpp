@@ -23,18 +23,16 @@ std::string InterpolateLayerTest::getTestCaseName(testing::TestParamInfo<Interpo
     InferenceEngine::Layout inLayout, outLayout;
     InferenceEngine::SizeVector inputShapes, targetShapes;
     std::string targetDevice;
-    std::tie(interpolateParams, netPrecision, inLayout, outLayout, inputShapes, targetShapes, targetDevice) = obj.param;
+    std::tie(netPrecision, inLayout, outLayout, inputShapes, targetShapes, targetDevice) = obj.param;
     std::vector<size_t> padBegin, padEnd;
-    std::vector<int64_t> axes;
-    std::vector<float> scales;
+    std::vector<int64_t> axes = {0, 1, 2, 3};
+    std::vector<float> scales = {2, 4, 1, 1};
     bool antialias = false;
     ngraph::op::v4::Interpolate::InterpolateMode mode = ngraph::op::v4::Interpolate::InterpolateMode::nearest;
     ngraph::op::v4::Interpolate::ShapeCalcMode shapeCalcMode = ngraph::op::v4::Interpolate::ShapeCalcMode::scales;
     ngraph::op::v4::Interpolate::CoordinateTransformMode coordinateTransformMode = ngraph::op::v4::Interpolate::CoordinateTransformMode::half_pixel;
     ngraph::op::v4::Interpolate::NearestMode nearestMode = ngraph::op::v4::Interpolate::NearestMode::round_prefer_floor;
     double cubeCoef = -0.75;
-    // std:tie(mode, shapeCalcMode, coordinateTransformMode, nearestMode, antialias, padBegin, padEnd, cubeCoef, axes, scales) = interpolateParams;
-    std:tie(axes, scales) = interpolateParams;
     std::ostringstream result;
     result << "IS=" << CommonTestUtils::vec2str(inputShapes) << "_";
     result << "TS=" << CommonTestUtils::vec2str(targetShapes) << "_";
@@ -59,11 +57,10 @@ void InterpolateLayerTest::SetUp() {
     InterpolateSpecificParamsForTests interpolateParams;
     std::vector<size_t> inputShape, targetShape;
     auto netPrecision = InferenceEngine::Precision::UNSPECIFIED;
-
-    std::tie(interpolateParams, netPrecision, inLayout, outLayout, inputShape, targetShape, targetDevice) = this->GetParam();
+    std::tie(netPrecision, inLayout, outLayout, inputShape, targetShape, targetDevice) = this->GetParam();
     std::vector<size_t> padBegin = std::vector<size_t>(1, 0), padEnd = std::vector<size_t>(1, 0);
-    std::vector<int64_t> axes;
-    std::vector<float> scales;
+    std::vector<int64_t> axes = {0, 1, 2, 3};
+    std::vector<float> scales = {2, 4, 1, 1};
     bool antialias = false;
     ngraph::op::v4::Interpolate::InterpolateMode mode = ngraph::op::v4::Interpolate::InterpolateMode::nearest;
     ngraph::op::v4::Interpolate::ShapeCalcMode shapeCalcMode = ngraph::op::v4::Interpolate::ShapeCalcMode::scales;
@@ -71,9 +68,6 @@ void InterpolateLayerTest::SetUp() {
     ngraph::op::v4::Interpolate::NearestMode nearestMode = ngraph::op::v4::Interpolate::NearestMode::round_prefer_floor;
 
     double cubeCoef = -0.75;
-    // std:tie(mode, shapeCalcMode, coordinateTransformMode, nearestMode, antialias, padBegin, padEnd, cubeCoef, axes, scales) = interpolateParams;
-    std:tie(axes, scales) = interpolateParams;
-
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
     auto params = ngraph::builder::makeParams(ngPrc, {inputShape});
 
