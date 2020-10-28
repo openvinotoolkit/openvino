@@ -37,13 +37,13 @@ if(COMMAND ie_faster_build)
     )
 endif()
 
-# Defines macro in C++ to load backend plugin
-target_include_directories(${TARGET_NAME} PUBLIC ${BUILDER_INCLUDE_DIR})
-target_include_directories(${TARGET_NAME} PRIVATE ${NGRAPH_INCLUDE_PATH}
-                                                  ${BUILDER_INCLUDE_DIR}/ngraph/
-                                                  ${BUILDER_INCLUDE_DIR}/ngraph/builder)
+target_compile_definitions(${TARGET_NAME} PRIVATE ngraph_EXPORTS)
 
-#Add an alias so that library can be used inside the build tree, e.g. when testing
+# Defines macro in C++ to load backend plugin
+target_include_directories(${TARGET_NAME} PUBLIC ${BUILDER_INCLUDE_DIR}
+                                          PRIVATE ${NGRAPH_INCLUDE_PATH})
+
+# Add an alias so that library can be used inside the build tree, e.g. when testing
 add_library(ngraph::builder ALIAS ${TARGET_NAME})
 
 # developer package
