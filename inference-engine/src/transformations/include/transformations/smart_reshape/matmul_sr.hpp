@@ -16,6 +16,7 @@ namespace pass {
 
 class TRANSFORMATIONS_API ReshapeAMatMul;
 class TRANSFORMATIONS_API ReshapeBMatMul;
+class TRANSFORMATIONS_API TransposeMatMul;
 
 }  // namespace pass
 }  // namespace ngraph
@@ -37,4 +38,9 @@ class ngraph::pass::ReshapeBMatMul: public ngraph::pass::MatcherPass {
 public:
     NGRAPH_RTTI_DECLARATION;
     ReshapeBMatMul();
+};
+class ngraph::pass::TransposeMatMul: public ngraph::pass::MatcherPass {
+public:
+    NGRAPH_RTTI_DECLARATION;
+    TransposeMatMul();
 };
