@@ -1,8 +1,8 @@
 ## Software Requirements 
-- openjdk (version depends on target OS)
+- OpenJDK (version depends on target OS)
 
 ### Linux
-To install openjdk: 
+To install OpenJDK:
 
 * Ubuntu systems:
 ```bash
