@@ -17,7 +17,9 @@
 #pragma once
 
 #include <cmath>
-#include <ngraph/opsets/opset5.hpp>
+#include <cstddef>
+#include <vector>
+#include "ngraph/function.hpp"
 
 namespace ngraph
 {
@@ -25,9 +27,9 @@ namespace ngraph
     {
         namespace reference
         {
-            void loop(ngraph::opset5::Loop& loop,
-                      const std::vector<std::shared_ptr<HostTensor>>& out,
-                      const std::vector<std::shared_ptr<HostTensor>>& args);
+            std::vector<std::vector<std::uint8_t>> function(const std::shared_ptr<Function> &function,
+                                                            const std::vector<std::vector<std::uint8_t>> &inputs,
+                                                            element::Type_t convertType);
         }
     }
 }
