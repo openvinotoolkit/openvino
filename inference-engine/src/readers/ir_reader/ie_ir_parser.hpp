@@ -270,7 +270,7 @@ private:
                 THROW_IE_EXCEPTION << "No attrtibutes defined for " << type << " op!";
 
             if (getParameters<std::string>(dn, name, value)) {
-                auto data = const_cast<char*>(reinterpret_cast<const char*>(adapter.get_ptr()));
+                auto data = static_cast<char*>(adapter.get_ptr());
                 size_t length = value[0].length() > adapter.size() ? adapter.size() : value[0].length();
                 value[0].copy(data, length);
             } else if (name == "value") {
@@ -293,7 +293,7 @@ private:
                 if (size < std::ceil(ngraph::shape_size(shape) * el_type.bitwidth() / 8.f))
                     THROW_IE_EXCEPTION << "Attribute and shape size are inconsistent for " << type << " op!";
 
-                char* data = const_cast<char*>(reinterpret_cast<const char*>(adapter.get_ptr()));
+                auto data = static_cast<char*>(adapter.get_ptr());
                 binData.seekg(offset, std::ios::beg);
                 binData.read(data, size);
             }

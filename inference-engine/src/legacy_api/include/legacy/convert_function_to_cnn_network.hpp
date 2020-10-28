@@ -64,8 +64,9 @@ inline Blob::Ptr shareWeights(const std::shared_ptr<ngraph::op::Constant>& const
     auto dataPrecision = convertPrecision(constLayer->get_element_type());
 
     size_t shapeSize = ngraph::shape_size(constLayer->get_shape());
+    constexpr auto byte_size{8};
     if (dataPrecision == Precision::BIN) {
-        shapeSize = (shapeSize % 8 == 0 ? shapeSize / 8 : (shapeSize / 8) + 1);
+        shapeSize = (shapeSize + (byte_size - 1)) / byte_size;
     }
 
     TensorDesc td(dataPrecision, {shapeSize}, Layout::C);
@@ -78,7 +79,8 @@ inline Blob::Ptr shareWeights(const std::shared_ptr<ngraph::op::Constant>& const
 
 template <class T>
 bool addBlob(const std::shared_ptr<ngraph::Node>& weightsNode, std::shared_ptr<T>& res, BlobType type) {
-    if (auto constWeights = ngraph::as_type_ptr<ngraph::op::Constant>(weightsNode)) {
+    auto constWeights = ngraph::as_type_ptr<ngraph::op::Constant>(weightsNode);
+    if (constWeights) {
         Blob::Ptr dataBlob = shareWeights(constWeights);
         if (type == weights) {
             res->blobs["weights"] = dataBlob;
