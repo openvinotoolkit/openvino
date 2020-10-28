@@ -125,7 +125,7 @@ class Slice(Op):
             'op': 'Slice',
             'in_ports_count': 5,
             'out_ports_count': 1,
-            'infer': __class__.infer
+            'infer': self.infer
         }, attrs)
 
     @staticmethod
@@ -172,17 +172,5 @@ def get_shape_after_slice(input_shape: np.ndarray, slice_idx: List[slice]) -> np
     """
     output_shape = np.zeros(len(input_shape), dtype=np.int32)
     for i, s in enumerate(slice_idx):
-        start, end, step = normalize_slice_indices(input_shape[i], s.start, s.stop, s.step)
-        output_shape[i] = (end - start + step - 1) / step
+        output_shape[i] = len(range(*s.indices(input_shape[i])))
     return output_shape
-
-
-def normalize_slice_indices(size: int, start: int, end: int, step: int) -> (int, int, int):
-    # converts slice indices to format in which size of Slice can be calculated
-    start = size + start if start < 0 else start
-    end = size + end if end < 0 else end
-    start = np.clip(start, 0, size)
-    end = np.clip(end, 0, size)
-    if step < 0:
-        start, end, step = end, start, -step  # if calculate size without values we can do that
-    return start, end, step
