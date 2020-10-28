@@ -1,5 +1,5 @@
 /*
-// Copyright (c) 2016 Intel Corporation
+// Copyright (c) 2016-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -39,7 +39,7 @@ public:
     program_node& scale_in() const { return get_dependency(1); }
     program_node& bias() const { return get_dependency(2); }
 
-    bool bias_term() const { return get_dependencies().size() > 2; }
+    bool bias_term() const { return get_primitive()->bias.length() != 0; }
 
     std::shared_ptr<kernel_selector::fuse_params> get_fuse_params() const override {
         return std::make_shared<kernel_selector::scale_fuse_params>();
@@ -62,7 +62,7 @@ public:
     memory_impl& scale_memory() const { return dep_memory(1); }
     memory_impl& bias_memory() const { return dep_memory(2); }
 
-    bool bias_term() const { return _deps.size() > 2; }
+    bool bias_term() const { return _node.as<scale>().bias_term(); }
 };
 
 using scale_inst = typed_primitive_inst<scale>;

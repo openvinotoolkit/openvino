@@ -14,7 +14,7 @@
 
 #pragma once
 
-#include "common_kernel_base.h"
+#include "kernel_base_opencl.h"
 #include "kernel_selector_params.h"
 
 namespace kernel_selector {
@@ -48,9 +48,9 @@ struct gemm_optional_params : optional_params {
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // BorderKernelBase
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-class GemmKernelBase : public common_kernel_base {
+class GemmKernelBase : public KernelBaseOpenCL {
 public:
-    using common_kernel_base::common_kernel_base;
+    using KernelBaseOpenCL::KernelBaseOpenCL;
     using FusedOpDesc = fused_operation_desc;
     using DispatchData = CommonDispatchData;
     virtual ~GemmKernelBase() {}

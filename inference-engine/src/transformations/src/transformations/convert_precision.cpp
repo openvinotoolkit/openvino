@@ -161,6 +161,7 @@ bool ngraph::pass::ConvertPrecision::run_on_function(std::shared_ptr<ngraph::Fun
         // If output type mismatch given type we try to fuse type into this operation
         // otherwise we insert Convert operation.
         for (auto &node : f->get_ordered_ops()) {
+            m_transformation_callback(node);
             // Recursively apply transformation for sub-graph based operations
             if (auto sub_graph_node = std::dynamic_pointer_cast<op::util::SubGraphOp>(node)) {
                 if (auto sub_graph = sub_graph_node->get_function()) {
@@ -321,7 +322,7 @@ inline int32_t convert_value<uint64_t, int32_t>(uint64_t val) {
 
 template <>
 inline int32_t convert_value<uint32_t, int32_t>(uint32_t val) {
-    if (val > std::numeric_limits<int32_t>::max()) {
+    if (val > static_cast<uint32_t>(std::numeric_limits<int32_t>::max())) {
         return std::numeric_limits<int32_t>::max();
     }
     return static_cast<int32_t>(val);
