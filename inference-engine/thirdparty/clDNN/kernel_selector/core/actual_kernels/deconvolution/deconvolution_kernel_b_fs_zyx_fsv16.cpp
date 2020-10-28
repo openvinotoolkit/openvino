@@ -30,6 +30,8 @@ ParamsKey DeconvolutionKernel_b_fs_zyx_fsv16::GetSupportedKey() const {
     k.EnableInputWeightsType(WeightsType::F32);
     k.EnableInputDataType(Datatype::F16);
     k.EnableOutputDataType(Datatype::F16);
+    k.EnableOutputDataType(Datatype::INT8);
+    k.EnableOutputDataType(Datatype::UINT8);
     k.EnableInputWeightsType(WeightsType::F16);
     k.EnableInputLayout(DataLayout::b_fs_yx_fsv16);
     k.EnableOutputLayout(DataLayout::b_fs_yx_fsv16);
@@ -44,6 +46,7 @@ ParamsKey DeconvolutionKernel_b_fs_zyx_fsv16::GetSupportedKey() const {
     k.EnableBatching();
     k.EnableSubGroup();
     k.EnableSubGroupShort();
+    k.EnableDifferentTypes();
     return k;
 }
 
