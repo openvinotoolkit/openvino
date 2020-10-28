@@ -22,12 +22,9 @@
 #include <nodes/mkldnn_input_node.h>
 #include <nodes/mkldnn_lrn_node.h>
 #include <nodes/mkldnn_pooling_node.h>
-#include <nodes/mkldnn_power_node.h>
-#include <nodes/mkldnn_activation_node.h>
 #include <nodes/mkldnn_reorder_node.h>
 #include <nodes/mkldnn_reshape_node.h>
 #include <nodes/mkldnn_roi_pooling_node.h>
-#include <nodes/mkldnn_depthwise_node.h>
 #include <nodes/mkldnn_softmax_node.h>
 #include <nodes/mkldnn_tile_node.h>
 #include <nodes/mkldnn_split_node.h>
@@ -63,23 +60,23 @@ static const InferenceEngine::details::caseless_unordered_map<std::string, Type>
         { "Output", Output },
         { "Reorder", Reorder },
         { "Convolution", Convolution },
-        { "ReLU", Activation },
-        { "GELU", Activation },
-        { "ELU", Activation },
-        { "Sigmoid", Activation },
-        { "Logistic", Activation },
-        { "TanH", Activation },
-        { "ReLU6", Activation },
-        { "Exp", Activation },
-        { "Not", Activation },
-        { "Activation", Activation },
-        { "Clamp", Activation },
-        { "Swish", Activation },
-        { "HSwish", Activation },
-        { "Mish", Activation },
-        { "HSigmoid", Activation },
-        { "ScaleShift", Depthwise },
-        { "PReLU", Depthwise },
+        { "ReLU", Eltwise },
+        { "GELU", Eltwise },
+        { "ELU", Eltwise },
+        { "Sigmoid", Eltwise },
+        { "Logistic", Eltwise },
+        { "TanH", Eltwise },
+        { "ReLU6", Eltwise },
+        { "Exp", Eltwise },
+        { "Not", Eltwise },
+        { "Activation", Eltwise },
+        { "Clamp", Eltwise },
+        { "Swish", Eltwise },
+        { "HSwish", Eltwise },
+        { "Mish", Eltwise },
+        { "HSigmoid", Eltwise },
+        { "ScaleShift", Eltwise },
+        { "PReLU", Eltwise },
         { "Norm", Lrn },
         { "LRN", Lrn },
         { "Pooling", Pooling },
@@ -91,9 +88,10 @@ static const InferenceEngine::details::caseless_unordered_map<std::string, Type>
         { "Split", Split },
         { "Slice", Split },
         { "Concat", Concatenation },
-        { "Power", Power },
         { "Deconvolution", Deconvolution },
         { "Eltwise", Eltwise },
+        { "Mod", Eltwise },
+        { "Power", Eltwise },
         { "Crop", Crop },
         { "Reshape", Reshape },
         { "Tile", Tile },

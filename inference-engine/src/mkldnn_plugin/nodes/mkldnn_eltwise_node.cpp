@@ -13,46 +13,84 @@
 #include <mkldnn_extension_utils.h>
 #include "ie_parallel.hpp"
 #include "mkldnn_quantize_node.h"
-#include "mkldnn_activation_node.h"
 #include <map>
 #include "jit_uni_eltwise.hpp"
 #include "jit_uni_quantization.hpp"
+#include "common/emitter.h"
+#include "jit_eltwise_emitters.hpp"
+#include "jit_mkldnn_emitters.hpp"
+#include "ref_eltwise.hpp"
+#include "mkldnn_pooling_node.h"
 
-using namespace mkldnn;
 using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
-using namespace mkldnn::impl;
-using namespace mkldnn::impl::cpu;
 using namespace mkldnn::impl::utils;
+
+using namespace mkldnn::impl::cpu;
 using namespace Xbyak;
 
-#define GET_OFF(field) offsetof(jit_eltwise_fq_call_args, field)
+#define GET_OFF(field) offsetof(jit_eltwise_call_args, field)
 
 template <cpu_isa_t isa>
-struct jit_uni_eltwise_fq_generic : public jit_uni_eltwise_fq_kernel, public jit_generator {
-    DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_uni_eltwise_fq_generic)
+struct jit_uni_eltwise_generic : public jit_uni_eltwise_kernel, public jit_generator {
+    DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_uni_eltwise_generic)
 
-    explicit jit_uni_eltwise_fq_generic(jit_eltwise_fq_params jep, const mkldnn_primitive_attr &attr) : jit_uni_eltwise_fq_kernel(jep, attr), jit_generator() {
-        const auto &p = attr_.post_ops_;
-        for (int i = 0; i < p.len_; i++) {
-            auto &post_op = p.entry_[i];
-            if (post_op.is_eltwise()) {
-                eltwise_injectors.push_back(std::make_shared<jit_uni_eltwise_injector_f32<isa>>(
-                        this, post_op.eltwise.alg, post_op.eltwise.alpha, post_op.eltwise.beta));
-            } else if (post_op.is_quantization()) {
+    explicit jit_uni_eltwise_generic(jit_eltwise_params jep, MKLDNNEltwiseNode& eltwiseNode) : jit_uni_eltwise_kernel(jep, eltwiseNode), jit_generator() {
+        Precision exec_prc = Precision::UNSPECIFIED;
+
+        std::set<Precision> supported_precision_intersection = get_supported_precisions(eltwiseNode);
+        for (int i = 0; i < eltwiseNode.getFusedWith().size(); i++) {
+            if (eltwiseNode.getFusedWith()[i].get()->getType() == Eltwise) {
+                std::set<Precision> prcs = get_supported_precisions(*eltwiseNode.getFusedWith()[i].get());
+
+                std::set_intersection(supported_precision_intersection.begin(), supported_precision_intersection.end(),
+                                      prcs.begin(), prcs.end(), std::inserter(supported_precision_intersection, supported_precision_intersection.begin()));
+            }
+        }
+
+        for (auto prc : exec_precisions_priority) {
+            if (std::find(supported_precision_intersection.begin(), supported_precision_intersection.end(), prc) != supported_precision_intersection.end()) {
+                exec_prc = prc;
+                break;
+            }
+        }
+
+        for (int i = 0; i < jep_.inputs_number; i++) {
+            if (jep_.src_prc[i] != exec_prc) {
+                exec_prc = Precision::FP32;
+                break;
+            }
+        }
+
+        if (exec_prc == Precision::UNSPECIFIED) {
+            THROW_IE_EXCEPTION << "Eltwise jitter failed to specify execution precision for Eltwise node with name `" << eltwiseNode.getName() << "`";
+        }
+
+        eltwise_emitter = create_eltwise_emitter(eltwiseNode, exec_prc);
+
+        mkldnn::post_ops post_ops;
+        for (int i = 0; i < eltwiseNode.getFusedWith().size(); i++) {
+            if (eltwiseNode.getFusedWith()[i].get()->getType() == Eltwise) {
+                post_op_emitters.push_back(create_eltwise_emitter(*eltwiseNode.getFusedWith()[i].get(), exec_prc));
+            } else if (eltwiseNode.getFusedWith()[i].get()->getType() == Quantize) {
+                auto quantizeNode = dynamic_cast<MKLDNNQuantizeNode*>(eltwiseNode.getFusedWith()[i].get());
+                quantizeNode->appendPostOps(post_ops);
+
                 quantization_injectors.push_back(std::make_shared<jit_uni_quantization_injector_f32<isa>>(
-                        this, post_op, vmm_d_weights, vmm_d_bias, reg_d_weights, reg_d_bias));
+                        this, post_ops.get()->entry_[post_ops.get()->len_ - 1], vmm_d_weights, vmm_d_bias, reg_d_weights, reg_d_bias));
             }
         }
 
         this->preamble();
 
-        mov(reg_src0, ptr[reg_params + GET_OFF(src0)]);
-        mov(reg_src1, ptr[reg_params + GET_OFF(src1)]);
+        for (int i = 0; i < jep.inputs_number; i++)
+            mov(get_src_reg(i), ptr[reg_params + GET_OFF(src_ptr[0]) + i * sizeof(size_t)]);
         mov(reg_dst, ptr[reg_params + GET_OFF(dst)]);
         mov(reg_work_amount, ptr[reg_params + GET_OFF(work_amount)]);
-        xor_(reg_oc_off, reg_oc_off);
+        mov(reg_oc_off, ptr[reg_params + GET_OFF(oc_off)]);
 
+        Xbyak::Label unroll_loop_label;
+        Xbyak::Label unroll_loop_end_label;
         Xbyak::Label main_loop_label;
         Xbyak::Label main_loop_end_label;
         Xbyak::Label tail_loop_label;
@@ -61,131 +99,145 @@ struct jit_uni_eltwise_fq_generic : public jit_uni_eltwise_fq_kernel, public jit
         if (isa == avx512_common)
             vpxord(vmm_zero, vmm_zero, vmm_zero);
 
-        if (jep.src0_step == 0)
-            uni_vbroadcastss(vmm_src0, ptr[reg_src0]);
-        if (jep.src1_step == 0)
-            uni_vbroadcastss(vmm_src1, ptr[reg_src1]);
-
-        L(main_loop_label);
-        {
-            cmp(reg_work_amount, simd_w);
-            jl(main_loop_end_label, T_NEAR);
-
-            if (jep.src0_step != 0)
-                load_vector(vmm_src0, ptr[reg_src0], jep.src0_dt);
-            if (jep.src1_step != 0)
-                load_vector(vmm_src1, ptr[reg_src1], jep.src1_dt);
-
-            switch (jep.eltwise_op) {
-                case EltwiseLayer::eOperation::Sum:
-                    if (isa == cpu::sse42) {
-                        uni_vmovups(vmm_dst, vmm_src0);
-                        uni_vaddps(vmm_dst, vmm_dst, vmm_src1);
-                    } else {
-                        uni_vaddps(vmm_dst, vmm_src0, vmm_src1);
-                    }
-                    break;
-                case EltwiseLayer::eOperation::Prod:
-                    if (isa == cpu::sse42) {
-                        uni_vmovups(vmm_dst, vmm_src0);
-                        uni_vmulps(vmm_dst, vmm_dst, vmm_src1);
-                    } else {
-                        uni_vmulps(vmm_dst, vmm_src0, vmm_src1);
-                    }
-                    break;
-                default: THROW_IE_EXCEPTION << "Unsupported operation type for Eltwise node";
-            }
-
-            int eltwise_inj_idx = 0;
-            int quantization_inj_idx = 0;
-            for (int i = 0; i < p.len_; i++) {
-                auto &post_op = p.entry_[i];
-                if (post_op.is_eltwise()) {
-                    eltwise_injectors[eltwise_inj_idx]->compute_vector_range(vmm_dst.getIdx(), vmm_dst.getIdx() + 1);
-                    eltwise_inj_idx++;
-                } else if (post_op.is_quantization()) {
-                    bool do_dequantization = post_op.quantization.alg == alg_kind::quantization_quantize_dequantize;
-                    bool do_rounding = do_dequantization || jep_.dst_dt == data_type::f32 || i != p.len_ - 1;
-                    int s_idx = vmm_dst.getIdx();
-
-                    quantization_injectors[quantization_inj_idx]->init_crop_ptrs(reg_oc_off);
-                    quantization_injectors[quantization_inj_idx]->compute_crop(s_idx, s_idx + 1, 0);
-
-                    quantization_injectors[quantization_inj_idx]->init_input_scale_shift_ptrs(reg_oc_off);
-                    quantization_injectors[quantization_inj_idx]->compute_input_scale_shift(s_idx, s_idx + 1, 0, do_rounding);
-
-                    quantization_injectors[quantization_inj_idx]->init_output_scale_shift_ptrs(reg_oc_off);
-                    quantization_injectors[quantization_inj_idx]->compute_output_scale_shift(s_idx, s_idx + 1, 0);
-
-                    quantization_inj_idx++;
-                }
-            }
-
-            store_vector(ptr[reg_dst], vmm_dst, jep.dst_dt);
-
-            if (jep.src0_step != 0)
-                add(reg_src0, jep.src0_step * jep.src0_data_size * simd_w);
-            if (jep.src1_step != 0)
-                add(reg_src1, jep.src1_step * jep.src1_data_size * simd_w);
-            add(reg_dst, jep.dst_step * jep.dst_data_size * simd_w);
-            sub(reg_work_amount, simd_w);
-            add(reg_oc_off, simd_w * sizeof(float));
-
-            jmp(main_loop_label, T_NEAR);
+        for (int i = 0; i < jep.inputs_number; i++) {
+            if (jep.src_size[i] == 1)
+                load_vector(get_vmm_reg(i), ptr[get_src_reg(i)], jep.src_prc[i], exec_prc, true);
         }
 
-        L(main_loop_end_label);
+        size_t min_src_size = jep.dst_size;
+        for (int i = 0; i < jep.inputs_number; i++) {
+            if (jep.src_size[i] != 1)
+                min_src_size = std::min(min_src_size, jep.src_size[i]);
+        }
+        if (jep_.oc_size > 1)
+            min_src_size = std::min(min_src_size, jep_.oc_size);
+
+        if (min_src_size != jep.dst_size) {
+            bool is_valid_configuration = true;
+            if (jep.dst_size % min_src_size != 0)
+                is_valid_configuration = false;
+
+            for (int i = 0; i < jep.inputs_number; i++) {
+                if (jep.src_size[i] != 1 && jep.src_size[i] != min_src_size && jep.src_size[i] != jep.dst_size)
+                    is_valid_configuration = false;
+            }
+
+            if (jep_.oc_size > 1 && jep_.oc_size != min_src_size && jep_.oc_size != jep.dst_size)
+                is_valid_configuration = false;
+
+            if (!is_valid_configuration)
+                THROW_IE_EXCEPTION << "Eltwise jitter has invalid configuration for Eltwise node with name `" << eltwiseNode.getName() << "`";
+
+            L(unroll_loop_label);
+            {
+                size_t loop_step = min_src_size;
+                size_t vec_step = cpu_isa_traits<isa>::vlen / exec_prc.size();
+
+                cmp(reg_work_amount, loop_step);
+                jl(unroll_loop_end_label, T_NEAR);
+
+                for (int j = 0; j < min_src_size / vec_step; j++) {
+                    for (int i = 0; i < jep.inputs_number; i++) {
+                        if (jep.src_size[i] != 1)
+                            load_vector(get_vmm_reg(i), ptr[get_src_reg(i) + j * vec_step * jep.src_prc[i].size()], jep.src_prc[i], exec_prc, false);
+                    }
+
+                    compute_eltwise_op();
+
+                    apply_post_ops(false, jep_.oc_size > 1 ? j * vec_step * sizeof(float) : 0);
+
+                    store_vector(ptr[reg_dst + j * vec_step * jep.dst_prc.size()], vmm_dst, exec_prc, jep.dst_prc);
+                }
+
+                int tail_start = min_src_size - min_src_size % vec_step;
+                for (int j = tail_start; j < min_src_size; j++) {
+                    for (int i = 0; i < jep.inputs_number; i++) {
+                        if (jep.src_size[i] != 1)
+                            load_scalar(get_xmm_reg(i), ptr[get_src_reg(i) + j * jep.src_prc[i].size()], jep.src_prc[i], exec_prc);
+                    }
+
+                    compute_eltwise_op();
+
+                    apply_post_ops(true, jep_.oc_size > 1 ? j * sizeof(float) : 0);
+
+                    store_scalar(ptr[reg_dst + j * jep.dst_prc.size()], xmm_dst, exec_prc, jep.dst_prc);
+                }
+
+                for (int i = 0; i < jep.inputs_number; i++)
+                    if (jep.src_size[i] == jep.dst_size)
+                        add(get_src_reg(i), jep.src_prc[i].size() * loop_step);
+
+                add(reg_dst, jep.dst_prc.size() * loop_step);
+                sub(reg_work_amount, loop_step);
+                if (jep_.oc_size > 1 && jep_.oc_size != min_src_size)
+                    add(reg_oc_off, loop_step * sizeof(float));
+
+                jmp(unroll_loop_label, T_NEAR);
+            }
+
+            L(unroll_loop_end_label);
+        }
+
+        if (min_src_size == jep.dst_size) {
+            L(main_loop_label);
+            {
+                size_t loop_step = cpu_isa_traits<isa>::vlen / exec_prc.size();
+
+                cmp(reg_work_amount, loop_step);
+                jl(main_loop_end_label, T_NEAR);
+
+                for (int i = 0; i < jep.inputs_number; i++) {
+                    if (jep.src_size[i] != 1)
+                        load_vector(get_vmm_reg(i), ptr[get_src_reg(i)], jep.src_prc[i], exec_prc, false);
+                }
+
+                compute_eltwise_op();
+
+                apply_post_ops(false);
+
+                store_vector(ptr[reg_dst], vmm_dst, exec_prc, jep.dst_prc);
+
+                for (int i = 0; i < jep.inputs_number; i++)
+                    if (jep.src_size[i] != 1)
+                        add(get_src_reg(i), jep.src_prc[i].size() * loop_step);
+
+                add(reg_dst, jep.dst_prc.size() * loop_step);
+                sub(reg_work_amount, loop_step);
+                if (jep_.oc_size > 1)
+                    add(reg_oc_off, loop_step * sizeof(float));
+
+                jmp(main_loop_label, T_NEAR);
+            }
+
+            L(main_loop_end_label);
+        }
 
         L(tail_loop_label);
         {
-            cmp(reg_work_amount, 1);
+            size_t loop_step = 1;
+
+            cmp(reg_work_amount, loop_step);
             jl(tail_loop_end_label, T_NEAR);
 
-            if (jep.src0_step != 0)
-                load_scalar(xmm_src0, ptr[reg_src0], jep.src0_dt);
-            if (jep.src1_step != 0)
-                load_scalar(xmm_src1, ptr[reg_src1], jep.src1_dt);
-
-            switch (jep.eltwise_op) {
-                case EltwiseLayer::eOperation::Sum: uni_vaddps(vmm_dst, vmm_src0, vmm_src1); break;
-                case EltwiseLayer::eOperation::Prod: uni_vmulps(vmm_dst, vmm_src0, vmm_src1); break;
-                default: THROW_IE_EXCEPTION << "Unsupported operation type for Eltwise node";
+            for (int i = 0; i < jep.inputs_number; i++) {
+                if (jep.src_size[i] != 1)
+                    load_scalar(get_xmm_reg(i), ptr[get_src_reg(i)], jep.src_prc[i], exec_prc);
             }
 
-            int eltwise_inj_idx = 0;
-            int quantization_inj_idx = 0;
-            for (int i = 0; i < p.len_; i++) {
-                auto &post_op = p.entry_[i];
-                if (post_op.is_eltwise()) {
-                    eltwise_injectors[eltwise_inj_idx]->compute_vector_range(vmm_dst.getIdx(), vmm_dst.getIdx() + 1);
-                    eltwise_inj_idx++;
-                } else if (post_op.is_quantization()) {
-                    bool do_dequantization = post_op.quantization.alg == alg_kind::quantization_quantize_dequantize;
-                    bool do_rounding = do_dequantization || jep_.dst_dt == data_type::f32 || i != p.len_ - 1;
-                    int s_idx = vmm_dst.getIdx();
+            compute_eltwise_op();
 
-                    quantization_injectors[quantization_inj_idx]->init_crop_ptrs(reg_oc_off);
-                    quantization_injectors[quantization_inj_idx]->compute_crop(s_idx, s_idx + 1, 0, true);
+            apply_post_ops(true);
 
-                    quantization_injectors[quantization_inj_idx]->init_input_scale_shift_ptrs(reg_oc_off);
-                    quantization_injectors[quantization_inj_idx]->compute_input_scale_shift(s_idx, s_idx + 1, 0, do_rounding, true);
+            store_scalar(ptr[reg_dst], xmm_dst, exec_prc, jep.dst_prc);
 
-                    quantization_injectors[quantization_inj_idx]->init_output_scale_shift_ptrs(reg_oc_off);
-                    quantization_injectors[quantization_inj_idx]->compute_output_scale_shift(s_idx, s_idx + 1, 0, true);
+            for (int i = 0; i < jep.inputs_number; i++)
+                if (jep.src_size[i] != 1)
+                    add(get_src_reg(i), jep.src_prc[i].size() * loop_step);
 
-                    quantization_inj_idx++;
-                }
-            }
-
-            store_scalar(ptr[reg_dst], xmm_dst, jep.dst_dt);
-
-            if (jep.src0_step != 0)
-                add(reg_src0, jep.src0_step * jep.src0_data_size);
-            if (jep.src1_step != 0)
-                add(reg_src1, jep.src1_step * jep.src1_data_size);
-            add(reg_dst, jep.dst_step * jep.dst_data_size);
-            sub(reg_work_amount, 1);
-            add(reg_oc_off, 1 * sizeof(float));
+            add(reg_dst, jep.dst_prc.size() * loop_step);
+            sub(reg_work_amount, loop_step);
+            if (jep_.oc_size > 1)
+                add(reg_oc_off, loop_step * sizeof(float));
 
             jmp(tail_loop_label, T_NEAR);
         }
@@ -194,8 +246,10 @@ struct jit_uni_eltwise_fq_generic : public jit_uni_eltwise_fq_kernel, public jit
 
         this->postamble();
 
-        for (auto& inj : eltwise_injectors)
-            inj->prepare_table();
+        eltwise_emitter->emit_table();
+        for (int i = 0; i < post_op_emitters.size(); i++) {
+            post_op_emitters[i]->emit_table();
+        }
 
         ker_ = (decltype(ker_)) this->getCode();
     }
@@ -203,95 +257,306 @@ struct jit_uni_eltwise_fq_generic : public jit_uni_eltwise_fq_kernel, public jit
 private:
     using Vmm = typename conditional3<isa == cpu::sse42, Xmm, isa == cpu::avx2, Ymm, Zmm>::type;
 
-    const int simd_w = cpu_isa_traits<isa>::vlen / sizeof(float);
+    Reg64 get_src_reg(int idx) {
+        return Reg64(r8.getIdx() + idx);
+    }
 
-    Reg64 reg_src0 = r8;
-    Reg64 reg_src1 = r9;
-    Reg64 reg_dst = r10;
-    Reg64 reg_work_amount = r11;
-    Reg64 reg_oc_off = r13;
+    Vmm get_vmm_reg(int idx) {
+        return Vmm(1 + idx);
+    }
+
+    Vmm get_aux_vmm(int idx) {
+        return Vmm(10 + idx);
+    }
+
+    Xmm get_xmm_reg(int idx) {
+        return Xmm(get_vmm_reg(idx).getIdx());
+    }
+
+    Reg64 reg_dst = rbx;
+    Reg64 reg_work_amount = rdx;
+
+    Reg64 reg_oc_off = abi_not_param1;
     Reg64 reg_params = abi_param1;
 
-    Reg8 reg_tmp_8 = r12b;
-    Reg32 reg_tmp_32 = r12d;
-    Reg64 reg_tmp_64 = r12;
+    Reg8 reg_tmp_8 = Reg8(r15.getIdx());
+    Reg32 reg_tmp_32 = Reg32(r15.getIdx());
+    Reg64 reg_tmp_64 = Reg64(r15.getIdx());
 
-    Reg64 reg_d_weights = r14;
-    Reg64 reg_d_bias = r15;
+    Reg64 reg_d_weights = rbp;
+    Reg64 reg_d_bias = rsi;
 
-    Vmm vmm_src0 = Vmm(0);
-    Vmm vmm_src1 = Vmm(1);
-    Vmm vmm_dst = Vmm(2);
-    Xmm xmm_src0 = Xmm(0);
-    Xmm xmm_src1 = Xmm(1);
-    Xmm xmm_dst = Xmm(2);
+    Vmm vmm_dst = Vmm(9);
+    Xmm xmm_dst = Xmm(9);
 
-    Vmm vmm_d_weights = Vmm(3);
-    Vmm vmm_d_bias = Vmm(4);
+    Vmm vmm_d_weights = Vmm(12);
+    Vmm vmm_d_bias = Vmm(13);
+    Vmm vmm_zero = Vmm(15);
 
-    Vmm vmm_zero = Vmm(5);
+    std::shared_ptr<jit_emitter> eltwise_emitter = nullptr;
+    std::vector<std::shared_ptr<jit_emitter>> post_op_emitters = {};
 
-    std::vector<std::shared_ptr<jit_uni_eltwise_injector_f32<isa>>> eltwise_injectors;
-    std::vector<std::shared_ptr<jit_uni_quantization_injector_f32<isa>>> quantization_injectors;
+    std::vector<std::shared_ptr<jit_uni_quantization_injector_f32<isa>>> quantization_injectors = {};
 
-    inline void load_vector(Vmm vmm_src, const Xbyak::Address &op, memory::data_type src_dt) {
-        switch (src_dt) {
-            case memory::f32:
-            case memory::s32:
-                uni_vmovups(vmm_src, op);
-                break;
-            case memory::s8:
-                uni_vpmovsxbd(vmm_src, op);
-                break;
-            case memory::u8:
-                uni_vpmovzxbd(vmm_src, op);
-                break;
-            default:
-                assert(!"unknown dst_dt");
-        }
+    std::vector<Precision> exec_precisions_priority = {
+        Precision::U8,
+        Precision::I8,
+        Precision::U16,
+        Precision::I16,
+        Precision::BF16,
+        Precision::I32,
+        Precision::FP32
+    };
 
-        if (src_dt != data_type::f32) {
-            uni_vcvtdq2ps(vmm_src, vmm_src);
+    std::set<Precision> get_supported_precisions(MKLDNNNode& node) {
+        auto& eltwiseNode = dynamic_cast<const MKLDNNEltwiseNode&>(node);
+        switch (eltwiseNode.getOpType()) {
+            case Relu: case Gelu: case Elu: case Tanh: case Logistic: case Square: case Abs: case Sqrt:
+            case Linear: case BoundedRelu: case SoftRelu: case Relu6: case Exp: case Clamp: case Swish: case Hswish: case Mish: case Hsigmoid:
+                return jit_mkldnn_emitter::get_supported_precisions();
+            case Add:               return jit_add_emitter::get_supported_precisions();
+            case MulAdd:            return jit_mul_add_emitter::get_supported_precisions();
+            case Subtract:          return jit_subtract_emitter::get_supported_precisions();
+            case Multiply:          return jit_multiply_emitter::get_supported_precisions();
+            case Divide:            return jit_divide_emitter::get_supported_precisions();
+            case FloorMod:          return jit_floor_mod_emitter::get_supported_precisions();
+            case Mod:               return jit_mod_emitter::get_supported_precisions();
+            case Maximum:           return jit_maximum_emitter::get_supported_precisions();
+            case Minimum:           return jit_minimum_emitter::get_supported_precisions();
+            case SquaredDifference: return jit_squared_difference_emitter::get_supported_precisions();
+            case PowerDynamic:      return jit_power_dynamic_emitter::get_supported_precisions();
+            case Equal:             return jit_equal_emitter::get_supported_precisions();
+            case NotEqual:          return jit_not_equal_emitter::get_supported_precisions();
+            case Greater:           return jit_greater_emitter::get_supported_precisions();
+            case GreaterEqual:      return jit_greater_equal_emitter::get_supported_precisions();
+            case Less:              return jit_less_emitter::get_supported_precisions();
+            case LessEqual:         return jit_less_equal_emitter::get_supported_precisions();
+            case LogicalAnd:        return jit_logical_and_emitter::get_supported_precisions();
+            case LogicalOr:         return jit_logical_or_emitter::get_supported_precisions();
+            case LogicalXor:        return jit_logical_xor_emitter::get_supported_precisions();
+            case LogicalNot:        return jit_logical_not_emitter::get_supported_precisions();
+            case PowerStatic:       return jit_power_static_emitter::get_supported_precisions();
+            case Prelu:             return jit_prelu_emitter::get_supported_precisions();
+            default: THROW_IE_EXCEPTION << "Unsupported operation type for Eltwise emitter";
         }
     }
 
-    inline void load_scalar(Xmm xmm_src, const Xbyak::Address &op, memory::data_type src_dt) {
-        switch (src_dt) {
-            case memory::f32:
-            case memory::s32:
+    std::shared_ptr<jit_emitter> create_eltwise_emitter(MKLDNNNode& node, Precision exec_prec) {
+        auto& eltwiseNode = dynamic_cast<const MKLDNNEltwiseNode&>(node);
+        switch (eltwiseNode.getOpType()) {
+            case Relu: case Gelu: case Elu: case Tanh: case Logistic: case Square: case Abs: case Sqrt:
+            case Linear: case BoundedRelu: case SoftRelu: case Relu6: case Exp: case Clamp: case Swish: case Hswish: case Mish: case Hsigmoid:
+                                    return std::make_shared<jit_mkldnn_emitter>(this, isa, eltwiseNode, exec_prec);
+            case Add:               return std::make_shared<jit_add_emitter>(this, isa, eltwiseNode, exec_prec);
+            case MulAdd:            return std::make_shared<jit_mul_add_emitter>(this, isa, eltwiseNode, exec_prec);
+            case Subtract:          return std::make_shared<jit_subtract_emitter>(this, isa, eltwiseNode, exec_prec);
+            case Multiply:          return std::make_shared<jit_multiply_emitter>(this, isa, eltwiseNode, exec_prec);
+            case Divide:            return std::make_shared<jit_divide_emitter>(this, isa, eltwiseNode, exec_prec);
+            case FloorMod:          return std::make_shared<jit_floor_mod_emitter>(this, isa, eltwiseNode, exec_prec);
+            case Mod:               return std::make_shared<jit_mod_emitter>(this, isa, eltwiseNode, exec_prec);
+            case Maximum:           return std::make_shared<jit_maximum_emitter>(this, isa, eltwiseNode, exec_prec);
+            case Minimum:           return std::make_shared<jit_minimum_emitter>(this, isa, eltwiseNode, exec_prec);
+            case SquaredDifference: return std::make_shared<jit_squared_difference_emitter>(this, isa, eltwiseNode, exec_prec);
+            case PowerDynamic:      return std::make_shared<jit_power_dynamic_emitter>(this, isa, eltwiseNode, exec_prec);
+            case Equal:             return std::make_shared<jit_equal_emitter>(this, isa, eltwiseNode, exec_prec);
+            case NotEqual:          return std::make_shared<jit_not_equal_emitter>(this, isa, eltwiseNode, exec_prec);
+            case Greater:           return std::make_shared<jit_greater_emitter>(this, isa, eltwiseNode, exec_prec);
+            case GreaterEqual:      return std::make_shared<jit_greater_equal_emitter>(this, isa, eltwiseNode, exec_prec);
+            case Less:              return std::make_shared<jit_less_emitter>(this, isa, eltwiseNode, exec_prec);
+            case LessEqual:         return std::make_shared<jit_less_equal_emitter>(this, isa, eltwiseNode, exec_prec);
+            case LogicalAnd:        return std::make_shared<jit_logical_and_emitter>(this, isa, eltwiseNode, exec_prec);
+            case LogicalOr:         return std::make_shared<jit_logical_or_emitter>(this, isa, eltwiseNode, exec_prec);
+            case LogicalXor:        return std::make_shared<jit_logical_xor_emitter>(this, isa, eltwiseNode, exec_prec);
+            case LogicalNot:        return std::make_shared<jit_logical_not_emitter>(this, isa, eltwiseNode, exec_prec);
+            case PowerStatic:       return std::make_shared<jit_power_static_emitter>(this, isa, eltwiseNode, exec_prec);
+            case Prelu:             return std::make_shared<jit_prelu_emitter>(this, isa, eltwiseNode, exec_prec);
+            default: THROW_IE_EXCEPTION << "Unsupported operation type for Eltwise emitter";
+        }
+    }
+
+    inline void compute_eltwise_op() {
+        std::vector<size_t> in_idxs;
+        std::vector<size_t> aux_idxs;
+        for (int i = 0; i < eltwise_emitter->get_inputs_num(); i++)
+            in_idxs.push_back(get_vmm_reg(i).getIdx());
+        for (int i = 0; i < eltwise_emitter->aux_vecs_count(); i++)
+            aux_idxs.push_back(get_aux_vmm(i).getIdx());
+
+        std::vector<size_t> out_idxs;
+        out_idxs.push_back(vmm_dst.getIdx());
+
+        eltwise_emitter->emit(in_idxs, out_idxs, aux_idxs);
+    }
+
+    inline void apply_post_ops(bool is_scalar, int offset = 0) {
+        int input_idx = eltwise_emitter->get_inputs_num();
+        int eltwise_post_op_idx = 0;
+        int quantization_post_op_idx = 0;
+        for (int i = 0; i < eltwiseNode.getFusedWith().size(); i++) {
+            if (eltwiseNode.getFusedWith()[i].get()->getType() == Eltwise) {
+                std::vector<size_t> in_idxs;
+                std::vector<size_t> aux_idxs;
+                in_idxs.push_back(vmm_dst.getIdx());
+                for (int j = 1; j < post_op_emitters[eltwise_post_op_idx]->get_inputs_num(); j++)
+                    in_idxs.push_back(get_vmm_reg(input_idx++).getIdx());
+                for (int j = 0; j < post_op_emitters[eltwise_post_op_idx]->aux_vecs_count(); j++)
+                    aux_idxs.push_back(get_aux_vmm(j).getIdx());
+
+                std::vector<size_t> out_idxs;
+                out_idxs.push_back(vmm_dst.getIdx());
+
+                post_op_emitters[eltwise_post_op_idx]->emit(in_idxs, out_idxs, aux_idxs);
+
+                eltwise_post_op_idx++;
+            } else {
+                auto quantizeNode = dynamic_cast<MKLDNNQuantizeNode*>(eltwiseNode.getFusedWith()[i].get());
+
+                bool do_dequantization = quantizeNode->getAlgorithm() == mkldnn::quantization_quantize_dequantize;
+                bool do_rounding = do_dequantization || jep_.dst_prc == Precision::FP32 || i != eltwiseNode.getFusedWith().size() - 1;
+                int s_idx = vmm_dst.getIdx();
+
+                quantization_injectors[quantization_post_op_idx]->init_crop_ptrs(reg_oc_off);
+                quantization_injectors[quantization_post_op_idx]->compute_crop(s_idx, s_idx + 1, offset, is_scalar, jep_.oc_size == 1);
+
+                quantization_injectors[quantization_post_op_idx]->init_input_scale_shift_ptrs(reg_oc_off);
+                quantization_injectors[quantization_post_op_idx]->compute_input_scale_shift(s_idx, s_idx + 1, offset, do_rounding,
+                                                                                            is_scalar, jep_.oc_size == 1);
+
+                quantization_injectors[quantization_post_op_idx]->init_output_scale_shift_ptrs(reg_oc_off);
+                quantization_injectors[quantization_post_op_idx]->compute_output_scale_shift(s_idx, s_idx + 1, offset, is_scalar, jep_.oc_size == 1);
+
+                quantization_post_op_idx++;
+            }
+        }
+    }
+
+    inline void load_vector(Vmm vmm_src, const Xbyak::Address &op, Precision src_prc, Precision dst_prc, bool broadcast) {
+        Xmm xmm_src = Xmm(vmm_src.getIdx());
+
+        if (broadcast) {
+            load_scalar(xmm_src, op, src_prc, dst_prc);
+            uni_vbroadcastss(vmm_src, xmm_src);
+        } else {
+            switch (src_prc) {
+                case Precision::FP32:
+                case Precision::I32:
+                    uni_vmovups(vmm_src, op);
+                    break;
+                case Precision::BF16:
+                    vpmovzxwd(vmm_src, op);
+                    uni_vpslld(vmm_src, vmm_src, 16);
+                    break;
+                case Precision::U16:
+                    uni_vpmovzxwd(vmm_src, op);
+                    break;
+                case Precision::I16:
+                    uni_vpmovsxwd(vmm_src, op);
+                    break;
+                case Precision::I8:
+                    uni_vpmovsxbd(vmm_src, op);
+                    break;
+                case Precision::U8:
+                    uni_vpmovzxbd(vmm_src, op);
+                    break;
+                default:
+                    assert(!"unknown src_prc");
+            }
+
+            switch (dst_prc) {
+                case Precision::FP32:
+                    if (src_prc != Precision::FP32 && src_prc != Precision::BF16)
+                        uni_vcvtdq2ps(vmm_src, vmm_src);
+                    break;
+                case Precision::I32:
+                    break;
+                default:
+                    assert(!"unknown dst_prc");
+            }
+        }
+    }
+
+    inline void load_scalar(Xmm xmm_src, const Xbyak::Address &op, Precision src_prc, Precision dst_prc) {
+        switch (src_prc) {
+            case Precision::FP32:
+            case Precision::I32:
                 movss(xmm_src, op);
                 break;
-            case memory::s8:
+            case Precision::BF16:
+                uni_vpinsrw(xmm_src, xmm_src, op, 0);
+                uni_vpslld(xmm_src, xmm_src, 16);
+                break;
+            case Precision::I16:
+                uni_vpinsrw(xmm_src, xmm_src, op, 0);
+                uni_vpmovsxwd(xmm_src, op);
+                break;
+            case Precision::U16:
+                uni_vpinsrw(xmm_src, xmm_src, op, 0);
+                uni_vpmovzxwd(xmm_src, op);
+                break;
+            case Precision::I8:
                 movsx(reg_tmp_32, op);
                 movq(xmm_src, reg_tmp_64);
                 break;
-            case memory::u8:
+            case Precision::U8:
                 movzx(reg_tmp_32, op);
                 movq(xmm_src, reg_tmp_64);
                 break;
             default:
-                assert(!"unknown dst_dt");
+                assert(!"unknown src_prc");
         }
 
-        if (src_dt != data_type::f32) {
-            uni_vcvtdq2ps(xmm_src, xmm_src);
+        switch (dst_prc) {
+            case Precision::FP32:
+                if (src_prc != Precision::FP32 && src_prc != Precision::BF16)
+                    uni_vcvtdq2ps(xmm_src, xmm_src);
+                break;
+            case Precision::I32:
+                break;
+            default:
+                assert(!"unknown dst_prc");
         }
     }
 
-    inline void store_vector(const Xbyak::Address &op, Vmm vmm_dst, memory::data_type dst_dt) {
+    inline void store_vector(const Xbyak::Address &op, Vmm vmm_dst, Precision src_prc, Precision dst_prc) {
         Xmm xmm_dst = Xmm(vmm_dst.getIdx());
         Ymm ymm_dst = Ymm(vmm_dst.getIdx());
 
-        if (dst_dt != data_type::f32) {
-            uni_vcvtps2dq(vmm_dst, vmm_dst);
+        switch (src_prc) {
+            case Precision::FP32:
+                if (dst_prc != Precision::FP32 && dst_prc != Precision::BF16)
+                    uni_vcvtps2dq(vmm_dst, vmm_dst);
+                break;
+            case Precision::I32:
+                break;
+            default:
+                assert(!"unknown src_prc");
         }
 
-        switch (dst_dt) {
-            case memory::f32:
-            case memory::s32:
+        switch (dst_prc) {
+            case Precision::FP32:
+            case Precision::I32:
                 uni_vmovups(op, vmm_dst);
                 break;
-            case memory::s8:
+            case Precision::BF16:
+                vcvtneps2bf16(ymm_dst, vmm_dst);
+                uni_vmovups(op, ymm_dst);
+                break;
+            case Precision::I16:
+                if (isa == avx512_common) {
+                    vmaxps(vmm_dst, vmm_zero, vmm_dst);
+                    vpmovusdw(op, vmm_dst);
+                } else {
+                    uni_vpackusdw(vmm_dst, vmm_dst, vmm_dst);
+                }
+                break;
+            case Precision::U16:
+                if (isa == avx512_common) {
+                    vpmovsdw(op, vmm_dst);
+                } else {
+                    uni_vpackssdw(vmm_dst, vmm_dst, vmm_dst);
+                }
+                break;
+            case Precision::I8:
                 if (isa == avx512_common) {
                     vmaxps(vmm_dst, vmm_zero, vmm_dst);
                     vpmovsdb(op, vmm_dst);
@@ -306,7 +571,7 @@ private:
                         movd(op, xmm_dst);
                 }
                 break;
-            case memory::u8:
+            case Precision::U8:
                 if (isa == avx512_common) {
                     vpmovusdb(op, vmm_dst);
                 } else {
@@ -321,2346 +586,941 @@ private:
                 }
                 break;
             default:
-                assert(!"unknown dst_dt");
+                assert(!"unknown dst_prc");
         }
     }
 
-    inline void store_scalar(const Xbyak::Address &op, Xmm xmm_dst, memory::data_type dst_dt) {
-        if (dst_dt != data_type::f32) {
-            uni_vcvtps2dq(xmm_dst, xmm_dst);
+    inline void store_scalar(const Xbyak::Address &op, Xmm xmm_dst, Precision src_prc, Precision dst_prc) {
+        switch (src_prc) {
+            case Precision::FP32:
+                if (dst_prc != Precision::FP32 && dst_prc != Precision::BF16)
+                    uni_vcvtps2dq(xmm_dst, xmm_dst);
+                break;
+            case Precision::I32:
+                break;
+            default:
+                assert(!"unknown src_prc");
         }
 
-        switch (dst_dt) {
-            case memory::f32:
-            case memory::s32:
+        switch (dst_prc) {
+            case Precision::FP32:
+            case Precision::I32:
                 movss(op, xmm_dst);
                 break;
-            case memory::s8:
+            case Precision::BF16:
+                uni_vpsrld(xmm_dst, xmm_dst, 16);
+                uni_vpextrw(op, xmm_dst, 0x0);
+                break;
+            case Precision::I16:
+                uni_vpackssdw(xmm_dst, xmm_dst, xmm_dst);
+                movq(reg_tmp_64, xmm_dst);
+                mov(op, reg_tmp_8);
+                break;
+            case Precision::U16:
+                uni_vpackusdw(xmm_dst, xmm_dst, xmm_dst);
+                movq(reg_tmp_64, xmm_dst);
+                mov(op, reg_tmp_8);
+                break;
+            case Precision::I8:
                 uni_vpackssdw(xmm_dst, xmm_dst, xmm_dst);
                 uni_vpacksswb(xmm_dst, xmm_dst, xmm_dst);
                 movq(reg_tmp_64, xmm_dst);
                 mov(op, reg_tmp_8);
                 break;
-            case memory::u8:
+            case Precision::U8:
                 uni_vpackusdw(xmm_dst, xmm_dst, xmm_dst);
                 uni_vpackuswb(xmm_dst, xmm_dst, xmm_dst);
                 movq(reg_tmp_64, xmm_dst);
                 mov(op, reg_tmp_8);
                 break;
             default:
-                assert(!"unknown dst_dt");
+                assert(!"unknown dst_prc");
         }
     }
 };
 
 MKLDNNEltwiseNode::MKLDNNEltwiseNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache) :
-        MKLDNNNode(layer, eng, cache), eltiwse_fq_kernel(nullptr) {
-    op = EltwiseLayer::Sum;
+        MKLDNNNode(layer, eng, cache) {
+}
+
+InferenceEngine::details::caseless_map<std::string, std::function<void(GenericLayer*, EltwiseOpType&, mkldnn::algorithm&, float&, float&)>>
+MKLDNNEltwiseNode::initializers = {
+        {"relu", [](GenericLayer* activationLayer, EltwiseOpType& opType, mkldnn::algorithm& algorithm, float& alpha, float& beta) {
+            alpha = activationLayer->GetParamAsFloat("negative_slope", 0.0f);
+            beta = 0.0f;
+            opType = Relu;
+            algorithm = mkldnn::eltwise_relu;
+        }},
+        {"gelu", [](GenericLayer* activationLayer, EltwiseOpType& opType, mkldnn::algorithm& algorithm, float& alpha, float& beta) {
+            alpha = 0.0f;
+            beta = 0.0f;
+            opType = Gelu;
+            algorithm = mkldnn::eltwise_gelu;
+        }},
+        {"elu", [](GenericLayer* activationLayer, EltwiseOpType& opType, mkldnn::algorithm& algorithm, float& alpha, float& beta) {
+            alpha = activationLayer->GetParamAsFloat("alpha", 1.0f);
+            beta = 0.0f;
+            opType = Elu;
+            algorithm = mkldnn::eltwise_elu;
+        }},
+        {"tanh", [](GenericLayer* activationLayer, EltwiseOpType& opType, mkldnn::algorithm& algorithm, float& alpha, float& beta) {
+            alpha = 0.0f;
+            beta = 0.0f;
+            opType = Tanh;
+            algorithm = mkldnn::eltwise_tanh;
+        }},
+        {"sigmoid", [](GenericLayer* activationLayer, EltwiseOpType& opType, mkldnn::algorithm& algorithm, float& alpha, float& beta) {
+            alpha = 0.0f;
+            beta = 0.0f;
+            opType = Logistic;
+            algorithm = mkldnn::eltwise_logistic;
+        }},
+        {"logistic", [](GenericLayer* activationLayer, EltwiseOpType& opType, mkldnn::algorithm& algorithm, float& alpha, float& beta) {
+            alpha = 0.0f;
+            beta = 0.0f;
+            opType = Logistic;
+            algorithm = mkldnn::eltwise_logistic;
+        }},
+        {"square", [](GenericLayer* activationLayer, EltwiseOpType& opType, mkldnn::algorithm& algorithm, float& alpha, float& beta) {
+            alpha = 0.0f;
+            beta = 0.0f;
+            opType = Square;
+            algorithm = mkldnn::eltwise_square;
+        }},
+        {"abs", [](GenericLayer* activationLayer, EltwiseOpType& opType, mkldnn::algorithm& algorithm, float& alpha, float& beta) {
+            alpha = 0.0f;
+            beta = 0.0f;
+            opType = Abs;
+            algorithm = mkldnn::eltwise_abs;
+        }},
+        {"sqrt", [](GenericLayer* activationLayer, EltwiseOpType& opType, mkldnn::algorithm& algorithm, float& alpha, float& beta) {
+            alpha = 0.0f;
+            beta = 0.0f;
+            opType = Sqrt;
+            algorithm = mkldnn::eltwise_sqrt;
+        }},
+        {"linear", [](GenericLayer* activationLayer, EltwiseOpType& opType, mkldnn::algorithm& algorithm, float& alpha, float& beta) {
+            alpha = activationLayer->GetParamAsFloat("alpha", 1.0f);
+            beta = activationLayer->GetParamAsFloat("beta", 0.0f);
+            opType = Linear;
+            algorithm = mkldnn::eltwise_linear;
+        }},
+        {"bounded_relu", [](GenericLayer* activationLayer, EltwiseOpType& opType, mkldnn::algorithm& algorithm, float& alpha, float& beta) {
+            alpha = activationLayer->GetParamAsFloat("alpha", 0.0f);
+            beta = 0.0f;
+            opType = BoundedRelu;
+            algorithm = mkldnn::eltwise_bounded_relu;
+        }},
+        {"soft_relu", [](GenericLayer* activationLayer, EltwiseOpType& opType, mkldnn::algorithm& algorithm, float& alpha, float& beta) {
+            alpha = 0.0f;
+            beta = 0.0f;
+            opType = SoftRelu;
+            algorithm = mkldnn::eltwise_soft_relu;
+        }},
+        {"relu6", [](GenericLayer* activationLayer, EltwiseOpType& opType, mkldnn::algorithm& algorithm, float& alpha, float& beta) {
+            alpha = activationLayer->GetParamAsFloat("n", 6.0f);
+            beta = 0.0f;
+            opType = Relu6;
+            algorithm = mkldnn::eltwise_bounded_relu;
+        }},
+        {"clamp", [](GenericLayer* activationLayer, EltwiseOpType& opType, mkldnn::algorithm& algorithm, float& alpha, float& beta) {
+            alpha = activationLayer->GetParamAsFloat("max", 1.0f);
+            beta = activationLayer->GetParamAsFloat("min", 0.0f);
+            opType = Clamp;
+            algorithm = mkldnn::eltwise_clamp;
+        }},
+        {"exp", [](GenericLayer* activationLayer, EltwiseOpType& opType, mkldnn::algorithm& algorithm, float& alpha, float& beta) {
+            alpha = 0.0f;
+            beta = 0.0f;
+            opType = Exp;
+            algorithm = mkldnn::eltwise_exp;
+        }},
+        {"not", [](GenericLayer* activationLayer, EltwiseOpType& opType, mkldnn::algorithm& algorithm, float& alpha, float& beta) {
+            alpha = 0.0f;
+            beta = 0.0f;
+            opType = LogicalNot;
+        }},
+        {"swish", [](GenericLayer* activationLayer, EltwiseOpType& opType, mkldnn::algorithm& algorithm, float& alpha, float& beta) {
+            alpha = activationLayer->GetParamAsFloat("alpha", 1.0f);
+            beta = 0.0f;
+            opType = Swish;
+            algorithm = mkldnn::eltwise_swish;
+        }},
+        {"hswish", [](GenericLayer* activationLayer, EltwiseOpType& opType, mkldnn::algorithm& algorithm, float& alpha, float& beta) {
+            alpha = 0.0f;
+            beta = 0.0f;
+            opType = Hswish;
+            algorithm = mkldnn::eltwise_hswish;
+        }},
+        {"mish", [](GenericLayer* activationLayer, EltwiseOpType& opType, mkldnn::algorithm& algorithm, float& alpha, float& beta) {
+            alpha = 0.0f;
+            beta = 0.0f;
+            opType = Mish;
+            algorithm = mkldnn::eltwise_mish;
+        }},
+        {"hsigmoid", [](GenericLayer* activationLayer, EltwiseOpType& opType, mkldnn::algorithm& algorithm, float& alpha, float& beta) {
+            alpha = 0.0f;
+            beta = 0.0f;
+            opType = Hsigmoid;
+            algorithm = mkldnn::eltwise_hsigmoid;
+        }},
+};
+
+void MKLDNNEltwiseNode::init() {
+    InferenceEngine::details::CaselessEq<std::string> comparator;
+    auto layerType = getCnnLayer().get()->type;
+
+    auto * eltwiseLayer = dynamic_cast<EltwiseLayer*>(getCnnLayer().get());
+    if (eltwiseLayer) {
+        if (!eltwiseLayer->coeff.empty())
+            THROW_IE_EXCEPTION << "Eltwise node with name `" << getName() << "` doesn't support input coefficients.";
+
+        switch (eltwiseLayer->_operation) {
+            case EltwiseLayer::Sum: eltwiseOp = Add; break;
+            case EltwiseLayer::Prod: eltwiseOp = Multiply; break;
+            case EltwiseLayer::Max: eltwiseOp = Maximum; break;
+            case EltwiseLayer::Sub: eltwiseOp = Subtract; break;
+            case EltwiseLayer::Min: eltwiseOp = Minimum; break;
+            case EltwiseLayer::Div: eltwiseOp = Divide; break;
+            case EltwiseLayer::Squared_diff: eltwiseOp = SquaredDifference; break;
+            case EltwiseLayer::Floor_mod: eltwiseOp = FloorMod; break;
+            case EltwiseLayer::Pow: eltwiseOp = PowerDynamic; break;
+            case EltwiseLayer::Equal: eltwiseOp = Equal; break;
+            case EltwiseLayer::Not_equal: eltwiseOp = NotEqual; break;
+            case EltwiseLayer::Greater: eltwiseOp = Greater; break;
+            case EltwiseLayer::Greater_equal: eltwiseOp = GreaterEqual; break;
+            case EltwiseLayer::Less: eltwiseOp = Less; break;
+            case EltwiseLayer::Less_equal: eltwiseOp = LessEqual; break;
+            case EltwiseLayer::Logical_AND: eltwiseOp = LogicalAnd; break;
+            case EltwiseLayer::Logical_OR: eltwiseOp = LogicalOr; break;
+            case EltwiseLayer::Logical_XOR: eltwiseOp = LogicalXor; break;
+            default: THROW_IE_EXCEPTION << "Unsupported algorithm for Eltwise node with name `" << getName() << "`.";
+        }
+    } else if (comparator(layerType, "mod")) {
+        eltwiseOp = Mod;
+    } else if (comparator(layerType, "power")) {
+        eltwiseOp = PowerStatic;
+
+        auto *powerLayer = dynamic_cast<InferenceEngine::PowerLayer *>(getCnnLayer().get());
+        if (powerLayer == nullptr)
+            THROW_IE_EXCEPTION << "Cannot convert power layer.";
+
+        alpha = powerLayer->power;
+        beta = powerLayer->scale;
+        gamma = powerLayer->offset;
+    } else if (comparator(layerType, "scaleshift")) {
+        if (getCnnLayer().get()->blobs.size() == 2) {
+            eltwiseOp = MulAdd;
+            eltwiseAlgorithm = mkldnn::depthwise_scale_shift;
+        } else {
+            eltwiseOp = Multiply;
+        }
+    } else if (comparator(layerType, "prelu")) {
+        eltwiseOp = Prelu;
+        eltwiseAlgorithm = mkldnn::depthwise_prelu;
+    } else if (comparator(layerType, "activation") && initializers.find(getCnnLayer().get()->GetParamAsString("type")) != initializers.end()) {
+        initializers[getCnnLayer().get()->GetParamAsString("type")](getCnnLayer().get(), eltwiseOp, eltwiseAlgorithm, alpha, beta);
+    } else if (comparator(layerType, "relu") ||
+               comparator(layerType, "gelu") ||
+               comparator(layerType, "elu") ||
+               comparator(layerType, "sigmoid") ||
+               comparator(layerType, "logistic") ||
+               comparator(layerType, "tanh") ||
+               comparator(layerType, "relu6") ||
+               comparator(layerType, "exp") ||
+               comparator(layerType, "not") ||
+               comparator(layerType, "clamp") ||
+               comparator(layerType, "swish") ||
+               comparator(layerType, "hswish") ||
+               comparator(layerType, "mish") ||
+               comparator(layerType, "hsigmoid")) {
+        initializers[layerType](getCnnLayer().get(), eltwiseOp, eltwiseAlgorithm, alpha, beta);
+    } else {
+        THROW_IE_EXCEPTION << "Unsupported algorithm for Eltwise node with name `" << getName() << "`.";
+    }
+}
+
+size_t MKLDNNEltwiseNode::getOpInputsNum() const {
+    switch (getOpType()) {
+        case Relu: case Gelu: case Elu: case Tanh: case Logistic: case Square: case Abs: case Sqrt: case PowerStatic:
+        case Linear: case BoundedRelu: case SoftRelu: case Relu6: case Exp: case Clamp: case Swish: case Hswish: case Mish: case Hsigmoid:
+        case LogicalNot:
+            return 1;
+        case Add: case Subtract: case Multiply: case Divide: case FloorMod: case Mod: case Maximum: case Minimum: case SquaredDifference:
+        case PowerDynamic: case Equal: case NotEqual: case Greater: case GreaterEqual: case Less: case LessEqual: case LogicalAnd:
+        case LogicalOr: case LogicalXor: case Prelu:
+            return 2;
+        case MulAdd:
+            return 3;
+        default: THROW_IE_EXCEPTION << "Unsupported operation for Eltwise node with name `" << getName() << "`.";
+    }
 }
 
 bool MKLDNNEltwiseNode::isSum() {
-    auto * eltwiseLayer = dynamic_cast<EltwiseLayer*>(getCnnLayer().get());
-    if (eltwiseLayer == nullptr)
-        THROW_IE_EXCEPTION << "Cannot get eltwise layer " << getName();
-    return eltwiseLayer->_operation == EltwiseLayer::Sum;
-}
-
-bool MKLDNNEltwiseNode::isUnitScales() {
-    auto * eltwiseLayer = dynamic_cast<EltwiseLayer*>(getCnnLayer().get());
-    if (eltwiseLayer == nullptr)
-        THROW_IE_EXCEPTION << "Cannot get eltwise layer " << getName();
-
-    if (eltwiseLayer->coeff.empty())
-        return true;
-
-    for (auto scale : eltwiseLayer->coeff) {
-        if (scale != 1.0f)
-            return false;
-    }
-
-    return true;
+    return eltwiseOp == Add;
 }
 
 bool MKLDNNEltwiseNode::isWithBroadcast() {
-    bool withBroadcast = false;
     auto oDims = outDims[0].ToSizeVector();
     for (size_t i = 0; i < inDims.size(); i++) {
         auto iDims = inDims[i].ToSizeVector();
-        for (size_t j = 1; j <= iDims.size(); j++) {
-            if (oDims[oDims.size() - j] != iDims[iDims.size() - j]) {
-                if (iDims[iDims.size() - j] == 1) {
-                    withBroadcast = true;
-                } else {
-                    THROW_IE_EXCEPTION << "Incorrect dimensions for broadcasting for " << getName();
-                }
-            }
-            if (iDims.size() < oDims.size())
-                withBroadcast = true;
-        }
-        if (iDims.size() == 0 && oDims.size())
-            withBroadcast = true;
+        if (iDims != oDims)
+            return true;
     }
 
-    return withBroadcast;
+    return false;
 }
 
 void MKLDNNEltwiseNode::getSupportedDescriptors() {
-    auto * eltwiseLayer = dynamic_cast<EltwiseLayer*>(getCnnLayer().get());
-
-    if (eltwiseLayer == nullptr)
-        THROW_IE_EXCEPTION << "Cannot convert eltwise layer.";
-    op = eltwiseLayer->_operation;
-
-    if (getParentEdges().size() < 2)
+    if (getParentEdges().size() < 1)
         THROW_IE_EXCEPTION << "Incorrect number of input edges for layer " << getName();
     if (getChildEdges().empty())
         THROW_IE_EXCEPTION << "Incorrect number of output edges for layer " << getName();
-    if (op == EltwiseLayer::Squared_diff)
-        if (getParentEdges().size() != 2)
-            THROW_IE_EXCEPTION  << "Incorrect number of input edges for layer " << getName() << " for operation squared_diff.\n"
-                << "Expected: 2\n" << "Actual: " << getParentEdges().size();
-
-    auto outDims = getChildEdgeAt(0)->getDims();
-    for (size_t i = 0; i < getParentEdges().size(); i++) {
-        auto inDims = getParentEdgeAt(i)->getDims();
-        batch_dim = std::min(batch_dim, 5 - inDims.ndims());
-    }
-
-    broadcast = isWithBroadcast();
-    if (broadcast) {
-        auto outDims = getChildEdgeAt(0)->getDims();
-        for (size_t i = 0; i < getParentEdges().size(); i++) {
-            auto inDims = getParentEdgeAt(i)->getDims();
-            if (inDims.ndims() > 5 || outDims.ndims() > 5)
-                THROW_IE_EXCEPTION << "Eltwise node in broadcasting mode doesn't support more than 5 dims for blobs";
-        }
-    }
-
-    bool with_coeffs = !eltwiseLayer->coeff.empty();
-    if (op != EltwiseLayer::Sum && with_coeffs)
-        THROW_IE_EXCEPTION << "Only sum operation supports operands coefficients";
-
-    if (with_coeffs && eltwiseLayer->coeff.size() != getParentEdges().size())
-        THROW_IE_EXCEPTION << "Number of provided coefficients is not equal to number of operands";
-
-    if (with_coeffs && eltwiseLayer->precision != Precision::FP32)
-        THROW_IE_EXCEPTION << "Sum with coefficients supports only FP32 precision";
-
-    sum_scales.clear();
-    for (int i = 0; i < getParentEdges().size(); i++)
-        sum_scales.push_back(with_coeffs ? eltwiseLayer->coeff[i] : 1.0f);
 }
 
 void MKLDNNEltwiseNode::initSupportedPrimitiveDescriptors() {
+    std::vector<Precision> supportedPrecisions = {
+            Precision::FP32,
+            Precision::U8,
+            Precision::I8,
+            Precision::U16,
+            Precision::I16,
+            Precision::BF16,
+            Precision::I32
+    };
+
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
-    setPostOps(attr, true);
+    canUseOptimizedImpl = mayiuse(cpu::sse42);
 
-    auto initDesc = [&] (mkldnn::memory::data_type inputDT, mkldnn::memory::data_type outputDT, memory::format format) -> PrimitiveDescInfo {
-        InferenceEngine::LayerConfig config;
-        impl_desc_type impl_type = impl_desc_type::ref;
-        config.dynBatchSupport = true;
-        for (size_t i = 0; i < getParentEdges().size(); i++) {
-            InferenceEngine::DataConfig dataConfig;
-            dataConfig.inPlace = (!i && canBeInPlace()) ? 0 : -1;
-            dataConfig.constant = false;
+    size_t expectedInputsNum = getOpInputsNum();
+    for (auto& postOp : fusedWith) {
+        auto* eltwiseNode = dynamic_cast<const MKLDNNEltwiseNode*>(postOp.get());
+        if (eltwiseNode != nullptr) {
+            expectedInputsNum += eltwiseNode->getOpInputsNum() - 1;
+        }
+    }
+    if (getParentEdges().size() > MAX_ELTWISE_INPUTS)
+        THROW_IE_EXCEPTION << "Eltwise node with name `" << getName() << "` doesn't support more than " << MAX_ELTWISE_INPUTS
+                           << " inputs (actual = " << getParentEdges().size() << ")";
 
-            if (!broadcast) {
-                dataConfig.desc = MKLDNNMemoryDesc(getParentEdgeAt(i)->getDims(), inputDT, format);
-                config.inConfs.push_back(dataConfig);
-            } else {
-                // Broadcasting support
-                if (MKLDNNMemory::IsPlainFormat(format)) {
-                    dataConfig.desc = MKLDNNMemoryDesc(getParentEdgeAt(i)->getDims(), inputDT,
-                            MKLDNNMemory::GetPlainFormat(getParentEdgeAt(i)->getDims()));
-                    config.inConfs.push_back(dataConfig);
-                } else {
-                    // Unsupported format for broadcast mode. Should be skipped.
-                    // Will mark it as undef and outer code should filter it.
-                    impl_type = impl_desc_type::undef;
-                }
+    if (expectedInputsNum != getParentEdges().size())
+        THROW_IE_EXCEPTION << "Eltwise node with name `" << getName() << "` has invalid input number of inputs: expected = " << expectedInputsNum
+                           << " (actual = " << getParentEdges().size() << ")";
+
+    std::vector<InferenceEngine::Precision> inputPrecisions;
+    for (int i = 0; i < getCnnLayer()->insData.size(); i++) {
+        inputPrecisions.push_back(getCnnLayer()->insData[i].lock()->getPrecision());
+    }
+
+    for (auto& fusedNode : fusedWith) {
+        if (fusedNode->getType() == Eltwise) {
+            for (int i = 1; i < fusedNode->getCnnLayer()->insData.size(); i++) {
+                inputPrecisions.push_back(fusedNode->getCnnLayer()->insData[i].lock()->getPrecision());
             }
         }
+    }
 
-        InferenceEngine::DataConfig dataConfig;
-            dataConfig.inPlace = -1;
-            dataConfig.constant = false;
-            dataConfig.desc = MKLDNNMemoryDesc(getChildEdgeAt(0)->getDims(), outputDT, format);
-            config.outConfs.push_back(dataConfig);
-        return {config, impl_type, format};
-    };
+    if (inputPrecisions.size() != getParentEdges().size())
+        THROW_IE_EXCEPTION << "Eltwise node with name `" << getName() << "` has invalid input precisions configuration.";
 
-    if (fusedWith.empty()) {
-        for (const auto& format : getAvailableFormatsForDims(getChildEdgeAt(0)->getDims())) {
-            // Precision of implementation is defined by precision of output tensor
-            auto prec = getCnnLayer()->outData[0]->getPrecision();
-            mkldnn::memory::data_type inputDT = MKLDNNExtensionUtils::IEPrecisionToDataType(prec);
-            mkldnn::memory::data_type outputDT = MKLDNNExtensionUtils::IEPrecisionToDataType(prec);
-
-            // Eltwise compare operation can have the input type different from the output type
-            auto node_op = this->op;
-            bool is_eltwise_compare_node = ((node_op == EltwiseLayer::eOperation::Equal) ||
-                                            (node_op == EltwiseLayer::eOperation::Not_equal) ||
-                                            (node_op == EltwiseLayer::eOperation::Greater) ||
-                                            (node_op == EltwiseLayer::eOperation::Greater_equal) ||
-                                            (node_op == EltwiseLayer::eOperation::Less) ||
-                                            (node_op == EltwiseLayer::eOperation::Less_equal));
-            if (is_eltwise_compare_node) {
-                auto in_prec = getCnnLayer()->insData[0].lock()->getPrecision();
-                inputDT = MKLDNNExtensionUtils::IEPrecisionToDataType(in_prec);
-            }
-
-            if (inputDT == memory::bf16 || outputDT == memory::bf16) {
-                inputDT = memory::f32;
-                outputDT = memory::f32;
-            }
-
-            auto impl_desc = initDesc(inputDT, outputDT, format);
-
-            if (impl_desc.getImplementationType() != impl_desc_type::undef) {
-                supportedPrimitiveDescriptors.push_back(impl_desc);
-            }
-        }
-    } else {
-        auto ndims = getCnnLayer()->outData[0]->getDims().size();
-        auto format = ndims == 2 ? memory::format::nc :
-                      ndims == 4 ? memory::format::nhwc :
-                      memory::format::ndhwc;
-
-        InferenceEngine::LayerConfig config;
-        impl_desc_type impl_type = impl_desc_type::ref;
-        config.dynBatchSupport = true;
-        for (size_t i = 0; i < getParentEdges().size(); i++) {
-            InferenceEngine::DataConfig dataConfig;
-            dataConfig.inPlace = -1;
-            dataConfig.constant = false;
-            auto inputDT = MKLDNNExtensionUtils::IEPrecisionToDataType(
-                    getCnnLayer()->insData[i].lock()->getPrecision());
-            dataConfig.desc = MKLDNNMemoryDesc(getParentEdgeAt(i)->getDims(), inputDT, format);
-            config.inConfs.push_back(dataConfig);
-        }
-
-        auto outputDT = memory::f32;
+    InferenceEngine::Precision outputPrecision = getCnnLayer()->outData[0]->getPrecision();
+    if (!fusedWith.empty()) {
         auto lastFusedLayer = fusedWith[fusedWith.size() - 1].get()->getCnnLayer();
         if (lastFusedLayer) {
-            outputDT = MKLDNNExtensionUtils::IEPrecisionToDataType(lastFusedLayer->outData[0]->getPrecision());
+            outputPrecision = lastFusedLayer->outData[0]->getPrecision();
+        }
+    }
+
+    if (!mayiuse(avx512_core_bf16)) {
+        bool hasBF16 = false;
+        for (auto &inPrc : inputPrecisions)
+            if (inPrc == Precision::BF16)
+                hasBF16 = true;
+
+        if (outputPrecision == Precision::BF16 || hasBF16)
+            THROW_IE_EXCEPTION << "Eltwise node with name `" << getName() << "` doesn't support BF16 precision on this target.";
+    }
+
+    auto filterPrecision = [&](Precision& prc) {
+        if (!canUseOptimizedImpl) {
+            return Precision(Precision::FP32);
+        } else if (std::find(supportedPrecisions.begin(), supportedPrecisions.end(), prc) == supportedPrecisions.end()) {
+            if (prc == Precision::U32 || prc == Precision::I64 || prc == Precision::U64) {
+                return Precision(Precision::I32);
+            } else {
+                THROW_IE_EXCEPTION << "Eltwise node with name `" << getName() << "` doesn't support " << prc << " precision.";
+            }
+        } else {
+            return prc;
+        }
+    };
+
+    for (int i = 0; i < inputPrecisions.size(); i++) {
+        inputPrecisions[i] = filterPrecision(inputPrecisions[i]);
+    }
+    outputPrecision = filterPrecision(outputPrecision);
+
+    // TODO: delete after new LPT (ngraph based) is merged
+    // WA is needed to handle bug in LPT that produces wrong precision after average pooling (I8/U8 instead of FP32)
+    if (eltwiseOp == MulAdd && (inputPrecisions[0] == Precision::U8 || inputPrecisions[0] == Precision::I8)) {
+        auto poolingLayer = dynamic_cast<PoolingLayer*>(getParentEdgesAtPort(0)[0]->getParent()->getCnnLayer().get());
+        if (poolingLayer && poolingLayer->_type == PoolingLayer::AVG) {
+            inputPrecisions[0] = Precision::FP32;
+        }
+    }
+
+    enum LayoutType {
+        Planar,
+        ChannelsFirst,
+        Blocked
+    };
+
+    auto initDesc = [&] (LayoutType lt) -> PrimitiveDescInfo {
+        auto createMemoryDesc = [lt](MKLDNNEdgePtr edge, Precision prc, size_t offset) -> TensorDesc {
+            if (lt == ChannelsFirst) {
+                std::vector<size_t> blocks = edge->getDims().ToSizeVector();
+                std::vector<size_t> order;
+                order.push_back(0);
+                for (size_t j = 2; j < blocks.size(); j++)
+                    order.push_back(j);
+                if (blocks.size() > 1)
+                    order.push_back(1);
+
+                return MKLDNNMemoryDesc(TensorDesc(prc, edge->getDims().ToSizeVector(), {blocks, order, offset}));
+            } else if (lt == Blocked && edge->getDims()[1] != 1) {
+                size_t blockSize = mayiuse(cpu::avx512_common) ? 16 : 8;
+
+                std::vector<size_t> blocks = edge->getDims().ToSizeVector();
+                std::vector<size_t> order(blocks.size());
+                for (size_t j = 0; j < order.size(); j++)
+                    order[j] = j;
+
+                blocks[1] = div_up(blocks[1], blockSize);
+                blocks.push_back(blockSize);
+                order.push_back(1);
+
+                return MKLDNNMemoryDesc(TensorDesc(prc, edge->getDims().ToSizeVector(), {blocks, order, offset}));
+            } else {
+                std::vector<size_t> blocks = edge->getDims().ToSizeVector();
+                std::vector<size_t> order(blocks.size());
+                for (size_t j = 0; j < order.size(); j++)
+                    order[j] = j;
+
+                return MKLDNNMemoryDesc(TensorDesc(prc, edge->getDims().ToSizeVector(), {blocks, order, offset}));
+            }
+        };
+
+        size_t offset = std::numeric_limits<size_t>::max();
+        InferenceEngine::LayerConfig config;
+        config.dynBatchSupport = getChildEdgeAt(0)->getDims().ndims() > 1 && getChildEdgeAt(0)->getDims() == getParentEdgeAt(0)->getDims();
+
+        for (size_t i = 0; i < getParentEdges().size(); i++) {
+            InferenceEngine::DataConfig dataConfig;
+            dataConfig.inPlace = (!i && canBeInPlace() && inputPrecisions[i] == outputPrecision) ? 0 : -1;
+            dataConfig.constant = false;
+
+
+            dataConfig.desc = createMemoryDesc(getParentEdgeAt(i), inputPrecisions[i], offset);
+
+            config.inConfs.push_back(dataConfig);
         }
 
         InferenceEngine::DataConfig dataConfig;
         dataConfig.inPlace = -1;
         dataConfig.constant = false;
-        dataConfig.desc = MKLDNNMemoryDesc(getChildEdgeAt(0)->getDims(), outputDT, format);
+
+        dataConfig.desc = createMemoryDesc(getChildEdgeAt(0), outputPrecision, offset);
+
         config.outConfs.push_back(dataConfig);
 
-        supportedPrimitiveDescriptors.push_back({config, impl_type, format});
-
-        jep.src0_step = config.inConfs[0].desc.getDims()[1] == 1 ? 0 : 1;
-        jep.src1_step = config.inConfs[1].desc.getDims()[1] == 1 ? 0 : 1;
-        jep.dst_step = 1;
-        jep.src0_dt = MKLDNNExtensionUtils::IEPrecisionToDataType(config.inConfs[0].desc.getPrecision());
-        jep.src1_dt = MKLDNNExtensionUtils::IEPrecisionToDataType(config.inConfs[1].desc.getPrecision());
-        jep.dst_dt = MKLDNNExtensionUtils::IEPrecisionToDataType(config.outConfs[0].desc.getPrecision());
-        jep.src0_data_size = MKLDNNExtensionUtils::sizeOfDataType(jep.src0_dt);
-        jep.src1_data_size = MKLDNNExtensionUtils::sizeOfDataType(jep.src1_dt);
-        jep.dst_data_size = MKLDNNExtensionUtils::sizeOfDataType(jep.dst_dt);
-        jep.eltwise_op = op;
-
+        impl_desc_type impl_type;
         if (mayiuse(cpu::avx512_common)) {
-            eltiwse_fq_kernel.reset(new jit_uni_eltwise_fq_generic<cpu::avx512_common>(jep, *attr.get()));
+            impl_type = impl_desc_type::jit_avx512;
         } else if (mayiuse(cpu::avx2)) {
-            eltiwse_fq_kernel.reset(new jit_uni_eltwise_fq_generic<cpu::avx2>(jep, *attr.get()));
+            impl_type = impl_desc_type::jit_avx2;
         } else if (mayiuse(cpu::sse42)) {
-            eltiwse_fq_kernel.reset(new jit_uni_eltwise_fq_generic<cpu::sse42>(jep, *attr.get()));
+            impl_type = impl_desc_type::jit_sse42;
+        } else {
+            impl_type = impl_desc_type::ref;
         }
+
+        return {config, impl_type, MKLDNNMemoryDesc(config.outConfs[0].desc).getFormat()};
+    };
+
+    bool isChannelsFirstApplicable = one_of(getChildEdgeAt(0)->getDims().ndims(), 1, 2, 4, 5);
+    for (size_t i = 0; i < getParentEdges().size(); i++) {
+        isChannelsFirstApplicable = isChannelsFirstApplicable && one_of(getParentEdgeAt(i)->getDims().ndims(), 1, 2, 4, 5);
+        isChannelsFirstApplicable = isChannelsFirstApplicable && getChildEdgeAt(0)->getDims().ndims() == getParentEdgeAt(i)->getDims().ndims();
     }
+
+    bool isBlockedApplicable = one_of(getChildEdgeAt(0)->getDims().ndims(), 4, 5);
+    for (size_t i = 0; i < getParentEdges().size(); i++) {
+        isBlockedApplicable = isBlockedApplicable && one_of(getParentEdgeAt(i)->getDims().ndims(), 4, 5);
+        isBlockedApplicable = isBlockedApplicable && getChildEdgeAt(0)->getDims().ndims() == getParentEdgeAt(i)->getDims().ndims();
+    }
+
+    if (isChannelsFirstApplicable)
+        supportedPrimitiveDescriptors.emplace_back(initDesc(ChannelsFirst));
+    if (isBlockedApplicable)
+        supportedPrimitiveDescriptors.emplace_back(initDesc(Blocked));
+    supportedPrimitiveDescriptors.emplace_back(initDesc(Planar));
 }
 
 void MKLDNNEltwiseNode::createPrimitive() {
-    if (prim)
-        return;
+    auto config = getSelectedPrimitiveDescriptor()->getConfig();
 
-    auto& dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
-    if (!dstMemPtr || !dstMemPtr->GetPrimitivePtr())
-        THROW_IE_EXCEPTION << "Destination memory didn't allocate.";
-    if (getSelectedPrimitiveDescriptor() == nullptr)
-        THROW_IE_EXCEPTION << "Preferable primitive descriptor is not set.";
+    auto initDims = [this, config](size_t maxInputSize) {
+        size_t inputNum = getParentEdges().size();
 
-    std::vector<memory::primitive_desc> srcs_pd;
-    std::vector<primitive::at> srcs_p;
-    for (size_t i = 0; i < getParentEdges().size(); i++) {
-        auto& srcMemPtr = getParentEdgeAt(i)->getMemoryPtr();
-        if (!srcMemPtr || !srcMemPtr->GetPrimitivePtr()) {
-            auto parent = getParentEdgeAt(i)->getParent();
-            THROW_IE_EXCEPTION << "Source memory from " << parent->getName() << " didn't allocate.";
+        dims_in.resize(inputNum);
+        for (int i = 0; i < inputNum; i++) {
+            dims_in[i].resize(maxInputSize, 1);
         }
 
-        if (op == EltwiseLayer::Sum) {
-            srcs_pd.push_back(srcMemPtr->GetPrimitiveDescriptor());
-            srcs_p.emplace_back(srcMemPtr->GetPrimitive());
+        dims_out.resize(maxInputSize, 1);
+
+        std::vector<size_t> order(maxInputSize);
+        auto outOrder = config.outConfs[0].desc.getBlockingDesc().getOrder();
+        for (size_t i = 0; i < order.size(); i++) {
+            if (i < order.size() - outOrder.size())
+                order[i] = i;
+            else
+                order[i] = outOrder[i - (order.size() - outOrder.size())] + (order.size() - outOrder.size());
+        }
+
+        size_t outRank = config.outConfs[0].desc.getBlockingDesc().getBlockDims().size();
+        for (int i = 0; i < outRank; i++) {
+            dims_out[dims_out.size() - 1 - i] = config.outConfs[0].desc.getBlockingDesc().getBlockDims()[outRank - 1 - i];
+        }
+
+        for (int i = 0; i < inputNum; i++) {
+            size_t inRank = config.inConfs[i].desc.getBlockingDesc().getBlockDims().size();
+
+            // WA to normalize blocked and planar layouts
+            auto inOrder = config.inConfs[i].desc.getBlockingDesc().getOrder();
+            size_t startOff = outOrder.size() != config.outConfs[0].desc.getDims().size() &&
+                              outOrder[outOrder.size() - 1] != inOrder[inOrder.size() - 1] ? 1 : 0;
+
+            for (int j = 0; j < inRank; j++) {
+                dims_in[i][dims_in[i].size() - 1 - j - startOff] = config.inConfs[i].desc.getBlockingDesc().getBlockDims()[inRank - 1 - j];
+            }
+        }
+
+        for (int i = 0; i < dims_in.size(); i++) {
+            for (int j = 0; j < dims_in[i].size(); j++) {
+                if (dims_in[i][j] != dims_out[j] && dims_in[i][j] != 1)
+                    THROW_IE_EXCEPTION << "Eltwise node with name `" << getName() << "` has invalid input/output dims configuration.";
+            }
+        }
+    };
+
+    auto initOffsets = [this, config](size_t maxInputSize) {
+        size_t inputNum = getParentEdges().size();
+
+        offsets_out.resize(maxInputSize, 1);
+        offset_out_calc(offsets_out, dims_out);
+        for (int j = 0; j < maxInputSize; j++) {
+            offsets_out[j] *= config.outConfs[0].desc.getPrecision().size();
+        }
+
+        offsets_in.resize(inputNum);
+        for (int i = 0; i < inputNum; i++) {
+            offsets_in[i].resize(maxInputSize, 1);
+            offset_in_calc(offsets_in[i], dims_in[i], dims_out);
+            for (int j = 0; j < maxInputSize; j++) {
+                offsets_in[i][j] *= config.inConfs[i].desc.getPrecision().size();
+            }
+        }
+
+        start_offset_in.resize(inputNum);
+        for (size_t i = 0; i < inputNum; i++) {
+            start_offset_in[i] = getParentEdgeAt(i)->getMemory().GetDescriptor().data.layout_desc.blocking.offset_padding *
+                               MKLDNNExtensionUtils::sizeOfDataType(mkldnn::memory::data_type(getParentEdgeAt(i)->getMemory().GetDescriptor().data.data_type));
+        }
+        start_offset_out = getChildEdgeAt(0)->getMemory().GetDescriptor().data.layout_desc.blocking.offset_padding *
+                         MKLDNNExtensionUtils::sizeOfDataType(mkldnn::memory::data_type(getChildEdgeAt(0)->getMemory().GetDescriptor().data.data_type));
+    };
+
+    auto collapseLastDims = [](std::vector<size_t>& dims, int dimsToCollapse) {
+        for (int i = dims.size() - 2; i > dims.size() - dimsToCollapse - 2; i--) {
+            dims[dims.size() - 1] *= dims[i];
+        }
+
+        for (int i = dims.size() - 2; i >= dimsToCollapse; i--) {
+            dims[i] = dims[i - dimsToCollapse];
+        }
+
+        for (int i = dimsToCollapse - 1; i >= 0; i--) {
+            dims[i] = 1;
+        }
+    };
+
+    auto collapseLastOffsets = [](std::vector<size_t>& dims, int dimsToCollapse) {
+        for (int i = dims.size() - 2; i > dims.size() - dimsToCollapse - 2; i--) {
+            if (dims[dims.size() - 1] > 0 || dims[i] > 0)
+                dims[dims.size() - 1] = std::max(dims[dims.size() - 1], static_cast<size_t>(1)) * std::max(dims[i], static_cast<size_t>(1));
+            else
+                dims[dims.size() - 1] *= dims[i];
+        }
+
+        for (int i = dims.size() - 2; i >= dimsToCollapse; i--) {
+            dims[i] = dims[i - dimsToCollapse];
+        }
+
+        for (int i = dimsToCollapse - 1; i >= 0; i--) {
+            dims[i] = 0;
+        }
+    };
+
+    tensorRank = std::max(static_cast<size_t>(optimalTensorRank), config.outConfs[0].desc.getBlockingDesc().getBlockDims().size());
+    initDims(tensorRank);
+
+    auto outOrder = config.outConfs[0].desc.getBlockingDesc().getOrder();
+    size_t oc_size = 0;
+    offsets_oc.resize(tensorRank, 0);
+    if (isFusedWith(Quantize)) {
+        size_t offset_oc = 1;
+        for (int i = outOrder.size() - 1; i >= 0; i--) {
+            if (outOrder[i] == 1) {
+                int oc_dim_idx = i + (tensorRank - outOrder.size());
+                offsets_oc[oc_dim_idx] = offset_oc;
+                offset_oc *= dims_out[oc_dim_idx];
+            }
+        }
+        oc_size = offsets_oc[dims_out.size() - 1] != 0 ? dims_out[dims_out.size() - 1] : 1;
+    }
+
+    fullWorkAmount = 1;
+    for (int i = 0; i < dims_out.size(); i++) {
+        fullWorkAmount *= dims_out[i];
+    }
+
+    size_t minimalConcurrency = parallel_get_max_threads();
+    size_t minimalJitWorkAmount = 256;
+    size_t currentJitWorkAmount = dims_out[dims_out.size() - 1];
+    int collapsedDims = 0;
+    if (canUseOptimizedImpl) {
+        bool hasDifferentDims = false;
+        while (currentJitWorkAmount < minimalJitWorkAmount) {
+            if (dims_out.size() - collapsedDims - 2 < 0)
+                break;
+
+            for (int j = 1; j < dims_in.size(); j++) {
+                if (dims_in[j][dims_in[j].size() - 1] != dims_in[0][dims_in[0].size() - 1]) {
+                    hasDifferentDims = true;
+                }
+            }
+
+            if (oc_size > 1 && oc_size != dims_in[0][dims_in[0].size() - 1]) {
+                hasDifferentDims = true;
+            }
+
+            bool canCollapse = true;
+            for (int i = 0; i < dims_in.size(); i++) {
+                if (dims_in[i][dims_in[i].size() - 2] != 1) {
+                    if (dims_in[i][dims_in[i].size() - 1] == 1) {
+                        canCollapse = false;
+                        break;
+                    }
+
+                    if (hasDifferentDims) {
+                        canCollapse = false;
+                        break;
+                    }
+                }
+            }
+
+            if (!canCollapse) {
+                break;
+            }
+
+            size_t nextJitWorkAmount = currentJitWorkAmount * dims_out[dims_out.size() - 2];
+            if (fullWorkAmount / nextJitWorkAmount >= minimalConcurrency) {
+                currentJitWorkAmount = nextJitWorkAmount;
+                collapsedDims++;
+
+                for (int i = 0; i < dims_in.size(); i++) {
+                    collapseLastDims(dims_in[i], 1);
+                }
+                collapseLastDims(dims_out, 1);
+
+                if (isFusedWith(Quantize)) {
+                    collapseLastOffsets(offsets_oc, 1);
+                }
+            } else {
+                break;
+            }
         }
     }
-    if (op == EltwiseLayer::Sum && !broadcast && fusedWith.empty()) {
-        try {
-            auto primitive_desc = mkldnn::sum::primitive_desc(dstMemPtr->GetDescriptor(), sum_scales, srcs_pd);
-            prim = std::shared_ptr<mkldnn::sum>(new mkldnn::sum(primitive_desc, srcs_p, dstMemPtr->GetPrimitive()));
-        } catch (...) {
-            std::cerr << "Handle this problem correctly!" << std::endl;
-            prim = nullptr;
-        }
+
+    isDynBatchEnabled = config.dynBatchSupport;
+    batchDimIdx = tensorRank - config.outConfs[0].desc.getBlockingDesc().getBlockDims().size() + collapsedDims;
+    schedulerWorkAmount = fullWorkAmount / dims_out[dims_out.size() - 1];
+
+    initOffsets(tensorRank);
+
+    jep.inputs_number = config.inConfs.size();
+    jep.input_size = tensorRank;
+
+    for (int i = 0; i < config.inConfs.size(); i++) {
+        jep.src_size[i] = dims_in[i][dims_in[i].size() - 1];
+        jep.src_prc[i] = config.inConfs[i].desc.getPrecision();
+    }
+    jep.dst_size = dims_out[dims_out.size() - 1];
+    jep.dst_prc = config.outConfs[0].desc.getPrecision();
+
+    for (int i = 0; i < config.inConfs.size(); i++) {
+        jep.src_offsets[i] = offsets_in[i];
+    }
+    jep.dst_offsets = offsets_out;
+
+    jep.oc_size = oc_size;
+
+    if (mayiuse(cpu::avx512_common)) {
+        eltwise_kernel.reset(new jit_uni_eltwise_generic<cpu::avx512_common>(jep, *this));
+    } else if (mayiuse(cpu::avx2)) {
+        eltwise_kernel.reset(new jit_uni_eltwise_generic<cpu::avx2>(jep, *this));
+    } else if (mayiuse(cpu::sse42)) {
+        eltwise_kernel.reset(new jit_uni_eltwise_generic<cpu::sse42>(jep, *this));
     }
 }
 
-void MKLDNNEltwiseNode::initOptimalPrimitiveDescriptor() {
-    auto selected_pd = getSelectedPrimitiveDescriptor();
-    if (selected_pd == nullptr)
-        THROW_IE_EXCEPTION << "Preferable primitive descriptor is not set.";
-    auto config = selected_pd->getConfig();
-    if (isInitConfig(config))
-        return;
+void MKLDNNEltwiseNode::selectOptimalPrimitiveDescriptor() {
+    for (auto& type : getPrimitivesPriority()) {
+        int selectedPrimitive = -1;
+        int equalsFormatCount = -1;
+        for (size_t i = 0; i < getSupportedPrimitiveDescriptors().size(); i++) {
+            impl_desc_type supportedType = getSupportedPrimitiveDescriptors()[i].getImplementationType();
+            if (type == supportedType) {
+                int equalsLocalFormatCount = 0;
+                if (getSupportedPrimitiveDescriptors()[i].getConfig().inConfs.size() > getParentEdges().size())
+                    continue;
+                for (size_t j = 0; j < getSupportedPrimitiveDescriptors()[i].getConfig().inConfs.size(); j++) {
+                    auto parentEdge = getParentEdgeAt(j);
+                    auto parentPtr = parentEdge->getParent();
+                    // We don't take into account constant edges since reorders on them will be executed on load network stage
+                    if (j > 0 && parentPtr->isConstant()) {
+                        equalsLocalFormatCount++;
+                        continue;
+                    }
 
-    MKLDNNNode::initOptimalPrimitiveDescriptor();
+                    auto parent_spd = parentPtr->getSelectedPrimitiveDescriptor();
 
-    auto* selectedPD = getSelectedPrimitiveDescriptor();
-    if (!selectedPD) {
-        return;
-    }
-
-    auto& selectedConfig = getSelectedPrimitiveDescriptor()->getConfig();
-    for (size_t i = 1; i < selectedConfig.inConfs.size(); i++) {
-        if (selectedConfig.inConfs[0].desc.getPrecision() != selectedConfig.inConfs[i].desc.getPrecision()) {
-            selectedConfig.inConfs[i].desc.setPrecision(selectedConfig.inConfs[0].desc.getPrecision());
+                    if (parent_spd != nullptr && !parent_spd->getConfig().outConfs.empty()) {
+                        int inNum = parentEdge->getInputNum();
+                        if (inNum < 0 || inNum >= parent_spd->getConfig().outConfs.size()) {
+                            inNum = 0;
+                        }
+                        if (MKLDNNExtensionUtils::initTensorsAreEqual(
+                                getSupportedPrimitiveDescriptors()[i].getConfig().inConfs[j].desc,
+                                parent_spd->getConfig().outConfs[inNum].desc)) {
+                            equalsLocalFormatCount++;
+                        }
+                    }
+                }
+                if (equalsLocalFormatCount > equalsFormatCount) {
+                    equalsFormatCount = equalsLocalFormatCount;
+                    selectedPrimitive = static_cast<int>(i);
+                }
+            }
+        }
+        if (selectedPrimitive >= 0) {
+            selectPrimitiveDescriptorByIndex(selectedPrimitive);
+            return;
         }
     }
+
+    if (getSupportedPrimitiveDescriptors().empty())
+        THROW_IE_EXCEPTION << "Supported primitive descriptors list is empty for node: " << getName();
+    // fallback. If there are no primitives from priority list just select a first
+    selectPrimitiveDescriptorByIndex(0);
 }
 
-void MKLDNNEltwiseNode::setPostOps(mkldnn::primitive_attr &attr, bool initWeights) {
-    mkldnn::post_ops ops;
-
-    for (auto &node : fusedWith) {
-        auto* activationNode = dynamic_cast<MKLDNNActivationNode *>(node.get());
-        if (activationNode) {
-            ops.append_eltwise(1.0, activationNode->getAlgorithm(), activationNode->getAlpha(), activationNode->getBeta());
-
-            continue;
-        }
-
-        auto* quantizeNode = dynamic_cast<MKLDNNQuantizeNode *>(node.get());
-        if (quantizeNode) {
-            quantizeNode->appendPostOps(ops);
-            continue;
-        }
-
-        THROW_IE_EXCEPTION << "Fusing of " << NameFromType(node->getType()) << " operation to " << NameFromType(this->getType()) << " node is not implemented";
-    }
-
-    attr.set_post_ops(ops);
-}
-
-void MKLDNNEltwiseNode::dims_calc(int *dims, const MKLDNNDims &edge_dims, bool channels_first = false) {
-    for (int i = 0; i < 5; i++)
-        dims[i] = 1;
-    int ndims = edge_dims.ndims();
-    if (ndims > 5) {
-        THROW_IE_EXCEPTION << "ndims should be less then 5";
-    }
-    for (int i = 0; i < ndims; i++) {
-        dims[4 - i] = edge_dims[ndims - 1 - i];
-    }
-    if (edge_dims.ndims() && !(broadcast && edge_dims[0] == getChildEdgeAt(0)->getDims()[0]))
-        dims[batch_dim] = std::min(dims[batch_dim], batchToProcess());
-
-    if (channels_first) {
-        auto ch_idx = 5 - ndims + 1;
-        auto ch = dims[ch_idx];
-        for (int i = ch_idx; i < 4; i++) {
-            dims[i] = dims[i + 1];
-        }
-        dims[4] = ch;
-    }
-}
-
-void MKLDNNEltwiseNode::offset_out_calc(int *offset, int *dims) {
+void MKLDNNEltwiseNode::offset_out_calc(std::vector<size_t>& offset, std::vector<size_t>& dims) {
     int k = 1;
-    for (int i = 4; i >= 0; i--) {
+    for (int i = offset.size() - 1; i >= 0; i--) {
         offset[i] = k;
         k *= dims[i];
     }
 }
 
-void MKLDNNEltwiseNode::offset_in_calc(int *offset, int *dims_in, int *dims_out) {
+void MKLDNNEltwiseNode::offset_in_calc(std::vector<size_t>& offset, std::vector<size_t>& dims_in, std::vector<size_t>& dims_out) {
     int k = 1;
-    for (int i = 4; i >= 0; i--) {
+    for (int i = offset.size() - 1; i >= 0; i--) {
         offset[i] = (dims_in[i] == dims_out[i]) ? k : 0;
         k *= dims_in[i];
     }
 }
 
-// Intel C++ Compiler 18.0 for Windows contains bug that doesn't allow to use templates to generate eltwise implementations
-// and to avoid all copypaste below
-template <typename T0, typename T1> void MKLDNNEltwiseNode::eltwise_add(
-        const T0 *src0_ptr, const T1 *src1_ptr, T0 *dst_ptr, const size_t dst_data_size) {
-    if (!broadcast) {
-#ifdef _WIN32
-        for (size_t i = 0; i < dst_data_size; i++) {
-            dst_ptr[i] = src0_ptr[i] + src1_ptr[i];
-    }
-#else
-        parallel_for(dst_data_size, [&](size_t i) {
-            dst_ptr[i] = src0_ptr[i] + src1_ptr[i];
+void MKLDNNEltwiseNode::executeOptimized6D(const std::vector<const uint8_t *>& src_ptrs, uint8_t *dst_ptr) {
+    size_t inputNum = src_ptrs.size();
+
+    parallel_for5d(dims_out[0], dims_out[1], dims_out[2], dims_out[3], dims_out[4],
+        [&](size_t i0, size_t i1, size_t i2, size_t i3, size_t i4) {
+            // TODO: reimplement initializer via jit approach
+            size_t index_in[MAX_ELTWISE_INPUTS] = {0};
+            for (int i = 0; i < inputNum; i++) {
+                index_in[i] = i0 * offsets_in[i][0] + i1 * offsets_in[i][1] + i2 * offsets_in[i][2] +
+                              i3 * offsets_in[i][3] + i4 * offsets_in[i][4];
+            }
+            size_t index_out = i0 * offsets_out[0] + i1 * offsets_out[1] + i2 * offsets_out[2] +
+                               i3 * offsets_out[3] + i4 * offsets_out[4];
+
+            auto arg = jit_eltwise_call_args();
+            for (int i = 0; i < inputNum; i++) {
+                arg.src_ptr[i] = src_ptrs[i] + index_in[i];
+            }
+            arg.dst = dst_ptr + index_out;
+            arg.work_amount = static_cast<size_t>(dims_out[dims_out.size() - 1]);
+            arg.oc_off = (i0 * offsets_oc[0] + i1 * offsets_oc[1] + i2 * offsets_oc[2] +
+                          i3 * offsets_oc[3] + i4 * offsets_oc[4]) * sizeof(float);
+
+            (*eltwise_kernel)(&arg);
         });
-#endif
-        for (int j = 2; j < getParentEdges().size(); j++) {
-            const T1 *src_ptr = reinterpret_cast<const T1*>(getParentEdgeAt(j)->getMemory().GetData()) +
-                                getParentEdgeAt(j)->getMemory().GetDescriptor().data.layout_desc.blocking.offset_padding;
-#ifdef _WIN32
-            for (size_t i = 0; i < dst_data_size; i++) {
-                dst_ptr[i] = dst_ptr[i] + src_ptr[i];
-            }
-#else
-            parallel_for(dst_data_size, [&](size_t i) {
-                dst_ptr[i] = dst_ptr[i] + src_ptr[i];
-            });
-#endif
-        }
-    } else {
-        int dims_out[5], dims_in0[5], dims_in1[5];
-        int offset_out[5], offset_in0[5], offset_in1[5];
-        auto& child_edge_dims = getChildEdgeAt(0)->getDims();
-        auto& parent0_edge_dims = getParentEdgeAt(0)->getDims();
-        auto& parent1_edge_dims = getParentEdgeAt(1)->getDims();
-        dims_calc(dims_out, child_edge_dims);
-        dims_calc(dims_in0, parent0_edge_dims);
-        dims_calc(dims_in1, parent1_edge_dims);
-        offset_out_calc(offset_out, dims_out);
-        offset_in_calc(offset_in0, dims_in0, dims_out);
-        offset_in_calc(offset_in1, dims_in1, dims_out);
-
-#ifdef _WIN32
-        for (size_t i0 = 0; i0 < dims_out[0]; i0++) {
-        for (size_t i1 = 0; i1 < dims_out[1]; i1++) {
-            for (size_t i2 = 0; i2 < dims_out[2]; i2++) {
-                for (size_t i3 = 0; i3 < dims_out[3]; i3++) {
-                    for (size_t i4 = 0; i4 < dims_out[4]; i4++) {
-                        size_t index_out = i0 * offset_out[0] + i1 * offset_out[1] + i2 * offset_out[2] + i3 * offset_out[3] + i4 * offset_out[4];
-                        size_t index_in0 = i0 * offset_in0[0] + i1 * offset_in0[1] + i2 * offset_in0[2] + i3 * offset_in0[3] + i4 * offset_in0[4];
-                        size_t index_in1 = i0 * offset_in1[0] + i1 * offset_in1[1] + i2 * offset_in1[2] + i3 * offset_in1[3] + i4 * offset_in1[4];
-                        dst_ptr[index_out] = src0_ptr[index_in0] + src1_ptr[index_in1];
-                    }
-                }
-            }
-        }
-    }
-#else
-        parallel_for4d(dims_out[0], dims_out[1], dims_out[2], dims_out[3], [&](size_t i0, size_t i1, size_t i2, size_t i3) {
-            for (int i4 = 0; i4 < dims_out[4]; i4++) {
-                size_t index_out = i0 * offset_out[0] + i1 * offset_out[1] + i2 * offset_out[2] + i3 * offset_out[3] + i4 * offset_out[4];
-                size_t index_in0 = i0 * offset_in0[0] + i1 * offset_in0[1] + i2 * offset_in0[2] + i3 * offset_in0[3] + i4 * offset_in0[4];
-                size_t index_in1 = i0 * offset_in1[0] + i1 * offset_in1[1] + i2 * offset_in1[2] + i3 * offset_in1[3] + i4 * offset_in1[4];
-                dst_ptr[index_out] = src0_ptr[index_in0] + src1_ptr[index_in1];
-            }
-        });
-#endif
-        for (size_t n = 2; n < getParentEdges().size(); n++) {
-            const T1 *src_ptr = reinterpret_cast<const T1 *>(getParentEdgeAt(n)->getMemory().GetData()) +
-                                getParentEdgeAt(n)->getMemory().GetDescriptor().data.layout_desc.blocking.offset_padding;
-
-            auto& parent_edge_dims = getParentEdgeAt(n)->getDims();
-            dims_calc(dims_in1, parent_edge_dims);
-            offset_in_calc(offset_in1, dims_in1, dims_out);
-
-#ifdef _WIN32
-            for (size_t i0 = 0; i0 < dims_out[0]; i0++) {
-            for (size_t i1 = 0; i1 < dims_out[1]; i1++) {
-                for (size_t i2 = 0; i2 < dims_out[2]; i2++) {
-                    for (size_t i3 = 0; i3 < dims_out[3]; i3++) {
-                        for (size_t i4 = 0; i4 < dims_out[4]; i4++) {
-                            size_t index_out = i0 * offset_out[0] + i1 * offset_out[1] + i2 * offset_out[2] + i3 * offset_out[3] + i4 * offset_out[4];
-                            size_t index_in = i0 * offset_in1[0] + i1 * offset_in1[1] + i2 * offset_in1[2] + i3 * offset_in1[3] + i4 * offset_in1[4];
-                            dst_ptr[index_out] = dst_ptr[index_out] + src_ptr[index_in];
-                        }
-                    }
-                }
-            }
-        }
-#else
-            parallel_for4d(dims_out[0], dims_out[1], dims_out[2], dims_out[3], [&](size_t i0, size_t i1, size_t i2, size_t i3) {
-                for (int i4 = 0; i4 < dims_out[4]; i4++) {
-                    size_t index_out = i0 * offset_out[0] + i1 * offset_out[1] + i2 * offset_out[2] + i3 * offset_out[3] + i4 * offset_out[4];
-                    size_t index_in = i0 * offset_in1[0] + i1 * offset_in1[1] + i2 * offset_in1[2] + i3 * offset_in1[3] + i4 * offset_in1[4];
-                    dst_ptr[index_out] = dst_ptr[index_out] + src_ptr[index_in];
-                }
-            });
-#endif
-        }
-    }
 }
 
-template <typename T0, typename T1> void MKLDNNEltwiseNode::eltwise_prod(
-        const T0 *src0_ptr, const T1 *src1_ptr, T0 *dst_ptr, const size_t dst_data_size) {
-    if (!broadcast) {
-#ifdef _WIN32
-        for (size_t i = 0; i < dst_data_size; i++) {
-            dst_ptr[i] = src0_ptr[i] * src1_ptr[i];
-    }
-#else
-        parallel_for(dst_data_size, [&](size_t i) {
-            dst_ptr[i] = src0_ptr[i] * src1_ptr[i];
-        });
-#endif
-        for (int j = 2; j < getParentEdges().size(); j++) {
-            const T1 *src_ptr = reinterpret_cast<const T1*>(getParentEdgeAt(j)->getMemory().GetData()) +
-                                getParentEdgeAt(j)->getMemory().GetDescriptor().data.layout_desc.blocking.offset_padding;
-#ifdef _WIN32
-            for (size_t i = 0; i < dst_data_size; i++) {
-                dst_ptr[i] = dst_ptr[i] * src_ptr[i];
-            }
-#else
-            parallel_for(dst_data_size, [&](size_t i) {
-                dst_ptr[i] = dst_ptr[i] * src_ptr[i];
-            });
-#endif
-        }
-    } else {
-        int dims_out[5], dims_in0[5], dims_in1[5];
-        int offset_out[5], offset_in0[5], offset_in1[5];
-        auto& child_edge_dims = getChildEdgeAt(0)->getDims();
-        auto& parent0_edge_dims = getParentEdgeAt(0)->getDims();
-        auto& parent1_edge_dims = getParentEdgeAt(1)->getDims();
-        dims_calc(dims_out, child_edge_dims);
-        dims_calc(dims_in0, parent0_edge_dims);
-        dims_calc(dims_in1, parent1_edge_dims);
-        offset_out_calc(offset_out, dims_out);
-        offset_in_calc(offset_in0, dims_in0, dims_out);
-        offset_in_calc(offset_in1, dims_in1, dims_out);
+void MKLDNNEltwiseNode::executeOptimizedGeneric(const std::vector<const uint8_t *>& src_ptrs, uint8_t *dst_ptr) {
+    size_t inputNum = src_ptrs.size();
 
-#ifdef _WIN32
-        for (size_t i0 = 0; i0 < dims_out[0]; i0++) {
-        for (size_t i1 = 0; i1 < dims_out[1]; i1++) {
-            for (size_t i2 = 0; i2 < dims_out[2]; i2++) {
-                for (size_t i3 = 0; i3 < dims_out[3]; i3++) {
-                    for (size_t i4 = 0; i4 < dims_out[4]; i4++) {
-                        size_t index_out = i0 * offset_out[0] + i1 * offset_out[1] + i2 * offset_out[2] + i3 * offset_out[3] + i4 * offset_out[4];
-                        size_t index_in0 = i0 * offset_in0[0] + i1 * offset_in0[1] + i2 * offset_in0[2] + i3 * offset_in0[3] + i4 * offset_in0[4];
-                        size_t index_in1 = i0 * offset_in1[0] + i1 * offset_in1[1] + i2 * offset_in1[2] + i3 * offset_in1[3] + i4 * offset_in1[4];
-                        dst_ptr[index_out] = src0_ptr[index_in0] * src1_ptr[index_in1];
-                    }
+    parallel_nt(0, [&](const int ithr, const int nthr) {
+        size_t start = 0, end = 0;
+        splitter(schedulerWorkAmount, nthr, ithr, start, end);
+
+        std::vector<size_t> counters(dims_out.size() - 1, 0);
+
+        for (size_t iwork = start; iwork < end; ++iwork) {
+            size_t tmp = iwork;
+            for (ptrdiff_t j = dims_out.size() - 2; j >= 0; j--) {
+                counters[j] = tmp % dims_out[j];
+                tmp /= dims_out[j];
+            }
+
+            size_t index_in[MAX_ELTWISE_INPUTS] = {0};
+            for (int i = 0; i < inputNum; i++) {
+                index_in[i] = 0;
+                for (int j = 0; j < counters.size(); j++) {
+                    index_in[i] += counters[j] * offsets_in[i][j];
                 }
             }
-        }
-    }
-#else
-        parallel_for4d(dims_out[0], dims_out[1], dims_out[2], dims_out[3], [&](size_t i0, size_t i1, size_t i2, size_t i3) {
-            for (int i4 = 0; i4 < dims_out[4]; i4++) {
-                size_t index_out = i0 * offset_out[0] + i1 * offset_out[1] + i2 * offset_out[2] + i3 * offset_out[3] + i4 * offset_out[4];
-                size_t index_in0 = i0 * offset_in0[0] + i1 * offset_in0[1] + i2 * offset_in0[2] + i3 * offset_in0[3] + i4 * offset_in0[4];
-                size_t index_in1 = i0 * offset_in1[0] + i1 * offset_in1[1] + i2 * offset_in1[2] + i3 * offset_in1[3] + i4 * offset_in1[4];
-                dst_ptr[index_out] = src0_ptr[index_in0] * src1_ptr[index_in1];
-            }
-        });
-#endif
-        for (size_t n = 2; n < getParentEdges().size(); n++) {
-            const T1 *src_ptr = reinterpret_cast<const T1 *>(getParentEdgeAt(n)->getMemory().GetData()) +
-                                getParentEdgeAt(n)->getMemory().GetDescriptor().data.layout_desc.blocking.offset_padding;
 
-            auto& parent_edge_dims = getParentEdgeAt(n)->getDims();
-            dims_calc(dims_in1, parent_edge_dims);
-            offset_in_calc(offset_in1, dims_in1, dims_out);
-
-#ifdef _WIN32
-            for (size_t i0 = 0; i0 < dims_out[0]; i0++) {
-            for (size_t i1 = 0; i1 < dims_out[1]; i1++) {
-                for (size_t i2 = 0; i2 < dims_out[2]; i2++) {
-                    for (size_t i3 = 0; i3 < dims_out[3]; i3++) {
-                        for (size_t i4 = 0; i4 < dims_out[4]; i4++) {
-                            size_t index_out = i0 * offset_out[0] + i1 * offset_out[1] + i2 * offset_out[2] + i3 * offset_out[3] + i4 * offset_out[4];
-                            size_t index_in = i0 * offset_in1[0] + i1 * offset_in1[1] + i2 * offset_in1[2] + i3 * offset_in1[3] + i4 * offset_in1[4];
-                            dst_ptr[index_out] = dst_ptr[index_out] * src_ptr[index_in];
-                        }
-                    }
-                }
+            size_t index_out = 0;
+            for (int j = 0; j < counters.size(); j++) {
+                index_out += counters[j] * offsets_out[j];
             }
+
+            auto arg = jit_eltwise_call_args();
+            for (int i = 0; i < inputNum; i++) {
+                arg.src_ptr[i] = src_ptrs[i] + index_in[i];
+            }
+            arg.dst = dst_ptr + index_out;
+            arg.work_amount = static_cast<size_t>(dims_out[dims_out.size() - 1]);
+
+            arg.oc_off = 0;
+            for (int j = 0; j < counters.size(); j++) {
+                arg.oc_off += counters[j] * offsets_oc[j] * sizeof(float);
+            }
+
+            (*eltwise_kernel)(&arg);
         }
-#else
-            parallel_for5d(dims_out[0], dims_out[1], dims_out[2], dims_out[3], dims_out[4], [&](size_t i0, size_t i1, size_t i2, size_t i3, size_t i4) {
-                size_t index_out = i0 * offset_out[0] + i1 * offset_out[1] + i2 * offset_out[2] + i3 * offset_out[3] + i4 * offset_out[4];
-                size_t index_in = i0 * offset_in1[0] + i1 * offset_in1[1] + i2 * offset_in1[2] + i3 * offset_in1[3] + i4 * offset_in1[4];
-                dst_ptr[index_out] = dst_ptr[index_out] * src_ptr[index_in];
-            });
-#endif
-        }
-    }
+    });
 }
 
-template <typename T0, typename T1> void MKLDNNEltwiseNode::eltwise_max(
-        const T0 *src0_ptr, const T1 *src1_ptr, T0 *dst_ptr, const size_t dst_data_size) {
-    if (!broadcast) {
-#ifdef _WIN32
-        for (size_t i = 0; i < dst_data_size; i++) {
-            dst_ptr[i] = std::max(src0_ptr[i], (T0)src1_ptr[i]);
-    }
-#else
-        parallel_for(dst_data_size, [&](size_t i) {
-            dst_ptr[i] = std::max(src0_ptr[i], (T0)src1_ptr[i]);
-        });
-#endif
-        for (int j = 2; j < getParentEdges().size(); j++) {
-            const T1 *src_ptr = reinterpret_cast<const T1*>(getParentEdgeAt(j)->getMemory().GetData()) +
-                                getParentEdgeAt(j)->getMemory().GetDescriptor().data.layout_desc.blocking.offset_padding;
-#ifdef _WIN32
-            for (size_t i = 0; i < dst_data_size; i++) {
-                dst_ptr[i] = std::max(dst_ptr[i], (T0)src_ptr[i]);
-            }
-#else
-            parallel_for(dst_data_size, [&](size_t i) {
-                dst_ptr[i] = std::max(dst_ptr[i], (T0)src_ptr[i]);
-            });
-#endif
-        }
-    } else {
-        int dims_out[5], dims_in0[5], dims_in1[5];
-        int offset_out[5], offset_in0[5], offset_in1[5];
-        auto& child_edge_dims = getChildEdgeAt(0)->getDims();
-        auto& parent0_edge_dims = getParentEdgeAt(0)->getDims();
-        auto& parent1_edge_dims = getParentEdgeAt(1)->getDims();
-        dims_calc(dims_out, child_edge_dims);
-        dims_calc(dims_in0, parent0_edge_dims);
-        dims_calc(dims_in1, parent1_edge_dims);
-        offset_out_calc(offset_out, dims_out);
-        offset_in_calc(offset_in0, dims_in0, dims_out);
-        offset_in_calc(offset_in1, dims_in1, dims_out);
+void MKLDNNEltwiseNode::executeReference(const std::vector<const uint8_t *>& src_ptrs, uint8_t *dst_ptr) {
+    size_t inputNum = src_ptrs.size();
 
-#ifdef _WIN32
-        for (size_t i0 = 0; i0 < dims_out[0]; i0++) {
-        for (size_t i1 = 0; i1 < dims_out[1]; i1++) {
-            for (size_t i2 = 0; i2 < dims_out[2]; i2++) {
-                for (size_t i3 = 0; i3 < dims_out[3]; i3++) {
-                    for (size_t i4 = 0; i4 < dims_out[4]; i4++) {
-                        size_t index_out = i0 * offset_out[0] + i1 * offset_out[1] + i2 * offset_out[2] + i3 * offset_out[3] + i4 * offset_out[4];
-                        size_t index_in0 = i0 * offset_in0[0] + i1 * offset_in0[1] + i2 * offset_in0[2] + i3 * offset_in0[3] + i4 * offset_in0[4];
-                        size_t index_in1 = i0 * offset_in1[0] + i1 * offset_in1[1] + i2 * offset_in1[2] + i3 * offset_in1[3] + i4 * offset_in1[4];
-                        dst_ptr[index_out] = std::max(src0_ptr[index_in0], (T0)src1_ptr[index_in1]);
-                    }
+    std::shared_ptr<ref_eltwise_scalar_fwd_t> ref_eltwise_injector = nullptr;
+    if (eltwiseAlgorithm != mkldnn::algorithm_undef) {
+        ref_eltwise_injector = std::make_shared<ref_eltwise_scalar_fwd_t>(static_cast<mkldnn_alg_kind_t>(eltwiseAlgorithm), alpha, beta);
+    }
+
+    parallel_nt(0, [&](const int ithr, const int nthr) {
+        size_t start = 0, end = 0;
+        splitter(fullWorkAmount, nthr, ithr, start, end);
+
+        std::vector<size_t> counters(dims_out.size(), 0);
+
+        for (size_t iwork = start; iwork < end; ++iwork) {
+            size_t tmp = iwork;
+            for (ptrdiff_t j = dims_out.size() - 1; j >= 0; j--) {
+                counters[j] = tmp % dims_out[j];
+                tmp /= dims_out[j];
+            }
+
+            size_t index_in[MAX_ELTWISE_INPUTS] = {0};
+            for (int i = 0; i < inputNum; i++) {
+                index_in[i] = 0;
+                for (int j = 0; j < counters.size(); j++) {
+                    index_in[i] += counters[j] * offsets_in[i][j];
                 }
             }
-        }
-    }
-#else
-        parallel_for4d(dims_out[0], dims_out[1], dims_out[2], dims_out[3], [&](size_t i0, size_t i1, size_t i2, size_t i3) {
-            for (int i4 = 0; i4 < dims_out[4]; i4++) {
-                size_t index_out = i0 * offset_out[0] + i1 * offset_out[1] + i2 * offset_out[2] + i3 * offset_out[3] + i4 * offset_out[4];
-                size_t index_in0 = i0 * offset_in0[0] + i1 * offset_in0[1] + i2 * offset_in0[2] + i3 * offset_in0[3] + i4 * offset_in0[4];
-                size_t index_in1 = i0 * offset_in1[0] + i1 * offset_in1[1] + i2 * offset_in1[2] + i3 * offset_in1[3] + i4 * offset_in1[4];
-                dst_ptr[index_out] = std::max(src0_ptr[index_in0], (T0)src1_ptr[index_in1]);
+
+            size_t index_out = 0;
+            for (int j = 0; j < counters.size(); j++) {
+                index_out += counters[j] * offsets_out[j];
             }
-        });
-#endif
-        for (size_t n = 2; n < getParentEdges().size(); n++) {
-            const T1 *src_ptr = reinterpret_cast<const T1 *>(getParentEdgeAt(n)->getMemory().GetData()) +
-                                getParentEdgeAt(n)->getMemory().GetDescriptor().data.layout_desc.blocking.offset_padding;
 
-            auto& parent_edge_dims = getParentEdgeAt(n)->getDims();
-            dims_calc(dims_in1, parent_edge_dims);
-            offset_in_calc(offset_in1, dims_in1, dims_out);
-
-#ifdef _WIN32
-            for (size_t i0 = 0; i0 < dims_out[0]; i0++) {
-            for (size_t i1 = 0; i1 < dims_out[1]; i1++) {
-                for (size_t i2 = 0; i2 < dims_out[2]; i2++) {
-                    for (size_t i3 = 0; i3 < dims_out[3]; i3++) {
-                        for (size_t i4 = 0; i4 < dims_out[4]; i4++) {
-                            size_t index_out = i0 * offset_out[0] + i1 * offset_out[1] + i2 * offset_out[2] + i3 * offset_out[3] + i4 * offset_out[4];
-                            size_t index_in = i0 * offset_in1[0] + i1 * offset_in1[1] + i2 * offset_in1[2] + i3 * offset_in1[3] + i4 * offset_in1[4];
-                            dst_ptr[index_out] = std::max(dst_ptr[index_out], (T0)src_ptr[index_in]);
-                        }
-                    }
-                }
+            std::vector<float> src_f(inputNum);
+            for (int i = 0; i < inputNum; i++) {
+                src_f[i] = reinterpret_cast<const float *>(src_ptrs[i] + index_in[i])[0];
             }
-        }
-#else
-            parallel_for4d(dims_out[0], dims_out[1], dims_out[2], dims_out[3], [&](size_t i0, size_t i1, size_t i2, size_t i3) {
-                for (int i4 = 0; i4 < dims_out[4]; i4++) {
-                    size_t index_out = i0 * offset_out[0] + i1 * offset_out[1] + i2 * offset_out[2] + i3 * offset_out[3] + i4 * offset_out[4];
-                    size_t index_in = i0 * offset_in1[0] + i1 * offset_in1[1] + i2 * offset_in1[2] + i3 * offset_in1[3] + i4 * offset_in1[4];
-                    dst_ptr[index_out] = std::max(dst_ptr[index_out], (T0)src_ptr[index_in]);
-                }
-            });
-#endif
-        }
-    }
-}
+            float* dst_ptr_f = reinterpret_cast<float *>(dst_ptr + index_out);
 
-template <typename T0, typename T1> void MKLDNNEltwiseNode::eltwise_sub(
-        const T0 *src0_ptr, const T1 *src1_ptr, T0 *dst_ptr, const size_t dst_data_size) {
-    if (!broadcast) {
-#ifdef _WIN32
-        for (size_t i = 0; i < dst_data_size; i++) {
-            dst_ptr[i] = src0_ptr[i] - src1_ptr[i];
-    }
-#else
-        parallel_for(dst_data_size, [&](size_t i) {
-            dst_ptr[i] = src0_ptr[i] - src1_ptr[i];
-        });
-#endif
-        for (int j = 2; j < getParentEdges().size(); j++) {
-            const T1 *src_ptr = reinterpret_cast<const T1*>(getParentEdgeAt(j)->getMemory().GetData()) +
-                                getParentEdgeAt(j)->getMemory().GetDescriptor().data.layout_desc.blocking.offset_padding;
-#ifdef _WIN32
-            for (size_t i = 0; i < dst_data_size; i++) {
-                dst_ptr[i] = dst_ptr[i] - src_ptr[i];
-            }
-#else
-            parallel_for(dst_data_size, [&](size_t i) {
-                dst_ptr[i] = dst_ptr[i] - src_ptr[i];
-            });
-#endif
-        }
-    } else {
-        int dims_out[5], dims_in0[5], dims_in1[5];
-        int offset_out[5], offset_in0[5], offset_in1[5];
-        auto& child_edge_dims = getChildEdgeAt(0)->getDims();
-        auto& parent0_edge_dims = getParentEdgeAt(0)->getDims();
-        auto& parent1_edge_dims = getParentEdgeAt(1)->getDims();
-        dims_calc(dims_out, child_edge_dims);
-        dims_calc(dims_in0, parent0_edge_dims);
-        dims_calc(dims_in1, parent1_edge_dims);
-        offset_out_calc(offset_out, dims_out);
-        offset_in_calc(offset_in0, dims_in0, dims_out);
-        offset_in_calc(offset_in1, dims_in1, dims_out);
-
-#ifdef _WIN32
-        for (size_t i0 = 0; i0 < dims_out[0]; i0++) {
-        for (size_t i1 = 0; i1 < dims_out[1]; i1++) {
-            for (size_t i2 = 0; i2 < dims_out[2]; i2++) {
-                for (size_t i3 = 0; i3 < dims_out[3]; i3++) {
-                    for (size_t i4 = 0; i4 < dims_out[4]; i4++) {
-                        size_t index_out = i0 * offset_out[0] + i1 * offset_out[1] + i2 * offset_out[2] + i3 * offset_out[3] + i4 * offset_out[4];
-                        size_t index_in0 = i0 * offset_in0[0] + i1 * offset_in0[1] + i2 * offset_in0[2] + i3 * offset_in0[3] + i4 * offset_in0[4];
-                        size_t index_in1 = i0 * offset_in1[0] + i1 * offset_in1[1] + i2 * offset_in1[2] + i3 * offset_in1[3] + i4 * offset_in1[4];
-                        dst_ptr[index_out] = src0_ptr[index_in0] - src1_ptr[index_in1];
-                    }
-                }
+            switch (getOpType()) {
+                case Relu: case Gelu: case Elu: case Tanh: case Logistic: case Square: case Abs: case Sqrt:
+                case Linear: case BoundedRelu: case SoftRelu: case Relu6: case Exp: case Clamp: case Swish: case Hswish: case Mish: case Hsigmoid:
+                    *dst_ptr_f = ref_eltwise_injector->compute_scalar(src_f[0]); break;
+                case Add:               *dst_ptr_f = src_f[0] + src_f[1]; break;
+                case MulAdd:            *dst_ptr_f = src_f[0] * src_f[1] + src_f[2]; break;
+                case Subtract:          *dst_ptr_f = src_f[0] - src_f[1]; break;
+                case Multiply:          *dst_ptr_f = src_f[0] * src_f[1]; break;
+                case Divide:            *dst_ptr_f = src_f[0] / src_f[1]; break;
+                case FloorMod:          *dst_ptr_f = src_f[0] - floorf(src_f[0] / src_f[1]) * src_f[1]; break;
+                case Mod:               *dst_ptr_f = src_f[0] - truncf(src_f[0] / src_f[1]) * src_f[1]; break;
+                case Maximum:           *dst_ptr_f = std::max(src_f[0], src_f[1]); break;
+                case Minimum:           *dst_ptr_f = std::min(src_f[0], src_f[1]); break;
+                case SquaredDifference: *dst_ptr_f = powf((src_f[0] - src_f[1]), 2.f); break;
+                case PowerDynamic:      *dst_ptr_f = powf(src_f[0], src_f[1]); break;
+                case Equal:             *dst_ptr_f = src_f[0] == src_f[1]; break;
+                case NotEqual:          *dst_ptr_f = src_f[0] != src_f[1]; break;
+                case Greater:           *dst_ptr_f = src_f[0] > src_f[1]; break;
+                case GreaterEqual:      *dst_ptr_f = src_f[0] >= src_f[1]; break;
+                case Less:              *dst_ptr_f = src_f[0] < src_f[1]; break;
+                case LessEqual:         *dst_ptr_f = src_f[0] <= src_f[1]; break;
+                case LogicalAnd:        *dst_ptr_f = src_f[0] && src_f[1]; break;
+                case LogicalOr:         *dst_ptr_f = src_f[0] || src_f[1]; break;
+                case LogicalXor:        *dst_ptr_f = (src_f[0] || src_f[1]) - (src_f[0] && src_f[1]); break;
+                case LogicalNot:        *dst_ptr_f = !src_f[0]; break;
+                case PowerStatic:       *dst_ptr_f = powf(beta * src_f[0] + gamma, alpha); break;
+                case Prelu:             *dst_ptr_f = src_f[0] > 0 ? src_f[0] : src_f[0] * src_f[1]; break;
+                default: THROW_IE_EXCEPTION << "Unsupported operation type for Eltwise node with name `" << getName() << "`";
             }
         }
-    }
-#else
-        parallel_for4d(dims_out[0], dims_out[1], dims_out[2], dims_out[3], [&](size_t i0, size_t i1, size_t i2, size_t i3) {
-            for (int i4 = 0; i4 < dims_out[4]; i4++) {
-                size_t index_out = i0 * offset_out[0] + i1 * offset_out[1] + i2 * offset_out[2] + i3 * offset_out[3] + i4 * offset_out[4];
-                size_t index_in0 = i0 * offset_in0[0] + i1 * offset_in0[1] + i2 * offset_in0[2] + i3 * offset_in0[3] + i4 * offset_in0[4];
-                size_t index_in1 = i0 * offset_in1[0] + i1 * offset_in1[1] + i2 * offset_in1[2] + i3 * offset_in1[3] + i4 * offset_in1[4];
-                dst_ptr[index_out] = src0_ptr[index_in0] - src1_ptr[index_in1];
-            }
-        });
-#endif
-        for (size_t n = 2; n < getParentEdges().size(); n++) {
-            const T1 *src_ptr = reinterpret_cast<const T1 *>(getParentEdgeAt(n)->getMemory().GetData()) +
-                                getParentEdgeAt(n)->getMemory().GetDescriptor().data.layout_desc.blocking.offset_padding;
-
-            auto& parent_edge_dims = getParentEdgeAt(n)->getDims();
-            dims_calc(dims_in1, parent_edge_dims);
-            offset_in_calc(offset_in1, dims_in1, dims_out);
-
-#ifdef _WIN32
-            for (size_t i0 = 0; i0 < dims_out[0]; i0++) {
-            for (size_t i1 = 0; i1 < dims_out[1]; i1++) {
-                for (size_t i2 = 0; i2 < dims_out[2]; i2++) {
-                    for (size_t i3 = 0; i3 < dims_out[3]; i3++) {
-                        for (size_t i4 = 0; i4 < dims_out[4]; i4++) {
-                            size_t index_out = i0 * offset_out[0] + i1 * offset_out[1] + i2 * offset_out[2] + i3 * offset_out[3] + i4 * offset_out[4];
-                            size_t index_in = i0 * offset_in1[0] + i1 * offset_in1[1] + i2 * offset_in1[2] + i3 * offset_in1[3] + i4 * offset_in1[4];
-                            dst_ptr[index_out] = dst_ptr[index_out] - src_ptr[index_in];
-                        }
-                    }
-                }
-            }
-        }
-#else
-            parallel_for4d(dims_out[0], dims_out[1], dims_out[2], dims_out[3], [&](size_t i0, size_t i1, size_t i2, size_t i3) {
-                for (int i4 = 0; i4 < dims_out[4]; i4++) {
-                    size_t index_out = i0 * offset_out[0] + i1 * offset_out[1] + i2 * offset_out[2] + i3 * offset_out[3] + i4 * offset_out[4];
-                    size_t index_in = i0 * offset_in1[0] + i1 * offset_in1[1] + i2 * offset_in1[2] + i3 * offset_in1[3] + i4 * offset_in1[4];
-                    dst_ptr[index_out] = dst_ptr[index_out] - src_ptr[index_in];
-                }
-            });
-#endif
-        }
-    }
-}
-
-template <typename T0, typename T1> void MKLDNNEltwiseNode::eltwise_min(
-        const T0 *src0_ptr, const T1 *src1_ptr, T0 *dst_ptr, const size_t dst_data_size) {
-    if (!broadcast) {
-#ifdef _WIN32
-        for (size_t i = 0; i < dst_data_size; i++) {
-            dst_ptr[i] = std::min(src0_ptr[i], (T0)src1_ptr[i]);
-    }
-#else
-        parallel_for(dst_data_size, [&](size_t i) {
-            dst_ptr[i] = std::min(src0_ptr[i], (T0)src1_ptr[i]);
-        });
-#endif
-        for (int j = 2; j < getParentEdges().size(); j++) {
-            const T1 *src_ptr = reinterpret_cast<const T1*>(getParentEdgeAt(j)->getMemory().GetData()) +
-                                getParentEdgeAt(j)->getMemory().GetDescriptor().data.layout_desc.blocking.offset_padding;
-#ifdef _WIN32
-            for (size_t i = 0; i < dst_data_size; i++) {
-                dst_ptr[i] = std::min(dst_ptr[i], (T0)src_ptr[i]);
-            }
-#else
-            parallel_for(dst_data_size, [&](size_t i) {
-                dst_ptr[i] = std::min(dst_ptr[i], (T0)src_ptr[i]);
-            });
-#endif
-        }
-    } else {
-        int dims_out[5], dims_in0[5], dims_in1[5];
-        int offset_out[5], offset_in0[5], offset_in1[5];
-        auto& child_edge_dims = getChildEdgeAt(0)->getDims();
-        auto& parent0_edge_dims = getParentEdgeAt(0)->getDims();
-        auto& parent1_edge_dims = getParentEdgeAt(1)->getDims();
-        dims_calc(dims_out, child_edge_dims);
-        dims_calc(dims_in0, parent0_edge_dims);
-        dims_calc(dims_in1, parent1_edge_dims);
-        offset_out_calc(offset_out, dims_out);
-        offset_in_calc(offset_in0, dims_in0, dims_out);
-        offset_in_calc(offset_in1, dims_in1, dims_out);
-
-#ifdef _WIN32
-        for (size_t i0 = 0; i0 < dims_out[0]; i0++) {
-        for (size_t i1 = 0; i1 < dims_out[1]; i1++) {
-            for (size_t i2 = 0; i2 < dims_out[2]; i2++) {
-                for (size_t i3 = 0; i3 < dims_out[3]; i3++) {
-                    for (size_t i4 = 0; i4 < dims_out[4]; i4++) {
-                        size_t index_out = i0 * offset_out[0] + i1 * offset_out[1] + i2 * offset_out[2] + i3 * offset_out[3] + i4 * offset_out[4];
-                        size_t index_in0 = i0 * offset_in0[0] + i1 * offset_in0[1] + i2 * offset_in0[2] + i3 * offset_in0[3] + i4 * offset_in0[4];
-                        size_t index_in1 = i0 * offset_in1[0] + i1 * offset_in1[1] + i2 * offset_in1[2] + i3 * offset_in1[3] + i4 * offset_in1[4];
-                        dst_ptr[index_out] = std::min(src0_ptr[index_in0], (T0)src1_ptr[index_in1]);
-                    }
-                }
-            }
-        }
-    }
-#else
-        parallel_for4d(dims_out[0], dims_out[1], dims_out[2], dims_out[3], [&](size_t i0, size_t i1, size_t i2, size_t i3) {
-            for (int i4 = 0; i4 < dims_out[4]; i4++) {
-                size_t index_out = i0 * offset_out[0] + i1 * offset_out[1] + i2 * offset_out[2] + i3 * offset_out[3] + i4 * offset_out[4];
-                size_t index_in0 = i0 * offset_in0[0] + i1 * offset_in0[1] + i2 * offset_in0[2] + i3 * offset_in0[3] + i4 * offset_in0[4];
-                size_t index_in1 = i0 * offset_in1[0] + i1 * offset_in1[1] + i2 * offset_in1[2] + i3 * offset_in1[3] + i4 * offset_in1[4];
-                dst_ptr[index_out] = std::min(src0_ptr[index_in0], (T0)src1_ptr[index_in1]);
-            }
-        });
-#endif
-        for (size_t n = 2; n < getParentEdges().size(); n++) {
-            const T1 *src_ptr = reinterpret_cast<const T1 *>(getParentEdgeAt(n)->getMemory().GetData()) +
-                                getParentEdgeAt(n)->getMemory().GetDescriptor().data.layout_desc.blocking.offset_padding;
-
-            auto& parent_edge_dims = getParentEdgeAt(n)->getDims();
-            dims_calc(dims_in1, parent_edge_dims);
-            offset_in_calc(offset_in1, dims_in1, dims_out);
-
-#ifdef _WIN32
-            for (size_t i0 = 0; i0 < dims_out[0]; i0++) {
-            for (size_t i1 = 0; i1 < dims_out[1]; i1++) {
-                for (size_t i2 = 0; i2 < dims_out[2]; i2++) {
-                    for (size_t i3 = 0; i3 < dims_out[3]; i3++) {
-                        for (size_t i4 = 0; i4 < dims_out[4]; i4++) {
-                            size_t index_out = i0 * offset_out[0] + i1 * offset_out[1] + i2 * offset_out[2] + i3 * offset_out[3] + i4 * offset_out[4];
-                            size_t index_in = i0 * offset_in1[0] + i1 * offset_in1[1] + i2 * offset_in1[2] + i3 * offset_in1[3] + i4 * offset_in1[4];
-                            dst_ptr[index_out] = std::min(dst_ptr[index_out], (T0)src_ptr[index_in]);
-                        }
-                    }
-                }
-            }
-        }
-#else
-            parallel_for4d(dims_out[0], dims_out[1], dims_out[2], dims_out[3], [&](size_t i0, size_t i1, size_t i2, size_t i3) {
-                for (int i4 = 0; i4 < dims_out[4]; i4++) {
-                    size_t index_out = i0 * offset_out[0] + i1 * offset_out[1] + i2 * offset_out[2] + i3 * offset_out[3] + i4 * offset_out[4];
-                    size_t index_in = i0 * offset_in1[0] + i1 * offset_in1[1] + i2 * offset_in1[2] + i3 * offset_in1[3] + i4 * offset_in1[4];
-                    dst_ptr[index_out] = std::min(dst_ptr[index_out], (T0)src_ptr[index_in]);
-                }
-            });
-#endif
-        }
-    }
-}
-
-template <typename T0, typename T1> void MKLDNNEltwiseNode::eltwise_div(
-        const T0 *src0_ptr, const T1 *src1_ptr, T0 *dst_ptr, const size_t dst_data_size) {
-    if (!broadcast) {
-#ifdef _WIN32
-        for (size_t i = 0; i < dst_data_size; i++) {
-            dst_ptr[i] = src0_ptr[i] / src1_ptr[i];
-    }
-#else
-        parallel_for(dst_data_size, [&](size_t i) {
-            dst_ptr[i] = src0_ptr[i] / src1_ptr[i];
-        });
-#endif
-        for (int j = 2; j < getParentEdges().size(); j++) {
-            const T1 *src_ptr = reinterpret_cast<const T1*>(getParentEdgeAt(j)->getMemory().GetData()) +
-                                getParentEdgeAt(j)->getMemory().GetDescriptor().data.layout_desc.blocking.offset_padding;
-#ifdef _WIN32
-            for (size_t i = 0; i < dst_data_size; i++) {
-                dst_ptr[i] = dst_ptr[i] / src_ptr[i];
-            }
-#else
-            parallel_for(dst_data_size, [&](size_t i) {
-                dst_ptr[i] = dst_ptr[i] / src_ptr[i];
-            });
-#endif
-        }
-    } else {
-        int dims_out[5], dims_in0[5], dims_in1[5];
-        int offset_out[5], offset_in0[5], offset_in1[5];
-        auto& child_edge_dims = getChildEdgeAt(0)->getDims();
-        auto& parent0_edge_dims = getParentEdgeAt(0)->getDims();
-        auto& parent1_edge_dims = getParentEdgeAt(1)->getDims();
-        dims_calc(dims_out, child_edge_dims);
-        dims_calc(dims_in0, parent0_edge_dims);
-        dims_calc(dims_in1, parent1_edge_dims);
-        offset_out_calc(offset_out, dims_out);
-        offset_in_calc(offset_in0, dims_in0, dims_out);
-        offset_in_calc(offset_in1, dims_in1, dims_out);
-
-#ifdef _WIN32
-        for (size_t i0 = 0; i0 < dims_out[0]; i0++) {
-        for (size_t i1 = 0; i1 < dims_out[1]; i1++) {
-            for (size_t i2 = 0; i2 < dims_out[2]; i2++) {
-                for (size_t i3 = 0; i3 < dims_out[3]; i3++) {
-                    for (size_t i4 = 0; i4 < dims_out[4]; i4++) {
-                        size_t index_out = i0 * offset_out[0] + i1 * offset_out[1] + i2 * offset_out[2] + i3 * offset_out[3] + i4 * offset_out[4];
-                        size_t index_in0 = i0 * offset_in0[0] + i1 * offset_in0[1] + i2 * offset_in0[2] + i3 * offset_in0[3] + i4 * offset_in0[4];
-                        size_t index_in1 = i0 * offset_in1[0] + i1 * offset_in1[1] + i2 * offset_in1[2] + i3 * offset_in1[3] + i4 * offset_in1[4];
-                        dst_ptr[index_out] = src0_ptr[index_in0] / src1_ptr[index_in1];
-                    }
-                }
-            }
-        }
-    }
-#else
-        parallel_for4d(dims_out[0], dims_out[1], dims_out[2], dims_out[3], [&](size_t i0, size_t i1, size_t i2, size_t i3) {
-            for (int i4 = 0; i4 < dims_out[4]; i4++) {
-                size_t index_out = i0 * offset_out[0] + i1 * offset_out[1] + i2 * offset_out[2] + i3 * offset_out[3] + i4 * offset_out[4];
-                size_t index_in0 = i0 * offset_in0[0] + i1 * offset_in0[1] + i2 * offset_in0[2] + i3 * offset_in0[3] + i4 * offset_in0[4];
-                size_t index_in1 = i0 * offset_in1[0] + i1 * offset_in1[1] + i2 * offset_in1[2] + i3 * offset_in1[3] + i4 * offset_in1[4];
-                dst_ptr[index_out] = src0_ptr[index_in0] / src1_ptr[index_in1];
-            }
-        });
-#endif
-        for (size_t n = 2; n < getParentEdges().size(); n++) {
-            const T1 *src_ptr = reinterpret_cast<const T1 *>(getParentEdgeAt(n)->getMemory().GetData()) +
-                                getParentEdgeAt(n)->getMemory().GetDescriptor().data.layout_desc.blocking.offset_padding;
-
-            auto& parent_edge_dims = getParentEdgeAt(n)->getDims();
-            dims_calc(dims_in1, parent_edge_dims);
-            offset_in_calc(offset_in1, dims_in1, dims_out);
-
-#ifdef _WIN32
-            for (size_t i0 = 0; i0 < dims_out[0]; i0++) {
-            for (size_t i1 = 0; i1 < dims_out[1]; i1++) {
-                for (size_t i2 = 0; i2 < dims_out[2]; i2++) {
-                    for (size_t i3 = 0; i3 < dims_out[3]; i3++) {
-                        for (size_t i4 = 0; i4 < dims_out[4]; i4++) {
-                            size_t index_out = i0 * offset_out[0] + i1 * offset_out[1] + i2 * offset_out[2] + i3 * offset_out[3] + i4 * offset_out[4];
-                            size_t index_in = i0 * offset_in1[0] + i1 * offset_in1[1] + i2 * offset_in1[2] + i3 * offset_in1[3] + i4 * offset_in1[4];
-                            dst_ptr[index_out] = dst_ptr[index_out] / src_ptr[index_in];
-                        }
-                    }
-                }
-            }
-        }
-#else
-            parallel_for4d(dims_out[0], dims_out[1], dims_out[2], dims_out[3], [&](size_t i0, size_t i1, size_t i2, size_t i3) {
-                for (int i4 = 0; i4 < dims_out[4]; i4++) {
-                    size_t index_out = i0 * offset_out[0] + i1 * offset_out[1] + i2 * offset_out[2] + i3 * offset_out[3] + i4 * offset_out[4];
-                    size_t index_in = i0 * offset_in1[0] + i1 * offset_in1[1] + i2 * offset_in1[2] + i3 * offset_in1[3] + i4 * offset_in1[4];
-                    dst_ptr[index_out] = dst_ptr[index_out] / src_ptr[index_in];
-                }
-            });
-#endif
-        }
-    }
-}
-
-template <typename T0, typename T1> void MKLDNNEltwiseNode::eltwise_squared_diff(
-        const T0 *src0_ptr, const T1 *src1_ptr, T0 *dst_ptr, const size_t dst_data_size) {
-    if (!broadcast) {
-#ifdef _WIN32
-        for (size_t i = 0; i < dst_data_size; i++) {
-            dst_ptr[i] = (src0_ptr[i] - src1_ptr[i]) * (src0_ptr[i] - src1_ptr[i]);
-    }
-#else
-        parallel_for(dst_data_size, [&](size_t i) {
-            dst_ptr[i] = (src0_ptr[i] - src1_ptr[i]) * (src0_ptr[i] - src1_ptr[i]);
-        });
-#endif
-        for (int j = 2; j < getParentEdges().size(); j++) {
-            const T1 *src_ptr = reinterpret_cast<const T1*>(getParentEdgeAt(j)->getMemory().GetData()) +
-                                getParentEdgeAt(j)->getMemory().GetDescriptor().data.layout_desc.blocking.offset_padding;
-#ifdef _WIN32
-            for (size_t i = 0; i < dst_data_size; i++) {
-                dst_ptr[i] = (dst_ptr[i] - src_ptr[i]) * (dst_ptr[i] - src_ptr[i]);
-            }
-#else
-            parallel_for(dst_data_size, [&](size_t i) {
-                dst_ptr[i] = (dst_ptr[i] - src_ptr[i]) * (dst_ptr[i] - src_ptr[i]);
-            });
-#endif
-        }
-    } else {
-        int dims_out[5], dims_in0[5], dims_in1[5];
-        int offset_out[5], offset_in0[5], offset_in1[5];
-        auto& child_edge_dims = getChildEdgeAt(0)->getDims();
-        auto& parent0_edge_dims = getParentEdgeAt(0)->getDims();
-        auto& parent1_edge_dims = getParentEdgeAt(1)->getDims();
-        dims_calc(dims_out, child_edge_dims);
-        dims_calc(dims_in0, parent0_edge_dims);
-        dims_calc(dims_in1, parent1_edge_dims);
-        offset_out_calc(offset_out, dims_out);
-        offset_in_calc(offset_in0, dims_in0, dims_out);
-        offset_in_calc(offset_in1, dims_in1, dims_out);
-
-#ifdef _WIN32
-        for (size_t i0 = 0; i0 < dims_out[0]; i0++) {
-        for (size_t i1 = 0; i1 < dims_out[1]; i1++) {
-            for (size_t i2 = 0; i2 < dims_out[2]; i2++) {
-                for (size_t i3 = 0; i3 < dims_out[3]; i3++) {
-                    for (size_t i4 = 0; i4 < dims_out[4]; i4++) {
-                        size_t index_out = i0 * offset_out[0] + i1 * offset_out[1] + i2 * offset_out[2] + i3 * offset_out[3] + i4 * offset_out[4];
-                        size_t index_in0 = i0 * offset_in0[0] + i1 * offset_in0[1] + i2 * offset_in0[2] + i3 * offset_in0[3] + i4 * offset_in0[4];
-                        size_t index_in1 = i0 * offset_in1[0] + i1 * offset_in1[1] + i2 * offset_in1[2] + i3 * offset_in1[3] + i4 * offset_in1[4];
-                        dst_ptr[index_out] = (src0_ptr[index_in0] - src1_ptr[index_in1]) * (src0_ptr[index_in0] - src1_ptr[index_in1]);
-                    }
-                }
-            }
-        }
-    }
-#else
-        parallel_for4d(dims_out[0], dims_out[1], dims_out[2], dims_out[3], [&](size_t i0, size_t i1, size_t i2, size_t i3) {
-            for (int i4 = 0; i4 < dims_out[4]; i4++) {
-                size_t index_out = i0 * offset_out[0] + i1 * offset_out[1] + i2 * offset_out[2] + i3 * offset_out[3] + i4 * offset_out[4];
-                size_t index_in0 = i0 * offset_in0[0] + i1 * offset_in0[1] + i2 * offset_in0[2] + i3 * offset_in0[3] + i4 * offset_in0[4];
-                size_t index_in1 = i0 * offset_in1[0] + i1 * offset_in1[1] + i2 * offset_in1[2] + i3 * offset_in1[3] + i4 * offset_in1[4];
-                dst_ptr[index_out] = (src0_ptr[index_in0] - src1_ptr[index_in1]) * (src0_ptr[index_in0] - src1_ptr[index_in1]);
-            }
-        });
-#endif
-        for (size_t n = 2; n < getParentEdges().size(); n++) {
-            const T1 *src_ptr = reinterpret_cast<const T1 *>(getParentEdgeAt(n)->getMemory().GetData()) +
-                                getParentEdgeAt(n)->getMemory().GetDescriptor().data.layout_desc.blocking.offset_padding;
-
-            auto& parent_edge_dims = getParentEdgeAt(n)->getDims();
-            dims_calc(dims_in1, parent_edge_dims);
-            offset_in_calc(offset_in1, dims_in1, dims_out);
-
-#ifdef _WIN32
-            for (size_t i0 = 0; i0 < dims_out[0]; i0++) {
-            for (size_t i1 = 0; i1 < dims_out[1]; i1++) {
-                for (size_t i2 = 0; i2 < dims_out[2]; i2++) {
-                    for (size_t i3 = 0; i3 < dims_out[3]; i3++) {
-                        for (size_t i4 = 0; i4 < dims_out[4]; i4++) {
-                            size_t index_out = i0 * offset_out[0] + i1 * offset_out[1] + i2 * offset_out[2] + i3 * offset_out[3] + i4 * offset_out[4];
-                            size_t index_in = i0 * offset_in1[0] + i1 * offset_in1[1] + i2 * offset_in1[2] + i3 * offset_in1[3] + i4 * offset_in1[4];
-                            dst_ptr[index_out] = (dst_ptr[index_out] - src_ptr[index_in]) * (dst_ptr[index_out] - src_ptr[index_in]);
-                        }
-                    }
-                }
-            }
-        }
-#else
-            parallel_for4d(dims_out[0], dims_out[1], dims_out[2], dims_out[3], [&](size_t i0, size_t i1, size_t i2, size_t i3) {
-                for (int i4 = 0; i4 < dims_out[4]; i4++) {
-                    size_t index_out = i0 * offset_out[0] + i1 * offset_out[1] + i2 * offset_out[2] + i3 * offset_out[3] + i4 * offset_out[4];
-                    size_t index_in = i0 * offset_in1[0] + i1 * offset_in1[1] + i2 * offset_in1[2] + i3 * offset_in1[3] + i4 * offset_in1[4];
-                    dst_ptr[index_out] = (dst_ptr[index_out] - src_ptr[index_in]) * (dst_ptr[index_out] - src_ptr[index_in]);
-                }
-            });
-#endif
-        }
-    }
-}
-
-template <typename T0, typename T1> void MKLDNNEltwiseNode::eltwise_floor_mod(
-        const T0 *src0_ptr, const T1 *src1_ptr, T0 *dst_ptr, const size_t dst_data_size) {
-    if (!broadcast) {
-#ifdef _WIN32
-        for (size_t i = 0; i < dst_data_size; i++) {
-            dst_ptr[i] = src0_ptr[i] - src0_ptr[i] / src1_ptr[i] * src1_ptr[i];
-    }
-#else
-        parallel_for(dst_data_size, [&](size_t i) {
-            dst_ptr[i] = src0_ptr[i] - src0_ptr[i] / src1_ptr[i] * src1_ptr[i];
-        });
-#endif
-        for (int j = 2; j < getParentEdges().size(); j++) {
-            const T1 *src_ptr = reinterpret_cast<const T1*>(getParentEdgeAt(j)->getMemory().GetData()) +
-                                getParentEdgeAt(j)->getMemory().GetDescriptor().data.layout_desc.blocking.offset_padding;
-#ifdef _WIN32
-            for (size_t i = 0; i < dst_data_size; i++) {
-                dst_ptr[i] = dst_ptr[i] - dst_ptr[i] / src_ptr[i] * src_ptr[i];
-            }
-#else
-            parallel_for(dst_data_size, [&](size_t i) {
-                dst_ptr[i] = dst_ptr[i] - dst_ptr[i] / src_ptr[i] * src_ptr[i];
-            });
-#endif
-        }
-    } else {
-        int dims_out[5], dims_in0[5], dims_in1[5];
-        int offset_out[5], offset_in0[5], offset_in1[5];
-        auto& child_edge_dims = getChildEdgeAt(0)->getDims();
-        auto& parent0_edge_dims = getParentEdgeAt(0)->getDims();
-        auto& parent1_edge_dims = getParentEdgeAt(1)->getDims();
-        dims_calc(dims_out, child_edge_dims);
-        dims_calc(dims_in0, parent0_edge_dims);
-        dims_calc(dims_in1, parent1_edge_dims);
-        offset_out_calc(offset_out, dims_out);
-        offset_in_calc(offset_in0, dims_in0, dims_out);
-        offset_in_calc(offset_in1, dims_in1, dims_out);
-
-#ifdef _WIN32
-        for (size_t i0 = 0; i0 < dims_out[0]; i0++) {
-        for (size_t i1 = 0; i1 < dims_out[1]; i1++) {
-            for (size_t i2 = 0; i2 < dims_out[2]; i2++) {
-                for (size_t i3 = 0; i3 < dims_out[3]; i3++) {
-                    for (size_t i4 = 0; i4 < dims_out[4]; i4++) {
-                        size_t index_out = i0 * offset_out[0] + i1 * offset_out[1] + i2 * offset_out[2] + i3 * offset_out[3] + i4 * offset_out[4];
-                        size_t index_in0 = i0 * offset_in0[0] + i1 * offset_in0[1] + i2 * offset_in0[2] + i3 * offset_in0[3] + i4 * offset_in0[4];
-                        size_t index_in1 = i0 * offset_in1[0] + i1 * offset_in1[1] + i2 * offset_in1[2] + i3 * offset_in1[3] + i4 * offset_in1[4];
-                        dst_ptr[index_out] = src0_ptr[index_in0] - src0_ptr[index_in0] / src1_ptr[index_in1] * src1_ptr[index_in1];
-                    }
-                }
-            }
-        }
-    }
-#else
-        parallel_for4d(dims_out[0], dims_out[1], dims_out[2], dims_out[3], [&](size_t i0, size_t i1, size_t i2, size_t i3) {
-            for (int i4 = 0; i4 < dims_out[4]; i4++) {
-                size_t index_out = i0 * offset_out[0] + i1 * offset_out[1] + i2 * offset_out[2] + i3 * offset_out[3] + i4 * offset_out[4];
-                size_t index_in0 = i0 * offset_in0[0] + i1 * offset_in0[1] + i2 * offset_in0[2] + i3 * offset_in0[3] + i4 * offset_in0[4];
-                size_t index_in1 = i0 * offset_in1[0] + i1 * offset_in1[1] + i2 * offset_in1[2] + i3 * offset_in1[3] + i4 * offset_in1[4];
-                dst_ptr[index_out] = src0_ptr[index_in0] - src0_ptr[index_in0] / src1_ptr[index_in1] * src1_ptr[index_in1];
-            }
-        });
-#endif
-        for (size_t n = 2; n < getParentEdges().size(); n++) {
-            const T1 *src_ptr = reinterpret_cast<const T1 *>(getParentEdgeAt(n)->getMemory().GetData()) +
-                                getParentEdgeAt(n)->getMemory().GetDescriptor().data.layout_desc.blocking.offset_padding;
-
-            auto& parent_edge_dims = getParentEdgeAt(n)->getDims();
-            dims_calc(dims_in1, parent_edge_dims);
-            offset_in_calc(offset_in1, dims_in1, dims_out);
-
-#ifdef _WIN32
-            for (size_t i0 = 0; i0 < dims_out[0]; i0++) {
-            for (size_t i1 = 0; i1 < dims_out[1]; i1++) {
-                for (size_t i2 = 0; i2 < dims_out[2]; i2++) {
-                    for (size_t i3 = 0; i3 < dims_out[3]; i3++) {
-                        for (size_t i4 = 0; i4 < dims_out[4]; i4++) {
-                            size_t index_out = i0 * offset_out[0] + i1 * offset_out[1] + i2 * offset_out[2] + i3 * offset_out[3] + i4 * offset_out[4];
-                            size_t index_in = i0 * offset_in1[0] + i1 * offset_in1[1] + i2 * offset_in1[2] + i3 * offset_in1[3] + i4 * offset_in1[4];
-                            dst_ptr[index_out] = dst_ptr[index_out] - dst_ptr[index_out] / src_ptr[index_in] * src_ptr[index_in];
-                        }
-                    }
-                }
-            }
-        }
-#else
-            parallel_for4d(dims_out[0], dims_out[1], dims_out[2], dims_out[3], [&](size_t i0, size_t i1, size_t i2, size_t i3) {
-                for (int i4 = 0; i4 < dims_out[4]; i4++) {
-                    size_t index_out = i0 * offset_out[0] + i1 * offset_out[1] + i2 * offset_out[2] + i3 * offset_out[3] + i4 * offset_out[4];
-                    size_t index_in = i0 * offset_in1[0] + i1 * offset_in1[1] + i2 * offset_in1[2] + i3 * offset_in1[3] + i4 * offset_in1[4];
-                    dst_ptr[index_out] = dst_ptr[index_out] - dst_ptr[index_out] / src_ptr[index_in] * src_ptr[index_in];
-                }
-            });
-#endif
-        }
-    }
-}
-
-template <typename T0, typename T1> void MKLDNNEltwiseNode::eltwise_pow(
-        const T0 *src0_ptr, const T1 *src1_ptr, T0 *dst_ptr, const size_t dst_data_size) {
-    if (!broadcast) {
-#ifdef _WIN32
-        for (size_t i = 0; i < dst_data_size; i++) {
-            dst_ptr[i] = std::pow(src0_ptr[i], src1_ptr[i]);
-    }
-#else
-        parallel_for(dst_data_size, [&](size_t i) {
-            dst_ptr[i] = std::pow(src0_ptr[i], src1_ptr[i]);
-        });
-#endif
-        for (int j = 2; j < getParentEdges().size(); j++) {
-            const T1 *src_ptr = reinterpret_cast<const T1*>(getParentEdgeAt(j)->getMemory().GetData()) +
-                                getParentEdgeAt(j)->getMemory().GetDescriptor().data.layout_desc.blocking.offset_padding;
-#ifdef _WIN32
-            for (size_t i = 0; i < dst_data_size; i++) {
-                dst_ptr[i] = std::pow(dst_ptr[i], src_ptr[i]);
-            }
-#else
-            parallel_for(dst_data_size, [&](size_t i) {
-                dst_ptr[i] = std::pow(dst_ptr[i], src_ptr[i]);
-            });
-#endif
-        }
-    } else {
-        int dims_out[5], dims_in0[5], dims_in1[5];
-        int offset_out[5], offset_in0[5], offset_in1[5];
-        auto& child_edge_dims = getChildEdgeAt(0)->getDims();
-        auto& parent0_edge_dims = getParentEdgeAt(0)->getDims();
-        auto& parent1_edge_dims = getParentEdgeAt(1)->getDims();
-        dims_calc(dims_out, child_edge_dims);
-        dims_calc(dims_in0, parent0_edge_dims);
-        dims_calc(dims_in1, parent1_edge_dims);
-        offset_out_calc(offset_out, dims_out);
-        offset_in_calc(offset_in0, dims_in0, dims_out);
-        offset_in_calc(offset_in1, dims_in1, dims_out);
-
-#ifdef _WIN32
-        for (size_t i0 = 0; i0 < dims_out[0]; i0++) {
-        for (size_t i1 = 0; i1 < dims_out[1]; i1++) {
-            for (size_t i2 = 0; i2 < dims_out[2]; i2++) {
-                for (size_t i3 = 0; i3 < dims_out[3]; i3++) {
-                    for (size_t i4 = 0; i4 < dims_out[4]; i4++) {
-                        size_t index_out = i0 * offset_out[0] + i1 * offset_out[1] + i2 * offset_out[2] + i3 * offset_out[3] + i4 * offset_out[4];
-                        size_t index_in0 = i0 * offset_in0[0] + i1 * offset_in0[1] + i2 * offset_in0[2] + i3 * offset_in0[3] + i4 * offset_in0[4];
-                        size_t index_in1 = i0 * offset_in1[0] + i1 * offset_in1[1] + i2 * offset_in1[2] + i3 * offset_in1[3] + i4 * offset_in1[4];
-                        dst_ptr[index_out] = std::pow(src0_ptr[index_in0], src1_ptr[index_in1]);
-                    }
-                }
-            }
-        }
-    }
-#else
-        parallel_for4d(dims_out[0], dims_out[1], dims_out[2], dims_out[3], [&](size_t i0, size_t i1, size_t i2, size_t i3) {
-            for (int i4 = 0; i4 < dims_out[4]; i4++) {
-                size_t index_out = i0 * offset_out[0] + i1 * offset_out[1] + i2 * offset_out[2] + i3 * offset_out[3] + i4 * offset_out[4];
-                size_t index_in0 = i0 * offset_in0[0] + i1 * offset_in0[1] + i2 * offset_in0[2] + i3 * offset_in0[3] + i4 * offset_in0[4];
-                size_t index_in1 = i0 * offset_in1[0] + i1 * offset_in1[1] + i2 * offset_in1[2] + i3 * offset_in1[3] + i4 * offset_in1[4];
-                dst_ptr[index_out] = std::pow(src0_ptr[index_in0], src1_ptr[index_in1]);
-            }
-        });
-#endif
-        for (size_t n = 2; n < getParentEdges().size(); n++) {
-            const T1 *src_ptr = reinterpret_cast<const T1 *>(getParentEdgeAt(n)->getMemory().GetData()) +
-                                getParentEdgeAt(n)->getMemory().GetDescriptor().data.layout_desc.blocking.offset_padding;
-
-            auto& parent_edge_dims = getParentEdgeAt(n)->getDims();
-            dims_calc(dims_in1, parent_edge_dims);
-            offset_in_calc(offset_in1, dims_in1, dims_out);
-
-#ifdef _WIN32
-            for (size_t i0 = 0; i0 < dims_out[0]; i0++) {
-            for (size_t i1 = 0; i1 < dims_out[1]; i1++) {
-                for (size_t i2 = 0; i2 < dims_out[2]; i2++) {
-                    for (size_t i3 = 0; i3 < dims_out[3]; i3++) {
-                        for (size_t i4 = 0; i4 < dims_out[4]; i4++) {
-                            size_t index_out = i0 * offset_out[0] + i1 * offset_out[1] + i2 * offset_out[2] + i3 * offset_out[3] + i4 * offset_out[4];
-                            size_t index_in = i0 * offset_in1[0] + i1 * offset_in1[1] + i2 * offset_in1[2] + i3 * offset_in1[3] + i4 * offset_in1[4];
-                            dst_ptr[index_out] = std::pow(dst_ptr[index_out], src_ptr[index_in]);
-                        }
-                    }
-                }
-            }
-        }
-#else
-            parallel_for4d(dims_out[0], dims_out[1], dims_out[2], dims_out[3], [&](size_t i0, size_t i1, size_t i2, size_t i3) {
-                for (int i4 = 0; i4 < dims_out[4]; i4++) {
-                    size_t index_out = i0 * offset_out[0] + i1 * offset_out[1] + i2 * offset_out[2] + i3 * offset_out[3] + i4 * offset_out[4];
-                    size_t index_in = i0 * offset_in1[0] + i1 * offset_in1[1] + i2 * offset_in1[2] + i3 * offset_in1[3] + i4 * offset_in1[4];
-                    dst_ptr[index_out] = std::pow(dst_ptr[index_out], src_ptr[index_in]);
-                }
-            });
-#endif
-        }
-    }
-}
-
-template <typename T0, typename T1, typename T2> void MKLDNNEltwiseNode::eltwise_equal(
-        const T0 *src0_ptr, const T1 *src1_ptr, T2 *dst_ptr, const size_t dst_data_size) {
-    if (!broadcast) {
-#ifdef _WIN32
-        for (size_t i = 0; i < dst_data_size; i++) {
-            dst_ptr[i] = src0_ptr[i] == src1_ptr[i];
-    }
-#else
-        parallel_for(dst_data_size, [&](size_t i) {
-            dst_ptr[i] = src0_ptr[i] == src1_ptr[i];
-        });
-#endif
-        for (int j = 2; j < getParentEdges().size(); j++) {
-            const T1 *src_ptr = reinterpret_cast<const T1*>(getParentEdgeAt(j)->getMemory().GetData()) +
-                                getParentEdgeAt(j)->getMemory().GetDescriptor().data.layout_desc.blocking.offset_padding;
-#ifdef _WIN32
-            for (size_t i = 0; i < dst_data_size; i++) {
-                dst_ptr[i] = dst_ptr[i] == src_ptr[i];
-            }
-#else
-            parallel_for(dst_data_size, [&](size_t i) {
-                dst_ptr[i] = dst_ptr[i] == src_ptr[i];
-            });
-#endif
-        }
-    } else {
-        int dims_out[5], dims_in0[5], dims_in1[5];
-        int offset_out[5], offset_in0[5], offset_in1[5];
-        auto& child_edge_dims = getChildEdgeAt(0)->getDims();
-        auto& parent0_edge_dims = getParentEdgeAt(0)->getDims();
-        auto& parent1_edge_dims = getParentEdgeAt(1)->getDims();
-        dims_calc(dims_out, child_edge_dims);
-        dims_calc(dims_in0, parent0_edge_dims);
-        dims_calc(dims_in1, parent1_edge_dims);
-        offset_out_calc(offset_out, dims_out);
-        offset_in_calc(offset_in0, dims_in0, dims_out);
-        offset_in_calc(offset_in1, dims_in1, dims_out);
-
-#ifdef _WIN32
-        for (size_t i0 = 0; i0 < dims_out[0]; i0++) {
-        for (size_t i1 = 0; i1 < dims_out[1]; i1++) {
-            for (size_t i2 = 0; i2 < dims_out[2]; i2++) {
-                for (size_t i3 = 0; i3 < dims_out[3]; i3++) {
-                    for (size_t i4 = 0; i4 < dims_out[4]; i4++) {
-                        size_t index_out = i0 * offset_out[0] + i1 * offset_out[1] + i2 * offset_out[2] + i3 * offset_out[3] + i4 * offset_out[4];
-                        size_t index_in0 = i0 * offset_in0[0] + i1 * offset_in0[1] + i2 * offset_in0[2] + i3 * offset_in0[3] + i4 * offset_in0[4];
-                        size_t index_in1 = i0 * offset_in1[0] + i1 * offset_in1[1] + i2 * offset_in1[2] + i3 * offset_in1[3] + i4 * offset_in1[4];
-                        dst_ptr[index_out] = src0_ptr[index_in0] == src1_ptr[index_in1];
-                    }
-                }
-            }
-        }
-    }
-#else
-        parallel_for4d(dims_out[0], dims_out[1], dims_out[2], dims_out[3], [&](size_t i0, size_t i1, size_t i2, size_t i3) {
-            for (int i4 = 0; i4 < dims_out[4]; i4++) {
-                size_t index_out = i0 * offset_out[0] + i1 * offset_out[1] + i2 * offset_out[2] + i3 * offset_out[3] + i4 * offset_out[4];
-                size_t index_in0 = i0 * offset_in0[0] + i1 * offset_in0[1] + i2 * offset_in0[2] + i3 * offset_in0[3] + i4 * offset_in0[4];
-                size_t index_in1 = i0 * offset_in1[0] + i1 * offset_in1[1] + i2 * offset_in1[2] + i3 * offset_in1[3] + i4 * offset_in1[4];
-                dst_ptr[index_out] = src0_ptr[index_in0] == src1_ptr[index_in1];
-            }
-        });
-#endif
-        for (size_t n = 2; n < getParentEdges().size(); n++) {
-            const T1 *src_ptr = reinterpret_cast<const T1 *>(getParentEdgeAt(n)->getMemory().GetData()) +
-                                getParentEdgeAt(n)->getMemory().GetDescriptor().data.layout_desc.blocking.offset_padding;
-
-            auto& parent_edge_dims = getParentEdgeAt(n)->getDims();
-            dims_calc(dims_in1, parent_edge_dims);
-            offset_in_calc(offset_in1, dims_in1, dims_out);
-
-#ifdef _WIN32
-            for (size_t i0 = 0; i0 < dims_out[0]; i0++) {
-            for (size_t i1 = 0; i1 < dims_out[1]; i1++) {
-                for (size_t i2 = 0; i2 < dims_out[2]; i2++) {
-                    for (size_t i3 = 0; i3 < dims_out[3]; i3++) {
-                        for (size_t i4 = 0; i4 < dims_out[4]; i4++) {
-                            size_t index_out = i0 * offset_out[0] + i1 * offset_out[1] + i2 * offset_out[2] + i3 * offset_out[3] + i4 * offset_out[4];
-                            size_t index_in = i0 * offset_in1[0] + i1 * offset_in1[1] + i2 * offset_in1[2] + i3 * offset_in1[3] + i4 * offset_in1[4];
-                            dst_ptr[index_out] = dst_ptr[index_out] == src_ptr[index_in];
-                        }
-                    }
-                }
-            }
-        }
-#else
-            parallel_for4d(dims_out[0], dims_out[1], dims_out[2], dims_out[3], [&](size_t i0, size_t i1, size_t i2, size_t i3) {
-                for (int i4 = 0; i4 < dims_out[4]; i4++) {
-                    size_t index_out = i0 * offset_out[0] + i1 * offset_out[1] + i2 * offset_out[2] + i3 * offset_out[3] + i4 * offset_out[4];
-                    size_t index_in = i0 * offset_in1[0] + i1 * offset_in1[1] + i2 * offset_in1[2] + i3 * offset_in1[3] + i4 * offset_in1[4];
-                    dst_ptr[index_out] = dst_ptr[index_out] == src_ptr[index_in];
-                }
-            });
-#endif
-        }
-    }
-}
-
-template <typename T0, typename T1, typename T2> void MKLDNNEltwiseNode::eltwise_not_equal(
-        const T0 *src0_ptr, const T1 *src1_ptr, T2 *dst_ptr, const size_t dst_data_size) {
-    if (!broadcast) {
-#ifdef _WIN32
-        for (size_t i = 0; i < dst_data_size; i++) {
-            dst_ptr[i] = src0_ptr[i] != src1_ptr[i];
-    }
-#else
-        parallel_for(dst_data_size, [&](size_t i) {
-            dst_ptr[i] = src0_ptr[i] != src1_ptr[i];
-        });
-#endif
-        for (int j = 2; j < getParentEdges().size(); j++) {
-            const T1 *src_ptr = reinterpret_cast<const T1*>(getParentEdgeAt(j)->getMemory().GetData()) +
-                                getParentEdgeAt(j)->getMemory().GetDescriptor().data.layout_desc.blocking.offset_padding;
-#ifdef _WIN32
-            for (size_t i = 0; i < dst_data_size; i++) {
-                dst_ptr[i] = dst_ptr[i] != src_ptr[i];
-            }
-#else
-            parallel_for(dst_data_size, [&](size_t i) {
-                dst_ptr[i] = dst_ptr[i] != src_ptr[i];
-            });
-#endif
-        }
-    } else {
-        int dims_out[5], dims_in0[5], dims_in1[5];
-        int offset_out[5], offset_in0[5], offset_in1[5];
-        auto& child_edge_dims = getChildEdgeAt(0)->getDims();
-        auto& parent0_edge_dims = getParentEdgeAt(0)->getDims();
-        auto& parent1_edge_dims = getParentEdgeAt(1)->getDims();
-        dims_calc(dims_out, child_edge_dims);
-        dims_calc(dims_in0, parent0_edge_dims);
-        dims_calc(dims_in1, parent1_edge_dims);
-        offset_out_calc(offset_out, dims_out);
-        offset_in_calc(offset_in0, dims_in0, dims_out);
-        offset_in_calc(offset_in1, dims_in1, dims_out);
-
-#ifdef _WIN32
-        for (size_t i0 = 0; i0 < dims_out[0]; i0++) {
-        for (size_t i1 = 0; i1 < dims_out[1]; i1++) {
-            for (size_t i2 = 0; i2 < dims_out[2]; i2++) {
-                for (size_t i3 = 0; i3 < dims_out[3]; i3++) {
-                    for (size_t i4 = 0; i4 < dims_out[4]; i4++) {
-                        size_t index_out = i0 * offset_out[0] + i1 * offset_out[1] + i2 * offset_out[2] + i3 * offset_out[3] + i4 * offset_out[4];
-                        size_t index_in0 = i0 * offset_in0[0] + i1 * offset_in0[1] + i2 * offset_in0[2] + i3 * offset_in0[3] + i4 * offset_in0[4];
-                        size_t index_in1 = i0 * offset_in1[0] + i1 * offset_in1[1] + i2 * offset_in1[2] + i3 * offset_in1[3] + i4 * offset_in1[4];
-                        dst_ptr[index_out] = src0_ptr[index_in0] != src1_ptr[index_in1];
-                    }
-                }
-            }
-        }
-    }
-#else
-        parallel_for4d(dims_out[0], dims_out[1], dims_out[2], dims_out[3], [&](size_t i0, size_t i1, size_t i2, size_t i3) {
-            for (int i4 = 0; i4 < dims_out[4]; i4++) {
-                size_t index_out = i0 * offset_out[0] + i1 * offset_out[1] + i2 * offset_out[2] + i3 * offset_out[3] + i4 * offset_out[4];
-                size_t index_in0 = i0 * offset_in0[0] + i1 * offset_in0[1] + i2 * offset_in0[2] + i3 * offset_in0[3] + i4 * offset_in0[4];
-                size_t index_in1 = i0 * offset_in1[0] + i1 * offset_in1[1] + i2 * offset_in1[2] + i3 * offset_in1[3] + i4 * offset_in1[4];
-                dst_ptr[index_out] = src0_ptr[index_in0] != src1_ptr[index_in1];
-            }
-        });
-#endif
-        for (size_t n = 2; n < getParentEdges().size(); n++) {
-            const T1 *src_ptr = reinterpret_cast<const T1 *>(getParentEdgeAt(n)->getMemory().GetData()) +
-                                getParentEdgeAt(n)->getMemory().GetDescriptor().data.layout_desc.blocking.offset_padding;
-
-            auto& parent_edge_dims = getParentEdgeAt(n)->getDims();
-            dims_calc(dims_in1, parent_edge_dims);
-            offset_in_calc(offset_in1, dims_in1, dims_out);
-
-#ifdef _WIN32
-            for (size_t i0 = 0; i0 < dims_out[0]; i0++) {
-            for (size_t i1 = 0; i1 < dims_out[1]; i1++) {
-                for (size_t i2 = 0; i2 < dims_out[2]; i2++) {
-                    for (size_t i3 = 0; i3 < dims_out[3]; i3++) {
-                        for (size_t i4 = 0; i4 < dims_out[4]; i4++) {
-                            size_t index_out = i0 * offset_out[0] + i1 * offset_out[1] + i2 * offset_out[2] + i3 * offset_out[3] + i4 * offset_out[4];
-                            size_t index_in = i0 * offset_in1[0] + i1 * offset_in1[1] + i2 * offset_in1[2] + i3 * offset_in1[3] + i4 * offset_in1[4];
-                            dst_ptr[index_out] = dst_ptr[index_out] != src_ptr[index_in];
-                        }
-                    }
-                }
-            }
-        }
-#else
-            parallel_for4d(dims_out[0], dims_out[1], dims_out[2], dims_out[3], [&](size_t i0, size_t i1, size_t i2, size_t i3) {
-                for (int i4 = 0; i4 < dims_out[4]; i4++) {
-                    size_t index_out = i0 * offset_out[0] + i1 * offset_out[1] + i2 * offset_out[2] + i3 * offset_out[3] + i4 * offset_out[4];
-                    size_t index_in = i0 * offset_in1[0] + i1 * offset_in1[1] + i2 * offset_in1[2] + i3 * offset_in1[3] + i4 * offset_in1[4];
-                    dst_ptr[index_out] = dst_ptr[index_out] != src_ptr[index_in];
-                }
-            });
-#endif
-        }
-    }
-}
-
-template <typename T0, typename T1, typename T2> void MKLDNNEltwiseNode::eltwise_less(
-        const T0 *src0_ptr, const T1 *src1_ptr, T2 *dst_ptr, const size_t dst_data_size) {
-    if (!broadcast) {
-#ifdef _WIN32
-        for (size_t i = 0; i < dst_data_size; i++) {
-            dst_ptr[i] = src0_ptr[i] < src1_ptr[i];
-    }
-#else
-        parallel_for(dst_data_size, [&](size_t i) {
-            dst_ptr[i] = src0_ptr[i] < src1_ptr[i];
-        });
-#endif
-        for (int j = 2; j < getParentEdges().size(); j++) {
-            const T1 *src_ptr = reinterpret_cast<const T1*>(getParentEdgeAt(j)->getMemory().GetData()) +
-                                getParentEdgeAt(j)->getMemory().GetDescriptor().data.layout_desc.blocking.offset_padding;
-#ifdef _WIN32
-            for (size_t i = 0; i < dst_data_size; i++) {
-                dst_ptr[i] = dst_ptr[i] < src_ptr[i];
-            }
-#else
-            parallel_for(dst_data_size, [&](size_t i) {
-                dst_ptr[i] = dst_ptr[i] < src_ptr[i];
-            });
-#endif
-        }
-    } else {
-        int dims_out[5], dims_in0[5], dims_in1[5];
-        int offset_out[5], offset_in0[5], offset_in1[5];
-        auto& child_edge_dims = getChildEdgeAt(0)->getDims();
-        auto& parent0_edge_dims = getParentEdgeAt(0)->getDims();
-        auto& parent1_edge_dims = getParentEdgeAt(1)->getDims();
-        dims_calc(dims_out, child_edge_dims);
-        dims_calc(dims_in0, parent0_edge_dims);
-        dims_calc(dims_in1, parent1_edge_dims);
-        offset_out_calc(offset_out, dims_out);
-        offset_in_calc(offset_in0, dims_in0, dims_out);
-        offset_in_calc(offset_in1, dims_in1, dims_out);
-
-#ifdef _WIN32
-        for (size_t i0 = 0; i0 < dims_out[0]; i0++) {
-        for (size_t i1 = 0; i1 < dims_out[1]; i1++) {
-            for (size_t i2 = 0; i2 < dims_out[2]; i2++) {
-                for (size_t i3 = 0; i3 < dims_out[3]; i3++) {
-                    for (size_t i4 = 0; i4 < dims_out[4]; i4++) {
-                        size_t index_out = i0 * offset_out[0] + i1 * offset_out[1] + i2 * offset_out[2] + i3 * offset_out[3] + i4 * offset_out[4];
-                        size_t index_in0 = i0 * offset_in0[0] + i1 * offset_in0[1] + i2 * offset_in0[2] + i3 * offset_in0[3] + i4 * offset_in0[4];
-                        size_t index_in1 = i0 * offset_in1[0] + i1 * offset_in1[1] + i2 * offset_in1[2] + i3 * offset_in1[3] + i4 * offset_in1[4];
-                        dst_ptr[index_out] = src0_ptr[index_in0] < src1_ptr[index_in1];
-                    }
-                }
-            }
-        }
-    }
-#else
-        parallel_for4d(dims_out[0], dims_out[1], dims_out[2], dims_out[3], [&](size_t i0, size_t i1, size_t i2, size_t i3) {
-            for (int i4 = 0; i4 < dims_out[4]; i4++) {
-                size_t index_out = i0 * offset_out[0] + i1 * offset_out[1] + i2 * offset_out[2] + i3 * offset_out[3] + i4 * offset_out[4];
-                size_t index_in0 = i0 * offset_in0[0] + i1 * offset_in0[1] + i2 * offset_in0[2] + i3 * offset_in0[3] + i4 * offset_in0[4];
-                size_t index_in1 = i0 * offset_in1[0] + i1 * offset_in1[1] + i2 * offset_in1[2] + i3 * offset_in1[3] + i4 * offset_in1[4];
-                dst_ptr[index_out] = src0_ptr[index_in0] < src1_ptr[index_in1];
-            }
-        });
-#endif
-        for (size_t n = 2; n < getParentEdges().size(); n++) {
-            const T1 *src_ptr = reinterpret_cast<const T1 *>(getParentEdgeAt(n)->getMemory().GetData()) +
-                                getParentEdgeAt(n)->getMemory().GetDescriptor().data.layout_desc.blocking.offset_padding;
-
-            auto& parent_edge_dims = getParentEdgeAt(n)->getDims();
-            dims_calc(dims_in1, parent_edge_dims);
-            offset_in_calc(offset_in1, dims_in1, dims_out);
-
-#ifdef _WIN32
-            for (size_t i0 = 0; i0 < dims_out[0]; i0++) {
-            for (size_t i1 = 0; i1 < dims_out[1]; i1++) {
-                for (size_t i2 = 0; i2 < dims_out[2]; i2++) {
-                    for (size_t i3 = 0; i3 < dims_out[3]; i3++) {
-                        for (size_t i4 = 0; i4 < dims_out[4]; i4++) {
-                            size_t index_out = i0 * offset_out[0] + i1 * offset_out[1] + i2 * offset_out[2] + i3 * offset_out[3] + i4 * offset_out[4];
-                            size_t index_in = i0 * offset_in1[0] + i1 * offset_in1[1] + i2 * offset_in1[2] + i3 * offset_in1[3] + i4 * offset_in1[4];
-                            dst_ptr[index_out] = dst_ptr[index_out] < src_ptr[index_in];
-                        }
-                    }
-                }
-            }
-        }
-#else
-            parallel_for4d(dims_out[0], dims_out[1], dims_out[2], dims_out[3], [&](size_t i0, size_t i1, size_t i2, size_t i3) {
-                for (int i4 = 0; i4 < dims_out[4]; i4++) {
-                    size_t index_out = i0 * offset_out[0] + i1 * offset_out[1] + i2 * offset_out[2] + i3 * offset_out[3] + i4 * offset_out[4];
-                    size_t index_in = i0 * offset_in1[0] + i1 * offset_in1[1] + i2 * offset_in1[2] + i3 * offset_in1[3] + i4 * offset_in1[4];
-                    dst_ptr[index_out] = dst_ptr[index_out] < src_ptr[index_in];
-                }
-            });
-#endif
-        }
-    }
-}
-
-template <typename T0, typename T1, typename T2> void MKLDNNEltwiseNode::eltwise_less_equal(
-        const T0 *src0_ptr, const T1 *src1_ptr, T2 *dst_ptr, const size_t dst_data_size) {
-    if (!broadcast) {
-#ifdef _WIN32
-        for (size_t i = 0; i < dst_data_size; i++) {
-            dst_ptr[i] = src0_ptr[i] <= src1_ptr[i];
-    }
-#else
-        parallel_for(dst_data_size, [&](size_t i) {
-            dst_ptr[i] = src0_ptr[i] <= src1_ptr[i];
-        });
-#endif
-        for (int j = 2; j < getParentEdges().size(); j++) {
-            const T1 *src_ptr = reinterpret_cast<const T1*>(getParentEdgeAt(j)->getMemory().GetData()) +
-                                getParentEdgeAt(j)->getMemory().GetDescriptor().data.layout_desc.blocking.offset_padding;
-#ifdef _WIN32
-            for (size_t i = 0; i < dst_data_size; i++) {
-                dst_ptr[i] = dst_ptr[i] <= src_ptr[i];
-            }
-#else
-            parallel_for(dst_data_size, [&](size_t i) {
-                dst_ptr[i] = dst_ptr[i] <= src_ptr[i];
-            });
-#endif
-        }
-    } else {
-        int dims_out[5], dims_in0[5], dims_in1[5];
-        int offset_out[5], offset_in0[5], offset_in1[5];
-        auto& child_edge_dims = getChildEdgeAt(0)->getDims();
-        auto& parent0_edge_dims = getParentEdgeAt(0)->getDims();
-        auto& parent1_edge_dims = getParentEdgeAt(1)->getDims();
-        dims_calc(dims_out, child_edge_dims);
-        dims_calc(dims_in0, parent0_edge_dims);
-        dims_calc(dims_in1, parent1_edge_dims);
-        offset_out_calc(offset_out, dims_out);
-        offset_in_calc(offset_in0, dims_in0, dims_out);
-        offset_in_calc(offset_in1, dims_in1, dims_out);
-
-#ifdef _WIN32
-        for (size_t i0 = 0; i0 < dims_out[0]; i0++) {
-        for (size_t i1 = 0; i1 < dims_out[1]; i1++) {
-            for (size_t i2 = 0; i2 < dims_out[2]; i2++) {
-                for (size_t i3 = 0; i3 < dims_out[3]; i3++) {
-                    for (size_t i4 = 0; i4 < dims_out[4]; i4++) {
-                        size_t index_out = i0 * offset_out[0] + i1 * offset_out[1] + i2 * offset_out[2] + i3 * offset_out[3] + i4 * offset_out[4];
-                        size_t index_in0 = i0 * offset_in0[0] + i1 * offset_in0[1] + i2 * offset_in0[2] + i3 * offset_in0[3] + i4 * offset_in0[4];
-                        size_t index_in1 = i0 * offset_in1[0] + i1 * offset_in1[1] + i2 * offset_in1[2] + i3 * offset_in1[3] + i4 * offset_in1[4];
-                        dst_ptr[index_out] = src0_ptr[index_in0] <= src1_ptr[index_in1];
-                    }
-                }
-            }
-        }
-    }
-#else
-        parallel_for4d(dims_out[0], dims_out[1], dims_out[2], dims_out[3], [&](size_t i0, size_t i1, size_t i2, size_t i3) {
-            for (int i4 = 0; i4 < dims_out[4]; i4++) {
-                size_t index_out = i0 * offset_out[0] + i1 * offset_out[1] + i2 * offset_out[2] + i3 * offset_out[3] + i4 * offset_out[4];
-                size_t index_in0 = i0 * offset_in0[0] + i1 * offset_in0[1] + i2 * offset_in0[2] + i3 * offset_in0[3] + i4 * offset_in0[4];
-                size_t index_in1 = i0 * offset_in1[0] + i1 * offset_in1[1] + i2 * offset_in1[2] + i3 * offset_in1[3] + i4 * offset_in1[4];
-                dst_ptr[index_out] = src0_ptr[index_in0] <= src1_ptr[index_in1];
-            }
-        });
-#endif
-        for (size_t n = 2; n < getParentEdges().size(); n++) {
-            const T1 *src_ptr = reinterpret_cast<const T1 *>(getParentEdgeAt(n)->getMemory().GetData()) +
-                                getParentEdgeAt(n)->getMemory().GetDescriptor().data.layout_desc.blocking.offset_padding;
-
-            auto& parent_edge_dims = getParentEdgeAt(n)->getDims();
-            dims_calc(dims_in1, parent_edge_dims);
-            offset_in_calc(offset_in1, dims_in1, dims_out);
-
-#ifdef _WIN32
-            for (size_t i0 = 0; i0 < dims_out[0]; i0++) {
-            for (size_t i1 = 0; i1 < dims_out[1]; i1++) {
-                for (size_t i2 = 0; i2 < dims_out[2]; i2++) {
-                    for (size_t i3 = 0; i3 < dims_out[3]; i3++) {
-                        for (size_t i4 = 0; i4 < dims_out[4]; i4++) {
-                            size_t index_out = i0 * offset_out[0] + i1 * offset_out[1] + i2 * offset_out[2] + i3 * offset_out[3] + i4 * offset_out[4];
-                            size_t index_in = i0 * offset_in1[0] + i1 * offset_in1[1] + i2 * offset_in1[2] + i3 * offset_in1[3] + i4 * offset_in1[4];
-                            dst_ptr[index_out] = dst_ptr[index_out] <= src_ptr[index_in];
-                        }
-                    }
-                }
-            }
-        }
-#else
-            parallel_for4d(dims_out[0], dims_out[1], dims_out[2], dims_out[3], [&](size_t i0, size_t i1, size_t i2, size_t i3) {
-                for (int i4 = 0; i4 < dims_out[4]; i4++) {
-                    size_t index_out = i0 * offset_out[0] + i1 * offset_out[1] + i2 * offset_out[2] + i3 * offset_out[3] + i4 * offset_out[4];
-                    size_t index_in = i0 * offset_in1[0] + i1 * offset_in1[1] + i2 * offset_in1[2] + i3 * offset_in1[3] + i4 * offset_in1[4];
-                    dst_ptr[index_out] = dst_ptr[index_out] <= src_ptr[index_in];
-                }
-            });
-#endif
-        }
-    }
-}
-
-template <typename T0, typename T1, typename T2> void MKLDNNEltwiseNode::eltwise_greater(
-        const T0 *src0_ptr, const T1 *src1_ptr, T2 *dst_ptr, const size_t dst_data_size) {
-    if (!broadcast) {
-#ifdef _WIN32
-        for (size_t i = 0; i < dst_data_size; i++) {
-            dst_ptr[i] = src0_ptr[i] > src1_ptr[i];
-    }
-#else
-        parallel_for(dst_data_size, [&](size_t i) {
-            dst_ptr[i] = src0_ptr[i] > src1_ptr[i];
-        });
-#endif
-        for (int j = 2; j < getParentEdges().size(); j++) {
-            const T1 *src_ptr = reinterpret_cast<const T1*>(getParentEdgeAt(j)->getMemory().GetData()) +
-                                getParentEdgeAt(j)->getMemory().GetDescriptor().data.layout_desc.blocking.offset_padding;
-#ifdef _WIN32
-            for (size_t i = 0; i < dst_data_size; i++) {
-                dst_ptr[i] = dst_ptr[i] > src_ptr[i];
-            }
-#else
-            parallel_for(dst_data_size, [&](size_t i) {
-                dst_ptr[i] = dst_ptr[i] > src_ptr[i];
-            });
-#endif
-        }
-    } else {
-        int dims_out[5], dims_in0[5], dims_in1[5];
-        int offset_out[5], offset_in0[5], offset_in1[5];
-        auto& child_edge_dims = getChildEdgeAt(0)->getDims();
-        auto& parent0_edge_dims = getParentEdgeAt(0)->getDims();
-        auto& parent1_edge_dims = getParentEdgeAt(1)->getDims();
-        dims_calc(dims_out, child_edge_dims);
-        dims_calc(dims_in0, parent0_edge_dims);
-        dims_calc(dims_in1, parent1_edge_dims);
-        offset_out_calc(offset_out, dims_out);
-        offset_in_calc(offset_in0, dims_in0, dims_out);
-        offset_in_calc(offset_in1, dims_in1, dims_out);
-
-#ifdef _WIN32
-        for (size_t i0 = 0; i0 < dims_out[0]; i0++) {
-        for (size_t i1 = 0; i1 < dims_out[1]; i1++) {
-            for (size_t i2 = 0; i2 < dims_out[2]; i2++) {
-                for (size_t i3 = 0; i3 < dims_out[3]; i3++) {
-                    for (size_t i4 = 0; i4 < dims_out[4]; i4++) {
-                        size_t index_out = i0 * offset_out[0] + i1 * offset_out[1] + i2 * offset_out[2] + i3 * offset_out[3] + i4 * offset_out[4];
-                        size_t index_in0 = i0 * offset_in0[0] + i1 * offset_in0[1] + i2 * offset_in0[2] + i3 * offset_in0[3] + i4 * offset_in0[4];
-                        size_t index_in1 = i0 * offset_in1[0] + i1 * offset_in1[1] + i2 * offset_in1[2] + i3 * offset_in1[3] + i4 * offset_in1[4];
-                        dst_ptr[index_out] = src0_ptr[index_in0] > src1_ptr[index_in1];
-                    }
-                }
-            }
-        }
-    }
-#else
-        parallel_for4d(dims_out[0], dims_out[1], dims_out[2], dims_out[3], [&](size_t i0, size_t i1, size_t i2, size_t i3) {
-            for (int i4 = 0; i4 < dims_out[4]; i4++) {
-                size_t index_out = i0 * offset_out[0] + i1 * offset_out[1] + i2 * offset_out[2] + i3 * offset_out[3] + i4 * offset_out[4];
-                size_t index_in0 = i0 * offset_in0[0] + i1 * offset_in0[1] + i2 * offset_in0[2] + i3 * offset_in0[3] + i4 * offset_in0[4];
-                size_t index_in1 = i0 * offset_in1[0] + i1 * offset_in1[1] + i2 * offset_in1[2] + i3 * offset_in1[3] + i4 * offset_in1[4];
-                dst_ptr[index_out] = src0_ptr[index_in0] > src1_ptr[index_in1];
-            }
-        });
-#endif
-        for (size_t n = 2; n < getParentEdges().size(); n++) {
-            const T1 *src_ptr = reinterpret_cast<const T1 *>(getParentEdgeAt(n)->getMemory().GetData()) +
-                                getParentEdgeAt(n)->getMemory().GetDescriptor().data.layout_desc.blocking.offset_padding;
-
-            auto& parent_edge_dims = getParentEdgeAt(n)->getDims();
-            dims_calc(dims_in1, parent_edge_dims);
-            offset_in_calc(offset_in1, dims_in1, dims_out);
-
-#ifdef _WIN32
-            for (size_t i0 = 0; i0 < dims_out[0]; i0++) {
-            for (size_t i1 = 0; i1 < dims_out[1]; i1++) {
-                for (size_t i2 = 0; i2 < dims_out[2]; i2++) {
-                    for (size_t i3 = 0; i3 < dims_out[3]; i3++) {
-                        for (size_t i4 = 0; i4 < dims_out[4]; i4++) {
-                            size_t index_out = i0 * offset_out[0] + i1 * offset_out[1] + i2 * offset_out[2] + i3 * offset_out[3] + i4 * offset_out[4];
-                            size_t index_in = i0 * offset_in1[0] + i1 * offset_in1[1] + i2 * offset_in1[2] + i3 * offset_in1[3] + i4 * offset_in1[4];
-                            dst_ptr[index_out] = dst_ptr[index_out] > src_ptr[index_in];
-                        }
-                    }
-                }
-            }
-        }
-#else
-            parallel_for4d(dims_out[0], dims_out[1], dims_out[2], dims_out[3], [&](size_t i0, size_t i1, size_t i2, size_t i3) {
-                for (int i4 = 0; i4 < dims_out[4]; i4++) {
-                    size_t index_out = i0 * offset_out[0] + i1 * offset_out[1] + i2 * offset_out[2] + i3 * offset_out[3] + i4 * offset_out[4];
-                    size_t index_in = i0 * offset_in1[0] + i1 * offset_in1[1] + i2 * offset_in1[2] + i3 * offset_in1[3] + i4 * offset_in1[4];
-                    dst_ptr[index_out] = dst_ptr[index_out] > src_ptr[index_in];
-                }
-            });
-#endif
-        }
-    }
-}
-
-template <typename T0, typename T1, typename T2> void MKLDNNEltwiseNode::eltwise_greater_equal(
-        const T0 *src0_ptr, const T1 *src1_ptr, T2 *dst_ptr, const size_t dst_data_size) {
-    if (!broadcast) {
-#ifdef _WIN32
-        for (size_t i = 0; i < dst_data_size; i++) {
-            dst_ptr[i] = src0_ptr[i] >= src1_ptr[i];
-    }
-#else
-        parallel_for(dst_data_size, [&](size_t i) {
-            dst_ptr[i] = src0_ptr[i] >= src1_ptr[i];
-        });
-#endif
-        for (int j = 2; j < getParentEdges().size(); j++) {
-            const T1 *src_ptr = reinterpret_cast<const T1*>(getParentEdgeAt(j)->getMemory().GetData()) +
-                                getParentEdgeAt(j)->getMemory().GetDescriptor().data.layout_desc.blocking.offset_padding;
-#ifdef _WIN32
-            for (size_t i = 0; i < dst_data_size; i++) {
-                dst_ptr[i] = dst_ptr[i] >= src_ptr[i];
-            }
-#else
-            parallel_for(dst_data_size, [&](size_t i) {
-                dst_ptr[i] = dst_ptr[i] >= src_ptr[i];
-            });
-#endif
-        }
-    } else {
-        int dims_out[5], dims_in0[5], dims_in1[5];
-        int offset_out[5], offset_in0[5], offset_in1[5];
-        auto& child_edge_dims = getChildEdgeAt(0)->getDims();
-        auto& parent0_edge_dims = getParentEdgeAt(0)->getDims();
-        auto& parent1_edge_dims = getParentEdgeAt(1)->getDims();
-        dims_calc(dims_out, child_edge_dims);
-        dims_calc(dims_in0, parent0_edge_dims);
-        dims_calc(dims_in1, parent1_edge_dims);
-        offset_out_calc(offset_out, dims_out);
-        offset_in_calc(offset_in0, dims_in0, dims_out);
-        offset_in_calc(offset_in1, dims_in1, dims_out);
-
-#ifdef _WIN32
-        for (size_t i0 = 0; i0 < dims_out[0]; i0++) {
-        for (size_t i1 = 0; i1 < dims_out[1]; i1++) {
-            for (size_t i2 = 0; i2 < dims_out[2]; i2++) {
-                for (size_t i3 = 0; i3 < dims_out[3]; i3++) {
-                    for (size_t i4 = 0; i4 < dims_out[4]; i4++) {
-                        size_t index_out = i0 * offset_out[0] + i1 * offset_out[1] + i2 * offset_out[2] + i3 * offset_out[3] + i4 * offset_out[4];
-                        size_t index_in0 = i0 * offset_in0[0] + i1 * offset_in0[1] + i2 * offset_in0[2] + i3 * offset_in0[3] + i4 * offset_in0[4];
-                        size_t index_in1 = i0 * offset_in1[0] + i1 * offset_in1[1] + i2 * offset_in1[2] + i3 * offset_in1[3] + i4 * offset_in1[4];
-                        dst_ptr[index_out] = src0_ptr[index_in0] >= src1_ptr[index_in1];
-                    }
-                }
-            }
-        }
-    }
-#else
-        parallel_for4d(dims_out[0], dims_out[1], dims_out[2], dims_out[3], [&](size_t i0, size_t i1, size_t i2, size_t i3) {
-            for (int i4 = 0; i4 < dims_out[4]; i4++) {
-                size_t index_out = i0 * offset_out[0] + i1 * offset_out[1] + i2 * offset_out[2] + i3 * offset_out[3] + i4 * offset_out[4];
-                size_t index_in0 = i0 * offset_in0[0] + i1 * offset_in0[1] + i2 * offset_in0[2] + i3 * offset_in0[3] + i4 * offset_in0[4];
-                size_t index_in1 = i0 * offset_in1[0] + i1 * offset_in1[1] + i2 * offset_in1[2] + i3 * offset_in1[3] + i4 * offset_in1[4];
-                dst_ptr[index_out] = src0_ptr[index_in0] >= src1_ptr[index_in1];
-            }
-        });
-#endif
-        for (size_t n = 2; n < getParentEdges().size(); n++) {
-            const T1 *src_ptr = reinterpret_cast<const T1 *>(getParentEdgeAt(n)->getMemory().GetData()) +
-                                getParentEdgeAt(n)->getMemory().GetDescriptor().data.layout_desc.blocking.offset_padding;
-
-            auto& parent_edge_dims = getParentEdgeAt(n)->getDims();
-            dims_calc(dims_in1, parent_edge_dims);
-            offset_in_calc(offset_in1, dims_in1, dims_out);
-
-#ifdef _WIN32
-            for (size_t i0 = 0; i0 < dims_out[0]; i0++) {
-            for (size_t i1 = 0; i1 < dims_out[1]; i1++) {
-                for (size_t i2 = 0; i2 < dims_out[2]; i2++) {
-                    for (size_t i3 = 0; i3 < dims_out[3]; i3++) {
-                        for (size_t i4 = 0; i4 < dims_out[4]; i4++) {
-                            size_t index_out = i0 * offset_out[0] + i1 * offset_out[1] + i2 * offset_out[2] + i3 * offset_out[3] + i4 * offset_out[4];
-                            size_t index_in = i0 * offset_in1[0] + i1 * offset_in1[1] + i2 * offset_in1[2] + i3 * offset_in1[3] + i4 * offset_in1[4];
-                            dst_ptr[index_out] = dst_ptr[index_out] >= src_ptr[index_in];
-                        }
-                    }
-                }
-            }
-        }
-#else
-            parallel_for4d(dims_out[0], dims_out[1], dims_out[2], dims_out[3], [&](size_t i0, size_t i1, size_t i2, size_t i3) {
-                for (int i4 = 0; i4 < dims_out[4]; i4++) {
-                    size_t index_out = i0 * offset_out[0] + i1 * offset_out[1] + i2 * offset_out[2] + i3 * offset_out[3] + i4 * offset_out[4];
-                    size_t index_in = i0 * offset_in1[0] + i1 * offset_in1[1] + i2 * offset_in1[2] + i3 * offset_in1[3] + i4 * offset_in1[4];
-                    dst_ptr[index_out] = dst_ptr[index_out] >= src_ptr[index_in];
-                }
-            });
-#endif
-        }
-    }
-}
-
-template <typename T0, typename T1> void MKLDNNEltwiseNode::eltwise_logical_and(
-        const T0 *src0_ptr, const T1 *src1_ptr, T0 *dst_ptr, const size_t dst_data_size) {
-    if (!broadcast) {
-#ifdef _WIN32
-        for (size_t i = 0; i < dst_data_size; i++) {
-            dst_ptr[i] = src0_ptr[i] && src1_ptr[i];
-    }
-#else
-        parallel_for(dst_data_size, [&](size_t i) {
-            dst_ptr[i] = src0_ptr[i] && src1_ptr[i];
-        });
-#endif
-        for (int j = 2; j < getParentEdges().size(); j++) {
-            const T1 *src_ptr = reinterpret_cast<const T1*>(getParentEdgeAt(j)->getMemory().GetData()) +
-                                getParentEdgeAt(j)->getMemory().GetDescriptor().data.layout_desc.blocking.offset_padding;
-#ifdef _WIN32
-            for (size_t i = 0; i < dst_data_size; i++) {
-                dst_ptr[i] = dst_ptr[i] && src_ptr[i];
-            }
-#else
-            parallel_for(dst_data_size, [&](size_t i) {
-                dst_ptr[i] = dst_ptr[i] && src_ptr[i];
-            });
-#endif
-        }
-    } else {
-        int dims_out[5], dims_in0[5], dims_in1[5];
-        int offset_out[5], offset_in0[5], offset_in1[5];
-        auto& child_edge_dims = getChildEdgeAt(0)->getDims();
-        auto& parent0_edge_dims = getParentEdgeAt(0)->getDims();
-        auto& parent1_edge_dims = getParentEdgeAt(1)->getDims();
-        dims_calc(dims_out, child_edge_dims);
-        dims_calc(dims_in0, parent0_edge_dims);
-        dims_calc(dims_in1, parent1_edge_dims);
-        offset_out_calc(offset_out, dims_out);
-        offset_in_calc(offset_in0, dims_in0, dims_out);
-        offset_in_calc(offset_in1, dims_in1, dims_out);
-
-#ifdef _WIN32
-        for (size_t i0 = 0; i0 < dims_out[0]; i0++) {
-        for (size_t i1 = 0; i1 < dims_out[1]; i1++) {
-            for (size_t i2 = 0; i2 < dims_out[2]; i2++) {
-                for (size_t i3 = 0; i3 < dims_out[3]; i3++) {
-                    for (size_t i4 = 0; i4 < dims_out[4]; i4++) {
-                        size_t index_out = i0 * offset_out[0] + i1 * offset_out[1] + i2 * offset_out[2] + i3 * offset_out[3] + i4 * offset_out[4];
-                        size_t index_in0 = i0 * offset_in0[0] + i1 * offset_in0[1] + i2 * offset_in0[2] + i3 * offset_in0[3] + i4 * offset_in0[4];
-                        size_t index_in1 = i0 * offset_in1[0] + i1 * offset_in1[1] + i2 * offset_in1[2] + i3 * offset_in1[3] + i4 * offset_in1[4];
-                        dst_ptr[index_out] = src0_ptr[index_in0] && src1_ptr[index_in1];
-                    }
-                }
-            }
-        }
-    }
-#else
-        parallel_for4d(dims_out[0], dims_out[1], dims_out[2], dims_out[3], [&](size_t i0, size_t i1, size_t i2, size_t i3) {
-            for (int i4 = 0; i4 < dims_out[4]; i4++) {
-                size_t index_out = i0 * offset_out[0] + i1 * offset_out[1] + i2 * offset_out[2] + i3 * offset_out[3] + i4 * offset_out[4];
-                size_t index_in0 = i0 * offset_in0[0] + i1 * offset_in0[1] + i2 * offset_in0[2] + i3 * offset_in0[3] + i4 * offset_in0[4];
-                size_t index_in1 = i0 * offset_in1[0] + i1 * offset_in1[1] + i2 * offset_in1[2] + i3 * offset_in1[3] + i4 * offset_in1[4];
-                dst_ptr[index_out] = src0_ptr[index_in0] && src1_ptr[index_in1];
-            }
-        });
-#endif
-        for (size_t n = 2; n < getParentEdges().size(); n++) {
-            const T1 *src_ptr = reinterpret_cast<const T1 *>(getParentEdgeAt(n)->getMemory().GetData()) +
-                                getParentEdgeAt(n)->getMemory().GetDescriptor().data.layout_desc.blocking.offset_padding;
-
-            auto& parent_edge_dims = getParentEdgeAt(n)->getDims();
-            dims_calc(dims_in1, parent_edge_dims);
-            offset_in_calc(offset_in1, dims_in1, dims_out);
-
-#ifdef _WIN32
-            for (size_t i0 = 0; i0 < dims_out[0]; i0++) {
-            for (size_t i1 = 0; i1 < dims_out[1]; i1++) {
-                for (size_t i2 = 0; i2 < dims_out[2]; i2++) {
-                    for (size_t i3 = 0; i3 < dims_out[3]; i3++) {
-                        for (size_t i4 = 0; i4 < dims_out[4]; i4++) {
-                            size_t index_out = i0 * offset_out[0] + i1 * offset_out[1] + i2 * offset_out[2] + i3 * offset_out[3] + i4 * offset_out[4];
-                            size_t index_in = i0 * offset_in1[0] + i1 * offset_in1[1] + i2 * offset_in1[2] + i3 * offset_in1[3] + i4 * offset_in1[4];
-                            dst_ptr[index_out] = dst_ptr[index_out] && src_ptr[index_in];
-                        }
-                    }
-                }
-            }
-        }
-#else
-            parallel_for4d(dims_out[0], dims_out[1], dims_out[2], dims_out[3], [&](size_t i0, size_t i1, size_t i2, size_t i3) {
-                for (int i4 = 0; i4 < dims_out[4]; i4++) {
-                    size_t index_out = i0 * offset_out[0] + i1 * offset_out[1] + i2 * offset_out[2] + i3 * offset_out[3] + i4 * offset_out[4];
-                    size_t index_in = i0 * offset_in1[0] + i1 * offset_in1[1] + i2 * offset_in1[2] + i3 * offset_in1[3] + i4 * offset_in1[4];
-                    dst_ptr[index_out] = dst_ptr[index_out] && src_ptr[index_in];
-                }
-            });
-#endif
-        }
-    }
-}
-
-template <typename T0, typename T1> void MKLDNNEltwiseNode::eltwise_logical_or(
-        const T0 *src0_ptr, const T1 *src1_ptr, T0 *dst_ptr, const size_t dst_data_size) {
-    if (!broadcast) {
-#ifdef _WIN32
-        for (size_t i = 0; i < dst_data_size; i++) {
-            dst_ptr[i] = src0_ptr[i] || src1_ptr[i];
-    }
-#else
-        parallel_for(dst_data_size, [&](size_t i) {
-            dst_ptr[i] = src0_ptr[i] || src1_ptr[i];
-        });
-#endif
-        for (int j = 2; j < getParentEdges().size(); j++) {
-            const T1 *src_ptr = reinterpret_cast<const T1*>(getParentEdgeAt(j)->getMemory().GetData()) +
-                                getParentEdgeAt(j)->getMemory().GetDescriptor().data.layout_desc.blocking.offset_padding;
-#ifdef _WIN32
-            for (size_t i = 0; i < dst_data_size; i++) {
-                dst_ptr[i] = dst_ptr[i] || src_ptr[i];
-            }
-#else
-            parallel_for(dst_data_size, [&](size_t i) {
-                dst_ptr[i] = dst_ptr[i] || src_ptr[i];
-            });
-#endif
-        }
-    } else {
-        int dims_out[5], dims_in0[5], dims_in1[5];
-        int offset_out[5], offset_in0[5], offset_in1[5];
-        auto& child_edge_dims = getChildEdgeAt(0)->getDims();
-        auto& parent0_edge_dims = getParentEdgeAt(0)->getDims();
-        auto& parent1_edge_dims = getParentEdgeAt(1)->getDims();
-        dims_calc(dims_out, child_edge_dims);
-        dims_calc(dims_in0, parent0_edge_dims);
-        dims_calc(dims_in1, parent1_edge_dims);
-        offset_out_calc(offset_out, dims_out);
-        offset_in_calc(offset_in0, dims_in0, dims_out);
-        offset_in_calc(offset_in1, dims_in1, dims_out);
-
-#ifdef _WIN32
-        for (size_t i0 = 0; i0 < dims_out[0]; i0++) {
-        for (size_t i1 = 0; i1 < dims_out[1]; i1++) {
-            for (size_t i2 = 0; i2 < dims_out[2]; i2++) {
-                for (size_t i3 = 0; i3 < dims_out[3]; i3++) {
-                    for (size_t i4 = 0; i4 < dims_out[4]; i4++) {
-                        size_t index_out = i0 * offset_out[0] + i1 * offset_out[1] + i2 * offset_out[2] + i3 * offset_out[3] + i4 * offset_out[4];
-                        size_t index_in0 = i0 * offset_in0[0] + i1 * offset_in0[1] + i2 * offset_in0[2] + i3 * offset_in0[3] + i4 * offset_in0[4];
-                        size_t index_in1 = i0 * offset_in1[0] + i1 * offset_in1[1] + i2 * offset_in1[2] + i3 * offset_in1[3] + i4 * offset_in1[4];
-                        dst_ptr[index_out] = src0_ptr[index_in0] || src1_ptr[index_in1];
-                    }
-                }
-            }
-        }
-    }
-#else
-        parallel_for4d(dims_out[0], dims_out[1], dims_out[2], dims_out[3], [&](size_t i0, size_t i1, size_t i2, size_t i3) {
-            for (int i4 = 0; i4 < dims_out[4]; i4++) {
-                size_t index_out = i0 * offset_out[0] + i1 * offset_out[1] + i2 * offset_out[2] + i3 * offset_out[3] + i4 * offset_out[4];
-                size_t index_in0 = i0 * offset_in0[0] + i1 * offset_in0[1] + i2 * offset_in0[2] + i3 * offset_in0[3] + i4 * offset_in0[4];
-                size_t index_in1 = i0 * offset_in1[0] + i1 * offset_in1[1] + i2 * offset_in1[2] + i3 * offset_in1[3] + i4 * offset_in1[4];
-                dst_ptr[index_out] = src0_ptr[index_in0] || src1_ptr[index_in1];
-            }
-        });
-#endif
-        for (size_t n = 2; n < getParentEdges().size(); n++) {
-            const T1 *src_ptr = reinterpret_cast<const T1 *>(getParentEdgeAt(n)->getMemory().GetData()) +
-                                getParentEdgeAt(n)->getMemory().GetDescriptor().data.layout_desc.blocking.offset_padding;
-
-            auto& parent_edge_dims = getParentEdgeAt(n)->getDims();
-            dims_calc(dims_in1, parent_edge_dims);
-            offset_in_calc(offset_in1, dims_in1, dims_out);
-
-#ifdef _WIN32
-            for (size_t i0 = 0; i0 < dims_out[0]; i0++) {
-            for (size_t i1 = 0; i1 < dims_out[1]; i1++) {
-                for (size_t i2 = 0; i2 < dims_out[2]; i2++) {
-                    for (size_t i3 = 0; i3 < dims_out[3]; i3++) {
-                        for (size_t i4 = 0; i4 < dims_out[4]; i4++) {
-                            size_t index_out = i0 * offset_out[0] + i1 * offset_out[1] + i2 * offset_out[2] + i3 * offset_out[3] + i4 * offset_out[4];
-                            size_t index_in = i0 * offset_in1[0] + i1 * offset_in1[1] + i2 * offset_in1[2] + i3 * offset_in1[3] + i4 * offset_in1[4];
-                            dst_ptr[index_out] = dst_ptr[index_out] || src_ptr[index_in];
-                        }
-                    }
-                }
-            }
-        }
-#else
-            parallel_for4d(dims_out[0], dims_out[1], dims_out[2], dims_out[3], [&](size_t i0, size_t i1, size_t i2, size_t i3) {
-                for (int i4 = 0; i4 < dims_out[4]; i4++) {
-                    size_t index_out = i0 * offset_out[0] + i1 * offset_out[1] + i2 * offset_out[2] + i3 * offset_out[3] + i4 * offset_out[4];
-                    size_t index_in = i0 * offset_in1[0] + i1 * offset_in1[1] + i2 * offset_in1[2] + i3 * offset_in1[3] + i4 * offset_in1[4];
-                    dst_ptr[index_out] = dst_ptr[index_out] || src_ptr[index_in];
-                }
-            });
-#endif
-        }
-    }
-}
-
-template <typename T0, typename T1> void MKLDNNEltwiseNode::eltwise_logical_xor(
-        const T0 *src0_ptr, const T1 *src1_ptr, T0 *dst_ptr, const size_t dst_data_size) {
-    if (!broadcast) {
-#ifdef _WIN32
-        for (size_t i = 0; i < dst_data_size; i++) {
-            dst_ptr[i] = (src0_ptr[i] || src1_ptr[i]) - (src0_ptr[i] && src1_ptr[i]);
-    }
-#else
-        parallel_for(dst_data_size, [&](size_t i) {
-            dst_ptr[i] = (src0_ptr[i] || src1_ptr[i]) - (src0_ptr[i] && src1_ptr[i]);
-        });
-#endif
-        for (int j = 2; j < getParentEdges().size(); j++) {
-            const T1 *src_ptr = reinterpret_cast<const T1*>(getParentEdgeAt(j)->getMemory().GetData()) +
-                                getParentEdgeAt(j)->getMemory().GetDescriptor().data.layout_desc.blocking.offset_padding;
-#ifdef _WIN32
-            for (size_t i = 0; i < dst_data_size; i++) {
-                dst_ptr[i] = (dst_ptr[i] || src_ptr[i]) - (dst_ptr[i] && src_ptr[i]);
-            }
-#else
-            parallel_for(dst_data_size, [&](size_t i) {
-                dst_ptr[i] = (dst_ptr[i] || src_ptr[i]) - (dst_ptr[i] && src_ptr[i]);
-            });
-#endif
-        }
-    } else {
-        int dims_out[5], dims_in0[5], dims_in1[5];
-        int offset_out[5], offset_in0[5], offset_in1[5];
-        auto& child_edge_dims = getChildEdgeAt(0)->getDims();
-        auto& parent0_edge_dims = getParentEdgeAt(0)->getDims();
-        auto& parent1_edge_dims = getParentEdgeAt(1)->getDims();
-        dims_calc(dims_out, child_edge_dims);
-        dims_calc(dims_in0, parent0_edge_dims);
-        dims_calc(dims_in1, parent1_edge_dims);
-        offset_out_calc(offset_out, dims_out);
-        offset_in_calc(offset_in0, dims_in0, dims_out);
-        offset_in_calc(offset_in1, dims_in1, dims_out);
-
-#ifdef _WIN32
-        for (size_t i0 = 0; i0 < dims_out[0]; i0++) {
-        for (size_t i1 = 0; i1 < dims_out[1]; i1++) {
-            for (size_t i2 = 0; i2 < dims_out[2]; i2++) {
-                for (size_t i3 = 0; i3 < dims_out[3]; i3++) {
-                    for (size_t i4 = 0; i4 < dims_out[4]; i4++) {
-                        size_t index_out = i0 * offset_out[0] + i1 * offset_out[1] + i2 * offset_out[2] + i3 * offset_out[3] + i4 * offset_out[4];
-                        size_t index_in0 = i0 * offset_in0[0] + i1 * offset_in0[1] + i2 * offset_in0[2] + i3 * offset_in0[3] + i4 * offset_in0[4];
-                        size_t index_in1 = i0 * offset_in1[0] + i1 * offset_in1[1] + i2 * offset_in1[2] + i3 * offset_in1[3] + i4 * offset_in1[4];
-                        dst_ptr[index_out] = (src0_ptr[index_in0] || src1_ptr[index_in1]) - (src0_ptr[index_in0] && src1_ptr[index_in1]);
-                    }
-                }
-            }
-        }
-    }
-#else
-        parallel_for4d(dims_out[0], dims_out[1], dims_out[2], dims_out[3], [&](size_t i0, size_t i1, size_t i2, size_t i3) {
-            for (int i4 = 0; i4 < dims_out[4]; i4++) {
-                size_t index_out = i0 * offset_out[0] + i1 * offset_out[1] + i2 * offset_out[2] + i3 * offset_out[3] + i4 * offset_out[4];
-                size_t index_in0 = i0 * offset_in0[0] + i1 * offset_in0[1] + i2 * offset_in0[2] + i3 * offset_in0[3] + i4 * offset_in0[4];
-                size_t index_in1 = i0 * offset_in1[0] + i1 * offset_in1[1] + i2 * offset_in1[2] + i3 * offset_in1[3] + i4 * offset_in1[4];
-                dst_ptr[index_out] = (src0_ptr[index_in0] || src1_ptr[index_in1]) - (src0_ptr[index_in0] && src1_ptr[index_in1]);
-            }
-        });
-#endif
-        for (size_t n = 2; n < getParentEdges().size(); n++) {
-            const T1 *src_ptr = reinterpret_cast<const T1 *>(getParentEdgeAt(n)->getMemory().GetData()) +
-                                getParentEdgeAt(n)->getMemory().GetDescriptor().data.layout_desc.blocking.offset_padding;
-
-            auto& parent_edge_dims = getParentEdgeAt(n)->getDims();
-            dims_calc(dims_in1, parent_edge_dims);
-            offset_in_calc(offset_in1, dims_in1, dims_out);
-
-#ifdef _WIN32
-            for (size_t i0 = 0; i0 < dims_out[0]; i0++) {
-            for (size_t i1 = 0; i1 < dims_out[1]; i1++) {
-                for (size_t i2 = 0; i2 < dims_out[2]; i2++) {
-                    for (size_t i3 = 0; i3 < dims_out[3]; i3++) {
-                        for (size_t i4 = 0; i4 < dims_out[4]; i4++) {
-                            size_t index_out = i0 * offset_out[0] + i1 * offset_out[1] + i2 * offset_out[2] + i3 * offset_out[3] + i4 * offset_out[4];
-                            size_t index_in = i0 * offset_in1[0] + i1 * offset_in1[1] + i2 * offset_in1[2] + i3 * offset_in1[3] + i4 * offset_in1[4];
-                            dst_ptr[index_out] = (dst_ptr[index_out] || src_ptr[index_in]) - (dst_ptr[index_out] && src_ptr[index_in]);
-                        }
-                    }
-                }
-            }
-        }
-#else
-            parallel_for4d(dims_out[0], dims_out[1], dims_out[2], dims_out[3], [&](size_t i0, size_t i1, size_t i2, size_t i3) {
-                for (int i4 = 0; i4 < dims_out[4]; i4++) {
-                    size_t index_out = i0 * offset_out[0] + i1 * offset_out[1] + i2 * offset_out[2] + i3 * offset_out[3] + i4 * offset_out[4];
-                    size_t index_in = i0 * offset_in1[0] + i1 * offset_in1[1] + i2 * offset_in1[2] + i3 * offset_in1[3] + i4 * offset_in1[4];
-                    dst_ptr[index_out] = (dst_ptr[index_out] || src_ptr[index_in]) - (dst_ptr[index_out] && src_ptr[index_in]);
-                }
-            });
-#endif
-        }
-    }
-}
-
-template <typename T0, typename T1, typename T2> void MKLDNNEltwiseNode::ref_eltwise2(int in0, int in1) {
-    IE_ASSERT(getParentEdges().size() > 1);
-
-    auto& srcMemory0 = getParentEdgeAt(in0)->getMemory();
-    auto& srcMemory1 = getParentEdgeAt(in1)->getMemory();
-    const T0 *src0_ptr = reinterpret_cast<const T0*>(srcMemory0.GetData()) +
-        srcMemory0.GetDescriptor().data.layout_desc.blocking.offset_padding;
-    const T1 *src1_ptr = reinterpret_cast<const T1*>(srcMemory1.GetData()) +
-        srcMemory1.GetDescriptor().data.layout_desc.blocking.offset_padding;
-    T2 *dst_ptr = reinterpret_cast<T2*>(getChildEdgeAt(0)->getMemory().GetData()) +
-        getChildEdgeAt(0)->getMemory().GetDescriptor().data.layout_desc.blocking.offset_padding;
-
-    const size_t dst_data_size = srcMemory0.GetSize() / sizeof(T0) / srcMemory0.GetDims()[0] * batchToProcess();
-
-    switch (op) {
-        case EltwiseLayer::eOperation::Equal: eltwise_equal(src0_ptr, src1_ptr, dst_ptr, dst_data_size); break;
-        case EltwiseLayer::eOperation::Not_equal: eltwise_not_equal(src0_ptr, src1_ptr, dst_ptr, dst_data_size); break;
-        case EltwiseLayer::eOperation::Less: eltwise_less(src0_ptr, src1_ptr, dst_ptr, dst_data_size); break;
-        case EltwiseLayer::eOperation::Less_equal: eltwise_less_equal(src0_ptr, src1_ptr, dst_ptr, dst_data_size); break;
-        case EltwiseLayer::eOperation::Greater: eltwise_greater(src0_ptr, src1_ptr, dst_ptr, dst_data_size); break;
-        case EltwiseLayer::eOperation::Greater_equal: eltwise_greater_equal(src0_ptr, src1_ptr, dst_ptr, dst_data_size); break;
-        default: THROW_IE_EXCEPTION << "Unsupported operation type for Eltwise node";
-    }
-}
-
-template <typename T0, typename T1> void MKLDNNEltwiseNode::ref_eltwise(int in0, int in1) {
-    IE_ASSERT(getParentEdges().size() > 1);
-
-    auto& srcMemory0 = getParentEdgeAt(in0)->getMemory();
-    auto& srcMemory1 = getParentEdgeAt(in1)->getMemory();
-    const T0 *src0_ptr = reinterpret_cast<const T0*>(srcMemory0.GetData()) +
-            srcMemory0.GetDescriptor().data.layout_desc.blocking.offset_padding;
-    const T1 *src1_ptr = reinterpret_cast<const T1*>(srcMemory1.GetData()) +
-            srcMemory1.GetDescriptor().data.layout_desc.blocking.offset_padding;
-    T0 *dst_ptr = reinterpret_cast<T0*>(getChildEdgeAt(0)->getMemory().GetData()) +
-            getChildEdgeAt(0)->getMemory().GetDescriptor().data.layout_desc.blocking.offset_padding;
-
-    const size_t dst_data_size = srcMemory0.GetSize() / sizeof(T0) / srcMemory0.GetDims()[0] * batchToProcess();
-
-    switch (op) {
-        case EltwiseLayer::eOperation::Sum: eltwise_add(src0_ptr, src1_ptr, dst_ptr, dst_data_size); break;
-        case EltwiseLayer::eOperation::Prod: eltwise_prod(src0_ptr, src1_ptr, dst_ptr, dst_data_size); break;
-        case EltwiseLayer::eOperation::Max: eltwise_max(src0_ptr, src1_ptr, dst_ptr, dst_data_size); break;
-        case EltwiseLayer::eOperation::Sub: eltwise_sub(src0_ptr, src1_ptr, dst_ptr, dst_data_size); break;
-        case EltwiseLayer::eOperation::Min: eltwise_min(src0_ptr, src1_ptr, dst_ptr, dst_data_size); break;
-        case EltwiseLayer::eOperation::Div: eltwise_div(src0_ptr, src1_ptr, dst_ptr, dst_data_size); break;
-        case EltwiseLayer::eOperation::Squared_diff: eltwise_squared_diff(src0_ptr, src1_ptr, dst_ptr, dst_data_size); break;
-        case EltwiseLayer::eOperation::Floor_mod: eltwise_floor_mod(src0_ptr, src1_ptr, dst_ptr, dst_data_size); break;
-        case EltwiseLayer::eOperation::Pow: eltwise_pow(src0_ptr, src1_ptr, dst_ptr, dst_data_size); break;
-        case EltwiseLayer::eOperation::Equal: eltwise_equal(src0_ptr, src1_ptr, dst_ptr, dst_data_size); break;
-        case EltwiseLayer::eOperation::Not_equal: eltwise_not_equal(src0_ptr, src1_ptr, dst_ptr, dst_data_size); break;
-        case EltwiseLayer::eOperation::Less: eltwise_less(src0_ptr, src1_ptr, dst_ptr, dst_data_size); break;
-        case EltwiseLayer::eOperation::Less_equal: eltwise_less_equal(src0_ptr, src1_ptr, dst_ptr, dst_data_size); break;
-        case EltwiseLayer::eOperation::Greater: eltwise_greater(src0_ptr, src1_ptr, dst_ptr, dst_data_size); break;
-        case EltwiseLayer::eOperation::Greater_equal: eltwise_greater_equal(src0_ptr, src1_ptr, dst_ptr, dst_data_size); break;
-        case EltwiseLayer::eOperation::Logical_AND: eltwise_logical_and(src0_ptr, src1_ptr, dst_ptr, dst_data_size); break;
-        case EltwiseLayer::eOperation::Logical_OR: eltwise_logical_or(src0_ptr, src1_ptr, dst_ptr, dst_data_size); break;
-        case EltwiseLayer::eOperation::Logical_XOR: eltwise_logical_xor(src0_ptr, src1_ptr, dst_ptr, dst_data_size); break;
-        default: THROW_IE_EXCEPTION << "Unsupported operation type for Eltwise node";
-    }
-}
-
-void MKLDNNEltwiseNode::jit_eltwise_fq() {
-    auto& srcMemory0 = getParentEdgeAt(0)->getMemory();
-    auto& srcMemory1 = getParentEdgeAt(1)->getMemory();
-    auto& dstMemory = getChildEdgeAt(0)->getMemory();
-
-    const uint8_t *src0_ptr = reinterpret_cast<const uint8_t*>(srcMemory0.GetData()) +
-        srcMemory0.GetDescriptor().data.layout_desc.blocking.offset_padding *
-        MKLDNNExtensionUtils::sizeOfDataType(mkldnn::memory::data_type(srcMemory0.GetDescriptor().data.data_type));
-    const uint8_t *src1_ptr = reinterpret_cast<const uint8_t*>(srcMemory1.GetData()) +
-        srcMemory1.GetDescriptor().data.layout_desc.blocking.offset_padding *
-        MKLDNNExtensionUtils::sizeOfDataType(mkldnn::memory::data_type(srcMemory1.GetDescriptor().data.data_type));
-    uint8_t *dst_ptr = reinterpret_cast<uint8_t*>(dstMemory.GetData()) +
-        dstMemory.GetDescriptor().data.layout_desc.blocking.offset_padding *
-        MKLDNNExtensionUtils::sizeOfDataType(mkldnn::memory::data_type(dstMemory.GetDescriptor().data.data_type));
-
-    if (!broadcast) {
-        auto& dims = getParentEdgeAt(0)->getDims();
-
-        int N = batchToProcess();
-        int C = dims[1];
-        int D = dims.ndims() > 4 ? dims[2] : 1;
-        int H = dims.ndims() > 2 ? dims[dims.ndims() - 2] : 1;
-        int W = dims.ndims() > 3 ? dims[dims.ndims() - 1] : 1;
-
-        parallel_for4d(N, D, H, W, [&](int n, int d, int h, int w) {
-            size_t off = n * D * H * W * C + d * H * W * C + h * W * C + w * C;
-
-            auto arg = jit_eltwise_fq_call_args();
-            arg.src0 = src0_ptr + off * jep.src0_data_size;
-            arg.src1 = src1_ptr + off * jep.src1_data_size;
-            arg.dst = dst_ptr + off * jep.dst_data_size;
-            arg.work_amount = static_cast<size_t>(C);
-
-            (*eltiwse_fq_kernel)(&arg);
-        });
-    } else {
-        int dims_out[5], dims_in0[5], dims_in1[5];
-        int offset_out[5], offset_in0[5], offset_in1[5];
-        auto& child_edge_dims = getChildEdgeAt(0)->getDims();
-        auto& parent0_edge_dims = getParentEdgeAt(0)->getDims();
-        auto& parent1_edge_dims = getParentEdgeAt(1)->getDims();
-        dims_calc(dims_out, child_edge_dims, true);
-        dims_calc(dims_in0, parent0_edge_dims, true);
-        dims_calc(dims_in1, parent1_edge_dims, true);
-        offset_out_calc(offset_out, dims_out);
-        offset_in_calc(offset_in0, dims_in0, dims_out);
-        offset_in_calc(offset_in1, dims_in1, dims_out);
-
-        parallel_for4d(dims_out[0], dims_out[1], dims_out[2], dims_out[3], [&](size_t i0, size_t i1, size_t i2, size_t i3) {
-            size_t index_out = i0 * offset_out[0] + i1 * offset_out[1] + i2 * offset_out[2] + i3 * offset_out[3];
-            size_t index_in0 = i0 * offset_in0[0] + i1 * offset_in0[1] + i2 * offset_in0[2] + i3 * offset_in0[3];
-            size_t index_in1 = i0 * offset_in1[0] + i1 * offset_in1[1] + i2 * offset_in1[2] + i3 * offset_in1[3];
-
-            auto arg = jit_eltwise_fq_call_args();
-            arg.src0 = src0_ptr + index_in0 * jep.src0_data_size;
-            arg.src1 = src1_ptr + index_in1 * jep.src1_data_size;
-            arg.dst = dst_ptr + index_out * jep.dst_data_size;
-            arg.work_amount = static_cast<size_t>(dims_out[4]);
-
-            (*eltiwse_fq_kernel)(&arg);
-        });
-    }
+    });
 }
 
 void MKLDNNEltwiseNode::execute(mkldnn::stream strm) {
-    if (prim) {
-        MKLDNNNode::execute(strm);
-    } else {
-        if (op == EltwiseLayer::Floor_mod) {
-            for (size_t i = 0; i < getParentEdges().size(); i++)
-                if (getParentEdgeAt(i)->getDesc().getPrecision() != Precision::I32)
-                    THROW_IE_EXCEPTION << "Floor_mod supports only I32 precision of inputs";
-            if (getChildEdgeAt(0)->getDesc().getPrecision() != Precision::I32)
-                THROW_IE_EXCEPTION << "Floor_mod supports only I32 precision of output";
-        }
+    size_t inputNum = getParentEdges().size();
 
-        if (getParentEdges().size() > 2) {
-            Precision pi = getParentEdgeAt(0)->getDesc().getPrecision();
-            Precision po = getChildEdgeAt(0)->getDesc().getPrecision();
-            for (int i = 1; i < getParentEdges().size(); i++) {
-                if (getParentEdgeAt(i)->getDesc().getPrecision() != pi)
-                    THROW_IE_EXCEPTION << "If Eltwise node has more than 2 inputs, all inputs must have same precision";
-            }
-            if (pi != po) {
-                THROW_IE_EXCEPTION << "If Eltwise node has more than 2 inputs, all inputs and output must have same precision";
-            }
-            if (pi == Precision::FP32)
-                ref_eltwise<float, float>(0, 1);
-            else if (pi == Precision::I32)
-                ref_eltwise<int32_t, int32_t>(0, 1);
-            else if (pi == Precision::I8)
-                ref_eltwise<int8_t, int8_t>(0, 1);
-            else if (pi == Precision::U8)
-                ref_eltwise<uint8_t, uint8_t>(0, 1);
-            else
-                THROW_IE_EXCEPTION << "If Eltwise node has more than 2 inputs, only FP32, I32, I8, U8 are supported";
-            return;
-        }
+    std::vector<const uint8_t *> src_ptrs(inputNum);
+    for (int i = 0; i < inputNum; i++) {
+        src_ptrs[i] = reinterpret_cast<const uint8_t*>(getParentEdgeAt(i)->getMemory().GetData()) + start_offset_in[i];
+    }
+    uint8_t *dst_ptr = reinterpret_cast<uint8_t*>(getChildEdgeAt(0)->getMemory().GetData()) + start_offset_out;
 
-        Precision pi0 = getParentEdgeAt(0)->getDesc().getPrecision();
-        Precision pi1 = getParentEdgeAt(1)->getDesc().getPrecision();
-        Precision po = getChildEdgeAt(0)->getDesc().getPrecision();
+    // In general case we need to recompute offsets as well but currently all supported layout assumes batch to be outermost dimension
+    if (isDynBatchEnabled)
+        dims_out[batchDimIdx] = static_cast<size_t>(batchToProcess());
 
-        IE_ASSERT(getParentEdges().size() > 1);
-
-        if (!fusedWith.empty()) {
-            jit_eltwise_fq();
+    if (eltwise_kernel) {
+        if (tensorRank == optimalTensorRank) {
+            executeOptimized6D(src_ptrs, dst_ptr);
         } else {
-            // Input and output types for eltwise compare operations can be different
-            bool is_eltwise_compare_node = (op == EltwiseLayer::Equal || op == EltwiseLayer::Not_equal ||
-                                            op == EltwiseLayer::Greater || op == EltwiseLayer::Greater_equal ||
-                                            op == EltwiseLayer::Less || op == EltwiseLayer::Less_equal);
-
-            if (po == Precision::FP32 && pi0 == po && pi1 == po) {
-                ref_eltwise<float, float>(0, 1);
-            } else if (po == Precision::FP32 && pi0 == po && pi1 == Precision::I8) {
-                ref_eltwise<float, int8_t>(0, 1);
-            } else if (po == Precision::FP32 && pi1 == po && pi0 == Precision::I8) {
-                ref_eltwise<float, int8_t>(1, 0);
-            } else if (po == Precision::FP32 && pi0 == po && pi1 == Precision::U8) {
-                ref_eltwise<float, uint8_t>(0, 1);
-            } else if (po == Precision::FP32 && pi1 == po && pi0 == Precision::U8) {
-                ref_eltwise<float, uint8_t>(1, 0);
-            } else if (po == Precision::I8 && pi0 == po && pi1 == po) {
-                ref_eltwise<int8_t, int8_t>(0, 1);
-            } else if (po == Precision::I8 && pi0 == po && pi1 == Precision::U8) {
-                ref_eltwise<int8_t, uint8_t>(0, 1);
-            } else if (po == Precision::I8 && pi1 == po && pi0 == Precision::U8) {
-                ref_eltwise<int8_t, uint8_t>(1, 0);
-            } else if (po == Precision::I32 && pi0 == po && pi1 == po) {
-                ref_eltwise<int32_t, int32_t>(0, 1);
-            } else if (po == Precision::U8 && pi0 == Precision::I32 && pi0 == pi1 && is_eltwise_compare_node) {
-                ref_eltwise2<int32_t, int32_t, uint8_t>(0, 1);
-            } else if (po == Precision::U8 && pi0 == Precision::FP32 && pi0 == pi1 && is_eltwise_compare_node) {
-                ref_eltwise2<float, float, uint8_t>(0, 1);
-            } else {
-                THROW_IE_EXCEPTION << "Eltwise node with unsupported combination of input and output types";
-            }
+            executeOptimizedGeneric(src_ptrs, dst_ptr);
         }
+    } else {
+        executeReference(src_ptrs, dst_ptr);
     }
 }
 
@@ -2669,29 +1529,126 @@ bool MKLDNNEltwiseNode::created() const {
 }
 
 bool MKLDNNEltwiseNode::canBeInPlace() const {
-    size_t inPlaceWithParent = getParentEdges().size();
-    for (size_t i = 0; i < inPlaceWithParent; i++) {
-        auto parentEdge = getParentEdgeAt(i);
-        if (!parentEdge->getParent()->isConstant() &&
-                parentEdge->getParent()->getChildEdges().size() == 1) {
-            inPlaceWithParent = i;
-            break;
-        }
-    }
-    // This is WA for MKLDNN implementation
-    if (inPlaceWithParent != 0)
+    if (getParentEdgesAtPort(0)[0]->getParent()->getType() == Input) {
         return false;
-    MKLDNNDims dims = getParentEdgeAt(0)->getDims();
-    for (size_t cIdx = 0; cIdx < getChildEdges().size(); cIdx++) {
-        if (getChildEdgeAt(cIdx)->getDims() != dims) {
+    }
+
+    for (auto& parentEdge : getParentEdges()) {
+        auto parent = parentEdge.lock()->getParent();
+        if (parent->getChildEdges().size() != 1)
             return false;
+
+        // WA to prevent memory corruption caused by inplace feature
+        if (parent->getType() == Concatenation) {
+            for (auto& parentParentEdge : parent->getParentEdges()) {
+                auto parentParent = parentParentEdge.lock()->getParent();
+                if (parentParent->getChildEdges().size() != 1)
+                    return false;
+            }
         }
     }
 
-    // Broadcast mode is complex for inplace usage
-    // So will disable it
-    if (broadcast) return false;
-
-    return true;
+    return getParentEdgesAtPort(0)[0].get()->getDims() == getChildEdgesAtPort(0)[0].get()->getDims();
 }
+
+void MKLDNNEltwiseNode::appendPostOps(mkldnn::post_ops& ops) {
+    switch (getAlgorithm()) {
+        case mkldnn::eltwise_relu:
+        case mkldnn::eltwise_tanh:
+        case mkldnn::eltwise_elu:
+        case mkldnn::eltwise_square:
+        case mkldnn::eltwise_abs:
+        case mkldnn::eltwise_sqrt:
+        case mkldnn::eltwise_linear:
+        case mkldnn::eltwise_bounded_relu:
+        case mkldnn::eltwise_soft_relu:
+        case mkldnn::eltwise_logistic:
+        case mkldnn::eltwise_exp:
+        case mkldnn::eltwise_gelu:
+        case mkldnn::eltwise_clamp:
+        case mkldnn::eltwise_swish:
+        case mkldnn::eltwise_hswish:
+        case mkldnn::eltwise_mish:
+        case mkldnn::eltwise_hsigmoid:
+            ops.append_eltwise(1.0, getAlgorithm(), getAlpha(), getBeta());
+            break;
+        case mkldnn::depthwise_scale_shift:
+        case mkldnn::depthwise_prelu:
+            if (scales.empty() && shifts.empty()) {
+                size_t bufferSize = static_cast<size_t>(outDims[0][outDims[0].size() > 1 ? 1 : 0]);
+                size_t bufferSizeAligned = rnd_up(bufferSize, 16);
+
+                Blob::Ptr scalesBlob = getCnnLayer()->blobs["weights"];
+                if (scalesBlob == nullptr)
+                    THROW_IE_EXCEPTION << "Cannot get weights blob in Eltwise node with name `" << getName() << "`";
+                scales.resize(bufferSizeAligned, 0);
+                const float *scalesBufferPtr = scalesBlob->buffer().as<float *>();
+                for (int i = 0; i < bufferSize; i++) {
+                    scales[i] = scalesBufferPtr[scalesBlob->size() == 1 ? 0 : i];
+                }
+
+                Blob::Ptr shiftsBlob = getCnnLayer()->blobs["biases"];
+                if (shiftsBlob != nullptr) {
+                    shifts.resize(bufferSizeAligned, 0);
+                    const float *shiftsBufferPtr = shiftsBlob->buffer().as<float *>();
+                    for (int i = 0; i < bufferSize; i++) {
+                        shifts[i] = shiftsBufferPtr[shiftsBlob->size() == 1 ? 0 : i];
+                    }
+                }
+            }
+
+            ops.append_depthwise(getAlgorithm(), &scales[0], shifts.empty() ? nullptr : &shifts[0]);
+            break;
+        default: THROW_IE_EXCEPTION << "Appending Eltwise node with name `" << getName() << "` as post operation is not supported";
+    }
+}
+
+bool MKLDNNEltwiseNode::canFuse(const MKLDNNNodePtr& node) const {
+    auto isOneOf = [](EltwiseOpType alg, std::vector<EltwiseOpType> algs) {
+        for (auto a : algs) {
+            if (alg == a) {
+                return true;
+            }
+        }
+        return false;
+    };
+
+    if (!mayiuse(cpu::sse42))
+        return false;
+
+    // FQ inputs with quantization parameters will be hided inside post_op object, so will not increase inputs number
+    size_t addedInputEdgesNum = node->getType() != Quantize ? (node->getParentEdges().size() - 1) : 0;
+    if (getParentEdges().size() + addedInputEdgesNum > MAX_ELTWISE_INPUTS)
+        return false;
+
+    if (node->getType() == Eltwise) {
+        auto eltwiseNode = dynamic_cast<MKLDNNEltwiseNode*>(node.get());
+        if (eltwiseNode->getParentEdgesAtPort(0)[0]->getParent().get() != this) {
+            // Eltwise jitter doesn't respect commutative property, so fusing is disabled in case it applied not for 0-th port.
+            if (isOneOf(eltwiseNode->getOpType(), {Subtract, Divide, FloorMod, Mod, PowerDynamic, Greater, GreaterEqual, Less, LessEqual})) {
+                return false;
+            }
+
+            // Limitation: inputs precision definition inside Eltwise node assumes fusing is applied for 0-th port,
+            // otherwise we need identical precision on all inputs of fused node
+            for (int i = 1; i < eltwiseNode->getCnnLayer()->insData.size(); i++) {
+                if (eltwiseNode->getCnnLayer()->insData[0].lock()->getPrecision() != eltwiseNode->getCnnLayer()->insData[i].lock()->getPrecision()) {
+                    return false;
+                }
+            }
+        }
+
+        return true;
+    }
+
+    if (node->getType() == Quantize) {
+        auto *quantizeNode = dynamic_cast<MKLDNNQuantizeNode *>(node.get());
+        if (quantizeNode == nullptr)
+            THROW_IE_EXCEPTION << "Cannot get quantize layer " << node->getName();
+        return !quantizeNode->isBinarization();
+    }
+
+    return false;
+}
+
 REG_MKLDNN_PRIM_FOR(MKLDNNEltwiseNode, Eltwise);

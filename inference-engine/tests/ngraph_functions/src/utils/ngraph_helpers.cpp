@@ -564,6 +564,9 @@ std::ostream& operator<<(std::ostream & os, ngraph::helpers::EltwiseTypes type) 
         case ngraph::helpers::EltwiseTypes::FLOOR_MOD:
             os << "FloorMod";
             break;
+        case ngraph::helpers::EltwiseTypes::MOD:
+            os << "Mod";
+            break;
         default:
             throw std::runtime_error("NOT_SUPPORTED_OP_TYPE");
     }

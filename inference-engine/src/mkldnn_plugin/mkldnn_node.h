@@ -44,7 +44,6 @@ enum Type {
     SoftMax,
     Split,
     Concatenation,
-    Power,
     Eltwise,
     Gemm,
     Crop,
@@ -118,8 +117,6 @@ static std::string NameFromType(Type type) {
             return "Split";
         case Concatenation:
             return "Concatenation";
-        case Power:
-            return "Power";
         case Depthwise:
             return "Depthwise";
         case Crop:

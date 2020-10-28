@@ -115,11 +115,6 @@ xfail_issue_38084 = xfail_test(reason="RuntimeError: AssertionFailed: layer->get
 xfail_issue_38085 = xfail_test(reason="RuntimeError: Interpolate operation should be converted to Interp")
 xfail_issue_38086 = xfail_test(reason="RuntimeError: Quantize layer input '<value>' doesn't have blobs")
 xfail_issue_38087 = xfail_test(reason="RuntimeError: Cannot cast to tensor desc. Format is unsupported!")
-xfail_issue_38088 = xfail_test(reason="RuntimeError: Check '((axis >= axis_range_min) && "
-                                      "(axis <= axis_range_max))' failed at "
-                                      "/openvino/ngraph/core/src/validation_util.cpp:913: "
-                                      "Split Parameter axis <value> out of the tensor rank range <value>.")
-xfail_issue_38089 = xfail_test(reason="RuntimeError: Node 2 contains empty child edge for index 0")
 xfail_issue_38090 = xfail_test(reason="AssertionError: Items types are not equal")
 xfail_issue_38091 = xfail_test(reason="AssertionError: Mismatched elements")
 xfail_issue_38699 = xfail_test(reason="RuntimeError: nGraph does not support the following ONNX operations:"

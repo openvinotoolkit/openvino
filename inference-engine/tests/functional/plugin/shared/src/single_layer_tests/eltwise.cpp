@@ -93,10 +93,25 @@ void EltwiseLayerTest::SetUp() {
             FAIL() << "Unsupported Secondary operation type";
     }
 
-    auto secondaryInput = ngraph::builder::makeInputLayer(ngPrc, secondaryInputType, shape_input_secondary);
-    if (secondaryInputType == ngraph::helpers::InputLayerType::PARAMETER) {
-        input.push_back(std::dynamic_pointer_cast<ngraph::opset3::Parameter>(secondaryInput));
+    std::shared_ptr<ngraph::Node> secondaryInput;
+    if (eltwiseType == ngraph::helpers::EltwiseTypes::DIVIDE ||
+        eltwiseType == ngraph::helpers::EltwiseTypes::FLOOR_MOD ||
+        eltwiseType == ngraph::helpers::EltwiseTypes::MOD) {
+        std::vector<float> data(ngraph::shape_size(shape_input_secondary));
+        data = NGraphFunctions::Utils::generateVector<ngraph::element::Type_t::f32>(ngraph::shape_size(shape_input_secondary));
+        for (float &i : data) {
+            if (i == 0) {
+                i = 1;
+            }
+        }
+        secondaryInput = ngraph::builder::makeConstant(ngPrc, shape_input_secondary, data);
+    } else {
+        secondaryInput = ngraph::builder::makeInputLayer(ngPrc, secondaryInputType, shape_input_secondary);
+        if (secondaryInputType == ngraph::helpers::InputLayerType::PARAMETER) {
+            input.push_back(std::dynamic_pointer_cast<ngraph::opset3::Parameter>(secondaryInput));
+        }
     }
+
     auto eltwise = ngraph::builder::makeEltwise(input[0], secondaryInput, eltwiseType);
     function = std::make_shared<ngraph::Function>(eltwise, input, "Eltwise");
 }

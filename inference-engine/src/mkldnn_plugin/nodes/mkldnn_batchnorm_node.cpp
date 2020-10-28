@@ -3,7 +3,6 @@
 //
 
 #include "mkldnn_batchnorm_node.h"
-#include "mkldnn_depthwise_node.h"
 #include <mkldnn_extension_utils.h>
 #include "common/cpu_memcpy.h"
 

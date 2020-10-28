@@ -18,7 +18,6 @@ import onnx
 import pytest
 
 from tests.test_onnx.utils import run_node
-from tests import xfail_issue_35915
 
 
 @pytest.mark.parametrize(
@@ -27,9 +26,9 @@ from tests import xfail_issue_35915
         pytest.param("And", np.logical_and, np.bool),
         pytest.param("Or", np.logical_or, np.bool),
         pytest.param("Xor", np.logical_xor, np.bool),
-        pytest.param("Equal", np.equal, np.int32, marks=xfail_issue_35915),
-        pytest.param("Greater", np.greater, np.int32, marks=xfail_issue_35915),
-        pytest.param("Less", np.less, np.int32, marks=xfail_issue_35915),
+        pytest.param("Equal", np.equal, np.int32),
+        pytest.param("Greater", np.greater, np.int32),
+        pytest.param("Less", np.less, np.int32),
     ],
 )
 def test_logical(onnx_op, numpy_func, data_type):

@@ -22,7 +22,6 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*(QuantGroupConv3D).*)",
         // TODO: Issue 31845
         R"(.*(FakeQuantizeLayerTest).*)",
-        R"(.*(EltwiseLayerTest).*IS=\(.*\..*\..*\..*\..*\).*secondaryInputType=PARAMETER.*opType=SCALAR.*)",
         // TODO: failed to downgrade to opset v0 in interpreter backend
         R"(.*Gather.*axis=-1.*)",
         // TODO: Issue 33151
