@@ -749,16 +749,6 @@ pad_negative_exterior_4d
 pad_2channel_2image_asym
 pad_symmetric
 
-# Output 0 type 'i32' does not match Result type 'i64'" thrown in the test body.
-one_hot_scalar_2_in_3
-one_hot_scalar_1_in_3
-one_hot_scalar_0_in_3
-one_hot_vector_0
-one_hot_vector_1
-one_hot_vector_1_barely_oob
-one_hot_matrix_0
-one_hot_vector_many_categories
-
 # LRN operation should be converted to LRN_IE
 lrn_across_h
 lrn_across_nw

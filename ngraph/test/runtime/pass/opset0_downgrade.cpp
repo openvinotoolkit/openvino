@@ -338,33 +338,6 @@ namespace opset0_downgrade
         return op_cast_binary_elementwise_node<op::v0::NotEqual, op::v1::NotEqual>(node);
     }
 
-    shared_ptr<Node> op_cast(shared_ptr<op::v1::OneHot> node)
-    {
-        const auto indices = node->input_value(0);
-        const auto depth = node->input_value(1).get_node();
-        auto on_value = node->input_value(2);
-        auto off_value = node->input_value(3);
-        const auto axis = node->get_axis();
-
-        NGRAPH_CHECK(op::is_constant(depth), "depth input must be constant", *node);
-        const auto output_pshape = node->get_output_partial_shape(0);
-        NGRAPH_CHECK(output_pshape.is_static(), "output shape must be static", *node);
-        const auto output_shape = output_pshape.to_shape();
-
-        auto one_hot = std::make_shared<ngraph::op::Convert>(
-            std::make_shared<ngraph::op::OneHot>(indices, output_shape, axis),
-            on_value.get_element_type());
-
-        auto broadcasted_values = builder::numpy_broadcast_outputs({one_hot, on_value, off_value});
-        on_value = broadcasted_values[1];
-        off_value = broadcasted_values[2];
-
-        auto replacement_node = one_hot * (on_value - off_value) + off_value;
-
-        replace_node(node, replacement_node);
-        return replacement_node;
-    }
-
     shared_ptr<Node> op_cast(shared_ptr<op::v1::Power> node)
     {
         return op_cast_binary_elementwise_node<op::v0::Power, op::v1::Power>(node);
