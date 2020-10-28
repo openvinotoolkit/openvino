@@ -159,6 +159,8 @@ if len(zoo_models) > 0:
             (xfail_issue_38084, "test_onnx_model_zoo_vision_object_detection_segmentation_mask_rcnn_model_MaskRCNN_10_mask_rcnn_R_50_FPN_1x_cpu"),
             (xfail_issue_38090, "test_onnx_model_zoo_vision_object_detection_segmentation_ssd_model_ssd_10_model_cpu"),
             (xfail_issue_38084, "test_onnx_model_zoo_vision_object_detection_segmentation_faster_rcnn_model_FasterRCNN_10_faster_rcnn_R_50_FPN_1x_cpu"),
+            (xfail_issue_41815, "test_onnx_model_zoo_vision_object_detection_segmentation_yolov3_model_yolov3_10_yolov3_yolov3_cpu"),
+            (xfail_issue_41815, "test_onnx_model_zoo_vision_object_detection_segmentation_tiny_yolov3_model_tiny_yolov3_11_yolov3_tiny_cpu")
 
             # Model MSFT
             (xfail_issue_36533, "test_MSFT_opset10_tf_inception_v2_model_cpu"),
@@ -186,7 +188,6 @@ if len(zoo_models) > 0:
             (xfail_issue_34323, "test_MSFT_opset10_BERT_Squad_bertsquad10_cpu"),
 
             (xfail_issue_41815, "test_MSFT_opset11_tinyyolov3_yolov3_tiny_cpu"),
-            (xfail_issue_41815, "test_onnx_model_zoo_vision_object_detection_segmentation_yolov3_model_yolov3_10_yolov3_yolov3_cpu"),
             (xfail_issue_41815, "test_MSFT_opset10_yolov3_yolov3_cpu")
         ]
         for test_case in import_xfail_list + execution_xfail_list:
