@@ -38,7 +38,6 @@ public:
         m_cfmap = cfmap;
         m_enable_shape_inference = true;
         construct_constant_quantize();
-        construct_constant_dequantize();
         construct_constant_convert();
         construct_constant_arithmetic_reduction();
         construct_constant_logical_reduction();
@@ -51,7 +50,6 @@ public:
 
 private:
     void construct_constant_quantize();
-    void construct_constant_dequantize();
     void construct_constant_convert();
     void construct_constant_arithmetic_reduction();
     void construct_constant_logical_reduction();
@@ -62,6 +60,9 @@ private:
     void construct_constant_default();
 
     bool cf_is_disabled(const std::shared_ptr<Node>&);
+
+    void copy_runtime_info_to_target_inputs(const std::shared_ptr<Node>& node,
+                                            const Output<Node>& replacement);
 
     ngraph::BuildNodeExecutorMap m_cfmap;
 };

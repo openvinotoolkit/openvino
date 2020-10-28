@@ -23,7 +23,7 @@ using namespace ngraph::opset3;
 namespace LayerTestsDefinitions {
 
 std::string ScatterUpdateLayerTest::getTestCaseName(const testing::TestParamInfo<scatterUpdateParamsTuple> &obj) {
-    axisShapeInShape shapeDescript;
+    axisUpdateShapeInShape shapeDescript;
     std::vector<size_t> inShape;
     std::vector<size_t> indicesShape;
     std::vector<size_t> updateShape;
@@ -46,9 +46,9 @@ std::string ScatterUpdateLayerTest::getTestCaseName(const testing::TestParamInfo
     return result.str();
 }
 
-std::vector<axisShapeInShape> ScatterUpdateLayerTest::combineShapes(
+std::vector<axisUpdateShapeInShape> ScatterUpdateLayerTest::combineShapes(
     const std::map<std::vector<size_t>, std::map<std::vector<size_t>, std::vector<int>>>& inputShapes) {
-    std::vector<axisShapeInShape> resVec;
+    std::vector<axisUpdateShapeInShape> resVec;
     for (auto& inputShape : inputShapes) {
         auto srcShape = inputShape.first;
         auto srcRank = srcShape.size();
@@ -75,7 +75,7 @@ std::vector<axisShapeInShape> ScatterUpdateLayerTest::combineShapes(
 }
 
 void ScatterUpdateLayerTest::SetUp() {
-    axisShapeInShape shapeDescript;
+    axisUpdateShapeInShape shapeDescript;
     InferenceEngine::SizeVector inShape;
     InferenceEngine::SizeVector indicesShape;
     InferenceEngine::SizeVector updateShape;

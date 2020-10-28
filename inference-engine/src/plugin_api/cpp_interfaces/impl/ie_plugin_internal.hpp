@@ -58,16 +58,34 @@ protected:
 public:
     ExecutableNetwork LoadNetwork(const ICNNNetwork& network,
                                   const std::map<std::string, std::string>& config) override {
-        return LoadNetworkImplPrivate(network, config);
+        return LoadNetwork(network, config, nullptr);
     }
 
     ExecutableNetwork LoadNetwork(const ICNNNetwork& network, const std::map<std::string, std::string>& config,
                                   RemoteContext::Ptr context) override {
-        return LoadNetworkImplPrivate(network, config, context);;
+        InputsDataMap networkInputs, networkInputsCloned;
+        OutputsDataMap networkOutputs, networkOutputsCloned;
+        network.getInputsInfo(networkInputs);
+        network.getOutputsInfo(networkOutputs);
+        copyInputOutputInfo(networkInputs, networkOutputs, networkInputsCloned, networkOutputsCloned);
+
+        ExecutableNetworkInternal::Ptr impl;
+        if (nullptr == context) {
+            impl = LoadExeNetworkImpl(network, config);
+        } else {
+            impl = LoadExeNetworkImpl(network, context, config);
+        }
+
+        impl->setNetworkInputs(networkInputsCloned);
+        impl->setNetworkOutputs(networkOutputsCloned);
+        impl->SetPointerToPlugin(shared_from_this());
+
+        auto executableNetwork = make_executable_network(impl);
+        return ExecutableNetwork(executableNetwork);
     }
 
-    IExecutableNetwork::Ptr ImportNetwork(const std::string& modelFileName,
-                                          const std::map<std::string, std::string>& config) override {
+    ExecutableNetwork ImportNetwork(const std::string& modelFileName,
+                                    const std::map<std::string, std::string>& config) override {
         (void)modelFileName;
         (void)config;
         THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str;
@@ -104,8 +122,7 @@ public:
         THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str;
     }
 
-    void QueryNetwork(const ICNNNetwork& /*network*/, const std::map<std::string, std::string>& /*config*/,
-                      QueryNetworkResult& /*res*/) const override {
+    QueryNetworkResult QueryNetwork(const ICNNNetwork& /*network*/, const std::map<std::string, std::string>& /*config*/) const override {
         THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str;
     }
 
@@ -133,39 +150,6 @@ public:
 
     RemoteContext::Ptr GetDefaultContext() override {
         THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str;
-    }
-
-private:
-    /**
-     * @brief A helper method which clones a ICNNNetwork object, keeps InputsDataMap and OutputsDataMap data maps,
-     * and creates an IExecutableNetwork object
-     * @param network An input ICNNNetwork object used to create an executable network object
-     * @param config A map of string -> string configuration options.
-     * @param context An optional pointer to RemoteContext
-     * @return An output executable network object
-     */
-    ExecutableNetwork LoadNetworkImplPrivate(const ICNNNetwork& network,
-                                             const std::map<std::string, std::string>& config,
-                                             RemoteContext::Ptr context = nullptr) {
-        InputsDataMap networkInputs, networkInputsCloned;
-        OutputsDataMap networkOutputs, networkOutputsCloned;
-        network.getInputsInfo(networkInputs);
-        network.getOutputsInfo(networkOutputs);
-        copyInputOutputInfo(networkInputs, networkOutputs, networkInputsCloned, networkOutputsCloned);
-
-        ExecutableNetworkInternal::Ptr impl;
-        if (nullptr == context) {
-            impl = LoadExeNetworkImpl(network, config);
-        } else {
-            impl = LoadExeNetworkImpl(network, context, config);
-        }
-
-        impl->setNetworkInputs(networkInputsCloned);
-        impl->setNetworkOutputs(networkOutputsCloned);
-        impl->SetPointerToPlugin(shared_from_this());
-
-        auto executableNetwork = make_executable_network(impl);
-        return ExecutableNetwork(executableNetwork);
     }
 
 protected:

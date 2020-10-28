@@ -85,6 +85,10 @@ namespace
         ie_ops.insert(opset2.begin(), opset2.end());
         auto& opset3 = get_opset3().get_type_info_set();
         ie_ops.insert(opset3.begin(), opset3.end());
+        auto& opset4 = get_opset4().get_type_info_set();
+        ie_ops.insert(opset4.begin(), opset4.end());
+        auto& opset5 = get_opset5().get_type_info_set();
+        ie_ops.insert(opset5.begin(), opset5.end());
         return ie_ops;
     }
 }
@@ -150,7 +154,10 @@ bool runtime::ie::IE_Executable::call(const vector<shared_ptr<runtime::Tensor>>&
     }
 
     //  Prepare output blobs
-    string output_name = m_network.getOutputsInfo().begin()->first;
+    auto outInfo = m_network.getOutputsInfo();
+    if (outInfo.size() != 1)
+        THROW_IE_EXCEPTION << "Networks should contain only one output!";
+    string output_name = outInfo.begin()->first;
 
     infer_request.Infer();
     InferenceEngine::Blob::Ptr output = infer_request.GetBlob(output_name);

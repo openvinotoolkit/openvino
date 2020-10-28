@@ -57,8 +57,8 @@ void MKLDNNPlugin::MKLDNNInferRequest::pushInput(const std::string& inputName, I
 
 namespace {
 
-template <typename T>
-void copyToFloat(float* dst, const InferenceEngine::Blob* src) {
+template <typename T, typename DstT>
+void copyFrom(const InferenceEngine::Blob* src, DstT* dst) {
     if (!dst) {
         return;
     }
@@ -73,6 +73,11 @@ void copyToFloat(float* dst, const InferenceEngine::Blob* src) {
         THROW_IE_EXCEPTION << "Input data was not allocated.";
     }
     for (size_t i = 0; i < t_blob->size(); i++) dst[i] = srcPtr[i];
+}
+
+template <typename T>
+void copyToFloat(float* dst, const InferenceEngine::Blob* src) {
+    copyFrom<T>(src, dst);
 }
 
 }  // namespace
@@ -108,18 +113,19 @@ void MKLDNNPlugin::MKLDNNInferRequest::InferImpl() {
                 case InferenceEngine::Precision::I8:
                     pushInput<int8_t>(input.first, input.second);
                     break;
-                case InferenceEngine::Precision::U16:
-                    // U16 is unsupported by mkldnn, so here we convert the blob and send FP32
-                    iconv = InferenceEngine::make_shared_blob<float>({InferenceEngine::Precision::FP32,
+                case InferenceEngine::Precision::U16: {
+                    // U16 is unsupported by mkldnn, so here we convert the blob and send I32
+                    iconv = InferenceEngine::make_shared_blob<std::int32_t>({InferenceEngine::Precision::I32,
                                                                         input.second->getTensorDesc().getDims(),
                                                                         input.second->getTensorDesc().getLayout()});
                     convertedInputs.push_back(iconv);
                     iconv->allocate();
-                    in_f = dynamic_cast<InferenceEngine::TBlob<float> *>(iconv.get());
-                    if (in_f == nullptr)
+                    auto in = dynamic_cast<InferenceEngine::TBlob<std::int32_t> *>(iconv.get());
+                    if (in == nullptr)
                         THROW_IE_EXCEPTION << "Cannot get TBlob";
-                    copyToFloat<uint16_t>(in_f->data(), input.second.get());
-                    pushInput<float>(input.first, iconv);
+                    copyFrom<uint16_t, std::int32_t>(input.second.get(), in->data());
+                    pushInput<std::int32_t>(input.first, iconv);
+                    }
                     break;
                 case InferenceEngine::Precision::I16:
                     if (graph->hasMeanImageFor(input.first)) {

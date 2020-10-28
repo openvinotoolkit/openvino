@@ -38,21 +38,18 @@ std::vector<ngraph::helpers::InputLayerType> secondInputTypes = {
         ngraph::helpers::InputLayerType::PARAMETER,
 };
 
-std::vector<InferenceEngine::Precision> netPrecisions = {
-        InferenceEngine::Precision::FP32,
-};
-
 std::map<std::string, std::string> additional_config = {};
 
 const auto ComparisonTestParams = ::testing::Combine(
-        ::testing::ValuesIn(CommonTestUtils::combineShapes<size_t>(inputShapes)),
+        ::testing::ValuesIn(CommonTestUtils::combineParams(inputShapes)),
         ::testing::ValuesIn(inputsPrecisions),
         ::testing::ValuesIn(comparisonOpTypes),
         ::testing::ValuesIn(secondInputTypes),
-        ::testing::ValuesIn(netPrecisions),
+        ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+        ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
         ::testing::Values(CommonTestUtils::DEVICE_GPU),
         ::testing::Values(additional_config));
 
-INSTANTIATE_TEST_CASE_P(CompareWithRefs, ComparisonLayerTest, ComparisonTestParams, ComparisonLayerTest::getTestCaseName);
+INSTANTIATE_TEST_CASE_P(smoke_CompareWithRefs, ComparisonLayerTest, ComparisonTestParams, ComparisonLayerTest::getTestCaseName);
 
 }  // namespace

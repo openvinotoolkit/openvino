@@ -12,7 +12,7 @@ using namespace LayerTestsDefinitions;
 namespace {
 const std::vector<InferenceEngine::Precision> netPrecisions = {
     InferenceEngine::Precision::FP32,
-    InferenceEngine::Precision::FP16
+    // InferenceEngine::Precision::FP16
 };
 
 const std::vector<MultiplyWithOneParentTransformationValues> values = {
@@ -21,7 +21,7 @@ const std::vector<MultiplyWithOneParentTransformationValues> values = {
     }
 };
 
-INSTANTIATE_TEST_CASE_P(LPT, MultiplyWithOneParentTransformation,
+INSTANTIATE_TEST_CASE_P(smoke_LPT, MultiplyWithOneParentTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(netPrecisions),
         ::testing::Values(InferenceEngine::SizeVector({ 1, 3, 16, 16 })),

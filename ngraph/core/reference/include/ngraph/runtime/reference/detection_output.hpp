@@ -563,8 +563,12 @@ namespace ngraph
                                 {
                                     continue;
                                 }
+                                if (confScores.find(c) == confScores.end())
+                                    continue;
                                 const std::vector<dataType>& scores = confScores.find(c)->second;
                                 int label = attrs.share_location ? -1 : c;
+                                if (decodeBboxesImage.find(label) == decodeBboxesImage.end())
+                                    continue;
                                 const std::vector<NormalizedBBox>& bboxes =
                                     decodeBboxesImage.find(label)->second;
                                 caffeNMS(bboxes, scores, indices[c]);
@@ -585,6 +589,8 @@ namespace ngraph
                             {
                                 int label = it->first;
                                 const std::vector<int>& labelIndices = it->second;
+                                if (confScores.find(label) == confScores.end())
+                                    continue;
                                 const std::vector<dataType>& scores =
                                     confScores.find(label)->second;
                                 for (int j = 0; j < labelIndices.size(); ++j)
@@ -625,6 +631,8 @@ namespace ngraph
                             int label = it->first;
                             const std::vector<dataType>& scores = confScores.find(label)->second;
                             int loc_label = attrs.share_location ? -1 : label;
+                            if (decodeBboxesImage.find(loc_label) == decodeBboxesImage.end())
+                                continue;
                             const std::vector<NormalizedBBox>& bboxes =
                                 decodeBboxesImage.find(loc_label)->second;
                             std::vector<int>& indices = it->second;

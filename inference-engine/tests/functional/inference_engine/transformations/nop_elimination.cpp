@@ -84,16 +84,17 @@ TEST(nop_elimination, eliminate_slice) {
 }
 
 TEST(nop_elimination, eliminate_broadcast) {
-    Shape shape{};
+    Shape shape{1};
     auto A = make_shared<op::Parameter>(element::f32, shape);
-    auto b = make_shared<op::v0::Broadcast>(A, shape, AxisSet{});
+    auto b = make_shared<op::v1::Broadcast>(A,
+                                            op::Constant::create(element::u64, Shape{1}, {1}));
     auto f = make_shared<Function>(make_shared<op::v0::Abs>(b), ParameterVector{A});
 
     pass::Manager pass_manager;
     pass_manager.register_pass<pass::NopElimination>();
     pass_manager.run_passes(f);
 
-    ASSERT_EQ(count_ops_of_type<op::v0::Broadcast>(f), 0);
+    ASSERT_EQ(count_ops_of_type<op::v1::Broadcast>(f), 0);
 }
 
 TEST(nop_elimination, eliminate_stop_gradient) {

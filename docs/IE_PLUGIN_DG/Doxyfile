@@ -868,13 +868,13 @@ EXCLUDE_SYMBOLS        =
 # command).
 
 EXAMPLE_PATH           = ../template_plugin/src \
-						 ../template_plugin/include \
+                         ../template_plugin/include \
                          ../template_plugin/src/CMakeLists.txt \
                          ../template_plugin/tests/functional/CMakeLists.txt \
                          ../template_plugin/tests/functional/transformations \
                          ../template_plugin/tests/functional/shared_tests_instances/ \
                          ../../inference-engine/tests/functional/plugin/shared/include \
-                         ../examples
+                         ../snippets
 
 # If the value of the EXAMPLE_PATH tag contains directories, you can use the
 # EXAMPLE_PATTERNS tag to specify one or more wildcard pattern (like *.cpp and

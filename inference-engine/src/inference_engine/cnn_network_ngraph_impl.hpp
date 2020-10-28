@@ -31,12 +31,6 @@
 #include <legacy/cnn_network_impl.hpp>
 
 namespace InferenceEngine {
-namespace ShapeInfer {
-class Reshaper;
-
-using ReshaperPtr = std::shared_ptr<Reshaper>;
-}  // namespace ShapeInfer
-
 namespace details {
 
 /**
@@ -61,9 +55,6 @@ public:
 
     // public version
     StatusCode setBatchSize(size_t size, ResponseDesc* responseDesc) noexcept override;
-
-    // for internal usage (e.g. setBatch via reshape in tests)
-    StatusCode setBatchSizeReshape(size_t size, ResponseDesc* responseDesc) noexcept;
 
     size_t getBatchSize() const noexcept override;
 
@@ -124,6 +115,7 @@ private:
      * @brief Reshape on the same shape
      */
     void reshape();
+    void reshape(const std::map<std::string, std::vector<size_t>>& inputShapes);
 };
 
 class TINGraphBody : public CNNNetworkNGraphImpl {

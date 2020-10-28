@@ -163,6 +163,7 @@ public:
         Copy,
         Resample,
         Interp,
+        Interpolate,
         RegionYolo,
         ReorgYolo,
         ConstantBlob,
@@ -194,6 +195,7 @@ public:
         Ceiling,
         Erf,
         HardSigmoid,
+        HSigmoid,
         Log,
         Neg,
         Reciprocal,
@@ -222,6 +224,7 @@ public:
         CTCGreedyDecoder,
         PriorBoxClustered,
         CumSum,
+        Round,
         EmbeddingBagPackedSum,
         EmbeddingBagOffsetsSum,
         EmbeddingSegmentsSum,
@@ -346,6 +349,7 @@ private:
     void CreateCopyPrimitive(cldnn::topology& topology, InferenceEngine::CNNLayerPtr &layer);
     void CreateResamplePrimitive(cldnn::topology& topology, InferenceEngine::CNNLayerPtr &layer);
     void CreateInterpPrimitive(cldnn::topology& topology, InferenceEngine::CNNLayerPtr &layer);
+    void CreateInterpolatePrimitive(cldnn::topology& topology, InferenceEngine::CNNLayerPtr &layer);
     void CreateYOLO2RegionPrimitive(cldnn::topology& topology, InferenceEngine::CNNLayerPtr &layer);
     void CreateYOLO2ReorgPrimitive(cldnn::topology& topology, InferenceEngine::CNNLayerPtr &layer);
     void CreateArgMaxMinPrimitive(cldnn::topology& topology, InferenceEngine::CNNLayerPtr &layer, const LayerType type);
@@ -384,6 +388,7 @@ private:
     void CreateCTCGreedyDecoderPrimitive(cldnn::topology& topology, InferenceEngine::CNNLayerPtr& layer);
     void CreatePriorBoxClusteredPrimitive(cldnn::topology& topology, InferenceEngine::CNNLayerPtr& layer);
     void CreateCumSumPrimitive(cldnn::topology& topology, InferenceEngine::CNNLayerPtr& layer);
+    void CreateRoundPrimitive(cldnn::topology& topology, InferenceEngine::CNNLayerPtr& layer);
     void CreateEmbeddingBagPackedSumPrimitive(cldnn::topology& topology, InferenceEngine::CNNLayerPtr& layer);
     void CreateEmbeddingBagOffsetsSumPrimitive(cldnn::topology& topology, InferenceEngine::CNNLayerPtr& layer);
     void CreateEmbeddingSegmentsSumPrimitive(cldnn::topology& topology, InferenceEngine::CNNLayerPtr& layer);

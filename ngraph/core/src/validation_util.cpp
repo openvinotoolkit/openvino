@@ -21,6 +21,7 @@
 #include "ngraph/op/convert.hpp"
 #include "ngraph/op/min.hpp"
 #include "ngraph/op/minimum.hpp"
+#include "ngraph/op/reshape.hpp"
 #include "ngraph/op/squeeze.hpp"
 #include "ngraph/op/unsqueeze.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
@@ -1096,7 +1097,8 @@ pair<bool, uint64_t> ngraph::maximum_value(const Output<Node>& value)
         {op::v1::Minimum::type_info, exec_minimum},
         {op::v1::ReduceMin::type_info, exec_reduce_min},
         {op::v0::Squeeze::type_info, exec_nop},
-        {op::v0::Unsqueeze::type_info, exec_nop}};
+        {op::v0::Unsqueeze::type_info, exec_nop},
+        {op::v1::Reshape::type_info, exec_nop}};
     Evaluator<MaxValue>::value_map value_map;
     Evaluator<MaxValue> evaluator(handlers, value_map);
     auto val = evaluator.evaluate(value);

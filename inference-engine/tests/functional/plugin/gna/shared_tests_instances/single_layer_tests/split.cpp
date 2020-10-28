@@ -16,11 +16,15 @@ const std::vector<InferenceEngine::Precision> netPrecisions = {
 };
 
 // TODO: Issue:  26411
-INSTANTIATE_TEST_CASE_P(DISABLED_NumSplitsCheck, SplitLayerTest,
+INSTANTIATE_TEST_CASE_P(DISABLED_smoke_NumSplitsCheck, SplitLayerTest,
                         ::testing::Combine(
                                 ::testing::Values(1),
                                 ::testing::Values(0, 1),
                                 ::testing::ValuesIn(netPrecisions),
+                                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                ::testing::Values(InferenceEngine::Layout::ANY),
+                                ::testing::Values(InferenceEngine::Layout::ANY),
                                 ::testing::Values(std::vector<size_t >({30, 30})),
                                 ::testing::Values(CommonTestUtils::DEVICE_GNA)),
                         SplitLayerTest::getTestCaseName);

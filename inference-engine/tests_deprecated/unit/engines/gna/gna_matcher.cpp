@@ -224,7 +224,8 @@ void GNAPropagateMatcher :: match() {
                 ASSERT_NO_THROW_IE_EXCEPTION(network = CNNNetwork(_env.ngraph_model));
                 ASSERT_NO_FATAL_FAILURE(loadCNNNetwork(network));
 #ifdef GNA_DEBUG
-                network.serialize("CNNNetworkFromNgraphModel.xml", "CNNNetworkFromNgraphModel.bin");
+                // TODO: crash on activation tests so far on addOutput call
+                // network.serialize("CNNNetworkFromNgraphModel.xml", "CNNNetworkFromNgraphModel.bin");
 #endif
             }
             else if (!_env.importedModelFileName.empty()) {

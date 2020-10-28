@@ -69,6 +69,7 @@ IF /I "%1%" EQU "" (
     ) ELSE (
            echo Unsupported framework
            goto error
+      )
      )
     )
    )

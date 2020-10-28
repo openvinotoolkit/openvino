@@ -1,6 +1,6 @@
 @echo off
 
-:: Copyright (c) 2018-2019 Intel Corporation
+:: Copyright (c) 2018-2020 Intel Corporation
 ::
 :: Licensed under the Apache License, Version 2.0 (the "License");
 :: you may not use this file except in compliance with the License.
@@ -20,8 +20,6 @@ set SCRIPT_NAME=%~nx0
 
 set "INTEL_OPENVINO_DIR=%ROOT%"
 set "INTEL_CVSDK_DIR=%INTEL_OPENVINO_DIR%"
-
-where /q libmmd.dll || echo Warning: libmmd.dll couldn't be found in %%PATH%%. Please check if the redistributable package for Intel(R) C++ Compiler is installed and the library path is added to the PATH environment variable. System reboot can be required to update the system environment.
 
 :: OpenCV
 if exist "%INTEL_OPENVINO_DIR%\opencv\setupvars.bat" (
@@ -54,7 +52,7 @@ set "ngraph_DIR=%INTEL_OPENVINO_DIR%\deployment_tools\ngraph\cmake"
 :: Check if Python is installed
 python --version 2>NUL
 if errorlevel 1 (
-   echo Error^: Python is not installed. Please install Python 3.5. or 3.6  ^(64-bit^) from https://www.python.org/downloads/
+   echo Error^: Python is not installed. Please install one of Python 3.6 - 3.8 ^(64-bit^) from https://www.python.org/downloads/
    exit /B 1
 )
 
@@ -69,13 +67,13 @@ for /F "tokens=1,2,3 delims=. " %%a in ("%version%") do (
 )
 
 if "%Major%" geq "3" (
-   if "%Minor%" geq "5" (
+   if "%Minor%" geq "6" (
       set python_ver=okay
    )
 )
 
 if not "%python_ver%"=="okay" (
-   echo Unsupported Python version. Please install Python 3.5 or 3.6  ^(64-bit^) from https://www.python.org/downloads/
+   echo Unsupported Python version. Please install one of Python 3.6 - 3.8 ^(64-bit^) from https://www.python.org/downloads/
    exit /B 1
 )
 
@@ -91,7 +89,7 @@ for /F "tokens=* USEBACKQ" %%F IN (`python -c "import sys; print(64 if sys.maxsi
 )
 
 if not "%bitness%"=="64" (
-   echo Unsupported Python bitness. Please install Python 3.5 or 3.6  ^(64-bit^) from https://www.python.org/downloads/
+   echo Unsupported Python bitness. Please install one of Python 3.6 - 3.8 ^(64-bit^) from https://www.python.org/downloads/
    exit /B 1
 )
 

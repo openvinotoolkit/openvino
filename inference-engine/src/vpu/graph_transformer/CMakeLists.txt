@@ -2,10 +2,6 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-if(ENABLE_LTO)
-    ie_enable_lto()
-endif()
-
 file(GLOB_RECURSE SOURCES *.cpp *.hpp *.h *.inc)
 
 function(add_graph_transformer_target TARGET_NAME STATIC_IE)
@@ -59,6 +55,8 @@ function(add_graph_transformer_target TARGET_NAME STATIC_IE)
 
         ie_developer_export_targets(${TARGET_NAME})
     endif()
+
+    set_target_properties(${TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION ${ENABLE_LTO})
 endfunction()
 
 add_graph_transformer_target("vpu_graph_transformer" FALSE)

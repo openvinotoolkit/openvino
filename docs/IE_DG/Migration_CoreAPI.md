@@ -26,52 +26,45 @@ The main responsibility of the `InferenceEngine::Core` class is to hide plugin s
 Common migration process includes the following steps:
 
 1. Migrate from the `InferenceEngine::InferencePlugin` initialization:
-```cpp
-InferenceEngine::InferencePlugin plugin = InferenceEngine::PluginDispatcher({ FLAGS_pp }).getPluginByDevice(FLAGS_d);
-```
+
+@snippet openvino/docs/snippets/Migration_CoreAPI.cpp part0
+
 to the `InferenceEngine::Core` class initialization:
-```cpp
-InferenceEngine::Core core;
-```
+
+@snippet openvino/docs/snippets/Migration_CoreAPI.cpp part1
 
 2. Instead of using `InferenceEngine::CNNNetReader` to read IR:
-```cpp
-CNNNetReader network_reader;
-network_reader.ReadNetwork(fileNameToString(input_model));
-network_reader.ReadWeights(fileNameToString(input_model).substr(0, input_model.size() - 4) + ".bin");
-CNNNetwork network = network_reader.getNetwork();
-```
+
+@snippet openvino/docs/snippets/Migration_CoreAPI.cpp part2
+
 read networks using the Core class:
-```cpp
-CNNNetwork network = core.ReadNetwork(input_model);
-```
+
+@snippet openvino/docs/snippets/Migration_CoreAPI.cpp part3
+
 The Core class also allows reading models from the ONNX format (more information is [here](./ONNX_Support.md)):
-```cpp
-CNNNetwork network = core.ReadNetwork("model.onnx");
-```
+
+@snippet openvino/docs/snippets/Migration_CoreAPI.cpp part4
 
 3. Instead of adding CPU device extensions to the plugin:
-```cpp
-plugin.AddExtension(std::make_shared<Extensions::Cpu::CpuExtensions>());
-```
+
+@snippet openvino/docs/snippets/Migration_CoreAPI.cpp part5
+
 add extensions to CPU device using the Core class:
-```cpp
-core.AddExtension(std::make_shared<Extensions::Cpu::CpuExtensions>(), "CPU");
-```
+
+@snippet openvino/docs/snippets/Migration_CoreAPI.cpp part6
 
 4. Instead of setting configuration keys to a particular plugin, set (key, value) pairs via `InferenceEngine::Core::SetConfig`
-```cpp
-core.SetConfig({{PluginConfigParams::KEY_CONFIG_FILE, FLAGS_c}}, "GPU");
-```
+
+@snippet openvino/docs/snippets/Migration_CoreAPI.cpp part7
+
 > **NOTE**: If `deviceName` is omitted as the last argument, configuration is set for all Inference Engine devices.
 
 5. Migrate from loading the network to a particular plugin:
-```cpp
-auto execNetwork = plugin.LoadNetwork(network, { });
-```
+
+@snippet openvino/docs/snippets/Migration_CoreAPI.cpp part8
+
 to `InferenceEngine::Core::LoadNetwork` to a particular device:
-```cpp
-auto execNetwork = core.LoadNetwork(network, deviceName, { });
-```
+
+@snippet openvino/docs/snippets/Migration_CoreAPI.cpp part9
 
 After you have an instance of `InferenceEngine::ExecutableNetwork`, all other steps are as usual.

@@ -265,15 +265,7 @@ The following tips are provided to give general guidance on optimizing execution
 
 There is a dedicated configuration option that enables dumping the visualization of the subgraphs created by the heterogeneous plugin:
 
-```cpp
-#include "ie_plugin_config.hpp"
-#include "hetero/hetero_plugin_config.hpp"
-using namespace InferenceEngine::PluginConfigParams;
-using namespace InferenceEngine::HeteroConfigParams;
-
-...
-auto execNetwork = ie.LoadNetwork(network, "HETERO:FPGA,CPU", { {KEY_HETERO_DUMP_GRAPH_DOT, YES} });
-```
+@snippet openvino/docs/snippets/dldt_optimization_guide0.cpp part0
 
 After enabling the configuration key, the heterogeneous plugin generates two files:
 
@@ -341,11 +333,8 @@ If you are building an app-level pipeline with third-party components like GStre
 In many cases, a network expects a pre-processed image, so make sure you do not perform unnecessary steps in your code:
 - Model Optimizer can efficiently bake the mean and normalization (scale) values into the model (for example, weights of the first convolution). See <a href="#mo-knobs-related-to-performance">Model Optimizer Knobs Related to Performance</a>.
 - If regular 8-bit per channel images are your native media (for instance, decoded frames), do not convert to the `FP32` on your side, as this is something that plugins can accelerate. Use the `InferenceEngine::Precision::U8` as your input format:<br>
-```cpp
-InferenceEngine::InputsDataMap info(netReader.getNetwork().getInputsInfo());
-auto& inputInfoFirst = info.begin()->second;
-info->setInputPrecision(Precision::U8);
-```
+
+@snippet openvino/docs/snippets/dldt_optimization_guide1.cpp part1
 
 Note that in many cases, you can directly share the (input) data with the Inference Engine.
 
@@ -354,47 +343,16 @@ Note that in many cases, you can directly share the (input) data with the Infere
 The general approach for sharing data between Inference Engine and media/graphics APIs like Intel&reg; Media Server Studio (Intel&reg; MSS) is based on sharing the *system* memory.  That is, in your code, you should map or copy the data from the API to the CPU address space first.
 
 For Intel MSS, it is recommended to perform a viable pre-processing, for example, crop/resize, and then convert to RGB again with the [Video Processing Procedures (VPP)](https://software.intel.com/en-us/node/696108). Then lock the result and create an Inference Engine blob on top of that. The resulting pointer can be used for the `SetBlob`:
-```cpp
-//Lock Intel MSS surface  
-mfxFrameSurface1 *frame_in;   //Input MSS surface.
-mfxFrameAllocator* pAlloc = &m_mfxCore.FrameAllocator();    
-pAlloc->Lock(pAlloc->pthis, frame_in->Data.MemId, &frame_in->Data);
-//Inference Engine code
-```
+
+@snippet openvino/docs/snippets/dldt_optimization_guide2.cpp part2
 
 **WARNING**: The `InferenceEngine::NHWC` layout is not supported natively by most InferenceEngine plugins so internal conversion might happen.
 
-```cpp
-InferenceEngine::SizeVector dims_src = {
-	1 	    /* batch, N*/,
-	(size_t) frame_in->Info.Height  /* Height */,
-	(size_t) frame_in->Info.Width    /* Width */,
-	3 /*Channels,*/,
-	};
-TensorDesc desc(InferenceEngine::Precision::U8, dims_src, InferenceEngine::NHWC);
-/* wrapping the surface data, as RGB is interleaved, need to pass only ptr to the R, notice that this wouldn’t work with planar formats as these are 3 separate planes/pointers*/
-InferenceEngine::TBlob<uint8_t>::Ptr p = InferenceEngine::make_shared_blob<uint8_t>( desc, (uint8_t*) frame_in->Data.R);
-inferRequest.SetBlob(“input”, p);
-inferRequest.Infer();
-//Make sure to unlock the surface upon inference completion, to return the ownership back to the Intel MSS
-pAlloc->Unlock(pAlloc->pthis, frame_in->Data.MemId, &frame_in->Data);
-```
+@snippet openvino/docs/snippets/dldt_optimization_guide3.cpp part3
 
 Alternatively, you can use RGBP (planar RGB) output from Intel MSS. This allows to wrap the (locked) result as regular NCHW which is generally friendly for most plugins (unlike NHWC). Then you can use it with `SetBlob` just like in previous example:
 
-```cpp
-InferenceEngine::SizeVector dims_src = {
-       1 	    /* batch, N*/,
-       3 	    /*Channels,*/,
-       (size_t) frame_in->Info.Height  /* Height */,
-       (size_t) frame_in->Info.Width    /* Width */,
-       };
-TensorDesc desc(InferenceEngine::Precision::U8, dims_src, InferenceEngine::NCHW);
-/* wrapping the RGBP surface data*/
-InferenceEngine::TBlob<uint8_t>::Ptr p = InferenceEngine::make_shared_blob<uint8_t>( desc, (uint8_t*) frame_in->Data.R);
-inferRequest.SetBlob("input", p);
-…
-```
+@snippet openvino/docs/snippets/dldt_optimization_guide4.cpp part4
 
 The only downside of this approach is that VPP conversion to RGBP is not hardware accelerated (and performed on the GPU EUs). Also, it is available only on LInux.
 
@@ -406,27 +364,7 @@ Again, if the OpenCV and Inference Engine layouts match, the data can be wrapped
 
 **WARNING**: The `InferenceEngine::NHWC` layout is not supported natively by most InferenceEngine plugins so internal conversion might happen.
 
-```cpp
-cv::Mat frame = ...;  // regular CV_8UC3 image, interleaved
-// creating blob that wraps the OpenCV’s Mat
-// (the data it points should persists until the blob is released):
-InferenceEngine::SizeVector dims_src = {
-	1 	    /* batch, N*/,
-	(size_t)frame.rows  /* Height */,
-	(size_t)frame.cols    /* Width */,
-	(size_t)frame.channels() /*Channels,*/,
-	};
-TensorDesc desc(InferenceEngine::Precision::U8, dims_src, InferenceEngine::NHWC);
-InferenceEngine::TBlob<uint8_t>::Ptr p = InferenceEngine::make_shared_blob<uint8_t>( desc, (uint8_t*)frame.data, frame.step[0] * frame.rows);
-inferRequest.SetBlob(“input”, p);
-inferRequest.Infer();
-…
-// similarly, you can wrap the output tensor (let’s assume it is FP32)
-// notice that the output should be also explicitly stated as NHWC with setLayout
-const float* output_data = output_blob->buffer().
-		as<PrecisionTrait<Precision::FP32>::value_type*>();
-cv::Mat res (rows, cols, CV_32FC3, output_data, CV_AUTOSTEP);
-```
+@snippet openvino/docs/snippets/dldt_optimization_guide5.cpp part5
 
 Notice that original `cv::Mat`/blobs cannot be used simultaneously by the application and the Inference Engine. Alternatively, the data that the pointer references to can be copied to unlock the original data and return ownership to the original API.
 
@@ -436,25 +374,7 @@ Infer Request based API offers two types of request: Sync and Async. The Sync is
 
 More importantly, an infer request encapsulates the reference to the “executable” network and actual inputs/outputs. Now, when you load the network to the plugin, you get a reference to the executable network (you may consider that as a queue). Actual infer requests are created by the executable network:
 
-```cpp
-Core ie;
-auto network = ie.ReadNetwork("Model.xml", "Model.bin");
-InferenceEngine::InputsDataMap input_info(network.getInputsInfo());
-
-auto executable_network = ie.LoadNetwork(network, "GPU");
-auto infer_request = executable_network.CreateInferRequest();
-
-for (auto & item : inputInfo) {
-	std::string input_name = item->first;
-	auto input = infer_request.GetBlob(input_name);
-	/** Lock/Fill input tensor with data **/
-		   unsigned char* data =
-	input->buffer().as<PrecisionTrait<Precision::U8>::value_type*>();
-	...
-}
-
-infer_request->Infer();
-```
+@snippet openvino/docs/snippets/dldt_optimization_guide6.cpp part6
 
 `GetBlob` is a recommend way to communicate with the network, as it internally allocates the data with right padding/alignment for the device. For example, the GPU inputs/outputs blobs are mapped to the host (which is fast) if the `GetBlob` is used. But if you called the `SetBlob`, the copy (from/to the blob you have set) into the internal GPU plugin structures will happen.
 
@@ -464,11 +384,9 @@ If your application simultaneously executes multiple infer requests:
 
 - 	For the CPU, the best solution, you can use the <a href="#cpu-streams">CPU "throughput" mode</a>.
 	-	If latency is of more concern, you can try the `EXCLUSIVE_ASYNC_REQUESTS` [configuration option](../IE_DG/supported_plugins/CPU.md) that limits the number of the simultaneously executed requests for all (executable) networks that share the specific device to just one:<br>
-	```cpp
-	//these two networks go thru same plugin (aka device) and their requests will not overlap.
-		auto executable_network0 = plugin.LoadNetwork(network0, {{PluginConfigParams::KEY_EXCLUSIVE_ASYNC_REQUESTS, PluginConfigParams::YES}});
-		auto executable_network1 = plugin.LoadNetwork(network1, {{PluginConfigParams::KEY_EXCLUSIVE_ASYNC_REQUESTS, PluginConfigParams::YES}});
-	```
+
+@snippet openvino/docs/snippets/dldt_optimization_guide7.cpp part7
+
 		<br>For more information on the executable networks notation, see <a href="#new-request-based-api">Request-Based API and “GetBlob” Idiom</a>.
 
 	-	The heterogeneous device uses the `EXCLUSIVE_ASYNC_REQUESTS` by default.
@@ -490,27 +408,15 @@ In the example below, inference is applied to the results of the video decoding.
 You can compare the pseudo-codes for the regular and async-based approaches:
 
 -	In the regular way, the frame is captured with OpenCV and then immediately processed:<br>
-```cpp
-while(…) {
-	capture frame
-	populate CURRENT InferRequest
-	Infer CURRENT InferRequest //this call is synchronous
-	display CURRENT result
-}
-```
+
+@snippet openvino/docs/snippets/dldt_optimization_guide8.cpp part8
+
 ![Intel&reg; VTune&trade; screenshot](../img/vtune_regular.png)
 
 -	In the "true" async mode, the `NEXT` request is populated in the main (application) thread, while the `CURRENT` request is processed:<br>
-```cpp
-while(…) {
-	capture frame
-	populate NEXT InferRequest
-	start NEXT InferRequest //this call is async and returns immediately
-	wait for the CURRENT InferRequest //processed in a dedicated thread
-	display CURRENT result
-	swap CURRENT and NEXT InferRequests
-}
-```
+
+@snippet openvino/docs/snippets/dldt_optimization_guide9.cpp part9
+
 ![Intel&reg; VTune&trade; screenshot](../img/vtune_async.png)
 
 The technique can be generalized to any available parallel slack. For example, you can do inference and simultaneously encode the resulting or previous frames or run further inference, like emotion detection on top of the face detection results.

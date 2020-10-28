@@ -199,7 +199,7 @@ inline bool is_full_ranged(const TensorIterator::PortMap& rule, const DataPtr& d
     if (rule.axis == -1 || !one_of(rule.stride, 1, -1)) return false;
 
     auto& shape = data->getDims();
-    int size = shape[rule.axis];
+    int size = static_cast<int>(shape[rule.axis]);
 
     int begin = rule.start >= 0 ? rule.start : size + rule.start + 1;
     int end = rule.end >= 0 ? rule.end : size + rule.end + 1;
@@ -398,13 +398,15 @@ bool convertToRNNSeq(CNNLayerPtr cur, const N& net) {
     IE_ASSERT(cell->insData.size() == NS + 1);  // {data, state1, [state2]}
     IE_ASSERT(cell->outData.size() == NS);      // {state1, [state2]}
 
+    auto outData0InputsTo = getInputTo(cell->outData[0]);
     if (getCreatorLayer(cell->insData[0].lock()).lock() != rsp1 ||
-        getInputTo(cell->outData[0]).begin()->second != rsp2)
+            outData0InputsTo.empty() ||
+            outData0InputsTo.begin()->second != rsp2)
         return false;
 
     // Check port mapping
     auto _indx_in = [&](const std::vector<DataPtr>& scope, const DataPtr& data) {
-        int indx = std::find(scope.begin(), scope.end(), data) - scope.begin();
+        int indx = static_cast<int>(std::find(scope.begin(), scope.end(), data) - scope.begin());
         return indx == scope.size() ? -1 : indx;
     };
 
@@ -581,6 +583,12 @@ bool unrollTI(CNNLayerPtr cur, ICNNNetwork& net) {
         auto& rule = first_class[i];
         auto out_data = ti->outData[rule.from];
 
+        if (num == 1) {
+            getInputTo(body_list[0].outputs[rule.to]) = getInputTo(out_data);
+            getInputTo(body_list[0].outputs[rule.to]).begin()->second->insData[0] = body_list[0].outputs[rule.to];
+            continue;
+        }
+
         std::string name = ti->name + ":out_concat_" + std::to_string(i);
         auto concat = std::make_shared<ConcatLayer>(LayerParams {name, "Concat", cur->precision});
         concat->_axis = rule.axis;
@@ -662,7 +670,7 @@ static CNNLayerPtr _fc(std::string name, Precision prc, SizeVector dims, Blob::P
 
     res->_weights = W;
     res->_biases = B;
-    res->_out_num = dims[1];
+    res->_out_num = static_cast<unsigned>(dims[1]);
     res->blobs["weights"] = W;
     res->blobs["biases"] = B;
     res->params["out-size"] = std::to_string(dims[1]);
@@ -937,7 +945,7 @@ static bool unrollLSTMCellBody(CNNLayerPtr cur) {
 
     // operations
     auto concat = _concat(name + ":concat", prc, {N, D + S}, 2);
-    auto split = _split(name + ":split", prc, {N, S}, G);
+    auto split = _split(name + ":split", prc, {N, S}, static_cast<int>(G));
     auto fc = _fc(name + ":fc", prc, {N, S * G}, cell->_weights, cell->_biases);
 
     const std::string _f = cell->activations[0], _g = cell->activations[1], _h = cell->activations[2];

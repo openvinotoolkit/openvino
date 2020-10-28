@@ -5,6 +5,7 @@
 #include "vpu/ngraph/transformations/dynamic_to_static_shape_concat.hpp"
 
 #include "vpu/ngraph/operations/dynamic_shape_resolver.hpp"
+#include "vpu/ngraph/utilities.hpp"
 #include <vpu/utils/error.hpp>
 
 #include "ngraph/graph_util.hpp"
@@ -33,7 +34,7 @@ void dynamicToStaticShapeConcat(std::shared_ptr<ngraph::Node> target) {
     VPU_THROW_UNLESS(!dsrInputs.empty(),
                      "DynamicToStaticShape transformation for {} of type {} expects at least "
                      "one {} as input, actual types: {}", target->get_friendly_name(),
-                     target->get_type_info().name, ngraph::vpu::op::DynamicShapeResolver::type_info.name,
+                     target->get_type_info(), ngraph::vpu::op::DynamicShapeResolver::type_info,
                      std::accumulate(inputs.begin(), inputs.end(), std::string(), [](
                              const std::string& typesStr, const ngraph::Output<ngraph::Node>& input) {
                          return typesStr + input.get_node_shared_ptr()->get_type_info().name + ", ";
@@ -55,8 +56,8 @@ void dynamicToStaticShapeConcat(std::shared_ptr<ngraph::Node> target) {
         VPU_THROW_UNLESS(dsrShapeInputValue.get_element_type() == shapeDataType,
                          "DynamicToStaticShape transformation for {} of type {} expects input "
                          "shape with {} type from {} argument of type {}, provided {}",
-                         target->get_friendly_name(), target->get_type_info().name,
-                         shapeDataType, dsrNode->get_friendly_name(), dsrNode->get_type_info().name,
+                         target->get_friendly_name(), target->get_type_info(),
+                         shapeDataType, dsrNode->get_friendly_name(), dsrNode->get_type_info(),
                          dsrShapeInputValue.get_element_type());
         return dsrShapeInputValue;
     };
@@ -85,7 +86,7 @@ void dynamicToStaticShapeConcat(std::shared_ptr<ngraph::Node> target) {
             VPU_THROW_UNLESS(staticInputPartialShape.is_static(),
                              "DynamicToStaticShape transformation for {} of type {} expects static "
                              "shape on inputs without DSR", target->get_friendly_name(),
-                             target->get_type_info().name);
+                             target->get_type_info());
             accumulatedStaticShapeValue[axis] += staticInputPartialShape[axis].get_length();
         }
         return accumulatedStaticShapeValue;

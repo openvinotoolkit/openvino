@@ -110,10 +110,10 @@ class VariadicSplitBase(Op):
         # value propagation
         input_value = node.in_port(0).data.get_value()
         if input_value is not None:
-            splitted = np.split(input_value, idxs[:-1], axis)
+            split = np.split(input_value, idxs[:-1], axis)
             for i, port in node.out_ports().items():
                 if not port.disconnected():
-                    port.data.set_value(splitted[i])
+                    port.data.set_value(split[i])
 
         if op == 'VariadicSplit':
             PermuteInputs().set_input_permutation(node.in_node(1), node, 'input:0', 'axis')

@@ -7,7 +7,7 @@ if(DEFINED IE_MAIN_SOURCE_DIR AND TARGET inference_engine)
                                   inference_engine_c_api)
 else()
     include("${CMAKE_CURRENT_LIST_DIR}/targets.cmake")
-    if(NOT WIN32)
+    if(NOT MSVC)
         set_target_properties(IE::inference_engine PROPERTIES INTERFACE_COMPILE_OPTIONS "-Wno-error=deprecated-declarations")
     endif()
 
@@ -31,4 +31,11 @@ else()
     get_target_property(InferenceEngine_INCLUDE_DIRS IE::inference_engine INTERFACE_INCLUDE_DIRECTORIES)
     set(InferenceEngine_LIBRARIES IE::inference_engine_legacy IE::inference_engine
                                   IE::inference_engine_c_api)
+
+    foreach(library IN LISTS InferenceEngine_LIBRARIES)
+        if(CMAKE_CROSSCOMPILING AND NOT MSVC)
+            set_property(TARGET ${library} PROPERTY
+                         INTERFACE_LINK_OPTIONS "-Wl,--allow-shlib-undefined")
+        endif()
+    endforeach()
 endif()

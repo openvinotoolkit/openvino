@@ -27,7 +27,7 @@ using namespace ngraph;
 
 NGRAPH_SUPPRESS_DEPRECATED_START
 
-constexpr NodeTypeInfo op::DepthToSpace::type_info;
+NGRAPH_RTTI_DEFINITION(op::v0::DepthToSpace, "DepthToSpace", 0);
 
 op::DepthToSpace::DepthToSpace(const Output<Node>& data,
                                const DepthToSpaceMode& mode,

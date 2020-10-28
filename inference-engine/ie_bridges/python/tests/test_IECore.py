@@ -157,7 +157,11 @@ def test_read_network_from_xml():
 
 def test_read_network_as_path():
     ie = IECore()
-    net = ie.read_network(model=Path(model_path()[0]), weights=Path(test_net_bin))
+
+    net = ie.read_network(model=Path(test_net_xml), weights=test_net_bin)
+    assert isinstance(net, IENetwork)
+
+    net = ie.read_network(model=test_net_xml, weights=Path(test_net_bin))
     assert isinstance(net, IENetwork)
 
 

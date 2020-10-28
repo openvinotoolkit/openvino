@@ -26,6 +26,7 @@
 #include "onnx_import/default_opset.hpp"
 #include "onnx_import/exceptions.hpp"
 #include "onnx_import/utils/convpool.hpp"
+#include "onnx_import/utils/reshape.hpp"
 
 namespace ngraph
 {
@@ -82,20 +83,9 @@ namespace ngraph
                     {
                         const auto rank_of_conv = ng_conv.get_partial_shape().rank().get_length();
 
-                        // reshape the bias node {M} to {1, M, 1, 1, ..., 1}
-                        // this is required by the addition operation that needs to be able
-                        // to broadcast the bias to match the shape of the convolution node
-                        std::vector<size_t> reshape_pattern_values(rank_of_conv, 1U);
-                        reshape_pattern_values[1] = bias.get_shape().front();
-                        const auto reshape_pattern =
-                            default_opset::Constant::create(element::u64,
-                                                            Shape{reshape_pattern_values.size()},
-                                                            reshape_pattern_values);
-
-                        std::shared_ptr<ngraph::Node> reshaped_bias =
-                            std::make_shared<default_opset::Reshape>(bias, reshape_pattern, false);
-
-                        return {std::make_shared<default_opset::Add>(ng_conv, reshaped_bias)};
+                        return {std::make_shared<default_opset::Add>(
+                            ng_conv,
+                            reshape::reshape_channel_shaped_node_to_nchw(bias, rank_of_conv))};
                     }
                 } // namespace
 

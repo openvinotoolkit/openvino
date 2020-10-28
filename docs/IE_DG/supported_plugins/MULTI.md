@@ -31,33 +31,13 @@ The only configuration option for the multi-device is prioritized list of device
 You can use name of the configuration directly as a string, or use MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES from the multi/multi_device_config.hpp that defines the same string.
  
 Basically, there are three ways to specify the devices to be use by the "MULTI":
-```cpp
-    Core ie; 
-    //NEW IE-CENTRIC API, the "MULTI" plugin is (globally) pre-configured with the explicit option:
-    ie.SetConfig({{"MULTI_DEVICE_PRIORITIES", "HDDL,GPU"}}, "MULTI");
-    ExecutableNetwork exec0 = ie.LoadNetwork(network, "MULTI", {});
 
-    //NEW IE-CENTRIC API, configuration of the "MULTI" is part of the network configuration (and hence specific to the network):
-    ExecutableNetwork exec1 = ie.LoadNetwork(network, "MULTI", {{"MULTI_DEVICE_PRIORITIES", "HDDL,GPU"}});
-    //NEW IE-CENTRIC API, same as previous, but configuration of the "MULTI" is part of the name (so config is empty), also network-specific:
-    ExecutableNetwork exec2 = ie.LoadNetwork(network, "MULTI:HDDL,GPU", {});
-```
+@snippet openvino/docs/snippets/MULTI0.cpp part0
+
 Notice that the priorities of the devices can be changed in real-time for the executable network:
-```cpp
-    Core ie; 
-    ExecutableNetwork exec = ie.LoadNetwork(network, "MULTI:HDDL,GPU", {});
-    //...
-    exec.SetConfig({{"MULTI_DEVICE_PRIORITIES", "GPU,HDDL"}});
-    // you can even exclude some device
-    exec.SetConfig({{"MULTI_DEVICE_PRIORITIES", "GPU"}});
-    //...
-    // and then return it back
-    exec.SetConfig({{"MULTI_DEVICE_PRIORITIES", "GPU,HDDL"}});
-    //but you cannot add new devices on the fly, the next line will trigger the following exception: 
-    //[ ERROR ] [NOT_FOUND] You can only change device priorities but not add new devices with the Network's SetConfig(MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES.
-    //CPU device was not in the original device list!
-    exec.SetConfig({{"MULTI_DEVICE_PRIORITIES", "CPU,GPU,HDDL"}});
-```
+
+@snippet openvino/docs/snippets/MULTI1.cpp part1
+
 Finally, there is a way to specify number of requests that the multi-device will internally keep for each device.
 Say if your original app was running 4 cameras with 4 inference requests now you would probably want to share these 4 requests between 2 devices used in the MULTI. The easiest way is to specify a number of requests for each device using parentheses: "MULTI:CPU(2),GPU(2)" and use the same 4 requests in your app. However, such an explicit configuration is not performance portable and hence not recommended. Instead, the better way is to configure the individual devices and query the resulting number of requests to be used in the application level (see [Configuring the Individual Devices and Creating the Multi-Device On Top](#configuring-the-individual-devices-and-creating-the-multi-device-on-top)).
 
@@ -74,16 +54,9 @@ Available devices:
 	Device: HDDL
 ```
 Simple programmatic way to enumerate the devices and use with the multi-device is as follows:
-```cpp
-        Core ie;
-        std::string allDevices = "MULTI:";
-        std::vector<std::string> availableDevices = ie.GetAvailableDevices();
-        for (auto && device : availableDevices) {
-            allDevices += device;
-            allDevices += ((device == availableDevices[availableDevices.size()-1]) ? "" : ",");
-        }
-        ExecutableNetwork exeNetwork = ie.LoadNetwork(cnnNetwork, allDevices, {});
-```
+
+@snippet openvino/docs/snippets/MULTI2.cpp part2
+
 Beyond trivial "CPU", "GPU", "HDDL" and so on, when multiple instances of a device are available the names are more qualified.
 For example this is how two Intel® Movidius™ Myriad™ X sticks are listed with the hello_query_sample:
 ```
@@ -94,33 +67,15 @@ For example this is how two Intel® Movidius™ Myriad™ X sticks are listed wi
 ```
 So the explicit configuration to use both would be "MULTI:MYRIAD.1.2-ma2480,MYRIAD.1.4-ma2480".
 Accordingly, the code that loops over all available devices of "MYRIAD" type only is below:
-```cpp
-       Core ie;
-        std::string allDevices = "MULTI:";
-        std::vector<std::string> myriadDevices = ie->GetMetric("MYRIAD", METRIC_KEY(myriadDevices)));
-        for (int i = 0; i < myriadDevices.size(); ++i) {
-            allDevices += std::string("MYRIAD.")
-                                  + myriadDevices[i]
-                                  + std::string(i < (myriadDevices.size() -1) ? "," : "");
-        }
-        ExecutableNetwork exeNetwork = ie.LoadNetwork(cnnNetwork, allDevices, {});
-```
+
+@snippet openvino/docs/snippets/MULTI3.cpp part3
 
 
 ## Configuring the Individual Devices and Creating the Multi-Device On Top
 As discussed in the first section, you shall configure each individual device as usual and then just create the "MULTI" device on top:
-```cpp
-#include <multi/multi_device_config.hpp>
-// configure the HDDL device first
-Core ie; 
-ie.SetConfig(hddl_config, "HDDL"); 
-// configure the GPU device
-ie.SetConfig(gpu_config, "GPU"); 
-// load the network to the multi-device, while specifying the configuration (devices along with priorities):
-ExecutableNetwork exeNetwork = ie.LoadNetwork(cnnNetwork, "MULTI", {{MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES, "HDDL,GPU"}});
-// new metric allows to query the optimal number of requests:
-uint32_t nireq = exeNetwork.GetMetric(METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS)).as<unsigned int>();
-```
+
+@snippet openvino/docs/snippets/MULTI4.cpp part4
+
 Alternatively, you can combine all the individual device settings into single config and load that, allowing the multi-device plugin to parse and apply that to the right devices. See code example in the next section.
 
 Notice that while the performance of accelerators combines really well with multi-device, the CPU+GPU execution poses some performance caveats, as these devices share the power, bandwidth and other resources. For example it is recommended to enable the GPU throttling hint (which save another CPU thread for the CPU inference).
@@ -128,12 +83,8 @@ See section of the [Using the multi-device with OpenVINO samples and benchmarkin
 
 ## Querying the Optimal Number of Inference Requests
 Notice that until R2 you had to calculate number of requests in your application for any device, e.g. you had to know that Intel® Vision Accelerator Design with Intel® Movidius™ VPUs required at least 32 inference requests to perform well. Now you can use the new GetMetric API to query the optimal number of requests. Similarly, when using the multi-device you don't need to sum over included devices yourself, you can query metric directly:
-```cpp
-// 'device_name' can be "MULTI:HDDL,GPU" to configure the multi-device to use HDDL and GPU
-ExecutableNetwork exeNetwork = ie.LoadNetwork(cnnNetwork, device_name, full_config);
-// new metric allows to query the optimal number of requests:
-uint32_t nireq = exeNetwork.GetMetric(METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS)).as<unsigned int>();
-```
+
+@snippet openvino/docs/snippets/MULTI5.cpp part5
 
 ## Using the Multi-Device with OpenVINO Samples and Benchmarking the Performance
 Notice that every OpenVINO sample that supports "-d" (which stays for "device") command-line option transparently accepts the multi-device.

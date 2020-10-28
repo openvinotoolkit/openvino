@@ -17,7 +17,7 @@
 #include "functional_test_utils/skip_tests_config.hpp"
 
 #include "single_layer_tests/gru_sequence.hpp"
-#include <transformations/bidirectional_sequences_decomposition.hpp>
+#include <transformations/op_conversions/bidirectional_sequences_decomposition.hpp>
 
 namespace LayerTestsDefinitions {
 
@@ -84,11 +84,6 @@ namespace LayerTestsDefinitions {
         ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(gru_sequence->output(0)),
                                      std::make_shared<ngraph::opset1::Result>(gru_sequence->output(1))};
         function = std::make_shared<ngraph::Function>(results, params, "gru_sequence");
-        if (direction == ngraph::op::RecurrentSequenceDirection::BIDIRECTIONAL) {
-            ngraph::pass::Manager m;
-            m.register_pass<ngraph::pass::BidirectionalGRUSequenceDecomposition>();
-            m.run_passes(function);
-        }
     }
 
 

@@ -230,11 +230,23 @@ namespace ngraph
         // True if the shape's rank is static.
         bool m_rank_is_static;
 
-        // True if the shape is static.
+        /// \brief Shape types. The shape type is lazily evaluated by calling the is_static()
+        /// method.
+        ///
+        /// \details It is highly recommended to avoid using the Dimension& operator[](size_t)
+        /// operator. It sets the shape type to SHAPE_IS_UPDATED and disables shape type caching.
+        /// Thus, the is_static method will have linear complexity because the shape is not
+        /// guaranteed to remain static or dynamic.
         mutable enum class ShapeType {
-            SHAPE_IS_UNKNOWN,
-            SHAPE_IS_STATIC,
-            SHAPE_IS_DYNAMIC
+            SHAPE_IS_UNKNOWN, // The shape type is unknown and should be calculated by checking all
+                              // dimensions.
+            SHAPE_IS_UPDATED, // User has retained a link to one dimension. Therefore, we can't
+                              // guarantee that the shape will remain static or dynamic, and its
+                              // type will always be evaluated.
+            SHAPE_IS_STATIC,  // The shape type is known and static. Also there are no any retained
+                              // dimensions by non-constant reference.
+            SHAPE_IS_DYNAMIC  // The shape type is dynamic and there are no any retained dimensions
+                              // by non-constant reference.
         } m_shape_type{ShapeType::SHAPE_IS_UNKNOWN};
 
         // Shape dimensions. This has no meaning if m_rank_is_static is false.

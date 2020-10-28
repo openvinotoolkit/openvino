@@ -146,6 +146,6 @@ protected:
 TEST_P(DynamicToStaticShapeVeriadicSplit, CompareFunctions) {
 }
 
-INSTANTIATE_TEST_CASE_P(NGraph, DynamicToStaticShapeVeriadicSplit, combinations);
+INSTANTIATE_TEST_CASE_P(smoke_NGraph, DynamicToStaticShapeVeriadicSplit, combinations);
 
 }  // namespace

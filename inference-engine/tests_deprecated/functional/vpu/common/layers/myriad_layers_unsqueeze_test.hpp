@@ -180,7 +180,13 @@ R"V0G0N(
 }
 
 static std::vector<InferenceEngine::SizeVector> s_squeezeTensors = {
-        {{3}, {1}, {1, 3}, {3, 1}}
+        {
+            // TODO: rewrite to ngraph to have reshape functionality
+            // {3, 1},
+            // {3},
+            {1},
+            {1, 3},
+        }
 };
 
 static std::vector<IndicesVector> s_squeezeIndices = {

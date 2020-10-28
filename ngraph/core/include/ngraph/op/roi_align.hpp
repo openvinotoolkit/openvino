@@ -76,6 +76,9 @@ namespace ngraph
                 int get_sampling_ratio() const { return m_sampling_ratio; }
                 float get_spatial_scale() const { return m_spatial_scale; }
                 PoolingMode get_mode() const { return m_mode; }
+                bool evaluate(const HostTensorVector& outputs,
+                              const HostTensorVector& inputs) const override;
+
             private:
                 PoolingMode mode_from_string(const std::string& mode) const;
 
@@ -86,9 +89,9 @@ namespace ngraph
                 float m_spatial_scale;
                 PoolingMode m_mode;
             };
-        }
+        } // namespace v3
         using v3::ROIAlign;
-    }
+    } // namespace op
 
     std::ostream& operator<<(std::ostream& s, const op::v3::ROIAlign::PoolingMode& mode);
 
@@ -106,4 +109,4 @@ namespace ngraph
             "AttributeAdapter<op::v3::ROIAlign::PoolingMode>", 3};
         const DiscreteTypeInfo& get_type_info() const override { return type_info; }
     };
-}
+} // namespace ngraph

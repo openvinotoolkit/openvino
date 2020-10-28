@@ -24,16 +24,22 @@ namespace LayerTestsDefinitions {
 std::string SplitLayerTest::getTestCaseName(testing::TestParamInfo<splitParams> obj) {
     size_t numSplits, axis;
     InferenceEngine::Precision netPrecision;
+    InferenceEngine::Precision inPrc, outPrc;
+    InferenceEngine::Layout inLayout, outLayout;
     InferenceEngine::SizeVector inputShapes;
     std::string targetDevice;
-    std::tie(numSplits, axis, netPrecision, inputShapes, targetDevice) = obj.param;
+    std::tie(numSplits, axis, netPrecision, inPrc, outPrc, inLayout, outLayout, inputShapes, targetDevice) = obj.param;
     std::ostringstream result;
     result << "IS=" << CommonTestUtils::vec2str(inputShapes) << "_";
     result << "numSplits=" << numSplits << "_";
     result << "axis=" << axis << "_";
     result << "IS";
     result << "netPRC=" << netPrecision.name() << "_";
-    result << "targetDevice=" << targetDevice;
+    result << "inPRC=" << inPrc.name() << "_";
+    result << "outPRC=" << outPrc.name() << "_";
+    result << "inL=" << inLayout << "_";
+    result << "outL=" << outLayout << "_";
+    result << "trgDev=" << targetDevice;
     return result.str();
 }
 
@@ -42,7 +48,7 @@ void SplitLayerTest::SetUp() {
     size_t axis, numSplits;
     std::vector<size_t> inputShape;
     InferenceEngine::Precision netPrecision;
-    std::tie(numSplits, axis, netPrecision, inputShape, targetDevice) = this->GetParam();
+    std::tie(numSplits, axis, netPrecision, inPrc, outPrc, inLayout, outLayout, inputShape, targetDevice) = this->GetParam();
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
     auto params = ngraph::builder::makeParams(ngPrc, {inputShape});
     auto paramOuts = ngraph::helpers::convert2OutputVector(

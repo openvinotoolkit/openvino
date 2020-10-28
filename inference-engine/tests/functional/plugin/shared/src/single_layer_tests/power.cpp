@@ -11,15 +11,21 @@ namespace LayerTestsDefinitions {
     std::string PowerLayerTest::getTestCaseName(const testing::TestParamInfo<PowerParamsTuple> &obj) {
         std::vector<std::vector<size_t>> inputShapes;
         InferenceEngine::Precision netPrecision;
+        InferenceEngine::Precision inPrc, outPrc;
+        InferenceEngine::Layout inLayout, outLayout;
         std::string targetName;
         std::vector<float> power;
-        std::tie(inputShapes, netPrecision, targetName, power) = obj.param;
+        std::tie(inputShapes, netPrecision, inPrc, outPrc, inLayout, outLayout, targetName, power) = obj.param;
         std::ostringstream results;
 
         results << "IS=" << CommonTestUtils::vec2str(inputShapes) << "_";
         results << "Power=" << CommonTestUtils::vec2str(power) << "_";
         results << "netPRC=" << netPrecision.name() << "_";
-        results << "targetDevice=" << targetName << "_";
+        results << "inPRC=" << inPrc.name() << "_";
+        results << "outPRC=" << outPrc.name() << "_";
+        results << "inL=" << inLayout << "_";
+        results << "outL=" << outLayout << "_";
+        results << "trgDev=" << targetName << "_";
         return results.str();
     }
 
@@ -29,7 +35,7 @@ namespace LayerTestsDefinitions {
         std::vector<std::vector<size_t>> inputShapes;
         InferenceEngine::Precision netPrecision;
         std::vector<float> power;
-        std::tie(inputShapes, netPrecision, targetDevice, power) = this->GetParam();
+        std::tie(inputShapes, netPrecision, inPrc, outPrc, inLayout, outLayout, targetDevice, power) = this->GetParam();
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
         auto paramsIn = ngraph::builder::makeParams(ngPrc, {inputShapes[0]});
 

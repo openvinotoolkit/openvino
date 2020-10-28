@@ -4,7 +4,7 @@
 
 #include <string>
 #include "ngraph_reader_tests.hpp"
-TEST_F(NGraphReaderTests, ReadBatchNormInferenceNetwork) {
+TEST_F(NGraphReaderTests, DISABLED_ReadBatchNormInferenceNetwork) {
     std::string model = R"V0G0N(
 <net name="Network" version="10">
     <layers>
@@ -87,8 +87,8 @@ TEST_F(NGraphReaderTests, ReadBatchNormInferenceNetwork) {
                 </port>
             </output>
         </layer>
-        <layer name="bn" id="5" type="BatchNormInference" version="opset1">
-            <data eps="0.1" />
+        <layer name="bn" id="5" type="BatchNormInference" version="opset5">
+            <data epsilon="0.1" />
             <input>
                 <port id="1" precision="FP32">
                     <dim>1</dim>

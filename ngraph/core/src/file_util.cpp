@@ -23,6 +23,7 @@
 #include <sys/time.h>
 #include <unistd.h>
 #endif
+#include <algorithm>
 #include <fcntl.h>
 #include <fstream>
 #include <iostream>
@@ -43,6 +44,10 @@
 #else
 #define RMDIR(a) rmdir(a)
 #define RMFILE(a) remove(a)
+#ifdef ENABLE_UNICODE_PATH_SUPPORT
+#include <codecvt>
+#include <locale>
+#endif
 #endif
 
 using namespace std;
@@ -77,10 +82,19 @@ string file_util::get_file_ext(const string& s)
 string file_util::get_directory(const string& s)
 {
     string rc = s;
+    // Linux-style separator
     auto pos = s.find_last_of('/');
     if (pos != string::npos)
     {
         rc = s.substr(0, pos);
+        return rc;
+    }
+    // Windows-style separator
+    pos = s.find_last_of('\\');
+    if (pos != string::npos)
+    {
+        rc = s.substr(0, pos);
+        return rc;
     }
     return rc;
 }
@@ -123,118 +137,6 @@ string file_util::path_join(const string& s1, const string& s2)
         rc = s1;
     }
     return rc;
-}
-
-size_t file_util::get_file_size(const string& filename)
-{
-    // ensure that filename exists and get its size
-
-    struct stat stats;
-    if (stat(filename.c_str(), &stats) == -1)
-    {
-        throw runtime_error("Could not find file: \"" + filename + "\"");
-    }
-
-    return stats.st_size;
-}
-
-void file_util::remove_directory(const string& dir)
-{
-    struct stat status;
-    if (stat(dir.c_str(), &status) != -1)
-    {
-        iterate_files(dir,
-                      [](const string& file, bool is_dir) {
-                          if (is_dir)
-                          {
-                              RMDIR(file.c_str());
-                          }
-                          else
-                          {
-                              RMFILE(file.c_str());
-                          }
-                      },
-                      true);
-        RMDIR(dir.c_str());
-    }
-}
-
-void file_util::remove_file(const string& file)
-{
-    remove(file.c_str());
-}
-
-bool file_util::make_directory(const string& dir)
-{
-#ifdef _WIN32
-    CreateDirectoryA(dir.c_str(), nullptr);
-#else
-    if (mkdir(dir.c_str(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH))
-    {
-        if (errno == EEXIST)
-        {
-            // not really an error, the directory already exists
-            return false;
-        }
-        throw runtime_error("error making directory " + dir + " " + strerror(errno));
-    }
-#endif
-    return true;
-}
-
-string file_util::get_temp_directory_path()
-{
-    const vector<string> potential_tmps = {"NGRAPH_TMP", "TMPDIR", "TMP", "TEMP", "TEMPDIR"};
-
-    string path;
-    for (const string& var : potential_tmps)
-    {
-        path = getenv_string(var.c_str());
-        if (!path.empty())
-        {
-            break;
-        }
-    }
-    if (path.empty())
-    {
-        path = "/tmp";
-    }
-
-    return path;
-}
-
-vector<char> file_util::read_file_contents(const string& path)
-{
-    size_t file_size = get_file_size(path);
-    vector<char> data(file_size);
-
-    FILE* f = fopen(path.c_str(), "rb");
-    if (f)
-    {
-        char* p = data.data();
-        size_t remainder = file_size;
-        size_t offset = 0;
-        while (f && remainder > 0)
-        {
-            size_t rc = fread(&p[offset], 1, remainder, f);
-            offset += rc;
-            remainder -= rc;
-        }
-        fclose(f);
-    }
-    else
-    {
-        throw runtime_error("error opening file '" + path + "'");
-    }
-    return data;
-}
-
-string file_util::read_file_to_string(const string& path)
-{
-    ifstream f(path);
-    stringstream ss;
-    ss << f.rdbuf();
-    return ss.str();
 }
 
 #ifndef _WIN32
@@ -299,9 +201,9 @@ void file_util::iterate_files(const string& path,
     vector<string> files;
     vector<string> dirs;
 #ifdef _WIN32
-    string file_match = path_join(path, "*");
-    WIN32_FIND_DATA data;
-    HANDLE hFind = FindFirstFile(file_match.c_str(), &data);
+    std::string file_match = path_join(path, "*");
+    WIN32_FIND_DATAA data;
+    HANDLE hFind = FindFirstFileA(file_match.c_str(), &data);
     if (hFind != INVALID_HANDLE_VALUE)
     {
         do
@@ -324,7 +226,7 @@ void file_util::iterate_files(const string& path,
                 string file_name = path_join(path, data.cFileName);
                 func(file_name, false);
             }
-        } while (FindNextFile(hFind, &data));
+        } while (FindNextFileA(hFind, &data));
         FindClose(hFind);
     }
 #else
@@ -353,29 +255,41 @@ void file_util::iterate_files(const string& path,
     }
 }
 
-string file_util::tmp_filename(const string& extension)
+NGRAPH_API void file_util::convert_path_win_style(std::string& path)
 {
-    string rc;
+    std::replace(path.begin(), path.end(), '/', '\\');
+}
+
+#ifdef ENABLE_UNICODE_PATH_SUPPORT
+
+std::string file_util::wstring_to_string(const std::wstring& wstr)
+{
 #ifdef _WIN32
-    rc = _tempnam(file_util::get_temp_directory_path().c_str(), "ngraph_");
+    int size_needed =
+        WideCharToMultiByte(CP_UTF8, 0, &wstr[0], (int)wstr.size(), NULL, 0, NULL, NULL); // NOLINT
+    std::string strTo(size_needed, 0);
+    WideCharToMultiByte(
+        CP_UTF8, 0, &wstr[0], (int)wstr.size(), &strTo[0], size_needed, NULL, NULL); // NOLINT
+    return strTo;
 #else
-    string tmp_template =
-        file_util::path_join(file_util::get_temp_directory_path(), "ngraph_XXXXXX" + extension);
-    char* tmpname = strdup(tmp_template.c_str());
-    if (tmpname != nullptr)
-    {
-        // mkstemp opens the file with open() so we need to close it
-        close(mkstemps(tmpname, static_cast<int>(extension.size())));
-
-        rc = tmpname;
-        free(tmpname);
-    }
+    std::wstring_convert<std::codecvt_utf8<wchar_t>> wstring_decoder;
+    return wstring_decoder.to_bytes(wstr);
 #endif
-    return rc;
 }
 
-bool file_util::exists(const string& filename)
+std::wstring file_util::multi_byte_char_to_wstring(const char* str)
 {
-    struct stat buffer;
-    return (stat(filename.c_str(), &buffer) == 0);
+#ifdef _WIN32
+    int strSize = static_cast<int>(std::strlen(str));
+    int size_needed = MultiByteToWideChar(CP_UTF8, 0, str, strSize, NULL, 0);
+    std::wstring wstrTo(size_needed, 0);
+    MultiByteToWideChar(CP_UTF8, 0, str, strSize, &wstrTo[0], size_needed);
+    return wstrTo;
+#else
+    std::wstring_convert<std::codecvt_utf8<wchar_t>> wstring_encoder;
+    std::wstring result = wstring_encoder.from_bytes(str);
+    return result;
+#endif
 }
+
+#endif // ENABLE_UNICODE_PATH_SUPPORT

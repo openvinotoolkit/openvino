@@ -52,13 +52,13 @@ KERNEL (resample_opt)(__global INPUT0_TYPE* input,
 
     unroll_for (uint out_x = 0; out_x < OUTPUT_X_BLOCK_SIZE; out_x++) {
 #ifdef SAMPLE_TYPE_NEAREST
-        const int ix = floor((x + out_x) * X_RATIO);
-        const int iy = floor(y * Y_RATIO);
+        const int ix = floor((x + out_x) * SCALES[4]);
+        const int iy = floor(y * SCALES[3]);
 
         in_vec_t res = READ_FUNC(input, INPUT0_GET_INDEX(b, feature_block, iy, ix));
 #else
-        const ACCUMULATOR_TYPE ix = TO_ACCUMULATOR_TYPE(X_RATIO) * (x + out_x);
-        const ACCUMULATOR_TYPE iy = TO_ACCUMULATOR_TYPE(Y_RATIO) * y;
+        const ACCUMULATOR_TYPE ix = TO_ACCUMULATOR_TYPE(SCALES[4]) * (x + out_x);
+        const ACCUMULATOR_TYPE iy = TO_ACCUMULATOR_TYPE(SCALES[3]) * y;
 
         const int top_y_index    = (int)(floor(iy));
         const int bottom_y_index = min((int)ceil(iy), INPUT0_SIZE_Y - 1);

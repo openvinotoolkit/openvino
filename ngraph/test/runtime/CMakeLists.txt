@@ -37,8 +37,6 @@ set (SRC
     pass/fused_op_decomposition.hpp
     pass/implicit_broadcast_elimination.cpp
     pass/implicit_broadcast_elimination.hpp
-    pass/like_replacement.cpp
-    pass/like_replacement.hpp
     pass/liveness.cpp
     pass/liveness.hpp
     pass/opset0_downgrade.cpp
@@ -51,7 +49,16 @@ set (SRC
     pass/shape_relevance.hpp
     )
 
+disable_deprecated_warnings()
+
 add_library(ngraph_backend SHARED ${SRC})
+
+if(COMMAND ie_faster_build)
+    ie_faster_build(ngraph_backend
+        UNITY
+    )
+endif()
+
 target_compile_definitions(ngraph_backend
     PRIVATE
         SHARED_LIB_PREFIX="${CMAKE_SHARED_LIBRARY_PREFIX}"

@@ -64,11 +64,6 @@ InferenceEngine::IExtension::getImplementation returns the kernel implementation
 ## Load Extension with Executable Kernels to Plugin
 
 Use the `AddExtension` method of the general plugin interface to load your primitives:
-```cpp
-InferenceEngine::Core core;
-// Load CPU extension as a shared library
-auto extension_ptr = make_so_pointer<InferenceEngine::IExtension>("<shared lib path>");
-// Add extension to the CPU device
-core.AddExtension(extension_ptr, "CPU");
-```
+
+@snippet openvino/docs/snippets/CPU_Kernel.cpp part0
 

@@ -74,7 +74,7 @@ PyObject *parse_parameter(const InferenceEngine::Parameter &param) {
         auto val = param.as<int>();
         return PyLong_FromLong((long)val);
     }
-        // Check for unsinged int
+        // Check for unsigned int
     else if (param.is<unsigned int>()) {
         auto val = param.as<unsigned int>();
         return PyLong_FromLong((unsigned long)val);

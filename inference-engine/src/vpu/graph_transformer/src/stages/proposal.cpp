@@ -40,6 +40,7 @@ private:
         stridesInfo.setInput(inputEdge(1), StridesRequirement::compact());
         stridesInfo.setInput(inputEdge(2), StridesRequirement::compact());
         stridesInfo.setOutput(outputEdge(0), StridesRequirement::compact());
+        stridesInfo.setOutput(outputEdge(1), StridesRequirement::compact());
     }
 
     void finalizeDataLayoutImpl() override {
@@ -49,7 +50,7 @@ private:
     }
 
     void initialCheckImpl() const override {
-        assertInputsOutputsTypes(this, {{DataType::FP16}, {DataType::FP16}, {DataType::FP16}}, {{DataType::FP16}});
+        assertInputsOutputsTypes(this, {{DataType::FP16}, {DataType::FP16}, {DataType::FP16}}, {{DataType::FP16}, {DataType::FP16}});
     }
 
     void serializeParamsImpl(BlobSerializer& serializer) const override {
@@ -107,10 +108,12 @@ private:
         auto input0 = inputEdge(0)->input();
         auto input1 = inputEdge(1)->input();
         auto input2 = inputEdge(2)->input();
-        auto output = outputEdge(0)->output();
+        auto output0 = outputEdge(0)->output();
+        auto output1 = outputEdge(1)->output();
 
         input0->serializeBuffer(serializer);
-        output->serializeBuffer(serializer);
+        output0->serializeBuffer(serializer);
+        output1->serializeBuffer(serializer);
         input1->serializeBuffer(serializer);
         input2->serializeBuffer(serializer);
         tempBuffer(0)->serializeBuffer(serializer);
@@ -122,14 +125,22 @@ private:
 void FrontEnd::parseProposal(const Model& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs) const {
     ie::details::CaselessEq<std::string> cmp;
 
-    IE_ASSERT(inputs.size() == 3);
+    VPU_THROW_UNLESS((inputs.size() == 3),
+                     "Proposal stage with name %s must have 3 inputs, "
+                     "actually provided %d", layer->name, inputs.size());
+    VPU_THROW_UNLESS((outputs.size() == 1) || (outputs.size() == 2),
+                     "Proposal stage with name %s must have only 1 or 2 outputs, "
+                     "actually provided %d", layer->name, outputs.size());
 
-    // TODO: implement 2nd output, see:
-    // #-37327: Several models Failed to compile layer "proposals"
-    IE_ASSERT(outputs.size() == 1 || outputs.size() == 2);
+    DataVector tempOutputs(2);
+    tempOutputs[0] = outputs[0];
 
-    const DataVector outputs1 = { outputs[0] }; // ignore 2nd output
-    auto stage = model->addNewStage<ProposalStage>(layer->name, StageType::Proposal, layer, inputs, outputs1);
+    if (outputs.size() < 2)
+        tempOutputs[1] = model->addFakeData();
+    else
+        tempOutputs[1] = outputs[1];
+
+    auto stage = model->addNewStage<ProposalStage>(layer->name, StageType::Proposal, layer, inputs, tempOutputs);
 
     stage->attrs().set<int>("feat_stride", layer->GetParamAsInt("feat_stride", 16));
     stage->attrs().set<int>("base_size", layer->GetParamAsInt("base_size", 16));
@@ -167,7 +178,7 @@ void FrontEnd::parseProposal(const Model& model, const ie::CNNLayerPtr& layer, c
     stage->attrs().set("scales", scales);
     stage->attrs().set("ratios", ratios);
 
-    int number_of_anchors = ratios.size() * scales.size();
+    int number_of_anchors = static_cast<int>(ratios.size() * scales.size());
 
     // Allocate slightly larger buffer than needed for handling remnant in distribution among SHAVEs
     int buffer_size = (inputs[0]->desc().dim(Dim::H) + 16) * inputs[0]->desc().dim(Dim::W) * number_of_anchors * 5 * sizeof(float);
@@ -178,14 +189,12 @@ void FrontEnd::parseProposal(const Model& model, const ie::CNNLayerPtr& layer, c
     };
     const int num_proposals = number_of_anchors * inputs[0]->desc().dim(Dim::H) * inputs[0]->desc().dim(Dim::W);
     const int pre_nms_topn = std::min(num_proposals, stage->attrs().get<int>("pre_nms_topn"));
-    const int required_cmx_size_per_shave = std::max(2 * (1 + pre_nms_topn) * sizeof(SortItem),
-                                                     (1 + pre_nms_topn) * sizeof(SortItem) + number_of_anchors * sizeof(float));
+    const int required_cmx_size_per_shave = static_cast<int>(std::max(2 * (1 + pre_nms_topn) * sizeof(SortItem),
+                                                     (1 + pre_nms_topn) * sizeof(SortItem) + number_of_anchors * sizeof(float)));
     const auto& env = CompileEnv::get();
     const int required_cmx_buffer_size = env.resources.numSHAVEs * required_cmx_size_per_shave;
 
-    model->addTempBuffer(
-        stage,
-        DataDesc({buffer_size + required_cmx_buffer_size}));
+    model->addTempBuffer(stage, buffer_size + required_cmx_buffer_size);
 }
 
 }  // namespace vpu

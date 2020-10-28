@@ -88,27 +88,17 @@ bool ConcatenationKernel_simple_Ref::Validate(const Params& p, const optional_pa
 }
 
 ConcatenationKernelBase::DispatchData ConcatenationKernel_simple_Ref::SetDefault(const concatenation_params& params) const {
-    DispatchData kd;
+    DispatchData dispatchData;
     const auto& input = params.inputs[0];
 
-    std::vector<size_t> global;
-    global = {
-        input.X().v * input.Y().v,
-        input.Z().v * input.W().v,
-        input.Feature().v * input.Batch().v};
-    auto local = GetOptimalLocalWorkGroupSizes(global, params.engineInfo);
+    dispatchData.gws = { input.X().v * input.Y().v,
+                         input.Z().v * input.W().v,
+                         input.Feature().v * input.Batch().v };
+    dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo);
 
-    kd.gws0 = global[0];  // X * Y
-    kd.gws1 = global[1];  // Z * W
-    kd.gws2 = global[2];  // F * B
+    dispatchData.efficiency = FORCE_PRIORITY_9;
 
-    kd.lws0 = local[0];
-    kd.lws1 = local[1];
-    kd.lws2 = local[2];
-
-    kd.efficiency = FORCE_PRIORITY_9;
-
-    return kd;
+    return dispatchData;
 }
 
 KernelsData ConcatenationKernel_simple_Ref::GetKernelsData(const Params& params, const optional_params& optParams) const {

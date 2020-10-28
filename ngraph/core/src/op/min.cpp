@@ -88,7 +88,7 @@ shared_ptr<Node> op::v0::Min::get_default_value() const
     }
 }
 
-namespace
+namespace minop
 {
     template <element::Type_t ET>
     bool evaluate(const HostTensorPtr& arg, const HostTensorPtr& out, const AxisSet& axes)
@@ -125,7 +125,7 @@ namespace
 bool op::v0::Min::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const
 {
     OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v0::Min::evaluate");
-    return evaluate_min(inputs[0], outputs[0], get_reduction_axes());
+    return minop::evaluate_min(inputs[0], outputs[0], get_reduction_axes());
 }
 
 constexpr NodeTypeInfo op::v1::ReduceMin::type_info;
@@ -148,5 +148,5 @@ bool op::v1::ReduceMin::evaluate(const HostTensorVector& outputs,
                                  const HostTensorVector& inputs) const
 {
     OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v1::ReduceMin::evaluate");
-    return evaluate_min(inputs[0], outputs[0], get_reduction_axes());
+    return minop::evaluate_min(inputs[0], outputs[0], get_reduction_axes());
 }

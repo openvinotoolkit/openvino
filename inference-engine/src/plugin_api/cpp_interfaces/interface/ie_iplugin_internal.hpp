@@ -59,8 +59,6 @@ static void copyInputOutputInfo(const InputsDataMap & networkInputs, const Outpu
     _networkInputs.clear();
     _networkOutputs.clear();
 
-    IE_SUPPRESS_DEPRECATED_START
-
     for (const auto& it : networkInputs) {
         InputInfo::Ptr newPtr;
         if (it.second) {
@@ -78,8 +76,6 @@ static void copyInputOutputInfo(const InputsDataMap & networkInputs, const Outpu
         }
         _networkOutputs[it.first] = newData;
     }
-
-    IE_SUPPRESS_DEPRECATED_END
 }
 
 /**
@@ -223,13 +219,14 @@ public:
     virtual RemoteContext::Ptr GetDefaultContext() = 0;
 
     /**
+     * @deprecated Use ImportNetwork(std::istream& networkModel, const std::map<std::string, std::string>& config)
      * @brief Creates an executable network from an previously exported network
      * @param modelFileName - path to the location of the exported file
      * @param config A string -> string map of parameters
-     * @return A reference to a shared ptr of the returned network interface
+     * @return An Executable network
      */
-    virtual IExecutableNetwork::Ptr ImportNetwork(const std::string& modelFileName,
-                                                  const std::map<std::string, std::string>& config) = 0;
+    virtual ExecutableNetwork ImportNetwork(const std::string& modelFileName,
+                                            const std::map<std::string, std::string>& config) = 0;
 
     /**
      * @brief Creates an executable network from an previously exported network using plugin implementation
@@ -245,7 +242,7 @@ public:
      * @brief Creates an executable network from an previously exported network using plugin implementation
      *        and removes Inference Engine magic and plugin name
      * @param networkModel Reference to network model output stream
-     * @param context - a pointer to plugin context derived from RemoteContext class used to
+     * @param context A pointer to plugin context derived from RemoteContext class used to
      *        execute the network
      * @param config A string -> string map of parameters
      * @return An Executable network
@@ -270,10 +267,9 @@ public:
      * @brief      Queries a plugin about supported layers in network
      * @param[in]  network  The network object to query
      * @param[in]  config   The map of configuration parameters
-     * @param      res      The result of query operator containing supported layers map
+     * @return     The result of query operator containing supported layers map
      */
-    virtual void QueryNetwork(const ICNNNetwork& network, const std::map<std::string, std::string>& config,
-                              QueryNetworkResult& res) const = 0;
+    virtual QueryNetworkResult QueryNetwork(const ICNNNetwork& network, const std::map<std::string, std::string>& config) const = 0;
 };
 
 }  // namespace InferenceEngine

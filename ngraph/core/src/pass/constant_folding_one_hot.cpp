@@ -201,8 +201,9 @@ void pass::ConstantFolding::construct_constant_one_hot()
                 indices_node, on_node, off_node, output_shape, axis);
             break;
         }
-
+        replacement->set_friendly_name(m.get_match_root()->get_friendly_name());
         replace_node(m.get_match_root(), replacement);
+        copy_runtime_info_to_target_inputs(m.get_match_root(), replacement);
         return true;
     };
     auto one_hot_matcher =

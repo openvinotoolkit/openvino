@@ -1,4 +1,5 @@
 #!groovy
+
 properties([
     parameters([
         booleanParam(defaultValue: true,
@@ -6,5 +7,4 @@ properties([
                      name: 'failFast')
     ])
 ])
-
 dldtPipelineEntrypoint(this)

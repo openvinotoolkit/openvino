@@ -24,20 +24,24 @@ class TRANSFORMATIONS_API GroupConvolutionBackpropDataMultiplyFusion;
 
 class ngraph::pass::ConvolutionMultiplyFusion: public ngraph::pass::MatcherPass {
 public:
+    NGRAPH_RTTI_DECLARATION;
     ConvolutionMultiplyFusion();
 };
 
 class ngraph::pass::GroupConvolutionMultiplyFusion: public ngraph::pass::MatcherPass {
 public:
+    NGRAPH_RTTI_DECLARATION;
     GroupConvolutionMultiplyFusion();
 };
 
 class ngraph::pass::ConvolutionBackpropDataMultiplyFusion: public ngraph::pass::MatcherPass {
 public:
+    NGRAPH_RTTI_DECLARATION;
     ConvolutionBackpropDataMultiplyFusion();
 };
 
 class ngraph::pass::GroupConvolutionBackpropDataMultiplyFusion: public ngraph::pass::MatcherPass {
 public:
+    NGRAPH_RTTI_DECLARATION;
     GroupConvolutionBackpropDataMultiplyFusion();
 };

@@ -11,6 +11,7 @@
 #include <ngraph/opsets/opset2.hpp>
 #include <ngraph/opsets/opset3.hpp>
 #include <ngraph/opsets/opset4.hpp>
+#include <ngraph/opsets/opset5.hpp>
 
 #include "ngraph_functions/utils/data_utils.hpp"
 
@@ -25,14 +26,14 @@ makeParams(const element::Type &type, const std::vector<std::pair<std::string, s
 template<typename T>
 std::shared_ptr<Node> makeConstant(const element::Type &type, const std::vector<size_t> &shape,
                                    const std::vector<T> &data, bool random = false,
-                                   uint32_t upTo = 10, uint32_t startFrom = 1) {
+                                   uint32_t upTo = 10, uint32_t startFrom = 1, const int seed = 1) {
     std::shared_ptr<ngraph::Node> weightsNode;
 
 #define makeNode(TYPE) \
         case TYPE: \
             weightsNode = std::make_shared<ngraph::opset1::Constant>( \
                     type, shape, \
-                    random ? NGraphFunctions::Utils::generateVector<TYPE>(ngraph::shape_size(shape), upTo, startFrom) : \
+                    random ? NGraphFunctions::Utils::generateVector<TYPE>(ngraph::shape_size(shape), upTo, startFrom, seed) : \
                              NGraphFunctions::Utils::castVector<T, ngraph::helpers::nGraphTypesTrait<TYPE>::value_type >(data)); \
             break;
     switch (type) {
@@ -191,7 +192,8 @@ std::shared_ptr<ngraph::Node> makeVariadicSplit(const ngraph::Output<Node> &in,
 std::shared_ptr<ngraph::Node> makeActivation(const ngraph::Output<Node> &in,
                                              const element::Type &type,
                                              ngraph::helpers::ActivationTypes activationType,
-                                             std::vector<size_t> inShape = {});
+                                             std::vector<size_t> inShape = {},
+                                             std::vector<float> constantsValue = {});
 
 std::shared_ptr<ngraph::Node> makeActivation(const ngraph::ParameterVector &parameters,
                                              const element::Type &type,
@@ -272,7 +274,8 @@ std::shared_ptr<Node> makeFakeQuantize(const ngraph::Output<Node> &in,
 std::shared_ptr<Node> makeFakeQuantize(const ngraph::Output<Node> &in,
                                        const element::Type &type,
                                        std::size_t levels,
-                                       std::vector<size_t> constShapes);
+                                       std::vector<size_t> constShapes,
+                                       const int32_t  seed = 1);
 
 std::shared_ptr<ngraph::Node> makeCumSum(const ngraph::Output<Node> &in,
                                          const ngraph::Output<Node> &axis,
@@ -382,8 +385,8 @@ std::shared_ptr<ngraph::Node> makeConcat(const std::vector<ngraph::Output<Node>>
                                          const int& axis);
 
 std::shared_ptr<ngraph::Node> makePad(const ngraph::Output<Node>& data,
-                                      const std::vector<size_t>& padsBegin,
-                                      const std::vector<size_t>& padsEnd,
+                                      const std::vector<int64_t>& padsBegin,
+                                      const std::vector<int64_t>& padsEnd,
                                       float argPadValue,
                                       ngraph::helpers::PadMode padMode);
 
@@ -425,5 +428,10 @@ std::shared_ptr<ngraph::Node> makeRNN(const OutputVector& in,
 
 std::shared_ptr<ngraph::Node> makeTile(const ngraph::Output<Node>& in,
                                        const std::vector<size_t>& repeats);
+
+std::shared_ptr<ngraph::Node> makeNormalizeL2(const ngraph::Output<Node>& data,
+                                              const std::vector<int64_t>& axes,
+                                              float eps,
+                                              ngraph::op::EpsMode epsMode);
 }  // namespace builder
 }  // namespace ngraph

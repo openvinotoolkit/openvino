@@ -12,7 +12,7 @@
 #include <ngraph/opsets/opset1.hpp>
 #include <ngraph/opsets/opset2.hpp>
 #include <ngraph/opsets/opset3.hpp>
-#include <transformations/convert_opset3_to_opset2/convert_nms3.hpp>
+#include <transformations/op_conversions/convert_nms3.hpp>
 #include <transformations/init_node_info.hpp>
 #include <transformations/utils/utils.hpp>
 
