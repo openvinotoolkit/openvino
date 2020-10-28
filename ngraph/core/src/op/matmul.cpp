@@ -61,18 +61,21 @@ namespace matmul
         auto arg0_rank = arg0_shape.rank().get_length();
         auto arg1_rank = arg1_shape.rank().get_length();
 
+        NGRAPH_CHECK((arg0_rank != 0 && arg1_rank != 0),
+                     "Scalars are not supported as MatMul input.");
+
         // Temporary Dimension vectors to calculate output shape
         std::vector<Dimension> arg0_shape_tmp(arg0_shape);
         std::vector<Dimension> arg1_shape_tmp(arg1_shape);
 
-        // Result of merging compatible dimensions
+        // Result of merging compatible dimensions for validation usage
         auto merged_dimension = Dimension::dynamic();
 
         // 1D tensor cases. Transpose attributes are ignored.
         if (arg0_rank == 1 && arg1_rank == 1)
         {
             NGRAPH_CHECK(Dimension::merge(merged_dimension, arg0_shape_tmp[0], arg1_shape_tmp[0]),
-                         "Incompatible matrix dimensions");
+                         "Incompatible matrix dimensions.");
             return PartialShape(Shape{});
         }
         else if (arg0_rank == 1)
@@ -81,7 +84,7 @@ namespace matmul
             NGRAPH_CHECK(Dimension::merge(merged_dimension,
                                           arg0_shape_tmp[0],
                                           arg1_shape_tmp[arg1_shape_tmp.size() - 2]),
-                         "Incompatible matrix dimensions");
+                         "Incompatible matrix dimensions.");
             arg1_shape_tmp.erase(arg1_shape_tmp.begin() + arg1_rank - 2);
             return PartialShape(arg1_shape_tmp);
         }
@@ -124,9 +127,8 @@ namespace matmul
 
             if (arg0_rank != arg1_rank)
             {
-                size_t delta_rank = big_size_matrix.size() - low_size_matrix.size();
-
                 // expand low_size_matrix (with 1) to have the same rank as big_size_matrix
+                size_t delta_rank = big_size_matrix.size() - low_size_matrix.size();
                 low_size_matrix.insert(low_size_matrix.begin(), delta_rank, 1);
             }
 
@@ -134,9 +136,9 @@ namespace matmul
             // updated at the end
             for (auto i = 0; i < max_rank - 2; i++)
             {
-                if ((low_size_matrix[i].is_dynamic() || big_size_matrix[i].is_dynamic()))
+                if (low_size_matrix[i].is_dynamic() || big_size_matrix[i].is_dynamic())
                 {
-                    // non-dynamic value is assigned to output when it is > 1, otherwise
+                    // static value is assigned to output when it is > 1, otherwise
                     // dynamic dimension is forwarded to output
                     Dimension::merge(merged_dimension, low_size_matrix[i], big_size_matrix[i]);
                     if (merged_dimension.is_static() && merged_dimension.get_length() > 1)
