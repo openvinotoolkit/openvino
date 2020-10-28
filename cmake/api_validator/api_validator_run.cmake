@@ -38,12 +38,6 @@ execute_process(COMMAND ${command}
 
 file(WRITE "${UWP_API_VALIDATOR_OUTPUT}" "${output_message}\n\n\n${error_message}")
 
-set(content "${output_message}\n\n\n${error_message}")
-string(REPLACE "Error" "" content "${content}")
-
-message("apiValidator")
-message("${content}")
-
 # post-process output
 
 if(NOT UWP_HAS_BINARY_EXCLUSION)
@@ -61,12 +55,14 @@ if(NOT UWP_HAS_BINARY_EXCLUSION)
     # throw error if error_message still contains any errors
 
     if(error_message)
-        message("${error_message}")
+        message(FATAL_ERROR "${error_message}")
     endif()
 endif()
 
 # write output
 
 if(UWP_HAS_BINARY_EXCLUSION AND NOT exit_code EQUAL 0)
-    message("${error_message}")
+    message(FATAL_ERROR "${error_message}")
 endif()
+
+message("ApiValidator: ${UWP_API_VALIDATOR_TARGET} has passed the OneCore compliance")
