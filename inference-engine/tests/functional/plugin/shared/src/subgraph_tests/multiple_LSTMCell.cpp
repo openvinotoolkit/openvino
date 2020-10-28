@@ -19,6 +19,8 @@
 #include "ngraph_functions/builders.hpp"
 
 #include <transformations/op_conversions/lstm_cell_decomposition.hpp>
+#include "transformations/control_flow/unroll_tensor_iterator.hpp"
+#include "transformations/op_conversions/low_latency.hpp"
 #include "subgraph_tests/multiple_LSTMCell.hpp"
 
 namespace SubgraphTestsDefinitions {
@@ -314,7 +316,52 @@ void MultipleLSTMCellTest::Run() {
     Validate();
 }
 
+void MultipleLSTMCellTest::RunLowLatency() {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    InferenceEngine::TensorDesc state_description(InferenceEngine::Precision::FP32,
+                                                  InferenceEngine::SizeVector({1, hiddenSize}),
+                                                  InferenceEngine::Layout::NC);
+    switchToNgraphFriendlyModel();
+    // Apply LowLatency transformation (insert Assigns/ReadValues)
+    ngraph::pass::Manager manager;
+    manager.register_pass<ngraph::pass::LowLatency>();
+    manager.register_pass<ngraph::pass::UnrollTensorIterator>();
+    manager.run_passes(function);
+    LoadNetwork();
+    auto states = executableNetwork.QueryState();
+    for (auto& state : states) {
+        auto name = state.GetName();
+        if (name == "cell_memory") {
+            auto blob = FuncTestUtils::createAndFillBlobWithFloatArray(state_description,
+                                                                       cell_memory_init.data(), cell_memory_init.size());
+            state.SetState(blob);
+        } else if (name == "hidden_memory") {
+            auto blob = FuncTestUtils::createAndFillBlobWithFloatArray(state_description,
+                                                                       hidden_memory_init.data(), hidden_memory_init.size());
+            state.SetState(blob);
+        } else if (name == "cell_memory_2") {
+            auto blob = FuncTestUtils::createAndFillBlobWithFloatArray(state_description,
+                                                                       cell_memory_init.data(), cell_memory_init.size());
+            state.SetState(blob);
+        } else if (name == "hidden_memory_2") {
+            auto blob = FuncTestUtils::createAndFillBlobWithFloatArray(state_description,
+                                                                       hidden_memory_init.data(), hidden_memory_init.size());
+            state.SetState(blob);
+        } else {
+            GTEST_FAIL() << "unknown memory state";
+        }
+    }
+    Infer();
+
+    switchToNgraphFriendlyModel();
+    Validate();
+}
+
 TEST_P(MultipleLSTMCellTest, CompareWithRefs) {
     Run();
+};
+
+TEST_P(MultipleLSTMCellTest, CompareWithRefs_low_latency) {
+    RunLowLatency();
 };
 }  // namespace SubgraphTestsDefinitions

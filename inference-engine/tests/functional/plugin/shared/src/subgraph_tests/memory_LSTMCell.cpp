@@ -19,6 +19,8 @@
 #include "ngraph_functions/builders.hpp"
 
 #include <transformations/op_conversions/lstm_cell_decomposition.hpp>
+#include "transformations/control_flow/unroll_tensor_iterator.hpp"
+#include "transformations/op_conversions/low_latency.hpp"
 #include "subgraph_tests/memory_LSTMCell.hpp"
 
 namespace SubgraphTestsDefinitions {
@@ -218,7 +220,42 @@ namespace SubgraphTestsDefinitions {
         Validate();
     }
 
+    void MemoryLSTMCellTest::RunLowLatency() {
+        SKIP_IF_CURRENT_TEST_IS_DISABLED()
+
+        switchToNgraphFriendlyModel();
+        // Apply LowLatency transformation (insert Assigns/ReadValues)
+        ngraph::pass::Manager manager;
+        manager.register_pass<ngraph::pass::LowLatency>();
+        manager.register_pass<ngraph::pass::UnrollTensorIterator>();
+        manager.run_passes(function);
+        LoadNetwork();
+        auto states = executableNetwork.QueryState();
+        for (auto& state : states) {
+            auto name = state.GetName();
+            if (name == "cell_memory") {
+                auto blob = FuncTestUtils::createAndFillBlobWithFloatArray(state.GetLastState()->getTensorDesc(),
+                                                                           cell_memory_init.data(), cell_memory_init.size());
+                state.SetState(blob);
+            } else if (name == "hidden_memory") {
+                auto blob = FuncTestUtils::createAndFillBlobWithFloatArray(state.GetLastState()->getTensorDesc(),
+                                                                           hidden_memory_init.data(), hidden_memory_init.size());
+                state.SetState(blob);
+            } else {
+                GTEST_FAIL() << "unknown memory state";
+            }
+        }
+        Infer();
+
+        switchToNgraphFriendlyModel();
+        Validate();
+    }
+
     TEST_P(MemoryLSTMCellTest, CompareWithRefs) {
         Run();
+    };
+
+    TEST_P(MemoryLSTMCellTest, CompareWithRefs_low_latency) {
+        RunLowLatency();
     };
 }  // namespace SubgraphTestsDefinitions

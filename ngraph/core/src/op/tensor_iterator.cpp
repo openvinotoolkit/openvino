@@ -126,17 +126,8 @@ void op::v0::TensorIterator::validate_and_infer_types()
                 auto start = make_positive(slice_input_description->m_start, dim_size);
                 auto end = make_positive(slice_input_description->m_end, dim_size);
 
-                if (m_num_iterations == -1)
-                {
-                    // +1 because the left and right borders are included [start, end]
-                    m_num_iterations = (abs(end - start) + 1) / part_size;
-                }
-                else
-                {
-                    NODE_VALIDATION_CHECK(this,
-                                          m_num_iterations == (abs(end - start) + 1) / part_size,
-                                          "Number of slices not the same");
-                }
+                // +1 because the left and right borders are included [start, end]
+                m_num_iterations = (abs(end - start) + 1) / part_size;
 
                 if (body_param_partial_shape.is_static())
                 {

@@ -14,6 +14,8 @@
 #include "functional_test_utils/layer_test_utils.hpp"
 #include "functional_test_utils/plugin_cache.hpp"
 #include "ngraph_functions/pass/convert_prc.hpp"
+#include "transformations/control_flow/unroll_tensor_iterator.hpp"
+#include "transformations/op_conversions/low_latency.hpp"
 
 #include "subgraph_tests/basic_lstm.hpp"
 
@@ -165,7 +167,10 @@ std::shared_ptr<ngraph::Function> Basic_LSTM_S::CreateGraphWithUnrolledTI() {
 
 std::vector<std::vector<std::uint8_t>> Basic_LSTM_S::CalculateRefs() {
     //For now TensorIterator is not implemented in ngraph interpreter so it is needed to validate with another reference
-    auto reference_model = CreateGraphWithUnrolledTI();
+    auto reference_model = ngraph::clone_function(*function);
+    ngraph::pass::Manager manager;
+    manager.register_pass<ngraph::pass::UnrollTensorIterator>();
+    manager.run_passes(reference_model);
 
     auto refCnnNetwork = InferenceEngine::CNNNetwork{ reference_model };
     auto refExecutableNetwork = core->LoadNetwork(refCnnNetwork, targetDevice);
@@ -215,4 +220,35 @@ TEST_P(Basic_LSTM_S, CompareWithRefImpl) {
     Run();
 };
 
+TEST_P(Basic_LSTM_S, CompareWithRefImpl_low_latency) {
+    // Reshape
+    auto params = ngraph::builder::makeParams(function->get_parameters().at(0)->get_element_type(), { {1, 49} });
+    function->replace_parameter(0, params[0]);
+
+    // todo: it is better to modify the model -> use ShapeOf() and Gather()
+    std::vector<uint64_t> outFormShapes1 = { 1, 1, 49 };
+    auto pattern1 = std::make_shared<ngraph::opset1::Constant>(ngraph::element::Type_t::i64, ngraph::Shape{3}, outFormShapes1);
+    auto param_target_inputs = function->get_parameters().at(0)->output(0).get_target_inputs();
+
+    // replace hardcoded shape
+    for (const auto& target : param_target_inputs.begin()->get_node()->input(1).get_source_output().get_target_inputs()) {
+        target.replace_source_output(pattern1);
+    }
+    function->validate_nodes_and_infer_types();
+
+    // Calculate References for the network before transformation passes
+    auto referenceOutputs = CalculateRefs();
+
+    // Apply LowLatency transformation
+    ngraph::pass::Manager manager;
+    manager.register_pass<ngraph::pass::LowLatency>();
+    manager.register_pass<ngraph::pass::UnrollTensorIterator>();
+    manager.run_passes(function);
+
+    // Run and compare
+    LoadNetwork();
+    Infer();
+    const auto& actualOutputs = GetOutputs();
+    Compare(referenceOutputs, actualOutputs);
+};
 }  // namespace LayerTestsDefinitions

@@ -31,6 +31,7 @@ private:
 protected:
     void SetUp() override;
     void Run() override;
+    void RunLowLatency();
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<memoryLSTMCellParams> &obj);
 };
