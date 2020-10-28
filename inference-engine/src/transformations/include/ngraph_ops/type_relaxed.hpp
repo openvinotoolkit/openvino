@@ -12,7 +12,6 @@
 #include <transformations_visibility.hpp>
 
 #include "ngraph/op/op.hpp"
-#include "transformations/low_precision/common/dequantization_op.hpp"
 
 namespace ngraph {
 namespace op {
