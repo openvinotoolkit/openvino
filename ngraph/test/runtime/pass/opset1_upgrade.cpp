@@ -333,15 +333,6 @@ namespace opset1_upgrade
         return op_cast_binary_elementwise_node<op::v0::Power, op::v1::Power>(node);
     }
 
-    shared_ptr<Node> op_cast(shared_ptr<op::Product> node)
-    {
-        bool keep_dims = false;
-        auto replacement_node =
-            make_shared<op::v1::ReduceProd>(node->input_value(0), node->input_value(1), keep_dims);
-        replace_node(node, replacement_node);
-        return replacement_node;
-    }
-
     shared_ptr<Node> op_cast(shared_ptr<op::Reverse> node)
     {
         // creates a Constant node from the v0::Reverse reversed_axes attribute
