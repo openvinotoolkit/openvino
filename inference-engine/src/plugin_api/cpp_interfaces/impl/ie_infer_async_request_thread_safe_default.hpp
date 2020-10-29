@@ -152,7 +152,7 @@ public:
         _publicInterface = std::shared_ptr<IInferRequest>(ptr.get(), [](IInferRequest*) {});
     }
 
-    std::vector<InferenceEngine::IMemoryStateInternal::Ptr> QueryState() {
+    std::vector<InferenceEngine::IMemoryStateInternal::Ptr> QueryState() override {
         return _syncRequest->QueryState();
     }
 
