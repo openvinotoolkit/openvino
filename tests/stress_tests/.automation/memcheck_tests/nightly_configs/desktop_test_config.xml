@@ -5,14 +5,9 @@
     </devices>
     <models>
         <model name="mobilenet-v2-1.4-224" source="omz" />
-        <model name="resnet-101" source="omz" />
         <model name="brain-tumor-segmentation-0001" source="omz" />
-        <model name="octave-resnet-101-0.125" source="omz" />
         <model name="faster_rcnn_inception_resnet_v2_atrous_coco" source="omz" />
-        <model name="efficientnet-b7_auto_aug" source="omz" />
         <model name="yolo-v2-tf" source="omz" />
-        <model name="mobilenet-v2-1.0-224" source="omz" />
-        <model name="colorization-v2-norebal" source="omz" />
         <model name="se-inception" source="omz" />
         <model name="efficientnet-b0" source="omz" />
         <model name="mobilenet-v1-1.0-224-tf" source="omz" />
@@ -23,49 +18,14 @@
         <model name="googlenet-v3" source="omz" />
         <model name="ssd_mobilenet_v2_coco" source="omz" />
         <model name="alexnet" source="omz" />
-        <model name="license-plate-recognition-barrier-0007" source="omz" />
-        <model name="mobilenet-v1-0.50-224" source="omz" />
-        <model name="ssd_mobilenet_v1_fpn_coco" source="omz" />
-        <model name="vgg16" source="omz" />
-        <model name="face-recognition-resnet34-arcface" source="omz" />
-        <model name="gmcnn-places2-tf" source="omz" />
-        <model name="mobilenet-v1-1.0-224" source="omz" />
-        <model name="se-resnet-101" source="omz" />
-        <model name="face-detection-retail-0044" source="omz" />
-        <model name="face-recognition-mobilefacenet-arcface" source="omz" />
-        <model name="vehicle-license-plate-detection-barrier-0123" source="omz" />
-        <model name="densenet-161" source="omz" />
-        <model name="mask_rcnn_inception_resnet_v2_atrous_coco" source="omz" />
-        <model name="octave-resnext-101-0.25" source="omz" />
-        <model name="face-recognition-resnet50-arcface" source="omz" />
-        <model name="densenet-161-tf" source="omz" />
-        <model name="octave-resnet-200-0.125" source="omz" />
-        <model name="mtcnn-p" source="omz" />
-        <model name="se-resnext-101" source="omz" />
-        <model name="efficientnet-b5" source="omz" />
-        <model name="densenet-169-tf" source="omz" />
-        <model name="densenet-201" source="omz" />
-        <model name="resnet-50-tf" source="omz" />
-        <model name="squeezenet1.1" source="omz" />
-        <model name="squeezenet1.0" source="omz" />
-        <model name="octave-resnet-26-0.25" source="omz" />
         <model name="googlenet-v4-tf" source="omz" />
         <model name="ssd300" source="omz" />
-        <model name="rfcn-resnet101-coco-tf" source="omz" />
         <model name="vgg19" source="omz" />
         <model name="ctdet_coco_dlav0_384" source="omz" />
-        <model name="efficientnet-b0_auto_aug" source="omz" />
         <model name="googlenet-v1" source="omz" />
-        <model name="faster_rcnn_inception_v2_coco" source="omz" />
-        <model name="mask_rcnn_inception_v2_coco" source="omz" />
-        <model name="inception-resnet-v2-tf" source="omz" />
-        <model name="deeplabv3" source="omz" />
         <model name="yolo-v3-tf" source="omz" />
-        <model name="resnet-152" source="omz" />
         <model name="mtcnn-o" source="omz" />
-        <model name="octave-se-resnet-50-0.125" source="omz" />
         <model name="yolo-v1-tiny-tf" source="omz" />
-        <model name="resnet-50" source="omz" />
         <model name="googlenet-v1-tf" source="omz" />
         <model name="yolo-v2-tiny-tf" source="omz" />
         <model name="ssd512" source="omz" />
@@ -73,111 +33,15 @@
         <model name="brain-tumor-segmentation-0002" source="omz" />
         <model name="Sphereface" source="omz" />
         <model name="googlenet-v2" source="omz" />
-        <model name="face-recognition-resnet100-arcface" source="omz" />
-        <model name="mobilenet-v1-0.25-128" source="omz" />
         <model name="ctdet_coco_dlav0_512" source="omz" />
-        <model name="facenet-20180408-102900" source="omz" />
         <model name="ctpn" source="omz" />
-        <model name="ssdlite_mobilenet_v2" source="omz" />
         <model name="i3d-rgb-tf" source="omz" />
         <model name="mobilenet-v2" source="omz" />
         <model name="mobilenet-ssd" source="omz" />
         <model name="se-resnext-50" source="omz" />
         <model name="caffenet" source="omz" />
         <model name="mtcnn-r" source="omz" />
-        <model name="faster_rcnn_resnet50_coco" source="omz" />
         <model name="se-resnet-50" source="omz" />
-        <model name="mask_rcnn_resnet50_atrous_coco" source="omz" />
-        <model name="octave-resnet-50-0.125" source="omz" />
-        <model name="densenet-121-tf" source="omz" />
-        <model name="mobilenet-v1-0.50-160" source="omz" />
         <model name="densenet-121" source="omz" />
-        <model name="faster_rcnn_resnet101_coco" source="omz" />
-        <model name="octave-densenet-121-0.125" source="omz" />
-        <model name="colorization-v2" source="omz" />
-        <model name="densenet-121-caffe2" source="omz" />
-        <model name="efficientnet-b0-pytorch" source="omz" />
-        <model name="efficientnet-b5-pytorch" source="omz" />
-        <model name="efficientnet-b7-pytorch" source="omz" />
-        <model name="googlenet-v3-pytorch" source="omz" />
-        <model name="human-pose-estimation-3d-0001" source="omz" />
-        <model name="midasnet" source="omz" />
-        <model name="mobilenet-v2-pytorch" source="omz" />
-        <model name="resnet-18-pytorch" source="omz" />
-        <model name="resnet-50-caffe2" source="omz" />
-        <model name="resnet-50-pytorch" source="omz" />
-        <model name="single-human-pose-estimation-0001" source="omz" />
-        <model name="squeezenet1.1-caffe2" source="omz" />
-        <model name="vgg19-caffe2" source="omz" />
-        <model name="facial-landmarks-35-adas-0002" source="omz" />
-        <model name="vehicle-attributes-recognition-barrier-0039" source="omz" />
-        <model name="person-detection-action-recognition-0006" source="omz" />
-        <model name="asl-recognition-0004" source="omz" />
-        <model name="yolo-v2-tiny-ava-sparse-30-0001" source="omz" />
-        <model name="text-detection-0004" source="omz" />
-        <model name="person-vehicle-bike-detection-crossroad-1016" source="omz" />
-        <model name="text-spotting-0002-detector" source="omz" />
-        <model name="age-gender-recognition-retail-0013" source="omz" />
-        <model name="vehicle-detection-adas-0002" source="omz" />
-        <model name="image-retrieval-0001" source="omz" />
-        <model name="person-detection-retail-0002" source="omz" />
-        <model name="person-attributes-recognition-crossroad-0230" source="omz" />
-        <model name="face-detection-0100" source="omz" />
-        <model name="face-detection-0102" source="omz" />
-        <model name="person-reidentification-retail-0300" source="omz" />
-        <model name="instance-segmentation-security-0010" source="omz" />
-        <model name="instance-segmentation-security-0083" source="omz" />
-        <model name="face-detection-0105" source="omz" />
-        <model name="face-detection-0104" source="omz" />
-        <model name="icnet-camvid-ava-sparse-30-0001" source="omz" />
-        <model name="action-recognition-0001-decoder" source="omz" />
-        <model name="face-detection-0106" source="omz" />
-        <model name="person-detection-action-recognition-teacher-0002" source="omz" />
-        <model name="person-vehicle-bike-detection-crossroad-0078" source="omz" />
-        <model name="icnet-camvid-ava-sparse-60-0001" source="omz" />
-        <model name="face-detection-adas-0001" source="omz" />
-        <model name="unet-camvid-onnx-0001" source="omz" />
-        <model name="human-pose-estimation-0001" source="omz" />
-        <model name="faster-rcnn-resnet101-coco-sparse-60-0001" source="omz" />
-        <model name="action-recognition-0001-encoder" source="omz" />
-        <model name="yolo-v2-ava-sparse-35-0001" source="omz" />
-        <model name="yolo-v2-ava-sparse-70-0001" source="omz" />
-        <model name="person-reidentification-retail-0248" source="omz" />
-        <model name="person-detection-raisinghand-recognition-0001" source="omz" />
-        <model name="person-detection-asl-0001" source="omz" />
-        <model name="emotions-recognition-retail-0003" source="omz" />
-        <model name="yolo-v2-tiny-ava-0001" source="omz" />
-        <model name="license-plate-recognition-barrier-0001" source="omz" />
-        <model name="person-detection-retail-0013" source="omz" />
-        <model name="instance-segmentation-security-0050" source="omz" />
-        <model name="single-image-super-resolution-1032" source="omz" />
-        <model name="landmarks-regression-retail-0009" source="omz" />
-        <model name="driver-action-recognition-adas-0002-decoder" source="omz" />
-        <model name="person-reidentification-retail-0249" source="omz" />
-        <model name="text-spotting-0002-recognizer-decoder" source="omz" />
-        <model name="yolo-v2-ava-0001" source="omz" />
-        <model name="person-detection-action-recognition-0005" source="omz" />
-        <model name="text-recognition-0012" source="omz" />
-        <model name="face-detection-retail-0004" source="omz" />
-        <model name="product-detection-0001" source="omz" />
-        <model name="yolo-v2-tiny-ava-sparse-60-0001" source="omz" />
-        <model name="face-reidentification-retail-0095" source="omz" />
-        <model name="road-segmentation-adas-0001" source="omz" />
-        <model name="single-image-super-resolution-1033" source="omz" />
-        <model name="face-detection-retail-0005" source="omz" />
-        <model name="pedestrian-and-vehicle-detector-adas-0001" source="omz" />
-        <model name="handwritten-japanese-recognition-0001" source="omz" />
-        <model name="semantic-segmentation-adas-0001" source="omz" />
-        <model name="pedestrian-detection-adas-0002" source="omz" />
-        <model name="driver-action-recognition-adas-0002-encoder" source="omz" />
-        <model name="text-detection-0003" source="omz" />
-        <model name="text-spotting-0002-recognizer-encoder" source="omz" />
-        <model name="handwritten-score-recognition-0003" source="omz" />
-        <model name="icnet-camvid-ava-0001" source="omz" />
-        <model name="text-image-super-resolution-0001" source="omz" />
-        <model name="gaze-estimation-adas-0002" source="omz" />
-        <model name="head-pose-estimation-adas-0001" source="omz" />
-        <model name="vehicle-license-plate-detection-barrier-0106" source="omz" />
-        <model name="instance-segmentation-security-1025" source="omz" />
     </models>
 </attributes>
