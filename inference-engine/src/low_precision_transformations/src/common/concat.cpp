@@ -261,18 +261,15 @@ void ConcatTransformation::addDequantizationLayers(
 
                         if (layerDequantizations.size() > 1ul) {
                             auto broadcastElementWiseConst = [](
+                                // FakeQuantize constant shape must be broadcastable to the shape on data.
                                 std::shared_ptr<ngraph::opset1::Constant> operation,
                                 const ngraph::Shape targetShape) -> std::shared_ptr<Node> {
-                                auto unsqueeze = ngraph::pass::low_precision::fold<ngraph::opset1::Unsqueeze>(
-                                    operation->shared_from_this(),
-                                    std::make_shared<ngraph::opset1::Constant>(element::i64, ngraph::Shape{ 4 }, std::vector<size_t>{ 0, 1, 2, 3 }));
-
                                 auto targetShapeConst = std::make_shared<ngraph::opset1::Constant>(
                                     element::i64, ngraph::Shape{ targetShape.size() },
                                     targetShape);
 
                                 auto broadcast = ngraph::pass::low_precision::fold<ngraph::opset1::Broadcast>(
-                                    unsqueeze,
+                                    operation,
                                     targetShapeConst,
                                     ngraph::op::AutoBroadcastType::NUMPY);
 
