@@ -54,8 +54,7 @@ function(_ie_add_api_validator_post_build_step)
     set(UWP_API_VALIDATOR_APIS "${PROGRAMFILES}/Windows Kits/10/build/universalDDIs/x64/UniversalDDIs.xml")
     set(UWP_API_VALIDATOR_EXCLUSION "${UWP_SDK_PATH}/BinaryExclusionlist.xml")
 
-    if(NOT UWP_API_VALIDATOR OR (WINDOWS_STORE OR WINDOWS_PHONE) OR
-       NOT EXISTS UWP_API_VALIDATOR_APIS OR NOT EXISTS UWP_API_VALIDATOR_EXCLUSION)
+    if((NOT UWP_API_VALIDATOR) OR (WINDOWS_STORE OR WINDOWS_PHONE))
         return()
     endif()
 
@@ -85,23 +84,34 @@ function(_ie_add_api_validator_post_build_step)
         return()
     endif()
 
-    # generate rules
+    # apply check
+
+    macro(api_validator_get_target_name)
+        get_target_property(IS_IMPORTED ${target} IMPORTED)
+        if(IS_IMPORTED)
+            get_target_property(target_location ${target} LOCATION)  
+            get_filename_component(target_name "${target_location}" NAME_WE)
+        else()
+            set(target_name ${target})
+        endif()
+    endmacro()
 
     foreach(target IN LISTS API_VALIDATOR_TARGETS)
-        list(APPEND commands
-                COMMAND "${UWP_API_VALIDATOR}"
-                -SupportedApiXmlFiles:${UWP_API_VALIDATOR_APIS}
-                -BinaryExclusionListXmlFile:${UWP_API_VALIDATOR_EXCLUSION}
-                -StrictCompliance:TRUE
-                -DriverPackagePath:$<TARGET_FILE:${target}>)
+        api_validator_get_target_name()
+        set(output_file "${CMAKE_BINARY_DIR}/api_validator/${target_name}.txt")
+
+        add_custom_command(TARGET ${API_VALIDATOR_TARGET} POST_BUILD
+            COMMAND ${CMAKE_COMMAND}
+                -D UWP_API_VALIDATOR=${UWP_API_VALIDATOR}
+                -D UWP_API_VALIDATOR_TARGET=$<TARGET_FILE:${target}>
+                -D UWP_API_VALIDATOR_APIS=${UWP_API_VALIDATOR_APIS}
+                -D UWP_API_VALIDATOR_EXCLUSION=${UWP_API_VALIDATOR_EXCLUSION}
+                -D UWP_API_VALIDATOR_OUTPUT=${output_file}
+                -P "${OpenVINO_MAIN_SOURCE_DIR}/cmake/api_validator/api_validator_run.cmake"
+            BYPRODUCTS ${output_file}
+            COMMENT "[apiValidator] Check ${target_name} for OneCore compliance"
+            VERBATIM)
     endforeach()
-
-    # apply rules
-
-    add_custom_command(TARGET ${API_VALIDATOR_TARGET} POST_BUILD
-        ${commands}
-        COMMENT "[apiValidator] Check ${API_VALIDATOR_TARGET} and its dependencies for WCOS compatibility"
-    VERBATIM)
 
     # update list of validated libraries
 
