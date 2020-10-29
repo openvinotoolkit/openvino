@@ -43,7 +43,8 @@ namespace
     }
 
     template <element::Type_t ET>
-    void compute_output_shape(const HostTensorPtr& shape_pattern, std::vector<int64_t>& output_shape)
+    void compute_output_shape(const HostTensorPtr& shape_pattern,
+                              std::vector<int64_t>& output_shape)
     {
         using T = typename element_type_traits<ET>::value_type;
         T* shape_pattern_ptr = shape_pattern->get_data_ptr<ET>();
