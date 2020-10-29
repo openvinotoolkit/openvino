@@ -23,20 +23,20 @@ const std::vector<GatherNDParamsSubset> layerParams = {
     // ngraph examples
     // N = 1000: Not enough memory. replaced with 500
     // Probably always calculating with FP32 precision
-    {{500, 256, 10, 15}, {25, 125, 3}, 0},
-    {{30, 2, 100, 35}, {30, 2, 3, 1}, 2},
+    GatherNDParamsSubset{{500, 256, 10, 15}, {25, 125, 3}, 0},
+    GatherNDParamsSubset{{30, 2, 100, 35}, {30, 2, 3, 1}, 2},
     // some random tests
-    {{3, 3}, {2, 2}, 0},
-    {{5, 3}, {2, 1}, 0},
-    {{5, 3, 4}, {2, 2}, 0},
-    {{6, 3, 4}, {2, 1, 2}, 0},
-    {{5, 2, 6, 8}, {1}, 0},
-    {{6, 6, 9, 7}, {2}, 0},
-    {{2, 4, 9, 4}, {3}, 0},
-    {{5, 2, 3, 7}, {4}, 0},
-    {{2, 2, 2}, {2, 1}, 1},
-    {{2, 2, 2, 2}, {2, 1}, 1},
-    {{2, 2, 2, 2}, {2, 2, 1}, 2},
+    GatherNDParamsSubset{{3, 3}, {2, 2}, 0},
+    GatherNDParamsSubset{{5, 3}, {2, 1}, 0},
+    GatherNDParamsSubset{{5, 3, 4}, {2, 2}, 0},
+    GatherNDParamsSubset{{6, 3, 4}, {2, 1, 2}, 0},
+    GatherNDParamsSubset{{5, 2, 6, 8}, {1}, 0},
+    GatherNDParamsSubset{{6, 6, 9, 7}, {2}, 0},
+    GatherNDParamsSubset{{2, 4, 9, 4}, {3}, 0},
+    GatherNDParamsSubset{{5, 2, 3, 7}, {4}, 0},
+    GatherNDParamsSubset{{2, 2, 2}, {2, 1}, 1},
+    GatherNDParamsSubset{{2, 2, 2, 2}, {2, 1}, 1},
+    GatherNDParamsSubset{{2, 2, 2, 2}, {2, 2, 1}, 2},
 };
 
 INSTANTIATE_TEST_CASE_P(
