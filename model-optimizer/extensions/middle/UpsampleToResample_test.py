@@ -100,7 +100,12 @@ ref_graph_edges = [
 class UpsampleToResampleTest(unittest.TestCase):
     @generate(*[([2, 10, 20, 30], [1, 1, 5, 5],),
                 ([2, 20, 30, 40], [1, 1, 3, 3],),
-                ([2, 3, 20, 30, 40], [1, 1, 3, 3, 3],)
+                ([2, 10, 20, 30], [1, 1, 6, 5],),
+                ([2, 20, 30, 40], [1, 1, 3, 4],),
+                ([2, 3, 20, 30, 40], [1, 1, 3, 3, 3],),
+                ([2, 3, 20, 30, 40], [1, 1, 3, 4, 3],),
+                ([2, 3, 20, 30, 40], [1, 1, 4, 3, 3],),
+                ([2, 3, 20, 30, 40], [1, 1, 3, 3, 4],),
                 ])
     def test_conversion(self, input_shape, scales):
         graph = build_graph(graph_node_attrs, graph_edges,
@@ -122,11 +127,7 @@ class UpsampleToResampleTest(unittest.TestCase):
         self.assertTrue(flag, resp)
 
     @generate(*[([2, 10, 20, 30], [1, 2, 5, 5],),
-                ([2, 10, 20, 30], [1, 1, 6, 5],),
-                ([2, 20, 30, 40], [1, 1, 3, 4],),
-                ([2, 3, 20, 30, 40], [1, 1, 3, 4, 3],),
-                ([2, 3, 20, 30, 40], [1, 1, 4, 3, 3],),
-                ([2, 3, 20, 30, 40], [1, 1, 3, 3, 4],),
+                ([2, 3, 20, 30, 40], [1, 2, 3, 3, 3],),
                 ])
     def test_pattern_does_not_satisfy(self, input_shape, scales):
         graph = build_graph(graph_node_attrs, graph_edges,
