@@ -401,19 +401,9 @@ StatusCode CNNNetworkNGraphImpl::serialize(const std::string& xmlPath,
                                            const std::string& binPath,
                                            ResponseDesc* resp) const noexcept {
     try {
-        if (getFunction()) {
-            ngraph::pass::Manager manager;
-            manager.register_pass<ngraph::pass::Serialize>(xmlPath, binPath);
-            manager.run_passes(_ngraph_function);
-        } else {
-#ifdef ENABLE_V7_SERIALIZE
-            auto network = std::make_shared<details::CNNNetworkImpl>(*this);
-            return network->serialize(xmlPath, binPath, resp);
-#else
-            return DescriptionBuffer(NOT_IMPLEMENTED, resp)
-                   << "The serialization of legacy IR is not implemented";
-#endif
-        }
+        ngraph::pass::Manager manager;
+        manager.register_pass<ngraph::pass::Serialize>(xmlPath, binPath);
+        manager.run_passes(_ngraph_function);
     } catch (const InferenceEngineException& e) {
         return DescriptionBuffer(GENERAL_ERROR, resp) << e.what();
     } catch (const std::exception& e) {
