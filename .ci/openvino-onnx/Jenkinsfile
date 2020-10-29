@@ -6,7 +6,7 @@ DOCKER_IMAGE_TAG = "openvino-onnx-ci-image"
 
 // workaround for aborting previous builds on PR update
 @NonCPS
-def killPreviousRunningJobs() {
+def killPreviousRunningBuilds() {
     def jobname = env.JOB_NAME
     def buildnum = env.BUILD_NUMBER.toInteger()
 
