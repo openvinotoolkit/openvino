@@ -76,7 +76,14 @@
                     <tab type="user" title="INT8 vs. FP32 Comparison on Select Networks and Platforms" url="@ref openvino_docs_performance_int8_vs_fp32"/>
                 </tab>
                 <tab type="user" title="Performance Optimization Guide" url="@ref openvino_docs_optimization_guide_dldt_optimization_guide"/>
-                
+                <!-- POT DevGuide -->
+                <xi:include href="optimization_docs.xml" xpointer="xpointer(//tab[@id='pot'])"/>
+                <!-- Tuning Utilities -->
+                <tab type="usergroup" title="Tuning Utilities" url="">
+                    <xi:include href="omz_docs.xml" xpointer="xpointer(//tab[@id='accuracy_checker'])"/>
+                    <tab type="user" title="Using Cross Check Tool for Per-Layer Comparison Between Plugins" url="@ref openvino_inference_engine_tools_cross_check_tool_README"/>
+                </tab>
+                <tab type="user" title="Case Studies" url="https://www.intel.com/openvino-success-stories"/>
             </tab>
                         
             <tab type="usergroup" title="Media Processing">
