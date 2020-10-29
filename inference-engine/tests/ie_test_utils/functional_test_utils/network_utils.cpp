@@ -202,8 +202,19 @@ namespace FuncTestUtils {
                 break;
             success = success && old_info.find(it.first) != old_info.end();
         }
-        if (!success)
+        if (!success) {
+            std::cout << "new output: ";
+            for (const auto &p : new_info) {
+                std::cout << p.first << " ";
+            }
+            std::cout << "\n";
+            std::cout << "old output: ";
+            for (const auto &p : old_info) {
+                std::cout << p.first << " ";
+            }
+            std::cout << "\n";
             THROW_IE_EXCEPTION << err_msg;
+        }
     }
 
     void

@@ -72,6 +72,8 @@ public:
             if (selected_indices_dims.size() != 2 || selected_indices_dims[1] != 3)
                 THROW_IE_EXCEPTION << layer->name << " 'selected_indices' should be with shape [num_selected_indices, 3]";
 
+            center_point_box = layer->GetParamAsBool("center_point_box", false);
+            sort_result_descending = layer->GetParamAsBool("sort_result_descending", true);
             LayerConfig config;
             for (size_t i = 0; i < layer->insData.size(); i++) {
                 DataConfig inConfig;
