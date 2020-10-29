@@ -12,8 +12,8 @@
 
 #include <transformations/utils/utils.hpp>
 #include <transformations/init_node_info.hpp>
-#include <transformations/low_precision/transformer.hpp>
-#include <transformations/low_precision/fake_quantize.hpp>
+#include <low_precision/transformer.hpp>
+#include <low_precision/fake_quantize.hpp>
 #include "ngraph_functions/low_precision_transformations/common/add.hpp"
 #include "ngraph_functions/low_precision_transformations/common/fake_quantize_on_data.hpp"
 #include "ngraph_functions/low_precision_transformations/common/dequantization_operations.hpp"

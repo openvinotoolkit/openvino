@@ -12,9 +12,9 @@
 #include <ngraph/opsets/opset1.hpp>
 #include "ngraph_functions/subgraph_builders.hpp"
 #include "ngraph_functions/low_precision_transformations/common/builders.hpp"
-#include "transformations/low_precision/network_helper.hpp"
+#include "low_precision/network_helper.hpp"
 #include <legacy/ngraph_ops/scaleshift.hpp>
-#include "transformations/low_precision/common/dequantization_op.hpp"
+#include "low_precision/common/dequantization_op.hpp"
 
 namespace ngraph {
 namespace builder {
