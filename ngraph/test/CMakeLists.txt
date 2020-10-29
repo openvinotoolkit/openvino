@@ -174,7 +174,6 @@ set(SRC
     type_prop/select.cpp
     type_prop/shape_of.cpp
     type_prop/shuffle_channels.cpp
-    type_prop/slice.cpp
     type_prop/softplus.cpp
     type_prop/space_to_batch.cpp
     type_prop/space_to_depth.cpp
@@ -339,7 +338,6 @@ set(MULTI_TEST_SRC
     backend/sign.in.cpp
     backend/sin.in.cpp
     backend/sinh.in.cpp
-    backend/slice.in.cpp
     backend/softmax.in.cpp
     backend/sqrt.in.cpp
     backend/subtract.in.cpp

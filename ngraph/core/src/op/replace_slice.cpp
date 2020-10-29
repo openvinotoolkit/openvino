@@ -16,7 +16,6 @@
 
 #include "ngraph/op/replace_slice.hpp"
 #include "ngraph/op/constant.hpp"
-#include "ngraph/op/slice.hpp"
 
 NGRAPH_SUPPRESS_DEPRECATED_START
 

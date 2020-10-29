@@ -111,7 +111,7 @@ void op::v0::Split::pre_validate_and_infer_types()
 
 OutputVector op::v0::Split::decompose_op() const
 {
-    return builder::split(input_value(0), m_splits, m_axis);
+    return builder::opset1::split(input_value(0), m_splits, m_axis);
 }
 
 shared_ptr<Node> op::v0::Split::clone_with_new_inputs(const OutputVector& new_args) const
