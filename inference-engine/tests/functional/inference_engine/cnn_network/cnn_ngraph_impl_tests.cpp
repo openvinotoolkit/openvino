@@ -160,9 +160,9 @@ TEST(CNNNGraphImplTests, TestSetBatch) {
 
     InferenceEngine::details::CNNNetworkNGraphImpl cnnNet(ngraph);
     ASSERT_EQ(1, cnnNet.getBatchSize());
-    ASSERT_EQ(OK, cnnNet.setBatchSize(2, nullptr));  // triggers conversion
+    ASSERT_EQ(OK, cnnNet.setBatchSize(2, nullptr));  // must not trigger conversion
     ASSERT_EQ(2, cnnNet.getBatchSize());
-    ASSERT_EQ(nullptr, cnnNet.getFunction());
+    ASSERT_NE(nullptr, cnnNet.getFunction());
 }
 
 TEST(CNNNGraphImplTests, TestGetBatchScalar) {
@@ -201,7 +201,35 @@ TEST(CNNNGraphImplTests, TestSetBatchScalar) {
 
     InferenceEngine::details::CNNNetworkNGraphImpl cnnNet(ngraph);
     ASSERT_EQ(1, cnnNet.getBatchSize());
-    ASSERT_EQ(PARAMETER_MISMATCH, cnnNet.setBatchSize(2, nullptr));  // triggers conversion
+    ASSERT_EQ(PARAMETER_MISMATCH, cnnNet.setBatchSize(2, nullptr));  // must not trigger conversion
+}
+
+TEST(CNNNGraphImplTests, TestGetBatchDynamic) {
+    std::shared_ptr<ngraph::Function> ngraph;
+    {
+        auto param = std::make_shared<ngraph::op::Parameter>(ngraph::element::Type_t::f32, ngraph::PartialShape{5, ngraph::Dimension::dynamic()});
+        auto relu = std::make_shared<ngraph::op::Relu>(param);
+        auto result = std::make_shared<ngraph::op::Result>(relu);
+        ngraph = std::make_shared<ngraph::Function>(ngraph::ResultVector{result}, ngraph::ParameterVector{param});
+    }
+
+    InferenceEngine::details::CNNNetworkNGraphImpl cnnNet(ngraph);
+    ASSERT_TRUE(cnnNet.getFunction()->get_parameters()[0]->get_partial_shape().is_dynamic());
+    ASSERT_EQ(5, cnnNet.getBatchSize());
+}
+
+TEST(CNNNGraphImplTests, TestSetBatchDynamic) {
+    std::shared_ptr<ngraph::Function> ngraph;
+    {
+        auto param = std::make_shared<ngraph::op::Parameter>(ngraph::element::Type_t::f32, ngraph::PartialShape::dynamic());
+        auto relu = std::make_shared<ngraph::op::Relu>(param);
+        auto result = std::make_shared<ngraph::op::Result>(relu);
+        ngraph = std::make_shared<ngraph::Function>(ngraph::ResultVector{result}, ngraph::ParameterVector{param});
+    }
+
+    InferenceEngine::details::CNNNetworkNGraphImpl cnnNet(ngraph);
+    ASSERT_EQ(1, cnnNet.getBatchSize());
+    ASSERT_EQ(PARAMETER_MISMATCH, cnnNet.setBatchSize(2, nullptr));  // must not trigger conversion
 }
 
 TEST(CNNNGraphImplTests, TestSaveAffinity) {

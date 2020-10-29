@@ -84,22 +84,29 @@ TEST(copy, atan)
 
 TEST(copy, broadcast)
 {
-    Shape shape1{1};
-    auto arg0 = make_shared<op::Parameter>(element::f32, shape1);
-    OutputVector new_args{make_shared<op::Parameter>(element::f32, shape1)};
+    Shape shape{1, 3};
+    Shape new_shape{4, 1, 3};
+    AxisSet axes{1, 2};
+    auto arg0 = make_shared<op::Parameter>(element::f32, shape);
+    OutputVector new_args{make_shared<op::Parameter>(element::f32, shape),
+                          op::Constant::create(element::u64, Shape{new_shape.size()}, new_shape),
+                          op::Constant::create(element::i64, Shape{axes.size()}, axes.to_vector())};
 
-    Shape shape{4, 1, 3};
-    AxisSet axes{0, 2};
-
-    auto node = make_shared<op::Broadcast>(arg0, shape, axes);
+    auto node = make_shared<op::v1::Broadcast>(
+        arg0,
+        op::Constant::create(element::u64, Shape{new_shape.size()}, new_shape),
+        op::Constant::create(element::i64, Shape{axes.size()}, axes.to_vector()));
     auto new_node = node->copy_with_new_inputs(new_args);
-    auto node_cast = as_type_ptr<op::Broadcast>(new_node);
+    auto node_cast = as_type_ptr<op::v1::Broadcast>(new_node);
     ASSERT_NE(node_cast, nullptr);
 
-    ASSERT_TRUE(nullptr != new_node);
-    ASSERT_TRUE(new_args == new_node->input_values());
-    ASSERT_TRUE(shape == node_cast->get_broadcast_shape());
-    ASSERT_TRUE(axes == node_cast->get_broadcast_axes());
+    ASSERT_NE(nullptr, new_node);
+    ASSERT_EQ(new_args, new_node->input_values());
+    bool axes_determined;
+    AxisSet broadcast_axes;
+    std::tie(axes_determined, broadcast_axes) = node_cast->get_broadcast_axes();
+    ASSERT_EQ(true, axes_determined);
+    ASSERT_EQ(AxisSet{0}, broadcast_axes);
 }
 
 TEST(copy, ceiling)

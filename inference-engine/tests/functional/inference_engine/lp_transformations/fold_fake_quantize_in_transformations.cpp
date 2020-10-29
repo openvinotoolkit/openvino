@@ -12,13 +12,13 @@
 #include <gtest/gtest.h>
 
 #include <ngraph/pass/visualize_tree.hpp>
-#include <transformations/low_precision/fake_quantize.hpp>
+#include <low_precision/fake_quantize.hpp>
 
 #include "common_test_utils/ngraph_test_utils.hpp"
 #include "ngraph_functions/low_precision_transformations/fold_fake_quantize_function.hpp"
 #include "ngraph_functions/low_precision_transformations/common/dequantization_operations.hpp"
 #include "simple_low_precision_transformer.hpp"
-#include "transformations/low_precision/network_helper.hpp"
+#include "low_precision/network_helper.hpp"
 #include "ngraph_functions/low_precision_transformations/common/builders.hpp"
 
 using namespace testing;
