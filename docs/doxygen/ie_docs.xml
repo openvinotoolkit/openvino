@@ -54,8 +54,6 @@
                 <tab type="user" title="Model Optimizer Frequently Asked Questions" url="@ref openvino_docs_MO_DG_prepare_model_Model_Optimizer_FAQ"/>
                 <tab type="user" title="Known Issues" url="@ref openvino_docs_MO_DG_Known_Issues_Limitations"/>
             </tab>
-            <!-- Model Downloader -->
-            <xi:include href="omz_docs.xml" xpointer="xpointer(//tab[@id='model_downloader'])"/>
             <!-- Custom Layers Guide -->
             <tab type="usergroup" title="Custom Layers Guide" url="@ref openvino_docs_HOWTO_Custom_Layers_Guide"></tab>
         </tab>    
