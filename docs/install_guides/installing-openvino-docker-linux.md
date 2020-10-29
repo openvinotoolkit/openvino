@@ -202,7 +202,7 @@ Build a Docker image using the same steps as for CPU.
 Use one of the following options to run **Possible solutions for Intel® Neural Compute Stick 2:**
 
 - **Solution #1**:
-	1. Get rid of UDEV by rebuilding `libusb` without UDEV support in the Docker* image (add the following commands to the `Dockerfile` example for CPU above):<br>
+1. Get rid of UDEV by rebuilding `libusb` without UDEV support in the Docker* image (add the following commands to the `Dockerfile` example for CPU above):<br>
 ```sh
 RUN usermod -aG users openvino
 WORKDIR /opt
@@ -228,11 +228,12 @@ WORKDIR /opt/libusb-1.0.22/
 RUN /usr/bin/install -c -m 644 libusb-1.0.pc '/usr/local/lib/pkgconfig' && \
     ldconfig
 ```
-<br>
-	2. Run the Docker* image:<br>
+
+2. Run the Docker* image:<br>
 ```sh
 docker run --device-cgroup-rule='c 189:* rmw' -v /dev/bus/usb:/dev/bus/usb <image_name>
 ```
+<br>
 
 - **Solution #2**:
    Run container in privileged mode, enable Docker network configuration as host, and mount all devices to container:<br>
