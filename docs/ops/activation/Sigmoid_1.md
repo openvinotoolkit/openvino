@@ -6,7 +6,9 @@
 
 **Short description**: Sigmoid element-wise activation function.
 
-**Attributes**: operations has no attributes.
+**Detailed description**: [Reference](https://deepai.org/machine-learning-glossary-and-terms/sigmoid-function)
+
+**Attributes**: *Sigmoid* operation has no attributes.
 
 **Mathematical Formulation**
 
