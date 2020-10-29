@@ -44,13 +44,17 @@
 
 **Inputs**:
 
-*   **1**: 4D input tensor of shape `[1, C, H, W]` with feature maps. Required.
+*   **1**: 4D input tensor of shape `[1, C, H, W]` with feature maps of type *T*. Required.
 
-*   **2**: 2D input tensor of shape `[NUM_ROIS, 5]` describing box consisting of 5 element tuples: `[batch_id, x_1, y_1, x_2, y_2]`. Required.
+*   **2**: 2D input tensor of shape `[NUM_ROIS, 5]` describing box consisting of 5 element tuples: `[batch_id, x_1, y_1, x_2, y_2]` in relative coordinates of type *T*. The box height and width are calculated the following way: `roi_width = max(spatial_scale * (x_2 - x_1), 1.0)`, `roi_height = max(spatial_scale * (y_2 - y_1), 1.0)`, so the malformed boxes are expressed as a box of size `1 x 1`. Required.
 
 **Outputs**:
 
-*   **1**: 4D output tensor of shape `[NUM_ROIS, C, pooled_h, pooled_w]` with feature maps. Required.
+*   **1**: 4D output tensor of shape `[NUM_ROIS, C, pooled_h, pooled_w]` with feature maps of type *T*. Required.
+
+**Types**
+
+* *T*: any supported floating point type.
 
 **Example**
 

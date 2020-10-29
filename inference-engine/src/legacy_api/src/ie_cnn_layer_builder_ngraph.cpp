@@ -44,6 +44,7 @@
 #include <ngraph/ngraph.hpp>
 #include <ngraph/variant.hpp>
 #include <ngraph/opsets/opset5.hpp>
+#include <ngraph/enum_names.hpp>
 
 #include <legacy/convert_function_to_cnn_network.hpp>
 #include "legacy/graph_transformer.h"
@@ -1073,7 +1074,20 @@ CNNLayer::Ptr NodeConverter<ngraph::op::ROIPooling>::createLayer(const std::shar
     res->params["pooled_h"] = asString(castedLayer->get_output_size()[0]);
     res->params["pooled_w"] = asString(castedLayer->get_output_size()[1]);
     res->params["spatial_scale"] = asString(castedLayer->get_spatial_scale());
-    res->params["method"] = castedLayer->get_method();
+    auto method = castedLayer->get_method();
+    switch(method) {
+        case ::ngraph::op::ROIPooling::ROIPoolingMethod::BLN: {
+            res->params["method"] = "bilinear";
+            break;
+        }
+        case ::ngraph::op::ROIPooling::ROIPoolingMethod::MAX: {
+            res->params["method"] = "max";
+            break;
+        }
+        default:
+            THROW_IE_EXCEPTION << "Unsupported method for ROIPooling op";
+            break;
+    }
 
     return res;
 }

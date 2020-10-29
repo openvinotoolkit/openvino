@@ -29,6 +29,19 @@ op::ROIPooling::ROIPooling(const Output<Node>& input,
     : Op({input, coords})
     , m_output_size(output_size)
     , m_spatial_scale(spatial_scale)
+    , m_method(EnumNames<ROIPooling::ROIPoolingMethod>::as_enum(method))
+{
+    constructor_validate_and_infer_types();
+}
+
+op::ROIPooling::ROIPooling(const Output<Node>& input,
+                           const Output<Node>& coords,
+                           const Shape& output_size,
+                           const float spatial_scale,
+                           ROIPoolingMethod method)
+    : Op({input, coords})
+    , m_output_size(output_size)
+    , m_spatial_scale(spatial_scale)
     , m_method(method)
 {
     constructor_validate_and_infer_types();
@@ -42,8 +55,8 @@ void op::ROIPooling::validate_and_infer_types()
         Shape input_shape = get_input_partial_shape(0).to_shape();
         Shape coords_shape = get_input_partial_shape(1).to_shape();
         NODE_VALIDATION_CHECK(this,
-                              input_shape.size() >= 3,
-                              "ROIPooling expects 3 or higher dimensions for input. Got ",
+                              input_shape.size() == 4,
+                              "ROIPooling expects 4 dimensions for input. Got ",
                               input_shape.size());
         NODE_VALIDATION_CHECK(this,
                               coords_shape.size() == 2,
@@ -79,3 +92,24 @@ bool op::ROIPooling::visit_attributes(AttributeVisitor& visitor)
     visitor.on_attribute("method", m_method);
     return true;
 }
+
+namespace ngraph
+{
+    constexpr DiscreteTypeInfo AttributeAdapter<op::v0::ROIPooling::ROIPoolingMethod>::type_info;
+
+    template <>
+    EnumNames<op::v0::ROIPooling::ROIPoolingMethod>&
+        EnumNames<op::v0::ROIPooling::ROIPoolingMethod>::get()
+    {
+        static auto enum_names = EnumNames<op::v0::ROIPooling::ROIPoolingMethod>(
+            "op::v0::ROIPooling::ROIPoolingMethod",
+            {{"bilinear", op::v0::ROIPooling::ROIPoolingMethod::BLN},
+             {"max", op::v0::ROIPooling::ROIPoolingMethod::MAX}});
+        return enum_names;
+    }
+
+    std::ostream& operator<<(std::ostream& s, const op::v0::ROIPooling::ROIPoolingMethod& type)
+    {
+        return s << as_string(type);
+    }
+} // namespace ngraph
