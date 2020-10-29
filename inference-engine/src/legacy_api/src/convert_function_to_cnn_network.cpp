@@ -128,7 +128,11 @@ public:
 
     void on_adapter(const std::string& name, ::ngraph::ValueAccessor<void*>& adapter) override {
         if (std::string(node->get_type_name()) != "Constant") {
-            THROW_IE_EXCEPTION << "Error: " << node->get_type_name() << " Op cannot use on_adapter(void*).";
+            const auto data_beg = static_cast<char*>(adapter.get_ptr());
+            const auto data_end = std::next(data_beg, adapter.size());
+            std::string ss_str;
+            std::copy(data_beg, data_end, back_inserter(ss_str));
+            params[name] = ss_str;
         }
     }
 
