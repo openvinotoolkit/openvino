@@ -9,7 +9,6 @@ if (WIN32)
 endif()
 
 set(LAYERS
-    ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_activation_node.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_batchnorm_node.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_bin_conv_node.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_concat_node.cpp
@@ -17,7 +16,6 @@ set(LAYERS
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_crop_node.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_deconv_node.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_def_conv_node.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_depthwise_node.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_eltwise_node.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_fullyconnected_node.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_gemm_node.cpp
@@ -27,7 +25,6 @@ set(LAYERS
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_memory_node.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_permute_node.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_pooling_node.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_power_node.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_quantize_node.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_reorder_node.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_reshape_node.cpp
@@ -94,7 +91,10 @@ set(LAYERS
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/unique.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/unsqueeze.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/common/softmax.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/nodes/common/emitter.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/interp.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/nodes/jit_eltwise_emitters.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/nodes/jit_mkldnn_emitters.cpp
 
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/argmax.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/argmax_imp.cpp
@@ -168,7 +168,8 @@ set_ie_threading_interface_for(${TARGET_NAME})
 
 target_compile_definitions(${TARGET_NAME} PUBLIC -DMKLDNN_THR=${MKLDNN_THR})
 
-target_link_libraries(${TARGET_NAME} PRIVATE inference_engine inference_engine_transformations mkldnn)
+target_link_libraries(${TARGET_NAME} PRIVATE mkldnn inference_engine inference_engine_legacy
+                                             inference_engine_transformations)
 
 if(USE_CNNNETWORK_LPT)
     target_link_libraries(${TARGET_NAME} PRIVATE inference_engine_lp_transformations_legacy)
@@ -200,6 +201,7 @@ ie_add_api_validator_post_build_step(TARGET ${TARGET_NAME})
 add_library(${TARGET_NAME}_obj OBJECT ${SOURCES} ${HEADERS})
 
 target_include_directories(${TARGET_NAME}_obj PRIVATE $<TARGET_PROPERTY:inference_engine_preproc_s,INTERFACE_INCLUDE_DIRECTORIES>
+                                                      $<TARGET_PROPERTY:inference_engine_legacy,INTERFACE_INCLUDE_DIRECTORIES>
                                                       $<TARGET_PROPERTY:inference_engine_transformations,INTERFACE_INCLUDE_DIRECTORIES>
                                                       $<TARGET_PROPERTY:openvino::itt,INTERFACE_INCLUDE_DIRECTORIES>)
 

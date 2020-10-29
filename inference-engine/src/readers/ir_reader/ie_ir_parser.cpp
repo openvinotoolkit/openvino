@@ -27,7 +27,7 @@
 #include <cpp/ie_cnn_network.h>
 #include "ie_blob_stream.hpp"
 #include "caseless.hpp"
-#include <legacy/ie_ngraph_utils.hpp>
+#include <ie_ngraph_utils.hpp>
 #include "generic_ie.hpp"
 #include "precision_utils.h"
 #include "blob_factory.hpp"
@@ -535,7 +535,7 @@ std::shared_ptr<ngraph::Node> V10Parser::createNode(const std::vector<ngraph::Ou
                 if (!length)
                     THROW_IE_EXCEPTION << "Cannot read network! The model requires weights data! "
                         << "Bin file cannot be found! Please specify the path to bin file.";
-                if (length < offset + size)
+                if (static_cast<uint64_t>(length) < offset + size)
                     THROW_IE_EXCEPTION << "Cannot create " << params.type << " layer with name: " << params.name
                                        << ". Layer has incorrect weights!";
                 Blob::Ptr wBlob = make_blob_with_precision(TensorDesc(precision, {size / precision.size()}, Layout::C));
@@ -1252,7 +1252,7 @@ std::shared_ptr<ngraph::Node> V10Parser::LayerCreator<ngraph::op::Constant>::cre
     if (!length)
         THROW_IE_EXCEPTION << "Cannot read network! The model requires weights data! "
             << "Bin file cannot be found! Please specify the path to bin file.";
-    if (length < offset + size)
+    if (static_cast<size_t>(length) < offset + size)
         THROW_IE_EXCEPTION << "Cannot create " << getType() << " layer with name: " << layerParsePrms.name
                            << ". Layer has incorrect weights!";
 
