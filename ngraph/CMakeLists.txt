@@ -124,6 +124,7 @@ option(NGRAPH_ADDRESS_SANITIZER_ENABLE "Compiles and links with Address Sanitize
 option(NGRAPH_THREAD_SANITIZER_ENABLE "Compiles and links with Thread Sanitizer" FALSE)
 option(NGRAPH_UB_SANITIZER_ENABLE "Compiles and links with Undefined Behavior Sanitizer" FALSE)
 option(NGRAPH_USE_PROTOBUF_LITE "Compiles and links with protobuf-lite" FALSE)
+option(NGRAPH_STATIC_LIBRARY "Compiles ngraph as a static library" FALSE)
 
 if (NGRAPH_ONNX_IMPORT_ENABLE)
     option(NGRAPH_USE_SYSTEM_PROTOBUF "Use system provided Protobuf shared object" FALSE)
@@ -161,6 +162,7 @@ NORMALIZE_BOOL(NGRAPH_ADDRESS_SANITIZER_ENABLE)
 NORMALIZE_BOOL(NGRAPH_THREAD_SANITIZER_ENABLE)
 NORMALIZE_BOOL(NGRAPH_UB_SANITIZER_ENABLE)
 NORMALIZE_BOOL(NGRAPH_USE_PROTOBUF_LITE)
+NORMALIZE_BOOL(NGRAPH_STATIC_LIBRARY)
 
 message(STATUS "NGRAPH_ADDRESS_SANITIZER_ENABLE:      ${NGRAPH_ADDRESS_SANITIZER_ENABLE}")
 message(STATUS "NGRAPH_CODE_COVERAGE_ENABLE:          ${NGRAPH_CODE_COVERAGE_ENABLE}")
@@ -168,7 +170,6 @@ message(STATUS "NGRAPH_DEBUG_ENABLE:                  ${NGRAPH_DEBUG_ENABLE}")
 message(STATUS "NGRAPH_DEPRECATED_ENABLE:             ${NGRAPH_DEPRECATED_ENABLE}")
 message(STATUS "NGRAPH_DYNAMIC_COMPONENTS_ENABLE:     ${NGRAPH_DYNAMIC_COMPONENTS_ENABLE}")
 message(STATUS "NGRAPH_EXPORT_TARGETS_ENABLE:         ${NGRAPH_EXPORT_TARGETS_ENABLE}")
-message(STATUS "NGRAPH_IE_STATIC_LIB_ENABLE:          ${NGRAPH_IE_STATIC_LIB_ENABLE}")
 message(STATUS "NGRAPH_INTERPRETER_ENABLE:            ${NGRAPH_INTERPRETER_ENABLE}")
 message(STATUS "NGRAPH_LIB_VERSIONING_ENABLE:         ${NGRAPH_LIB_VERSIONING_ENABLE}")
 message(STATUS "NGRAPH_ONNX_IMPORT_ENABLE:            ${NGRAPH_ONNX_IMPORT_ENABLE}")
@@ -180,6 +181,7 @@ message(STATUS "NGRAPH_UB_SANITIZER_ENABLE:           ${NGRAPH_UB_SANITIZER_ENAB
 message(STATUS "NGRAPH_USE_PROTOBUF_LITE:             ${NGRAPH_USE_PROTOBUF_LITE}")
 message(STATUS "NGRAPH_UNIT_TEST_ENABLE:              ${NGRAPH_UNIT_TEST_ENABLE}")
 message(STATUS "NGRAPH_WARNINGS_AS_ERRORS:            ${NGRAPH_WARNINGS_AS_ERRORS}")
+message(STATUS "NGRAPH_STATIC_LIBRARY:                ${NGRAPH_STATIC_LIBRARY}")
 
 set(NGRAPH_CXX_STANDARD 11)
 set(CMAKE_CXX_STANDARD ${NGRAPH_CXX_STANDARD})
@@ -402,6 +404,13 @@ add_custom_target(fix-mode
 )
 
 #-----------------------------------------------------------------------------------------------
+# enable or disable the use of ngraph as a static library
+#-----------------------------------------------------------------------------------------------
+if(NGRAPH_STATIC_LIBRARY)
+    add_definitions(-DNGRAPH_STATIC_LIBRARY)
+endif()
+
+#-----------------------------------------------------------------------------------------------
 # enable or disable output from NGRAPH_DEBUG statements
 #-----------------------------------------------------------------------------------------------
 if(NGRAPH_DEBUG_ENABLE)
@@ -481,11 +490,13 @@ if (NGRAPH_EXPORT_TARGETS_ENABLE)
     set(NGRAPH_TARGETS_FILE "${CMAKE_CURRENT_BINARY_DIR}/ngraphTargets.cmake")
     export(TARGETS ngraph NAMESPACE ngraph:: FILE "${NGRAPH_TARGETS_FILE}")
 
-    install(EXPORT ngraphTargets
-        FILE ngraphTargets.cmake
-        NAMESPACE ngraph::
-        DESTINATION ${NGRAPH_COMPONENT_PREFIX}cmake
-        COMPONENT ngraph)
+    if(NOT NGRAPH_STATIC_LIBRARY)
+        install(EXPORT ngraphTargets
+            FILE ngraphTargets.cmake
+            NAMESPACE ngraph::
+            DESTINATION ${NGRAPH_COMPONENT_PREFIX}cmake
+            COMPONENT ngraph)
+    endif()
 
     configure_package_config_file(${CMAKE_CURRENT_SOURCE_DIR}/cmake/share/ngraphConfig.cmake.in
         ${CMAKE_CURRENT_BINARY_DIR}/ngraphConfig.cmake
