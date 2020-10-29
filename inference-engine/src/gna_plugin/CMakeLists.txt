@@ -31,7 +31,7 @@ ie_add_plugin(NAME ${TARGET_NAME}
 # saving rpath to GNA shared library be used by CI
 log_rpath_from_dir(GNA ${libGNA_LIBRARIES_BASE_PATH})
 
-target_link_libraries(${TARGET_NAME} PRIVATE inference_engine Threads::Threads libGNA)
+target_link_libraries(${TARGET_NAME} PRIVATE inference_engine inference_engine_legacy Threads::Threads libGNA)
 target_include_directories(${TARGET_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 
 target_compile_definitions(${TARGET_NAME}
@@ -58,8 +58,8 @@ target_compile_definitions(${TARGET_NAME}_test_static
             USE_STATIC_IE)
 
 target_link_libraries(${TARGET_NAME}_test_static PUBLIC inference_engine_preproc_s libGNA::API)
-
-target_include_directories(${TARGET_NAME}_test_static PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+target_include_directories(${TARGET_NAME}_test_static PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}
+    $<TARGET_PROPERTY:inference_engine_legacy,INTERFACE_INCLUDE_DIRECTORIES>)
 set_target_properties(${TARGET_NAME}_test_static PROPERTIES COMPILE_PDB_NAME ${TARGET_NAME}_test_static)
 
 set_target_properties(${TARGET_NAME} ${TARGET_NAME}_test_static

@@ -28,8 +28,6 @@
 #include "ie_data.h"
 #include "ie_input_info.hpp"
 
-#include <legacy/cnn_network_impl.hpp>
-
 namespace InferenceEngine {
 namespace details {
 
@@ -67,10 +65,10 @@ public:
     }
 
     std::shared_ptr<const ::ngraph::Function> getFunction() const noexcept override {
-        return !cnnNetwork ? _ngraph_function : nullptr;
+        return _ngraph_function;
     }
     std::shared_ptr<::ngraph::Function> getFunction() noexcept override {
-        return !cnnNetwork ? _ngraph_function : nullptr;
+        return _ngraph_function;
     }
 
     virtual void validate(int = 10);
@@ -81,15 +79,15 @@ public:
     StatusCode serialize(const std::string& xmlPath, const std::string& binPath, ResponseDesc* resp) const
         noexcept override;
 
+    // used by convertFunctionToICNNNetwork from legacy library
+    std::map<std::string, DataPtr> _data;
 protected:
     virtual std::shared_ptr<::ngraph::Function> cloneFunction(bool constFolding = false) const;
     std::shared_ptr<::ngraph::Function> _ngraph_function;
 
 private:
-    std::map<std::string, DataPtr> _data;
     InferenceEngine::InputsDataMap _inputData;
     std::map<std::string, DataPtr> _outputData;
-    std::shared_ptr<CNNNetworkImpl> cnnNetwork;
 
     /**
      * @brief Create DataPtr for nGraph operation
@@ -99,17 +97,6 @@ private:
      * @param ptr reference to new DataPtr
      */
     void createDataForResult(const ::ngraph::Output<::ngraph::Node>& output, const std::string& outName, DataPtr& ptr);
-
-    /**
-     * @brief Converts ngraph::Function to old CNNNetworkImpl representation
-     */
-    void convertToCNNNetworkImpl();
-
-    friend INFERENCE_ENGINE_API_CPP(void)
-    convertFunctionToICNNNetwork(const std::shared_ptr<const ::ngraph::Function>& graph,
-                                 const ICNNNetwork& nGraphImpl,
-                                 CNNNetworkImpl* cnnNetworkImpl,
-                                 bool keep_constant_inputs);
 
     /**
      * @brief Reshape on the same shape

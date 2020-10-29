@@ -19,7 +19,7 @@ namespace InferenceEngine {
 namespace ShapeInfer {
 
 /**
- *@brief Holder of shape infer implementations for build-in IE layers, that plugins support out-of-the-box
+ * @brief Holder of shape infer implementations for build-in IE layers, that plugins support out-of-the-box
  */
 class BuiltInShapeInferHolder : public IShapeInferExtension {
     struct ImplsHolder {
@@ -36,9 +36,9 @@ public:
 
     void Release() noexcept override {
         delete this;
-    };
+    }
 
-    void Unload() noexcept override {};
+    void Unload() noexcept override {}
 
     static void AddImpl(const std::string& name, const IShapeInferImpl::Ptr& impl);
 

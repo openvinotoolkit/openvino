@@ -15,7 +15,6 @@
 #include "ie_data.h"
 #include "ie_input_info.hpp"
 #include <ie_icnn_network.hpp>
-#include "description_buffer.hpp"
 
 #include <legacy/ie_layers.h>
 

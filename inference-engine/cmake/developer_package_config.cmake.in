@@ -32,15 +32,11 @@ set(GNA "@GNA@")
 
 include("${CMAKE_CURRENT_LIST_DIR}/targets_developer.cmake")
 
-# for compatibility
-set_property(TARGET IE::inference_engine_legacy APPEND PROPERTY
-    INTERFACE_INCLUDE_DIRECTORIES "${IE_MAIN_SOURCE_DIR}/src/legacy_api/include/legacy")
-
 # to allow too create ALIAS for IE::inference_engine in 3rd-party projects
 set_property(TARGET IE::inference_engine PROPERTY IMPORTED_GLOBAL TRUE)
 
 get_target_property(InferenceEngine_INCLUDE_DIRS IE::inference_engine INTERFACE_INCLUDE_DIRECTORIES)
-set(InferenceEngine_LIBRARIES IE::inference_engine_legacy IE::inference_engine)
+set(InferenceEngine_LIBRARIES IE::inference_engine)
 
 #
 # Common cmake includes
