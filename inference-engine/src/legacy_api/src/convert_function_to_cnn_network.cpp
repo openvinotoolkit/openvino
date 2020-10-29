@@ -942,6 +942,64 @@ void convertFunctionToICNNNetwork(const std::shared_ptr<const ::ngraph::Function
     const ngraph::NodeVector& nodes = graph->get_ops();
     bool keep_constants = keep_constant_inputs || ::ngraph::op::util::has_op_with_type<::ngraph::op::FakeQuantize>(graph);
 
+    std::unordered_map<std::string, std::shared_ptr<ngraph::Node>> unique_names;
+    auto can_change_name = [](const std::shared_ptr<ngraph::Node> & node) -> bool {
+        if (ngraph::as_type_ptr<ngraph::op::Parameter>(node) ||
+            ngraph::as_type_ptr<ngraph::op::Result>(node)) {
+            return false;
+        }
+        for (const auto & output : node->outputs()) {
+            for (const auto & consumer : output.get_target_inputs()) {
+                if (ngraph::is_type<ngraph::op::Result>(consumer.get_node())) {
+                    return false;
+                }
+            }
+        }
+        return true;
+    };
+
+    auto generate_unique_name = [&unique_names](std::string name) -> std::string {
+        int64_t suffix = 1;
+        while(unique_names.count(name + "/" + std::to_string(suffix))) {
+            ++suffix;
+        }
+        return name + "/" + std::to_string(suffix);
+    };
+
+    for (auto & layer : nodes) {
+        // Skip Result operations as they have the same friendly name as their parent
+        if (ngraph::is_type<ngraph::op::Result>(layer.get())) {
+            continue;
+        }
+        // Following code temporary handle cases when two or more operations have the same friendly name.
+        // Here we define two types of operations: internal (that have no results as consumers) and
+        // external. And for internal operations we can change friendly name.
+        auto name = layer->get_friendly_name();
+        auto it = unique_names.find(name);
+
+        if (it != unique_names.end()) {
+            // if unique_names already have such name and node with this name is external
+            // first we check that current node is internal (otherwise we throw an exception)
+            // and then we can change its name to unique name.
+            if (!can_change_name(it->second)) {
+                // Check that we don't have two external nodes with the same name
+                if (!can_change_name(layer)) {
+                    THROW_IE_EXCEPTION << "Detected two external operations with the same name: " << it->second << " and " << layer;
+                }
+                // Changing name of internal operation to unique
+                layer->set_friendly_name(generate_unique_name(name));
+            } else {
+                // In this case node with already existing name is internal
+                // and we can change its name to unique.
+                auto internal_node = it->second;
+                internal_node->set_friendly_name(generate_unique_name(name));
+                unique_names[internal_node->get_friendly_name()] = internal_node;
+            }
+        }
+        // At this time layer always have unique friendly name
+        unique_names[layer->get_friendly_name()] = layer;
+    }
+
     // Create layers and output data
     for (const auto &layer : nodes) {
         if (isInternalLayer(layer, keep_constants)) continue;
@@ -1090,7 +1148,8 @@ void convertFunctionToICNNNetwork(const std::shared_ptr<const ::ngraph::Function
 
             CNNLayerPtr cnnLayer;
             ret = cnnNetworkImpl->getLayerByName(layer->get_friendly_name().c_str(), cnnLayer, nullptr);
-            if (ret != OK) THROW_IE_EXCEPTION << "Cannot find layer with name: " << layer->get_friendly_name();
+            if (ret != OK)
+                THROW_IE_EXCEPTION << "Cannot find layer with name: " << layer->get_friendly_name();
 
             auto inIndex = layer->input(i).get_index();
             if (cnnLayer->insData.size() <= (inIndex - count_of_skipped) ||
