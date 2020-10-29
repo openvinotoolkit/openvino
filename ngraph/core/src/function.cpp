@@ -390,7 +390,6 @@ void Function::remove_sink(const std::shared_ptr<op::Sink>& sink)
                                  m_sinks.end(),
                                  [&sink](std::shared_ptr<op::Sink>& s) { return s == sink; }),
                   m_sinks.end());
-    validate_nodes_and_infer_types();
 }
 
 void Function::add_results(const ResultVector& results)
@@ -406,7 +405,6 @@ void Function::remove_result(const std::shared_ptr<op::Result>& result)
                        m_results.end(),
                        [&result](std::shared_ptr<op::v0::Result>& r) { return r == result; }),
         m_results.end());
-    validate_nodes_and_infer_types();
 }
 
 constexpr DiscreteTypeInfo AttributeAdapter<shared_ptr<Function>>::type_info;
