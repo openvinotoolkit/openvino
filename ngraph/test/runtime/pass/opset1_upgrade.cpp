@@ -257,27 +257,9 @@ namespace opset1_upgrade
         return op_cast_binary_elementwise_node<op::v0::LessEq, op::v1::LessEqual>(node);
     }
 
-    shared_ptr<Node> op_cast(shared_ptr<op::Max> node)
-    {
-        bool keep_dims = false;
-        auto replacement_node =
-            make_shared<op::v1::ReduceMax>(node->input_value(0), node->input_value(1), keep_dims);
-        replace_node(node, replacement_node);
-        return replacement_node;
-    }
-
     shared_ptr<Node> op_cast(shared_ptr<op::Maximum> node)
     {
         return op_cast_binary_elementwise_node<op::v0::Maximum, op::v1::Maximum>(node);
-    }
-
-    shared_ptr<Node> op_cast(shared_ptr<op::Min> node)
-    {
-        bool keep_dims = false;
-        auto replacement_node =
-            make_shared<op::v1::ReduceMin>(node->input_value(0), node->input_value(1), keep_dims);
-        replace_node(node, replacement_node);
-        return replacement_node;
     }
 
     shared_ptr<Node> op_cast(shared_ptr<op::Minimum> node)

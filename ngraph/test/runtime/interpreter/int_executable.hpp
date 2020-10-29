@@ -1519,9 +1519,7 @@ protected:
         case OP_TYPEID::LogicalOr_v1:
         case OP_TYPEID::LogicalXor_v1:
         case OP_TYPEID::MatMul:
-        case OP_TYPEID::Max:
         case OP_TYPEID::Maximum:
-        case OP_TYPEID::Min:
         case OP_TYPEID::Minimum:
         case OP_TYPEID::Multiply:
         case OP_TYPEID::NonZero_v3:

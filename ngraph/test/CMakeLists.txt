@@ -301,9 +301,7 @@ set(MULTI_TEST_SRC
     backend/logical_xor.in.cpp
     backend/lrn.in.cpp
     backend/matmul.in.cpp
-    backend/max.in.cpp
     backend/maximum.in.cpp
-    backend/min.in.cpp
     backend/minimum.in.cpp
     backend/multiple_backends.in.cpp
     backend/multiple_result.in.cpp

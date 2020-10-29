@@ -479,29 +479,11 @@ namespace
         EXPECT_FALSE(op::is_binary_elementwise_logical(&node));
     }
 
-    void op_is_Max()
-    {
-        op::Max node;
-        EXPECT_FALSE(op::is_unary_elementwise_arithmetic(&node));
-        EXPECT_FALSE(op::is_binary_elementwise_arithmetic(&node));
-        EXPECT_FALSE(op::is_binary_elementwise_comparison(&node));
-        EXPECT_FALSE(op::is_binary_elementwise_logical(&node));
-    }
-
     void op_is_Maximum()
     {
         op::Maximum node;
         EXPECT_FALSE(op::is_unary_elementwise_arithmetic(&node));
         EXPECT_TRUE(op::is_binary_elementwise_arithmetic(&node));
-        EXPECT_FALSE(op::is_binary_elementwise_comparison(&node));
-        EXPECT_FALSE(op::is_binary_elementwise_logical(&node));
-    }
-
-    void op_is_Min()
-    {
-        op::Min node;
-        EXPECT_FALSE(op::is_unary_elementwise_arithmetic(&node));
-        EXPECT_FALSE(op::is_binary_elementwise_arithmetic(&node));
         EXPECT_FALSE(op::is_binary_elementwise_comparison(&node));
         EXPECT_FALSE(op::is_binary_elementwise_logical(&node));
     }
