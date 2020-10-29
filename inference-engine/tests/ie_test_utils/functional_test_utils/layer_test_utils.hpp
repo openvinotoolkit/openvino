@@ -60,6 +60,10 @@ public:
 
     virtual void SetRefMode(RefMode mode);
 
+    std::shared_ptr<ngraph::Function> GetFunction();
+
+    std::map<std::string, std::string>& GetConfiguration();
+
 protected:
     LayerTestsCommon();
 
