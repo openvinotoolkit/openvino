@@ -42,7 +42,8 @@ struct ConstantAtributes {
 };
 
 class XmlVisitor : public ngraph::AttributeVisitor {
-    pugi::xml_node m_data;
+    pugi::xml_node& m_data;
+    std::string& m_node_type_name;
 
     template <typename T>
     std::string create_atribute_list(
@@ -51,9 +52,8 @@ class XmlVisitor : public ngraph::AttributeVisitor {
     }
 
 public:
-    std::string ie_generic_type_name = "";
-
-    XmlVisitor(pugi::xml_node& data) : m_data(data) {}
+    XmlVisitor(pugi::xml_node& data, std::string& node_type_name)
+        : m_data(data), m_node_type_name{node_type_name} {}
 
     void on_adapter(const std::string& name,
                     ngraph::ValueAccessor<void>& adapter) override {
@@ -67,11 +67,15 @@ public:
     }
     void on_adapter(const std::string& name,
                     ngraph::ValueAccessor<std::string>& adapter) override {
-        // __generic_ie_type__ should not be serialized as a <data> attribute
-        // it is a WA to retrieve layer type name without introducing dependency on
-        // plugi_api library on transformations library
-        if (name == "__generic_ie_type__") {
-            ie_generic_type_name = adapter.get();
+        if ((m_node_type_name == "GenericIE") && (name == "__generic_ie_type__")) {
+            // __generic_ie_type__  in GenericIE should not be serialized as a <data>
+            // since it's purpose is to hold name of the layer type
+            // it is a WA to not introduce dependency on plugin_api library
+            m_node_type_name = adapter.get();
+        } else if ((m_node_type_name == "ExecutionNode") && (name == "layerType")) {
+            // layerType in ExecutionNode should not be serialized in <data>
+            // since it's purpose is to hold name of the layer type
+            m_node_type_name = adapter.get();
         } else {
             m_data.append_attribute(name.c_str())
                 .set_value(adapter.get().c_str());
@@ -199,8 +203,7 @@ std::string get_opset_name(
 // convention. Most of them are the same, but there are exceptions, e.g
 // Constant (ngraph name) and Const (IR name). If there will be more
 // discrepancies discoverd, translations needs to be added here.
-std::string get_type_name(const ngraph::Node* n) {
-    std::string name = n->get_type_name();
+std::string translate_type_name(std::string name) {
     const std::unordered_map<std::string, std::string> translator = {
         {"Constant", "Const"}};
     if (translator.count(name) > 0) {
@@ -299,16 +302,14 @@ void ngfunction_2_irv10(
         pugi::xml_node data = layer.append_child("data");
 
         // <layers/data> general atributes
-        XmlVisitor visitor{data};
+        std::string node_type_name{node->get_type_name()};
+        XmlVisitor visitor{data, node_type_name};
         NGRAPH_CHECK(node->visit_attributes(visitor),
                      "Visitor API is not supported in ", node);
-        std::string node_type_name {node->get_type_name()};
-        if (node_type_name == "GenericIE") {
-            layer_type_attribute.set_value(
-                visitor.ie_generic_type_name.c_str());
-        } else {
-            layer_type_attribute.set_value(get_type_name(node).c_str());
-        }
+
+        layer_type_attribute.set_value(
+            translate_type_name(node_type_name).c_str());
+
         // <layers/data> constant atributes (special case)
         if (auto constant = dynamic_cast<ngraph::op::Constant*>(node)) {
             ConstantAtributes attr = dump_constant_data(bin, *constant);

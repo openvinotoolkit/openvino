@@ -15,6 +15,7 @@
 #include <string>
 
 #include <ngraph/node.hpp>
+#include <ngraph/variant.hpp>
 
 /**
  * @brief A namespace with const values for Execution Graph parameters names.
@@ -129,7 +130,15 @@ public:
         return cloned;
     }
 
-    bool visit_attributes(ngraph::AttributeVisitor&) override {
+    bool visit_attributes(ngraph::AttributeVisitor& visitor) override {
+        using VariantString = ngraph::VariantImpl<std::string>;
+        for (const auto& param : get_rt_info()) {
+            if (auto variant = std::dynamic_pointer_cast<VariantString>(param.second)) {
+                std::string name = param.first;
+                std::string value = variant->get();
+                visitor.on_attribute(name, value);
+            }
+        }
         return true;
     }
 };
