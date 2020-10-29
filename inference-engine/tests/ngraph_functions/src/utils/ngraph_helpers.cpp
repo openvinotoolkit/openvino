@@ -76,7 +76,7 @@ OutputVector convert2OutputVector(const std::vector<std::shared_ptr<Node>> &node
 }
 
 std::vector<std::vector<std::uint8_t>> interpreterFunction(const std::shared_ptr<Function> &function, const std::vector<std::vector<std::uint8_t>> &inputs,
-                                                                                                                                element::Type_t convertType) {
+                                                           std::vector<ngraph::element::Type_t> convertType) {
     runtime::Backend::set_backend_shared_library_search_directory("");
     auto backend = runtime::Backend::create("INTERPRETER");
 
@@ -115,13 +115,15 @@ std::vector<std::vector<std::uint8_t>> interpreterFunction(const std::shared_ptr
     auto handle = backend->compile(function);
     handle->call_with_validate(outputTensors, inputTensors);
     auto outputs = std::vector<std::vector<std::uint8_t>>(results.size());
+    size_t in = 0;
     for (const auto &result : results) {
         const auto &resultIndex = function->get_result_index(result);
         auto &output = outputs[resultIndex];
         output.resize(shape_size(result->get_shape()) * result->get_element_type().size());
         outputTensors[resultIndex]->read(output.data(), output.size());
-        if (convertType != element::Type_t::undefined)
-            output = convertOutputPrecision(output, result->get_element_type(), convertType, shape_size(result->get_shape()));
+        if (!convertType.empty() && convertType[in] != element::Type_t::undefined && result->get_element_type() != element::Type(convertType[in]))
+            output = convertOutputPrecision(output, result->get_element_type(), convertType[in], shape_size(result->get_shape()));
+        in++;
     }
 
     return outputs;
@@ -155,7 +157,7 @@ std::shared_ptr<Function> foldFunction(const std::shared_ptr<Function> &function
     return foldedFunc;
 }
 
-std::vector<std::vector<std::uint8_t>> getConstData(const std::shared_ptr<Function> &function, element::Type_t convertType) {
+std::vector<std::vector<std::uint8_t>> getConstData(const std::shared_ptr<Function> &function, std::vector<ngraph::element::Type_t> convertType) {
     size_t numOutputs = function->get_output_size();
     auto outputs = std::vector<std::vector<std::uint8_t>>(numOutputs);
     for (size_t i = 0; i < numOutputs; i++) {
@@ -169,8 +171,8 @@ std::vector<std::vector<std::uint8_t>> getConstData(const std::shared_ptr<Functi
         const auto dataSize = shape_size(parrentNode->get_shape()) * parrentNode->get_element_type().size();
         outputs[i].resize(dataSize);
         std::copy(data, data + dataSize, outputs[i].data());
-        if (convertType != element::Type_t::undefined)
-            outputs[i] = convertOutputPrecision(outputs[i], parrentNode->get_element_type(), convertType, shape_size(parrentNode->get_shape()));
+        if (!convertType.empty() && convertType[i] != element::Type_t::undefined && parrentNode->get_element_type() != element::Type(convertType[i]))
+            outputs[i] = convertOutputPrecision(outputs[i], parrentNode->get_element_type(), convertType[i], shape_size(parrentNode->get_shape()));
     }
     return outputs;
 }
@@ -508,28 +510,28 @@ std::vector<std::uint8_t> convertOutputPrecision(std::vector<std::uint8_t> &outp
         case element::Type_t::boolean: {
             switch (toPrecision) {
             case element::Type_t::u8: {
-                return convertPrecision<bool, uint8_t>(output, elementsCount, element::Type(toPrecision).size());
+                return convertPrecision<char, uint8_t>(output, elementsCount, element::Type(toPrecision).size());
             }
             case element::Type_t::u16: {
-                return convertPrecision<bool, uint16_t>(output, elementsCount, element::Type(toPrecision).size());
+                return convertPrecision<char, uint16_t>(output, elementsCount, element::Type(toPrecision).size());
             }
             case element::Type_t::i8: {
-                return convertPrecision<bool, int8_t>(output, elementsCount, element::Type(toPrecision).size());
+                return convertPrecision<char, int8_t>(output, elementsCount, element::Type(toPrecision).size());
             }
             case element::Type_t::i16: {
-                return convertPrecision<bool, int16_t>(output, elementsCount, element::Type(toPrecision).size());
+                return convertPrecision<char, int16_t>(output, elementsCount, element::Type(toPrecision).size());
             }
             case element::Type_t::i32: {
-                return convertPrecision<bool, int32_t>(output, elementsCount, element::Type(toPrecision).size());
+                return convertPrecision<char, int32_t>(output, elementsCount, element::Type(toPrecision).size());
             }
             case element::Type_t::i64: {
-                return convertPrecision<bool, int64_t>(output, elementsCount, element::Type(toPrecision).size());
+                return convertPrecision<char, int64_t>(output, elementsCount, element::Type(toPrecision).size());
             }
             case element::Type_t::f32: {
-                return convertPrecision<bool, float>(output, elementsCount, element::Type(toPrecision).size());
+                return convertPrecision<char, float>(output, elementsCount, element::Type(toPrecision).size());
             }
             case element::Type_t::u64: {
-                return convertPrecision<bool, uint64_t>(output, elementsCount, element::Type(toPrecision).size());
+                return convertPrecision<char, uint64_t>(output, elementsCount, element::Type(toPrecision).size());
             }
             default:
                 throw std::runtime_error("convertOutputPrecision can't convert from: " + element::Type(fromPrecision).get_type_name() + " to: " +
