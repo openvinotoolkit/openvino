@@ -231,7 +231,7 @@ TEST_F(NGraphReaderTests, ReadNonMaxSuppression5) {
             </blobs>
         </layer>
         <layer id="5" name="nms" type="NonMaxSuppression" precision="I64">
-            <data center_point_box="0" output_type="i64" sort_result_descending="false"/>
+            <data center_point_box="false" output_type="I64" sort_result_descending="false"/>
             <input>
                 <port id="0">
                     <dim>1</dim>
