@@ -959,45 +959,35 @@ void convertFunctionToICNNNetwork(const std::shared_ptr<const ::ngraph::Function
     };
 
     auto generate_unique_name = [&unique_names](std::string name) -> std::string {
-        int64_t suffix = 1;
+        size_t suffix = 1;
         while(unique_names.count(name + "/" + std::to_string(suffix))) {
             ++suffix;
         }
         return name + "/" + std::to_string(suffix);
     };
 
-    for (auto & layer : nodes) {
-        // Skip Result operations as they have the same friendly name as their parent
-        if (ngraph::is_type<ngraph::op::Result>(layer.get())) {
+    // normalize nodes names to be unique
+    for (auto & node : nodes) {
+        // skip Result operations as they have the same friendly name as their parent
+        if (ngraph::is_type<ngraph::op::Result>(node.get())) {
             continue;
         }
-        // Following code temporary handle cases when two or more operations have the same friendly name.
-        // Here we define two types of operations: internal (that have no results as consumers) and
-        // external. And for internal operations we can change friendly name.
-        auto name = layer->get_friendly_name();
-        auto it = unique_names.find(name);
 
-        if (it != unique_names.end()) {
-            // if unique_names already have such name and node with this name is external
-            // first we check that current node is internal (otherwise we throw an exception)
-            // and then we can change its name to unique name.
-            if (!can_change_name(it->second)) {
-                // Check that we don't have two external nodes with the same name
-                if (!can_change_name(layer)) {
-                    THROW_IE_EXCEPTION << "Detected two external operations with the same name: " << it->second << " and " << layer;
-                }
-                // Changing name of internal operation to unique
-                layer->set_friendly_name(generate_unique_name(name));
-            } else {
-                // In this case node with already existing name is internal
-                // and we can change its name to unique.
-                auto internal_node = it->second;
-                internal_node->set_friendly_name(generate_unique_name(name));
-                unique_names[internal_node->get_friendly_name()] = internal_node;
-            }
+        auto & duplicate = unique_names[node->get_friendly_name()];
+        if (!duplicate) {
+            duplicate = node;
+            continue;
         }
-        // At this time layer always have unique friendly name
-        unique_names[layer->get_friendly_name()] = layer;
+
+        if (!can_change_name(duplicate) && !can_change_name(node)) {
+            THROW_IE_EXCEPTION << "Detected two output operations with the same name: " << duplicate << " and " << node;
+        }
+
+        auto & renamed = can_change_name(duplicate) ? duplicate : node;
+        renamed->set_friendly_name(generate_unique_name(renamed->get_friendly_name()));
+
+        unique_names[duplicate->get_friendly_name()] = duplicate;
+        unique_names[node->get_friendly_name()] = node;
     }
 
     // Create layers and output data

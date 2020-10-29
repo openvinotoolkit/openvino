@@ -363,7 +363,7 @@ TEST(ConvertFunctionToCNNNetworkTests, NonUniqueNamesNegative) {
         InferenceEngine::details::convertFunctionToICNNNetwork(f, nGraphImpl);
         FAIL() << "InferenceEngineException must be thrown";
     } catch(InferenceEngine::details::InferenceEngineException & e) {
-        EXPECT_THAT(e.what(), testing::HasSubstr(std::string("Detected two external operations with the same name:")));
+        EXPECT_THAT(e.what(), testing::HasSubstr(std::string("Detected two output operations with the same name:")));
     }
 }
 
@@ -391,6 +391,6 @@ TEST(ConvertFunctionToCNNNetworkTests, NonUniqueNamesParametersNegative) {
         InferenceEngine::details::convertFunctionToICNNNetwork(f, nGraphImpl);
         FAIL() << "InferenceEngineException must be thrown";
     } catch(InferenceEngine::details::InferenceEngineException & e) {
-        EXPECT_THAT(e.what(), testing::HasSubstr(std::string("Detected two external operations with the same name:")));
+        EXPECT_THAT(e.what(), testing::HasSubstr(std::string("Detected two output operations with the same name:")));
     }
 }
