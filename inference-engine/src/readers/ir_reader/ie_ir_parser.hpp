@@ -7,12 +7,11 @@
 #ifdef IR_READER_V10
 # include <ngraph/node.hpp>
 # include <ngraph/op/util/sub_graph_base.hpp>
-# include <legacy/ie_ngraph_utils.hpp>
-# include <cpp/ie_cnn_network.h>
+# include <ie_ngraph_utils.hpp>
 #endif  // IR_READER_V10
 
 #include <ie_blob.h>
-#include <ie_icnn_network.hpp>
+#include <cpp/ie_cnn_network.h>
 #include <ie_iextension.h>
 #include <xml_parse_utils.h>
 
