@@ -404,13 +404,6 @@ add_custom_target(fix-mode
 )
 
 #-----------------------------------------------------------------------------------------------
-# enable or disable the use of ngraph as a static library
-#-----------------------------------------------------------------------------------------------
-if(NGRAPH_STATIC_LIBRARY)
-    add_definitions(-DNGRAPH_STATIC_LIBRARY)
-endif()
-
-#-----------------------------------------------------------------------------------------------
 # enable or disable output from NGRAPH_DEBUG statements
 #-----------------------------------------------------------------------------------------------
 if(NGRAPH_DEBUG_ENABLE)

@@ -34,10 +34,10 @@ source_group("include" FILES ${PUBLIC_HEADERS})
 configure_file(include/ngraph/version.in.hpp include/ngraph/version.hpp)
 
 if (NGRAPH_STATIC_LIBRARY)
-# Create static library
+    # Create static library
     add_library(ngraph STATIC ${LIBRARY_SRC} ${PUBLIC_HEADERS})
 else()
-# Create shared library
+    # Create shared library
     add_library(ngraph SHARED ${LIBRARY_SRC} ${PUBLIC_HEADERS})
 endif()
 
