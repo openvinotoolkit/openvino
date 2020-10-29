@@ -139,6 +139,16 @@ xfail_issue_38714 = xfail_test(reason="RuntimeError: While validating ONNX node 
                                       "While validating node 'v1::<name> (sizes[0]:i64{4},"
                                       "Convert_29306[0]:f32{4}) -> (dynamic?)' with friendly_name '<name>':"
                                       "Argument element types are inconsistent.")
+xfail_issue_41813 = xfail_test(reason="RuntimeError: While validating ONNX node"
+                                      " '<Node(Loop): generic_loop_Loop__69>'"
+                                      "While validating ONNX node '<Node(Resize): Resize__143>':"
+                                      "vector::_M_range_check: __n (which is 2) >= this->size() (which is 2")
+xfail_issue_41814 = xfail_test(reason="RuntimeError: While validating ONNX node '<Node(Loop):"
+                                      " generic_loop_Loop__121>':"
+                                      "While validating ONNX node '<Node(TopK):"
+                                      " map_1/while/select_bboxes/sort_bboxes_10/TopKV2>':"
+                                      "Check 'tensor_rank.is_static()' failed at"
+                                      " ngraph/core/src/validation_util.cpp:882:")
 xfail_issue_38715 = xfail_test(reason="RuntimeError: While validating ONNX node '<Node(OneHot): y>':"
                                       "While validating node 'v1::OneHot OneHot_<number>"
                                       "(Convert_13525[0]:i64{3}, depth[0]:f32{},"
@@ -178,8 +188,6 @@ xfail_issue_36533 = xfail_test(reason="AssertionError: zoo models results mismat
 xfail_issue_36537 = xfail_test(reason="ngraph.exceptions.UserInputError: (Provided tensor's shape:"
                                       "%s does not match the expected: %s."
                                       "<PartialShape: <value>>, <PartialShape: <value>>)")
-xfail_issue_37687 = xfail_test(reason="RuntimeError: nGraph does not support the following ONNX operations:"
-                                      "Loop")
 xfail_issue_39682 = xfail_test(reason="model with IR version >= 3 must specify opset_import for ONNX")
 xfail_issue_39683 = xfail_test(reason="convolution.W in initializer but not in graph input")
 xfail_issue_39684 = xfail_test(reason="ngraph.exceptions.UserInputError:"
@@ -215,3 +223,5 @@ xfail_issue_39661 = xfail_test(reason="RuntimeError: NonMaxSuppression operation
 xfail_issue_39662 = xfail_test(reason="RuntimeError: 'ScatterElementsUpdate' layer with name 'y' have "
                                       "indices value that points to non-existing output tensor element")
 xfail_issue_39663 = xfail_test(reason="RuntimeError: Unsupported primitive of type: ROIAlign name: Y")
+xfail_issue_41815 = xfail_test(reason="RuntimeError: Unsupported dynamic ops: v5::NonMaxSuppression casted "
+                                      "(yolo_evaluation_layer_1/concat_6:0_btc[0]:f32{1,2535,4},")
