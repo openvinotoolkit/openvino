@@ -95,14 +95,8 @@ Function::Function(const OutputVector& results,
                    const SinkVector& sinks,
                    const ParameterVector& parameters,
                    const std::string& name)
-    : m_results(as_result_vector(results))
-    , m_sinks(sinks)
-    , m_parameters(parameters)
-    , m_name(name)
-    , m_unique_name("Function_" + to_string(m_next_instance_id.fetch_add(1)))
-    , m_topological_sorter(topological_sort<std::vector<std::shared_ptr<Node>>>)
+    : Function(as_result_vector(results), sinks, parameters, name)
 {
-    validate_nodes_and_infer_types();
 }
 
 void Function::validate_nodes_and_infer_types()
@@ -136,7 +130,7 @@ std::vector<shared_ptr<Node>> Function::get_ordered_ops() const
     }
     for (auto& r : get_sinks())
     {
-        nodes.push_back(r);
+        nodes.emplace_back(r);
     }
     for (auto& param : get_parameters())
     {

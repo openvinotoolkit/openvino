@@ -59,7 +59,7 @@ void ngraph::traverse_nodes(const Function* p, std::function<void(std::shared_pt
     }
     for (auto s : p->get_sinks())
     {
-        nodes.push_back(s);
+        nodes.emplace_back(s);
     }
 
     for (auto param : p->get_parameters())
