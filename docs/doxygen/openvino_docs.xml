@@ -79,7 +79,7 @@
                 </tab>
                 <tab type="user" title="Performance Optimization Guide" url="@ref openvino_docs_optimization_guide_dldt_optimization_guide"/>
                 <!-- POT DevGuide -->
-                <xi:include href="optimization_docs.xml" xpointer="xpointer(//tab[@id='pot'])"/>
+                <xi:include href="pot_docs.xml" xpointer="xpointer(//tab[@id='pot'])"/>
                 <!-- Tuning Utilities -->
                 <tab type="usergroup" title="Tuning Utilities" url="">
                     <xi:include href="omz_docs.xml" xpointer="xpointer(//tab[@id='accuracy_checker'])"/>
@@ -146,6 +146,10 @@
                 <tab type="user" title="Draw Face Attributes C++ Sample" url="@ref gst_samples_cpp_draw_face_attributes_README"/>
                 <tab type="user" title="Draw Face Attributes Python Sample" url="@ref gst_samples_python_draw_face_attributes_README"/>
                 <tab type="user" title="Benchmark Sample" url="@ref gst_samples_benchmark_README"/>
+            </tab>
+
+            <tab type="usergroup" title="Add-Ons" url="">
+                
             </tab>
         </tab>
 
