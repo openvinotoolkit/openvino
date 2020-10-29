@@ -195,7 +195,7 @@ For a step-by-step walk-through creating and executing a custom layer, see [Cust
 - Intel® Distribution of OpenVINO™ toolkit home page: [https://software.intel.com/en-us/openvino-toolkit](https://software.intel.com/en-us/openvino-toolkit)
 - OpenVINO™ toolkit online documentation: [https://docs.openvinotoolkit.org](https://docs.openvinotoolkit.org)
 - [Model Optimizer Developer Guide](../MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md)
-- [Kernel Extensivility in the Inference Engine Developer Guide](../IE_DG/Integrate_your_kernels_into_IE.md)
+- [Inference Engine Extensibility Mechanism](../IE_DG/Extensibility_DG/Intro.md)
 - [Inference Engine Samples Overview](../IE_DG/Samples_Overview.md)
 - [Overview of OpenVINO™ Toolkit Pre-Trained Models](@ref omz_models_intel_index)
 - [Inference Engine Tutorials](https://github.com/intel-iot-devkit/inference-tutorials-generic)

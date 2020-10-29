@@ -169,7 +169,7 @@ bool ngraph::pass::GroupedStridedSliceOptimizer::run_on_function(std::shared_ptr
             for (const auto & ss_plan : pair.second) {
                 if (ss_plan.second.begins[i] != 0 || ss_plan.second.ends[i] != input_shape[i]) {
                     if (axis == -1 || axis == i)
-                        axis = i;
+                        axis = static_cast<int>(i);
                     else
                         valid_for_replacement = false;
                     if (ss_plan.second.strides[i] != 1)
@@ -189,12 +189,12 @@ bool ngraph::pass::GroupedStridedSliceOptimizer::run_on_function(std::shared_ptr
             {return lhs.begin < rhs.begin;});
 
         std::vector<std::pair<Output<Node>, uint64_t>> output_to_size;
-        uint64_t prev_r = 0;
+        int64_t prev_r = 0;
         for (auto & record : output_to_partition) {
             valid_for_replacement &= (record.begin >= prev_r);
             prev_r = record.end;
         }
-        valid_for_replacement &= (prev_r <= input_shape[axis]);
+        valid_for_replacement &= (static_cast<size_t>(prev_r) <= input_shape[axis]);
         if (!valid_for_replacement) continue;
 
         prev_r = 0;
@@ -205,7 +205,7 @@ bool ngraph::pass::GroupedStridedSliceOptimizer::run_on_function(std::shared_ptr
             prev_r = record.end;
             output_to_size.emplace_back(record.output, record.end - record.begin);
         }
-        if (prev_r < input_shape[axis]) {
+        if (static_cast<size_t>(prev_r) < input_shape[axis]) {
             output_to_size.emplace_back(fake_output, input_shape[axis] - prev_r);
         }
 

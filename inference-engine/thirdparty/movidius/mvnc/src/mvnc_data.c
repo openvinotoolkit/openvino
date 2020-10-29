@@ -274,7 +274,7 @@ ncStatus_t bootDevice(deviceDesc_t* deviceDescToBoot,
         }       
     }
 
-    XLinkError_t rc = XLinkBootFirmware(deviceDescToBoot, firmware, length);
+    XLinkError_t rc = XLinkBootFirmware(deviceDescToBoot, firmware, (unsigned long)length);
     free(firmware);
 
     if(rc) {

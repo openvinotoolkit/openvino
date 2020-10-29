@@ -94,9 +94,9 @@ void FrontEnd::parseExpDetectionOutput(const Model& model, const ie::CNNLayerPtr
     params.max_delta_log_wh = layer->GetParamAsFloat("max_delta_log_wh", 0.0f);
     params.nms_threshold = layer->GetParamAsFloat("nms_threshold", 0.0f);
     params.score_threshold = layer->GetParamAsFloat("score_threshold", 0.0f);
-    params.max_detections_per_image = layer->GetParamAsFloat("max_detections_per_image", 0);
-    params.num_classes = layer->GetParamAsFloat("num_classes", 0);
-    params.post_nms_count = layer->GetParamAsFloat("post_nms_count", 0);
+    params.max_detections_per_image = layer->GetParamAsInt("max_detections_per_image", 0);
+    params.num_classes = layer->GetParamAsInt("num_classes", 0);
+    params.post_nms_count = layer->GetParamAsInt("post_nms_count", 0);
     params.class_agnostic_box_regression = layer->GetParamAsFloat("class_agnostic_box_regression", 0) ? 1 : 0;
 
     auto inputBoxes    = inputs[0];   // [numRois][4]
