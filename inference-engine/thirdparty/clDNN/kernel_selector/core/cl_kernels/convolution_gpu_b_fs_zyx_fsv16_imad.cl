@@ -66,23 +66,23 @@ KERNEL(convolution_gpu_b_fs_zyx_fsv16_imad)(
     out_f = out_f - (out_f / ALIGN(FILTER_OFM_NUM, SIMD)) * (SIMD - (FILTER_OFM_NUM % SIMD));
 #endif
 
-    const int input_x = out_x * STRIDE_SIZE_X - PADDING_SIZE_X;
-    const int input_y = out_y * STRIDE_SIZE_Y - PADDING_SIZE_Y;
-    const int input_z = out_z * STRIDE_SIZE_Z - PADDING_SIZE_Z;
+    const int input_x = out_x * STRIDE_SIZE_X - INPUT0_PAD_BEFORE_SIZE_X;
+    const int input_y = out_y * STRIDE_SIZE_Y - INPUT0_PAD_BEFORE_SIZE_Y;
+    const int input_z = out_z * STRIDE_SIZE_Z - INPUT0_PAD_BEFORE_SIZE_Z;
 
 #if FEATURE_SLM_SPLIT == 1
-    const uint k_start = 0;
+    const uint in_f_start = 0;
 #else
-    const uint k_start = get_sub_group_id() * FSV;
+    const uint in_f_start = get_sub_group_id() * FSV;
 #endif
 
-    uint filter_idx  = GET_FILTER_G_OS_IS_ZYX_OSV16_ISV16_INDEX(FILTER, g, out_f_g, k_start, 0, 0, 0);
+    uint filter_idx  = GET_FILTER_G_OS_IS_ZYX_OSV16_ISV16_INDEX(FILTER, g, out_f_g, in_f_start, 0, 0, 0);
     const uint filter_idx_diff = (ALIGN(FILTER_IFM_NUM, FSV) * FILTER_SIZE_X * FILTER_SIZE_Y * FILTER_SIZE_Z * FSV);
 
 #if INPUT0_DIMS == 4
-    uint input_start_idx = INPUT0_GET_INDEX(out_b, g * FILTER_IFM_NUM + k_start, input_y, input_x);
+    uint input_start_idx = INPUT0_GET_INDEX(out_b, g * FILTER_IFM_NUM + in_f_start, input_y, input_x);
 #else
-    uint input_start_idx = INPUT0_GET_INDEX(out_b, g * FILTER_IFM_NUM + k_start, input_z, input_y, input_x);
+    uint input_start_idx = INPUT0_GET_INDEX(out_b, g * FILTER_IFM_NUM + in_f_start, input_z, input_y, input_x);
 #endif
 
     ACCUMULATOR_TYPE dotProd[OFM_BLOCKS_PER_SIMD][OUT_BLOCK_DEPTH][OUT_BLOCK_HEIGHT][OUT_BLOCK_WIDTH] = { };
@@ -110,10 +110,8 @@ KERNEL(convolution_gpu_b_fs_zyx_fsv16_imad)(
                             if (ixb != CEIL_DIV(IN_BLOCK_WIDTH, SIMD) - 1) {
                                 #if ((FILTER_GROUPS_NUM > 1) && (FILTER_IFM_NUM % FSV != 0))
                                 if (in_f_offset == 0) {
-                                    input_val[izb][iyb][ixb] = as_uint4(vload16(0, conv_input + input_idx + get_sub_group_local_id() * FSV));
-                                #else
-                                    input_val[izb][iyb][ixb] = vload4(0, (__global uint *)(conv_input + input_idx + get_sub_group_local_id() * FSV));
                                 #endif
+                                    input_val[izb][iyb][ixb] = vload4(0, (__global uint *)(conv_input + input_idx + get_sub_group_local_id() * FSV));
                                 #if ((FILTER_GROUPS_NUM > 1) && (FILTER_IFM_NUM % FSV != 0))
                                 } else {
                                     INPUT0_TYPE* input_int8_arr = (INPUT0_TYPE*) &input_val[izb][iyb][ixb];
@@ -122,11 +120,11 @@ KERNEL(convolution_gpu_b_fs_zyx_fsv16_imad)(
                                         if (v + in_f_offset < FSV) {
                                             input_int8_arr[v] = conv_input[input_idx + get_sub_group_local_id() * FSV + v];
                                         } else {
-                                            input_int8_arr[v] = conv_input[input_idx + get_sub_group_local_id() * FSV + v + 
-                                                                           ((INPUT0_SIZE_X + 2*PADDING_SIZE_X) * 
-                                                                            (INPUT0_SIZE_Y + 2*PADDING_SIZE_Y) * 
-                                                                            (INPUT0_SIZE_Z + 2*PADDING_SIZE_Z) - 1) * 
-                                                                           FSV];
+                                            const uint addr = input_idx + get_sub_group_local_id() * FSV + v +
+                                                        ((INPUT0_SIZE_X + INPUT0_PAD_BEFORE_SIZE_X + INPUT0_PAD_AFTER_SIZE_X) *
+                                                         (INPUT0_SIZE_Y + INPUT0_PAD_BEFORE_SIZE_Y + INPUT0_PAD_AFTER_SIZE_Y) *
+                                                         (INPUT0_SIZE_Z + INPUT0_PAD_BEFORE_SIZE_Z + INPUT0_PAD_AFTER_SIZE_Z) - 1) * FSV;
+                                            input_int8_arr[v] = conv_input[addr];
                                         }
                                     }
                                 }
@@ -134,10 +132,8 @@ KERNEL(convolution_gpu_b_fs_zyx_fsv16_imad)(
                             } else {
                                 #if ((FILTER_GROUPS_NUM > 1) && (FILTER_IFM_NUM % FSV != 0))
                                 if (in_f_offset == 0) {
-                                    input_val[izb][iyb][ixb] = as_uint4(vload16(0, conv_input + input_idx + tmp * FSV));
-                                #else
-                                    input_val[izb][iyb][ixb] = vload4(0, (__global uint*)(conv_input + input_idx + tmp * FSV));
                                 #endif
+                                    input_val[izb][iyb][ixb] = vload4(0, (__global uint*)(conv_input + input_idx + tmp * FSV));
                                 #if ((FILTER_GROUPS_NUM > 1) && (FILTER_IFM_NUM % FSV != 0))
                                 } else {
                                     INPUT0_TYPE* input_int8_arr = (INPUT0_TYPE*) &input_val[izb][iyb][ixb];
@@ -146,11 +142,11 @@ KERNEL(convolution_gpu_b_fs_zyx_fsv16_imad)(
                                         if (v + in_f_offset < FSV) {
                                             input_int8_arr[v] = conv_input[input_idx + tmp * FSV + v];
                                         } else {
-                                            input_int8_arr[v] = conv_input[input_idx + tmp * FSV + v + 
-                                                                           ((INPUT0_SIZE_X + 2*PADDING_SIZE_X) * 
-                                                                            (INPUT0_SIZE_Y + 2*PADDING_SIZE_Y) * 
-                                                                            (INPUT0_SIZE_Z + 2*PADDING_SIZE_Z) - 1) * 
-                                                                           FSV];
+                                            const uint addr = input_idx + tmp * FSV + v +
+                                                        ((INPUT0_SIZE_X + INPUT0_PAD_BEFORE_SIZE_X + INPUT0_PAD_AFTER_SIZE_X) *
+                                                         (INPUT0_SIZE_Y + INPUT0_PAD_BEFORE_SIZE_Y + INPUT0_PAD_AFTER_SIZE_Y) *
+                                                         (INPUT0_SIZE_Z + INPUT0_PAD_BEFORE_SIZE_Z + INPUT0_PAD_AFTER_SIZE_Z) - 1) * FSV;
+                                            input_int8_arr[v] = conv_input[addr];
                                         }
                                     }
                                 }
@@ -183,7 +179,6 @@ KERNEL(convolution_gpu_b_fs_zyx_fsv16_imad)(
                                         for (uint oh = 0; oh < OUT_BLOCK_HEIGHT; ++oh) {
                                             __attribute__((opencl_unroll_hint(OUT_BLOCK_WIDTH)))
                                             for (uint ow = 0; ow < OUT_BLOCK_WIDTH; ow++) {
-                                                const uint ow_offset = ow + OUT_BLOCK_WIDTH;
                                                 const uint z_block_idx = od * STRIDE_SIZE_Z + fzu * DILATION_SIZE_Z;
                                                 const uint y_block_idx = oh * STRIDE_SIZE_Y + fyu * DILATION_SIZE_Y;
                                                 const uint x_block_idx = ow * STRIDE_SIZE_X + fx * DILATION_SIZE_X;
