@@ -468,7 +468,7 @@ int main(int argc, char *argv[]) {
 
         InferRequestsQueue inferRequestsQueue(exeNetwork, nireq);
         const InferenceEngine::ConstInputsDataMap info(exeNetwork.GetInputsInfo());
-        fillBlobs(inputFiles, batchSize, info, inferRequestsQueue.requests);
+        // fillBlobs(inputFiles, batchSize, info, inferRequestsQueue.requests);
 
         // ----------------- 10. Measuring performance ------------------------------------------------------------------
         size_t progressCnt = 0;
