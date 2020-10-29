@@ -1229,10 +1229,11 @@ class EfficientDet(FrontReplacementFromConfigFileGeneral):
             return widths, heights
 
     def transform_graph(self, graph: Graph, replacement_descriptions: dict):
-        scopesToKeep = ('efficientnet', 'resample_p6', 'resample_p7',
-                        'fpn_cells', 'class_net', 'box_net', 'Reshape', 'concat',
-                        'convert_image')
+        scopesToKeep = ('efficientnet', 'resample_',
+                        'fpn_cells', 'class_net', 'box_net',
+                        'convert_image', 'ExpandDims')
         nodesToKeep = ('image_arrays', 'sub', 'truediv')
+        num_classes = 90
 
         # Remove all nodes we are not going to work with
         nodes_to_remove = []
@@ -1270,6 +1271,11 @@ class EfficientDet(FrontReplacementFromConfigFileGeneral):
                                                 num_scales=3,
                                                 anchor_scale=4.0)
         prior_boxes = []
+
+        box_net_shape = Const(graph, {'value': int64_array([0, -1, 4])}).create_node([])
+        class_net_shape = Const(graph, {'value': int64_array([0, -1, num_classes])}).create_node([])
+        box_net = []
+        class_net = []
         for i in range(5):
             widths, heights = priors_generator.get(i)
             prior_box_op = PriorBoxClusteredOp(graph, {'width': np.array(widths),
@@ -1281,14 +1287,25 @@ class EfficientDet(FrontReplacementFromConfigFileGeneral):
             prior_boxes.append(prior_box_op.create_node([Node(graph, inp_name),
                                                          Node(graph, 'image_arrays')]))
 
+            inp_name = 'box_net/box-predict{}/BiasAdd'.format('_%d' % i if i else '')
+            reshape_op = Reshape(graph, dict(name=inp_name + '/reshape'))
+            box_net.append(reshape_op.create_node([Node(graph, inp_name), box_net_shape]))
+
+            inp_name = 'class_net/class-predict{}/BiasAdd'.format('_%d' % i if i else '')
+            reshape_op = Reshape(graph, dict(name=inp_name + '/reshape'))
+            class_net.append(reshape_op.create_node([Node(graph, inp_name), class_net_shape]))
+
+
         # Concatenate prior box layers
+        concat_class_net = Concat(graph, dict(name='concat', axis=1)).create_node(class_net)
+        concat_box_net = Concat(graph, dict(name='concat_1', axis=1)).create_node(box_net)
         concat_prior_boxes_op = Concat(graph, {'axis': -1}).create_node(prior_boxes)
 
-        conf = Sigmoid(graph, dict(name='concat/sigmoid')).create_node([Node(graph, 'concat')])
+        conf = Sigmoid(graph, dict(name='concat/sigmoid')).create_node([concat_class_net])
 
         reshape_size_node = Const(graph, {'value': int64_array([0, -1])}).create_node([])
         logits = Reshape(graph, dict(name=conf.name + '/Flatten')).create_node([conf, reshape_size_node])
-        deltas = Reshape(graph, dict(name='concat_1/Flatten')).create_node([Node(graph, 'concat_1'), reshape_size_node])
+        deltas = Reshape(graph, dict(name='concat_1/Flatten')).create_node([concat_box_net, reshape_size_node])
 
         # Revert convolution boxes prediction convolutions weights from yxYX to xyXY
         # (there are 5 convolutions but all have shared weights and bias)
@@ -1299,7 +1316,7 @@ class EfficientDet(FrontReplacementFromConfigFileGeneral):
 
         detection_output_node = DetectionOutput(graph, dict(
             name='detection_output',
-            num_classes=90,
+            num_classes=num_classes,
             share_location=1,
             background_label_id=91,
             nms_threshold=0.6,
