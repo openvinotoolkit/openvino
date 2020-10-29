@@ -21,7 +21,7 @@ namespace InferenceEngine {
 class IShapeInferExtension;
 using IShapeInferExtensionPtr = std::shared_ptr<IShapeInferExtension>;
 
-}
+}  // namespace InferenceEngine
 
 namespace ngraph {
 namespace op {
@@ -135,4 +135,3 @@ private:
 
 }  // namespace op
 }  // namespace ngraph
-
