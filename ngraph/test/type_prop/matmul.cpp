@@ -130,7 +130,8 @@ TEST(type_prop, matmul_dynamic_5D_transpose_b)
     auto matmul = make_shared<op::MatMul>(A, B, 0, 1);
 
     ASSERT_EQ(matmul->get_element_type(), element::f32);
-    ASSERT_EQ(matmul->get_output_partial_shape(0), (PartialShape{dynamic, 4, dynamic, dynamic, 4}));
+    ASSERT_EQ(matmul->get_output_partial_shape(0),
+              (PartialShape{Dimension(1, -1), 4, dynamic, dynamic, 4}));
 }
 
 TEST(type_prop, matmul_dynamic_2D_transpose_a)
@@ -396,7 +397,123 @@ TEST(type_prop, matmul_incompatible_batch_dims)
     {
         auto matmul = make_shared<op::MatMul>(A, B);
         // Should have thrown, so fail if it didn't
+        FAIL() << "Incompatible batch dimensions not detected. ";
+    }
+    catch (const ngraph_error& error)
+    {
+        EXPECT_HAS_SUBSTRING(error.what(), std::string("Incompatible batch dimensions"));
+    }
+    catch (...)
+    {
+        FAIL() << "MatMul shape validation failed for unexpected reason";
+    }
+}
+
+TEST(type_prop, matmul_matrix_dynamic_bounds)
+{
+    auto A =
+        make_shared<op::Parameter>(element::f32, PartialShape{Dimension(2, 5), Dimension(6, 10)});
+    auto B =
+        make_shared<op::Parameter>(element::f32, PartialShape{Dimension(7, 8), Dimension(15, 20)});
+
+    auto matmul = make_shared<op::MatMul>(A, B, false, false);
+
+    ASSERT_EQ(matmul->get_element_type(), element::f32);
+    ASSERT_EQ(matmul->get_output_partial_shape(0),
+              (PartialShape{Dimension(2, 5), Dimension(15, 20)}));
+}
+
+TEST(type_prop, matmul_batch_dynamic_bounds)
+{
+    // Input A and input B dim bounds => output dim bound
+    // Dimension 1 can be expanded to any bigger
+
+    Dimension dynamic = Dimension::dynamic();
+
+    auto A_shape = PartialShape{dynamic,          // 0
+                                Dimension(1, 5),  // 1
+                                Dimension(2, 10), // 2
+                                Dimension(5, 7),  // 3
+                                Dimension(4, 7),  // 4
+                                Dimension(5, 10), // 5
+                                Dimension(1, 4),  // 6
+                                Dimension(0, 1),  // 7
+                                Dimension(0, 3),  // 8
+                                1,                // 9
+                                1,                // 10
+                                5,                // 11
+                                6};               // 12
+
+    auto B_shape = PartialShape{dynamic,           // 0
+                                Dimension(10, 20), // 1
+                                Dimension(10, 20), // 2
+                                Dimension(4, 10),  // 3
+                                Dimension(5, 10),  // 4
+                                Dimension(4, 7),   // 5
+                                dynamic,           // 6
+                                Dimension(0, 1),   // 7
+                                Dimension(2, 5),   // 8
+                                dynamic,           // 9
+                                3,                 // 10
+                                6,                 // 11
+                                4};                // 12
+
+    auto expected_output_shape = PartialShape{dynamic,           // 0
+                                              Dimension(10, 20), // 1
+                                              10,                // 2
+                                              Dimension(5, 7),   // 3
+                                              Dimension(5, 7),   // 4
+                                              Dimension(5, 7),   // 5
+                                              Dimension(1, -1),  // 6
+                                              Dimension(0, 1),   // 7
+                                              Dimension(2, 5),   // 8
+                                              Dimension(1, -1),  // 9
+                                              3,                 // 10
+                                              5,                 // 11
+                                              4};                // 12
+
+    auto A = make_shared<op::Parameter>(element::f32, A_shape);
+    auto B = make_shared<op::Parameter>(element::f32, B_shape);
+
+    auto matmul = make_shared<op::MatMul>(A, B);
+
+    ASSERT_EQ(matmul->get_element_type(), element::f32);
+    ASSERT_EQ(matmul->get_output_partial_shape(0), expected_output_shape);
+}
+
+TEST(type_prop, matmul_incompatible_matrix_dim_bounds)
+{
+    auto A =
+        make_shared<op::Parameter>(element::f32, PartialShape{Dimension(2, 5), Dimension(3, 4)});
+    auto B =
+        make_shared<op::Parameter>(element::f32, PartialShape{Dimension(1, 2), Dimension(15, 20)});
+
+    try
+    {
+        auto matmul = make_shared<op::MatMul>(A, B);
+        // Should have thrown, so fail if it didn't
         FAIL() << "Incompatible matrix dimensions not detected. ";
+    }
+    catch (const ngraph_error& error)
+    {
+        EXPECT_HAS_SUBSTRING(error.what(), std::string("Incompatible matrix dimensions"));
+    }
+    catch (...)
+    {
+        FAIL() << "MatMul shape validation failed for unexpected reason";
+    }
+}
+
+TEST(type_prop, matmul_incompatible_batch_dim_bounds)
+{
+    auto A = make_shared<op::Parameter>(element::f32, PartialShape{Dimension(2, 5), 4, 3});
+    auto B = make_shared<op::Parameter>(element::f32, PartialShape{Dimension(6, 10), 3, 2});
+
+    try
+    {
+        auto matmul = make_shared<op::MatMul>(A, B);
+        // Should have thrown, so fail if it didn't
+        FAIL() << "Incompatible batch dimensions not detected. ";
     }
     catch (const ngraph_error& error)
     {
