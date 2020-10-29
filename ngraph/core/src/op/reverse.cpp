@@ -15,6 +15,7 @@
 //*****************************************************************************
 
 #include <algorithm>
+#include <iterator>
 #include <sstream>
 
 #include "ngraph/attribute_visitor.hpp"
