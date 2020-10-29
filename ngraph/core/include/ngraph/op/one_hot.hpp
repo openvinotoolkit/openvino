@@ -58,7 +58,6 @@ namespace ngraph
                 /// \return The index of the one-hot axis.
                 int64_t get_axis() const { return m_axis; }
                 void set_axis(int64_t axis) { m_axis = axis; }
-
             protected:
                 int64_t m_axis;
             };
