@@ -82,6 +82,8 @@ std::shared_ptr<ngraph::opset1::FakeQuantize> makeFakeQuantizeTypeRelaxed(
     const ngraph::element::Type precision,
     const FakeQuantizeOnDataWithConstant& fqOnData);
 
+std::shared_ptr<Node> addDequantizationAttribute(const std::shared_ptr<Node>& op);
+
 } // namespace subgraph
 } // namespace builder
 } // namespace ngraph
