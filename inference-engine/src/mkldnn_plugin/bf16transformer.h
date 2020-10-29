@@ -15,7 +15,7 @@ class BF16Transformer {
     const InferenceEngine::details::caseless_set<std::string> _initbf16 =
         { "convolution", "fullyconnected", "innerproduct", "gemm" };
     const InferenceEngine::details::caseless_set<std::string> _complementbf16 =
-        { "relu", "tanh", "elu", "square", "abs", "sqrt", "linear", "bounded_relu", "soft_relu",
+        { "relu", "tanh", "elu", "square", "abs", "sqrt", "linear", "bounded_relu", "soft_relu", "normalize",
           "sigmoid", "ReLU6", "not", "activation", "HSwish", "mish", "ScaleShift", "logistic", "mod",
           "exp", "gelu", "clamp", "swish", "prelu", "pooling", "norm", "gather", "memory", "mvn", "crop", "activation",
           "broadcast", "convert", "BatchToSpace", "DepthToSpace", "ExtractImagePatches", "concat", "power", "lrn",
