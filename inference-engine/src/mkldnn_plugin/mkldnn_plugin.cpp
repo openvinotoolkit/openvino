@@ -7,10 +7,22 @@
 #include "mkldnn_extension_mngr.h"
 #include "mkldnn_layers_dispatcher.hpp"
 #include <cpp_interfaces/base/ie_plugin_base.hpp>
+#include <threading/ie_executor_manager.hpp>
 #include <memory>
 #include <ie_plugin_config.hpp>
 #include <vector>
 #include <tuple>
+#include <ie_system_conf.h>
+#include <generic_ie.hpp>
+
+#include "cnn_network_ngraph_impl.hpp"
+#include "convert_function_to_cnn_network.hpp"
+#include <transformations/convert_opset1_to_legacy/convert_opset1_to_legacy.hpp>
+#include <transformations/convert_opset2_to_opset1/convert_opset2_to_opset1.hpp>
+#include <ngraph/opsets/opset1.hpp>
+#include <ngraph/opsets/opset2.hpp>
+#include <ngraph/op/fused/gelu.hpp>
+#include <ngraph_ops/fully_connected.hpp>
 
 #if !defined(__arm__) && !defined(_M_ARM) && !defined(__aarch64__) && !defined(_M_ARM64)
 #if defined(_WIN32) || defined(WIN32)
@@ -18,6 +30,7 @@
 #include <windows.h>
 #else
 #include <cpuid.h>
+
 #endif
 #endif
 
@@ -26,7 +39,7 @@ using namespace InferenceEngine;
 
 NumaNodesWeights create_shared_weights_per_socket() {
     NumaNodesWeights _weightsSharing;
-    std::vector<int> sockets = MKLDNNPlugin::cpu::getAvailableNUMANodes();
+    std::vector<int> sockets = InferenceEngine::getAvailableNUMANodes();
     for (auto s : sockets)
         _weightsSharing[s] = std::make_shared<MKLDNNWeightsSharing>();
     return _weightsSharing;
@@ -40,8 +53,12 @@ Engine::Engine() {
     addDefaultExtensions(extensionManager);
 }
 
+Engine::~Engine() {
+    ExecutorManager::getInstance()->clear("CPUStreamsExecutor");
+}
+
 InferenceEngine::ExecutableNetworkInternal::Ptr
-Engine::LoadExeNetworkImpl(const ICore * /*core*/, InferenceEngine::ICNNNetwork &network, const std::map<std::string, std::string> &config) {
+Engine::LoadExeNetworkImpl(const ICore * /*core*/, const InferenceEngine::ICNNNetwork &network, const std::map<std::string, std::string> &config) {
     // verification of supported input
     InferenceEngine::InputsDataMap _networkInputs;
     network.getInputsInfo(_networkInputs);
@@ -68,7 +85,38 @@ Engine::LoadExeNetworkImpl(const ICore * /*core*/, InferenceEngine::ICNNNetwork 
         conf.batchLimit = static_cast<int>(network.getBatchSize());
     }
 
-    return std::make_shared<MKLDNNExecNetwork>(network, conf, extensionManager);
+    std::shared_ptr<ICNNNetwork> clonedNetwork(nullptr);
+
+    if (auto networkNGraph = dynamic_cast<const CNNNetworkNGraphImpl*>(&network)) {
+        auto nGraphNetwork = networkNGraph->cloneNGraphImpl();
+        if (!nGraphNetwork->getFunction()) {
+            clonedNetwork = nGraphNetwork->getCNNNetwork();
+        } else {
+            const auto transformations_callback = [](const std::shared_ptr<const ::ngraph::Node> &node) -> bool {
+                return std::dynamic_pointer_cast<const ::ngraph::opset2::Gelu>(node) ||
+                       std::dynamic_pointer_cast<const ::ngraph::opset2::BatchToSpace>(node) ||
+                       std::dynamic_pointer_cast<const ::ngraph::opset2::SpaceToBatch>(node);
+            };
+            // Disable shape inference (WA for generic operations)
+            ::ngraph::op::GenericIE::DisableReshape noReshape(nGraphNetwork->getFunction());
+
+            // Note: instead of running all Conversion Transformations you can make up your own transformation pipeline
+            ngraph::pass::ConvertOpSet2ToOpSet1(transformations_callback).run_on_function(nGraphNetwork->getFunction());
+            ngraph::pass::ConvertOpSet1ToLegacy(transformations_callback).run_on_function(nGraphNetwork->getFunction());
+            clonedNetwork = InferenceEngine::details::convertFunctionToICNNNetwork(nGraphNetwork->getFunction(), *nGraphNetwork.get());
+        }
+    } else {
+        clonedNetwork = cloneNet(network);
+    }
+
+    auto implNetwork = std::dynamic_pointer_cast<details::CNNNetworkImpl>(clonedNetwork);
+    if (implNetwork) {
+        // valid for CNNNetworkImpl only, while there's no API in ICNNNetwork to change network
+        ConstTransformer transformator(implNetwork.get());
+        transformator.fullTrim();
+    }
+
+    return std::make_shared<MKLDNNExecNetwork>(*clonedNetwork, conf, extensionManager);
 }
 
 void Engine::SetConfig(const std::map<std::string, std::string> &config) {
@@ -164,7 +212,7 @@ void Engine::AddExtension(InferenceEngine::IExtensionPtr extension) {
 }
 
 void Engine::QueryNetwork(const ICNNNetwork& network, const std::map<std::string, std::string>& config, QueryNetworkResult& res) const {
-    details::CNNNetworkIterator i(const_cast<ICNNNetwork *>(&network));
+    details::CNNNetworkIterator i(&network);
     while (i != details::CNNNetworkIterator()) {
         try {
             mkldnn::engine eng(mkldnn::engine(mkldnn::engine::kind::cpu, 0));

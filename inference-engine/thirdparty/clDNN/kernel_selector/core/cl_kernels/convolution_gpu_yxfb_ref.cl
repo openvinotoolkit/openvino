@@ -33,14 +33,18 @@ KERNEL(convolution_gpu_yxfb_ref)(
     const int x = (int)out_x * STRIDE_SIZE_X - PADDING_SIZE_X;
     const int y = (int)out_y * STRIDE_SIZE_Y - PADDING_SIZE_Y;
     
-#if DEPTHWISE_SEPARABLE_OPT
-    const uint in_split_offset = (ofm_offset / FILTER_OFM_NUM) * INPUT0_FEATURE_PITCH * FILTER_IFM_NUM;
+#if GROUPED || DEPTHWISE_SEPARABLE_OPT
+    const uint g = ofm_offset / FILTER_OFM_NUM;
+    const uint in_split_offset = g * INPUT0_FEATURE_PITCH * FILTER_IFM_NUM;
+    const uint of = ofm_offset % FILTER_OFM_NUM;
 #else
-    const uint in_split_offset = split_idx * INPUT0_FEATURE_PITCH * FILTER_IFM_NUM;
+    const uint g = 0;
+    const uint in_split_offset = 0;
+    const uint of = ofm_offset;
 #endif
     const uint input_offset = INPUT0_OFFSET + batch_offset*INPUT0_BATCH_PITCH + in_split_offset;
-#if GROUPED && !DEPTHWISE_SEPARABLE_OPT
-    const uint filter_offset = split_idx * FILTER_LENGTH;
+#if GROUPED || DEPTHWISE_SEPARABLE_OPT
+    const uint filter_offset = (ofm_offset / FILTER_OFM_NUM) * FILTER_GROUPS_PITCH;
 #else
     const uint filter_offset = 0;
 #endif
@@ -60,7 +64,7 @@ KERNEL(convolution_gpu_yxfb_ref)(
                 if(!zero)
                 {
                     uint input_idx = input_offset + (uint)input_offset_x*INPUT0_X_PITCH + (uint)input_offset_y*INPUT0_Y_PITCH;
-                    uint filter_idx = filter_offset + ofm_offset*FILTER_OFM_PITCH + i*FILTER_Y_PITCH + j*FILTER_X_PITCH;
+                    uint filter_idx = filter_offset + of*FILTER_OFM_PITCH + i*FILTER_Y_PITCH + j*FILTER_X_PITCH;
 
                     for (uint h = 0; h < FILTER_IFM_NUM; h++)
                     {
@@ -73,14 +77,9 @@ KERNEL(convolution_gpu_yxfb_ref)(
         }
     }
 #if BIAS_TERM
-#if GROUPED && !DEPTHWISE_SEPARABLE_OPT
-    const uint bias_offset = split_idx * BIAS_LENGTH;
-#else
-    const uint bias_offset = 0;
+    result += bias[ofm_offset];
 #endif
-    result += bias[ofm_offset + bias_offset];
-#endif
-    const uint out_split_offset = split_idx * OUTPUT_FEATURE_PITCH * FILTER_OFM_NUM;
-    const uint dst_index = batch_offset*OUTPUT_BATCH_PITCH + ofm_offset*OUTPUT_FEATURE_PITCH + out_y*OUTPUT_Y_PITCH + out_x*OUTPUT_X_PITCH + OUTPUT_OFFSET + out_split_offset;
+    const uint out_split_offset = g * OUTPUT_FEATURE_PITCH * FILTER_OFM_NUM;
+    const uint dst_index = batch_offset*OUTPUT_BATCH_PITCH + of*OUTPUT_FEATURE_PITCH + out_y*OUTPUT_Y_PITCH + out_x*OUTPUT_X_PITCH + OUTPUT_OFFSET + out_split_offset;
     output[dst_index] = ACTIVATION(result, ACTIVATION_PARAMS);
 }

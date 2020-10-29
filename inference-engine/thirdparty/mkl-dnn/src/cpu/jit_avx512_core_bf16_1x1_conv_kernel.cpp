@@ -109,7 +109,7 @@ void jit_avx512_core_bf16_1x1_conv_kernel::reduce_loop(int load_loop_blk,
 
     auto bias_ptr = [=](int i_load) {
         return EVEX_compress_addr(reg_bias_data,
-            sizeof(float) * jcp.oc_block * i_load);
+            jcp.typesize_bia * jcp.oc_block * i_load);
     };
 
     auto bcast_ptr = [=](int i_reduce, int i_ur, bool bcast) {
@@ -165,7 +165,7 @@ void jit_avx512_core_bf16_1x1_conv_kernel::reduce_loop(int load_loop_blk,
     };
 
     auto store = [=]() {
-        if (!jcp.is_cpx)
+        if (!isa_has_bf16(jcp.isa))
             bf16_emu_->init_vcvtneps2bf16();
         if (jcp.prop_kind == backward_weights) {
         Label store_noadd;
@@ -186,7 +186,13 @@ void jit_avx512_core_bf16_1x1_conv_kernel::reduce_loop(int load_loop_blk,
                           forward_training, forward_inference)) {
                 for (int i_load = 0; i_load < load_loop_blk; ++i_load) {
                     for (int i_ur = 0; i_ur < ur; ++i_ur) {
-                            vaddps(vreg_accum(i_load, i_ur), bias_ptr(i_load));
+                            if(jcp.bia_dt == data_type::bf16) {
+                                vpmovzxwd(zmm_bias, bias_ptr(i_load));
+                                vpslld(zmm_bias, zmm_bias, 0x10);
+                                vaddps(vreg_accum(i_load, i_ur), zmm_bias);
+                            } else
+                                vaddps(vreg_accum(i_load, i_ur),
+                                        bias_ptr(i_load));
                     }
                 }
             }
@@ -220,7 +226,7 @@ void jit_avx512_core_bf16_1x1_conv_kernel::reduce_loop(int load_loop_blk,
                     }
                 }
             } else if (jcp.dst_dt == data_type::bf16) {
-                if (jcp.is_cpx) {
+                if (isa_has_bf16(jcp.isa)) {
                     for (int i_load = 0; i_load < load_loop_blk; i_load++) {
                         int n_2bf2ps = (ur / 2) * 2, i_ur = 0;
                         for (i_ur = 0; i_ur < n_2bf2ps; i_ur += 2) {
@@ -298,7 +304,7 @@ void jit_avx512_core_bf16_1x1_conv_kernel::reduce_loop(int load_loop_blk,
                 vmovups(ptr[rsp + broadcast_space], bcast_values);
             }
 #endif
-            if (jcp.is_cpx) {
+            if (isa_has_bf16(jcp.isa)) {
                 for (int i_load = 0; i_load < load_loop_blk; ++i_load) {
 #ifdef BF16_CONV_1x1_BWD_W_JIT_KER_USES_PERMW_TRANSPOSITION
                     if (jcp.prop_kind == backward_weights) {
@@ -326,7 +332,7 @@ void jit_avx512_core_bf16_1x1_conv_kernel::reduce_loop(int load_loop_blk,
                             bcast_ptr(i_reduce, i_ur, false));
                 }
                 for (int i_load = 0; i_load < load_loop_blk; ++i_load) {
-                    if (!jcp.is_cpx) {
+                    if (!isa_has_bf16(jcp.isa)) {
 #ifdef BF16_CONV_1x1_BWD_W_JIT_KER_USES_PERMW_TRANSPOSITION
                         if (jcp.prop_kind == backward_weights) {
                             vmovdqu16(vreg_load(i_load) | load_mask | T_z,
@@ -338,7 +344,7 @@ void jit_avx512_core_bf16_1x1_conv_kernel::reduce_loop(int load_loop_blk,
                     }
                     if (jcp.ver == ver_avx512_core && jcp.expl_bcast
                             && load_loop_blk > 1) {
-                            if (!jcp.is_cpx) {
+                            if (!isa_has_bf16(jcp.isa)) {
                                 auto acc = vreg_accum(i_load, i_ur);
                                 auto wei = vreg_load(i_load);
                                 bf16_emu_->r_vdpbf16ps(acc, wei, vreg_bcast);
@@ -346,7 +352,7 @@ void jit_avx512_core_bf16_1x1_conv_kernel::reduce_loop(int load_loop_blk,
                                 vdpbf16ps(vreg_accum(i_load, i_ur),
                                         vreg_load(i_load), vreg_bcast);
                     } else {
-                        if (!jcp.is_cpx) {
+                        if (!isa_has_bf16(jcp.isa)) {
 #ifdef BF16_CONV_1x1_BWD_W_JIT_KER_USES_PERMW_TRANSPOSITION
                             if (jcp.prop_kind == backward_weights)
                                 vpbroadcastd(zmm_tmp2,
@@ -455,7 +461,7 @@ void jit_avx512_core_bf16_1x1_conv_kernel::generate()
         case forward_training:
         case forward_inference:
             add(reg_bias_data,
-                load_loop_blk * jcp.load_block * sizeof(float) /* Fix me !!! */);
+                load_loop_blk * jcp.load_block * jcp.typesize_bia);
             add(reg_output_data,
                 load_loop_blk * jcp.bcast_dim * jcp.load_block *
                     jcp.typesize_out);
@@ -571,15 +577,15 @@ bool jit_avx512_core_bf16_1x1_conv_kernel::post_ops_ok(
 status_t jit_avx512_core_bf16_1x1_conv_kernel::init_conf(
         jit_1x1_conv_conf_t &jcp, const convolution_desc_t &cd,
         const memory_desc_wrapper &src_d, const memory_desc_wrapper &weights_d,
-        const memory_desc_wrapper &dst_d, const primitive_attr_t &attr,
+        const memory_desc_wrapper &dst_d, const memory_desc_wrapper &bias_d,
+        const primitive_attr_t &attr,
         int nthreads, bool reduce_src)
 {
-    jcp.is_cpx = mayiuse(avx512_core_bf16);
-
     const bool with_groups = weights_d.ndims() == src_d.ndims() + 1;
     const int simd_w = cpu_isa_traits<avx512_common>::vlen / sizeof(float);
     const int ndims = src_d.ndims();
 
+    jcp.isa = mayiuse(avx512_core_bf16) ? avx512_core_bf16 : avx512_core;
     jcp.prop_kind = cd.prop_kind;
 
     jcp.ngroups = with_groups ? weights_d.dims()[0] : 1;
@@ -618,6 +624,11 @@ status_t jit_avx512_core_bf16_1x1_conv_kernel::init_conf(
             memory_format::undef, cd.diff_bias_desc.format)
         != memory_format::undef;
 
+    if (one_of(jcp.prop_kind, forward_training, forward_inference))
+        jcp.bia_dt = jcp.with_bias ? cd.bias_desc.data_type : data_type::undef;
+    else
+        jcp.bia_dt = jcp.with_bias ? cd.diff_bias_desc.data_type : data_type::undef;
+
     jcp.os = jcp.oh * jcp.ow;
     jcp.is = jcp.ih * jcp.iw;
 
@@ -640,11 +651,10 @@ status_t jit_avx512_core_bf16_1x1_conv_kernel::init_conf(
         && one_of(cd.bias_desc.format, memory_format::undef, any, x);
     if (!args_ok) return status::unimplemented;
 
-    args_ok = true
-        && jcp.oc % simd_w == 0 && jcp.ic % simd_w == 0
-        && jcp.t_pad == 0 && jcp.l_pad == 0
-        && jcp.stride_w == 1 && jcp.stride_h == 1
-        && jcp.kh == 1 && jcp.kw == 1;
+    args_ok = true && jcp.oc % simd_w == 0 && jcp.ic % simd_w == 0
+            && jcp.t_pad == 0 && jcp.l_pad == 0 && jcp.stride_w == 1
+            && jcp.stride_h == 1 && jcp.kh == 1 && jcp.kw == 1
+            && jcp.ow == jcp.iw && jcp.oh == jcp.ih; // enforce rpad=0
     if (!args_ok) return status::unimplemented;
 
     jcp.ic_block = jcp.oc_block = simd_w;
@@ -668,6 +678,9 @@ status_t jit_avx512_core_bf16_1x1_conv_kernel::init_conf(
     if (weights_d.format() != weights_format)
         return status::unimplemented;
 
+    jcp.typesize_bia = jcp.with_bias
+        ? types::data_type_size(bias_d.data_type())
+        : 0;
     jcp.typesize_acc = sizeof(prec_traits<data_type::f32>::type);
     jcp.typesize_in = sizeof(prec_traits<data_type::bf16>::type);
     if (one_of(jcp.prop_kind, forward_training, forward_inference)) {
@@ -756,7 +769,7 @@ status_t jit_avx512_core_bf16_1x1_conv_kernel::init_conf(
             if (jcp.load_dim > 128 && jcp.load_dim < BIG_LOAD_DIM
                     && spatial > SMALL_SPATIAL && spatial < BIG_SPATIAL) {
                 max_regs = 6;
-                min_regs = (jcp.is_cpx) ? 5 : 4;
+                min_regs = isa_has_bf16(jcp.isa) ? 5 : 4;
             }
         }
         else {
@@ -767,7 +780,7 @@ status_t jit_avx512_core_bf16_1x1_conv_kernel::init_conf(
             jcp.expl_bcast = false;
         }
         jcp.ur = 1;
-        if (!jcp.is_cpx) {
+        if (!isa_has_bf16(jcp.isa)) {
             int adj_max_regs = max_regs / 3;
             max_regs =  (adj_max_regs < min_regs) ? min_regs : adj_max_regs;
         }
@@ -1089,9 +1102,10 @@ void jit_avx512_core_bf16_1x1_conv_kernel::init_scratchpad(
         const jit_1x1_conv_conf_t &jcp) {
     using namespace mkldnn::impl::memory_tracking::names;
 
-    if (jcp.prop_kind != backward_data && jcp.with_bias
-            && jcp.oc != jcp.oc_without_padding)
-        scratchpad.book(key_conv_padded_bias, jcp.typesize_acc * jcp.oc);
+    if((one_of(jcp.prop_kind, forward_training, forward_inference)
+            || (jcp.prop_kind == backward_weights && jcp.bia_dt != data_type::bf16))
+        && (jcp.with_bias && jcp.oc != jcp.oc_without_padding))
+        scratchpad.book(key_conv_padded_bias, jcp.typesize_bia * jcp.oc);
 
     if (jcp.prop_kind == backward_weights) {
         const size_t wei_size = (size_t)jcp.ngroups * jcp.oc * jcp.ic;
@@ -1115,6 +1129,9 @@ void jit_avx512_core_bf16_1x1_conv_kernel::init_scratchpad(
             const size_t d_dst_f32_size = (size_t)jcp.typesize_acc
                 * jcp.oh * jcp.ow * jcp.oc_block;
             scratchpad.book(key_conv_dst_bf16_convert_wsp, jcp.nthr * d_dst_f32_size);
+            if (jcp.bia_dt == data_type::bf16)
+                scratchpad.book(key_conv_bias_bf16_convert_wsp,
+                        sizeof(float) * jcp.oc * jcp.ngroups);
         }
     }
 }

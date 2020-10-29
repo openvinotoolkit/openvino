@@ -2,16 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <vpu/middleend/pass_manager.hpp>
+#include "vpu/stages/iteration_rule.hpp"
+#include "vpu/middleend/pass_manager.hpp"
 
-#include <tuple>
-#include <vector>
-#include <algorithm>
-#include <limits>
-#include <string>
 #include <utility>
-#include <cmath>
-#include <list>
+#include <string>
 #include <set>
 #include <unordered_map>
 #include <memory>
@@ -25,7 +20,7 @@ using BatchTilesMap = DataMap<DataVector>;
 
 class PassImpl final : public Pass {
 public:
-    explicit PassImpl(const StageBuilder::Ptr& stageBuilder) : _stageBuilder(stageBuilder) {}
+    explicit PassImpl(StageBuilder::Ptr stageBuilder) : _stageBuilder(std::move(stageBuilder)) {}
 
     void run(const Model& model) override;
 
@@ -34,45 +29,59 @@ private:
 
     StageList extractNextSubGraph(StageList& stagesToSplit);
 
+    void duplicate(const Model& model, const StageList& subgraph);
+    void wrapInLoop(const Model& model, const StageList& subgraph);
+
     void processStageInputs(
-            const Stage& stage,
-            const Model& model,
-            const StageList& curSubGraph,
-            DataMap<DataVector>& subGraphInputTiles,
-            BatchTilesMap& batchTilesMap);
+        const Stage& stage,
+        const Model& model,
+        const StageList& curSubGraph,
+        DataMap<DataVector>& subGraphInputTiles,
+        BatchTilesMap& batchTilesMap);
+
     void splitStageInput(
-            const StageInput& inEdge,
-            const Model& model,
-            const StageList& curSubGraph,
-            DataMap<DataVector>& subGraphInputTiles,
-            BatchTilesMap& batchTilesMap);
-    void replicateStageInput(
-            const StageInput& inEdge,
-            const Model& model);
+        const StageInput& inEdge,
+        const Model& model,
+        const StageList& curSubGraph,
+        DataMap<DataVector>& subGraphInputTiles,
+        BatchTilesMap& batchTilesMap);
 
     void processStageOutputs(
-            const Stage& stage,
-            const Model& model,
-            const StageList& curSubGraph,
-            DataMap<DataVector>& subGraphOutputTiles,
-            BatchTilesMap& batchTilesMap);
+        const Stage& stage,
+        const Model& model,
+        const StageList& curSubGraph,
+        DataMap<DataVector>& subGraphOutputTiles,
+        BatchTilesMap& batchTilesMap);
 
     void replicateStage(
-            const Stage& stage,
-            const Model& model,
-            const BatchTilesMap& batchTilesMap);
+        const Stage& stage,
+        const Model& model,
+        const BatchTilesMap& batchTilesMap);
 
     void removeOriginalStages(
-            const StageList& curSubGraph,
-            const Model& model);
+        const StageList& curSubGraph,
+        const Model& model);
 
     void addSplitConcatPair(
-            const DataMap<DataVector>& subGraphInputTiles,
-            const DataMap<DataVector>& subGraphOutputTiles,
-            const Model& model);
+        const DataMap<DataVector>& subGraphInputTiles,
+        const DataMap<DataVector>& subGraphOutputTiles,
+        const Model& model);
 
 private:
     StageBuilder::Ptr _stageBuilder;
+
+    // Without index LoopStart/LoopEnd pairs will have the same name for different batched sub-graphs. Since
+    // performance map from GetPerformanceCount contains unique keys only, in performance report
+    // such sub-graphs reported incorrectly.
+    std::size_t loopIndex = 0;
+
+    // Using Loop construction to process sub-graph with batch may produce extra copy operations
+    // in comparison with duplicating sub-graph body + Split/Concat pair.
+    // It negatively affects performance of some topologies (e.g. ctpn).
+    // To overcome this issue heuristic based on sub-graph's size has been introduced:
+    // if sub-graph small enough we try not to use Loop in order to avoid unnecessary copy stages
+    // or inject them, otherwise sub-graph is wrapped in a Loop.
+    static constexpr std::size_t s_subgraphSizeThreshold = 2;
 };
 
 void PassImpl::run(const Model& model) {
@@ -84,20 +93,122 @@ void PassImpl::run(const Model& model) {
         auto curSubGraph = extractNextSubGraph(stagesToSplit);
         IE_ASSERT(!curSubGraph.empty());
 
-        DataMap<DataVector> subGraphInputTiles;
-        DataMap<DataVector> subGraphOutputTiles;
-        BatchTilesMap batchTilesMap;
+        if (curSubGraph.size() <= s_subgraphSizeThreshold) {
+            duplicate(model, curSubGraph);
+        } else {
+            wrapInLoop(model, curSubGraph);
+        }
+    }
+}
 
-        for (const auto& stage : curSubGraph) {
-            processStageInputs(stage, model, curSubGraph, subGraphInputTiles, batchTilesMap);
-            processStageOutputs(stage, model, curSubGraph, subGraphOutputTiles, batchTilesMap);
-            replicateStage(stage, model, batchTilesMap);
+void PassImpl::duplicate(const Model& model, const StageList& subgraph) {
+    DataMap<DataVector> subGraphInputTiles;
+    DataMap<DataVector> subGraphOutputTiles;
+    BatchTilesMap batchTilesMap;
+
+    for (const auto& stage : subgraph) {
+        processStageInputs(stage, model, subgraph, subGraphInputTiles, batchTilesMap);
+        processStageOutputs(stage, model, subgraph, subGraphOutputTiles, batchTilesMap);
+        replicateStage(stage, model, batchTilesMap);
+    }
+
+    removeOriginalStages(subgraph, model);
+
+    addSplitConcatPair(subGraphInputTiles, subGraphOutputTiles, model);
+}
+
+void PassImpl::wrapInLoop(const Model& model, const StageList& subgraph) {
+    const auto isInputData = [](const StageList& subgraph, const Data& data) {
+        return !data->producer() || !subgraph.has(data->producer());
+    };
+
+    const auto isOutputData = [](const StageList& subgraph, const Data& data) {
+        for (const auto& consumer : data->consumers()) {
+            if (!subgraph.has(consumer)) {
+                return true;
+            }
+        }
+        return data->usage() == DataUsage::Output;
+    };
+
+    DataVector loopStartInputs, loopStartOutputs, loopEndInputs, loopEndOutputs;
+    IterationComponents startIterationComponents, endIterationComponents;
+
+    for (const auto& stage : subgraph) {
+        const auto& batchInfo = stage->getBatchSupportInfo();
+        for (const auto& inputEdge : stage->inputEdges()) {
+            const auto& input = inputEdge->input();
+            if (isInputData(subgraph, input)) {
+                const bool withBatch = batchInfo.hasInput(inputEdge);
+                // if producer exists, data object should be passed to LoopStart in any case
+                // to be sure producer will be executed before loop starts
+                const bool hasProducer = input->producer() != nullptr;
+                if (withBatch || hasProducer) {
+                    loopStartInputs.push_back(input);
+
+                    // data object needs to be kept alive during whole loop execution
+                    // otherwise some stage may overwrite this input and on the next iteration stage will get corrupted data
+                    // to do so mark this data object as LoopEnd input
+                    loopEndInputs.push_back(input);
+
+                    // LoopStart stage requires corresponding between inputs and outputs data object
+                    // to propagate data order requirements
+                    auto outputDescriptor = input->desc();
+                    if (withBatch) {
+                        outputDescriptor.setDim(Dim::N, 1);
+                    }
+                    const auto loopStartOutput = model->duplicateData(
+                        input,
+                        formatString("@LoopStartOutput@%v", input->name()),
+                        outputDescriptor);
+                    loopStartOutputs.push_back(loopStartOutput);
+
+                    if (withBatch) {
+                        const auto rule = IterationRule{Dim::N, 0, 1, -1};
+                        startIterationComponents.emplace(std::make_pair(loopStartInputs.size() - 1, rule), loopStartOutputs.size() - 1);
+                    } else {
+                        // do not allocate extra memory since there cannot be back-edge connection
+                        input->attrs().set<Data>("start-shared-allocation", loopStartOutput);
+                    }
+
+                    model->replaceStageInput(inputEdge, loopStartOutput);
+                }
+            }
         }
 
-        removeOriginalStages(curSubGraph, model);
+        for (const auto& outputEdge : stage->outputEdges()) {
+            const auto originalOutput = outputEdge->output();
+            auto descriptor = originalOutput->desc();
+            descriptor.setDim(Dim::N, 1);
 
-        addSplitConcatPair(subGraphInputTiles, subGraphOutputTiles, model);
+            const auto output = model->duplicateData(
+                originalOutput,
+                formatString("@batch@%v", originalOutput->name()),
+                descriptor);
+            model->replaceStageOutput(outputEdge, output);
+
+            if (isOutputData(subgraph, originalOutput)) {
+                loopEndInputs.push_back(output);
+                loopEndOutputs.push_back(originalOutput);
+                const auto rule = IterationRule{Dim::N, 0, 1, -1};
+                endIterationComponents.emplace(std::make_pair(loopEndOutputs.size() - 1, rule), loopEndInputs.size() - 1);
+            } else {
+                for (const auto& consumerEdge : originalOutput->consumerEdges()) {
+                    model->replaceStageInput(consumerEdge, output);
+                }
+            }
+        }
     }
+
+    auto loopStart = _stageBuilder->addLoopStartStage(model, formatString("LoopStart@Batch@{}", loopIndex), loopStartInputs, loopStartOutputs);
+    auto loopEnd = _stageBuilder->addLoopEndStage(model, formatString("LoopEnd@Batch@{}", loopIndex), loopEndInputs, loopEndOutputs);
+    ++loopIndex;
+
+    loopStart->attrs().set("start-iteration-components", startIterationComponents);
+    loopEnd->attrs().set("end-iteration-components", endIterationComponents);
+    loopStart->attrs().set("loop-end", loopEnd);
+    loopStart->attrs().set<uint32_t>("iterations-count", subgraph.front()->attrs().get<int>("batchSize"));
+    loopEnd->attrs().set<uint32_t>("iterations-count", subgraph.front()->attrs().get<int>("batchSize"));
 }
 
 //
@@ -198,11 +309,11 @@ StageList PassImpl::extractNextSubGraph(StageList& stagesToSplit) {
 }
 
 void PassImpl::processStageInputs(
-        const Stage& stage,
-        const Model& model,
-        const StageList& curSubGraph,
-        DataMap<DataVector>& subGraphInputTiles,
-        BatchTilesMap& batchTilesMap) {
+    const Stage& stage,
+    const Model& model,
+    const StageList& curSubGraph,
+    DataMap<DataVector>& subGraphInputTiles,
+    BatchTilesMap& batchTilesMap) {
     const auto& stageInfo = stage->getBatchSupportInfo();
 
     for (const auto& inEdge : stage->inputEdges()) {
@@ -214,18 +325,16 @@ void PassImpl::processStageInputs(
 
         if (curReq == BatchSupport::Split) {
             splitStageInput(inEdge, model, curSubGraph, subGraphInputTiles, batchTilesMap);
-        } else if (curReq == BatchSupport::ReplicateConstContent) {
-            replicateStageInput(inEdge, model);
         }
     }
 }
 
 void PassImpl::splitStageInput(
-        const StageInput& inEdge,
-        const Model& model,
-        const StageList& curSubGraph,
-        DataMap<DataVector>& subGraphInputTiles,
-        BatchTilesMap& batchTilesMap) {
+    const StageInput& inEdge,
+    const Model& model,
+    const StageList& curSubGraph,
+    DataMap<DataVector>& subGraphInputTiles,
+    BatchTilesMap& batchTilesMap) {
     const auto& input = inEdge->input();
     const auto& stage = inEdge->consumer();
 
@@ -262,48 +371,12 @@ void PassImpl::splitStageInput(
     }
 }
 
-void PassImpl::replicateStageInput(
-        const StageInput& inEdge,
-        const Model& model) {
-    const auto& input = inEdge->input();
-    const auto& stage = inEdge->consumer();
-
-    IE_ASSERT(input->usage() == DataUsage::Const);
-    auto batchSize = stage->attrs().get<int>("batchSize");
-
-    auto& replicatedDatas = input->attrs().getOrSet<ReplicatedDataMap>("replicatedDatas", ReplicatedDataMap());
-    if (replicatedDatas.count(batchSize) == 0) {
-        auto content = input->content();
-        IE_ASSERT(content != nullptr);
-
-        auto perm = input->desc().dimsOrder().toPermutation();
-        auto dims = input->desc().dims();
-
-        int maxDimDigit = -1;
-        for (auto d : perm) {
-            maxDimDigit = std::max(maxDimDigit, static_cast<int>(d));
-        }
-        IE_ASSERT(maxDimDigit >= 0);
-
-        perm.emplace_back(static_cast<Dim>(maxDimDigit + 1));
-        dims.set(perm.back(), batchSize);
-
-        DataDesc newDesc(input->desc().type(), DimsOrder::fromPermutation(perm), dims);
-
-        replicatedDatas[batchSize] = model->duplicateData(
-            input,
-            formatString("@replicated=%d", batchSize),
-            newDesc,
-            replicateContent(content, batchSize));
-    }
-}
-
 void PassImpl::processStageOutputs(
-        const Stage& stage,
-        const Model& model,
-        const StageList& curSubGraph,
-        DataMap<DataVector>& subGraphOutputTiles,
-        BatchTilesMap& batchTilesMap) {
+    const Stage& stage,
+    const Model& model,
+    const StageList& curSubGraph,
+    DataMap<DataVector>& subGraphOutputTiles,
+    BatchTilesMap& batchTilesMap) {
     auto batchSize = stage->attrs().get<int>("batchSize");
 
     for (const auto& output : stage->outputs()) {
@@ -341,9 +414,9 @@ void PassImpl::processStageOutputs(
 }
 
 void PassImpl::replicateStage(
-        const Stage& stage,
-        const Model& model,
-        const BatchTilesMap& batchTilesMap) {
+    const Stage& stage,
+    const Model& model,
+    const BatchTilesMap& batchTilesMap) {
     const auto& stageInfo = stage->getBatchSupportInfo();
     auto batchSize = stage->attrs().get<int>("batchSize");
 
@@ -364,9 +437,6 @@ void PassImpl::replicateStage(
                 IE_ASSERT(batchTiles.size() == batchSize);
 
                 newInputs.emplace_back(batchTiles[batchInd]);
-            } else if (curReq == BatchSupport::ReplicateConstContent) {
-                const auto& replicatedDatas = inEdge->input()->attrs().get<ReplicatedDataMap>("replicatedDatas");
-                newInputs.emplace_back(replicatedDatas.at(batchSize));
             }
         }
 
@@ -393,17 +463,17 @@ void PassImpl::replicateStage(
 }
 
 void PassImpl::removeOriginalStages(
-        const StageList& curSubGraph,
-        const Model& model) {
+    const StageList& curSubGraph,
+    const Model& model) {
     for (const auto& stage : curSubGraph) {
         model->removeStage(stage);
     }
 }
 
 void PassImpl::addSplitConcatPair(
-        const DataMap<DataVector>& subGraphInputTiles,
-        const DataMap<DataVector>& subGraphOutputTiles,
-        const Model& model) {
+    const DataMap<DataVector>& subGraphInputTiles,
+    const DataMap<DataVector>& subGraphOutputTiles,
+    const Model& model) {
     for (const auto& p : subGraphInputTiles) {
         _stageBuilder->addSplitStage(
             model,

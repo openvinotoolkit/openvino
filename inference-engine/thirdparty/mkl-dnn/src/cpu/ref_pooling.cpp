@@ -171,12 +171,13 @@ void ref_pooling_fwd_t<src_type, dst_type, acc_type>::execute_forward() const {
         for (int i = 0; i < p.len_; i++) {
             auto &post_op = p.entry_[i];
             if (post_op.is_quantization()) {
-                float cl = post_op.quantization.crop_low_data[oc];
-                float ch = post_op.quantization.crop_high_data[oc];
-                float isc = post_op.quantization.input_scale_data[oc];
-                float ish = post_op.quantization.input_shift_data[oc];
-                float osc = post_op.quantization.output_scale_data[oc];
-                float osh = post_op.quantization.output_shift_data[oc];
+                auto quant = post_op.quantization;
+                float cl = quant.crop_low_data->shifts_[quant.crop_low_data->count_ == 1 ? 0 : oc];
+                float ch = quant.crop_high_data->shifts_[quant.crop_high_data->count_ == 1 ? 0 : oc];
+                float isc = quant.input_scale_data->scales_[quant.input_scale_data->count_ == 1 ? 0 : oc];
+                float ish = quant.input_shift_data->shifts_[quant.input_shift_data->count_ == 1 ? 0 : oc];
+                float osc = quant.output_scale_data->scales_[quant.output_scale_data->count_ == 1 ? 0 : oc];
+                float osh = quant.output_shift_data->shifts_[quant.output_shift_data->count_ == 1 ? 0 : oc];
 
                 dst_f = nstl::min(ch, nstl::max(cl, dst_f));
                 dst_f = dst_f * isc + ish;

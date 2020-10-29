@@ -80,15 +80,18 @@ status_t stream_t::rerun(primitive_t **error_prim) {
 
 status_t mkldnn_stream_create(stream_t **stream, stream_kind_t stream_kind) {
     bool args_ok = stream != nullptr && utils::one_of(stream_kind,
-            stream_kind::eager, stream_kind::lazy);
+            stream_kind::eager, stream_kind::lazy, stream_kind::eager_nostore);
     if (!args_ok)
         return invalid_arguments;
 
     stream_t *s;
-    if (stream_kind == stream_kind::eager)
-        s = new stream_eager_t;
-    else
-        s = new stream_lazy_t;
+    switch(stream_kind) {
+    case stream_kind::eager: s = new stream_eager_t; break;
+    case stream_kind::lazy: s = new stream_lazy_t; break;
+    case stream_kind::eager_nostore: s = new stream_eager_nostore_t; break;
+    default: return invalid_arguments;
+    }
+
     return safe_ptr_assign<stream_t>(*stream, s);
 }
 
@@ -96,6 +99,21 @@ status_t mkldnn_stream_submit(stream_t *stream, size_t n,
         primitive_t *primitives[], primitive_t **error_primitive) {
     bool args_ok = !utils::any_null(stream, primitives);
     if (!args_ok) return invalid_arguments;
+
+    // A fast path for an eager no-store stream
+    if (stream->kind() == stream_kind::eager_nostore) {
+        nstl::vector<event_t *> dummy_prereq;
+        for (size_t i = 0; i < n; ++i) {
+            event_t dummy_output_event;
+            status_t status = primitives[i]->engine()->submit(primitives[i],
+                    &dummy_output_event, dummy_prereq);
+            if (status != status::success) {
+                if (error_primitive) *error_primitive = primitives[i];
+                return status;
+            }
+        }
+        return status::success;
+    }
 
     nstl::vector<primitive_t *> prims;
     for (size_t i = 0; i < n; ++i) {

@@ -13,6 +13,7 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 """
+
 import unittest
 
 import numpy as np
@@ -20,9 +21,9 @@ import numpy as np
 from extensions.middle.SliceConverter import ConvertSlice
 from mo.front.common.partial_infer.utils import int64_array
 from mo.graph.graph import Node
-from mo.utils.unittest.graph import build_graph
-from mo.utils.ir_engine.compare_graphs import compare_graphs
 from mo.ops.slice import Slice
+from mo.utils.ir_engine.compare_graphs import compare_graphs
+from mo.utils.unittest.graph import build_graph
 
 nodes_attributes = {
     # input data
@@ -33,7 +34,7 @@ nodes_attributes = {
     'placeholder_2_data': {'value': None, 'shape': None, 'kind': 'data', 'data_type': None},
     'placeholder_3_data': {'value': None, 'shape': None, 'kind': 'data', 'data_type': None},
     # Slice layer
-    'slice': {'type': 'Slice', 'kind': 'op', 'op': 'Slice'},
+    'slice': {'type': 'Slice', 'kind': 'op', 'op': 'Slice', 'name': 'slice_node'},
     'slice_data': {'value': None, 'shape': None, 'kind': 'data'},
     # Output operation
     'output_op': {'type': 'Const', 'value': None, 'kind': 'op', 'op': 'Const'},
@@ -43,8 +44,7 @@ nodes_attributes = {
     'crop': {'type': 'Crop', 'kind': 'op', 'op': 'Crop', 'axis': None, 'offset': None, 'dim': None},
     'dim': {'value': None, 'shape': None, 'kind': 'data', 'data_type': None},
     # StridedSlice layer
-    'strided_slice': {'kind': 'op', 'op': 'StridedSlice', 'slices': None,
-                      'shrink_axis_mask': None}
+    'strided_slice': {'kind': 'op', 'op': 'StridedSlice', 'slices': None, 'shrink_axis_mask': None}
 }
 
 
@@ -65,13 +65,17 @@ class ConvertSliceTests(unittest.TestCase):
                              ],
                             {'placeholder_1_data': {'shape': np.array([4, 5, 6])},
                              'slice': {'start': np.array([1, 2, 3]), 'end': np.array([3, 4, 4]), 'axis': None},
-                             }
+                             }, nodes_with_edges_only=True,
                             )
         slice_node = Node(graph, 'slice')
         Slice.infer(slice_node)
 
         pattern = ConvertSlice()
         pattern.find_and_replace_pattern(graph)
+        graph.clean_up()
+
+        ss_node = Node(graph, graph.get_node_id_by_name('slice_node'))
+        assert ss_node.type == 'Crop', 'Something wrong with transformed Slice node'
 
         graph_ref = build_graph(nodes_attributes,
                                 [('placeholder_1', 'placeholder_1_data'),
@@ -84,7 +88,7 @@ class ConvertSliceTests(unittest.TestCase):
                                 {'placeholder_1_data': {'shape': np.array([4, 5, 6])},
                                  'crop': {'axis': np.array([0, 1, 2]), 'offset': np.array([1, 2, 3]),
                                           'dim': np.array([2, 2, 1])},
-                                 }
+                                 }, nodes_with_edges_only=True,
                                 )
         (flag, resp) = compare_graphs(graph, graph_ref, 'output_op', check_op_attrs=True)
         self.assertTrue(flag, resp)
@@ -104,7 +108,7 @@ class ConvertSliceTests(unittest.TestCase):
                              ],
                             {'placeholder_1_data': {'shape': np.array([4, 5, 6])},
                              'slice': {'start': np.array([1]), 'end': np.array([3]), 'axis': None}
-                             }
+                             }, nodes_with_edges_only=True,
                             )
         graph.graph['layout'] = 'NHWC'
         slice_node = Node(graph, 'slice')
@@ -112,6 +116,10 @@ class ConvertSliceTests(unittest.TestCase):
 
         pattern = ConvertSlice()
         pattern.find_and_replace_pattern(graph)
+        graph.clean_up()
+
+        ss_node = Node(graph, graph.get_node_id_by_name('slice_node'))
+        assert ss_node.type == 'StridedSlice', 'Something wrong with transformed Slice node'
 
         graph_ref = build_graph(nodes_attributes,
                                 [('placeholder_1', 'placeholder_1_data'),
@@ -128,7 +136,7 @@ class ConvertSliceTests(unittest.TestCase):
                                 {'placeholder_1_data': {'shape': np.array([4, 5, 6])},
                                  'strided_slice': {'slices': np.array([slice(1, 3, 1),slice(0, 5, 1),slice(0, 6, 1)]),
                                                    'shrink_axis_mask': np.array([False, False, False])},
-                                 }
+                                 }, nodes_with_edges_only=True,
                                 )
 
         (flag, resp) = compare_graphs(graph, graph_ref, 'output_op', check_op_attrs=True)
@@ -149,7 +157,7 @@ class ConvertSliceTests(unittest.TestCase):
                              ],
                             {'placeholder_1_data': {'shape': np.array([1, 5, 6])},
                              'slice': {'start': np.array([1]), 'end': np.array([3]), 'axis': np.array([1])}
-                             }
+                             }, nodes_with_edges_only=True,
                             )
         graph.graph['layout'] = 'NHWC'
         slice_node = Node(graph, 'slice')
@@ -157,6 +165,10 @@ class ConvertSliceTests(unittest.TestCase):
 
         pattern = ConvertSlice()
         pattern.find_and_replace_pattern(graph)
+        graph.clean_up()
+
+        ss_node = Node(graph, graph.get_node_id_by_name('slice_node'))
+        assert ss_node.type == 'StridedSlice', 'Something wrong with transformed Slice node'
 
         graph_ref = build_graph(nodes_attributes,
                                 [('placeholder_1', 'placeholder_1_data'),
@@ -173,7 +185,7 @@ class ConvertSliceTests(unittest.TestCase):
                                 {'placeholder_1_data': {'shape': np.array([1, 5, 6])},
                                  'strided_slice': {'slices': np.array([slice(0, 1, 1),slice(1, 3, 1),slice(0, 6, 1)]),
                                                    'shrink_axis_mask': np.array([False, False, False])},
-                                 }
+                                 }, nodes_with_edges_only=True,
                                 )
 
         (flag, resp) = compare_graphs(graph, graph_ref, 'output_op', check_op_attrs=True)
@@ -197,7 +209,7 @@ class ConvertSliceONNXOpset10Tests(unittest.TestCase):
         'steps': {'type': 'Const', 'kind': 'op', 'op': 'Const'},
         'steps_data': {'value': None, 'shape': None, 'kind': 'data', 'data_type': None},
         # Slice layer
-        'slice': {'type': 'Slice', 'kind': 'op', 'op': 'Slice', 'format': 'onnx', 'end': None},
+        'slice': {'type': 'Slice', 'kind': 'op', 'op': 'Slice', 'format': 'onnx', 'end': None, 'name': 'slice_node'},
         'slice_data': {'value': None, 'shape': None, 'kind': 'data'},
         # Output operation
         'output_op': {'type': 'Const', 'kind': 'op', 'op': 'Const'},
@@ -237,6 +249,9 @@ class ConvertSliceONNXOpset10Tests(unittest.TestCase):
 
         pattern = ConvertSlice()
         pattern.find_and_replace_pattern(graph)
+
+        ss_node = Node(graph, graph.get_node_id_by_name('slice_node'))
+        assert ss_node.type == 'StridedSlice', 'Something wrong with transformed Slice node'
 
         graph_ref = build_graph(self.nodes_attributes,
                                 [('placeholder_1', 'placeholder_1_data'),
@@ -297,6 +312,9 @@ class ConvertSliceONNXOpset10Tests(unittest.TestCase):
         pattern = ConvertSlice()
         pattern.find_and_replace_pattern(graph)
 
+        ss_node = Node(graph, graph.get_node_id_by_name('slice_node'))
+        assert ss_node.type == 'StridedSlice', 'Something wrong with transformed Slice node'
+
         graph_ref = build_graph(self.nodes_attributes,
                                 [('placeholder_1', 'placeholder_1_data'),
                                  ('placeholder_1_data', 'strided_slice', {'in': 0}),
@@ -355,6 +373,9 @@ class ConvertSliceONNXOpset10Tests(unittest.TestCase):
 
         pattern = ConvertSlice()
         pattern.find_and_replace_pattern(graph)
+
+        ss_node = Node(graph, graph.get_node_id_by_name('slice_node'))
+        assert ss_node.type == 'StridedSlice', 'Something wrong with transformed Slice node'
 
         graph_ref = build_graph(self.nodes_attributes,
                                 [('placeholder_1', 'placeholder_1_data'),

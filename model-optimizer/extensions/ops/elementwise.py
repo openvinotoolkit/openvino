@@ -20,7 +20,6 @@ import numpy as np
 
 from mo.front.common.partial_infer.eltwise import eltwise_infer, bias_add_infer
 from mo.graph.graph import Graph
-from mo.middle.passes.convert_data_type import data_type_str_to_np
 from mo.middle.passes.infer import copy_type_infer
 from mo.ops.op import Op
 from mo.pipeline.common import convert_const_node_value_type
@@ -97,11 +96,15 @@ class Mul(Elementwise):
     operation = staticmethod(lambda a, b: a * b)
 
 
+def both_types_are_integer(a, b):
+    return np.issubdtype(a.dtype, np.integer) and np.issubdtype(b.dtype, np.integer)
+
+
 class Div(Elementwise):
     enabled = False
     op = 'Div'
     op_type = 'Divide'
-    operation = staticmethod(lambda a, b: a / b)
+    operation = staticmethod(lambda a, b: a // b if both_types_are_integer(a, b) else a / b)
 
 
 class SquaredDifference(Elementwise):
@@ -124,13 +127,12 @@ class Pow(Elementwise):
 
     @staticmethod
     def type_infer(node):
-        # dynamic power output data type is complicate to predict, so we set float data type by default,
-        # if we haven't got actual value
-        value = node.out_port(0).data.get_value()
-        if value is not None:
-            node.out_port(0).set_data_type(value.dtype)
-        else:
-            node.out_port(0).set_data_type(data_type_str_to_np(node.graph.graph['cmd_params'].data_type))
+        in_type_0 = node.in_port(0).get_data_type()
+        in_type_1 = node.in_port(1).get_data_type()
+        assert in_type_0 == in_type_1, \
+            'Power operation {} has inputs of different data types: {} and {}'.format(
+                node.soft_get('name'), in_type_0, in_type_1)
+        node.out_port(0).set_data_type(in_type_0)
 
 
 class LogicalElementwise(Elementwise):

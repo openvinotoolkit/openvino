@@ -125,6 +125,8 @@ private:
     Xbyak::Opmask ktail_mask = Xbyak::Opmask(2);
     Xbyak::Opmask bin_mask0 = Xbyak::Opmask(5);
     Xbyak::Opmask bin_mask1 = Xbyak::Opmask(6);
+    Xbyak::Opmask mask_post_op_reserved = Xbyak::Opmask(1);
+    Xbyak::Reg64 eltwise_reserved = rax;
 
     size_t vlen = cpu_isa_traits<isa>::vlen;
 

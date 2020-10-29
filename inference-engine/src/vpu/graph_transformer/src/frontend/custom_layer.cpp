@@ -31,6 +31,7 @@
 
 #include <vpu/utils/simple_math.hpp>
 #include <vpu/utils/error.hpp>
+#include <vpu/utils/extra.hpp>
 
 namespace vpu {
 

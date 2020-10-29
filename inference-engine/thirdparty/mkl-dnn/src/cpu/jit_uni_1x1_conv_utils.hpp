@@ -97,8 +97,7 @@ inline void rtus_prepare(conv_pd_t *self, const convolution_desc_t *&conv_d,
 template <typename conv_pd_t>
 inline void rtus_prepare_space_info(conv_pd_t *self,
         memory_tracking::registrar_t &scratchpad) {
-    if (!self->rtus_.reduce_src_)
-        return;
+    if (!self->rtus_.reduce_src_) return;
     const auto &jcp = self->jcp_;
 
     const int max_threads = mkldnn_get_max_threads();
@@ -201,7 +200,7 @@ struct rtus_driver_t: public jit_generator {
         mov(reg_cur_iw, reg_iw_start);
         mov(reg_cur_os, reg_os);
 
-        Label is_loop, skip_h_step;
+        Label is_loop;
         L(is_loop);
 
         if (src_to_ws_) {
@@ -215,34 +214,34 @@ struct rtus_driver_t: public jit_generator {
         }
 
         add(reg_ws, vlen_);
-
-        add(reg_cur_iw, stride_w_);
         add(reg_cur_src, stride_w_ * vlen_);
 
-        cmp(reg_cur_iw, iw_);
-        jl(skip_h_step);
-        /* for 1d convolution the loop over h should be skipped */
-        if (src_step_icb_ == iw_) jmp(skip_h_step);
+        // for 1d or stride_h=1 convolutions the loop over h should be skipped
+        if (!(src_step_icb_ == iw_ || src_step_h_ == iw_)) {
+            Label skip_h_step;
+            add(reg_cur_iw, stride_w_);
+            cmp(reg_cur_iw, iw_);
+            jl(skip_h_step);
 
-        if (src_to_ws_) {
-            add(reg_cur_src, (src_step_h_ - iw_) * vlen_);
-        } else {
-            Xbyak::Reg64 reg_cur_src_fin = reg_cur_iw; /* just reuse */
-            mov(reg_cur_src_fin, reg_cur_src);
-            add(reg_cur_src_fin, (src_step_h_ - iw_) * vlen_);
-            Label ih_loop;
-            L(ih_loop);
+            if (src_to_ws_) {
+                add(reg_cur_src, (src_step_h_ - iw_) * vlen_);
+            } else {
+                Xbyak::Reg64 reg_cur_src_fin = reg_cur_iw; /* just reuse */
+                mov(reg_cur_src_fin, reg_cur_src);
+                add(reg_cur_src_fin, (src_step_h_ - iw_) * vlen_);
+                Label ih_loop;
+                L(ih_loop);
 
-            for (int w = 0; w < stride_w_; ++w)
-                vmovups(ptr[reg_cur_src + w * vlen_], reg_zero);
+                for (int w = 0; w < stride_w_; ++w)
+                    vmovups(ptr[reg_cur_src + w * vlen_], reg_zero);
 
-            add(reg_cur_src, stride_w_ * vlen_);
-            cmp(reg_cur_src, reg_cur_src_fin);
-            jl(ih_loop);
+                add(reg_cur_src, stride_w_ * vlen_);
+                cmp(reg_cur_src, reg_cur_src_fin);
+                jl(ih_loop);
+            }
+            xor_(reg_cur_iw, reg_cur_iw);
+            L(skip_h_step);
         }
-        xor_(reg_cur_iw, reg_cur_iw);
-
-        L(skip_h_step);
 
         sub(reg_cur_os, vlen_);
         jnz(is_loop);

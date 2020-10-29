@@ -84,6 +84,13 @@ KERNEL(pooling_gpu_int8_ref)(
     const uint bf   = (uint)get_global_id(0);
     const uint f    = bf / INPUT0_BATCH_NUM;
     const uint b    = bf % INPUT0_BATCH_NUM;
+#elif OUTPUT_LAYOUT_B_FS_YX_FSV16
+    const uint x = get_global_id(1);
+    const uint y = get_global_id(2);
+    const uint bf = get_global_id(0);
+    const uint f = bf / INPUT0_BATCH_NUM;
+    const uint b = bf % INPUT0_BATCH_NUM;
+    const uint z = 0;
 #else
 #error "pooling_int8_ref: unsupported layout"
 #endif
@@ -204,7 +211,7 @@ KERNEL(pooling_gpu_int8_ref)(
 
 #if HAS_FUSED_OPS
       FUSED_OPS;
-      OUTPUT_TYPE dst = FINAL_NAME;
+      OUTPUT_TYPE dst = FUSED_OPS_RESULT;
 #else  // HAS_FUSED_OPS
       OUTPUT_TYPE dst = TO_OUTPUT_TYPE(pool_res);
 #endif  // HAS_FUSED_OPS

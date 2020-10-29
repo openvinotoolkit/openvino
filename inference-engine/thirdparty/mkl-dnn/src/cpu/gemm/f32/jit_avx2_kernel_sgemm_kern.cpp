@@ -66,7 +66,7 @@ void jit_avx2_kernel_sgemm_kern::prefetchA_afterFMA(
         if ((um < unroll_m_) && (m_idx == 0)) {
             if (((k_idx % (nb_zmm_a_ / unroll_m_reg_) == 0) && (n_idx % 6 == 0))
                     || ((k_idx % (nb_zmm_a_ / unroll_m_reg_) == 1)
-                               && (n_idx == 3))) {
+                            && (n_idx == 3))) {
                 prefetcht0(ptr[AO_ + elt_size_ * (PREFETCHSIZEA_ + off_)]);
                 off_ += 16;
             }
@@ -76,7 +76,7 @@ void jit_avx2_kernel_sgemm_kern::prefetchA_afterFMA(
             if (((um < nelt_per_vecreg_) && (n_idx == 0)
                         && (k_idx == std::min(2, nelt_per_vecreg_ / um - 1)))
                     || ((um == nelt_per_vecreg_) && (un == unroll_n_)
-                               && (n_idx == 1) && (k_idx == 0))) {
+                            && (n_idx == 1) && (k_idx == 0))) {
                 prefetcht0(ptr[AO_ + elt_size_ * (PREFETCHSIZEA_ + off_)]);
                 off_ += 16;
             }
@@ -90,8 +90,7 @@ void jit_avx2_kernel_sgemm_kern::prefetchA_afterBload(
         if ((um == unroll_m_) && (un == 2)) {
             if (k_idx % 3 == 0) {
                 if (n_idx == 1) {
-                    if (k_idx == 0)
-                        off_ += 16;
+                    if (k_idx == 0) off_ += 16;
                     prefetcht0(ptr[AO_ + elt_size_ * (PREFETCHSIZEA_ + off_)]);
                     off_ += 16;
                 }
@@ -118,8 +117,8 @@ void jit_avx2_kernel_sgemm_kern::prefetchB_afterFMA(
             prefetcht0(ptr[BO_
                     + elt_size_
                             * (PREFETCHSIZEB_
-                                      + nelt_per_vecreg_ * k_idx
-                                              / (nb_zmm_a_ / unroll_m_reg_))]);
+                                    + nelt_per_vecreg_ * k_idx
+                                            / (nb_zmm_a_ / unroll_m_reg_))]);
         }
     }
 }
@@ -177,8 +176,7 @@ void jit_avx2_kernel_sgemm_kern::prefetchC_beforeKloop(int um) {
         if (um < unroll_m_) {
             prefetchw(ptr[CO2_ + elt_size_ * 0]);
             prefetchw(ptr[CO2_ + elt_size_ * 8]);
-            if (um <= 16)
-                prefetchw(ptr[CO2_ + elt_size_ * 16]);
+            if (um <= 16) prefetchw(ptr[CO2_ + elt_size_ * 16]);
             lea(CO2_, ptr[CO2_ + LDC_]);
         }
     } else {
@@ -296,108 +294,108 @@ void jit_avx2_kernel_sgemm_kern::generate() {
                 prefetcht2(ptr[AA_ - addr_off_ * elt_size_]);
 
             switch (unroll_x) {
-            case 8:
-                if (mayiuse(avx512_core)) {
-                    loop<Xbyak::Zmm, Xbyak::Zmm, Xbyak::Address, Xbyak::Xmm,
-                            Xbyak::Operand>(unroll_x, unroll_y,
-                            &Xbyak::CodeGenerator::vbroadcastf64x4,
-                            &Xbyak::CodeGenerator::vbroadcastss);
-                    update<Xbyak::Ymm, Xbyak::Operand>(unroll_x, unroll_y, 0,
-                            beta_zero_, &Xbyak::CodeGenerator::vaddps,
+                case 8:
+                    if (mayiuse(avx512_core)) {
+                        loop<Xbyak::Zmm, Xbyak::Zmm, Xbyak::Address, Xbyak::Xmm,
+                                Xbyak::Operand>(unroll_x, unroll_y,
+                                &Xbyak::CodeGenerator::vbroadcastf64x4,
+                                &Xbyak::CodeGenerator::vbroadcastss);
+                        update<Xbyak::Ymm, Xbyak::Operand>(unroll_x, unroll_y,
+                                0, beta_zero_, &Xbyak::CodeGenerator::vaddps,
+                                &Xbyak::CodeGenerator::vmovups,
+                                &Xbyak::CodeGenerator::vmovups);
+                    } else {
+                        loop<Xbyak::Ymm, Xbyak::Xmm, Xbyak::Operand, Xbyak::Xmm,
+                                Xbyak::Operand>(unroll_x, unroll_y,
+                                &Xbyak::CodeGenerator::vmovups,
+                                &Xbyak::CodeGenerator::vbroadcastss);
+                        update<Xbyak::Ymm, Xbyak::Operand>(unroll_x, unroll_y,
+                                1, beta_zero_, &Xbyak::CodeGenerator::vaddps,
+                                &Xbyak::CodeGenerator::vmovups,
+                                &Xbyak::CodeGenerator::vmovups);
+                    }
+
+                    break;
+                case 4:
+                    if (mayiuse(avx512_core)) {
+                        loop<Xbyak::Zmm, Xbyak::Ymm, Xbyak::Address, Xbyak::Xmm,
+                                Xbyak::Operand>(unroll_x, unroll_y,
+                                &Xbyak::CodeGenerator::vbroadcastf32x4,
+                                &Xbyak::CodeGenerator::vbroadcastss);
+                        sepload = 0;
+                    } else {
+                        loop<Xbyak::Xmm, Xbyak::Xmm, Xbyak::Operand, Xbyak::Xmm,
+                                Xbyak::Operand>(unroll_x, unroll_y,
+                                &Xbyak::CodeGenerator::vmovups,
+                                &Xbyak::CodeGenerator::vbroadcastss);
+                        sepload = 1;
+                    }
+
+                    update<Xbyak::Xmm, Xbyak::Operand>(unroll_x, unroll_y,
+                            sepload, beta_zero_, &Xbyak::CodeGenerator::vaddps,
                             &Xbyak::CodeGenerator::vmovups,
                             &Xbyak::CodeGenerator::vmovups);
-                } else {
-                    loop<Xbyak::Ymm, Xbyak::Xmm, Xbyak::Operand, Xbyak::Xmm,
-                            Xbyak::Operand>(unroll_x, unroll_y,
-                            &Xbyak::CodeGenerator::vmovups,
-                            &Xbyak::CodeGenerator::vbroadcastss);
-                    update<Xbyak::Ymm, Xbyak::Operand>(unroll_x, unroll_y, 1,
+
+                    break;
+                case 2:
+                    if (mayiuse(avx512_core)) {
+                        loop<Xbyak::Zmm, Xbyak::Ymm, Xbyak::Operand, Xbyak::Xmm,
+                                Xbyak::Operand>(unroll_x, unroll_y,
+                                &Xbyak::CodeGenerator::vbroadcastsd,
+                                &Xbyak::CodeGenerator::vbroadcastss);
+                    } else {
+                        loop<Xbyak::Xmm, Xbyak::Xmm, Xbyak::Operand, Xbyak::Xmm,
+                                Xbyak::Operand>(unroll_x, unroll_y,
+                                &Xbyak::CodeGenerator::vmovddup,
+                                &Xbyak::CodeGenerator::vbroadcastss);
+                    }
+                    update<Xbyak::Xmm, Xbyak::Address>(unroll_x, unroll_y, 1,
                             beta_zero_, &Xbyak::CodeGenerator::vaddps,
-                            &Xbyak::CodeGenerator::vmovups,
-                            &Xbyak::CodeGenerator::vmovups);
-                }
-
-                break;
-            case 4:
-                if (mayiuse(avx512_core)) {
-                    loop<Xbyak::Zmm, Xbyak::Ymm, Xbyak::Address, Xbyak::Xmm,
-                            Xbyak::Operand>(unroll_x, unroll_y,
-                            &Xbyak::CodeGenerator::vbroadcastf32x4,
-                            &Xbyak::CodeGenerator::vbroadcastss);
-                    sepload = 0;
-                } else {
-                    loop<Xbyak::Xmm, Xbyak::Xmm, Xbyak::Operand, Xbyak::Xmm,
-                            Xbyak::Operand>(unroll_x, unroll_y,
-                            &Xbyak::CodeGenerator::vmovups,
-                            &Xbyak::CodeGenerator::vbroadcastss);
-                    sepload = 1;
-                }
-
-                update<Xbyak::Xmm, Xbyak::Operand>(unroll_x, unroll_y, sepload,
-                        beta_zero_, &Xbyak::CodeGenerator::vaddps,
-                        &Xbyak::CodeGenerator::vmovups,
-                        &Xbyak::CodeGenerator::vmovups);
-
-                break;
-            case 2:
-                if (mayiuse(avx512_core)) {
-                    loop<Xbyak::Zmm, Xbyak::Ymm, Xbyak::Operand, Xbyak::Xmm,
-                            Xbyak::Operand>(unroll_x, unroll_y,
-                            &Xbyak::CodeGenerator::vbroadcastsd,
-                            &Xbyak::CodeGenerator::vbroadcastss);
-                } else {
-                    loop<Xbyak::Xmm, Xbyak::Xmm, Xbyak::Operand, Xbyak::Xmm,
-                            Xbyak::Operand>(unroll_x, unroll_y,
-                            &Xbyak::CodeGenerator::vmovddup,
-                            &Xbyak::CodeGenerator::vbroadcastss);
-                }
-                update<Xbyak::Xmm, Xbyak::Address>(unroll_x, unroll_y, 1,
-                        beta_zero_, &Xbyak::CodeGenerator::vaddps,
-                        &Xbyak::CodeGenerator::vmovlps,
-                        &Xbyak::CodeGenerator::vmovsd);
-                break;
-            case 1:
-                if (mayiuse(avx512_core)) {
-                    loop<Xbyak::Zmm, Xbyak::Xmm, Xbyak::Operand, Xbyak::Xmm,
-                            Xbyak::Operand>(unroll_x, unroll_y,
-                            &Xbyak::CodeGenerator::vbroadcastss,
-                            &Xbyak::CodeGenerator::vbroadcastss);
-                    sepload = 0;
-                } else {
-                    loop<Xbyak::Xmm, Xbyak::Xmm, Xbyak::Address, Xbyak::Xmm,
-                            Xbyak::Address>(unroll_x, unroll_y,
+                            &Xbyak::CodeGenerator::vmovlps,
+                            &Xbyak::CodeGenerator::vmovsd);
+                    break;
+                case 1:
+                    if (mayiuse(avx512_core)) {
+                        loop<Xbyak::Zmm, Xbyak::Xmm, Xbyak::Operand, Xbyak::Xmm,
+                                Xbyak::Operand>(unroll_x, unroll_y,
+                                &Xbyak::CodeGenerator::vbroadcastss,
+                                &Xbyak::CodeGenerator::vbroadcastss);
+                        sepload = 0;
+                    } else {
+                        loop<Xbyak::Xmm, Xbyak::Xmm, Xbyak::Address, Xbyak::Xmm,
+                                Xbyak::Address>(unroll_x, unroll_y,
+                                &Xbyak::CodeGenerator::vmovss,
+                                &Xbyak::CodeGenerator::vmovss);
+                        sepload = 1;
+                    }
+                    update<Xbyak::Xmm, Xbyak::Address>(unroll_x, unroll_y,
+                            sepload, beta_zero_, &Xbyak::CodeGenerator::vaddss,
                             &Xbyak::CodeGenerator::vmovss,
                             &Xbyak::CodeGenerator::vmovss);
-                    sepload = 1;
-                }
-                update<Xbyak::Xmm, Xbyak::Address>(unroll_x, unroll_y, sepload,
-                        beta_zero_, &Xbyak::CodeGenerator::vaddss,
-                        &Xbyak::CodeGenerator::vmovss,
-                        &Xbyak::CodeGenerator::vmovss);
 
-                break;
-            default:
-                if (mayiuse(avx512_core)) {
-                    loop<Xbyak::Zmm, Xbyak::Xmm, Xbyak::Operand, Xbyak::Xmm,
-                            Xbyak::Operand>(unroll_x, unroll_y,
-                            &Xbyak::CodeGenerator::vmovups,
-                            &Xbyak::CodeGenerator::vbroadcastss);
-                    update<Xbyak::Zmm, Xbyak::Operand>(unroll_x, unroll_y, 0,
-                            beta_zero_, &Xbyak::CodeGenerator::vaddps,
-                            &Xbyak::CodeGenerator::vmovups,
-                            &Xbyak::CodeGenerator::vmovups);
-                } else {
-                    loop<Xbyak::Ymm, Xbyak::Xmm, Xbyak::Operand, Xbyak::Xmm,
-                            Xbyak::Operand>(unroll_x, unroll_y,
-                            &Xbyak::CodeGenerator::vmovups,
-                            &Xbyak::CodeGenerator::vbroadcastss);
-                    update<Xbyak::Ymm, Xbyak::Operand>(unroll_x, unroll_y, 1,
-                            beta_zero_, &Xbyak::CodeGenerator::vaddps,
-                            &Xbyak::CodeGenerator::vmovups,
-                            &Xbyak::CodeGenerator::vmovups);
-                }
+                    break;
+                default:
+                    if (mayiuse(avx512_core)) {
+                        loop<Xbyak::Zmm, Xbyak::Xmm, Xbyak::Operand, Xbyak::Xmm,
+                                Xbyak::Operand>(unroll_x, unroll_y,
+                                &Xbyak::CodeGenerator::vmovups,
+                                &Xbyak::CodeGenerator::vbroadcastss);
+                        update<Xbyak::Zmm, Xbyak::Operand>(unroll_x, unroll_y,
+                                0, beta_zero_, &Xbyak::CodeGenerator::vaddps,
+                                &Xbyak::CodeGenerator::vmovups,
+                                &Xbyak::CodeGenerator::vmovups);
+                    } else {
+                        loop<Xbyak::Ymm, Xbyak::Xmm, Xbyak::Operand, Xbyak::Xmm,
+                                Xbyak::Operand>(unroll_x, unroll_y,
+                                &Xbyak::CodeGenerator::vmovups,
+                                &Xbyak::CodeGenerator::vbroadcastss);
+                        update<Xbyak::Ymm, Xbyak::Operand>(unroll_x, unroll_y,
+                                1, beta_zero_, &Xbyak::CodeGenerator::vaddps,
+                                &Xbyak::CodeGenerator::vmovups,
+                                &Xbyak::CodeGenerator::vmovups);
+                    }
 
-                break;
+                    break;
             }
 
             if (mayiuse(avx512_core)) {
@@ -440,6 +438,6 @@ jit_avx2_kernel_sgemm_kern::jit_avx2_kernel_sgemm_kern(bool beta_zero)
     beta_zero_ = beta_zero;
     generate();
 }
-}
-}
-}
+} // namespace cpu
+} // namespace impl
+} // namespace mkldnn

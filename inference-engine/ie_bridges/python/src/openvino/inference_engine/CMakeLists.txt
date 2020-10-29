@@ -24,7 +24,6 @@ endfunction()
 python_disable_deprecated_warnings()
 
 target_include_directories(${TARGET_NAME} PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
-set_target_properties(${TARGET_NAME} PROPERTIES CXX_STANDARD 11 LINKER_LANGUAGE CXX)
 target_link_libraries(${TARGET_NAME} PRIVATE ${InferenceEngine_LIBRARIES})
 
 # Compatibility with python 2.7 which has deprecated "register" specifier
@@ -43,8 +42,9 @@ add_custom_command(TARGET ${TARGET_NAME}
 # install
 
 install(TARGETS ${TARGET_NAME}
-        DESTINATION python/${PYTHON_VERSION}/openvino/inference_engine
-        COMPONENT ${PYTHON_VERSION})
+        RUNTIME DESTINATION python/${PYTHON_VERSION}/openvino/inference_engine COMPONENT ${PYTHON_VERSION}
+        ARCHIVE DESTINATION python/${PYTHON_VERSION}/openvino/inference_engine COMPONENT ${PYTHON_VERSION}
+        LIBRARY DESTINATION python/${PYTHON_VERSION}/openvino/inference_engine COMPONENT ${PYTHON_VERSION})
 
 install(PROGRAMS __init__.py
         DESTINATION python/${PYTHON_VERSION}/openvino/inference_engine

@@ -31,8 +31,8 @@
             blockC[i] = ACTIVATION(blockC[i], ACTIVATION_PARAMS); \
     } while (0)
 
-#define ODHW_SIZE (OD * OH * OW)
-#define IDHW_SIZE (ID * IH * IW)
+#define ODHW_SIZE (OD_FULL * OH_FULL * OW_FULL)
+#define IDHW_SIZE (ID_FULL * IH_FULL * IW_FULL)
 #define KDHW_SIZE (KD * KH * KW)
 
 #define HAS_PAD_D (PD != 0 || PD_R != 0)
@@ -63,7 +63,7 @@ KERNEL(gen9_common_conv_fwd_f16_kernel)(
 #if HAS_FUSED_OPS_DECLS
     FUSED_OPS_DECLS,
 #endif
-    uint split_idx) 
+    uint split_idx)
 {
     const half eltwise_alpha = 0;
     const half eltwise_beta = 0;
@@ -71,6 +71,14 @@ KERNEL(gen9_common_conv_fwd_f16_kernel)(
 
     half relu_negative_slope = eltwise_alpha;
     half sum_scale = sum_scale_;
+    const int output_offset = (OUTPUT_PAD_BEFORE_FEATURE_NUM / OC_BLOCK) * OD_FULL * OH_FULL * OW_FULL * OC_BLOCK * MB_BLOCK +
+                              (OUTPUT_PAD_BEFORE_SIZE_Z) * OH_FULL * OW_FULL * OC_BLOCK * MB_BLOCK +
+                              (OUTPUT_PAD_BEFORE_SIZE_Y) * OW_FULL * OC_BLOCK * MB_BLOCK +
+                              (OUTPUT_PAD_BEFORE_SIZE_X) * OC_BLOCK * MB_BLOCK;
+    const int input_offset = (INPUT0_PAD_BEFORE_FEATURE_NUM / IC_BLOCK) * ID_FULL * IH_FULL * IW_FULL * IC_BLOCK * MB_BLOCK +
+                             (INPUT0_PAD_BEFORE_SIZE_Z) * IH_FULL * IW_FULL * IC_BLOCK * MB_BLOCK +
+                             (INPUT0_PAD_BEFORE_SIZE_Y) * IW_FULL * IC_BLOCK * MB_BLOCK +
+                             (INPUT0_PAD_BEFORE_SIZE_X) * IC_BLOCK * MB_BLOCK;
 
 #if IC == 3 && OC % 32 == 0
 #if MB % 2 == 0
@@ -123,9 +131,9 @@ KERNEL(gen9_common_conv_fwd_f16_kernel)(
     int ih = oh * SH - PH;
     int iw = ow * SW - PW;
 #if NHWC == 1
-    src += mb * IC * IDHW_SIZE + iw * IC + ih * IW * IC + id * IH * IW * IC;
+    src += input_offset + mb * IC_FULL * IDHW_SIZE + iw * IC_FULL + ih * IW_FULL * IC_FULL + id * IH_FULL * IW_FULL * IC_FULL;
 #else
-    src += mb * IC * IDHW_SIZE + iw + ih * IW + id * IH * IW;
+    src += input_offset + mb * IC_FULL * IDHW_SIZE + iw + ih * IW_FULL + id * IH_FULL * IW_FULL;
 #endif
 
     wei += oc * OC_BLOCK * IC * KDHW_SIZE;
@@ -142,15 +150,15 @@ KERNEL(gen9_common_conv_fwd_f16_kernel)(
                 continue;
             }
 #if NHWC == 1
-            const __global half *src1 = src + kd * (1 + DD) * IH * IW * IC
-                    + kh * (1 + DH) * IW * IC + local_id;
+            const __global half *src1 = src + kd * (1 + DD) * IH_FULL * IW_FULL * IC_FULL
+                    + kh * (1 + DH) * IW_FULL * IC_FULL + local_id;
 #define SP_OFF IC
 #else
-            const __global half *src1 = src + kd * (1 + DD) * IH * IW
-                    + kh * (1 + DH) * IW + local_id * IDHW_SIZE;
-            const __global half *src2 = src + kd * (1 + DD) * IH * IW
-                    + kh * (1 + DH) * IW + local_id * IDHW_SIZE
-                    + IC * IDHW_SIZE;
+            const __global half *src1 = src + kd * (1 + DD) * IH_FULL * IW_FULL
+                    + kh * (1 + DH) * IW_FULL + local_id * IDHW_SIZE;
+            const __global half *src2 = src + kd * (1 + DD) * IH_FULL * IW_FULL
+                    + kh * (1 + DH) * IW_FULL + local_id * IDHW_SIZE
+                    + IC_FULL * IDHW_SIZE;
 #define SP_OFF 1
 #endif
 
@@ -240,15 +248,15 @@ KERNEL(gen9_common_conv_fwd_f16_kernel)(
 #undef MULTIPLY_BLOCKS_8x8
             }
         }
-    __global half *dst_write0 = dst
-            + (mb / MB_BLOCK) * OC * ODHW_SIZE * MB_BLOCK
+    __global half *dst_write0 = dst + output_offset
+            + (mb / MB_BLOCK) * OC_FULL * ODHW_SIZE * MB_BLOCK
             + oc * OC_BLOCK * MB_BLOCK * ODHW_SIZE
-            + od * OH * OW * OC_BLOCK * MB_BLOCK + oh * OW * OC_BLOCK * MB_BLOCK
+            + od * OH_FULL * OW_FULL * OC_BLOCK * MB_BLOCK + oh * OW_FULL * OC_BLOCK * MB_BLOCK
             + ow * OC_BLOCK * MB_BLOCK + (mb % MB_BLOCK) * OC_BLOCK;
-    __global half *dst_write1 = dst
-            + ((mb + 1) / MB_BLOCK) * OC * ODHW_SIZE * MB_BLOCK
+    __global half *dst_write1 = dst + output_offset
+            + ((mb + 1) / MB_BLOCK) * OC_FULL * ODHW_SIZE * MB_BLOCK
             + oc * OC_BLOCK * MB_BLOCK * ODHW_SIZE
-            + od * OH * OW * OC_BLOCK * MB_BLOCK + oh * OW * OC_BLOCK * MB_BLOCK
+            + od * OH_FULL * OW_FULL * OC_BLOCK * MB_BLOCK + oh * OW_FULL * OC_BLOCK * MB_BLOCK
             + ow * OC_BLOCK * MB_BLOCK + ((mb + 1) % MB_BLOCK) * OC_BLOCK;
 
 #if WITH_SUM == 1
@@ -387,9 +395,9 @@ KERNEL(gen9_common_conv_fwd_f16_kernel)(
     int ih = oh * SH - PH;
     int iw = ow * SW - PW;
 #if NHWC == 1
-    src += mb * IC * IDHW_SIZE + iw * IC + ih * IW * IC + id * IH * IW * IC;
+    src += input_offset + mb * IC_FULL * IDHW_SIZE + iw * IC_FULL + ih * IW_FULL * IC_FULL + id * IH_FULL * IW_FULL * IC_FULL;
 #else
-    src += mb * IC * IDHW_SIZE + iw + ih * IW + id * IH * IW;
+    src += input_offset + mb * IC_FULL * IDHW_SIZE + iw + ih * IW_FULL + id * IH_FULL * IW_FULL;
 #endif
 
     wei += oc * OC_BLOCK * IC * KDHW_SIZE;
@@ -406,12 +414,12 @@ KERNEL(gen9_common_conv_fwd_f16_kernel)(
                 continue;
             }
 #if NHWC == 1
-            const __global half *src1 = src + kd * (1 + DD) * IH * IW * IC
-                    + kh * (1 + DH) * IW * IC + local_id;
+            const __global half *src1 = src + kd * (1 + DD) * IH_FULL * IW_FULL * IC_FULL
+                    + kh * (1 + DH) * IW_FULL * IC_FULL + local_id;
 #define SP_OFF IC
 #else
-            const __global half *src1 = src + kd * (1 + DD) * IH * IW
-                    + kh * (1 + DH) * IW + local_id * IDHW_SIZE;
+            const __global half *src1 = src + kd * (1 + DD) * IH_FULL * IW_FULL
+                    + kh * (1 + DH) * IW_FULL + local_id * IDHW_SIZE;
 #define SP_OFF 1
 #endif
 
@@ -487,9 +495,9 @@ KERNEL(gen9_common_conv_fwd_f16_kernel)(
 #undef MULTIPLY_BLOCKS_8x8
             }
         }
-    __global half *dst_write0 = dst + mb * OC * ODHW_SIZE
-            + oc * OC_BLOCK * ODHW_SIZE + od * OH * OW * OC_BLOCK
-            + oh * OW * OC_BLOCK + ow * OC_BLOCK;
+    __global half *dst_write0 = dst + output_offset + mb * OC_FULL * ODHW_SIZE
+            + oc * OC_BLOCK * ODHW_SIZE + od * OH_FULL * OW_FULL * OC_BLOCK
+            + oh * OW_FULL * OC_BLOCK + ow * OC_BLOCK;
 
 #if WITH_SUM == 1
     half8 blockS00, blockS10;
@@ -565,12 +573,17 @@ KERNEL(gen9_common_conv_fwd_f16_kernel)(
 #if USE_32OC_UNROLL
     const int oc = get_group_id(0) * 2;
 #else
+#if GROUPED
+    const int g = (int)get_group_id(0) / OC;
+    const int oc = (int)get_group_id(0) % OC;
+#else
+    const int g = 0;
     const int oc = get_group_id(0);
+#endif
 #endif
     const int sp = get_group_id(1);
     int mb = get_group_id(2) * MB_BLOCK * 2;
 
-    const int g = split_idx;
     const int goc = oc;
 
 #if CASE_3D
@@ -587,7 +600,7 @@ KERNEL(gen9_common_conv_fwd_f16_kernel)(
 
 #if WITH_BIAS
     const int local_id = get_local_id(0);
-    half8 C00 = bias[oc * OC_BLOCK + local_id];
+    half8 C00 = bias[oc * OC_BLOCK + local_id + g * OC];
     half8 C01 = C00, C02 = C00, C03 = C00;
 #if USE_32OC_UNROLL
     half8 C10 = bias[(oc + 1) * OC_BLOCK + local_id];
@@ -602,11 +615,11 @@ KERNEL(gen9_common_conv_fwd_f16_kernel)(
 
     int ih = oh * SH - PH;
     int iw = ow * SW - PW;
-    src += mb * IC * G * IDHW_SIZE + id * IH * IW * IC_BLOCK * MB_BLOCK
-            + ih * IW * IC_BLOCK * MB_BLOCK + iw * IC_BLOCK * MB_BLOCK
+    src += input_offset + mb * IC_FULL * IDHW_SIZE + id * IH_FULL * IW_FULL * IC_BLOCK * MB_BLOCK
+            + ih * IW_FULL * IC_BLOCK * MB_BLOCK + iw * IC_BLOCK * MB_BLOCK
             + g * IC * IDHW_SIZE * MB_BLOCK;
 
-    wei += goc * KDHW_SIZE * OC_BLOCK * IC;
+    wei += goc * KDHW_SIZE * OC_BLOCK * FILTER_IFM_NUM + g * FILTER_GROUPS_PITCH;
 
 #if ((HAS_PAD_D && KD == 1) || (HAS_PAD_H && KH == 1) || (HAS_PAD_W && KW == 1))
     if (!(id < 0 || id >= ID || ih < 0 || ih >= IH || iw < 0 || iw >= IW)) {
@@ -629,8 +642,8 @@ KERNEL(gen9_common_conv_fwd_f16_kernel)(
                     }
 
                     const __global half *src1 = src
-                            + kd * (1 + DD) * IH * IW * IC_BLOCK * MB_BLOCK
-                            + kh * (1 + DH) * IW * IC_BLOCK * MB_BLOCK
+                            + kd * (1 + DD) * IH_FULL * IW_FULL * IC_BLOCK * MB_BLOCK
+                            + kh * (1 + DH) * IW_FULL * IC_BLOCK * MB_BLOCK
                             + kw * (1 + DW) * IC_BLOCK * MB_BLOCK;
                     const __global half *wei1 = wei
                             + kd * KH * KW * OC_BLOCK * IC_BLOCK
@@ -690,7 +703,7 @@ KERNEL(gen9_common_conv_fwd_f16_kernel)(
 #endif
 
                         A0 = as_half8(intel_sub_group_block_read_us8(
-                                (const __global ushort *)&src1[MB_BLOCK * IC * G
+                                (const __global ushort *)&src1[MB_BLOCK * IC_FULL
                                         * IDHW_SIZE]));
                         MULTIPLY_BLOCKS_8x16(C02, A0, W0);
 #if USE_32OC_UNROLL
@@ -698,7 +711,7 @@ KERNEL(gen9_common_conv_fwd_f16_kernel)(
 #endif
 
                         A0 = as_half8(intel_sub_group_block_read_us8(
-                                (const __global ushort *)&src1[MB_BLOCK * IC * G
+                                (const __global ushort *)&src1[MB_BLOCK * IC_FULL
                                                 * IDHW_SIZE
                                         + 8 * IC_BLOCK]));
                         MULTIPLY_BLOCKS_8x16(C03, A0, W0);
@@ -714,10 +727,10 @@ KERNEL(gen9_common_conv_fwd_f16_kernel)(
 #if ((HAS_PAD_D && KD == 1) || (HAS_PAD_H && KH == 1) || (HAS_PAD_W && KW == 1))
     }
 #endif
-    __global half *dst_write0 = dst + mb * OC * G * ODHW_SIZE
+    __global half *dst_write0 = dst + output_offset + mb * OC_FULL * ODHW_SIZE
             + goc * ODHW_SIZE * OC_BLOCK * MB_BLOCK
-            + g * OC * ODHW_SIZE * MB_BLOCK + od * OH * OW * OC_BLOCK * MB_BLOCK
-            + oh * OW * OC_BLOCK * MB_BLOCK + ow * OC_BLOCK * MB_BLOCK;
+            + g * OC * ODHW_SIZE * MB_BLOCK + od * OH_FULL * OW_FULL * OC_BLOCK * MB_BLOCK
+            + oh * OW_FULL * OC_BLOCK * MB_BLOCK + ow * OC_BLOCK * MB_BLOCK;
 #if USE_32OC_UNROLL
     __global half *dst_write1 = dst_write0 + OC_BLOCK * ODHW_SIZE * MB_BLOCK;
 #endif
@@ -759,6 +772,11 @@ KERNEL(gen9_common_conv_fwd_f16_kernel)(
 #endif
 #endif
 
+#if HAS_FUSED_OPS
+    { FUSED_OPS_VEC0; C00 = FUSED_OPS_RESULT_VEC0; }
+    { FUSED_OPS_VEC1; C01 = FUSED_OPS_RESULT_VEC1; }
+#endif
+
     intel_sub_group_block_write_us8(
             (__global ushort *)dst_write0, as_ushort8(C00));
     intel_sub_group_block_write_us8(
@@ -773,17 +791,17 @@ KERNEL(gen9_common_conv_fwd_f16_kernel)(
 #if WITH_SUM == 1
     half8 blockS02 = as_half8(
             intel_sub_group_block_read_us8((const __global ushort *)(dst_write0
-                    + MB_BLOCK * OC * G * ODHW_SIZE)));
+                    + MB_BLOCK * OC_FULL * G * ODHW_SIZE)));
     half8 blockS03 = as_half8(
             intel_sub_group_block_read_us8((const __global ushort *)(dst_write0
-                    + MB_BLOCK * OC * G * ODHW_SIZE + 8 * OC_BLOCK)));
+                    + MB_BLOCK * OC_FULL * G * ODHW_SIZE + 8 * OC_BLOCK)));
 #if USE_32OC_UNROLL
     half8 blockS12 = as_half8(
             intel_sub_group_block_read_us8((const __global ushort *)(dst_write1
-                    + MB_BLOCK * OC * G * ODHW_SIZE)));
+                    + MB_BLOCK * OC_FULL * G * ODHW_SIZE)));
     half8 blockS13 = as_half8(
             intel_sub_group_block_read_us8((const __global ushort *)(dst_write1
-                    + MB_BLOCK * OC * G * ODHW_SIZE + 8 * OC_BLOCK)));
+                    + MB_BLOCK * OC_FULL * G * ODHW_SIZE + 8 * OC_BLOCK)));
 #endif
 #if SUM_SCALE == 1
     C02 += blockS02;
@@ -810,34 +828,49 @@ KERNEL(gen9_common_conv_fwd_f16_kernel)(
 #endif
 #endif
 
+#if HAS_FUSED_OPS
+    { FUSED_OPS_VEC2; C02 = FUSED_OPS_RESULT_VEC2; }
+    { FUSED_OPS_VEC3; C03 = FUSED_OPS_RESULT_VEC3; }
+#endif
+
     intel_sub_group_block_write_us8(
-            (__global ushort *)&dst_write0[MB_BLOCK * OC * G * ODHW_SIZE],
+            (__global ushort *)&dst_write0[MB_BLOCK * OC_FULL * ODHW_SIZE],
             as_ushort8(C02));
     intel_sub_group_block_write_us8(
-            (__global ushort *)&dst_write0[MB_BLOCK * OC * G * ODHW_SIZE
+            (__global ushort *)&dst_write0[MB_BLOCK * OC_FULL * ODHW_SIZE
                     + 8 * OC_BLOCK],
             as_ushort8(C03));
 #if USE_32OC_UNROLL
     intel_sub_group_block_write_us8(
-            (__global ushort *)&dst_write1[MB_BLOCK * OC * G * ODHW_SIZE],
+            (__global ushort *)&dst_write1[MB_BLOCK * OC_FULL * ODHW_SIZE],
             as_ushort8(C12));
     intel_sub_group_block_write_us8(
-            (__global ushort *)&dst_write1[MB_BLOCK * OC * G * ODHW_SIZE
+            (__global ushort *)&dst_write1[MB_BLOCK * OC_FULL * ODHW_SIZE
                     + 8 * OC_BLOCK],
             as_ushort8(C13));
 #endif
 #endif
 
-#if VER_8OW16C == 1 && IC % 16 == 0
+#if VER_8OW16C == 1 && (IC % 16 == 0 || (IC == 8 && G != 1))
     /* Regular convolution. */
     const int sp = get_group_id(1);
     const int local_id = get_local_id(0);
+#if GROUPED
+    const int ocb_mb_g = get_group_id(2);
+#if OC == 8
+    const int g = ocb_mb_g / MB;
+    const int ocb_mb = ocb_mb_g % MB;
+#else
+    const int g = ocb_mb_g / (MB * (OC / OCB));
+    const int ocb_mb = ocb_mb_g % (MB * (OC / OCB));
+#endif
+#else
     const int ocb_mb = get_group_id(2);
+    const int g = 0;
+#endif
     const int ocb = ocb_mb / (MB);
     const int mb = ocb_mb % (MB);
     const int oc = (ocb * OCB) / OC_BLOCK + get_group_id(0);
-
-    const int g = split_idx;
     const int goc = oc;
 
 #if CASE_3D
@@ -856,9 +889,9 @@ KERNEL(gen9_common_conv_fwd_f16_kernel)(
 #if OW_BLOCK != 8 && OW_BLOCK != 16
     half blockC00[OW_BLOCK];
     for (int i = 0; i < OW_BLOCK; i++)
-        blockC00[i] = bias[oc * OC_BLOCK + local_id];
+        blockC00[i] = bias[oc * OC_BLOCK + local_id + g * OC];
 #else
-    half8 blockC00 = bias[oc * OC_BLOCK + local_id];
+    half8 blockC00 = bias[oc * OC_BLOCK + local_id + g * OC];
 #if OW_BLOCK == 16
     half8 blockC01 = blockC00;
 #endif
@@ -878,9 +911,14 @@ KERNEL(gen9_common_conv_fwd_f16_kernel)(
     int iw = ow * SW - PW;
 
     /* shift input pointers */
-    src += mb * IC * G * IDHW_SIZE + iw * IC_BLOCK + ih * IW * IC_BLOCK
-            + id * IH * IW * IC_BLOCK + g * IC * IDHW_SIZE;
-    wei += goc * KDHW_SIZE * IC * OC_BLOCK;
+#if IC == 8 && G != 1
+    src += input_offset + mb * IC_FULL * IDHW_SIZE + iw * IC_BLOCK + ih * IW_FULL * IC_BLOCK
+            + id * IH_FULL * IW_FULL * IC_BLOCK + (g / 2) * IDHW_SIZE * IC * 2;
+#else
+    src += input_offset + mb * IC_FULL * IDHW_SIZE + iw * IC_BLOCK + ih * IW_FULL * IC_BLOCK
+            + id * IH_FULL * IW_FULL * IC_BLOCK + g * IC * IDHW_SIZE;
+#endif
+    wei += goc * KDHW_SIZE * IC * OC_BLOCK + g * FILTER_GROUPS_PITCH;
 
 #if ((HAS_PAD_D && KD == 1) || (HAS_PAD_H && KH == 1))
     if (!(id < 0 || id >= ID || ih < 0 || ih >= IH)) {
@@ -899,8 +937,8 @@ KERNEL(gen9_common_conv_fwd_f16_kernel)(
                         continue;
 
                     const __global half *src1 = src
-                            + kd * (1 + DD) * IH * IW * IC_BLOCK
-                            + kh * (1 + DH) * IW * IC_BLOCK;
+                            + kd * (1 + DD) * IH_FULL * IW_FULL * IC_BLOCK
+                            + kh * (1 + DH) * IW_FULL * IC_BLOCK;
 
                     half tempA[SW * OW_BLOCK + KW * (1 + DW)];
                     int k = iw;
@@ -969,6 +1007,35 @@ KERNEL(gen9_common_conv_fwd_f16_kernel)(
         _result = FMA8(_blockB1.s7, TRANSPOSE_1(_blockA, 15), _result); \
     }
 
+#define MULTIPLY_BLOCKS_FIRST_HALF(_result, _blockA, _blockB)         \
+    { \
+        _result = FMA8(_blockB.s0, TRANSPOSE_1(_blockA, 0), _result); \
+        _result = FMA8(_blockB.s1, TRANSPOSE_1(_blockA, 1), _result); \
+        _result = FMA8(_blockB.s2, TRANSPOSE_1(_blockA, 2), _result); \
+        _result = FMA8(_blockB.s3, TRANSPOSE_1(_blockA, 3), _result); \
+        _result = FMA8(_blockB.s4, TRANSPOSE_1(_blockA, 4), _result); \
+        _result = FMA8(_blockB.s5, TRANSPOSE_1(_blockA, 5), _result); \
+        _result = FMA8(_blockB.s6, TRANSPOSE_1(_blockA, 6), _result); \
+        _result = FMA8(_blockB.s7, TRANSPOSE_1(_blockA, 7), _result); \
+    }
+
+#define MULTIPLY_BLOCKS_SECOND_HALF(_result, _blockA, _blockB)         \
+    { \
+        _result = FMA8(_blockB.s0, TRANSPOSE_1(_blockA, 8), _result);  \
+        _result = FMA8(_blockB.s1, TRANSPOSE_1(_blockA, 9), _result);  \
+        _result = FMA8(_blockB.s2, TRANSPOSE_1(_blockA, 10), _result); \
+        _result = FMA8(_blockB.s3, TRANSPOSE_1(_blockA, 11), _result); \
+        _result = FMA8(_blockB.s4, TRANSPOSE_1(_blockA, 12), _result); \
+        _result = FMA8(_blockB.s5, TRANSPOSE_1(_blockA, 13), _result); \
+        _result = FMA8(_blockB.s6, TRANSPOSE_1(_blockA, 14), _result); \
+        _result = FMA8(_blockB.s7, TRANSPOSE_1(_blockA, 15), _result); \
+    }
+
+#if IC == 8 && G != 1
+                        half8 blockB00
+                                = as_half8(intel_sub_group_block_read_us8(
+                                        (const __global ushort *)wei1));
+#else
                         half8 blockB00
                                 = as_half8(intel_sub_group_block_read_us8(
                                         (const __global ushort *)wei1));
@@ -976,6 +1043,7 @@ KERNEL(gen9_common_conv_fwd_f16_kernel)(
                                 = as_half8(intel_sub_group_block_read_us8(
                                         (const __global ushort *)(wei1
                                                 + 8 * OC_BLOCK)));
+#endif
 
 #if KH != 1 || KW != 1 || KD != 1
                         half blockA[OW_BLOCK];
@@ -1036,20 +1104,40 @@ KERNEL(gen9_common_conv_fwd_f16_kernel)(
                         __attribute__((
                                 opencl_unroll_hint(OW_BLOCK))) // attr:no-format
                         for (int i = 0; i < OW_BLOCK; i++) {
+#if IC == 8 && G != 1
+                            if (g % 2 == 0) {
+                                MULTIPLY_BLOCKS_FIRST_HALF(blockC00[i], blockA[i], blockB00);
+                            } else {
+                                MULTIPLY_BLOCKS_SECOND_HALF(blockC00[i], blockA[i], blockB00);
+                            }
+#else
                             MULTIPLY_BLOCKS_8x16(
                                     blockC00[i], blockA[i], blockB00, blockB01);
+#endif
                         }
 #else
         __attribute__((opencl_unroll_hint(8))) // attr:no-format
         for (int i = 0; i < 8; i++) {
+#if IC == 8 && G != 1
+            if (g % 2 == 0) {
+                MULTIPLY_BLOCKS_FIRST_HALF(blockC00[i], blockA[i], blockB00);
+                MULTIPLY_BLOCKS_FIRST_HALF(blockC01[i], blockA[i + 8], blockB00);
+            } else {
+                MULTIPLY_BLOCKS_SECOND_HALF(blockC00[i], blockA[i], blockB00);
+                MULTIPLY_BLOCKS_SECOND_HALF(blockC01[i], blockA[i + 8], blockB00);
+            }
+#else
             MULTIPLY_BLOCKS_8x16(blockC00[i], blockA[i], blockB00, blockB01);
             MULTIPLY_BLOCKS_8x16(
                     blockC01[i], blockA[i + 8], blockB00, blockB01);
+#endif
         }
 #endif
 
-#undef TRANSPOSE_BLOCK_1
+#undef TRANSPOSE_1
 #undef MULTIPLY_BLOCKS_8x16
+#undef MULTIPLY_BLOCKS_FIRST_HALF
+#undef MULTIPLY_BLOCKS_SECOND_HALF
 #if KH != 1 || KW != 1 || KD != 1
                     }
                 }
@@ -1062,9 +1150,15 @@ KERNEL(gen9_common_conv_fwd_f16_kernel)(
     }
 #endif
 
-    __global half *dst_write0 = dst + mb * OC * G * ODHW_SIZE
+#if OC == 8 && G != 1
+    __global half *dst_write0 = dst + output_offset + mb * OC_FULL * ODHW_SIZE
+            + goc * ODHW_SIZE * OC_BLOCK + (g / 2) * OC_BLOCK * ODHW_SIZE + (g % 2) * OC
+            + od * OH_FULL * OW_FULL * OC_BLOCK + oh * OW_FULL * OC_BLOCK + ow * OC_BLOCK;
+#else
+    __global half *dst_write0 = dst + output_offset + mb * OC_FULL * ODHW_SIZE
             + goc * ODHW_SIZE * OC_BLOCK + g * OC * ODHW_SIZE
-            + od * OH * OW * OC_BLOCK + oh * OW * OC_BLOCK + ow * OC_BLOCK;
+            + od * OH_FULL * OW_FULL * OC_BLOCK + oh * OW_FULL * OC_BLOCK + ow * OC_BLOCK;
+#endif
 
 #if WITH_SUM == 1
 #if OW_BLOCK != 8 && OW_BLOCK != 16
@@ -1133,12 +1227,17 @@ KERNEL(gen9_common_conv_fwd_f16_kernel)(
         for (int i = 0; i < OW - OW_LAST; i++) {
 
 #if HAS_FUSED_OPS
-            { FUSED_OPS_SCALAR0; blockC00[i] = FINAL_NAME_SCALAR0; }
+            { FUSED_OPS_SCALAR0; blockC00[i] = FUSED_OPS_RESULT_SCALAR0; }
 #endif
 
+#if OC == 8 && G != 1
+            if (local_id < 8)
+                dst_write0[i * OC_BLOCK + local_id] = blockC00[i];
+#else
             intel_sub_group_block_write_us(
                     (__global ushort *)(&dst_write0[i * OC_BLOCK]),
                     as_ushort(blockC00[i]));
+#endif
         }
     } else {
 #endif
@@ -1148,30 +1247,57 @@ KERNEL(gen9_common_conv_fwd_f16_kernel)(
         for (int i = 0; i < OW_BLOCK; i++) {
 
 #if HAS_FUSED_OPS
-            { FUSED_OPS_SCALAR0; blockC00[i] = FINAL_NAME_SCALAR0; }
+            { FUSED_OPS_SCALAR0; blockC00[i] = FUSED_OPS_RESULT_SCALAR0; }
 #endif
 
+#if OC == 8 && G != 1
+            if (local_id < 8)
+                dst_write0[i * OC_BLOCK + local_id] = blockC00[i];
+#else
             intel_sub_group_block_write_us(
                     (__global ushort *)(&dst_write0[i * OC_BLOCK]),
                     as_ushort(blockC00[i]));
+#endif //  OC == 8 && G != 1
         }
 #else
 
+#if OC == 8 && G != 1
+    for (int i = 0; i < 8; i++) {
 #if HAS_FUSED_OPS
-    { FUSED_OPS_VEC0; blockC00 = FINAL_NAME_VEC0; }
+        { FUSED_OPS_SCALAR0; blockC00[i] = FUSED_OPS_RESULT_SCALAR0; }
+#endif
+
+        if (local_id < 8)
+            dst_write0[i * OC_BLOCK + local_id] = blockC00[i];
+    }
+#else
+#if HAS_FUSED_OPS
+    { FUSED_OPS_VEC0; blockC00 = FUSED_OPS_RESULT_VEC0; }
 #endif
 
     intel_sub_group_block_write_us8(
             (__global ushort *)(&dst_write0[0]), as_ushort8(blockC00));
+#endif //  OC == 8 && G != 1
 #if OW_BLOCK == 16
 
+#if OC == 8 && G != 1
+    for (int i = 0; i < 8; i++) {
 #if HAS_FUSED_OPS
-    { FUSED_OPS_VEC1; blockC01 = FINAL_NAME_VEC1; }
+        { FUSED_OPS_SCALAR1; blockC01[i] = FUSED_OPS_RESULT_SCALAR1; }
+#endif
+
+        if (local_id < 8)
+            dst_write0[(i + 8) * OC_BLOCK + local_id] = blockC01[i];
+    }
+#else
+#if HAS_FUSED_OPS
+    { FUSED_OPS_VEC1; blockC01 = FUSED_OPS_RESULT_VEC1; }
 #endif
 
     intel_sub_group_block_write_us8(
             (__global ushort *)(&dst_write0[8 * OC_BLOCK]),
             as_ushort8(blockC01));
+#endif //  OC == 8 && G != 1
 #endif
 #endif
 #if OW % OW_BLOCK != 0

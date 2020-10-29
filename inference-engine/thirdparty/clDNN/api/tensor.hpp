@@ -49,6 +49,8 @@ struct format_traits {
     size_t spatial_num;
     /// @brief Number of local (x,y) dimensions in a format.
     size_t local_num;
+    /// @brief Number of groups in a format.
+    size_t group_num;
     /// @brief Dimensions changing order from rare to often.
     std::string order;
     /// @brief Dimensions order for internal storage.
@@ -63,6 +65,8 @@ struct format_traits {
     static const char* spatial_chars() { return "xyzhsw"; }
     /// @brief Characters representing local dimensions in an order.
     static const char* local_chars() { return "kl"; }
+    /// @brief Characters representing group dimensions in an order.
+    static const char* group_chars() { return "g"; }
     /// @brief Checks if @p c represents batch dimension.
     static bool is_batch_char(char c) { return std::string(batch_chars()).find_first_of(c) != std::string::npos; }
     /// @brief Checks if @p c represents feature map/channel dimension.
@@ -71,6 +75,8 @@ struct format_traits {
     static bool is_spatial_char(char c) { return std::string(spatial_chars()).find_first_of(c) != std::string::npos; }
     /// @brief Checks if @p c represents local dimensions.
     static bool is_local_char(char c) { return std::string(local_chars()).find_first_of(c) != std::string::npos; }
+    /// @brief Checks if @p c represents group dimensions.
+    static bool is_group_char(char c) { return std::string(group_chars()).find_first_of(c) != std::string::npos; }
 };
 
 /// @brief Represents memory formats (orders).
@@ -85,14 +91,22 @@ struct format_traits {
 struct format {
     enum type : int32_t {
         // Data formats
+        bfyx,                                   ///< the most common format for activations in clDNN. \n \image html bfyx.jpg
+        bfzyx,                                  ///< format for 5d data tensors
+        bfwzyx,                                 ///< batch, feature, 4D spatial
         yxfb,                                   ///< batch first, feature and than spatials \n \image html yxfb.jpg
         byxf,                                   ///< used in bitmaps, input from user i.e b images of RGB format \n \image html byxf.jpg
-        bfyx,                                   ///< the most common format for activations in clDNN. \n \image html bfyx.jpg
         fyxb,                                   ///< format not used inside clDNN, but supported in reorder as extension
                                                 ///< for user provided formats.
-        bfyx_f16,                               ///< format used for blocked convolution
+        b_fs_yx_fsv16,                          ///< format used for blocked convolution
         b_fs_yx_fsv32,                          ///< format used for blocked int8 convolution
+        b_fs_zyx_fsv16,                         ///< format used for 3D blocked convolution (features blocked by 16)
         b_fs_zyx_fsv32,                         ///< format used for blocked int8 3d convolution
+        bs_fs_zyx_bsv16_fsv16,                  ///< format used for 3D blocked convolution (batch and features blocked by 16)
+        bs_fs_yx_bsv16_fsv16,                   ///< format used for 2D blocked convolution (batch and features blocked by 16)
+        fs_b_yx_fsv32,                          ///< format for input for fp16 primitives
+        fs_bs_yx_bsv4_fsv32,                    ///< format for batched input for primitives using MMAD
+        b_fs_yx_fsv4,                           ///< format for input for IMAD convolutions
         bs_xs_xsv8_bsv8,                        ///< format used only for fully connected weights: bs - batch slice,
                                                 ///< xs - x slice, bsv8 - 8 values of single slice.
         bs_xs_xsv8_bsv16,                       ///< format used only for fully connected weights: bs - batch slice,
@@ -100,28 +114,26 @@ struct format {
         bs_x_bsv16,                             ///< format used only for fully connected weights fp16 batch=1 : bs - batch slice
                                                 ///< (responses slice), bsv16 - 16 values of single batch slice, x - flattened plane of (fyx)
                                                 ///< \n \image html bs_x_bsv16.jpg
+        byxf_af32,                              ///< format for input for primitives using MMAD
+        byx8_f4,                                ///< format for input for MMAD convolutions
         bf8_xy16,                               ///< format used only for convolution 1x1 input, xy aligned to 16, f aligned to 8
                                                 ///< \n \image html bf8_xy16.jpg
         b_fs_yx_32fp,                           ///< format for data for binary convolutions
-                                                ///< \n \image html image_2d_weights_c1_b_fyx.jpg
         winograd_2x3_s1_data,                   ///< format used for input for winograd convolution, F(2,3) -- filter 3x3 with stride 1
-        byxf_af32,                              ///< format for input for primitives using MMAD
-        byx8_f4,                                ///< format for input for MMAD convolutions
-        fs_bs_yx_bsv4_fsv32,                    ///< format for batched input for primitives using MMAD
-        b_fs_yx_fsv4,                           ///< format for input for IMAD convolutions
-        bfzyx,                                  ///< format for 5d data tensors
-        bfwzyx,                                 ///< batch, feature, 4D spatial
-        fs_b_yx_fsv32,                          ///< format for input for fp16 primitives
-        bfzyx_f16,                              ///< format used for 3D blocked convolution (features blocked by 16)
-        bfzyx_b16f16,                           ///< format used for 3D blocked convolution (batch and features blocked by 16)
         nv12,                                   ///< format for media nv12 input
 
         // Weights formats
-        o_i_yx_i16_o16,                               ///< format used for blocked convolution
-        oiyx_o16,                                     ///< format used only for convolution weights:
-                                                      ///< os - output feature maps slice, i - input feature maps,
-                                                      ///< yx - spatials, sv16 - 16 values of single slice.
+        oiyx,                                         ///< the most common format for 2D weights
+        yxio,                                         ///< format used 2D weights
+        oizyx,                                        ///< the most common format for 3D convolution
         os_iyx_osv16,                                 ///< format used only for convolution weights:
+        os_zyxi_osv16,                                ///< format used for weights for 3D convolution
+        os_is_yx_isv16_osv16,                         ///< format used for blocked convolution
+        os_is_zyx_isv16_osv16,                        ///< format used for weights for blocked 3D convolution
+        is_os_zyx_osv16_isv16,                        ///< format used for weights for blocked 3D deconvolution
+        is_os_yx_osv16_isv16,                         ///< format used for weights for blocked deconvolution
+        os_is_yx_isv8_osv16_isv2,                     ///< format used for weights for blocked 2D convolution
+        os_is_zyx_isv8_osv16_isv2,                    ///< format used for weights for blocked 3D convolution
                                                       ///< os - output feature maps slice, i - input feature maps,
                                                       ///< yx - spatials, sv16 - 16 values of single slice.
         os_iyx_osv32,                                 ///< format used only for convolution weights:
@@ -135,6 +147,7 @@ struct format {
                                                       ///< \n \image html image_2d_weights_c4_fyx_b.jpg
         image_2d_weights_c1_b_fyx,                    ///< image format for weights, width size is b,
                                                       ///< height is f*y*x, single channel
+                                                      ///< \n \image html image_2d_weights_c1_b_fyx.jpg
         winograd_2x3_s1_weights,                      ///< format used for weights for winograd non-fused
                                                       ///< convolution, F(2,3) -- filter 3x3 with stride 1
         winograd_2x3_s1_fused_weights,                ///< format used for weights for winograd fused
@@ -156,15 +169,24 @@ struct format {
         os_is_y_x8_osv8_isv4_swizzled_by_4,           ///< format for weights for 1x1 MMAD convolutions
         os_is_yx_osv16_isv4,                          ///< format for weights for IMAD convolutions
         os_is_yx_osv32_isv4_swizzled_by_2,            ///< format for weights for IMAD convolutions
-        bf_lyx_yx,                                    ///< format for local convolution weights
         os_is_yx_osv32_isv32p,                        ///< format for weights for binary convolutions
-        o_i_zyx_i16_o16,                              ///< format used for weights for blocked 3D convolution
-        i_o_zyx_o16_i16,                              ///< format used for weights for blocked 3D deconvolution
-        o_i_zyx_i8_o16_i2,                            ///< format used for weights for blocked 3D convolution
         lstm_weights_dio,                             ///< dynamic_lstm, direction,
                                                       ///< than IO (I - input size, O - 4 * hidden_size)
         os_is_osv32_isv32_swizzled_by_4,              ///< format for weights for 1x1 IMAD convolution
-        ozyxi_o16,                                    ///< format used for weights for 3D convolution
+
+        goiyx,                                        ///< format used for weights for 2D convolution
+        yxiog,                                        ///< format used for weights for 2D convolution
+        gyxio,                                        ///< format used for weights for 2D convolution
+        goizyx,                                       ///< format used for weights for 3D convolution
+        g_os_iyx_osv16,                               ///< format used for weights for 2D convolution
+        g_os_iyx_osv32,                               ///< format used for weights for 2D convolution
+        gs_oiyx_gsv16,                                ///< format used for weights for 2D convolution
+        gs_oiyx_gsv32,                                ///< format used for weights for 2D convolution
+        g_is_os_zyx_osv16_isv16,                      ///< format used for grouped weights for blocked 3D deconvolution
+        g_is_os_yx_osv16_isv16,
+        g_os_is_zyx_isv8_osv16_isv2,
+        g_os_is_yx_isv8_osv16_isv2,
+        g_os_is_zyx_isv16_osv16,
 
         format_num,  ///< number of format types
         any        = -1
@@ -173,61 +195,86 @@ struct format {
     /// @brief Get format traits for particular @p format::type
     static const format_traits& traits(type fmt) {
         static const std::map<type, format_traits> traits {
-                { yxfb,                 { 1, 1, 2, 0, "yxfb",   "bfxy?",  {}}},
-                { byxf,                 { 1, 1, 2, 0, "byxf",   "bfxy?",  {}}},
-                { bfyx,                 { 1, 1, 2, 0, "bfyx",   "bfxy?",  {}}},
-                { fyxb,                 { 1, 1, 2, 0, "fyxb",   "bfxy?",  {}}},
-                { bfyx_f16,             { 1, 1, 2, 0, "bfyx",   "bfxy",   {{1, 16}}}},
-                { b_fs_yx_fsv32,        { 1, 1, 2, 0, "bfyx",   "bfxy",   {{1, 32}}}},
-                { b_fs_zyx_fsv32,       { 1, 1, 3, 0, "bfzyx",  "bfxyz",  {{1, 32}}}},
-                { bs_xs_xsv8_bsv8,      { 1, 1, 1, 0, "bx",     "b?x??",  {{2, 8}, {0, 8}}}},
-                { bs_xs_xsv8_bsv16,     { 1, 1, 1, 0, "bx",     "b?x??",  {{2, 8}, {0, 16}}}},
-                { bs_x_bsv16,           { 1, 1, 1, 0, "bx",     "b?x??",  {{0, 16}}}},
-                { bf8_xy16,             { 1, 1, 2, 0, "bfyx",   "bfxy?",  {{1, 8}}}},
-                { winograd_2x3_s1_data, { 1, 1, 2, 0, "bxyf",   "bfxy?",  {}}},
-                { byxf_af32,            { 1, 1, 2, 0, "byxf",   "bfxy?",  {}}},
-                { byx8_f4 ,             { 1, 1, 2, 0, "byxf",   "bfxy?",  {}}},
-                { fs_bs_yx_bsv4_fsv32,  { 1, 1, 2, 0, "fbyx",   "bfxy?",  {{0, 4}, {1, 32}}}},
-                { b_fs_yx_fsv4,         { 1, 1, 2, 0, "bfyx",   "bfxy?",  {{1, 4}}}},
-                { bfzyx,                { 1, 1, 3, 0, "bfzyx",  "bfxyz",  {}}},
-                { bfwzyx,               { 1, 1, 4, 0, "bfwzyx", "bfxyzw", {}}},
-                { fs_b_yx_fsv32,        { 1, 1, 2, 0, "fbyx",   "bfxy?",  {{1, 32}}}},
-                { b_fs_yx_32fp,         { 1, 1, 2, 0, "bfyx",   "bfxy?",  {}}},
-                { bfzyx_f16,            { 1, 1, 3, 0, "bfzyx",  "bfxyz",  {{1, 16}}}},
-                { bfzyx_b16f16,         { 1, 1, 3, 0, "bfzyx",  "bfxyz",  {{0, 16 }, {1, 16}}}},
-                { nv12,                 { 1, 1, 2, 0, "bfyx",   "bfxy?",  {}}},
+                // B - number of Batch dimensions
+                // F - number of Feature dimensions
+                // S - number of Spatial dimensions
+                // L - number of Local dimensions
+                // G - number of Group dimensions
+                // Order - dims changing order from rare to often
+                // Inner order - dims order for internal storage in _sizes array
+                // Block sizes - vector of pairs of dimension number (by inner order) and block size ordered from rare to often
+                // Format                 B  F  S  L  G  Order  Inner order  Block sizes
+                { yxfb,                  { 1, 1, 2, 0, 0, "yxfb",   "bfxy?",  {}}},
+                { byxf,                  { 1, 1, 2, 0, 0, "byxf",   "bfxy?",  {}}},
+                { bfyx,                  { 1, 1, 2, 0, 0, "bfyx",   "bfxy?",  {}}},
+                { fyxb,                  { 1, 1, 2, 0, 0, "fyxb",   "bfxy?",  {}}},
+                { b_fs_yx_fsv16,         { 1, 1, 2, 0, 0, "bfyx",   "bfxy",   {{1, 16}}}},
+                { b_fs_yx_fsv32,         { 1, 1, 2, 0, 0, "bfyx",   "bfxy",   {{1, 32}}}},
+                { b_fs_zyx_fsv32,        { 1, 1, 3, 0, 0, "bfzyx",  "bfxyz",  {{1, 32}}}},
+                { bs_xs_xsv8_bsv8,       { 1, 1, 1, 0, 0, "bx",     "b?x??",  {{2, 8}, {0, 8}}}},
+                { bs_xs_xsv8_bsv16,      { 1, 1, 1, 0, 0, "bx",     "b?x??",  {{2, 8}, {0, 16}}}},
+                { bs_x_bsv16,            { 1, 1, 1, 0, 0, "bx",     "b?x??",  {{0, 16}}}},
+                { bf8_xy16,              { 1, 1, 2, 0, 0, "bfyx",   "bfxy?",  {{1, 8}}}},
+                { winograd_2x3_s1_data,  { 1, 1, 2, 0, 0, "bxyf",   "bfxy?",  {}}},
+                { byxf_af32,             { 1, 1, 2, 0, 0, "byxf",   "bfxy?",  {}}},
+                { byx8_f4 ,              { 1, 1, 2, 0, 0, "byxf",   "bfxy?",  {}}},
+                { fs_bs_yx_bsv4_fsv32,   { 1, 1, 2, 0, 0, "fbyx",   "bfxy?",  {{0, 4}, {1, 32}}}},
+                { b_fs_yx_fsv4,          { 1, 1, 2, 0, 0, "bfyx",   "bfxy?",  {{1, 4}}}},
+                { bfzyx,                 { 1, 1, 3, 0, 0, "bfzyx",  "bfxyz",  {}}},
+                { bfwzyx,                { 1, 1, 4, 0, 0, "bfwzyx", "bfxyzw", {}}},
+                { fs_b_yx_fsv32,         { 1, 1, 2, 0, 0, "fbyx",   "bfxy?",  {{1, 32}}}},
+                { b_fs_yx_32fp,          { 1, 1, 2, 0, 0, "bfyx",   "bfxy?",  {}}},
+                { b_fs_zyx_fsv16,        { 1, 1, 3, 0, 0, "bfzyx",  "bfxyz",  {{1, 16}}}},
+                { bs_fs_zyx_bsv16_fsv16, { 1, 1, 3, 0, 0, "bfzyx",  "bfxyz",  {{0, 16 }, {1, 16}}}},
+                { bs_fs_yx_bsv16_fsv16,  { 1, 1, 3, 0, 0, "bfyx",   "bfxy?",  {{0, 16 }, {1, 16}}}},
+                { nv12,                  { 1, 1, 2, 0, 0, "bfyx",   "bfxy?",  {}}},
 
-                { o_i_yx_i16_o16,                              { 1, 1, 2, 0, "bfyx",   "bfxy",    {{1, 16}, {0, 16}}}},
-                { oiyx_o16,                                    { 1, 1, 2, 0, "bfyx",   "bfxy",    {{0, 16}}}},
-                { os_iyx_osv16,                                { 1, 1, 2, 0, "bfyx",   "bfxy?",   {{0, 16}}}},
-                { os_iyx_osv32,                                { 1, 1, 2, 0, "bfyx",   "bfxy?",   {{0, 32}}}},
-                { os_iyx_osv64,                                { 1, 1, 2, 0, "bfyx",   "bfxy?",   {{0, 64}}}},
-                { winograd_2x3_s1_weights,                     { 1, 1, 2, 0, "bfyx",   "bfxy?",   {}}},
-                { winograd_2x3_s1_fused_weights,               { 1, 1, 2, 0, "xyfb",   "bfxy?",   {}}},
-                { winograd_6x3_s1_fused_weights,               { 1, 1, 2, 0, "xyfb",   "bfxy?",   {}}},
-                { image_2d_weights_winograd_6x3_s1_fbxyb,      { 1, 1, 2, 0, "xyfb",   "bfxy?",   {}}},
-                { image_2d_weights_winograd_6x3_s1_xfbyb,      { 1, 1, 2, 0, "xyfb",   "bfxy?",   {}}},
-                { image_2d_weights_c4_fyx_b,                   { 1, 1, 2, 0, "bfyx",   "bfxy?",   {}}},
-                { image_2d_weights_c1_b_fyx,                   { 1, 1, 2, 0, "bfyx",   "bfxy?",   {}}},
-                { lstm_weights_dio,                            { 1, 1, 2, 0, "bfxy",   "bfxy?",   {}}},
-                { os_is_yx_isa8_osv8_isv4,                     { 1, 1, 2, 0, "bfyx",   "bfxy?",   {}}},
-                { os_is_yx_isa8_osv8_isv4_swizzled_by_4,       { 1, 1, 2, 0, "bfyx",   "bfxy?",   {}}},
-                { os_is_zyx_isa8_osv8_isv4,                    { 1, 1, 3, 0, "bfzyx",  "bfxyz",   {{1, 8}, {0, 8}, {1, 4}}}},
-                { os_is_yx_osa4_isa8_osv8_isv4_swizzled_by_4,  { 1, 1, 2, 0, "bfyx",   "bfxy?",   {{0, 32}, {1, 32}}}},
-                { os_is_zyx_osa4_isa8_osv8_isv4_swizzled_by_4, { 1, 1, 3, 0, "bfzyx",  "bfxyz",   {{0, 32}, {1, 32}}}},
-                { is_o_yx_isv32,                               { 1, 1, 2, 0, "byxf",   "bfxy?",   {{1, 32}}}},
-                { is_o32_yx_isv32_swizzled_by_4,               { 1, 1, 2, 0, "byxf",   "bfxy?",   {}}},
-                { os_is_y_x8_osv8_isv4,                        { 1, 1, 2, 0, "byxf",   "bfxy?",   {}}},
-                { os_is_y_x8_osv8_isv4_swizzled_by_4,          { 1, 1, 2, 0, "byxf",   "bfxy?",   {}}},
-                { bf_lyx_yx,                                   { 1, 1, 2, 2, "bfklyx", "bfxy??lk", {}}},
-                { os_is_yx_osv16_isv4,                         { 1, 1, 2, 0, "bfxy",   "bfxy?",   {{0, 16}, {1, 4}}}},
-                { os_is_yx_osv32_isv4_swizzled_by_2,           { 1, 1, 2, 0, "bfxy",   "bfxy?",   {{0, 16}, {1, 4}}}},
-                { os_is_yx_osv32_isv32p,                       { 1, 1, 1, 0, "bfxy",   "bfxy?",   {}}},
-                { o_i_zyx_i16_o16,                             { 1, 1, 3, 0, "bfzyx",  "bfxyz",   {{0, 16}, {1, 16}}}},
-                { i_o_zyx_o16_i16,                             { 1, 1, 3, 0, "fbzyx",  "bfxyz",   {{0, 16}, {1, 16}}}},
-                { os_is_osv32_isv32_swizzled_by_4,             { 1, 1, 0, 0, "bfxy",   "bfxy?",   {{0, 32}, {1, 32}}}},
-                { o_i_zyx_i8_o16_i2,                           { 1, 1, 3, 0, "bfzyx",  "bfxyz",   {{1, 8}, {0, 16}, {1, 2}}}},
-                { ozyxi_o16,                                   { 1, 1, 3, 0, "bzyxf",  "bfxyz",   {{0, 16}}}},
+                { oiyx,                                        { 1, 1, 2, 0, 0, "bfyx",   "bfxy",       {}}},
+                { yxio,                                        { 1, 1, 2, 0, 0, "yxfb",   "bfxy?",      {}}},
+                { oizyx,                                       { 1, 1, 3, 0, 0, "bfzyx",  "bfxyz",      {}}},
+                { os_is_yx_isv16_osv16,                        { 1, 1, 2, 0, 0, "bfyx",   "bfxy",       {{1, 16}, {0, 16}}}},
+                { os_iyx_osv16,                                { 1, 1, 2, 0, 0, "bfyx",   "bfxy?",      {{0, 16}}}},
+                { os_iyx_osv32,                                { 1, 1, 2, 0, 0, "bfyx",   "bfxy?",      {{0, 32}}}},
+                { os_iyx_osv64,                                { 1, 1, 2, 0, 0, "bfyx",   "bfxy?",      {{0, 64}}}},
+                { winograd_2x3_s1_weights,                     { 1, 1, 2, 0, 0, "bfyx",   "bfxy?",      {}}},
+                { winograd_2x3_s1_fused_weights,               { 1, 1, 2, 0, 0, "xyfb",   "bfxy?",      {}}},
+                { winograd_6x3_s1_fused_weights,               { 1, 1, 2, 0, 0, "xyfb",   "bfxy?",      {}}},
+                { image_2d_weights_winograd_6x3_s1_fbxyb,      { 1, 1, 2, 0, 0, "xyfb",   "bfxy?",      {}}},
+                { image_2d_weights_winograd_6x3_s1_xfbyb,      { 1, 1, 2, 0, 0, "xyfb",   "bfxy?",      {}}},
+                { image_2d_weights_c4_fyx_b,                   { 1, 1, 2, 0, 0, "bfyx",   "bfxy?",      {}}},
+                { image_2d_weights_c1_b_fyx,                   { 1, 1, 2, 0, 0, "bfyx",   "bfxy?",      {}}},
+                { lstm_weights_dio,                            { 1, 1, 2, 0, 0, "bfxy",   "bfxy?",      {}}},
+                { os_is_yx_isa8_osv8_isv4,                     { 1, 1, 2, 0, 0, "bfyx",   "bfxy?",      {}}},
+                { os_is_yx_isa8_osv8_isv4_swizzled_by_4,       { 1, 1, 2, 0, 0, "bfyx",   "bfxy?",      {}}},
+                { os_is_zyx_isa8_osv8_isv4,                    { 1, 1, 3, 0, 0, "bfzyx",  "bfxyz",      {{1, 8}, {0, 8}, {1, 4}}}},
+                { os_is_yx_osa4_isa8_osv8_isv4_swizzled_by_4,  { 1, 1, 2, 0, 0, "bfyx",   "bfxy?",      {{0, 32}, {1, 32}}}},
+                { os_is_zyx_osa4_isa8_osv8_isv4_swizzled_by_4, { 1, 1, 3, 0, 0, "bfzyx",  "bfxyz",      {{0, 32}, {1, 32}}}},
+                { is_o_yx_isv32,                               { 1, 1, 2, 0, 0, "byxf",   "bfxy?",      {{1, 32}}}},
+                { is_o32_yx_isv32_swizzled_by_4,               { 1, 1, 2, 0, 0, "byxf",   "bfxy?",      {}}},
+                { os_is_y_x8_osv8_isv4,                        { 1, 1, 2, 0, 0, "byxf",   "bfxy?",      {}}},
+                { os_is_y_x8_osv8_isv4_swizzled_by_4,          { 1, 1, 2, 0, 0, "byxf",   "bfxy?",      {}}},
+                { os_is_yx_osv16_isv4,                         { 1, 1, 2, 0, 0, "bfxy",   "bfxy?",      {{0, 16}, {1, 4}}}},
+                { os_is_yx_osv32_isv4_swizzled_by_2,           { 1, 1, 2, 0, 0, "bfxy",   "bfxy?",      {{0, 16}, {1, 4}}}},
+                { os_is_yx_osv32_isv32p,                       { 1, 1, 1, 0, 0, "bfxy",   "bfxy?",      {}}},
+                { os_is_zyx_isv16_osv16,                       { 1, 1, 3, 0, 0, "bfzyx",  "bfxyz",      {{0, 16}, {1, 16}}}},
+                { is_os_zyx_osv16_isv16,                       { 1, 1, 3, 0, 0, "fbzyx",  "bfxyz",      {{0, 16}, {1, 16}}}},
+                { os_is_osv32_isv32_swizzled_by_4,             { 1, 1, 0, 0, 0, "bfxy",   "bfxy?",      {{0, 32}, {1, 32}}}},
+                { os_is_zyx_isv8_osv16_isv2,                   { 1, 1, 3, 0, 0, "bfzyx",  "bfxyz",      {{1, 8}, {0, 16}, {1, 2}}}},
+                { os_zyxi_osv16,                               { 1, 1, 3, 0, 0, "bzyxf",  "bfxyz",      {{0, 16}}}},
+                { os_is_yx_isv8_osv16_isv2,                    { 1, 1, 2, 0, 0, "bfzyx",  "bfxyz",      {{1, 8}, {0, 16}, {1, 2}}}},
+
+                { goiyx,                                       { 1, 1, 2, 0, 1, "gbfyx",  "bfxy????g",  {}}},
+                { goizyx,                                      { 1, 1, 3, 0, 1, "gbfzyx", "bfxyz???g",  {}}},
+                { g_os_iyx_osv16,                              { 1, 1, 2, 0, 1, "gbfyx",  "bfxy????g",  {{0, 16}}}},
+                { g_os_iyx_osv32,                              { 1, 1, 2, 0, 1, "gbfyx",  "bfxy????g",  {{0, 32}}}},
+                { gs_oiyx_gsv16,                               { 1, 1, 2, 0, 1, "gbfyx",  "bfxy????g",  {{8, 16}}}},
+                { gs_oiyx_gsv32,                               { 1, 1, 2, 0, 1, "gbfyx",  "bfxy????g",  {{8, 32}}}},
+                { gyxio,                                       { 1, 1, 2, 0, 1, "gyxfb",  "bfxy????g",  {}}},
+                { g_is_os_zyx_osv16_isv16,                     { 1, 1, 3, 0, 1, "gfbzyx", "bfxyz???g",  {{0, 16}, {1, 16}}}},
+                { g_is_os_yx_osv16_isv16,                      { 1, 1, 2, 0, 1, "gfbyx",  "bfxy????g",  {{0, 16}, {1, 16}}}},
+                { g_os_is_zyx_isv8_osv16_isv2,                 { 1, 1, 3, 0, 1, "gbfzyx", "bfxyz???g",  {{1, 8}, {0, 16}, {1, 2}}}},
+                { g_os_is_yx_isv8_osv16_isv2,                  { 1, 1, 2, 0, 1, "gbfyx",  "bfxy????g",  {{1, 8}, {0, 16}, {1, 2}}}},
+                { g_os_is_zyx_isv16_osv16,                     { 1, 1, 3, 0, 1, "bfzyx",  "bfxyz???g",  {{0, 16}, {1, 16}}}},
         };
         return traits.at(fmt);
     }
@@ -240,6 +287,8 @@ struct format {
     static size_t spatial_num(type fmt) { return traits(fmt).spatial_num; }
     /// @brief Returns number of local dimensions for a @p format.
     static size_t local_num(type fmt) { return traits(fmt).local_num; }
+    /// @brief Returns number of group dimensions for a @p format.
+    static size_t group_num(type fmt) { return traits(fmt).group_num; }
     /// @brief Returns an order of dimensions for a @ format.
     static const std::string& order(type fmt) { return traits(fmt).order; }
     /// @brief Returns an internal orders of dimensions for a @p format.
@@ -264,6 +313,8 @@ struct format {
                 fmt == image_2d_weights_winograd_6x3_s1_xfbyb ||
                 fmt == nv12);
     }
+    /// @brief Checks if @p format is of grouped type
+    static bool is_grouped(type fmt) { return group_num(fmt) != 0; }
     /// @brief Checks if @p format is of image type
     static bool is_image(type fmt) { return (is_image_2d(fmt)); }
     /// @brief Checks if @p format is blocked format
@@ -279,6 +330,8 @@ struct format {
     size_t spatial_num() const { return traits(value).spatial_num; }
     /// @brief Returns number of local dimensions.
     size_t local_num() const { return traits(value).local_num; }
+    /// @brief Returns number of group dimensions.
+    size_t group_num() const { return traits(value).group_num; }
     /// @brief Returns an order of dimensions in form of string.
     const std::string& order() const { return traits(value).order; }
     /// @brief Returns an internal orders of dimensions form of string.
@@ -317,7 +370,8 @@ constexpr int32_t tensor_batch_dim_max = 1;
 constexpr int32_t tensor_feature_dim_max = 1;
 constexpr int32_t tensor_spatial_dim_max = 4;
 constexpr int32_t tensor_local_dim_max = 2;
-constexpr int32_t tensor_dim_max = 8;
+constexpr int32_t tensor_group_dim_max = 1;
+constexpr int32_t tensor_dim_max = tensor_batch_dim_max + tensor_feature_dim_max + tensor_spatial_dim_max + tensor_local_dim_max + tensor_group_dim_max;
 
 struct tensor;
 
@@ -328,7 +382,8 @@ enum class dim_vec_kind {
     batch,
     feature,
     spatial,
-    local
+    local,
+    group
 };
 
 /// @brief template class with max_dimensionalities and dimension offset for dimension kinds
@@ -359,6 +414,12 @@ template <>
 struct dim_vec_limits<dim_vec_kind::local> {
     static constexpr int32_t max_dimentionality = tensor_local_dim_max;
     static constexpr int32_t dim_offset = tensor_batch_dim_max + tensor_feature_dim_max + tensor_spatial_dim_max;
+};
+
+template <>
+struct dim_vec_limits<dim_vec_kind::group> {
+    static constexpr int32_t max_dimentionality = tensor_group_dim_max;
+    static constexpr int32_t dim_offset = tensor_batch_dim_max + tensor_feature_dim_max + tensor_spatial_dim_max + tensor_local_dim_max;
 };
 
 /// @brief Template class used in tensor constructor using dim_vec_kinds
@@ -400,12 +461,18 @@ details::dim_vec_kind_init<details::dim_vec_kind::local> local(InitTys&&... init
     return details::dim_vec_kind_init<details::dim_vec_kind::local>(std::forward<InitTys>(inits)...);
 }
 
+template <typename... InitTys>
+details::dim_vec_kind_init<details::dim_vec_kind::group> group(InitTys&&... inits) {
+    return details::dim_vec_kind_init<details::dim_vec_kind::group>(std::forward<InitTys>(inits)...);
+}
+
 /// @brief N-dimensional vector. Mostly used to represent memory size.
 struct tensor {
     friend class details::dim_vec_kind_init<details::dim_vec_kind::batch>;
     friend class details::dim_vec_kind_init<details::dim_vec_kind::feature>;
     friend class details::dim_vec_kind_init<details::dim_vec_kind::spatial>;
     friend class details::dim_vec_kind_init<details::dim_vec_kind::local>;
+    friend class details::dim_vec_kind_init<details::dim_vec_kind::group>;
 
     typedef int32_t value_type;  ///< Values type stored in tensor.
     // TODO find the way to prevent direct change of following fields.
@@ -414,6 +481,7 @@ struct tensor {
     mutable_array_ref<value_type> feature;  ///< Feature maps.
     mutable_array_ref<value_type> spatial;  ///< Spatial dimensions.
     mutable_array_ref<value_type> local;    ///< Local dimensions.
+    mutable_array_ref<value_type> group;    ///< Group dimensions.
 
 private:
     value_type _sizes[tensor_dim_max];
@@ -426,7 +494,8 @@ public:
         batch(_sizes, tensor_batch_dim_max),
         feature(_sizes + tensor_batch_dim_max, tensor_feature_dim_max),
         spatial(_sizes + tensor_batch_dim_max + tensor_feature_dim_max, tensor_spatial_dim_max),
-        local(_sizes + tensor_batch_dim_max + tensor_feature_dim_max + tensor_spatial_dim_max, tensor_local_dim_max) {
+        local(_sizes + tensor_batch_dim_max + tensor_feature_dim_max + tensor_spatial_dim_max, tensor_local_dim_max),
+        group(_sizes + tensor_batch_dim_max + tensor_feature_dim_max + tensor_spatial_dim_max + tensor_local_dim_max, tensor_group_dim_max) {
         std::fill_n(_sizes, tensor_dim_max, default_size);
     }
 
@@ -447,9 +516,10 @@ public:
               typename = typename std::enable_if<
                   meta::all<
                       meta::is_any_of<KindInitTys,
-                                      cldnn::details::dim_vec_kind_init<cldnn::details::dim_vec_kind::batch>,
-                                      cldnn::details::dim_vec_kind_init<cldnn::details::dim_vec_kind::feature>,
-                                      cldnn::details::dim_vec_kind_init<details::dim_vec_kind::spatial>>::value...>::value,
+                                      cldnn::details::dim_vec_kind_init<details::dim_vec_kind::batch>,
+                                      cldnn::details::dim_vec_kind_init<details::dim_vec_kind::feature>,
+                                      cldnn::details::dim_vec_kind_init<details::dim_vec_kind::spatial>,
+                                      cldnn::details::dim_vec_kind_init<details::dim_vec_kind::group>>::value...>::value,
                   void>::type>
     explicit tensor(KindInitTys&&... kind_inits)
         : tensor(1) {
@@ -627,6 +697,11 @@ public:
         for (size_t i = 0; i < spatial.size(); ++i) {
             out << spatial_dim_names[i] << ":" << spatial[i];
         }
+
+        out << ", g:";
+        for (size_t i = 0; i < group.size(); ++i) {
+            out << group[i];
+        }
         out << "]";
 
         return out.str();
@@ -769,8 +844,8 @@ public:
             }
 
             // skip z for the formats that do not have it
-            if (((new_fmt != format::bfzyx && new_fmt != format::bfzyx_f16 && new_fmt != format::b_fs_zyx_fsv32 &&
-                  new_fmt != format::bfwzyx && new_fmt != format::bfzyx_b16f16)) && (c == 'z')) {
+            if (((new_fmt != format::bfzyx && new_fmt != format::b_fs_zyx_fsv16 && new_fmt != format::b_fs_zyx_fsv32 &&
+                  new_fmt != format::bfwzyx && new_fmt != format::bs_fs_zyx_bsv16_fsv16)) && (c == 'z')) {
                 if (new_order[i] == '?')
                     new_sizes[i] = default_size;
 
@@ -782,8 +857,8 @@ public:
                 if (new_order[i] == '?')
                     new_sizes[i] = default_size;
 
-                if (new_fmt == format::bfzyx || new_fmt == format::bfzyx_f16 ||
-                    new_fmt == format::bfzyx_b16f16 || new_fmt == format::b_fs_zyx_fsv32)
+                if (new_fmt == format::bfzyx || new_fmt == format::b_fs_zyx_fsv16 ||
+                    new_fmt == format::bs_fs_zyx_bsv16_fsv16 || new_fmt == format::b_fs_zyx_fsv32)
                     tmp_w *= old_sizes[i];
                 else
                     tmp_z *= old_sizes[i];

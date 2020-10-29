@@ -44,7 +44,8 @@ void gemm_x8s8s32x_inner_product_fwd_t<src_type, dst_type
     const int M = OC;
     const int N = MB;
     const int K = pd()->IC_total_padded();
-    const int8_t off_a = 0, off_b = 0;
+    const int8_t off_a = 0;
+    const src_data_t off_b = 0;
     const int32_t off_c = 0;
 
     const float *scales = pd()->attr()->output_scales_.scales_;
@@ -55,17 +56,8 @@ void gemm_x8s8s32x_inner_product_fwd_t<src_type, dst_type
 
     const float onef = 1.0, zerof = 0.0;
 
-    if (src_type == data_type::u8) {
-        mkldnn_gemm_s8u8s32(wei_tr ? "T" : "N", "N", "F", &M, &N, &K, &onef,
-                weights, wei_tr ? &K : &M, &off_a, (uint8_t *)src, &K, &off_b, &zerof,
-                acc, &M, &off_c);
-    } else if (src_type == data_type::s8) {
-        mkldnn_gemm_s8s8s32(wei_tr ? "T" : "N", "N", "F", &M, &N, &K, &onef,
-                weights, wei_tr ? &K : &M, &off_a, (int8_t *)src, &K, &off_b, &zerof,
-                acc, &M, &off_c);
-    } else {
-        assert(!"incorrect src type");
-    }
+    gemm_s8x8s32(wei_tr ? "T" : "N", "N", "F", &M, &N, &K, &onef, weights,
+                 wei_tr ? &K : &M, &off_a, src, &K, &off_b, &zerof, acc, &M, &off_c);
 
     if (!pd()->attr()->has_default_values() || !pd()->dst_is_acc_
             || pd()->with_bias()) {

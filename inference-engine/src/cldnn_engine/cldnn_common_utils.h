@@ -55,6 +55,8 @@ inline cldnn::data_types DataTypeFromPrecision(InferenceEngine::Precision p) {
         return cldnn::data_types::i64;
     case Precision::BIN:
         return cldnn::data_types::bin;
+    case Precision::BOOL:
+        return cldnn::data_types::i8;
     default:
         THROW_IE_EXCEPTION << PARAMETER_MISMATCH_str << "The plugin does not support " << p.name() << " precision";
         break;

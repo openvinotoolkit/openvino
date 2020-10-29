@@ -32,6 +32,7 @@ IE_SUPPRESS_DEPRECATED_START
 
         VPU_CONFIG_KEY(NETWORK_CONFIG),
         VPU_CONFIG_KEY(HW_STAGES_OPTIMIZATION),
+        VPU_CONFIG_KEY(HW_EXTRA_SPLIT),
         VPU_CONFIG_KEY(CUSTOM_LAYERS),
         VPU_CONFIG_KEY(IGNORE_IR_STATISTIC),
 
@@ -59,6 +60,8 @@ IE_SUPPRESS_DEPRECATED_START
         VPU_CONFIG_KEY(ENABLE_PERMUTE_MERGING),
         VPU_CONFIG_KEY(ENABLE_REPL_WITH_SCRELU),
         VPU_CONFIG_KEY(ENABLE_REPLACE_WITH_REDUCE_MEAN),
+        VPU_CONFIG_KEY(ENABLE_TENSOR_ITERATOR_UNROLLING),
+        VPU_CONFIG_KEY(FORCE_PURE_TENSOR_ITERATOR),
 
         //
         // Debug options
@@ -153,6 +156,7 @@ void ParsedConfig::parse(const std::map<std::string, std::string>& config) {
     setOption(_compileConfig.packDataInCmx,                  switches, config, VPU_CONFIG_KEY(PACK_DATA_IN_CMX));
     setOption(_compileConfig.ignoreUnknownLayers,            switches, config, VPU_CONFIG_KEY(IGNORE_UNKNOWN_LAYERS));
     setOption(_compileConfig.hwOptimization,                 switches, config, VPU_CONFIG_KEY(HW_STAGES_OPTIMIZATION));
+    setOption(_compileConfig.hwExtraSplit,                   switches, config, VPU_CONFIG_KEY(HW_EXTRA_SPLIT));
     setOption(_compileConfig.injectSwOps,                    switches, config, VPU_CONFIG_KEY(HW_INJECT_STAGES));
     setOption(_compileConfig.mergeHwPoolToConv,              switches, config, VPU_CONFIG_KEY(HW_POOL_CONV_MERGE));
     setOption(_compileConfig.ignoreIRStatistic,              switches, config, VPU_CONFIG_KEY(IGNORE_IR_STATISTIC));
@@ -162,6 +166,8 @@ void ParsedConfig::parse(const std::map<std::string, std::string>& config) {
     setOption(_compileConfig.enablePermuteMerging,           switches, config, VPU_CONFIG_KEY(ENABLE_PERMUTE_MERGING));
     setOption(_compileConfig.enableReplWithSCRelu,           switches, config, VPU_CONFIG_KEY(ENABLE_REPL_WITH_SCRELU));
     setOption(_compileConfig.enableReplaceWithReduceMean,    switches, config, VPU_CONFIG_KEY(ENABLE_REPLACE_WITH_REDUCE_MEAN));
+    setOption(_compileConfig.enableTensorIteratorUnrolling,  switches, config, VPU_CONFIG_KEY(ENABLE_TENSOR_ITERATOR_UNROLLING));
+    setOption(_compileConfig.forcePureTensorIterator,        switches, config, VPU_CONFIG_KEY(FORCE_PURE_TENSOR_ITERATOR));
 
     setOption(_compileConfig.irWithVpuScalesDir, config, VPU_CONFIG_KEY(IR_WITH_SCALES_DIRECTORY));
     setOption(_compileConfig.noneLayers,    config, VPU_CONFIG_KEY(NONE_LAYERS), parseStringSet);
@@ -176,6 +182,7 @@ void ParsedConfig::parse(const std::map<std::string, std::string>& config) {
 
     setOption(_compileConfig.numSHAVEs, config, VPU_CONFIG_KEY(NUMBER_OF_SHAVES), parseInt);
     setOption(_compileConfig.numCMXSlices, config, VPU_CONFIG_KEY(NUMBER_OF_CMX_SLICES), parseInt);
+    setOption(_compileConfig.numExecutors, config, VPU_MYRIAD_CONFIG_KEY(THROUGHPUT_STREAMS), parseInt);
 
     if ((_compileConfig.numSHAVEs < 0 && _compileConfig.numCMXSlices >= 0) ||
         (_compileConfig.numSHAVEs >= 0 && _compileConfig.numCMXSlices < 0)) {

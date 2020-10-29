@@ -31,9 +31,8 @@ namespace ie = InferenceEngine;
 //
 
 VPU_DECLARE_ENUM(Platform,
-    UNKNOWN = 0,
     MYRIAD_2 = 2450,
-    MYRIAD_X = 2480
+    MYRIAD_X = 2480,
 )
 
 struct CompilationConfig final {
@@ -43,8 +42,10 @@ struct CompilationConfig final {
 
     int numSHAVEs = -1;
     int numCMXSlices = -1;
+    int numExecutors = -1;
 
     bool hwOptimization = true;
+    bool hwExtraSplit = false;
 
     bool ignoreIRStatistic = false;
 
@@ -105,6 +106,8 @@ struct CompilationConfig final {
     bool enablePermuteMerging = true;
     bool enableReplWithSCRelu = false;
     bool enableReplaceWithReduceMean = true;
+    bool enableTensorIteratorUnrolling = false;
+    bool forcePureTensorIterator = false;
 
     //
     // Deprecated options
@@ -149,6 +152,7 @@ struct CompiledGraph final {
 
     std::uint32_t numShaves = 0;
     std::uint32_t numSlices = 0;
+    std::uint32_t numExecutors = 0;
 };
 
 //

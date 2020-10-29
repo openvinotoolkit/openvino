@@ -62,7 +62,7 @@ public:
                                                    int autoTuneIndex = -1) const override;
 
 protected:
-    virtual std::vector<WeightsLayout> GetSupportedWeightLayouts(const convolution_params&) const = 0;
+    virtual WeightsLayout GetPreferredWeightsLayout(const convolution_params &) const = 0;
     virtual std::string GetKernelName(const convolution_params&) const { return kernelName; }
     virtual bool NeedPaddedInput() const { return false; }
     bool Validate(const Params& p, const optional_params& o) const override;

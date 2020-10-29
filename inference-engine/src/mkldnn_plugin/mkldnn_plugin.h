@@ -68,10 +68,10 @@ using NumaNodesWeights = std::map<int, MKLDNNWeightsSharing::Ptr>;
 class Engine : public InferenceEngine::InferencePluginInternal {
 public:
     Engine();
-    ~Engine() override = default;
+    ~Engine() override;
 
     InferenceEngine::ExecutableNetworkInternal::Ptr
-    LoadExeNetworkImpl(const ICore * core, InferenceEngine::ICNNNetwork &network,
+    LoadExeNetworkImpl(const InferenceEngine::ICore * core, const InferenceEngine::ICNNNetwork &network,
                        const std::map<std::string, std::string> &config) override;
 
     void AddExtension(InferenceEngine::IExtensionPtr extension) override;

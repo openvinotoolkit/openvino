@@ -7,7 +7,6 @@
 #include <ie_blob.h>
 #include <ie_plugin.hpp>
 #include <description_buffer.hpp>
-#include <debug.h>
 #include <ie_layouts.h>
 #include <precision_utils.h>
 

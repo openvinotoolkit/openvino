@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2019 Intel Corporation
+﻿// Copyright (c) 2019-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -43,10 +43,12 @@ ParamsKey ConcatenationKernel_simple_Ref::GetSupportedKey() const {
     k.EnableOutputLayout(DataLayout::bfzyx);
     k.EnableInputLayout(DataLayout::bfwzyx);
     k.EnableOutputLayout(DataLayout::bfwzyx);
-    k.EnableInputLayout(DataLayout::bfzyx_f16);
-    k.EnableOutputLayout(DataLayout::bfzyx_f16);
-    k.EnableInputLayout(DataLayout::bfzyx_b16f16);
-    k.EnableOutputLayout(DataLayout::bfzyx_b16f16);
+    k.EnableInputLayout(DataLayout::b_fs_zyx_fsv16);
+    k.EnableOutputLayout(DataLayout::b_fs_zyx_fsv16);
+    k.EnableInputLayout(DataLayout::bs_fs_zyx_bsv16_fsv16);
+    k.EnableOutputLayout(DataLayout::bs_fs_zyx_bsv16_fsv16);
+    k.EnableInputLayout(DataLayout::bs_fs_yx_bsv16_fsv16);
+    k.EnableOutputLayout(DataLayout::bs_fs_yx_bsv16_fsv16);
     k.EnableTensorOffset();
     k.EnableTensorPitches();
     k.EnableBatching();
@@ -67,12 +69,12 @@ bool ConcatenationKernel_simple_Ref::Validate(const Params& p, const optional_pa
 
     const concatenation_params& params = static_cast<const concatenation_params&>(p);
 
-    // all inputs have to have same layout (exept 3D: bfzyx, bfzyx_f16, and bfzyx_b16f16)
+    // all inputs have to have same layout (exept 3D: bfzyx, b_fs_zyx_fsv16, and bs_fs_zyx_bsv16_fsv16)
     auto same_layout = params.inputs[0].GetLayout();
     for (const auto& lt : params.inputs) {
         auto cur_layout = lt.GetLayout();
-        if ((cur_layout == DataLayout::bfzyx || cur_layout == DataLayout::bfzyx_f16 || cur_layout == DataLayout::bfzyx_b16f16) &&
-            (same_layout == DataLayout::bfzyx || same_layout == DataLayout::bfzyx_f16 || same_layout == DataLayout::bfzyx_b16f16)) {
+        if ((cur_layout == DataLayout::bfzyx || cur_layout == DataLayout::b_fs_zyx_fsv16 || cur_layout == DataLayout::bs_fs_zyx_bsv16_fsv16) &&
+            (same_layout == DataLayout::bfzyx || same_layout == DataLayout::b_fs_zyx_fsv16 || same_layout == DataLayout::bs_fs_zyx_bsv16_fsv16)) {
             continue;
         } else if (cur_layout != same_layout) {
             return false;
@@ -101,7 +103,7 @@ ConcatenationKernelBase::DispatchData ConcatenationKernel_simple_Ref::SetDefault
     kd.lws1 = local[1];
     kd.lws2 = local[2];
 
-    kd.effiency = FORCE_PRIORITY_9;
+    kd.efficiency = FORCE_PRIORITY_9;
 
     return kd;
 }

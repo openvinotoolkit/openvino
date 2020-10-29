@@ -439,10 +439,11 @@ void jit_avx512_core_x8s8s32x_deconv_fwd_kernel::kh_loop(int ur_w,
 
     mov(reg_kh, ptr[param1 + GET_OFF(kh_padding)]);
 
-    if (jcp.signed_input || ((!jcp.signed_input)
-        && ((min(jcp.t_pad, jcp.b_pad) < 0)
-            || ((jcp.kh - 1) * (jcp.dilate_h + 1)
-                < nstl::max(jcp.t_pad, jcp.b_pad))))) {
+    if ((jcp.signed_input) || (jcp.dilate_h >= jcp.ih)
+            || ((!jcp.signed_input)
+                    && ((min(jcp.t_pad, jcp.b_pad) < 0)
+                            || ((jcp.kh - 1) * (jcp.dilate_h + 1)
+                                    < nstl::max(jcp.t_pad, jcp.b_pad))))) {
         cmp(reg_kh, 0);
         je(skip_kh_loop, T_NEAR);
     }
@@ -963,7 +964,8 @@ void _jit_avx512_core_x8s8s32x_deconvolution_fwd_t<src_type,
                             = max(0, ((oj + jcp.kh) - (jcp.oh + jcp.b_pad))
                                             / jcp.stride_h);
                     int overflow_kh_hi = jcp.kh - 1
-                            - abs(jcp.oh + jcp.b_pad - (oj + 1)) % jcp.stride_h;
+                            - modulo(jcp.oh + jcp.b_pad - (oj + 1),
+                                    jcp.stride_h);
                     int overflow_kh_lo = (oj + jcp.t_pad) % jcp.stride_h;
 
                     kh_len = (overflow_kh_hi - overflow_kh_lo) / jcp.stride_h
@@ -979,9 +981,14 @@ void _jit_avx512_core_x8s8s32x_deconvolution_fwd_t<src_type,
                 p.filt = wht_w + wei_stride;
                 p.bias = bias_w;
                 p.compensation = compensation_w;
-                p.t_overflow = max(
-                        0, jcp.kh - (kh_lo + max(0, kh_len - 1) * jcp.stride_h
-                                            + 1));
+                p.t_overflow = jcp.dilate_h > 0
+                        ? jcp.kh - kh_len - kh_lo
+                        : max(0,
+                                jcp.kh
+                                        - (kh_lo
+                                                + max(0, kh_len - 1)
+                                                        * jcp.stride_h
+                                                + 1));
                 p.b_overflow = kh_lo;
                 p.kh_padding = kh_len;
                 p.scales = scales;

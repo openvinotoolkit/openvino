@@ -17,70 +17,14 @@ import unittest
 
 import numpy as np
 
-from extensions.back.ConvolutionNormalizer import PullReshapeThroughFQ
+from extensions.back.ConvolutionNormalizer import PullReshapeThroughFQ, V7ConvolutionWithGroupsResolver, \
+    V10ConvolutionWithGroupsResolver
 from extensions.ops.fakequantize import FakeQuantize
 from mo.front.common.partial_infer.utils import int64_array
-from mo.front.extractor import extract_port_from_string
-from mo.ops.const import Const
 from mo.ops.reshape import Reshape
 from mo.utils.ir_engine.compare_graphs import compare_graphs
-from mo.utils.unittest.graph import build_graph
-
-# regular units
-regular_op = lambda name, kwargs: {name: {'kind': 'op', 'type': 'NoType', **kwargs}}
-
-valued_data = lambda name, value: {
-    name: {'kind': 'data', 'value': value, 'shape': int64_array(value.shape) if value is not None else None}}
-shaped_data = lambda name, shape: {
-    name: {'kind': 'data', 'value': None, 'shape': int64_array(shape) if shape is not None else None}}
-empty_data = lambda name: valued_data(name, None)
-
-result = lambda name=None: {name if name is not None else 'output': {'kind': 'op', 'type': 'Result', 'op': 'Result'}}
-
-regular_op_with_shaped_data = lambda name, shape, kwargs: {**regular_op(name, kwargs),
-                                                           **shaped_data(name + '_d', shape)}
-
-# constants
-const = lambda name, value: {
-    name: {'kind': 'op', 'value': value, 'shape': int64_array(value.shape), 'infer': Const.infer}}
-fake_const = lambda name, shape: {
-    name: {'kind': 'op', 'value': None, 'shape': int64_array(shape) if shape is not None else None,
-           'infer': Const.infer}}
-
-shaped_const_with_data = lambda name, shape: {**fake_const(name, shape), **shaped_data(name + '_d', shape)}
-valued_const_with_data = lambda name, value: {**const(name, value), **valued_data(name + '_d', value)}
-
-const_with_data = lambda name, value: {**const(name, value), **valued_data(name + '_d', value)}
-
-reshape_with_dim = lambda reshape_name, const_name, reshape_shape, dim=None: {
-    **const_with_data(const_name, int64_array(dim if dim is not None else reshape_shape)),
-    **regular_op_with_shaped_data(reshape_name, reshape_shape, {'type': 'Reshape', 'infer': Reshape.infer})}
-
-
-def get_name_and_port(tensor_name):
-    node_name, in_port, out_port = extract_port_from_string(tensor_name)
-
-    assert in_port is None or out_port is None
-
-    if in_port is not None:
-        return node_name, in_port
-    elif out_port is not None:
-        return node_name, out_port
-    else:
-        return node_name, 0
-
-
-def connect(first_tensor_name, second_tensor_name):
-    # first_tensor_name = first_op_name:out_port
-    # second_tensor_name = second_op_name:in_port
-
-    first_op_name, out_port = get_name_and_port(first_tensor_name)
-    second_op_name, in_port = get_name_and_port(second_tensor_name)
-
-    return [
-        (first_op_name, first_op_name + '_d', {'out': out_port}),
-        (first_op_name + '_d', second_op_name, {'in': in_port}),
-    ]
+from mo.utils.unittest.graph import build_graph, result, regular_op_with_shaped_data, regular_op_with_empty_data, \
+    valued_const_with_data, const_with_data, connect
 
 
 def graph_template(weights_initial_shape, new_reshape_shape, limits_initial_shape, limits_new_shape=None):
@@ -162,6 +106,94 @@ class TestPullReshapeThroughFQ(unittest.TestCase):
         PullReshapeThroughFQ().find_and_replace_pattern(graph)
         graph.clean_up()
         graph_ref.clean_up()
+
+        (flag, resp) = compare_graphs(graph, graph_ref, last_node='output', check_op_attrs=True)
+        self.assertTrue(flag, resp)
+
+
+class TestV7ConvolutionWithGroupsResolver(unittest.TestCase):
+    def test_v7_group_convolution_resolver(self):
+        nodes = {
+            **regular_op_with_shaped_data('input', None, {'type': 'Parameter'}),
+
+            **valued_const_with_data('weights', np.ones([3, 8, 7, 7])),
+
+            **const_with_data('dim', int64_array([24, -1, 7, 7])),
+            **regular_op_with_empty_data('reshape', {'type': 'Reshape'}),
+
+            **regular_op_with_shaped_data('convolution', None, {'type': 'Convolution', 'group': 3, 'output': 24}),
+
+            **result(),
+        }
+        graph = build_graph(nodes, [
+            *connect('input', '0:convolution'),
+            *connect('weights', '1:convolution'),
+            *connect('convolution', 'output'),
+        ], nodes_with_edges_only=True)
+
+        V7ConvolutionWithGroupsResolver().find_and_replace_pattern(graph)
+        graph_ref = build_graph(nodes, [
+            *connect('input', '0:convolution'),
+            *connect('weights', '0:reshape'),
+            *connect('dim', '1:reshape'),
+            *connect('reshape', '1:convolution'),
+            *connect('convolution', 'output'),
+        ], nodes_with_edges_only=True)
+
+        (flag, resp) = compare_graphs(graph, graph_ref, last_node='output', check_op_attrs=True)
+        self.assertTrue(flag, resp)
+
+    def test_v7_group_convolution_resolver_weight_are_in_the_right_layout(self):
+        nodes = {
+            **regular_op_with_shaped_data('input', None, {'type': 'Parameter'}),
+            **valued_const_with_data('weights', np.ones([24, 1, 7, 7])),
+            **regular_op_with_shaped_data('convolution', None, {'type': 'Convolution', 'group': 3, 'output': 24}),
+            **result(),
+        }
+        edges = [
+            *connect('input', '0:convolution'),
+            *connect('weights', '1:convolution'),
+            *connect('convolution', 'output'),
+        ]
+        graph = build_graph(nodes, edges)
+        V7ConvolutionWithGroupsResolver().find_and_replace_pattern(graph)
+        graph_ref = build_graph(nodes, edges)
+        (flag, resp) = compare_graphs(graph, graph_ref, last_node='output', check_op_attrs=True)
+        self.assertTrue(flag, resp)
+
+
+class TestV10ConvolutionWithGroupsResolver(unittest.TestCase):
+    def test_v10_group_convolution_resolver(self):
+        nodes = {
+            **regular_op_with_shaped_data('input', [1, 3, 224, 224], {'type': 'Parameter'}),
+
+            **valued_const_with_data('weights', np.ones([3, 8, 7, 7])),
+
+            **const_with_data('dim', int64_array([3, 8, 1, 7, 7])),
+            **regular_op_with_empty_data('reshape', {'type': 'Reshape'}),
+
+            **regular_op_with_shaped_data('convolution', None, {'type': 'Convolution', 'group': 3, 'output': 24}),
+
+            **result(),
+        }
+        graph = build_graph(nodes, [
+            *connect('input', '0:convolution'),
+            *connect('weights', '1:convolution'),
+            *connect('convolution', 'output'),
+        ], nodes_with_edges_only=True)
+
+        V10ConvolutionWithGroupsResolver().find_and_replace_pattern(graph)
+
+        nodes['convolution']['type'] = 'GroupConvolution'
+        del nodes['convolution']['group']
+
+        graph_ref = build_graph(nodes, [
+            *connect('input', '0:convolution'),
+            *connect('weights', '0:reshape'),
+            *connect('dim', '1:reshape'),
+            *connect('reshape', '1:convolution'),
+            *connect('convolution', 'output'),
+        ], nodes_with_edges_only=True)
 
         (flag, resp) = compare_graphs(graph, graph_ref, last_node='output', check_op_attrs=True)
         self.assertTrue(flag, resp)

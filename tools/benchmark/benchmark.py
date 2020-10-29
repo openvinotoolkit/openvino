@@ -13,19 +13,20 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 """
+import os
 from datetime import datetime
 from statistics import median
-from openvino.inference_engine import IENetwork, IECore, get_version
+from openvino.inference_engine import IENetwork, IECore, get_version, StatusCode
 
-from .utils.constants import CPU_DEVICE_NAME, MULTI_DEVICE_NAME, GPU_DEVICE_NAME, MYRIAD_DEVICE_NAME
+from .utils.constants import CPU_DEVICE_NAME, MULTI_DEVICE_NAME, GPU_DEVICE_NAME, MYRIAD_DEVICE_NAME, BIN_EXTENSION
 from .utils.logging import logger
-from .utils.utils import get_duration_seconds, parse_value_per_device, parse_devices
-
+from .utils.utils import get_duration_seconds, parse_nstreams_value_per_device, parse_devices
+from .utils.inputs_filling import get_blob_shape
 
 
 class Benchmark:
     def __init__(self, device: str, number_infer_requests, number_iterations, duration_seconds, api_type):
-        self.device = device.upper()
+        self.device = device
         self.ie = IECore()
         self.nireq = number_infer_requests
         self.niter = number_iterations
@@ -60,17 +61,7 @@ class Benchmark:
     def reshape(ie_network: IENetwork, batch_size: int):
         new_shapes = {}
         for input_layer_name, input_layer in ie_network.inputs.items():
-            shape = input_layer.shape
-            layout = input_layer.layout
-
-            try:
-                batch_index = layout.index('N')
-            except ValueError:
-                batch_index = 1 if layout == 'C' else -1
-
-            if batch_index != -1 and shape[batch_index] != batch_size:
-                shape[batch_index] = batch_size
-                new_shapes[input_layer_name] = shape
+            new_shapes[input_layer_name] = get_blob_shape(input_layer, batch_size)
 
         if new_shapes:
             logger.info('Resizing network to batch = {}'.format(batch_size))
@@ -79,7 +70,14 @@ class Benchmark:
     def set_config(self, number_streams: int, api_type: str = 'async',
                    number_threads: int = None, infer_threads_pinning: int = None):
         devices = parse_devices(self.device)
-        self.device_number_streams = parse_value_per_device(devices, number_streams)
+        self.device_number_streams = parse_nstreams_value_per_device(devices, number_streams)
+        for device_name in  self.device_number_streams.keys():
+            key = device_name + "_THROUGHPUT_STREAMS"
+            supported_config_keys = self.ie.get_metric(device_name, 'SUPPORTED_CONFIG_KEYS')
+            if key not in supported_config_keys:
+                raise Exception("Device " + device_name + " doesn't support config key '" + key + "'! " +
+                                "Please specify -nstreams for correct devices in format  <dev1>:<nstreams1>,<dev2>:<nstreams2>");
+
         for device in devices:
             if device == CPU_DEVICE_NAME:  # CPU supports few special performance-oriented keys
                 # limit threading for CPU portion of inference
@@ -117,72 +115,99 @@ class Benchmark:
             elif device == MYRIAD_DEVICE_NAME:
                 self.ie.set_config({'LOG_LEVEL': 'LOG_INFO'}, MYRIAD_DEVICE_NAME)
 
-    def load_network(self, ie_network: IENetwork, perf_counts: bool, number_infer_requests: int = None):
+    def read_network(self, path_to_model: str):
+        xml_filename = os.path.abspath(path_to_model)
+        head, tail = os.path.splitext(xml_filename)
+        bin_filename = os.path.abspath(head + BIN_EXTENSION)
+
+        ie_network = self.ie.read_network(xml_filename, bin_filename)
+
+        input_info = ie_network.inputs
+
+        if not input_info:
+            raise AttributeError('No inputs info is provided')
+
+        return ie_network
+
+    def load_network(self, ie_network: IENetwork, perf_counts: bool):
         config = {'PERF_COUNT': ('YES' if perf_counts else 'NO')}
 
         exe_network = self.ie.load_network(ie_network,
                                            self.device,
                                            config=config,
-                                           num_requests=number_infer_requests or 0)
-
+                                           num_requests=1 if self.api_type == 'sync' else self.nireq or 0)
+        # Number of requests
+        self.nireq = len(exe_network.requests)
         return exe_network
 
-    def infer(self, request_queue, requests_input_data, batch_size, progress_bar):
+    def infer(self, exe_network, batch_size, progress_bar=None):
         progress_count = 0
+        infer_requests = exe_network.requests
+
         # warming up - out of scope
-        infer_request = request_queue.get_idle_request()
-        if not infer_request:
-            raise Exception('No idle Infer Requests!')
-
         if self.api_type == 'sync':
-            infer_request.infer(requests_input_data[infer_request.req_id])
+            infer_requests[0].infer()
         else:
-            infer_request.start_async(requests_input_data[infer_request.req_id])
+            infer_requests[0].async_infer()
+            status = exe_network.wait()
+            if status != StatusCode.OK:
+                raise Exception("Wait for all requests is failed with status code {}!".format(status))
 
-        request_queue.wait_all()
-        request_queue.reset_times()
-
-        start_time = datetime.now()
-        exec_time = (datetime.now() - start_time).total_seconds()
+        start_time = datetime.utcnow()
+        exec_time = 0
         iteration = 0
 
+        times = []
+        in_fly = set()
         # Start inference & calculate performance
         # to align number if iterations to guarantee that last infer requests are executed in the same conditions **/
         while (self.niter and iteration < self.niter) or \
               (self.duration_seconds and exec_time < self.duration_seconds) or \
               (self.api_type == 'async' and iteration % self.nireq):
-            infer_request = request_queue.get_idle_request()
-            if not infer_request:
-                raise Exception('No idle Infer Requests!')
-
             if self.api_type == 'sync':
-                infer_request.infer(requests_input_data[infer_request.req_id])
+                infer_requests[0].infer()
+                times.append(infer_requests[0].latency)
             else:
-                infer_request.start_async(requests_input_data[infer_request.req_id])
+                infer_request_id = exe_network.get_idle_request_id()
+                if infer_request_id < 0:
+                    status = exe_network.wait(num_requests=1)
+                    if status != StatusCode.OK:
+                        raise Exception("Wait for idle request failed!")
+                    infer_request_id = exe_network.get_idle_request_id()
+                    if infer_request_id < 0:
+                        raise Exception("Invalid request id!")
+                if infer_request_id in in_fly:
+                    times.append(infer_requests[infer_request_id].latency)
+                else:
+                    in_fly.add(infer_request_id)
+                infer_requests[infer_request_id].async_infer()
             iteration += 1
 
-            exec_time = (datetime.now() - start_time).total_seconds()
+            exec_time = (datetime.utcnow() - start_time).total_seconds()
 
-            if self.duration_seconds:
-                # calculate how many progress intervals are covered by current iteration.
-                # depends on the current iteration time and time of each progress interval.
-                # Previously covered progress intervals must be skipped.
-                progress_interval_time = self.duration_seconds / progress_bar.total_num
-                new_progress = int(exec_time / progress_interval_time - progress_count)
-                progress_bar.add_progress(new_progress)
-                progress_count += new_progress
-            elif self.niter:
-                progress_bar.add_progress(1)
+            if progress_bar:
+              if self.duration_seconds:
+                  # calculate how many progress intervals are covered by current iteration.
+                  # depends on the current iteration time and time of each progress interval.
+                  # Previously covered progress intervals must be skipped.
+                  progress_interval_time = self.duration_seconds / progress_bar.total_num
+                  new_progress = int(exec_time / progress_interval_time - progress_count)
+                  progress_bar.add_progress(new_progress)
+                  progress_count += new_progress
+              elif self.niter:
+                  progress_bar.add_progress(1)
 
         # wait the latest inference executions
-        request_queue.wait_all()
+        status = exe_network.wait()
+        if status != StatusCode.OK:
+            raise Exception("Wait for all requests is failed with status code {}!".format(status))
 
-        total_duration_sec = request_queue.get_duration_in_seconds()
-        times = request_queue.times
+        total_duration_sec = (datetime.utcnow() - start_time).total_seconds()
+        for infer_request_id in in_fly:
+            times.append(infer_requests[infer_request_id].latency)
         times.sort()
         latency_ms = median(times)
-        fps = batch_size * 1000 / latency_ms
-        if self.api_type == 'async':
-            fps = batch_size * iteration / total_duration_sec
-        progress_bar.finish()
+        fps = batch_size * 1000 / latency_ms if self.api_type == 'sync' else batch_size * iteration / total_duration_sec
+        if progress_bar:
+            progress_bar.finish()
         return fps, latency_ms, total_duration_sec, iteration

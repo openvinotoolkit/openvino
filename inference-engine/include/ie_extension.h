@@ -12,6 +12,7 @@
 #include <map>
 #include <memory>
 #include <string>
+#include <vector>
 
 #include "details/ie_so_pointer.hpp"
 #include "ie_iextension.h"
@@ -37,7 +38,7 @@ public:
  * creating IExtension object in DLL
  */
 template <>
-class SOCreatorTrait<IShapeInferExtension> {
+class INFERENCE_ENGINE_DEPRECATED("Implement IExtension") SOCreatorTrait<IShapeInferExtension> {
 public:
     /**
      * @brief A name of the fabric method for creating an IShapeInferExtension object in DLL
@@ -50,7 +51,8 @@ public:
 /**
  * @brief This class is a C++ helper to work with objects created using extensions.
  */
-class Extension : public IExtension {
+IE_SUPPRESS_DEPRECATED_START_WIN
+class INFERENCE_ENGINE_API_CLASS(Extension) : public IExtension {
 public:
     /**
      * @brief Loads extension from a shared library
@@ -69,13 +71,17 @@ public:
     }
 
     /**
+     * @deprecated IErrorListener is not used anymore. StatusCode is provided in case of unexpected situations
      * @brief Sets a log callback that is used to track what is going on inside
      *
      * @param listener Logging listener
      */
+    IE_SUPPRESS_DEPRECATED_START
+    INFERENCE_ENGINE_DEPRECATED("IErrorListener is not used anymore. StatusCode is provided in case of unexpected situations")
     void SetLogCallback(InferenceEngine::IErrorListener& listener) noexcept override {
         actual->SetLogCallback(listener);
     }
+    IE_SUPPRESS_DEPRECATED_END
 
     /**
      * @brief Cleans the resources up
@@ -90,6 +96,7 @@ public:
     void Release() noexcept override {}
 
     /**
+     * @deprecated Use IExtension::getImplTypes to get implementation types for a particular node
      * @brief Gets the array with types of layers which are included in the extension
      *
      * @param types Types array
@@ -97,11 +104,15 @@ public:
      * @param resp Response descriptor
      * @return Status code
      */
+    INFERENCE_ENGINE_DEPRECATED("Use IExtension::getImplTypes to get implementation types for a particular node")
     StatusCode getPrimitiveTypes(char**& types, unsigned int& size, ResponseDesc* resp) noexcept override {
+        IE_SUPPRESS_DEPRECATED_START
         return actual->getPrimitiveTypes(types, size, resp);
+        IE_SUPPRESS_DEPRECATED_END
     }
 
     /**
+     * @deprecated Use IExtension::getImplementation to get a concrete implementation
      * @brief Gets the factory with implementations for a given layer
      *
      * @param factory Factory with implementations
@@ -109,13 +120,70 @@ public:
      * @param resp Response descriptor
      * @return Status code
      */
+    IE_SUPPRESS_DEPRECATED_START
+    INFERENCE_ENGINE_DEPRECATED("Use IExtension::getImplementation to get a concrete implementation")
     StatusCode getFactoryFor(ILayerImplFactory*& factory, const CNNLayer* cnnLayer,
                              ResponseDesc* resp) noexcept override {
         return actual->getFactoryFor(factory, cnnLayer, resp);
     }
+    IE_SUPPRESS_DEPRECATED_END
 
+    /**
+     * @deprecated Implement ngraph::op::Op::validate_and_infer_types method in a custom ngraph operation
+     * @brief Gets shape propagation implementation for the given string-type of CNNLayer
+     *
+     * @param impl the vector with implementations which is ordered by priority
+     * @param type A type of CNNLayer
+     * @param resp response descriptor
+     * @return status code
+     */
+    IE_SUPPRESS_DEPRECATED_START
+    INFERENCE_ENGINE_DEPRECATED("Implement ngraph::op::Op::validate_and_infer_types method in a custom ngraph operation")
     StatusCode getShapeInferImpl(IShapeInferImpl::Ptr& impl, const char* type, ResponseDesc* resp) noexcept override {
         return actual->getShapeInferImpl(impl, type, resp);
+    }
+    IE_SUPPRESS_DEPRECATED_END
+
+    /**
+     * @deprecated Implement ngraph::op::Op::validate_and_infer_types method in a custom ngraph operation
+     * @brief Gets the array with types of layers which are included in the extension
+     *
+     * @param types Types array
+     * @param size Size of the types array
+     * @param resp Response descriptor
+     * @return Status code
+     */
+    INFERENCE_ENGINE_DEPRECATED("Implement ngraph::op::Op::validate_and_infer_types method in a custom ngraph operation")
+    StatusCode getShapeInferTypes(char**& types, unsigned int& size, ResponseDesc* resp) noexcept override {
+        IE_SUPPRESS_DEPRECATED_START
+        return actual->getShapeInferTypes(types, size, resp);
+        IE_SUPPRESS_DEPRECATED_END
+    }
+
+    /**
+     * @brief Returns operation sets
+     * This method throws an exception if it was not implemented
+     * @return map of opset name to opset
+     */
+    std::map<std::string, ngraph::OpSet> getOpSets() override;
+
+    /**
+     * @brief Returns vector of implementation types
+     * @param node shared pointer to nGraph op
+     * @return vector of strings
+     */
+    std::vector<std::string> getImplTypes(const std::shared_ptr<ngraph::Node>& node) override {
+        return actual->getImplTypes(node);
+    }
+
+    /**
+     * @brief Returns implementation for specific nGraph op
+     * @param node shared pointer to nGraph op
+     * @param implType implementation type
+     * @return shared pointer to implementation
+     */
+    ILayerImpl::Ptr getImplementation(const std::shared_ptr<ngraph::Node>& node, const std::string& implType) override {
+        return actual->getImplementation(node, implType);
     }
 
 protected:
@@ -126,9 +194,11 @@ protected:
 };
 
 /**
+ * @deprecated Use a common Extension class
  * @brief This class is a C++ helper to work with objects created using extensions.
  */
-class ShapeInferExtension : public IShapeInferExtension {
+class INFERENCE_ENGINE_DEPRECATED("Use a common Extension interface") ShapeInferExtension :
+    public IShapeInferExtension {
 public:
     /**
      * @brief Loads extension from a shared library
@@ -147,13 +217,17 @@ public:
     }
 
     /**
+     * @brief IErrorListener is not used anymore. StatusCode is provided in case of unexpected situations
      * @brief Sets a log callback that is used to track what is going on inside
      *
      * @param listener Logging listener
      */
+    IE_SUPPRESS_DEPRECATED_START
+    INFERENCE_ENGINE_DEPRECATED("IErrorListener is not used anymore. StatusCode is provided in case of unexpected situations")
     void SetLogCallback(InferenceEngine::IErrorListener& listener) noexcept override {
         actual->SetLogCallback(listener);
     }
+    IE_SUPPRESS_DEPRECATED_END
 
     /**
      * @brief Cleans the resources up
@@ -167,27 +241,18 @@ public:
      */
     void Release() noexcept override {}
 
-    /**
-     * @brief Gets the array with types of layers which are included in the extension
-     *
-     * @param types Types array
-     * @param size Size of the types array
-     * @param resp Response descriptor
-     * @return Status code
-     */
+    INFERENCE_ENGINE_DEPRECATED("Implement ngraph::op::Op::validate_and_infer_types method in a custom ngraph operation")
     StatusCode getShapeInferTypes(char**& types, unsigned int& size, ResponseDesc* resp) noexcept override {
+        IE_SUPPRESS_DEPRECATED_START
         return actual->getShapeInferTypes(types, size, resp);
+        IE_SUPPRESS_DEPRECATED_END
     }
 
-    /**
-     * @brief Gets shape propagation implementation for the given string-type of cnn Layer
-     *
-     * @param impl the vector with implementations which is ordered by priority
-     * @param resp response descriptor
-     * @return status code
-     */
+    INFERENCE_ENGINE_DEPRECATED("Implement ngraph::op::Op::validate_and_infer_types method in a custom ngraph operation")
     StatusCode getShapeInferImpl(IShapeInferImpl::Ptr& impl, const char* type, ResponseDesc* resp) noexcept override {
+        IE_SUPPRESS_DEPRECATED_START
         return actual->getShapeInferImpl(impl, type, resp);
+        IE_SUPPRESS_DEPRECATED_END
     }
 
 protected:
@@ -196,8 +261,10 @@ protected:
      */
     InferenceEngine::details::SOPointer<IShapeInferExtension> actual;
 };
+IE_SUPPRESS_DEPRECATED_END_WIN
 
 /**
+ * @deprecated Use make_so_pointer with IExtension as template argument type.
  * @brief Creates a special shared_pointer wrapper for the given type from a specific shared module
  *
  * @param name Name of the shared library file
@@ -205,7 +272,9 @@ protected:
  */
 template <>
 inline std::shared_ptr<IShapeInferExtension> make_so_pointer(const file_name_t& name) {
+    IE_SUPPRESS_DEPRECATED_START
     return std::make_shared<ShapeInferExtension>(name);
+    IE_SUPPRESS_DEPRECATED_END
 }
 
 /**

@@ -30,6 +30,7 @@ void PassImpl::run(const Model& model) {
     VPU_PROFILE(splitHwConvAndPool);
 
     const auto& env = CompileEnv::get();
+    const auto cmxLimit = tilingCMXLimit(env.resources.numCMXSlices);
 
     for (const auto& convStage : model->getStages()) {
         if (convStage == nullptr) {
@@ -57,7 +58,7 @@ void PassImpl::run(const Model& model) {
 
         // TODO : better estimation?
         auto outBufSize = calculateHwBufferSize(convOutput->desc().dims());
-        if (outBufSize <= env.resources.cmxLimit) {
+        if (outBufSize <= cmxLimit) {
             continue;
         }
 
@@ -93,7 +94,7 @@ void PassImpl::run(const Model& model) {
                 curOutDims.set(Dim::C, curTileSize);
 
                 auto curOutBufSize = calculateHwBufferSize(curOutDims);
-                if (curOutBufSize <= env.resources.cmxLimit) {
+                if (curOutBufSize <= cmxLimit) {
                     tileSize = curTileSize;
                     break;
                 }

@@ -105,6 +105,17 @@ PassSet::Ptr PassManager::buildMiddleEnd() {
     ADD_DUMP_PASS("replacePriorBoxWithConst");
 
     //
+    // 3D layers adaptation
+    // (do this before `analyzeWeightableLayers`)
+    //
+
+    ADD_PASS(splitConv3DInto2D);
+    ADD_DUMP_PASS("splitConv3DInto2D");
+
+    ADD_PASS(splitPool3DInto2D);
+    ADD_DUMP_PASS("splitPool3DInto2D");
+
+    //
     // To overcome fp16 limitations
     //
 
@@ -129,14 +140,14 @@ PassSet::Ptr PassManager::buildMiddleEnd() {
     // Model common adaptation
     //
 
-    ADD_PASS(removeUnusedStagesOutputs);
-    ADD_DUMP_PASS("removeUnusedStagesOutputs");
-
     ADD_PASS(eliminateConstConcat);
     ADD_DUMP_PASS("eliminateConstConcat");
 
     ADD_PASS(splitGroupedConv);
     ADD_DUMP_PASS("splitGroupedConv");
+
+    ADD_PASS(eliminateRedundantConversions);
+    ADD_DUMP_PASS("eliminateRedundantConversions");
 
     //
     // Model HW-specific optimizations
@@ -145,6 +156,10 @@ PassSet::Ptr PassManager::buildMiddleEnd() {
     if (env.config.hwOptimization) {
         ADD_PASS(replaceFCbyConv);
         ADD_DUMP_PASS("replaceFCbyConv");
+
+        // TODO: enable this pass after Permute optimization
+        // ADD_PASS(replaceGemmByConv);
+        // ADD_DUMP_PASS("replaceGemmByConv");
 
         ADD_PASS(replaceDeconvByConv);
         ADD_DUMP_PASS("replaceDeconvByConv");
@@ -201,6 +216,11 @@ PassSet::Ptr PassManager::buildMiddleEnd() {
         ADD_PASS(hwPoolTiling);
         ADD_PASS(hwFullyConnectedTiling);
         ADD_DUMP_PASS("hwTiling");
+
+        if (env.config.hwExtraSplit) {
+            ADD_PASS(hwExtraSplit);
+            ADD_DUMP_PASS("hwExtraSplit");
+        }
     }
 
     //

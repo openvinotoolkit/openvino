@@ -49,7 +49,7 @@ KernelsData FullyConnected_bf_io_ref::GetKernelsData(const Params& params, const
         KernelsData kd = GetTunedKernelsDataByIndex(params,
                                                     optParams,
                                                     DataLayout::bf,
-                                                    {WeightsLayout::io},
+                                                    WeightsLayout::io,
                                                     DONT_USE_IF_HAVE_SOMETHING_ELSE,
                                                     static_cast<int>(i));
         if (!kd.empty()) {

@@ -101,8 +101,8 @@ TEST(tensor_api, linear_offsets) {
     test_tensor_offset({ 2, 5, 4, 3, 5 }, { 1, 3, 1, 2, 4 }, cldnn::format::bfzyx, 537);
 
     // Blocked formats:
-    test_tensor_offset({ 2, 5, 4, 3 }, { 1, 3, 1, 2 }, cldnn::format::bfyx_f16, 339);
-    test_tensor_offset({ 2, 19, 4, 3 }, { 1, 18, 3, 2 }, cldnn::format::bfyx_f16, 754);
+    test_tensor_offset({ 2, 5, 4, 3 }, { 1, 3, 1, 2 }, cldnn::format::b_fs_yx_fsv16, 339);
+    test_tensor_offset({ 2, 19, 4, 3 }, { 1, 18, 3, 2 }, cldnn::format::b_fs_yx_fsv16, 754);
     test_tensor_offset({ 2, 5, 4, 3 }, { 1, 3, 1, 2 }, cldnn::format::fs_b_yx_fsv32, 675);
     test_tensor_offset({ 2, 37, 4, 3 }, { 1, 35, 3, 2 }, cldnn::format::fs_b_yx_fsv32, 1507);
 

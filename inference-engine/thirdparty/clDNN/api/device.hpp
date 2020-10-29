@@ -51,6 +51,8 @@ struct device_info {
     uint8_t supports_imad;   ///< Does engine support int8 mad.
     uint8_t supports_immad;  ///< Does engine support int8 multi mad.
 
+    uint8_t supports_usm;    ///< Does engine support unified shared memory.
+
     std::string dev_name;     ///< Device ID string
     std::string driver_version;  ///< Version of OpenCL driver
 };

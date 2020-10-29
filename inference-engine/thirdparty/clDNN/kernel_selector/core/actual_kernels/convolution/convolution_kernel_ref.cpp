@@ -87,9 +87,9 @@ JitConstants ConvolutionKernel_Ref::GetJitConstants(const convolution_params& pa
     if (!params.fused_ops.empty()) {
         std::vector<std::string> idx_order;
         if (DataTensor::ChannelsCount(params.output.GetLayout()) == 4) {
-            idx_order = {"b", "of", "y", "x"};
+            idx_order = {"b", "f", "y", "x"};
         } else if (DataTensor::ChannelsCount(params.output.GetLayout()) == 5) {
-            idx_order = {"b", "of", "z", "y", "x"};
+            idx_order = {"b", "f", "z", "y", "x"};
         }
 
         FusedOpsConfiguration conf = {"", idx_order, "dequantized", activation_dt, 1};

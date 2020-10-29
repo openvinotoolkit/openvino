@@ -35,8 +35,8 @@ protected:
     JitConstants GetJitConstants(const convolution_params& params, const DispatchData& kd) const override;
     DispatchData SetDefault(const convolution_params& params, int autoTuneIndex = -1) const override;
     bool NeedPaddedInput() const override { return true; }
-    std::vector<WeightsLayout> GetSupportedWeightLayouts(const convolution_params&) const override {
-        return { WeightsLayout::os_is_yx_osv16_isv4 };
+    WeightsLayout GetPreferredWeightsLayout(const convolution_params &) const override {
+        return WeightsLayout::os_is_yx_osv16_isv4;
     }
 
     std::vector<FusedOpType> GetSupportedFusedOps() const override {

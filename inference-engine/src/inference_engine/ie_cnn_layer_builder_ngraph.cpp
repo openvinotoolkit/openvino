@@ -4,98 +4,15 @@
 
 #include <ie_cnn_layer_builder_ngraph.h>
 #include "cnn_network_ngraph_impl.hpp"
-#include <ie_layer_parsers.h>
 #include <precision_utils.h>
-
+#include <cpp/ie_cnn_network.h>
 
 #include <limits>
 #include <cmath>
 #include <ngraph/ngraph.hpp>
-#include <ngraph/type.hpp>
-#include <ngraph/node.hpp>
-#include <ngraph/op/abs.hpp>
-#include <ngraph/op/acos.hpp>
-#include <ngraph/op/add.hpp>
-#include <ngraph/op/asin.hpp>
-#include <ngraph/op/atan.hpp>
-#include <ngraph/op/avg_pool.hpp>
-#include <ngraph/op/batch_norm.hpp>
-#include <ngraph/op/broadcast.hpp>
-#include <ngraph/op/ceiling.hpp>
-#include <ngraph/op/concat.hpp>
-#include <ngraph/op/constant.hpp>
-#include <ngraph/op/convolution.hpp>
-#include <ngraph/op/cos.hpp>
-#include <ngraph/op/cosh.hpp>
-#include <ngraph/op/deformable_convolution.hpp>
-#include <ngraph/op/deformable_psroi_pooling.hpp>
-#include <ngraph/op/divide.hpp>
-#include <ngraph/op/exp.hpp>
-#include <ngraph/op/experimental/dyn_reshape.hpp>
-#include <ngraph/op/experimental/layers/ctc_greedy_decoder.hpp>
-#include <ngraph/op/experimental/layers/detection_output.hpp>
-#include <ngraph/op/experimental/layers/interpolate.hpp>
-#include <ngraph/op/experimental/layers/prior_box.hpp>
-#include <ngraph/op/experimental/layers/prior_box_clustered.hpp>
-#include <ngraph/op/experimental/layers/proposal.hpp>
-#include <ngraph/op/experimental/layers/psroi_pooling.hpp>
-#include <ngraph/op/experimental/layers/region_yolo.hpp>
-#include <ngraph/op/experimental/layers/reorg_yolo.hpp>
-#include <ngraph/op/experimental/layers/roi_pooling.hpp>
-#include <ngraph/op/experimental/range.hpp>
-#include <ngraph/op/experimental/shape_of.hpp>
-#include <ngraph/op/experimental/transpose.hpp>
-#include <ngraph/op/floor.hpp>
-#include <ngraph/op/fused/clamp.hpp>
-#include <ngraph/op/fused/conv_fused.hpp>
-#include <ngraph/op/fused/elu.hpp>
-#include <ngraph/op/fused/group_conv.hpp>
-#include <ngraph/op/fused/grn.hpp>
-#include <ngraph/op/fused/hard_sigmoid.hpp>
-#include <ngraph/op/fused/mvn.hpp>
-#include <ngraph/op/fused/normalize_l2.hpp>
-#include <ngraph/op/fused/prelu.hpp>
-#include <ngraph/op/fused/split.hpp>
-#include <ngraph/op/fused/squared_difference.hpp>
-#include <ngraph/op/gather.hpp>
-#include <ngraph/op/less.hpp>
-#include <ngraph/op/log.hpp>
-#include <ngraph/op/lrn.hpp>
-#include <ngraph/op/max_pool.hpp>
-#include <ngraph/op/maximum.hpp>
-#include <ngraph/op/multiply.hpp>
-#include <ngraph/op/non_max_suppression.hpp>
-#include <ngraph/op/pad.hpp>
-#include <ngraph/op/parameter.hpp>
-#include <ngraph/op/power.hpp>
-#include <ngraph/op/reduce_mean.hpp>
-#include <ngraph/op/reduce_prod.hpp>
-#include <ngraph/op/reduce_sum.hpp>
-#include <ngraph/op/relu.hpp>
-#include <ngraph/op/reshape.hpp>
-#include <ngraph/op/reverse_sequence.hpp>
-#include <ngraph/op/select.hpp>
-#include <ngraph/op/sigmoid.hpp>
-#include <ngraph/op/sin.hpp>
-#include <ngraph/op/sinh.hpp>
-#include <ngraph/op/softmax.hpp>
-#include <ngraph/op/sqrt.hpp>
-#include <ngraph/op/subtract.hpp>
-#include <ngraph/op/tan.hpp>
-#include <ngraph/op/tanh.hpp>
-#include <ngraph/op/tensor_iterator.hpp>
-#include <ngraph/shape.hpp>
-#include <ngraph_ops/lstm_cell_ie.hpp>
-#include <ngraph/op/and.hpp>
-#include <ngraph/op/not.hpp>
-#include <ngraph/op/or.hpp>
-#include <ngraph/op/reduce_logical_and.hpp>
-#include <ngraph/op/reduce_logical_or.hpp>
-#include <ngraph/op/xor.hpp>
 #include <set>
 #include <sstream>
 #include <utility>
-
 
 #include "graph_tools.hpp"
 #include "net_pass.h"
@@ -106,11 +23,9 @@
 #include "ngraph_ops/fully_connected.hpp"
 #include "ngraph_ops/gather_ie.hpp"
 #include "ngraph_ops/gather_tree_ie.hpp"
-#include "ngraph_ops/gemm.hpp"
-#include "ngraph_ops/generic_ie.hpp"
-#include "ngraph_ops/group_conv_bias.hpp"
 #include "ngraph_ops/interp.hpp"
 #include "ngraph_ops/lrn_ie.hpp"
+#include <ngraph_ops/lstm_cell_ie.hpp>
 #include "ngraph_ops/normalize_ie.hpp"
 #include "ngraph_ops/nms_ie.hpp"
 #include "ngraph_ops/onehot_ie.hpp"
@@ -119,24 +34,22 @@
 #include "ngraph_ops/prior_box_clustered_ie.hpp"
 #include "ngraph_ops/prior_box_ie.hpp"
 #include "ngraph_ops/proposal_ie.hpp"
-#include "ngraph_ops/quantize_conv_bias_fused.hpp"
 #include "ngraph_ops/relu_ie.hpp"
 #include "ngraph_ops/selu_ie.hpp"
 #include "ngraph_ops/scaleshift.hpp"
-#include "ngraph_ops/tensor_iterator.hpp"
 #include "ngraph_ops/tile_ie.hpp"
 #include "ngraph_ops/topk_ie.hpp"
 #include "ngraph_ops/strided_slice_ie.hpp"
 #include "ngraph_ops/hard_sigmoid_ie.hpp"
+#include "generic_ie.hpp"
 
-#include "ie_ngraph_utils.hpp"
 #include "graph_transformer.h"
 
 namespace InferenceEngine {
 namespace Builder {
 
 template <>
-inline std::string INodeConverter::asString<double>(const double& value) {
+std::string asString<double>(const double& value) {
     std::ostringstream sStrm;
     sStrm.precision(std::numeric_limits<double>::digits10);
     sStrm << std::fixed << value;
@@ -152,7 +65,7 @@ inline std::string INodeConverter::asString<double>(const double& value) {
 }
 
 template <>
-inline std::string INodeConverter::asString<float>(const float& value) {
+std::string asString<float>(const float& value) {
     return asString(static_cast<double>(value));
 }
 
@@ -486,6 +399,9 @@ CNNLayer::Ptr NodeConverter<ngraph::op::Convert>::createLayer(const std::shared_
         break;
     case Precision::I64:
         precision_str = "I64";
+        break;
+    case Precision::U64:
+        precision_str = "U64";
         break;
     case Precision::U8:
         precision_str = "U8";
@@ -942,88 +858,6 @@ CNNLayer::Ptr NodeConverter<ngraph::op::DeconvolutionIE>::createLayer(
 }
 
 template <>
-CNNLayer::Ptr NodeConverter<ngraph::op::v1::BinaryConvolution>::createLayer(
-        const std::shared_ptr<ngraph::Node>& layer) const {
-    LayerParams params = {layer->get_friendly_name(), "BinaryConvolution",
-                          details::ngraph::convertPrecision(layer->get_output_element_type(0))};
-    auto res = std::make_shared<InferenceEngine::BinaryConvolutionLayer>(params);
-    auto castedLayer = ngraph::as_type_ptr<ngraph::op::v1::BinaryConvolution>(layer);
-    if (castedLayer == nullptr) THROW_IE_EXCEPTION << "Cannot get " << params.type << " layer " << params.name;
-
-    std::string value;
-    for (const auto& val : castedLayer->get_pads_begin()) {
-        if (!value.empty()) value += ",";
-        value += asString(val);
-    }
-    res->params["pads_begin"] = value;
-
-    value.clear();
-    for (const auto& val : castedLayer->get_pads_end()) {
-        if (!value.empty()) value += ",";
-        value += asString(val);
-    }
-    res->params["pads_end"] = value;
-
-    switch (castedLayer->get_auto_pad()) {
-        case ngraph::op::PadType::SAME_UPPER:
-            res->params["auto_pad"] = "same_upper";
-            break;
-        case ngraph::op::PadType::SAME_LOWER:
-            res->params["auto_pad"] = "same_lower";
-            break;
-        case ngraph::op::PadType::VALID:
-            res->params["auto_pad"] = "valid";
-            break;
-        default:
-            break;
-    }
-
-    value.clear();
-    for (const auto& val : castedLayer->get_strides()) {
-        if (!value.empty()) value += ",";
-        value += asString(val);
-    }
-    res->params["strides"] = value;
-
-    value.clear();
-    for (const auto& val : castedLayer->get_dilations()) {
-        if (!value.empty()) value += ",";
-        value += asString(val);
-    }
-    res->params["dilations"] = value;
-
-    // Restore kernel size and output
-    const auto& shape = castedLayer->get_input_shape(1);
-    res->params["output"] = asString(shape[0]);
-
-    value.clear();
-    for (size_t i = 2; i < shape.size(); i++) {
-        if (!value.empty()) value += ",";
-        value += asString(shape[i]);
-    }
-    res->params["kernel"] = value;
-
-    switch (castedLayer->get_mode()) {
-        case ngraph::op::v1::BinaryConvolution::BinaryConvolutionMode::XNOR_POPCOUNT:
-            res->params["mode"] = "xnor-popcount";
-    }
-
-    auto weights_shape = castedLayer->input(1).get_source_output().get_shape();
-    res->params["input"] = asString(weights_shape[1]);
-    res->params["pad_value"] = asString(castedLayer->get_pad_value());
-
-    NodeConverter<ngraph::op::Constant> converter;
-
-    const auto weightsNode = castedLayer->get_inputs()[1].get_output().get_node();
-    if (converter.canCreate(weightsNode)) {
-        const auto& weights = converter.createLayer(weightsNode);
-        res->blobs["weights"] = weights->blobs["custom"];
-        res->_weights = weights->blobs["custom"];
-    }
-    return res;
-}
-
-template <>
 CNNLayer::Ptr NodeConverter<ngraph::op::v1::DeformableConvolution>::createLayer(
         const std::shared_ptr<ngraph::Node>& layer) const {
     LayerParams params = {layer->get_friendly_name(), "DeformableConvolution",
@@ -1088,13 +922,9 @@ CNNLayer::Ptr NodeConverter<ngraph::op::v1::DeformableConvolution>::createLayer(
     res->params["group"] = asString(castedLayer->get_group());
     res->params["deformable_group"] = asString(castedLayer->get_deformable_group());
 
-    auto & rt_info = layer->get_rt_info();
-    InferenceEngine::Parameter attr(rt_info["keep_constants"]);
-    bool keep_constants = attr.as<bool>();
-
     NodeConverter<ngraph::op::Constant> converter;
     const auto weightsNode = castedLayer->input_value(2).get_node_shared_ptr();
-    if (!keep_constants && converter.canCreate(weightsNode)) {
+    if (converter.canCreate(weightsNode)) {
         const auto& weights = converter.createLayer(weightsNode);
         res->blobs["weights"] = weights->blobs["custom"];
         res->_weights = weights->blobs["custom"];
@@ -1706,10 +1536,35 @@ CNNLayer::Ptr NodeConverter<ngraph::op::PriorBoxIE>::createLayer(const std::shar
                           details::ngraph::convertPrecision(layer->get_output_element_type(0))};
     auto res = std::make_shared<InferenceEngine::CNNLayer>(params);
     auto castedLayer = ngraph::as_type_ptr<ngraph::op::PriorBoxIE>(layer);
-    if (castedLayer == nullptr) THROW_IE_EXCEPTION << "Cannot get " << params.type << " layer " << params.name;
+    auto layer_info = params.type + " layer " + params.name;
+
+    if (castedLayer == nullptr) THROW_IE_EXCEPTION << "Cannot get " << layer_info;
 
     auto attr = castedLayer->get_attrs();
     std::string param;
+
+    auto data_pshape = castedLayer->get_input_partial_shape(0);
+    if (data_pshape.is_dynamic()) THROW_IE_EXCEPTION << "Dynamic 0-port input of " << layer_info << " is not supported";
+    auto data_shape = data_pshape.to_shape();
+    if (data_shape.size() != 4) THROW_IE_EXCEPTION << layer_info << " has " << data_shape.size() << " items in 0-port input, 4 expected";
+
+    auto img_pshape = castedLayer->get_input_partial_shape(1);
+    if (img_pshape.is_dynamic()) THROW_IE_EXCEPTION << "Dynamic 1-port input of " << layer_info << " is not supported";
+    auto img_shape = img_pshape.to_shape();
+    if (img_shape.size() != 4) THROW_IE_EXCEPTION << layer_info << " has " << data_shape.size() << " items in 1-port input, 4 expected";
+
+    if (!attr.scale_all_sizes) {
+        // mxnet-like PriorBox
+        auto img_H = img_shape[2];
+        auto data_H = data_shape[2];
+        if (attr.step == -1)
+            attr.step = 1. * img_H / data_H;
+        else
+            attr.step *= img_H;
+        for (auto& size : attr.min_size)
+            size *= img_H;
+    }
+
     for (const auto& val : attr.max_size) {
         if (!param.empty()) param += ",";
         param += asString(val);
@@ -2015,11 +1870,11 @@ CNNLayer::Ptr NodeConverter<ngraph::op::LSTMCellIE>::createLayer(const std::shar
 }
 
 template <>
-CNNLayer::Ptr NodeConverter<ngraph::op::GemmIE>::createLayer(const std::shared_ptr<ngraph::Node>& layer) const {
+CNNLayer::Ptr NodeConverter<ngraph::op::MatMul>::createLayer(const std::shared_ptr<ngraph::Node>& layer) const {
     LayerParams params = {layer->get_friendly_name(), "Gemm",
                           details::ngraph::convertPrecision(layer->get_output_element_type(0))};
 
-    auto castedLayer = ngraph::as_type_ptr<ngraph::op::GemmIE>(layer);
+    auto castedLayer = ngraph::as_type_ptr<ngraph::op::MatMul>(layer);
     if (castedLayer == nullptr) THROW_IE_EXCEPTION << "Cannot get " << params.type << " layer " << params.name;
 
     auto res = std::make_shared<InferenceEngine::GemmLayer>(params);

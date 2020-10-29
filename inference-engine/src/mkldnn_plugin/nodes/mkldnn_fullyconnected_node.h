@@ -38,12 +38,15 @@ public:
     const mkldnn::memory& getBias() const;
 
 protected:
-    std::shared_ptr<mkldnn::primitive_attr> initPrimitiveAttr() const override;
+    std::shared_ptr<mkldnn::primitive_attr> initPrimitiveAttr();
 
 private:
     InferenceEngine::SizeVector weightsDims;
     InferenceEngine::SizeVector biasesDims;
     mkldnn::memory::format weightsFormatForSrcFormat(mkldnn::memory::format sourceFormat);
+
+    std::vector<MKLDNNMemoryPtr> PostOpsIntBlobMemory;
+    void setPostOps(mkldnn::primitive_attr &attr, bool initWeights);
 
     InferenceEngine::Blob::Ptr wScale, oScale;
 

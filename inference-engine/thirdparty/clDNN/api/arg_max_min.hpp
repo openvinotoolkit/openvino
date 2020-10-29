@@ -1,5 +1,5 @@
 /*
-// Copyright (c) 2018 Intel Corporation
+// Copyright (c) 2018-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -51,7 +51,7 @@ struct arg_max_min : public primitive_base<arg_max_min> {
     /// @brief Constructs arg_max_min primitive.
     /// @param id This primitive id.
     /// @param input Input primitive id.
-    /// @param out_type Type of output - max or mix.
+    /// @param out_type Type of output - max or min.
     /// @param top_k Number of indices to output.
     /// @param axis Axis to maximize/minimize along.
     arg_max_min(const primitive_id& id,
@@ -73,7 +73,7 @@ struct arg_max_min : public primitive_base<arg_max_min> {
 
     /// @brief Number of indices to output.
     uint32_t top_k;
-    /// @brief Type of output - max or mix.
+    /// @brief Type of output - max or min.
     out_type output_type;
     /// @brief Axis to maximize/minimize along. If not set, maximize the flattened trailing dimensions for each index of the batch dimension.
     axis_name axis;

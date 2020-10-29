@@ -21,11 +21,11 @@
 
 namespace kernel_selector {
 
-class ConvolutionKernel_MMAD_b_fs_yx_fsv32 : public ConvolutionKernelBase {
+class ConvolutionKernel_mmad_b_fs_yx_fsv32 : public ConvolutionKernelBase {
 public:
     using Parent = ConvolutionKernelBase;
-    ConvolutionKernel_MMAD_b_fs_yx_fsv32() : ConvolutionKernelBase("convolution_gpu_mmad_b_fs_yx_fsv32") {}
-    virtual ~ConvolutionKernel_MMAD_b_fs_yx_fsv32() {}
+    ConvolutionKernel_mmad_b_fs_yx_fsv32() : ConvolutionKernelBase("convolution_gpu_mmad_b_fs_yx_fsv32") {}
+    virtual ~ConvolutionKernel_mmad_b_fs_yx_fsv32() {}
 
     KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
     KernelsData GetKernelsDataForAutoTune(const Params& params, const optional_params& options) const override;
@@ -37,15 +37,11 @@ protected:
     DispatchData SetDefault(const convolution_params& arg, int autoTuneIndex = -1) const override;
     bool NeedPaddedInput() const override { return false; }
 
-    std::vector<WeightsLayout> GetSupportedWeightLayouts(const convolution_params& p) const override {
+    WeightsLayout GetPreferredWeightsLayout(const convolution_params &p) const override {
         if (DataTensor::ChannelsCount(p.output.GetLayout()) <= 4) {
-            return {
-                WeightsLayout::os_is_yx_osa4_isa8_osv8_isv4_swizzled_by_4,
-            };
+            return WeightsLayout::os_is_yx_osa4_isa8_osv8_isv4_swizzled_by_4;
         } else {
-            return {
-                WeightsLayout::os_is_zyx_osa4_isa8_osv8_isv4_swizzled_by_4,
-            };
+            return WeightsLayout::os_is_zyx_osa4_isa8_osv8_isv4_swizzled_by_4;
         }
     }
     std::vector<FusedOpType> GetSupportedFusedOps() const override {

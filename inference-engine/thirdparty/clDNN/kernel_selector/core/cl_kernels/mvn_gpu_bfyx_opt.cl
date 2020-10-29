@@ -1,4 +1,4 @@
-// Copyright (c) 2018 Intel Corporation
+// Copyright (c) 2018-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,17 +14,16 @@
 
 #include "include/common.cl"
 #include "include/data_types.cl"
-
-
-#if FP16_UNIT_USED
-    #define UNIT_CVT_FUNC(val) convert_half(val)
-#else
-    #define UNIT_CVT_FUNC(val) (val)
-#endif
+#include "include/fetch.cl"
 
 __attribute__((reqd_work_group_size(LWS, 1, 1)))
-KERNEL (mvn_gpu_bfyx_opt)(const __global UNIT_TYPE* input, __global UNIT_TYPE* output)
-{
+KERNEL (mvn_gpu_bfyx_opt)(
+    const __global INPUT0_TYPE* input,
+    __global OUTPUT_TYPE* restrict output
+#if HAS_FUSED_OPS_DECLS
+    , FUSED_OPS_DECLS
+#endif
+) {
     const uint data_set_idx = get_global_id(1);     //in processing of which data set this WI participates?
     const uint workers_per_data_set = LWS;          //how many WI participates in processing of one data set
     const uint in_data_set_idx = get_global_id(0);  //this WI's id in group of items processing single data set
@@ -34,7 +33,7 @@ KERNEL (mvn_gpu_bfyx_opt)(const __global UNIT_TYPE* input, __global UNIT_TYPE* o
     const uint data_set_offset = data_set_idx * data_set_size;
     const uint my_data_offset = data_set_offset + in_data_set_idx;
 
-    float my_sum = 0.f;
+    float my_sum = 0;
     float tmp;
 
     __local float lg_storage[LWS];
@@ -65,10 +64,26 @@ KERNEL (mvn_gpu_bfyx_opt)(const __global UNIT_TYPE* input, __global UNIT_TYPE* o
     my_sum = lg_storage[0];
 
 #if NORMALIZE_VARIANCE == 0
-    for (uint i=0; i<ITEMS_NUM; ++i)
-        output[my_data_offset + i * workers_per_data_set] = ACTIVATION(UNIT_CVT_FUNC(input[my_data_offset + i * workers_per_data_set]) - UNIT_CVT_FUNC(my_sum), ACTIVATION_PARAMS);
-    if (in_data_set_idx < LEFTOVERS)
-        output[data_set_offset + workers_per_data_set * ITEMS_NUM + in_data_set_idx] = ACTIVATION(UNIT_CVT_FUNC(input[data_set_offset + workers_per_data_set * ITEMS_NUM + in_data_set_idx]) - UNIT_CVT_FUNC(my_sum), ACTIVATION_PARAMS);
+    for (uint i=0; i<ITEMS_NUM; ++i) {
+        uint iteration_in_data_set_offset = i * workers_per_data_set;
+        ACTIVATION_TYPE result = TO_ACTIVATION_TYPE(input[my_data_offset + iteration_in_data_set_offset]) - TO_ACTIVATION_TYPE(my_sum);
+#   if HAS_FUSED_OPS
+        FUSED_OPS;
+        output[my_data_offset + iteration_in_data_set_offset] = FUSED_OPS_RESULT;
+#   else
+        output[my_data_offset + iteration_in_data_set_offset] = TO_OUTPUT_TYPE(ACTIVATION(result, ACTIVATION_PARAMS));
+#   endif
+    }
+    if (in_data_set_idx < LEFTOVERS) {
+        uint iteration_in_data_set_offset = ITEMS_NUM * workers_per_data_set;
+        ACTIVATION_TYPE result = TO_ACTIVATION_TYPE(input[my_data_offset + iteration_in_data_set_offset]) - TO_ACTIVATION_TYPE(my_sum);
+#   if HAS_FUSED_OPS
+        FUSED_OPS;
+        output[my_data_offset + iteration_in_data_set_offset] = FUSED_OPS_RESULT;
+#   else
+        output[my_data_offset + iteration_in_data_set_offset] = TO_OUTPUT_TYPE(ACTIVATION(result, ACTIVATION_PARAMS));
+#   endif
+    }
 #else
     barrier(CLK_LOCAL_MEM_FENCE);
 
@@ -103,11 +118,26 @@ KERNEL (mvn_gpu_bfyx_opt)(const __global UNIT_TYPE* input, __global UNIT_TYPE* o
 
     my_variance = lg_storage[0];
 
-    for (uint i=0; i<ITEMS_NUM; ++i)
-        output[my_data_offset + i * workers_per_data_set] = ACTIVATION((UNIT_CVT_FUNC(input[my_data_offset + i * workers_per_data_set]) - UNIT_CVT_FUNC(my_sum)) * UNIT_CVT_FUNC(my_variance), ACTIVATION_PARAMS);
-    if (in_data_set_idx < LEFTOVERS)
-        output[data_set_offset + workers_per_data_set * ITEMS_NUM + in_data_set_idx] = ACTIVATION((UNIT_CVT_FUNC(input[data_set_offset + workers_per_data_set * ITEMS_NUM + in_data_set_idx]) - UNIT_CVT_FUNC(my_sum)) * UNIT_CVT_FUNC(my_variance), ACTIVATION_PARAMS);
+    for (uint i=0; i<ITEMS_NUM; ++i) {
+        uint iteration_in_data_set_offset = i * workers_per_data_set;
+        ACTIVATION_TYPE result = (TO_ACTIVATION_TYPE(input[my_data_offset + iteration_in_data_set_offset]) - TO_ACTIVATION_TYPE(my_sum)) * TO_ACTIVATION_TYPE(my_variance);
+#   if HAS_FUSED_OPS
+        FUSED_OPS;
+        output[my_data_offset + iteration_in_data_set_offset] = FUSED_OPS_RESULT;
+#   else
+        output[my_data_offset + iteration_in_data_set_offset] = TO_OUTPUT_TYPE(ACTIVATION(result, ACTIVATION_PARAMS));
+#   endif
+    }
+    if (in_data_set_idx < LEFTOVERS) {
+        uint iteration_in_data_set_offset = ITEMS_NUM * workers_per_data_set;
+        ACTIVATION_TYPE result = (TO_ACTIVATION_TYPE(input[my_data_offset + iteration_in_data_set_offset]) - TO_ACTIVATION_TYPE(my_sum)) * TO_ACTIVATION_TYPE(my_variance);
+#   if HAS_FUSED_OPS
+        FUSED_OPS;
+        output[my_data_offset + iteration_in_data_set_offset] = FUSED_OPS_RESULT;
+#   else
+        output[my_data_offset + iteration_in_data_set_offset] = TO_OUTPUT_TYPE(ACTIVATION(result, ACTIVATION_PARAMS));
+#   endif
+    }
 #endif
 }
 
-#undef UNIT_CVT_FUNC

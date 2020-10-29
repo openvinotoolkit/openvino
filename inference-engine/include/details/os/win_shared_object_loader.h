@@ -14,11 +14,15 @@
 #include "details/os/os_filesystem.hpp"
 
 // Avoidance of Windows.h to include winsock library.
-#define _WINSOCKAPI_
+#ifndef _WINSOCKAPI_
+# define _WINSOCKAPI_
+#endif
+
 // Avoidance of Windows.h to define min/max.
 #ifndef NOMINMAX
-#define NOMINMAX
+# define NOMINMAX
 #endif
+
 #include <direct.h>
 #include <windows.h>
 
@@ -45,6 +49,7 @@ private:
     }
 
 public:
+#ifdef ENABLE_UNICODE_PATH_SUPPORT
     /**
      * @brief Loads a library with the name specified. The library is loaded according to the
      *        WinAPI LoadLibrary rules
@@ -60,6 +65,7 @@ public:
                                << " from cwd: " << _getcwd(cwd, sizeof(cwd));
         }
     }
+#endif
 
     explicit SharedObjectLoader(LPCSTR pluginName) {
         ExcludeCurrentDirectory();

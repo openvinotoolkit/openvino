@@ -33,8 +33,8 @@ protected:
     JitConstants GetJitConstants(const fused_conv_eltwise_params& params, const DispatchData& kd) const override;
     DispatchData SetDefault(const fused_conv_eltwise_params& arg, int autoTuneIndex = -1) const override;
     bool Validate(const Params& p, const optional_params& o) const override;
-    std::vector<WeightsLayout> GetSupportedWeightLayouts(const fused_conv_eltwise_params&) const override {
-        return {WeightsLayout::os_is_osv32_isv32_swizzled_by_4};
+    WeightsLayout GetPreferreddWeightsLayout(const fused_conv_eltwise_params &) const override {
+        return WeightsLayout::os_is_osv32_isv32_swizzled_by_4;
     }
 };
 }  // namespace kernel_selector

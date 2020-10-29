@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2016 Intel Corporation
+﻿// Copyright (c) 2016-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -36,7 +36,7 @@ SoftmaxKernelRef::Parent::DispatchData SoftmaxKernelRef::SetDefault(const softma
     runInfo.lws1 = local[1];
     runInfo.lws2 = local[2];
 
-    runInfo.effiency = DONT_USE_IF_HAVE_SOMETHING_ELSE;
+    runInfo.efficiency = DONT_USE_IF_HAVE_SOMETHING_ELSE;
 
     return runInfo;
 }

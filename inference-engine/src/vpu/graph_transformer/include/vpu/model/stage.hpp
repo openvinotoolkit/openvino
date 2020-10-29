@@ -57,7 +57,7 @@ VPU_DECLARE_ENUM(StageType,
     Split,
     Reshape,
     Expand,
-    Shrink,
+    Crop,
     StridedSlice,
 
     Empty = -1,
@@ -88,7 +88,6 @@ VPU_DECLARE_ENUM(StageType,
     Deconvolution = 22,
     Elu = 23,
     Power = 26,
-    Crop = 27,
     Tile = 28,
     RegionYolo = 29,
     ReorgYolo = 30,
@@ -160,6 +159,8 @@ VPU_DECLARE_ENUM(StageType,
     PoolND = 118,
     LoopStart = 119,
     LoopEnd = 120,
+    ExpPriorGridGenerator = 121,
+    ExpGenerateProposals = 124,
 )
 
 //
@@ -223,6 +224,16 @@ VPU_DECLARE_ENUM(TopKSort,
     None = 0,
     Value = 1,
     Index = 2)
+
+//
+// TopKOutput
+//
+
+// Firmware implementations must be aligned with these values
+VPU_DECLARE_ENUM(TopKOutputs,
+    All = 0,
+    ValueOnly = 1,
+    IndexOnly = 2)
 
 //
 // StageDataInfo
@@ -426,11 +437,11 @@ private:
 public:
     inline int numInputs() const { return _inputEdges.size(); }
     inline StageInput inputEdge(int ind) const {
-        IE_ASSERT(ind >= 0 && ind < _inputEdges.size());
+        IE_ASSERT(ind >= 0 && static_cast<std::size_t>(ind) < _inputEdges.size());
         return _inputEdges[ind];
     }
     inline Data input(int ind) const {
-        IE_ASSERT(ind >= 0 && ind < _inputEdges.size());
+        IE_ASSERT(ind >= 0 && static_cast<std::size_t>(ind) < _inputEdges.size());
         return _inputEdges[ind]->input();
     }
     inline auto inputs() const -> decltype(mapRange<InputAccess>(inputEdges())) {
@@ -439,11 +450,11 @@ public:
 
     inline int numOutputs() const { return _outputEdges.size(); }
     inline StageOutput outputEdge(int ind) const {
-        IE_ASSERT(ind >= 0 && ind < _outputEdges.size());
+        IE_ASSERT(ind >= 0 && static_cast<std::size_t>(ind) < _outputEdges.size());
         return _outputEdges[ind];
     }
     inline Data output(int ind) const {
-        IE_ASSERT(ind >= 0 && ind < _outputEdges.size());
+        IE_ASSERT(ind >= 0 && static_cast<std::size_t>(ind) < _outputEdges.size());
         return _outputEdges[ind]->output();
     }
     inline auto outputs() const -> decltype(mapRange<OutputAccess>(outputEdges())) {
@@ -459,11 +470,11 @@ public:
 
     inline int numTempBuffers() const { return _tempBufferEdges.size(); }
     inline StageTempBuffer tempBufferEdge(int ind) const {
-        IE_ASSERT(ind >= 0 && ind < _tempBufferEdges.size());
+        IE_ASSERT(ind >= 0 && static_cast<std::size_t>(ind) < _tempBufferEdges.size());
         return _tempBufferEdges[ind];
     }
     inline Data tempBuffer(int ind) const {
-        IE_ASSERT(ind >= 0 && ind < _tempBufferEdges.size());
+        IE_ASSERT(ind >= 0 && static_cast<std::size_t>(ind) < _tempBufferEdges.size());
         return _tempBufferEdges[ind]->tempBuffer();
     }
     inline auto tempBuffers() const -> decltype(mapRange<TempBufferAccess>(tempBufferEdges())) {
@@ -607,8 +618,10 @@ void assertAllInputsOutputsTypes(const Stage& stage,
                                  const DataType& expectedInputsType,
                                  const DataType& expectedOutputsType);
 
+using DataTypesRequirement = std::vector<EnumSet<DataType>>;
+
 void assertInputsOutputsTypes(const Stage& stage,
-                              const std::vector<EnumSet<DataType>>& expectedInputsTypes,
-                              const std::vector<EnumSet<DataType>>& expectedOutputsTypes);
+                              const DataTypesRequirement& expectedInputsTypes,
+                              const DataTypesRequirement& expectedOutputsTypes);
 
 }  // namespace vpu

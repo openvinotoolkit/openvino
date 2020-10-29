@@ -129,7 +129,7 @@ static inline bool mayiuse(const cpu_isa_t cpu_isa) {
     case avx512_core_bf16:
         return true
             && mayiuse(avx512_core_vnni)
-            && cpu.has(Cpu::tAVX512_BF);
+            && cpu.has(Cpu::tAVX512_BF16);
     case avx512_vpopcnt:
         return true
             && cpu.has(Cpu::tAVX512_VPOPCNTDQ);
@@ -138,6 +138,11 @@ static inline bool mayiuse(const cpu_isa_t cpu_isa) {
     }
     return false;
 }
+
+inline bool isa_has_bf16(cpu_isa_t isa) {
+    return isa == avx512_core_bf16;
+}
+
 }
 
 /* whatever is required to generate string literals... */

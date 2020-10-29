@@ -36,7 +36,6 @@ def restore_edges(graph: Graph, get_edges: callable):
     n1 --> n2 edge with attributes attrs.
     It is possible that two nodes n1 and n2 have more than one n1 --> n2 edges, so the resulting graph is Graph.
     """
-    graph = Graph(graph)
     for node in list(graph.nodes()):
         edges = get_edges(Node(graph, node))
         for u, v, d in edges:
@@ -50,7 +49,6 @@ def restore_edges(graph: Graph, get_edges: callable):
                     refer_to_faq_msg(25)
                 )
         graph.add_edges_from(edges)
-    return graph
 
 
 def remove_control_dependency_inputs(graph: Graph):
@@ -66,7 +64,6 @@ def remove_control_dependency_inputs(graph: Graph):
                 del pb.input[ind]
             else:
                 ind += 1
-    return graph
 
 
 def update_attrs(attrs: [dict, Node], attr: str, new: [str, list]):

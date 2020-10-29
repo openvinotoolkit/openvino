@@ -126,7 +126,19 @@ def rnn_infer(node: Node, out_ports=None):
         else:
             # ONNX-like, insert extra dimension to output shape for num_directions
             out_shape = np.insert(out_shape, 1, np.int64(num_directions))
-    node.out_node(0).shape = out_shape
+
+    # 0 output is required creating it if doesn't exist
+    if 0 not in node.out_nodes():
+        data_node = Op._create_data_node(
+            node.graph,
+            name=node.node + '/ExtraOutput/{}'.format(0),
+            attrs={'executable': True}
+        )
+        if 0 not in node.out_ports():
+            node.add_output_port(0)
+        node.graph.add_edge(node.id, data_node.id, key=0, out=0)
+        add_opoutput(node.graph, data_node.id, 0, False)
+    node.out_port(0).data.set_shape(out_shape)
 
     # 3. Extra outputs for hidden/cell states shape calculations (optional)
     state_size = np.array([input_shape[node.batch_dim], node.hidden_size], dtype=np.int64)

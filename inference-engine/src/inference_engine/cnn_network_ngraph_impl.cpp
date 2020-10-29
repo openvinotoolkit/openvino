@@ -10,148 +10,21 @@
 
 #include <cassert>
 #include <details/caseless.hpp>
-#include <ie_ir_reader.hpp>
 #include <map>
 #include <memory>
 #include <vector>
 #include <unordered_set>
-#include <ngraph/descriptor/output.hpp>
-#include <ngraph/function.hpp>
-#include <ngraph/op/abs.hpp>
-#include <ngraph/op/acos.hpp>
-#include <ngraph/op/add.hpp>
-#include <ngraph/op/asin.hpp>
-#include <ngraph/op/atan.hpp>
-#include <ngraph/op/avg_pool.hpp>
-#include <ngraph/op/batch_norm.hpp>
-#include <ngraph/op/broadcast.hpp>
-#include <ngraph/op/ceiling.hpp>
-#include <ngraph/op/concat.hpp>
-#include <ngraph/op/constant.hpp>
-#include <ngraph/op/convert.hpp>
-#include <ngraph/op/convolution.hpp>
-#include <ngraph/op/cos.hpp>
-#include <ngraph/op/cosh.hpp>
-#include <ngraph/op/deformable_convolution.hpp>
-#include <ngraph/op/deformable_psroi_pooling.hpp>
-#include <ngraph/op/divide.hpp>
-#include <ngraph/op/exp.hpp>
-#include <ngraph/op/experimental/dyn_reshape.hpp>
-#include <ngraph/op/experimental/layers/ctc_greedy_decoder.hpp>
-#include <ngraph/op/experimental/layers/detection_output.hpp>
-#include <ngraph/op/experimental/layers/prior_box.hpp>
-#include <ngraph/op/experimental/layers/prior_box_clustered.hpp>
-#include <ngraph/op/experimental/layers/proposal.hpp>
-#include <ngraph/op/experimental/layers/psroi_pooling.hpp>
-#include <ngraph/op/experimental/layers/region_yolo.hpp>
-#include <ngraph/op/experimental/layers/reorg_yolo.hpp>
-#include <ngraph/op/experimental/layers/roi_pooling.hpp>
-#include <ngraph/op/experimental/range.hpp>
-#include <ngraph/op/experimental/shape_of.hpp>
-#include <ngraph/op/experimental/transpose.hpp>
-#include <ngraph/op/floor.hpp>
-#include <ngraph/op/fused/clamp.hpp>
-#include <ngraph/op/fused/conv_fused.hpp>
-#include <ngraph/op/fused/elu.hpp>
-#include <ngraph/op/fused/fake_quantize.hpp>
-#include <ngraph/op/fused/grn.hpp>
-#include <ngraph/op/fused/mvn.hpp>
-#include <ngraph/op/fused/normalize_l2.hpp>
-#include <ngraph/op/fused/prelu.hpp>
-#include <ngraph/op/fused/split.hpp>
-#include <ngraph/op/fused/squeeze.hpp>
-#include <ngraph/op/fused/unsqueeze.hpp>
-#include <ngraph/op/fused/hard_sigmoid.hpp>
-#include <ngraph/op/gather.hpp>
-#include <ngraph/op/get_output_element.hpp>
-#include <ngraph/op/less.hpp>
-#include <ngraph/op/log.hpp>
-#include <ngraph/op/lrn.hpp>
-#include <ngraph/op/max.hpp>
-#include <ngraph/op/max_pool.hpp>
-#include <ngraph/op/maximum.hpp>
-#include <ngraph/op/min.hpp>
-#include <ngraph/op/multiply.hpp>
-#include <ngraph/op/non_max_suppression.hpp>
-#include <ngraph/op/pad.hpp>
-#include <ngraph/op/parameter.hpp>
-#include <ngraph/op/power.hpp>
-#include <ngraph/op/reduce_mean.hpp>
-#include <ngraph/op/reduce_prod.hpp>
-#include <ngraph/op/reduce_sum.hpp>
-#include <ngraph/op/relu.hpp>
-#include <ngraph/op/reshape.hpp>
-#include <ngraph/op/result.hpp>
-#include <ngraph/op/reverse_sequence.hpp>
-#include <ngraph/op/select.hpp>
-#include <ngraph/op/sigmoid.hpp>
-#include <ngraph/op/sin.hpp>
-#include <ngraph/op/sinh.hpp>
-#include <ngraph/op/softmax.hpp>
-#include <ngraph/op/sqrt.hpp>
-#include <ngraph/op/subtract.hpp>
-#include <ngraph/op/tan.hpp>
-#include <ngraph/op/tanh.hpp>
-#include <ngraph/op/topk.hpp>
-#include <ngraph/op/and.hpp>
-#include <ngraph/op/or.hpp>
-#include <ngraph/op/xor.hpp>
-#include <ngraph/op/not.hpp>
-#include <ngraph/op/reduce_logical_and.hpp>
-#include <ngraph/op/reduce_logical_or.hpp>
-#include <ngraph/pass/constant_folding.hpp>
+#include <ngraph/ngraph.hpp>
 #include <ngraph/pass/get_output_element_elimination.hpp>
-#include <ngraph/pass/visualize_tree.hpp>
-#include <ngraph/shape.hpp>
-#include <ngraph/strides.hpp>
-#include <ngraph/variant.hpp>
 #include <set>
-#include <shape_infer/ie_reshaper.hpp>
+// #include <shape_infer/ie_reshaper.hpp>
 #include <string>
-#include <transform/transformations/constant_eltwise_reduction.hpp>
-#include <transform/transformations/convert_broadcast_to_tiles.hpp>
-#include <transform/transformations/convert_convolutions.hpp>
-#include <transform/transformations/convert_divide.hpp>
-#include <transform/transformations/convert_mod.hpp>
-#include <transform/transformations/convert_gather_to_gather_ie.hpp>
-#include <transform/transformations/convert_gathertree_to_gathertree_ie.hpp>
-#include <transform/transformations/convert_interpolate_to_interp_or_resample.hpp>
-#include <transform/transformations/convert_lrn_to_lrn_ie.hpp>
-#include <transform/transformations/convert_lstm_cell_to_lstm_cell_ie.hpp>
-#include <transform/transformations/convert_matmul_to_fc_or_gemm.hpp>
-#include <transform/transformations/convert_minimum_to_power_and_max.hpp>
-#include <transform/transformations/convert_mul_add_to_scaleshift_or_power.hpp>
-#include <transform/transformations/convert_mul_or_add_finally.hpp>
-#include <transform/transformations/convert_negative.hpp>
-#include <transform/transformations/convert_nms_to_nms_ie.hpp>
-#include <transform/transformations/convert_normalizel2_to_normalize_ie.hpp>
-#include <transform/transformations/convert_one_hot_to_one_hot_ie.hpp>
-#include <transform/transformations/convert_pad_to_pad_ie.hpp>
-#include <transform/transformations/convert_power_to_power_ie.hpp>
-#include <transform/transformations/convert_prelu_to_relu_ie.hpp>
-#include <transform/transformations/convert_prior_clustered_to_ie_clustered.hpp>
-#include <transform/transformations/convert_proposal_to_proposal_ie.hpp>
-#include <transform/transformations/convert_prior_to_ie_prior.hpp>
-#include <transform/transformations/convert_reduce_to_pooling.hpp>
-#include <transform/transformations/convert_strided_slice_to_crop.hpp>
-#include <transform/transformations/convert_subtract.hpp>
-#include <transform/transformations/convert_selu_to_selu_ie.hpp>
-#include <transform/transformations/convert_tile_to_ie_tile.hpp>
-#include <transform/transformations/convert_topk_to_topk_ie.hpp>
-#include <transform/transformations/convert_depth_to_space.hpp>
-#include <transform/transformations/convert_space_to_depth.hpp>
-#include <transform/transformations/fusion/batch_norm_decomposition.hpp>  //NOLINT
-#include <transform/transformations/fusion/conv_bias_fusion.hpp>
-#include <transform/transformations/fusion/fc_bias_fusion.hpp>
-#include <transform/transformations/fusion/mul_add_squence_fusion.hpp>
-#include <transform/transformations/fusion/mul_add_verification.hpp>
-#include <transform/transformations/reshape_constant_folding.hpp>
-#include <transform/transformations/reshape_1d_convolutions.hpp>
-#include <transform/transformations/pull_transpose_through_fq.hpp>
-#include <transform/transformations/convert_strided_slice_to_strided_slice_ie.hpp>
-#include <transform/transformations/convert_hard_sigmoid_to_hard_sigmoid_ie.hpp>
 
-#include "debug.h"
+#include <transformations/convert_opset1_to_legacy/convert_opset1_to_legacy.hpp>
+#include <transformations/convert_opset2_to_opset1/convert_opset2_to_opset1.hpp>
+#include <transformations/convert_opset1_to_legacy/convert_one_hot_to_one_hot_ie.hpp>
+
+#include "ngraph_ops/eltwise.hpp"
 #include "graph_tools.hpp"
 #include "graph_transformer.h"
 #include "ie_util_internal.hpp"
@@ -159,27 +32,9 @@
 #include "ie_ngraph_utils.hpp"
 #include "ie_profiling.hpp"
 #include "network_serializer.h"
-#include "ngraph_ops/eltwise.hpp"
-#include "ngraph_ops/fully_connected.hpp"
-#include "ngraph_ops/gather_ie.hpp"
-#include "ngraph_ops/generic_ie.hpp"
-#include "ngraph_ops/group_conv_bias.hpp"
-#include "ngraph_ops/interp.hpp"
-#include "ngraph_ops/lrn_ie.hpp"
-#include "ngraph_ops/lstm_cell_ie.hpp"
-#include "ngraph_ops/normalize_ie.hpp"
-#include "ngraph_ops/pad_ie.hpp"
-#include "ngraph_ops/onehot_ie.hpp"
-#include "ngraph_ops/power.hpp"
-#include "ngraph_ops/prior_box_clustered_ie.hpp"
-#include "ngraph_ops/prior_box_ie.hpp"
-#include "ngraph_ops/proposal_ie.hpp"
-#include "ngraph_ops/quantize_conv_bias_fused.hpp"
-#include "ngraph_ops/relu_ie.hpp"
-#include "ngraph_ops/scaleshift.hpp"
-#include "ngraph_ops/tensor_iterator.hpp"
-#include "ngraph_ops/tile_ie.hpp"
-#include "ngraph_ops/hard_sigmoid_ie.hpp"
+#include "generic_ie.hpp"
+#include "convert_function_to_cnn_network.hpp"
+#include <shape_infer/built-in/ie_built_in_holder.hpp>
 
 using namespace std;
 using namespace InferenceEngine;
@@ -187,7 +42,7 @@ using details::CNNNetworkNGraphImpl;
 using InferenceEngine::details::CNNNetworkNGraphImpl;
 using ngraph::Function;
 
-static std::shared_ptr<ngraph::Function> copyFunction(const std::shared_ptr<ngraph::Function>& func,
+static std::shared_ptr<ngraph::Function> copyFunction(const std::shared_ptr<const ngraph::Function>& func,
                                                       bool constFolding,
                                                       const std::map<std::string, std::vector<size_t>>& inputShapes) {
     ::ngraph::op::GenericIE::DisableReshape noReshape(func);
@@ -200,14 +55,15 @@ static std::shared_ptr<ngraph::Function> copyFunction(const std::shared_ptr<ngra
         if (inputShapes.find(parameter->get_friendly_name()) != inputShapes.end()) {
             new_shapes.emplace_back(inputShapes.at(parameter->get_friendly_name()));
         } else {
-            new_shapes.emplace_back(parameter->get_shape());
+            new_shapes.emplace_back(parameter->get_partial_shape());
         }
         new_types.emplace_back(parameter->get_element_type());
     }
     IE_ASSERT(original_parameters.size() == new_types.size());
     IE_ASSERT(original_parameters.size() == new_shapes.size());
 
-    auto specialized_function = ::ngraph::specialize_function(func, new_types, new_shapes,
+    // TODO: remove const cast if specialize function works with constant ngraph function
+    auto specialized_function = ::ngraph::specialize_function(std::const_pointer_cast<ngraph::Function>(func), new_types, new_shapes,
                                                               std::vector<void*>(new_shapes.size(), nullptr), constFolding, true);
     // TODO: remove this code after the fix on the nGraph side
     ::ngraph::pass::GetOutputElementElimination goe_elimination;
@@ -218,17 +74,13 @@ static std::shared_ptr<ngraph::Function> copyFunction(const std::shared_ptr<ngra
 }
 
 // WA: for cnnNetwork ngraph constructor
-CNNNetwork::CNNNetwork(const std::shared_ptr<ngraph::Function>& graph) {
-#if defined(ENABLE_NGRAPH)
+CNNNetwork::CNNNetwork(const std::shared_ptr<const ngraph::Function>& graph) {
     // Copy nGraph function
     network = std::make_shared<CNNNetworkNGraphImpl>(copyFunction(graph, false, {}));
     actual = network.get();
     if (actual == nullptr) {
         THROW_IE_EXCEPTION << "CNNNetwork was not initialized.";
     }
-#else
-    THROW_IE_EXCEPTION << "InferenceEngine was built without nGraph support!";
-#endif
 }
 
 void CNNNetworkNGraphImpl::createDataForResult(const ::ngraph::Output<::ngraph::Node>& output, const std::string& outName,
@@ -258,7 +110,7 @@ std::shared_ptr<ICNNNetwork> CNNNetworkNGraphImpl::getCNNNetwork() {
 }
 
 CNNNetworkNGraphImpl::CNNNetworkNGraphImpl(const std::shared_ptr<Function>& nGraph)
-    : _ngraph_function(nGraph), _stats(new CNNNetworkStatsImpl()) {
+    : _ngraph_function(nGraph) {
     // Restore usual attributes for ICNNNetwork
     auto keep_input_info = [](CNNNetworkNGraphImpl& network, const DataPtr& inData) {
         InputInfo::Ptr info(new InputInfo());
@@ -273,7 +125,9 @@ CNNNetworkNGraphImpl::CNNNetworkNGraphImpl(const std::shared_ptr<Function>& nGra
         info->setPrecision(prc);
         network.setInputInfo(info);
     };
-    ::ngraph::op::GenericIE::addExtension(std::make_shared<ShapeInfer::BuiltInShapeInferHolder>());
+
+    // Add shape infer method for old operations which are not included to opset1 and opset2
+    ::ngraph::op::GenericIE::addExtension(_ngraph_function, std::make_shared<ShapeInfer::BuiltInShapeInferHolder>());
 
     reshape();
     for (const auto& layer : _ngraph_function->get_parameters()) {
@@ -304,7 +158,7 @@ CNNNetworkNGraphImpl::~CNNNetworkNGraphImpl() {
 }
 
 void CNNNetworkNGraphImpl::setInputInfo(InputInfo::Ptr data) {
-    if (cnnNetwork && !networksEqual) cnnNetwork->setInputInfo(data);
+    if (cnnNetwork) cnnNetwork->setInputInfo(data);
     _inputData[data->name()] = data;
 }
 
@@ -320,6 +174,12 @@ DataPtr& CNNNetworkNGraphImpl::getData(const char* name) noexcept {
             return _data[name];
         }
     }
+}
+
+DataPtr& CNNNetworkNGraphImpl::getData(const std::string& name) {
+    IE_SUPPRESS_DEPRECATED_START
+    return getData(name.c_str());
+    IE_SUPPRESS_DEPRECATED_END
 }
 
 void CNNNetworkNGraphImpl::getName(char* pName, size_t len) const noexcept {
@@ -380,8 +240,6 @@ void CNNNetworkNGraphImpl::addLayer(const CNNLayerPtr& layer) noexcept {
             convertToCNNNetworkImpl();
         }
         cnnNetwork->addLayer(layer);
-        if (layer)
-            networksEqual = false;
     } catch (...) {
         return;
     }
@@ -396,21 +254,17 @@ void CNNNetworkNGraphImpl::validate(int version) {
 
 StatusCode CNNNetworkNGraphImpl::getLayerByName(const char* layerName, CNNLayerPtr& out, ResponseDesc* resp) const
     noexcept {
-    auto network = cnnNetwork;
-    std::shared_ptr<::ngraph::Function> converted_function;
-
-    if (!network) {
-        converted_function = cloneFunction();
-        convertFunctionToICNNNetwork(converted_function, network);
+    if (!cnnNetwork) {
+        const_cast<CNNNetworkNGraphImpl *>(this)->convertToCNNNetworkImpl();
     }
-    if (!network) return GENERAL_ERROR;
-    return network->getLayerByName(layerName, out, resp);
+    if (!cnnNetwork) return GENERAL_ERROR;
+    return cnnNetwork->getLayerByName(layerName, out, resp);
 }
 
 StatusCode CNNNetworkNGraphImpl::addOutput(const std::string& layerName, size_t outputIndex,
                                            ResponseDesc* resp) noexcept {
     IE_PROFILING_AUTO_SCOPE(addOutput)
-    if (cnnNetwork && !networksEqual) {
+    if (cnnNetwork) {
         return cnnNetwork->addOutput(layerName, outputIndex, resp);
     }
 
@@ -490,7 +344,7 @@ StatusCode
 CNNNetworkNGraphImpl::reshape(const std::map<std::string, std::vector<size_t>>& inputShapes,
                         ResponseDesc* responseDesc) noexcept {
     IE_PROFILING_AUTO_SCOPE(reshape)
-    if (cnnNetwork && !networksEqual)
+    if (cnnNetwork)
         return cnnNetwork->reshape(inputShapes, responseDesc);
     try {
         auto params = _ngraph_function->get_parameters();
@@ -513,16 +367,50 @@ CNNNetworkNGraphImpl::reshape(const std::map<std::string, std::vector<size_t>>& 
             // Call this transformation because OneHot IE and nGraph have different output precisions
             {
                 IE_PROFILING_AUTO_SCOPE(ConvertOneHot);
-                bool has_fp16 = has_f16_constants(specialized_ngraph_function);
-                ::ngraph::pass::ConvertOneHotToOneHotIE(has_fp16).run_on_function(specialized_ngraph_function);
+                ::ngraph::pass::ConvertOneHotToOneHotIE().run_on_function(specialized_ngraph_function);
             }
             specialized_ngraph_function->validate_nodes_and_infer_types();
-            std::unordered_set<std::string> opName;
 
+#if 0
+            for (const auto &op : specialized_ngraph_function->get_ordered_ops()) {
+                cout << "[ " <<  op->description() << " ] " << op->get_friendly_name() << endl;
+                cout << "    Inputs: ";
+                for (const auto &in : op->inputs()) {
+                    cout << "[" << in.get_element_type().get_type_name() << "]";
+                    if (in.get_partial_shape().is_dynamic()) {
+                        cout << "dyn_shape";
+                    } else {
+                        cout << "{";
+                        bool first = true;
+                        for (auto i : in.get_shape()) {
+                            if (!first) cout << ",";
+                            cout << i;
+                            first = false;
+                        }
+                        cout << "} ";
+                    }
+                }
+                cout << endl << "    Outputs: ";
+                for (const auto &in : op->outputs()) {
+                    cout << "[" << in.get_element_type().get_type_name() << "]";
+                    if (in.get_partial_shape().is_dynamic()) {
+                        cout << "dyn_shape";
+                    } else {
+                        cout << "{";
+                        bool first = true;
+                        for (auto i : in.get_shape()) {
+                            if (!first) cout << ",";
+                            cout << i;
+                            first = false;
+                        }
+                        cout << "} ";
+                    }
+                }
+                cout << endl;
+            }
+#endif
+            std::unordered_set<std::string> opName;
             for (const auto & layer : specialized_ngraph_function->get_ordered_ops()) {
-                if (opName.find(layer->get_friendly_name()) != opName.end())
-                    THROW_IE_EXCEPTION << "All operations in nGraph function should have unique friendly names!";
-                opName.insert(layer->get_friendly_name());
                 if (std::dynamic_pointer_cast<::ngraph::op::Result>(layer)) {
                     IE_ASSERT(layer->get_inputs().size() == 1);
                     const auto& input = layer->get_inputs()[0];
@@ -530,7 +418,11 @@ CNNNetworkNGraphImpl::reshape(const std::map<std::string, std::vector<size_t>>& 
                     if (input.get_output().get_node()->get_output_size() != 1)
                         outName += "." + std::to_string(input.get_output().get_index());
                     addOutput(outName);
+                    continue;
                 }
+                if (opName.find(layer->get_friendly_name()) != opName.end())
+                    THROW_IE_EXCEPTION << "All operations in nGraph function should have unique friendly names!";
+                opName.insert(layer->get_friendly_name());
                 for (const auto& output : layer->outputs()) {
                     std::string outName = layer->get_friendly_name();
                     if (layer->outputs().size() != 1)
@@ -540,30 +432,6 @@ CNNNetworkNGraphImpl::reshape(const std::map<std::string, std::vector<size_t>>& 
             }
         }
     } catch (std::exception& ex) {
-#if 0
-        for (const auto& op : _ngraph_function->get_ordered_ops()) {
-            std::cout << op->get_friendly_name() << " " << op->description() << std::endl << "    Inputs: ";
-            for (const auto& in : op->inputs()) {
-                auto shape = in.get_shape();
-                std::cout << " {";
-                for (auto i : shape) {
-                    std::cout << i << " ";
-                }
-                std::cout << "} ";
-            }
-            std::cout << std::endl << "    Outputs: ";
-            for (const auto& in : op->outputs()) {
-                auto shape = in.get_shape();
-                std::cout << " {";
-                for (auto i : shape) {
-                    std::cout << i << " ";
-                }
-                std::cout << "} ";
-            }
-            std::cout << std::endl;
-        }
-#endif
-
         return DescriptionBuffer(GENERAL_ERROR, responseDesc) << ex.what();
     }
 
@@ -572,8 +440,8 @@ CNNNetworkNGraphImpl::reshape(const std::map<std::string, std::vector<size_t>>& 
 
 StatusCode CNNNetworkNGraphImpl::AddExtension(const InferenceEngine::IShapeInferExtensionPtr& extension,
                                               InferenceEngine::ResponseDesc* resp) noexcept {
-    if (!cnnNetwork || networksEqual) {
-        ::ngraph::op::GenericIE::addExtension(extension);
+    if (!cnnNetwork) {
+        ::ngraph::op::GenericIE::addExtension(_ngraph_function, extension);
     }
     return cnnNetwork ? cnnNetwork->AddExtension(extension, resp) : OK;
 }
@@ -581,11 +449,14 @@ StatusCode CNNNetworkNGraphImpl::AddExtension(const InferenceEngine::IShapeInfer
 StatusCode CNNNetworkNGraphImpl::serialize(const std::string& xmlPath, const std::string& binPath,
                                            ResponseDesc* resp) const noexcept {
     auto network = cnnNetwork;
-    std::shared_ptr<::ngraph::Function> converted_function;
-
     if (!network) {
-        converted_function = cloneFunction();
-        convertFunctionToICNNNetwork(converted_function, network);
+        auto graph = cloneFunction();
+        // Disable shape inference (WA for generic operations)
+        ::ngraph::op::GenericIE::DisableReshape noReshape(graph);
+
+        ::ngraph::pass::ConvertOpSet2ToOpSet1().run_on_function(graph);
+        ::ngraph::pass::ConvertOpSet1ToLegacy().run_on_function(graph);
+        network = InferenceEngine::details::convertFunctionToICNNNetwork(graph, *this);
     }
     if (!network) return GENERAL_ERROR;
     return network->serialize(xmlPath, binPath, resp);
@@ -593,9 +464,10 @@ StatusCode CNNNetworkNGraphImpl::serialize(const std::string& xmlPath, const std
 
 StatusCode CNNNetworkNGraphImpl::setBatchSize(size_t size, ResponseDesc* responseDesc) noexcept {
     try {
+        if (size == getBatchSize())
+            return OK;
         if (!cnnNetwork)
             convertToCNNNetworkImpl();
-        networksEqual = false;
         return cnnNetwork->setBatchSize(size, responseDesc);
     } catch (std::exception& ex) {
         return DescriptionBuffer(GENERAL_ERROR, responseDesc) << ex.what();
@@ -603,7 +475,7 @@ StatusCode CNNNetworkNGraphImpl::setBatchSize(size_t size, ResponseDesc* respons
 }
 
 StatusCode CNNNetworkNGraphImpl::setBatchSizeReshape(size_t size, ResponseDesc* responseDesc) noexcept {
-    if (cnnNetwork && !networksEqual)
+    if (cnnNetwork)
         return cnnNetwork->setBatchSizeReshape(size, responseDesc);
     try {
         auto original_parameters = _ngraph_function->get_parameters();
@@ -629,7 +501,6 @@ StatusCode CNNNetworkNGraphImpl::setBatchSizeReshape(size_t size, ResponseDesc* 
             newParam->set_friendly_name(param->get_friendly_name());
             _ngraph_function->replace_parameter(i, newParam);
         }
-        networksEqual = false;
         convertToCNNNetworkImpl();
         return cnnNetwork->setBatchSize(size, responseDesc);
     } catch (std::exception& ex) {
@@ -638,592 +509,16 @@ StatusCode CNNNetworkNGraphImpl::setBatchSizeReshape(size_t size, ResponseDesc* 
 }
 
 void CNNNetworkNGraphImpl::convertToCNNNetworkImpl() {
-    if (cnnNetwork && !networksEqual)
-        return;
     IE_PROFILING_AUTO_SCOPE(convertToCNNNetworkImpl)
-    InputsDataMap thisInputDataMap;
-    getInputsInfo(thisInputDataMap);
-    _converted_function = cloneFunction();
-    cnnNetwork.reset();
-    convertFunctionToICNNNetwork(_converted_function, cnnNetwork);
-
-    if (!cnnNetwork) THROW_IE_EXCEPTION << "Cannot convert nGraph function to CNNNetworkImpl!";
-
-    // update input preprocessing info
-    InputsDataMap resultInputDataMap;
-    cnnNetwork->getInputsInfo(resultInputDataMap);
-    IE_ASSERT(resultInputDataMap.size() == thisInputDataMap.size());
-    for (auto i : resultInputDataMap) {
-        auto& thisInputData = *thisInputDataMap[i.first];
-        i.second->setPrecision(thisInputData.getPrecision());
-        i.second->setLayout(thisInputData.getLayout());
-        i.second->getPreProcess() = thisInputData.getPreProcess();
-    }
-
-    for (const auto& ext : ::ngraph::op::GenericIE::getExtensions()) {
-        cnnNetwork->AddExtension(ext, nullptr);
-    }
-}
-
-void CNNNetworkNGraphImpl::convertFunctionToICNNNetwork(std::shared_ptr<::ngraph::Function>& func,
-                                                        std::shared_ptr<details::CNNNetworkImpl>& cnnNetworkImpl) const {
-    IE_PROFILING_AUTO_SCOPE(convertFunctionToICNNNetwork)
-    const auto createCNNLayer = [](const std::shared_ptr<::ngraph::Node>& node) -> CNNLayerPtr {
-        static std::vector<std::shared_ptr<Builder::INodeConverter>> convertors = {
-            std::make_shared<Builder::NodeConverter<::ngraph::op::Abs>>(),
-            std::make_shared<Builder::NodeConverter<::ngraph::op::Acos>>(),
-            std::make_shared<Builder::NodeConverter<::ngraph::op::v1::Add>>(),
-            std::make_shared<Builder::NodeConverter<::ngraph::op::Asin>>(),
-            std::make_shared<Builder::NodeConverter<::ngraph::op::Atan>>(),
-            std::make_shared<Builder::NodeConverter<::ngraph::op::v1::AvgPool>>(),
-            std::make_shared<Builder::NodeConverter<::ngraph::op::BatchNormInference>>(),
-            std::make_shared<Builder::NodeConverter<::ngraph::op::v1::Broadcast>>(),
-            std::make_shared<Builder::NodeConverter<::ngraph::op::Clamp>>(),
-            std::make_shared<Builder::NodeConverter<::ngraph::op::Concat>>(),
-            std::make_shared<Builder::NodeConverter<::ngraph::op::Constant>>(),
-            std::make_shared<Builder::NodeConverter<::ngraph::op::ConvolutionIE>>(),
-            std::make_shared<Builder::NodeConverter<::ngraph::op::DeconvolutionIE>>(),
-            std::make_shared<Builder::NodeConverter<::ngraph::op::v1::BinaryConvolution>>(),
-            std::make_shared<Builder::NodeConverter<::ngraph::op::Cos>>(),
-            std::make_shared<Builder::NodeConverter<::ngraph::op::Cosh>>(),
-            std::make_shared<Builder::NodeConverter<::ngraph::op::CropIE>>(),
-            std::make_shared<Builder::NodeConverter<::ngraph::op::Convert>>(),
-            std::make_shared<Builder::NodeConverter<::ngraph::op::CTCGreedyDecoder>>(),
-            std::make_shared<Builder::NodeConverter<::ngraph::op::DetectionOutput>>(),
-            std::make_shared<Builder::NodeConverter<::ngraph::op::v1::DeformableConvolution>>(),
-            std::make_shared<Builder::NodeConverter<::ngraph::op::v1::DeformablePSROIPooling>>(),
-            std::make_shared<Builder::NodeConverter<::ngraph::op::v1::Divide>>(),
-            std::make_shared<Builder::NodeConverter<::ngraph::op::v1::Reshape>>(),
-            std::make_shared<Builder::NodeConverter<::ngraph::op::Eltwise>>(),
-            std::make_shared<Builder::NodeConverter<::ngraph::op::Elu>>(),
-            std::make_shared<Builder::NodeConverter<::ngraph::op::Erf>>(),
-            std::make_shared<Builder::NodeConverter<::ngraph::op::Exp>>(),
-            std::make_shared<Builder::NodeConverter<::ngraph::op::FakeQuantize>>(),
-            std::make_shared<Builder::NodeConverter<::ngraph::op::Floor>>(),
-            std::make_shared<Builder::NodeConverter<::ngraph::op::Ceiling>>(),
-            std::make_shared<Builder::NodeConverter<::ngraph::op::GatherIE>>(),
-            std::make_shared<Builder::NodeConverter<::ngraph::op::v1::GatherTree>>(),
-            std::make_shared<Builder::NodeConverter<::ngraph::op::GatherTreeIE>>(),
-            std::make_shared<Builder::NodeConverter<::ngraph::op::Interp>>(),
-            std::make_shared<Builder::NodeConverter<::ngraph::op::Interpolate>>(),
-            std::make_shared<Builder::NodeConverter<::ngraph::op::Log>>(),
-            std::make_shared<Builder::NodeConverter<::ngraph::op::LRN>>(),
-            std::make_shared<Builder::NodeConverter<::ngraph::op::LRN_IE>>(),
-            std::make_shared<Builder::NodeConverter<::ngraph::op::MVN>>(),
-            std::make_shared<Builder::NodeConverter<::ngraph::op::FullyConnected>>(),
-            std::make_shared<Builder::NodeConverter<::ngraph::op::GemmIE>>(),
-            std::make_shared<Builder::NodeConverter<::ngraph::op::GenericIE>>(),
-            std::make_shared<Builder::NodeConverter<::ngraph::op::GRN>>(),
-            std::make_shared<Builder::NodeConverter<::ngraph::op::v1::MaxPool>>(),
-            std::make_shared<Builder::NodeConverter<::ngraph::op::v1::Maximum>>(),
-            std::make_shared<Builder::NodeConverter<::ngraph::op::v1::Minimum>>(),
-            std::make_shared<Builder::NodeConverter<::ngraph::op::v1::Multiply>>(),
-            std::make_shared<Builder::NodeConverter<::ngraph::op::v1::NonMaxSuppression>>(),
-            std::make_shared<Builder::NodeConverter<::ngraph::op::NonMaxSuppressionIE>>(),
-            std::make_shared<Builder::NodeConverter<::ngraph::op::NormalizeL2>>(),
-            std::make_shared<Builder::NodeConverter<::ngraph::op::NormalizeIE>>(),
-            std::make_shared<Builder::NodeConverter<::ngraph::op::OneHotIE>>(),
-            std::make_shared<Builder::NodeConverter<::ngraph::op::PRelu>>(),
-            std::make_shared<Builder::NodeConverter<::ngraph::op::PadIE>>(),
-            std::make_shared<Builder::NodeConverter<::ngraph::op::v1::Power>>(),
-            std::make_shared<Builder::NodeConverter<::ngraph::op::PowerIE>>(),
-            std::make_shared<Builder::NodeConverter<::ngraph::op::PriorBox>>(),
-            std::make_shared<Builder::NodeConverter<::ngraph::op::PriorBoxClustered>>(),
-            std::make_shared<Builder::NodeConverter<::ngraph::op::PriorBoxClusteredIE>>(),
-            std::make_shared<Builder::NodeConverter<::ngraph::op::PriorBoxIE>>(),
-            std::make_shared<Builder::NodeConverter<::ngraph::op::Proposal>>(),
-            std::make_shared<Builder::NodeConverter<::ngraph::op::ProposalIE>>(),
-            std::make_shared<Builder::NodeConverter<::ngraph::op::Relu>>(),
-            std::make_shared<Builder::NodeConverter<::ngraph::op::SeluIE>>(),
-            std::make_shared<Builder::NodeConverter<::ngraph::op::ReLUIE>>(),
-            std::make_shared<Builder::NodeConverter<::ngraph::op::Range>>(),
-            std::make_shared<Builder::NodeConverter<::ngraph::op::ReverseSequence>>(),
-            std::make_shared<Builder::NodeConverter<::ngraph::op::v1::ReduceMin>>(),
-            std::make_shared<Builder::NodeConverter<::ngraph::op::v1::ReduceMax>>(),
-            std::make_shared<Builder::NodeConverter<::ngraph::op::v1::ReduceMean>>(),
-            std::make_shared<Builder::NodeConverter<::ngraph::op::v1::ReduceProd>>(),
-            std::make_shared<Builder::NodeConverter<::ngraph::op::v1::ReduceSum>>(),
-            std::make_shared<Builder::NodeConverter<::ngraph::op::ResampleV2>>(),
-            std::make_shared<Builder::NodeConverter<::ngraph::op::RegionYolo>>(),
-            std::make_shared<Builder::NodeConverter<::ngraph::op::ReorgYolo>>(),
-            std::make_shared<Builder::NodeConverter<::ngraph::op::ROIPooling>>(),
-            std::make_shared<Builder::NodeConverter<::ngraph::op::PSROIPooling>>(),
-            std::make_shared<Builder::NodeConverter<::ngraph::op::ScaleShiftIE>>(),
-            std::make_shared<Builder::NodeConverter<::ngraph::op::ShapeOf>>(),
-            std::make_shared<Builder::NodeConverter<::ngraph::op::Sigmoid>>(),
-            std::make_shared<Builder::NodeConverter<::ngraph::op::Sin>>(),
-            std::make_shared<Builder::NodeConverter<::ngraph::op::Sign>>(),
-            std::make_shared<Builder::NodeConverter<::ngraph::op::Sinh>>(),
-            std::make_shared<Builder::NodeConverter<::ngraph::op::SquaredDifference>>(),
-            std::make_shared<Builder::NodeConverter<::ngraph::op::v1::Softmax>>(),
-            std::make_shared<Builder::NodeConverter<::ngraph::op::v1::Split>>(),
-            std::make_shared<Builder::NodeConverter<::ngraph::op::VariadicSplit>>(),
-            std::make_shared<Builder::NodeConverter<::ngraph::op::v1::StridedSlice>>(),
-            std::make_shared<Builder::NodeConverter<::ngraph::op::StridedSliceIE>>(),
-            std::make_shared<Builder::NodeConverter<::ngraph::op::Squeeze>>(),
-            std::make_shared<Builder::NodeConverter<::ngraph::op::Sqrt>>(),
-            std::make_shared<Builder::NodeConverter<::ngraph::op::Subtract>>(),
-            std::make_shared<Builder::NodeConverter<::ngraph::op::Tan>>(),
-            std::make_shared<Builder::NodeConverter<::ngraph::op::Tanh>>(),
-            std::make_shared<Builder::NodeConverter<::ngraph::op::TileIE>>(),
-            std::make_shared<Builder::NodeConverter<::ngraph::op::v1::TopK>>(),
-            std::make_shared<Builder::NodeConverter<::ngraph::op::TopKIE>>(),
-            std::make_shared<Builder::NodeConverter<::ngraph::op::Transpose>>(),
-            std::make_shared<Builder::NodeConverter<::ngraph::op::Unsqueeze>>(),
-            std::make_shared<Builder::NodeConverter<::ngraph::op::TensorIterator>>(),
-            std::make_shared<Builder::NodeConverter<::ngraph::op::LSTMCellIE>>(),
-            std::make_shared<Builder::NodeConverter<::ngraph::op::HardSigmoid>>(),
-            std::make_shared<Builder::NodeConverter<::ngraph::op::HardSigmoid_IE>>(),
-            std::make_shared<Builder::NodeConverter<::ngraph::op::v1::LogicalNot>>(),
-            std::make_shared<Builder::NodeConverter<::ngraph::op::v1::ReduceLogicalAnd>>(),
-            std::make_shared<Builder::NodeConverter<::ngraph::op::v1::ReduceLogicalOr>>(),
-        };
-
-        CNNLayerCreator visitor(node);
-        if (node->visit_attributes(visitor)) return visitor.create();
-
-        for (auto& convertor : convertors) {
-            if (!convertor->canCreate(node)) continue;
-            return convertor->createLayer(node);
-        }
-        THROW_IE_EXCEPTION << "Cannot cast ngraph node " << node->get_friendly_name() << " to CNNLayer!";
-    };
-
-    const auto isInternalConstLayer = [](const std::shared_ptr<::ngraph::Node>& constLayer,
-                                         const std::shared_ptr<::ngraph::Node>& consumerLayer,
-                                         bool keep_constants) -> bool {
-        if ((( ::ngraph::as_type_ptr<::ngraph::op::ConvolutionIE>(consumerLayer) ||
-               ::ngraph::as_type_ptr<::ngraph::op::v1::DeformableConvolution>(consumerLayer) ||
-               ::ngraph::as_type_ptr<::ngraph::op::FullyConnected>(consumerLayer)) && !keep_constants) ||
-            ::ngraph::as_type_ptr<::ngraph::op::v1::BinaryConvolution>(consumerLayer) ||
-            ::ngraph::as_type_ptr<::ngraph::op::DeconvolutionIE>(consumerLayer) ||
-            ::ngraph::as_type_ptr<::ngraph::op::Elu>(consumerLayer) ||
-            ::ngraph::as_type_ptr<::ngraph::op::NormalizeIE>(consumerLayer) ||
-            ::ngraph::as_type_ptr<::ngraph::op::PRelu>(consumerLayer) ||
-            ::ngraph::as_type_ptr<::ngraph::op::v1::Split>(consumerLayer) ||
-            ::ngraph::as_type_ptr<::ngraph::op::VariadicSplit>(consumerLayer) ||
-            ::ngraph::as_type_ptr<::ngraph::op::ScaleShiftIE>(consumerLayer) ||
-            ::ngraph::as_type_ptr<::ngraph::op::Transpose>(consumerLayer)) {
-            // Check that all input nodes except zero input are Constants for all ops except DeformableConvolutions
-            // for which the input with index 1 is also dynamic
-            size_t inputID = ::ngraph::as_type_ptr<::ngraph::op::v1::DeformableConvolution>(consumerLayer) ? 2 : 1;
-            for (; inputID < consumerLayer->inputs().size(); ++inputID) {
-                auto inputLayer = consumerLayer->input(inputID).get_source_output().get_node_shared_ptr();
-                if (inputLayer == constLayer) {
-                    return true;
-                }
-            }
-        } else if (::ngraph::as_type_ptr<::ngraph::op::LSTMCellIE>(consumerLayer)) {
-            for (size_t inputID = 3; inputID < consumerLayer->inputs().size(); ++inputID) {
-                auto inputLayer = consumerLayer->input(inputID).get_source_output().get_node_shared_ptr();
-                if (inputLayer == constLayer) {
-                    return true;
-                }
-            }
-        }
-        return false;
-    };
-
-    // Checks that node is internal layer for all layers from specific function
-    const auto isInternalLayer = [=](const std::shared_ptr<::ngraph::Node>& node,
-                                     const std::unordered_set<std::string>& names,
-                                     bool keep_constant) -> bool {
-        if (auto constantNode = ::ngraph::as_type_ptr<::ngraph::op::Constant>(node)) {
-            for (const auto& consumerInputPort : constantNode->get_outputs()[0].get_inputs()) {
-                const auto& consumerLayer = consumerInputPort->get_node();
-                if (names.find(consumerLayer->get_name()) == names.end())
-                    continue;
-                if (!isInternalConstLayer(constantNode, consumerLayer, keep_constant))
-                    return false;
-            }
-            return true;
-        }
-
-        return ::ngraph::as_type_ptr<::ngraph::op::Result>(node) != nullptr;
-    };
-
-    const auto keep_input_info = [](std::shared_ptr<details::CNNNetworkImpl>& network, const DataPtr& inData) {
-        InputInfo::Ptr info(new InputInfo());
-        info->setInputData(inData);
-        network->setInputInfo(info);
-    };
-
-    std::shared_ptr<::ngraph::Function> graph = func;
-
+    if (cnnNetwork)
+        return;
+    auto graph = cloneFunction();
     // Disable shape inference (WA for generic operations)
     ::ngraph::op::GenericIE::DisableReshape noReshape(graph);
 
-    {
-        IE_PROFILING_AUTO_SCOPE(ConvertPriorBox)
-        ::ngraph::pass::ConvertPriorBox().run_on_function(graph);
-        ::ngraph::pass::ConvertPriorBoxClustered().run_on_function(graph);
-    }
-    {
-        IE_PROFILING_AUTO_SCOPE(ConstantFolding1)
-        ::ngraph::pass::ConstantFolding().run_on_function(graph);
-    }
-
-    //  RecudeToPooling transformation inserts Multiply operation in case of ReduceSum
-    //  so we need to run it before optimizations and lin ops transformations
-    {
-        IE_PROFILING_AUTO_SCOPE(ConvertReduceToPooling)
-        ::ngraph::pass::ConvertReduceToPooling().run_on_function(graph);
-    }
-
-    {
-        IE_PROFILING_AUTO_SCOPE(ConvertMod)
-        ::ngraph::pass::ConvertMod().run_on_function(graph);
-    }
-    {
-        IE_PROFILING_AUTO_SCOPE(ConvertMinimum)
-        ::ngraph::pass::ConvertMinimum().run_on_function(graph);
-    }
-    {
-        IE_PROFILING_AUTO_SCOPE(ConvertSubtract)
-        ::ngraph::pass::ConvertSubtract().run_on_function(graph);
-    }
-    {
-        IE_PROFILING_AUTO_SCOPE(ConvertDivide)
-        ::ngraph::pass::ConvertDivide().run_on_function(graph);
-    }
-    {
-        IE_PROFILING_AUTO_SCOPE(ConvertNegative)
-        ::ngraph::pass::ConvertNegative().run_on_function(graph);
-    }
-    {
-        IE_PROFILING_AUTO_SCOPE(ConvertDepthToSpace)
-        ::ngraph::pass::ConvertDepthToSpace().run_on_function(graph);
-    }
-    {
-        IE_PROFILING_AUTO_SCOPE(ConvertSpaceToDepth)
-        ::ngraph::pass::ConvertSpaceToDepth().run_on_function(graph);
-    }
-    {
-        IE_PROFILING_AUTO_SCOPE(ConvertConvolutions)
-        ::ngraph::pass::ConvertConvolutions().run_on_function(graph);
-    }
-
-    {
-        IE_PROFILING_AUTO_SCOPE(BatchNormDecomposition)
-        ::ngraph::pass::BatchNormDecomposition().run_on_function(graph);
-    }
-    {
-        IE_PROFILING_AUTO_SCOPE(ConstantFolding2)
-        ::ngraph::pass::ConstantFolding().run_on_function(graph);
-    }
-
-    {
-        IE_PROFILING_AUTO_SCOPE(MulAddVerification)
-        ::ngraph::pass::MulAddVerification().run_on_function(graph);
-    }
-    {
-        IE_PROFILING_AUTO_SCOPE(MulAddFusion)
-        ::ngraph::pass::MulAddFusion().run_on_function(graph);
-    }
-    {
-        IE_PROFILING_AUTO_SCOPE(ConstantFolding3)
-        ::ngraph::pass::ConstantFolding().run_on_function(graph);
-    }
-
-    {
-        IE_PROFILING_AUTO_SCOPE(ConvertMatMulToFCorGemm)
-        ::ngraph::pass::ConvertMatMulToFCorGemm().run_on_function(graph);
-    }
-    {
-        IE_PROFILING_AUTO_SCOPE(PullTransposeThroughFQUp)
-        ::ngraph::pass::PullTransposeThroughFQUp().run_on_function(graph);
-    }
-    {
-        IE_PROFILING_AUTO_SCOPE(ConstantFolding4)
-        ::ngraph::pass::ConstantFolding().run_on_function(graph);
-    }
-
-    {
-        IE_PROFILING_AUTO_SCOPE(ConvFusion)
-        ::ngraph::pass::ConvFusion().run_on_function(graph);
-    }
-    {
-        IE_PROFILING_AUTO_SCOPE(FullyConnectedBiasFusion)
-        ::ngraph::pass::FullyConnectedBiasFusion().run_on_function(graph);
-    }
-    {
-        IE_PROFILING_AUTO_SCOPE(ConstantFolding5)
-        ::ngraph::pass::ConstantFolding().run_on_function(graph);
-    }
-    {
-        IE_PROFILING_AUTO_SCOPE(Reshape1DConvolutions)
-        ::ngraph::pass::Reshape1DConvolutions().run_on_function(graph);
-    }
-
-    {
-        IE_PROFILING_AUTO_SCOPE(ConvertNormalizeL2WithMulToNormalizeIE)
-        ::ngraph::pass::ConvertNormalizeL2WithMulToNormalizeIE().run_on_function(graph);
-    }
-    {
-        IE_PROFILING_AUTO_SCOPE(ConvertNormalizeL2ToNormalizeIE)
-        ::ngraph::pass::ConvertNormalizeL2ToNormalizeIE().run_on_function(graph);
-    }
-    {
-        IE_PROFILING_AUTO_SCOPE(ConstantEltwiseReduction)
-        ::ngraph::pass::ConstantEltwiseReduction().run_on_function(graph);
-    }
-    {
-        IE_PROFILING_AUTO_SCOPE(ConvertMulAddToScaleShiftOrPower)
-        ::ngraph::pass::ConvertMulAddToScaleShiftOrPower().run_on_function(graph);
-    }
-    {
-        IE_PROFILING_AUTO_SCOPE(ConvertMulOrAddFinally)
-        ::ngraph::pass::ConvertMulOrAddFinally().run_on_function(graph);
-    }
-    {
-        IE_PROFILING_AUTO_SCOPE(ReshapeConstanFolding)
-        ::ngraph::pass::ReshapeConstanFolding().run_on_function(graph);
-    }
-    {
-        IE_PROFILING_AUTO_SCOPE(ConstantFolding6)
-        ::ngraph::pass::ConstantFolding().run_on_function(graph);
-    }
-
-    {
-        IE_PROFILING_AUTO_SCOPE(ConvertBroadcastToTiles)
-        ::ngraph::pass::ConvertBroadcastToTiles().run_on_function(graph);
-    }
-    {
-        IE_PROFILING_AUTO_SCOPE(ConvertTileToIETile)
-        ::ngraph::pass::ConvertTileToIETile().run_on_function(graph);
-    }
-    {
-        IE_PROFILING_AUTO_SCOPE(ConvertProposalToProposalIE)
-        ::ngraph::pass::ConvertProposalToProposalIE().run_on_function(graph);
-    }
-    {
-        IE_PROFILING_AUTO_SCOPE(ConvertLRNToLRNIE)
-        ::ngraph::pass::ConvertLRNToLRNIE().run_on_function(graph);
-    }
-    {
-        IE_PROFILING_AUTO_SCOPE(ConvertPadToPadIE)
-        ::ngraph::pass::ConvertPadToPadIE().run_on_function(graph);
-    }
-    {
-        IE_PROFILING_AUTO_SCOPE(ConvertHardSigmoidToHardSigmoidIE)
-        ::ngraph::pass::ConvertHardSigmoidToHardSigmoidIE().run_on_function(graph);
-    }
-
-    {
-        IE_PROFILING_AUTO_SCOPE(ConvertLSTMCellToLSTMCellIE)
-        ::ngraph::pass::ConvertLSTMCellToLSTMCellIE().run_on_function(graph);
-    }
-
-    {
-        IE_PROFILING_AUTO_SCOPE(ConvertInterpolateToInterpOrResample)
-        ::ngraph::pass::ConvertInterpolateToInterpOrResample().run_on_function(graph);
-    }
-
-    {
-        IE_PROFILING_AUTO_SCOPE(ConvertStridedSliceToCrop)
-        ::ngraph::pass::ConvertStridedSliceToCrop().run_on_function(graph);
-    }
-
-    {
-        IE_PROFILING_AUTO_SCOPE(ConvertStridedSliceToStridedSliceIE)
-        ::ngraph::pass::ConvertStridedSliceToStridedSliceIE().run_on_function(graph);
-    }
-
-    {
-        IE_PROFILING_AUTO_SCOPE(ConvertPowerToPowerIE)
-        ::ngraph::pass::ConvertPowerToPowerIE().run_on_function(graph);
-    }
-    {
-        IE_PROFILING_AUTO_SCOPE(ConvertPReLUToReLUIE)
-        ::ngraph::pass::ConvertPReLUToReLUIE().run_on_function(graph);
-    }
-    {
-        IE_PROFILING_AUTO_SCOPE(ConvertGatherToGatherIE)
-        ::ngraph::pass::ConvertGatherToGatherIE().run_on_function(graph);
-    }
-    {
-        IE_PROFILING_AUTO_SCOPE(ConvertSeluToSeluIE)
-        ::ngraph::pass::ConvertSeluToSeluIE().run_on_function(graph);
-    }
-    {
-        IE_PROFILING_AUTO_SCOPE(ConvertOneHot)
-        bool has_fp16 = has_f16_constants(graph);
-        ::ngraph::pass::ConvertOneHotToOneHotIE(has_fp16).run_on_function(graph);
-    }
-    {
-        IE_PROFILING_AUTO_SCOPE(ConvertGatherTreeToGatherTreeIE)
-        ::ngraph::pass::ConvertGatherTreeToGatherTreeIE().run_on_function(graph);
-    }
-    {
-        IE_PROFILING_AUTO_SCOPE(ConvertTopKToTopKIE)
-        ::ngraph::pass::ConvertTopKToTopKIE().run_on_function(graph);
-    }
-    {
-        IE_PROFILING_AUTO_SCOPE(ConvertNMSToNMSIE)
-        ::ngraph::pass::ConvertNMSToNMSIE().run_on_function(graph);
-    }
-    {
-        IE_PROFILING_AUTO_SCOPE(ConstantFolding7)
-        ::ngraph::pass::ConstantFolding().run_on_function(graph);
-    }
-    graph->validate_nodes_and_infer_types();
-
-    // Create network
-    cnnNetworkImpl = std::make_shared<details::CNNNetworkImpl>();
-    cnnNetworkImpl->setName(graph->get_friendly_name());
-    // In generic case all nGraph functions have MIXED precision
-    // Network precision should be deprecated
-    cnnNetworkImpl->setPrecision(Precision::MIXED);
-
-    // Collect all names from current graph
-    // It is necessary in order to differentiate outputs from constant layers when we share constants
-    // (Constant operations contains outputs for converted and original functions)
-    std::unordered_set<std::string> op_names;
-    for (const auto& layer : graph->get_ops())
-        op_names.insert(layer->get_name());
-
-    bool keep_constants(false);
-    for (auto & layer : graph->get_ops()) {
-        if (std::dynamic_pointer_cast<::ngraph::op::FakeQuantize>(layer)) {
-            keep_constants = true;
-            break;
-        }
-    }
-
-    // Create layers and output data
-    for (const auto& layer : graph->get_ops()) {
-        if (isInternalLayer(layer, op_names, keep_constants)) continue;
-
-        // TODO: remove this rt info when all blobs will be inputs
-        InferenceEngine::Parameter attr(keep_constants);
-        auto & rt_info = layer->get_rt_info();
-        rt_info["keep_constants"] = attr.asVariant();
-
-        CNNLayerPtr cnnLayer = createCNNLayer(layer);
-        for (const auto& rt : layer->get_rt_info()) {
-            Parameter param(rt.second);
-            if (param.empty()) continue;
-            if (details::CaselessEq<std::string>()(rt.first, "affinity")) {
-                cnnLayer->affinity = param.as<std::string>();
-            } else if (param.is<std::string>()) {
-                cnnLayer->params[rt.first] = param.as<std::string>();
-            }
-        }
-        size_t inputCount(0);
-        for (size_t i = 0; i < layer->get_input_size(); i++) {
-            const auto& input = layer->get_inputs()[i];
-            if (isInternalLayer(input.get_output().get_node(), op_names, keep_constants)) continue;
-            inputCount++;
-        }
-        cnnLayer->insData.resize(inputCount);
-        for (size_t i = 0; i < layer->get_output_size(); i++) {
-            std::string outName = layer->get_friendly_name();
-            if (layer->get_output_size() != 1) outName += "." + std::to_string(i);
-            DataPtr& ptr = cnnNetworkImpl->getData(outName.c_str());
-
-            SizeVector dims;
-            dims = layer->get_output_shape(i);
-            for (const auto& dim : dims) {
-                if (!dim)
-                    THROW_IE_EXCEPTION << cnnLayer->type << " layer " << cnnLayer->name << " has incorrect dimensions in the output data " << i;
-            }
-
-            if (!ptr && _data.find(outName) != _data.end()) {
-                ptr = _data.at(outName);
-                if (auto nData = std::dynamic_pointer_cast<NGraphData>(ptr)) {
-                    const auto layout =
-                            dims.size() == nData->getTensorDesc().getDims().size() ?
-                                nData->getTensorDesc().getLayout() :
-                                TensorDesc::getLayoutByDims(dims);
-
-                    nData->reset();
-                    nData->reshape(dims, layout);
-                }
-                cnnNetworkImpl->addData(outName.c_str(), ptr);
-            }
-            if (!ptr) {
-                ptr.reset(new Data(outName, {details::ngraph::convertPrecision(layer->get_output_element_type(i)), dims,
-                                             TensorDesc::getLayoutByDims(dims)}));
-            }
-
-            ptr->getCreatorLayer() = cnnLayer;
-            cnnLayer->outData.push_back(ptr);
-            if (std::dynamic_pointer_cast<::ngraph::op::Parameter>(layer)) {
-                keep_input_info(cnnNetworkImpl, ptr);
-            }
-        }
-        cnnNetworkImpl->addLayer(cnnLayer);
-    }
-
-    // Set input data
-    for (const auto& layer : graph->get_ordered_ops()) {
-        if (std::dynamic_pointer_cast<::ngraph::op::Result>(layer)) {
-            IE_ASSERT(layer->get_inputs().size() == 1);
-            const auto &input = layer->get_inputs()[0];
-            std::string outName = input.get_output().get_node()->get_friendly_name();
-            if (input.get_output().get_node()->get_output_size() != 1)
-                outName += "." + std::to_string(input.get_output().get_index());
-            cnnNetworkImpl->addOutput(outName);
-            continue;
-        }
-
-        uint64_t count_of_skipped = 0;
-        for (size_t i = 0; i < layer->get_input_size(); i++) {
-            const auto& input = layer->get_inputs()[i];
-            if (isInternalConstLayer(input.get_output().get_node(), layer, keep_constants)) {
-                count_of_skipped++;
-                continue;
-            }
-            CNNLayerPtr prevCnnLayer;
-            StatusCode ret = cnnNetworkImpl->getLayerByName(input.get_output().get_node()->get_friendly_name().c_str(),
-                                                            prevCnnLayer, nullptr);
-            if (ret != OK)
-                THROW_IE_EXCEPTION << "Cannot find layer with name: "
-                                   << input.get_output().get_node()->get_friendly_name();
-
-            CNNLayerPtr cnnLayer;
-            ret = cnnNetworkImpl->getLayerByName(layer->get_friendly_name().c_str(), cnnLayer, nullptr);
-            if (ret != OK) THROW_IE_EXCEPTION << "Cannot find layer with name: " << layer->get_friendly_name();
-            auto inIndex = input.get_index();
-            if (cnnLayer->insData.size() <= (inIndex - count_of_skipped) ||
-                prevCnnLayer->outData.size() <= input.get_output().get_index() || count_of_skipped > inIndex)
-                THROW_IE_EXCEPTION << "Cannot create ICNNNetwork. Network structure is incorrect! "
-                    << "Input port " << inIndex << " (max " << cnnLayer->insData.size() << ") of "
-                    << cnnLayer->type << " layer " << cnnLayer->name
-                    << " cannot be connected with output port " << input.get_output().get_index()
-                    << " (max " << prevCnnLayer->outData.size() << ") of " << prevCnnLayer->type
-                    << " layer " << prevCnnLayer->name;
-            cnnLayer->insData[inIndex - count_of_skipped] = prevCnnLayer->outData[input.get_output().get_index()];
-            prevCnnLayer->outData[input.get_output().get_index()]->getInputTo()[cnnLayer->name] = cnnLayer;
-        }
-    }
-
-    // check all input ports are occupied
-    for (const auto& kvp : cnnNetworkImpl->allLayers()) {
-        const CNNLayer::Ptr& layer = kvp.second;
-        size_t inSize = layer->insData.size();
-
-        for (unsigned i = 0; i < inSize; i++) {
-            if (!layer->insData[i].lock()) {
-                THROW_IE_EXCEPTION << "Layer " << layer->name.c_str() << " input port " << i
-                                   << " is not connected to any data";
-            }
-        }
-        layer->validateLayer();
-    }
-
-    ICNNNetworkStats *pstats;
-    ICNNNetworkStats *lstats;
-    ResponseDesc response;
-    StatusCode sts = this->getStats(&pstats, &response);
-    if (sts != StatusCode::OK) {
-        THROW_IE_EXCEPTION << response.msg;
-    }
-    sts = cnnNetworkImpl->getStats(&lstats, &response);
-    if (sts != StatusCode::OK) {
-        THROW_IE_EXCEPTION << response.msg;
-    }
-    lstats->setNodesStats(pstats->getNodesStats());
+    ::ngraph::pass::ConvertOpSet2ToOpSet1().run_on_function(graph);
+    ::ngraph::pass::ConvertOpSet1ToLegacy().run_on_function(graph);
+    cnnNetwork = InferenceEngine::details::convertFunctionToICNNNetwork(graph, *this);
 }
 
 std::shared_ptr<CNNNetworkNGraphImpl> CNNNetworkNGraphImpl::cloneNGraphImpl() const {
@@ -1239,8 +534,6 @@ std::shared_ptr<CNNNetworkNGraphImpl> CNNNetworkNGraphImpl::cloneNGraphImpl() co
     }
     if (cnnNetwork)
         result->cnnNetwork = cloneNet(*cnnNetwork);
-    result->networksEqual = networksEqual;
-    result->_stats = _stats;
     return result;
 }
 
@@ -1252,15 +545,6 @@ void CNNNetworkNGraphImpl::transformConstants() {
     transformator.fullTrim();
 }
 
-bool details::CNNNetworkNGraphImpl::has_f16_constants(const std::shared_ptr<::ngraph::Function> &function) const {
-    for (auto & layer : function->get_ops()) {
-        if (std::dynamic_pointer_cast<::ngraph::op::Constant>(layer) && layer->output(0).get_element_type() == ::ngraph::element::f16) {
-            return true;
-        }
-    }
-    return false;
-}
-
 void InferenceEngine::details::CNNLayerCreator::on_adapter(const std::string& name,
                                                            ::ngraph::ValueAccessor<void>& adapter) {
     if (auto a = ::ngraph::as_type<::ngraph::AttributeAdapter<::ngraph::element::Type>>(&adapter)) {
@@ -1269,9 +553,9 @@ void InferenceEngine::details::CNNLayerCreator::on_adapter(const std::string& na
     } else if (auto a = ::ngraph::as_type<::ngraph::AttributeAdapter<::ngraph::PartialShape>>(&adapter)) {
         std::string dims;
         auto shape = static_cast<::ngraph::PartialShape&>(*a);
-        for (size_t i = 0; i < static_cast<size_t>(shape.rank()); i++) {
+        for (size_t i = 0; i < shape.rank().get_length(); i++) {
             if (!dims.empty()) dims += ",";
-            dims += std::to_string(static_cast<size_t>(shape[i]));
+            dims += std::to_string(shape[i].get_length());
         }
         params[name] = dims;
     } else if (auto a = ::ngraph::as_type<::ngraph::AttributeAdapter<::ngraph::Shape>>(&adapter)) {
@@ -1279,7 +563,7 @@ void InferenceEngine::details::CNNLayerCreator::on_adapter(const std::string& na
         auto shape = static_cast<::ngraph::Shape&>(*a);
         for (size_t i = 0; i < shape.size(); i++) {
             if (!dims.empty()) dims += ",";
-            dims += std::to_string(static_cast<size_t>(shape[i]));
+            dims += std::to_string(shape[i]);
         }
         params[name] = dims;
     } else if (auto a = ::ngraph::as_type<::ngraph::AttributeAdapter<::ngraph::Strides>>(&adapter)) {
@@ -1287,7 +571,7 @@ void InferenceEngine::details::CNNLayerCreator::on_adapter(const std::string& na
         auto shape = static_cast<::ngraph::Strides&>(*a);
         for (size_t i = 0; i < shape.size(); i++) {
             if (!dims.empty()) dims += ",";
-            dims += std::to_string(static_cast<size_t>(shape[i]));
+            dims += std::to_string(shape[i]);
         }
         params[name] = dims;
     }
@@ -1397,6 +681,108 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
         LayerParams attrs = {node->get_friendly_name(), node->description(),
                              details::ngraph::convertPrecision(node->get_output_element_type(0))};
         auto res = std::make_shared<SelectLayer>(attrs);
+        res->params = params;
+        return res;
+    });
+    addSpecificCreator({"BinaryConvolution"}, [](const std::shared_ptr<::ngraph::Node>& node,
+                                      const std::map<std::string, std::string> params) -> CNNLayerPtr {
+        LayerParams attrs = {node->get_friendly_name(), node->description(),
+                             details::ngraph::convertPrecision(node->get_output_element_type(0))};
+        auto res = std::make_shared<BinaryConvolutionLayer>(attrs);
+
+        // todo: investigate difference between ngraph parameters for BinConvolution and the implementation above
+        // this leads to accuracy issue for Precollected_ONNX_ResNet50_88percentinto1bit e2e test
+        // res->params = params;
+
+        auto castedLayer = ::ngraph::as_type_ptr<::ngraph::op::v1::BinaryConvolution>(node);
+
+        std::string value;
+        for (const auto& val : castedLayer->get_pads_begin()) {
+            if (!value.empty()) value += ",";
+            value += Builder::asString(val);
+        }
+        res->params["pads_begin"] = value;
+
+        value.clear();
+        for (const auto& val : castedLayer->get_pads_end()) {
+            if (!value.empty()) value += ",";
+            value += Builder::asString(val);
+        }
+        res->params["pads_end"] = value;
+
+        switch (castedLayer->get_auto_pad()) {
+            case ::ngraph::op::PadType::SAME_UPPER:
+                res->params["auto_pad"] = "same_upper";
+                break;
+            case ::ngraph::op::PadType::SAME_LOWER:
+                res->params["auto_pad"] = "same_lower";
+                break;
+            case ::ngraph::op::PadType::VALID:
+                res->params["auto_pad"] = "valid";
+                break;
+            default:
+                break;
+        }
+
+        value.clear();
+        for (const auto& val : castedLayer->get_strides()) {
+            if (!value.empty()) value += ",";
+            value += Builder::asString(val);
+        }
+        res->params["strides"] = value;
+
+        value.clear();
+        for (const auto& val : castedLayer->get_dilations()) {
+            if (!value.empty()) value += ",";
+            value += Builder::asString(val);
+        }
+        res->params["dilations"] = value;
+
+        // Restore kernel size and output
+        const auto& shape = castedLayer->get_input_shape(1);
+        res->params["output"] = Builder::asString(shape[0]);
+
+        value.clear();
+        for (size_t i = 2; i < shape.size(); i++) {
+            if (!value.empty()) value += ",";
+            value += Builder::asString(shape[i]);
+        }
+        res->params["kernel"] = value;
+
+        switch (castedLayer->get_mode()) {
+            case ::ngraph::op::v1::BinaryConvolution::BinaryConvolutionMode::XNOR_POPCOUNT:
+                res->params["mode"] = "xnor-popcount";
+        }
+
+        auto weights_shape = castedLayer->input(1).get_source_output().get_shape();
+        res->params["input"] = Builder::asString(weights_shape[1]);
+        res->params["pad_value"] = Builder::asString(castedLayer->get_pad_value());
+
+        Builder::NodeConverter<::ngraph::op::Constant> converter;
+
+        const auto weightsNode = castedLayer->get_inputs()[1].get_output().get_node();
+        if (converter.canCreate(weightsNode)) {
+            const auto& weights = converter.createLayer(weightsNode);
+            res->blobs["weights"] = weights->blobs["custom"];
+            res->_weights = weights->blobs["custom"];
+        }
+        return res;
+    });
+
+    addSpecificCreator({"SpaceToBatch"}, [](const std::shared_ptr<::ngraph::Node>& node,
+                                      const std::map<std::string, std::string> params) -> CNNLayerPtr {
+        LayerParams attrs = {node->get_friendly_name(), node->description(),
+                             details::ngraph::convertPrecision(node->get_output_element_type(0))};
+        auto res = std::make_shared<SpaceToBatchLayer>(attrs);
+        res->params = params;
+        return res;
+    });
+
+    addSpecificCreator({"BatchToSpace"}, [](const std::shared_ptr<::ngraph::Node>& node,
+                                      const std::map<std::string, std::string> params) -> CNNLayerPtr {
+        LayerParams attrs = {node->get_friendly_name(), node->description(),
+                             details::ngraph::convertPrecision(node->get_output_element_type(0))};
+        auto res = std::make_shared<BatchToSpaceLayer>(attrs);
         res->params = params;
         return res;
     });

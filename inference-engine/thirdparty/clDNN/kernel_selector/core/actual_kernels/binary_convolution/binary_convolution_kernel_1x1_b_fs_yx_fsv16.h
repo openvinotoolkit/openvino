@@ -31,8 +31,8 @@ public:
     ParamsKey GetSupportedKey() const override;
 
 protected:
-    std::vector<WeightsLayout> GetSupportedWeightLayouts(const binary_convolution_params&) const override {
-        return {WeightsLayout::os_is_yx_osv32_isv32p};
+    WeightsLayout GetPreferredWeightLayout(const binary_convolution_params &) const override {
+        return WeightsLayout::os_is_yx_osv32_isv32p;
     }
     JitConstants GetFusedPrimitivesJitConstants(const binary_convolution_params& params,
                                                 const DispatchData& kd) const override;

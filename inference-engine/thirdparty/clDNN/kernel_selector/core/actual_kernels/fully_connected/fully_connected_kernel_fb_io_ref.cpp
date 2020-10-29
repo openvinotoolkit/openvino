@@ -54,7 +54,7 @@ KernelsData FullyConnected_fb_io_ref::GetKernelsData(const Params& params, const
         KernelsData kd = GetTunedKernelsDataByIndex(params,
                                                     optParams,
                                                     DataLayout::yxfb,
-                                                    {WeightsLayout::yxio},
+                                                    WeightsLayout::yxio,
                                                     FORCE_PRIORITY_6,
                                                     static_cast<int>(i));
         if (!kd.empty()) {

@@ -102,9 +102,9 @@ private:
     reg64_t reg_bias = rbx;
 
     reg64_t reg_kj = abi_not_param1;
+    reg64_t reg_ki = reg_bias;
     reg64_t reg_oi = rdx;
     reg64_t reg_kh = rsi;
-
 
     reg64_t reg_out_long_offt = r14;
 
@@ -131,13 +131,11 @@ private:
         assert(idx < 31);
         return Xbyak::Ymm(idx);
     }
-
     Xbyak::Reg64 imm_addr64 = r15;
-    Xbyak::Xmm xmm_relu_ns = Xbyak::Xmm(30);
-    Xbyak::Zmm zmm_relu_ns = Xbyak::Zmm(30);
     Xbyak::Zmm zmm_zero = Xbyak::Zmm(31);
     Xbyak::Zmm zmm_wei = Xbyak::Zmm(31);
     Xbyak::Zmm zmm_prev_dst = Xbyak::Zmm(31);
+    Xbyak::Zmm zmm_bias = Xbyak::Zmm(31);
 
     Xbyak::Zmm bf16_emu_reserv_1 = Xbyak::Zmm(26);
     Xbyak::Zmm bf16_emu_reserv_2 = Xbyak::Zmm(27);
@@ -239,6 +237,9 @@ private:
     reg64_t aux_reg_dst = r14;
     reg64_t aux_reg_ker = r15;
 
+    reg64_t aux_reg_dst_d = r12;
+    reg64_t aux_reg_ker_d = r13;
+    reg64_t reg_ki = rsi;
 
     reg64_t reg_kj = rax;
     reg64_t reg_oi = rbx;
@@ -309,7 +310,7 @@ struct jit_avx512_core_bf16_conv_bwd_weights_kernel_f32 : public jit_generator {
         jit_generator(nullptr, ker_code_size),
         jcp(ajcp), bf16_emu_(nullptr)
     {
-        if (!jcp.is_cpx) {
+        if (!isa_has_bf16(jcp.isa)) {
             bf16_emu_ = new bf16_emulation_t(this, one, even, selector, scratch,
                                         tmp0, tmp1);
         }
@@ -386,6 +387,8 @@ private:
     inline void compute_oh_step_common(int ic_block_step, int max_ur_w);
     inline void compute_oh_step_disp();
     inline void compute_loop();
+    inline void compute_oh_loop_common();
+    inline void compute_od_loop_common();
 
     void generate();
 

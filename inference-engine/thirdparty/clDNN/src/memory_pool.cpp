@@ -37,10 +37,11 @@
 namespace cldnn {
 memory_record::memory_record(memory_set users,
                              refcounted_obj_ptr<memory_impl>& memory,
-                             uint32_t net_id)
-    : _users(users), _memory(memory), _network_id(net_id) {}
+                             uint32_t net_id,
+                             allocation_type type)
+    : _users(users), _memory(memory), _network_id(net_id), _type(type) {}
 
-memory_impl::ptr memory_pool::alloc_memory(const layout& layout, uint32_t net_id) {
+memory_impl::ptr memory_pool::alloc_memory(const layout& layout, allocation_type type, uint32_t net_id, bool reset) {
     auto context = _engine->get_context();
     if (layout.bytes_count() > context->get_device_info().max_alloc_mem_size) {
         throw std::runtime_error("exceeded max size of memory object allocation");
@@ -54,10 +55,13 @@ memory_impl::ptr memory_pool::alloc_memory(const layout& layout, uint32_t net_id
 
     try {
         if (layout.format.is_image_2d()) {
-            memory_impl::ptr mem_impl {new gpu::gpu_image2d(engine_impl::ptr(_engine), layout, net_id), false};
+            memory_impl::ptr mem_impl {new gpu::gpu_image2d(engine_impl::ptr(_engine), layout, net_id, reset), false};
+            return mem_impl;
+        } else if (type == allocation_type::cl_mem) {
+            memory_impl::ptr mem_impl{ new gpu::gpu_buffer(engine_impl::ptr(_engine), layout, net_id, reset), false };
             return mem_impl;
         } else {
-            memory_impl::ptr mem_impl { new gpu::gpu_buffer(engine_impl::ptr(_engine), layout, net_id), false };
+            memory_impl::ptr mem_impl{ new gpu::gpu_usm(engine_impl::ptr(_engine), layout, net_id, type, reset), false };
             return mem_impl;
         }
     } catch (const cl::Error& clErr) {
@@ -140,10 +144,12 @@ bool memory_pool::has_conflict(const memory_set& a,
 memory_impl::ptr memory_pool::get_from_non_padded_pool(const layout& layout,
                                                        const primitive_id& id,
                                                        uint32_t network_id,
-                                                       const std::set<primitive_id>& restrictions) {
+                                                       const std::set<primitive_id>& restrictions,
+                                                       allocation_type type) {
     auto it = _non_padded_pool.lower_bound(layout.bytes_count());
     while (it != _non_padded_pool.end()) {
         if (it->second._network_id == network_id &&
+            it->second._type == type &&
             it->second._memory->get_layout().format != format::fs_b_yx_fsv32 &&
             layout.format != format::fs_b_yx_fsv32 &&
             ((layout.format != format::b_fs_yx_fsv32 && layout.format != format::b_fs_zyx_fsv32) ||
@@ -157,10 +163,10 @@ memory_impl::ptr memory_pool::get_from_non_padded_pool(const layout& layout,
         }
     }
     // didn't find anything for you? create new resource
-    auto mem = alloc_memory(layout, network_id);
+    auto mem = alloc_memory(layout, type, network_id);
     {
         _non_padded_pool.emplace(layout.bytes_count(),
-                                 memory_record({{id, network_id}}, mem, network_id));
+                                 memory_record({{id, network_id}}, mem, network_id, type));
     }
     return mem;
 }
@@ -168,12 +174,14 @@ memory_impl::ptr memory_pool::get_from_non_padded_pool(const layout& layout,
 memory_impl::ptr memory_pool::get_from_padded_pool(const layout& layout,
                                                    const primitive_id& id,
                                                    uint32_t network_id,
-                                                   const std::set<primitive_id>& restrictions) {
+                                                   const std::set<primitive_id>& restrictions,
+                                                   allocation_type type) {
     auto first_level_cache = _padded_pool.find(layout);
 
     if (first_level_cache != _padded_pool.end()) {
         for (auto& rec_list : first_level_cache->second) {
             if (rec_list._network_id == network_id &&
+                rec_list._type == type &&
                 ((layout.format != format::b_fs_yx_fsv32 && layout.format != format::b_fs_zyx_fsv32) ||
                  (layout.size.feature[0] % 32 == 0)) &&
                 // TODO: check if this condition always correct
@@ -188,13 +196,13 @@ memory_impl::ptr memory_pool::get_from_padded_pool(const layout& layout,
                 return ret_mem;
             }
         }
-        auto mem = alloc_memory(layout, network_id);
+        auto mem = alloc_memory(layout, type, network_id);
         first_level_cache->second.emplace_back(
-            memory_record({{id, network_id}}, mem, network_id));
+            memory_record({{id, network_id}}, mem, network_id, type));
         return mem;
     }
-    auto mem = alloc_memory(layout, network_id);
-    std::list<memory_record> list = {memory_record({{id, network_id}}, mem, network_id)};
+    auto mem = alloc_memory(layout, type, network_id);
+    std::list<memory_record> list = {memory_record({{id, network_id}}, mem, network_id, type)};
     _padded_pool.emplace(layout, std::move(list));
     return mem;
 }
@@ -205,11 +213,13 @@ memory_impl::ptr memory_pool::get_from_padded_pool(const layout& layout,
     */
 memory_impl::ptr memory_pool::get_from_across_networks_pool(const layout& layout,
                                                             const primitive_id& id,
-                                                            uint32_t network_id) {
+                                                            uint32_t network_id,
+                                                            allocation_type type) {
     auto it = _no_reusable_pool.lower_bound(layout.bytes_count());
 
     while (it != _no_reusable_pool.end()) {
-        if (it->second._network_id != network_id) {  // don't use non reusable resources within the same network
+        if (it->second._network_id != network_id &&
+            it->second._type == type) {  // don't use non reusable resources within the same network
             if (!has_conflict(it->second._users, {}, network_id)) {
                 it->second._users.insert(memory_user(id, network_id));
                 auto ret_mem = _engine->reinterpret_buffer(*it->second._memory, layout);
@@ -218,41 +228,101 @@ memory_impl::ptr memory_pool::get_from_across_networks_pool(const layout& layout
         }
         ++it;
     }
-    auto mem = alloc_memory(layout, network_id);
+    auto mem = alloc_memory(layout, type, network_id);
     {
         _no_reusable_pool.emplace(layout.bytes_count(),
-                                  memory_record({{id, network_id}}, mem, network_id));
+                                  memory_record({{id, network_id}}, mem, network_id, type));
     }
     return mem;
 }
 
-memory_impl::ptr memory_pool::get_memory(const layout& layout, uint32_t net_id) {
-    return alloc_memory(layout, net_id);
+memory_impl::ptr memory_pool::get_memory(const layout& layout, allocation_type type, uint32_t net_id, bool reset) {
+    return alloc_memory(layout, type, net_id, reset);
 }
 
 memory_impl::ptr memory_pool::get_memory(const layout& layout,
                                          const primitive_id& id,
                                          uint32_t network_id,
                                          const std::set<primitive_id>& restrictions,
+                                         allocation_type type,
                                          bool reusable_across_network) {
     if (reusable_across_network) {
         // reusable within the same network
         if (!layout.format.is_image() && layout.data_padding == padding{{0, 0, 0, 0}, 0}) {
             // non-padded buffers
-            return get_from_non_padded_pool(layout, id, network_id, restrictions);
+            return get_from_non_padded_pool(layout, id, network_id, restrictions, type);
         } else if (!layout.format.is_image()) {
             // padded buffers
-            return get_from_padded_pool(layout, id, network_id, restrictions);
+            return get_from_padded_pool(layout, id, network_id, restrictions, type);
         } else {
             // images (reuse not yet implemented)
-            return alloc_memory(layout, network_id);
+            return alloc_memory(layout, type, network_id);
         }
     } else {
-        return alloc_memory(layout, network_id);
+        return alloc_memory(layout, type, network_id);
     }
 }
 
 void memory_pool::clear_pool() { _non_padded_pool.clear(); }
+
+void memory_pool::clear_pool_for_network(uint32_t network_id) {
+    // free up _non_padded_pool for this network
+    {
+        auto itr = _non_padded_pool.begin();
+
+        while (itr != _non_padded_pool.end()) {
+            auto& record = itr->second;
+
+            if (record._memory->get_net_id() == network_id &&
+                record._network_id == network_id) {
+                itr = _non_padded_pool.erase(itr);
+            } else {
+                itr++;
+            }
+        }
+    }
+
+    // free up _padded_pool for this network
+    {
+        auto itr = _padded_pool.begin();
+
+        while (itr != _padded_pool.end()) {
+            auto& list = itr->second;
+            auto list_itr = list.begin();
+
+            while (list_itr != list.end()) {
+                if (list_itr->_memory->get_net_id() == network_id &&
+                    list_itr->_network_id == network_id) {
+                    list_itr = list.erase(list_itr);
+                } else {
+                    list_itr++;
+                }
+            }
+
+            if (list.empty()) {
+                itr = _padded_pool.erase(itr);
+            } else {
+                itr++;
+            }
+        }
+    }
+
+    // free up _no_reusable_pool for this network
+    {
+        auto itr = _no_reusable_pool.begin();
+
+        while (itr != _no_reusable_pool.end()) {
+            auto& record = itr->second;
+
+            if (record._memory->get_net_id() == network_id &&
+                record._network_id == network_id) {
+                itr = _no_reusable_pool.erase(itr);
+            } else {
+                itr++;
+            }
+        }
+    }
+}
 
 memory_pool::memory_pool(engine_impl& engine) : _engine(&engine), _temp_memory_used(0), _max_peak_memory_used(0) {
 }
@@ -313,6 +383,8 @@ void memory_pool::add_memory_used(size_t value) {
     }
 }
 
-void memory_pool::subtract_memory_used(size_t value) { _temp_memory_used -= value; }
+void memory_pool::subtract_memory_used(size_t value) {
+    _temp_memory_used -= value;
+}
 
 }  // namespace cldnn

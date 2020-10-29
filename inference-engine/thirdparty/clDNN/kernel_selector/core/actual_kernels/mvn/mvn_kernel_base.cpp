@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2018 Intel Corporation
+﻿// Copyright (c) 2018-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -18,6 +18,18 @@
 #include <vector>
 
 namespace kernel_selector {
+
+bool MVNKernelBase::Validate(const Params& params, const optional_params&) const {
+    const mvn_params& orgParams = static_cast<const mvn_params&>(params);
+
+    for (auto& fused_op : orgParams.fused_ops) {
+        if (!IsFusedPrimitiveSupported(fused_op))
+            return false;
+    }
+
+    return true;
+}
+
 JitConstants MVNKernelBase::GetJitConstants(const mvn_params& params, MVNKernelBase::DispatchData) const {
     JitConstants jit = MakeBaseParamsJitConstants(params);
 
@@ -63,6 +75,9 @@ KernelsData MVNKernelBase::GetCommonKernelsData(const Params& params,
                                                 float estimated_time) const {
     assert(params.GetType() == KernelType::MVN);
 
+    if (!Validate(params, options))
+        return {};
+
     const mvn_params& orgParams = static_cast<const mvn_params&>(params);
 
     DispatchData runInfo;
@@ -77,10 +92,27 @@ KernelsData MVNKernelBase::GetCommonKernelsData(const Params& params,
     auto jit = CreateJit(finalKernelName, cldnn_jit, entry_point);
 
     auto& kernel = kd.kernels[0];
-    FillCLKernelData(kernel, runInfo, params.engineInfo, finalKernelName, jit, entry_point);
+    FillCLKernelData(kernel,
+                     runInfo,
+                     params.engineInfo,
+                     finalKernelName,
+                     jit,
+                     entry_point,
+                     "",
+                     false,
+                     false,
+                     1,
+                     GetFusedPrimitiveInputsCount(params));
 
     kd.estimatedTime = estimated_time;
 
     return {kd};
 }
+
+Datatype MVNKernelBase::GetActivationType(const mvn_params& params) const {
+    if (params.output.GetDType() == Datatype::F16)
+        return Datatype::F16;
+    return Datatype::F32;
+}
+
 }  // namespace kernel_selector

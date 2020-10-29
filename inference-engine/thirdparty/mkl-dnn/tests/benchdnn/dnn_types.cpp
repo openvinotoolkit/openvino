@@ -229,6 +229,7 @@ attr_t::post_ops_t::kind_t attr_t::post_ops_t::str2kind(const char *str) {
     CASE(BRELU);
     CASE(SRELU);
     CASE(LOGISTIC);
+    CASE(EXP);
 #undef CASE
     assert(!"unknown attr::post_ops::kind");
     return KIND_TOTAL;
@@ -247,6 +248,7 @@ const char *attr_t::post_ops_t::kind2str(attr_t::post_ops_t::kind_t kind) {
     CASE(BRELU, "brelu");
     CASE(SRELU, "srelu");
     CASE(LOGISTIC, "logistic");
+    CASE(EXP, "exp");
 #undef CASE
     assert(!"unknown attr::post_ops::kind");
     return "unknown attr::post_ops::kind";
@@ -265,6 +267,7 @@ mkldnn_alg_kind_t attr_t::post_ops_t::kind2mkldnn_kind(
     CASE(BRELU, mkldnn_eltwise_bounded_relu);
     CASE(SRELU, mkldnn_eltwise_soft_relu);
     CASE(LOGISTIC, mkldnn_eltwise_logistic);
+    CASE(EXP, mkldnn_eltwise_exp);
 #undef CASE
     assert(!"unknown attr::post_ops::kind");
     return mkldnn_alg_kind_undef;
@@ -357,6 +360,7 @@ void attr_t::post_ops_t::to_str(char *buffer, char **end_b) const {
         case BRELU:
         case SRELU:
         case LOGISTIC:
+        case EXP:
             buffer += sprintf(buffer, "%s:%g", kind2str(e.kind), e.eltwise.alpha);
             if (e.eltwise.beta != 0.f || e.eltwise.scale != 1.f)
                 buffer += sprintf(buffer, ":%g:%g", e.eltwise.beta, e.eltwise.scale);
@@ -475,6 +479,7 @@ mkldnn_primitive_attr_t create_mkldnn_attr(const attr_t &attr, int scale_cnt,
             case attr_t::post_ops_t::BRELU:
             case attr_t::post_ops_t::SRELU:
             case attr_t::post_ops_t::LOGISTIC:
+            case attr_t::post_ops_t::EXP:
                 DNN_SAFE_V(mkldnn_post_ops_append_eltwise(ops, e.eltwise.scale,
                             e.eltwise.alg, e.eltwise.alpha, e.eltwise.beta));
                 break;
@@ -558,6 +563,7 @@ void maybe_post_ops(float &d, float dst, const attr_t &attr) {
         case pk::BRELU: d = s * bounded_relu_fwd(d, a); break;
         case pk::SRELU: d = s * soft_relu_fwd(d); break;
         case pk::LOGISTIC: d = s * logistic_fwd(d); break;
+        case pk::EXP: d = s * exp_fwd(d); break;
         default: assert(!"unknown attr::post_ops::kind");
         }
     }

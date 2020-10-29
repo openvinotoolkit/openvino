@@ -1,4 +1,4 @@
-// Copyright (c) 2019 Intel Corporation
+// Copyright (c) 2019-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -22,7 +22,7 @@
 
 namespace kernel_selector {
 
-ParamsKey ConvolutionKernel_MMAD_b_fs_yx_fsv32_dw::GetSupportedKey() const {
+ParamsKey ConvolutionKernel_mmad_b_fs_yx_fsv32_dw::GetSupportedKey() const {
     ParamsKey k;
     k.EnableInputDataType(Datatype::INT8);
     k.EnableInputDataType(Datatype::UINT8);
@@ -51,29 +51,29 @@ ParamsKey ConvolutionKernel_MMAD_b_fs_yx_fsv32_dw::GetSupportedKey() const {
 }
 
 
-bool ConvolutionKernel_MMAD_b_fs_yx_fsv32_dw::Validate(const Params& p, const optional_params& o) const {
+bool ConvolutionKernel_mmad_b_fs_yx_fsv32_dw::Validate(const Params& p, const optional_params& o) const {
     if (!Parent::Validate(p, o)) {
         return false;
     }
 
     auto params = dynamic_cast<const convolution_params&>(p);
 
-    if (!params.depthwise_separable_opt)
+    if (params.inputs[0].Feature().v != params.groups || params.output.Feature().v != params.groups)
         return false;
 
     if ((params.quantization == QuantizationType::ASYMMETRIC_DATA || params.quantization == QuantizationType::ASYMMETRIC_DATA_AND_WEIGHTS)
-        && !params.has_compensation) {
+        && !params.HasCompensation()) {
         return false;
     }
 
     return true;
 }
 
-ConvolutionKernelBase::DispatchData ConvolutionKernel_MMAD_b_fs_yx_fsv32_dw::SetDefault(const convolution_params& cp,
+ConvolutionKernelBase::DispatchData ConvolutionKernel_mmad_b_fs_yx_fsv32_dw::SetDefault(const convolution_params& cp,
                                                                                         int /*autoTuneIndex*/) const {
     DispatchData runInfo = ConvolutionKernelBase::SetDefault(cp);
 
-    runInfo.effiency = FORCE_PRIORITY_3;
+    runInfo.efficiency = FORCE_PRIORITY_3;
 
     std::vector<size_t> global = {cp.output.Feature().v, cp.output.X().v * cp.output.Y().v, cp.output.Batch().v};
 
@@ -90,7 +90,7 @@ ConvolutionKernelBase::DispatchData ConvolutionKernel_MMAD_b_fs_yx_fsv32_dw::Set
 }
 
 // TODO: optimize this kernel
-JitConstants ConvolutionKernel_MMAD_b_fs_yx_fsv32_dw::GetJitConstants(const convolution_params& params,
+JitConstants ConvolutionKernel_mmad_b_fs_yx_fsv32_dw::GetJitConstants(const convolution_params& params,
                                                                       const DispatchData& runInfo) const {
     auto jit = Parent::GetJitConstants(params, runInfo);
 
@@ -104,7 +104,7 @@ JitConstants ConvolutionKernel_MMAD_b_fs_yx_fsv32_dw::GetJitConstants(const conv
 }
 
 
-KernelsData ConvolutionKernel_MMAD_b_fs_yx_fsv32_dw::GetKernelsData(const Params& params,
+KernelsData ConvolutionKernel_mmad_b_fs_yx_fsv32_dw::GetKernelsData(const Params& params,
                                                                     const optional_params& options) const {
     KernelsData kd = GetTunedKernelsDataByIndex(params, options);
     if (!kd.empty())

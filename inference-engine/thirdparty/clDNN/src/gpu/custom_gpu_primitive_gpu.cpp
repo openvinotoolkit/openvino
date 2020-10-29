@@ -48,6 +48,7 @@ struct custom_gpu_primitive_gpu : typed_primitive_impl<custom_gpu_primitive> {
           cl_kernel(cl_kernel),
           _kernel(arg.get_program().get_engine().get_context(),
                   cl_kernel->kernelString,
+                  arg.get_program().get_id(),
                   arg.get_program().get_engine().get_context()->get_configuration().dump_custom_program) {}
 
     event_impl::ptr execute_impl(const std::vector<event_impl::ptr>& events,

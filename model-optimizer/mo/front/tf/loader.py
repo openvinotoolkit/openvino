@@ -27,7 +27,7 @@ except ImportError:
     import tensorflow as tf_v1
 
 from google.protobuf import text_format
-from mo.graph.graph import create_graph_with_nodes, Graph
+from mo.graph.graph import fill_graph_with_nodes, Graph
 from mo.utils.summarize_graph import summarize_graph
 
 
@@ -92,7 +92,7 @@ def freeze_checkpoint(graph_def, checkpoint, output_node_names):
 
     with tf_v1.Session() as sess:
         var_list = {}
-        var_to_shape_map = tf_v1.pywrap_tensorflow.NewCheckpointReader(checkpoint).get_variable_to_shape_map()
+        var_to_shape_map = tf_v1.train.NewCheckpointReader(checkpoint).get_variable_to_shape_map()
         for key in var_to_shape_map:
             try:
                 tensor = sess.graph.get_operation_by_name(key).outputs[0]
@@ -236,8 +236,8 @@ def protobuf_attrs(pb:tf_v1.NodeDef):
     return {'pb': pb}
 
 
-def protobuf2nx(pb: tf_v1.GraphDef):
-    graph = create_graph_with_nodes(pb.node, get_id=lambda pb: pb.name, get_attrs=protobuf_attrs)
+def protobuf2nx(graph, pb: tf_v1.GraphDef):
+    fill_graph_with_nodes(graph, pb.node, get_id=lambda pb: pb.name, get_attrs=protobuf_attrs)
     # initial order of nodes in the GraphDef. It is used to specify order in
     # which merged nodes are added to the generated sub-graph GraphDef for the TensorFlow offload feature.
     graph.graph['initial_nodes_order'] = [node.name for node in pb.node]
@@ -252,8 +252,6 @@ def protobuf2nx(pb: tf_v1.GraphDef):
                     del pb.attr['_class'].list.s[index]
                 else:
                     index = index + 1
-
-    return graph
 
 
 def variables_to_constants(graph: Graph, variables_values: dict):

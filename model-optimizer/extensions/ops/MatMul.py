@@ -139,6 +139,22 @@ class MatMul(Op):
         return A_shape, B_shape
 
     @staticmethod
+    def value_propagation(node: Node):
+        """
+        This function performs a value propagation for MatMul layer.
+        :param node: MatMul layer
+        :return: None
+        """
+        a_value = node.in_port(0).get_source().data.get_value()
+        b_value = node.in_port(1).get_source().data.get_value()
+        if a_value is not None and b_value is not None:
+            if node.transpose_a:
+                a_value = transpose(a_value)
+            if node.transpose_b:
+                b_value = transpose(b_value)
+            node.out_port(0).data.set_value(np.matmul(a_value, b_value))
+
+    @staticmethod
     def infer(node: Node):
         """
         Performs shape inference of MatMul node as operation doc-string says
@@ -164,6 +180,17 @@ class MatMul(Op):
         in_ch = 0 if not node.transpose_b else 1
         out_ch = 1 if not node.transpose_b else 0
         assign_dims_to_weights(node.in_node(1), None, in_ch, out_ch, node.in_port(1).data.get_shape().size)
+        MatMul.value_propagation(node)
+
+
+def transpose(value):
+    num_of_dims = value.ndim
+    if num_of_dims == 1:
+        return np.reshape(value, (len(value), 1))
+    elif num_of_dims == 2:
+        return np.transpose(value, [1, 0])
+    else:
+        return np.transpose(value, [*range(0, num_of_dims - 2), num_of_dims - 1, num_of_dims - 2])
 
 
 # MatMul-like operation from frameworks

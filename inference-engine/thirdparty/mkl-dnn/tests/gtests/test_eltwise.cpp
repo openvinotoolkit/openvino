@@ -69,7 +69,8 @@ protected:
 
         data_t data_median = data_t(0);
         data_t data_deviation
-                = p.alg_kind == eltwise_elu || p.alg_kind == eltwise_exp ? data_t(1) : data_t(200);
+                = p.alg_kind == eltwise_elu || p.alg_kind == eltwise_exp || p.alg_kind == eltwise_swish
+                ? data_t(1) : data_t(200);
         fill_data<data_t>(n_elems(*data_desc), (data_t *)src->get_data_handle(),
                 data_median, data_deviation);
         check_zero_tail<data_t>(1, *src);
@@ -210,7 +211,9 @@ TEST_P(eltwise_test_bfloat16, TestsEltwise) {}
     EXPAND(PARAMS(eltwise_tanh, __VA_ARGS__)), \
     EXPAND(PARAMS(eltwise_elu, __VA_ARGS__)), \
     EXPAND(PARAMS(eltwise_square, __VA_ARGS__)), \
-    EXPAND(PARAMS(eltwise_abs, __VA_ARGS__))
+    EXPAND(PARAMS(eltwise_abs, __VA_ARGS__)), \
+    EXPAND(PARAMS(eltwise_gelu, __VA_ARGS__)), \
+    EXPAND(PARAMS(eltwise_swish, __VA_ARGS__))
 
 
 #define PARAMS_ALL_ALG_SDPART(...) \
@@ -224,9 +227,9 @@ TEST_P(eltwise_test_bfloat16, TestsEltwise) {}
 
 
 #define INST_TEST_CASE(str, ...) \
-INSTANTIATE_TEST_CASE_P( \
+INSTANTIATE_TEST_SUITE_P( \
         str, eltwise_test_float, ::testing::Values(__VA_ARGS__)); \
-INSTANTIATE_TEST_CASE_P( \
+INSTANTIATE_TEST_SUITE_P( \
         str, eltwise_test_bfloat16, ::testing::Values(__VA_ARGS__));
 
 INST_TEST_CASE(SimpleZeroDim,

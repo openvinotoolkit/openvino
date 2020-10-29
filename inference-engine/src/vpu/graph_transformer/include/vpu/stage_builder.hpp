@@ -34,6 +34,14 @@ public:
             const Data& input1,
             const Data& output);
 
+    Stage addMaxStage(
+            const Model& model,
+            const std::string& name,
+            const ie::CNNLayerPtr& layer,
+            const Data& input0,
+            const Data& input1,
+            const Data& output);
+
     Stage addBiasStage(
             const Model& model,
             const std::string& name,
@@ -159,7 +167,7 @@ public:
             const Data& output,
             const DimValues& offset = DimValues());
 
-    Stage addShrinkStage(
+    Stage addCropStage(
             const Model& model,
             const std::string& name,
             const ie::CNNLayerPtr& layer,
@@ -195,6 +203,13 @@ public:
             const DataVector& inputs,
             const Data& output);
 
+    Stage addPoolingStage(
+            const Model& model,
+            const std::string& name,
+            const ie::CNNLayerPtr& layer,
+            const Data& input,
+            const Data& output,
+            const ie::PoolingLayer::PoolType& poolType);
 
     Stage addGatherStage(
             const Model& model,
@@ -230,6 +245,16 @@ public:
             const ie::CNNLayerPtr& layer,
             const Data& input,
             const Data& output);
+
+    Stage addConvolutionStage(
+            const Model& model,
+            const std::string& name,
+            const ie::CNNLayerPtr& layer,
+            const Data& input,
+            const Data& output,
+            const Data& weights,
+            const Data& biases,
+            const Data& scales);
 
     Stage addReduceStage(
             const Model& model,

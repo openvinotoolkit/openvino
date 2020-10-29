@@ -1,5 +1,5 @@
 /*
-// Copyright (c) 2018 Intel Corporation
+// Copyright (c) 2018-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -29,11 +29,7 @@ bool fused_conv_bn_scale_kernel_base::Validate(const Params& p, const optional_p
     const fused_conv_bn_scale_params& params = static_cast<const fused_conv_bn_scale_params&>(p);
     const fused_conv_bn_scale_optional_params& optParams = static_cast<const fused_conv_bn_scale_optional_params&>(o);
 
-    bool bSupportedWeightsLayout = false;
-
-    for (WeightsLayout l : GetSupportedWeightLayouts(params)) {
-        bSupportedWeightsLayout |= params.weights.GetLayout() == l;
-    }
+    bool bSupportedWeightsLayout = params.weights.GetLayout() == GetPreferredWeightsLayout(params);
 
     const bool bWeightsOK = bSupportedWeightsLayout || optParams.allowStaticInputReordering;
 
@@ -100,7 +96,7 @@ fused_conv_bn_scale_kernel_base::DispatchData fused_conv_bn_scale_kernel_base::S
     kd.lws1 = local[1];
     kd.lws2 = local[2];
 
-    kd.effiency = DONT_USE_IF_HAVE_SOMETHING_ELSE;
+    kd.efficiency = DONT_USE_IF_HAVE_SOMETHING_ELSE;
     return kd;
 }
 
@@ -122,7 +118,7 @@ KernelsData fused_conv_bn_scale_kernel_base::GetCommonKernelsData(const Params& 
     }
 
     bool succeed =
-        UpdateWeightsParams(newParams, options, GetSupportedWeightLayouts(newParams), kd.weightsReorderParams);
+        UpdateWeightsParams(newParams, options, GetPreferredWeightsLayout(newParams), kd.weightsReorderParams);
 
     if (!succeed) {
         return {};

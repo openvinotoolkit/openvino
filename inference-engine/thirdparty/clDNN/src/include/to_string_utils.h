@@ -19,6 +19,7 @@
 #include "api/tensor.hpp"
 #include "api/layout.hpp"
 #include "api/primitive.hpp"
+#include "device_impl.h"
 #include <memory>
 
 namespace cldnn {
@@ -72,8 +73,8 @@ inline std::string fmt_to_str(format fmt) {
             return "bfyx";
         case format::fyxb:
             return "fyxb";
-        case format::bfyx_f16:
-            return "bfyx_f16";
+        case format::b_fs_yx_fsv16:
+            return "b_fs_yx_fsv16";
         case format::b_fs_yx_fsv32:
             return "b_fs_yx_fsv32";
         case format::b_fs_zyx_fsv32:
@@ -104,11 +105,19 @@ inline std::string fmt_to_str(format fmt) {
             return "bfwzyx";
         case format::fs_b_yx_fsv32:
             return "fs_b_yx_fsv32";
-        case format::bfzyx_f16:
-            return "bfzyx_f16";
-        case format::bfzyx_b16f16:
-            return "bfzyx_b16f16";
+        case format::bs_fs_yx_bsv16_fsv16:
+            return "bs_fs_yx_bsv16_fsv16";
+        case format::b_fs_zyx_fsv16:
+            return "b_fs_zyx_fsv16";
+        case format::bs_fs_zyx_bsv16_fsv16:
+            return "bs_fs_zyx_bsv16_fsv16";
 
+        case format::oiyx:
+            return "oiyx";
+        case format::yxio:
+            return "yxio";
+        case format::oizyx:
+            return "oizyx";
         case format::winograd_2x3_s1_weights:
             return "winograd_2x3_s1_weights";
         case format::winograd_2x3_s1_fused_weights:
@@ -123,8 +132,6 @@ inline std::string fmt_to_str(format fmt) {
             return "image_2d_weights_winograd_6x3_s1_fbxyb";
         case format::image_2d_weights_winograd_6x3_s1_xfbyb:
             return "image_2d_weights_winograd_6x3_s1_xfbyb";
-        case format::oiyx_o16:
-            return "oiyx_o16";
         case format::os_iyx_osv16:
             return "os_iyx_osv16";
         case format::os_iyx_osv32:
@@ -133,8 +140,8 @@ inline std::string fmt_to_str(format fmt) {
             return "os_iyx_osv64";
         case format::is_o_yx_isv32:
             return "is_o_yx_isv32";
-        case format::o_i_yx_i16_o16:
-            return "o_i_yx_i16_o16";
+        case format::os_is_yx_isv16_osv16:
+            return "os_is_yx_isv16_osv16";
         case format::os_is_yx_isa8_osv8_isv4:
             return "os_is_yx_isa8_osv8_isv4";
         case format::os_is_zyx_isa8_osv8_isv4:
@@ -147,8 +154,6 @@ inline std::string fmt_to_str(format fmt) {
             return "os_is_yx_isa8_osv8_isv4_swizzled_by_4";
         case format::is_o32_yx_isv32_swizzled_by_4:
             return "is_o32_yx_isv32_swizzled_by_4";
-        case format::bf_lyx_yx:
-            return "bf_lyx_yx";
         case format::os_is_yx_osv16_isv4:
             return "os_is_yx_osv16_isv4";
         case format::os_is_yx_osv32_isv4_swizzled_by_2:
@@ -157,21 +162,56 @@ inline std::string fmt_to_str(format fmt) {
             return "os_is_y_x8_osv8_isv4";
         case format::os_is_yx_osv32_isv32p:
             return "os_is_yx_osv32_isv32p";
-        case format::o_i_zyx_i16_o16:
-            return "o_i_zyx_i16_o16";
-        case format::i_o_zyx_o16_i16:
-            return "i_o_zyx_o16_i16";
+        case format::os_is_zyx_isv16_osv16:
+            return "os_is_zyx_isv16_osv16";
+        case format::is_os_zyx_osv16_isv16:
+            return "is_os_zyx_osv16_isv16";
+        case format::is_os_yx_osv16_isv16:
+            return "is_os_yx_osv16_isv16";
         case format::os_is_osv32_isv32_swizzled_by_4:
             return "os_is_osv32_isv32_swizzled_by_4";
-        case format::o_i_zyx_i8_o16_i2:
-            return "o_i_zyx_i8_o16_i2";
-        case format::ozyxi_o16:
-            return "ozyxi_o16";
+        case format::os_is_zyx_isv8_osv16_isv2:
+            return "os_is_zyx_isv8_osv16_isv2";
+        case format::os_zyxi_osv16:
+            return "os_zyxi_osv16";
+
+        case format::goiyx:
+            return "goiyx";
+        case format::goizyx:
+            return "goizyx";
+        case format::g_os_iyx_osv16:
+            return "g_os_iyx_osv16";
+        case format::g_os_iyx_osv32:
+            return "g_os_iyx_osv32";
+        case format::gs_oiyx_gsv16:
+            return "gs_oiyx_gsv16";
+        case format::gs_oiyx_gsv32:
+            return "gs_oiyx_gsv32";
+        case format::g_is_os_zyx_osv16_isv16:
+            return "g_is_os_zyx_osv16_isv16";
+        case format::g_is_os_yx_osv16_isv16:
+            return "g_is_os_yx_osv16_isv16";
+        case format::g_os_is_zyx_isv8_osv16_isv2:
+            return "g_os_is_zyx_isv8_osv16_isv2";
+        case format::g_os_is_yx_isv8_osv16_isv2:
+            return "g_os_is_yx_isv8_osv16_isv2";
+        case format::g_os_is_zyx_isv16_osv16:
+            return "g_os_is_zyx_isv16_osv16";
         default:
             return "unknown (" + std::to_string(fmt.value) + ")";
     }
 }
 
 inline std::string type_to_str(std::shared_ptr<const primitive> primitive) { return primitive->type_string(); }
+
+inline std::string allocation_type_to_str(allocation_type type) {
+    switch (type) {
+    case allocation_type::cl_mem: return "cl_mem";
+    case allocation_type::usm_host: return "usm_host";
+    case allocation_type::usm_shared: return "usm_shared";
+    case allocation_type::usm_device: return "usm_device";
+    default: return "unknown";
+    }
+}
 
 }  // namespace cldnn

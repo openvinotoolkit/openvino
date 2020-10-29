@@ -85,11 +85,17 @@ public:
                 case getPrecisionMask(Precision::I64, Precision::I64):
                     exec_cast<PrecisionTrait<Precision::I64>::value_type, PrecisionTrait<Precision::I64>::value_type>(inputs[0], outputs[0]);
                     break;
+                case getPrecisionMask(Precision::U64, Precision::U64):
+                    exec_cast<PrecisionTrait<Precision::U64>::value_type, PrecisionTrait<Precision::U64>::value_type>(inputs[0], outputs[0]);
+                    break;
                 case getPrecisionMask(Precision::FP32, Precision::FP32):
                     exec_cast<PrecisionTrait<Precision::FP32>::value_type, PrecisionTrait<Precision::FP32>::value_type>(inputs[0], outputs[0]);
                     break;
                 case getPrecisionMask(Precision::I32, Precision::I64):
                     exec_cast<PrecisionTrait<Precision::I32>::value_type, PrecisionTrait<Precision::I64>::value_type>(inputs[0], outputs[0]);
+                    break;
+                case getPrecisionMask(Precision::I32, Precision::U64):
+                    exec_cast<PrecisionTrait<Precision::I32>::value_type, PrecisionTrait<Precision::U64>::value_type>(inputs[0], outputs[0]);
                     break;
                 case getPrecisionMask(Precision::I32, Precision::FP32):
                     exec_cast<PrecisionTrait<Precision::I32>::value_type, PrecisionTrait<Precision::FP32>::value_type>(inputs[0], outputs[0]);
@@ -99,6 +105,9 @@ public:
                     break;
                 case getPrecisionMask(Precision::FP32, Precision::I64):
                     exec_cast<PrecisionTrait<Precision::FP32>::value_type, PrecisionTrait<Precision::I64>::value_type>(inputs[0], outputs[0]);
+                    break;
+                case getPrecisionMask(Precision::FP32, Precision::U64):
+                    exec_cast<PrecisionTrait<Precision::FP32>::value_type, PrecisionTrait<Precision::U64>::value_type>(inputs[0], outputs[0]);
                     break;
                 case getPrecisionMask(Precision::U8, Precision::I32):
                     exec_cast<PrecisionTrait<Precision::U8>::value_type, PrecisionTrait<Precision::I32>::value_type>(inputs[0], outputs[0]);

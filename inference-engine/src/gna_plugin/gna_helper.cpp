@@ -4,7 +4,6 @@
 //  gna_helper.cpp : various GNA-related utility functions
 //
 
-#define USING_GCC
 #define PROFILE
 
 #include <cstdint>
@@ -13,7 +12,7 @@
 #include <vector>
 #include <sstream>
 #include <string>
-#include "gna-api.h"
+#include <gna-api-types-xnn.h>
 #include "gna_plugin_log.hpp"
 
 #include "gna_lib_ver_selector.hpp"

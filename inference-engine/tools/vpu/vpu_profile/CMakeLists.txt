@@ -30,7 +30,6 @@ if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
 endif()
 
 target_include_directories(${TARGET_NAME} SYSTEM PRIVATE
-    $<TARGET_PROPERTY:inference_engine_plugin_api,INTERFACE_INCLUDE_DIRECTORIES>
     "${IE_MAIN_SOURCE_DIR}/samples/common"
     "${IE_MAIN_SOURCE_DIR}/samples/common/format_reader"
     "${IE_MAIN_SOURCE_DIR}/tools/vpu/common"

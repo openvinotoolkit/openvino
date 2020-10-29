@@ -42,13 +42,6 @@ protected:
     }
 
     void getDataStridesRequirementsImpl(StageDataInfo<StridesRequirement>& stridesInfo) override {
-        for (const auto& inputEdge : inputEdges()) {
-            stridesInfo.setInput(inputEdge, StridesRequirement::compact());
-        }
-
-        for (const auto& outputEdge : outputEdges()) {
-            stridesInfo.setOutput(outputEdge, StridesRequirement::compact());
-        }
     }
 
     void finalizeDataLayoutImpl() override {
@@ -80,8 +73,8 @@ protected:
     void serializeDataImpl(BlobSerializer& serializer) const override {
         const auto& endCopies = attrs().getOrDefault<IterationComponents>("end-iteration-components", {});
         for (const auto& iteration : endCopies) {
-            output(iteration.first.first)->serializeNewBuffer(serializer);
-            input(iteration.second)->serializeNewBuffer(serializer);
+            output(iteration.first.first)->serializeBuffer(serializer);
+            input(iteration.second)->serializeBuffer(serializer);
         }
     }
 };

@@ -41,6 +41,7 @@ struct dt_conf_t {
 const int int_max_exact = 1<<24;
 
 const dt_conf_t conf_f32 = {mkldnn_f32, -int_max_exact, 2*int_max_exact};
+const dt_conf_t conf_bf16 = {mkldnn_bf16, -int_max_exact, -2*int_max_exact};
 const dt_conf_t conf_s8 = {mkldnn_s8, INT8_MIN, -2*INT8_MIN};
 const dt_conf_t conf_u8 = {mkldnn_u8, 0, UINT8_MAX};
 const dt_conf_t conf_s32 = {mkldnn_s32, -int_max_exact, 2*int_max_exact};

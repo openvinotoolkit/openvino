@@ -17,8 +17,8 @@
 #ifndef JIT_AVX512_CORE_GEMM_BF16BF16F32_KERN_HPP
 #define JIT_AVX512_CORE_GEMM_BF16BF16F32_KERN_HPP
 
-#include "jit_generator.hpp"
 #include "jit_avx512_core_bf16cvt.hpp"
+#include "jit_generator.hpp"
 
 namespace mkldnn {
 namespace impl {
@@ -26,32 +26,25 @@ namespace cpu {
 
 class jit_avx512_core_gemm_bf16bf16f32_kern : public jit_generator {
 public:
-    jit_avx512_core_gemm_bf16bf16f32_kern(bool beta_zero);
+    jit_avx512_core_gemm_bf16bf16f32_kern(bool beta_zero, bool alpha_one);
     ~jit_avx512_core_gemm_bf16bf16f32_kern();
     DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_avx512_core_gemm_bf16bf16f32_kern);
 
 protected:
     bool beta_zero_;
+    bool alpha_one_;
     bool bfloat16_;
 
-    void prefetch_a(const Xbyak::Address &src) {
-        prefetcht0(src);
-    }
-    void prefetch_b(const Xbyak::Address &src) {
-        prefetcht0(src);
-    }
-    void prefetch_c(const Xbyak::Address &src) {
-        prefetchw(src);
-    }
-    void prefetch_x(const Xbyak::Address &src) {
-        prefetcht0(src);
-    }
+    void prefetch_a(const Xbyak::Address &src) { prefetcht0(src); }
+    void prefetch_b(const Xbyak::Address &src) { prefetcht0(src); }
+    void prefetch_c(const Xbyak::Address &src) { prefetchw(src); }
+    void prefetch_x(const Xbyak::Address &src) { prefetcht0(src); }
 
     void c_load(const Xbyak::Xmm &dst, const Xbyak::Address &src, int nelems);
     void c_store(const Xbyak::Address &dst, const Xbyak::Xmm &src, int nelems);
 
     void dot_product(const Xbyak::Xmm &dst, const Xbyak::Xmm &src1,
-        const Xbyak::Xmm &src2);
+            const Xbyak::Xmm &src2);
     void kernel_loop(int unroll_m, int unroll_n, bool cfetch);
     void remainder_kernel(int unroll_m, int unroll_n, int unroll_k, int bwidth);
     void innerloop(int unroll_m, int unroll_n);
@@ -84,7 +77,7 @@ private:
     // Stack variable assignments
     int stack_alloc_size_;
     Xbyak::Address arg_a_, arg_b_, arg_c_, arg_ldc_, arg_coffset_c_,
-        arg_coffset_r_;
+            arg_coffset_r_;
 
     // For bfloat16 emulation on avx512 and avx512_vnni ISAs
     bf16_emulation_t *bf16_emu_;
@@ -96,8 +89,8 @@ private:
     Xbyak::Zmm zmm_tmp1_;
 };
 
-}
-}
-}
+} // namespace cpu
+} // namespace impl
+} // namespace mkldnn
 
 #endif // JIT_AVX512_CORE_GEMM_BF16BF16F32_KERN_HPP

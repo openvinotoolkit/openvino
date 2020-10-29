@@ -17,15 +17,20 @@
 #include "document.h"
 #include <string>
 
+namespace kernel_selector {
+class TuningCache;
+}
+
 namespace cldnn {
 namespace gpu {
 
 class device_cache_reader {
 public:
-    device_cache_reader(const std::string tuning_file_path, size_t compute_units_count);
-    std::shared_ptr<rapidjson::Document> get() { return _dev_cache; }
+    explicit device_cache_reader(const std::string tuning_file_path);
+    std::shared_ptr<kernel_selector::TuningCache> get() { return _dev_cache; }
+
 private:
-    std::shared_ptr<rapidjson::Document> _dev_cache;
+    std::shared_ptr<kernel_selector::TuningCache> _dev_cache;
 };
 
 }  // namespace gpu

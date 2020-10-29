@@ -30,14 +30,16 @@ inline uint FUNC(get_input_index)(uint b, uint f, uint y, uint x)
     return GET_DATA_BF8_XY16_INDEX(INPUT0, b, f, y, x);
 #elif defined INPUT0_LAYOUT_BYXF_AF32
 	return GET_DATA_BYXF_AF32_INDEX(INPUT0, b, f, y, x);
-#elif defined INPUT0_LAYOUT_BFYX_F16
-    return GET_DATA_BFYX_F16_INDEX(INPUT0, b, f, y, x);
+#elif defined INPUT0_LAYOUT_B_FS_YX_FSV16
+    return GET_DATA_B_FS_YX_FSV16_INDEX(INPUT0, b, f, y, x);
 #elif defined INPUT0_LAYOUT_FS_B_YX_FSV32
     return GET_DATA_FS_B_YX_FSV32_INDEX(INPUT0, b, f, y, x);
-#elif defined INPUT0_LAYOUT_BFZYX_F16
-    return GET_DATA_BFZYX_F16_INDEX(INPUT0, b, f, 0, y, x);
-#elif defined INPUT0_LAYOUT_BFZYX_B16F16
-    return GET_DATA_BFZYX_B16F16_INDEX(INPUT0, b, f, 0, y, x);
+#elif defined INPUT0_LAYOUT_B_FS_ZYX_FSV16
+    return GET_DATA_B_FS_ZYX_FSV16_INDEX(INPUT0, b, f, 0, y, x);
+#elif defined INPUT0_LAYOUT_BS_FS_ZYX_BSV16_FSV16
+    return GET_DATA_BS_FS_ZYX_BSV16_FSV16_INDEX(INPUT0, b, f, 0, y, x);
+#elif defined INPUT0_LAYOUT_BS_FS_YX_BSV16_FSV16
+    return GET_DATA_BS_FS_YX_BSV16_FSV16_INDEX(INPUT0, b, f, y, x);
 #else
 #error reorder_data_to_yxfb_batched.cl: input format - not supported
 #endif
@@ -63,7 +65,7 @@ inline void FUNC(get_yxfb_coords_from_linear_idx_no_padding)(uint data_idx, uint
 
 __attribute__((intel_reqd_sub_group_size(8)))
 KERNEL (reorder_data_to_yxfb_batched)(
-    const __global INPUT_REORDER_TYPE* input, 
+    const __global INPUT_REORDER_TYPE* input,
     __global OUTPUT_REORDER_TYPE* output
     #ifdef MEAN_SUBTRACT_IN_BUFFER
     , __global MEAN_SUBTRACT_TYPE* mean_subtract
@@ -94,7 +96,7 @@ KERNEL (reorder_data_to_yxfb_batched)(
     #else
         MEAN_SUBTRACT_TYPE res = TO_MEAN_TYPE(input[input_idx]);
         uint8 msv = RESHAPE_DIMS(INPUT0, MEAN_SUBTRACT, b, f, 0, 0, y,x);
-        res = MEAN_OP(res, mean_subtract[GET_DATA_INDEX_SAFE(MEAN_SUBTRACT, msv[0], msv[1], msv[4], msv[5])]);
+        res = MEAN_OP(res, mean_subtract[GET_DATA_INDEX_SAFE(MEAN_SUBTRACT, msv[1], msv[2], msv[5], msv[6])]);
     #endif
     #else
         CALC_TYPE res = TO_CALC_TYPE(input[input_idx]);

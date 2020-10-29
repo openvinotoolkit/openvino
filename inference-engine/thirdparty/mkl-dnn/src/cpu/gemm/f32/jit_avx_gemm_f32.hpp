@@ -17,18 +17,18 @@
 #ifndef JIT_AVX_GEMM_F32_HPP
 #define JIT_AVX_GEMM_F32_HPP
 
-#include "gemm_utils_f32.hpp"
 #include "mkldnn_types.h"
+#include "gemm_utils_f32.hpp"
 
 namespace mkldnn {
 namespace impl {
 namespace cpu {
 
-mkldnn_status_t jit_avx_gemm_f32(
-        const char *transa, const char *transb, const int *M,
-        const int *N, const int *K, const float *alpha, const float *A,
-        const int *lda, const float *B, const int *ldb, const float *beta,
-        float *C, const int *ldc, const float *bias = nullptr);
+mkldnn_status_t jit_avx_gemm_f32(const char *transa, const char *transb,
+        const int *M, const int *N, const int *K, const float *alpha,
+        const float *A, const int *lda, const float *B, const int *ldb,
+        const float *beta, float *C, const int *ldc,
+        const float *bias = nullptr);
 
 namespace avx_gemm_f32 {
 
@@ -38,8 +38,8 @@ void sgemm_nocopy_driver(const char *transa, const char *transb, int m, int n,
         gemm_utils::dim_t ldc, const float *bias, float *ws);
 }
 
-}
-}
-}
+} // namespace cpu
+} // namespace impl
+} // namespace mkldnn
 
 #endif // JIT_AVX_GEMM_F32_HPP

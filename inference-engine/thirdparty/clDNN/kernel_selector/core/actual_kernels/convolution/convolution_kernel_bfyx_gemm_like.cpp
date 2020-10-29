@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2016 Intel Corporation
+﻿// Copyright (c) 2016-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -36,7 +36,7 @@ ParamsKey ConvolutionKernel_bfyx_GEMMLike::GetSupportedKey() const {
     k.EnableBiasPerFeature();
     k.EnableNonBiasTerm();
     k.EnableBatching();
-    k.EnableSplitSupport();
+    k.EnableGroupedConvolution();
     return k;
 }
 
@@ -53,7 +53,7 @@ JitConstants ConvolutionKernel_bfyx_GEMMLike::GetJitConstants(const convolution_
     JitConstants jit = Parent::GetJitConstants(params, runInfo);
 
     jit.AddConstants({
-        MakeJitConstant("ALIGNED_OFM", RoundUp(params.output.Feature().v, runInfo.gemmStyle.subBlockDimN)),
+        MakeJitConstant("ALIGNED_OFM_PER_GROUP", RoundUp(params.output.Feature().v / params.groups, runInfo.gemmStyle.subBlockDimN)),
         MakeJitConstant("DX", runInfo.gemmStyle.globalWorkSizeDX),
         MakeJitConstant("DY", runInfo.gemmStyle.globalWorkSizeDY),
         MakeJitConstant("FILTER_SIZE_X_DIV2", params.filterSize.x / 2),
@@ -81,19 +81,19 @@ ConvolutionKernel_bfyx_GEMMLike::Parent::DispatchData ConvolutionKernel_bfyx_GEM
     if (arg.inputs[0].GetDType() == Datatype::F16) {
         runInfo.gemmStyle = {1, arg.filterSize.x, 32, 32, 1, 1};
         runInfo.lws1 = 16;
-        runInfo.effiency = FORCE_PRIORITY_6;
+        runInfo.efficiency = FORCE_PRIORITY_6;
     } else {
         runInfo.gemmStyle = {2, arg.filterSize.x, 32, 32, 2, 1};
         runInfo.lws1 = 8;
-        runInfo.effiency = FORCE_PRIORITY_8;
+        runInfo.efficiency = FORCE_PRIORITY_8;
     }
 
     size_t sgemm_m = RoundUp(arg.output.X().v * arg.output.Y().v, runInfo.gemmStyle.subBlockDimM);
-    size_t sgemm_n = RoundUp(arg.output.Feature().v, runInfo.gemmStyle.subBlockDimN);
+    size_t sgemm_n = RoundUp(arg.output.Feature().v / arg.groups, runInfo.gemmStyle.subBlockDimN);
 
     runInfo.gws0 = RoundUp(CeilDiv(sgemm_n, runInfo.gemmStyle.globalWorkSizeDX), runInfo.lws0);
     runInfo.gws1 = RoundUp(CeilDiv(sgemm_m, runInfo.gemmStyle.globalWorkSizeDY), runInfo.lws1);
-    runInfo.gws2 = arg.output.Batch().v;
+    runInfo.gws2 = arg.output.Batch().v * arg.groups;
 
     return runInfo;
 }
@@ -112,12 +112,12 @@ bool ConvolutionKernel_bfyx_GEMMLike::Validate(const Params& p, const optional_p
     return true;
 }
 
-std::vector<WeightsLayout> ConvolutionKernel_bfyx_GEMMLike::GetSupportedWeightLayouts(
-    const convolution_params& params) const {
+WeightsLayout ConvolutionKernel_bfyx_GEMMLike::GetPreferredWeightsLayout(
+        const convolution_params &params) const {
     if (params.inputs[0].GetDType() == Datatype::F16) {
-        return {WeightsLayout::iy_xs_os_xsv2_osv16__ao32};
+        return (params.groups > 1) ? WeightsLayout::giy_xs_os_xsv2_osv16__ao32 : WeightsLayout::iy_xs_os_xsv2_osv16__ao32;
     } else {
-        return {WeightsLayout::iy_xs_os_xsv2_osv8__ao32};
+        return (params.groups > 1) ? WeightsLayout::giy_xs_os_xsv2_osv8__ao32 : WeightsLayout::iy_xs_os_xsv2_osv8__ao32;
     }
 }
 

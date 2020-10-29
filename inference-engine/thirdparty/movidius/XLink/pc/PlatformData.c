@@ -9,7 +9,7 @@
 #include <string.h>
 
 #include "XLinkPlatform.h"
-#include "XLinkPlatformTool.h"
+#include "XLinkPlatformErrorUtils.h"
 #include "XLinkStringUtils.h"
 #include "usb_boot.h"
 #include "pcie_host.h"

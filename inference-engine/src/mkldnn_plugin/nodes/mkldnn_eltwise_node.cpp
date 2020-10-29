@@ -16,6 +16,7 @@
 #include "mkldnn_activation_node.h"
 #include <map>
 #include "jit_uni_eltwise.hpp"
+#include "jit_uni_quantization.hpp"
 
 using namespace mkldnn;
 using namespace MKLDNNPlugin;
@@ -36,11 +37,11 @@ struct jit_uni_eltwise_fq_generic : public jit_uni_eltwise_fq_kernel, public jit
         for (int i = 0; i < p.len_; i++) {
             auto &post_op = p.entry_[i];
             if (post_op.is_eltwise()) {
-                eltwise_injectors.push_back(new jit_uni_eltwise_injector_f32<isa>(
-                        this,
-                        post_op.eltwise.alg,
-                        post_op.eltwise.alpha,
-                        post_op.eltwise.beta));
+                eltwise_injectors.push_back(std::make_shared<jit_uni_eltwise_injector_f32<isa>>(
+                        this, post_op.eltwise.alg, post_op.eltwise.alpha, post_op.eltwise.beta));
+            } else if (post_op.is_quantization()) {
+                quantization_injectors.push_back(std::make_shared<jit_uni_quantization_injector_f32<isa>>(
+                        this, post_op, vmm_d_weights, vmm_d_bias, reg_d_weights, reg_d_bias));
             }
         }
 
@@ -50,20 +51,7 @@ struct jit_uni_eltwise_fq_generic : public jit_uni_eltwise_fq_kernel, public jit
         mov(reg_src1, ptr[reg_params + GET_OFF(src1)]);
         mov(reg_dst, ptr[reg_params + GET_OFF(dst)]);
         mov(reg_work_amount, ptr[reg_params + GET_OFF(work_amount)]);
-
-        auto fq_idx = p.find(mkldnn_quantization);
-        if (fq_idx != -1) {
-            bool do_dequantization = p.entry_[fq_idx].quantization.alg == alg_kind::quantization_quantize_dequantize;
-
-            mov(reg_crop_low, reinterpret_cast<size_t>(p.entry_[fq_idx].quantization.crop_low_data));
-            mov(reg_crop_high, reinterpret_cast<size_t>(p.entry_[fq_idx].quantization.crop_high_data));
-            mov(reg_input_scale, reinterpret_cast<size_t>(p.entry_[fq_idx].quantization.input_scale_data));
-            mov(reg_input_shift, reinterpret_cast<size_t>(p.entry_[fq_idx].quantization.input_shift_data));
-            if (do_dequantization) {
-                mov(reg_output_scale, reinterpret_cast<size_t>(p.entry_[fq_idx].quantization.output_scale_data));
-                mov(reg_output_shift, reinterpret_cast<size_t>(p.entry_[fq_idx].quantization.output_shift_data));
-            }
-        }
+        xor_(reg_oc_off, reg_oc_off);
 
         Xbyak::Label main_loop_label;
         Xbyak::Label main_loop_end_label;
@@ -109,6 +97,7 @@ struct jit_uni_eltwise_fq_generic : public jit_uni_eltwise_fq_kernel, public jit
             }
 
             int eltwise_inj_idx = 0;
+            int quantization_inj_idx = 0;
             for (int i = 0; i < p.len_; i++) {
                 auto &post_op = p.entry_[i];
                 if (post_op.is_eltwise()) {
@@ -117,32 +106,18 @@ struct jit_uni_eltwise_fq_generic : public jit_uni_eltwise_fq_kernel, public jit
                 } else if (post_op.is_quantization()) {
                     bool do_dequantization = post_op.quantization.alg == alg_kind::quantization_quantize_dequantize;
                     bool do_rounding = do_dequantization || jep_.dst_dt == data_type::f32 || i != p.len_ - 1;
+                    int s_idx = vmm_dst.getIdx();
 
-                    uni_vmovups(vmm_d_weights, ptr[reg_crop_low]);
-                    uni_vmovups(vmm_d_bias, ptr[reg_crop_high]);
-                    uni_vmaxps(vmm_dst, vmm_dst, vmm_d_weights);
-                    uni_vminps(vmm_dst, vmm_dst, vmm_d_bias);
+                    quantization_injectors[quantization_inj_idx]->init_crop_ptrs(reg_oc_off);
+                    quantization_injectors[quantization_inj_idx]->compute_crop(s_idx, s_idx + 1, 0);
 
-                    uni_vmovups(vmm_d_weights, ptr[reg_input_scale]);
-                    uni_vmovups(vmm_d_bias, ptr[reg_input_shift]);
-                    uni_vfmadd213ps(vmm_dst, vmm_d_weights, vmm_d_bias);
-                    if (do_rounding)
-                        uni_vroundps(vmm_dst, vmm_dst, 0);
+                    quantization_injectors[quantization_inj_idx]->init_input_scale_shift_ptrs(reg_oc_off);
+                    quantization_injectors[quantization_inj_idx]->compute_input_scale_shift(s_idx, s_idx + 1, 0, do_rounding);
 
-                    if (do_dequantization) {
-                        uni_vmovups(vmm_d_weights, ptr[reg_output_scale]);
-                        uni_vmovups(vmm_d_bias, ptr[reg_output_shift]);
-                        uni_vfmadd213ps(vmm_dst, vmm_d_weights, vmm_d_bias);
-                    }
+                    quantization_injectors[quantization_inj_idx]->init_output_scale_shift_ptrs(reg_oc_off);
+                    quantization_injectors[quantization_inj_idx]->compute_output_scale_shift(s_idx, s_idx + 1, 0);
 
-                    add(reg_crop_low, sizeof(float) * simd_w);
-                    add(reg_crop_high, sizeof(float) * simd_w);
-                    add(reg_input_scale, sizeof(float) * simd_w);
-                    add(reg_input_shift, sizeof(float) * simd_w);
-                    if (do_dequantization) {
-                        add(reg_output_scale, sizeof(float) * simd_w);
-                        add(reg_output_shift, sizeof(float) * simd_w);
-                    }
+                    quantization_inj_idx++;
                 }
             }
 
@@ -154,6 +129,7 @@ struct jit_uni_eltwise_fq_generic : public jit_uni_eltwise_fq_kernel, public jit
                 add(reg_src1, jep.src1_step * jep.src1_data_size * simd_w);
             add(reg_dst, jep.dst_step * jep.dst_data_size * simd_w);
             sub(reg_work_amount, simd_w);
+            add(reg_oc_off, simd_w * sizeof(float));
 
             jmp(main_loop_label, T_NEAR);
         }
@@ -177,6 +153,7 @@ struct jit_uni_eltwise_fq_generic : public jit_uni_eltwise_fq_kernel, public jit
             }
 
             int eltwise_inj_idx = 0;
+            int quantization_inj_idx = 0;
             for (int i = 0; i < p.len_; i++) {
                 auto &post_op = p.entry_[i];
                 if (post_op.is_eltwise()) {
@@ -184,33 +161,19 @@ struct jit_uni_eltwise_fq_generic : public jit_uni_eltwise_fq_kernel, public jit
                     eltwise_inj_idx++;
                 } else if (post_op.is_quantization()) {
                     bool do_dequantization = post_op.quantization.alg == alg_kind::quantization_quantize_dequantize;
-                    bool do_rounding = do_dequantization || jep_.dst_dt == data_type::f32;
+                    bool do_rounding = do_dequantization || jep_.dst_dt == data_type::f32 || i != p.len_ - 1;
+                    int s_idx = vmm_dst.getIdx();
 
-                    movss(xmm_d_weights, ptr[reg_crop_low]);
-                    movss(xmm_d_bias, ptr[reg_crop_high]);
-                    uni_vmaxps(vmm_dst, vmm_dst, vmm_d_weights);
-                    uni_vminps(vmm_dst, vmm_dst, vmm_d_bias);
+                    quantization_injectors[quantization_inj_idx]->init_crop_ptrs(reg_oc_off);
+                    quantization_injectors[quantization_inj_idx]->compute_crop(s_idx, s_idx + 1, 0, true);
 
-                    movss(xmm_d_weights, ptr[reg_input_scale]);
-                    movss(xmm_d_bias, ptr[reg_input_shift]);
-                    uni_vfmadd213ps(vmm_dst, vmm_d_weights, vmm_d_bias);
-                    if (do_rounding)
-                        uni_vroundps(vmm_dst, vmm_dst, 0);
+                    quantization_injectors[quantization_inj_idx]->init_input_scale_shift_ptrs(reg_oc_off);
+                    quantization_injectors[quantization_inj_idx]->compute_input_scale_shift(s_idx, s_idx + 1, 0, do_rounding, true);
 
-                    if (do_dequantization) {
-                        movss(xmm_d_weights, ptr[reg_output_scale]);
-                        movss(xmm_d_bias, ptr[reg_output_shift]);
-                        uni_vfmadd213ps(vmm_dst, vmm_d_weights, vmm_d_bias);
-                    }
+                    quantization_injectors[quantization_inj_idx]->init_output_scale_shift_ptrs(reg_oc_off);
+                    quantization_injectors[quantization_inj_idx]->compute_output_scale_shift(s_idx, s_idx + 1, 0, true);
 
-                    add(reg_crop_low, sizeof(float) * 1);
-                    add(reg_crop_high, sizeof(float) * 1);
-                    add(reg_input_scale, sizeof(float) * 1);
-                    add(reg_input_shift, sizeof(float) * 1);
-                    if (do_dequantization) {
-                        add(reg_output_scale, sizeof(float) * 1);
-                        add(reg_output_shift, sizeof(float) * 1);
-                    }
+                    quantization_inj_idx++;
                 }
             }
 
@@ -222,6 +185,7 @@ struct jit_uni_eltwise_fq_generic : public jit_uni_eltwise_fq_kernel, public jit
                 add(reg_src1, jep.src1_step * jep.src1_data_size);
             add(reg_dst, jep.dst_step * jep.dst_data_size);
             sub(reg_work_amount, 1);
+            add(reg_oc_off, 1 * sizeof(float));
 
             jmp(tail_loop_label, T_NEAR);
         }
@@ -245,18 +209,15 @@ private:
     Reg64 reg_src1 = r9;
     Reg64 reg_dst = r10;
     Reg64 reg_work_amount = r11;
+    Reg64 reg_oc_off = r13;
     Reg64 reg_params = abi_param1;
 
     Reg8 reg_tmp_8 = r12b;
     Reg32 reg_tmp_32 = r12d;
     Reg64 reg_tmp_64 = r12;
 
-    Reg64 reg_crop_low = r13;
-    Reg64 reg_crop_high = r14;
-    Reg64 reg_input_scale = r15;
-    Reg64 reg_input_shift = rax;
-    Reg64 reg_output_scale = rbx;
-    Reg64 reg_output_shift = rdx;
+    Reg64 reg_d_weights = r14;
+    Reg64 reg_d_bias = r15;
 
     Vmm vmm_src0 = Vmm(0);
     Vmm vmm_src1 = Vmm(1);
@@ -267,12 +228,11 @@ private:
 
     Vmm vmm_d_weights = Vmm(3);
     Vmm vmm_d_bias = Vmm(4);
-    Xmm xmm_d_weights = Xmm(3);
-    Xmm xmm_d_bias = Xmm(4);
 
     Vmm vmm_zero = Vmm(5);
 
-    std::vector<mkldnn::impl::cpu::jit_uni_eltwise_injector_f32<isa>*> eltwise_injectors;
+    std::vector<std::shared_ptr<jit_uni_eltwise_injector_f32<isa>>> eltwise_injectors;
+    std::vector<std::shared_ptr<jit_uni_quantization_injector_f32<isa>>> quantization_injectors;
 
     inline void load_vector(Vmm vmm_src, const Xbyak::Address &op, memory::data_type src_dt) {
         switch (src_dt) {
@@ -670,7 +630,6 @@ void MKLDNNEltwiseNode::initOptimalPrimitiveDescriptor() {
 }
 
 void MKLDNNEltwiseNode::setPostOps(mkldnn::primitive_attr &attr, bool initWeights) {
-    int blob_idx = 0;
     mkldnn::post_ops ops;
 
     for (auto &node : fusedWith) {
@@ -683,50 +642,11 @@ void MKLDNNEltwiseNode::setPostOps(mkldnn::primitive_attr &attr, bool initWeight
 
         auto* quantizeNode = dynamic_cast<MKLDNNQuantizeNode *>(node.get());
         if (quantizeNode) {
-            if (initWeights) {
-                MKLDNNDims weightsDims({static_cast<ptrdiff_t>(rnd_up(getParentEdgeAt(0)->getDims()[1], 16))});
-                MKLDNNMemoryDesc weightsDataDesc = {{(uint32_t)weightsDims[0]}, memory::f32, memory::x};
-
-                auto cropLowDataMem = std::make_shared<MKLDNNMemory>(getEngine());
-                cropLowDataMem->Create(weightsDataDesc, quantizeNode->getCropLowPtr());
-
-                auto cropHighDataMem = std::make_shared<MKLDNNMemory>(getEngine());
-                cropHighDataMem->Create(weightsDataDesc, quantizeNode->getCropHighPtr());
-
-                auto inputScaleDataMem = std::make_shared<MKLDNNMemory>(getEngine());
-                inputScaleDataMem->Create(weightsDataDesc, quantizeNode->getInputScalePtr());
-
-                auto inputShiftDataMem = std::make_shared<MKLDNNMemory>(getEngine());
-                inputShiftDataMem->Create(weightsDataDesc, quantizeNode->getInputShiftPtr());
-
-                auto outputScaleDataMem = std::make_shared<MKLDNNMemory>(getEngine());
-                outputScaleDataMem->Create(weightsDataDesc, quantizeNode->getOutputScalePtr());
-
-                auto outputShiftDataMem = std::make_shared<MKLDNNMemory>(getEngine());
-                outputShiftDataMem->Create(weightsDataDesc, quantizeNode->getOutputShiftPtr());
-
-                PostOpsIntBlobMemory.push_back(cropLowDataMem);
-                PostOpsIntBlobMemory.push_back(cropHighDataMem);
-                PostOpsIntBlobMemory.push_back(inputScaleDataMem);
-                PostOpsIntBlobMemory.push_back(inputShiftDataMem);
-                PostOpsIntBlobMemory.push_back(outputScaleDataMem);
-                PostOpsIntBlobMemory.push_back(outputShiftDataMem);
-
-                ops.append_quantization(quantizeNode->getAlgorithm(),
-                                        static_cast<const float *>(PostOpsIntBlobMemory[blob_idx + 0]->GetData()),
-                                        static_cast<const float *>(PostOpsIntBlobMemory[blob_idx + 1]->GetData()),
-                                        static_cast<const float *>(PostOpsIntBlobMemory[blob_idx + 2]->GetData()),
-                                        static_cast<const float *>(PostOpsIntBlobMemory[blob_idx + 3]->GetData()),
-                                        static_cast<const float *>(PostOpsIntBlobMemory[blob_idx + 4]->GetData()),
-                                        static_cast<const float *>(PostOpsIntBlobMemory[blob_idx + 5]->GetData()));
-
-                blob_idx += 6;
-            } else {
-                ops.append_quantization(quantizeNode->getAlgorithm(), nullptr, nullptr, nullptr, nullptr, nullptr, nullptr);
-            }
-
+            quantizeNode->appendPostOps(ops);
             continue;
         }
+
+        THROW_IE_EXCEPTION << "Fusing of " << NameFromType(node->getType()) << " operation to " << NameFromType(this->getType()) << " node is not implemented";
     }
 
     attr.set_post_ops(ops);
@@ -2730,6 +2650,8 @@ void MKLDNNEltwiseNode::execute(mkldnn::stream strm) {
                 ref_eltwise<int32_t, int32_t>(0, 1);
             } else if (po == Precision::U8 && pi0 == Precision::I32 && pi0 == pi1 && is_eltwise_compare_node) {
                 ref_eltwise2<int32_t, int32_t, uint8_t>(0, 1);
+            } else if (po == Precision::U8 && pi0 == Precision::FP32 && pi0 == pi1 && is_eltwise_compare_node) {
+                ref_eltwise2<float, float, uint8_t>(0, 1);
             } else {
                 THROW_IE_EXCEPTION << "Eltwise node with unsupported combination of input and output types";
             }

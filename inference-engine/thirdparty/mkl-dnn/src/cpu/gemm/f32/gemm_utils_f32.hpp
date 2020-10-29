@@ -17,6 +17,8 @@
 #ifndef GEMM_UTILS_F32_HPP
 #define GEMM_UTILS_F32_HPP
 
+#include <cstddef>
+
 namespace mkldnn {
 namespace impl {
 namespace cpu {
@@ -50,23 +52,20 @@ template <typename T>
 using unroll_factor = gemm_traits<T, false, false>;
 
 template <typename data_t>
-void sum_two_matrices(int m, int n,
-        data_t * __restrict p_src, dim_t ld_src,
-        data_t * __restrict p_dst, dim_t ld_dst);
+void sum_two_matrices(int m, int n, data_t *__restrict p_src, dim_t ld_src,
+        data_t *__restrict p_dst, dim_t ld_dst);
 
-void calc_nthr_nocopy_avx512_common(int m,
-        int n, int k, int nthrs, int *nthrs_m, int *nthrs_n, int *nthrs_k,
-        int *BM, int *BN, int *BK);
+void calc_nthr_nocopy_avx512_common(int m, int n, int k, int nthrs,
+        int *nthrs_m, int *nthrs_n, int *nthrs_k, int *BM, int *BN, int *BK);
 
-void calc_nthr_nocopy_avx(int m, int n, int k,
-        int nthrs, int *nthrs_m, int *nthrs_n, int *nthrs_k, int *BM, int *BN,
-        int *BK);
+void calc_nthr_nocopy_avx(int m, int n, int k, int nthrs, int *nthrs_m,
+        int *nthrs_n, int *nthrs_k, int *BM, int *BN, int *BK);
 
 void partition_unit_diff(
         int ithr, int nthr, int n, int *t_offset, int *t_block);
-};
+}; // namespace gemm_utils
 
-}
-}
-}
+} // namespace cpu
+} // namespace impl
+} // namespace mkldnn
 #endif // GEMM_UTILS_F32_HPP

@@ -109,13 +109,12 @@ void createRequestConfigsForGnaModels();
 
     void SetConfig(const std::map<std::string, std::string> &config) override;
     void LoadNetwork(InferenceEngine::IExecutableNetwork::Ptr &executableNetwork,
-                     InferenceEngine::ICNNNetwork &network,
+                     const InferenceEngine::ICNNNetwork &network,
                      const std::map<std::string, std::string> &config) override { THROW_GNA_EXCEPTION << "Not implemented"; }
-    InferenceEngine::ExecutableNetwork LoadNetwork(InferenceEngine::ICNNNetwork &network,
+    InferenceEngine::ExecutableNetwork LoadNetwork(const InferenceEngine::ICNNNetwork &network,
                                   const std::map<std::string, std::string> &config,
                                   InferenceEngine::RemoteContext::Ptr context) override { THROW_GNA_EXCEPTION << "Not implemented"; }
     void Infer(const InferenceEngine::Blob &input, InferenceEngine::Blob &result);
-    void SetLogCallback(InferenceEngine::IErrorListener &listener) override {};
     void SetCore(InferenceEngine::ICore*) noexcept override {}
     const InferenceEngine::ICore* GetCore() const noexcept override {return nullptr;}
     void Reset();
@@ -135,13 +134,19 @@ void createRequestConfigsForGnaModels();
     void Wait(uint32_t sync, InferenceEngine::Blob &result) { THROW_GNA_EXCEPTION << "Not implemented"; }
 
     void Export(const std::string &fileName);
-    InferenceEngine::IExecutableNetwork::Ptr ImportNetwork(const std::string &modelFileName
-        , const std::map<std::string, std::string> &config) override { THROW_GNA_EXCEPTION << "Not implemented"; }
-    InferenceEngine::ExecutableNetwork ImportNetworkImpl(std::istream& networkModel,
-                                        const std::map<std::string, std::string> &config) override {
+    InferenceEngine::IExecutableNetwork::Ptr ImportNetwork(const std::string &modelFileName,
+                                                           const std::map<std::string, std::string> &config) override {
         THROW_GNA_EXCEPTION << "Not implemented";
     }
-    using IInferencePluginInternal::ImportNetwork;
+    InferenceEngine::ExecutableNetwork ImportNetwork(std::istream& networkModel,
+                                                     const InferenceEngine::RemoteContext::Ptr& context,
+                                                     const std::map<std::string, std::string> &config) override {
+        THROW_GNA_EXCEPTION << "Not implemented";
+    }
+    InferenceEngine::ExecutableNetwork ImportNetwork(std::istream& networkModel,
+                                                     const std::map<std::string, std::string> &config) override {
+        THROW_GNA_EXCEPTION << "Not implemented";
+    }
 
     InferenceEngine::IExecutableNetwork::Ptr ImportNetwork(const std::string &modelFileName);
 

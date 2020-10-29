@@ -26,7 +26,8 @@ namespace mkldnn {
 namespace impl {
 namespace cpu {
 
-struct jit_avx512_common_lrn_fwd_t: public cpu_primitive_t {
+template <data_type_t d_type>
+struct jit_avx512_common_lrn_fwd_t : public cpu_primitive_t {
     struct pd_t: public cpu_lrn_fwd_pd_t {
         pd_t(engine_t *engine, const lrn_desc_t *adesc,
                 const primitive_attr_t *attr, const lrn_fwd_pd_t *hint_fwd_pd)
@@ -43,7 +44,7 @@ struct jit_avx512_common_lrn_fwd_t: public cpu_primitive_t {
             const output_vector &outputs);
     ~jit_avx512_common_lrn_fwd_t();
 
-    typedef typename prec_traits<data_type::f32>::type data_t;
+    typedef typename prec_traits<d_type>::type data_t;
 
     virtual void execute(event_t *e) const {
         execute_forward();
@@ -51,16 +52,17 @@ struct jit_avx512_common_lrn_fwd_t: public cpu_primitive_t {
     }
 
 private:
+    static const int vsize = 16;
     void execute_forward() const;
     const pd_t *pd() const { return (const pd_t *)primitive_t::pd(); }
 
     int use_h_parallelism;
-    struct jit_avx512_common_lrn_kernel_f32;
-    jit_avx512_common_lrn_kernel_f32 *ker_, *ker_first_, *ker_last_;
-
+    struct jit_avx512_common_lrn_kernel_f;
+    jit_avx512_common_lrn_kernel_f *ker_, *ker_first_, *ker_last_;
 };
 
-struct jit_avx512_common_lrn_bwd_t: public cpu_primitive_t {
+template <data_type_t d_type>
+struct jit_avx512_common_lrn_bwd_t : public cpu_primitive_t {
     struct pd_t: public cpu_lrn_bwd_pd_t {
         pd_t(engine_t *engine, const lrn_desc_t *adesc,
                 const primitive_attr_t *attr, const lrn_fwd_pd_t *hint_fwd_pd)
@@ -77,7 +79,7 @@ struct jit_avx512_common_lrn_bwd_t: public cpu_primitive_t {
             const output_vector &outputs);
     ~jit_avx512_common_lrn_bwd_t();
 
-    typedef typename prec_traits<data_type::f32>::type data_t;
+    typedef typename prec_traits<d_type>::type data_t;
 
     virtual void execute(event_t *e) const {
         execute_backward();
@@ -85,13 +87,13 @@ struct jit_avx512_common_lrn_bwd_t: public cpu_primitive_t {
     }
 
 private:
+    static const int vsize = 16;
     void execute_backward() const;
     const pd_t *pd() const { return (const pd_t *)primitive_t::pd(); }
 
     int use_h_parallelism;
-    struct jit_avx512_common_lrn_kernel_f32;
-    jit_avx512_common_lrn_kernel_f32 *ker_, *ker_first_, *ker_last_;
-
+    struct jit_avx512_common_lrn_kernel_f;
+    jit_avx512_common_lrn_kernel_f *ker_, *ker_first_, *ker_last_;
 };
 
 }

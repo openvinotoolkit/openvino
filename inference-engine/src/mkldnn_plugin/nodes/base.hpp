@@ -5,6 +5,7 @@
 #pragma once
 
 #include <ie_iextension.h>
+#include "ie_util_internal.hpp"
 #include "list.hpp"
 
 #include <string>
@@ -154,11 +155,11 @@ protected:
     }
 
     static inline void _mm_uni_storeu_ps(float* pdst, const __m512& vec) {
-        return _mm512_storeu_ps(pdst, vec);
+        _mm512_storeu_ps(pdst, vec);
     }
 
     static inline void _mm_uni_storeu_si(void* pdst, const __m512i vec) {
-        return _mm512_storeu_si512(pdst, vec);
+        _mm512_storeu_si512(pdst, vec);
     }
 
     static inline __m512 _mm_uni_setzero_ps() {
@@ -262,11 +263,11 @@ protected:
     }
 
     static inline void _mm_uni_storeu_ps(float* pdst, const __m256 vec) {
-        return _mm256_storeu_ps(pdst, vec);
+        _mm256_storeu_ps(pdst, vec);
     }
 
     static inline void _mm_uni_storeu_si(__m256i* pdst, const __m256i vec) {
-        return _mm256_storeu_si256(pdst, vec);
+        _mm256_storeu_si256(pdst, vec);
     }
 
     static inline __m256 _mm_uni_setzero_ps() {
@@ -374,11 +375,11 @@ protected:
     }
 
     static inline void _mm_uni_storeu_ps(float* pdst, const __m128 vec) {
-        return _mm_storeu_ps(pdst, vec);
+        _mm_storeu_ps(pdst, vec);
     }
 
     static inline void _mm_uni_storeu_si(__m128i* pdst, const __m128i vec) {
-        return _mm_storeu_si128(pdst, vec);
+        _mm_storeu_si128(pdst, vec);
     }
 
     static inline __m128 _mm_uni_setzero_ps() {
@@ -482,19 +483,28 @@ protected:
 #endif
 };
 
+IE_SUPPRESS_DEPRECATED_START
+
 template <class IMPL>
 class ImplFactory : public ILayerImplFactory {
 public:
-    explicit ImplFactory(const CNNLayer *layer): cnnLayer(*layer) {}
+    explicit ImplFactory(const CNNLayer *layer) {
+        cnnLayer = InferenceEngine::clonelayer(*layer);
+        cnnLayer->_fusedWith = layer->_fusedWith;
+        cnnLayer->insData = layer->insData;
+        cnnLayer->outData = layer->outData;
+    }
 
     // First implementation has more priority than next
     StatusCode getImplementations(std::vector<ILayerImpl::Ptr>& impls, ResponseDesc *resp) noexcept override {
-        impls.push_back(ILayerImpl::Ptr(new IMPL(&cnnLayer)));
+        impls.push_back(ILayerImpl::Ptr(new IMPL(cnnLayer.get())));
         return OK;
     }
 protected:
-    CNNLayer cnnLayer;
+    InferenceEngine::CNNLayerPtr cnnLayer;
 };
+
+IE_SUPPRESS_DEPRECATED_END
 
 }  // namespace Cpu
 }  // namespace Extensions

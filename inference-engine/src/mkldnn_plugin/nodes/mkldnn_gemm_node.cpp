@@ -239,7 +239,7 @@ void MKLDNNGemmNode::execute(mkldnn::stream strm) {
                 c_ptr += cOffsets[0];
             }
 
-            mkldnn_sgemm(&transb, &transa, &N, &M, &K, &alpha, b_ptr, &ldb, a_ptr, &lda, &beta, d_ptr, &ldc);
+            mkldnn_sgemm(transa, transb, M, N, K, alpha, a_ptr, lda, b_ptr, ldb, beta, d_ptr, ldc);
 
             a_ptr += aOffsets[0];
             b_ptr += bOffsets[0];

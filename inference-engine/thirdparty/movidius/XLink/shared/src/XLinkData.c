@@ -11,7 +11,7 @@
 #endif
 
 #include "XLink.h"
-#include "XLinkTool.h"
+#include "XLinkErrorUtils.h"
 
 #include "XLinkMacros.h"
 #include "XLinkPrivateFields.h"
@@ -43,23 +43,14 @@ static XLinkError_t getLinkByStreamId(streamId_t streamId, xLinkDesc_t** out_lin
 
 streamId_t XLinkOpenStream(linkId_t id, const char* name, int stream_write_size)
 {
-    ASSERT_X_LINK(name);
-    XLINK_RET_IF_RC(stream_write_size < 0,
-        X_LINK_ERROR);
+    XLINK_RET_ERR_IF(name == NULL, INVALID_STREAM_ID);
+    XLINK_RET_ERR_IF(stream_write_size < 0, INVALID_STREAM_ID);
 
     xLinkDesc_t* link = getLinkById(id);
     mvLog(MVLOG_DEBUG,"%s() id %d link %p\n", __func__, id, link);
-    ASSERT_X_LINK_R(link != NULL, INVALID_STREAM_ID);
-    if (getXLinkState(link) != XLINK_UP) {
-        /*no link*/
-        mvLog(MVLOG_DEBUG,"%s() no link up\n", __func__);
-        return INVALID_STREAM_ID;
-    }
-
-    if(strlen(name) > MAX_STREAM_NAME_LENGTH) {
-        mvLog(MVLOG_WARN,"name too long\n");
-        return INVALID_STREAM_ID;
-    }
+    XLINK_RET_ERR_IF(link == NULL, INVALID_STREAM_ID);
+    XLINK_RET_ERR_IF(getXLinkState(link) != XLINK_UP, INVALID_STREAM_ID);
+    XLINK_RET_ERR_IF(strlen(name) >= MAX_STREAM_NAME_LENGTH, INVALID_STREAM_ID);
 
     if(stream_write_size > 0)
     {
@@ -72,8 +63,9 @@ streamId_t XLinkOpenStream(linkId_t id, const char* name, int stream_write_size)
                    name, MAX_STREAM_NAME_LENGTH - 1);
 
         DispatcherAddEvent(EVENT_LOCAL, &event);
-        if (DispatcherWaitEventComplete(&link->deviceHandle))
-            return INVALID_STREAM_ID;
+        XLINK_RET_ERR_IF(
+            DispatcherWaitEventComplete(&link->deviceHandle),
+            INVALID_STREAM_ID);
 
 #ifdef __PC__
         XLinkError_t eventStatus = checkEventHeader(event.header);
@@ -103,7 +95,7 @@ streamId_t XLinkOpenStream(linkId_t id, const char* name, int stream_write_size)
     }
 #endif
 
-    COMBIN_IDS(streamId, id);
+    COMBINE_IDS(streamId, id);
     return streamId;
 }
 
@@ -121,14 +113,13 @@ XLinkError_t XLinkCloseStream(streamId_t streamId)
         0, NULL, link->deviceHandle);
 
     XLINK_RET_IF(addEvent(&event));
-
     return X_LINK_SUCCESS;
 }
 
 XLinkError_t XLinkWriteData(streamId_t streamId, const uint8_t* buffer,
                             int size)
 {
-    ASSERT_X_LINK(buffer);
+    XLINK_RET_IF(buffer == NULL);
 
     float opTime = 0;
     xLinkDesc_t* link = NULL;
@@ -151,7 +142,7 @@ XLinkError_t XLinkWriteData(streamId_t streamId, const uint8_t* buffer,
 
 XLinkError_t XLinkReadData(streamId_t streamId, streamPacketDesc_t** packet)
 {
-    ASSERT_X_LINK(packet);
+    XLINK_RET_IF(packet == NULL);
 
     float opTime = 0;
     xLinkDesc_t* link = NULL;
@@ -200,7 +191,7 @@ XLinkError_t XLinkGetFillLevel(streamId_t streamId, int isRemote, int* fillLevel
 
     streamDesc_t* stream =
         getStreamById(link->deviceHandle.xLinkFD, streamId);
-    ASSERT_X_LINK(stream);
+    ASSERT_XLINK(stream);
 
     if (isRemote) {
         *fillLevel = stream->remoteFillLevel;
@@ -255,11 +246,12 @@ float timespec_diff(struct timespec *start, struct timespec *stop)
 
 XLinkError_t addEvent(xLinkEvent_t *event)
 {
-    ASSERT_X_LINK(event);
+    ASSERT_XLINK(event);
 
     xLinkEvent_t* ev = DispatcherAddEvent(EVENT_LOCAL, event);
-    if (ev == NULL) {
-        mvLog(MVLOG_ERROR, "Dispatcher failed on adding event");
+    if(ev == NULL) {
+        mvLog(MVLOG_ERROR, "Dispatcher failed on adding event. type: %s, id: %d, stream name: %s\n",
+            TypeToStr(event->header.type), event->header.id, event->header.streamName);
         return X_LINK_ERROR;
     }
 
@@ -267,24 +259,21 @@ XLinkError_t addEvent(xLinkEvent_t *event)
         return X_LINK_TIMEOUT;
     }
 
-    if (event->header.flags.bitField.ack != 1) {
-        return X_LINK_COMMUNICATION_FAIL;
-    }
+    XLINK_RET_ERR_IF(
+        event->header.flags.bitField.ack != 1,
+        X_LINK_COMMUNICATION_FAIL);
 
     return X_LINK_SUCCESS;
 }
 
 XLinkError_t addEventWithPerf(xLinkEvent_t *event, float* opTime)
 {
-    ASSERT_X_LINK(opTime);
+    ASSERT_XLINK(opTime);
 
     struct timespec start, end;
     clock_gettime(CLOCK_REALTIME, &start);
 
-    XLinkError_t rc = addEvent(event);
-    if(rc != X_LINK_SUCCESS) {
-        return rc;
-    }
+    XLINK_RET_IF_FAIL(addEvent(event));
 
     clock_gettime(CLOCK_REALTIME, &end);
     *opTime = timespec_diff(&start, &end);
@@ -293,13 +282,13 @@ XLinkError_t addEventWithPerf(xLinkEvent_t *event, float* opTime)
 }
 
 static XLinkError_t getLinkByStreamId(streamId_t streamId, xLinkDesc_t** out_link) {
-    ASSERT_X_LINK(out_link != NULL);
+    ASSERT_XLINK(out_link != NULL);
 
     linkId_t id = EXTRACT_LINK_ID(streamId);
     *out_link = getLinkById(id);
 
-    ASSERT_X_LINK(*out_link != NULL);
-    XLINK_RET_IF_RC(getXLinkState(*out_link) != XLINK_UP,
+    ASSERT_XLINK(*out_link != NULL);
+    XLINK_RET_ERR_IF(getXLinkState(*out_link) != XLINK_UP,
                     X_LINK_COMMUNICATION_NOT_OPEN);
 
     return X_LINK_SUCCESS;

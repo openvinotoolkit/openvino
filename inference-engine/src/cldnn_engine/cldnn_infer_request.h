@@ -9,10 +9,9 @@
 #include <vector>
 #include <memory>
 #include <atomic>
-#include <ie_plugin.hpp>
-#include <inference_engine.hpp>
 #include <cpp_interfaces/impl/ie_infer_request_internal.hpp>
 #include "cldnn_graph.h"
+#include <threading/ie_istreams_executor.hpp>
 
 namespace CLDNNPlugin {
 
@@ -21,9 +20,9 @@ struct buf_info {
     size_t buf_size;
 };
 
-class CLDNNInferRequest : public InferenceEngine::InferRequestInternal {
-    static std::atomic<unsigned int> runningCounter;
+class CLDNNExecNetwork;
 
+class CLDNNInferRequest : public InferenceEngine::InferRequestInternal {
 public:
     // make sure all blobs and cldnn::memory objects
     // are in place and valid
@@ -32,7 +31,8 @@ public:
 
     void GetPerformanceCounts(std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> &perfMap) const override;
 
-    CLDNNInferRequest(InferenceEngine::InputsDataMap networkInputs, InferenceEngine::OutputsDataMap networkOutputs);
+    CLDNNInferRequest(InferenceEngine::InputsDataMap networkInputs, InferenceEngine::OutputsDataMap networkOutputs,
+                      const std::shared_ptr<CLDNNExecNetwork>& execNetwork);
 
     CLDNNInferRequest(const CLDNNInferRequest &) = delete;
 
@@ -45,7 +45,6 @@ public:
     void SetGraph(std::shared_ptr<CLDNNGraph> graph);
     void EnableProfiling() { m_useProfiling = true; }
     void EnableStreams() { m_useStreams = true; }
-    static unsigned int GetRunningCounter() { return runningCounter.load(); }
 
 protected:
     std::map<std::string, cldnn::memory> inputsMemory;
@@ -58,6 +57,7 @@ protected:
     // dynamic batch stuff
     std::map<std::string, std::vector<buf_info>> batchInputs;
     std::map<std::string, std::vector<buf_info>> batchOutputs;
+    InferenceEngine::IStreamsExecutor* streamExecutor = nullptr;
 
     InferenceEngine::Blob::Ptr createInputBlob(const InferenceEngine::TensorDesc& desc, uint8_t* mem_ptr = nullptr);
     InferenceEngine::Blob::Ptr createOutputBlob(const InferenceEngine::TensorDesc& desc, uint8_t* mem_ptr = nullptr);

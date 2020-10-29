@@ -304,15 +304,15 @@ private:
         IE_ASSERT(numTempBuffers() == 1);
 
         for (const auto& inEdge : inputEdges()) {
-            inEdge->input()->serializeNewBuffer(serializer);
+            inEdge->input()->serializeBuffer(serializer);
         }
 
         for (const auto& outEdge : outputEdges()) {
-            outEdge->output()->serializeNewBuffer(serializer);
+            outEdge->output()->serializeBuffer(serializer);
         }
 
         for (const auto& tempEdge : tempBufferEdges()) {
-            tempEdge->tempBuffer()->serializeNewBuffer(serializer);
+            tempEdge->tempBuffer()->serializeBuffer(serializer);
         }
     }
 };

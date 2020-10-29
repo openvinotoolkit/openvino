@@ -35,3 +35,6 @@
 
 # bf16
 --batch=test_deconv_bfloat16
+
+# Regression
+--batch=harness_deconv_regression_general

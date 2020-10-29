@@ -46,6 +46,10 @@ struct jit_uni_x8s8s32x_dw_conv_fwd_kernel: public jit_generator {
         for (auto inj : depthwise_injectors)
             delete inj;
         depthwise_injectors.clear();
+
+        for (auto inj : quantization_injectors)
+            delete inj;
+        quantization_injectors.clear();
     }
 
     static bool post_ops_ok(jit_conv_conf_t &jcp,
@@ -136,6 +140,7 @@ private:
 
     nstl::vector<jit_uni_eltwise_injector_f32<isa>*> eltwise_injectors;
     nstl::vector<jit_uni_depthwise_injector_f32<isa>*> depthwise_injectors;
+    nstl::vector<jit_uni_quantization_injector_f32<isa>*> quantization_injectors;
 
     Xbyak::Label l_table;
 };

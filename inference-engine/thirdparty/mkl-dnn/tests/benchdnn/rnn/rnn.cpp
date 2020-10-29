@@ -189,7 +189,7 @@ inline int init_pd(const rnn_prb_t *p, mkldnn_rnn_desc_t rd[2],
         if (init_status == mkldnn_unimplemented)
             return r->state = UNIMPLEMENTED, OK;
         else
-            SAFE(init_status, WARN);
+            DNN_SAFE(init_status, WARN);
     }
 
     if (is_bwd) {

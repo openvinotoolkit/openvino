@@ -188,8 +188,10 @@ void desc2str(const desc_t *d, char *buffer, bool canonical) {
     if (canonical || d->has_groups) DPRINT("g%d", d->g);
     if (canonical || d->mb != 2) DPRINT("mb%d", d->mb);
 
-    const bool half_form = (d->ih == d->iw && d->kh == d->kw && d->oh == d->ow
-        && d->sh == d->sw && d->ph == d->pw && d->dh == d->dw) && d->id == 1;
+    const bool half_form
+            = (d->ih == d->iw && d->kh == d->kw && d->oh == d->ow
+                      && d->sh == d->sw && d->ph == d->pw && d->dh == d->dw)
+            && !is_problem_3d(d);
 
     if (!canonical && half_form) {
         DPRINT("ic%dih%doc%doh%dkh%d", d->ic, d->ih, d->oc, d->oh, d->kh);
@@ -197,14 +199,12 @@ void desc2str(const desc_t *d, char *buffer, bool canonical) {
         if (d->ph != 0) DPRINT("ph%d", d->ph);
         if (d->dh != 0) DPRINT("dh%d", d->dh);
     } else {
-        if( d->id == 1 )
-        {
+        if (!is_problem_3d(d)) {
             DPRINT("ic%dih%diw%doc%doh%dow%dkh%dkw%d",
                 d->ic, d->ih, d->iw, d->oc, d->oh, d->ow, d->kh, d->kw);
             if (canonical || d->sh != 1 || d->sw != 1)
                 DPRINT("sh%dsw%d", d->sh, d->sw);
-            if (canonical || d->ph != 0 || d->pw != 0)
-                DPRINT("ph%dpw%d", d->ph, d->pw);
+            DPRINT("ph%dpw%d", d->ph, d->pw);
             if (canonical || d->dh != 0 || d->dw != 0)
                 DPRINT("dh%ddw%d", d->dh, d->dw);
         } else {
@@ -213,8 +213,7 @@ void desc2str(const desc_t *d, char *buffer, bool canonical) {
                 d->kd, d->kh, d->kw);
             if (canonical || d->sh != 1 || d->sw != 1 || d->sd != 1)
                 DPRINT("sd%dsh%dsw%d", d->sd, d->sh, d->sw);
-            if (canonical || d->ph != 0 || d->pw != 0 || d->pd != 0)
-                DPRINT("pd%dph%dpw%d", d->pd, d->ph, d->pw);
+            DPRINT("pd%dph%dpw%d", d->pd, d->ph, d->pw);
             if (canonical || d->dh != 0 || d->dw != 0 || d->dd != 0)
                 DPRINT("dd%ddh%ddw%d", d->dd, d->dh, d->dw);
         }

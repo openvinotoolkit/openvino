@@ -27,7 +27,7 @@ namespace kernel_selector {
 class FullyConnectedKernelBase : public WeightBiasKernelBase {
 public:
     using WeightBiasKernelBase::WeightBiasKernelBase;
-    using FusedOpDesc = base_params::fused_operation_desc;
+    using FusedOpDesc = fused_operation_desc;
     virtual ~FullyConnectedKernelBase() {}
 
     struct DispatchData : public CommonDispatchData {
@@ -47,20 +47,20 @@ public:
 
     std::string GetAutoTuneOptions(int autoTuneIndex) const;
     std::vector<std::string> autoTuneOptions = {DEFAULT, NO_PRERA_SCH, AGE_BASED};
-    virtual KernelsData GetTunedKernelsDataByIndex(const Params& params,
-                                                   const optional_params& options,
+    virtual KernelsData GetTunedKernelsDataByIndex(const Params &params,
+                                                   const optional_params &options,
                                                    DataLayout dl,
-                                                   std::vector<WeightsLayout> wl,
+                                                   WeightsLayout wl,
                                                    float estimated_time = DONT_USE_IF_HAVE_SOMETHING_ELSE,
-                                                   int autoTuneIndex = -1) const;
+                                                   const int autoTuneIndex = -1) const;
 
 protected:
     virtual JitConstants GetJitConstants(const fully_connected_params& params, const DispatchData& kd) const;
     virtual DispatchData SetDefault(const fully_connected_params& params, int autoTuneIndex = -1) const;
-    KernelsData GetCommonKernelsData(const Params& params,
-                                     const optional_params& optParams,
+    KernelsData GetCommonKernelsData(const Params &params,
+                                     const optional_params &options,
                                      DataLayout dl,
-                                     std::vector<WeightsLayout> wl,
+                                     WeightsLayout wl,
                                      float estimated_time = DONT_USE_IF_HAVE_SOMETHING_ELSE,
                                      const std::string exeMode = DEFAULT,
                                      int autoTuneIndex = -1) const;

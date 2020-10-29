@@ -7,10 +7,11 @@
 #include <cldnn/cldnn_config.hpp>
 #include "cldnn_config.h"
 #include "cpp_interfaces/exception2status.hpp"
-#include "cpp_interfaces/impl/ie_plugin_internal.hpp"
+#include "cpp_interfaces/interface/ie_internal_plugin_config.hpp"
 
-#if defined(_WIN32)
-#define mkdir(dir, mode) _mkdir(dir)
+#ifdef _WIN32
+# include <direct.h>
+# define mkdir(dir, mode) _mkdir(dir)
 #endif
 
 using namespace InferenceEngine;
@@ -108,6 +109,10 @@ void Config::UpdateFromMap(const std::map<std::string, std::string>& configMap) 
                 tuningConfig.mode = cldnn::tuning_mode::tuning_tune_and_cache;
             } else if (val.compare(PluginConfigParams::TUNING_USE_EXISTING) == 0) {
                 tuningConfig.mode = cldnn::tuning_mode::tuning_use_cache;
+            } else if (val.compare(PluginConfigParams::TUNING_UPDATE) == 0) {
+                tuningConfig.mode = cldnn::tuning_mode::tuning_use_and_update;
+            } else if (val.compare(PluginConfigParams::TUNING_RETUNE) == 0) {
+                tuningConfig.mode = cldnn::tuning_mode::tuning_retune_and_cache;
             } else {
                 THROW_IE_EXCEPTION << NOT_FOUND_str << "Unsupported tuning mode value by plugin: " << val;
             }
@@ -169,9 +174,9 @@ void Config::UpdateFromMap(const std::map<std::string, std::string>& configMap) 
             // Set this value.
             device_id = val;
         } else if (key.compare(PluginConfigInternalParams::KEY_LP_TRANSFORMS_MODE) == 0) {
-            if (val.compare(PluginConfigInternalParams::LP_TRANSFORMS_MODE_ON) == 0) {
+            if (val.compare(PluginConfigParams::YES) == 0) {
                 enableInt8 = true;
-            } else if (val.compare(PluginConfigInternalParams::LP_TRANSFORMS_MODE_OFF) == 0) {
+            } else if (val.compare(PluginConfigParams::NO) == 0) {
                 enableInt8 = false;
             } else {
                 THROW_IE_EXCEPTION << NOT_FOUND_str << "Unsupported property value by plugin: " << val;
@@ -248,6 +253,8 @@ void Config::adjustKeyMapValues() {
         switch (tuningConfig.mode) {
         case cldnn::tuning_mode::tuning_tune_and_cache: tm = PluginConfigParams::TUNING_CREATE; break;
         case cldnn::tuning_mode::tuning_use_cache: tm = PluginConfigParams::TUNING_USE_EXISTING; break;
+        case cldnn::tuning_mode::tuning_use_and_update: tm = PluginConfigParams::TUNING_UPDATE; break;
+        case cldnn::tuning_mode::tuning_retune_and_cache: tm = PluginConfigParams::TUNING_RETUNE; break;
         default: break;
         }
         key_config_map[PluginConfigParams::KEY_TUNING_MODE] = tm;

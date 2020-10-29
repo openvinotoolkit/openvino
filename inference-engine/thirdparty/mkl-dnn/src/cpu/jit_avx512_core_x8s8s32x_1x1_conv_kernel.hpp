@@ -46,6 +46,10 @@ struct jit_avx512_core_x8s8s32x_1x1_conv_kernel: public jit_generator {
         for (auto inj : depthwise_injectors)
             delete inj;
         depthwise_injectors.clear();
+
+        for (auto inj : quantization_injectors)
+            delete inj;
+        quantization_injectors.clear();
     }
 
     static bool post_ops_ok(jit_1x1_conv_conf_t &jcp,
@@ -70,6 +74,7 @@ struct jit_avx512_core_x8s8s32x_1x1_conv_kernel: public jit_generator {
   private:
     nstl::vector<jit_uni_eltwise_injector_f32<avx512_common>*> eltwise_injectors;
     nstl::vector<jit_uni_depthwise_injector_f32<avx512_common>*> depthwise_injectors;
+    nstl::vector<jit_uni_quantization_injector_f32<avx512_common>*> quantization_injectors;
 
     using reg64_t = const Xbyak::Reg64;
     using zmm_t = const Xbyak::Zmm;
@@ -106,6 +111,8 @@ struct jit_avx512_core_x8s8s32x_1x1_conv_kernel: public jit_generator {
     mask_t ktail_mask = k6;
 
     mask_t vmask = k7;
+    mask_t mask_post_op_reserved = k1;
+    Xbyak::Reg64 eltwise_reserved = rax;
 
     Xbyak::Zmm zmm_tmp = Xbyak::Zmm(28);
     Xbyak::Zmm zmm_one = Xbyak::Zmm(29);

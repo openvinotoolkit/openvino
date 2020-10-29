@@ -136,7 +136,7 @@ using cfg_s16= test_simple_params_s16_s16;
 using cfg_s8= test_simple_params_s8_s8;
 
 TEST_P(reorder_simple_corner_cases_f32_f32, TestsReorder) { }
-INSTANTIATE_TEST_CASE_P(TestReorder, reorder_simple_corner_cases_f32_f32,
+INSTANTIATE_TEST_SUITE_P(TestReorder, reorder_simple_corner_cases_f32_f32,
         ::testing::Values(
             cfg_f32{eng::cpu, fmt::nchw, fmt::nc, {2, 16, 8, 8}, true, mkldnn_invalid_arguments},
             cfg_f32{eng::cpu, fmt::nchw, fmt::nchw, {0, 16, 8, 8}},
@@ -150,7 +150,7 @@ INSTANTIATE_TEST_CASE_P(TestReorder, reorder_simple_corner_cases_f32_f32,
         );
 
 TEST_P(reorder_padded_test_data_f32_f32, TestsReorder) { }
-INSTANTIATE_TEST_CASE_P(TestReorder, reorder_padded_test_data_f32_f32,
+INSTANTIATE_TEST_SUITE_P(TestReorder, reorder_padded_test_data_f32_f32,
         ::testing::Values(
             cfg_f32{eng::cpu, fmt::nchw, fmt::nChw8c, {2, 28, 3, 4}},
             cfg_f32{eng::cpu, fmt::nChw8c, fmt::nchw, {2, 28, 3, 4}},
@@ -176,7 +176,7 @@ INSTANTIATE_TEST_CASE_P(TestReorder, reorder_padded_test_data_f32_f32,
         );
 
 TEST_P(reorder_3d_test_data_f32_f32, TestsReorder) { }
-INSTANTIATE_TEST_CASE_P(TestReorder, reorder_3d_test_data_f32_f32,
+INSTANTIATE_TEST_SUITE_P(TestReorder, reorder_3d_test_data_f32_f32,
         ::testing::Values(
             cfg_f32{eng::cpu, fmt::ncdhw, fmt::nCdhw16c, {2, 32, 2, 3, 4}},
             cfg_f32{eng::cpu, fmt::nCdhw16c, fmt::ncdhw, {2, 32, 2, 3, 4}},
@@ -189,7 +189,7 @@ INSTANTIATE_TEST_CASE_P(TestReorder, reorder_3d_test_data_f32_f32,
         );
 
 TEST_P(reorder_padded_test_weights_f32_f32, TestsReorder) { }
-INSTANTIATE_TEST_CASE_P(TestReorder, reorder_padded_test_weights_f32_f32,
+INSTANTIATE_TEST_SUITE_P(TestReorder, reorder_padded_test_weights_f32_f32,
         ::testing::Values(
             // Oi(d)hw16o
             cfg_f32{eng::cpu, fmt::oihw, fmt::Oihw16o, {17, 23, 2, 3}},
@@ -231,7 +231,7 @@ INSTANTIATE_TEST_CASE_P(TestReorder, reorder_padded_test_weights_f32_f32,
 ));
 
 TEST_P(reorder_3d_test_weights_f32_f32, TestsReorder) { }
-INSTANTIATE_TEST_CASE_P(TestReorder, reorder_3d_test_weights_f32_f32,
+INSTANTIATE_TEST_SUITE_P(TestReorder, reorder_3d_test_weights_f32_f32,
         ::testing::Values(
             cfg_f32{eng::cpu, fmt::oidhw, fmt::OIdhw8i8o, {16, 24, 2, 3, 3}},
             cfg_f32{eng::cpu, fmt::OIdhw8i8o, fmt::oidhw, {16, 24, 2, 3, 3}},
@@ -248,7 +248,7 @@ INSTANTIATE_TEST_CASE_P(TestReorder, reorder_3d_test_weights_f32_f32,
 ));
 
 TEST_P(reorder_simple_test_data_f32_f32, TestsReorder) { }
-INSTANTIATE_TEST_CASE_P(TestReorder, reorder_simple_test_data_f32_f32,
+INSTANTIATE_TEST_SUITE_P(TestReorder, reorder_simple_test_data_f32_f32,
         ::testing::Values(
             cfg_f32{eng::cpu, fmt::nchw, fmt::nchw, {10, 10, 13, 13}},
             cfg_f32{eng::cpu, fmt::nchw, fmt::nhwc, {10, 10, 10, 10}},
@@ -274,7 +274,7 @@ INSTANTIATE_TEST_CASE_P(TestReorder, reorder_simple_test_data_f32_f32,
         );
 
 TEST_P(reorder_simple_test_weights_f32_f32_0, TestsReorder) { }
-INSTANTIATE_TEST_CASE_P(TestReorder, reorder_simple_test_weights_f32_f32_0,
+INSTANTIATE_TEST_SUITE_P(TestReorder, reorder_simple_test_weights_f32_f32_0,
         ::testing::Values(
             cfg_f32{eng::cpu, fmt::hwio, fmt::oihw, {32, 32, 3, 3}},
             cfg_f32{eng::cpu, fmt::oihw, fmt::hwio, {32, 32, 3, 3}},
@@ -330,7 +330,7 @@ INSTANTIATE_TEST_CASE_P(TestReorder, reorder_simple_test_weights_f32_f32_0,
         );
 
 TEST_P(reorder_simple_test_weights_f32_f32_1, TestsReorder) { }
-INSTANTIATE_TEST_CASE_P(TestReorder, reorder_simple_test_weights_f32_f32_1,
+INSTANTIATE_TEST_SUITE_P(TestReorder, reorder_simple_test_weights_f32_f32_1,
         ::testing::Values(
             cfg_f32{eng::cpu, fmt::goihw, fmt::Goihw16g, {32, 32, 32, 3, 3}},
             cfg_f32{eng::cpu, fmt::Goihw16g, fmt::goihw, {32, 32, 32, 3, 3}},
@@ -342,7 +342,7 @@ INSTANTIATE_TEST_CASE_P(TestReorder, reorder_simple_test_weights_f32_f32_1,
         );
 
 TEST_P(reorder_simple_test_weights_f32_f32_IOhw16o16i, TestsReorder) { }
-INSTANTIATE_TEST_CASE_P(TestReorder, reorder_simple_test_weights_f32_f32_IOhw16o16i,
+INSTANTIATE_TEST_SUITE_P(TestReorder, reorder_simple_test_weights_f32_f32_IOhw16o16i,
         ::testing::Values(
             cfg_f32{eng::cpu, fmt::oihw, fmt::IOhw16o16i, {64, 64, 3, 3}},
             cfg_f32{eng::cpu, fmt::IOhw16o16i, fmt::oihw, {64, 64, 3, 3}},
@@ -357,7 +357,7 @@ INSTANTIATE_TEST_CASE_P(TestReorder, reorder_simple_test_weights_f32_f32_IOhw16o
 
 
 TEST_P(reorder_simple_test_s32_s32, TestsReorder) { }
-INSTANTIATE_TEST_CASE_P(TestReorder, reorder_simple_test_s32_s32,
+INSTANTIATE_TEST_SUITE_P(TestReorder, reorder_simple_test_s32_s32,
         ::testing::Values(
             cfg_s32{eng::cpu, fmt::nchw, fmt::nChw16c, {2, 64, 4, 4}},
             cfg_s32{eng::cpu, fmt::nChw16c, fmt::nchw, {2, 64, 4, 4}}
@@ -365,7 +365,7 @@ INSTANTIATE_TEST_CASE_P(TestReorder, reorder_simple_test_s32_s32,
         );
 
 TEST_P(reorder_simple_test_s16_s16, TestsReorder) { }
-INSTANTIATE_TEST_CASE_P(TestReorder, reorder_simple_test_s16_s16,
+INSTANTIATE_TEST_SUITE_P(TestReorder, reorder_simple_test_s16_s16,
         ::testing::Values(
             cfg_s16{eng::cpu, fmt::oihw, fmt::OIhw8i16o2i, {64, 64, 3, 3}},
             cfg_s16{eng::cpu, fmt::OIhw8i16o2i, fmt::oihw, {64, 64, 3, 3}},
@@ -379,7 +379,7 @@ INSTANTIATE_TEST_CASE_P(TestReorder, reorder_simple_test_s16_s16,
         );
 
 TEST_P(reorder_simple_test_s8_s8, TestsReorder) { }
-INSTANTIATE_TEST_CASE_P(TestReorder, reorder_simple_test_s8_s8,
+INSTANTIATE_TEST_SUITE_P(TestReorder, reorder_simple_test_s8_s8,
         ::testing::Values(
             cfg_s8{eng::cpu, fmt::oihw, fmt::OIhw4i16o4i, {64, 64, 3, 3}},
             cfg_s8{eng::cpu, fmt::OIhw4i16o4i, fmt::oihw, {64, 64, 3, 3}},

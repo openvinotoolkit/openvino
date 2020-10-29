@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2016 Intel Corporation
+﻿// Copyright (c) 2016-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -80,7 +80,7 @@ ConcatenationKernelBase::DispatchData ConcatenationKernel_depth_bfyx_no_pitch::S
     runInfo.lws1 = 16;
     runInfo.lws2 = 1;
 
-    runInfo.effiency = FORCE_PRIORITY_9;
+    runInfo.efficiency = FORCE_PRIORITY_9;
 
     return runInfo;
 }

@@ -36,7 +36,8 @@ struct generic_layer_gpu : typed_primitive_impl<generic_layer> {
         : outer(arg),
           _cl_kernel_data(*outer.get_primitive()->generic_params.clKernel.get()),
           _kernel(arg.get_program().get_engine().get_context(),
-                  outer.get_primitive()->generic_params.clKernel->kernelString) {}
+                  outer.get_primitive()->generic_params.clKernel->kernelString,
+                  arg.get_program().get_id()) {}
 
     event_impl::ptr execute_impl(const std::vector<event_impl::ptr>& events, generic_layer_inst& instance) override {
         uint32_t net_id = instance.get_network().get_id();

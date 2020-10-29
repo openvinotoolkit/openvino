@@ -81,7 +81,7 @@ void remove_redundant_reorders::run(program_impl& p) {
                 continue;
 
             auto output_padded = static_cast<bool>(output_layout.data_padding);
-            auto can_omit_padding = output_layout.format == format::bfyx_f16 && input.get_output_layout().format == format::bfyx;
+            auto can_omit_padding = output_layout.format == format::b_fs_yx_fsv16 && input.get_output_layout().format == format::bfyx;
 
             if (output_padded && !can_omit_padding) {
                 if (input.get_users().size() != 1)
@@ -167,6 +167,21 @@ void remove_redundant_reorders::run(program_impl& p) {
 
         auto o_layout = r_node.get_output_layout();
         auto i_layout = r_node.get_dependency(0).get_output_layout();
+
+        // Optimize reorder b_fs_yx_fsv16 -> bfyx when spatials are equal to 1. In this case we can reinterpret buffer,
+        // but pads need to be handled correctly.
+        if (i_layout.format == format::b_fs_yx_fsv16 && o_layout.format == format::bfyx &&
+            i_layout.size.spatial[0] == 1 && i_layout.size.spatial[1] == 1 &&
+            o_layout.data_padding.upper_size() == (tensor)0 && o_layout.data_padding.lower_size() == (tensor)0) {
+            r_node.can_be_optimized(true);
+            if (i_layout.size.feature[0] % 16 != 0) {
+                auto pad_lo = o_layout.data_padding.lower_size();
+                auto pad_hi = o_layout.data_padding.upper_size();
+                pad_hi.feature[0] = i_layout.size.feature[0] % 16;
+                r_node.merge_output_padding(padding{pad_lo.sizes(), pad_hi.sizes()});
+            }
+            continue;
+        }
 
         auto ident = program_helpers::are_layouts_identical(o_layout, i_layout);
 
@@ -281,7 +296,7 @@ void remove_redundant_reorders::run(program_impl& p) {
         auto& usr = node->get_users().front();
         auto& dep = node->get_dependency(0);
         if (!usr->is_type<quantize>() || node->get_output_layout().format != format::bfyx ||
-            (dep.get_output_layout().format != format::bfyx_f16 && dep.get_output_layout().format != format::fs_b_yx_fsv32))
+            (dep.get_output_layout().format != format::b_fs_yx_fsv16 && dep.get_output_layout().format != format::fs_b_yx_fsv32))
             continue;
 
         dep.merge_output_padding(node->get_output_layout().data_padding);
@@ -302,7 +317,8 @@ void remove_redundant_reorders::run(program_impl& p) {
         auto& dep = node->get_dependency(0);
         if (!(usr->is_type<convolution>()) ||
              (usr->get_output_layout().data_type != dep.get_output_layout().data_type) ||
-             (usr->get_output_layout().format != format::fs_b_yx_fsv32))
+             (usr->get_output_layout().format != format::fs_b_yx_fsv32) ||
+             (dep.get_output_layout().format != format::bfyx))
             continue;
 
         if (dep.is_type<input_layout>())

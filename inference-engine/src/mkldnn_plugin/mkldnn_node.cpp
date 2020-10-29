@@ -40,6 +40,7 @@
 #include <nodes/mkldnn_bin_conv_node.h>
 #include <nodes/mkldnn_def_conv_node.h>
 #include <nodes/mkldnn_mvn_node.h>
+#include <nodes/mkldnn_resample_node.h>
 #include <nodes/mkldnn_tensoriterator_node.h>
 #include <mkldnn_types.h>
 #include "mkldnn_extension_utils.h"
@@ -50,7 +51,6 @@ using namespace mkldnn;
 using namespace MKLDNNPlugin;
 
 using namespace InferenceEngine::details;
-
 namespace MKLDNNPlugin {
 static const InferenceEngine::details::caseless_unordered_map<std::string, Type> type_to_name_tbl = {
         { "Unknown", Unknown },
@@ -60,6 +60,7 @@ static const InferenceEngine::details::caseless_unordered_map<std::string, Type>
         { "Reorder", Reorder },
         { "Convolution", Convolution },
         { "ReLU", Activation },
+        { "GELU", Activation },
         { "ELU", Activation },
         { "Sigmoid", Activation },
         { "Logistic", Activation },
@@ -68,9 +69,10 @@ static const InferenceEngine::details::caseless_unordered_map<std::string, Type>
         { "Exp", Activation },
         { "Not", Activation },
         { "Activation", Activation },
+        { "Clamp", Activation },
+        { "Swish", Activation },
         { "ScaleShift", Depthwise },
         { "PReLU", Depthwise },
-        { "Clamp", Activation },
         { "Norm", Lrn },
         { "LRN", Lrn },
         { "Pooling", Pooling },
@@ -109,6 +111,7 @@ static const InferenceEngine::details::caseless_unordered_map<std::string, Type>
         { "Memory", MemoryOutput },  // for construction from layer ctor
         { "Convert", Convert },
         { "MVN", MVN},
+        { "Resample", Resample},
 };
 
 Type TypeFromName(const std::string type) {
@@ -123,10 +126,7 @@ Type TypeFromName(const std::string type) {
 }  //  namespace MKLDNNPlugin
 
 std::shared_ptr<MKLDNNNodesHolder> MKLDNNNode::GetNodesHolder() {
-    static std::shared_ptr<MKLDNNNodesHolder> localHolder;
-    if (localHolder == nullptr) {
-        localHolder = std::make_shared<MKLDNNNodesHolder>();
-    }
+    static std::shared_ptr<MKLDNNNodesHolder> localHolder = std::make_shared<MKLDNNNodesHolder>();
     return localHolder;
 }
 
@@ -834,6 +834,7 @@ const std::vector<impl_desc_type>& MKLDNNNode::getPrimitivesPriority() {
             impl_desc_type::gemm_avx2,
             impl_desc_type::gemm_avx,
             impl_desc_type::gemm_sse42,
+            impl_desc_type::jit_gemm,
             impl_desc_type::ref_any,
             impl_desc_type::ref,
     };
@@ -1068,4 +1069,8 @@ Layout MKLDNNNode::getWeightsLayoutByDims(SizeVector dims, bool isGrouped) {
         default:
             return Layout::BLOCKED;
     }
+}
+
+void MKLDNNNode::appendPostOps(mkldnn::post_ops& ops) {
+    THROW_IE_EXCEPTION << "Fusing of " << this->getType() << " operation is not implemented";
 }

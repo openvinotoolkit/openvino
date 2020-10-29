@@ -46,6 +46,10 @@ struct jit_avx512_common_1x1_conv_kernel : public jit_generator {
         for (auto inj : depthwise_injectors)
             delete inj;
         depthwise_injectors.clear();
+
+        for (auto inj : quantization_injectors)
+            delete inj;
+        quantization_injectors.clear();
     }
 
     DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_avx512_common_1x1_conv_kernel)
@@ -101,6 +105,7 @@ struct jit_avx512_common_1x1_conv_kernel : public jit_generator {
 
     nstl::vector<jit_uni_eltwise_injector_f32<avx512_common>*> eltwise_injectors;
     nstl::vector<jit_uni_depthwise_injector_f32<avx512_common>*> depthwise_injectors;
+    nstl::vector<jit_uni_quantization_injector_f32<avx512_common>*> quantization_injectors;
 
     int bcast_loop_work_offt = 0;
     int stack_space_needed = 16;

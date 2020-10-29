@@ -215,12 +215,23 @@ KERNEL(convolution)(
         dequantized += TO_DEQUANTIZED_TYPE4(bias);
 #endif
 
+    OUTPUT_TYPE4 out;
+
 #if HAS_FUSED_OPS
-        FUSED_OPS;
-        output[output_offset] = TO_OUTPUT_TYPE4(FINAL_NAME);
+        FUSED_OPS_PRELOAD;
+        FUSED_OPS_CALC;
+        out = TO_OUTPUT_TYPE4(FUSED_OPS_RESULT);
 #else
-        output[output_offset] = TO_OUTPUT_TYPE4(dequantized);
+        out = TO_OUTPUT_TYPE4(dequantized);
 #endif
+        if (OUTPUT_FEATURE_NUM % FSV != 0 && f + out_fi * FSV + FSV >= OUTPUT_FEATURE_NUM) {
+            if (OUTPUT_FEATURE_NUM % FSV <= 1)
+                out.s1 = (OUTPUT_TYPE)(0);
+            if (OUTPUT_FEATURE_NUM % FSV <= 2)
+                out.s2 = (OUTPUT_TYPE)(0);
+            out.s3 = (OUTPUT_TYPE)(0);
+        }
+        output[output_offset] = out;
     }
 }
 

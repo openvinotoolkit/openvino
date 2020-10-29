@@ -1,5 +1,5 @@
 /*
-// Copyright (c) 2016 Intel Corporation
+// Copyright (c) 2016-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -48,7 +48,7 @@ std::string normalize_inst::to_string(normalize_node const& node) {
     normalize_info.add("epsilon", epsilon);
     normalize_info.add("normalization region", norm_region);
 
-    node_info->add("noramlize info", normalize_info);
+    node_info->add("normalize info", normalize_info);
     node_info->dump(primitive_description);
 
     return primitive_description.str();

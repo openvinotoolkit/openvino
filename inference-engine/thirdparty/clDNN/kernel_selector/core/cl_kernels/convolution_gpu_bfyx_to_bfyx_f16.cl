@@ -164,7 +164,7 @@ KERNEL(convolution_bfyx_to_bfyx_f16)(
         for (int i = 0; i < OUTPUT_X_BLOCK_SIZE; i++) {
 #if HAS_FUSED_OPS
             FUSED_OPS_SCALAR;
-            dst[i] = FINAL_NAME_SCALAR;
+            dst[i] = FUSED_OPS_RESULT_SCALAR;
 #endif
             if ((f_block*FEATURE_SLICE_SIZE + lid < OUTPUT_FEATURE_NUM) && (x + i) < OUTPUT_SIZE_X)
                 output[output_offset + i * output_x_pitch + lid] = dst[i];
@@ -176,7 +176,7 @@ KERNEL(convolution_bfyx_to_bfyx_f16)(
         if (x + OUTPUT_X_BLOCK_SIZE <= OUTPUT_SIZE_X) {
 #if HAS_FUSED_OPS
             FUSED_OPS_VEC;
-            dst = FINAL_NAME_VEC;
+            dst = FUSED_OPS_RESULT_VEC;
 #endif
             // TODO Generalize for other block sizes
 #if OUTPUT_X_BLOCK_SIZE == 8
@@ -195,7 +195,7 @@ KERNEL(convolution_bfyx_to_bfyx_f16)(
             for (int i = 0; i < x_tail; i++) {
 #if HAS_FUSED_OPS
             FUSED_OPS_SCALAR;
-            dst[i] = FINAL_NAME_SCALAR;
+            dst[i] = FUSED_OPS_RESULT_SCALAR;
 #endif
                 UNIT_BLOCK_WRITE(output, output_offset + i * output_x_pitch, dst[i]);
             }

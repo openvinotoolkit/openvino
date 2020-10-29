@@ -144,6 +144,8 @@ public:
                 return reduce_type<float , float>(inputs, outputs, work_amount_dst, reduced_dims_work_amount, axes_for_reduction, our_dims);
             case getPrecisionMask(Precision::I32, Precision::I64):
                 return reduce_type<int32_t , int64_t>(inputs, outputs, work_amount_dst, reduced_dims_work_amount, axes_for_reduction, our_dims);
+            case getPrecisionMask(Precision::I32, Precision::U64):
+                return reduce_type<int32_t , uint64_t>(inputs, outputs, work_amount_dst, reduced_dims_work_amount, axes_for_reduction, our_dims);
             case getPrecisionMask(Precision::I32, Precision::FP32):
                 return reduce_type<int32_t , float>(inputs, outputs, work_amount_dst, reduced_dims_work_amount, axes_for_reduction, our_dims);
             case getPrecisionMask(Precision::I32, Precision::I32):

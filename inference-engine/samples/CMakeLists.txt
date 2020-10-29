@@ -6,6 +6,10 @@ cmake_minimum_required (VERSION 2.8.12)
 
 project(Samples)
 
+if(POLICY CMP0063)
+    cmake_policy(SET CMP0063 NEW)
+endif()
+
 if (CMAKE_BUILD_TYPE STREQUAL "")
     message(STATUS "CMAKE_BUILD_TYPE not defined, 'Release' will be used")
     set(CMAKE_BUILD_TYPE "Release")
@@ -64,7 +68,10 @@ if (WIN32)
         set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /wd4251 /wd4275 /wd4267") #disable some warnings
     endif()
 else()
-    set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Werror") #treating warnings as errors
+    if(TREAT_WARNING_AS_ERROR)
+        set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Werror") #treating warnings as errors
+    endif()
+
     if (APPLE)
         set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-error=unused-command-line-argument")
     elseif(UNIX)
@@ -76,12 +83,14 @@ else()
 endif()
 
 ####################################
-## to use C++11
-set (CMAKE_CXX_STANDARD 11)
-set (CMAKE_CXX_EXTENSIONS OFF)
-set (CMAKE_CXX_STANDARD_REQUIRED ON)
-if (CMAKE_CXX_COMPILER_ID STREQUAL GNU)
-    set (CMAKE_CXX_FLAGS "-std=c++11 ${CMAKE_CXX_FLAGS}")
+## to use C++11; can overwritten via cmake command line
+if(NOT DEFINED CMAKE_CXX_STANDARD)
+    set (CMAKE_CXX_STANDARD 11)
+    set (CMAKE_CXX_EXTENSIONS OFF)
+    set (CMAKE_CXX_STANDARD_REQUIRED ON)
+    if (CMAKE_CXX_COMPILER_ID STREQUAL GNU)
+        set (CMAKE_CXX_FLAGS "-std=c++11 ${CMAKE_CXX_FLAGS}")
+    endif()
 endif()
 ####################################
 

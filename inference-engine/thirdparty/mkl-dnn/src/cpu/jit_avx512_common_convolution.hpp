@@ -164,7 +164,8 @@ struct jit_avx512_common_convolution_bwd_data_t: public cpu_primitive_t {
             status_t status =
                 jit_avx512_common_conv_bwd_data_kernel_f32::init_conf(jcp_,
                         *this->desc(), *this->diff_src_pd_.desc(),
-                        *this->weights_pd_.desc(), *this->diff_dst_pd_.desc());
+                        *this->weights_pd_.desc(), *this->diff_dst_pd_.desc(),
+                        *this->attr());
             if (status != status::success) return status;
 
             auto scratchpad = scratchpad_registry().registrar();
@@ -216,7 +217,7 @@ struct jit_avx512_common_convolution_bwd_data_t: public cpu_primitive_t {
     jit_avx512_common_convolution_bwd_data_t(const pd_t *apd,
             const input_vector &inputs, const output_vector &outputs)
         : cpu_primitive_t(apd, inputs, outputs)
-    { kernel_ = new jit_avx512_common_conv_bwd_data_kernel_f32(pd()->jcp_); }
+    { kernel_ = new jit_avx512_common_conv_bwd_data_kernel_f32(pd()->jcp_, *pd()->attr()); }
     ~jit_avx512_common_convolution_bwd_data_t() { delete kernel_; };
 
     typedef typename prec_traits<diff_dst_type>::type diff_dst_data_t;

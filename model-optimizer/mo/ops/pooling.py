@@ -112,12 +112,11 @@ class Pooling(Op):
             pad_spatial_shape = np.add.reduce(node.pad_spatial_shape, axis=1)
 
             rounding = np.floor
-            if node.has_valid('pooling_convention') and node.pooling_convention == 'full':
+            if node.soft_get('pooling_convention') == 'full' or node.soft_get('rounding_type') == 'ceil':
                 rounding = np.ceil
             output_spatial_shape = np.array(rounding(
                 np.array(input_spatial_shape + pad_spatial_shape - window_spatial_shape,
-                         dtype=np.float) / stride_spatial),
-                dtype=np.int64) + 1
+                         dtype=np.float) / stride_spatial), dtype=np.int64) + 1
 
             original_pads = np.array([i[1] for i in node.pad_spatial_shape])
 

@@ -22,6 +22,11 @@ caseless_map<std::string, std::function<void(GenericLayer*, mkldnn::algorithm&, 
             beta = 0.0f;
             algorithm = eltwise_relu;
         }},
+        {"gelu", [](GenericLayer* activationLayer, mkldnn::algorithm& algorithm, float& alpha, float& beta) {
+            alpha = 0.0f;
+            beta = 0.0f;
+            algorithm = eltwise_gelu;
+        }},
         {"elu", [](GenericLayer* activationLayer, mkldnn::algorithm& algorithm, float& alpha, float& beta) {
             alpha = activationLayer->GetParamAsFloat("alpha", 1.0f);
             beta = 0.0f;
@@ -86,10 +91,29 @@ caseless_map<std::string, std::function<void(GenericLayer*, mkldnn::algorithm&, 
             alpha = 0.0f;
             beta = 0.0f;
             algorithm = eltwise_not;
-        }}
+        }},
+        {"swish", [](GenericLayer* activationLayer, mkldnn::algorithm& algorithm, float& alpha, float& beta) {
+            alpha = activationLayer->GetParamAsFloat("alpha", 1.0f);
+            beta = 0.0f;
+            algorithm = eltwise_swish;
+        }},
 };
 
-MKLDNNActivationNode::MKLDNNActivationNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng, int socket) : MKLDNNNode(layer, eng, socket) {}
+MKLDNNActivationNode::MKLDNNActivationNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng, int socket) : MKLDNNNode(layer, eng, socket) {
+    GenericLayer* activationLayer = getCnnLayer().get();
+    if (activationLayer == nullptr)
+        THROW_IE_EXCEPTION << "Cannot get CNNLayer.";
+
+    std::string type = activationLayer->type;
+    CaselessEq<std::string> comparator;
+    if (comparator(type, "activation"))
+        type = activationLayer->GetParamAsString("type");
+    if (comparator(type, "sigmoid"))
+        type = "logistic";
+
+    if (initializers.find(type) != initializers.end())
+        initializers[type](activationLayer, algorithm, alpha, beta);
+}
 
 void MKLDNNActivationNode::getSupportedDescriptors() {
     if (!descs.empty())
@@ -125,25 +149,6 @@ void MKLDNNActivationNode::createPrimitive() {
 
 bool MKLDNNActivationNode::created() const {
     return getType() == Activation;
-}
-
-void MKLDNNActivationNode::initValues() {
-    GenericLayer* activationLayer = getCnnLayer().get();
-    if (activationLayer == nullptr)
-        THROW_IE_EXCEPTION << "Cannot get CNNLayer.";
-
-    std::string type = activationLayer->type;
-    CaselessEq<std::string> comparator;
-    if (comparator(type, "activation"))
-        type = activationLayer->GetParamAsString("type");
-    if (comparator(type, "sigmoid"))
-        type = "logistic";
-
-    if (initializers.find(type) == initializers.end())
-        THROW_IE_EXCEPTION << "Node " << getName() << " has unsupported activation primitive: "
-                           << activationLayer->type << " : " << type;
-    initializers[type](activationLayer, algorithm, alpha, beta);
-    initialized = true;
 }
 
 void MKLDNNActivationNode::createDescriptor(const std::vector<InferenceEngine::TensorDesc> &inputDesc,

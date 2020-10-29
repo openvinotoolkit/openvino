@@ -73,7 +73,7 @@ protected:
         Reg64 table_reg(rbx); // table is used for data scale and shifts
 
         // We skip vmm0 as it can be used by the injector for masks on sse4.2
-        Vmm G0(1), G2(2), tmp1_vmm(3);
+        Vmm G0(1), G2(2), tmp1_vmm(3), tmp2_vmm(4);
 
         // constant table map
         Address one_addr = ptr[table_reg];
@@ -87,6 +87,14 @@ protected:
         auto addr_states_t_l_reg = abi_param3;
         auto addr_states_tm1_l_reg = abi_param4;
 
+        // helper lambda to address the gates and biases
+        auto G_addr = [&](int i) {
+            return ptr[addr_ws_gates_reg + i * rnn_.dic * gate_dt_size];
+        };
+        auto B_addr = [&](int i) {
+            return ptr[addr_bias_reg + i * rnn_.dic * bias_dt_size];
+        };
+
         // initialize registers with addresses and constants
         mov(table_reg, table_label);
         tanh_injector_->load_table_addr();
@@ -98,15 +106,20 @@ protected:
         L(vector_loop_start_label);
         {
             // Compute gate 2: G2 = tanh(G2 + b2)
-            uni_vmovups(G2, ptr[addr_ws_gates_reg + 2 * rnn_.dic * gate_dt_size]);
-            uni_vaddps(G2, G2, ptr[addr_bias_reg + 2 * rnn_.dic * bias_dt_size]);
+            uni_vmovups(G2, G_addr(2));
+            uni_vmovups(tmp1_vmm, B_addr(2));
+            uni_vaddps(G2, G2, tmp1_vmm);
             tanh_injector_->compute_vector(G2.getIdx());
+            // if training we write back the gates
+            if (pd_->desc()->prop_kind == prop_kind::forward_training)
+                uni_vmovups(G_addr(2), G2);
 
             // states_t_l = states_tm1_l * G0 + (1 - G0) * G2
-            uni_vmovups(G0, ptr[addr_ws_gates_reg + 0 * rnn_.dic * gate_dt_size]);
+            uni_vmovups(G0, G_addr(0));
             uni_vmovups(tmp1_vmm, one_addr);
             uni_vsubps(tmp1_vmm, tmp1_vmm, G0);
-            uni_vmulps(G0, G0, ptr[addr_states_tm1_l_reg]);
+            uni_vmovups(tmp2_vmm, ptr[addr_states_tm1_l_reg]);
+            uni_vmulps(G0, G0, tmp2_vmm);
             uni_vfmadd231ps(G0, tmp1_vmm, G2);
             uni_vmovups(ptr[addr_states_t_l_reg], G0);
 
@@ -134,12 +147,15 @@ protected:
             Xmm tmp1s_vmm(tmp1_vmm.getIdx());
 
             // Compute gate 2: G2 = tanh(G2 + b2)
-            uni_vmovss(G2s, ptr[addr_ws_gates_reg + 2 * rnn_.dic * gate_dt_size]);
-            uni_vaddss(G2s, G2s, ptr[addr_bias_reg + 2 * rnn_.dic * bias_dt_size]);
+            uni_vmovss(G2s, G_addr(2));
+            uni_vaddss(G2s, G2s, B_addr(2));
             tanh_injector_->compute_vector(G2s.getIdx());
+            // if training we write back the gates
+            if (pd_->desc()->prop_kind == prop_kind::forward_training)
+                uni_vmovss(G_addr(2), G2s);
 
             // states_t_l = states_tm1_l * G0 + (1 - G0) * G2
-            uni_vmovss(G0s, ptr[addr_ws_gates_reg + 0 * rnn_.dic * gate_dt_size]);
+            uni_vmovss(G0s, G_addr(0));
             uni_vmovss(tmp1s_vmm, one_addr);
             uni_vsubss(tmp1s_vmm, tmp1s_vmm, G0s);
             uni_vmulss(G0s, G0s, ptr[addr_states_tm1_l_reg]);

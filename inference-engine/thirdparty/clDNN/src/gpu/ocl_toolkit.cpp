@@ -99,28 +99,25 @@ struct gpu_toolkit::ocl_logger {
     std::ofstream _log_file;
 };
 
-gpu_toolkit::gpu_toolkit(const device_impl& device, const configuration& config)
+gpu_toolkit::gpu_toolkit(const device_impl& device_impl, const configuration& config)
     : _configuration(config),
-      _device(device.get_device()),
-      _context(device.get_context()),
-      _platform_id(device.get_platform()),
-      _device_info(device.get_info()),
-      _neo_driver(strstr(get_device_version().c_str(), "NEO") ? true : false),
-      _kernels_cache(*this) {
-    _device.getInfo(CL_DEVICE_EXTENSIONS, &_extensions);
+      _device(&device_impl),
+      _neo_driver(strstr(get_device_version().c_str(), "NEO") ? true : false) {
+    device().getInfo(CL_DEVICE_EXTENSIONS, &_extensions);
 
-    device_cache_reader dc_reader(_configuration.tuning_cache_path, _device_info.compute_units_count);
+    device_cache_reader dc_reader(_configuration.tuning_cache_path);
     _device_cache = dc_reader.get();
 
     _logger = std::unique_ptr<ocl_logger>(new ocl_logger());
     if (logging_enabled()) {
+        auto device_info = get_device_info();
         open_log() << "Engine configuration:\n"
                    << "    profiling: " << std::boolalpha << _configuration.enable_profiling << "\n"
                    << "    meaningful names: " << std::boolalpha << _configuration.meaningful_kernels_names << "\n"
                    << "    dump custom program: " << std::boolalpha << _configuration.dump_custom_program << "\n"
-                   << "    device type: " << std::to_string(_device_info.dev_type) << "\n"
+                   << "    device type: " << std::to_string(device_info.dev_type) << "\n"
                    << "    vendor type: " << std::hex << std::setfill('0') << std::setw(4) << std::right
-                   << std::to_string(_device_info.vendor_id) << "\n"
+                   << std::to_string(device_info.vendor_id) << "\n"
                    << std::dec << std::setfill(' ') << std::right
                    << "    compiler options: " << _configuration.compiler_options << "\n"
                    << "    single kernel name: " << _configuration.single_kernel_name << "\n"
@@ -128,13 +125,13 @@ gpu_toolkit::gpu_toolkit(const device_impl& device, const configuration& config)
                    << "    engine log: " << _configuration.log << "\n"
                    << "    sources dumps: " << _configuration.ocl_sources_dumps_dir << "\n"
                    << "\nEngine info:\n"
-                   << "    cores count: " << _device_info.cores_count << "\n"
-                   << "    core frequencey: " << _device_info.core_frequency << "\n"
-                   << "    max work group size: " << _device_info.max_work_group_size << "\n"
-                   << "    local memory size: " << _device_info.max_local_mem_size << "\n"
-                   << "    fp16: " << std::boolalpha << (_device_info.supports_fp16 != 0) << "\n"
-                   << "    fp16 denorms: " << std::boolalpha << (_device_info.supports_fp16_denorms != 0) << "\n"
-                   << "    subgroups short: " << std::boolalpha << (_device_info.supports_subgroups_short != 0) << std::endl;
+                   << "    cores count: " << device_info.cores_count << "\n"
+                   << "    core frequencey: " << device_info.core_frequency << "\n"
+                   << "    max work group size: " << device_info.max_work_group_size << "\n"
+                   << "    local memory size: " << device_info.max_local_mem_size << "\n"
+                   << "    fp16: " << std::boolalpha << (device_info.supports_fp16 != 0) << "\n"
+                   << "    fp16 denorms: " << std::boolalpha << (device_info.supports_fp16_denorms != 0) << "\n"
+                   << "    subgroups short: " << std::boolalpha << (device_info.supports_subgroups_short != 0) << std::endl;
     }
 }
 
@@ -142,8 +139,32 @@ gpu_queue& gpu_toolkit::get_command_queue(uint32_t id) {
     return _command_queues_w.at(id);
 }
 
+gpu_program_state& gpu_toolkit::get_program_state(uint32_t id) {
+    return *_program_states.at(id);
+}
+
+void gpu_toolkit::add_program(uint32_t prog_id) {
+    _program_states.emplace(std::make_pair(prog_id, std::make_shared<gpu_program_state>(*this, prog_id)));
+}
+
+void gpu_toolkit::remove_program(uint32_t prog_id) {
+    auto state_iter = _program_states.find(prog_id);
+
+    if (state_iter != _program_states.end()) {
+        _program_states.erase(state_iter);
+    }
+}
+
+kernels_cache& gpu_toolkit::get_kernels_cache(uint32_t prog_id) {
+    return get_program_state(prog_id)._kernels_cache;
+}
+
+void gpu_toolkit::store_binaries(kernels_binaries_vector binaries, uint32_t prog_id) {
+    get_program_state(prog_id)._binaries.push_back(binaries);
+}
+
 void gpu_toolkit::add_network(uint32_t net_id) {
-    command_queues_builder queue_builder(_context, _device, _platform_id);
+    command_queues_builder queue_builder(context(), device(), _device->get_platform());
     queue_builder.set_profiling(_configuration.enable_profiling);
     queue_builder.set_out_of_order((_configuration.host_out_of_order && _neo_driver));
 
@@ -169,7 +190,7 @@ void gpu_toolkit::remove_network(uint32_t net_id) {
 }
 
 event_impl::ptr gpu_toolkit::enqueue_kernel(uint32_t queue_id,
-                                            cl::Kernel const& kern,
+                                            kernels_cache::kernel_type const& kern,
                                             cl::NDRange const& global,
                                             cl::NDRange const& local,
                                             std::vector<event_impl::ptr> const& deps) {

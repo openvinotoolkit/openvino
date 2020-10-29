@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2016 Intel Corporation
+﻿// Copyright (c) 2016-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -33,6 +33,7 @@ ParamsKey FullyConnectedKernelMMAD::GetSupportedKey() const {
     k.EnableDifferentInputWeightsTypes();
     k.EnableDifferentTypes();
 
+    k.EnableInputLayout(DataLayout::bfyx);
     k.EnableInputLayout(DataLayout::byxf_af32);
     k.EnableInputLayout(DataLayout::b_fs_yx_fsv32);
     k.EnableInputLayout(DataLayout::b_fs_zyx_fsv32);
@@ -51,6 +52,13 @@ ParamsKey FullyConnectedKernelMMAD::GetSupportedKey() const {
 bool FullyConnectedKernelMMAD::Validate(const Params& params, const optional_params& options) const {
     if (!Parent::Validate(params, options))
         return false;
+
+    auto fc_params = static_cast<const fully_connected_params&>(params);
+    auto input = fc_params.inputs[0];
+    if (input.GetLayout() == DataLayout::bfyx &&
+        (input.X().LogicalDimPadded() != 1 || input.Y().LogicalDimPadded() != 1 || input.Z().LogicalDimPadded() != 1)) {
+        return false;
+    }
 
     return true;
 }
@@ -118,13 +126,20 @@ JitConstants FullyConnectedKernelMMAD::GetJitConstants(const fully_connected_par
     size_t input_y_pitch = input.Y().pitch;
     size_t input_z_pitch = input.Z().pitch;
 
-    if (params.inputs[0].GetLayout() == DataLayout::byxf_af32) {
+    if (input.GetLayout() == DataLayout::byxf_af32 || input.GetLayout() == DataLayout::bfyx) {
         jit.AddConstant(MakeJitConstant("MMAD_INPUT_FBLOCK_PITCH", 32));
     } else if (input.GetLayout() == DataLayout::b_fs_yx_fsv32 || input.GetLayout() == DataLayout::b_fs_zyx_fsv32) {
         input_x_pitch = 32;
         input_y_pitch *= 32;
         input_z_pitch *= 32;
         jit.AddConstant(MakeJitConstant("MMAD_INPUT_FBLOCK_PITCH", input.Feature().pitch * 32));
+    }
+
+    if (input.GetLayout() == DataLayout::bfyx && input.Feature().v % 32 != 0) {
+        jit.AddConstant(MakeJitConstant("HAS_FEATURE_LEFTOVERS", true));
+        jit.AddConstant(MakeJitConstant("FEATURE_BLOCKS_COUNT", input.Feature().v / 32));
+    } else {
+        jit.AddConstant(MakeJitConstant("FEATURE_BLOCKS_COUNT", CeilDiv(input.Feature().v, 32)));
     }
 
     jit.AddConstant(MakeJitConstant("MMAD_INPUT_SPATIAL_PITCH", input_x_pitch));
@@ -162,7 +177,7 @@ KernelsData FullyConnectedKernelMMAD::GetKernelsData(const Params& params, const
         KernelsData kd = GetTunedKernelsDataByIndex(params,
                                                     options,
                                                     input.GetLayout(),
-                                                    { w_layout },
+                                                    w_layout,
                                                     FORCE_PRIORITY_9,
                                                     static_cast<int>(i));
         if (!kd.empty()) {

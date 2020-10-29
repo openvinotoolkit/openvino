@@ -67,9 +67,9 @@ using DataWeakPtr = std::weak_ptr<Data>;
  * @brief The method holds the user values to enable binding of data per graph node.
  */
 union UserValue {
-    int v_int;
-    float v_float;
-    void* v_ptr;
+    int v_int;  //!< An integer value
+    float v_float;  //!< A floating point value
+    void* v_ptr;  //!< A pointer to a void
 };
 
 /**
@@ -77,35 +77,35 @@ union UserValue {
  * @brief Layouts that the inference engine supports
  */
 enum Layout : uint8_t {
-    ANY = 0,  // "any" layout
+    ANY = 0,  //!< "any" layout
 
     // I/O data layouts
-    NCHW = 1,
-    NHWC = 2,
-    NCDHW = 3,
-    NDHWC = 4,
+    NCHW = 1,  //!< NCHW layout for input / output blobs
+    NHWC = 2,  //!< NHWC layout for input / output blobs
+    NCDHW = 3,  //!< NCDHW layout for input / output blobs
+    NDHWC = 4,  //!< NDHWC layout for input / output blobs
 
     // weight layouts
-    OIHW = 64,
-    GOIHW = 65,
-    OIDHW = 66,
-    GOIDHW = 67,
+    OIHW = 64,  //!< NDHWC layout for operation weights
+    GOIHW = 65,  //!< NDHWC layout for operation weights
+    OIDHW = 66,  //!< NDHWC layout for operation weights
+    GOIDHW = 67,  //!< NDHWC layout for operation weights
 
     // Scalar
-    SCALAR = 95,
+    SCALAR = 95,  //!< A scalar layout
 
     // bias layouts
-    C = 96,
+    C = 96,  //!< A bias layout for opearation
 
-    // Single image layout (for mean image)
-    CHW = 128,
+    // Single image layouts
+    CHW = 128,  //!< A single image layout (e.g. for mean image)
 
     // 2D
-    HW = 192,
-    NC = 193,
-    CN = 194,
+    HW = 192,  //!< HW 2D layout
+    NC = 193,  //!< HC 2D layout
+    CN = 194,  //!< CN 2D layout
 
-    BLOCKED = 200,
+    BLOCKED = 200,  //!< A blocked layout
 };
 inline std::ostream& operator<<(std::ostream& out, const Layout& p) {
     switch (p) {
@@ -181,9 +181,17 @@ struct InferenceEngineProfileInfo {
     /**
      * @brief Defines the general status of the layer
      */
-    enum LayerStatus { NOT_RUN, OPTIMIZED_OUT, EXECUTED };
+    enum LayerStatus {
+        NOT_RUN,  //!< A layer is not exectued
+        OPTIMIZED_OUT,  //!< A layer is optimized out during graph optimization phase
+        EXECUTED  //!< A layer is executed
+    };
 
+    /**
+     * @brief Defines a layer status
+     */
     LayerStatus status;
+
     /**
      * @brief The absolute time in microseconds that the layer ran (in total)
      */

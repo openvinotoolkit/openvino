@@ -16,7 +16,6 @@
 #include <cpp_interfaces/exception2status.hpp>
 #include <ie_blob.h>
 #include <ie_plugin.hpp>
-#include <inference_engine.hpp>
 
 #include "debug_options.h"
 #include "cldnn_custom_layer.h"
@@ -109,10 +108,10 @@ public:
     const std::map<std::string, cldnn::layout>& getInputLayouts() const { return inputLayouts; }
     int GetMaxBatchSizeForSingleProgram();
 
-    void addPrimitiveToProfiler(cldnn::primitive_id id, const InferenceEngine::CNNLayerPtr &layer,
+    void AddPrimitiveToProfiler(cldnn::primitive_id id, const InferenceEngine::CNNLayerPtr &layer,
                                 cldnn::primitive_id customOutputId = "");
 
-    void addInnerPrimitiveToProfiler(cldnn::primitive_id id, cldnn::primitive_id parentId,
+    void AddInnerPrimitiveToProfiler(cldnn::primitive_id id, cldnn::primitive_id parentId,
                                      const InferenceEngine::CNNLayerPtr &layer);
 
     // internal types
@@ -140,6 +139,7 @@ public:
         SoftMax,
         Power,
         Split,
+        VariadicSplit,
         Concatenate,
         Eltwise,
         SimplerNMS,
@@ -150,6 +150,7 @@ public:
         DetectionOutput,
         Normalize,
         Reshape,
+        Transpose,
         Permute,
         Flatten,
         BatchNormalization,
@@ -174,6 +175,7 @@ public:
         RNN,
         Gather,
         DepthToSpace,
+        SpaceToDepth,
         ShuffleChannels,
         StridedSlice,
         Broadcast,
@@ -195,6 +197,7 @@ public:
         Sign,
         SoftPlus,
         SoftSign,
+        Swish,
         Sin,
         Sinh,
         Cos,
@@ -203,9 +206,11 @@ public:
         Gemm,
         OneHot,
         Convert,
+        ConvertLike,
         GatherTree,
         ExperimentalDetectronROIFeatureExtractor,
         NonMaxSuppression,
+        Select,
         NO_TYPE
     };
     using GenericBlobMap = std::map<cldnn::primitive_id, cldnn::primitive_id>;
@@ -311,7 +316,7 @@ private:
     void CreateEltwisePrimitive(cldnn::topology& topology, InferenceEngine::CNNLayerPtr &layer);
     void CreateConcatenatePrimitive(cldnn::topology& topology, InferenceEngine::CNNLayerPtr &layer);
     void CreateSplitPrimitive(cldnn::topology& topology, InferenceEngine::CNNLayerPtr &layer);
-    void CreateFusedSplitConvMergePrimitive(cldnn::topology& topology, InferenceEngine::CNNLayerPtr &layer);
+    void CreateFusedSplitConvMergePrimitive(cldnn::topology& topology, InferenceEngine::CNNLayerPtr &layer, bool useGroups = true);
     void CreatePowerPrimitive(cldnn::topology& topology, InferenceEngine::CNNLayerPtr &layer);
     void CreateSoftMaxPrimitive(cldnn::topology& topology, InferenceEngine::CNNLayerPtr &layer);
     void CreateFullyConnectedPrimitive(cldnn::topology& topology, InferenceEngine::CNNLayerPtr &layer);
@@ -342,6 +347,7 @@ private:
     void CreateCustomLayerPrimitive(cldnn::topology& topology, InferenceEngine::CNNLayerPtr &layer, CLDNNCustomLayerPtr customLayer);
     void CreateGatherPrimitive(cldnn::topology& topology, InferenceEngine::CNNLayerPtr &layer);
     void CreateDepthToSpacePrimitive(cldnn::topology& topology, InferenceEngine::CNNLayerPtr &layer);
+    void CreateSpaceToDepthPrimitive(cldnn::topology& topology, InferenceEngine::CNNLayerPtr &layer);
     void CreateShuffleChannelsPrimitive(cldnn::topology& topology, InferenceEngine::CNNLayerPtr &layer);
     void CreateStridedSlicePrimitive(cldnn::topology& topology, InferenceEngine::CNNLayerPtr &layer);
     void CreateBroadcastPrimitive(cldnn::topology &topology, InferenceEngine::CNNLayerPtr &layer);
@@ -353,8 +359,10 @@ private:
     void CreateOneHotPrimitive(cldnn::topology& topology, InferenceEngine::CNNLayerPtr &layer);
     void CreateGatherTreePrimitive(cldnn::topology& topology, InferenceEngine::CNNLayerPtr &layer);
     void CreateConvertPrimitive(cldnn::topology& topology, InferenceEngine::CNNLayerPtr &layer);
+    void CreateConvertLikePrimitive(cldnn::topology& topology, InferenceEngine::CNNLayerPtr &layer);
     void CreatePyramidRoIAlignPrimitive(cldnn::topology& topology, InferenceEngine::CNNLayerPtr &layer);
     void CreateNonMaxSuppressionPrimitive(cldnn::topology& topology, InferenceEngine::CNNLayerPtr &layer);
+    void CreateSelectPrimitive(cldnn::topology& topology, InferenceEngine::CNNLayerPtr& layer);
 };
 
 }  // namespace CLDNNPlugin

@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2016 Intel Corporation
+﻿// Copyright (c) 2016-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -35,6 +35,7 @@ ParamsKey ConvolutionKernel_yxfb_yxio_b16::GetSupportedKey() const {
     k.EnableNonBiasTerm();
     k.EnableBatching();
     k.EnableSplitSupport();
+    k.EnableGroupedConvolution();
     k.EnableDilation();
     k.EnableSubGroup();
     return k;
@@ -78,7 +79,7 @@ ConvolutionKernelBase::DispatchData ConvolutionKernel_yxfb_yxio_b16::SetDefault(
                                                                                 int) const {
     DispatchData runInfo = ConvolutionKernelBase::SetDefault(arg);
 
-    const auto filter_ofm_num = arg.weights.OFM().v;
+    const auto filter_ofm_num = arg.weights.OFM().v * arg.weights.G().v;
     const auto batch_size = arg.output.Batch().v;
     const uint32_t min_lws = 16;
 
@@ -86,9 +87,9 @@ ConvolutionKernelBase::DispatchData ConvolutionKernel_yxfb_yxio_b16::SetDefault(
     const size_t ofmPerWorkItem = GetOfmPerWorkitem(arg.inputs[0].GetDType());
 
     if (arg.inputs[0].GetDType() == Datatype::F16) {
-        runInfo.effiency = FORCE_PRIORITY_7;
+        runInfo.efficiency = FORCE_PRIORITY_7;
     } else {
-        runInfo.effiency = FORCE_PRIORITY_9;
+        runInfo.efficiency = FORCE_PRIORITY_9;
     }
 
     runInfo.lws0 = min_lws;
@@ -104,11 +105,12 @@ bool ConvolutionKernel_yxfb_yxio_b16::Validate(const Params& p, const optional_p
     const convolution_params& params = static_cast<const convolution_params&>(p);
 
     const auto filter_ofm_num = params.weights.OFM().v;
+    const auto filter_groups_num = params.weights.G().v;
     const auto batch_size = params.output.Batch().v;
     const uint32_t min_lws = 16;
 
     const bool bInputValidated =
-        (filter_ofm_num > 0) && (batch_size > 0) && (params.output.Feature().v == filter_ofm_num);
+        (filter_ofm_num > 0) && (batch_size > 0) && (params.output.Feature().v == filter_ofm_num * filter_groups_num);
 
     if (!bInputValidated) {
         return false;

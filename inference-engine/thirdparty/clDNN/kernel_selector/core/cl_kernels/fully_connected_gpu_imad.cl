@@ -88,7 +88,7 @@ KERNEL(fully_connected_gpu_IMAD)(
     const uint out_index = GET_DATA_INDEX(OUTPUT, b, f, 0, 0);
 #if HAS_FUSED_OPS
     FUSED_OPS;
-    OUTPUT_TYPE res = FINAL_NAME;
+    OUTPUT_TYPE res = FUSED_OPS_RESULT;
 
     output[out_index] = res;
 #else

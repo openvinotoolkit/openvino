@@ -10,14 +10,13 @@
 #include <api/detection_output.hpp>  // todo: find a way to remove this
 #include <description_buffer.hpp>
 #include "cldnn_infer_request.h"
-#include "cldnn_streams_task_executor.h"
 #include "cldnn_remote_context.h"
+#include "inference_engine.hpp"
+#include "cldnn_executable_network.h"
 
 using namespace InferenceEngine;
 
 namespace CLDNNPlugin {
-
-std::atomic<unsigned int> CLDNNInferRequest::runningCounter(0u);
 
 const char CLDNNInferRequest::fp32_suffix[] = "_fp32";
 const char str_not_allocated[] = "Input data was not allocated.";
@@ -49,6 +48,11 @@ Blob::Ptr CLDNNInferRequest::createInputBlob(const TensorDesc& desc, uint8_t* me
         else
             return make_shared_blob<int32_t>(desc);
     case Precision::U8:
+        if (mem_ptr != nullptr)
+            return make_shared_blob<uint8_t>(desc, reinterpret_cast<uint8_t*>(mem_ptr));
+        else
+            return make_shared_blob<uint8_t>(desc);
+    case Precision::BOOL:
         if (mem_ptr != nullptr)
             return make_shared_blob<uint8_t>(desc, reinterpret_cast<uint8_t*>(mem_ptr));
         else
@@ -242,6 +246,10 @@ void CLDNNInferRequest::copyInputData(std::shared_ptr<cldnn::network> network,
         uint8_t* blob_ptr = const_cast<uint8_t*>(locked.as<const uint8_t*>()) + offset;
         network->set_input_data(internalName, cldnn::memory::attach(inputLayout, blob_ptr, n));
         break;
+    }
+    case Precision::BOOL: {
+        uint8_t* blob_ptr = const_cast<uint8_t*>(locked.as<const uint8_t*>()) + offset;
+        network->set_input_data(internalName, cldnn::memory::attach(inputLayout, blob_ptr, n));
     }
     default:
         THROW_IE_EXCEPTION << "The plugin does not support input " << inputBlob.getTensorDesc().getPrecision() << " precision";
@@ -686,14 +694,16 @@ void CLDNNInferRequest::SetBatch(int new_batch) {
     m_curBatch = new_batch;
 }
 
-CLDNNInferRequest::CLDNNInferRequest(InputsDataMap networkInputs, OutputsDataMap networkOutputs)
+CLDNNInferRequest::CLDNNInferRequest(InputsDataMap networkInputs, OutputsDataMap networkOutputs,
+                                     const CLDNNExecNetwork::Ptr& execNetwork)
         : InferRequestInternal(networkInputs, networkOutputs)
         , m_useProfiling(false)
         , m_useStreams(false) {
+    IE_ASSERT(nullptr != execNetwork);
+    streamExecutor = dynamic_cast<InferenceEngine::IStreamsExecutor*>(execNetwork->m_taskExecutor.get());
 }
 
 void CLDNNInferRequest::execAndParse() {
-    runningCounter++;
     auto networkOutputs = m_graph->GetNetwork()->execute();
 
     // Collect outputs as requested by the model
@@ -716,7 +726,6 @@ void CLDNNInferRequest::execAndParse() {
             }
         }
     }
-    runningCounter--;
 
     // finally collect profiling info
     if (m_useProfiling) {
@@ -725,7 +734,6 @@ void CLDNNInferRequest::execAndParse() {
 }
 
 void CLDNNInferRequest::execAndParseDyn() {
-    runningCounter++;
     std::vector<std::map<cldnn::primitive_id, cldnn::network_output>> networkOutputs(m_graph->GetNetworksCount());
 
     // set up exection and put all graphs into driver queue
@@ -751,16 +759,15 @@ void CLDNNInferRequest::execAndParseDyn() {
             }
         }
     }
-    runningCounter--;
 }
 
 void CLDNNInferRequest::InferImpl() {
     IE_PROFILING_AUTO_SCOPE(CLDNN_INFER)
-
-    if (CLDNNPlugin::MultiWorkerTaskExecutor::ptrContext.ptrGraph != nullptr) {
-        m_graph = CLDNNPlugin::MultiWorkerTaskExecutor::ptrContext.ptrGraph;
+    int streamID = 0;
+    if (nullptr != streamExecutor) {
+        streamID = streamExecutor->GetStreamId();
     }
-
+    m_graph = static_cast<CLDNNExecNetwork*>(_exeNetwork.get())->m_graphs[streamID];
     // execute input pre-processing.
     execDataPreprocessing(_inputs, true);  // "true" stands for serial preprocessing in case of OpenMP
 
@@ -840,6 +847,7 @@ void CLDNNInferRequest::PrepareInput(const cldnn::primitive_id &inputName, const
             case Precision::FP32:
             case Precision::FP16:
             case Precision::U8:
+            case Precision::BOOL:
             case Precision::I32: {
                 _nw_ptr->set_input_data(internalName, memory);
                 break;

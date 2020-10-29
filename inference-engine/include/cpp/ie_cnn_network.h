@@ -58,7 +58,7 @@ public:
      * @brief A constructor from ngraph::Function object
      * @param network Pointer to the ngraph::Function object
      */
-    explicit CNNNetwork(const std::shared_ptr<ngraph::Function>& network);
+    explicit CNNNetwork(const std::shared_ptr<const ngraph::Function>& network);
 
     /**
      * @brief A constructor from ICNNNetReader object
@@ -79,15 +79,15 @@ public:
     virtual ~CNNNetwork() {}
 
     /**
+     * @deprecated Network precision does not make sence, use precision on egdes. The method will be removed in 2020.3
      * @copybrief ICNNNetwork::getPrecision
      *
      * Wraps ICNNNetwork::getPrecision
      *
      * @return A precision type
      */
-    virtual Precision getPrecision() const {
-        return actual->getPrecision();
-    }
+    INFERENCE_ENGINE_DEPRECATED("Network precision does not make sence, use precision on egdes. The method will be removed in 2020.3")
+    virtual Precision getPrecision() const;
 
     /**
      * @copybrief ICNNNetwork::getOutputsInfo
@@ -165,7 +165,16 @@ public:
      *
      * @return An instance of the current network
      */
-    operator ICNNNetwork&() const {
+    operator ICNNNetwork&() {
+        return *actual;
+    }
+
+    /**
+     * @brief An overloaded operator & to get current network
+     *
+     * @return A const reference of the current network
+     */
+    operator const ICNNNetwork&() const {
         return *actual;
     }
 
@@ -174,7 +183,7 @@ public:
      *
      * @return constant nGraph function
      */
-    const std::shared_ptr<const ngraph::Function> getFunction() const noexcept {
+    std::shared_ptr<const ngraph::Function> getFunction() const noexcept {
         return actual->getFunction();
     }
 
@@ -191,6 +200,7 @@ public:
     }
 
     /**
+     * @deprecated Migrate to IR v10 and work with ngraph::Function directly. The method will be removed in 2020.3
      * @copybrief ICNNNetwork::getLayerByName
      *
      * Wraps ICNNNetwork::getLayerByName
@@ -198,13 +208,11 @@ public:
      * @param layerName Given name of the layer
      * @return Status code of the operation. InferenceEngine::OK if succeeded
      */
-    CNNLayerPtr getLayerByName(const char* layerName) const {
-        CNNLayerPtr layer;
-        CALL_STATUS_FNC(getLayerByName, layerName, layer);
-        return layer;
-    }
+    INFERENCE_ENGINE_DEPRECATED("Migrate to IR v10 and work with ngraph::Function directly. The method will be removed in 2020.3")
+    CNNLayerPtr getLayerByName(const char* layerName) const;
 
     /**
+     * @deprecated Use CNNNetwork::getFunction() and work with ngraph::Function directly. The method will be removed in 2020.3
      * @brief Begin layer iterator
      *
      * Order of layers is implementation specific,
@@ -212,34 +220,36 @@ public:
      *
      * @return Iterator pointing to a layer
      */
-    details::CNNNetworkIterator begin() const {
-        return details::CNNNetworkIterator(actual);
-    }
+    IE_SUPPRESS_DEPRECATED_START
+    INFERENCE_ENGINE_DEPRECATED("Use CNNNetwork::getFunction() and work with ngraph::Function directly. The method will be removed in 2020.3")
+    details::CNNNetworkIterator begin() const;
 
     /**
+     * @deprecated Use CNNNetwork::getFunction() and work with ngraph::Function directly. The method will be removed in 2020.3
      * @brief End layer iterator
+     * @return Iterator pointing to a layer
      */
-    details::CNNNetworkIterator end() const {
-        return details::CNNNetworkIterator();
-    }
+    INFERENCE_ENGINE_DEPRECATED("Use CNNNetwork::getFunction() and work with ngraph::Function directly. The method will be removed in 2020.3")
+    details::CNNNetworkIterator end() const;
+    IE_SUPPRESS_DEPRECATED_END
 
     /**
+     * @deprecated Use CNNNetwork::layerCount() instead. The method will be removed in 2020.3
      * @brief Number of layers in network object
      *
-     * @return
+     * @return Number of layers.
      */
-    size_t size() const {
-        return std::distance(std::begin(*this), std::end(*this));
-    }
+    INFERENCE_ENGINE_DEPRECATED("Use CNNNetwork::layerCount() instead. The method will be removed in 2020.3")
+    size_t size() const;
 
     /**
+     * @deprecated Use Core::AddExtension to add an extension to the library
      * @brief Registers extension within the plugin
      *
      * @param extension Pointer to already loaded reader extension with shape propagation implementations
      */
-    void AddExtension(InferenceEngine::IShapeInferExtensionPtr extension) {
-        CALL_STATUS_FNC(AddExtension, extension);
-    }
+    INFERENCE_ENGINE_DEPRECATED("Use Core::AddExtension to add an extension to the library")
+    void AddExtension(InferenceEngine::IShapeInferExtensionPtr extension);
 
     /**
      * @brief Helper method to get collect all input shapes with names of corresponding Data objects

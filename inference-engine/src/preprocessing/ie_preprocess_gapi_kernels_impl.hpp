@@ -4,20 +4,30 @@
 
 #pragma once
 
-#ifdef HAVE_SSE
+#if defined(HAVE_SSE) || defined(HAVE_AVX2) || defined(HAVE_AVX512) || defined(HAVE_NEON)
   #define MANUAL_SIMD 1  // 1=call manually vectored code, 0=don't
 #else
   #define MANUAL_SIMD 0
 #endif
 
-#if MANUAL_SIMD
+#ifdef HAVE_SSE
   #define USE_CVKL 1     // 1=reuse CVKL code for Resize, 0=don't
 #else
   #define USE_CVKL 0
 #endif
 
+#if defined(HAVE_SSE) || defined(HAVE_AVX2) || defined(HAVE_AVX512)
+  #define CPU_SIMD 1
+#else
+  #define CPU_SIMD 0
+#endif
+
 #include <climits>
 #include <cstdint>
+
+#if defined(__GNUC__) && (__GNUC__ <= 5)
+#include <cmath>
+#endif
 
 namespace InferenceEngine {
 namespace gapi {
@@ -60,6 +70,9 @@ struct MapperUnit {
 typedef uint16_t Q0_16;  // value [0..1)   with 16 fractional bits
 typedef uint16_t Q8_8;   // value [0..255) with  8 fractional bits
 typedef uint8_t  U8;     // value [0..255)
+
+typedef MapperUnit<float,   int> MapperUnit32F;
+typedef MapperUnit<Q0_16, short> MapperUnit8U;
 
 template<typename DST, typename SRC> static inline DST convert_cast(SRC x);
 template<> inline uint8_t convert_cast(uint8_t x) { return x; }

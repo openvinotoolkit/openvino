@@ -29,8 +29,8 @@ inline uint FUNC(get_output_index)(uint b, uint f, uint w, uint z, uint y, uint 
     return GET_DATA_BS_FYX_BSV8_INDEX(OUTPUT, b, f, y, x, SUB_GROUP_SIZE);
 #elif defined OUTPUT_LAYOUT_BF8_XY16
     return GET_DATA_BF8_XY16_INDEX(OUTPUT, b, f, y, x);
-#elif defined OUTPUT_LAYOUT_BFYX_F16
-    return GET_DATA_BFYX_F16_INDEX(OUTPUT, b, f, y, x);
+#elif defined OUTPUT_LAYOUT_B_FS_YX_FSV16
+    return GET_DATA_B_FS_YX_FSV16_INDEX(OUTPUT, b, f, y, x);
 #elif defined OUTPUT_LAYOUT_BYXF_AF32
     return GET_DATA_BYXF_AF32_INDEX(OUTPUT, b, f, y, x);
 #elif defined OUTPUT_LAYOUT_BYX8_F4
@@ -49,9 +49,9 @@ KERNEL(reorder_biplanar_nv12)(
     read_only image2d_t input,
     read_only image2d_t input_uv,
     __global OUTPUT_REORDER_TYPE* output
-     #ifdef MEAN_SUBTRACT_IN_BUFFER
-     , __global MEAN_SUBTRACT_TYPE* mean_subtract
-     #endif
+#ifdef MEAN_SUBTRACT_IN_BUFFER
+    , __global MEAN_SUBTRACT_TYPE* mean_subtract
+#endif
      )
      {
     const uint b = get_global_id(GWS_BATCH);
@@ -90,21 +90,39 @@ KERNEL(reorder_biplanar_nv12)(
     float4 Y = read_imagef(input, (int2)(x, y));
     float4 UV = read_imagef(input_uv, (int2)(x / 2, y / 2));
 
-    float Ycomponent = Y.x * 255;
-    float Ucomponent = UV.x * 255;
-    float Vcomponent = UV.y * 255;
-    uchar R = convert_uchar_sat(1.164f * (Ycomponent - 16) + 1.596f * (Vcomponent - 128));
-    uchar G = convert_uchar_sat(1.164f * (Ycomponent - 16) - 0.813f * (Vcomponent - 128) - 0.391f * (Ucomponent - 128));
-    uchar B = convert_uchar_sat(1.164f * (Ycomponent - 16) + 2.018f * (Ucomponent - 128));
+    float Ycomponent = mad(Y.x, 296.82f, -18.624f);
+    float Ucomponent = mad(UV.x, 255.0f, -128.f);
+    float Vcomponent = mad(UV.y, 255.0f, -128.f);
+
+    float B = clamp(mad(Vcomponent, 1.596f, Ycomponent), 0.f, 255.f);
+    float R = clamp(mad(Ucomponent, 2.018f, Ycomponent), 0.f, 255.f);
+    float G = clamp(mad(Vcomponent, -0.813f, mad(Ucomponent, -0.391f, Ycomponent)), 0.f, 255.f);
+
+#if defined MEAN_SUBTRACT_INSIDE_PARAMS
+    R -= VALUE_TO_SUBTRACT[0];
+    G -= VALUE_TO_SUBTRACT[1];
+    B -= VALUE_TO_SUBTRACT[2];
+#elif defined MEAN_SUBTRACT_IN_BUFFER
+    uint8 msv = RESHAPE_DIMS(INPUT0, MEAN_SUBTRACT, b, 0, w, z, y, x);
+    R -= mean_subtract[GET_DATA_INDEX_SAFE(MEAN_SUBTRACT, msv[1], msv[2], msv[5], msv[6])];
+
+    msv = RESHAPE_DIMS(INPUT0, MEAN_SUBTRACT, b, 1, w, z, y, x);
+    G -= mean_subtract[GET_DATA_INDEX_SAFE(MEAN_SUBTRACT, msv[1], msv[2], msv[5], msv[6])];
+
+    msv = RESHAPE_DIMS(INPUT0, MEAN_SUBTRACT, b, 2, w, z, y, x);
+    B -= mean_subtract[GET_DATA_INDEX_SAFE(MEAN_SUBTRACT, msv[1], msv[2], msv[5], msv[6])];
+#endif
 
     uint8 ov = RESHAPE_DIMS(INPUT0, OUTPUT, b, 0, w, z, y, x);
-    uint output_idx = FUNC_CALL(get_output_index)(ov[0], ov[1], ov[2], ov[3], ov[4], ov[5]);
+    uint output_idx = FUNC_CALL(get_output_index)(ov[1], ov[2], ov[3], ov[4], ov[5], ov[6]);
     output[output_idx] = ACTIVATION_FUNC_TYPED(OUTPUT_REORDER, TO_OUTPUT_REORDER_TYPE(R), NL_M, NL_N);
+
     ov = RESHAPE_DIMS(INPUT0, OUTPUT, b, 1, w, z, y, x);
-    output_idx = FUNC_CALL(get_output_index)(ov[0], ov[1], ov[2], ov[3], ov[4], ov[5]);
+    output_idx = FUNC_CALL(get_output_index)(ov[1], ov[2], ov[3], ov[4], ov[5], ov[6]);
     output[output_idx] = ACTIVATION_FUNC_TYPED(OUTPUT_REORDER, TO_OUTPUT_REORDER_TYPE(G), NL_M, NL_N);
+
     ov = RESHAPE_DIMS(INPUT0, OUTPUT, b, 2, w, z, y, x);
-    output_idx = FUNC_CALL(get_output_index)(ov[0], ov[1], ov[2], ov[3], ov[4], ov[5]);
+    output_idx = FUNC_CALL(get_output_index)(ov[1], ov[2], ov[3], ov[4], ov[5], ov[6]);
     output[output_idx] = ACTIVATION_FUNC_TYPED(OUTPUT_REORDER, TO_OUTPUT_REORDER_TYPE(B), NL_M, NL_N);
 
 

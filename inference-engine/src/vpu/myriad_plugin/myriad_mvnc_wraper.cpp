@@ -3,7 +3,7 @@
 //
 
 #include "myriad_mvnc_wraper.h"
-#include <inference_engine.hpp>
+#include "details/ie_exception.hpp"
 
 using namespace vpu::MyriadPlugin;
 

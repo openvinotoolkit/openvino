@@ -42,7 +42,7 @@ void gemm_inner_product_fwd_t<data_type>::execute_forward() const {
     const int IC = pd()->IC_total_padded();
 
     bool wei_tr = !utils::one_of(pd()->weights_pd()->desc()->format,
-             hwio, dhwio, io);
+             hwio, dhwio, wio, io);
 
     const float *scales = pd()->attr()->output_scales_.scales_;
 
@@ -71,7 +71,7 @@ void gemm_inner_product_bwd_data_t<data_type>::execute_backward_data() const {
     const int IC = pd()->IC_total_padded();
 
     bool wei_tr = utils::one_of(pd()->weights_pd()->desc()->format,
-             hwio, dhwio, io);
+             hwio, dhwio, wio, io);
 
     float alpha = 1.0, beta = 0.0;
     extended_sgemm(wei_tr ? "T" : "N", "N", &IC, &MB, &OC, &alpha, weights,
@@ -95,7 +95,7 @@ void gemm_inner_product_bwd_weights_t<data_type>::execute_backward_weights() con
     const int IC = pd()->IC_total_padded();
 
     bool wei_tr = utils::one_of(pd()->diff_weights_pd()->desc()->format,
-             hwio, dhwio, io);
+             hwio, dhwio, wio, io);
 
     float alpha = 1.0, beta = 0.0;
     if (wei_tr)

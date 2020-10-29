@@ -27,6 +27,7 @@ DECLARE_VPU_CONFIG_KEY(HW_INJECT_STAGES);
 DECLARE_VPU_CONFIG_KEY(HW_POOL_CONV_MERGE);
 DECLARE_VPU_CONFIG_KEY(PACK_DATA_IN_CMX);
 DECLARE_VPU_CONFIG_KEY(HW_DILATION);
+DECLARE_VPU_CONFIG_KEY(HW_EXTRA_SPLIT);
 DECLARE_VPU_CONFIG_KEY(FORCE_DEPRECATED_CNN_CONVERSION);
 
 DECLARE_VPU_CONFIG_KEY(PERF_REPORT_MODE);
@@ -63,6 +64,19 @@ DECLARE_VPU_CONFIG_KEY(ENABLE_PERMUTE_MERGING);
 DECLARE_VPU_CONFIG_KEY(ENABLE_REPL_WITH_SCRELU);
 
 DECLARE_VPU_CONFIG_KEY(ENABLE_REPLACE_WITH_REDUCE_MEAN);
+
+/**
+ * @brief Used to enable Tensor Iterator unrolling to get a reference for Tensor Iterator per-layer tests.
+ * Default is "NO".
+ */
+DECLARE_VPU_CONFIG_KEY(ENABLE_TENSOR_ITERATOR_UNROLLING);
+
+/**
+ * @brief Used to guarantee Tensor Iterator layer will remain in the network regardless of possible performance transformation.
+ * Example of transformation: combining to RNN sequence. Needed for Tensor Iterator per-layer tests.
+ * Default is "NO".
+ */
+DECLARE_VPU_CONFIG_KEY(FORCE_PURE_TENSOR_ITERATOR);
 
 //
 // Myriad plugin options

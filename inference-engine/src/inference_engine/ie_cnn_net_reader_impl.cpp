@@ -14,7 +14,6 @@
 #include <vector>
 
 #include "cnn_network_ngraph_impl.hpp"
-#include "debug.h"
 #include "details/os/os_filesystem.hpp"
 #include "ie_format_parser.h"
 #include "ie_ir_reader.hpp"
@@ -36,15 +35,14 @@ StatusCode CNNNetReaderImpl::SetWeights(const TBlob<uint8_t>::Ptr& weights, Resp
     }
     try {
         if (_version == 10) {
-#if defined(ENABLE_IR_READER) && defined(ENABLE_NGRAPH)
+#if defined(ENABLE_IR_READER)
             // It's time to perform actual reading of V10 network and instantiate CNNNetworkNGraphImpl
             IRReader v10Reader(extensions);
             std::stringstream model;
             xmlDoc->save(model);
             network = std::make_shared<CNNNetworkNGraphImpl>(v10Reader.read(model.str(), weights));
 #else
-            return DescriptionBuffer(desc) << "Please, recompile Inference Engine with the ENABLE_IR_READER=ON AND "
-                                              "ENABLE_NGRAPH=ON Cmake option";
+            return DescriptionBuffer(desc) << "Please, recompile Inference Engine with the ENABLE_IR_READER=ON Cmake option";
 #endif
         } else {
             _parser->SetWeights(weights);

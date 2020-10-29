@@ -40,6 +40,7 @@ int fill_memory(const prb_t *p, dnn_mem_t &mem) {
     switch (p->dt) {
         case mkldnn_u8: c_src = conf_u8; break;
         case mkldnn_s8: c_src = conf_s8; break;
+        case mkldnn_bf16: c_src = conf_bf16; break;
         case mkldnn_s32: c_src = conf_s32; break;
         default: c_src = conf_f32; break;
     }
@@ -104,10 +105,8 @@ static int init_pd(const prb_t *p, mkldnn_shuffle_desc_t &sd,
         mkldnn_shuffle_desc_t sd_fwd;
         DNN_SAFE(mkldnn_shuffle_forward_desc_init(&sd_fwd,
                     mkldnn_forward_training, &data_d, p->a, p->g), WARN);
-        DNN_SAFE(mkldnn_primitive_desc_create(&hint_fwd_pd, &sd_fwd, engine,
-                    NULL), WARN);
     }
-    init_status = mkldnn_primitive_desc_create(&spd, &sd, engine, hint_fwd_pd);
+    init_status = mkldnn_primitive_desc_create(&spd, &sd, engine, NULL /*hint_fwd_pd*/);
     mkldnn_primitive_desc_destroy(hint_fwd_pd);
 
     if (init_status == mkldnn_unimplemented)

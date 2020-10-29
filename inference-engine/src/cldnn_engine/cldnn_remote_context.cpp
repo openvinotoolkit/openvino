@@ -80,7 +80,7 @@ bool CLDNNRemoteBlobImpl::is_locked() const noexcept {
 }
 
 void CLDNNRemoteBlobImpl::allocate_if_needed() {
-    auto _impl = getContextImpl(m_context);
+    auto _impl = getContextImpl(m_context.lock());
     _impl->acquire_lock();
 
     if (m_memObject == nullptr) {
@@ -118,7 +118,7 @@ void CLDNNRemoteBlobImpl::allocate_if_needed() {
 void CLDNNRemoteBlobImpl::allocate() noexcept {
     assert(m_memObject == nullptr);
 
-    std::shared_ptr<const cldnn::engine> eng = getContextImpl(m_context)->GetEngine();
+    std::shared_ptr<const cldnn::engine> eng = getContextImpl(m_context.lock())->GetEngine();
 
     switch (m_mem_type) {
     case BlobType::BT_BUF_INTERNAL:
@@ -155,11 +155,11 @@ const std::shared_ptr<IAllocator>& CLDNNRemoteBlobImpl::getAllocator() const noe
 };
 
 std::string CLDNNRemoteBlobImpl::getDeviceName() const noexcept {
-    return getContextImpl(m_context)->GetPlugin()->GetName();
+    return getContextImpl(m_context.lock())->GetPlugin().lock()->GetName();
 };
 
 std::shared_ptr<RemoteContext> CLDNNRemoteBlobImpl::getContext() const noexcept {
-    return std::dynamic_pointer_cast<RemoteContext>(m_context);
+    return std::dynamic_pointer_cast<RemoteContext>(m_context.lock());
 }
 
 void CLDNNRemoteBlobImpl::lock() const {
@@ -250,7 +250,8 @@ CLDNNExecutionContextImpl::CLDNNExecutionContextImpl(const std::shared_ptr<Infer
 
     m_engine = std::make_shared<cldnn::engine>(dev,
         cldnn::engine_configuration((m_config.useProfiling ||
-            (m_config.tuningConfig.mode != cldnn::tuning_mode::tuning_disabled)),
+            (m_config.tuningConfig.mode == cldnn::tuning_mode::tuning_tune_and_cache) ||
+            (m_config.tuningConfig.mode == cldnn::tuning_mode::tuning_retune_and_cache)),
             false,
             m_config.dumpCustomKernels,
             std::string(),
@@ -283,7 +284,7 @@ ParamMap CLDNNExecutionContextImpl::getParams() const {
 }
 
 std::string CLDNNExecutionContextImpl::getDeviceName() const noexcept {
-    return m_plugin->GetName();
+    return m_plugin.lock()->GetName();
 }
 
 };  // namespace CLDNNPlugin

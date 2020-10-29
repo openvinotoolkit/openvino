@@ -9,7 +9,7 @@
 #include <stdlib.h>
 #include <vector>
 #include <cstdint>
-#include <gna-api.h>
+#include <gna-api-types-xnn.h>
 
 #define MAX_OUT_MULTIPLIER 230
 #define MAX_VAL_1B_WEIGHT 127

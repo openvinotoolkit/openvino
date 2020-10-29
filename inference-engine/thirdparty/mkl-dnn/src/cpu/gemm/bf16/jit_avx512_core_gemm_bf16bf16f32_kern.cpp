@@ -33,43 +33,49 @@ namespace cpu {
 using namespace Xbyak;
 
 // Convert between vector register lengths.
-static inline Xmm make_xmm(const Xmm &v) { return Xmm(v.getIdx()); }
-static inline Ymm make_ymm(const Xmm &v) { return Ymm(v.getIdx()); }
-static inline Zmm make_zmm(const Xmm &v) { return Zmm(v.getIdx()); }
+static inline Xmm make_xmm(const Xmm &v) {
+    return Xmm(v.getIdx());
+}
+static inline Ymm make_ymm(const Xmm &v) {
+    return Ymm(v.getIdx());
+}
+static inline Zmm make_zmm(const Xmm &v) {
+    return Zmm(v.getIdx());
+}
 
 // Load from or store to C.
-void jit_avx512_core_gemm_bf16bf16f32_kern::c_load(const Xbyak::Xmm &dst,
-        const Xbyak::Address &src, int nelems) {
+void jit_avx512_core_gemm_bf16bf16f32_kern::c_load(
+        const Xbyak::Xmm &dst, const Xbyak::Address &src, int nelems) {
     switch (nelems) {
-    case 1: vmovss(make_xmm(dst), src); break;
-    case 2: vmovlps(make_xmm(dst), src); break;
-    case 4: vmovups(make_xmm(dst), src); break;
-    case 8: vmovups(make_ymm(dst), src); break;
-    default:
-        assert (nelems >= 16);
-        vmovups(dst, src);
-        break;
+        case 1: vmovss(make_xmm(dst), src); break;
+        case 2: vmovsd(make_xmm(dst), src); break;
+        case 4: vmovups(make_xmm(dst), src); break;
+        case 8: vmovups(make_ymm(dst), src); break;
+        default:
+            assert(nelems >= 16);
+            vmovups(dst, src);
+            break;
     }
 }
 
-void jit_avx512_core_gemm_bf16bf16f32_kern::c_store(const Xbyak::Address &dst,
-        const Xbyak::Xmm &src, int nelems) {
+void jit_avx512_core_gemm_bf16bf16f32_kern::c_store(
+        const Xbyak::Address &dst, const Xbyak::Xmm &src, int nelems) {
     switch (nelems) {
-    case 1: vmovss(dst, make_xmm(src)); break;
-    case 2: vmovsd(dst, make_xmm(src)); break;
-    case 4: vmovups(dst, make_xmm(src)); break;
-    case 8: vmovups(dst, make_ymm(src)); break;
-    default:
-        assert(nelems >= 16);
-        vmovups(dst, src);
-        break;
+        case 1: vmovss(dst, make_xmm(src)); break;
+        case 2: vmovlps(dst, make_xmm(src)); break;
+        case 4: vmovups(dst, make_xmm(src)); break;
+        case 8: vmovups(dst, make_ymm(src)); break;
+        default:
+            assert(nelems >= 16);
+            vmovups(dst, src);
+            break;
     }
 }
 
 // Perform length-2 dot product accumulations of bfloat16 in parallel.
 // Use vdpbf16ps if available, otherwise emulate.
-void jit_avx512_core_gemm_bf16bf16f32_kern::dot_product(const Xmm &dst, const
-        Xmm &src1, const Xmm &src2) {
+void jit_avx512_core_gemm_bf16bf16f32_kern::dot_product(
+        const Xmm &dst, const Xmm &src1, const Xmm &src2) {
     if (bfloat16_)
         vdpbf16ps(dst, src1, src2);
     else
@@ -77,26 +83,34 @@ void jit_avx512_core_gemm_bf16bf16f32_kern::dot_product(const Xmm &dst, const
 }
 
 // Inner kernel.
-void jit_avx512_core_gemm_bf16bf16f32_kern::kernel_loop(int unroll_m,
-        int unroll_n, bool cfetch) {
+void jit_avx512_core_gemm_bf16bf16f32_kern::kernel_loop(
+        int unroll_m, int unroll_n, bool cfetch) {
     int um_vecs = (unroll_m + 15) >> 4;
     Label label_kernel_loop;
 
-    L_aligned(label_kernel_loop); {
+    L_aligned(label_kernel_loop);
+    {
         for (int h = 0; h < 4; h++) {
             for (int j = 0; j < unroll_n; j++) {
                 const Zmm b = b_regs_[j & 1];
 
-                vbroadcastss(b, ptr[BO_ + isize_ *
-                    (2 * j + 2 * h * unroll_n - offset_b_)]);
+                vbroadcastss(b,
+                        ptr[BO_
+                                + isize_
+                                        * (2 * j + 2 * h * unroll_n
+                                                - offset_b_)]);
                 dot_product(c_regs_[0][j], b, a_regs_[0]);
 
                 if (j == 1 && !(h & 1))
-                    prefetch_b(ptr[BO_ + isize_ * (prefetch_size_b_
-                        + 2 * h * unroll_n - offset_b_)]);
+                    prefetch_b(ptr[BO_
+                            + isize_
+                                    * (prefetch_size_b_ + 2 * h * unroll_n
+                                            - offset_b_)]);
                 else if (j % 3 == 0)
-                    prefetch_a(ptr[AO_ + isize_ * (prefetch_size_a_
-                        + 32 * (j / 3) + 2 * h * unroll_m - offset_a_)]);
+                    prefetch_a(ptr[AO_
+                            + isize_
+                                    * (prefetch_size_a_ + 32 * (j / 3)
+                                            + 2 * h * unroll_m - offset_a_)]);
 
                 for (int i = 1; i < um_vecs; i++)
                     dot_product(c_regs_[i][j], b, a_regs_[i]);
@@ -113,11 +127,13 @@ void jit_avx512_core_gemm_bf16bf16f32_kern::kernel_loop(int unroll_m,
             }
 
             for (int i = 0; i < um_vecs; i++)
-                vmovups(a_regs_[i], ptr[AO_ + isize_ *
-                (32 * i + 2 * (h + 1) * unroll_m - offset_a_)]);
+                vmovups(a_regs_[i],
+                        ptr[AO_
+                                + isize_
+                                        * (32 * i + 2 * (h + 1) * unroll_m
+                                                - offset_a_)]);
 
-            if (h == 2)
-                prefetch_x(ptr[AA_ - (offset_a_ * isize_)]);
+            if (h == 2) prefetch_x(ptr[AA_ - (offset_a_ * isize_)]);
         }
 
         add(AO_, 8 * isize_ * unroll_m);
@@ -128,10 +144,10 @@ void jit_avx512_core_gemm_bf16bf16f32_kern::kernel_loop(int unroll_m,
 }
 
 // k remainder loop for kernel.
-void jit_avx512_core_gemm_bf16bf16f32_kern::remainder_kernel(int unroll_m,
-        int unroll_n, int unroll_k, int bwidth) {
-    if ((unroll_m > UNROLL_M_) || (unroll_n > UNROLL_N_)
-            || (unroll_m < 0)  || (unroll_n < 0))
+void jit_avx512_core_gemm_bf16bf16f32_kern::remainder_kernel(
+        int unroll_m, int unroll_n, int unroll_k, int bwidth) {
+    if ((unroll_m > UNROLL_M_) || (unroll_n > UNROLL_N_) || (unroll_m < 0)
+            || (unroll_n < 0))
         return;
 
     int um_vecs = (unroll_m + 15) >> 4;
@@ -139,16 +155,12 @@ void jit_avx512_core_gemm_bf16bf16f32_kern::remainder_kernel(int unroll_m,
     for (int h = 0; h < unroll_k; h++) {
         for (int j = 0; j < unroll_n; j++) {
             Zmm b = b_regs_[j & 1];
-            auto b_src = ptr[BO_ + (-isize_ * offset_b_
-                + bwidth * (j + h * unroll_n))];
+            auto b_src = ptr[BO_
+                    + (-isize_ * offset_b_ + bwidth * (j + h * unroll_n))];
 
             switch (bwidth) {
-            case 4:
-                vbroadcastss(b, b_src);
-                break;
-            case 2:
-                vpbroadcastw(b, b_src);
-                break;
+                case 4: vbroadcastss(b, b_src); break;
+                case 2: vpbroadcastw(b, b_src); break;
             }
             for (int i = 0; i < um_vecs; i++)
                 dot_product(c_regs_[i][j], b, a_regs_[i]);
@@ -156,8 +168,11 @@ void jit_avx512_core_gemm_bf16bf16f32_kern::remainder_kernel(int unroll_m,
 
         if (unroll_k > 1) {
             for (int i = 0; i < um_vecs; i++)
-                vmovups(a_regs_[i], ptr[AO_ + isize_ * (32 * i
-                    + (h + 1) * 2 * unroll_m - offset_a_)]);
+                vmovups(a_regs_[i],
+                        ptr[AO_
+                                + isize_
+                                        * (32 * i + (h + 1) * 2 * unroll_m
+                                                - offset_a_)]);
         }
     }
 
@@ -166,10 +181,10 @@ void jit_avx512_core_gemm_bf16bf16f32_kern::remainder_kernel(int unroll_m,
 }
 
 // Inner loop.
-void jit_avx512_core_gemm_bf16bf16f32_kern::innerloop(int unroll_m,
-        int unroll_n) {
-    if ((unroll_m > UNROLL_M_) || (unroll_n > UNROLL_N_)
-            || (unroll_m < 0)  || (unroll_n < 0))
+void jit_avx512_core_gemm_bf16bf16f32_kern::innerloop(
+        int unroll_m, int unroll_n) {
+    if ((unroll_m > UNROLL_M_) || (unroll_n > UNROLL_N_) || (unroll_m < 0)
+            || (unroll_n < 0))
         return;
 
     int um_vecs = (unroll_m + 15) >> 4;
@@ -267,11 +282,14 @@ void jit_avx512_core_gemm_bf16bf16f32_kern::innerloop(int unroll_m,
             auto c_mem = ptr[CO1_ + ldc_mult + size_ * 16 * i];
 
             if (beta_zero_) {
-                vmulps(c, c, alpha_);
+                if (!alpha_one_) vmulps(c, c, alpha_);
                 c_store(c_mem, c, unroll_m);
             } else {
                 c_load(c_old, c_mem, unroll_m);
-                vfmadd231ps(c_old, c, alpha_);
+                if (alpha_one_)
+                    vaddps(c_old, c, c_old);
+                else
+                    vfmadd231ps(c_old, c, alpha_);
                 c_store(c_mem, c_old, unroll_m);
             }
 
@@ -283,8 +301,8 @@ void jit_avx512_core_gemm_bf16bf16f32_kern::innerloop(int unroll_m,
 }
 
 // Outer loop.
-void jit_avx512_core_gemm_bf16bf16f32_kern::outerloop(int unroll_x,
-        int unroll_y, Label *&cur_outerloop_label) {
+void jit_avx512_core_gemm_bf16bf16f32_kern::outerloop(
+        int unroll_x, int unroll_y, Label *&cur_outerloop_label) {
     Label label_m_loop, label_n_loop, label_n_remainder_loops[6];
 
     L(*cur_outerloop_label);
@@ -292,13 +310,14 @@ void jit_avx512_core_gemm_bf16bf16f32_kern::outerloop(int unroll_x,
     if (unroll_x >= UNROLL_M_) {
         mov(J_, M_);
         cmp(J_, unroll_x);
-        jl(*cur_outerloop_label, T_NEAR);    // Jump to next outerloop label.
+        jl(*cur_outerloop_label, T_NEAR); // Jump to next outerloop label.
     } else {
         test(J_, unroll_x);
         jle(*cur_outerloop_label, T_NEAR);
     }
 
-    L_aligned(label_m_loop); {
+    L_aligned(label_m_loop);
+    {
         mov(CO1_, C_);
         add(C_, unroll_x * size_);
 
@@ -312,7 +331,8 @@ void jit_avx512_core_gemm_bf16bf16f32_kern::outerloop(int unroll_x,
         cmp(I_, unroll_y);
         jl(label_n_remainder_loops[0], T_NEAR);
 
-        L_aligned(label_n_loop); {
+        L_aligned(label_n_loop);
+        {
             innerloop(unroll_x, unroll_y);
             sub(I_, unroll_y);
             cmp(I_, unroll_y);
@@ -350,7 +370,7 @@ void jit_avx512_core_gemm_bf16bf16f32_kern::generate() {
     preamble();
     sub(rsp, stack_alloc_size_);
 
-    vbroadcastss(alpha_, qword[ALPHA_]);
+    if (!alpha_one_) vbroadcastss(alpha_, qword[ALPHA_]);
 
     if (is_windows) {
         mov(A_, arg_a_);
@@ -384,8 +404,7 @@ void jit_avx512_core_gemm_bf16bf16f32_kern::generate() {
 
     // m remainder loops.
     for (int um = 32; um > 0; um >>= 1)
-        if (UNROLL_M_ > um)
-            outerloop(um, UNROLL_N_, cur_outerloop_label);
+        if (UNROLL_M_ > um) outerloop(um, UNROLL_N_, cur_outerloop_label);
 
     L(*cur_outerloop_label);
 
@@ -395,10 +414,17 @@ void jit_avx512_core_gemm_bf16bf16f32_kern::generate() {
 }
 
 jit_avx512_core_gemm_bf16bf16f32_kern::jit_avx512_core_gemm_bf16bf16f32_kern(
-        bool beta_zero) : jit_generator(nullptr, 170000), arg_a_(0), arg_b_(0),
-    arg_c_(0), arg_ldc_(0), arg_coffset_c_(0), arg_coffset_r_(0) {
+        bool beta_zero, bool alpha_one)
+    : jit_generator(nullptr, 170000)
+    , arg_a_(0)
+    , arg_b_(0)
+    , arg_c_(0)
+    , arg_ldc_(0)
+    , arg_coffset_c_(0)
+    , arg_coffset_r_(0) {
 
     beta_zero_ = beta_zero;
+    alpha_one_ = alpha_one;
     bfloat16_ = mayiuse(avx512_core_bf16);
     assert(mayiuse(avx512_core));
 
@@ -434,8 +460,8 @@ jit_avx512_core_gemm_bf16bf16f32_kern::jit_avx512_core_gemm_bf16bf16f32_kern(
 
     // Assign stack variables.
     stack_alloc_size_ = 32;
-    auto args_offset = stack_alloc_size_ + get_size_of_abi_save_regs()
-        + 8 + (is_windows ? 48 : 0);
+    auto args_offset = stack_alloc_size_ + get_size_of_abi_save_regs() + 8
+            + (is_windows ? 48 : 0);
 
     arg_a_ = ptr[rsp + (args_offset - 16)];
     arg_b_ = ptr[rsp + (args_offset - 8)];
@@ -451,24 +477,25 @@ jit_avx512_core_gemm_bf16bf16f32_kern::jit_avx512_core_gemm_bf16bf16f32_kern(
 
         // Those register will not be used by bf16 emulation since we only use
         // r_vdpbf16ps.
-        scratch_  = rax;
-        one_      = zmm6;
-        even_     = zmm6;
+        scratch_ = rax;
+        one_ = zmm6;
+        even_ = zmm6;
         selector_ = zmm6;
 
         zmm_tmp0_ = zmm6;
         zmm_tmp1_ = zmm3;
-        bf16_emu_ = new bf16_emulation_t(this, one_, even_, selector_, scratch_,
-                zmm_tmp0_, zmm_tmp1_);
+        bf16_emu_ = new bf16_emulation_t(
+                this, one_, even_, selector_, scratch_, zmm_tmp0_, zmm_tmp1_);
     }
 
     generate();
 }
 
-jit_avx512_core_gemm_bf16bf16f32_kern::~jit_avx512_core_gemm_bf16bf16f32_kern() {
+jit_avx512_core_gemm_bf16bf16f32_kern::
+        ~jit_avx512_core_gemm_bf16bf16f32_kern() {
     delete bf16_emu_;
 }
 
-}
-}
-}
+} // namespace cpu
+} // namespace impl
+} // namespace mkldnn

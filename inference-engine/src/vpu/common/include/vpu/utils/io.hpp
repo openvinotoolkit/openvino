@@ -4,87 +4,106 @@
 
 #pragma once
 
-#include <iostream>
-#include <sstream>
-#include <vector>
-#include <set>
-#include <map>
-#include <unordered_set>
-#include <unordered_map>
+#include <vpu/utils/small_vector.hpp>
+#include <vpu/utils/intrusive_handle_list.hpp>
+
 #include <utility>
 #include <string>
+#include <iostream>
+#include <sstream>
 #include <array>
-
-#include <ie_data.h>
-#include <ie_blob.h>
-#include <ie_layers.h>
-
-#include <vpu/utils/extra.hpp>
-#include <vpu/utils/small_vector.hpp>
+#include <vector>
+#include <list>
+#include <set>
+#include <unordered_set>
+#include <map>
+#include <unordered_map>
 
 namespace vpu {
-
-namespace ie = InferenceEngine;
 
 //
 // printTo
 //
 
+//
+// Controls the format printing for actual type
+//
+
 template <typename T>
-void printTo(std::ostream& os, const T& val) noexcept;
+void printTo(std::ostream& os, const T& val);
 
 template <typename T1, typename T2>
-void printTo(std::ostream& os, const std::pair<T1, T2>& p) noexcept;
+void printTo(std::ostream& os, const std::pair<T1, T2>& p);
 
-template <typename T>
-void printTo(std::ostream& os, const std::vector<T>& cont) noexcept;
+template <typename T, size_t Count>
+void printTo(std::ostream& os, const std::array<T, Count>& cont);
 
-template <typename T, size_t COUNT>
-void printTo(std::ostream& os, const std::array<T, COUNT>& cont) noexcept;
+template <typename T, class A>
+void printTo(std::ostream& os, const std::vector<T, A>& cont);
 
-template <typename T>
-void printTo(std::ostream& os, const std::set<T>& cont) noexcept;
+template <typename T, int Capacity, class A>
+void printTo(std::ostream& os, const SmallVector<T, Capacity, A>& cont);
 
-template <typename T, class H>
-void printTo(std::ostream& os, const std::unordered_set<T, H>& cont) noexcept;
+template <typename T, class A>
+void printTo(std::ostream& os, const std::list<T, A>& cont);
 
-template <typename K, typename V>
-void printTo(std::ostream& os, const std::map<K, V>& map) noexcept;
+template <class Obj>
+void printTo(std::ostream& os, const IntrusiveHandleList<Obj>& cont);
 
-template <typename K, typename V, class H>
-void printTo(std::ostream& os, const std::unordered_map<K, V, H>& map) noexcept;
+template <typename T, class C, class A>
+void printTo(std::ostream& os, const std::set<T, C, A>& cont);
 
-template <typename T, int Capacity>
-void printTo(std::ostream& os, const SmallVector<T, Capacity>& cont) noexcept;
+template <typename T, class H, class P, class A>
+void printTo(std::ostream& os, const std::unordered_set<T, H, P, A>& cont);
 
-class Any;
-void printTo(std::ostream& os, const Any& any) noexcept;
+template <typename K, typename V, class C, class A>
+void printTo(std::ostream& os, const std::map<K, V, C, A>& map);
 
-class AttributesMap;
-void printTo(std::ostream& os, const AttributesMap& attrs) noexcept;
+template <typename K, typename V, class H, class P, class A>
+void printTo(std::ostream& os, const std::unordered_map<K, V, H, P, A>& map);
 
 //
 // formatPrint
 //
 
-void formatPrint(std::ostream& os, const char* str) noexcept;
+//
+// The format printing supports with following placeholders:
+//
+//   * C like : `%?`, where `?` is any character except `%`, `%%` will be converted to single `%` symbol.
+//   * Python like : `{}`.
+//
+// The formating manipulators are not supported in the formating string placeholders.
+// Instead, the manipulators can be added as plain arguments with own placeholder, for example:
+//
+//     formatPrint(os, "The is the number with formatting: {}{}", std::setw(5), 100);
+//
+
+void formatPrint(std::ostream& os, const char* str);
 
 template <typename T, typename... Args>
-void formatPrint(std::ostream& os, const char* str, const T& value, const Args&... args) noexcept;
+void formatPrint(std::ostream& os, const char* str, const T& val, const Args&... args);
 
 //
 // formatString
 //
 
 template <typename... Args>
-std::string formatString(const char* str, const Args&... args) noexcept;
+std::string formatString(const char* str, const Args&... args) {
+    std::ostringstream os;
+    formatPrint(os, str, args...);
+    return os.str();
+}
 
 //
 // toString
 //
 
 template <typename T>
-std::string toString(const T& val) noexcept;
+std::string toString(const T& val) {
+    std::ostringstream os;
+    printTo(os, val);
+    return os.str();
+}
 
 //
 // Implementation
@@ -93,175 +112,158 @@ std::string toString(const T& val) noexcept;
 namespace details {
 
 template <typename T>
-auto printToDefault(std::ostream& os, const T& val, int) noexcept -> decltype(os << val) {
-    try {
-        return os << val;
-    } catch (...) {
-        std::cerr << "[VPU] Unknown error while printing\n";
-        std::abort();
-    }
+auto printToDefault(std::ostream& os, const T& val, int) -> decltype(os << val) {
+    return os << val;
 }
-
 template <typename T>
-void printToDefault(std::ostream& os, const T& val, ...) noexcept {
-    try {
-        os << "<value at " << &val << ">";
-    } catch (...) {
-        std::cerr << "[VPU] Unknown error while printing\n";
-        std::abort();
-    }
+void printToDefault(std::ostream&, const T&, ...) {
+    // Nothing
 }
 
 }  // namespace details
 
 template <typename T>
-inline void printTo(std::ostream& os, const T& val) noexcept {
+void printTo(std::ostream& os, const T& val) {
     details::printToDefault(os, val, 0);
 }
 
 template <typename T1, typename T2>
-void printTo(std::ostream& os, const std::pair<T1, T2>& p) noexcept {
-    try {
-        os << "[" << std::endl;
-
-        os << "first=";
-        printTo(os, p.first);
-        os << std::endl;
-
-        os << "second=";
-        printTo(os, p.second);
-        os << std::endl;
-
-        os << "]";
-    } catch (...) {
-        std::cerr << "[VPU] Unknown error while printing\n";
-        std::abort();
-    }
+void printTo(std::ostream& os, const std::pair<T1, T2>& p) {
+    os << '(';
+    printTo(os, p.first);
+    os << ", ";
+    printTo(os, p.second);
+    os << ')';
 }
+
+namespace details {
 
 template <class Cont>
-void printContainer(std::ostream& os, const Cont& cont) noexcept {
-    try {
-        os << "[";
+void printContainer(std::ostream& os, const Cont& cont) {
+    static constexpr size_t MAX_PRINT_SIZE = 8;
 
-        size_t ind = 0;
-        for (const auto& val : cont) {
-            printTo(os, val);
-            if (ind + 1 < cont.size()) {
-                os << ", ";
-            }
-            if (ind > 8) {
-                os << "...";
-                break;
-            }
-            ++ind;
+    os << '[';
+
+    size_t ind = 0;
+    for (const auto& val : cont) {
+        printTo(os, val);
+
+        if (ind + 1 < cont.size()) {
+            os << ", ";
         }
 
-        os << "]";
-    } catch (...) {
-        std::cerr << "[VPU] Unknown error while printing\n";
-        std::abort();
+        if (ind > MAX_PRINT_SIZE) {
+            os << "...";
+            break;
+        }
+
+        ++ind;
     }
+
+    os << ']';
 }
 
-template <typename T>
-void printTo(std::ostream& os, const std::vector<T>& cont) noexcept {
-    printContainer(os, cont);
+}  // namespace details
+
+template <typename T, size_t Count>
+void printTo(std::ostream& os, const std::array<T, Count>& cont) {
+    details::printContainer(os, cont);
 }
 
-template <typename T, size_t COUNT>
-void printTo(std::ostream& os, const std::array<T, COUNT>& cont) noexcept {
-    printContainer(os, cont);
+template <typename T, class A>
+void printTo(std::ostream& os, const std::vector<T, A>& cont) {
+    details::printContainer(os, cont);
 }
 
-template <typename T>
-void printTo(std::ostream& os, const std::set<T>& cont) noexcept {
-    printContainer(os, cont);
+template <typename T, int Capacity, class A>
+void printTo(std::ostream& os, const SmallVector<T, Capacity, A>& cont) {
+    details::printContainer(os, cont);
 }
 
-template <typename T, class H>
-void printTo(std::ostream& os, const std::unordered_set<T, H>& cont) noexcept {
-    printContainer(os, cont);
+template <typename T, class A>
+void printTo(std::ostream& os, const std::list<T, A>& cont) {
+    details::printContainer(os, cont);
 }
+
+template <class Obj>
+void printTo(std::ostream& os, const IntrusiveHandleList<Obj>& cont) {
+    details::printContainer(os, cont);
+}
+
+template <typename T, class C, class A>
+void printTo(std::ostream& os, const std::set<T, C, A>& cont) {
+    details::printContainer(os, cont);
+}
+
+template <typename T, class H, class P, class A>
+void printTo(std::ostream& os, const std::unordered_set<T, H, P, A>& cont) {
+    details::printContainer(os, cont);
+}
+
+namespace details {
 
 template <class Map>
-void printMap(std::ostream& os, const Map& map) noexcept {
-    try {
-        os << "[" << std::endl;
+void printMap(std::ostream& os, const Map& map) {
+    static constexpr size_t MAX_PRINT_SIZE = 8;
 
-        size_t ind = 0;
-        for (const auto& p : map) {
-            printTo(os, p.first);
-            os << "=";
-            printTo(os, p.second);
-            os << std::endl;
-            if (ind > 16) {
-                os << "...";
-                break;
-            }
-            ++ind;
+    os << '[';
+
+    size_t ind = 0;
+    for (const auto& p : map) {
+        printTo(os, p.first);
+        os << ':';
+        printTo(os, p.second);
+
+        if (ind + 1 < map.size()) {
+            os << ", ";
         }
 
-        os << "]";
-    } catch (...) {
-        std::cerr << "[VPU] Unknown error while printing\n";
-        std::abort();
+        if (ind > MAX_PRINT_SIZE) {
+            os << "...";
+            break;
+        }
+
+        ++ind;
     }
+
+    os << ']';
 }
 
-template <typename K, typename V>
-void printTo(std::ostream& os, const std::map<K, V>& map) noexcept {
-    printMap(os, map);
+}  // namespace details
+
+template <typename K, typename V, class C, class A>
+void printTo(std::ostream& os, const std::map<K, V, C, A>& map) {
+    details::printMap(os, map);
 }
 
-template <typename K, typename V, class H>
-void printTo(std::ostream& os, const std::unordered_map<K, V, H>& map) noexcept {
-    printMap(os, map);
+template <typename K, typename V, class H, class P, class A>
+void printTo(std::ostream& os, const std::unordered_map<K, V, H, P, A>& map) {
+    details::printMap(os, map);
 }
 
-template <typename T, int Capacity>
-void printTo(std::ostream& os, const SmallVector<T, Capacity>& cont) noexcept {
-    printContainer(os, cont);
-}
-
-// Supports C-like placeholders (like `%s`, `%d`, `%v`), but the actual letter doesn't matter.
 template <typename T, typename... Args>
-void formatPrint(std::ostream& os, const char* str, const T& value, const Args&... args) noexcept {
-    try {
-        while (*str) {
-            if (*str == '%') {
-                if (*(str + 1) == '%') {
-                    ++str;
-                } else {
-                    printTo(os, value);
-                    formatPrint(os, str + 2, args...);
-                    return;
-                }
+void formatPrint(std::ostream& os, const char* str, const T& val, const Args&... args) {
+    while (*str) {
+        if (*str == '%') {
+            if (*(str + 1) == '%') {
+                ++str;
+            } else {
+                printTo(os, val);
+                formatPrint(os, str + 2, args...);
+                return;
             }
-
-            os << *str++;
+        } else if (*str == '{') {
+            if (*(str + 1) == '}') {
+                printTo(os, val);
+                formatPrint(os, str + 2, args...);
+                return;
+            }
         }
-    } catch (...) {
-        std::cerr << "[VPU] Unknown error while printing\n";
-        std::abort();
+
+        os << *str++;
     }
 
     std::cerr << "[VPU] Extra arguments provided to formatPrint\n";
-    std::abort();
-}
-
-template <typename T>
-std::string toString(const T& val) noexcept {
-    std::ostringstream os;
-    printTo(os, val);
-    return os.str();
-}
-
-template <typename... Args>
-std::string formatString(const char* str, const Args&... args) noexcept {
-    std::ostringstream os;
-    formatPrint(os, str, args...);
-    return os.str();
 }
 
 }  // namespace vpu

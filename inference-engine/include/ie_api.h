@@ -48,10 +48,24 @@
 #endif
 
 #define INFERENCE_ENGINE_NN_BUILDER_DEPRECATED \
-    INFERENCE_ENGINE_DEPRECATED("Use ngraph API. NN Builder API will be removed in 2020 R2")
+    INFERENCE_ENGINE_DEPRECATED("Use ngraph API. NN Builder API will be removed in 2020.3")
 #define INFERENCE_ENGINE_NN_BUILDER_API_CLASS(...) \
     INFERENCE_ENGINE_NN_BUILDER_DEPRECATED         \
     INFERENCE_ENGINE_API_CLASS(__VA_ARGS__)
+
+#if defined IMPLEMENT_INFERENCE_ENGINE_API || defined IMPLEMENT_INFERENCE_ENGINE_PLUGIN
+# define INFERENCE_ENGINE_INTERNAL(msg)
+#else
+# define INFERENCE_ENGINE_INTERNAL(msg) INFERENCE_ENGINE_DEPRECATED(msg)
+#endif
+
+#if defined IMPLEMENT_INFERENCE_ENGINE_API || defined IMPLEMENT_INFERENCE_ENGINE_PLUGIN
+# define INFERENCE_ENGINE_INTERNAL_CNNLAYER_CLASS(...) INFERENCE_ENGINE_API_CLASS(__VA_ARGS__)
+#else
+# define INFERENCE_ENGINE_INTERNAL_CNNLAYER_CLASS(...)                                                                           \
+    INFERENCE_ENGINE_INTERNAL("Migrate to IR v10 and work with ngraph::Function directly. The method will be removed in 2020.3") \
+    INFERENCE_ENGINE_API_CLASS(__VA_ARGS__)
+#endif
 
 // Suppress warning "-Wdeprecated-declarations" / C4996
 #if defined(_MSC_VER)
@@ -71,6 +85,7 @@
 #define IE_SUPPRESS_DEPRECATED_START \
     IE_DO_PRAGMA(warning(push))      \
     IE_DO_PRAGMA(warning(disable : 1478))
+    IE_DO_PRAGMA(warning(disable : 1786))
 #define IE_SUPPRESS_DEPRECATED_END IE_DO_PRAGMA(warning(pop))
 #elif defined(__clang__) || ((__GNUC__) && (__GNUC__ * 100 + __GNUC_MINOR__ > 405))
 #define IE_SUPPRESS_DEPRECATED_START  \
@@ -82,10 +97,23 @@
 #define IE_SUPPRESS_DEPRECATED_END
 #endif
 
-#ifndef ENABLE_UNICODE_PATH_SUPPORT
-#if defined(_WIN32)
-#define ENABLE_UNICODE_PATH_SUPPORT
-#elif defined(__GNUC__) && (__GNUC__ > 5 || (__GNUC__ == 5 && __GNUC_MINOR__ > 2)) || defined(__clang__)
-#define ENABLE_UNICODE_PATH_SUPPORT
+#ifdef _WIN32
+# define IE_SUPPRESS_DEPRECATED_START_WIN IE_SUPPRESS_DEPRECATED_START
+# define IE_SUPPRESS_DEPRECATED_END_WIN IE_SUPPRESS_DEPRECATED_END
+#else
+# define IE_SUPPRESS_DEPRECATED_START_WIN
+# define IE_SUPPRESS_DEPRECATED_END_WIN
 #endif
+
+#ifndef ENABLE_UNICODE_PATH_SUPPORT
+# ifdef _WIN32
+#  ifdef __INTEL_COMPILER
+#   define ENABLE_UNICODE_PATH_SUPPORT
+#  endif
+#  if defined _MSC_VER && defined _MSVC_LANG && _MSVC_LANG < 201703L
+#   define ENABLE_UNICODE_PATH_SUPPORT
+#  endif
+# elif defined(__GNUC__) && (__GNUC__ > 5 || (__GNUC__ == 5 && __GNUC_MINOR__ > 2)) || defined(__clang__)
+#  define ENABLE_UNICODE_PATH_SUPPORT
+# endif
 #endif

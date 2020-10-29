@@ -1,5 +1,5 @@
 /*
-// Copyright (c) 2018 Intel Corporation
+// Copyright (c) 2018-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -77,12 +77,12 @@ bool fused_conv_eltwise_kernel_gemm::Validate(const Params& p, const optional_pa
     return true;
 }
 
-std::vector<WeightsLayout> fused_conv_eltwise_kernel_gemm::GetSupportedWeightLayouts(
-    const fused_conv_eltwise_params& params) const {
+WeightsLayout fused_conv_eltwise_kernel_gemm::GetPreferreddWeightsLayout(
+        const fused_conv_eltwise_params &params) const {
     if (params.inputs[0].GetDType() == Datatype::F16) {
-        return {WeightsLayout::iy_xs_os_xsv2_osv16__ao32};
+        return WeightsLayout::iy_xs_os_xsv2_osv16__ao32;
     } else {
-        return {WeightsLayout::iy_xs_os_xsv2_osv8__ao32};
+        return WeightsLayout::iy_xs_os_xsv2_osv8__ao32;
     }
 }
 
@@ -97,11 +97,11 @@ fused_conv_eltwise_kernel_base::DispatchData fused_conv_eltwise_kernel_gemm::Set
     if (arg.inputs[0].GetDType() == Datatype::F16) {
         runInfo.gemmStyle = {1, arg.conv.filterSize.x, 32, 32, 1, 1};
         runInfo.lws1 = 16;
-        runInfo.effiency = FORCE_PRIORITY_6;
+        runInfo.efficiency = FORCE_PRIORITY_6;
     } else {
         runInfo.gemmStyle = {2, arg.conv.filterSize.x, 32, 32, 2, 1};
         runInfo.lws1 = 8;
-        runInfo.effiency = FORCE_PRIORITY_8;
+        runInfo.efficiency = FORCE_PRIORITY_8;
     }
 
     size_t sgemm_m = RoundUp(arg.output.X().v * arg.output.Y().v, runInfo.gemmStyle.subBlockDimM);

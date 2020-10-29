@@ -47,6 +47,7 @@
 #include <api/border.hpp>
 #include <api/gather.hpp>
 #include <api/depth_to_space.hpp>
+#include <api/space_to_depth.hpp>
 #include <api/shuffle_channels.hpp>
 #include <api/strided_slice.hpp>
 #include <api/reverse_sequence.hpp>
@@ -58,6 +59,7 @@
 #include <api/gather_tree.hpp>
 #include <api/pyramid_roi_align.hpp>
 #include <api/non_max_suppression.hpp>
+#include <api/select.hpp>
 
 #include <chrono>
 #include <cmath>
@@ -70,7 +72,7 @@
 #include <ie_layers_internal.hpp>
 #include <net_pass.h>
 #include "cldnn_infer_request.h"
-#include <cpp_interfaces/ie_executor_manager.hpp>
+#include <threading/ie_executor_manager.hpp>
 #include "details/caseless.hpp"
 #include <fstream>
 #include <utility>
@@ -80,7 +82,7 @@
 #include "cnn_network_int8_normalizer.hpp"
 
 #include "low_precision_transformations/transformer.hpp"
-#include "low_precision_transformations/eltwise_cpu.hpp"
+#include "low_precision_transformations/eltwise.hpp"
 #include "low_precision_transformations/concat_multi_channels.hpp"
 #include "low_precision_transformations/fully_connected.hpp"
 
@@ -180,6 +182,15 @@ bool Program::CanProcessDynBatch(InferenceEngine::ICNNNetwork &network) const {
     bool check_result = true;
     details::UnorderedDFS(allLayers, secondLayers.begin()->second, [&](CNNLayerPtr layer) {
         auto type = LayerTypeFromStr(layer->type);
+
+        auto reshapeLayer = dynamic_cast<ReshapeLayer *>(layer.get());
+        if (reshapeLayer &&
+            type == Reshape &&
+            (reshapeLayer->outData[0]->getTensorDesc().getDims()[0] ==
+             reshapeLayer->insData[0].lock()->getTensorDesc().getDims()[0])) {
+            return;
+        }
+
         if (SimplerNMS == type ||
             ROIPooling == type ||
             PriorBox == type ||
@@ -223,9 +234,29 @@ Program::Program(InferenceEngine::ICNNNetwork& network, std::shared_ptr<const cl
                                                   {Precision::I8});  // Precision on weights
 
         auto transforms = LowPrecisionTransformer::getAllTransformations(params)
-                .addBranchSpecific<EltwiseCpuTransformation>(params, "Eltwise")
                 .add<FullyConnectedTransformation>(LayerTransformation::Params(params).setSupportAsymmetricQuantization(false), "FullyConnected")
                 .add<FullyConnectedTransformation>(LayerTransformation::Params(params).setSupportAsymmetricQuantization(false), "GEMM");
+
+        auto it = details::CNNNetworkIterator(&network);
+        auto end = details::CNNNetworkIterator();
+        bool fqFound = false;
+        bool allFQareSupported = true;
+        while (it != end) {
+            if (CaselessEq<std::string>()((*it)->type, "FakeQuantize")) {
+                fqFound = true;
+                auto levels = (*it)->GetParamAsUInt("levels");
+                if (levels != 255 && levels != 256) {
+                    allFQareSupported = false;
+                    break;
+                }
+            }
+            it++;
+        }
+
+        // [WA] Convert quantized FP16 model to FP32 to avoid possible overflow and mixed precision errors
+        if (fqFound && allFQareSupported) {
+            NetPass::ConvertPrecision(network, Precision::FP16, Precision::FP32);
+        }
 
         LowPrecisionTransformer transformer(transforms);
         transformer.transform(network);
@@ -464,6 +495,7 @@ Program::LayerType Program::LayerTypeFromStr(const std::string &str) {
         { "SoftMax" , SoftMax },
         { "Power" , Power },
         { "Split" , Split },
+        { "VariadicSplit", VariadicSplit },
         { "Slice" , Split },
         { "Concat" , Concatenate },
         { "Eltwise" , Eltwise },
@@ -475,6 +507,7 @@ Program::LayerType Program::LayerTypeFromStr(const std::string &str) {
         { "DetectionOutput" , DetectionOutput },
         { "Normalize" , Normalize },
         { "Reshape" , Reshape },
+        { "Transpose" , Transpose },
         { "Permute" , Permute },
         { "Flatten" , Flatten },
         { "BatchNormalization" , BatchNormalization },
@@ -500,6 +533,7 @@ Program::LayerType Program::LayerTypeFromStr(const std::string &str) {
         { "RNNSequence" , RNN },
         { "Gather" , Gather },
         { "DepthToSpace" , DepthToSpace },
+        { "SpaceToDepth" , SpaceToDepth },
         { "ShuffleChannels" , ShuffleChannels },
         { "StridedSlice" , StridedSlice },
         { "ReverseSequence" , ReverseSequence },
@@ -532,6 +566,7 @@ Program::LayerType Program::LayerTypeFromStr(const std::string &str) {
         { "Asinh" , Asinh },
         { "Sinh" , Sinh },
         { "Cosh" , Cosh },
+        { "Swish" , Swish },
         { "Atanh" , Atanh },
         { "Floor" , Floor },
         { "Ceil" , Ceil },
@@ -549,8 +584,11 @@ Program::LayerType Program::LayerTypeFromStr(const std::string &str) {
         { "OneHot", OneHot},
         { "GatherTree", GatherTree},
         { "Convert", Convert },
-        { "ExperimentalDetectronROIFeatureExtractor", ExperimentalDetectronROIFeatureExtractor },
-        { "NonMaxSuppression", NonMaxSuppression }
+        { "ConvertLike", ConvertLike },
+        // Implementation is disabled, since it doesn't match layer's semantic
+        // { "ExperimentalDetectronROIFeatureExtractor", ExperimentalDetectronROIFeatureExtractor },
+        { "NonMaxSuppression", NonMaxSuppression },
+        { "Select", Select}
     };
     auto it = LayerNameToType.find(str);
     if (it != LayerNameToType.end())
@@ -658,13 +696,16 @@ cldnn::primitive_id Program::CreatePrimitiveFromBlob(cldnn::topology& topology,
         return bufIter->second;
     }
 
-    auto mem = cldnn::memory::allocate(*m_engine, blobLayout);
+    auto mem = cldnn::memory::allocate(*m_engine, blobLayout, 0, false);
     auto tmpPointer = mem.pointer<char>();  // implicitly maps buffer - unmap in destructor
     auto buf = tmpPointer.data();
     auto bufSize = blobLayout.bytes_count();
 
     const auto descLayout = pBlob->getTensorDesc().getLayout();
     if ((descLayout != InferenceEngine::OIHW) &&
+        (descLayout != InferenceEngine::GOIHW) &&
+        (descLayout != InferenceEngine::OIDHW) &&
+        (descLayout != InferenceEngine::GOIDHW) &&
         (descLayout != InferenceEngine::NCDHW) &&
         (descLayout != InferenceEngine::NCHW) &&
         (descLayout != InferenceEngine::BLOCKED) &&
@@ -696,7 +737,7 @@ cldnn::primitive_id Program::CreatePrimitiveFromBlob(cldnn::topology& topology,
         size_t outputFeatureElements = static_cast<size_t>(blobLayout.size.batch[0]);
 
         size_t featureSize = elementSize * blobLayout.size.spatial[0] * blobLayout.size.spatial[1];
-        if (blobLayout.format == cldnn::format::bfzyx)
+        if (blobLayout.format == cldnn::format::oizyx || blobLayout.format == cldnn::format::bfzyx)
             featureSize *= static_cast<size_t>(blobLayout.size.spatial[2]);
 
         for (size_t i = 0; i < inputFeatureElements; i++) {
@@ -731,7 +772,7 @@ void Program::CreateWeightAndBiasPrimitives(cldnn::topology& topology,
         inFeatures = TensorValue(in0dims[1]);
     }
     cldnn::tensor::value_type outFeatures(0);
-    std::vector<cldnn::tensor::value_type> weightDimsVec;
+    std::vector<cldnn::tensor::value_type> weightDimsVec;  // BFZYX order
     InferenceEngine::Blob::Ptr pWeightsBlob, pBiasBlob;
     unsigned groupSize = 1;
     WeightRearrangeType rearrange = NO_REARRANGE;
@@ -744,11 +785,13 @@ void Program::CreateWeightAndBiasPrimitives(cldnn::topology& topology,
         if ((inFeatures % groupSize) || (convLayer->_out_depth % groupSize)) {
             THROW_CLDNN_EXCEPTION("Invalid group size in layer " << convLayer->name);
         }
-        if (groupSize >= 16)  // cldnn optimization for 16 and more groups
-            groupSize = 1;
 
-        weightDimsVec = { TensorValue(convLayer->_out_depth / groupSize), TensorValue(inFeatures / convLayer->_group) };
-        for (size_t i = 0; i < convLayer->_kernel.size(); i++) {
+        if (groupSize > 1)
+            weightDimsVec = { TensorValue(groupSize), TensorValue(convLayer->_out_depth / groupSize), TensorValue(inFeatures / groupSize) };
+        else
+            weightDimsVec = { TensorValue(convLayer->_out_depth), TensorValue(inFeatures) };
+
+        for (int i = static_cast<int>(convLayer->_kernel.size()) - 1; i >= 0; i--) {
             weightDimsVec.push_back(TensorValue(convLayer->_kernel[i]));
         }
         outFeatures = convLayer->_out_depth;
@@ -763,11 +806,12 @@ void Program::CreateWeightAndBiasPrimitives(cldnn::topology& topology,
         if ((inFeatures % groupSize) || (deconvLayer->_out_depth % groupSize)) {
             THROW_CLDNN_EXCEPTION("Invalid group size in layer " << deconvLayer->name);
         }
-        if (groupSize >= 16)  // cldnn optimization for 16 and more groups
-            groupSize = 1;
+        if (groupSize > 1)
+            weightDimsVec = { TensorValue(groupSize), TensorValue(deconvLayer->_out_depth / groupSize), TensorValue(inFeatures / groupSize) };
+        else
+            weightDimsVec = { TensorValue(deconvLayer->_out_depth), TensorValue(inFeatures) };
 
-        weightDimsVec = { TensorValue(deconvLayer->_out_depth / groupSize), TensorValue(inFeatures / deconvLayer->_group) };
-        for (size_t i = 0; i < deconvLayer->_kernel.size(); i++) {
+        for (int i = static_cast<int>(deconvLayer->_kernel.size()) - 1; i >= 0; i--) {
             weightDimsVec.push_back(TensorValue(deconvLayer->_kernel[i]));
         }
         outFeatures = deconvLayer->_out_depth;
@@ -780,13 +824,17 @@ void Program::CreateWeightAndBiasPrimitives(cldnn::topology& topology,
     }
     case DeformableConvolution: {
         auto defConvLayer = as<InferenceEngine::DeformableConvolutionLayer *> (layer);
-        groupSize = 1;
-        /*if (groupSize >= 16)  // cldnn optimization for 16 and more groups
-            groupSize = 1;*/
-        weightDimsVec = { TensorValue(defConvLayer->_out_depth), TensorValue(inFeatures / defConvLayer->_group) };
-        for (size_t i = 0; i < defConvLayer->_kernel.size(); i++) {
+        groupSize = defConvLayer->_group;
+
+        if (groupSize > 1)
+            weightDimsVec = { TensorValue(groupSize), TensorValue(defConvLayer->_out_depth / groupSize), TensorValue(inFeatures / groupSize) };
+        else
+            weightDimsVec = { TensorValue(defConvLayer->_out_depth), TensorValue(inFeatures) };
+
+        for (int i = static_cast<int>(defConvLayer->_kernel.size()) - 1; i >= 0; i--) {
             weightDimsVec.push_back(TensorValue(defConvLayer->_kernel[i]));
         }
+
         outFeatures = defConvLayer->_out_depth;
         pWeightsBlob = getBlobOrNull(layer, "weights");
         pBiasBlob = getBlobOrNull(layer, "biases");
@@ -800,14 +848,14 @@ void Program::CreateWeightAndBiasPrimitives(cldnn::topology& topology,
             case 4:
                 weightDimsVec = { TensorValue(layer->outData[0]->getTensorDesc().getDims().back()),
                                   TensorValue(in0dims[1]),
-                                  TensorValue(in0dims[3]),
-                                  TensorValue(in0dims[2]) };
+                                  TensorValue(in0dims[2]),
+                                  TensorValue(in0dims[3]) };
                 break;
             case 3:
                 weightDimsVec = { TensorValue(layer->outData[0]->getTensorDesc().getDims().back()),
                                   TensorValue(in0dims[1]),
-                                  1,
-                                  TensorValue(in0dims[2])};
+                                  TensorValue(in0dims[2]),
+                                  1 };
                 break;
             case 2:
                 weightDimsVec = { TensorValue(layer->outData[0]->getTensorDesc().getDims().back()), TensorValue(in0dims[1]), 1, 1 };
@@ -831,8 +879,21 @@ void Program::CreateWeightAndBiasPrimitives(cldnn::topology& topology,
 
     // create weights primitive
     cldnn::format wFmt = m_defaultFormat;
-    if (weightDimsVec.size() > 4)
-        wFmt = cldnn::format::bfzyx;
+    if (groupSize > 1) {
+        switch (weightDimsVec.size()) {
+            case 5: wFmt = cldnn::format::goiyx; break;
+            case 6: wFmt = cldnn::format::goizyx; break;
+            default:
+                THROW_IE_EXCEPTION << "Unsupported weights format for layer " + layer->name;
+        }
+    } else {
+        switch (weightDimsVec.size()) {
+            case 4: wFmt = cldnn::format::oiyx; break;
+            case 5: wFmt = cldnn::format::oizyx; break;
+            default:
+                THROW_IE_EXCEPTION << "Unsupported weights format for layer " + layer->name;
+        }
+    }
 
     if (pWeightsBlob == nullptr) {
         auto wei_name = layer_type_name_ID(layer->insData[inputs_count].lock()->getCreatorLayer().lock());
@@ -845,18 +906,15 @@ void Program::CreateWeightAndBiasPrimitives(cldnn::topology& topology,
         cldnn::layout weightsLayout = cldnn::layout(
             DataTypeFromPrecision(pWeightsBlob->getTensorDesc().getPrecision()),
             wFmt,
-            cldnn::tensor(weightDimsVec));
-        size_t bytesPerGroup = weightsLayout.bytes_count();
-        for (unsigned g = 0; g < groupSize; g++) {
-            cldnn::primitive_id weightID = layer_type_name_ID(layer) + m_weightsTag + std::to_string(g);
-            weightID = CreatePrimitiveFromBlob(topology,
-                                               weightID,
-                                               pWeightsBlob,
-                                               weightsLayout,
-                                               g * bytesPerGroup,
-                                               rearrange);
-            weightsPrimID.push_back(weightID);
-        }
+            cldnn::tensor(wFmt, weightDimsVec));
+        cldnn::primitive_id weightID = layer_type_name_ID(layer) + m_weightsTag;
+        weightID = CreatePrimitiveFromBlob(topology,
+                                           weightID,
+                                           pWeightsBlob,
+                                           weightsLayout,
+                                           0,
+                                           rearrange);
+        weightsPrimID.push_back(weightID);
     }
 
     // create bias primitive
@@ -864,17 +922,13 @@ void Program::CreateWeightAndBiasPrimitives(cldnn::topology& topology,
         cldnn::layout biasesLayout = cldnn::layout(
             DataTypeFromPrecision(pBiasBlob->getTensorDesc().getPrecision()),
             FormatFromLayout(pBiasBlob->getTensorDesc().getLayout()),
-            (cldnn::tensor) cldnn::feature(TensorValue(outFeatures / groupSize)));
-        size_t bytesPerGroup = biasesLayout.bytes_count();
-        for (unsigned g = 0; g < groupSize; g++) {
-            cldnn::primitive_id biasID = layer_type_name_ID(layer) + m_biasesTag + std::to_string(g);
-            biasID = CreatePrimitiveFromBlob(topology,
-                                             biasID,
-                                             pBiasBlob,
-                                             biasesLayout,
-                                             g * bytesPerGroup);
-            biasesPrimID.push_back(biasID);
-        }
+            (cldnn::tensor) cldnn::feature(TensorValue(outFeatures)));
+        cldnn::primitive_id biasID = layer_type_name_ID(layer) + m_biasesTag;
+        biasID = CreatePrimitiveFromBlob(topology,
+                                         biasID,
+                                         pBiasBlob,
+                                         biasesLayout);
+        biasesPrimID.push_back(biasID);
     } else if (layer->insData.size() == inputs_count + 2) {
         auto bias_name = layer_type_name_ID(layer->insData[inputs_count + 1].lock()->getCreatorLayer().lock());
         if (primitiveIDs.find(bias_name) != primitiveIDs.end()) {
@@ -1087,6 +1141,7 @@ void Program::CreateSingleLayerPrimitive(cldnn::topology& topology, InferenceEng
         case Sign:
         case SoftPlus:
         case SoftSign:
+        case Swish:
             CreateActivationPrimitive(topology, layer, LayerTypeFromStr(layer->type));
             break;
         case LRN: CreateLRNPrimitive(topology, layer);
@@ -1102,6 +1157,8 @@ void Program::CreateSingleLayerPrimitive(cldnn::topology& topology, InferenceEng
         case Power: CreatePowerPrimitive(topology, layer);
             break;
         case Split: CreateSplitPrimitive(topology, layer);
+            break;
+        case VariadicSplit: CreateSplitPrimitive(topology, layer);
             break;
         case Concatenate: CreateConcatenatePrimitive(topology, layer);
             break;
@@ -1121,7 +1178,9 @@ void Program::CreateSingleLayerPrimitive(cldnn::topology& topology, InferenceEng
             break;
         case Normalize: CreateNormalizePrimitive(topology, layer);
             break;
-        case Reshape: CreateReshapePrimitive(topology, layer);
+        case Transpose:
+        case Reshape:
+            CreateReshapePrimitive(topology, layer);
             break;
         case Permute: CreatePermutePrimitive(topology, layer);
             break;
@@ -1165,6 +1224,8 @@ void Program::CreateSingleLayerPrimitive(cldnn::topology& topology, InferenceEng
             break;
         case DepthToSpace: CreateDepthToSpacePrimitive(topology, layer);
             break;
+        case SpaceToDepth: CreateSpaceToDepthPrimitive(topology, layer);
+            break;
         case ShuffleChannels: CreateShuffleChannelsPrimitive(topology, layer);
             break;
         case StridedSlice: CreateStridedSlicePrimitive(topology, layer);
@@ -1191,11 +1252,15 @@ void Program::CreateSingleLayerPrimitive(cldnn::topology& topology, InferenceEng
             break;
         case Convert: CreateConvertPrimitive(topology, layer);
             break;
+        case ConvertLike: CreateConvertLikePrimitive(topology, layer);
+            break;
         case GatherTree: CreateGatherTreePrimitive(topology, layer);
             break;
-        case ExperimentalDetectronROIFeatureExtractor:
-            CreatePyramidRoIAlignPrimitive(topology, layer);
+        case ExperimentalDetectronROIFeatureExtractor: CreatePyramidRoIAlignPrimitive(topology, layer);
+            break;
         case NonMaxSuppression: CreateNonMaxSuppressionPrimitive(topology, layer);
+            break;
+        case Select: CreateSelectPrimitive(topology, layer);
             break;
         default: THROW_CLDNN_EXCEPTION("Unknown Layer Type: " << layer->type);
     }
@@ -1238,7 +1303,7 @@ void Program::CreateScaleShiftPrimitive(cldnn::topology& topology, InferenceEngi
         biasPrimID);
 
     topology.add(scaleShiftPrim);
-    addPrimitiveToProfiler(scaleShiftLayerName, layer);
+    AddPrimitiveToProfiler(scaleShiftLayerName, layer);
 }
 
 void Program::CreateProposalPrimitive(cldnn::topology& topology, InferenceEngine::CNNLayerPtr & layer) {
@@ -1335,7 +1400,7 @@ void Program::CreateProposalPrimitive(cldnn::topology& topology, InferenceEngine
         primitiveIDs[proposal_mutable_id_r] = proposal_mutable_id_r;
         topology.add(argmax_mutable_prim_r);
 
-        addPrimitiveToProfiler(proposalLayerName, layer);
+        AddPrimitiveToProfiler(proposalLayerName, layer);
         return;
     }
 
@@ -1367,7 +1432,7 @@ void Program::CreateProposalPrimitive(cldnn::topology& topology, InferenceEngine
         normalize);
 
     topology.add(proposalPrim);
-    addPrimitiveToProfiler(proposalLayerName, layer);
+    AddPrimitiveToProfiler(proposalLayerName, layer);
 }
 
 void Program::CreatePReLUPrimitive(cldnn::topology& topology, InferenceEngine::CNNLayerPtr &layer) {
@@ -1412,7 +1477,7 @@ void Program::CreatePReLUPrimitive(cldnn::topology& topology, InferenceEngine::C
         topology.add(cldnn::activation(preluLayerName, inputPrimitives[0], map.at(slopePrimID), cldnn::activation_func::relu_negative_slope));
     }
 
-    addPrimitiveToProfiler(preluLayerName, layer);
+    AddPrimitiveToProfiler(preluLayerName, layer);
 }
 
 void Program::CreateBatchNormalizationPrimitive(cldnn::topology& topology, InferenceEngine::CNNLayerPtr & layer) {
@@ -1467,7 +1532,7 @@ void Program::CreateBatchNormalizationPrimitive(cldnn::topology& topology, Infer
 
     topology.add(bnPrim);
 #endif  // _SCALE_BN_OPT
-    addPrimitiveToProfiler(bnLayerName, layer);
+    AddPrimitiveToProfiler(bnLayerName, layer);
 }
 
 void Program::CreateFlattenPrimitive(cldnn::topology& topology, InferenceEngine::CNNLayerPtr &layer) {
@@ -1482,7 +1547,7 @@ void Program::CreateFlattenPrimitive(cldnn::topology& topology, InferenceEngine:
         CldnnTensorFromIEDims(flattenLayer->outData[0]->getTensorDesc().getDims()));
 
     topology.add(flattenPrim);
-    addPrimitiveToProfiler(flattenLayerName, layer);
+    AddPrimitiveToProfiler(flattenLayerName, layer);
 }
 
 void Program::CreatePermutePrimitive(cldnn::topology& topology, InferenceEngine::CNNLayerPtr &layer) {
@@ -1519,7 +1584,7 @@ void Program::CreatePermutePrimitive(cldnn::topology& topology, InferenceEngine:
         cldnn_permute_order);
 
     topology.add(permutePrim);
-    addPrimitiveToProfiler(permuteLayerName, layer);
+    AddPrimitiveToProfiler(permuteLayerName, layer);
 }
 
 void Program::CreateReshapePrimitive(cldnn::topology& topology, InferenceEngine::CNNLayerPtr &layer) {
@@ -1539,7 +1604,7 @@ void Program::CreateReshapePrimitive(cldnn::topology& topology, InferenceEngine:
     // if we convert from or to 5D/6D, additional reorder also required to change format
     cldnn::primitive_id reshapeInputId = inputPrimitives[0];
     if (inDims.size() != outDims.size()) {
-        cldnn::primitive_id reorderId = reshapeLayerName + "_reorder";
+        cldnn::primitive_id reorderId = "reorder:" + layer->name + "_reorder";
         cldnn::format outputFormat = cldnn::format::bfyx;
 
         switch (outDims.size()) {
@@ -1550,7 +1615,11 @@ void Program::CreateReshapePrimitive(cldnn::topology& topology, InferenceEngine:
 
         cldnn::layout outputLayout(DataTypeFromPrecision(outDesc.getPrecision()), outputFormat, outTensor);
         topology.add(cldnn::reorder(reorderId, reshapeInputId, outputLayout));
-        addInnerPrimitiveToProfiler(reorderId, reshapeLayerName, layer);
+        InitProfileInfo(reorderId, "Reorder", false, InferenceEngine::InferenceEngineProfileInfo::EXECUTED, reshapeLayerName);
+        primitivesToIRLayersMap[reorderId] = { layer->name };
+        primitiveIDs[reshapeLayerName + "_reorder"] = reorderId;
+        primitiveIDs[reorderId] = reorderId;
+        profilingIDs.push_back(reorderId);
         reshapeInputId = reorderId;
     }
 
@@ -1560,7 +1629,7 @@ void Program::CreateReshapePrimitive(cldnn::topology& topology, InferenceEngine:
         outTensor);
 
     topology.add(reshapePrim);
-    addPrimitiveToProfiler(reshapeLayerName, layer);
+    AddPrimitiveToProfiler(reshapeLayerName, layer);
 }
 
 void Program::CreateNormalizePrimitive(cldnn::topology& topology, InferenceEngine::CNNLayerPtr &layer) {
@@ -1588,7 +1657,7 @@ void Program::CreateNormalizePrimitive(cldnn::topology& topology, InferenceEngin
         eps);
 
     topology.add(normPrim);
-    addPrimitiveToProfiler(normLayerName, layer);
+    AddPrimitiveToProfiler(normLayerName, layer);
 }
 
 void Program::CreateDetectionOutputPrimitive(cldnn::topology& topology, InferenceEngine::CNNLayerPtr &layer) {
@@ -1643,7 +1712,7 @@ void Program::CreateDetectionOutputPrimitive(cldnn::topology& topology, Inferenc
                                                  clip_after_nms);
 
     topology.add(detectionPrim);
-    addPrimitiveToProfiler(detectionLayerName, layer);
+    AddPrimitiveToProfiler(detectionLayerName, layer);
 }
 
 void Program::CreatePriorBoxPrimitive(cldnn::topology& topology, InferenceEngine::CNNLayerPtr &layer) {
@@ -1721,7 +1790,7 @@ void Program::CreatePriorBoxPrimitive(cldnn::topology& topology, InferenceEngine
         density);
 
     topology.add(priorBoxPrim);
-    addPrimitiveToProfiler(priorBoxLayerName, layer);
+    AddPrimitiveToProfiler(priorBoxLayerName, layer);
 }
 
 void Program::CreateDeconvolutionPrimitive(cldnn::topology& topology, InferenceEngine::CNNLayerPtr &layer) {
@@ -1763,27 +1832,17 @@ void Program::CreateDeconvolutionPrimitive(cldnn::topology& topology, InferenceE
 
     std::string deconvLayerName = layer_type_name_ID(layer);
 
-    if (deconvLayer->_group >= 16 || layer->insData.size() > 1) {
-        auto deconvPrim = cldnn::deconvolution(deconvLayerName,
-            inputPrimitives[0],
-            weightPrimID,
-            biasPrimID,
-            deconvLayer->_group,
-            stride,
-            padding,
-            CldnnTensorFromIEDims(deconvLayer->outData[0]->getTensorDesc().getDims()));
-        topology.add(deconvPrim);
-    } else {
-        auto deconvPrim = cldnn::deconvolution(deconvLayerName,
-            inputPrimitives[0],
-            weightPrimID,
-            biasPrimID,
-            stride,
-            padding,
-            CldnnTensorFromIEDims(deconvLayer->outData[0]->getTensorDesc().getDims()));
-        topology.add(deconvPrim);
-    }
-    addPrimitiveToProfiler(deconvLayerName, layer);
+    auto deconvPrim = cldnn::deconvolution(deconvLayerName,
+        inputPrimitives[0],
+        weightPrimID,
+        biasPrimID,
+        deconvLayer->_group,
+        stride,
+        padding,
+        CldnnTensorFromIEDims(deconvLayer->outData[0]->getTensorDesc().getDims()));
+    topology.add(deconvPrim);
+
+    AddPrimitiveToProfiler(deconvLayerName, layer);
 }
 
 void Program::CreateCropPrimitive(cldnn::topology& topology, InferenceEngine::CNNLayerPtr &layer) {
@@ -1827,7 +1886,7 @@ void Program::CreateCropPrimitive(cldnn::topology& topology, InferenceEngine::CN
         offSize);
 
     topology.add(cropPrim);
-    addPrimitiveToProfiler(cropLayerName, layer);
+    AddPrimitiveToProfiler(cropLayerName, layer);
 }
 
 void Program::CreateROIPoolingPrimitive(cldnn::topology& topology, InferenceEngine::CNNLayerPtr &layer) {
@@ -1858,7 +1917,7 @@ void Program::CreateROIPoolingPrimitive(cldnn::topology& topology, InferenceEngi
                                              spatial_scale);
 
     topology.add(roiPoolingPrim);
-    addPrimitiveToProfiler(roiPoolingLayerName, layer);
+    AddPrimitiveToProfiler(roiPoolingLayerName, layer);
 }
 
 void Program::CreatePSROIPoolingPrimitive(cldnn::topology& topology, InferenceEngine::CNNLayerPtr &layer) {
@@ -1918,7 +1977,7 @@ void Program::CreatePSROIPoolingPrimitive(cldnn::topology& topology, InferenceEn
                                                    spatial_bins_y);
         topology.add(psROIPoolingPrim);
     }
-    addPrimitiveToProfiler(psROIPoolingLayerName, layer);
+    AddPrimitiveToProfiler(psROIPoolingLayerName, layer);
 }
 
 void Program::CreateCustomLayerPrimitive(cldnn::topology& topology, InferenceEngine::CNNLayerPtr& layer, CLDNNCustomLayerPtr customLayer) {
@@ -1986,7 +2045,7 @@ void Program::CreateCustomLayerPrimitive(cldnn::topology& topology, InferenceEng
                         DataTypeFromPrecision(layer->precision));
 
                     topology.add(preprocessPrim);
-                    addInnerPrimitiveToProfiler(reorderPrimName, layer_type_name_ID(layer), layer);
+                    AddInnerPrimitiveToProfiler(reorderPrimName, layer_type_name_ID(layer), layer);
                     reorderedInputs[param.portIndex] = (reorderPrimName);
                 } else {
                     reorderedInputs[param.portIndex] = inputPrimitives[param.portIndex];
@@ -2094,10 +2153,10 @@ void Program::CreateCustomLayerPrimitive(cldnn::topology& topology, InferenceEng
                 m_defaultFormat,
                 customPrim.output_layout.data_type));
         prevLayerName = reorderPrimName;
-        addInnerPrimitiveToProfiler(reorderPrimName, layer_type_name_ID(layer), layer);
+        AddInnerPrimitiveToProfiler(reorderPrimName, layer_type_name_ID(layer), layer);
     }
     topology.add(customPrim);
-    addPrimitiveToProfiler(genericLayerName, layer);
+    AddPrimitiveToProfiler(genericLayerName, layer);
     primitiveIDs[genericLayerName] = prevLayerName;
 }
 
@@ -2132,7 +2191,7 @@ void Program::CreateSimplerNMSPrimitive(cldnn::topology& topology, InferenceEngi
         scale);
 
     topology.add(simpleNMSPrim);
-    addPrimitiveToProfiler(simpleNMSLayerName, layer);
+    AddPrimitiveToProfiler(simpleNMSLayerName, layer);
 }
 
 void Program::CreateEltwisePrimitive(cldnn::topology& topology, InferenceEngine::CNNLayerPtr &layer) {
@@ -2161,7 +2220,7 @@ void Program::CreateEltwisePrimitive(cldnn::topology& topology, InferenceEngine:
 
     topology.add(eltwisePrim);
 
-    addPrimitiveToProfiler(eltwiseLayerName, layer);
+    AddPrimitiveToProfiler(eltwiseLayerName, layer);
 }
 
 inline cldnn::concatenation::concatenation_axis ConcatAxisFromIEAxis(unsigned axis, unsigned sz) {
@@ -2213,7 +2272,7 @@ void Program::CreateConcatenatePrimitive(cldnn::topology& topology, InferenceEng
         output_dt);
 
     topology.add(concatPrim);
-    addPrimitiveToProfiler(concatLayerName, layer);
+    AddPrimitiveToProfiler(concatLayerName, layer);
 }
 
 void Program::CreateSplitPrimitive(cldnn::topology& topology, InferenceEngine::CNNLayerPtr &layer) {
@@ -2221,7 +2280,7 @@ void Program::CreateSplitPrimitive(cldnn::topology& topology, InferenceEngine::C
     auto splitLayer = as<InferenceEngine::SplitLayer *> (layer);
     if (IsValidSplitConvMerge(splitLayer)) {
         // AlextNet style split->conv*2->merge
-        CreateFusedSplitConvMergePrimitive(topology, layer);
+        CreateFusedSplitConvMergePrimitive(topology, layer, true);
     } else {
 #ifdef _USE_SPLIT_PRIMITIVE
         auto inputPrimitives = GetPrevLayersPrimitives(layer);
@@ -2275,8 +2334,11 @@ void Program::CreateSplitPrimitive(cldnn::topology& topology, InferenceEngine::C
         auto inputDims = inDataPtr->getTensorDesc().getDims();
         InferenceEngine::SizeVector startOffset(inputDims.size());
 
+        bool is_single_out_split = splitLayer->outData.size() == 1;
+
         for (auto& outLayer : splitLayer->outData) {
-            std::string outLayerName = layer_type_lower(splitLayer) + ":" + outLayer->getName();
+            std::string outLayerName = std::string("crop:") +
+                                       (is_single_out_split ? layer->name : outLayer->getName());
             const auto outLayerDims = outLayer->getTensorDesc().getDims();
             if (outLayerDims.size() != startOffset.size()) {
                 THROW_CLDNN_EXCEPTION("Invalid dimesions in split layer: " << splitLayer->name << " output: " << outLayer->getName());
@@ -2292,6 +2354,7 @@ void Program::CreateSplitPrimitive(cldnn::topology& topology, InferenceEngine::C
 
             auto cropPrim = cldnn::crop(outLayerName, inputPrimitives[0], outTensor, offsetTensor);
             primitivesToIRLayersMap[outLayerName] = { layer->name };
+            primitiveIDs[layer_type_lower(splitLayer) + ":" + outLayer->getName()] = outLayerName;
             primitiveIDs[outLayerName] = outLayerName;
             topology.add(cropPrim);
             profilingIDs.push_back(outLayerName);
@@ -2310,7 +2373,7 @@ void Program::CreateSplitPrimitive(cldnn::topology& topology, InferenceEngine::C
     }
 }
 
-void Program::CreateFusedSplitConvMergePrimitive(cldnn::topology& topology, InferenceEngine::CNNLayerPtr &layer) {
+void Program::CreateFusedSplitConvMergePrimitive(cldnn::topology& topology, InferenceEngine::CNNLayerPtr &layer, bool useGroups) {
     auto inputPrimitives = GetPrevLayersPrimitives(layer);
     // only handle the split->conv->merge topology for now
     auto splitLayer = as<InferenceEngine::SplitLayer *> (layer);
@@ -2331,8 +2394,87 @@ void Program::CreateFusedSplitConvMergePrimitive(cldnn::topology& topology, Infe
     // build the split conv primitive
     std::vector<cldnn::primitive_id> weightPrimID;
     std::vector<cldnn::primitive_id> biasPrimID;
-    CreateWeightAndBiasPrimitives(topology, GetNextSingleLayer(splitLayer->outData[0]), weightPrimID, biasPrimID);
-    CreateWeightAndBiasPrimitives(topology, GetNextSingleLayer(splitLayer->outData[1]), weightPrimID, biasPrimID);
+
+    auto conv_groups = useGroups ? splitLayer->outData.size() : 1;
+    if (useGroups) {
+        auto pWeightsBlob0 = getBlobOrNull(GetNextSingleLayer(splitLayer->outData[0]), "weights");
+        auto pWeightsBlob1 = getBlobOrNull(GetNextSingleLayer(splitLayer->outData[1]), "weights");
+        auto pBiasBlob0 = getBlobOrNull(GetNextSingleLayer(splitLayer->outData[0]), "biases");
+        auto pBiasBlob1 = getBlobOrNull(GetNextSingleLayer(splitLayer->outData[1]), "biases");
+
+        auto outputSize = convLayer1->_out_depth;
+        auto inputSize = convLayer1->insData[0].lock()->getDims()[1];
+        auto bias_format = cldnn::format::bfyx;
+        auto weights_format = (convLayer1->insData[0].lock()->getDims().size() == 4) ? cldnn::format::goiyx :
+                                                                                       cldnn::format::goizyx;
+
+        cldnn::primitive_id weightID = layer_type_name_ID(layer) + "_grouped" + m_weightsTag;
+        cldnn::primitive_id biasID = layer_type_name_ID(layer) + m_biasesTag;
+
+        std::vector<cldnn::tensor::value_type> weightDimsVec =  { TensorValue(conv_groups),
+                                                                  TensorValue(outputSize),
+                                                                  TensorValue(inputSize) };
+
+        std::vector<cldnn::tensor::value_type> biasDimsVec =  { TensorValue(1),
+                                                                TensorValue(conv_groups * outputSize),
+                                                                TensorValue(1),
+                                                                TensorValue(1) };
+
+        for (int i = static_cast<int>(convLayer1->_kernel.size()) - 1; i >= 0; i--) {
+            weightDimsVec.push_back(TensorValue(convLayer1->_kernel[i]));
+        }
+
+        if (pWeightsBlob0 != nullptr && pWeightsBlob1 != nullptr) {
+            cldnn::layout weightsLayout = cldnn::layout(
+                    DataTypeFromPrecision(pWeightsBlob0->getTensorDesc().getPrecision()),
+                    weights_format,
+                    cldnn::tensor(weights_format, weightDimsVec));
+
+            auto data0 = static_cast<const char *>(pWeightsBlob0->buffer());
+            auto data1 = static_cast<const char *>(pWeightsBlob1->buffer());
+
+            auto mem = cldnn::memory::allocate(*m_engine, weightsLayout, 0, false);
+            auto tmpPointer = mem.pointer<char>();
+            auto buf = tmpPointer.data();
+            auto bufSize = weightsLayout.bytes_count();
+
+            for (size_t i = 0; i < bufSize / 2; i++) {
+                buf[i] = data0[i];
+                buf[i + bufSize / 2] = data1[i];
+            }
+
+            topology.add(cldnn::data(weightID, mem));
+            weightPrimID.push_back(weightID);
+        } else {
+            THROW_CLDNN_EXCEPTION("Missing weightID blob data");
+        }
+
+        if (pBiasBlob0 != nullptr && pBiasBlob1 != nullptr) {
+            cldnn::layout biasLayout = cldnn::layout(
+                    DataTypeFromPrecision(pBiasBlob0->getTensorDesc().getPrecision()),
+                    bias_format,
+                    cldnn::tensor(bias_format, biasDimsVec));
+
+            auto data0 = static_cast<const char *>(pBiasBlob0->buffer());
+            auto data1 = static_cast<const char *>(pBiasBlob1->buffer());
+
+            auto mem = cldnn::memory::allocate(*m_engine, biasLayout, 0, false);
+            auto tmpPointer = mem.pointer<char>();
+            auto buf = tmpPointer.data();
+            auto bufSize = biasLayout.bytes_count();
+
+            for (size_t i = 0; i < bufSize / 2; i++) {
+                buf[i] = data0[i];
+                buf[i + bufSize / 2] = data1[i];
+            }
+
+            topology.add(cldnn::data(biasID, mem));
+            biasPrimID.push_back(biasID);
+        }
+    } else {
+        CreateWeightAndBiasPrimitives(topology, GetNextSingleLayer(splitLayer->outData[0]), weightPrimID, biasPrimID);
+        CreateWeightAndBiasPrimitives(topology, GetNextSingleLayer(splitLayer->outData[1]), weightPrimID, biasPrimID);
+    }
 
     auto concatLayerPtr = std::make_shared<InferenceEngine::CNNLayer>(*concatLayer);
 
@@ -2351,10 +2493,12 @@ void Program::CreateFusedSplitConvMergePrimitive(cldnn::topology& topology, Infe
                                         inputPrimitives[0],
                                         weightPrimID,
                                         biasPrimID,
+                                        conv_groups,
                                         stride,
                                         padding,
                                         dilation,
-                                        CldnnTensorFromIEDims(concatLayer->outData[0]->getTensorDesc().getDims()));
+                                        CldnnTensorFromIEDims(concatLayer->outData[0]->getTensorDesc().getDims()),
+                                        DataTypeFromPrecision(convLayer2->outData[0]->getPrecision()));
 
     layer = concatLayerPtr;
 
@@ -2382,11 +2526,11 @@ void Program::CreatePowerPrimitive(cldnn::topology& topology, InferenceEngine::C
         std::string linearLayerName = powerLayerName + "_linear_activation";
         auto linearActivationPrim = cldnn::activation(linearLayerName, inputPrimitives[0], cldnn::activation_func::linear, { scale, shift });
         topology.add(linearActivationPrim);
-        addInnerPrimitiveToProfiler(linearLayerName, powerLayerName, layer);
+        AddInnerPrimitiveToProfiler(linearLayerName, powerLayerName, layer);
 
         auto powActivationPrim = cldnn::activation(powerLayerName, linearLayerName, cldnn::activation_func::pow, { power, 0.f });
         topology.add(powActivationPrim);
-        addPrimitiveToProfiler(powerLayerName, layer);
+        AddPrimitiveToProfiler(powerLayerName, layer);
     } else {
         std::string powerLayerName = layer_type_name_ID(layer);
         if ((powerLayer->scale == 1.0f) && (powerLayer->offset == 0.0f)) {
@@ -2421,12 +2565,12 @@ void Program::CreatePowerPrimitive(cldnn::topology& topology, InferenceEngine::C
                 biasValuePrimName);
 
             topology.add(scalePrim);
-            addPrimitiveToProfiler(powerLayerName, layer);
+            AddPrimitiveToProfiler(powerLayerName, layer);
 
             if (powerLayer->power == 0.5f) {
                 auto activationPrim = cldnn::activation(powerLayerName + "_sqrt", powerLayerName, cldnn::activation_func::sqrt);
                 topology.add(activationPrim);
-                addInnerPrimitiveToProfiler(powerLayerName + "_sqrt", powerLayerName, layer);
+                AddInnerPrimitiveToProfiler(powerLayerName + "_sqrt", powerLayerName, layer);
                 profilingIDs.push_back(powerLayerName + "_sqrt");
             }
         }
@@ -2443,7 +2587,7 @@ void Program::CreateSoftMaxPrimitive(cldnn::topology& topology, InferenceEngine:
                                       inputPrimitives[0],
                                       SoftmaxDimensionFromIEAxis(softmaxLayer));
     topology.add(softmaxPrim);
-    addPrimitiveToProfiler(softmaxLayerName, layer);
+    AddPrimitiveToProfiler(softmaxLayerName, layer);
 }
 
 void Program::CreateFullyConnectedPrimitive(cldnn::topology& topology, InferenceEngine::CNNLayerPtr &layer) {
@@ -2467,7 +2611,7 @@ void Program::CreateFullyConnectedPrimitive(cldnn::topology& topology, Inference
 
     topology.add(fcPrim);
 
-    addPrimitiveToProfiler(fcLayerName, layer);
+    AddPrimitiveToProfiler(fcLayerName, layer);
 }
 
 void Program::CreatePoolingPrimitive(cldnn::topology& topology, InferenceEngine::CNNLayerPtr &layer) {
@@ -2596,7 +2740,7 @@ void Program::CreateLRNPrimitive(cldnn::topology& topology, InferenceEngine::CNN
         lrnLayer->_isAcrossMaps ? cldnn::lrn_norm_region_across_channel : cldnn::lrn_norm_region_within_channel);
 
     topology.add(lrnPrim);
-    addPrimitiveToProfiler(lrnLayerName, layer);
+    AddPrimitiveToProfiler(lrnLayerName, layer);
 }
 
 void Program::CreateActivationPrimitive(cldnn::topology& topology, InferenceEngine::CNNLayerPtr &layer, const LayerType type) {
@@ -2614,6 +2758,8 @@ void Program::CreateActivationPrimitive(cldnn::topology& topology, InferenceEngi
             activationType = Sigmoid;
         } else if (activation_type == "elu")  {
             activationType = ELU;
+        } else if (activation_type == "swish")  {
+            activationType = Swish;
         } else if (activation_type == "relu")  {
             activationType = ReLU;
         } else if (activation_type == "relu6")  {
@@ -2797,6 +2943,16 @@ void Program::CreateActivationPrimitive(cldnn::topology& topology, InferenceEngi
         func = cldnn::activation_func::cosh;
         break;
     }
+    case Swish:
+    {
+        func = cldnn::activation_func::swish;
+        break;
+    }
+    case Sign:
+    {
+        func = cldnn::activation_func::sign;
+        break;
+    }
     default:
         THROW_CLDNN_EXCEPTION("Unsupported activation type (" + layer->type +
                               ") in layer " + layer->name);
@@ -2805,7 +2961,7 @@ void Program::CreateActivationPrimitive(cldnn::topology& topology, InferenceEngi
     std::string layerName = layer_type_name_ID(layer);
     auto activationPrimitive = cldnn::activation(layerName, inputPrimitives[0], func, params);
     topology.add(activationPrimitive);
-    addPrimitiveToProfiler(layerName, layer);
+    AddPrimitiveToProfiler(layerName, layer);
 }
 
 void Program::CreateCopyPrimitive(cldnn::topology& topology, InferenceEngine::CNNLayerPtr &layer) {
@@ -2847,7 +3003,7 @@ void Program::CreateResamplePrimitive(cldnn::topology& topology, InferenceEngine
         cldnnSampleType);
 
     topology.add(upsamplingPrim);
-    addPrimitiveToProfiler(resampleLayerName, layer);
+    AddPrimitiveToProfiler(resampleLayerName, layer);
 }
 
 void Program::CreateInterpPrimitive(cldnn::topology& topology, InferenceEngine::CNNLayerPtr &layer) {
@@ -2877,7 +3033,7 @@ void Program::CreateInterpPrimitive(cldnn::topology& topology, InferenceEngine::
         cldnn::resample_type::bilinear);
 
     topology.add(resamplePrim);
-    addPrimitiveToProfiler(resampleLayerName, layer);
+    AddPrimitiveToProfiler(resampleLayerName, layer);
 }
 
 void Program::CreateYOLO2RegionPrimitive(cldnn::topology& topology, InferenceEngine::CNNLayerPtr &layer) {
@@ -2907,7 +3063,7 @@ void Program::CreateYOLO2RegionPrimitive(cldnn::topology& topology, InferenceEng
         do_softmax);
 
     topology.add(regionPrim);
-    addPrimitiveToProfiler(YOLOregionLayerName, layer);
+    AddPrimitiveToProfiler(YOLOregionLayerName, layer);
 }
 
 void Program::CreateYOLO2ReorgPrimitive(cldnn::topology& topology, InferenceEngine::CNNLayerPtr &layer) {
@@ -2923,7 +3079,7 @@ void Program::CreateYOLO2ReorgPrimitive(cldnn::topology& topology, InferenceEngi
         stride);
 
     topology.add(reorgPrim);
-    addPrimitiveToProfiler(YOLOreorgLayerName, layer);
+    AddPrimitiveToProfiler(YOLOreorgLayerName, layer);
 }
 
 void Program::CreateArgMaxMinPrimitive(cldnn::topology& topology, InferenceEngine::CNNLayerPtr &layer, const LayerType type) {
@@ -2980,7 +3136,7 @@ void Program::CreateArgMaxMinPrimitive(cldnn::topology& topology, InferenceEngin
         chosen_axis);
 
     topology.add(argmaxPrim);
-    addPrimitiveToProfiler(ArgMaxLayerName, layer);
+    AddPrimitiveToProfiler(ArgMaxLayerName, layer);
 }
 
 void Program::CreateTopKPrimitive(cldnn::topology& topology, InferenceEngine::CNNLayerPtr &layer) {
@@ -3092,7 +3248,8 @@ void Program::CreateTopKPrimitive(cldnn::topology& topology, InferenceEngine::CN
         primitivesToIRLayersMap[argmax_mutable_id_r] = {layer->name};
         primitiveIDs[argmax_mutable_id_r] = argmax_mutable_id_r;
         topology.add(argmax_mutable_prim_r);
-        addPrimitiveToProfiler(ArgMaxLayerName, layer);
+        InitProfileInfo(ArgMaxLayerName, layer_type_lower(layer));
+        AddPrimitiveToProfiler(ArgMaxLayerName, layer);
     } else if (layer->outData.size() == 1) {
         std::string ArgMaxLayerName = layer_type_lower(layer) + ":" + layer->outData[0]->getName();
         auto argmaxPrim = cldnn::arg_max_min(
@@ -3107,7 +3264,8 @@ void Program::CreateTopKPrimitive(cldnn::topology& topology, InferenceEngine::CN
                 DataTypeFromPrecision(layer->outData[0]->getPrecision()));
 
         topology.add(argmaxPrim);
-        addPrimitiveToProfiler(ArgMaxLayerName, layer);
+        InitProfileInfo(ArgMaxLayerName, layer_type_lower(layer));
+        AddPrimitiveToProfiler(ArgMaxLayerName, layer);
     } else {
         THROW_IE_EXCEPTION << layer->name << " Incorrect TopK outputs number";
     }
@@ -3154,7 +3312,7 @@ void Program::CreateMaxUnpoolingPrimitive(cldnn::topology& topology, InferenceEn
         (cldnn::tensor) cldnn::spatial(stride, stride) );          // stride
 
     topology.add(unpoolingPrim);
-    addPrimitiveToProfiler(UnpoolingLayerName, layer);
+    AddPrimitiveToProfiler(UnpoolingLayerName, layer);
 }
 
 void Program::CreateMVNPrimitive(cldnn::topology& topology, InferenceEngine::CNNLayerPtr &layer) {
@@ -3175,7 +3333,7 @@ void Program::CreateMVNPrimitive(cldnn::topology& topology, InferenceEngine::CNN
         eps);
 
     topology.add(mvnPrim);
-    addPrimitiveToProfiler(MvnLayerName, layer);
+    AddPrimitiveToProfiler(MvnLayerName, layer);
 }
 
 void Program::CreateTilePrimitive(cldnn::topology& topology, InferenceEngine::CNNLayerPtr &layer) {
@@ -3215,7 +3373,7 @@ void Program::CreateTilePrimitive(cldnn::topology& topology, InferenceEngine::CN
         tiles);
 
     topology.add(tilePrim);
-    addPrimitiveToProfiler(tileLayerName, layer);
+    AddPrimitiveToProfiler(tileLayerName, layer);
 }
 
 void Program::CreatePadPrimitive(cldnn::topology& topology, InferenceEngine::CNNLayerPtr &layer) {
@@ -3250,7 +3408,7 @@ void Program::CreatePadPrimitive(cldnn::topology& topology, InferenceEngine::CNN
             pad_value);
 
     topology.add(tilePrim);
-    addPrimitiveToProfiler(padLayerName, layer);
+    AddPrimitiveToProfiler(padLayerName, layer);
 }
 
 void Program::AddConstantBlobInput(cldnn::topology& topology, InferenceEngine::CNNLayerPtr &layer) {
@@ -3338,7 +3496,7 @@ void Program::AddConstantBlobInput(cldnn::topology& topology, InferenceEngine::C
 
     cldnn::primitive_id initialconstPrimID = layer_type_name_ID(layer);
     cldnn::primitive_id constPrimID = CreatePrimitiveFromBlob(topology, initialconstPrimID, constBlob, constLayout);
-    addPrimitiveToProfiler(initialconstPrimID, layer, constPrimID);
+    AddPrimitiveToProfiler(initialconstPrimID, layer, constPrimID);
 }
 
 void Program::CreateConvolutionPrimitive(cldnn::topology& topology, InferenceEngine::CNNLayerPtr &layer) {
@@ -3380,7 +3538,7 @@ void Program::CreateConvolutionPrimitive(cldnn::topology& topology, InferenceEng
                                        inputPrimitives[0],
                                        weightPrimID,
                                        biasPrimID,
-                                       (convLayer->_group >= 16 || layer->insData.size() > 1) ? convLayer->_group : 1,
+                                       convLayer->_group,
                                        stride,
                                        padding,
                                        dilation,
@@ -3388,7 +3546,7 @@ void Program::CreateConvolutionPrimitive(cldnn::topology& topology, InferenceEng
                                        DataTypeFromPrecision(convLayer->outData[0]->getTensorDesc().getPrecision()));
 
     topology.add(convPrim);
-    addPrimitiveToProfiler(convLayerName, layer);
+    AddPrimitiveToProfiler(convLayerName, layer);
 }
 
 void Program::CreateDeformableConvolutionPrimitive(cldnn::topology& topology, InferenceEngine::CNNLayerPtr &layer) {
@@ -3426,7 +3584,7 @@ void Program::CreateDeformableConvolutionPrimitive(cldnn::topology& topology, In
                                               dilation,
                                               CldnnTensorFromIEDims(defConvLayer->outData[0]->getTensorDesc().getDims()));
         topology.add(defConvPrim);
-        addPrimitiveToProfiler(defConvLayerName, layer);
+        AddPrimitiveToProfiler(defConvLayerName, layer);
     } else {
         std::string defConvLayerNameInterp = layer_type_name_ID(layer)+"_interp";
         std::string defConvLayerNameConv = layer_type_name_ID(layer);
@@ -3441,7 +3599,7 @@ void Program::CreateDeformableConvolutionPrimitive(cldnn::topology& topology, In
                                                           CldnnTensorFromIEDims(defConvLayer->outData[0]->getTensorDesc().getDims()),
                                                           kernel);
         topology.add(defConvPrimInterp);
-        addInnerPrimitiveToProfiler(defConvLayerNameInterp, defConvLayerNameConv, layer);
+        AddInnerPrimitiveToProfiler(defConvLayerNameInterp, defConvLayerNameConv, layer);
         auto defConvPrim = cldnn::deformable_conv(defConvLayerNameConv,
                                                   defConvLayerNameInterp,
                                                   weightPrimID,
@@ -3449,7 +3607,7 @@ void Program::CreateDeformableConvolutionPrimitive(cldnn::topology& topology, In
                                                   defConvLayer->_group,
                                                   CldnnTensorFromIEDims(defConvLayer->outData[0]->getTensorDesc().getDims()));
         topology.add(defConvPrim);
-        addPrimitiveToProfiler(defConvLayerNameConv, layer);
+        AddPrimitiveToProfiler(defConvLayerNameConv, layer);
     }
 }
 
@@ -3487,7 +3645,7 @@ void Program::CreateBinaryConvolutionPrimitive(cldnn::topology& topology, Infere
                                                     calc_precision);
 
     topology.add(binaryConvPrim);
-    addPrimitiveToProfiler(binaryConvLayerName, layer);
+    AddPrimitiveToProfiler(binaryConvLayerName, layer);
 }
 
 void Program::CreateQuantizePrimitive(cldnn::topology& topology, InferenceEngine::CNNLayerPtr &layer) {
@@ -3514,7 +3672,7 @@ void Program::CreateQuantizePrimitive(cldnn::topology& topology, InferenceEngine
                                             dt);
 
     topology.add(quantizationPrim);
-    addPrimitiveToProfiler(quantizeLayerName, layer);
+    AddPrimitiveToProfiler(quantizeLayerName, layer);
 }
 
 void Program::CreateGatherPrimitive(cldnn::topology& topology, InferenceEngine::CNNLayerPtr &layer) {
@@ -3548,7 +3706,7 @@ void Program::CreateGatherPrimitive(cldnn::topology& topology, InferenceEngine::
             CldnnTensorFromIEDims(gatherLayer->outData[0]->getTensorDesc().getDims()));
 
     topology.add(gatherPrim);
-    addPrimitiveToProfiler(gatherLayerName, layer);
+    AddPrimitiveToProfiler(gatherLayerName, layer);
 }
 
 void CLDNNPlugin::Program::CreateGatherTreePrimitive(cldnn::topology & topology, InferenceEngine::CNNLayerPtr & layer) {
@@ -3565,7 +3723,7 @@ void CLDNNPlugin::Program::CreateGatherTreePrimitive(cldnn::topology & topology,
         inputPrimitives[3]);
 
     topology.add(gatherTreePrim);
-    addPrimitiveToProfiler(gatherTreeLayerName, layer);
+    AddPrimitiveToProfiler(gatherTreeLayerName, layer);
 }
 
 void Program::CreateDepthToSpacePrimitive(cldnn::topology& topology, InferenceEngine::CNNLayerPtr &layer) {
@@ -3592,7 +3750,29 @@ void Program::CreateDepthToSpacePrimitive(cldnn::topology& topology, InferenceEn
             blockSize);
 
     topology.add(depthToSpacePrim);
-    addPrimitiveToProfiler(depthToSpaceName, layer);
+    AddPrimitiveToProfiler(depthToSpaceName, layer);
+}
+
+void Program::CreateSpaceToDepthPrimitive(cldnn::topology& topology, InferenceEngine::CNNLayerPtr &layer) {
+    ValidateLayer(layer, 1);
+
+    auto inputPrimitives = GetPrevLayersPrimitives(layer);
+    auto spaceToDepth = as<InferenceEngine::GenericLayer*> (layer);
+
+    size_t blockSize = static_cast<size_t>(spaceToDepth->GetParamAsUInt("block_size", 1));
+    std::string modeAsString = spaceToDepth->GetParamAsString("depth_mode", "blocks_first");
+    cldnn::space_to_depth::depth_mode mode;
+    mode = (modeAsString == "blocks_first") ? cldnn::space_to_depth::blocks_first : cldnn::space_to_depth::depth_first;
+
+    std::string spaceToDepthName = layer_type_name_ID(layer);
+    auto spaceToDepthPrim = cldnn::space_to_depth(
+            spaceToDepthName,
+            inputPrimitives[0],
+            mode,
+            blockSize);
+
+    topology.add(spaceToDepthPrim);
+    AddPrimitiveToProfiler(spaceToDepthName, layer);
 }
 
 void Program::CreateShuffleChannelsPrimitive(cldnn::topology& topology, InferenceEngine::CNNLayerPtr &layer) {
@@ -3627,7 +3807,7 @@ void Program::CreateShuffleChannelsPrimitive(cldnn::topology& topology, Inferenc
             axis);
 
     topology.add(shuffleChannelsPrim);
-    addPrimitiveToProfiler(shuffleChannelsName, layer);
+    AddPrimitiveToProfiler(shuffleChannelsName, layer);
 }
 
 void Program::CreateStridedSlicePrimitive(cldnn::topology& topology, InferenceEngine::CNNLayerPtr &layer) {
@@ -3650,7 +3830,7 @@ void Program::CreateStridedSlicePrimitive(cldnn::topology& topology, InferenceEn
             begin_mask, end_mask, new_axis_mask, shrink_axis_mask);
 
     topology.add(stridedSlicePrim);
-    addPrimitiveToProfiler(stridedSliceLayerName, layer);
+    AddPrimitiveToProfiler(stridedSliceLayerName, layer);
 }
 
 void Program::CreateReverseSequencePrimitive(cldnn::topology& topology, InferenceEngine::CNNLayerPtr &layer) {
@@ -3693,7 +3873,7 @@ void Program::CreateReverseSequencePrimitive(cldnn::topology& topology, Inferenc
             batch_axis);
 
     topology.add(reverseSequencePrim);
-    addPrimitiveToProfiler(reverseSequenceLayerName, layer);
+    AddPrimitiveToProfiler(reverseSequenceLayerName, layer);
 }
 
 void Program::CreateBroadcastPrimitive(cldnn::topology &topology, InferenceEngine::CNNLayerPtr &layer) {
@@ -3709,7 +3889,7 @@ void Program::CreateBroadcastPrimitive(cldnn::topology &topology, InferenceEngin
             CldnnTensorFromIEDims(broadcast->outData[0]->getTensorDesc().getDims()));
 
     topology.add(broadcastPrim);
-    addPrimitiveToProfiler(broadcastLayerName, layer);
+    AddPrimitiveToProfiler(broadcastLayerName, layer);
 }
 
 void Program::CreateGemmPrimitive(cldnn::topology& topology, InferenceEngine::CNNLayerPtr &layer) {
@@ -3753,7 +3933,7 @@ void Program::CreateGemmPrimitive(cldnn::topology& topology, InferenceEngine::CN
             auto reorderPrim = cldnn::reorder(reorderName, inputPrimitives[i], targetFormat, targetDatatype);
 
             topology.add(reorderPrim);
-            addInnerPrimitiveToProfiler(reorderName, gemmLayerName, layer);
+            AddInnerPrimitiveToProfiler(reorderName, gemmLayerName, layer);
 
             inputPrimitives[i] = reorderName;
         }
@@ -3770,7 +3950,7 @@ void Program::CreateGemmPrimitive(cldnn::topology& topology, InferenceEngine::CN
             auto reshapePrim = cldnn::reshape(reshapeName, inputPrimitives[i], targetShape);
 
             topology.add(reshapePrim);
-            addInnerPrimitiveToProfiler(reshapeName, gemmLayerName, layer);
+            AddInnerPrimitiveToProfiler(reshapeName, gemmLayerName, layer);
 
             inputPrimitives[i] = reshapeName;
         }
@@ -3802,12 +3982,12 @@ void Program::CreateGemmPrimitive(cldnn::topology& topology, InferenceEngine::CN
         auto outReshapePrim = cldnn::reshape(outReshapeName, gemmLayerName, outputShape);
 
         topology.add(outReshapePrim);
-        addInnerPrimitiveToProfiler(outReshapeName, gemmLayerName, layer);
+        AddInnerPrimitiveToProfiler(outReshapeName, gemmLayerName, layer);
 
         lastLayerName = outReshapeName;
     }
 
-    addPrimitiveToProfiler(gemmLayerName, layer, lastLayerName);
+    AddPrimitiveToProfiler(gemmLayerName, layer, lastLayerName);
 }
 
 
@@ -3901,7 +4081,7 @@ void Program::CreateReducePrimitive(cldnn::topology& topology, InferenceEngine::
             static_cast<int32_t>(reduce->keep_dims));
 
     topology.add(reducePrim);
-    addPrimitiveToProfiler(reduceLayerName, layer);
+    AddPrimitiveToProfiler(reduceLayerName, layer);
 }
 
 void Program::CreateOneHotPrimitive(cldnn::topology& topology, InferenceEngine::CNNLayerPtr &layer) {
@@ -3939,7 +4119,7 @@ void Program::CreateOneHotPrimitive(cldnn::topology& topology, InferenceEngine::
             off_value);
 
     topology.add(oneHotPrim);
-    addPrimitiveToProfiler(oneHotLayerName, layer);
+    AddPrimitiveToProfiler(oneHotLayerName, layer);
 }
 
 void Program::CreateConvertPrimitive(cldnn::topology& topology, InferenceEngine::CNNLayerPtr &layer) {
@@ -3955,7 +4135,23 @@ void Program::CreateConvertPrimitive(cldnn::topology& topology, InferenceEngine:
     auto prim = cldnn::reorder(name, inputPrimitives[0], cldnn::format::any, outDataType);
 
     topology.add(prim);
-    addPrimitiveToProfiler(name, layer);
+    AddPrimitiveToProfiler(name, layer);
+}
+
+void Program::CreateConvertLikePrimitive(cldnn::topology& topology, InferenceEngine::CNNLayerPtr &layer) {
+    ValidateLayer(layer, 2);
+
+    auto inputPrimitives = GetPrevLayersPrimitives(layer);
+
+    auto likePrimitive = layer->insData[1].lock();
+    auto outPrecision = likePrimitive->getPrecision();
+    auto outDataType = DataTypeFromPrecision(outPrecision);
+
+    auto name = layer_type_name_ID(layer);
+    auto prim = cldnn::reorder(name, inputPrimitives[0], cldnn::format::any, outDataType);
+
+    topology.add(prim);
+    AddPrimitiveToProfiler(name, layer);
 }
 
 void Program::CreatePyramidRoIAlignPrimitive(cldnn::topology& topology, InferenceEngine::CNNLayerPtr &layer) {
@@ -3982,7 +4178,7 @@ void Program::CreatePyramidRoIAlignPrimitive(cldnn::topology& topology, Inferenc
         canonicalStartingLevel);
 
     topology.add(prim);
-    addPrimitiveToProfiler(name, layer);
+    AddPrimitiveToProfiler(name, layer);
 }
 
 void Program::CreateNonMaxSuppressionPrimitive(cldnn::topology& topology, InferenceEngine::CNNLayerPtr &layer) {
@@ -4019,7 +4215,18 @@ void Program::CreateNonMaxSuppressionPrimitive(cldnn::topology& topology, Infere
     prim.output_data_type = DataTypeFromPrecision(nonMaxSupression->outData[0]->getTensorDesc().getPrecision());
 
     topology.add(prim);
-    addPrimitiveToProfiler(name, layer);
+    AddPrimitiveToProfiler(name, layer);
+}
+
+void Program::CreateSelectPrimitive(cldnn::topology& topology, InferenceEngine::CNNLayerPtr& layer) {
+    ValidateLayer(layer, 3);
+    auto inputPrimitives = GetPrevLayersPrimitives(layer);
+
+    auto layerName = layer_type_name_ID(layer);
+    auto primitive = cldnn::select(layerName, inputPrimitives[0], inputPrimitives[1], inputPrimitives[2]);
+
+    topology.add(primitive);
+    AddPrimitiveToProfiler(layerName, layer);
 }
 
 bool Program::IsValidSplitConvMerge(const InferenceEngine::SplitLayer *splitLayer) const {
@@ -4147,6 +4354,68 @@ void Program::AddInputPrimitive(cldnn::topology& topology, InputInfo::Ptr inputI
     networkInputLayout.size = networkInputLayout.size.transform(inputFormat, 1);
     networkInputLayout.data_type = DataTypeFromPrecision(layerPrecision);
     auto preprocessPrimID = "reorder:" + inputName + m_preProcessTag;
+    cldnn::primitive_id meanBlobID = inputName + m_meanValuesTag;
+    std::vector<float> meanValues;
+
+    if ((meanChannels > 0) &&
+        (meanChannels != networkInputLayout.size.feature[0])) {
+        THROW_CLDNN_EXCEPTION("Mismatched mean values channels in input " + inputName);
+    }
+
+    switch (preProcess.getMeanVariant()) {
+    case NONE:
+    case MEAN_VALUE: {
+        if (meanChannels > 0) {
+            for (size_t c = 0; c < meanChannels; c++) {
+                if (fabs(preProcess[c]->stdScale - 1.0f) > 1e-10)
+                    THROW_CLDNN_EXCEPTION("not supporting stdScale yet in input " + inputName);
+                meanValues.push_back(preProcess[c]->meanValue);
+            }
+        }
+        break;
+    }
+    case MEAN_IMAGE: {
+        IE_ASSERT(meanChannels);
+        // first merge all mean values to a single blob
+        // todo make sure mean blob precision is the same as the input precision
+        auto meanDims = inputDims;
+        // overwrite batches with 1
+        switch (meanDims.size()) {
+        case 4: meanDims[0] = 1;
+            break;
+        default:
+            THROW_CLDNN_EXCEPTION("Missing batch dimensions in input image");
+        }
+        const TensorDesc desc(Precision(Precision::FP32), meanDims, TensorDesc::getLayoutByDims(meanDims));
+        InferenceEngine::TBlob<float> meanBlob(desc);
+        meanBlob.allocate();
+        auto meanBlobData = meanBlob.data();
+        for (size_t c = 0; c < meanChannels; c++) {
+            if (fabs(preProcess[c]->stdScale - 1.0f) > 1e-10)
+                THROW_CLDNN_EXCEPTION("not supporting stdScale yet in input " + inputName);
+            auto channelMeanBlob = std::dynamic_pointer_cast<TBlob<float>>(preProcess[c]->meanData);
+            auto channelSize = channelMeanBlob->size();
+            auto channelBlobData = channelMeanBlob->data();
+            for (size_t i = 0; i < channelSize; i++) {
+                meanBlobData[(c * channelSize) + i] = channelBlobData[i];
+            }
+        }
+        // then create a data primitive for the mean values
+        auto meanBlobPtr = std::make_shared<InferenceEngine::TBlob<float>>(meanBlob);
+
+        // mean values will use external format (sub in the input format before convert to new format)
+        cldnn::tensor meanBlobTensor(networkInputLayout.size);
+        meanBlobTensor.batch[0] = 1;  // mean values have no batches
+        cldnn::layout meanBlobLayout(cldnn::data_types::f32, m_defaultFormat, meanBlobTensor);
+        meanBlobID = CreatePrimitiveFromBlob(topology,
+            meanBlobID,
+            meanBlobPtr,
+            meanBlobLayout);
+        break;
+    }
+    default: THROW_CLDNN_EXCEPTION("Invalid mean variant in input " + inputName);
+        break;
+    }
 
     if (ColorFormat::NV12 == preProcess.getColorFormat() && m_config.nv12_two_inputs) {
         // for NV12, create two input layouts with reorder instead of one,
@@ -4173,7 +4442,19 @@ void Program::AddInputPrimitive(cldnn::topology& topology, InputInfo::Ptr inputI
         inputLayouts.insert({ inputInfo->name() + "_Y", y_layout });
         topology.add(inputUV);
         inputLayouts.insert({ inputInfo->name() + "_UV", uv_layout });
-        topology.add(cldnn::reorder(preprocessPrimID, y_name, uv_name, networkInputLayout));
+        switch (preProcess.getMeanVariant()) {
+        case NONE:
+        case MEAN_VALUE: {
+            topology.add(cldnn::reorder(preprocessPrimID, y_name, uv_name, networkInputLayout, meanValues));
+            break;
+        }
+        case MEAN_IMAGE: {
+            topology.add(cldnn::reorder(preprocessPrimID, y_name, uv_name, networkInputLayout, meanBlobID));
+            break;
+        }
+        default: THROW_CLDNN_EXCEPTION("Invalid mean variant in input " + inputName);
+            break;
+        }
 
         primitivesToIRLayersMap[preprocessPrimID] = { inputInfo->name() };
         primitivesToIRLayersMap[y_name] = { inputInfo->name() };
@@ -4188,78 +4469,25 @@ void Program::AddInputPrimitive(cldnn::topology& topology, InputInfo::Ptr inputI
         topology.add(cldnn::input_layout(inputName, inputLayout));
         primitivesToIRLayersMap[inputName] = { inputInfo->name() };
 
-        if ((meanChannels > 0) &&
-                (meanChannels != networkInputLayout.size.feature[0])) {
-            THROW_CLDNN_EXCEPTION("Mismatched mean values channels in input " + inputName);
-        }
-
         switch (preProcess.getMeanVariant()) {
-            case NONE:
-            case MEAN_VALUE: {
-                std::vector<float> meanValues;
-                if (meanChannels > 0) {
-                    for (size_t c = 0; c < meanChannels; c++) {
-                        if (fabs(preProcess[c]->stdScale - 1.0f) > 1e-10)
-                            THROW_CLDNN_EXCEPTION("not supporting stdScale yet in input " + inputName);
-                        meanValues.push_back(preProcess[c]->meanValue);
-                    }
-                }
-                topology.add(cldnn::reorder(preprocessPrimID, inputName, networkInputLayout, meanValues));
-                InitProfileInfo(preprocessPrimID, "reorder");
-                primitiveIDs[preprocessPrimID] = preprocessPrimID;
-                profilingIDs.push_back(preprocessPrimID);
-                break;
-            }
-            case MEAN_IMAGE: {
-                IE_ASSERT(meanChannels);
-                // first merge all mean values to a single blob
-                // todo make sure mean blob precision is the same as the input precision
-                auto meanDims = inputDims;
-                // overwrite batches with 1
-                switch (meanDims.size()) {
-                    case 4: meanDims[0] = 1;
-                        break;
-                    default:
-                        THROW_CLDNN_EXCEPTION("Missing batch dimensions in input image");
-                }
-                const TensorDesc desc(Precision(Precision::FP32), meanDims, TensorDesc::getLayoutByDims(meanDims));
-                InferenceEngine::TBlob<float> meanBlob(desc);
-                meanBlob.allocate();
-                auto meanBlobData = meanBlob.data();
-                for (size_t c = 0; c < meanChannels; c++) {
-                    if (fabs(preProcess[c]->stdScale - 1.0f) > 1e-10)
-                        THROW_CLDNN_EXCEPTION("not supporting stdScale yet in input " + inputName);
-                    auto channelMeanBlob = std::dynamic_pointer_cast<TBlob<float>>(preProcess[c]->meanData);
-                    auto channelSize = channelMeanBlob->size();
-                    auto channelBlobData = channelMeanBlob->data();
-                    for (size_t i = 0; i < channelSize; i++) {
-                        meanBlobData[(c * channelSize) + i] = channelBlobData[i];
-                    }
-                }
-                // then create a data primitive for the mean values
-                auto meanBlobPtr = std::make_shared<InferenceEngine::TBlob<float>>(meanBlob);
-
-                // mean values will use external format (sub in the input format before convert to new format)
-                cldnn::tensor meanBlobTensor(networkInputLayout.size);
-                meanBlobTensor.batch[0] = 1;  // mean values have no batches
-                cldnn::layout meanBlobLayout(cldnn::data_types::f32, m_defaultFormat, meanBlobTensor);
-                cldnn::primitive_id meanBlobID = inputName + m_meanValuesTag;
-                meanBlobID = CreatePrimitiveFromBlob(topology,
-                                                     meanBlobID,
-                                                     meanBlobPtr,
-                                                     meanBlobLayout);
-                topology.add(cldnn::reorder(preprocessPrimID,
-                                            inputName,
-                    networkInputLayout,
-                                            meanBlobID));
-                InitProfileInfo(preprocessPrimID, "reorder");
-                primitiveIDs[preprocessPrimID] = preprocessPrimID;
-                profilingIDs.push_back(preprocessPrimID);
-                break;
-            }
-            default: THROW_CLDNN_EXCEPTION("Invalid mean variant in input " + inputName);
-                break;
+        case NONE:
+        case MEAN_VALUE: {
+            topology.add(cldnn::reorder(preprocessPrimID, inputName, networkInputLayout, meanValues));
+            break;
         }
+        case MEAN_IMAGE: {
+            topology.add(cldnn::reorder(preprocessPrimID,
+                inputName,
+                networkInputLayout,
+                meanBlobID));
+            break;
+        }
+        default: THROW_CLDNN_EXCEPTION("Invalid mean variant in input " + inputName);
+            break;
+        }
+        InitProfileInfo(preprocessPrimID, "reorder");
+        primitiveIDs[preprocessPrimID] = preprocessPrimID;
+        profilingIDs.push_back(preprocessPrimID);
     }
 
     primitiveIDs[inputName] = preprocessPrimID;
@@ -4349,7 +4577,7 @@ void Program::AddOutputPrimitive(cldnn::topology& topology, std::string outputNa
 
 void Program::AddSingleValuePrimitive(cldnn::topology& topology, cldnn::primitive_id valPrimID, cldnn::data_types dataType, float value) {
     cldnn::layout primLayout(dataType, m_defaultFormat, { 1, 1, 1, 1 });
-    auto primMem = cldnn::memory::allocate(*m_engine, primLayout);
+    auto primMem = cldnn::memory::allocate(*m_engine, primLayout, 0, false);
     switch (dataType) {
     case cldnn::data_types::f32:
     {
@@ -4454,14 +4682,14 @@ void Program::ValidateGenericLayerBlobs(const InferenceEngine::GenericLayer* lay
     }
 }
 
-void Program::addPrimitiveToProfiler(cldnn::primitive_id id, const InferenceEngine::CNNLayerPtr &layer,
+void Program::AddPrimitiveToProfiler(cldnn::primitive_id id, const InferenceEngine::CNNLayerPtr &layer,
                                      cldnn::primitive_id customOutputId) {
     primitivesToIRLayersMap[id] = { layer->name };
     primitiveIDs[id] = customOutputId.empty() ? id : customOutputId;
     profilingIDs.push_back(id);
 }
 
-void Program::addInnerPrimitiveToProfiler(cldnn::primitive_id id, cldnn::primitive_id parentId,
+void Program::AddInnerPrimitiveToProfiler(cldnn::primitive_id id, cldnn::primitive_id parentId,
                                           const InferenceEngine::CNNLayerPtr &layer) {
     InitProfileInfo(id, layer_type_lower(layer), false, InferenceEngine::InferenceEngineProfileInfo::EXECUTED, parentId);
     primitivesToIRLayersMap[id] = { layer->name };
@@ -4478,7 +4706,7 @@ void Program::InitProfileInfo(const std::string& layerName,
         c = tolower(c);
 
     std::string name = layerName;
-    if (name.find(layerType + ":") != std::string::npos) {
+    if (name.find(layer_type_lower + ":") != std::string::npos) {
         name = layerName.substr(layerName.find(":") + 1, layerName.length());
     }
 

@@ -3,27 +3,18 @@
 //
 
 #pragma once
+
 #include "gna_mem_requests.hpp"
-#include "ie_memcpy.h"
+#include <ie_memcpy.h>
 #include "gna_mem_requests_queue.hpp"
+#include <cstdint>
 #include <memory>
 #include <vector>
 #include <list>
 #include <algorithm>
 #include <functional>
 
-/**
- * Pads memory size to given number of Bytes
- *
- * Please always use this padding macro for consistency
- *
- * @memSize size (in bytes) of memory to be padded
- * @align   number of bytes to pad
- * @return  memory size (int bytes) padded to given value
- */
-#ifndef ALIGN
-# define ALIGN(memSize, pad)   (static_cast<int>(((memSize) + pad -1) / pad) * pad)
-#endif
+#include <gna-api.h>
 
 namespace GNAPluginNS {
 namespace memory {

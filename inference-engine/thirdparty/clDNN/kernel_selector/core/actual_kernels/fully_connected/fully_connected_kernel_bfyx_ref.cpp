@@ -96,7 +96,7 @@ KernelsData FullyConnected_bfyx_Ref::GetKernelsData(const Params& params, const 
             params,
             options,
             DataLayout::bfyx,
-            {WeightsLayout::oiyx, WeightsLayout::oyxi, WeightsLayout::iyxo, WeightsLayout::yxio},
+            WeightsLayout::oiyx,
             DONT_USE_IF_HAVE_SOMETHING_ELSE,
             static_cast<int>(i));
         if (!kd.empty()) {

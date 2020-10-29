@@ -56,8 +56,6 @@ execute_forward() const {
         }
     }
 
-    assert(IMPLICATION(
-            jcp.id != 1, jcp.oh_block == jcp.oh && jcp.ow_block == jcp.ow));
     assert(IMPLICATION(jcp.ow_block != jcp.ow, jcp.oh_block == 1));
 
     const int nb_oh = div_up(jcp.oh, jcp.oh_block);
@@ -70,156 +68,159 @@ execute_forward() const {
 }
 
 template <data_type_t src_type, data_type_t dst_type>
-_gemm_x8s8s32x_convolution_fwd_t<src_type, dst_type>::pp_ker_t::pp_ker_t(
-    const pd_t *pd)
+template <cpu_isa_t isa>
+_gemm_x8s8s32x_convolution_fwd_t<src_type, dst_type>::jit_pp_ker_t<isa>::jit_pp_ker_t(const pd_t *pd)
     : ker_(nullptr)
     , jcp_(pd->jcp_)
     , OC_(pd->jcp_.oc)
     , OS_(pd->jcp_.os)
     , bias_data_type_(data_type::undef)
     , bias_data_type_size_(0)
+    , do_scale_(false)
     , scale_idx_mult_(0)
     , rmode_(round_mode::nearest)
-    , do_bias_(false)
-    , do_relu_(false)
+    , do_bias_(pd->with_bias())
+    , do_eltwise_(false)
     , do_sum_(false)
+    , sum_scale_(0)
     , sum_data_type_(mkldnn_f32)
-    , use_fast_post_processing(false)
-    , with_weights_zp(false)
+    , with_weights_zp_(false)
+    , default_OC_loop_unroll_(4)
+    , max_OC_loop_unroll_(isa == avx512_common ? 12 : 6)
+    , idx_compute_vreg_start_(0)
+    , idx_compute_vreg_max_(isa == avx512_common ? 31 : 15)
+    , compute_vregs_per_iter_(1)
+    , post_ops_(pd->attr()->post_ops_)
 {
     using namespace types;
 
     const auto dst_md = memory_desc_wrapper(pd->dst_pd());
     if (pd->ndims() == 5)
-        dst_os_stride_ = dst_md.blk_off(0, 0, 0, 0, 1);
+        this->dst_os_stride_ = dst_md.blk_off(0, 0, 0, 0, 1);
     else if (pd->ndims() == 4)
-        dst_os_stride_ = dst_md.blk_off(0, 0, 0, 1);
+        this->dst_os_stride_ = dst_md.blk_off(0, 0, 0, 1);
 
-    scale_idx_mult_ = (pd->attr()->output_scales_.mask_ == (1 << 1));
+    if (utils::one_of(isa, avx2, sse42)) {
+        idx_compute_vreg_start_ += 2;   //  Vmm(0), Vmm(1) - for masks
+    }
+    do_scale_ = !pd->attr()->output_scales_.has_default_values();
+    if (do_scale_) {
+        scale_idx_mult_ = (pd->attr()->output_scales_.mask_ == (1 << 1));
+        vreg_scale = Vmm(idx_compute_vreg_start_++);
+    }
     rmode_ = pd->attr()->round_mode_;
+    if (dst_type == data_type::u8 || utils::one_of(isa, avx2, sse42))
+        vreg_zero = Vmm(idx_compute_vreg_start_++);
 
-    auto &post_ops = pd->attr()->post_ops_;
-
-    int entry_idx = -1;
-    for (int idx = 0; idx < post_ops.len_; ++idx) {
-        const auto &e = post_ops.entry_[idx];
-        if (e.is_relu(true, false)) {
-            entry_idx = idx;
-            break;
+    bool only_eltwise_or_sum = true;
+    for (int idx = 0; idx < post_ops_.len_; ++idx) {
+        const auto &e = post_ops_.entry_[idx];
+        if (e.is_eltwise(true)) {
+            do_eltwise_ = true;
+        } else if (e.is_sum()) {
+            do_sum_ = true;
+            sum_scale_ = e.sum.scale;
+            sum_data_type_ = e.sum.data_type;
+        } else {
+            only_eltwise_or_sum = false;
         }
     }
-    do_relu_ = entry_idx >= 0;
+    if (post_ops_.len_ > 0 && !only_eltwise_or_sum) {
+        vreg_d_weights = Vmm(idx_compute_vreg_max_--);
+        vreg_d_bias = Vmm(idx_compute_vreg_max_--);
+    }
 
     do_signed_scaling_ = jcp_.signed_input;
+    if (do_signed_scaling_)
+        vreg_signed_scale = Vmm(idx_compute_vreg_start_++);
 
-    do_sum_ = post_ops.contain(primitive_kind::sum, 0);
-    if (do_sum_) {
-        for (int i = 0; i < post_ops.len_; i++) {
-            auto &post_op = post_ops.entry_[i];
-            if (post_op.is_eltwise()) {
-                sum_data_type_ = post_op.sum.data_type;
-            }
-        }
-    }
-    do_bias_ = pd->with_bias();
-    bias_data_type_ = pd->desc()->bias_desc.data_type;
     if (do_bias_) {
+        bias_data_type_ = pd->desc()->bias_desc.data_type;
         assert(bias_data_type_ != data_type::undef);
         bias_data_type_size_ = data_type_size(bias_data_type_);
+        compute_vregs_per_iter_++;
     }
-    const size_t vlen_start
-            = cpu_isa_traits<avx512_common>::vlen / sizeof(float);
+    if (do_sum_) {
+        vreg_sum_scale = Vmm(idx_compute_vreg_start_++);
+        compute_vregs_per_iter_++;
+    }
 
-    for (size_t i = vlen_start; i > 0; i--) {
-        if (OC_ % i == 0) {
-            vlen_ = i;
-            break;
+    with_weights_zp_ = !pd->attr()->weights_zero_points_.has_default_values();
+    if (with_weights_zp_)
+        vreg_comp = Vmm(idx_compute_vreg_start_++);
+
+    for (int i = 0; i < post_ops_.len_; i++) {
+        auto &post_op = post_ops_.entry_[i];
+        if (post_op.is_eltwise()) {
+            jit_eltwise_injectors_.push_back(new jit_uni_eltwise_injector_f32<isa>(
+                    this, post_op.eltwise, true, eltwise_reserved, mask_post_op_reserved));
+        } else if (post_op.is_depthwise()) {
+            jit_depthwise_injectors_.push_back(new jit_uni_depthwise_injector_f32<isa>(
+                    this, post_op.depthwise.alg, mask_post_op_reserved));
         }
     }
 
-    with_weights_zp = !pd->attr()->weights_zero_points_.has_default_values();
+    int max_unroll = (idx_compute_vreg_max_ - idx_compute_vreg_start_ + 1) / compute_vregs_per_iter_;
+    max_OC_loop_unroll_ = nstl::min(max_OC_loop_unroll_, max_unroll);
+    default_OC_loop_unroll_ = nstl::min(default_OC_loop_unroll_, max_unroll);
 
-    auto is_relu = [&](int idx) {
-        return post_ops.entry_[idx].is_relu(true, false);
-    };
-    switch (post_ops.len_) {
-        case 0: use_fast_post_processing = true; break;
-        case 1: use_fast_post_processing = is_relu(0) || post_ops.contain(mkldnn::impl::primitive_kind::sum, 0); break;
-        case 2: use_fast_post_processing = post_ops.contain(mkldnn::impl::primitive_kind::sum, 0) && is_relu(1); break;
-        default: use_fast_post_processing = false; break;
-    };
+    generate();
+}
 
-    if (mayiuse(avx512_core) && use_fast_post_processing && !with_weights_zp) {
-        generate();
-    } else {
-        // use fallback code for unsupported cases
-        if (!use_fast_post_processing) {
-            for (int i = 0; i < post_ops.len_; i++) {
-                auto &post_op = post_ops.entry_[i];
-                if (post_op.is_eltwise()) {
-                    eltwise_injectors.push_back(new ref_eltwise_scalar_fwd_t(
-                            post_op.eltwise.alg,
-                            post_op.eltwise.alpha,
-                            post_op.eltwise.beta
-                    ));
-                } else if (post_op.is_depthwise()) {
-                    depthwise_injectors.push_back(new ref_depthwise_scalar_fwd_t(
-                            post_op.depthwise.alg
-                    ));
-                }
-            }
+template <data_type_t src_type, data_type_t dst_type>
+_gemm_x8s8s32x_convolution_fwd_t<src_type, dst_type>::ref_pp_ker_t::ref_pp_ker_t(const pd_t *pd)
+        : ker_(nullptr)
+        , jcp_(pd->jcp_)
+        , OC_(pd->jcp_.oc)
+        , bias_data_type_(data_type::undef)
+        , do_scale_(false)
+        , scale_idx_mult_(0)
+        , rmode_(round_mode::nearest)
+        , do_bias_(pd->with_bias())
+        , with_weights_zp_(false)
+        , post_ops_(pd->attr()->post_ops_)
+{
+    using namespace types;
+
+    const auto dst_md = memory_desc_wrapper(pd->dst_pd());
+    if (pd->ndims() == 5)
+        this->dst_os_stride_ = dst_md.blk_off(0, 0, 0, 0, 1);
+    else if (pd->ndims() == 4)
+        this->dst_os_stride_ = dst_md.blk_off(0, 0, 0, 1);
+
+    do_scale_ = !pd->attr()->output_scales_.has_default_values();
+    if (do_scale_) {
+        scale_idx_mult_ = (pd->attr()->output_scales_.mask_ == (1 << 1));
+    }
+    rmode_ = pd->attr()->round_mode_;
+
+    if (do_bias_) {
+        bias_data_type_ = pd->desc()->bias_desc.data_type;
+        assert(bias_data_type_ != data_type::undef);
+    }
+
+    with_weights_zp_ = !pd->attr()->weights_zero_points_.has_default_values();
+
+    // use fallback code for unsupported cases
+    for (int i = 0; i < post_ops_.len_; i++) {
+        auto &post_op = post_ops_.entry_[i];
+        if (post_op.is_eltwise()) {
+            ref_eltwise_injectors_.push_back(new ref_eltwise_scalar_fwd_t(
+                    post_op.eltwise.alg, post_op.eltwise.alpha, post_op.eltwise.beta));
+        } else if (post_op.is_depthwise()) {
+            ref_depthwise_injectors_.push_back(new ref_depthwise_scalar_fwd_t(
+                    post_op.depthwise.alg));
         }
     }
 }
 
 template <data_type_t src_type, data_type_t dst_type>
-void _gemm_x8s8s32x_convolution_fwd_t<src_type, dst_type>::pp_ker_t::generate()
+template <cpu_isa_t isa>
+void _gemm_x8s8s32x_convolution_fwd_t<src_type, dst_type>::jit_pp_ker_t<isa>::generate()
 {
     using namespace Xbyak;
     using namespace utils;
     using namespace round_mode;
-
-    // TODO: clean-up
-    Reg64 reg_param = abi_param1;
-    Reg64 reg_dst = rdx;
-    Reg64 reg_acc = rax;
-    Reg64 reg_bias = rbx;
-    Reg64 reg_scales = rsi;
-
-    Reg64 reg_len = r8;
-    Reg64 reg_tmp = rcx; // intentional for shifting purposes
-    Reg64 reg_oc_offset = r9;
-    Reg64 reg_rem_mask_short = r10;
-    Reg64 reg_rem_mask_vlen = r11;
-    Opmask kreg_rem_mask_short = k1;
-    Opmask kreg_rem_mask_vlen = k3;
-    Opmask kreg_relu_cmp = k2;
-
-    const size_t vlen = vlen_;
-
-    Zmm vreg_zero = Zmm(0);
-    Zmm vreg_scale = Zmm(1);
-    Zmm vreg_nslope = Zmm(2);
-    Zmm vreg_sum_scale = Zmm(3);
-    Zmm vreg_signed_scale = Zmm(4);
-
-    size_t def_unroll = 4;
-    size_t max_unroll = 12;
-    size_t zmm_step = 2;
-    if (do_sum_) {
-        max_unroll = 8;
-        zmm_step = 3;
-    }
-
-    auto vreg_dst = [&](int idx) {
-        return Zmm(5 + idx * zmm_step + 0);
-    };
-    auto vreg_bias = [&](int idx) {
-        return Zmm(5 + idx * zmm_step + 1);
-    };
-    auto vreg_prev_dst = [&](int idx) {
-        return Zmm(5 + idx * zmm_step + 2);
-    };
 
     preamble();
 
@@ -230,123 +231,309 @@ void _gemm_x8s8s32x_convolution_fwd_t<src_type, dst_type>::pp_ker_t::generate()
     mov(reg_scales, ptr[reg_param + PARAM_OFF(scales)]);
     mov(reg_len, ptr[reg_param + PARAM_OFF(len)]);
     mov(reg_oc_offset, ptr[reg_param + PARAM_OFF(oc_offset)]);
-    vbroadcastss(vreg_nslope, ptr[reg_param + PARAM_OFF(nslope)]);
-    vbroadcastss(vreg_sum_scale, ptr[reg_param + PARAM_OFF(sum_scale)]);
-    vbroadcastss(vreg_signed_scale, ptr[reg_param + PARAM_OFF(signed_scale)]);
-    if (scale_idx_mult_ == 0)
-        vbroadcastss(vreg_scale, dword[reg_scales]);
-
+    mov(reg_g_offset, ptr[reg_param + PARAM_OFF(g_offset)]);
+    if (do_sum_)
+        uni_vbroadcastss(vreg_sum_scale, ptr[reg_param + PARAM_OFF(sum_scale)]);
+    if (do_signed_scaling_)
+        uni_vbroadcastss(vreg_signed_scale, ptr[reg_param + PARAM_OFF(signed_scale)]);
+    if (do_scale_ && scale_idx_mult_ == 0)
+        uni_vbroadcastss(vreg_scale, dword[reg_scales]);
+    if (with_weights_zp_) {
+        mov(reg_weights_zp, ptr[reg_param + PARAM_OFF(weights_zp)]);
+        mov(reg_weights_zp_compensation, ptr[reg_param + PARAM_OFF(weights_zp_compensation)]);
+    }
 #undef PARAM_OFF
 
-    mov(reg_rem_mask_vlen, 1);
-    shl(reg_rem_mask_vlen, vlen);
-    sub(reg_rem_mask_vlen, 1);
-    kmovq(kreg_rem_mask_vlen, reg_rem_mask_vlen);
+    if (do_eltwise_ || dst_type == data_type::u8 || utils::one_of(isa, avx2, sse42))
+        uni_vpxor(vreg_zero, vreg_zero, vreg_zero);
 
-    if (do_relu_ || dst_type == data_type::u8)
-        vxorps(vreg_zero, vreg_zero, vreg_zero);
+    if (utils::one_of(isa, avx2, sse42))
+        mov(reg_table, l_table);
 
-    // Load accumulated value, convert to float, apply sum (if any),
-    // bias (if any), scaling, and relu (if any);
+    auto apply_post_ops = [&](size_t offset, int idx) {
+        int eltwise_inj_idx = 0;
+        int depthwise_inj_idx = 0;
+        if (with_weights_zp_) {
+            push(reg_weights_zp);
+            push(reg_weights_zp_compensation);
+        }
+        for (int i = 0; i < post_ops_.len_; i++) {
+            auto& post_op = post_ops_.entry_[i];
+            if (post_op.is_sum()) {
+                auto dst_addr = ptr[reg_dst + offset * sizeof(dst_data_t)];
+                auto vreg_prev_dst_ = vreg_prev_dst(idx);
+                switch (sum_data_type_) {
+                case data_type::f32:
+                case data_type::s32: uni_vmovups(vreg_prev_dst_, dst_addr); break;
+                case data_type::s8: uni_vpmovsxbd(vreg_prev_dst_, dst_addr); break;
+                case data_type::u8: uni_vpmovzxbd(vreg_prev_dst_, dst_addr); break;
+                default: assert(!"unsupported data type");
+                }
+                if (sum_data_type_ != data_type::f32)
+                    uni_vcvtdq2ps(vreg_prev_dst(idx), vreg_prev_dst(idx));
+
+                uni_vfmadd231ps(vreg_dst(idx), vreg_prev_dst(idx), vreg_sum_scale);
+            } else if (post_op.is_eltwise()) {
+                jit_eltwise_injectors_[eltwise_inj_idx]->compute_vector_range(vreg_dst(idx).getIdx(), vreg_dst(idx).getIdx() + 1);
+                eltwise_inj_idx++;
+            } else if (post_op.is_depthwise()) {
+                add(reg_oc_offset, reg_g_offset);
+                mov(reg_d_weights, reinterpret_cast<size_t>(post_op.depthwise.weights_data + offset));
+                mov(reg_d_bias, reinterpret_cast<size_t>(post_op.depthwise.biases_data + offset));
+                lea(reg_d_weights, ptr[reg_d_weights + reg_oc_offset * sizeof(float)]);
+                lea(reg_d_bias, ptr[reg_d_bias + reg_oc_offset * sizeof(float)]);
+                jit_depthwise_injectors_[depthwise_inj_idx]->compute_vector_range(vreg_dst(idx).getIdx(), vreg_dst(idx).getIdx() + 1, reg_d_weights, reg_d_bias);
+                depthwise_inj_idx++;
+                sub(reg_oc_offset, reg_g_offset);
+            } else if (post_op.is_quantization()) {
+                add(reg_oc_offset, reg_g_offset);
+                bool do_dequantization = post_op.quantization.alg == alg_kind::quantization_quantize_dequantize;
+                bool do_rounding = do_dequantization || dst_type == mkldnn_f32 || i != post_ops_.len_ - 1;
+
+                if (post_op.quantization.crop_low_data->count_ != 1) {
+                    mov(reg_d_weights, reinterpret_cast<size_t>(post_op.quantization.crop_low_data->shifts_ + offset));
+                    uni_vmovups(vreg_d_weights, ptr[reg_d_weights + reg_oc_offset * sizeof(float)]);
+                } else {
+                    mov(reg_d_weights, reinterpret_cast<size_t>(post_op.quantization.crop_low_data->shifts_));
+                    uni_vbroadcastss(vreg_d_weights, ptr[reg_d_weights]);
+                }
+
+                if (post_op.quantization.crop_high_data->count_ != 1) {
+                    mov(reg_d_bias, reinterpret_cast<size_t>(post_op.quantization.crop_high_data->shifts_ + offset));
+                    uni_vmovups(vreg_d_bias, ptr[reg_d_bias + reg_oc_offset * sizeof(float)]);
+                } else {
+                    mov(reg_d_bias, reinterpret_cast<size_t>(post_op.quantization.crop_high_data->shifts_));
+                    uni_vbroadcastss(vreg_d_bias, ptr[reg_d_bias]);
+                }
+
+                uni_vmaxps(vreg_dst(idx), vreg_dst(idx), vreg_d_weights);
+                uni_vminps(vreg_dst(idx), vreg_dst(idx), vreg_d_bias);
+
+                if (post_op.quantization.input_scale_data->count_ != 1) {
+                    mov(reg_d_weights, reinterpret_cast<size_t>(post_op.quantization.input_scale_data->scales_ + offset));
+                    uni_vmovups(vreg_d_weights, ptr[reg_d_weights + reg_oc_offset * sizeof(float)]);
+                } else {
+                    mov(reg_d_weights, reinterpret_cast<size_t>(post_op.quantization.input_scale_data->scales_));
+                    uni_vbroadcastss(vreg_d_weights, ptr[reg_d_weights]);
+                }
+
+                if (post_op.quantization.input_shift_data->count_ != 1) {
+                    mov(reg_d_bias, reinterpret_cast<size_t>(post_op.quantization.input_shift_data->shifts_ + offset));
+                    uni_vmovups(vreg_d_bias, ptr[reg_d_bias + reg_oc_offset * sizeof(float)]);
+                } else {
+                    mov(reg_d_bias, reinterpret_cast<size_t>(post_op.quantization.input_shift_data->shifts_));
+                    uni_vbroadcastss(vreg_d_bias, ptr[reg_d_bias]);
+                }
+
+                uni_vfmadd213ps(vreg_dst(idx), vreg_d_weights, vreg_d_bias);
+
+                if (do_rounding)
+                    uni_vroundps(vreg_dst(idx), vreg_dst(idx), 0);
+
+                if (do_dequantization) {
+                    if (post_op.quantization.output_scale_data->count_ != 1) {
+                        mov(reg_d_weights, reinterpret_cast<size_t>(post_op.quantization.output_scale_data->scales_ + offset));
+                        uni_vmovups(vreg_d_weights, ptr[reg_d_weights + reg_oc_offset * sizeof(float)]);
+                    } else {
+                        mov(reg_d_weights, reinterpret_cast<size_t>(post_op.quantization.output_scale_data->scales_));
+                        uni_vbroadcastss(vreg_d_weights, ptr[reg_d_weights]);
+                    }
+
+                    if (post_op.quantization.output_shift_data->count_ != 1) {
+                        mov(reg_d_bias, reinterpret_cast<size_t>(post_op.quantization.output_shift_data->shifts_ + offset));
+                        uni_vmovups(vreg_d_bias, ptr[reg_d_bias + reg_oc_offset * sizeof(float)]);
+                    } else {
+                        mov(reg_d_bias, reinterpret_cast<size_t>(post_op.quantization.output_shift_data->shifts_));
+                        uni_vbroadcastss(vreg_d_bias, ptr[reg_d_bias]);
+                    }
+
+                    uni_vfmadd213ps(vreg_dst(idx), vreg_d_weights, vreg_d_bias);
+                }
+                sub(reg_oc_offset, reg_g_offset);
+            }
+        }
+        if (with_weights_zp_) {
+            pop(reg_weights_zp_compensation);
+            pop(reg_weights_zp);
+        }
+    };
+
+    // Load accumulated value, convert to float, apply weights_zp (if any),
+    // bias (if any), scaling, and simple operations (if any);
     // then convert to destination type and store
     auto compute = [&](size_t offset, int idx, bool apply_mask) {
         auto acc_addr = ptr[reg_acc + offset * sizeof(acc_data_t)];
 
-        if (scale_idx_mult_ > 0) {
+        if (do_scale_ && scale_idx_mult_ > 0) {
             assert(scale_idx_mult_ == 1);
             auto scale_addr = ptr[reg_scales + offset * sizeof(float)];
             auto vreg_scale_ = vreg_scale;
-            if (apply_mask)
-                vreg_scale_ = vreg_scale_ | kreg_rem_mask_short;
-            else
-                vreg_scale_ = vreg_scale_ | kreg_rem_mask_vlen;
-            vmovups(vreg_scale_, scale_addr);
+            if (isa == avx512_common) {
+                if (apply_mask)
+                    vreg_scale_ = vreg_scale_ | kreg_rem_mask_short;
+                uni_vmovups(vreg_scale_, scale_addr);
+            } else {
+                if (apply_mask)
+                    if (isa != sse42) {
+                        uni_vblendvps(vreg_scale, vreg_zero, scale_addr, vreg_mask);
+                    } else {
+                        uni_vmovups(vreg_scale, vreg_zero);
+                        uni_vblendvps(vreg_scale, vreg_scale, scale_addr, vreg_mask);
+                    }
+                else
+                    uni_vmovups(vreg_scale, scale_addr);
+            }
         }
 
         auto vreg_dst_ = vreg_dst(idx);
-        if (apply_mask)
-            vreg_dst_ = vreg_dst_ | kreg_rem_mask_short;
-        else
-            vreg_dst_ = vreg_dst_ | kreg_rem_mask_vlen;
-        vcvtdq2ps(vreg_dst_, acc_addr);
+        if (isa == avx512_common) {
+            if (apply_mask)
+                vreg_dst_ = vreg_dst_ | kreg_rem_mask_short;
+            uni_vcvtdq2ps(vreg_dst_, acc_addr);
+        } else {
+            if (apply_mask) {
+                if (isa != sse42) {
+                    uni_vblendvps(vreg_dst_, vreg_zero, acc_addr, vreg_mask);
+                } else {
+                    uni_vmovups(vreg_dst_, acc_addr);
+                }
+                uni_vcvtdq2ps(vreg_dst_, vreg_dst_);
+            } else {
+                if (isa == sse42) {
+                    uni_vmovups(vreg_dst_, acc_addr);
+                    uni_vcvtdq2ps(vreg_dst_, vreg_dst_);
+                } else {
+                    uni_vcvtdq2ps(vreg_dst_, acc_addr);
+                }
+            }
+        }
 
         if (do_signed_scaling_)
-            vmulps(vreg_dst(idx), vreg_dst(idx), vreg_signed_scale);
+            uni_vmulps(vreg_dst(idx), vreg_dst(idx), vreg_signed_scale);
+
+        if (with_weights_zp_) {
+            uni_vmovups(vreg_d_weights, ptr[reg_weights_zp + offset * sizeof(float)]);
+            uni_vpbroadcastd(vreg_comp, ptr[reg_weights_zp_compensation]);
+
+            uni_vcvtdq2ps(vreg_comp, vreg_comp);
+            uni_vmulps(vreg_comp, vreg_comp, vreg_d_weights);
+            uni_vsubps(vreg_dst(idx), vreg_dst(idx), vreg_comp);
+        }
 
         if (do_bias_) {
             auto bias_addr = ptr[reg_bias + offset * bias_data_type_size_];
             auto vreg_bias_ = vreg_bias(idx);
-            if (apply_mask)
+            if (isa == avx512_common && apply_mask)
                 vreg_bias_ = vreg_bias_ | kreg_rem_mask_short;
-            else
-                vreg_bias_ = vreg_bias_ | kreg_rem_mask_vlen;
 
             switch (bias_data_type_) {
             case data_type::s8:
-                vpmovsxbd(vreg_bias_, bias_addr);
+                uni_vpmovsxbd(vreg_bias_, bias_addr);
                 break;
             case data_type::u8:
-                vpmovzxbd(vreg_bias_, bias_addr);
+                uni_vpmovzxbd(vreg_bias_, bias_addr);
                 break;
             case data_type::s32:
             case data_type::f32:
-                vmovups(vreg_bias_, bias_addr);
+                uni_vmovups(vreg_bias_, bias_addr);
                 break;
             default: assert(!"unimplemented");
             }
             if (bias_data_type_ != data_type::f32)
-                vcvtdq2ps(vreg_bias(idx), vreg_bias(idx));
-            vaddps(vreg_dst(idx), vreg_dst(idx), vreg_bias(idx));
+                uni_vcvtdq2ps(vreg_bias(idx), vreg_bias(idx));
+            uni_vaddps(vreg_dst(idx), vreg_dst(idx), vreg_bias(idx));
         }
 
-        vmulps(vreg_dst(idx), vreg_dst(idx), vreg_scale);
+        if (do_scale_)
+            uni_vmulps(vreg_dst(idx), vreg_dst(idx), vreg_scale);
 
-        auto dst_addr = ptr[reg_dst + offset * sizeof(dst_data_t)];
-
-        if (do_sum_)
-        {
-            auto vreg_prev_dst_ = vreg_prev_dst(idx);
-            if (apply_mask)
-                vreg_prev_dst_ = vreg_prev_dst_ | kreg_rem_mask_short;
-            else
-                vreg_prev_dst_ = vreg_prev_dst_ | kreg_rem_mask_vlen;
-
-            switch (sum_data_type_) {
-            case data_type::f32:
-            case data_type::s32: vmovups(vreg_prev_dst_, dst_addr); break;
-            case data_type::s8: vpmovsxbd(vreg_prev_dst_, dst_addr); break;
-            case data_type::u8: vpmovzxbd(vreg_prev_dst_, dst_addr); break;
-            default: assert(!"unsupported data type");
-            }
-            if (sum_data_type_ != data_type::f32)
-                vcvtdq2ps(vreg_prev_dst(idx), vreg_prev_dst(idx));
-
-            vfmadd231ps(vreg_dst(idx), vreg_prev_dst(idx), vreg_sum_scale);
-        }
-
-        if (do_relu_) {
-            vcmpps(kreg_relu_cmp, vreg_dst(idx), vreg_zero, _cmp_lt_os);
-            vmulps(vreg_dst(idx) | kreg_relu_cmp, vreg_dst(idx), vreg_nslope);
-        }
+        apply_post_ops(offset, idx);
 
         if (dst_type != data_type::f32) {
-            auto rmode_control = (rmode_ == nearest ? T_rn_sae : T_rd_sae);
-            vcvtps2dq(vreg_dst(idx) | rmode_control, vreg_dst(idx));
+            if (isa == avx512_common) {
+                auto rmode_control = (rmode_ == nearest ? T_rn_sae : T_rd_sae);
+                vcvtps2dq(vreg_dst(idx) | rmode_control, vreg_dst(idx));
+            } else {
+                if (rmode_ == nearest) {
+                    uni_vcvtps2dq(vreg_dst(idx), vreg_dst(idx));
+                } else if (rmode_ == down) {
+                    uni_vroundps(vreg_dst(idx), vreg_dst(idx), 1);
+                    uni_vcvtps2dq(vreg_dst(idx), vreg_dst(idx));
+                } else {
+                    assert(!"unimplemented");
+                }
+            }
         }
 
         if (dst_type == data_type::u8)
-            vpmaxsd(vreg_dst(idx), vreg_dst(idx), vreg_zero);
+            uni_vpmaxsd(vreg_dst(idx), vreg_dst(idx), vreg_zero);
 
+        auto dst_addr = ptr[reg_dst + offset * sizeof(dst_data_t)];
         switch (dst_type) {
         case data_type::s8:
-            vpmovsdb(dst_addr, vreg_dst_);
+            if (isa == avx512_common) {
+                vpmovsdb(dst_addr, vreg_dst_);
+            } else {
+                uni_vpackssdw(vreg_dst_, vreg_dst_, vreg_dst_);
+                if (isa != sse42)
+                    vpermq(ymm_dst(idx), ymm_dst(idx), 0x08);
+                uni_vpacksswb(vreg_dst_, vreg_dst_, vreg_dst_);
+                if (isa != sse42) {
+                    if (apply_mask) {
+                        vmaskmovps(dst_addr, vreg_store_mask, vreg_dst_);
+                    } else {
+                        vmovq(dst_addr, xmm_dst(idx));
+                    }
+                } else {
+                    if (apply_mask) {
+                        lea(reg_ptr_maskmovdqu_dst, dst_addr);
+                        maskmovdqu(vreg_dst_, vreg_store_mask);
+                    } else {
+                        movd(dst_addr, xmm_dst(idx));
+                    }
+                }
+            }
             break;
         case data_type::u8:
-            vpmovusdb(dst_addr, vreg_dst_);
+            if (isa == avx512_common) {
+                vpmovusdb(dst_addr, vreg_dst_);
+            } else {
+                uni_vpackusdw(vreg_dst_, vreg_dst_, vreg_dst_);
+                if (isa != sse42)
+                    vpermq(ymm_dst(idx), ymm_dst(idx), 0x08);
+                uni_vpackuswb(vreg_dst_, vreg_dst_, vreg_dst_);
+                if (isa != sse42) {
+                    if (apply_mask) {
+                        vmaskmovps(dst_addr, vreg_store_mask, vreg_dst_);
+                    } else {
+                        vmovq(dst_addr, xmm_dst(idx));
+                    }
+                } else {
+                    if (apply_mask) {
+                        lea(reg_ptr_maskmovdqu_dst, dst_addr);
+                        maskmovdqu(vreg_dst_, vreg_store_mask);
+                    } else {
+                        movd(dst_addr, xmm_dst(idx));
+                    }
+                }
+            }
             break;
         case data_type::f32:
         case data_type::s32:
-            vmovups(dst_addr, vreg_dst_);
+            if (isa == avx512_common) {
+                uni_vmovups(dst_addr, vreg_dst_);
+            } else {
+                if (apply_mask) {
+                    if (isa != sse42) {
+                        vmaskmovps(dst_addr, vreg_mask, vreg_dst_);
+                    } else {
+                        lea(reg_ptr_maskmovdqu_dst, dst_addr);
+                        maskmovdqu(vreg_dst_, vreg_mask);
+                    }
+                } else {
+                    uni_vmovups(dst_addr, vreg_dst_);
+                }
+            }
             break;
         default: assert(!"unimplemented");
         }
@@ -362,6 +549,8 @@ void _gemm_x8s8s32x_convolution_fwd_t<src_type, dst_type>::pp_ker_t::generate()
         }
         if (do_bias_)
             add(reg_bias, offset * bias_data_type_size_);
+        if (with_weights_zp_)
+            add(reg_weights_zp, offset * sizeof(float));
     };
 
     // Advance all pointers by a value stored in a register
@@ -374,18 +563,22 @@ void _gemm_x8s8s32x_convolution_fwd_t<src_type, dst_type>::pp_ker_t::generate()
         }
         if (do_bias_)
             lea(reg_bias, ptr[reg_bias + offset * bias_data_type_size_]);
+        if (with_weights_zp_)
+            lea(reg_weights_zp, ptr[reg_weights_zp + offset * sizeof(float)]);
     };
 
     // Rewind pointers that point to data that is indexed by output channel
     // (bias or per-oc scaling factors)
     auto rewind_ptrs = [&]() {
+        if (with_weights_zp_)
+            sub(reg_weights_zp, OC_ * sizeof(float));
         if (do_bias_)
             sub(reg_bias, OC_ * bias_data_type_size_);
         if (scale_idx_mult_) {
             assert(scale_idx_mult_ == 1);
             sub(reg_scales, OC_ * sizeof(float));
         }
-        add(reg_dst, (dst_os_stride_ - OC_) * sizeof(dst_data_t));
+        add(reg_dst, (this->dst_os_stride_ - OC_) * sizeof(dst_data_t));
     };
 
     //                    <--------- OC --------------->
@@ -399,6 +592,8 @@ void _gemm_x8s8s32x_convolution_fwd_t<src_type, dst_type>::pp_ker_t::generate()
     //    .               +--------------+-------------+                      .
     // |  .               | Epilogue loop|not accessed :                      .
     // v  ................+--------------+.............+.......................
+
+    bool do_post_ops = post_ops_.len_ != 0;
 
     Label prologue_end;
     cmp(reg_oc_offset, 0);
@@ -414,28 +609,43 @@ void _gemm_x8s8s32x_convolution_fwd_t<src_type, dst_type>::pp_ker_t::generate()
 
         Label prologue_loop, prologue_loop_tail, prologue_loop_end;
         cmp(reg_tmp, vlen);
-        jle(prologue_loop_tail, T_NEAR);
+        jl(prologue_loop_tail, T_NEAR);
         L(prologue_loop); {
             compute(0, 0, false);
             advance_ptrs_imm(vlen);
+            if (do_post_ops)
+                add(reg_oc_offset, vlen);
             sub(reg_tmp, vlen);
             cmp(reg_tmp, vlen);
             jge(prologue_loop, T_NEAR);
         }
 
         L(prologue_loop_tail);
-        mov(reg_rem_mask_short, 1);
-        // cl == reg_tmp because reg_tmp <= vlen here
-        shl(reg_rem_mask_short, cl);
-        sub(reg_rem_mask_short, 1);
-        jz(prologue_loop_end, T_NEAR);
+        if (isa == avx512_common) {
+            mov(reg_rem_mask_short, 1);
+            // cl == reg_tmp because reg_tmp <= vlen here
+            shl(reg_rem_mask_short, cl);
+            sub(reg_rem_mask_short, 1);
+            jz(prologue_loop_end, T_NEAR);
 
-        kmovq(kreg_rem_mask_short, reg_rem_mask_short);
+            kmovq(kreg_rem_mask_short, reg_rem_mask_short);
+        } else {
+            mov(reg_shift_table, vlen);
+            sub(reg_shift_table, reg_tmp);
+            uni_vmovups(vreg_mask, ptr[reg_table + reg_shift_table * sizeof(float)]);
+            if (dst_type == data_type::s8 || dst_type == data_type::u8) {
+                mov(reg_shift_table, vlen * sizeof(float));
+                sub(reg_shift_table, reg_tmp);
+                uni_vmovups(vreg_store_mask, ptr[reg_table + reg_shift_table]);
+            }
+        }
         compute(0, 0, true);
         advance_ptrs_reg(reg_tmp);
 
         L(prologue_loop_end);
         rewind_ptrs();
+        if (with_weights_zp_)
+            add(reg_weights_zp_compensation, sizeof(int32_t));
     }
     L(prologue_end);
 
@@ -443,29 +653,42 @@ void _gemm_x8s8s32x_convolution_fwd_t<src_type, dst_type>::pp_ker_t::generate()
     Label main_loop_end;
     {
         cmp(reg_len, OC_);
-        jle(main_loop_end, T_NEAR);
+        jl(main_loop_end, T_NEAR);
 
-        Label main_loop;
-        L(main_loop); {
-            size_t OC_loop, OC_tail;
-            if (OC_ < max_unroll * vlen) {
-                // Fully unroll small loops
-                OC_loop = 0;
-                OC_tail = OC_;
-            }
-            else {
-                OC_loop = vlen * def_unroll;
-                OC_tail = OC_ % OC_loop;
-            }
+        size_t OC_loop, OC_tail;
+        if (OC_ < max_OC_loop_unroll_ * vlen) {
+            // Fully unroll small loops
+            OC_loop = 0;
+            OC_tail = OC_;
+        }
+        else {
+            OC_loop = vlen * default_OC_loop_unroll_;
+            OC_tail = OC_ % OC_loop;
+        }
 
-            assert(!!OC_loop || !!OC_tail);
+        assert(!!OC_loop || !!OC_tail);
 
-            if (OC_tail % vlen) {
-                int vlen_tail = OC_tail % vlen;
+        if (OC_tail % vlen) {
+            int vlen_tail = OC_tail % vlen;
+            if (isa == avx512_common) {
                 unsigned tail_mask = (1 << vlen_tail) - 1;
                 mov(reg_tmp, tail_mask);
                 kmovq(kreg_rem_mask_short, reg_tmp);
+            } else {
+                mov(reg_shift_table, vlen - vlen_tail);
+                uni_vmovups(vreg_mask, ptr[reg_table + reg_shift_table * sizeof(float)]);
+                if (dst_type == data_type::s8 || dst_type == data_type::u8) {
+                    mov(reg_shift_table, vlen * sizeof(float));
+                    sub(reg_shift_table, vlen_tail);
+                    uni_vmovups(vreg_store_mask, ptr[reg_table + reg_shift_table]);
+                }
             }
+        }
+
+        Label main_loop;
+        L(main_loop); {
+            if (do_post_ops)
+                mov(reg_oc_offset, 0);
 
             if (OC_loop) {
                 mov(reg_tmp, rnd_dn(OC_, OC_loop));
@@ -474,6 +697,8 @@ void _gemm_x8s8s32x_convolution_fwd_t<src_type, dst_type>::pp_ker_t::generate()
                     for (size_t offset = 0; offset < OC_loop; offset += vlen)
                         compute(offset, offset / vlen, false);
                     advance_ptrs_imm(OC_loop);
+                    if (do_post_ops)
+                        add(reg_oc_offset, OC_loop);
                     sub(reg_tmp, OC_loop);
                     jnz(oc_loop);
                 }
@@ -488,6 +713,8 @@ void _gemm_x8s8s32x_convolution_fwd_t<src_type, dst_type>::pp_ker_t::generate()
             }
 
             rewind_ptrs();
+            if (with_weights_zp_)
+                add(reg_weights_zp_compensation, sizeof(int32_t));
             sub(reg_len, OC_);
             cmp(reg_len, OC_);
             jge(main_loop, T_NEAR);
@@ -502,23 +729,38 @@ void _gemm_x8s8s32x_convolution_fwd_t<src_type, dst_type>::pp_ker_t::generate()
         je(epilogue_end, T_NEAR);
 
         Label epilogue_loop, epilogue_loop_tail;
+        if (do_post_ops)
+            mov(reg_oc_offset, 0);
         cmp(reg_len, vlen);
-        jle(epilogue_loop_tail, T_NEAR);
+        jl(epilogue_loop_tail, T_NEAR);
         L(epilogue_loop); {
             compute(0, 0, false);
             sub(reg_len, vlen);
             advance_ptrs_imm(vlen);
+            if (do_post_ops)
+                add(reg_oc_offset, vlen);
             cmp(reg_len, vlen);
             jge(epilogue_loop, T_NEAR);
         }
 
         L(epilogue_loop_tail);
         mov(reg_tmp, reg_len); // reg_tmp is rcx, and we need cl for the shift
-        mov(reg_rem_mask_short, 1);
-        shl(reg_rem_mask_short, cl); // reg_tmp == rcx and reg_tail < vlen
-        sub(reg_rem_mask_short, 1);
-        jz(epilogue_end, T_NEAR);
-        kmovq(kreg_rem_mask_short, reg_rem_mask_short);
+        if (isa == avx512_common) {
+            mov(reg_rem_mask_short, 1);
+            shl(reg_rem_mask_short, cl); // reg_tmp == rcx and reg_tail < vlen
+            sub(reg_rem_mask_short, 1);
+            jz(epilogue_end, T_NEAR);
+            kmovq(kreg_rem_mask_short, reg_rem_mask_short);
+        } else {
+            mov(reg_shift_table, vlen);
+            sub(reg_shift_table, reg_tmp);
+            uni_vmovups(vreg_mask, ptr[reg_table + reg_shift_table * sizeof(float)]);
+            if (dst_type == data_type::s8 || dst_type == data_type::u8) {
+                mov(reg_shift_table, vlen * sizeof(float));
+                sub(reg_shift_table, reg_tmp);
+                uni_vmovups(vreg_store_mask, ptr[reg_table + reg_shift_table]);
+            }
+        }
         compute(0, 0, true);
     }
 
@@ -526,182 +768,206 @@ void _gemm_x8s8s32x_convolution_fwd_t<src_type, dst_type>::pp_ker_t::generate()
 
     postamble();
 
+    for (auto& inj : jit_eltwise_injectors_)
+        inj->prepare_table();
+
+    if (utils::one_of(isa, avx2, sse42)) {
+        align(64);
+        L(l_table);
+        for (size_t i = 0; i < vlen; i++) dd(0xFFFFFFFF);
+        for (size_t i = 0; i < vlen; i++) dd(0x00000000);
+    }
+
     ker_ = getCode<decltype(ker_)>();
 }
 
 template <data_type_t src_type, data_type_t dst_type>
-void _gemm_x8s8s32x_convolution_fwd_t<src_type, dst_type>::pp_ker_t::operator ()
-    (dst_data_t *dst, acc_data_t *acc, const char *bias,
-        const float *scales, float nslope, float sum_scale, float signed_scale,
-        int g, size_t start, size_t end, const post_ops_t& p, float* weights_zp, int32_t* weights_zp_compensation)
+template <cpu_isa_t isa>
+void _gemm_x8s8s32x_convolution_fwd_t<src_type, dst_type>::jit_pp_ker_t<isa>::operator ()
+    (dst_data_t *dst, acc_data_t *acc, const char *bias, const float *scales, float signed_scale,
+     int g, size_t start, size_t end, float* weights_zp, int32_t* weights_zp_compensation)
 {
     using math::get_bias;
 
     if (end <= start)
         return;
 
-    if (ker_) {
-        // JIT
-        ker_args args;
-        size_t oc_offset = start % OC_;
-        size_t os_offset = start / OC_;
-        args.acc = acc + start;
-        args.dst = dst + os_offset * dst_os_stride_ + oc_offset;
-        args.bias = bias + (g * jcp_.oc + oc_offset) * bias_data_type_size_;
-        args.scales = scales + scale_idx_mult_ * (g * jcp_.oc + oc_offset);
-        args.nslope = nslope;
-        args.sum_scale = sum_scale;
-        args.signed_scale = signed_scale;
-        args.len = end - start;
-        args.oc_offset = oc_offset;
-        ker_(&args);
-    }
-    else {
-        const size_t first_oc = start % OC_;
-        const size_t last_oc = (end - 1) % OC_;
-        const size_t first_os = start / OC_;
-        const size_t last_os = (end - 1) / OC_;
-        // Fallback
-        if (use_fast_post_processing) {
-            for (size_t os = first_os; os <= last_os; os++) {
-                const size_t start_oc = (os == first_os) ? first_oc : 0;
-                const size_t end_oc = (os == last_os) ? last_oc : OC_ - 1;
-                for (size_t oc = start_oc; oc <= end_oc; oc++) {
-                    const size_t acc_off = os * jcp_.oc + oc;
-                    const size_t dst_off = os * dst_os_stride_ + oc;
+    // JIT
+    ker_args args;
+    size_t oc_offset = start % OC_;
+    size_t os_offset = start / OC_;
+    args.acc = acc + start;
+    args.dst = dst + os_offset * this->dst_os_stride_ + oc_offset;
+    args.bias = bias + (g * jcp_.oc + oc_offset) * bias_data_type_size_;
+    args.scales = scales + scale_idx_mult_ * (g * jcp_.oc + oc_offset);
+    args.sum_scale = sum_scale_;
+    args.signed_scale = signed_scale;
+    args.len = end - start;
+    args.oc_offset = oc_offset;
+    args.weights_zp = weights_zp + (g * jcp_.oc + oc_offset);
+    args.weights_zp_compensation = weights_zp_compensation + os_offset;
+    args.g_offset = g * jcp_.oc;
+    ker_(&args);
+};
 
-                    float d = (float) (acc[acc_off]);
-                    if (jcp_.signed_input)
-                        d *= signed_scale;
+template <data_type_t src_type, data_type_t dst_type>
+void _gemm_x8s8s32x_convolution_fwd_t<src_type, dst_type>::ref_pp_ker_t::operator ()
+        (dst_data_t *dst, acc_data_t *acc, const char *bias, const float *scales, float signed_scale,
+         int g, size_t start, size_t end, float* weights_zp, int32_t* weights_zp_compensation)
+{
+    using math::get_bias;
 
-                    if (with_weights_zp)
-                        d -= weights_zp[g * jcp_.oc + oc] * (float)weights_zp_compensation[os];
+    if (end <= start)
+        return;
 
-                    if (do_bias_)
-                        d += get_bias(bias, g * jcp_.oc + oc,
-                                      bias_data_type_);
+    const size_t first_oc = start % OC_;
+    const size_t last_oc = (end - 1) % OC_;
+    const size_t first_os = start / OC_;
+    const size_t last_os = (end - 1) / OC_;
 
-                    d *= scales[(g * jcp_.oc + oc) * scale_idx_mult_];
-                    if (do_sum_)
-                        d += sum_scale * get_sum((char*)dst, dst_off, sum_data_type_);
-                    if (do_relu_ && d < 0)
-                        d *= nslope;
-                    dst[dst_off] = qz_a1b0<float, dst_data_t>()(d, rmode_);
-                }
+    // Fallback
+    if (post_ops_.len_ == 0) {
+        for (size_t os = first_os; os <= last_os; os++) {
+            const size_t start_oc = (os == first_os) ? first_oc : 0;
+            const size_t end_oc = (os == last_os) ? last_oc : OC_ - 1;
+            for (size_t oc = start_oc; oc <= end_oc; oc++) {
+                const size_t acc_off = os * jcp_.oc + oc;
+                const size_t dst_off = os * this->dst_os_stride_ + oc;
+
+                float d = (float)(acc[acc_off]);
+                if (jcp_.signed_input)
+                    d *= signed_scale;
+
+                if (with_weights_zp_)
+                    d -= weights_zp[g * jcp_.oc + oc] * (float)weights_zp_compensation[os];
+
+                if (do_bias_)
+                    d += get_bias(bias, g * jcp_.oc + oc,
+                        bias_data_type_);
+
+                d *= scales[(g * jcp_.oc + oc) * scale_idx_mult_];
+                dst[dst_off] = qz_a1b0<float, dst_data_t>()(d, rmode_);
             }
-        } else {
-            float* acc_fp = reinterpret_cast<float*>(acc);
+        }
+    } else {
+        float* acc_fp = reinterpret_cast<float*>(acc);
 
-            auto load = [&](int idx, size_t oc, size_t os, size_t acc_off, size_t dst_off) {
-                float d;
-                if (idx == 0) {
-                    d = (float) (acc[acc_off]);
+        auto load = [&](int idx, size_t oc, size_t os, size_t acc_off, size_t dst_off) {
+            float d;
+            if (idx == 0) {
+                d = (float) (acc[acc_off]);
 
-                    if (jcp_.signed_input)
-                        d *= signed_scale;
+                if (jcp_.signed_input)
+                    d *= signed_scale;
 
-                    if (with_weights_zp)
-                        d -= weights_zp[g * jcp_.oc + oc] * (float)weights_zp_compensation[os];
+                if (with_weights_zp_)
+                    d -= weights_zp[g * jcp_.oc + oc] * (float)weights_zp_compensation[os];
 
-                    if (do_bias_)
-                        d += get_bias(bias, g * jcp_.oc + oc,
-                                      bias_data_type_);
+                if (do_bias_)
+                    d += get_bias(bias, g * jcp_.oc + oc,
+                                  bias_data_type_);
 
-                    d *= scales[(g * jcp_.oc + oc) * scale_idx_mult_];
-                } else {
-                    d = acc_fp[acc_off];
+                d *= scales[(g * jcp_.oc + oc) * scale_idx_mult_];
+            } else {
+                d = acc_fp[acc_off];
+            }
+
+            return d;
+        };
+
+        auto store = [&](int idx, float d, size_t acc_off, size_t dst_off) {
+            if (idx == post_ops_.len_ - 1)
+                dst[dst_off] = qz_a1b0<float, dst_data_t>()(d, rmode_);
+            else
+                acc_fp[acc_off] = d;
+        };
+
+        int eltwise_inj_idx = 0;
+        int depthwise_inj_idx = 0;
+        for (int i = 0; i < post_ops_.len_; i++) {
+            auto &post_op = post_ops_.entry_[i];
+            if (post_op.is_eltwise()) {
+                for (size_t os = first_os; os <= last_os; os++) {
+                    const size_t start_oc = (os == first_os) ? first_oc : 0;
+                    const size_t end_oc = (os == last_os) ? last_oc : OC_ - 1;
+                    for (size_t oc = start_oc; oc <= end_oc; oc++) {
+                        const size_t acc_off = os * jcp_.oc + oc;
+                        const size_t dst_off = os * this->dst_os_stride_ + oc;
+
+                        float d = load(i, oc, os, acc_off, dst_off);
+
+                        d = ref_eltwise_injectors_[eltwise_inj_idx]->compute_scalar(d);
+
+                        store(i, d, acc_off, dst_off);
+                    }
                 }
+                eltwise_inj_idx++;
+            } else if (post_op.is_depthwise()) {
+                for (size_t os = first_os; os <= last_os; os++) {
+                    const size_t start_oc = (os == first_os) ? first_oc : 0;
+                    const size_t end_oc = (os == last_os) ? last_oc : OC_ - 1;
+                    for (size_t oc = start_oc; oc <= end_oc; oc++) {
+                        const size_t acc_off = os * jcp_.oc + oc;
+                        const size_t dst_off = os * this->dst_os_stride_ + oc;
 
-                return d;
-            };
+                        auto depthwise_weights = post_op.depthwise.weights_data;
+                        auto depthwise_bias = post_op.depthwise.biases_data;
 
-            auto store = [&](int idx, float d, size_t acc_off, size_t dst_off) {
-                if (idx == p.len_ - 1)
-                    dst[dst_off] = qz_a1b0<float, dst_data_t>()(d, rmode_);
-                else
-                    acc_fp[acc_off] = d;
-            };
+                        float d = load(i, oc, os, acc_off, dst_off);
 
-            int eltwise_inj_idx = 0;
-            int depthwise_inj_idx = 0;
-            for (int i = 0; i < p.len_; i++) {
-                auto &post_op = p.entry_[i];
-                if (post_op.is_eltwise()) {
-                    for (size_t os = first_os; os <= last_os; os++) {
-                        const size_t start_oc = (os == first_os) ? first_oc : 0;
-                        const size_t end_oc = (os == last_os) ? last_oc : OC_ - 1;
-                        for (size_t oc = start_oc; oc <= end_oc; oc++) {
-                            const size_t acc_off = os * jcp_.oc + oc;
-                            const size_t dst_off = os * dst_os_stride_ + oc;
+                        d = ref_depthwise_injectors_[depthwise_inj_idx]->compute_scalar(d, depthwise_weights + g * jcp_.oc + oc,
+                                                                                        depthwise_bias + g * jcp_.oc + oc);
 
-                            float d = load(i, oc, os, acc_off, dst_off);
-
-                            d = eltwise_injectors[eltwise_inj_idx]->compute_scalar(d);
-
-                            store(i, d, acc_off, dst_off);
-                        }
+                        store(i, d, acc_off, dst_off);
                     }
-                    eltwise_inj_idx++;
-                } else if (post_op.is_depthwise()) {
-                    for (size_t os = first_os; os <= last_os; os++) {
-                        const size_t start_oc = (os == first_os) ? first_oc : 0;
-                        const size_t end_oc = (os == last_os) ? last_oc : OC_ - 1;
-                        for (size_t oc = start_oc; oc <= end_oc; oc++) {
-                            const size_t acc_off = os * jcp_.oc + oc;
-                            const size_t dst_off = os * dst_os_stride_ + oc;
+                }
+                depthwise_inj_idx++;
+            } else if (post_op.is_quantization()) {
+                for (size_t os = first_os; os <= last_os; os++) {
+                    const size_t start_oc = (os == first_os) ? first_oc : 0;
+                    const size_t end_oc = (os == last_os) ? last_oc : OC_ - 1;
+                    for (size_t oc = start_oc; oc <= end_oc; oc++) {
+                        const size_t acc_off = os * jcp_.oc + oc;
+                        const size_t dst_off = os * this->dst_os_stride_ + oc;
 
-                            auto depthwise_weights = post_op.depthwise.weights_data;
-                            auto depthwise_bias = post_op.depthwise.biases_data;
+                        auto quant = post_op.quantization;
+                        auto pcl = quant.crop_low_data->shifts_;
+                        auto pch = quant.crop_high_data->shifts_;
+                        auto pisc = quant.input_scale_data->scales_;
+                        auto pish = quant.input_shift_data->shifts_;
+                        auto posc = quant.output_scale_data->scales_;
+                        auto posh = quant.output_shift_data->shifts_;
 
-                            float d = load(i, oc, os, acc_off, dst_off);
+                        float d = load(i, oc, os, acc_off, dst_off);
 
-                            d = depthwise_injectors[depthwise_inj_idx]->compute_scalar(d, depthwise_weights + g * jcp_.oc + oc,
-                                                                                          depthwise_bias + g * jcp_.oc + oc);
+                        int cl_idx = quant.crop_low_data->count_ == 1 ? 0 : g * jcp_.oc + oc;
+                        int ch_idx = quant.crop_high_data->count_ == 1 ? 0 : g * jcp_.oc + oc;
+                        int isc_idx = quant.input_scale_data->count_ == 1 ? 0 : g * jcp_.oc + oc;
+                        int ish_idx = quant.input_shift_data->count_ == 1 ? 0 : g * jcp_.oc + oc;
+                        int osc_idx = quant.output_scale_data->count_ == 1 ? 0 : g * jcp_.oc + oc;
+                        int osh_idx = quant.output_shift_data->count_ == 1 ? 0 : g * jcp_.oc + oc;
 
-                            store(i, d, acc_off, dst_off);
-                        }
+                        d = nstl::min(pch[ch_idx], nstl::max(pcl[cl_idx], d));
+                        d = d * pisc[isc_idx] + pish[ish_idx];
+                        d = roundf(d);
+                        d = d * posc[osc_idx] + posh[osh_idx];
+
+                        store(i, d, acc_off, dst_off);
                     }
-                    depthwise_inj_idx++;
-                } else if (post_op.is_quantization()) {
-                    for (size_t os = first_os; os <= last_os; os++) {
-                        const size_t start_oc = (os == first_os) ? first_oc : 0;
-                        const size_t end_oc = (os == last_os) ? last_oc : OC_ - 1;
-                        for (size_t oc = start_oc; oc <= end_oc; oc++) {
-                            const size_t acc_off = os * jcp_.oc + oc;
-                            const size_t dst_off = os * dst_os_stride_ + oc;
+                }
+            } else if (post_op.is_sum()) {
+                for (size_t os = first_os; os <= last_os; os++) {
+                    const size_t start_oc = (os == first_os) ? first_oc : 0;
+                    const size_t end_oc = (os == last_os) ? last_oc : OC_ - 1;
+                    for (size_t oc = start_oc; oc <= end_oc; oc++) {
+                        const size_t acc_off = os * jcp_.oc + oc;
+                        const size_t dst_off = os * this->dst_os_stride_ + oc;
 
-                            auto pcl = post_op.quantization.crop_low_data;
-                            auto pch = post_op.quantization.crop_high_data;
-                            auto pisc = post_op.quantization.input_scale_data;
-                            auto pish = post_op.quantization.input_shift_data;
-                            auto posc = post_op.quantization.output_scale_data;
-                            auto posh = post_op.quantization.output_shift_data;
+                        float d = load(i, oc, os, acc_off, dst_off);
 
-                            float d = load(i, oc, os, acc_off, dst_off);
+                        d += post_op.sum.scale * get_sum((char*)dst, dst_off, post_op.sum.data_type);
 
-                            int idx = g * jcp_.oc + oc;
-                            d = nstl::min(pch[idx], nstl::max(pcl[idx], d));
-                            d = d * pisc[idx] + pish[idx];
-                            d = roundf(d);
-                            d = d * posc[idx] + posh[idx];
-
-                            store(i, d, acc_off, dst_off);
-                        }
-                    }
-                } else if (post_op.is_sum()) {
-                    for (size_t os = first_os; os <= last_os; os++) {
-                        const size_t start_oc = (os == first_os) ? first_oc : 0;
-                        const size_t end_oc = (os == last_os) ? last_oc : OC_ - 1;
-                        for (size_t oc = start_oc; oc <= end_oc; oc++) {
-                            const size_t acc_off = os * jcp_.oc + oc;
-                            const size_t dst_off = os * dst_os_stride_ + oc;
-
-                            float d = load(i, oc, os, acc_off, dst_off);
-
-                            d += sum_scale * get_sum((char*)dst, dst_off, post_op.sum.data_type);
-
-                            store(i, d, acc_off, dst_off);
-                        }
+                        store(i, d, acc_off, dst_off);
                     }
                 }
             }
@@ -731,13 +997,13 @@ execute_forward_thr(const int ithr, const int nthr, const src_data_t *src_base,
 
     const uint8_t *input_zp_base = nullptr;
     if (jcp.with_input_zp) {
-        input_zp_base = pd()->attr()->input_zero_points_.zero_points_;
+        input_zp_base = pd()->attr()->input_zero_points_.shifts_;
     }
 
     float *weights_zp = nullptr;
     int32_t *weights_zp_compensation = nullptr;
     if (jcp.with_weights_zp) {
-        weights_zp = pd()->attr()->weights_zero_points_.zero_points_;
+        weights_zp = pd()->attr()->weights_zero_points_.shifts_;
         weights_zp_compensation = scratchpad.get<int32_t>(key_weights_zp_compensation) + ithr * jcp.oh * jcp.ow;
     }
 
@@ -746,39 +1012,33 @@ execute_forward_thr(const int ithr, const int nthr, const src_data_t *src_base,
         output_compensation = scratchpad.get<int32_t>(key_conv_padded_compensation);
     }
 
-    const auto &post_ops = pd()->attr()->post_ops_;
-    const bool do_sum = post_ops.contain(primitive_kind::sum, 0);
-    const float sum_scale = do_sum ? post_ops.entry_[0].sum.scale : 0;
-
-    float nslope = 0;
-    for (int idx = 0; idx < post_ops.len_; ++idx) {
-        const auto &e = post_ops.entry_[idx];
-        if (e.is_relu(true, false)) {
-            nslope = e.eltwise.alpha;
-            break;
-        }
-    }
-
-    auto col = scratchpad.get<uint8_t>(key_conv_gemm_col)
-        + (ptrdiff_t)ithr * jcp.im2col_sz;
+    uint8_t *__restrict col = scratchpad.get<uint8_t>(key_conv_gemm_col)
+            + (ptrdiff_t)ithr * jcp.im2col_sz;
     src_data_t *__restrict imtr = scratchpad.get<src_data_t>(key_conv_gemm_imtr)
-        + (ptrdiff_t)ithr * jcp.is * jcp.ic;
-    auto acc = scratchpad.get<acc_data_t>(key_conv_int_dat_in_acc_dt)
-        + (ptrdiff_t)ithr * jcp.oh_block * jcp.ow_block * jcp.oc;
+            + (ptrdiff_t)ithr * jcp.is * jcp.ic;
+    acc_data_t *__restrict acc = scratchpad.get<acc_data_t>(key_conv_int_dat_in_acc_dt)
+            + (ptrdiff_t)ithr * jcp.oh_block * jcp.ow_block * jcp.oc;
 
     const ptrdiff_t offset = (ptrdiff_t)jcp.ngroups * jcp.ks * jcp.ic * jcp.oc;
     const int32_t *_wei_comp = (jcp.with_input_zp) ? output_compensation
                                                    : (const int32_t *)(wei_base + offset);
 
-    int g{ 0 }, n{ 0 }, ohb{ 0 }, owb{ 0 }, od{ 0 };
+    int g{ 0 }, n{ 0 }, ohb{ 0 }, owb{ 0 };
     size_t start = 0, end = 0;
+
+    const bool is_problem_3d = pd()->ndims() == 5;
+    assert(IMPLICATION(is_problem_3d,
+                       jcp.oh_block == jcp.oh && jcp.ow_block == jcp.ow
+                       && jcp.ic_block == jcp.ic));
 
     const int nb_oh = div_up(jcp.oh, jcp.oh_block);
     const int nb_ow = div_up(jcp.ow, jcp.ow_block);
-    const size_t work_amount = jcp.ngroups * jcp.mb * jcp.od * nb_oh * nb_ow;
+    const size_t work_amount = (size_t)jcp.ngroups * jcp.mb * nb_oh * nb_ow;
     balance211(work_amount, nthr, ithr, start, end);
-    nd_iterator_init(start, n, jcp.mb, g, jcp.ngroups, od, jcp.od, ohb,
+    nd_iterator_init(start, n, jcp.mb, g, jcp.ngroups, ohb,
                 nb_oh, owb, nb_ow);
+    uint8_t shift = jcp.signed_input ? 128 : 0;
+    parallel_nd(jcp.im2col_sz, [&](ptrdiff_t i) { col[i] = shift; });
 
     for (size_t iwork = start; iwork < end; ++iwork) {
         int oh = ohb * jcp.oh_block;
@@ -788,48 +1048,54 @@ execute_forward_thr(const int ithr, const int nthr, const src_data_t *src_base,
         const wei_data_t *__restrict wei = wei_base + g * wei_g_stride;
         dst_data_t *__restrict dst =
                 dst_base + n * dst_mb_stride + g * dst_g_stride;
-        const int32_t *wei_comp = _wei_comp + g * jcp.oc;
+        const int32_t *__restrict wei_comp = _wei_comp + g * jcp.oc;
         const int h_step = nstl::min(jcp.oh_block, jcp.oh - oh);
         const int w_step = nstl::min(jcp.ow_block, jcp.ow - ow);
-
 
         const uint8_t *__restrict input_zp = nullptr;
         if (jcp.with_input_zp)
             input_zp = input_zp_base + g * jcp.ic;
 
-        if (jcp.im2col_sz || jcp.with_weights_zp) {
-            if (jcp.id == 1)
-                jit_gemm_convolution_utils::im2col_u8<src_data_t>(
-                        jcp, src, imtr, col, oh, h_step, ow, w_step, input_zp, weights_zp_compensation);
-            else
-                jit_gemm_convolution_utils::im2col_u8_3d<src_data_t>(jcp, src, col, od, input_zp, weights_zp_compensation);
+        if (jcp.im2col_sz && is_problem_3d)
+            jit_gemm_convolution_utils::transpose_u8<src_data_t>(
+                    jcp, src, imtr, input_zp);
+
+        for (int od = 0; od < jcp.od; od++) {
+            if (jcp.im2col_sz || jcp.with_weights_zp) {
+                if (!is_problem_3d)
+                    jit_gemm_convolution_utils::im2col_u8<src_data_t>(
+                            jcp, src, imtr, col, oh, h_step, ow, w_step, input_zp, weights_zp_compensation);
+                else
+                    jit_gemm_convolution_utils::im2col_u8_3d<src_data_t>(jcp, imtr, col, od, input_zp,
+                                                                         weights_zp_compensation);
+            }
+
+            const int M = jcp.oc;
+            const int K = jcp.ks * jcp.ic;
+            const int N = h_step * w_step;
+            const int LDA = M * jcp.ngroups;
+            const int LDB = jcp.im2col_sz ? N : K * jcp.ngroups;
+            const char *BT = jcp.im2col_sz ? "T" : "N";
+            const int8_t off_a = 0;
+            const uint8_t off_b = 0;
+            const int32_t off_c = 0;
+            const float onef = 1.0f, zerof = 0.0f;
+            gemm_s8x8s32("N", BT, (jcp.signed_input || jcp.with_input_zp) ? "C" : "F",
+                &M, &N, &K, &onef, wei, &LDA, &off_a,
+                jcp.im2col_sz ? col : (uint8_t *)src + od * jcp.ngroups * jcp.ic * N, &LDB, &off_b,
+                &zerof, acc, &M, (jcp.signed_input || jcp.with_input_zp) ? wei_comp : &off_c);
+
+
+            parallel(0, (size_t) N * jcp.oc, [&](int ithr, int nthr) {
+                size_t start, end;
+                balance211((size_t) N * jcp.oc, nthr, ithr, start, end);
+                (*pp_ker_)(dst + (od * jcp.oh * jcp.ow + oh * jcp.ow + ow) * pp_ker_->dst_os_stride_,
+                           acc, bia_base, scales, jcp.signed_input ? 1.f / jcp.wei_adj_scale : 1.f,
+                           g, start, end, weights_zp, weights_zp_compensation);
+            });
         }
 
-        const int M = jcp.oc;
-        const int K = jcp.ks * jcp.ic;
-        const int N = h_step * w_step;
-        const int LDA = M * jcp.ngroups;
-        const int LDB = jcp.im2col_sz ? N : K * jcp.ngroups;
-        const char *BT = jcp.im2col_sz ? "T" : "N";
-        const int8_t off_a = 0, off_b = 0;
-        const int32_t off_c = 0;
-        const float onef = 1.0, zerof = 0.0;
-        mkldnn_gemm_s8u8s32("N", BT, (jcp.signed_input || jcp.with_input_zp) ? "C" : "F",
-            &M, &N, &K, &onef, wei, &LDA, &off_a,
-            jcp.im2col_sz ? col : (uint8_t *)src + od * jcp.ngroups * jcp.ic * N, &LDB, &off_b,
-            &zerof, acc, &M, (jcp.signed_input || jcp.with_input_zp) ? wei_comp : &off_c);
-
-
-        parallel(0, (size_t)jcp.os * jcp.oc, [&](int ithr, int nthr) {
-            size_t start, end;
-            balance211((size_t)N * jcp.oc, nthr, ithr, start, end);
-            (*pp_ker_)(dst + (od * jcp.oh * jcp.ow + oh * jcp.ow + ow) * pp_ker_->dst_os_stride_,
-                    acc, bia_base, scales, nslope, sum_scale,
-                    jcp.signed_input ? 1.f / jcp.wei_adj_scale : 1.f,
-                    g, start, end, post_ops, weights_zp, weights_zp_compensation);
-        });
-
-        nd_iterator_step(n, jcp.mb, g, jcp.ngroups, od, jcp.od, ohb, nb_oh,
+        nd_iterator_step(n, jcp.mb, g, jcp.ngroups, ohb, nb_oh,
                     owb, nb_ow);
     }
 }
@@ -902,12 +1168,13 @@ execute_backward_data_thr(const int ithr, const int nthr,
         const int M = jcp.ks * jcp.ic;
         const int N = jcp.os;
         const int K = jcp.oc;
-        const int8_t off_a = 0, off_b = 0;
+        const int8_t off_a = 0;
+        const diff_dst_data_t off_b = 0;
         const int32_t off_c = 0;
         const float onef = 1.0, zerof = 0.0;
         const int LD = K * jcp.ngroups;
 
-        mkldnn_gemm_s8u8s32("T", "N", "F", &M, &N, &K, &onef,
+        gemm_s8x8s32("T", "N", "F", &M, &N, &K, &onef,
                 wei, &LD, &off_a, diff_dst, &LD, &off_b,
                 &zerof, jcp.im2col_sz ? col : acc, &M, &off_c);
 
@@ -929,6 +1196,36 @@ execute_backward_data_thr(const int ithr, const int nthr,
 }
 
 using namespace data_type;
+
+template class _gemm_x8s8s32x_convolution_fwd_t<u8, f32>::jit_pp_ker_t<avx512_common>;
+template class _gemm_x8s8s32x_convolution_fwd_t<u8, s32>::jit_pp_ker_t<avx512_common>;
+template class _gemm_x8s8s32x_convolution_fwd_t<u8, s8>::jit_pp_ker_t<avx512_common>;
+template class _gemm_x8s8s32x_convolution_fwd_t<u8, u8>::jit_pp_ker_t<avx512_common>;
+
+template class _gemm_x8s8s32x_convolution_fwd_t<s8, f32>::jit_pp_ker_t<avx512_common>;
+template class _gemm_x8s8s32x_convolution_fwd_t<s8, s32>::jit_pp_ker_t<avx512_common>;
+template class _gemm_x8s8s32x_convolution_fwd_t<s8, s8>::jit_pp_ker_t<avx512_common>;
+template class _gemm_x8s8s32x_convolution_fwd_t<s8, u8>::jit_pp_ker_t<avx512_common>;
+
+template class _gemm_x8s8s32x_convolution_fwd_t<u8, f32>::jit_pp_ker_t<avx2>;
+template class _gemm_x8s8s32x_convolution_fwd_t<u8, s32>::jit_pp_ker_t<avx2>;
+template class _gemm_x8s8s32x_convolution_fwd_t<u8, s8>::jit_pp_ker_t<avx2>;
+template class _gemm_x8s8s32x_convolution_fwd_t<u8, u8>::jit_pp_ker_t<avx2>;
+
+template class _gemm_x8s8s32x_convolution_fwd_t<s8, f32>::jit_pp_ker_t<avx2>;
+template class _gemm_x8s8s32x_convolution_fwd_t<s8, s32>::jit_pp_ker_t<avx2>;
+template class _gemm_x8s8s32x_convolution_fwd_t<s8, s8>::jit_pp_ker_t<avx2>;
+template class _gemm_x8s8s32x_convolution_fwd_t<s8, u8>::jit_pp_ker_t<avx2>;
+
+template class _gemm_x8s8s32x_convolution_fwd_t<u8, f32>::jit_pp_ker_t<sse42>;
+template class _gemm_x8s8s32x_convolution_fwd_t<u8, s32>::jit_pp_ker_t<sse42>;
+template class _gemm_x8s8s32x_convolution_fwd_t<u8, s8>::jit_pp_ker_t<sse42>;
+template class _gemm_x8s8s32x_convolution_fwd_t<u8, u8>::jit_pp_ker_t<sse42>;
+
+template class _gemm_x8s8s32x_convolution_fwd_t<s8, f32>::jit_pp_ker_t<sse42>;
+template class _gemm_x8s8s32x_convolution_fwd_t<s8, s32>::jit_pp_ker_t<sse42>;
+template class _gemm_x8s8s32x_convolution_fwd_t<s8, s8>::jit_pp_ker_t<sse42>;
+template class _gemm_x8s8s32x_convolution_fwd_t<s8, u8>::jit_pp_ker_t<sse42>;
 
 template struct _gemm_x8s8s32x_convolution_fwd_t<u8, f32>;
 template struct _gemm_x8s8s32x_convolution_fwd_t<u8, s32>;

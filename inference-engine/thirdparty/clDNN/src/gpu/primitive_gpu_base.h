@@ -55,7 +55,9 @@ struct typed_primitive_gpu_impl : public typed_primitive_impl<PType> {
           _kernel_data(kd) {
         _kernels.reserve(kd.kernels.size());
         for (size_t i = 0; i < kd.kernels.size(); ++i) {
-            gpu::kernel kernel(_outer.get_program().get_engine().get_context(), kd.kernels[i].kernelString);
+            gpu::kernel kernel(_outer.get_program().get_engine().get_context(),
+                               kd.kernels[i].kernelString,
+                               _outer.get_program().get_id());
             _kernels.emplace_back(std::move(kernel));
         }
 
@@ -112,7 +114,7 @@ protected:
     }
 
     event_impl::ptr execute_impl(const std::vector<event_impl::ptr>& events,
-                                         typed_primitive_inst<PType>& instance) override {
+                                 typed_primitive_inst<PType>& instance) override {
         uint32_t net_id = instance.get_network().get_id();
         if (optimized_out(instance)) {
             return aggregate_events(events, net_id);
@@ -122,9 +124,6 @@ protected:
 
         // TODO - split should be handle in kernel selector by providing multiple kernels.
         auto split = get_split();
-        auto groups = get_groups();
-        if (split == 1 && !get_depthwise_sep_opt())
-            split = groups;
 
         // we iterate over split first in order to be able parallelism with OOOQ mechanism.
         for (size_t k = 0; k < _kernels.size(); ++k) {

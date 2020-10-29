@@ -888,10 +888,7 @@ using namespace cldnn;
 class depth_concatenate_test : public tests::generic_test {
 public:
     static void TearDownTestCase() {
-        for (auto generic_params : all_generic_params) {
-            delete generic_params;
-        }
-
+        all_generic_params.clear();
         all_layer_params.clear();
     }
 
@@ -915,8 +912,8 @@ public:
         return all_layer_params;
     }
 
-    static std::vector<tests::test_params*> generate_generic_test_params(int input_count) {
-        std::vector<tests::test_params*> all_generic_params;
+    static std::vector<std::shared_ptr<tests::test_params>> generate_generic_test_params(int input_count) {
+        std::vector<std::shared_ptr<tests::test_params>> all_generic_params;
 
         auto data_types = test_data_types();
 
@@ -929,7 +926,7 @@ public:
                     switch (input_count) {
                         case 1:
                             for (auto f0 : test_feature_sizes) {
-                                test_params* tp = new test_params();
+                                std::shared_ptr<tests::test_params> tp = std::make_shared<test_params>();
                                 tp->data_type = dt;
 
                                 tp->input_layouts.push_back(cldnn::layout(tp->data_type, tp->fmt, cldnn::tensor(b, f0, w, h)));
@@ -940,7 +937,7 @@ public:
                         case 2:
                             for (auto f0 : test_feature_sizes)
                                 for (auto f1 : test_feature_sizes) {
-                                    test_params* tp = new test_params();
+                                    std::shared_ptr<tests::test_params> tp = std::make_shared<test_params>();
                                     tp->data_type = dt;
 
                                     tp->input_layouts.push_back(cldnn::layout(tp->data_type, tp->fmt, cldnn::tensor(b, f0, w, h)));
@@ -953,7 +950,7 @@ public:
                             for (auto f0 : test_feature_sizes)
                                 for (auto f1 : test_feature_sizes)
                                     for (auto f2 : test_feature_sizes) {
-                                        test_params* tp = new test_params();
+                                        std::shared_ptr<tests::test_params> tp = std::make_shared<test_params>();
                                         tp->data_type = dt;
 
                                         tp->input_layouts.push_back(cldnn::layout(tp->data_type, tp->fmt, cldnn::tensor(b, f0, w, h)));
@@ -971,8 +968,8 @@ public:
         return all_generic_params;
     }
 
-    static std::vector<std::tuple<test_params*, std::shared_ptr<cldnn::primitive>>> generate_all_test_params() {
-        std::vector<std::tuple<test_params*, std::shared_ptr<cldnn::primitive>>> res;
+    static std::vector<std::tuple<std::shared_ptr<tests::test_params>, std::shared_ptr<cldnn::primitive>>> generate_all_test_params() {
+        std::vector<std::tuple<std::shared_ptr<tests::test_params>, std::shared_ptr<cldnn::primitive>>> res;
 
         for (int i = 1; i <= 3; ++i) {
             auto tpv = generate_generic_test_params(i);
@@ -1060,7 +1057,7 @@ public:
         }
     }
 
-    static std::string custom_param_name(const ::testing::TestParamInfo<std::tuple<test_params*, std::shared_ptr<cldnn::primitive>>>& info) {
+    static std::string custom_param_name(const ::testing::TestParamInfo<std::tuple<std::shared_ptr<tests::test_params>, std::shared_ptr<cldnn::primitive>>>& info) {
         std::stringstream res;
 
         const auto& p = std::get<0>(info.param);
@@ -1085,12 +1082,12 @@ public:
     }
 
 private:
-    static std::vector<tests::test_params*> all_generic_params;
+    static std::vector<std::shared_ptr<tests::test_params>> all_generic_params;
     static std::vector<std::shared_ptr<cldnn::primitive>> all_layer_params;
 };
 
 std::vector<std::shared_ptr<cldnn::primitive>> depth_concatenate_test::all_layer_params = {};
-std::vector<tests::test_params*> depth_concatenate_test::all_generic_params = {};
+std::vector<std::shared_ptr<tests::test_params>> depth_concatenate_test::all_generic_params = {};
 
 TEST_P(depth_concatenate_test, DEPTHCONCATENATE) {
     run_single_test();

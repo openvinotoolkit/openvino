@@ -12,7 +12,6 @@
 #include "ie_plugin.hpp"
 #include "cpp/ie_cnn_network.h"
 #include "debug_options.h"
-#include "inference_engine.hpp"
 
 #include "cldnn_custom_layer.h"
 
@@ -27,7 +26,7 @@ struct Config {
                exclusiveAsyncRequests(false),
                memory_pool_on(true),
                enableDynamicBatch(false),
-               enableInt8(false),
+               enableInt8(true),
                nv12_two_inputs(false),
                queuePriority(cldnn::priority_mode_types::disabled),
                queueThrottle(cldnn::throttle_mode_types::disabled),

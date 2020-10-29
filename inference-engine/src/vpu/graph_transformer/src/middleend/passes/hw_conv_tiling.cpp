@@ -206,6 +206,16 @@ void PassImpl::run(const Model& model) {
                     hwStageTiler.hwInputTiles);
             }
 
+            if (!hwStageTiler.hwWeightsTiles.empty()) {
+                _stageBuilder->addSplitStage(
+                    model,
+                    origStage->name() + "@split-input2",
+                    origStage->origLayer(),
+                    std::move(hwStageTiler.hwWeightsTilesOffsets),
+                    stageIO.origWeights,
+                    hwStageTiler.hwWeightsTiles);
+            }
+
             if (!hwStageTiler.hwOutputTiles.empty()) {
                 _stageBuilder->addConcatStage(
                     model,

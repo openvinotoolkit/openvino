@@ -56,7 +56,8 @@ def create_op_with_const_inputs(graph: Graph, op: callable, port_value_dict: Dic
 
     for idx, value in port_value_dict.items():
         node.add_input_port(idx, skip_if_exist=True)
-        value_input_node = Const(graph, {'name': node.name + '/value', 'value': value}).create_node()
+        value_input_node = Const(graph, {'name': node.name + '_input_port_' + str(idx) + '/value',
+                                         'value': value}).create_node()
         value_input_node.out_port(0).connect(node.in_port(idx))
         if graph.stage != 'front':
             value_input_node.infer(value_input_node)

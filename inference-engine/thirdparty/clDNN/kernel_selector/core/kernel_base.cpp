@@ -79,36 +79,41 @@ JitConstants KernelBase::MakeFusedOpsJitConstants(const kernel_selector::base_pa
     if (conf.empty())
         return jit;
 
-    std::string input_decls = "";
-    std::vector<std::string> fused_ops;
-    std::vector<std::string> names;
-    std::vector<Datatype> in_types;
-    for (const auto &c : conf) {
-        fused_ops.emplace_back("");
-        names.push_back(c.input_var_name);
-        in_types.push_back(c.input_dt);
-    }
-    for (size_t i = 0; i < params.fused_ops.size(); i++) {
-        auto& fused_dep = params.fused_ops[i];
-        for (size_t j = 0; j < conf.size(); j++) {
-            std::string out_var = "";
-            Datatype out_type;
-            jit.Merge(fused_dep.MakeLoadJitConstants(conf[j], params.output));
-            jit.Merge(fused_dep.MakeOpJitConstants(conf[j], names[j], in_types[j], out_var, out_type));
-            names[j] = out_var;
-            in_types[j] = out_type;
+    for (auto& c : conf) {
+        std::string fused_ops;
+        std::string fused_ops_preload;
+        std::string fused_ops_calc_only;
+        std::string in_name = c.input_var_name;
+        Datatype in_type = c.input_dt;
 
-            fused_ops[j] += "\\\n\tFUSED_OP" + std::to_string(i) + "_LOAD" + conf[j].suffix;
-            fused_ops[j] += "\\\n\tFUSED_OP" + std::to_string(i) + "_ACTION" + conf[j].suffix;
+        bool can_use_preload = true;
+
+        for (size_t i = 0; i < params.fused_ops.size(); i++) {
+            auto fused_dep_codegen = FusedOpsCodeGenerator(params.fused_ops[i]);
+            std::string out_var;
+            Datatype out_type;
+            jit.Merge(fused_dep_codegen.MakeLoadJitConstants(c, params.output));
+            jit.Merge(fused_dep_codegen.MakeOpJitConstants(c, in_name, in_type, out_var, out_type));
+            in_name = out_var;
+            in_type = out_type;
+
+            can_use_preload &= fused_dep_codegen.CanPreloadData(c);
+
+            fused_ops += "\\\n\tFUSED_OP" + std::to_string(i) + "_LOAD" + c.suffix;
+            fused_ops += "\\\n\tFUSED_OP" + std::to_string(i) + "_ACTION" + c.suffix;
+            fused_ops_preload += "\\\n\tFUSED_OP" + std::to_string(i) + "_LOAD" + c.suffix;
+            fused_ops_calc_only += "\\\n\tFUSED_OP" + std::to_string(i) + "_ACTION" + c.suffix;
         }
+
+        jit.AddConstant(MakeJitConstant("FUSED_OPS" + c.suffix, fused_ops));
+        jit.AddConstant(MakeJitConstant("FUSED_OPS_PRELOAD" + c.suffix, fused_ops_preload));
+        jit.AddConstant(MakeJitConstant("FUSED_OPS_CALC" + c.suffix, fused_ops_calc_only));
+        jit.AddConstant(MakeJitConstant("FUSED_OPS_RESULT" + c.suffix, in_name));
+
+        jit.AddConstant(MakeJitConstant("FUSED_OPS_CAN_USE_PRELOAD" + c.suffix, can_use_preload));
     }
 
     jit.Merge(MakeFusedOpsDeclsJitConstants(params, conf));
-
-    for (size_t j = 0; j < conf.size(); j++) {
-        jit.AddConstant(MakeJitConstant("FUSED_OPS" + conf[j].suffix, fused_ops[j]));
-        jit.AddConstant(MakeJitConstant("FINAL_NAME" + conf[j].suffix, names[j]));
-    }
 
     return jit;
 }
@@ -122,11 +127,11 @@ JitConstants KernelBase::MakeFusedOpsDeclsJitConstants(const kernel_selector::ba
 
     std::string input_decls = "";
     for (size_t i = 0; i < params.fused_ops.size(); i++) {
-        auto& fused_dep = params.fused_ops[i];
-        std::string op_type = fused_dep.GetTypeStr();
+        auto fused_dep_codegen = FusedOpsCodeGenerator(params.fused_ops[i]);
+        std::string op_type = fused_dep_codegen.GetTypeStr();
 
-        jit.Merge(fused_dep.MakeFusedTensorJitConstants(conf[0]));
-        jit.Merge(fused_dep.MakeInputDeclsJitConstants(conf[0]));
+        jit.Merge(fused_dep_codegen.MakeFusedTensorJitConstants(conf[0]));
+        jit.Merge(fused_dep_codegen.MakeInputDeclsJitConstants(conf[0]));
         if (!params.fused_ops[i].tensors.empty()) {
             std::string optional_comma = (!input_decls.empty() ? "," : "");
             input_decls += optional_comma + "\\\n\tFUSED_OP" + std::to_string(i) + "_DECLS";
@@ -140,7 +145,7 @@ JitConstants KernelBase::MakeFusedOpsDeclsJitConstants(const kernel_selector::ba
     return jit;
 }
 
-bool KernelBase::IsFusedPrimitiveSupported(const base_params::fused_operation_desc& fused_op) const {
+bool KernelBase::IsFusedPrimitiveSupported(const fused_operation_desc& fused_op) const {
     for (auto& supported_op : GetSupportedFusedOps()) {
         if (fused_op.GetType() == supported_op)
             return true;

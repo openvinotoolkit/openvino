@@ -332,7 +332,7 @@ namespace tests
         return generic_params->input_layouts[0].size;
     }
 
-    std::vector<test_params*> generic_test::generate_generic_test_params(std::vector<test_params*>& all_generic_params)
+    std::vector<std::shared_ptr<test_params>> generic_test::generate_generic_test_params(std::vector<std::shared_ptr<test_params>>& all_generic_params)
     {
         // , { format::yx,{ 531,777 } } , { format::yx,{ 4096,1980 } } ,
         //{ format::bfyx,{ 1,1,1,1 } } , { format::bfyx,{ 1,1,2,2 } } , { format::yx,{ 3,3 } } , { format::yx,{ 4,4 } } , { format::bfyx,{ 1,1,5,5 } } , { format::yx,{ 6,6 } } , { format::yx,{ 7,7 } } ,
@@ -351,7 +351,7 @@ namespace tests
                     {
                         for (tensor input_size : test_input_sizes)
                         {
-                            all_generic_params.push_back(new test_params(data_type, fmt, batch_size, feature_size, input_size));
+                            all_generic_params.emplace_back(new test_params(data_type, fmt, batch_size, feature_size, input_size));
                         }
                     }
                 }

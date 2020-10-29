@@ -72,7 +72,7 @@ void PassImpl::copyHwNetOutputs(const Model& model) {
 
         auto output = stage->output(0);
 
-        if (output->usage() == DataUsage::Output) {
+        if (output->getTopParentData()->usage() == DataUsage::Output) {
             env.log->trace("HW Stage [%s] output [%s]", stage->name(), output->name());
 
             auto newOutput = model->duplicateData(
@@ -212,21 +212,29 @@ void PassImpl::adjustModelForMemReqs(const Model& model) {
         if (allocRes.status == AllocationStatus::OK)
             break;
 
-        auto failedStage = allocRes.failedStage;
+        const auto failedStage = allocRes.failedStage;
         IE_ASSERT(failedStage != nullptr);
 
-        auto failedStageInd = failedStage->index();
+        const auto failedStageInd = failedStage->index();
         IE_ASSERT(failedStageInd >= 0);
 
         env.log->trace("Stage # %d [%s] failed to allocate : %s", failedStageInd, failedStage->name(), allocRes.status);
         VPU_LOGGER_SECTION(env.log);
 
-        IE_ASSERT(allFailedStages.count(failedStage) == 0);
+        VPU_INTERNAL_CHECK(allFailedStages.count(failedStage) == 0,
+            "Memory allocation failed: unable to satisfy requirements for stage %v with type %v",
+            failedStage->name(), failedStage->type());
         allFailedStages.emplace(failedStage);
 
         //
         // Try to flush Data allocated in CMX
         //
+
+        const auto failedData = allocRes.failedData;
+        VPU_THROW_UNLESS(!failedData || failedData->memReqs() == MemoryType::CMX,
+            R"(Stage "{}" of type "{}" requested {} bytes in {} for output "{}", while there is only {} bytes is free)",
+            failedStage->name(), failedStage->type(), calcAllocationSize(failedData), failedData->memReqs(), failedData->name(),
+                         allocator.freeMemoryAmount(failedData->memReqs()));
 
         auto allCmxDatas = allocator.getAllocatedDatas(MemoryType::CMX);
         env.log->trace("Got %d datas in CMX : %v", allCmxDatas.size(), allCmxDatas);
@@ -348,7 +356,8 @@ void PassImpl::copyHwMisalignedInput(const Model& model) {
             continue;
         }
 
-        auto input = stage->input(0);
+        auto inputEdge = stage->inputEdge(0);
+        auto input = inputEdge->input();
         IE_ASSERT(input->location() != DataLocation::None);
 
         if (input->memoryOffset() % 16 != 0) {
@@ -357,6 +366,7 @@ void PassImpl::copyHwMisalignedInput(const Model& model) {
             auto newInput = model->duplicateData(
                 input,
                 "@aligned-ptr");
+            newInput->updateRequiredStrides(input->requiredStrides());
             newInput->setMemReqs(MemoryType::DDR);
 
             _stageBuilder->addCopyStage(

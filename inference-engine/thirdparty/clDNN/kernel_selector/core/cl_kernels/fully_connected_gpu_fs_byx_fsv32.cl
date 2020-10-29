@@ -31,6 +31,8 @@
 #define FSV 32
 #define OUTPUT_BLOCK_SIZE_F 32
 #define OUTPUT_BLOCK_SIZE_F_EL_CNT 2
+#define ALIGNED_INPUT0_FEATURE_NUM (((INPUT0_FEATURE_NUM + FSV - 1) / FSV) * FSV)
+#define MEMORY_ALIGN 16
 
 __attribute__((intel_reqd_sub_group_size(SUB_GROUP_SIZE)))
 __attribute__((reqd_work_group_size(1, WG_HEIGHT, SUB_GROUP_SIZE)))
@@ -73,7 +75,7 @@ KERNEL(fully_connected_gpu_fs_byx_fsv32)(
     const uint weights_x_pitch = FSV;
     const uint weights_y_pitch = weights_x_pitch * INPUT0_SIZE_X;
     const uint weights_i_pitch = weights_y_pitch * INPUT0_SIZE_Y;
-    const uint weights_os_pitch = weights_i_pitch * INPUT0_FEATURE_NUM;
+    const uint weights_os_pitch = weights_i_pitch * ALIGNED_INPUT0_FEATURE_NUM;
     // ========================================================================
 
     // Input offset adjustement by padding
@@ -145,23 +147,21 @@ KERNEL(fully_connected_gpu_fs_byx_fsv32)(
     // ========================================================================
     // Write output
     uint output_offset = of + ob * OUTPUT_FEATURE_NUM;
-    
+
+#if OUTPUT_FEATURE_NUM % OUTPUT_BLOCK_SIZE_F != 0
     const bool full_of = OUTPUT_FEATURE_NUM % OUTPUT_BLOCK_SIZE_F == 0 || of + OUTPUT_BLOCK_SIZE_F <= OUTPUT_FEATURE_NUM;
     const bool full_ob = OUTPUT_BATCH_NUM % OUTPUT_BLOCK_SIZE_B == 0 || ob + OUTPUT_BLOCK_SIZE_B <= OUTPUT_BATCH_NUM;
-    
-    if (full_of && full_ob)
+
+    unroll_for (uint obi = 0; obi < OUTPUT_BLOCK_SIZE_B; ++obi)
     {
-        // Case without bounds checking
-        unroll_for (uint obi = 0; obi < OUTPUT_BLOCK_SIZE_B; ++obi)
+        const bool correct_output_offset = output_offset % (MEMORY_ALIGN / OUTPUT_TYPE_SIZE) == 0;
+        if (full_of && full_ob && correct_output_offset)
         {
             UNIT_BLOCK_WRITE2(output, output_offset, out[obi]);
             // Move output offset to next batch
             output_offset += OUTPUT_FEATURE_NUM;
         }
-    }
-    else
-    {
-        unroll_for (uint obi = 0; obi < OUTPUT_BLOCK_SIZE_B; ++obi)
+        else
         {
             unroll_for (uint ofi = 0; ofi < OUTPUT_BLOCK_SIZE_F_EL_CNT; ++ofi)
             {
@@ -175,5 +175,27 @@ KERNEL(fully_connected_gpu_fs_byx_fsv32)(
             output_offset += OUTPUT_FEATURE_NUM;
         }
     }
+#else
+#if OUTPUT_BATCH_NUM % OUTPUT_BLOCK_SIZE_B != 0
+    if (ob + OUTPUT_BLOCK_SIZE_B > OUTPUT_BATCH_NUM) {
+        unroll_for (uint obi = 0; obi < OUTPUT_BATCH_NUM - ob; ++obi)
+        {
+            UNIT_BLOCK_WRITE2(output, output_offset, out[obi]);
+            // Move output offset to next batch
+            output_offset += OUTPUT_FEATURE_NUM;
+        }
+    }
+    else
+#endif
+    {
+        // Case without bounds checking
+        unroll_for (uint obi = 0; obi < OUTPUT_BLOCK_SIZE_B; ++obi)
+        {
+            UNIT_BLOCK_WRITE2(output, output_offset, out[obi]);
+            // Move output offset to next batch
+            output_offset += OUTPUT_FEATURE_NUM;
+        }
+    }
+#endif  // OUTPUT_FEATURE_NUM % OUTPUT_BLOCK_SIZE_F != 0
     // ========================================================================
 }

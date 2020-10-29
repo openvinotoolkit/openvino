@@ -2645,6 +2645,599 @@ INSTANTIATE_TEST_CASE_P(
     ),
     testing::internal::DefaultParamName<pooling_random_test_params>);
 
+TEST(pooling_forward_gpu, bsv16_fsv16_max_16x16x8x8_input_2x2_pool_2x2_stride)
+{
+    const auto& engine = get_test_engine();
+
+    const int features = 16;
+    const int batches = 16;
+    const int x_input = 8;
+    const int y_input = 8;
+
+    const int pool_size = 2;
+    const int stride_size = 2;
+    const int x_in_pad = 2;
+    const int y_in_pad = 2;
+
+    const tensor input_tensor(batches, features, x_input, y_input);
+
+    auto input_data = generate_random_1d<float>(batches * features * x_input * y_input, -10, 10);
+
+    auto input_prim = memory::allocate(engine, {data_types::f32, format::bfyx, input_tensor});
+    set_values(input_prim, input_data);
+
+    std::vector<float> golden_results;
+    std::vector<float> bsv16_fsv16_results;
+
+    {
+        //  golden topology
+        topology golden_topology;
+        golden_topology.add(input_layout("input", input_prim.get_layout()));
+        golden_topology.add(reorder("reorder_input", "input", input_prim.get_layout()));
+        golden_topology.add(pooling("golden_pooling", "reorder_input", pooling_mode::max, {1, 1, pool_size, pool_size},
+                                    {1, 1, stride_size, stride_size}, {0, 0, -x_in_pad, -y_in_pad}));
+
+        network golden_network(engine, golden_topology);
+        golden_network.set_input_data("input", input_prim);
+
+        auto outputs = golden_network.execute();
+        auto output_ptr = outputs.begin()->second.get_memory().pointer<float>();
+        for (size_t i = 0; i < output_ptr.size(); i++)
+        {
+            golden_results.push_back(float(output_ptr[i]));
+        }
+    }
+
+    {
+        //  bfzyx_bsv16_fsv16 topology
+        topology tested_topology;
+        tested_topology.add(input_layout("input", input_prim.get_layout()));
+        tested_topology.add(reorder("reorder_input", "input",
+                                    layout(data_types::f32, format::bs_fs_yx_bsv16_fsv16, input_tensor)));
+        tested_topology.add(pooling("bsv16_fsv16_pooling", "reorder_input", pooling_mode::max, {1, 1, pool_size, pool_size},
+                                    {1, 1, stride_size, stride_size}, {0, 0, -x_in_pad, -y_in_pad}));
+        tested_topology.add(reorder("reorder_pooling", "bsv16_fsv16_pooling",
+                                    layout(data_types::f32, format::bfyx, input_tensor)));
+
+        build_options op;
+        op.set_option(build_option::outputs({"bsv16_fsv16_pooling", "reorder_pooling"}));
+        network bsv16_fsv16_network(engine, tested_topology, op);
+        bsv16_fsv16_network.set_input_data("input", input_prim);
+
+        auto outputs = bsv16_fsv16_network.execute();
+        auto output_ptr = outputs.at("reorder_pooling").get_memory().pointer<float>();
+
+        ASSERT_EQ(outputs.at("bsv16_fsv16_pooling").get_memory().get_layout().format, format::bs_fs_yx_bsv16_fsv16);
+
+        for (size_t i = 0; i < output_ptr.size(); i++)
+        {
+            bsv16_fsv16_results.push_back(float(output_ptr[i]));
+        }
+    }
+
+
+    ASSERT_EQ(bsv16_fsv16_results.size(), golden_results.size());
+    for (size_t i = 0; i < golden_results.size(); i++)
+    {
+        auto equal = are_equal(golden_results[i], bsv16_fsv16_results[i]);
+        EXPECT_TRUE(equal);
+        if (!equal)
+        {
+            std::cout << "Difference at idx = " << i << std::endl;
+            return;
+        }
+    }
+}
+
+TEST(pooling_forward_gpu, bsv16_fsv16_max_16x16x2x2_input_4x4_pool_1x1_stride_1x1_inpad)
+{
+    const auto& engine = get_test_engine();
+
+    const int features = 16;
+    const int batches = 16;
+    const int x_input = 2;
+    const int y_input = 2;
+
+    const int pool_size = 4;
+    const int stride_size = 1;
+    const int x_in_pad = 1;
+    const int y_in_pad = 1;
+
+    const tensor input_tensor(batches, features, x_input, y_input);
+
+    auto input_data = generate_random_1d<float>(batches * features * x_input * y_input, -10, 10);
+
+    auto input_prim = memory::allocate(engine, {data_types::f32, format::bfyx, input_tensor});
+    set_values(input_prim, input_data);
+
+    std::vector<float> golden_results;
+    std::vector<float> bsv16_fsv16_results;
+
+    {
+        //  golden topology
+        topology golden_topology;
+        golden_topology.add(input_layout("input", input_prim.get_layout()));
+        golden_topology.add(reorder("reorder_input", "input", input_prim.get_layout()));
+        golden_topology.add(
+                pooling("golden_pooling", "reorder_input", pooling_mode::max, {1, 1, pool_size, pool_size},
+                        {1, 1, stride_size, stride_size}, {0, 0, -x_in_pad, -y_in_pad}));
+
+        network golden_network(engine, golden_topology);
+        golden_network.set_input_data("input", input_prim);
+
+        auto outputs = golden_network.execute();
+        auto output_ptr = outputs.begin()->second.get_memory().pointer<float>();
+        for (size_t i = 0; i < output_ptr.size(); i++) {
+            golden_results.push_back(float(output_ptr[i]));
+        }
+    }
+
+    {
+        //  bs_fs_yx_bsv16_fsv16 topology
+        topology tested_topology;
+        tested_topology.add(input_layout("input", input_prim.get_layout()));
+        tested_topology.add(reorder("reorder_input", "input",
+                                    layout(data_types::f32, format::bs_fs_yx_bsv16_fsv16, input_tensor)));
+        tested_topology.add(
+                pooling("bsv16_fsv16_pooling", "reorder_input", pooling_mode::max, {1, 1, pool_size, pool_size},
+                        {1, 1, stride_size, stride_size}, {0, 0, -x_in_pad, -y_in_pad}));
+        tested_topology.add(reorder("reorder_pooling", "bsv16_fsv16_pooling", layout(data_types::f32, format::bfyx, input_tensor)));
+
+        build_options op;
+        op.set_option(build_option::outputs({"bsv16_fsv16_pooling", "reorder_pooling"}));
+        network bsv16_fsv16_network(engine, tested_topology, op);
+        bsv16_fsv16_network.set_input_data("input", input_prim);
+
+        auto outputs = bsv16_fsv16_network.execute();
+        auto output_ptr = outputs.at("reorder_pooling").get_memory().pointer<float>();
+
+        ASSERT_EQ(outputs.at("bsv16_fsv16_pooling").get_memory().get_layout().format, format::bs_fs_yx_bsv16_fsv16);
+
+        for (size_t i = 0; i < output_ptr.size(); i++)
+        {
+            bsv16_fsv16_results.push_back(float(output_ptr[i]));
+        }
+    }
+
+    ASSERT_EQ(bsv16_fsv16_results.size(), golden_results.size());
+    for (size_t i = 0; i < golden_results.size(); i++)
+    {
+        auto equal = are_equal(golden_results[i], bsv16_fsv16_results[i]);
+        EXPECT_TRUE(equal);
+        if (!equal)
+        {
+            std::cout << "Difference at idx = " << i << std::endl;
+            return;
+        }
+    }
+}
+
+TEST(pooling_forward_gpu, bsv16_fsv16_avg_16x16x20x20_input_5x5_pool_3x3_stride)
+{
+    const auto& engine = get_test_engine();
+
+    const int features = 16;
+    const int batches = 16;
+    const int x_input = 20;
+    const int y_input = 20;
+
+    const int pool_size = 5;
+    const int stride_size = 3;
+    const int x_in_pad = 0;
+    const int y_in_pad = 0;
+
+    const tensor input_tensor(batches, features, x_input, y_input);
+
+    auto input_data = generate_random_1d<float>(batches * features * x_input * y_input, -10, 10);
+
+    auto input_prim = memory::allocate(engine, {data_types::f32, format::bfyx, input_tensor});
+    set_values(input_prim, input_data);
+
+    std::vector<float> golden_results;
+    std::vector<float> bsv16_fsv16_results;
+
+    {
+        //  golden topology
+        topology golden_topology;
+        golden_topology.add(input_layout("input", input_prim.get_layout()));
+        golden_topology.add(reorder("reorder_input", "input", input_prim.get_layout()));
+        golden_topology.add(pooling("golden_pooling", "reorder_input", pooling_mode::average, {1, 1, pool_size, pool_size},
+                                    {1, 1, stride_size, stride_size}, {0, 0, -x_in_pad, -y_in_pad}));
+
+        network golden_network(engine, golden_topology);
+        golden_network.set_input_data("input", input_prim);
+
+        auto outputs = golden_network.execute();
+        auto output_ptr = outputs.begin()->second.get_memory().pointer<float>();
+
+        for (size_t i = 0; i < output_ptr.size(); i++)
+        {
+            golden_results.push_back(float(output_ptr[i]));
+        }
+    }
+
+    {
+        //  bs_fs_yx_bsv16_fsv16 topology
+        topology tested_topology;
+        tested_topology.add(input_layout("input", input_prim.get_layout()));
+        tested_topology.add(reorder("reorder_input", "input",
+                                    layout(data_types::f32, format::bs_fs_yx_bsv16_fsv16, input_tensor)));
+        tested_topology.add(pooling("bsv16_fsv16_pooling", "reorder_input", pooling_mode::average, {1, 1, pool_size, pool_size},
+                                    {1, 1, stride_size, stride_size}, {0, 0, -x_in_pad, -y_in_pad}));
+        tested_topology.add(reorder("reorder_pooling", "bsv16_fsv16_pooling",
+                                    layout(data_types::f32, format::bfyx, input_tensor)));
+
+        build_options op;
+        op.set_option(build_option::outputs({"bsv16_fsv16_pooling", "reorder_pooling"}));
+        network bsv16_fsv16_network(engine, tested_topology, op);
+        bsv16_fsv16_network.set_input_data("input", input_prim);
+
+        auto outputs = bsv16_fsv16_network.execute();
+        auto output_ptr = outputs.at("reorder_pooling").get_memory().pointer<float>();
+
+        ASSERT_EQ(outputs.at("bsv16_fsv16_pooling").get_memory().get_layout().format, format::bs_fs_yx_bsv16_fsv16);
+
+        for (size_t i = 0; i < output_ptr.size(); i++)
+        {
+            bsv16_fsv16_results.push_back(float(output_ptr[i]));
+        }
+    }
+
+    ASSERT_EQ(bsv16_fsv16_results.size(), golden_results.size());
+    for (size_t i = 0; i < golden_results.size(); i++)
+    {
+        auto equal = are_equal(golden_results[i], bsv16_fsv16_results[i]);
+        EXPECT_TRUE(equal);
+        if (!equal)
+        {
+            std::cout << "Difference at idx = " << i << std::endl;
+            return;
+        }
+    }
+}
+
+TEST(pooling_forward_gpu, bsv16_fsv16_avg_16x16x20x20_input_5x5_pool_3x1_stride)
+{
+    const auto& engine = get_test_engine();
+
+    const int features = 16;
+    const int batches = 16;
+    const int x_input = 20;
+    const int y_input = 20;
+
+    const int pool_size = 5;
+    const int stride_size_y = 3;
+    const int stride_size_x = 1;
+    const int x_in_pad = 0;
+    const int y_in_pad = 0;
+
+    const tensor input_tensor(batches, features, x_input, y_input);
+
+    auto input_data = generate_random_1d<float>(batches * features * x_input * y_input, -10, 10);
+
+    auto input_prim = memory::allocate(engine, {data_types::f32, format::bfyx, input_tensor});
+    set_values(input_prim, input_data);
+
+    std::vector<float> golden_results;
+    std::vector<float> bsv16_fsv16_results;
+
+    {
+        //  golden topology
+        topology golden_topology;
+        golden_topology.add(input_layout("input", input_prim.get_layout()));
+        golden_topology.add(reorder("reorder_input", "input", input_prim.get_layout()));
+        golden_topology.add(pooling("golden_pooling", "reorder_input", pooling_mode::average, {1, 1, pool_size, pool_size},
+                                    {1, 1, stride_size_x, stride_size_y}, {0, 0, -x_in_pad, -y_in_pad}));
+
+        network golden_network(engine, golden_topology);
+        golden_network.set_input_data("input", input_prim);
+
+        auto outputs = golden_network.execute();
+        auto output_ptr = outputs.begin()->second.get_memory().pointer<float>();
+
+        for (size_t i = 0; i < output_ptr.size(); i++)
+        {
+            golden_results.push_back(float(output_ptr[i]));
+        }
+    }
+
+    {
+        //  bs_fs_yx_bsv16_fsv16 topology
+        topology tested_topology;
+        tested_topology.add(input_layout("input", input_prim.get_layout()));
+        tested_topology.add(reorder("reorder_input", "input", layout(data_types::f32, format::bs_fs_yx_bsv16_fsv16, input_tensor)));
+        tested_topology.add(pooling("bsv16_fsv16_pooling", "reorder_input", pooling_mode::average, {1, 1, pool_size, pool_size},
+                                    {1, 1, stride_size_x, stride_size_y}, {0, 0, -x_in_pad, -y_in_pad}));
+        tested_topology.add(reorder("reorder_pooling", "bsv16_fsv16_pooling", layout(data_types::f32, format::bfyx, input_tensor)));
+
+        build_options op;
+        op.set_option(build_option::outputs({"bsv16_fsv16_pooling", "reorder_pooling"}));
+        network bsv16_fsv16_network(engine, tested_topology, op);
+        bsv16_fsv16_network.set_input_data("input", input_prim);
+
+        auto outputs = bsv16_fsv16_network.execute();
+        auto output_ptr = outputs.at("reorder_pooling").get_memory().pointer<float>();
+
+        ASSERT_EQ(outputs.at("bsv16_fsv16_pooling").get_memory().get_layout().format, format::bs_fs_yx_bsv16_fsv16);
+
+        for (size_t i = 0; i < output_ptr.size(); i++)
+        {
+            bsv16_fsv16_results.push_back(float(output_ptr[i]));
+        }
+    }
+
+    ASSERT_EQ(bsv16_fsv16_results.size(), golden_results.size());
+    for (size_t i = 0; i < golden_results.size(); i++)
+    {
+        auto equal = are_equal(golden_results[i], bsv16_fsv16_results[i]);
+        EXPECT_TRUE(equal);
+        if (!equal)
+        {
+            std::cout << "Difference at idx = " << i << std::endl;
+            return;
+        }
+    }
+}
+
+TEST(pooling_forward_gpu, bsv16_fsv16_max_16x16x20x20_input_5x5_pool_3x1_stride)
+{
+    const auto& engine = get_test_engine();
+
+    const int features = 16;
+    const int batches = 16;
+    const int x_input = 20;
+    const int y_input = 20;
+
+    const int pool_size = 5;
+    const int stride_size_y = 3;
+    const int stride_size_x = 1;
+    const int x_in_pad = 0;
+    const int y_in_pad = 0;
+
+    const tensor input_tensor(batches, features, x_input, y_input);
+
+    auto input_data = generate_random_1d<float>(batches * features * x_input * y_input, -10, 10);
+
+    auto input_prim = memory::allocate(engine, { data_types::f32,format::bfyx,input_tensor });
+    set_values(input_prim, input_data);
+
+    std::vector<float> golden_results;
+    std::vector<float> bsv16_fsv16_results;
+
+    {
+        //  golden topology
+        topology golden_topology;
+        golden_topology.add(input_layout("input", input_prim.get_layout()));
+        golden_topology.add(reorder("reorder_input", "input", input_prim.get_layout()));
+        golden_topology.add(pooling("golden_pooling", "reorder_input", pooling_mode::max, {1, 1, pool_size, pool_size},
+                                    {1, 1, stride_size_x, stride_size_y}, {0, 0, -x_in_pad, -y_in_pad}));
+
+        network golden_network(engine, golden_topology);
+        golden_network.set_input_data("input", input_prim);
+
+        auto outputs = golden_network.execute();
+        auto output_ptr = outputs.begin()->second.get_memory().pointer<float>();
+
+        for (size_t i = 0; i < output_ptr.size(); i++)
+        {
+            golden_results.push_back(float(output_ptr[i]));
+        }
+    }
+
+    {
+        //  bs_fs_yx_bsv16_fsv16 topology
+        topology tested_topology;
+        tested_topology.add(input_layout("input", input_prim.get_layout()));
+        tested_topology.add(reorder("reorder_input", "input",
+                                    layout(data_types::f32, format::bs_fs_yx_bsv16_fsv16, input_tensor)));
+        tested_topology.add(
+                pooling("bsv16_fsv16_pooling", "reorder_input", pooling_mode::max, {1, 1, pool_size, pool_size},
+                        {1, 1, stride_size_x, stride_size_y}, {0, 0, -x_in_pad, -y_in_pad}));
+        tested_topology.add(reorder("reorder_pooling", "bsv16_fsv16_pooling", layout(data_types::f32, format::bfyx, input_tensor)));
+
+        build_options op;
+        op.set_option(build_option::outputs({"bsv16_fsv16_pooling", "reorder_pooling"}));
+        network bsv16_fsv16_network(engine, tested_topology, op);
+        bsv16_fsv16_network.set_input_data("input", input_prim);
+
+        auto outputs = bsv16_fsv16_network.execute();
+        auto output_ptr = outputs.at("reorder_pooling").get_memory().pointer<float>();
+
+        ASSERT_EQ(outputs.at("bsv16_fsv16_pooling").get_memory().get_layout().format, format::bs_fs_yx_bsv16_fsv16);
+
+        for (size_t i = 0; i < output_ptr.size(); i++)
+        {
+            bsv16_fsv16_results.push_back(float(output_ptr[i]));
+        }
+    }
+
+    ASSERT_EQ(bsv16_fsv16_results.size(), golden_results.size());
+    for (size_t i = 0; i < golden_results.size(); i++)
+    {
+        auto equal = are_equal(golden_results[i], bsv16_fsv16_results[i]);
+        EXPECT_TRUE(equal);
+        if (!equal)
+        {
+            std::cout << "Difference at idx = " << i << std::endl;
+            return;
+        }
+    }
+}
+
+TEST(pooling_forward_gpu, bsv16_fsv16_max_32x32x20x20_input_5x5_pool_3x1_stride)
+{
+    const auto& engine = get_test_engine();
+
+    const int features = 32;
+    const int batches = 32;
+    const int x_input = 20;
+    const int y_input = 20;
+
+    const int pool_size = 5;
+    const int stride_size_y = 3;
+    const int stride_size_x = 1;
+    const int x_in_pad = 0;
+    const int y_in_pad = 0;
+
+    const tensor input_tensor(batches, features, x_input, y_input);
+
+    auto input_data = generate_random_1d<float>(batches * features * x_input * y_input, -10, 10);
+
+    auto input_prim = memory::allocate(engine, { data_types::f32,format::bfyx,input_tensor });
+    set_values(input_prim, input_data);
+
+    std::vector<float> golden_results;
+    std::vector<float> bsv16_fsv16_results;
+
+    {
+        //  golden topology
+        topology golden_topology;
+        golden_topology.add(input_layout("input", input_prim.get_layout()));
+        golden_topology.add(reorder("reorder_input", "input", input_prim.get_layout()));
+        golden_topology.add(pooling("golden_pooling", "reorder_input", pooling_mode::max, {1, 1, pool_size, pool_size},
+                                    {1, 1, stride_size_x, stride_size_y}, {0, 0, -x_in_pad, -y_in_pad}));
+
+        network golden_network(engine, golden_topology);
+        golden_network.set_input_data("input", input_prim);
+
+        auto outputs = golden_network.execute();
+        auto output_ptr = outputs.begin()->second.get_memory().pointer<float>();
+
+        for (size_t i = 0; i < output_ptr.size(); i++)
+        {
+            golden_results.push_back(float(output_ptr[i]));
+        }
+    }
+
+    {
+        //  bs_fs_yx_bsv16_fsv16 topology
+        topology tested_topology;
+        tested_topology.add(input_layout("input", input_prim.get_layout()));
+        tested_topology.add(reorder("reorder_input", "input",
+                                    layout(data_types::f32, format::bs_fs_yx_bsv16_fsv16, input_tensor)));
+        tested_topology.add(
+                pooling("bsv16_fsv16_pooling", "reorder_input", pooling_mode::max, {1, 1, pool_size, pool_size},
+                        {1, 1, stride_size_x, stride_size_y}, {0, 0, -x_in_pad, -y_in_pad}));
+        tested_topology.add(reorder("reorder_pooling", "bsv16_fsv16_pooling", layout(data_types::f32, format::bfyx, input_tensor)));
+
+        build_options op;
+        op.set_option(build_option::outputs({"bsv16_fsv16_pooling", "reorder_pooling"}));
+        network bsv16_fsv16_network(engine, tested_topology, op);
+        bsv16_fsv16_network.set_input_data("input", input_prim);
+
+        auto outputs = bsv16_fsv16_network.execute();
+        auto output_ptr = outputs.at("reorder_pooling").get_memory().pointer<float>();
+
+        ASSERT_EQ(outputs.at("bsv16_fsv16_pooling").get_memory().get_layout().format, format::bs_fs_yx_bsv16_fsv16);
+
+        for (size_t i = 0; i < output_ptr.size(); i++)
+        {
+            bsv16_fsv16_results.push_back(float(output_ptr[i]));
+        }
+    }
+
+    ASSERT_EQ(bsv16_fsv16_results.size(), golden_results.size());
+    for (size_t i = 0; i < golden_results.size(); i++)
+    {
+        auto equal = are_equal(golden_results[i], bsv16_fsv16_results[i]);
+        EXPECT_TRUE(equal);
+        if (!equal)
+        {
+            std::cout << "Difference at idx = " << i << std::endl;
+            return;
+        }
+    }
+}
+
+TEST(pooling_forward_gpu, bsv16_fsv16_max_32x16x20x20_input_5x5_pool_3x1_stride)
+{
+    const auto& engine = get_test_engine();
+
+    const int features = 16;
+    const int batches = 32;
+    const int x_input = 20;
+    const int y_input = 20;
+
+    const int pool_size = 5;
+    const int stride_size_y = 3;
+    const int stride_size_x = 1;
+    const int x_in_pad = 0;
+    const int y_in_pad = 0;
+
+    const tensor input_tensor(batches, features, x_input, y_input);
+
+    std::vector<float> input_data(batches * features * x_input * y_input);
+    for (size_t i = 0; i < input_data.size(); i++)
+    {
+        input_data[i] = static_cast<float>(i);
+    }
+
+    auto input_prim = memory::allocate(engine, { data_types::f32,format::bfyx,input_tensor });
+    set_values(input_prim, input_data);
+
+    std::vector<float> golden_results;
+    std::vector<float> bsv16_fsv16_results;
+
+    {
+        //  golden topology
+        topology golden_topology;
+        golden_topology.add(input_layout("input", input_prim.get_layout()));
+        golden_topology.add(reorder("reorder_input", "input", input_prim.get_layout()));
+        golden_topology.add(pooling("golden_pooling", "reorder_input", pooling_mode::max, {1, 1, pool_size, pool_size},
+                                    {1, 1, stride_size_x, stride_size_y}, {0, 0, -x_in_pad, -y_in_pad}));
+
+        network golden_network(engine, golden_topology);
+        golden_network.set_input_data("input", input_prim);
+
+        auto outputs = golden_network.execute();
+        auto output_ptr = outputs.begin()->second.get_memory().pointer<float>();
+
+        for (size_t i = 0; i < output_ptr.size(); i++)
+        {
+            golden_results.push_back(float(output_ptr[i]));
+        }
+    }
+
+    {
+        //  bs_fs_yx_bsv16_fsv16 topology
+        topology tested_topology;
+        tested_topology.add(input_layout("input", input_prim.get_layout()));
+        tested_topology.add(reorder("reorder_input", "input",
+                                    layout(data_types::f32, format::bs_fs_yx_bsv16_fsv16, input_tensor)));
+        tested_topology.add(
+                pooling("bsv16_fsv16_pooling", "reorder_input", pooling_mode::max, {1, 1, pool_size, pool_size},
+                        {1, 1, stride_size_x, stride_size_y}, {0, 0, -x_in_pad, -y_in_pad}));
+        tested_topology.add(reorder("reorder_pooling", "bsv16_fsv16_pooling", layout(data_types::f32, format::bfyx, input_tensor)));
+
+        build_options op;
+        op.set_option(build_option::outputs({"bsv16_fsv16_pooling", "reorder_pooling"}));
+        network bsv16_fsv16_network(engine, tested_topology, op);
+        bsv16_fsv16_network.set_input_data("input", input_prim);
+
+        auto outputs = bsv16_fsv16_network.execute();
+        auto output_ptr = outputs.at("reorder_pooling").get_memory().pointer<float>();
+
+        ASSERT_EQ(outputs.at("bsv16_fsv16_pooling").get_memory().get_layout().format, format::bs_fs_yx_bsv16_fsv16);
+
+        for (size_t i = 0; i < output_ptr.size(); i++)
+        {
+            bsv16_fsv16_results.push_back(float(output_ptr[i]));
+        }
+    }
+
+    ASSERT_EQ(bsv16_fsv16_results.size(), golden_results.size());
+    for (size_t i = 0; i < golden_results.size(); i++)
+    {
+        auto equal = are_equal(golden_results[i], bsv16_fsv16_results[i]);
+        EXPECT_TRUE(equal);
+        if (!equal)
+        {
+            std::cout << "Difference at idx = " << i << std::endl;
+            return;
+        }
+    }
+}
+
 class pooling_test : public tests::generic_test
 {
 
@@ -2652,10 +3245,7 @@ public:
 
     static void TearDownTestCase()
     {
-        for (auto generic_params : all_generic_params)
-        {
-            delete generic_params;
-        }
+        all_generic_params.clear();
         all_layer_params.clear();
     }
 
@@ -2700,7 +3290,7 @@ public:
         return all_layer_params;
     }
 
-    static std::vector<tests::test_params*> generate_generic_test_params()
+    static std::vector<std::shared_ptr<tests::test_params>> generate_generic_test_params()
     {
         return generic_test::generate_generic_test_params(all_generic_params);
     }
@@ -2953,13 +3543,13 @@ public:
 
 private:
 
-    static std::vector<tests::test_params*> all_generic_params;
+    static std::vector<std::shared_ptr<tests::test_params>> all_generic_params;
     static std::vector<std::shared_ptr<cldnn::primitive>> all_layer_params;
 
 };
 
 std::vector<std::shared_ptr<cldnn::primitive>> pooling_test::all_layer_params = {};
-std::vector<tests::test_params*> pooling_test::all_generic_params = {};
+std::vector<std::shared_ptr<tests::test_params>> pooling_test::all_generic_params = {};
 
 TEST_P(pooling_test, POOLING)
 {

@@ -25,9 +25,9 @@
 __attribute__((intel_reqd_sub_group_size(16)))
 __attribute__((reqd_work_group_size(16, 1, 1)))
 KERNEL(convolution_depthwise_weights_lwg)(
-    __global INPUT0_TYPE* input, 
-    __global OUTPUT_TYPE* output, 
-    __global FILTER_TYPE* weights, 
+    __global INPUT0_TYPE* input,
+    __global OUTPUT_TYPE* output,
+    __global FILTER_TYPE* weights,
 #if BIAS_TERM
     __global BIAS_TYPE* biases,
 #endif
@@ -44,17 +44,23 @@ KERNEL(convolution_depthwise_weights_lwg)(
     const int input_x = x * STRIDE_SIZE_X - PADDING_SIZE_X;
     const int input_y = y * STRIDE_SIZE_Y - PADDING_SIZE_Y;
 
-    const uint in_split_offset = (f / FILTER_OFM_NUM) * INPUT0_FEATURE_PITCH * FILTER_IFM_NUM;
-
-    const uint filter_offset = f*FILTER_OFM_PITCH;
-    const uint input_offset = b*INPUT0_BATCH_PITCH + INPUT0_OFFSET + in_split_offset;
+    const uint g = (f / FILTER_OFM_NUM);
+    const uint in_group_offset = g * INPUT0_FEATURE_PITCH * FILTER_IFM_NUM;
+    const uint filter_offset = f*FILTER_GROUPS_PITCH;
+    const uint input_offset = b*INPUT0_BATCH_PITCH + INPUT0_OFFSET + in_group_offset;
 
 #if FILTER_SIZE_Y * FILTER_SIZE_X % 16 == 0 && !FP16_UNIT_USED
     UNIT_TYPE w = ALIGNED_BLOCK_READ(weights, filter_offset);
+#elif FILTER_SIZE_X * FILTER_SIZE_Y > 16 && FILTER_SIZE_X * FILTER_SIZE_Y <= 25
+    const uint lid = get_local_id(0);
+    UNIT_TYPE w[2] = { UNIT_VAL_ZERO };
+    w[0] = weights[filter_offset + lid];
+    if (16 + lid < FILTER_SIZE_X * FILTER_SIZE_Y)
+        w[1] = weights[filter_offset + 16 + lid];
 #else
     const uint lid = get_local_id(0);
     UNIT_TYPE w = UNIT_VAL_ZERO;
-    if(lid < FILTER_SIZE_X * FILTER_SIZE_Y)
+    if (lid < FILTER_SIZE_X * FILTER_SIZE_Y)
         w = weights[filter_offset + lid];
 #endif
 
@@ -78,8 +84,15 @@ KERNEL(convolution_depthwise_weights_lwg)(
                 if(!zero_x)
                 {
 #endif
+#if FILTER_SIZE_X * FILTER_SIZE_Y > 16 && FILTER_SIZE_X * FILTER_SIZE_Y <= 25
+                    const uint id = (j*FILTER_Y_PITCH + i*FILTER_X_PITCH) / 16;
+                    const uint idx = (j*FILTER_Y_PITCH + i*FILTER_X_PITCH) % 16;
+                    UNIT_TYPE w1 = intel_sub_group_shuffle(w[id], idx);
+#else
+                    UNIT_TYPE w1 = intel_sub_group_shuffle(w, j*FILTER_Y_PITCH + i*FILTER_X_PITCH);
+#endif
                     dotProd = mad(input[input_offset + (uint)input_offset_x*INPUT0_X_PITCH + (uint)input_offset_y*INPUT0_Y_PITCH],
-                                  intel_sub_group_shuffle( w, j*FILTER_Y_PITCH + i*FILTER_X_PITCH), dotProd);
+                                  w1, dotProd);
                 }
             }
 #if BOUNDARY_CHECK
@@ -102,5 +115,5 @@ KERNEL(convolution_depthwise_weights_lwg)(
     const uint out_split_offset = split_idx * OUTPUT_FEATURE_PITCH * OUTPUT_FEATURE_NUM;
     const uint dst_index = GET_DATA_INDEX(OUTPUT, b, f, y, x) + out_split_offset;
     output[dst_index] = ACTIVATION(dotProd, ACTIVATION_PARAMS);
-    
+
 }

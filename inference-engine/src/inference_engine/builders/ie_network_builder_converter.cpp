@@ -213,7 +213,9 @@ const std::shared_ptr<ICNNNetwork> Builder::convertToICNNNetwork(const INetwork:
 
     details::CaselessEq<std::string> eq;
     cnnNetworkImpl->setName(network->getName());
+    IE_SUPPRESS_DEPRECATED_START
     cnnNetworkImpl->setPrecision(Precision::UNSPECIFIED);
+    IE_SUPPRESS_DEPRECATED_END
     for (const auto& layer : *network) {
         bool isInternalLayer = eq(layer->getType(), "Const");
         for (const auto& connection : network->getLayerConnections(layer->getId())) {

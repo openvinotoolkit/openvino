@@ -15,8 +15,8 @@
 *******************************************************************************/
 
 #include "c_types_map.hpp"
-#include "mkldnn_thread.hpp"
 #include "type_helpers.hpp"
+#include "mkldnn_thread.hpp"
 #include "utils.hpp"
 
 #include "jit_generator.hpp"
@@ -36,35 +36,6 @@ using namespace mkldnn::impl::utils;
     ((ndims == 3) \
     ? (f).blk_off(n, c, w) \
     : (f).blk_off(n, c, h, w))
-
-
-namespace {
-template <typename T, typename U>
-void balance2D(U nthr, U ithr, T ny, T &ny_start, T &ny_end,
-    T nx, T &nx_start, T &nx_end, T nx_divider)
-{
-    const int grp_count = nstl::min(nx_divider, nthr);
-    const int grp_size_big = nthr / grp_count + 1;
-    const int grp_size_small = nthr / grp_count;
-    const int n_grp_big = nthr % grp_count;
-    const int threads_in_big_groups = n_grp_big * grp_size_big;
-
-    const int ithr_bound_distance = ithr - threads_in_big_groups;
-    T grp, grp_ithr, grp_nthr;
-    if (ithr_bound_distance < 0) { // ithr in first groups
-        grp = ithr / grp_size_big;
-        grp_ithr = ithr % grp_size_big;
-        grp_nthr = grp_size_big;
-    } else { // ithr in last groups
-        grp = n_grp_big + ithr_bound_distance / grp_size_small;
-        grp_ithr = ithr_bound_distance % grp_size_small;
-        grp_nthr = grp_size_small;
-    }
-
-    balance211(nx, grp_count, grp, nx_start, nx_end);
-    balance211(ny, grp_nthr, grp_ithr, ny_start, ny_end);
-}
-}
 /* convolution forward */
 
 template <data_type_t src_type, data_type_t wei_type, data_type_t dst_type>
@@ -411,10 +382,13 @@ void jit_avx512_common_1x1_convolution_bwd_data_t<diff_dst_type, wei_type,
                             ? weights_d.blk_off(g, ocb, icb)
                             : weights_d.blk_off(ocb, icb)];
 
-                        p.first_last_flag = ocb == 0 ? FLAG_REDUCE_FIRST : 0;
+                        p.first_last_flag = 0 | (ocb == 0 ? FLAG_REDUCE_FIRST : 0)
+                                | (ocb + jcp.nb_reduce_blocking >= jcp.nb_reduce ? FLAG_REDUCE_LAST : 0);
 
                         p.reduce_dim = this_block_size(ocb * jcp.oc_block,
                             jcp.oc, nb_oc_blocking_step * jcp.oc_block);
+
+                        p.oc_off = _icb * jcp.ic_block * sizeof(diff_src_data_t);
 
                         kernel_->jit_ker(&p);
                     }

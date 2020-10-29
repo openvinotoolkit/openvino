@@ -658,15 +658,11 @@ void jit_uni_bin_conv_fwd_kernel<isa>::generate()
         auto &post_op = p.entry_[i];
         if (post_op.is_eltwise()) {
             eltwise_injectors.push_back(new jit_uni_eltwise_injector_f32<isa>(
-                    this,
-                    post_op.eltwise.alg,
-                    post_op.eltwise.alpha,
-                    post_op.eltwise.beta
+                    this, post_op.eltwise, true, eltwise_reserved, mask_post_op_reserved
             ));
         } else if (post_op.is_depthwise()) {
             depthwise_injectors.push_back(new jit_uni_depthwise_injector_f32<isa>(
-                    this,
-                    post_op.depthwise.alg
+                    this, post_op.depthwise.alg, mask_post_op_reserved
             ));
         }
     }

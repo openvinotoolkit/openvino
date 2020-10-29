@@ -473,7 +473,7 @@ class Node:
 
         if value is not None:
             from mo.ops.const import Const
-            constant = Const(graph, {'value': value}).create_node()
+            constant = Const(graph, {'value': value, 'name': op_node.name + '/value'}).create_node()
             op_node.in_port(1).connect(constant.out_port(0))
 
         return op_node
@@ -978,15 +978,13 @@ class Graph(nx.MultiDiGraph):
         add_constant_operations(self)
 
 
-def create_graph_with_nodes(src_nodes, get_id: callable, get_attrs: callable):
+def fill_graph_with_nodes(graph, src_nodes, get_id: callable, get_attrs: callable):
     """
     Go over all nodes in src_nodes that should be enumerable and create new NX nodes
     using get_id and get_attrs functions to create node id and node attributes correspondingly.
     """
-    graph = Graph()
     for node in src_nodes:
         graph.add_node(get_id(node), **get_attrs(node))
-    return graph
 
 
 def dict_includes_compare_attrs(attr, attr_probe):

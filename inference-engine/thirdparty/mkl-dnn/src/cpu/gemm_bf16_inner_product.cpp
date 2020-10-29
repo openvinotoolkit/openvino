@@ -33,317 +33,11 @@ using namespace mkldnn::impl::primitive_kind;
 using namespace memory_tracking::names;
 using namespace mkldnn::impl::cpu::bf16_cvt_utils;
 
-template<data_type_t store_type>
-gemm_bf16_ip_pp_kernel_t<store_type>::gemm_bf16_ip_pp_kernel_t(
-        size_t row_length, bool do_bias, bool do_relu)
-    : ker_(nullptr), row_length_(row_length)
-    , do_bias_(do_bias), do_relu_(do_relu)
-    , def_unroll_(4), max_unroll_(12)
-    , vlen_(cpu_isa_traits<avx512_common>::vlen / sizeof(float))
-    , is_cpx_(false), bf16_emu_(nullptr)
-{
-    is_ajustable_row_length_ = row_length_ == 0;
-    if (do_bias_ && row_length_ == 0)
-        // Post-ops kernel w/ bias can't have ajustable row length
-        return;
-
-    if (is_ajustable_row_length_)
-        row_length_ = vlen_ * max_unroll_;
-
-    if (store_type == data_type::f32 && !do_bias_ && !do_relu_)
-        // Nothing to do for post-ops, dst must be used directly as accumulator
-        // in gemm call
-        return;
-
-    if (!mayiuse(avx512_core))
-        // bfloat16 not supported for older CPUs
-        return;
-
-    is_cpx_ = mayiuse(avx512_core_bf16);
-
-    if (!is_cpx_)
-        bf16_emu_ = new bf16_emulation_t(this,
-                            bf16_emu_reserv_1, bf16_emu_reserv_2,
-                            bf16_emu_reserv_3, bf16_emu_reserv_4,
-                            bf16_emu_reserv_5, bf16_emu_reserv_6);
-
-    generate();
-}
-
-template<data_type_t store_type>
-void gemm_bf16_ip_pp_kernel_t<store_type>::generate()
-{
-    using namespace Xbyak;
-    using namespace utils;
-
-    auto vreg_dst = [&](int idx) { return Zmm(2 + idx * 2 + 0); };
-    auto vreg_dst_ymm = [&](int idx) { return Ymm(2 + idx * 2 + 0); };
-    auto vreg_bias = [&](int idx) { return Zmm(2 + idx * 2 + 1); };
-
-    preamble();
-
-#define PARAM_OFF(x) offsetof(ker_args, x)
-    mov(reg_dst, ptr[reg_param + PARAM_OFF(dst)]);
-    mov(reg_acc, ptr[reg_param + PARAM_OFF(acc)]);
-    mov(reg_bias, ptr[reg_param + PARAM_OFF(bias)]);
-    mov(reg_len, ptr[reg_param + PARAM_OFF(len)]);
-    mov(reg_row_offset, ptr[reg_param + PARAM_OFF(row_offset)]);
-    vbroadcastss(vreg_nslope, ptr[reg_param + PARAM_OFF(nslope)]);
-#undef PARAM_OFF
-
-    if (do_relu_)
-        vxorps(vreg_zero, vreg_zero, vreg_zero);
-
-    // Load accumulated value (float), apply bias (if any) and relu (if any);
-    // then convert to destination type and store
-    auto compute = [&](size_t offset, int idx, bool apply_mask) {
-        if (!is_cpx_)
-            bf16_emu_->init_vcvtneps2bf16();
-
-        auto acc_addr = ptr[reg_acc + offset * sizeof(acc_data_t)];
-
-        auto vreg_dst_ = vreg_dst(idx);
-        if (apply_mask) {
-            vxorps(vreg_dst_, vreg_dst_, vreg_dst_);
-            vreg_dst_ = vreg_dst_ | kreg_rem_mask;
-        }
-        vmovups(vreg_dst_, acc_addr);
-
-        if (do_bias_) {
-            auto bias_addr = ptr[reg_bias + offset * sizeof(acc_data_t)];
-            auto vreg_bias_ = vreg_bias(idx);
-            if (apply_mask) {
-                vxorps(vreg_bias_, vreg_bias_, vreg_bias_);
-                vreg_bias_ = vreg_bias_ | kreg_rem_mask;
-            }
-
-            vmovups(vreg_bias_, bias_addr);
-            vaddps(vreg_dst(idx), vreg_dst(idx), vreg_bias(idx));
-        }
-
-        if (do_relu_) {
-            vcmpps(kreg_relu_cmp, vreg_dst(idx), vreg_zero, _cmp_lt_os);
-            vmulps(vreg_dst(idx) | kreg_relu_cmp, vreg_dst(idx), vreg_nslope);
-        }
-
-        auto dst_addr = ptr[reg_dst + offset * sizeof(store_data_t)];
-        if (store_type == data_type::bf16) {
-            // TODO: implement store by zmm registers for bf16
-            auto vreg_dst_ymm_ = vreg_dst_ymm(idx);
-            if (is_cpx_)
-                vcvtneps2bf16(vreg_dst_ymm_, vreg_dst(idx));
-            else
-                bf16_emu_->r_vcvtneps2bf16(vreg_dst_ymm_, vreg_dst(idx));
-
-            if (apply_mask)
-                vreg_dst_ymm_ = vreg_dst_ymm_ | kreg_rem_mask;
-
-            vmovdqu16(dst_addr, vreg_dst_ymm_);
-        } else if (store_type == data_type::f32)
-            vmovups(dst_addr, vreg_dst_);
-        else
-            assert(!"unimplemented");
-    };
-
-    // Advance all pointers by an immediate
-    auto advance_ptrs_imm = [&](size_t offset) {
-        add(reg_dst, offset * sizeof(store_data_t));
-        add(reg_acc, offset * sizeof(acc_data_t));
-        if (do_bias_)
-            add(reg_bias, offset * sizeof(acc_data_t));
-    };
-
-    // Advance all pointers by a value stored in a register
-    auto advance_ptrs_reg = [&](Reg64 offset) {
-        lea(reg_dst, ptr[reg_dst + offset * sizeof(store_data_t)]);
-        lea(reg_acc, ptr[reg_acc + offset * sizeof(acc_data_t)]);
-        if (do_bias_)
-            lea(reg_bias, ptr[reg_bias + offset * sizeof(acc_data_t)]);
-    };
-
-    // Rewind pointers that point to data that is indexed by output channel
-    // (bias or per-oc scaling factors)
-    auto rewind_ptrs = [&]() {
-        if (do_bias_)
-            sub(reg_bias, row_length_ * sizeof(acc_data_t));
-    };
-
-    //  For fwd w/ bias:
-    //
-    //      <----------------- row_length_ = OC -------------------->
-    //
-    // ^    +....................+----------------------------------+
-    // |    :   not accessed     |          Prologue loop           |
-    // |    +--------------------+----------------------------------+
-    //      |                                                       |
-    // M    |                 Main loop (unrolled)                  |
-    // B    |                                                       |
-    //      +--------------------------------+----------------------+
-    // |    |       Epilogue loop            |      not accessed    :
-    // v    +--------------------------------+......................+
-
-    if (!is_ajustable_row_length_)
-    {
-        Label prologue_end;
-        cmp(reg_row_offset, 0);
-        je(prologue_end, T_NEAR);
-
-        // Prologue loop
-        {
-            mov(reg_tmp, row_length_);
-            sub(reg_tmp, reg_row_offset);
-            cmp(reg_tmp, reg_len);
-            cmovg(reg_tmp, reg_len);
-            sub(reg_len, reg_tmp);
-
-            Label prologue_loop, prologue_loop_tail, prologue_loop_end;
-            cmp(reg_tmp, vlen_);
-            jl(prologue_loop_tail, T_NEAR);
-            L(prologue_loop); {
-                compute(0, 0, false);
-                advance_ptrs_imm(vlen_);
-                sub(reg_tmp, vlen_);
-                cmp(reg_tmp, vlen_);
-                jge(prologue_loop, T_NEAR);
-            }
-
-            L(prologue_loop_tail);
-            mov(reg_rem_mask, 1);
-            shl(reg_rem_mask, cl); // cl == reg_tmp because
-                                   // reg_tmp < vlen_ here
-            sub(reg_rem_mask, 1);
-            jz(prologue_loop_end, T_NEAR);
-
-            kmovq(kreg_rem_mask, reg_rem_mask);
-            compute(0, 0, true);
-            advance_ptrs_reg(reg_tmp);
-
-            L(prologue_loop_end);
-            rewind_ptrs();
-        }
-        L(prologue_end);
-    }
-
-    // Main loop
-    Label main_loop_end;
-    {
-        cmp(reg_len, row_length_);
-        jle(main_loop_end, T_NEAR);
-
-        Label main_loop;
-        L(main_loop); {
-            size_t row_loop, row_tail;
-            if (row_length_ <= max_unroll_ * vlen_) {
-                // Fully unroll small loops
-                row_loop = 0;
-                row_tail = row_length_;
-            } else {
-                row_loop = vlen_ * def_unroll_;
-                row_tail = row_length_ % row_loop;
-            }
-
-            assert(!!row_loop || !!row_tail);
-
-            if (row_tail % vlen_) {
-                int vlen_tail = row_tail % vlen_;
-                unsigned tail_mask = (1 << vlen_tail) - 1;
-                mov(reg_tmp, tail_mask);
-                kmovq(kreg_rem_mask, reg_tmp);
-            }
-
-            if (row_loop) {
-                mov(reg_tmp, rnd_dn(row_length_, row_loop));
-                Label oc_loop;
-                L(oc_loop); {
-                    for (size_t offset = 0; offset < row_loop; offset += vlen_)
-                        compute(offset, offset / vlen_, false);
-                    advance_ptrs_imm(row_loop);
-                    sub(reg_tmp, row_loop);
-                    jnz(oc_loop);
-                }
-            }
-
-            if (row_tail) {
-                for (size_t offset = 0; offset < row_tail; offset += vlen_) {
-                    bool use_mask = (offset + vlen_) > row_tail;
-                    compute(offset, offset / vlen_, use_mask);
-                }
-                advance_ptrs_imm(row_tail);
-            }
-
-            rewind_ptrs();
-            sub(reg_len, row_length_);
-            cmp(reg_len, row_length_);
-            jge(main_loop, T_NEAR);
-        }
-    }
-    L(main_loop_end);
-
-    // Epilogue loop
-    Label epilogue_end;
-    {
-        cmp(reg_len, 0);
-        je(epilogue_end, T_NEAR);
-
-        Label epilogue_loop, epilogue_loop_tail;
-        cmp(reg_len, vlen_);
-        jl(epilogue_loop_tail, T_NEAR);
-        L(epilogue_loop); {
-            compute(0, 0, false);
-            sub(reg_len, vlen_);
-            advance_ptrs_imm(vlen_);
-            cmp(reg_len, vlen_);
-            jge(epilogue_loop, T_NEAR);
-        }
-
-        L(epilogue_loop_tail);
-        mov(reg_tmp, reg_len); // reg_tmp is rcx, and we need cl for the shift
-        mov(reg_rem_mask, 1);
-        shl(reg_rem_mask, cl); // reg_tmp == rcx and reg_tail < vlen_ == 16
-        sub(reg_rem_mask, 1);
-        jz(epilogue_end, T_NEAR);
-        kmovq(kreg_rem_mask, reg_rem_mask);
-        compute(0, 0, true);
-    }
-
-    L(epilogue_end);
-
-    postamble();
-
-    ker_ = getCode<decltype(ker_)>();
-}
-
-template struct gemm_bf16_ip_pp_kernel_t<data_type::f32>;
-template struct gemm_bf16_ip_pp_kernel_t<data_type::bf16>;
-
-template<data_type_t store_type>
-void gemm_bf16_ip_pp_kernel_t<store_type>::operator ()(
-        store_data_t *dst, const acc_data_t *acc,
-        const acc_data_t *bias, float nslope,
-        size_t start, size_t end)
-{
-    if (end <= start)
-        return;
-
-    if (ker_) {
-        // JIT
-        ker_args args;
-        size_t row_offset = start % row_length_;
-        args.dst = dst + start;
-        args.acc = acc + start;
-        args.bias = bias ? bias + row_offset : nullptr;
-        args.nslope = nslope;
-        args.len = end - start;
-        args.row_offset = row_offset;
-        ker_(&args);
-    }
-};
-
 template <data_type_t dst_data_type>
 void gemm_bf16_inner_product_fwd_t<dst_data_type>::execute_forward() const {
     auto src = reinterpret_cast<const src_data_t *>(this->input_memory(0));
     auto weights = reinterpret_cast<const wei_data_t *>(this->input_memory(1));
-    auto bias = reinterpret_cast<const acc_data_t *>(this->input_memory(2));
+    auto bias = reinterpret_cast<const char *>(this->input_memory(2));
     auto dst = reinterpret_cast<dst_data_t *>(this->memory());
 
     const int M = pd()->OC();
@@ -358,18 +52,16 @@ void gemm_bf16_inner_product_fwd_t<dst_data_type>::execute_forward() const {
         : scratchpad().template get<acc_data_t>(key_iprod_int_dat_in_acc_dt);
 
     float alpha = 1.0, beta = 0.0;
-    mkldnn_gemm_bf16bf16f32(wei_tr ? "T" : "N", "N", &M, &N, &K,
+    gemm_bf16bf16f32(wei_tr ? "T" : "N", "N", &M, &N, &K,
             &alpha, weights, wei_tr ? &K : &M, src, &K, &beta, acc, &M);
 
-    if (!pd()->dst_is_acc_ || pd()->do_relu_ || pd()->with_bias()) {
-        const auto &post_ops = pd()->attr()->post_ops_;
-        float nslope = pd()->do_relu_ ? post_ops.entry_[0].eltwise.alpha : 0.f;
+    const float *scales = pd()->attr()->output_scales_.scales_;
+    if (postops_in_ip_)
         parallel(0, [&](int ithr, int nthr) {
             size_t start, end;
             balance211((size_t)M * N, nthr, ithr, start, end);
-            (*pp_kernel_)(dst, acc, bias, nslope, start, end);
+            (*pp_kernel_)(dst, acc, bias, scales, start, end);
         });
-    }
 }
 
 template <data_type_t diff_src_data_type>
@@ -393,7 +85,7 @@ void gemm_bf16_inner_product_bwd_data_t<diff_src_data_type>::
         : scratchpad().template get<acc_data_t>(key_iprod_int_dat_in_acc_dt);
 
     float alpha = 1.0, beta = 0.0;
-    mkldnn_gemm_bf16bf16f32(wei_tr ? "T" : "N", "N", &M, &N, &K, &alpha,
+    gemm_bf16bf16f32(wei_tr ? "T" : "N", "N", &M, &N, &K, &alpha,
             weights, wei_tr ? &K : &M, diff_dst, &K, &beta, acc, &M);
 
     if (!pd()->diff_src_is_acc_) {
@@ -416,7 +108,7 @@ void gemm_bf16_inner_product_bwd_weights_t<diff_wei_data_type>::
     auto diff_dst =
         reinterpret_cast<const diff_dst_data_t *>(this->input_memory(1));
     auto diff_weights = reinterpret_cast<diff_wei_data_t *>(this->memory(0));
-    auto diff_bias = reinterpret_cast<acc_data_t *>(this->memory(1));
+    auto diff_bias = reinterpret_cast<char *>(this->memory(1));
 
     const memory_desc_wrapper diff_dst_d(pd()->diff_dst_pd());
     const memory_desc_wrapper diff_bias_d(pd()->diff_weights_pd(1));
@@ -439,7 +131,7 @@ void gemm_bf16_inner_product_bwd_weights_t<diff_wei_data_type>::
         : scratchpad().template get<acc_data_t>(key_iprod_int_dat_in_acc_dt);
 
     float alpha = 1.0, beta = 0.0;
-    mkldnn_gemm_bf16bf16f32("N", "T", &M, &N, &K, &alpha,
+    gemm_bf16bf16f32("N", "T", &M, &N, &K, &alpha,
             wei_tr ? diff_dst : src, &M, wei_tr ? src : diff_dst, &N, &beta,
             acc, &M);
 
@@ -455,12 +147,18 @@ void gemm_bf16_inner_product_bwd_weights_t<diff_wei_data_type>::
     }
 
     if (pd()->with_bias()) {
-        diff_bias += diff_bias_d.blocking_desc().offset_padding;
+        const size_t bias_dt_size = types::data_type_size(
+                pd()->desc()->diff_bias_desc.data_type);
+        diff_bias += bias_dt_size * diff_bias_d.blocking_desc().offset_padding;
         constexpr int blksize = 16;
         const int OC_blocks = OC / blksize;
         const int rem_OC = OC % blksize;
-        acc_data_t *ddst_ws = scratchpad().template get<acc_data_t>(
+        float *ddst_ws = (float *)scratchpad().template get<acc_data_t>(
             key_iprod_dst_bf16_convert_wsp);
+        float *diff_bias_acc = pd()->diff_bias_is_acc_
+                ? (float *)diff_bias
+                : (float *)scratchpad().template get<acc_data_t>(
+                          key_iprod_bias_bf16_convert_wsp);
         parallel(0, [&](const int ithr, const int nthr) {
             int oc_st{0}, oc_e{0};
             balance211(OC_blocks, nthr, ithr, oc_st, oc_e);
@@ -469,35 +167,46 @@ void gemm_bf16_inner_product_bwd_weights_t<diff_wei_data_type>::
 
             PRAGMA_OMP_SIMD()
             for (int oc = oc_st; oc < oc_e; ++oc)
-                diff_bias[oc] = 0.0f;
+                diff_bias_acc[oc] = 0.0f;
 
             for (int mb = 0; mb < MB; ++mb) {
                 if (oc_e > oc_st)
-                    cvt_bfloat16_to_float((float *)&ddst_ws[oc_st],
+                    cvt_bfloat16_to_float(&ddst_ws[oc_st],
                         (const mkldnn_bfloat16_t *)&diff_dst[mb * OC + oc_st],
                         oc_e - oc_st);
 
                 PRAGMA_OMP_SIMD()
                 for (int oc = oc_st; oc < oc_e; ++oc)
-                    diff_bias[oc] += ddst_ws[oc];
+                    diff_bias_acc[oc] += ddst_ws[oc];
             }
+            if (!pd()->diff_bias_is_acc_ && oc_st < oc_e)
+                cvt_float_to_bfloat16(
+                    &((mkldnn_bfloat16_t *)diff_bias)[oc_st],
+                    &((const float *)diff_bias_acc)[oc_st],
+                    oc_e - oc_st);
 
             if (rem_OC != 0 && ithr == nthr-1) {
-                int oc_st = OC_blocks * blksize;
-                for (int oc = OC_blocks * blksize; oc < OC; oc++)
-                    diff_bias[oc] = 0.0f;
+                oc_st = OC_blocks * blksize;
+                oc_e = OC;
+                for (int oc = oc_st; oc < oc_e; oc++)
+                    diff_bias_acc[oc] = 0.0f;
                 for (int mb = 0; mb < MB; ++mb) {
-                    cvt_bfloat16_to_float((float *)&ddst_ws[oc_st],
+                    cvt_bfloat16_to_float(&ddst_ws[oc_st],
                         (const mkldnn_bfloat16_t *)&diff_dst[mb * OC + oc_st],
-                        OC - oc_st);
+                        oc_e - oc_st);
 
-                    for (int oc = oc_st; oc < OC; oc++)
-                        diff_bias[oc] += ddst_ws[oc];
+                    for (int oc = oc_st; oc < oc_e; ++oc)
+                        diff_bias_acc[oc] += ddst_ws[oc];
                 }
+
+                if (!pd()->diff_bias_is_acc_ && oc_st < oc_e)
+                    cvt_float_to_bfloat16(
+                        &((mkldnn_bfloat16_t *)diff_bias)[oc_st],
+                        &((const float *)diff_bias_acc)[oc_st],
+                        oc_e - oc_st);
             }
         });
     }
-
 }
 
 template struct gemm_bf16_inner_product_fwd_t<data_type::f32>;

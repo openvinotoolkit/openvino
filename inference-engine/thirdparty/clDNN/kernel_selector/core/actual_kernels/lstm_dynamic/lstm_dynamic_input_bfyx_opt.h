@@ -28,7 +28,7 @@ public:
 
 protected:
     ParamsKey GetSupportedKey() const override;
-    bool Validate(const Params& p, const optional_params& o) const;
+    bool Validate(const Params& p, const optional_params& o) const override;
 
 private:
     const uint32_t simd_size = 8;

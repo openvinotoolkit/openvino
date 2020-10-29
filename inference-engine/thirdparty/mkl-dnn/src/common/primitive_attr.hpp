@@ -87,6 +87,7 @@ private:
     }
 };
 
+template <typename T>
 struct shifts_t: public c_compatible {
     shifts_t(): count_(1), mask_(0), shifts_(shifts_buf_)
     { set(0); }
@@ -112,16 +113,16 @@ struct shifts_t: public c_compatible {
         return true;
     }
 
-    status_t set(int count, int mask, const int32_t *shifts);
-    status_t set(int32_t single_shift) { return this->set(1, 0, &single_shift); }
+    status_t set(int count, int mask, const T *zero_points);
+    status_t set(T single_zero_point) { return this->set(1, 0, &single_zero_point); }
 
     int count_;
     int mask_;
-    int32_t *shifts_;
+    T *shifts_;
 
 private:
     enum { shifts_buf_size = 16 };
-    int32_t shifts_buf_[shifts_buf_size];
+    T shifts_buf_[shifts_buf_size];
 
     void cleanup() {
         if (shifts_ != shifts_buf_ && shifts_ != nullptr)
@@ -130,53 +131,6 @@ private:
         count_ = 1;
         mask_ = 0;
         shifts_ = shifts_buf_;
-    }
-};
-
-template <typename T>
-struct zero_points_t: public c_compatible {
-    zero_points_t(): count_(1), mask_(0), zero_points_(zero_points_buf_)
-    { set(0); }
-
-    zero_points_t(const zero_points_t &rhs): zero_points_t()
-    { set(rhs.count_, rhs.mask_, rhs.zero_points_); }
-
-    ~zero_points_t() { cleanup(); }
-
-    zero_points_t &operator=(const zero_points_t &rhs) {
-        if (&rhs == this)
-            return *this;
-        status_t status = set(rhs.count_, rhs.mask_, rhs.zero_points_);
-        assert(status == status::success);
-        (void)status;
-        return *this;
-    }
-
-    bool has_default_values() const {
-        for (int c = 0; c < count_; ++c) {
-            if(zero_points_[c] != 0) return false;
-        }
-        return true;
-    }
-
-    status_t set(int count, int mask, const T *zero_points);
-    status_t set(T single_zero_point) { return this->set(1, 0, &single_zero_point); }
-
-    int count_;
-    int mask_;
-    T *zero_points_;
-
-private:
-    enum { zero_points_buf_size = 16 };
-    T zero_points_buf_[zero_points_buf_size];
-
-    void cleanup() {
-        if (zero_points_ != zero_points_buf_ && zero_points_ != nullptr)
-            impl::free(zero_points_);
-
-        count_ = 1;
-        mask_ = 0;
-        zero_points_ = zero_points_buf_;
     }
 };
 
@@ -220,12 +174,12 @@ struct mkldnn_post_ops: public mkldnn::impl::c_compatible {
             } binarization;
             struct {
                 mkldnn::impl::alg_kind_t alg;
-                const float* crop_low_data;
-                const float* crop_high_data;
-                const float* input_scale_data;
-                const float* input_shift_data;
-                const float* output_scale_data;
-                const float* output_shift_data;
+                mkldnn::impl::shifts_t<float>* crop_low_data;
+                mkldnn::impl::shifts_t<float>* crop_high_data;
+                mkldnn::impl::scales_t* input_scale_data;
+                mkldnn::impl::shifts_t<float>* input_shift_data;
+                mkldnn::impl::scales_t* output_scale_data;
+                mkldnn::impl::shifts_t<float>* output_shift_data;
             } quantization;
         };
 
@@ -270,6 +224,20 @@ struct mkldnn_post_ops: public mkldnn::impl::c_compatible {
 
     mkldnn_post_ops(): len_(0) {}
 
+//    ~mkldnn_post_ops() {
+//        for (int i = 0; i < len_; i++) {
+//            auto &post_op = entry_[i];
+//            if (post_op.is_quantization()) {
+//                delete post_op.quantization.crop_low_data;
+//                delete post_op.quantization.crop_high_data;
+//                delete post_op.quantization.input_scale_data;
+//                delete post_op.quantization.input_shift_data;
+//                delete post_op.quantization.output_scale_data;
+//                delete post_op.quantization.output_shift_data;
+//            }
+//        }
+//    }
+
     mkldnn::impl::status_t append_sum(float scale, mkldnn::impl::data_type_t data_type);
     mkldnn::impl::status_t append_eltwise(float scale,
             mkldnn::impl::alg_kind_t alg, float alpha, float beta);
@@ -281,8 +249,10 @@ struct mkldnn_post_ops: public mkldnn::impl::c_compatible {
                                           const float* biases_data);
     mkldnn::impl::status_t append_binarization(mkldnn::impl::alg_kind_t alg, const float* weights_data,
                                                const float* output_mask_data);
-    mkldnn::impl::status_t append_quantization(mkldnn::impl::alg_kind_t alg, const float* crop_low, const float* crop_high,
-            const float* input_scale, const float* input_shift, const float* output_scale, const float* output_shift);
+    mkldnn::impl::status_t append_quantization(mkldnn::impl::alg_kind_t alg,
+                                               int crop_low_count, const float* crop_low, int crop_high_count, const float* crop_high,
+                                               int input_scale_count, const float* input_scale, int input_shift_count, const float* input_shift,
+                                               int output_scale_count, const float* output_scale, int output_shift_count, const float* output_shif);
 
     int find(mkldnn::impl::primitive_kind_t kind, int start = 0,
             int stop = -1) const {
@@ -353,9 +323,9 @@ struct mkldnn_primitive_attr: public mkldnn::impl::c_compatible {
     mkldnn::impl::rnn_data_qparams_t rnn_data_qparams_;
     mkldnn::impl::scales_t rnn_weights_qparams_;
 
-    mkldnn::impl::zero_points_t<uint8_t> input_zero_points_;
-    mkldnn::impl::zero_points_t<float> weights_zero_points_;
-    mkldnn::impl::shifts_t output_compensations_;
+    mkldnn::impl::shifts_t<uint8_t> input_zero_points_;
+    mkldnn::impl::shifts_t<float> weights_zero_points_;
+    mkldnn::impl::shifts_t<int32_t> output_compensations_;
 };
 
 

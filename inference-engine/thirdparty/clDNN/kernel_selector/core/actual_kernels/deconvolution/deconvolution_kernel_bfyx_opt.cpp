@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2016 Intel Corporation
+﻿// Copyright (c) 2016-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -36,6 +36,7 @@ ParamsKey DeconvolutionKernel_bfyx_opt::GetSupportedKey() const {
     k.EnableSplitSupport();
     k.EnableDepthwiseSeparableOpt();
     k.EnableGradient();
+    k.EnableGroupedConvolution();
     return k;
 }
 
@@ -51,7 +52,7 @@ CommonDispatchData DeconvolutionKernel_bfyx_opt::SetDefault(const deconvolution_
     kd.lws0 = wg_size;
     kd.lws1 = 1;
     kd.lws2 = 1;
-    kd.effiency = FORCE_PRIORITY_6;
+    kd.efficiency = FORCE_PRIORITY_6;
     return kd;
 }
 }  // namespace kernel_selector

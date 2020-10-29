@@ -14,15 +14,15 @@
  limitations under the License.
 """
 import logging as log
-import os
-from enum import Enum
 
 import networkx as nx
+import os
+from enum import Enum
 
 from mo.graph.graph import Graph
 from mo.middle.passes.eliminate import shape_inference
 from mo.middle.pattern_match import for_graph_and_each_sub_graph_recursively
-from mo.utils.error import Error, InternalError
+from mo.utils.error import Error, InternalError, FrameworkError
 from mo.utils.logger import progress_bar
 from mo.utils.utils import refer_to_faq_msg
 
@@ -71,6 +71,7 @@ class ClassType(Enum):
     MIDDLE_REPLACER = 3
     BACK_REPLACER = 4
     IR_READER_EXTENDER = 5
+    LOADER = 6
 
 
 def _update(cls, registered_list: list, registered_dict: dict, key: str, enabled_transforms: list,
@@ -301,12 +302,26 @@ def apply_transform(graph: Graph, replacer_cls, **kwargs):
             replacer_cls,
             str(err).replace('[REPLACEMENT_ID]', replacement_id),
         )) from err
+    except FrameworkError as err:
+        raise FrameworkError('{}'.format(str(err))) from err
     except Exception as err:
         raise Exception('Exception occurred during running replacer "{} ({})": {}'.format(
             replacement_id,
             replacer_cls,
             str(err).replace('[REPLACEMENT_ID]', replacement_id),
         )) from err
+
+
+def apply_replacements_list(graph: Graph, replacers_order: list):
+    """
+    Apply all transformations from replacers_order
+    """
+    for i, replacer_cls in enumerate(replacers_order):
+        apply_transform(
+            graph=graph,
+            replacer_cls=replacer_cls,
+            curr_transform_num=i,
+            num_transforms=len(replacers_order))
 
 
 def apply_replacements(graph: Graph, replacements_type: list):
@@ -316,9 +331,4 @@ def apply_replacements(graph: Graph, replacements_type: list):
     pattern is not applied (while registration it will warn user that we have a conflict).
     """
     replacers_order = get_replacers_order(replacements_type)
-    for i, replacer_cls in enumerate(replacers_order):
-        apply_transform(
-            graph=graph,
-            replacer_cls=replacer_cls,
-            curr_transform_num=i,
-            num_transforms=len(replacers_order))
+    apply_replacements_list(graph, replacers_order)

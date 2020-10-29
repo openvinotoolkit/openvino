@@ -45,15 +45,25 @@ KERNEL(convolution_f16_10x12x16)(
     const unsigned out_fm   = global_z % ALIGNED_OFM;
     const unsigned batch_id = global_z / ALIGNED_OFM;
     const unsigned group_x = get_group_id(0);
-    const unsigned group_z = get_group_id(2);
     const unsigned max_group_x = get_num_groups(0);
     const unsigned local_z = get_local_id(2);
 
+#if GROUPED
+    const uint group_z = (uint)get_group_id(2) % (ALIGNED_OFM_PER_GROUP / TILE_N);
+    const uint g = out_fm / ALIGNED_OFM_PER_GROUP;
+    const uint g_out_fm = out_fm % ALIGNED_OFM_PER_GROUP;
+    const uint in_group_offset = g * FILTER_IFM_NUM * INPUT0_FEATURE_PITCH;
+#else
+    const unsigned group_z = get_group_id(2);
+    const uint g = 0;
+    const uint g_out_fm = out_fm;
+    const uint in_group_offset = 0;
+#endif
+
     half blockC[TILE_M * TILE_K] = { 0 };
 
-    const uint in_split_offset = split_idx * INPUT0_FEATURE_PITCH * INPUT0_FEATURE_NUM;
     uint src0_offset_tile = INPUT0_OFFSET_WITH_PADDING      // data offset
-     + in_split_offset
+     + in_group_offset
      + batch_id * INPUT0_BATCH_PITCH                        // batch offset
      + ( global_y * TILE_M * STRIDE_SIZE_Y ) * INPUT0_Y_PITCH    // y offset
      + ( global_x * TILE_K * STRIDE_SIZE_X );                    // x offset
@@ -61,7 +71,7 @@ KERNEL(convolution_f16_10x12x16)(
      + ( local_z / ( TILE_X / 4 ) ) * INPUT0_Y_PITCH        // y tile offset
      + ( local_z % ( TILE_X / 4 ) ) * 4;                    // x tile offset
 
-    const __global half *src1_read = src1 + ( group_z * TILE_N % ALIGNED_OFM ) * 2;
+    const __global half *src1_read = src1 + ( group_z * TILE_N % ALIGNED_OFM_PER_GROUP ) * 2 + g * FILTER_GROUPS_PITCH;
 
     unsigned patch_depth = 0;
     __attribute__((opencl_unroll_hint(3)))
@@ -102,12 +112,12 @@ KERNEL(convolution_f16_10x12x16)(
         LOOP(KERNEL_SLICE_DIV2, interleaved_y,
         {
             p2BlockB[interleaved_y] = intel_sub_group_block_read_us2( (const __global ushort*)src1_read );
-            src1_read += ALIGNED_OFM * 2;
+            src1_read += ALIGNED_OFM_PER_GROUP * 2;
         } )
         if ( kernel_slice_is_odd )
         {
             pBlockB[FILTER_SIZE_X * FILTER_SIZE_Y - 1] = intel_sub_group_block_read_us( (const __global ushort*)src1_read );
-            src1_read += ALIGNED_OFM * 2;
+            src1_read += ALIGNED_OFM_PER_GROUP * 2;
         }
 
 #define BLOCK_A(n) ( (n < 60) \
@@ -141,25 +151,25 @@ KERNEL(convolution_f16_10x12x16)(
             } )
         } )
     }
-    while ( ++patch_depth < INPUT0_FEATURE_NUM );
+    while ( ++patch_depth < FILTER_IFM_NUM );
 
     // Dst resembles a cube of width x height x (output channel * batches).  Each tile writes:
     // TILE_K x TILE_M x SIMD.  Partial writes most likely generated if output padding used.
     // Group stores into vectors to expedite writeback.  One large write is faster than many
     // small saves. Right-most column may be smaller if output width not divisible by tile width.
-    const uint out_split_offset = split_idx * OUTPUT_FEATURE_PITCH * OUTPUT_FEATURE_NUM;
-    __global half *out = dst + OUTPUT_OFFSET + out_split_offset +
+    const uint out_group_offset = g * FILTER_OFM_NUM * OUTPUT_FEATURE_PITCH;
+    __global half *out = dst + OUTPUT_OFFSET + out_group_offset +
      + batch_id * OUTPUT_BATCH_PITCH            // batch offset
-     + out_fm * OUTPUT_FEATURE_PITCH              // channel offset
+     + g_out_fm * OUTPUT_FEATURE_PITCH              // channel offset
      + ( global_y * TILE_M ) * OUTPUT_Y_PITCH // y offset
      + ( global_x * TILE_K );                // x offset
 
-    if ( batch_id < OUTPUT_BATCH_NUM && out_fm < OUTPUT_FEATURE_NUM )
+    if ( batch_id < OUTPUT_BATCH_NUM && g_out_fm < FILTER_OFM_NUM )
     {
 #if BIAS_TERM == 0
         const half bias = 0.h;
 #elif BIAS_PER_OFM
-        const half bias = biases[out_fm];
+        const half bias = biases[g * FILTER_OFM_NUM + g_out_fm];
 #endif
         
         if ( OUTPUT_SIZE_X % TILE_K == 0 ||

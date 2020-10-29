@@ -4,6 +4,8 @@
 
 add_subdirectory(preprocessing)
 
+add_subdirectory(legacy_api)
+
 if(ENABLE_MKL_DNN)
     add_subdirectory(mkldnn_plugin)
 endif()
@@ -22,4 +24,8 @@ endif()
 
 add_subdirectory(hetero_plugin)
 
+add_subdirectory(transformations)
+
 add_subdirectory(inference_engine)
+
+add_subdirectory(low_precision_transformations)

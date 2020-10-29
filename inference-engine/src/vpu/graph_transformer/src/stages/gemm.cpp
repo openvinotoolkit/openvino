@@ -84,12 +84,12 @@ private:
     }
 
     void serializeDataImpl(BlobSerializer& serializer) const override {
-        inputEdge(0)->input()->serializeNewBuffer(serializer);
-        inputEdge(1)->input()->serializeNewBuffer(serializer);
+        inputEdge(0)->input()->serializeBuffer(serializer);
+        inputEdge(1)->input()->serializeBuffer(serializer);
         if (numInputs() == 3) {
-            inputEdge(2)->input()->serializeNewBuffer(serializer);
+            inputEdge(2)->input()->serializeBuffer(serializer);
         }
-        outputEdge(0)->output()->serializeNewBuffer(serializer);
+        outputEdge(0)->output()->serializeBuffer(serializer);
     }
 };
 

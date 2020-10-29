@@ -55,8 +55,11 @@ void MKLDNNDeconvolutionNode::getSupportedDescriptors() {
     isDW = withGroups && deconvLayer->_group == deconvLayer->_out_depth &&
             deconvLayer->_group == deconvLayer->input()->getDims()[1];
     withBiases = (deconvLayer->_biases != nullptr && deconvLayer->_biases->size() != 0);
-    if (withBiases)
+    if (withBiases) {
         biases = deconvLayer->_biases;
+        //  WA: we add bias as depthwise post op
+        setBiasAsPostOp();
+    }
 
     /* Original layout format for deconv weights is iohw (from Caffe).
      * We specify oihw, but mean iohw, because there are no more
@@ -110,55 +113,34 @@ void MKLDNNDeconvolutionNode::getSupportedDescriptors() {
     }
 }
 
+void MKLDNNDeconvolutionNode::setBiasAsPostOp() {
+    mkldnn::post_ops ops;
+    MKLDNNDims depthwiseDims({static_cast<ptrdiff_t>(rnd_up(biases->size(), 16))});
+
+    PostOpsIntBlobMemory.push_back(MKLDNNMemoryPtr(new MKLDNNMemory(getEngine())));
+    PostOpsIntBlobMemory[0]->Create(depthwiseDims, memory::data_type::f32, memory::format::x);
+    std::vector<float> weights(biases->size());
+    for (int i = 0; i < biases->size(); i++) {
+        weights[i] = 1;
+    }
+    PostOpsIntBlobMemory[0]->SetData(memory::data_type::f32, memory::x, &weights[0],
+            biases->size() * MKLDNNExtensionUtils::sizeOfDataType(memory::data_type::f32));
+
+    PostOpsIntBlobMemory.push_back(MKLDNNMemoryPtr(new MKLDNNMemory(getEngine())));
+    PostOpsIntBlobMemory[1]->Create(depthwiseDims, memory::data_type::f32, memory::format::x);
+    PostOpsIntBlobMemory[1]->SetData(memory::data_type::f32, memory::x, biases->buffer(),
+            biases->size() * MKLDNNExtensionUtils::sizeOfDataType(memory::data_type::f32));
+
+    ops.append_depthwise(depthwise_scale_shift,
+                         (const float *) PostOpsIntBlobMemory[0]->GetData(),
+                         (const float *) PostOpsIntBlobMemory[1]->GetData());
+
+    attr.set_post_ops(ops);
+}
+
 void MKLDNNDeconvolutionNode::execute(mkldnn::stream strm) {
     if (prim) {
         strm.submit({*prim});
-    }
-    if (withBiases) {
-        const auto *bias = biases->buffer().as<const float*>();
-        auto biasSize = biases->size();
-
-        auto dst = getChildEdgeAt(0)->getBlob();
-
-        float *output = dst->buffer().as<float *>() + dst->getTensorDesc().getBlockingDesc().getOffsetPadding();
-        auto dims_size = dst->getTensorDesc().getDims().size();
-        auto layout = dst->getTensorDesc().getLayout();
-
-        const size_t N = dst->getTensorDesc().getDims()[0];
-        size_t C = dst->getTensorDesc().getBlockingDesc().getBlockDims()[1] / groupNum;
-        if (C < 1) C = 1;
-        const size_t D = dims_size > 4 ? dst->getTensorDesc().getDims()[dims_size - 3] : 1lu;
-        const size_t H = dst->getTensorDesc().getDims()[dims_size - 2];
-        const size_t W = dst->getTensorDesc().getDims()[dims_size - 1];
-        size_t blkC = 1lu;
-        if (layout == BLOCKED && dst->getTensorDesc().getBlockingDesc().getBlockDims().size() > 5) {
-            blkC = dst->getTensorDesc().getBlockingDesc().getBlockDims().size() > 5 ?
-                   dst->getTensorDesc().getBlockingDesc().getBlockDims()[5] :
-                   1lu;
-        } else if (layout == BLOCKED && dst->getTensorDesc().getBlockingDesc().getBlockDims().size() > 4) {
-            blkC = dst->getTensorDesc().getBlockingDesc().getBlockDims()[4];
-        }
-
-        auto strides = dst->getTensorDesc().getBlockingDesc().getStrides();
-        int output_size = strides[0] * N - dst->getTensorDesc().getBlockingDesc().getOffsetPadding();
-
-        parallel_for5d(N, C, D, H, W, [&](size_t n, size_t c, size_t d, size_t h, size_t w) {
-            for (size_t g = 0; g < groupNum; g++) {
-                const size_t off = n * strides[0]
-                                 + (g * C + c) * strides[1]
-                                 + d * strides[dims_size - 3]
-                                 + h * strides[dims_size - 2]
-                                 + w * strides[dims_size - 1];
-                if (off >= output_size) continue;
-                auto o = &output[off];
-                int gcb = g * C * blkC + c * blkC;
-                for (int bc = 0; bc < blkC; ++bc) {
-                    int index = gcb + bc;
-                    if (index < biasSize)
-                        o[bc] += bias[index];
-                }
-            }
-        });
     }
 }
 
@@ -171,7 +153,7 @@ void MKLDNNDeconvolutionNode::createPrimitive() {
         return;
 
     auto prim_desc = createPrimitiveDescriptor<convolution_backward_data::primitive_desc,
-            convolution_backward_data::desc, convolution_forward::primitive_desc>();
+            convolution_backward_data::desc, convolution_forward::primitive_desc>(attr);
 
     prim.reset(new convolution_backward_data(prim_desc,
             getParentEdgeAt(0)->getMemory().GetPrimitive(),

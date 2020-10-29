@@ -24,11 +24,6 @@
 #include "inputs_filling.hpp"
 #include "utils.hpp"
 
-#ifdef __linux__
-#include <sys/time.h>
-#include <sys/resource.h>
-#endif
-
 using namespace InferenceEngine;
 
 static const size_t progressBarDefaultTotalCount = 1000;
@@ -184,7 +179,16 @@ int main(int argc, char *argv[]) {
                             !FLAGS_exec_graph_path.empty());
 
         auto devices = parseDevices(device_name);
-        std::map<std::string, uint32_t> device_nstreams = parseValuePerDevice(devices, FLAGS_nstreams);
+        std::map<std::string, uint32_t> device_nstreams = parseNStreamsValuePerDevice(devices, FLAGS_nstreams);
+        for (auto& pair : device_nstreams) {
+            auto key = std::string(pair.first + "_THROUGHPUT_STREAMS");
+            std::vector<std::string> supported_config_keys = ie.GetMetric(pair.first, METRIC_KEY(SUPPORTED_CONFIG_KEYS));
+            if (std::find(supported_config_keys.begin(), supported_config_keys.end(), key) == supported_config_keys.end()) {
+                 throw std::logic_error("Device " + pair.first + " doesn't support config key '" + key + "'! " +
+                                        "Please specify -nstreams for correct devices in format  <dev1>:<nstreams1>,<dev2>:<nstreams2>");
+            }
+        }
+
         for (auto& device : devices) {
             if (device == "CPU") {  // CPU supports few special performance-oriented keys
                 // limit threading for CPU portion of inference
@@ -260,7 +264,8 @@ int main(int argc, char *argv[]) {
             // ----------------- 5. Resizing network to match image sizes and given batch ----------------------------------
             next_step();
 
-            if (FLAGS_b != 0) {
+            batchSize = cnnNetwork.getBatchSize();
+            if ((FLAGS_b != 0) && (batchSize != FLAGS_b)) {
                 ICNNNetwork::InputShapes shapes = cnnNetwork.getInputShapes();
                 bool reshape = false;
                 for (const InputsDataMap::value_type& item : inputInfo) {
@@ -286,10 +291,8 @@ int main(int argc, char *argv[]) {
             }
 
             batchSize = cnnNetwork.getBatchSize();
-            precision = cnnNetwork.getPrecision();
             topology_name = cnnNetwork.getName();
-            slog::info << (FLAGS_b != 0 ? "Network batch size was changed to: " : "Network batch size: ") << batchSize <<
-                ", precision: " << precision << slog::endl;
+            slog::info << (FLAGS_b != 0 ? "Network batch size was changed to: " : "Network batch size: ") << batchSize << slog::endl;
 
             // ----------------- 6. Configuring input ----------------------------------------------------------------------
             next_step();
@@ -342,14 +345,18 @@ int main(int argc, char *argv[]) {
         // Number of requests
         uint32_t nireq = FLAGS_nireq;
         if (nireq == 0) {
-            std::string key = METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS);
-            try {
-                nireq = exeNetwork.GetMetric(key).as<unsigned int>();
-            } catch (const details::InferenceEngineException& ex) {
-                THROW_IE_EXCEPTION
-                        << "Every device used with the benchmark_app should "
-                        << "support OPTIMAL_NUMBER_OF_INFER_REQUESTS ExecutableNetwork metric. "
-                        << "Failed to query the metric for the " << device_name << " with error:" << ex.what();
+            if (FLAGS_api == "sync") {
+                nireq = 1;
+            } else {
+                std::string key = METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS);
+                try {
+                    nireq = exeNetwork.GetMetric(key).as<unsigned int>();
+                } catch (const details::InferenceEngineException& ex) {
+                    THROW_IE_EXCEPTION
+                            << "Every device used with the benchmark_app should "
+                            << "support OPTIMAL_NUMBER_OF_INFER_REQUESTS ExecutableNetwork metric. "
+                            << "Failed to query the metric for the " << device_name << " with error:" << ex.what();
+                }
             }
         }
 
@@ -575,25 +582,6 @@ int main(int argc, char *argv[]) {
 
         return 3;
     }
-
-#ifdef __linux__
-    std::ifstream status("/proc/self/status");
-    std::string line;
-    while (std::getline(status, line)) {
-        std::string title;
-        std::istringstream iss(line);
-        iss >> title;
-        if (title == "VmPeak:") {
-            size_t val;
-            iss >> val;
-            std::cout << "Peak Virtual Memory (VmPeak) Size, kBytes: " << val << std::endl;
-        } else if (title == "VmHWM:") {
-            size_t val;
-            iss >> val;
-            std::cout << "Peak Resident Memory (VmHWM) Size, kBytes:  " << val << std::endl;
-        }
-    }
-#endif
 
     return 0;
 }

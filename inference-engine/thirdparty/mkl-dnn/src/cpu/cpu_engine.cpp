@@ -69,8 +69,9 @@
 #include "cpu/jit_avx512_core_u8s8s32x_wino_convolution.hpp"
 #include "cpu/jit_avx512_core_fp32_wino_conv_2x3.hpp"
 #include "cpu/jit_uni_batch_normalization_s8.hpp"
-#include "cpu/jit_uni_roi_pooling.hpp"
+#include "cpu/jit_uni_fork_softmax.hpp"
 #include "cpu/jit_uni_softmax.hpp"
+#include "cpu/jit_uni_roi_pooling.hpp"
 #include "cpu/ref_roi_pooling.hpp"
 #include "cpu/jit_uni_depthwise.hpp"
 #include "cpu/ref_depthwise.hpp"
@@ -308,6 +309,7 @@ static const pd_create_f cpu_impl_list[] = {
     INSTANCE(ref_deconvolution_fwd_t),
     /* shuffle */
     INSTANCE(ref_shuffle_t<4>), /* f32 or s32 */
+    INSTANCE(ref_shuffle_t<2>), /* bf16 */
     INSTANCE(ref_shuffle_t<1>), /* s8 or u8 */
 #endif
     /* eltwise */
@@ -347,8 +349,11 @@ static const pd_create_f cpu_impl_list[] = {
     INSTANCE(ref_eltwise_bwd_t<s16>),
 #endif
     /* softmax */
+    INSTANCE(jit_uni_fork_softmax_fwd_t<avx512_common>),
     INSTANCE(jit_uni_softmax_fwd_t<avx512_common>),
+    INSTANCE(jit_uni_fork_softmax_fwd_t<avx2>),
     INSTANCE(jit_uni_softmax_fwd_t<avx2>),
+    INSTANCE(jit_uni_fork_softmax_fwd_t<sse42>),
     INSTANCE(jit_uni_softmax_fwd_t<sse42>),
     INSTANCE(ref_softmax_fwd_t<f32>),
 #ifdef ENABLE_UNUSED_PRIM
@@ -406,9 +411,11 @@ static const pd_create_f cpu_impl_list[] = {
 #endif
 
     /* lrn */
-    INSTANCE(jit_avx512_common_lrn_fwd_t),
+    INSTANCE(jit_avx512_common_lrn_fwd_t<f32>),
 #ifdef ENABLE_UNUSED_PRIM
-    INSTANCE(jit_avx512_common_lrn_bwd_t),
+    INSTANCE(jit_avx512_common_lrn_bwd_t<f32>),
+    INSTANCE(jit_avx512_common_lrn_fwd_t<bf16>),
+    INSTANCE(jit_avx512_common_lrn_bwd_t<bf16>),
 #endif
     INSTANCE(jit_uni_lrn_fwd_t<avx2>),
 #ifdef ENABLE_UNUSED_PRIM
@@ -418,6 +425,8 @@ static const pd_create_f cpu_impl_list[] = {
     INSTANCE(ref_lrn_fwd_t<f32>),
 #ifdef ENABLE_UNUSED_PRIM
     INSTANCE(ref_lrn_bwd_t<f32>),
+    INSTANCE(ref_lrn_fwd_t<bf16>),
+    INSTANCE(ref_lrn_bwd_t<bf16>),
 #endif
     /* batch normalization */
     INSTANCE(jit_uni_batch_normalization_fwd_t<avx512_common, f32>),

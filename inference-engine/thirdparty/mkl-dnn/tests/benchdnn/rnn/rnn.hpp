@@ -360,8 +360,8 @@ inline size_t ldgo_off_f(const rnn_prb_t *p, int l, int d, int b, int c) {
 
 inline void inv_ldgo_off_f(
         const rnn_prb_t *p, size_t off, int &l, int &d, int &b, int &c) {
-    c = off % p->sic;
-    off /= p->sic;
+    c = off % p->dic;
+    off /= p->dic;
     b = off % p->n_bias();
     off /= p->n_bias();
     d = off % p->n_directions();

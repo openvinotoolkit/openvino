@@ -37,7 +37,15 @@ KERNEL(convolution_f16)(
     const unsigned group_y = get_group_id(1);
     const unsigned global_x = (uint)get_global_id(0);
     const unsigned global_y = (uint)get_global_id(1);
+
+#if GROUPED
+    const unsigned b_g = (uint)get_global_id(2);
+    const unsigned global_z = b_g / FILTER_GROUPS_NUM;
+    const unsigned g = b_g % FILTER_GROUPS_NUM;
+#else
     const unsigned global_z = (uint)get_global_id(2);
+    const unsigned g = 0;
+#endif
 
     unsigned interleaved_y;
     unsigned kernel_y;
@@ -48,12 +56,12 @@ KERNEL(convolution_f16)(
     half16  blockC00 = 0.f;
     half16  blockC10 = 0.f;
 
-    const uint in_split_offset = split_idx * INPUT0_FEATURE_PITCH * INPUT0_FEATURE_NUM;
+    const uint in_group_offset = g * INPUT0_FEATURE_PITCH * FILTER_IFM_NUM;
     // Src0 (patch input) is directly used as atile.
     // Each work item points to the start of a different patch.
     // atile is M rows x K columns.
 #if defined(INPUT_BUFFER_WIDTH_PADDED) && defined(INPUT_BUFFER_HEIGHT_PADDED)
-    const uint src0_read_offset_const = INPUT0_OFFSET_WITH_PADDING + in_split_offset
+    const uint src0_read_offset_const = INPUT0_OFFSET_WITH_PADDING + in_group_offset
      + INPUT0_BATCH_PITCH * global_z                                                         // batch offset
      + ( ( global_y / OUTPUT_SIZE_X ) * STRIDE_SIZE_Y * INPUT0_Y_PITCH )                     // y offset
      + ( ( global_y % OUTPUT_SIZE_X ) * STRIDE_SIZE_X );                                     // x offset
@@ -61,7 +69,7 @@ KERNEL(convolution_f16)(
     #pragma error - fix this path
     const int y_offset = ( global_y / OUTPUT_SIZE_X ) * STRIDE_SIZE_Y - PADDING_SIZE_Y;
     const int x_offset = ( global_y % OUTPUT_SIZE_X ) * STRIDE_SIZE_X - PADDING_SIZE_X;
-    uint src0_read_offset = INPUT_OFFSET + in_split_offset + INPUT0_BATCH_PITCH * global_z
+    uint src0_read_offset = INPUT_OFFSET + in_group_offset + INPUT0_BATCH_PITCH * global_z
                             + y_offset * INPUT0_Y_PITCH;
 
     int partial_left = 0, partial_right = 0;
@@ -84,7 +92,7 @@ KERNEL(convolution_f16)(
     #pragma error - fix this path
     // TODO: Handle offset
     const int y_offset = ( global_y / OUTPUT_SIZE_X ) * STRIDE_SIZE_Y -PADDING_SIZE_Y;
-    int src0_read_offset = in_split_offset + INPUT0_BATCH_PITCH * global_z        // batch offset
+    int src0_read_offset = in_group_offset + INPUT0_BATCH_PITCH * global_z        // batch offset
      + y_offset * INPUT0_Y_PITCH                              // y offset
      + ( ( global_y % OUTPUT_SIZE_X ) * STRIDE_SIZE_X );                // x offset
 #endif
@@ -93,7 +101,7 @@ KERNEL(convolution_f16)(
     // It starts at the top of src1 and walks down.
     // btile is K rows x N columns.
     uint src0_read_offset = src0_read_offset_const;
-    uint src1_read_offset = ( global_x * TILE_N * 2);
+    uint src1_read_offset = ( global_x * TILE_N * 2) + g * FILTER_GROUPS_PITCH;
 
 #define DOT_PRODUCT_16( _result, _rowA, colB )    \
     {   \
@@ -146,7 +154,7 @@ KERNEL(convolution_f16)(
                 LOOP(FILTER_SIZE_X, i, 
                 {
 #if LEFTOVERS == 1
-                    if(src0_read_offset_const + (FILTER_SIZE_Y - 1) * INPUT0_Y_PITCH + (INPUT0_FEATURE_NUM - 1) * (INPUT0_FEATURE_PITCH - ( FILTER_SIZE_Y * INPUT0_Y_PITCH )) >= INPUT0_BATCH_NUM * INPUT0_BATCH_PITCH)
+                    if(src0_read_offset_const + (FILTER_SIZE_Y - 1) * INPUT0_Y_PITCH + (FILTER_IFM_NUM - 1) * (INPUT0_FEATURE_PITCH - ( FILTER_SIZE_Y * INPUT0_Y_PITCH )) >= INPUT0_BATCH_NUM * INPUT0_BATCH_PITCH)
                     {
                         if(src0_read_offset + i < INPUT0_BATCH_NUM * INPUT0_BATCH_PITCH)
                             blockA00[i] = src0[src0_read_offset + i];
@@ -211,12 +219,12 @@ KERNEL(convolution_f16)(
             LOOP(FILTER_SIZE_X_DIV2, interleaved_y,
             {
                 p4BlockB00[interleaved_y] = intel_sub_group_block_read_us4( (const __global ushort*)src1 + src1_read_offset );
-                src1_read_offset += ALIGNED_OFM * 2;
+                src1_read_offset += ALIGNED_OFM_PER_GROUP * 2;
             } )
             if ( kernel_width_is_odd )
             {
                 p2BlockB00[FILTER_SIZE_X - 1] = intel_sub_group_block_read_us2( (const __global ushort*)src1 + src1_read_offset );
-                src1_read_offset += ALIGNED_OFM * 2;
+                src1_read_offset += ALIGNED_OFM_PER_GROUP * 2;
             }
 
             // Perform MADs
@@ -241,14 +249,14 @@ KERNEL(convolution_f16)(
 
         src0_read_offset += INPUT0_FEATURE_PITCH - ( FILTER_SIZE_Y * INPUT0_Y_PITCH ); // reset to start of next slice of patch
     }
-    while ( ++patch_depth < INPUT0_FEATURE_NUM );
+    while ( ++patch_depth < FILTER_IFM_NUM );
 
     #undef DOT_PRODUCT_16
 
-    const uint out_split_offset = split_idx * OUTPUT_FEATURE_PITCH * OUTPUT_FEATURE_NUM;
+    const uint out_group_offset = g * OUTPUT_FEATURE_PITCH * FILTER_OFM_NUM;
     // Dst resembles a cube of width x height x (output channel * batches).  Each tile writes:
     // (SIMD * TILE_M) x 1 x TILE_N.  Partial writes most likely generated if padding used.
-    __global half *out = dst + OUTPUT_OFFSET + out_split_offset
+    __global half *out = dst + OUTPUT_OFFSET + out_group_offset
      + global_z * OUTPUT_BATCH_PITCH                                                   // batch offset
      + ( group_x * TILE_N ) * OUTPUT_FEATURE_PITCH                                     // channel offset
      + ( ( global_y * TILE_M ) / OUTPUT_SIZE_X ) * OUTPUT_Y_PITCH                      // y offset
@@ -258,10 +266,10 @@ KERNEL(convolution_f16)(
     if (global_y * TILE_M < OUTPUT_SIZE_X * OUTPUT_SIZE_Y )
     {
          #if BIAS_TERM
-         __global half16* biasPtr = (__global half16*) (bias + group_x * TILE_N);
+         __global half16* biasPtr = (__global half16*) (bias + group_x * TILE_N + g * FILTER_OFM_NUM);
          #endif
 
-#if ( ( OUTPUT_FEATURE_NUM % TILE_N ) == 0 )
+#if ( ( FILTER_OFM_NUM % TILE_N ) == 0 )
 
         #if BIAS_TERM
         blockC00 += *biasPtr;
@@ -277,7 +285,7 @@ KERNEL(convolution_f16)(
             out[(16+i) * OUTPUT_FEATURE_PITCH] = blockC10[i];
         }
 
-#elif ( ( OUTPUT_FEATURE_NUM % 16 ) == 0 )
+#elif ( ( FILTER_OFM_NUM % 16 ) == 0 )
         if ( ( global_x + 1 ) < get_global_size(0) )
         {
             #if BIAS_TERM
@@ -326,7 +334,7 @@ KERNEL(convolution_f16)(
         }
         else
         {
-#if ( (OUTPUT_FEATURE_NUM % TILE_N) > 16 )
+#if ( (FILTER_OFM_NUM % TILE_N) > 16 )
 
             #if BIAS_TERM
             blockC00 += *biasPtr;
@@ -340,7 +348,7 @@ KERNEL(convolution_f16)(
             {
                 out[( 0+i) * OUTPUT_FEATURE_PITCH] = blockC00[i];
             }
-            for (unsigned i = 0; i < OUTPUT_FEATURE_NUM % 16 ; i++)
+            for (unsigned i = 0; i < FILTER_OFM_NUM % 16 ; i++)
             {
                 out[(16+i) * OUTPUT_FEATURE_PITCH] = blockC10[i];
             }
@@ -351,7 +359,7 @@ KERNEL(convolution_f16)(
 
             blockC00 = ACTIVATION(blockC00, ACTIVATION_PARAMS);
 
-            for (unsigned i = 0; i < OUTPUT_FEATURE_NUM % 16 ; i++)
+            for (unsigned i = 0; i < FILTER_OFM_NUM % 16 ; i++)
             {
                 out[( 0+i) * OUTPUT_FEATURE_PITCH] = blockC00[i];
             }

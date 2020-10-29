@@ -19,7 +19,7 @@ MKLDNNGenericNode::MKLDNNGenericNode(const InferenceEngine::CNNLayerPtr& layer, 
 }
 
 void MKLDNNGenericNode::getSupportedDescriptors() {
-    if (!extFactory) {
+    if (!extFactory && impls.empty()) {
         std::string type = getCnnLayer() ? getCnnLayer()->type : "Generic";
         THROW_IE_EXCEPTION << "Cannot get generic primitive for layer: " << getName() << " with type: " << type;
     }
@@ -29,26 +29,29 @@ void MKLDNNGenericNode::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
-    InferenceEngine::Precision precision = getCnnLayer()->insData[0].lock()->getPrecision();
-    if (precision != InferenceEngine::Precision::FP32)
-        precision = InferenceEngine::Precision::FP32;
-    auto inputDataType = MKLDNNExtensionUtils::IEPrecisionToDataType(precision);
-    precision = getCnnLayer()->outData[0]->getPrecision();
-    if (precision != InferenceEngine::Precision::FP32)
-        precision = InferenceEngine::Precision::FP32;
-    auto outputDataType = MKLDNNExtensionUtils::IEPrecisionToDataType(precision);
-
-    if (!extFactory)
-        THROW_IE_EXCEPTION << "Descriptor for generic primitive doesn't exist";
-
     InferenceEngine::ResponseDesc resp;
-    InferenceEngine::StatusCode rc = extFactory->getImplementations(impls, &resp);
-    if (rc != InferenceEngine::OK) {
-        THROW_IE_EXCEPTION << resp.msg;
+    if (impls.empty()) {
+        if (!extFactory)
+            THROW_IE_EXCEPTION << "Descriptor for generic primitive doesn't exist";
+
+        std::vector<InferenceEngine::ILayerImpl::Ptr> impls_no_exec;
+
+        IE_SUPPRESS_DEPRECATED_START
+        InferenceEngine::StatusCode rc = extFactory->getImplementations(impls_no_exec, &resp);
+        IE_SUPPRESS_DEPRECATED_END
+        for (const auto& impl : impls_no_exec) {
+            if (auto exec_impl = std::dynamic_pointer_cast<InferenceEngine::ILayerExecImpl>(impl)) {
+                impls.emplace_back(exec_impl);
+            }
+        }
+        if (rc != InferenceEngine::OK) {
+            THROW_IE_EXCEPTION << resp.msg;
+        }
     }
+
     for (auto &impl : impls) {
         std::vector<InferenceEngine::LayerConfig> configs;
-        rc = impl->getSupportedConfigurations(configs, &resp);
+        auto rc = impl->getSupportedConfigurations(configs, &resp);
         if (rc != InferenceEngine::OK) {
             THROW_IE_EXCEPTION << resp.msg;
         }
@@ -68,7 +71,7 @@ void MKLDNNGenericNode::initSupportedPrimitiveDescriptors() {
 }
 
 void MKLDNNGenericNode::createPrimitive() {
-    if (extFactory) {
+    if (extFactory || !impls.empty()) {
         return;
     }
     if (getSelectedPrimitiveDescriptor() == nullptr)
@@ -91,10 +94,17 @@ bool MKLDNNGenericNode::created(const MKLDNNExtensionManager::Ptr &extMgr) {
     if (getCnnLayer() && extMgr) {
         // We should save extension manager in otder to avoid situation when
         // it will destroyed before extensibility primitives
-        extFactory.reset(extMgr->CreateExtensionFactory(getCnnLayer()));
-        extShapeInference = extMgr->CreateReshaper(getCnnLayer());
+        if (getCnnLayer()->getNode()) {
+            auto impl = extMgr->CreateImplementation(getCnnLayer()->getNode());
+            if (auto execImpl = std::dynamic_pointer_cast<InferenceEngine::ILayerExecImpl>(impl))
+                impls.emplace_back(execImpl);
+        }
+        if (impls.empty()) {
+            extFactory = extMgr->CreateExtensionFactory(getCnnLayer());
+            extShapeInference = extMgr->CreateReshaper(getCnnLayer());
+        }
 
-        if (extFactory)
+        if (extFactory || !impls.empty())
             setType(Generic);
     }
     return created();
@@ -127,7 +137,9 @@ void MKLDNNGenericNode::execLayer() {
 
     if (isDynBatch) {
         if (extShapeInference) {
+            IE_SUPPRESS_DEPRECATED_START
             auto sts = extShapeInference->inferShapes(constInputs, params, blobs, outputShapes, nullptr);
+            IE_SUPPRESS_DEPRECATED_END
             if (sts != InferenceEngine::StatusCode::OK)
                 isDynBatch = false;
         } else {
@@ -153,13 +165,10 @@ void MKLDNNGenericNode::execLayer() {
             outputs.push_back(getChildEdgesAtPort(i)[0]->getBlob());
         }
     }
-    auto * execImpl = dynamic_cast<InferenceEngine::ILayerExecImpl *>(impls[0].get());
-    if (execImpl != nullptr) {
-        InferenceEngine::ResponseDesc resp;
-        InferenceEngine::StatusCode rc = execImpl->execute(inputs, outputs, &resp);
-        if (rc != InferenceEngine::OK) {
-            THROW_IE_EXCEPTION << resp.msg;
-        }
+    InferenceEngine::ResponseDesc resp;
+    InferenceEngine::StatusCode rc = impls[0]->execute(inputs, outputs, &resp);
+    if (rc != InferenceEngine::OK) {
+        THROW_IE_EXCEPTION << resp.msg;
     }
 }
 
@@ -168,7 +177,7 @@ void MKLDNNGenericNode::initDescriptor(const InferenceEngine::LayerConfig &confi
     InferenceEngine::StatusCode rc;
     InferenceEngine::ResponseDesc resp;
 
-    InferenceEngine::ILayerImpl::Ptr selectedImpl;
+    InferenceEngine::ILayerExecImpl::Ptr selectedImpl;
     for (size_t k = 0, t = 0; k < impls.size(); k++) {
         std::vector<InferenceEngine::LayerConfig> configs;
         rc = impls[k]->getSupportedConfigurations(configs, &resp);

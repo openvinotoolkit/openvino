@@ -162,9 +162,10 @@ layout reorder_inst::calc_output_layout(reorder_node const& node) {
     }
 
     if (ofmt == format::bs_xs_xsv8_bsv8 || ofmt == format::bs_xs_xsv8_bsv16 || ofmt == format::bs_x_bsv16 ||
-        ofmt == format::bfzyx || ifmt == format::bfzyx || ofmt == format::bfzyx_f16 || ifmt == format::bfzyx_f16 ||
-        ofmt == format::bfzyx_b16f16 || ifmt == format::bfzyx_b16f16 ||
-        ofmt == format::b_fs_zyx_fsv32 || ifmt == format::b_fs_zyx_fsv32) {
+        ofmt == format::bfzyx || ifmt == format::bfzyx || ofmt == format::b_fs_zyx_fsv16 || ifmt == format::b_fs_zyx_fsv16 ||
+        ofmt == format::bs_fs_zyx_bsv16_fsv16 || ifmt == format::bs_fs_zyx_bsv16_fsv16 ||
+        ofmt == format::b_fs_zyx_fsv32 || ifmt == format::b_fs_zyx_fsv32 ||
+        ofmt == format::bs_fs_yx_bsv16_fsv16 || ifmt == format::bs_fs_yx_bsv16_fsv16) {
         return layout(odt, ofmt, input_layout.size.transform(ofmt, 1), op);
     } else if (ofmt != ifmt && (ofmt == format::bfwzyx || ifmt == format::bfwzyx)) {
         // TODO Shouldn't transform be called every time ifmt != ofmt?
@@ -220,13 +221,15 @@ reorder_inst::typed_primitive_inst(network_impl& network, reorder_node const& no
                                  "value",
                                  1,
                                  "Subtracting values work only for formats that have feature dimension == 1");
-        CLDNN_ERROR_NOT_EQUAL(node.id(),
-                              "Input feature size[0]",
-                              static_cast<size_t>(input_layout.size.feature[0]),
-                              "argument subtract per feature size",
-                              argument.subtract_per_feature.size(),
-                              "Number of features/channels in input does not match the number of features/channels in "
-                              "values to subtract");
+        if (input_layout.format != format::nv12) {
+            CLDNN_ERROR_NOT_EQUAL(node.id(),
+                "Input feature size[0]",
+                static_cast<size_t>(input_layout.size.feature[0]),
+                "argument subtract per feature size",
+                argument.subtract_per_feature.size(),
+                "Number of features/channels in input does not match the number of features/channels in "
+                "values to subtract");
+        }
     }
 }
 

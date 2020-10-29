@@ -30,10 +30,10 @@ union f32_bf16_t {
     mkldnn_bfloat16_t vbfloat[2];
 };
 
-extern jit_avx512_core_cvt_ps_to_bf16_t cvt_one_ps_to_bf16;
-extern jit_avx512_core_cvt_ps_to_bf16_t cvt_ps_to_bf16_;
-extern jit_avx512_core_cvt_bf16_to_ps_t cvt_bf16_to_ps_;
-extern jit_avx512_core_add_cvt_ps_to_bf16_t add_cvt_ps_to_bf16_;
+jit_avx512_core_cvt_ps_to_bf16_t &cvt_one_ps_to_bf16();
+jit_avx512_core_cvt_ps_to_bf16_t &cvt_ps_to_bf16_();
+jit_avx512_core_cvt_bf16_to_ps_t &cvt_bf16_to_ps_();
+jit_avx512_core_add_cvt_ps_to_bf16_t &add_cvt_ps_to_bf16_();
 
 inline mkldnn_bfloat16_t cvt_float_to_bfloat16(float inp) {
     assert(mayiuse(avx512_core));
@@ -41,7 +41,7 @@ inline mkldnn_bfloat16_t cvt_float_to_bfloat16(float inp) {
     jit_call_t p;
     p.inp = (void *)&inp;
     p.out = (void *)&out;
-    cvt_one_ps_to_bf16.jit_ker(&p);
+    cvt_one_ps_to_bf16().jit_ker(&p);
     return out;
 }
 
@@ -50,7 +50,7 @@ inline void cvt_float_to_bfloat16(mkldnn_bfloat16_t *out, const float *inp) {
     jit_call_t p;
     p.inp = (void *)inp;
     p.out = (void *)out;
-    cvt_one_ps_to_bf16.jit_ker(&p);
+    cvt_one_ps_to_bf16().jit_ker(&p);
 }
 
 inline void cvt_float_to_bfloat16(mkldnn_bfloat16_t *out, const float *inp,
@@ -60,7 +60,7 @@ inline void cvt_float_to_bfloat16(mkldnn_bfloat16_t *out, const float *inp,
     p_.inp = (void *)inp;
     p_.out = (void *)out;
     p_.size = size;
-    cvt_ps_to_bf16_.jit_ker(&p_);
+    cvt_ps_to_bf16_().jit_ker(&p_);
  }
 
 inline float cvt_bfloat16_to_float(mkldnn_bfloat16_t inp) {
@@ -84,7 +84,7 @@ inline void cvt_bfloat16_to_float(float *out, const mkldnn_bfloat16_t *inp,
     p_.inp = (void *)inp;
     p_.out = (void *)out;
     p_.size = size;
-    cvt_bf16_to_ps_.jit_ker(&p_);
+    cvt_bf16_to_ps_().jit_ker(&p_);
 }
 
 // performs element-by-element sum of inp and add float arrays and stores
@@ -99,7 +99,7 @@ inline void add_floats_and_cvt_to_bfloat16(mkldnn_bfloat16_t *out,
     p_.add = (void *)inp1;
     p_.out = (void *)out;
     p_.size = size;
-    add_cvt_ps_to_bf16_.jit_ker(&p_);
+    add_cvt_ps_to_bf16_().jit_ker(&p_);
 }
 
 inline mkldnn_bfloat16_t approx_bfloat16_lowest() {

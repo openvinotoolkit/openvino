@@ -23,12 +23,13 @@ endif()
 #               SOURCES <sources>
 #               OBJECT_LIBRARIES <object_libs>
 #               VERSION_DEFINES_FOR <source>
+#               SKIP_INSTALL
 #               )
 #
 function(ie_add_plugin)
-    set(options)
+    set(options SKIP_INSTALL)
     set(oneValueArgs NAME DEVICE_NAME VERSION_DEFINES_FOR)
-    set(multiValueArgs SOURCES OBJECT_LIBRARIES)
+    set(multiValueArgs SOURCES OBJECT_LIBRARIES CPPLINT_FILTERS)
     cmake_parse_arguments(IE_PLUGIN "${options}" "${oneValueArgs}" "${multiValueArgs}" ${ARGN})
 
     if(NOT IE_PLUGIN_NAME)
@@ -54,19 +55,22 @@ function(ie_add_plugin)
     add_library(${IE_PLUGIN_NAME} SHARED ${input_files})
     target_compile_definitions(${IE_PLUGIN_NAME} PRIVATE IMPLEMENT_INFERENCE_ENGINE_PLUGIN)
 
-    if(TARGET inference_engine_preproc)
-        target_include_directories(${IE_PLUGIN_NAME} PRIVATE $<TARGET_PROPERTY:inference_engine_preproc,INTERFACE_INCLUDE_DIRECTORIES>)
-        target_link_libraries(${IE_PLUGIN_NAME} PRIVATE inference_engine_plugin_api)
-    else()
-        target_include_directories(${IE_PLUGIN_NAME} PRIVATE $<TARGET_PROPERTY:IE::inference_engine_preproc,INTERFACE_INCLUDE_DIRECTORIES>)
+    if(TARGET IE::inference_engine_plugin_api)
         target_link_libraries(${IE_PLUGIN_NAME} PRIVATE IE::inference_engine_plugin_api)
+    else()
+        target_link_libraries(${IE_PLUGIN_NAME} PRIVATE inference_engine_plugin_api)
     endif()
 
     if(WIN32)
         set_target_properties(${IE_PLUGIN_NAME} PROPERTIES COMPILE_PDB_NAME ${TARGET_NAME})
     endif()
 
-    add_cpplint_target(${IE_PLUGIN_NAME}_cpplint FOR_TARGETS ${IE_PLUGIN_NAME})
+    set(custom_filter "")
+    foreach(filter IN LISTS IE_PLUGIN_CPPLINT_FILTERS)
+        string(CONCAT custom_filter "${custom_filter}" "," "${filter}")
+    endforeach()
+
+    add_cpplint_target(${IE_PLUGIN_NAME}_cpplint FOR_TARGETS ${IE_PLUGIN_NAME} CUSTOM_FILTERS ${custom_filter})
 
     # append plugin to the list to register
 
@@ -75,17 +79,21 @@ function(ie_add_plugin)
     set(PLUGIN_FILES "${PLUGIN_FILES}" CACHE INTERNAL "" FORCE)
 
     add_dependencies(ie_plugins ${IE_PLUGIN_NAME})
+    if(TARGET inference_engine_preproc)
+        add_dependencies(${IE_PLUGIN_NAME} inference_engine_preproc)
+    endif()
 
     # install rules
 
-    string(TOLOWER "${IE_PLUGIN_DEVICE_NAME}" install_component)
-    ie_cpack_add_component(${install_component} REQUIRED DEPENDS core)
+    if(NOT IE_PLUGIN_SKIP_INSTALL)
+        string(TOLOWER "${IE_PLUGIN_DEVICE_NAME}" install_component)
+        ie_cpack_add_component(${install_component} REQUIRED DEPENDS core)
 
-    install(TARGETS ${IE_PLUGIN_NAME}
-        RUNTIME DESTINATION ${IE_CPACK_LIBRARY_PATH}
-        ARCHIVE DESTINATION ${IE_CPACK_LIBRARY_PATH}
-        LIBRARY DESTINATION ${IE_CPACK_LIBRARY_PATH}
-        COMPONENT ${install_component})
+        install(TARGETS ${IE_PLUGIN_NAME}
+            RUNTIME DESTINATION ${IE_CPACK_LIBRARY_PATH} COMPONENT ${install_component}
+            ARCHIVE DESTINATION ${IE_CPACK_LIBRARY_PATH} COMPONENT ${install_component}
+            LIBRARY DESTINATION ${IE_CPACK_LIBRARY_PATH} COMPONENT ${install_component})
+    endif()
 endfunction()
 
 #

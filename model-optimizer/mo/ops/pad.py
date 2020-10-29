@@ -13,49 +13,32 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 """
-
-import logging as log
-
 import numpy as np
 
 from mo.graph.graph import Graph
-from mo.ops.op import Op, PermuteAttrs
+from mo.graph.perm_inputs import PermuteInputs
+from mo.ops.op import Op
 
 
 class Pad(Op):
-    """ Pad operation that explicitly extends an input tensor at edges.
+    """ Pad operation that explicitly extends an input tensor at borders.
         
-        This operation frequently appears in TF and rarely in ONNX models
-        followed by some windowed operation like convolution or pooling.
-        The operation extends each (not only spatial) dimensions of input
-        tensors by new elements increasing output shape. The filling values
-        is defined by 'mode' and 'fill_value' attributes, but usually it is zero
-        padding.
-
-        The operation has two forms: with one or two input arguments.
-        The first aruments is an input tensor to be padded. The second
-        argument is an optional padding values of shape Nx2, where N is
-        a number of dimensions in an input tensor:
-
-            [[pad_begin_dim1, pad_end_dim1],
-             [pad_begin_dim2, pad_end_dim2],
-             ...
-             [pad_begin_dimN, pad_end_dimN]]
-
-        where pad_begin_dim1 etc. are padding margins in elements. If the second
-        input argument is omitted, then it is in 'pads' attribute in the same
-        format.
+        The operation extends each (not only spatial) dimensions of input tensors by new elements increasing output
+        shape.
+        The second and third inputs are 1D tensor with number of elements equal to input tensor rank. These inputs
+        specify the begin and end paddings.
+        The forth input specifies the fill valuu for 'constant' mode and not used for other cases.
     """
 
     op = 'Pad'
-    enabled = True
+    enabled = False
 
     def __init__(self, graph: Graph, attrs: dict):
         super().__init__(graph, {
-            'op': __class__.op,
-            'type': __class__.op,
+            'op': self.op,
+            'type': self.op,
             'infer': __class__.infer,
-            'in_ports_count': 2,
+            'in_ports_count': 4,
             'out_ports_count': 1,
             'mode': 'constant',
             'fill_value': float(0),
@@ -63,7 +46,6 @@ class Pad(Op):
                 1: 'int64' if graph.graph['cmd_params'].generate_experimental_IR_V10 else 'int32',
                 2: 'int64' if graph.graph['cmd_params'].generate_experimental_IR_V10 else 'int32',
             },
-            'pads': None
         }, attrs)
 
     def supported_attrs(self):
@@ -78,50 +60,80 @@ class Pad(Op):
 
     @staticmethod
     def infer(node):
-        PermuteAttrs.create_permute_attrs(node, attrs=[('pads', 'input:0')])
+        pad_node_name = node.soft_get('name', node.id)
 
-        num_of_inputs = len(node.in_nodes())
-        if node.has_valid('pads'):
-            assert num_of_inputs == 1, "Pad operation has pads attribute and unexpected additional input " \
-                                       "argument for node {}.".format(node.name)
-        else:
-            assert num_of_inputs >= 2, "Missing required second input argument for node {} and pads attribute " \
-                                       "is missing.".format(node.name)
-            node['pads'] = node.in_node(1).value
-            if num_of_inputs in [3, 4]:
-                pads_begin = node.in_node(1).value
-                pads_end = node.in_node(2).value
-                node['pads'] = np.concatenate((pads_begin.reshape(-1, 1), pads_end.reshape(-1, 1)), 1)
-                node['fill_value'] = node.in_node(3).value if num_of_inputs == 4 else 0.0
-        padding = node.pads
+        assert len(node.in_nodes()) in [3, 4], "The node {} must have 3 or 4 inputs".format(pad_node_name)
 
-        input_shape = node.in_node(0).shape
-        if padding is None or input_shape is None:
-            log.error('The paddings are not defined for node "{}"'.format(node.soft_get('name')))
-            return
+        input_shape = node.in_port(0).data.get_shape()
+        pad_beg = node.in_port(1).data.get_value()
+        pad_end = node.in_port(2).data.get_value()
 
-        # paddings can be defined, partially defined or undefined
-        # TODO for now we only handle fully defined paddings
-        # That means that intermediate tensor that delivers padding
-        # should have defined value and size Nx2
-        # TODO possible broadcasts are not supported
-        assert (padding.ndim == 2 and padding.shape[1] == 2)
+        assert pad_beg is not None, 'The padding begin value is None for node {}'.format(pad_node_name)
+        assert pad_end is not None, 'The padding end value is None for node {}'.format(pad_node_name)
+        assert input_shape is not None, 'The input shape is None for node {}'.format(pad_node_name)
+        assert len(input_shape) == len(pad_beg), \
+            'Length of begin padding "{}" does not correspond to input tensor shape "{}" for node "{}".' \
+            ''.format(pad_beg, input_shape, pad_node_name)
+        assert len(input_shape) == len(pad_end), \
+            'Length of end padding "{}" does not correspond to input tensor shape "{}" for node "{}".' \
+            ''.format(pad_beg, input_shape, pad_node_name)
 
-        # make sure that input has the same number of dimensions as the number of padding dimensions
-        assert (padding.shape[0] == len(input_shape)), \
-            "Input tensor shape {} and pads values {} do not match for Pad node {}".format(
-                input_shape, padding.shape, node.name
-            )
+        node.out_port(0).data.set_shape(input_shape + pad_beg + pad_end)
 
-        # sum low and high padding values to calculate the shape modification vector
-        shape_change = np.add.reduce(padding, 1)
-        assert (shape_change.shape == input_shape.shape)
+        if node.in_port(0).data.get_value() is not None:
+            pads = np.insert(pad_end, np.arange(len(pad_end)), pad_beg)
+            pads = np.reshape(pads, (len(pad_end), 2))
+            pad_val = 0
+            if len(node.in_nodes()) == 4:
+                pad_val = node.in_port(3).data.get_value() if node.in_port(3).data is not None else 0
+            node.out_port(0).data.set_value(np.pad(node.in_port(0).data.get_value(), pads, constant_values=pad_val,
+                                                   mode='constant'))
+        # pad values should be permuted during the NHWC->NCHW layout change
+        PermuteInputs().set_input_permutation(node.in_node(1), node, 'input:0', 'shape')
+        PermuteInputs().set_input_permutation(node.in_node(2), node, 'input:0', 'shape')
 
-        # preserve non-positive values in the input shape, because it has a special meaning
-        shape = np.array(
-            [shape_change[i] + input_shape[i] if input_shape[i] > 0 else input_shape[i] for i in
-             range(len(input_shape))])
 
-        assert len(node.out_nodes()) == 1
+class AttributedPad(Op):
+    """ Pad operation that explicitly extends an input tensor at borders.
 
-        node.out_node().shape = shape
+        This operation is uses the same semantics as Pad but with pad values specified as attributes.
+        Pad values are in format [nDims, 2], where [:, 0] - begin pads, [:, 1] - end pads.
+    """
+
+    op = 'AttributedPad'
+    enabled = False
+
+    def __init__(self, graph: Graph, attrs: dict):
+        super().__init__(graph, {
+            'op': self.op,
+            'type': None,
+            'infer': None,  # the operation should be replaced before the shape inference
+            'in_ports_count': 1,
+            'out_ports_count': 1,
+            'mode': 'constant',
+            'fill_value': float(0),
+            'pads': None,
+        }, attrs)
+
+
+class TFPad(Op):
+    """ Pad operation that explicitly extends an input tensor at borders.
+
+        This operation with the TensorFlow semantics with inputs:
+        1. Input tensor.
+        2. Pad values [nDims, 2]
+        3. Fill value (Optional)
+    """
+
+    op = 'TFPad'
+    enabled = False
+
+    def __init__(self, graph: Graph, attrs: dict):
+        super().__init__(graph, {
+            'op': self.op,
+            'type': None,
+            'infer': None,  # the operation should be replaced before the shape inference
+            'in_ports_count': 3,
+            'out_ports_count': 1,
+            'mode': 'constant',
+        }, attrs)

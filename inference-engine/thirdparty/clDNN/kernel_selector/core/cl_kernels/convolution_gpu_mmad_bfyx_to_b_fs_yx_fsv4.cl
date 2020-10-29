@@ -188,8 +188,8 @@ KERNEL(convolution_mmad_bfyx_b_fs_yx_fsv32)(
 #endif  // ASYMMETRIC_DATA_QUANTIZATION
 
 #if HAS_FUSED_OPS
-        { FUSED_OPS_0; dst[0][i] = FINAL_NAME_0; };
-        { FUSED_OPS_1; dst[1][i] = FINAL_NAME_1; };
+        { FUSED_OPS_0; dst[0][i] = FUSED_OPS_RESULT_0; };
+        { FUSED_OPS_1; dst[1][i] = FUSED_OPS_RESULT_1; };
 #else
         dst[0][i] = res0;
         dst[1][i] = res1;
@@ -224,8 +224,8 @@ KERNEL(convolution_mmad_bfyx_b_fs_yx_fsv32)(
 
 #if HAS_FUSED_OPS
         MAKE_VECTOR_TYPE(OUTPUT_TYPE, 2) pack;
-        { FUSED_OPS_0; pack[0] = FINAL_NAME_0; };
-        { FUSED_OPS_1; pack[1] = FINAL_NAME_1; };
+        { FUSED_OPS_0; pack[0] = FUSED_OPS_RESULT_0; };
+        { FUSED_OPS_1; pack[1] = FUSED_OPS_RESULT_1; };
         dst[i] = AS_PACKED_OUT_TYPE(pack);
 #else
 #error "convolution_gpu_mmad_bfyx_to_b_fs_yx_fsv4: can't have packed output without fused ops!"

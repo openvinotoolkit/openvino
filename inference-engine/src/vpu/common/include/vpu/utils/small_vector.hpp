@@ -148,7 +148,7 @@ public:
             }
         }
 
-        return _baseAllocator.allocate(n, hint);
+        return std::allocator_traits<BaseAllocator>::allocate(_baseAllocator, n, hint);
     }
 
     void deallocate(pointer ptr, size_type n) {

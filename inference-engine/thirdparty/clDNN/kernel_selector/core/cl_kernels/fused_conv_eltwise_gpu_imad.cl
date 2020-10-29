@@ -150,6 +150,10 @@ KERNEL (fused_convolution_eltwise_gpu_imad)(
     const uint output_idx_offset = GET_DATA_B_FS_YX_FSV4_INDEX(OUTPUT, batch, f, or, oc);
     const uint output_row_size_bytes = (_OW + OWPAD) * PACK;
 
+#if HAS_FUSED_OPS && FUSED_OPS_CAN_USE_PRELOAD
+    FUSED_OPS_PRELOAD;
+#endif
+
     for (int r = 0; r < OUT_BLOCK_HEIGHT; r++)
     {
         #if NEED_TO_VERIFY_OUTPUT_RANGES == 1
@@ -185,8 +189,12 @@ KERNEL (fused_convolution_eltwise_gpu_imad)(
 #endif
 
 #if HAS_FUSED_OPS
+    #if FUSED_OPS_CAN_USE_PRELOAD
+                FUSED_OPS_CALC;
+    #else
                 FUSED_OPS;
-                output[out_idx] = FINAL_NAME;
+    #endif
+                output[out_idx] = FUSED_OPS_RESULT;
 #else
                 output[out_idx] = TO_OUTPUT_TYPE(res);
 #endif

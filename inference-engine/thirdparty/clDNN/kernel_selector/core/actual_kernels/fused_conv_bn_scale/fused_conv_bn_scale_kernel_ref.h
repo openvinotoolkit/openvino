@@ -31,10 +31,8 @@ public:
     ParamsKey GetSupportedKey() const override;
 
 protected:
-    std::vector<WeightsLayout> GetSupportedWeightLayouts(const fused_conv_bn_scale_params&) const override {
-        return {
-            WeightsLayout::oiyx,
-        };
+    WeightsLayout GetPreferredWeightsLayout(const fused_conv_bn_scale_params &) const override {
+        return WeightsLayout::oiyx;
     }
     DispatchData SetDefault(const fused_conv_bn_scale_params& arg) const override;
     JitConstants GetJitConstants(const fused_conv_bn_scale_params& params, const DispatchData& kd) const override;

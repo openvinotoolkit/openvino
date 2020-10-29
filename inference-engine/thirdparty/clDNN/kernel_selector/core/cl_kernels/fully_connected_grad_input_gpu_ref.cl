@@ -36,7 +36,7 @@ KERNEL(fully_connected_grad_input_gpu_ref)(
     for (uint ofm = 0; ofm < FILTER_OFM_NUM; ++ofm)
     {
         const uint input_grad_idx = GET_DATA_INDEX(INPUT0, batch_id, 0, 0, ofm);
-        const uint filter_idx = GET_FILTER_INDEX(FILTER, ofm, feature_id, y, x);
+        const uint filter_idx = GET_FILTER_INDEX(FILTER, 0, ofm, feature_id, y, x);
 
         result += (ACCUMULATOR_TYPE)(input_grad[input_grad_idx] * weights[filter_idx]);
     }

@@ -81,7 +81,7 @@ struct memory {
     friend struct network_output;
 
     /// Allocate memory on @p engine using specified @p layout
-    static memory allocate(const engine& engine, const layout& layout, uint32_t net_id = 0);
+    static memory allocate(const engine& engine, const layout& layout, uint32_t net_id = 0, bool reset = true);
 
     /// Create shared memory object on @p engine using user-supplied memory buffer @p buf using specified @p layout
     static memory share_buffer(const engine& engine, const layout& layout, shared_handle buf, uint32_t net_id = 0);

@@ -257,7 +257,7 @@ bool program_node::is_padding_supported(int axis, int padding) const {
     auto fmt = output_layout.format;
 
     // WA for known cases of padding not supported in implementations
-    if (fmt == format::bfyx_f16) {
+    if (fmt == format::b_fs_yx_fsv16) {
         if (axis == 0 || (axis == 1 && padding % 16 != 0))
             return false;
     }
@@ -277,6 +277,14 @@ bool program_node::is_padding_supported(int axis, int padding) const {
     }
 
     return true;
+}
+
+bool program_node::need_lockable_memory() const {
+    bool need_lockable_mem = get_users().empty() || std::any_of(get_users().begin(), get_users().end(), [](const program_node* n) {
+        return n->get_selected_impl()->is_cpu();
+    });
+
+    return need_lockable_mem;
 }
 
 primitive_id details::internal_program_node_base::get_next_internal_id() {

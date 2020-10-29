@@ -63,9 +63,6 @@ DEFINE_string(c, "", custom_cldnn_message);
 /// It is a optional parameter
 DEFINE_string(l, "", custom_cpu_library_message);
 
-/// @brief Enable plugin messages
-DEFINE_bool(p_msg, false, plugin_message);
-
 /**
 * @brief This function show a help message
 */
@@ -82,5 +79,4 @@ static void showUsage() {
     std::cout << "      -c \"<absolute_path>\"  " << custom_cldnn_message << std::endl;
     std::cout << "    -d \"<device>\"           " << target_device_message << std::endl;
     std::cout << "    -nt \"<integer>\"         " << ntop_message << std::endl;
-    std::cout << "    -p_msg                  " << plugin_message << std::endl;
 }

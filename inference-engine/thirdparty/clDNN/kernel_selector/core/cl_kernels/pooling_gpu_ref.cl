@@ -39,7 +39,7 @@ KERNEL(pooling_gpu)(const __global UNIT_TYPE* input, __global UNIT_TYPE* output
 #endif
 )
 {
-#if OUTPUT_LAYOUT_BFYX  || OUTPUT_LAYOUT_BYXF || OUTPUT_LAYOUT_BFZYX || OUTPUT_LAYOUT_BFZYX_F16 || OUTPUT_LAYOUT_BFZYX_B16F16 || \
+#if OUTPUT_LAYOUT_BFYX  || OUTPUT_LAYOUT_BYXF || OUTPUT_LAYOUT_BFZYX || OUTPUT_LAYOUT_B_FS_ZYX_FSV16 || OUTPUT_LAYOUT_BS_FS_ZYX_BSV16_FSV16 || \
     OUTPUT_LAYOUT_B_FS_YX_FSV32 || OUTPUT_LAYOUT_B_FS_ZYX_FSV32
     const uint x    = (uint)get_global_id(0);
 #if  OUTPUT_DIMS < 5
@@ -115,10 +115,10 @@ KERNEL(pooling_gpu)(const __global UNIT_TYPE* input, __global UNIT_TYPE* output
 #if  OUTPUT_DIMS < 5
                     const uint input_idx = batch_and_feature_offset + input_offset_y*INPUT0_Y_PITCH + input_offset_x*INPUT0_X_PITCH;
 #else
-  #if OUTPUT_LAYOUT_BFZYX_F16
-                    const uint input_idx = GET_DATA_BFZYX_F16_INDEX(INPUT0, b, f, input_offset_z, input_offset_y, input_offset_x);
-  #elif OUTPUT_LAYOUT_BFZYX_B16F16
-                    const uint input_idx = GET_DATA_BFZYX_B16F16_INDEX(INPUT0, b, f, input_offset_z, input_offset_y, input_offset_x);
+  #if OUTPUT_LAYOUT_B_FS_ZYX_FSV16
+                    const uint input_idx = GET_DATA_B_FS_ZYX_FSV16_INDEX(INPUT0, b, f, input_offset_z, input_offset_y, input_offset_x);
+  #elif OUTPUT_LAYOUT_BS_FS_ZYX_BSV16_FSV16
+                    const uint input_idx = GET_DATA_BS_FS_ZYX_BSV16_FSV16_INDEX(INPUT0, b, f, input_offset_z, input_offset_y, input_offset_x);
   #else
                     const uint input_idx = batch_and_feature_offset + input_offset_z*INPUT0_Z_PITCH + input_offset_y*INPUT0_Y_PITCH + input_offset_x*INPUT0_X_PITCH;
   #endif
@@ -190,7 +190,7 @@ KERNEL(pooling_gpu)(const __global UNIT_TYPE* input, __global UNIT_TYPE* output
                 arg_max_idx = input_idx_bfyx_no_padding;
 #endif
 
-#if INPUT0_LAYOUT_BFZYX_F16
+#if INPUT0_LAYOUT_B_FS_ZYX_FSV16
             uint input1_idx = INPUT0_GET_INDEX(b, f, offset_z+k, offset_y+j, offset_x+i);
             result = FUNC_CALL(apply_pooling)(result, input[input1_idx]);
 #else
@@ -228,10 +228,10 @@ KERNEL(pooling_gpu)(const __global UNIT_TYPE* input, __global UNIT_TYPE* output
     #endif
 #endif
 
-#if OUTPUT_LAYOUT_BFZYX_F16
-    const uint output_pos = GET_DATA_BFZYX_F16_INDEX(OUTPUT, b, f, z, y, x);
-#elif OUTPUT_LAYOUT_BFZYX_B16F16
-    const uint output_pos = GET_DATA_BFZYX_B16F16_INDEX(OUTPUT, b, f, z, y, x);
+#if OUTPUT_LAYOUT_B_FS_ZYX_FSV16
+    const uint output_pos = GET_DATA_B_FS_ZYX_FSV16_INDEX(OUTPUT, b, f, z, y, x);
+#elif OUTPUT_LAYOUT_BS_FS_ZYX_BSV16_FSV16
+    const uint output_pos = GET_DATA_BS_FS_ZYX_BSV16_FSV16_INDEX(OUTPUT, b, f, z, y, x);
 #else
     const uint output_pos = GET_DATA_INDEX_5D(OUTPUT, b, f, z, y, x);
 #endif

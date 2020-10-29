@@ -35,6 +35,16 @@ inline const T abs(const T& a) {
     return a >= 0 ? a : -a;
 }
 
+// Computes the modulus and returns the result as the least positive residue
+// when the divisor > 0.
+template <typename T>
+inline const T modulo(const T &dividend, const T &divisor) {
+    static_assert(std::is_integral<T>::value, "T must be an integer type.");
+    assert(divisor > 0);
+    T result = dividend % divisor;
+    return result < 0 ? result + divisor : result;
+}
+
 template<typename T>
 inline const T& max(const T& a, const T& b) {
     return a > b ? a : b;

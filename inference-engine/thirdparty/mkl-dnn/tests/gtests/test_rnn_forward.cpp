@@ -80,7 +80,7 @@ protected:
         auto dims = p.sizes;
         auto t = dims.t, mb = dims.mb, l = dims.l, d = dims.d;
         auto slc = dims.slc, sic = dims.sic, dlc = dims.dlc, dic = dims.dic;
-        int s, g;
+        int s, g, bias_extra_gate;
 
         switch (p.aalgorithm) {
         case vanilla_lstm:
@@ -92,9 +92,11 @@ protected:
             g = 1; s = 1; break;
         };
 
+        bias_extra_gate = p.aalgorithm == gru_linear_before_reset ? 1 : 0;
+
         mkldnn::memory::dims weights_layer_dims = {l, d, slc, g, dic};
         mkldnn::memory::dims weights_iter_dims = {l, d, sic, g, dic};
-        mkldnn::memory::dims bias_dims = {l, d, g, dic};
+        mkldnn::memory::dims bias_dims = {l, d, g + bias_extra_gate, dic};
         mkldnn::memory::dims src_layer_dims = {t, mb, slc};
         mkldnn::memory::dims src_iter_dims = {l, d, s, mb, sic};
         mkldnn::memory::dims dst_layer_dims = {t, mb, dlc};
@@ -219,7 +221,7 @@ protected:
     using cfg_f32 = test_rnn_params_t;
 
 TEST_P(rnn_forward_test_f32, TestsRnn) { }
-INSTANTIATE_TEST_CASE_P(TestRnn, rnn_forward_test_f32,
+INSTANTIATE_TEST_SUITE_P(TestRnn, rnn_forward_test_f32,
         ::testing::Values(
             cfg_f32{eng::cpu, alg::vanilla_rnn, alg::eltwise_tanh, dir::unidirectional_left2right,
                 {fmt::tnc, fmt::ldsnc, fmt::ldigo, fmt::ldigo, fmt::ldgo, fmt::tnc, fmt::ldsnc},

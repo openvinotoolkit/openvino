@@ -4,6 +4,7 @@
 
 #include "list.hpp"
 #include "base.hpp"
+#include "ie_parallel.hpp"
 
 #include <vector>
 
@@ -75,16 +76,21 @@ private:
 
         std::size_t suffix_size = input->size() / prefix_size;
 
-        std::size_t dst_offset = 0;
-        for (std::size_t prefix_idx = 0; prefix_idx < prefix_size; ++prefix_idx) {
-            for (std::size_t depth_idx = 0; depth_idx < depth; ++depth_idx) {
-                for (std::size_t suffix_idx = 0; suffix_idx < suffix_size; suffix_idx++) {
-                    auto src_index = prefix_idx * suffix_size + suffix_idx;
-                    std::size_t v = static_cast<std::size_t>(src_data[src_index]);
-                    dst_data[dst_offset++] = (v == depth_idx) ? on_value : off_value;
+        // fill the output with off_value
+        std::size_t dst_size = prefix_size * depth * suffix_size;
+        std::fill(dst_data, dst_data + dst_size, off_value);
+
+        // set on_value at needed locations
+        parallel_for(prefix_size, [&](std::size_t prefix_idx) {
+            for (std::size_t suffix_idx = 0; suffix_idx < suffix_size; ++suffix_idx) {
+                auto src_index = prefix_idx * suffix_size + suffix_idx;
+                std::size_t v = static_cast<std::size_t>(src_data[src_index]);
+                if (v < depth) {
+                    std::size_t dst_offset = prefix_idx * depth * suffix_size + v * suffix_size + suffix_idx;
+                    dst_data[dst_offset] = on_value;
                 }
             }
-        }
+        });
     }
 
     uint32_t depth;

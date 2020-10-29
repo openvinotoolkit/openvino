@@ -30,6 +30,7 @@ using namespace mkldnn::impl::status;
 using namespace mkldnn::impl::memory_format;
 using namespace mkldnn::impl::memory_tracking::names;
 using namespace mkldnn::impl::utils;
+using namespace nstl;
 
 #define src_blk_off(f, n, c, d, h, w) \
     (pd()->ndims() == 3) \
@@ -107,15 +108,14 @@ void jit_avx2_convolution_fwd_t::execute_forward() const {
                         + div_up(d_t_overflow,
                                  (jcp.dilate_d+1)) * (jcp.dilate_d + 1), 0);
 
-                    par_conv.src = &src[src_blk_off(src_d, n,
-                        jcp.ic == 3 ? 0 : _ic, id, ih, 0)];
+                    par_conv.src = &src[src_blk_off(src_d, n, _ic, id, ih, 0)];
 
                     par_conv.dst = &dst[src_blk_off(dst_d, n, _oc, od, oh, 0)];
 
                     const int wh = div_up(i_t_overflow, (jcp.dilate_h + 1));
                     const int wd = div_up(d_t_overflow, (jcp.dilate_d + 1));
-                    par_conv.filt = &weights[wht_blk_off(weights_d, g, ocb,
-                            jcp.ic == 3 ? 0 : icb, wd, wh, 0)];
+                    par_conv.filt = &weights[wht_blk_off(
+                            weights_d, g, ocb, icb, wd, wh, 0)];
 
                     if (icb == 0) {
                         if (bias)
@@ -381,8 +381,8 @@ void jit_avx2_convolution_bwd_data_t::execute_backward_data() const {
                                         - ih - jcp.t_pad) / jcp.stride_h);
                     const int i_b_overflow = nstl::max(0, (jcp.kh - jcp.ih
                                         + ih - jcp.b_pad) / jcp.stride_h);
-                    int overflow_kh_hi = jcp.kh - 1 - abs((jcp.ih - 1
-                                + jcp.b_pad - ih) % jcp.stride_h);
+                    int overflow_kh_hi = jcp.kh - 1
+                            - modulo(jcp.ih - 1 + jcp.b_pad - ih, jcp.stride_h);
                     int overflow_kh_lo = (ih + jcp.t_pad) % jcp.stride_h;
 
                     par_conv.kd_padding = jcp.kd - d_t_overflow - d_b_overflow;
@@ -395,13 +395,13 @@ void jit_avx2_convolution_bwd_data_t::execute_backward_data() const {
                     const int oh = (ih + jcp.t_pad - k_lo) / jcp.stride_h;
 
                     par_conv.src = &diff_src[src_blk_off(diff_src_d, n,
-                        /*jcp.ic == 3 ? 0 :*/
                         g * jcp.nb_ic + jcp.nb_ic_blocking * icbb, id, ih, 0)];
                     par_conv.dst = &diff_dst[src_blk_off(diff_dst_d,
                             n, g * jcp.nb_oc + oc, od, oh, 0)];
                     par_conv.filt = &weights[wht_blk_off(weights_d, g, oc,
-                                jcp.ic == 3 ? 0 : jcp.nb_ic_blocking * icbb,
-                                d_b_overflow, k_lo, 0)];
+                            jcp.nb_ic_blocking * icbb, d_b_overflow, k_lo, 0)];
+
+                    par_conv.ic_off = (g * jcp.nb_ic + jcp.nb_ic_blocking * icbb) * jcp.ic_block * sizeof(float);
 
                     par_conv.src_prf = nullptr;
                     par_conv.dst_prf = nullptr;

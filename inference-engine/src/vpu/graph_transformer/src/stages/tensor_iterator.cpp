@@ -79,8 +79,6 @@ void FrontEnd::parseTensorIterator(const Model& model, const ie::CNNLayerPtr& la
     auto tensorIterator = std::dynamic_pointer_cast<ie::TensorIterator>(layer);
     IE_ASSERT(tensorIterator != nullptr);
 
-    AutoScope unsetCallback([&model]() { model->unsetOnNewStageCallback(); });
-
     auto createDescriptor = [&](const ie::TensorDesc& original) {
         auto vpuDescriptor = DataDesc{original};
         if (vpuDescriptor.type() == DataType::FP32) {
@@ -327,8 +325,7 @@ void FrontEnd::parseTensorIterator(const Model& model, const ie::CNNLayerPtr& la
                 model->replaceStageInput(consumerEdge, dst_copy);
             }
 
-            auto copy = _stageBuilder->addCopyStage(model, "copy-for-backedge", nullptr, src_copy, dst_copy, "copy for backedge");
-            copy->attrs().set<Stage>("loop", loopStart);
+            _stageBuilder->addCopyStage(model, "copy-for-backedge", nullptr, src_copy, dst_copy, "copy for backedge");
 
             // keep track of back-edges to introduce shared data allocation edges in Middle-End
             loopStart->attrs().getOrSet<HandleMultiMap<DataNode, Data>>("backedges", {}).emplace(dst_copy, child);
@@ -407,7 +404,12 @@ void FrontEnd::parseTensorIterator(const Model& model, const ie::CNNLayerPtr& la
             const auto& vpuTensorIteratorOutput = getVpuData(tensorIteratorOutput);
             VPU_THROW_UNLESS(vpuTensorIteratorOutput != nullptr, "Tensor Iterator's outputs must be parsed already");
 
-            const auto& loopEndOutput = vpuTensorIteratorOutput;
+            auto loopEndOutput = vpuTensorIteratorOutput;
+            if (loopEndOutput->usage() == DataUsage::Output) {
+                auto to_copy = model->addNewData(loopEndOutput->name() + "@copy-for-backedge", loopEndOutput->desc());
+                _stageBuilder->addCopyStage(model, "copy-for-tensor-iterator-output", nullptr, to_copy, loopEndOutput, "copy for TI output");
+                loopEndOutput = to_copy;
+            }
 
             const auto& intermediateDataInput = intermediateDataObject.second;
             VPU_THROW_UNLESS(getVpuData(intermediateDataInput) == nullptr, "Tensor Iterator's body output data objects were not parsed yet");
@@ -443,10 +445,6 @@ void FrontEnd::parseTensorIterator(const Model& model, const ie::CNNLayerPtr& la
     for (const auto& loopStartInput : loopStart->inputs()) {
         model->addStageInput(loopEnd, loopStartInput);
     }
-
-    // to prevent injections of stages from different Tensor Iterators
-    // it needs to be done after introducing LoopStart so copy for backedges will not be marked as Tensor Iterator's part and eventually can be injected
-    model->setOnNewStageCallback([&loopStart](Stage& newStage) { newStage->attrs().set<Stage>("loop", loopStart); });
 
     for (const auto& bodyLayer : ie::NetPass::TIBodySortTopologically(tensorIterator->body)) {
         if (bodyLayer->type == "Const") {

@@ -62,7 +62,7 @@ public:
 
 protected:
     static CLDNNRemoteAllocator m_allocator;
-    gpu::ClContext::Ptr m_context;
+    std::weak_ptr<gpu::ClContext> m_context;
 
     // constructor stuff
     cldnn::shared_handle m_mem;
@@ -218,7 +218,7 @@ public:
     std::shared_ptr<cldnn::engine> GetEngine() const { return m_engine; }
     Config& GetConfig() { return m_config; }
     ContextType GetType() const { return m_type; }
-    const std::shared_ptr<InferencePluginInternal> GetPlugin() const { return m_plugin; }
+    const std::weak_ptr<InferencePluginInternal> GetPlugin() const { return m_plugin; }
 
     void acquire_lock() {
         while (lock.test_and_set(std::memory_order_acquire)) {}
@@ -234,7 +234,7 @@ protected:
     Config m_config;
 
     ContextType m_type;
-    std::shared_ptr<InferencePluginInternal> m_plugin;
+    std::weak_ptr<InferencePluginInternal> m_plugin;
     std::atomic_flag lock;
 };
 
@@ -413,10 +413,8 @@ public:
         }
     }
 
-    std::shared_ptr<cldnn::engine> GetEngine() const { return _impl.GetEngine(); }
     Config& GetConfig() { return _impl.GetConfig(); }
     CLDNNExecutionContextImpl::ContextType GetType() const { return _impl.GetType(); }
-    const std::shared_ptr<InferencePluginInternal> GetPlugin() const { return _impl.GetPlugin(); }
 
     CLDNNExecutionContextImpl* getImpl() { return &_impl; }
 protected:

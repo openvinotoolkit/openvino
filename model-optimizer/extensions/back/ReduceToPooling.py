@@ -21,19 +21,93 @@ import numpy as np
 from extensions.back.AvgPool import AvgPool
 from extensions.back.MaxPool import MaxPool
 from extensions.back.ScalarConstNormalize import ScalarNormalize
+from extensions.ops.ReduceOps import reduce_map
 from mo.back.replacement import BackReplacementPattern
 from mo.front.caffe.extractors.utils import get_canonical_axis_index
 from mo.front.common.partial_infer.utils import int64_array
 from mo.graph.graph import Graph
+from mo.ops.concat import Concat
 from mo.ops.const import Const
 from mo.ops.pooling import Pooling
 from mo.ops.power import AttributedPower
 from mo.ops.reshape import Reshape
 
 
+class ReduceMerge(BackReplacementPattern):
+    """
+    Fuses sequence of Reduces of the same type into one Reduce layer of this particular type with updated axes input
+    Limitations:
+        - `keep_dims` attribute should be the same for all Reduces in the sequence
+        - in case `keep_dims`=False: next Reduce axes should be strictly less than previous Reduce axes
+    """
+    enabled = True
+    force_clean_up = True
+
+    def run_before(self):
+        return [ReduceReplacer, ScalarNormalize]
+
+    @staticmethod
+    def fuse_reduces(first_reduce, second_reduce):
+        first_reduce_name = first_reduce.soft_get('name', first_reduce.id)
+        second_reduce_name = second_reduce.soft_get('name', second_reduce.id)
+        reduce_type = first_reduce.type
+
+        assert first_reduce.type == second_reduce.type
+
+        if len(first_reduce.out_port(0).get_destinations()) != 1:
+            # data dependency
+            return
+
+        if first_reduce.keep_dims != second_reduce.keep_dims:
+            return
+
+        first_axes = first_reduce.in_port(1).data.get_value()
+        second_axes = second_reduce.in_port(1).data.get_value()
+        if first_axes is None or second_axes is None:
+            # dynamic axes merging is not supported
+            return
+
+        if not first_reduce.keep_dims:
+            if not np.all(first_axes > second_axes):
+                # indexing of upper reduce input dimensions changed
+                return
+
+        graph = second_reduce.graph
+
+        new_axes = Concat(graph, {'name': second_reduce_name + '/Axes', 'axis': int64_array(0), 'in_ports_count': 2,
+                                  'override_output_shape': True}).create_node()
+        new_axes.in_port(0).connect(first_reduce.in_port(1).get_source())
+        new_axes.in_port(1).connect(second_reduce.in_port(1).get_source())
+
+        first_reduce.in_port(0).get_source().node['need_shape_inference'] = True
+        first_reduce.in_port(0).get_source().node['override_output_shape'] = True
+
+        second_reduce.in_port(1).get_connection().set_source(new_axes.out_port(0))
+
+        first_reduce.out_port(0).get_connection().set_source(first_reduce.in_port(0).get_connection().get_source())
+        first_reduce.in_port(1).disconnect()
+        graph.remove_node(first_reduce.id)
+
+        log.debug('{0} nodes {1} and {2} were fused to a single {2} node with updated axes input'
+                  ''.format(reduce_type, first_reduce_name, second_reduce_name))
+
+    def find_and_replace_pattern(self, graph: Graph):
+        rsorted_nodes = graph.pseudo_topological_sort(reverse=True)
+        for reduce_type in reduce_map.keys():
+            reduces_of_type = [n for n in rsorted_nodes if n.id in graph and n.soft_get('type') == reduce_type]
+            for second_reduce_node in reduces_of_type:
+                if second_reduce_node.id not in graph:
+                    continue
+                first_reduce_node = second_reduce_node.in_port(0).get_source().node
+                if first_reduce_node.soft_get('type', None) == reduce_type:
+                    ReduceMerge.fuse_reduces(first_reduce=first_reduce_node, second_reduce=second_reduce_node)
+
+
 class ReduceReplacer(BackReplacementPattern):
     enabled = True
     graph_condition = [lambda graph: not graph.graph['cmd_params'].generate_experimental_IR_V10]
+
+    force_clean_up = True
 
     pool_method_map = {
         'ReduceMax': 'max',
@@ -54,6 +128,21 @@ class ReduceReplacer(BackReplacementPattern):
             ],
             edges=[]
         )
+
+    @staticmethod
+    def initial_reshape_dim_normalizer(number_of_elements: np.int64):
+        """
+        decomposes `number_of_elements` into the product of two numbers with minimum distance
+        """
+        new_window = [1, number_of_elements]
+        for divisor in range(2, int(np.sqrt(number_of_elements)) + 1):
+            if number_of_elements % divisor == 0:
+                quotient = number_of_elements / divisor
+                if abs(quotient - divisor) < abs(new_window[0] - new_window[1]):
+                    new_window = [int(quotient), int(divisor)]
+
+        assert np.prod(new_window) == number_of_elements
+        return sorted(new_window)
 
     def replace_pattern(self, graph: Graph, match: dict):
         node = match['reduce']
@@ -103,8 +192,13 @@ class ReduceReplacer(BackReplacementPattern):
             # Expand begin_dims to 2
             begin_dims = int64_array(np.append(begin_dims, [1] * (2 - len(begin_dims))))
 
-        reshape_shape = np.array([*begin_dims, reduction_dim, end_dim], dtype=np.int64)
-        pool_window = np.array([1, 1, reduction_dim, 1], dtype=np.int64)
+        reshape_shape = int64_array([*begin_dims, reduction_dim, end_dim])
+        pool_window = int64_array([1, 1, reduction_dim, 1])
+
+        if end_dim == 1:
+            new_window = ReduceReplacer.initial_reshape_dim_normalizer(reduction_dim)
+            reshape_shape = int64_array([*begin_dims, *new_window])
+            pool_window = int64_array([1, 1, *new_window])
 
         # 3. Reduce => Reshape->Pooling->Reshape
         reshape_op = Reshape(graph, {'name': node.id + '/Reshape'})
@@ -125,13 +219,12 @@ class ReduceReplacer(BackReplacementPattern):
         graph.remove_edge(input_data.id, node.id)
         graph.remove_edge(node.id, output_data.id)
 
-        final_reshape_op.create_node_with_data(
-            inputs=[pooling_op.create_node_with_data(
-                inputs=[reshape_op.create_node_with_data(
-                    inputs=[input_data, reshape_dim_const_data]
-                )]
-            ), final_reshape_dim_const_data],
-            data_nodes=output_data)
+        if np.array_equal(input_shape, reshape_shape):
+            input_to_pooling = input_data
+        else:
+            input_to_pooling = reshape_op.create_node_with_data(inputs=[input_data, reshape_dim_const_data])
+        pooling = pooling_op.create_node_with_data(inputs=[input_to_pooling])
+        final_reshape_op.create_node_with_data(inputs=[pooling, final_reshape_dim_const_data], data_nodes=output_data)
 
         # convert batch dimension to 0 to produce reshape-able IR over the batch dimension
         if 0 not in axes:

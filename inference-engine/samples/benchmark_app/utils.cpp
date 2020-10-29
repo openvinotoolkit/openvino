@@ -62,26 +62,27 @@ std::vector<std::string> parseDevices(const std::string& device_string) {
     }
     auto devices = split(comma_separated_devices, ',');
     for (auto& device : devices)
-        device = device.substr(0, device.find("("));
+        device = device.substr(0, device.find_first_of(".("));
     return devices;
 }
 
-std::map<std::string, uint32_t> parseValuePerDevice(const std::vector<std::string>& devices,
-                                                    const std::string& values_string) {
+std::map<std::string, uint32_t> parseNStreamsValuePerDevice(const std::vector<std::string>& devices,
+                                                            const std::string& values_string) {
     //  Format: <device1>:<value1>,<device2>:<value2> or just <value>
     auto values_string_upper = values_string;
-    std::transform(values_string_upper.begin(),
-                   values_string_upper.end(),
-                   values_string_upper.begin(),
-                   [](unsigned char c){ return std::toupper(c); });
     std::map<std::string, uint32_t> result;
     auto device_value_strings = split(values_string_upper, ',');
     for (auto& device_value_string : device_value_strings) {
         auto device_value_vec =  split(device_value_string, ':');
         if (device_value_vec.size() == 2) {
-            auto it = std::find(devices.begin(), devices.end(), device_value_vec.at(0));
+            auto device_name = device_value_vec.at(0);
+            auto nstreams = device_value_vec.at(1);
+            auto it = std::find(devices.begin(), devices.end(), device_name);
             if (it != devices.end()) {
-                result[device_value_vec.at(0)] = std::stoi(device_value_vec.at(1));
+                result[device_name] = std::stoi(nstreams);
+            } else {
+                throw std::logic_error("Can't set nstreams value " + std::string(nstreams) +
+                                       " for device '" + device_name + "'! Incorrect device name!");
             }
         } else if (device_value_vec.size() == 1) {
             uint32_t value = std::stoi(device_value_vec.at(0));

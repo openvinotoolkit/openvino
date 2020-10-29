@@ -68,6 +68,7 @@ struct jit_avx512_core_bf16_1x1_conv_kernel : public jit_generator {
             const memory_desc_wrapper &src_d,
             const memory_desc_wrapper &weights_d,
             const memory_desc_wrapper &dst_d,
+            const memory_desc_wrapper &bias_d,
             const primitive_attr_t &attr,
             int nthreads, bool reduce_src);
 
@@ -119,6 +120,7 @@ struct jit_avx512_core_bf16_1x1_conv_kernel : public jit_generator {
     Xbyak::Zmm bf16_emu_reserv_6 = Xbyak::Zmm(29);
 
     Xbyak::Zmm zmm_tmp2 = Xbyak::Zmm(30);
+    Xbyak::Zmm zmm_bias = Xbyak::Zmm(31);
 
     Xbyak::Label dst_prm_table;
 

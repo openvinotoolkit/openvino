@@ -13,11 +13,9 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 """
-import os
+from openvino.inference_engine import IENetwork,IECore
 
-from openvino.inference_engine import IENetwork
-
-from .constants import DEVICE_DURATION_IN_SECS, UNKNOWN_DEVICE_TYPE, DEVICE_NIREQ_ASYNC, BIN_EXTENSION, \
+from .constants import DEVICE_DURATION_IN_SECS, UNKNOWN_DEVICE_TYPE, DEVICE_NIREQ_ASYNC, \
     CPU_DEVICE_NAME, GPU_DEVICE_NAME
 from .inputs_filling import is_image
 from .logging import logger
@@ -33,7 +31,7 @@ def static_vars(**kwargs):
 
 
 @static_vars(step_id=0)
-def next_step(additional_info=''):
+def next_step(additional_info='', step_id=0):
     step_names = {
         1: "Parsing and validating input arguments",
         2: "Loading Inference Engine",
@@ -47,8 +45,11 @@ def next_step(additional_info=''):
         10: "Measuring performance",
         11: "Dumping statistics report",
     }
+    if step_id != 0:
+        next_step.step_id = step_id
+    else:
+        next_step.step_id += 1
 
-    next_step.step_id += 1
     if next_step.step_id not in step_names.keys():
         raise Exception('Step ID {} is out of total steps number '.format(next_step.step_id, str(len(step_names))))
 
@@ -56,21 +57,6 @@ def next_step(additional_info=''):
     step_name = step_names[next_step.step_id] + (' ({})'.format(additional_info) if additional_info else '')
     step_info_template = step_info_template.format(next_step.step_id, len(step_names), step_name)
     print(step_info_template)
-
-
-def read_network(path_to_model: str):
-    xml_filename = os.path.abspath(path_to_model)
-    head, tail = os.path.splitext(xml_filename)
-    bin_filename = os.path.abspath(head + BIN_EXTENSION)
-
-    ie_network = IENetwork(xml_filename, bin_filename)
-
-    input_info = ie_network.inputs
-
-    if not input_info:
-        raise AttributeError('No inputs info is provided')
-
-    return ie_network
 
 
 def config_network_inputs(ie_network: IENetwork):
@@ -139,27 +125,30 @@ def parse_devices(device_string):
     devices = device_string
     if ':' in devices:
         devices = devices.partition(':')[2]
-    return [d[:d.index('(')] if '(' in d else d for d in devices.split(',')]
+    return [d[:d.index('(')] if '(' in d else
+            d[:d.index('.')] if '.' in d else d for d in devices.split(',')]
 
 
-def parse_value_per_device(devices, values_string):
+def parse_nstreams_value_per_device(devices, values_string):
     # Format: <device1>:<value1>,<device2>:<value2> or just <value>
     result = {}
     if not values_string:
         return result
-    device_value_strings = values_string.upper().split(',')
+    device_value_strings = values_string.split(',')
     for device_value_string in device_value_strings:
         device_value_vec = device_value_string.split(':')
         if len(device_value_vec) == 2:
-            for device in devices:
-                if device == device_value_vec[0]:
-                    value = int(device_value_vec[1])
-                    result[device_value_vec[0]] = value
-                    break
+            device_name = device_value_vec[0]
+            nstreams = int(device_value_vec[1])
+            if device_name in devices:
+                result[device_name] = nstreams
+            else:
+                raise Exception("Can't set nstreams value " + str(nstreams) +
+                                " for device '" + device_name + "'! Incorrect device name!");
         elif len(device_value_vec) == 1:
-            value = int(device_value_vec[0])
+            nstreams = int(device_value_vec[0])
             for device in devices:
-                result[device] = value
+                result[device] = nstreams
         elif not device_value_vec:
             raise Exception('Unknown string format: ' + values_string)
     return result
@@ -246,3 +235,7 @@ def get_command_line_arguments(argv):
     if arg_name is not '':
         parameters.append((arg_name, arg_value))
     return parameters
+
+def show_available_devices():
+    ie = IECore()
+    print("\nAvailable target devices:  ", ("  ".join(ie.available_devices)))

@@ -5,12 +5,12 @@
 /**
  * @file ie_c_api.h
  * C API of Inference Engine bridge unlocks using of OpenVINO Inference Engine
- * library and all its plugins in native applications disabling usage 
+ * library and all its plugins in native applications disabling usage
  * of C++ API. The scope of API covers significant part of C++ API and includes
  * an ability to read model from the disk, modify input and output information
  * to correspond their runtime representation like data types or memory layout,
- * load in-memory model to Inference Engine on different devices including 
- * heterogeneous and multi-device modes, manage memory where input and output 
+ * load in-memory model to Inference Engine on different devices including
+ * heterogeneous and multi-device modes, manage memory where input and output
  * is allocated and manage inference flow.
 **/
 
@@ -28,6 +28,7 @@
 
 #if defined(__GNUC__) && (__GNUC__ < 4)
     #define INFERENCE_ENGINE_C_API(...) INFERENCE_ENGINE_C_API_EXTERN __VA_ARGS__
+    #define IE_NODISCARD
 #else
     #if defined(_WIN32)
         #ifdef inference_engine_c_api_EXPORTS
@@ -35,8 +36,10 @@
         #else
             #define INFERENCE_ENGINE_C_API(...) INFERENCE_ENGINE_C_API_EXTERN  __declspec(dllimport) __VA_ARGS__ __cdecl
         #endif
+        #define IE_NODISCARD
     #else
         #define INFERENCE_ENGINE_C_API(...) INFERENCE_ENGINE_C_API_EXTERN __attribute__((visibility("default"))) __VA_ARGS__
+        #define IE_NODISCARD __attribute__((warn_unused_result))
     #endif
 #endif
 
@@ -45,6 +48,14 @@ typedef struct ie_network ie_network_t;
 typedef struct ie_executable ie_executable_network_t;
 typedef struct ie_infer_request ie_infer_request_t;
 typedef struct ie_blob ie_blob_t;
+
+/**
+ * @struct ie_version
+ * @brief Represents an API version information that reflects the set of supported features
+ */
+typedef struct ie_version {
+    char *api_version;
+}ie_version_t;
 
 /**
  * @struct ie_core_version
@@ -165,6 +176,7 @@ typedef enum {
     U16 = 60,   /**< 16bit unsigned integer value */
     I32 = 70,   /**< 32bit signed integer value */
     I64 = 72,   /**< 64bit signed integer value */
+    U64 = 73,   /**< 64bit unsigned integer value */
     BIN = 71,   /**< 1bit integer value */
     CUSTOM = 80 /**< custom precision has it's own name and size of elements */
 }precision_e;
@@ -190,6 +202,7 @@ typedef enum {
     RGBX,        ///< RGBX color format with X ignored during inference
     BGRX,        ///< BGRX color format with X ignored during inference
     NV12,        ///< NV12 color format represented as compound Y+UV blob
+    I420,        ///< I420 color format represented as compound Y+U+V blob
 }colorformat_e;
 
 /**
@@ -276,11 +289,31 @@ typedef struct ie_complete_call_back {
 }ie_complete_call_back_t;
 
 /**
- * @brief Returns number of version that is exported.
+ * @struct ie_available_devices
+ * @brief Represent all available devices.
+ */
+typedef struct ie_available_devices {
+    char **devices;
+    size_t num_devices;
+}ie_available_devices_t;
+
+/**
+ * @brief Returns number of version that is exported. Use the ie_version_free() to free memory.
  * @return Version number of the API.
  */
-INFERENCE_ENGINE_C_API(const char *) ie_c_api_version(void);
+INFERENCE_ENGINE_C_API(ie_version_t) ie_c_api_version(void);
 
+/**
+ * @brief Release the memory allocated by ie_c_api_version.
+ * @param version A pointer to the ie_version_t to free memory.
+ */
+INFERENCE_ENGINE_C_API(void) ie_version_free(ie_version_t *version);
+
+/**
+ * @brief Release the memory allocated by ie_param_t.
+ * @param version A pointer to the ie_param_t to free memory.
+ */
+INFERENCE_ENGINE_C_API(void) ie_param_free(ie_param_t *param);
 
 // Core
 
@@ -300,15 +333,14 @@ INFERENCE_ENGINE_C_API(const char *) ie_c_api_version(void);
  * @param core A pointer to the newly created ie_core_t.
  * @return Status code of the operation: OK(0) for success.
  */
-INFERENCE_ENGINE_C_API(IEStatusCode) ie_core_create(const char *xml_config_file, ie_core_t **core);
+INFERENCE_ENGINE_C_API(IE_NODISCARD IEStatusCode) ie_core_create(const char *xml_config_file, ie_core_t **core);
 
 /**
  * @brief Releases memory occupied by core.
  * @ingroup Core
  * @param core A pointer to the core to free memory.
- * @return Status code of the operation: OK(0) for success.
  */
-INFERENCE_ENGINE_C_API(IEStatusCode) ie_core_free(ie_core_t **core);
+INFERENCE_ENGINE_C_API(void) ie_core_free(ie_core_t **core);
 
 /**
  * @brief Gets version information of the device specified. Use the ie_core_versions_free() method to free memory.
@@ -318,15 +350,14 @@ INFERENCE_ENGINE_C_API(IEStatusCode) ie_core_free(ie_core_t **core);
  * @param versions A pointer to versions corresponding to device_name.
  * @return Status code of the operation: OK(0) for success.
  */
-INFERENCE_ENGINE_C_API(IEStatusCode) ie_core_get_versions(const ie_core_t *core, const char *device_name, ie_core_versions_t *versions);
+INFERENCE_ENGINE_C_API(IE_NODISCARD IEStatusCode) ie_core_get_versions(const ie_core_t *core, const char *device_name, ie_core_versions_t *versions);
 
 /**
  * @brief Releases memory occupied by ie_core_versions.
  * @ingroup Core
  * @param vers A pointer to the ie_core_versions to free memory.
- * @return Status code of the operation: OK(0) for success.
  */
-INFERENCE_ENGINE_C_API(IEStatusCode) ie_core_versions_free(ie_core_versions_t *vers);
+INFERENCE_ENGINE_C_API(void) ie_core_versions_free(ie_core_versions_t *vers);
 
 /**
  * @brief Reads the model from the .xml and .bin files of the IR. Use the ie_network_free() method to free memory.
@@ -338,7 +369,7 @@ INFERENCE_ENGINE_C_API(IEStatusCode) ie_core_versions_free(ie_core_versions_t *v
  * @param network A pointer to the newly created network.
  * @return Status code of the operation: OK(0) for success.
  */
-INFERENCE_ENGINE_C_API(IEStatusCode) ie_core_read_network(ie_core_t *core, const char *xml, const char *weights_file, ie_network_t **network);
+INFERENCE_ENGINE_C_API(IE_NODISCARD IEStatusCode) ie_core_read_network(ie_core_t *core, const char *xml, const char *weights_file, ie_network_t **network);
 
 /**
  * @brief Creates an executable network from a network object. Users can create as many networks as they need and use
@@ -351,7 +382,7 @@ INFERENCE_ENGINE_C_API(IEStatusCode) ie_core_read_network(ie_core_t *core, const
  * @param exe_network A pointer to the newly created executable network.
  * @return Status code of the operation: OK(0) for success.
  */
-INFERENCE_ENGINE_C_API(IEStatusCode) ie_core_load_network(ie_core_t *core, const ie_network_t *network, const char *device_name, \
+INFERENCE_ENGINE_C_API(IE_NODISCARD IEStatusCode) ie_core_load_network(ie_core_t *core, const ie_network_t *network, const char *device_name, \
         const ie_config_t *config, ie_executable_network_t **exe_network);
 
 /**
@@ -363,7 +394,7 @@ INFERENCE_ENGINE_C_API(IEStatusCode) ie_core_load_network(ie_core_t *core, const
  * the config is set for all the registered devices.
  * @return Status code of the operation: OK(0) for success.
  */
-INFERENCE_ENGINE_C_API(IEStatusCode) ie_core_set_config(ie_core_t *core, const ie_config_t *ie_core_config, const char *device_name);
+INFERENCE_ENGINE_C_API(IE_NODISCARD IEStatusCode) ie_core_set_config(ie_core_t *core, const ie_config_t *ie_core_config, const char *device_name);
 
 /**
  * @brief Registers a new device and a plugin which implement this device inside Inference Engine.
@@ -375,7 +406,7 @@ INFERENCE_ENGINE_C_API(IEStatusCode) ie_core_set_config(ie_core_t *core, const i
  * a plugin with the default name.
  * @return Status code of the operation: OK(0) for success.
  */
-INFERENCE_ENGINE_C_API(IEStatusCode) ie_core_register_plugin(ie_core_t *core, const char *plugin_name, const char *device_name);
+INFERENCE_ENGINE_C_API(IE_NODISCARD IEStatusCode) ie_core_register_plugin(ie_core_t *core, const char *plugin_name, const char *device_name);
 
 /**
  * @brief Registers plugins specified in an ".xml" configuration file.
@@ -384,7 +415,7 @@ INFERENCE_ENGINE_C_API(IEStatusCode) ie_core_register_plugin(ie_core_t *core, co
  * @param xml_config_file A full path to ".xml" file containing plugins configuration.
  * @return Status code of the operation: OK(0) for success.
  */
-INFERENCE_ENGINE_C_API(IEStatusCode) ie_core_register_plugins(ie_core_t *core, const char *xml_config_file);
+INFERENCE_ENGINE_C_API(IE_NODISCARD IEStatusCode) ie_core_register_plugins(ie_core_t *core, const char *xml_config_file);
 
 /**
  * @brief Unregisters a plugin with a specified device name.
@@ -393,7 +424,7 @@ INFERENCE_ENGINE_C_API(IEStatusCode) ie_core_register_plugins(ie_core_t *core, c
  * @param device_name A device name of the device to unregister.
  * @return Status code of the operation: OK(0) for success.
  */
-INFERENCE_ENGINE_C_API(IEStatusCode) ie_core_unregister_plugin(ie_core_t *core, const char *device_name);
+INFERENCE_ENGINE_C_API(IE_NODISCARD IEStatusCode) ie_core_unregister_plugin(ie_core_t *core, const char *device_name);
 
 /**
  * @brief Loads extension library to the device with a specified device name.
@@ -403,7 +434,7 @@ INFERENCE_ENGINE_C_API(IEStatusCode) ie_core_unregister_plugin(ie_core_t *core, 
  * @param device_name A device name of a device to load the extensions to.
  * @return Status code of the operation: OK(0) for success.
  */
-INFERENCE_ENGINE_C_API(IEStatusCode) ie_core_add_extension(ie_core_t *core, const char *extension_path, const char *device_name);
+INFERENCE_ENGINE_C_API(IE_NODISCARD IEStatusCode) ie_core_add_extension(ie_core_t *core, const char *extension_path, const char *device_name);
 
 /**
  * @brief Gets general runtime metric for dedicated hardware. The method is needed to request common device properties
@@ -415,7 +446,7 @@ INFERENCE_ENGINE_C_API(IEStatusCode) ie_core_add_extension(ie_core_t *core, cons
  * @param param_result A metric value corresponding to the metric_name.
  * @return Status code of the operation: OK(0) for success.
  */
-INFERENCE_ENGINE_C_API(IEStatusCode) ie_core_get_metric(const ie_core_t *core, const char *device_name, const char *metric_name, ie_param_t *param_result);
+INFERENCE_ENGINE_C_API(IE_NODISCARD IEStatusCode) ie_core_get_metric(const ie_core_t *core, const char *device_name, const char *metric_name, ie_param_t *param_result);
 
 /**
  * @brief Gets configuration dedicated to device behaviour. The method is targeted to extract information
@@ -427,7 +458,24 @@ INFERENCE_ENGINE_C_API(IEStatusCode) ie_core_get_metric(const ie_core_t *core, c
  * @param param_result A configuration value corresponding to the config_name.
  * @return Status code of the operation: OK(0) for success.
  */
-INFERENCE_ENGINE_C_API(IEStatusCode) ie_core_get_config(const ie_core_t *core, const char *device_name, const char *config_name, ie_param_t *param_result);
+INFERENCE_ENGINE_C_API(IE_NODISCARD IEStatusCode) ie_core_get_config(const ie_core_t *core, const char *device_name, const char *config_name, ie_param_t *param_result);
+
+/**
+ * @brief Gets available devices for neural network inference.
+ * @ingroup Core
+ * @param core A pointer to ie_core_t instance.
+ * @param avai_devices The devices are returned as { CPU, FPGA.0, FPGA.1, MYRIAD }
+ * If there more than one device of specific type, they are enumerated with .# suffix
+ * @return Status code of the operation: OK(0) for success.
+ */
+INFERENCE_ENGINE_C_API(IE_NODISCARD IEStatusCode) ie_core_get_available_devices(const ie_core_t *core, ie_available_devices_t *avai_devices);
+
+/**
+ * @brief Releases memory occpuied by ie_available_devices_t
+ * @ingroup Core
+ * @param avai_devices A pointer to the ie_available_devices_t to free memory.
+ */
+INFERENCE_ENGINE_C_API(void) ie_core_available_devices_free(ie_available_devices_t *avai_devices);
 
 /** @} */ // end of Core
 
@@ -443,9 +491,8 @@ INFERENCE_ENGINE_C_API(IEStatusCode) ie_core_get_config(const ie_core_t *core, c
  * @brief Releases memory occupied by ExecutableNetwork.
  * @ingroup ExecutableNetwork
  * @param ie_exec_network A pointer to the ExecutableNetwork to free memory.
- * return Status code of the operation: OK(0) for success.
  */
-INFERENCE_ENGINE_C_API(IEStatusCode) ie_exec_network_free(ie_executable_network_t **ie_exec_network);
+INFERENCE_ENGINE_C_API(void) ie_exec_network_free(ie_executable_network_t **ie_exec_network);
 
 /**
  * @brief Creates an inference request instance used to infer the network. The created request has allocated input
@@ -455,7 +502,7 @@ INFERENCE_ENGINE_C_API(IEStatusCode) ie_exec_network_free(ie_executable_network_
  * @param request A pointer to the newly created ie_infer_request_t instance
  * @return Status code of the operation: OK(0) for success.
  */
-INFERENCE_ENGINE_C_API(IEStatusCode) ie_exec_network_create_infer_request(ie_executable_network_t *ie_exec_network, ie_infer_request_t **request);
+INFERENCE_ENGINE_C_API(IE_NODISCARD IEStatusCode) ie_exec_network_create_infer_request(ie_executable_network_t *ie_exec_network, ie_infer_request_t **request);
 
 /**
  * @brief Gets general runtime metric for an executable network. It can be network name, actual device ID on which executable network is running
@@ -466,7 +513,7 @@ INFERENCE_ENGINE_C_API(IEStatusCode) ie_exec_network_create_infer_request(ie_exe
  * @param param_result A metric value corresponding to the metric_name.
  * @return Status code of the operation: OK(0) for success.
  */
-INFERENCE_ENGINE_C_API(IEStatusCode) ie_exec_network_get_metric(const ie_executable_network_t *ie_exec_network, \
+INFERENCE_ENGINE_C_API(IE_NODISCARD IEStatusCode) ie_exec_network_get_metric(const ie_executable_network_t *ie_exec_network, \
         const char *metric_name, ie_param_t *param_result);
 
 /**
@@ -477,7 +524,7 @@ INFERENCE_ENGINE_C_API(IEStatusCode) ie_exec_network_get_metric(const ie_executa
  * @param param_config A pointer to device configuration..
  * @return Status code of the operation: OK(0) for success.
  */
-INFERENCE_ENGINE_C_API(IEStatusCode) ie_exec_network_set_config(ie_executable_network_t *ie_exec_network, const ie_config_t *param_config);
+INFERENCE_ENGINE_C_API(IE_NODISCARD IEStatusCode) ie_exec_network_set_config(ie_executable_network_t *ie_exec_network, const ie_config_t *param_config);
 
 /**
  * @brief Gets configuration for current executable network. The method is responsible to
@@ -488,7 +535,7 @@ INFERENCE_ENGINE_C_API(IEStatusCode) ie_exec_network_set_config(ie_executable_ne
  * @param param_result A configuration value corresponding to a configuration paramter name.
  * @return Status code of the operation: OK(0) for success.
  */
-INFERENCE_ENGINE_C_API(IEStatusCode) ie_exec_network_get_config(const ie_executable_network_t *ie_exec_network, \
+INFERENCE_ENGINE_C_API(IE_NODISCARD IEStatusCode) ie_exec_network_get_config(const ie_executable_network_t *ie_exec_network, \
         const char *metric_config, ie_param_t *param_result);
 
 /** @} */ // end of ExecutableNetwork
@@ -506,9 +553,8 @@ INFERENCE_ENGINE_C_API(IEStatusCode) ie_exec_network_get_config(const ie_executa
  * @brief Releases memory occupied by ie_infer_request_t instance.
  * @ingroup InferRequest
  * @param infer_request A pointer to the ie_infer_request_t to free memory.
- * @return Status code of the operation: OK(0) for success.
  */
-INFERENCE_ENGINE_C_API(IEStatusCode) ie_infer_request_free(ie_infer_request_t **infer_request);
+INFERENCE_ENGINE_C_API(void) ie_infer_request_free(ie_infer_request_t **infer_request);
 
 /**
  * @brief Gets input/output data for inference
@@ -518,7 +564,7 @@ INFERENCE_ENGINE_C_API(IEStatusCode) ie_infer_request_free(ie_infer_request_t **
  * @param blob A pointer to input or output blob. The type of Blob must match the network input precision and size.
  * @return Status code of the operation: OK(0) for success.
  */
-INFERENCE_ENGINE_C_API(IEStatusCode) ie_infer_request_get_blob(ie_infer_request_t *infer_request, const char *name, ie_blob_t **blob);
+INFERENCE_ENGINE_C_API(IE_NODISCARD IEStatusCode) ie_infer_request_get_blob(ie_infer_request_t *infer_request, const char *name, ie_blob_t **blob);
 
 /**
  * @brief Sets input/output data to inference.
@@ -528,7 +574,7 @@ INFERENCE_ENGINE_C_API(IEStatusCode) ie_infer_request_get_blob(ie_infer_request_
  * @param blob Reference to input or output blob. The type of a blob must match the network input precision and size.
  * @return Status code of the operation: OK(0) for success.
  */
-INFERENCE_ENGINE_C_API(IEStatusCode) ie_infer_request_set_blob(ie_infer_request_t *infer_request, const char *name, const ie_blob_t *blob);
+INFERENCE_ENGINE_C_API(IE_NODISCARD IEStatusCode) ie_infer_request_set_blob(ie_infer_request_t *infer_request, const char *name, const ie_blob_t *blob);
 
 /**
  * @brief Starts synchronous inference of the infer request and fill outputs.
@@ -536,7 +582,7 @@ INFERENCE_ENGINE_C_API(IEStatusCode) ie_infer_request_set_blob(ie_infer_request_
  * @param infer_request A pointer to ie_infer_request_t instance.
  * @return Status code of the operation: OK(0) for success.
  */
-INFERENCE_ENGINE_C_API(IEStatusCode) ie_infer_request_infer(ie_infer_request_t *infer_request);
+INFERENCE_ENGINE_C_API(IE_NODISCARD IEStatusCode) ie_infer_request_infer(ie_infer_request_t *infer_request);
 
 /**
  * @brief Starts asynchronous inference of the infer request and fill outputs.
@@ -544,7 +590,7 @@ INFERENCE_ENGINE_C_API(IEStatusCode) ie_infer_request_infer(ie_infer_request_t *
  * @param infer_request A pointer to ie_infer_request_t instance.
  * @return Status code of the operation: OK(0) for success.
  */
-INFERENCE_ENGINE_C_API(IEStatusCode) ie_infer_request_infer_async(ie_infer_request_t *infer_request);
+INFERENCE_ENGINE_C_API(IE_NODISCARD IEStatusCode) ie_infer_request_infer_async(ie_infer_request_t *infer_request);
 
 /**
  * @brief Sets a callback function that will be called on success or failure of asynchronous request
@@ -553,7 +599,7 @@ INFERENCE_ENGINE_C_API(IEStatusCode) ie_infer_request_infer_async(ie_infer_reque
  * @param callback  A function to be called.
  * @return Status code of the operation: OK(0) for success.
  */
-INFERENCE_ENGINE_C_API(IEStatusCode) ie_infer_set_completion_callback(ie_infer_request_t *infer_request, ie_complete_call_back_t *callback);
+INFERENCE_ENGINE_C_API(IE_NODISCARD IEStatusCode) ie_infer_set_completion_callback(ie_infer_request_t *infer_request, ie_complete_call_back_t *callback);
 
 /**
  * @brief Waits for the result to become available. Blocks until specified timeout elapses or the result becomes available, whichever comes first.
@@ -565,7 +611,7 @@ INFERENCE_ENGINE_C_API(IEStatusCode) ie_infer_set_completion_callback(ie_infer_r
  * * -1 - waits until inference result becomes available
  * @return Status code of the operation: OK(0) for success.
  */
-INFERENCE_ENGINE_C_API(IEStatusCode) ie_infer_request_wait(ie_infer_request_t *infer_request, const int64_t timeout);
+INFERENCE_ENGINE_C_API(IE_NODISCARD IEStatusCode) ie_infer_request_wait(ie_infer_request_t *infer_request, const int64_t timeout);
 
 /**
  * @brief  Sets new batch size for certain infer request when dynamic batching is enabled in executable network that created this request.
@@ -574,7 +620,7 @@ INFERENCE_ENGINE_C_API(IEStatusCode) ie_infer_request_wait(ie_infer_request_t *i
  * @param size New batch size to be used by all the following inference calls for this request.
  * @return Status code of the operation: OK(0) for success.
  */
-INFERENCE_ENGINE_C_API(IEStatusCode) ie_infer_request_set_batch(ie_infer_request_t *infer_request, const size_t size);
+INFERENCE_ENGINE_C_API(IE_NODISCARD IEStatusCode) ie_infer_request_set_batch(ie_infer_request_t *infer_request, const size_t size);
 
 /** @} */ // end of InferRequest
 
@@ -591,9 +637,16 @@ INFERENCE_ENGINE_C_API(IEStatusCode) ie_infer_request_set_batch(ie_infer_request
  * @brief When netowrk is loaded into the Infernece Engine, it is not required anymore and should be released
  * @ingroup Network
  * @param network The pointer to the instance of the ie_network_t to free.
+ */
+INFERENCE_ENGINE_C_API(void) ie_network_free(ie_network_t **network);
+
+/**
+ * @brief Get name of network.
+ * @ingroup Network
+ * @param name Name of the network.
  * @return Status code of the operation: OK(0) for success.
  */
-INFERENCE_ENGINE_C_API(IEStatusCode) ie_network_free(ie_network_t **network);
+INFERENCE_ENGINE_C_API(IE_NODISCARD IEStatusCode) ie_network_get_name(const ie_network_t *network, char **name);
 
 /**
  * @brief Gets number of inputs for the network.
@@ -602,7 +655,7 @@ INFERENCE_ENGINE_C_API(IEStatusCode) ie_network_free(ie_network_t **network);
  * @param size_result A number of the instance's input information.
  * @return Status code of the operation: OK(0) for success.
  */
-INFERENCE_ENGINE_C_API(IEStatusCode) ie_network_get_inputs_number(const ie_network_t *network, size_t *size_result);
+INFERENCE_ENGINE_C_API(IE_NODISCARD IEStatusCode) ie_network_get_inputs_number(const ie_network_t *network, size_t *size_result);
 
 /**
  * @brief Gets name corresponding to the "number". Use the ie_network_name_free() method to free memory.
@@ -612,7 +665,7 @@ INFERENCE_ENGINE_C_API(IEStatusCode) ie_network_get_inputs_number(const ie_netwo
  * @param name Input name corresponding to the number.
  * @return status Status code of the operation: OK(0) for success.
  */
-INFERENCE_ENGINE_C_API(IEStatusCode) ie_network_get_input_name(const ie_network_t *network, size_t number, char **name);
+INFERENCE_ENGINE_C_API(IE_NODISCARD IEStatusCode) ie_network_get_input_name(const ie_network_t *network, size_t number, char **name);
 
 /**
  * @brief Gets a precision of the input data provided by user.
@@ -622,7 +675,7 @@ INFERENCE_ENGINE_C_API(IEStatusCode) ie_network_get_input_name(const ie_network_
  * @param prec_result A pointer to the precision used for input blob creation.
  * @return Status code of the operation: OK(0) for success.
  */
-INFERENCE_ENGINE_C_API(IEStatusCode) ie_network_get_input_precision(const ie_network_t *network, const char *input_name, precision_e *prec_result);
+INFERENCE_ENGINE_C_API(IE_NODISCARD IEStatusCode) ie_network_get_input_precision(const ie_network_t *network, const char *input_name, precision_e *prec_result);
 
 /**
  * @brief Changes the precision of the input data provided by the user.
@@ -633,7 +686,7 @@ INFERENCE_ENGINE_C_API(IEStatusCode) ie_network_get_input_precision(const ie_net
  * @param p A new precision of the input data to set (eg. precision_e.FP16).
  * @return Status code of the operation: OK(0) for success.
  */
-INFERENCE_ENGINE_C_API(IEStatusCode) ie_network_set_input_precision(ie_network_t *network, const char *input_name, const precision_e p);
+INFERENCE_ENGINE_C_API(IE_NODISCARD IEStatusCode) ie_network_set_input_precision(ie_network_t *network, const char *input_name, const precision_e p);
 
 /**
  * @brief Gets a layout of the input data.
@@ -643,7 +696,7 @@ INFERENCE_ENGINE_C_API(IEStatusCode) ie_network_set_input_precision(ie_network_t
  * @param layout_result A pointer to the layout used for input blob creation.
  * @return Status code of the operation: OK(0) for success.
  */
-INFERENCE_ENGINE_C_API(IEStatusCode) ie_network_get_input_layout(const ie_network_t *network, const char *input_name, layout_e *layout_result);
+INFERENCE_ENGINE_C_API(IE_NODISCARD IEStatusCode) ie_network_get_input_layout(const ie_network_t *network, const char *input_name, layout_e *layout_result);
 
 /**
  * @brief Changes the layout of the input data named "input_name".
@@ -654,7 +707,7 @@ INFERENCE_ENGINE_C_API(IEStatusCode) ie_network_get_input_layout(const ie_networ
  * @param l A new layout of the input data to set.
  * @return Status code of the operation: OK(0) for success.
  */
-INFERENCE_ENGINE_C_API(IEStatusCode) ie_network_set_input_layout(ie_network_t *network, const char *input_name, const layout_e l);
+INFERENCE_ENGINE_C_API(IE_NODISCARD IEStatusCode) ie_network_set_input_layout(ie_network_t *network, const char *input_name, const layout_e l);
 
 /**
  * @Gets dimensions/shape of the input data with reversed order.
@@ -664,7 +717,7 @@ INFERENCE_ENGINE_C_API(IEStatusCode) ie_network_set_input_layout(ie_network_t *n
  * @param dims_result A pointer to the dimensions used for input blob creation.
  * @return Status code of the operation: OK(0) for success.
  */
-INFERENCE_ENGINE_C_API(IEStatusCode) ie_network_get_input_dims(const ie_network_t *network, const char *input_name, dimensions_t *dims_result);
+INFERENCE_ENGINE_C_API(IE_NODISCARD IEStatusCode) ie_network_get_input_dims(const ie_network_t *network, const char *input_name, dimensions_t *dims_result);
 
 /**
  * @brief Gets pre-configured resize algorithm.
@@ -674,7 +727,7 @@ INFERENCE_ENGINE_C_API(IEStatusCode) ie_network_get_input_dims(const ie_network_
  * @parm resize_alg_result The pointer to the resize algorithm used for input blob creation.
  * @return Status code of the operation: OK(0) for success.
  */
-INFERENCE_ENGINE_C_API(IEStatusCode) ie_network_get_input_resize_algorithm(const ie_network_t *network, const char *input_name, \
+INFERENCE_ENGINE_C_API(IE_NODISCARD IEStatusCode) ie_network_get_input_resize_algorithm(const ie_network_t *network, const char *input_name, \
         resize_alg_e *resize_alg_result);
 
 /**
@@ -685,7 +738,7 @@ INFERENCE_ENGINE_C_API(IEStatusCode) ie_network_get_input_resize_algorithm(const
  * @param resize_algo Resize algorithm.
  * @return Status code of the operation: OK(0) for success.
  */
-INFERENCE_ENGINE_C_API(IEStatusCode) ie_network_set_input_resize_algorithm(ie_network_t *network, const char *input_name, const resize_alg_e resize_algo);
+INFERENCE_ENGINE_C_API(IE_NODISCARD IEStatusCode) ie_network_set_input_resize_algorithm(ie_network_t *network, const char *input_name, const resize_alg_e resize_algo);
 
 /**
  * @brief Gets color format of the input data.
@@ -695,7 +748,7 @@ INFERENCE_ENGINE_C_API(IEStatusCode) ie_network_set_input_resize_algorithm(ie_ne
  * @param colformat_result The pointer to the color format used for input blob creation.
  * @reutrn Status code of the operation: OK(0) for success.
  */
-INFERENCE_ENGINE_C_API(IEStatusCode) ie_network_get_color_format(const ie_network_t *network, const char *input_name, colorformat_e *colformat_result);
+INFERENCE_ENGINE_C_API(IE_NODISCARD IEStatusCode) ie_network_get_color_format(const ie_network_t *network, const char *input_name, colorformat_e *colformat_result);
 
 /**
  * @brief Changes the color format of the input data.
@@ -705,7 +758,7 @@ INFERENCE_ENGINE_C_API(IEStatusCode) ie_network_get_color_format(const ie_networ
  * @param color_format Color format of the input data.
  * @reutrn Status code of the operation: OK(0) for success.
  */
-INFERENCE_ENGINE_C_API(IEStatusCode) ie_network_set_color_format(ie_network_t *network, const char *input_name, const colorformat_e color_format);
+INFERENCE_ENGINE_C_API(IE_NODISCARD IEStatusCode) ie_network_set_color_format(ie_network_t *network, const char *input_name, const colorformat_e color_format);
 
 /**
  * @brief Helper method collect all input shapes with input names of corresponding input data.
@@ -715,7 +768,7 @@ INFERENCE_ENGINE_C_API(IEStatusCode) ie_network_set_color_format(ie_network_t *n
  * @param shapes A pointer to the input_shapes.
  * @return Status code of the operation: OK(0) for success.
  */
-INFERENCE_ENGINE_C_API(IEStatusCode) ie_network_get_input_shapes(ie_network_t *network, input_shapes_t *shapes);
+INFERENCE_ENGINE_C_API(IE_NODISCARD IEStatusCode) ie_network_get_input_shapes(ie_network_t *network, input_shapes_t *shapes);
 
 /**
  * @brief Run shape inference with new input shapes for the network.
@@ -724,7 +777,7 @@ INFERENCE_ENGINE_C_API(IEStatusCode) ie_network_get_input_shapes(ie_network_t *n
  * @param shapes A new input shapes to set for the network.
  * @return Status code of the operation: OK(0) for success.
  */
-INFERENCE_ENGINE_C_API(IEStatusCode) ie_network_reshape(ie_network_t *network, const input_shapes_t shapes);
+INFERENCE_ENGINE_C_API(IE_NODISCARD IEStatusCode) ie_network_reshape(ie_network_t *network, const input_shapes_t shapes);
 
 /**
  * @brief Gets number of output for the network.
@@ -733,7 +786,7 @@ INFERENCE_ENGINE_C_API(IEStatusCode) ie_network_reshape(ie_network_t *network, c
  * @param size_result A number of the network's output information.
  * @return Status code of the operation: OK(0) for success.
  */
-INFERENCE_ENGINE_C_API(IEStatusCode) ie_network_get_outputs_number(const ie_network_t *network, size_t *size_result);
+INFERENCE_ENGINE_C_API(IE_NODISCARD IEStatusCode) ie_network_get_outputs_number(const ie_network_t *network, size_t *size_result);
 
 /**
  * @brief Gets name corresponding to the "number". Use the ie_network_name_free() method to free memory.
@@ -743,7 +796,7 @@ INFERENCE_ENGINE_C_API(IEStatusCode) ie_network_get_outputs_number(const ie_netw
  * @param name Output name corresponding to the number.
  * @return Status code of the operation: OK(0) for success.
  */
-INFERENCE_ENGINE_C_API(IEStatusCode) ie_network_get_output_name(const ie_network_t *network, const size_t number, char **name);
+INFERENCE_ENGINE_C_API(IE_NODISCARD IEStatusCode) ie_network_get_output_name(const ie_network_t *network, const size_t number, char **name);
 
 /**
  * @brief Gets a precision of the output data named "output_name".
@@ -753,7 +806,7 @@ INFERENCE_ENGINE_C_API(IEStatusCode) ie_network_get_output_name(const ie_network
  * @param prec_result A pointer to the precision used for output blob creation.
  * @return Status code of the operation: OK(0) for success.
  */
-INFERENCE_ENGINE_C_API(IEStatusCode) ie_network_get_output_precision(const ie_network_t *network, const char *output_name, precision_e *prec_result);
+INFERENCE_ENGINE_C_API(IE_NODISCARD IEStatusCode) ie_network_get_output_precision(const ie_network_t *network, const char *output_name, precision_e *prec_result);
 
 /**
  * @brief Changes the precision of the output data named "output_name".
@@ -763,7 +816,7 @@ INFERENCE_ENGINE_C_API(IEStatusCode) ie_network_get_output_precision(const ie_ne
  * @param p A new precision of the output data to set (eg. precision_e.FP16).
  * @return Status code of the operation: OK(0) for success.
  */
-INFERENCE_ENGINE_C_API(IEStatusCode) ie_network_set_output_precision(ie_network_t *network, const char *output_name, const precision_e p);
+INFERENCE_ENGINE_C_API(IE_NODISCARD IEStatusCode) ie_network_set_output_precision(ie_network_t *network, const char *output_name, const precision_e p);
 
 /**
  * @brief Gets a layout of the output data.
@@ -773,7 +826,7 @@ INFERENCE_ENGINE_C_API(IEStatusCode) ie_network_set_output_precision(ie_network_
  * @param layout_result A pointer to the layout used for output blob creation.
  * @return Status code of the operation: OK(0) for success.
  */
-INFERENCE_ENGINE_C_API(IEStatusCode) ie_network_get_output_layout(const ie_network_t *network, const char *output_name, layout_e *layout_result);
+INFERENCE_ENGINE_C_API(IE_NODISCARD IEStatusCode) ie_network_get_output_layout(const ie_network_t *network, const char *output_name, layout_e *layout_result);
 
 /**
  * @brief Changes the layout of the output data named "output_name".
@@ -783,7 +836,7 @@ INFERENCE_ENGINE_C_API(IEStatusCode) ie_network_get_output_layout(const ie_netwo
  * @param l A new layout of the output data to set.
  * @return Status code of the operation: OK(0) for success.
  */
-INFERENCE_ENGINE_C_API(IEStatusCode) ie_network_set_output_layout(ie_network_t *network, const char *output_name, const layout_e l);
+INFERENCE_ENGINE_C_API(IE_NODISCARD IEStatusCode) ie_network_set_output_layout(ie_network_t *network, const char *output_name, const layout_e l);
 
 /**
  * @brief Gets dimensions/shape of the output data with reversed order.
@@ -793,30 +846,28 @@ INFERENCE_ENGINE_C_API(IEStatusCode) ie_network_set_output_layout(ie_network_t *
  * @param dims_result A pointer to the dimensions used for output blob creation.
  * @return Status code of the operation: OK(0) for success.
  */
-INFERENCE_ENGINE_C_API(IEStatusCode) ie_network_get_output_dims(const ie_network_t *network, const char *output_name, dimensions_t *dims_result);
+INFERENCE_ENGINE_C_API(IE_NODISCARD IEStatusCode) ie_network_get_output_dims(const ie_network_t *network, const char *output_name, dimensions_t *dims_result);
 
 /**
  * @brief Releases memory occupied by input_shapes.
  * @ingroup Network
  * @param inputShapes A pointer to the input_shapes to free memory.
- * @return Status code of the operation: OK(0) for success.
  */
-INFERENCE_ENGINE_C_API(IEStatusCode) ie_network_input_shapes_free(input_shapes_t *inputShapes);
+INFERENCE_ENGINE_C_API(void) ie_network_input_shapes_free(input_shapes_t *inputShapes);
 
 /**
  * @brief Releases momory occupied by input_name or output_name.
  * @ingroup Network
  * @param name A pointer to the input_name or output_name to free memory.
- * @return Status code of the operation: OK(0) for success.
  */
-INFERENCE_ENGINE_C_API(IEStatusCode) ie_network_name_free(char **name);
+INFERENCE_ENGINE_C_API(void) ie_network_name_free(char **name);
 
 /** @} */ // end of InferRequest
 
 // Blob
 
 /**
- * @defgroup Blob Blob  
+ * @defgroup Blob Blob
  * Set of functions allowing to research memory from infer requests or make new
  * memory objects to be passed to InferRequests.
  * @{
@@ -829,7 +880,7 @@ INFERENCE_ENGINE_C_API(IEStatusCode) ie_network_name_free(char **name);
  * @param blob A pointer to the newly created blob.
  * @return Status code of the operation: OK(0) for success.
  */
-INFERENCE_ENGINE_C_API(IEStatusCode) ie_blob_make_memory(const tensor_desc_t *tensorDesc, ie_blob_t **blob);
+INFERENCE_ENGINE_C_API(IE_NODISCARD IEStatusCode) ie_blob_make_memory(const tensor_desc_t *tensorDesc, ie_blob_t **blob);
 
 /**
  * @brief Creates a blob with the given tensor descriptor from the pointer to the pre-allocated memory.
@@ -840,7 +891,7 @@ INFERENCE_ENGINE_C_API(IEStatusCode) ie_blob_make_memory(const tensor_desc_t *te
  * @param blob A pointer to the newly created blob.
  * @return Status code of the operation: OK(0) for success.
  */
-INFERENCE_ENGINE_C_API(IEStatusCode) ie_blob_make_memory_from_preallocated(const tensor_desc_t *tensorDesc, void *ptr, size_t size, ie_blob_t **blob);
+INFERENCE_ENGINE_C_API(IE_NODISCARD IEStatusCode) ie_blob_make_memory_from_preallocated(const tensor_desc_t *tensorDesc, void *ptr, size_t size, ie_blob_t **blob);
 
 /**
  * @brief Creates a blob describing given roi_t instance based on the given blob with pre-allocated memory.
@@ -850,7 +901,28 @@ INFERENCE_ENGINE_C_API(IEStatusCode) ie_blob_make_memory_from_preallocated(const
  * @param blob A pointer to the newly created blob.
  * @return Status code of the operation: OK(0) for success.
  */
-INFERENCE_ENGINE_C_API(IEStatusCode) ie_blob_make_memory_with_roi(const ie_blob_t *inputBlob, const roi_t *roi, ie_blob_t **blob);
+INFERENCE_ENGINE_C_API(IE_NODISCARD IEStatusCode) ie_blob_make_memory_with_roi(const ie_blob_t *inputBlob, const roi_t *roi, ie_blob_t **blob);
+
+/**
+ * @brief Creates a NV12 blob from two planes Y and UV.
+ * @ingroup Blob
+ * @param y A pointer to the ie_blob_t instance that represents Y plane in NV12 color format.
+ * @param uv A pointer to the ie_blob_t instance that represents UV plane in NV12 color format.
+ * @param nv12Blob A pointer to the newly created blob.
+ * @return Status code of the operation: OK(0) for success.
+*/
+INFERENCE_ENGINE_C_API(IE_NODISCARD IEStatusCode) ie_blob_make_memory_nv12(const ie_blob_t *y, const ie_blob_t *uv, ie_blob_t **nv12Blob);
+
+/**
+ * @brief Creates I420 blob from three planes Y, U and V.
+ * @ingroup Blob
+ * @param y A pointer to the ie_blob_t instance that represents Y plane in I420 color format.
+ * @param u A pointer to the ie_blob_t instance that represents U plane in I420 color format.
+ * @param v A pointer to the ie_blob_t instance that represents V plane in I420 color format.
+ * @param i420Blob A pointer to the newly created blob.
+ * @return Status code of the operation: OK(0) for success.
+*/
+INFERENCE_ENGINE_C_API(IE_NODISCARD IEStatusCode) ie_blob_make_memory_i420(const ie_blob_t *y, const ie_blob_t *u, const ie_blob_t *v, ie_blob_t **i420Blob);
 
 /**
  * @brief Gets the total number of elements, which is a product of all the dimensions.
@@ -859,7 +931,7 @@ INFERENCE_ENGINE_C_API(IEStatusCode) ie_blob_make_memory_with_roi(const ie_blob_
  * @param size_result The total number of elements.
  * @return Status code of the operation: OK(0) for success.
  */
-INFERENCE_ENGINE_C_API(IEStatusCode) ie_blob_size(ie_blob_t *blob, int *size_result);
+INFERENCE_ENGINE_C_API(IE_NODISCARD IEStatusCode) ie_blob_size(ie_blob_t *blob, int *size_result);
 
 /**
  * @brief Gets the size of the current Blob in bytes.
@@ -868,15 +940,14 @@ INFERENCE_ENGINE_C_API(IEStatusCode) ie_blob_size(ie_blob_t *blob, int *size_res
  * @param bsize_result The size of the current blob in bytes.
  * @return Status code of the operation: OK(0) for success.
  */
-INFERENCE_ENGINE_C_API(IEStatusCode) ie_blob_byte_size(ie_blob_t *blob, int *bsize_result);
+INFERENCE_ENGINE_C_API(IE_NODISCARD IEStatusCode) ie_blob_byte_size(ie_blob_t *blob, int *bsize_result);
 
 /**
  * @brief Releases previously allocated data
  * @ingroup Blob
  * @param blob A pointer to the blob to free memory.
- * @return Status code of the operation: OK(0) for success.
  */
-INFERENCE_ENGINE_C_API(IEStatusCode) ie_blob_deallocate(ie_blob_t **blob);
+INFERENCE_ENGINE_C_API(void) ie_blob_deallocate(ie_blob_t **blob);
 
 /**
  * @brief Gets access to the allocated memory .
@@ -885,7 +956,7 @@ INFERENCE_ENGINE_C_API(IEStatusCode) ie_blob_deallocate(ie_blob_t **blob);
  * @param blob_buffer A pointer to the copied data from the given blob.
  * @return Status code of the operation: OK(0) for success.
  */
-INFERENCE_ENGINE_C_API(IEStatusCode) ie_blob_get_buffer(const ie_blob_t *blob, ie_blob_buffer_t *blob_buffer);
+INFERENCE_ENGINE_C_API(IE_NODISCARD IEStatusCode) ie_blob_get_buffer(const ie_blob_t *blob, ie_blob_buffer_t *blob_buffer);
 
 /**
  * @brief Gets read-only access to the allocated memory.
@@ -894,7 +965,7 @@ INFERENCE_ENGINE_C_API(IEStatusCode) ie_blob_get_buffer(const ie_blob_t *blob, i
  * @param blob_cbuffer A pointer to the coped data from the given pointer to the blob and the data is read-only.
  * @return Status code of the operation: OK(0) for success
  */
-INFERENCE_ENGINE_C_API(IEStatusCode) ie_blob_get_cbuffer(const ie_blob_t *blob, ie_blob_buffer_t *blob_cbuffer);
+INFERENCE_ENGINE_C_API(IE_NODISCARD IEStatusCode) ie_blob_get_cbuffer(const ie_blob_t *blob, ie_blob_buffer_t *blob_cbuffer);
 
 /**
  * @brief Gets dimensions of blob's tensor.
@@ -903,7 +974,7 @@ INFERENCE_ENGINE_C_API(IEStatusCode) ie_blob_get_cbuffer(const ie_blob_t *blob, 
  * @param dims_result A pointer to the dimensions of blob's tensor.
  * @return Status code of the operation: OK(0) for success.
  */
-INFERENCE_ENGINE_C_API(IEStatusCode) ie_blob_get_dims(const ie_blob_t *blob, dimensions_t *dims_result);
+INFERENCE_ENGINE_C_API(IE_NODISCARD IEStatusCode) ie_blob_get_dims(const ie_blob_t *blob, dimensions_t *dims_result);
 
 /**
  * @brief Gets layout of blob's tensor.
@@ -912,7 +983,7 @@ INFERENCE_ENGINE_C_API(IEStatusCode) ie_blob_get_dims(const ie_blob_t *blob, dim
  * @param layout_result A pointer to the layout of blob's tensor.
  * @return Status code of the operation: OK(0) for success.
  */
-INFERENCE_ENGINE_C_API(IEStatusCode) ie_blob_get_layout(const ie_blob_t *blob, layout_e *layout_result);
+INFERENCE_ENGINE_C_API(IE_NODISCARD IEStatusCode) ie_blob_get_layout(const ie_blob_t *blob, layout_e *layout_result);
 
 /**
  * @brief Gets precision of blob's tensor.
@@ -921,7 +992,14 @@ INFERENCE_ENGINE_C_API(IEStatusCode) ie_blob_get_layout(const ie_blob_t *blob, l
  * @param prec_result A pointer to the precision of blob's tensor.
  * @return Status code of the operation: OK(0) for success.
  */
-INFERENCE_ENGINE_C_API(IEStatusCode) ie_blob_get_precision(const ie_blob_t *blob, precision_e *prec_result);
+INFERENCE_ENGINE_C_API(IE_NODISCARD IEStatusCode) ie_blob_get_precision(const ie_blob_t *blob, precision_e *prec_result);
+
+/**
+ * @Releases the memory occupied by the ie_blob_t pointer.
+ * @ingroup Blob
+ * @param blob A pointer to the blob pointer to release memory.
+ */
+INFERENCE_ENGINE_C_API(void) ie_blob_free(ie_blob_t **blob);
 
 /** @} */ // end of Blob
 

@@ -51,7 +51,7 @@ struct gemm_optional_params : optional_params {
 class GemmKernelBase : public common_kernel_base {
 public:
     using common_kernel_base::common_kernel_base;
-    using FusedOpDesc = base_params::fused_operation_desc;
+    using FusedOpDesc = fused_operation_desc;
     using DispatchData = CommonDispatchData;
     virtual ~GemmKernelBase() {}
 

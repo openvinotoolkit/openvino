@@ -14,11 +14,10 @@
  limitations under the License.
 """
 
-import networkx as nx
-
 from mo.front.common.partial_infer.elemental import copy_shape_infer
 from mo.graph.graph import Graph
 from mo.ops.op import Op
+from mo.utils.error import Error
 
 
 class MVN(Op):
@@ -33,10 +32,34 @@ class MVN(Op):
             'eps': None,
             'across_channels': 0,
             'normalize_variance': 1,
+            'axes': None,
             'in_ports_count': 1,
             'out_ports_count': 1,
-            'infer': copy_shape_infer
+            'infer': __class__.infer
         }, attrs)
 
     def supported_attrs(self):
+        return ['eps', 'across_channels', 'normalize_variance', 'axes']
+
+    def backend_attrs(self):
         return ['eps', 'across_channels', 'normalize_variance']
+
+    @staticmethod
+    def infer(node: None):
+        input_shape = node.in_node(0).shape
+        name = node.soft_get('name', node.id)
+        axes = node.axes
+        if axes is not None:
+            if 0 in axes:
+                raise Error('Reduction over the batch dimension in node "{}" '
+                            'is not supported by the backend.'.format(name))
+            for i in range(2, len(input_shape)):
+                if i not in axes:
+                    raise Error(
+                        'Reduction over spatial dimensions in node "{}" '
+                        'is obligatory for the backend.'.format(name))
+            if 1 in axes and not node.across_channels:
+                raise Error('Inconsistent values of axes ({}) and across_channels ({}) parameters '
+                            'in node "{}".'.format(str(axes), str(node.across_channels), name))
+
+        copy_shape_infer(node)

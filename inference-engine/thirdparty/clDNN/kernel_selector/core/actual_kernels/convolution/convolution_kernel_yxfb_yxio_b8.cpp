@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2016 Intel Corporation
+﻿// Copyright (c) 2016-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -61,7 +61,7 @@ ConvolutionKernelBase::DispatchData ConvolutionKernel_yxfb_yxio_b8::SetDefault(c
 
     runInfo.gws0 = filterOfmNum * batchSize / ofmPerWorkItem;
 
-    runInfo.effiency = FORCE_PRIORITY_9;
+    runInfo.efficiency = FORCE_PRIORITY_9;
 
     return runInfo;
 }

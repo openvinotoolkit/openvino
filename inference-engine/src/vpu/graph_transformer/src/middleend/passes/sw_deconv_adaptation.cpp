@@ -186,15 +186,10 @@ private:
             finalOrder.moveDim(Dim::C, 2);
         }
 
-        if (type() == StageType::DepthDeconv) {
-            if (finalOrder != input->desc().dimsOrder()) {
-                orderInfo.setInput(inputEdge(0), finalOrder);
-            }
-            orderInfo.setOutput(outputEdge(0), finalOrder);
-        } else {
-            orderInfo.setInput(inputEdge(0), finalOrder.createMovedDim(Dim::C, 0));
-            orderInfo.setOutput(outputEdge(0), finalOrder.createMovedDim(Dim::C, 0));
+        if (finalOrder != input->desc().dimsOrder()) {
+            orderInfo.setInput(inputEdge(0), finalOrder);
         }
+        orderInfo.setOutput(outputEdge(0), finalOrder);
     }
 
     void getDataStridesRequirementsImpl(StageDataInfo<StridesRequirement>& stridesInfo) override {
@@ -312,7 +307,7 @@ private:
 
     void finalCheckImpl() const override {
         assertInputsOutputsTypes(this,
-             {{DataType::FP16}, {DataType::FP16}, {DataType::FP16}, {DataType::FP16}},
+             {{DataType::FP16}, {DataType::FP16}},
              {{DataType::FP16}});
     }
 
@@ -323,8 +318,6 @@ private:
         auto kernelStrideY = attrs().get<int>("kernelStrideY");
         auto padLeft = attrs().get<int>("padLeft");
         auto padTop = attrs().get<int>("padTop");
-        auto dilationX = attrs().get<int>("dilationX");
-        auto dilationY = attrs().get<int>("dilationY");
 
         serializer.append(static_cast<uint32_t>(kernelSizeX));
         serializer.append(static_cast<uint32_t>(kernelSizeY));
@@ -332,26 +325,20 @@ private:
         serializer.append(static_cast<uint32_t>(kernelStrideY));
         serializer.append(static_cast<uint32_t>(padLeft));
         serializer.append(static_cast<uint32_t>(padTop));
-        serializer.append(static_cast<uint32_t>(dilationX));
-        serializer.append(static_cast<uint32_t>(dilationY));
     }
 
     void serializeDataImpl(BlobSerializer& serializer) const override {
         auto input = inputEdge(0)->input();
         auto weights = inputEdge(1)->input();
-        auto biases = inputEdge(2)->input();
         auto output = outputEdge(0)->output();
 
-        input->serializeOldBuffer(this, serializer);
-        output->serializeOldBuffer(this, serializer);
-        weights->serializeOldBuffer(this, serializer);
+        input->serializeBuffer(serializer);
+        output->serializeBuffer(serializer);
+        weights->serializeBuffer(serializer);
 
         if (numTempBuffers() == 1) {
-            tempBuffer(0)->serializeOldBuffer(this, serializer);
+            tempBuffer(0)->serializeBuffer(serializer);
         }
-
-        // TODO: remove this
-        biases->serializeOldBuffer(this, serializer);
     }
 };
 
@@ -386,8 +373,6 @@ void PassImpl::run(const Model& model) {
         auto padRight = stage->attrs().get<int>("padRight");
         auto padTop = stage->attrs().get<int>("padTop");
         auto padBottom = stage->attrs().get<int>("padBottom");
-        auto dilationX = stage->attrs().get<int>("dilationX");
-        auto dilationY = stage->attrs().get<int>("dilationY");
         auto groupSize = stage->attrs().get<int>("groupSize");
 
         model->disconnectStage(stage);
@@ -401,41 +386,11 @@ void PassImpl::run(const Model& model) {
         }
 
         if (groupSize == 1) {
-            if (biases->usage() != DataUsage::Fake) {
-                auto tempOutput = model->duplicateData(
-                    output,
-                    "@temp");
-
-                _stageBuilder->addBiasStage(
-                    model,
-                    stage->name() + "@biases",
-                    stage->origLayer(),
-                    tempOutput, biases,
-                    output);
-
-                output = tempOutput;
-            }
-
-            if (scales->usage() != DataUsage::Fake) {
-                auto tempOutput = model->duplicateData(
-                    output,
-                    "@temp");
-
-                _stageBuilder->addScaleStage(
-                    model,
-                    stage->name() + "@scales",
-                    stage->origLayer(),
-                    tempOutput, scales,
-                    output);
-
-                output = tempOutput;
-            }
-
             auto swStage = model->addNewStage<DeconvStage>(
                 stage->name(),
                 StageType::Deconvolution,
                 stage->origLayer(),
-                {input, weights, biases, scales},
+                {input, weights},
                 {output});
 
             swStage->attrs().set<int>("kernelSizeX", kernelSizeX);
@@ -449,45 +404,44 @@ void PassImpl::run(const Model& model) {
             swStage->attrs().set<int>("padTop", padTop);
             swStage->attrs().set<int>("padBottom", padBottom);
 
-            swStage->attrs().set<int>("dilationX", dilationX);
-            swStage->attrs().set<int>("dilationY", dilationY);
-        } else if (groupSize == input->desc().dim(Dim::C) &&
-                   groupSize == output->desc().dim(Dim::C)) {
             if (biases->usage() != DataUsage::Fake) {
-                auto tempOutput = model->duplicateData(
+                auto biasesInput = model->duplicateData(
                     output,
-                    "@temp");
+                    "@pre-bias");
+
+                const auto outputProducerEdge = output->producerEdge();
+                model->replaceStageOutput(outputProducerEdge, biasesInput);
 
                 _stageBuilder->addBiasStage(
                     model,
                     stage->name() + "@biases",
                     stage->origLayer(),
-                    tempOutput, biases,
+                    biasesInput, biases,
                     output);
-
-                output = tempOutput;
             }
 
             if (scales->usage() != DataUsage::Fake) {
-                auto tempOutput = model->duplicateData(
+                auto scalesInput = model->duplicateData(
                     output,
-                    "@temp");
+                    "@pre-scaled");
+
+                const auto outputProducerEdge = output->producerEdge();
+                model->replaceStageOutput(outputProducerEdge, scalesInput);
 
                 _stageBuilder->addScaleStage(
                     model,
                     stage->name() + "@scales",
                     stage->origLayer(),
-                    tempOutput, scales,
+                    scalesInput, scales,
                     output);
-
-                output = tempOutput;
             }
-
+        } else if (groupSize == input->desc().dim(Dim::C) &&
+                   groupSize == output->desc().dim(Dim::C)) {
             auto swStage = model->addNewStage<DeconvStage>(
                 stage->name(),
                 StageType::DepthDeconv,
                 stage->origLayer(),
-                {input, weights, biases, scales},
+                {input, weights},
                 {output});
 
             swStage->attrs().set<int>("kernelSizeX", kernelSizeX);
@@ -501,8 +455,37 @@ void PassImpl::run(const Model& model) {
             swStage->attrs().set<int>("padTop", padTop);
             swStage->attrs().set<int>("padBottom", padBottom);
 
-            swStage->attrs().set<int>("dilationX", dilationX);
-            swStage->attrs().set<int>("dilationY", dilationY);
+            if (biases->usage() != DataUsage::Fake) {
+                auto biasesInput = model->duplicateData(
+                    output,
+                    "@pre-bias");
+
+                const auto outputProducerEdge = output->producerEdge();
+                model->replaceStageOutput(outputProducerEdge, biasesInput);
+
+                _stageBuilder->addBiasStage(
+                    model,
+                    stage->name() + "@biases",
+                    stage->origLayer(),
+                    biasesInput, biases,
+                    output);
+            }
+
+            if (scales->usage() != DataUsage::Fake) {
+                auto scalesInput = model->duplicateData(
+                    output,
+                    "@pre-scaled");
+
+                const auto outputProducerEdge = output->producerEdge();
+                model->replaceStageOutput(outputProducerEdge, scalesInput);
+
+                _stageBuilder->addScaleStage(
+                    model,
+                    stage->name() + "@scales",
+                    stage->origLayer(),
+                    scalesInput, scales,
+                    output);
+            }
         } else {
             VPU_THROW_EXCEPTION << "Internal error : grouped deconvolution was not processed";
         }

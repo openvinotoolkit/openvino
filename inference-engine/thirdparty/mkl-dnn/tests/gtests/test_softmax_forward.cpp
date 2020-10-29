@@ -196,7 +196,7 @@ using softmax_forward_test_float = softmax_test<float>;
 using softmax_fwd_test_params_float = softmax_test_params<float>;
 
 TEST_P(softmax_forward_test_float, TestsSoftmax) { }
-INSTANTIATE_TEST_CASE_P(TestSoftmaxForward, softmax_forward_test_float,
+INSTANTIATE_TEST_SUITE_P(TestSoftmaxForward, softmax_forward_test_float,
         ::testing::Values(
             softmax_fwd_test_params_float{prop_kind::forward_scoring,
             engine::kind::cpu, memory::format::nchw, {2, -2, 128, 256}, 0,

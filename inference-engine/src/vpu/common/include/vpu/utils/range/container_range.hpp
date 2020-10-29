@@ -34,10 +34,12 @@ auto getBackImpl_(const Container& cont, int) -> decltype(cont.back()) {
     return cont.back();
 }
 template <class Container>
-auto getBackImpl_(const Container& cont, ...) -> decltype(*cont.rbegin()) {
+auto getBackImpl_(const Container& cont, char) -> decltype(*cont.rbegin()) {
     assert(!cont.empty());
     return *cont.rbegin();
 }
+template <class Container>
+auto getBackImpl_(const Container& cont, ...) -> void;
 template <class Container>
 auto getBackImpl(const Container& cont) -> decltype(getBackImpl_(cont, 0)) {
     return getBackImpl_(cont, 0);

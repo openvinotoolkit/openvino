@@ -159,7 +159,7 @@ def get_layers(proto):
                     refer_to_faq_msg(7))
 
 
-def caffe_pb_to_nx(proto, model):
+def caffe_pb_to_nx(graph, proto, model):
     """
     Converts proto/model layers to a graph. Edges are restored by bottom/top attributes.
     Graph nodes has two attributes: pb for prototxt definition and model_pb for caffemodel definition.
@@ -176,7 +176,6 @@ def caffe_pb_to_nx(proto, model):
         Graph
         built NX Directed graph.
     """
-    graph = Graph()
     # Blobs in prototxt model can be reused by inplace layer.
     # This requires loading of pb layers in order and tracking the latest
     # layer that writes a particular blob.
@@ -318,4 +317,4 @@ def caffe_pb_to_nx(proto, model):
     if len(input_names) <= 0:
         raise Error('The topology contains no "input" layers. ' +
                     refer_to_faq_msg(79))
-    return graph, {name: shape for (name, shape) in zip(input_names, input_dims)}
+    return {name: shape for (name, shape) in zip(input_names, input_dims)}

@@ -1,5 +1,5 @@
 /*
-// Copyright (c) 2018 Intel Corporation
+// Copyright (c) 2018-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -46,7 +46,7 @@ ConvolutionKernelBase::DispatchData ConvolutionKernel_mmad_batched::SetDefault(c
     const auto of_maps = arg.output.Feature().v;
     const size_t of_threads_per_batch = RoundUp(of_maps, sub_group_size);
 
-    runInfo.effiency = FORCE_PRIORITY_6;
+    runInfo.efficiency = FORCE_PRIORITY_6;
 
     runInfo.gws0 = arg.output.X().v;
     runInfo.gws1 = arg.output.Y().v;

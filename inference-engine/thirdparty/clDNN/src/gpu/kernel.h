@@ -30,6 +30,7 @@ namespace cldnn {
 namespace gpu {
 
 class kernel : public context_holder {
+    uint32_t _prog_id;
     kernels_cache::kernel_id _kernel_id;
     bool _one_time_kernel;  // If this flag is true, the kernel is intended to be executed only once (can be removed
                             // later from the cache).
@@ -37,15 +38,17 @@ class kernel : public context_holder {
 public:
     explicit kernel(std::shared_ptr<gpu_toolkit> context,
                     const std::shared_ptr<kernel_selector::kernel_string>& kernel_string,
+                    uint32_t prog_id,
                     bool dump_custom_program = false,
                     bool one_time_kernel = false)
         : context_holder(context),
+          _prog_id(prog_id),
           _kernel_id(
-              context->get_kernels_cache().set_kernel_source(kernel_string, dump_custom_program, one_time_kernel)),
+              context->get_kernels_cache(prog_id).set_kernel_source(kernel_string, dump_custom_program, one_time_kernel)),
           _one_time_kernel(one_time_kernel) {}
 
     kernel(const kernel& other)
-        : context_holder(other.context()), _kernel_id(other._kernel_id), _one_time_kernel(other._one_time_kernel) {}
+        : context_holder(other.context()), _prog_id(other._prog_id), _kernel_id(other._kernel_id), _one_time_kernel(other._one_time_kernel) {}
 
     kernel& operator=(const kernel& other) {
         if (this == &other) {
@@ -53,6 +56,7 @@ public:
         }
 
         _kernel_id = other._kernel_id;
+        _prog_id = other._prog_id;
         _one_time_kernel = other._one_time_kernel;
 
         return *this;

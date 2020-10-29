@@ -73,7 +73,7 @@ protected:
         Reg64 table_reg(rbx); // table is used for data scale and shifts
 
         // We skip vmm0 as it can be used by the injector for masks on sse4.2
-        Vmm G0(1), G1(2);
+        Vmm G0(1), G1(2), tmp1_vmm(3);
 
         // We start code generations here
         preamble();
@@ -83,6 +83,14 @@ protected:
         auto addr_bias_reg = abi_param2;
         auto addr_states_t_l_reg = abi_param3;
         auto addr_states_tm1_l_reg = abi_param4;
+
+        // helper lambda to address the gates and biases
+        auto G_addr = [&](int i) {
+            return ptr[addr_ws_gates_reg + i * rnn_.dic * gate_dt_size];
+        };
+        auto B_addr = [&](int i) {
+            return ptr[addr_bias_reg + i * rnn_.dic * bias_dt_size];
+        };
 
         // initialize registers with addresses and constants
         mov(table_reg, table_label);
@@ -97,19 +105,25 @@ protected:
         L(vector_loop_start_label);
         {
             // Compute gate 0: G0 = sigmoid(G0 + b0)
-            uni_vmovups(G0, ptr[addr_ws_gates_reg + 0 * rnn_.dic * gate_dt_size]);
-            uni_vaddps(G0, G0, ptr[addr_bias_reg + 0 * rnn_.dic * bias_dt_size]);
+            uni_vmovups(G0, G_addr(0));
+            uni_vmovups(tmp1_vmm, B_addr(0));
+            uni_vaddps(G0, G0, tmp1_vmm);
             sigmoid_injector_->compute_vector(G0.getIdx());
             // we store it for use in postgemm_part2
-            uni_vmovups(ptr[addr_ws_gates_reg + 0 * rnn_.dic * gate_dt_size], G0);
+            uni_vmovups(G_addr(0), G0);
 
             // Compute gate 1:  G1 = sigmoid(G1 + b1)
-            uni_vmovups(G1, ptr[addr_ws_gates_reg + 1 * rnn_.dic * gate_dt_size]);
-            uni_vaddps(G1, G1, ptr[addr_bias_reg + 1 * rnn_.dic * bias_dt_size]);
+            uni_vmovups(G1, G_addr(1));
+            uni_vmovups(tmp1_vmm, B_addr(1));
+            uni_vaddps(G1, G1, tmp1_vmm);
             sigmoid_injector_->compute_vector(G1.getIdx());
+            // if training we write back the gates
+            if (pd_->desc()->prop_kind == prop_kind::forward_training)
+                uni_vmovups(G_addr(1), G1);
 
             // states_t_l = states_tm1_l * G1
-            uni_vmulps(G1, G1, ptr[addr_states_tm1_l_reg]);
+            uni_vmovups(tmp1_vmm, ptr[addr_states_tm1_l_reg]);
+            uni_vmulps(G1, G1, tmp1_vmm);
             uni_vmovups(ptr[addr_states_t_l_reg], G1);
 
             // increment address pointers
@@ -135,16 +149,19 @@ protected:
             Xmm G0s(G0.getIdx()), G1s(G1.getIdx());
 
             // Compute gate 0:  G0 = sigmoid(G0 + b0)
-            uni_vmovss(G0s, ptr[addr_ws_gates_reg + 0 * rnn_.dic * gate_dt_size]);
-            uni_vaddss(G0s, G0s, ptr[addr_bias_reg + 0 * rnn_.dic * bias_dt_size]);
+            uni_vmovss(G0s, G_addr(0));
+            uni_vaddss(G0s, G0s, B_addr(0));
             sigmoid_injector_->compute_vector(G0s.getIdx());
             // we store it for use in postgemm_part2
-            uni_vmovss(ptr[addr_ws_gates_reg + 0 * rnn_.dic * gate_dt_size], G0s);
+            uni_vmovss(G_addr(0), G0s);
 
             // Compute gate 1: G1 = sigmoid(G1 + b1)
-            uni_vmovss(G1s, ptr[addr_ws_gates_reg + 1 * rnn_.dic * gate_dt_size]);
-            uni_vaddss(G1s, G1s, ptr[addr_bias_reg + 1 * rnn_.dic * bias_dt_size]);
+            uni_vmovss(G1s, G_addr(1));
+            uni_vaddss(G1s, G1s, B_addr(1));
             sigmoid_injector_->compute_vector(G1s.getIdx());
+            // if training we write back the gates
+            if (pd_->desc()->prop_kind == prop_kind::forward_training)
+                uni_vmovss(G_addr(1), G1);
 
             // states_t_l = states_tm1_l * G1
             uni_vmulss(G1s, G1s, ptr[addr_states_tm1_l_reg]);

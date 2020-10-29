@@ -5,11 +5,21 @@
 #include "ie_preprocess_gapi_kernels.hpp"
 #include "ie_preprocess_gapi_kernels_impl.hpp"
 
-// AFTER "ie_preprocess_gapi_kernels_impl.hpp"
-// (MANUAL_SIMD is defined there)
-#if MANUAL_SIMD
-  #include "cpu_detector.hpp"
-  #include "ie_preprocess_gapi_kernels_sse42.hpp"
+#if CPU_SIMD
+  #include "ie_system_conf.h"
+
+#ifdef HAVE_AVX512
+  #include "cpu_x86_avx512/ie_preprocess_gapi_kernels_avx512.hpp"
+#endif
+
+#ifdef HAVE_AVX2
+  #include "cpu_x86_avx2/ie_preprocess_gapi_kernels_avx2.hpp"
+#endif
+
+#ifdef HAVE_SSE
+  #include "cpu_x86_sse42/ie_preprocess_gapi_kernels_sse42.hpp"
+#endif
+
 #endif
 
 #include <opencv2/gapi/opencv_includes.hpp>
@@ -21,14 +31,107 @@
 #include <utility>
 #include <vector>
 
+#if defined(__GNUC__) && (__GNUC__ <= 5)
+#include <cmath>
+#endif
+
 namespace InferenceEngine {
 namespace gapi {
-
 namespace kernels {
 
 template<typename T, int chs> static
 void mergeRow(const std::array<const uint8_t*, chs>& ins, uint8_t* out, int length) {
-#if MANUAL_SIMD
+// AVX512 implementation of wide universal intrinsics is slower than AVX2.
+// It is turned off until the cause isn't found out.
+#if 0
+#ifdef HAVE_AVX512
+    if (with_cpu_x86_avx512f()) {
+        if (std::is_same<T, uint8_t>::value && chs == 2) {
+            avx512::mergeRow_8UC2(ins[0], ins[1], out, length);
+            return;
+        }
+
+        if (std::is_same<T, uint8_t>::value && chs == 3) {
+            avx512::mergeRow_8UC3(ins[0], ins[1], ins[2], out, length);
+            return;
+        }
+
+        if (std::is_same<T, uint8_t>::value && chs == 4) {
+            avx512::mergeRow_8UC4(ins[0], ins[1], ins[2], ins[3], out, length);
+            return;
+        }
+
+        if (std::is_same<T, float>::value && chs == 2) {
+            avx512::mergeRow_32FC2(reinterpret_cast<const float*>(ins[0]),
+                                   reinterpret_cast<const float*>(ins[1]),
+                                   reinterpret_cast<float*>(out), length);
+            return;
+        }
+
+        if (std::is_same<T, float>::value && chs == 3) {
+            avx512::mergeRow_32FC3(reinterpret_cast<const float*>(ins[0]),
+                                   reinterpret_cast<const float*>(ins[1]),
+                                   reinterpret_cast<const float*>(ins[2]),
+                                   reinterpret_cast<float*>(out), length);
+            return;
+        }
+
+        if (std::is_same<T, float>::value && chs == 4) {
+            avx512::mergeRow_32FC4(reinterpret_cast<const float*>(ins[0]),
+                                   reinterpret_cast<const float*>(ins[1]),
+                                   reinterpret_cast<const float*>(ins[2]),
+                                   reinterpret_cast<const float*>(ins[3]),
+                                   reinterpret_cast<float*>(out), length);
+            return;
+        }
+    }
+#endif  // HAVE_AVX512
+#endif
+
+#ifdef HAVE_AVX2
+    if (with_cpu_x86_avx2()) {
+        if (std::is_same<T, uint8_t>::value && chs == 2) {
+            avx::mergeRow_8UC2(ins[0], ins[1], out, length);
+            return;
+        }
+
+        if (std::is_same<T, uint8_t>::value && chs == 3) {
+            avx::mergeRow_8UC3(ins[0], ins[1], ins[2], out, length);
+            return;
+        }
+
+        if (std::is_same<T, uint8_t>::value && chs == 4) {
+            avx::mergeRow_8UC4(ins[0], ins[1], ins[2], ins[3], out, length);
+            return;
+        }
+
+        if (std::is_same<T, float>::value && chs == 2) {
+            avx::mergeRow_32FC2(reinterpret_cast<const float*>(ins[0]),
+                                reinterpret_cast<const float*>(ins[1]),
+                                reinterpret_cast<float*>(out), length);
+            return;
+        }
+
+        if (std::is_same<T, float>::value && chs == 3) {
+            avx::mergeRow_32FC3(reinterpret_cast<const float*>(ins[0]),
+                                reinterpret_cast<const float*>(ins[1]),
+                                reinterpret_cast<const float*>(ins[2]),
+                                reinterpret_cast<float*>(out), length);
+            return;
+        }
+
+        if (std::is_same<T, float>::value && chs == 4) {
+            avx::mergeRow_32FC4(reinterpret_cast<const float*>(ins[0]),
+                                reinterpret_cast<const float*>(ins[1]),
+                                reinterpret_cast<const float*>(ins[2]),
+                                reinterpret_cast<const float*>(ins[3]),
+                                reinterpret_cast<float*>(out), length);
+            return;
+        }
+    }
+#endif  // HAVE_AVX2
+
+#ifdef HAVE_SSE
     if (with_cpu_x86_sse42()) {
         if (std::is_same<T, uint8_t>::value && chs == 2) {
             mergeRow_8UC2(ins[0], ins[1], out, length);
@@ -69,7 +172,7 @@ void mergeRow(const std::array<const uint8_t*, chs>& ins, uint8_t* out, int leng
             return;
         }
     }
-#endif
+#endif  // HAVE_SSE
 
     const T* insT[chs];
     for (int c = 0; c < chs; c++) {
@@ -86,7 +189,100 @@ void mergeRow(const std::array<const uint8_t*, chs>& ins, uint8_t* out, int leng
 
 template<typename T, int chs> static
 void splitRow(const uint8_t* in, std::array<uint8_t*, chs>& outs, int length) {
-#if MANUAL_SIMD
+#ifdef HAVE_AVX512
+    if (with_cpu_x86_avx512f()) {
+        if (std::is_same<T, uint8_t>::value && chs == 2) {
+            avx512::splitRow_8UC2(in, outs[0], outs[1], length);
+            return;
+        }
+
+        if (std::is_same<T, uint8_t>::value && chs == 3) {
+            avx512::splitRow_8UC3(in, outs[0], outs[1], outs[2], length);
+            return;
+        }
+
+        if (std::is_same<T, uint8_t>::value && chs == 4) {
+            avx512::splitRow_8UC4(in, outs[0], outs[1], outs[2], outs[3], length);
+            return;
+        }
+
+        if (std::is_same<T, float>::value && chs == 2) {
+            avx512::splitRow_32FC2(reinterpret_cast<const float*>(in),
+                                   reinterpret_cast<float*>(outs[0]),
+                                   reinterpret_cast<float*>(outs[1]),
+                                   length);
+            return;
+        }
+
+        if (std::is_same<T, float>::value && chs == 3) {
+            avx512::splitRow_32FC3(reinterpret_cast<const float*>(in),
+                                   reinterpret_cast<float*>(outs[0]),
+                                   reinterpret_cast<float*>(outs[1]),
+                                   reinterpret_cast<float*>(outs[2]),
+                                   length);
+            return;
+        }
+
+        if (std::is_same<T, float>::value && chs == 4) {
+            avx512::splitRow_32FC4(reinterpret_cast<const float*>(in),
+                                   reinterpret_cast<float*>(outs[0]),
+                                   reinterpret_cast<float*>(outs[1]),
+                                   reinterpret_cast<float*>(outs[2]),
+                                   reinterpret_cast<float*>(outs[3]),
+                                   length);
+            return;
+        }
+    }
+#endif  // HAVE_AVX512
+
+#ifdef HAVE_AVX2
+
+    if (with_cpu_x86_avx2()) {
+        if (std::is_same<T, uint8_t>::value && chs == 2) {
+            avx::splitRow_8UC2(in, outs[0], outs[1], length);
+            return;
+        }
+
+        if (std::is_same<T, uint8_t>::value && chs == 3) {
+            avx::splitRow_8UC3(in, outs[0], outs[1], outs[2], length);
+            return;
+        }
+
+        if (std::is_same<T, uint8_t>::value && chs == 4) {
+            avx::splitRow_8UC4(in, outs[0], outs[1], outs[2], outs[3], length);
+            return;
+        }
+
+        if (std::is_same<T, float>::value && chs == 2) {
+            avx::splitRow_32FC2(reinterpret_cast<const float*>(in),
+                                reinterpret_cast<float*>(outs[0]),
+                                reinterpret_cast<float*>(outs[1]),
+                                length);
+            return;
+        }
+
+        if (std::is_same<T, float>::value && chs == 3) {
+            avx::splitRow_32FC3(reinterpret_cast<const float*>(in),
+                                reinterpret_cast<float*>(outs[0]),
+                                reinterpret_cast<float*>(outs[1]),
+                                reinterpret_cast<float*>(outs[2]),
+                                length);
+            return;
+        }
+
+        if (std::is_same<T, float>::value && chs == 4) {
+            avx::splitRow_32FC4(reinterpret_cast<const float*>(in),
+                                reinterpret_cast<float*>(outs[0]),
+                                reinterpret_cast<float*>(outs[1]),
+                                reinterpret_cast<float*>(outs[2]),
+                                reinterpret_cast<float*>(outs[3]),
+                                length);
+            return;
+        }
+    }
+#endif  // HAVE_AVX2
+
+#ifdef HAVE_SSE
     if (with_cpu_x86_sse42()) {
         if (std::is_same<T, uint8_t>::value && chs == 2) {
             splitRow_8UC2(in, outs[0], outs[1], length);
@@ -130,7 +326,7 @@ void splitRow(const uint8_t* in, std::array<uint8_t*, chs>& outs, int length) {
             return;
         }
     }
-#endif
+#endif  // HAVE_SSE
 
     auto inT = reinterpret_cast<const T*>(in);
 
@@ -269,7 +465,41 @@ GAPI_FLUID_KERNEL(FSplit4, Split4, false) {
 
 template<typename T>
 static void chanToPlaneRow(const uint8_t* in, int chan, int chs, uint8_t* out, int length) {
-#if MANUAL_SIMD
+// AVX512 implementation of wide universal intrinsics is slower than AVX2.
+// It is turned off until the cause isn't found out.
+#if 0
+    #ifdef HAVE_AVX512
+    if (with_cpu_x86_avx512f()) {
+        if (std::is_same<T, uint8_t>::value && chs == 1) {
+            avx512::copyRow_8U(in, out, length);
+            return;
+        }
+
+        if (std::is_same<T, float>::value && chs == 1) {
+            avx512::copyRow_32F(reinterpret_cast<const float*>(in),
+                                reinterpret_cast<float*>(out),
+                                length);
+            return;
+        }
+    }
+    #endif  // HAVE_AVX512
+#endif
+    #ifdef HAVE_AVX2
+    if (with_cpu_x86_avx2()) {
+        if (std::is_same<T, uint8_t>::value && chs == 1) {
+            avx::copyRow_8U(in, out, length);
+            return;
+        }
+
+        if (std::is_same<T, float>::value && chs == 1) {
+            avx::copyRow_32F(reinterpret_cast<const float*>(in),
+                             reinterpret_cast<float*>(out),
+                             length);
+            return;
+        }
+    }
+    #endif  // HAVE_AVX2
+    #ifdef HAVE_SSE
     if (with_cpu_x86_sse42()) {
         if (std::is_same<T, uint8_t>::value && chs == 1) {
             copyRow_8U(in, out, length);
@@ -283,7 +513,7 @@ static void chanToPlaneRow(const uint8_t* in, int chan, int chs, uint8_t* out, i
             return;
         }
     }
-#endif
+    #endif  // HAVE_SSE
 
     const auto inT  = reinterpret_cast<const T*>(in);
           auto outT = reinterpret_cast<      T*>(out);
@@ -576,7 +806,7 @@ static void calcRowLinear(const cv::gapi::fluid::View  & in,
         dst[l] = out.OutLine<T>(l);
     }
 
-#if MANUAL_SIMD
+    #ifdef HAVE_SSE
     if (with_cpu_x86_sse42()) {
         if (std::is_same<T, uint8_t>::value) {
             if (inSz.width >= 16 && outSz.width >= 8) {
@@ -604,7 +834,7 @@ static void calcRowLinear(const cv::gapi::fluid::View  & in,
             return;
         }
     }
-#endif
+    #endif  // HAVE_SSE
 
     for (int l = 0; l < lpi; l++) {
         constexpr static const auto unity = Mapper::unity;
@@ -664,7 +894,7 @@ static void calcRowLinearC(const cv::gapi::fluid::View  & in,
         }
     }
 
-#if MANUAL_SIMD
+    #ifdef HAVE_SSE
     if (with_cpu_x86_sse42()) {
         if (std::is_same<T, uint8_t>::value) {
             if (inSz.width >= 16 && outSz.width >= 8) {
@@ -681,7 +911,7 @@ static void calcRowLinearC(const cv::gapi::fluid::View  & in,
             }
         }
     }
-#endif
+    #endif  // HAVE_SSE
 
     auto length = out[0].get().length();
 
@@ -1014,7 +1244,7 @@ static void calcAreaRow(const cv::gapi::fluid::View& in, cv::gapi::fluid::Buffer
 
         auto dst = out.OutLine<T>(l);
 
-#if MANUAL_SIMD
+    #ifdef HAVE_SSE
         if (with_cpu_x86_sse42()) {
             if (std::is_same<T, uchar>::value) {
                 calcRowArea_8U(reinterpret_cast<uchar*>(dst),
@@ -1042,7 +1272,7 @@ static void calcAreaRow(const cv::gapi::fluid::View& in, cv::gapi::fluid::Buffer
                 continue;
             }
         }
-#endif
+    #endif  // HAVE_SSE
 
         // vertical pass
         int y_1st = ymap.index0;
@@ -1081,6 +1311,7 @@ static void calcAreaRow(const cv::gapi::fluid::View& in, cv::gapi::fluid::Buffer
 }
 
 //----------------------------------------------------------------------
+
 #if USE_CVKL
 
 // taken from: ie_preprocess_data.cpp
@@ -1524,6 +1755,7 @@ GAPI_FLUID_KERNEL(FScalePlaneArea8u, ScalePlaneArea8u, true) {
                             Size outSz, int /*interp*/,
                             cv::gapi::fluid::Buffer &scratch) {
     #if USE_CVKL
+        #ifdef HAVE_SSE
         if (with_cpu_x86_sse42()) {
             const Size& inSz = in.size;
             if (inSz.width > outSz.width && inSz.height > outSz.height) {
@@ -1532,6 +1764,7 @@ GAPI_FLUID_KERNEL(FScalePlaneArea8u, ScalePlaneArea8u, true) {
                 return;
             }
         }
+        #endif  // HAVE_SSE
     #endif
 
         initScratchArea<areaDownscale8u::Mapper>(in, outSz, scratch);
@@ -1543,6 +1776,7 @@ GAPI_FLUID_KERNEL(FScalePlaneArea8u, ScalePlaneArea8u, true) {
     static void run(const cv::gapi::fluid::View& in, Size /*sz*/, int /*interp*/,
                     cv::gapi::fluid::Buffer& out, cv::gapi::fluid::Buffer &scratch) {
     #if USE_CVKL
+        #ifdef HAVE_SSE
         if (with_cpu_x86_sse42()) {
             auto  inSz =  in.meta().size;
             auto outSz = out.meta().size;
@@ -1552,6 +1786,7 @@ GAPI_FLUID_KERNEL(FScalePlaneArea8u, ScalePlaneArea8u, true) {
                 return;
             }
         }
+        #endif  // HAVE_SSE
     #endif
 
         calcAreaRow<uint8_t, areaDownscale8u::Mapper>(in, out, scratch);
@@ -1636,7 +1871,7 @@ static void calculate_i420_to_rgb_fallback(const  uchar **y_rows,
 GAPI_FLUID_KERNEL(FNV12toRGB, NV12toRGB, false) {
     static const int Window = 1;
     static const int LPI    = 2;
-    static const auto Kind = cv::GFluidKernel::Kind::NV12toRGB;
+    static const auto Kind = cv::GFluidKernel::Kind::YUV420toRGB;
 
     static void run(const cv::gapi::fluid::View &in_y,
                     const cv::gapi::fluid::View &in_uv,
@@ -1647,18 +1882,38 @@ GAPI_FLUID_KERNEL(FNV12toRGB, NV12toRGB, false) {
 
         int buf_width = out.length();
 
-        #if MANUAL_SIMD
+// AVX512 implementation of wide universal intrinsics is slower than AVX2.
+// It is turned off until the cause isn't found out.
+    #if 0
+    #ifdef HAVE_AVX512
+        if (with_cpu_x86_avx512_core()) {
+            #define CV_AVX_512DQ 1
+            avx512::calculate_nv12_to_rgb(y_rows, uv_row, out_rows, buf_width);
+            return;
+        }
+    #endif  // HAVE_AVX512
+    #endif
+    #ifdef HAVE_AVX2
+        if (with_cpu_x86_avx2()) {
+            avx::calculate_nv12_to_rgb(y_rows, uv_row, out_rows, buf_width);
+            return;
+        }
+    #endif  // HAVE_AVX2
+    #ifdef HAVE_SSE
+        if (with_cpu_x86_sse42()) {
             calculate_nv12_to_rgb(y_rows, uv_row, out_rows, buf_width);
-        #else
-            calculate_nv12_to_rgb_fallback(y_rows, uv_row, out_rows, buf_width);
-        #endif
+            return;
+        }
+    #endif  // HAVE_SSE
+
+        calculate_nv12_to_rgb_fallback(y_rows, uv_row, out_rows, buf_width);
     }
 };
 
 GAPI_FLUID_KERNEL(FI420toRGB, I420toRGB, false) {
     static const int Window = 1;
     static const int LPI    = 2;
-    static const auto Kind = cv::GFluidKernel::Kind::NV12toRGB;
+    static const auto Kind = cv::GFluidKernel::Kind::YUV420toRGB;
 
     static void run(const cv::gapi::fluid::View &in_y,
                     const cv::gapi::fluid::View &in_u,
@@ -1672,11 +1927,31 @@ GAPI_FLUID_KERNEL(FI420toRGB, I420toRGB, false) {
         int buf_width = out.length();
         GAPI_DbgAssert(in_u.length() ==  in_v.length());
 
-        #if MANUAL_SIMD
-          calculate_i420_to_rgb(y_rows, u_row, v_row, out_rows, buf_width);
-        #else
-          calculate_i420_to_rgb_fallback(y_rows, u_row, v_row, out_rows, buf_width);
-        #endif
+// AVX512 implementation of wide universal intrinsics is slower than AVX2.
+// It is turned off until the cause isn't found out.
+    #if 0
+    #ifdef HAVE_AVX512
+        if (with_cpu_x86_avx512_core()) {
+           #define CV_AVX_512DQ 1
+           avx512::calculate_i420_to_rgb(y_rows, u_row, v_row, out_rows, buf_width);
+           return;
+        }
+    #endif  // HAVE_AVX512
+    #endif
+    #ifdef HAVE_AVX2
+        if (with_cpu_x86_avx2()) {
+           avx::calculate_i420_to_rgb(y_rows, u_row, v_row, out_rows, buf_width);
+           return;
+        }
+    #endif  // HAVE_AVX2
+    #ifdef HAVE_SSE
+        if (with_cpu_x86_sse42()) {
+           calculate_i420_to_rgb(y_rows, u_row, v_row, out_rows, buf_width);
+           return;
+        }
+    #endif  // HAVE_SSE
+
+        calculate_i420_to_rgb_fallback(y_rows, u_row, v_row, out_rows, buf_width);
     }
 };
 }  // namespace kernels

@@ -32,7 +32,6 @@ function(add_perfcheck_target TARGET_NAME PLUGIN_NAME)
 
     target_include_directories(${TARGET_NAME}
         SYSTEM PRIVATE
-            $<TARGET_PROPERTY:inference_engine_plugin_api,INTERFACE_INCLUDE_DIRECTORIES>
             "${IE_MAIN_SOURCE_DIR}/src/vpu/graph_transformer/include"
             "${IE_MAIN_SOURCE_DIR}/samples/common/samples"
             "${IE_MAIN_SOURCE_DIR}/samples/common/format_reader")

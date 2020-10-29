@@ -90,10 +90,11 @@ def _fused_batch_norm_decomposition(graph: Graph, tinput: Port, toutput: Port, g
     It creates Mul->Add->Mul->Add sub graph
     """
     shape = tinput.data.get_shape()
+    batch_norm_name = tinput.get_connection().get_destination().node.name
 
     # Create first Mul & Add operations
-    mul1_node = Mul(graph, dict(name="Mul1_", can_be_fused=can_be_fused)).create_node()
-    add1_node = Add(graph, dict(name="Add1_", can_be_fused=can_be_fused)).create_node()
+    mul1_node = Mul(graph, dict(name=batch_norm_name + "/mean", can_be_fused=can_be_fused)).create_node()
+    add1_node = Add(graph, dict(name=batch_norm_name + "/variance", can_be_fused=can_be_fused)).create_node()
 
     const_mul1_node = Const(graph, dict(name="data_mul_", value=np.array(mean))).create_node()
     const_add1_node = Const(graph, dict(name="data_add_", value=np.array(variance))).create_node()
@@ -106,8 +107,8 @@ def _fused_batch_norm_decomposition(graph: Graph, tinput: Port, toutput: Port, g
         gamma.data.set_value(value)
 
     # Create second Mul & Add
-    mul2_node = Mul(graph, dict(name="Mul2_", can_be_fused=can_be_fused)).create_node()
-    add2_node = Add(graph, dict(name="Add2_", can_be_fused=can_be_fused)).create_node()
+    mul2_node = Mul(graph, dict(name=batch_norm_name + "/gamma", can_be_fused=can_be_fused)).create_node()
+    add2_node = Add(graph, dict(name=batch_norm_name + "/beta", can_be_fused=can_be_fused)).create_node()
 
     # Connect edges Mul1->Add1->Mul2->Add2
     tinput.get_connection().set_destination(mul1_node.in_port(0))

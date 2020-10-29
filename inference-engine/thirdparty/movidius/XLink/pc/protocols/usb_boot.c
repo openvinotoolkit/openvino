@@ -580,6 +580,7 @@ static int wait_findopen(const char *device_address, int timeout, libusb_device 
             }
 #if (!defined(_WIN32) && !defined(_WIN64) )
             libusb_unref_device(*dev);
+            *dev = NULL;
 #endif
         }
         highres_gettime(&t2);
@@ -693,9 +694,14 @@ int usb_boot(const char *addr, const void *mvcmd, unsigned size)
         return rc;
     }
     rc = send_file(h, endpoint, mvcmd, size,bcdusb);
-    libusb_release_interface(h, 0);
-    libusb_close(h);
-    libusb_unref_device(dev);
+    if (h) {
+        libusb_release_interface(h, 0);
+        libusb_close(h);
+    }
+    if (dev) {
+        libusb_unref_device(dev);
+    }
+
 #endif
     return rc;
 }

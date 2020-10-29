@@ -28,17 +28,20 @@ primitive_type_id resample::type_id() {
 }
 
 layout resample_inst::calc_output_layout(resample_node const& node) {
-    assert(static_cast<bool>(node.get_primitive()->output_data_type) == false &&
-           "Output data type forcing is not supported for resample_node!");
     auto desc = node.get_primitive();
     auto input_layout = node.input().get_output_layout();
+
+    auto output_type = input_layout.data_type;
+    if (node.has_fused_primitives()) {
+        output_type = node.get_fused_output_layout().data_type;
+    }
 
     auto result_sizes = desc->output_size;
 
     CLDNN_ERROR_NOT_EQUAL(node.id(), "Input batch size", input_layout.size.batch[0], "output batch size", result_sizes.batch[0], "");
     CLDNN_ERROR_NOT_EQUAL(node.id(), "Input feature size", input_layout.size.feature[0], "output feature size", result_sizes.feature[0], "");
 
-    auto result = layout({input_layout.data_type, input_layout.format, result_sizes});
+    auto result = layout({output_type, input_layout.format, result_sizes});
     return result;
 }
 
@@ -75,5 +78,10 @@ std::string resample_inst::to_string(resample_node const& node) {
     return primitive_description.str();
 }
 
-resample_inst::typed_primitive_inst(network_impl& network, resample_node const& node) : parent(network, node) {}
+resample_inst::typed_primitive_inst(network_impl& network, resample_node const& node) : parent(network, node) {
+    if (node.get_primitive()->operation_type == resample_type::bilinear &&
+        node.get_output_layout().format.dimension() > 4) {
+        CLDNN_ERROR_MESSAGE(node.id(), "5D not supported for interp resample type.");
+    }
+}
 }  // namespace cldnn

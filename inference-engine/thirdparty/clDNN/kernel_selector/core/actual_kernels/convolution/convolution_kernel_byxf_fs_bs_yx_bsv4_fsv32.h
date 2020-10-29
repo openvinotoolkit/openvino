@@ -30,8 +30,8 @@ public:
 
 protected:
     ConvolutionKernelBase::DispatchData SetDefault(const convolution_params& arg, int) const override;
-    std::vector<WeightsLayout> GetSupportedWeightLayouts(const convolution_params&) const override {
-        return {WeightsLayout::yxio};
+    WeightsLayout GetPreferredWeightsLayout(const convolution_params &) const override {
+        return WeightsLayout::yxio;
     }
 };
 }  // namespace kernel_selector

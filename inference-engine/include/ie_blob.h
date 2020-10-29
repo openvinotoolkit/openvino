@@ -49,7 +49,7 @@ public:
     /**
      * @brief Creates a TBlob<> object from a Data node
      *
-     * @param Data reference to a smart pointer of the Data node
+     * @param data A reference to a smart pointer of the Data node
      * @return Smart pointer to TBlob<> with the relevant C type to the precision of the data node
      */
     static Ptr CreateFromData(const DataPtr& data);
@@ -315,17 +315,17 @@ public:
     }
 
     /**
-     * @brief Returns the size of the current Blob in bytes
+     * @brief Returns the size of the current Blob in bytes calculated as `size() * element_size()`.
+     * @return Blob's size in bytes
      */
     size_t byteSize() const noexcept override {
         return size() * element_size();
     }
 
     /**
-     * @brief Returns the number of bytes per element.
-     *
-     * The overall MemoryBlob capacity is size() * element_size().
+     * @brief Provides the number of bytes per element.
      * Abstract method.
+     * @return The number of bytes per element.
      */
     size_t element_size() const noexcept override = 0;
 
@@ -340,6 +340,7 @@ public:
      * @brief Releases previously allocated data.
      *
      * Abstract method.
+     * @return `True` if deallocation happens successfully, `false` otherwise.
      */
     bool deallocate() noexcept override = 0;
 
@@ -514,10 +515,8 @@ public:
      * @brief Creates a TBlob object with the specified dimensions, layout and custom memory allocator but does not
      * allocate the memory.
      *
-     * @param p Precision
-     * @param l Layout
-     * @param dims Tensor dimensions
-     * @param alloc Allocator to be used
+     * @param tensorDesc Tensor description
+     * @param alloc An allocator
      */
     TBlob(const TensorDesc& tensorDesc, const std::shared_ptr<IAllocator>& alloc)
         : MemoryBlob(tensorDesc), _allocator(alloc) {}
@@ -767,6 +766,7 @@ extern template class INFERENCE_ENGINE_API_CLASS(InferenceEngine::TBlob<uint8_t>
 extern template class INFERENCE_ENGINE_API_CLASS(InferenceEngine::TBlob<int>);
 extern template class INFERENCE_ENGINE_API_CLASS(InferenceEngine::TBlob<long>);
 extern template class INFERENCE_ENGINE_API_CLASS(InferenceEngine::TBlob<long long>);
+extern template class INFERENCE_ENGINE_API_CLASS(InferenceEngine::TBlob<uint64_t>);
 #endif  // __clang__
 
 /**
@@ -846,11 +846,11 @@ std::shared_ptr<T> make_shared_blob(Args&&... args) {
  * @brief This structure describes ROI data.
  */
 struct ROI {
-    size_t id;     // ID of a ROI
-    size_t posX;   // W upper left coordinate of ROI
-    size_t posY;   // H upper left coordinate of ROI
-    size_t sizeX;  // W size of ROI
-    size_t sizeY;  // H size of ROI
+    size_t id;  //!< ID of a ROI
+    size_t posX;  //!< W upper left coordinate of ROI
+    size_t posY;  //!< H upper left coordinate of ROI
+    size_t sizeX;  //!< W size of ROI
+    size_t sizeY;  //!< H size of ROI
 };
 
 /**

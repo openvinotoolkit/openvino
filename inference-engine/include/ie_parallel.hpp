@@ -9,7 +9,7 @@
  * product. To build a particular implementation, use the corresponding identifier: IE_THREAD_TBB, IE_THREAD_TBB_AUTO,
  * IE_THREAD_OMP or IE_THREAD_SEQ.
  *
- *  @file ie_parallel.hpp
+ * @file ie_parallel.hpp
  */
 
 #pragma once

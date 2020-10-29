@@ -2,14 +2,21 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
+if(ENABLE_LTO)
+    ie_enable_lto()
+endif()
+
 set(TARGET_NAME "myriadPlugin")
 
 file(GLOB_RECURSE SOURCES *.cpp *.hpp *.h)
 
-ie_add_plugin(NAME ${TARGET_NAME}
-              DEVICE_NAME "MYRIAD"
-              SOURCES ${SOURCES}
-              VERSION_DEFINES_FOR api/myriad_api.cpp)
+ie_add_plugin(
+    NAME ${TARGET_NAME}
+    DEVICE_NAME "MYRIAD"
+    SOURCES ${SOURCES}
+    VERSION_DEFINES_FOR api/myriad_api.cpp
+    CPPLINT_FILTERS "+runtime/explicit"
+)
 
 add_dependencies(${TARGET_NAME} vpu_copy_firmware)
 if(TARGET vpu_compile_custom_kernels)
@@ -41,5 +48,5 @@ target_link_libraries(${TARGET_NAME}
 # install
 
 install(FILES ${IE_MAIN_SOURCE_DIR}/thirdparty/movidius/mvnc/src/97-myriad-usbboot.rules
-        DESTINATION deployment_tools/inference_engine/external
+        DESTINATION ${IE_CPACK_IE_DIR}/external
         COMPONENT myriad)

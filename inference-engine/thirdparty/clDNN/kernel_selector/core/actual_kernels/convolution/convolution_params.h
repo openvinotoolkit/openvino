@@ -25,8 +25,10 @@ namespace kernel_selector {
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // convolution_params
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-struct convolution_params : public weight_bias_params {
-    convolution_params() : weight_bias_params(KernelType::CONVOLUTION) {}
+struct convolution_params : public weight_bias_zero_point_params {
+    using parent = weight_bias_zero_point_params;
+
+    convolution_params() : parent(KernelType::CONVOLUTION) {}
     uSize filterSize;
     uSize stride;
     uSize dilation;
@@ -35,17 +37,14 @@ struct convolution_params : public weight_bias_params {
     bool depthwise_separable_opt = false;
     bool transposed = false;
     QuantizationType quantization = QuantizationType::NONE;
-    bool has_compensation = false;
     bool local_convolution = false;
     bool deformable_mode = false;
     uint32_t groups = 1;
     uSize kernelSize;
     uint32_t deformable_groups = 1;
 
-    MultiDataTensor weights_zero_points;
-    MultiDataTensor activations_zero_points;
-    MultiDataTensor compenstaion;
     std::string to_string() const override;
+    std::string to_cache_string_v2() const override;
     ParamsKey GetParamsKey() const override;
 };
 

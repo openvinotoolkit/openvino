@@ -8,7 +8,7 @@
 #include "stdlib.h"
 
 #include "XLink.h"
-#include "XLinkTool.h"
+#include "XLinkErrorUtils.h"
 
 #include "XLinkPlatform.h"
 #include "XLinkPrivateFields.h"
@@ -71,8 +71,8 @@ XLinkError_t XLinkInitialize(XLinkGlobalHandler_t* globalHandler)
     mvLogDefaultLevelSet(MVLOG_FATAL);
 #endif
 
-    ASSERT_X_LINK(globalHandler);
-    ASSERT_X_LINK(XLINK_MAX_STREAMS <= MAX_POOLS_ALLOC);
+    XLINK_RET_IF(globalHandler == NULL);
+    ASSERT_XLINK(XLINK_MAX_STREAMS <= MAX_POOLS_ALLOC);
     glHandler = globalHandler;
     if (sem_init(&pingSem,0,0)) {
         mvLog(MVLOG_ERROR, "Can't create semaphore\n");
@@ -128,7 +128,7 @@ XLinkError_t XLinkInitialize(XLinkGlobalHandler_t* globalHandler)
 
     xLinkDeviceHandle_t temp = {0};
     temp.protocol = X_LINK_ANY_PROTOCOL;
-    XLINK_RET_IF(DispatcherStart(&temp)); //myriad has one
+    XLINK_RET_IF_FAIL(DispatcherStart(&temp)); //myriad has one
 
     sem_wait(&pingSem);
 #endif
@@ -146,7 +146,7 @@ XLinkError_t XLinkFindFirstSuitableDevice(XLinkDeviceState_t state,
                                           const deviceDesc_t in_deviceRequirements,
                                           deviceDesc_t *out_foundDevice)
 {
-    ASSERT_X_LINK(out_foundDevice);
+    XLINK_RET_IF(out_foundDevice == NULL);
 
     xLinkPlatformErrorCode_t rc;
     rc = XLinkPlatformFindDeviceName(state, in_deviceRequirements, out_foundDevice);
@@ -158,9 +158,9 @@ XLinkError_t XLinkFindAllSuitableDevices(XLinkDeviceState_t state,
                                          deviceDesc_t *out_foundDevicesPtr,
                                          const unsigned int devicesArraySize,
                                          unsigned int* out_foundDevicesCount) {
-    ASSERT_X_LINK(out_foundDevicesPtr);
-    ASSERT_X_LINK(devicesArraySize > 0);
-    ASSERT_X_LINK(out_foundDevicesCount);
+    XLINK_RET_IF(out_foundDevicesPtr == NULL);
+    XLINK_RET_IF(devicesArraySize <= 0);
+    XLINK_RET_IF(out_foundDevicesCount == NULL);
 
     xLinkPlatformErrorCode_t rc;
     rc = XLinkPlatformFindArrayOfDevicesNames(
@@ -173,24 +173,30 @@ XLinkError_t XLinkFindAllSuitableDevices(XLinkDeviceState_t state,
 //Called only from app - per device
 XLinkError_t XLinkConnect(XLinkHandler_t* handler)
 {
-    ASSERT_X_LINK(handler);
+    XLINK_RET_IF(handler == NULL);
     if (strnlen(handler->devicePath, MAX_PATH_LENGTH) < 2) {
         mvLog(MVLOG_ERROR, "Device path is incorrect");
         return X_LINK_ERROR;
     }
 
     xLinkDesc_t* link = getNextAvailableLink();
-    ASSERT_X_LINK(link);
+    XLINK_RET_IF(link == NULL);
     mvLog(MVLOG_DEBUG,"%s() device name %s glHandler %p protocol %d\n", __func__, handler->devicePath, glHandler, handler->protocol);
 
     link->deviceHandle.protocol = handler->protocol;
-    if (XLinkPlatformConnect(handler->devicePath2, handler->devicePath,
-                             link->deviceHandle.protocol, &link->deviceHandle.xLinkFD) < 0) {
-        return X_LINK_ERROR;
+    int connectStatus = XLinkPlatformConnect(handler->devicePath2, handler->devicePath,
+                                             link->deviceHandle.protocol, &link->deviceHandle.xLinkFD);
+
+    if (connectStatus < 0) {
+        /**
+         * Connection may be unsuccessful at some amount of first tries.
+         * In this case, asserting the status provides enormous amount of logs in tests.
+         */
+        return X_LINK_COMMUNICATION_NOT_OPEN;
     }
 
-    if (DispatcherStart(&link->deviceHandle))
-        return X_LINK_TIMEOUT;
+    XLINK_RET_ERR_IF(
+        DispatcherStart(&link->deviceHandle) != X_LINK_SUCCESS, X_LINK_TIMEOUT);
 
     xLinkEvent_t event = {0};
 
@@ -222,9 +228,9 @@ XLinkError_t XLinkBoot(deviceDesc_t* deviceDesc, const char* binaryPath)
 XLinkError_t XLinkResetRemote(linkId_t id)
 {
     xLinkDesc_t* link = getLinkById(id);
-    ASSERT_X_LINK(link != NULL);
-    if (getXLinkState(link) != XLINK_UP)
-    {
+    XLINK_RET_IF(link == NULL);
+
+    if (getXLinkState(link) != XLINK_UP) {
         mvLog(MVLOG_WARN, "Link is down, close connection to device without reset");
         XLinkPlatformCloseRemote(&link->deviceHandle);
         return X_LINK_COMMUNICATION_NOT_OPEN;
@@ -236,8 +242,8 @@ XLinkError_t XLinkResetRemote(linkId_t id)
     event.deviceHandle = link->deviceHandle;
     mvLog(MVLOG_DEBUG, "sending reset remote event\n");
     DispatcherAddEvent(EVENT_LOCAL, &event);
-    if (DispatcherWaitEventComplete(&link->deviceHandle))
-        return X_LINK_TIMEOUT;
+    XLINK_RET_ERR_IF(DispatcherWaitEventComplete(&link->deviceHandle),
+        X_LINK_TIMEOUT);
 
     if(sem_wait(&link->dispatcherClosedSem)) {
         mvLog(MVLOG_ERROR,"can't wait dispatcherClosedSem\n");
@@ -262,7 +268,7 @@ XLinkError_t XLinkResetAll()
                     streamId_t streamId = link->availableStreams[stream].id;
                     mvLog(MVLOG_DEBUG,"%s() Closing stream (stream = %d) %d on link %d\n",
                           __func__, stream, (int) streamId, (int) link->id);
-                    COMBIN_IDS(streamId, link->id);
+                    COMBINE_IDS(streamId, link->id);
                     if (XLinkCloseStream(streamId) != X_LINK_SUCCESS) {
                         mvLog(MVLOG_WARN,"Failed to close stream");
                     }

@@ -22,17 +22,13 @@
 //#include "ocl_post_ops.h"    // Use CLDNN activation
 #endif
 
-#define ODHW_SIZE (OD * OH * OW)
-#define IDHW_SIZE (ID * IH * IW)
+#define ODHW_SIZE (OD_FULL * OH_FULL * OW_FULL)
+#define IDHW_SIZE (ID_FULL * IH_FULL * IW_FULL)
 #define KDHW_SIZE (KD * KH * KW)
 
 #define HAS_PAD_D (PD != 0 || PD_R != 0)
 #define HAS_PAD_H (PH != 0 || PH_R != 0)
 #define HAS_PAD_W (PW != 0 || PW_R != 0)
-
-#define SRC_OFF(n, ic, ih, iw) \
-    (((((n * G) * IC + (ic)) * IH + (ih)) * IW + (iw)))
-#define DST_OFF(n, oc, oh, ow) ((((n * G) * OC + (oc)) * OH + (oh)) * OW + (ow))
 
 // Use CLDNN activation
 #define DO_ELTWISE(blockC, nelems, alpha, beta) \
@@ -72,13 +68,27 @@ const float eltwise_alpha = 0;
 const float eltwise_beta = 0;
 const float sum_scale = 1;
 
+    const int output_offset = (OUTPUT_PAD_BEFORE_FEATURE_NUM / OC_BLOCK) * OD_FULL * OH_FULL * OW_FULL * OC_BLOCK * MB_BLOCK +
+                              (OUTPUT_PAD_BEFORE_SIZE_Z) * OH_FULL * OW_FULL * OC_BLOCK * MB_BLOCK +
+                              (OUTPUT_PAD_BEFORE_SIZE_Y) * OW_FULL * OC_BLOCK * MB_BLOCK +
+                              (OUTPUT_PAD_BEFORE_SIZE_X) * OC_BLOCK * MB_BLOCK;
+    const int input_offset = (INPUT0_PAD_BEFORE_FEATURE_NUM / IC_BLOCK) * ID_FULL * IH_FULL * IW_FULL * IC_BLOCK * MB_BLOCK +
+                             (INPUT0_PAD_BEFORE_SIZE_Z) * IH_FULL * IW_FULL * IC_BLOCK * MB_BLOCK +
+                             (INPUT0_PAD_BEFORE_SIZE_Y) * IW_FULL * IC_BLOCK * MB_BLOCK +
+                             (INPUT0_PAD_BEFORE_SIZE_X) * IC_BLOCK * MB_BLOCK;
+
 #ifdef VER_16MB16C
+#if GROUPED
+    const int g = (int)get_group_id(0) / OC;
+    const int oc = (int)get_group_id(0) % OC;
+#else
+    const int g = 0;
     const int oc = get_group_id(0);
+#endif
     const int sp = get_group_id(1);
     const int local_id = get_local_id(0);
     int mb = get_group_id(2) * MB_BLOCK;
 
-    const int g = split_idx;
     const int goc = oc;
 
 #if CASE_3D
@@ -96,25 +106,25 @@ const float sum_scale = 1;
     int ih = oh * SH - PH;
     int iw = ow * SW - PW;
 
-    __global float *dst_write0 = dst + mb * OC * G * ODHW_SIZE
+    __global float *dst_write0 = dst + output_offset + mb * OC_FULL * ODHW_SIZE
             + goc * ODHW_SIZE * OC_BLOCK * MB_BLOCK
-            + g * OC * ODHW_SIZE * MB_BLOCK + oh * OW * OC_BLOCK * MB_BLOCK
-            + ow * OC_BLOCK * MB_BLOCK + od * OH * OW * OC_BLOCK * MB_BLOCK;
+            + g * OC * ODHW_SIZE * MB_BLOCK + oh * OW_FULL * OC_BLOCK * MB_BLOCK
+            + ow * OC_BLOCK * MB_BLOCK + od * OH_FULL * OW_FULL * OC_BLOCK * MB_BLOCK;
 
-    src += mb * IC * G * IDHW_SIZE + iw * IC_BLOCK * MB_BLOCK
-            + ih * IW * IC_BLOCK * MB_BLOCK + g * IDHW_SIZE * IC * MB_BLOCK
-            + id * IH * IW * IC_BLOCK * MB_BLOCK;
+    src += input_offset + mb * IC_FULL * IDHW_SIZE + iw * IC_BLOCK * MB_BLOCK
+            + ih * IW_FULL * IC_BLOCK * MB_BLOCK + g * IDHW_SIZE * IC * MB_BLOCK
+            + id * IH_FULL * IW_FULL * IC_BLOCK * MB_BLOCK;
 
 #if USE_IMAGE == 1
     int2 coordB0 = (int2)((oc * OC_BLOCK) * sizeof(uint), 0);
     int2 coordB1 = (int2)((oc * OC_BLOCK) * sizeof(uint), 8);
 #else
-    wei += goc * KDHW_SIZE * OC_BLOCK * IC_BLOCK;
+    wei += goc * KDHW_SIZE * OC_BLOCK * IC_BLOCK + g * FILTER_GROUPS_PITCH;
 #endif
 
 #if WITH_BIAS
-    float8 blockC00 = bias[oc * OC_BLOCK + local_id];
-    float8 blockC01 = bias[oc * OC_BLOCK + local_id];
+    float8 blockC00 = bias[oc * OC_BLOCK + local_id + g * OC];
+    float8 blockC01 = bias[oc * OC_BLOCK + local_id + g * OC];
 #else
     float8 blockC00 = 0.0f;
     float8 blockC01 = 0.0f;
@@ -144,8 +154,8 @@ const float sum_scale = 1;
                     }
 
                     const __global float *src1 = src
-                            + kd * (1 + DD) * IH * IW * IC_BLOCK * MB_BLOCK
-                            + kh * (1 + DH) * IW * IC_BLOCK * MB_BLOCK
+                            + kd * (1 + DD) * IH_FULL * IW_FULL * IC_BLOCK * MB_BLOCK
+                            + kh * (1 + DH) * IW_FULL * IC_BLOCK * MB_BLOCK
                             + kw * (1 + DW) * IC_BLOCK * MB_BLOCK;
                     const __global float *wei1 = wei
                             + kd * KH * KW * OC_BLOCK * IC_BLOCK
@@ -244,6 +254,11 @@ const float sum_scale = 1;
     DO_ELTWISE(blockC01, 8, eltwise_alpha, eltwise_beta);
 #endif
 
+#if HAS_FUSED_OPS
+    { FUSED_OPS_VEC0; blockC00 = FUSED_OPS_RESULT_VEC0; }
+    { FUSED_OPS_VEC1; blockC01 = FUSED_OPS_RESULT_VEC1; }
+#endif
+
     intel_sub_group_block_write8(
             (__global unsigned int *)(&dst_write0[0]), as_uint8(blockC00));
     intel_sub_group_block_write8(
@@ -294,9 +309,9 @@ const float sum_scale = 1;
     int ih = oh * SH - PH;
     int iw = ow * SW - PW;
 #if NHWC == 1
-    src += mb * IC * IDHW_SIZE + iw * IC + ih * IW * IC + id * IH * IW * IC;
+    src += input_offset + mb * IC_FULL * IDHW_SIZE + iw * IC_FULL + ih * IW_FULL * IC_FULL + id * IH_FULL * IW_FULL * IC_FULL;
 #else
-    src += mb * IC * IDHW_SIZE + iw + ih * IW + id * IH * IW;
+    src += input_offset + mb * IC_FULL * IDHW_SIZE + iw + ih * IW_FULL + id * IH_FULL * IW_FULL;
 #endif
 
     wei += oc * OC_BLOCK * IC * KDHW_SIZE;
@@ -313,12 +328,12 @@ const float sum_scale = 1;
                 continue;
             }
 #if NHWC == 1
-            const __global float *src1 = src + kd * (1 + DD) * IH * IW * IC
-                    + kh * (1 + DH) * IW * IC + local_id;
+            const __global float *src1 = src + kd * (1 + DD) * IH * IW_FULL * IC_FULL
+                    + kh * (1 + DH) * IW_FULL * IC_FULL + local_id;
 #define SP_OFF IC
 #else
-            const __global float *src1 = src + kd * (1 + DD) * IH * IW
-                    + kh * (1 + DH) * IW + local_id * IDHW_SIZE;
+            const __global float *src1 = src + kd * (1 + DD) * IH_FULL * IW_FULL
+                    + kh * (1 + DH) * IW_FULL + local_id * IDHW_SIZE;
 #define SP_OFF 1
 #endif
 
@@ -404,10 +419,10 @@ const float sum_scale = 1;
 #undef MULTIPLY_BLOCKS_8x8
             }
         }
-    __global float *dst_write0 = dst
-            + (mb / MB_BLOCK) * OC * ODHW_SIZE * MB_BLOCK
+    __global float *dst_write0 = dst + output_offset
+            + (mb / MB_BLOCK) * OC_FULL * ODHW_SIZE * MB_BLOCK
             + oc * OC_BLOCK * MB_BLOCK * ODHW_SIZE
-            + od * OH * OW * OC_BLOCK * MB_BLOCK + oh * OW * OC_BLOCK * MB_BLOCK
+            + od * OH_FULL * OW_FULL * OC_BLOCK * MB_BLOCK + oh * OW_FULL * OC_BLOCK * MB_BLOCK
             + ow * OC_BLOCK * MB_BLOCK + (mb % MB_BLOCK) * OC_BLOCK;
 #if OCB == 32
     __global float *dst_write1 = dst_write0 + OC_BLOCK * MB_BLOCK * ODHW_SIZE;
@@ -500,11 +515,22 @@ const float sum_scale = 1;
 #else
     const int sp = get_group_id(1);
     const int local_id = get_local_id(0);
+#if GROUPED
+    const int ocb_mb_g = get_group_id(2);
+#if OC == 8
+    const int g = ocb_mb_g / MB;
+    const int ocb_mb = ocb_mb_g % MB;
+#else
+    const int g = ocb_mb_g / (MB * (OC / OCB));
+    const int ocb_mb = ocb_mb_g % (MB * (OC / OCB));
+#endif
+#else
     const int ocb_mb = get_group_id(2);
+    const int g = 0;
+#endif
     const int ocb = ocb_mb / (MB);
     const int mb = ocb_mb % (MB);
     const int oc = (ocb * OCB) / OC_BLOCK + get_group_id(0);
-    const int g = split_idx;
     const int goc = oc;
 
 #if CASE_3D
@@ -523,9 +549,9 @@ const float sum_scale = 1;
 #if OW_BLOCK != 8 && OW_BLOCK != 16
     float blockC00[OW_BLOCK];
     for (int i = 0; i < OW_BLOCK; i++)
-        blockC00[i] = bias[oc * OC_BLOCK + local_id];
+        blockC00[i] = bias[oc * OC_BLOCK + local_id + g * OC];
 #else
-    float8 blockC00 = bias[oc * OC_BLOCK + local_id];
+    float8 blockC00 = bias[oc * OC_BLOCK + local_id + g * OC];
 #if OW_BLOCK == 16
     float8 blockC01 = blockC00;
 #endif
@@ -543,9 +569,14 @@ const float sum_scale = 1;
 
     int ih = oh * SH - PH;
     int iw = ow * SW - PW;
-    src += mb * IC * G * IDHW_SIZE + iw * IC_BLOCK + ih * IW * IC_BLOCK
-            + id * IH * IW * IC_BLOCK + g * IDHW_SIZE * IC;
-    wei += goc * KDHW_SIZE * OC_BLOCK * IC;
+#if IC == 8 && G != 1
+    src += input_offset + mb * IC_FULL * IDHW_SIZE + iw * IC_BLOCK + ih * IW_FULL * IC_BLOCK
+            + id * IH_FULL * IW_FULL * IC_BLOCK + (g / 2) * IDHW_SIZE * IC * 2;
+#else
+    src += input_offset + mb * IC_FULL * IDHW_SIZE + iw * IC_BLOCK + ih * IW_FULL * IC_BLOCK
+            + id * IH_FULL * IW_FULL * IC_BLOCK + g * IDHW_SIZE * IC;
+#endif
+    wei += goc * KDHW_SIZE * OC_BLOCK * IC + g * FILTER_GROUPS_PITCH;
 
     const bool do_if = iw < 0 || iw + SW * OW_BLOCK + KW * (1 + DW) >= IW;
 
@@ -569,8 +600,8 @@ const float sum_scale = 1;
                     continue;
                 }
                 const __global float *src1 = src
-                        + kd * (1 + DD) * IH * IW * IC_BLOCK
-                        + kh * (1 + DH) * IW * IC_BLOCK;
+                        + kd * (1 + DD) * IH_FULL * IW_FULL * IC_BLOCK
+                        + kh * (1 + DH) * IW_FULL * IC_BLOCK;
 
                 float tempA[SW * OW_BLOCK + KW * (1 + DW)];
                 int k = iw;
@@ -630,10 +661,39 @@ const float sum_scale = 1;
         _result = FMA8(_blockB1.s7, TRANSPOSE_1(_blockA, 15), _result); \
     }
 
+#define MULTIPLY_BLOCKS_FIRST_HALF(_result, _blockA, _blockB)         \
+    { \
+        _result = FMA8(_blockB.s0, TRANSPOSE_1(_blockA, 0), _result); \
+        _result = FMA8(_blockB.s1, TRANSPOSE_1(_blockA, 1), _result); \
+        _result = FMA8(_blockB.s2, TRANSPOSE_1(_blockA, 2), _result); \
+        _result = FMA8(_blockB.s3, TRANSPOSE_1(_blockA, 3), _result); \
+        _result = FMA8(_blockB.s4, TRANSPOSE_1(_blockA, 4), _result); \
+        _result = FMA8(_blockB.s5, TRANSPOSE_1(_blockA, 5), _result); \
+        _result = FMA8(_blockB.s6, TRANSPOSE_1(_blockA, 6), _result); \
+        _result = FMA8(_blockB.s7, TRANSPOSE_1(_blockA, 7), _result); \
+    }
+
+#define MULTIPLY_BLOCKS_SECOND_HALF(_result, _blockA, _blockB)         \
+    { \
+        _result = FMA8(_blockB.s0, TRANSPOSE_1(_blockA, 8), _result);  \
+        _result = FMA8(_blockB.s1, TRANSPOSE_1(_blockA, 9), _result);  \
+        _result = FMA8(_blockB.s2, TRANSPOSE_1(_blockA, 10), _result); \
+        _result = FMA8(_blockB.s3, TRANSPOSE_1(_blockA, 11), _result); \
+        _result = FMA8(_blockB.s4, TRANSPOSE_1(_blockA, 12), _result); \
+        _result = FMA8(_blockB.s5, TRANSPOSE_1(_blockA, 13), _result); \
+        _result = FMA8(_blockB.s6, TRANSPOSE_1(_blockA, 14), _result); \
+        _result = FMA8(_blockB.s7, TRANSPOSE_1(_blockA, 15), _result); \
+    }
+
+#if IC == 8 && G != 1
+                    float8 blockB00 = as_float8(intel_sub_group_block_read8(
+                            (const __global uint *)wei1));
+#else
                     float8 blockB00 = as_float8(intel_sub_group_block_read8(
                             (const __global uint *)wei1));
                     float8 blockB01 = as_float8(intel_sub_group_block_read8(
                             (const __global uint *)(wei1 + 8 * IC_BLOCK)));
+#endif
 
 #if KH != 1 || KW != 1 || KD != 1
                     float blockA[OW_BLOCK];
@@ -692,19 +752,39 @@ const float sum_scale = 1;
                     __attribute__((
                             opencl_unroll_hint(OW_BLOCK))) // attr:no-format
                     for (int i = 0; i < OW_BLOCK; i++) {
+#if IC == 8 && G != 1
+                        if (g % 2 == 0) {
+                            MULTIPLY_BLOCKS_FIRST_HALF(blockC00[i], blockA[i], blockB00);
+                        } else {
+                            MULTIPLY_BLOCKS_SECOND_HALF(blockC00[i], blockA[i], blockB00);
+                        }
+#else
                         MULTIPLY_BLOCKS_8x8(
                                 blockC00[i], blockA[i], blockB00, blockB01);
+#endif
                     }
 #else
         __attribute__((opencl_unroll_hint(8))) // attr:no-format
         for (int i = 0; i < 8; i++) {
+#if IC == 8 && G != 1
+            if (g % 2 == 0) {
+                MULTIPLY_BLOCKS_FIRST_HALF(blockC00[i], blockA[i], blockB00);
+                MULTIPLY_BLOCKS_FIRST_HALF(blockC01[i], blockA[i + 8], blockB00);
+            } else {
+                MULTIPLY_BLOCKS_SECOND_HALF(blockC00[i], blockA[i], blockB00);
+                MULTIPLY_BLOCKS_SECOND_HALF(blockC01[i], blockA[i + 8], blockB00);
+            }
+#else
             MULTIPLY_BLOCKS_8x8(blockC00[i], blockA[i], blockB00, blockB01);
             MULTIPLY_BLOCKS_8x8(blockC01[i], blockA[i + 8], blockB00, blockB01);
+#endif
         }
 #endif
 
-#undef TRANSPOSE_BLOCK_1
+#undef TRANSPOSE_1
 #undef MULTIPLY_BLOCKS_8x8
+#undef MULTIPLY_BLOCKS_FIRST_HALF
+#undef MULTIPLY_BLOCKS_SECOND_HALF
 #if KH != 1 || KW != 1 || KD != 1
                 }
             }
@@ -716,9 +796,15 @@ const float sum_scale = 1;
 #if ((HAS_PAD_D && KD == 1) || (HAS_PAD_H && KH == 1))
     }
 #endif
-    __global float *dst_write0 = dst + mb * OC * G * ODHW_SIZE
+#if OC == 8 && G != 1
+    __global float *dst_write0 = dst + output_offset + mb * OC_FULL * ODHW_SIZE
+            + goc * ODHW_SIZE * OC_BLOCK + (g / 2) * OC_BLOCK * ODHW_SIZE + (g % 2) * OC
+            + od * OH_FULL * OW_FULL * OC_BLOCK + oh * OW_FULL * OC_BLOCK + ow * OC_BLOCK;
+#else
+    __global float *dst_write0 = dst + output_offset + mb * OC_FULL * ODHW_SIZE
             + goc * ODHW_SIZE * OC_BLOCK + g * OC * ODHW_SIZE
-            + od * OH * OW * OC_BLOCK + oh * OW * OC_BLOCK + ow * OC_BLOCK;
+            + od * OH_FULL * OW_FULL * OC_BLOCK + oh * OW_FULL * OC_BLOCK + ow * OC_BLOCK;
+#endif
 
 #if WITH_SUM == 1
 #if OW_BLOCK != 8 && OW_BLOCK != 16
@@ -786,12 +872,17 @@ const float sum_scale = 1;
         for (int i = 0; i < OW - OW_LAST; i++) {
 
 #if HAS_FUSED_OPS
-            { FUSED_OPS_SCALAR0; blockC00[i] = FINAL_NAME_SCALAR0; }
+            { FUSED_OPS_SCALAR0; blockC00[i] = FUSED_OPS_RESULT_SCALAR0; }
 #endif
 
+#if OC == 8 && G != 1
+            if (local_id < 8)
+                dst_write0[i * OC_BLOCK + local_id] = blockC00[i];
+#else
             intel_sub_group_block_write(
                     (__global unsigned int *)(&dst_write0[i * OC_BLOCK]),
                     as_uint(blockC00[i]));
+#endif
         }
     } else {
 #endif
@@ -800,30 +891,57 @@ const float sum_scale = 1;
         for (int i = 0; i < OW_BLOCK; i++) {
 
 #if HAS_FUSED_OPS
-            { FUSED_OPS_SCALAR0; blockC00[i] = FINAL_NAME_SCALAR0; }
+            { FUSED_OPS_SCALAR0; blockC00[i] = FUSED_OPS_RESULT_SCALAR0; }
 #endif
 
+#if OC == 8 && G != 1
+            if (local_id < 8)
+                dst_write0[i * OC_BLOCK + local_id] = blockC00[i];
+#else
             intel_sub_group_block_write(
                     (__global unsigned int *)(&dst_write0[i * OC_BLOCK]),
                     as_uint(blockC00[i]));
+#endif //  OC == 8 && G != 1
         }
 #else
 
+#if OC == 8 && G != 1
+    for (int i = 0; i < 8; i++) {
 #if HAS_FUSED_OPS
-    { FUSED_OPS_VEC0; blockC00 = FINAL_NAME_VEC0; }
+        { FUSED_OPS_SCALAR0; blockC00[i] = FUSED_OPS_RESULT_SCALAR0; }
+#endif
+
+        if (local_id < 8)
+            dst_write0[i * OC_BLOCK + local_id] = blockC00[i];
+    }
+#else
+#if HAS_FUSED_OPS
+    { FUSED_OPS_VEC0; blockC00 = FUSED_OPS_RESULT_VEC0; }
 #endif
 
     intel_sub_group_block_write8(
             (__global unsigned int *)(&dst_write0[0]), as_uint8(blockC00));
+#endif //  OC == 8 && G != 1
 #if OW_BLOCK == 16
 
+#if OC == 8 && G != 1
+    for (int i = 0; i < 8; i++) {
 #if HAS_FUSED_OPS
-    { FUSED_OPS_VEC1; blockC01 = FINAL_NAME_VEC1; }
+        { FUSED_OPS_SCALAR1; blockC01[i] = FUSED_OPS_RESULT_SCALAR1; }
+#endif
+
+        if (local_id < 8)
+            dst_write0[(i + 8) * OC_BLOCK + local_id] = blockC01[i];
+    }
+#else
+#if HAS_FUSED_OPS
+    { FUSED_OPS_VEC1; blockC01 = FUSED_OPS_RESULT_VEC1; }
 #endif
 
     intel_sub_group_block_write8(
             (__global unsigned int *)(&dst_write0[8 * OC_BLOCK]),
             as_uint8(blockC01));
+#endif //  OC == 8 && G != 1
 #endif
 #endif
 #if OW % OW_BLOCK != 0

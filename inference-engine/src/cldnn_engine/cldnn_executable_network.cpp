@@ -20,7 +20,7 @@
 #include <ie_layers_internal.hpp>
 #include <net_pass.h>
 #include "cldnn_infer_request.h"
-#include <cpp_interfaces/ie_executor_manager.hpp>
+#include <threading/ie_executor_manager.hpp>
 #include "details/caseless.hpp"
 #include "cldnn_async_infer_request.h"
 #include <fstream>
@@ -29,17 +29,28 @@
 
 #include <exec_graph_info.hpp>
 #include "cldnn_executable_network.h"
-#include "cldnn_streams_task_executor.h"
+#include "threading/ie_cpu_streams_executor.hpp"
 
 
 using namespace InferenceEngine;
 using namespace InferenceEngine::details;
 
 namespace CLDNNPlugin {
-unsigned int CLDNNExecNetwork::GetWaitingCounter() { return MultiWorkerTaskExecutor::GetWaitingCounter(); }
-unsigned int CLDNNExecNetwork::GetRunningCounter() { return CLDNNInferRequest::GetRunningCounter(); }
 
-CLDNNExecNetwork::CLDNNExecNetwork(InferenceEngine::ICNNNetwork &network, RemoteContext::Ptr context, Config config) : m_config(config) {
+CLDNNExecNetwork::CLDNNExecNetwork(InferenceEngine::ICNNNetwork &network, RemoteContext::Ptr context, Config config) :
+    InferenceEngine::ExecutableNetworkThreadSafeDefault{[&]()->InferenceEngine::ITaskExecutor::Ptr {
+        if (config.throughput_streams > 1) {
+            return std::make_shared<InferenceEngine::CPUStreamsExecutor>(
+                IStreamsExecutor::Config{"CLDNNPlugin executor", config.throughput_streams});
+        } else if (config.exclusiveAsyncRequests) {
+            return ExecutorManager::getInstance()->getExecutor("GPU");
+        } else {
+            return std::make_shared<InferenceEngine::CPUStreamsExecutor>(
+                IStreamsExecutor::Config{"CLDNNPlugin executor", 1});
+        }
+    }()},
+    m_config(config),
+    m_taskExecutor{_taskExecutor} {
     auto casted_context = std::dynamic_pointer_cast<gpu::ClContext>(context);
 
     if (nullptr == casted_context) {
@@ -48,26 +59,13 @@ CLDNNExecNetwork::CLDNNExecNetwork(InferenceEngine::ICNNNetwork &network, Remote
 
     m_context = casted_context;
 
-    // graph(s) initialization in taskExecutor threads (streams), in parallel (in case of streams)
-    std::vector<InferenceEngine::Task> tasks;
+    NetPass::ConvertPrecision(network, Precision::I64, Precision::I32);
+    NetPass::ConvertPrecision(network, Precision::U64, Precision::I32);
 
     auto graph_base = std::make_shared<CLDNNGraph>(network, m_context, m_config, 0);
     for (uint16_t n = 0; n < m_config.throughput_streams; n++) {
         auto graph = n == 0 ? graph_base : std::make_shared<CLDNNGraph>(graph_base, n);
         m_graphs.push_back(graph);
-        tasks.push_back([=]() {
-            CLDNNPlugin::MultiWorkerTaskExecutor::ptrContext.ptrGraph = graph;
-        });
-    }
-
-    if (m_config.throughput_streams > 1) {
-        // special executor with as many threads as requested #streams, each with it's own initialization task
-        _taskExecutor = std::make_shared<MultiWorkerTaskExecutor>(tasks);
-    } else {
-        if (m_config.exclusiveAsyncRequests) {
-            ExecutorManager *executorManager = ExecutorManager::getInstance();
-            _taskExecutor = executorManager->getExecutor("GPU");
-        }
     }
 }
 
@@ -87,7 +85,8 @@ InferRequestInternal::Ptr CLDNNExecNetwork::CreateInferRequestImpl(InputsDataMap
         }
     }
 
-    auto ptr = std::make_shared<CLDNNInferRequest>(networkInputs, networkOutputs);
+    auto ptr = std::make_shared<CLDNNInferRequest>(networkInputs, networkOutputs,
+                                                   std::static_pointer_cast<CLDNNExecNetwork>(shared_from_this()));
     if (m_config.throughput_streams > 1) {
         ptr->EnableStreams();
     }

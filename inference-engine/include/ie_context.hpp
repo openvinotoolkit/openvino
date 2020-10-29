@@ -39,7 +39,7 @@ public:
      * @param type Layer type
      * @param impl Shape Infer implementation
      */
-
+    IE_SUPPRESS_DEPRECATED_START
     void addShapeInferImpl(const std::string& type, const IShapeInferImpl::Ptr& impl);
 
     /**
@@ -52,6 +52,7 @@ public:
 
 private:
     details::caseless_map<std::string, IShapeInferImpl::Ptr> shapeInferImpls;
+    IE_SUPPRESS_DEPRECATED_END
 };
 
 }  // namespace InferenceEngine

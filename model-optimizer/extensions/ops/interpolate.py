@@ -14,7 +14,6 @@
  limitations under the License.
 """
 
-from mo.front.common.layout import get_batch_dim, get_features_dim, shape_for_layout
 from mo.graph.graph import Node, Graph
 from mo.ops.op import Op, PermuteAttrs
 
@@ -25,18 +24,22 @@ class Interpolate(Op):
 
     def __init__(self, graph: Graph, attrs: dict):
         mandatory_props = {
-            'type': __class__.op,
-            'op': __class__.op,
+            'op': self.op,
+            'type': self.op,
+
             'axes': None,
             'mode': None,
             'align_corners': 0,
             'antialias': 0,
             'pads_begin': 0,
             'pads_end': 0,
+
+            'infer': self.infer,
+
+            'force_precision_in_ports': {1: 'int64'},
+
             'in_ports_count': 2,
             'out_ports_count': 1,
-            'force_precision_in_ports': {1: 'int64'},
-            'infer': __class__.infer,
         }
         super().__init__(graph, mandatory_props, attrs)
 
@@ -48,7 +51,7 @@ class Interpolate(Op):
 
     @staticmethod
     def infer(node: Node):
-        assert len([p for p in node.in_ports().values() if not p.disconnected()])
+        assert len([p for p in node.in_ports().values() if not p.disconnected()]) == 2
         assert node.has_valid('mode')
         assert node.has_valid('axes')
 
@@ -62,7 +65,6 @@ class Interpolate(Op):
         for ind, axis in enumerate(node.axes):
             output_shape[axis] = dst_shape[ind]
 
-        node.out_node().shape = output_shape
+        node.out_port(0).data.set_shape(output_shape)
 
         PermuteAttrs.create_permute_attrs(node, attrs=[('axes', 'input:0')])
-

@@ -15,7 +15,7 @@
 
 #include <ie_common.h>
 #include <cpp_interfaces/impl/ie_executable_network_thread_safe_default.hpp>
-#include <cpp_interfaces/ie_executor_manager.hpp>
+#include <threading/ie_executor_manager.hpp>
 
 #include <vpu/graph_transformer.hpp>
 #include <vpu/parsed_config.hpp>
@@ -105,11 +105,6 @@ public:
 
     void GetExecGraphInfo(InferenceEngine::ICNNNetwork::Ptr &graphPtr) override;
 
-    void GetMappedTopology(
-            std::map<std::string, std::vector<InferenceEngine::PrimitiveInfo::Ptr>> &deployedTopology) override {
-        THROW_IE_EXCEPTION << "GetMappedTopology is not implemented\n";
-    }
-
     void Import(std::istream& strm,
                 std::vector<DevicePtr> &devicePool,
                 const MyriadConfig& config);
@@ -145,8 +140,6 @@ private:
 
         return taskExecutor;
     }
-
-    InferenceEngine::ICNNNetwork::Ptr buildRuntimeGraph(GraphMetaInfo& graphMetaInfo);
 };
 
 }  // namespace MyriadPlugin

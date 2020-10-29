@@ -64,19 +64,16 @@ void PassImpl::run(const Model& model) {
 
             model->removeStage(stage);
 
-            auto axesBlob = ie::make_shared_blob<int32_t>(ie::TensorDesc(ie::Precision::I32, {2}, ie::Layout::C));
-            axesBlob->allocate();
-            auto buffer = axesBlob->buffer().as<int32_t *>();
+            const auto generator = [&stageInput](const ie::Blob::Ptr& blob) {
+                auto buffer = blob->buffer().as<int32_t*>();
 
-            auto numInputDims = stageInput->desc().numDims();
-            // H and W are always come last in IE notation
-            buffer[0] = numInputDims - 1;
-            buffer[1] = numInputDims - 2;
+                auto numInputDims = stageInput->desc().numDims();
+                // H and W are always come last in IE notation
+                buffer[0] = numInputDims - 1;
+                buffer[1] = numInputDims - 2;
+            };
 
-            auto axesData = model->addConstData(
-                    origLayer->name + "@axes",
-                    DataDesc(DataType::S32, DimsOrder::C, {2}),
-                    ieBlobContent(axesBlob));
+            auto axesData = model->addConstData(origLayer->name + "@axes", DataDesc(DataType::S32, DimsOrder::C, {2}), generator);
 
             _stageBuilder->addReduceStage(
                     model,

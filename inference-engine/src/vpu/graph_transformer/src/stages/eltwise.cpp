@@ -195,10 +195,10 @@ private:
         auto input2 = inputEdge(2)->input();
         auto output = outputEdge(0)->output();
 
-        input0->serializeNewBuffer(serializer, output->desc().dimsOrder());
-        output->serializeNewBuffer(serializer);
-        input1->serializeNewBuffer(serializer, output->desc().dimsOrder());
-        input2->serializeNewBuffer(serializer, output->desc().dimsOrder());
+        input0->serializeBuffer(serializer, output->desc().dimsOrder());
+        output->serializeBuffer(serializer);
+        input1->serializeBuffer(serializer, output->desc().dimsOrder());
+        input2->serializeBuffer(serializer, output->desc().dimsOrder());
     }
 };
 
@@ -333,6 +333,22 @@ Stage StageBuilder::addSumStage(
     return model->addNewStage<EltwiseStage>(
         name,
         StageType::Sum,
+        layer,
+        {input0, input1, fakeInput2},
+        {output});
+}
+
+Stage StageBuilder::addMaxStage(
+        const Model& model,
+        const std::string& name,
+        const ie::CNNLayerPtr& layer,
+        const Data& input0,
+        const Data& input1,
+        const Data& output) {
+    const Data& fakeInput2 = model->addFakeData();
+    return model->addNewStage<EltwiseStage>(
+        name,
+        StageType::Max,
         layer,
         {input0, input1, fakeInput2},
         {output});

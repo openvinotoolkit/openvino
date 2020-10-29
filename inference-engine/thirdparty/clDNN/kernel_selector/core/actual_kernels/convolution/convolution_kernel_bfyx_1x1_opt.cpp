@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2018 Intel Corporation
+﻿// Copyright (c) 2018-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -80,7 +80,7 @@ ConvolutionKernelBase::DispatchData convolution_kernel_bfyx_1x1_opt::SetDefault(
 
     constexpr size_t sub_group_size = 8;
 
-    runInfo.effiency = FORCE_PRIORITY_3;
+    runInfo.efficiency = FORCE_PRIORITY_3;
 
     auto block = get_out_block_size(cp);
 
@@ -139,17 +139,16 @@ JitConstants convolution_kernel_bfyx_1x1_opt::GetJitConstants(const convolution_
     return jit;
 }
 
-std::vector<WeightsLayout> convolution_kernel_bfyx_1x1_opt::GetSupportedWeightLayouts(
-    const convolution_params& cp) const {
+WeightsLayout convolution_kernel_bfyx_1x1_opt::GetPreferredWeightsLayout(const convolution_params &cp) const {
     auto block = get_out_block_size(cp);
     if (block.out_depth == 8)
-        return {WeightsLayout::os_iyx_osv64};
+        return WeightsLayout::os_iyx_osv64;
     if (block.out_depth == 4)
-        return {WeightsLayout::os_iyx_osv32};
+        return WeightsLayout::os_iyx_osv32;
     if (block.out_depth == 2)
-        return {WeightsLayout::os_iyx_osv16};
+        return WeightsLayout::os_iyx_osv16;
     else
-        return {WeightsLayout::yxio};
+        return WeightsLayout::yxio;
 }
 
 KernelsData convolution_kernel_bfyx_1x1_opt::GetKernelsData(const Params& params,

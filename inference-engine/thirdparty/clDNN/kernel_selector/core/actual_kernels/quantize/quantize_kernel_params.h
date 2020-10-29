@@ -50,15 +50,55 @@ struct quantize_optional_params : optional_params {
 // quantize_fuse_params
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 struct quantize_fuse_params : fuse_params {
-    quantize_fuse_params(bool scale_shift_opt, bool has_post_scale, bool has_post_shift)
+    quantize_fuse_params(bool scale_shift_opt,
+                         bool has_post_scale,
+                         bool has_post_shift,
+                         bool has_pre_shift,
+                         bool per_tensor_input_range,
+                         bool per_tensor_input_scale,
+                         bool per_tensor_input_shift,
+                         bool per_tensor_output_scale,
+                         bool per_tensor_output_shift,
+                         float in_lo,
+                         float in_hi,
+                         float in_scale,
+                         float in_shift,
+                         float out_scale,
+                         float out_shift)
     : fuse_params(KernelType::QUANTIZE)
     , scale_shift_opt(scale_shift_opt)
     , has_post_scale(has_post_scale)
-    , has_post_shift(has_post_shift) { }
+    , has_post_shift(has_post_shift)
+    , has_pre_shift(has_pre_shift)
+    , per_tensor_input_range(per_tensor_input_range)
+    , per_tensor_input_scale(per_tensor_input_scale)
+    , per_tensor_input_shift(per_tensor_input_shift)
+    , per_tensor_output_scale(per_tensor_output_scale)
+    , per_tensor_output_shift(per_tensor_output_shift)
+    , in_lo(in_lo)
+    , in_hi(in_hi)
+    , in_scale(in_scale)
+    , in_shift(in_shift)
+    , out_scale(out_scale)
+    , out_shift(out_shift) { }
 
     bool scale_shift_opt;
     bool has_post_scale;
     bool has_post_shift;
+    bool has_pre_shift;
+
+    bool per_tensor_input_range;
+    bool per_tensor_input_scale;
+    bool per_tensor_input_shift;
+    bool per_tensor_output_scale;
+    bool per_tensor_output_shift;
+
+    float in_lo;
+    float in_hi;
+    float in_scale;
+    float in_shift;
+    float out_scale;
+    float out_shift;
 };
 
 }  // namespace kernel_selector

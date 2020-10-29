@@ -15,6 +15,7 @@
 
 #include <vpu/compile_env.hpp>
 #include <vpu/stages/stub_stage.hpp>
+#include <vpu/stage_builder.hpp>
 
 namespace vpu {
 
@@ -36,18 +37,24 @@ void parseConvND(const Model      & model,
                  const Data       & weights,
                  const Data       & biases);
 
-void FrontEnd::parseConvolution(const Model& model, const CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs) const {
-    IE_ASSERT(inputs.size() == 1);
-    IE_ASSERT(outputs.size() == 1);
+void FrontEnd::parseConvolution(const Model      & model,
+                                const CNNLayerPtr& layer,
+                                const DataVector & inputs,
+                                const DataVector & outputs) const {
+    VPU_THROW_UNLESS(inputs.size() == 1, "invalid number of inputs: %lu", inputs.size());
+    VPU_THROW_UNLESS(outputs.size() == 1, "invalid number of outputs: %lu", outputs.size());
 
     auto input = inputs[0];
     auto output = outputs[0];
 
     if (input->desc().numDims() < 3 || input->desc().numDims() > 5) {
-        VPU_THROW_EXCEPTION << "Convolution supports only 3D or 4D or 5D input";
+        VPU_THROW_FORMAT("Convolution supports only 3D or 4D or 5D input, but input number of dims=%d",
+                         input->desc().numDims());
     }
     if (output->desc().numDims() != input->desc().numDims()) {
-        VPU_THROW_EXCEPTION << "Convolution supports only same num dims in input and output";
+        VPU_THROW_FORMAT("Convolution supports only same num dims in input and output"
+                         ", but input ndims=%d and output ndims=%d",
+                         input->desc().numDims(), output->desc().numDims());
     }
 
     Data weights, biases;
@@ -65,6 +72,43 @@ void FrontEnd::parseConvolution(const Model& model, const CNNLayerPtr& layer, co
 //----------------------------------------------------------------------
 
 static
+bool canTryHW(const int outputNumDims,
+              const int kernelSizeX,
+              const int kernelSizeY,
+              const int kernelStrideX,
+              const int kernelStrideY,
+              const int dilationX,
+              const int dilationY,
+              const bool hwOptimization,
+              const bool hwDilation,
+              const bool hwDisabled) {
+    bool tryHW = hwOptimization;
+
+    if (kernelStrideX != kernelStrideY) {
+        tryHW = false;
+    }
+
+// TODO: support dilated convolution
+    if ((dilationX != 1 || dilationY != 1) && (!hwDilation)) {
+        tryHW = false;
+    }
+
+    if (kernelSizeX > 15 || kernelSizeY > 15 || kernelStrideX > 8) {
+        tryHW = false;
+    }
+
+    if (hwDisabled) {
+        tryHW = false;
+    }
+
+    if (outputNumDims < 4) {
+        tryHW = false;
+    }
+
+    return tryHW;
+}
+
+static
 void parseConv2D(const Model      & model,
                  const CNNLayerPtr& layer,
                  const Data       & input,
@@ -76,7 +120,7 @@ void parseConv2D(const Model      & model,
     //
 
     auto convLayer = std::dynamic_pointer_cast<ie::ConvolutionLayer>(layer);
-    IE_ASSERT(convLayer != nullptr);
+    VPU_THROW_UNLESS(convLayer != nullptr, "failed dynamic cast to ConvolutionLayer");
 
     int kernelSizeX = convLayer->_kernel_x;
     int kernelSizeY = convLayer->_kernel_y;
@@ -101,35 +145,28 @@ void parseConv2D(const Model      & model,
 
     const auto& env = CompileEnv::get();
 
-    auto tryHW = env.config.hwOptimization;
-
-    if (kernelStrideX != kernelStrideY) {
-        tryHW = false;
-    }
-
-    // TODO: support dilated convolution
-    if ((dilationX != 1 || dilationY != 1) && (!env.config.hwDilation)) {
-        tryHW = false;
-    }
-
-    if (kernelSizeX > 15 || kernelSizeY > 15 || kernelStrideX > 8) {
-        tryHW = false;
-    }
-
-    if (env.config.hwDisabled(layer->name)) {
-        tryHW = false;
-    }
-
-    if (output->desc().numDims() < 4) {
-        tryHW = false;
-    }
+    bool tryHW = canTryHW(output->desc().numDims(),
+                          kernelSizeX,
+                          kernelSizeY,
+                          kernelStrideX,
+                          kernelStrideY,
+                          dilationX,
+                          dilationY,
+                          env.config.hwOptimization,
+                          env.config.hwDilation,
+                          env.config.hwDisabled(layer->name));
 
     //
     // Create const datas
     //
 
-    IE_ASSERT(weights->desc().totalDimSize() >=
-              kernelSizeX * kernelSizeY * (input->desc().dim(Dim::C) / groupSize) * output->desc().dim(Dim::C));
+    int weightsActualSize = weights->desc().totalDimSize();
+    int weightsExpectedSize = kernelSizeX * kernelSizeY *
+                              (input->desc().dim(Dim::C) / groupSize) *
+                              output->desc().dim(Dim::C);
+    VPU_THROW_UNLESS(weightsActualSize >= weightsExpectedSize,
+                     "too few actual weights: actual size=%d, expected size=%d",
+                     weightsActualSize, weightsExpectedSize);
 
     auto weightsDesc =
         DataDesc({
@@ -145,7 +182,11 @@ void parseConv2D(const Model      & model,
         weightsDesc);
 
     if (biases->usage() != DataUsage::Fake) {
-        IE_ASSERT(biases->desc().totalDimSize() >= output->desc().dim(Dim::C));
+        int biasesActualSize = biases->desc().totalDimSize();
+        int biasesExpectedSize = output->desc().dim(Dim::C);
+        VPU_THROW_UNLESS(biasesActualSize >= biasesExpectedSize,
+            "too few biases: actual size=%d, expected size=%d",
+            biasesActualSize, biasesExpectedSize);
         biases = model->duplicateData(
             biases,
             "@conv",
@@ -203,7 +244,7 @@ private:
         } else if (nDims == 5) {
             outputOrder.moveDim(Dim::C, 3);  // ->NCDHW
         } else {
-            IE_ASSERT(3 <= nDims && nDims <= 5);
+            VPU_THROW_UNLESS(3 <= nDims && nDims <= 5, "unsupported number of dims: %d", nDims);
         }
         orderInfo.setOutput(outputEdge(0), outputOrder);
     }
@@ -237,10 +278,10 @@ private:
         auto inputBiases = input(2);
         auto outputValues = output(0);
 
-        inputValues->serializeNewBuffer(serializer);
-        outputValues->serializeNewBuffer(serializer);
-        inputWeights->serializeNewBuffer(serializer);
-        inputBiases->serializeNewBuffer(serializer);
+        inputValues->serializeBuffer(serializer);
+        outputValues->serializeBuffer(serializer);
+        inputWeights->serializeBuffer(serializer);
+        inputBiases->serializeBuffer(serializer);
     }
 
     using PV = InferenceEngine::PropertyVector<unsigned int>;
@@ -290,7 +331,7 @@ void parseConvND(const Model      & model,
     //
 
     auto convLayer = std::dynamic_pointer_cast<ie::ConvolutionLayer>(layer);
-    IE_ASSERT(convLayer != nullptr);
+    VPU_THROW_UNLESS(convLayer != nullptr, "failed dynamic cast to ConvolutionLayer");
 
     auto kernelShape = convLayer->_kernel;
     int kernelNDims = kernelShape.size();
@@ -299,41 +340,60 @@ void parseConvND(const Model      & model,
     // check if (kernelNDims >= 3), so that
     // 2D case is supported separately with
     // parseConv2D() function
-    IE_ASSERT(kernelNDims == 3);
+    VPU_THROW_UNLESS(kernelNDims == 3, "unsupported number of kernel dims: %d", kernelNDims);
 
     auto paddings = getPaddings(*convLayer);
     auto pads_begin = paddings.begin;
     auto pads_end   = paddings.end;
-    IE_ASSERT(pads_begin.size() == pads_end.size());
-    IE_ASSERT(pads_begin.size() == kernelShape.size());
+    VPU_THROW_UNLESS(pads_begin.size() == pads_end.size(),
+                     "number of dims must be equal: pads_begin ndims=%lu, pads_end ndims=%lu",
+                     pads_begin.size(), pads_end.size());
+    VPU_THROW_UNLESS(pads_begin.size() == kernelShape.size(),
+                     "number of dims must equal: pads ndims=%lu, kernel ndims=%lu",
+                     pads_begin.size(), kernelShape.size());
 
     auto strides = convLayer->_stride;
-    IE_ASSERT(strides.size() == kernelShape.size());
+    VPU_THROW_UNLESS(strides.size() == kernelShape.size(),
+                     "number of dims must equal: strides ndims=%lu, kernel ndims=%d",
+                     strides.size(), kernelShape.size());
 
     auto dilations = convLayer->_dilation;
-    IE_ASSERT(dilations.size() == kernelShape.size());
+    VPU_THROW_UNLESS(dilations.size() == kernelShape.size(),
+                     "number of dims must equal: dilations ndims=%lu, kernel ndims=%lu",
+                     dilations.size(), kernelShape.size());
 
     int output_channels = convLayer->_out_depth;
-    IE_ASSERT(output_channels > 0);
+    VPU_THROW_UNLESS(output_channels > 0, "invalid number of output channels: %d", output_channels);
 
     int groups = convLayer->_group;
-    IE_ASSERT(groups > 0);
+    VPU_THROW_UNLESS(groups > 0, "number of groups=%d, but grouped 3D convolution is not supported", groups);
 
     int inputNDims = input->desc().numDims();
     int outputNDims = output->desc().numDims();
-    int weightsNDims = weights->desc().numDims();
     int biasesNDims = biases->desc().numDims();
 
-    IE_ASSERT(inputNDims == outputNDims);
-    IE_ASSERT(inputNDims == kernelNDims + 2);  // NCDHW, 6D, ...
-    IE_ASSERT(weightsNDims == 1);  // need to reshape, see below
-    IE_ASSERT(biasesNDims == 1);
+    VPU_THROW_UNLESS(inputNDims == outputNDims,
+                     "number of dims must equal: input ndims=%d, output ndims=%d",
+                     inputNDims, outputNDims);
+    VPU_THROW_UNLESS(inputNDims == kernelNDims + 2,
+                     "input must have 2 additional dims (for batch and channels), but: input ndims=%d, kernel ndims=%d",
+                     inputNDims, kernelNDims);
+    VPU_THROW_UNLESS(biasesNDims == 1, "biases must come as 1D array, but: biases ndims=%d", biasesNDims);
 
     int input_channels = input->desc().dim(Dim::C);
-    IE_ASSERT(output_channels == output->desc().dim(Dim::C));
-    IE_ASSERT(input_channels % groups == 0);
-    IE_ASSERT(output_channels % groups == 0);
-    IE_ASSERT(output_channels / groups == biases->desc().dim(Dim::C));
+    VPU_THROW_UNLESS(output_channels == output->desc().dim(Dim::C),
+                     "number of output channels must equal, but: expected=%d, actual=%d",
+                     output_channels, output->desc().dim(Dim::C));
+    VPU_THROW_UNLESS(input_channels % groups == 0,
+                     "number of groups must divide the number of input channels, but: channels=%d, groups=%d",
+                     input_channels, groups);
+    VPU_THROW_UNLESS(output_channels % groups == 0,
+                     "number of groups must divide the number of output channels, but: channels=%d, groups=%d",
+                     output_channels, groups);
+    VPU_THROW_UNLESS(output_channels / groups == biases->desc().dim(Dim::C),
+                     "number of biases must equal to number of output channels per group, but: "
+                     "channels per group=%d, biases=%d",
+                     output_channels / groups, biases->desc().dim(Dim::C));
 
     // Checking spacial dimensions of output...
     // NB: Note, that input/output shape arrays
@@ -352,13 +412,15 @@ void parseConvND(const Model      & model,
                                        + pads_begin[i] + pads_end[i]
                                        - dilated_kernel_shape_i)
                                     / strides[i] + 1;
-        IE_ASSERT(output_shape[i] == expected_output_shape_i);
+        VPU_THROW_UNLESS(output_shape[i] == expected_output_shape_i,
+                         "output shape check failed: output_shape[%d]=%d, expected output_shape[%d]=%d",
+                         i, output_shape[i], i, expected_output_shape_i);
     }
 
-    IE_ASSERT(input->desc().type() == DataType::FP16);
-    IE_ASSERT(output->desc().type() == DataType::FP16);
-    IE_ASSERT(weights->desc().type() == DataType::FP16);
-    IE_ASSERT(biases->desc().type() == DataType::FP16);
+    VPU_THROW_UNLESS(input->desc().type() == DataType::FP16, "unsupported data type: %d", input->desc().type());
+    VPU_THROW_UNLESS(output->desc().type() == DataType::FP16, "unsupported data type: %d", output->desc().type());
+    VPU_THROW_UNLESS(weights->desc().type() == DataType::FP16, "unsupported data type: %d", weights->desc().type());
+    VPU_THROW_UNLESS(biases->desc().type() == DataType::FP16, "unsupported data type: %d", biases->desc().type());
 
     //
     // Reshape weights, check biases
@@ -372,7 +434,9 @@ void parseConvND(const Model      & model,
     int weightsTotalElems = kernelTotalElems *
                             (input_channels / groups) *
                             (output_channels / groups);
-    IE_ASSERT(weights->desc().totalDimSize() == weightsTotalElems);
+    VPU_THROW_UNLESS(weights->desc().totalDimSize() == weightsTotalElems,
+                     "failed check of weights size: actual=%d, expected=%d",
+                     weights->desc().totalDimSize(), weightsTotalElems);
 
     std::vector<int> weightsShape(kernelNDims + 2);
     for (int i = 0; i < kernelNDims; i++) {
@@ -384,7 +448,28 @@ void parseConvND(const Model      & model,
     DataDesc weightsDesc(weightsShape);
     auto weightsReshaped = model->duplicateData(weights, "@conv3d", weightsDesc);
 
-    IE_ASSERT(biases->desc().totalDimSize() == output_channels / groups);
+    VPU_THROW_UNLESS(biases->desc().totalDimSize() == output_channels / groups,
+                     "failed check of biases size: actual=%d, expected=%d",
+                     biases->desc().totalDimSize(), output_channels / groups);
+
+    //
+    // Check if HW is applicable
+    //
+
+    const auto& env = CompileEnv::get();
+
+    bool tryHW = canTryHW(outputNDims - 1,
+                          kernelShape[0],
+                          kernelShape[1],
+                          strides[0],
+                          strides[1],
+                          dilations[0],
+                          dilations[1],
+                          env.config.hwOptimization,
+                          env.config.hwDilation,
+                          env.config.hwDisabled(layer->name));
+
+    int try_hw = tryHW ? 1 : 0;
 
     //
     // Add new stage
@@ -404,6 +489,37 @@ void parseConvND(const Model      & model,
     stage->attrs().set("dilations",  dilations);
 
     stage->attrs().set("groups",     groups);
+
+    stage->attrs().set("try_hw",     try_hw);
+}
+
+//----------------------------------------------------------------------
+
+Stage StageBuilder::addConvolutionStage(
+        const Model& model,
+        const std::string& name,
+        const ie::CNNLayerPtr& layer,
+        const Data& input,
+        const Data& output,
+        const Data& weights,
+        const Data& biases,
+        const Data& scales) {
+    //
+    // Check parameters: only 2D convolution supported (yet)
+    //
+    VPU_THROW_UNLESS(input->desc().dimsOrder() == DimsOrder::NCHW, "unsupported dims order");
+    VPU_THROW_UNLESS(output->desc().dimsOrder() == DimsOrder::NCHW, "unsupported dims order");
+
+    //
+    // Add 2D convolution stage (stub)
+    //
+    auto stage = model->addNewStage<StubStage>(
+        name,
+        StageType::StubConv,
+        layer,
+        {input, weights, biases, scales},
+        {output});
+    return stage;
 }
 
 }  // namespace vpu

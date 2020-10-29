@@ -18,10 +18,14 @@
 namespace InferenceEngine {
 
 /**
+ * @interface IMemoryState
  * @brief manages data for reset operations
  */
 class IMemoryState : public details::no_copy {
 public:
+    /**
+     * @brief A shared pointer to the IMemoryState interface
+     */
     using Ptr = std::shared_ptr<IMemoryState>;
 
     /**

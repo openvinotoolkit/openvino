@@ -56,10 +56,10 @@ struct _jit_uni_dw_convolution_fwd_t : public cpu_primitive_t {
                                this->desc()->src_desc.data_type,
                                this->desc()->weights_desc.data_type)
                     && this->desc()->dst_desc.data_type == dst_type
-                    && IMPLICATION(this->with_bias(), data_type::f32
-                                       == this->desc()->bias_desc.data_type)
+                    && IMPLICATION(this->with_bias(), utils::one_of(
+                        this->desc()->bias_desc.data_type, data_type::f32,
+                        data_type::bf16))
                     && !this->attr()->has_asymmetric_quantization();
-
             if (!ok)
                 return status::unimplemented;
 
@@ -83,12 +83,10 @@ struct _jit_uni_dw_convolution_fwd_t : public cpu_primitive_t {
     protected:
         virtual status_t set_default_params() override {
             using namespace memory_format;
-            auto desired_act_fmt
-                    = utils::one_of(isa, avx512_common, avx512_core) ? nChw16c
-                                                                     : nChw8c;
-            auto desired_wei_fmt
-                    = utils::one_of(isa, avx512_common, avx512_core) ? Goihw16g
-                                                                     : Goihw8g;
+            auto desired_act_fmt = ndims() == 5 ? utils::one_of(isa, avx512_common, avx512_core) ? nCdhw16c : nCdhw8c
+                                                : utils::one_of(isa, avx512_common, avx512_core) ? nChw16c : nChw8c;
+            auto desired_wei_fmt = ndims() == 5 ? utils::one_of(isa, avx512_common, avx512_core) ? Goidhw16g : Goidhw8g
+                                                : utils::one_of(isa, avx512_common, avx512_core) ? Goihw16g : Goihw8g;
 
             if (this->src_pd_.desc()->format == any)
                 CHECK(this->src_pd_.set_format(desired_act_fmt));
@@ -113,6 +111,7 @@ struct _jit_uni_dw_convolution_fwd_t : public cpu_primitive_t {
     ~_jit_uni_dw_convolution_fwd_t() { delete kernel_; }
 
     typedef typename prec_traits<data_type::f32>::type f32_data_t;
+    typedef typename prec_traits<data_type::bf16>::type bf16_data_t;
     typedef typename prec_traits<src_type>::type data_t;
     typedef typename prec_traits<dst_type>::type dst_data_t;
 
@@ -171,7 +170,7 @@ struct _jit_uni_dw_convolution_bwd_data_t : public cpu_primitive_t {
             status_t status = jit_uni_dw_conv_bwd_data_kernel<isa,
                     diff_dst_type>::init_conf(jcp_, *this->desc(),
                     *this->diff_src_pd_.desc(), *this->weights_pd_.desc(),
-                    *this->diff_dst_pd_.desc());
+                    *this->diff_dst_pd_.desc(), *this->attr());
             if (status != status::success)
                 return status;
 
@@ -211,7 +210,7 @@ struct _jit_uni_dw_convolution_bwd_data_t : public cpu_primitive_t {
             const input_vector &inputs, const output_vector &outputs)
         : cpu_primitive_t(apd, inputs, outputs) {
         kernel_ = new jit_uni_dw_conv_bwd_data_kernel<isa, diff_dst_type>(
-                pd()->jcp_);
+                pd()->jcp_, *pd()->attr());
     }
     ~_jit_uni_dw_convolution_bwd_data_t() { delete kernel_; };
 
@@ -335,6 +334,7 @@ struct _jit_uni_dw_convolution_bwd_weights_t : public cpu_primitive_t {
     };
 
     typedef typename prec_traits<data_type::f32>::type f32_data_t;
+    typedef typename prec_traits<data_type::bf16>::type bf16_data_t;
     typedef typename prec_traits<src_type>::type src_data_t;
     typedef typename prec_traits<src_type>::type diff_dst_data_t;
     typedef typename prec_traits<diff_weights_type>::type diff_weights_data_t;

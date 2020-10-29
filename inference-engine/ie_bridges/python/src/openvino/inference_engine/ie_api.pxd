@@ -3,6 +3,7 @@ from .ie_api_impl_defs cimport Blob, TensorDesc
 
 from libcpp.string cimport string
 from libcpp.vector cimport vector
+from libcpp cimport bool
 from libcpp.memory cimport unique_ptr, shared_ptr
 
 cdef class BlobBuffer:
@@ -36,6 +37,8 @@ cdef class ExecutableNetwork:
     cdef unique_ptr[C.IEExecNetwork] impl
     cdef C.IEPlugin plugin_impl
     cdef C.IECore ie_core_impl
+    cpdef wait(self, num_requests = ?, timeout = ?)
+    cpdef get_idle_request_id(self)
     cdef public:
         _requests, _infer_requests
 
@@ -52,6 +55,7 @@ cdef class LayersStatsMap(dict):
 
 cdef class IECore:
     cdef C.IECore impl
+    cpdef IENetwork read_network(self, model : [str, bytes], weights : [str, bytes] = ?, bool init_from_buffer = ?)
     cpdef ExecutableNetwork load_network(self, IENetwork network, str device_name, config = ?, int num_requests = ?)
     cpdef ExecutableNetwork import_network(self, str model_file, str device_name, config = ?, int num_requests = ?)
 

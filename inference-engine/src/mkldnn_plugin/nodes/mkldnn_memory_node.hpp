@@ -37,32 +37,30 @@ class MKLDNNMemoryInputNode;
 /**
  * @brief
  * TODO: ATTENTION: this is a temporary solution, this connection should be keep in graph
+ * WARNING: thread_local and holderMutex are not needed if moved into graph
  */
 class MKLDNNMemoryNodeVirtualEdge {
+ public:
     using Holder = std::map<std::string, MKLDNNMemoryNode*>;
     static Holder & getExisted() {
-        static Holder existed;
+        thread_local static Holder existed;
         return existed;
     }
 
-    static MKLDNNMemoryNode * getByName(std::string name) {
-        auto result = getExisted().find(name);
-        if (result != getExisted().end()) {
+    static MKLDNNMemoryNode * getByName(Holder& holder, std::string name) {
+        auto result = holder.find(name);
+        if (result != holder.end()) {
             return result->second;
         }
         return nullptr;
     }
 
- public:
-    static void registerOutput(MKLDNNMemoryOutputNode * node);
+    static Holder* registerOutput(MKLDNNMemoryOutputNode * node);
 #if defined (COMPILED_CPU_MKLDNN_INPUT_NODE)
-    static void registerInput(MKLDNNMemoryInputNode * node);
+    static Holder* registerInput(MKLDNNMemoryInputNode * node);
 #endif
-    static void remove(MKLDNNMemoryNode * node) {
-        InferenceEngine::details::erase_if(getExisted(), [&](const Holder::value_type & it){
-            return it.second == node;
-        });
-    }
+    static void remove(MKLDNNMemoryNode * node, Holder* holder);
+    static std::mutex holderMutex;
 };
 
 class MKLDNNMemoryOutputNode : public MKLDNNNode, public MKLDNNMemoryNode {
@@ -87,6 +85,7 @@ class MKLDNNMemoryOutputNode : public MKLDNNNode, public MKLDNNMemoryNode {
      */
     MKLDNNNode* inputNode = nullptr;
     static Register<MKLDNNMemoryOutputNode> reg;
+    MKLDNNMemoryNodeVirtualEdge::Holder* holder = nullptr;
 };
 
 #if defined (COMPILED_CPU_MKLDNN_INPUT_NODE)
@@ -102,6 +101,7 @@ public:
     void setInputNode(MKLDNNNode* node) override {}
  private:
     static Register<MKLDNNMemoryInputNode> reg;
+    MKLDNNMemoryNodeVirtualEdge::Holder* holder = nullptr;
 };
 #endif
 

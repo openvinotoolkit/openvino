@@ -125,7 +125,7 @@
 #define CONCAT_WITH_UNDERSCORE(a,b) CONCAT_WITH_UNDERSCORE_(a,b)
 
 #if defined(BIN)
-#define INST_TEST_CASE_(str, ...) INSTANTIATE_TEST_CASE_P( \
+#define INST_TEST_CASE_(str, ...) INSTANTIATE_TEST_SUITE_P( \
         str, binary_convolution_test, ::testing::Values(__VA_ARGS__))
 #define INST_TEST_CASE(str, ...) INST_TEST_CASE_( \
         CONCAT_WITH_UNDERSCORE(TEST_CASE_NAME_PREFIX, str), __VA_ARGS__)
@@ -146,7 +146,7 @@
         CONCAT_WITH_UNDERSCORE(TEST_CASE_NAME_PREFIX, str), __VA_ARGS__)
 #endif
 #else
-#define INST_TEST_CASE_(str, ...) INSTANTIATE_TEST_CASE_P( \
+#define INST_TEST_CASE_(str, ...) INSTANTIATE_TEST_SUITE_P( \
         str, convolution_test, ::testing::Values(__VA_ARGS__))
 #define INST_TEST_CASE(str, ...) INST_TEST_CASE_( \
         CONCAT_WITH_UNDERSCORE(TEST_CASE_NAME_PREFIX, str), __VA_ARGS__)

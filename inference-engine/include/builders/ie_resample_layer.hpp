@@ -85,7 +85,7 @@ public:
     bool getAntialias() const;
     /**
      * @brief Sets flag that denotes whether to perform anti-aliasing
-     * @param flag antialias
+     * @param antialias flag
      * @return reference to layer builder
      */
     ResampleLayer& setAntialias(bool antialias);

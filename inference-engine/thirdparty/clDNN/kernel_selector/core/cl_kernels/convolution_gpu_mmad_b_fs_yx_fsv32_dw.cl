@@ -43,17 +43,13 @@ KERNEL(convolution_mmad_b_fs_yx_fsv32_dw)(
     const uint b = get_global_id(2);
     const uint x = get_global_id(1) % OUTPUT_SIZE_X;
     const uint y = get_global_id(1) / OUTPUT_SIZE_X;
+    const uint g = f;
 
     int dotProd = 0;
     const int input_x = x * STRIDE_SIZE_X - PADDING_SIZE_X;
     const int input_y = y * STRIDE_SIZE_Y - PADDING_SIZE_Y;
 
-#if DEPTHWISE_SEPARABLE_OPT
-    const uint g = (f / FILTER_OFM_NUM);
-#else
-    const uint g = split_idx;
-#endif
-    const uint filter_offset = f*FILTER_OFM_PITCH;
+    const uint filter_offset = g * FILTER_GROUPS_PITCH;
 
 #if ASYMMETRIC_WEIGHTS_QUANTIZATION
     int src_sum = 0;
@@ -106,7 +102,7 @@ KERNEL(convolution_mmad_b_fs_yx_fsv32_dw)(
 
 #if HAS_FUSED_OPS
     FUSED_OPS;
-    OUTPUT_TYPE out = FINAL_NAME;
+    OUTPUT_TYPE out = FUSED_OPS_RESULT;
 #else
     OUTPUT_TYPE out = TO_OUTPUT_TYPE(res);
 #endif

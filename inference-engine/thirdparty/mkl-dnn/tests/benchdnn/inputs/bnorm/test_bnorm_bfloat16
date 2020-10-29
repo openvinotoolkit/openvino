@@ -1,3 +1,4 @@
+--reset
 --skip-impl=ref
 
 --dt=bf16 #bfloat16
@@ -6,106 +7,20 @@
 --fmt=nChw16c # avx512
 
 --dir=FWD_D
---flags=SR --batch=bnorm_topo
---flags=GS --batch=bnorm_topo
---flags=S  --batch=bnorm_topo
+--flags=S --mb=28 --batch=bnorm_resnet_50
+--flags=GS --mb=28 --batch=bnorm_resnet_50
+--flags=SR --batch=bnorm_large
 
 --attr=post_ops='relu'
---flags=GS --batch=bnorm_topo
---flags=S  --batch=bnorm_topo
+--flags=GS --mb=28 --batch=bnorm_resnet_50
 --attr=
 
 --dir=BWD_DW
---flags=SR --batch=bnorm_topo
---flags=GS --batch=bnorm_topo
---flags=S  --batch=bnorm_topo
+--flags=S  --mb=28 --batch=bnorm_resnet_50
+--flags=GS --mb=28 --batch=bnorm_resnet_50
+--flags=GSR --mb=28 --batch=bnorm_resnet_50
 
 --dir=BWD_D
---flags=   --batch=bnorm_topo
+--flags=  --mb=28  --batch=bnorm_resnet_50
 
 
---allow-unimpl=true   # allow unimplemented for bf16 where avx512_core not supported
-
---fmt=nhwc
-
---dir=FWD_D
---flags=SR --batch=bnorm_regressions
---flags=GS --batch=bnorm_regressions
---flags=S  --batch=bnorm_regressions
-
---attr=post_ops='relu'
---flags=GS --batch=bnorm_regressions
---flags=S  --batch=bnorm_regressions
---attr=
-
---dir=BWD_DW
---flags=SR --batch=bnorm_regressions
---flags=GS --batch=bnorm_regressions
---flags=S  --batch=bnorm_regressions
-
---dir=BWD_D
---flags=   --batch=bnorm_regressions
-
---fmt=nchw
-
---dir=FWD_D
---flags=SR --batch=bnorm_regressions
---flags=GS --batch=bnorm_regressions
---flags=S  --batch=bnorm_regressions
-
---attr=post_ops='relu'
---flags=GS --batch=bnorm_regressions
---flags=S  --batch=bnorm_regressions
---attr=
-
---dir=BWD_DW
---flags=SR --batch=bnorm_regressions
---flags=GS --batch=bnorm_regressions
---flags=S  --batch=bnorm_regressions
-
---dir=BWD_D
---flags=   --batch=bnorm_regressions
-
---fmt=nChw16c # avx512
-
---dir=FWD_D
---flags=SR --batch=bnorm_regressions
---flags=GS --batch=bnorm_regressions
---flags=S  --batch=bnorm_regressions
-
---attr=post_ops='relu'
---flags=GS --batch=bnorm_regressions
---flags=S  --batch=bnorm_regressions
---attr=
-
---dir=BWD_DW
---flags=SR --batch=bnorm_regressions
---flags=GS --batch=bnorm_regressions
---flags=S  --batch=bnorm_regressions
-
---dir=BWD_D
---flags=   --batch=bnorm_regressions
-
---fmt=nhwc
-
---dir=FWD_D
---flags=SR --batch=bnorm_large
-
---dir=BWD_DW
---flags=SR --batch=bnorm_large
-
---fmt=nchw
-
---dir=FWD_D
---flags=SR --batch=bnorm_large
-
---dir=BWD_DW
---flags=SR --batch=bnorm_large
-
---fmt=nChw16c # avx512
-
---dir=FWD_D
---flags=SR --batch=bnorm_large
-
---dir=BWD_DW
---flags=SR --batch=bnorm_large

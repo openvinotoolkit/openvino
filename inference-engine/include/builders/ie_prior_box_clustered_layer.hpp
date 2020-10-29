@@ -96,7 +96,7 @@ public:
     float getStep() const;
     /**
      * @brief Sets a distance between box centers
-     * @param steps A distance between box centers
+     * @param step A distance between box centers
      * @return reference to layer builder
      */
     PriorBoxClusteredLayer& setStep(float step);

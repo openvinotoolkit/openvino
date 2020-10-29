@@ -152,12 +152,12 @@ TEST_P(conv_any_fmt_test_float, TestsConvolutionAnyFmt)
 #define ANY_GOIHWxIxO { fmt::any,\
                       { fmt::gOIhw8i8o, fmt::gOIhw16i16o, fmt::format_undef } }
 
-//INSTANTIATE_TEST_CASE_P(TestConvolutionAnyFmtForward, conv_any_fmt_test_float,
+//INSTANTIATE_TEST_SUITE_P(TestConvolutionAnyFmtForward, conv_any_fmt_test_float,
 //    ::testing::Values(conv_any_fmt_test_params_float{ PROP_KIND, ENGINE, ALG,
 //    ANY_NCHW, ANY_OIHW, ANY_X, ANY_NCHW,
 //    { 2, 1, 4, 4, 4, 6, 4, 4, 3, 3, 1, 1, 1, 1 } }));
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
         TestConvolutionAlexnetAnyFmtForwardxlocked, conv_any_fmt_test_float,
         ::testing::Values(
                 conv_any_fmt_test_params_float{ PROP_KIND, ENGINE, ALG,

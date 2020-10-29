@@ -402,10 +402,10 @@ void gemm(const char *layout, const char *transa, const char *transb,
         const float *b, const int ldb, const float beta, float *c,
         const int ldc ) {
     if (*layout == 'F') {
-        mkldnn_sgemm(transa, transb, &m, &n, &k, &alpha, a, &lda, b, &ldb,
-                &beta, c, &ldc);
+        mkldnn_sgemm(*transa, *transb, m, n, k, alpha, a, lda, b, ldb,
+                beta, c, ldc);
     } else {
-        mkldnn_sgemm(transb, transa, &n, &m, &k, &alpha, b, &ldb, a, &lda,
-                &beta, c, &ldc);
+        mkldnn_sgemm(*transb, *transa, n, m, k, alpha, b, ldb, a, lda,
+                beta, c, ldc);
     }
 }

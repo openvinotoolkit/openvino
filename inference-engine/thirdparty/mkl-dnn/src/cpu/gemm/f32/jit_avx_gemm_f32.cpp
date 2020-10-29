@@ -20,9 +20,10 @@
 #include "mkldnn_thread.hpp"
 #include "utils.hpp"
 
-#include "ref_gemm_f32.hpp"
+#include "../gemm_driver.hpp"
 #include "gemm_utils_f32.hpp"
 #include "jit_avx_gemm_f32.hpp"
+#include "ref_gemm_f32.hpp"
 
 #include "jit_generator.hpp"
 
@@ -52,8 +53,7 @@ struct xbyak_gemm : public jit_generator {
     xbyak_gemm(char isTransA, char isTransB, float beta, bool hasBias = false,
             void *code_ptr = nullptr,
             size_t code_size = 80 * Xbyak::DEFAULT_MAX_CODE_SIZE)
-        : jit_generator(code_ptr, code_size)
-    {
+        : jit_generator(code_ptr, code_size) {
         using namespace Xbyak;
 
         const bool is_avx2 = mayiuse(avx2);
@@ -72,10 +72,10 @@ struct xbyak_gemm : public jit_generator {
         auto ARG_ALPHA = abi_param4;
 #ifdef _WIN32
         auto ARG_A = ptr[rsp + OFFSET_SHADOWSPACE + STACKSIZE];
-        auto ARG_LDA = qword[rsp + OFFSET_SHADOWSPACE +
-            sizeof(float *) + STACKSIZE];
-        const auto stackOffset = OFFSET_SHADOWSPACE +
-            sizeof(float *) + STACKSIZE;
+        auto ARG_LDA
+                = qword[rsp + OFFSET_SHADOWSPACE + sizeof(float *) + STACKSIZE];
+        const auto stackOffset
+                = OFFSET_SHADOWSPACE + sizeof(float *) + STACKSIZE;
         auto A = rsi;
         auto LDA = rdi;
 #else
@@ -130,8 +130,8 @@ struct xbyak_gemm : public jit_generator {
         auto PREFETCHSIZEB = (!isTransB) ? -16 : 0;
 
         // Function for packing if needed
-        auto do_pack = [&](
-                int unroll_m, bool isLoad1Unmasked, bool isLoad2Unmasked) {
+        auto do_pack = [&](int unroll_m, bool isLoad1Unmasked,
+                               bool isLoad2Unmasked) {
             Label pack2, pack3, pack4, pack10;
 
             int regIdx;
@@ -280,20 +280,32 @@ struct xbyak_gemm : public jit_generator {
                         src_addr = src_addr - OFFSET * SIZE;
 
                         vmovups(Xmm(ld_step % 2), ptr[src_addr]);
-                        RegExp dst_addr = AO1
-                            + (ld_step + section * 4 - OFFSET) * SIZE;
+                        RegExp dst_addr
+                                = AO1 + (ld_step + section * 4 - OFFSET) * SIZE;
                         for (int off = 0; off < 4; ++off)
                             pextrd(ptr[dst_addr + unroll_m * off * SIZE],
                                     Xmm(ld_step % 2), off);
                     };
 
                     Label l_end;
-                    el_cp(0, 0); cmp(M, 4 * 0 + 0 + 1); je(l_end, T_NEAR);
-                    el_cp(0, 1); cmp(M, 4 * 0 + 1 + 1); je(l_end, T_NEAR);
-                    el_cp(0, 2); cmp(M, 4 * 0 + 2 + 1); je(l_end, T_NEAR);
-                    el_cp(0, 3); cmp(M, 4 * 0 + 3 + 1); je(l_end, T_NEAR);
-                    el_cp(1, 0); cmp(M, 4 * 1 + 0 + 1); je(l_end, T_NEAR);
-                    el_cp(1, 1); cmp(M, 4 * 1 + 1 + 1); je(l_end, T_NEAR);
+                    el_cp(0, 0);
+                    cmp(M, 4 * 0 + 0 + 1);
+                    je(l_end, T_NEAR);
+                    el_cp(0, 1);
+                    cmp(M, 4 * 0 + 1 + 1);
+                    je(l_end, T_NEAR);
+                    el_cp(0, 2);
+                    cmp(M, 4 * 0 + 2 + 1);
+                    je(l_end, T_NEAR);
+                    el_cp(0, 3);
+                    cmp(M, 4 * 0 + 3 + 1);
+                    je(l_end, T_NEAR);
+                    el_cp(1, 0);
+                    cmp(M, 4 * 1 + 0 + 1);
+                    je(l_end, T_NEAR);
+                    el_cp(1, 1);
+                    cmp(M, 4 * 1 + 1 + 1);
+                    je(l_end, T_NEAR);
                     el_cp(1, 2);
                     L(l_end);
 
@@ -305,16 +317,17 @@ struct xbyak_gemm : public jit_generator {
                     if (isLoad2Unmasked) {
                         for (int i = 0; i < 2; i++) {
                             vmovups(xmm0, ptr[BO2 + (0 * 8 - OFFSET) * SIZE]);
-                            vmovups(xmm1, ptr[BO2 + LDA * 1
-                                                  + (0 * 8 - OFFSET) * SIZE]);
+                            vmovups(xmm1,
+                                    ptr[BO2 + LDA * 1
+                                            + (0 * 8 - OFFSET) * SIZE]);
                             lea(BO2, ptr[BO2 + LDA * 2]);
                             vunpcklps(xmm4, xmm0, xmm1);
                             vunpckhps(xmm5, xmm0, xmm1);
                             vmovups(xmm0, ptr[BO2 + (0 * 8 - OFFSET) * SIZE]);
-                            vmovups(xmm1, ptr[BO2 + LDA * 1
-                                                  + (0 * 8 - OFFSET) * SIZE]);
-                            if (i == 0)
-                                lea(BO2, ptr[BO2 + LDA * 2]);
+                            vmovups(xmm1,
+                                    ptr[BO2 + LDA * 1
+                                            + (0 * 8 - OFFSET) * SIZE]);
+                            if (i == 0) lea(BO2, ptr[BO2 + LDA * 2]);
                             vunpcklps(xmm6, xmm0, xmm1);
                             vunpckhps(xmm2, xmm0, xmm1);
 
@@ -352,7 +365,7 @@ struct xbyak_gemm : public jit_generator {
                             vmovaps(xmm4, xmm3);
                             vgatherqps(xmm1,
                                     ptr[BO2 + ymm7
-                                               + ((2 * i + 1) - OFFSET) * SIZE],
+                                            + ((2 * i + 1) - OFFSET) * SIZE],
                                     xmm4);
 
                             vmovups(ptr[AO1
@@ -377,7 +390,7 @@ struct xbyak_gemm : public jit_generator {
                             vextractf128(xmm4, ymm3, 1);
                             vgatherqps(xmm1,
                                     ptr[BO2 + ymm7
-                                               + ((2 * i + 1) - OFFSET) * SIZE],
+                                            + ((2 * i + 1) - OFFSET) * SIZE],
                                     xmm4);
 
                             vmovups(ptr[AO1
@@ -482,18 +495,30 @@ struct xbyak_gemm : public jit_generator {
                         src_addr = src_addr - OFFSET * SIZE;
 
                         vmovss(xmm1, ptr[src_addr]);
-                        RegExp dst_addr = AO1
-                            + (ld_step + section * 4 - OFFSET) * SIZE;
+                        RegExp dst_addr
+                                = AO1 + (ld_step + section * 4 - OFFSET) * SIZE;
                         movss(ptr[dst_addr], xmm1);
                     };
 
                     Label l_end;
-                    el_cp(0, 0); cmp(M, 4 * 0 + 0 + 1); je(l_end, T_NEAR);
-                    el_cp(0, 1); cmp(M, 4 * 0 + 1 + 1); je(l_end, T_NEAR);
-                    el_cp(0, 2); cmp(M, 4 * 0 + 2 + 1); je(l_end, T_NEAR);
-                    el_cp(0, 3); cmp(M, 4 * 0 + 3 + 1); je(l_end, T_NEAR);
-                    el_cp(1, 0); cmp(M, 4 * 1 + 0 + 1); je(l_end, T_NEAR);
-                    el_cp(1, 1); cmp(M, 4 * 1 + 1 + 1); je(l_end, T_NEAR);
+                    el_cp(0, 0);
+                    cmp(M, 4 * 0 + 0 + 1);
+                    je(l_end, T_NEAR);
+                    el_cp(0, 1);
+                    cmp(M, 4 * 0 + 1 + 1);
+                    je(l_end, T_NEAR);
+                    el_cp(0, 2);
+                    cmp(M, 4 * 0 + 2 + 1);
+                    je(l_end, T_NEAR);
+                    el_cp(0, 3);
+                    cmp(M, 4 * 0 + 3 + 1);
+                    je(l_end, T_NEAR);
+                    el_cp(1, 0);
+                    cmp(M, 4 * 1 + 0 + 1);
+                    je(l_end, T_NEAR);
+                    el_cp(1, 1);
+                    cmp(M, 4 * 1 + 1 + 1);
+                    je(l_end, T_NEAR);
                     el_cp(1, 2);
                     L(l_end);
 
@@ -506,8 +531,9 @@ struct xbyak_gemm : public jit_generator {
                         for (int i = 0; i < 2; i++) {
                             vmovss(Xmm(i + 1),
                                     ptr[BO2 + (0 * 8 - OFFSET) * SIZE]);
-                            vmovss(xmm0, ptr[BO2 + LDA * 1
-                                                 + (0 * 8 - OFFSET) * SIZE]);
+                            vmovss(xmm0,
+                                    ptr[BO2 + LDA * 1
+                                            + (0 * 8 - OFFSET) * SIZE]);
                             lea(BO2, ptr[BO2 + LDA * 2]);
                             vunpcklps(Xmm(i + 1), Xmm(i + 1), Xmm(0));
                         }
@@ -526,8 +552,9 @@ struct xbyak_gemm : public jit_generator {
                         for (int i = 0; i < 2; i++) {
                             vmovss(Xmm(i + 1),
                                     ptr[BO2 + (0 * 8 - OFFSET) * SIZE]);
-                            vmovss(xmm0, ptr[BO2 + LDA * 1
-                                                 + (0 * 8 - OFFSET) * SIZE]);
+                            vmovss(xmm0,
+                                    ptr[BO2 + LDA * 1
+                                            + (0 * 8 - OFFSET) * SIZE]);
                             lea(BO2, ptr[BO2 + LDA * 2]);
                             vunpcklps(Xmm(i + 1), Xmm(i + 1), Xmm(0));
                         }
@@ -554,7 +581,7 @@ struct xbyak_gemm : public jit_generator {
 
         // Fused multiply add; may become one or two instructions
         auto fma = [&](bool useFma, Ymm reg0, Ymm reg1, Ymm reg2,
-                bool overWrite = false) {
+                           bool overWrite = false) {
             if (useFma) {
                 if (is_avx2) {
                     vfmadd231ps(reg2, reg1, reg0);
@@ -577,14 +604,15 @@ struct xbyak_gemm : public jit_generator {
 
         // Inner kernel with k=8
         auto innerkernel8 = [&](int unroll_m, int unroll_n,
-                bool isLoad1Unmasked, bool isLoad2Unmasked, bool isDirect,
-                bool isCopy, bool useFma, Ymm reg00, Ymm reg01, Ymm reg02,
-                Ymm reg03, Ymm reg04, Ymm reg05, Ymm reg06, Ymm reg07,
-                Ymm reg08, Ymm reg09, Ymm reg10, Ymm reg11, Ymm reg12,
-                Ymm reg13, Ymm reg14, Ymm reg15, Ymm reg16, Ymm reg17,
-                Ymm reg18, Ymm reg19, Ymm reg20, Ymm reg21, Ymm reg22,
-                Ymm reg23) {
-
+                                    bool isLoad1Unmasked, bool isLoad2Unmasked,
+                                    bool isDirect, bool isCopy, bool useFma,
+                                    Ymm reg00, Ymm reg01, Ymm reg02, Ymm reg03,
+                                    Ymm reg04, Ymm reg05, Ymm reg06, Ymm reg07,
+                                    Ymm reg08, Ymm reg09, Ymm reg10, Ymm reg11,
+                                    Ymm reg12, Ymm reg13, Ymm reg14, Ymm reg15,
+                                    Ymm reg16, Ymm reg17, Ymm reg18, Ymm reg19,
+                                    Ymm reg20, Ymm reg21, Ymm reg22,
+                                    Ymm reg23) {
             Ymm fmareg;
 
             if (!isDirect) {
@@ -655,9 +683,7 @@ struct xbyak_gemm : public jit_generator {
                                                 * SIZE],
                                 ymm1);
                     }
-                    if (i == 7) {
-                        sub(LDA4, -unroll_m * 8 * SIZE);
-                    }
+                    if (i == 7) { sub(LDA4, -unroll_m * 8 * SIZE); }
                 }
 
                 if (unroll_n >= 3) {
@@ -680,9 +706,7 @@ struct xbyak_gemm : public jit_generator {
                 }
 
                 if (i == 7) {
-                    if (!isTransB) {
-                        sub(BO1, -8 * SIZE);
-                    }
+                    if (!isTransB) { sub(BO1, -8 * SIZE); }
                 }
 
                 if (unroll_n >= 4) {
@@ -777,9 +801,7 @@ struct xbyak_gemm : public jit_generator {
                 }
                 if (i == 7) {
                     if (!isTransB) {
-                        if (unroll_n >= 4) {
-                            sub(BO2, -8 * SIZE);
-                        }
+                        if (unroll_n >= 4) { sub(BO2, -8 * SIZE); }
                     }
                     if (!isTransA) {
                         prefetcht2(ptr[AA]);
@@ -794,46 +816,44 @@ struct xbyak_gemm : public jit_generator {
                                         + (unroll_m * (i + 1) + 0 * 8 - OFFSET)
                                                 * SIZE]);
                     } else {
-                        vmaskmovps(
-                                ymm0, VMASK,
+                        vmaskmovps(ymm0, VMASK,
                                 ptr[AO1
                                         + (unroll_m * (i + 1) + 0 * 8 - OFFSET)
                                                 * SIZE]);
                     }
                     if (unroll_m >= 16) {
                         if (isLoad2Unmasked) {
-                            vmovups(ymm1, ptr[AO1
-                                                  + (unroll_m * (i + 1) + 1 * 8
-                                                            - OFFSET)
-                                                          * SIZE]);
+                            vmovups(ymm1,
+                                    ptr[AO1
+                                            + (unroll_m * (i + 1) + 1 * 8
+                                                      - OFFSET)
+                                                    * SIZE]);
                         } else {
                             vmaskmovps(ymm1, VMASK,
                                     ptr[AO1
-                                               + (unroll_m * (i + 1) + 1 * 8
-                                                         - OFFSET)
-                                                       * SIZE]);
+                                            + (unroll_m * (i + 1) + 1 * 8
+                                                      - OFFSET)
+                                                    * SIZE]);
                         }
                     }
                 }
             }
 
-            if (!isDirect) {
-                sub(AO1, -unroll_m * 8 * SIZE);
-            }
+            if (!isDirect) { sub(AO1, -unroll_m * 8 * SIZE); }
             sub(LL, 1);
-
         };
 
         // Inner kernel with k=4
         auto innerkernel4 = [&](int unroll_m, int unroll_n,
-                bool isLoad1Unmasked, bool isLoad2Unmasked, bool isDirect,
-                bool isCopy, bool useFma, Ymm reg00, Ymm reg01, Ymm reg02,
-                Ymm reg03, Ymm reg04, Ymm reg05, Ymm reg06, Ymm reg07,
-                Ymm reg08, Ymm reg09, Ymm reg10, Ymm reg11, Ymm reg12,
-                Ymm reg13, Ymm reg14, Ymm reg15, Ymm reg16, Ymm reg17,
-                Ymm reg18, Ymm reg19, Ymm reg20, Ymm reg21, Ymm reg22,
-                Ymm reg23) {
-
+                                    bool isLoad1Unmasked, bool isLoad2Unmasked,
+                                    bool isDirect, bool isCopy, bool useFma,
+                                    Ymm reg00, Ymm reg01, Ymm reg02, Ymm reg03,
+                                    Ymm reg04, Ymm reg05, Ymm reg06, Ymm reg07,
+                                    Ymm reg08, Ymm reg09, Ymm reg10, Ymm reg11,
+                                    Ymm reg12, Ymm reg13, Ymm reg14, Ymm reg15,
+                                    Ymm reg16, Ymm reg17, Ymm reg18, Ymm reg19,
+                                    Ymm reg20, Ymm reg21, Ymm reg22,
+                                    Ymm reg23) {
             Ymm fmareg;
 
             if (!isDirect) {
@@ -904,9 +924,7 @@ struct xbyak_gemm : public jit_generator {
                                                 * SIZE],
                                 ymm1);
                     }
-                    if (i == 3) {
-                        sub(LDA4, -unroll_m * 4 * SIZE);
-                    }
+                    if (i == 3) { sub(LDA4, -unroll_m * 4 * SIZE); }
                 }
 
                 if (unroll_n >= 3) {
@@ -929,9 +947,7 @@ struct xbyak_gemm : public jit_generator {
                 }
 
                 if (i == 7) {
-                    if (!isTransB) {
-                        sub(BO1, -8 * SIZE);
-                    }
+                    if (!isTransB) { sub(BO1, -8 * SIZE); }
                 }
 
                 if (unroll_n >= 4) {
@@ -1016,9 +1032,7 @@ struct xbyak_gemm : public jit_generator {
                 if (i == 3) {
                     if (!isTransB) {
                         sub(BO1, -4 * SIZE);
-                        if (unroll_n >= 4) {
-                            sub(BO2, -4 * SIZE);
-                        }
+                        if (unroll_n >= 4) { sub(BO2, -4 * SIZE); }
                     }
                 }
 
@@ -1029,45 +1043,43 @@ struct xbyak_gemm : public jit_generator {
                                         + (unroll_m * (i + 1) + 0 * 8 - OFFSET)
                                                 * SIZE]);
                     } else {
-                        vmaskmovps(
-                                ymm0, VMASK,
+                        vmaskmovps(ymm0, VMASK,
                                 ptr[AO1
                                         + (unroll_m * (i + 1) + 0 * 8 - OFFSET)
                                                 * SIZE]);
                     }
                     if (unroll_m >= 16) {
                         if (isLoad2Unmasked) {
-                            vmovups(ymm1, ptr[AO1
-                                                  + (unroll_m * (i + 1) + 1 * 8
-                                                            - OFFSET)
-                                                          * SIZE]);
+                            vmovups(ymm1,
+                                    ptr[AO1
+                                            + (unroll_m * (i + 1) + 1 * 8
+                                                      - OFFSET)
+                                                    * SIZE]);
                         } else {
                             vmaskmovps(ymm1, VMASK,
                                     ptr[AO1
-                                               + (unroll_m * (i + 1) + 1 * 8
-                                                         - OFFSET)
-                                                       * SIZE]);
+                                            + (unroll_m * (i + 1) + 1 * 8
+                                                      - OFFSET)
+                                                    * SIZE]);
                         }
                     }
                 }
             }
 
-            if (!isDirect) {
-                sub(AO1, -unroll_m * 4 * SIZE);
-            }
-
+            if (!isDirect) { sub(AO1, -unroll_m * 4 * SIZE); }
         };
 
         // Inner kernel with k=2
         auto innerkernel2 = [&](int unroll_m, int unroll_n,
-                bool isLoad1Unmasked, bool isLoad2Unmasked, bool isDirect,
-                bool isCopy, bool useFma, Ymm reg00, Ymm reg01, Ymm reg02,
-                Ymm reg03, Ymm reg04, Ymm reg05, Ymm reg06, Ymm reg07,
-                Ymm reg08, Ymm reg09, Ymm reg10, Ymm reg11, Ymm reg12,
-                Ymm reg13, Ymm reg14, Ymm reg15, Ymm reg16, Ymm reg17,
-                Ymm reg18, Ymm reg19, Ymm reg20, Ymm reg21, Ymm reg22,
-                Ymm reg23) {
-
+                                    bool isLoad1Unmasked, bool isLoad2Unmasked,
+                                    bool isDirect, bool isCopy, bool useFma,
+                                    Ymm reg00, Ymm reg01, Ymm reg02, Ymm reg03,
+                                    Ymm reg04, Ymm reg05, Ymm reg06, Ymm reg07,
+                                    Ymm reg08, Ymm reg09, Ymm reg10, Ymm reg11,
+                                    Ymm reg12, Ymm reg13, Ymm reg14, Ymm reg15,
+                                    Ymm reg16, Ymm reg17, Ymm reg18, Ymm reg19,
+                                    Ymm reg20, Ymm reg21, Ymm reg22,
+                                    Ymm reg23) {
             Ymm fmareg;
 
             for (int i = 0; i < 2; i++) {
@@ -1192,14 +1204,15 @@ struct xbyak_gemm : public jit_generator {
 
                 if (!isDirect) {
                     if (isLoad1Unmasked) {
-                        vmovups(ymm0, ptr[AO1
-                                              + (unroll_m * 1 + 0 * 8 - OFFSET)
-                                                      * SIZE]);
+                        vmovups(ymm0,
+                                ptr[AO1
+                                        + (unroll_m * 1 + 0 * 8 - OFFSET)
+                                                * SIZE]);
                     } else {
                         vmaskmovps(ymm0, VMASK,
                                 ptr[AO1
-                                           + (unroll_m * 1 + 0 * 8 - OFFSET)
-                                                   * SIZE]);
+                                        + (unroll_m * 1 + 0 * 8 - OFFSET)
+                                                * SIZE]);
                     }
                     if (unroll_m >= 16) {
                         if (isLoad2Unmasked) {
@@ -1210,8 +1223,8 @@ struct xbyak_gemm : public jit_generator {
                         } else {
                             vmaskmovps(ymm1, VMASK,
                                     ptr[AO1
-                                               + (unroll_m * 1 + 1 * 8 - OFFSET)
-                                                       * SIZE]);
+                                            + (unroll_m * 1 + 1 * 8 - OFFSET)
+                                                    * SIZE]);
                         }
                     }
                     sub(AO1, -unroll_m * SIZE);
@@ -1219,23 +1232,21 @@ struct xbyak_gemm : public jit_generator {
 
                 if (!isTransB) {
                     sub(BO1, -SIZE);
-                    if (unroll_n >= 4) {
-                        sub(BO2, -SIZE);
-                    }
+                    if (unroll_n >= 4) { sub(BO2, -SIZE); }
                 } else {
                     add(BO1, LDB);
                 }
             }
-
         };
 
         // Inner kernel with k=1
         auto innerkernel1 = [&](int unroll_m, int unroll_n,
-                bool isLoad1Unmasked, bool isLoad2Unmasked, bool isDirect,
-                bool isCopy, bool useFma, Ymm reg00, Ymm reg01, Ymm reg02,
-                Ymm reg03, Ymm reg04, Ymm reg05, Ymm reg06, Ymm reg07,
-                Ymm reg08, Ymm reg09, Ymm reg10, Ymm reg11) {
-
+                                    bool isLoad1Unmasked, bool isLoad2Unmasked,
+                                    bool isDirect, bool isCopy, bool useFma,
+                                    Ymm reg00, Ymm reg01, Ymm reg02, Ymm reg03,
+                                    Ymm reg04, Ymm reg05, Ymm reg06, Ymm reg07,
+                                    Ymm reg08, Ymm reg09, Ymm reg10,
+                                    Ymm reg11) {
             if (isDirect) {
                 if (isLoad1Unmasked) {
                     vmovups(ymm0, ptr[AO1 + (0 * 8 - OFFSET) * SIZE]);
@@ -1259,9 +1270,7 @@ struct xbyak_gemm : public jit_generator {
                 vbroadcastss(ymm2, ptr[BO1 + (0 - OFFSET) * SIZE]);
             }
             fma(useFma, ymm0, ymm2, reg00);
-            if (unroll_m >= 16) {
-                fma(useFma, ymm1, ymm2, reg06);
-            }
+            if (unroll_m >= 16) { fma(useFma, ymm1, ymm2, reg06); }
 
             if (unroll_n >= 2) {
                 if (!isTransB) {
@@ -1271,9 +1280,7 @@ struct xbyak_gemm : public jit_generator {
                     vbroadcastss(ymm2, ptr[BO1 + (1 - OFFSET) * SIZE]);
                 }
                 fma(useFma, ymm0, ymm2, reg01);
-                if (unroll_m >= 16) {
-                    fma(useFma, ymm1, ymm2, reg07);
-                }
+                if (unroll_m >= 16) { fma(useFma, ymm1, ymm2, reg07); }
             }
 
             if (unroll_n >= 3) {
@@ -1284,9 +1291,7 @@ struct xbyak_gemm : public jit_generator {
                     vbroadcastss(ymm2, ptr[BO1 + (2 - OFFSET) * SIZE]);
                 }
                 fma(useFma, ymm0, ymm2, reg02);
-                if (unroll_m >= 16) {
-                    fma(useFma, ymm1, ymm2, reg08);
-                }
+                if (unroll_m >= 16) { fma(useFma, ymm1, ymm2, reg08); }
             }
 
             if (unroll_n >= 4) {
@@ -1296,9 +1301,7 @@ struct xbyak_gemm : public jit_generator {
                     vbroadcastss(ymm2, ptr[BO1 + (3 - OFFSET) * SIZE]);
                 }
                 fma(useFma, ymm0, ymm2, reg03);
-                if (unroll_m >= 16) {
-                    fma(useFma, ymm1, ymm2, reg09);
-                }
+                if (unroll_m >= 16) { fma(useFma, ymm1, ymm2, reg09); }
             }
 
             if (unroll_n >= 5) {
@@ -1309,9 +1312,7 @@ struct xbyak_gemm : public jit_generator {
                     vbroadcastss(ymm2, ptr[BO1 + (4 - OFFSET) * SIZE]);
                 }
                 fma(useFma, ymm0, ymm2, reg04);
-                if (unroll_m >= 16) {
-                    fma(useFma, ymm1, ymm2, reg10);
-                }
+                if (unroll_m >= 16) { fma(useFma, ymm1, ymm2, reg10); }
             }
 
             if (unroll_n >= 6) {
@@ -1322,9 +1323,7 @@ struct xbyak_gemm : public jit_generator {
                     vbroadcastss(ymm2, ptr[BO1 + (5 - OFFSET) * SIZE]);
                 }
                 fma(useFma, ymm0, ymm2, reg05);
-                if (unroll_m >= 16) {
-                    fma(useFma, ymm1, ymm2, reg11);
-                }
+                if (unroll_m >= 16) { fma(useFma, ymm1, ymm2, reg11); }
             }
 
             if (isCopy) {
@@ -1347,14 +1346,15 @@ struct xbyak_gemm : public jit_generator {
                 }
                 if (unroll_m >= 16) {
                     if (isLoad2Unmasked) {
-                        vmovups(ymm1, ptr[AO1
-                                              + (unroll_m * 1 + 1 * 8 - OFFSET)
-                                                      * SIZE]);
+                        vmovups(ymm1,
+                                ptr[AO1
+                                        + (unroll_m * 1 + 1 * 8 - OFFSET)
+                                                * SIZE]);
                     } else {
                         vmaskmovps(ymm1, VMASK,
                                 ptr[AO1
-                                           + (unroll_m * 1 + 1 * 8 - OFFSET)
-                                                   * SIZE]);
+                                        + (unroll_m * 1 + 1 * 8 - OFFSET)
+                                                * SIZE]);
                     }
                 }
                 sub(AO1, -unroll_m * SIZE);
@@ -1362,28 +1362,30 @@ struct xbyak_gemm : public jit_generator {
 
             if (!isTransB) {
                 sub(BO1, -SIZE);
-                if (unroll_n >= 4) {
-                    sub(BO2, -SIZE);
-                }
+                if (unroll_n >= 4) { sub(BO2, -SIZE); }
             } else {
                 add(BO1, LDB);
             }
-
         };
 
         // Main kernel; does prefetching and calls innerkernel{1,2,4,8} as
         // appropriate
         // After calculating results in registers, writes back to C matrix
         auto kernel = [&](int unroll_m, int unroll_n, bool isLoad1Unmasked,
-                bool isLoad2Unmasked, bool isDirect, bool isCopy, bool useFma,
-                Ymm reg00 = Ymm(4), Ymm reg01 = Ymm(5), Ymm reg02 = Ymm(6),
-                Ymm reg03 = Ymm(7), Ymm reg04 = Ymm(8), Ymm reg05 = Ymm(9),
-                Ymm reg06 = Ymm(10), Ymm reg07 = Ymm(11), Ymm reg08 = Ymm(12),
-                Ymm reg09 = Ymm(13), Ymm reg10 = Ymm(14), Ymm reg11 = Ymm(15),
-                Ymm reg12 = Ymm(4), Ymm reg13 = Ymm(5), Ymm reg14 = Ymm(6),
-                Ymm reg15 = Ymm(7), Ymm reg16 = Ymm(8), Ymm reg17 = Ymm(9),
-                Ymm reg18 = Ymm(10), Ymm reg19 = Ymm(11), Ymm reg20 = Ymm(12),
-                Ymm reg21 = Ymm(13), Ymm reg22 = Ymm(14), Ymm reg23 = Ymm(15)) {
+                              bool isLoad2Unmasked, bool isDirect, bool isCopy,
+                              bool useFma, Ymm reg00 = Ymm(4),
+                              Ymm reg01 = Ymm(5), Ymm reg02 = Ymm(6),
+                              Ymm reg03 = Ymm(7), Ymm reg04 = Ymm(8),
+                              Ymm reg05 = Ymm(9), Ymm reg06 = Ymm(10),
+                              Ymm reg07 = Ymm(11), Ymm reg08 = Ymm(12),
+                              Ymm reg09 = Ymm(13), Ymm reg10 = Ymm(14),
+                              Ymm reg11 = Ymm(15), Ymm reg12 = Ymm(4),
+                              Ymm reg13 = Ymm(5), Ymm reg14 = Ymm(6),
+                              Ymm reg15 = Ymm(7), Ymm reg16 = Ymm(8),
+                              Ymm reg17 = Ymm(9), Ymm reg18 = Ymm(10),
+                              Ymm reg19 = Ymm(11), Ymm reg20 = Ymm(12),
+                              Ymm reg21 = Ymm(13), Ymm reg22 = Ymm(14),
+                              Ymm reg23 = Ymm(15)) {
             if (!isDirect) {
                 lea(AO1, ptr[rsp + 256 + OFFSET * SIZE]);
             } else {
@@ -1411,14 +1413,15 @@ struct xbyak_gemm : public jit_generator {
                 }
                 if (unroll_m >= 16) {
                     if (isLoad2Unmasked) {
-                        vmovups(ymm1, ptr[AO1
-                                              + (unroll_m * 0 + 1 * 8 - OFFSET)
-                                                      * SIZE]);
+                        vmovups(ymm1,
+                                ptr[AO1
+                                        + (unroll_m * 0 + 1 * 8 - OFFSET)
+                                                * SIZE]);
                     } else {
                         vmaskmovps(ymm1, VMASK,
                                 ptr[AO1
-                                           + (unroll_m * 0 + 1 * 8 - OFFSET)
-                                                   * SIZE]);
+                                        + (unroll_m * 0 + 1 * 8 - OFFSET)
+                                                * SIZE]);
                     }
                 }
             }
@@ -1453,8 +1456,7 @@ struct xbyak_gemm : public jit_generator {
                 prefetcht0(ptr[CO1 + LDC + (unroll_m - 1) * SIZE]);
             if (unroll_n >= 3)
                 prefetcht0(ptr[CO1 + LDC * 2 + (unroll_m - 1) * SIZE]);
-            if (unroll_n >= 4)
-                prefetcht0(ptr[CO2 + (unroll_m - 1) * SIZE]);
+            if (unroll_n >= 4) prefetcht0(ptr[CO2 + (unroll_m - 1) * SIZE]);
             if (unroll_n >= 5)
                 prefetcht0(ptr[CO2 + LDC + (unroll_m - 1) * SIZE]);
             if (unroll_n >= 6)
@@ -1523,25 +1525,23 @@ struct xbyak_gemm : public jit_generator {
             L(kernel18);
             vbroadcastss(VALPHA, ALPHA);
 
-            if (isBetaN) {
-                vbroadcastss(VBETA, BETA);
-            }
+            if (isBetaN) { vbroadcastss(VBETA, BETA); }
 
             // Write back the results; all beta and bias cases need to be
             // handled
             switch (unroll_n) {
-            case 1: mov(rax, LDC); break;
-            case 2: lea(rax, ptr[LDC * 2]); break;
-            case 3: lea(rax, ptr[LDC + LDC * 2]); break;
-            case 4: lea(rax, ptr[LDC + LDC * 4]); break;
-            case 5:
-                lea(rax, ptr[LDC * 4]);
-                add(rax, LDC);
-                break;
-            case 6:
-                lea(rax, ptr[LDC + LDC * 2]);
-                add(rax, rax);
-                break;
+                case 1: mov(rax, LDC); break;
+                case 2: lea(rax, ptr[LDC * 2]); break;
+                case 3: lea(rax, ptr[LDC + LDC * 2]); break;
+                case 4: lea(rax, ptr[LDC + LDC * 4]); break;
+                case 5:
+                    lea(rax, ptr[LDC * 4]);
+                    add(rax, LDC);
+                    break;
+                case 6:
+                    lea(rax, ptr[LDC + LDC * 2]);
+                    add(rax, rax);
+                    break;
             }
 
             if (hasBias) {
@@ -1558,39 +1558,45 @@ struct xbyak_gemm : public jit_generator {
                 if (!isBeta0) {
                     if (isLoad1Unmasked) {
                         switch (i) {
-                        case 0: vmovups(ymm0, ptr[CO1 + 0 * SIZE]); break;
-                        case 1: vmovups(ymm0, ptr[CO1 + LDC + 0 * SIZE]); break;
-                        case 2:
-                            vmovups(ymm0, ptr[CO1 + LDC * 2 + 0 * SIZE]);
-                            break;
-                        case 3: vmovups(ymm0, ptr[CO2 + 0 * SIZE]); break;
-                        case 4: vmovups(ymm0, ptr[CO2 + LDC + 0 * SIZE]); break;
-                        case 5:
-                            vmovups(ymm0, ptr[CO2 + LDC * 2 + 0 * SIZE]);
-                            break;
+                            case 0: vmovups(ymm0, ptr[CO1 + 0 * SIZE]); break;
+                            case 1:
+                                vmovups(ymm0, ptr[CO1 + LDC + 0 * SIZE]);
+                                break;
+                            case 2:
+                                vmovups(ymm0, ptr[CO1 + LDC * 2 + 0 * SIZE]);
+                                break;
+                            case 3: vmovups(ymm0, ptr[CO2 + 0 * SIZE]); break;
+                            case 4:
+                                vmovups(ymm0, ptr[CO2 + LDC + 0 * SIZE]);
+                                break;
+                            case 5:
+                                vmovups(ymm0, ptr[CO2 + LDC * 2 + 0 * SIZE]);
+                                break;
                         }
                     } else {
                         switch (i) {
-                        case 0:
-                            vmaskmovps(ymm0, VMASK, ptr[CO1 + 0 * SIZE]);
-                            break;
-                        case 1:
-                            vmaskmovps(ymm0, VMASK, ptr[CO1 + LDC + 0 * SIZE]);
-                            break;
-                        case 2:
-                            vmaskmovps(
-                                    ymm0, VMASK, ptr[CO1 + LDC * 2 + 0 * SIZE]);
-                            break;
-                        case 3:
-                            vmaskmovps(ymm0, VMASK, ptr[CO2 + 0 * SIZE]);
-                            break;
-                        case 4:
-                            vmaskmovps(ymm0, VMASK, ptr[CO2 + LDC + 0 * SIZE]);
-                            break;
-                        case 5:
-                            vmaskmovps(
-                                    ymm0, VMASK, ptr[CO2 + LDC * 2 + 0 * SIZE]);
-                            break;
+                            case 0:
+                                vmaskmovps(ymm0, VMASK, ptr[CO1 + 0 * SIZE]);
+                                break;
+                            case 1:
+                                vmaskmovps(
+                                        ymm0, VMASK, ptr[CO1 + LDC + 0 * SIZE]);
+                                break;
+                            case 2:
+                                vmaskmovps(ymm0, VMASK,
+                                        ptr[CO1 + LDC * 2 + 0 * SIZE]);
+                                break;
+                            case 3:
+                                vmaskmovps(ymm0, VMASK, ptr[CO2 + 0 * SIZE]);
+                                break;
+                            case 4:
+                                vmaskmovps(
+                                        ymm0, VMASK, ptr[CO2 + LDC + 0 * SIZE]);
+                                break;
+                            case 5:
+                                vmaskmovps(ymm0, VMASK,
+                                        ptr[CO2 + LDC * 2 + 0 * SIZE]);
+                                break;
                         }
                     }
 
@@ -1600,50 +1606,48 @@ struct xbyak_gemm : public jit_generator {
                         fma(useFma, VBETA, ymm0, Ymm(i + 4), true);
                     }
                 }
-                if (hasBias) {
-                    vaddps(Ymm(i + 4), VBIAS1, Ymm(i + 4));
-                }
+                if (hasBias) { vaddps(Ymm(i + 4), VBIAS1, Ymm(i + 4)); }
                 if (isLoad1Unmasked) {
                     switch (i) {
-                    case 0: vmovups(ptr[CO1 + 0 * SIZE], Ymm(i + 4)); break;
-                    case 1:
-                        vmovups(ptr[CO1 + LDC + 0 * SIZE], Ymm(i + 4));
-                        break;
-                    case 2:
-                        vmovups(ptr[CO1 + LDC * 2 + 0 * SIZE], Ymm(i + 4));
-                        break;
-                    case 3: vmovups(ptr[CO2 + 0 * SIZE], Ymm(i + 4)); break;
-                    case 4:
-                        vmovups(ptr[CO2 + LDC + 0 * SIZE], Ymm(i + 4));
-                        break;
-                    case 5:
-                        vmovups(ptr[CO2 + LDC * 2 + 0 * SIZE], Ymm(i + 4));
-                        break;
+                        case 0: vmovups(ptr[CO1 + 0 * SIZE], Ymm(i + 4)); break;
+                        case 1:
+                            vmovups(ptr[CO1 + LDC + 0 * SIZE], Ymm(i + 4));
+                            break;
+                        case 2:
+                            vmovups(ptr[CO1 + LDC * 2 + 0 * SIZE], Ymm(i + 4));
+                            break;
+                        case 3: vmovups(ptr[CO2 + 0 * SIZE], Ymm(i + 4)); break;
+                        case 4:
+                            vmovups(ptr[CO2 + LDC + 0 * SIZE], Ymm(i + 4));
+                            break;
+                        case 5:
+                            vmovups(ptr[CO2 + LDC * 2 + 0 * SIZE], Ymm(i + 4));
+                            break;
                     }
                 } else {
                     switch (i) {
-                    case 0:
-                        vmaskmovps(ptr[CO1 + 0 * SIZE], VMASK, Ymm(i + 4));
-                        break;
-                    case 1:
-                        vmaskmovps(
-                                ptr[CO1 + LDC + 0 * SIZE], VMASK, Ymm(i + 4));
-                        break;
-                    case 2:
-                        vmaskmovps(ptr[CO1 + LDC * 2 + 0 * SIZE], VMASK,
-                                Ymm(i + 4));
-                        break;
-                    case 3:
-                        vmaskmovps(ptr[CO2 + 0 * SIZE], VMASK, Ymm(i + 4));
-                        break;
-                    case 4:
-                        vmaskmovps(
-                                ptr[CO2 + LDC + 0 * SIZE], VMASK, Ymm(i + 4));
-                        break;
-                    case 5:
-                        vmaskmovps(ptr[CO2 + LDC * 2 + 0 * SIZE], VMASK,
-                                Ymm(i + 4));
-                        break;
+                        case 0:
+                            vmaskmovps(ptr[CO1 + 0 * SIZE], VMASK, Ymm(i + 4));
+                            break;
+                        case 1:
+                            vmaskmovps(ptr[CO1 + LDC + 0 * SIZE], VMASK,
+                                    Ymm(i + 4));
+                            break;
+                        case 2:
+                            vmaskmovps(ptr[CO1 + LDC * 2 + 0 * SIZE], VMASK,
+                                    Ymm(i + 4));
+                            break;
+                        case 3:
+                            vmaskmovps(ptr[CO2 + 0 * SIZE], VMASK, Ymm(i + 4));
+                            break;
+                        case 4:
+                            vmaskmovps(ptr[CO2 + LDC + 0 * SIZE], VMASK,
+                                    Ymm(i + 4));
+                            break;
+                        case 5:
+                            vmaskmovps(ptr[CO2 + LDC * 2 + 0 * SIZE], VMASK,
+                                    Ymm(i + 4));
+                            break;
                     }
                 }
 
@@ -1663,45 +1667,53 @@ struct xbyak_gemm : public jit_generator {
                     if (!isBeta0) {
                         if (isLoad2Unmasked) {
                             switch (i) {
-                            case 0: vmovups(ymm0, ptr[CO1 + 8 * SIZE]); break;
-                            case 1:
-                                vmovups(ymm0, ptr[CO1 + LDC + 8 * SIZE]);
-                                break;
-                            case 2:
-                                vmovups(ymm0, ptr[CO1 + LDC * 2 + 8 * SIZE]);
-                                break;
-                            case 3: vmovups(ymm0, ptr[CO2 + 8 * SIZE]); break;
-                            case 4:
-                                vmovups(ymm0, ptr[CO2 + LDC + 8 * SIZE]);
-                                break;
-                            case 5:
-                                vmovups(ymm0, ptr[CO2 + LDC * 2 + 8 * SIZE]);
-                                break;
+                                case 0:
+                                    vmovups(ymm0, ptr[CO1 + 8 * SIZE]);
+                                    break;
+                                case 1:
+                                    vmovups(ymm0, ptr[CO1 + LDC + 8 * SIZE]);
+                                    break;
+                                case 2:
+                                    vmovups(ymm0,
+                                            ptr[CO1 + LDC * 2 + 8 * SIZE]);
+                                    break;
+                                case 3:
+                                    vmovups(ymm0, ptr[CO2 + 8 * SIZE]);
+                                    break;
+                                case 4:
+                                    vmovups(ymm0, ptr[CO2 + LDC + 8 * SIZE]);
+                                    break;
+                                case 5:
+                                    vmovups(ymm0,
+                                            ptr[CO2 + LDC * 2 + 8 * SIZE]);
+                                    break;
                             }
                         } else {
                             switch (i) {
-                            case 0:
-                                vmaskmovps(ymm0, VMASK, ptr[CO1 + 8 * SIZE]);
-                                break;
-                            case 1:
-                                vmaskmovps(
-                                        ymm0, VMASK, ptr[CO1 + LDC + 8 * SIZE]);
-                                break;
-                            case 2:
-                                vmaskmovps(ymm0, VMASK,
-                                        ptr[CO1 + LDC * 2 + 8 * SIZE]);
-                                break;
-                            case 3:
-                                vmaskmovps(ymm0, VMASK, ptr[CO2 + 8 * SIZE]);
-                                break;
-                            case 4:
-                                vmaskmovps(
-                                        ymm0, VMASK, ptr[CO2 + LDC + 8 * SIZE]);
-                                break;
-                            case 5:
-                                vmaskmovps(ymm0, VMASK,
-                                        ptr[CO2 + LDC * 2 + 8 * SIZE]);
-                                break;
+                                case 0:
+                                    vmaskmovps(
+                                            ymm0, VMASK, ptr[CO1 + 8 * SIZE]);
+                                    break;
+                                case 1:
+                                    vmaskmovps(ymm0, VMASK,
+                                            ptr[CO1 + LDC + 8 * SIZE]);
+                                    break;
+                                case 2:
+                                    vmaskmovps(ymm0, VMASK,
+                                            ptr[CO1 + LDC * 2 + 8 * SIZE]);
+                                    break;
+                                case 3:
+                                    vmaskmovps(
+                                            ymm0, VMASK, ptr[CO2 + 8 * SIZE]);
+                                    break;
+                                case 4:
+                                    vmaskmovps(ymm0, VMASK,
+                                            ptr[CO2 + LDC + 8 * SIZE]);
+                                    break;
+                                case 5:
+                                    vmaskmovps(ymm0, VMASK,
+                                            ptr[CO2 + LDC * 2 + 8 * SIZE]);
+                                    break;
                             }
                         }
                         if (!isBetaN) {
@@ -1710,94 +1722,93 @@ struct xbyak_gemm : public jit_generator {
                             fma(useFma, VBETA, ymm0, Ymm(i + 10), true);
                         }
                     }
-                    if (hasBias) {
-                        vaddps(Ymm(i + 10), VBIAS2, Ymm(i + 10));
-                    }
+                    if (hasBias) { vaddps(Ymm(i + 10), VBIAS2, Ymm(i + 10)); }
                     if (isLoad2Unmasked) {
                         switch (i) {
-                        case 0:
-                            vmovups(ptr[CO1 + 8 * SIZE], Ymm(i + 10));
-                            break;
-                        case 1:
-                            vmovups(ptr[CO1 + LDC + 8 * SIZE], Ymm(i + 10));
-                            break;
-                        case 2:
-                            vmovups(ptr[CO1 + LDC * 2 + 8 * SIZE], Ymm(i + 10));
-                            break;
-                        case 3:
-                            vmovups(ptr[CO2 + 8 * SIZE], Ymm(i + 10));
-                            break;
-                        case 4:
-                            vmovups(ptr[CO2 + LDC + 8 * SIZE], Ymm(i + 10));
-                            break;
-                        case 5:
-                            vmovups(ptr[CO2 + LDC * 2 + 8 * SIZE], Ymm(i + 10));
-                            break;
+                            case 0:
+                                vmovups(ptr[CO1 + 8 * SIZE], Ymm(i + 10));
+                                break;
+                            case 1:
+                                vmovups(ptr[CO1 + LDC + 8 * SIZE], Ymm(i + 10));
+                                break;
+                            case 2:
+                                vmovups(ptr[CO1 + LDC * 2 + 8 * SIZE],
+                                        Ymm(i + 10));
+                                break;
+                            case 3:
+                                vmovups(ptr[CO2 + 8 * SIZE], Ymm(i + 10));
+                                break;
+                            case 4:
+                                vmovups(ptr[CO2 + LDC + 8 * SIZE], Ymm(i + 10));
+                                break;
+                            case 5:
+                                vmovups(ptr[CO2 + LDC * 2 + 8 * SIZE],
+                                        Ymm(i + 10));
+                                break;
                         }
                     } else {
                         switch (i) {
-                        case 0:
-                            vmaskmovps(ptr[CO1 + 8 * SIZE], VMASK, Ymm(i + 10));
-                            break;
-                        case 1:
-                            vmaskmovps(ptr[CO1 + LDC + 8 * SIZE], VMASK,
-                                    Ymm(i + 10));
-                            break;
-                        case 2:
-                            vmaskmovps(ptr[CO1 + LDC * 2 + 8 * SIZE], VMASK,
-                                    Ymm(i + 10));
-                            break;
-                        case 3:
-                            vmaskmovps(ptr[CO2 + 8 * SIZE], VMASK, Ymm(i + 10));
-                            break;
-                        case 4:
-                            vmaskmovps(ptr[CO2 + LDC + 8 * SIZE], VMASK,
-                                    Ymm(i + 10));
-                            break;
-                        case 5:
-                            vmaskmovps(ptr[CO2 + LDC * 2 + 8 * SIZE], VMASK,
-                                    Ymm(i + 10));
-                            break;
+                            case 0:
+                                vmaskmovps(ptr[CO1 + 8 * SIZE], VMASK,
+                                        Ymm(i + 10));
+                                break;
+                            case 1:
+                                vmaskmovps(ptr[CO1 + LDC + 8 * SIZE], VMASK,
+                                        Ymm(i + 10));
+                                break;
+                            case 2:
+                                vmaskmovps(ptr[CO1 + LDC * 2 + 8 * SIZE], VMASK,
+                                        Ymm(i + 10));
+                                break;
+                            case 3:
+                                vmaskmovps(ptr[CO2 + 8 * SIZE], VMASK,
+                                        Ymm(i + 10));
+                                break;
+                            case 4:
+                                vmaskmovps(ptr[CO2 + LDC + 8 * SIZE], VMASK,
+                                        Ymm(i + 10));
+                                break;
+                            case 5:
+                                vmaskmovps(ptr[CO2 + LDC * 2 + 8 * SIZE], VMASK,
+                                        Ymm(i + 10));
+                                break;
                         }
                     }
                 }
-                if (i == 2)
-                    add(CO1, rax);
+                if (i == 2) add(CO1, rax);
             }
-            if (unroll_n >= 4) {
-                add(CO2, rax);
-            }
+            if (unroll_n >= 4) { add(CO2, rax); }
 
             // Compute next address of B
             if (!isTransB) {
                 lea(rax, ptr[K * SIZE]);
                 switch (unroll_n) {
-                case 1:
-                    add(BO1, LDB);
-                    add(BO2, LDB);
-                    break;
-                case 2:
-                    lea(BO1, ptr[BO1 + LDB * 2]);
-                    lea(BO2, ptr[BO2 + LDB * 2]);
-                    break;
-                case 3:
-                    lea(BO1, ptr[BO1 + LDB3]);
-                    lea(BO2, ptr[BO2 + LDB3]);
-                    break;
-                case 4:
-                    lea(BO1, ptr[BO1 + LDB * 4]);
-                    lea(BO2, ptr[BO2 + LDB * 4]);
-                    break;
-                case 5:
-                    lea(BO1, ptr[BO1 + LDB * 4]);
-                    add(BO1, LDB);
-                    lea(BO2, ptr[BO2 + LDB * 4]);
-                    add(BO2, LDB);
-                    break;
-                case 6:
-                    lea(BO1, ptr[BO1 + LDB3 * 2]);
-                    lea(BO2, ptr[BO2 + LDB3 * 2]);
-                    break;
+                    case 1:
+                        add(BO1, LDB);
+                        add(BO2, LDB);
+                        break;
+                    case 2:
+                        lea(BO1, ptr[BO1 + LDB * 2]);
+                        lea(BO2, ptr[BO2 + LDB * 2]);
+                        break;
+                    case 3:
+                        lea(BO1, ptr[BO1 + LDB3]);
+                        lea(BO2, ptr[BO2 + LDB3]);
+                        break;
+                    case 4:
+                        lea(BO1, ptr[BO1 + LDB * 4]);
+                        lea(BO2, ptr[BO2 + LDB * 4]);
+                        break;
+                    case 5:
+                        lea(BO1, ptr[BO1 + LDB * 4]);
+                        add(BO1, LDB);
+                        lea(BO2, ptr[BO2 + LDB * 4]);
+                        add(BO2, LDB);
+                        break;
+                    case 6:
+                        lea(BO1, ptr[BO1 + LDB3 * 2]);
+                        lea(BO2, ptr[BO2 + LDB3 * 2]);
+                        break;
                 }
                 sub(BO1, rax);
                 sub(BO2, rax);
@@ -1809,27 +1820,30 @@ struct xbyak_gemm : public jit_generator {
             }
         };
 
-        auto kernel_16x6 = [&](int unroll_m, int unroll_n, bool isLoad1Unmasked,
-                bool isLoad2Unmasked, bool isDirect, bool isCopy) {
-            kernel(unroll_m, unroll_n, isLoad1Unmasked, isLoad2Unmasked,
-                    isDirect, isCopy, true);
-        };
+        auto kernel_16x6
+                = [&](int unroll_m, int unroll_n, bool isLoad1Unmasked,
+                          bool isLoad2Unmasked, bool isDirect, bool isCopy) {
+                      kernel(unroll_m, unroll_n, isLoad1Unmasked,
+                              isLoad2Unmasked, isDirect, isCopy, true);
+                  };
 
-        auto kernel_16x5 = [&](int unroll_m, int unroll_n, bool isLoad1Unmasked,
-                bool isLoad2Unmasked, bool isDirect, bool isCopy) {
-            kernel(unroll_m, unroll_n, isLoad1Unmasked, isLoad2Unmasked,
-                    isDirect, isCopy, true);
-        };
+        auto kernel_16x5
+                = [&](int unroll_m, int unroll_n, bool isLoad1Unmasked,
+                          bool isLoad2Unmasked, bool isDirect, bool isCopy) {
+                      kernel(unroll_m, unroll_n, isLoad1Unmasked,
+                              isLoad2Unmasked, isDirect, isCopy, true);
+                  };
 
-        auto kernel_16x4 = [&](int unroll_m, int unroll_n, bool isLoad1Unmasked,
-                bool isLoad2Unmasked, bool isDirect, bool isCopy) {
-            kernel(unroll_m, unroll_n, isLoad1Unmasked, isLoad2Unmasked,
-                    isDirect, isCopy, true);
-        };
+        auto kernel_16x4
+                = [&](int unroll_m, int unroll_n, bool isLoad1Unmasked,
+                          bool isLoad2Unmasked, bool isDirect, bool isCopy) {
+                      kernel(unroll_m, unroll_n, isLoad1Unmasked,
+                              isLoad2Unmasked, isDirect, isCopy, true);
+                  };
 
         auto kernel_16x3 = [&](int unroll_m, int unroll_n, bool isLoad1Unmasked,
-                bool isLoad2Unmasked, bool isDirect, bool isCopy,
-                bool useFma = true) {
+                                   bool isLoad2Unmasked, bool isDirect,
+                                   bool isCopy, bool useFma = true) {
             kernel(unroll_m, unroll_n, isLoad1Unmasked, isLoad2Unmasked,
                     isDirect, isCopy, useFma, Ymm(4), Ymm(5), Ymm(6), Ymm(7),
                     Ymm(8), Ymm(9), Ymm(10), Ymm(11), Ymm(12), Ymm(13), Ymm(14),
@@ -1837,21 +1851,23 @@ struct xbyak_gemm : public jit_generator {
                     Ymm(13), Ymm(14), Ymm(15));
         };
 
-        auto kernel_16x2 = [&](int unroll_m, int unroll_n, bool isLoad1Unmasked,
-                bool isLoad2Unmasked, bool isDirect, bool isCopy) {
-            kernel_16x3(unroll_m, unroll_n, isLoad1Unmasked, isLoad2Unmasked,
-                    isDirect, isCopy, false);
-        };
+        auto kernel_16x2
+                = [&](int unroll_m, int unroll_n, bool isLoad1Unmasked,
+                          bool isLoad2Unmasked, bool isDirect, bool isCopy) {
+                      kernel_16x3(unroll_m, unroll_n, isLoad1Unmasked,
+                              isLoad2Unmasked, isDirect, isCopy, false);
+                  };
 
-        auto kernel_16x1 = [&](int unroll_m, int unroll_n, bool isLoad1Unmasked,
-                bool isLoad2Unmasked, bool isDirect, bool isCopy) {
-            kernel_16x3(unroll_m, unroll_n, isLoad1Unmasked, isLoad2Unmasked,
-                    isDirect, isCopy, false);
-        };
+        auto kernel_16x1
+                = [&](int unroll_m, int unroll_n, bool isLoad1Unmasked,
+                          bool isLoad2Unmasked, bool isDirect, bool isCopy) {
+                      kernel_16x3(unroll_m, unroll_n, isLoad1Unmasked,
+                              isLoad2Unmasked, isDirect, isCopy, false);
+                  };
 
         auto kernel_8x6 = [&](int unroll_m, int unroll_n, bool isLoad1Unmasked,
-                bool isLoad2Unmasked, bool isDirect, bool isCopy,
-                bool useFma = true) {
+                                  bool isLoad2Unmasked, bool isDirect,
+                                  bool isCopy, bool useFma = true) {
             kernel(unroll_m, unroll_n, isLoad1Unmasked, isLoad2Unmasked,
                     isDirect, isCopy, useFma, Ymm(4), Ymm(5), Ymm(6), Ymm(7),
                     Ymm(8), Ymm(9), Ymm(10), Ymm(11), Ymm(12), Ymm(13), Ymm(14),
@@ -1859,21 +1875,23 @@ struct xbyak_gemm : public jit_generator {
                     Ymm(15));
         };
 
-        auto kernel_8x5 = [&](int unroll_m, int unroll_n, bool isLoad1Unmasked,
-                bool isLoad2Unmasked, bool isDirect, bool isCopy) {
-            kernel_8x6(unroll_m, unroll_n, isLoad1Unmasked, isLoad2Unmasked,
-                    isDirect, isCopy);
-        };
+        auto kernel_8x5
+                = [&](int unroll_m, int unroll_n, bool isLoad1Unmasked,
+                          bool isLoad2Unmasked, bool isDirect, bool isCopy) {
+                      kernel_8x6(unroll_m, unroll_n, isLoad1Unmasked,
+                              isLoad2Unmasked, isDirect, isCopy);
+                  };
 
-        auto kernel_8x4 = [&](int unroll_m, int unroll_n, bool isLoad1Unmasked,
-                bool isLoad2Unmasked, bool isDirect, bool isCopy) {
-            kernel_8x6(unroll_m, unroll_n, isLoad1Unmasked, isLoad2Unmasked,
-                    isDirect, isCopy);
-        };
+        auto kernel_8x4
+                = [&](int unroll_m, int unroll_n, bool isLoad1Unmasked,
+                          bool isLoad2Unmasked, bool isDirect, bool isCopy) {
+                      kernel_8x6(unroll_m, unroll_n, isLoad1Unmasked,
+                              isLoad2Unmasked, isDirect, isCopy);
+                  };
 
         auto kernel_8x3 = [&](int unroll_m, int unroll_n, bool isLoad1Unmasked,
-                bool isLoad2Unmasked, bool isDirect, bool isCopy,
-                bool useFma = true) {
+                                  bool isLoad2Unmasked, bool isDirect,
+                                  bool isCopy, bool useFma = true) {
             kernel(unroll_m, unroll_n, isLoad1Unmasked, isLoad2Unmasked,
                     isDirect, isCopy, useFma, Ymm(4), Ymm(5), Ymm(6), Ymm(7),
                     Ymm(8), Ymm(9), Ymm(10), Ymm(11), Ymm(12), Ymm(13), Ymm(14),
@@ -1881,24 +1899,26 @@ struct xbyak_gemm : public jit_generator {
                     Ymm(13), Ymm(14), Ymm(15));
         };
 
-        auto kernel_8x2 = [&](int unroll_m, int unroll_n, bool isLoad1Unmasked,
-                bool isLoad2Unmasked, bool isDirect, bool isCopy) {
-            kernel_8x3(unroll_m, unroll_n, isLoad1Unmasked, isLoad2Unmasked,
-                    isDirect, isCopy, false);
-        };
+        auto kernel_8x2
+                = [&](int unroll_m, int unroll_n, bool isLoad1Unmasked,
+                          bool isLoad2Unmasked, bool isDirect, bool isCopy) {
+                      kernel_8x3(unroll_m, unroll_n, isLoad1Unmasked,
+                              isLoad2Unmasked, isDirect, isCopy, false);
+                  };
 
-        auto kernel_8x1 = [&](int unroll_m, int unroll_n, bool isLoad1Unmasked,
-                bool isLoad2Unmasked, bool isDirect, bool isCopy) {
-            kernel_8x3(unroll_m, unroll_n, isLoad1Unmasked, isLoad2Unmasked,
-                    isDirect, isCopy, false);
-        };
+        auto kernel_8x1
+                = [&](int unroll_m, int unroll_n, bool isLoad1Unmasked,
+                          bool isLoad2Unmasked, bool isDirect, bool isCopy) {
+                      kernel_8x3(unroll_m, unroll_n, isLoad1Unmasked,
+                              isLoad2Unmasked, isDirect, isCopy, false);
+                  };
 
         // High-level subroutine; does packing if needed, then splits C matrix.
         // Operates on chunks of 16 rows, 6 columns at a time (handling tail
         // cases appropriately).
         // Masking is used for tail cases where M is not divisible by 8.
-        auto subloop = [&](
-                int unroll_m, bool isLoad1Unmasked, bool isLoad2Unmasked) {
+        auto subloop = [&](int unroll_m, bool isLoad1Unmasked,
+                               bool isLoad2Unmasked) {
             if (isTransA) {
                 do_pack(unroll_m, isLoad1Unmasked, isLoad2Unmasked);
             }
@@ -1916,9 +1936,7 @@ struct xbyak_gemm : public jit_generator {
             add(CO2, LDC);
             add(C, unroll_m * SIZE);
             mov(BO1, B);
-            if (!isTransB) {
-                lea(BO2, qword[B + LDB3]);
-            }
+            if (!isTransB) { lea(BO2, qword[B + LDB3]); }
 
             if (!isTransA) {
                 lea(AA, ptr[A + (unroll_m * 2 - 1 - OFFSET) * SIZE]);
@@ -2142,9 +2160,7 @@ struct xbyak_gemm : public jit_generator {
             }
 
             // Compute next address of BIAS
-            if (hasBias) {
-                add(BIAS, unroll_m * SIZE);
-            }
+            if (hasBias) { add(BIAS, unroll_m * SIZE); }
         };
 
         preamble();
@@ -2156,8 +2172,7 @@ struct xbyak_gemm : public jit_generator {
         mov(LDB, ARG_LDB);
         mov(r15, ARG_BETA);
         mov(r12, ARG_C);
-        if (hasBias)
-            mov(r10, ARG_BIAS);
+        if (hasBias) mov(r10, ARG_BIAS);
         mov(LDC, ARG_LDC);
         mov(rbp, rsp);
 
@@ -2189,8 +2204,7 @@ struct xbyak_gemm : public jit_generator {
         mov(M, ARG_M);
         mov(N, ARG_N);
         mov(C, r12);
-        if (hasBias)
-            mov(BIAS, r10);
+        if (hasBias) mov(BIAS, r10);
         vmovss(ALPHA, xmm0);
         vmovss(BETA, xmm1);
         sub(A, -OFFSET * SIZE);
@@ -2287,16 +2301,15 @@ struct xbyak_gemm : public jit_generator {
         ker_ = this->getCode<ker_t>();
     }
 
-    typedef void (*ker_t)(dim_t m, dim_t n, dim_t k,
-            const float *alpha, const float *a, dim_t lda,
-            const float *b, dim_t ldb, const float *beta, float *c,
-            dim_t ldc, const float *bias, float *ws);
+    typedef void (*ker_t)(dim_t m, dim_t n, dim_t k, const float *alpha,
+            const float *a, dim_t lda, const float *b, dim_t ldb,
+            const float *beta, float *c, dim_t ldc, const float *bias,
+            float *ws);
 
-    void operator()(dim_t  m, dim_t n, dim_t k,
-            const float *alpha, const float *a, dim_t lda,
-            const float *b, dim_t ldb, const float *beta, float *c,
-            dim_t ldc, const float *bias, float *ws) const
-    {
+    void operator()(dim_t m, dim_t n, dim_t k, const float *alpha,
+            const float *a, dim_t lda, const float *b, dim_t ldb,
+            const float *beta, float *c, dim_t ldc, const float *bias,
+            float *ws) const {
         ker_(m, n, k, alpha, a, lda, b, ldb, beta, c, ldc, bias, ws);
     }
 
@@ -2313,26 +2326,27 @@ const xbyak_gemm *get_xbyak_gemm(
     // Kernel table [isTransA][isTransB][hasBias][beta (0, 1, other)]
     static xbyak_gemm *kernel_table[2][2][2][3];
     static std::once_flag initialized;
-    std::call_once(initialized, [=]{
-            for (bool isTransA: {false, true})
-            for (bool isTransB: {false, true})
-            for (bool hasBias: {false, true})
-            for (float beta: {0.0f, 1.0f, 2.0f}) {
-                // nocopy sgemm with bias for beta != 0.0 is not supported
-                if (hasBias && beta != 0.0)
-                    continue;
-                kernel_table[isTransA][isTransB][hasBias][beta_idx(beta)] =
-                    new xbyak_gemm(isTransA, isTransB, beta, hasBias);
-            }
+    std::call_once(initialized, [=] {
+        for (bool isTransA : {false, true})
+            for (bool isTransB : {false, true})
+                for (bool hasBias : {false, true})
+                    for (float beta : {0.0f, 1.0f, 2.0f}) {
+                        // nocopy sgemm with bias for beta != 0.0 is not supported
+                        if (hasBias && beta != 0.0) continue;
+                        kernel_table[isTransA][isTransB][hasBias]
+                                    [beta_idx(beta)]
+                                = new xbyak_gemm(
+                                        isTransA, isTransB, beta, hasBias);
+                    }
     });
 
     return kernel_table[isTransA][isTransB][hasBias][beta_idx(beta)];
 }
 
-void sgemm_nocopy_driver(const char *transa,
-        const char *transb, int m, int n, int k, const float *alpha,
-        const float *a, dim_t lda, const float *b, dim_t ldb, const float *beta,
-        float *c, dim_t ldc, const float *bias, float *ws) {
+void sgemm_nocopy_driver(const char *transa, const char *transb, int m, int n,
+        int k, const float *alpha, const float *a, dim_t lda, const float *b,
+        dim_t ldb, const float *beta, float *c, dim_t ldc, const float *bias,
+        float *ws) {
 
     bool isTransA = (*transa == 'T' || *transa == 't');
     bool isTransB = (*transb == 'T' || *transb == 't');
@@ -2341,8 +2355,7 @@ void sgemm_nocopy_driver(const char *transa,
 
     int i, j;
 
-    if ((m <= 0) || (n <= 0))
-        return;
+    if ((m <= 0) || (n <= 0)) return;
 
     if ((k <= 0) || (alpha[0] == 0.)) {
 
@@ -2379,8 +2392,7 @@ void sgemm_nocopy_driver(const char *transa,
         if (sizeK >= BK * 2)
             sizeK = BK;
         else {
-            if (sizeK > BK)
-                sizeK = (sizeK + 1) / 2;
+            if (sizeK > BK) sizeK = (sizeK + 1) / 2;
         }
 
         for (Bm = 0; Bm < m; Bm += sizeM) {
@@ -2388,8 +2400,7 @@ void sgemm_nocopy_driver(const char *transa,
             if (sizeM >= BM * 2)
                 sizeM = BM;
             else {
-                if (sizeM > BM + BM / 2)
-                    sizeM = (sizeM + 1) / 2;
+                if (sizeM > BM + BM / 2) sizeM = (sizeM + 1) / 2;
             }
 
             for (Bn = 0; Bn < n; Bn += sizeN) {
@@ -2397,8 +2408,7 @@ void sgemm_nocopy_driver(const char *transa,
                 if (sizeN >= BN * 2)
                     sizeN = BN;
                 else {
-                    if (sizeN > BN + BN / 2)
-                        sizeN = (sizeN + 1) / 2;
+                    if (sizeN > BN + BN / 2) sizeN = (sizeN + 1) / 2;
                 }
 
                 if (!isTransA) {
@@ -2429,19 +2439,18 @@ void sgemm_nocopy_driver(const char *transa,
                                 alpha, curA, lda, curB, ldb, beta, curC, ldc,
                                 curBias, ws);
                 } else {
-                    (*ker_b1)((dim_t)sizeM, (dim_t)sizeN, (dim_t)sizeK,
-                            alpha, curA, lda, curB, ldb, beta, curC, ldc,
-                            curBias, ws);
+                    (*ker_b1)((dim_t)sizeM, (dim_t)sizeN, (dim_t)sizeK, alpha,
+                            curA, lda, curB, ldb, beta, curC, ldc, curBias, ws);
                 }
             }
         }
     }
+    msan_unpoison_matrix(c, m, n, ldc, sizeof(*c));
 }
 
-}
+} // namespace avx_gemm_f32
 
-mkldnn_status_t jit_avx_gemm_f32(
-        const char *transa, const char *transb,
+mkldnn_status_t jit_avx_gemm_f32(const char *transa, const char *transb,
         const int *p_m, const int *p_n, const int *p_k, const float *p_alpha,
         const float *A, const int *p_lda, const float *B, const int *p_ldb,
         const float *p_beta, float *C, const int *p_ldc, const float *bias) {
@@ -2451,8 +2460,8 @@ mkldnn_status_t jit_avx_gemm_f32(
     using namespace gemm_utils;
 
     if (*p_beta != 0 && bias)
-        return ref_gemm(transa, transb, p_m, p_n, p_k,
-                p_alpha, A, p_lda, B, p_lda, p_beta, C, p_ldc, bias);
+        return ref_gemm(transa, transb, p_m, p_n, p_k, p_alpha, A, p_lda, B,
+                p_lda, p_beta, C, p_ldc, bias);
 
     int nthr = (mkldnn_in_parallel()) ? 1 : mkldnn_get_max_threads();
 
@@ -2473,29 +2482,28 @@ mkldnn_status_t jit_avx_gemm_f32(
     assert(IMPLICATION(!mkldnn_thr_syncable(), nthr_k == 1));
 
     // May not happen, but just in case
-    if (nthr < nthr_m * nthr_n * nthr_k)
-        nthr = nthr_m * nthr_n * nthr_k;
+    if (nthr < nthr_m * nthr_n * nthr_k) nthr = nthr_m * nthr_n * nthr_k;
 
     nthr_mn = nthr_m * nthr_n;
 
-    unsigned char * ompstatus_ = nullptr;
+    unsigned char *ompstatus_ = nullptr;
     unsigned char volatile *ompstatus = nullptr;
 
     float *c_buffers = nullptr;
     float *ws_buffers = nullptr;
 
     if (nthr_k > 1) {
-        ompstatus_ = (unsigned char *) malloc(
-                nthr * CACHE_LINE_SIZE,
-                CACHE_LINE_SIZE);
-        ompstatus = (unsigned char volatile *) ompstatus_;
+        ompstatus_ = (unsigned char *)malloc(
+                nthr * CACHE_LINE_SIZE, CACHE_LINE_SIZE);
+        ompstatus = (unsigned char volatile *)ompstatus_;
         assert(ompstatus);
 
         for (int i = 0; i < nthr; i++)
             ompstatus[i * CACHE_LINE_SIZE] = 0;
 
-        c_buffers = (float *)malloc(nthr_m * nthr_n * (nthr_k - 1) * MB * NB
-                * sizeof(float), PAGE_4K);
+        c_buffers = (float *)malloc(
+                nthr_m * nthr_n * (nthr_k - 1) * MB * NB * sizeof(float),
+                PAGE_4K);
     }
 
     const size_t ws_elems_per_thr = (size_t)k * 16 + 64;
@@ -2513,8 +2521,9 @@ mkldnn_status_t jit_avx_gemm_f32(
         int cbase, ibase;
         const float *myA, *myB, *myBias = nullptr;
         float *myC = C, myBeta;
-        float *ws = ws_buffers ?
-                ws_buffers + ithr * ws_size_per_thr / sizeof(float) : 0;
+        float *ws = ws_buffers
+                ? ws_buffers + ithr * ws_size_per_thr / sizeof(float)
+                : 0;
         dim_t ld = ldc;
 
         int sum_later = (mkldnn_get_num_threads() < nthr_m * nthr_n * nthr_k);
@@ -2534,20 +2543,17 @@ mkldnn_status_t jit_avx_gemm_f32(
 
             m_from = MB * (ithr_m);
             m_to = MB * (ithr_m + 1);
-            if (m_to > m)
-                m_to = m;
+            if (m_to > m) m_to = m;
             myM = m_to - m_from;
 
             n_from = NB * (ithr_n);
             n_to = NB * (ithr_n + 1);
-            if (n_to > n)
-                n_to = n;
+            if (n_to > n) n_to = n;
             myN = n_to - n_from;
 
             k_from = KB * (ithr_k);
             k_to = KB * (ithr_k + 1);
-            if (k_to > k)
-                k_to = k;
+            if (k_to > k) k_to = k;
             myK = k_to - k_from;
 
             cbase = (ithr_m + nthr_m * ithr_n) * (nthr_k - 1);
@@ -2569,8 +2575,7 @@ mkldnn_status_t jit_avx_gemm_f32(
                     myC = &(C[m_from + n_from * ldc]);
                     myBeta = beta;
                     ld = ldc;
-                    if (bias)
-                        myBias = &(bias[m_from]);
+                    if (bias) myBias = &(bias[m_from]);
                 } else {
                     myC = c_buffers + (dim_t)MB * NB * (cbase + ithr_k - 1);
                     myBeta = 0.0;
@@ -2595,10 +2600,9 @@ mkldnn_status_t jit_avx_gemm_f32(
                 if (ithr_k > 0) {
 
                     myC = c_buffers + (dim_t)MB * NB * (cbase + ithr_k - 1)
-                        + (dim_t)n1 * MB;
+                            + (dim_t)n1 * MB;
                     /* need to wait until main thread finishes */
-                    while (ompstatus[ibase * CACHE_LINE_SIZE] != 1) {
-                    };
+                    while (ompstatus[ibase * CACHE_LINE_SIZE] != 1) {};
 
                     /* my cache is hot */
                     sum_two_matrices(myM, n2, myC, MB,
@@ -2609,7 +2613,7 @@ mkldnn_status_t jit_avx_gemm_f32(
                     if (ik != ithr_k) {
 
                         myC = c_buffers + (dim_t)MB * NB * (cbase + ik - 1)
-                            + (dim_t)n1 * MB;
+                                + (dim_t)n1 * MB;
 
                         while (ompstatus[(ibase + ik) * CACHE_LINE_SIZE] != 1) {
                         };
@@ -2647,14 +2651,12 @@ mkldnn_status_t jit_avx_gemm_f32(
 
                 m_from = MB * (ithr_m);
                 m_to = MB * (ithr_m + 1);
-                if (m_to > m)
-                    m_to = m;
+                if (m_to > m) m_to = m;
                 myM = m_to - m_from;
 
                 n_from = NB * (ithr_n);
                 n_to = NB * (ithr_n + 1);
-                if (n_to > n)
-                    n_to = n;
+                if (n_to > n) n_to = n;
                 myN = n_to - n_from;
 
                 cbase = (ithr_m + nthr_m * ithr_n) * (nthr_k - 1);
@@ -2668,18 +2670,18 @@ mkldnn_status_t jit_avx_gemm_f32(
                     if (ithr_k > 0) {
 
                         myC = c_buffers + (dim_t)MB * NB * (cbase + ithr_k - 1)
-                            + (dim_t)n1 * MB;
+                                + (dim_t)n1 * MB;
 
                         /* my cache is hot */
                         sum_two_matrices(myM, n2, myC, MB,
-                                         &C[m_from + (n_from + n1) * ldc], ldc);
+                                &C[m_from + (n_from + n1) * ldc], ldc);
                     }
 
                     for (int ik = 1; ik < nthr_k; ++ik) {
                         if (ik != ithr_k) {
 
                             myC = c_buffers + (dim_t)MB * NB * (cbase + ik - 1)
-                                + (dim_t)n1 * MB;
+                                    + (dim_t)n1 * MB;
 
                             sum_two_matrices(myM, n2, myC, MB,
                                     &C[m_from + (n_from + n1) * ldc], ldc);
@@ -2690,7 +2692,6 @@ mkldnn_status_t jit_avx_gemm_f32(
         });
     }
 
-
     free(c_buffers);
     free(ompstatus_);
     free(ws_buffers);
@@ -2698,8 +2699,8 @@ mkldnn_status_t jit_avx_gemm_f32(
     return mkldnn_success;
 }
 
-}
-}
-}
+} // namespace cpu
+} // namespace impl
+} // namespace mkldnn
 
-// vim: et ts=4 sw=4 cindent cino^=l0,\:0,N-s
+// vim: et ts=4 sw=4 cindent cino+=l0,\:4,N-s

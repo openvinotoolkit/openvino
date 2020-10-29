@@ -698,7 +698,8 @@ TEST(activation_f32_fw_gpu, basic_yxfb_all_functions)
         activation_func::log2,
         activation_func::tan,
         activation_func::negative,
-        activation_func::abs
+        activation_func::abs,
+        activation_func::swish
     };
 
     activation_additional_params params = { 0.5f, 2.5f };
@@ -811,6 +812,9 @@ TEST(activation_f32_fw_gpu, basic_yxfb_all_functions)
                     break;
                 case activation_func::negative:
                     EXPECT_FLOAT_EQ(-((float)input_ptr[i]), output_ptr[i]);
+                    break;
+                case activation_func::swish:
+                    EXPECT_FLOAT_EQ((float)input_ptr[i] / (1.f + std::exp((float)(-input_ptr[i]))), output_ptr[i]);
                     break;
                 default:
                     break;

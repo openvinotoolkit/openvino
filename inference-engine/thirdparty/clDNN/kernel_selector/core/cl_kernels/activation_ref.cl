@@ -57,7 +57,7 @@ KERNEL(activation)(
     const unsigned batch = (uint)get_global_id(2) / OUTPUT_FEATURE_NUM;
 #endif
 #else
-#if defined OUTPUT_LAYOUT_YXFB || defined OUTPUT_LAYOUT_BFYX_F16
+#if defined OUTPUT_LAYOUT_YXFB || defined OUTPUT_LAYOUT_B_FS_YX_FSV16
     const unsigned x = (uint)get_global_id(1);
     const unsigned y = (uint)get_global_id(2);
 #define z 0
