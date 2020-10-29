@@ -1,39 +1,65 @@
 ir_version: 6
 producer_name: "nGraph ONNX Importer"
 graph {
-  name: "basic loop"
+  name: "power calculation"
   node {
     input: "trip_count"
-    input: ""
-    input: "a_init"
-    output: "a_final"
-    output: "a_values"
+    input: "cond"
+    input: "pow_init"
+    output: "pow_final"
+    output: "pow_scans"
     op_type: "Loop"
     attribute {
       name: "body"
       g {
-        name: "simple add"
+        name: "pow calculation subgraph"
         node {
-          input: "a_in"
-          input: "a_init"
-          output: "current_a"
-          name: "loop_body_add"
-          op_type: "Add"
+          input: "i"
+          input: "i"
+          output: "pow"
+          name: "power calc"
+          op_type: "Mul"
         }
         node {
-          input: "cond"
+          input: "cond_in"
           output: "cond_out"
           name: "cond_identity"
           op_type: "Identity"
         }
         node {
-          input: "current_a"
-          output: "a_out"
+          input: "pow"
+          output: "pow_scan"
           name: "output_accumulator"
           op_type: "Identity"
         }
         input {
           name: "i"
+          type {
+            tensor_type {
+              elem_type: 7
+              shape {
+              dim {
+                  dim_value: 1
+                }
+              }
+            }
+          }
+        }
+        input {
+          name: "cond_in"
+          type {
+            tensor_type {
+              elem_type: 9
+              shape {
+              dim {
+                dim_value: 1
+                }
+              }
+            }
+          }
+        }
+        input {
+          name: "pow_in"
           type {
             tensor_type {
               elem_type: 7
@@ -45,69 +71,40 @@ graph {
             }
           }
         }
-        input {
-          name: "cond"
-          type {
-            tensor_type {
-              elem_type: 9
-              shape {
-              }
-            }
-          }
-        }
-        input {
-          name: "a_in"
-          type {
-            tensor_type {
-              elem_type: 1
-              shape {
-                dim {
-                  dim_value: 1
-                }
-                dim {
-                  dim_value: 2
-                }
-              }
-            }
-          }
-        }
         output {
           name: "cond_out"
           type {
             tensor_type {
               elem_type: 9
               shape {
-              }
-            }
-          }
-        }
-        output {
-          name: "current_a"
-          type {
-            tensor_type {
-              elem_type: 1
-              shape {
-                dim {
-                  dim_value: 1
-                }
-                dim {
-                  dim_value: 2
+              dim {
+                dim_value: 1
                 }
               }
             }
           }
         }
         output {
-          name: "a_out"
+          name: "pow"
           type {
             tensor_type {
-              elem_type: 1
+              elem_type: 7
               shape {
-                dim {
-                  dim_value: 1
+              dim {
+                dim_value: 1
                 }
-                dim {
-                  dim_value: 2
+              }
+            }
+          }
+        }
+        output {
+          name: "pow_scan"
+          type {
+            tensor_type {
+              elem_type: 7
+              shape {
+              dim {
+                dim_value: 1
                 }
               }
             }
@@ -119,54 +116,55 @@ graph {
   }
   initializer {
     dims: 1
-    data_type: 7
-    int64_data: 3
-    name: "trip_count"
+    data_type: 9
+    int32_data: 00000001
+    name: "cond"
   }
   input {
-    name: "a_init"
+    name: "trip_count"
     type {
       tensor_type {
-        elem_type: 1
+        elem_type: 7
+        shape {
+        dim {
+            dim_value: 1
+          }
+        }
+      }
+    }
+  }
+  input {
+    name: "pow_init"
+    type {
+      tensor_type {
+        elem_type: 7
         shape {
           dim {
             dim_value: 1
-          }
-          dim {
-            dim_value: 2
           }
         }
       }
     }
   }
   output {
-    name: "a_final"
+    name: "pow_final"
     type {
       tensor_type {
-        elem_type: 1
+        elem_type: 7
         shape {
-          dim {
-            dim_value: 1
-          }
-          dim {
-            dim_value: 2
+        dim {
+          dim_value: 1
           }
         }
       }
     }
   }
   output {
-    name: "a_values"
+    name: "pow_scans"
     type {
       tensor_type {
-        elem_type: 1
+        elem_type: 7
         shape {
-          dim {
-            dim_value: 3
-          }
-          dim {
-            dim_value: 2
-          }
         }
       }
     }

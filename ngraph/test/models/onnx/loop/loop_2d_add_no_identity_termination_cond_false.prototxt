@@ -3,7 +3,7 @@ producer_name: "nGraph ONNX Importer"
 graph {
   name: "basic loop"
   node {
-    input: "trip_count"
+    input: ""
     input: "cond_in"
     input: "a_init"
     output: "a_final"
@@ -20,10 +20,11 @@ graph {
           op_type: "Add"
         }
         node {
-          input: "cond"
+          input: "i"
+          input: "threshold"
           output: "cond_out"
-          name: "cond_identity"
-          op_type: "Identity"
+          name: "condition_calc"
+          op_type: "Less"
         }
         node {
           input: "current_a"
@@ -45,11 +46,6 @@ graph {
           type {
             tensor_type {
               elem_type: 7
-              shape {
-                dim {
-                  dim_value: 1
-                }
-              }
             }
           }
         }
@@ -58,8 +54,6 @@ graph {
           type {
             tensor_type {
               elem_type: 9
-              shape {
-              }
             }
           }
         }
@@ -84,8 +78,6 @@ graph {
           type {
             tensor_type {
               elem_type: 9
-              shape {
-              }
             }
           }
         }
@@ -95,12 +87,6 @@ graph {
             tensor_type {
               elem_type: 1
               shape {
-                dim {
-                  dim_value: 1
-                }
-                dim {
-                  dim_value: 2
-                }
               }
             }
           }
@@ -111,12 +97,6 @@ graph {
             tensor_type {
               elem_type: 1
               shape {
-                dim {
-                  dim_value: 1
-                }
-                dim {
-                  dim_value: 2
-                }
               }
             }
           }
@@ -128,13 +108,13 @@ graph {
   initializer {
     dims: 1
     data_type: 7
-    int64_data: 3
-    name: "trip_count"
+    int64_data: 5
+    name: "threshold"
   }
   initializer {
     dims: 1
     data_type: 9
-    int32_data: 00000001
+    int32_data: 0
     name: "cond_in"
   }
   input {
@@ -159,12 +139,6 @@ graph {
       tensor_type {
         elem_type: 1
         shape {
-          dim {
-            dim_value: 1
-          }
-          dim {
-            dim_value: 2
-          }
         }
       }
     }
@@ -175,12 +149,6 @@ graph {
       tensor_type {
         elem_type: 1
         shape {
-          dim {
-            dim_value: 3
-          }
-          dim {
-            dim_value: 2
-          }
         }
       }
     }
