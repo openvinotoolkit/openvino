@@ -42,7 +42,6 @@ FetchContent_Declare(
     GIT_TAG ${ONNX_GIT_BRANCH}
 )
 
-FetchContent_GetProperties(ext_onnx)
 if(NOT ext_onnx_POPULATED)
     FetchContent_Populate(ext_onnx)
     set(ONNX_NAMESPACE ${NGRAPH_ONNX_NAMESPACE})
@@ -52,7 +51,15 @@ if(NOT ext_onnx_POPULATED)
     if(CMAKE_CROSSCOMPILING)
         set(ONNX_CUSTOM_PROTOC_EXECUTABLE ${SYSTEM_PROTOC})
     endif()
-    add_subdirectory(${ext_onnx_SOURCE_DIR} ${ext_onnx_BINARY_DIR} EXCLUDE_FROM_ALL)
+
+    function(AddOnnxSubDirectory)
+        # In order to force this library to always be static
+        # We change the global BUILD_SHARED_LIBS inside this function scope only
+        set(BUILD_SHARED_LIBS OFF)
+        add_subdirectory(${ext_onnx_SOURCE_DIR} ${ext_onnx_BINARY_DIR} EXCLUDE_FROM_ALL)
+    endfunction()
+
+    AddOnnxSubDirectory()
 endif()
 
 target_include_directories(onnx PRIVATE "${Protobuf_INCLUDE_DIRS}")
