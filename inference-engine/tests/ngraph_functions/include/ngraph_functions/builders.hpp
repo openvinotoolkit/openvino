@@ -426,6 +426,12 @@ std::shared_ptr<ngraph::Node> makeRNN(const OutputVector& in,
                                       bool make_sequence = false,
                                       ngraph::op::RecurrentSequenceDirection direction = ngraph::op::RecurrentSequenceDirection::FORWARD);
 
+std::shared_ptr<ngraph::Node> makeGatherND(
+                                      const ngraph::Output<Node>& dataNode,
+                                      const ngraph::Shape& indicesShape,
+                                      const element::Type& indicesType,
+                                      const std::size_t batchDims);
+
 std::shared_ptr<ngraph::Node> makeTile(const ngraph::Output<Node>& in,
                                        const std::vector<size_t>& repeats);
 
