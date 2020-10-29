@@ -37,10 +37,10 @@ namespace
     std::vector<int64_t> create_pitches(const Shape& dims)
     {
         std::vector<int64_t> pitch;
-        pitch.resize(dims.size());
+        pitch.resize(dims.size() - 1);
         std::partial_sum(
-            dims.rbegin(), dims.rend() - 1, pitch.rbegin() + 1, std::multiplies<int64_t>());
-        pitch.back() = 1;
+            dims.rbegin(), dims.rend() - 1, pitch.rbegin(), std::multiplies<int64_t>());
+        pitch.push_back(1);
         return pitch;
     }
 }
@@ -52,72 +52,53 @@ void runtime::reference::tile(const char* arg,
                               const size_t elem_size,
                               const std::vector<int64_t>& repeats)
 {
-    try
+    Shape in_shape_expanded(in_shape);
+    in_shape_expanded.insert(in_shape_expanded.begin(), out_shape.size() - in_shape.size(), 1);
+    size_t block_size = 0;
+    int64_t num_repeats = 0;
+    const int input_rank = in_shape_expanded.size();
+    const int64_t last_dim = in_shape_expanded[input_rank - 1];
+    const std::vector<int64_t> pitches = create_pitches(out_shape);
+    const char* copy = nullptr;
+
+    std::vector<int64_t> indices(in_shape_expanded.size() - 1, 0);
+    size_t axis = indices.size();
+
+    // Copy and repeat data for innermost axis as many times as described in the repeats parameter
+    while (axis <= indices.size())
     {
-        Shape in_shape_expanded(in_shape);
-        in_shape_expanded.insert(in_shape_expanded.begin(), out_shape.size() - in_shape.size(), 1);
-        size_t block_size = 0;
-        int64_t num_repeats = 0;
-        const int input_rank = in_shape_expanded.size();
-        const int64_t last_dim = in_shape_expanded[input_rank - 1];
-        const std::vector<int64_t> pitches = create_pitches(out_shape);
-        const char* copy = nullptr;
+        block_size = last_dim * elem_size;
+        memcpy(out, arg, block_size);
+        out += block_size;
+        arg += block_size;
 
-        std::vector<int64_t> indices(in_shape_expanded.size() - 1, 0);
-        size_t axis = indices.size();
-
-        // Copy and repeat data for innermost axis as many times as described in the repeats
-        // parameter
-        while (axis <= indices.size())
+        copy = out - block_size;
+        num_repeats = repeats[input_rank - 1] - 1;
+        for (int64_t i = 0; i < num_repeats; ++i)
         {
-            block_size = last_dim * elem_size;
-            memcpy(out, arg, block_size);
+            memcpy(out, copy, block_size);
             out += block_size;
-            arg += block_size;
+        }
 
+        // Copy and repeat data for other axes as many times as described in the repeats parameter
+        while (axis-- != 0)
+        {
+            if (++indices[axis] != in_shape_expanded[axis])
+            {
+                axis = indices.size();
+                break;
+            }
+            indices[axis] = 0;
+
+            ptrdiff_t pitch = pitches[axis] * in_shape_expanded[axis];
+            block_size = pitch * elem_size;
             copy = out - block_size;
-            num_repeats = repeats[input_rank - 1] - 1;
-            for (int64_t i = 0; i < num_repeats; ++i)
+            num_repeats = repeats[axis] - 1;
+            for (int64_t i = 0; i < num_repeats; i++)
             {
                 memcpy(out, copy, block_size);
                 out += block_size;
             }
-
-            // Copy and repeat data for other axes as many times as described in the repeats
-            // parameter
-            while (axis-- != 0)
-            {
-                if (++indices[axis] != in_shape_expanded[axis])
-                {
-                    axis = indices.size();
-                    break;
-                }
-                indices[axis] = 0;
-
-                ptrdiff_t pitch = pitches[axis] * in_shape_expanded[axis];
-                block_size = pitch * elem_size;
-                copy = out - block_size;
-                num_repeats = repeats[axis] - 1;
-                for (int64_t i = 0; i < num_repeats; i++)
-                {
-                    memcpy(out, copy, block_size);
-                    out += block_size;
-                }
-            }
         }
-    }
-    catch (const std::exception& e)
-    {
-        std::stringstream ss;
-        ss << "in_shape: " << in_shape << " | ";
-        ss << "out_shape: " << out_shape << " | ";
-        ss << "elem_size: " << elem_size << " | ";
-        ss << "repeats: ";
-        for (auto& r : repeats)
-        {
-            ss << r << ", ";
-        }
-        ss << "| message: " << e.what();
-        throw std::runtime_error(ss.str());
     }
 }
